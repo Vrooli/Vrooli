@@ -15,7 +15,6 @@ func TestDeprecateResourceArchivesAndRemovesActiveState(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	writeResourceConfig(t, root, "fixture", true)
-	testfixture.WriteResourceRegistryEntry(t, root, "fixture")
 	testfixture.WriteResourceCLI(t, root, "fixture", "#!/usr/bin/env bash\nexit 0\n")
 
 	controller := NewController(root, home)
@@ -28,9 +27,6 @@ func TestDeprecateResourceArchivesAndRemovesActiveState(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, "resources", "fixture")); !os.IsNotExist(err) {
 		t.Fatalf("expected resource directory to be removed, got %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(root, ".vrooli", "resource-registry", "fixture.json")); !os.IsNotExist(err) {
-		t.Fatalf("expected registry file to be removed, got %v", err)
 	}
 	data, err := os.ReadFile(filepath.Join(root, ".vrooli", "service.json"))
 	if err != nil {

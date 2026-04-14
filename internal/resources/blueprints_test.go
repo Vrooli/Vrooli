@@ -51,7 +51,7 @@ func TestSearchBlueprintsMatchesSummaryAndCategory(t *testing.T) {
 func TestValidateBlueprintsRejectsFilenameMismatch(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	path := filepath.Join(root, ".vrooli", "resource-blueprints", "wrong-name.json")
+	path := filepath.Join(root, filepath.FromSlash(blueprintDirPath), "wrong-name.json")
 	writeBlueprintFixture(t, path, `{
   "name": "right-name",
   "display_name": "Right Name",
@@ -85,7 +85,7 @@ func TestValidateBlueprintsRejectsFilenameMismatch(t *testing.T) {
 func TestValidateBlueprintsRejectsMissingRequiredFields(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	path := filepath.Join(root, ".vrooli", "resource-blueprints", "broken.json")
+	path := filepath.Join(root, filepath.FromSlash(blueprintDirPath), "broken.json")
 	writeBlueprintFixture(t, path, `{
   "name": "broken",
   "display_name": "Broken",
@@ -119,7 +119,7 @@ func TestValidateBlueprintsRejectsMissingRequiredFields(t *testing.T) {
 func TestValidateBlueprintsRejectsTemplateRuleMismatch(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	path := filepath.Join(root, ".vrooli", "resource-blueprints", "broken-template-rule.json")
+	path := filepath.Join(root, filepath.FromSlash(blueprintDirPath), "broken-template-rule.json")
 	writeBlueprintFixture(t, path, `{
   "name": "broken-template-rule",
   "display_name": "Broken Template Rule",

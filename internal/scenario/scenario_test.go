@@ -220,8 +220,8 @@ func TestReadServiceRejectsDuplicateHostRequirements(t *testing.T) {
 		Version: "1.0.0",
 		Service: ServiceMetadata{Name: "alpha"},
 		HostTools: []hostreqspec.Declaration{
-			hostreqspec.Declaration{Name: "docker", Required: true, Reason: "one"},
-			hostreqspec.Declaration{Name: "docker", Required: false, Reason: "two"},
+			{Name: "docker", Required: true, Reason: "one"},
+			{Name: "docker", Required: false, Reason: "two"},
 		},
 	})
 
@@ -395,7 +395,7 @@ func TestReadServiceRejectsInvalidJSON(t *testing.T) {
 	}
 }
 
-func TestReadServiceSupportsLegacyDependencyGroups(t *testing.T) {
+func TestReadServiceLoadsCanonicalDependencyMaps(t *testing.T) {
 	root := t.TempDir()
 	servicePath := filepath.Join(root, "service.json")
 	data := `{
@@ -405,29 +405,22 @@ func TestReadServiceSupportsLegacyDependencyGroups(t *testing.T) {
   },
   "dependencies": {
     "resources": {
-      "required": [
-        {
-          "name": "postgres",
-          "purpose": "Store application data",
-          "config": {
-            "database": "alpha_db"
-          }
-        }
-      ],
-      "optional": [
-        {
-          "name": "redis",
-          "description": "Cache responses"
-        }
-      ]
+      "postgres": {
+        "enabled": true,
+        "required": true,
+        "purpose": "Store application data",
+        "database": "alpha_db"
+      },
+      "redis": {
+        "enabled": true,
+        "description": "Cache responses"
+      }
     },
     "scenarios": {
-      "optional": [
-        {
-          "name": "test-genie",
-          "description": "Run extended tests"
-        }
-      ]
+      "test-genie": {
+        "enabled": true,
+        "description": "Run extended tests"
+      }
     }
   }
 }`

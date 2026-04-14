@@ -72,7 +72,7 @@ func TestStatusForResourceCategorizesInvalidPayload(t *testing.T) {
 		},
 	}
 
-	status, err := service.StatusForResource(catalogpkg.Resource{Name: "redis", HasScript: true}, true)
+	status, err := service.StatusForResource(catalogpkg.Resource{Name: "redis", HasCLI: true}, true)
 	if err != nil {
 		t.Fatalf("StatusForResource: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestStartAllUsesBestEffortForDegradedStoppedResources(t *testing.T) {
 	var operations []string
 	service := Service{
 		DiscoverFn: func() ([]catalogpkg.Resource, error) {
-			return []catalogpkg.Resource{{Name: "redis", Enabled: true, HasScript: true}}, nil
+			return []catalogpkg.Resource{{Name: "redis", Enabled: true, HasCLI: true}}, nil
 		},
 		CommandForResourceFn: func(name string, args ...string) (*exec.Cmd, error) {
 			return exec.Command("echo"), nil
@@ -96,7 +96,7 @@ func TestStartAllUsesBestEffortForDegradedStoppedResources(t *testing.T) {
 		IsDeprecatedFn:    func(name string) (bool, error) { return false, nil },
 		IsBlueprintArchFn: func(name string) (bool, error) { return false, nil },
 		DiscoverOneFn: func(name string) (*catalogpkg.Resource, error) {
-			return &catalogpkg.Resource{Name: name, HasScript: true}, nil
+			return &catalogpkg.Resource{Name: name, HasCLI: true}, nil
 		},
 		RunResourceCommandFn: func(name, operation string, args []string, stdout, stderr io.Writer) error {
 			operations = append(operations, operation)

@@ -133,9 +133,31 @@ func TestExitCodePrefersTypedExitCodes(t *testing.T) {
 	}
 }
 
+func TestExitCodeErrorFormatting(t *testing.T) {
+	if got := (ExitCodeError{Code: 7, Message: "boom"}).Error(); got != "boom" {
+		t.Fatalf("ExitCodeError message = %q", got)
+	}
+	if got := (ExitCodeError{Code: 7}).Error(); got != "exit code 7" {
+		t.Fatalf("ExitCodeError default = %q", got)
+	}
+}
+
 func TestNewErrorWithCategoryPreservesExitCode(t *testing.T) {
 	err := NewErrorWithCategory(ExitCodeError{Code: 23, Message: "wrapped"}, ErrorCategoryRuntime, "", nil)
 	if got := ExitCode(err); got != 23 {
 		t.Fatalf("ExitCode(err) = %d, want 23", got)
+	}
+}
+
+func TestPassthroughFlagsOmitsExistingFlags(t *testing.T) {
+	flags := PassthroughFlags(GlobalOptions{JSON: true, Verbose: true, NoColor: true}, []string{"--json", "scenario"})
+	if got, want := strings.Join(flags, ","), "--verbose,--no-color"; got != want {
+		t.Fatalf("flags = %q, want %q", got, want)
+	}
+}
+
+func TestContainsArgDoesNotMatchAbsentFlag(t *testing.T) {
+	if ContainsArg([]string{"alpha", "beta"}, "--json") {
+		t.Fatal("ContainsArg() should not match absent flag")
 	}
 }

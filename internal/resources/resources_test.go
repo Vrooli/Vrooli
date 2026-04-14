@@ -48,13 +48,7 @@ func TestStatusForResourceCategorizesProbeFailures(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	controller := NewController(root, home)
-	scriptPath := filepath.Join(root, "resources", "fixture", "cli.sh")
-	if err := os.MkdirAll(filepath.Dir(scriptPath), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(scriptPath), err)
-	}
-	if err := os.WriteFile(scriptPath, []byte("#!/usr/bin/env bash\nexit 0\n"), 0o755); err != nil {
-		t.Fatalf("write %s: %v", scriptPath, err)
-	}
+	writeExecutableOnPath(t, "resource-fixture", "#!/usr/bin/env bash\nexit 0\n")
 
 	originalRun := runCommandResource
 	t.Cleanup(func() {
@@ -62,10 +56,10 @@ func TestStatusForResourceCategorizesProbeFailures(t *testing.T) {
 	})
 
 	item := Resource{
-		Name:      "fixture",
-		Path:      filepath.Join(root, "resources", "fixture"),
-		Exists:    true,
-		HasScript: true,
+		Name:   "fixture",
+		Path:   filepath.Join(root, "resources", "fixture"),
+		Exists: true,
+		HasCLI: true,
 	}
 
 	t.Run("timeout", func(t *testing.T) {
@@ -128,13 +122,7 @@ func TestStatusForResourceParsesStructuredPayload(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	controller := NewController(root, home)
-	scriptPath := filepath.Join(root, "resources", "fixture", "cli.sh")
-	if err := os.MkdirAll(filepath.Dir(scriptPath), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(scriptPath), err)
-	}
-	if err := os.WriteFile(scriptPath, []byte("#!/usr/bin/env bash\nexit 0\n"), 0o755); err != nil {
-		t.Fatalf("write %s: %v", scriptPath, err)
-	}
+	writeExecutableOnPath(t, "resource-fixture", "#!/usr/bin/env bash\nexit 0\n")
 
 	originalRun := runCommandResource
 	t.Cleanup(func() {
@@ -145,10 +133,10 @@ func TestStatusForResourceParsesStructuredPayload(t *testing.T) {
 	}
 
 	item := Resource{
-		Name:      "fixture",
-		Path:      filepath.Join(root, "resources", "fixture"),
-		Exists:    true,
-		HasScript: true,
+		Name:   "fixture",
+		Path:   filepath.Join(root, "resources", "fixture"),
+		Exists: true,
+		HasCLI: true,
 	}
 
 	status, err := controller.statusForResource(item, true)
@@ -180,13 +168,7 @@ func TestRunReturnsCategorizedErrors(t *testing.T) {
 		t.Fatalf("resourceErr.Code = %q, want %q", resourceErr.Code, ErrorCodeCommandUnavailable)
 	}
 
-	scriptPath := filepath.Join(root, "resources", "fixture", "cli.sh")
-	if err := os.MkdirAll(filepath.Dir(scriptPath), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(scriptPath), err)
-	}
-	if err := os.WriteFile(scriptPath, []byte("#!/usr/bin/env bash\nexit 7\n"), 0o755); err != nil {
-		t.Fatalf("write %s: %v", scriptPath, err)
-	}
+	writeExecutableOnPath(t, "resource-fixture", "#!/usr/bin/env bash\nexit 7\n")
 
 	err = controller.Run("fixture", []string{"stop"}, ioDiscard{}, ioDiscard{})
 	if !errors.As(err, &resourceErr) {
@@ -1076,6 +1058,7 @@ func writeExecutableOnPath(t *testing.T, name, contents string) string {
 	t.Helper()
 	path := testkitgo.WriteExecutableOnPath(t, name, contents)
 	testfixture.UseSystemLookPath(t, &lookPathCommandFn)
+	testfixture.UseSystemLookPath(t, &lookPathResourceFn)
 	return path
 }
 

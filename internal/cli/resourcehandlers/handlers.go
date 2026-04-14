@@ -21,6 +21,7 @@ type HandlerDeps[C any] struct {
 	Stderr             func(C) io.Writer
 	Globals            func(C) rootcli.GlobalOptions
 	OutputFormat       func(C) (cliout.Format, error)
+	EnsureCLI          func(C, string) error
 	ResourceController func(C) (*resources.Controller, error)
 }
 
@@ -63,6 +64,11 @@ func buildResourceTemplateCommandHandlers[C any](deps HandlerDeps[C]) map[string
 	return commandtree.BuildHandlerMap(resourceTemplateCommandTable)
 }
 
+func buildResourceSchemaCommandHandlers[C any](deps HandlerDeps[C]) map[string]rootcli.ResourceHandler[C] {
+	resourceSchemaCommandTable := buildResourceSchemaCommandTable(deps)
+	return commandtree.BuildHandlerMap(resourceSchemaCommandTable)
+}
+
 func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
 	handlerMap := map[resourcecli.CommandID]rootcli.ResourceHandler[C]{
 		resourcecli.CommandList: bindResourceCommand(deps,
@@ -84,6 +90,9 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 		resourcecli.CommandStatus: bindResourceCommand(deps,
 			func(args []string) (resourcecli.StatusRequest, error) { return parseResourceStatusRequest(args) },
 			func(ctx C, controller *resources.Controller, req resourcecli.StatusRequest) (cliout.Format, resourceStatusResponse, error) {
+				if err := ensureNamedResourceCLI(deps, ctx, req.Name); err != nil {
+					return "", resourceStatusResponse{}, err
+				}
 				format, err := deps.OutputFormat(ctx)
 				if err != nil {
 					return "", resourceStatusResponse{}, err
@@ -114,9 +123,12 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 			},
 			renderResourceValidateResponse,
 		),
-		resourcecli.CommandInstall: singleResourceControlHandler(deps, "install"),
-		resourcecli.CommandStart:   singleResourceControlHandler(deps, "start"),
-		resourcecli.CommandStop:    singleResourceControlHandler(deps, "stop"),
+		resourcecli.CommandInstall:   singleResourceControlHandler(deps, "install"),
+		resourcecli.CommandUninstall: singleResourceControlHandler(deps, "uninstall"),
+		resourcecli.CommandStart:     singleResourceControlHandler(deps, "start"),
+		resourcecli.CommandRestart:   singleResourceControlHandler(deps, "restart"),
+		resourcecli.CommandStop:      singleResourceControlHandler(deps, "stop"),
+		resourcecli.CommandLogs:      singleResourceControlHandler(deps, "logs"),
 		resourcecli.CommandStartAll: bindResourceCommand(deps,
 			func(args []string) (resourcecli.NoArgsRequest, error) { return parseResourceStartAllRequest(args) },
 			func(ctx C, controller *resources.Controller, req resourcecli.NoArgsRequest) (cliout.Format, resourceapp.ControlReportResponse, error) {
@@ -154,6 +166,9 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 		resourcecli.CommandInfo: bindResourceCommand(deps,
 			func(args []string) (resourcecli.NameRequest, error) { return parseResourceInfoRequest(args) },
 			func(ctx C, controller *resources.Controller, req resourcecli.NameRequest) (cliout.Format, resources.Status, error) {
+				if err := ensureNamedResourceCLI(deps, ctx, req.Name); err != nil {
+					return "", resources.Status{}, err
+				}
 				item, err := newResourceCommandService(deps, ctx, controller).Info(req.Name)
 				if err != nil {
 					return "", resources.Status{}, err
@@ -275,27 +290,11 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 		resourcecli.CommandTemplate: func(ctx C, controller *resources.Controller, args []string) error {
 			return runResourceSubcommandSet(ctx, controller, args, showResourceTemplateHelp, "resource template", buildResourceTemplateCommandHandlers(deps), deps.Stdout)
 		},
+		resourcecli.CommandSchema: func(ctx C, controller *resources.Controller, args []string) error {
+			return runResourceSubcommandSet(ctx, controller, args, showResourceSchemaHelp, "resource schema", buildResourceSchemaCommandHandlers(deps), deps.Stdout)
+		},
 	}
-	source := resourcecli.CommandSpecs()
-	specs := make([]commandtree.Spec[rootcli.ResourceHandler[C]], 0, len(source))
-	for _, spec := range source {
-		handler, ok := handlerMap[spec.Handler]
-		if !ok {
-			continue
-		}
-		specs = append(specs, commandtree.Spec[rootcli.ResourceHandler[C]]{
-			Name:        spec.Name,
-			Aliases:     append([]string(nil), spec.Aliases...),
-			Group:       spec.Group,
-			Summary:     spec.Summary,
-			Hidden:      spec.Hidden,
-			Suggestable: spec.Suggestable,
-			RootPolicy:  spec.RootPolicy,
-			Help:        spec.Help,
-			Handler:     handler,
-		})
-	}
-	return specs
+	return commandtree.BindSpecs(resourcecli.CommandSpecs(), handlerMap)
 }
 
 func buildResourceBlueprintCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
@@ -367,16 +366,7 @@ func buildResourceBlueprintCommandTable[C any](deps HandlerDeps[C]) []commandtre
 			resourcecli.WriteBlueprintValidationReport,
 		),
 	}
-	source := resourcecli.BlueprintCommandSpecs()
-	specs := make([]commandtree.Spec[rootcli.ResourceHandler[C]], 0, len(source))
-	for _, spec := range source {
-		handler, ok := handlerMap[spec.Handler]
-		if !ok {
-			continue
-		}
-		specs = append(specs, commandtree.Spec[rootcli.ResourceHandler[C]]{Name: spec.Name, Summary: spec.Summary, Handler: handler})
-	}
-	return specs
+	return commandtree.BindSpecs(resourcecli.BlueprintCommandSpecs(), handlerMap)
 }
 
 func buildResourceArchiveCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
@@ -420,16 +410,7 @@ func buildResourceArchiveCommandTable[C any](deps HandlerDeps[C]) []commandtree.
 			},
 		),
 	}
-	source := resourcecli.ArchiveCommandSpecs()
-	specs := make([]commandtree.Spec[rootcli.ResourceHandler[C]], 0, len(source))
-	for _, spec := range source {
-		handler, ok := handlerMap[spec.Handler]
-		if !ok {
-			continue
-		}
-		specs = append(specs, commandtree.Spec[rootcli.ResourceHandler[C]]{Name: spec.Name, Summary: spec.Summary, Handler: handler})
-	}
-	return specs
+	return commandtree.BindSpecs(resourcecli.ArchiveCommandSpecs(), handlerMap)
 }
 
 func buildResourceTemplateCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
@@ -512,16 +493,53 @@ func buildResourceTemplateCommandTable[C any](deps HandlerDeps[C]) []commandtree
 			)(ctx, controller, args)
 		},
 	}
-	source := resourcecli.TemplateCommandSpecs()
-	specs := make([]commandtree.Spec[rootcli.ResourceHandler[C]], 0, len(source))
-	for _, spec := range source {
-		handler, ok := handlerMap[spec.Handler]
-		if !ok {
-			continue
-		}
-		specs = append(specs, commandtree.Spec[rootcli.ResourceHandler[C]]{Name: spec.Name, Summary: spec.Summary, Handler: handler})
+	return commandtree.BindSpecs(resourcecli.TemplateCommandSpecs(), handlerMap)
+}
+
+func buildResourceSchemaCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
+	handlerMap := map[resourcecli.SchemaCommandID]rootcli.ResourceHandler[C]{
+		resourcecli.SchemaCommandValidate: func(ctx C, controller *resources.Controller, args []string) error {
+			if _, err := parseResourceSchemaValidateRequest(args); err != nil {
+				return err
+			}
+			report, err := newResourceCommandService(deps, ctx, controller).SchemaValidate()
+			if err != nil {
+				return err
+			}
+			format, err := deps.OutputFormat(ctx)
+			if err != nil {
+				return err
+			}
+			if err := resourcecli.WriteSchemaValidationReport(deps.Stdout(ctx), format, report); err != nil {
+				return err
+			}
+			if !report.Passed {
+				return rootcli.ExitCodeError{Code: 1, Silent_: true}
+			}
+			return nil
+		},
+		resourcecli.SchemaCommandSync: func(ctx C, controller *resources.Controller, args []string) error {
+			if _, err := parseResourceSchemaSyncRequest(args); err != nil {
+				return err
+			}
+			report, err := newResourceCommandService(deps, ctx, controller).SchemaSync()
+			if err != nil {
+				return err
+			}
+			format, err := deps.OutputFormat(ctx)
+			if err != nil {
+				return err
+			}
+			if err := resourcecli.WriteSchemaSyncReport(deps.Stdout(ctx), format, report); err != nil {
+				return err
+			}
+			if !report.Passed {
+				return rootcli.ExitCodeError{Code: 1, Silent_: true}
+			}
+			return nil
+		},
 	}
-	return specs
+	return commandtree.BindSpecs(resourcecli.SchemaCommandSpecs(), handlerMap)
 }
 
 func showResourceHelp(w io.Writer) {
@@ -538,6 +556,10 @@ func showResourceArchiveHelp(w io.Writer) {
 
 func showResourceTemplateHelp(w io.Writer) {
 	resourcecli.RenderCommandHelp(w, "", "vrooli resource template <subcommand> [options]", "Resource Templates", resourcecli.TemplateCommandSpecs())
+}
+
+func showResourceSchemaHelp(w io.Writer) {
+	resourcecli.RenderCommandHelp(w, "", "vrooli resource schema <subcommand> [options]", "Resource Schema", resourcecli.SchemaCommandSpecs())
 }
 
 type resourceStatusResponse struct {
@@ -600,8 +622,22 @@ func singleResourceControlHandler[C any](deps HandlerDeps[C], action string) roo
 		if len(args) != 1 {
 			return rootcli.UsageErrorf("resource "+action, "resource %s requires exactly one resource name", action)
 		}
+		if err := ensureNamedResourceCLI(deps, ctx, args[0]); err != nil {
+			return err
+		}
 		return controller.Run(args[0], []string{action}, deps.Stdout(ctx), deps.Stderr(ctx))
 	}
+}
+
+func ensureNamedResourceCLI[C any](deps HandlerDeps[C], ctx C, name string) error {
+	if deps.EnsureCLI == nil {
+		return nil
+	}
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil
+	}
+	return deps.EnsureCLI(ctx, name)
 }
 
 func resourceToggleHandler[C any](deps HandlerDeps[C], enabled bool) rootcli.ResourceHandler[C] {
@@ -734,6 +770,16 @@ func parseResourceTemplateGenerateRequest(controller *resources.Controller, stde
 		return resourcecli.TemplateGenerateOptions{}, mapResourceParseError("resource template generate", err)
 	}
 	return req, nil
+}
+
+func parseResourceSchemaValidateRequest(args []string) (resourcecli.NoArgsRequest, error) {
+	req, err := resourcecli.ParseSchemaValidateRequest(args)
+	return req, mapResourceParseError("resource schema validate", err)
+}
+
+func parseResourceSchemaSyncRequest(args []string) (resourcecli.NoArgsRequest, error) {
+	req, err := resourcecli.ParseSchemaSyncRequest(args)
+	return req, mapResourceParseError("resource schema sync", err)
 }
 
 func mapResourceParseError(command string, err error) error {

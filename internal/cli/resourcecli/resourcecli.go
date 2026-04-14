@@ -233,3 +233,54 @@ func WriteBlueprintValidationReport(w io.Writer, format cliout.Format, report re
 	_, _ = fmt.Fprintf(w, "Validated %d resource blueprints\n", report.Count)
 	return nil
 }
+
+func WriteSchemaValidationReport(w io.Writer, format cliout.Format, report resources.ResourceSchemaValidationReport) error {
+	if format == cliout.FormatJSON {
+		return cliout.WriteFieldsWithSuccess(w, report.Passed, map[string]any{"report": report})
+	}
+	status := "passed"
+	if !report.Passed {
+		status = "failed"
+	}
+	if _, err := fmt.Fprintf(w, "Resource schema validation %s\n", status); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(w, "Resources: %d\n", report.ResourceCount); err != nil {
+		return err
+	}
+	for _, issue := range report.ArtifactIssues {
+		if _, err := fmt.Fprintf(w, "- artifact: %s\n  [error] %s\n", issue.Path, issue.Message); err != nil {
+			return err
+		}
+	}
+	for _, item := range report.MissingReferences {
+		if _, err := fmt.Fprintf(w, "- scenario: %s\n  [error] missing resource %s in %s\n", item.Scenario, item.Resource, item.ManifestPath); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func WriteSchemaSyncReport(w io.Writer, format cliout.Format, report resources.ResourceSchemaSyncReport) error {
+	if format == cliout.FormatJSON {
+		return cliout.WriteFieldsWithSuccess(w, report.Passed, map[string]any{"report": report})
+	}
+	status := "completed"
+	if !report.Passed {
+		status = "completed with outstanding issues"
+	}
+	if _, err := fmt.Fprintf(w, "Resource schema sync %s\n", status); err != nil {
+		return err
+	}
+	for _, path := range report.WrittenPaths {
+		if _, err := fmt.Fprintf(w, "- wrote %s\n", path); err != nil {
+			return err
+		}
+	}
+	for _, item := range report.MissingReferences {
+		if _, err := fmt.Fprintf(w, "- scenario: %s\n  [error] missing resource %s in %s\n", item.Scenario, item.Resource, item.ManifestPath); err != nil {
+			return err
+		}
+	}
+	return nil
+}

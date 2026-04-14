@@ -11,6 +11,7 @@ import (
 
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/resources"
 )
 
 type CheckResult struct {
@@ -62,6 +63,7 @@ func Run(root string) (Report, error) {
 		{name: "bundle_profile_policy", fn: checkBundleProfilePolicy},
 		{name: "docs_alignment", fn: checkDocsAlignment},
 		{name: "adoption_rules_alignment", fn: checkAdoptionRulesAlignment},
+		{name: "resource_schema_artifacts", fn: checkResourceSchemaArtifacts},
 	}
 
 	report := Report{
@@ -268,6 +270,29 @@ func checkExcludedLegacyRulesAndPaths(contract *repocontract.Contract, root stri
 		}
 	}
 	return nil
+}
+
+func checkResourceSchemaArtifacts(contract *repocontract.Contract, root string, raw string) error {
+	report, err := resources.ValidateSchemaArtifacts(root)
+	if err != nil {
+		return err
+	}
+	if report.Passed {
+		return nil
+	}
+	parts := make([]string, 0, len(report.ArtifactIssues)+len(report.MissingReferences))
+	for _, issue := range report.ArtifactIssues {
+		message := issue.Message
+		if strings.TrimSpace(issue.Path) != "" {
+			message = fmt.Sprintf("%s: %s", issue.Path, issue.Message)
+		}
+		parts = append(parts, message)
+	}
+	for _, item := range report.MissingReferences {
+		parts = append(parts, fmt.Sprintf("%s references missing resource %s", item.Scenario, item.Resource))
+	}
+	sort.Strings(parts)
+	return fmt.Errorf(strings.Join(parts, "; "))
 }
 
 func checkProfileRootsWithinCanonicalLayout(contract *repocontract.Contract, root string, raw string) error {

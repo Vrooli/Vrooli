@@ -1,11 +1,8 @@
 package packagecli
 
 import (
-	"fmt"
 	"io"
-	"strings"
 
-	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/packagegov"
 )
@@ -32,6 +29,7 @@ type (
 		All  bool
 	}
 )
+
 type RunRequest struct {
 	Name   string
 	Action string
@@ -84,14 +82,89 @@ type AuditResponse struct {
 
 func CommandSpecs() []commandtree.Spec[CommandID] {
 	return []commandtree.Spec[CommandID]{
-		{Name: string(CommandList), Summary: "List governed packages", Group: "Package Governance", Handler: CommandList},
-		{Name: string(CommandInfo), Summary: "Show package manifest metadata", Group: "Package Governance", Handler: CommandInfo},
-		{Name: string(CommandDependents), Summary: "List package consumers", Group: "Package Governance", Handler: CommandDependents},
-		{Name: string(CommandValidate), Summary: "Validate package manifests and package adoption policy", Group: "Package Governance", Handler: CommandValidate},
-		{Name: string(CommandBuild), Summary: "Run the package build lifecycle", Group: "Package Governance", Handler: CommandBuild},
-		{Name: string(CommandGenerate), Summary: "Run the package generation lifecycle", Group: "Package Governance", Handler: CommandGenerate},
-		{Name: string(CommandRefresh), Summary: "Rebuild/regenerate a package and propagate to affected consumers", Group: "Package Governance", Handler: CommandRefresh},
-		{Name: string(CommandAudit), Summary: "Report governance drift and unsupported package adoption", Group: "Package Governance", Handler: CommandAudit},
+		{Name: string(CommandList), Summary: "List governed packages", Group: "Package Governance", Args: jsonOnlyArgs(), Handler: CommandList},
+		{
+			Name:    string(CommandInfo),
+			Summary: "Show package manifest metadata",
+			Group:   "Package Governance",
+			Args: commandtree.ArgSchema{
+				Positionals: []commandtree.PositionalArg{{Name: "package", Required: true}},
+				Options:     []commandtree.OptionArg{commandtree.JSONOption()},
+			},
+			Handler: CommandInfo,
+		},
+		{
+			Name:    string(CommandDependents),
+			Summary: "List package consumers",
+			Group:   "Package Governance",
+			Args: commandtree.ArgSchema{
+				Positionals: []commandtree.PositionalArg{{Name: "package", Required: true}},
+				Options:     []commandtree.OptionArg{commandtree.JSONOption()},
+			},
+			Handler: CommandDependents,
+		},
+		{
+			Name:    string(CommandValidate),
+			Summary: "Validate package manifests and package adoption policy",
+			Group:   "Package Governance",
+			Args: commandtree.ArgSchema{
+				Positionals: []commandtree.PositionalArg{{Name: "package"}},
+				Options: []commandtree.OptionArg{
+					{Name: "--all", Description: "Validate every governed package"},
+					commandtree.JSONOption(),
+				},
+			},
+			Handler: CommandValidate,
+		},
+		{
+			Name:    string(CommandBuild),
+			Summary: "Run the package build lifecycle",
+			Group:   "Package Governance",
+			Args: commandtree.ArgSchema{
+				Positionals: []commandtree.PositionalArg{{Name: "package", Required: true}},
+				Options:     []commandtree.OptionArg{commandtree.JSONOption()},
+			},
+			Handler: CommandBuild,
+		},
+		{
+			Name:    string(CommandGenerate),
+			Summary: "Run the package generation lifecycle",
+			Group:   "Package Governance",
+			Args: commandtree.ArgSchema{
+				Positionals: []commandtree.PositionalArg{{Name: "package", Required: true}},
+				Options:     []commandtree.OptionArg{commandtree.JSONOption()},
+			},
+			Handler: CommandGenerate,
+		},
+		{
+			Name:    string(CommandRefresh),
+			Summary: "Rebuild/regenerate a package and propagate to affected consumers",
+			Group:   "Package Governance",
+			Args: commandtree.ArgSchema{
+				Positionals: []commandtree.PositionalArg{
+					{Name: "package", Required: true},
+					{Name: "target"},
+				},
+				Options: []commandtree.OptionArg{
+					{Name: "--no-restart", Description: "Do not restart affected consumers after refresh"},
+					commandtree.JSONOption(),
+				},
+			},
+			Handler: CommandRefresh,
+		},
+		{
+			Name:    string(CommandAudit),
+			Summary: "Report governance drift and unsupported package adoption",
+			Group:   "Package Governance",
+			Args: commandtree.ArgSchema{
+				Positionals: []commandtree.PositionalArg{{Name: "package"}},
+				Options: []commandtree.OptionArg{
+					{Name: "--all", Description: "Audit every governed package"},
+					commandtree.JSONOption(),
+				},
+			},
+			Handler: CommandAudit,
+		},
 	}
 }
 
@@ -103,42 +176,43 @@ func RenderCommandHelp(w io.Writer) {
 	}, CommandSpecs())
 }
 
+func jsonOnlyArgs() commandtree.ArgSchema {
+	return commandtree.ArgSchema{
+		Options: []commandtree.OptionArg{commandtree.JSONOption()},
+	}
+}
+
 func ParseListRequest(args []string) (ListRequest, error) {
-	if len(args) > 0 {
-		return ListRequest{}, clipolicy.UnknownOptionError("package list", args[0])
+	if _, err := commandtree.ParseArgs("package list", commandHelpText(CommandList), commandtree.ArgSchema{}, args); err != nil {
+		return ListRequest{}, err
 	}
 	return ListRequest{}, nil
 }
 
 func ParseInfoRequest(args []string) (InfoRequest, error) {
-	if len(args) != 1 {
-		return InfoRequest{}, fmt.Errorf("package info requires exactly one package name")
+	parsed, err := commandtree.ParseArgs("package info", commandHelpText(CommandInfo), commandSpec(CommandInfo).Args, args)
+	if err != nil {
+		return InfoRequest{}, err
 	}
-	return InfoRequest{Name: args[0]}, nil
+	return InfoRequest{Name: parsed.Positionals[0]}, nil
 }
 
 func ParseDependentsRequest(args []string) (DependentsRequest, error) {
-	if len(args) != 1 {
-		return DependentsRequest{}, fmt.Errorf("package dependents requires exactly one package name")
+	parsed, err := commandtree.ParseArgs("package dependents", commandHelpText(CommandDependents), commandSpec(CommandDependents).Args, args)
+	if err != nil {
+		return DependentsRequest{}, err
 	}
-	return DependentsRequest{Name: args[0]}, nil
+	return DependentsRequest{Name: parsed.Positionals[0]}, nil
 }
 
 func ParseValidateRequest(args []string) (ValidateRequest, error) {
-	req := ValidateRequest{}
-	for _, arg := range args {
-		switch arg {
-		case "--all":
-			req.All = true
-		default:
-			if strings.HasPrefix(arg, "-") {
-				return ValidateRequest{}, clipolicy.UnknownOptionError("package validate", arg)
-			}
-			if req.Name != "" {
-				return ValidateRequest{}, fmt.Errorf("package validate accepts at most one package name")
-			}
-			req.Name = arg
-		}
+	parsed, err := commandtree.ParseArgs("package validate", commandHelpText(CommandValidate), commandSpec(CommandValidate).Args, args)
+	if err != nil {
+		return ValidateRequest{}, err
+	}
+	req := ValidateRequest{All: parsed.HasFlag("--all")}
+	if len(parsed.Positionals) == 1 {
+		req.Name = parsed.Positionals[0]
 	}
 	if !req.All && req.Name == "" {
 		req.All = true
@@ -147,57 +221,59 @@ func ParseValidateRequest(args []string) (ValidateRequest, error) {
 }
 
 func ParseRunRequest(action string, args []string) (RunRequest, error) {
-	if len(args) != 1 {
-		return RunRequest{}, fmt.Errorf("package %s requires exactly one package name", action)
+	commandID := CommandBuild
+	if action == string(CommandGenerate) {
+		commandID = CommandGenerate
 	}
-	return RunRequest{Name: args[0], Action: action}, nil
+	command := "package " + action
+	parsed, err := commandtree.ParseArgs(command, commandHelpText(commandID), commandSpec(commandID).Args, args)
+	if err != nil {
+		return RunRequest{}, err
+	}
+	return RunRequest{Name: parsed.Positionals[0], Action: action}, nil
 }
 
 func ParseRefreshRequest(args []string) (RefreshRequest, error) {
-	req := RefreshRequest{Target: "all"}
-	for _, arg := range args {
-		switch arg {
-		case "--no-restart":
-			req.NoRestart = true
-		default:
-			if strings.HasPrefix(arg, "-") {
-				return RefreshRequest{}, clipolicy.UnknownOptionError("package refresh", arg)
-			}
-			if req.Name == "" {
-				req.Name = arg
-				continue
-			}
-			if req.Target == "all" {
-				req.Target = arg
-				continue
-			}
-			return RefreshRequest{}, fmt.Errorf("package refresh accepts at most a package name and one target scenario")
-		}
+	parsed, err := commandtree.ParseArgs("package refresh", commandHelpText(CommandRefresh), commandSpec(CommandRefresh).Args, args)
+	if err != nil {
+		return RefreshRequest{}, err
 	}
-	if req.Name == "" {
-		return RefreshRequest{}, fmt.Errorf("package refresh requires a package name")
+	req := RefreshRequest{
+		Name:      parsed.Positionals[0],
+		Target:    "all",
+		NoRestart: parsed.HasFlag("--no-restart"),
+	}
+	if len(parsed.Positionals) > 1 {
+		req.Target = parsed.Positionals[1]
 	}
 	return req, nil
 }
 
 func ParseAuditRequest(args []string) (AuditRequest, error) {
-	req := AuditRequest{}
-	for _, arg := range args {
-		switch arg {
-		case "--all":
-			req.All = true
-		default:
-			if strings.HasPrefix(arg, "-") {
-				return AuditRequest{}, clipolicy.UnknownOptionError("package audit", arg)
-			}
-			if req.Name != "" {
-				return AuditRequest{}, fmt.Errorf("package audit accepts at most one package name")
-			}
-			req.Name = arg
-		}
+	parsed, err := commandtree.ParseArgs("package audit", commandHelpText(CommandAudit), commandSpec(CommandAudit).Args, args)
+	if err != nil {
+		return AuditRequest{}, err
+	}
+	req := AuditRequest{All: parsed.HasFlag("--all")}
+	if len(parsed.Positionals) == 1 {
+		req.Name = parsed.Positionals[0]
 	}
 	if req.Name == "" {
 		req.All = true
 	}
 	return req, nil
+}
+
+func commandSpec(id CommandID) commandtree.Spec[CommandID] {
+	for _, spec := range CommandSpecs() {
+		if spec.Handler == id {
+			return spec
+		}
+	}
+	panic("unknown package command spec: " + string(id))
+}
+
+func commandHelpText(id CommandID) string {
+	spec := commandSpec(id)
+	return commandtree.SpecHelpText("", "vrooli package "+spec.Name, spec)
 }

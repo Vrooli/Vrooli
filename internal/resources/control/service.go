@@ -74,7 +74,7 @@ func (s *Service) ListStatuses(fast bool, onlyEnabled bool) ([]Status, error) {
 		if statusErr != nil {
 			status = Status{
 				Resource:  item,
-				Installed: item.Exists || item.HasCLI || item.HasScript,
+				Installed: item.Exists || item.HasCLI,
 				Message:   statusErr.Error(),
 			}
 		}
@@ -229,7 +229,7 @@ func (s *Service) StopAll(stdout, stderr io.Writer) (batchcontrol.StopReport, er
 	for _, status := range statuses {
 		bestEffort := false
 		if !status.Running {
-			if status.StatusCode == StatusCodeOK || (!status.Resource.HasCLI && !status.Resource.HasScript) {
+			if status.StatusCode == StatusCodeOK || !status.Resource.HasCLI {
 				continue
 			}
 			bestEffort = true
@@ -264,7 +264,7 @@ func (s *Service) StatusForResource(item catalog.Resource, fast bool) (Status, e
 
 	status := Status{
 		Resource:   item,
-		Installed:  item.Exists || item.HasCLI || item.HasScript,
+		Installed:  item.Exists || item.HasCLI,
 		Running:    false,
 		StatusCode: StatusCodeOK,
 		Message:    "not running",

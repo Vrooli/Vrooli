@@ -53,8 +53,15 @@ func TestRenderMatchGlobJSONIncludesMatchedField(t *testing.T) {
 	}
 }
 
-func TestRenderResolveScenarioHelpTextStaysDeclared(t *testing.T) {
-	if got := RenderResolveScenarioHelpText(); got != ResolveScenarioHelpText {
-		t.Fatalf("help = %q", got)
+func TestRenderResolveScenarioHelpTextUsesGeneratedSchemaHelp(t *testing.T) {
+	got := RenderResolveScenarioHelpText()
+	for _, want := range []string{
+		"Usage:\n  vrooli contract resolve scenario <name> [options]",
+		"Known keys: service, docs, requirements, api, ui, cli, initialization",
+		"--file <key>",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %q in help:\n%s", want, got)
+		}
 	}
 }

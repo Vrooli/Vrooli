@@ -2,6 +2,9 @@ package scenariocli
 
 import (
 	"bytes"
+	"os"
+	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -174,6 +177,33 @@ func TestParseRequirementsRequestTreatsHelpAsCommandHelp(t *testing.T) {
 	}
 }
 
+func TestRequirementsHelpTextIsGeneratedFromSubcommandSpecs(t *testing.T) {
+	text := RequirementsHelpText()
+	for _, want := range []string{
+		"Scenario Requirements Commands",
+		"report",
+		"snapshot",
+		"manual-log",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("missing %q in help:\n%s", want, text)
+		}
+	}
+}
+
+func TestParseLogsArgsParsesFlagsAndStep(t *testing.T) {
+	name, opts, err := ParseLogsArgs([]string{"alpha", "--follow", "--step", "build", "--runtime", "--previous"})
+	if err != nil {
+		t.Fatalf("ParseLogsArgs: %v", err)
+	}
+	if name != "alpha" {
+		t.Fatalf("name = %q", name)
+	}
+	if !opts.Follow || opts.StepName != "build" || !opts.Runtime || !opts.Previous {
+		t.Fatalf("opts = %+v", opts)
+	}
+}
+
 func TestParseHealFromSandboxRequestUsesDefaultMergedPath(t *testing.T) {
 	req, err := ParseHealFromSandboxRequest("/merged", nil)
 	if err != nil {
@@ -228,6 +258,252 @@ func TestBuildListPortsKeepsFirstExplicitRecordPerPort(t *testing.T) {
 	}
 	if ports["API_PORT"] != 18080 {
 		t.Fatalf("ports = %#v", ports)
+	}
+}
+
+func TestParseOptionalScenarioNameAndJSONValidation(t *testing.T) {
+	name, jsonFlag, err := ParseOptionalScenarioNameAndJSON("status", false, []string{"alpha", "--json"})
+	if err != nil {
+		t.Fatalf("ParseOptionalScenarioNameAndJSON() error = %v", err)
+	}
+	if name != "alpha" || !jsonFlag {
+		t.Fatalf("name/json = %q/%v", name, jsonFlag)
+	}
+
+	if _, _, err := ParseOptionalScenarioNameAndJSON("status", false, []string{"alpha", "beta"}); err == nil {
+		t.Fatal("expected duplicate scenario names to fail")
+	}
+	if _, _, err := ParseOptionalScenarioNameAndJSON("status", false, []string{"--bogus"}); err == nil {
+		t.Fatal("expected unknown option to fail")
+	}
+	if _, _, err := ParseScenarioNameAndJSON("info", false, nil); err == nil {
+		t.Fatal("expected missing scenario name to fail")
+	}
+}
+
+func TestParseScenarioStartArgsAndSingleStartValidation(t *testing.T) {
+	names, opts, jsonFlag, openAfter, err := ParseScenarioStartArgs(false, []string{
+		"alpha", "beta", "--json", "--open", "--best-effort", "--clean-stale", "--path", "/tmp/custom",
+	})
+	if err != nil {
+		t.Fatalf("ParseScenarioStartArgs() error = %v", err)
+	}
+	if got := strings.Join(names, ","); got != "alpha,beta" {
+		t.Fatalf("names = %q", got)
+	}
+	if !jsonFlag || !openAfter || !opts.BestEffort || !opts.CleanStale || opts.CustomPath != "/tmp/custom" {
+		t.Fatalf("opts/json/open = %+v/%v/%v", opts, jsonFlag, openAfter)
+	}
+
+	if _, _, _, _, err := ParseScenarioStartArgs(false, []string{"--path"}); err == nil {
+		t.Fatal("expected missing --path value to fail")
+	}
+	if _, _, _, _, err := ParseScenarioStartArgs(false, []string{"--bogus"}); err == nil {
+		t.Fatal("expected unknown option to fail")
+	}
+	if _, _, _, _, err := ParseScenarioSingleStartArgs("restart", false, nil); err == nil {
+		t.Fatal("expected missing restart target to fail")
+	}
+	if _, _, _, _, err := ParseScenarioSingleStartArgs("restart", false, []string{"alpha", "beta"}); err == nil {
+		t.Fatal("expected duplicate restart targets to fail")
+	}
+}
+
+func TestTemplateHelpAndManualHooksOutput(t *testing.T) {
+	var templateHelp bytes.Buffer
+	RenderTemplateHelp(&templateHelp)
+	if !strings.Contains(templateHelp.String(), "show               Show scenario template details") {
+		t.Fatalf("template help = %q", templateHelp.String())
+	}
+
+	var generateHelp bytes.Buffer
+	RenderGenerateHelp(&generateHelp)
+	if !strings.Contains(generateHelp.String(), "--run-hooks") {
+		t.Fatalf("generate help = %q", generateHelp.String())
+	}
+
+	var hooks bytes.Buffer
+	WriteTemplateHooks(&hooks, TemplateManifest{
+		PostHooks: []TemplateHook{{Description: "Install deps", Cmd: "pnpm install"}},
+	})
+	if !strings.Contains(hooks.String(), "Install deps") {
+		t.Fatalf("hook output = %q", hooks.String())
+	}
+}
+
+func TestTemplateParsersCaptureFlagsAndValues(t *testing.T) {
+	manifest := TemplateManifest{
+		RequiredVars: map[string]TemplateVar{
+			"SCENARIO_ID":           {Flag: "id"},
+			"SCENARIO_DISPLAY_NAME": {Flag: "display-name"},
+			"SCENARIO_DESCRIPTION":  {Flag: "description"},
+		},
+		OptionalVars: map[string]TemplateVar{
+			"AUTHOR": {Flag: "author"},
+		},
+	}
+
+	var stderr bytes.Buffer
+	opts, err := ParseGenerateArgs([]string{
+		"--id", "alpha",
+		"--display-name=Alpha App",
+		"--description", "Generated alpha",
+		"--var", "CUSTOM=1",
+		"--unknown", "mystery",
+	}, manifest, &stderr)
+	if err != nil {
+		t.Fatalf("ParseGenerateArgs() error = %v", err)
+	}
+	if opts.Values["SCENARIO_ID"] != "alpha" ||
+		opts.Values["SCENARIO_DISPLAY_NAME"] != "Alpha App" ||
+		opts.Values["SCENARIO_DESCRIPTION"] != "Generated alpha" ||
+		opts.Values["CUSTOM"] != "1" {
+		t.Fatalf("values = %#v", opts.Values)
+	}
+	if !strings.Contains(stderr.String(), "unknown flag --unknown") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+
+	if _, _, _, err := ParseTemplateFlag("--display-name", []string{"--display-name"}, 0); err == nil {
+		t.Fatal("expected ParseTemplateFlag() to reject missing value")
+	}
+	if _, _, err := ParseTemplateKeyValue("broken"); err == nil {
+		t.Fatal("expected ParseTemplateKeyValue() to reject invalid pair")
+	}
+}
+
+func TestBuildScenarioStatusItemAndHumanWriters(t *testing.T) {
+	startedAt := time.Date(2026, time.April, 10, 12, 0, 0, 0, time.UTC)
+	fixedPort := 5432
+	item := scenariomodel.Scenario{
+		Slug:       "alpha",
+		Path:       "/repo/scenarios/alpha",
+		Redirected: true,
+		Manifest: scenariomodel.ServiceManifest{
+			Service: scenariomodel.ServiceMetadata{
+				Name:        "alpha",
+				DisplayName: "Alpha",
+				Description: "Alpha scenario",
+				Version:     "0.1.0",
+				Type:        "tool",
+				Category:    "ops",
+				Tags:        []string{"internal", "go"},
+			},
+			Ports: map[string]scenariomodel.Port{
+				"api": {EnvVar: "API_PORT", Range: "15000-19999"},
+				"db":  {Port: &fixedPort},
+			},
+			Lifecycle: scenariomodel.Lifecycle{Version: "2.0.0"},
+		},
+	}
+	runtimeState := process.ScenarioRuntime{
+		ProcessCount: 1,
+		Runtime:      "2m",
+		StartedAt:    &startedAt,
+		Records: []process.Record{
+			{Step: "start-api", PID: 1234, Port: 18080, StartedAt: startedAt},
+		},
+	}
+
+	status := BuildStatusItem(item, runtimeState)
+	if status.Status != "running" || status.Health != "running" {
+		t.Fatalf("status item = %+v", status)
+	}
+
+	var infoOut bytes.Buffer
+	WriteInfoHuman(&infoOut, BuildInfoData(item), BuildRuntimeData(item.Manifest, runtimeState))
+	for _, want := range []string{
+		"Configured ports:",
+		"API_PORT (api)",
+		"DB_PORT (db) fixed=5432",
+		"Version: 0.1.0",
+		"Type: tool",
+		"Category: ops",
+		"Tags: internal, go",
+		"Lifecycle version: 2.0.0",
+		"Sandbox: using redirected scenario path",
+	} {
+		if !strings.Contains(infoOut.String(), want) {
+			t.Fatalf("missing %q in info output:\n%s", want, infoOut.String())
+		}
+	}
+
+	var tableOut bytes.Buffer
+	WriteStatusTable(&tableOut, []StatusItemOutput{status})
+	if !strings.Contains(tableOut.String(), "Name") || !strings.Contains(tableOut.String(), "alpha") {
+		t.Fatalf("scenario table output = %s", tableOut.String())
+	}
+
+	var statusOut bytes.Buffer
+	WriteStatusHuman(&statusOut, StatusSingleOutput{
+		Scenario: status,
+		Info:     BuildInfoData(item),
+		Runtime:  BuildRuntimeData(item.Manifest, runtimeState),
+	})
+	if !strings.Contains(statusOut.String(), "Health: running") || !strings.Contains(statusOut.String(), "Processes:") {
+		t.Fatalf("scenario status output = %s", statusOut.String())
+	}
+}
+
+func TestBuildListPortsFallsBackToEnvironment(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("process environment inspection uses /proc on linux")
+	}
+
+	cmd := exec.Command("sleep", "30")
+	cmd.Env = append(os.Environ(), "API_PORT=18080", "WS_PORT=28080")
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start sleep: %v", err)
+	}
+	t.Cleanup(func() {
+		if cmd.Process != nil {
+			_ = cmd.Process.Kill()
+		}
+		_ = cmd.Wait()
+	})
+
+	manifest := scenariomodel.ServiceManifest{
+		Ports: map[string]scenariomodel.Port{
+			"api":       {EnvVar: "API_PORT"},
+			"websocket": {EnvVar: "WS_PORT"},
+		},
+	}
+
+	var listPorts []ListPortOutput
+	var ports map[string]int
+	for attempt := 0; attempt < 20; attempt++ {
+		listPorts, ports = BuildListPorts(manifest, []process.Record{{
+			PID:  cmd.Process.Pid,
+			Step: "start-api",
+			Port: 18080,
+		}})
+		if ports["WS_PORT"] == 28080 {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	if len(listPorts) != 1 || listPorts[0].Key != "API_PORT" {
+		t.Fatalf("list ports = %#v", listPorts)
+	}
+	if ports["API_PORT"] != 18080 || ports["WS_PORT"] != 28080 {
+		t.Fatalf("ports = %#v", ports)
+	}
+}
+
+func TestCopyHelpersReturnIndependentSlices(t *testing.T) {
+	originalStrings := []string{"alpha"}
+	originalRecords := []process.Record{{PID: 1234}}
+	copiedStrings := CopyStrings(originalStrings)
+	copiedRecords := CopyProcessRecords(originalRecords)
+	if len(CopyStrings(nil)) != 0 || len(CopyProcessRecords(nil)) != 0 {
+		t.Fatal("expected nil inputs to return empty slices")
+	}
+
+	copiedStrings[0] = "beta"
+	copiedRecords[0].PID = 99
+	if originalStrings[0] != "alpha" || originalRecords[0].PID != 1234 {
+		t.Fatal("expected copies to avoid mutating originals")
 	}
 }
 

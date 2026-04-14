@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 )
 
 const resourceTemplateBasePath = "templates/resources"
@@ -597,7 +599,7 @@ func verifyGeneratedResourceManifest(destination string) error {
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		return fmt.Errorf("parse generated resource manifest: %w", err)
 	}
-	if err := validateResourceManifest(manifest); err != nil {
+	if err := manifestpkg.Validate(manifest); err != nil {
 		return fmt.Errorf("validate generated resource manifest: %w", err)
 	}
 	return nil

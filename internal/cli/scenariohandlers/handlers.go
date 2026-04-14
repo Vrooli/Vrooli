@@ -21,6 +21,7 @@ type HandlerDeps[C any] struct {
 	Globals            func(C) rootcli.GlobalOptions
 	OutputFormat       func(C) (cliout.Format, error)
 	HomeDir            func(C) (string, error)
+	EnsureCLI          func(C, string) error
 	ScenarioOperations func(C) (scenarioapp.ScenarioOperations, error)
 	LifecycleRunner    func(C) (scenarioapp.PhaseRunner, error)
 	EnvValidator       func(C) (scenarioapp.EnvironmentValidator, error)
@@ -133,6 +134,9 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 				return ParseStartRequest(deps.Globals(ctx).JSON, args)
 			},
 			func(ctx C, req StartRequest) (cliout.Format, []LifecycleItemOutput, error) {
+				if err := ensureScenarioCLIs(deps, ctx, req.Names...); err != nil {
+					return "", nil, err
+				}
 				format, err := deps.OutputFormat(ctx)
 				if err != nil {
 					return "", nil, err
@@ -152,6 +156,9 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 				return ParseStartRequest(deps.Globals(ctx).JSON, args)
 			},
 			func(ctx C, req StartRequest) (cliout.Format, []LifecycleItemOutput, error) {
+				if err := ensureScenarioCLIs(deps, ctx, req.Names...); err != nil {
+					return "", nil, err
+				}
 				format, err := deps.OutputFormat(ctx)
 				if err != nil {
 					return "", nil, err
@@ -264,6 +271,9 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 				return ParseTestRequest(deps.Globals(ctx).JSON, deps.Globals(ctx).Verbose, args)
 			},
 			func(ctx C, req TestRequest) (cliout.Format, struct{}, error) {
+				if err := ensureScenarioCLIs(deps, ctx, req.Name); err != nil {
+					return "", struct{}{}, err
+				}
 				runner, err := deps.LifecycleRunner(ctx)
 				if err != nil {
 					return "", struct{}{}, err
@@ -324,6 +334,27 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 			RenderHealFromSandboxResponse,
 		),
 	}
+}
+
+func ensureScenarioCLIs[C any](deps HandlerDeps[C], ctx C, names ...string) error {
+	if deps.EnsureCLI == nil {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(names))
+	for _, name := range names {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		seen[name] = struct{}{}
+		if err := deps.EnsureCLI(ctx, name); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func bindGlobal[C any, Req any, Resp any](

@@ -1,16 +1,18 @@
 # CLI Core
 
-Shared helpers that keep scenario CLIs small, cross-platform, and consistent: installer, stale-checker, HTTP client, app/command scaffolding, standard env/flag utilities, and fingerprints.
+Shared helpers that keep scenario and resource CLIs small, cross-platform, and consistent: installer, stale-checker, HTTP client, app/command scaffolding, standard env/flag utilities, and fingerprints.
 
 ```mermaid
 flowchart TD
     ScenarioCLI["Scenario CLI\n(e.g., test-genie)"]
-    App["cliapp.App / ScenarioApp\n(command routing, global flags)"]
+    ResourceCLI["Resource CLI\n(e.g., resource-postgres)"]
+    App["cliapp.App / ScenarioApp / ResourceApp\n(command routing, global flags)"]
     Util["cliutil\n(http, config, flags, ports, stale)"]
     Buildinfo["buildinfo\n(fingerprints)"]
     Installer["cmd/cli-installer + install.sh"]
 
     ScenarioCLI --> App
+    ResourceCLI --> App
     App --> Util
     Util --> Buildinfo
     ScenarioCLI -. built by .-> Installer
@@ -18,7 +20,7 @@ flowchart TD
 ```
 
 ## What lives here
-- `cliapp`: CLI scaffolding (`App`, `ScenarioApp`), meta commands, color hook, standard env derivation via `StandardScenarioEnv`.
+- `cliapp`: CLI scaffolding (`App`, `ScenarioApp`, `ResourceApp`), meta commands, color hook, and standard env derivation via `StandardScenarioEnv` / `StandardResourceEnv`.
 - `cliutil`: HTTP/API wrapper, config file IO, stale-checker, port detection, JSON pretty-printers, and flag/file helpers (`StringList`, `ParseCSV`, `MergeArgs`, `JSONFlag`, `ReadFileString`).
 - `buildinfo`: deterministic fingerprints for install-time and stale-check comparisons.
 - `cmd/cli-installer`: builds a scenario CLI and embeds `buildFingerprint`, `buildTimestamp`, `buildSourceRoot`.
@@ -43,6 +45,15 @@ powershell -ExecutionPolicy Bypass -File packages/cli-core/install.ps1 -ModulePa
 Notes:
 - Default install dir: `~/.vrooli/bin` (override with `--install-dir`).
 - Canonical repo-root variables are `VROOLI_ROOT` and `VROOLI_SOURCE_ROOT`. Historical fallbacks are compatibility behavior, not part of the repo contract.
+
+## Quickstart (install a resource CLI)
+```bash
+# From repo root (macOS/Linux)
+./packages/cli-core/install.sh resources/postgres/cli --name resource-postgres
+
+# Windows/PowerShell
+powershell -ExecutionPolicy Bypass -File packages/cli-core/install.ps1 -ModulePath resources/postgres/cli -Name resource-postgres
+```
 
 ## Package Governance
 
@@ -70,6 +81,11 @@ Consumers must keep local `replace` wiring explicit so scenario and resource mod
 - For flags/inputs, use `cliutil.JSONFlag`, `StringList`, `ParseCSV`, and `MergeArgs` instead of hand-rolled parsers; read files with `ReadFileString`.
 - Pretty-print JSON responses with `cliutil.PrintJSON` / `PrintJSONMap`.
 - Keep `NeedsAPI` set on commands so the stale-checker can trigger auto-rebuilds before API calls.
+
+## Resource wiring checklist
+- Use `cliapp.StandardResourceEnv("<resource-name>", ...)` to derive source-root and `vrooli` control-plane env vars consistently.
+- Build the core with `cliapp.NewResourceApp`, then use `StandardLifecycleCommands()` for thin delegation through `vrooli resource ...`.
+- Keep resource CLIs thin: standard lifecycle commands should delegate to the Go control plane rather than reimplementing install/start/stop/logs locally.
 
 ## Stale checking
 - `cliutil.StaleChecker` compares the embedded fingerprint against current sources. When Go is available it runs `cmd/cli-installer` to rebuild in place and re-exec the command.

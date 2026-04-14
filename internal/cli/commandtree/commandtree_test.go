@@ -8,6 +8,60 @@ import (
 	"testing"
 )
 
+func TestValidateSpecsRejectsDuplicateNameAndAlias(t *testing.T) {
+	err := ValidateSpecs([]Spec[string]{
+		{Name: "status", Aliases: []string{"st"}},
+		{Name: "stop", Aliases: []string{"status"}},
+	})
+	if err == nil || !strings.Contains(err.Error(), `duplicate command name or alias "status"`) {
+		t.Fatalf("ValidateSpecs error = %v", err)
+	}
+}
+
+func TestBindSpecsPreservesCommandMetadata(t *testing.T) {
+	source := []Spec[string]{
+		{
+			Name:        "status",
+			Aliases:     []string{"st"},
+			Group:       "Lifecycle",
+			Summary:     "Show status",
+			Hidden:      true,
+			Suggestable: true,
+			RootPolicy:  RootPolicy{RequiresRoot: true},
+			Help:        Help{Title: "Status"},
+			Args: ArgSchema{
+				Positionals: []PositionalArg{{Name: "name", Required: true, Description: "Target name"}},
+				Options:     []OptionArg{{Name: "--json", Description: "Emit JSON"}},
+			},
+			Handler: "status-id",
+		},
+	}
+
+	bound := BindSpecs(source, map[string]int{"status-id": 7})
+	if len(bound) != 1 {
+		t.Fatalf("len(bound) = %d, want 1", len(bound))
+	}
+	spec := bound[0]
+	if spec.Name != "status" || spec.Handler != 7 {
+		t.Fatalf("spec = %#v", spec)
+	}
+	if got := strings.Join(spec.Aliases, ","); got != "st" {
+		t.Fatalf("aliases = %q", got)
+	}
+	if spec.Group != "Lifecycle" || spec.Summary != "Show status" || !spec.Hidden || !spec.Suggestable {
+		t.Fatalf("spec metadata = %#v", spec)
+	}
+	if !spec.RootPolicy.RequiresRoot || spec.Help.Title != "Status" {
+		t.Fatalf("spec contracts = %#v", spec)
+	}
+	if len(spec.Args.Positionals) != 1 || spec.Args.Positionals[0].Name != "name" {
+		t.Fatalf("spec args = %#v", spec.Args)
+	}
+	if len(spec.Args.Options) != 1 || spec.Args.Options[0].Name != "--json" {
+		t.Fatalf("spec options = %#v", spec.Args)
+	}
+}
+
 func TestBuildHandlerMapIncludesAliases(t *testing.T) {
 	specs := []Spec[string]{
 		{Name: "status", Aliases: []string{"st"}, Handler: "handler"},
@@ -20,6 +74,19 @@ func TestBuildHandlerMapIncludesAliases(t *testing.T) {
 	if items["st"] != "handler" {
 		t.Fatalf("alias handler missing")
 	}
+}
+
+func TestBuildHandlerMapPanicsOnDuplicateAliases(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("expected panic for duplicate aliases")
+		}
+	}()
+
+	_ = BuildHandlerMap([]Spec[string]{
+		{Name: "status", Aliases: []string{"st"}, Handler: "status"},
+		{Name: "stop", Aliases: []string{"st"}, Handler: "stop"},
+	})
 }
 
 func TestSuggestableNamesSorted(t *testing.T) {
@@ -63,6 +130,74 @@ func TestRenderHelpUsesVisibleEntriesAndDefaultGroup(t *testing.T) {
 	}
 	if strings.Contains(text, "hidden") {
 		t.Fatalf("rendered hidden command: %q", text)
+	}
+}
+
+func TestUsageLineBuildsFromSchema(t *testing.T) {
+	got := UsageLine("vrooli demo", ArgSchema{
+		Positionals: []PositionalArg{
+			{Name: "name", Required: true},
+			{Name: "extra", Repeatable: true},
+		},
+		Options: []OptionArg{{Name: "--json"}},
+	})
+	if got != "vrooli demo <name> [extra...] [options]" {
+		t.Fatalf("usage = %q", got)
+	}
+}
+
+func TestSpecHelpTextIncludesDescriptionAndOptions(t *testing.T) {
+	text := SpecHelpText("", "vrooli demo status", Spec[string]{
+		Name:    "status",
+		Summary: "Show status",
+		Help: Help{
+			Description: "Display status details.",
+			Examples:    []string{"vrooli demo status alpha"},
+		},
+		Args: ArgSchema{
+			Positionals: []PositionalArg{{Name: "name", Required: true}},
+			Options: []OptionArg{
+				{Name: "--json", Description: "Emit JSON output"},
+				{Name: "--env", Aliases: []string{"-e"}, ValueName: "name", Description: "Select environment"},
+			},
+		},
+	})
+	for _, want := range []string{
+		"Usage:\n  vrooli demo status <name> [options]",
+		"Display status details.",
+		"--json",
+		"--env, -e <name>",
+		"Show help for this command",
+		"Examples:\n  vrooli demo status alpha",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("missing %q in text:\n%s", want, text)
+		}
+	}
+}
+
+func TestRenderHelpIncludesOptionsAndNotes(t *testing.T) {
+	var output bytes.Buffer
+	RenderHelp(&output, Help{
+		Title:        "Demo",
+		Usage:        "vrooli demo <subcommand> [options]",
+		DefaultGroup: "General",
+		Options: []OptionArg{
+			{Name: "--verbose", Description: "Enable verbose output"},
+		},
+		Notes: []string{"Documentation: docs/"},
+	}, []Spec[string]{{Name: "status", Summary: "Show status"}})
+
+	text := output.String()
+	for _, want := range []string{
+		"Options:",
+		"--verbose",
+		"Enable verbose output",
+		"Documentation: docs/",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("missing %q in text:\n%s", want, text)
+		}
 	}
 }
 

@@ -64,7 +64,7 @@ Current project-level audit snapshot:
 
 - `92` scenario service files
 - `80` resource directories under `resources/`
-- `46` registry entries under `.vrooli/resource-registry/`
+- Resource registry metadata has been removed from the active architecture
 
 Resources currently present in `resources/` but missing registry entries include:
 

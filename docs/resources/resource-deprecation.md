@@ -10,7 +10,7 @@ If the capability should remain a blueprint-backed future candidate rather than 
 
 - archives the resource's active repo state under `~/.vrooli/archive/resources/`
 - removes the resource from active repo discovery
-- records deprecation metadata in `.vrooli/deprecated-resources.json`
+- records deprecation metadata in `.vrooli/resources/deprecated-resources.json`
 - keeps restore explicit and quarantined rather than silently making the resource active again
 
 ## Current CLI Surface
@@ -26,7 +26,7 @@ vrooli resource archive gc
 
 Restores are intentionally quarantined.
 
-- `vrooli resource restore <name>` restores archived content into `.vrooli/restored-resources/<name>/`
+- `vrooli resource restore <name>` restores archived content into `.vrooli/resources/restored/<name>/`
 - restored resources do not re-enter `vrooli resource list`
 - promotion back into the active supported set remains an explicit later step
 
@@ -36,7 +36,7 @@ This prevents stale code from reappearing in the supported surface by accident.
 
 - default retention: `90` days
 - expired archives can be removed with `vrooli resource archive gc`
-- metadata remains in `.vrooli/deprecated-resources.json` for traceability after purge
+- metadata remains in `.vrooli/resources/deprecated-resources.json` for traceability after purge
 
 ## Phase 2 First Batch
 

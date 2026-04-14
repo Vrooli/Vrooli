@@ -15,14 +15,26 @@ type Action[Req any, Resp any] struct {
 	Render  func(w io.Writer, resp Resp) error
 }
 
+func WriteHelp(w io.Writer, text string) {
+	_, _ = io.WriteString(w, text)
+	if text == "" || text[len(text)-1] != '\n' {
+		_, _ = io.WriteString(w, "\n")
+	}
+}
+
+func HandleHelp(w io.Writer, err error) bool {
+	helpErr, ok := err.(HelpError)
+	if !ok {
+		return false
+	}
+	WriteHelp(w, helpErr.HelpText())
+	return true
+}
+
 func ExecuteAction[Req any, Resp any](stdout io.Writer, args []string, action Action[Req, Resp]) error {
 	req, err := action.Parse(args)
 	if err != nil {
-		if helpErr, ok := err.(HelpError); ok {
-			_, _ = io.WriteString(stdout, helpErr.HelpText())
-			if text := helpErr.HelpText(); text == "" || text[len(text)-1] != '\n' {
-				_, _ = io.WriteString(stdout, "\n")
-			}
+		if HandleHelp(stdout, err) {
 			return nil
 		}
 		return err

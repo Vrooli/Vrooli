@@ -17,11 +17,6 @@ Vrooli resources use a multi-layered configuration system to manage settings, cr
 - User-machine runtime state, caches, archives, and generated operational files
 - Not the canonical source of truth for repo-owned configuration
 
-**Repo `.vrooli/resource-registry/`**
-- Registry records for implemented resources
-- Used by current discovery and command-routing flows
-- Must stay aligned with canonical resource names under `resources/<name>`
-
 **Scenario `.vrooli/service.json`**
 - Canonical scenario-level configuration
 - Defines scenario metadata, lifecycle, and dependency declarations
@@ -129,7 +124,7 @@ Resources may have their own configuration files:
 vrooli resource status
 
 # Check specific resource configuration
-vrooli resource <name> status
+vrooli resource status <name>
 
 # Update configuration (resource-specific)
 resource-<name> config set <key> <value>
@@ -139,10 +134,10 @@ resource-<name> config set <key> <value>
 
 ```bash
 # Validate all resource configurations
-./tools/validate-interfaces.sh
+./scripts/resources/tools/validate-universal-contract.sh --resource <name>
 
 # Fix configuration issues
-./tools/fix-interface-compliance.sh
+./scripts/resources/tools/validate-dependency-contract.sh
 ```
 
 ## Security Considerations

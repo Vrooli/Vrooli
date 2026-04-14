@@ -279,11 +279,11 @@ Each resource concept can exist in one of these states:
 
 #### In-repo
 
-- `.vrooli/resource-blueprints/`
+- `.vrooli/resources/blueprints/`
   - canonical blueprint records
 - `.vrooli/schemas/resource-blueprint.schema.json`
   - schema for blueprint records
-- `.vrooli/deprecated-resources.json`
+- `.vrooli/resources/deprecated-resources.json`
   - metadata for deprecated resources
 - `resources/`
   - only active implemented resources
@@ -341,7 +341,7 @@ Blueprints must be easy to browse, search, and promote into real resource implem
 
 ### 4.4 Deprecation metadata model
 
-`.vrooli/deprecated-resources.json` should track, at minimum:
+`.vrooli/resources/deprecated-resources.json` should track, at minimum:
 
 - `name`
 - `deprecated_at`
@@ -624,7 +624,7 @@ When deprecating a resource:
 1. export the resource directory to:
    - `~/.vrooli/archive/resources/<timestamp>-<resource-name>/`
 2. compute a hash / integrity record
-3. add metadata entry to `.vrooli/deprecated-resources.json`
+3. add metadata entry to `.vrooli/resources/deprecated-resources.json`
 4. optionally generate or update a matching blueprint
 5. remove the resource from active repo discovery
 6. update docs and template mappings if needed
@@ -643,7 +643,7 @@ This prevents accidental resurrection of stale code into the main supported set.
 After retention expires:
 
 - `vrooli resource archive gc` removes old archives from `~/.vrooli/archive/resources/`
-- metadata remains in `.vrooli/deprecated-resources.json`
+- metadata remains in `.vrooli/resources/deprecated-resources.json`
 - if the capability still matters, the blueprint remains
 
 ### 8.5 Initial retention recommendation
@@ -1041,7 +1041,7 @@ Important decisions made during Phase 0:
 **Goal:** Create a first-class structured replacement for speculative resource code.
 
 - [x] Define blueprint schema
-- [x] Add `.vrooli/resource-blueprints/`
+- [x] Add `.vrooli/resources/blueprints/`
 - [x] Add blueprint docs and operator guidance
 - [x] Add initial commands for listing and viewing blueprints
 - [x] Seed blueprints from a first batch of low-risk speculative resources
@@ -1052,7 +1052,7 @@ Important decisions made during Phase 0:
 
 **Status update:** Phase 1 is now inventory-complete rather than seed-only.
 
-- `.vrooli/resource-blueprints/` now covers the full current Phase 0 `blueprint` set
+- `.vrooli/resources/blueprints/` now covers the full current Phase 0 `blueprint` set
 - the Go test suite validates drift between `docs/resources/resource-phase0-inventory.md` and the blueprint store
 - operator guidance documents blueprint inspection and validation as a supported workflow
 - the Phase 1 closeout validation bundle is:
@@ -1066,7 +1066,7 @@ Important decisions made during Phase 0:
 
 **Goal:** Make deprecation safe, recoverable, and explicit.
 
-- [x] Define `.vrooli/deprecated-resources.json`
+- [x] Define `.vrooli/resources/deprecated-resources.json`
 - [x] Implement external archive export path under `~/.vrooli/archive/resources/`
 - [x] Implement `deprecate`, `list-deprecated`, `restore`, and archive GC commands
 - [x] Define retention policy and restore semantics
@@ -1078,11 +1078,11 @@ Important decisions made during Phase 0:
 
 **Status update:** Phase 2 is implemented and validated as a native Go workflow.
 
-- `.vrooli/deprecated-resources.json` is now the in-repo metadata source for deprecated resource state
+- `.vrooli/resources/deprecated-resources.json` is now the in-repo metadata source for deprecated resource state
 - archived resource state exports to `~/.vrooli/archive/resources/`
 - `vrooli resource deprecate <name>`, `list-deprecated`, `restore <name>`, and `archive gc` are implemented
 - deprecated resources are excluded from normal `vrooli resource list` / status discovery
-- restores are quarantined under `.vrooli/restored-resources/<name>/` instead of silently becoming active again
+- restores are quarantined under `.vrooli/resources/restored/<name>/` instead of silently becoming active again
 - the initial deprecation batch is complete for:
   - `autogen-studio`
   - `erpnext`
@@ -1339,7 +1339,7 @@ Validation note: the full `go test ./cmd/vrooli/...` bundle still stalls in `Tes
 
 **Status update:** Blueprint-only archival is now implemented as a separate Go-native lifecycle.
 
-- `.vrooli/blueprint-archived-resources.json` tracks blueprint-backed archival metadata separately from deprecated resources.
+- `.vrooli/resources/archived-blueprint-resources.json` tracks blueprint-backed archival metadata separately from deprecated resources.
 - `vrooli resource archive-to-blueprint <name>` archives and removes an old implementation only when:
   - a matching blueprint exists
   - the resource is not active in root project config

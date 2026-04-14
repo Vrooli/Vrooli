@@ -94,6 +94,41 @@ func ResolveScenarioFile(repoRoot, scenario, key string) (string, error) {
 	return contract.ScenarioFile(repoRoot, scenario, key)
 }
 
+// ResolveResourcePath resolves a canonical resource root for the given repo.
+func ResolveResourcePath(repoRoot, resource string) (string, error) {
+	contract, err := LoadDefault(repoRoot)
+	if err != nil {
+		return "", err
+	}
+	return contract.ResourceRoot(repoRoot, resource)
+}
+
+// ResolveResourceFile resolves a canonical well-known resource file/path for
+// the given repo.
+func ResolveResourceFile(repoRoot, resource, key string) (string, error) {
+	contract, err := LoadDefault(repoRoot)
+	if err != nil {
+		return "", err
+	}
+	return contract.ResourceFile(repoRoot, resource, key)
+}
+
+// ResourceExists reports whether the contract-defined resource manifest exists.
+func ResourceExists(repoRoot, resource string) (bool, error) {
+	manifestPath, err := ResolveResourceFile(repoRoot, resource, "manifest")
+	if err != nil {
+		return false, err
+	}
+	info, err := statPath(manifestPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, &Error{Kind: ErrNotFound, Message: "stat resource manifest", Details: manifestPath, Err: err}
+	}
+	return !info.IsDir(), nil
+}
+
 // ScenarioExists reports whether the contract-defined scenario manifest exists.
 func ScenarioExists(repoRoot, scenario string) (bool, error) {
 	servicePath, err := ResolveScenarioFile(repoRoot, scenario, "service")

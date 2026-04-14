@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	contextinfo "github.com/vrooli/vrooli/internal/app/contextinfo"
-	"github.com/vrooli/vrooli/internal/cli/clipolicy"
+	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
@@ -20,8 +20,6 @@ var DefaultInfoFiles = []string{"docs/context.md"}
 type InfoRequest struct {
 	ListOnly bool
 }
-
-const InfoUsageText = "Usage: vrooli info [--list]\n\nDisplay consolidated Vrooli project context in a single stream.\n\n    --list     Print the resolved file paths without emitting file contents."
 
 type infoManifest struct {
 	Files []string `json:"files"`
@@ -38,18 +36,24 @@ type InfoOutput struct {
 }
 
 func ParseInfoRequest(args []string) (InfoRequest, error) {
-	req := InfoRequest{}
-	for _, arg := range args {
-		switch arg {
-		case "--list":
-			req.ListOnly = true
-		case "--help", "-h":
-			return InfoRequest{}, clipolicy.CommandHelpOnly(InfoUsageText)
-		default:
-			return InfoRequest{}, clipolicy.UnknownOptionError("info", arg)
-		}
+	schema := commandtree.ArgSchema{
+		Options: []commandtree.OptionArg{
+			{Name: "--list", Description: "Print resolved file paths only"},
+		},
 	}
-	return req, nil
+	parsed, err := commandtree.ParseArgs("info", InfoHelpText(), schema, args)
+	if err != nil {
+		return InfoRequest{}, err
+	}
+	return InfoRequest{ListOnly: parsed.HasFlag("--list")}, nil
+}
+
+func InfoHelpText() string {
+	return commandtree.HelpText("", "vrooli info", "Display consolidated Vrooli project context in a single stream.", commandtree.Help{}, commandtree.ArgSchema{
+		Options: []commandtree.OptionArg{
+			{Name: "--list", Description: "Print the resolved file paths without emitting file contents"},
+		},
+	})
 }
 
 func RunInfo(root string, format cliout.Format, req InfoRequest, stdout, stderr io.Writer) error {

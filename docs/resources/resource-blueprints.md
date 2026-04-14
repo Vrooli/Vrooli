@@ -8,7 +8,7 @@ When an old repo implementation should be removed while keeping the capability a
 
 ## What a Blueprint Is
 
-- A structured JSON record under `.vrooli/resource-blueprints/`
+- A structured JSON record under `.vrooli/resources/blueprints/`
 - A way to preserve future implementation knowledge
 - A CLI-inspectable artifact through `vrooli resource blueprint ...`
 
@@ -20,7 +20,7 @@ When an old repo implementation should be removed while keeping the capability a
 
 ## Storage and Schema
 
-- Blueprint files live in `.vrooli/resource-blueprints/`
+- Blueprint files live in `.vrooli/resources/blueprints/`
 - Each file uses the schema at `.vrooli/schemas/resource-blueprint.schema.json`
 - Filenames should match the canonical resource name, for example `terraform.json`
 
@@ -39,7 +39,7 @@ vrooli resource blueprint validate
 
 Phase 1 is now inventory-complete, not just seed-complete.
 
-- Every resource classified as `blueprint` in `docs/resources/resource-phase0-inventory.md` now has a matching record under `.vrooli/resource-blueprints/`
+- Every resource classified as `blueprint` in `docs/resources/resource-phase0-inventory.md` now has a matching record under `.vrooli/resources/blueprints/`
 - `go test ./internal/resources ./cmd/vrooli` now validates both:
   - blueprint schema and CLI behavior
   - drift between the Phase 0 inventory and the blueprint catalog

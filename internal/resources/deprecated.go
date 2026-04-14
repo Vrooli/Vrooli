@@ -13,13 +13,6 @@ import (
 	"time"
 )
 
-const (
-	deprecatedResourcesPath  = ".vrooli/deprecated-resources.json"
-	resourceRegistryDirPath  = ".vrooli/resource-registry"
-	restoredResourcesDirPath = ".vrooli/restored-resources"
-	defaultRetentionDays     = 90
-)
-
 type DeprecatedResource struct {
 	Name                string `json:"name"`
 	DeprecatedAt        string `json:"deprecated_at"`
@@ -113,7 +106,7 @@ func (c *Controller) DeprecateResource(name string) (DeprecationReport, error) {
 	}
 
 	if !c.resourceKnown(name) {
-		return DeprecationReport{}, fmt.Errorf("resource %q not found in resources, config, or registry", name)
+		return DeprecationReport{}, fmt.Errorf("resource %q not found in resources or config", name)
 	}
 
 	if item, ok, err := c.DeprecatedResource(name); err != nil {
@@ -307,16 +300,6 @@ func (c *Controller) collectArchiveSources(name string) (archiveCollection, erro
 		collection.Skipped = append(collection.Skipped, dirCollection.Skipped...)
 	}
 
-	registryPath := filepath.Join(c.Root, filepath.FromSlash(resourceRegistryDirPath), name+".json")
-	if data, err := os.ReadFile(registryPath); err == nil {
-		collection.Sources = append(collection.Sources, archiveSource{
-			kind:       "registry",
-			sourcePath: registryPath,
-			targetPath: filepath.Join("registry", name+".json"),
-			bytes:      data,
-		})
-	}
-
 	if entry, ok, err := c.serviceConfigEntry(name); err != nil {
 		return archiveCollection{}, err
 	} else if ok {
@@ -333,16 +316,13 @@ func (c *Controller) collectArchiveSources(name string) (archiveCollection, erro
 	}
 
 	if len(collection.Sources) == 0 {
-		return archiveCollection{}, fmt.Errorf("resource %q has no archiveable implementation, registry, or config state", name)
+		return archiveCollection{}, fmt.Errorf("resource %q has no archiveable implementation or config state", name)
 	}
 	return collection, nil
 }
 
 func (c *Controller) removeActiveResourceState(name string) error {
 	if err := c.removeResourceDirectory(name); err != nil {
-		return err
-	}
-	if err := c.removeRegistryEntry(name); err != nil {
 		return err
 	}
 	if err := c.removeResourceConfigEntry(name); err != nil {
@@ -364,16 +344,6 @@ func (c *Controller) removeResourceDirectory(name string) error {
 				return nil
 			}
 			return fmt.Errorf("remove resource directory %s: %w", path, err)
-		}
-	}
-	return nil
-}
-
-func (c *Controller) removeRegistryEntry(name string) error {
-	path := filepath.Join(c.Root, filepath.FromSlash(resourceRegistryDirPath), name+".json")
-	if _, err := os.Stat(path); err == nil {
-		if err := os.Remove(path); err != nil {
-			return fmt.Errorf("remove registry entry %s: %w", path, err)
 		}
 	}
 	return nil
@@ -440,9 +410,6 @@ func (c *Controller) resourceKnown(name string) bool {
 		return true
 	}
 	if _, err := os.Stat(filepath.Join(c.Root, "resources", name)); err == nil {
-		return true
-	}
-	if _, err := os.Stat(filepath.Join(c.Root, filepath.FromSlash(resourceRegistryDirPath), name+".json")); err == nil {
 		return true
 	}
 	entries, err := c.readConfigEntries()

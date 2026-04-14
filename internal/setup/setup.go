@@ -2,6 +2,7 @@ package setup
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,6 +16,8 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
+	"github.com/vrooli/vrooli/internal/cliinstall"
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostreq"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/orchestrator"
@@ -23,6 +26,7 @@ import (
 	"github.com/vrooli/vrooli/internal/resources"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioexec"
 	"github.com/vrooli/vrooli/internal/shell"
 )
 
@@ -31,6 +35,8 @@ const (
 	defaultTarget      = "docker"
 	defaultLocation    = "Local"
 	defaultAPIPort     = 8092
+	onboardingSlug     = "vrooli-onboarding"
+	onboardingSkipEnv  = "VROOLI_SKIP_ONBOARDING"
 )
 
 type Options struct {
@@ -54,18 +60,33 @@ var (
 	currentHostFn             = vrooliruntime.Current
 	loadProjectFn             = project.LoadProject
 	markCompleteFn            = markComplete
+	syncResourceSchemaFn      = syncResourceSchemaArtifacts
+	newCLIInstallManagerFn    = func(root, home string) cliInstallManager { return cliinstall.NewManager(root, home) }
 	resolveHostRequirementsFn = hostreq.Resolve
 	inspectRequirementsFn     = vrooliruntime.InspectRequirements
 	ensureRequirementsFn      = vrooliruntime.EnsureRequirements
 	newPortsManagerFn         = func(root, home string) (*ports.Manager, error) {
 		return ports.NewManager(root, home)
 	}
-	startProjectAPIFn   = startProjectAPI
-	startOrchestratorFn = startOrchestrator
-	healthCheckFn       = waitForHTTPHealth
-	loadDotEnvFn        = loadDotEnv
-	nowFn               = time.Now
+	startProjectAPIFn             = startProjectAPI
+	startOrchestratorFn           = startOrchestrator
+	healthCheckFn                 = waitForHTTPHealth
+	loadDotEnvFn                  = loadDotEnv
+	nowFn                         = time.Now
+	maybeOpenOnboardingFn         = maybeOpenOnboarding
+	osExecutableFn                = os.Executable
+	onboardingPortCommandRunnerFn = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		return exec.CommandContext(ctx, name, args...).CombinedOutput()
+	}
+	openOnboardingURLFn = func(url string) error {
+		return scenarioexec.OpenURL(shell.LookPath, scenarioexec.RunSubprocess, url)
+	}
 )
+
+type cliInstallManager interface {
+	InstallAllScenarioCLIs() error
+	InstallEnabledResourceCLIs() error
+}
 
 func RunSetupWithOptions(root, home string, opts Options, stdout, stderr io.Writer) error {
 	if err := currentHostFn().ValidateSetup(); err != nil {
@@ -126,7 +147,23 @@ func RunSetupWithOptions(root, home string, opts Options, stdout, stderr io.Writ
 	if err := maybeInstallResources(root, home, opts, stdout, stderr); err != nil {
 		return err
 	}
-	return markCompleteFn(root)
+	if err := syncResourceSchemaFn(root); err != nil {
+		return err
+	}
+	cliManager := newCLIInstallManagerFn(root, home)
+	if err := cliManager.InstallEnabledResourceCLIs(); err != nil {
+		return err
+	}
+	if err := cliManager.InstallAllScenarioCLIs(); err != nil {
+		return err
+	}
+	if err := markCompleteFn(root); err != nil {
+		return err
+	}
+	if err := maybeOpenOnboardingFn(root, home, stdout, stderr); err != nil {
+		_, _ = fmt.Fprintf(stderr, "[WARN]    Unable to auto-open onboarding: %v\n", err)
+	}
+	return nil
 }
 
 func RunBuild(root, home string, stdout, stderr io.Writer) error {
@@ -209,6 +246,9 @@ func RunDevelopWithOptions(root, home string, opts Options, stdout, stderr io.Wr
 		return err
 	}
 	_, _ = fmt.Fprintf(stdout, "🚀 Vrooli API healthy on port %d with native scenario management\n", apiPort)
+	if err := maybeOpenOnboardingFn(root, home, stdout, stderr); err != nil {
+		_, _ = fmt.Fprintf(stderr, "[WARN]    Unable to auto-open onboarding: %v\n", err)
+	}
 	return startOrchestratorFn(root, home, stdout, stderr)
 }
 
@@ -425,6 +465,21 @@ func enabledResourceNames(root string) ([]string, error) {
 	return names, nil
 }
 
+func syncResourceSchemaArtifacts(root string) error {
+	report, err := resources.SyncSchemaArtifacts(root)
+	if err != nil {
+		return err
+	}
+	if report.Passed {
+		return nil
+	}
+	if len(report.MissingReferences) > 0 {
+		first := report.MissingReferences[0]
+		return fmt.Errorf("resource schema sync failed: scenario %s references missing resource %s", first.Scenario, first.Resource)
+	}
+	return fmt.Errorf("resource schema sync failed")
+}
+
 func setupNeeded(root, slug string) bool {
 	if forceSetupApplies(slug) {
 		return true
@@ -609,6 +664,154 @@ func forceSetupApplies(slug string) bool {
 	}
 	target := strings.TrimSpace(os.Getenv("FORCE_SETUP_SCENARIO"))
 	return target == "" || target == slug
+}
+
+type onboardingPreferences struct {
+	AutoOpen   *bool  `json:"auto_open,omitempty"`
+	PromptedAt string `json:"prompted_at,omitempty"`
+	Completed  bool   `json:"completed,omitempty"`
+	Skipped    bool   `json:"skipped,omitempty"`
+}
+
+func maybeOpenOnboarding(root, home string, stdout, stderr io.Writer) error {
+	if onboardingDisabledByEnv() {
+		return nil
+	}
+	if !onboardingScenarioExists(root) {
+		return nil
+	}
+
+	configPath := filepath.Join(config.VrooliDir(home), "config.json")
+	doc, prefs, err := loadOnboardingPreferences(configPath)
+	if err != nil {
+		return err
+	}
+	if onboardingAlreadyHandled(prefs) {
+		return nil
+	}
+
+	executable, err := osExecutableFn()
+	if err != nil {
+		return err
+	}
+	if err := launchDetachedOnboarding(root, executable); err != nil {
+		return err
+	}
+	url, err := resolveOnboardingURL(executable)
+	if err != nil {
+		return err
+	}
+	if err := openOnboardingURLFn(url); err != nil {
+		return err
+	}
+
+	prefs.PromptedAt = nowFn().UTC().Format(time.RFC3339)
+	if err := saveOnboardingPreferences(configPath, doc, prefs); err != nil {
+		return err
+	}
+	_, _ = fmt.Fprintf(stdout, "[INFO]    Opening Vrooli onboarding at %s\n", url)
+	return nil
+}
+
+func onboardingDisabledByEnv() bool {
+	value := strings.TrimSpace(strings.ToLower(os.Getenv(onboardingSkipEnv)))
+	return value == "1" || value == "true" || value == "yes"
+}
+
+func onboardingScenarioExists(root string) bool {
+	_, err := os.Stat(scenario.ServicePath(root, onboardingSlug))
+	return err == nil
+}
+
+func onboardingAlreadyHandled(prefs onboardingPreferences) bool {
+	if prefs.Completed || prefs.Skipped || prefs.PromptedAt != "" {
+		return true
+	}
+	return prefs.AutoOpen != nil && !*prefs.AutoOpen
+}
+
+func loadOnboardingPreferences(path string) (map[string]json.RawMessage, onboardingPreferences, error) {
+	doc := map[string]json.RawMessage{}
+	file, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return doc, onboardingPreferences{}, nil
+		}
+		return nil, onboardingPreferences{}, err
+	}
+	if len(file) == 0 {
+		return doc, onboardingPreferences{}, nil
+	}
+	if err := json.Unmarshal(file, &doc); err != nil {
+		return nil, onboardingPreferences{}, err
+	}
+	var prefs onboardingPreferences
+	if raw, ok := doc["onboarding"]; ok && len(raw) > 0 {
+		if err := json.Unmarshal(raw, &prefs); err != nil {
+			return nil, onboardingPreferences{}, err
+		}
+	}
+	return doc, prefs, nil
+}
+
+func saveOnboardingPreferences(path string, doc map[string]json.RawMessage, prefs onboardingPreferences) error {
+	if doc == nil {
+		doc = map[string]json.RawMessage{}
+	}
+	raw, err := json.Marshal(prefs)
+	if err != nil {
+		return err
+	}
+	doc["onboarding"] = raw
+	data, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return err
+	}
+	data = append(data, '\n')
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o644)
+}
+
+func launchDetachedOnboarding(root, executable string) error {
+	devNull, err := os.OpenFile(os.DevNull, os.O_RDWR, 0)
+	if err != nil {
+		return err
+	}
+	defer devNull.Close()
+
+	cmd := exec.Command(executable, "scenario", "start", onboardingSlug)
+	cmd.Dir = root
+	cmd.Env = os.Environ()
+	cmd.Stdin = devNull
+	cmd.Stdout = devNull
+	cmd.Stderr = devNull
+	cmd.SysProcAttr = detachedProcessAttr()
+	return cmd.Start()
+}
+
+func resolveOnboardingURL(executable string) (string, error) {
+	deadline := nowFn().Add(30 * time.Second)
+	for {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		output, err := onboardingPortCommandRunnerFn(ctx, executable, "scenario", "port", onboardingSlug, "UI_PORT")
+		cancel()
+		text := strings.TrimSpace(string(output))
+		if err == nil {
+			port, parseErr := strconv.Atoi(text)
+			if parseErr == nil && port > 0 {
+				return fmt.Sprintf("http://127.0.0.1:%d", port), nil
+			}
+		}
+		if nowFn().After(deadline) {
+			if text == "" {
+				text = "port could not be resolved before timeout"
+			}
+			return "", fmt.Errorf("onboarding UI not ready: %s", text)
+		}
+		time.Sleep(1 * time.Second)
+	}
 }
 
 func markComplete(root string) error {

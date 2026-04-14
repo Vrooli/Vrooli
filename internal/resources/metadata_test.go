@@ -67,19 +67,24 @@ func TestLoadResourceEnvironmentUsesTypedDefaultsAndSecrets(t *testing.T) {
 		Ports:           []manifestpkg.ResourcePort{{Name: "http", Container: 3000, Host: 4110}},
 		Runtime:         manifestpkg.ResourceRuntime{Image: "browserless/chrome:stable"},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
-			Static:    map[string]string{"BROWSERLESS_HOST": "localhost"},
-			FromPorts: map[string]string{"BROWSERLESS_PORT": "http"},
+			Static:         map[string]string{"BROWSERLESS_HOST": "localhost"},
+			FromPorts:      map[string]string{"BROWSERLESS_PORT": "http"},
+			FromRuntimeEnv: []string{"BROWSERLESS_TOKEN"},
 			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
 				"BROWSERLESS_URL":      {Template: "http://${BROWSERLESS_HOST}:${BROWSERLESS_PORT}"},
 				"BROWSERLESS_BASE_URL": {Template: "${BROWSERLESS_URL}"},
 			},
 		},
 	})
-	testkitgo.WriteJSONMode(t, filepath.Join(root, ".vrooli", "secrets.json"), map[string]string{
+	t.Setenv(secrets.KeyEnvVar, "metadata-test-secret-key")
+	store := secrets.NewProjectStore(root)
+	if err := store.Save(map[string]string{
 		"POSTGRES_PASSWORD": "secret",
 		"POSTGRES_USER":     "vrooli",
 		"BROWSERLESS_TOKEN": "abc123",
-	}, 0o600)
+	}); err != nil {
+		t.Fatalf("Save encrypted secrets: %v", err)
+	}
 
 	postgresEnv, err := LoadResourceEnvironment(root, home, "postgres")
 	if err != nil {

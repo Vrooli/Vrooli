@@ -32,7 +32,7 @@ func TestLifecycleCommandIsHiddenFromMainHelpButSupportsDirectHelp(t *testing.T)
 	if stderr.Len() != 0 {
 		t.Fatalf("stderr = %q", stderr.String())
 	}
-	if !strings.Contains(stdout.String(), projectcli.LifecycleProtectHelpText) {
+	if !strings.Contains(stdout.String(), projectcli.LifecycleHelpText()) {
 		t.Fatalf("stdout = %q", stdout.String())
 	}
 }
@@ -98,7 +98,7 @@ func TestLifecycleProtectRequiresProtectedCommandAfterDoubleDash(t *testing.T) {
 		t.Fatalf("help exit code = %d", code)
 	}
 	rendered := stdout.String() + stderr.String()
-	if !strings.Contains(rendered, projectcli.LifecycleProtectHelpText) {
+	if !strings.Contains(rendered, projectcli.LifecycleProtectHelpText()) {
 		t.Fatalf("rendered = %q", rendered)
 	}
 

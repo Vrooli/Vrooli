@@ -384,8 +384,9 @@ pnpm --filter shared run test
 pnpm --filter server run test
 pnpm --filter ui run test
 
-# Run shell script tests
-bash __test/__runTests.sh
+# Run shell script tests directly with bats
+bats scripts/resources/index.bats
+bats scripts/resources/tests/run.bats
 
 # Run with coverage
 pnpm run test:coverage

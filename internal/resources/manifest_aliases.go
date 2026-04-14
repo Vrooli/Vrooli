@@ -30,10 +30,6 @@ func (c *Controller) loadResourceManifest(path string) (ResourceManifest, error)
 	return manifestpkg.Load(path)
 }
 
-func (c *Controller) LoadManifest(path string) (ResourceManifest, error) {
-	return manifestpkg.Load(path)
-}
-
 func validateResourceManifest(manifest ResourceManifest) error {
 	return manifestpkg.Validate(manifest)
 }

@@ -17,7 +17,7 @@ This architecture allows Vrooli's three-tier AI system to adapt to whatever reso
 
 ## Blueprint Catalog
 
-Structured blueprint records now live under `.vrooli/resource-blueprints/` and can be inspected through `vrooli resource blueprint ...`.
+Structured blueprint records now live under `.vrooli/resources/blueprints/` and can be inspected through `vrooli resource blueprint ...`.
 
 - Blueprint guide: [resource-blueprints.md](resource-blueprints.md)
 - Template guide: [resource-templates.md](resource-templates.md)
@@ -80,7 +80,7 @@ vrooli resource archive-to-blueprint blender
 
 For Phase 7 and later, the stable default path is:
 
-1. Create or refine a blueprint under `.vrooli/resource-blueprints/`
+1. Create or refine a blueprint under `.vrooli/resources/blueprints/`
 2. Select the canonical resource template
 3. Generate a manifest-backed resource scaffold
 4. Implement driver-owned lifecycle/status behavior
@@ -202,10 +202,10 @@ The active resource architecture is validated primarily through manifest, bluepr
 
 ```bash
 # Quick syntax validation
-./tools/validate-interfaces.sh --level quick --resource ollama
+./scripts/resources/tools/validate-universal-contract.sh --resource ollama
 
 # Full three-layer validation
-./tools/validate-interfaces.sh --level full --resource ollama
+./scripts/resources/tools/validate-universal-contract.sh --resource ollama --layer 3
 ```
 
 📖 **Complete Testing Strategy**: [TESTING_STRATEGY.md](TESTING_STRATEGY.md)

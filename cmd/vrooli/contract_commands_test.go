@@ -10,6 +10,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/cli/topcli"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/resources"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 )
 
@@ -96,7 +97,21 @@ func TestRunContractValidateJSON(t *testing.T) {
 	copyRepoContractValidationFixtures(t, root)
 	writeTestFile(t, root, "go.mod", "module example.com/test\n\ngo 1.21\n")
 	writeTestFile(t, root, filepath.Join("scenarios", "alpha", repocontractmeta.ServiceManifestPathname), `{"service":{"name":"alpha"}}`)
-	writeTestFile(t, root, filepath.Join("resources", "redis", repocontractmeta.ResourceManifestFilename), `{"name":"redis"}`)
+	writeTestFile(t, root, filepath.Join("resources", "redis", repocontractmeta.ResourceManifestFilename), `{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "redis",
+  "display_name": "Redis",
+  "description": "Cache",
+  "template": "docker-service",
+  "driver": "docker-service",
+  "portability_tier": "full",
+  "runtime": {
+    "image": "redis:7-alpine"
+  }
+}`)
+	if _, err := resources.SyncSchemaArtifacts(root); err != nil {
+		t.Fatalf("SyncSchemaArtifacts: %v", err)
+	}
 	t.Setenv("VROOLI_SOURCE_ROOT", root)
 
 	app := newTestApp("/unused")
@@ -136,7 +151,21 @@ func TestRunContractValidateReturnsSilentNonZeroOnCheckFailure(t *testing.T) {
 	writeTestFile(t, root, "go.mod", "module example.com/test\n\ngo 1.21\n")
 	writeTestFile(t, root, "docs/repo-contract.md", "broken docs\n")
 	writeTestFile(t, root, filepath.Join("scenarios", "alpha", repocontractmeta.ServiceManifestPathname), `{"service":{"name":"alpha"}}`)
-	writeTestFile(t, root, filepath.Join("resources", "redis", repocontractmeta.ResourceManifestFilename), `{"name":"redis"}`)
+	writeTestFile(t, root, filepath.Join("resources", "redis", repocontractmeta.ResourceManifestFilename), `{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "redis",
+  "display_name": "Redis",
+  "description": "Cache",
+  "template": "docker-service",
+  "driver": "docker-service",
+  "portability_tier": "full",
+  "runtime": {
+    "image": "redis:7-alpine"
+  }
+}`)
+	if _, err := resources.SyncSchemaArtifacts(root); err != nil {
+		t.Fatalf("SyncSchemaArtifacts: %v", err)
+	}
 
 	t.Setenv("VROOLI_SOURCE_ROOT", root)
 	app := newTestApp("/unused")

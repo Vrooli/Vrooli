@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	. "github.com/vrooli/vrooli/internal/cli/scenariocli"
 	"github.com/vrooli/vrooli/internal/cliout"
@@ -75,7 +76,7 @@ func RequirementsHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 			if err != nil {
 				return "", struct{}{}, err
 			}
-			commandArgs, workdir, err := translateScenarioRequirementsArgs(deps.Root(ctx), deps.Globals(ctx), req.Args)
+			commandArgs, workdir, err := buildScenarioRequirementsCommand(deps.Root(ctx), deps.Globals(ctx), req.Args)
 			if err != nil {
 				return "", struct{}{}, err
 			}
@@ -93,7 +94,7 @@ func RequirementsHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 	)
 }
 
-func translateScenarioRequirementsArgs(root string, globals rootcli.GlobalOptions, args []string) ([]string, string, error) {
+func buildScenarioRequirementsCommand(root string, globals rootcli.GlobalOptions, args []string) ([]string, string, error) {
 	known := map[string]struct{}{"report": {}, "validate": {}, "sync": {}, "manual-log": {}, "lint-prd": {}, "phase": {}, "phase-inspect": {}, "init": {}}
 	subcommand := args[0]
 	rest := args[1:]
@@ -103,46 +104,46 @@ func translateScenarioRequirementsArgs(root string, globals rootcli.GlobalOption
 	}
 	switch subcommand {
 	case "report":
-		return translateScenarioRequirementsSimple(root, globals, "report", rest, false, true)
+		return buildScenarioRequirementsSubcommand(root, globals, "report", rest, false, true)
 	case "validate":
-		return translateScenarioRequirementsSimple(root, globals, "validate", rest, true, true)
+		return buildScenarioRequirementsSubcommand(root, globals, "validate", rest, true, true)
 	case "sync":
-		return translateScenarioRequirementsSimple(root, globals, "sync", rest, true, false)
+		return buildScenarioRequirementsSubcommand(root, globals, "sync", rest, true, false)
 	case "lint-prd":
-		return translateScenarioRequirementsSimple(root, globals, "lint-prd", rest, true, false)
+		return buildScenarioRequirementsSubcommand(root, globals, "lint-prd", rest, true, false)
 	case "init":
-		return translateScenarioRequirementsSimple(root, globals, "init", rest, true, false)
+		return buildScenarioRequirementsSubcommand(root, globals, "init", rest, true, false)
 	case "phase", "phase-inspect":
-		return translateScenarioRequirementsSimple(root, globals, "phase", rest, true, false)
+		return buildScenarioRequirementsSubcommand(root, globals, "phase", rest, true, false)
 	case "manual-log":
-		return translateScenarioRequirementsSimple(root, globals, "manual-log", rest, true, false)
+		return buildScenarioRequirementsSubcommand(root, globals, "manual-log", rest, true, false)
 	default:
 		return nil, "", rootcli.UsageErrorf("scenario requirements", "unsupported requirements subcommand: %s", subcommand)
 	}
 }
 
-func translateScenarioRequirementsSimple(root string, globals rootcli.GlobalOptions, subcommand string, args []string, includeScenario, includeJSON bool) ([]string, string, error) {
+func buildScenarioRequirementsSubcommand(root string, globals rootcli.GlobalOptions, subcommand string, args []string, includeScenario, includeJSON bool) ([]string, string, error) {
 	scenarioName := ""
-	translated := []string{"requirements", subcommand}
+	commandArgs := []string{"requirements", subcommand}
 	for index := 0; index < len(args); index++ {
 		arg := args[index]
 		switch {
 		case arg == "--help" || arg == "-h":
-			translated = append(translated, arg)
+			commandArgs = append(commandArgs, arg)
 		case strings.HasPrefix(arg, "-"):
-			translated = append(translated, arg)
+			commandArgs = append(commandArgs, arg)
 			if requiresScenarioRequirementsOptionValue(arg) && index+1 < len(args) {
 				index++
-				translated = append(translated, args[index])
+				commandArgs = append(commandArgs, args[index])
 			}
 		case scenarioName == "":
 			scenarioName = arg
 		default:
-			translated = append(translated, arg)
+			commandArgs = append(commandArgs, arg)
 		}
 	}
-	if rootcli.ContainsArg(translated, "--help") || rootcli.ContainsArg(translated, "-h") {
-		return translated, root, nil
+	if rootcli.ContainsArg(commandArgs, "--help") || rootcli.ContainsArg(commandArgs, "-h") {
+		return commandArgs, root, nil
 	}
 	if scenarioName == "" {
 		return nil, "", rootcli.UsageErrorf("scenario requirements", "scenario requirements %s requires a scenario name", subcommand)
@@ -156,14 +157,14 @@ func translateScenarioRequirementsSimple(root string, globals rootcli.GlobalOpti
 			return nil, "", rootcli.UsageErrorf("scenario requirements", "scenario %s does not define requirements/", scenarioName)
 		}
 	}
-	translated = append(translated, "--dir", scenarioDir)
+	commandArgs = append(commandArgs, "--dir", scenarioDir)
 	if includeScenario {
-		translated = append(translated, "--scenario", scenarioName)
+		commandArgs = append(commandArgs, "--scenario", scenarioName)
 	}
-	if includeJSON && globals.JSON && !rootcli.ContainsArg(translated, "--json") {
-		translated = append(translated, "--json")
+	if includeJSON && globals.JSON && !rootcli.ContainsArg(commandArgs, "--json") {
+		commandArgs = append(commandArgs, "--json")
 	}
-	return translated, scenarioDir, nil
+	return commandArgs, scenarioDir, nil
 }
 
 func requiresScenarioRequirementsOptionValue(flag string) bool {
@@ -180,7 +181,7 @@ func runScenarioRequirementsSnapshot(root string, args []string, stdout io.Write
 	for _, arg := range args {
 		switch arg {
 		case "--help", "-h":
-			_, _ = fmt.Fprintln(stdout, "Usage: vrooli scenario requirements snapshot <name>")
+			commandtree.WriteHelp(stdout, RequirementsSnapshotHelpText())
 			return nil
 		default:
 			if strings.HasPrefix(arg, "-") {

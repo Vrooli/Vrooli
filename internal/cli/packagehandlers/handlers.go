@@ -70,7 +70,9 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			packagecli.RenderInfo,
 		),
 		packagecli.CommandDependents: rootcli.BindGlobalCommand(deps.Stdout,
-			func(ctx C, args []string) (packagecli.DependentsRequest, error) { return packagecli.ParseDependentsRequest(args) },
+			func(ctx C, args []string) (packagecli.DependentsRequest, error) {
+				return packagecli.ParseDependentsRequest(args)
+			},
 			func(ctx C, req packagecli.DependentsRequest) (cliout.Format, packagecli.DependentsResponse, error) {
 				format, err := deps.OutputFormat(ctx)
 				if err != nil {
@@ -89,7 +91,9 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			packagecli.RenderDependents,
 		),
 		packagecli.CommandValidate: rootcli.BindGlobalCommand(deps.Stdout,
-			func(ctx C, args []string) (packagecli.ValidateRequest, error) { return packagecli.ParseValidateRequest(args) },
+			func(ctx C, args []string) (packagecli.ValidateRequest, error) {
+				return packagecli.ParseValidateRequest(args)
+			},
 			func(ctx C, req packagecli.ValidateRequest) (cliout.Format, packagecli.ValidateResponse, error) {
 				format, err := deps.OutputFormat(ctx)
 				if err != nil {
@@ -108,7 +112,9 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			packagecli.RenderValidate,
 		),
 		packagecli.CommandBuild: rootcli.BindGlobalCommand(deps.Stdout,
-			func(ctx C, args []string) (packagecli.RunRequest, error) { return packagecli.ParseRunRequest("build", args) },
+			func(ctx C, args []string) (packagecli.RunRequest, error) {
+				return packagecli.ParseRunRequest("build", args)
+			},
 			func(ctx C, req packagecli.RunRequest) (cliout.Format, packagecli.RunResponse, error) {
 				format, err := deps.OutputFormat(ctx)
 				if err != nil {
@@ -123,7 +129,9 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			packagecli.RenderRun,
 		),
 		packagecli.CommandGenerate: rootcli.BindGlobalCommand(deps.Stdout,
-			func(ctx C, args []string) (packagecli.RunRequest, error) { return packagecli.ParseRunRequest("generate", args) },
+			func(ctx C, args []string) (packagecli.RunRequest, error) {
+				return packagecli.ParseRunRequest("generate", args)
+			},
 			func(ctx C, req packagecli.RunRequest) (cliout.Format, packagecli.RunResponse, error) {
 				format, err := deps.OutputFormat(ctx)
 				if err != nil {
@@ -138,7 +146,9 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			packagecli.RenderRun,
 		),
 		packagecli.CommandRefresh: rootcli.BindGlobalCommand(deps.Stdout,
-			func(ctx C, args []string) (packagecli.RefreshRequest, error) { return packagecli.ParseRefreshRequest(args) },
+			func(ctx C, args []string) (packagecli.RefreshRequest, error) {
+				return packagecli.ParseRefreshRequest(args)
+			},
 			func(ctx C, req packagecli.RefreshRequest) (cliout.Format, packagecli.RefreshResponse, error) {
 				format, err := deps.OutputFormat(ctx)
 				if err != nil {
@@ -180,26 +190,7 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 		),
 	}
 
-	source := packagecli.CommandSpecs()
-	specs := make([]commandtree.Spec[rootcli.Handler[C]], 0, len(source))
-	for _, spec := range source {
-		handler, ok := handlerMap[spec.Handler]
-		if !ok {
-			continue
-		}
-		specs = append(specs, commandtree.Spec[rootcli.Handler[C]]{
-			Name:        spec.Name,
-			Aliases:     append([]string(nil), spec.Aliases...),
-			Group:       spec.Group,
-			Summary:     spec.Summary,
-			Hidden:      spec.Hidden,
-			Suggestable: spec.Suggestable,
-			RootPolicy:  spec.RootPolicy,
-			Help:        spec.Help,
-			Handler:     handler,
-		})
-	}
-	return specs
+	return commandtree.BindSpecs(packagecli.CommandSpecs(), handlerMap)
 }
 
 func newService[C any](deps HandlerDeps[C], ctx C, format cliout.Format) packageapp.Service {

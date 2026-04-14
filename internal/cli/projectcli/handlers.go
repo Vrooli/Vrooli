@@ -227,13 +227,5 @@ func DiagnosePortHandler[C any](stdout func(C) io.Writer, outputFormat func(C) (
 }
 
 func renderHelp(w io.Writer, err error) bool {
-	helpErr, ok := err.(interface{ HelpText() string })
-	if !ok {
-		return false
-	}
-	_, _ = io.WriteString(w, helpErr.HelpText())
-	if text := helpErr.HelpText(); text == "" || text[len(text)-1] != '\n' {
-		_, _ = io.WriteString(w, "\n")
-	}
-	return true
+	return rootcli.HandleHelp(w, err)
 }

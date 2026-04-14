@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
-	"github.com/vrooli/vrooli/internal/cli/vroolicli"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
+	"github.com/vrooli/vrooli/internal/cli/vroolicli"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioexec"
@@ -26,6 +26,8 @@ func newTestApp(root string) *App {
 	app.CheckStalenessFn = func() (buildinfo.StaleCheck, error) {
 		return buildinfo.StaleCheck{Stale: false}, nil
 	}
+	app.EnsureScenarioCLIFn = func(root, home, name string) error { return nil }
+	app.EnsureResourceCLIFn = func(root, home, name string) error { return nil }
 	return app
 }
 

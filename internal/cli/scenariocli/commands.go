@@ -41,39 +41,103 @@ const (
 
 func CommandSpecs() []commandtree.Spec[CommandID] {
 	return []commandtree.Spec[CommandID]{
-		{Name: string(CommandList), Group: "Read-only Commands", Summary: "List discovered scenarios", Handler: CommandList, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
-		{Name: string(CommandInfo), Group: "Read-only Commands", Summary: "Show scenario metadata and runtime summary", Handler: CommandInfo, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
-		{Name: string(CommandStatus), Group: "Read-only Commands", Summary: "Show scenario runtime status", Handler: CommandStatus, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
-		{Name: string(CommandValidateEnv), Group: "Read-only Commands", Summary: "Validate resource-derived environment injection for a scenario", Handler: CommandValidateEnv, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
+		{
+			Name: string(CommandList), Group: "Read-only Commands", Summary: "List discovered scenarios", Handler: CommandList, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
+			Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{commandtree.JSONOption(), {Name: "--include-ports", Description: "Include port mappings in the list output"}}},
+		},
+		{
+			Name: string(CommandInfo), Group: "Read-only Commands", Summary: "Show scenario metadata and runtime summary", Handler: CommandInfo, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
+			Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}}, Options: []commandtree.OptionArg{commandtree.JSONOption()}},
+		},
+		{
+			Name: string(CommandStatus), Group: "Read-only Commands", Summary: "Show scenario runtime status", Handler: CommandStatus, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
+			Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "scenario name"}}, Options: []commandtree.OptionArg{commandtree.JSONOption()}},
+		},
+		{
+			Name: string(CommandValidateEnv), Group: "Read-only Commands", Summary: "Validate resource-derived environment injection for a scenario", Handler: CommandValidateEnv, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
+			Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}}, Options: []commandtree.OptionArg{commandtree.JSONOption()}},
+		},
 		{Name: string(CommandRun), Group: "Lifecycle and Utility Commands", Summary: "Run a scenario directly (alias of start)", Handler: CommandRun, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
-		{Name: string(CommandStart), Group: "Lifecycle and Utility Commands", Summary: "Start a scenario", Handler: CommandStart, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
-		{Name: string(CommandStartAll), Group: "Lifecycle and Utility Commands", Summary: "Start all available scenarios", Handler: CommandStartAll, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
-		{Name: string(CommandSetup), Group: "Lifecycle and Utility Commands", Summary: "Run the setup lifecycle", Handler: CommandSetup, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
-		{Name: string(CommandRestart), Group: "Lifecycle and Utility Commands", Summary: "Restart a scenario", Handler: CommandRestart, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
-		{Name: string(CommandStop), Group: "Lifecycle and Utility Commands", Summary: "Stop a running scenario", Handler: CommandStop, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
-		{Name: string(CommandStopAll), Group: "Lifecycle and Utility Commands", Summary: "Stop all running scenarios", Handler: CommandStopAll, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
+		{
+			Name: string(CommandStart), Group: "Lifecycle and Utility Commands", Summary: "Start a scenario", Handler: CommandStart, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
+			Args: commandtree.ArgSchema{
+				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true, Repeatable: true}},
+				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--open"}, commandtree.JSONOption()},
+			},
+		},
+		{
+			Name: string(CommandStartAll), Group: "Lifecycle and Utility Commands", Summary: "Start all available scenarios", Handler: CommandStartAll, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
+			Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{commandtree.JSONOption()}},
+		},
+		{
+			Name: string(CommandSetup), Group: "Lifecycle and Utility Commands", Summary: "Run the setup lifecycle", Handler: CommandSetup, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
+			Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}}, Options: []commandtree.OptionArg{{Name: "--path", ValueName: "path"}}},
+		},
+		{
+			Name: string(CommandRestart), Group: "Lifecycle and Utility Commands", Summary: "Restart a scenario", Handler: CommandRestart, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
+			Args: commandtree.ArgSchema{
+				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}},
+				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--open"}, commandtree.JSONOption()},
+			},
+		},
+		{
+			Name: string(CommandStop), Group: "Lifecycle and Utility Commands", Summary: "Stop a running scenario", Handler: CommandStop, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
+			Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}}, Options: []commandtree.OptionArg{commandtree.JSONOption()}},
+		},
+		{
+			Name: string(CommandStopAll), Group: "Lifecycle and Utility Commands", Summary: "Stop all running scenarios", Handler: CommandStopAll, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
+			Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{commandtree.JSONOption()}},
+		},
 		{Name: string(CommandTest), Group: "Lifecycle and Utility Commands", Summary: "Run scenario tests", Handler: CommandTest, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{Name: string(CommandLogs), Group: "Lifecycle and Utility Commands", Summary: "View logs for a scenario", Handler: CommandLogs, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
-		{Name: string(CommandOpen), Group: "Lifecycle and Utility Commands", Summary: "Open a scenario in the browser", Handler: CommandOpen, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
-		{Name: string(CommandPort), Group: "Lifecycle and Utility Commands", Summary: "Show running port assignments", Handler: CommandPort, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
+		{
+			Name: string(CommandOpen), Group: "Lifecycle and Utility Commands", Summary: "Open a scenario in the browser", Handler: CommandOpen, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
+			Args: commandtree.ArgSchema{
+				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}},
+				Options:     []commandtree.OptionArg{{Name: "--port", ValueName: "name"}, {Name: "--print-url"}, commandtree.JSONOption()},
+			},
+		},
+		{
+			Name: string(CommandPort), Group: "Lifecycle and Utility Commands", Summary: "Show running port assignments", Handler: CommandPort, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
+			Args: commandtree.ArgSchema{
+				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}, {Name: "port name"}},
+				Options:     []commandtree.OptionArg{commandtree.JSONOption()},
+			},
+		},
 		{Name: string(CommandUISmoke), Group: "Lifecycle and Utility Commands", Summary: "Run the Browserless UI smoke harness", Handler: CommandUISmoke, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{Name: string(CommandRequirements), Group: "Lifecycle and Utility Commands", Summary: "Manage scenario requirements", Handler: CommandRequirements, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{Name: string(CommandTemplate), Group: "Lifecycle and Utility Commands", Summary: "Manage scenario templates", Handler: CommandTemplate, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{Name: string(CommandGenerate), Group: "Lifecycle and Utility Commands", Summary: "Scaffold a scenario from a template", Handler: CommandGenerate, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{Name: string(CommandCompleteness), Group: "Lifecycle and Utility Commands", Summary: "Calculate a completeness score", Handler: CommandCompleteness, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
-		{Name: string(CommandHealFromSandbox), Group: "Lifecycle and Utility Commands", Summary: "Relaunch sandbox-rooted scenario processes", Handler: CommandHealFromSandbox, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
+		{
+			Name: string(CommandHealFromSandbox), Group: "Lifecycle and Utility Commands", Summary: "Relaunch sandbox-rooted scenario processes", Handler: CommandHealFromSandbox, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
+			Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--merged-path", ValueName: "path"}, {Name: "--dry-run"}}},
+		},
 	}
 }
 
 func HelpOnlyWithoutRoot(args []string) bool { return commandtree.WantsHelp(args) }
 
 func RenderCommandHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "Vrooli Scenario Commands")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Usage:")
-	_, _ = fmt.Fprintln(w, "  vrooli scenario <subcommand> [options]")
-	_, _ = fmt.Fprintln(w)
-	commandtree.RenderGroups(w, commandtree.VisibleEntries(CommandSpecs(), ""))
+	commandtree.RenderHelp(w, commandtree.Help{
+		Title:        "Vrooli Scenario Commands",
+		Usage:        "vrooli scenario <subcommand> [options]",
+		DefaultGroup: "Scenario Management",
+	}, CommandSpecs())
+}
+
+func commandSpec(id CommandID) commandtree.Spec[CommandID] {
+	for _, spec := range CommandSpecs() {
+		if spec.Handler == id {
+			return spec
+		}
+	}
+	panic("unknown scenario command spec: " + string(id))
+}
+
+func commandHelpText(id CommandID) string {
+	spec := commandSpec(id)
+	return commandtree.SpecHelpText("", "vrooli scenario "+spec.Name, spec)
 }
 
 type StartRequest struct {
@@ -148,7 +212,7 @@ type ValidateEnvResponse struct {
 }
 
 func ParseScenarioNameAndJSON(command string, defaultJSON bool, args []string) (string, bool, error) {
-	name, jsonFlag, err := ParseOptionalScenarioNameAndJSON(command, defaultJSON, args)
+	name, jsonFlag, err := parseOptionalScenarioNameAndJSONWithHelp(command, defaultJSON, "", args)
 	if err != nil {
 		return "", false, err
 	}
@@ -159,59 +223,38 @@ func ParseScenarioNameAndJSON(command string, defaultJSON bool, args []string) (
 }
 
 func ParseOptionalScenarioNameAndJSON(command string, defaultJSON bool, args []string) (string, bool, error) {
-	name := ""
-	jsonFlag := defaultJSON
-	for _, arg := range args {
-		switch arg {
-		case "--json":
-			jsonFlag = true
-		case "--help", "-h":
-			return "", false, clipolicy.CommandHelpOnly("")
-		default:
-			if strings.HasPrefix(arg, "-") {
-				return "", false, clipolicy.UnknownOptionError("scenario "+command, arg)
-			}
-			if name != "" {
-				return "", false, clipolicy.UsageErrorf("scenario "+command, "scenario %s accepts at most one scenario name", command)
-			}
-			name = arg
-		}
+	return parseOptionalScenarioNameAndJSONWithHelp(command, defaultJSON, "", args)
+}
+
+func parseOptionalScenarioNameAndJSONWithHelp(command string, defaultJSON bool, helpText string, args []string) (string, bool, error) {
+	parsed, err := commandtree.ParseArgs("scenario "+command, helpText, commandtree.ArgSchema{
+		Positionals: []commandtree.PositionalArg{{Name: "scenario name"}},
+		Options: []commandtree.OptionArg{
+			{Name: "--json"},
+		},
+	}, args)
+	if err != nil {
+		return "", false, err
 	}
-	return name, jsonFlag, nil
+	name := ""
+	if len(parsed.Positionals) == 1 {
+		name = parsed.Positionals[0]
+	}
+	return name, defaultJSON || parsed.HasFlag("--json"), nil
 }
 
 func ParseScenarioStartArgs(defaultJSON bool, args []string) ([]string, lifecycle.StartOptions, bool, bool, error) {
-	names := []string{}
-	jsonFlag := defaultJSON
-	openAfter := false
-	opts := lifecycle.StartOptions{}
-	for index := 0; index < len(args); index++ {
-		arg := args[index]
-		switch arg {
-		case "--json":
-			jsonFlag = true
-		case "--open":
-			openAfter = true
-		case "--best-effort":
-			opts.BestEffort = true
-		case "--clean-stale":
-			opts.CleanStale = true
-		case "--path":
-			if index+1 >= len(args) {
-				return nil, lifecycle.StartOptions{}, false, false, clipolicy.UsageErrorf("scenario start", "scenario start --path requires a value")
-			}
-			index++
-			opts.CustomPath = args[index]
-		case "--help", "-h":
-			return nil, lifecycle.StartOptions{}, false, false, clipolicy.CommandHelpOnly("")
-		default:
-			if strings.HasPrefix(arg, "-") {
-				return nil, lifecycle.StartOptions{}, false, false, clipolicy.UnknownOptionError("scenario start", arg)
-			}
-			names = append(names, arg)
-		}
+	spec := commandSpec(CommandStart)
+	parsed, err := commandtree.ParseArgs("scenario start", commandHelpText(CommandStart), spec.Args, args)
+	if err != nil {
+		return nil, lifecycle.StartOptions{}, false, false, err
 	}
-	return names, opts, jsonFlag, openAfter, nil
+	opts := lifecycle.StartOptions{
+		BestEffort: parsed.HasFlag("--best-effort"),
+		CleanStale: parsed.HasFlag("--clean-stale"),
+		CustomPath: parsed.FlagValue("--path"),
+	}
+	return append([]string(nil), parsed.Positionals...), opts, defaultJSON || parsed.HasFlag("--json"), parsed.HasFlag("--open"), nil
 }
 
 func ParseScenarioSingleStartArgs(command string, defaultJSON bool, args []string) (string, lifecycle.StartOptions, bool, bool, error) {
@@ -231,7 +274,7 @@ func ParseScenarioSingleStartArgs(command string, defaultJSON bool, args []strin
 func ParseStartRequest(globalsJSON bool, args []string) (StartRequest, error) {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
-			return StartRequest{}, clipolicy.CommandHelpOnly(StartHelpText)
+			return StartRequest{}, clipolicy.CommandHelpOnly(commandHelpText(CommandStart))
 		}
 	}
 	names, opts, jsonFlag, openAfter, err := ParseScenarioStartArgs(globalsJSON, args)
@@ -248,9 +291,12 @@ func ParseStartRequest(globalsJSON bool, args []string) (StartRequest, error) {
 }
 
 func ParseStopRequest(globalsJSON bool, args []string) (StopRequest, error) {
-	name, jsonFlag, err := ParseScenarioNameAndJSON("stop", globalsJSON, args)
+	name, jsonFlag, err := parseOptionalScenarioNameAndJSONWithHelp("stop", globalsJSON, commandHelpText(CommandStop), args)
 	if err != nil {
 		return StopRequest{}, err
+	}
+	if name == "" {
+		return StopRequest{}, clipolicy.UsageErrorf("scenario stop", "scenario stop requires a scenario name")
 	}
 	return StopRequest{Name: name, JSON: jsonFlag}, nil
 }
@@ -258,7 +304,7 @@ func ParseStopRequest(globalsJSON bool, args []string) (StopRequest, error) {
 func ParseRestartRequest(globalsJSON bool, args []string) (RestartRequest, error) {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
-			return RestartRequest{}, clipolicy.CommandHelpOnly(RestartHelpText)
+			return RestartRequest{}, clipolicy.CommandHelpOnly(commandHelpText(CommandRestart))
 		}
 	}
 	name, opts, jsonFlag, openAfter, err := ParseScenarioSingleStartArgs("restart", globalsJSON, args)
@@ -269,42 +315,19 @@ func ParseRestartRequest(globalsJSON bool, args []string) (RestartRequest, error
 }
 
 func ParseListRequest(globalsJSON bool, args []string) (ListRequest, error) {
-	req := ListRequest{JSON: globalsJSON}
-	for _, arg := range args {
-		switch arg {
-		case "--json":
-			req.JSON = true
-		case "--include-ports":
-			req.IncludePorts = true
-		case "--help", "-h":
-			return ListRequest{}, clipolicy.CommandHelpOnly(ListHelpText)
-		default:
-			return ListRequest{}, clipolicy.UnknownOptionError("scenario list", arg)
-		}
-	}
-	return req, nil
-}
-
-func ParseInfoRequest(globalsJSON bool, args []string) (InfoRequest, error) {
-	for _, arg := range args {
-		if arg == "--help" || arg == "-h" {
-			return InfoRequest{}, clipolicy.CommandHelpOnly(InfoHelpText)
-		}
-	}
-	name, jsonFlag, err := ParseScenarioNameAndJSON("info", globalsJSON, args)
+	spec := commandSpec(CommandList)
+	parsed, err := commandtree.ParseArgs("scenario list", commandHelpText(CommandList), spec.Args, args)
 	if err != nil {
-		return InfoRequest{}, err
+		return ListRequest{}, err
 	}
-	return InfoRequest{Name: name, JSON: jsonFlag}, nil
+	return ListRequest{
+		JSON:         globalsJSON || parsed.HasFlag("--json"),
+		IncludePorts: parsed.HasFlag("--include-ports"),
+	}, nil
 }
 
 func ParseStatusRequest(globalsJSON bool, args []string) (StatusRequest, error) {
-	for _, arg := range args {
-		if arg == "--help" || arg == "-h" {
-			return StatusRequest{}, clipolicy.CommandHelpOnly(StatusHelpText)
-		}
-	}
-	name, jsonFlag, err := ParseOptionalScenarioNameAndJSON("status", globalsJSON, args)
+	name, jsonFlag, err := parseOptionalScenarioNameAndJSONWithHelp("status", globalsJSON, commandHelpText(CommandStatus), args)
 	if err != nil {
 		return StatusRequest{}, err
 	}
@@ -312,9 +335,12 @@ func ParseStatusRequest(globalsJSON bool, args []string) (StatusRequest, error) 
 }
 
 func ParseValidateEnvRequest(globalsJSON bool, args []string) (ValidateEnvRequest, error) {
-	name, jsonFlag, err := ParseScenarioNameAndJSON("validate-env", globalsJSON, args)
+	name, jsonFlag, err := parseOptionalScenarioNameAndJSONWithHelp("validate-env", globalsJSON, commandHelpText(CommandValidateEnv), args)
 	if err != nil {
 		return ValidateEnvRequest{}, err
+	}
+	if name == "" {
+		return ValidateEnvRequest{}, clipolicy.UsageErrorf("scenario validate-env", "scenario validate-env requires a scenario name")
 	}
 	return ValidateEnvRequest{Name: name, JSON: jsonFlag}, nil
 }
@@ -368,12 +394,23 @@ func ParsePhaseArgs(command string, args []string) (string, lifecycle.PhaseOptio
 	return name, opts, nil
 }
 
+func ParseInfoRequest(globalsJSON bool, args []string) (InfoRequest, error) {
+	name, jsonFlag, err := parseOptionalScenarioNameAndJSONWithHelp("info", globalsJSON, commandHelpText(CommandInfo), args)
+	if err != nil {
+		return InfoRequest{}, err
+	}
+	if name == "" {
+		return InfoRequest{}, clipolicy.UsageErrorf("scenario info", "scenario info requires a scenario name")
+	}
+	return InfoRequest{Name: name, JSON: jsonFlag}, nil
+}
+
 func ParseSetupRequest(globalsJSON bool, args []string) (SetupRequest, error) {
 	jsonFlag := globalsJSON
 	for _, arg := range args {
 		switch arg {
 		case "--help", "-h":
-			return SetupRequest{}, clipolicy.CommandHelpOnly(SetupHelpText)
+			return SetupRequest{}, clipolicy.CommandHelpOnly(commandHelpText(CommandSetup))
 		case "--json":
 			jsonFlag = true
 		}
@@ -441,7 +478,7 @@ func ParseTestArgs(globalsJSON, globalsVerbose bool, args []string) (string, lif
 func ParseTestRequest(globalsJSON, globalsVerbose bool, args []string) (TestRequest, error) {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
-			return TestRequest{}, clipolicy.CommandHelpOnly(TestHelpText)
+			return TestRequest{}, clipolicy.CommandHelpOnly(TestHelpText())
 		}
 	}
 	name, opts, err := ParseTestArgs(globalsJSON, globalsVerbose, args)
@@ -452,88 +489,53 @@ func ParseTestRequest(globalsJSON, globalsVerbose bool, args []string) (TestRequ
 }
 
 func ParseStartAllRequest(globalsJSON bool, args []string) (StartAllRequest, error) {
-	req := StartAllRequest{JSON: globalsJSON}
-	for _, arg := range args {
-		switch arg {
-		case "--json":
-			req.JSON = true
-		case "--help", "-h":
-			return StartAllRequest{}, clipolicy.CommandHelpOnly(StartAllHelpText)
-		default:
-			return StartAllRequest{}, clipolicy.UnknownOptionError("scenario start-all", arg)
-		}
+	spec := commandSpec(CommandStartAll)
+	parsed, err := commandtree.ParseArgs("scenario start-all", commandHelpText(CommandStartAll), spec.Args, args)
+	if err != nil {
+		return StartAllRequest{}, err
 	}
-	return req, nil
+	return StartAllRequest{JSON: globalsJSON || parsed.HasFlag("--json")}, nil
 }
 
 func ParseStopAllRequest(globalsJSON bool, args []string) (StopAllRequest, error) {
-	req := StopAllRequest{JSON: globalsJSON}
-	for _, arg := range args {
-		switch arg {
-		case "--json":
-			req.JSON = true
-		case "--help", "-h":
-			return StopAllRequest{}, clipolicy.CommandHelpOnly(StopAllHelpText)
-		default:
-			return StopAllRequest{}, clipolicy.UnknownOptionError("scenario stop-all", arg)
-		}
+	spec := commandSpec(CommandStopAll)
+	parsed, err := commandtree.ParseArgs("scenario stop-all", commandHelpText(CommandStopAll), spec.Args, args)
+	if err != nil {
+		return StopAllRequest{}, err
 	}
-	return req, nil
+	return StopAllRequest{JSON: globalsJSON || parsed.HasFlag("--json")}, nil
 }
 
 func ParsePortRequest(globalsJSON bool, args []string) (PortRequest, error) {
-	req := PortRequest{JSON: globalsJSON}
-	for _, arg := range args {
-		switch {
-		case arg == "--json":
-			req.JSON = true
-		case arg == "--help" || arg == "-h":
-			return PortRequest{}, clipolicy.CommandHelpOnly(PortHelpText)
-		case strings.HasPrefix(arg, "-"):
-			return PortRequest{}, clipolicy.UnknownOptionError("scenario port", arg)
-		case req.ScenarioName == "":
-			req.ScenarioName = arg
-		case req.PortName == "":
-			req.PortName = arg
-		default:
-			return PortRequest{}, clipolicy.UsageErrorf("scenario port", "scenario port accepts at most two positional arguments")
-		}
+	spec := commandSpec(CommandPort)
+	parsed, err := commandtree.ParseArgs("scenario port", commandHelpText(CommandPort), spec.Args, args)
+	if err != nil {
+		return PortRequest{}, err
 	}
-	if req.ScenarioName == "" {
-		return PortRequest{}, clipolicy.UsageErrorf("scenario port", "scenario port requires a scenario name")
+	req := PortRequest{
+		ScenarioName: parsed.Positionals[0],
+		JSON:         globalsJSON || parsed.HasFlag("--json"),
+	}
+	if len(parsed.Positionals) > 1 {
+		req.PortName = parsed.Positionals[1]
 	}
 	return req, nil
 }
 
 func ParseOpenRequest(globalsJSON bool, args []string) (OpenRequest, error) {
-	req := OpenRequest{PortName: "UI_PORT", JSON: globalsJSON}
-	for index := 0; index < len(args); index++ {
-		arg := args[index]
-		switch arg {
-		case "--help", "-h":
-			return OpenRequest{}, clipolicy.CommandHelpOnly(OpenHelpText)
-		case "--port":
-			if index+1 >= len(args) {
-				return OpenRequest{}, clipolicy.UsageErrorf("scenario open", "scenario open --port requires a value")
-			}
-			index++
-			req.PortName = args[index]
-		case "--print-url":
-			req.PrintURL = true
-		case "--json":
-			req.JSON = true
-		default:
-			if strings.HasPrefix(arg, "-") {
-				return OpenRequest{}, clipolicy.UnknownOptionError("scenario open", arg)
-			}
-			if req.ScenarioName != "" {
-				return OpenRequest{}, clipolicy.UsageErrorf("scenario open", "scenario open accepts exactly one scenario name")
-			}
-			req.ScenarioName = arg
-		}
+	spec := commandSpec(CommandOpen)
+	parsed, err := commandtree.ParseArgs("scenario open", commandHelpText(CommandOpen), spec.Args, args)
+	if err != nil {
+		return OpenRequest{}, err
 	}
-	if req.ScenarioName == "" {
-		return OpenRequest{}, clipolicy.UsageErrorf("scenario open", "scenario open requires a scenario name")
+	req := OpenRequest{
+		ScenarioName: parsed.Positionals[0],
+		PortName:     "UI_PORT",
+		PrintURL:     parsed.HasFlag("--print-url"),
+		JSON:         globalsJSON || parsed.HasFlag("--json"),
+	}
+	if value := parsed.FlagValue("--port"); value != "" {
+		req.PortName = value
 	}
 	return req, nil
 }
@@ -551,27 +553,18 @@ func ParseRequirementsRequest(args []string) (RequirementsRequest, error) {
 	return req, nil
 }
 
-func RequirementsHelpText() string {
-	return RequirementsHelpTextBody
-}
-
 func ParseHealFromSandboxRequest(defaultMergedPath string, args []string) (HealFromSandboxRequest, error) {
-	req := HealFromSandboxRequest{MergedPath: strings.TrimSpace(defaultMergedPath)}
-	for index := 0; index < len(args); index++ {
-		switch args[index] {
-		case "--merged-path":
-			if index+1 >= len(args) {
-				return HealFromSandboxRequest{}, clipolicy.UsageErrorf("scenario heal-from-sandbox", "scenario heal-from-sandbox --merged-path requires a value")
-			}
-			index++
-			req.MergedPath = args[index]
-		case "--dry-run":
-			req.DryRun = true
-		case "--help", "-h":
-			return HealFromSandboxRequest{}, clipolicy.CommandHelpOnly(HealFromSandboxHelpText)
-		default:
-			return HealFromSandboxRequest{}, clipolicy.UnknownOptionError("scenario heal-from-sandbox", args[index])
-		}
+	spec := commandSpec(CommandHealFromSandbox)
+	parsed, err := commandtree.ParseArgs("scenario heal-from-sandbox", commandHelpText(CommandHealFromSandbox), spec.Args, args)
+	if err != nil {
+		return HealFromSandboxRequest{}, err
+	}
+	req := HealFromSandboxRequest{
+		MergedPath: strings.TrimSpace(defaultMergedPath),
+		DryRun:     parsed.HasFlag("--dry-run"),
+	}
+	if value := parsed.FlagValue("--merged-path"); value != "" {
+		req.MergedPath = value
 	}
 	if strings.TrimSpace(req.MergedPath) == "" {
 		return HealFromSandboxRequest{}, clipolicy.UsageErrorf("scenario heal-from-sandbox", "heal-from-sandbox requires SANDBOX_MERGED_DIR or --merged-path")

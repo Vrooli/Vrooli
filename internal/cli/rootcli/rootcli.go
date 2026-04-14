@@ -150,57 +150,25 @@ func NewRegistry[C any](
 	return registry
 }
 
-func buildScenarioCommandTable[C any](handlers map[scenariocli.CommandID]Handler[C]) []commandtree.Spec[Handler[C]] {
-	source := scenariocli.CommandSpecs()
-	specs := make([]commandtree.Spec[Handler[C]], 0, len(source))
-	for _, spec := range source {
-		handler, ok := handlers[spec.Handler]
-		if !ok {
-			continue
-		}
-		specs = append(specs, commandtree.Spec[Handler[C]]{
-			Name:        spec.Name,
-			Aliases:     append([]string(nil), spec.Aliases...),
-			Group:       spec.Group,
-			Summary:     spec.Summary,
-			Hidden:      spec.Hidden,
-			Suggestable: spec.Suggestable,
-			RootPolicy:  spec.RootPolicy,
-			Help:        spec.Help,
-			Handler:     handler,
-		})
-	}
-	return specs
-}
-
 func buildTopLevelCommandTable[C any](
 	handlers map[topcli.CommandID]Handler[C],
 	scenarioCanRunWithoutRoot func(args []string) bool,
 ) []commandtree.Spec[Handler[C]] {
-	source := topcli.CommandSpecs()
-	specs := make([]commandtree.Spec[Handler[C]], 0, len(source))
-	for _, spec := range source {
+	return commandtree.BindSpecsFunc(topcli.CommandSpecs(), func(spec commandtree.Spec[topcli.CommandID]) (commandtree.Spec[Handler[C]], bool) {
 		handler, ok := handlers[spec.Handler]
 		if !ok {
-			continue
+			return commandtree.Spec[Handler[C]]{}, false
 		}
-		rootPolicy := spec.RootPolicy
+		bound := commandtree.BindSpec(spec, handler)
 		if spec.Handler == topcli.CommandScenario {
-			rootPolicy.CanRunWithoutRoot = scenarioCanRunWithoutRoot
+			bound.RootPolicy.CanRunWithoutRoot = scenarioCanRunWithoutRoot
 		}
-		specs = append(specs, commandtree.Spec[Handler[C]]{
-			Name:        spec.Name,
-			Aliases:     append([]string(nil), spec.Aliases...),
-			Group:       spec.Group,
-			Summary:     spec.Summary,
-			Hidden:      spec.Hidden,
-			Suggestable: spec.Suggestable,
-			RootPolicy:  rootPolicy,
-			Help:        spec.Help,
-			Handler:     handler,
-		})
-	}
-	return specs
+		return bound, true
+	})
+}
+
+func buildScenarioCommandTable[C any](handlers map[scenariocli.CommandID]Handler[C]) []commandtree.Spec[Handler[C]] {
+	return commandtree.BindSpecs(scenariocli.CommandSpecs(), handlers)
 }
 
 func (r *Registry[C]) TopLevelHandler(name string) (Handler[C], bool) {
@@ -330,6 +298,14 @@ func NewUnknownScenarioCommandError(command string, suggestions []string) error 
 
 func PrintErrorWithContext(w io.Writer, err error) {
 	clipolicy.PrintErrorWithContext(w, err)
+}
+
+func WriteHelp(w io.Writer, text string) {
+	commandtree.WriteHelp(w, text)
+}
+
+func HandleHelp(w io.Writer, err error) bool {
+	return commandtree.HandleHelp(w, err)
 }
 
 type ExitCodeError struct {

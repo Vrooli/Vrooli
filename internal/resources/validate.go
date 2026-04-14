@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
@@ -57,7 +58,7 @@ func (c *Controller) ValidateResources(name string) (ResourceValidationReport, e
 		if strings.TrimSpace(item.ManifestPath) == "" {
 			continue
 		}
-		manifest, err := c.loadResourceManifest(item.ManifestPath)
+		manifest, err := manifestpkg.Load(item.ManifestPath)
 		if err != nil {
 			return ResourceValidationReport{}, err
 		}

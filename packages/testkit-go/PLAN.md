@@ -17,7 +17,7 @@ This plan focuses on:
 - `packages/testkit-go/` is the default reusable Go test fixture package.
 - Root-module tests and package-module tests no longer duplicate valid repo-contract fixtures, valid service/resource manifests, or common file-writing helpers.
 - Test seams exist where logic-heavy tests currently rely on real subprocesses, shell behavior, or fragile filesystem setup.
-- Compatibility surfaces are isolated behind explicit compatibility fixture helpers.
+- Edge-case fixture surfaces are isolated so core tests stay on the canonical contracts.
 - Local duplicated test helpers are removed after migration.
 - `testkit-go` itself is documented and directly tested.
 
@@ -29,7 +29,7 @@ This plan focuses on:
 - typed builders for valid repo/layout/manifest fixtures
 - explicit malformed fixture helpers for negative tests
 - common file/JSON/executable writers
-- compatibility fixture construction for intentionally-supported legacy surfaces
+- focused fixture construction for edge-case runtime scenarios that still need direct setup
 
 ### `testkit-go` does not own
 
@@ -60,8 +60,8 @@ packages/testkit-go/
   vrooli/
     manifests.go
     manifests_test.go
-    compat.go
-    compat_test.go
+    runtime_helpers.go
+    runtime_helpers_test.go
 ```
 
 This split is already justified by import-boundary constraints:
@@ -87,7 +87,7 @@ The first iteration should support:
 - valid JSON writers
 - explicit malformed JSON writers
 - relative file/executable writers
-- compatibility fixture writers for legacy shell-era artifacts still covered by tests
+- focused fixture writers for edge-case runtime artifacts still covered by tests
 
 ## Migration targets
 
@@ -104,7 +104,7 @@ These are the highest-value consumers because they currently duplicate repo/layo
 
 ### Second-wave adopters
 
-These already use some shared helpers but still contain local duplication or compatibility fixture churn:
+These already use some shared helpers but still contain local duplication or fixture churn:
 
 - `internal/project/project_test.go`
 - `internal/api/app_test.go`
@@ -191,7 +191,7 @@ Goal: centralize valid project/scenario/resource manifest construction.
 - [x] Move and refine reusable manifest builders into `testkit-go`
 - [x] Support project manifests
 - [x] Support scenario manifests with lifecycle, ports, dependencies
-- [x] Support resource manifests with portability, runtime, legacy adapter fields
+- [x] Support resource manifests with portability and runtime fields
 - [x] Add explicit malformed manifest helpers for negative tests
 - [x] Add unit tests for the manifest builders
 
@@ -215,20 +215,20 @@ Acceptance criteria:
 
 - common `write file/json/executable` helpers no longer need to be redefined per package
 
-### Phase 4: Compatibility fixture layer
+### Phase 4: Edge-case fixture layer
 
-Goal: isolate shell-era compatibility surfaces still intentionally covered by tests.
+Goal: isolate non-canonical runtime fixtures still intentionally covered by tests.
 
-- [x] Add helpers for port registry compatibility fixtures
-- [x] Add helpers for legacy resource CLI fixtures
-- [ ] Add helpers for legacy defaults/config shell fragments where still needed
+- [x] Add helpers for port registry fixtures
+- [x] Add helpers for resource CLI fixtures used by direct runtime tests
+- [ ] Add helpers for remaining defaults/config fragments where still needed
 - [ ] Add helpers for resource/scenario marker files used by migrated tests
-- [x] Add tests proving compatibility helpers create the intended paths and contents
+- [x] Add tests proving the edge-case helpers create the intended paths and contents
 
 Acceptance criteria:
 
-- compatibility debt becomes explicit and localized
-- migrated tests stop hand-rolling compatibility files repeatedly
+- non-canonical fixture setup becomes explicit and localized
+- migrated tests stop hand-rolling edge-case files repeatedly
 
 ### Phase 5: First-wave adoption
 
@@ -261,7 +261,7 @@ Goal: migrate the larger controller/lifecycle/resource suites.
 Acceptance criteria:
 
 - second-wave adopters use typed shared fixtures for valid setup
-- remaining raw JSON or shell fixture text is limited to negative tests or explicit compatibility coverage
+- remaining raw JSON or shell fixture text is limited to negative tests or explicit edge-case coverage
 
 ### Phase 7: Seam hardening
 
@@ -286,7 +286,7 @@ Goal: align the resulting tests with screaming architecture and clear boundaries
 
 - [ ] Split oversized test files by domain behavior
 - [ ] Rename helpers/files whose names no longer match responsibilities
-- [ ] Keep compatibility tests separate from core behavior tests
+- [ ] Keep edge-case runtime tests separate from core behavior tests
 - [ ] Keep owner-level exact-value tests near the owning package
 
 Acceptance criteria:
@@ -325,14 +325,14 @@ As of 2026-04-13:
 - Root-module and package-module migrated tests under `internal/`, `cmd/`, and `packages/` no longer import `internal/testfixture` or `internal/testutil` directly.
 - `packages/testkit-go` and `packages/testkit-go/vrooli` have direct tests and are the canonical path for shared Go fixture setup.
 - Explicit malformed JSON and malformed manifest helpers now exist for negative-path tests, with direct package coverage and initial consumer adoption.
-- The legacy `internal/testfixture` and `internal/testutil` compatibility wrappers have been removed from the repo.
+- The former `internal/testfixture` and `internal/testutil` wrappers have been removed from the repo.
 - Broad validation has passed for:
   - `go test ./packages/testkit-go ./packages/testkit-go/vrooli`
   - `go test ./internal/scenario ./internal/process ./internal/lifecycle ./internal/setup ./internal/resources ./internal/api ./internal/project ./internal/repocontractcheck ./internal/repocontract ./internal/orchestrator ./internal/hostreq ./internal/hostreqcheck ./cmd/vrooli-api`
   - `(cd packages/repo-contract-go && go test ./...)`
   - `(cd packages/cli-core && go test ./cliapp)`
   - `make validate-repo-contract`
-- The highest-value remaining work is now seam hardening and retirement of the compatibility wrapper packages, not additional first-party test adoption.
+- The highest-value remaining work is now seam hardening and retirement of the remaining edge-case helper assumptions, not additional first-party test adoption.
 
 Acceptance criteria:
 
@@ -350,7 +350,7 @@ Minimum direct coverage:
 - manifest builder output
 - file/JSON/executable writer behavior
 - malformed fixture helper behavior
-- compatibility helper behavior
+- edge-case helper behavior
 
 Also add at least one higher-level integration-style package test proving a generated repo fixture is consumable by real code such as:
 

@@ -133,6 +133,28 @@ func TestResolveScenarioPathAndFile(t *testing.T) {
 	}
 }
 
+func TestResolveResourcePathAndFile(t *testing.T) {
+	root := fixtureRoot(t)
+
+	resourcePath, err := ResolveResourcePath(root, "postgres")
+	if err != nil {
+		t.Fatalf("ResolveResourcePath() error = %v", err)
+	}
+	wantPath := filepath.Join(root, "resources", "postgres")
+	if resourcePath != wantPath {
+		t.Fatalf("ResolveResourcePath() = %q, want %q", resourcePath, wantPath)
+	}
+
+	manifestPath, err := ResolveResourceFile(root, "postgres", "manifest")
+	if err != nil {
+		t.Fatalf("ResolveResourceFile() error = %v", err)
+	}
+	wantManifest := filepath.Join(wantPath, "resource.json")
+	if manifestPath != wantManifest {
+		t.Fatalf("ResolveResourceFile() = %q, want %q", manifestPath, wantManifest)
+	}
+}
+
 func TestScenarioExists(t *testing.T) {
 	root := fixtureRoot(t)
 
@@ -150,6 +172,26 @@ func TestScenarioExists(t *testing.T) {
 	}
 	if ok {
 		t.Fatal("ScenarioExists(missing) = true, want false")
+	}
+}
+
+func TestResourceExists(t *testing.T) {
+	root := fixtureRoot(t)
+
+	ok, err := ResourceExists(root, "postgres")
+	if err != nil {
+		t.Fatalf("ResourceExists(existing) error = %v", err)
+	}
+	if !ok {
+		t.Fatal("ResourceExists(existing) = false, want true")
+	}
+
+	ok, err = ResourceExists(root, "definitely-missing-resource")
+	if err != nil {
+		t.Fatalf("ResourceExists(missing) error = %v", err)
+	}
+	if ok {
+		t.Fatal("ResourceExists(missing) = true, want false")
 	}
 }
 

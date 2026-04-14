@@ -4,7 +4,7 @@ Blueprint-only archival is the cleanup workflow for resources whose old `resourc
 
 This is intentionally different from deprecation:
 
-- **Blueprint-archived** means the old implementation is removed from the active repo surface, but the capability remains a live candidate through `.vrooli/resource-blueprints/<name>.json`
+- **Blueprint-archived** means the old implementation is removed from the active repo surface, but the capability remains a live candidate through `.vrooli/resources/blueprints/<name>.json`
 - **Deprecated** means the resource has left the active surface and is tracked as deprecated rather than as a future blueprint-backed candidate
 
 ## What Archive-To-Blueprint Does
@@ -13,7 +13,7 @@ This is intentionally different from deprecation:
 - archives the current implementation under `~/.vrooli/archive/resources/`
 - removes the active `resources/<name>/` directory
 - removes transitional registry/config state for that resource
-- records metadata in `.vrooli/blueprint-archived-resources.json`
+- records metadata in `.vrooli/resources/archived-blueprint-resources.json`
 - keeps restore explicit and quarantined rather than silently making the resource active again
 
 ## Safety Gates
@@ -40,7 +40,7 @@ vrooli resource archive gc-blueprints
 
 Restores are intentionally quarantined.
 
-- `vrooli resource restore-blueprint <name>` restores archived content into `.vrooli/restored-resources/<name>/`
+- `vrooli resource restore-blueprint <name>` restores archived content into `.vrooli/resources/restored/<name>/`
 - restored resources do not re-enter `vrooli resource list`
 - promotion back into the active supported set remains an explicit later step
 
@@ -48,7 +48,7 @@ Restores are intentionally quarantined.
 
 - default retention: `90` days
 - expired blueprint archives can be removed with `vrooli resource archive gc-blueprints`
-- metadata remains in `.vrooli/blueprint-archived-resources.json` for traceability after purge
+- metadata remains in `.vrooli/resources/archived-blueprint-resources.json` for traceability after purge
 
 ## Recommended Use
 

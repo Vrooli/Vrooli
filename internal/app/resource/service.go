@@ -31,6 +31,8 @@ type ResourceOperations interface {
 	ResourceTemplate(name string) (resources.ResourceTemplateInfo, error)
 	ValidateResourceTemplates() (resources.ResourceTemplateValidationReport, error)
 	GenerateResourceTemplate(req resources.ResourceTemplateGenerateRequest) (resources.ResourceTemplateGenerateReport, error)
+	ValidateSchemaArtifacts() (resources.ResourceSchemaValidationReport, error)
+	SyncSchemaArtifacts() (resources.ResourceSchemaSyncReport, error)
 }
 
 type Service struct {
@@ -116,7 +118,14 @@ func (s Service) Restore(name string) (resources.RestoreReport, error) {
 }
 
 func (s Service) ArchiveToBlueprint(name string) (resources.BlueprintArchiveReport, error) {
-	return s.Resources.ArchiveResourceToBlueprint(name)
+	report, err := s.Resources.ArchiveResourceToBlueprint(name)
+	if err != nil {
+		return resources.BlueprintArchiveReport{}, err
+	}
+	if _, err := s.Resources.SyncSchemaArtifacts(); err != nil {
+		return resources.BlueprintArchiveReport{}, err
+	}
+	return report, nil
 }
 
 func (s Service) ListBlueprintArchived() ([]resources.BlueprintArchivedResource, error) {
@@ -124,7 +133,14 @@ func (s Service) ListBlueprintArchived() ([]resources.BlueprintArchivedResource,
 }
 
 func (s Service) RestoreBlueprint(name string) (resources.BlueprintRestoreReport, error) {
-	return s.Resources.RestoreBlueprintArchivedResource(name)
+	report, err := s.Resources.RestoreBlueprintArchivedResource(name)
+	if err != nil {
+		return resources.BlueprintRestoreReport{}, err
+	}
+	if _, err := s.Resources.SyncSchemaArtifacts(); err != nil {
+		return resources.BlueprintRestoreReport{}, err
+	}
+	return report, nil
 }
 
 func (s Service) BlueprintList() ([]resources.Blueprint, error) {
@@ -156,5 +172,22 @@ func (s Service) TemplateValidate() (resources.ResourceTemplateValidationReport,
 }
 
 func (s Service) TemplateGenerate(req resources.ResourceTemplateGenerateRequest) (resources.ResourceTemplateGenerateReport, error) {
-	return s.Resources.GenerateResourceTemplate(req)
+	report, err := s.Resources.GenerateResourceTemplate(req)
+	if err != nil {
+		return resources.ResourceTemplateGenerateReport{}, err
+	}
+	if !report.DryRun {
+		if _, err := s.Resources.SyncSchemaArtifacts(); err != nil {
+			return resources.ResourceTemplateGenerateReport{}, err
+		}
+	}
+	return report, nil
+}
+
+func (s Service) SchemaValidate() (resources.ResourceSchemaValidationReport, error) {
+	return s.Resources.ValidateSchemaArtifacts()
+}
+
+func (s Service) SchemaSync() (resources.ResourceSchemaSyncReport, error) {
+	return s.Resources.SyncSchemaArtifacts()
 }

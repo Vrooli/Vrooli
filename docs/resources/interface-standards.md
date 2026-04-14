@@ -15,11 +15,11 @@ resource-<name> logs                    # View resource logs
 
 ### Management Commands
 ```bash
-resource-<name> manage install          # Install the resource
-resource-<name> manage start            # Start the service
-resource-<name> manage stop             # Stop the service
-resource-<name> manage restart          # Restart the service
-resource-<name> manage uninstall        # Remove the resource
+resource-<name> install                 # Install the resource
+resource-<name> start                   # Start the service
+resource-<name> stop                    # Stop the service
+resource-<name> restart                 # Restart the service
+resource-<name> uninstall               # Remove the resource
 ```
 
 ### Testing Commands
@@ -69,15 +69,15 @@ resource-<name> content execute         # Execute/process content
 ### Deprecated Patterns (DO NOT USE)
 ```bash
 # OLD v1.0 patterns - DEPRECATED
-./manage.sh --action install           # Use: resource-X manage install
-./manage.sh --action start             # Use: resource-X manage start
+./manage.sh --action install           # Use: resource-X install
+./manage.sh --action start             # Use: resource-X start
 resource-X inject file.json            # Use: resource-X content add --file file.json
 ```
 
 ### Updated Patterns
 ```bash
 # NEW v2.0 patterns
-resource-postgres manage install       # Management
+resource-postgres install              # Management
 resource-postgres content add --file schema.sql  # Content
 resource-postgres test smoke          # Validation
 resource-postgres status --format json # Monitoring
@@ -96,8 +96,8 @@ resource-postgres status --format json # Monitoring
 ```
 resources/<name>/
 ├── resource.json            # Canonical manifest (REQUIRED for native resources)
-├── cli.sh                   # Compatibility CLI entry point
-├── lib/core.sh              # Compatibility shell functionality
+├── cli/                     # Go CLI module (main.go, go.mod, install wrappers)
+├── lib/                     # Optional compatibility helpers only
 ├── test/
 │   ├── run-tests.sh         # Main test runner (REQUIRED)
 │   └── phases/
@@ -117,8 +117,8 @@ For native resources, runtime configuration, dependency authoring schema, and en
 | logs | 15 seconds |
 | test smoke | 30 seconds |
 | test integration | 120 seconds |
-| manage start | 120 seconds |
-| manage stop | 60 seconds |
+| start | 120 seconds |
+| stop | 60 seconds |
 
 ## 🔒 Security Requirements
 
@@ -126,7 +126,7 @@ For native resources, runtime configuration, dependency authoring schema, and en
 - Never log secrets
 - Mask credentials in output
 - Use secure storage for keys
-- Proper file permissions (cli.sh: 755, lib/*.sh: 644)
+- Proper file permissions for optional compatibility scripts and generated assets
 
 ## 🚀 Implementation Guide
 

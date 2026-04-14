@@ -10,8 +10,6 @@ import (
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
-	"github.com/vrooli/vrooli/internal/cli/vroolicli"
-	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cli/topcli"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
@@ -80,28 +78,8 @@ func TestRunInfoHelpExitsZero(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("run exit code = %d", code)
 	}
-	if !strings.Contains(stdout.String(), topcli.InfoUsageText) {
+	if !strings.Contains(stdout.String(), topcli.InfoHelpText()) {
 		t.Fatalf("stdout = %q", stdout.String())
-	}
-}
-
-func TestRunInfoCommandRejectsUnknownOption(t *testing.T) {
-	err := runInfoCommand("/repo", globalOptions{}, []string{"--bogus"}, &bytes.Buffer{}, &bytes.Buffer{})
-	if err == nil || !strings.Contains(err.Error(), "unknown option for info") {
-		t.Fatalf("runInfoCommand error = %v", err)
-	}
-}
-
-func TestRunInfoCommandErrorsWhenNoSourcesConfigured(t *testing.T) {
-	originalDefaults := topcli.DefaultInfoFiles
-	topcli.DefaultInfoFiles = nil
-	t.Cleanup(func() {
-		topcli.DefaultInfoFiles = originalDefaults
-	})
-
-	err := runInfoCommand(t.TempDir(), globalOptions{}, nil, &bytes.Buffer{}, &bytes.Buffer{})
-	if err == nil || !strings.Contains(err.Error(), "no context sources defined") {
-		t.Fatalf("runInfoCommand error = %v", err)
 	}
 }
 
@@ -181,72 +159,6 @@ func TestRunInfoCommandSkipsMissingSourcesInJSONMode(t *testing.T) {
 	}
 }
 
-func TestRunInfoCommandHelpAndJSONMissingFiles(t *testing.T) {
-	root := t.TempDir()
-	absoluteFile := filepath.Join(t.TempDir(), "extra.md")
-	writeTestFile(t, root, "docs/context.md", "hello world\n")
-	writeTestFile(t, filepath.Dir(absoluteFile), filepath.Base(absoluteFile), "extra context\n")
-
-	var help bytes.Buffer
-	if err := runInfoCommand(root, globalOptions{}, []string{"--help"}, &help, &bytes.Buffer{}); err != nil {
-		t.Fatalf("runInfoCommand help: %v", err)
-	}
-	if !strings.Contains(help.String(), topcli.InfoUsageText) {
-		t.Fatalf("missing help output: %s", help.String())
-	}
-
-	t.Setenv("VROOLI_INFO_FILES", "docs/context.md:"+absoluteFile+":docs/missing.md")
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	if err := runInfoCommand(root, globalOptions{JSON: true}, nil, &stdout, &stderr); err != nil {
-		t.Fatalf("runInfoCommand json: %v", err)
-	}
-
-	var payload topcli.InfoOutput
-	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
-		t.Fatalf("unmarshal info payload: %v", err)
-	}
-	if len(payload.Files) != 2 {
-		t.Fatalf("file count = %d, want 2", len(payload.Files))
-	}
-	if payload.Files[1].Path != absoluteFile {
-		t.Fatalf("expected absolute info path to be preserved, got %q", payload.Files[1].Path)
-	}
-	if !strings.Contains(stderr.String(), "Skipping missing context file: docs/missing.md") {
-		t.Fatalf("stderr = %q", stderr.String())
-	}
-}
-
-func TestCollectInfoSourcesPrefersEnvAndFallsBackOnInvalidManifest(t *testing.T) {
-	root := t.TempDir()
-	t.Setenv("VROOLI_INFO_FILES", "docs/context.md:/tmp/extra.md")
-
-	files, warnings, err := collectInfoSourcesDetailed(root)
-	if err != nil {
-		t.Fatalf("collectInfoSources env: %v", err)
-	}
-	if got, want := strings.Join(files, ","), "docs/context.md,/tmp/extra.md"; got != want {
-		t.Fatalf("files = %q, want %q", got, want)
-	}
-	if len(warnings) != 0 {
-		t.Fatalf("warnings = %#v, want none", warnings)
-	}
-
-	t.Setenv("VROOLI_INFO_FILES", "")
-	writeTestFile(t, root, filepath.Join(repocontractmeta.ProjectConfigDir, repocontractmeta.InfoManifestFilename), `{"files":`)
-
-	files, warnings, err = collectInfoSourcesDetailed(root)
-	if err != nil {
-		t.Fatalf("collectInfoSources fallback: %v", err)
-	}
-	if got, want := strings.Join(files, ","), strings.Join(topcli.DefaultInfoFiles, ","); got != want {
-		t.Fatalf("files = %q, want %q", got, want)
-	}
-	if len(warnings) != 1 || !strings.Contains(warnings[0], "Invalid info manifest") {
-		t.Fatalf("warnings = %#v", warnings)
-	}
-}
-
 func TestRunUnknownCommandSuggestsNearestMatch(t *testing.T) {
 	app := newTestApp("/repo")
 
@@ -260,22 +172,6 @@ func TestRunUnknownCommandSuggestsNearestMatch(t *testing.T) {
 	}
 	if !strings.Contains(stderr.String(), "status") {
 		t.Fatalf("expected suggestion list in stderr, got %q", stderr.String())
-	}
-}
-
-func TestShowVersionAndHelpOutput(t *testing.T) {
-	var version bytes.Buffer
-	if err := vroolicli.WriteVersion(&version, "/repo", globalOptions{}, vroolicli.VersionInfo{CLIVersion: cliVersion, PlatformVersion: vrooliVersion}); err != nil {
-		t.Fatalf("showVersion: %v", err)
-	}
-	if !strings.Contains(version.String(), "Vrooli CLI v"+cliVersion) {
-		t.Fatalf("version output = %q", version.String())
-	}
-
-	var help bytes.Buffer
-	topcli.RenderMainHelp(&help, topcli.CommandSpecs())
-	if !strings.Contains(help.String(), "scenario") || !strings.Contains(help.String(), "Manage scenarios from their source locations") {
-		t.Fatalf("help output = %q", help.String())
 	}
 }
 
@@ -320,48 +216,5 @@ func TestRunMainHelpAndUnknownCommandDoNotRequireRootResolution(t *testing.T) {
 	}
 	if !strings.Contains(stderr.String(), clipolicy.UnknownCommandLabel+": statuz") {
 		t.Fatalf("stderr = %q", stderr.String())
-	}
-}
-
-func TestCommandEnvPreservesExistingSourceRootAndNoColor(t *testing.T) {
-	t.Setenv("HOME", "/tmp/home")
-	t.Setenv("PATH", "/usr/bin")
-	t.Setenv("LANG", "C")
-	t.Setenv("VROOLI_SOURCE_ROOT", "/custom/source")
-
-	env := configuredApp().CommandEnv("/repo", globalOptions{NoColor: true})
-	got := strings.Join(env, "\n")
-	if !strings.Contains(got, "VROOLI_ROOT=/repo") {
-		t.Fatalf("env missing VROOLI_ROOT: %v", env)
-	}
-	if !strings.Contains(got, "VROOLI_SOURCE_ROOT=/custom/source") {
-		t.Fatalf("env missing preserved source root: %v", env)
-	}
-	if !strings.Contains(got, "NO_COLOR=1") {
-		t.Fatalf("env missing NO_COLOR: %v", env)
-	}
-}
-
-func TestResolveInfoPathAndPassthroughFlags(t *testing.T) {
-	absolute := resolveInfoPath("/repo", "/tmp/context.md")
-	if absolute != "/tmp/context.md" {
-		t.Fatalf("resolveInfoPath absolute = %q", absolute)
-	}
-
-	flags := passthroughFlags(globalOptions{JSON: true, Verbose: true, NoColor: true}, []string{"--json", "scenario"})
-	if got, want := strings.Join(flags, ","), "--verbose,--no-color"; got != want {
-		t.Fatalf("flags = %q, want %q", got, want)
-	}
-	if containsArg([]string{"alpha", "beta"}, "--json") {
-		t.Fatalf("containsArg should not match absent flag")
-	}
-}
-
-func TestExitCodeError(t *testing.T) {
-	if got := (rootcli.ExitCodeError{Code: 7, Message: "boom"}).Error(); got != "boom" {
-		t.Fatalf("ExitCodeError message = %q", got)
-	}
-	if got := (rootcli.ExitCodeError{Code: 7}).Error(); got != "exit code 7" {
-		t.Fatalf("ExitCodeError default = %q", got)
 	}
 }

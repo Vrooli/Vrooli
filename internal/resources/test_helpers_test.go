@@ -9,11 +9,6 @@ import (
 	testfixture "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
 )
 
-func writeRegistryEntry(t *testing.T, root, name string) {
-	t.Helper()
-	testfixture.WriteResourceRegistryEntry(t, root, name)
-}
-
 func writeResourceCLI(t *testing.T, root, name string) {
 	t.Helper()
 	testfixture.WriteResourceCLI(t, root, name, "#!/usr/bin/env bash\nexit 0\n")
@@ -21,14 +16,14 @@ func writeResourceCLI(t *testing.T, root, name string) {
 
 func writeDeprecatedMetadata(t *testing.T, root string, items ...DeprecatedResource) {
 	t.Helper()
-	testkitgo.WriteJSON(t, filepath.Join(root, ".vrooli", "deprecated-resources.json"), DeprecatedResourceList{
+	testkitgo.WriteJSON(t, filepath.Join(root, filepath.FromSlash(deprecatedResourcesPath)), DeprecatedResourceList{
 		Resources: items,
 	})
 }
 
 func writeBlueprintArchivedMetadata(t *testing.T, root string, items ...BlueprintArchivedResource) {
 	t.Helper()
-	testkitgo.WriteJSON(t, filepath.Join(root, ".vrooli", "blueprint-archived-resources.json"), BlueprintArchivedResourceList{
+	testkitgo.WriteJSON(t, filepath.Join(root, filepath.FromSlash(blueprintArchivedResourcesPath)), BlueprintArchivedResourceList{
 		Resources: items,
 	})
 }

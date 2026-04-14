@@ -11,11 +11,13 @@ import (
 type fakeResourceOps struct {
 	toggledName    string
 	toggledEnabled bool
+	syncCalls      int
 }
 
 func (f *fakeResourceOps) Discover() ([]resources.Resource, error) {
 	return []resources.Resource{{Name: "redis"}}, nil
 }
+
 func (f *fakeResourceOps) ValidateResources(name string) (resources.ResourceValidationReport, error) {
 	return resources.ResourceValidationReport{Passed: true}, nil
 }
@@ -69,15 +71,19 @@ func (f *fakeResourceOps) ListBlueprints() ([]resources.Blueprint, error) { retu
 func (f *fakeResourceOps) Blueprint(name string) (resources.Blueprint, error) {
 	return resources.Blueprint{Name: name}, nil
 }
+
 func (f *fakeResourceOps) SearchBlueprints(query string) ([]resources.Blueprint, error) {
 	return nil, nil
 }
+
 func (f *fakeResourceOps) ValidateBlueprints() (resources.BlueprintValidationReport, error) {
 	return resources.BlueprintValidationReport{}, nil
 }
+
 func (f *fakeResourceOps) ListResourceTemplates() ([]resources.ResourceTemplateInfo, error) {
 	return nil, nil
 }
+
 func (f *fakeResourceOps) ResourceTemplate(name string) (resources.ResourceTemplateInfo, error) {
 	return resources.ResourceTemplateInfo{Name: name}, nil
 }
@@ -88,6 +94,15 @@ func (f *fakeResourceOps) ValidateResourceTemplates() (resources.ResourceTemplat
 
 func (f *fakeResourceOps) GenerateResourceTemplate(req resources.ResourceTemplateGenerateRequest) (resources.ResourceTemplateGenerateReport, error) {
 	return resources.ResourceTemplateGenerateReport{}, nil
+}
+
+func (f *fakeResourceOps) ValidateSchemaArtifacts() (resources.ResourceSchemaValidationReport, error) {
+	return resources.ResourceSchemaValidationReport{Passed: true}, nil
+}
+
+func (f *fakeResourceOps) SyncSchemaArtifacts() (resources.ResourceSchemaSyncReport, error) {
+	f.syncCalls++
+	return resources.ResourceSchemaSyncReport{Passed: true}, nil
 }
 
 func TestServiceUsesInterfaceBasedResourceOperations(t *testing.T) {
@@ -107,5 +122,23 @@ func TestServiceUsesInterfaceBasedResourceOperations(t *testing.T) {
 	}
 	if report.Start == nil || len(report.Start.Started) != 1 {
 		t.Fatalf("report = %#v", report)
+	}
+}
+
+func TestServiceSyncsSchemaAfterCatalogMutations(t *testing.T) {
+	ops := &fakeResourceOps{}
+	svc := Service{Resources: ops}
+
+	if _, err := svc.ArchiveToBlueprint("redis"); err != nil {
+		t.Fatalf("ArchiveToBlueprint: %v", err)
+	}
+	if _, err := svc.RestoreBlueprint("redis"); err != nil {
+		t.Fatalf("RestoreBlueprint: %v", err)
+	}
+	if _, err := svc.TemplateGenerate(resources.ResourceTemplateGenerateRequest{}); err != nil {
+		t.Fatalf("TemplateGenerate: %v", err)
+	}
+	if ops.syncCalls != 3 {
+		t.Fatalf("sync calls = %d, want 3", ops.syncCalls)
 	}
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -14,11 +15,8 @@ import (
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/cli/scenariocli"
-	"github.com/vrooli/vrooli/internal/cli/scenariohandlers"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/process"
-	"github.com/vrooli/vrooli/internal/scenario"
-	"github.com/vrooli/vrooli/internal/scenarioexec"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 )
 
@@ -572,97 +570,6 @@ func TestRunScenarioStatusAllHumanOutput(t *testing.T) {
 	}
 }
 
-func TestBuildListPortsFallsBackToLiveEnvironment(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("process environment inspection uses /proc on linux")
-	}
-
-	cmd := exec.Command("sleep", "30")
-	cmd.Env = append(os.Environ(), "API_PORT=18080")
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("start sleep: %v", err)
-	}
-	t.Cleanup(func() {
-		if cmd.Process != nil {
-			_ = cmd.Process.Kill()
-		}
-		_ = cmd.Wait()
-	})
-
-	manifest := scenario.ServiceManifest{
-		Ports: map[string]scenario.Port{
-			"api": {EnvVar: "API_PORT"},
-		},
-	}
-
-	var (
-		listPorts []scenariocli.ListPortOutput
-		ports     map[string]int
-	)
-	for attempt := 0; attempt < 20; attempt++ {
-		listPorts, ports = scenariocli.BuildListPorts(manifest, []process.Record{{PID: cmd.Process.Pid, Step: "start-api"}})
-		if ports["API_PORT"] == 18080 {
-			break
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-
-	if len(listPorts) != 0 {
-		t.Fatalf("listPorts = %#v, want no explicit record-derived ports", listPorts)
-	}
-	if ports["API_PORT"] != 18080 {
-		t.Fatalf("ports = %#v", ports)
-	}
-}
-
-func TestParseOptionalScenarioNameAndJSONValidation(t *testing.T) {
-	name, jsonFlag, err := scenariocli.ParseOptionalScenarioNameAndJSON("status", false, []string{"alpha", "--json"})
-	if err != nil {
-		t.Fatalf("parseOptionalScenarioNameAndJSON: %v", err)
-	}
-	if name != "alpha" || !jsonFlag {
-		t.Fatalf("name/json = %q/%v", name, jsonFlag)
-	}
-
-	if _, _, err := scenariocli.ParseOptionalScenarioNameAndJSON("status", false, []string{"alpha", "beta"}); err == nil {
-		t.Fatalf("expected duplicate scenario names to fail")
-	}
-	if _, _, err := scenariocli.ParseOptionalScenarioNameAndJSON("status", false, []string{"--bogus"}); err == nil {
-		t.Fatalf("expected unknown option to fail")
-	}
-	if _, _, err := scenariocli.ParseScenarioNameAndJSON("info", false, nil); err == nil {
-		t.Fatalf("expected missing scenario name to fail")
-	}
-}
-
-func TestParseScenarioStartArgsAndSingleStartValidation(t *testing.T) {
-	names, opts, jsonFlag, openAfter, err := scenariocli.ParseScenarioStartArgs(false, []string{
-		"alpha", "beta", "--json", "--open", "--best-effort", "--clean-stale", "--path", "/tmp/custom",
-	})
-	if err != nil {
-		t.Fatalf("parseScenarioStartArgs: %v", err)
-	}
-	if got := strings.Join(names, ","); got != "alpha,beta" {
-		t.Fatalf("names = %q", got)
-	}
-	if !jsonFlag || !openAfter || !opts.BestEffort || !opts.CleanStale || opts.CustomPath != "/tmp/custom" {
-		t.Fatalf("opts/json/open = %+v/%v/%v", opts, jsonFlag, openAfter)
-	}
-
-	if _, _, _, _, err := scenariocli.ParseScenarioStartArgs(false, []string{"--path"}); err == nil {
-		t.Fatalf("expected missing --path value to fail")
-	}
-	if _, _, _, _, err := scenariocli.ParseScenarioStartArgs(false, []string{"--bogus"}); err == nil {
-		t.Fatalf("expected unknown option to fail")
-	}
-	if _, _, _, _, err := scenariocli.ParseScenarioSingleStartArgs("restart", false, nil); err == nil {
-		t.Fatalf("expected missing restart target to fail")
-	}
-	if _, _, _, _, err := scenariocli.ParseScenarioSingleStartArgs("restart", false, []string{"alpha", "beta"}); err == nil {
-		t.Fatalf("expected duplicate restart targets to fail")
-	}
-}
-
 func TestRunScenarioPortAndOpenCommandsUseNativeState(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
@@ -872,48 +779,6 @@ func TestRunScenarioHealFromSandboxRelaunchesAffectedScenarios(t *testing.T) {
 	}
 }
 
-func TestScenarioLogHelperReaders(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "alpha.log")
-	if err := os.WriteFile(path, []byte("one\ntwo\nthree\n"), 0o644); err != nil {
-		t.Fatalf("write log: %v", err)
-	}
-
-	tail, err := scenariohandlers.ReadLastLogLines(path, 2)
-	if err != nil {
-		t.Fatalf("readLastLogLines: %v", err)
-	}
-	if string(tail) != "two\nthree\n" {
-		t.Fatalf("tail = %q", string(tail))
-	}
-
-	delta, nextOffset, err := scenariohandlers.ReadScenarioLogDelta(path, int64(len("one\n")))
-	if err != nil {
-		t.Fatalf("readScenarioLogDelta initial: %v", err)
-	}
-	if string(delta) != "two\nthree\n" {
-		t.Fatalf("delta = %q", string(delta))
-	}
-
-	file, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0o644)
-	if err != nil {
-		t.Fatalf("open for append: %v", err)
-	}
-	if _, err := file.WriteString("four\n"); err != nil {
-		_ = file.Close()
-		t.Fatalf("append log: %v", err)
-	}
-	_ = file.Close()
-
-	delta, _, err = scenariohandlers.ReadScenarioLogDelta(path, nextOffset)
-	if err != nil {
-		t.Fatalf("readScenarioLogDelta appended: %v", err)
-	}
-	if string(delta) != "four\n" {
-		t.Fatalf("appended delta = %q", string(delta))
-	}
-}
-
 func TestRunScenarioStartAllAndStopAllUseNativeLifecycle(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("lifecycle process management currently targets linux")
@@ -1069,188 +934,6 @@ func TestRunScenarioTemplateShowAndHooks(t *testing.T) {
 	}
 }
 
-func TestScenarioTemplateParsersAndFormatting(t *testing.T) {
-	manifest := scenariocli.TemplateManifest{
-		RequiredVars: map[string]scenariocli.TemplateVar{
-			"SCENARIO_ID":           {Flag: "id"},
-			"SCENARIO_DISPLAY_NAME": {Flag: "display-name"},
-			"SCENARIO_DESCRIPTION":  {Flag: "description"},
-		},
-		OptionalVars: map[string]scenariocli.TemplateVar{
-			"AUTHOR": {Flag: "author"},
-		},
-	}
-
-	var stderr bytes.Buffer
-	opts, err := scenariocli.ParseGenerateArgs([]string{
-		"--id", "alpha",
-		"--display-name=Alpha App",
-		"--description", "Generated alpha",
-		"--var", "CUSTOM=1",
-		"--unknown", "mystery",
-	}, manifest, &stderr)
-	if err != nil {
-		t.Fatalf("parseScenarioGenerateArgs: %v", err)
-	}
-	if opts.Values["SCENARIO_ID"] != "alpha" || opts.Values["SCENARIO_DISPLAY_NAME"] != "Alpha App" || opts.Values["SCENARIO_DESCRIPTION"] != "Generated alpha" || opts.Values["CUSTOM"] != "1" {
-		t.Fatalf("values = %#v", opts.Values)
-	}
-	if !strings.Contains(stderr.String(), "unknown flag --unknown") {
-		t.Fatalf("stderr = %q", stderr.String())
-	}
-
-	if _, _, _, err := scenariocli.ParseTemplateFlag("--display-name", []string{"--display-name"}, 0); err == nil {
-		t.Fatalf("expected ParseTemplateFlag to reject missing value")
-	}
-	if _, _, err := scenariocli.ParseTemplateKeyValue("broken"); err == nil {
-		t.Fatalf("expected ParseTemplateKeyValue to reject invalid pair")
-	}
-	if scenariohandlers.LooksLikeTextFile([]byte{0}) {
-		t.Fatalf("looksLikeTextFile should reject binary content")
-	}
-
-	requiredFlags := scenariohandlers.FormatTemplateRequiredFlags(manifest)
-	if !strings.Contains(requiredFlags, "--id <scenario_id>") || !strings.Contains(requiredFlags, "--display-name <scenario_display_name>") {
-		t.Fatalf("required flags = %q", requiredFlags)
-	}
-}
-
-func TestScenarioHelperCLIResolution(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	app := newTestApp(root)
-	overrideCLI := writeFakeExecutable(t, root, "override/test-genie", "#!/usr/bin/env bash\nexit 0\n")
-	t.Setenv("VROOLI_TEST_GENIE_CLI", overrideCLI)
-
-	path, err := app.LocateTestGenieCLI(root, home)
-	if err != nil {
-		t.Fatalf("locateTestGenieCLI override: %v", err)
-	}
-	if path != overrideCLI {
-		t.Fatalf("override path = %q", path)
-	}
-
-	t.Setenv("VROOLI_TEST_GENIE_CLI", "")
-	homeCLI := writeFakeExecutable(t, home, ".vrooli/bin/test-genie", "#!/usr/bin/env bash\nexit 0\n")
-	app.LookPathFn = func(file string) (string, error) { return "", exec.ErrNotFound }
-	path, err = app.LocateTestGenieCLI(root, home)
-	if err != nil {
-		t.Fatalf("locateTestGenieCLI home: %v", err)
-	}
-	if path != homeCLI {
-		t.Fatalf("home path = %q", path)
-	}
-	if err := os.Remove(homeCLI); err != nil {
-		t.Fatalf("remove home CLI: %v", err)
-	}
-
-	pathCLI := writeFakeExecutable(t, root, "bin/test-genie", "#!/usr/bin/env bash\nexit 0\n")
-	app.LookPathFn = func(file string) (string, error) { return pathCLI, nil }
-	path, err = app.LocateTestGenieCLI(root, home)
-	if err != nil {
-		t.Fatalf("locateTestGenieCLI PATH: %v", err)
-	}
-	if path != pathCLI {
-		t.Fatalf("PATH CLI = %q", path)
-	}
-}
-
-func TestScenarioHelperProcessUtilities(t *testing.T) {
-	if scenarioexec.WriterSupportsStreaming(&bytes.Buffer{}) {
-		t.Fatalf("bytes.Buffer should not be treated as a streaming writer")
-	}
-
-	app := newTestApp(t.TempDir())
-	url := "http://localhost:1234"
-	var opened scenarioSubprocessSpec
-	app.RunScenarioSubprocess = func(spec scenarioSubprocessSpec) error {
-		opened = spec
-		return nil
-	}
-	app.LookPathFn = func(file string) (string, error) {
-		switch runtime.GOOS {
-		case "linux":
-			if file == "xdg-open" {
-				return "/usr/bin/xdg-open", nil
-			}
-		default:
-			return "", exec.ErrNotFound
-		}
-		return "", exec.ErrNotFound
-	}
-	if err := app.OpenScenarioURL(url); err != nil {
-		t.Fatalf("openScenarioURL: %v", err)
-	}
-	switch runtime.GOOS {
-	case "linux":
-		if opened.Name != "/usr/bin/xdg-open" || strings.Join(opened.Args, "|") != url {
-			t.Fatalf("open spec = %+v", opened)
-		}
-	case "darwin":
-		if opened.Name != "open" || strings.Join(opened.Args, "|") != url {
-			t.Fatalf("open spec = %+v", opened)
-		}
-	case "windows":
-		if opened.Name != "cmd" || strings.Join(opened.Args, "|") != "/c|start||"+url {
-			t.Fatalf("open spec = %+v", opened)
-		}
-	}
-}
-
-func TestLaunchDetachedScenarioPropagatesExpectedArgsAndEnv(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("detached-process validation uses a bash fixture")
-	}
-
-	root := t.TempDir()
-	app := newTestApp(root)
-	argsPath := filepath.Join(root, "args.txt")
-	envPath := filepath.Join(root, "env.txt")
-	executable := writeFakeExecutable(t, root, "bin/fake-vrooli", fmt.Sprintf("#!/usr/bin/env bash\nprintf '%%s\\n' \"$@\" > %q\nenv | sort > %q\n", argsPath, envPath))
-	app.ScenarioExecutableFn = func() (string, error) { return executable, nil }
-
-	t.Setenv("VROOLI_SANDBOX_ID", "sandbox-123")
-	t.Setenv("VROOLI_SANDBOX_MERGED", "/merged")
-	t.Setenv("VROOLI_SANDBOX_SCOPE", "scenarios/alpha")
-	t.Setenv("SANDBOX_MERGED_DIR", "/merged")
-	t.Setenv("VROOLI_SOURCE_ROOT", "/source-root")
-
-	if err := app.LaunchDetachedScenario(root, globalOptions{JSON: true, Verbose: true, NoColor: true}, "start", "alpha"); err != nil {
-		t.Fatalf("launchDetachedScenario: %v", err)
-	}
-
-	testkitgo.WaitForFile(t, argsPath)
-	testkitgo.WaitForFile(t, envPath)
-
-	argsData, err := os.ReadFile(argsPath)
-	if err != nil {
-		t.Fatalf("read args: %v", err)
-	}
-	args := strings.Fields(string(argsData))
-	if got, want := strings.Join(args, "|"), "scenario|start|alpha|--json|--verbose|--no-color"; got != want {
-		t.Fatalf("args = %q, want %q", got, want)
-	}
-
-	envData, err := os.ReadFile(envPath)
-	if err != nil {
-		t.Fatalf("read env: %v", err)
-	}
-	env := string(envData)
-	for _, forbidden := range []string{
-		"VROOLI_SANDBOX_ID=",
-		"VROOLI_SANDBOX_MERGED=",
-		"VROOLI_SANDBOX_SCOPE=",
-		"SANDBOX_MERGED_DIR=",
-	} {
-		if strings.Contains(env, forbidden) {
-			t.Fatalf("env should not contain %q: %s", forbidden, env)
-		}
-	}
-	if !strings.Contains(env, "VROOLI_ROOT="+root) || !strings.Contains(env, "VROOLI_SOURCE_ROOT=/source-root") || !strings.Contains(env, "NO_COLOR=1") {
-		t.Fatalf("env = %s", env)
-	}
-}
-
 func TestRunScenarioRunAliasesStartValidation(t *testing.T) {
 	_, ctx := newConfiguredCommandContext("/repo", globalOptions{}, &bytes.Buffer{}, &bytes.Buffer{})
 	handler, ok := configuredApp().Registry().ScenarioHandler(string(scenariocli.CommandRun))
@@ -1260,28 +943,6 @@ func TestRunScenarioRunAliasesStartValidation(t *testing.T) {
 	err := handler(ctx, nil)
 	if err == nil || !strings.Contains(err.Error(), "scenario start requires at least one scenario name") {
 		t.Fatalf("scenario run handler error = %v", err)
-	}
-}
-
-func TestScenarioTemplateHelpAndManualHooksOutput(t *testing.T) {
-	var templateHelp bytes.Buffer
-	scenariocli.RenderTemplateHelp(&templateHelp)
-	if !strings.Contains(templateHelp.String(), "show               Show scenario template details") {
-		t.Fatalf("template help = %q", templateHelp.String())
-	}
-
-	var generateHelp bytes.Buffer
-	scenariocli.RenderGenerateHelp(&generateHelp)
-	if !strings.Contains(generateHelp.String(), "--run-hooks") {
-		t.Fatalf("generate help = %q", generateHelp.String())
-	}
-
-	var hooks bytes.Buffer
-	scenariocli.WriteTemplateHooks(&hooks, scenariocli.TemplateManifest{
-		PostHooks: []scenariocli.TemplateHook{{Description: "Install deps", Cmd: "pnpm install"}},
-	})
-	if !strings.Contains(hooks.String(), "Install deps") {
-		t.Fatalf("hook output = %q", hooks.String())
 	}
 }
 
@@ -1305,144 +966,63 @@ func TestRunScenarioStatusAllJSONOutput(t *testing.T) {
 	}
 }
 
-func TestBuildScenarioStatusItemAndHumanWriters(t *testing.T) {
-	startedAt := time.Date(2026, time.April, 10, 12, 0, 0, 0, time.UTC)
-	fixedPort := 5432
-	item := scenario.Scenario{
-		Slug:       "alpha",
-		Path:       "/repo/scenarios/alpha",
-		Redirected: true,
-		Manifest: scenario.ServiceManifest{
-			Service: scenario.ServiceMetadata{
-				Name:        "alpha",
-				DisplayName: "Alpha",
-				Description: "Alpha scenario",
-				Version:     "0.1.0",
-				Type:        "tool",
-				Category:    "ops",
-				Tags:        []string{"internal", "go"},
-			},
-			Ports: map[string]scenario.Port{
-				"api": {
-					EnvVar: "API_PORT",
-					Range:  "15000-19999",
-				},
-				"db": {
-					Port: &fixedPort,
-				},
-			},
-			Lifecycle: scenario.Lifecycle{
-				Version: "2.0.0",
-			},
-		},
-	}
-	runtimeState := process.ScenarioRuntime{
-		ProcessCount: 1,
-		Runtime:      "2m",
-		StartedAt:    &startedAt,
-		Records: []process.Record{
-			{Step: "start-api", PID: 1234, Port: 18080, StartedAt: startedAt},
-		},
+func TestRunScenarioStartEnsuresScenarioCLI(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleScenarioService(t, root, "alpha")
+
+	t.Setenv("HOME", home)
+	app := newTestApp(root)
+	var ensured []string
+	app.EnsureScenarioCLIFn = func(rootArg, homeArg, name string) error {
+		if rootArg != root || homeArg != home {
+			t.Fatalf("ensure args = (%q, %q), want (%q, %q)", rootArg, homeArg, root, home)
+		}
+		ensured = append(ensured, name)
+		return errors.New("ensure scenario cli")
 	}
 
-	status := scenariocli.BuildStatusItem(item, runtimeState)
-	if status.Status != "running" || status.Health != "running" {
-		t.Fatalf("status item = %+v", status)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := app.Run([]string{"scenario", "start", "alpha"}, &stdout, &stderr)
+	if code != 1 {
+		t.Fatalf("run exit code = %d", code)
 	}
-
-	var infoOut bytes.Buffer
-	scenariocli.WriteInfoHuman(&infoOut, scenariocli.BuildInfoData(item), scenariocli.BuildRuntimeData(item.Manifest, runtimeState))
-	if !strings.Contains(infoOut.String(), "Configured ports:") ||
-		!strings.Contains(infoOut.String(), "API_PORT (api)") ||
-		!strings.Contains(infoOut.String(), "DB_PORT (db) fixed=5432") ||
-		!strings.Contains(infoOut.String(), "Version: 0.1.0") ||
-		!strings.Contains(infoOut.String(), "Type: tool") ||
-		!strings.Contains(infoOut.String(), "Category: ops") ||
-		!strings.Contains(infoOut.String(), "Tags: internal, go") ||
-		!strings.Contains(infoOut.String(), "Lifecycle version: 2.0.0") ||
-		!strings.Contains(infoOut.String(), "Sandbox: using redirected scenario path") {
-		t.Fatalf("scenario info output = %s", infoOut.String())
+	if got := strings.Join(ensured, "|"); got != "alpha" {
+		t.Fatalf("ensured = %q", got)
 	}
-
-	var tableOut bytes.Buffer
-	scenariocli.WriteStatusTable(&tableOut, []scenariocli.StatusItemOutput{status})
-	if !strings.Contains(tableOut.String(), "Name") || !strings.Contains(tableOut.String(), "alpha") {
-		t.Fatalf("scenario table output = %s", tableOut.String())
-	}
-
-	var statusOut bytes.Buffer
-	scenariocli.WriteStatusHuman(&statusOut, scenariocli.StatusSingleOutput{
-		Scenario: status,
-		Info:     scenariocli.BuildInfoData(item),
-		Runtime:  scenariocli.BuildRuntimeData(item.Manifest, runtimeState),
-	})
-	if !strings.Contains(statusOut.String(), "Health: running") || !strings.Contains(statusOut.String(), "Processes:") {
-		t.Fatalf("scenario status output = %s", statusOut.String())
+	if !strings.Contains(stderr.String(), "ensure scenario cli") {
+		t.Fatalf("stderr = %q", stderr.String())
 	}
 }
 
-func TestBuildListPortsFallsBackToEnvironment(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("process environment inspection uses /proc on linux")
-	}
+func TestRunScenarioTestEnsuresScenarioCLI(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeScenarioTestPhaseFixture(t, root, "alpha")
+	writeScenarioPortRegistryFixture(t, root)
 
-	cmd := exec.Command("sleep", "30")
-	cmd.Env = append(os.Environ(), "API_PORT=18080", "WS_PORT=28080")
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("start sleep: %v", err)
-	}
-	t.Cleanup(func() {
-		if cmd.Process != nil {
-			_ = cmd.Process.Kill()
+	t.Setenv("HOME", home)
+	app := newTestApp(root)
+	var ensured []string
+	app.EnsureScenarioCLIFn = func(rootArg, homeArg, name string) error {
+		if rootArg != root || homeArg != home {
+			t.Fatalf("ensure args = (%q, %q), want (%q, %q)", rootArg, homeArg, root, home)
 		}
-		_ = cmd.Wait()
-	})
-
-	manifest := scenario.ServiceManifest{
-		Ports: map[string]scenario.Port{
-			"api": {
-				EnvVar: "API_PORT",
-			},
-			"websocket": {
-				EnvVar: "WS_PORT",
-			},
-		},
+		ensured = append(ensured, name)
+		return errors.New("ensure scenario cli")
 	}
 
-	var listPorts []scenariocli.ListPortOutput
-	var ports map[string]int
-	for attempt := 0; attempt < 20; attempt++ {
-		listPorts, ports = scenariocli.BuildListPorts(manifest, []process.Record{{
-			PID:  cmd.Process.Pid,
-			Step: "start-api",
-			Port: 18080,
-		}})
-		if ports["WS_PORT"] == 28080 {
-			break
-		}
-		time.Sleep(50 * time.Millisecond)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := app.Run([]string{"scenario", "test", "alpha"}, &stdout, &stderr)
+	if code != 1 {
+		t.Fatalf("run exit code = %d", code)
 	}
-
-	if len(listPorts) != 1 || listPorts[0].Key != "API_PORT" {
-		t.Fatalf("list ports = %#v", listPorts)
+	if got := strings.Join(ensured, "|"); got != "alpha" {
+		t.Fatalf("ensured = %q", got)
 	}
-	if ports["API_PORT"] != 18080 || ports["WS_PORT"] != 28080 {
-		t.Fatalf("ports = %#v", ports)
-	}
-}
-
-func TestCopyHelpersReturnIndependentSlices(t *testing.T) {
-	originalStrings := []string{"alpha"}
-	originalRecords := []process.Record{{PID: 1234}}
-	copiedStrings := scenariocli.CopyStrings(originalStrings)
-	copiedRecords := scenariocli.CopyProcessRecords(originalRecords)
-	if len(scenariocli.CopyStrings(nil)) != 0 || len(scenariocli.CopyProcessRecords(nil)) != 0 {
-		t.Fatalf("expected nil inputs to return empty slices")
-	}
-
-	copiedStrings[0] = "beta"
-	copiedRecords[0].PID = 99
-	if originalStrings[0] != "alpha" || originalRecords[0].PID != 1234 {
-		t.Fatalf("expected copies to avoid mutating originals")
+	if !strings.Contains(stderr.String(), "ensure scenario cli") {
+		t.Fatalf("stderr = %q", stderr.String())
 	}
 }

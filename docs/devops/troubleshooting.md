@@ -715,10 +715,10 @@ This comprehensive troubleshooting guide provides solutions for common issues en
 2. **Run tests with debug:**
    ```bash
    # Run with verbose output
-   bash __test/__runTests.sh --verbose
-   
+   bats --verbose-run scripts/resources/index.bats
+
    # Run specific test file
-   bats __test/utils/log.bats
+   bats scripts/resources/tests/run.bats
    ```
 
 3. **Fix test syntax:**

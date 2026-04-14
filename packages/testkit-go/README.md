@@ -8,7 +8,7 @@ Its purpose is to centralize reusable Go test infrastructure so migrated project
 - repo-contract fixtures
 - project/scenario/resource manifests
 - JSON/file/executable writers
-- compatibility fixture setup for intentionally-supported legacy surfaces
+- focused edge-case fixture setup when a test cannot use the canonical manifest/runtime shape
 
 ## Scope
 
@@ -33,7 +33,6 @@ Its purpose is to centralize reusable Go test infrastructure so migrated project
 
 - Prefer typed builders for valid fixtures.
 - Keep malformed fixture helpers explicit and separate from valid builders.
-- Keep compatibility helpers isolated so migration debt stays visible.
 - Preserve clear ownership boundaries:
   - `repo-contract-go` owns repo contract semantics.
   - `testkit-go` owns reusable Go test fixture construction.
@@ -50,7 +49,7 @@ Its purpose is to centralize reusable Go test infrastructure so migrated project
 - `packages/testkit-go/vrooli`
   - Vrooli-specific typed fixture helpers that depend on root-module `internal/*` packages
   - project/scenario/resource manifest builders
-  - compatibility fixture helpers for legacy shell-era artifacts still intentionally covered
+  - focused runtime fixture helpers for the remaining edge-case integration tests
 
 This split is intentional. Lower-level packages and external sibling modules such as `packages/repo-contract-go` can depend on the root package without importing Vrooli domain types and creating test-time import cycles.
 

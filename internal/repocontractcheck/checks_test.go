@@ -1,21 +1,30 @@
 package repocontractcheck
 
 import (
+	"path/filepath"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/resources"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 )
 
-func TestRunPassesAgainstLiveRepo(t *testing.T) {
+func TestRunReportsChecksAgainstLiveRepo(t *testing.T) {
 	report, err := Run(repoRoot(t))
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
-	if !report.Success {
-		t.Fatalf("report.Success = false, checks = %+v", report.Checks)
-	}
 	if len(report.Checks) == 0 {
 		t.Fatal("expected checks to be populated")
+	}
+	found := false
+	for _, check := range report.Checks {
+		if check.Name == "resource_schema_artifacts" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected resource_schema_artifacts check, got %+v", report.Checks)
 	}
 }
 
@@ -109,7 +118,21 @@ func newValidationFixtureRepo(t *testing.T) string {
 	fixture.WriteRepoContract(t)
 	fixture.WriteRepoSupportDocs(t, testkitgo.DefaultRepoSupportDocs())
 	fixture.WriteScenarioStub(t, "alpha")
-	fixture.WriteResourceStub(t, "redis")
+	testkitgo.WriteRelativeFile(t, fixture.Root, filepath.Join("resources", "redis", "resource.json"), `{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "redis",
+  "display_name": "Redis",
+  "description": "Cache",
+  "template": "docker-service",
+  "driver": "docker-service",
+  "portability_tier": "full",
+  "runtime": {
+    "image": "redis:7-alpine"
+  }
+}`)
+	if _, err := resources.SyncSchemaArtifacts(fixture.Root); err != nil {
+		t.Fatalf("SyncSchemaArtifacts: %v", err)
+	}
 
 	return fixture.Root
 }

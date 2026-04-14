@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
+	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cli/scenariocli"
 	"github.com/vrooli/vrooli/internal/resources"
 )
@@ -38,153 +39,192 @@ type (
 	}
 )
 
-func ParseNoArgs(command, help string, args []string) (NoArgsRequest, error) {
-	if len(args) > 0 {
-		for _, arg := range args {
-			if arg == "--help" || arg == "-h" {
-				return NoArgsRequest{}, clipolicy.CommandHelpOnly(help)
-			}
-		}
-		return NoArgsRequest{}, fmt.Errorf("%s does not accept positional arguments", command)
+func ParseListRequest(args []string) (NoArgsRequest, error) {
+	if err := commandtree.ParseNoArgs("resource list", CommandHelpText(CommandList), args); err != nil {
+		return NoArgsRequest{}, err
 	}
 	return NoArgsRequest{}, nil
 }
 
-func ParseSingleName(noun, command, help string, args []string) (NameRequest, error) {
-	for _, arg := range args {
-		if arg == "--help" || arg == "-h" {
-			return NameRequest{}, clipolicy.CommandHelpOnly(help)
-		}
-	}
-	if len(args) != 1 {
-		return NameRequest{}, fmt.Errorf("%s requires exactly one %s name", command, noun)
-	}
-	return NameRequest{Name: args[0]}, nil
-}
-
-func ParseListRequest(args []string) (NoArgsRequest, error) {
-	return ParseNoArgs("resource list", ListHelpText, args)
-}
-
 func ParseValidateRequest(args []string) (ValidateRequest, error) {
-	for _, arg := range args {
-		if arg == "--help" || arg == "-h" {
-			return ValidateRequest{}, clipolicy.CommandHelpOnly(ValidateHelpText)
-		}
-	}
-	if len(args) > 1 {
-		return ValidateRequest{}, fmt.Errorf("resource validate accepts at most one resource name")
+	spec := commandSpec(CommandValidate)
+	parsed, err := commandtree.ParseArgs("resource validate", CommandHelpText(CommandValidate), spec.Args, args)
+	if err != nil {
+		return ValidateRequest{}, err
 	}
 	req := ValidateRequest{}
-	if len(args) == 1 {
-		req.Name = args[0]
+	if len(parsed.Positionals) == 1 {
+		req.Name = parsed.Positionals[0]
 	}
 	return req, nil
 }
 
 func ParseStatusRequest(args []string) (StatusRequest, error) {
+	spec := commandSpec(CommandStatus)
+	parsed, err := commandtree.ParseArgs("resource status", CommandHelpText(CommandStatus), spec.Args, args)
+	if err != nil {
+		return StatusRequest{}, err
+	}
 	req := StatusRequest{Fast: true}
-	filtered := make([]string, 0, len(args))
-	for _, arg := range args {
-		switch arg {
-		case "--help", "-h":
-			return StatusRequest{}, clipolicy.CommandHelpOnly(StatusHelpText)
-		case "--fast":
-			req.Fast = true
-		case "--no-fast":
-			req.Fast = false
-		default:
-			filtered = append(filtered, arg)
-		}
+	if len(parsed.Positionals) == 1 {
+		req.Name = parsed.Positionals[0]
 	}
-	if len(filtered) > 1 {
-		return StatusRequest{}, fmt.Errorf("resource status accepts at most one resource name")
+	if parsed.HasFlag("--no-fast") {
+		req.Fast = false
 	}
-	if len(filtered) == 1 {
-		req.Name = filtered[0]
+	if parsed.HasFlag("--fast") {
+		req.Fast = true
 	}
 	return req, nil
 }
 
 func ParseInfoRequest(args []string) (NameRequest, error) {
-	return ParseSingleName("resource", "resource info", InfoHelpText, args)
+	name, err := commandtree.ParseSinglePositional("resource info", CommandHelpText(CommandInfo), "resource name", args)
+	if err != nil {
+		return NameRequest{}, err
+	}
+	return NameRequest{Name: name}, nil
 }
 
 func ParseDeprecateRequest(args []string) (NameRequest, error) {
-	return ParseSingleName("resource", "resource deprecate", DeprecateHelpText, args)
+	name, err := commandtree.ParseSinglePositional("resource deprecate", CommandHelpText(CommandDeprecate), "resource name", args)
+	if err != nil {
+		return NameRequest{}, err
+	}
+	return NameRequest{Name: name}, nil
 }
 
 func ParseListDeprecatedRequest(args []string) (NoArgsRequest, error) {
-	return ParseNoArgs("resource list-deprecated", ListDeprecatedHelpText, args)
+	if err := commandtree.ParseNoArgs("resource list-deprecated", CommandHelpText(CommandListDeprecated), args); err != nil {
+		return NoArgsRequest{}, err
+	}
+	return NoArgsRequest{}, nil
 }
 
 func ParseRestoreRequest(args []string) (NameRequest, error) {
-	return ParseSingleName("resource", "resource restore", RestoreHelpText, args)
+	name, err := commandtree.ParseSinglePositional("resource restore", CommandHelpText(CommandRestore), "resource name", args)
+	if err != nil {
+		return NameRequest{}, err
+	}
+	return NameRequest{Name: name}, nil
 }
 
 func ParseArchiveToBlueprintRequest(args []string) (NameRequest, error) {
-	return ParseSingleName("resource", "resource archive-to-blueprint", ArchiveToBlueprintHelpText, args)
+	name, err := commandtree.ParseSinglePositional("resource archive-to-blueprint", CommandHelpText(CommandArchiveToBlueprint), "resource name", args)
+	if err != nil {
+		return NameRequest{}, err
+	}
+	return NameRequest{Name: name}, nil
 }
 
 func ParseListBlueprintArchivedRequest(args []string) (NoArgsRequest, error) {
-	return ParseNoArgs("resource list-blueprint-archived", ListBlueprintArchivedHelpText, args)
+	if err := commandtree.ParseNoArgs("resource list-blueprint-archived", CommandHelpText(CommandListBlueprintArchived), args); err != nil {
+		return NoArgsRequest{}, err
+	}
+	return NoArgsRequest{}, nil
 }
 
 func ParseRestoreBlueprintRequest(args []string) (NameRequest, error) {
-	return ParseSingleName("resource", "resource restore-blueprint", RestoreBlueprintHelpText, args)
+	name, err := commandtree.ParseSinglePositional("resource restore-blueprint", CommandHelpText(CommandRestoreBlueprint), "resource name", args)
+	if err != nil {
+		return NameRequest{}, err
+	}
+	return NameRequest{Name: name}, nil
 }
 
 func ParseArchiveGCRequest(args []string) (NoArgsRequest, error) {
-	return ParseNoArgs("resource archive gc", ArchiveGCHelpText, args)
+	if err := commandtree.ParseNoArgs("resource archive gc", ArchiveCommandHelpText(ArchiveCommandGC), args); err != nil {
+		return NoArgsRequest{}, err
+	}
+	return NoArgsRequest{}, nil
 }
 
 func ParseArchiveBlueprintGCRequest(args []string) (NoArgsRequest, error) {
-	return ParseNoArgs("resource archive gc-blueprints", ArchiveBlueprintGCHelpText, args)
+	if err := commandtree.ParseNoArgs("resource archive gc-blueprints", ArchiveCommandHelpText(ArchiveCommandGCBlueprints), args); err != nil {
+		return NoArgsRequest{}, err
+	}
+	return NoArgsRequest{}, nil
 }
 
 func ParseBlueprintListRequest(args []string) (NoArgsRequest, error) {
-	return ParseNoArgs("resource blueprint list", BlueprintListHelpText, args)
+	if err := commandtree.ParseNoArgs("resource blueprint list", BlueprintCommandHelpText(BlueprintCommandList), args); err != nil {
+		return NoArgsRequest{}, err
+	}
+	return NoArgsRequest{}, nil
 }
 
 func ParseBlueprintInfoRequest(args []string) (NameRequest, error) {
-	return ParseSingleName("resource blueprint", "resource blueprint info", BlueprintInfoHelpText, args)
+	name, err := commandtree.ParseSinglePositional("resource blueprint info", BlueprintCommandHelpText(BlueprintCommandInfo), "resource name", args)
+	if err != nil {
+		return NameRequest{}, err
+	}
+	return NameRequest{Name: name}, nil
 }
 
 func ParseBlueprintSearchRequest(args []string) (BlueprintSearchRequest, error) {
-	for _, arg := range args {
-		if arg == "--help" || arg == "-h" {
-			return BlueprintSearchRequest{}, clipolicy.CommandHelpOnly(BlueprintSearchHelpText)
-		}
+	spec := blueprintCommandSpec(BlueprintCommandSearch)
+	parsed, err := commandtree.ParseArgs("resource blueprint search", BlueprintCommandHelpText(BlueprintCommandSearch), spec.Args, args)
+	if err != nil {
+		return BlueprintSearchRequest{}, err
 	}
-	if len(args) != 1 {
-		return BlueprintSearchRequest{}, fmt.Errorf("resource blueprint search requires exactly one query")
-	}
-	return BlueprintSearchRequest{Query: args[0]}, nil
+	return BlueprintSearchRequest{Query: parsed.Positionals[0]}, nil
 }
 
 func ParseBlueprintValidateRequest(args []string) (NoArgsRequest, error) {
-	return ParseNoArgs("resource blueprint validate", BlueprintValidateHelpText, args)
+	if err := commandtree.ParseNoArgs("resource blueprint validate", BlueprintCommandHelpText(BlueprintCommandValidate), args); err != nil {
+		return NoArgsRequest{}, err
+	}
+	return NoArgsRequest{}, nil
 }
 
 func ParseStartAllRequest(args []string) (NoArgsRequest, error) {
-	return ParseNoArgs("resource start-all", StartAllHelpText, args)
+	if err := commandtree.ParseNoArgs("resource start-all", CommandHelpText(CommandStartAll), args); err != nil {
+		return NoArgsRequest{}, err
+	}
+	return NoArgsRequest{}, nil
 }
 
 func ParseStopAllRequest(args []string) (NoArgsRequest, error) {
-	return ParseNoArgs("resource stop-all", StopAllHelpText, args)
+	if err := commandtree.ParseNoArgs("resource stop-all", CommandHelpText(CommandStopAll), args); err != nil {
+		return NoArgsRequest{}, err
+	}
+	return NoArgsRequest{}, nil
 }
 
 func ParseTemplateListRequest(args []string) (NoArgsRequest, error) {
-	return ParseNoArgs("resource template list", TemplateListHelpText, args)
+	if err := commandtree.ParseNoArgs("resource template list", TemplateCommandHelpText(TemplateCommandList), args); err != nil {
+		return NoArgsRequest{}, err
+	}
+	return NoArgsRequest{}, nil
 }
 
 func ParseTemplateShowRequest(args []string) (TemplateNameRequest, error) {
-	req, err := ParseSingleName("template", "resource template show", TemplateShowHelpText, args)
-	return TemplateNameRequest{Name: req.Name}, err
+	name, err := commandtree.ParseSinglePositional("resource template show", TemplateCommandHelpText(TemplateCommandShow), "template name", args)
+	if err != nil {
+		return TemplateNameRequest{}, err
+	}
+	return TemplateNameRequest{Name: name}, nil
 }
 
 func ParseTemplateValidateRequest(args []string) (NoArgsRequest, error) {
-	return ParseNoArgs("resource template validate", TemplateValidateHelpText, args)
+	if err := commandtree.ParseNoArgs("resource template validate", TemplateCommandHelpText(TemplateCommandValidate), args); err != nil {
+		return NoArgsRequest{}, err
+	}
+	return NoArgsRequest{}, nil
+}
+
+func ParseSchemaValidateRequest(args []string) (NoArgsRequest, error) {
+	if err := commandtree.ParseNoArgs("resource schema validate", SchemaCommandHelpText(SchemaCommandValidate), args); err != nil {
+		return NoArgsRequest{}, err
+	}
+	return NoArgsRequest{}, nil
+}
+
+func ParseSchemaSyncRequest(args []string) (NoArgsRequest, error) {
+	if err := commandtree.ParseNoArgs("resource schema sync", SchemaCommandHelpText(SchemaCommandSync), args); err != nil {
+		return NoArgsRequest{}, err
+	}
+	return NoArgsRequest{}, nil
 }
 
 func ParseTemplateGenerateRequest(
@@ -311,5 +351,7 @@ func ParseTemplateGenerateArgs(
 }
 
 func RenderTemplateGenerateHelpText() string {
-	return "Usage: vrooli resource template generate <template> [options]\n       vrooli resource template generate --from-blueprint <name> [options]\nOptions:\n  --from-blueprint <name>  Seed values from an existing blueprint\n  --dest <path>            Destination directory (defaults to resources/<name>)\n  --var KEY=VALUE          Additional placeholder override (repeatable)\n  --force                  Overwrite destination if it already exists\n  --dry-run                Print the planned actions without writing files"
+	return commandtree.HelpText("", "vrooli resource template generate", "Generate files from a resource template.", commandtree.Help{
+		Usage: "vrooli resource template generate <template> [options]\n  vrooli resource template generate --from-blueprint <name> [options]",
+	}, TemplateGenerateArgSchema())
 }

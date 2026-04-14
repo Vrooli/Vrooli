@@ -1,7 +1,6 @@
 package topcli
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
@@ -68,29 +67,29 @@ func ScenarioCanRunWithoutRoot(args []string) bool {
 }
 
 func RenderMainHelp(w io.Writer, specs []commandtree.Spec[CommandID]) {
-	_, _ = fmt.Fprintln(w, "                          ___")
-	_, _ = fmt.Fprintln(w, " _   _ _ __ ___   ___    / (_)")
-	_, _ = fmt.Fprintln(w, "| | | | '__/ _ \\ / _ \\  / /| |")
-	_, _ = fmt.Fprintln(w, "| |_| | | | (_) | (_) |/ / | |")
-	_, _ = fmt.Fprintln(w, " \\___/|_|  \\___/ \\___//_/  |_|")
-	_, _ = fmt.Fprintln(w, "                                   ")
-	_, _ = fmt.Fprintln(w, "Vrooli CLI - AI Platform Management Tool")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "USAGE:")
-	_, _ = fmt.Fprintln(w, "    vrooli <command> [options]")
-	_, _ = fmt.Fprintln(w)
-	commandtree.RenderGroups(w, commandtree.VisibleEntries(specs, ""))
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "OPTIONS:")
-	_, _ = fmt.Fprintln(w, "    --help, -h          Show help for a command")
-	_, _ = fmt.Fprintln(w, "    --version, -v       Show version information")
-	_, _ = fmt.Fprintln(w, "    --json              Emit JSON output when supported by the selected command")
-	_, _ = fmt.Fprintln(w, "    --verbose           Enable verbose command output")
-	_, _ = fmt.Fprintln(w, "    --no-color          Disable ANSI color output")
-	_, _ = fmt.Fprintln(w, "    --no-stale-check    Skip the Go source freshness check")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "For more help on a specific command:")
-	_, _ = fmt.Fprintln(w, "    vrooli <command> --help")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Documentation: docs/")
+	commandtree.RenderHelp(w, commandtree.Help{
+		Title: "                          ___\n" +
+			" _   _ _ __ ___   ___    / (_)\n" +
+			"| | | | '__/ _ \\\\ / _ \\\\  / /| |\n" +
+			"| |_| | | | (_) | (_) |/ / | |\n" +
+			" \\___/|_|  \\___/ \\___//_/  |_|\n" +
+			"                                   ",
+		Description:  "Vrooli CLI - AI Platform Management Tool",
+		Usage:        "vrooli <command> [options]",
+		Options:      GlobalOptions(),
+		Examples:     []string{"vrooli <command> --help"},
+		Notes:        []string{"Documentation: docs/"},
+		DefaultGroup: "",
+	}, specs)
+}
+
+func GlobalOptions() []commandtree.OptionArg {
+	return []commandtree.OptionArg{
+		{Name: "--help", Aliases: []string{"-h"}, Description: "Show help for a command"},
+		{Name: "--version", Aliases: []string{"-v"}, Description: "Show version information"},
+		{Name: "--json", Description: "Emit JSON output when supported by the selected command"},
+		{Name: "--verbose", Description: "Enable verbose command output"},
+		{Name: "--no-color", Description: "Disable ANSI color output"},
+		{Name: "--no-stale-check", Description: "Skip the Go source freshness check"},
+	}
 }

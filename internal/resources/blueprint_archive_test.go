@@ -15,7 +15,6 @@ func TestArchiveResourceToBlueprintArchivesAndRemovesActiveState(t *testing.T) {
 	home := t.TempDir()
 	writeBlueprintArchiveFixture(t, root, "fixture")
 	writeResourceCLI(t, root, "fixture")
-	writeRegistryEntry(t, root, "fixture")
 
 	controller := NewController(root, home)
 	report, err := controller.ArchiveResourceToBlueprint("fixture")
@@ -27,9 +26,6 @@ func TestArchiveResourceToBlueprintArchivesAndRemovesActiveState(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, "resources", "fixture")); !os.IsNotExist(err) {
 		t.Fatalf("expected resource directory to be removed, got %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(root, ".vrooli", "resource-registry", "fixture.json")); !os.IsNotExist(err) {
-		t.Fatalf("expected registry file to be removed, got %v", err)
 	}
 	items, err := controller.ListBlueprintArchivedResources()
 	if err != nil {
@@ -234,7 +230,7 @@ func TestArchiveResourceToBlueprintHandlesUnreadableRuntimeDirectory(t *testing.
 
 func writeBlueprintArchiveFixture(t *testing.T, root, name string) {
 	t.Helper()
-	testkitgo.WriteRawJSON(t, filepath.Join(root, ".vrooli", "resource-blueprints", name+".json"), `{
+	testkitgo.WriteRawJSON(t, filepath.Join(root, filepath.FromSlash(blueprintDirPath), name+".json"), `{
   "name": "`+name+`",
   "display_name": "Fixture",
   "category": "testing",

@@ -6,31 +6,63 @@ import (
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
+	"github.com/vrooli/vrooli/internal/cli/commandtree"
 )
 
-func ParseTemplateListRequest(args []string) (TemplateListRequest, error) {
-	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
-		return TemplateListRequest{}, clipolicy.CommandHelpOnly(TemplateCommandHelpText)
+type TemplateCommandID string
+
+const (
+	TemplateCommandList TemplateCommandID = "list"
+	TemplateCommandShow TemplateCommandID = "show"
+)
+
+func templateCommandSpecs() []commandtree.Spec[TemplateCommandID] {
+	return []commandtree.Spec[TemplateCommandID]{
+		{
+			Name:    string(TemplateCommandList),
+			Summary: "List scenario templates",
+			Handler: TemplateCommandList,
+		},
+		{
+			Name:    string(TemplateCommandShow),
+			Summary: "Show scenario template details",
+			Args: commandtree.ArgSchema{
+				Positionals: []commandtree.PositionalArg{{Name: "template name", Required: true}},
+			},
+			Handler: TemplateCommandShow,
+		},
 	}
-	if len(args) > 0 {
-		return TemplateListRequest{}, clipolicy.UnknownOptionError("scenario template", args[0])
+}
+
+func templateGenerateArgSchema() commandtree.ArgSchema {
+	return commandtree.ArgSchema{
+		Positionals: []commandtree.PositionalArg{{Name: "template", Required: true}},
+		Options: []commandtree.OptionArg{
+			{Name: "--id", ValueName: "slug", Description: "Scenario identifier"},
+			{Name: "--display-name", ValueName: "name", Description: "Human-friendly scenario name"},
+			{Name: "--description", ValueName: "text", Description: "Scenario description"},
+			{Name: "--dest", ValueName: "path", Description: "Destination directory"},
+			{Name: "--var", ValueName: "KEY=VALUE", Repeatable: true, Description: "Additional placeholder override"},
+			{Name: "--force", Description: "Overwrite destination if it already exists"},
+			{Name: "--dry-run", Description: "Print planned actions without writing files"},
+			{Name: "--run-hooks", Description: "Execute template post hooks after generation"},
+		},
+	}
+}
+
+func ParseTemplateListRequest(args []string) (TemplateListRequest, error) {
+	if _, err := commandtree.ParseArgs("scenario template list", TemplateCommandHelpText(), templateCommandSpec(TemplateCommandList).Args, args); err != nil {
+		return TemplateListRequest{}, err
 	}
 	return TemplateListRequest{}, nil
 }
 
 func ParseTemplateShowRequest(args []string) (TemplateShowRequest, error) {
-	for _, arg := range args {
-		if arg == "--help" || arg == "-h" {
-			return TemplateShowRequest{}, clipolicy.CommandHelpOnly(TemplateCommandHelpText)
-		}
+	parsed, err := commandtree.ParseArgs("scenario template show", TemplateCommandHelpText(), templateCommandSpec(TemplateCommandShow).Args, args)
+	if err != nil {
+		return TemplateShowRequest{}, err
 	}
-	if len(args) == 0 {
-		return TemplateShowRequest{}, fmt.Errorf("scenario template show requires a template name")
-	}
-	if len(args) > 1 {
-		return TemplateShowRequest{}, fmt.Errorf("scenario template show accepts exactly one template name")
-	}
-	return TemplateShowRequest{Name: args[0]}, nil
+	return TemplateShowRequest{Name: parsed.Positionals[0]}, nil
 }
 
 func ParseGenerateRequest(
@@ -44,7 +76,7 @@ func ParseGenerateRequest(
 	}
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
-			return GenerateRequest{}, clipolicy.CommandHelpOnly(TemplateGenerateHelpText)
+			return GenerateRequest{}, clipolicy.CommandHelpOnly(TemplateGenerateHelpText())
 		}
 	}
 	templateName := args[0]
@@ -165,20 +197,18 @@ func ParseTemplateKeyValue(value string) (string, string, error) {
 }
 
 func RenderTemplateHelp(w io.Writer) {
-	commandtreeHelp := "Scenario Template Commands"
-	_, _ = fmt.Fprintln(w, commandtreeHelp)
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Usage:")
-	_, _ = fmt.Fprintln(w, "  vrooli scenario template <subcommand>")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Scenario Templates:")
-	_, _ = fmt.Fprintln(w, "    list               List scenario templates")
-	_, _ = fmt.Fprintln(w, "    show               Show scenario template details")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Related:")
-	_, _ = fmt.Fprintln(w, "  vrooli scenario generate <template> [options]")
+	commandtree.WriteHelp(w, TemplateCommandHelpText())
 }
 
 func RenderGenerateHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, TemplateGenerateHelpText)
+	commandtree.WriteHelp(w, TemplateGenerateHelpText())
+}
+
+func templateCommandSpec(id TemplateCommandID) commandtree.Spec[TemplateCommandID] {
+	for _, spec := range templateCommandSpecs() {
+		if spec.Handler == id {
+			return spec
+		}
+	}
+	panic("unknown template command spec: " + string(id))
 }

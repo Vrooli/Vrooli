@@ -59,22 +59,20 @@ type ProjectPhaseRequest struct {
 }
 
 func ParseStatusRequest(args []string) (StatusRequest, error) {
-	req := StatusRequest{Fast: true}
-	for _, arg := range args {
-		switch arg {
-		case "--help", "-h":
-			return StatusRequest{}, clipolicy.CommandHelpOnly(StatusHelpText)
-		case "--resources":
-			req.ResourcesOnly = true
-		case "--scenarios":
-			req.ScenariosOnly = true
-		case "--fast":
-			req.Fast = true
-		case "--no-fast":
-			req.Fast = false
-		default:
-			return StatusRequest{}, clipolicy.UnknownOptionError("status", arg)
-		}
+	parsed, err := commandtree.ParseArgs("status", StatusHelpText(), statusArgSchema(), args)
+	if err != nil {
+		return StatusRequest{}, err
+	}
+	req := StatusRequest{
+		ResourcesOnly: parsed.HasFlag("--resources"),
+		ScenariosOnly: parsed.HasFlag("--scenarios"),
+		Fast:          true,
+	}
+	if parsed.HasFlag("--no-fast") {
+		req.Fast = false
+	}
+	if parsed.HasFlag("--fast") {
+		req.Fast = true
 	}
 	if req.ResourcesOnly && req.ScenariosOnly {
 		return StatusRequest{}, clipolicy.UsageErrorf("status", "status accepts only one of --resources or --scenarios")
@@ -83,84 +81,94 @@ func ParseStatusRequest(args []string) (StatusRequest, error) {
 }
 
 func ParseDoctorRequest(args []string) (NoArgsRequest, error) {
-	for _, arg := range args {
-		switch arg {
-		case "--help", "-h":
-			return NoArgsRequest{}, clipolicy.CommandHelpOnly(DoctorHelpText)
-		default:
-			return NoArgsRequest{}, clipolicy.UnknownOptionError("doctor", arg)
-		}
+	if _, err := commandtree.ParseArgs("doctor", DoctorHelpText(), commandtree.ArgSchema{}, args); err != nil {
+		return NoArgsRequest{}, err
 	}
 	return NoArgsRequest{}, nil
 }
 
 func ParseStopRequest(args []string) (StopRequest, error) {
-	for _, arg := range args {
-		if arg == "--help" || arg == "-h" {
-			return StopRequest{}, clipolicy.CommandHelpOnly(StopHelpText)
-		}
+	parsed, err := commandtree.ParseArgs("stop", StopHelpText(), stopArgSchema(), args)
+	if err != nil {
+		return StopRequest{}, err
 	}
-	return StopRequest{Targets: append([]string(nil), args...)}, nil
+	return StopRequest{Targets: append([]string(nil), parsed.Positionals...)}, nil
 }
 
 func ParseOrphansRequest(args []string) (OrphansRequest, error) {
+	parsed, err := commandtree.ParseArgs("orphans", OrphansHelpText(), commandtree.ArgSchema{
+		Positionals: []commandtree.PositionalArg{{Name: "action"}},
+	}, args)
+	if err != nil {
+		return OrphansRequest{}, err
+	}
 	req := OrphansRequest{}
-	for _, arg := range args {
-		switch arg {
+	if len(parsed.Positionals) == 1 {
+		switch parsed.Positionals[0] {
 		case "kill":
 			req.Kill = true
-		case "--help", "-h", "help":
-			return OrphansRequest{}, clipolicy.CommandHelpOnly(OrphansHelpText)
+		case "help":
+			return OrphansRequest{}, clipolicy.CommandHelpOnly(OrphansHelpText())
 		default:
-			return OrphansRequest{}, clipolicy.UnknownOptionError("orphans", arg)
+			return OrphansRequest{}, clipolicy.UnknownOptionError("orphans", parsed.Positionals[0])
 		}
 	}
 	return req, nil
 }
 
 func ParseLocksRequest(args []string) (LocksRequest, error) {
+	parsed, err := commandtree.ParseArgs("locks", LocksHelpText(), commandtree.ArgSchema{
+		Positionals: []commandtree.PositionalArg{{Name: "action"}},
+	}, args)
+	if err != nil {
+		return LocksRequest{}, err
+	}
 	req := LocksRequest{}
-	for _, arg := range args {
-		switch arg {
+	if len(parsed.Positionals) == 1 {
+		switch parsed.Positionals[0] {
 		case "clean":
 			req.Clean = true
-		case "--help", "-h", "help":
-			return LocksRequest{}, clipolicy.CommandHelpOnly(LocksHelpText)
+		case "help":
+			return LocksRequest{}, clipolicy.CommandHelpOnly(LocksHelpText())
 		default:
-			return LocksRequest{}, clipolicy.UnknownOptionError("locks", arg)
+			return LocksRequest{}, clipolicy.UnknownOptionError("locks", parsed.Positionals[0])
 		}
 	}
 	return req, nil
 }
 
 func ParseDiagnosePortRequest(args []string) (DiagnosePortRequest, error) {
-	if len(args) == 0 {
-		return DiagnosePortRequest{}, clipolicy.UsageErrorf("diagnose-port", "usage: vrooli diagnose-port <port> [scenario] [--json]")
+	parsed, err := commandtree.ParseArgs("diagnose-port", DiagnosePortHelpText(), diagnosePortArgSchema(), args)
+	if err != nil {
+		return DiagnosePortRequest{}, err
 	}
-	if args[0] == "--help" || args[0] == "-h" || args[0] == "help" {
-		return DiagnosePortRequest{}, clipolicy.CommandHelpOnly(DiagnosePortHelpText)
-	}
-	port, err := strconv.Atoi(strings.TrimSpace(args[0]))
+	port, err := strconv.Atoi(strings.TrimSpace(parsed.Positionals[0]))
 	if err != nil || port <= 0 {
-		return DiagnosePortRequest{}, clipolicy.UsageErrorf("diagnose-port", "invalid port: %s", args[0])
+		return DiagnosePortRequest{}, clipolicy.UsageErrorf("diagnose-port", "invalid port: %s", parsed.Positionals[0])
 	}
 	req := DiagnosePortRequest{Port: port}
-	if len(args) > 1 {
-		req.ScenarioName = args[1]
+	if len(parsed.Positionals) > 1 {
+		req.ScenarioName = parsed.Positionals[1]
 	}
 	return req, nil
 }
 
 func ParseCleanupRequest(args []string) (CleanupRequest, error) {
-	if len(args) == 0 {
-		return CleanupRequest{}, clipolicy.CommandHelpOnly(CleanupHelpText)
+	parsed, err := commandtree.ParseArgs("cleanup", CleanupHelpText, commandtree.ArgSchema{
+		Positionals: []commandtree.PositionalArg{
+			{Name: "target", Required: true},
+			{Name: "argument", Repeatable: true},
+		},
+	}, args)
+	if err != nil {
+		return CleanupRequest{}, err
 	}
-	target := strings.TrimSpace(args[0])
+	target := strings.TrimSpace(parsed.Positionals[0])
 	switch target {
-	case "help", "--help", "-h":
+	case "help":
 		return CleanupRequest{}, clipolicy.CommandHelpOnly(CleanupHelpText)
 	case "orphans", "locks":
-		return CleanupRequest{Target: target, Args: append([]string(nil), args[1:]...)}, nil
+		return CleanupRequest{Target: target, Args: append([]string(nil), parsed.Positionals[1:]...)}, nil
 	default:
 		return CleanupRequest{}, &vroolierr.Error{
 			Err:         fmt.Errorf("unknown cleanup target: %s", target),
@@ -172,21 +180,16 @@ func ParseCleanupRequest(args []string) (CleanupRequest, error) {
 }
 
 func ParseSetupOptions(args []string) (projectsetup.Options, error) {
-	return parseLifecycleOptions("setup", args, SetupHelpText)
+	return parseLifecycleOptions("setup", args, SetupHelpText())
 }
 
 func ParseDevelopOptions(args []string) (projectsetup.Options, error) {
-	return parseLifecycleOptions("develop", args, DevelopHelpText)
+	return parseLifecycleOptions("develop", args, DevelopHelpText())
 }
 
 func ParseBuildRequest(args []string) (NoArgsRequest, error) {
-	for _, arg := range args {
-		switch arg {
-		case "--help", "-h":
-			return NoArgsRequest{}, clipolicy.CommandHelpOnly(BuildHelpText)
-		default:
-			return NoArgsRequest{}, clipolicy.UnknownOptionError("build", arg)
-		}
+	if _, err := commandtree.ParseArgs("build", BuildHelpText(), commandtree.ArgSchema{}, args); err != nil {
+		return NoArgsRequest{}, err
 	}
 	return NoArgsRequest{}, nil
 }
@@ -200,7 +203,7 @@ func ParseProjectPhaseRequest(phase string, args []string) (ProjectPhaseRequest,
 
 func ParseLifecycleRequest(args []string) (LifecycleRequest, error) {
 	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
-		return LifecycleRequest{}, clipolicy.CommandHelpOnly(LifecycleHelpText)
+		return LifecycleRequest{}, clipolicy.CommandHelpOnly(LifecycleHelpText())
 	}
 	switch args[0] {
 	case "protect":
@@ -212,10 +215,10 @@ func ParseLifecycleRequest(args []string) (LifecycleRequest, error) {
 
 func ParseLifecycleProtectArgs(args []string) ([]string, error) {
 	if len(args) == 0 {
-		return nil, clipolicy.CommandHelpOnly(LifecycleProtectHelpText)
+		return nil, clipolicy.CommandHelpOnly(LifecycleProtectHelpText())
 	}
 	if args[0] == "--help" || args[0] == "-h" || args[0] == "help" {
-		return nil, clipolicy.CommandHelpOnly(LifecycleProtectHelpText)
+		return nil, clipolicy.CommandHelpOnly(LifecycleProtectHelpText())
 	}
 	if args[0] != "--" {
 		return nil, clipolicy.UsageErrorf("lifecycle protect", "lifecycle protect requires '--' before the protected command")
@@ -227,122 +230,141 @@ func ParseLifecycleProtectArgs(args []string) ([]string, error) {
 }
 
 func parseLifecycleOptions(command string, args []string, helpText string) (projectsetup.Options, error) {
-	opts := projectsetup.Options{}
-	for index := 0; index < len(args); index++ {
-		arg := args[index]
-		switch {
-		case arg == "--help" || arg == "-h":
-			return projectsetup.Options{}, clipolicy.CommandHelpOnly(helpText)
-		case arg == "--dry-run":
-			opts.DryRun = true
-		case arg == "--sudo-mode":
-			value, next, err := requireValue(command, arg, args, index)
-			if err != nil {
-				return projectsetup.Options{}, err
-			}
-			index = next
-			value = strings.ToLower(strings.TrimSpace(value))
-			switch value {
-			case "ask", "skip", "error":
-				opts.SudoMode = value
-			default:
-				return projectsetup.Options{}, fmt.Errorf("invalid value for --sudo-mode: %s", value)
-			}
-		case strings.HasPrefix(arg, "--sudo-mode="):
-			value := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "--sudo-mode=")))
-			switch value {
-			case "ask", "skip", "error":
-				opts.SudoMode = value
-			default:
-				return projectsetup.Options{}, fmt.Errorf("invalid value for --sudo-mode: %s", value)
-			}
-		case arg == "--environment" || arg == "--env":
-			value, next, err := requireValue(command, arg, args, index)
-			if err != nil {
-				return projectsetup.Options{}, err
-			}
-			index = next
-			value = strings.ToLower(strings.TrimSpace(value))
-			switch value {
-			case "development", "production", "minimal":
-				opts.Environment = value
-			default:
-				return projectsetup.Options{}, fmt.Errorf("invalid value for --environment: %s", value)
-			}
-		case strings.HasPrefix(arg, "--environment="):
-			value := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "--environment=")))
-			switch value {
-			case "development", "production", "minimal":
-				opts.Environment = value
-			default:
-				return projectsetup.Options{}, fmt.Errorf("invalid value for --environment: %s", value)
-			}
-		case strings.HasPrefix(arg, "--env="):
-			value := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "--env=")))
-			switch value {
-			case "development", "production", "minimal":
-				opts.Environment = value
-			default:
-				return projectsetup.Options{}, fmt.Errorf("invalid value for --environment: %s", value)
-			}
-		case arg == "--resources":
-			value, next, err := requireValue(command, arg, args, index)
-			if err != nil {
-				return projectsetup.Options{}, err
-			}
-			index = next
-			opts.Resources = strings.ToLower(strings.TrimSpace(value))
-		case strings.HasPrefix(arg, "--resources="):
-			opts.Resources = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "--resources=")))
-		case arg == "--scenarios":
-			value, next, err := requireValue(command, arg, args, index)
-			if err != nil {
-				return projectsetup.Options{}, err
-			}
-			index = next
-			opts.Scenarios = strings.ToLower(strings.TrimSpace(value))
-		case strings.HasPrefix(arg, "--scenarios="):
-			opts.Scenarios = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "--scenarios=")))
-		case arg == "--yes" || arg == "-y":
-			value, next, err := requireValue(command, arg, args, index)
-			if err != nil {
-				return projectsetup.Options{}, err
-			}
-			index = next
-			opts.Yes = strings.ToLower(strings.TrimSpace(value))
-		case strings.HasPrefix(arg, "--yes="):
-			opts.Yes = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "--yes=")))
+	parsed, err := commandtree.ParseArgs(command, helpText, lifecycleOptionsSchema(), args)
+	if err != nil {
+		return projectsetup.Options{}, err
+	}
+	opts := projectsetup.Options{DryRun: parsed.HasFlag("--dry-run")}
+	if value := strings.ToLower(strings.TrimSpace(parsed.FlagValue("--sudo-mode"))); value != "" {
+		switch value {
+		case "ask", "skip", "error":
+			opts.SudoMode = value
 		default:
-			return projectsetup.Options{}, clipolicy.UnknownOptionError(command, arg)
+			return projectsetup.Options{}, fmt.Errorf("invalid value for --sudo-mode: %s", value)
 		}
+	}
+	if value := strings.ToLower(strings.TrimSpace(parsed.FlagValue("--environment"))); value != "" {
+		switch value {
+		case "development", "production", "minimal":
+			opts.Environment = value
+		default:
+			return projectsetup.Options{}, fmt.Errorf("invalid value for --environment: %s", value)
+		}
+	}
+	if value := strings.ToLower(strings.TrimSpace(parsed.FlagValue("--resources"))); value != "" {
+		opts.Resources = value
+	}
+	if value := strings.ToLower(strings.TrimSpace(parsed.FlagValue("--scenarios"))); value != "" {
+		opts.Scenarios = value
+	}
+	if value := strings.ToLower(strings.TrimSpace(parsed.FlagValue("--yes"))); value != "" {
+		opts.Yes = value
 	}
 	return opts, nil
 }
 
-func requireValue(command, flag string, args []string, index int) (string, int, error) {
-	if index+1 >= len(args) {
-		return "", index, fmt.Errorf("%s requires a value for %s", command, flag)
+const CleanupHelpText = "vrooli cleanup - Clean up orphaned processes and stale locks\n\nUsage:\n  vrooli cleanup orphans    Kill orphaned Vrooli processes\n  vrooli cleanup locks      Clean stale port lock files\n\nOptions:\n  --help, -h    Show this help message\n\nExamples:\n  vrooli cleanup orphans    # Kill orphaned processes (interactive)\n  vrooli cleanup locks      # Remove stale lock files\n"
+
+func statusArgSchema() commandtree.ArgSchema {
+	return commandtree.ArgSchema{
+		Options: []commandtree.OptionArg{
+			commandtree.JSONOption(),
+			{Name: "--resources", Description: "Show only resources"},
+			{Name: "--scenarios", Description: "Show only scenarios"},
+			{Name: "--fast", Description: "Use fast status probes"},
+			{Name: "--no-fast", Description: "Disable fast status probes"},
+		},
 	}
-	return args[index+1], index + 1, nil
 }
 
-const (
-	StatusHelpText           = "Usage: vrooli status [--resources|--scenarios] [--fast|--no-fast] [--json]"
-	DoctorHelpText           = "Usage: vrooli doctor [--json]"
-	StopHelpText             = "Usage: vrooli stop [all|scenarios|resources|scenario:<name>|resource:<name>|<name>...] [--json]"
-	OrphansHelpText          = "Usage: vrooli orphans [kill] [--json]"
-	LocksHelpText            = "Usage: vrooli locks [clean] [--json]"
-	DiagnosePortHelpText     = "Usage: vrooli diagnose-port <port> [scenario] [--json]"
-	BuildHelpText            = "Usage: vrooli build\n\nBuilds the project-level Go binaries into .vrooli/build.\n"
-	SetupHelpText            = "Usage: vrooli setup [options]\n\nOptions:\n  --environment, --env <name>   Set environment profile (development|production|minimal)\n  --resources <value>           Resource selection (enabled|none|comma,list)\n  --scenarios <value>           Scenario selection (none|all|comma,list)\n  --sudo-mode <mode>            Sudo policy (ask|skip|error)\n  --yes <value>                 Confirmation policy forwarded to setup steps\n  --dry-run                     Preview setup actions without mutating the host\n"
-	DevelopHelpText          = "Usage: vrooli develop [options]\n\nOptions:\n  --environment, --env <name>   Set environment profile for auto-setup (development|production|minimal)\n  --resources <value>           Resource selection for auto-setup (enabled|none|comma,list)\n  --scenarios <value>           Scenario selection for auto-setup (none|all|comma,list)\n  --sudo-mode <mode>            Sudo policy for auto-setup (ask|skip|error)\n  --yes <value>                 Confirmation policy forwarded to auto-setup\n  --dry-run                     Preview auto-setup actions without mutating the host\n"
-	CleanupHelpText          = "vrooli cleanup - Clean up orphaned processes and stale locks\n\nUsage:\n  vrooli cleanup orphans    Kill orphaned Vrooli processes\n  vrooli cleanup locks      Clean stale port lock files\n\nOptions:\n  --help, -h    Show this help message\n\nExamples:\n  vrooli cleanup orphans    # Kill orphaned processes (interactive)\n  vrooli cleanup locks      # Remove stale lock files\n"
-	LifecycleHelpText        = "Usage: vrooli lifecycle protect -- <command> [args...]\n"
-	LifecycleProtectHelpText = "Usage: vrooli lifecycle protect -- <command> [args...]\n"
-)
+func stopArgSchema() commandtree.ArgSchema {
+	return commandtree.ArgSchema{
+		Positionals: []commandtree.PositionalArg{{Name: "target", Repeatable: true}},
+		Options:     []commandtree.OptionArg{commandtree.JSONOption()},
+	}
+}
+
+func diagnosePortArgSchema() commandtree.ArgSchema {
+	return commandtree.ArgSchema{
+		Positionals: []commandtree.PositionalArg{
+			{Name: "port", Required: true},
+			{Name: "scenario"},
+		},
+		Options: []commandtree.OptionArg{commandtree.JSONOption()},
+	}
+}
+
+func lifecycleOptionsSchema() commandtree.ArgSchema {
+	return commandtree.ArgSchema{
+		Options: []commandtree.OptionArg{
+			{Name: "--dry-run", Description: "Preview actions without mutating the host"},
+			{Name: "--sudo-mode", ValueName: "mode", Description: "Sudo policy (ask|skip|error)"},
+			{Name: "--environment", Aliases: []string{"--env"}, ValueName: "name", Description: "Environment profile (development|production|minimal)"},
+			{Name: "--resources", ValueName: "value", Description: "Resource selection (enabled|none|comma,list)"},
+			{Name: "--scenarios", ValueName: "value", Description: "Scenario selection (none|all|comma,list)"},
+			{Name: "--yes", Aliases: []string{"-y"}, ValueName: "value", Description: "Confirmation policy forwarded to setup steps"},
+		},
+	}
+}
+
+func StatusHelpText() string {
+	return commandtree.HelpText("", "vrooli status", "Show system health and status overview.", commandtree.Help{}, statusArgSchema())
+}
+
+func DoctorHelpText() string {
+	return commandtree.HelpText("", "vrooli doctor", "Run environment and tool diagnostics.", commandtree.Help{}, commandtree.ArgSchema{
+		Options: []commandtree.OptionArg{commandtree.JSONOption()},
+	})
+}
+
+func StopHelpText() string {
+	return commandtree.HelpText("", "vrooli stop", "Stop all or specific components.", commandtree.Help{}, stopArgSchema())
+}
+
+func OrphansHelpText() string {
+	return commandtree.HelpText("", "vrooli orphans", "Inspect or clean orphaned Vrooli processes.", commandtree.Help{}, commandtree.ArgSchema{
+		Positionals: []commandtree.PositionalArg{{Name: "action"}},
+		Options:     []commandtree.OptionArg{commandtree.JSONOption()},
+	})
+}
+
+func LocksHelpText() string {
+	return commandtree.HelpText("", "vrooli locks", "Inspect or clean stale port lock files.", commandtree.Help{}, commandtree.ArgSchema{
+		Positionals: []commandtree.PositionalArg{{Name: "action"}},
+		Options:     []commandtree.OptionArg{commandtree.JSONOption()},
+	})
+}
+
+func DiagnosePortHelpText() string {
+	return commandtree.HelpText("", "vrooli diagnose-port", "Diagnose port conflicts and stale lock ownership.", commandtree.Help{}, diagnosePortArgSchema())
+}
+
+func BuildHelpText() string {
+	return commandtree.HelpText("", "vrooli build", "Build the project-level Go binaries into .vrooli/build.", commandtree.Help{}, commandtree.ArgSchema{})
+}
+
+func SetupHelpText() string {
+	return commandtree.HelpText("", "vrooli setup", "Initialize the development environment.", commandtree.Help{}, lifecycleOptionsSchema())
+}
+
+func DevelopHelpText() string {
+	return commandtree.HelpText("", "vrooli develop", "Start development servers with optional auto-setup.", commandtree.Help{}, lifecycleOptionsSchema())
+}
 
 func ProjectPhaseHelpText(phase string) string {
-	return fmt.Sprintf("Usage: vrooli %s\n", phase)
+	return commandtree.HelpText("", "vrooli "+phase, fmt.Sprintf("Run the %s lifecycle when defined.", phase), commandtree.Help{}, commandtree.ArgSchema{})
+}
+
+func LifecycleHelpText() string {
+	return commandtree.HelpText("", "vrooli lifecycle", "Internal lifecycle command plumbing.", commandtree.Help{
+		Usage: "vrooli lifecycle protect -- <command> [args...]",
+	}, commandtree.ArgSchema{})
+}
+
+func LifecycleProtectHelpText() string {
+	return commandtree.HelpText("", "vrooli lifecycle protect", "Run a command under lifecycle protection.", commandtree.Help{
+		Usage: "vrooli lifecycle protect -- <command> [args...]",
+	}, commandtree.ArgSchema{})
 }
 
 func LifecycleProtectErrorMessage() string {
@@ -361,17 +383,17 @@ func RenderStopResponse(w io.Writer, format cliout.Format, report control.StopRe
 	return RenderStopReport(w, format, report)
 }
 
-func RenderOrphansHelp(w io.Writer)   { _, _ = io.WriteString(w, OrphansHelpText+"\n") }
-func RenderLocksHelp(w io.Writer)     { _, _ = io.WriteString(w, LocksHelpText+"\n") }
-func RenderCleanupHelp(w io.Writer)   { _, _ = io.WriteString(w, CleanupHelpText) }
-func RenderBuildHelp(w io.Writer)     { _, _ = io.WriteString(w, BuildHelpText) }
-func RenderSetupHelp(w io.Writer)     { _, _ = io.WriteString(w, SetupHelpText) }
-func RenderDevelopHelp(w io.Writer)   { _, _ = io.WriteString(w, DevelopHelpText) }
-func RenderLifecycleHelp(w io.Writer) { _, _ = io.WriteString(w, LifecycleHelpText) }
+func RenderOrphansHelp(w io.Writer)   { commandtree.WriteHelp(w, OrphansHelpText()) }
+func RenderLocksHelp(w io.Writer)     { commandtree.WriteHelp(w, LocksHelpText()) }
+func RenderCleanupHelp(w io.Writer)   { commandtree.WriteHelp(w, CleanupHelpText) }
+func RenderBuildHelp(w io.Writer)     { commandtree.WriteHelp(w, BuildHelpText()) }
+func RenderSetupHelp(w io.Writer)     { commandtree.WriteHelp(w, SetupHelpText()) }
+func RenderDevelopHelp(w io.Writer)   { commandtree.WriteHelp(w, DevelopHelpText()) }
+func RenderLifecycleHelp(w io.Writer) { commandtree.WriteHelp(w, LifecycleHelpText()) }
 func RenderLifecycleProtectHelp(w io.Writer) {
-	_, _ = io.WriteString(w, LifecycleProtectHelpText)
+	commandtree.WriteHelp(w, LifecycleProtectHelpText())
 }
 
 func RenderProjectPhaseHelp(w io.Writer, phase string) {
-	_, _ = io.WriteString(w, ProjectPhaseHelpText(phase))
+	commandtree.WriteHelp(w, ProjectPhaseHelpText(phase))
 }

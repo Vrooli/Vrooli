@@ -113,7 +113,6 @@ func ResolveResource(root, home, resourceName string, opts ResolveOptions) (Reso
 func resolveFromManifest(root, home string, resourceManifest manifestpkg.ResourceManifest, opts ResolveOptions) (map[string]string, []string, error) {
 	values := map[string]string{}
 	warnings := []string{}
-	prefix := resourceEnvPrefix(resourceManifest.Name)
 	templateContext := buildTemplateContext(root, home, resourceManifest.Name)
 
 	secretsMap, err := loadSecrets(root)
@@ -154,14 +153,6 @@ func resolveFromManifest(root, home string, resourceManifest manifestpkg.Resourc
 	}
 
 	applyDependencyOverrides(resourceManifest.Name, opts, values)
-
-	// Compatibility bridge during migration: keep prefix-matched secrets available
-	// while canonical manifests adopt explicit exports.
-	for key, value := range secretsMap {
-		if strings.HasPrefix(key, prefix+"_") {
-			values[key] = value
-		}
-	}
 
 	if len(resourceManifest.EnvironmentExports.Static) == 0 &&
 		len(resourceManifest.EnvironmentExports.FromPorts) == 0 &&
@@ -324,10 +315,6 @@ func loadSecrets(root string) (map[string]string, error) {
 		return nil, err
 	}
 	return values, nil
-}
-
-func resourceEnvPrefix(resourceName string) string {
-	return normalizeEnvSegment(strings.ReplaceAll(resourceName, "-", "_"))
 }
 
 func normalizeEnvSegment(value string) string {

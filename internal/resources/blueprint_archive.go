@@ -10,8 +10,6 @@ import (
 	"time"
 )
 
-const blueprintArchivedResourcesPath = ".vrooli/blueprint-archived-resources.json"
-
 type BlueprintArchivedResource struct {
 	Name                string `json:"name"`
 	ArchivedAt          string `json:"archived_at"`

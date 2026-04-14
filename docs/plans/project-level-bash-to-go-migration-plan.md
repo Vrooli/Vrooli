@@ -80,7 +80,7 @@ That's the compatibility-layer path. It works but it's fragile, adds install fri
   - Purpose: project-level HTTP orchestration server invoked from `vrooli develop`
   - Exposes: `/scenarios/start-all`, `/scenarios/start/<name>`, scenario listing, health checks
   - Currently delegates most real work back down to bash — **this is the seed crystal for the migration**
-- **`/scripts/main/`** — NOT Go. Contains `check-cli-binaries.sh` (92 LOC bash linter) and a stray compiled scenario binary. Ignore; the name is misleading.
+- **`/scripts/main/`** — Removed obsolete bash-only directory; use the `vrooli` CLI and repo-backed Go entrypoints instead.
 - No top-level `cmd/`, `internal/`, or `pkg/` directories yet.
 
 ### The `vrooli scenario restart` call path (3,000 LOC of bash, concrete example)

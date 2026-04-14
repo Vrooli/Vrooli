@@ -10,8 +10,6 @@ import (
 	"time"
 )
 
-const blueprintDirPath = ".vrooli/resource-blueprints"
-
 type Blueprint struct {
 	Schema              string                   `json:"$schema,omitempty"`
 	Name                string                   `json:"name"`

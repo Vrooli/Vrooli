@@ -24,6 +24,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/scenariocli"
 	"github.com/vrooli/vrooli/internal/cli/scenariohandlers"
 	"github.com/vrooli/vrooli/internal/cli/topcli"
+	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/cliout"
 	configpkg "github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/control"
@@ -53,6 +54,8 @@ type Config struct {
 	RunProjectBuildFn     func(string, string, io.Writer, io.Writer) error
 	RunProjectSetupFn     func(string, string, projectsetup.Options, io.Writer, io.Writer) error
 	RunProjectDevelopFn   func(string, string, projectsetup.Options, io.Writer, io.Writer) error
+	EnsureScenarioCLIFn   func(string, string, string) error
+	EnsureResourceCLIFn   func(string, string, string) error
 	RunScenarioSubprocess func(scenarioexec.SubprocessSpec) error
 	ScenarioExecutableFn  func() (string, error)
 }
@@ -69,6 +72,8 @@ type App struct {
 	RunProjectBuildFn     func(string, string, io.Writer, io.Writer) error
 	RunProjectSetupFn     func(string, string, projectsetup.Options, io.Writer, io.Writer) error
 	RunProjectDevelopFn   func(string, string, projectsetup.Options, io.Writer, io.Writer) error
+	EnsureScenarioCLIFn   func(string, string, string) error
+	EnsureResourceCLIFn   func(string, string, string) error
 	RunScenarioSubprocess func(scenarioexec.SubprocessSpec) error
 	ScenarioExecutableFn  func() (string, error)
 
@@ -109,6 +114,8 @@ func New(config Config) *App {
 		RunProjectBuildFn:     config.RunProjectBuildFn,
 		RunProjectSetupFn:     config.RunProjectSetupFn,
 		RunProjectDevelopFn:   config.RunProjectDevelopFn,
+		EnsureScenarioCLIFn:   config.EnsureScenarioCLIFn,
+		EnsureResourceCLIFn:   config.EnsureResourceCLIFn,
 		RunScenarioSubprocess: config.RunScenarioSubprocess,
 		ScenarioExecutableFn:  config.ScenarioExecutableFn,
 	}
@@ -341,6 +348,34 @@ func (app *App) runTopLevelDevelop(ctx *CommandContext, opts projectsetup.Option
 	return app.RunProjectDevelopFn(ctx.Root, home, opts, ctx.Stdout, ctx.Stderr)
 }
 
+func (app *App) ensureScenarioCLI(ctx *CommandContext, name string) error {
+	if strings.TrimSpace(name) == "" {
+		return nil
+	}
+	home, err := ctx.HomeDir()
+	if err != nil {
+		return err
+	}
+	if app.EnsureScenarioCLIFn != nil {
+		return app.EnsureScenarioCLIFn(ctx.Root, home, name)
+	}
+	return cliinstall.NewManager(ctx.Root, home).EnsureScenarioCLI(name)
+}
+
+func (app *App) ensureResourceCLI(ctx *CommandContext, name string) error {
+	if strings.TrimSpace(name) == "" {
+		return nil
+	}
+	home, err := ctx.HomeDir()
+	if err != nil {
+		return err
+	}
+	if app.EnsureResourceCLIFn != nil {
+		return app.EnsureResourceCLIFn(ctx.Root, home, name)
+	}
+	return cliinstall.NewManager(ctx.Root, home).EnsureResourceCLI(name)
+}
+
 func (app *App) locateTestGenieCLI(root, home string) (string, error) {
 	return scenarioexec.LocateTestGenieCLI(app.LookPathFn, root, home)
 }
@@ -392,11 +427,7 @@ func runProjectPhaseFromContext(ctx *CommandContext, phase string, args []string
 func (app *App) runInfoTopLevelCommand(ctx *CommandContext, args []string) error {
 	req, err := topcli.ParseInfoRequest(args)
 	if err != nil {
-		if helpErr, ok := err.(interface{ HelpText() string }); ok {
-			_, _ = io.WriteString(ctx.Stdout, helpErr.HelpText())
-			if text := helpErr.HelpText(); text == "" || text[len(text)-1] != '\n' {
-				_, _ = io.WriteString(ctx.Stdout, "\n")
-			}
+		if rootcli.HandleHelp(ctx.Stdout, err) {
 			return nil
 		}
 		return err
@@ -484,6 +515,9 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 			Stderr:       func(ctx *CommandContext) io.Writer { return ctx.Stderr },
 			Globals:      func(ctx *CommandContext) rootcli.GlobalOptions { return ctx.Globals },
 			OutputFormat: projectOutputFormat,
+			EnsureCLI: func(ctx *CommandContext, name string) error {
+				return ctx.app.ensureResourceCLI(ctx, name)
+			},
 			ResourceController: func(ctx *CommandContext) (*resources.Controller, error) {
 				return ctx.app.newResourceController(ctx)
 			},
@@ -545,6 +579,9 @@ func (app *App) buildScenarioHandlerMap() map[scenariocli.CommandID]rootcli.Hand
 		Globals:      func(ctx *CommandContext) rootcli.GlobalOptions { return ctx.Globals },
 		OutputFormat: projectOutputFormat,
 		HomeDir:      func(ctx *CommandContext) (string, error) { return ctx.HomeDir() },
+		EnsureCLI: func(ctx *CommandContext, name string) error {
+			return ctx.app.ensureScenarioCLI(ctx, name)
+		},
 		ScenarioOperations: func(ctx *CommandContext) (scenarioapp.ScenarioOperations, error) {
 			return ctx.app.newScenarioService(ctx)
 		},

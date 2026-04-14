@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/shell"
 )
 
@@ -47,7 +48,7 @@ func ensureSupportedPlatform(manifest ResourceManifest) error {
 		return nil
 	}
 	if support == "unsupported" {
-		return fmt.Errorf("resource %q is unsupported on %s", manifest.Name, currentResourcePlatform())
+		return fmt.Errorf("resource %q is unsupported on %s", manifest.Name, manifestpkg.CurrentPlatform())
 	}
 	return nil
 }
@@ -842,7 +843,7 @@ func missingCredentialEnv(manifest ResourceManifest) []string {
 func runInstallCommand(ctx context.Context, controller *Controller, manifest ResourceManifest) error {
 	command := manifest.Install.Command
 	if len(command) == 0 {
-		command = manifest.Install.Platforms[currentResourcePlatform()]
+		command = manifest.Install.Platforms[manifestpkg.CurrentPlatform()]
 	}
 	if len(command) == 0 {
 		return nil

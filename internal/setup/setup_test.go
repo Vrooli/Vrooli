@@ -1,6 +1,7 @@
 package setup
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"os"
@@ -234,6 +235,17 @@ func TestRunSetupUsesNativeRuntimeAndMarksComplete(t *testing.T) {
 		markCompleteCalled = true
 		return nil
 	}
+	schemaSyncCalled := false
+	syncResourceSchemaFn = func(root string) error {
+		schemaSyncCalled = true
+		return nil
+	}
+	manager := &stubCLIInstallManager{}
+	newCLIInstallManagerFn = func(root, home string) cliInstallManager {
+		manager.root = root
+		manager.home = home
+		return manager
+	}
 
 	if err := RunSetupWithOptions(root, home, Options{Resources: "none"}, io.Discard, io.Discard); err != nil {
 		t.Fatalf("RunSetupWithOptions: %v", err)
@@ -244,8 +256,63 @@ func TestRunSetupUsesNativeRuntimeAndMarksComplete(t *testing.T) {
 	if !markCompleteCalled {
 		t.Fatal("expected markCompleteFn to be called")
 	}
+	if !schemaSyncCalled {
+		t.Fatal("expected syncResourceSchemaFn to be called")
+	}
+	if manager.installEnabledResourceCalls != 1 {
+		t.Fatalf("InstallEnabledResourceCLIs calls = %d, want 1", manager.installEnabledResourceCalls)
+	}
+	if manager.installAllScenarioCalls != 1 {
+		t.Fatalf("InstallAllScenarioCLIs calls = %d, want 1", manager.installAllScenarioCalls)
+	}
+	if manager.root != root || manager.home != home {
+		t.Fatalf("manager inputs = (%q, %q), want (%q, %q)", manager.root, manager.home, root, home)
+	}
 	if _, err := os.Stat(filepath.Join(root, "data")); err != nil {
 		t.Fatalf("expected data dir: %v", err)
+	}
+}
+
+func TestRunSetupTriggersOnboardingAfterSuccessfulSetup(t *testing.T) {
+	restore := stubSetupDeps(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	projectScenario := writeProjectFixture(t, root)
+
+	currentHostFn = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
+	loadProjectFn = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
+	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
+		return hostreq.Resolution{}, nil
+	}
+	inspectRequirementsFn = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		return vrooliruntime.Report{Environment: environment}, nil
+	}
+	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		return vrooliruntime.Report{Environment: opts.Environment}, nil
+	}
+
+	markCompleteCalled := false
+	markCompleteFn = func(root string) error {
+		markCompleteCalled = true
+		return nil
+	}
+
+	onboardingCalls := 0
+	maybeOpenOnboardingFn = func(root, home string, stdout, stderr io.Writer) error {
+		onboardingCalls++
+		return nil
+	}
+
+	if err := RunSetupWithOptions(root, home, Options{Resources: "none"}, io.Discard, io.Discard); err != nil {
+		t.Fatalf("RunSetupWithOptions: %v", err)
+	}
+	if !markCompleteCalled {
+		t.Fatal("expected markCompleteFn to be called")
+	}
+	if onboardingCalls != 1 {
+		t.Fatalf("onboarding calls = %d, want 1", onboardingCalls)
 	}
 }
 
@@ -319,6 +386,40 @@ func TestRunSetupDryRunUsesApplyPlanningAndSkipsMutations(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "Dry-run mode skips git configuration, resource installation, and setup completion markers") {
 		t.Fatalf("stdout missing dry-run skip note:\n%s", stdout.String())
+	}
+}
+
+func TestRunSetupDryRunSkipsOnboarding(t *testing.T) {
+	restore := stubSetupDeps(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	projectScenario := writeProjectFixture(t, root)
+
+	currentHostFn = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
+	loadProjectFn = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
+	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
+		return hostreq.Resolution{}, nil
+	}
+	inspectRequirementsFn = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		return vrooliruntime.Report{Environment: environment}, nil
+	}
+	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		return vrooliruntime.Report{Environment: opts.Environment}, nil
+	}
+
+	onboardingCalls := 0
+	maybeOpenOnboardingFn = func(root, home string, stdout, stderr io.Writer) error {
+		onboardingCalls++
+		return nil
+	}
+
+	if err := RunSetupWithOptions(root, home, Options{DryRun: true, Resources: "none"}, io.Discard, io.Discard); err != nil {
+		t.Fatalf("RunSetupWithOptions: %v", err)
+	}
+	if onboardingCalls != 0 {
+		t.Fatalf("onboarding calls = %d, want 0", onboardingCalls)
 	}
 }
 
@@ -923,6 +1024,51 @@ func TestRunDevelopSkipsSetupWhenMarkerExists(t *testing.T) {
 	}
 }
 
+func TestRunDevelopTriggersOnboardingFallback(t *testing.T) {
+	restore := stubSetupDeps(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	projectScenario := writeProjectFixture(t, root)
+	writePortRegistryFixture(t, root)
+	writeExecutableFile(t, filepath.Join(root, ".vrooli", "build", "vrooli-api"), "#!/usr/bin/env bash\nexit 0\n")
+	if err := os.MkdirAll(filepath.Join(root, "data"), 0o755); err != nil {
+		t.Fatalf("mkdir data: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "data", ".setup-complete"), []byte("ok\n"), 0o644); err != nil {
+		t.Fatalf("write setup marker: %v", err)
+	}
+
+	currentHostFn = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
+	loadProjectFn = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
+	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
+		return hostreq.Resolution{}, nil
+	}
+	inspectRequirementsFn = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		return vrooliruntime.Report{Environment: environment}, nil
+	}
+	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		return vrooliruntime.Report{Environment: opts.Environment}, nil
+	}
+	startProjectAPIFn = func(root string, spec apiLaunchSpec, stdout, stderr io.Writer) error { return nil }
+	healthCheckFn = func(port int, timeout time.Duration) error { return nil }
+	startOrchestratorFn = func(root, home string, stdout, stderr io.Writer) error { return nil }
+
+	onboardingCalls := 0
+	maybeOpenOnboardingFn = func(root, home string, stdout, stderr io.Writer) error {
+		onboardingCalls++
+		return nil
+	}
+
+	if err := RunDevelopWithOptions(root, home, Options{}, io.Discard, io.Discard); err != nil {
+		t.Fatalf("RunDevelopWithOptions: %v", err)
+	}
+	if onboardingCalls != 1 {
+		t.Fatalf("onboarding calls = %d, want 1", onboardingCalls)
+	}
+}
+
 func TestRunSetupRejectsUnsupportedHost(t *testing.T) {
 	restore := stubSetupDeps(t)
 	defer restore()
@@ -952,6 +1098,110 @@ func TestLoadDotEnvParsesCommonForms(t *testing.T) {
 	}
 	if values["FOO"] != "bar" || values["BAZ"] != "two" {
 		t.Fatalf("values = %#v", values)
+	}
+}
+
+func TestMaybeOpenOnboardingPersistsPromptedState(t *testing.T) {
+	restore := stubSetupDeps(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	writeOnboardingScenarioFixture(t, root)
+
+	osExecutableFn = func() (string, error) { return "/bin/true", nil }
+	onboardingPortCommandRunnerFn = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		return []byte("38123\n"), nil
+	}
+	opened := ""
+	openOnboardingURLFn = func(url string) error {
+		opened = url
+		return nil
+	}
+
+	stdout := &strings.Builder{}
+	if err := maybeOpenOnboarding(root, home, stdout, io.Discard); err != nil {
+		t.Fatalf("maybeOpenOnboarding: %v", err)
+	}
+	if opened != "http://127.0.0.1:38123" {
+		t.Fatalf("opened URL = %q", opened)
+	}
+	if !strings.Contains(stdout.String(), "Opening Vrooli onboarding") {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+
+	configPath := filepath.Join(home, ".vrooli", "config.json")
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	var stored struct {
+		Onboarding onboardingPreferences `json:"onboarding"`
+	}
+	if err := json.Unmarshal(data, &stored); err != nil {
+		t.Fatalf("unmarshal config: %v", err)
+	}
+	if stored.Onboarding.PromptedAt == "" {
+		t.Fatal("expected prompted_at to be recorded")
+	}
+}
+
+func TestMaybeOpenOnboardingRespectsEnvOptOut(t *testing.T) {
+	restore := stubSetupDeps(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	writeOnboardingScenarioFixture(t, root)
+	t.Setenv(onboardingSkipEnv, "1")
+
+	opened := false
+	openOnboardingURLFn = func(url string) error {
+		opened = true
+		return nil
+	}
+
+	if err := maybeOpenOnboarding(root, home, io.Discard, io.Discard); err != nil {
+		t.Fatalf("maybeOpenOnboarding: %v", err)
+	}
+	if opened {
+		t.Fatal("expected opt-out env var to skip onboarding")
+	}
+}
+
+func TestMaybeOpenOnboardingRespectsPersistentAutoOpenOptOut(t *testing.T) {
+	restore := stubSetupDeps(t)
+	defer restore()
+
+	root := t.TempDir()
+	home := t.TempDir()
+	writeOnboardingScenarioFixture(t, root)
+	autoOpen := false
+	configPath := filepath.Join(home, ".vrooli", "config.json")
+	doc, err := json.Marshal(map[string]any{
+		"onboarding": onboardingPreferences{AutoOpen: &autoOpen},
+	})
+	if err != nil {
+		t.Fatalf("marshal config: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(configPath), 0o755); err != nil {
+		t.Fatalf("mkdir config dir: %v", err)
+	}
+	if err := os.WriteFile(configPath, doc, 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	opened := false
+	openOnboardingURLFn = func(url string) error {
+		opened = true
+		return nil
+	}
+
+	if err := maybeOpenOnboarding(root, home, io.Discard, io.Discard); err != nil {
+		t.Fatalf("maybeOpenOnboarding: %v", err)
+	}
+	if opened {
+		t.Fatal("expected persistent auto_open=false to skip onboarding")
 	}
 }
 
@@ -1030,6 +1280,8 @@ func stubSetupDeps(t *testing.T) func() {
 	originalCurrentHostFn := currentHostFn
 	originalLoadProjectFn := loadProjectFn
 	originalMarkCompleteFn := markCompleteFn
+	originalSyncResourceSchemaFn := syncResourceSchemaFn
+	originalNewCLIInstallManagerFn := newCLIInstallManagerFn
 	originalResolveHostRequirementsFn := resolveHostRequirementsFn
 	originalInspectRequirementsFn := inspectRequirementsFn
 	originalEnsureRequirementsFn := ensureRequirementsFn
@@ -1038,10 +1290,18 @@ func stubSetupDeps(t *testing.T) func() {
 	originalHealthCheckFn := healthCheckFn
 	originalLoadDotEnvFn := loadDotEnvFn
 	originalResourcesController := resourcesController
+	originalMaybeOpenOnboardingFn := maybeOpenOnboardingFn
+	originalOSExecutableFn := osExecutableFn
+	originalOnboardingPortCommandRunnerFn := onboardingPortCommandRunnerFn
+	originalOpenOnboardingURLFn := openOnboardingURLFn
+	syncResourceSchemaFn = func(root string) error { return nil }
+	newCLIInstallManagerFn = func(root, home string) cliInstallManager { return &stubCLIInstallManager{} }
 	return func() {
 		currentHostFn = originalCurrentHostFn
 		loadProjectFn = originalLoadProjectFn
 		markCompleteFn = originalMarkCompleteFn
+		syncResourceSchemaFn = originalSyncResourceSchemaFn
+		newCLIInstallManagerFn = originalNewCLIInstallManagerFn
 		resolveHostRequirementsFn = originalResolveHostRequirementsFn
 		inspectRequirementsFn = originalInspectRequirementsFn
 		ensureRequirementsFn = originalEnsureRequirementsFn
@@ -1050,7 +1310,28 @@ func stubSetupDeps(t *testing.T) func() {
 		healthCheckFn = originalHealthCheckFn
 		loadDotEnvFn = originalLoadDotEnvFn
 		resourcesController = originalResourcesController
+		maybeOpenOnboardingFn = originalMaybeOpenOnboardingFn
+		osExecutableFn = originalOSExecutableFn
+		onboardingPortCommandRunnerFn = originalOnboardingPortCommandRunnerFn
+		openOnboardingURLFn = originalOpenOnboardingURLFn
 	}
+}
+
+type stubCLIInstallManager struct {
+	root                        string
+	home                        string
+	installAllScenarioCalls     int
+	installEnabledResourceCalls int
+}
+
+func (s *stubCLIInstallManager) InstallAllScenarioCLIs() error {
+	s.installAllScenarioCalls++
+	return nil
+}
+
+func (s *stubCLIInstallManager) InstallEnabledResourceCLIs() error {
+	s.installEnabledResourceCalls++
+	return nil
 }
 
 func writeProjectFixture(t *testing.T, root string) scenario.Scenario {
@@ -1125,6 +1406,11 @@ func writePortRegistryFixture(t *testing.T, root string) {
 func writeExecutableFile(t *testing.T, path, contents string) {
 	t.Helper()
 	testkitgo.WriteExecutable(t, path, contents)
+}
+
+func writeOnboardingScenarioFixture(t *testing.T, root string) {
+	t.Helper()
+	testkitgo.WriteFile(t, scenario.ServicePath(root, onboardingSlug), "{}\n")
 }
 
 var _ resourceRunner = (*resources.Controller)(nil)

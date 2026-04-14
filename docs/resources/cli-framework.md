@@ -132,7 +132,7 @@ Resources are automatically registered with the main `vrooli` CLI through:
 Resource configuration is managed through:
 
 - **`~/.vrooli/service.json`**: Main service configuration
-- **`~/.vrooli/resource-registry/`**: Resource-specific registry files
+- Resource discovery is manifest-native; there is no registry sidecar in the current model
 - **Environment Variables**: Resource-specific configuration
 
 ## Best Practices

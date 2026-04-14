@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -101,10 +102,25 @@ func run() error {
 	if err := replaceBinary(tmpPath, dst); err != nil {
 		return fmt.Errorf("install binary: %w", err)
 	}
+	if err := writeInstallMetadata(dst, installMetadata{
+		BinaryName:  binaryName,
+		ModulePath:  sourceRoot,
+		Fingerprint: fingerprint,
+		InstalledAt: timestamp,
+	}); err != nil {
+		return fmt.Errorf("write install metadata: %w", err)
+	}
 
 	fmt.Printf("✅ installed CLI to %s\n", dst)
 	ensurePathHint(dst)
 	return nil
+}
+
+type installMetadata struct {
+	BinaryName  string `json:"binary_name"`
+	ModulePath  string `json:"module_path"`
+	Fingerprint string `json:"fingerprint"`
+	InstalledAt string `json:"installed_at,omitempty"`
 }
 
 func determineDestination(modulePath, explicitOutput, installDir, name string) (string, error) {
@@ -168,6 +184,15 @@ func replaceBinary(src, dst string) error {
 		return nil
 	}
 	return fmt.Errorf("replace binary: %w", renameErr)
+}
+
+func writeInstallMetadata(binaryPath string, meta installMetadata) error {
+	data, err := json.MarshalIndent(meta, "", "  ")
+	if err != nil {
+		return err
+	}
+	data = append(data, '\n')
+	return os.WriteFile(binaryPath+".build.meta", data, 0o644)
 }
 
 func ensurePathHint(binaryPath string) {

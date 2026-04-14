@@ -102,22 +102,6 @@ type rawDependencies struct {
 	Scenarios json.RawMessage `json:"scenarios,omitempty"`
 }
 
-type legacyDependencyGroup struct {
-	Required []legacyDependency `json:"required,omitempty"`
-	Optional []legacyDependency `json:"optional,omitempty"`
-	Enabled  []legacyDependency `json:"enabled,omitempty"`
-}
-
-type legacyDependency struct {
-	Name        string                 `json:"name,omitempty"`
-	Type        string                 `json:"type,omitempty"`
-	Enabled     *bool                  `json:"enabled,omitempty"`
-	Required    *bool                  `json:"required,omitempty"`
-	Purpose     string                 `json:"purpose,omitempty"`
-	Description string                 `json:"description,omitempty"`
-	Config      map[string]interface{} `json:"config,omitempty"`
-}
-
 type Port struct {
 	EnvVar      string `json:"env_var,omitempty"`
 	Description string `json:"description,omitempty"`
@@ -357,54 +341,16 @@ func decodeDependencyCollection(data json.RawMessage, defaultType string) (map[s
 	}
 
 	var direct map[string]Dependency
-	if err := json.Unmarshal(data, &direct); err == nil {
-		return direct, nil
-	}
-
-	var legacy legacyDependencyGroup
-	if err := json.Unmarshal(data, &legacy); err != nil {
+	if err := json.Unmarshal(data, &direct); err != nil {
 		return nil, err
 	}
-
-	merged := make(map[string]Dependency, len(legacy.Required)+len(legacy.Optional)+len(legacy.Enabled))
-	addLegacyDependencies(merged, legacy.Required, defaultType, true)
-	addLegacyDependencies(merged, legacy.Optional, defaultType, false)
-	addLegacyDependencies(merged, legacy.Enabled, defaultType, false)
-	if len(merged) == 0 {
-		return nil, nil
-	}
-	return merged, nil
-}
-
-func addLegacyDependencies(dst map[string]Dependency, items []legacyDependency, defaultType string, required bool) {
-	for _, item := range items {
-		name := strings.TrimSpace(item.Name)
-		if name == "" {
-			continue
-		}
-
-		dependency := Dependency{
-			Type:        strings.TrimSpace(item.Type),
-			Enabled:     true,
-			Required:    required,
-			Purpose:     item.Purpose,
-			Description: item.Description,
-		}
-		if dependency.Type == "" {
+	for name, dependency := range direct {
+		if strings.TrimSpace(dependency.Type) == "" {
 			dependency.Type = defaultType
+			direct[name] = dependency
 		}
-		if item.Enabled != nil {
-			dependency.Enabled = *item.Enabled
-		}
-		if item.Required != nil {
-			dependency.Required = *item.Required
-		}
-		if database, ok := item.Config["database"].(string); ok {
-			dependency.Database = database
-		}
-
-		dst[name] = dependency
 	}
+	return direct, nil
 }
 
 func ScenarioInScope(root, name, scope string) bool {

@@ -13,6 +13,7 @@ import (
 	internalcontrol "github.com/vrooli/vrooli/internal/control"
 	catalogpkg "github.com/vrooli/vrooli/internal/resources/catalog"
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/vroolierr"
 )
@@ -28,6 +29,7 @@ const (
 const (
 	ErrorCodeCommandUnavailable = "command_unavailable"
 	ErrorCodeOperationFailed    = "operation_failed"
+	resourceConfigPath          = catalogpkg.ResourceConfigPath
 )
 
 type Controller struct {
@@ -36,8 +38,10 @@ type Controller struct {
 }
 
 type (
-	Error  = vroolierr.Error
-	Status = resourcecontrol.Status
+	ConfigEntry = catalogpkg.ConfigEntry
+	Error       = vroolierr.Error
+	Resource    = catalogpkg.Resource
+	Status      = resourcecontrol.Status
 )
 
 type commandResult struct {
@@ -60,12 +64,16 @@ func NewController(root, home string) *Controller {
 	}
 }
 
+func (c *Controller) LoadManifest(path string) (ResourceManifest, error) {
+	return manifestpkg.Load(path)
+}
+
 func (c *Controller) Discover() ([]Resource, error) {
 	deprecated, err := c.deprecatedNameSet()
 	if err != nil {
 		return nil, err
 	}
-	return c.catalogService().Discover(catalogpkg.DiscoverOptions{
+	return catalogpkg.New(c.Root).Discover(catalogpkg.DiscoverOptions{
 		DeprecatedNames: deprecated,
 		ResolveCLIPath:  c.resolveCLIPath,
 	})
@@ -76,7 +84,7 @@ func (c *Controller) discoverResource(name string) (*Resource, error) {
 	if err != nil {
 		return nil, err
 	}
-	return c.catalogService().DiscoverOne(name, catalogpkg.DiscoverOptions{
+	return catalogpkg.New(c.Root).DiscoverOne(name, catalogpkg.DiscoverOptions{
 		DeprecatedNames: deprecated,
 		ResolveCLIPath:  c.resolveCLIPath,
 	})
@@ -138,15 +146,15 @@ func (c *Controller) SetEnabled(name string, enabled bool) error {
 }
 
 func (c *Controller) readConfigEntries() (map[string]ConfigEntry, error) {
-	return c.catalogService().ReadConfigEntries()
+	return catalogpkg.New(c.Root).ReadConfigEntries()
 }
 
 func (c *Controller) filesystemNames() ([]string, error) {
-	return c.catalogService().FilesystemNames()
+	return catalogpkg.New(c.Root).FilesystemNames()
 }
 
 func (c *Controller) manifestNames() ([]string, error) {
-	return c.catalogService().ManifestNames()
+	return catalogpkg.New(c.Root).ManifestNames()
 }
 
 func (c *Controller) statusForResource(item Resource, fast bool) (Status, error) {
@@ -164,13 +172,21 @@ func (c *Controller) resourceControl() *resourcecontrol.Service {
 		IsDeprecatedFn:    c.IsDeprecated,
 		IsBlueprintArchFn: c.IsBlueprintArchived,
 		LoadManifestFn: func(path string) (ResourceManifest, error) {
-			return c.loadResourceManifest(path)
+			return manifestpkg.Load(path)
 		},
 		DriverStatusFn: func(ctx context.Context, item catalogpkg.Resource, manifest ResourceManifest, fast bool) (resourcecontrol.Status, error) {
-			return driverStatus(ctx, c, item, manifest, fast)
+			driver, err := driverForManifest(manifest)
+			if err != nil {
+				return Status{}, err
+			}
+			return driver.Status(ctx, c, item, manifest, fast)
 		},
 		DriverRunFn: func(ctx context.Context, item catalogpkg.Resource, manifest ResourceManifest, operation string, args []string, stdout, stderr io.Writer) error {
-			return driverRun(ctx, c, item, manifest, operation, args, stdout, stderr)
+			driver, err := driverForManifest(manifest)
+			if err != nil {
+				return err
+			}
+			return driver.Run(ctx, c, item, manifest, operation, args, stdout, stderr)
 		},
 		RunResourceCommandFn: func(name, operation string, args []string, stdout, stderr io.Writer) error {
 			return c.runResourceCommand(name, operation, args, stdout, stderr)
@@ -223,20 +239,12 @@ func (c *Controller) commandForResource(name string, args ...string) (*exec.Cmd,
 		}), nil
 	}
 
-	scriptPath := filepath.Join(c.Root, "resources", name, "cli.sh")
-	if _, err := os.Stat(scriptPath); err == nil {
-		return shell.BashScript(scriptPath, args, shell.Spec{
-			Dir: c.Root,
-			Env: resourceEnv(c.Root, c.Home),
-		}), nil
-	}
-
 	return nil, &Error{
 		Code:      ErrorCodeCommandUnavailable,
 		Resource:  name,
 		Operation: "invoke",
 		Category:  "Environment",
-		Err:       fmt.Errorf("no installed CLI or cli.sh"),
+		Err:       fmt.Errorf("no installed CLI"),
 	}
 }
 

@@ -1,12 +1,10 @@
 package contractcli
 
 import (
-	"fmt"
 	"io"
 	"strings"
 
 	contractapp "github.com/vrooli/vrooli/internal/app/contract"
-	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 )
 
@@ -15,112 +13,92 @@ type (
 )
 
 func ParseValidateRequest(args []string) (NoArgsRequest, error) {
-	for _, arg := range args {
-		switch arg {
-		case "--help", "-h":
-			return NoArgsRequest{}, clipolicy.CommandHelpOnly(RenderValidateHelpText())
-		default:
-			return NoArgsRequest{}, clipolicy.UnknownOptionError("contract validate", arg)
-		}
+	if _, err := commandtree.ParseArgs("contract validate", commandHelpText(CommandValidate), commandSpec(CommandValidate).Args, args); err != nil {
+		return NoArgsRequest{}, err
 	}
 	return NoArgsRequest{}, nil
 }
 
 func ParseShowRequest(args []string) (NoArgsRequest, error) {
-	for _, arg := range args {
-		switch arg {
-		case "--help", "-h":
-			return NoArgsRequest{}, clipolicy.CommandHelpOnly(RenderShowHelpText())
-		default:
-			return NoArgsRequest{}, clipolicy.UnknownOptionError("contract show", arg)
-		}
+	if _, err := commandtree.ParseArgs("contract show", commandHelpText(CommandShow), commandSpec(CommandShow).Args, args); err != nil {
+		return NoArgsRequest{}, err
 	}
 	return NoArgsRequest{}, nil
 }
 
 func ParseResolveScenarioRequest(args []string) (contractapp.ResolveScenarioRequest, error) {
-	if len(args) == 0 {
-		return contractapp.ResolveScenarioRequest{}, fmt.Errorf("contract resolve scenario requires a scenario name")
+	spec := commandSpec(CommandResolveScenario)
+	parsed, err := commandtree.ParseArgs("contract resolve scenario", commandHelpText(CommandResolveScenario), spec.Args, args)
+	if err != nil {
+		return contractapp.ResolveScenarioRequest{}, err
 	}
-	scenarioName := strings.TrimSpace(args[0])
-	if scenarioName == "" {
-		return contractapp.ResolveScenarioRequest{}, fmt.Errorf("contract resolve scenario requires a scenario name")
-	}
-	req := contractapp.ResolveScenarioRequest{ScenarioName: scenarioName}
-	for i := 1; i < len(args); i++ {
-		switch args[i] {
-		case "--help", "-h":
-			return contractapp.ResolveScenarioRequest{}, clipolicy.CommandHelpOnly(RenderResolveScenarioHelpText())
-		case "--file":
-			if i+1 >= len(args) {
-				return contractapp.ResolveScenarioRequest{}, clipolicy.UsageErrorf("contract resolve scenario", "missing value for --file")
-			}
-			req.FileKey = strings.TrimSpace(args[i+1])
-			i++
-		default:
-			return contractapp.ResolveScenarioRequest{}, clipolicy.UnknownOptionError("contract resolve scenario", args[i])
-		}
-	}
-	return req, nil
+	return contractapp.ResolveScenarioRequest{
+		ScenarioName: strings.TrimSpace(parsed.Positionals[0]),
+		FileKey:      strings.TrimSpace(parsed.FlagValue("--file")),
+	}, nil
 }
 
 func ParseMatchGlobRequest(args []string) (contractapp.MatchGlobRequest, error) {
-	for _, arg := range args {
-		if arg == "--help" || arg == "-h" {
-			return contractapp.MatchGlobRequest{}, clipolicy.CommandHelpOnly(RenderMatchGlobHelpText())
-		}
+	spec := commandSpec(CommandMatchGlob)
+	parsed, err := commandtree.ParseArgs("contract match-glob", commandHelpText(CommandMatchGlob), spec.Args, args)
+	if err != nil {
+		return contractapp.MatchGlobRequest{}, err
 	}
-	if len(args) != 2 {
-		return contractapp.MatchGlobRequest{}, clipolicy.UsageErrorf("contract match-glob", "usage: vrooli contract match-glob <pattern> <path>")
-	}
-	return contractapp.MatchGlobRequest{Pattern: args[0], Path: args[1]}, nil
+	return contractapp.MatchGlobRequest{Pattern: parsed.Positionals[0], Path: parsed.Positionals[1]}, nil
 }
 
 func RenderCommandHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "vrooli contract - Inspect and validate the repository contract")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Usage:")
-	_, _ = fmt.Fprintln(w, "  vrooli contract <subcommand> [options]")
-	_, _ = fmt.Fprintln(w)
-	commandtree.RenderGroups(w, commandtree.VisibleEntries(CommandSpecs(), ""))
+	commandtree.WriteHelp(w, commandtree.RenderHelpText(commandtree.Help{
+		Title:        "vrooli contract - Inspect and validate the repository contract",
+		Usage:        "vrooli contract <subcommand> [options]",
+		DefaultGroup: "Repository Contract",
+	}, CommandSpecs()))
 }
 
 func RenderResolveHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, RenderResolveHelpText())
+	commandtree.WriteHelp(w, commandtree.RenderHelpText(commandtree.Help{
+		Title:        "vrooli contract resolve - Resolve contract-derived paths",
+		Usage:        "vrooli contract resolve <subcommand> [options]",
+		DefaultGroup: "Repository Contract",
+	}, ResolveCommandSpecs()))
 }
 
 func RenderValidateHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, RenderValidateHelpText())
+	commandtree.WriteHelp(w, commandHelpText(CommandValidate))
 }
 
 func RenderShowHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, RenderShowHelpText())
+	commandtree.WriteHelp(w, commandHelpText(CommandShow))
 }
 
 func RenderResolveScenarioHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, RenderResolveScenarioHelpText())
+	commandtree.WriteHelp(w, commandHelpText(CommandResolveScenario))
 }
 
 func RenderMatchGlobHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, RenderMatchGlobHelpText())
+	commandtree.WriteHelp(w, commandHelpText(CommandMatchGlob))
 }
 
 func RenderValidateHelpText() string {
-	return ValidateHelpText
+	return commandHelpText(CommandValidate)
 }
 
 func RenderShowHelpText() string {
-	return ShowHelpText
+	return commandHelpText(CommandShow)
 }
 
 func RenderResolveHelpText() string {
-	return ResolveHelpText
+	return strings.TrimSuffix(commandtree.RenderHelpText(commandtree.Help{
+		Title:        "vrooli contract resolve - Resolve contract-derived paths",
+		Usage:        "vrooli contract resolve <subcommand> [options]",
+		DefaultGroup: "Repository Contract",
+	}, ResolveCommandSpecs()), "\n")
 }
 
 func RenderResolveScenarioHelpText() string {
-	return ResolveScenarioHelpText
+	return commandHelpText(CommandResolveScenario)
 }
 
 func RenderMatchGlobHelpText() string {
-	return MatchGlobHelpText
+	return commandHelpText(CommandMatchGlob)
 }
