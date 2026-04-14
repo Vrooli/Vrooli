@@ -90,44 +90,42 @@ test_port_configuration() {
 }
 
 test_schema_validation() {
-    test::start "Schema validation"
+    test::start "Dependency schema validation"
     
-    local schema_file="${APP_ROOT}/resources/postgis/config/schema.json"
+    local manifest_file="${APP_ROOT}/resources/postgis/resource.json"
     
-    if [[ -f "$schema_file" ]]; then
-        # Basic JSON validation
-        if python3 -m json.tool "$schema_file" > /dev/null 2>&1; then
-            test::pass "Schema JSON is valid"
+    if [[ -f "$manifest_file" ]]; then
+        if jq -e '.dependency_schema | type == "object"' "$manifest_file" >/dev/null 2>&1; then
+            test::pass "Dependency schema is valid"
         else
-            test::fail "Schema JSON is invalid"
+            test::fail "Dependency schema missing or invalid"
             return 1
         fi
     else
-        test::fail "Schema file not found"
+        test::fail "Manifest file not found"
         return 1
     fi
 }
 
 test_runtime_config() {
-    test::start "Runtime configuration"
+    test::start "Orchestration configuration"
     
-    local runtime_file="${APP_ROOT}/resources/postgis/config/runtime.json"
+    local manifest_file="${APP_ROOT}/resources/postgis/resource.json"
     
-    if [[ -f "$runtime_file" ]]; then
-        # Check required fields
+    if [[ -f "$manifest_file" ]]; then
         local startup_order
-        startup_order=$(jq -r '.startup_order' "$runtime_file" 2>/dev/null)
+        startup_order=$(jq -r '.orchestration.startup_order' "$manifest_file" 2>/dev/null)
         local dependencies
-        dependencies=$(jq -r '.dependencies[]' "$runtime_file" 2>/dev/null)
+        dependencies=$(jq -r '.orchestration.dependencies[]?' "$manifest_file" 2>/dev/null)
         
         if [[ -n "$startup_order" ]] && [[ "$dependencies" == *"postgres"* ]]; then
-            test::pass "Runtime config valid (order: $startup_order)"
+            test::pass "Orchestration config valid (order: $startup_order)"
         else
-            test::fail "Runtime config missing required fields"
+            test::fail "Orchestration config missing required fields"
             return 1
         fi
     else
-        test::fail "Runtime config not found"
+        test::fail "Manifest file not found"
         return 1
     fi
 }

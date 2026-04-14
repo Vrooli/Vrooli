@@ -12,6 +12,14 @@
     ],
     "secret_ref": "secret/openrouter"
   },
+  "orchestration": {
+    "startup_order": 640,
+    "startup_timeout_seconds": 15,
+    "startup_time_estimate": "3-8s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
   "environment_exports": {
     "static": {
       "OPENROUTER_API_BASE": "https://openrouter.ai/api/v1",
@@ -52,5 +60,5 @@
   "capabilities": {
     "supports_logs": false
   },
-  "template_version": "1"
+  "template_version": "2"
 }

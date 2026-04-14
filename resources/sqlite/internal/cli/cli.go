@@ -400,7 +400,7 @@ Usage:
 
 Commands:
   status                     Show resource status
-  info                       Show runtime info (config/runtime.json)
+  info                       Show resource manifest info (resource.json)
   logs                       Show logs (serverless no-op)
   manage <sub>               install|uninstall|start|stop|restart
   content <sub>              create|execute|list|get|backup|restore|remove|batch|import_csv|export_csv|encrypt|decrypt

@@ -1,74 +1,59 @@
 #!/usr/bin/env bash
-# Test that qdrant exports.sh produces expected environment variables.
-# Regression test for: Qdrant defaults.sh wrapped vars in a function that
-# the lifecycle system never called, so QDRANT_URL was never set.
+# Test that qdrant resource.json declares the native environment export contract.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_ROOT="${APP_ROOT:-$(cd "$SCRIPT_DIR/../../../.." && pwd)}"
 
-EXPORTS_FILE="${APP_ROOT}/resources/qdrant/config/exports.sh"
+MANIFEST_FILE="${APP_ROOT}/resources/qdrant/resource.json"
 
-if [[ ! -f "$EXPORTS_FILE" ]]; then
-    echo "FAIL: exports.sh not found at $EXPORTS_FILE"
+if [[ ! -f "$MANIFEST_FILE" ]]; then
+    echo "FAIL: resource.json not found at $MANIFEST_FILE"
     exit 1
 fi
-
-# Source exports.sh in a subshell and capture environment
-EXPORTED_ENV=$(
-    export APP_ROOT="$APP_ROOT"
-    # shellcheck disable=SC1090
-    source "$EXPORTS_FILE" 2>/dev/null
-    env | grep "^QDRANT_" | sort
-)
 
 PASS=0
 FAIL=0
 
-check_var() {
-    local var_name="$1"
-    local expected_pattern="${2:-}"
-
+check_declared_export() {
+    local jq_expr="$1"
+    local label="$2"
+    local expected_pattern="${3:-}"
     local value
-    value=$(echo "$EXPORTED_ENV" | grep "^${var_name}=" | head -1 | cut -d= -f2-)
+    value=$(jq -r "$jq_expr // empty" "$MANIFEST_FILE")
 
     if [[ -z "$value" ]]; then
-        echo "FAIL: $var_name not exported"
+        echo "FAIL: $label not declared"
         FAIL=$((FAIL + 1))
         return
     fi
 
     if [[ -n "$expected_pattern" ]] && [[ ! "$value" =~ $expected_pattern ]]; then
-        echo "FAIL: $var_name=$value does not match pattern '$expected_pattern'"
+        echo "FAIL: $label=$value does not match pattern '$expected_pattern'"
         FAIL=$((FAIL + 1))
         return
     fi
 
-    echo "PASS: $var_name=$value"
+    echo "PASS: $label=$value"
     PASS=$((PASS + 1))
 }
 
-echo "=== Qdrant exports.sh tests ==="
+echo "=== Qdrant native environment export tests ==="
 
-# Critical: QDRANT_URL must be exported (this was the root cause bug)
-check_var "QDRANT_URL" "^http://.*:[0-9]+"
-check_var "QDRANT_BASE_URL" "^http://.*:[0-9]+"
-check_var "QDRANT_PORT" "^[0-9]+"
-check_var "QDRANT_GRPC_PORT" "^[0-9]+"
-check_var "QDRANT_HOST"
-check_var "QDRANT_HEALTH_CHECK" "healthz"
-check_var "QDRANT_CONTAINER_NAME"
-check_var "QDRANT_RESOURCE_VERSION"
+check_declared_export '.environment_exports.static.QDRANT_HOST' "QDRANT_HOST"
+check_declared_export '.environment_exports.from_ports.QDRANT_PORT' "QDRANT_PORT mapping" '^http$'
+check_declared_export '.environment_exports.from_ports.QDRANT_GRPC_PORT' "QDRANT_GRPC_PORT mapping" '^grpc$'
+check_declared_export '.environment_exports.derived.QDRANT_URL.template' "QDRANT_URL template" '^http://'
+check_declared_export '.environment_exports.derived.QDRANT_BASE_URL.template' "QDRANT_BASE_URL template" 'QDRANT_URL'
+check_declared_export '.environment_exports.derived.QDRANT_GRPC_URL.template' "QDRANT_GRPC_URL template" '^grpc://'
 
-# Verify URL and BASE_URL are identical
-URL_VAL=$(echo "$EXPORTED_ENV" | grep "^QDRANT_URL=" | cut -d= -f2-)
-BASE_VAL=$(echo "$EXPORTED_ENV" | grep "^QDRANT_BASE_URL=" | cut -d= -f2-)
-if [[ "$URL_VAL" == "$BASE_VAL" ]]; then
-    echo "PASS: QDRANT_URL == QDRANT_BASE_URL ($URL_VAL)"
+BASE_TEMPLATE=$(jq -r '.environment_exports.derived.QDRANT_BASE_URL.template // empty' "$MANIFEST_FILE")
+if [[ "$BASE_TEMPLATE" == '${QDRANT_URL}' ]]; then
+    echo "PASS: QDRANT_BASE_URL derives from QDRANT_URL ($BASE_TEMPLATE)"
     PASS=$((PASS + 1))
 else
-    echo "FAIL: QDRANT_URL ($URL_VAL) != QDRANT_BASE_URL ($BASE_VAL)"
+    echo "FAIL: QDRANT_BASE_URL template ($BASE_TEMPLATE) does not derive from QDRANT_URL"
     FAIL=$((FAIL + 1))
 fi
 

@@ -29,6 +29,14 @@
       "host": 8090
     }
   ],
+  "orchestration": {
+    "startup_order": 550,
+    "startup_timeout_seconds": 45,
+    "startup_time_estimate": "15-30s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
   "environment_exports": {
     "static": {
       "WHISPER_HOST": "localhost"
@@ -60,5 +68,5 @@
     "supports_logs": true,
     "supports_content_ops": true
   },
-  "template_version": "1"
+  "template_version": "2"
 }

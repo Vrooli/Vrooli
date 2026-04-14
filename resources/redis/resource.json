@@ -60,6 +60,22 @@
       }
     ]
   },
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific Redis dependency settings.",
+    "properties": {
+      "access_method": {
+        "type": "string"
+      },
+      "fallback": {
+        "type": "string"
+      },
+      "notes": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  },
   "environment_exports": {
     "static": {
       "REDIS_HOST": "localhost",
@@ -80,6 +96,14 @@
       }
     }
   },
+  "orchestration": {
+    "startup_order": 999,
+    "startup_timeout_seconds": 15,
+    "startup_time_estimate": "2-5s",
+    "dependencies": [],
+    "recovery_attempts": 3,
+    "priority": "critical"
+  },
   "lifecycle": {
     "start_timeout_seconds": 15,
     "stop_timeout_seconds": 30,
@@ -88,5 +112,5 @@
   "capabilities": {
     "supports_logs": true
   },
-  "template_version": "1"
+  "template_version": "2"
 }

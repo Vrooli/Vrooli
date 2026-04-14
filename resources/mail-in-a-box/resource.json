@@ -45,6 +45,49 @@
       "host": 5232
     }
   ],
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific Mail-in-a-Box dependency settings.",
+    "properties": {
+      "primary_hostname": {
+        "type": "string"
+      },
+      "admin_email": {
+        "type": "string"
+      },
+      "admin_password": {
+        "type": "string"
+      },
+      "bind_address": {
+        "type": "string"
+      },
+      "ports": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "storage": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "mail_security": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "docker": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "additionalProperties": false
+  },
+  "orchestration": {
+    "startup_order": 410,
+    "startup_timeout_seconds": 90,
+    "startup_time_estimate": "30-60s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "low"
+  },
   "health_checks": [
     {
       "type": "tcp",
@@ -63,5 +106,5 @@
     "supports_logs": true,
     "supports_content_ops": true
   },
-  "template_version": "1"
+  "template_version": "2"
 }

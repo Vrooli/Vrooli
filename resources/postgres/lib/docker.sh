@@ -121,13 +121,18 @@ postgres::docker::start() {
     local instance_name="${1:-main}"
     local container_name="${POSTGRES_CONTAINER_PREFIX}-${instance_name}"
 
-    # Load secrets from secrets.json before potentially creating a new instance
-    # This ensures pre-provisioned passwords (e.g., from VPS deployments) are used
+    # Load secrets or instance credentials before potentially creating a new instance.
     if [[ -z "${POSTGRES_PASSWORD:-}" ]]; then
-        local exports_file="${APP_ROOT}/resources/postgres/config/exports.sh"
-        if [[ -f "$exports_file" ]]; then
-            # shellcheck disable=SC1090
-            source "$exports_file" 2>/dev/null || true
+        if declare -f secrets::resolve &>/dev/null; then
+            POSTGRES_PASSWORD="$(secrets::resolve "POSTGRES_PASSWORD" 2>/dev/null || true)"
+            export POSTGRES_PASSWORD
+        fi
+        if [[ -z "${POSTGRES_PASSWORD:-}" ]]; then
+            local config_file="${APP_ROOT}/resources/postgres/instances/${instance_name}/config/instance.conf"
+            if [[ -f "$config_file" ]]; then
+                POSTGRES_PASSWORD="$(grep '^password=' "$config_file" 2>/dev/null | cut -d'=' -f2- | tr -d '\"')"
+                export POSTGRES_PASSWORD
+            fi
         fi
     fi
 

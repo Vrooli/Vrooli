@@ -24,6 +24,32 @@
       "host": 8889
     }
   ],
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific SageMath dependency settings.",
+    "properties": {
+      "data_dir": { "type": "string" },
+      "scripts_dir": { "type": "string" },
+      "notebooks_dir": { "type": "string" },
+      "outputs_dir": { "type": "string" },
+      "logs_dir": { "type": "string" },
+      "jupyter_port": { "type": "integer", "minimum": 1 },
+      "api_port": { "type": "integer", "minimum": 1 },
+      "container_name": { "type": "string" },
+      "image": { "type": "string" },
+      "memory_limit": { "type": "string" },
+      "cpu_limit": { "type": "string" },
+      "enable_gpu": { "type": "boolean" },
+      "enable_parallel": { "type": "boolean" },
+      "jupyter_token": { "type": "string" },
+      "max_calculation_time": { "type": "integer", "minimum": 1 },
+      "performance_mode": {
+        "type": "string",
+        "enum": ["standard", "optimized", "memory_efficient"]
+      }
+    },
+    "additionalProperties": false
+  },
   "health_checks": [
     {
       "type": "http",
@@ -61,6 +87,14 @@
       "--port=8888"
     ]
   },
+  "orchestration": {
+    "startup_order": 290,
+    "startup_timeout_seconds": 50,
+    "startup_time_estimate": "15-30s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "low"
+  },
   "lifecycle": {
     "start_timeout_seconds": 60,
     "stop_timeout_seconds": 30,
@@ -70,5 +104,5 @@
     "supports_logs": true,
     "supports_content_ops": true
   },
-  "template_version": "1"
+  "template_version": "2"
 }

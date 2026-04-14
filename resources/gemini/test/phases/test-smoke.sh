@@ -57,18 +57,17 @@ else
     fi
 fi
 
-# Test 4: Runtime configuration exists
-log::info "Test 4: Checking runtime configuration..."
-if [[ -f "${RESOURCE_DIR}/config/runtime.json" ]]; then
-    # Validate key fields
-    if jq -e '.startup_order' "${RESOURCE_DIR}/config/runtime.json" >/dev/null 2>&1; then
-        log::success "✓ Runtime configuration valid"
+# Test 4: Orchestration configuration exists
+log::info "Test 4: Checking orchestration configuration..."
+if [[ -f "${RESOURCE_DIR}/resource.json" ]]; then
+    if jq -e '.orchestration.startup_order' "${RESOURCE_DIR}/resource.json" >/dev/null 2>&1; then
+        log::success "✓ Orchestration configuration valid"
     else
-        log::error "✗ Runtime configuration missing required fields"
+        log::error "✗ Orchestration configuration missing required fields"
         exit 1
     fi
 else
-    log::error "✗ Runtime configuration file not found"
+    log::error "✗ resource.json file not found"
     exit 1
 fi
 

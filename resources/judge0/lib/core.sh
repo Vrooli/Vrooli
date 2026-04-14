@@ -67,10 +67,10 @@ EOF
 
 # Get resource info
 judge0::core::info() {
-    local runtime_config="${JUDGE0_ROOT}/config/runtime.json"
+    local manifest_config="${JUDGE0_ROOT}/resource.json"
     
-    if [[ -f "$runtime_config" ]]; then
-        cat "$runtime_config"
+    if [[ -f "$manifest_config" ]]; then
+        jq '.orchestration // {}' "$manifest_config"
     else
         echo '{"name": "judge0", "version": "1.13.1", "status": "unknown"}'
     fi

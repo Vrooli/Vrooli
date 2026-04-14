@@ -66,6 +66,51 @@
       }
     ]
   },
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific Neo4j dependency settings.",
+    "properties": {
+      "container": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "ports": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "authentication": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "memory": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "storage": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "plugins": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "startup": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "additionalProperties": false
+  },
+  "orchestration": {
+    "startup_order": 970,
+    "startup_timeout_seconds": 35,
+    "startup_time_estimate": "10-20s",
+    "dependencies": [],
+    "recovery_attempts": 3,
+    "priority": "high"
+  },
   "lifecycle": {
     "start_timeout_seconds": 60,
     "stop_timeout_seconds": 30,
@@ -75,5 +120,5 @@
     "supports_logs": true,
     "supports_content_ops": true
   },
-  "template_version": "1"
+  "template_version": "2"
 }

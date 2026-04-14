@@ -47,25 +47,25 @@ postgres::test::all() {
 
 postgres::info() {
     local format="${1:-}"
-    local runtime_json="${POSTGRES_DIR}/config/runtime.json"
+    local manifest_json="${POSTGRES_DIR}/resource.json"
     
-    if [[ ! -f "$runtime_json" ]]; then
-        log::error "Runtime configuration not found at $runtime_json"
+    if [[ ! -f "$manifest_json" ]]; then
+        log::error "Resource manifest not found at $manifest_json"
         return 1
     fi
     
     if [[ "$format" == "--json" ]]; then
-        cat "$runtime_json"
+        jq '.orchestration // {}' "$manifest_json"
     else
         log::header "PostgreSQL Resource Information"
-        log::info "Configuration from runtime.json:"
+        log::info "Configuration from resource.json:"
         
-        local startup_order=$(jq -r '.startup_order // "unknown"' "$runtime_json")
-        local dependencies=$(jq -r '.dependencies[]? // "none"' "$runtime_json" | paste -sd, -)
-        local startup_timeout=$(jq -r '.startup_timeout // "60"' "$runtime_json")
-        local startup_time=$(jq -r '.startup_time_estimate // "unknown"' "$runtime_json")
-        local recovery_attempts=$(jq -r '.recovery_attempts // "3"' "$runtime_json")
-        local priority=$(jq -r '.priority // "medium"' "$runtime_json")
+        local startup_order=$(jq -r '.orchestration.startup_order // "unknown"' "$manifest_json")
+        local dependencies=$(jq -r '.orchestration.dependencies[]? // "none"' "$manifest_json" | paste -sd, -)
+        local startup_timeout=$(jq -r '.orchestration.startup_timeout_seconds // "60"' "$manifest_json")
+        local startup_time=$(jq -r '.orchestration.startup_time_estimate // "unknown"' "$manifest_json")
+        local recovery_attempts=$(jq -r '.orchestration.recovery_attempts // "3"' "$manifest_json")
+        local priority=$(jq -r '.orchestration.priority // "medium"' "$manifest_json")
         
         log::info "  Startup Order: $startup_order"
         log::info "  Dependencies: ${dependencies:-none}"
@@ -110,7 +110,7 @@ GROUPS & COMMANDS:
     remove      Delete database/table
     execute     Run SQL query
 
-  info          Show resource information from runtime.json
+  info          Show resource information from resource.json
   status        Show detailed PostgreSQL status
   logs          Show PostgreSQL logs
   credentials   Show connection credentials

@@ -99,22 +99,21 @@ else
     log::info "ℹ Credential file not yet created (expected for fresh install)"
 fi
 
-# Test 6: Runtime configuration
-log::info "Test 6: Runtime configuration..."
+# Test 6: Orchestration configuration
+log::info "Test 6: Orchestration configuration..."
 
-RUNTIME_FILE="${MINIO_DIR}/config/runtime.json"
-if [[ -f "$RUNTIME_FILE" ]]; then
-    # Check required fields
-    if jq -e '.startup_order' "$RUNTIME_FILE" &>/dev/null && \
-       jq -e '.startup_timeout' "$RUNTIME_FILE" &>/dev/null && \
-       jq -e '.dependencies' "$RUNTIME_FILE" &>/dev/null; then
-        log::success "✓ Runtime configuration is valid"
+MANIFEST_FILE="${MINIO_DIR}/resource.json"
+if [[ -f "$MANIFEST_FILE" ]]; then
+    if jq -e '.orchestration.startup_order' "$MANIFEST_FILE" &>/dev/null && \
+       jq -e '.orchestration.startup_timeout_seconds' "$MANIFEST_FILE" &>/dev/null && \
+       jq -e '.orchestration.dependencies' "$MANIFEST_FILE" &>/dev/null; then
+        log::success "✓ Orchestration configuration is valid"
     else
-        log::error "✗ Runtime configuration missing required fields"
+        log::error "✗ Orchestration configuration missing required fields"
         ((FAILED++))
     fi
 else
-    log::error "✗ Runtime configuration file missing"
+    log::error "✗ resource.json file missing"
     ((FAILED++))
 fi
 

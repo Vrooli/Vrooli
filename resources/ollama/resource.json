@@ -44,6 +44,45 @@
       }
     ]
   },
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific Ollama dependency settings.",
+    "properties": {
+      "model": {
+        "type": "string"
+      },
+      "models": {
+        "type": "array",
+        "items": {
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "tag": { "type": "string" },
+                "size": { "type": "string" },
+                "quantization": { "type": "string" }
+              },
+              "required": ["name"],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "configuration": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "cli_integration": {
+        "type": "boolean"
+      },
+      "fallback": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  },
   "environment_exports": {
     "static": {
       "OLLAMA_HOST": "localhost"
@@ -81,6 +120,14 @@
       }
     }
   },
+  "orchestration": {
+    "startup_order": 700,
+    "startup_timeout_seconds": 60,
+    "startup_time_estimate": "15-30s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
   "lifecycle": {
     "start_timeout_seconds": 60,
     "stop_timeout_seconds": 30,
@@ -90,5 +137,5 @@
     "supports_logs": true,
     "supports_content_ops": true
   },
-  "template_version": "1"
+  "template_version": "2"
 }

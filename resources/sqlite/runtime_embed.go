@@ -2,5 +2,5 @@ package runtimeinfo
 
 import _ "embed"
 
-//go:embed config/runtime.json
-var RuntimeJSON []byte
+//go:embed resource.json
+var ResourceJSON []byte

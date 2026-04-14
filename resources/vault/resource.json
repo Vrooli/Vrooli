@@ -83,6 +83,14 @@
       }
     }
   },
+  "orchestration": {
+    "startup_order": 900,
+    "startup_timeout_seconds": 20,
+    "startup_time_estimate": "5-10s",
+    "dependencies": [],
+    "recovery_attempts": 3,
+    "priority": "high"
+  },
   "lifecycle": {
     "start_timeout_seconds": 60,
     "stop_timeout_seconds": 30,
@@ -91,5 +99,5 @@
   "capabilities": {
     "supports_logs": true
   },
-  "template_version": "1"
+  "template_version": "2"
 }

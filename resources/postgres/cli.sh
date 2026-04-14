@@ -69,7 +69,7 @@ CLI_COMMAND_HANDLERS["content::execute"]="postgres::content::execute"
 # ==============================================================================
 # REQUIRED INFORMATION COMMANDS
 # ==============================================================================
-cli::register_command "info" "Show resource information from runtime.json" "postgres::info"
+cli::register_command "info" "Show resource information from resource.json" "postgres::info"
 cli::register_command "help" "Show comprehensive help with examples" "postgres::help"
 cli::register_command "status" "Show detailed PostgreSQL status" "cli::delegate_status"
 cli::register_command "logs" "Show PostgreSQL logs" "cli::delegate_logs"

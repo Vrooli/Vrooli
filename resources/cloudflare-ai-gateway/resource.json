@@ -13,6 +13,14 @@
     ],
     "secret_ref": "secret/resources/cloudflare"
   },
+  "orchestration": {
+    "startup_order": 630,
+    "startup_timeout_seconds": 15,
+    "startup_time_estimate": "3-8s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
   "portability_tier": "full",
   "category": "ai",
   "platforms": {
@@ -37,5 +45,5 @@
     "supports_logs": false,
     "supports_content_ops": true
   },
-  "template_version": "1"
+  "template_version": "2"
 }

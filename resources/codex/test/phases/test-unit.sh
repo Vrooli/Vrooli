@@ -144,20 +144,20 @@ test_configuration_check() {
 test_json_validation() {
     log::info "Testing JSON configuration files..."
     
-    # Test runtime.json
+    # Test resource.json
     ((TESTS_RUN++))
-    if jq empty "${CODEX_DIR}/config/runtime.json" &>/dev/null; then
-        test_pass "runtime.json is valid JSON"
+    if jq empty "${CODEX_DIR}/resource.json" &>/dev/null; then
+        test_pass "resource.json is valid JSON"
     else
-        test_fail "runtime.json validation" "Invalid JSON format"
+        test_fail "resource.json validation" "Invalid JSON format"
     fi
     
-    # Test schema.json
+    # Test dependency_schema
     ((TESTS_RUN++))
-    if jq empty "${CODEX_DIR}/config/schema.json" &>/dev/null; then
-        test_pass "schema.json is valid JSON"
+    if jq -e '.dependency_schema | type == "object"' "${CODEX_DIR}/resource.json" &>/dev/null; then
+        test_pass "dependency_schema is valid"
     else
-        test_fail "schema.json validation" "Invalid JSON format"
+        test_fail "dependency_schema validation" "Missing or invalid dependency schema"
     fi
 }
 

@@ -61,6 +61,25 @@
       ":9001"
     ]
   },
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific MinIO dependency settings.",
+    "properties": {
+      "buckets": {
+        "type": "object",
+        "properties": {
+          "default_buckets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "additionalProperties": false
+  },
   "environment_exports": {
     "static": {
       "MINIO_HOST": "localhost"
@@ -96,6 +115,14 @@
       }
     }
   },
+  "orchestration": {
+    "startup_order": 950,
+    "startup_timeout_seconds": 20,
+    "startup_time_estimate": "5-10s",
+    "dependencies": [],
+    "recovery_attempts": 3,
+    "priority": "high"
+  },
   "lifecycle": {
     "start_timeout_seconds": 60,
     "stop_timeout_seconds": 30,
@@ -105,5 +132,5 @@
     "supports_logs": true,
     "supports_content_ops": true
   },
-  "template_version": "1"
+  "template_version": "2"
 }

@@ -35,10 +35,45 @@
       "timeout_seconds": 15
     }
   ],
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific Codex dependency settings.",
+    "properties": {
+      "api": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "model": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "storage": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "limits": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "features": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "additionalProperties": false
+  },
   "environment_exports": {
     "static": {
       "CODEX_PATH": "codex"
     }
+  },
+  "orchestration": {
+    "startup_order": 530,
+    "startup_timeout_seconds": 20,
+    "startup_time_estimate": "5-10s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
   },
   "install": {
     "platforms": {
@@ -65,5 +100,5 @@
   "capabilities": {
     "supports_logs": false
   },
-  "template_version": "1"
+  "template_version": "2"
 }

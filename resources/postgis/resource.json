@@ -16,6 +16,37 @@
   "dependencies": [
     "postgres"
   ],
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific PostGIS dependency settings.",
+    "properties": {
+      "container": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "database": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "spatial": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "performance": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "storage": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "healthcheck": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "additionalProperties": false
+  },
   "ports": [
     {
       "name": "postgresql",
@@ -23,6 +54,14 @@
       "host": 5434
     }
   ],
+  "orchestration": {
+    "startup_order": 995,
+    "startup_timeout_seconds": 35,
+    "startup_time_estimate": "8-18s",
+    "dependencies": ["postgres"],
+    "recovery_attempts": 3,
+    "priority": "high"
+  },
   "health_checks": [
     {
       "type": "tcp",
@@ -35,5 +74,5 @@
     "supports_logs": true,
     "supports_content_ops": true
   },
-  "template_version": "1"
+  "template_version": "2"
 }

@@ -13,6 +13,14 @@
     ],
     "secret_ref": "secret/resources/twilio"
   },
+  "orchestration": {
+    "startup_order": 320,
+    "startup_timeout_seconds": 10,
+    "startup_time_estimate": "2-5s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "low"
+  },
   "portability_tier": "full",
   "category": "communications",
   "platforms": {
@@ -36,5 +44,5 @@
     "supports_logs": false,
     "supports_content_ops": true
   },
-  "template_version": "1"
+  "template_version": "2"
 }

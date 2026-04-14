@@ -20,6 +20,14 @@
       "host": 8880
     }
   ],
+  "orchestration": {
+    "startup_order": 560,
+    "startup_timeout_seconds": 60,
+    "startup_time_estimate": "20-45s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
   "environment_exports": {
     "static": {
       "KOKORO_HOST": "localhost"
@@ -48,5 +56,5 @@
     "supports_logs": true,
     "supports_content_ops": true
   },
-  "template_version": "1"
+  "template_version": "2"
 }

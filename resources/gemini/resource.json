@@ -12,6 +12,47 @@
     ],
     "secret_ref": "secret/vrooli/gemini"
   },
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific Gemini dependency settings.",
+    "properties": {
+      "api": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "models": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "rate_limits": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "health_check": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "cache": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "logging": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "additionalProperties": false
+  },
+  "orchestration": {
+    "startup_order": 100,
+    "startup_timeout_seconds": 10,
+    "startup_time_estimate": "1-2s",
+    "dependencies": [],
+    "optional_dependencies": ["vault", "redis"],
+    "recovery_attempts": 3,
+    "recovery_delay_seconds": 5,
+    "priority": "medium"
+  },
   "portability_tier": "full",
   "category": "hosted-service",
   "platforms": {
@@ -35,5 +76,5 @@
   "capabilities": {
     "supports_logs": false
   },
-  "template_version": "1"
+  "template_version": "2"
 }

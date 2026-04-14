@@ -163,8 +163,8 @@ openrouter::test::config() {
         ((errors++))
     fi
     
-    if [[ ! -f "${OPENROUTER_RESOURCE_DIR}/config/runtime.json" ]]; then
-        log::error "runtime.json not found"
+    if [[ ! -f "${OPENROUTER_RESOURCE_DIR}/resource.json" ]]; then
+        log::error "resource.json not found"
         ((errors++))
     fi
     

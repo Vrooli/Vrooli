@@ -8,9 +8,18 @@ _REDIS_BACKUP_DIR="$APP_ROOT/resources/redis/lib"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/lib/utils/var.sh"
 
-# Source shared secrets management library
-# shellcheck disable=SC1091
-source "${var_LIB_SERVICE_DIR}/secrets.sh"
+#######################################
+# Resolve the operator-local Redis backup directory.
+# Backups are runtime artifacts and should not be written into repo .vrooli/.
+#######################################
+redis::backup::dir() {
+    if [[ -n "${REDIS_BACKUP_DIR:-}" ]]; then
+        echo "${REDIS_BACKUP_DIR}"
+        return 0
+    fi
+
+    echo "${HOME}/.vrooli/redis/backups"
+}
 
 #######################################
 # Create Redis backup
@@ -20,9 +29,8 @@ source "${var_LIB_SERVICE_DIR}/secrets.sh"
 #######################################
 redis::backup::create() {
     local backup_name="${1:-redis-backup-$(date +%Y%m%d-%H%M%S)}"
-    local project_config_dir
-    project_config_dir="$(secrets::get_project_config_dir)"
-    local backup_dir="${project_config_dir}/redis/backups"
+    local backup_dir
+    backup_dir="$(redis::backup::dir)"
     local backup_path="${backup_dir}/${backup_name}"
     
     if ! redis::common::is_running; then
@@ -165,9 +173,8 @@ redis::backup::restore() {
     fi
     
     local backup_path
-    local project_config_dir
-    project_config_dir="$(secrets::get_project_config_dir)"
-    local backup_dir="${project_config_dir}/redis/backups"
+    local backup_dir
+    backup_dir="$(redis::backup::dir)"
     
     # Determine backup path
     if [[ -f "$backup_identifier" ]]; then
@@ -273,9 +280,8 @@ redis::backup::restore_tar() {
 # List available backups
 #######################################
 redis::backup::list() {
-    local project_config_dir
-    project_config_dir="$(secrets::get_project_config_dir)"
-    local backup_dir="${project_config_dir}/redis/backups"
+    local backup_dir
+    backup_dir="$(redis::backup::dir)"
     
     if [[ ! -d "$backup_dir" ]]; then
         log::info "No backups found (backup directory doesn't exist)"
@@ -349,9 +355,8 @@ redis::backup::delete() {
         return 1
     fi
     
-    local project_config_dir
-    project_config_dir="$(secrets::get_project_config_dir)"
-    local backup_dir="${project_config_dir}/redis/backups"
+    local backup_dir
+    backup_dir="$(redis::backup::dir)"
     local deleted_any=false
     
     # Delete RDB backup
@@ -387,9 +392,8 @@ redis::backup::delete() {
 #######################################
 redis::backup::cleanup() {
     local days_to_keep="${1:-30}"
-    local project_config_dir
-    project_config_dir="$(secrets::get_project_config_dir)"
-    local backup_dir="${project_config_dir}/redis/backups"
+    local backup_dir
+    backup_dir="$(redis::backup::dir)"
     
     if [[ ! -d "$backup_dir" ]]; then
         log::info "No backup directory to clean"

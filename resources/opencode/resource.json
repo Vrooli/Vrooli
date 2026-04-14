@@ -42,6 +42,14 @@
       }
     }
   },
+  "orchestration": {
+    "startup_order": 390,
+    "startup_timeout_seconds": 25,
+    "startup_time_estimate": "8-15s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "low"
+  },
   "install": {
     "platforms": {
       "linux": [
@@ -60,5 +68,5 @@
     "supports_logs": false,
     "supports_content_ops": true
   },
-  "template_version": "1"
+  "template_version": "2"
 }

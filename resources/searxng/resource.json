@@ -72,6 +72,14 @@
       }
     }
   },
+  "orchestration": {
+    "startup_order": 400,
+    "startup_timeout_seconds": 20,
+    "startup_time_estimate": "5-15s",
+    "dependencies": ["redis"],
+    "recovery_attempts": 2,
+    "priority": "low"
+  },
   "lifecycle": {
     "start_timeout_seconds": 60,
     "stop_timeout_seconds": 30,
@@ -81,5 +89,5 @@
     "supports_logs": true,
     "supports_content_ops": true
   },
-  "template_version": "1"
+  "template_version": "2"
 }

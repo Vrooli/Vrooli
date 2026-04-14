@@ -26,11 +26,51 @@
       "timeout_seconds": 15
     }
   ],
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific Claude Code dependency settings.",
+    "properties": {
+      "cli_integration": {
+        "type": "boolean"
+      },
+      "fallback": {
+        "type": "string"
+      },
+      "health_check": {
+        "type": "string"
+      },
+      "notes": {
+        "type": "string"
+      },
+      "config": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string"
+          },
+          "max_tokens": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "additionalProperties": false
+  },
   "environment_exports": {
     "static": {
       "CLAUDE_CODE_PATH": "claude",
       "CLAUDE_CODE_URL": "http://localhost:8100"
     }
+  },
+  "orchestration": {
+    "startup_order": 500,
+    "startup_timeout_seconds": 15,
+    "startup_time_estimate": "3-8s",
+    "dependencies": ["litellm"],
+    "recovery_attempts": 2,
+    "priority": "medium"
   },
   "install": {
     "platforms": {
@@ -57,5 +97,5 @@
   "capabilities": {
     "supports_logs": false
   },
-  "template_version": "1"
+  "template_version": "2"
 }

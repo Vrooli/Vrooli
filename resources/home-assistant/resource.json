@@ -20,6 +20,22 @@
       "host": 8123
     }
   ],
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific Home Assistant dependency settings.",
+    "properties": {
+      "cli_integration": {
+        "type": "boolean"
+      },
+      "fallback": {
+        "type": "string"
+      },
+      "health_check": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  },
   "environment_exports": {
     "static": {
       "HOME_ASSISTANT_HOST": "localhost",
@@ -40,6 +56,14 @@
       }
     }
   },
+  "orchestration": {
+    "startup_order": 450,
+    "startup_timeout_seconds": 50,
+    "startup_time_estimate": "15-30s",
+    "dependencies": ["postgres"],
+    "recovery_attempts": 2,
+    "priority": "low"
+  },
   "health_checks": [
     {
       "type": "http",
@@ -52,5 +76,5 @@
     "supports_logs": true,
     "supports_content_ops": true
   },
-  "template_version": "1"
+  "template_version": "2"
 }

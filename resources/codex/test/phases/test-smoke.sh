@@ -38,14 +38,13 @@ else
     TESTS_FAILED=$((TESTS_FAILED + 1))
 fi
 
-# Test 3: Config files exist
+# Test 3: Manifest and config files exist
 if [[ -f "${CODEX_DIR}/config/defaults.sh" ]] && \
-   [[ -f "${CODEX_DIR}/config/runtime.json" ]] && \
-   [[ -f "${CODEX_DIR}/config/schema.json" ]]; then
-    log::success "✓ Config files exist"
+   [[ -f "${CODEX_DIR}/resource.json" ]]; then
+    log::success "✓ Required manifest and config files exist"
     TESTS_PASSED=$((TESTS_PASSED + 1))
 else
-    log::error "✗ Config files exist: Missing config files"
+    log::error "✗ Required manifest and config files exist: Missing files"
     TESTS_FAILED=$((TESTS_FAILED + 1))
 fi
 

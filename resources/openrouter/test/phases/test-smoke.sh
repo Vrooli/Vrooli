@@ -53,11 +53,11 @@ main() {
     # Test 4: Check configuration files exist
     run_test "Config files exist" "[[ -f '${RESOURCE_DIR}/config/defaults.sh' ]]"
     
-    # Test 5: Check runtime.json exists
-    run_test "Runtime config exists" "[[ -f '${RESOURCE_DIR}/config/runtime.json' ]]"
+    # Test 5: Check resource.json exists
+    run_test "Resource manifest exists" "[[ -f '${RESOURCE_DIR}/resource.json' ]]"
     
-    # Test 6: Check schema.json exists
-    run_test "Schema config exists" "[[ -f '${RESOURCE_DIR}/config/schema.json' ]]"
+    # Test 6: Check dependency schema exists
+    run_test "Dependency schema exists" "jq -e '.dependency_schema | type == \"object\"' '${RESOURCE_DIR}/resource.json' >/dev/null 2>&1"
     
     # Test 7: Check lib files exist
     run_test "Core library exists" "[[ -f '${RESOURCE_DIR}/lib/core.sh' ]]"

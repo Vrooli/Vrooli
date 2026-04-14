@@ -37,6 +37,35 @@
       "UNSTRUCTURED_API_PORT": "8000"
     }
   },
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific Unstructured.io dependency settings.",
+    "properties": {
+      "processing": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "cache": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "docker": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "health": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "outputFormats": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "additionalProperties": false
+  },
   "environment_exports": {
     "static": {
       "UNSTRUCTURED_HOST": "localhost"
@@ -59,6 +88,14 @@
       }
     }
   },
+  "orchestration": {
+    "startup_order": 450,
+    "startup_timeout_seconds": 40,
+    "startup_time_estimate": "10-20s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "medium"
+  },
   "lifecycle": {
     "start_timeout_seconds": 60,
     "stop_timeout_seconds": 30,
@@ -68,5 +105,5 @@
     "supports_logs": true,
     "supports_content_ops": true
   },
-  "template_version": "1"
+  "template_version": "2"
 }

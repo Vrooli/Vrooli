@@ -35,6 +35,14 @@
       ]
     }
   },
+  "orchestration": {
+    "startup_order": 100,
+    "startup_timeout_seconds": 5,
+    "startup_time_estimate": "1-2s",
+    "dependencies": [],
+    "recovery_attempts": 3,
+    "priority": "high"
+  },
   "environment_exports": {
     "static": {
       "SQLITE_CLI_PATH": "resource-sqlite",
@@ -61,5 +69,5 @@
     "supports_logs": false,
     "supports_content_ops": true
   },
-  "template_version": "1"
+  "template_version": "2"
 }

@@ -28,17 +28,17 @@ func main() {
 
 	exePath, _ := os.Executable()
 	exeDir := filepath.Dir(exePath)
-	runtimePath := filepath.Join(exeDir, "config", "runtime.json")
+	manifestPath := filepath.Join(exeDir, "resource.json")
 
-	if len(runtimeinfo.RuntimeJSON) == 0 {
-		fmt.Fprintln(os.Stderr, "embedded runtime.json missing")
+	if len(runtimeinfo.ResourceJSON) == 0 {
+		fmt.Fprintln(os.Stderr, "embedded resource.json missing")
 		os.Exit(1)
 	}
 
 	stale := cliutil.NewStaleChecker(appName, buildFingerprint, buildTimestamp, buildSourceRoot,
 		"SQLITE_CLI_SOURCE_ROOT", "VROOLI_CLI_SOURCE_ROOT")
 
-	legacy := cli.New(cfg, runtimePath, runtimeinfo.RuntimeJSON, buildSourceRoot)
+	legacy := cli.New(cfg, manifestPath, runtimeinfo.ResourceJSON, buildSourceRoot)
 	app := newApp(cfg, legacy, stale)
 
 	if err := app.Run(os.Args[1:]); err != nil {

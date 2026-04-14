@@ -2,7 +2,7 @@
 ################################################################################
 # OpenRouter Info Library - v2.0 Universal Contract Compliant
 # 
-# Displays runtime information from runtime.json
+# Displays runtime information from resource.json
 ################################################################################
 
 set -euo pipefail
@@ -25,28 +25,28 @@ fi
 # Show resource runtime information
 openrouter::info() {
     local json_output="${1:-false}"
-    local runtime_file="${OPENROUTER_RESOURCE_DIR}/config/runtime.json"
+    local manifest_file="${OPENROUTER_RESOURCE_DIR}/resource.json"
     
-    if [[ ! -f "$runtime_file" ]]; then
-        log::error "Runtime configuration not found at $runtime_file"
+    if [[ ! -f "$manifest_file" ]]; then
+        log::error "Resource manifest not found at $manifest_file"
         return 1
     fi
     
     # If JSON output requested, just output the file
     if [[ "$json_output" == "--json" ]] || [[ "$json_output" == "true" ]]; then
-        cat "$runtime_file"
+        jq '.orchestration // {}' "$manifest_file"
         return 0
     fi
     
     # Parse and display formatted output
     local startup_order startup_timeout startup_time dependencies recovery priority
     
-    startup_order=$(jq -r '.startup_order // "N/A"' "$runtime_file")
-    startup_timeout=$(jq -r '.startup_timeout // "N/A"' "$runtime_file")
-    startup_time=$(jq -r '.startup_time_estimate // "N/A"' "$runtime_file")
-    dependencies=$(jq -r '.dependencies | if length > 0 then join(", ") else "none" end' "$runtime_file")
-    recovery=$(jq -r '.recovery_attempts // "N/A"' "$runtime_file")
-    priority=$(jq -r '.priority // "N/A"' "$runtime_file")
+    startup_order=$(jq -r '.orchestration.startup_order // "N/A"' "$manifest_file")
+    startup_timeout=$(jq -r '.orchestration.startup_timeout_seconds // "N/A"' "$manifest_file")
+    startup_time=$(jq -r '.orchestration.startup_time_estimate // "N/A"' "$manifest_file")
+    dependencies=$(jq -r '.orchestration.dependencies | if length > 0 then join(", ") else "none" end' "$manifest_file")
+    recovery=$(jq -r '.orchestration.recovery_attempts // "N/A"' "$manifest_file")
+    priority=$(jq -r '.orchestration.priority // "N/A"' "$manifest_file")
     
     echo -e "\033[1mOpenRouter Runtime Information\033[0m"
     echo -e "\033[2m================================\033[0m"
@@ -67,7 +67,7 @@ openrouter::info() {
     echo "  Port Allocation:   None (External API)"
     echo "  Container:         None (API Proxy)"
     echo
-    echo -e "\033[2mConfiguration file: $runtime_file\033[0m"
+    echo -e "\033[2mConfiguration file: $manifest_file\033[0m"
     
     return 0
 }

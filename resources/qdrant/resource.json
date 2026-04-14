@@ -47,6 +47,33 @@
       }
     ]
   },
+  "dependency_schema": {
+    "type": "object",
+    "description": "Scenario-specific Qdrant dependency settings.",
+    "properties": {
+      "collection": {
+        "type": "string"
+      },
+      "dimensions": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "distance": {
+        "type": "string",
+        "enum": ["Cosine", "Dot", "Euclid", "Manhattan"]
+      },
+      "estimated_vectors": {
+        "type": "string"
+      },
+      "fallback": {
+        "type": "string"
+      },
+      "notes": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  },
   "environment_exports": {
     "static": {
       "QDRANT_HOST": "localhost"
@@ -70,6 +97,14 @@
       }
     }
   },
+  "orchestration": {
+    "startup_order": 850,
+    "startup_timeout_seconds": 25,
+    "startup_time_estimate": "5-15s",
+    "dependencies": [],
+    "recovery_attempts": 3,
+    "priority": "high"
+  },
   "lifecycle": {
     "start_timeout_seconds": 25,
     "stop_timeout_seconds": 30,
@@ -78,5 +113,5 @@
   "capabilities": {
     "supports_logs": true
   },
-  "template_version": "1"
+  "template_version": "2"
 }

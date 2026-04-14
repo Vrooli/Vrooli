@@ -200,14 +200,14 @@ postgres::common::wait_for_ready() {
     
     log::info "${MSG_WAITING_STARTUP}"
     
-    # Load health check configuration from runtime.json
-    local runtime_json="${APP_ROOT}/resources/postgres/config/runtime.json"
+    # Load health check configuration from resource.json orchestration metadata
+    local manifest_json="${APP_ROOT}/resources/postgres/resource.json"
     local check_interval=3
     local required_ready_checks=3
     
-    if [[ -f "$runtime_json" ]]; then
-        check_interval=$(jq -r '.health_check_delay // 3' "$runtime_json" 2>/dev/null || echo "3")
-        local health_retries=$(jq -r '.health_check_retries // 10' "$runtime_json" 2>/dev/null || echo "10")
+    if [[ -f "$manifest_json" ]]; then
+        check_interval=$(jq -r '.orchestration.health_check_delay_seconds // 3' "$manifest_json" 2>/dev/null || echo "3")
+        local health_retries=$(jq -r '.orchestration.health_check_retries // 10' "$manifest_json" 2>/dev/null || echo "10")
         # Adjust timeout based on config
         timeout=$((check_interval * health_retries * 2))
     fi
