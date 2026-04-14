@@ -11,7 +11,6 @@ This file provides essential guidance to Claude Code (claude.ai/code) when worki
    - Use `vrooli scenario test <name>` (or test-genie) to run scenario tests.
 2. **Files**: Always prefer editing existing files over creating new ones
 4. **Dependencies**: Never install packages without explicit permission
-5. **Documentation**: Run `vrooli info` at session start for the canonical project briefing
 6. **Managing Scenarios**:
    - **ALWAYS use**: Scenario Makefiles for comprehensive management: `make start`, `make test`, `make logs`, `make stop`
    - **Alternative**: `vrooli scenario start <name>` for direct CLI management
@@ -132,8 +131,6 @@ What is the user doing?
 
 Skills are lazy-loaded — only pay context cost when relevant. The full instructions live in prompt-manager, not here.
 
-## 📚 Session Start Checklist
-1. [ ] Run `vrooli info` for the consolidated project overview
 
 ## 🔧 Setup Configuration
 

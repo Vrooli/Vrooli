@@ -18,12 +18,17 @@ Vrooli is a local, cross-platform, self-improving software foundry. It gives you
 
 ## Quick Start
 
+Supported setup paths today:
+
+- Linux
+- macOS
+- Windows via WSL2
+
+Native Windows setup is not yet supported for the full `vrooli setup` and `vrooli develop` lifecycle.
+
 ```bash
 # First-time setup
 make setup
-
-# Canonical project briefing
-vrooli info
 
 # Start the development stack
 vrooli develop
@@ -138,7 +143,7 @@ You can use it today to:
 - run and test scenarios from source with scenario lifecycle tooling
 - orchestrate local resources such as PostgreSQL, Redis, Qdrant, Ollama, Browserless, Vault, and more
 - build and validate business applications through scenario templates and supporting scenarios
-- operate the stack remotely through the Web Console and app-monitor based Tier 1 deployment model
+- operate the stack remotely through the Web Console and the Tier 1 secure remote-access model
 - coordinate agent work through scenarios such as Swarm Manager, Prompt Manager, Git Control Tower, Test Genie, and deployment-focused tooling
 
 ## Current State
@@ -215,11 +220,30 @@ See [docs/deployment/README.md](docs/deployment/README.md).
 
 ### 1. Set Up The Project
 
+Supported setup paths today:
+
+- Linux
+- macOS
+- Windows via WSL2
+
+Native Windows setup is not yet supported for the full project lifecycle.
+
 ```bash
 git clone https://github.com/Vrooli/Vrooli.git
 cd Vrooli
 make setup
-vrooli info
+```
+
+After setup, Vrooli attempts to open `vrooli-onboarding` automatically. That onboarding flow is the intended place to configure Vrooli behavior, select or review resources, validate secrets, and manage access-related setup before you start using the stack heavily.
+
+### Windows
+
+If you are on Windows, use WSL2 with a Linux distribution such as Ubuntu, then run the normal setup flow inside WSL:
+
+```bash
+git clone https://github.com/Vrooli/Vrooli.git
+cd Vrooli
+make setup
 ```
 
 ### 2. Start The Development Environment
@@ -255,6 +279,15 @@ make logs
 make stop
 ```
 
+### Remote And Phone Access
+
+Using Vrooli from a phone or from outside your local network is part of the Tier 1 operating model, but it is not automatic just because the stack is running locally.
+
+- On the same local network, local URLs may be enough depending on your setup.
+- Off-network access typically requires secure tunnel configuration as part of the Tier 1 remote-access path.
+- You can tunnel directly to any scenario, or use `app-monitor` as the default aggregation surface when you want a single subdomain and central access point.
+- The README does not walk through tunnel setup step by step; use onboarding and the deployment docs for the current supported path.
+
 ## Development Workflow
 
 ### Common Commands
@@ -265,7 +298,6 @@ vrooli setup
 vrooli develop
 vrooli status
 vrooli stop
-vrooli info
 
 # Scenario management
 vrooli scenario list
@@ -323,7 +355,6 @@ Start here:
 - [docs/README.md](docs/README.md)
 - [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)
 - [docs/ARCHITECTURE_OVERVIEW.md](docs/ARCHITECTURE_OVERVIEW.md)
-- [docs/context.md](docs/context.md)
 - [VISION.md](VISION.md)
 
 ## Roadmap Direction
@@ -364,6 +395,8 @@ Vrooli is designed around local sovereignty, but deployment strategy depends on 
 
 - If you want the most complete and current experience, use the Tier 1 local/developer stack.
 - If you are evaluating desktop, mobile, SaaS, or appliance deployment paths, use the Deployment Hub to understand the current maturity and gaps before committing.
+- If you are on Windows today, treat WSL2 as the supported development path rather than native Windows setup.
+- If you want reliable off-network access from a phone or other remote device, plan on secure tunnel configuration as part of your Tier 1 setup rather than assuming local services are exposed automatically.
 
 See:
 

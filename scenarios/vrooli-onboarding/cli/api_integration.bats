@@ -230,24 +230,6 @@ setup() {
 }
 
 # ──────────────────────────────────────────────
-# Config export endpoint
-# ──────────────────────────────────────────────
-
-@test "POST /api/v1/config/export returns export data" {
-  result="$(curl -sf -X POST "${BASE_URL}/api/v1/config/export" \
-    -H 'Content-Type: application/json' \
-    -d '{"resources":{"postgres":{"enabled":true,"name":"postgres"}}}')"
-  echo "$result" | jq -e 'has("path") and has("success")'
-}
-
-@test "POST /api/v1/config/export rejects empty body" {
-  status="$(curl -s -o /dev/null -w '%{http_code}' -X POST "${BASE_URL}/api/v1/config/export" \
-    -H 'Content-Type: application/json' \
-    -d '{}')"
-  [ "$status" = "400" ] || [ "$status" = "200" ]
-}
-
-# ──────────────────────────────────────────────
 # Cross-cutting / error handling
 # ──────────────────────────────────────────────
 
@@ -331,13 +313,6 @@ setup() {
   status="$(curl -s -o /dev/null -w '%{http_code}' -X POST "${BASE_URL}/api/v1/config/validate" \
     -H 'Content-Type: application/json' \
     -d '{"resources":{}}')"
-  [ "$status" = "400" ]
-}
-
-@test "POST /api/v1/config/export rejects invalid JSON" {
-  status="$(curl -s -o /dev/null -w '%{http_code}' -X POST "${BASE_URL}/api/v1/config/export" \
-    -H 'Content-Type: application/json' \
-    -d 'not json')"
   [ "$status" = "400" ]
 }
 

@@ -62,7 +62,6 @@ bin/
 .vrooli/*.lock
 .vrooli/browserless/
 .vrooli/running-resources.json
-.vrooli/schemas/resource-catalog.json
 .vrooli/schemas/resource-definitions.json
 
 # nyc test coverage

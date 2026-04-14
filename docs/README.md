@@ -173,7 +173,6 @@ vrooli resource template list          # Inspect canonical templates
 You have no persistent memory between sessions. **After every memory reset, rely solely on files in the `/docs` folder** as your long-term memory. Reading **ALL** relevant `/docs` files at the start of every task is mandatory.
 
 ### Core Documentation Files (Always Required):
-- **[context.md](context.md)** - Project purpose, goals, and business rationale
 - **[decisions.md](decisions.md)** - Major project decisions and justifications
 - **[risks.md](risks.md)** - Technical, strategic, operational risks and mitigation
 - **[roadmap.md](roadmap.md)** - Project milestones and future vision
@@ -340,7 +339,6 @@ See [ARCHITECTURE_OVERVIEW.md](ARCHITECTURE_OVERVIEW.md) for comprehensive archi
 
 ### 📚 **Core Documentation**
 - **[Contributing Guidelines](CONTRIBUTING.md)** - How to contribute to Vrooli
-- **[Context](context.md)** - Project vision and core functionality
 - **[Decisions](decisions.md)** - Major architectural decisions
 - **[Risks](risks.md)** - Risk assessment and mitigation
 - **[Roadmap](roadmap.md)** - Future development plans
