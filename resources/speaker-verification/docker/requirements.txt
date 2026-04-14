@@ -5,5 +5,5 @@ pydantic==2.10.4
 numpy==1.26.4
 torch==2.5.1
 torchaudio==2.5.1
-nemo_toolkit[asr]==2.1.0
+nemo_toolkit[asr]==2.6.2
 speechbrain>=1.0.0
