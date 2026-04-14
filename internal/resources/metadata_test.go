@@ -9,14 +9,14 @@ import (
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/secrets"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
+	testfixture "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
 )
 
 func TestLoadPortRegistryReadsTypedJSON(t *testing.T) {
 	root := t.TempDir()
-	path := filepath.Join(root, "scripts", "resources", "port_registry.json")
-	testkitgo.WriteJSON(t, path, map[string]any{
-		"resource_ports":  map[string]int{"postgres": 5433},
-		"reserved_ranges": map[string]string{"db": "5432-5499"},
+	testfixture.WritePortRegistryState(t, root, PortRegistry{
+		ResourcePorts:  map[string]int{"postgres": 5433},
+		ReservedRanges: map[string]string{"db": "5432-5499"},
 	})
 
 	registry, err := LoadPortRegistry(root)
@@ -35,9 +35,9 @@ func TestLoadResourceEnvironmentUsesTypedDefaultsAndSecrets(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	testkitgo.WriteJSON(t, filepath.Join(root, "scripts", "resources", "port_registry.json"), map[string]any{
-		"resource_ports":  map[string]int{"browserless": 4110, "postgres": 5433},
-		"reserved_ranges": map[string]string{},
+	testfixture.WritePortRegistryState(t, root, PortRegistry{
+		ResourcePorts:  map[string]int{"browserless": 4110, "postgres": 5433},
+		ReservedRanges: map[string]string{},
 	})
 	writeEnvManifestFixture(t, root, "postgres", manifestpkg.ResourceManifest{
 		Name:            "postgres",
@@ -123,9 +123,9 @@ func TestLoadResourceEnvironmentUsesEncryptedSecrets(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	testkitgo.WriteJSON(t, filepath.Join(root, "scripts", "resources", "port_registry.json"), map[string]any{
-		"resource_ports":  map[string]int{"postgres": 5433},
-		"reserved_ranges": map[string]string{},
+	testfixture.WritePortRegistryState(t, root, PortRegistry{
+		ResourcePorts:  map[string]int{"postgres": 5433},
+		ReservedRanges: map[string]string{},
 	})
 	writePostgresManifestFixture(t, root)
 
@@ -154,9 +154,9 @@ func TestLoadResourceEnvironmentPrefersSecretsOverRuntimePlaceholders(t *testing
 	root := t.TempDir()
 	home := t.TempDir()
 
-	testkitgo.WriteJSON(t, filepath.Join(root, "scripts", "resources", "port_registry.json"), map[string]any{
-		"resource_ports":  map[string]int{"postgres": 5433},
-		"reserved_ranges": map[string]string{},
+	testfixture.WritePortRegistryState(t, root, PortRegistry{
+		ResourcePorts:  map[string]int{"postgres": 5433},
+		ReservedRanges: map[string]string{},
 	})
 	writeEnvManifestFixture(t, root, "postgres", manifestpkg.ResourceManifest{
 		Name:            "postgres",
@@ -202,8 +202,8 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	testkitgo.WriteJSON(t, filepath.Join(root, "scripts", "resources", "port_registry.json"), map[string]any{
-		"resource_ports": map[string]int{
+	testfixture.WritePortRegistryState(t, root, PortRegistry{
+		ResourcePorts: map[string]int{
 			"comfyui":         8188,
 			"minio":           9000,
 			"redis":           6380,
@@ -214,7 +214,7 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 			"searxng":         8280,
 			"unstructured-io": 11450,
 		},
-		"reserved_ranges": map[string]string{},
+		ReservedRanges: map[string]string{},
 	})
 	writeEnvManifestFixture(t, root, "redis", manifestpkg.ResourceManifest{
 		Name:            "redis",
@@ -684,9 +684,9 @@ func TestLoadResourceEnvironmentFallsBackToLegacySecretsDuringMigration(t *testi
 	root := t.TempDir()
 	home := t.TempDir()
 
-	testkitgo.WriteJSON(t, filepath.Join(root, "scripts", "resources", "port_registry.json"), map[string]any{
-		"resource_ports":  map[string]int{"postgres": 5433},
-		"reserved_ranges": map[string]string{},
+	testfixture.WritePortRegistryState(t, root, PortRegistry{
+		ResourcePorts:  map[string]int{"postgres": 5433},
+		ReservedRanges: map[string]string{},
 	})
 	writePostgresManifestFixture(t, root)
 	testkitgo.WriteJSONMode(t, filepath.Join(root, ".vrooli", "secrets.json"), map[string]string{
@@ -717,9 +717,9 @@ func TestLoadResourceEnvironmentFailsClosedWhenEncryptedSecretsAreInvalid(t *tes
 	root := t.TempDir()
 	home := t.TempDir()
 
-	testkitgo.WriteJSON(t, filepath.Join(root, "scripts", "resources", "port_registry.json"), map[string]any{
-		"resource_ports":  map[string]int{"postgres": 5433},
-		"reserved_ranges": map[string]string{},
+	testfixture.WritePortRegistryState(t, root, PortRegistry{
+		ResourcePorts:  map[string]int{"postgres": 5433},
+		ReservedRanges: map[string]string{},
 	})
 	writePostgresManifestFixture(t, root)
 	testkitgo.WriteJSONMode(t, filepath.Join(root, ".vrooli", "secrets.json"), map[string]string{
@@ -875,6 +875,5 @@ func writePostgresManifestFixture(t *testing.T, root string) {
 
 func writeEnvManifestFixture(t *testing.T, root, name string, manifest manifestpkg.ResourceManifest) {
 	t.Helper()
-	path := filepath.Join(root, "resources", name, "resource.json")
-	testkitgo.WriteJSON(t, path, manifest)
+	testfixture.WriteResourceManifest(t, root, name, manifest)
 }

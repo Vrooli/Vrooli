@@ -394,6 +394,6 @@ The Vrooli deployment scripts automatically use SSH keys configured in this guid
 - **Development**: Uses personal keys for Git and server access
 
 For more information:
-- **CI/CD Setup**: See [CI/CD Pipeline Guide](../build-deploy/ci-cd.md)
-- **Server Deployment**: See [Server Deployment Guide](../operations/server-deployment.md)
+- **CI/CD Setup**: See [CI/CD Pipeline Guide](../ci-cd.md)
+- **Server Deployment**: See [Server Deployment Guide](../server-deployment.md)
 - **Troubleshooting**: See [Troubleshooting Guide](../troubleshooting.md#ssh-deployment-issues) 

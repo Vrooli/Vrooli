@@ -10,6 +10,7 @@ import (
 )
 
 func (r *Runner) WaitForHealth(item scenario.Scenario, env map[string]string) (string, error) {
+	deps := r.runtimeDeps()
 	health := item.Manifest.HealthConfig()
 	if health == nil || len(health.Checks) == 0 {
 		r.logInfo("Scenario has no health checks; treating as running", logx.AttrScenario, item.Slug, logx.AttrStatus, "running")
@@ -19,12 +20,12 @@ func (r *Runner) WaitForHealth(item scenario.Scenario, env map[string]string) (s
 	r.logDebug("Waiting for scenario health", logx.AttrScenario, item.Slug, logx.AttrChecks, len(health.Checks), logx.AttrPorts, ports)
 
 	if health.StartupGracePeriod > 0 {
-		sleepFn(time.Duration(health.StartupGracePeriod) * time.Millisecond)
+		deps.sleep(time.Duration(health.StartupGracePeriod) * time.Millisecond)
 	}
 
-	deadline := timeNowFn().Add(30 * time.Second)
+	deadline := deps.now().Add(30 * time.Second)
 	if health.Timeout > 0 {
-		deadline = timeNowFn().Add(time.Duration(health.Timeout) * time.Millisecond)
+		deadline = deps.now().Add(time.Duration(health.Timeout) * time.Millisecond)
 	}
 
 	interval := 500 * time.Millisecond
@@ -42,7 +43,7 @@ func (r *Runner) WaitForHealth(item scenario.Scenario, env map[string]string) (s
 			r.logInfo("Scenario reported healthy", logx.AttrScenario, item.Slug, logx.AttrStatus, lastStatus)
 			return lastStatus, nil
 		}
-		if timeNowFn().After(deadline) {
+		if deps.now().After(deadline) {
 			if lastStatus == "degraded" {
 				r.logWarn("Scenario health checks degraded after timeout", logx.AttrScenario, item.Slug, logx.AttrStatus, lastStatus)
 				return lastStatus, nil
@@ -50,7 +51,7 @@ func (r *Runner) WaitForHealth(item scenario.Scenario, env map[string]string) (s
 			r.logWarn("Scenario health checks failed before timeout", logx.AttrScenario, item.Slug, logx.AttrStatus, lastStatus)
 			return lastStatus, fmt.Errorf("scenario %q failed health checks", item.Slug)
 		}
-		sleepFn(interval)
+		deps.sleep(interval)
 	}
 }
 

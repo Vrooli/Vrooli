@@ -117,8 +117,8 @@ Current help ownership is fragmented across:
 Examples:
 
 - [internal/cli/scenariocli/help.go](/home/matthalloran8/Vrooli/internal/cli/scenariocli/help.go)
-- [internal/cli/resourcecli/help.go](/home/matthalloran8/Vrooli/internal/cli/resourcecli/help.go)
-- [internal/cli/contractcli/help.go](/home/matthalloran8/Vrooli/internal/cli/contractcli/help.go)
+- historical `internal/cli/resourcecli/help.go` helper surface
+- historical `internal/cli/contractcli/help.go` helper surface
 - [internal/cli/scenariocli/commands.go](/home/matthalloran8/Vrooli/internal/cli/scenariocli/commands.go)
 - [internal/cli/contractcli/parsers.go](/home/matthalloran8/Vrooli/internal/cli/contractcli/parsers.go)
 - [internal/cli/projectcli/lifecycle.go](/home/matthalloran8/Vrooli/internal/cli/projectcli/lifecycle.go)
@@ -188,15 +188,15 @@ The target state is explicitly “no legacy/compatibility/dead code.” That is 
 
 Runtime-path examples still present:
 
-- [internal/cli/scenariohandlers/external_runtime.go](/home/matthalloran8/Vrooli/internal/cli/scenariohandlers/external_runtime.go)
+- historical `internal/cli/scenariohandlers/external_runtime.go` bridge
   - external CLI bridging for `requirements`, `ui-smoke`, and `completeness`
 - [internal/scenario/scenario.go](/home/matthalloran8/Vrooli/internal/scenario/scenario.go)
   - legacy dependency payload parsing still active
 - [internal/resources/env/resolver.go](/home/matthalloran8/Vrooli/internal/resources/env/resolver.go)
   - compatibility bridge behavior is still documented and likely still active
-- [internal/resources/driver_bridge.go](/home/matthalloran8/Vrooli/internal/resources/driver_bridge.go)
+- historical `internal/resources/driver_bridge.go` bridge
 - [internal/resources/manifest_aliases.go](/home/matthalloran8/Vrooli/internal/resources/manifest_aliases.go)
-- [internal/resources/catalog_aliases.go](/home/matthalloran8/Vrooli/internal/resources/catalog_aliases.go)
+- historical `internal/resources/catalog_aliases.go` aliases
   - wrappers/aliases that need hard review for whether they are still justified or merely transitional
 
 Test/documentation compatibility residue also remains:
@@ -215,7 +215,7 @@ Current imbalance:
 
 Problematic examples:
 
-- [cmd/vrooli/scenario_main_test.go](/home/matthalloran8/Vrooli/cmd/vrooli/scenario_main_test.go) `1,448`
+- historical `cmd/vrooli/scenario_main_test.go` surface `1,448`
 
 Also, some high-value runtime packages currently have no tests:
 
@@ -448,8 +448,8 @@ Must be addressed in:
 
 - [internal/cli/topcli/topcli.go](/home/matthalloran8/Vrooli/internal/cli/topcli/topcli.go)
 - [internal/cli/scenariocli/help.go](/home/matthalloran8/Vrooli/internal/cli/scenariocli/help.go)
-- [internal/cli/resourcecli/help.go](/home/matthalloran8/Vrooli/internal/cli/resourcecli/help.go)
-- [internal/cli/contractcli/help.go](/home/matthalloran8/Vrooli/internal/cli/contractcli/help.go)
+- historical `internal/cli/resourcecli/help.go` helper surface
+- historical `internal/cli/contractcli/help.go` helper surface
 - [internal/cli/contractcli/parsers.go](/home/matthalloran8/Vrooli/internal/cli/contractcli/parsers.go)
 - [internal/cli/projectcli/lifecycle.go](/home/matthalloran8/Vrooli/internal/cli/projectcli/lifecycle.go)
 - [internal/cli/scenariocli/template_parsers.go](/home/matthalloran8/Vrooli/internal/cli/scenariocli/template_parsers.go)
@@ -464,7 +464,7 @@ Must be addressed in:
 - [internal/cli/resourcecli/parsers.go](/home/matthalloran8/Vrooli/internal/cli/resourcecli/parsers.go)
 - [internal/cli/contractcli/parsers.go](/home/matthalloran8/Vrooli/internal/cli/contractcli/parsers.go)
 - [internal/cli/projectcli/lifecycle.go](/home/matthalloran8/Vrooli/internal/cli/projectcli/lifecycle.go)
-- [internal/cli/topcli/info.go](/home/matthalloran8/Vrooli/internal/cli/topcli/info.go)
+- `internal/cli/topcli/topcli.go`
 
 ### 5.4 Handler boilerplate and manual command-table assembly
 
@@ -481,12 +481,12 @@ Must be addressed in:
 
 Must be addressed in:
 
-- [internal/cli/scenariohandlers/external_runtime.go](/home/matthalloran8/Vrooli/internal/cli/scenariohandlers/external_runtime.go)
+- historical `internal/cli/scenariohandlers/external_runtime.go` bridge
 - [internal/scenario/scenario.go](/home/matthalloran8/Vrooli/internal/scenario/scenario.go)
 - [internal/resources/env/resolver.go](/home/matthalloran8/Vrooli/internal/resources/env/resolver.go)
-- [internal/resources/driver_bridge.go](/home/matthalloran8/Vrooli/internal/resources/driver_bridge.go)
+- historical `internal/resources/driver_bridge.go` bridge
 - [internal/resources/manifest_aliases.go](/home/matthalloran8/Vrooli/internal/resources/manifest_aliases.go)
-- [internal/resources/catalog_aliases.go](/home/matthalloran8/Vrooli/internal/resources/catalog_aliases.go)
+- historical `internal/resources/catalog_aliases.go` aliases
 
 ### 5.6 String and contract drift
 
@@ -501,9 +501,9 @@ Must be addressed in:
 
 Must be addressed in:
 
-- [cmd/vrooli/scenario_main_test.go](/home/matthalloran8/Vrooli/cmd/vrooli/scenario_main_test.go)
-- [cmd/vrooli/app_core_main_test.go](/home/matthalloran8/Vrooli/cmd/vrooli/app_core_main_test.go)
-- [cmd/vrooli/app_project_lifecycle_test.go](/home/matthalloran8/Vrooli/cmd/vrooli/app_project_lifecycle_test.go)
+- historical `cmd/vrooli/scenario_main_test.go`
+- historical `cmd/vrooli/app_core_main_test.go`
+- historical `cmd/vrooli/app_project_lifecycle_test.go`
 - handler/runtime packages lacking direct tests
 - `packages/testkit-go` docs/helpers still describing compatibility-era usage
 
@@ -686,7 +686,7 @@ Phase 3 completion note:
   - standard unknown-option, missing-value, and positional-arity errors through shared CLI policy
 - Added focused parser coverage in [internal/cli/commandtree/args_test.go](/home/matthalloran8/Vrooli/internal/cli/commandtree/args_test.go).
 - Migrated standard parser paths onto the shared model in:
-  - [internal/cli/topcli/info.go](/home/matthalloran8/Vrooli/internal/cli/topcli/info.go)
+  - `internal/cli/topcli/topcli.go`
   - [internal/cli/projectcli/lifecycle.go](/home/matthalloran8/Vrooli/internal/cli/projectcli/lifecycle.go)
   - [internal/cli/resourcecli/parsers.go](/home/matthalloran8/Vrooli/internal/cli/resourcecli/parsers.go)
   - [internal/cli/contractcli/parsers.go](/home/matthalloran8/Vrooli/internal/cli/contractcli/parsers.go)
@@ -741,7 +741,6 @@ Phase 4 completion note:
 - Root help in `internal/cli/topcli` now renders from declarative command metadata plus a shared global-option catalog instead of a bespoke handwritten option list.
 - Representative family and leaf help surfaces now use generated help text from command/arg specs, including:
   - `vrooli --help`
-  - `vrooli info --help`
   - `vrooli scenario requirements --help`
   - `vrooli resource template generate --help`
 - Remaining handwritten help is now limited to exceptional cases that still need phase-7 runtime cleanup rather than standard command-surface generation.
@@ -835,7 +834,7 @@ Checklist:
   - [x] replace `requirements` bridging with native in-repo implementation
   - [x] replace `ui-smoke` bridging with intentionally-supported direct runtime surface owned under `internal/cli/scenariohandlers`
   - [x] replace `completeness` bridging with intentionally-supported direct runtime surface owned under `internal/cli/scenariohandlers`
-  - [x] delete [internal/cli/scenariohandlers/external_runtime.go](/home/matthalloran8/Vrooli/internal/cli/scenariohandlers/external_runtime.go) if no longer needed
+  - [x] delete historical `internal/cli/scenariohandlers/external_runtime.go` if no longer needed
 - [x] Remove legacy dependency parsing from [internal/scenario/scenario.go](/home/matthalloran8/Vrooli/internal/scenario/scenario.go) so one scenario dependency schema remains.
 - [x] Remove compatibility-bridge behavior from [internal/resources/env/resolver.go](/home/matthalloran8/Vrooli/internal/resources/env/resolver.go).
 - [x] Review and either justify or delete alias/bridge wrappers:
@@ -878,7 +877,7 @@ Checklist:
 - [x] Move parser/help/render coverage below `cmd/vrooli` wherever still misplaced.
 - [x] Add composition tests for handler/runtime packages that currently have no tests.
 - [x] Shrink `cmd/vrooli` tests to true smoke/integration coverage.
-- [x] Break up or reduce [cmd/vrooli/scenario_main_test.go](/home/matthalloran8/Vrooli/cmd/vrooli/scenario_main_test.go) by migrating lower-layer checks to internal packages.
+- [x] Break up or reduce historical `cmd/vrooli/scenario_main_test.go` coverage by migrating lower-layer checks to internal packages.
 - [x] Add exact-output/generated-help regression tests for representative help surfaces.
 - [x] Promote any repeated repo fixture builders into `packages/testkit-go` or `packages/testkit-go/vrooli`.
 - [x] Remove raw fixture duplication when shared builders are appropriate.
@@ -975,7 +974,7 @@ These are explicit deletion or hard-justification targets.
 
 ### 8.1 Compatibility and transitional runtime files
 
-- [ ] [internal/cli/scenariohandlers/external_runtime.go](/home/matthalloran8/Vrooli/internal/cli/scenariohandlers/external_runtime.go)
+- [ ] historical `internal/cli/scenariohandlers/external_runtime.go`
   Default expectation: delete after replacing the behavior natively.
 
 ### 8.2 Runtime compatibility branches and legacy parsing
@@ -985,9 +984,9 @@ These are explicit deletion or hard-justification targets.
 
 ### 8.3 Alias/bridge wrappers requiring hard justification or deletion
 
-- [ ] [internal/resources/driver_bridge.go](/home/matthalloran8/Vrooli/internal/resources/driver_bridge.go)
+- [ ] historical `internal/resources/driver_bridge.go`
 - [ ] [internal/resources/manifest_aliases.go](/home/matthalloran8/Vrooli/internal/resources/manifest_aliases.go)
-- [ ] [internal/resources/catalog_aliases.go](/home/matthalloran8/Vrooli/internal/resources/catalog_aliases.go)
+- [ ] historical `internal/resources/catalog_aliases.go`
 
 ### 8.4 Obsolete compatibility-era docs/testkit language
 
@@ -1012,7 +1011,6 @@ This matrix is required for completion.
 
 - [ ] `vrooli --help`
 - [ ] `vrooli --version`
-- [ ] `vrooli info`
 - [ ] `vrooli status --json`
 - [ ] `vrooli doctor --json`
 - [ ] `vrooli stop --json`

@@ -1,77 +1,62 @@
-# Scenario Documentation
+# Scenario System Documentation
 
-## 📖 Core Guides
+This section explains the scenario ecosystem at the platform level.
 
-### Fundamentals
-- **[CONCEPTS.md](CONCEPTS.md)** - Understanding dual-purpose scenarios and resource orchestration
-- **[getting-started.md](getting-started.md)** - Step-by-step scenario creation tutorial  
+Scenarios are one of Vrooli's core primitives. They are how the platform turns raw capability into reusable software outcomes.
 
-### Development & Testing
-- **[VALIDATION.md](VALIDATION.md)** - Testing and validation framework
-- **[TESTING_GUIDE.md](TESTING_GUIDE.md)** - Comprehensive testing strategies
+## Start Here
 
-### Deployment & Operations  
-- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Tier 1 (full-stack local/dev) deployment details. For desktop/mobile/cloud targets, pivot to the [Deployment Hub](../deployment/README.md).
+- [getting-started.md](getting-started.md) for creating or modifying scenarios
+- [CONCEPTS.md](CONCEPTS.md) for the scenario mental model
+- [VALIDATION.md](VALIDATION.md) for testing and validation expectations
+- [DEPLOYMENT.md](DEPLOYMENT.md) for scenario deployment framing
 
-### Advanced Topics
-- **[ai-generation-guide.md](ai-generation-guide.md)** - AI-powered scenario generation patterns
+## Current Truth
 
-### Templates
-- **[templates/](templates/)** - Enterprise-ready scenario templates
+At the platform level, scenarios should be understood as:
 
-## Quick Links
+- complete applications or focused services
+- orchestrators of resources and sometimes other scenarios
+- first-class platform assets, not throwaway demos
+- inputs to testing, governance, deployment, and recursive improvement loops
 
-### Common Commands
+Some scenarios are user-facing products. Others are meta-scenarios that improve Vrooli itself.
+
+## Common Commands
+
 ```bash
-# List available scenarios
 vrooli scenario list
-
-# Run a scenario directly
+vrooli scenario info <name>
+vrooli scenario status <name>
+vrooli scenario start <name>
 vrooli scenario run <name>
-
-# Test scenario integration
 vrooli scenario test <name>
-
-# Direct execution from folder
-cd scenarios/<name>
-vrooli scenario run <scenario-name>
+vrooli scenario logs <name>
+vrooli scenario template list
+vrooli scenario generate <template> --id <slug> --display-name <name> --description <text>
 ```
 
-### Key Concepts
+Preferred day-to-day workflow for one scenario:
 
-**Scenarios** are complete business applications that:
-- 🎯 Orchestrate multiple resources to create business value
-- 💰 Generate $10K-50K revenue per deployment
-- 🚀 Run directly from source without build steps
-- ✅ Serve as both integration tests AND production apps
-
-**Direct Execution** means:
-- No conversion to standalone apps
-- No build artifacts or compilation
-- Edit and run immediately
-- Single source of truth in scenarios/ folder
-
-## Directory Structure
-
-```
-scenarios/
-├── README.md               # This file - navigation hub
-├── CONCEPTS.md            # Core dual-purpose concepts
-├── getting-started.md     # Tutorial for new users
-├── VALIDATION.md          # Testing framework
-├── TESTING_GUIDE.md       # Testing strategies
-├── DEPLOYMENT.md          # Production deployment
-├── ai-generation-guide.md # AI generation patterns
-├── templates/             # Reusable templates
-└── [scenario-folders]/    # Individual scenarios
-    ├── .vrooli/service.json
-    ├── test.sh
-    ├── initialization/
-    └── deployment/
+```bash
+cd scenarios/<scenario-name>
+make start
+make test
+make logs
+make stop
 ```
 
-## Getting Help
+## Key References
 
-- **Issues**: Report at [GitHub Issues](https://github.com/Vrooli/Vrooli/issues)
-- **Main Docs**: Return to [Main Documentation](../README.md)
-- **Resources**: See [Resource Documentation](../resources/README.md)
+- [../deployment/README.md](../deployment/README.md)
+- [../TESTING.md](../TESTING.md)
+- [../resources/README.md](../resources/README.md)
+- [../reference/cli-commands.md](../reference/cli-commands.md)
+
+## Documentation Boundary
+
+This folder documents the scenario system as a whole.
+
+- project-level docs explain the platform
+- this folder explains how scenarios work across the platform
+- each scenario's own docs explain that specific scenario

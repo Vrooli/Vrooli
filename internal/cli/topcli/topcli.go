@@ -17,7 +17,6 @@ const (
 	CommandStop         CommandID = "stop"
 	CommandBackup       CommandID = "backup"
 	CommandRestore      CommandID = "restore"
-	CommandInfo         CommandID = "info"
 	CommandScenario     CommandID = "scenario"
 	CommandPackage      CommandID = "package"
 	CommandResource     CommandID = "resource"
@@ -40,7 +39,6 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		{Name: string(CommandStop), Group: "Lifecycle Commands", Summary: "Stop all or specific components", Handler: CommandStop, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{Name: string(CommandBackup), Group: "Lifecycle Commands", Summary: "Run the project backup lifecycle when defined", Handler: CommandBackup, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{Name: string(CommandRestore), Group: "Lifecycle Commands", Summary: "Run the project restore lifecycle when defined", Handler: CommandRestore, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
-		{Name: string(CommandInfo), Group: "Context Commands", Summary: "Show consolidated project briefing", Handler: CommandInfo, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{Name: string(CommandScenario), Group: "Scenario Management", Summary: "Manage scenarios from their source locations", Handler: CommandScenario, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: ScenarioCanRunWithoutRoot}},
 		{Name: string(CommandPackage), Group: "Package Governance", Summary: "Manage governed shared packages", Handler: CommandPackage, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: ListOrHelpWithoutRoot}},
 		{Name: string(CommandResource), Group: "Resource Management", Summary: "Manage local resources and dependency services", Handler: CommandResource, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: ListOrHelpWithoutRoot}},

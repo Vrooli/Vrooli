@@ -6,36 +6,41 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	"github.com/vrooli/vrooli/internal/scenario"
+	testfixture "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
 )
 
 func TestSyncAndValidateSchemaArtifacts(t *testing.T) {
 	root := t.TempDir()
-	writeSchemaArtifactResource(t, root, "postgres", map[string]any{
-		"$schema":          "../../.vrooli/schemas/resource.schema.json",
-		"name":             "postgres",
-		"display_name":     "PostgreSQL",
-		"description":      "Database",
-		"template":         "docker-service",
-		"driver":           "docker-service",
-		"portability_tier": "full",
-		"runtime": map[string]any{
-			"image": "postgres:16-alpine",
-		},
-		"dependency_schema": map[string]any{
-			"type": "object",
-			"properties": map[string]any{
-				"database": map[string]any{"type": "string"},
+	writeSchemaArtifactResource(t, root, "postgres", testfixture.ResourceManifest(
+		"postgres",
+		testfixture.WithResourceTemplate("docker-service"),
+		testfixture.WithResourceDriver("docker-service"),
+		testfixture.WithResourceDisplayName("PostgreSQL"),
+		testfixture.WithResourceDescription("Database"),
+		testfixture.WithResourceRuntime(manifestpkg.ResourceRuntime{
+			Image: "postgres:16-alpine",
+		}),
+		testfixture.WithResourceDependencySchema(json.RawMessage(`{
+  "type": "object",
+  "properties": {
+    "database": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}`)),
+	))
+	writeScenarioManifest(t, root, "alpha", testfixture.ScenarioServiceManifest(
+		"alpha",
+		testfixture.WithDependencies(scenario.Dependencies{
+			Resources: map[string]scenario.Dependency{
+				"postgres": {Enabled: true},
 			},
-			"additionalProperties": false,
-		},
-	})
-	writeScenarioManifest(t, root, "alpha", map[string]any{
-		"dependencies": map[string]any{
-			"resources": map[string]any{
-				"postgres": map[string]any{"enabled": true},
-			},
-		},
-	})
+		}),
+	))
 
 	syncReport, err := SyncSchemaArtifacts(root)
 	if err != nil {
@@ -51,6 +56,15 @@ func TestSyncAndValidateSchemaArtifacts(t *testing.T) {
 	}
 	if !validateReport.Passed {
 		t.Fatalf("validate report = %+v", validateReport)
+	}
+	if syncReport.DefinitionPath == "" {
+		t.Fatalf("definition path missing: %+v", syncReport)
+	}
+	if len(syncReport.WrittenPaths) != 1 || syncReport.WrittenPaths[0] != syncReport.DefinitionPath {
+		t.Fatalf("written paths = %+v", syncReport.WrittenPaths)
+	}
+	if len(validateReport.ArtifactIssues) != 0 {
+		t.Fatalf("unexpected artifact issues = %+v", validateReport.ArtifactIssues)
 	}
 
 	data, err := os.ReadFile(filepath.Join(root, ".vrooli", "schemas", "resource-definitions.json"))
@@ -72,25 +86,24 @@ func TestSyncAndValidateSchemaArtifacts(t *testing.T) {
 
 func TestValidateSchemaArtifactsDetectsMissingScenarioResourceReferences(t *testing.T) {
 	root := t.TempDir()
-	writeSchemaArtifactResource(t, root, "postgres", map[string]any{
-		"$schema":          "../../.vrooli/schemas/resource.schema.json",
-		"name":             "postgres",
-		"display_name":     "PostgreSQL",
-		"description":      "Database",
-		"template":         "docker-service",
-		"driver":           "docker-service",
-		"portability_tier": "full",
-		"runtime": map[string]any{
-			"image": "postgres:16-alpine",
-		},
-	})
-	writeScenarioManifest(t, root, "alpha", map[string]any{
-		"dependencies": map[string]any{
-			"resources": map[string]any{
-				"n8n": map[string]any{"enabled": true},
+	writeSchemaArtifactResource(t, root, "postgres", testfixture.ResourceManifest(
+		"postgres",
+		testfixture.WithResourceTemplate("docker-service"),
+		testfixture.WithResourceDriver("docker-service"),
+		testfixture.WithResourceDisplayName("PostgreSQL"),
+		testfixture.WithResourceDescription("Database"),
+		testfixture.WithResourceRuntime(manifestpkg.ResourceRuntime{
+			Image: "postgres:16-alpine",
+		}),
+	))
+	writeScenarioManifest(t, root, "alpha", testfixture.ScenarioServiceManifest(
+		"alpha",
+		testfixture.WithDependencies(scenario.Dependencies{
+			Resources: map[string]scenario.Dependency{
+				"n8n": {Enabled: true},
 			},
-		},
-	})
+		}),
+	))
 
 	report, err := SyncSchemaArtifacts(root)
 	if err != nil {
@@ -114,25 +127,24 @@ func TestValidateSchemaArtifactsDetectsMissingScenarioResourceReferences(t *test
 
 func TestValidateSchemaArtifactsDetectsStaleFiles(t *testing.T) {
 	root := t.TempDir()
-	writeSchemaArtifactResource(t, root, "postgres", map[string]any{
-		"$schema":          "../../.vrooli/schemas/resource.schema.json",
-		"name":             "postgres",
-		"display_name":     "PostgreSQL",
-		"description":      "Database",
-		"template":         "docker-service",
-		"driver":           "docker-service",
-		"portability_tier": "full",
-		"runtime": map[string]any{
-			"image": "postgres:16-alpine",
-		},
-	})
-	writeScenarioManifest(t, root, "alpha", map[string]any{
-		"dependencies": map[string]any{
-			"resources": map[string]any{
-				"postgres": map[string]any{"enabled": true},
+	writeSchemaArtifactResource(t, root, "postgres", testfixture.ResourceManifest(
+		"postgres",
+		testfixture.WithResourceTemplate("docker-service"),
+		testfixture.WithResourceDriver("docker-service"),
+		testfixture.WithResourceDisplayName("PostgreSQL"),
+		testfixture.WithResourceDescription("Database"),
+		testfixture.WithResourceRuntime(manifestpkg.ResourceRuntime{
+			Image: "postgres:16-alpine",
+		}),
+	))
+	writeScenarioManifest(t, root, "alpha", testfixture.ScenarioServiceManifest(
+		"alpha",
+		testfixture.WithDependencies(scenario.Dependencies{
+			Resources: map[string]scenario.Dependency{
+				"postgres": {Enabled: true},
 			},
-		},
-	})
+		}),
+	))
 	if _, err := SyncSchemaArtifacts(root); err != nil {
 		t.Fatalf("SyncSchemaArtifacts: %v", err)
 	}
@@ -152,34 +164,12 @@ func TestValidateSchemaArtifactsDetectsStaleFiles(t *testing.T) {
 	}
 }
 
-func writeSchemaArtifactResource(t *testing.T, root, name string, payload map[string]any) {
+func writeSchemaArtifactResource(t *testing.T, root, name string, manifest manifestpkg.ResourceManifest) {
 	t.Helper()
-	path := filepath.Join(root, "resources", name)
-	if err := os.MkdirAll(path, 0o755); err != nil {
-		t.Fatalf("mkdir resource: %v", err)
-	}
-	data, err := json.MarshalIndent(payload, "", "  ")
-	if err != nil {
-		t.Fatalf("marshal resource payload: %v", err)
-	}
-	data = append(data, '\n')
-	if err := os.WriteFile(filepath.Join(path, "resource.json"), data, 0o644); err != nil {
-		t.Fatalf("write resource.json: %v", err)
-	}
+	testfixture.WriteResourceManifest(t, root, name, manifest)
 }
 
-func writeScenarioManifest(t *testing.T, root, name string, payload map[string]any) {
+func writeScenarioManifest(t *testing.T, root, name string, manifest scenario.ServiceManifest) {
 	t.Helper()
-	path := filepath.Join(root, "scenarios", name, ".vrooli")
-	if err := os.MkdirAll(path, 0o755); err != nil {
-		t.Fatalf("mkdir scenario: %v", err)
-	}
-	data, err := json.MarshalIndent(payload, "", "  ")
-	if err != nil {
-		t.Fatalf("marshal scenario payload: %v", err)
-	}
-	data = append(data, '\n')
-	if err := os.WriteFile(filepath.Join(path, "service.json"), data, 0o644); err != nil {
-		t.Fatalf("write service.json: %v", err)
-	}
+	testfixture.WriteScenarioService(t, root, name, manifest)
 }

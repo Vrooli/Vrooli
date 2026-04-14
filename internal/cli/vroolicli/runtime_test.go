@@ -34,24 +34,6 @@ func newRuntimeTestApp(t *testing.T, root string) *App {
 	})
 }
 
-func TestRunInfoTopLevelCommandHandlesHelp(t *testing.T) {
-	app := New(Config{
-		VersionInfo:         VersionInfo{CLIVersion: "1.0.0", PlatformVersion: "2.0.0"},
-		ResolveSourceRootFn: func() (string, error) { return "/repo", nil },
-		HomeDirFn:           func() (string, error) { return "/home/test", nil },
-	})
-	stdout := &bytes.Buffer{}
-	stderr := &bytes.Buffer{}
-	ctx := app.NewCommandContext("/repo", rootcli.GlobalOptions{}, stdout, stderr)
-
-	if err := app.runInfoTopLevelCommand(ctx, []string{"--help"}); err != nil {
-		t.Fatalf("runInfoTopLevelCommand() error = %v", err)
-	}
-	if got := stdout.String(); !strings.Contains(got, "vrooli info") {
-		t.Fatalf("runInfoTopLevelCommand() help missing info usage: %q", got)
-	}
-}
-
 func TestWriteVersionHumanOutput(t *testing.T) {
 	var stdout bytes.Buffer
 	if err := WriteVersion(&stdout, "/repo", rootcli.GlobalOptions{}, VersionInfo{

@@ -113,12 +113,13 @@ func TestResolveRepoRoot(t *testing.T) {
 
 func TestResolveScenarioPathAndFile(t *testing.T) {
 	root := fixtureRoot(t)
+	contract := mustLoadDefault(t, root)
 
 	scenarioPath, err := ResolveScenarioPath(root, "test-genie")
 	if err != nil {
 		t.Fatalf("ResolveScenarioPath() error = %v", err)
 	}
-	wantPath := filepath.Join(root, "scenarios", "test-genie")
+	wantPath := mustScenarioRoot(t, contract, root, "test-genie")
 	if scenarioPath != wantPath {
 		t.Fatalf("ResolveScenarioPath() = %q, want %q", scenarioPath, wantPath)
 	}
@@ -127,7 +128,7 @@ func TestResolveScenarioPathAndFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolveScenarioFile() error = %v", err)
 	}
-	wantService := filepath.Join(wantPath, ".vrooli", "service.json")
+	wantService := mustScenarioFile(t, contract, root, "test-genie", "service")
 	if servicePath != wantService {
 		t.Fatalf("ResolveScenarioFile() = %q, want %q", servicePath, wantService)
 	}
@@ -135,12 +136,13 @@ func TestResolveScenarioPathAndFile(t *testing.T) {
 
 func TestResolveResourcePathAndFile(t *testing.T) {
 	root := fixtureRoot(t)
+	contract := mustLoadDefault(t, root)
 
 	resourcePath, err := ResolveResourcePath(root, "postgres")
 	if err != nil {
 		t.Fatalf("ResolveResourcePath() error = %v", err)
 	}
-	wantPath := filepath.Join(root, "resources", "postgres")
+	wantPath := mustResourceRoot(t, contract, root, "postgres")
 	if resourcePath != wantPath {
 		t.Fatalf("ResolveResourcePath() = %q, want %q", resourcePath, wantPath)
 	}
@@ -149,7 +151,7 @@ func TestResolveResourcePathAndFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolveResourceFile() error = %v", err)
 	}
-	wantManifest := filepath.Join(wantPath, "resource.json")
+	wantManifest := mustResourceFile(t, contract, root, "postgres", "manifest")
 	if manifestPath != wantManifest {
 		t.Fatalf("ResolveResourceFile() = %q, want %q", manifestPath, wantManifest)
 	}

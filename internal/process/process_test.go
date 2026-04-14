@@ -5,10 +5,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 )
 
 func withIsPIDRunningFn(t *testing.T, fn func(int) bool) {
@@ -43,8 +44,36 @@ func TestHomeDirPrefersEnv(t *testing.T) {
 
 func TestReadAndSummarizeScenarioRecords(t *testing.T) {
 	home := t.TempDir()
-	writeProcessRecord(t, home, "alpha", "start-api", os.Getpid(), 18080, time.Now().Add(-2*time.Minute))
-	writeProcessRecord(t, home, "alpha", "start-ui", 999999, 38080, time.Now().Add(-1*time.Minute))
+	if err := WriteScenarioRecord(home, "alpha", "start-api", Record{
+		PID:        os.Getpid(),
+		PGID:       os.Getpid(),
+		Phase:      "develop",
+		Scenario:   "alpha",
+		Step:       "start-api",
+		Command:    "sleep 10",
+		WorkingDir: "/repo/scenarios/alpha",
+		LogFile:    "/tmp/alpha.log",
+		Port:       18080,
+		StartedAt:  time.Now().Add(-2 * time.Minute),
+		Status:     "running",
+	}); err != nil {
+		t.Fatalf("WriteScenarioRecord alpha/start-api: %v", err)
+	}
+	if err := WriteScenarioRecord(home, "alpha", "start-ui", Record{
+		PID:        999999,
+		PGID:       999999,
+		Phase:      "develop",
+		Scenario:   "alpha",
+		Step:       "start-ui",
+		Command:    "sleep 10",
+		WorkingDir: "/repo/scenarios/alpha",
+		LogFile:    "/tmp/alpha.log",
+		Port:       38080,
+		StartedAt:  time.Now().Add(-1 * time.Minute),
+		Status:     "running",
+	}); err != nil {
+		t.Fatalf("WriteScenarioRecord alpha/start-ui: %v", err)
+	}
 	withIsPIDRunningFn(t, func(pid int) bool {
 		return pid == os.Getpid()
 	})
@@ -98,8 +127,36 @@ func TestHomeDirFallsBackToUserHomeWhenHOMEUnset(t *testing.T) {
 
 func TestDiscoverRunningScenariosFiltersStopped(t *testing.T) {
 	home := t.TempDir()
-	writeProcessRecord(t, home, "alpha", "start-api", os.Getpid(), 18080, time.Now().Add(-2*time.Minute))
-	writeProcessRecord(t, home, "beta", "start-api", 999999, 18081, time.Now().Add(-1*time.Minute))
+	if err := WriteScenarioRecord(home, "alpha", "start-api", Record{
+		PID:        os.Getpid(),
+		PGID:       os.Getpid(),
+		Phase:      "develop",
+		Scenario:   "alpha",
+		Step:       "start-api",
+		Command:    "sleep 10",
+		WorkingDir: "/repo/scenarios/alpha",
+		LogFile:    "/tmp/alpha.log",
+		Port:       18080,
+		StartedAt:  time.Now().Add(-2 * time.Minute),
+		Status:     "running",
+	}); err != nil {
+		t.Fatalf("WriteScenarioRecord alpha/start-api: %v", err)
+	}
+	if err := WriteScenarioRecord(home, "beta", "start-api", Record{
+		PID:        999999,
+		PGID:       999999,
+		Phase:      "develop",
+		Scenario:   "beta",
+		Step:       "start-api",
+		Command:    "sleep 10",
+		WorkingDir: "/repo/scenarios/beta",
+		LogFile:    "/tmp/beta.log",
+		Port:       18081,
+		StartedAt:  time.Now().Add(-1 * time.Minute),
+		Status:     "running",
+	}); err != nil {
+		t.Fatalf("WriteScenarioRecord beta/start-api: %v", err)
+	}
 	withIsPIDRunningFn(t, func(pid int) bool {
 		return pid == os.Getpid()
 	})
@@ -119,16 +176,10 @@ func TestDiscoverRunningScenariosFiltersStopped(t *testing.T) {
 func TestReadScenarioRecordsBackfillsStepAndScenario(t *testing.T) {
 	home := t.TempDir()
 	path := filepath.Join(home, ".vrooli", "processes", "scenarios", "alpha", "custom-step.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
-	}
-	data := `{
-  "pid": ` + strconv.Itoa(os.Getpid()) + `,
-  "started_at": "` + time.Now().UTC().Format(time.RFC3339) + `"
-}`
-	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
+	testkitgo.WriteJSON(t, path, map[string]any{
+		"pid":        os.Getpid(),
+		"started_at": time.Now().UTC().Format(time.RFC3339),
+	})
 
 	records, err := ReadScenarioRecords(home, "alpha")
 	if err != nil {
@@ -148,12 +199,7 @@ func TestReadScenarioRecordsBackfillsStepAndScenario(t *testing.T) {
 func TestReadScenarioRecordsRejectsInvalidJSON(t *testing.T) {
 	home := t.TempDir()
 	path := filepath.Join(home, ".vrooli", "processes", "scenarios", "alpha", "broken.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
-	}
-	if err := os.WriteFile(path, []byte("{broken"), 0o644); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
+	testkitgo.WriteMalformedJSON(t, path, "{broken", 0o644)
 
 	if _, err := ReadScenarioRecords(home, "alpha"); err == nil {
 		t.Fatalf("expected invalid process metadata to fail")
@@ -173,12 +219,7 @@ func TestDiscoverRunningScenariosReturnsNilWhenProcessRootMissing(t *testing.T) 
 func TestDiscoverRunningScenariosPropagatesReadErrors(t *testing.T) {
 	home := t.TempDir()
 	path := filepath.Join(home, ".vrooli", "processes", "scenarios", "alpha", "broken.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
-	}
-	if err := os.WriteFile(path, []byte("{broken"), 0o644); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
+	testkitgo.WriteMalformedJSON(t, path, "{broken", 0o644)
 
 	if _, err := DiscoverRunningScenarios(home, nil); err == nil {
 		t.Fatalf("expected invalid process metadata to fail discovery")
@@ -377,29 +418,5 @@ func TestWriteAndRemoveScenarioRecordMaintainsProcessMetadataContract(t *testing
 	}
 	if _, err := os.Stat(pidPath); !os.IsNotExist(err) {
 		t.Fatalf("expected pid file removal, stat err=%v", err)
-	}
-}
-
-func writeProcessRecord(t *testing.T, home, scenarioName, step string, pid, port int, startedAt time.Time) {
-	t.Helper()
-	path := filepath.Join(home, ".vrooli", "processes", "scenarios", scenarioName, step+".json")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
-	}
-	data := `{
-  "pid": ` + strconv.Itoa(pid) + `,
-  "pgid": ` + strconv.Itoa(pid) + `,
-  "phase": "develop",
-  "scenario": "` + scenarioName + `",
-  "step": "` + step + `",
-  "command": "sleep 10",
-  "working_dir": "/repo/scenarios/` + scenarioName + `",
-  "log_file": "/tmp/` + scenarioName + `.log",
-  "port": ` + strconv.Itoa(port) + `,
-  "started_at": "` + startedAt.UTC().Format(time.RFC3339) + `",
-  "status": "running"
-}`
-	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
-		t.Fatalf("write %s: %v", path, err)
 	}
 }

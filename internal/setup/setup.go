@@ -56,44 +56,83 @@ type apiLaunchSpec struct {
 	Port    int
 }
 
-var (
-	currentHostFn             = vrooliruntime.Current
-	loadProjectFn             = project.LoadProject
-	markCompleteFn            = markComplete
-	syncResourceSchemaFn      = syncResourceSchemaArtifacts
-	newCLIInstallManagerFn    = func(root, home string) cliInstallManager { return cliinstall.NewManager(root, home) }
-	resolveHostRequirementsFn = hostreq.Resolve
-	inspectRequirementsFn     = vrooliruntime.InspectRequirements
-	ensureRequirementsFn      = vrooliruntime.EnsureRequirements
-	newPortsManagerFn         = func(root, home string) (*ports.Manager, error) {
-		return ports.NewManager(root, home)
-	}
-	startProjectAPIFn             = startProjectAPI
-	startOrchestratorFn           = startOrchestrator
-	healthCheckFn                 = waitForHTTPHealth
-	loadDotEnvFn                  = loadDotEnv
-	nowFn                         = time.Now
-	maybeOpenOnboardingFn         = maybeOpenOnboarding
-	osExecutableFn                = os.Executable
-	onboardingPortCommandRunnerFn = func(ctx context.Context, name string, args ...string) ([]byte, error) {
-		return exec.CommandContext(ctx, name, args...).CombinedOutput()
-	}
-	openOnboardingURLFn = func(url string) error {
-		return scenarioexec.OpenURL(shell.LookPath, scenarioexec.RunSubprocess, url)
-	}
-)
-
 type cliInstallManager interface {
 	InstallAllScenarioCLIs() error
 	InstallEnabledResourceCLIs() error
 }
 
+type setupDeps struct {
+	currentHost                 func() vrooliruntime.Host
+	loadProject                 func(string) (scenario.Scenario, error)
+	markComplete                func(string) error
+	syncResourceSchema          func(string) error
+	newCLIInstallManager        func(root, home string) cliInstallManager
+	resolveHostRequirements     func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error)
+	inspectRequirements         func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error)
+	ensureRequirements          func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error)
+	newPortsManager             func(root, home string) (*ports.Manager, error)
+	startProjectAPI             func(root string, spec apiLaunchSpec, stdout, stderr io.Writer) error
+	startOrchestrator           func(root, home string, stdout, stderr io.Writer) error
+	healthCheck                 func(port int, timeout time.Duration) error
+	loadDotEnv                  func(path string) (map[string]string, error)
+	now                         func() time.Time
+	osExecutable                func() (string, error)
+	onboardingPortCommandRunner func(ctx context.Context, name string, args ...string) ([]byte, error)
+	openOnboardingURL           func(url string) error
+	resourceController          func(root, home string) resourceRunner
+}
+
+type setupService struct {
+	deps setupDeps
+}
+
+func defaultSetupDeps() setupDeps {
+	return setupDeps{
+		currentHost:        vrooliruntime.Current,
+		loadProject:        project.LoadProject,
+		markComplete:       markComplete,
+		syncResourceSchema: syncResourceSchemaArtifacts,
+		newCLIInstallManager: func(root, home string) cliInstallManager {
+			return cliinstall.NewManager(root, home)
+		},
+		resolveHostRequirements: hostreq.Resolve,
+		inspectRequirements:     vrooliruntime.InspectRequirements,
+		ensureRequirements:      vrooliruntime.EnsureRequirements,
+		newPortsManager: func(root, home string) (*ports.Manager, error) {
+			return ports.NewManager(root, home)
+		},
+		startProjectAPI:   startProjectAPI,
+		startOrchestrator: startOrchestrator,
+		healthCheck:       waitForHTTPHealth,
+		loadDotEnv:        loadDotEnv,
+		now:               time.Now,
+		osExecutable:      os.Executable,
+		onboardingPortCommandRunner: func(ctx context.Context, name string, args ...string) ([]byte, error) {
+			return exec.CommandContext(ctx, name, args...).CombinedOutput()
+		},
+		openOnboardingURL: func(url string) error {
+			return scenarioexec.OpenURL(shell.LookPath, scenarioexec.RunSubprocess, url)
+		},
+		resourceController: func(root, home string) resourceRunner {
+			return resources.NewController(root, home)
+		},
+	}
+}
+
+func newSetupService(deps setupDeps) *setupService {
+	return &setupService{deps: deps}
+}
+
 func RunSetupWithOptions(root, home string, opts Options, stdout, stderr io.Writer) error {
-	if err := currentHostFn().ValidateSetup(); err != nil {
+	return newSetupService(defaultSetupDeps()).RunSetupWithOptions(root, home, opts, stdout, stderr)
+}
+
+func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdout, stderr io.Writer) error {
+	if err := s.deps.currentHost().ValidateSetup(); err != nil {
 		return err
 	}
 
-	projectScenario, err := loadProjectFn(root)
+	projectScenario, err := s.deps.loadProject(root)
 	if err != nil {
 		return err
 	}
@@ -109,7 +148,7 @@ func RunSetupWithOptions(root, home string, opts Options, stdout, stderr io.Writ
 			return err
 		}
 	}
-	requirements, err := resolveHostRequirementsFn(root, home, hostreq.ResolveOptions{
+	requirements, err := s.deps.resolveHostRequirements(root, home, hostreq.ResolveOptions{
 		Environment: opts.Environment,
 		When:        "setup",
 		Resources:   opts.Resources,
@@ -119,13 +158,13 @@ func RunSetupWithOptions(root, home string, opts Options, stdout, stderr io.Writ
 	if err != nil {
 		return err
 	}
-	planReport, err := inspectRequirementsFn(opts.Environment, requirements)
+	planReport, err := s.deps.inspectRequirements(opts.Environment, requirements)
 	if err != nil {
 		return err
 	}
 	renderSetupRequirementPlan(stdout, opts, planReport)
 
-	report, ensureErr := ensureRequirementsFn(vrooliruntime.EnsureOptions{
+	report, ensureErr := s.deps.ensureRequirements(vrooliruntime.EnsureOptions{
 		Environment: opts.Environment,
 		SudoMode:    opts.SudoMode,
 		DryRun:      opts.DryRun,
@@ -144,23 +183,23 @@ func RunSetupWithOptions(root, home string, opts Options, stdout, stderr io.Writ
 	if err := configureGit(root); err != nil {
 		return err
 	}
-	if err := maybeInstallResources(root, home, opts, stdout, stderr); err != nil {
+	if err := s.maybeInstallResources(root, home, opts, stdout, stderr); err != nil {
 		return err
 	}
-	if err := syncResourceSchemaFn(root); err != nil {
+	if err := s.deps.syncResourceSchema(root); err != nil {
 		return err
 	}
-	cliManager := newCLIInstallManagerFn(root, home)
+	cliManager := s.deps.newCLIInstallManager(root, home)
 	if err := cliManager.InstallEnabledResourceCLIs(); err != nil {
 		return err
 	}
 	if err := cliManager.InstallAllScenarioCLIs(); err != nil {
 		return err
 	}
-	if err := markCompleteFn(root); err != nil {
+	if err := s.deps.markComplete(root); err != nil {
 		return err
 	}
-	if err := maybeOpenOnboardingFn(root, home, stdout, stderr); err != nil {
+	if err := s.maybeOpenOnboarding(root, home, stdout, stderr); err != nil {
 		_, _ = fmt.Fprintf(stderr, "[WARN]    Unable to auto-open onboarding: %v\n", err)
 	}
 	return nil
@@ -189,11 +228,15 @@ func RunBuild(root, home string, stdout, stderr io.Writer) error {
 }
 
 func RunDevelopWithOptions(root, home string, opts Options, stdout, stderr io.Writer) error {
-	if err := currentHostFn().ValidateDevelop(); err != nil {
+	return newSetupService(defaultSetupDeps()).RunDevelopWithOptions(root, home, opts, stdout, stderr)
+}
+
+func (s *setupService) RunDevelopWithOptions(root, home string, opts Options, stdout, stderr io.Writer) error {
+	if err := s.deps.currentHost().ValidateDevelop(); err != nil {
 		return err
 	}
 
-	projectScenario, err := loadProjectFn(root)
+	projectScenario, err := s.deps.loadProject(root)
 	if err != nil {
 		return err
 	}
@@ -206,12 +249,12 @@ func RunDevelopWithOptions(root, home string, opts Options, stdout, stderr io.Wr
 
 	if setupNeeded(root, projectScenario.Slug) {
 		_, _ = fmt.Fprintln(stdout, "[INFO]    Running setup before develop")
-		if err := RunSetupWithOptions(root, home, opts, stdout, stderr); err != nil {
+		if err := s.RunSetupWithOptions(root, home, opts, stdout, stderr); err != nil {
 			return err
 		}
 	}
 
-	manager, err := newPortsManagerFn(root, home)
+	manager, err := s.deps.newPortsManager(root, home)
 	if err != nil {
 		return err
 	}
@@ -219,7 +262,7 @@ func RunDevelopWithOptions(root, home string, opts Options, stdout, stderr io.Wr
 	if err != nil {
 		return err
 	}
-	if err := applyDotEnv(root); err != nil {
+	if err := s.applyDotEnv(root); err != nil {
 		return err
 	}
 	env := mergeEnvironment(os.Environ(), projectEnv.EnvVars)
@@ -237,19 +280,19 @@ func RunDevelopWithOptions(root, home string, opts Options, stdout, stderr io.Wr
 		if err != nil {
 			return err
 		}
-		if err := startProjectAPIFn(root, spec, stdout, stderr); err != nil {
+		if err := s.deps.startProjectAPI(root, spec, stdout, stderr); err != nil {
 			return err
 		}
 	}
 
-	if err := healthCheckFn(apiPort, 30*time.Second); err != nil {
+	if err := s.deps.healthCheck(apiPort, 30*time.Second); err != nil {
 		return err
 	}
 	_, _ = fmt.Fprintf(stdout, "🚀 Vrooli API healthy on port %d with native scenario management\n", apiPort)
-	if err := maybeOpenOnboardingFn(root, home, stdout, stderr); err != nil {
+	if err := s.maybeOpenOnboarding(root, home, stdout, stderr); err != nil {
 		_, _ = fmt.Fprintf(stderr, "[WARN]    Unable to auto-open onboarding: %v\n", err)
 	}
-	return startOrchestratorFn(root, home, stdout, stderr)
+	return s.deps.startOrchestrator(root, home, stdout, stderr)
 }
 
 func buildProjectBinary(root, outputPath, target string, fingerprintPaths []string, gitCommit, buildTime string, stdout, stderr io.Writer) error {
@@ -410,13 +453,13 @@ func configureGit(root string) error {
 	return cmd.Run()
 }
 
-func maybeInstallResources(root, home string, opts Options, stdout, stderr io.Writer) error {
+func (s *setupService) maybeInstallResources(root, home string, opts Options, stdout, stderr io.Writer) error {
 	selection := strings.TrimSpace(opts.Resources)
 	if selection == "" || selection == "none" {
 		return nil
 	}
 
-	controller := resourcesController(root, home)
+	controller := s.deps.resourceController(root, home)
 	if selection == "enabled" {
 		names, err := enabledResourceNames(root)
 		if err != nil {
@@ -444,10 +487,6 @@ func maybeInstallResources(root, home string, opts Options, stdout, stderr io.Wr
 
 type resourceRunner interface {
 	Run(name string, args []string, stdout, stderr io.Writer) error
-}
-
-var resourcesController = func(root, home string) resourceRunner {
-	return resources.NewController(root, home)
 }
 
 func enabledResourceNames(root string) ([]string, error) {
@@ -488,8 +527,8 @@ func setupNeeded(root, slug string) bool {
 	return err != nil
 }
 
-func applyDotEnv(root string) error {
-	values, err := loadDotEnvFn(filepath.Join(root, ".env"))
+func (s *setupService) applyDotEnv(root string) error {
+	values, err := s.deps.loadDotEnv(filepath.Join(root, ".env"))
 	if err != nil {
 		return err
 	}
@@ -630,7 +669,7 @@ func startProjectAPI(root string, spec apiLaunchSpec, stdout, stderr io.Writer) 
 }
 
 func waitForHTTPHealth(port int, timeout time.Duration) error {
-	deadline := nowFn().Add(timeout)
+	deadline := time.Now().Add(timeout)
 	client := &http.Client{Timeout: 2 * time.Second}
 	url := fmt.Sprintf("http://127.0.0.1:%d/health", port)
 	for {
@@ -641,7 +680,7 @@ func waitForHTTPHealth(port int, timeout time.Duration) error {
 				return nil
 			}
 		}
-		if nowFn().After(deadline) {
+		if time.Now().After(deadline) {
 			return fmt.Errorf("vrooli-api failed health check on port %d", port)
 		}
 		time.Sleep(1 * time.Second)
@@ -674,6 +713,10 @@ type onboardingPreferences struct {
 }
 
 func maybeOpenOnboarding(root, home string, stdout, stderr io.Writer) error {
+	return newSetupService(defaultSetupDeps()).maybeOpenOnboarding(root, home, stdout, stderr)
+}
+
+func (s *setupService) maybeOpenOnboarding(root, home string, stdout, stderr io.Writer) error {
 	if onboardingDisabledByEnv() {
 		return nil
 	}
@@ -690,22 +733,22 @@ func maybeOpenOnboarding(root, home string, stdout, stderr io.Writer) error {
 		return nil
 	}
 
-	executable, err := osExecutableFn()
+	executable, err := s.deps.osExecutable()
 	if err != nil {
 		return err
 	}
 	if err := launchDetachedOnboarding(root, executable); err != nil {
 		return err
 	}
-	url, err := resolveOnboardingURL(executable)
+	url, err := s.resolveOnboardingURL(executable)
 	if err != nil {
 		return err
 	}
-	if err := openOnboardingURLFn(url); err != nil {
+	if err := s.deps.openOnboardingURL(url); err != nil {
 		return err
 	}
 
-	prefs.PromptedAt = nowFn().UTC().Format(time.RFC3339)
+	prefs.PromptedAt = s.deps.now().UTC().Format(time.RFC3339)
 	if err := saveOnboardingPreferences(configPath, doc, prefs); err != nil {
 		return err
 	}
@@ -791,11 +834,11 @@ func launchDetachedOnboarding(root, executable string) error {
 	return cmd.Start()
 }
 
-func resolveOnboardingURL(executable string) (string, error) {
-	deadline := nowFn().Add(30 * time.Second)
+func (s *setupService) resolveOnboardingURL(executable string) (string, error) {
+	deadline := s.deps.now().Add(30 * time.Second)
 	for {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		output, err := onboardingPortCommandRunnerFn(ctx, executable, "scenario", "port", onboardingSlug, "UI_PORT")
+		output, err := s.deps.onboardingPortCommandRunner(ctx, executable, "scenario", "port", onboardingSlug, "UI_PORT")
 		cancel()
 		text := strings.TrimSpace(string(output))
 		if err == nil {
@@ -804,7 +847,7 @@ func resolveOnboardingURL(executable string) (string, error) {
 				return fmt.Sprintf("http://127.0.0.1:%d", port), nil
 			}
 		}
-		if nowFn().After(deadline) {
+		if s.deps.now().After(deadline) {
 			if text == "" {
 				text = "port could not be resolved before timeout"
 			}

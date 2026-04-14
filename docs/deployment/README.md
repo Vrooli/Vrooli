@@ -16,11 +16,11 @@ The hub orchestrates these ideas so future automation (deployment-manager) has a
 
 | Tier | Description | Current Viability | Doc |
 |------|-------------|-------------------|-----|
-| 1 | Full Vrooli stack running locally or on a dev server, proxied through app-monitor + Cloudflare tunnel | ✅ Production ready for us today | [Local / Developer Stack](tiers/tier-1-local-dev.md) |
-| 2 | Portable desktop bundles (Windows/macOS/Linux) where UI + API + dependencies ship together | ⚠️ Thin client only today | [Desktop](tiers/tier-2-desktop.md) |
-| 3 | Mobile packages (iOS/Android) | 🚧 Not started | [Mobile](tiers/tier-3-mobile.md) |
-| 4 | SaaS / Cloud installs (DigitalOcean, AWS, bare metal) | ⚠️ Requires dependency fitness + secret prep | [SaaS / Cloud](tiers/tier-4-saas.md) |
-| 5 | Enterprise / Hardware appliance deployments | 🧭 Vision stage | [Enterprise / Appliance](tiers/tier-5-enterprise.md) |
+| 1 | Full Vrooli stack running locally or on a dev server, proxied through app-monitor + Cloudflare tunnel | ✅ Production ready for us today | [Production Operations Guide](../operations/production-guide.md) |
+| 2 | Portable desktop bundles (Windows/macOS/Linux) where UI + API + dependencies ship together | ⚠️ Thin client only today | [Desktop Bundle Readiness Plan](../plans/desktop-bundle-health-readiness-plan.md) |
+| 3 | Mobile packages (iOS/Android) | 🚧 Not started | [Roadmap](../roadmap.md) |
+| 4 | SaaS / Cloud installs (DigitalOcean, AWS, bare metal) | ⚠️ Requires dependency fitness + secret prep | [Kubernetes Infrastructure Reference](../devops/kubernetes.md) |
+| 5 | Enterprise / Hardware appliance deployments | 🧭 Vision stage | [Business Solutions](../business-solutions.md) |
 
 Each tier page captures **current state → gaps → roadmap** so we can coordinate scenario updates.
 
@@ -35,35 +35,33 @@ Deployment is a scenario in its own right:
 5. It triggers the appropriate `scenario-to-*` packager (desktop/mobile/cloud) to generate installers or remote bundles.
 6. When manual work is required (e.g., swapping Postgres → SQLite), it files `app-issue-tracker` tasks.
 
-That loop is spelled out in the [Scenario Docs](./scenarios) section.
+That loop builds on the current scenario and operations docs:
 
-## Guides
+- [../scenarios/README.md](../scenarios/README.md)
+- [../operations/production-guide.md](../operations/production-guide.md)
 
-- [Dependency Swapping](guides/dependency-swapping.md) — use deployment metadata to swap in fitter alternatives.
-- [Fitness Scoring](guides/fitness-scoring.md) — scoring rubric and metadata schema extension for `service.json`.
-- [Secrets Management](guides/secrets-management.md) — infrastructure vs service vs user secrets lineage.
-- [Deployment Checklist](guides/deployment-checklist.md) — per-tier readiness check.
-- [Packaging Matrix](guides/packaging-matrix.md) — what `scenario-to-*` can actually produce today.
-- [Auto-Update Channels](guides/auto-updates.md) — installer formats (MSI/PKG/AppImage), update channel design (dev/beta/stable), and provider configuration (GitHub/self-hosted).
-- **Bundle manifest v0.1** — `scenarios/deployment-manager/docs/schemas/bundle-schema.desktop.v0.1.json` defines the validated `bundle.json` contract for desktop bundles; sample manifests live in `scenarios/deployment-manager/docs/examples/manifests/` for a plain SQLite build and a Playwright-enabled build.
+## Current Deployment References
 
-## Providers & Infrastructure Notes
+- [../operations/production-guide.md](../operations/production-guide.md) — current operational baseline for Tier 1 environments
+- [../devops/server-deployment.md](../devops/server-deployment.md) — current server-oriented deployment guidance
+- [../devops/kubernetes.md](../devops/kubernetes.md) — historical and future-facing Kubernetes context
+- [storage.md](storage.md) — specialized bundle storage guidance for deployment-oriented scenarios
+- [../plans/desktop-bundle-health-readiness-plan.md](../plans/desktop-bundle-health-readiness-plan.md) — current desktop portability planning
+- [../plans/resource-cross-platform-migration-plan.md](../plans/resource-cross-platform-migration-plan.md) — cross-platform resource migration planning
 
-Legacy platform-specific instructions were preserved for reference:
+## Provider And Infrastructure Notes
 
-- [DigitalOcean](providers/digitalocean.md) — VPS/Kubernetes setup details (costing, `doctl`, etc.).
-- [Cloudflare Tunnel](providers/cloudflare-tunnel.md) — Secure Tier 1 remote access via app-monitor.
-- [Hardware Appliance](providers/hardware-appliance.md) — Planning notes for Tier 5 devices.
+Provider-specific deployment documentation has not yet been rebuilt into a canonical leaf set.
 
-These provider notes feed into the SaaS/Enterprise tiers once the deployment-manager can emit infrastructure manifests.
+For now, use:
+
+- [../devops/server-deployment.md](../devops/server-deployment.md) for current server assumptions
+- [../devops/personal-ai-server.md](../devops/personal-ai-server.md) for exploratory appliance-style thinking
+- [../business-solutions.md](../business-solutions.md) for the enterprise and appliance framing
 
 ## Examples
 
-We document the true experience per tier using real scenarios:
-
-- [Picker Wheel Desktop](examples/picker-wheel-desktop.md) — thin client reality + bundling gaps.
-- [Picker Wheel Cloud](examples/picker-wheel-cloud.md) — what running the scenario on a VPS entails today.
-- [System Monitor Desktop](examples/system-monitor-desktop.md) — another case study for dependency swapping.
+The deployment examples layer has not been rebuilt yet. Until it exists again, use live scenario docs plus the planning docs above rather than relying on missing case-study pages.
 
 ## Bundled Runtime Expectations (Desktop/Mobile/Cloud)
 
@@ -75,7 +73,7 @@ We document the true experience per tier using real scenarios:
 
 ## Historical Docs
 
-Everything that described the old "package-scenario-deployment.sh" era now lives in [history](history). The content is still useful when we eventually support Kubernetes/SaaS installs, but the guidance is clearly marked as legacy so it doesn't mislead agents.
+Older package-and-ship material should be treated as historical reference only. It should not override the current tiered model or the current operational docs listed above.
 
 ## Roadmap Snapshot
 

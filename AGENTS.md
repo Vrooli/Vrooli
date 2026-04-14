@@ -131,7 +131,6 @@ What is the user doing?
 
 Skills are lazy-loaded — only pay context cost when relevant. The full instructions live in prompt-manager, not here.
 
-
 ## 🔧 Setup Configuration
 
 **Environment Profiles** (`--environment`):

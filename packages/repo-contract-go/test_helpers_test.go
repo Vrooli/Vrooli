@@ -137,3 +137,48 @@ func contains(values []string, want string) bool {
 	}
 	return false
 }
+
+func mustScenarioRoot(t *testing.T, contract *Contract, root, name string) string {
+	t.Helper()
+	path, err := contract.ScenarioRoot(root, name)
+	if err != nil {
+		t.Fatalf("ScenarioRoot(%q) error = %v", name, err)
+	}
+	return path
+}
+
+func mustResourceRoot(t *testing.T, contract *Contract, root, name string) string {
+	t.Helper()
+	path, err := contract.ResourceRoot(root, name)
+	if err != nil {
+		t.Fatalf("ResourceRoot(%q) error = %v", name, err)
+	}
+	return path
+}
+
+func mustScenarioFile(t *testing.T, contract *Contract, root, name, key string) string {
+	t.Helper()
+	path, err := contract.ScenarioFile(root, name, key)
+	if err != nil {
+		t.Fatalf("ScenarioFile(%q, %q) error = %v", name, key, err)
+	}
+	return path
+}
+
+func mustResourceFile(t *testing.T, contract *Contract, root, name, key string) string {
+	t.Helper()
+	path, err := contract.ResourceFile(root, name, key)
+	if err != nil {
+		t.Fatalf("ResourceFile(%q, %q) error = %v", name, key, err)
+	}
+	return path
+}
+
+func mustTopLevelDir(t *testing.T, contract *Contract, root, key string) string {
+	t.Helper()
+	path, err := contract.TopLevelDir(root, key)
+	if err != nil {
+		t.Fatalf("TopLevelDir(%q) error = %v", key, err)
+	}
+	return path
+}

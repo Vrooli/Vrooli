@@ -1,153 +1,77 @@
-# Vrooli Business Solutions
+# Business Solutions
 
-**The Future of Enterprise Software Development**
+This document explains the business framing behind Vrooli's platform direction. It is strategic positioning, not an implementation or deployment manual.
 
-## Overview
+## What Vrooli Sells
 
-Vrooli represents a paradigm shift from cloud-dependent development to **local-first business application generation**. Our vision: every business running their own Vrooli server, generating custom applications instantly while maintaining complete data sovereignty.
+Vrooli is building toward a world where organizations run a local software foundry instead of depending entirely on rented cloud applications. The system combines local resources, reusable scenarios, and agent workflows so a business can generate, operate, and improve software on infrastructure it controls.
 
-## The Business Opportunity
+The near-term commercial surfaces are:
 
-### Current Enterprise Pain Points
-- **Vendor Lock-in:** Businesses trapped by cloud services and subscription models
-- **Data Vulnerability:** Sensitive business logic and customer data processed by external parties
-- **Development Costs:** $50K-200K+ for custom applications, months of development time
-- **Security Concerns:** External dependencies create attack vectors and compliance challenges
-- **Innovation Barriers:** Waiting for vendors to add features instead of building what you need
+- scenario development and deployment for real business use cases
+- local or private-stack installations built around the Tier 1 deployment model
+- professional services for integration, adaptation, and platform hardening
+- reusable scenario packages that become durable customer and platform capability
 
-### Vrooli's Solution
-- **Instant Application Generation:** Customer requirements → Working application in hours
-- **Complete Privacy:** All processing happens on your hardware
-- **Zero External Dependencies:** Generate applications offline after initial setup
-- **Modular Architecture:** Small, focused scenarios that compose into complex solutions
-- **Self-Improving Platform:** Meta-scenarios continuously enhance capabilities
+## Why This Matters
 
-## Target Markets
+Most organizations still face the same structural problems:
 
-### Healthcare Organizations
-- **HIPAA Compliance:** Patient data never leaves your premises
-- **Custom Workflows:** Generate applications for patient management, research, compliance
-- **Integration Capabilities:** Connect with existing EHR systems and medical devices
-- **Specialized Scenarios:** Medical imaging analysis, clinical trial management, billing automation
+- cloud vendor lock-in
+- slow custom software delivery
+- fragmented tooling and duplicated workflow logic
+- privacy and compliance pressure
+- poor reuse of internal automation and operational knowledge
 
-### Financial Services
-- **Regulatory Compliance:** SOX, FINRA, Basel III compliance through local processing
-- **Proprietary Algorithms:** Trading strategies and risk models stay completely private
-- **Custom Applications:** Portfolio management, compliance reporting, customer onboarding
-- **Real-time Processing:** Market data analysis without external API dependencies
+Vrooli's thesis is that these problems are easier to solve when software generation and orchestration happen close to the customer's data, operators, and existing systems.
 
-### Manufacturing & Industrial
-- **Process Automation:** Custom applications for production, quality control, supply chain
-- **IoT Integration:** Connect with industrial sensors, robotics, and control systems
-- **Data Sovereignty:** Proprietary manufacturing data remains on-premises
-- **Predictive Maintenance:** AI-powered equipment monitoring and optimization
+## Current Position
 
-### Government & Defense
-- **Air-Gapped Environments:** Complete offline operation for classified environments
-- **Custom Security:** Add any level of encryption, monitoring, and access control
-- **Citizen Services:** Generate applications for permits, licensing, public services
-- **Inter-Agency Coordination:** Secure data sharing between departments
+Today, Vrooli is best understood as:
 
-### Small & Medium Businesses
-- **Affordable Custom Software:** $10K applications instead of $100K development projects
-- **No Ongoing Subscriptions:** Own your software, control your costs
-- **Rapid Prototyping:** Test business ideas with working applications in hours
-- **Growth-Ready:** Start simple, add complexity as your business scales
+- a local, cross-platform control plane centered on the `vrooli` CLI
+- a shared resource layer for databases, AI runtimes, browsers, queues, and other local building blocks
+- a scenario system for building reusable applications, services, and internal operators
+- an agent-driven platform that can turn solved work into reusable future capability
 
-## Business Models
+This is not yet a finished universal appliance product. The current production-ready path is the Tier 1 local stack described in the Deployment Hub.
 
-### Enterprise Server Sales
-- **Vrooli Business Server:** Pre-configured hardware with enterprise scenarios
-- **Pricing:** $50K-500K depending on organization size and requirements
-- **Includes:** Hardware, software, training, 1-year support
-- **Revenue Model:** One-time purchase + optional annual support contracts
+## Customer Value
 
-### Scenario Marketplace
-- **Custom Development:** Build industry-specific scenario packages
-- **Community Contributions:** Revenue sharing with scenario creators
-- **Enterprise Templates:** Premium scenarios for specialized industries
-- **Pricing:** $1K-50K per scenario package
+Organizations can use Vrooli to:
 
-### Professional Services
-- **Implementation:** Custom deployment and integration services
-- **Training:** Workshops and certification programs for enterprise teams
-- **Custom Scenarios:** Bespoke application development for unique requirements
-- **Support:** Ongoing technical support and optimization services
+- build internal tools faster without giving away sensitive context
+- standardize repeatable business workflows as scenarios
+- keep more operational logic on infrastructure they control
+- turn bespoke project work into reusable capability instead of disposable output
+- accumulate internal automation leverage over time
 
-### Cloud Hosting (Hybrid Model)
-- **Private Cloud:** Dedicated cloud instances for organizations not ready for on-premises
-- **Migration Services:** Gradual transition from cloud to local deployment
-- **Compliance:** Geo-located servers for regulatory requirements
-- **Pricing:** Premium over local deployment but still privacy-focused
+## Strategic Differentiators
 
-## Competitive Advantages
+- local sovereignty instead of cloud dependency as the default
+- scenarios that compound into future capability instead of isolated one-off apps
+- shared resources that let teams build on an expanding local platform surface
+- recursive improvement: the system can use prior solutions to build better future ones
 
-### Technical Superiority
-- **Local Resource Orchestration:** 30+ integrated services vs. limited API access
-- **Scenario Modification System:** AI-generated code that preserves manual customizations
-- **Meta-Scenario Architecture:** Platform improves itself through deployed scenarios
-- **Modular Design:** Small, AI-manageable code units enable precise modifications
+## Market Framing
 
-### Business Model Innovation
-- **Ownership vs. Subscription:** Customers own their software instead of renting it
-- **Privacy by Design:** Local-first architecture vs. cloud-first with privacy bolted on
-- **Self-Improving Value:** Each deployed scenario makes the platform more capable
-- **Community Leverage:** Scenarios developed for one customer benefit all users
+The strongest near-term fits are organizations that care about at least one of:
 
-### Market Timing
-- **Privacy Awakening:** Growing awareness of cloud vendor risks and data sovereignty
-- **AI Maturity:** Local AI models now powerful enough for serious application development
-- **Regulatory Pressure:** GDPR, CCPA, and industry regulations favoring local processing
-- **Vendor Fatigue:** Businesses tired of subscription costs and feature limitations
+- privacy or regulatory pressure
+- bespoke workflow complexity
+- high software customization costs
+- local or air-gapped operation
+- turning internal automation into durable infrastructure
 
-## Implementation Roadmap
+Examples include healthcare, finance, industrial operations, research environments, agencies, and businesses with unusually specific internal workflow needs.
 
-### Phase 1: Proof of Concept (Current)
-- **Target:** Early adopter developers and small businesses
-- **Delivery:** Open source platform with core scenarios
-- **Revenue:** Community building and feedback collection
-- **Timeline:** Ongoing
+## How To Read This Document
 
-### Phase 2: Enterprise Pilot Program
-- **Target:** 10-20 enterprise customers across different industries
-- **Delivery:** Custom scenario development and deployment services
-- **Revenue:** $100K-500K per pilot engagement
-- **Timeline:** 6-12 months
+Use this file for strategic framing only.
 
-### Phase 3: Product Standardization
-- **Target:** Repeatable business server packages by industry
-- **Delivery:** Pre-configured hardware with scenario libraries
-- **Revenue:** $50K-500K per server + annual support
-- **Timeline:** 12-18 months
+For current implementation truth, use:
 
-### Phase 4: Market Expansion
-- **Target:** Global enterprise market and government contracts
-- **Delivery:** Full product line with industry specializations
-- **Revenue:** $10M-100M annual recurring through server sales and services
-- **Timeline:** 18-36 months
-
-## Investment Opportunity
-
-Vrooli is positioned to capture significant value in the transition from cloud-dependent to local-first computing:
-
-- **Market Size:** $500B+ enterprise software market moving toward privacy and control
-- **Early Mover Advantage:** First platform enabling true local application generation
-- **Defensible Position:** Self-improving platform creates competitive moats
-- **Scalable Revenue:** Hardware + software + services model with high margins
-
-The businesses that adopt local-first development first will have competitive advantages in data privacy, development speed, and operational independence. Vrooli enables that transition.
-
-## Getting Started
-
-**Ready to explore Vrooli for your organization?**
-
-1. **Pilot Deployment:** Start with a proof-of-concept project
-2. **Requirements Analysis:** Identify applications most suitable for local generation
-3. **Custom Scenarios:** Develop scenarios specific to your industry and needs
-4. **Production Deployment:** Scale to full organizational use
-
-[Contact us for enterprise evaluation →](mailto:enterprise@vrooli.com)
-
----
-
-*Building the future of local-first business computing, one scenario at a time.*
+- [README.md](README.md)
+- [QUICKSTART.md](QUICKSTART.md)
+- [concepts/ARCHITECTURE.md](concepts/ARCHITECTURE.md)
+- [deployment/README.md](deployment/README.md)

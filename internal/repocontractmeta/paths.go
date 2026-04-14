@@ -15,7 +15,6 @@ const (
 	ValidationScriptFilename = "validate-repo-contract.py"
 	DocsPath                 = "docs/repo-contract.md"
 	MiniBundleProfile        = "mini_vrooli_bundle"
-	InfoManifestFilename     = "info-manifest.json"
 	DefaultContractVersion   = "1.0.0"
 )
 
@@ -37,10 +36,6 @@ func CommonSchemaPath(root string) string {
 
 func ValidationScriptPath(root string) string {
 	return filepath.Join(root, ProjectConfigDir, SchemaDir, ValidationScriptFilename)
-}
-
-func InfoManifestPath(root string) string {
-	return filepath.Join(root, ProjectConfigDir, InfoManifestFilename)
 }
 
 func ResourceManifestPath(root, name string) string {

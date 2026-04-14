@@ -91,19 +91,17 @@ func TestFindRepoRootSupportsSeamsForContractAndStatFailures(t *testing.T) {
 
 func TestCandidateMatchesRootMarkers(t *testing.T) {
 	root := t.TempDir()
-	markers := RootMarkers{
-		RequiredDirs:  []string{".vrooli", "scenarios"},
-		RequiredFiles: []string{"go.mod"},
-	}
+	markers := validContract().RootMarkers()
 
-	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
-		t.Fatalf("MkdirAll(.vrooli) error = %v", err)
+	for _, dir := range markers.RequiredDirs {
+		if err := os.MkdirAll(filepath.Join(root, filepath.FromSlash(dir)), 0o755); err != nil {
+			t.Fatalf("MkdirAll(%q) error = %v", dir, err)
+		}
 	}
-	if err := os.MkdirAll(filepath.Join(root, "scenarios"), 0o755); err != nil {
-		t.Fatalf("MkdirAll(scenarios) error = %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module test"), 0o644); err != nil {
-		t.Fatalf("WriteFile(go.mod) error = %v", err)
+	for _, file := range markers.RequiredFiles {
+		if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(file)), []byte("module test"), 0o644); err != nil {
+			t.Fatalf("WriteFile(%q) error = %v", file, err)
+		}
 	}
 
 	ok, err := candidateMatchesRootMarkers(root, markers)
@@ -111,8 +109,9 @@ func TestCandidateMatchesRootMarkers(t *testing.T) {
 		t.Fatalf("candidateMatchesRootMarkers() = %v, %v", ok, err)
 	}
 
-	if err := os.Remove(filepath.Join(root, "go.mod")); err != nil {
-		t.Fatalf("Remove(go.mod) error = %v", err)
+	missingFile := filepath.Join(root, filepath.FromSlash(markers.RequiredFiles[0]))
+	if err := os.Remove(missingFile); err != nil {
+		t.Fatalf("Remove(%q) error = %v", markers.RequiredFiles[0], err)
 	}
 	ok, err = candidateMatchesRootMarkers(root, markers)
 	if err != nil {

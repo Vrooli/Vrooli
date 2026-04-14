@@ -1016,7 +1016,7 @@ Supporting artifacts produced during Phase 0:
 
 - [Resource Phase 0 Inventory](/home/matthalloran8/Vrooli/docs/resources/resource-phase0-inventory.md)
 - [Dependency Contract Audit](/home/matthalloran8/Vrooli/docs/resources/dependency-contract-audit.md)
-- [Resource Registry Reconciliation](/home/matthalloran8/Vrooli/docs/resources/resource-registry-reconciliation.md)
+- `docs/resources/resource-registry-reconciliation.md` (historical note; file no longer present)
 - [Dependency Contract Validator](/home/matthalloran8/Vrooli/scripts/resources/tools/validate-dependency-contract.sh)
 
 **Deliverable:** A triage inventory with proposed state for every current resource.

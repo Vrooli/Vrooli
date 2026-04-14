@@ -1,17 +1,12 @@
 # Resource Deprecation
 
-Phase 2 introduces a first-class deprecation lifecycle for project-level resources.
+This page describes the current deprecation path for stale resources.
 
-The goal is to remove stale resource code and metadata from the active repo surface without losing short-term recoverability.
+## Purpose
 
-If the capability should remain a blueprint-backed future candidate rather than becoming deprecated, use [resource-blueprint-archival.md](resource-blueprint-archival.md) instead.
+Deprecation removes a resource from the active supported surface without losing short-term recoverability.
 
-## What Deprecation Does
-
-- archives the resource's active repo state under `~/.vrooli/archive/resources/`
-- removes the resource from active repo discovery
-- records deprecation metadata in `.vrooli/resources/deprecated-resources.json`
-- keeps restore explicit and quarantined rather than silently making the resource active again
+If the capability should remain a future candidate instead of becoming deprecated, use blueprint-backed archival instead.
 
 ## Current CLI Surface
 
@@ -22,44 +17,12 @@ vrooli resource restore <name>
 vrooli resource archive gc
 ```
 
-## Restore Semantics
+## Guidance
 
-Restores are intentionally quarantined.
+- use deprecation for stale active-surface resources that should leave supported use
+- use blueprint archival when you want to preserve future capability without keeping the implementation active
 
-- `vrooli resource restore <name>` restores archived content into `.vrooli/resources/restored/<name>/`
-- restored resources do not re-enter `vrooli resource list`
-- promotion back into the active supported set remains an explicit later step
+## Related
 
-This prevents stale code from reappearing in the supported surface by accident.
-
-## Retention Policy
-
-- default retention: `90` days
-- expired archives can be removed with `vrooli resource archive gc`
-- metadata remains in `.vrooli/resources/deprecated-resources.json` for traceability after purge
-
-## Phase 2 First Batch
-
-The first deprecated batch matches the clearly stale Phase 0 `deprecate` set:
-
-- `autogen-studio`
-- `erpnext`
-- `langchain`
-- `musicgen`
-
-Each now has:
-
-- deprecation metadata
-- an archive record
-- a replacement blueprint with the same canonical name
-
-## Validation Bundle
-
-Phase 2 validation is:
-
-- `vrooli resource deprecate autogen-studio`
-- `vrooli resource list-deprecated`
-- `vrooli resource restore autogen-studio`
-- `vrooli resource archive gc`
-- `go test ./internal/resources`
-- focused `cmd/vrooli` resource command tests
+- [resource-blueprint-archival.md](resource-blueprint-archival.md)
+- [resource-blueprints.md](resource-blueprints.md)

@@ -6,8 +6,12 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/vrooli/internal/process"
+	"github.com/vrooli/vrooli/internal/scenario"
+	testkitvrooli "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
 )
 
 func TestRespondErrorSetsHTTPStatusAndCode(t *testing.T) {
@@ -29,8 +33,20 @@ func TestRespondErrorSetsHTTPStatusAndCode(t *testing.T) {
 func TestGetScenarioStatusNativeReturnsRealProcessDataAndStatusCode(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeScenarioService(t, root, "alpha")
-	writeScenarioProcess(t, home, "alpha", 18080)
+	testkitvrooli.WriteScenarioService(t, root, "alpha", testkitvrooli.ScenarioServiceManifest(
+		"alpha",
+		testkitvrooli.WithDisplayName("alpha"),
+		testkitvrooli.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}),
+	))
+	testkitvrooli.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{
+		PID:       os.Getpid(),
+		PGID:      os.Getpid(),
+		Scenario:  "alpha",
+		Step:      "start-api",
+		Port:      18080,
+		StartedAt: time.Now().Add(-time.Minute).UTC(),
+		Status:    "running",
+	})
 
 	app := New(root, home)
 	rec := httptest.NewRecorder()

@@ -20,6 +20,7 @@ func TestIsFullRepoScope(t *testing.T) {
 
 func TestScenarioScopeMatch(t *testing.T) {
 	contract := validContract()
+	scenarioDir := contract.Layout().ScenarioDir
 
 	tests := []struct {
 		scenario string
@@ -28,10 +29,10 @@ func TestScenarioScopeMatch(t *testing.T) {
 	}{
 		{scenario: "demo", scope: "", want: true},
 		{scenario: "demo", scope: ".", want: true},
-		{scenario: "demo", scope: "scenarios", want: true},
-		{scenario: "demo", scope: "scenarios/demo", want: true},
-		{scenario: "demo", scope: "scenarios/demo/api", want: true},
-		{scenario: "demo", scope: "scenarios/other", want: false},
+		{scenario: "demo", scope: scenarioDir, want: true},
+		{scenario: "demo", scope: filepath.ToSlash(filepath.Join(scenarioDir, "demo")), want: true},
+		{scenario: "demo", scope: filepath.ToSlash(filepath.Join(scenarioDir, "demo", "api")), want: true},
+		{scenario: "demo", scope: filepath.ToSlash(filepath.Join(scenarioDir, "other")), want: false},
 		{scenario: "demo", scope: "packages/cli-core", want: false},
 	}
 
@@ -45,6 +46,8 @@ func TestScenarioScopeMatch(t *testing.T) {
 func TestResolveSandboxScenarioPath(t *testing.T) {
 	contract := validContract()
 	merged := "/tmp/sandbox/merged"
+	scenarioDir := contract.Layout().ScenarioDir
+	scenarioRel := filepath.Join(scenarioDir, "demo")
 
 	tests := []struct {
 		name     string
@@ -53,11 +56,11 @@ func TestResolveSandboxScenarioPath(t *testing.T) {
 		wantPath string
 		wantOK   bool
 	}{
-		{name: "full repo", scenario: "demo", scope: "", wantPath: filepath.Join(merged, "scenarios", "demo"), wantOK: true},
-		{name: "scenarios dir", scenario: "demo", scope: "scenarios", wantPath: filepath.Join(merged, "demo"), wantOK: true},
-		{name: "exact scenario", scenario: "demo", scope: "scenarios/demo", wantPath: merged, wantOK: true},
-		{name: "deeper scope", scenario: "demo", scope: "scenarios/demo/api", wantPath: filepath.Join(merged, "scenarios", "demo"), wantOK: true},
-		{name: "out of scope", scenario: "demo", scope: "scenarios/other", wantPath: "", wantOK: false},
+		{name: "full repo", scenario: "demo", scope: "", wantPath: filepath.Join(merged, scenarioRel), wantOK: true},
+		{name: "scenarios dir", scenario: "demo", scope: scenarioDir, wantPath: filepath.Join(merged, "demo"), wantOK: true},
+		{name: "exact scenario", scenario: "demo", scope: filepath.ToSlash(scenarioRel), wantPath: merged, wantOK: true},
+		{name: "deeper scope", scenario: "demo", scope: filepath.ToSlash(filepath.Join(scenarioRel, "api")), wantPath: filepath.Join(merged, scenarioRel), wantOK: true},
+		{name: "out of scope", scenario: "demo", scope: filepath.ToSlash(filepath.Join(scenarioDir, "other")), wantPath: "", wantOK: false},
 	}
 
 	for _, tt := range tests {

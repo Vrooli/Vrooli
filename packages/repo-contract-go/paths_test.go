@@ -14,7 +14,7 @@ func TestScenarioAndResourcePaths(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ScenarioRoot() error = %v", err)
 	}
-	if want := filepath.Join(root, "scenarios", "test-genie"); scenarioRoot != want {
+	if want := mustScenarioRoot(t, contract, root, "test-genie"); scenarioRoot != want {
 		t.Fatalf("ScenarioRoot() = %q, want %q", scenarioRoot, want)
 	}
 
@@ -22,7 +22,7 @@ func TestScenarioAndResourcePaths(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResourceRoot() error = %v", err)
 	}
-	if want := filepath.Join(root, "resources", "postgres"); resourceRoot != want {
+	if want := mustResourceRoot(t, contract, root, "postgres"); resourceRoot != want {
 		t.Fatalf("ResourceRoot() = %q, want %q", resourceRoot, want)
 	}
 
@@ -30,7 +30,7 @@ func TestScenarioAndResourcePaths(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ScenarioFile() error = %v", err)
 	}
-	if want := filepath.Join(root, "scenarios", "test-genie", ".vrooli", "service.json"); servicePath != want {
+	if want := filepath.Join(scenarioRoot, ".vrooli", "service.json"); servicePath != want {
 		t.Fatalf("ScenarioFile() = %q, want %q", servicePath, want)
 	}
 
@@ -38,7 +38,7 @@ func TestScenarioAndResourcePaths(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResourceFile() error = %v", err)
 	}
-	if want := filepath.Join(root, "resources", "postgres", "resource.json"); resourceManifest != want {
+	if want := filepath.Join(resourceRoot, "resource.json"); resourceManifest != want {
 		t.Fatalf("ResourceFile() = %q, want %q", resourceManifest, want)
 	}
 }
@@ -65,18 +65,12 @@ func TestPathHelpersValidateIdentifiersAndKeys(t *testing.T) {
 func TestTopLevelDirAndStandaloneScenarioRoot(t *testing.T) {
 	contract := validContract()
 
-	got, err := contract.TopLevelDir("/repo", "packages")
-	if err != nil {
-		t.Fatalf("TopLevelDir() error = %v", err)
-	}
+	got := mustTopLevelDir(t, contract, "/repo", "packages")
 	if got != filepath.Join("/repo", "packages") {
 		t.Fatalf("TopLevelDir() = %q", got)
 	}
 
-	templateDir, err := contract.TopLevelDir("/repo", "templates")
-	if err != nil {
-		t.Fatalf("TopLevelDir(templates) error = %v", err)
-	}
+	templateDir := mustTopLevelDir(t, contract, "/repo", "templates")
 	if templateDir != filepath.Join("/repo", "templates") {
 		t.Fatalf("TopLevelDir(templates) = %q", templateDir)
 	}
@@ -108,8 +102,9 @@ func TestStandaloneScenarioRootUsesContractLayoutWhenAvailable(t *testing.T) {
 		t.Fatalf("WriteFile(go.mod) error = %v", err)
 	}
 
-	if got := ScenarioRoot(root, "demo"); got != filepath.Join(root, "apps", "demo") {
-		t.Fatalf("ScenarioRoot() = %q, want %q", got, filepath.Join(root, "apps", "demo"))
+	want := filepath.Join(mustTopLevelDir(t, mustLoadDefault(t, root), root, "scenarios"), "demo")
+	if got := ScenarioRoot(root, "demo"); got != want {
+		t.Fatalf("ScenarioRoot() = %q, want %q", got, want)
 	}
 }
 

@@ -424,21 +424,6 @@ func runProjectPhaseFromContext(ctx *CommandContext, phase string, args []string
 	return controller.RunProjectPhase(phase, args)
 }
 
-func (app *App) runInfoTopLevelCommand(ctx *CommandContext, args []string) error {
-	req, err := topcli.ParseInfoRequest(args)
-	if err != nil {
-		if rootcli.HandleHelp(ctx.Stdout, err) {
-			return nil
-		}
-		return err
-	}
-	format, err := cliout.ParseFormat("", ctx.Globals.JSON)
-	if err != nil {
-		return err
-	}
-	return topcli.RunInfo(ctx.Root, format, req, ctx.Stdout, ctx.Stderr)
-}
-
 func (app *App) runLifecycleProtectCommand(ctx *CommandContext, args []string) error {
 	commandArgs, err := projectcli.ParseLifecycleProtectArgs(args)
 	if err != nil {
@@ -492,9 +477,6 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 		topcli.CommandRestore: projectcli.ProjectPhaseHandler(commandStdout, "restore", func(ctx *CommandContext, args []string) error {
 			return runProjectPhaseFromContext(ctx, "restore", args)
 		}),
-		topcli.CommandInfo: func(ctx *CommandContext, args []string) error {
-			return ctx.app.runInfoTopLevelCommand(ctx, args)
-		},
 		topcli.CommandScenario: func(ctx *CommandContext, args []string) error {
 			return scenariohandlers.RootHandler(commandStdout, ctx.app.Registry().ScenarioHandler, ctx.app.Registry().SuggestScenario)(ctx, args)
 		},

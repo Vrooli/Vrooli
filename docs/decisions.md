@@ -1,214 +1,175 @@
-# Architectural Decisions Record (ADR)
+# Architectural Decisions Record
 
-This document records major architectural decisions in Vrooli's evolution and the rationale behind them.
+This document records durable project-level decisions that still shape how Vrooli should be built and documented.
 
-## Decision Log Format
+## How To Read This File
 
-Each decision follows this structure:
-- **Date**: When the decision was made
-- **Status**: Accepted/Superseded/Deprecated
-- **Context**: The situation and problem we faced
-- **Decision**: What we decided to do
-- **Consequences**: The results and trade-offs
-- **Superseded By**: If replaced, what replaced it
+Each entry captures:
 
----
+- context
+- decision
+- consequences
+- current status
 
-## ADR-001: From Monolithic Application to Resource Orchestration Platform
+This file is for enduring decisions, not short-lived implementation details.
 
-**Date**: Q3 2023  
-**Status**: Accepted  
-**Context**: 
-- Building every feature into a single application created massive complexity
-- Difficult to maintain, test, and scale individual capabilities
-- Limited ability to leverage existing open-source tools
-- Monolithic architecture prevented modular deployment
+## ADR-001: Vrooli Is A Platform, Not A Single App
 
-**Decision**: 
-Transform Vrooli from a monolithic application into a resource orchestration platform that coordinates 30+ independent services (resources) to create emergent business capabilities.
+- Status: accepted
 
-**Consequences**:
--  Dramatically reduced codebase complexity
--  Leveraged best-in-class tools for each capability
--  Enabled modular deployment and scaling
--  Improved testing through isolation
-- � Increased operational complexity
-- � Required new orchestration patterns
+### Context
 
----
+Vrooli outgrew the mental model of a single product with a fixed feature surface. The project increasingly revolves around software that creates, governs, and improves other software.
 
-## ADR-002: Scenario-Based Application Architecture
+### Decision
 
-**Date**: Q4 2023  
-**Status**: Accepted  
-**Context**:
-- Needed a way to package resource combinations into deployable business applications
-- Traditional app templates weren't sufficient for resource orchestration
-- Required a mechanism to define business value alongside technical configuration
+Treat Vrooli as a platform for orchestrating resources, scenarios, packages, and operator workflows rather than as a monolithic application.
 
-**Decision**:
-Create "scenarios" - complete business application definitions that orchestrate multiple resources to deliver specific business value ($10K-50K per deployment).
+### Consequences
 
-**Consequences**:
--  Clear mapping between technical implementation and business value
--  Reusable patterns for common business needs
--  Simplified deployment of complex multi-resource applications
--  Enabled AI-driven scenario generation
+- project docs must describe the system as a platform
+- subsystem boundaries matter more than one global app narrative
+- scenario and resource ecosystems become first-class, not peripheral
 
----
+## ADR-002: Resources And Scenarios Are First-Class Primitives
 
-## ADR-003: Dual-Purpose Scenarios (Test = Deployment)
+- Status: accepted
 
-**Date**: Q1 2024  
-**Status**: Accepted  
-**Context**:
-- Traditional separation between tests and production code created drift
-- Maintaining separate test suites and deployment configurations doubled work
-- Tests didn't prove actual deployment readiness
-- AI couldn't generate complete, deployment-ready solutions
+### Context
 
-**Decision**:
-Design scenarios to serve dual purposes: integration tests AND production deployments. Every scenario that passes tests is deployment-ready.
+The project needs a stable way to distinguish raw capability from composed application behavior.
 
-**Consequences**:
--  Eliminated test/production drift
--  Tests now prove deployment readiness
--  Reduced maintenance overhead by 50%
--  AI can generate complete solutions in one pass
--  Every scenario proves both technical and business viability
+### Decision
 
----
+Use **resources** as the capability layer and **scenarios** as the composition layer.
 
-## ADR-004: From Scenario Conversion to Direct Execution
+### Consequences
 
-**Date**: Q2 2024  
-**Status**: Accepted  
-**Context**:
-- Initial approach converted scenarios into standalone applications before deployment
-- Conversion process added complexity and build time
-- Generated applications created duplication and maintenance issues
-- Build artifacts consumed significant disk space
-- Changes required regeneration and redeployment
+- project docs should explain the relationship clearly
+- resource-specific implementation detail belongs in resource docs
+- scenario-specific design belongs in scenario docs
+- project-level docs should avoid duplicating either layer
 
-**Decision**:
-Eliminate the conversion step entirely. Run scenarios directly from their source location in the scenarios/ directory.
+## ADR-003: The Root Control Plane Is Go-Native
 
-**Consequences**:
--  Instant startup (2-5 seconds vs 30+ seconds)
--  Zero build artifacts or generated code
--  Single source of truth (scenarios/ folder)
--  Edit and run immediately without regeneration
--  Saved gigabytes of disk space
--  Simplified debugging with direct source access
-- � Required new process isolation mechanisms
-- � Changed deployment packaging approach
+- Status: accepted
 
-**Supersedes**: ADR-002 (partially - scenarios remain, but execution model changed)
+### Context
 
----
+Shell-heavy and transitional control paths made the platform harder to reason about, harder to validate, and less credible as a cross-platform system.
 
-## ADR-006: Local-First Resource Strategy
+### Decision
 
-**Date**: Q3 2024  
-**Status**: Accepted  
-**Context**:
-- Cloud APIs create dependencies, costs, and privacy concerns
-- Rate limits and availability issues affected reliability
-- Customers wanted complete data control
-- Needed unlimited experimentation capability
+Document and evolve the root control plane around the Go-native `vrooli` CLI and its supporting packages under `cmd/`, `internal/`, and governed packages.
 
-**Decision**:
-Prioritize local resource deployment over cloud APIs. All core capabilities must be available through local resources.
+### Consequences
 
-**Consequences**:
--  Complete data privacy and control
--  No API rate limits or usage costs
--  Unlimited local experimentation
--  Works offline after initial setup
-- � Higher initial setup complexity
-- � Requires more local compute resources
+- root documentation must treat `vrooli` as the canonical control surface
+- shell-era project-level workflows should not be documented as authoritative
+- project-level architecture should be described as cross-platform and Go-native
 
----
+## ADR-004: Cross-Platform Is The Project-Level Contract
 
-## ADR-008: Unified CLI Over Multiple Tools
+- Status: accepted
 
-**Date**: Q4 2024  
-**Status**: Accepted  
-**Context**:
-- Multiple scripts and tools created confusion
-- Inconsistent interfaces across different operations
-- Difficult onboarding for new users
+### Context
 
-**Decision**:
-Create unified `vrooli` CLI that provides consistent interface for all operations (resources, scenarios, development, deployment).
+The repository contains migration history and mixed implementation maturity, but the project needs a stable future-state contract that repo-aware tooling can rely on.
 
-**Consequences**:
--  Single tool to learn and use
--  Consistent command structure
--  Improved discoverability
--  Simplified documentation
-- � Required significant refactoring
-- � Backward compatibility considerations
+### Decision
 
----
+Project-level documentation and repo-aware tooling should align with the future-state cross-platform contract, not normalize legacy layout or shell-era assumptions as permanent architecture.
 
-## ADR-009: Process Isolation for Scenarios
+### Consequences
 
-**Date**: Q4 2024  
-**Status**: Accepted  
-**Context**:
-- Direct execution required isolation between scenarios
-- Needed to prevent scenarios from interfering with each other
-- Required separate logging and monitoring per scenario
+- canonical path and layout rules must come from the repo contract
+- ad hoc repo-root logic should be treated as debt, not precedent
+- docs should distinguish migration artifacts from current contract
 
-**Decision**:
-Implement process isolation with separate PM_HOME and PM_LOG_DIR for each scenario, while sharing common resources.
+## ADR-005: Tier 1 Is The Mature Deployment Story Today
 
-**Consequences**:
--  Complete isolation between scenarios
--  Independent logging and monitoring
--  Clean process management
--  Scenarios can run simultaneously
-- � Slightly increased resource usage
-- � Required new process management patterns
+- Status: accepted
 
----
+### Context
 
-## ADR-010: Meta-Scenarios for Self-Improvement
+The project has multiple deployment aspirations, but not all targets are equally mature.
 
-**Date**: Q4 2024  
-**Status**: Accepted  
-**Context**:
-- Platform needed ability to improve itself
-- Manual creation of scenarios was limiting growth
-- Required mechanisms for automated enhancement
+### Decision
 
-**Decision**:
-Create meta-scenarios that improve Vrooli itself: Scenario Generator, System Monitor, App Issue Tracker, Resource Experimenter.
+Document Tier 1 local/dev-stack deployment as the primary supported current path, while treating desktop, mobile, SaaS, and appliance-style deployment as tiered work with explicit gaps and roadmaps.
 
-**Consequences**:
--  Platform can generate new scenarios
--  Self-monitoring and debugging capability
--  Automated resource integration testing
--  Continuous platform improvement
--  Reduced manual maintenance
-- � Increased system complexity
-- � Required careful access controls
+### Consequences
 
----
+- root and project docs must avoid implying equal maturity across tiers
+- deployment docs should stay explicit about current viability versus roadmap
+- packaging and portability docs should be framed as tier-aware work
 
-## Future Considerations
+## ADR-006: Documentation Must Separate Current Truth From Vision
 
-### Under Evaluation
-- **Resource versioning**: Support multiple versions of same resource
+- Status: accepted
 
-### Principles Going Forward
-1. **Simplicity over complexity**: Direct execution proved simpler is better
-2. **Business value focus**: Every technical decision must map to business value
-3. **Local-first philosophy**: Prioritize local control and privacy
-4. **Emergent capabilities**: Let complex behavior emerge from simple resource combinations
-5. **Single source of truth**: Avoid duplication and generated artifacts
+### Context
 
----
+Vrooli's ambition is a strength, but docs become misleading when roadmap, experiments, and future-state goals are described as present-day supported behavior.
 
-*This document is living and will be updated as new architectural decisions are made.*
+### Decision
+
+Keep the high-ambition tone, but explicitly separate:
+
+- current truth
+- active transformation work
+- long-range vision
+
+### Consequences
+
+- canonical docs should prefer precise maturity framing
+- plans remain plans unless elevated into canonical docs
+- vision docs should inspire without being treated as operational truth
+
+## ADR-007: Scenario-Local Operations Trump Ad Hoc Project Recipes
+
+- Status: accepted
+
+### Context
+
+Scenario lifecycles need consistent, composable operational flows that work with the lifecycle system rather than bypassing it.
+
+### Decision
+
+For individual scenarios, prefer scenario-local Makefile operations such as:
+
+- `make start`
+- `make test`
+- `make logs`
+- `make stop`
+
+Use root CLI flows when operating across scenarios or at the project-control-plane layer.
+
+### Consequences
+
+- docs should point developers to scenario-local lifecycle commands for scenario work
+- direct execution shortcuts that bypass lifecycle coordination should not be recommended
+
+## ADR-008: Shared Packages Need Governance
+
+- Status: accepted
+
+### Context
+
+Without explicit governance, shared packages become a source of hidden coupling, drift, and unbounded maintenance cost.
+
+### Decision
+
+Treat shared packages under `packages/` as governed assets with explicit adoption, validation, and refresh rules.
+
+### Consequences
+
+- package usage should follow documented governance
+- package docs belong in canonical project reference material
+- scenarios should remain intentionally independent where possible
+
+## Notes
+
+- Use [repo-contract.md](repo-contract.md) for structural rules.
+- Use [package-governance.md](package-governance.md) for shared-package policy.
+- Use [roadmap.md](roadmap.md) for current strategic direction.

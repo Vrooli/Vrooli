@@ -15,7 +15,6 @@ import (
 
 const (
 	resourceDefinitionsRelPath = ".vrooli/schemas/resource-definitions.json"
-	resourceCatalogRelPath     = ".vrooli/schemas/resource-catalog.json"
 )
 
 type SchemaArtifactIssue struct {
@@ -33,7 +32,6 @@ type ResourceSchemaValidationReport struct {
 	Passed            bool                        `json:"passed"`
 	ResourceCount     int                         `json:"resource_count"`
 	DefinitionPath    string                      `json:"definition_path"`
-	CatalogPath       string                      `json:"catalog_path"`
 	ArtifactIssues    []SchemaArtifactIssue       `json:"artifact_issues,omitempty"`
 	MissingReferences []ScenarioResourceReference `json:"missing_references,omitempty"`
 }
@@ -42,7 +40,6 @@ type ResourceSchemaSyncReport struct {
 	Passed            bool                        `json:"passed"`
 	ResourceCount     int                         `json:"resource_count"`
 	DefinitionPath    string                      `json:"definition_path"`
-	CatalogPath       string                      `json:"catalog_path"`
 	WrittenPaths      []string                    `json:"written_paths,omitempty"`
 	MissingReferences []ScenarioResourceReference `json:"missing_references,omitempty"`
 }
@@ -56,19 +53,6 @@ type resourceSchemaDocument struct {
 	Catalog     map[string]any `json:"resourceCatalog"`
 }
 
-type resourceCatalogDocument struct {
-	Resources []resourceCatalogItem `json:"resources"`
-}
-
-type resourceCatalogItem struct {
-	Name        string `json:"name"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Template    string `json:"template"`
-	Driver      string `json:"driver"`
-	Examples    int    `json:"examples"`
-}
-
 func (c *Controller) ValidateSchemaArtifacts() (ResourceSchemaValidationReport, error) {
 	return ValidateSchemaArtifacts(c.Root)
 }
@@ -78,7 +62,7 @@ func (c *Controller) SyncSchemaArtifacts() (ResourceSchemaSyncReport, error) {
 }
 
 func ValidateSchemaArtifacts(root string) (ResourceSchemaValidationReport, error) {
-	docBytes, catalogBytes, resourceCount, err := buildSchemaArtifacts(root)
+	docBytes, resourceCount, err := buildSchemaArtifacts(root)
 	if err != nil {
 		return ResourceSchemaValidationReport{}, err
 	}
@@ -86,31 +70,20 @@ func ValidateSchemaArtifacts(root string) (ResourceSchemaValidationReport, error
 		Passed:         true,
 		ResourceCount:  resourceCount,
 		DefinitionPath: filepath.Join(root, filepath.FromSlash(resourceDefinitionsRelPath)),
-		CatalogPath:    filepath.Join(root, filepath.FromSlash(resourceCatalogRelPath)),
 	}
-	for _, item := range []struct {
-		path string
-		want []byte
-	}{
-		{path: report.DefinitionPath, want: docBytes},
-		{path: report.CatalogPath, want: catalogBytes},
-	} {
-		got, err := os.ReadFile(item.path)
-		if err != nil {
-			report.Passed = false
-			report.ArtifactIssues = append(report.ArtifactIssues, SchemaArtifactIssue{
-				Path:    item.path,
-				Message: fmt.Sprintf("read artifact: %v", err),
-			})
-			continue
-		}
-		if !bytes.Equal(got, item.want) {
-			report.Passed = false
-			report.ArtifactIssues = append(report.ArtifactIssues, SchemaArtifactIssue{
-				Path:    item.path,
-				Message: "artifact is stale; run `vrooli resource schema sync`",
-			})
-		}
+	got, err := os.ReadFile(report.DefinitionPath)
+	if err != nil {
+		report.Passed = false
+		report.ArtifactIssues = append(report.ArtifactIssues, SchemaArtifactIssue{
+			Path:    report.DefinitionPath,
+			Message: fmt.Sprintf("read artifact: %v", err),
+		})
+	} else if !bytes.Equal(got, docBytes) {
+		report.Passed = false
+		report.ArtifactIssues = append(report.ArtifactIssues, SchemaArtifactIssue{
+			Path:    report.DefinitionPath,
+			Message: "artifact is stale; run `vrooli resource schema sync`",
+		})
 	}
 	missing, err := findMissingScenarioResourceReferences(root)
 	if err != nil {
@@ -124,7 +97,7 @@ func ValidateSchemaArtifacts(root string) (ResourceSchemaValidationReport, error
 }
 
 func SyncSchemaArtifacts(root string) (ResourceSchemaSyncReport, error) {
-	docBytes, catalogBytes, resourceCount, err := buildSchemaArtifacts(root)
+	docBytes, resourceCount, err := buildSchemaArtifacts(root)
 	if err != nil {
 		return ResourceSchemaSyncReport{}, err
 	}
@@ -132,23 +105,14 @@ func SyncSchemaArtifacts(root string) (ResourceSchemaSyncReport, error) {
 		Passed:         true,
 		ResourceCount:  resourceCount,
 		DefinitionPath: filepath.Join(root, filepath.FromSlash(resourceDefinitionsRelPath)),
-		CatalogPath:    filepath.Join(root, filepath.FromSlash(resourceCatalogRelPath)),
 	}
-	for _, item := range []struct {
-		path string
-		data []byte
-	}{
-		{path: report.DefinitionPath, data: docBytes},
-		{path: report.CatalogPath, data: catalogBytes},
-	} {
-		if err := os.MkdirAll(filepath.Dir(item.path), 0o755); err != nil {
-			return ResourceSchemaSyncReport{}, fmt.Errorf("mkdir %s: %w", filepath.Dir(item.path), err)
-		}
-		if err := os.WriteFile(item.path, item.data, 0o644); err != nil {
-			return ResourceSchemaSyncReport{}, fmt.Errorf("write %s: %w", item.path, err)
-		}
-		report.WrittenPaths = append(report.WrittenPaths, item.path)
+	if err := os.MkdirAll(filepath.Dir(report.DefinitionPath), 0o755); err != nil {
+		return ResourceSchemaSyncReport{}, fmt.Errorf("mkdir %s: %w", filepath.Dir(report.DefinitionPath), err)
 	}
+	if err := os.WriteFile(report.DefinitionPath, docBytes, 0o644); err != nil {
+		return ResourceSchemaSyncReport{}, fmt.Errorf("write %s: %w", report.DefinitionPath, err)
+	}
+	report.WrittenPaths = append(report.WrittenPaths, report.DefinitionPath)
 	missing, err := findMissingScenarioResourceReferences(root)
 	if err != nil {
 		return ResourceSchemaSyncReport{}, err
@@ -160,20 +124,19 @@ func SyncSchemaArtifacts(root string) (ResourceSchemaSyncReport, error) {
 	return report, nil
 }
 
-func buildSchemaArtifacts(root string) ([]byte, []byte, int, error) {
+func buildSchemaArtifacts(root string) ([]byte, int, error) {
 	manifests, err := loadSchemaArtifactManifests(root)
 	if err != nil {
-		return nil, nil, 0, err
+		return nil, 0, err
 	}
 	definitions := make(map[string]any, len(manifests))
 	catalogProperties := make(map[string]any, len(manifests))
-	catalogItems := make([]resourceCatalogItem, 0, len(manifests))
 
 	for _, item := range manifests {
 		schemaMap := map[string]any{}
 		if len(item.Manifest.DependencySchema) > 0 {
 			if err := json.Unmarshal(item.Manifest.DependencySchema, &schemaMap); err != nil {
-				return nil, nil, 0, fmt.Errorf("parse dependency_schema for %s: %w", item.Name, err)
+				return nil, 0, fmt.Errorf("parse dependency_schema for %s: %w", item.Name, err)
 			}
 		}
 		if schemaMap == nil {
@@ -202,21 +165,7 @@ func buildSchemaArtifacts(root string) ([]byte, []byte, int, error) {
 				map[string]any{"$ref": "#/definitions/resourceSchemas/" + item.Name},
 			},
 		}
-
-		examplesCount := 0
-		if examples, ok := schemaMap["examples"].([]any); ok {
-			examplesCount = len(examples)
-		}
-		catalogItems = append(catalogItems, resourceCatalogItem{
-			Name:        item.Name,
-			Title:       firstNonEmpty(item.Manifest.DisplayName, item.Manifest.Name, item.Name),
-			Description: item.Manifest.Description,
-			Template:    item.Manifest.Template,
-			Driver:      item.Manifest.Driver,
-			Examples:    examplesCount,
-		})
 	}
-	sort.Slice(catalogItems, func(i, j int) bool { return catalogItems[i].Name < catalogItems[j].Name })
 
 	definitionDoc := resourceSchemaDocument{
 		Schema:      "http://json-schema.org/draft-07/schema#",
@@ -233,17 +182,10 @@ func buildSchemaArtifacts(root string) ([]byte, []byte, int, error) {
 	}
 	definitionBytes, err := json.MarshalIndent(definitionDoc, "", "  ")
 	if err != nil {
-		return nil, nil, 0, fmt.Errorf("marshal resource definitions: %w", err)
+		return nil, 0, fmt.Errorf("marshal resource definitions: %w", err)
 	}
 	definitionBytes = append(definitionBytes, '\n')
-
-	catalogDoc := resourceCatalogDocument{Resources: catalogItems}
-	catalogBytes, err := json.MarshalIndent(catalogDoc, "", "  ")
-	if err != nil {
-		return nil, nil, 0, fmt.Errorf("marshal resource catalog: %w", err)
-	}
-	catalogBytes = append(catalogBytes, '\n')
-	return definitionBytes, catalogBytes, len(manifests), nil
+	return definitionBytes, len(manifests), nil
 }
 
 type loadedSchemaArtifactManifest struct {

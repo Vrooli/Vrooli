@@ -1,0 +1,154 @@
+{
+  "version": "1.0.0",
+  "title": "Vrooli Documentation",
+  "description": "Project-level documentation for the Vrooli platform",
+  "defaultDocument": "QUICKSTART.md",
+  "sections": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "icon": "rocket",
+      "documents": [
+        {
+          "path": "QUICKSTART.md",
+          "title": "Quick Start",
+          "description": "Set up Vrooli and learn the core command flow",
+          "audience": ["users", "developers"]
+        },
+        {
+          "path": "README.md",
+          "title": "Docs Hub",
+          "description": "Project-level documentation navigation"
+        }
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Concepts",
+      "icon": "compass",
+      "documents": [
+        {
+          "path": "concepts/ARCHITECTURE.md",
+          "title": "Architecture",
+          "description": "Current platform architecture and operating model"
+        },
+        {
+          "path": "concepts/GLOSSARY.md",
+          "title": "Glossary",
+          "description": "Shared vocabulary for the platform"
+        },
+        {
+          "path": "context.md",
+          "title": "Context",
+          "description": "Project purpose and current framing"
+        }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "icon": "book",
+      "documents": [
+        {
+          "path": "reference/cli-commands.md",
+          "title": "CLI Commands",
+          "description": "Current project-level CLI reference"
+        },
+        {
+          "path": "TESTING.md",
+          "title": "Testing",
+          "description": "Testing entrypoint and handoff to Test Genie"
+        },
+        {
+          "path": "repo-contract.md",
+          "title": "Repo Contract",
+          "description": "Repo-aware structure rules"
+        },
+        {
+          "path": "package-governance.md",
+          "title": "Package Governance",
+          "description": "Shared package policy and validation"
+        }
+      ]
+    },
+    {
+      "id": "systems",
+      "title": "System Areas",
+      "icon": "grid",
+      "documents": [
+        {
+          "path": "scenarios/README.md",
+          "title": "Scenarios",
+          "description": "Scenario-system documentation"
+        },
+        {
+          "path": "resources/README.md",
+          "title": "Resources",
+          "description": "Resource-system documentation"
+        },
+        {
+          "path": "deployment/README.md",
+          "title": "Deployment",
+          "description": "Deployment tiers, maturity, and portability"
+        },
+        {
+          "path": "devops/README.md",
+          "title": "DevOps",
+          "description": "Project-level development and operations workflows"
+        }
+      ]
+    },
+    {
+      "id": "strategy",
+      "title": "Strategy",
+      "icon": "flag",
+      "documents": [
+        {
+          "path": "decisions.md",
+          "title": "Decisions",
+          "description": "Architectural decision record"
+        },
+        {
+          "path": "risks.md",
+          "title": "Risks",
+          "description": "Project-level risks and mitigations"
+        },
+        {
+          "path": "roadmap.md",
+          "title": "Roadmap",
+          "description": "Roadmap and strategic direction"
+        }
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal",
+      "icon": "lock",
+      "visibility": "developers-only",
+      "documents": [
+        {
+          "path": "internal/PROBLEMS.md",
+          "title": "Problems",
+          "description": "Known documentation debt and migration gaps",
+          "internal": true
+        },
+        {
+          "path": "internal/PROGRESS.md",
+          "title": "Progress",
+          "description": "Documentation rewrite status",
+          "internal": true
+        },
+        {
+          "path": "internal/SEAMS.md",
+          "title": "Seams",
+          "description": "Boundaries between project docs and scenario/resource docs",
+          "internal": true
+        }
+      ]
+    }
+  ],
+  "navigation": {
+    "primary": ["getting-started", "concepts", "reference", "systems", "strategy"],
+    "secondary": ["internal"]
+  }
+}

@@ -17,13 +17,6 @@ type RepoFixture struct {
 	ScenarioDir string
 }
 
-type RepoSupportDocs struct {
-	RepoContractDoc []string
-	ContributingDoc []string
-	AgentsDoc       []string
-	SkillDoc        []string
-}
-
 func NewRepoFixture(t *testing.T, opts ...RepoFixtureOption) RepoFixture {
 	t.Helper()
 	fixture := RepoFixture{
@@ -50,11 +43,6 @@ func WithScenarioDir(name string) RepoFixtureOption {
 func (fixture RepoFixture) WriteRepoContract(t *testing.T) {
 	t.Helper()
 	WriteRepoContract(t, fixture.Root, fixture.ScenarioDir)
-}
-
-func (fixture RepoFixture) WriteRepoSupportDocs(t *testing.T, docs RepoSupportDocs) {
-	t.Helper()
-	WriteRepoSupportDocs(t, fixture.Root, docs)
 }
 
 func (fixture RepoFixture) WriteScenarioStub(t *testing.T, name string) {
@@ -130,59 +118,6 @@ func WriteRepoContract(t *testing.T, root, scenarioDir string) {
 	}
 	WriteFile(t, filepath.Join(root, "go.mod"), "module test\n")
 	WriteJSON(t, repocontractmeta.ContractPath(root), doc)
-}
-
-func DefaultRepoSupportDocs() RepoSupportDocs {
-	return RepoSupportDocs{
-		RepoContractDoc: []string{
-			"# Repo Contract",
-			"## Adoption Rules",
-			"future repo-aware work",
-			"`packages/repo-contract-go` directly",
-			"`vrooli contract validate`",
-			"`vrooli contract show`",
-			"`vrooli contract resolve scenario <name> --file service`",
-			"`vrooli contract match-glob <pattern> <path>`",
-			"`make validate-repo-contract` remains the CI/automation entrypoint",
-			"## Landed Consumer Migrations",
-			"`swarm-manager`",
-		},
-		ContributingDoc: []string{
-			"# Contributing",
-			"**Repo Contract**",
-			"Do not add new repo-root heuristics",
-			"`make validate-repo-contract`",
-			"`vrooli contract show`",
-		},
-		AgentsDoc: []string{
-			"# AGENTS.md",
-			"## Repo Contract Adoption",
-			"Do not add new independent repo-root detection logic",
-			"Do not add new hard-coded canonical scenario path assembly",
-			"Run `make validate-repo-contract`",
-		},
-		SkillDoc: []string{
-			"# Cross Platform Readiness",
-			"Use repo-contract-backed helpers",
-			"`packages/repo-contract-go`",
-		},
-	}
-}
-
-func WriteRepoSupportDocs(t *testing.T, root string, docs RepoSupportDocs) {
-	t.Helper()
-	if len(docs.RepoContractDoc) > 0 {
-		WriteFile(t, filepath.Join(root, "docs", "repo-contract.md"), strings.Join(docs.RepoContractDoc, "\n")+"\n")
-	}
-	if len(docs.ContributingDoc) > 0 {
-		WriteFile(t, filepath.Join(root, "docs", "CONTRIBUTING.md"), strings.Join(docs.ContributingDoc, "\n")+"\n")
-	}
-	if len(docs.AgentsDoc) > 0 {
-		WriteFile(t, filepath.Join(root, "AGENTS.md"), strings.Join(docs.AgentsDoc, "\n")+"\n")
-	}
-	if len(docs.SkillDoc) > 0 {
-		WriteFile(t, filepath.Join(root, "scenarios", "prompt-manager", "store", "skills", "packs", "core", "cross-platform-readiness", "SKILL.md"), strings.Join(docs.SkillDoc, "\n")+"\n")
-	}
 }
 
 func WriteScenarioStub(t *testing.T, root, scenarioDir, name string) {

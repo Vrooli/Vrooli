@@ -39,22 +39,6 @@ func TestWriteRepoContractSupportsScenarioDirOverride(t *testing.T) {
 	}
 }
 
-func TestWriteRepoSupportDocsCreatesExpectedFiles(t *testing.T) {
-	fixture := NewRepoFixture(t)
-	fixture.WriteRepoSupportDocs(t, DefaultRepoSupportDocs())
-
-	for _, rel := range []string{
-		"docs/repo-contract.md",
-		"docs/CONTRIBUTING.md",
-		"AGENTS.md",
-		"scenarios/prompt-manager/store/skills/packs/core/cross-platform-readiness/SKILL.md",
-	} {
-		if _, err := os.Stat(filepath.Join(fixture.Root, filepath.FromSlash(rel))); err != nil {
-			t.Fatalf("expected %s: %v", rel, err)
-		}
-	}
-}
-
 func TestRepoFixtureStubWritersCreateScenarioAndResourceFixtures(t *testing.T) {
 	fixture := NewRepoFixture(t, WithScenarioDir("apps"))
 	fixture.WriteRepoContract(t)

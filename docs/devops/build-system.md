@@ -1,369 +1,80 @@
-# Direct Scenario Execution System
+# Build And Validation
 
-> **Prerequisites**: See [Prerequisites Guide](./getting-started/prerequisites.md) for required tools installation.
+This page describes the current project-level build and validation surface.
 
-This guide covers Vrooli's revolutionary **direct execution model** where scenarios run directly from their source location without any build or conversion steps.
+## Current Truth
 
-## Architecture Overview
+At the project level, Vrooli does have real build and validation steps.
 
-Vrooli operates as a **resource orchestration platform** that runs scenarios directly from the `scenarios/` directory to create business applications. There are **no build steps, no artifacts, and no conversion process**.
+- `make build` builds the project-level Go binaries
+- `make install` installs them into `~/.vrooli/bin`
+- `make test` runs the retained project-level validation suite
+- `vrooli build` is the root CLI build command
 
-### Direct Execution Model
+This is distinct from older documentation that described the entire platform as having “no build step.”
 
-```mermaid
-flowchart LR
-    A[Scenario Definition<br/>in scenarios/folder] --> B[vrooli scenario run]
-    B --> C[Direct Execution<br/>from Source]
-    C --> D[Running Business<br/>Application]
-    
-    subgraph "No Build Step!"
-        E[❌ No Compilation]
-        F[❌ No Transpilation]
-        G[❌ No Bundling]
-        H[❌ No Artifacts]
-    end
-    
-    subgraph "Direct Benefits"
-        I[✅ Instant Startup]
-        J[✅ Edit & Run]
-        K[✅ Zero Overhead]
-        L[✅ Single Source]
-    end
-```
-
-### Key Innovation
-
-- **Scenarios ARE the Application**: No conversion to standalone apps
-- **Direct Execution**: Run directly from `scenarios/<name>/` folder
-- **Zero Build Time**: Changes take effect immediately
-- **Single Source of Truth**: Everything lives in the scenarios directory
-
-## Lifecycle Management
-
-### Core Commands
-
-The Vrooli CLI provides direct execution commands:
+## Core Commands
 
 ```bash
-# Run a scenario directly from source
-vrooli scenario run <name>
-
-# Test scenario integration (also runs directly)
-vrooli scenario test <name>
-
-# List available scenarios
-vrooli scenario list
-
-# Check scenario configuration / remediation guidance
-vrooli scenario status <name>
+make build
+make install
+make test
+make validate-repo-contract
+make validate-package-governance
 ```
 
-### What About "vrooli build"?
-
-The `vrooli build` command **does not build anything**. It only:
-- Validates scenario configurations
-- Checks resource availability
-- Verifies deployment readiness
-- Ensures service.json is valid
+You can also use the root CLI:
 
 ```bash
-# Validate scenarios (no building occurs!)
 vrooli build
-
-# This just checks configurations, doesn't create artifacts
-vrooli build --validate-only
 ```
 
-## Scenario Configuration
+## What `make build` Does
 
-Each scenario includes a `service.json` file that defines its runtime configuration:
+The project Makefile builds:
 
-```json
-{
-  "service": {
-    "name": "research-assistant",
-    "displayName": "AI Research Assistant",
-    "description": "Enterprise-grade AI research platform"
-  },
-  "resources": {
-    "ai": {
-      "ollama": {
-        "enabled": true,
-        "required": true
-      }
-    },
-    "storage": {
-      "postgres": {
-        "enabled": true,
-        "required": true
-      },
-      "qdrant": {
-        "enabled": true,
-        "required": false
-      }
-    }
-  },
-  "runtime": {
-    "ports": {
-      "ui": 3000,
-      "api": 5000
-    },
-    "environment": {
-      "NODE_ENV": "production"
-    }
-  }
-}
-```
+- `vrooli`
+- `vrooli-api`
 
-## Direct Execution Flow
+These are the project-level Go entrypoints under `cmd/`.
 
-### How Scenarios Run
+## What `make test` Does
 
-```mermaid
-flowchart TD
-    A[User runs: vrooli scenario run app] --> B[Read scenarios/app/service.json]
-    B --> C[Start Required Resources]
-    C --> D[Set Environment Variables]
-    D --> E[Execute from scenarios/app/]
-    E --> F[Application Running]
-    
-    subgraph "Process Isolation"
-        G[PM_HOME=~/.vrooli/processes/scenarios/app/]
-        H[PM_LOG_DIR=~/.vrooli/logs/scenarios/app/]
-    end
-    
-    F --> G
-    F --> H
-```
+The project-level test target runs retained validation around:
 
-### No Intermediate Steps
+- repo contract validation
+- package governance validation
+- internal Go tests
+- command-level tests
 
-Traditional systems:
-```
-Write Code → Compile → Bundle → Package → Deploy → Run
-```
-
-Vrooli's direct execution:
-```
-scenarios/my-app/ → vrooli scenario run my-app → Running!
-```
-
-## Testing as Validation
-
-Since there's no build process, testing serves as validation:
+For scenario-level testing, use:
 
 ```bash
-# Test a scenario (runs it and validates functionality)
-vrooli scenario test customer-portal
-
-# This actually:
-# 1. Starts the scenario directly
-# 2. Runs integration tests
-# 3. Validates resource connectivity
-# 4. Confirms business logic
+vrooli scenario test <name>
 ```
 
-### Test Script Example
+Or the preferred scenario-local flow:
 
 ```bash
-#!/bin/bash
-# scenarios/customer-portal/test.sh
-
-source ../../framework/helpers/test-helpers.sh
-
-test_scenario() {
-    log_info "Testing customer portal direct execution"
-    
-    # Verify resources are available
-    check_service_health "ollama" "http://localhost:11434"
-    check_service_health "postgres" "postgresql://localhost:5432"
-    
-    # Test that scenario runs correctly
-    test_api_endpoint "http://localhost:3000/api/health"
-    test_database_connection
-    test_ai_integration
-    
-    log_success "Scenario runs correctly from source"
-}
-
-test_scenario
+cd scenarios/<scenario-name>
+make test
 ```
 
-## Deployment = Running
+## What `vrooli build` Means
 
-In Vrooli, deployment simply means running the scenario in a production environment:
+`vrooli build` is the root CLI build lifecycle command. Treat the CLI help and current lifecycle definitions as the final authority for its exact behavior.
 
-### Local "Deployment"
-```bash
-# Run locally
-cd ~/Vrooli
-vrooli develop
-```
-
-### Production "Deployment"
-```bash
-# Run in production (same code, different environment)
-ENVIRONMENT=production vrooli scenario run invoice-generator
-```
-
-### Key Points
-- **No Build Artifacts**: Nothing to deploy except the source
-- **No Container Images**: Unless the scenario specifically needs them
-- **No Compilation**: Interpreted languages run as-is
-- **Environment-Based**: Same source code, different runtime settings
-
-## Resource Integration
-
-Scenarios leverage shared local resources without building or bundling:
-
-### Resource Access
-- Resources run independently (Ollama, PostgreSQL, Redis, etc.)
-- Scenarios connect via APIs and standard protocols
-- No resource code is bundled into scenarios
-- Resources are shared across all scenarios
-
-### Resource Declaration
-Scenarios declare required resources in service.json:
-
-```json
-{
-  "resources": {
-    "storage": {
-      "postgres": {
-        "enabled": true,
-        "initialization": {
-          "schemas": ["initialization/postgres/schema.sql"]
-        }
-      }
-    },
-    "ai": {
-      "ollama": {
-        "enabled": true,
-        "models": ["llama3.1:8b", "codellama:13b"]
-      }
-    }
-  }
-}
-```
-
-## Development Workflow
-
-### Instant Development Cycle
+Use:
 
 ```bash
-# 1. Edit scenario files
-vim scenarios/my-app/index.js
-
-# 2. Run immediately (no build needed!)
-vrooli scenario run my-app
-
-# 3. See changes instantly
-# No compilation, no waiting, just results
+vrooli build --help
 ```
 
-### Hot Reloading
-Some scenarios support hot reloading during development:
+## Build Versus Deployment
 
-```bash
-# Start with development mode
-cd ~/Vrooli
-DEVELOPMENT=true vrooli develop
+Do not conflate project builds with deployment portability.
 
-# Edit files - changes appear instantly
-# No rebuild, no restart, just automatic updates
-```
+- project builds produce and validate project-level binaries
+- deployment portability is governed by the Deployment Hub and target-tier maturity
 
-## Benefits of Direct Execution
-
-### For Developers
-- **Zero Build Time**: Start working immediately
-- **Instant Feedback**: Changes visible instantly
-- **No Build Failures**: Can't fail what doesn't exist
-- **Simple Mental Model**: Code runs as written
-
-### For the System
-- **Reduced Complexity**: No build pipeline to maintain
-- **Fewer Dependencies**: No build tools needed
-- **Less Disk Usage**: No artifacts or build outputs
-- **Faster CI/CD**: Nothing to compile or package
-
-### For Operations
-- **Simple Deployment**: Just sync the source files
-- **Easy Rollback**: Previous version is just older source
-- **Transparent Debugging**: Debug actual source, not compiled output
-- **Minimal Infrastructure**: No artifact repositories needed
-
-## Common Misconceptions
-
-### "But what about TypeScript/JSX/etc?"
-
-Scenarios that need transpilation handle it internally during execution:
-- TypeScript can run via ts-node or Deno
-- JSX can use runtime transforms
-- The platform doesn't force a build step
-
-### "How do you optimize for production?"
-
-- Resources (databases, AI models) are already optimized
-- Scenarios are lightweight orchestration code
-- Performance comes from resource efficiency, not bundling
-
-### "What about dependencies?"
-
-- Resource dependencies are managed by resources themselves
-- Scenario dependencies are minimal (usually just configuration)
-- No need to bundle what's already available
-
-## Migration from Old System
-
-The previous build system assumed conversion to standalone applications. The new direct execution model recognizes that:
-
-1. **Scenarios are configurations, not applications to build**
-2. **Resources provide the heavy lifting, scenarios orchestrate**
-3. **Direct execution eliminates entire categories of complexity**
-4. **The simplest approach is often the best**
-
-## Examples
-
-### Running a Simple Scenario
-```bash
-# Just run it - no build needed
-vrooli scenario run hello-world
-```
-
-### Running a Complex Business Application
-```bash
-# Even complex apps run directly
-vrooli scenario run enterprise-portal
-
-# Check its configuration
-cat scenarios/enterprise-portal/service.json
-
-# Edit and re-run immediately
-vim scenarios/enterprise-portal/config.js
-vrooli scenario run enterprise-portal  # Changes applied!
-```
-
-### Testing Before "Deployment"
-```bash
-# Validate everything works
-vrooli scenario test invoice-generator
-
-# "Deploy" to production (just run it there)
-ssh production-server
-cd vrooli
-vrooli scenario run invoice-generator
-```
-
-## Summary
-
-Vrooli's direct execution model eliminates the traditional build/deploy pipeline entirely:
-
-- ✅ **No Build Step**: Scenarios run directly from source
-- ✅ **No Artifacts**: No compiled outputs or bundles
-- ✅ **Instant Updates**: Edit and run immediately
-- ✅ **Single Source**: scenarios/ folder is the only truth
-- ✅ **Zero Overhead**: No build time, no build failures
-- ✅ **Simple Deployment**: Just run the scenario
-
-This revolutionary approach makes Vrooli incredibly fast, simple, and reliable for creating business applications worth $10K-50K each.
+See [../deployment/README.md](../deployment/README.md).

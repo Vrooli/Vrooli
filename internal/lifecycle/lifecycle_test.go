@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"net"
 	"net/http"
@@ -13,52 +14,150 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/process"
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
 	testfixture "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=9 | LAST: 2026-04-13
 
-func withLifecycleSleepFn(t *testing.T, fn func(time.Duration)) {
+func newLifecycleRunnerForTest(t *testing.T, root, home string, mutate func(*lifecycleDeps), logger ...*slog.Logger) *Runner {
 	t.Helper()
-	previous := sleepFn
-	sleepFn = fn
-	t.Cleanup(func() {
-		sleepFn = previous
-	})
+	deps := defaultLifecycleDeps()
+	if mutate != nil {
+		mutate(&deps)
+	}
+	runner, err := newRunnerWithDeps(root, home, io.Discard, io.Discard, deps, logger...)
+	if err != nil {
+		t.Fatalf("newRunnerWithDeps: %v", err)
+	}
+	return runner
 }
 
-func withLifecycleNowFn(t *testing.T, fn func() time.Time) {
-	t.Helper()
-	previous := timeNowFn
-	timeNowFn = fn
-	t.Cleanup(func() {
-		timeNowFn = previous
-	})
+type fakeHostNode struct {
+	modTime time.Time
+	mode    os.FileMode
+	data    []byte
 }
 
-func withListeningPIDsFn(t *testing.T, fn func(int) ([]int, error)) {
-	t.Helper()
-	previous := listeningPIDsFn
-	listeningPIDsFn = fn
-	t.Cleanup(func() {
-		listeningPIDsFn = previous
-	})
+type fakeHostProbe struct {
+	nodes    map[string]fakeHostNode
+	lookPath map[string]string
+	env      map[string]string
+	home     string
 }
 
-func withSignalPIDFn(t *testing.T, fn func(int, bool) error) {
-	t.Helper()
-	previous := signalPIDFn
-	signalPIDFn = fn
-	t.Cleanup(func() {
-		signalPIDFn = previous
-	})
+func newFakeHostProbe() *fakeHostProbe {
+	return &fakeHostProbe{
+		nodes:    map[string]fakeHostNode{},
+		lookPath: map[string]string{},
+		env:      map[string]string{},
+		home:     "/home/tester",
+	}
+}
+
+func (p *fakeHostProbe) addDir(path string, modTime time.Time) {
+	p.nodes[filepath.Clean(path)] = fakeHostNode{modTime: modTime, mode: os.ModeDir | 0o755}
+}
+
+func (p *fakeHostProbe) addFile(path string, modTime time.Time, mode os.FileMode, data []byte) {
+	p.nodes[filepath.Clean(path)] = fakeHostNode{modTime: modTime, mode: mode, data: append([]byte(nil), data...)}
+}
+
+func (p *fakeHostProbe) deps() hostProbeDeps {
+	return hostProbeDeps{
+		stat:        p.stat,
+		readFile:    p.readFile,
+		lookPath:    p.lookup,
+		getenv:      p.getenv,
+		userHomeDir: p.userHomeDir,
+		walkDir:     p.walkDir,
+	}
+}
+
+func (p *fakeHostProbe) stat(path string) (os.FileInfo, error) {
+	node, ok := p.nodes[filepath.Clean(path)]
+	if !ok {
+		return nil, os.ErrNotExist
+	}
+	return fakeFileInfo{name: filepath.Base(path), node: node}, nil
+}
+
+func (p *fakeHostProbe) readFile(path string) ([]byte, error) {
+	node, ok := p.nodes[filepath.Clean(path)]
+	if !ok || node.mode.IsDir() {
+		return nil, os.ErrNotExist
+	}
+	return append([]byte(nil), node.data...), nil
+}
+
+func (p *fakeHostProbe) lookup(name string) (string, error) {
+	path, ok := p.lookPath[name]
+	if !ok {
+		return "", exec.ErrNotFound
+	}
+	return path, nil
+}
+
+func (p *fakeHostProbe) getenv(key string) string {
+	return p.env[key]
+}
+
+func (p *fakeHostProbe) userHomeDir() (string, error) {
+	return p.home, nil
+}
+
+func (p *fakeHostProbe) walkDir(root string, walkFn fs.WalkDirFunc) error {
+	root = filepath.Clean(root)
+	if _, ok := p.nodes[root]; !ok {
+		return os.ErrNotExist
+	}
+	paths := make([]string, 0, len(p.nodes))
+	for path := range p.nodes {
+		if path == root || strings.HasPrefix(path, root+string(filepath.Separator)) {
+			paths = append(paths, path)
+		}
+	}
+	sort.Strings(paths)
+	for _, path := range paths {
+		node := p.nodes[path]
+		entry := fakeDirEntry{name: filepath.Base(path), node: node}
+		if err := walkFn(path, entry, nil); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type fakeFileInfo struct {
+	name string
+	node fakeHostNode
+}
+
+func (f fakeFileInfo) Name() string       { return f.name }
+func (f fakeFileInfo) Size() int64        { return int64(len(f.node.data)) }
+func (f fakeFileInfo) Mode() os.FileMode  { return f.node.mode }
+func (f fakeFileInfo) ModTime() time.Time { return f.node.modTime }
+func (f fakeFileInfo) IsDir() bool        { return f.node.mode.IsDir() }
+func (f fakeFileInfo) Sys() any           { return nil }
+
+type fakeDirEntry struct {
+	name string
+	node fakeHostNode
+}
+
+func (d fakeDirEntry) Name() string      { return d.name }
+func (d fakeDirEntry) IsDir() bool       { return d.node.mode.IsDir() }
+func (d fakeDirEntry) Type() fs.FileMode { return fs.FileMode(d.node.mode) }
+func (d fakeDirEntry) Info() (fs.FileInfo, error) {
+	return fakeFileInfo{name: d.name, node: d.node}, nil
 }
 
 func TestRunnerStartStopRestart(t *testing.T) {
@@ -261,26 +360,22 @@ func TestExecutePhaseDetailedWrapsStepFailuresWithContext(t *testing.T) {
 
 func TestFileDependencySpecsIgnoresNonDependencyTopLevelFields(t *testing.T) {
 	packageJSON := filepath.Join(t.TempDir(), "package.json")
-	data := `{
-  "name": "fixture",
-  "version": "1.0.0",
-  "scripts": {
-    "build": "vite build"
-  },
-  "dependencies": {
-    "@local/pkg-a": "file:../pkg-a",
-    "react": "^18.0.0"
-  },
-  "devDependencies": {
-    "@local/pkg-b": "file:../pkg-b"
-  },
-  "optionalDependencies": {
-    "@local/pkg-c": "file:../pkg-c"
-  }
-}`
-	if err := os.WriteFile(packageJSON, []byte(data), 0o644); err != nil {
-		t.Fatalf("write %s: %v", packageJSON, err)
-	}
+	testfixture.WriteNodePackageManifest(t, packageJSON, testfixture.NodePackageManifest{
+		Name: "fixture",
+		Scripts: map[string]string{
+			"build": "vite build",
+		},
+		Dependencies: map[string]string{
+			"@local/pkg-a": "file:../pkg-a",
+			"react":        "^18.0.0",
+		},
+		DevDependencies: map[string]string{
+			"@local/pkg-b": "file:../pkg-b",
+		},
+		OptionalDependencies: map[string]string{
+			"@local/pkg-c": "file:../pkg-c",
+		},
+	})
 
 	specs, err := fileDependencySpecs(packageJSON)
 	if err != nil {
@@ -302,31 +397,16 @@ func TestEnsureScenarioDatabaseUsesPostgresResourceLibs(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	if err := os.MkdirAll(filepath.Join(root, "scripts", "resources"), 0o755); err != nil {
-		t.Fatalf("mkdir scripts/resources: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "scripts", "resources", "port_registry.sh"), []byte("#!/usr/bin/env bash\ndeclare -g -A RESOURCE_PORTS=()\n"), 0o644); err != nil {
-		t.Fatalf("write port_registry.sh: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "scripts", "resources", "port_registry.json"), []byte("{\n  \"resource_ports\": {},\n  \"reserved_ranges\": {}\n}\n"), 0o644); err != nil {
-		t.Fatalf("write port_registry.json: %v", err)
-	}
-
-	if err := os.MkdirAll(filepath.Join(root, "resources", "postgres"), 0o755); err != nil {
-		t.Fatalf("mkdir postgres dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "resources", "postgres", "resource.json"), []byte(`{
-  "name": "postgres",
-  "driver": "docker-service",
-  "portability_tier": "full",
-  "runtime": {
-    "image": "postgres:16-alpine",
-    "container_name": "vrooli-postgres-main"
-  }
-}
-`), 0o644); err != nil {
-		t.Fatalf("write resource.json: %v", err)
-	}
+	testfixture.WritePortRegistry(t, root, nil)
+	testfixture.WriteResourceManifest(t, root, "postgres", manifestpkg.ResourceManifest{
+		Name:            "postgres",
+		Driver:          "docker-service",
+		PortabilityTier: "full",
+		Runtime: manifestpkg.ResourceRuntime{
+			Image:         "postgres:16-alpine",
+			ContainerName: "vrooli-postgres-main",
+		},
+	})
 	binDir := t.TempDir()
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	dockerScript := `#!/usr/bin/env bash
@@ -585,7 +665,13 @@ func TestRunnerStartRejectsCircularDependencies(t *testing.T) {
 }
 
 func TestStepConditionsMetSupportsFilesystemEnvAndJSONChecks(t *testing.T) {
-	root := t.TempDir()
+	root := "/fixture"
+	probe := newFakeHostProbe()
+	probe.addDir(root, time.Unix(10, 0))
+	probe.addDir(filepath.Join(root, "data"), time.Unix(10, 0))
+	probe.addFile(filepath.Join(root, "config.json"), time.Unix(10, 0), 0o644, []byte("{\"services\":[{\"name\":\"api\"}]}\n"))
+	probe.lookPath["sh"] = "/bin/sh"
+	probe.env["EXTERNAL_ONLY"] = "set"
 
 	item := scenario.Scenario{
 		Slug: "alpha",
@@ -599,16 +685,6 @@ func TestStepConditionsMetSupportsFilesystemEnvAndJSONChecks(t *testing.T) {
 		},
 	}
 
-	if err := os.MkdirAll(filepath.Join(root, "data"), 0o755); err != nil {
-		t.Fatalf("mkdir data: %v", err)
-	}
-	configPath := filepath.Join(root, "config.json")
-	if err := os.WriteFile(configPath, []byte(`{"services":[{"name":"api"}]}`), 0o644); err != nil {
-		t.Fatalf("write %s: %v", configPath, err)
-	}
-
-	t.Setenv("EXTERNAL_ONLY", "set")
-
 	condition := &scenario.Condition{
 		FileExists:      "config.json",
 		DirectoryExists: "data",
@@ -619,7 +695,7 @@ func TestStepConditionsMetSupportsFilesystemEnvAndJSONChecks(t *testing.T) {
 		EnvVarSet:       "EXTERNAL_ONLY",
 	}
 
-	ok, reason, err := stepConditionsMet(item, condition, nil)
+	ok, reason, err := stepConditionsMetWithDeps(item, condition, nil, probe.deps())
 	if err != nil {
 		t.Fatalf("stepConditionsMet: %v", err)
 	}
@@ -627,7 +703,7 @@ func TestStepConditionsMetSupportsFilesystemEnvAndJSONChecks(t *testing.T) {
 		t.Fatalf("expected condition to pass, ok=%v reason=%q", ok, reason)
 	}
 
-	ok, reason, err = stepConditionsMet(item, &scenario.Condition{Always: "false"}, nil)
+	ok, reason, err = stepConditionsMetWithDeps(item, &scenario.Condition{Always: "false"}, nil, probe.deps())
 	if err != nil {
 		t.Fatalf("stepConditionsMet(always=false): %v", err)
 	}
@@ -635,7 +711,7 @@ func TestStepConditionsMetSupportsFilesystemEnvAndJSONChecks(t *testing.T) {
 		t.Fatalf("always=false => ok=%v reason=%q", ok, reason)
 	}
 
-	ok, reason, err = stepConditionsMet(item, &scenario.Condition{FileNotExists: "config.json"}, nil)
+	ok, reason, err = stepConditionsMetWithDeps(item, &scenario.Condition{FileNotExists: "config.json"}, nil, probe.deps())
 	if err != nil {
 		t.Fatalf("stepConditionsMet(file_not_exists): %v", err)
 	}
@@ -643,7 +719,7 @@ func TestStepConditionsMetSupportsFilesystemEnvAndJSONChecks(t *testing.T) {
 		t.Fatalf("file_not_exists => ok=%v reason=%q", ok, reason)
 	}
 
-	found, err := jsonPathExists(configPath, "config.json:services.0.name")
+	found, err := jsonPathExistsWithDeps(filepath.Join(root, "config.json"), "config.json:services.0.name", probe.deps())
 	if err != nil {
 		t.Fatalf("jsonPathExists: %v", err)
 	}
@@ -651,7 +727,7 @@ func TestStepConditionsMetSupportsFilesystemEnvAndJSONChecks(t *testing.T) {
 		t.Fatalf("expected JSON path to exist")
 	}
 
-	found, err = jsonPathExists(configPath, "config.json:services.1.name")
+	found, err = jsonPathExistsWithDeps(filepath.Join(root, "config.json"), "config.json:services.1.name", probe.deps())
 	if err != nil {
 		t.Fatalf("jsonPathExists missing path: %v", err)
 	}
@@ -661,7 +737,10 @@ func TestStepConditionsMetSupportsFilesystemEnvAndJSONChecks(t *testing.T) {
 }
 
 func TestStepConditionsMetRejectsDisabledResourceAndInvalidJSON(t *testing.T) {
-	root := t.TempDir()
+	root := "/fixture"
+	probe := newFakeHostProbe()
+	probe.addDir(root, time.Unix(10, 0))
+	probe.addFile(filepath.Join(root, "broken.json"), time.Unix(10, 0), 0o644, []byte("{broken"))
 
 	item := scenario.Scenario{
 		Slug: "alpha",
@@ -675,7 +754,7 @@ func TestStepConditionsMetRejectsDisabledResourceAndInvalidJSON(t *testing.T) {
 		},
 	}
 
-	ok, reason, err := stepConditionsMet(item, &scenario.Condition{ResourceEnabled: "postgres"}, nil)
+	ok, reason, err := stepConditionsMetWithDeps(item, &scenario.Condition{ResourceEnabled: "postgres"}, nil, probe.deps())
 	if err != nil {
 		t.Fatalf("stepConditionsMet(disabled resource): %v", err)
 	}
@@ -683,22 +762,17 @@ func TestStepConditionsMetRejectsDisabledResourceAndInvalidJSON(t *testing.T) {
 		t.Fatalf("disabled resource => ok=%v reason=%q", ok, reason)
 	}
 
-	brokenJSONPath := filepath.Join(root, "broken.json")
-	if err := os.WriteFile(brokenJSONPath, []byte("{broken"), 0o644); err != nil {
-		t.Fatalf("write %s: %v", brokenJSONPath, err)
-	}
-
-	if _, _, err := stepConditionsMet(item, &scenario.Condition{JSONPathExists: "broken.json:services.0.name"}, nil); err == nil {
+	if _, _, err := stepConditionsMetWithDeps(item, &scenario.Condition{JSONPathExists: "broken.json:services.0.name"}, nil, probe.deps()); err == nil {
 		t.Fatalf("expected invalid JSON path source to fail")
 	}
 }
 
 func TestCLINeedsSetupDetectsMissingAndStaleBinary(t *testing.T) {
-	appRoot := t.TempDir()
-	binDir := t.TempDir()
-	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	appRoot := "/app"
+	probe := newFakeHostProbe()
+	probe.addDir(appRoot, time.Unix(10, 0))
 
-	needed, reason, err := cliNeedsSetup(appRoot, scenario.ConditionCheck{Command: "fixture-cli"})
+	needed, reason, err := cliNeedsSetupWithDeps(appRoot, scenario.ConditionCheck{Command: "fixture-cli"}, probe.deps())
 	if err != nil {
 		t.Fatalf("cliNeedsSetup missing binary: %v", err)
 	}
@@ -707,28 +781,17 @@ func TestCLINeedsSetupDetectsMissingAndStaleBinary(t *testing.T) {
 	}
 
 	cliSourceDir := filepath.Join(appRoot, "cli")
-	if err := os.MkdirAll(cliSourceDir, 0o755); err != nil {
-		t.Fatalf("mkdir cli source dir: %v", err)
-	}
 	sourcePath := filepath.Join(cliSourceDir, "main.go")
-	if err := os.WriteFile(sourcePath, []byte("package main\n"), 0o644); err != nil {
-		t.Fatalf("write %s: %v", sourcePath, err)
-	}
-	cliPath := filepath.Join(binDir, "fixture-cli")
-	if err := os.WriteFile(cliPath, []byte("#!/usr/bin/env bash\nexit 0\n"), 0o755); err != nil {
-		t.Fatalf("write %s: %v", cliPath, err)
-	}
+	cliPath := "/bin/fixture-cli"
+	old := time.Unix(100, 0)
+	now := time.Unix(200, 0)
+	future := time.Unix(300, 0)
+	probe.addDir(cliSourceDir, old)
+	probe.addFile(sourcePath, old, 0o644, []byte("package main\n"))
+	probe.addFile(cliPath, now, 0o755, []byte("#!/usr/bin/env bash\nexit 0\n"))
+	probe.lookPath["fixture-cli"] = cliPath
 
-	old := time.Now().Add(-2 * time.Minute)
-	now := time.Now()
-	if err := os.Chtimes(sourcePath, old, old); err != nil {
-		t.Fatalf("chtimes source: %v", err)
-	}
-	if err := os.Chtimes(cliPath, now, now); err != nil {
-		t.Fatalf("chtimes cli: %v", err)
-	}
-
-	needed, reason, err = cliNeedsSetup(appRoot, scenario.ConditionCheck{Command: "fixture-cli"})
+	needed, reason, err = cliNeedsSetupWithDeps(appRoot, scenario.ConditionCheck{Command: "fixture-cli"}, probe.deps())
 	if err != nil {
 		t.Fatalf("cliNeedsSetup fresh binary: %v", err)
 	}
@@ -736,12 +799,9 @@ func TestCLINeedsSetupDetectsMissingAndStaleBinary(t *testing.T) {
 		t.Fatalf("expected fresh CLI binary to satisfy setup, reason=%q", reason)
 	}
 
-	future := time.Now().Add(2 * time.Minute)
-	if err := os.Chtimes(sourcePath, future, future); err != nil {
-		t.Fatalf("chtimes source newer: %v", err)
-	}
+	probe.addFile(sourcePath, future, 0o644, []byte("package main\n"))
 
-	needed, reason, err = cliNeedsSetup(appRoot, scenario.ConditionCheck{Command: "fixture-cli"})
+	needed, reason, err = cliNeedsSetupWithDeps(appRoot, scenario.ConditionCheck{Command: "fixture-cli"}, probe.deps())
 	if err != nil {
 		t.Fatalf("cliNeedsSetup stale binary: %v", err)
 	}
@@ -751,41 +811,24 @@ func TestCLINeedsSetupDetectsMissingAndStaleBinary(t *testing.T) {
 }
 
 func TestUIBundleNeedsSetupTracksBundleFreshness(t *testing.T) {
-	appRoot := t.TempDir()
+	appRoot := "/app"
+	probe := newFakeHostProbe()
 	sourceDir := filepath.Join(appRoot, "ui", "src")
 	bundlePath := filepath.Join(appRoot, "ui", "dist", "index.html")
 	packageJSON := filepath.Join(appRoot, "ui", "package.json")
-
-	if err := os.MkdirAll(sourceDir, 0o755); err != nil {
-		t.Fatalf("mkdir src: %v", err)
-	}
-	if err := os.MkdirAll(filepath.Dir(bundlePath), 0o755); err != nil {
-		t.Fatalf("mkdir dist: %v", err)
-	}
 	sourcePath := filepath.Join(sourceDir, "main.tsx")
-	if err := os.WriteFile(sourcePath, []byte("export default 'hi';\n"), 0o644); err != nil {
-		t.Fatalf("write %s: %v", sourcePath, err)
-	}
-	if err := os.WriteFile(bundlePath, []byte("<html></html>\n"), 0o644); err != nil {
-		t.Fatalf("write %s: %v", bundlePath, err)
-	}
-	if err := os.WriteFile(packageJSON, []byte(`{"name":"fixture-ui","dependencies":{}}`), 0o644); err != nil {
-		t.Fatalf("write %s: %v", packageJSON, err)
-	}
+	older := time.Unix(100, 0)
+	newer := time.Unix(200, 0)
+	future := time.Unix(300, 0)
+	probe.addDir(appRoot, older)
+	probe.addDir(filepath.Join(appRoot, "ui"), older)
+	probe.addDir(sourceDir, older)
+	probe.addDir(filepath.Dir(bundlePath), newer)
+	probe.addFile(sourcePath, older, 0o644, []byte("export default 'hi';\n"))
+	probe.addFile(bundlePath, newer, 0o644, []byte("<html></html>\n"))
+	probe.addFile(packageJSON, older, 0o644, []byte("{\"name\":\"fixture-ui\",\"dependencies\":{}}\n"))
 
-	older := time.Now().Add(-2 * time.Minute)
-	newer := time.Now()
-	if err := os.Chtimes(sourcePath, older, older); err != nil {
-		t.Fatalf("chtimes source: %v", err)
-	}
-	if err := os.Chtimes(packageJSON, older, older); err != nil {
-		t.Fatalf("chtimes package.json: %v", err)
-	}
-	if err := os.Chtimes(bundlePath, newer, newer); err != nil {
-		t.Fatalf("chtimes bundle: %v", err)
-	}
-
-	needed, reason, err := uiBundleNeedsSetup(appRoot, scenario.ConditionCheck{})
+	needed, reason, err := uiBundleNeedsSetupWithDeps(appRoot, scenario.ConditionCheck{}, probe.deps())
 	if err != nil {
 		t.Fatalf("uiBundleNeedsSetup fresh bundle: %v", err)
 	}
@@ -793,12 +836,9 @@ func TestUIBundleNeedsSetupTracksBundleFreshness(t *testing.T) {
 		t.Fatalf("expected fresh bundle to satisfy setup, reason=%q", reason)
 	}
 
-	future := time.Now().Add(2 * time.Minute)
-	if err := os.Chtimes(sourcePath, future, future); err != nil {
-		t.Fatalf("chtimes source newer: %v", err)
-	}
+	probe.addFile(sourcePath, future, 0o644, []byte("export default 'hi';\n"))
 
-	needed, reason, err = uiBundleNeedsSetup(appRoot, scenario.ConditionCheck{})
+	needed, reason, err = uiBundleNeedsSetupWithDeps(appRoot, scenario.ConditionCheck{}, probe.deps())
 	if err != nil {
 		t.Fatalf("uiBundleNeedsSetup stale bundle: %v", err)
 	}
@@ -844,9 +884,9 @@ func TestEvaluateSetupCheckSupportsFilesystemStateChecks(t *testing.T) {
 	if err := os.MkdirAll(uiDir, 0o755); err != nil {
 		t.Fatalf("mkdir ui: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(uiDir, "package.json"), []byte(`{"name":"fixture"}`), 0o644); err != nil {
-		t.Fatalf("write package.json: %v", err)
-	}
+	testfixture.WriteNodePackageManifest(t, filepath.Join(uiDir, "package.json"), testfixture.NodePackageManifest{
+		Name: "fixture",
+	})
 	needed, reason, err = runner.evaluateSetupCheck(item, scenario.ConditionCheck{Type: "dependencies", Paths: []string{"ui/package.json"}})
 	if err != nil {
 		t.Fatalf("evaluateSetupCheck(dependencies missing): %v", err)
@@ -1026,12 +1066,12 @@ func TestRunnerLoadScenarioSupportsCustomPathAndMissingScenario(t *testing.T) {
 
 	customPath := t.TempDir()
 	servicePath := filepath.Join(customPath, ".vrooli", "service.json")
-	if err := os.MkdirAll(filepath.Dir(servicePath), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(servicePath), err)
-	}
-	if err := os.WriteFile(servicePath, []byte(`{"version":"1.0.0","service":{"displayName":"Custom fixture"}}`), 0o644); err != nil {
-		t.Fatalf("write %s: %v", servicePath, err)
-	}
+	testfixture.WriteScenarioServiceAtPath(t, customPath, scenario.ServiceManifest{
+		Version: "1.0.0",
+		Service: scenario.ServiceMetadata{
+			DisplayName: "Custom fixture",
+		},
+	})
 
 	item, err := runner.loadScenario("", customPath)
 	if err != nil {
@@ -1132,16 +1172,15 @@ func TestWaitForHealthHonorsExplicitTimeoutAndDegradedState(t *testing.T) {
 }
 
 func TestWaitForHealthUsesInjectedClockAndSleep(t *testing.T) {
-	runner := &Runner{}
 	base := time.Date(2026, 4, 13, 12, 0, 0, 0, time.UTC)
 	now := base
 	sleepCalls := 0
-
-	withLifecycleNowFn(t, func() time.Time { return now })
-	withLifecycleSleepFn(t, func(duration time.Duration) {
-		sleepCalls++
-		now = now.Add(duration)
-	})
+	runner := &Runner{
+		deps: lifecycleDeps{
+			now:   func() time.Time { return now },
+			sleep: func(duration time.Duration) { sleepCalls++; now = now.Add(duration) },
+		},
+	}
 
 	item := scenario.Scenario{
 		Slug: "delta",
@@ -1177,26 +1216,28 @@ func TestWaitForHealthUsesInjectedClockAndSleep(t *testing.T) {
 }
 
 func TestKillOrphansOnPortsUsesInjectedListenerAndSignalSeams(t *testing.T) {
-	runner := &Runner{}
 	listenCalls := 0
 	var signaled []string
-
-	withListeningPIDsFn(t, func(port int) ([]int, error) {
-		listenCalls++
-		switch listenCalls {
-		case 1:
-			return []int{101, 202}, nil
-		case 2:
-			return []int{303}, nil
-		default:
-			return nil, nil
-		}
-	})
-	withSignalPIDFn(t, func(pid int, force bool) error {
-		signaled = append(signaled, fmt.Sprintf("%d:%t", pid, force))
-		return nil
-	})
-	withLifecycleSleepFn(t, func(time.Duration) {})
+	runner := &Runner{
+		deps: lifecycleDeps{
+			listeningPIDs: func(port int) ([]int, error) {
+				listenCalls++
+				switch listenCalls {
+				case 1:
+					return []int{101, 202}, nil
+				case 2:
+					return []int{303}, nil
+				default:
+					return nil, nil
+				}
+			},
+			signalPID: func(pid int, force bool) error {
+				signaled = append(signaled, fmt.Sprintf("%d:%t", pid, force))
+				return nil
+			},
+			sleep: func(time.Duration) {},
+		},
+	}
 
 	if err := runner.killOrphansOnPorts(map[int]struct{}{18080: {}}); err != nil {
 		t.Fatalf("killOrphansOnPorts: %v", err)

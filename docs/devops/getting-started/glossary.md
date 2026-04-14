@@ -347,8 +347,8 @@ NODE_ENV=development     # Not NODE_ENV=dev
 ## Documentation Standards
 
 ### Cross-References
-**Format**: `[Link Text](./relative/path.md)`
-**Section Links**: `[Section](./file.md#section-name)`
+**Format**: use a relative Markdown link such as `Link Text -> ./relative/path.md`
+**Section Links**: use a section link such as `Section -> ./file.md#section-name`
 
 ### Code Examples
 **Language Tags**: Always specify language

@@ -30,10 +30,30 @@ func TestStatusAggregatesResourcesAndScenarios(t *testing.T) {
 			Resources: map[string]scenario.Dependency{"redis": {Enabled: true}},
 		},
 	})
-	writeScenarioService(t, root, "alpha")
-	writeResourceManifest(t, root, "redis")
+	testkitvrooli.WriteScenarioService(t, root, "alpha", testkitvrooli.ScenarioServiceManifest(
+		"alpha",
+		testkitvrooli.WithDisplayName("alpha"),
+		testkitvrooli.WithPorts(map[string]scenario.Port{
+			"api": {EnvVar: "API_PORT", Range: "18080-18090"},
+		}),
+	))
+	testkitvrooli.WriteResourceManifest(t, root, "redis", manifestpkg.ResourceManifest{
+		Name:            "redis",
+		Driver:          "external-cli",
+		Binary:          "resource-redis",
+		PortabilityTier: "full",
+		Platforms:       manifestpkg.ResourcePlatforms{Linux: "supported"},
+	})
 	writeResourceCLI(t, root, "redis", `{"installed":true,"running":true,"healthy":true,"message":"healthy"}`)
-	writeScenarioProcess(t, home, "alpha", 18081)
+	testkitvrooli.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{
+		PID:       os.Getpid(),
+		PGID:      os.Getpid(),
+		Scenario:  "alpha",
+		Step:      "start-api",
+		Port:      18081,
+		StartedAt: time.Now().Add(-time.Minute).UTC(),
+		Status:    "running",
+	})
 
 	controller := New(root, home, io.Discard, io.Discard)
 	controller.MaintenanceSnapshotFn = func() (maintenance.ProcessSnapshot, error) {
@@ -170,10 +190,30 @@ func TestStatusSupportsResourceAndScenarioFilters(t *testing.T) {
 	testkitvrooli.WriteProjectService(t, root, scenario.ServiceManifest{
 		Service: scenario.ServiceMetadata{Name: "project-alpha"},
 	})
-	writeScenarioService(t, root, "alpha")
-	writeResourceManifest(t, root, "redis")
+	testkitvrooli.WriteScenarioService(t, root, "alpha", testkitvrooli.ScenarioServiceManifest(
+		"alpha",
+		testkitvrooli.WithDisplayName("alpha"),
+		testkitvrooli.WithPorts(map[string]scenario.Port{
+			"api": {EnvVar: "API_PORT", Range: "18080-18090"},
+		}),
+	))
+	testkitvrooli.WriteResourceManifest(t, root, "redis", manifestpkg.ResourceManifest{
+		Name:            "redis",
+		Driver:          "external-cli",
+		Binary:          "resource-redis",
+		PortabilityTier: "full",
+		Platforms:       manifestpkg.ResourcePlatforms{Linux: "supported"},
+	})
 	writeResourceCLI(t, root, "redis", `{"installed":true,"running":true,"healthy":true,"message":"healthy"}`)
-	writeScenarioProcess(t, home, "alpha", 18081)
+	testkitvrooli.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{
+		PID:       os.Getpid(),
+		PGID:      os.Getpid(),
+		Scenario:  "alpha",
+		Step:      "start-api",
+		Port:      18081,
+		StartedAt: time.Now().Add(-time.Minute).UTC(),
+		Status:    "running",
+	})
 
 	controller := New(root, home, io.Discard, io.Discard)
 	controller.MaintenanceSnapshotFn = func() (maintenance.ProcessSnapshot, error) {
@@ -210,7 +250,7 @@ func TestRunProjectPhaseExecutesDefinedLifecycle(t *testing.T) {
 			},
 		},
 	})
-	writeProjectPortRegistry(t, root)
+	testkitvrooli.WritePortRegistry(t, root, nil)
 
 	controller := New(root, home, io.Discard, io.Discard)
 	if err := controller.RunProjectPhase("clean", nil); err != nil {
@@ -277,49 +317,9 @@ func (fn phaseRunnerFunc) RunPhase(name, phase string, opts lifecycle.PhaseOptio
 	return fn(name, phase, opts)
 }
 
-func writeScenarioService(t *testing.T, root, name string) {
-	t.Helper()
-	testkitvrooli.WriteScenarioService(t, root, name, testkitvrooli.ScenarioServiceManifest(
-		name,
-		testkitvrooli.WithDisplayName(name),
-		testkitvrooli.WithPorts(map[string]scenario.Port{
-			"api": {EnvVar: "API_PORT", Range: "18080-18090"},
-		}),
-	))
-}
-
 func writeResourceCLI(t *testing.T, root, name, statusJSON string) {
 	t.Helper()
 	script := "#!/usr/bin/env bash\nset -e\nif [[ \"$1\" == \"status\" ]]; then\n  printf '%s\\n' '" + statusJSON + "'\n  exit 0\nfi\nprintf '{\"message\":\"ok\"}\\n'\n"
 	testkitvrooli.WriteResourceCLI(t, root, name, script)
 	testkitgo.WriteExecutableOnPath(t, "resource-"+name, script)
-}
-
-func writeResourceManifest(t *testing.T, root, name string) {
-	t.Helper()
-	testkitvrooli.WriteResourceManifest(t, root, name, manifestpkg.ResourceManifest{
-		Name:            name,
-		Driver:          "external-cli",
-		Binary:          "resource-" + name,
-		PortabilityTier: "full",
-		Platforms:       manifestpkg.ResourcePlatforms{Linux: "supported"},
-	})
-}
-
-func writeScenarioProcess(t *testing.T, home, name string, port int) {
-	t.Helper()
-	testkitvrooli.WriteScenarioProcessRecord(t, home, name, "start-api", process.Record{
-		PID:       os.Getpid(),
-		PGID:      os.Getpid(),
-		Scenario:  name,
-		Step:      "start-api",
-		Port:      port,
-		StartedAt: time.Now().Add(-time.Minute).UTC(),
-		Status:    "running",
-	})
-}
-
-func writeProjectPortRegistry(t *testing.T, root string) {
-	t.Helper()
-	testkitvrooli.WritePortRegistry(t, root, nil)
 }

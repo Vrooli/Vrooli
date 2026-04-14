@@ -1,12 +1,12 @@
 package orchestrator
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/process"
+	testkitvrooli "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
 )
 
 func TestSandboxAffectedScenariosReturnsSortedMatches(t *testing.T) {
@@ -27,25 +27,18 @@ func TestSandboxAffectedScenariosReturnsSortedMatches(t *testing.T) {
 
 func writeSandboxRecord(t *testing.T, home, name, workingDir string, startedAt time.Time) {
 	t.Helper()
-	path := filepath.Join(home, ".vrooli", "processes", "scenarios", name, "start-api.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
-	}
-	data := `{
-  "pid": 1234,
-  "pgid": 1234,
-  "process_id": "vrooli.develop.` + name + `.start-api",
-  "phase": "develop",
-  "scenario": "` + name + `",
-  "step": "start-api",
-  "command": "sleep 10",
-  "working_dir": "` + workingDir + `",
-  "log_file": "/tmp/` + name + `.log",
-  "port": 18080,
-  "started_at": "` + startedAt.UTC().Format(time.RFC3339) + `",
-  "status": "running"
-}`
-	if err := os.WriteFile(path, []byte(fmt.Sprintf("%s\n", data)), 0o644); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
+	testkitvrooli.WriteScenarioProcessRecord(t, home, name, "start-api", process.Record{
+		PID:        1234,
+		PGID:       1234,
+		ProcessID:  "vrooli.develop." + name + ".start-api",
+		Phase:      "develop",
+		Scenario:   name,
+		Step:       "start-api",
+		Command:    "sleep 10",
+		WorkingDir: workingDir,
+		LogFile:    "/tmp/" + name + ".log",
+		Port:       18080,
+		StartedAt:  startedAt,
+		Status:     "running",
+	})
 }

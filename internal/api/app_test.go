@@ -84,7 +84,11 @@ func TestStopAllScenariosEndpointReturnsTypedReport(t *testing.T) {
 
 func TestStopScenarioEndpointReturnsTypedMessage(t *testing.T) {
 	root := t.TempDir()
-	writeScenarioService(t, root, "alpha")
+	testkitvrooli.WriteScenarioService(t, root, "alpha", testkitvrooli.ScenarioServiceManifest(
+		"alpha",
+		testkitvrooli.WithDisplayName("alpha"),
+		testkitvrooli.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}),
+	))
 	app := New(root, t.TempDir())
 	app.StopScenarioFn = func(name string) error { return nil }
 
@@ -169,7 +173,11 @@ func TestGetDetailedAppStatusReturnsStoppedPayloadWhenScenarioMissing(t *testing
 func TestGetAppLogsReturnsTypedPayload(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeScenarioService(t, root, "alpha")
+	testkitvrooli.WriteScenarioService(t, root, "alpha", testkitvrooli.ScenarioServiceManifest(
+		"alpha",
+		testkitvrooli.WithDisplayName("alpha"),
+		testkitvrooli.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}),
+	))
 	logPath := filepath.Join(home, ".vrooli", "logs", "alpha.log")
 	if err := osWriteFileAll(logPath, "first\nsecond\n"); err != nil {
 		t.Fatalf("write log: %v", err)
@@ -193,8 +201,20 @@ func TestGetAppLogsReturnsTypedPayload(t *testing.T) {
 func TestListScenariosNativeReturnsScenarioData(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeScenarioService(t, root, "alpha")
-	writeScenarioProcess(t, home, "alpha", 18080)
+	testkitvrooli.WriteScenarioService(t, root, "alpha", testkitvrooli.ScenarioServiceManifest(
+		"alpha",
+		testkitvrooli.WithDisplayName("alpha"),
+		testkitvrooli.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}),
+	))
+	testkitvrooli.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{
+		PID:       os.Getpid(),
+		PGID:      os.Getpid(),
+		Scenario:  "alpha",
+		Step:      "start-api",
+		Port:      18080,
+		StartedAt: time.Now().Add(-time.Minute).UTC(),
+		Status:    "running",
+	})
 
 	app := New(root, home)
 	rec := httptest.NewRecorder()
@@ -218,8 +238,20 @@ func TestListScenariosNativeReturnsScenarioData(t *testing.T) {
 func TestGetScenarioStatusNativeReturnsDetailedScenarioData(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeScenarioService(t, root, "alpha")
-	writeScenarioProcess(t, home, "alpha", 18080)
+	testkitvrooli.WriteScenarioService(t, root, "alpha", testkitvrooli.ScenarioServiceManifest(
+		"alpha",
+		testkitvrooli.WithDisplayName("alpha"),
+		testkitvrooli.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}),
+	))
+	testkitvrooli.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{
+		PID:       os.Getpid(),
+		PGID:      os.Getpid(),
+		Scenario:  "alpha",
+		Step:      "start-api",
+		Port:      18080,
+		StartedAt: time.Now().Add(-time.Minute).UTC(),
+		Status:    "running",
+	})
 
 	app := New(root, home)
 	rec := httptest.NewRecorder()
@@ -240,7 +272,7 @@ func TestListResourcesReturnsTypedStatusPayload(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	t.Setenv("PATH", "/usr/bin:/bin")
-	writeResourceServiceConfig(t, root, "redis", true)
+	testkitvrooli.WriteProjectResourceConfig(t, root, "redis", true)
 	writeResourceCLI(t, root, "redis", `{"installed":true,"running":true,"healthy":true,"message":"healthy"}`)
 
 	app := New(root, home)
@@ -331,33 +363,6 @@ func decodeJSONMap(t *testing.T, rec *httptest.ResponseRecorder) map[string]any 
 		t.Fatalf("unmarshal response: %v\nbody=%s", err, rec.Body.String())
 	}
 	return payload
-}
-
-func writeScenarioService(t *testing.T, root, name string) {
-	t.Helper()
-	testkitvrooli.WriteScenarioService(t, root, name, testkitvrooli.ScenarioServiceManifest(
-		name,
-		testkitvrooli.WithDisplayName(name),
-		testkitvrooli.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}),
-	))
-}
-
-func writeScenarioProcess(t *testing.T, home, name string, port int) {
-	t.Helper()
-	testkitvrooli.WriteScenarioProcessRecord(t, home, name, "start-api", process.Record{
-		PID:       os.Getpid(),
-		PGID:      os.Getpid(),
-		Scenario:  name,
-		Step:      "start-api",
-		Port:      port,
-		StartedAt: time.Now().Add(-time.Minute).UTC(),
-		Status:    "running",
-	})
-}
-
-func writeResourceServiceConfig(t *testing.T, root, name string, enabled bool) {
-	t.Helper()
-	testkitvrooli.WriteProjectResourceConfig(t, root, name, enabled)
 }
 
 func writeResourceCLI(t *testing.T, root, name, statusJSON string) {

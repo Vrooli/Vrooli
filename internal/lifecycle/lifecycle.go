@@ -29,15 +29,50 @@ type Runner struct {
 	Err    io.Writer
 	Ports  *ports.Manager
 	Logger *slog.Logger
+	deps   lifecycleDeps
 }
 
-var (
-	sleepFn              = time.Sleep
-	timeNowFn            = time.Now
-	signalProcessGroupFn = signalProcessGroup
-	signalPIDFn          = signalPID
-	listeningPIDsFn      = listeningPIDs
-)
+type lifecycleDeps struct {
+	sleep               func(time.Duration)
+	now                 func() time.Time
+	signalProcessGroup  func(int, bool) error
+	signalPID           func(int, bool) error
+	listeningPIDs       func(int) ([]int, error)
+	readScenarioRecords func(string, string) ([]process.Record, error)
+	isPIDRunning        func(int) bool
+}
+
+type hostProbeDeps struct {
+	stat        func(string) (os.FileInfo, error)
+	readFile    func(string) ([]byte, error)
+	lookPath    func(string) (string, error)
+	getenv      func(string) string
+	userHomeDir func() (string, error)
+	walkDir     func(string, fs.WalkDirFunc) error
+}
+
+func defaultLifecycleDeps() lifecycleDeps {
+	return lifecycleDeps{
+		sleep:               time.Sleep,
+		now:                 time.Now,
+		signalProcessGroup:  signalProcessGroup,
+		signalPID:           signalPID,
+		listeningPIDs:       listeningPIDs,
+		readScenarioRecords: process.ReadScenarioRecords,
+		isPIDRunning:        process.IsPIDRunning,
+	}
+}
+
+func defaultHostProbeDeps() hostProbeDeps {
+	return hostProbeDeps{
+		stat:        os.Stat,
+		readFile:    os.ReadFile,
+		lookPath:    exec.LookPath,
+		getenv:      os.Getenv,
+		userHomeDir: os.UserHomeDir,
+		walkDir:     filepath.WalkDir,
+	}
+}
 
 type StartOptions struct {
 	CustomPath         string
@@ -68,6 +103,10 @@ type Result struct {
 }
 
 func NewRunner(root, home string, stdout, stderr io.Writer, logger ...*slog.Logger) (*Runner, error) {
+	return newRunnerWithDeps(root, home, stdout, stderr, defaultLifecycleDeps(), logger...)
+}
+
+func newRunnerWithDeps(root, home string, stdout, stderr io.Writer, deps lifecycleDeps, logger ...*slog.Logger) (*Runner, error) {
 	manager, err := ports.NewManager(root, home)
 	if err != nil {
 		return nil, err
@@ -83,7 +122,35 @@ func NewRunner(root, home string, stdout, stderr io.Writer, logger ...*slog.Logg
 		Err:    stderr,
 		Ports:  manager,
 		Logger: logx.WithSubsystem(baseLogger, "lifecycle"),
+		deps:   deps,
 	}, nil
+}
+
+func (r *Runner) runtimeDeps() lifecycleDeps {
+	deps := r.deps
+	defaults := defaultLifecycleDeps()
+	if deps.sleep == nil {
+		deps.sleep = defaults.sleep
+	}
+	if deps.now == nil {
+		deps.now = defaults.now
+	}
+	if deps.signalProcessGroup == nil {
+		deps.signalProcessGroup = defaults.signalProcessGroup
+	}
+	if deps.signalPID == nil {
+		deps.signalPID = defaults.signalPID
+	}
+	if deps.listeningPIDs == nil {
+		deps.listeningPIDs = defaults.listeningPIDs
+	}
+	if deps.readScenarioRecords == nil {
+		deps.readScenarioRecords = defaults.readScenarioRecords
+	}
+	if deps.isPIDRunning == nil {
+		deps.isPIDRunning = defaults.isPIDRunning
+	}
+	return deps
 }
 
 func (r *Runner) Start(name string, opts StartOptions) (Result, error) {
@@ -117,6 +184,7 @@ func (r *Runner) startWithState(name string, opts StartOptions, ready map[string
 }
 
 func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready map[string]struct{}, stack []string) (Result, error) {
+	deps := r.runtimeDeps()
 	if opts.CleanStale && len(stack) == 0 {
 		r.logDebug("Cleaning stale port locks before scenario start", logx.AttrScenario, item.Slug)
 		if err := r.Ports.CleanStaleLocks(); err != nil {
@@ -131,7 +199,7 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 
 	_ = os.Remove(process.ScenarioDegradedPath(r.Home, item.Slug))
 
-	records, err := readScenarioRecords(r.Home, item.Slug)
+	records, err := deps.readScenarioRecords(r.Home, item.Slug)
 	if err != nil {
 		return Result{}, err
 	}
@@ -162,7 +230,7 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 		if err := r.Stop(item.Slug, StopOptions{}); err != nil {
 			return Result{}, err
 		}
-		sleepFn(1 * time.Second)
+		deps.sleep(1 * time.Second)
 	}
 
 	env, err := r.Ports.BuildEnvironment(item, nil)
@@ -224,8 +292,9 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 }
 
 func (r *Runner) Stop(name string, opts StopOptions) error {
+	deps := r.runtimeDeps()
 	r.logInfo("Scenario stop requested", logx.AttrScenario, name)
-	records, err := readScenarioRecords(r.Home, name)
+	records, err := deps.readScenarioRecords(r.Home, name)
 	if err != nil {
 		r.logError("Failed to read scenario records before stop", err, logx.AttrScenario, name)
 		return err
@@ -249,16 +318,16 @@ func (r *Runner) Stop(name string, opts StopOptions) error {
 	}
 
 	for pgid := range groups {
-		_ = signalProcessGroupFn(pgid, false)
+		_ = deps.signalProcessGroup(pgid, false)
 	}
 	if len(groups) > 0 {
-		sleepFn(2 * time.Second)
+		deps.sleep(2 * time.Second)
 		for pgid := range groups {
-			if process.IsPIDRunning(pgid) {
-				_ = signalProcessGroupFn(pgid, true)
+			if deps.isPIDRunning(pgid) {
+				_ = deps.signalProcessGroup(pgid, true)
 			}
 		}
-		sleepFn(500 * time.Millisecond)
+		deps.sleep(500 * time.Millisecond)
 	}
 
 	for _, stepFile := range stepFiles {
@@ -299,12 +368,13 @@ func (r *Runner) Stop(name string, opts StopOptions) error {
 }
 
 func (r *Runner) Restart(name string, opts StartOptions) (Result, error) {
+	deps := r.runtimeDeps()
 	r.logInfo("Scenario restart requested", logx.AttrScenario, name)
 	if err := r.Stop(name, StopOptions{}); err != nil {
 		r.logError("Scenario restart failed during stop", err, logx.AttrScenario, name)
 		return Result{}, err
 	}
-	sleepFn(1 * time.Second)
+	deps.sleep(1 * time.Second)
 	opts.ForceSetup = true
 	opts.ForceSetupScenario = name
 	result, err := r.Start(name, opts)
@@ -340,6 +410,7 @@ func (r *Runner) logError(msg string, err error, args ...any) {
 }
 
 func (r *Runner) writeDegradedState(name string, failedDeps []string) error {
+	deps := r.runtimeDeps()
 	processDir := process.ScenarioProcessDir(r.Home, name)
 	if err := os.MkdirAll(processDir, 0o755); err != nil {
 		return err
@@ -349,7 +420,7 @@ func (r *Runner) writeDegradedState(name string, failedDeps []string) error {
 		"status":              "degraded",
 		"reason":              "best-effort startup with failed dependencies",
 		"failed_dependencies": failedDeps,
-		"timestamp":           timeNowFn().UTC().Format(time.RFC3339),
+		"timestamp":           deps.now().UTC().Format(time.RFC3339),
 	}
 	data, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
@@ -360,25 +431,26 @@ func (r *Runner) writeDegradedState(name string, failedDeps []string) error {
 }
 
 func (r *Runner) killOrphansOnPorts(portsToCheck map[int]struct{}) error {
+	deps := r.runtimeDeps()
 	for port := range portsToCheck {
-		pids, err := listeningPIDsFn(port)
+		pids, err := deps.listeningPIDs(port)
 		if err != nil {
 			return err
 		}
 		for _, pid := range pids {
-			_ = signalPIDFn(pid, false)
+			_ = deps.signalPID(pid, false)
 		}
 	}
 
-	sleepFn(500 * time.Millisecond)
+	deps.sleep(500 * time.Millisecond)
 
 	for port := range portsToCheck {
-		pids, err := listeningPIDsFn(port)
+		pids, err := deps.listeningPIDs(port)
 		if err != nil {
 			return err
 		}
 		for _, pid := range pids {
-			_ = signalPIDFn(pid, true)
+			_ = deps.signalPID(pid, true)
 		}
 	}
 	return nil
@@ -451,13 +523,17 @@ func (r *Runner) loadScenario(name, customPath string) (scenario.Scenario, error
 }
 
 func stepConditionsMet(item scenario.Scenario, condition *scenario.Condition, env map[string]string) (bool, string, error) {
+	return stepConditionsMetWithDeps(item, condition, env, defaultHostProbeDeps())
+}
+
+func stepConditionsMetWithDeps(item scenario.Scenario, condition *scenario.Condition, env map[string]string, deps hostProbeDeps) (bool, string, error) {
 	if condition == nil {
 		return true, "", nil
 	}
 
 	checkPath := func(target string) string {
 		if strings.HasPrefix(target, "~") {
-			if home, err := os.UserHomeDir(); err == nil {
+			if home, err := deps.userHomeDir(); err == nil {
 				target = filepath.Join(home, strings.TrimPrefix(target, "~"))
 			}
 		}
@@ -468,17 +544,17 @@ func stepConditionsMet(item scenario.Scenario, condition *scenario.Condition, en
 	}
 
 	if condition.FileExists != "" {
-		if _, err := os.Stat(checkPath(condition.FileExists)); err != nil {
+		if _, err := deps.stat(checkPath(condition.FileExists)); err != nil {
 			return false, fmt.Sprintf("required file %q is missing", condition.FileExists), nil
 		}
 	}
 	if fileNotExists := condition.FileNotExists; fileNotExists != "" {
-		if _, err := os.Stat(checkPath(fileNotExists)); err == nil {
+		if _, err := deps.stat(checkPath(fileNotExists)); err == nil {
 			return false, fmt.Sprintf("file %q must not exist", fileNotExists), nil
 		}
 	}
 	if condition.DirectoryExists != "" {
-		info, err := os.Stat(checkPath(condition.DirectoryExists))
+		info, err := deps.stat(checkPath(condition.DirectoryExists))
 		if err != nil || !info.IsDir() {
 			return false, fmt.Sprintf("required directory %q is missing", condition.DirectoryExists), nil
 		}
@@ -490,7 +566,7 @@ func stepConditionsMet(item scenario.Scenario, condition *scenario.Condition, en
 		}
 	}
 	if jsonSpec := condition.JSONPathExists; jsonSpec != "" {
-		ok, err := jsonPathExists(checkPath(strings.SplitN(jsonSpec, ":", 2)[0]), jsonSpec)
+		ok, err := jsonPathExistsWithDeps(checkPath(strings.SplitN(jsonSpec, ":", 2)[0]), jsonSpec, deps)
 		if err != nil {
 			return false, "", err
 		}
@@ -499,17 +575,17 @@ func stepConditionsMet(item scenario.Scenario, condition *scenario.Condition, en
 		}
 	}
 	if command := condition.CommandExists; command != "" {
-		if _, err := exec.LookPath(command); err != nil {
+		if _, err := deps.lookPath(command); err != nil {
 			return false, fmt.Sprintf("command %q is unavailable", command), nil
 		}
 	}
 	if binary := condition.BinaryExists; binary != "" {
-		if _, err := exec.LookPath(binary); err != nil {
+		if _, err := deps.lookPath(binary); err != nil {
 			return false, fmt.Sprintf("command %q is unavailable", binary), nil
 		}
 	}
 	if key := condition.EnvVarSet; key != "" {
-		if strings.TrimSpace(env[key]) == "" && strings.TrimSpace(os.Getenv(key)) == "" {
+		if strings.TrimSpace(env[key]) == "" && strings.TrimSpace(deps.getenv(key)) == "" {
 			return false, fmt.Sprintf("environment variable %q is not set", key), nil
 		}
 	}
@@ -524,12 +600,16 @@ func stepConditionsMet(item scenario.Scenario, condition *scenario.Condition, en
 }
 
 func jsonPathExists(filePath, spec string) (bool, error) {
+	return jsonPathExistsWithDeps(filePath, spec, defaultHostProbeDeps())
+}
+
+func jsonPathExistsWithDeps(filePath, spec string, deps hostProbeDeps) (bool, error) {
 	parts := strings.SplitN(spec, ":", 2)
 	if len(parts) != 2 {
 		return false, nil
 	}
 
-	data, err := os.ReadFile(filePath)
+	data, err := deps.readFile(filePath)
 	if err != nil {
 		return false, nil
 	}
@@ -599,38 +679,42 @@ func binariesNeedSetup(appRoot string, check scenario.ConditionCheck) (bool, str
 }
 
 func cliNeedsSetup(appRoot string, check scenario.ConditionCheck) (bool, string, error) {
+	return cliNeedsSetupWithDeps(appRoot, check, defaultHostProbeDeps())
+}
+
+func cliNeedsSetupWithDeps(appRoot string, check scenario.ConditionCheck, deps hostProbeDeps) (bool, string, error) {
 	if strings.TrimSpace(check.Command) == "" {
 		return false, "", nil
 	}
-	cliPath, err := exec.LookPath(check.Command)
+	cliPath, err := deps.lookPath(check.Command)
 	if err != nil {
 		return true, "CLI not installed: " + check.Command, nil
 	}
 
 	sourceDir := filepath.Join(appRoot, "cli")
-	if _, err := os.Stat(sourceDir); err != nil {
+	if _, err := deps.stat(sourceDir); err != nil {
 		return false, "", nil
 	}
 
-	if anyFileNewer(sourceDir, cliPath, func(path string, d fs.DirEntry) bool {
+	if anyFileNewerWithDeps(sourceDir, cliPath, deps, func(path string, d fs.DirEntry) bool {
 		return strings.HasSuffix(path, ".go")
 	}) {
 		return true, "CLI not installed: " + check.Command, nil
 	}
 	for _, depFile := range []string{"go.mod", "go.sum"} {
 		depPath := filepath.Join(sourceDir, depFile)
-		if info, err := os.Stat(depPath); err == nil && info.ModTime().After(getModTime(cliPath)) {
+		if info, err := deps.stat(depPath); err == nil && info.ModTime().After(getModTimeWithDeps(cliPath, deps)) {
 			return true, "CLI not installed: " + check.Command, nil
 		}
 	}
 
-	replacePaths, err := localReplacePaths(filepath.Join(sourceDir, "go.mod"))
+	replacePaths, err := localReplacePathsWithDeps(filepath.Join(sourceDir, "go.mod"), deps)
 	if err != nil {
 		return false, "", err
 	}
 	for _, replacePath := range replacePaths {
 		resolved := filepath.Join(sourceDir, replacePath)
-		if anyFileNewer(resolved, cliPath, func(path string, d fs.DirEntry) bool {
+		if anyFileNewerWithDeps(resolved, cliPath, deps, func(path string, d fs.DirEntry) bool {
 			return strings.HasSuffix(path, ".go") || filepath.Base(path) == "go.mod"
 		}) {
 			return true, "CLI not installed: " + check.Command, nil
@@ -640,20 +724,24 @@ func cliNeedsSetup(appRoot string, check scenario.ConditionCheck) (bool, string,
 }
 
 func uiBundleNeedsSetup(appRoot string, check scenario.ConditionCheck) (bool, string, error) {
+	return uiBundleNeedsSetupWithDeps(appRoot, check, defaultHostProbeDeps())
+}
+
+func uiBundleNeedsSetupWithDeps(appRoot string, check scenario.ConditionCheck, deps hostProbeDeps) (bool, string, error) {
 	bundlePath := resolveCheckPath(appRoot, defaultIfEmpty(check.BundlePath, "ui/dist/index.html"))
 	sourceDir := resolveCheckPath(appRoot, defaultIfEmpty(check.SourceDir, "ui/src"))
-	if _, err := os.Stat(bundlePath); err != nil {
+	if _, err := deps.stat(bundlePath); err != nil {
 		return true, "UI bundle outdated: " + defaultIfEmpty(check.BundlePath, "ui/dist/index.html"), nil
 	}
 
-	if anyFileNewer(sourceDir, bundlePath, func(path string, d fs.DirEntry) bool { return !d.IsDir() }) {
+	if anyFileNewerWithDeps(sourceDir, bundlePath, deps, func(path string, d fs.DirEntry) bool { return !d.IsDir() }) {
 		return true, "UI bundle outdated: " + defaultIfEmpty(check.BundlePath, "ui/dist/index.html"), nil
 	}
 
 	uiDir := filepath.Dir(filepath.Dir(bundlePath))
 	for _, file := range []string{"package.json", "vite.config.ts", "vite.config.js", "tsconfig.json", "index.html"} {
 		configPath := filepath.Join(uiDir, file)
-		if info, err := os.Stat(configPath); err == nil && info.ModTime().After(getModTime(bundlePath)) {
+		if info, err := deps.stat(configPath); err == nil && info.ModTime().After(getModTimeWithDeps(bundlePath, deps)) {
 			return true, "UI bundle outdated: " + defaultIfEmpty(check.BundlePath, "ui/dist/index.html"), nil
 		}
 	}
@@ -664,7 +752,7 @@ func uiBundleNeedsSetup(appRoot string, check scenario.ConditionCheck) (bool, st
 	}
 	if watchDeps {
 		packageJSON := filepath.Join(uiDir, "package.json")
-		specs, err := fileDependencySpecs(packageJSON)
+		specs, err := fileDependencySpecsWithDeps(packageJSON, deps)
 		if err != nil {
 			return false, "", err
 		}
@@ -677,10 +765,10 @@ func uiBundleNeedsSetup(appRoot string, check scenario.ConditionCheck) (bool, st
 			if _, skip := excluded[resolved]; skip {
 				continue
 			}
-			if _, err := os.Stat(resolved); err != nil {
+			if _, err := deps.stat(resolved); err != nil {
 				return true, "UI bundle outdated: " + defaultIfEmpty(check.BundlePath, "ui/dist/index.html"), nil
 			}
-			if anyFileNewer(resolved, bundlePath, func(path string, d fs.DirEntry) bool {
+			if anyFileNewerWithDeps(resolved, bundlePath, deps, func(path string, d fs.DirEntry) bool {
 				return !d.IsDir() && !strings.Contains(path, string(filepath.Separator)+"node_modules"+string(filepath.Separator)) && !strings.Contains(path, string(filepath.Separator)+".git"+string(filepath.Separator))
 			}) {
 				return true, "UI bundle outdated: " + defaultIfEmpty(check.BundlePath, "ui/dist/index.html"), nil
@@ -773,7 +861,11 @@ func readScenarioRecords(home, name string) ([]process.Record, error) {
 }
 
 func localReplacePaths(goModPath string) ([]string, error) {
-	data, err := os.ReadFile(goModPath)
+	return localReplacePathsWithDeps(goModPath, defaultHostProbeDeps())
+}
+
+func localReplacePathsWithDeps(goModPath string, deps hostProbeDeps) ([]string, error) {
+	data, err := deps.readFile(goModPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
@@ -819,16 +911,20 @@ func localReplacePaths(goModPath string) ([]string, error) {
 }
 
 func anyFileNewer(root, target string, include func(path string, d fs.DirEntry) bool) bool {
-	if _, err := os.Stat(root); err != nil {
+	return anyFileNewerWithDeps(root, target, defaultHostProbeDeps(), include)
+}
+
+func anyFileNewerWithDeps(root, target string, deps hostProbeDeps, include func(path string, d fs.DirEntry) bool) bool {
+	if _, err := deps.stat(root); err != nil {
 		return false
 	}
-	targetInfo, err := os.Stat(target)
+	targetInfo, err := deps.stat(target)
 	if err != nil {
 		return false
 	}
 	targetTime := targetInfo.ModTime()
 
-	walkErr := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+	walkErr := deps.walkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -854,7 +950,11 @@ func anyFileNewer(root, target string, include func(path string, d fs.DirEntry) 
 var errStopWalk = errors.New("stop walk")
 
 func getModTime(path string) time.Time {
-	info, err := os.Stat(path)
+	return getModTimeWithDeps(path, defaultHostProbeDeps())
+}
+
+func getModTimeWithDeps(path string, deps hostProbeDeps) time.Time {
+	info, err := deps.stat(path)
 	if err != nil {
 		return time.Time{}
 	}
@@ -862,7 +962,11 @@ func getModTime(path string) time.Time {
 }
 
 func fileDependencySpecs(packageJSON string) ([]string, error) {
-	data, err := os.ReadFile(packageJSON)
+	return fileDependencySpecsWithDeps(packageJSON, defaultHostProbeDeps())
+}
+
+func fileDependencySpecsWithDeps(packageJSON string, deps hostProbeDeps) ([]string, error) {
+	data, err := deps.readFile(packageJSON)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil

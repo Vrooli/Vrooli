@@ -1,194 +1,52 @@
-# Vrooli Resource Configuration
+# Resource Configuration
 
-## Overview
+This page describes the current configuration model for resources at the platform level.
 
-Vrooli resources use a multi-layered configuration system to manage settings, credentials, and operational parameters.
+## Core Rule
 
-## Configuration Files
+Treat manifests and current CLI behavior as authoritative. Do not treat old registry-era or shell-era configuration patterns as current truth unless they are explicitly retained.
 
-### Primary Configuration
+## Current Configuration Layers
 
-**Repo `.vrooli/service.json`**
-- Canonical project-level configuration checked into the repository
-- Contains project resource enablement, lifecycle configuration, and service metadata
-- This is the source of truth for the project definition
+### Project-Level
 
-**Runtime `~/.vrooli/` state**
-- User-machine runtime state, caches, archives, and generated operational files
-- Not the canonical source of truth for repo-owned configuration
+- `.vrooli/service.json` contains project-level configuration, lifecycle setup, and enabled dependency intent
 
-**Scenario `.vrooli/service.json`**
-- Canonical scenario-level configuration
-- Defines scenario metadata, lifecycle, and dependency declarations
-- Used by the scenario system for orchestration
+### Scenario-Level
 
-## Dependency Contract
+- `scenarios/<name>/.vrooli/service.json` contains scenario-level dependency declarations and lifecycle metadata
 
-Dependencies are declared as flat keyed maps.
+### Resource-Level
+
+- implemented resources commonly expose `resources/<name>/resource.json` as manifest authority
+
+## Dependency Guidance
+
+At the scenario level:
 
 - `dependencies.resources` is keyed by canonical resource name
-- `dependencies.scenarios` is keyed by canonical scenario name
-- Do not use `required` / `optional` arrays
-- Do not use CLI aliases like `resource-claude-code` as config keys
-- Put scenario dependencies only under `dependencies.scenarios`, never under `dependencies.resources`
+- `required` describes functional necessity
+- `startup_policy` describes startup behavior
 
-Each dependency answers two separate questions:
+Useful values:
 
-- `required`: whether the dependency is functionally necessary
-- `startup_policy`: how lifecycle orchestration should behave during startup
+- `must_start`
+- `try_start`
+- `ignore`
 
-Supported `startup_policy` values:
+For the normalization details, see [dependency-contract-audit.md](dependency-contract-audit.md).
 
-- `must_start`: attempt startup and fail scenario startup if the dependency cannot start
-- `try_start`: attempt startup and continue in degraded mode if the dependency cannot start
-- `ignore`: do not auto-start; use only if already available
-
-Recommended defaults:
-
-- `required: true` => `startup_policy: "must_start"`
-- `required: false` => `startup_policy: "try_start"`
-- Use `ignore` for operator-managed or ambient dependencies
-
-Example:
-
-```json
-{
-  "dependencies": {
-    "resources": {
-      "postgres": {
-        "enabled": true,
-        "required": true,
-        "startup_policy": "must_start",
-        "description": "Primary relational store"
-      },
-      "qdrant": {
-        "enabled": true,
-        "required": false,
-        "startup_policy": "try_start",
-        "description": "Semantic search when available",
-        "degraded_behavior": "Search falls back to lexical matching"
-      }
-    },
-    "scenarios": {
-      "prompt-manager": {
-        "enabled": true,
-        "required": false,
-        "startup_policy": "try_start",
-        "description": "Prompt lookup and skill guidance"
-      }
-    }
-  }
-}
-```
-
-## Resource-Specific Configuration
-
-### Environment Variables
-
-Resources can be configured through environment variables:
+## Validate Configuration
 
 ```bash
-# Ollama configuration
-export OLLAMA_HOST="localhost"
-export OLLAMA_PORT="11434"
-export OLLAMA_MODELS_PATH="/opt/ollama/models"
-
-# PostgreSQL configuration
-export POSTGRES_HOST="localhost"
-export POSTGRES_PORT="5432"
-export POSTGRES_DB="vrooli"
-export POSTGRES_USER="vrooli"
-export POSTGRES_PASSWORD="secret"
-
-# Redis configuration
-export REDIS_HOST="localhost"
-export REDIS_PORT="6379"
-export REDIS_DB="0"
+vrooli resource validate
+vrooli resource validate <name>
+vrooli resource schema validate
 ```
 
-### Configuration Files
+## Guidance
 
-Resources may have their own configuration files:
-
-- **Ollama**: `~/.ollama/config.json`
-- **PostgreSQL**: `~/.vrooli/postgres/postgresql.conf`
-- **Redis**: `data/resources/redis/config/redis.conf`
-- **n8n**: `~/.vrooli/n8n/.n8n/config.json`
-
-## Configuration Management
-
-### CLI Commands
-
-```bash
-# View configuration
-vrooli resource status
-
-# Check specific resource configuration
-vrooli resource status <name>
-
-# Update configuration (resource-specific)
-resource-<name> config set <key> <value>
-```
-
-### Configuration Validation
-
-```bash
-# Validate all resource configurations
-./scripts/resources/tools/validate-universal-contract.sh --resource <name>
-
-# Fix configuration issues
-./scripts/resources/tools/validate-dependency-contract.sh
-```
-
-## Security Considerations
-
-### Credential Management
-
-- **Vault Integration**: Use Vault for secure credential storage
-- **Environment Variables**: Use environment variables for sensitive data
-- **File Permissions**: Ensure configuration files have appropriate permissions
-- **Secret Rotation**: Implement regular secret rotation
-
-### Access Control
-
-- **User Permissions**: Limit access to configuration files
-- **Network Security**: Use appropriate network security measures
-- **Audit Logging**: Log configuration changes and access
-
-## Troubleshooting
-
-### Common Configuration Issues
-
-1. **Missing Configuration**: Ensure all required configuration is present
-2. **Permission Errors**: Check file and directory permissions
-3. **Network Issues**: Verify network connectivity and firewall settings
-4. **Resource Conflicts**: Check for port conflicts and resource limits
-
-### Debugging Configuration
-
-```bash
-# Check configuration status
-vrooli resource status --verbose
-
-# View resource logs
-vrooli resource <name> logs
-
-# Test resource connectivity
-resource-<name> test
-```
-
-## Best Practices
-
-### Configuration Design
-
-- **Default Values**: Provide sensible defaults for all settings
-- **Validation**: Validate configuration values on startup
-- **Documentation**: Document all configuration options
-- **Migration**: Provide migration paths for configuration changes
-
-### Operational Practices
-
-- **Backup**: Regularly backup configuration files
-- **Version Control**: Use version control for configuration templates
-- **Testing**: Test configuration changes in non-production environments
-- **Monitoring**: Monitor configuration-related errors and issues 
+- prefer canonical resource names
+- keep dependency declarations honest
+- avoid inventing old `resource-*` alias conventions in config
+- treat scenario manifests and resource manifests as living operational truth

@@ -203,24 +203,23 @@ func TestRepoRemovesLegacyHostSetupSurfaces(t *testing.T) {
 }
 
 func TestRunSetupUsesNativeRuntimeAndMarksComplete(t *testing.T) {
-	restore := stubSetupDeps(t)
-	defer restore()
+	svc := stubSetupDeps(t)
 
 	root := t.TempDir()
 	home := t.TempDir()
 	projectScenario := writeProjectFixture(t, root)
 
-	currentHostFn = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
-	loadProjectFn = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
-	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
+	svc.deps.currentHost = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
+	svc.deps.loadProject = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
+	svc.deps.resolveHostRequirements = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
 		return hostreq.Resolution{}, nil
 	}
-	inspectRequirementsFn = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+	svc.deps.inspectRequirements = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{Environment: environment}, nil
 	}
 
 	runtimeCalls := 0
-	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+	svc.deps.ensureRequirements = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		runtimeCalls++
 		if opts.DryRun {
 			t.Fatal("expected non-dry-run setup to execute real install/apply path")
@@ -231,23 +230,23 @@ func TestRunSetupUsesNativeRuntimeAndMarksComplete(t *testing.T) {
 		return vrooliruntime.Report{Environment: opts.Environment}, nil
 	}
 	markCompleteCalled := false
-	markCompleteFn = func(root string) error {
+	svc.deps.markComplete = func(root string) error {
 		markCompleteCalled = true
 		return nil
 	}
 	schemaSyncCalled := false
-	syncResourceSchemaFn = func(root string) error {
+	svc.deps.syncResourceSchema = func(root string) error {
 		schemaSyncCalled = true
 		return nil
 	}
 	manager := &stubCLIInstallManager{}
-	newCLIInstallManagerFn = func(root, home string) cliInstallManager {
+	svc.deps.newCLIInstallManager = func(root, home string) cliInstallManager {
 		manager.root = root
 		manager.home = home
 		return manager
 	}
 
-	if err := RunSetupWithOptions(root, home, Options{Resources: "none"}, io.Discard, io.Discard); err != nil {
+	if err := svc.RunSetupWithOptions(root, home, Options{Resources: "none"}, io.Discard, io.Discard); err != nil {
 		t.Fatalf("RunSetupWithOptions: %v", err)
 	}
 	if runtimeCalls != 1 {
@@ -274,38 +273,42 @@ func TestRunSetupUsesNativeRuntimeAndMarksComplete(t *testing.T) {
 }
 
 func TestRunSetupTriggersOnboardingAfterSuccessfulSetup(t *testing.T) {
-	restore := stubSetupDeps(t)
-	defer restore()
+	svc := stubSetupDeps(t)
 
 	root := t.TempDir()
 	home := t.TempDir()
 	projectScenario := writeProjectFixture(t, root)
 
-	currentHostFn = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
-	loadProjectFn = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
-	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
+	svc.deps.currentHost = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
+	svc.deps.loadProject = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
+	svc.deps.resolveHostRequirements = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
 		return hostreq.Resolution{}, nil
 	}
-	inspectRequirementsFn = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+	svc.deps.inspectRequirements = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{Environment: environment}, nil
 	}
-	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+	svc.deps.ensureRequirements = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{Environment: opts.Environment}, nil
 	}
 
 	markCompleteCalled := false
-	markCompleteFn = func(root string) error {
+	svc.deps.markComplete = func(root string) error {
 		markCompleteCalled = true
 		return nil
 	}
 
 	onboardingCalls := 0
-	maybeOpenOnboardingFn = func(root, home string, stdout, stderr io.Writer) error {
+	svc.deps.openOnboardingURL = func(url string) error {
 		onboardingCalls++
 		return nil
 	}
+	svc.deps.osExecutable = func() (string, error) { return "/bin/true", nil }
+	svc.deps.onboardingPortCommandRunner = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		return []byte("41234\n"), nil
+	}
+	writeOnboardingScenarioFixture(t, root)
 
-	if err := RunSetupWithOptions(root, home, Options{Resources: "none"}, io.Discard, io.Discard); err != nil {
+	if err := svc.RunSetupWithOptions(root, home, Options{Resources: "none"}, io.Discard, io.Discard); err != nil {
 		t.Fatalf("RunSetupWithOptions: %v", err)
 	}
 	if !markCompleteCalled {
@@ -317,30 +320,29 @@ func TestRunSetupTriggersOnboardingAfterSuccessfulSetup(t *testing.T) {
 }
 
 func TestRunSetupDryRunUsesApplyPlanningAndSkipsMutations(t *testing.T) {
-	restore := stubSetupDeps(t)
-	defer restore()
+	svc := stubSetupDeps(t)
 
 	root := t.TempDir()
 	home := t.TempDir()
 	projectScenario := writeProjectFixture(t, root)
 
-	currentHostFn = func() vrooliruntime.Host {
+	svc.deps.currentHost = func() vrooliruntime.Host {
 		return vrooliruntime.Host{OS: "linux", PackageManager: "apt-get", SupportsSetup: true, SupportsDevelop: true}
 	}
-	loadProjectFn = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
-	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
+	svc.deps.loadProject = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
+	svc.deps.resolveHostRequirements = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
 		return hostreq.Resolution{
 			Tools: []hostreq.ResolvedRequirement{
 				{Name: "tmux", Kind: hostreq.KindTool, Required: true},
 			},
 		}, nil
 	}
-	inspectRequirementsFn = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+	svc.deps.inspectRequirements = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return reportFromResolution(environment, resolution, false), nil
 	}
 
 	ensureCalls := 0
-	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+	svc.deps.ensureRequirements = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		ensureCalls++
 		if !opts.DryRun {
 			t.Fatal("expected dry-run setup to preserve DryRun=true")
@@ -352,13 +354,13 @@ func TestRunSetupDryRunUsesApplyPlanningAndSkipsMutations(t *testing.T) {
 	}
 
 	markCompleteCalled := false
-	markCompleteFn = func(root string) error {
+	svc.deps.markComplete = func(root string) error {
 		markCompleteCalled = true
 		return nil
 	}
 
 	resourceInstallCalls := 0
-	resourcesController = func(root, home string) resourceRunner {
+	svc.deps.resourceController = func(root, home string) resourceRunner {
 		return resourceRunnerFunc(func(name string, args []string, stdout, stderr io.Writer) error {
 			resourceInstallCalls++
 			return nil
@@ -366,7 +368,7 @@ func TestRunSetupDryRunUsesApplyPlanningAndSkipsMutations(t *testing.T) {
 	}
 
 	stdout := &strings.Builder{}
-	if err := RunSetupWithOptions(root, home, Options{DryRun: true, Resources: "redis", Scenarios: "alpha"}, stdout, io.Discard); err != nil {
+	if err := svc.RunSetupWithOptions(root, home, Options{DryRun: true, Resources: "redis", Scenarios: "alpha"}, stdout, io.Discard); err != nil {
 		t.Fatalf("RunSetupWithOptions: %v", err)
 	}
 	if ensureCalls != 1 {
@@ -390,32 +392,36 @@ func TestRunSetupDryRunUsesApplyPlanningAndSkipsMutations(t *testing.T) {
 }
 
 func TestRunSetupDryRunSkipsOnboarding(t *testing.T) {
-	restore := stubSetupDeps(t)
-	defer restore()
+	svc := stubSetupDeps(t)
 
 	root := t.TempDir()
 	home := t.TempDir()
 	projectScenario := writeProjectFixture(t, root)
 
-	currentHostFn = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
-	loadProjectFn = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
-	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
+	svc.deps.currentHost = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
+	svc.deps.loadProject = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
+	svc.deps.resolveHostRequirements = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
 		return hostreq.Resolution{}, nil
 	}
-	inspectRequirementsFn = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+	svc.deps.inspectRequirements = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{Environment: environment}, nil
 	}
-	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+	svc.deps.ensureRequirements = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{Environment: opts.Environment}, nil
 	}
 
 	onboardingCalls := 0
-	maybeOpenOnboardingFn = func(root, home string, stdout, stderr io.Writer) error {
+	svc.deps.openOnboardingURL = func(url string) error {
 		onboardingCalls++
 		return nil
 	}
+	svc.deps.osExecutable = func() (string, error) { return "/bin/true", nil }
+	svc.deps.onboardingPortCommandRunner = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		return []byte("41234\n"), nil
+	}
+	writeOnboardingScenarioFixture(t, root)
 
-	if err := RunSetupWithOptions(root, home, Options{DryRun: true, Resources: "none"}, io.Discard, io.Discard); err != nil {
+	if err := svc.RunSetupWithOptions(root, home, Options{DryRun: true, Resources: "none"}, io.Discard, io.Discard); err != nil {
 		t.Fatalf("RunSetupWithOptions: %v", err)
 	}
 	if onboardingCalls != 0 {
@@ -424,30 +430,29 @@ func TestRunSetupDryRunSkipsOnboarding(t *testing.T) {
 }
 
 func TestRunSetupPassesScenarioSelectionToResolver(t *testing.T) {
-	restore := stubSetupDeps(t)
-	defer restore()
+	svc := stubSetupDeps(t)
 
 	root := t.TempDir()
 	home := t.TempDir()
 	projectScenario := writeProjectFixture(t, root)
 
-	currentHostFn = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
-	loadProjectFn = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
+	svc.deps.currentHost = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
+	svc.deps.loadProject = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
 
 	var captured hostreq.ResolveOptions
-	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
+	svc.deps.resolveHostRequirements = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
 		captured = opts
 		return hostreq.Resolution{}, nil
 	}
-	inspectRequirementsFn = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+	svc.deps.inspectRequirements = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{Environment: environment}, nil
 	}
-	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+	svc.deps.ensureRequirements = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{Environment: opts.Environment}, nil
 	}
-	markCompleteFn = func(root string) error { return nil }
+	svc.deps.markComplete = func(root string) error { return nil }
 
-	if err := RunSetupWithOptions(root, home, Options{Scenarios: "alpha,beta", Resources: "none", DryRun: true}, io.Discard, io.Discard); err != nil {
+	if err := svc.RunSetupWithOptions(root, home, Options{Scenarios: "alpha,beta", Resources: "none", DryRun: true}, io.Discard, io.Discard); err != nil {
 		t.Fatalf("RunSetupWithOptions: %v", err)
 	}
 	if captured.Scenarios != "alpha,beta" {
@@ -456,21 +461,20 @@ func TestRunSetupPassesScenarioSelectionToResolver(t *testing.T) {
 }
 
 func TestRunSetupPrintsPlanAndDryRunResult(t *testing.T) {
-	restore := stubSetupDeps(t)
-	defer restore()
+	svc := stubSetupDeps(t)
 
 	root := t.TempDir()
 	home := t.TempDir()
 	projectScenario := writeProjectFixture(t, root)
 
-	currentHostFn = func() vrooliruntime.Host {
+	svc.deps.currentHost = func() vrooliruntime.Host {
 		return vrooliruntime.Host{OS: "linux", PackageManager: "apt-get", SupportsSetup: true, SupportsDevelop: true}
 	}
-	loadProjectFn = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
-	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
+	svc.deps.loadProject = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
+	svc.deps.resolveHostRequirements = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
 		return hostreq.Resolution{}, nil
 	}
-	inspectRequirementsFn = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+	svc.deps.inspectRequirements = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{
 			Environment: environment,
 			Host:        vrooliruntime.Host{OS: "linux", PackageManager: "apt-get"},
@@ -510,7 +514,7 @@ func TestRunSetupPrintsPlanAndDryRunResult(t *testing.T) {
 			},
 		}, nil
 	}
-	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+	svc.deps.ensureRequirements = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{
 			Environment: opts.Environment,
 			Host:        vrooliruntime.Host{OS: "linux", PackageManager: "apt-get"},
@@ -551,10 +555,10 @@ func TestRunSetupPrintsPlanAndDryRunResult(t *testing.T) {
 			},
 		}, nil
 	}
-	markCompleteFn = func(root string) error { return nil }
+	svc.deps.markComplete = func(root string) error { return nil }
 
 	stdout := &strings.Builder{}
-	if err := RunSetupWithOptions(root, home, Options{Resources: "none", Scenarios: "alpha", DryRun: true}, stdout, io.Discard); err != nil {
+	if err := svc.RunSetupWithOptions(root, home, Options{Resources: "none", Scenarios: "alpha", DryRun: true}, stdout, io.Discard); err != nil {
 		t.Fatalf("RunSetupWithOptions: %v", err)
 	}
 
@@ -575,8 +579,7 @@ func TestRunSetupPrintsPlanAndDryRunResult(t *testing.T) {
 }
 
 func TestRunSetupDryRunResolvesRootScenarioAndResourceDeclarations(t *testing.T) {
-	restore := stubSetupDeps(t)
-	defer restore()
+	svc := stubSetupDeps(t)
 
 	root := t.TempDir()
 	home := t.TempDir()
@@ -620,22 +623,22 @@ func TestRunSetupDryRunResolvesRootScenarioAndResourceDeclarations(t *testing.T)
 		),
 	))
 
-	currentHostFn = func() vrooliruntime.Host {
+	svc.deps.currentHost = func() vrooliruntime.Host {
 		return vrooliruntime.Host{OS: "linux", PackageManager: "apt-get", SupportsSetup: true, SupportsDevelop: true}
 	}
-	loadProjectFn = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
+	svc.deps.loadProject = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
 
 	var plannedResolution hostreq.Resolution
-	inspectRequirementsFn = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+	svc.deps.inspectRequirements = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		plannedResolution = resolution
 		return reportFromResolution(environment, resolution, false), nil
 	}
-	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+	svc.deps.ensureRequirements = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return reportFromResolution(opts.Environment, resolution, true), nil
 	}
 
 	stdout := &strings.Builder{}
-	if err := RunSetupWithOptions(root, home, Options{Resources: "redis", Scenarios: "alpha", DryRun: true}, stdout, io.Discard); err != nil {
+	if err := svc.RunSetupWithOptions(root, home, Options{Resources: "redis", Scenarios: "alpha", DryRun: true}, stdout, io.Discard); err != nil {
 		t.Fatalf("RunSetupWithOptions: %v", err)
 	}
 
@@ -676,25 +679,24 @@ func TestRunSetupDryRunResolvesRootScenarioAndResourceDeclarations(t *testing.T)
 }
 
 func TestRunSetupExportsLegacyEnvironmentContractToResourceInstall(t *testing.T) {
-	restore := stubSetupDeps(t)
-	defer restore()
+	svc := stubSetupDeps(t)
 
 	root := t.TempDir()
 	home := t.TempDir()
 	projectScenario := writeProjectFixture(t, root)
 
-	currentHostFn = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
-	loadProjectFn = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
-	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
+	svc.deps.currentHost = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
+	svc.deps.loadProject = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
+	svc.deps.resolveHostRequirements = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
 		return hostreq.Resolution{}, nil
 	}
-	inspectRequirementsFn = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+	svc.deps.inspectRequirements = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{Environment: environment}, nil
 	}
-	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+	svc.deps.ensureRequirements = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{Environment: opts.Environment}, nil
 	}
-	markCompleteFn = func(root string) error { return nil }
+	svc.deps.markComplete = func(root string) error { return nil }
 
 	type installCall struct {
 		name string
@@ -702,7 +704,7 @@ func TestRunSetupExportsLegacyEnvironmentContractToResourceInstall(t *testing.T)
 		env  map[string]string
 	}
 	var installs []installCall
-	resourcesController = func(root, home string) resourceRunner {
+	svc.deps.resourceController = func(root, home string) resourceRunner {
 		return resourceRunnerFunc(func(name string, args []string, stdout, stderr io.Writer) error {
 			installs = append(installs, installCall{
 				name: name,
@@ -725,7 +727,7 @@ func TestRunSetupExportsLegacyEnvironmentContractToResourceInstall(t *testing.T)
 		})
 	}
 
-	err := RunSetupWithOptions(root, home, Options{
+	err := svc.RunSetupWithOptions(root, home, Options{
 		Environment: "minimal",
 		Resources:   "redis,postgres",
 		Scenarios:   "scenario-a,scenario-b",
@@ -776,34 +778,33 @@ func TestRunSetupExportsLegacyEnvironmentContractToResourceInstall(t *testing.T)
 }
 
 func TestRunSetupDryRunSkipsResourceInstallEvenWhenResourcesSelected(t *testing.T) {
-	restore := stubSetupDeps(t)
-	defer restore()
+	svc := stubSetupDeps(t)
 
 	root := t.TempDir()
 	home := t.TempDir()
 	projectScenario := writeProjectFixture(t, root)
 
-	currentHostFn = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
-	loadProjectFn = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
-	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
+	svc.deps.currentHost = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
+	svc.deps.loadProject = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
+	svc.deps.resolveHostRequirements = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
 		return hostreq.Resolution{}, nil
 	}
-	inspectRequirementsFn = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+	svc.deps.inspectRequirements = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{Environment: environment}, nil
 	}
-	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+	svc.deps.ensureRequirements = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{Environment: opts.Environment}, nil
 	}
 
 	resourceInstallCalls := 0
-	resourcesController = func(root, home string) resourceRunner {
+	svc.deps.resourceController = func(root, home string) resourceRunner {
 		return resourceRunnerFunc(func(name string, args []string, stdout, stderr io.Writer) error {
 			resourceInstallCalls++
 			return nil
 		})
 	}
 
-	if err := RunSetupWithOptions(root, home, Options{Resources: "redis,postgres", DryRun: true}, io.Discard, io.Discard); err != nil {
+	if err := svc.RunSetupWithOptions(root, home, Options{Resources: "redis,postgres", DryRun: true}, io.Discard, io.Discard); err != nil {
 		t.Fatalf("RunSetupWithOptions: %v", err)
 	}
 	if resourceInstallCalls != 0 {
@@ -812,8 +813,7 @@ func TestRunSetupDryRunSkipsResourceInstallEvenWhenResourcesSelected(t *testing.
 }
 
 func TestRunDevelopRunsSetupWhenNeededAndStartsNativeServices(t *testing.T) {
-	restore := stubSetupDeps(t)
-	defer restore()
+	svc := stubSetupDeps(t)
 
 	root := t.TempDir()
 	home := t.TempDir()
@@ -823,26 +823,26 @@ func TestRunDevelopRunsSetupWhenNeededAndStartsNativeServices(t *testing.T) {
 	t.Setenv("VROOLI_API_PORT", "18096")
 	t.Setenv("VROOLI_API_PORT", "18095")
 
-	currentHostFn = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
-	loadProjectFn = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
-	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
+	svc.deps.currentHost = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
+	svc.deps.loadProject = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
+	svc.deps.resolveHostRequirements = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
 		return hostreq.Resolution{}, nil
 	}
-	inspectRequirementsFn = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+	svc.deps.inspectRequirements = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{Environment: environment}, nil
 	}
-	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+	svc.deps.ensureRequirements = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{Environment: opts.Environment}, nil
 	}
 
 	setupCalls := 0
-	markCompleteFn = func(root string) error {
+	svc.deps.markComplete = func(root string) error {
 		setupCalls++
 		return os.WriteFile(filepath.Join(root, "data", ".setup-complete"), []byte("ok\n"), 0o644)
 	}
 
 	apiStarted := false
-	startProjectAPIFn = func(root string, spec apiLaunchSpec, stdout, stderr io.Writer) error {
+	svc.deps.startProjectAPI = func(root string, spec apiLaunchSpec, stdout, stderr io.Writer) error {
 		apiStarted = true
 		if spec.Command == "" || spec.Port != 18095 {
 			t.Fatalf("spec = %+v", spec)
@@ -850,7 +850,7 @@ func TestRunDevelopRunsSetupWhenNeededAndStartsNativeServices(t *testing.T) {
 		return nil
 	}
 	healthCalls := 0
-	healthCheckFn = func(port int, timeout time.Duration) error {
+	svc.deps.healthCheck = func(port int, timeout time.Duration) error {
 		healthCalls++
 		if port != 18095 {
 			t.Fatalf("port = %d", port)
@@ -858,13 +858,13 @@ func TestRunDevelopRunsSetupWhenNeededAndStartsNativeServices(t *testing.T) {
 		return nil
 	}
 	orchestratorStarted := false
-	startOrchestratorFn = func(root, home string, stdout, stderr io.Writer) error {
+	svc.deps.startOrchestrator = func(root, home string, stdout, stderr io.Writer) error {
 		orchestratorStarted = true
 		return nil
 	}
 
 	stdout := &strings.Builder{}
-	if err := RunDevelopWithOptions(root, home, Options{}, stdout, io.Discard); err != nil {
+	if err := svc.RunDevelopWithOptions(root, home, Options{}, stdout, io.Discard); err != nil {
 		t.Fatalf("RunDevelopWithOptions: %v", err)
 	}
 	if setupCalls != 1 {
@@ -885,8 +885,7 @@ func TestRunDevelopRunsSetupWhenNeededAndStartsNativeServices(t *testing.T) {
 }
 
 func TestRunDevelopExportsLegacyEnvironmentContractToAPILaunch(t *testing.T) {
-	restore := stubSetupDeps(t)
-	defer restore()
+	svc := stubSetupDeps(t)
 
 	root := t.TempDir()
 	home := t.TempDir()
@@ -895,21 +894,21 @@ func TestRunDevelopExportsLegacyEnvironmentContractToAPILaunch(t *testing.T) {
 	writeExecutableFile(t, filepath.Join(root, ".vrooli", "build", "vrooli-api"), "#!/usr/bin/env bash\nexit 0\n")
 	t.Setenv("VROOLI_API_PORT", "18095")
 
-	currentHostFn = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
-	loadProjectFn = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
-	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
+	svc.deps.currentHost = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
+	svc.deps.loadProject = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
+	svc.deps.resolveHostRequirements = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
 		return hostreq.Resolution{}, nil
 	}
-	inspectRequirementsFn = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+	svc.deps.inspectRequirements = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{Environment: environment}, nil
 	}
-	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+	svc.deps.ensureRequirements = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{Environment: opts.Environment}, nil
 	}
-	markCompleteFn = func(root string) error {
+	svc.deps.markComplete = func(root string) error {
 		return os.WriteFile(filepath.Join(root, "data", ".setup-complete"), []byte("ok\n"), 0o644)
 	}
-	loadDotEnvFn = func(path string) (map[string]string, error) {
+	svc.deps.loadDotEnv = func(path string) (map[string]string, error) {
 		return map[string]string{
 			"VROOLI_API_PORT": "18095",
 			"FROM_DOT_ENV":    "present",
@@ -917,14 +916,14 @@ func TestRunDevelopExportsLegacyEnvironmentContractToAPILaunch(t *testing.T) {
 	}
 
 	var capturedSpec apiLaunchSpec
-	startProjectAPIFn = func(root string, spec apiLaunchSpec, stdout, stderr io.Writer) error {
+	svc.deps.startProjectAPI = func(root string, spec apiLaunchSpec, stdout, stderr io.Writer) error {
 		capturedSpec = spec
 		return nil
 	}
-	healthCheckFn = func(port int, timeout time.Duration) error { return nil }
-	startOrchestratorFn = func(root, home string, stdout, stderr io.Writer) error { return nil }
+	svc.deps.healthCheck = func(port int, timeout time.Duration) error { return nil }
+	svc.deps.startOrchestrator = func(root, home string, stdout, stderr io.Writer) error { return nil }
 
-	err := RunDevelopWithOptions(root, home, Options{
+	err := svc.RunDevelopWithOptions(root, home, Options{
 		Environment: "production",
 		Resources:   "enabled",
 		Yes:         "yes",
@@ -980,8 +979,7 @@ func TestRunDevelopExportsLegacyEnvironmentContractToAPILaunch(t *testing.T) {
 }
 
 func TestRunDevelopSkipsSetupWhenMarkerExists(t *testing.T) {
-	restore := stubSetupDeps(t)
-	defer restore()
+	svc := stubSetupDeps(t)
 
 	root := t.TempDir()
 	home := t.TempDir()
@@ -995,28 +993,28 @@ func TestRunDevelopSkipsSetupWhenMarkerExists(t *testing.T) {
 		t.Fatalf("write setup marker: %v", err)
 	}
 
-	currentHostFn = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
-	loadProjectFn = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
-	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
+	svc.deps.currentHost = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
+	svc.deps.loadProject = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
+	svc.deps.resolveHostRequirements = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
 		return hostreq.Resolution{}, nil
 	}
-	inspectRequirementsFn = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+	svc.deps.inspectRequirements = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{Environment: environment}, nil
 	}
-	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+	svc.deps.ensureRequirements = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{Environment: opts.Environment}, nil
 	}
 
 	setupCalls := 0
-	markCompleteFn = func(root string) error {
+	svc.deps.markComplete = func(root string) error {
 		setupCalls++
 		return nil
 	}
-	startProjectAPIFn = func(root string, spec apiLaunchSpec, stdout, stderr io.Writer) error { return nil }
-	healthCheckFn = func(port int, timeout time.Duration) error { return nil }
-	startOrchestratorFn = func(root, home string, stdout, stderr io.Writer) error { return nil }
+	svc.deps.startProjectAPI = func(root string, spec apiLaunchSpec, stdout, stderr io.Writer) error { return nil }
+	svc.deps.healthCheck = func(port int, timeout time.Duration) error { return nil }
+	svc.deps.startOrchestrator = func(root, home string, stdout, stderr io.Writer) error { return nil }
 
-	if err := RunDevelopWithOptions(root, home, Options{}, io.Discard, io.Discard); err != nil {
+	if err := svc.RunDevelopWithOptions(root, home, Options{}, io.Discard, io.Discard); err != nil {
 		t.Fatalf("RunDevelopWithOptions: %v", err)
 	}
 	if setupCalls != 0 {
@@ -1025,8 +1023,7 @@ func TestRunDevelopSkipsSetupWhenMarkerExists(t *testing.T) {
 }
 
 func TestRunDevelopTriggersOnboardingFallback(t *testing.T) {
-	restore := stubSetupDeps(t)
-	defer restore()
+	svc := stubSetupDeps(t)
 
 	root := t.TempDir()
 	home := t.TempDir()
@@ -1040,28 +1037,33 @@ func TestRunDevelopTriggersOnboardingFallback(t *testing.T) {
 		t.Fatalf("write setup marker: %v", err)
 	}
 
-	currentHostFn = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
-	loadProjectFn = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
-	resolveHostRequirementsFn = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
+	svc.deps.currentHost = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
+	svc.deps.loadProject = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
+	svc.deps.resolveHostRequirements = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
 		return hostreq.Resolution{}, nil
 	}
-	inspectRequirementsFn = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+	svc.deps.inspectRequirements = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{Environment: environment}, nil
 	}
-	ensureRequirementsFn = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+	svc.deps.ensureRequirements = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
 		return vrooliruntime.Report{Environment: opts.Environment}, nil
 	}
-	startProjectAPIFn = func(root string, spec apiLaunchSpec, stdout, stderr io.Writer) error { return nil }
-	healthCheckFn = func(port int, timeout time.Duration) error { return nil }
-	startOrchestratorFn = func(root, home string, stdout, stderr io.Writer) error { return nil }
+	svc.deps.startProjectAPI = func(root string, spec apiLaunchSpec, stdout, stderr io.Writer) error { return nil }
+	svc.deps.healthCheck = func(port int, timeout time.Duration) error { return nil }
+	svc.deps.startOrchestrator = func(root, home string, stdout, stderr io.Writer) error { return nil }
 
 	onboardingCalls := 0
-	maybeOpenOnboardingFn = func(root, home string, stdout, stderr io.Writer) error {
+	svc.deps.openOnboardingURL = func(url string) error {
 		onboardingCalls++
 		return nil
 	}
+	svc.deps.osExecutable = func() (string, error) { return "/bin/true", nil }
+	svc.deps.onboardingPortCommandRunner = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		return []byte("41234\n"), nil
+	}
+	writeOnboardingScenarioFixture(t, root)
 
-	if err := RunDevelopWithOptions(root, home, Options{}, io.Discard, io.Discard); err != nil {
+	if err := svc.RunDevelopWithOptions(root, home, Options{}, io.Discard, io.Discard); err != nil {
 		t.Fatalf("RunDevelopWithOptions: %v", err)
 	}
 	if onboardingCalls != 1 {
@@ -1070,14 +1072,13 @@ func TestRunDevelopTriggersOnboardingFallback(t *testing.T) {
 }
 
 func TestRunSetupRejectsUnsupportedHost(t *testing.T) {
-	restore := stubSetupDeps(t)
-	defer restore()
+	svc := stubSetupDeps(t)
 
-	currentHostFn = func() vrooliruntime.Host {
+	svc.deps.currentHost = func() vrooliruntime.Host {
 		return vrooliruntime.Host{OS: "darwin", SupportsSetup: false, Notes: []string{"unsupported in test"}}
 	}
 
-	err := RunSetupWithOptions(t.TempDir(), t.TempDir(), Options{}, io.Discard, io.Discard)
+	err := svc.RunSetupWithOptions(t.TempDir(), t.TempDir(), Options{}, io.Discard, io.Discard)
 	if err == nil {
 		t.Fatal("expected unsupported host error")
 	}
@@ -1102,25 +1103,24 @@ func TestLoadDotEnvParsesCommonForms(t *testing.T) {
 }
 
 func TestMaybeOpenOnboardingPersistsPromptedState(t *testing.T) {
-	restore := stubSetupDeps(t)
-	defer restore()
+	svc := stubSetupDeps(t)
 
 	root := t.TempDir()
 	home := t.TempDir()
 	writeOnboardingScenarioFixture(t, root)
 
-	osExecutableFn = func() (string, error) { return "/bin/true", nil }
-	onboardingPortCommandRunnerFn = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+	svc.deps.osExecutable = func() (string, error) { return "/bin/true", nil }
+	svc.deps.onboardingPortCommandRunner = func(ctx context.Context, name string, args ...string) ([]byte, error) {
 		return []byte("38123\n"), nil
 	}
 	opened := ""
-	openOnboardingURLFn = func(url string) error {
+	svc.deps.openOnboardingURL = func(url string) error {
 		opened = url
 		return nil
 	}
 
 	stdout := &strings.Builder{}
-	if err := maybeOpenOnboarding(root, home, stdout, io.Discard); err != nil {
+	if err := svc.maybeOpenOnboarding(root, home, stdout, io.Discard); err != nil {
 		t.Fatalf("maybeOpenOnboarding: %v", err)
 	}
 	if opened != "http://127.0.0.1:38123" {
@@ -1147,8 +1147,7 @@ func TestMaybeOpenOnboardingPersistsPromptedState(t *testing.T) {
 }
 
 func TestMaybeOpenOnboardingRespectsEnvOptOut(t *testing.T) {
-	restore := stubSetupDeps(t)
-	defer restore()
+	svc := stubSetupDeps(t)
 
 	root := t.TempDir()
 	home := t.TempDir()
@@ -1156,12 +1155,12 @@ func TestMaybeOpenOnboardingRespectsEnvOptOut(t *testing.T) {
 	t.Setenv(onboardingSkipEnv, "1")
 
 	opened := false
-	openOnboardingURLFn = func(url string) error {
+	svc.deps.openOnboardingURL = func(url string) error {
 		opened = true
 		return nil
 	}
 
-	if err := maybeOpenOnboarding(root, home, io.Discard, io.Discard); err != nil {
+	if err := svc.maybeOpenOnboarding(root, home, io.Discard, io.Discard); err != nil {
 		t.Fatalf("maybeOpenOnboarding: %v", err)
 	}
 	if opened {
@@ -1170,8 +1169,7 @@ func TestMaybeOpenOnboardingRespectsEnvOptOut(t *testing.T) {
 }
 
 func TestMaybeOpenOnboardingRespectsPersistentAutoOpenOptOut(t *testing.T) {
-	restore := stubSetupDeps(t)
-	defer restore()
+	svc := stubSetupDeps(t)
 
 	root := t.TempDir()
 	home := t.TempDir()
@@ -1192,12 +1190,12 @@ func TestMaybeOpenOnboardingRespectsPersistentAutoOpenOptOut(t *testing.T) {
 	}
 
 	opened := false
-	openOnboardingURLFn = func(url string) error {
+	svc.deps.openOnboardingURL = func(url string) error {
 		opened = true
 		return nil
 	}
 
-	if err := maybeOpenOnboarding(root, home, io.Discard, io.Discard); err != nil {
+	if err := svc.maybeOpenOnboarding(root, home, io.Discard, io.Discard); err != nil {
 		t.Fatalf("maybeOpenOnboarding: %v", err)
 	}
 	if opened {
@@ -1275,46 +1273,12 @@ func reportFromResolution(environment string, resolution hostreq.Resolution, exe
 	return report
 }
 
-func stubSetupDeps(t *testing.T) func() {
+func stubSetupDeps(t *testing.T) *setupService {
 	t.Helper()
-	originalCurrentHostFn := currentHostFn
-	originalLoadProjectFn := loadProjectFn
-	originalMarkCompleteFn := markCompleteFn
-	originalSyncResourceSchemaFn := syncResourceSchemaFn
-	originalNewCLIInstallManagerFn := newCLIInstallManagerFn
-	originalResolveHostRequirementsFn := resolveHostRequirementsFn
-	originalInspectRequirementsFn := inspectRequirementsFn
-	originalEnsureRequirementsFn := ensureRequirementsFn
-	originalStartProjectAPIFn := startProjectAPIFn
-	originalStartOrchestratorFn := startOrchestratorFn
-	originalHealthCheckFn := healthCheckFn
-	originalLoadDotEnvFn := loadDotEnvFn
-	originalResourcesController := resourcesController
-	originalMaybeOpenOnboardingFn := maybeOpenOnboardingFn
-	originalOSExecutableFn := osExecutableFn
-	originalOnboardingPortCommandRunnerFn := onboardingPortCommandRunnerFn
-	originalOpenOnboardingURLFn := openOnboardingURLFn
-	syncResourceSchemaFn = func(root string) error { return nil }
-	newCLIInstallManagerFn = func(root, home string) cliInstallManager { return &stubCLIInstallManager{} }
-	return func() {
-		currentHostFn = originalCurrentHostFn
-		loadProjectFn = originalLoadProjectFn
-		markCompleteFn = originalMarkCompleteFn
-		syncResourceSchemaFn = originalSyncResourceSchemaFn
-		newCLIInstallManagerFn = originalNewCLIInstallManagerFn
-		resolveHostRequirementsFn = originalResolveHostRequirementsFn
-		inspectRequirementsFn = originalInspectRequirementsFn
-		ensureRequirementsFn = originalEnsureRequirementsFn
-		startProjectAPIFn = originalStartProjectAPIFn
-		startOrchestratorFn = originalStartOrchestratorFn
-		healthCheckFn = originalHealthCheckFn
-		loadDotEnvFn = originalLoadDotEnvFn
-		resourcesController = originalResourcesController
-		maybeOpenOnboardingFn = originalMaybeOpenOnboardingFn
-		osExecutableFn = originalOSExecutableFn
-		onboardingPortCommandRunnerFn = originalOnboardingPortCommandRunnerFn
-		openOnboardingURLFn = originalOpenOnboardingURLFn
-	}
+	deps := defaultSetupDeps()
+	deps.syncResourceSchema = func(root string) error { return nil }
+	deps.newCLIInstallManager = func(root, home string) cliInstallManager { return &stubCLIInstallManager{} }
+	return newSetupService(deps)
 }
 
 type stubCLIInstallManager struct {
@@ -1336,6 +1300,7 @@ func (s *stubCLIInstallManager) InstallEnabledResourceCLIs() error {
 
 func writeProjectFixture(t *testing.T, root string) scenario.Scenario {
 	t.Helper()
+	testkitgo.WriteRepoContract(t, root, "scenarios")
 	manifest := testkitvrooli.ProjectServiceManifest(
 		testkitvrooli.WithPorts(map[string]scenario.Port{
 			"api": {EnvVar: "VROOLI_API_PORT", Port: intPtr(8092)},
@@ -1355,6 +1320,7 @@ func writeProjectFixture(t *testing.T, root string) scenario.Scenario {
 
 func writeProjectFixtureWithServiceManifest(t *testing.T, root string, manifest scenario.ServiceManifest) scenario.Scenario {
 	t.Helper()
+	testkitgo.WriteRepoContract(t, root, "scenarios")
 	testkitvrooli.WriteProjectService(t, root, manifest)
 	servicePath := scenario.ProjectServicePath(root)
 	if strings.TrimSpace(manifest.Service.Name) == "" {

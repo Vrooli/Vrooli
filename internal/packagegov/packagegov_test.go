@@ -31,35 +31,18 @@ func TestLoadAllReportsMissingManifest(t *testing.T) {
 func TestValidateFlagsWorkspaceDepsAndPostinstallDebt(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "packages", "alpha", ".vrooli", "package.json"), `{
-  "$schema": "schemas/package.schema.json",
-  "version": "1.0.0",
-  "package": {
-    "name": "alpha",
-    "display_name": "@vrooli/alpha",
-    "kind": "js_runtime",
-    "module_identifiers": ["@vrooli/alpha"],
-    "adoption": {
-      "scenario_adoptable": true,
-      "allowed_consumers": ["scenario_ui"],
-      "adoption_modes": ["file_dependency"]
-    },
-    "lifecycle": {},
-    "refresh": {
-      "strategy": "scenario_setup",
-      "restart_running_consumers": true
-    }
-  }
-}`)
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "scenarios", "demo", ".vrooli", "service.json"), `{"service":{"name":"demo","parent":"vrooli"},"lifecycle":{"version":"2.0.0"}}`)
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "scenarios", "demo", "ui", "package.json"), `{
-  "scripts": {
-    "postinstall": "mkdir -p node_modules/@vrooli && cp -a ../../../packages/alpha node_modules/@vrooli/alpha"
-  },
-  "dependencies": {
-    "@vrooli/alpha": "workspace:*"
-  }
-}`)
+	writePackageManifestFixture(t, fixture.Root, "alpha", packageManifestFixture("alpha", func(manifest *Manifest) {
+		manifest.Package.Refresh = RefreshPolicy{
+			Strategy:                RefreshScenarioSetup,
+			RestartRunningConsumers: true,
+		}
+	}))
+	writeScenarioServiceFixture(t, fixture.Root, "demo")
+	writeScenarioUIPackageManifestFixture(t, fixture.Root, "demo", map[string]string{
+		"@vrooli/alpha": "workspace:*",
+	}, map[string]string{
+		"postinstall": "mkdir -p node_modules/@vrooli && cp -a ../../../packages/alpha node_modules/@vrooli/alpha",
+	})
 
 	report, err := Validate(fixture.Root, "")
 	if err != nil {
@@ -73,27 +56,27 @@ func TestValidateFlagsWorkspaceDepsAndPostinstallDebt(t *testing.T) {
 func TestValidateFlagsScenarioAdoptionOfInternalOnlyPackage(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "packages", "testkit-go", ".vrooli", "package.json"), `{
-  "$schema": "schemas/package.schema.json",
-  "version": "1.0.0",
-  "package": {
-    "name": "testkit-go",
-    "display_name": "github.com/example/testkit-go",
-    "kind": "go_testkit",
-    "module_identifiers": ["github.com/example/testkit-go"],
-    "adoption": {
-      "scenario_adoptable": false,
-      "allowed_consumers": ["internal_platform"],
-      "adoption_modes": []
-    },
-    "lifecycle": {},
-    "refresh": {
-      "strategy": "none",
-      "restart_running_consumers": false
-    }
-  }
-}`)
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "scenarios", "demo", ".vrooli", "service.json"), `{"service":{"name":"demo","parent":"vrooli"},"lifecycle":{"version":"2.0.0"}}`)
+	testkitgo.WriteJSON(t, filepath.Join(fixture.Root, "packages", "testkit-go", ".vrooli", "package.json"), map[string]any{
+		"$schema": "schemas/package.schema.json",
+		"version": "1.0.0",
+		"package": map[string]any{
+			"name":               "testkit-go",
+			"display_name":       "github.com/example/testkit-go",
+			"kind":               "go_testkit",
+			"module_identifiers": []string{"github.com/example/testkit-go"},
+			"adoption": map[string]any{
+				"scenario_adoptable": false,
+				"allowed_consumers":  []string{"internal_platform"},
+				"adoption_modes":     []string{},
+			},
+			"lifecycle": map[string]any{},
+			"refresh": map[string]any{
+				"strategy":                  "none",
+				"restart_running_consumers": false,
+			},
+		},
+	})
+	writeScenarioServiceFixture(t, fixture.Root, "demo")
 	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "scenarios", "demo", "api", "go.mod"), `module example.com/demo/api
 
 go 1.25.0
@@ -122,27 +105,27 @@ replace github.com/example/testkit-go => ../../../packages/testkit-go
 func TestLoadAllRejectsUnknownManifestFields(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "packages", "alpha", ".vrooli", "package.json"), `{
-  "$schema": "schemas/package.schema.json",
-  "version": "1.0.0",
-  "package": {
-    "name": "alpha",
-    "display_name": "@vrooli/alpha",
-    "kind": "js_runtime",
-    "module_identifiers": ["@vrooli/alpha"],
-    "unexpected": true,
-    "adoption": {
-      "scenario_adoptable": true,
-      "allowed_consumers": ["scenario_ui"],
-      "adoption_modes": ["file_dependency"]
-    },
-    "lifecycle": {},
-    "refresh": {
-      "strategy": "scenario_setup",
-      "restart_running_consumers": true
-    }
-  }
-}`)
+	testkitgo.WriteJSON(t, filepath.Join(fixture.Root, "packages", "alpha", ".vrooli", "package.json"), map[string]any{
+		"$schema": "schemas/package.schema.json",
+		"version": "1.0.0",
+		"package": map[string]any{
+			"name":               "alpha",
+			"display_name":       "@vrooli/alpha",
+			"kind":               "js_runtime",
+			"module_identifiers": []string{"@vrooli/alpha"},
+			"unexpected":         true,
+			"adoption": map[string]any{
+				"scenario_adoptable": true,
+				"allowed_consumers":  []string{"scenario_ui"},
+				"adoption_modes":     []string{"file_dependency"},
+			},
+			"lifecycle": map[string]any{},
+			"refresh": map[string]any{
+				"strategy":                  "scenario_setup",
+				"restart_running_consumers": true,
+			},
+		},
+	})
 
 	_, issues, err := LoadAll(fixture.Root)
 	if err != nil {
@@ -156,25 +139,9 @@ func TestLoadAllRejectsUnknownManifestFields(t *testing.T) {
 func TestLoadAllRejectsSchemaViolations(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "packages", "alpha", ".vrooli", "package.json"), `{
-  "$schema": "schemas/package.schema.json",
-  "version": "1.0.0",
-  "package": {
-    "name": "alpha",
-    "kind": "js_runtime",
-    "module_identifiers": ["@vrooli/alpha"],
-    "adoption": {
-      "scenario_adoptable": true,
-      "allowed_consumers": ["scenario_ui"],
-      "adoption_modes": ["file_dependency"]
-    },
-    "lifecycle": {},
-    "refresh": {
-      "strategy": "scenario_setup",
-      "restart_running_consumers": true
-    }
-  }
-}`)
+	writePackageManifestFixture(t, fixture.Root, "alpha", packageManifestFixture("alpha", func(manifest *Manifest) {
+		manifest.Package.DisplayName = ""
+	}))
 
 	_, issues, err := LoadAll(fixture.Root)
 	if err != nil {
@@ -191,39 +158,26 @@ func TestLoadAllRejectsSchemaViolations(t *testing.T) {
 func TestDiscoverDependentsClassifiesGeneratedArtifacts(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "packages", "proto", ".vrooli", "package.json"), `{
-  "$schema": "schemas/package.schema.json",
-  "version": "1.0.0",
-  "package": {
-    "name": "proto",
-    "display_name": "github.com/example/proto",
-    "kind": "schema_or_contract",
-    "module_identifiers": ["github.com/example/proto"],
-    "generated_outputs": [
-      {
-        "name": "proto-types",
-        "identifiers": ["@vrooli/proto-types"],
-        "consumers": ["scenario_ui"]
-      }
-    ],
-    "adoption": {
-      "scenario_adoptable": true,
-      "allowed_consumers": ["scenario_ui"],
-      "adoption_modes": ["generated_artifact"]
-    },
-    "lifecycle": {},
-    "refresh": {
-      "strategy": "generate_then_setup",
-      "restart_running_consumers": true
-    }
-  }
-}`)
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "scenarios", "demo", ".vrooli", "service.json"), `{"service":{"name":"demo","parent":"vrooli"},"lifecycle":{"version":"2.0.0"}}`)
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "scenarios", "demo", "ui", "package.json"), `{
-  "dependencies": {
-    "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript"
-  }
-}`)
+	writePackageManifestFixture(t, fixture.Root, "proto", packageManifestFixture("proto", func(manifest *Manifest) {
+		manifest.Package.DisplayName = "github.com/example/proto"
+		manifest.Package.Kind = KindSchemaOrContract
+		manifest.Package.ModuleIdentifiers = []string{"github.com/example/proto"}
+		manifest.Package.GeneratedOutputs = []GeneratedOutput{{
+			Name:        "proto-types",
+			Identifiers: []string{"@vrooli/proto-types"},
+			Consumers:   []ConsumerClass{ConsumerScenarioUI},
+		}}
+		manifest.Package.Adoption.AllowedConsumers = []ConsumerClass{ConsumerScenarioUI}
+		manifest.Package.Adoption.AdoptionModes = []AdoptionMode{ModeGeneratedArtifact}
+		manifest.Package.Refresh = RefreshPolicy{
+			Strategy:                RefreshGenerateThenSetup,
+			RestartRunningConsumers: true,
+		}
+	}))
+	writeScenarioServiceFixture(t, fixture.Root, "demo")
+	writeScenarioUIPackageManifestFixture(t, fixture.Root, "demo", map[string]string{
+		"@vrooli/proto-types": "file:../../../packages/proto/gen/typescript",
+	}, nil)
 
 	items, issues, err := LoadAll(fixture.Root)
 	if err != nil {
@@ -251,26 +205,14 @@ func TestDiscoverDependentsClassifiesGeneratedArtifacts(t *testing.T) {
 func TestValidateAllowsResourceRuntimeConsumers(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "packages", "cli-core", ".vrooli", "package.json"), `{
-  "$schema": "schemas/package.schema.json",
-  "version": "1.0.0",
-  "package": {
-    "name": "cli-core",
-    "display_name": "github.com/example/cli-core",
-    "kind": "go_cli",
-    "module_identifiers": ["github.com/example/cli-core"],
-    "adoption": {
-      "scenario_adoptable": true,
-      "allowed_consumers": ["resource_runtime"],
-      "adoption_modes": ["go_module_replace"]
-    },
-    "lifecycle": {},
-    "refresh": {
-      "strategy": "rebuild_cli_consumers",
-      "restart_running_consumers": false
-    }
-  }
-}`)
+	writePackageManifestFixture(t, fixture.Root, "cli-core", packageManifestFixture("cli-core", func(manifest *Manifest) {
+		manifest.Package.DisplayName = "github.com/example/cli-core"
+		manifest.Package.Kind = KindGoCLI
+		manifest.Package.ModuleIdentifiers = []string{"github.com/example/cli-core"}
+		manifest.Package.Adoption.AllowedConsumers = []ConsumerClass{ConsumerResourceRuntime}
+		manifest.Package.Adoption.AdoptionModes = []AdoptionMode{ModeGoModuleReplace}
+		manifest.Package.Refresh = RefreshPolicy{Strategy: RefreshRebuildCLI}
+	}))
 	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "resources", "sqlite", "go.mod"), `module github.com/example/resources/sqlite
 
 go 1.25.0
@@ -295,28 +237,19 @@ func TestValidateRequiresGoReplaceForGovernedAdoption(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
 	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "docs", "package-governance.md"), "# ok\n")
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "packages", "alpha", ".vrooli", "package.json"), `{
-  "$schema": "schemas/package.schema.json",
-  "version": "1.0.0",
-  "package": {
-    "name": "alpha",
-    "display_name": "github.com/example/alpha",
-    "kind": "go_runtime",
-    "module_identifiers": ["github.com/example/alpha"],
-    "adoption": {
-      "scenario_adoptable": true,
-      "allowed_consumers": ["scenario_api"],
-      "adoption_modes": ["go_module_replace"]
-    },
-    "lifecycle": {},
-    "refresh": {
-      "strategy": "restart_running_consumers",
-      "restart_running_consumers": true
-    },
-    "docs": ["docs/package-governance.md"]
-  }
-}`)
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "scenarios", "demo", ".vrooli", "service.json"), `{"service":{"name":"demo","parent":"vrooli"},"lifecycle":{"version":"2.0.0"}}`)
+	writePackageManifestFixture(t, fixture.Root, "alpha", packageManifestFixture("alpha", func(manifest *Manifest) {
+		manifest.Package.DisplayName = "github.com/example/alpha"
+		manifest.Package.Kind = KindGoRuntime
+		manifest.Package.ModuleIdentifiers = []string{"github.com/example/alpha"}
+		manifest.Package.Adoption.AllowedConsumers = []ConsumerClass{ConsumerScenarioAPI}
+		manifest.Package.Adoption.AdoptionModes = []AdoptionMode{ModeGoModuleReplace}
+		manifest.Package.Refresh = RefreshPolicy{
+			Strategy:                RefreshRestartConsumers,
+			RestartRunningConsumers: true,
+		}
+		manifest.Package.Docs = []string{"docs/package-governance.md"}
+	}))
+	writeScenarioServiceFixture(t, fixture.Root, "demo")
 	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "scenarios", "demo", "api", "go.mod"), `module example.com/demo/api
 
 go 1.25.0
@@ -368,4 +301,56 @@ You can also use go.work to point local consumers at the package.
 	if !foundWorkspace || !foundGoWork {
 		t.Fatalf("expected workspace and go.work guidance issues, got %#v", report.Issues)
 	}
+}
+
+func packageManifestFixture(name string, opts ...func(*Manifest)) Manifest {
+	manifest := Manifest{
+		Schema:  "schemas/package.schema.json",
+		Version: "1.0.0",
+		Package: ManifestEntry{
+			Name:              name,
+			DisplayName:       "@vrooli/" + name,
+			Kind:              KindJSRuntime,
+			ModuleIdentifiers: []string{"@vrooli/" + name},
+			Adoption: AdoptionPolicy{
+				ScenarioAdoptable: true,
+				AllowedConsumers:  []ConsumerClass{ConsumerScenarioUI},
+				AdoptionModes:     []AdoptionMode{ModeFileDependency},
+			},
+			Lifecycle: LifecyclePolicy{},
+			Refresh: RefreshPolicy{
+				Strategy:                RefreshScenarioSetup,
+				RestartRunningConsumers: true,
+			},
+		},
+	}
+	for _, opt := range opts {
+		opt(&manifest)
+	}
+	return manifest
+}
+
+func writePackageManifestFixture(t *testing.T, root, name string, manifest Manifest) {
+	t.Helper()
+	testkitgo.WriteJSON(t, filepath.Join(root, "packages", name, ".vrooli", "package.json"), manifest)
+}
+
+func writeScenarioServiceFixture(t *testing.T, root, name string) {
+	t.Helper()
+	testkitgo.WriteJSON(t, filepath.Join(root, "scenarios", name, ".vrooli", "service.json"), map[string]any{
+		"service":   map[string]any{"name": name, "parent": "vrooli"},
+		"lifecycle": map[string]any{"version": "2.0.0"},
+	})
+}
+
+func writeScenarioUIPackageManifestFixture(t *testing.T, root, name string, dependencies, scripts map[string]string) {
+	t.Helper()
+	manifest := map[string]any{}
+	if len(dependencies) > 0 {
+		manifest["dependencies"] = dependencies
+	}
+	if len(scripts) > 0 {
+		manifest["scripts"] = scripts
+	}
+	testkitgo.WriteJSON(t, filepath.Join(root, "scenarios", name, "ui", "package.json"), manifest)
 }

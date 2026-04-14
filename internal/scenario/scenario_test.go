@@ -5,7 +5,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -338,28 +337,21 @@ func TestEvaluateHealth(t *testing.T) {
 func TestReadServicePromotesTopLevelHealthConfig(t *testing.T) {
 	root := t.TempDir()
 	servicePath := filepath.Join(root, "service.json")
-	data := `{
-  "version": "1.0.0",
-  "service": {
-    "name": "alpha"
-  },
-  "health": {
-    "checks": [
-      {
-        "name": "api",
-        "type": "http",
-        "target": "http://127.0.0.1:${API_PORT}/health",
-        "critical": true
-      }
-    ]
-  },
-  "lifecycle": {
-    "version": "2.0.0"
-  }
-}`
-	if err := os.WriteFile(servicePath, []byte(data), 0o644); err != nil {
-		t.Fatalf("write %s: %v", servicePath, err)
-	}
+	testkitgo.WriteJSON(t, servicePath, ServiceManifest{
+		Version: "1.0.0",
+		Service: ServiceMetadata{Name: "alpha"},
+		Health: &HealthConfig{
+			Checks: []HealthCheck{{
+				Name:     "api",
+				Type:     "http",
+				Target:   "http://127.0.0.1:${API_PORT}/health",
+				Critical: true,
+			}},
+		},
+		Lifecycle: Lifecycle{
+			Version: "2.0.0",
+		},
+	})
 
 	manifest, err := ReadService(servicePath)
 	if err != nil {
@@ -398,35 +390,30 @@ func TestReadServiceRejectsInvalidJSON(t *testing.T) {
 func TestReadServiceLoadsCanonicalDependencyMaps(t *testing.T) {
 	root := t.TempDir()
 	servicePath := filepath.Join(root, "service.json")
-	data := `{
-  "version": "1.0.0",
-  "service": {
-    "name": "alpha"
-  },
-  "dependencies": {
-    "resources": {
-      "postgres": {
-        "enabled": true,
-        "required": true,
-        "purpose": "Store application data",
-        "database": "alpha_db"
-      },
-      "redis": {
-        "enabled": true,
-        "description": "Cache responses"
-      }
-    },
-    "scenarios": {
-      "test-genie": {
-        "enabled": true,
-        "description": "Run extended tests"
-      }
-    }
-  }
-}`
-	if err := os.WriteFile(servicePath, []byte(data), 0o644); err != nil {
-		t.Fatalf("write %s: %v", servicePath, err)
-	}
+	testkitgo.WriteJSON(t, servicePath, ServiceManifest{
+		Version: "1.0.0",
+		Service: ServiceMetadata{Name: "alpha"},
+		Dependencies: Dependencies{
+			Resources: map[string]Dependency{
+				"postgres": {
+					Enabled:  true,
+					Required: true,
+					Purpose:  "Store application data",
+					Database: "alpha_db",
+				},
+				"redis": {
+					Enabled:     true,
+					Description: "Cache responses",
+				},
+			},
+			Scenarios: map[string]Dependency{
+				"test-genie": {
+					Enabled:     true,
+					Description: "Run extended tests",
+				},
+			},
+		},
+	})
 
 	manifest, err := ReadService(servicePath)
 	if err != nil {

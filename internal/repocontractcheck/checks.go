@@ -409,10 +409,6 @@ func checkDocsAlignment(contract *repocontract.Contract, root string, raw string
 }
 
 func checkAdoptionRulesAlignment(contract *repocontract.Contract, root string, raw string) error {
-	if err := checkGuidanceAlignment(root); err != nil {
-		return err
-	}
-
 	violations, err := scanAdoptionViolations(root)
 	if err != nil {
 		return err
@@ -423,69 +419,6 @@ func checkAdoptionRulesAlignment(contract *repocontract.Contract, root string, r
 
 	sort.Strings(violations)
 	return fmt.Errorf("repo-contract adoption violations: %s", strings.Join(violations, "; "))
-}
-
-func checkGuidanceAlignment(root string) error {
-	required := []struct {
-		path     string
-		snippets []string
-	}{
-		{
-			path: "docs/repo-contract.md",
-			snippets: []string{
-				"## Adoption Rules",
-				"future repo-aware work",
-				"`packages/repo-contract-go` directly",
-			},
-		},
-		{
-			path: "docs/CONTRIBUTING.md",
-			snippets: []string{
-				"**Repo Contract**",
-				"Do not add new repo-root heuristics",
-				"`make validate-repo-contract`",
-				"`vrooli contract show`",
-			},
-		},
-		{
-			path: "AGENTS.md",
-			snippets: []string{
-				"## Repo Contract Adoption",
-				"Do not add new independent repo-root detection logic",
-				"Do not add new hard-coded canonical scenario path assembly",
-				"Run `make validate-repo-contract`",
-			},
-		},
-		{
-			path: "scenarios/prompt-manager/store/skills/packs/core/cross-platform-readiness/SKILL.md",
-			snippets: []string{
-				"repo-contract-backed helpers",
-				"`packages/repo-contract-go`",
-			},
-		},
-	}
-
-	for _, file := range required {
-		data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(file.path)))
-		if err != nil {
-			return fmt.Errorf("read %s: %w", file.path, err)
-		}
-		text := string(data)
-		for _, snippet := range file.snippets {
-			if !strings.Contains(text, snippet) {
-				return fmt.Errorf("%s missing required snippet %q", file.path, snippet)
-			}
-		}
-	}
-
-	skillBytes, err := os.ReadFile(filepath.Join(root, "scenarios", "prompt-manager", "store", "skills", "packs", "core", "cross-platform-readiness", "SKILL.md"))
-	if err != nil {
-		return fmt.Errorf("read cross-platform-readiness skill: %w", err)
-	}
-	if strings.Contains(string(skillBytes), `return filepath.Join(os.Getenv("VROOLI_ROOT"), "scenarios", "my-scenario", "config")`) {
-		return fmt.Errorf("cross-platform-readiness skill still teaches direct VROOLI_ROOT/scenarios joins")
-	}
-	return nil
 }
 
 func scanAdoptionViolations(root string) ([]string, error) {

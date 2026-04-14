@@ -19,7 +19,7 @@ implementation begins.
 - [`internal/setup/setup.go`](/home/matthalloran8/Vrooli/internal/setup/setup.go) still calls that runtime layer directly; there is no manifest-driven resolver yet.
 - Root [`.vrooli/service.json`](/home/matthalloran8/Vrooli/.vrooli/service.json) still shells out to `scripts/lib/setup.sh` via the `base-setup` lifecycle step.
 - [`internal/lifecycle/lifecycle.go`](/home/matthalloran8/Vrooli/internal/lifecycle/lifecycle.go) still falls back to `scripts/lib/setup-conditions/<type>-check.sh` for unknown setup condition types.
-- The shell-era setup layer still installs a broader host surface in [`scripts/lib/setup.sh`](/home/matthalloran8/Vrooli/scripts/lib/setup.sh), including `git`, `curl`, `jq`, `buf`, `sqlite`, `shellcheck`, `bats`, `lychee`, `ast-grep`, `js-yaml`, `ajv`, `tmux`, `yq`, `ffmpeg`, `Xvfb`, `xdotool`, `x11vnc`, `websockify`, and `openbox`.
+- The shell-era setup layer still installs a broader host surface in the historical `scripts/lib/setup.sh` path, including `git`, `curl`, `jq`, `buf`, `sqlite`, `shellcheck`, `bats`, `lychee`, `ast-grep`, `js-yaml`, `ajv`, `tmux`, `yq`, `ffmpeg`, `Xvfb`, `xdotool`, `x11vnc`, `websockify`, and `openbox`.
 - Shared shell helper debt is still live:
   - `55` scenario package manifests/scripts reference `scripts/lib/ui-guard.sh`
   - `64` scenario CLI installers reference `scripts/lib/utils/cli-install.sh`
