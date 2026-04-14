@@ -2,34 +2,34 @@
 
 [<img alt="Vrooli logo with motto" src="./assets/readme-display.png" width="500px"/>][website]
 
-
 <h1>
 
-[Website][website] | [Docs][docs] | [AI expert][chatGptBot]
+[Website][website] | [Docs][docs] | [Vision][vision]
 
 </h1>
 
 # Your Personal AGI Server
 
-Vrooli is a local, cross-platform, fully customizable, self-improving app ecosystem. Use AI agents to automatically build, test, and deploy entire app ecosystems from any device. Comes installed with a full development suite, including voice-assisted terminal, skills and teams management, project management, app templates, comprehensive tests suites, and much more.
+Vrooli is a local, cross-platform, self-improving software foundry. It gives you a Go-native control plane for orchestrating local resources, running coordinated agent workflows, and turning scenarios into permanent business and platform capabilities.
 
-**🔒 Your Code. Your Data. Your Hardware. Your Control.**
+**Your code. Your data. Your hardware. Your control.**
 
 </div>
 
-## 🚀 Quick Start
-
-> NOTE: While not necessary, it is recommended to run this on dedicated hardware
+## Quick Start
 
 ```bash
-# First time setup
+# First-time setup
 make setup
 
-# Start development environment
-vrooli dev
+# Canonical project briefing
+vrooli info
 
-# See all commands
-make help
+# Start the development stack
+vrooli develop
+
+# Explore the CLI
+vrooli help
 ```
 
 <div align="center">
@@ -37,264 +37,353 @@ make help
 [![Website](https://img.shields.io/badge/Vrooli.com-072c6a?style=for-the-badge&logo=googlechrome&logoColor=white)][website]
 [![GitHub](https://img.shields.io/badge/Star%20Our%20Repo-333333?style=for-the-badge&logo=github&logoColor=white)][github]
 [![X](https://img.shields.io/badge/Follow%20%40VrooliOfficial-111111?style=for-the-badge&logo=x&logoColor=white)][x]
-
 [![YouTube](https://img.shields.io/badge/Subscribe%20%40Vrooli-FF0000?style=for-the-badge&logo=youtube&logoColor=white)][youtube]
 [![License](https://img.shields.io/badge/License-AGPLv3-2a9d8f?style=for-the-badge&logo=gnu&logoColor=white)][license]
 
 </div>
 
-<br/>
+## Table of Contents
 
-# Table of Contents
-- [Why Vrooli Changes Everything](#why-vrooli-changes-everything)
-- [How It Works](#how-it-works)
-- [The Future of Software Development](#the-future-of-software-development)
-- [Installation](#installation)
-- [Quick Tutorial](#quick-tutorial)
-- [Development](#development)
+- [What Vrooli Is](#what-vrooli-is)
+- [Why It Is Different](#why-it-is-different)
+- [How Vrooli Works](#how-vrooli-works)
+- [What You Can Do Today](#what-you-can-do-today)
+- [Current State](#current-state)
+- [Core Concepts](#core-concepts)
+- [Quick Start](#quick-start-1)
+- [Development Workflow](#development-workflow)
+- [Repository Guide](#repository-guide)
+- [Roadmap Direction](#roadmap-direction)
 - [Contributing](#contributing)
-- [Privacy & Data](#privacy--data)
+- [Privacy and Deployment](#privacy-and-deployment)
 - [License](#license)
 
+## What Vrooli Is
 
-## Why Vrooli Changes Everything
+Vrooli is not just an automation toolkit and not just an app generator. It is a local intelligence system built around a simple compounding loop:
 
-### 🏠 **True Privacy & Control**
-- Everything runs on YOUR hardware - databases, AI models, applications
-- Zero external API dependencies after initial setup
-- Your proprietary business logic never leaves your network
-- Perfect for sensitive industries (healthcare, finance, defense, research)
-- Fully customizable security and compliance to your exact requirements
+1. Agents use resources to solve a problem.
+2. The solution becomes a scenario, workflow, package, or pattern.
+3. That artifact becomes a permanent capability the system can reuse.
+4. Future agents start from a stronger base and solve harder problems.
 
-### 🚀 **AI Development Team in a Box**
-- Generate complete applications: web UI + REST API + CLI + database
-- 30+ integrated local services (databases, AI models, automation, storage)
-- Modify AI-generated code safely - changes are preserved permanently
-- Compose applications from small, focused scenarios (few thousand lines each)
+The result is software that improves by building more software.
 
-### 🔧 **Modular Application Building**
-Your applications aren't monolithic. They're built from composable scenarios:
-- **Core scenarios**: Generate base app (UI + API + database + CLI)
-- **Enhancement scenarios**: Add features (ui-component-manager, account-manager, branding-manager)
-- **Platform scenarios**: Deploy and customize (app-to-ios, deployment-manager, app-issue-tracker)
-- **Meta-scenarios**: The system improves itself (ecosystem-manager, system-monitor)
+Today, that looks like:
 
-### 💰 **Real Business Value**
-The applications Vrooli generates aren't demos - they're production-ready tools that businesses typically pay $10K-50K to develop. Whether for internal use or client delivery, you're getting genuine enterprise-grade software.
+- A Go-native `vrooli` control plane for setup, lifecycle, resources, scenarios, packages, diagnostics, and repo-contract validation
+- A large scenario library spanning product generation, testing, deployment, agent coordination, browser automation, onboarding, observability, and governance
+- A local resource layer for AI, storage, automation, search, execution, and infrastructure services
+- A development model where scenarios are both usable applications and reusable intelligence assets
 
-## How It Works
+## Why It Is Different
 
-1. **Tell Vrooli What You Want**: Describe your application in plain English
-2. **AI Orchestrates Local Resources**: Combines databases, workflows, UI frameworks automatically
-3. **Complete Application Generated**: Working software with UI, API, CLI, and database
-4. **Customize and Enhance**: Modify the code - your changes are automatically detected and preserved
-5. **Compose Additional Features**: Add scenarios for iOS deployment, branding, debugging, monitoring
+### Local Sovereignty
 
-The genius is in the **scenario modification system**: AI generates your initial application, but when you customize it, those changes are detected and preserved. Future scenario updates won't overwrite your modifications.
+Vrooli is built for people and organizations that want real control. Models, databases, queues, indexes, automation services, and apps can run on infrastructure you own and operate.
 
-**Current Resource Categories:** Storage, Automation, AI Models, Databases, UI Frameworks, Development Tools
-**Coming Soon:** Home Automation, Physics Simulation, 3D Printing, CAD Integration, IoT Management
+That matters for:
 
-## The Future of Software Development
+- private business logic
+- sensitive internal workflows
+- regulated environments
+- offline-capable development
+- long-term independence from third-party platform constraints
 
-**Our vision: Every household and business running their own Vrooli server.**
+### Scenarios Become Capabilities
 
-Instead of depending on cloud services and external APIs, imagine:
-- Your smart home running custom automation built by your personal AI
-- Your business generating internal tools instantly without external developers
-- Your family's personal assistant, photo manager, and productivity apps - all private
-- Your company's sensitive processes automated without data ever leaving your premises
-- Healthcare providers processing patient data with complete privacy
-- Financial institutions running proprietary algorithms on their own hardware
+In Vrooli, a scenario is more than a demo and more than a template.
 
-We're building the infrastructure for a **locally-sovereign digital future**.
+A scenario can simultaneously be:
 
-[Learn more about our business server solutions →](docs/business-solutions.md)
+- a product or internal tool
+- an integration and validation surface
+- a reusable business capability
+- a building block for future scenarios
 
+This is the core mechanism behind Vrooli's compounding behavior.
 
-# Installation
+### Steering Instead of Micromanaging
 
-## 💾 Local Server (Recommended)
-Run Vrooli on your own infrastructure with complete control and privacy:
+Recent Vrooli releases shifted the operator loop away from manually prompting one agent at a time and toward higher-level orchestration:
+
+- phone-friendly Web Console workflows
+- speech-to-text and text-to-speech interaction
+- Swarm Manager for initiative and backlog execution
+- Prompt Manager for reusable skills, teams, and organizational memory
+- richer review and governance layers around scenario quality and execution
+
+## How Vrooli Works
+
+At a high level:
+
+1. Define the outcome you want.
+2. Select or generate the scenario stack that fits the job.
+3. Orchestrate the local resources that scenario depends on.
+4. Run, test, review, and improve the resulting application or workflow.
+5. Keep the outcome as a permanent capability the system can build on later.
+
+The important design choice is that Vrooli is built around **resources** and **scenarios**, not around one monolithic app.
+
+- Resources provide capabilities such as databases, inference, automation, search, secret storage, and execution environments.
+- Scenarios compose those capabilities into usable products, internal tools, operator surfaces, and meta-systems that improve the platform itself.
+
+## What You Can Do Today
+
+Vrooli is already useful as a local development and orchestration environment, not just as a future vision.
+
+You can use it today to:
+
+- bootstrap and manage a local, Go-native control plane with `vrooli`
+- run and test scenarios from source with scenario lifecycle tooling
+- orchestrate local resources such as PostgreSQL, Redis, Qdrant, Ollama, Browserless, Vault, and more
+- build and validate business applications through scenario templates and supporting scenarios
+- operate the stack remotely through the Web Console and app-monitor based Tier 1 deployment model
+- coordinate agent work through scenarios such as Swarm Manager, Prompt Manager, Git Control Tower, Test Genie, and deployment-focused tooling
+
+## Current State
+
+> Last updated: 2026-04-14
+
+### What Is True Now
+
+- The project should be understood as a **Go-native, cross-platform control plane** with scenarios and resources as first-class concepts.
+- The root CLI is `vrooli`, with commands for setup, development, status, scenario management, resource management, package governance, and diagnostics.
+- The current production-ready deployment path is the **Tier 1 local/developer stack**, with remote access patterns documented in the Deployment Hub.
+- The platform already includes serious operator tooling around testing, requirement validation, review, monitoring, backlog orchestration, and deployment planning.
+
+### What Is Still Evolving
+
+- deployment portability beyond Tier 1
+- tier-aware packaging and dependency swapping
+- broader scenario-to-desktop/mobile/cloud automation
+- increasingly autonomous team and backlog governance
+
+## Core Concepts
+
+### Resources
+
+Resources are the local or connected services that provide raw capability.
+
+Examples include:
+
+- AI and inference services
+- relational, cache, vector, and object storage
+- browser and workflow automation
+- secret management and supporting infrastructure
+
+See [docs/resources/README.md](docs/resources/README.md).
+
+### Scenarios
+
+Scenarios are complete applications or focused services that orchestrate resources and other scenarios.
+
+A scenario may provide:
+
+- a UI
+- an API
+- a CLI
+- tests
+- deployment metadata
+- reusable business logic
+
+See [docs/scenarios/README.md](docs/scenarios/README.md).
+
+### Meta-Scenarios
+
+Some scenarios primarily improve Vrooli itself. These are the recursive layer of the system.
+
+Examples include scenarios concerned with:
+
+- testing and validation
+- dependency analysis
+- deployment planning
+- issue tracking
+- observability
+- agent coordination and review
+
+### Deployment Tiers
+
+Vrooli no longer assumes there is one packaging story for everything. Deployment is tiered.
+
+- Tier 1: Full local or dev-server stack with remote access support
+- Tier 2+: Desktop, mobile, SaaS, and appliance-style targets in varying stages of maturity
+
+See [docs/deployment/README.md](docs/deployment/README.md).
+
+## Quick Start
+
+### 1. Set Up The Project
 
 ```bash
-# Quick setup with default resources (includes Ollama AI models)
+git clone https://github.com/Vrooli/Vrooli.git
+cd Vrooli
 make setup
-
-# Start your personal development server
-make dev
+vrooli info
 ```
 
-**Why Local?** This unlocks Vrooli's full potential:
-- **Complete Privacy:** Your code, data, and AI models never leave your hardware
-- **Full Resource Access:** 30+ local services for building complete applications
-- **No External Dependencies:** Generate applications even when offline
-- **Enterprise Ready:** Perfect for sensitive business environments
+### 2. Start The Development Environment
 
-[See detailed setup guide →][setup-guide]
+```bash
+vrooli develop
+```
 
-## 🌐 Hosted Service (Alternative)
-Prefer not to manage your own server? We also offer a hosted version at [vrooli.com](https://vrooli.com) with privacy-focused features:
-- Your data stays in your chosen region
-- No tracking or advertising  
-- Full data export/deletion controls
-- Option to migrate to local deployment anytime
+### 3. Inspect The System
 
-[Private hosting guide →][private-hosting]
+```bash
+vrooli help
+vrooli status
+vrooli scenario list
+vrooli resource list
+```
 
+### 4. Run Scenario Tests
 
-# Quick Tutorial
+```bash
+vrooli scenario test <name>
+```
 
-Video coming soon! In the meantime, new accounts will be greeted with an interactive tutorial that will guide you through:
+### 5. Use Scenario Lifecycle Commands
 
-1. **First Application**: Generate a personal task manager with UI, API, and CLI
-2. **Customization**: Modify the generated code to fit your needs
-3. **Enhancement**: Add features using additional scenarios
-4. **Privacy Setup**: Configure local-only operation
+The preferred operational path for individual scenarios is their local Makefile:
 
-Example scenarios you'll learn to build:
-- Personal productivity tools
-- Business automation dashboards
-- Research and analysis applications
-- Custom workflows and integrations
+```bash
+cd scenarios/<scenario-name>
+make start
+make test
+make logs
+make stop
+```
 
+## Development Workflow
 
-# Development
+### Common Commands
 
-Vrooli uses a modern, privacy-first technology stack designed for local resource orchestration and AI-driven application generation.
+```bash
+# Project lifecycle
+vrooli setup
+vrooli develop
+vrooli status
+vrooli stop
+vrooli info
 
-### Core Technologies
-- **React + TypeScript:** Type-safe frontend with real-time AI interaction
-- **Node.js + Express:** High-performance backend for local resource coordination  
-- **PostgreSQL + pgvector:** Local database with AI embedding support
-- **Docker:** Containerized local services for security and isolation
-- **Redis:** Local caching and real-time coordination
+# Scenario management
+vrooli scenario list
+vrooli scenario start <name>
+vrooli scenario test <name>
 
-### Architecture Highlights
-- **Local-First Design:** Everything runs on your hardware
-- **Scenario-Based:** Modular, composable application templates
-- **Resource Orchestration:** 30+ integrated local services
-- **AI Model Agnostic:** Works with OpenAI, Anthropic, Mistral, local models
-- **Privacy by Design:** No external dependencies after setup
+# Resource management
+vrooli resource list
+vrooli resource status
+vrooli resource start-all
 
-[Detailed architecture documentation →](docs/ARCHITECTURE_OVERVIEW.md)
+# Governance and diagnostics
+vrooli package --help
+vrooli contract --help
+vrooli doctor
+```
 
-## Privacy & Security
+### Testing
 
-Vrooli's local-first architecture provides inherent security advantages:
+Use scenario-aware testing instead of ad hoc execution:
 
-### Privacy by Design
-- **Local Execution:** All data processing happens on your hardware
-- **No Cloud Dependencies:** Generate applications completely offline
-- **Configurable Security:** Add encryption, compliance, monitoring as needed
-- **Industry Ready:** GDPR, HIPAA, SOX compliance capabilities
+```bash
+vrooli scenario test <name>
+```
 
-### Security Features
-- **Sandboxed Execution:** Isolated containers for safe code generation
-- **Permission Controls:** Granular access based on roles and requirements
-- **Audit Trails:** Comprehensive logging for compliance and forensics
-- **Emergency Controls:** Immediate system halt for safety-critical situations
+For project-level validation, start with:
 
-[Complete security documentation →](docs/security/README.md)
+```bash
+make test
+```
 
-## [🗂️ Project Structure][project-structure]
-[This docs section][project-structure] provides a comprehensive overview of the project's structure, helping developers get familiar with the layout and organization of the codebase.
+See [docs/TESTING.md](docs/TESTING.md).
 
-## [👩🏼‍💻 Developer Setup][setup-guide]
-[Follow this guide][setup-guide] to set up your development environment, including step-by-step instructions and useful tips for efficient development.
+### Repo Contract and Package Governance
 
-**Note:** Running the setup process with sudo permissions automatically configures any required system settings for local resources.
+Vrooli is actively standardizing around a repo contract and governed shared packages. If you are changing repo-aware path logic or shared-package behavior, use the documented validation flows.
 
-### CI/CD Pipeline
+- [docs/repo-contract.md](docs/repo-contract.md)
+- [docs/package-governance.md](docs/package-governance.md)
 
-We have set up a CI/CD pipeline to automatically deploy changes to a development VPS whenever changes are pushed to the `development` branch. This allows for quick testing and validation of changes before they are merged into the main branch and deployed to production.
+## Repository Guide
 
-For detailed instructions on how to set up and use the CI/CD pipeline, see the [CI/CD Setup documentation](docs/devops/ci-cd.md).
+This repository is organized around the platform control plane and the scenario/resource ecosystem.
 
-# Contributing
+- [`cmd/`](cmd) contains the main Go entrypoints, including `vrooli`
+- [`internal/`](internal) contains the control plane, lifecycle, setup, orchestration, repo-contract, and supporting platform internals
+- [`packages/`](packages) contains governed shared packages
+- [`resources/`](resources) contains resource definitions and resource-local tooling
+- [`scenarios/`](scenarios) contains the scenario ecosystem
+- [`templates/`](templates) contains reusable starting points for scenarios and resources
+- [`docs/`](docs) is the canonical documentation hub
 
-## Multilingual Support
-Vrooli is building the future of local-first software development. We welcome contributions from developers who share our vision of digital sovereignty.
+Start here:
 
-### How to Contribute
-- **Scenario Development:** Create new application templates for the community
-- **Resource Integration:** Add support for new local services and tools  
-- **Platform Development:** Core platform improvements and optimizations
-- **Documentation:** Help others understand and use Vrooli effectively
-- **Translation:** Make Vrooli accessible in multiple languages
+- [docs/README.md](docs/README.md)
+- [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)
+- [docs/ARCHITECTURE_OVERVIEW.md](docs/ARCHITECTURE_OVERVIEW.md)
+- [docs/context.md](docs/context.md)
+- [VISION.md](VISION.md)
 
-### Current Priorities
-- Local resource integrations (home automation, 3D printing, IoT)
-- Enterprise scenario templates (healthcare, finance, manufacturing)
-- Mobile and desktop application deployment scenarios
-- Community scenario marketplace development
+## Roadmap Direction
 
-## Join the Team
-### Get Started
-1. Check our [project board](https://github.com/orgs/Vrooli/projects/1) for open tasks
-2. Read the [development guide](docs/development/README.md)  
-3. Join our community discussions
-4. Submit pull requests for review
+Vrooli's direction is clear even when every layer is not equally mature yet.
 
-As we become profitable, we'll add bounty rewards for completed contributions. This is your chance to shape the future of local-first development.
+The platform is moving toward:
 
-[Contact the maintainer →](https://matthalloran.info)
+- richer multi-agent governance and execution loops
+- more portable deployment bundles and tier-aware packaging
+- stronger scenario composition and dependency analysis
+- broader domain-specific capability stacks
+- a future where every completed scenario expands what the system can do next
 
+The goal is not just to automate tasks. The goal is to build a system that accumulates problem-solving ability.
 
-## Privacy & Data
+## Contributing
 
-**Vrooli is designed with privacy as the foundation, not an afterthought.**
+Contributions should raise the platform's long-term capability, not just add isolated code.
 
-### Local-First Privacy
-- **Your Hardware, Your Data:** When running locally, all data stays on your machine
-- **No Cloud Dependencies:** Generate applications completely offline
-- **Zero Tracking:** No analytics, ads, or external data collection
-- **Complete Control:** You own and control every piece of data
+High-leverage areas include:
 
-### Hosted Service Privacy
-If you use our hosted service:
-- **Minimal Data Collection:** Only what's necessary for operation
-- **Clear Data Boundaries:** Always know what's private vs. public
-- **Full Export/Deletion:** Complete control over your data
-- **No Third-Party Sharing:** Your data is never sold or shared
-- **Compliance Ready:** GDPR and CCPA compliant
+- scenario quality and completeness
+- resource integrations
+- deployment intelligence
+- testing and validation infrastructure
+- documentation and operator workflows
+- core control plane improvements
 
-### Enterprise & Sensitive Data
-Perfect for industries requiring strict data control:
-- **Healthcare:** HIPAA-compliant local deployment
-- **Finance:** Regulatory compliance with local data processing
-- **Defense:** Air-gapped environments supported
-- **Research:** Proprietary algorithms stay completely private
+Start with:
 
-[Complete privacy policy →](https://vrooli.com/privacy)
+- [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)
+- [docs/README.md](docs/README.md)
 
+## Privacy and Deployment
 
-# License
+Vrooli is designed around local sovereignty, but deployment strategy depends on target environment.
 
-Vrooli is released under the [GNU Affero General Public License v3.0 (AGPLv3)][license].
+- If you want the most complete and current experience, use the Tier 1 local/developer stack.
+- If you are evaluating desktop, mobile, SaaS, or appliance deployment paths, use the Deployment Hub to understand the current maturity and gaps before committing.
 
-## Why AGPL 3.0?
+See:
 
-- **Freedom and Transparency:** Ensures all improvements remain open source, even for network services
-- **Community Growth:** Encourages collaborative development and shared innovation
-- **Anti-Vendor Lock-in:** Prevents proprietary capture of community contributions
-- **Local Sovereignty:** Supports the vision of personal, local-first computing
+- [docs/deployment/README.md](docs/deployment/README.md)
+- [docs/business-solutions.md](docs/business-solutions.md)
 
-The AGPL ensures that Vrooli will always remain free software that empowers users, not vendors.
+## License
 
+Vrooli is released under the [GNU Affero General Public License v3.0][license].
 
-### [🌍**Let's change the world together!🕊️**][website]
+The AGPL matches the platform's direction:
 
+- improvements stay visible
+- networked deployments remain accountable
+- community capability cannot be silently enclosed
 
 [website]: https://vrooli.com
 [docs]: https://docs.vrooli.com
-[chatGptBot]: https://chatgpt.com/g/g-WbecuwZSy-vrooli-product-manager
-[personal-site]: https://matthalloran.info
-[setup-guide]: https://github.com/MattHalloran/ReactGraphQLTemplate#how-to-start
-[project-structure]: https://docs.vrooli.com/setup/project_structure.html
-[private-hosting]: https://docs.vrooli.com/setup/getting_started/remote_setup.html
+[vision]: ./VISION.md
 [x]: https://x.com/intent/follow?original_referer=https%3A%2F%2Fgithub.com%2FVrooliOfficial&screen_name=VrooliOfficial
 [youtube]: https://www.youtube.com/@vrooli
-[email]: mailto:support@vrooli.com
 [github]: https://github.com/Vrooli/Vrooli
 [license]: https://choosealicense.com/licenses/agpl-3.0/
