@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/packagegov"
 )
@@ -67,6 +68,7 @@ type RunResponse struct {
 type RefreshItem struct {
 	Consumer string                       `json:"consumer"`
 	Class    packagegov.ConsumerClass     `json:"consumer_class"`
+	Classes  []packagegov.ConsumerClass   `json:"consumer_classes,omitempty"`
 	Action   packagegov.RefreshActionKind `json:"action"`
 	Status   string                       `json:"status"`
 }
@@ -103,7 +105,7 @@ func RenderCommandHelp(w io.Writer) {
 
 func ParseListRequest(args []string) (ListRequest, error) {
 	if len(args) > 0 {
-		return ListRequest{}, fmt.Errorf("unknown option for package list: %s", args[0])
+		return ListRequest{}, clipolicy.UnknownOptionError("package list", args[0])
 	}
 	return ListRequest{}, nil
 }
@@ -130,7 +132,7 @@ func ParseValidateRequest(args []string) (ValidateRequest, error) {
 			req.All = true
 		default:
 			if strings.HasPrefix(arg, "-") {
-				return ValidateRequest{}, fmt.Errorf("unknown option for package validate: %s", arg)
+				return ValidateRequest{}, clipolicy.UnknownOptionError("package validate", arg)
 			}
 			if req.Name != "" {
 				return ValidateRequest{}, fmt.Errorf("package validate accepts at most one package name")
@@ -159,7 +161,7 @@ func ParseRefreshRequest(args []string) (RefreshRequest, error) {
 			req.NoRestart = true
 		default:
 			if strings.HasPrefix(arg, "-") {
-				return RefreshRequest{}, fmt.Errorf("unknown option for package refresh: %s", arg)
+				return RefreshRequest{}, clipolicy.UnknownOptionError("package refresh", arg)
 			}
 			if req.Name == "" {
 				req.Name = arg
@@ -186,7 +188,7 @@ func ParseAuditRequest(args []string) (AuditRequest, error) {
 			req.All = true
 		default:
 			if strings.HasPrefix(arg, "-") {
-				return AuditRequest{}, fmt.Errorf("unknown option for package audit: %s", arg)
+				return AuditRequest{}, clipolicy.UnknownOptionError("package audit", arg)
 			}
 			if req.Name != "" {
 				return AuditRequest{}, fmt.Errorf("package audit accepts at most one package name")

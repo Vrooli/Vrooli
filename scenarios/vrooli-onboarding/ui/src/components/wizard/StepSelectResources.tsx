@@ -64,9 +64,7 @@ function ResourceCard({ resource, isSelected, onToggle }: ResourceCardProps) {
           <span className="font-medium">{resource.name}</span>
           {statusBadge(resource.status)}
         </div>
-        {resource.installed && (
-          <p className="mt-1 text-xs text-slate-300">Installed: {resource.installed}</p>
-        )}
+        {resource.installed && <p className="mt-1 text-xs text-slate-300">Installed locally</p>}
       </div>
     </button>
   );

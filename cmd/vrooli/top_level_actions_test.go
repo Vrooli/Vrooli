@@ -6,7 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vrooli/vrooli/internal/cli/topcli"
+	"github.com/vrooli/vrooli/internal/cli/projectcli"
+	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/maintenance"
@@ -16,36 +17,36 @@ func TestExecuteTopLevelCommandRendersHelpOnlyErrors(t *testing.T) {
 	var stdout bytes.Buffer
 	ctx := &commandContext{Stdout: &stdout}
 
-	err := executeCommandAction(&App{}, ctx, nil, commandAction[struct{}, struct{}]{
-		parse: func(ctx *commandContext, args []string) (struct{}, error) {
-			return struct{}{}, commandHelpOnly("Usage: vrooli status")
+	err := rootcli.BindGlobalCommand(commandStdout,
+		func(ctx *commandContext, args []string) (struct{}, error) {
+			return struct{}{}, rootcli.CommandHelpOnly(projectcli.StatusHelpText)
 		},
-		run: func(app *App, ctx *commandContext, req struct{}) (cliout.Format, struct{}, error) {
+		func(ctx *commandContext, req struct{}) (cliout.Format, struct{}, error) {
 			t.Fatal("run should not be called")
 			return "", struct{}{}, nil
 		},
-		render: func(w io.Writer, format cliout.Format, resp struct{}) error {
+		func(w io.Writer, format cliout.Format, resp struct{}) error {
 			t.Fatal("render should not be called")
 			return nil
 		},
-	})
+	)(ctx, nil)
 	if err != nil {
 		t.Fatalf("executeCommandAction returned error: %v", err)
 	}
-	if got := stdout.String(); !strings.Contains(got, "Usage: vrooli status") {
+	if got := stdout.String(); !strings.Contains(got, projectcli.StatusHelpText) {
 		t.Fatalf("stdout = %q", got)
 	}
 }
 
 func TestParseTopLevelDiagnosePortRequestRejectsInvalidPort(t *testing.T) {
-	if _, err := topcli.ParseDiagnosePortRequest([]string{"bogus"}); err == nil {
+	if _, err := projectcli.ParseDiagnosePortRequest([]string{"bogus"}); err == nil {
 		t.Fatal("expected invalid port error")
 	}
 }
 
 func TestRenderTopLevelLocksResponseHumanIncludesStaleStatus(t *testing.T) {
 	var stdout bytes.Buffer
-	err := topcli.RenderLocksResponse(&stdout, cliout.FormatHuman, topcli.LocksResponse{
+	err := projectcli.RenderLocksResponse(&stdout, cliout.FormatHuman, projectcli.LocksResponse{
 		List: []maintenance.LockInfo{{
 			Port:     21234,
 			Scenario: "alpha",
@@ -64,7 +65,7 @@ func TestRenderTopLevelLocksResponseHumanIncludesStaleStatus(t *testing.T) {
 
 func TestRenderTopLevelOrphansResponseHumanHandlesKillReport(t *testing.T) {
 	var stdout bytes.Buffer
-	err := topcli.RenderOrphansResponse(&stdout, cliout.FormatHuman, topcli.OrphansResponse{
+	err := projectcli.RenderOrphansResponse(&stdout, cliout.FormatHuman, projectcli.OrphansResponse{
 		KillReport: &control.StopReport{
 			Stopped: []control.ResultItem{control.Stopped("123", "sleep 30")},
 		},

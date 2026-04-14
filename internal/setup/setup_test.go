@@ -20,31 +20,11 @@ import (
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=3 | LAST: 2026-04-11
 
-func TestParseOptionsAcceptsSetupFlags(t *testing.T) {
-	opts, err := parseOptions("setup", []string{"--environment", "minimal", "--resources", "none", "--yes", "yes", "--sudo-mode", "skip", "--dry-run"})
-	if err != nil {
-		t.Fatalf("parseOptions: %v", err)
-	}
-	if opts.Environment != "minimal" || opts.Resources != "none" || opts.Yes != "yes" || opts.SudoMode != "skip" || !opts.DryRun {
-		t.Fatalf("opts = %+v", opts)
-	}
-}
-
-func TestParseOptionsAcceptsScenarioSelection(t *testing.T) {
-	opts, err := parseOptions("setup", []string{"--scenarios", "all"})
-	if err != nil {
-		t.Fatalf("parseOptions: %v", err)
-	}
-	if opts.Scenarios != "all" {
-		t.Fatalf("opts.Scenarios = %q", opts.Scenarios)
-	}
-}
-
 func TestApplyEnvironmentSetsDefaultsAndRestoresState(t *testing.T) {
 	t.Setenv("TARGET", "")
 	t.Setenv("LOCATION", "")
 	root := t.TempDir()
-	restore, err := applyEnvironment(root, filepath.Join(root, ".vrooli", "service.json"), options{
+	restore, err := applyEnvironment(root, filepath.Join(root, ".vrooli", "service.json"), Options{
 		Environment: "production",
 		Resources:   "none",
 		Scenarios:   "scenario-a,scenario-b",
@@ -205,8 +185,8 @@ func TestRunSetupUsesNativeRuntimeAndMarksComplete(t *testing.T) {
 		return nil
 	}
 
-	if err := RunSetup(root, home, []string{"--resources", "none"}, io.Discard, io.Discard); err != nil {
-		t.Fatalf("RunSetup: %v", err)
+	if err := RunSetupWithOptions(root, home, Options{Resources: "none"}, io.Discard, io.Discard); err != nil {
+		t.Fatalf("RunSetupWithOptions: %v", err)
 	}
 	if runtimeCalls != 1 {
 		t.Fatalf("ensureRequirements calls = %d, want 1", runtimeCalls)
@@ -269,8 +249,8 @@ func TestRunSetupDryRunUsesApplyPlanningAndSkipsMutations(t *testing.T) {
 	}
 
 	stdout := &strings.Builder{}
-	if err := RunSetup(root, home, []string{"--dry-run", "--resources", "redis", "--scenarios", "alpha"}, stdout, io.Discard); err != nil {
-		t.Fatalf("RunSetup: %v", err)
+	if err := RunSetupWithOptions(root, home, Options{DryRun: true, Resources: "redis", Scenarios: "alpha"}, stdout, io.Discard); err != nil {
+		t.Fatalf("RunSetupWithOptions: %v", err)
 	}
 	if ensureCalls != 1 {
 		t.Fatalf("ensureRequirements calls = %d, want 1", ensureCalls)
@@ -316,8 +296,8 @@ func TestRunSetupPassesScenarioSelectionToResolver(t *testing.T) {
 	}
 	markCompleteFn = func(root string) error { return nil }
 
-	if err := RunSetup(root, home, []string{"--scenarios", "alpha,beta", "--resources", "none", "--dry-run"}, io.Discard, io.Discard); err != nil {
-		t.Fatalf("RunSetup: %v", err)
+	if err := RunSetupWithOptions(root, home, Options{Scenarios: "alpha,beta", Resources: "none", DryRun: true}, io.Discard, io.Discard); err != nil {
+		t.Fatalf("RunSetupWithOptions: %v", err)
 	}
 	if captured.Scenarios != "alpha,beta" {
 		t.Fatalf("captured.Scenarios = %q", captured.Scenarios)
@@ -423,8 +403,8 @@ func TestRunSetupPrintsPlanAndDryRunResult(t *testing.T) {
 	markCompleteFn = func(root string) error { return nil }
 
 	stdout := &strings.Builder{}
-	if err := RunSetup(root, home, []string{"--resources", "none", "--scenarios", "alpha", "--dry-run"}, stdout, io.Discard); err != nil {
-		t.Fatalf("RunSetup: %v", err)
+	if err := RunSetupWithOptions(root, home, Options{Resources: "none", Scenarios: "alpha", DryRun: true}, stdout, io.Discard); err != nil {
+		t.Fatalf("RunSetupWithOptions: %v", err)
 	}
 
 	output := stdout.String()
@@ -504,8 +484,8 @@ func TestRunSetupDryRunResolvesRootScenarioAndResourceDeclarations(t *testing.T)
 	}
 
 	stdout := &strings.Builder{}
-	if err := RunSetup(root, home, []string{"--resources", "redis", "--scenarios", "alpha", "--dry-run"}, stdout, io.Discard); err != nil {
-		t.Fatalf("RunSetup: %v", err)
+	if err := RunSetupWithOptions(root, home, Options{Resources: "redis", Scenarios: "alpha", DryRun: true}, stdout, io.Discard); err != nil {
+		t.Fatalf("RunSetupWithOptions: %v", err)
 	}
 
 	if len(plannedResolution.Tools) != 4 {
@@ -594,15 +574,15 @@ func TestRunSetupExportsLegacyEnvironmentContractToResourceInstall(t *testing.T)
 		})
 	}
 
-	err := RunSetup(root, home, []string{
-		"--environment", "minimal",
-		"--resources", "redis,postgres",
-		"--scenarios", "scenario-a,scenario-b",
-		"--yes", "yes",
-		"--sudo-mode", "skip",
+	err := RunSetupWithOptions(root, home, Options{
+		Environment: "minimal",
+		Resources:   "redis,postgres",
+		Scenarios:   "scenario-a,scenario-b",
+		Yes:         "yes",
+		SudoMode:    "skip",
 	}, io.Discard, io.Discard)
 	if err != nil {
-		t.Fatalf("RunSetup: %v", err)
+		t.Fatalf("RunSetupWithOptions: %v", err)
 	}
 	if len(installs) != 2 {
 		t.Fatalf("install calls = %d, want 2", len(installs))
@@ -672,8 +652,8 @@ func TestRunSetupDryRunSkipsResourceInstallEvenWhenResourcesSelected(t *testing.
 		})
 	}
 
-	if err := RunSetup(root, home, []string{"--resources", "redis,postgres", "--dry-run"}, io.Discard, io.Discard); err != nil {
-		t.Fatalf("RunSetup: %v", err)
+	if err := RunSetupWithOptions(root, home, Options{Resources: "redis,postgres", DryRun: true}, io.Discard, io.Discard); err != nil {
+		t.Fatalf("RunSetupWithOptions: %v", err)
 	}
 	if resourceInstallCalls != 0 {
 		t.Fatalf("resource install calls = %d, want 0", resourceInstallCalls)
@@ -733,8 +713,8 @@ func TestRunDevelopRunsSetupWhenNeededAndStartsNativeServices(t *testing.T) {
 	}
 
 	stdout := &strings.Builder{}
-	if err := RunDevelop(root, home, nil, stdout, io.Discard); err != nil {
-		t.Fatalf("RunDevelop: %v", err)
+	if err := RunDevelopWithOptions(root, home, Options{}, stdout, io.Discard); err != nil {
+		t.Fatalf("RunDevelopWithOptions: %v", err)
 	}
 	if setupCalls != 1 {
 		t.Fatalf("setup calls = %d, want 1", setupCalls)
@@ -793,18 +773,21 @@ func TestRunDevelopExportsLegacyEnvironmentContractToAPILaunch(t *testing.T) {
 	healthCheckFn = func(port int, timeout time.Duration) error { return nil }
 	startOrchestratorFn = func(root, home string, stdout, stderr io.Writer) error { return nil }
 
-	err := RunDevelop(root, home, []string{
-		"--environment", "production",
-		"--resources", "enabled",
-		"--yes", "yes",
-		"--sudo-mode", "skip",
-		"--dry-run",
+	err := RunDevelopWithOptions(root, home, Options{
+		Environment: "production",
+		Resources:   "enabled",
+		Yes:         "yes",
+		SudoMode:    "skip",
+		DryRun:      true,
 	}, io.Discard, io.Discard)
 	if err != nil {
-		t.Fatalf("RunDevelop: %v", err)
+		t.Fatalf("RunDevelopWithOptions: %v", err)
 	}
 	if capturedSpec.Command == "" {
 		t.Fatal("expected API launch spec to be populated")
+	}
+	if capturedSpec.LogFile != filepath.Join(home, ".vrooli", "logs", "vrooli-api.log") {
+		t.Fatalf("LogFile = %q", capturedSpec.LogFile)
 	}
 	env := envMapFromList(capturedSpec.Env)
 	if env["APP_ROOT"] != root {
@@ -882,8 +865,8 @@ func TestRunDevelopSkipsSetupWhenMarkerExists(t *testing.T) {
 	healthCheckFn = func(port int, timeout time.Duration) error { return nil }
 	startOrchestratorFn = func(root, home string, stdout, stderr io.Writer) error { return nil }
 
-	if err := RunDevelop(root, home, nil, io.Discard, io.Discard); err != nil {
-		t.Fatalf("RunDevelop: %v", err)
+	if err := RunDevelopWithOptions(root, home, Options{}, io.Discard, io.Discard); err != nil {
+		t.Fatalf("RunDevelopWithOptions: %v", err)
 	}
 	if setupCalls != 0 {
 		t.Fatalf("setup calls = %d, want 0", setupCalls)
@@ -898,7 +881,7 @@ func TestRunSetupRejectsUnsupportedHost(t *testing.T) {
 		return vrooliruntime.Host{OS: "darwin", SupportsSetup: false, Notes: []string{"unsupported in test"}}
 	}
 
-	err := RunSetup(t.TempDir(), t.TempDir(), nil, io.Discard, io.Discard)
+	err := RunSetupWithOptions(t.TempDir(), t.TempDir(), Options{}, io.Discard, io.Discard)
 	if err == nil {
 		t.Fatal("expected unsupported host error")
 	}

@@ -18,7 +18,7 @@ func runInfoCommand(root string, globals globalOptions, args []string, stdout, s
 		}
 		return err
 	}
-	format, err := formatFromJSON(globals.json)
+	format, err := formatFromJSON(globals.JSON)
 	if err != nil {
 		return err
 	}

@@ -8,12 +8,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/cli/topcli"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
 func TestShowMainHelpIncludesContractCommand(t *testing.T) {
 	var stdout bytes.Buffer
-	showMainHelp(&stdout)
+	topcli.RenderMainHelp(&stdout, topcli.CommandSpecs())
 
 	if !strings.Contains(stdout.String(), "contract") {
 		t.Fatalf("help missing contract command: %q", stdout.String())
@@ -63,7 +64,7 @@ func TestRunContractResolveScenarioServicePath(t *testing.T) {
 		t.Fatalf("exit code = %d, stdout=%s", code, stdout.String())
 	}
 
-	want := filepath.Join(root, "scenarios", "test-genie", ".vrooli", "service.json")
+	want := filepath.Join(root, "scenarios", "test-genie", repocontractmeta.ServiceManifestPathname)
 	if got := strings.TrimSpace(stdout.String()); got != want {
 		t.Fatalf("path = %q, want %q", got, want)
 	}
@@ -72,7 +73,7 @@ func TestRunContractResolveScenarioServicePath(t *testing.T) {
 func TestRunContractMatchGlobJSON(t *testing.T) {
 	app := newTestApp("/unused")
 	var stdout bytes.Buffer
-	code := app.Run([]string{"contract", "match-glob", "scenarios/*/.vrooli/service.json", "scenarios/test-genie/.vrooli/service.json", "--json"}, &stdout, &bytes.Buffer{})
+	code := app.Run([]string{"contract", "match-glob", "scenarios/*/" + repocontractmeta.ServiceManifestPathname, "scenarios/test-genie/" + repocontractmeta.ServiceManifestPathname, "--json"}, &stdout, &bytes.Buffer{})
 	if code != 0 {
 		t.Fatalf("exit code = %d, stdout=%s", code, stdout.String())
 	}
@@ -93,8 +94,8 @@ func TestRunContractValidateJSON(t *testing.T) {
 	root := t.TempDir()
 	copyRepoContractValidationFixtures(t, root)
 	writeTestFile(t, root, "go.mod", "module example.com/test\n\ngo 1.21\n")
-	writeTestFile(t, root, filepath.Join("scenarios", "alpha", ".vrooli", "service.json"), `{"service":{"name":"alpha"}}`)
-	writeTestFile(t, root, filepath.Join("resources", "redis", "resource.json"), `{"name":"redis"}`)
+	writeTestFile(t, root, filepath.Join("scenarios", "alpha", repocontractmeta.ServiceManifestPathname), `{"service":{"name":"alpha"}}`)
+	writeTestFile(t, root, filepath.Join("resources", "redis", repocontractmeta.ResourceManifestFilename), `{"name":"redis"}`)
 	t.Setenv("VROOLI_SOURCE_ROOT", root)
 
 	app := newTestApp("/unused")
@@ -133,8 +134,8 @@ func TestRunContractValidateReturnsSilentNonZeroOnCheckFailure(t *testing.T) {
 	copyRepoContractValidationFixtures(t, root)
 	writeTestFile(t, root, "go.mod", "module example.com/test\n\ngo 1.21\n")
 	writeTestFile(t, root, "docs/repo-contract.md", "broken docs\n")
-	writeTestFile(t, root, filepath.Join("scenarios", "alpha", ".vrooli", "service.json"), `{"service":{"name":"alpha"}}`)
-	writeTestFile(t, root, filepath.Join("resources", "redis", "resource.json"), `{"name":"redis"}`)
+	writeTestFile(t, root, filepath.Join("scenarios", "alpha", repocontractmeta.ServiceManifestPathname), `{"service":{"name":"alpha"}}`)
+	writeTestFile(t, root, filepath.Join("resources", "redis", repocontractmeta.ResourceManifestFilename), `{"name":"redis"}`)
 
 	t.Setenv("VROOLI_SOURCE_ROOT", root)
 	app := newTestApp("/unused")
@@ -182,7 +183,6 @@ func copyRepoContractValidationFixtures(t *testing.T, dest string) {
 	sourceRoot := repoRootFromCaller(t)
 	for _, rel := range []string{
 		filepath.Join(repocontractmeta.ProjectConfigDir, repocontractmeta.ContractFilename),
-		filepath.Join(repocontractmeta.ProjectConfigDir, repocontractmeta.AdoptionExceptionsFilename),
 		filepath.Join(repocontractmeta.ProjectConfigDir, repocontractmeta.SchemaDir, repocontractmeta.SchemaFilename),
 		filepath.Join(repocontractmeta.ProjectConfigDir, repocontractmeta.SchemaDir, repocontractmeta.CommonSchemaFilename),
 		filepath.Join(repocontractmeta.ProjectConfigDir, repocontractmeta.SchemaDir, repocontractmeta.ValidationScriptFilename),

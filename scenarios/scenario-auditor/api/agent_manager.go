@@ -1,12 +1,11 @@
 package main
 
 import (
-	"bufio"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -15,6 +14,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -38,18 +41,21 @@ const (
 )
 
 const (
-	// defaultOpenRouterModel must include the provider prefix so resource-opencode
-	// resolves it correctly via OpenRouter (provider/model syntax).
 	defaultOpenRouterModel = "openrouter/x-ai/grok-code-fast-1"
+	defaultAllowedTools    = "read,write,edit,bash"
 
-	// defaultAllowedTools ensures agents can inspect and edit files without
-	// prompting for permissions during automated runs.
-	defaultAllowedTools = "read,write,edit,bash"
+	agentManagerProfileKey   = "scenario-auditor-opencode"
+	agentManagerProfileName  = "Scenario Auditor OpenCode"
+	agentManagerPollInterval = 2 * time.Second
+	agentManagerRequestTTL   = 30 * time.Second
+	agentManagerWatchTTL     = 2 * time.Hour
+	agentHistoryLimit        = 50
+	metadataAttachmentKey    = "scenario-auditor-metadata"
 )
 
 var openRouterModel = resolveOpenRouterModel()
 
-// AgentInfo represents an active agent process that the API is tracking.
+// AgentInfo represents an active or completed agent run tracked by scenario-auditor.
 type AgentInfo struct {
 	ID              string            `json:"id"`
 	Name            string            `json:"name"`
@@ -70,25 +76,45 @@ type AgentInfo struct {
 	Error           string            `json:"error,omitempty"`
 }
 
-type agentInstance struct {
-	info    AgentInfo
-	cancel  context.CancelFunc
-	execCmd *exec.Cmd
-	logPath string
+type agentExecution struct {
+	RunID         string
+	TaskID        string
+	StartedAt     time.Time
+	StopRequested bool
+	Metadata      auditorAgentMetadata
+}
+
+type auditorAgentMetadata struct {
+	Name               string            `json:"name,omitempty"`
+	Label              string            `json:"label,omitempty"`
+	Action             string            `json:"action,omitempty"`
+	RuleID             string            `json:"rule_id,omitempty"`
+	Scenario           string            `json:"scenario,omitempty"`
+	Model              string            `json:"model,omitempty"`
+	PromptLength       int               `json:"prompt_length,omitempty"`
+	AllowedTools       []string          `json:"allowed_tools,omitempty"`
+	MaxTurns           int32             `json:"max_turns,omitempty"`
+	TaskTimeoutSeconds int32             `json:"task_timeout_seconds,omitempty"`
+	IssueIDs           []string          `json:"issue_ids,omitempty"`
+	Metadata           map[string]string `json:"metadata,omitempty"`
 }
 
 type AgentManager struct {
-	mu      sync.RWMutex
-	agents  map[string]*agentInstance
-	logger  *Logger
-	history map[string]AgentInfo
+	mu                 sync.RWMutex
+	active             map[string]*agentExecution
+	history            map[string]AgentInfo
+	completionRecorded map[string]bool
+	client             *agentManagerClient
+	logger             *Logger
 }
 
 func NewAgentManager() *AgentManager {
 	return &AgentManager{
-		agents:  make(map[string]*agentInstance),
-		logger:  NewLogger(),
-		history: make(map[string]AgentInfo),
+		active:             make(map[string]*agentExecution),
+		history:            make(map[string]AgentInfo),
+		completionRecorded: make(map[string]bool),
+		client:             newAgentManagerClient(agentManagerRequestTTL),
+		logger:             NewLogger(),
 	}
 }
 
@@ -138,7 +164,7 @@ func estimateTaskTimeout(issueCount int) int {
 	if issueCount < 1 {
 		issueCount = 1
 	}
-	base := 300 // seconds
+	base := 300
 	perIssue := 90
 	maxTimeout := 1800
 	estimate := base + perIssue*(issueCount-1)
@@ -176,311 +202,606 @@ func (am *AgentManager) StartAgent(cfg AgentStartConfig) (*AgentInfo, error) {
 		return nil, fmt.Errorf("prompt is required")
 	}
 
+	scenarioRoot := strings.TrimSpace(getScenarioRoot())
+	if scenarioRoot == "" {
+		return nil, fmt.Errorf("failed to resolve scenario-auditor root")
+	}
+
 	cfg.Model = normalizeAgentModel(cfg.Model)
-
-	if cfg.Metadata == nil {
-		cfg.Metadata = make(map[string]string)
-	}
-	if cfg.Scenario != "" {
-		cfg.Metadata["scenario"] = cfg.Scenario
-	}
-	issueCount := len(cfg.IssueIDs)
-	if issueCount > 0 {
-		cfg.Metadata["issue_count"] = fmt.Sprintf("%d", issueCount)
-	}
-
-	agentID := uuid.New().String()
-	allowedTools := strings.TrimSpace(os.Getenv("SCENARIO_AUDITOR_ALLOWED_TOOLS"))
-	if allowedTools == "" {
-		allowedTools = defaultAllowedTools
-	}
-
-	maxTurnsValue := strings.TrimSpace(os.Getenv("SCENARIO_AUDITOR_AGENT_MAX_TURNS"))
-	if maxTurnsValue == "" {
-		maxTurnsValue = strconv.Itoa(estimateMaxTurns(issueCount))
-	}
-
-	taskTimeoutValue := strings.TrimSpace(os.Getenv("SCENARIO_AUDITOR_AGENT_TIMEOUT"))
-	if taskTimeoutValue == "" {
-		taskTimeoutValue = strconv.Itoa(estimateTaskTimeout(issueCount))
-	}
-
-	command := []string{"agents", "run", "--model", cfg.Model, "--prompt", cfg.Prompt}
-	if allowedTools != "" {
-		command = append(command, "--allowed-tools", allowedTools)
-	}
-
-	if maxTurnsValue != "" {
-		command = append(command, "--max-turns", maxTurnsValue)
-	}
-
-	if taskTimeoutValue != "" {
-		command = append(command, "--task-timeout", taskTimeoutValue)
-	}
-
-	scenarioRoot := getScenarioRoot()
-	logsDir := filepath.Join(scenarioRoot, "logs", "agents")
-	if err := os.MkdirAll(logsDir, 0o755); err != nil {
-		return nil, fmt.Errorf("failed to create agent logs directory: %w", err)
-	}
-
-	logPath := filepath.Join(logsDir, fmt.Sprintf("%s.log", agentID))
-	logFile, err := os.Create(logPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create agent log file: %w", err)
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cmd := exec.CommandContext(ctx, "resource-opencode", command...)
-	cmd.Dir = scenarioRoot
-	cmd.Env = os.Environ()
-
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		logFile.Close()
-		cancel()
-		return nil, fmt.Errorf("failed to connect stdout pipe: %w", err)
-	}
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		logFile.Close()
-		cancel()
-		return nil, fmt.Errorf("failed to connect stderr pipe: %w", err)
-	}
-
-	if err := cmd.Start(); err != nil {
-		logFile.Close()
-		cancel()
-		return nil, fmt.Errorf("failed to start agent process: %w", err)
-	}
+	allowedTools := configuredAllowedTools()
+	maxTurns := configuredMaxTurns(len(cfg.IssueIDs))
+	taskTimeoutSeconds := configuredTaskTimeout(len(cfg.IssueIDs))
 
 	metadata := cloneMetadata(cfg.Metadata)
-	metadata["log_path"] = logPath
-	if allowedTools != "" {
-		metadata["allowed_tools"] = allowedTools
+	if cfg.Scenario != "" {
+		metadata["scenario"] = cfg.Scenario
 	}
-	if maxTurnsValue != "" {
-		metadata["max_turns"] = maxTurnsValue
-	}
-	if taskTimeoutValue != "" {
-		metadata["task_timeout"] = taskTimeoutValue
+	if len(cfg.IssueIDs) > 0 {
+		metadata["issue_count"] = strconv.Itoa(len(cfg.IssueIDs))
 	}
 
-	agentInfo := AgentInfo{
-		ID:        agentID,
-		Name:      fallbackAgentName(cfg.Name, cfg.Label, cfg.Action, cfg.RuleID),
-		Label:     cfg.Label,
-		Action:    cfg.Action,
-		RuleID:    cfg.RuleID,
-		Scenario:  cfg.Scenario,
-		Model:     cfg.Model,
-		Status:    agentStatusRunning,
-		StartedAt: time.Now().UTC(),
-		Command: func() []string {
-			base := []string{"resource-opencode", "agents", "run", "--model", cfg.Model}
-			if allowedTools != "" {
-				base = append(base, "--allowed-tools", allowedTools)
-			}
-			if maxTurnsValue != "" {
-				base = append(base, "--max-turns", maxTurnsValue)
-			}
-			if taskTimeoutValue != "" {
-				base = append(base, "--task-timeout", taskTimeoutValue)
-			}
-			return base
-		}(),
-		PromptLength: len([]rune(cfg.Prompt)),
-		PID:          cmd.Process.Pid,
-		Metadata:     metadata,
-		IssueIDs:     append([]string(nil), cfg.IssueIDs...),
+	agentID := uuid.NewString()
+	startedAt := time.Now().UTC()
+	taskTitle := fallbackAgentName(cfg.Name, cfg.Label, cfg.Action, cfg.RuleID)
+	agentMeta := auditorAgentMetadata{
+		Name:               cfg.Name,
+		Label:              cfg.Label,
+		Action:             cfg.Action,
+		RuleID:             cfg.RuleID,
+		Scenario:           cfg.Scenario,
+		Model:              cfg.Model,
+		PromptLength:       len([]rune(cfg.Prompt)),
+		AllowedTools:       append([]string(nil), allowedTools...),
+		MaxTurns:           int32(maxTurns),
+		TaskTimeoutSeconds: int32(taskTimeoutSeconds),
+		IssueIDs:           append([]string(nil), cfg.IssueIDs...),
+		Metadata:           metadata,
 	}
 
-	agent := &agentInstance{
-		info:    agentInfo,
-		cancel:  cancel,
-		execCmd: cmd,
-		logPath: logPath,
+	ctx, cancel := context.WithTimeout(context.Background(), agentManagerRequestTTL)
+	defer cancel()
+
+	if err := am.ensureProfile(ctx); err != nil {
+		return nil, err
+	}
+
+	task, err := am.client.CreateTask(ctx, &domainpb.Task{
+		Title:       taskTitle,
+		Description: cfg.Prompt,
+		ScopePath:   scenarioRoot,
+		ProjectRoot: scenarioRoot,
+		CreatedBy:   serviceName,
+		CreatedAt:   timestamppb.New(startedAt),
+		UpdatedAt:   timestamppb.New(startedAt),
+		ContextAttachments: []*domainpb.ContextAttachment{
+			buildMetadataAttachment(agentMeta),
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create agent-manager task: %w", err)
+	}
+
+	tag := agentID
+	runMode := domainpb.RunMode_RUN_MODE_IN_PLACE
+	run, err := am.client.CreateRun(ctx, &apipb.CreateRunRequest{
+		TaskId:         task.Id,
+		Tag:            &tag,
+		RunMode:        &runMode,
+		Force:          true,
+		IdempotencyKey: stringPtr("scenario-auditor:" + agentID),
+		ProfileRef: &apipb.ProfileRef{
+			ProfileKey: agentManagerProfileKey,
+			Defaults:   am.defaultProfile(),
+		},
+		InlineConfig: &domainpb.RunConfigOverrides{
+			Model:                stringPtr(cfg.Model),
+			MaxTurns:             int32Ptr(int32(maxTurns)),
+			Timeout:              durationpb.New(time.Duration(taskTimeoutSeconds) * time.Second),
+			AllowedTools:         append([]string(nil), allowedTools...),
+			SkipPermissionPrompt: boolPtr(true),
+			RequiresSandbox:      boolPtr(false),
+			RequiresApproval:     boolPtr(false),
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create agent-manager run: %w", err)
 	}
 
 	am.mu.Lock()
-	am.agents[agentID] = agent
+	am.active[agentID] = &agentExecution{
+		RunID:     run.Id,
+		TaskID:    task.Id,
+		StartedAt: startedAt,
+		Metadata:  agentMeta,
+	}
+	delete(am.history, agentID)
 	am.mu.Unlock()
 
-	am.logger.Info(fmt.Sprintf("Started agent %s (%s)", agentID, agentInfo.Name))
+	info := am.composeAgentInfo(agentID, run, task, agentMeta, startedAt, false)
+	am.logger.Info(fmt.Sprintf("Started agent %s via agent-manager run %s", agentID, run.Id))
 
-	// Stream stdout/stderr to log file
-	go func() {
-		defer logFile.Close()
-		multi := io.MultiReader(stdout, stderr)
-		scanner := bufio.NewScanner(multi)
-		scanner.Buffer(make([]byte, 0, 64*1024), 512*1024)
-		writer := bufio.NewWriter(logFile)
-		defer writer.Flush()
-		for scanner.Scan() {
-			line := scanner.Text()
-			writer.WriteString(line)
-			writer.WriteByte('\n')
-		}
-		if err := scanner.Err(); err != nil && err != io.EOF {
-			am.logger.Error(fmt.Sprintf("log streaming failed for agent %s", agentID), err)
-		}
-	}()
+	go am.watchRun(agentID, run.Id, task.Id, startedAt, agentMeta)
 
-	// Wait for completion and record history
-	go func() {
-		err := cmd.Wait()
-		endTime := time.Now().UTC()
-
-		am.mu.Lock()
-		if _, exists := am.agents[agentID]; exists {
-			delete(am.agents, agentID)
-		}
-
-		finalInfo := agent.info
-		finalInfo.EndedAt = &endTime
-		finalInfo.DurationSeconds = int(endTime.Sub(finalInfo.StartedAt).Seconds())
-		if err != nil {
-			finalInfo.Status = agentStatusFailed
-			failureMessage, summary := summariseAgentFailure(agent.logPath, err)
-			if failureMessage != "" {
-				finalInfo.Error = failureMessage
-			} else {
-				finalInfo.Error = err.Error()
-			}
-			if summary != "" {
-				if finalInfo.Metadata == nil {
-					finalInfo.Metadata = make(map[string]string)
-				}
-				finalInfo.Metadata["failure_reason"] = summary
-			}
-		} else if finalInfo.Status == agentStatusStopping {
-			finalInfo.Status = agentStatusStopped
-		} else {
-			finalInfo.Status = agentStatusCompleted
-		}
-		if finalInfo.Metadata == nil {
-			finalInfo.Metadata = make(map[string]string)
-		}
-		finalInfo.Metadata["log_path"] = agent.logPath
-		am.history[agentID] = finalInfo
-		if len(am.history) > 50 {
-			for key := range am.history {
-				if key == agentID {
-					continue
-				}
-				delete(am.history, key)
-				if len(am.history) <= 50 {
-					break
-				}
-			}
-		}
-		am.mu.Unlock()
-
-		if err != nil {
-			automatedFixStore.RecordCompletion(agentID, false)
-			am.logger.Error(fmt.Sprintf("agent %s exited with error", agentID), err)
-		} else {
-			automatedFixStore.RecordCompletion(agentID, true)
-			am.logger.Info(fmt.Sprintf("Agent %s completed", agentID))
-		}
-	}()
-
-	return &agentInfo, nil
+	return &info, nil
 }
 
 func (am *AgentManager) StopAgent(agentID string) error {
-	am.mu.Lock()
-	agent, exists := am.agents[agentID]
-	if !exists {
-		am.mu.Unlock()
+	run, task, meta, startedAt, _, err := am.loadRunDetails(agentID)
+	if err != nil {
+		return err
+	}
+	if run == nil {
 		return fmt.Errorf("agent not found")
 	}
-	agent.info.Status = agentStatusStopping
-	am.agents[agentID] = agent
-	am.mu.Unlock()
-
-	am.logger.Info(fmt.Sprintf("Stopping agent %s", agentID))
-	scenarioRoot := getScenarioRoot()
-	cmd := exec.Command("resource-opencode", "agents", "stop", agentID)
-	cmd.Dir = scenarioRoot
-	cmd.Env = os.Environ()
-
-	if output, err := cmd.CombinedOutput(); err != nil {
-		trimmed := strings.TrimSpace(string(output))
-		if trimmed != "" {
-			am.logger.Error(
-				fmt.Sprintf("resource-opencode agents stop failed for %s: %s", agentID, trimmed),
-				err,
-			)
-		} else {
-			am.logger.Error(
-				fmt.Sprintf("resource-opencode agents stop failed for %s", agentID),
-				err,
-			)
-		}
-		agent.cancel()
-		if agent.execCmd != nil && agent.execCmd.Process != nil {
-			_ = agent.execCmd.Process.Kill()
-		}
-		return fmt.Errorf("resource-opencode stop failed: %s", trimmed)
+	if isTerminalRunStatus(run.Status) {
+		info := am.composeAgentInfo(agentID, run, task, meta, startedAt, false)
+		am.cacheTerminalInfo(agentID, info)
+		return nil
 	}
 
-	agent.cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), agentManagerRequestTTL)
+	defer cancel()
+	if err := am.client.StopRunByTag(ctx, agentID); err != nil {
+		return fmt.Errorf("stop agent-manager run %s: %w", agentID, err)
+	}
+
+	am.mu.Lock()
+	if active := am.active[agentID]; active != nil {
+		active.StopRequested = true
+	}
+	am.mu.Unlock()
+
+	am.logger.Info(fmt.Sprintf("Stopping agent %s via agent-manager", agentID))
 	return nil
 }
 
 func (am *AgentManager) GetAgent(agentID string) (*AgentInfo, bool) {
-	am.mu.RLock()
-	defer am.mu.RUnlock()
-	agent, exists := am.agents[agentID]
-	if !exists {
+	run, task, meta, startedAt, stopRequested, err := am.loadRunDetails(agentID)
+	if err != nil || run == nil {
 		return nil, false
 	}
 
-	info := agent.info
-	info.DurationSeconds = int(time.Since(info.StartedAt).Seconds())
+	info := am.composeAgentInfo(agentID, run, task, meta, startedAt, stopRequested)
+	if isTerminalRunStatus(run.Status) {
+		am.cacheTerminalInfo(agentID, info)
+		am.recordCompletion(agentID, run.Status == domainpb.RunStatus_RUN_STATUS_COMPLETE)
+		return nil, false
+	}
 	return &info, true
 }
 
 func (am *AgentManager) GetAgentHistory(agentID string) (*AgentInfo, bool) {
 	am.mu.RLock()
-	defer am.mu.RUnlock()
-	info, exists := am.history[agentID]
-	if !exists {
+	if info, ok := am.history[agentID]; ok {
+		copyInfo := info
+		am.mu.RUnlock()
+		return &copyInfo, true
+	}
+	am.mu.RUnlock()
+
+	run, task, meta, startedAt, stopRequested, err := am.loadRunDetails(agentID)
+	if err != nil || run == nil || !isTerminalRunStatus(run.Status) {
 		return nil, false
 	}
-	copy := info
-	return &copy, true
+
+	info := am.composeAgentInfo(agentID, run, task, meta, startedAt, stopRequested)
+	am.cacheTerminalInfo(agentID, info)
+	am.recordCompletion(agentID, run.Status == domainpb.RunStatus_RUN_STATUS_COMPLETE)
+	return &info, true
 }
 
 func (am *AgentManager) ListAgents() []AgentInfo {
 	am.mu.RLock()
-	defer am.mu.RUnlock()
-	result := make([]AgentInfo, 0, len(am.agents))
-	for _, agent := range am.agents {
-		info := agent.info
-		info.DurationSeconds = int(time.Since(info.StartedAt).Seconds())
-		result = append(result, info)
+	agentIDs := make([]string, 0, len(am.active))
+	for agentID := range am.active {
+		agentIDs = append(agentIDs, agentID)
+	}
+	am.mu.RUnlock()
+
+	result := make([]AgentInfo, 0, len(agentIDs))
+	for _, agentID := range agentIDs {
+		if info, ok := am.GetAgent(agentID); ok {
+			result = append(result, *info)
+		}
 	}
 
 	sort.Slice(result, func(i, j int) bool {
 		return result[i].StartedAt.Before(result[j].StartedAt)
 	})
-
 	return result
 }
 
 func (am *AgentManager) AgentLogPath(agentID string) string {
-	am.mu.RLock()
-	agent, exists := am.agents[agentID]
-	am.mu.RUnlock()
-	if exists {
-		return agent.logPath
+	run, _, _, _, _, err := am.loadRunDetails(agentID)
+	if err == nil && run != nil && strings.TrimSpace(run.LogPath) != "" {
+		return strings.TrimSpace(run.LogPath)
+	}
+	return filepath.Join(getScenarioRoot(), "logs", "agents", fmt.Sprintf("%s.log", agentID))
+}
+
+func (am *AgentManager) watchRun(agentID, runID, taskID string, startedAt time.Time, meta auditorAgentMetadata) {
+	ctx, cancel := context.WithTimeout(context.Background(), agentManagerWatchTTL)
+	defer cancel()
+
+	run, err := am.client.WaitForRun(ctx, runID, agentManagerPollInterval)
+	if err != nil {
+		am.logger.Error(fmt.Sprintf("wait for agent-manager run %s failed", runID), err)
+		return
 	}
 
-	logsDir := filepath.Join(getScenarioRoot(), "logs", "agents")
-	return filepath.Join(logsDir, fmt.Sprintf("%s.log", agentID))
+	task, taskErr := am.fetchTask(taskID)
+	if taskErr != nil {
+		am.logger.Error(fmt.Sprintf("fetch agent-manager task %s failed", taskID), taskErr)
+	}
+
+	stopRequested := false
+	am.mu.RLock()
+	if active := am.active[agentID]; active != nil {
+		stopRequested = active.StopRequested
+	}
+	am.mu.RUnlock()
+
+	info := am.composeAgentInfo(agentID, run, task, meta, startedAt, stopRequested)
+	am.cacheTerminalInfo(agentID, info)
+	am.recordCompletion(agentID, run.Status == domainpb.RunStatus_RUN_STATUS_COMPLETE)
+
+	switch run.Status {
+	case domainpb.RunStatus_RUN_STATUS_COMPLETE:
+		am.logger.Info(fmt.Sprintf("Agent %s completed via agent-manager", agentID))
+	case domainpb.RunStatus_RUN_STATUS_CANCELLED:
+		am.logger.Info(fmt.Sprintf("Agent %s cancelled via agent-manager", agentID))
+	default:
+		am.logger.Error(fmt.Sprintf("agent-manager run %s failed", runID), errors.New(strings.TrimSpace(run.ErrorMsg)))
+	}
+}
+
+func (am *AgentManager) ensureProfile(ctx context.Context) error {
+	_, err := am.client.EnsureProfile(ctx, &apipb.EnsureProfileRequest{
+		ProfileKey:     agentManagerProfileKey,
+		Defaults:       am.defaultProfile(),
+		UpdateExisting: false,
+	})
+	if err != nil {
+		return fmt.Errorf("ensure scenario-auditor profile: %w", err)
+	}
+	return nil
+}
+
+func (am *AgentManager) defaultProfile() *domainpb.AgentProfile {
+	timeout := int32(configuredTaskTimeout(1))
+	return &domainpb.AgentProfile{
+		Name:                 agentManagerProfileName,
+		ProfileKey:           agentManagerProfileKey,
+		Description:          "OpenCode profile for scenario-auditor automated fixes",
+		RunnerType:           domainpb.RunnerType_RUNNER_TYPE_OPENCODE,
+		Model:                openRouterModel,
+		MaxTurns:             int32(configuredMaxTurns(1)),
+		Timeout:              durationpb.New(time.Duration(timeout) * time.Second),
+		AllowedTools:         configuredAllowedTools(),
+		SkipPermissionPrompt: true,
+		RequiresSandbox:      false,
+		RequiresApproval:     false,
+		CreatedBy:            serviceName,
+	}
+}
+
+func buildMetadataAttachment(meta auditorAgentMetadata) *domainpb.ContextAttachment {
+	body, _ := json.Marshal(meta)
+	return &domainpb.ContextAttachment{
+		Type:     "note",
+		Label:    "Scenario Auditor Metadata",
+		Key:      metadataAttachmentKey,
+		Content:  string(body),
+		Summary:  "Scenario-auditor metadata used to reconstruct fix status and history.",
+		Format:   "json",
+		Priority: "high",
+	}
+}
+
+func (am *AgentManager) loadRunDetails(agentID string) (*domainpb.Run, *domainpb.Task, auditorAgentMetadata, time.Time, bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), agentManagerRequestTTL)
+	defer cancel()
+
+	run, err := am.client.GetRunByTag(ctx, agentID)
+	if err != nil {
+		return nil, nil, auditorAgentMetadata{}, time.Time{}, false, err
+	}
+	if run == nil {
+		return nil, nil, auditorAgentMetadata{}, time.Time{}, false, nil
+	}
+
+	am.mu.RLock()
+	active := am.active[agentID]
+	am.mu.RUnlock()
+
+	task, err := am.fetchTask(run.TaskId)
+	if err != nil {
+		return nil, nil, auditorAgentMetadata{}, time.Time{}, false, err
+	}
+
+	meta := auditorAgentMetadata{}
+	startedAt := runCreatedAt(run)
+	stopRequested := false
+	if active != nil {
+		meta = active.Metadata
+		startedAt = active.StartedAt
+		stopRequested = active.StopRequested
+	}
+
+	if meta.isZero() {
+		meta = metadataFromTask(task)
+	}
+	if startedAt.IsZero() {
+		startedAt = runCreatedAt(run)
+	}
+
+	return run, task, meta, startedAt, stopRequested, nil
+}
+
+func (am *AgentManager) fetchTask(taskID string) (*domainpb.Task, error) {
+	if strings.TrimSpace(taskID) == "" {
+		return nil, nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), agentManagerRequestTTL)
+	defer cancel()
+	return am.client.GetTask(ctx, taskID)
+}
+
+func (am *AgentManager) composeAgentInfo(agentID string, run *domainpb.Run, task *domainpb.Task, meta auditorAgentMetadata, startedAt time.Time, stopRequested bool) AgentInfo {
+	if run == nil {
+		return AgentInfo{}
+	}
+
+	name := meta.Name
+	if strings.TrimSpace(name) == "" && task != nil {
+		name = strings.TrimSpace(task.Title)
+	}
+	name = fallbackAgentName(name, meta.Label, meta.Action, meta.RuleID)
+
+	if startedAt.IsZero() {
+		startedAt = runCreatedAt(run)
+	}
+
+	var endedAt *time.Time
+	if ts := timestampToTime(run.EndedAt); !ts.IsZero() {
+		ended := ts
+		endedAt = &ended
+	}
+
+	durationEnd := time.Now().UTC()
+	if endedAt != nil {
+		durationEnd = *endedAt
+	}
+
+	model := strings.TrimSpace(meta.Model)
+	if model == "" && run.GetResolvedConfig() != nil {
+		model = strings.TrimSpace(run.GetResolvedConfig().GetModel())
+	}
+	if model == "" {
+		model = openRouterModel
+	}
+
+	metadata := cloneMetadata(meta.Metadata)
+	metadata["agent_manager_run_id"] = run.Id
+	metadata["agent_manager_task_id"] = run.TaskId
+	if strings.TrimSpace(run.LogPath) != "" {
+		metadata["log_path"] = strings.TrimSpace(run.LogPath)
+	}
+	if strings.TrimSpace(run.SessionId) != "" {
+		metadata["session_id"] = strings.TrimSpace(run.SessionId)
+	}
+	if task != nil && strings.TrimSpace(task.ProjectRoot) != "" {
+		metadata["project_root"] = strings.TrimSpace(task.ProjectRoot)
+	}
+	if len(meta.AllowedTools) > 0 {
+		metadata["allowed_tools"] = strings.Join(meta.AllowedTools, ",")
+	}
+	if meta.MaxTurns > 0 {
+		metadata["max_turns"] = strconv.Itoa(int(meta.MaxTurns))
+	}
+	if meta.TaskTimeoutSeconds > 0 {
+		metadata["task_timeout"] = strconv.Itoa(int(meta.TaskTimeoutSeconds))
+	}
+
+	info := AgentInfo{
+		ID:              agentID,
+		Name:            name,
+		Label:           meta.Label,
+		Action:          meta.Action,
+		RuleID:          meta.RuleID,
+		Scenario:        meta.Scenario,
+		Model:           model,
+		Status:          mapRunStatus(run.Status, stopRequested),
+		StartedAt:       startedAt,
+		EndedAt:         endedAt,
+		DurationSeconds: int(durationEnd.Sub(startedAt).Seconds()),
+		Command:         buildAgentCommand(model, meta.AllowedTools, meta.MaxTurns, meta.TaskTimeoutSeconds),
+		PromptLength:    meta.PromptLength,
+		Metadata:        metadata,
+		IssueIDs:        append([]string(nil), meta.IssueIDs...),
+		Error:           strings.TrimSpace(run.ErrorMsg),
+	}
+	if info.DurationSeconds < 0 {
+		info.DurationSeconds = 0
+	}
+	return info
+}
+
+func (am *AgentManager) cacheTerminalInfo(agentID string, info AgentInfo) {
+	am.mu.Lock()
+	defer am.mu.Unlock()
+
+	delete(am.active, agentID)
+	am.history[agentID] = info
+	if len(am.history) <= agentHistoryLimit {
+		return
+	}
+
+	type entry struct {
+		id      string
+		started time.Time
+	}
+	entries := make([]entry, 0, len(am.history))
+	for id, item := range am.history {
+		entries = append(entries, entry{id: id, started: item.StartedAt})
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].started.Before(entries[j].started)
+	})
+	for len(entries) > agentHistoryLimit {
+		delete(am.history, entries[0].id)
+		entries = entries[1:]
+	}
+}
+
+func (am *AgentManager) recordCompletion(agentID string, success bool) {
+	am.mu.Lock()
+	if am.completionRecorded[agentID] {
+		am.mu.Unlock()
+		return
+	}
+	am.completionRecorded[agentID] = true
+	am.mu.Unlock()
+	automatedFixStore.RecordCompletion(agentID, success)
+}
+
+func (m auditorAgentMetadata) isZero() bool {
+	return m.Name == "" &&
+		m.Label == "" &&
+		m.Action == "" &&
+		m.RuleID == "" &&
+		m.Scenario == "" &&
+		m.Model == "" &&
+		m.PromptLength == 0 &&
+		len(m.AllowedTools) == 0 &&
+		m.MaxTurns == 0 &&
+		m.TaskTimeoutSeconds == 0 &&
+		len(m.IssueIDs) == 0 &&
+		len(m.Metadata) == 0
+}
+
+func metadataFromTask(task *domainpb.Task) auditorAgentMetadata {
+	if task == nil {
+		return auditorAgentMetadata{}
+	}
+	for _, attachment := range task.ContextAttachments {
+		if attachment == nil || attachment.Key != metadataAttachmentKey {
+			continue
+		}
+		var meta auditorAgentMetadata
+		if err := json.Unmarshal([]byte(attachment.Content), &meta); err == nil {
+			if meta.Metadata == nil {
+				meta.Metadata = map[string]string{}
+			}
+			return meta
+		}
+	}
+	return auditorAgentMetadata{
+		Name:         strings.TrimSpace(task.Title),
+		PromptLength: len([]rune(task.Description)),
+		Metadata:     map[string]string{},
+	}
+}
+
+func configuredAllowedTools() []string {
+	raw := strings.TrimSpace(os.Getenv("SCENARIO_AUDITOR_ALLOWED_TOOLS"))
+	if raw == "" {
+		raw = defaultAllowedTools
+	}
+	parts := strings.Split(raw, ",")
+	tools := make([]string, 0, len(parts))
+	seen := make(map[string]struct{}, len(parts))
+	for _, part := range parts {
+		tool := strings.TrimSpace(part)
+		if tool == "" {
+			continue
+		}
+		key := strings.ToLower(tool)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		tools = append(tools, tool)
+	}
+	return tools
+}
+
+func configuredMaxTurns(issueCount int) int {
+	value := strings.TrimSpace(os.Getenv("SCENARIO_AUDITOR_AGENT_MAX_TURNS"))
+	if value == "" {
+		return estimateMaxTurns(issueCount)
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil || parsed < 0 {
+		return estimateMaxTurns(issueCount)
+	}
+	return parsed
+}
+
+func configuredTaskTimeout(issueCount int) int {
+	value := strings.TrimSpace(os.Getenv("SCENARIO_AUDITOR_AGENT_TIMEOUT"))
+	if value == "" {
+		return estimateTaskTimeout(issueCount)
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil || parsed < 1 {
+		return estimateTaskTimeout(issueCount)
+	}
+	return parsed
+}
+
+func buildAgentCommand(model string, allowedTools []string, maxTurns, taskTimeoutSeconds int32) []string {
+	command := []string{"agent-manager", "create-run", "--runner", "opencode", "--model", model}
+	if len(allowedTools) > 0 {
+		command = append(command, "--allowed-tools", strings.Join(allowedTools, ","))
+	}
+	if maxTurns > 0 {
+		command = append(command, "--max-turns", strconv.Itoa(int(maxTurns)))
+	}
+	if taskTimeoutSeconds > 0 {
+		command = append(command, "--task-timeout", strconv.Itoa(int(taskTimeoutSeconds)))
+	}
+	return command
+}
+
+func mapRunStatus(status domainpb.RunStatus, stopRequested bool) string {
+	if stopRequested && !isTerminalRunStatus(status) {
+		return agentStatusStopping
+	}
+	switch status {
+	case domainpb.RunStatus_RUN_STATUS_COMPLETE:
+		return agentStatusCompleted
+	case domainpb.RunStatus_RUN_STATUS_FAILED:
+		return agentStatusFailed
+	case domainpb.RunStatus_RUN_STATUS_CANCELLED:
+		return agentStatusStopped
+	default:
+		return agentStatusRunning
+	}
+}
+
+func isTerminalRunStatus(status domainpb.RunStatus) bool {
+	switch status {
+	case domainpb.RunStatus_RUN_STATUS_COMPLETE,
+		domainpb.RunStatus_RUN_STATUS_FAILED,
+		domainpb.RunStatus_RUN_STATUS_CANCELLED:
+		return true
+	default:
+		return false
+	}
+}
+
+func runCreatedAt(run *domainpb.Run) time.Time {
+	if ts := timestampToTime(run.GetStartedAt()); !ts.IsZero() {
+		return ts
+	}
+	if ts := timestampToTime(run.GetCreatedAt()); !ts.IsZero() {
+		return ts
+	}
+	return time.Now().UTC()
+}
+
+func timestampToTime(ts *timestamppb.Timestamp) time.Time {
+	if ts == nil {
+		return time.Time{}
+	}
+	value := ts.AsTime().UTC()
+	if value.IsZero() {
+		return time.Time{}
+	}
+	return value
+}
+
+func stringPtr(value string) *string {
+	return &value
+}
+
+func boolPtr(value bool) *bool {
+	return &value
+}
+
+func int32Ptr(value int32) *int32 {
+	return &value
 }
 
 func fallbackAgentName(name, label, action, ruleID string) string {
@@ -538,77 +859,6 @@ var (
 	vrooliRootOnce   sync.Once
 	vrooliRootPath   string
 )
-
-func summariseAgentFailure(logPath string, execErr error) (string, string) {
-	message := strings.TrimSpace(execErr.Error())
-	logSummary, err := extractFailureSummary(logPath)
-	if err != nil || logSummary == "" {
-		return message, ""
-	}
-	if message == "" {
-		return logSummary, logSummary
-	}
-	if strings.Contains(logSummary, message) {
-		return logSummary, logSummary
-	}
-	return fmt.Sprintf("%s (process reported: %s)", logSummary, message), logSummary
-}
-
-func extractFailureSummary(logPath string) (string, error) {
-	data, err := os.ReadFile(logPath)
-	if err != nil {
-		return "", err
-	}
-	lines := strings.Split(string(data), "\n")
-	var fallback string
-	for i := len(lines) - 1; i >= 0; i-- {
-		line := strings.TrimSpace(lines[i])
-		if line == "" {
-			continue
-		}
-		if fallback == "" {
-			fallback = line
-		}
-		lower := strings.ToLower(line)
-		if strings.Contains(lower, "providermodelnotfounderror") {
-			modelID := extractFieldValue(line, "modelID")
-			if modelID == "" {
-				modelID = extractFieldValue(line, "model")
-			}
-			return fmt.Sprintf("ProviderModelNotFoundError: model %s is not available for resource-opencode. Configure provider credentials or set SCENARIO_AUDITOR_AGENT_MODEL to a supported model.", safeValue(modelID)), nil
-		}
-		if strings.Contains(lower, "invalid api key") {
-			return "Authentication failed for resource-opencode provider (invalid API key). Update credentials and retry.", nil
-		}
-		if strings.Contains(lower, "error") {
-			return line, nil
-		}
-	}
-	if fallback != "" {
-		if len(fallback) > 400 {
-			fallback = fallback[:400]
-		}
-		return fallback, nil
-	}
-	return "", nil
-}
-
-func extractFieldValue(line, key string) string {
-	keyEq := key + "="
-	for _, part := range strings.Fields(line) {
-		if strings.HasPrefix(part, keyEq) {
-			return strings.Trim(part[len(keyEq):], "\" ")
-		}
-	}
-	return ""
-}
-
-func safeValue(value string) string {
-	if strings.TrimSpace(value) == "" {
-		return "(unspecified)"
-	}
-	return value
-}
 
 func getScenarioRoot() string {
 	scenarioRootOnce.Do(func() {

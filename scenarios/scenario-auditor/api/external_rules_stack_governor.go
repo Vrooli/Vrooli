@@ -143,8 +143,11 @@ func (p *stackGovernorProvider) Run(ctx context.Context, scenarioName string, ru
 	if err != nil {
 		return nil, err
 	}
+	return p.runAgainstBaseURL(ctx, baseURL, cleaned, ruleIDs)
+}
 
-	payload, _ := json.Marshal(stackGovernorRunRequest{ScenarioName: cleaned})
+func (p *stackGovernorProvider) runAgainstBaseURL(ctx context.Context, baseURL, scenarioName string, ruleIDs []string) ([]StandardsViolation, error) {
+	payload, _ := json.Marshal(stackGovernorRunRequest{ScenarioName: scenarioName})
 	endpoint := fmt.Sprintf("%s/api/v1/run", baseURL)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
 	if err != nil {
@@ -180,7 +183,7 @@ func (p *stackGovernorProvider) Run(ctx context.Context, scenarioName string, ru
 	now := time.Now().Format(time.RFC3339)
 	scenarioDir := ""
 	if parsed.RepoRoot != "" {
-		if resolvedPath, err := resolveContractScenarioPathFromRepoRoot(parsed.RepoRoot, cleaned); err == nil {
+		if resolvedPath, err := resolveContractScenarioPathFromRepoRoot(parsed.RepoRoot, scenarioName); err == nil {
 			scenarioDir = resolvedPath
 		}
 	}
@@ -209,7 +212,7 @@ func (p *stackGovernorProvider) Run(ctx context.Context, scenarioName string, ru
 
 			violations = append(violations, StandardsViolation{
 				ID:             uuid.New().String(),
-				ScenarioName:   cleaned,
+				ScenarioName:   scenarioName,
 				Type:           res.RuleID,
 				Severity:       severity,
 				Title:          meta.Name,

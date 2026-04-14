@@ -1,17 +1,15 @@
 package contractapp
 
-import "github.com/vrooli/vrooli/internal/cli/contractcli"
-
 type RootResolver interface {
 	ResolveRoot() (string, error)
 }
 
 type Service struct {
 	ResolveRootFn     func() (string, error)
-	ValidateFn        func(string) (contractcli.ValidationOutput, error)
-	ShowFn            func() (contractcli.ShowOutput, error)
-	ResolveScenarioFn func(string, string, string) (contractcli.ResolveScenarioOutput, error)
-	MatchGlobFn       func(string, string) (contractcli.MatchGlobOutput, error)
+	ValidateFn        func(string) (ValidationOutput, error)
+	ShowFn            func() (ShowOutput, error)
+	ResolveScenarioFn func(string, string, string) (ResolveScenarioOutput, error)
+	MatchGlobFn       func(string, string) (MatchGlobOutput, error)
 }
 
 type ResolveScenarioRequest struct {
@@ -28,26 +26,26 @@ func (s Service) ResolveRoot() (string, error) {
 	return s.ResolveRootFn()
 }
 
-func (s Service) Validate() (contractcli.ValidationOutput, error) {
+func (s Service) Validate() (ValidationOutput, error) {
 	root, err := s.ResolveRootFn()
 	if err != nil {
-		return contractcli.ValidationOutput{}, err
+		return ValidationOutput{}, err
 	}
 	return s.ValidateFn(root)
 }
 
-func (s Service) Show() (contractcli.ShowOutput, error) {
+func (s Service) Show() (ShowOutput, error) {
 	return s.ShowFn()
 }
 
-func (s Service) ResolveScenario(req ResolveScenarioRequest) (contractcli.ResolveScenarioOutput, error) {
+func (s Service) ResolveScenario(req ResolveScenarioRequest) (ResolveScenarioOutput, error) {
 	root, err := s.ResolveRootFn()
 	if err != nil {
-		return contractcli.ResolveScenarioOutput{}, err
+		return ResolveScenarioOutput{}, err
 	}
 	return s.ResolveScenarioFn(root, req.ScenarioName, req.FileKey)
 }
 
-func (s Service) MatchGlob(req MatchGlobRequest) (contractcli.MatchGlobOutput, error) {
+func (s Service) MatchGlob(req MatchGlobRequest) (MatchGlobOutput, error) {
 	return s.MatchGlobFn(req.Pattern, req.Path)
 }

@@ -94,22 +94,3 @@ func RenderMainHelp(w io.Writer, specs []commandtree.Spec[CommandID]) {
 	_, _ = fmt.Fprintln(w)
 	_, _ = fmt.Fprintln(w, "Documentation: docs/")
 }
-
-func RenderCleanupHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "vrooli cleanup - Clean up orphaned processes and stale locks")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Usage:")
-	_, _ = fmt.Fprintln(w, "  vrooli cleanup orphans    Kill orphaned Vrooli processes")
-	_, _ = fmt.Fprintln(w, "  vrooli cleanup locks      Clean stale port lock files")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Options:")
-	_, _ = fmt.Fprintln(w, "  --help, -h    Show this help message")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Examples:")
-	_, _ = fmt.Fprintln(w, "  vrooli cleanup orphans    # Kill orphaned processes (interactive)")
-	_, _ = fmt.Fprintln(w, "  vrooli cleanup locks      # Remove stale lock files")
-}
-
-func RenderProjectLifecycleHelp(w io.Writer, phase string) {
-	_, _ = fmt.Fprintf(w, "Usage: vrooli %s\n", phase)
-}

@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
@@ -18,6 +17,7 @@ import (
 	rulespkg "scenario-auditor/rules"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/storage"
 )
 
 // Persistent store for rule enabled/disabled status
@@ -44,29 +44,13 @@ func initRuleStateStore() *RuleStateStore {
 }
 
 func (rs *RuleStateStore) enablePersistence() {
-	dataDir, err := resolveScenarioAuditorDataDir()
+	path, err := resolveScenarioAuditorStoragePath(storage.ClassConfig, "rule-preferences.json")
 	if err != nil {
-		logger.Error("Failed to resolve scenario-auditor data directory", err)
+		logger.Error("Failed to resolve scenario-auditor rule preferences config path", err)
 		logger.Info("Rule state store will operate in memory-only mode (no persistence)")
 		return
 	}
-
-	parentDir := filepath.Dir(dataDir)
-	if _, err := os.Stat(parentDir); os.IsNotExist(err) {
-		if err := os.MkdirAll(parentDir, 0o755); err != nil {
-			logger.Error(fmt.Sprintf("Failed to create parent data directory %s", parentDir), err)
-			logger.Info("Rule state store will operate in memory-only mode (no persistence)")
-			return
-		}
-	}
-
-	if err := os.MkdirAll(dataDir, 0o755); err != nil {
-		logger.Error(fmt.Sprintf("Failed to create scenario-auditor data directory %s", dataDir), err)
-		logger.Info("Rule state store will operate in memory-only mode (no persistence)")
-		return
-	}
-
-	rs.filePath = filepath.Join(dataDir, "rule-preferences.json")
+	rs.filePath = path
 
 	if err := rs.loadFromFile(); err != nil {
 		logger.Error(fmt.Sprintf("Failed to load existing rule states from %s", rs.filePath), err)
@@ -126,12 +110,7 @@ func (rs *RuleStateStore) saveToFileLocked() error {
 		return err
 	}
 
-	tmpPath := rs.filePath + ".tmp"
-	if err := os.WriteFile(tmpPath, bytes, 0o644); err != nil {
-		return err
-	}
-
-	return os.Rename(tmpPath, rs.filePath)
+	return storage.WriteFileAtomic(rs.filePath, bytes, storage.DefaultFilePerm)
 }
 
 func (rs *RuleStateStore) SetState(ruleID string, enabled bool) error {

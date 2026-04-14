@@ -18,8 +18,8 @@
 **Status**: ⚠️ Needs verification
 
 ### 4. AI Resource Integration
-**Problem**: Claude Code and Qdrant integrations are called but may fail silently if resources aren't running.
-**Solution**: Added fallback heuristics when AI resources are unavailable.
+**Problem**: Qdrant-based semantic matching may fail silently if resources aren't running.
+**Solution**: Added fallback heuristics when semantic resources are unavailable.
 **Status**: ✅ Fallbacks implemented
 
 ### 5. Test Failures
@@ -30,10 +30,9 @@
 ## Technical Debt
 
 1. **Qdrant Integration**: Currently uses exec commands to call resource-qdrant, should use proper API client
-2. **Claude Code Integration**: Similar exec-based integration, needs proper client library
-3. **Optimization Engine**: Currently returns placeholder data, needs full implementation
-4. **Circular Dependency Detection**: Graph algorithms exist in code but not fully integrated
-5. **Historical Tracking**: Database tables exist but no automatic tracking implemented
+2. **Optimization Engine**: Currently returns placeholder data, needs full implementation
+3. **Circular Dependency Detection**: Graph algorithms exist in code but not fully integrated
+4. **Historical Tracking**: Database tables exist but no automatic tracking implemented
 
 ## Recommendations for Next Iteration
 

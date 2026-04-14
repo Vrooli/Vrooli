@@ -16,7 +16,6 @@ This scenario provides Vrooli with **architectural self-awareness** by:
 
 ### Prerequisites
 - PostgreSQL resource running and accessible
-- Claude Code resource available (`resource-claude-code`)
 - Ollama resource available (`resource-ollama`)
 - Qdrant resource available (`resource-qdrant`)
 
@@ -120,7 +119,6 @@ curl "http://localhost:20400/api/v1/scenarios/chart-generator/dag/export?recursi
 
 ### Resource Dependencies
 - **postgres** (required) - Stores dependency metadata and analysis results
-- **claude-code** (required) - AI-powered analysis of proposed scenarios
 - **qdrant** (required) - Semantic similarity matching for scenario patterns
 - **redis** (optional) - Performance optimization through result caching
 
@@ -132,7 +130,6 @@ curl "http://localhost:20400/api/v1/scenarios/chart-generator/dag/export?recursi
 - **Shared Workflows**: Identified through initialization file analysis
 
 #### AI-Powered Analysis
-- **Claude Code Integration**: Intelligent analysis of proposed scenario descriptions
 - **Qdrant Semantic Search**: Find similar existing scenarios and patterns
 - **Heuristic Fallbacks**: Keyword-based predictions when AI resources unavailable
 
@@ -249,7 +246,6 @@ vrooli scenario run scenario-dependency-analyzer
 
 ### Architecture Notes
 - Uses PostgreSQL for reliable dependency metadata storage
-- Integrates with Claude Code for intelligent scenario analysis
 - Leverages Qdrant for semantic similarity matching
 - Provides both programmatic (API/CLI) and visual (Web) interfaces
 - Designed for horizontal scaling and distributed analysis

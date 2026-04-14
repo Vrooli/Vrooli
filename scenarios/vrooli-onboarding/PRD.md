@@ -27,7 +27,7 @@
 - Non-goals: Custom resource implementations, complex workflow automation
 
 ## 🤝 Dependencies & Launch Plan
-- Required resources: running-resources.json, service.json, secrets.json
+- Required resources: `vrooli resource status --json`, service.json, secrets.json
 - Scenario dependencies: tunnel-manager, browser-automation-studio
 - Operational risks: API key security, configuration file corruption, health check reliability
 - Launch sequencing:

@@ -6,7 +6,6 @@ const resourceManifestSchemaPath = manifestpkg.SchemaPath
 
 type (
 	ResourceManifest             = manifestpkg.ResourceManifest
-	ResourceLegacyAdapter        = manifestpkg.ResourceLegacyAdapter
 	ResourcePlatforms            = manifestpkg.ResourcePlatforms
 	ResourcePort                 = manifestpkg.ResourcePort
 	ResourceHealthCheck          = manifestpkg.ResourceHealthCheck

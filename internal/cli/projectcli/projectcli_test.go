@@ -10,7 +10,37 @@ import (
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/project"
+	projectsetup "github.com/vrooli/vrooli/internal/setup"
 )
+
+func TestParseStatusRequestRejectsConflictingFilters(t *testing.T) {
+	if _, err := ParseStatusRequest([]string{"--resources", "--scenarios"}); err == nil {
+		t.Fatal("expected conflict error")
+	}
+}
+
+func TestParseSetupOptionsAcceptsFlags(t *testing.T) {
+	opts, err := ParseSetupOptions([]string{"--environment", "minimal", "--resources", "none", "--yes", "yes", "--sudo-mode", "skip", "--dry-run"})
+	if err != nil {
+		t.Fatalf("ParseSetupOptions: %v", err)
+	}
+	want := projectsetup.Options{
+		Environment: "minimal",
+		Resources:   "none",
+		Yes:         "yes",
+		SudoMode:    "skip",
+		DryRun:      true,
+	}
+	if opts != want {
+		t.Fatalf("opts = %+v, want %+v", opts, want)
+	}
+}
+
+func TestParseCleanupRequestRejectsUnknownTarget(t *testing.T) {
+	if _, err := ParseCleanupRequest([]string{"bogus"}); err == nil {
+		t.Fatal("expected cleanup target error")
+	}
+}
 
 func TestRenderOrphansResponseHumanEmpty(t *testing.T) {
 	var stdout bytes.Buffer

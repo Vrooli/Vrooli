@@ -33,14 +33,13 @@ const (
 	defaultAPIPort     = 8092
 )
 
-type options struct {
+type Options struct {
 	DryRun      bool
 	SudoMode    string
 	Environment string
 	Resources   string
 	Scenarios   string
 	Yes         string
-	Help        bool
 }
 
 type apiLaunchSpec struct {
@@ -68,15 +67,7 @@ var (
 	nowFn               = time.Now
 )
 
-func RunSetup(root, home string, args []string, stdout, stderr io.Writer) error {
-	opts, err := parseOptions("setup", args)
-	if err != nil {
-		return err
-	}
-	if opts.Help {
-		showSetupHelp(stdout)
-		return nil
-	}
+func RunSetupWithOptions(root, home string, opts Options, stdout, stderr io.Writer) error {
 	if err := currentHostFn().ValidateSetup(); err != nil {
 		return err
 	}
@@ -138,17 +129,7 @@ func RunSetup(root, home string, args []string, stdout, stderr io.Writer) error 
 	return markCompleteFn(root)
 }
 
-func RunBuild(root, home string, args []string, stdout, stderr io.Writer) error {
-	for _, arg := range args {
-		switch arg {
-		case "--help", "-h":
-			showBuildHelp(stdout)
-			return nil
-		default:
-			return fmt.Errorf("unknown option for build: %s", arg)
-		}
-	}
-
+func RunBuild(root, home string, stdout, stderr io.Writer) error {
 	if err := os.MkdirAll(filepath.Join(root, ".vrooli", "build"), 0o755); err != nil {
 		return err
 	}
@@ -170,15 +151,7 @@ func RunBuild(root, home string, args []string, stdout, stderr io.Writer) error 
 	return nil
 }
 
-func RunDevelop(root, home string, args []string, stdout, stderr io.Writer) error {
-	opts, err := parseOptions("develop", args)
-	if err != nil {
-		return err
-	}
-	if opts.Help {
-		showDevelopHelp(stdout)
-		return nil
-	}
+func RunDevelopWithOptions(root, home string, opts Options, stdout, stderr io.Writer) error {
 	if err := currentHostFn().ValidateDevelop(); err != nil {
 		return err
 	}
@@ -196,7 +169,7 @@ func RunDevelop(root, home string, args []string, stdout, stderr io.Writer) erro
 
 	if setupNeeded(root, projectScenario.Slug) {
 		_, _ = fmt.Fprintln(stdout, "[INFO]    Running setup before develop")
-		if err := RunSetup(root, home, args, stdout, stderr); err != nil {
+		if err := RunSetupWithOptions(root, home, opts, stdout, stderr); err != nil {
 			return err
 		}
 	}
@@ -239,12 +212,6 @@ func RunDevelop(root, home string, args []string, stdout, stderr io.Writer) erro
 	return startOrchestratorFn(root, home, stdout, stderr)
 }
 
-func showBuildHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "Usage: vrooli build")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Builds the project-level Go binaries into .vrooli/build.")
-}
-
 func buildProjectBinary(root, outputPath, target string, fingerprintPaths []string, gitCommit, buildTime string, stdout, stderr io.Writer) error {
 	fingerprint, err := buildinfo.ComputeSourceFingerprintForPaths(root, fingerprintPaths...)
 	if err != nil {
@@ -274,136 +241,12 @@ func buildProjectBinary(root, outputPath, target string, fingerprintPaths []stri
 	})
 }
 
-func parseOptions(command string, args []string) (options, error) {
-	opts := options{}
-	for index := 0; index < len(args); index++ {
-		arg := args[index]
-		switch {
-		case arg == "--help" || arg == "-h":
-			opts.Help = true
-		case arg == "--dry-run":
-			opts.DryRun = true
-		case arg == "--sudo-mode":
-			value, next, err := requireValue(command, arg, args, index)
-			if err != nil {
-				return options{}, err
-			}
-			index = next
-			value = strings.ToLower(strings.TrimSpace(value))
-			switch value {
-			case "ask", "skip", "error":
-				opts.SudoMode = value
-			default:
-				return options{}, fmt.Errorf("invalid value for --sudo-mode: %s", value)
-			}
-		case strings.HasPrefix(arg, "--sudo-mode="):
-			value := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "--sudo-mode=")))
-			switch value {
-			case "ask", "skip", "error":
-				opts.SudoMode = value
-			default:
-				return options{}, fmt.Errorf("invalid value for --sudo-mode: %s", value)
-			}
-		case arg == "--environment" || arg == "--env":
-			value, next, err := requireValue(command, arg, args, index)
-			if err != nil {
-				return options{}, err
-			}
-			index = next
-			value = strings.ToLower(strings.TrimSpace(value))
-			switch value {
-			case "development", "production", "minimal":
-				opts.Environment = value
-			default:
-				return options{}, fmt.Errorf("invalid value for --environment: %s", value)
-			}
-		case strings.HasPrefix(arg, "--environment="):
-			value := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "--environment=")))
-			switch value {
-			case "development", "production", "minimal":
-				opts.Environment = value
-			default:
-				return options{}, fmt.Errorf("invalid value for --environment: %s", value)
-			}
-		case strings.HasPrefix(arg, "--env="):
-			value := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "--env=")))
-			switch value {
-			case "development", "production", "minimal":
-				opts.Environment = value
-			default:
-				return options{}, fmt.Errorf("invalid value for --environment: %s", value)
-			}
-		case arg == "--resources":
-			value, next, err := requireValue(command, arg, args, index)
-			if err != nil {
-				return options{}, err
-			}
-			index = next
-			opts.Resources = strings.ToLower(strings.TrimSpace(value))
-		case strings.HasPrefix(arg, "--resources="):
-			opts.Resources = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "--resources=")))
-		case arg == "--scenarios":
-			value, next, err := requireValue(command, arg, args, index)
-			if err != nil {
-				return options{}, err
-			}
-			index = next
-			opts.Scenarios = strings.ToLower(strings.TrimSpace(value))
-		case strings.HasPrefix(arg, "--scenarios="):
-			opts.Scenarios = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "--scenarios=")))
-		case arg == "--yes" || arg == "-y":
-			value, next, err := requireValue(command, arg, args, index)
-			if err != nil {
-				return options{}, err
-			}
-			index = next
-			opts.Yes = strings.ToLower(strings.TrimSpace(value))
-		case strings.HasPrefix(arg, "--yes="):
-			opts.Yes = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "--yes=")))
-		default:
-			return options{}, fmt.Errorf("unknown option for %s: %s", command, arg)
-		}
-	}
-	return opts, nil
-}
-
-func requireValue(command, flag string, args []string, index int) (string, int, error) {
-	if index+1 >= len(args) {
-		return "", index, fmt.Errorf("%s requires a value for %s", command, flag)
-	}
-	return args[index+1], index + 1, nil
-}
-
-func showSetupHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "Usage: vrooli setup [options]")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Options:")
-	_, _ = fmt.Fprintln(w, "  --environment, --env <name>   Set environment profile (development|production|minimal)")
-	_, _ = fmt.Fprintln(w, "  --resources <value>           Resource selection (enabled|none|comma,list)")
-	_, _ = fmt.Fprintln(w, "  --scenarios <value>           Scenario selection (none|all|comma,list)")
-	_, _ = fmt.Fprintln(w, "  --sudo-mode <mode>            Sudo policy (ask|skip|error)")
-	_, _ = fmt.Fprintln(w, "  --yes <value>                 Confirmation policy forwarded to setup steps")
-	_, _ = fmt.Fprintln(w, "  --dry-run                     Preview setup actions without mutating the host")
-}
-
-func showDevelopHelp(w io.Writer) {
-	_, _ = fmt.Fprintln(w, "Usage: vrooli develop [options]")
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Options:")
-	_, _ = fmt.Fprintln(w, "  --environment, --env <name>   Set environment profile for auto-setup (development|production|minimal)")
-	_, _ = fmt.Fprintln(w, "  --resources <value>           Resource selection for auto-setup (enabled|none|comma,list)")
-	_, _ = fmt.Fprintln(w, "  --scenarios <value>           Scenario selection for auto-setup (none|all|comma,list)")
-	_, _ = fmt.Fprintln(w, "  --sudo-mode <mode>            Sudo policy for auto-setup (ask|skip|error)")
-	_, _ = fmt.Fprintln(w, "  --yes <value>                 Confirmation policy forwarded to auto-setup")
-	_, _ = fmt.Fprintln(w, "  --dry-run                     Preview auto-setup actions without mutating the host")
-}
-
 type envSnapshot struct {
 	value   string
 	existed bool
 }
 
-func applyEnvironment(root, servicePath string, opts options) (func(), error) {
+func applyEnvironment(root, servicePath string, opts Options) (func(), error) {
 	changes := map[string]envSnapshot{}
 	set := func(key, value string, onlyIfUnset bool) error {
 		current, existed := os.LookupEnv(key)
@@ -527,7 +370,7 @@ func configureGit(root string) error {
 	return cmd.Run()
 }
 
-func maybeInstallResources(root, home string, opts options, stdout, stderr io.Writer) error {
+func maybeInstallResources(root, home string, opts Options, stdout, stderr io.Writer) error {
 	selection := strings.TrimSpace(opts.Resources)
 	if selection == "" || selection == "none" {
 		return nil
@@ -678,7 +521,7 @@ func apiAlreadyHealthy(port int) (bool, error) {
 }
 
 func buildAPILaunchSpec(root, home string, env []string, port int) (apiLaunchSpec, error) {
-	logFile := filepath.Join(root, ".vrooli", "logs", "vrooli-api.log")
+	logFile := filepath.Join(home, ".vrooli", "logs", "vrooli-api.log")
 	for _, candidate := range []struct {
 		command string
 		args    []string

@@ -856,45 +856,6 @@ func TestCalculateScenarioConfidence(t *testing.T) {
 	}
 }
 
-// TestParseClaudeCodeResponse tests Claude Code response parsing
-func TestParseClaudeCodeResponse(t *testing.T) {
-	tests := []struct {
-		name        string
-		response    string
-		description string
-		wantNil     bool
-	}{
-		{
-			name:        "ValidResponse",
-			response:    "Analysis: This scenario needs postgres and redis for data storage and caching.",
-			description: "Test scenario",
-			wantNil:     false,
-		},
-		{
-			name:        "EmptyResponse",
-			response:    "",
-			description: "Test scenario",
-			wantNil:     false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := parseClaudeCodeResponse(tt.response, tt.description)
-
-			if (result == nil) != tt.wantNil {
-				t.Errorf("parseClaudeCodeResponse() = %v, wantNil %v", result, tt.wantNil)
-			}
-
-			if !tt.wantNil && result != nil {
-				if len(result.PredictedResources) == 0 && len(result.Recommendations) == 0 {
-					t.Logf("Parsed response contains no resources or recommendations (may be expected for empty input)")
-				}
-			}
-		})
-	}
-}
-
 // TestExtractDeclaredResourcesWithSeams tests deterministic resource extraction
 func TestExtractDeclaredResourcesWithSeams(t *testing.T) {
 	testSeams := newTestSeams()

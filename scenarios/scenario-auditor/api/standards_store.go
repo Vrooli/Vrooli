@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vrooli/api-core/storage"
 )
 
 // StandardsStore provides persistent storage for standards violations
@@ -45,33 +46,13 @@ func initStandardsStore() *StandardsStore {
 
 // enablePersistence attempts to enable file-based persistence
 func (ss *StandardsStore) enablePersistence() {
-	dataDir, err := resolveScenarioAuditorDataDir()
+	path, err := resolveScenarioAuditorStoragePath(storage.ClassCache, "standards-violations.json")
 	if err != nil {
-		logger.Error("Failed to resolve scenario-auditor data directory", err)
+		logger.Error("Failed to resolve scenario-auditor standards cache path", err)
 		logger.Info("Standards store will operate in memory-only mode (no persistence)")
 		return
 	}
-
-	// Check if parent directory exists first
-	parentDir := filepath.Dir(dataDir)
-	if _, err := os.Stat(parentDir); os.IsNotExist(err) {
-		// Try to create parent directory structure
-		if err := os.MkdirAll(parentDir, 0o755); err != nil {
-			logger.Error(fmt.Sprintf("Failed to create parent data directory %s", parentDir), err)
-			logger.Info("Standards store will operate in memory-only mode (no persistence)")
-			return
-		}
-	}
-
-	// Now create our specific directory
-	if err := os.MkdirAll(dataDir, 0o755); err != nil {
-		logger.Error(fmt.Sprintf("Failed to create scenario-auditor data directory %s", dataDir), err)
-		logger.Info("Standards store will operate in memory-only mode (no persistence)")
-		return
-	}
-
-	// Set the file path
-	ss.filePath = filepath.Join(dataDir, "standards-violations.json")
+	ss.filePath = path
 
 	// Try to load existing data
 	if err := ss.loadFromFile(); err != nil {
@@ -311,7 +292,7 @@ func (ss *StandardsStore) saveToFile() error {
 		return fmt.Errorf("failed to marshal standards data: %w", err)
 	}
 
-	if err := os.WriteFile(ss.filePath, jsonData, 0o644); err != nil {
+	if err := storage.WriteFileAtomic(ss.filePath, jsonData, storage.DefaultFilePerm); err != nil {
 		return fmt.Errorf("failed to write standards data to %s: %w", ss.filePath, err)
 	}
 

@@ -1,8 +1,0 @@
-{
-  "resource": "{{RESOURCE_NAME}}",
-  "kind": "integration",
-  "checks": [
-    "adapter status is visible in backlog tracking",
-    "migration or deprecation plan is documented"
-  ]
-}

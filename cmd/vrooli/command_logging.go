@@ -11,8 +11,8 @@ func createCommandLogger(globals globalOptions, stderr io.Writer) (*slog.Logger,
 	logger, _, restore := logx.InstallAndReport(logx.Options{
 		Component:      "vrooli",
 		Writer:         stderr,
-		Format:         globals.logFormat(),
-		Verbose:        globals.verbose,
+		Format:         globals.LogFormat(),
+		Verbose:        globals.Verbose,
 		SetDefault:     true,
 		RedirectStdlib: true,
 	})

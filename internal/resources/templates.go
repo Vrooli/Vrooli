@@ -25,7 +25,6 @@ var (
 		"desktop-app",
 		"docker-service",
 		"external-cli",
-		"legacy-adapter",
 		"manual-resource",
 	}
 )
@@ -309,7 +308,7 @@ func validateResourceTemplateManifest(manifest ResourceTemplateManifest) error {
 	if strings.TrimSpace(manifest.Description) == "" {
 		return fmt.Errorf("description is required")
 	}
-	if !isAllowedValue(strings.TrimSpace(manifest.Driver), []string{"docker-service", "compose-service", "external-cli", "cloud-api", "desktop-app", "manual", "legacy-adapter"}) {
+	if !isAllowedValue(strings.TrimSpace(manifest.Driver), []string{"docker-service", "compose-service", "external-cli", "cloud-api", "desktop-app", "manual"}) {
 		return fmt.Errorf("driver %q is invalid", manifest.Driver)
 	}
 	for key, variable := range manifest.RequiredVars {

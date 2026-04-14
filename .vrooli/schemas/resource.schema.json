@@ -35,37 +35,11 @@
         "external-cli",
         "cloud-api",
         "desktop-app",
-        "manual",
-        "legacy-adapter"
+        "manual"
       ]
     },
     "compose_file": {
       "type": "string"
-    },
-    "legacy_adapter": {
-      "type": "object",
-      "properties": {
-        "owner": {
-          "type": "string"
-        },
-        "decision_deadline": {
-          "type": "string"
-        },
-        "final_disposition": {
-          "type": "string",
-          "enum": [
-            "migrate",
-            "blueprint",
-            "deprecate"
-          ]
-        },
-        "legacy_cli_path": {
-          "type": "string"
-        },
-        "notes": {
-          "type": "string"
-        }
-      }
     },
     "binary": {
       "type": "string"
@@ -255,6 +229,40 @@
           "type": "array",
           "items": {
             "type": "string"
+          }
+        }
+      }
+    },
+    "environment_exports": {
+      "type": "object",
+      "properties": {
+        "static": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "from_ports": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "from_runtime_env": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "derived": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "template": {
+                "type": "string"
+              }
+            }
           }
         }
       }

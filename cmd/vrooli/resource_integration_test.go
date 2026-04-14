@@ -12,7 +12,7 @@ import (
 func TestSplitRunResourceStatusUsesNativeController(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeResourceStatusFixture(t, root, "fixture-resource", `{"installed":true,"running":true,"healthy":true,"message":"healthy"}`)
+	writeResourceStatusFixture(t, root, "fixture-resource", "")
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
@@ -22,7 +22,7 @@ func TestSplitRunResourceStatusUsesNativeController(t *testing.T) {
 		t.Fatalf("run exit code = %d", code)
 	}
 	output := stdout.String()
-	if !strings.Contains(output, "fixture-resource") || !strings.Contains(output, "healthy") {
+	if !strings.Contains(output, "fixture-resource") || !strings.Contains(output, "available") {
 		t.Fatalf("stdout = %q", output)
 	}
 }

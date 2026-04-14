@@ -52,11 +52,6 @@ func (fixture RepoFixture) WriteRepoContract(t *testing.T) {
 	WriteRepoContract(t, fixture.Root, fixture.ScenarioDir)
 }
 
-func (fixture RepoFixture) WriteRepoContractExceptions(t *testing.T) {
-	t.Helper()
-	WriteRepoContractExceptions(t, fixture.Root)
-}
-
 func (fixture RepoFixture) WriteRepoSupportDocs(t *testing.T, docs RepoSupportDocs) {
 	t.Helper()
 	WriteRepoSupportDocs(t, fixture.Root, docs)
@@ -142,8 +137,6 @@ func DefaultRepoSupportDocs() RepoSupportDocs {
 		RepoContractDoc: []string{
 			"# Repo Contract",
 			"## Adoption Rules",
-			"## Grandfathered Debt and Exceptions",
-			"`.vrooli/repo-contract-adoption-exceptions.json`",
 			"future repo-aware work",
 			"`packages/repo-contract-go` directly",
 			"`vrooli contract validate`",
@@ -176,14 +169,6 @@ func DefaultRepoSupportDocs() RepoSupportDocs {
 	}
 }
 
-func WriteRepoContractExceptions(t *testing.T, root string) {
-	t.Helper()
-	WriteJSON(t, repocontractmeta.AdoptionExceptionsPath(root), map[string]any{
-		"version":    repocontractmeta.DefaultContractVersion,
-		"exceptions": []any{},
-	})
-}
-
 func WriteRepoSupportDocs(t *testing.T, root string, docs RepoSupportDocs) {
 	t.Helper()
 	if len(docs.RepoContractDoc) > 0 {
@@ -202,7 +187,7 @@ func WriteRepoSupportDocs(t *testing.T, root string, docs RepoSupportDocs) {
 
 func WriteScenarioStub(t *testing.T, root, scenarioDir, name string) {
 	t.Helper()
-	WriteJSON(t, filepath.Join(root, scenarioDir, name, ".vrooli", "service.json"), map[string]any{
+	WriteJSON(t, filepath.Join(root, scenarioDir, name, repocontractmeta.ServiceManifestPathname), map[string]any{
 		"service": map[string]any{
 			"name": name,
 		},
@@ -211,7 +196,7 @@ func WriteScenarioStub(t *testing.T, root, scenarioDir, name string) {
 
 func WriteResourceStub(t *testing.T, root, name string) {
 	t.Helper()
-	WriteJSON(t, filepath.Join(root, "resources", name, "resource.json"), map[string]any{
+	WriteJSON(t, repocontractmeta.ResourceManifestPath(root, name), map[string]any{
 		"name": name,
 	})
 }

@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/cli/clipolicy"
+	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cliout"
 )
 
@@ -26,7 +28,7 @@ func TestCreateCommandLoggerRespectsVerboseAndLogLevel(t *testing.T) {
 	}
 
 	var verbose bytes.Buffer
-	logger, restore = createCommandLogger(globalOptions{verbose: true}, &verbose)
+	logger, restore = createCommandLogger(globalOptions{Verbose: true}, &verbose)
 	defer restore()
 	logger.Debug("debug should be visible with verbose")
 	if !strings.Contains(verbose.String(), "debug should be visible with verbose") {
@@ -39,7 +41,7 @@ func TestRunEmitsDebugLogsWhenVerbose(t *testing.T) {
 	app := configuredApp()
 	app.newLogger = func(globals globalOptions, _ io.Writer) (*slog.Logger, func()) {
 		level := slog.LevelInfo
-		if globals.verbose {
+		if globals.Verbose {
 			level = slog.LevelDebug
 		}
 		return slog.New(slog.NewTextHandler(&captured, &slog.HandlerOptions{
@@ -47,7 +49,6 @@ func TestRunEmitsDebugLogsWhenVerbose(t *testing.T) {
 		})), func() {}
 	}
 	app.resolveSourceRoot = func() (string, error) { return "/repo", nil }
-	app.isStale = func() bool { return false }
 	app.checkStaleness = nil
 	t.Setenv("VROOLI_LOG_LEVEL", "info")
 
@@ -66,7 +67,7 @@ func TestRunEmitsDebugLogsWhenVerbose(t *testing.T) {
 
 func TestCreateCommandLoggerUsesJSONWhenCommandOutputIsJSON(t *testing.T) {
 	var captured bytes.Buffer
-	logger, restore := createCommandLogger(globalOptions{json: true}, &captured)
+	logger, restore := createCommandLogger(globalOptions{JSON: true}, &captured)
 	defer restore()
 
 	logger.Info("machine readable")
@@ -138,13 +139,13 @@ func TestExecutionContextForFormatRedirectsJSONRunnerOutput(t *testing.T) {
 
 func TestPrintErrorWithContextCategorizesRuntimeError(t *testing.T) {
 	var output bytes.Buffer
-	err := newErrorWithCategory(
+	err := rootcli.NewErrorWithCategory(
 		errors.New("pipeline failed"),
-		errorCategoryRuntime,
+		rootcli.ErrorCategoryRuntime,
 		"Check the command inputs and try again.",
 		[]string{"setup", "status"},
 	)
-	printErrorWithContext(&output, err)
+	rootcli.PrintErrorWithContext(&output, err)
 
 	rendered := output.String()
 	if !strings.Contains(rendered, "Runtime error: pipeline failed") {
@@ -166,7 +167,7 @@ func TestPrintErrorWithContextCategorizesRuntimeError(t *testing.T) {
 
 func TestPrintErrorWithContextPreservesPlainErrors(t *testing.T) {
 	var output bytes.Buffer
-	printErrorWithContext(&output, errors.New("plain failure"))
+	rootcli.PrintErrorWithContext(&output, errors.New("plain failure"))
 
 	got := strings.TrimSpace(output.String())
 	if got != "plain failure" {
@@ -175,8 +176,9 @@ func TestPrintErrorWithContextPreservesPlainErrors(t *testing.T) {
 }
 
 func TestSuggestTopLevelCommandsIsDeterministic(t *testing.T) {
-	first := suggestTopLevelCommands("statz")
-	second := suggestTopLevelCommands("statz")
+	app, _ := newConfiguredCommandContext("/repo", globalOptions{}, &bytes.Buffer{}, &bytes.Buffer{})
+	first := app.registry.SuggestTopLevel("statz")
+	second := app.registry.SuggestTopLevel("statz")
 
 	if !reflect.DeepEqual(first, second) {
 		t.Fatalf("suggestions not deterministic: %v != %v", first, second)
@@ -185,10 +187,11 @@ func TestSuggestTopLevelCommandsIsDeterministic(t *testing.T) {
 
 func TestNewUnknownCommandErrorIncludesSuggestionCategory(t *testing.T) {
 	var output bytes.Buffer
-	printErrorWithContext(&output, newUnknownCommandError("statz"))
+	app, _ := newConfiguredCommandContext("/repo", globalOptions{}, &bytes.Buffer{}, &bytes.Buffer{})
+	rootcli.PrintErrorWithContext(&output, rootcli.NewUnknownCommandError("statz", app.registry.SuggestTopLevel("statz")))
 
 	rendered := output.String()
-	if !strings.Contains(rendered, "Unknown command: statz") {
+	if !strings.Contains(rendered, clipolicy.UnknownCommandLabel+": statz") {
 		t.Fatalf("unknown command render = %q", rendered)
 	}
 	if !strings.Contains(rendered, "Did you mean one of these?") {
@@ -200,8 +203,8 @@ func TestNewUnknownCommandErrorIncludesSuggestionCategory(t *testing.T) {
 }
 
 func TestNewErrorWithCategoryPreservesExitCode(t *testing.T) {
-	err := newErrorWithCategory(exitCodeError{code: 23, message: "wrapped"}, errorCategoryRuntime, "", nil)
-	if got, want := exitCode(err), 23; got != want {
+	err := rootcli.NewErrorWithCategory(rootcli.ExitCodeError{Code: 23, Message: "wrapped"}, rootcli.ErrorCategoryRuntime, "", nil)
+	if got, want := rootcli.ExitCode(err), 23; got != want {
 		t.Fatalf("exitCode = %d, want %d", got, want)
 	}
 }

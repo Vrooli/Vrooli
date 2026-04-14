@@ -39,11 +39,6 @@ INSERT INTO scenario_dependencies (
      'resource-postgres',
      '{"initialization": ["schema.sql", "seed.sql"]}'::jsonb),
     
-    ('scenario-dependency-analyzer', 'resource', 'claude-code', true,
-     'AI-powered analysis of scenario code, configurations, and proposed scenario descriptions',
-     'resource-claude-code',
-     '{"commands": ["analyze", "review"]}'::jsonb),
-
     ('scenario-dependency-analyzer', 'resource', 'ollama', true,
      'Generate embeddings for semantic similarity matching against Qdrant',
      'resource-ollama',
@@ -74,7 +69,7 @@ INSERT INTO analysis_runs (
     '{
         "scenarios_analyzed": 0,
         "dependencies_found": 4,
-        "resources_identified": ["postgres", "claude-code", "qdrant", "redis"],
+        "resources_identified": ["postgres", "ollama", "qdrant", "redis"],
         "recommendations_generated": 0
     }'::jsonb,
     'initial_setup',

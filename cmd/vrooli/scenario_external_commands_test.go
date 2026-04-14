@@ -2,10 +2,12 @@ package main
 
 import (
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/cli/scenariohandlers"
 )
 
 func TestBuildUISmokeArgsAppendsPassthroughFlags(t *testing.T) {
-	args := buildUISmokeArgs(globalOptions{json: true}, []string{"alpha"})
+	args := scenariohandlers.BuildUISmokeArgs(globalOptions{JSON: true}, []string{"alpha"})
 	if len(args) != 3 {
 		t.Fatalf("args = %#v", args)
 	}
@@ -15,14 +17,14 @@ func TestBuildUISmokeArgsAppendsPassthroughFlags(t *testing.T) {
 }
 
 func TestBuildScenarioCompletenessArgsAddsJSONWhenFormatMissing(t *testing.T) {
-	args := buildScenarioCompletenessArgs(globalOptions{json: true}, []string{"alpha"})
+	args := scenariohandlers.BuildScenarioCompletenessArgs(globalOptions{JSON: true}, []string{"alpha"})
 	if len(args) != 2 || args[0] != "alpha" || args[1] != "--json" {
 		t.Fatalf("args = %#v", args)
 	}
 }
 
 func TestBuildScenarioCompletenessArgsPreservesExplicitFormat(t *testing.T) {
-	args := buildScenarioCompletenessArgs(globalOptions{json: true}, []string{"alpha", "--format", "json"})
+	args := scenariohandlers.BuildScenarioCompletenessArgs(globalOptions{JSON: true}, []string{"alpha", "--format", "json"})
 	if len(args) != 3 || args[2] != "json" {
 		t.Fatalf("args = %#v", args)
 	}

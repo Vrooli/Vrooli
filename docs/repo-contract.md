@@ -168,22 +168,7 @@ Preferred consumption order:
 - repo-aware infrastructure code may consume `packages/repo-contract-go` directly when layout semantics are central to its job
 - local fallbacks are acceptable only when they are explicitly documented as non-authoritative compatibility behavior
 
-## Grandfathered Debt and Exceptions
-
-Phase 6 does not claim that every historical repo-root helper or path join in the monorepo has already been migrated. It closes adoption by making future repo-aware work follow the contract and by enumerating the remaining debt explicitly.
-
-The current allowlist for grandfathered exceptions lives at:
-
-- `.vrooli/repo-contract-adoption-exceptions.json`
-- [repo-contract-adoption-exceptions.json](/home/matthalloran8/Vrooli/.vrooli/repo-contract-adoption-exceptions.json)
-
-Each exception must include:
-
-- the file path
-- the violated adoption rule
-- a short migration or compatibility rationale
-
-If a new repo-aware surface needs an exception, that should be treated as a temporary migration decision, not as new contract authority.
+Phase 6 does not claim that every historical repo-root helper or path join in the monorepo has already been migrated. It closes adoption by making future repo-aware work follow the contract and by treating remaining debt as consumer cleanup rather than as an allowlisted alternative authority.
 
 ## Landed Consumer Migrations
 

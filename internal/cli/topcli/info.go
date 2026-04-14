@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	contextinfo "github.com/vrooli/vrooli/internal/app/contextinfo"
+	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
@@ -43,9 +44,9 @@ func ParseInfoRequest(args []string) (InfoRequest, error) {
 		case "--list":
 			req.ListOnly = true
 		case "--help", "-h":
-			return InfoRequest{}, commandHelpOnly(InfoUsageText)
+			return InfoRequest{}, clipolicy.CommandHelpOnly(InfoUsageText)
 		default:
-			return InfoRequest{}, unknownOptionError("info", arg)
+			return InfoRequest{}, clipolicy.UnknownOptionError("info", arg)
 		}
 	}
 	return req, nil

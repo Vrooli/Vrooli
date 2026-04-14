@@ -8,10 +8,13 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	rulespkg "scenario-auditor/rules"
 )
 
 func TestExternalRules_StackGovernorRegistered(t *testing.T) {
@@ -194,5 +197,95 @@ func TestStackGovernorFix_Unavailable(t *testing.T) {
 	_, err := fixViaURL(client, "http://127.0.0.1:1", context.Background(), []string{"test-scenario"}, []string{"MAKEFILE_STRUCTURE"}, false)
 	if err == nil {
 		t.Fatal("expected error for unavailable server")
+	}
+}
+
+func TestStackGovernorRun_MapsPackageGovernanceFindingToViolation(t *testing.T) {
+	repoRoot := t.TempDir()
+	scenarioDir := filepath.Join(repoRoot, "scenarios", "alpha")
+	if err := os.MkdirAll(filepath.Join(repoRoot, ".vrooli"), 0o755); err != nil {
+		t.Fatalf("mkdir repo contract dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(scenarioDir, ".vrooli"), 0o755); err != nil {
+		t.Fatalf("mkdir scenario dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(repoRoot, ".vrooli", "repo-contract.json"), []byte(`{
+  "$schema": "schemas/repo-contract.schema.json",
+  "version": "1.0.0",
+  "layout": {
+    "scenarioDir": "scenarios",
+    "resourceDir": "resources",
+    "packagesDir": "packages",
+    "templates": {
+      "scenarioDir": "templates/scenarios"
+    }
+  }
+}`), 0o644); err != nil {
+		t.Fatalf("write repo contract: %v", err)
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/run" {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		resp := stackGovernorRunResponse{
+			RepoRoot: repoRoot,
+			Results: []stackGovernorRuleResult{
+				{
+					RuleID: "PACKAGE_GOVERNANCE_SCENARIO_ADOPTION",
+					Passed: false,
+					Findings: []stackGovernorFinding{
+						{
+							Level:   "error",
+							Message: `alpha: real scenario "alpha" uses workspace:* for shared package adoption`,
+							Evidence: []stackGovernorEvidence{
+								{Type: "file", Ref: filepath.Join(scenarioDir, "ui", "package.json")},
+								{Type: "note", Detail: "Replace workspace-star shared-package references with file:."},
+							},
+						},
+					},
+				},
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	}))
+	defer srv.Close()
+
+	provider := &stackGovernorProvider{
+		client: srv.Client(),
+		ruleLookup: map[string]rulespkg.Rule{
+			"PACKAGE_GOVERNANCE_SCENARIO_ADOPTION": {
+				ID:       "PACKAGE_GOVERNANCE_SCENARIO_ADOPTION",
+				Name:     "Scenario shared-package adoption follows package governance policy",
+				Standard: "stack-governance",
+			},
+		},
+	}
+
+	violations, err := provider.runAgainstBaseURL(context.Background(), srv.URL, "alpha", []string{"PACKAGE_GOVERNANCE_SCENARIO_ADOPTION"})
+	if err != nil {
+		t.Fatalf("runAgainstBaseURL: %v", err)
+	}
+	if len(violations) != 1 {
+		t.Fatalf("expected 1 violation, got %d: %#v", len(violations), violations)
+	}
+	if violations[0].ScenarioName != "alpha" {
+		t.Fatalf("scenario name = %q", violations[0].ScenarioName)
+	}
+	if violations[0].Type != "PACKAGE_GOVERNANCE_SCENARIO_ADOPTION" {
+		t.Fatalf("type = %q", violations[0].Type)
+	}
+	if violations[0].Severity != "high" {
+		t.Fatalf("severity = %q", violations[0].Severity)
+	}
+	if !strings.Contains(violations[0].Description, "workspace:*") {
+		t.Fatalf("description = %q", violations[0].Description)
+	}
+	if violations[0].FilePath != filepath.Join(scenarioDir, "ui", "package.json") {
+		t.Fatalf("file path = %q", violations[0].FilePath)
 	}
 }

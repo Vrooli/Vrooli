@@ -11,29 +11,41 @@ import (
 	projectapp "github.com/vrooli/vrooli/internal/app/project"
 	"github.com/vrooli/vrooli/internal/bootstrap"
 	"github.com/vrooli/vrooli/internal/buildinfo"
-	"github.com/vrooli/vrooli/internal/cli/commandtree"
+	"github.com/vrooli/vrooli/internal/cli/rootcli"
+	"github.com/vrooli/vrooli/internal/cli/topcli"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/project"
 	"github.com/vrooli/vrooli/internal/resources"
+	"github.com/vrooli/vrooli/internal/scenarioexec"
 	projectsetup "github.com/vrooli/vrooli/internal/setup"
 )
+
+type scenarioSubprocessSpec struct {
+	name   string
+	args   []string
+	dir    string
+	env    []string
+	stdin  io.Reader
+	stdout io.Writer
+	stderr io.Writer
+}
 
 type App struct {
 	resolveSourceRoot     func() (string, error)
 	homeDir               func() (string, error)
-	isStale               func() bool
 	checkStaleness        func() (buildinfo.StaleCheck, error)
 	rebuildAndReexec      func([]string) error
 	lookPath              func(string) (string, error)
 	newLogger             func(globalOptions, io.Writer) (*slog.Logger, func())
-	runProjectBuild       func(string, string, []string, io.Writer, io.Writer) error
-	runProjectSetup       func(string, string, []string, io.Writer, io.Writer) error
-	runProjectDevelop     func(string, string, []string, io.Writer, io.Writer) error
+	runProjectBuild       func(string, string, io.Writer, io.Writer) error
+	runProjectSetup       func(string, string, projectsetup.Options, io.Writer, io.Writer) error
+	runProjectDevelop     func(string, string, projectsetup.Options, io.Writer, io.Writer) error
 	runScenarioSubprocess func(scenarioSubprocessSpec) error
 	scenarioExecutable    func() (string, error)
+	registry              *rootcli.Registry[*commandContext]
 }
 
 type commandContext struct {
@@ -53,23 +65,33 @@ type commandContext struct {
 
 func configuredApp() *App {
 	return &App{
-		resolveSourceRoot:     resolveSourceRootFn,
-		homeDir:               config.HomeDir,
-		isStale:               isStaleFn,
-		checkStaleness:        checkStalenessFn,
-		rebuildAndReexec:      rebuildAndReexecFn,
-		lookPath:              lookPathFn,
-		newLogger:             newLoggerFn,
-		runProjectBuild:       projectsetup.RunBuild,
-		runProjectSetup:       projectsetup.RunSetup,
-		runProjectDevelop:     projectsetup.RunDevelop,
-		runScenarioSubprocess: runScenarioSubprocessFn,
-		scenarioExecutable:    scenarioExecutableFn,
+		resolveSourceRoot: resolveSourceRootFn,
+		homeDir:           config.HomeDir,
+		checkStaleness:    checkStalenessFn,
+		rebuildAndReexec:  rebuildAndReexecFn,
+		lookPath:          lookPathFn,
+		newLogger:         newLoggerFn,
+		runProjectBuild:   projectsetup.RunBuild,
+		runProjectSetup:   projectsetup.RunSetupWithOptions,
+		runProjectDevelop: projectsetup.RunDevelopWithOptions,
+		runScenarioSubprocess: func(spec scenarioSubprocessSpec) error {
+			return scenarioexec.RunSubprocess(scenarioexec.SubprocessSpec{
+				Name:   spec.name,
+				Args:   spec.args,
+				Dir:    spec.dir,
+				Env:    spec.env,
+				Stdin:  spec.stdin,
+				Stdout: spec.stdout,
+				Stderr: spec.stderr,
+			})
+		},
+		scenarioExecutable: scenarioExecutableFn,
 	}
 }
 
 func newConfiguredCommandContext(root string, globals globalOptions, stdout, stderr io.Writer) (*App, *commandContext) {
 	app := configuredApp()
+	app.registry = rootcli.NewRegistry(buildTopLevelHandlerMap(), buildScenarioHandlerMap())
 	return app, &commandContext{
 		Root:    root,
 		Globals: globals,
@@ -79,104 +101,46 @@ func newConfiguredCommandContext(root string, globals globalOptions, stdout, std
 	}
 }
 
-func (app *App) Run(args []string, stdout, stderr io.Writer) int {
-	parsed, err := parseArgs(args)
-	if err != nil {
-		printErrorWithContext(stderr, newErrorWithCategory(err, errorCategoryUsage, "Use --help for available commands", nil))
-		return 1
-	}
-	parsed.globals, parsed.args = consumeInlineGlobalFlags(parsed.globals, parsed.args)
-	logger, restoreLogger := app.newLogger(parsed.globals, stderr)
-	defer restoreLogger()
-	debugLog(logger, "Parsed command", "command", parsed.command, "args", parsed.args, "json", parsed.globals.json, "verbose", parsed.globals.verbose)
-
-	ctx := &commandContext{
-		Globals: parsed.globals,
-		Stdout:  stdout,
-		Stderr:  stderr,
-		Logger:  logger,
-		app:     app,
-	}
-
-	if app.canRunWithoutRoot(parsed) {
-		if parsed.command == "version" {
-			if root, err := app.resolveRoot(); err == nil {
-				ctx.Root = root
-				debugLog(logger, "Resolved root", "path", root)
-				primeRootEnv(root)
-			}
-		}
-		if err := dispatch(app, ctx, parsed); err != nil {
-			printErrorWithContext(stderr, err)
-			return exitCode(err)
-		}
-		return 0
-	}
-
-	root, err := app.resolveRoot()
-	if err != nil {
-		printErrorWithContext(stderr, newErrorWithCategory(err, errorCategoryEnvironment, "Run from a Vrooli repository root or set VROOLI_SOURCE_ROOT", nil))
-		return 1
-	}
-	debugLog(logger, "Resolved root", "path", root)
-	primeRootEnv(root)
-	ctx.Root = root
-
-	if parsed.globals.noColor {
-		_ = os.Setenv("NO_COLOR", "1")
-		debugLog(logger, "NO_COLOR requested by user flags")
-	}
-
-	if !parsed.globals.noStaleCheck {
-		stale, err := app.shouldRebuild()
-		if err != nil {
-			printErrorWithContext(stderr, newErrorWithCategory(
-				fmt.Errorf("stale binary check failed: %w", err),
-				errorCategoryRuntime,
-				"Use --no-stale-check for local experiments",
-				nil,
-			))
-			return 1
-		}
-		if stale {
-			debugLog(logger, "Stale check triggered")
-			if err := app.rebuildAndReexec(args); err != nil {
-				printErrorWithContext(stderr, newErrorWithCategory(
-					fmt.Errorf("stale binary check failed: %w", err),
-					errorCategoryRuntime,
-					"Use --no-stale-check for local experiments",
-					nil,
-				))
-				return 1
-			}
-			debugLog(logger, "Rebuilt command binary and re-executed")
-			return 0
-		}
-	}
-
-	if err := dispatch(app, ctx, parsed); err != nil {
-		printErrorWithContext(stderr, err)
-		return exitCode(err)
-	}
-	return 0
+func configuredRunner() *rootcli.Runner[*commandContext] {
+	app := configuredApp()
+	return app.runner()
 }
 
-func (app *App) canRunWithoutRoot(parsed parsedArgs) bool {
-	switch parsed.command {
-	case "help", "version":
-		return true
+func (app *App) runner() *rootcli.Runner[*commandContext] {
+	if app.registry == nil {
+		app.registry = rootcli.NewRegistry(buildTopLevelHandlerMap(), buildScenarioHandlerMap())
 	}
-	descriptor, ok := topLevelCommandDescriptors[commandtree.NormalizeName(parsed.command)]
-	if !ok {
-		return true
-	}
-	if !descriptor.RootPolicy.RequiresRoot {
-		return true
-	}
-	if descriptor.RootPolicy.CanRunWithoutRoot == nil {
-		return false
-	}
-	return descriptor.RootPolicy.CanRunWithoutRoot(parsed.args)
+	return rootcli.NewRunner(rootcli.RunnerConfig[*commandContext]{
+		Registry:         app.registry,
+		NewLogger:        app.newLogger,
+		ResolveRoot:      app.resolveRoot,
+		PrimeRootEnv:     primeRootEnv,
+		ShouldRebuild:    app.shouldRebuild,
+		RebuildAndReexec: app.rebuildAndReexec,
+		NewContext: func(globals globalOptions, stdout, stderr io.Writer, logger *slog.Logger) *commandContext {
+			return &commandContext{
+				Globals: globals,
+				Stdout:  stdout,
+				Stderr:  stderr,
+				Logger:  logger,
+				app:     app,
+			}
+		},
+		SetRoot: func(ctx *commandContext, root string) {
+			ctx.Root = root
+		},
+		ShowMainHelp: func(ctx *commandContext) {
+			topcli.RenderMainHelp(ctx.Stdout, topcli.CommandSpecs())
+		},
+		ShowVersion: func(ctx *commandContext) error {
+			return showVersion(ctx.Stdout, ctx.Root, ctx.Globals)
+		},
+		DebugLog: debugLog,
+	})
+}
+
+func (app *App) Run(args []string, stdout, stderr io.Writer) int {
+	return app.runner().Run(args, stdout, stderr)
 }
 
 func (app *App) shouldRebuild() (bool, error) {
@@ -187,10 +151,7 @@ func (app *App) shouldRebuild() (bool, error) {
 		}
 		return status.Stale, nil
 	}
-	if app.isStale == nil {
-		return false, nil
-	}
-	return app.isStale(), nil
+	return false, nil
 }
 
 func (app *App) resolveRoot() (string, error) {
@@ -207,7 +168,7 @@ func (app *App) commandEnv(root string, globals globalOptions) []string {
 	if strings.TrimSpace(os.Getenv(buildinfo.SourceRootEnvVar)) == "" {
 		env = setEnvValue(env, buildinfo.SourceRootEnvVar, root)
 	}
-	if globals.noColor {
+	if globals.NoColor {
 		env = setEnvValue(env, "NO_COLOR", "1")
 	}
 	return env
@@ -232,7 +193,11 @@ func (ctx *commandContext) Services() (*bootstrap.Services, error) {
 		ctx.servicesErr = err
 		return nil, err
 	}
-	ctx.services = bootstrap.New(ctx.Root, home, ctx.Stdout, ctx.Stderr, ctx.Logger)
+	stdout := ctx.Stdout
+	if ctx.Globals.JSON {
+		stdout = ctx.Stderr
+	}
+	ctx.services = bootstrap.New(ctx.Root, home, stdout, ctx.Stderr, ctx.Logger)
 	return ctx.services, nil
 }
 
@@ -295,26 +260,60 @@ func (app *App) newProjectCommandService(ctx *commandContext) (projectapp.Servic
 	}, nil
 }
 
-func (app *App) runTopLevelSetup(ctx *commandContext, args []string) error {
+func (app *App) runTopLevelSetup(ctx *commandContext, opts projectsetup.Options) error {
 	home, err := ctx.HomeDir()
 	if err != nil {
 		return err
 	}
-	return app.runProjectSetup(ctx.Root, home, args, ctx.Stdout, ctx.Stderr)
+	return app.runProjectSetup(ctx.Root, home, opts, ctx.Stdout, ctx.Stderr)
 }
 
-func (app *App) runTopLevelBuild(ctx *commandContext, args []string) error {
+func (app *App) runTopLevelBuild(ctx *commandContext) error {
 	home, err := ctx.HomeDir()
 	if err != nil {
 		return err
 	}
-	return app.runProjectBuild(ctx.Root, home, args, ctx.Stdout, ctx.Stderr)
+	return app.runProjectBuild(ctx.Root, home, ctx.Stdout, ctx.Stderr)
 }
 
-func (app *App) runTopLevelDevelop(ctx *commandContext, args []string) error {
+func (app *App) runTopLevelDevelop(ctx *commandContext, opts projectsetup.Options) error {
 	home, err := ctx.HomeDir()
 	if err != nil {
 		return err
 	}
-	return app.runProjectDevelop(ctx.Root, home, args, ctx.Stdout, ctx.Stderr)
+	return app.runProjectDevelop(ctx.Root, home, opts, ctx.Stdout, ctx.Stderr)
+}
+
+func scenarioExecutableFn() (string, error) {
+	return os.Executable()
+}
+
+func (app *App) locateTestGenieCLI(root, home string) (string, error) {
+	return scenarioexec.LocateTestGenieCLI(app.lookPath, root, home)
+}
+
+func (app *App) locateScenarioCompletenessCLI(root string) (string, error) {
+	return scenarioexec.LocateScenarioCompletenessCLI(app.lookPath, root)
+}
+
+func (app *App) openScenarioURL(url string) error {
+	return scenarioexec.OpenURL(app.lookPath, func(spec scenarioexec.SubprocessSpec) error {
+		return app.runScenarioSubprocess(scenarioSubprocessSpec{
+			name:   spec.Name,
+			args:   append([]string(nil), spec.Args...),
+			dir:    spec.Dir,
+			env:    append([]string(nil), spec.Env...),
+			stdin:  spec.Stdin,
+			stdout: spec.Stdout,
+			stderr: spec.Stderr,
+		})
+	}, url)
+}
+
+func (app *App) launchDetachedScenario(root string, globals globalOptions, args ...string) error {
+	executable, err := app.scenarioExecutable()
+	if err != nil {
+		return err
+	}
+	return scenarioexec.LaunchDetachedScenario(executable, root, globals, app.commandEnv(root, globals), args...)
 }

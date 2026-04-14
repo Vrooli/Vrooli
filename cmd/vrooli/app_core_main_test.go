@@ -9,13 +9,17 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
+	"github.com/vrooli/vrooli/internal/cli/clipolicy"
+	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cli/topcli"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
 func TestRunTriggersRebuildBeforeDispatch(t *testing.T) {
 	app := newTestApp("/repo")
-	app.isStale = func() bool { return true }
+	app.checkStaleness = func() (buildinfo.StaleCheck, error) {
+		return buildinfo.StaleCheck{Stale: true}, nil
+	}
 
 	var rebuiltArgs []string
 	app.rebuildAndReexec = func(args []string) error {
@@ -67,6 +71,19 @@ func TestRunInfoCommandUsesManifestAndListMode(t *testing.T) {
 	}
 }
 
+func TestRunInfoHelpExitsZero(t *testing.T) {
+	app := newTestApp(t.TempDir())
+
+	var stdout bytes.Buffer
+	code := app.Run([]string{"info", "--help"}, &stdout, &bytes.Buffer{})
+	if code != 0 {
+		t.Fatalf("run exit code = %d", code)
+	}
+	if !strings.Contains(stdout.String(), topcli.InfoUsageText) {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+}
+
 func TestRunInfoCommandRejectsUnknownOption(t *testing.T) {
 	err := runInfoCommand("/repo", globalOptions{}, []string{"--bogus"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if err == nil || !strings.Contains(err.Error(), "unknown option for info") {
@@ -90,8 +107,9 @@ func TestRunInfoCommandErrorsWhenNoSourcesConfigured(t *testing.T) {
 func TestRunVersionJSONOutput(t *testing.T) {
 	app := configuredApp()
 	app.resolveSourceRoot = func() (string, error) { return "/repo", nil }
-	app.isStale = func() bool { return false }
-	app.checkStaleness = nil
+	app.checkStaleness = func() (buildinfo.StaleCheck, error) {
+		return buildinfo.StaleCheck{Stale: false}, nil
+	}
 
 	var stdout bytes.Buffer
 	code := app.Run([]string{"--json", "--version"}, &stdout, &bytes.Buffer{})
@@ -172,14 +190,14 @@ func TestRunInfoCommandHelpAndJSONMissingFiles(t *testing.T) {
 	if err := runInfoCommand(root, globalOptions{}, []string{"--help"}, &help, &bytes.Buffer{}); err != nil {
 		t.Fatalf("runInfoCommand help: %v", err)
 	}
-	if !strings.Contains(help.String(), "Usage: vrooli info [--list]") {
+	if !strings.Contains(help.String(), topcli.InfoUsageText) {
 		t.Fatalf("missing help output: %s", help.String())
 	}
 
 	t.Setenv("VROOLI_INFO_FILES", "docs/context.md:"+absoluteFile+":docs/missing.md")
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	if err := runInfoCommand(root, globalOptions{json: true}, nil, &stdout, &stderr); err != nil {
+	if err := runInfoCommand(root, globalOptions{JSON: true}, nil, &stdout, &stderr); err != nil {
 		t.Fatalf("runInfoCommand json: %v", err)
 	}
 
@@ -236,7 +254,7 @@ func TestRunUnknownCommandSuggestsNearestMatch(t *testing.T) {
 	if code != 1 {
 		t.Fatalf("run exit code = %d", code)
 	}
-	if !strings.Contains(stderr.String(), "Unknown command: statuz") {
+	if !strings.Contains(stderr.String(), clipolicy.UnknownCommandLabel+": statuz") {
 		t.Fatalf("stderr = %q", stderr.String())
 	}
 	if !strings.Contains(stderr.String(), "status") {
@@ -254,7 +272,7 @@ func TestShowVersionAndHelpOutput(t *testing.T) {
 	}
 
 	var help bytes.Buffer
-	showMainHelp(&help)
+	topcli.RenderMainHelp(&help, topcli.CommandSpecs())
 	if !strings.Contains(help.String(), "scenario") || !strings.Contains(help.String(), "Manage scenarios from their source locations") {
 		t.Fatalf("help output = %q", help.String())
 	}
@@ -299,7 +317,7 @@ func TestRunMainHelpAndUnknownCommandDoNotRequireRootResolution(t *testing.T) {
 	if code := app.Run([]string{"statuz"}, &bytes.Buffer{}, &stderr); code != 1 {
 		t.Fatalf("unknown-command exit code = %d", code)
 	}
-	if !strings.Contains(stderr.String(), "Unknown command: statuz") {
+	if !strings.Contains(stderr.String(), clipolicy.UnknownCommandLabel+": statuz") {
 		t.Fatalf("stderr = %q", stderr.String())
 	}
 }
@@ -310,7 +328,7 @@ func TestCommandEnvPreservesExistingSourceRootAndNoColor(t *testing.T) {
 	t.Setenv("LANG", "C")
 	t.Setenv("VROOLI_SOURCE_ROOT", "/custom/source")
 
-	env := configuredApp().commandEnv("/repo", globalOptions{noColor: true})
+	env := configuredApp().commandEnv("/repo", globalOptions{NoColor: true})
 	got := strings.Join(env, "\n")
 	if !strings.Contains(got, "VROOLI_ROOT=/repo") {
 		t.Fatalf("env missing VROOLI_ROOT: %v", env)
@@ -329,7 +347,7 @@ func TestResolveInfoPathAndPassthroughFlags(t *testing.T) {
 		t.Fatalf("resolveInfoPath absolute = %q", absolute)
 	}
 
-	flags := passthroughFlags(globalOptions{json: true, verbose: true, noColor: true}, []string{"--json", "scenario"})
+	flags := passthroughFlags(globalOptions{JSON: true, Verbose: true, NoColor: true}, []string{"--json", "scenario"})
 	if got, want := strings.Join(flags, ","), "--verbose,--no-color"; got != want {
 		t.Fatalf("flags = %q, want %q", got, want)
 	}
@@ -339,10 +357,10 @@ func TestResolveInfoPathAndPassthroughFlags(t *testing.T) {
 }
 
 func TestExitCodeError(t *testing.T) {
-	if got := (exitCodeError{code: 7, message: "boom"}).Error(); got != "boom" {
-		t.Fatalf("exitCodeError message = %q", got)
+	if got := (rootcli.ExitCodeError{Code: 7, Message: "boom"}).Error(); got != "boom" {
+		t.Fatalf("ExitCodeError message = %q", got)
 	}
-	if got := (exitCodeError{code: 7}).Error(); got != "exit code 7" {
-		t.Fatalf("exitCodeError default = %q", got)
+	if got := (rootcli.ExitCodeError{Code: 7}).Error(); got != "exit code 7" {
+		t.Fatalf("ExitCodeError default = %q", got)
 	}
 }

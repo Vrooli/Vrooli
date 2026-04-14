@@ -17,75 +17,54 @@ source "${VROOLI_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LOG_FILE}"
 source "${var_LIB_UTILS_DIR}/flow.sh"
 
-# Registry file for tracking installed resources
-RESOURCE_REGISTRY="${VROOLI_ROOT}/.vrooli/running-resources.json"
-
 ################################################################################
-# Resource Registry Functions
+# Resource Status Functions
 ################################################################################
 
 #######################################
-# Initialize resource registry
+# Legacy compatibility no-op.
 #######################################
 resource_registry::init() {
-    local registry_dir="${RESOURCE_REGISTRY%/*}"
-    
-    if [[ ! -d "$registry_dir" ]]; then
-        mkdir -p "$registry_dir"
-    fi
-    
-    if [[ ! -f "$RESOURCE_REGISTRY" ]]; then
-        echo '{"resources": [], "last_updated": ""}' > "$RESOURCE_REGISTRY"
-    fi
+    :
 }
 
 #######################################
-# Register a resource as installed/running
+# Legacy compatibility no-op.
 #######################################
 resource_registry::register() {
-    local resource_name="$1"
-    local status="${2:-installed}"  # installed, running, stopped
-    
-    resource_registry::init
-    
-    local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-    
-    # Check if resource already registered
-    local exists=$(jq -r --arg name "$resource_name" '.resources[] | select(.name == $name) | .name' "$RESOURCE_REGISTRY" 2>/dev/null || echo "")
-    
-    if [[ -n "$exists" ]]; then
-        # Update existing entry
-        jq --arg name "$resource_name" \
-           --arg status "$status" \
-           --arg timestamp "$timestamp" \
-           '.resources |= map(if .name == $name then .status = $status | .last_updated = $timestamp else . end) | .last_updated = $timestamp' \
-           "$RESOURCE_REGISTRY" > "${RESOURCE_REGISTRY}.tmp"
-    else
-        # Add new entry
-        jq --arg name "$resource_name" \
-           --arg status "$status" \
-           --arg timestamp "$timestamp" \
-           '.resources += [{"name": $name, "status": $status, "installed": $timestamp, "last_updated": $timestamp}] | .last_updated = $timestamp' \
-           "$RESOURCE_REGISTRY" > "${RESOURCE_REGISTRY}.tmp"
-    fi
-    
-    mv "${RESOURCE_REGISTRY}.tmp" "$RESOURCE_REGISTRY"
-    log::debug "Registered resource: $resource_name ($status)"
+    :
 }
 
 #######################################
-# Get list of registered resources
+# List resources from the native Vrooli CLI status surface.
+# Arguments:
+#   $1 - optional status filter ("running")
 #######################################
 resource_registry::list() {
     local filter_status="${1:-}"
-    
-    resource_registry::init
-    
-    if [[ -n "$filter_status" ]]; then
-        jq -r --arg status "$filter_status" '.resources[] | select(.status == $status) | .name' "$RESOURCE_REGISTRY" 2>/dev/null || true
-    else
-        jq -r '.resources[].name' "$RESOURCE_REGISTRY" 2>/dev/null || true
+
+    if ! command -v vrooli &>/dev/null; then
+        return 0
     fi
+
+    local status_json
+    if ! status_json=$(vrooli resource status --json 2>/dev/null); then
+        return 0
+    fi
+
+    if [[ -n "$filter_status" ]]; then
+        case "$filter_status" in
+            running)
+                jq -r '.resources[] | select(.running == true) | .resource.name' <<< "$status_json" 2>/dev/null || true
+                ;;
+            *)
+                jq -r --arg status "$filter_status" '.resources[] | select((if .running then "running" elif .installed then "installed" else "stopped" end) == $status) | .resource.name' <<< "$status_json" 2>/dev/null || true
+                ;;
+        esac
+        return 0
+    fi
+
+    jq -r '.resources[].resource.name' <<< "$status_json" 2>/dev/null || true
 }
 
 ################################################################################

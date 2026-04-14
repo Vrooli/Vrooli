@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/lifecycle"
@@ -37,25 +38,6 @@ const (
 	CommandCompleteness    CommandID = "completeness"
 	CommandHealFromSandbox CommandID = "heal-from-sandbox"
 )
-
-type helpOnlyError struct {
-	text string
-}
-
-func (e helpOnlyError) Error() string    { return e.text }
-func (e helpOnlyError) HelpText() string { return e.text }
-
-func commandHelpOnly(text string) error {
-	return helpOnlyError{text: text}
-}
-
-func usageErrorf(helpTarget, format string, args ...any) error {
-	return fmt.Errorf(format, args...)
-}
-
-func unknownOptionError(command, option string) error {
-	return fmt.Errorf("unknown option for %s: %s", command, option)
-}
 
 func CommandSpecs() []commandtree.Spec[CommandID] {
 	return []commandtree.Spec[CommandID]{
@@ -171,7 +153,7 @@ func ParseScenarioNameAndJSON(command string, defaultJSON bool, args []string) (
 		return "", false, err
 	}
 	if name == "" {
-		return "", false, usageErrorf("scenario "+command, "scenario %s requires a scenario name", command)
+		return "", false, clipolicy.UsageErrorf("scenario "+command, "scenario %s requires a scenario name", command)
 	}
 	return name, jsonFlag, nil
 }
@@ -184,13 +166,13 @@ func ParseOptionalScenarioNameAndJSON(command string, defaultJSON bool, args []s
 		case "--json":
 			jsonFlag = true
 		case "--help", "-h":
-			return "", false, commandHelpOnly("")
+			return "", false, clipolicy.CommandHelpOnly("")
 		default:
 			if strings.HasPrefix(arg, "-") {
-				return "", false, unknownOptionError("scenario "+command, arg)
+				return "", false, clipolicy.UnknownOptionError("scenario "+command, arg)
 			}
 			if name != "" {
-				return "", false, usageErrorf("scenario "+command, "scenario %s accepts at most one scenario name", command)
+				return "", false, clipolicy.UsageErrorf("scenario "+command, "scenario %s accepts at most one scenario name", command)
 			}
 			name = arg
 		}
@@ -216,15 +198,15 @@ func ParseScenarioStartArgs(defaultJSON bool, args []string) ([]string, lifecycl
 			opts.CleanStale = true
 		case "--path":
 			if index+1 >= len(args) {
-				return nil, lifecycle.StartOptions{}, false, false, usageErrorf("scenario start", "scenario start --path requires a value")
+				return nil, lifecycle.StartOptions{}, false, false, clipolicy.UsageErrorf("scenario start", "scenario start --path requires a value")
 			}
 			index++
 			opts.CustomPath = args[index]
 		case "--help", "-h":
-			return nil, lifecycle.StartOptions{}, false, false, commandHelpOnly("")
+			return nil, lifecycle.StartOptions{}, false, false, clipolicy.CommandHelpOnly("")
 		default:
 			if strings.HasPrefix(arg, "-") {
-				return nil, lifecycle.StartOptions{}, false, false, unknownOptionError("scenario start", arg)
+				return nil, lifecycle.StartOptions{}, false, false, clipolicy.UnknownOptionError("scenario start", arg)
 			}
 			names = append(names, arg)
 		}
@@ -238,10 +220,10 @@ func ParseScenarioSingleStartArgs(command string, defaultJSON bool, args []strin
 		return "", lifecycle.StartOptions{}, false, false, err
 	}
 	if len(names) == 0 {
-		return "", lifecycle.StartOptions{}, false, false, usageErrorf("scenario "+command, "scenario %s requires a scenario name", command)
+		return "", lifecycle.StartOptions{}, false, false, clipolicy.UsageErrorf("scenario "+command, "scenario %s requires a scenario name", command)
 	}
 	if len(names) > 1 {
-		return "", lifecycle.StartOptions{}, false, false, usageErrorf("scenario "+command, "scenario %s accepts exactly one scenario name", command)
+		return "", lifecycle.StartOptions{}, false, false, clipolicy.UsageErrorf("scenario "+command, "scenario %s accepts exactly one scenario name", command)
 	}
 	return names[0], opts, jsonFlag, openAfter, nil
 }
@@ -249,7 +231,7 @@ func ParseScenarioSingleStartArgs(command string, defaultJSON bool, args []strin
 func ParseStartRequest(globalsJSON bool, args []string) (StartRequest, error) {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
-			return StartRequest{}, commandHelpOnly(StartHelpText)
+			return StartRequest{}, clipolicy.CommandHelpOnly(StartHelpText)
 		}
 	}
 	names, opts, jsonFlag, openAfter, err := ParseScenarioStartArgs(globalsJSON, args)
@@ -257,10 +239,10 @@ func ParseStartRequest(globalsJSON bool, args []string) (StartRequest, error) {
 		return StartRequest{}, err
 	}
 	if len(names) == 0 {
-		return StartRequest{}, usageErrorf("scenario start", "scenario start requires at least one scenario name")
+		return StartRequest{}, clipolicy.UsageErrorf("scenario start", "scenario start requires at least one scenario name")
 	}
 	if opts.CustomPath != "" && len(names) != 1 {
-		return StartRequest{}, usageErrorf("scenario start", "scenario start with --path accepts exactly one scenario name")
+		return StartRequest{}, clipolicy.UsageErrorf("scenario start", "scenario start with --path accepts exactly one scenario name")
 	}
 	return StartRequest{Names: names, Options: opts, JSON: jsonFlag, OpenAfter: openAfter}, nil
 }
@@ -276,7 +258,7 @@ func ParseStopRequest(globalsJSON bool, args []string) (StopRequest, error) {
 func ParseRestartRequest(globalsJSON bool, args []string) (RestartRequest, error) {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
-			return RestartRequest{}, commandHelpOnly(RestartHelpText)
+			return RestartRequest{}, clipolicy.CommandHelpOnly(RestartHelpText)
 		}
 	}
 	name, opts, jsonFlag, openAfter, err := ParseScenarioSingleStartArgs("restart", globalsJSON, args)
@@ -295,9 +277,9 @@ func ParseListRequest(globalsJSON bool, args []string) (ListRequest, error) {
 		case "--include-ports":
 			req.IncludePorts = true
 		case "--help", "-h":
-			return ListRequest{}, commandHelpOnly(ListHelpText)
+			return ListRequest{}, clipolicy.CommandHelpOnly(ListHelpText)
 		default:
-			return ListRequest{}, unknownOptionError("scenario list", arg)
+			return ListRequest{}, clipolicy.UnknownOptionError("scenario list", arg)
 		}
 	}
 	return req, nil
@@ -306,7 +288,7 @@ func ParseListRequest(globalsJSON bool, args []string) (ListRequest, error) {
 func ParseInfoRequest(globalsJSON bool, args []string) (InfoRequest, error) {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
-			return InfoRequest{}, commandHelpOnly(InfoHelpText)
+			return InfoRequest{}, clipolicy.CommandHelpOnly(InfoHelpText)
 		}
 	}
 	name, jsonFlag, err := ParseScenarioNameAndJSON("info", globalsJSON, args)
@@ -319,7 +301,7 @@ func ParseInfoRequest(globalsJSON bool, args []string) (InfoRequest, error) {
 func ParseStatusRequest(globalsJSON bool, args []string) (StatusRequest, error) {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
-			return StatusRequest{}, commandHelpOnly(StatusHelpText)
+			return StatusRequest{}, clipolicy.CommandHelpOnly(StatusHelpText)
 		}
 	}
 	name, jsonFlag, err := ParseOptionalScenarioNameAndJSON("status", globalsJSON, args)
@@ -339,7 +321,7 @@ func ParseValidateEnvRequest(globalsJSON bool, args []string) (ValidateEnvReques
 
 func RenderValidateEnvResponse(w io.Writer, format cliout.Format, resp ValidateEnvResponse) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, map[string]any{"success": resp.Report.Passed, "report": resp.Report})
+		return cliout.WriteFieldsWithSuccess(w, resp.Report.Passed, map[string]any{"report": resp.Report})
 	}
 	status := "passed"
 	if !resp.Report.Passed {
@@ -364,7 +346,7 @@ func ParsePhaseArgs(command string, args []string) (string, lifecycle.PhaseOptio
 		switch arg {
 		case "--path":
 			if index+1 >= len(args) {
-				return "", lifecycle.PhaseOptions{}, usageErrorf("scenario "+command, "scenario %s --path requires a value", command)
+				return "", lifecycle.PhaseOptions{}, clipolicy.UsageErrorf("scenario "+command, "scenario %s --path requires a value", command)
 			}
 			index++
 			opts.CustomPath = args[index]
@@ -381,7 +363,7 @@ func ParsePhaseArgs(command string, args []string) (string, lifecycle.PhaseOptio
 		}
 	}
 	if name == "" {
-		return "", lifecycle.PhaseOptions{}, usageErrorf("scenario "+command, "scenario %s requires a scenario name", command)
+		return "", lifecycle.PhaseOptions{}, clipolicy.UsageErrorf("scenario "+command, "scenario %s requires a scenario name", command)
 	}
 	return name, opts, nil
 }
@@ -391,7 +373,7 @@ func ParseSetupRequest(globalsJSON bool, args []string) (SetupRequest, error) {
 	for _, arg := range args {
 		switch arg {
 		case "--help", "-h":
-			return SetupRequest{}, commandHelpOnly(SetupHelpText)
+			return SetupRequest{}, clipolicy.CommandHelpOnly(SetupHelpText)
 		case "--json":
 			jsonFlag = true
 		}
@@ -413,7 +395,7 @@ func ParseTestArgs(globalsJSON, globalsVerbose bool, args []string) (string, lif
 		switch arg {
 		case "--path":
 			if index+1 >= len(args) {
-				return "", lifecycle.PhaseOptions{}, usageErrorf("scenario test", "scenario test --path requires a value")
+				return "", lifecycle.PhaseOptions{}, clipolicy.UsageErrorf("scenario test", "scenario test --path requires a value")
 			}
 			index++
 			opts.CustomPath = args[index]
@@ -436,13 +418,13 @@ func ParseTestArgs(globalsJSON, globalsVerbose bool, args []string) (string, lif
 		}
 	}
 	if name == "" {
-		return "", lifecycle.PhaseOptions{}, usageErrorf("scenario test", "scenario test requires a scenario name")
+		return "", lifecycle.PhaseOptions{}, clipolicy.UsageErrorf("scenario test", "scenario test requires a scenario name")
 	}
 	if selection != "" {
 		valid := map[string]string{"structure": "structure", "dependencies": "dependencies", "unit": "unit", "integration": "integration", "business": "business", "performance": "performance", "all": "all", "e2e": "integration"}
 		mapped, ok := valid[selection]
 		if !ok {
-			return "", lifecycle.PhaseOptions{}, usageErrorf("scenario test", "invalid test selector: %s", selection)
+			return "", lifecycle.PhaseOptions{}, clipolicy.UsageErrorf("scenario test", "invalid test selector: %s", selection)
 		}
 		remaining = append([]string{mapped}, remaining...)
 	}
@@ -459,7 +441,7 @@ func ParseTestArgs(globalsJSON, globalsVerbose bool, args []string) (string, lif
 func ParseTestRequest(globalsJSON, globalsVerbose bool, args []string) (TestRequest, error) {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
-			return TestRequest{}, commandHelpOnly(TestHelpText)
+			return TestRequest{}, clipolicy.CommandHelpOnly(TestHelpText)
 		}
 	}
 	name, opts, err := ParseTestArgs(globalsJSON, globalsVerbose, args)
@@ -476,9 +458,9 @@ func ParseStartAllRequest(globalsJSON bool, args []string) (StartAllRequest, err
 		case "--json":
 			req.JSON = true
 		case "--help", "-h":
-			return StartAllRequest{}, commandHelpOnly(StartAllHelpText)
+			return StartAllRequest{}, clipolicy.CommandHelpOnly(StartAllHelpText)
 		default:
-			return StartAllRequest{}, unknownOptionError("scenario start-all", arg)
+			return StartAllRequest{}, clipolicy.UnknownOptionError("scenario start-all", arg)
 		}
 	}
 	return req, nil
@@ -491,9 +473,9 @@ func ParseStopAllRequest(globalsJSON bool, args []string) (StopAllRequest, error
 		case "--json":
 			req.JSON = true
 		case "--help", "-h":
-			return StopAllRequest{}, commandHelpOnly(StopAllHelpText)
+			return StopAllRequest{}, clipolicy.CommandHelpOnly(StopAllHelpText)
 		default:
-			return StopAllRequest{}, unknownOptionError("scenario stop-all", arg)
+			return StopAllRequest{}, clipolicy.UnknownOptionError("scenario stop-all", arg)
 		}
 	}
 	return req, nil
@@ -506,19 +488,19 @@ func ParsePortRequest(globalsJSON bool, args []string) (PortRequest, error) {
 		case arg == "--json":
 			req.JSON = true
 		case arg == "--help" || arg == "-h":
-			return PortRequest{}, commandHelpOnly(PortHelpText)
+			return PortRequest{}, clipolicy.CommandHelpOnly(PortHelpText)
 		case strings.HasPrefix(arg, "-"):
-			return PortRequest{}, unknownOptionError("scenario port", arg)
+			return PortRequest{}, clipolicy.UnknownOptionError("scenario port", arg)
 		case req.ScenarioName == "":
 			req.ScenarioName = arg
 		case req.PortName == "":
 			req.PortName = arg
 		default:
-			return PortRequest{}, usageErrorf("scenario port", "scenario port accepts at most two positional arguments")
+			return PortRequest{}, clipolicy.UsageErrorf("scenario port", "scenario port accepts at most two positional arguments")
 		}
 	}
 	if req.ScenarioName == "" {
-		return PortRequest{}, usageErrorf("scenario port", "scenario port requires a scenario name")
+		return PortRequest{}, clipolicy.UsageErrorf("scenario port", "scenario port requires a scenario name")
 	}
 	return req, nil
 }
@@ -529,10 +511,10 @@ func ParseOpenRequest(globalsJSON bool, args []string) (OpenRequest, error) {
 		arg := args[index]
 		switch arg {
 		case "--help", "-h":
-			return OpenRequest{}, commandHelpOnly(OpenHelpText)
+			return OpenRequest{}, clipolicy.CommandHelpOnly(OpenHelpText)
 		case "--port":
 			if index+1 >= len(args) {
-				return OpenRequest{}, usageErrorf("scenario open", "scenario open --port requires a value")
+				return OpenRequest{}, clipolicy.UsageErrorf("scenario open", "scenario open --port requires a value")
 			}
 			index++
 			req.PortName = args[index]
@@ -542,16 +524,16 @@ func ParseOpenRequest(globalsJSON bool, args []string) (OpenRequest, error) {
 			req.JSON = true
 		default:
 			if strings.HasPrefix(arg, "-") {
-				return OpenRequest{}, unknownOptionError("scenario open", arg)
+				return OpenRequest{}, clipolicy.UnknownOptionError("scenario open", arg)
 			}
 			if req.ScenarioName != "" {
-				return OpenRequest{}, usageErrorf("scenario open", "scenario open accepts exactly one scenario name")
+				return OpenRequest{}, clipolicy.UsageErrorf("scenario open", "scenario open accepts exactly one scenario name")
 			}
 			req.ScenarioName = arg
 		}
 	}
 	if req.ScenarioName == "" {
-		return OpenRequest{}, usageErrorf("scenario open", "scenario open requires a scenario name")
+		return OpenRequest{}, clipolicy.UsageErrorf("scenario open", "scenario open requires a scenario name")
 	}
 	return req, nil
 }
@@ -560,7 +542,7 @@ func RenderRequirementsResponse(w io.Writer, format cliout.Format, _ struct{}) e
 
 func ParseRequirementsRequest(args []string) (RequirementsRequest, error) {
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
-		return RequirementsRequest{}, commandHelpOnly(RequirementsHelpText())
+		return RequirementsRequest{}, clipolicy.CommandHelpOnly(RequirementsHelpText())
 	}
 	req := RequirementsRequest{Args: append([]string(nil), args...)}
 	if args[0] == "snapshot" {
@@ -579,20 +561,20 @@ func ParseHealFromSandboxRequest(defaultMergedPath string, args []string) (HealF
 		switch args[index] {
 		case "--merged-path":
 			if index+1 >= len(args) {
-				return HealFromSandboxRequest{}, usageErrorf("scenario heal-from-sandbox", "scenario heal-from-sandbox --merged-path requires a value")
+				return HealFromSandboxRequest{}, clipolicy.UsageErrorf("scenario heal-from-sandbox", "scenario heal-from-sandbox --merged-path requires a value")
 			}
 			index++
 			req.MergedPath = args[index]
 		case "--dry-run":
 			req.DryRun = true
 		case "--help", "-h":
-			return HealFromSandboxRequest{}, commandHelpOnly(HealFromSandboxHelpText)
+			return HealFromSandboxRequest{}, clipolicy.CommandHelpOnly(HealFromSandboxHelpText)
 		default:
-			return HealFromSandboxRequest{}, unknownOptionError("scenario heal-from-sandbox", args[index])
+			return HealFromSandboxRequest{}, clipolicy.UnknownOptionError("scenario heal-from-sandbox", args[index])
 		}
 	}
 	if strings.TrimSpace(req.MergedPath) == "" {
-		return HealFromSandboxRequest{}, usageErrorf("scenario heal-from-sandbox", "heal-from-sandbox requires SANDBOX_MERGED_DIR or --merged-path")
+		return HealFromSandboxRequest{}, clipolicy.UsageErrorf("scenario heal-from-sandbox", "heal-from-sandbox requires SANDBOX_MERGED_DIR or --merged-path")
 	}
 	return req, nil
 }

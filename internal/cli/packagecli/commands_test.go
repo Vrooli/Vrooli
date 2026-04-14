@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/internal/packagegov"
 )
 
 func TestParseRefreshRequestCapturesTargetAndNoRestart(t *testing.T) {
@@ -37,5 +40,41 @@ func TestRenderCommandHelpIncludesRefresh(t *testing.T) {
 	RenderCommandHelp(&stdout)
 	if !strings.Contains(stdout.String(), "refresh") || !strings.Contains(stdout.String(), "propagate to affected consumers") {
 		t.Fatalf("help = %q", stdout.String())
+	}
+}
+
+func TestRenderRefreshHumanIncludesMergedClasses(t *testing.T) {
+	var stdout bytes.Buffer
+	err := RenderRefresh(&stdout, cliout.FormatHuman, RefreshResponse{
+		PackageName: "proto",
+		Items: []RefreshItem{{
+			Consumer: "desktop",
+			Class:    packagegov.ConsumerClass("scenario_api"),
+			Classes: []packagegov.ConsumerClass{
+				packagegov.ConsumerClass("scenario_api"),
+				packagegov.ConsumerClass("scenario_ui"),
+			},
+			Action: "setup_scenario",
+			Status: "setup_only",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("RenderRefresh: %v", err)
+	}
+	if got := stdout.String(); !strings.Contains(got, "scenario_api,scenario_ui") || !strings.Contains(got, "setup_only") {
+		t.Fatalf("stdout = %q", got)
+	}
+}
+
+func TestRenderListJSONUsesSuccessEnvelope(t *testing.T) {
+	var stdout bytes.Buffer
+	err := RenderList(&stdout, cliout.FormatJSON, ListResponse{
+		Packages: []packagegov.Package{{Name: "alpha"}},
+	})
+	if err != nil {
+		t.Fatalf("RenderList: %v", err)
+	}
+	if got := stdout.String(); !strings.Contains(got, `"success": true`) || !strings.Contains(got, `"packages"`) {
+		t.Fatalf("stdout = %q", got)
 	}
 }

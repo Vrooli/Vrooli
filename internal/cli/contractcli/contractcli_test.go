@@ -5,16 +5,17 @@ import (
 	"strings"
 	"testing"
 
+	contractapp "github.com/vrooli/vrooli/internal/app/contract"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/repocontractcheck"
 )
 
 func TestRenderValidateHumanIncludesFailedCheck(t *testing.T) {
 	var stdout bytes.Buffer
-	err := RenderValidate(&stdout, cliout.FormatHuman, ValidationOutput{
+	err := RenderValidate(&stdout, cliout.FormatHuman, contractapp.ValidationOutput{
 		Success: false,
 		Root:    "/tmp/repo",
-		Schema: ValidationCheck{
+		Schema: contractapp.ValidationCheck{
 			Passed:  true,
 			Message: "ok",
 		},
@@ -37,7 +38,7 @@ func TestRenderValidateHumanIncludesFailedCheck(t *testing.T) {
 
 func TestRenderMatchGlobJSONIncludesMatchedField(t *testing.T) {
 	var stdout bytes.Buffer
-	err := RenderMatchGlob(&stdout, cliout.FormatJSON, MatchGlobOutput{
+	err := RenderMatchGlob(&stdout, cliout.FormatJSON, contractapp.MatchGlobOutput{
 		Success: true,
 		Pattern: "scenarios/*",
 		Path:    "scenarios/test-genie",

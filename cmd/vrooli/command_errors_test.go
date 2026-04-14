@@ -5,17 +5,21 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/cli/clipolicy"
+	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cli/scenariocli"
+	"github.com/vrooli/vrooli/internal/cli/topcli"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=2 | LAST: 2026-04-11
 
 func TestPrintErrorWithContextFormatsUnknownCommandSuggestions(t *testing.T) {
 	var stderr bytes.Buffer
-	printErrorWithContext(&stderr, newUnknownCommandError("statsu"))
+	app, _ := newConfiguredCommandContext("/repo", globalOptions{}, &bytes.Buffer{}, &bytes.Buffer{})
+	rootcli.PrintErrorWithContext(&stderr, rootcli.NewUnknownCommandError("statsu", app.registry.SuggestTopLevel("statsu")))
 
 	output := stderr.String()
-	if !strings.Contains(output, "Unknown command: statsu") {
+	if !strings.Contains(output, clipolicy.UnknownCommandLabel+": statsu") {
 		t.Fatalf("output = %q", output)
 	}
 	if !strings.Contains(output, "status") {
@@ -25,7 +29,7 @@ func TestPrintErrorWithContextFormatsUnknownCommandSuggestions(t *testing.T) {
 
 func TestShowMainHelpUsesPlainLabels(t *testing.T) {
 	var stdout bytes.Buffer
-	showMainHelp(&stdout)
+	topcli.RenderMainHelp(&stdout, topcli.CommandSpecs())
 
 	output := stdout.String()
 	if strings.Contains(output, "🚀") || strings.Contains(output, "📋") {
@@ -38,10 +42,11 @@ func TestShowMainHelpUsesPlainLabels(t *testing.T) {
 
 func TestPrintErrorWithContextFormatsUnknownScenarioCommandSuggestions(t *testing.T) {
 	var stderr bytes.Buffer
-	printErrorWithContext(&stderr, newUnknownScenarioCommandError("statsu"))
+	app, _ := newConfiguredCommandContext("/repo", globalOptions{}, &bytes.Buffer{}, &bytes.Buffer{})
+	rootcli.PrintErrorWithContext(&stderr, rootcli.NewUnknownScenarioCommandError("statsu", app.registry.SuggestScenario("statsu")))
 
 	output := stderr.String()
-	if !strings.Contains(output, "Unknown scenario command: statsu") {
+	if !strings.Contains(output, clipolicy.UnknownScenarioCommandLabel+": statsu") {
 		t.Fatalf("output = %q", output)
 	}
 	if !strings.Contains(output, "status") {

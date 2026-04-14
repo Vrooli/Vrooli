@@ -2,7 +2,7 @@
 
 **Status:** In progress
 **Parent plan:** [repo-contract-implementation-plan.md](/home/matthalloran8/Vrooli/docs/plans/repo-contract-implementation-plan.md)
-**Goal:** Make the repo contract govern future repo-aware work through docs, contributor rules, agent guidance, validation, and an explicit grandfathered-debt inventory.
+**Goal:** Make the repo contract govern future repo-aware work through docs, contributor rules, agent guidance, validation, and enforcement of adoption rules without exception-based escape hatches.
 
 ## Exit Criteria
 
@@ -11,9 +11,9 @@
 - [x] agent guidance blocks new independent repo-root detection and canonical path assembly
 - [x] agent-facing prompt-manager guidance stops teaching direct `VROOLI_ROOT` + `scenarios/...` joins as the model
 - [x] `vrooli contract validate` enforces adoption-rule alignment
-- [x] grandfathered debt is enumerated in `.vrooli/repo-contract-adoption-exceptions.json`
-- [x] the exception list is validation-backed rather than documentation-only
-- [x] at least one post-Phase-6 migration slice reduces the exception list
+- [x] adoption-rule validation runs without an exception allowlist
+- [x] remaining migration debt is tracked as follow-up work, not as validator-backed exceptions
+- [x] at least one post-Phase-6 migration slice reduces remaining debt
 
 ## Implemented
 
@@ -21,13 +21,12 @@
 - [x] Expanded [docs/repo-contract.md](/home/matthalloran8/Vrooli/docs/repo-contract.md) with preferred consumption order and grandfathered-debt rules
 - [x] Expanded [docs/CONTRIBUTING.md](/home/matthalloran8/Vrooli/docs/CONTRIBUTING.md) with repo-contract adoption and validation guidance
 - [x] Updated [cross-platform-readiness SKILL.md](/home/matthalloran8/Vrooli/scenarios/prompt-manager/store/skills/packs/core/cross-platform-readiness/SKILL.md) to stop teaching direct monorepo path joins
-- [x] Added `.vrooli/repo-contract-adoption-exceptions.json`
 - [x] Added `adoption_rules_alignment` to [internal/repocontractcheck/checks.go](/home/matthalloran8/Vrooli/internal/repocontractcheck/checks.go)
 - [x] Added failure-mode tests in [checks_test.go](/home/matthalloran8/Vrooli/internal/repocontractcheck/checks_test.go)
 
 ## Post-Phase-6 Burn-Down
 
-Recently migrated off the exception list:
+Recently migrated debt:
 
 - [x] `app-monitor/api/services/app_utils.go`
 - [x] `app-monitor/api/handlers/system.go`
@@ -35,7 +34,7 @@ Recently migrated off the exception list:
 - [x] `scenario-stack-governor/api/repo_root.go`
 - [x] `system-monitor/api/internal/services/paths.go`
 
-Still grandfathered and worth follow-up:
+Still worth follow-up:
 
 - [ ] `prd-control-tower/cli/cmd_prd.go`
 - [ ] `app-monitor/api/handlers/lighthouse.go`

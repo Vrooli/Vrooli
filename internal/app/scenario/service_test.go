@@ -3,7 +3,6 @@ package scenarioapp
 import (
 	"testing"
 
-	"github.com/vrooli/vrooli/internal/cli/scenariocli"
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/orchestrator"
@@ -56,7 +55,7 @@ func TestStartUsesScenarioOperationsInterface(t *testing.T) {
 	ops := &fakeScenarioOps{}
 	svc := Service{Scenarios: ops, Runner: fakeRunner{}}
 
-	items, err := svc.Start(scenariocli.StartRequest{Names: []string{"demo"}})
+	items, err := svc.Start(StartRequest{Names: []string{"demo"}})
 	if err != nil {
 		t.Fatalf("Start: %v", err)
 	}

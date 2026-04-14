@@ -6,9 +6,9 @@ import { renderWithQueryClient, mockFetchPending, mockFetchError } from "../../t
 import { StepSelectResources } from "./StepSelectResources";
 
 const mockResources = [
-  { name: "postgres", status: "running", category: "database", installed: "true", last_updated: "2026-01-01" },
-  { name: "redis", status: "stopped", category: "database", installed: "true", last_updated: "2026-01-01" },
-  { name: "ollama", status: "running", category: "ai", installed: "true", last_updated: "2026-01-01" },
+  { name: "postgres", status: "running", category: "database", installed: true },
+  { name: "redis", status: "stopped", category: "database", installed: true },
+  { name: "ollama", status: "running", category: "ai", installed: true },
 ];
 
 const mockSetupOrder = {

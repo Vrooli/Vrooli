@@ -5,38 +5,22 @@ import (
 	"io"
 	"strings"
 
+	contractapp "github.com/vrooli/vrooli/internal/app/contract"
+	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 )
 
 type (
-	helpOnlyError struct {
-		text string
-	}
-	NoArgsRequest          struct{}
-	ResolveScenarioRequest struct {
-		ScenarioName string
-		FileKey      string
-	}
-	MatchGlobRequest struct {
-		Pattern string
-		Path    string
-	}
+	NoArgsRequest struct{}
 )
-
-func (e helpOnlyError) Error() string    { return e.text }
-func (e helpOnlyError) HelpText() string { return e.text }
-
-func commandHelpOnly(text string) error {
-	return helpOnlyError{text: text}
-}
 
 func ParseValidateRequest(args []string) (NoArgsRequest, error) {
 	for _, arg := range args {
 		switch arg {
 		case "--help", "-h":
-			return NoArgsRequest{}, commandHelpOnly(RenderValidateHelpText())
+			return NoArgsRequest{}, clipolicy.CommandHelpOnly(RenderValidateHelpText())
 		default:
-			return NoArgsRequest{}, fmt.Errorf("unknown option for contract validate: %s", arg)
+			return NoArgsRequest{}, clipolicy.UnknownOptionError("contract validate", arg)
 		}
 	}
 	return NoArgsRequest{}, nil
@@ -46,50 +30,50 @@ func ParseShowRequest(args []string) (NoArgsRequest, error) {
 	for _, arg := range args {
 		switch arg {
 		case "--help", "-h":
-			return NoArgsRequest{}, commandHelpOnly(RenderShowHelpText())
+			return NoArgsRequest{}, clipolicy.CommandHelpOnly(RenderShowHelpText())
 		default:
-			return NoArgsRequest{}, fmt.Errorf("unknown option for contract show: %s", arg)
+			return NoArgsRequest{}, clipolicy.UnknownOptionError("contract show", arg)
 		}
 	}
 	return NoArgsRequest{}, nil
 }
 
-func ParseResolveScenarioRequest(args []string) (ResolveScenarioRequest, error) {
+func ParseResolveScenarioRequest(args []string) (contractapp.ResolveScenarioRequest, error) {
 	if len(args) == 0 {
-		return ResolveScenarioRequest{}, fmt.Errorf("contract resolve scenario requires a scenario name")
+		return contractapp.ResolveScenarioRequest{}, fmt.Errorf("contract resolve scenario requires a scenario name")
 	}
 	scenarioName := strings.TrimSpace(args[0])
 	if scenarioName == "" {
-		return ResolveScenarioRequest{}, fmt.Errorf("contract resolve scenario requires a scenario name")
+		return contractapp.ResolveScenarioRequest{}, fmt.Errorf("contract resolve scenario requires a scenario name")
 	}
-	req := ResolveScenarioRequest{ScenarioName: scenarioName}
+	req := contractapp.ResolveScenarioRequest{ScenarioName: scenarioName}
 	for i := 1; i < len(args); i++ {
 		switch args[i] {
 		case "--help", "-h":
-			return ResolveScenarioRequest{}, commandHelpOnly(RenderResolveScenarioHelpText())
+			return contractapp.ResolveScenarioRequest{}, clipolicy.CommandHelpOnly(RenderResolveScenarioHelpText())
 		case "--file":
 			if i+1 >= len(args) {
-				return ResolveScenarioRequest{}, fmt.Errorf("missing value for --file")
+				return contractapp.ResolveScenarioRequest{}, clipolicy.UsageErrorf("contract resolve scenario", "missing value for --file")
 			}
 			req.FileKey = strings.TrimSpace(args[i+1])
 			i++
 		default:
-			return ResolveScenarioRequest{}, fmt.Errorf("unknown option for contract resolve scenario: %s", args[i])
+			return contractapp.ResolveScenarioRequest{}, clipolicy.UnknownOptionError("contract resolve scenario", args[i])
 		}
 	}
 	return req, nil
 }
 
-func ParseMatchGlobRequest(args []string) (MatchGlobRequest, error) {
+func ParseMatchGlobRequest(args []string) (contractapp.MatchGlobRequest, error) {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
-			return MatchGlobRequest{}, commandHelpOnly(RenderMatchGlobHelpText())
+			return contractapp.MatchGlobRequest{}, clipolicy.CommandHelpOnly(RenderMatchGlobHelpText())
 		}
 	}
 	if len(args) != 2 {
-		return MatchGlobRequest{}, fmt.Errorf("usage: vrooli contract match-glob <pattern> <path>")
+		return contractapp.MatchGlobRequest{}, clipolicy.UsageErrorf("contract match-glob", "usage: vrooli contract match-glob <pattern> <path>")
 	}
-	return MatchGlobRequest{Pattern: args[0], Path: args[1]}, nil
+	return contractapp.MatchGlobRequest{Pattern: args[0], Path: args[1]}, nil
 }
 
 func RenderCommandHelp(w io.Writer) {

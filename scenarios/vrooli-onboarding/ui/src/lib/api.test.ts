@@ -37,7 +37,7 @@ describe("api", () => {
   // [REQ:P0-001] Resource Discovery API
   describe("fetchResources", () => {
     it("unwraps wrapped response with resources array", async () => {
-      const resources = [{ name: "postgres", status: "enabled", category: "storage", installed: "yes", last_updated: "2026-01-01" }];
+      const resources = [{ name: "postgres", status: "enabled", category: "storage", installed: true }];
       mockFetch({ count: 1, resources });
 
       const result = await fetchResources();
@@ -45,7 +45,7 @@ describe("api", () => {
     });
 
     it("returns array directly when API returns plain array", async () => {
-      const resources = [{ name: "redis", status: "enabled", category: "storage", installed: "yes", last_updated: "2026-01-01" }];
+      const resources = [{ name: "redis", status: "enabled", category: "storage", installed: true }];
       mockFetch(resources);
 
       const result = await fetchResources();

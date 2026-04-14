@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
 const SchemaPath = ".vrooli/schemas/resource.schema.json"
@@ -21,7 +21,6 @@ var AllowedDrivers = []string{
 	"cloud-api",
 	"desktop-app",
 	"manual",
-	"legacy-adapter",
 }
 
 var (
@@ -37,7 +36,6 @@ type ResourceManifest struct {
 	Template           string                       `json:"template,omitempty"`
 	Driver             string                       `json:"driver"`
 	ComposeFile        string                       `json:"compose_file,omitempty"`
-	LegacyAdapter      ResourceLegacyAdapter        `json:"legacy_adapter,omitempty"`
 	Binary             string                       `json:"binary,omitempty"`
 	VersionArgs        []string                     `json:"version_args,omitempty"`
 	Endpoint           string                       `json:"endpoint,omitempty"`
@@ -56,14 +54,6 @@ type ResourceManifest struct {
 	TemplateVersion    string                       `json:"template_version,omitempty"`
 	HostTools          []hostreqspec.Declaration    `json:"hostTools,omitempty"`
 	HostSafeguards     []hostreqspec.Declaration    `json:"hostSafeguards,omitempty"`
-}
-
-type ResourceLegacyAdapter struct {
-	Owner            string `json:"owner,omitempty"`
-	DecisionDeadline string `json:"decision_deadline,omitempty"`
-	FinalDisposition string `json:"final_disposition,omitempty"`
-	LegacyCLIPath    string `json:"legacy_cli_path,omitempty"`
-	Notes            string `json:"notes,omitempty"`
 }
 
 type ResourcePlatforms struct {
@@ -135,7 +125,7 @@ type ResourceManifestCapabilities struct {
 }
 
 func DefaultPath(root, name string) string {
-	return filepath.Join(root, "resources", name, "resource.json")
+	return repocontractmeta.ResourceManifestPath(root, name)
 }
 
 func Load(path string) (ResourceManifest, error) {
@@ -199,10 +189,6 @@ func Validate(manifest ResourceManifest) error {
 	case "compose-service":
 		if strings.TrimSpace(manifest.ComposeFile) == "" {
 			return fmt.Errorf("compose_file is required for compose-service resources")
-		}
-	case "legacy-adapter":
-		if err := validateLegacyAdapter(manifest.LegacyAdapter); err != nil {
-			return err
 		}
 	case "external-cli":
 		if strings.TrimSpace(manifest.Binary) == "" {
@@ -288,24 +274,6 @@ func (platforms ResourcePlatforms) SupportForCurrentPlatform() string {
 	default:
 		return ""
 	}
-}
-
-func validateLegacyAdapter(adapter ResourceLegacyAdapter) error {
-	if strings.TrimSpace(adapter.Owner) == "" {
-		return fmt.Errorf("legacy_adapter.owner is required for legacy-adapter resources")
-	}
-	if strings.TrimSpace(adapter.DecisionDeadline) == "" {
-		return fmt.Errorf("legacy_adapter.decision_deadline is required for legacy-adapter resources")
-	}
-	switch strings.TrimSpace(adapter.FinalDisposition) {
-	case "migrate", "blueprint", "deprecate":
-	default:
-		return fmt.Errorf("legacy_adapter.final_disposition %q is invalid", adapter.FinalDisposition)
-	}
-	if strings.TrimSpace(adapter.LegacyCLIPath) == "" {
-		return fmt.Errorf("legacy_adapter.legacy_cli_path is required for legacy-adapter resources")
-	}
-	return nil
 }
 
 func validatePlatforms(platforms ResourcePlatforms) error {

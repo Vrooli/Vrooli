@@ -323,22 +323,7 @@
     }
   },
   "lifecycle": {
-    "build": {
-      "description": "Prepare build environment",
-      "steps": [
-        {
-          "description": "Create build and dist directories",
-          "name": "create-directories",
-          "run": "mkdir -p build dist"
-        },
-        {
-          "description": "Set build environment variables",
-          "name": "set-build-env",
-          "run": "export BUILD_TIME=\"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\" \u0026\u0026 export BUILD_ENV=\"${ENVIRONMENT:-development}\" \u0026\u0026 echo \"Build environment: $BUILD_ENV at $BUILD_TIME\""
-        }
-      ]
-    },
-    "clean": {
+        "clean": {
       "description": "Clean build artifacts and dependencies",
       "steps": [
         {
@@ -348,17 +333,7 @@
         }
       ]
     },
-    "deploy": {
-      "description": "Deployment preparation",
-      "steps": [
-        {
-          "description": "Deployment information",
-          "name": "show-deploy-info",
-          "run": "echo 'Scenarios should be deployed individually from their directories'"
-        }
-      ]
-    },
-    "version": "2.0.2"
+        "version": "2.0.2"
   },
   "ports": {
     "api": {

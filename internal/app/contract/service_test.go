@@ -2,17 +2,15 @@ package contractapp
 
 import (
 	"testing"
-
-	"github.com/vrooli/vrooli/internal/cli/contractcli"
 )
 
 func TestServiceValidateUsesResolvedRoot(t *testing.T) {
 	var resolved string
 	svc := Service{
 		ResolveRootFn: func() (string, error) { return "/repo", nil },
-		ValidateFn: func(root string) (contractcli.ValidationOutput, error) {
+		ValidateFn: func(root string) (ValidationOutput, error) {
 			resolved = root
-			return contractcli.ValidationOutput{Success: true, Root: root}, nil
+			return ValidationOutput{Success: true, Root: root}, nil
 		},
 	}
 
@@ -28,8 +26,8 @@ func TestServiceValidateUsesResolvedRoot(t *testing.T) {
 func TestServiceResolveScenarioUsesResolvedRoot(t *testing.T) {
 	svc := Service{
 		ResolveRootFn: func() (string, error) { return "/repo", nil },
-		ResolveScenarioFn: func(root, name, key string) (contractcli.ResolveScenarioOutput, error) {
-			return contractcli.ResolveScenarioOutput{Success: true, Root: root, Scenario: name, File: key, Path: "/repo/scenarios/demo"}, nil
+		ResolveScenarioFn: func(root, name, key string) (ResolveScenarioOutput, error) {
+			return ResolveScenarioOutput{Success: true, Root: root, Scenario: name, File: key, Path: "/repo/scenarios/demo"}, nil
 		},
 	}
 

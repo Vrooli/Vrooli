@@ -12,7 +12,6 @@ Phase 3 now ships the canonical implementation templates described in the migrat
 - `cloud-api`
 - `desktop-app`
 - `manual-resource`
-- `legacy-adapter`
 
 The legacy `PRD.md` file remains available for design documentation, but new implementation scaffolds should come from `vrooli resource template ...`, not from copying an old resource directory.
 
@@ -56,4 +55,3 @@ All generated resource scaffolds should:
 - ✅ Produce a valid placeholder `resource.json`
 - ✅ Include config, docs, and test stubs
 - ✅ Stay honest about portability and operational limits
-- ✅ Keep `legacy-adapter` explicitly transitional

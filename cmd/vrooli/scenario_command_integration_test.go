@@ -332,7 +332,7 @@ func TestSplitRunScenarioRequirementsHelpAndInitTranslation(t *testing.T) {
 	if code := app.Run([]string{"scenario", "requirements", "--help"}, &stdout, &bytes.Buffer{}); code != 0 {
 		t.Fatalf("scenario requirements --help exit code = %d", code)
 	}
-	if !strings.Contains(stdout.String(), "Usage: vrooli scenario requirements") {
+	if !strings.Contains(stdout.String(), scenariocli.RequirementsHelpText()) {
 		t.Fatalf("help output = %q", stdout.String())
 	}
 

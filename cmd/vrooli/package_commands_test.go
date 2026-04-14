@@ -3,17 +3,65 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	packageapp "github.com/vrooli/vrooli/internal/app/package"
 	"github.com/vrooli/vrooli/internal/cli/packagecli"
+	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/lifecycle"
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/scenario"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 	testkitvrooli "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
 )
+
+func showPackageHelp(w io.Writer) {
+	packagecli.RenderCommandHelp(w)
+}
+
+func runPackageRootCommand(app *App, ctx *commandContext, args []string) error {
+	handler := buildTopLevelHandlerMap()["package"]
+	if handler == nil {
+		return fmt.Errorf("package handler not registered")
+	}
+	return handler(ctx, args)
+}
+
+func runPackageRefreshRequest(app *App, ctx *commandContext, req packagecli.RefreshRequest) (cliout.Format, packageapp.RefreshResponse, error) {
+	format, err := parseOutputFormat(ctx.Globals)
+	if err != nil {
+		return "", packageapp.RefreshResponse{}, err
+	}
+	stdout := ctx.Stdout
+	stderr := ctx.Stderr
+	if format == cliout.FormatJSON {
+		stdout = stderr
+	}
+	resp, err := packageapp.Service{
+		Root:   ctx.Root,
+		Stdout: stdout,
+		Stderr: stderr,
+		ScenarioService: func() (packageapp.ScenarioRuntime, error) {
+			return app.newScenarioService(ctx)
+		},
+		ScenarioRunner: func() (packageapp.ScenarioPhaseRunner, error) {
+			return app.newScenarioLifecycleRunner(ctx)
+		},
+	}.Refresh(packageapp.RefreshRequest{
+		PackageName: req.Name,
+		Target:      req.Target,
+		NoRestart:   req.NoRestart,
+	})
+	if err != nil {
+		return "", packageapp.RefreshResponse{}, err
+	}
+	return format, resp, nil
+}
 
 func TestShowPackageHelpIncludesRefresh(t *testing.T) {
 	var stdout bytes.Buffer
@@ -116,7 +164,7 @@ func TestPackageDependentsCommand(t *testing.T) {
     }
   }
 }`)
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "scenarios", "demo", ".vrooli", "service.json"), `{"service":{"name":"demo","parent":"vrooli"},"lifecycle":{"version":"2.0.0"}}`)
+	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "scenarios", "demo", repocontractmeta.ServiceManifestPathname), `{"service":{"name":"demo","parent":"vrooli"},"lifecycle":{"version":"2.0.0"}}`)
 	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "scenarios", "demo", "ui", "package.json"), `{
   "dependencies": {
     "@vrooli/alpha": "file:../../../packages/alpha"
@@ -710,7 +758,7 @@ func TestPackageCommandsSupportJSONOutput(t *testing.T) {
 	}
 	for _, args := range commands {
 		t.Run(strings.Join(args, "-"), func(t *testing.T) {
-			app, ctx := newConfiguredCommandContext(fixture.Root, globalOptions{json: true}, &bytes.Buffer{}, &bytes.Buffer{})
+			app, ctx := newConfiguredCommandContext(fixture.Root, globalOptions{JSON: true}, &bytes.Buffer{}, &bytes.Buffer{})
 			app.homeDir = func() (string, error) { return fixture.Home, nil }
 			var stdout bytes.Buffer
 			ctx.Stdout = &stdout

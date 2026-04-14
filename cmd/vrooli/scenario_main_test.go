@@ -12,10 +12,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/cli/scenariocli"
+	"github.com/vrooli/vrooli/internal/cli/scenariohandlers"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioexec"
 )
 
 func TestRunScenarioTestUsesNativePhaseRunner(t *testing.T) {
@@ -53,9 +56,9 @@ func TestRunNoStaleCheckBypassesFreshnessProbe(t *testing.T) {
 
 	t.Setenv("HOME", home)
 	app := newTestApp(root)
-	app.isStale = func() bool {
+	app.checkStaleness = func() (buildinfo.StaleCheck, error) {
 		t.Fatalf("stale check should be skipped when --no-stale-check is set")
-		return false
+		return buildinfo.StaleCheck{}, nil
 	}
 	code := app.Run([]string{"--no-stale-check", "scenario", "setup", "alpha"}, &bytes.Buffer{}, &bytes.Buffer{})
 	if code != 0 {
@@ -875,7 +878,7 @@ func TestScenarioLogHelperReaders(t *testing.T) {
 		t.Fatalf("write log: %v", err)
 	}
 
-	tail, err := readLastLogLines(path, 2)
+	tail, err := scenariohandlers.ReadLastLogLines(path, 2)
 	if err != nil {
 		t.Fatalf("readLastLogLines: %v", err)
 	}
@@ -883,7 +886,7 @@ func TestScenarioLogHelperReaders(t *testing.T) {
 		t.Fatalf("tail = %q", string(tail))
 	}
 
-	delta, nextOffset, err := readScenarioLogDelta(path, int64(len("one\n")))
+	delta, nextOffset, err := scenariohandlers.ReadScenarioLogDelta(path, int64(len("one\n")))
 	if err != nil {
 		t.Fatalf("readScenarioLogDelta initial: %v", err)
 	}
@@ -901,7 +904,7 @@ func TestScenarioLogHelperReaders(t *testing.T) {
 	}
 	_ = file.Close()
 
-	delta, _, err = readScenarioLogDelta(path, nextOffset)
+	delta, _, err = scenariohandlers.ReadScenarioLogDelta(path, nextOffset)
 	if err != nil {
 		t.Fatalf("readScenarioLogDelta appended: %v", err)
 	}
@@ -1066,13 +1069,13 @@ func TestRunScenarioTemplateShowAndHooks(t *testing.T) {
 }
 
 func TestScenarioTemplateParsersAndFormatting(t *testing.T) {
-	manifest := scenarioTemplateManifest{
-		RequiredVars: map[string]scenarioTemplateVar{
+	manifest := scenariocli.TemplateManifest{
+		RequiredVars: map[string]scenariocli.TemplateVar{
 			"SCENARIO_ID":           {Flag: "id"},
 			"SCENARIO_DISPLAY_NAME": {Flag: "display-name"},
 			"SCENARIO_DESCRIPTION":  {Flag: "description"},
 		},
-		OptionalVars: map[string]scenarioTemplateVar{
+		OptionalVars: map[string]scenariocli.TemplateVar{
 			"AUTHOR": {Flag: "author"},
 		},
 	}
@@ -1101,11 +1104,11 @@ func TestScenarioTemplateParsersAndFormatting(t *testing.T) {
 	if _, _, err := scenariocli.ParseTemplateKeyValue("broken"); err == nil {
 		t.Fatalf("expected ParseTemplateKeyValue to reject invalid pair")
 	}
-	if looksLikeTextFile([]byte{0}) {
+	if scenariohandlers.LooksLikeTextFile([]byte{0}) {
 		t.Fatalf("looksLikeTextFile should reject binary content")
 	}
 
-	requiredFlags := formatScenarioTemplateRequiredFlags(manifest)
+	requiredFlags := scenariohandlers.FormatTemplateRequiredFlags(manifest)
 	if !strings.Contains(requiredFlags, "--id <scenario_id>") || !strings.Contains(requiredFlags, "--display-name <scenario_display_name>") {
 		t.Fatalf("required flags = %q", requiredFlags)
 	}
@@ -1152,7 +1155,7 @@ func TestScenarioHelperCLIResolution(t *testing.T) {
 }
 
 func TestScenarioHelperProcessUtilities(t *testing.T) {
-	if writerSupportsStreaming(&bytes.Buffer{}) {
+	if scenarioexec.WriterSupportsStreaming(&bytes.Buffer{}) {
 		t.Fatalf("bytes.Buffer should not be treated as a streaming writer")
 	}
 
@@ -1211,7 +1214,7 @@ func TestLaunchDetachedScenarioPropagatesExpectedArgsAndEnv(t *testing.T) {
 	t.Setenv("SANDBOX_MERGED_DIR", "/merged")
 	t.Setenv("VROOLI_SOURCE_ROOT", "/source-root")
 
-	if err := app.launchDetachedScenario(root, globalOptions{json: true, verbose: true, noColor: true}, "start", "alpha"); err != nil {
+	if err := app.launchDetachedScenario(root, globalOptions{JSON: true, Verbose: true, NoColor: true}, "start", "alpha"); err != nil {
 		t.Fatalf("launchDetachedScenario: %v", err)
 	}
 
@@ -1248,29 +1251,29 @@ func TestLaunchDetachedScenarioPropagatesExpectedArgsAndEnv(t *testing.T) {
 }
 
 func TestRunScenarioRunAliasesStartValidation(t *testing.T) {
-	app, ctx := newConfiguredCommandContext("/repo", globalOptions{}, &bytes.Buffer{}, &bytes.Buffer{})
-	err := runScenarioRunCommand(app, ctx, nil)
+	_, ctx := newConfiguredCommandContext("/repo", globalOptions{}, &bytes.Buffer{}, &bytes.Buffer{})
+	err := buildScenarioHandlerMap()[scenariocli.CommandRun](ctx, nil)
 	if err == nil || !strings.Contains(err.Error(), "scenario start requires at least one scenario name") {
-		t.Fatalf("runScenarioRunCommand error = %v", err)
+		t.Fatalf("scenario run handler error = %v", err)
 	}
 }
 
 func TestScenarioTemplateHelpAndManualHooksOutput(t *testing.T) {
 	var templateHelp bytes.Buffer
-	showScenarioTemplateHelp(&templateHelp)
+	scenariocli.RenderTemplateHelp(&templateHelp)
 	if !strings.Contains(templateHelp.String(), "show               Show scenario template details") {
 		t.Fatalf("template help = %q", templateHelp.String())
 	}
 
 	var generateHelp bytes.Buffer
-	showScenarioGenerateHelp(&generateHelp)
+	scenariocli.RenderGenerateHelp(&generateHelp)
 	if !strings.Contains(generateHelp.String(), "--run-hooks") {
 		t.Fatalf("generate help = %q", generateHelp.String())
 	}
 
 	var hooks bytes.Buffer
-	writeScenarioTemplateHooks(&hooks, scenarioTemplateManifest{
-		PostHooks: []scenarioTemplateHook{{Description: "Install deps", Cmd: "pnpm install"}},
+	scenariocli.WriteTemplateHooks(&hooks, scenariocli.TemplateManifest{
+		PostHooks: []scenariocli.TemplateHook{{Description: "Install deps", Cmd: "pnpm install"}},
 	})
 	if !strings.Contains(hooks.String(), "Install deps") {
 		t.Fatalf("hook output = %q", hooks.String())

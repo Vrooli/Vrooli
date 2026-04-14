@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/cli/rootcli"
 )
 
 func TestSplitRunStatusUsesNativeProjectController(t *testing.T) {
@@ -217,10 +219,10 @@ func TestSplitRunCleanupCommandRoutesTargets(t *testing.T) {
 
 		t.Setenv("HOME", home)
 		err := runCleanupCommand(root, parsedArgs{
-			args: []string{"orphans", "help"},
-			globals: globalOptions{
-				json:    true,
-				verbose: true,
+			Args: []string{"orphans", "help"},
+			Globals: globalOptions{
+				JSON:    true,
+				Verbose: true,
 			},
 		}, &bytes.Buffer{}, &bytes.Buffer{})
 		if err != nil {
@@ -237,9 +239,9 @@ func TestSplitRunCleanupCommandRoutesTargets(t *testing.T) {
 
 		t.Setenv("HOME", home)
 		err := runCleanupCommand(root, parsedArgs{
-			args: []string{"locks"},
-			globals: globalOptions{
-				noColor: true,
+			Args: []string{"locks"},
+			Globals: globalOptions{
+				NoColor: true,
 			},
 		}, &bytes.Buffer{}, &bytes.Buffer{})
 		if err != nil {
@@ -260,9 +262,9 @@ func TestSplitRunCleanupCommandHelpAndUnknownTarget(t *testing.T) {
 		t.Fatalf("missing cleanup help output: %s", stdout.String())
 	}
 
-	err := runCleanupCommand("/repo", parsedArgs{args: []string{"bogus"}}, &bytes.Buffer{}, &bytes.Buffer{})
-	if exitCode(err) != 1 {
-		t.Fatalf("exitCode = %d, want 1", exitCode(err))
+	err := runCleanupCommand("/repo", parsedArgs{Args: []string{"bogus"}}, &bytes.Buffer{}, &bytes.Buffer{})
+	if rootcli.ExitCode(err) != 1 {
+		t.Fatalf("exitCode = %d, want 1", rootcli.ExitCode(err))
 	}
 	if !strings.Contains(err.Error(), "unknown cleanup target: bogus") {
 		t.Fatalf("err = %v", err)

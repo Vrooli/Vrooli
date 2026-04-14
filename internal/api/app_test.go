@@ -362,23 +362,17 @@ func writeResourceServiceConfig(t *testing.T, root, name string, enabled bool) {
 
 func writeResourceCLI(t *testing.T, root, name, statusJSON string) {
 	t.Helper()
+	_ = statusJSON
 	testkitvrooli.WriteResourceManifest(t, root, name, manifestpkg.ResourceManifest{
 		Name:            name,
 		DisplayName:     name,
 		Description:     "fixture resource",
-		Template:        "legacy-adapter",
-		Driver:          "legacy-adapter",
-		PortabilityTier: "partial",
-		LegacyAdapter: manifestpkg.ResourceLegacyAdapter{
-			Owner:            "Matthew Halloran",
-			DecisionDeadline: "2026-05-31",
-			FinalDisposition: "migrate",
-			LegacyCLIPath:    "resources/" + name + "/cli.sh",
-		},
+		Template:        "external-cli",
+		Driver:          "external-cli",
+		Binary:          "bash",
+		PortabilityTier: "full",
 	})
-	scriptPath := filepath.Join(root, "resources", name, "cli.sh")
-	script := "#!/usr/bin/env bash\nset -e\nif [[ \"$1\" == \"status\" ]]; then\n  printf '%s\\n' '" + statusJSON + "'\n  exit 0\nfi\nprintf '{\"message\":\"ok\"}\\n'\nexit 0\n"
-	testkitgo.WriteExecutable(t, scriptPath, script)
+	testkitgo.WriteExecutable(t, filepath.Join(root, "resources", name, "cli.sh"), "#!/usr/bin/env bash\nprintf 'ok\\n'\n")
 }
 
 func osMkdirAll(path string) error {

@@ -823,40 +823,6 @@ func TestCalculateResourceConfidence(t *testing.T) {
 	}
 }
 
-// TestMapPatternToResource tests pattern to resource mapping
-func TestMapPatternToResource(t *testing.T) {
-	tests := []struct {
-		pattern  string
-		expected string
-	}{
-		{"database", "postgres"},
-		{"postgres", "postgres"},
-		{"postgresql", "postgres"},
-		{"storage", "minio"},
-		{"minio", "minio"},
-		{"cache", "redis"},
-		{"redis", "redis"},
-		{"llm", "ollama"},
-		{"ollama", "ollama"},
-		{"workflow", "n8n"},
-		{"n8n", "n8n"},
-		{"vector", "qdrant"},
-		{"qdrant", "qdrant"},
-		{"unknown", ""},
-		{"caching", ""}, // Not in map
-		{"ai", ""},      // Not in map
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.pattern, func(t *testing.T) {
-			result := mapPatternToResource(tt.pattern)
-			if result != tt.expected {
-				t.Errorf("mapPatternToResource(%q) = %q, want %q", tt.pattern, result, tt.expected)
-			}
-		})
-	}
-}
-
 // TestGetHeuristicPredictions tests heuristic-based predictions
 func TestGetHeuristicPredictions(t *testing.T) {
 	tests := []struct {

@@ -14,7 +14,7 @@ func TestParseScenarioRequirementsRequestTreatsHelpAsCommandHelp(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected help-only error")
 	}
-	if !strings.Contains(err.Error(), "Usage: vrooli scenario requirements") {
+	if !strings.Contains(err.Error(), scenariocli.RequirementsHelpText()) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

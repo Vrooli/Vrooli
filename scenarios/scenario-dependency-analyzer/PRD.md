@@ -31,7 +31,6 @@ This capability transforms Vrooli from a collection of individual scenarios into
   - [x] Detect inter-scenario dependencies (CLI calls, API usage, shared workflows)
   - [x] Store dependency metadata in standardized `dependencies.json` format
   - [x] Provide visualization of dependency graphs with interactive UI
-  - [x] Integration with resource-claude-code for analyzing proposed scenarios
   - [x] Integration with resource-qdrant for semantic similarity matching (with fallback heuristics)
   - [x] CLI interface for programmatic access to dependency data
   - [x] API endpoints for other scenarios to query dependency information
@@ -74,11 +73,6 @@ required:
     integration_pattern: Direct SQL queries and migrations
     access_method: resource-postgres CLI commands
     
-  - resource_name: claude-code  
-    purpose: AI-powered analysis of scenario code and configurations
-    integration_pattern: CLI wrapper for code analysis tasks
-    access_method: resource-claude-code analyze
-    
   - resource_name: qdrant
     purpose: Semantic similarity matching for proposed scenarios
     integration_pattern: Vector storage and similarity queries
@@ -98,8 +92,6 @@ integration_priorities:
   1_resource_cli:        # FIRST: Use resource CLI commands
     - command: resource-postgres execute
       purpose: Database operations for dependency storage
-    - command: resource-claude-code analyze  
-      purpose: AI-powered scenario analysis
     - command: resource-qdrant search
       purpose: Semantic matching for similar scenarios
   
@@ -320,7 +312,6 @@ custom_commands:
 ### Upstream Dependencies  
 **What capabilities must exist before this can function?**
 - **PostgreSQL Resource**: Required for storing dependency metadata and analysis results
-- **resource-claude-code**: Essential for AI-powered analysis of scenario code and configurations  
 - **resource-qdrant**: Critical for semantic similarity matching of proposed scenarios
 - **Scenario File System**: All existing scenarios must have discoverable `.vrooli/service.json` files
 
@@ -458,10 +449,10 @@ custom_elements:
 - Decision driver: Consistency with existing Vrooli PostgreSQL usage and simpler deployment
 - Trade-offs: Slightly more complex queries but better resource utilization
 
-**AI Integration Strategy**: Use resource-claude-code for analysis rather than direct LLM integration  
-- Alternative considered: Direct OpenAI/Claude API calls
-- Decision driver: Consistency with Vrooli resource abstraction pattern
-- Trade-offs: Additional abstraction layer but better long-term flexibility
+**Prediction Strategy**: Use Qdrant similarity matching with heuristic fallbacks for dependency prediction  
+- Alternative considered: separate AI CLI integration for free-form proposal analysis
+- Decision driver: keep proposal analysis aligned with supported resource surfaces and reduce brittle CLI coupling
+- Trade-offs: slightly less open-ended reasoning, but a simpler and more reliable prediction path
 
 ### Security Considerations
 - **Data Protection**: Dependency metadata contains no sensitive information

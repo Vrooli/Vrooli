@@ -5,14 +5,12 @@ import (
 	"io"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cli/scenariocli"
 	"github.com/vrooli/vrooli/internal/resources"
 )
 
 type (
-	helpOnlyError struct {
-		text string
-	}
 	NoArgsRequest struct{}
 	NameRequest   struct {
 		Name string
@@ -40,18 +38,11 @@ type (
 	}
 )
 
-func (e helpOnlyError) Error() string    { return e.text }
-func (e helpOnlyError) HelpText() string { return e.text }
-
-func commandHelpOnly(text string) error {
-	return helpOnlyError{text: text}
-}
-
 func ParseNoArgs(command, help string, args []string) (NoArgsRequest, error) {
 	if len(args) > 0 {
 		for _, arg := range args {
 			if arg == "--help" || arg == "-h" {
-				return NoArgsRequest{}, commandHelpOnly(help)
+				return NoArgsRequest{}, clipolicy.CommandHelpOnly(help)
 			}
 		}
 		return NoArgsRequest{}, fmt.Errorf("%s does not accept positional arguments", command)
@@ -62,7 +53,7 @@ func ParseNoArgs(command, help string, args []string) (NoArgsRequest, error) {
 func ParseSingleName(noun, command, help string, args []string) (NameRequest, error) {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
-			return NameRequest{}, commandHelpOnly(help)
+			return NameRequest{}, clipolicy.CommandHelpOnly(help)
 		}
 	}
 	if len(args) != 1 {
@@ -78,7 +69,7 @@ func ParseListRequest(args []string) (NoArgsRequest, error) {
 func ParseValidateRequest(args []string) (ValidateRequest, error) {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
-			return ValidateRequest{}, commandHelpOnly(ValidateHelpText)
+			return ValidateRequest{}, clipolicy.CommandHelpOnly(ValidateHelpText)
 		}
 	}
 	if len(args) > 1 {
@@ -97,7 +88,7 @@ func ParseStatusRequest(args []string) (StatusRequest, error) {
 	for _, arg := range args {
 		switch arg {
 		case "--help", "-h":
-			return StatusRequest{}, commandHelpOnly(StatusHelpText)
+			return StatusRequest{}, clipolicy.CommandHelpOnly(StatusHelpText)
 		case "--fast":
 			req.Fast = true
 		case "--no-fast":
@@ -162,7 +153,7 @@ func ParseBlueprintInfoRequest(args []string) (NameRequest, error) {
 func ParseBlueprintSearchRequest(args []string) (BlueprintSearchRequest, error) {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
-			return BlueprintSearchRequest{}, commandHelpOnly(BlueprintSearchHelpText)
+			return BlueprintSearchRequest{}, clipolicy.CommandHelpOnly(BlueprintSearchHelpText)
 		}
 	}
 	if len(args) != 1 {
@@ -203,7 +194,7 @@ func ParseTemplateGenerateRequest(
 ) (TemplateGenerateOptions, error) {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
-			return TemplateGenerateOptions{}, commandHelpOnly(RenderTemplateGenerateHelpText())
+			return TemplateGenerateOptions{}, clipolicy.CommandHelpOnly(RenderTemplateGenerateHelpText())
 		}
 	}
 	return ParseTemplateGenerateArgs(args, stderr, resolve)

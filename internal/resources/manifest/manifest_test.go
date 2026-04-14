@@ -12,19 +12,13 @@ func TestValidateRejectsMissingRequiredFields(t *testing.T) {
 	}
 }
 
-func TestValidateRejectsInvalidLegacyAdapter(t *testing.T) {
+func TestValidateRejectsInvalidDriver(t *testing.T) {
 	err := Validate(ResourceManifest{
 		Name:            "redis",
 		Driver:          "legacy-adapter",
 		PortabilityTier: "partial",
-		LegacyAdapter: ResourceLegacyAdapter{
-			Owner:            "fixture",
-			DecisionDeadline: "2026-12-31",
-			FinalDisposition: "invalid",
-			LegacyCLIPath:    "resources/redis/cli.sh",
-		},
 	})
-	if err == nil || !strings.Contains(err.Error(), "final_disposition") {
+	if err == nil || !strings.Contains(err.Error(), "driver") {
 		t.Fatalf("Validate() error = %v", err)
 	}
 }

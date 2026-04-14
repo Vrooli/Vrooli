@@ -1,10 +1,11 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -13,22 +14,28 @@ import (
 
 // Resource represents a Vrooli resource with derived category.
 type Resource struct {
-	Name        string `json:"name"`
-	Status      string `json:"status"`
-	Category    string `json:"category"`
-	Installed   string `json:"installed"`
-	LastUpdated string `json:"last_updated"`
+	Name      string `json:"name"`
+	Status    string `json:"status"`
+	Category  string `json:"category"`
+	Installed bool   `json:"installed"`
 }
 
-// rawResourceFile mirrors the on-disk running-resources.json format.
-type rawResourceFile struct {
-	Resources []struct {
-		Name        string `json:"name"`
-		Status      string `json:"status"`
-		Installed   string `json:"installed"`
-		LastUpdated string `json:"last_updated"`
-	} `json:"resources"`
-	LastUpdated string `json:"last_updated"`
+type resourceStatusList struct {
+	Resources []resourceStatusItem `json:"resources"`
+}
+
+type resourceStatusItem struct {
+	Resource struct {
+		Name string `json:"name"`
+	} `json:"resource"`
+	Installed bool   `json:"installed"`
+	Running   bool   `json:"running"`
+	Health    string `json:"health"`
+	Message   string `json:"message"`
+}
+
+var runResourceStatusJSON = func(ctx context.Context) ([]byte, error) {
+	return exec.CommandContext(ctx, "vrooli", "resource", "status", "--json").Output()
 }
 
 // categoryMap maps resource names to human-friendly categories.
@@ -85,64 +92,53 @@ func categorize(name string) string {
 	return "general"
 }
 
-// resolveResourcesPath returns the path to running-resources.json.
-func resolveResourcesPath() string {
-	if root := os.Getenv("VROOLI_ROOT"); root != "" {
-		return filepath.Join(root, ".vrooli", "running-resources.json")
+func normalizeResourceStatus(item resourceStatusItem) string {
+	if item.Running {
+		return "running"
 	}
-	// Walk up from the api binary directory
-	dir, err := os.Getwd()
-	if err != nil {
-		return ""
+
+	statusText := strings.ToLower(strings.TrimSpace(item.Health))
+	if statusText == "" {
+		statusText = strings.ToLower(strings.TrimSpace(item.Message))
 	}
-	for i := 0; i < 10; i++ {
-		candidate := filepath.Join(dir, ".vrooli", "running-resources.json")
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
+
+	switch {
+	case strings.Contains(statusText, "stopped"):
+		return "stopped"
+	case strings.Contains(statusText, "not installed"):
+		return "stopped"
+	case item.Installed:
+		return "installed"
+	default:
+		return "stopped"
 	}
-	return ""
 }
 
-// loadResources reads and parses running-resources.json.
+// loadResources reads resource status from the Vrooli CLI.
 func loadResources() ([]Resource, error) {
-	path := resolveResourcesPath()
-	if path == "" {
-		return nil, os.ErrNotExist
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-	data, err := os.ReadFile(path)
+	data, err := runResourceStatusJSON(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("vrooli resource status --json failed: %w", err)
 	}
 
-	var raw rawResourceFile
+	var raw resourceStatusList
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse resource status output: %w", err)
 	}
 
 	resources := make([]Resource, 0, len(raw.Resources))
-	for _, r := range raw.Resources {
-		// Normalize status to running/installed/stopped
-		status := strings.ToLower(r.Status)
-		switch status {
-		case "running", "installed", "stopped":
-			// keep as-is
-		default:
-			status = "stopped"
+	for _, item := range raw.Resources {
+		if strings.TrimSpace(item.Resource.Name) == "" {
+			continue
 		}
-
 		resources = append(resources, Resource{
-			Name:        r.Name,
-			Status:      status,
-			Category:    categorize(r.Name),
-			Installed:   r.Installed,
-			LastUpdated: r.LastUpdated,
+			Name:      item.Resource.Name,
+			Status:    normalizeResourceStatus(item),
+			Category:  categorize(item.Resource.Name),
+			Installed: item.Installed,
 		})
 	}
 	return resources, nil

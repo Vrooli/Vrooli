@@ -61,7 +61,6 @@ Cycle-safe repo and file helpers live in the root package:
 ```go
 fixture := testkitgo.NewRepoFixture(t)
 testkitgo.WriteRepoContract(t, fixture.Root, "scenarios")
-testkitgo.WriteRepoContractExceptions(t, fixture.Root)
 testkitgo.WriteJSON(t, filepath.Join(fixture.Root, ".vrooli", "settings.json"), map[string]any{
 	"mode": "test",
 })

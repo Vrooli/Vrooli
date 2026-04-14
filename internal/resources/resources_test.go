@@ -200,100 +200,6 @@ func TestRunReturnsCategorizedErrors(t *testing.T) {
 	}
 }
 
-func TestStartAllUsesBestEffortWhenStatusProbeIsDegraded(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	writeResourceConfig(t, root, "fixture", true)
-	writeResourceManifestFixture(t, root, testfixture.ResourceManifest(
-		"fixture",
-		testfixture.WithResourceDescription("Fixture legacy adapter"),
-		testfixture.WithLegacyCLIPath(filepath.Join("resources", "fixture", "cli.sh")),
-		testfixture.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
-			Linux:   "supported",
-			MacOS:   "supported",
-			Windows: "partial",
-		}),
-	))
-	scriptPath := filepath.Join(root, "resources", "fixture", "cli.sh")
-	markerPath := filepath.Join(root, "fixture-started.txt")
-	if err := os.MkdirAll(filepath.Dir(scriptPath), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(scriptPath), err)
-	}
-	script := "#!/usr/bin/env bash\nset -e\nif [[ \"$1\" == \"start\" ]]; then\n  printf 'started' > " + shellQuote(markerPath) + "\nfi\n"
-	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
-		t.Fatalf("write %s: %v", scriptPath, err)
-	}
-
-	originalRun := runCommandResource
-	t.Cleanup(func() {
-		runCommandResource = originalRun
-	})
-	runCommandResource = func(ctx context.Context, cmd *exec.Cmd) commandResult {
-		return commandResult{output: []byte("not-json\n")}
-	}
-
-	report, err := NewController(root, home).StartAll(ioDiscard{}, ioDiscard{})
-	if err != nil {
-		t.Fatalf("StartAll: %v", err)
-	}
-	if len(report.Started) != 1 {
-		t.Fatalf("len(report.Started) = %d, want 1", len(report.Started))
-	}
-	if !strings.Contains(report.Started[0].Message, "degraded status probe") {
-		t.Fatalf("report.Started[0].Message = %q", report.Started[0].Message)
-	}
-	if _, err := os.Stat(markerPath); err != nil {
-		t.Fatalf("expected best-effort start marker: %v", err)
-	}
-}
-
-func TestStopAllFallsBackWhenStatusProbeIsDegraded(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	writeResourceConfig(t, root, "fixture", false)
-	writeResourceManifestFixture(t, root, testfixture.ResourceManifest(
-		"fixture",
-		testfixture.WithResourceDescription("Fixture legacy adapter"),
-		testfixture.WithLegacyCLIPath(filepath.Join("resources", "fixture", "cli.sh")),
-		testfixture.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
-			Linux:   "supported",
-			MacOS:   "supported",
-			Windows: "partial",
-		}),
-	))
-	scriptPath := filepath.Join(root, "resources", "fixture", "cli.sh")
-	markerPath := filepath.Join(root, "fixture-stopped.txt")
-	if err := os.MkdirAll(filepath.Dir(scriptPath), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(scriptPath), err)
-	}
-	script := "#!/usr/bin/env bash\nset -e\nif [[ \"$1\" == \"stop\" ]]; then\n  printf 'stopped' > " + shellQuote(markerPath) + "\nfi\n"
-	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
-		t.Fatalf("write %s: %v", scriptPath, err)
-	}
-
-	originalRun := runCommandResource
-	t.Cleanup(func() {
-		runCommandResource = originalRun
-	})
-	runCommandResource = func(ctx context.Context, cmd *exec.Cmd) commandResult {
-		return commandResult{output: []byte("not-json\n")}
-	}
-
-	report, err := NewController(root, home).StopAll(ioDiscard{}, ioDiscard{})
-	if err != nil {
-		t.Fatalf("StopAll: %v", err)
-	}
-	if len(report.Stopped) != 1 {
-		t.Fatalf("len(report.Stopped) = %d, want 1", len(report.Stopped))
-	}
-	if !strings.Contains(report.Stopped[0].Message, "degraded status probe") {
-		t.Fatalf("report.Stopped[0].Message = %q", report.Stopped[0].Message)
-	}
-	if _, err := os.Stat(markerPath); err != nil {
-		t.Fatalf("expected best-effort stop marker: %v", err)
-	}
-}
-
 func TestDiscoverMarksManifestNativeResources(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
@@ -859,26 +765,11 @@ func TestProjectPhase6KeepResourcesAreExplicitlyTyped(t *testing.T) {
 		if item.ControlMode == "legacy-shell" {
 			t.Fatalf("keep resource %q is still hidden as legacy-shell", name)
 		}
-		switch item.ControlMode {
-		case "manifest-native":
-			if item.ManifestPath == "" {
-				t.Fatalf("%s manifest-native resource missing manifest path", name)
-			}
-		case "legacy-adapter":
-			if item.LegacyAdapter.Owner == "" {
-				t.Fatalf("%s legacy adapter owner is empty", name)
-			}
-			if item.LegacyAdapter.DecisionDeadline == "" {
-				t.Fatalf("%s legacy adapter deadline is empty", name)
-			}
-			if item.LegacyAdapter.FinalDisposition == "" {
-				t.Fatalf("%s legacy adapter final disposition is empty", name)
-			}
-			if item.LegacyAdapter.LegacyCLIPath == "" {
-				t.Fatalf("%s legacy adapter legacy cli path is empty", name)
-			}
-		default:
-			t.Fatalf("%s ControlMode = %q, want manifest-native or legacy-adapter", name, item.ControlMode)
+		if item.ControlMode != "manifest-native" {
+			t.Fatalf("%s ControlMode = %q, want manifest-native", name, item.ControlMode)
+		}
+		if item.ManifestPath == "" {
+			t.Fatalf("%s manifest-native resource missing manifest path", name)
 		}
 	}
 }
@@ -939,10 +830,8 @@ func TestProjectPhase7ActiveDiscoveryOnlyIncludesManifestBackedResources(t *test
 		if item.ManifestPath == "" {
 			t.Fatalf("%s missing manifest path in active discovery", item.Name)
 		}
-		switch item.ControlMode {
-		case "manifest-native", "legacy-adapter":
-		default:
-			t.Fatalf("%s ControlMode = %q, want manifest-native or legacy-adapter", item.Name, item.ControlMode)
+		if item.ControlMode != "manifest-native" {
+			t.Fatalf("%s ControlMode = %q, want manifest-native", item.Name, item.ControlMode)
 		}
 	}
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -120,7 +121,7 @@ func TestSetupOrderCircularDeps(t *testing.T) {
 // TestSetupOrderLoadError verifies 500 when resources file is missing.
 // [REQ:REQ-P2-001] - Setup Order Algorithm
 func TestSetupOrderLoadError(t *testing.T) {
-	t.Setenv("VROOLI_ROOT", t.TempDir())
+	stubResourceStatusJSON(t, nil, errors.New("command failed"))
 	srv := NewServer(nil)
 
 	w := doGet(t, srv, "/api/v1/setup-order")
@@ -130,7 +131,7 @@ func TestSetupOrderLoadError(t *testing.T) {
 // TestResourceHealthLoadError verifies 500 when resources file is missing.
 // [REQ:REQ-P1-001] - Resource Health API
 func TestResourceHealthLoadError(t *testing.T) {
-	t.Setenv("VROOLI_ROOT", t.TempDir())
+	stubResourceStatusJSON(t, nil, errors.New("command failed"))
 	srv := NewServer(nil)
 
 	w := doGet(t, srv, "/api/v1/resources/health")
@@ -174,7 +175,7 @@ func TestConfigValidateDisabledResource(t *testing.T) {
 // TestConfigGenerateLoadError verifies 500 when resources file cannot be loaded.
 // [REQ:REQ-P0-004] - Config Generation
 func TestConfigGenerateLoadError(t *testing.T) {
-	t.Setenv("VROOLI_ROOT", t.TempDir())
+	stubResourceStatusJSON(t, nil, errors.New("command failed"))
 	srv := NewServer(nil)
 
 	w := doPost(t, srv, "/api/v1/config/generate", `{"resources": ["postgres"]}`)
@@ -184,7 +185,7 @@ func TestConfigGenerateLoadError(t *testing.T) {
 // TestConfigValidateLoadError verifies 500 when resources file cannot be loaded.
 // [REQ:REQ-P0-005] - Config Validation
 func TestConfigValidateLoadError(t *testing.T) {
-	t.Setenv("VROOLI_ROOT", t.TempDir())
+	stubResourceStatusJSON(t, nil, errors.New("command failed"))
 	srv := NewServer(nil)
 
 	w := doPost(t, srv, "/api/v1/config/validate",

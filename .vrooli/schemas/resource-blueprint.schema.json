@@ -130,8 +130,7 @@
         "external-cli",
         "cloud-api",
         "desktop-app",
-        "manual-resource",
-        "legacy-adapter"
+        "manual-resource"
       ]
     },
     "implementation_notes": {

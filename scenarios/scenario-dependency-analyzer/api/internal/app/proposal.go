@@ -20,14 +20,6 @@ func analyzeProposedScenario(req types.ProposedScenarioRequest) (map[string]inte
 		})
 	}
 
-	claudeAnalysis, err := analyzeWithClaudeCode(req.Name, req.Description)
-	if err != nil {
-		log.Printf("Claude Code analysis failed: %v", err)
-	} else {
-		predictedResources = append(predictedResources, claudeAnalysis.PredictedResources...)
-		recommendations = append(recommendations, claudeAnalysis.Recommendations...)
-	}
-
 	qdrantMatches, err := findSimilarScenariosQdrant(req.Description, req.SimilarScenarios)
 	if err != nil {
 		log.Printf("Qdrant similarity matching failed: %v", err)

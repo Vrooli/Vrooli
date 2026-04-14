@@ -440,13 +440,7 @@ claude_code::content::execute() {
         return 1
     fi
     
-    # Use agent wrapper for execution (AI processing operation)
-    if type -t agents::with_agent &>/dev/null; then
-        agents::with_agent "content-execute" "claude_code::content::execute_internal" "$type" "$name" "$model" "$session"
-    else
-        # Fallback if agent management not available
-        claude_code::content::execute_internal "$type" "$name" "$model" "$session"
-    fi
+    claude_code::content::execute_internal "$type" "$name" "$model" "$session"
 }
 
 #######################################

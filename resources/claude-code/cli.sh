@@ -30,11 +30,6 @@ source "${var_RESOURCES_COMMON_FILE}"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 
-# Source agent management (load config and manager directly)
-if [[ -f "${APP_ROOT}/resources/claude-code/config/agents.conf" ]]; then
-    source "${APP_ROOT}/resources/claude-code/config/agents.conf"
-    source "${APP_ROOT}/scripts/resources/agents/agent-manager.sh"
-fi
 # shellcheck disable=SC1091
 source "${CLAUDE_CODE_CLI_DIR}/config/defaults.sh"
 
@@ -103,20 +98,6 @@ cli::register_command "test-rate-limit" "Test rate limit detection (diagnostic)"
 cli::register_command "status" "Show detailed resource status" "cli::delegate_status"
 cli::register_command "logs" "Show Claude Code logs" "cli::delegate_logs"
 
-# Agent management commands
-# Create wrapper for agents command that delegates to manager
-claude_code::agents::command() {
-    if type -t agent_manager::load_config &>/dev/null; then
-        "${APP_ROOT}/scripts/resources/agents/agent-manager.sh" --config="claude-code" "$@"
-    else
-        log::error "Agent management not available"
-        return 1
-    fi
-}
-export -f claude_code::agents::command
-
-cli::register_command "agents" "Manage running Claude Code agents" "claude_code::agents::command"
-
 ################################################################################
 # Agent cleanup function
 ################################################################################
@@ -172,10 +153,6 @@ claude_code::setup_agent_cleanup() {
             fi
         else
             claude_code::kill_children SIGTERM
-        fi
-
-        if [[ -n "${CLAUDE_CODE_CURRENT_AGENT_ID:-}" ]] && type -t agent_manager::unregister &>/dev/null; then
-            agent_manager::unregister "${CLAUDE_CODE_CURRENT_AGENT_ID}" >/dev/null 2>&1 || true
         fi
 
         # Allow any remaining children to exit without hanging forever
@@ -449,27 +426,8 @@ claude_code_run() {
         return 1
     fi
     
-    # Register agent if agent management is available
-    local agent_id=""
-    local command_string=""
-    if type -t agent_manager::register &>/dev/null; then
-        # Use tag as agent_id if provided, otherwise generate
-        if [[ -n "$agent_tag" ]]; then
-            agent_id="$agent_tag"
-            command_string="resource-claude-code run (via ecosystem-manager)"
-        else
-            agent_id=$(agent_manager::generate_id)
-            command_string="resource-claude-code run"
-        fi
-        
-        if agent_manager::register "$agent_id" $$ "$command_string"; then
-            log::debug "Registered agent: $agent_id"
-            
-            # Set up signal handler for cleanup
-            claude_code::setup_agent_cleanup "$agent_id"
-            
-            # Metrics will be tracked during actual operation execution
-        fi
+    if [[ -n "$agent_tag" ]]; then
+        claude_code::setup_agent_cleanup "$agent_tag"
     fi
     
     # For large prompts, use a temp file to avoid environment variable size limits
@@ -497,11 +455,6 @@ claude_code_run() {
     # Default last-exit status in case of early termination
     export CLAUDE_CODE_LAST_EXIT=1
     
-    # Track operation start metrics
-    if [[ -n "$agent_id" ]] && type -t agents::metrics::increment &>/dev/null; then
-        agents::metrics::increment "${REGISTRY_FILE:-${APP_ROOT}/.vrooli/claude-code-agents.json}" "$agent_id" "requests" 1
-    fi
-    
     if command -v claude_code::run &>/dev/null; then
         claude_code::run
         result=$?
@@ -512,36 +465,12 @@ claude_code_run() {
     fi
     export CLAUDE_CODE_LAST_EXIT=$result
     
-    # Track operation completion metrics
-    if [[ -n "$agent_id" ]] && type -t agents::metrics::histogram &>/dev/null; then
-        local end_time=$(date +%s%3N)
-        local duration=$((end_time - start_time))
-        agents::metrics::histogram "${REGISTRY_FILE:-${APP_ROOT}/.vrooli/claude-code-agents.json}" "$agent_id" "request_duration_ms" "$duration"
-        
-        # Track success/error
-        if [[ $result -eq 0 ]]; then
-            log::debug "Claude Code operation completed successfully"
-        else
-            type -t agents::metrics::increment &>/dev/null && \
-                agents::metrics::increment "${REGISTRY_FILE:-${APP_ROOT}/.vrooli/claude-code-agents.json}" "$agent_id" "errors" 1
-        fi
-        
-        # Update process metrics
-        if type -t agents::metrics::gauge &>/dev/null; then
-            # Get current process memory usage (in MB)
-            local memory_kb=$(ps -o rss= -p $$ 2>/dev/null | awk '{print $1}' || echo "0")
-            local memory_mb=$((memory_kb / 1024))
-            agents::metrics::gauge "${REGISTRY_FILE:-${APP_ROOT}/.vrooli/claude-code-agents.json}" "$agent_id" "memory_mb" "$memory_mb"
-        fi
+    if [[ $result -eq 0 ]]; then
+        log::debug "Claude Code operation completed successfully"
     fi
     
     # Clean up
     rm -f "$prompt_file"
-    
-    # Unregister agent on completion
-    if [[ -n "$agent_id" ]] && type -t agent_manager::unregister &>/dev/null; then
-        agent_manager::unregister "$agent_id" >/dev/null 2>&1
-    fi
     
     return $result
 }

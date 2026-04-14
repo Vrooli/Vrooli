@@ -101,6 +101,8 @@ func packageGovernanceRecommendation(code string) string {
 		return "Only consume packages that declare scenario adoption support for this consumer class."
 	case "package-adoption-mode-valid":
 		return "Use one of the adoption modes explicitly declared in the package manifest."
+	case "package-go-module-replace-required":
+		return "Add the required local replace directive for the governed Go package so the consumer stays workspace-independent."
 	default:
 		return "Review the governed package manifest and align the scenario's package adoption with `vrooli package audit`."
 	}

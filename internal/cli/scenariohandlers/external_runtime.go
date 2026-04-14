@@ -1,0 +1,224 @@
+package scenariohandlers
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/vrooli/vrooli/internal/cli/rootcli"
+	. "github.com/vrooli/vrooli/internal/cli/scenariocli"
+	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/internal/scenarioexec"
+)
+
+func UISmokeHandler[C any](deps HandlerDeps[C]) func(C, []string) error {
+	return func(ctx C, args []string) error {
+		cliPath, err := deps.LocateTestGenieCLI(ctx)
+		if err != nil {
+			return err
+		}
+		commandArgs := BuildUISmokeArgs(deps.Globals(ctx), args)
+		return deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
+			Name:   cliPath,
+			Args:   commandArgs,
+			Dir:    deps.Root(ctx),
+			Env:    deps.CommandEnv(ctx),
+			Stdout: deps.Stdout(ctx),
+			Stderr: deps.Stderr(ctx),
+		})
+	}
+}
+
+func BuildUISmokeArgs(globals rootcli.GlobalOptions, args []string) []string {
+	commandArgs := []string{"ui-smoke"}
+	commandArgs = append(commandArgs, args...)
+	return append(commandArgs, rootcli.PassthroughFlags(globals, commandArgs)...)
+}
+
+func CompletenessHandler[C any](deps HandlerDeps[C]) func(C, []string) error {
+	return func(ctx C, args []string) error {
+		cliPath, err := deps.LocateCompleteCLI(ctx)
+		if err != nil {
+			return err
+		}
+		commandArgs := BuildScenarioCompletenessArgs(deps.Globals(ctx), args)
+		return deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
+			Name:   cliPath,
+			Args:   commandArgs,
+			Dir:    deps.Root(ctx),
+			Env:    deps.CommandEnv(ctx),
+			Stdout: deps.Stdout(ctx),
+			Stderr: deps.Stderr(ctx),
+		})
+	}
+}
+
+func BuildScenarioCompletenessArgs(globals rootcli.GlobalOptions, args []string) []string {
+	commandArgs := append([]string{}, args...)
+	if globals.JSON && !rootcli.ContainsArg(commandArgs, "--json") && !rootcli.ContainsArg(commandArgs, "--format") {
+		commandArgs = append(commandArgs, "--json")
+	}
+	return commandArgs
+}
+
+func RequirementsHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
+	return bindGlobal(deps.Stdout,
+		func(ctx C, args []string) (RequirementsRequest, error) { return ParseRequirementsRequest(args) },
+		func(ctx C, req RequirementsRequest) (cliout.Format, struct{}, error) {
+			if req.Snapshot {
+				return cliout.FormatHuman, struct{}{}, runScenarioRequirementsSnapshot(deps.Root(ctx), req.Args[1:], deps.Stdout(ctx))
+			}
+			cliPath, err := deps.LocateTestGenieCLI(ctx)
+			if err != nil {
+				return "", struct{}{}, err
+			}
+			commandArgs, workdir, err := translateScenarioRequirementsArgs(deps.Root(ctx), deps.Globals(ctx), req.Args)
+			if err != nil {
+				return "", struct{}{}, err
+			}
+			err = deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
+				Name:   cliPath,
+				Args:   commandArgs,
+				Dir:    workdir,
+				Env:    deps.CommandEnv(ctx),
+				Stdout: deps.Stdout(ctx),
+				Stderr: deps.Stderr(ctx),
+			})
+			return cliout.FormatHuman, struct{}{}, err
+		},
+		func(w io.Writer, _ cliout.Format, _ struct{}) error { return nil },
+	)
+}
+
+func translateScenarioRequirementsArgs(root string, globals rootcli.GlobalOptions, args []string) ([]string, string, error) {
+	known := map[string]struct{}{"report": {}, "validate": {}, "sync": {}, "manual-log": {}, "lint-prd": {}, "phase": {}, "phase-inspect": {}, "init": {}}
+	subcommand := args[0]
+	rest := args[1:]
+	if _, ok := known[subcommand]; !ok {
+		subcommand = "report"
+		rest = args
+	}
+	switch subcommand {
+	case "report":
+		return translateScenarioRequirementsSimple(root, globals, "report", rest, false, true)
+	case "validate":
+		return translateScenarioRequirementsSimple(root, globals, "validate", rest, true, true)
+	case "sync":
+		return translateScenarioRequirementsSimple(root, globals, "sync", rest, true, false)
+	case "lint-prd":
+		return translateScenarioRequirementsSimple(root, globals, "lint-prd", rest, true, false)
+	case "init":
+		return translateScenarioRequirementsSimple(root, globals, "init", rest, true, false)
+	case "phase", "phase-inspect":
+		return translateScenarioRequirementsSimple(root, globals, "phase", rest, true, false)
+	case "manual-log":
+		return translateScenarioRequirementsSimple(root, globals, "manual-log", rest, true, false)
+	default:
+		return nil, "", rootcli.UsageErrorf("scenario requirements", "unsupported requirements subcommand: %s", subcommand)
+	}
+}
+
+func translateScenarioRequirementsSimple(root string, globals rootcli.GlobalOptions, subcommand string, args []string, includeScenario, includeJSON bool) ([]string, string, error) {
+	scenarioName := ""
+	translated := []string{"requirements", subcommand}
+	for index := 0; index < len(args); index++ {
+		arg := args[index]
+		switch {
+		case arg == "--help" || arg == "-h":
+			translated = append(translated, arg)
+		case strings.HasPrefix(arg, "-"):
+			translated = append(translated, arg)
+			if requiresScenarioRequirementsOptionValue(arg) && index+1 < len(args) {
+				index++
+				translated = append(translated, args[index])
+			}
+		case scenarioName == "":
+			scenarioName = arg
+		default:
+			translated = append(translated, arg)
+		}
+	}
+	if rootcli.ContainsArg(translated, "--help") || rootcli.ContainsArg(translated, "-h") {
+		return translated, root, nil
+	}
+	if scenarioName == "" {
+		return nil, "", rootcli.UsageErrorf("scenario requirements", "scenario requirements %s requires a scenario name", subcommand)
+	}
+	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
+	if info, err := os.Stat(scenarioDir); err != nil || !info.IsDir() {
+		return nil, "", rootcli.UsageErrorf("scenario requirements", "scenario directory not found: %s", scenarioDir)
+	}
+	if subcommand != "init" {
+		if info, err := os.Stat(filepath.Join(scenarioDir, "requirements")); err != nil || !info.IsDir() {
+			return nil, "", rootcli.UsageErrorf("scenario requirements", "scenario %s does not define requirements/", scenarioName)
+		}
+	}
+	translated = append(translated, "--dir", scenarioDir)
+	if includeScenario {
+		translated = append(translated, "--scenario", scenarioName)
+	}
+	if includeJSON && globals.JSON && !rootcli.ContainsArg(translated, "--json") {
+		translated = append(translated, "--json")
+	}
+	return translated, scenarioDir, nil
+}
+
+func requiresScenarioRequirementsOptionValue(flag string) bool {
+	switch flag {
+	case "--format", "--output", "--status", "--notes", "--artifact", "--validated-by", "--validated-at", "--expires-in", "--expires-at", "--manifest", "--phase", "--template", "--owner":
+		return true
+	default:
+		return false
+	}
+}
+
+func runScenarioRequirementsSnapshot(root string, args []string, stdout io.Writer) error {
+	scenarioName := ""
+	for _, arg := range args {
+		switch arg {
+		case "--help", "-h":
+			_, _ = fmt.Fprintln(stdout, "Usage: vrooli scenario requirements snapshot <name>")
+			return nil
+		default:
+			if strings.HasPrefix(arg, "-") {
+				return rootcli.UnknownOptionError("scenario requirements snapshot", arg)
+			}
+			if scenarioName != "" {
+				return rootcli.UsageErrorf("scenario requirements snapshot", "scenario requirements snapshot accepts exactly one scenario name")
+			}
+			scenarioName = arg
+		}
+	}
+	if scenarioName == "" {
+		return rootcli.UsageErrorf("scenario requirements snapshot", "scenario requirements snapshot requires a scenario name")
+	}
+	snapshotPath := filepath.Join(root, "scenarios", scenarioName, "coverage", "requirements-sync", "latest.json")
+	data, err := os.ReadFile(snapshotPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("snapshot not found: %s", snapshotPath)
+		}
+		return err
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return err
+	}
+	_, _ = fmt.Fprintf(stdout, "Requirements snapshot (%s)\n", scenarioName)
+	_, _ = fmt.Fprintf(stdout, "  File: %s\n", filepath.Join("coverage", "requirements-sync", "latest.json"))
+	if syncedAt, _ := payload["synced_at"].(string); syncedAt != "" {
+		_, _ = fmt.Fprintf(stdout, "  Synced at: %s\n", syncedAt)
+	}
+	if tests, ok := payload["tests_run"].([]any); ok && len(tests) > 0 {
+		_, _ = fmt.Fprintln(stdout, "  Tests run:")
+		for _, test := range tests {
+			if command, ok := test.(string); ok && strings.TrimSpace(command) != "" {
+				_, _ = fmt.Fprintf(stdout, "    - %s\n", command)
+			}
+		}
+	}
+	return nil
+}

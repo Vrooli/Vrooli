@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/buildinfo"
+	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
@@ -16,9 +18,11 @@ import (
 
 func newTestApp(root string) *App {
 	app := configuredApp()
+	app.registry = rootcli.NewRegistry(buildTopLevelHandlerMap(), buildScenarioHandlerMap())
 	app.resolveSourceRoot = func() (string, error) { return root, nil }
-	app.isStale = func() bool { return false }
-	app.checkStaleness = nil
+	app.checkStaleness = func() (buildinfo.StaleCheck, error) {
+		return buildinfo.StaleCheck{Stale: false}, nil
+	}
 	return app
 }
 
@@ -94,6 +98,11 @@ func repoRootFromCaller(t *testing.T) string {
 	return testkitgo.ProjectRoot(t)
 }
 
+func projectRootForCLI(t *testing.T) string {
+	t.Helper()
+	return repoRootFromCaller(t)
+}
+
 func writeTestScenarioService(t *testing.T, root, name, description string) {
 	t.Helper()
 	testkitvrooli.WriteScenarioService(t, root, name, testkitvrooli.ScenarioServiceManifest(
@@ -154,10 +163,8 @@ func writeResourceStatusFixture(t *testing.T, root, name, statusJSON string) {
 	testkitvrooli.WriteResourceManifest(t, root, name, testkitvrooli.ResourceManifest(
 		name,
 		testkitvrooli.WithResourceDescription("Fixture resource"),
-		testkitvrooli.WithLegacyCLIPath(filepath.Join("resources", name, "cli.sh")),
 	))
-	script := "#!/usr/bin/env bash\nset -e\nif [[ \"$1\" == \"status\" ]]; then\n  printf '%s\\n' '" + statusJSON + "'\n  exit 0\nfi\nprintf '{\"message\":\"ok\"}\\n'\n"
-	testkitvrooli.WriteResourceCLI(t, root, name, script)
+	testkitvrooli.WriteResourceCLI(t, root, name, "#!/usr/bin/env bash\nprintf 'ok\\n'\n")
 }
 
 func writeScenarioSetupOnlyFixture(t *testing.T, root, name string) {

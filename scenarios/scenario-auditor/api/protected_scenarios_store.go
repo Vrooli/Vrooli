@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/vrooli/api-core/storage"
 )
 
 // ProtectedScenariosStore manages a persistent list of scenarios that should be
@@ -37,29 +38,13 @@ func initProtectedScenariosStore() *ProtectedScenariosStore {
 }
 
 func (ps *ProtectedScenariosStore) enablePersistence() {
-	dataDir, err := resolveScenarioAuditorDataDir()
+	path, err := resolveScenarioAuditorStoragePath(storage.ClassConfig, "protected-scenarios.json")
 	if err != nil {
-		logger.Error("Failed to resolve scenario-auditor data directory", err)
+		logger.Error("Failed to resolve scenario-auditor protected scenarios config path", err)
 		logger.Info("Protected scenarios store will operate in memory-only mode (no persistence)")
 		return
 	}
-
-	parentDir := filepath.Dir(dataDir)
-	if _, err := os.Stat(parentDir); os.IsNotExist(err) {
-		if err := os.MkdirAll(parentDir, 0o755); err != nil {
-			logger.Error(fmt.Sprintf("Failed to create parent data directory %s", parentDir), err)
-			logger.Info("Protected scenarios store will operate in memory-only mode (no persistence)")
-			return
-		}
-	}
-
-	if err := os.MkdirAll(dataDir, 0o755); err != nil {
-		logger.Error(fmt.Sprintf("Failed to create scenario-auditor data directory %s", dataDir), err)
-		logger.Info("Protected scenarios store will operate in memory-only mode (no persistence)")
-		return
-	}
-
-	ps.filePath = filepath.Join(dataDir, "protected-scenarios.json")
+	ps.filePath = path
 	ps.persistenceReady = true
 
 	if err := ps.loadFromFile(); err != nil {
@@ -127,12 +112,7 @@ func (ps *ProtectedScenariosStore) saveToFileLocked() error {
 		return err
 	}
 
-	tmpPath := ps.filePath + ".tmp"
-	if err := os.WriteFile(tmpPath, bytes, 0o644); err != nil {
-		return err
-	}
-
-	return os.Rename(tmpPath, ps.filePath)
+	return storage.WriteFileAtomic(ps.filePath, bytes, storage.DefaultFilePerm)
 }
 
 // GetProtectedScenarios returns the current list of protected scenarios

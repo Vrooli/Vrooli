@@ -6,10 +6,11 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 )
 
-const ResourceConfigPath = ".vrooli/service.json"
+const ResourceConfigPath = repocontractmeta.ServiceManifestPathname
 
 type ConfigEntry struct {
 	Enabled     bool   `json:"enabled,omitempty"`
@@ -18,53 +19,20 @@ type ConfigEntry struct {
 }
 
 type Resource struct {
-	Name            string                            `json:"name"`
-	Path            string                            `json:"path"`
-	Exists          bool                              `json:"exists"`
-	Registered      bool                              `json:"registered"`
-	Enabled         bool                              `json:"enabled"`
-	Required        bool                              `json:"required"`
-	HasCLI          bool                              `json:"has_cli"`
-	HasScript       bool                              `json:"has_script"`
-	Config          ConfigEntry                       `json:"config"`
-	ControlMode     string                            `json:"control_mode,omitempty"`
-	Driver          string                            `json:"driver,omitempty"`
-	Template        string                            `json:"template,omitempty"`
-	PortabilityTier string                            `json:"portability_tier,omitempty"`
-	ManifestPath    string                            `json:"manifest_path,omitempty"`
-	LegacyAdapter   manifestpkg.ResourceLegacyAdapter `json:"legacy_adapter,omitempty"`
-}
-
-func (r Resource) CommandAdapterDisposition() string {
-	return r.LegacyAdapter.FinalDisposition
-}
-
-func (r Resource) HasCommandAdapterDetails() bool {
-	return r.LegacyAdapter.Owner != "" ||
-		r.LegacyAdapter.DecisionDeadline != "" ||
-		r.LegacyAdapter.FinalDisposition != "" ||
-		r.LegacyAdapter.LegacyCLIPath != "" ||
-		r.LegacyAdapter.Notes != ""
-}
-
-func (r Resource) CommandAdapterFields() [][2]string {
-	fields := make([][2]string, 0, 5)
-	if r.LegacyAdapter.Owner != "" {
-		fields = append(fields, [2]string{"Adapter Owner", r.LegacyAdapter.Owner})
-	}
-	if r.LegacyAdapter.DecisionDeadline != "" {
-		fields = append(fields, [2]string{"Decision Deadline", r.LegacyAdapter.DecisionDeadline})
-	}
-	if r.LegacyAdapter.FinalDisposition != "" {
-		fields = append(fields, [2]string{"Final Disposition", r.LegacyAdapter.FinalDisposition})
-	}
-	if r.LegacyAdapter.LegacyCLIPath != "" {
-		fields = append(fields, [2]string{"Command Path", r.LegacyAdapter.LegacyCLIPath})
-	}
-	if r.LegacyAdapter.Notes != "" {
-		fields = append(fields, [2]string{"Adapter Notes", r.LegacyAdapter.Notes})
-	}
-	return fields
+	Name            string      `json:"name"`
+	Path            string      `json:"path"`
+	Exists          bool        `json:"exists"`
+	Registered      bool        `json:"registered"`
+	Enabled         bool        `json:"enabled"`
+	Required        bool        `json:"required"`
+	HasCLI          bool        `json:"has_cli"`
+	HasScript       bool        `json:"has_script"`
+	Config          ConfigEntry `json:"config"`
+	ControlMode     string      `json:"control_mode,omitempty"`
+	Driver          string      `json:"driver,omitempty"`
+	Template        string      `json:"template,omitempty"`
+	PortabilityTier string      `json:"portability_tier,omitempty"`
+	ManifestPath    string      `json:"manifest_path,omitempty"`
 }
 
 type DiscoverOptions struct {
@@ -146,12 +114,7 @@ func (s *Service) Discover(opts DiscoverOptions) ([]Resource, error) {
 			item.Template = manifest.Template
 			item.PortabilityTier = manifest.PortabilityTier
 			item.ManifestPath = manifestPath
-			item.LegacyAdapter = manifest.LegacyAdapter
-			if manifest.Driver == "legacy-adapter" {
-				item.ControlMode = "legacy-adapter"
-			} else {
-				item.ControlMode = "manifest-native"
-			}
+			item.ControlMode = "manifest-native"
 		}
 		items = append(items, item)
 	}

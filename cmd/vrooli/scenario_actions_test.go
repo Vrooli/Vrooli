@@ -6,7 +6,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cli/scenariocli"
+	"github.com/vrooli/vrooli/internal/cli/scenariohandlers"
 	"github.com/vrooli/vrooli/internal/cliout"
 )
 
@@ -24,30 +26,30 @@ func TestExecuteScenarioCommandRendersHelpOnlyErrors(t *testing.T) {
 	var stdout bytes.Buffer
 	ctx := &commandContext{Stdout: &stdout}
 
-	err := executeCommandAction(configuredApp(), ctx, nil, commandAction[struct{}, struct{}]{
-		parse: func(ctx *commandContext, args []string) (struct{}, error) {
-			return struct{}{}, commandHelpOnly("Usage: vrooli scenario fake")
+	err := rootcli.BindGlobalCommand(commandStdout,
+		func(ctx *commandContext, args []string) (struct{}, error) {
+			return struct{}{}, rootcli.CommandHelpOnly(scenariocli.RequirementsHelpText())
 		},
-		run: func(app *App, ctx *commandContext, req struct{}) (cliout.Format, struct{}, error) {
+		func(ctx *commandContext, req struct{}) (cliout.Format, struct{}, error) {
 			t.Fatal("run should not be called for help-only command")
 			return "", struct{}{}, nil
 		},
-		render: func(w io.Writer, format cliout.Format, resp struct{}) error {
+		func(w io.Writer, format cliout.Format, resp struct{}) error {
 			t.Fatal("render should not be called for help-only command")
 			return nil
 		},
-	})
+	)(ctx, nil)
 	if err != nil {
 		t.Fatalf("executeCommandAction: %v", err)
 	}
-	if got := stdout.String(); !strings.Contains(got, "Usage: vrooli scenario fake") {
+	if got := stdout.String(); !strings.Contains(got, scenariocli.RequirementsHelpText()) {
 		t.Fatalf("help output missing usage text: %q", got)
 	}
 }
 
 func TestRenderScenarioListResponseHumanIncludesPortsWhenPresent(t *testing.T) {
 	var stdout bytes.Buffer
-	err := renderScenarioListResponse(&stdout, cliout.FormatHuman, scenariocli.ListResponse{
+	err := scenariocli.RenderListResponse(&stdout, cliout.FormatHuman, scenariocli.ListResponse{
 		Items: []scenariocli.ListItemOutput{{
 			Name:        "alpha",
 			Description: "demo",
@@ -78,7 +80,7 @@ func TestParseScenarioOpenRequestAcceptsJSONAndPrintURL(t *testing.T) {
 
 func TestRenderScenarioPortResponseHumanSingleMatchesLegacyContract(t *testing.T) {
 	var stdout bytes.Buffer
-	err := renderScenarioPortResponse(&stdout, cliout.FormatHuman, scenariocli.PortResponse{
+	err := scenariocli.RenderPortResponse(&stdout, cliout.FormatHuman, scenariocli.PortResponse{
 		Single: &scenariocli.PortSingleOutput{
 			Success:  true,
 			Scenario: "alpha",
@@ -101,5 +103,11 @@ func TestParseScenarioValidateEnvRequestAcceptsJSON(t *testing.T) {
 	}
 	if req.Name != "alpha" || !req.JSON {
 		t.Fatalf("request = %+v", req)
+	}
+}
+
+func TestScenarioHandlerHelpersCompile(t *testing.T) {
+	if scenariohandlers.FormatTemplateRequiredFlags(scenariocli.TemplateManifest{}) == "" {
+		t.Fatal("expected template flags helper to return a non-empty string")
 	}
 }

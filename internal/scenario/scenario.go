@@ -15,11 +15,12 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
 var ErrNotFound = errors.New("scenario not found")
 
-const defaultScenarioServiceRelPath = ".vrooli/service.json"
+const defaultScenarioServiceRelPath = repocontractmeta.ServiceManifestPathname
 
 func ProjectServicePath(root string) string {
 	return filepath.Join(filepath.Clean(root), filepath.FromSlash(defaultScenarioServiceRelPath))

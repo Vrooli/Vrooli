@@ -1,7 +1,6 @@
 package repocontractcheck
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -25,17 +24,6 @@ type Report struct {
 	ContractPath string        `json:"contract_path"`
 	Success      bool          `json:"success"`
 	Checks       []CheckResult `json:"checks"`
-}
-
-type adoptionExceptionDoc struct {
-	Version    string              `json:"version"`
-	Exceptions []adoptionException `json:"exceptions"`
-}
-
-type adoptionException struct {
-	Path   string `json:"path"`
-	Rule   string `json:"rule"`
-	Reason string `json:"reason"`
 }
 
 type adoptionRule struct {
@@ -400,12 +388,7 @@ func checkAdoptionRulesAlignment(contract *repocontract.Contract, root string, r
 		return err
 	}
 
-	exceptions, err := loadAdoptionExceptions(root)
-	if err != nil {
-		return err
-	}
-
-	violations, err := scanAdoptionViolations(root, exceptions)
+	violations, err := scanAdoptionViolations(root)
 	if err != nil {
 		return err
 	}
@@ -426,8 +409,6 @@ func checkGuidanceAlignment(root string) error {
 			path: "docs/repo-contract.md",
 			snippets: []string{
 				"## Adoption Rules",
-				"## Grandfathered Debt and Exceptions",
-				"`.vrooli/repo-contract-adoption-exceptions.json`",
 				"future repo-aware work",
 				"`packages/repo-contract-go` directly",
 			},
@@ -482,43 +463,7 @@ func checkGuidanceAlignment(root string) error {
 	return nil
 }
 
-func loadAdoptionExceptions(root string) (map[string]map[string]string, error) {
-	path := filepath.Join(root, ".vrooli", "repo-contract-adoption-exceptions.json")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read adoption exceptions: %w", err)
-	}
-
-	var doc adoptionExceptionDoc
-	if err := json.Unmarshal(data, &doc); err != nil {
-		return nil, fmt.Errorf("decode adoption exceptions: %w", err)
-	}
-	if strings.TrimSpace(doc.Version) == "" {
-		return nil, fmt.Errorf("adoption exceptions missing version")
-	}
-
-	allowed := make(map[string]map[string]string, len(doc.Exceptions))
-	for _, item := range doc.Exceptions {
-		pathKey := filepath.ToSlash(filepath.Clean(strings.TrimSpace(item.Path)))
-		ruleKey := strings.TrimSpace(item.Rule)
-		reason := strings.TrimSpace(item.Reason)
-		switch {
-		case pathKey == "" || pathKey == ".":
-			return nil, fmt.Errorf("adoption exception has empty path")
-		case ruleKey == "":
-			return nil, fmt.Errorf("adoption exception %q missing rule", item.Path)
-		case reason == "":
-			return nil, fmt.Errorf("adoption exception %q/%q missing reason", item.Path, item.Rule)
-		}
-		if _, ok := allowed[pathKey]; !ok {
-			allowed[pathKey] = map[string]string{}
-		}
-		allowed[pathKey][ruleKey] = reason
-	}
-	return allowed, nil
-}
-
-func scanAdoptionViolations(root string, exceptions map[string]map[string]string) ([]string, error) {
+func scanAdoptionViolations(root string) ([]string, error) {
 	rules := []adoptionRule{
 		{
 			Name:        "ad_hoc_repo_root_detector",
@@ -592,9 +537,6 @@ func scanAdoptionViolations(root string, exceptions map[string]map[string]string
 				if rule.Name == "ad_hoc_repo_root_detector" && strings.Contains(text, "repocontract.") {
 					continue
 				}
-				if isAllowedAdoptionViolation(exceptions, rel, rule.Name) {
-					continue
-				}
 				violations = append(violations, fmt.Sprintf("%s (%s)", rel, rule.Name))
 			}
 			return nil
@@ -614,15 +556,6 @@ func shouldSkipAdoptionScan(rel string) bool {
 		return true
 	}
 	return false
-}
-
-func isAllowedAdoptionViolation(exceptions map[string]map[string]string, path string, rule string) bool {
-	rules, ok := exceptions[path]
-	if !ok {
-		return false
-	}
-	_, ok = rules[rule]
-	return ok
 }
 
 func manifestCount(root string, relManifest string) (int, error) {

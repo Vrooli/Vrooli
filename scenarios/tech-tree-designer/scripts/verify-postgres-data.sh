@@ -3,15 +3,15 @@
 set -euo pipefail
 
 SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_ROOT="$(cd "${SCENARIO_DIR}/../.." && pwd)"
 
-# shellcheck disable=SC1091
-source "${APP_ROOT}/resources/postgres/config/exports.sh"
-# shellcheck disable=SC1091
-source "${APP_ROOT}/resources/postgres/config/defaults.sh"
+POSTGRES_HOST="${POSTGRES_HOST:-localhost}"
+POSTGRES_PORT="${POSTGRES_PORT:-5433}"
+POSTGRES_USER="${POSTGRES_USER:-vrooli}"
+POSTGRES_DB="${POSTGRES_DB:-tech_tree_designer}"
+POSTGRES_CONTAINER_NAME="${POSTGRES_CONTAINER_NAME:-vrooli-postgres-main}"
 
 if [[ -z "${POSTGRES_PASSWORD:-}" ]]; then
-  echo "[tech-tree-designer] ERROR: POSTGRES_PASSWORD is not set by the resource exports" >&2
+  echo "[tech-tree-designer] ERROR: POSTGRES_PASSWORD is not set by the lifecycle environment" >&2
   exit 1
 fi
 
@@ -32,13 +32,12 @@ run_psql() {
     exit 1
   fi
 
-  local container_name="${POSTGRES_CONTAINER_PREFIX}-${POSTGRES_INSTANCE:-main}"
-  if ! docker ps --format '{{.Names}}' | grep -q "^${container_name}$"; then
-    echo "[tech-tree-designer] ERROR: Postgres container '${container_name}' is not running" >&2
+  if ! docker ps --format '{{.Names}}' | grep -q "^${POSTGRES_CONTAINER_NAME}$"; then
+    echo "[tech-tree-designer] ERROR: Postgres container '${POSTGRES_CONTAINER_NAME}' is not running" >&2
     exit 1
   fi
 
-  docker exec -e PGPASSWORD="${POSTGRES_PASSWORD}" "$container_name" \
+  docker exec -e PGPASSWORD="${POSTGRES_PASSWORD}" "${POSTGRES_CONTAINER_NAME}" \
     psql -h localhost -p 5432 -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -v ON_ERROR_STOP=1 -tA -F ',' -c "$sql"
 }
 

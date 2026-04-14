@@ -3,26 +3,28 @@ package repocontractmeta
 import "path/filepath"
 
 const (
-	ProjectConfigDir           = ".vrooli"
-	ContractFilename           = "repo-contract.json"
-	ContractSchemaRef          = "schemas/repo-contract.schema.json"
-	AdoptionExceptionsFilename = "repo-contract-adoption-exceptions.json"
-	SchemaDir                  = "schemas"
-	SchemaFilename             = "repo-contract.schema.json"
-	CommonSchemaFilename       = "common.schema.json"
-	ValidationScriptFilename   = "validate-repo-contract.py"
-	DocsPath                   = "docs/repo-contract.md"
-	MiniBundleProfile          = "mini_vrooli_bundle"
-	InfoManifestFilename       = "info-manifest.json"
-	DefaultContractVersion     = "1.0.0"
+	ProjectConfigDir         = ".vrooli"
+	ServiceManifestFilename  = "service.json"
+	ServiceManifestPathname  = ProjectConfigDir + "/" + ServiceManifestFilename
+	ResourceManifestFilename = "resource.json"
+	ContractFilename         = "repo-contract.json"
+	ContractSchemaRef        = "schemas/repo-contract.schema.json"
+	SchemaDir                = "schemas"
+	SchemaFilename           = "repo-contract.schema.json"
+	CommonSchemaFilename     = "common.schema.json"
+	ValidationScriptFilename = "validate-repo-contract.py"
+	DocsPath                 = "docs/repo-contract.md"
+	MiniBundleProfile        = "mini_vrooli_bundle"
+	InfoManifestFilename     = "info-manifest.json"
+	DefaultContractVersion   = "1.0.0"
 )
 
 func ContractPath(root string) string {
 	return filepath.Join(root, ProjectConfigDir, ContractFilename)
 }
 
-func AdoptionExceptionsPath(root string) string {
-	return filepath.Join(root, ProjectConfigDir, AdoptionExceptionsFilename)
+func ProjectServiceManifestPath(root string) string {
+	return filepath.Join(root, ProjectConfigDir, ServiceManifestFilename)
 }
 
 func SchemaPath(root string) string {
@@ -39,4 +41,8 @@ func ValidationScriptPath(root string) string {
 
 func InfoManifestPath(root string) string {
 	return filepath.Join(root, ProjectConfigDir, InfoManifestFilename)
+}
+
+func ResourceManifestPath(root, name string) string {
+	return filepath.Join(root, "resources", name, ResourceManifestFilename)
 }

@@ -10,7 +10,7 @@ import (
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 )
 
-func renderSetupRequirementPlan(w io.Writer, opts options, report vrooliruntime.Report) {
+func renderSetupRequirementPlan(w io.Writer, opts Options, report vrooliruntime.Report) {
 	if w == nil {
 		return
 	}
@@ -26,7 +26,7 @@ func renderSetupRequirementPlan(w io.Writer, opts options, report vrooliruntime.
 	renderSetupRequirementOverview(w, report, false)
 }
 
-func renderSetupRequirementResult(w io.Writer, opts options, report vrooliruntime.Report) {
+func renderSetupRequirementResult(w io.Writer, opts Options, report vrooliruntime.Report) {
 	if w == nil {
 		return
 	}

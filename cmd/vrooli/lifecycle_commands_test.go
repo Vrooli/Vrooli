@@ -5,11 +5,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/cli/projectcli"
+	"github.com/vrooli/vrooli/internal/cli/topcli"
 )
 
 func TestLifecycleCommandIsHiddenFromMainHelpButSupportsDirectHelp(t *testing.T) {
 	var help bytes.Buffer
-	showMainHelp(&help)
+	topcli.RenderMainHelp(&help, topcli.CommandSpecs())
 	if strings.Contains(help.String(), "\nlifecycle") || strings.Contains(help.String(), "Internal lifecycle command plumbing") {
 		t.Fatalf("main help should hide lifecycle command: %q", help.String())
 	}
@@ -29,7 +32,7 @@ func TestLifecycleCommandIsHiddenFromMainHelpButSupportsDirectHelp(t *testing.T)
 	if stderr.Len() != 0 {
 		t.Fatalf("stderr = %q", stderr.String())
 	}
-	if !strings.Contains(stdout.String(), "Usage: vrooli lifecycle protect -- <command> [args...]") {
+	if !strings.Contains(stdout.String(), projectcli.LifecycleProtectHelpText) {
 		t.Fatalf("stdout = %q", stdout.String())
 	}
 }
@@ -95,7 +98,7 @@ func TestLifecycleProtectRequiresProtectedCommandAfterDoubleDash(t *testing.T) {
 		t.Fatalf("help exit code = %d", code)
 	}
 	rendered := stdout.String() + stderr.String()
-	if !strings.Contains(rendered, "Usage: vrooli lifecycle protect -- <command> [args...]") {
+	if !strings.Contains(rendered, projectcli.LifecycleProtectHelpText) {
 		t.Fatalf("rendered = %q", rendered)
 	}
 
@@ -110,7 +113,7 @@ func TestLifecycleProtectRequiresProtectedCommandAfterDoubleDash(t *testing.T) {
 }
 
 func TestLifecycleCommandIsNotSuggestedForUnknownCommands(t *testing.T) {
-	suggestions := suggestTopLevelCommands("lifecycl")
+	suggestions := newTestApp(t.TempDir()).registry.SuggestTopLevel("lifecycl")
 	for _, suggestion := range suggestions {
 		if suggestion == "lifecycle" {
 			t.Fatalf("hidden lifecycle command should not be suggested: %v", suggestions)

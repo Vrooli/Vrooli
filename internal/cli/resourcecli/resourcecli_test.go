@@ -10,27 +10,20 @@ import (
 	"github.com/vrooli/vrooli/internal/resources"
 )
 
-func TestWriteStatusHumanIncludesLegacyAdapterMetadata(t *testing.T) {
+func TestWriteStatusHumanIncludesCoreMetadata(t *testing.T) {
 	healthy := false
 	status := resources.Status{
 		Resource: resources.Resource{
 			Name:            "fixture",
 			Enabled:         true,
-			ControlMode:     "legacy-adapter",
-			Driver:          "legacy-adapter",
+			ControlMode:     "manifest-native",
+			Driver:          "external-cli",
 			PortabilityTier: "partial",
-			LegacyAdapter: resources.ResourceLegacyAdapter{
-				Owner:            "CLI tests",
-				DecisionDeadline: "2026-12-31",
-				FinalDisposition: "migrate",
-				LegacyCLIPath:    "resources/fixture/cli.sh",
-				Notes:            "Adapter note",
-			},
 		},
 		Installed:  true,
 		Running:    false,
 		Healthy:    &healthy,
-		Message:    "legacy adapter",
+		Message:    "available",
 		ProbeError: "probe failed",
 	}
 
@@ -39,7 +32,7 @@ func TestWriteStatusHumanIncludesLegacyAdapterMetadata(t *testing.T) {
 		t.Fatalf("WriteStatus: %v", err)
 	}
 	output := stdout.String()
-	for _, want := range []string{"fixture", "Adapter Owner", "CLI tests", "Adapter note", "Probe Error"} {
+	for _, want := range []string{"fixture", "manifest-native", "external-cli", "Probe Error"} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("missing %q in output:\n%s", want, output)
 		}

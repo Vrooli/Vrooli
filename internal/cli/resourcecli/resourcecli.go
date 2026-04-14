@@ -22,11 +22,10 @@ func WriteList(w io.Writer, format cliout.Format, items []resources.Resource) er
 			item.ControlMode,
 			item.Driver,
 			item.PortabilityTier,
-			item.CommandAdapterDisposition(),
 			cliout.BoolLabel(item.Registered),
 		})
 	}
-	return cliout.RenderTable(w, []string{"Name", "Enabled", "Control", "Driver", "Portability", "Decision", "Registered"}, rows)
+	return cliout.RenderTable(w, []string{"Name", "Enabled", "Control", "Driver", "Portability", "Registered"}, rows)
 }
 
 func WriteStatuses(w io.Writer, format cliout.Format, items []resources.Status) error {
@@ -58,7 +57,6 @@ func WriteStatuses(w io.Writer, format cliout.Format, items []resources.Status) 
 func WriteStatus(w io.Writer, format cliout.Format, item resources.Status) error {
 	if format == cliout.FormatJSON {
 		return cliout.WriteSuccessFields(w, map[string]any{
-			"success":   true,
 			"name":      item.Resource.Name,
 			"installed": item.Installed,
 			"running":   item.Running,
@@ -83,11 +81,6 @@ func WriteStatus(w io.Writer, format cliout.Format, item resources.Status) error
 		rows = append(rows, []string{"Status Code", item.StatusCode})
 	}
 	rows = append(rows, []string{"Status", item.Message})
-	if item.Resource.HasCommandAdapterDetails() {
-		for _, field := range item.Resource.CommandAdapterFields() {
-			rows = append(rows, []string{field[0], field[1]})
-		}
-	}
 	if item.ProbeError != "" {
 		rows = append(rows, []string{"Probe Error", item.ProbeError})
 	}

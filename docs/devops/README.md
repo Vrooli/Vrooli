@@ -34,7 +34,7 @@ scripts/                    # Shared shell debt outside the project control plan
 .vrooli/                    # Configuration and runtime data
 ├── service.json            # Service configuration
 ├── app-identity.json       # Application identity
-└── running-resources.json  # Runtime status tracking
+└── ...                     # Local runtime data (logs, caches, other machine-local state)
 ```
 
 ## Key Documentation

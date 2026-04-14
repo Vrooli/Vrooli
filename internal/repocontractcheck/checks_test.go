@@ -107,7 +107,6 @@ func newValidationFixtureRepo(t *testing.T) string {
 
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
-	fixture.WriteRepoContractExceptions(t)
 	fixture.WriteRepoSupportDocs(t, testkitgo.DefaultRepoSupportDocs())
 	fixture.WriteScenarioStub(t, "alpha")
 	fixture.WriteResourceStub(t, "redis")

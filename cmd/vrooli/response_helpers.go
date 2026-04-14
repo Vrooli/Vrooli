@@ -13,11 +13,11 @@ func formatFromJSON(jsonFlag bool) (cliout.Format, error) {
 }
 
 func parseOutputFormat(globals globalOptions) (cliout.Format, error) {
-	return formatFromJSON(globals.json)
+	return formatFromJSON(globals.JSON)
 }
 
 func (ctx *commandContext) outputFormat(forceJSON bool) (cliout.Format, error) {
-	return formatFromJSON(ctx.Globals.json || forceJSON)
+	return formatFromJSON(ctx.Globals.JSON || forceJSON)
 }
 
 func (ctx *commandContext) executionContextForFormat(format cliout.Format) *commandContext {

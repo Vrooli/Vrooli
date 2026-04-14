@@ -7,32 +7,34 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cli/scenariocli"
 	"github.com/vrooli/vrooli/internal/process"
+	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=5 | LAST: 2026-04-11
 
 func TestParseArgsRecognizesLeadingGlobalFlags(t *testing.T) {
-	parsed, err := parseArgs([]string{"--json", "--verbose", "--no-color", "scenario", "list"})
+	parsed, err := rootcli.ParseArgs([]string{"--json", "--verbose", "--no-color", "scenario", "list"})
 	if err != nil {
-		t.Fatalf("parseArgs: %v", err)
+		t.Fatalf("ParseArgs: %v", err)
 	}
-	if parsed.command != "scenario" {
-		t.Fatalf("command = %q", parsed.command)
+	if parsed.Command != "scenario" {
+		t.Fatalf("command = %q", parsed.Command)
 	}
-	if strings.Join(parsed.args, ",") != "list" {
-		t.Fatalf("args = %v", parsed.args)
+	if strings.Join(parsed.Args, ",") != "list" {
+		t.Fatalf("args = %v", parsed.Args)
 	}
-	if !parsed.globals.json || !parsed.globals.verbose || !parsed.globals.noColor {
-		t.Fatalf("globals = %+v", parsed.globals)
+	if !parsed.Globals.JSON || !parsed.Globals.Verbose || !parsed.Globals.NoColor {
+		t.Fatalf("globals = %+v", parsed.Globals)
 	}
 }
 
 func TestConsumeInlineGlobalFlagsPromotesCommandScopedGlobals(t *testing.T) {
-	globals, args := consumeInlineGlobalFlags(globalOptions{}, []string{"--scenarios", "--json", "--verbose", "--no-color"})
-	if !globals.json || !globals.verbose || !globals.noColor {
+	globals, args := rootcli.ConsumeInlineGlobalFlags(globalOptions{}, []string{"--scenarios", "--json", "--verbose", "--no-color"})
+	if !globals.JSON || !globals.Verbose || !globals.NoColor {
 		t.Fatalf("globals = %+v", globals)
 	}
 	if got := strings.Join(args, ","); got != "--scenarios" {
@@ -43,7 +45,7 @@ func TestConsumeInlineGlobalFlagsPromotesCommandScopedGlobals(t *testing.T) {
 func TestCanonicalSetupInstallContract(t *testing.T) {
 	repoRoot := repoRootFromCaller(t)
 
-	serviceData, err := os.ReadFile(filepath.Join(repoRoot, ".vrooli", "service.json"))
+	serviceData, err := os.ReadFile(repocontractmeta.ProjectServiceManifestPath(repoRoot))
 	if err != nil {
 		t.Fatalf("read service.json: %v", err)
 	}

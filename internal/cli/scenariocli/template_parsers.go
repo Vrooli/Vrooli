@@ -4,14 +4,16 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 )
 
 func ParseTemplateListRequest(args []string) (TemplateListRequest, error) {
 	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
-		return TemplateListRequest{}, commandHelpOnly(TemplateCommandHelpText)
+		return TemplateListRequest{}, clipolicy.CommandHelpOnly(TemplateCommandHelpText)
 	}
 	if len(args) > 0 {
-		return TemplateListRequest{}, unknownOptionError("scenario template", args[0])
+		return TemplateListRequest{}, clipolicy.UnknownOptionError("scenario template", args[0])
 	}
 	return TemplateListRequest{}, nil
 }
@@ -19,7 +21,7 @@ func ParseTemplateListRequest(args []string) (TemplateListRequest, error) {
 func ParseTemplateShowRequest(args []string) (TemplateShowRequest, error) {
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
-			return TemplateShowRequest{}, commandHelpOnly(TemplateCommandHelpText)
+			return TemplateShowRequest{}, clipolicy.CommandHelpOnly(TemplateCommandHelpText)
 		}
 	}
 	if len(args) == 0 {
@@ -42,7 +44,7 @@ func ParseGenerateRequest(
 	}
 	for _, arg := range args {
 		if arg == "--help" || arg == "-h" {
-			return GenerateRequest{}, commandHelpOnly(TemplateGenerateHelpText)
+			return GenerateRequest{}, clipolicy.CommandHelpOnly(TemplateGenerateHelpText)
 		}
 	}
 	templateName := args[0]

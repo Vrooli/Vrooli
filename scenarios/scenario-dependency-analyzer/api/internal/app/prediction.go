@@ -10,8 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
-
 	"scenario-dependency-analyzer/internal/integrations/ollama"
 	"scenario-dependency-analyzer/internal/integrations/qdrant"
 )
@@ -19,45 +17,6 @@ import (
 // normalizeName lowercases and trims whitespace for consistent name comparisons.
 func normalizeName(name string) string {
 	return strings.TrimSpace(strings.ToLower(name))
-}
-
-// Core analysis functions
-
-// Integrate with Claude Code resource for intelligent analysis
-func analyzeWithClaudeCode(scenarioName, description string) (*ClaudeCodeAnalysis, error) {
-	// Create a temporary analysis file
-	analysisPrompt := fmt.Sprintf(`
-Analyze the following proposed Vrooli scenario and predict its likely dependencies:
-
-Scenario Name: %s
-Description: %s
-
-Please identify:
-1. Likely resource dependencies (postgres, redis, ollama, n8n, etc.)
-2. Similar existing scenarios it might depend on
-3. Recommended architecture patterns
-4. Potential optimization opportunities
-
-Format your response as structured analysis focusing on technical implementation needs.
-`, scenarioName, description)
-
-	// Write prompt to temporary file
-	tempFile := "/tmp/claude-analysis-" + uuid.New().String() + ".txt"
-	if err := os.WriteFile(tempFile, []byte(analysisPrompt), 0644); err != nil {
-		return nil, fmt.Errorf("failed to create analysis prompt file: %w", err)
-	}
-	defer os.Remove(tempFile)
-
-	// Execute Claude Code analysis
-	cmd := exec.Command("resource-claude-code", "analyze", tempFile, "--output", "json")
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("claude-code command failed: %w", err)
-	}
-
-	// Parse Claude Code response and extract dependency predictions
-	analysis := parseClaudeCodeResponse(string(output), description)
-	return analysis, nil
 }
 
 // Integrate with Qdrant for semantic similarity matching
@@ -265,13 +224,6 @@ func calculateScenarioConfidence(patterns []map[string]interface{}) float64 {
 	return math.Min(totalSimilarity/float64(len(patterns)), 1.0)
 }
 
-// Data structures for external integrations
-type ClaudeCodeAnalysis struct {
-	PredictedResources []map[string]interface{} `json:"predicted_resources"`
-	Recommendations    []map[string]interface{} `json:"recommendations"`
-	ArchitectureNotes  string                   `json:"architecture_notes"`
-}
-
 type QdrantSearchResults struct {
 	Matches []QdrantMatch `json:"matches"`
 }
@@ -282,72 +234,6 @@ type QdrantMatch struct {
 	Resources    []string               `json:"resources"`
 	Description  string                 `json:"description"`
 	Metadata     map[string]interface{} `json:"metadata"`
-}
-
-func parseClaudeCodeResponse(response, originalDescription string) *ClaudeCodeAnalysis {
-	// Parse Claude Code response and extract structured dependency predictions
-	// This is a simplified implementation - in practice, you'd parse the AI response more sophisticatedly
-
-	analysis := &ClaudeCodeAnalysis{
-		PredictedResources: []map[string]interface{}{},
-		Recommendations:    []map[string]interface{}{},
-		ArchitectureNotes:  response,
-	}
-
-	// Extract resource mentions from Claude's response
-	responseText := strings.ToLower(response)
-
-	resourcePatterns := map[string]float64{
-		"postgres":   0.8,
-		"postgresql": 0.8,
-		"database":   0.7,
-		"redis":      0.8,
-		"cache":      0.6,
-		"ollama":     0.9,
-		"llm":        0.7,
-		"n8n":        0.8,
-		"workflow":   0.6,
-		"qdrant":     0.9,
-		"vector":     0.7,
-		"minio":      0.8,
-		"storage":    0.5,
-	}
-
-	for pattern, confidence := range resourcePatterns {
-		if strings.Contains(responseText, pattern) {
-			// Map patterns to actual resource names
-			resourceName := mapPatternToResource(pattern)
-			if resourceName != "" {
-				analysis.PredictedResources = append(analysis.PredictedResources, map[string]interface{}{
-					"resource_name": resourceName,
-					"confidence":    confidence,
-					"reasoning":     fmt.Sprintf("Claude Code analysis mentioned '%s'", pattern),
-				})
-			}
-		}
-	}
-
-	return analysis
-}
-
-func mapPatternToResource(pattern string) string {
-	resourceMap := map[string]string{
-		"postgres":   "postgres",
-		"postgresql": "postgres",
-		"database":   "postgres",
-		"redis":      "redis",
-		"cache":      "redis",
-		"ollama":     "ollama",
-		"llm":        "ollama",
-		"n8n":        "n8n",
-		"workflow":   "n8n",
-		"qdrant":     "qdrant",
-		"vector":     "qdrant",
-		"minio":      "minio",
-		"storage":    "minio",
-	}
-
-	return resourceMap[pattern]
 }
 
 // Utility functions

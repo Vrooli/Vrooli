@@ -2,8 +2,7 @@ export interface Resource {
   name: string;
   status: string;
   category: string;
-  installed: string;
-  last_updated: string;
+  installed: boolean;
 }
 
 export interface OnboardingProgress {

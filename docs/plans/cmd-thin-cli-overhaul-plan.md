@@ -1,435 +1,342 @@
 # Thin `cmd/` Overhaul Plan
 
-**Status:** Phase 2 complete
+**Status:** Reopened after post-implementation audit on April 13, 2026
 **Owner:** Matthew Halloran
-**Scope:** Project-level Go command surface under `cmd/`, the command/application boundary under `internal/`, and the related test surface for `vrooli` and `vrooli-api`
-**Out of Scope:** Scenario-internal CLIs/APIs under `scenarios/*/`, except where project-level command contracts or shared test utilities must be aligned
-**Target:** A greenfield-quality command architecture where `cmd/` is a thin composition root, `internal/` owns application behavior, command metadata/help/output contracts are declared once, and all remaining legacy, compatibility, and dead code paths are removed
+**Scope:** Project-level command/runtime architecture for `cmd/vrooli`, `cmd/vrooli-api`, related `internal/cli/*`, `internal/app/*`, `internal/setup`, `internal/resources`, and the associated testkit/test surface
+**Target:** A genuinely thin binary layer where `cmd/` is only composition/bootstrap, `internal/` owns all command/application/domain behavior, all command and output contracts are declared once, and no legacy/compatibility/dead code remains in the runtime path
 
 ---
 
-## 0. For agents picking this up later
+## 0. Executive summary
 
-If you are resuming this work later, read this section first.
+The previous version of this plan was marked complete prematurely.
 
-- **What this plan is:** A full architectural cleanup and boundary-hardening plan for the project-level Go CLI after the Bash-to-Go migration became functionally complete.
-- **What triggered it:** The migration succeeded in behavior, but too much parsing, help text, compatibility translation, and orchestration logic still lives in `cmd/vrooli`, which is making the code verbose, inconsistent, and difficult to evolve safely.
-- **What “done” means:** Not “the current commands still pass.” The target is a professional end state with:
-  - thin `cmd/` binaries
-  - explicit application-layer boundaries in `internal/`
-  - centralized command metadata and user-visible contracts
-  - shared test seams and fixtures
-  - zero legacy or compatibility dispatch in the final runtime path
-  - zero dead code retained “just in case”
-- **How to validate progress:** Run the validation matrix in Section 11 after each phase, not just `go test ./cmd/vrooli`.
-- **How to resume work:** Start from the first unchecked item in the phased checklist. If code and plan drift, the repo is authoritative; update this plan rather than working around stale text.
-- **Phase 0 completion note:** On April 13, 2026 this plan was reviewed against the current `cmd/vrooli` and `internal/` implementation and promoted from a draft proposal to the authoritative target architecture for the overhaul work.
+The implementation moved useful pieces into `internal/cli/*` and `internal/app/*`, but the architecture is still not in the target end state. The main problem is not merely that `cmd/vrooli` still has many files. The deeper problem is that the current design still spreads command behavior across the wrong layers:
 
----
+- `cmd/vrooli` still owns a large amount of production command logic
+- `internal/app/*` still imports CLI packages in places
+- `internal/setup` still owns CLI parsing/help behavior
+- command errors/help/usage strings are still duplicated
+- scenario/resource/package/contract command families still have major runtime glue in `cmd/`
+- project-level runtime still exposes legacy/compatibility concepts such as scenario external command bridges and resource `legacy-adapter`
+- tests are still weighted far too heavily toward `cmd/vrooli`
 
-## 1. Why this overhaul is necessary
-
-The Go migration moved behavior into the Go module, but not yet enough architecture.
-
-Today, `cmd/vrooli` still acts as all of the following at once:
-
-- binary entry point
-- command registry
-- argument parser
-- usage/help text owner
-- command execution coordinator
-- compatibility router
-- subprocess translation layer
-- response-format policy layer
-- partial application layer
-
-That is the opposite of the intended end state. The command binary should be the thinnest layer in the system.
-
-The current shape has four concrete costs:
-
-1. **Responsibility drift**
-   - Command semantics are split across `cmd/vrooli`, `internal/cli/*`, and `internal/*` domain packages.
-   - Similar commands are implemented with different local patterns, increasing maintenance cost.
-
-2. **Contract drift**
-   - Usage text, error strings, JSON envelope keys, and human output messages are hard-coded in many places.
-   - Tests often assert those literals directly, which means contract changes require broad, noisy edits.
-
-3. **Transitional architecture becoming permanent**
-   - Compatibility and subprocess bridges that were acceptable during migration are still mixed into the normal command path.
-   - This makes it hard to see the real ownership boundary for a feature.
-
-4. **Test drag**
-   - There is solid coverage, but too much of it is concentrated in large command-package integration tests rather than layered test seams.
-   - Shared fixtures already exist in `packages/testkit-go`, but the command surface still carries too much custom test setup.
+This document supersedes the previous “complete” status. The effort is **not complete** until the checklist in this refreshed plan is finished and the final architecture matches the target end state below.
 
 ---
 
-## 2. Current state summary
+## 1. Current-state audit
 
-This section records the current state observed during the April 13, 2026 review.
+This section records the repo state observed during the April 13, 2026 audit.
 
-### What is already good
+### 1.1 What improved
 
-- The project-level Go path is real and in use.
-- The main project-level command suite is native and no longer depends on the deleted Bash bootstrap path.
-- `internal/` already contains meaningful domain packages:
-  - `internal/project`
-  - `internal/orchestrator`
-  - `internal/resources`
-  - `internal/setup`
-  - `internal/maintenance`
-  - `internal/cli/*`
-- The test surface is broad and currently green for:
-  - `go test ./cmd/vrooli/... ./internal/...`
+- A shared command framework now exists in `internal/cli/commandtree`.
+- Top-level/scenario/resource/package/contract metadata exists under `internal/cli/*`.
+- Application-layer packages exist under `internal/app/*`.
+- Some parsing/rendering moved out of `cmd/vrooli`.
+- The project-level Go command path is real and actively used.
 
-### What is not yet good enough
+### 1.2 What is still wrong
 
-- `cmd/vrooli` is still too large and too responsible.
-- Command plumbing is duplicated through multiple descriptor/action abstractions.
-- Help/usage text is spread through many files.
-- User-facing strings and JSON envelopes are inconsistently owned.
-- Some commands still depend on compatibility shims and subprocess translation that live in `cmd/`.
-- Tests are good functionally, but not yet organized around professional seams and declarative contracts.
+`cmd/vrooli` is still far too thick.
 
-### Current hotspots
+At audit time:
 
-At the time of review:
+- `cmd/vrooli` production code: about `5,126` LOC
+- `cmd/vrooli` test code: about `5,908` LOC
+- `internal/cli/*` tests: about `530` LOC
 
-- `cmd/vrooli` is about `12.5k` LOC in aggregate.
-- Some of the largest command-layer files are:
-  - `cmd/vrooli/scenario_actions.go`
-  - `cmd/vrooli/package_commands.go`
-  - `cmd/vrooli/scenario_template.go`
-  - `cmd/vrooli/scenario_logs.go`
-  - `cmd/vrooli/resource_actions.go`
-  - `cmd/vrooli/scenario_lifecycle_commands.go`
-  - `cmd/vrooli/resource_commands.go`
-- The current command layer includes overlapping abstractions:
-  - `commandDescriptor`
-  - `appSubcommandDescriptor`
-  - `resourceSubcommandDescriptor`
-  - `commandAction`
-  - `boundCommandAction`
-  - `run*WithApp` wrappers
-- Inline `Usage:` / `usage:` strings and ad hoc human output messages are spread across `cmd/vrooli`, `internal/cli/*`, `internal/project`, `internal/setup`, and resource control/rendering layers.
+Representative production hotspots still in `cmd/vrooli`:
 
-### Representative examples of lingering transitional architecture
-
+- `cmd/vrooli/app.go`
+- `cmd/vrooli/command_registry.go`
+- `cmd/vrooli/command_bindings.go`
+- `cmd/vrooli/app_handlers.go`
+- `cmd/vrooli/resource_actions.go`
 - `cmd/vrooli/resource_commands.go`
-  - still contains fallback behavior for legacy resource invocation
+- `cmd/vrooli/package_commands.go`
+- `cmd/vrooli/scenario_actions.go`
+- `cmd/vrooli/scenario_logs.go`
+- `cmd/vrooli/scenario_template.go`
 - `cmd/vrooli/scenario_external_commands.go`
-  - translates requirements, completeness, and test-genie subprocess behavior in the command layer
-- `cmd/vrooli/cleanup_command.go`
-  - re-expresses `orphans` and `locks` behavior as a synthetic command wrapper in `cmd/`
-- `cmd/vrooli/info_command.go`
-  - owns command help text and output contract logic directly in the binary package
+- `cmd/vrooli/contract_commands.go`
+- `cmd/vrooli/lifecycle_commands.go`
+- `cmd/vrooli/command_errors.go`
+- `cmd/vrooli/command_help.go`
+
+That is not a thin composition root.
+
+### 1.3 Concrete architectural leaks
+
+1. `cmd/vrooli` still owns command dispatch and feature orchestration.
+
+Examples:
+
+- `cmd/vrooli/main.go` still parses globals, selects the command, and dispatches to handler maps.
+- `cmd/vrooli/app.go` still acts as a command runtime container instead of pure bootstrap.
+- `cmd/vrooli/command_registry.go` still binds command metadata to runtime handlers inside `cmd/`.
+- `cmd/vrooli/app_handlers.go` still contains top-level command execution adapters and orchestration.
+
+2. `cmd/vrooli` still owns family-specific command behavior.
+
+Examples:
+
+- `cmd/vrooli/scenario_logs.go` contains scenario log discovery/tailing/cleanup behavior.
+- `cmd/vrooli/scenario_template.go` contains scenario template filesystem logic.
+- `cmd/vrooli/scenario_external_commands.go` still translates requirements/test-genie/completeness subprocesses.
+- `cmd/vrooli/resource_commands.go` and `cmd/vrooli/resource_actions.go` still own most resource family execution glue.
+- `cmd/vrooli/package_commands.go` still owns package family execution/rendering glue.
+- `cmd/vrooli/contract_commands.go` still owns contract command routing.
+
+3. App-layer boundaries are still wrong.
+
+Examples:
+
+- `internal/app/scenario/service.go` imports `internal/cli/scenariocli`.
+- `internal/app/contract/service.go` imports `internal/cli/contractcli`.
+
+That is an inversion failure. `internal/app/*` must not depend on CLI packages.
+
+4. CLI parsing/help still leaks into non-CLI packages.
+
+Examples:
+
+- `internal/setup/setup.go` still parses top-level args and prints help text for `setup`, `build`, and `develop`.
+- `internal/cli/topcli` and `cmd/vrooli/command_errors.go` both own usage/error semantics.
+
+5. String/contract ownership is still fragmented.
+
+Examples:
+
+- `cmd/vrooli/command_errors.go`
+- `cmd/vrooli/command_help.go`
+- `internal/cli/topcli/errors.go`
+- `internal/cli/topcli/help.go`
+- `internal/cli/scenariocli/help.go`
+- `internal/cli/resourcecli/help.go`
+- `internal/cli/contractcli/help.go`
 - `internal/setup/setup.go`
-  - carries multiple responsibilities and should be decomposed into smaller use-case modules
+
+6. Legacy/compatibility is still present in runtime-reachable paths.
+
+Examples:
+
+- scenario external command bridges in `cmd/vrooli/scenario_external_commands.go`
+- resource legacy-driver support under:
+  - `internal/resources/manifest/manifest.go`
+  - `internal/resources/catalog/catalog.go`
+  - `internal/resources/templates.go`
+- testkit compatibility helpers under `packages/testkit-go/vrooli/compat.go`
+
+If the target is truly “no legacy/compatibility/dead code at all,” these cannot remain.
+
+7. Tests are still too concentrated in the binary package.
+
+Largest command-package test files at audit time:
+
+- `cmd/vrooli/scenario_main_test.go` at about `1,440` LOC
+- `cmd/vrooli/package_commands_test.go` at about `899` LOC
+- `cmd/vrooli/resource_commands_test.go` at about `685` LOC
+
+The current weighting still says the binary package is where most behavior is understood and validated. That is the wrong seam.
 
 ---
 
-## 3. Problem statement
+## 2. Why the previous implementation was insufficient
 
-The main architectural problem is not “there is too much code in `cmd/vrooli`.” That is only a symptom.
+The earlier plan was directionally right, but it was not strict enough about the actual end state.
 
-The actual problem is:
+Specifically, it allowed the codebase to stop at a halfway architecture:
 
-> The project-level command system does not yet have a single, disciplined command architecture with clean separation between command declaration, application use cases, domain services, compatibility adapters, and presentation contracts.
+- metadata moved into `internal/cli/*`
+- some app services introduced
+- but `cmd/vrooli` remained the real runtime command system
 
-Because of that, the codebase currently experiences:
+That created an attractive but misleading state: the code *looks* more internalized, while the binary package still owns too many responsibilities.
 
-- repeated parse-run-render loops
-- repeated command registration patterns
-- repeated help/usage declarations
-- repeated output envelope choices
-- repeated fallback-routing choices
-- blurred responsibility between command package and application/domain packages
+The refreshed plan below fixes that by being stricter about:
+
+- what `cmd/` is allowed to contain
+- what `internal/app/*` is allowed to import
+- what must be deleted rather than wrapped
+- what test seams must move out of `cmd/`
+- what legacy/compatibility code must be fully removed
 
 ---
 
-## 4. Target end state
+## 3. Exact target end state
 
-This section is the intended final architecture. Every phase in the checklist must move toward this shape.
+This is the real finish line.
 
-### 4.1 Core architectural rule
+### 3.1 `cmd/` must be composition only
 
-`cmd/` must be a composition root only.
+Final `cmd/vrooli` production code should be limited to:
 
-That means:
+- `main.go`
+- at most a tiny bootstrap/composition file if needed
+- OS-specific process-attribute files only if they are truly bootstrap-only
 
-- `cmd/vrooli`
-  - startup
-  - global flag capture
-  - buildinfo/staleness wiring
-  - logger construction
-  - dependency graph construction
-  - command runner invocation
-  - exit code mapping
-- `cmd/vrooli-api`
-  - same principle for the API binary
+It must not contain:
 
-It must **not** own:
+- command registries
+- command handler maps
+- command-family parsing
+- command-family help/usage
+- command-family rendering
+- feature-specific runtime helpers
+- compatibility routing
+- subprocess translation policy
+- domain/application logic
+- command-specific error policy
 
-- domain use cases
-- command-family parsing rules
-- usage/help text definitions
-- response rendering logic
-- compatibility routing decisions
-- subprocess translation rules
-- feature-specific business logic
+Concrete end-state expectation:
 
-### 4.2 Internal layering
+- `cmd/vrooli` production LOC should be closer to low hundreds than thousands
+- most current production files in `cmd/vrooli` should be deleted
 
-The project-level command stack should resolve into layers like this:
+`cmd/vrooli-api` must follow the same rule.
 
-1. **Composition**
-   - `cmd/vrooli`
-   - `cmd/vrooli-api`
+### 3.2 The command runner belongs in `internal/`
 
-2. **Command system**
-   - command tree definitions
-   - parse + validate + usage/help metadata
-   - runner orchestration
-   - output selection policy
+There must be one authoritative internal command runner package that owns:
 
-3. **Application use cases**
-   - scenario start/stop/status/list
-   - resource list/status/control
-   - project status/doctor/stop/lifecycle
-   - package list/validate/refresh/audit
-   - contract validate/show/resolve/match
-   - info/context loading
+- global option parsing
+- command tree assembly
+- root-policy checks
+- dispatch
+- help rendering
+- unknown-command handling
+- exit-code mapping policy
 
-4. **Domain/infrastructure services**
-   - orchestrator
-   - lifecycle
-   - resources
-   - maintenance
-   - runtime
-   - buildinfo
-   - ports/process/network
+Suggested home:
 
-5. **External adapters**
-   - shell/process invocation
-   - filesystem
-   - HTTP
-   - remaining third-party tool invocation
+- `internal/cli/rootcli`
+- or an equivalent internal runner package
 
-### 4.3 Declarative command ownership
+The specific name can vary. The boundary cannot.
 
-Each command family must have one authoritative home for:
+### 3.3 CLI packages are adapters, not application owners
 
-- subcommand names
-- summaries
-- usage/help text
-- supported flags/options
-- JSON/human output contract
-- parsing rules
-- validation rules
+Each `internal/cli/*` package should own only:
 
-There must not be duplicate command declarations across multiple files.
+- command metadata
+- command-specific parse/validate
+- help/usage text
+- CLI-only response rendering
+- mapping between CLI DTOs and app DTOs
 
-### 4.4 Contract ownership
+They must not own:
 
-The following contracts must be declared once and reused:
+- business workflows
+- shell/process launching
+- resource/scenario/project orchestration
+- controller composition
 
-- CLI help/usage strings
+### 3.4 App packages must not depend on CLI packages
+
+This is mandatory.
+
+`internal/app/*` packages must not import `internal/cli/*`.
+
+Instead:
+
+- `internal/app/*` owns use-case DTOs
+- `internal/cli/*` maps CLI requests/responses to/from app DTOs
+
+This applies especially to:
+
+- `internal/app/scenario`
+- `internal/app/contract`
+
+### 3.5 `internal/setup` must stop being a CLI surface
+
+`internal/setup` must become a domain/application primitive only.
+
+It must not own:
+
+- command-line option parsing
+- help text
+- CLI usage strings
+
+Top-level `setup`, `build`, and `develop` command parsing/help belongs in CLI packages. `internal/setup` should expose typed operations only.
+
+### 3.6 No legacy or compatibility runtime paths
+
+The final runtime path must contain none of the following:
+
+- scenario external command translation in `cmd/`
+- legacy resource-driver support such as `legacy-adapter`
+- compatibility helpers retained for migration convenience
+- unknown-command or unknown-subcommand fallbacks that preserve old behavior
+- testkit compatibility layers kept “just in case”
+
+If the repo still needs a migration path during implementation, it must be temporary, explicitly named, and then deleted before the plan is complete.
+
+### 3.7 Tests must follow the architecture
+
+Final testing shape:
+
+- parser/render tests live under `internal/cli/*`
+- use-case tests live under `internal/app/*`
+- domain tests live under owning `internal/*` packages
+- shared fixtures live in `packages/testkit-go` or `packages/testkit-go/vrooli`
+- `cmd/vrooli` retains only a small smoke/integration layer
+
+### 3.8 One source of truth for command and output contracts
+
+The following must each have one authoritative declarative home:
+
+- command names
+- aliases
+- help text
+- usage text
+- stable error categories/codes/hints
 - JSON envelope keys
-- stable human-facing status messages
-- repo-contract paths and filenames
-- scenario/resource/package command names
-- error codes and categories
+- stable human-facing output text
+- repo-contract filenames/keys used by the CLI
 
-Tests should import or derive from the same declarations instead of repeating raw literals.
-
-### 4.5 Legacy and compatibility target
-
-The final runtime path must contain:
-
-- no legacy fallbacks
-- no compatibility dispatch
-- no dead shims
-- no obsolete wrapper commands retained for internal convenience
-
-If a compatibility behavior is still required temporarily during implementation, it must:
-
-- live in an explicitly temporary package or file
-- be called out in this plan
-- have a checklist item for deletion
-
-The final state is not “legacy but isolated.” The final state is **no legacy path at all**.
-
-### 4.6 Test target
-
-The test surface must be layered:
-
-- unit tests for parsing and rendering
-- use-case tests with fake interfaces
-- focused command integration tests
-- a smaller number of binary-level smoke tests
-
-Shared fixtures should prefer `packages/testkit-go` and `packages/testkit-go/vrooli` over bespoke per-file setup where practical.
-
-### 4.7 Authority of this plan
-
-Until this overhaul is complete, this document is the authoritative architecture target for project-level CLI cleanup.
-
-That means:
-
-- new CLI cleanup work must move the codebase toward this document, not away from it
-- if implementation reveals the plan is wrong or incomplete, update this document before normalizing the code around a competing architecture
-- if code and plan disagree temporarily during a phase, treat the mismatch as intentional only when the relevant checklist item explicitly allows it
-- do not preserve existing command-package structure solely because it already exists
-
-### 4.8 Dependency rules
-
-These rules freeze the intended package boundaries for the overhaul. Exact package names may shift slightly, but the dependency directions must not.
-
-Allowed dependency flow:
-
-1. `cmd/*`
-   - may depend on:
-     - `internal/bootstrap`
-     - `internal/buildinfo`
-     - `internal/config`
-     - `internal/logx`
-     - `internal/cli/commandtree`
-     - the top-level internal command runner package introduced during implementation
-   - must not depend directly on:
-     - feature-specific command-family packages for ad hoc execution
-     - domain services for feature behavior
-     - compatibility helpers
-
-2. `internal/cli/*`
-   - may depend on:
-     - `internal/cli/commandtree`
-     - `internal/cliout`
-     - `internal/app/*`
-     - stable contract and error packages
-   - must not depend on:
-     - `cmd/*`
-     - direct shell/process invocation except through injected app or adapter seams
-
-3. `internal/app/*`
-   - may depend on:
-     - domain and infrastructure packages such as `internal/project`, `internal/resources`, `internal/orchestrator`, `internal/lifecycle`, `internal/maintenance`, `internal/runtime`, `internal/ports`, and `internal/process`
-     - external adapters behind interfaces
-   - must not depend on:
-     - `cmd/*`
-     - human-output rendering packages except where returning stable contract types shared with CLI renderers
-
-4. Domain and infrastructure packages under `internal/`
-   - must not depend on `cmd/*`
-   - must not depend on feature-specific CLI packages
-   - should not know about command-line parsing, help text, or presentation policy
-
-5. Temporary compatibility packages, if any are introduced
-   - must live under explicitly temporary locations
-   - must only be depended on by the phase currently deleting them
-   - must not become stable dependencies of `cmd/*`, `internal/cli/*`, or `internal/app/*`
-
-Architectural litmus test:
-
-- if a change adds command parsing, help text, fallback routing, or human-output decisions to `cmd/*`, it violates the target architecture
-- if a change adds feature orchestration to `internal/cli/*` that belongs in a reusable use case, it violates the target architecture
-- if a change leaves a compatibility path in the runtime without a named deletion phase, it violates the target architecture
-
-### 4.9 Temporary command surfaces and deletion intent
-
-The following surfaces are intentionally temporary. They exist only because the migration is not yet fully consolidated.
-
-| Surface | Current location | Why it is temporary | Owner | Delete in |
-| --- | --- | --- | --- | --- |
-| Duplicated top-level/scenario command registry types and maps | `cmd/vrooli/command_registry.go`, `cmd/vrooli/command_actions.go`, `cmd/vrooli/command_sets.go` | Transitional command framework duplicated across command families | Matthew Halloran | Phase 1 |
-| Top-level parse/run/render helpers in the binary package | `cmd/vrooli/top_level_actions.go`, `cmd/vrooli/top_level_native_commands.go` | Command-family behavior still lives in `cmd/` instead of internal CLI packages | Matthew Halloran | Phase 2 |
-| Synthetic `cleanup` wrapper command | `cmd/vrooli/cleanup_command.go` | Convenience wrapper around `orphans` and `locks`, implemented outside the normal declarative command model | Matthew Halloran | Phase 2 |
-| Binary-owned `info` command contract and rendering | `cmd/vrooli/info_command.go` | Context-info command still owns help/output logic directly in `cmd/` | Matthew Halloran | Phase 2 |
-| Scenario command-family parsing and orchestration in `cmd/` | `cmd/vrooli/scenario_actions.go`, `cmd/vrooli/scenario_commands.go`, `cmd/vrooli/scenario_lifecycle_commands.go`, `cmd/vrooli/scenario_logs.go`, `cmd/vrooli/scenario_template.go` | Command family not yet extracted into internal CLI and app layers | Matthew Halloran | Phase 3 |
-| Scenario subprocess translation in the command layer | `cmd/vrooli/scenario_external_commands.go` | Legacy-style subprocess translation still sits in `cmd/` | Matthew Halloran | Phase 3 and Phase 8 |
-| Resource command-family parsing and fallback dispatch in `cmd/` | `cmd/vrooli/resource_actions.go`, `cmd/vrooli/resource_commands.go` | Command family not yet extracted and still contains fallback behavior | Matthew Halloran | Phase 4 and Phase 8 |
-| Package command-family parsing and orchestration in `cmd/` | `cmd/vrooli/package_commands.go`, related package command files in `cmd/vrooli/` | Package governance commands have not yet moved to the unified internal command architecture | Matthew Halloran | Phase 5 |
-
-### 4.10 Currently required compatibility behavior to track until deletion
-
-The following behaviors exist today and cannot be treated as permanent architecture. They are recorded here so they can be deleted deliberately rather than forgotten.
-
-| Behavior | Current implementation | Why it still exists today | Replacement target | Delete in |
-| --- | --- | --- | --- | --- |
-| Unknown `vrooli resource <subcommand>` fallback dispatch into `resources.Controller.Run` | `cmd/vrooli/resource_commands.go` via `runLegacyResourceInvocationWithApp` | Not every resource behavior has been consolidated into one declarative command path yet | First-class native resource command declarations in internal CLI and app layers | Phase 4 and Phase 8 |
-| Scenario requirements/completeness/test-genie subprocess argument translation in the command layer | `cmd/vrooli/scenario_external_commands.go` | Transitional bridge to still-external scenario utilities | Native app use cases or explicitly bounded adapter packages below the command layer | Phase 3 and Phase 8 |
-| Synthetic `cleanup orphans` -> `orphans kill` and `cleanup locks` -> `locks clean` mapping | `cmd/vrooli/cleanup_command.go` | Transitional convenience command preserved during migration | Remove `cleanup` entirely or re-declare it through the same unified command metadata system | Phase 2 |
-| Binary-local ownership of info manifest defaults and rendering contract | `cmd/vrooli/info_command.go` | Context-info behavior was migrated functionally but not architecturally | `internal/app/contextinfo` plus declarative internal CLI command definitions | Phase 2 |
-| Rootless command exceptions encoded through binary-local descriptor flags | `cmd/vrooli/app.go`, `cmd/vrooli/command_registry.go` | Root-policy decisions are still coupled to the old command descriptor system | Root requirement policy encoded in the unified command tree metadata | Phase 1 |
+Tests must reuse those declarations rather than restating literals where practical.
 
 ---
 
-## 5. Design principles for implementation
+## 4. Target package shape
 
-These principles are mandatory while executing the checklist.
-
-### 5.1 Thin command binaries
-
-Every refactor should make `cmd/vrooli` smaller, not move logic around inside it.
-
-### 5.2 One command framework
-
-There should be one command execution pattern for the CLI surface, not separate bespoke patterns for top-level, scenario, resource, and package commands.
-
-### 5.3 No string drift
-
-If a string is part of a stable contract, it must have one declarative home.
-
-### 5.4 Compatibility is temporary only
-
-No permanent “adapter forever” posture. Anything temporary must be tracked until deletion.
-
-### 5.5 Shared seams over test copy-paste
-
-If a test fixture pattern appears more than twice, consider promoting it into `testkit-go` or shared test helpers.
-
-### 5.6 Prefer deletion over preservation
-
-If a wrapper, shim, alias, or compatibility branch no longer serves the target architecture, delete it instead of preserving it “for safety.”
-
----
-
-## 6. Proposed target package layout
-
-The exact names may vary slightly, but the responsibilities must match.
+The exact names may vary slightly, but the responsibility split must look like this:
 
 ```text
 /cmd/
   vrooli/
     main.go
-    app.go                # composition root only
+    process_attrs_unix.go
+    process_attrs_windows.go
   vrooli-api/
     main.go
 
 /internal/
-  app/
-    project/
-    scenario/
-    resource/
-    package/
-    contract/
-    contextinfo/
+  bootstrap/
   cli/
     commandtree/
-    topcli/
+    rootcli/          # global options, root dispatch, unknown-command/help policy
+    topcli/           # root command declarations if kept separate from rootcli
+    projectcli/
     scenariocli/
     resourcecli/
     packagecli/
     contractcli/
-    projectcli/
+  app/
+    contextinfo/
+    contract/
+    package/
+    project/
+    resource/
+    scenario/
   cliout/
-  compat/                # temporary only during implementation, must be empty or deleted at end
-  bootstrap/
   buildinfo/
+  config/
   control/
   lifecycle/
   maintenance/
-  network/
   orchestrator/
   packagegov/
   ports/
@@ -438,462 +345,588 @@ The exact names may vary slightly, but the responsibilities must match.
   resources/
   runtime/
   scenario/
-  secrets/
-  setup/
+  setup/              # typed operations only, no CLI parsing/help
   shell/
+  vroolierr/
 ```
 
-Notes:
+Key dependency rules:
 
-- `internal/app/*` owns application use cases.
-- `internal/cli/commandtree` owns shared command metadata/parsing/help execution machinery.
-- `internal/cli/*cli` packages own command-family declarations and response mapping, not `cmd/vrooli`.
-- Existing domain packages like `internal/project`, `internal/resources`, and `internal/orchestrator` remain, but should stop carrying command-presentation concerns.
-- A temporary `internal/compat/` package may be introduced during the transition, but it must be empty or removed by the end.
+1. `cmd/*` may depend only on bootstrap/composition-oriented internal packages plus the shared internal command runner.
+2. `internal/cli/*` may depend on `internal/app/*`, `internal/cliout`, and shared contract/error packages.
+3. `internal/app/*` may depend on domain/infrastructure packages, but not on `internal/cli/*`.
+4. Domain/infrastructure packages must not know about CLI parsing or help text.
 
 ---
 
-## 7. Workstreams
+## 5. Gap inventory by area
 
-This program should be executed as coordinated workstreams rather than random file cleanup.
+This section is the checklist driver. Every item here must be resolved before the effort is done.
 
-### Workstream A: Command framework consolidation
+### 5.1 Binary package is still thick
 
-Goal:
-- Replace the current duplicated command descriptor/action/set plumbing with one reusable command system.
+Must be addressed in:
 
-Primary files currently affected:
+- `cmd/vrooli/main.go`
+- `cmd/vrooli/app.go`
 - `cmd/vrooli/command_registry.go`
-- `cmd/vrooli/command_actions.go`
-- `cmd/vrooli/command_sets.go`
+- `cmd/vrooli/command_bindings.go`
 - `cmd/vrooli/app_handlers.go`
-
-### Workstream B: Command-family extraction out of `cmd/vrooli`
-
-Goal:
-- Move scenario/resource/package/top-level/contract command-family declarations, parsing, help, and render orchestration into `internal/cli/*`.
-
-Primary files currently affected:
-- `cmd/vrooli/scenario_actions.go`
-- `cmd/vrooli/scenario_commands.go`
-- `cmd/vrooli/scenario_lifecycle_commands.go`
-- `cmd/vrooli/scenario_external_commands.go`
-- `cmd/vrooli/resource_actions.go`
-- `cmd/vrooli/resource_commands.go`
-- `cmd/vrooli/package_commands.go`
-- `cmd/vrooli/top_level_actions.go`
-- `cmd/vrooli/top_level_native_commands.go`
-- `cmd/vrooli/contract_commands.go`
-- `cmd/vrooli/info_command.go`
-
-### Workstream C: Application-service formalization
-
-Goal:
-- Create explicit application-layer use cases so command handlers are thin request adapters rather than direct coordinators of controllers/services.
-
-Primary packages affected:
-- `internal/project`
-- `internal/orchestrator`
-- `internal/resources`
-- `internal/setup`
-- new `internal/app/*`
-
-### Workstream D: Contract centralization
-
-Goal:
-- Centralize help text, stable output strings, JSON envelope keys, error identifiers, and repo-contract paths.
-
-Primary files affected:
-- `cmd/vrooli/command_help.go`
 - `cmd/vrooli/command_errors.go`
-- `internal/cli/*`
-- `internal/project`
-- `internal/resources/control`
-- `internal/setup`
+- `cmd/vrooli/command_help.go`
+- `cmd/vrooli/top_level_runtime.go`
+- `cmd/vrooli/lifecycle_commands.go`
 
-### Workstream E: Legacy/compatibility elimination
+### 5.2 Scenario family still lives materially in `cmd/`
 
-Goal:
-- Remove every remaining runtime legacy path and dead compatibility shim.
+Must be addressed in:
 
-Primary files affected:
-- `cmd/vrooli/resource_commands.go`
-- `cmd/vrooli/scenario_external_commands.go`
-- any temporary `internal/compat/*`
-- any dead wrapper helpers uncovered during refactor
-
-### Workstream F: Test architecture cleanup
-
-Goal:
-- Reduce monolithic command-package tests, standardize fixtures, and align tests to declarative contracts.
-
-Primary files affected:
-- `cmd/vrooli/main_test.go`
-- `cmd/vrooli/test_helpers_test.go`
-- command-family test files
-- `packages/testkit-go/vrooli`
-
----
-
-## 8. Phased checklist
-
-The phases below are intentionally strict. Do not skip deletion phases.
-
-## Phase 0: Freeze the target architecture
-
-Objective:
-- Make the end state explicit before changing code.
-
-Checklist:
-- [x] Confirm this plan is the current authoritative architecture target for project-level CLI cleanup.
-- [x] Add a short dependency rule section to this plan if package moves during implementation require clarification.
-- [x] Identify any command surface that is intentionally temporary and mark it with an owner plus deletion phase.
-- [x] Record any currently required compatibility behavior that cannot be deleted immediately.
-
-Validation:
-- [x] Plan reviewed against current repo state.
-- [x] No implementation starts without a clear target package map and deletion intent.
-
-Definition of done:
-- The future boundary model is explicit enough that contributors can classify any code as composition, command, app, domain, adapter, or dead code.
-
-## Phase 1: Build a unified command framework
-
-Objective:
-- Replace duplicated command registry and action abstractions with one command system.
-
-Checklist:
-- [x] Introduce a single shared command-spec abstraction under `internal/cli/commandtree`.
-- [x] Support:
-  - [x] name
-  - [x] aliases
-  - [x] summary
-  - [x] hidden/internal visibility
-  - [x] root requirement policy
-  - [x] parse/validate
-  - [x] execute
-  - [x] render
-  - [x] usage/help metadata
-- [x] Move generic command execution helpers out of `cmd/vrooli`.
-- [x] Remove duplicate descriptor types and execution helpers from `cmd/vrooli`.
-- [x] Keep exit-code and top-level process concerns in `cmd/vrooli` only.
-
-Validation:
-- [x] Unit tests for the new command framework.
-- [x] Existing command-family tests still pass after adapter migration.
-- [x] `go test ./cmd/vrooli/... ./internal/...`
-
-Definition of done:
-- There is exactly one command execution pattern for the project-level CLI.
-
-## Phase 2: Extract top-level command declarations from `cmd/vrooli`
-
-Objective:
-- Move top-level command declaration/parsing/help/render orchestration into internal command packages.
-
-Checklist:
-- [x] Extract `status`, `doctor`, `stop`, `orphans`, `locks`, `diagnose-port`, `setup`, `develop`, `build`, `deploy`, `clean`, `backup`, `restore`, `info`, `cleanup`, and `contract` command declarations into `internal/cli/*`.
-- [x] Move top-level usage/help strings into declarative command metadata.
-- [x] Remove parse/render helpers from:
-  - [x] `cmd/vrooli/top_level_actions.go`
-  - [x] `cmd/vrooli/top_level_native_commands.go`
-  - [x] `cmd/vrooli/cleanup_command.go`
-  - [x] `cmd/vrooli/info_command.go`
-- [x] Convert `cleanup` from an ad hoc wrapper into a normal declarative command or remove it if redundant with first-class maintenance commands.
-- [x] Ensure top-level help is generated from the same command tree metadata used for dispatch.
-
-Validation:
-- [x] Focused tests for top-level commands and help output.
-- [x] Existing `status`, `doctor`, `stop`, `cleanup`, and `info` command tests updated and green.
-
-Definition of done:
-- `cmd/vrooli` no longer owns top-level command-family behavior beyond composition.
-
-## Phase 3: Extract scenario command family from `cmd/vrooli`
-
-Objective:
-- Move scenario command semantics out of `cmd/vrooli` and into dedicated internal command/application packages.
-
-Checklist:
-- [x] Extract scenario command declarations and parsers into `internal/cli/scenariocli`.
-- [x] Extract scenario application use cases into `internal/app/scenario` or equivalent.
-- [x] Move scenario-specific help text to declarative metadata.
-- [x] Move scenario output contract mapping out of `cmd/vrooli`.
-- [x] Refactor:
-  - [x] `scenario list`
-  - [x] `scenario info`
-  - [x] `scenario status`
-  - [x] `scenario start`
-  - [x] `scenario stop`
-  - [x] `scenario restart`
-  - [x] `scenario start-all`
-  - [x] `scenario stop-all`
-  - [x] `scenario setup`
-  - [x] `scenario test`
-  - [x] `scenario port`
-  - [x] `scenario open`
-  - [x] `scenario logs`
-  - [x] `scenario template`
-  - [x] `scenario generate`
-  - [x] `scenario requirements`
-  - [x] `scenario completeness`
-  - [x] `scenario ui-smoke`
-  - [x] `scenario heal-from-sandbox`
-- [x] Eliminate scenario command-specific wrappers like `runScenario*CommandWithApp` where the framework can bind directly.
-
-Validation:
-- [x] Unit tests for scenario parsers and renderers.
-- [x] Focused integration tests for scenario command family.
-- [x] `go test ./cmd/vrooli/... ./internal/...`
-
-Definition of done:
-- `cmd/vrooli` does not contain scenario command request types, parse functions, or scenario-specific dispatch glue.
-
-## Phase 4: Extract resource command family from `cmd/vrooli`
-
-Objective:
-- Move resource command declarations and orchestration out of the binary package and remove legacy fallback behavior.
-
-Checklist:
-- [x] Extract resource command declarations/parsers/help into `internal/cli/resourcecli`.
-- [x] Introduce explicit resource application use cases in `internal/app/resource` or equivalent.
-- [x] Move enable/disable/install/start/stop/list/status/info/deprecate/archive/restore flows behind app services.
-- [x] Remove `runLegacyResourceInvocationWithApp`.
-- [x] Remove any “unknown subcommand means fallback” resource behavior from the final runtime path.
-- [x] Ensure resource archive/blueprint/template subcommands are first-class declarative commands, not local wrapper indirections.
-- [x] Centralize resource command usage/help strings.
-
-Validation:
-- [x] Resource command parser/render tests.
-- [x] Resource command integration tests.
-- [x] Resource domain tests remain green.
-
-Definition of done:
-- Resource command execution has no runtime legacy fallback path.
-
-## Phase 5: Extract package and contract command families
-
-Objective:
-- Finish the same architectural treatment for package governance and repo contract surfaces.
-
-Checklist:
-- [x] Move package command declarations/help/parsing to internal command packages.
-- [x] Introduce package application use cases for list/info/dependents/validate/build/generate/refresh/audit.
-- [x] Reduce direct shell/process coordination inside package commands by isolating it behind app services or explicit adapters.
-- [x] Move contract command declarations/help/parsing to internal command packages.
-- [x] Ensure contract validation/show/resolve/match use the same command framework and output contract conventions.
-
-Validation:
-- [x] Package command tests green.
-- [x] Contract command tests green.
-- [x] `go test ./cmd/vrooli/... ./internal/...`
-
-Definition of done:
-- Package and contract commands follow the same architecture as top-level, scenario, and resource commands.
-
-## Phase 6: Formalize application use cases and slim domain controllers
-
-Objective:
-- Stop using `cmd` or command packages as mini application layers.
-
-Checklist:
-- [x] Introduce explicit application-layer packages for project/scenario/resource/package/contract/context info use cases.
-- [x] Move multi-step orchestration logic from command handlers into app services.
-- [x] Keep domain controllers focused:
-  - [x] `internal/project` for project domain orchestration
-  - [x] `internal/orchestrator` for scenario orchestration primitives
-  - [x] `internal/resources` for resource domain orchestration
-  - [x] `internal/setup` for setup/develop primitives
-- [x] Ensure app services depend on interfaces, not concrete command-layer types.
-- [x] Introduce narrow DTOs/requests/responses where needed so command packages do not depend on internal domain structs arbitrarily.
-
-Validation:
-- [x] Use-case tests with fakes for app services.
-- [x] Existing domain tests remain green.
-
-Definition of done:
-- Command packages adapt requests into app services; they do not coordinate core behavior themselves.
-
-## Phase 7: Centralize contracts and eliminate string drift
-
-Objective:
-- Remove scattered string ownership and duplicated contracts.
-
-Checklist:
-- [x] Centralize command usage/help text with command metadata.
-- [x] Centralize error codes/categories and stable hints where part of the CLI contract.
-- [x] Centralize JSON envelope conventions for success/data/list/report responses.
-- [x] Centralize repo-contract-related filenames and path keys where still duplicated.
-- [x] Replace hard-coded test literals with shared declarations where appropriate.
-- [x] Review human-facing output in:
-  - [x] `internal/cli/projectcli`
-  - [x] `internal/cli/resourcecli`
-  - [x] `internal/cli/scenariocli`
-  - [x] `internal/setup`
-  - [x] `internal/project`
-  - [x] `internal/resources/control`
-
-Validation:
-- [x] Contract-focused tests for usage/help output.
-- [x] JSON contract tests for representative commands.
-- [x] Golden tests where stable text is intentional.
-
-Definition of done:
-- Stable command and output contracts are declared once and reused by code and tests.
-
-## Phase 8: Eliminate all legacy, compatibility, and dead code
-
-Objective:
-- Delete the migration leftovers rather than preserving them in cleaned-up form.
-
-Checklist:
-- [x] Delete any remaining compatibility wrappers in `cmd/vrooli`.
-- [x] Delete any remaining fallback routing based on unknown commands/subcommands.
-- [x] Delete any temporary `internal/compat/*` packages created during the migration, or reduce them to zero runtime usage and remove them.
-- [x] Delete dead request/response aliases in `cmd/vrooli`.
-- [x] Delete unused helper functions that only existed for transitional glue.
-- [x] Delete dead tests that only validate removed compatibility behavior.
-- [x] Remove comments that describe obsolete migration paths as if they are still active.
-
-Validation:
-- [x] Search confirms no remaining runtime legacy markers in project-level CLI paths.
-- [x] Search confirms no remaining dead wrapper functions in `cmd/vrooli`.
-- [x] Full command suite remains green.
-
-Definition of done:
-- The final runtime path has no compatibility mode, no fallback shim, and no dead glue retained.
-
-## Phase 9: Rebuild the test architecture around professional seams
-
-Objective:
-- Make the test suite match the cleaned architecture.
-
-Checklist:
-- [x] Split `cmd/vrooli/main_test.go` into command-family or concern-focused suites.
-- [x] Promote common repo/manifest/fixture helpers into `packages/testkit-go/vrooli` where they are generally useful.
-- [x] Add parser-level tests for command metadata and request decoding.
-- [x] Add renderer-level tests for human/JSON contract outputs.
-- [x] Add app-service tests using narrow fake interfaces.
-- [x] Keep a smaller binary-level integration surface in `cmd/vrooli`.
-- [x] Replace direct literal assertions with shared contract helpers where practical.
-
-Validation:
-- [x] `go test ./cmd/vrooli/... ./internal/...`
-- [ ] `go test ./...`
-  Note: blocked in this environment because `data/resources/btcpay/postgres` is not readable by the current user, so the Go tool cannot traverse `./...`.
-
-Definition of done:
-- The bulk of command correctness is validated below the binary package, with focused integration tests above it.
-
-## Phase 10: Final polish and architectural verification
-
-Objective:
-- Verify the codebase now reflects the intended end state and not just passing tests.
-
-Checklist:
-- [x] Review `cmd/vrooli` and confirm it is composition-root thin.
-- [x] Review `cmd/vrooli-api` for the same principle.
-- [x] Review package boundaries for forbidden dependencies from domain/app layers back into `cmd`.
-- [x] Review all command families for a single declarative metadata source.
-- [x] Review app services for coherent ownership and interface seams.
-- [x] Review tests for excessive literal duplication or bespoke setup that should live in shared testkit.
-- [x] Update this plan with completion notes and any post-overhaul follow-up items.
-
-Validation:
-- [ ] Full validation matrix green.
-  Note: `go test ./...` is still blocked in this environment because `data/resources/btcpay/postgres` is unreadable to the current user, so the Go tool cannot traverse the full repo tree.
-- [x] Manual architecture audit complete.
-
-Definition of done:
-- The system looks intentionally designed, not historically accreted.
-
-Completion notes:
-- Deleted residual alias and wrapper files from `cmd/vrooli`: `project_commands.go`, `command_sets.go`, and `scenario_runtime_types.go`.
-- Deleted unused scenario lifecycle helper functions that no longer participated in runtime dispatch.
-- Replaced `cmd`-local commandtree wrapper helpers with direct `internal/cli/commandtree` usage in remaining command-family roots.
-- Confirmed `cmd/vrooli` now primarily contains:
-  composition root bootstrap in `main.go` and `app.go`
-  command registration and binding in `command_registry.go`, `command_bindings.go`, and narrow family root adapters
-  minimal runtime-only subprocess helpers where the binary must own process launching or OS integration
-  tests
-- Confirmed `cmd/vrooli-api` is similarly thin: startup/bootstrap plus HTTP handler shims that delegate into `internal/api`, with no application logic owned by the binary package.
-- Confirmed no `internal/*` runtime package depends on `cmd/vrooli`; remaining string references to `cmd/vrooli` are build-target and fingerprint metadata, not package imports.
-
----
-
-## 9. Specific deletion targets
-
-These are not guaranteed to survive unchanged. They are called out because they are likely transitional or redundant today and should be challenged aggressively.
-
-Candidate deletion or collapse targets:
-
-- `cmd/vrooli/command_registry.go`
-- `cmd/vrooli/command_actions.go`
-- `cmd/vrooli/command_sets.go`
-- `cmd/vrooli/app_handlers.go`
-- `cmd/vrooli/top_level_actions.go`
-- `cmd/vrooli/top_level_native_commands.go`
-- `cmd/vrooli/cleanup_command.go`
 - `cmd/vrooli/scenario_actions.go`
-- `cmd/vrooli/scenario_commands.go`
 - `cmd/vrooli/scenario_lifecycle_commands.go`
 - `cmd/vrooli/scenario_external_commands.go`
+- `cmd/vrooli/scenario_logs.go`
+- `cmd/vrooli/scenario_template.go`
+- `cmd/vrooli/scenario_template_actions.go`
+- `cmd/vrooli/scenario_helpers.go`
+
+### 5.3 Resource family still lives materially in `cmd/`
+
+Must be addressed in:
+
 - `cmd/vrooli/resource_actions.go`
 - `cmd/vrooli/resource_commands.go`
+- `cmd/vrooli/resource_template.go`
+- `cmd/vrooli/resource_template_actions.go`
+
+### 5.4 Package and contract families still live materially in `cmd/`
+
+Must be addressed in:
+
 - `cmd/vrooli/package_commands.go`
-- `cmd/vrooli/info_command.go`
-- ad hoc local wrapper helpers like `run*CommandWithApp` where direct framework binding becomes possible
+- `cmd/vrooli/contract_commands.go`
 
-Targeted runtime behavior to delete:
+### 5.5 App-layer boundary violations still exist
 
-- unknown resource command fallback to legacy invocation
-- command-layer subprocess translation as a permanent architectural pattern
-- duplicated help text ownership
-- duplicated parse-run-render boilerplate
-- any compatibility path that exists only because the migration was incremental
+Must be addressed in:
+
+- `internal/app/scenario/service.go`
+- `internal/app/contract/service.go`
+
+### 5.6 Top-level lifecycle/setup CLI concerns still leak downward
+
+Must be addressed in:
+
+- `internal/setup/setup.go`
+- `internal/cli/topcli/*`
+- `internal/cli/projectcli/*`
+
+### 5.7 Legacy/compatibility still exists
+
+Must be addressed in:
+
+- `cmd/vrooli/scenario_external_commands.go`
+- `internal/resources/manifest/manifest.go`
+- `internal/resources/catalog/catalog.go`
+- `internal/resources/templates.go`
+- `packages/testkit-go/vrooli/compat.go`
+
+### 5.8 String and error ownership is still split
+
+Must be addressed in:
+
+- `cmd/vrooli/command_errors.go`
+- `cmd/vrooli/command_help.go`
+- `internal/cli/topcli/errors.go`
+- `internal/cli/*/help.go`
+- human-output helpers across `internal/cli/*` and `internal/setup`
+
+### 5.9 Test architecture is still wrong
+
+Must be addressed in:
+
+- most `cmd/vrooli/*_test.go`
+- `packages/testkit-go/vrooli/*`
+- parser/render test coverage under `internal/cli/*`
+- use-case tests under `internal/app/*`
 
 ---
 
-## 10. Risks and controls
+## 6. Non-negotiable design principles
 
-### Risk: Large refactor causes behavioral drift
+### 6.1 Prefer deletion over relocation
 
-Control:
-- phase by command family
-- preserve command contracts with explicit tests
-- use golden or contract tests for stable outputs
+Moving code from one `cmd/vrooli/*.go` file to another does not count as progress.
 
-### Risk: “Move code, same architecture” refactor
+### 6.2 App DTOs belong to app packages
 
-Control:
-- reject changes that only relocate files without removing responsibility from `cmd/`
-- require deletion of old glue in the same phase that introduces the replacement
+CLI packages may not be the canonical owners of app-layer request/response types.
 
-### Risk: Temporary compatibility becomes permanent again
+### 6.3 Help/error/output text must be declarative
 
-Control:
-- all temporary compatibility code must have an explicit deletion phase
-- no compatibility package may remain in active runtime use at program end
+No more scattered ad hoc help rendering or duplicate usage strings.
 
-### Risk: Tests become even more fragmented
+### 6.4 Compatibility is temporary only during deletion
 
-Control:
-- organize tests by layer
-- promote common fixtures into `testkit-go`
-- reduce giant binary-package test files as part of the work, not afterward
+If a temporary bridge is introduced during implementation, it must have an explicit deletion item in the same plan.
+
+### 6.5 Binary-package tests must be minimized
+
+If behavior can be validated below `cmd/`, that is where it belongs.
+
+### 6.6 Completion requires full deletion
+
+If code is dead, redundant, compatibility-only, or superseded, it must be removed before this effort is marked complete.
 
 ---
 
-## 11. Validation matrix
+## 7. Phased implementation checklist
 
-Run these repeatedly throughout implementation.
+All boxes are intentionally reset. The previous completion marks are no longer trusted.
 
-### Baseline validation
+## Phase 0: Re-baseline and stop treating the current state as complete
+
+Objective:
+
+- Establish the audited repo state and reset the plan to truth.
+
+Checklist:
+
+- [x] Replace the previous completion claims with this audited plan.
+- [x] Record current `cmd/vrooli` production/test LOC in the plan.
+- [x] Record current boundary violations and legacy surfaces in the plan.
+- [x] Freeze the target end state for `cmd/`, `internal/cli/*`, `internal/app/*`, `internal/setup`, and testkit.
+
+Validation:
+
+- [x] Plan reviewed against current repo state.
+
+Definition of done:
+
+- The repo has one current, truthful plan and no stale “complete” narrative.
+
+Phase 0 completion note:
+
+- Completed on April 13, 2026 by re-auditing the current repo, replacing the stale “complete” plan state, recording the current architectural gaps, and freezing the stricter end-state and phased checklist that will govern the remaining overhaul work.
+
+## Phase 1: Move the root command runtime out of `cmd/vrooli`
+
+Objective:
+
+- Create a single internal root command runner and reduce `cmd/vrooli` to bootstrap only.
+
+Checklist:
+
+- [x] Introduce a dedicated internal root runner package.
+- [x] Move global option parsing out of `cmd/vrooli/main.go`.
+- [x] Move root command dispatch out of `cmd/vrooli/main.go`.
+- [x] Move command registry construction out of `cmd/vrooli/command_registry.go`.
+- [x] Move unknown-command rendering/help policy out of `cmd/vrooli/command_help.go`.
+- [x] Move command error category/hint/suggestion policy out of `cmd/vrooli/command_errors.go`.
+- [x] Move generic command binding/execution helpers out of `cmd/vrooli/command_bindings.go`.
+- [x] Reduce `cmd/vrooli/app.go` to dependency graph construction only, while keeping a thin `App.Run` wrapper for shared test seams.
+- [ ] Delete:
+  - [x] `cmd/vrooli/command_registry.go`
+  - [x] `cmd/vrooli/command_bindings.go`
+  - [x] `cmd/vrooli/command_errors.go`
+  - [x] `cmd/vrooli/command_help.go`
+  - [x] now-dead root dispatch helpers reachable only through those files
+
+Validation:
+
+- [x] Parser/dispatch/help tests moved under `internal/cli/rootcli` or equivalent.
+- [x] `go test ./cmd/vrooli ./internal/cli/rootcli ./internal/cli/topcli ./internal/cli/scenariocli ./internal/cli/resourcecli ./internal/cli/packagecli`
+
+Definition of done:
+
+- `cmd/vrooli` no longer owns the command runtime; it only wires and invokes it.
+
+Phase 1 completion note:
+
+- Completed on April 13, 2026 by introducing `internal/cli/rootcli`, routing `main.go` and the shared `App.Run` test seam through the same internal runner, deleting the old root runtime files from `cmd/vrooli`, and moving root parser/dispatch coverage onto the new internal seam.
+
+## Phase 2: Remove CLI-package imports from app services
+
+Objective:
+
+- Enforce clean app/CLI boundaries before continuing extraction work.
+
+Checklist:
+
+- [x] Replace `internal/app/scenario` imports of `internal/cli/scenariocli` with app-owned DTOs.
+- [x] Replace `internal/app/contract` imports of `internal/cli/contractcli` with app-owned DTOs.
+- [x] Ensure no `internal/app/*` package imports `internal/cli/*`.
+- [x] Move any shared DTOs currently living in CLI packages into app packages or a neutral contract package.
+- [x] Update CLI packages to map to/from app DTOs instead of reusing them directly.
+
+Validation:
+
+- [x] `rg -n 'internal/cli/' internal/app` returns no runtime-package imports.
+- [x] App-service tests pass with the new DTO boundaries.
+
+Definition of done:
+
+- App services are reusable and CLI-agnostic.
+
+Phase 2 completion note:
+
+- Completed on April 13, 2026 by moving scenario and contract request/response DTO ownership into `internal/app/*`, removing all runtime `internal/cli/*` imports from app services, and making the CLI layer parse/render against app-owned contracts through explicit adapters.
+
+## Phase 3: Collapse and clean the top-level/project lifecycle surface
+
+Objective:
+
+- Stop spreading top-level behavior across `topcli`, `projectcli`, `cmd/vrooli`, and `internal/setup`.
+
+Checklist:
+
+- [x] Decide the final ownership split between `rootcli`, `topcli`, and `projectcli`.
+- [x] Remove duplicate ownership between `internal/cli/topcli` and `internal/cli/projectcli`.
+- [x] Move top-level lifecycle command parsing/help out of `internal/setup`.
+- [x] Make `internal/setup` expose typed operations only.
+- [x] Centralize top-level usage/help/error strings.
+- [x] Move `cleanup` to either:
+  - [x] a fully declarative first-class command under internal CLI packages, or
+  - [ ] delete it if it is redundant
+- [x] Move lifecycle-protect command metadata/help/error handling into internal CLI packages.
+- [x] Delete:
+  - [x] remaining top-level command adapters from `cmd/vrooli/app_handlers.go`
+  - [x] `cmd/vrooli/top_level_runtime.go`
+  - [x] `cmd/vrooli/lifecycle_commands.go`
+  - [x] any now-redundant `internal/cli/topcli` wrappers if `projectcli` subsumes them
+
+Validation:
+
+- [x] `vrooli --help`
+- [x] `vrooli info --help`
+- [x] `vrooli status --json`
+- [x] `vrooli doctor --json`
+- [x] `vrooli stop --json`
+- [x] `vrooli cleanup --help` or confirmed deletion of `cleanup`
+
+Definition of done:
+
+- Top-level command behavior is declared and implemented entirely outside `cmd/`.
+
+Phase 3 completion note:
+
+- Completed on April 13, 2026 by moving top-level lifecycle parsing/help/handler construction into `internal/cli/projectcli`, removing top-level setup/develop/build parsing from `internal/setup`, deleting `cmd/vrooli/top_level_runtime.go` and `cmd/vrooli/lifecycle_commands.go`, deleting the remaining dead project-lifecycle adapters from `cmd/vrooli/app_handlers.go`, and making `cleanup`/`lifecycle protect` first-class internal CLI handlers.
+- Final ownership split:
+  - `internal/cli/rootcli` owns root parsing, registry assembly, dispatch, help/version routing, and exit-code policy.
+  - `internal/cli/topcli` owns only the top-level command catalog and root-visible help surface.
+  - `internal/cli/projectcli` owns top-level project/lifecycle/maintenance parse, help, validation, and handler builders.
+- Validation completed with `go test ./internal/cli/projectcli ./internal/setup ./internal/cli/topcli`, `go test ./cmd/vrooli -count=1`, and live command checks for `vrooli --help`, `vrooli info --help`, `vrooli cleanup --help`, `vrooli status --json`, `vrooli doctor --json`, and `vrooli stop --json`.
+- Note: `vrooli stop --json` is intentionally stateful and stopped active scenarios during validation; a second verification run returned `stopped: 0`.
+
+## Phase 4: Extract the scenario family completely
+
+Objective:
+
+- Remove all remaining scenario-family runtime behavior from `cmd/vrooli`.
+
+Checklist:
+
+- [x] Move scenario command-root dispatch into internal CLI runner packages.
+- [x] Move scenario logs behavior out of `cmd/vrooli/scenario_logs.go`.
+- [x] Move scenario template load/copy/verify/generate behavior out of `cmd/vrooli/scenario_template.go`.
+- [x] Move scenario template hook execution orchestration out of `cmd/vrooli/scenario_template_actions.go`.
+- [x] Move scenario requirements snapshot/report translation out of `cmd/vrooli/scenario_external_commands.go`.
+- [x] Eliminate command-layer subprocess translation for:
+  - [x] `scenario requirements`
+  - [x] `scenario ui-smoke`
+  - [x] `scenario completeness`
+  - [x] any remaining test-genie bridging
+- [x] Decide the true end-state for those features:
+  - [ ] native internal use cases, or
+  - [x] bounded adapters below the CLI/app layers
+- [x] Move any scenario helper logic in `cmd/vrooli/scenario_helpers.go` to proper internal ownership.
+- [x] Delete:
+  - [x] `cmd/vrooli/scenario_actions.go`
+  - [x] `cmd/vrooli/scenario_lifecycle_commands.go`
+  - [x] `cmd/vrooli/scenario_external_commands.go`
+  - [x] `cmd/vrooli/scenario_logs.go`
+  - [x] `cmd/vrooli/scenario_template.go`
+  - [x] `cmd/vrooli/scenario_template_actions.go`
+  - [x] `cmd/vrooli/scenario_helpers.go`
+
+Validation:
+
+- [x] `vrooli scenario --help`
+- [x] `vrooli scenario list --json`
+- [x] `vrooli scenario status --json`
+- [x] `vrooli scenario start-all --json`
+- [x] `vrooli scenario stop-all --json`
+- [x] `vrooli scenario logs --help`
+- [x] `vrooli scenario template --help`
+- [x] `vrooli scenario requirements --help`
+
+Definition of done:
+
+- Scenario-family runtime logic no longer exists in `cmd/vrooli`.
+
+Phase 4 completion note:
+
+- Completed on April 13, 2026 by moving the scenario-family runtime into:
+  - `internal/cli/scenariohandlers` for executable handler construction and scenario-specific CLI orchestration
+  - `internal/scenarioexec` for subprocess, CLI-discovery, browser-open, and detached-launch support
+  - existing `internal/cli/scenariocli` packages for scenario command metadata, parsing, help, and rendering
+- `cmd/vrooli` no longer contains production scenario runtime files; `rg --files cmd/vrooli | rg 'scenario'` now returns test files only.
+- The previous scenario subprocess bridges were intentionally retained only as bounded internal adapters below the CLI/app wiring layer. They no longer live in `cmd/`.
+- JSON mode now routes lifecycle progress chatter to `stderr` at the bootstrap service boundary so scenario JSON commands keep `stdout` machine-readable.
+- Validation completed with:
+  - `go test ./internal/cli/scenariohandlers ./internal/scenarioexec`
+  - `go test ./cmd/vrooli -count=1`
+  - live/source command checks for `scenario --help`, `scenario list --json`, `scenario status --json`, `scenario logs --help`, `scenario template --help`, and `scenario requirements --help`
+  - package coverage for `scenario start-all --json` and `scenario stop-all --json` in `cmd/vrooli`
+
+## Phase 5: Extract the resource family completely and delete legacy resource support
+
+Objective:
+
+- Remove all remaining resource-family runtime behavior from `cmd/` and delete legacy resource-driver compatibility.
+
+Checklist:
+
+- [x] Move resource-family root dispatch into internal CLI runner packages.
+- [x] Move resource template command runtime logic out of `cmd/vrooli/resource_template.go`.
+- [x] Move resource action glue out of `cmd/vrooli/resource_actions.go`.
+- [x] Move resource family routing out of `cmd/vrooli/resource_commands.go`.
+- [x] Ensure archive/blueprint/template subcommands are defined and executed entirely from internal packages.
+- [x] Delete runtime support for `legacy-adapter` in project-level resource handling.
+- [x] Remove `legacy_adapter` schema/manifest/catalog/template support from:
+  - [x] `internal/resources/manifest/manifest.go`
+  - [x] `internal/resources/catalog/catalog.go`
+  - [x] `internal/resources/templates.go`
+- [x] Update tests/fixtures away from `legacy-adapter`.
+- [x] Delete:
+  - [x] `cmd/vrooli/resource_actions.go`
+  - [x] `cmd/vrooli/resource_commands.go`
+  - [x] `cmd/vrooli/resource_template.go`
+  - [x] `cmd/vrooli/resource_template_actions.go`
+
+Implementation notes:
+
+- Resource runtime now lives in `internal/cli/resourcehandlers/handlers.go`.
+- Top-level `resource` dispatch in `cmd/vrooli` is now a thin handoff to the internal handler package.
+- Nested `resource blueprint|archive|template --help` now resolves to the correct subcommand help instead of falling back to root resource help.
+- The `templates/resources/legacy-adapter/` scaffold was deleted.
+
+Validation:
+
+- [x] `vrooli resource --help`
+- [x] `vrooli resource list --json`
+- [x] `vrooli resource status --json`
+- [x] `vrooli resource blueprint --help`
+- [x] `vrooli resource archive --help`
+- [x] `vrooli resource template --help`
+- [x] Search confirms no runtime `legacy-adapter` support remains.
+- [x] Focused test validation passed for the resource slice:
+  - `go test ./cmd/vrooli -run TestDoesNotExist`
+  - `go test ./internal/resources/... -run TestDoesNotExist`
+  - `go test ./internal/resources ./internal/cli/resourcecli ./cmd/vrooli -run 'TestValidateRejectsInvalidDriver|TestWriteStatusHumanIncludesCoreMetadata|TestSplitRunResourceStatusUsesNativeController|TestMigratedResourceCLIsDelegateStandardCommandsToNativeControlPlane'`
+
+Validation caveat:
+
+- The broad `go test ./cmd/vrooli ./internal/resources ./internal/cli/resourcecli ./internal/api` run still appears to include long-running existing coverage outside the Phase 5 slice, so Phase 5 was validated with focused compile and behavior checks rather than waiting indefinitely on the entire package set.
+
+Definition of done:
+
+- Resource commands run natively from internal packages and no legacy resource-driver compatibility remains.
+
+## Phase 6: Extract package and contract families completely
+
+Objective:
+
+- Finish package and contract cleanup to the same standard.
+
+Checklist:
+
+- [x] Move package-family root dispatch and runtime glue out of `cmd/vrooli/package_commands.go`.
+- [x] Move contract-family root dispatch and runtime glue out of `cmd/vrooli/contract_commands.go`.
+- [x] Ensure package lifecycle execution is owned by app/adapters rather than command packages.
+- [x] Ensure contract validation/show/resolve/match are declared and run from internal CLI/app packages only.
+- [ ] Delete:
+  - [x] `cmd/vrooli/package_commands.go`
+  - [x] `cmd/vrooli/contract_commands.go`
+
+Implementation notes:
+
+- Package command runtime now lives in `internal/cli/packagehandlers/handlers.go`.
+- Contract command runtime now lives in `internal/cli/contracthandlers/handlers.go`.
+- Package response rendering now lives in `internal/cli/packagecli/render.go`, so package help/parse/render contracts are declared under one internal CLI family instead of being split across `cmd/`.
+- Repo-contract runtime helpers were moved out of `internal/cli/contractcli` into `internal/app/contract/runtime.go`, so the contract app service no longer relies on CLI-owned operational functions.
+- `cmd/vrooli/app_handlers.go` now hands off `package` and `contract` to internal handler packages, and `cmd/vrooli` no longer contains production package/contract command-family files.
+
+Validation:
+
+- [x] `vrooli package --help`
+- [x] `vrooli package list --json`
+- [x] `vrooli contract --help`
+- [x] `vrooli contract validate --json`
+- [x] Focused validation passed for the extracted package/contract slice:
+  - [x] `go test ./internal/cli/packagecli ./internal/cli/contractcli ./internal/app/contract`
+  - [x] `go test ./internal/cli/packagehandlers ./internal/cli/contracthandlers`
+  - [x] `go test ./cmd/vrooli -run 'TestPackage|TestRunContract|TestShowMainHelpIncludesContractCommand'`
+  - [x] `go test ./cmd/vrooli -run 'TestDoesNotExist'`
+
+Definition of done:
+
+- Package and contract families no longer have runtime command logic in `cmd/`.
+
+Phase 6 completion note:
+
+- Completed on April 13, 2026 by moving package and contract command dispatch/runtime glue into `internal/cli/packagehandlers` and `internal/cli/contracthandlers`, moving package response rendering into `internal/cli/packagecli`, moving repo-contract operational functions into `internal/app/contract/runtime.go`, deleting `cmd/vrooli/package_commands.go` and `cmd/vrooli/contract_commands.go`, and updating the command-package tests to exercise the new handler seam instead of deleted production helpers.
+
+## Phase 7: Centralize strings, errors, and output contracts
+
+Objective:
+
+- Eliminate drift across help, errors, and output text.
+
+Checklist:
+
+- [x] Choose one authoritative home for root-level unknown-command handling text.
+- [x] Choose one authoritative home for usage error construction and categories.
+- [x] Remove duplicated help/error helpers between:
+  - [x] `cmd/vrooli/*`
+  - [x] `internal/cli/topcli/errors.go`
+  - [x] any family-local duplicated helpers
+- [x] Centralize JSON envelope conventions in one shared place.
+- [x] Centralize stable human-facing output strings where they are part of a contract.
+- [x] Centralize repo-contract and info-manifest filenames/keys used by command surfaces.
+- [x] Replace test literals with shared declarations where practical.
+
+Validation:
+
+- [x] `rg -n 'Usage: vrooli|Unknown command:|Run '\''vrooli .* --help'\''' cmd/vrooli internal/cli internal/app internal/setup` shows only deliberate declarative homes.
+- [x] Representative command output tests pass for both human and JSON modes.
+
+Definition of done:
+
+- Stable command/output/error contracts are declared once and reused.
+
+Phase 7 completion note:
+
+- Completed on April 13, 2026 by introducing `internal/cli/clipolicy` as the authoritative home for help-only errors, usage error construction, error categories, unknown-command rendering text, and shared usage hints.
+- Deleted `internal/cli/topcli/errors.go` and removed the duplicated family-local `helpOnlyError` / `commandHelpOnly` / `usageErrorf` / `unknownOptionError` helpers across `projectcli`, `scenariocli`, `resourcecli`, `contractcli`, and `packagecli`.
+- Extended `internal/cliout/contracts.go` so explicit-success JSON envelopes share one implementation path, then updated scenario/resource validation and status renderers to use the shared envelope helpers instead of handwritten `"success"` maps.
+- Expanded `internal/repocontractmeta` to own the canonical `service.json`, `resource.json`, and info-manifest path contracts used by command surfaces, then updated the affected runtime code and tests to consume those declarations.
+- Replaced representative `cmd/vrooli`, `internal/cli`, and `packages/testkit-go` test literals with shared declarations for usage text, unknown-command labels/hints, and manifest paths.
+- Validation completed with:
+  - `go test ./internal/cli/clipolicy ./internal/cli/rootcli ./internal/cli/topcli ./internal/cli/projectcli ./internal/cli/scenariocli ./internal/cli/resourcecli ./internal/cli/contractcli ./internal/cli/packagecli ./internal/cliout`
+  - `go test ./internal/resources/manifest ./internal/resources/catalog ./internal/scenario ./internal/repocontractmeta`
+  - `go test ./packages/testkit-go ./cmd/vrooli -run 'TestRunInfoHelpExitsZero|TestLifecycleCommandIsHiddenFromMainHelpButSupportsDirectHelp|TestPrintErrorWithContextFormatsUnknownCommandSuggestions|TestNewUnknownCommandErrorIncludesSuggestionCategory|TestExecuteTopLevelCommandRendersHelpOnlyErrors|TestExecuteScenarioCommandRendersHelpOnlyErrors|TestParseScenarioRequirementsRequestTreatsHelpAsCommandHelp|TestRunContractResolveScenarioServicePath|TestCanonicalSetupInstallContract'`
+
+## Phase 8: Rebuild the test architecture around the new seams
+
+Objective:
+
+- Move the center of gravity of the test suite out of `cmd/vrooli`.
+
+Checklist:
+
+- [ ] Reduce `cmd/vrooli` tests to smoke/integration coverage only.
+- [ ] Move parser tests into `internal/cli/*`.
+- [ ] Move renderer tests into `internal/cli/*` or `internal/cliout`.
+- [ ] Move use-case tests into `internal/app/*`.
+- [ ] Promote repeated repo/fixture helpers into `packages/testkit-go/vrooli`.
+- [ ] Delete or rename compatibility-oriented testkit helpers such as `packages/testkit-go/vrooli/compat.go` if they no longer match the target architecture.
+- [ ] Replace large binary-package fixtures with shared testkit builders.
+- [ ] Split or delete oversized `cmd/vrooli/*_test.go` files that are validating lower-layer behavior.
+
+Validation:
+
+- [ ] `cmd/vrooli` test LOC is materially smaller than current baseline.
+- [ ] internal CLI/app tests materially increase relative to current baseline.
+- [ ] `go test ./cmd/vrooli/... ./internal/...`
+
+Definition of done:
+
+- Most command correctness is validated below the binary package.
+
+## Phase 9: Final deletion pass and architectural verification
+
+Objective:
+
+- Ensure nothing transitional remains.
+
+Checklist:
+
+- [ ] Review `cmd/vrooli` production files and delete everything not strictly bootstrap-only.
+- [ ] Review `cmd/vrooli-api` by the same standard.
+- [ ] Confirm no `internal/app/*` imports `internal/cli/*`.
+- [ ] Confirm no runtime support remains for command-layer compatibility bridges.
+- [ ] Confirm no runtime support remains for resource `legacy-adapter`.
+- [ ] Confirm no stale wrapper helpers or transitional aliases remain.
+- [ ] Confirm no testkit compatibility shims remain.
+- [ ] Update this plan with actual completion notes only after all validations are green.
+
+Validation:
+
+- [ ] `find cmd/vrooli -maxdepth 1 -name '*.go' ! -name '*_test.go'`
+  Result should reflect only bootstrap-level files.
+- [ ] `rg -n 'internal/cli/' internal/app`
+  Returns no runtime-package imports.
+- [ ] `rg -n 'legacy-adapter|legacy_adapter|compat' cmd internal packages/testkit-go/vrooli`
+  Returns no runtime/active compatibility code, only truly intentional non-runtime documentation if any.
+
+Definition of done:
+
+- The architecture now looks greenfield and intentional, not partially migrated.
+
+---
+
+## 8. Required deletions
+
+These files should be treated as deletion targets, not permanent fixtures.
+
+### 8.1 `cmd/vrooli` production files expected to disappear
+
+- `cmd/vrooli/app.go`
+- `cmd/vrooli/app_handlers.go`
+- `cmd/vrooli/command_registry.go`
+- `cmd/vrooli/command_bindings.go`
+- `cmd/vrooli/command_errors.go`
+- `cmd/vrooli/command_help.go`
+- `cmd/vrooli/top_level_runtime.go`
+- `cmd/vrooli/lifecycle_commands.go`
+- `cmd/vrooli/scenario_actions.go`
+- `cmd/vrooli/scenario_lifecycle_commands.go`
+- `cmd/vrooli/scenario_external_commands.go`
+- `cmd/vrooli/scenario_logs.go`
+- `cmd/vrooli/scenario_template.go`
+- `cmd/vrooli/scenario_template_actions.go`
+- `cmd/vrooli/scenario_helpers.go`
+- `cmd/vrooli/resource_actions.go`
+- `cmd/vrooli/resource_commands.go`
+- `cmd/vrooli/resource_template.go`
+- `cmd/vrooli/resource_template_actions.go`
+- `cmd/vrooli/package_commands.go`
+- `cmd/vrooli/contract_commands.go`
+
+If any of these survive, they must be reduced to genuinely trivial bootstrap glue. The default expectation is deletion.
+
+### 8.2 Runtime compatibility targets expected to disappear
+
+- scenario external command translation in `cmd/vrooli/scenario_external_commands.go`
+- resource `legacy-adapter` runtime/schema/catalog/template support
+- any fallback routing preserved for migration convenience
+- testkit compatibility helpers that only exist to prop up transitional code
+
+---
+
+## 9. Validation matrix
+
+This matrix is required for completion. Do not mark the effort done without it.
+
+### 9.1 Core test validation
 
 - [ ] `go test ./cmd/vrooli/... ./internal/...`
+- [ ] `go test ./packages/testkit-go/...`
 - [ ] `go test ./...`
 
-### Focused CLI validation
+If `go test ./...` is blocked by repo permissions or an unreadable directory, fixing that blocker is part of completion. A blocked full-repo test run does **not** count as done.
+
+### 9.2 Focused CLI validation
 
 - [ ] `vrooli --help`
 - [ ] `vrooli --version`
@@ -901,64 +934,61 @@ Run these repeatedly throughout implementation.
 - [ ] `vrooli status --json`
 - [ ] `vrooli doctor --json`
 - [ ] `vrooli stop --json`
-- [ ] `vrooli cleanup --help`
 - [ ] `vrooli contract validate --json`
 - [ ] `vrooli package list --json`
 - [ ] `vrooli resource list --json`
 - [ ] `vrooli resource status --json`
 - [ ] `vrooli scenario list --json`
 - [ ] `vrooli scenario status --json`
-- [ ] `vrooli scenario start-all --json`
-- [ ] `vrooli scenario stop-all --json`
+- [ ] `vrooli scenario logs --help`
+- [ ] `vrooli scenario template --help`
+- [ ] `vrooli scenario requirements --help`
 
-### Behavioral validation
+### 9.3 Architectural validation
 
-- [ ] Top-level lifecycle help does not accidentally execute lifecycle phases.
-- [ ] JSON output remains machine-readable and consistent across command families.
-- [ ] Human help output is generated from metadata, not hard-coded per command.
-- [ ] No command requires a compatibility shim to dispatch correctly.
+- [ ] `cmd/vrooli` is bootstrap-only by inspection.
+- [ ] `cmd/vrooli-api` is bootstrap-only by inspection.
+- [ ] No `internal/app/*` runtime package imports `internal/cli/*`.
+- [ ] No runtime legacy/compatibility path remains.
+- [ ] Shared fixtures are provided by `packages/testkit-go` where repetition justified it.
 
-### Architecture validation
-
-- [ ] `cmd/vrooli` contains only composition-root concerns.
-- [ ] No `internal/*` package depends on `cmd/vrooli`.
-- [ ] No runtime legacy/compatibility dispatch remains.
-- [ ] Shared testkit utilities cover common fixture patterns.
-
-### Optional higher-level validation
+### 9.4 Optional higher-level validation
 
 - [ ] `make validate`
 
-If `make validate` is not green due to unrelated tracks, record the precise blocker in this plan rather than silently ignoring it.
+If this is not green, record the exact blocker in this plan and do not silently wave it away.
 
 ---
 
-## 12. Definition of done
+## 10. Definition of done
 
-This effort is complete only when all of the following are true:
+This overhaul is complete only when **all** of the following are true:
 
-- [ ] `cmd/vrooli` is thin and only composes dependencies plus invokes a shared internal command runner.
-- [ ] Command declarations, help text, and parsing rules live in internal command packages, not in the binary package.
-- [ ] Explicit application use-case packages own command orchestration behavior.
-- [ ] Domain packages are focused on domain responsibilities, not command presentation.
-- [ ] Stable strings, error identifiers, JSON envelopes, and contract paths are centrally declared.
-- [ ] Tests use shared fixtures and utilities where practical, especially via `packages/testkit-go`.
-- [ ] Large command-package test files are decomposed into professional seams.
-- [ ] No runtime legacy path remains.
-- [ ] No compatibility fallback remains.
-- [ ] No dead wrapper code remains.
-- [ ] The full validation matrix is green.
+- [ ] `cmd/vrooli` is composition/bootstrap only.
+- [ ] `cmd/vrooli-api` is composition/bootstrap only.
+- [ ] `cmd/vrooli` no longer owns command registries, command-family runtime logic, or command help/error policy.
+- [ ] `internal/app/*` packages do not import `internal/cli/*`.
+- [ ] `internal/setup` no longer owns CLI parsing/help strings.
+- [ ] Scenario/resource/package/contract families are implemented entirely below `cmd/`.
+- [ ] No resource `legacy-adapter` runtime support remains.
+- [ ] No scenario external-command compatibility bridge remains.
+- [ ] No testkit compatibility shim remains.
+- [ ] Stable help/error/output contracts are declared once and reused.
+- [ ] The binary-package test surface is small and smoke-oriented.
+- [ ] Shared testkit utilities cover repeated fixture patterns.
+- [ ] `go test ./...` is green.
+- [ ] The validation matrix above is green.
 
-If any of those are false, the effort is not done.
+If any item above is false, the effort is not done.
 
 ---
 
-## 13. Immediate next step
+## 11. Immediate next slice
 
-The recommended first implementation slice is:
+The next highest-value slice is:
 
-1. Build `internal/cli/commandtree` as the single command framework.
-2. Migrate top-level command declaration/help/dispatch to that framework.
-3. Delete the old registry/action/set plumbing from `cmd/vrooli`.
+1. Create the internal root runner and move global parsing/dispatch/help/error handling out of `cmd/vrooli`.
+2. Remove `internal/app/*` imports of CLI packages.
+3. Split `internal/setup` into typed operations only and move top-level lifecycle CLI parsing/help into internal CLI packages.
 
-That slice sets the pattern for every later command family and prevents more cleanup work from being layered onto the current command architecture.
+That sequence fixes the foundation. Without it, further extraction work will continue to pile new code onto a still-thick binary layer.

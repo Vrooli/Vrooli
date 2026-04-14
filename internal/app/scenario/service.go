@@ -5,8 +5,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/vrooli/vrooli/internal/cli/scenariocli"
-	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/orchestrator"
@@ -39,11 +37,10 @@ type Service struct {
 	Runner    PhaseRunner
 	Validator EnvironmentValidator
 	OpenURL   func(string) error
-	Format    cliout.Format
 }
 
-func (s Service) Start(req scenariocli.StartRequest) ([]scenariocli.LifecycleItemOutput, error) {
-	items := make([]scenariocli.LifecycleItemOutput, 0, len(req.Names))
+func (s Service) Start(req StartRequest) ([]LifecycleItemOutput, error) {
+	items := make([]LifecycleItemOutput, 0, len(req.Names))
 	for _, name := range req.Names {
 		result, err := s.Scenarios.StartDetailed(name, req.Options)
 		if err != nil {
@@ -54,7 +51,7 @@ func (s Service) Start(req scenariocli.StartRequest) ([]scenariocli.LifecycleIte
 		if result.AlreadyRunning {
 			status = "already_running"
 		}
-		items = append(items, scenariocli.LifecycleItemOutput{
+		items = append(items, LifecycleItemOutput{
 			Name:               result.Scenario.Slug,
 			Status:             status,
 			Health:             result.Details.Health,
@@ -75,13 +72,13 @@ func (s Service) Start(req scenariocli.StartRequest) ([]scenariocli.LifecycleIte
 	return items, nil
 }
 
-func (s Service) Restart(req scenariocli.RestartRequest) ([]scenariocli.LifecycleItemOutput, error) {
+func (s Service) Restart(req RestartRequest) ([]LifecycleItemOutput, error) {
 	result, err := s.Scenarios.RestartDetailed(req.Name, req.Options)
 	if err != nil {
 		return nil, err
 	}
 
-	item := scenariocli.LifecycleItemOutput{
+	item := LifecycleItemOutput{
 		Name:               result.Scenario.Slug,
 		Status:             "restarted",
 		Health:             result.Details.Health,
@@ -99,23 +96,23 @@ func (s Service) Restart(req scenariocli.RestartRequest) ([]scenariocli.Lifecycl
 		}
 	}
 
-	return []scenariocli.LifecycleItemOutput{item}, nil
+	return []LifecycleItemOutput{item}, nil
 }
 
-func (s Service) Stop(req scenariocli.StopRequest) ([]scenariocli.LifecycleItemOutput, error) {
+func (s Service) Stop(req StopRequest) ([]LifecycleItemOutput, error) {
 	if err := s.Runner.Stop(req.Name, lifecycle.StopOptions{}); err != nil {
 		return nil, err
 	}
-	return []scenariocli.LifecycleItemOutput{{Name: req.Name, Status: "stopped"}}, nil
+	return []LifecycleItemOutput{{Name: req.Name, Status: "stopped"}}, nil
 }
 
-func (s Service) List(req scenariocli.ListRequest) (scenariocli.ListResponse, error) {
+func (s Service) List(req ListRequest) (ListResponse, error) {
 	inventory, err := s.Scenarios.Inventory()
 	if err != nil {
-		return scenariocli.ListResponse{}, err
+		return ListResponse{}, err
 	}
 
-	resp := scenariocli.ListResponse{Items: make([]scenariocli.ListItemOutput, 0, len(inventory))}
+	resp := ListResponse{Items: make([]ListItemOutput, 0, len(inventory))}
 	for _, item := range inventory {
 		status := "available"
 		if item.Details.Status == "running" {
@@ -123,17 +120,17 @@ func (s Service) List(req scenariocli.ListRequest) (scenariocli.ListResponse, er
 			resp.RunningCount++
 		}
 
-		listPorts := []scenariocli.ListPortOutput{}
+		listPorts := []ListPortOutput{}
 		if req.IncludePorts && item.Details.Status == "running" {
-			listPorts = scenariocli.RuntimePortOutputs(item.Details.PortBindings)
+			listPorts = RuntimePortOutputs(item.Details.PortBindings)
 		}
 
-		resp.Items = append(resp.Items, scenariocli.ListItemOutput{
+		resp.Items = append(resp.Items, ListItemOutput{
 			Name:        item.Scenario.Slug,
 			Description: item.Scenario.Manifest.Service.Description,
 			Version:     item.Scenario.Manifest.Service.Version,
 			Status:      status,
-			Tags:        scenariocli.CopyStrings(item.Scenario.Manifest.Service.Tags),
+			Tags:        CopyStrings(item.Scenario.Manifest.Service.Tags),
 			Path:        item.Scenario.Path + string(os.PathSeparator),
 			Ports:       listPorts,
 		})
@@ -141,112 +138,96 @@ func (s Service) List(req scenariocli.ListRequest) (scenariocli.ListResponse, er
 	return resp, nil
 }
 
-func (s Service) Info(req scenariocli.InfoRequest) (scenariocli.InfoOutput, error) {
+func (s Service) Info(req InfoRequest) (InfoOutput, error) {
 	detail, err := s.Scenarios.Detail(req.Name)
 	if err != nil {
-		return scenariocli.InfoOutput{}, err
+		return InfoOutput{}, err
 	}
-	return scenariocli.InfoOutput{
+	return InfoOutput{
 		Success:  true,
-		Scenario: scenariocli.BuildInfoData(detail.Scenario),
-		Runtime:  scenariocli.BuildRuntimeData(detail.Scenario.Manifest, detail.Runtime),
+		Scenario: BuildInfoData(detail.Scenario),
+		Runtime:  BuildRuntimeData(detail.Scenario.Manifest, detail.Runtime),
 	}, nil
 }
 
-func (s Service) Status(req scenariocli.StatusRequest) (scenariocli.StatusResponse, error) {
+func (s Service) Status(req StatusRequest) (StatusResponse, error) {
 	if req.Name == "" {
 		inventory, err := s.Scenarios.Inventory()
 		if err != nil {
-			return scenariocli.StatusResponse{}, err
+			return StatusResponse{}, err
 		}
-		items := make([]scenariocli.StatusItemOutput, 0, len(inventory))
+		items := make([]StatusItemOutput, 0, len(inventory))
 		for _, item := range inventory {
-			items = append(items, scenariocli.BuildStatusDetail(item))
+			items = append(items, BuildStatusDetail(item))
 		}
-		return scenariocli.StatusResponse{List: items}, nil
+		return StatusResponse{List: items}, nil
 	}
 
 	detail, err := s.Scenarios.Detail(req.Name)
 	if err != nil {
-		return scenariocli.StatusResponse{}, err
+		return StatusResponse{}, err
 	}
-	output := scenariocli.StatusSingleOutput{
+	output := StatusSingleOutput{
 		Success:  true,
-		Scenario: scenariocli.BuildStatusDetail(detail),
-		Info:     scenariocli.BuildInfoData(detail.Scenario),
-		Runtime:  scenariocli.BuildRuntimeData(detail.Scenario.Manifest, detail.Runtime),
+		Scenario: BuildStatusDetail(detail),
+		Info:     BuildInfoData(detail.Scenario),
+		Runtime:  BuildRuntimeData(detail.Scenario.Manifest, detail.Runtime),
 	}
-	return scenariocli.StatusResponse{Single: &output}, nil
+	return StatusResponse{Single: &output}, nil
 }
 
-func (s Service) ValidateEnv(req scenariocli.ValidateEnvRequest) (scenariocli.ValidateEnvResponse, error) {
+func (s Service) ValidateEnv(req ValidateEnvRequest) (ValidateEnvResponse, error) {
 	report, err := s.Validator.ValidateScenarioEnvironment(req.Name)
 	if err != nil {
-		return scenariocli.ValidateEnvResponse{}, err
+		return ValidateEnvResponse{}, err
 	}
-	return scenariocli.ValidateEnvResponse{Report: report}, nil
+	return ValidateEnvResponse{Report: report}, nil
 }
 
-func (s Service) Setup(req scenariocli.SetupRequest) (lifecycle.PhaseResult, error) {
+func (s Service) Setup(req SetupRequest) (lifecycle.PhaseResult, error) {
 	return s.Runner.RunPhaseDetailed(req.Name, "setup", req.Opts)
 }
 
-func (s Service) Test(req scenariocli.TestRequest) error {
+func (s Service) Test(req TestRequest) error {
 	return s.Runner.RunPhase(req.Name, "test", req.Opts)
 }
 
-func (s Service) StartAll() (scenariocli.BatchResponse, error) {
+func (s Service) StartAll() (BatchResponse, error) {
 	report, err := s.Scenarios.StartAll()
 	if err != nil {
-		return scenariocli.BatchResponse{}, err
+		return BatchResponse{}, err
 	}
-	started := make([]scenariocli.LifecycleItemOutput, 0, len(report.Started))
-	for _, item := range report.Started {
-		started = append(started, scenariocli.LifecycleItemOutput{Name: item.Name, Status: "started"})
-	}
-	failed := make([]scenariocli.BatchFailure, 0, len(report.Failed))
-	for _, item := range report.Failed {
-		failed = append(failed, scenariocli.BatchFailure{Name: item.Name, Error: item.Error})
-	}
-	return scenariocli.BatchResponse{Verb: "Started", Started: started, Failed: failed}, nil
+	return BatchResponseFromStartReport(report), nil
 }
 
-func (s Service) StopAll() (scenariocli.BatchResponse, error) {
+func (s Service) StopAll() (BatchResponse, error) {
 	report, err := s.Scenarios.StopAll()
 	if err != nil {
-		return scenariocli.BatchResponse{}, err
+		return BatchResponse{}, err
 	}
-	stopped := make([]string, 0, len(report.Stopped))
-	for _, item := range report.Stopped {
-		stopped = append(stopped, item.Name)
-	}
-	failed := make([]scenariocli.BatchFailure, 0, len(report.Failed))
-	for _, item := range report.Failed {
-		failed = append(failed, scenariocli.BatchFailure{Name: item.Name, Error: item.Error})
-	}
-	return scenariocli.BatchResponse{Verb: "Stopped", Stopped: stopped, Failed: failed}, nil
+	return BatchResponseFromStopReport(report), nil
 }
 
-func (s Service) Port(req scenariocli.PortRequest) (scenariocli.PortResponse, error) {
+func (s Service) Port(req PortRequest) (PortResponse, error) {
 	detail, err := s.Scenarios.Detail(req.ScenarioName)
 	if err != nil {
-		return scenariocli.PortResponse{}, err
+		return PortResponse{}, err
 	}
-	listPorts, portsMap := scenariocli.BuildListPorts(detail.Scenario.Manifest, detail.Runtime.Records)
+	listPorts, portsMap := BuildListPorts(detail.Scenario.Manifest, detail.Runtime.Records)
 
 	if req.PortName == "" {
 		if detail.Runtime.ProcessCount == 0 || len(portsMap) == 0 {
 			if req.JSON {
-				return scenariocli.PortResponse{List: &scenariocli.PortListOutput{
+				return PortResponse{List: &PortListOutput{
 					Success:  false,
 					Scenario: req.ScenarioName,
-					Ports:    []scenariocli.ListPortOutput{},
+					Ports:    []ListPortOutput{},
 					Error:    "No running processes found for scenario",
 				}}, nil
 			}
-			return scenariocli.PortResponse{}, fmt.Errorf("no running processes found for scenario %q", req.ScenarioName)
+			return PortResponse{}, fmt.Errorf("no running processes found for scenario %q", req.ScenarioName)
 		}
-		list := &scenariocli.PortListOutput{
+		list := &PortListOutput{
 			Success:  true,
 			Scenario: req.ScenarioName,
 			Ports:    listPorts,
@@ -254,23 +235,23 @@ func (s Service) Port(req scenariocli.PortRequest) (scenariocli.PortResponse, er
 		if req.JSON {
 			list.Metadata = map[string]int{"count": len(listPorts)}
 		}
-		return scenariocli.PortResponse{List: list}, nil
+		return PortResponse{List: list}, nil
 	}
 
 	key, port, step, ok := resolveRequestedPort(detail.Scenario.Manifest, listPorts, portsMap, req.PortName)
 	if !ok {
 		if req.JSON {
-			return scenariocli.PortResponse{Single: &scenariocli.PortSingleOutput{
+			return PortResponse{Single: &PortSingleOutput{
 				Success:  false,
 				Scenario: req.ScenarioName,
 				PortName: req.PortName,
 				Error:    fmt.Sprintf("No running port named %s for scenario", req.PortName),
 			}}, nil
 		}
-		return scenariocli.PortResponse{}, fmt.Errorf("no running port named %s for scenario %q", req.PortName, req.ScenarioName)
+		return PortResponse{}, fmt.Errorf("no running port named %s for scenario %q", req.PortName, req.ScenarioName)
 	}
 
-	return scenariocli.PortResponse{Single: &scenariocli.PortSingleOutput{
+	return PortResponse{Single: &PortSingleOutput{
 		Success:  true,
 		Scenario: req.ScenarioName,
 		PortName: key,
@@ -279,18 +260,18 @@ func (s Service) Port(req scenariocli.PortRequest) (scenariocli.PortResponse, er
 	}}, nil
 }
 
-func (s Service) Open(req scenariocli.OpenRequest) (scenariocli.OpenOutput, error) {
+func (s Service) Open(req OpenRequest) (OpenOutput, error) {
 	resolved, err := s.Scenarios.ResolvePort(req.ScenarioName, req.PortName)
 	if err != nil {
-		return scenariocli.OpenOutput{}, err
+		return OpenOutput{}, err
 	}
 	if !req.PrintURL && !req.JSON {
 		if err := s.OpenURL(resolved.URL); err != nil {
-			return scenariocli.OpenOutput{}, err
+			return OpenOutput{}, err
 		}
-		return scenariocli.OpenOutput{}, nil
+		return OpenOutput{}, nil
 	}
-	return scenariocli.OpenOutput{
+	return OpenOutput{
 		Success:  true,
 		Scenario: req.ScenarioName,
 		PortName: resolved.Name,
@@ -311,7 +292,7 @@ func envPortMap(manifest scenariomodel.ServiceManifest, ports map[string]int) ma
 	return out
 }
 
-func resolveRequestedPort(manifest scenariomodel.ServiceManifest, listPorts []scenariocli.ListPortOutput, portsMap map[string]int, requested string) (string, int, string, bool) {
+func resolveRequestedPort(manifest scenariomodel.ServiceManifest, listPorts []ListPortOutput, portsMap map[string]int, requested string) (string, int, string, bool) {
 	candidates := []string{requested}
 	if envVar := manifest.PortEnvVar(strings.ToLower(strings.TrimSuffix(requested, "_PORT"))); envVar != "" {
 		candidates = append(candidates, envVar)

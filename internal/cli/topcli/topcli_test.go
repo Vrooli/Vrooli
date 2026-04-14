@@ -12,12 +12,6 @@ import (
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
-func TestParseStatusRequestRejectsConflictingFilters(t *testing.T) {
-	if _, err := ParseStatusRequest([]string{"--resources", "--scenarios"}); err == nil {
-		t.Fatal("expected conflict error")
-	}
-}
-
 func TestRunInfoListJSONOutput(t *testing.T) {
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, repocontractmeta.ProjectConfigDir), 0o755); err != nil {
