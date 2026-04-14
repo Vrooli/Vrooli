@@ -3,6 +3,7 @@ package resources
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
@@ -146,6 +147,54 @@ func TestLoadResourceEnvironmentUsesEncryptedSecrets(t *testing.T) {
 	}
 	if got := postgresEnv["POSTGRES_USER"]; got != "vrooli" {
 		t.Fatalf("POSTGRES_USER = %q, want vrooli", got)
+	}
+}
+
+func TestLoadResourceEnvironmentPrefersSecretsOverRuntimePlaceholders(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+
+	testkitgo.WriteJSON(t, filepath.Join(root, "scripts", "resources", "port_registry.json"), map[string]any{
+		"resource_ports":  map[string]int{"postgres": 5433},
+		"reserved_ranges": map[string]string{},
+	})
+	writeEnvManifestFixture(t, root, "postgres", manifestpkg.ResourceManifest{
+		Name:            "postgres",
+		Driver:          "docker-service",
+		PortabilityTier: "full",
+		Ports:           []manifestpkg.ResourcePort{{Name: "postgresql", Container: 5432, Host: 5433}},
+		Runtime: manifestpkg.ResourceRuntime{
+			Image: "postgres:16-alpine",
+			Env: map[string]string{
+				"POSTGRES_DB":       "vrooli",
+				"POSTGRES_USER":     "vrooli",
+				"POSTGRES_PASSWORD": "placeholder",
+			},
+		},
+		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
+			Static:         map[string]string{"POSTGRES_HOST": "localhost", "POSTGRES_SSLMODE": "disable"},
+			FromPorts:      map[string]string{"POSTGRES_PORT": "postgresql"},
+			FromRuntimeEnv: []string{"POSTGRES_DB", "POSTGRES_USER", "POSTGRES_PASSWORD"},
+			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
+				"POSTGRES_URL": {Template: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=${POSTGRES_SSLMODE}"},
+				"DATABASE_URL": {Template: "${POSTGRES_URL}"},
+			},
+		},
+	})
+
+	testkitgo.WriteJSONMode(t, filepath.Join(root, ".vrooli", "secrets.json"), map[string]any{
+		"POSTGRES_PASSWORD": "real-secret",
+	}, 0o600)
+
+	postgresEnv, err := LoadResourceEnvironment(root, home, "postgres")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(postgres): %v", err)
+	}
+	if got := postgresEnv["POSTGRES_PASSWORD"]; got != "real-secret" {
+		t.Fatalf("POSTGRES_PASSWORD = %q, want real-secret", got)
+	}
+	if got := postgresEnv["DATABASE_URL"]; !strings.Contains(got, ":real-secret@") {
+		t.Fatalf("DATABASE_URL = %q, want runtime password from secrets", got)
 	}
 }
 

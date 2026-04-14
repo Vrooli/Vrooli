@@ -329,7 +329,7 @@ func TestEnsureScenarioDatabaseUsesPostgresResourceLibs(t *testing.T) {
 	}
 	binDir := t.TempDir()
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	psqlScript := `#!/usr/bin/env bash
+	dockerScript := `#!/usr/bin/env bash
 set -euo pipefail
 printf '%s\n' "$*" >> "` + filepath.Join(root, "psql.log") + `"
 if [[ "$*" == *"SELECT 1 FROM pg_database"* ]]; then
@@ -340,14 +340,14 @@ for ((i=1; i<=$#; i++)); do
     next=$((i+1))
     printf '%s\n' "${!next}" >> "` + filepath.Join(root, "create.txt") + `"
   fi
-  if [[ "${!i}" == "-f" ]]; then
-    next=$((i+1))
-    printf '%s\n' "${!next}" >> "` + filepath.Join(root, "files.txt") + `"
-  fi
 done
+if [[ "$*" == *" -i "* ]]; then
+  cat >> "` + filepath.Join(root, "files.txt") + `"
+  printf '\n--EOF--\n' >> "` + filepath.Join(root, "files.txt") + `"
+fi
 `
-	if err := os.WriteFile(filepath.Join(binDir, "psql"), []byte(psqlScript), 0o755); err != nil {
-		t.Fatalf("write fake psql: %v", err)
+	if err := os.WriteFile(filepath.Join(binDir, "docker"), []byte(dockerScript), 0o755); err != nil {
+		t.Fatalf("write fake docker: %v", err)
 	}
 
 	scenarioPath := filepath.Join(root, "scenarios", "alpha")
@@ -386,7 +386,7 @@ done
 	if err != nil {
 		t.Fatalf("read files.txt: %v", err)
 	}
-	if got := string(schemaData); got != filepath.Join(scenarioPath, "initialization", "postgres", "schema.sql")+"\n"+filepath.Join(scenarioPath, "initialization", "postgres", "migration_001.sql")+"\n" {
+	if got := string(schemaData); got != "create table if not exists test();\n\n--EOF--\n-- migration\n\n--EOF--\n" {
 		t.Fatalf("files.txt = %q", got)
 	}
 }

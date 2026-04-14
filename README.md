@@ -28,80 +28,22 @@ Vrooli is a local, cross-platform, fully customizable, self-improving app ecosys
 make setup
 
 # Start development environment
-make dev
-
-# Run tests
-make test
+vrooli dev
 
 # See all commands
 make help
 ```
 
-**Alternative commands:**
-```bash
-make install && ~/.vrooli/bin/vrooli setup # Direct native bootstrap
-vrooli develop                            # Use CLI after setup
-vrooli --help                             # See all CLI commands
-```
-
 <div align="center">
 
-<table style="width: 100%; table-layout: fixed;">
-  <tr style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;">
-    <td align="center" style="flex: 0 1 auto;">
-      <a href="https://vrooli.com" style="text-decoration: none; display: inline-block; white-space: nowrap;">
-        <div style="display: inline-flex; align-items: center; background-color: #072c6a; color: #fff; border-radius: 12px; padding: 4px 8px; font-family: Arial, sans-serif; font-size: 14px; height: 30px;">
-          <div style="background: white; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; margin-right: 6px; flex-shrink: 0;">
-            <img src="https://www.google.com/s2/favicons?domain=vrooli.com&sz=16" width="16" height="16" />
-          </div>
-          <span style="overflow: hidden; text-overflow: ellipsis;">Vrooli.com</span>
-        </div>
-      </a>
-    </td>
-    <td align="center" style="flex: 0 1 auto;">
-      <a href="https://github.com/Vrooli/Vrooli" style="text-decoration: none; display: inline-block; white-space: nowrap;">
-        <div style="display: inline-flex; align-items: center; background-color: #333; color: #fff; border-radius: 12px; padding: 4px 8px; font-family: Arial, sans-serif; font-size: 14px; height: 30px;">
-          <div style="background: white; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; margin-right: 6px; flex-shrink: 0;">
-            <img src="https://www.google.com/s2/favicons?domain=github.com&sz=16" width="16" height="16" />
-          </div>
-          <span style="overflow: hidden; text-overflow: ellipsis;">Star Our Repo</span>
-        </div>
-      </a>
-    </td>
-    <td align="center" style="flex: 0 1 auto;">
-      <a href="https://x.com/intent/follow?original_referer=https%3A%2F%2Fgithub.com%2FVrooliOfficial&screen_name=VrooliOfficial" style="text-decoration: none; display: inline-block; white-space: nowrap;">
-        <div style="display: inline-flex; align-items: center; background-color: #111; color: #fff; border-radius: 12px; padding: 4px 8px; font-family: Arial, sans-serif; font-size: 14px; height: 30px;">
-          <div style="background: white; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; margin-right: 6px; flex-shrink: 0;">
-            <img src="https://www.google.com/s2/favicons?domain=x.com&sz=16" width="16" height="16" />
-          </div>
-          <span style="overflow: hidden; text-overflow: ellipsis;">Follow @VrooliOfficial</span>
-        </div>
-      </a>
-    </td>
-    <td align="center" style="flex: 0 1 auto;">
-      <a href="https://www.youtube.com/@vrooli" style="text-decoration: none; display: inline-block; white-space: nowrap;">
-        <div style="display: inline-flex; align-items: center; background-color: #f00; color: #fff; border-radius: 12px; padding: 4px 8px; font-family: Arial, sans-serif; font-size: 14px; height: 30px;">
-          <div style="background: white; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; margin-right: 6px; flex-shrink: 0;">
-            <img src="https://www.google.com/s2/favicons?domain=youtube.com&sz=16" width="16" height="16" />
-          </div>
-          <span style="overflow: hidden; text-overflow: ellipsis;">Subscribe @Vrooli</span>
-        </div>
-      </a>
-    </td>
-    <td align="center" style="flex: 0 1 auto;">
-      <a href="https://choosealicense.com/licenses/agpl-3.0/" style="text-decoration: none; display: inline-block; white-space: nowrap;">
-        <div style="display: inline-flex; align-items: center; background-color: #2a9d8f; color: #fff; border-radius: 12px; padding: 4px 8px; font-family: Arial, sans-serif; font-size: 14px; height: 30px;">
-          <div style="background: white; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; margin-right: 6px; flex-shrink: 0;">
-            <img src="https://www.google.com/s2/favicons?domain=choosealicense.com&sz=16" width="16" height="16" />
-          </div>
-          <span style="overflow: hidden; text-overflow: ellipsis;">License: AGPLv3</span>
-        </div>
-      </a>
-    </td>
-  </tr>
-</table>
+[![Website](https://img.shields.io/badge/Vrooli.com-072c6a?style=for-the-badge&logo=googlechrome&logoColor=white)][website]
+[![GitHub](https://img.shields.io/badge/Star%20Our%20Repo-333333?style=for-the-badge&logo=github&logoColor=white)][github]
+[![X](https://img.shields.io/badge/Follow%20%40VrooliOfficial-111111?style=for-the-badge&logo=x&logoColor=white)][x]
 
+[![YouTube](https://img.shields.io/badge/Subscribe%20%40Vrooli-FF0000?style=for-the-badge&logo=youtube&logoColor=white)][youtube]
+[![License](https://img.shields.io/badge/License-AGPLv3-2a9d8f?style=for-the-badge&logo=gnu&logoColor=white)][license]
 
+</div>
 
 <br/>
 

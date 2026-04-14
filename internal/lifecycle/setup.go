@@ -1,6 +1,7 @@
 package lifecycle
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -127,6 +128,14 @@ func (r *Runner) runPostgresCommand(env map[string]string, database string, args
 	}
 	baseArgs = append(baseArgs, args...)
 	commandEnv := mergeEnv(os.Environ(), env)
+	if password := strings.TrimSpace(env["POSTGRES_PASSWORD"]); password != "" {
+		commandEnv = mergeEnv(commandEnv, map[string]string{"PGPASSWORD": password})
+	}
+
+	containerName := postgresContainerName(r.Root)
+	if output, err, ok := r.runPostgresInContainer(containerName, env, database, args, commandEnv, logWriter); ok {
+		return output, err
+	}
 
 	if _, err := shell.LookPath("psql"); err == nil {
 		cmd := shell.Command(shell.Spec{
@@ -142,28 +151,81 @@ func (r *Runner) runPostgresCommand(env map[string]string, database string, args
 		if runErr == nil {
 			return output, nil
 		}
+		return nil, runErr
 	}
 
-	containerName := postgresContainerName(r.Root)
 	if strings.TrimSpace(containerName) == "" {
 		containerName = "vrooli-postgres-main"
 	}
-	dockerArgs := []string{"exec", "-e", "PGPASSWORD=" + env["POSTGRES_PASSWORD"], containerName, "psql", "-v", "ON_ERROR_STOP=1", "-h", "localhost", "-p", "5432", "-U", defaultEnv(env, "POSTGRES_USER", "vrooli"), "-d", database}
-	dockerArgs = append(dockerArgs, args...)
+	output, err, _ := r.runPostgresInContainer(containerName, env, database, args, commandEnv, logWriter)
+	return output, err
+}
+
+func (r *Runner) runPostgresInContainer(containerName string, env map[string]string, database string, args []string, commandEnv []string, logWriter io.Writer) ([]byte, error, bool) {
+	if strings.TrimSpace(containerName) == "" {
+		return nil, nil, false
+	}
+	if _, err := shell.LookPath("docker"); err != nil {
+		return nil, nil, false
+	}
+
+	stdin, filteredArgs, err := postgresFileInput(args)
+	if err != nil {
+		return nil, err, true
+	}
+
+	dockerArgs := []string{"exec"}
+	if stdin != nil {
+		dockerArgs = append(dockerArgs, "-i")
+	}
+	if password := strings.TrimSpace(env["POSTGRES_PASSWORD"]); password != "" {
+		dockerArgs = append(dockerArgs, "-e", "PGPASSWORD="+password)
+	}
+	dockerArgs = append(dockerArgs,
+		containerName,
+		"psql",
+		"-v", "ON_ERROR_STOP=1",
+		"-h", "localhost",
+		"-p", "5432",
+		"-U", defaultEnv(env, "POSTGRES_USER", "vrooli"),
+		"-d", database,
+	)
+	dockerArgs = append(dockerArgs, filteredArgs...)
+
 	cmd := shell.Command(shell.Spec{
-		Name: "docker",
-		Args: dockerArgs,
-		Dir:  r.Root,
-		Env:  commandEnv,
+		Name:  "docker",
+		Args:  dockerArgs,
+		Dir:   r.Root,
+		Env:   commandEnv,
+		Stdin: stdin,
 	})
 	output, err := cmd.CombinedOutput()
 	if len(output) > 0 {
 		_, _ = logWriter.Write(output)
 	}
 	if err != nil {
-		return nil, err
+		return nil, err, true
 	}
-	return output, nil
+	return output, nil, true
+}
+
+func postgresFileInput(args []string) (io.Reader, []string, error) {
+	for i := 0; i < len(args); i++ {
+		if args[i] != "-f" {
+			continue
+		}
+		if i+1 >= len(args) {
+			return nil, nil, fmt.Errorf("postgres command missing file path after -f")
+		}
+		data, err := os.ReadFile(args[i+1])
+		if err != nil {
+			return nil, nil, err
+		}
+		filtered := append([]string{}, args[:i]...)
+		filtered = append(filtered, args[i+2:]...)
+		return bytes.NewReader(data), filtered, nil
+	}
+	return nil, append([]string{}, args...), nil
 }
 
 func postgresContainerName(root string) string {

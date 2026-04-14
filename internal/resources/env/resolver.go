@@ -141,12 +141,12 @@ func resolveFromManifest(root, home string, resourceManifest manifestpkg.Resourc
 		if name == "" {
 			continue
 		}
-		if value, ok := resourceManifest.Runtime.Env[name]; ok {
-			values[name] = expandTemplateWithContext(value, values, templateContext)
-			continue
-		}
 		if value, ok := secretsMap[name]; ok {
 			values[name] = value
+			continue
+		}
+		if value, ok := resourceManifest.Runtime.Env[name]; ok {
+			values[name] = expandTemplateWithContext(value, values, templateContext)
 			continue
 		}
 		warnings = append(warnings, fmt.Sprintf("%s environment export %s was requested but no runtime or secret value was found", resourceManifest.Name, name))

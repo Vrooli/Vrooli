@@ -918,19 +918,29 @@ Objective:
 
 Checklist:
 
-- [ ] Move API app construction and runtime wiring out of `cmd/vrooli-api/main.go` where possible.
-- [ ] Move endpoint wrapper fan-out out of `cmd/vrooli-api/main.go`.
-- [ ] Keep only bootstrap/startup logic in the binary.
-- [ ] Add or move tests so API composition is validated below `cmd/vrooli-api` where possible.
+- [x] Move API app construction and runtime wiring out of `cmd/vrooli-api/main.go` where possible.
+- [x] Move endpoint wrapper fan-out out of `cmd/vrooli-api/main.go`.
+- [x] Keep only bootstrap/startup logic in the binary.
+- [x] Add or move tests so API composition is validated below `cmd/vrooli-api` where possible.
 
 Validation:
 
-- [ ] `go test ./cmd/vrooli-api ./internal/api`
-- [ ] Inspect `cmd/vrooli-api/main.go` and confirm it is bootstrap-only by the same standard as `cmd/vrooli`.
+- [x] `go test ./cmd/vrooli-api ./internal/api`
+- [x] Inspect `cmd/vrooli-api/main.go` and confirm it is bootstrap-only by the same standard as `cmd/vrooli`.
 
 Definition of done:
 
 - Both binaries follow the same architectural rule.
+
+Phase 9 completion note:
+
+- Completed on April 14, 2026 by moving API bootstrap/runtime assembly into `internal/api/runtime.go`, deleting the endpoint wrapper fan-out from `cmd/vrooli-api/main.go`, and reducing the binary entrypoint to startup-only concerns plus strict fingerprint enforcement.
+- `cmd/vrooli-api/main.go` is now `77` LOC and contains no route wrappers, repo-root helpers, or app-construction plumbing.
+- API runtime coverage now lives below the binary in `internal/api/runtime_test.go`, which exercises repo-root resolution, configured app construction, health-check support, and router integration.
+- Binary-package tests were reduced to the remaining startup-only behavior in `cmd/vrooli-api/main_test.go` (`installAPILogger` and strict fingerprint checks).
+- Validation completed with:
+  - `go test ./cmd/vrooli-api ./internal/api`
+  - `go test ./cmd/vrooli ./internal/cli/... ./internal/app/... ./internal/scenarioexec ./packages/testkit-go/...`
 
 ## Phase 10: Final deletion pass and architectural verification
 
