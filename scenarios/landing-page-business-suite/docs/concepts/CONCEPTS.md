@@ -32,7 +32,7 @@ This document explains the key concepts and architecture of your landing page.
 
 Landing pages support whole-page A/B testing where different visitors see different variants.
 
-Variant content (copy, sections, header, SEO, axes) ships as files in `.vrooli/variants/*.json`, while weights and performance stats live in Postgres so deployments do not reset allocations or analytics.
+Variant content (copy, sections, header, SEO, axes) ships as files in `config/variants/*.json`, while weights and performance stats live in Postgres so deployments do not reset allocations or analytics.
 
 ### Variant Dimensions (Axes)
 

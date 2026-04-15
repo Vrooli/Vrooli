@@ -448,7 +448,7 @@ Before going live:
 - [ ] OG images configured for social sharing
 - [ ] Footer links working
 - [ ] Privacy policy and terms linked
-- [ ] Variant snapshot files deployed (`.vrooli/variants/*.json`, `.vrooli/variant_space.json`, `.vrooli/fallback/fallback.json`)
+- [ ] Variant snapshot files deployed (`config/variants/*.json`, `config/variant_space.json`, `.vrooli/fallback/fallback.json`)
 - [ ] `VARIANT_SNAPSHOT_REQUIRED=true` set in production (fail fast if snapshots are missing)
 
 ### Technical

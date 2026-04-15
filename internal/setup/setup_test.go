@@ -1081,7 +1081,7 @@ func TestMaybeOpenOnboardingPersistsPromptedState(t *testing.T) {
 		t.Fatalf("stdout = %q", stdout.String())
 	}
 
-	configPath := filepath.Join(home, ".vrooli", "config.json")
+	configPath := filepath.Join(home, ".config", "vrooli", "config.json")
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		t.Fatalf("read config: %v", err)
@@ -1126,7 +1126,7 @@ func TestMaybeOpenOnboardingRespectsPersistentAutoOpenOptOut(t *testing.T) {
 	home := t.TempDir()
 	writeOnboardingScenarioFixture(t, root)
 	autoOpen := false
-	configPath := filepath.Join(home, ".vrooli", "config.json")
+	configPath := filepath.Join(home, ".config", "vrooli", "config.json")
 	doc, err := json.Marshal(map[string]any{
 		"onboarding": onboardingPreferences{AutoOpen: &autoOpen},
 	})

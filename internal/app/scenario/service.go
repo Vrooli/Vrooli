@@ -56,6 +56,7 @@ func (s Service) Start(req StartRequest) ([]LifecycleItemOutput, error) {
 			Status:             status,
 			Health:             result.Details.Health,
 			Ports:              envPortMap(result.Scenario.Manifest, result.AllocatedPorts),
+			Endpoints:          endpointOutputs(result.Scenario.Manifest, result.Details.Ports),
 			FailedDependencies: append([]string(nil), result.FailedDependencies...),
 		})
 
@@ -83,6 +84,7 @@ func (s Service) Restart(req RestartRequest) ([]LifecycleItemOutput, error) {
 		Status:             "restarted",
 		Health:             result.Details.Health,
 		Ports:              envPortMap(result.Scenario.Manifest, result.AllocatedPorts),
+		Endpoints:          endpointOutputs(result.Scenario.Manifest, result.Details.Ports),
 		FailedDependencies: append([]string(nil), result.FailedDependencies...),
 	}
 
@@ -323,4 +325,22 @@ func resolveRequestedPort(manifest scenariomodel.ServiceManifest, listPorts []Li
 		}
 	}
 	return "", 0, "", false
+}
+
+func endpointOutputs(manifest scenariomodel.ServiceManifest, ports map[string]int) []EndpointOutput {
+	endpoints := scenariomodel.RuntimeEndpoints(manifest, ports)
+	if len(endpoints) == 0 {
+		return nil
+	}
+	out := make([]EndpointOutput, 0, len(endpoints))
+	for _, endpoint := range endpoints {
+		out = append(out, EndpointOutput{
+			Name:        endpoint.Name,
+			Key:         endpoint.Key,
+			Description: endpoint.Description,
+			Port:        endpoint.Port,
+			URL:         endpoint.URL,
+		})
+	}
+	return out
 }

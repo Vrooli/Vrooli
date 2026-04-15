@@ -11,11 +11,11 @@ set -euo pipefail
 # Setup paths
 TEST_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
 RESOURCE_DIR="$(builtin cd "${TEST_DIR}/.." && builtin pwd)"
-APP_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+VROOLI_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # Source utilities
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || {
+source "${VROOLI_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || {
     log::info() { echo "[INFO] $*"; }
     log::error() { echo "[ERROR] $*" >&2; }
     log::success() { echo "[SUCCESS] $*"; }

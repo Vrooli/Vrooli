@@ -177,9 +177,9 @@ opencode::install::write_shim() {
         return 0
     fi
 
-    cat >"${shim_path}" <<EOF
+cat >"${shim_path}" <<EOF
 #!/usr/bin/env bash
-APP_ROOT="${APP_ROOT}"
+VROOLI_ROOT="${VROOLI_ROOT}"
 # shellcheck disable=SC1090
 source "${OPENCODE_DIR}/lib/common.sh"
 opencode::run_cli "\$@"

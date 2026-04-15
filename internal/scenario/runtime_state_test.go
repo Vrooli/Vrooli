@@ -85,3 +85,30 @@ func TestInferPortEnvVarNormalizesHistoricalStepNames(t *testing.T) {
 		}
 	}
 }
+
+func TestRuntimeEndpointsPreferManifestOrderAndDescriptions(t *testing.T) {
+	manifest := ServiceManifest{
+		Ports: map[string]Port{
+			"ui":  {EnvVar: "UI_PORT", Description: "Frontend"},
+			"api": {EnvVar: "API_PORT", Description: "Backend"},
+		},
+	}
+
+	endpoints := RuntimeEndpoints(manifest, map[string]int{
+		"UI_PORT":    38080,
+		"API_PORT":   18080,
+		"ADMIN_PORT": 19090,
+	})
+	if len(endpoints) != 3 {
+		t.Fatalf("len(endpoints) = %d, want 3", len(endpoints))
+	}
+	if endpoints[0].Key != "API_PORT" || endpoints[0].URL != "http://localhost:18080" || endpoints[0].Description != "Backend" {
+		t.Fatalf("endpoints[0] = %#v", endpoints[0])
+	}
+	if endpoints[1].Key != "UI_PORT" || endpoints[1].URL != "http://localhost:38080" || endpoints[1].Description != "Frontend" {
+		t.Fatalf("endpoints[1] = %#v", endpoints[1])
+	}
+	if endpoints[2].Key != "ADMIN_PORT" || endpoints[2].Name != "ADMIN_PORT" || endpoints[2].URL != "http://localhost:19090" {
+		t.Fatalf("endpoints[2] = %#v", endpoints[2])
+	}
+}

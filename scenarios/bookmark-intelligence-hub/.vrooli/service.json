@@ -142,11 +142,6 @@
           "name": "build-ui",
           "run": "cd ui && npm run build",
           "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\udd16 Bookmark Intelligence Hub initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: bookmark-intelligence-hub --help'",
-          "description": "Display service access URLs"
         }
       ]
     },
@@ -170,11 +165,6 @@
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\udd16 Bookmark Intelligence Hub running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: bookmark-intelligence-hub --help'",
-          "description": "Display all running service URLs"
         }
       ]
     },

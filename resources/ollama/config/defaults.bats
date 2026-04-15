@@ -3,8 +3,8 @@
 # Tests for Ollama configuration defaults
 
 # Get script directory first
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-DEFAULTS_BATS_DIR="${APP_ROOT}/resources/ollama/config"
+VROOLI_ROOT="${VROOLI_ROOT:-${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}}"
+DEFAULTS_BATS_DIR="${VROOLI_ROOT}/resources/ollama/config"
 
 # Load test helper
 setup() {

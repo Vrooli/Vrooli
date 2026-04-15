@@ -3,11 +3,11 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
-OPENCODE_DIR="${APP_ROOT}/resources/opencode"
+VROOLI_ROOT="${VROOLI_ROOT:-${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}}"
+OPENCODE_DIR="${VROOLI_ROOT}/resources/opencode"
 
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${VROOLI_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091

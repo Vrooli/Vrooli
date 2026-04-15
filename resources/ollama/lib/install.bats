@@ -2,8 +2,8 @@
 # Tests for Ollama installation functions
 
 # Get script directory first
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-INSTALL_BATS_DIR="${APP_ROOT}/resources/ollama/lib"
+VROOLI_ROOT="${VROOLI_ROOT:-${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}}"
+INSTALL_BATS_DIR="${VROOLI_ROOT}/resources/ollama/lib"
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091

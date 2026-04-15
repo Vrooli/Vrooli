@@ -6,8 +6,9 @@
 # BATS setup function - runs before each test
 setup() {
     CLAUDE_CODE_DIR="$BATS_TEST_DIRNAME/.."
-    APP_ROOT="$(builtin cd "$CLAUDE_CODE_DIR/../.." && builtin pwd)"
-    export APP_ROOT
+    VROOLI_ROOT="$(builtin cd "$CLAUDE_CODE_DIR/../.." && builtin pwd)"
+    export VROOLI_ROOT
+    export APP_ROOT="$VROOLI_ROOT"
 
     # Create temp directories for test settings files
     TEST_TMP_DIR=$(mktemp -d)

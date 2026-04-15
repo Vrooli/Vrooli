@@ -2,8 +2,8 @@
 # Tests for ComfyUI defaults.sh configuration
 
 # Source trash module for safe test cleanup
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-SCRIPT_DIR="${APP_ROOT}/resources/comfyui/config"
+VROOLI_ROOT="${VROOLI_ROOT:-${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}}"
+SCRIPT_DIR="${VROOLI_ROOT}/resources/comfyui/config"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091

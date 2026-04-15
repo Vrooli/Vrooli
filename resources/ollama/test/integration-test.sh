@@ -5,12 +5,12 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-OLLAMA_TEST_DIR="${APP_ROOT}/resources/ollama/test"
+VROOLI_ROOT="${VROOLI_ROOT:-${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}}"
+OLLAMA_TEST_DIR="${VROOLI_ROOT}/resources/ollama/test"
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${VROOLI_ROOT}/scripts/lib/utils/var.sh"
 
 # Source enhanced integration test library with fixture support
 # shellcheck disable=SC1091

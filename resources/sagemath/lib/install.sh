@@ -2,8 +2,8 @@
 
 # Installation functions for SageMath
 
-# Define APP_ROOT using cached pattern  
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+# Define VROOLI_ROOT using cached pattern
+VROOLI_ROOT="${VROOLI_ROOT:-${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}}"
 
 # Universal Contract v2.0 handler for manage::install
 sagemath::install::execute() {

@@ -722,7 +722,10 @@ func (s *setupService) maybeOpenOnboarding(root, home string, stdout, stderr io.
 		return nil
 	}
 
-	configPath := filepath.Join(config.VrooliDir(home), "config.json")
+	configPath, err := onboardingConfigPath(home)
+	if err != nil {
+		return err
+	}
 	doc, prefs, err := loadOnboardingPreferences(configPath)
 	if err != nil {
 		return err
@@ -769,6 +772,36 @@ func onboardingAlreadyHandled(prefs onboardingPreferences) bool {
 		return true
 	}
 	return prefs.AutoOpen != nil && !*prefs.AutoOpen
+}
+
+func onboardingConfigPath(home string) (string, error) {
+	path := filepath.Join(home, ".config", "vrooli", "config.json")
+	if err := migrateLegacyOnboardingConfig(home, path); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+func migrateLegacyOnboardingConfig(home, dst string) error {
+	src := filepath.Join(config.VrooliDir(home), "config.json")
+	if src == dst {
+		return nil
+	}
+	if _, err := os.Stat(src); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	if _, err := os.Stat(dst); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	return os.Rename(src, dst)
 }
 
 func loadOnboardingPreferences(path string) (map[string]json.RawMessage, onboardingPreferences, error) {

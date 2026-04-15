@@ -3,12 +3,12 @@
 # Core helpers for the OpenCode AI CLI resource (official binary integration)
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-OPENCODE_DIR="${APP_ROOT}/resources/opencode"
+VROOLI_ROOT="${VROOLI_ROOT:-${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}}"
+OPENCODE_DIR="${VROOLI_ROOT}/resources/opencode"
 
 # Logging utilities (needed when common.sh is sourced standalone via shim)
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
-source "${APP_ROOT}/scripts/lib/service/secrets.sh" 2>/dev/null || true
+source "${VROOLI_ROOT}/scripts/lib/utils/log.sh"
+source "${VROOLI_ROOT}/scripts/lib/service/secrets.sh" 2>/dev/null || true
 
 # Load defaults
 source "${OPENCODE_DIR}/config/defaults.sh"
@@ -120,9 +120,9 @@ opencode::load_secrets() {
 
     if [[ -z "${OPENROUTER_API_KEY:-}" || "${OPENROUTER_API_KEY}" == auto-null-* ]] || opencode::secret_value_invalid "${OPENROUTER_API_KEY:-}"; then
         if ! declare -f secrets::resolve >/dev/null 2>&1; then
-            if [[ -f "${APP_ROOT}/scripts/lib/service/secrets.sh" ]]; then
+            if [[ -f "${VROOLI_ROOT}/scripts/lib/service/secrets.sh" ]]; then
                 # shellcheck disable=SC1091
-                source "${APP_ROOT}/scripts/lib/service/secrets.sh"
+                source "${VROOLI_ROOT}/scripts/lib/service/secrets.sh"
             fi
         fi
         if declare -f secrets::resolve >/dev/null 2>&1; then
@@ -167,7 +167,7 @@ opencode::load_secrets() {
     fi
 
     if [[ -z "${OPENROUTER_API_KEY:-}" || "${OPENROUTER_API_KEY}" == auto-null-* ]] || opencode::secret_value_invalid "${OPENROUTER_API_KEY:-}"; then
-        local openrouter_core="${APP_ROOT}/resources/openrouter/lib/core.sh"
+        local openrouter_core="${VROOLI_ROOT}/resources/openrouter/lib/core.sh"
         if [[ -f "${openrouter_core}" ]]; then
             # shellcheck disable=SC1090
             source "${openrouter_core}" 2>/dev/null || true
@@ -441,7 +441,7 @@ opencode::api::default_directory() {
     if [[ -n "${VROOLI_ROOT:-}" ]]; then
         printf '%s' "${VROOLI_ROOT}"
     else
-        printf '%s' "${APP_ROOT}"
+        printf '%s' "${VROOLI_ROOT}"
     fi
 }
 

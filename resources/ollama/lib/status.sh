@@ -4,12 +4,12 @@
 # This file contains status checking, service control, and health monitoring functions
 
 # Set script directory for sourcing
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-OLLAMA_STATUS_DIR="${APP_ROOT}/resources/ollama/lib"
+VROOLI_ROOT="${VROOLI_ROOT:-${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}}"
+OLLAMA_STATUS_DIR="${VROOLI_ROOT}/resources/ollama/lib"
 
 # Source status argument library
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
+source "${VROOLI_ROOT}/scripts/resources/lib/status-args.sh"
 
 #######################################
 # Check if Ollama is installed

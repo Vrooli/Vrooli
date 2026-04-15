@@ -10,8 +10,8 @@ if [ -n "${APP_MONITOR_API_URL:-}" ]; then
 else
     API_BASE_URL="http://localhost:${API_PORT:-17480}"
 fi
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-SCRIPT_DIR="${APP_ROOT}/scenarios/app-monitor/cli"
+VROOLI_ROOT="${VROOLI_ROOT:-${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}}"
+SCRIPT_DIR="${VROOLI_ROOT}/scenarios/app-monitor/cli"
 
 # Colors for output
 RED='\033[0;31m'

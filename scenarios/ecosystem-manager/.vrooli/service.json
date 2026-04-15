@@ -163,11 +163,6 @@
           "name": "set-permissions",
           "run": "chmod +x api/ecosystem-manager-api || true",
           "description": "Set executable permissions"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"\ud83c\udf89 Ecosystem Manager is ready at http://localhost:${API_PORT}\" && echo \"\ud83d\udcca Dashboard: http://localhost:${UI_PORT}\" && echo \"\ud83d\udd0c API Base: http://localhost:${API_PORT}/api\"",
-          "description": "Display service access URLs"
         }
       ]
     },
@@ -191,11 +186,6 @@
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"\ud83c\udf89 Ecosystem Manager is running\" && echo \"\ud83d\udcca Dashboard: http://localhost:${UI_PORT}\" && echo \"\ud83d\udd0c API: http://localhost:${API_PORT}/api\"",
-          "description": "Display service URLs"
         }
       ]
     },

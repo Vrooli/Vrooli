@@ -165,11 +165,6 @@
           "name": "seed-sample-stories",
           "run": "cd initialization/storage/postgres && resource-postgres content execute --file seed.sql 2>/dev/null || true",
           "description": "Add sample stories"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"Bedtime Story Generator ready - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: bedtime-story --help\"",
-          "description": "Display access URLs"
         }
       ]
     },
@@ -193,11 +188,6 @@
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"Services running - Story Reader: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}\"",
-          "description": "Display service URLs"
         }
       ]
     },

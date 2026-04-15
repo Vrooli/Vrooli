@@ -2,10 +2,10 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+VROOLI_ROOT="${VROOLI_ROOT:-${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}}"
 
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${VROOLI_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}" 2>/dev/null || true
 # shellcheck disable=SC1091
@@ -25,8 +25,7 @@ vrooli_setup_service_test() {
 }
 
 vrooli_auto_setup() {
-    export APP_ROOT
-    export VROOLI_ROOT="$APP_ROOT"
+    export VROOLI_ROOT
     export KOKORO_TEST_TMPDIR="${VROOLI_TEST_TMPDIR:-$(mktemp -d /tmp/kokoro-bats.XXXXXX)}"
     mkdir -p "$KOKORO_TEST_TMPDIR"
 

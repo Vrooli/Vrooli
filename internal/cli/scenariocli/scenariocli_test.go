@@ -59,9 +59,10 @@ func TestRenderStatusResponseHumanSingleIncludesScenarioHeader(t *testing.T) {
 func TestWriteLifecycleItemsJSONIncludesSuccessEnvelope(t *testing.T) {
 	var stdout bytes.Buffer
 	err := WriteLifecycleItems(&stdout, cliout.FormatJSON, []LifecycleItemOutput{{
-		Name:   "alpha",
-		Status: "started",
-		Ports:  map[string]int{"API_PORT": 18080},
+		Name:      "alpha",
+		Status:    "started",
+		Ports:     map[string]int{"API_PORT": 18080},
+		Endpoints: []EndpointOutput{{Key: "API_PORT", URL: "http://localhost:18080", Port: 18080}},
 	}})
 	if err != nil {
 		t.Fatalf("WriteLifecycleItems: %v", err)
@@ -69,6 +70,40 @@ func TestWriteLifecycleItemsJSONIncludesSuccessEnvelope(t *testing.T) {
 	output := stdout.String()
 	if !strings.Contains(output, `"success": true`) || !strings.Contains(output, `"scenarios":`) {
 		t.Fatalf("output = %s", output)
+	}
+}
+
+func TestWriteLifecycleItemsHumanIncludesURLs(t *testing.T) {
+	var stdout bytes.Buffer
+	err := WriteLifecycleItems(&stdout, cliout.FormatHuman, []LifecycleItemOutput{{
+		Name:      "alpha",
+		Status:    "started",
+		Health:    "healthy",
+		Ports:     map[string]int{"API_PORT": 18080},
+		Endpoints: []EndpointOutput{{Key: "API_PORT", URL: "http://localhost:18080", Port: 18080}},
+	}})
+	if err != nil {
+		t.Fatalf("WriteLifecycleItems: %v", err)
+	}
+	output := stdout.String()
+	for _, want := range []string{"Started scenario 'alpha' (healthy)", "Ports: API_PORT=18080", "URLs:", "API_PORT: http://localhost:18080"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("missing %q in output:\n%s", want, output)
+		}
+	}
+}
+
+func TestWriteLifecycleItemsHumanUsesRestartVerb(t *testing.T) {
+	var stdout bytes.Buffer
+	err := WriteLifecycleItems(&stdout, cliout.FormatHuman, []LifecycleItemOutput{{
+		Name:   "alpha",
+		Status: "restarted",
+	}})
+	if err != nil {
+		t.Fatalf("WriteLifecycleItems: %v", err)
+	}
+	if got := stdout.String(); !strings.Contains(got, "Restarted scenario 'alpha'") {
+		t.Fatalf("stdout = %q", got)
 	}
 }
 

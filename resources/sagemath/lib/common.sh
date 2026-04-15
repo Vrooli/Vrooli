@@ -2,9 +2,9 @@
 
 # Common variables and functions for SageMath resource
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+VROOLI_ROOT="${VROOLI_ROOT:-${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}}"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/resources/sagemath/config/defaults.sh"
+source "${VROOLI_ROOT}/resources/sagemath/config/defaults.sh"
 
 # Cache dir is not set by the older defaults file in some callers; keep the canonical fallback here.
 SAGEMATH_CACHE_DIR="${SAGEMATH_CACHE_DIR:-${RESOURCE_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/vrooli/resources/sagemath}}"

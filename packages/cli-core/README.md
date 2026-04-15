@@ -75,12 +75,14 @@ vrooli package refresh cli-core all --no-restart
 Consumers must keep local `replace` wiring explicit so scenario and resource modules remain workspace-independent. See [docs/package-governance.md](/home/matthalloran8/Vrooli/docs/package-governance.md:1) for the canonical policy.
 
 ## Scenario wiring checklist
-- Use `cliapp.StandardScenarioEnv("<scenario-name>", ...)` to derive API/config/source-root/timeout env vars (keeps names consistent across CLIs). Scenario-specific API port envs are checked before global `API_PORT`.
-- Build the core with `cliapp.NewScenarioApp`, pass your command groups, and use `ConfigureCommand` for a consistent config UX.
+- Prefer `cliapp.NewStandardScenarioApp(...)` for new scenario CLIs. It derives standard env vars, wires `vrooli scenario port` detection, and includes the standard `status` + `configure` command groups by default.
+- Drop to `cliapp.NewScenarioApp(...)` only when you need lower-level control over env derivation or command assembly.
+- `cliapp.StandardScenarioEnv("<scenario-name>", ...)` is still available when a CLI needs to customize env wiring directly. Scenario-specific API port envs are checked before global `API_PORT`.
 - Make API calls through `cliutil.APIClient` (wraps `HTTPClient`, handles base URL resolution and token injection).
+- Prefer `ScenarioApp.Get(...)` / `Request(...)` for versioned API routes and `GetRoot(...)` / `RequestRoot(...)` for root paths such as `/health`.
 - For flags/inputs, use `cliutil.JSONFlag`, `StringList`, `ParseCSV`, and `MergeArgs` instead of hand-rolled parsers; read files with `ReadFileString`.
 - Pretty-print JSON responses with `cliutil.PrintJSON` / `PrintJSONMap`.
-- Keep `NeedsAPI` set on commands so the stale-checker can trigger auto-rebuilds before API calls.
+- Keep `NeedsAPI` set on commands so the stale-checker can trigger auto-rebuilds before API calls and `--auto-start` can recover a stopped scenario automatically.
 
 ## Resource wiring checklist
 - Use `cliapp.StandardResourceEnv("<resource-name>", ...)` to derive source-root and `vrooli` control-plane env vars consistently.

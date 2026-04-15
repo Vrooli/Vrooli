@@ -4,8 +4,8 @@
   "service": {
     "parent": "vrooli",
     "name": "brand-manager",
-    "displayName": "Brand Manager \u2013 Full Branding Lifecycle for All Scenarios",
-    "description": "Manages the full branding lifecycle for all Vrooli scenarios \u2014 generating, storing, applying, and validating brand identity across UI, CLI, and API surfaces",
+    "displayName": "Brand Manager – Full Branding Lifecycle for All Scenarios",
+    "description": "Manages the full branding lifecycle for all Vrooli scenarios — generating, storing, applying, and validating brand identity across UI, CLI, and API surfaces",
     "version": "0.0.1",
     "type": "business-application",
     "category": "ai_tools",
@@ -121,11 +121,6 @@
           "name": "build-ui",
           "run": "cd ui && pnpm build",
           "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display access URLs"
         }
       ]
     },
@@ -149,11 +144,6 @@
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display access URLs"
         }
       ]
     },
@@ -177,11 +167,6 @@
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display access URLs"
         }
       ]
     },

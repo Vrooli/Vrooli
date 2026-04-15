@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/resources/sqlite/internal/config"
 	"github.com/vrooli/resources/sqlite/internal/sqlite"
 )
@@ -859,9 +860,9 @@ func (c *CLI) rebuildBinary() error {
 	}
 	target := filepath.Join(installDir, "resource-sqlite")
 
-	repoRoot, ok := findRepoRoot(srcRoot)
-	if !ok {
-		return fmt.Errorf("unable to locate repository root from %s", srcRoot)
+	repoRoot, err := repocontract.FindRepoRootFromPath(srcRoot)
+	if err != nil {
+		return fmt.Errorf("unable to locate repository root from %s: %w", srcRoot, err)
 	}
 
 	cmd := exec.Command("go", "run", "./cmd/cli-installer",
@@ -892,18 +893,4 @@ func (c *CLI) runGoTests(ctx context.Context, root string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
-}
-
-func findRepoRoot(start string) (string, bool) {
-	dir := filepath.Clean(start)
-	for {
-		if _, err := os.Stat(filepath.Join(dir, "packages", "cli-core")); err == nil {
-			return dir, true
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "", false
-		}
-		dir = parent
-	}
 }

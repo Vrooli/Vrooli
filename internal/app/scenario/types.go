@@ -169,11 +169,20 @@ type StatusSingleOutput struct {
 }
 
 type LifecycleItemOutput struct {
-	Name               string         `json:"name"`
-	Status             string         `json:"status"`
-	Health             string         `json:"health,omitempty"`
-	Ports              map[string]int `json:"ports,omitempty"`
-	FailedDependencies []string       `json:"failed_dependencies,omitempty"`
+	Name               string           `json:"name"`
+	Status             string           `json:"status"`
+	Health             string           `json:"health,omitempty"`
+	Ports              map[string]int   `json:"ports,omitempty"`
+	Endpoints          []EndpointOutput `json:"endpoints,omitempty"`
+	FailedDependencies []string         `json:"failed_dependencies,omitempty"`
+}
+
+type EndpointOutput struct {
+	Name        string `json:"name"`
+	Key         string `json:"key"`
+	Description string `json:"description,omitempty"`
+	Port        int    `json:"port"`
+	URL         string `json:"url"`
 }
 
 type BatchFailure struct {

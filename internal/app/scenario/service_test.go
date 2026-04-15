@@ -17,8 +17,13 @@ type fakeScenarioOps struct {
 func (f *fakeScenarioOps) StartDetailed(name string, opts lifecycle.StartOptions) (orchestrator.StartResult, error) {
 	f.started = append(f.started, name)
 	return orchestrator.StartResult{
-		Scenario:           scenariomodel.Scenario{Slug: name, Manifest: scenariomodel.ServiceManifest{}},
+		Scenario: scenariomodel.Scenario{Slug: name, Manifest: scenariomodel.ServiceManifest{
+			Ports: map[string]scenariomodel.Port{
+				"api": {EnvVar: "API_PORT", Description: "Backend"},
+			},
+		}},
 		AllocatedPorts:     map[string]int{"api": 8080},
+		Details:            scenariomodel.RuntimeDetails{Ports: map[string]int{"API_PORT": 8080}},
 		FailedDependencies: nil,
 	}, nil
 }
@@ -61,6 +66,9 @@ func TestStartUsesScenarioOperationsInterface(t *testing.T) {
 	}
 	if len(items) != 1 || items[0].Name != "demo" {
 		t.Fatalf("items = %#v", items)
+	}
+	if len(items[0].Endpoints) != 1 || items[0].Endpoints[0].URL != "http://localhost:8080" {
+		t.Fatalf("items[0].Endpoints = %#v", items[0].Endpoints)
 	}
 	if len(ops.started) != 1 || ops.started[0] != "demo" {
 		t.Fatalf("started = %#v", ops.started)

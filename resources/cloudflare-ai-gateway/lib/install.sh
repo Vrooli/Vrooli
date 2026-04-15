@@ -3,13 +3,13 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-SCRIPT_DIR="${APP_ROOT}/resources/cloudflare-ai-gateway/lib"
-RESOURCE_DIR="${APP_ROOT}/resources/cloudflare-ai-gateway"
+VROOLI_ROOT="${VROOLI_ROOT:-${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}}"
+SCRIPT_DIR="${VROOLI_ROOT}/resources/cloudflare-ai-gateway/lib"
+RESOURCE_DIR="${VROOLI_ROOT}/resources/cloudflare-ai-gateway"
 RESOURCE_NAME="cloudflare-ai-gateway"
 
 # Source utilities
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${VROOLI_ROOT}/scripts/lib/utils/var.sh"
 # Install the resource
 install_cloudflare_ai_gateway() {
     echo "Installing Cloudflare AI Gateway resource..."

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -31,6 +32,9 @@ type ScenarioOptions struct {
 	Version            string
 	Description        string
 	DefaultAPIBase     string
+	APIPrefix          string
+	HealthPath         string
+	LegacyHealthPaths  []string
 	APIEnvVars         []string
 	APIPortEnvVars     []string
 	APIPortDetector    func() string
@@ -51,6 +55,40 @@ type ScenarioOptions struct {
 	HTTPTimeoutEnvVars []string
 	DefaultHTTPTimeout time.Duration
 	AllowAnonymous     bool
+}
+
+// StandardScenarioOptions provides a higher-level constructor for the common
+// scenario CLI shape: standard env wiring, standard operational commands, and
+// optional custom command registration hooks.
+type StandardScenarioOptions struct {
+	Name                    string
+	Version                 string
+	Description             string
+	DefaultAPIBase          string
+	APIPrefix               string
+	HealthPath              string
+	LegacyHealthPaths       []string
+	ExtraAPIEnvVars         []string
+	ExtraAPIPortEnvVars     []string
+	ExtraConfigDirEnvVars   []string
+	ExtraSourceRootEnvVars  []string
+	ExtraTokenEnvVars       []string
+	ExtraHTTPTimeoutEnvVars []string
+	ColorEnabled            *bool
+	OnColor                 func(enabled bool)
+	Preflight               func(cmd Command, global GlobalOptions, app *ScenarioApp) error
+	BuildFingerprint        string
+	BuildTimestamp          string
+	BuildSourceRoot         string
+	HTTPClientOptions       cliutil.HTTPClientOptions
+	DefaultHTTPTimeout      time.Duration
+	AllowAnonymous          bool
+	IncludeStatusCommand    *bool
+	IncludeConfigureCommand *bool
+	ConfigureAPIBaseKeys    []string
+	ConfigureTokenKeys      []string
+	CommandGroups           func(app *ScenarioApp) []CommandGroup
+	SubcommandGroups        func(app *ScenarioApp) []SubcommandGroup
 }
 
 // ScenarioApp encapsulates the shared CLI scaffolding for a scenario CLI.
@@ -75,6 +113,12 @@ type ScenarioApp struct {
 func NewScenarioApp(opts ScenarioOptions) (*ScenarioApp, error) {
 	if len(opts.APIBaseKeys) == 0 {
 		opts.APIBaseKeys = []string{"api_base"}
+	}
+	if strings.TrimSpace(opts.APIPrefix) == "" {
+		opts.APIPrefix = "/api/v1"
+	}
+	if strings.TrimSpace(opts.HealthPath) == "" {
+		opts.HealthPath = "/health"
 	}
 	if len(opts.TokenKeys) == 0 {
 		opts.TokenKeys = []string{"token", "api_token"}
@@ -124,6 +168,66 @@ func NewScenarioApp(opts ScenarioOptions) (*ScenarioApp, error) {
 	}
 	app.APIClient = cliutil.NewAPIClient(app.HTTPClient, app.APIBaseOptions, app.tokenSource)
 	app.SetCommands(opts.Commands)
+	return app, nil
+}
+
+// NewStandardScenarioApp builds the common scenario CLI shape with standard env
+// derivation, standard base commands, and optional custom command hooks.
+func NewStandardScenarioApp(opts StandardScenarioOptions) (*ScenarioApp, error) {
+	env := StandardScenarioEnv(opts.Name, ScenarioEnvOptions{
+		ExtraAPIEnvVars:         opts.ExtraAPIEnvVars,
+		ExtraAPIPortEnvVars:     opts.ExtraAPIPortEnvVars,
+		ExtraConfigDirEnvVars:   opts.ExtraConfigDirEnvVars,
+		ExtraSourceRootEnvVars:  opts.ExtraSourceRootEnvVars,
+		ExtraTokenEnvVars:       opts.ExtraTokenEnvVars,
+		ExtraHTTPTimeoutEnvVars: opts.ExtraHTTPTimeoutEnvVars,
+	})
+
+	app, err := NewScenarioApp(ScenarioOptions{
+		Name:               opts.Name,
+		Version:            opts.Version,
+		Description:        opts.Description,
+		DefaultAPIBase:     opts.DefaultAPIBase,
+		APIPrefix:          opts.APIPrefix,
+		HealthPath:         opts.HealthPath,
+		LegacyHealthPaths:  opts.LegacyHealthPaths,
+		APIEnvVars:         env.APIEnvVars,
+		APIPortEnvVars:     env.APIPortEnvVars,
+		APIPortDetector:    cliutil.DetectPortFromVrooli(opts.Name, "API_PORT"),
+		ConfigDirEnvVars:   env.ConfigDirEnvVars,
+		SourceRootEnvVars:  env.SourceRootEnvVars,
+		ColorEnabled:       opts.ColorEnabled,
+		OnColor:            opts.OnColor,
+		TokenEnvVars:       env.TokenEnvVars,
+		Preflight:          opts.Preflight,
+		BuildFingerprint:   opts.BuildFingerprint,
+		BuildTimestamp:     opts.BuildTimestamp,
+		BuildSourceRoot:    opts.BuildSourceRoot,
+		HTTPClientOptions:  opts.HTTPClientOptions,
+		HTTPTimeoutEnvVars: env.HTTPTimeoutEnvVars,
+		DefaultHTTPTimeout: opts.DefaultHTTPTimeout,
+		AllowAnonymous:     opts.AllowAnonymous,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	commands := app.StandardBaseCommandGroups(StandardBaseCommandOptions{
+		IncludeStatusCommand:    opts.IncludeStatusCommand,
+		IncludeConfigureCommand: opts.IncludeConfigureCommand,
+		ConfigureAPIBaseKeys:    opts.ConfigureAPIBaseKeys,
+		ConfigureTokenKeys:      opts.ConfigureTokenKeys,
+	})
+	if opts.CommandGroups != nil {
+		commands = append(commands, opts.CommandGroups(app)...)
+	}
+
+	var subcommandGroups []SubcommandGroup
+	if opts.SubcommandGroups != nil {
+		subcommandGroups = opts.SubcommandGroups(app)
+	}
+
+	app.SetCommandsWithSubgroups(commands, subcommandGroups)
 	return app, nil
 }
 
@@ -262,6 +366,95 @@ func (a *ScenarioApp) APIBaseOptions() cliutil.APIBaseOptions {
 	return a.baseOptions()
 }
 
+// APIPrefix returns the normalized versioned API prefix for scenario routes.
+func (a *ScenarioApp) APIPrefix() string {
+	return normalizeAPIPath(a.options.APIPrefix)
+}
+
+// HealthPath returns the normalized root health endpoint path.
+func (a *ScenarioApp) HealthPath() string {
+	return normalizeAPIPath(a.options.HealthPath)
+}
+
+// APIBase returns the resolved API base. If the configured base is root-level,
+// the scenario API prefix is appended.
+func (a *ScenarioApp) APIBase() string {
+	base := strings.TrimRight(strings.TrimSpace(cliutil.DetermineAPIBase(a.APIBaseOptions())), "/")
+	if base == "" {
+		return ""
+	}
+	prefix := a.APIPrefix()
+	if prefix == "" || prefix == "/" {
+		return base
+	}
+	if strings.HasSuffix(base, prefix) {
+		return base
+	}
+	return base + prefix
+}
+
+// APIRootBase returns the resolved root API base with any configured API
+// prefix removed.
+func (a *ScenarioApp) APIRootBase() string {
+	base := strings.TrimRight(strings.TrimSpace(cliutil.DetermineAPIBase(a.APIBaseOptions())), "/")
+	if base == "" {
+		return ""
+	}
+	prefix := a.APIPrefix()
+	if prefix != "" && prefix != "/" && strings.HasSuffix(base, prefix) {
+		return strings.TrimRight(strings.TrimSuffix(base, prefix), "/")
+	}
+	return base
+}
+
+// APIPath normalizes a versioned API path against the configured API prefix.
+func (a *ScenarioApp) APIPath(path string) string {
+	path = normalizeAPIPath(path)
+	if path == "" {
+		return ""
+	}
+	prefix := a.APIPrefix()
+	if prefix == "" || prefix == "/" {
+		return path
+	}
+	base := strings.TrimRight(strings.TrimSpace(cliutil.DetermineAPIBase(a.APIBaseOptions())), "/")
+	if strings.HasSuffix(base, prefix) {
+		return path
+	}
+	return prefix + path
+}
+
+// APIRootPath normalizes an operational root path such as /health.
+func (a *ScenarioApp) APIRootPath(path string) string {
+	return normalizeAPIPath(path)
+}
+
+// Get performs a GET request against the scenario's versioned API base.
+func (a *ScenarioApp) Get(path string, query url.Values) ([]byte, error) {
+	if a.APIClient == nil {
+		a.APIClient = cliutil.NewAPIClient(a.HTTPClient, a.APIBaseOptions, a.tokenSource)
+	}
+	return a.APIClient.Get(a.APIPath(path), query)
+}
+
+// Request performs an HTTP request against the scenario's versioned API base.
+func (a *ScenarioApp) Request(method, path string, query url.Values, body interface{}) ([]byte, error) {
+	if a.APIClient == nil {
+		a.APIClient = cliutil.NewAPIClient(a.HTTPClient, a.APIBaseOptions, a.tokenSource)
+	}
+	return a.APIClient.Request(method, a.APIPath(path), query, body)
+}
+
+// GetRoot performs a GET request against the scenario's root API base.
+func (a *ScenarioApp) GetRoot(path string, query url.Values) ([]byte, error) {
+	return a.rootRequest("GET", a.APIRootPath(path), query, nil)
+}
+
+// RequestRoot performs an HTTP request against the scenario's root API base.
+func (a *ScenarioApp) RequestRoot(method, path string, query url.Values, body interface{}) ([]byte, error) {
+	return a.rootRequest(method, a.APIRootPath(path), query, body)
+}
+
 // SaveConfig persists the current API config to disk.
 func (a *ScenarioApp) SaveConfig() error {
 	return a.ConfigFile.Save(a.Config)
@@ -317,6 +510,17 @@ func keyMatch(key string, allowed []string) bool {
 		}
 	}
 	return false
+}
+
+func normalizeAPIPath(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return ""
+	}
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	return path
 }
 
 func applyTimeoutOpts(opts ScenarioOptions) cliutil.HTTPClientOptions {

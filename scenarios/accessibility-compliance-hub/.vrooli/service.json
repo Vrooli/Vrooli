@@ -49,11 +49,6 @@
           "description": "Start production UI server for dist bundle",
           "name": "start-ui",
           "run": "cd ui && node server.js"
-        },
-        {
-          "description": "Display running service URLs",
-          "name": "show-urls",
-          "run": "echo -e '\ud83d\ude80 Accessibility Compliance Hub running:\\n  Dashboard: http://localhost:'${UI_PORT}'\\n  API: http://localhost:'${API_PORT}'\\n  CLI: accessibility-compliance-hub --help'"
         }
       ]
     },
@@ -130,11 +125,6 @@
           "description": "Build production UI bundle",
           "name": "build-ui",
           "run": "cd ui && npm run build"
-        },
-        {
-          "description": "Display running service URLs",
-          "name": "show-urls",
-          "run": "echo -e '\ud83d\ude80 Accessibility Compliance Hub initialized\n  Dashboard: http://localhost:${UI_PORT}\n  CLI: accessibility-compliance-hub --help'"
         },
         {
           "name": "install-ui-deps",

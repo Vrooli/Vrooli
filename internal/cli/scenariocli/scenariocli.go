@@ -84,11 +84,20 @@ type StatusSingleOutput struct {
 }
 
 type LifecycleItemOutput struct {
-	Name               string         `json:"name"`
-	Status             string         `json:"status"`
-	Health             string         `json:"health,omitempty"`
-	Ports              map[string]int `json:"ports,omitempty"`
-	FailedDependencies []string       `json:"failed_dependencies,omitempty"`
+	Name               string           `json:"name"`
+	Status             string           `json:"status"`
+	Health             string           `json:"health,omitempty"`
+	Ports              map[string]int   `json:"ports,omitempty"`
+	Endpoints          []EndpointOutput `json:"endpoints,omitempty"`
+	FailedDependencies []string         `json:"failed_dependencies,omitempty"`
+}
+
+type EndpointOutput struct {
+	Name        string `json:"name"`
+	Key         string `json:"key"`
+	Description string `json:"description,omitempty"`
+	Port        int    `json:"port"`
+	URL         string `json:"url"`
 }
 
 type BatchFailure struct {
@@ -247,6 +256,8 @@ func WriteLifecycleItems(w io.Writer, format cliout.Format, items []LifecycleIte
 		switch item.Status {
 		case "already_running":
 			_, _ = fmt.Fprintf(w, "Scenario '%s' is already running", item.Name)
+		case "restarted":
+			_, _ = fmt.Fprintf(w, "Restarted scenario '%s'", item.Name)
 		case "stopped":
 			_, _ = fmt.Fprintf(w, "Stopped scenario '%s'", item.Name)
 		default:
@@ -258,6 +269,12 @@ func WriteLifecycleItems(w io.Writer, format cliout.Format, items []LifecycleIte
 		_, _ = fmt.Fprintln(w)
 		if len(item.Ports) > 0 {
 			_, _ = fmt.Fprintf(w, "  Ports: %s\n", FormatPortMap(item.Ports))
+		}
+		if len(item.Endpoints) > 0 {
+			_, _ = fmt.Fprintln(w, "  URLs:")
+			for _, endpoint := range item.Endpoints {
+				_, _ = fmt.Fprintf(w, "    %s: %s\n", endpoint.Key, endpoint.URL)
+			}
 		}
 		if len(item.FailedDependencies) > 0 {
 			_, _ = fmt.Fprintf(w, "  Failed dependencies: %s\n", strings.Join(item.FailedDependencies, ", "))

@@ -11,7 +11,7 @@ set -euo pipefail
 PHASES_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
 TEST_DIR="$(builtin cd "${PHASES_DIR}/.." && builtin pwd)"
 RESOURCE_DIR="$(builtin cd "${TEST_DIR}/.." && builtin pwd)"
-APP_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+VROOLI_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # Source config
 # shellcheck disable=SC1091
@@ -30,7 +30,7 @@ solutions = solve(eq, x)
 print(f"Solutions: {solutions}")
 EOF
 
-if "${APP_ROOT}/resources/sagemath/cli.sh" content add --file "$test_script" --name "integration_test.sage" > /dev/null 2>&1; then
+if "${VROOLI_ROOT}/resources/sagemath/cli.sh" content add --file "$test_script" --name "integration_test.sage" > /dev/null 2>&1; then
     echo "✓"
 else
     echo "✗"
@@ -46,7 +46,7 @@ echo -n "Testing content list... "
 sleep 0.5
 # Need to use full path to CLI or ensure PATH is correct
 # Strip ANSI codes and search for the file
-if "${APP_ROOT}/resources/sagemath/cli.sh" content list 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | grep -q "integration_test\.sage"; then
+if "${VROOLI_ROOT}/resources/sagemath/cli.sh" content list 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | grep -q "integration_test\.sage"; then
     echo "✓"
 else
     echo "✗"
@@ -105,7 +105,7 @@ fi
 
 # Test 7: Content management - Remove
 echo -n "Testing content remove... "
-if "${APP_ROOT}/resources/sagemath/cli.sh" content remove --name "integration_test.sage" > /dev/null 2>&1; then
+if "${VROOLI_ROOT}/resources/sagemath/cli.sh" content remove --name "integration_test.sage" > /dev/null 2>&1; then
     echo "✓"
 else
     echo "✗"

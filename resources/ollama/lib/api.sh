@@ -4,11 +4,11 @@
 # This file contains API interaction functions and information display
 
 # Agent management is now handled via unified system (see cli.sh)
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+VROOLI_ROOT="${VROOLI_ROOT:-${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}}"
 
 # Source messages if not already loaded
 if [[ -z "${MSG_MODEL_NOT_INSTALLED:-}" ]]; then
-    OLLAMA_CONFIG_DIR="${APP_ROOT}/resources/ollama/config"
+    OLLAMA_CONFIG_DIR="${VROOLI_ROOT}/resources/ollama/config"
     # shellcheck disable=SC1090,SC1091
     source "${OLLAMA_CONFIG_DIR}/messages.sh" 2>/dev/null || true
 fi

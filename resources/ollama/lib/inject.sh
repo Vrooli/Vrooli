@@ -18,12 +18,12 @@
 set -euo pipefail
 
 # Get script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-OLLAMA_INJECT_DIR="${APP_ROOT}/resources/ollama/lib"
+VROOLI_ROOT="${VROOLI_ROOT:-${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}}"
+OLLAMA_INJECT_DIR="${VROOLI_ROOT}/resources/ollama/lib"
 
 # Source dependencies
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${VROOLI_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091

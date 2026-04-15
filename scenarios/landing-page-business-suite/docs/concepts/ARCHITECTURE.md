@@ -173,8 +173,8 @@ api/
 
 - `.vrooli/plans.json` — bundle + pricing catalog (PlanStore). Writes are atomic; Stripe imports batch updates via `PlanService`.
 - Plan updates and Stripe imports enforce bundle↔Stripe product alignment to prevent cross-product contamination, plus tier invariants (free plans are $0; credits/donations are one-time).
-- `.vrooli/variants/*.json` — landing variants + sections (ConfigStore)
-- `.vrooli/branding.json` — public branding for the landing UI
+- `config/variants/*.json` — landing variants + sections (ConfigStore)
+- `config/branding.json` — public branding for the landing UI
 - `.vrooli/fallback/fallback.json` — baked fallback variant payload
 
 ### Database Schema (Runtime State)

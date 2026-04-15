@@ -2,10 +2,10 @@
 # Tests for Redis API functions
 
 # Source var.sh to get proper directory variables
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
-_API_BATS_DIR="$APP_ROOT/resources/redis/lib"
+VROOLI_ROOT="${VROOLI_ROOT:-${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}}"
+_API_BATS_DIR="$VROOLI_ROOT/resources/redis/lib"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/lib/utils/var.sh"
+source "${VROOLI_ROOT}/lib/utils/var.sh"
 
 # Load Vrooli test infrastructure
 # shellcheck disable=SC1091

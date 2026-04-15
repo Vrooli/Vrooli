@@ -3,24 +3,24 @@
 bats_require_minimum_version 1.5.0
 
 # Source trash module for safe test cleanup
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+VROOLI_ROOT="${VROOLI_ROOT:-${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}}"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/lib/utils/var.sh" 2>/dev/null || true
+source "${VROOLI_ROOT}/lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Load Vrooli test infrastructure
-source "${APP_ROOT}/__test/fixtures/setup.bash"
+source "${VROOLI_ROOT}/__test/fixtures/setup.bash"
 
 setup_file() {
     # Use Vrooli service test setup
     vrooli_setup_service_test "claude-code-error-handling"
     
     # Load dependencies
-    SCRIPT_DIR="${APP_ROOT}/resources/claude-code"
+    SCRIPT_DIR="${VROOLI_ROOT}/resources/claude-code"
     
     # shellcheck disable=SC1091
-    source "${APP_ROOT}/lib/utils/var.sh" || true
+    source "${VROOLI_ROOT}/lib/utils/var.sh" || true
     # shellcheck disable=SC1091
     source "${var_SCRIPTS_RESOURCES_DIR}/common.sh" || true
     

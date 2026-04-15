@@ -2,6 +2,7 @@ package scenario
 
 import (
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,6 +13,14 @@ type RuntimePortBinding struct {
 	Key  string `json:"key"`
 	Step string `json:"step,omitempty"`
 	Port int    `json:"port"`
+}
+
+type RuntimeEndpoint struct {
+	Name        string `json:"name"`
+	Key         string `json:"key"`
+	Description string `json:"description,omitempty"`
+	Port        int    `json:"port"`
+	URL         string `json:"url"`
 }
 
 type RuntimeDetails struct {
@@ -49,6 +58,52 @@ func DescribeRuntime(manifest ServiceManifest, runtime process.ScenarioRuntime) 
 func RuntimePorts(manifest ServiceManifest, records []process.Record) map[string]int {
 	_, ports := RuntimePortBindings(manifest, records)
 	return ports
+}
+
+func RuntimeEndpoints(manifest ServiceManifest, ports map[string]int) []RuntimeEndpoint {
+	if len(ports) == 0 {
+		return nil
+	}
+
+	endpoints := make([]RuntimeEndpoint, 0, len(ports))
+	seen := make(map[string]struct{}, len(ports))
+	for _, definition := range manifest.SortedPorts() {
+		port, ok := ports[definition.EnvVar]
+		if !ok || port <= 0 {
+			continue
+		}
+		endpoints = append(endpoints, RuntimeEndpoint{
+			Name:        definition.Name,
+			Key:         definition.EnvVar,
+			Description: definition.Description,
+			Port:        port,
+			URL:         "http://localhost:" + strconv.Itoa(port),
+		})
+		seen[definition.EnvVar] = struct{}{}
+	}
+
+	extraKeys := make([]string, 0, len(ports))
+	for key, port := range ports {
+		if port <= 0 {
+			continue
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		extraKeys = append(extraKeys, key)
+	}
+	sort.Strings(extraKeys)
+	for _, key := range extraKeys {
+		port := ports[key]
+		endpoints = append(endpoints, RuntimeEndpoint{
+			Name: key,
+			Key:  key,
+			Port: port,
+			URL:  "http://localhost:" + strconv.Itoa(port),
+		})
+	}
+
+	return endpoints
 }
 
 func RuntimePortBindings(manifest ServiceManifest, records []process.Record) ([]RuntimePortBinding, map[string]int) {

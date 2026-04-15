@@ -99,7 +99,22 @@ func toCLILifecycleItems(items []scenarioapp.LifecycleItemOutput) []LifecycleIte
 			Status:             item.Status,
 			Health:             item.Health,
 			Ports:              CopyIntMap(item.Ports),
+			Endpoints:          toCLIEndpoints(item.Endpoints),
 			FailedDependencies: CopyStrings(item.FailedDependencies),
+		})
+	}
+	return out
+}
+
+func toCLIEndpoints(items []scenarioapp.EndpointOutput) []EndpointOutput {
+	out := make([]EndpointOutput, 0, len(items))
+	for _, item := range items {
+		out = append(out, EndpointOutput{
+			Name:        item.Name,
+			Key:         item.Key,
+			Description: item.Description,
+			Port:        item.Port,
+			URL:         item.URL,
 		})
 	}
 	return out
@@ -201,6 +216,7 @@ func toCLIBatchResponse(resp scenarioapp.BatchResponse) BatchResponse {
 			Status:             item.Status,
 			Health:             item.Health,
 			Ports:              CopyIntMap(item.Ports),
+			Endpoints:          toCLIEndpoints(item.Endpoints),
 			FailedDependencies: CopyStrings(item.FailedDependencies),
 		})
 	}

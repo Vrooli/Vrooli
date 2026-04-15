@@ -5,8 +5,8 @@
 # Universal Contract v2.0 handler for status command
 sagemath::status() {
     # Source format utility for consistent JSON output
-    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-    source "${APP_ROOT}/scripts/lib/utils/format.sh"
+    VROOLI_ROOT="${VROOLI_ROOT:-${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}}"
+    source "${VROOLI_ROOT}/scripts/lib/utils/format.sh"
     
     # Handle --json flag
     local format="text"

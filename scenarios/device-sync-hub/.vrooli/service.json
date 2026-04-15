@@ -138,11 +138,6 @@
           "name": "initialize-database",
           "run": "if command -v psql >/dev/null 2>&1 && [ -n \"${POSTGRES_URL:-}\" ]; then psql \"$POSTGRES_URL\" -f initialization/postgres/schema.sql 2>/dev/null || echo 'Database initialization skipped (will be handled at runtime)'; else echo 'PostgreSQL not available for initialization, will be handled at runtime'; fi",
           "description": "Initialize database schema if possible"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo -e '\ud83d\ude80 Device Sync Hub initialized\\n  Web Interface: http://localhost:${UI_PORT:-37865}\\n  API: http://localhost:${API_PORT:-17865}\\n  CLI: device-sync-hub --help\\n\\n\ud83d\udcf1 Access from mobile: Replace localhost with your computers IP address'",
-          "description": "Display service access URLs and mobile setup instructions"
         }
       ]
     },
@@ -166,11 +161,6 @@
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo -e '\ud83d\ude80 Device Sync Hub running\\n  Web Interface: http://localhost:${UI_PORT:-37865}\\n  API: http://localhost:${API_PORT:-17865}\\n  CLI: device-sync-hub --help\\n\\n\ud83d\udcf1 Mobile Access: Replace localhost with your IP address\\n  Example: http://192.168.1.100:${UI_PORT:-37865}'",
-          "description": "Display service access URLs"
         }
       ]
     },

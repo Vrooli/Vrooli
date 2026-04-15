@@ -1,24 +1,24 @@
 #!/usr/bin/env bats
 
 # Source trash module for safe test cleanup
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+VROOLI_ROOT="${VROOLI_ROOT:-${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}}"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/lib/utils/var.sh" 2>/dev/null || true
+source "${VROOLI_ROOT}/lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
-source "${APP_ROOT}/__test/fixtures/setup.bash"
+source "${VROOLI_ROOT}/__test/fixtures/setup.bash"
 
 # BATS setup function - runs before each test
 setup() {
     # Load shared test infrastructure
-    source "${APP_ROOT}/__test/fixtures/setup.bash"
+    source "${VROOLI_ROOT}/__test/fixtures/setup.bash"
     
     # Setup standard mocks
     vrooli_auto_setup
     
     # Load the functions we are testing (required for bats isolation)
-    CLAUDE_CODE_DIR="${APP_ROOT}/resources/claude-code"
+    CLAUDE_CODE_DIR="${VROOLI_ROOT}/resources/claude-code"
     SCRIPT_DIR="${CLAUDE_CODE_DIR}/lib"
     source "${SCRIPT_DIR}/session.sh"
     
@@ -27,7 +27,7 @@ setup() {
     
     # Source var.sh first to get proper directory variables
     # shellcheck disable=SC1091
-    source "${APP_ROOT}/lib/utils/var.sh"
+    source "${VROOLI_ROOT}/lib/utils/var.sh"
     
     # Source dependencies using var_ variables
     # shellcheck disable=SC1091

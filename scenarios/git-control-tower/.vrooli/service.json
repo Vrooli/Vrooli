@@ -53,11 +53,6 @@
           "description": "Serve production UI bundle",
           "name": "start-ui",
           "run": "cd ui && node server.js"
-        },
-        {
-          "description": "Show API/UI URLs",
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}/health\" && echo \"UI:  http://localhost:${UI_PORT}/\""
         }
       ]
     },
@@ -129,11 +124,6 @@
           "description": "Build production UI bundle",
           "name": "build-ui",
           "run": "cd ui && pnpm run build"
-        },
-        {
-          "description": "Show API/UI URLs after setup",
-          "name": "show-urls",
-          "run": "echo \"\u2705 Setup complete\" && echo \"API: http://localhost:${API_PORT}/health\" && echo \"UI:  http://localhost:${UI_PORT}/\""
         }
       ]
     },
@@ -143,14 +133,6 @@
     "test": {
       "description": "Execute phased test suite",
       "steps": [
-        {
-          "condition": {
-            "file_exists": "cli/install.sh"
-          },
-          "description": "Ensure CLI is available for integration checks",
-          "name": "install-cli",
-          "run": "bash cli/install.sh"
-        },
         {
           "description": "Execute phased scenario test suite",
           "name": "run-phased-tests",

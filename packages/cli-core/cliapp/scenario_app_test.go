@@ -1,8 +1,10 @@
 package cliapp
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -161,6 +163,250 @@ func TestScenarioAppHTTPTimeoutFromEnv(t *testing.T) {
 
 	if app.HTTPClient == nil || app.HTTPClient.Timeout() != 5*time.Second {
 		t.Fatalf("expected http client timeout from env, got %v", app.HTTPClient.Timeout())
+	}
+}
+
+func TestNewStandardScenarioAppUsesStandardWiring(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)
+	t.Setenv("DEMO_HTTP_TIMEOUT", "7s")
+
+	app, err := NewStandardScenarioApp(StandardScenarioOptions{
+		Name:                    "demo",
+		Version:                 "0.1.0",
+		Description:             "Demo CLI",
+		ExtraAPIEnvVars:         []string{"API_BASE_URL"},
+		ExtraConfigDirEnvVars:   []string{"CLI_CONFIG_DIR_OVERRIDE"},
+		ExtraHTTPTimeoutEnvVars: []string{"DEMO_HTTP_TIMEOUT"},
+		AllowAnonymous:          true,
+	})
+	if err != nil {
+		t.Fatalf("NewStandardScenarioApp: %v", err)
+	}
+
+	if app.HTTPClient == nil || app.HTTPClient.Timeout() != 7*time.Second {
+		t.Fatalf("expected standard http timeout wiring, got %v", app.HTTPClient.Timeout())
+	}
+
+	commands := app.CLI.commandGroups()
+	if len(commands) < 3 {
+		t.Fatalf("expected meta + standard command groups, got %d", len(commands))
+	}
+	if commands[1].Title != "Health" {
+		t.Fatalf("expected health command group, got %q", commands[1].Title)
+	}
+	if commands[2].Title != "Configuration" {
+		t.Fatalf("expected configuration command group, got %q", commands[2].Title)
+	}
+}
+
+func TestScenarioAppStandardBaseCommandGroupsCanDisableDefaultCommands(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)
+
+	app, err := NewScenarioApp(ScenarioOptions{
+		Name:             "demo",
+		ConfigDirEnvVars: []string{"CLI_CONFIG_DIR_OVERRIDE"},
+		AllowAnonymous:   true,
+	})
+	if err != nil {
+		t.Fatalf("NewScenarioApp: %v", err)
+	}
+
+	disableStatus := false
+	groups := app.StandardBaseCommandGroups(StandardBaseCommandOptions{
+		IncludeStatusCommand: &disableStatus,
+	})
+	if len(groups) != 1 {
+		t.Fatalf("expected only configuration group, got %d groups", len(groups))
+	}
+	if groups[0].Title != "Configuration" {
+		t.Fatalf("expected configuration group, got %q", groups[0].Title)
+	}
+}
+
+func TestScenarioAppAPIPathHelpersFromRootBase(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)
+
+	app, err := NewScenarioApp(ScenarioOptions{
+		Name:             "demo",
+		DefaultAPIBase:   "http://example.com",
+		ConfigDirEnvVars: []string{"CLI_CONFIG_DIR_OVERRIDE"},
+		AllowAnonymous:   true,
+	})
+	if err != nil {
+		t.Fatalf("NewScenarioApp: %v", err)
+	}
+
+	if got := app.APIBase(); got != "http://example.com/api/v1" {
+		t.Fatalf("APIBase() = %q, want %q", got, "http://example.com/api/v1")
+	}
+	if got := app.APIRootBase(); got != "http://example.com" {
+		t.Fatalf("APIRootBase() = %q, want %q", got, "http://example.com")
+	}
+	if got := app.APIPath("/tasks"); got != "/api/v1/tasks" {
+		t.Fatalf("APIPath(/tasks) = %q, want %q", got, "/api/v1/tasks")
+	}
+	if got := app.APIRootPath("/health"); got != "/health" {
+		t.Fatalf("APIRootPath(/health) = %q, want %q", got, "/health")
+	}
+}
+
+func TestScenarioAppAPIPathHelpersFromVersionedBase(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)
+
+	app, err := NewScenarioApp(ScenarioOptions{
+		Name:             "demo",
+		DefaultAPIBase:   "http://example.com/api/v1",
+		ConfigDirEnvVars: []string{"CLI_CONFIG_DIR_OVERRIDE"},
+		AllowAnonymous:   true,
+	})
+	if err != nil {
+		t.Fatalf("NewScenarioApp: %v", err)
+	}
+
+	if got := app.APIBase(); got != "http://example.com/api/v1" {
+		t.Fatalf("APIBase() = %q, want %q", got, "http://example.com/api/v1")
+	}
+	if got := app.APIRootBase(); got != "http://example.com" {
+		t.Fatalf("APIRootBase() = %q, want %q", got, "http://example.com")
+	}
+	if got := app.APIPath("/tasks"); got != "/tasks" {
+		t.Fatalf("APIPath(/tasks) = %q, want %q", got, "/tasks")
+	}
+}
+
+func TestScenarioAppStandardStatusCommandUsesRootHealth(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)
+
+	var requestedPath string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestedPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"healthy","service":"demo-api","readiness":true,"dependencies":{"postgres":{"connected":true}}}`))
+	}))
+	defer server.Close()
+
+	app, err := NewScenarioApp(ScenarioOptions{
+		Name:             "demo",
+		DefaultAPIBase:   server.URL + "/api/v1",
+		ConfigDirEnvVars: []string{"CLI_CONFIG_DIR_OVERRIDE"},
+		AllowAnonymous:   true,
+	})
+	if err != nil {
+		t.Fatalf("NewScenarioApp: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	if err := app.runStandardStatus(nil, &stdout); err != nil {
+		t.Fatalf("runStandardStatus: %v", err)
+	}
+	if requestedPath != "/health" {
+		t.Fatalf("requested path = %q, want %q", requestedPath, "/health")
+	}
+	output := stdout.String()
+	for _, needle := range []string{"Status: healthy", "Ready: true", "Service: demo-api", "postgres: connected"} {
+		if !strings.Contains(output, needle) {
+			t.Fatalf("status output missing %q in %q", needle, output)
+		}
+	}
+}
+
+func TestScenarioAppStandardStatusCommandSupportsJSON(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"healthy","service":"demo-api","readiness":true}`))
+	}))
+	defer server.Close()
+
+	app, err := NewScenarioApp(ScenarioOptions{
+		Name:             "demo",
+		DefaultAPIBase:   server.URL,
+		ConfigDirEnvVars: []string{"CLI_CONFIG_DIR_OVERRIDE"},
+		AllowAnonymous:   true,
+	})
+	if err != nil {
+		t.Fatalf("NewScenarioApp: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	if err := app.runStandardStatus([]string{"--json"}, &stdout); err != nil {
+		t.Fatalf("runStandardStatus --json: %v", err)
+	}
+	if !strings.Contains(stdout.String(), "\"status\": \"healthy\"") {
+		t.Fatalf("expected pretty JSON output, got %q", stdout.String())
+	}
+}
+
+func TestScenarioAppGetUsesVersionedAPIPath(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)
+
+	var requestedPath string
+	var requestedQuery string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestedPath = r.URL.Path
+		requestedQuery = r.URL.RawQuery
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer server.Close()
+
+	app, err := NewScenarioApp(ScenarioOptions{
+		Name:             "demo",
+		DefaultAPIBase:   server.URL,
+		ConfigDirEnvVars: []string{"CLI_CONFIG_DIR_OVERRIDE"},
+		AllowAnonymous:   true,
+	})
+	if err != nil {
+		t.Fatalf("NewScenarioApp: %v", err)
+	}
+
+	query := url.Values{"limit": []string{"10"}}
+	if _, err := app.Get("/tasks", query); err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if requestedPath != "/api/v1/tasks" {
+		t.Fatalf("requested path = %q, want %q", requestedPath, "/api/v1/tasks")
+	}
+	if requestedQuery != "limit=10" {
+		t.Fatalf("requested query = %q, want %q", requestedQuery, "limit=10")
+	}
+}
+
+func TestScenarioAppGetRootUsesRootAPIPath(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)
+
+	var requestedPath string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestedPath = r.URL.Path
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"status":"healthy"}`))
+	}))
+	defer server.Close()
+
+	app, err := NewScenarioApp(ScenarioOptions{
+		Name:             "demo",
+		DefaultAPIBase:   server.URL + "/api/v1",
+		ConfigDirEnvVars: []string{"CLI_CONFIG_DIR_OVERRIDE"},
+		AllowAnonymous:   true,
+	})
+	if err != nil {
+		t.Fatalf("NewScenarioApp: %v", err)
+	}
+
+	if _, err := app.GetRoot("/health", nil); err != nil {
+		t.Fatalf("GetRoot: %v", err)
+	}
+	if requestedPath != "/health" {
+		t.Fatalf("requested path = %q, want %q", requestedPath, "/health")
 	}
 }
 

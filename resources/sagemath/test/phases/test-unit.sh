@@ -11,7 +11,7 @@ set -euo pipefail
 PHASES_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
 TEST_DIR="$(builtin cd "${PHASES_DIR}/.." && builtin pwd)"
 RESOURCE_DIR="$(builtin cd "${TEST_DIR}/.." && builtin pwd)"
-APP_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+VROOLI_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # Source libraries
 # shellcheck disable=SC1091
