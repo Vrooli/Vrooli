@@ -17,7 +17,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../config/defaults.sh" 2>/dev/null || true
 
 # Cache configuration
-readonly CACHE_DIR="${VROOLI_CACHE_DIR:-/tmp/.vrooli/judge0/health-cache}"
+readonly CACHE_DIR="${JUDGE0_HEALTH_CACHE_DIR}"
 readonly QUICK_CACHE_TTL=10      # Quick health checks (increased for stability)
 readonly DETAILED_CACHE_TTL=60  # Detailed diagnostics (increased for less overhead)
 readonly METRICS_CACHE_TTL=120  # Performance metrics (increased for less overhead)

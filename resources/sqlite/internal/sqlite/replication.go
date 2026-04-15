@@ -30,7 +30,7 @@ type replicaState struct {
 }
 
 func (s *Service) replicaStatePath() string {
-	return filepath.Join(s.Config.ReplicaPath, "state.json")
+	return filepath.Join(s.Config.ReplicationStatePath, "state.json")
 }
 
 func (s *Service) lockReplicaState() (*flock.Flock, error) {

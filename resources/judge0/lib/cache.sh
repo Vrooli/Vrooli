@@ -12,7 +12,7 @@ source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 source "${RESOURCE_DIR}/lib/common.sh"
 
 # Cache configuration
-export JUDGE0_CACHE_DIR="${JUDGE0_DATA_DIR}/cache"
+export JUDGE0_CACHE_DIR="${JUDGE0_CACHE_DIR:-${JUDGE0_DATA_DIR}/cache}"
 export JUDGE0_CACHE_TTL="${JUDGE0_CACHE_TTL:-3600}"  # 1 hour default TTL
 export JUDGE0_CACHE_MAX_SIZE="${JUDGE0_CACHE_MAX_SIZE:-1000}"  # Max cached entries
 

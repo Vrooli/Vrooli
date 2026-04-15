@@ -73,10 +73,22 @@ export JUDGE0_API_KEY="${JUDGE0_API_KEY:-vrooli-judge0-dev-token}"
 # ============================================================================
 # PATHS AND DIRECTORIES
 # ============================================================================
-export JUDGE0_DATA_DIR="${HOME}/.vrooli/resources/judge0"
-export JUDGE0_CONFIG_DIR="${JUDGE0_DATA_DIR}/config"
-export JUDGE0_LOGS_DIR="${JUDGE0_DATA_DIR}/logs"
+judge0_xdg_config_home="${XDG_CONFIG_HOME:-${HOME}/.config}"
+judge0_xdg_data_home="${XDG_DATA_HOME:-${HOME}/.local/share}"
+judge0_xdg_cache_home="${XDG_CACHE_HOME:-${HOME}/.cache}"
+judge0_xdg_state_home="${XDG_STATE_HOME:-${HOME}/.local/state}"
+
+export JUDGE0_CONFIG_DIR="${RESOURCE_CONFIG_DIR:-${judge0_xdg_config_home}/vrooli/resources/judge0}"
+export JUDGE0_DATA_DIR="${RESOURCE_DATA_DIR:-${judge0_xdg_data_home}/vrooli/resources/judge0}"
+export JUDGE0_LOGS_DIR="${RESOURCE_LOGS_DIR:-${judge0_xdg_state_home}/logs/vrooli/resources/judge0}"
+export JUDGE0_STATE_DIR="${RESOURCE_STATE_DIR:-${judge0_xdg_state_home}/vrooli/resources/judge0}"
+export JUDGE0_RUNTIME_CACHE_DIR="${RESOURCE_CACHE_DIR:-${judge0_xdg_cache_home}/vrooli/resources/judge0}"
 export JUDGE0_SUBMISSIONS_DIR="${JUDGE0_DATA_DIR}/submissions"
+export JUDGE0_ANALYTICS_DIR="${JUDGE0_DATA_DIR}/analytics"
+export JUDGE0_CACHE_DIR="${JUDGE0_RUNTIME_CACHE_DIR}/results"
+export JUDGE0_HEALTH_CACHE_DIR="${JUDGE0_RUNTIME_CACHE_DIR}/health-cache"
+export JUDGE0_POOL_DIR="${JUDGE0_RUNTIME_CACHE_DIR}/pools"
+export JUDGE0_EXTERNAL_CONFIG_FILE="${JUDGE0_CONFIG_DIR}/external.conf"
 
 # ============================================================================
 # LOGGING CONFIGURATION
@@ -171,7 +183,14 @@ judge0::export_config() {
     export JUDGE0_DATA_DIR
     export JUDGE0_CONFIG_DIR
     export JUDGE0_LOGS_DIR
+    export JUDGE0_STATE_DIR
+    export JUDGE0_RUNTIME_CACHE_DIR
     export JUDGE0_SUBMISSIONS_DIR
+    export JUDGE0_ANALYTICS_DIR
+    export JUDGE0_CACHE_DIR
+    export JUDGE0_HEALTH_CACHE_DIR
+    export JUDGE0_POOL_DIR
+    export JUDGE0_EXTERNAL_CONFIG_FILE
     
     # Logging
     export JUDGE0_LOG_LEVEL

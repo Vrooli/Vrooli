@@ -10,11 +10,11 @@ services:
       - UNSTRUCTURED_API_WORKERS=1
     volumes:
       # Persistent cache directory
-      - ${HOME}/.vrooli/cache/unstructured-io:/app/cache
+      - ${RESOURCE_CACHE_DIR}:/app/cache
       # Logs directory for debugging
-      - ${HOME}/.vrooli/logs/unstructured-io:/app/logs
+      - ${RESOURCE_LOGS_DIR}:/app/logs
       # Temporary processing directory
-      - /tmp/unstructured-io:/tmp/unstructured-processing
+      - ${RESOURCE_STATE_DIR}/tmp:/tmp/unstructured-processing
     deploy:
       resources:
         limits:

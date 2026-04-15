@@ -29,7 +29,7 @@ fi
 
 # Default Judge0 settings
 readonly DEFAULT_JUDGE0_HOST="http://localhost:2358"
-readonly DEFAULT_JUDGE0_DATA_DIR="${HOME}/.judge0"
+readonly DEFAULT_JUDGE0_DATA_DIR="${RESOURCE_DATA_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/vrooli/resources/judge0}"
 readonly DEFAULT_JUDGE0_SUBMISSIONS_DIR="${DEFAULT_JUDGE0_DATA_DIR}/submissions"
 readonly DEFAULT_JUDGE0_TEMPLATES_DIR="${DEFAULT_JUDGE0_DATA_DIR}/templates"
 

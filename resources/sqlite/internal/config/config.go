@@ -11,10 +11,12 @@ import (
 // Config holds runtime settings for the SQLite resource.
 type Config struct {
 	DataRoot            string
+	StateRoot           string
 	DatabasePath        string
 	BackupPath          string
 	ReplicaPath         string
 	MigrationPath       string
+	ReplicationStatePath string
 	JournalMode         string
 	BusyTimeout         time.Duration
 	CacheSize           int
@@ -27,16 +29,19 @@ type Config struct {
 	BackupRetentionDays int
 }
 
-// Load reads environment variables and applies defaults matching the legacy Bash resource.
+// Load reads environment variables and applies canonical classed storage defaults.
 func Load() Config {
-	dataRoot := firstNonEmpty(os.Getenv("VROOLI_DATA"), filepath.Join(userHomeDir(), ".vrooli", "data"))
+	dataRoot := firstNonEmpty(os.Getenv("RESOURCE_DATA_DIR"), filepath.Join(xdgDataHome(), "vrooli", "resources", "sqlite"))
+	stateRoot := firstNonEmpty(os.Getenv("RESOURCE_STATE_DIR"), filepath.Join(xdgStateHome(), "vrooli", "resources", "sqlite"))
 
 	return Config{
 		DataRoot:            dataRoot,
-		DatabasePath:        firstNonEmpty(os.Getenv("SQLITE_DATABASE_PATH"), filepath.Join(dataRoot, "sqlite", "databases")),
-		BackupPath:          firstNonEmpty(os.Getenv("SQLITE_BACKUP_PATH"), filepath.Join(dataRoot, "sqlite", "backups")),
-		ReplicaPath:         firstNonEmpty(os.Getenv("SQLITE_REPLICATION_PATH"), filepath.Join(dataRoot, "sqlite", "replicas")),
-		MigrationPath:       firstNonEmpty(os.Getenv("SQLITE_MIGRATION_PATH"), filepath.Join(dataRoot, "sqlite", "migrations")),
+		StateRoot:           stateRoot,
+		DatabasePath:        firstNonEmpty(os.Getenv("SQLITE_DATABASE_PATH"), filepath.Join(dataRoot, "databases")),
+		BackupPath:          firstNonEmpty(os.Getenv("SQLITE_BACKUP_PATH"), filepath.Join(dataRoot, "backups")),
+		ReplicaPath:         firstNonEmpty(os.Getenv("SQLITE_REPLICATION_PATH"), filepath.Join(dataRoot, "replicas")),
+		MigrationPath:       firstNonEmpty(os.Getenv("SQLITE_MIGRATION_PATH"), filepath.Join(dataRoot, "migrations")),
+		ReplicationStatePath: firstNonEmpty(os.Getenv("SQLITE_REPLICATION_STATE_PATH"), filepath.Join(stateRoot, "replication")),
 		JournalMode:         firstNonEmpty(os.Getenv("SQLITE_JOURNAL_MODE"), "WAL"),
 		BusyTimeout:         time.Duration(envInt("SQLITE_BUSY_TIMEOUT", 10000)) * time.Millisecond,
 		CacheSize:           envInt("SQLITE_CACHE_SIZE", 2000),
@@ -52,7 +57,7 @@ func Load() Config {
 
 // EnsureDirectories creates required data directories.
 func (c Config) EnsureDirectories() error {
-	paths := []string{c.DatabasePath, c.BackupPath, c.ReplicaPath, c.MigrationPath}
+	paths := []string{c.DatabasePath, c.BackupPath, c.ReplicaPath, c.MigrationPath, c.ReplicationStatePath}
 	for _, p := range paths {
 		if err := os.MkdirAll(p, 0o755); err != nil {
 			return err
@@ -85,4 +90,18 @@ func userHomeDir() string {
 		return "."
 	}
 	return home
+}
+
+func xdgDataHome() string {
+	if v := strings.TrimSpace(os.Getenv("XDG_DATA_HOME")); v != "" {
+		return v
+	}
+	return filepath.Join(userHomeDir(), ".local", "share")
+}
+
+func xdgStateHome() string {
+	if v := strings.TrimSpace(os.Getenv("XDG_STATE_HOME")); v != "" {
+		return v
+	}
+	return filepath.Join(userHomeDir(), ".local", "state")
 }

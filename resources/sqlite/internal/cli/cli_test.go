@@ -36,12 +36,14 @@ func TestHandleStatsGracefulWhenDbstatMissing(t *testing.T) {
 func TestManageInstallInvokesRebuilderAndCreatesDirs(t *testing.T) {
 	root := t.TempDir()
 	cfg := config.Config{
-		DataRoot:      root,
-		DatabasePath:  filepath.Join(root, "db"),
-		BackupPath:    filepath.Join(root, "backups"),
-		ReplicaPath:   filepath.Join(root, "replicas"),
-		MigrationPath: filepath.Join(root, "migrations"),
-		CLITimeout:    time.Second,
+		DataRoot:             root,
+		StateRoot:            filepath.Join(root, "state"),
+		DatabasePath:         filepath.Join(root, "db"),
+		BackupPath:           filepath.Join(root, "backups"),
+		ReplicaPath:          filepath.Join(root, "replicas"),
+		MigrationPath:        filepath.Join(root, "migrations"),
+		ReplicationStatePath: filepath.Join(root, "state", "replication"),
+		CLITimeout:           time.Second,
 	}
 	stub := &stubService{}
 	rebuilt := false
@@ -71,12 +73,14 @@ func TestManageInstallInvokesRebuilderAndCreatesDirs(t *testing.T) {
 func TestManageInstallWarnsButSucceedsWhenRebuilderFails(t *testing.T) {
 	root := t.TempDir()
 	cfg := config.Config{
-		DataRoot:      root,
-		DatabasePath:  filepath.Join(root, "db"),
-		BackupPath:    filepath.Join(root, "backups"),
-		ReplicaPath:   filepath.Join(root, "replicas"),
-		MigrationPath: filepath.Join(root, "migrations"),
-		CLITimeout:    time.Second,
+		DataRoot:             root,
+		StateRoot:            filepath.Join(root, "state"),
+		DatabasePath:         filepath.Join(root, "db"),
+		BackupPath:           filepath.Join(root, "backups"),
+		ReplicaPath:          filepath.Join(root, "replicas"),
+		MigrationPath:        filepath.Join(root, "migrations"),
+		ReplicationStatePath: filepath.Join(root, "state", "replication"),
+		CLITimeout:           time.Second,
 	}
 	cli := &CLI{
 		Service:   &stubService{},

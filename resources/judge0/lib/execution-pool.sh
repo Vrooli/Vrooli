@@ -18,7 +18,7 @@ REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 source "${SCRIPT_DIR}/../config/defaults.sh" 2>/dev/null || true
 
 # Pool configuration
-readonly POOL_DIR="${VROOLI_CACHE_DIR:-/tmp/.vrooli/judge0/pools}"
+readonly POOL_DIR="${JUDGE0_POOL_DIR}"
 readonly POOL_STATE_FILE="${POOL_DIR}/state.json"
 readonly POOL_METRICS_FILE="${POOL_DIR}/metrics.json"
 

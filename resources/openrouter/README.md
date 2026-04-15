@@ -162,7 +162,7 @@ vrooli resource openrouter benchmark list
 ## Manual model additions (local overlay)
 If the OpenRouter catalog is missing a slug you know works (e.g., `x-ai/grok-4.1-fast:free`), add it locally and it will appear in `resource-openrouter models` / `resource-opencode models` results:
 
-1) Create `data/openrouter/manual-models.json` with entries shaped like the normalized catalog (id is required):
+1) Create `~/.config/vrooli/resources/openrouter/manual-models.json` with entries shaped like the normalized catalog (id is required):
 ```json
 [
   {

@@ -97,8 +97,8 @@ func runInstallCommand(command string, args []string, opts EnsureOptions) error 
 	return runCommandFn(command, args, opts)
 }
 
-func runShellScript(script, sudoMode string, opts EnsureOptions) error {
-	command, args, err := withSudo(sudoMode, "sh", []string{"-c", script})
+func runPrivilegedCommand(sudoMode, command string, args []string, opts EnsureOptions) error {
+	command, args, err := withSudo(sudoMode, command, args)
 	if err != nil {
 		return err
 	}

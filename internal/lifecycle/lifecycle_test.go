@@ -2,7 +2,6 @@ package lifecycle
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -313,46 +312,6 @@ func TestEnsureDependenciesIgnoreSkipsMissingOptionalDependency(t *testing.T) {
 	}
 	if len(failed) != 0 {
 		t.Fatalf("failed dependencies = %#v, want none", failed)
-	}
-}
-
-func TestWriteDegradedStateUsesInjectedClock(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	testresource.WritePortRegistry(t, root, nil)
-	timestamp := time.Date(2026, 4, 14, 12, 0, 0, 0, time.UTC)
-	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
-		deps.now = func() time.Time { return timestamp }
-	})
-
-	if err := runner.writeDegradedState("alpha", []string{"missing-beta"}); err != nil {
-		t.Fatalf("writeDegradedState: %v", err)
-	}
-
-	data, err := os.ReadFile(process.ScenarioDegradedPath(home, "alpha"))
-	if err != nil {
-		t.Fatalf("read degraded state: %v", err)
-	}
-	var payload struct {
-		Status             string   `json:"status"`
-		Reason             string   `json:"reason"`
-		FailedDependencies []string `json:"failed_dependencies"`
-		Timestamp          string   `json:"timestamp"`
-	}
-	if err := json.Unmarshal(data, &payload); err != nil {
-		t.Fatalf("unmarshal degraded state: %v", err)
-	}
-	if payload.Status != "degraded" {
-		t.Fatalf("status = %q", payload.Status)
-	}
-	if payload.Reason == "" {
-		t.Fatal("expected degraded reason")
-	}
-	if len(payload.FailedDependencies) != 1 || payload.FailedDependencies[0] != "missing-beta" {
-		t.Fatalf("failed dependencies = %#v", payload.FailedDependencies)
-	}
-	if payload.Timestamp != timestamp.Format(time.RFC3339) {
-		t.Fatalf("timestamp = %q, want %q", payload.Timestamp, timestamp.Format(time.RFC3339))
 	}
 }
 

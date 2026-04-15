@@ -395,10 +395,12 @@ func testConfig(t *testing.T) config.Config {
 	root := t.TempDir()
 	return config.Config{
 		DataRoot:            root,
+		StateRoot:           filepath.Join(root, "state"),
 		DatabasePath:        filepath.Join(root, "databases"),
 		BackupPath:          filepath.Join(root, "backups"),
 		ReplicaPath:         filepath.Join(root, "replicas"),
 		MigrationPath:       filepath.Join(root, "migrations"),
+		ReplicationStatePath: filepath.Join(root, "state", "replication"),
 		JournalMode:         "WAL",
 		BusyTimeout:         10 * time.Second,
 		CacheSize:           2000,

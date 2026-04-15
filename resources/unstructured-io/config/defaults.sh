@@ -14,6 +14,10 @@ source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 
+unstructured_io_xdg_cache_home="${XDG_CACHE_HOME:-${HOME}/.cache}"
+unstructured_io_xdg_state_home="${XDG_STATE_HOME:-${HOME}/.local/state}"
+unstructured_io_xdg_data_home="${XDG_DATA_HOME:-${HOME}/.local/share}"
+
 # Service configuration
 # Check if variables are already set to avoid readonly conflicts in tests
 if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_PORT="; then
@@ -82,7 +86,16 @@ if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_CACHE_TTL=";
     readonly UNSTRUCTURED_IO_CACHE_TTL="${UNSTRUCTURED_IO_CACHE_TTL:-3600}"  # 1 hour in seconds
 fi
 if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_CACHE_DIR="; then
-    readonly UNSTRUCTURED_IO_CACHE_DIR="${UNSTRUCTURED_IO_CACHE_DIR:-/tmp/unstructured-cache}"
+    readonly UNSTRUCTURED_IO_CACHE_DIR="${UNSTRUCTURED_IO_CACHE_DIR:-${RESOURCE_CACHE_DIR:-${unstructured_io_xdg_cache_home}/vrooli/resources/unstructured-io}}"
+fi
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_LOGS_DIR="; then
+    readonly UNSTRUCTURED_IO_LOGS_DIR="${UNSTRUCTURED_IO_LOGS_DIR:-${RESOURCE_LOGS_DIR:-${unstructured_io_xdg_state_home}/logs/vrooli/resources/unstructured-io}}"
+fi
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_STATE_DIR="; then
+    readonly UNSTRUCTURED_IO_STATE_DIR="${UNSTRUCTURED_IO_STATE_DIR:-${RESOURCE_STATE_DIR:-${unstructured_io_xdg_state_home}/vrooli/resources/unstructured-io}}"
+fi
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_DATA_DIR="; then
+    readonly UNSTRUCTURED_IO_DATA_DIR="${UNSTRUCTURED_IO_DATA_DIR:-${RESOURCE_DATA_DIR:-${unstructured_io_xdg_data_home}/vrooli/resources/unstructured-io}}"
 fi
 
 # Health check configuration
@@ -165,6 +178,7 @@ unstructured_io::export_config() {
     export UNSTRUCTURED_IO_HEALTH_ENDPOINT UNSTRUCTURED_IO_HEALTH_INTERVAL
     export UNSTRUCTURED_IO_PROCESS_ENDPOINT UNSTRUCTURED_IO_BATCH_ENDPOINT
     export UNSTRUCTURED_IO_CACHE_ENABLED UNSTRUCTURED_IO_CACHE_TTL UNSTRUCTURED_IO_CACHE_DIR
+    export UNSTRUCTURED_IO_LOGS_DIR UNSTRUCTURED_IO_STATE_DIR UNSTRUCTURED_IO_DATA_DIR
     # The formats array is already readonly, just export the reference
 }
 

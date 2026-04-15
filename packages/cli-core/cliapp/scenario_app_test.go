@@ -315,6 +315,80 @@ func TestScenarioAppStandardStatusCommandUsesRootHealth(t *testing.T) {
 	}
 }
 
+func TestScenarioAppStandardStatusCommandJSONModePreservesHealthPayload(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"healthy","service":"demo-api","readiness":true}`))
+	}))
+	defer server.Close()
+
+	app, err := NewScenarioApp(ScenarioOptions{
+		Name:             "demo",
+		DefaultAPIBase:   server.URL + "/api/v1",
+		ConfigDirEnvVars: []string{"CLI_CONFIG_DIR_OVERRIDE"},
+		AllowAnonymous:   true,
+	})
+	if err != nil {
+		t.Fatalf("NewScenarioApp: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	if err := app.runStandardStatus([]string{"--json"}, &stdout); err != nil {
+		t.Fatalf("runStandardStatus: %v", err)
+	}
+	output := stdout.String()
+	if strings.Contains(output, "Next Steps:\n") || strings.Contains(output, "Triage:\n") {
+		t.Fatalf("expected raw json output, got %q", output)
+	}
+	for _, needle := range []string{`"status": "healthy"`, `"service": "demo-api"`, `"readiness": true`} {
+		if !strings.Contains(output, needle) {
+			t.Fatalf("json output missing %q in %q", needle, output)
+		}
+	}
+}
+
+func TestScenarioAppStandardStatusCommandFallsBackToLegacyHealthPath(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)
+
+	var requestedPaths []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestedPaths = append(requestedPaths, r.URL.Path)
+		if r.URL.Path == "/legacy-health" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"status":"degraded","readiness":false}`))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	app, err := NewScenarioApp(ScenarioOptions{
+		Name:              "demo",
+		DefaultAPIBase:    server.URL + "/api/v1",
+		ConfigDirEnvVars:  []string{"CLI_CONFIG_DIR_OVERRIDE"},
+		LegacyHealthPaths: []string{"/legacy-health"},
+		AllowAnonymous:    true,
+	})
+	if err != nil {
+		t.Fatalf("NewScenarioApp: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	if err := app.runStandardStatus(nil, &stdout); err != nil {
+		t.Fatalf("runStandardStatus: %v", err)
+	}
+	if len(requestedPaths) != 2 || requestedPaths[0] != "/health" || requestedPaths[1] != "/legacy-health" {
+		t.Fatalf("requested paths = %#v, want [/health /legacy-health]", requestedPaths)
+	}
+	if !strings.Contains(stdout.String(), "Status: degraded") {
+		t.Fatalf("expected fallback health payload in output, got %q", stdout.String())
+	}
+}
+
 func TestScenarioAppStandardStatusCommandIncludesRecoveryNextStepsWhenUnready(t *testing.T) {
 	configDir := t.TempDir()
 	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)

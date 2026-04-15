@@ -108,7 +108,7 @@ agent-inbox models          # List available models
 | `API_PORT` | Yes | Port for Go API server |
 | `UI_PORT` | Yes | Port for React UI |
 | `OPENROUTER_API_KEY` | Yes | OpenRouter API key |
-| `AI_SQLITE_PATH` | No | Custom path for SQLite database (default: `~/.vrooli/data/sqlite/databases/agent-inbox.db`) |
+| `AI_SQLITE_PATH` | No | Custom path for SQLite database (default: scenario `api-core/storage` data path) |
 
 ## Development
 

@@ -74,6 +74,12 @@ vrooli package refresh cli-core all --no-restart
 
 Consumers must keep local `replace` wiring explicit so scenario and resource modules remain workspace-independent. See [docs/package-governance.md](/home/matthalloran8/Vrooli/docs/package-governance.md:1) for the canonical policy.
 
+`cli-core` is also governed as a leaf shared Go package. It must not introduce
+new local governed package dependencies that would force downstream CLIs to add
+extra local `replace` directives just to consume `cli-core`. If `cli-core`
+needs to decode a shared wire payload, prefer a local minimal decode struct over
+importing another governed package only for DTO reuse.
+
 ## Scenario wiring checklist
 - Prefer `cliapp.NewStandardScenarioApp(...)` for new scenario CLIs. It derives standard env vars, wires `vrooli scenario port` detection, and includes the standard `status` + `configure` command groups by default.
 - Drop to `cliapp.NewScenarioApp(...)` only when you need lower-level control over env derivation or command assembly.
@@ -112,6 +118,7 @@ Consumers must keep local `replace` wiring explicit so scenario and resource mod
 ## Testing locally
 ```bash
 cd packages/cli-core && go test ./...
+cd ../../ && make validate-go-cli-consumers
 ```
 
 If you change fingerprinting or stale-check behavior, add/adjust tests. Scenario CLIs have smoke tests under each `cli/` folder—keep them green when refactoring shared helpers.

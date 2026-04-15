@@ -526,21 +526,22 @@ judge0::status::is_healthy() {
         return 1
     fi
     
-    # Check workers - handle both naming patterns
-    local active_workers=0
-    for i in $(seq 1 "$JUDGE0_WORKERS_COUNT"); do
-        local worker_name="${JUDGE0_WORKERS_NAME}-${i}"
-        local compose_worker_name="config-judge0-workers-${i}"
-        if docker::is_running "$worker_name" || docker::is_running "$compose_worker_name"; then
-            ((active_workers++))
-        fi
-    done
+    local active_workers
+    active_workers=$(judge0::status::count_active_workers)
     
     if [[ $active_workers -eq 0 ]]; then
         return 1
     fi
     
     return 0
+}
+
+judge0::status::count_active_workers() {
+    docker ps --format "{{.Names}}\t{{.Label \"com.docker.compose.service\"}}" 2>/dev/null | \
+        awk -v prefix="^${JUDGE0_WORKERS_NAME}-[0-9]+$" '
+            $1 ~ prefix || $2 == "judge0-workers" { count++ }
+            END { print count + 0 }
+        '
 }
 
 #######################################
@@ -560,14 +561,7 @@ judge0::status::get_health_json() {
             api_status="up"
         fi
         
-        # Count active workers - handle both naming patterns
-        for i in $(seq 1 "$JUDGE0_WORKERS_COUNT"); do
-            local worker_name="${JUDGE0_WORKERS_NAME}-${i}"
-            local compose_worker_name="config-judge0-workers-${i}"
-            if docker::is_running "$worker_name" || docker::is_running "$compose_worker_name"; then
-                ((workers_active++))
-            fi
-        done
+        workers_active=$(judge0::status::count_active_workers)
         
         if [[ "$api_status" == "up" ]] && [[ $workers_active -gt 0 ]]; then
             health_status="healthy"
@@ -602,7 +596,7 @@ judge0::status::functional_test() {
     echo
     
     # Get auth token from docker-compose config
-    local auth_token=$(grep "JUDGE0_AUTHENTICATION_TOKEN=" "${HOME}/.vrooli/resources/judge0/config/docker-compose.yml" | head -1 | cut -d'=' -f2)
+    local auth_token=$(grep "JUDGE0_AUTHENTICATION_TOKEN=" "${JUDGE0_CONFIG_DIR}/docker-compose.yml" | head -1 | cut -d'=' -f2)
     
     # Test 1: Simple echo test (should always work)
     echo "1. Testing basic API connectivity..."

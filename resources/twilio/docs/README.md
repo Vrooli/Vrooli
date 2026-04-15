@@ -12,7 +12,7 @@ vrooli resource twilio install
 
 ## Configuration
 1. Get your Twilio credentials from https://console.twilio.com
-2. Add credentials to `~/.vrooli/twilio-credentials.json`:
+2. Add credentials to `~/.config/vrooli/resources/twilio/credentials.json`:
 ```json
 {
   "account_sid": "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
@@ -21,7 +21,7 @@ vrooli resource twilio install
 }
 ```
 
-3. Configure phone numbers in `~/.vrooli/twilio/phone-numbers.json`:
+3. Configure phone numbers in `~/.config/vrooli/resources/twilio/phone-numbers.json`:
 ```json
 {
   "numbers": [

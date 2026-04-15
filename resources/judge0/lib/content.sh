@@ -5,7 +5,7 @@
 #######################################
 
 # Store submissions in a local tracking file
-JUDGE0_SUBMISSIONS_FILE="${JUDGE0_DATA_DIR:-/tmp/judge0}/submissions.json"
+JUDGE0_SUBMISSIONS_FILE="${JUDGE0_DATA_DIR}/submissions.json"
 
 #######################################
 # Initialize submissions file

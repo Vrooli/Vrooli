@@ -3,6 +3,7 @@ package runtime
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	goruntime "runtime"
 	"sort"
 	"strings"
@@ -345,18 +346,20 @@ func TestRemoteSessionProtectionApplyRunsManagedScript(t *testing.T) {
 
 	lookPathFn = func(name string) (string, error) {
 		switch name {
-		case "sudo", "sh", "sysctl", "systemctl":
+		case "sudo", "mkdir", "install", "sysctl", "systemctl":
 			return "/usr/bin/" + name, nil
 		default:
 			return "", os.ErrNotExist
 		}
 	}
 
-	var ranName string
-	var ranArgs []string
+	type commandCall struct {
+		name string
+		args []string
+	}
+	calls := []commandCall{}
 	runCommandFn = func(name string, args []string, opts EnsureOptions) error {
-		ranName = name
-		ranArgs = append([]string(nil), args...)
+		calls = append(calls, commandCall{name: name, args: append([]string(nil), args...)})
 		return nil
 	}
 
@@ -378,11 +381,42 @@ func TestRemoteSessionProtectionApplyRunsManagedScript(t *testing.T) {
 	if !status.Applied || status.ExecutionState != ExecutionApplied {
 		t.Fatalf("status = %+v", status)
 	}
-	if ranName != "sudo" {
-		t.Fatalf("command = %q, want sudo", ranName)
+	if len(calls) != 8 {
+		t.Fatalf("command call count = %d, want 8 (%+v)", len(calls), calls)
 	}
-	if got := strings.Join(ranArgs, " "); !strings.Contains(got, remoteSessionSysctlPath) || !strings.Contains(got, remoteSessionSystemdPath) {
-		t.Fatalf("script args missing managed paths: %v", ranArgs)
+	for _, call := range calls {
+		if call.name != "sudo" {
+			t.Fatalf("command = %q, want sudo", call.name)
+		}
+	}
+	got := make([]string, 0, len(calls))
+	for _, call := range calls {
+		got = append(got, strings.Join(call.args, " "))
+	}
+	expected := []string{
+		"mkdir -p " + filepath.Dir(remoteSessionSysctlPath),
+		"install -m 0644",
+		"sysctl -p " + remoteSessionSysctlPath,
+		"mkdir -p " + remoteSessionSystemdDir,
+		"mkdir -p " + remoteSessionLogindDir,
+		"install -m 0644",
+		"install -m 0644",
+		"systemctl daemon-reload",
+	}
+	for _, needle := range expected {
+		matched := false
+		for _, call := range got {
+			if strings.Contains(call, needle) {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			t.Fatalf("expected command containing %q, got %v", needle, got)
+		}
+	}
+	if !containsJoined(got, remoteSessionSystemdPath) || !containsJoined(got, remoteSessionLogindPath) {
+		t.Fatalf("install commands missing managed paths: %v", got)
 	}
 }
 
@@ -492,6 +526,15 @@ func contains(values []string, target string) bool {
 }
 
 func containsNote(values []string, target string) bool {
+	for _, value := range values {
+		if strings.Contains(value, target) {
+			return true
+		}
+	}
+	return false
+}
+
+func containsJoined(values []string, target string) bool {
 	for _, value := range values {
 		if strings.Contains(value, target) {
 			return true

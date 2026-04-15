@@ -468,7 +468,7 @@ unstructured_io::batch_process() {
         
         # Show cache statistics if available
         if [[ "${UNSTRUCTURED_IO_CACHE_ENABLED:-yes}" == "yes" ]]; then
-            local cache_dir="${UNSTRUCTURED_IO_CACHE_DIR:-$HOME/.vrooli/cache/unstructured-io}"
+            local cache_dir="${UNSTRUCTURED_IO_CACHE_DIR}"
             if [[ -d "$cache_dir" ]]; then
                 local cache_files=$(find "$cache_dir" -type f | wc -l)
                 echo "💾 Cached documents: $cache_files" >&2

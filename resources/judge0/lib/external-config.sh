@@ -7,6 +7,10 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../config/defaults.sh"
+
 # Color codes
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -21,7 +25,7 @@ log() {
 
 # Setup external API with demo configuration
 judge0::external::setup_demo() {
-    local config_file="${HOME}/.vrooli/resources/judge0/external.conf"
+    local config_file="${JUDGE0_EXTERNAL_CONFIG_FILE}"
     mkdir -p "$(dirname "$config_file")"
     
     cat > "$config_file" <<'EOF'
@@ -46,7 +50,7 @@ EOF
 
 # Check external API configuration
 judge0::external::check() {
-    local config_file="${HOME}/.vrooli/resources/judge0/external.conf"
+    local config_file="${JUDGE0_EXTERNAL_CONFIG_FILE}"
     
     if [[ -f "$config_file" ]]; then
         source "$config_file"
@@ -74,7 +78,7 @@ judge0::external::check() {
 
 # Test external API connectivity
 judge0::external::test() {
-    local config_file="${HOME}/.vrooli/resources/judge0/external.conf"
+    local config_file="${JUDGE0_EXTERNAL_CONFIG_FILE}"
     
     if [[ ! -f "$config_file" ]]; then
         log "${RED}❌ No external configuration found.${NC}"
@@ -153,7 +157,7 @@ judge0::external::setup_production() {
         return 1
     fi
     
-    local config_file="${HOME}/.vrooli/resources/judge0/external.conf"
+    local config_file="${JUDGE0_EXTERNAL_CONFIG_FILE}"
     mkdir -p "$(dirname "$config_file")"
     
     cat > "$config_file" <<EOF

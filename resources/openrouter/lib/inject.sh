@@ -34,7 +34,8 @@ openrouter::inject() {
             
         "claude-code"|"cline"|"agent-s2")
             # Create config for AI agents
-            local agent_config="${var_ROOT_DIR}/.vrooli/openrouter-agent-config.json"
+            mkdir -p "${OPENROUTER_CONFIG_DIR}"
+            local agent_config="${OPENROUTER_AGENT_CONFIG_FILE}"
             cat > "$agent_config" <<EOF
 {
     "provider": "openrouter",

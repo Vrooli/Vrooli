@@ -27,7 +27,7 @@ services:
       POSTGRES_PASSWORD: judge0
     volumes:
       - judge0-data:/var/judge0
-      - ${HOME}/.vrooli/resources/judge0/submissions:/judge0/submissions
+      - ${RESOURCE_DATA_DIR}/submissions:/judge0/submissions
     depends_on:
       - judge0-db
       - judge0-redis
@@ -67,7 +67,7 @@ services:
       COUNT: "5"
     volumes:
       - judge0-data:/var/judge0
-      - ${HOME}/.vrooli/resources/judge0/submissions:/judge0/submissions
+      - ${RESOURCE_DATA_DIR}/submissions:/judge0/submissions
       - /sys/fs/cgroup:/sys/fs/cgroup:rw
       - /tmp:/tmp:rw
     tmpfs:

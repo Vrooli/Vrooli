@@ -99,7 +99,7 @@ vrooli resource unstructured-io content clear-cache
 
 Cache features:
 - Automatic caching of processed documents (1 hour TTL by default)
-- File-based cache stored in `~/.vrooli/cache/unstructured-io/`
+- File-based cache stored in `~/.cache/vrooli/resources/unstructured-io/`
 - Cache key includes file hash, strategy, output format, and languages
 - Cached results show "📦 Using cached result" message
 - Set `UNSTRUCTURED_IO_CACHE_ENABLED=no` to disable caching

@@ -308,7 +308,7 @@ When reporting issues, include:
 ./manage.sh --action uninstall
 
 # 2. Clear cache
-rm -rf ~/.vrooli/cache/unstructured-io
+rm -rf ~/.cache/vrooli/resources/unstructured-io
 
 # 3. Remove configuration
 rm -f ~/.vrooli/service.json

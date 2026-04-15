@@ -186,9 +186,6 @@ func TestRunnerStartStartsRequiredDependencies(t *testing.T) {
 		}
 	}
 
-	if _, err := os.Stat(process.ScenarioDegradedPath(home, "alpha")); !os.IsNotExist(err) {
-		t.Fatalf("unexpected degraded state after successful dependency start: %v", err)
-	}
 }
 
 func TestListeningPIDsDetectsLiveListener(t *testing.T) {

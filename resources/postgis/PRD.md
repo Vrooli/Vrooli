@@ -96,7 +96,10 @@
 - **Port**: 5434 (localhost only, allocated via port_registry.sh)
 - **Database**: spatial (auto-initialized with extensions)
 - **Extensions**: postgis, postgis_raster, postgis_topology, pgrouting
-- **Storage**: Persistent volume at `~/.vrooli/postgis`
+- **Storage**:
+  - Config: `~/.config/vrooli/resources/postgis`
+  - Data: `~/.local/share/vrooli/resources/postgis`
+  - State: `~/.local/state/vrooli/resources/postgis`
 - **Network**: vrooli-network (isolated from host)
 
 ### Dependencies

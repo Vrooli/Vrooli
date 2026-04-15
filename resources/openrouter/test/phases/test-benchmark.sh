@@ -42,6 +42,7 @@ run_test() {
 
 # Run benchmark tests
 log::info "Running OpenRouter benchmark tests..."
+source "${RESOURCE_DIR}/config/defaults.sh"
 
 # Test benchmark commands exist
 run_test "Benchmark help" "resource-openrouter help | grep -q benchmark"
@@ -50,11 +51,11 @@ run_test "Benchmark single model" "resource-openrouter benchmark test 'openai/gp
 run_test "Benchmark comparison" "resource-openrouter benchmark compare >/dev/null 2>&1"
 
 # Test benchmark data was created
-run_test "Benchmark data directory created" "test -d \${VROOLI_ROOT:-\$HOME/Vrooli}/data/openrouter/benchmarks"
-run_test "Benchmark results file exists" "ls \${VROOLI_ROOT:-\$HOME/Vrooli}/data/openrouter/benchmarks/*.json >/dev/null 2>&1"
+run_test "Benchmark data directory created" "test -d \"${OPENROUTER_BENCHMARK_DIR}\""
+run_test "Benchmark results file exists" "ls \"${OPENROUTER_BENCHMARK_DIR}\"/*.json >/dev/null 2>&1"
 
 # Clean up test data
-rm -rf "${VROOLI_ROOT:-$HOME/Vrooli}/data/openrouter/benchmarks"/*.json 2>/dev/null
+rm -rf "${OPENROUTER_BENCHMARK_DIR}"/*.json 2>/dev/null
 
 # Display results
 echo ""

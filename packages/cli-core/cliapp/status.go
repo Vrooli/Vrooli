@@ -11,9 +11,23 @@ import (
 	"sort"
 	"strings"
 
-	apichealth "github.com/vrooli/api-core/health"
 	"github.com/vrooli/cli-core/cliutil"
 )
+
+type healthDependencyStatus struct {
+	Connected bool `json:"connected"`
+}
+
+// healthResponse mirrors the subset of the canonical health payload that
+// cli-core consumes when rendering status output.
+type healthResponse struct {
+	Status       string                            `json:"status"`
+	Service      string                            `json:"service"`
+	Timestamp    string                            `json:"timestamp"`
+	Readiness    bool                              `json:"readiness"`
+	Version      string                            `json:"version,omitempty"`
+	Dependencies map[string]healthDependencyStatus `json:"dependencies,omitempty"`
+}
 
 // StandardBaseCommandOptions customizes the common operational command groups
 // that most scenario CLIs should expose.
@@ -117,7 +131,7 @@ func (a *ScenarioApp) runStandardStatus(args []string, stdout io.Writer) error {
 		return err
 	}
 
-	var parsed apichealth.Response
+	var parsed healthResponse
 	if err := json.Unmarshal(body, &parsed); err != nil || strings.TrimSpace(parsed.Status) == "" {
 		_, err = fmt.Fprintln(stdout, string(body))
 		return err

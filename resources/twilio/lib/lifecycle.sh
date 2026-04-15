@@ -47,7 +47,7 @@ twilio::lifecycle::start() {
         log::success "✅ Twilio API connection successful"
         
         # Create a marker file to indicate "running" state
-        echo "$(date +%s)" > "$TWILIO_DATA_DIR/.running"
+        echo "$(date +%s)" > "$TWILIO_STATE_DIR/.running"
         
         # Log account info
         local account_sid="${TWILIO_ACCOUNT_SID:-unknown}"
@@ -67,8 +67,8 @@ twilio::lifecycle::stop() {
     log::header "🛑 Stopping Twilio Resource"
     
     # Clean up any state files
-    if [[ -f "$TWILIO_DATA_DIR/.running" ]]; then
-        rm -f "$TWILIO_DATA_DIR/.running"
+    if [[ -f "$TWILIO_STATE_DIR/.running" ]]; then
+        rm -f "$TWILIO_STATE_DIR/.running"
     fi
     
     # Clean up any PID files from legacy monitor
@@ -97,9 +97,9 @@ twilio::lifecycle::restart() {
 # Check if Twilio is running
 twilio::lifecycle::is_running() {
     # Check for running marker
-    if [[ -f "$TWILIO_DATA_DIR/.running" ]]; then
+    if [[ -f "$TWILIO_STATE_DIR/.running" ]]; then
         # Check if marker is recent (within last hour)
-        local timestamp=$(cat "$TWILIO_DATA_DIR/.running" 2>/dev/null || echo "0")
+        local timestamp=$(cat "$TWILIO_STATE_DIR/.running" 2>/dev/null || echo "0")
         local now=$(date +%s)
         local age=$((now - timestamp))
         

@@ -22,7 +22,7 @@ source "${RESOURCE_DIR}/config/defaults.sh"
 # Simple function to export Judge0 config
 judge0::export_config() {
     export JUDGE0_PORT="${JUDGE0_PORT:-2358}"
-    export JUDGE0_DATA_DIR="${JUDGE0_DATA_DIR:-$HOME/.vrooli/judge0}"
+    export JUDGE0_DATA_DIR="${JUDGE0_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/vrooli/resources/judge0}"
     export JUDGE0_API_KEY="${JUDGE0_API_KEY:-}"
     export JUDGE0_WORKERS="${JUDGE0_WORKERS:-2}"
     export JUDGE0_CPU_TIME_LIMIT="${JUDGE0_CPU_TIME_LIMIT:-5}"

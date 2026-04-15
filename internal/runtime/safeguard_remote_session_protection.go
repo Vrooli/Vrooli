@@ -2,6 +2,8 @@ package runtime
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/hostreq"
@@ -96,35 +98,55 @@ func (remoteSessionProtectionHandler) Apply(host Host, status ItemStatus, opts E
 		status.ExecutionState = ExecutionAlreadyPresent
 		return status, nil
 	}
-
-	scriptLines := []string{"set -e"}
-	if host.SupportsSysctl {
-		scriptLines = append(scriptLines,
-			fmt.Sprintf("mkdir -p %s", shellQuotePath(parentDir(remoteSessionSysctlPath))),
-			writeFileShellSnippet(remoteSessionSysctlPath, remoteSessionSysctlContent),
-			fmt.Sprintf("sysctl -p %s >/dev/null", shellQuotePath(remoteSessionSysctlPath)),
-		)
-	}
-	if host.SupportsSystemd {
-		scriptLines = append(scriptLines,
-			fmt.Sprintf("mkdir -p %s %s", shellQuotePath(remoteSessionSystemdDir), shellQuotePath(remoteSessionLogindDir)),
-			writeFileShellSnippet(remoteSessionSystemdPath, remoteSessionUnitContent),
-			writeFileShellSnippet(remoteSessionLogindPath, remoteSessionLogindContent),
-			"systemctl daemon-reload >/dev/null",
-		)
-	}
-	script := strings.Join(scriptLines, "\n")
-
 	if opts.DryRun {
 		status.ExecutionState = ExecutionWouldApply
 		status.Notes = append(status.Notes, "dry-run: would apply remote session protection")
 		return status, nil
 	}
 
-	if err := runShellScript(script, opts.SudoMode, opts); err != nil {
-		status.ExecutionState = ExecutionFailed
-		status.Notes = append(status.Notes, err.Error())
-		return status, nil
+	if host.SupportsSysctl {
+		if err := ensureManagedDir(filepath.Dir(remoteSessionSysctlPath), opts.SudoMode, opts); err != nil {
+			status.ExecutionState = ExecutionFailed
+			status.Notes = append(status.Notes, err.Error())
+			return status, nil
+		}
+		if err := installManagedContent(remoteSessionSysctlPath, remoteSessionSysctlContent, opts.SudoMode, opts); err != nil {
+			status.ExecutionState = ExecutionFailed
+			status.Notes = append(status.Notes, err.Error())
+			return status, nil
+		}
+		if err := runPrivilegedCommand(opts.SudoMode, "sysctl", []string{"-p", remoteSessionSysctlPath}, opts); err != nil {
+			status.ExecutionState = ExecutionFailed
+			status.Notes = append(status.Notes, err.Error())
+			return status, nil
+		}
+	}
+	if host.SupportsSystemd {
+		for _, dir := range []string{remoteSessionSystemdDir, remoteSessionLogindDir} {
+			if err := ensureManagedDir(dir, opts.SudoMode, opts); err != nil {
+				status.ExecutionState = ExecutionFailed
+				status.Notes = append(status.Notes, err.Error())
+				return status, nil
+			}
+		}
+		for _, file := range []struct {
+			path    string
+			content string
+		}{
+			{path: remoteSessionSystemdPath, content: remoteSessionUnitContent},
+			{path: remoteSessionLogindPath, content: remoteSessionLogindContent},
+		} {
+			if err := installManagedContent(file.path, file.content, opts.SudoMode, opts); err != nil {
+				status.ExecutionState = ExecutionFailed
+				status.Notes = append(status.Notes, err.Error())
+				return status, nil
+			}
+		}
+		if err := runPrivilegedCommand(opts.SudoMode, "systemctl", []string{"daemon-reload"}, opts); err != nil {
+			status.ExecutionState = ExecutionFailed
+			status.Notes = append(status.Notes, err.Error())
+			return status, nil
+		}
 	}
 
 	status.Applied = true
@@ -142,18 +164,29 @@ func fileContentMatches(path, want string) bool {
 	return string(content) == want
 }
 
-func writeFileShellSnippet(path, content string) string {
-	return fmt.Sprintf("cat <<'EOF' > %s\n%sEOF", shellQuotePath(path), content)
-}
-
-func shellQuotePath(path string) string {
-	return "'" + strings.ReplaceAll(path, "'", `'\''`) + "'"
-}
-
-func parentDir(path string) string {
-	index := strings.LastIndex(path, "/")
-	if index <= 0 {
-		return "."
+func ensureManagedDir(path, sudoMode string, opts EnsureOptions) error {
+	if opts.DryRun {
+		return nil
 	}
-	return path[:index]
+	return runPrivilegedCommand(sudoMode, "mkdir", []string{"-p", path}, opts)
+}
+
+func installManagedContent(path, content, sudoMode string, opts EnsureOptions) error {
+	if opts.DryRun {
+		return nil
+	}
+	file, err := os.CreateTemp("", "vrooli-managed-*")
+	if err != nil {
+		return fmt.Errorf("create temp file for %s: %w", path, err)
+	}
+	tempPath := file.Name()
+	defer os.Remove(tempPath)
+	if _, err := file.WriteString(content); err != nil {
+		file.Close()
+		return fmt.Errorf("write temp file for %s: %w", path, err)
+	}
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("close temp file for %s: %w", path, err)
+	}
+	return runPrivilegedCommand(sudoMode, "install", []string{"-m", "0644", tempPath, path}, opts)
 }

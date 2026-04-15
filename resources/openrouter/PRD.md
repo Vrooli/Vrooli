@@ -106,7 +106,11 @@ standard_interfaces:
     - logging: Configuration and API call logs
     
   data_persistence:
-    - volumes: [${VROOLI_ROOT}/data/openrouter]
+    - config: ${RESOURCE_CONFIG_DIR}
+    - data: ${RESOURCE_DATA_DIR}
+    - cache: ${RESOURCE_CACHE_DIR}
+    - logs: ${RESOURCE_LOGS_DIR}
+    - state: ${RESOURCE_STATE_DIR}
     - backup_strategy: API key backup via Vault
     - migration_support: Configuration versioning
 
@@ -290,9 +294,14 @@ networking:
     
 data_management:
   persistence:
-    - volume: ${VROOLI_ROOT}/data/openrouter
-      mount: /data
-      purpose: Configuration, templates, usage logs
+    - config_root: ${RESOURCE_CONFIG_DIR}
+      purpose: Credentials, routing rules, and operator-managed config
+    - data_root: ${RESOURCE_DATA_DIR}
+      purpose: Templates, usage logs, and benchmark payloads
+    - cache_root: ${RESOURCE_CACHE_DIR}
+      purpose: Rebuildable request and model cache artifacts
+    - state_root: ${RESOURCE_STATE_DIR}
+      purpose: Routing history, rate limits, and transient test state
       
   backup_strategy:
     - method: Configuration files backed up

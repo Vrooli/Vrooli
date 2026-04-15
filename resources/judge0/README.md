@@ -166,7 +166,7 @@ const results = await judge0.submitBatch(submissions);
 ### 1. API Authentication
 ```bash
 # API key is auto-generated during installation
-# Located at: ~/.vrooli/resources/judge0/config/api_key
+# Located at: ~/.config/vrooli/resources/judge0/api_key
 
 # Use in API calls:
 curl -H "X-Auth-Token: YOUR_API_KEY" http://localhost:2358/submissions
@@ -284,7 +284,7 @@ docker ps -a | grep judge0
 docker ps | grep judge0-workers
 
 # Verify API key
-cat ~/.vrooli/resources/judge0/config/api_key
+cat ~/.config/vrooli/resources/judge0/api_key
 
 # Test with simple code
 ./manage.sh --action test
@@ -326,13 +326,24 @@ docker update --memory 4G vrooli-judge0-server
 ## 📁 File Structure
 
 ```
-~/.vrooli/resources/judge0/
-├── config/
-│   ├── api_key           # API authentication key
-│   └── docker-compose.yml # Service configuration
-├── logs/                 # Service logs
-├── submissions/          # Submission storage
-└── security-reports/     # Security audit logs
+~/.config/vrooli/resources/judge0/
+├── api_key
+├── docker-compose.yml
+└── custom_languages/
+
+~/.local/share/vrooli/resources/judge0/
+├── analytics/
+├── submissions/
+└── submissions.json
+
+~/.cache/vrooli/resources/judge0/
+├── health-cache/
+├── pools/
+└── results/
+
+~/.local/state/logs/vrooli/resources/judge0/
+├── security-reports/
+└── *.log
 ```
 
 ## 🔗 Advanced Usage

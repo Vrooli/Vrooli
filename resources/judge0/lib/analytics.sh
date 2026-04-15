@@ -8,7 +8,7 @@
 
 # Initialize analytics storage
 judge0::analytics::init() {
-    local analytics_dir="${JUDGE0_ANALYTICS_DIR:-$HOME/.vrooli/resources/judge0/analytics}"
+    local analytics_dir="${JUDGE0_ANALYTICS_DIR}"
     
     if [[ ! -d "$analytics_dir" ]]; then
         mkdir -p "$analytics_dir"
@@ -69,7 +69,7 @@ judge0::analytics::record_submission() {
 # Get execution statistics
 judge0::analytics::get_stats() {
     local period="${1:-today}"
-    local analytics_dir="${JUDGE0_ANALYTICS_DIR:-$HOME/.vrooli/resources/judge0/analytics}"
+    local analytics_dir="${JUDGE0_ANALYTICS_DIR}"
     
     case "$period" in
         today)
@@ -135,7 +135,7 @@ judge0::analytics::calculate_summary() {
 # Aggregate statistics over a period
 judge0::analytics::aggregate_period() {
     local days="$1"
-    local analytics_dir="${JUDGE0_ANALYTICS_DIR:-$HOME/.vrooli/resources/judge0/analytics}"
+    local analytics_dir="${JUDGE0_ANALYTICS_DIR}"
     
     local all_submissions='[]'
     local i

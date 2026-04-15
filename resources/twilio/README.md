@@ -27,7 +27,7 @@ vrooli resource twilio manage install
 resource-vault secrets init twilio
 
 # Or configure manually (less secure)
-# Edit ~/.vrooli/twilio-credentials.json with your account details
+# Edit ~/.config/vrooli/resources/twilio/credentials.json with your account details
 ```
 
 ### Basic Usage
@@ -64,7 +64,7 @@ resource-vault secrets init twilio
 
 ### Manual Configuration
 
-If Vault is not available, credentials can be stored in `~/.vrooli/twilio-credentials.json`:
+If Vault is not available, credentials can be stored in `~/.config/vrooli/resources/twilio/credentials.json`:
 
 ```json
 {
@@ -173,7 +173,7 @@ List and configure Twilio phone numbers:
 resource-twilio content numbers
 
 # View phone numbers configuration
-cat ~/.vrooli/twilio/phone-numbers.json
+cat ~/.config/vrooli/resources/twilio/phone-numbers.json
 ```
 
 ### Audit Logging
@@ -411,7 +411,7 @@ resource-twilio content send-sms "$USER_PHONE" "Task completed successfully"
 resource-vault secrets init twilio
 
 # Or check credentials file
-cat ~/.vrooli/twilio-credentials.json
+cat ~/.config/vrooli/resources/twilio/credentials.json
 ```
 
 **Issue**: "Cannot connect to Twilio API"

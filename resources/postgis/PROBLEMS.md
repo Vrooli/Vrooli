@@ -253,7 +253,7 @@ vrooli resource postgis test geocoding  # Individual P2 test
 ## Maintenance & Operations
 
 ### Regular Tasks
-1. **Disk Space**: Monitor `~/.vrooli/postgis` volume usage
+1. **Disk Space**: Monitor `~/.local/share/vrooli/resources/postgis` volume usage
 2. **Version Updates**: Check for PostGIS and pgRouting updates quarterly
 3. **Index Health**: Run `vrooli resource postgis performance vacuum` monthly
 4. **Performance**: Review query performance with `analyze-query` command
