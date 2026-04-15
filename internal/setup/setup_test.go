@@ -40,9 +40,6 @@ func TestApplyEnvironmentSetsDefaultsAndRestoresState(t *testing.T) {
 		t.Fatalf("applyEnvironment: %v", err)
 	}
 
-	if got := os.Getenv("APP_ROOT"); got != root {
-		t.Fatalf("APP_ROOT = %q", got)
-	}
 	if got := os.Getenv("TARGET"); got != defaultTarget {
 		t.Fatalf("TARGET = %q", got)
 	}
@@ -73,9 +70,6 @@ func TestApplyEnvironmentSetsDefaultsAndRestoresState(t *testing.T) {
 
 	restore()
 
-	if got := os.Getenv("APP_ROOT"); got != "" {
-		t.Fatalf("APP_ROOT after restore = %q", got)
-	}
 	if got := os.Getenv("TARGET"); got != "" {
 		t.Fatalf("TARGET after restore = %q", got)
 	}
@@ -680,7 +674,6 @@ func TestRunSetupExportsLegacyEnvironmentContractToResourceInstall(t *testing.T)
 				name: name,
 				args: append([]string(nil), args...),
 				env: map[string]string{
-					"APP_ROOT":           os.Getenv("APP_ROOT"),
 					"SERVICE_JSON_PATH":  os.Getenv("SERVICE_JSON_PATH"),
 					"ENVIRONMENT":        os.Getenv("ENVIRONMENT"),
 					"RESOURCES":          os.Getenv("RESOURCES"),
@@ -713,9 +706,6 @@ func TestRunSetupExportsLegacyEnvironmentContractToResourceInstall(t *testing.T)
 	for _, call := range installs {
 		if got := strings.Join(call.args, "|"); got != "install" {
 			t.Fatalf("resource %s args = %q", call.name, got)
-		}
-		if call.env["APP_ROOT"] != root {
-			t.Fatalf("resource %s APP_ROOT = %q", call.name, call.env["APP_ROOT"])
 		}
 		if call.env["SERVICE_JSON_PATH"] != filepath.Join(root, ".vrooli", "service.json") {
 			t.Fatalf("resource %s SERVICE_JSON_PATH = %q", call.name, call.env["SERVICE_JSON_PATH"])
@@ -910,9 +900,6 @@ func TestRunDevelopExportsLegacyEnvironmentContractToAPILaunch(t *testing.T) {
 		t.Fatalf("LogFile = %q", capturedSpec.LogFile)
 	}
 	env := envMapFromList(capturedSpec.Env)
-	if env["APP_ROOT"] != root {
-		t.Fatalf("APP_ROOT = %q", env["APP_ROOT"])
-	}
 	if env["SERVICE_JSON_PATH"] != filepath.Join(root, ".vrooli", "service.json") {
 		t.Fatalf("SERVICE_JSON_PATH = %q", env["SERVICE_JSON_PATH"])
 	}

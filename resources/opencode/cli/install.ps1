@@ -1,11 +1,8 @@
 Param(
     [string]$ModulePath = "resources/opencode/cli",
-    [string]$Name = "resource-opencode",
-    [string]$AppRoot = ""
+    [string]$Name = "resource-opencode"
 )
 
-if (-not $AppRoot -or $AppRoot -eq "") {
-    $AppRoot = (Resolve-Path "$PSScriptRoot/../../.." | Select-Object -First 1).Path
-}
+$repoRoot = (Resolve-Path "$PSScriptRoot/../../.." | Select-Object -First 1).Path
 
-& "$AppRoot/packages/cli-core/install.ps1" -ModulePath $ModulePath -Name $Name -AppRoot $AppRoot
+& "$repoRoot/packages/cli-core/install.ps1" -ModulePath $ModulePath -Name $Name 

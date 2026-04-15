@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+REPO_ROOT="$(builtin cd "${SCRIPT_DIR}/../../.." && builtin pwd)"
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   cat <<'EOF'
@@ -23,4 +24,4 @@ if [[ "$#" -gt 0 ]]; then
   exit 1
 fi
 
-"${APP_ROOT}/packages/cli-core/install.sh" "scenarios/ecosystem-manager/cli" --name "ecosystem-manager"
+"${REPO_ROOT}/packages/cli-core/install.sh" "scenarios/ecosystem-manager/cli" --name "ecosystem-manager"

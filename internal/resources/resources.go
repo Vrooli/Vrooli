@@ -252,7 +252,6 @@ func (c *Controller) commandForResource(name string, args ...string) (*exec.Cmd,
 func resourceEnv(root, home string) []string {
 	env := os.Environ()
 	env = setEnvValue(env, "VROOLI_ROOT", root)
-	env = setEnvValue(env, "APP_ROOT", root)
 	if strings.TrimSpace(home) != "" {
 		env = setEnvValue(env, "HOME", home)
 	}

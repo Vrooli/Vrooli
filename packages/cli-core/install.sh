@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+REPO_ROOT="$(builtin cd "${SCRIPT_DIR}/../.." && builtin pwd)"
 
 usage() {
     echo "Usage: $0 <module_path> [--name binary-name] [--install-dir path]"
@@ -54,7 +55,7 @@ if ! command -v go >/dev/null; then
 fi
 
 if [[ "${MODULE_PATH}" != /* ]]; then
-    MODULE_ABS="${APP_ROOT}/${MODULE_PATH}"
+    MODULE_ABS="${REPO_ROOT}/${MODULE_PATH}"
 else
     MODULE_ABS="${MODULE_PATH}"
 fi
@@ -75,11 +76,11 @@ if [[ ! -f "${MODULE_ABS}/go.mod" ]]; then
 fi
 
 INSTALLER_TARGET="${CLI_CORE_VERSION:+github.com/vrooli/cli-core/cmd/cli-installer@${CLI_CORE_VERSION}}"
-INSTALLER_DIR="${APP_ROOT}"
+INSTALLER_DIR="${REPO_ROOT}"
 
 if [[ -z "${INSTALLER_TARGET}" ]]; then
     INSTALLER_TARGET="./cmd/cli-installer"
-    INSTALLER_DIR="${APP_ROOT}/packages/cli-core"
+    INSTALLER_DIR="${REPO_ROOT}/packages/cli-core"
 fi
 
 echo "Building ${NAME} from ${MODULE_ABS}..."

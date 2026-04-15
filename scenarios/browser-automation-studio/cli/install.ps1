@@ -1,11 +1,8 @@
 Param(
     [string]$ModulePath = "scenarios/browser-automation-studio/cli",
-    [string]$Name = "browser-automation-studio",
-    [string]$AppRoot = ""
+    [string]$Name = "browser-automation-studio"
 )
 
-if (-not $AppRoot -or $AppRoot -eq "") {
-    $AppRoot = (Resolve-Path "$PSScriptRoot/../../.." | Select-Object -First 1).Path
-}
+$repoRoot = (Resolve-Path "$PSScriptRoot/../../.." | Select-Object -First 1).Path
 
-& "$AppRoot/packages/cli-core/install.ps1" -ModulePath $ModulePath -Name $Name -AppRoot $AppRoot
+& "$repoRoot/packages/cli-core/install.ps1" -ModulePath $ModulePath -Name $Name 

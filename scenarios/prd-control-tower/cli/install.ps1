@@ -2,16 +2,13 @@ param(
 	[string]$InstallDir
 )
 
-$appRoot = $env:APP_ROOT
-if (-not $appRoot) {
-	$appRoot = (Resolve-Path (Join-Path $PSScriptRoot "../../.."))
-}
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "../../..")).Path
 
 $modulePath = "scenarios/prd-control-tower/cli"
 
-Push-Location $appRoot
+Push-Location $repoRoot
 try {
-	$script = Join-Path $appRoot "packages/cli-core/install.ps1"
+	$script = Join-Path $repoRoot "packages/cli-core/install.ps1"
 	if (-not (Test-Path $script)) {
 		Write-Error "cli-core installer not found at $script"
 		exit 1
@@ -26,4 +23,3 @@ try {
 finally {
 	Pop-Location
 }
-

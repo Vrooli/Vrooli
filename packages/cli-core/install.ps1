@@ -2,12 +2,13 @@ param(
 	[Parameter(Mandatory = $true, Position = 0)]
 	[string]$ModulePath,
 	[string]$Name,
-	[string]$InstallDir
+	[string]$InstallDir,
+	[string]$AppRoot
 )
 
-$appRoot = $env:APP_ROOT
-if (-not $appRoot) {
-	$appRoot = (Resolve-Path (Join-Path $PSScriptRoot "../.."))
+$repoRoot = $AppRoot
+if (-not $repoRoot) {
+	$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path
 }
 
 if (-not (Get-Command go -ErrorAction SilentlyContinue)) {
@@ -27,7 +28,7 @@ if (-not $InstallDir) {
 }
 
 if (-not [System.IO.Path]::IsPathRooted($ModulePath)) {
-	$ModulePath = Join-Path $appRoot $ModulePath
+	$ModulePath = Join-Path $repoRoot $ModulePath
 }
 
 if (-not (Test-Path (Join-Path $ModulePath "go.mod"))) {
@@ -45,11 +46,11 @@ if (-not $Name -or $Name -eq "") {
 	}
 }
 
-$installerDir = Join-Path $appRoot "packages/cli-core"
+$installerDir = Join-Path $repoRoot "packages/cli-core"
 $installerTarget = "./cmd/cli-installer"
 if ($env:CLI_CORE_VERSION) {
 	$installerTarget = "github.com/vrooli/cli-core/cmd/cli-installer@$($env:CLI_CORE_VERSION)"
-	$installerDir = $appRoot
+	$installerDir = $repoRoot
 }
 
 Write-Output "Building $Name from $ModulePath..."
@@ -61,4 +62,3 @@ try {
 finally {
 	Pop-Location
 }
-

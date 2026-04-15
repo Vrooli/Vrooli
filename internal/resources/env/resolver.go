@@ -281,7 +281,6 @@ func isLegacyRepoDataPath(root, source string) bool {
 		"data/",
 		"../data",
 		"${ROOT}/data",
-		"${APP_ROOT}/data",
 		"${VROOLI_ROOT}/data",
 	} {
 		if normalized == prefix || strings.HasPrefix(normalized, prefix+"/") {
@@ -462,8 +461,7 @@ func buildTemplateContext(root, home, resourceName string) map[string]string {
 	}
 
 	context := map[string]string{
-		"ROOT":     filepath.Clean(root),
-		"APP_ROOT": filepath.Clean(root),
+		"ROOT": filepath.Clean(root),
 	}
 	if home != "" {
 		context["HOME"] = home
@@ -516,7 +514,7 @@ func mapsContainsKey(m map[string]manifestpkg.ResourceDerivedTemplate, key strin
 
 func isKnownTemplateContextVariable(root, resourceName, key string) bool {
 	switch key {
-	case "HOME", "ROOT", "APP_ROOT", "VROOLI_ROOT", "VROOLI_DATA", "RESOURCE_ROOT",
+	case "HOME", "ROOT", "VROOLI_ROOT", "VROOLI_DATA", "RESOURCE_ROOT",
 		"RESOURCE_CONFIG_DIR", "RESOURCE_DATA_DIR", "RESOURCE_CACHE_DIR", "RESOURCE_LOGS_DIR", "RESOURCE_STATE_DIR":
 		return true
 	default:

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+REPO_ROOT="$(builtin cd "${SCRIPT_DIR}/../../.." && builtin pwd)"
 
-"${APP_ROOT}/packages/cli-core/install.sh" "resources/cloudflare-ai-gateway/cli" --name "resource-cloudflare-ai-gateway"
+"${REPO_ROOT}/packages/cli-core/install.sh" "resources/cloudflare-ai-gateway/cli" --name "resource-cloudflare-ai-gateway"

@@ -12,14 +12,11 @@ import (
 
 /*
 Rule: Scenario Required Structure
-Description: Ensures every scenario contains required lifecycle, API, CLI, and documentation assets
-Reason: Missing core files prevents the lifecycle system and CLI tooling from functioning
+Description: Ensures every scenario contains the canonical lifecycle wrapper Makefile, manifest, and documentation assets
+Reason: Missing or drifted core files breaks the shared scenario operator contract
 Category: structure
 Severity: critical
 Targets: structure
-
-Note: Testing is handled by test-genie via .vrooli/service.json lifecycle.test.
-Test artifacts live in bas/ (playbooks, fixtures) and coverage/ (logs, reports).
 
 <test-case id="missing-makefile" should-fail="true">
   <description>Scenario missing Makefile and PRD</description>
@@ -27,9 +24,6 @@ Test artifacts live in bas/ (playbooks, fixtures) and coverage/ (logs, reports).
 {
   "scenario": "demo",
   "files": [
-    "api/main.go",
-    "cli/install.sh",
-    "cli/demo",
     ".vrooli/service.json",
     "README.md"
   ]
@@ -48,10 +42,7 @@ Test artifacts live in bas/ (playbooks, fixtures) and coverage/ (logs, reports).
     "Makefile",
     "PRD.md",
     "README.md",
-    ".vrooli/service.json",
-    "api/main.go",
-    "cli/install.sh",
-    "cli/demo"
+    ".vrooli/service.json"
   ]
 }
   </input>
@@ -61,7 +52,7 @@ Test artifacts live in bas/ (playbooks, fixtures) and coverage/ (logs, reports).
 // Violation captures missing structure elements.
 type Violation = rules.Violation
 
-// Check validates the presence of required scenario files and directories.
+// Check validates the presence of required scenario files and the canonical Makefile.
 func Check(content string, scenarioPath string, scenario string) ([]Violation, error) {
 	var payload struct {
 		Scenario string   `json:"scenario"`
@@ -70,14 +61,6 @@ func Check(content string, scenarioPath string, scenario string) ([]Violation, e
 
 	if err := json.Unmarshal([]byte(content), &payload); err != nil {
 		return []Violation{newStructureViolation("scenario", fmt.Sprintf("Structure payload is invalid JSON: %v", err))}, nil
-	}
-
-	scenarioName := strings.TrimSpace(payload.Scenario)
-	if scenarioName == "" {
-		scenarioName = strings.TrimSpace(scenario)
-	}
-	if scenarioName == "" && scenarioPath != "" {
-		scenarioName = filepath.Base(scenarioPath)
 	}
 
 	scenarioPath = strings.TrimSpace(scenarioPath)
@@ -96,8 +79,6 @@ func Check(content string, scenarioPath string, scenario string) ([]Violation, e
 	// Core required files.
 	requiredFiles := []string{
 		".vrooli/service.json",
-		"api/main.go",
-		"cli/install.sh",
 		"Makefile",
 		"PRD.md",
 		"README.md",
@@ -109,14 +90,13 @@ func Check(content string, scenarioPath string, scenario string) ([]Violation, e
 		}
 	}
 
-	// CLI binary must be named after the scenario.
-	if scenarioName != "" {
-		cliBinary := filepath.ToSlash(filepath.Join("cli", scenarioName))
-		if !fileExists(scenarioPath, cliBinary, filesSet) {
-			violations = append(violations, newStructureViolation(cliBinary, fmt.Sprintf("Missing CLI entrypoint executable: %s", cliBinary)))
+	if fileExists(scenarioPath, "Makefile", filesSet) {
+		data, err := os.ReadFile(filepath.Join(scenarioPath, "Makefile"))
+		if err != nil {
+			violations = append(violations, newStructureViolation("Makefile", fmt.Sprintf("Unable to read Makefile: %v", err)))
+		} else if normalizeFileContent(string(data)) != canonicalScenarioMakefile() {
+			violations = append(violations, newStructureViolation("Makefile", "Makefile must match the canonical scenario wrapper template"))
 		}
-	} else {
-		violations = append(violations, newStructureViolation("cli/<scenario>", "Unable to determine scenario name for CLI binary validation"))
 	}
 
 	return violations, nil
@@ -131,28 +111,6 @@ func fileExists(root, rel string, known map[string]struct{}) bool {
 	return err == nil
 }
 
-func directoryExists(root, rel string, known map[string]struct{}) bool {
-	rel = filepath.ToSlash(rel)
-	if _, ok := known[rel]; ok {
-		return true
-	}
-	prefix := rel
-	if !strings.HasSuffix(prefix, "/") {
-		prefix += "/"
-	}
-	for path := range known {
-		if strings.HasPrefix(path, prefix) {
-			return true
-		}
-	}
-
-	info, err := os.Stat(filepath.Join(root, rel))
-	if err != nil {
-		return false
-	}
-	return info.IsDir()
-}
-
 func newStructureViolation(path, message string) Violation {
 	recommendation := fmt.Sprintf("Add the required resource at %s", path)
 	return Violation{
@@ -161,4 +119,62 @@ func newStructureViolation(path, message string) Violation {
 		FilePath:       filepath.ToSlash(path),
 		Recommendation: recommendation,
 	}
+}
+
+func normalizeFileContent(content string) string {
+	content = strings.ReplaceAll(content, "\r\n", "\n")
+	return strings.TrimSpace(content)
+}
+
+func canonicalScenarioMakefile() string {
+	return strings.TrimSpace(`
+.PHONY: help setup start stop restart status logs test open run dev
+
+.DEFAULT_GOAL := help
+
+SCENARIO_NAME := $(notdir $(CURDIR))
+
+help: ## Show the supported scenario entrypoints
+	@printf "Vrooli scenario entrypoints for %s\n\n" "$(SCENARIO_NAME)"
+	@printf "  make setup                      Run scenario setup lifecycle\n"
+	@printf "  make start                      Start the scenario\n"
+	@printf "  make stop                       Stop the scenario\n"
+	@printf "  make restart                    Restart the scenario\n"
+	@printf "  make status                     Show scenario runtime status\n"
+	@printf "  make logs                       Show scenario logs\n"
+	@printf "  make test                       Run scenario tests\n"
+	@printf "  make open                       Open the scenario in a browser\n"
+	@printf "  make run                        Alias for make start\n"
+	@printf "  make dev                        Alias for make start\n"
+	@printf "\n"
+	@printf "For scenario-specific commands, prefer the scenario CLI or 'vrooli scenario ...'.\n"
+
+setup: ## Run scenario setup lifecycle
+	@vrooli scenario setup "$(SCENARIO_NAME)"
+
+start: ## Start the scenario
+	@vrooli scenario start "$(SCENARIO_NAME)"
+
+stop: ## Stop the scenario
+	@vrooli scenario stop "$(SCENARIO_NAME)"
+
+restart: ## Restart the scenario
+	@vrooli scenario restart "$(SCENARIO_NAME)"
+
+status: ## Show scenario runtime status
+	@vrooli scenario status "$(SCENARIO_NAME)"
+
+logs: ## Show scenario logs
+	@vrooli scenario logs "$(SCENARIO_NAME)"
+
+test: ## Run scenario tests
+	@vrooli scenario test "$(SCENARIO_NAME)"
+
+open: ## Open the scenario in a browser
+	@vrooli scenario open "$(SCENARIO_NAME)"
+
+run: start
+
+dev: start
+`)
 }

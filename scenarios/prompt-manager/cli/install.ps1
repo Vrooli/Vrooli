@@ -1,8 +1,5 @@
 param()
 
-$appRoot = $env:APP_ROOT
-if (-not $appRoot) {
-    $appRoot = (Resolve-Path (Join-Path $PSScriptRoot "../../.."))
-}
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "../../..")).Path
 
-& "$appRoot\packages\cli-core\install.ps1" "scenarios/prompt-manager/cli" -Name "prompt-manager"
+& "$repoRoot\packages\cli-core\install.ps1" "scenarios/prompt-manager/cli" -Name "prompt-manager"

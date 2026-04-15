@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-CLI_DIR="${APP_ROOT}/scenarios/app-monitor/cli"
-source "${APP_ROOT}/scripts/lib/utils/cli-install.sh"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+REPO_ROOT="$(builtin cd "${SCRIPT_DIR}/../../.." && builtin pwd)"
+CLI_DIR="${REPO_ROOT}/scenarios/app-monitor/cli"
+source "${REPO_ROOT}/scripts/lib/utils/cli-install.sh"
 
 show_help() {
     cat <<'HELP'

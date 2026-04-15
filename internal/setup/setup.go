@@ -343,9 +343,6 @@ func applyEnvironment(root, servicePath string, opts Options) (func(), error) {
 		return os.Setenv(key, value)
 	}
 
-	if err := set("APP_ROOT", root, false); err != nil {
-		return nil, err
-	}
 	if err := set("SERVICE_JSON_PATH", servicePath, false); err != nil {
 		return nil, err
 	}
