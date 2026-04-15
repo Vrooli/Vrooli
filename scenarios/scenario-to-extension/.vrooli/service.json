@@ -103,11 +103,6 @@
       },
       "steps": [
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go build -o scenario-to-extension-api .",
           "description": "Build Go API binary"
@@ -204,5 +199,35 @@
       }
     }
   },
-  "$schema": "../../../.vrooli/schemas/service.schema.json"
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "cli": {
+    "enabled": true,
+    "command": "scenario-to-extension",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/scenario-to-extension",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "scenario-to-extension"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/scenario-to-extension",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
+    }
+  }
 }

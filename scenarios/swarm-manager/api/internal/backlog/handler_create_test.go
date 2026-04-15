@@ -87,7 +87,7 @@ func TestCreate_AutoInitializesWorkshop(t *testing.T) {
 	h, rootDir := setupTestHandlerWithAgent(t, agent)
 
 	// Re-enable auto-initialize for this test.
-	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, "config", "settings.json"), map[string]any{
 		"theme":                    "dark",
 		"default_mode":             "manual",
 		"max_auto_rounds":          10,
@@ -139,7 +139,7 @@ func TestCreate_AutoInitializeDisabledViaSetting(t *testing.T) {
 
 	// Disable auto-initialize via settings.
 	t.Setenv("SCENARIO_ROOT", rootDir)
-	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, "config", "settings.json"), map[string]any{
 		"theme":                    "dark",
 		"default_mode":             "manual",
 		"max_auto_rounds":          10,
@@ -185,7 +185,7 @@ func TestCreate_AutoInit_AgentDown_StillCreates(t *testing.T) {
 	h, rootDir := setupTestHandlerWithAgent(t, agent)
 
 	// Re-enable auto-initialize to test agent-down resilience.
-	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, "config", "settings.json"), map[string]any{
 		"theme":                    "dark",
 		"default_mode":             "manual",
 		"max_auto_rounds":          10,

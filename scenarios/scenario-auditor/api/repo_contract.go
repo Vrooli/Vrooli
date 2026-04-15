@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
+	"github.com/vrooli/api-core/storage"
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
@@ -64,5 +66,29 @@ func resolveScenarioAuditorDataDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(root, ".vrooli", "data", "scenario-auditor"), nil
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return "", fmt.Errorf("create storage resolver: %w", err)
+	}
+	dataDir, err := storage.EnsureClassDir(
+		resolver,
+		storage.Options{ScenarioID: "scenario-auditor"},
+		storage.ClassData,
+		0o755,
+	)
+	if err != nil {
+		return "", fmt.Errorf("ensure scenario-auditor data dir: %w", err)
+	}
+	legacy := filepath.Join(root, ".vrooli", "data", "scenario-auditor")
+	if _, statErr := os.Stat(legacy); statErr == nil {
+		if _, dstErr := os.Stat(dataDir); os.IsNotExist(dstErr) {
+			if err := os.Rename(legacy, dataDir); err != nil {
+				return "", fmt.Errorf("migrate legacy scenario-auditor data dir: %w", err)
+			}
+		}
+	}
+	return dataDir, nil
 }

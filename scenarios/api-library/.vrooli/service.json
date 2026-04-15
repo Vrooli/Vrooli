@@ -135,11 +135,6 @@
       },
       "steps": [
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o api-library-api .",
           "description": "Build Go API binary"
@@ -218,6 +213,36 @@
           "run": "test-genie execute api-library --preset comprehensive",
           "description": "Execute phased scenario test suite"
         }
+      ]
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "api-library",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/api-library",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "api-library"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/api-library",
+        "cli/install.sh",
+        ".vrooli/service.json"
       ]
     }
   }

@@ -62,7 +62,7 @@ func ProjectPhaseHandler[C any](stdout func(C) io.Writer, phase string, run func
 	}
 }
 
-func CleanupHandler[C any](stdout func(C) io.Writer, runOrphans func(C, []string) error, runLocks func(C, []string) error) rootcli.Handler[C] {
+func CleanupHandler[C any](stdout func(C) io.Writer, runOrphans func(C, []string) error, runLocks func(C, []string) error, runStorage func(C, []string) error) rootcli.Handler[C] {
 	return func(ctx C, args []string) error {
 		req, err := ParseCleanupRequest(args)
 		if err != nil {
@@ -76,6 +76,8 @@ func CleanupHandler[C any](stdout func(C) io.Writer, runOrphans func(C, []string
 			return runOrphans(ctx, append([]string{"kill"}, req.Args...))
 		case "locks":
 			return runLocks(ctx, append([]string{"clean"}, req.Args...))
+		case "storage":
+			return runStorage(ctx, req.Args)
 		default:
 			return nil
 		}
@@ -223,6 +225,26 @@ func DiagnosePortHandler[C any](stdout func(C) io.Writer, outputFormat func(C) (
 			return format, resp, nil
 		},
 		RenderPortDiagnostic,
+	)
+}
+
+func StorageCleanupHandler[C any](stdout func(C) io.Writer, outputFormat func(C) (cliout.Format, error), run func(C, StorageCleanupRequest) (StorageCleanupResponse, error)) rootcli.Handler[C] {
+	return rootcli.BindGlobalCommand(stdout,
+		func(ctx C, args []string) (StorageCleanupRequest, error) {
+			return ParseStorageCleanupRequest(args)
+		},
+		func(ctx C, req StorageCleanupRequest) (cliout.Format, StorageCleanupResponse, error) {
+			resp, err := run(ctx, req)
+			if err != nil {
+				return "", StorageCleanupResponse{}, err
+			}
+			format, err := outputFormat(ctx)
+			if err != nil {
+				return "", StorageCleanupResponse{}, err
+			}
+			return format, resp, nil
+		},
+		RenderStorageCleanupResponse,
 	)
 }
 

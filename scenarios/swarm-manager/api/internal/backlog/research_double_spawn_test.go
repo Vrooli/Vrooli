@@ -77,7 +77,7 @@ func writeReadyRound(t *testing.T, rootDir string, kind BacklogKind, name string
 // enableAutoAdvanceWithDelay writes settings enabling auto-advance with the given delay.
 func enableAutoAdvanceWithDelay(t *testing.T, rootDir string, delaySec int) {
 	t.Helper()
-	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, "config", "settings.json"), map[string]any{
 		"theme":                      "dark",
 		"default_mode":               "manual",
 		"max_auto_rounds":            10,

@@ -83,7 +83,9 @@
         "checks": [
           {
             "type": "binaries",
-            "targets": ["api/lifestyle-dashboard-api"]
+            "targets": [
+              "api/lifestyle-dashboard-api"
+            ]
           },
           {
             "type": "cli",
@@ -97,11 +99,6 @@
         ]
       },
       "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
         {
           "name": "build-api",
           "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o lifestyle-dashboard-api .",
@@ -186,5 +183,40 @@
   },
   "environment": {
     "SQLITE_PATH": "${SCENARIO_DATA_DIR}/lifestyle.db"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "lifestyle-dashboard",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "lifestyle-dashboard"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
   }
 }

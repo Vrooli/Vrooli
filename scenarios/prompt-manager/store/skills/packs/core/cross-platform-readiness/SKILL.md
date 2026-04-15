@@ -405,6 +405,19 @@ return storage.WriteFileAtomic(path, payload, storage.DefaultFilePerm)
 - Scenario-local mutable writes (`./data`, `./state`) under app/deploy targets
 - Hand-rolled `DATA_DIR` resolution or custom traversal checks when `api-core/storage` is available
 
+#### 4.4 Tracked Source Assets
+
+Do not confuse tracked scenario-authored source files with runtime state.
+
+If a file is edited through a UI or tool but the intended result is a shared, reviewable change to scenario behavior, keep it in the repo in an explicit source directory such as:
+
+- `config/`
+- `policy/`
+
+Use `api-core/storage` only for local runtime state, not for versioned source artifacts.
+
+Reserve `.vrooli/` for repo or manifest metadata rather than as a generic bucket for checked-in configuration.
+
 ---
 
 ### 5. Build Portability

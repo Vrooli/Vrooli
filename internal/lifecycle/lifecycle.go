@@ -679,49 +679,72 @@ func binariesNeedSetup(appRoot string, check scenario.ConditionCheck) (bool, str
 	return false, "", nil
 }
 
-func cliNeedsSetup(appRoot string, check scenario.ConditionCheck) (bool, string, error) {
-	return cliNeedsSetupWithDeps(appRoot, check, defaultHostProbeDeps())
+func cliNeedsSetup(item scenario.Scenario, check scenario.ConditionCheck) (bool, string, error) {
+	return cliNeedsSetupWithDeps(item, check, defaultHostProbeDeps())
 }
 
-func cliNeedsSetupWithDeps(appRoot string, check scenario.ConditionCheck, deps hostProbeDeps) (bool, string, error) {
-	if strings.TrimSpace(check.Command) == "" {
-		return false, "", nil
+func cliNeedsSetupWithDeps(item scenario.Scenario, check scenario.ConditionCheck, deps hostProbeDeps) (bool, string, error) {
+	if !item.Manifest.CLIEnabled() {
+		return false, "", fmt.Errorf("scenario %q defines a cli setup check but does not declare cli.enabled=true", item.Slug)
 	}
-	cliPath, err := deps.lookPath(check.Command)
+	command := strings.TrimSpace(check.Command)
+	if command == "" {
+		command = item.Manifest.CLICommand()
+	}
+	if command == "" {
+		return false, "", fmt.Errorf("scenario %q cli setup check requires cli.command", item.Slug)
+	}
+	cliPath, err := deps.lookPath(command)
 	if err != nil {
-		return true, "CLI not installed: " + check.Command, nil
+		return true, "CLI not installed: " + command, nil
 	}
-
-	sourceDir := filepath.Join(appRoot, "cli")
-	if _, err := deps.stat(sourceDir); err != nil {
-		return false, "", nil
-	}
-
-	if anyFileNewerWithDeps(sourceDir, cliPath, deps, func(path string, d fs.DirEntry) bool {
-		return strings.HasSuffix(path, ".go")
-	}) {
-		return true, "CLI not installed: " + check.Command, nil
-	}
-	for _, depFile := range []string{"go.mod", "go.sum"} {
-		depPath := filepath.Join(sourceDir, depFile)
-		if info, err := deps.stat(depPath); err == nil && info.ModTime().After(getModTimeWithDeps(cliPath, deps)) {
-			return true, "CLI not installed: " + check.Command, nil
-		}
-	}
-
-	replacePaths, err := localReplacePathsWithDeps(filepath.Join(sourceDir, "go.mod"), deps)
-	if err != nil {
-		return false, "", err
-	}
-	for _, replacePath := range replacePaths {
-		resolved := filepath.Join(sourceDir, replacePath)
-		if anyFileNewerWithDeps(resolved, cliPath, deps, func(path string, d fs.DirEntry) bool {
-			return strings.HasSuffix(path, ".go") || filepath.Base(path) == "go.mod"
+	switch item.Manifest.CLI.Adapter.Kind {
+	case "go_module":
+		moduleDir := resolveCheckPath(item.Path, item.Manifest.CLI.Adapter.ModuleDir)
+		if anyFileNewerWithDeps(moduleDir, cliPath, deps, func(path string, d fs.DirEntry) bool {
+			return strings.HasSuffix(path, ".go")
 		}) {
-			return true, "CLI not installed: " + check.Command, nil
+			return true, "CLI not installed: " + command, nil
 		}
+		for _, depFile := range []string{"go.mod", "go.sum"} {
+			depPath := filepath.Join(moduleDir, depFile)
+			if info, err := deps.stat(depPath); err == nil && info.ModTime().After(getModTimeWithDeps(cliPath, deps)) {
+				return true, "CLI not installed: " + command, nil
+			}
+		}
+		replacePaths, err := localReplacePathsWithDeps(filepath.Join(moduleDir, "go.mod"), deps)
+		if err != nil {
+			return false, "", err
+		}
+		for _, replacePath := range replacePaths {
+			resolved := filepath.Join(moduleDir, replacePath)
+			if anyFileNewerWithDeps(resolved, cliPath, deps, func(path string, d fs.DirEntry) bool {
+				return strings.HasSuffix(path, ".go") || filepath.Base(path) == "go.mod"
+			}) {
+				return true, "CLI not installed: " + command, nil
+			}
+		}
+		return false, "", nil
+	case "shell_script":
+		inputs := []string{
+			item.Manifest.CLI.Adapter.ScriptPath,
+			item.Manifest.CLI.Adapter.InstallScript,
+			filepath.ToSlash(filepath.Join(".vrooli", "service.json")),
+		}
+		if item.Manifest.CLI.Freshness != nil && len(item.Manifest.CLI.Freshness.Inputs) > 0 {
+			inputs = item.Manifest.CLI.Freshness.Inputs
+		}
+		newer, err := anyScenarioInputNewerWithDeps(item.Path, inputs, cliPath, deps)
+		if err != nil {
+			return false, "", err
+		}
+		if newer {
+			return true, "CLI not installed: " + command, nil
+		}
+		return false, "", nil
+	default:
+		return false, "", fmt.Errorf("unsupported cli adapter kind %q", item.Manifest.CLI.Adapter.Kind)
 	}
-	return false, "", nil
 }
 
 func uiBundleNeedsSetup(appRoot string, check scenario.ConditionCheck) (bool, string, error) {
@@ -778,6 +801,74 @@ func uiBundleNeedsSetupWithDeps(appRoot string, check scenario.ConditionCheck, d
 	}
 
 	return false, "", nil
+}
+
+func anyScenarioInputNewerWithDeps(appRoot string, inputs []string, targetPath string, deps hostProbeDeps) (bool, error) {
+	for _, input := range inputs {
+		input = strings.TrimSpace(input)
+		if input == "" {
+			continue
+		}
+		if hasGlobPattern(input) {
+			matches, err := filepath.Glob(filepath.Join(appRoot, filepath.FromSlash(input)))
+			if err != nil {
+				return false, err
+			}
+			for _, match := range matches {
+				newer, err := pathNewerThanTargetWithDeps(match, appRoot, targetPath, deps)
+				if err != nil {
+					return false, err
+				}
+				if newer {
+					return true, nil
+				}
+			}
+			continue
+		}
+		newer, err := pathNewerThanTargetWithDeps(resolveCheckPath(appRoot, input), appRoot, targetPath, deps)
+		if err != nil {
+			return false, err
+		}
+		if newer {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func pathNewerThanTargetWithDeps(path, appRoot, targetPath string, deps hostProbeDeps) (bool, error) {
+	info, err := deps.stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	if !info.IsDir() {
+		return info.ModTime().After(getModTimeWithDeps(targetPath, deps)), nil
+	}
+	return anyFileNewerWithDeps(path, targetPath, deps, func(candidate string, d fs.DirEntry) bool {
+		rel, err := filepath.Rel(appRoot, candidate)
+		if err != nil {
+			return false
+		}
+		rel = filepath.ToSlash(rel)
+		return !shouldSkipLifecyclePath(rel)
+	}), nil
+}
+
+func shouldSkipLifecyclePath(path string) bool {
+	path = filepath.ToSlash(path)
+	for _, skip := range []string{".git", ".idea", ".vscode", "node_modules", "dist", "build", "coverage", "tmp", "data"} {
+		if path == skip || strings.HasPrefix(path, skip+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+func hasGlobPattern(value string) bool {
+	return strings.ContainsAny(value, "*?[")
 }
 
 func resourcesNeedSetup(appRoot string, check scenario.ConditionCheck) bool {

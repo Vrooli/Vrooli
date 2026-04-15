@@ -132,11 +132,6 @@
           "description": "Add app data to resources"
         },
         {
-          "name": "install-cli",
-          "run": "cd cli && chmod +x picker-wheel && ln -sf $(pwd)/picker-wheel ~/.local/bin/picker-wheel 2>/dev/null || true",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o picker-wheel-api .",
           "description": "Build Go API binary"
@@ -243,5 +238,35 @@
       }
     },
     "scenarios": {}
+  },
+  "cli": {
+    "enabled": true,
+    "command": "picker-wheel",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/picker-wheel",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "picker-wheel"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/picker-wheel",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
+    }
   }
 }

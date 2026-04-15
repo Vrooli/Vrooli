@@ -83,11 +83,40 @@ The current contract defines:
 - sandbox full-repo scopes: `""`, `"."`, `"/"`
 - named repo-aware profile: `mini_vrooli_bundle`
 
+## Allowed `.vrooli/` Surface
+
+Project-level `.vrooli/` is reserved for repo-owned metadata and one local build output directory.
+
+Allowed tracked entries:
+
+- `.vrooli/repo-contract.json`
+- `.vrooli/service.json`
+- `.vrooli/schemas/**`
+- `.vrooli/resources/**`
+
+Allowed local-only entry:
+
+- `.vrooli/build/**`
+
+Forbidden in project `.vrooli/`:
+
+- secrets and secret files
+- runtime state
+- logs and telemetry
+- deploy targets
+- scenario runtime data
+- user-specific mutable config
+- lockfiles and ad hoc caches
+
+Checked-in scenario behavior or policy files should live in explicit scenario directories such as `config/`, `policy/`, `initiatives/`, `requirements/`, or `docs/`, not in `.vrooli/`, unless they are part of the canonical metadata surface.
+
+Secrets are intentionally outside the repo surface. The canonical shared plaintext store is `~/.vrooli/secrets.json`, scenario-scoped plaintext stores live under `~/.vrooli/scenarios/<scenario>/secrets.json`, and encrypted user secrets live under `~/.vrooli/secrets.enc.json`.
+
 ## Compatibility Policy
 
 - The contract describes the future-state Go-native cross-platform structure only.
 - Transitional project-level shell layout is explicitly excluded.
-- Consumers may keep temporary fallback behavior while migrating, but those fallbacks do not change contract semantics.
+- New path migrations that move user or runtime state out of project `.vrooli/` must land greenfield without repo-local compatibility fallbacks.
 - Contract changes use semantic versioning:
 - `patch`: clarifications and non-breaking metadata
 - `minor`: additive fields and additive paths
@@ -107,6 +136,7 @@ These do not belong in the contract:
 - `$HOME/Vrooli` fallback semantics
 - `APP_ROOT` as a canonical repo-root variable
 - scenario-private paths such as `coverage/`, logs, prompts, profiles, queues, or research folders
+- project-level secrets paths such as `.vrooli/secrets.json` or `.vrooli/secrets.enc.json`
 
 ## Validation
 

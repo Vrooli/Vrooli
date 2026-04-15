@@ -81,11 +81,6 @@
       "description": "Build API & UI, install CLI",
       "steps": [
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o agent-inbox-api .",
           "description": "Build Go API server binary"
@@ -223,6 +218,36 @@
         "required": false,
         "description": "Provides skills/prompts for agent context injection (optional - graceful degradation)"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "agent-inbox",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/agent-inbox",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "agent-inbox"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/agent-inbox",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

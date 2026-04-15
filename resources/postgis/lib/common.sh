@@ -30,6 +30,7 @@ postgis_exec_sql() {
 # Initialize data directories
 postgis_init_dirs() {
     mkdir -p "$POSTGIS_DATA_DIR"
+    mkdir -p "$POSTGIS_STATE_DIR"
     mkdir -p "$POSTGIS_IMPORT_DIR"
     mkdir -p "$POSTGIS_EXPORT_DIR"
     mkdir -p "$POSTGIS_SQL_DIR"

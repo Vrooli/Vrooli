@@ -7,76 +7,55 @@ import (
 	"testing"
 )
 
-func TestDetectCLIApproach_CrossPlatform(t *testing.T) {
+func TestDetectCLIApproach_GoModule(t *testing.T) {
 	root := t.TempDir()
-	cliDir := filepath.Join(root, "cli")
-	mustMkdirCLI(t, cliDir)
+	writeCLIManifest(t, root, `{
+  "service": {"name": "test-scenario"},
+  "cli": {
+    "enabled": true,
+    "command": "test-scenario",
+    "adapter": {"kind": "go_module", "module_dir": "cli"},
+    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
+    "invoke": {"kind": "installed_command", "command": "test-scenario"}
+  }
+}`)
 
-	// Create cross-platform indicators
-	writeFileCLI(t, filepath.Join(cliDir, "main.go"), "package main\nfunc main() {}")
-	writeFileCLI(t, filepath.Join(cliDir, "go.mod"), "module test-scenario/cli")
-
-	approach := DetectCLIApproach(root, "test-scenario")
-	if approach != CLIApproachCrossPlatform {
-		t.Errorf("expected CLIApproachCrossPlatform, got %s", approach)
+	approach := DetectCLIApproach(mustLoadManifest(t, root))
+	if approach != CLIApproachGoModule {
+		t.Errorf("expected CLIApproachGoModule, got %s", approach)
 	}
 }
 
-func TestDetectCLIApproach_Legacy(t *testing.T) {
+func TestDetectCLIApproach_ShellScript(t *testing.T) {
 	root := t.TempDir()
-	cliDir := filepath.Join(root, "cli")
-	mustMkdirCLI(t, cliDir)
+	writeCLIManifest(t, root, `{
+  "service": {"name": "test-scenario"},
+  "cli": {
+    "enabled": true,
+    "command": "test-scenario",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/test-scenario",
+      "install_script": "cli/install.sh"
+    },
+    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
+    "invoke": {"kind": "installed_command", "command": "test-scenario"}
+  }
+}`)
 
-	// Create legacy indicator - bash script
-	writeFileCLI(t, filepath.Join(cliDir, "test-scenario"), "#!/usr/bin/env bash\necho hello")
-
-	approach := DetectCLIApproach(root, "test-scenario")
-	if approach != CLIApproachLegacy {
-		t.Errorf("expected CLIApproachLegacy, got %s", approach)
+	approach := DetectCLIApproach(mustLoadManifest(t, root))
+	if approach != CLIApproachShellScript {
+		t.Errorf("expected CLIApproachShellScript, got %s", approach)
 	}
 }
 
-func TestDetectCLIApproach_CrossPlatformWithBinary(t *testing.T) {
+func TestDetectCLIApproach_UnknownWithoutCLIManifest(t *testing.T) {
 	root := t.TempDir()
-	cliDir := filepath.Join(root, "cli")
-	mustMkdirCLI(t, cliDir)
+	writeCLIManifest(t, root, `{"service":{"name":"test-scenario"}}`)
 
-	// Create cross-platform Go files
-	writeFileCLI(t, filepath.Join(cliDir, "main.go"), "package main\nfunc main() {}")
-	writeFileCLI(t, filepath.Join(cliDir, "go.mod"), "module test-scenario/cli")
-
-	// Also create a binary (simulated with null bytes)
-	writeFileCLI(t, filepath.Join(cliDir, "test-scenario"), string([]byte{0x00, 0x01, 0x02}))
-
-	approach := DetectCLIApproach(root, "test-scenario")
-	if approach != CLIApproachCrossPlatform {
-		t.Errorf("expected CLIApproachCrossPlatform when Go sources + binary exist, got %s", approach)
-	}
-}
-
-func TestDetectCLIApproach_Unknown(t *testing.T) {
-	root := t.TempDir()
-	cliDir := filepath.Join(root, "cli")
-	mustMkdirCLI(t, cliDir)
-
-	// Empty cli directory
-	approach := DetectCLIApproach(root, "test-scenario")
+	approach := DetectCLIApproach(mustLoadManifest(t, root))
 	if approach != CLIApproachUnknown {
-		t.Errorf("expected CLIApproachUnknown for empty cli dir, got %s", approach)
-	}
-}
-
-func TestDetectCLIApproach_UnknownOnlyMainGo(t *testing.T) {
-	root := t.TempDir()
-	cliDir := filepath.Join(root, "cli")
-	mustMkdirCLI(t, cliDir)
-
-	// Only main.go without go.mod
-	writeFileCLI(t, filepath.Join(cliDir, "main.go"), "package main")
-
-	approach := DetectCLIApproach(root, "test-scenario")
-	if approach != CLIApproachUnknown {
-		t.Errorf("expected CLIApproachUnknown when only main.go exists, got %s", approach)
+		t.Errorf("expected CLIApproachUnknown, got %s", approach)
 	}
 }
 
@@ -85,8 +64,8 @@ func TestCLIApproach_String(t *testing.T) {
 		approach CLIApproach
 		expected string
 	}{
-		{CLIApproachLegacy, "legacy"},
-		{CLIApproachCrossPlatform, "cross-platform"},
+		{CLIApproachGoModule, "go_module"},
+		{CLIApproachShellScript, "shell_script"},
 		{CLIApproachUnknown, "unknown"},
 	}
 
@@ -97,78 +76,78 @@ func TestCLIApproach_String(t *testing.T) {
 	}
 }
 
-func TestValidateCLI_CrossPlatformValid(t *testing.T) {
+func TestValidateCLI_GoModuleValid(t *testing.T) {
 	root := t.TempDir()
 	cliDir := filepath.Join(root, "cli")
 	mustMkdirCLI(t, cliDir)
-
-	// Create valid cross-platform CLI structure
-	writeFileCLI(t, filepath.Join(cliDir, "main.go"), "package main\nfunc main() {}")
+	writeCLIManifest(t, root, `{
+  "service": {"name": "test-scenario"},
+  "cli": {
+    "enabled": true,
+    "command": "test-scenario",
+    "adapter": {"kind": "go_module", "module_dir": "cli"},
+    "install": [
+      {"os": ["linux", "darwin"], "kind": "command", "run": "bash ./cli/install.sh"},
+      {"os": ["windows"], "kind": "command", "run": "powershell -File .\\cli\\install.ps1"}
+    ],
+    "invoke": {"kind": "installed_command", "command": "test-scenario"}
+  }
+}`)
+	writeFileCLI(t, filepath.Join(cliDir, "app.go"), "package main\nfunc main() {}")
 	writeFileCLI(t, filepath.Join(cliDir, "go.mod"), "module test-scenario/cli")
-	writeFileCLI(t, filepath.Join(cliDir, "install.sh"), "#!/bin/bash\necho install")
 
 	result := ValidateCLI(root, "test-scenario", io.Discard)
 	if !result.Result.Success {
 		t.Fatalf("expected success, got error: %v", result.Result.Error)
 	}
-	if result.Approach != CLIApproachCrossPlatform {
-		t.Errorf("expected cross-platform approach, got %s", result.Approach)
+	if result.Approach != CLIApproachGoModule {
+		t.Errorf("expected go_module approach, got %s", result.Approach)
 	}
 }
 
-func TestValidateCLI_CrossPlatformMissingInstallSh(t *testing.T) {
+func TestValidateCLI_GoModuleMissingGoMod(t *testing.T) {
 	root := t.TempDir()
 	cliDir := filepath.Join(root, "cli")
 	mustMkdirCLI(t, cliDir)
-
-	// Missing install.sh
-	writeFileCLI(t, filepath.Join(cliDir, "main.go"), "package main\nfunc main() {}")
-	writeFileCLI(t, filepath.Join(cliDir, "go.mod"), "module test-scenario/cli")
+	writeCLIManifest(t, root, `{
+  "service": {"name": "test-scenario"},
+  "cli": {
+    "enabled": true,
+    "command": "test-scenario",
+    "adapter": {"kind": "go_module", "module_dir": "cli"},
+    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
+    "invoke": {"kind": "installed_command", "command": "test-scenario"}
+  }
+}`)
+	writeFileCLI(t, filepath.Join(cliDir, "app.go"), "package main\nfunc main() {}")
 
 	result := ValidateCLI(root, "test-scenario", io.Discard)
 	if result.Result.Success {
-		t.Fatal("expected failure when install.sh missing")
+		t.Fatal("expected failure when go.mod missing")
 	}
-	if result.Approach != CLIApproachCrossPlatform {
-		t.Errorf("expected cross-platform approach, got %s", result.Approach)
-	}
-}
-
-func TestValidateCLI_CrossPlatformWithWindowsSupport(t *testing.T) {
-	root := t.TempDir()
-	cliDir := filepath.Join(root, "cli")
-	mustMkdirCLI(t, cliDir)
-
-	// Create valid cross-platform CLI with Windows support
-	writeFileCLI(t, filepath.Join(cliDir, "main.go"), "package main\nfunc main() {}")
-	writeFileCLI(t, filepath.Join(cliDir, "go.mod"), "module test-scenario/cli")
-	writeFileCLI(t, filepath.Join(cliDir, "install.sh"), "#!/bin/bash\necho install")
-	writeFileCLI(t, filepath.Join(cliDir, "install.ps1"), "Write-Host 'Install'")
-
-	result := ValidateCLI(root, "test-scenario", io.Discard)
-	if !result.Result.Success {
-		t.Fatalf("expected success, got error: %v", result.Result.Error)
-	}
-
-	// Check for Windows support observation
-	hasWindowsObs := false
-	for _, obs := range result.Result.Observations {
-		if obs.Type == ObservationSuccess && containsStr(obs.Message, "Windows") {
-			hasWindowsObs = true
-			break
-		}
-	}
-	if !hasWindowsObs {
-		t.Error("expected observation about Windows support")
+	if result.Approach != CLIApproachGoModule {
+		t.Errorf("expected go_module approach, got %s", result.Approach)
 	}
 }
 
-func TestValidateCLI_LegacyValid(t *testing.T) {
+func TestValidateCLI_ShellScriptValid(t *testing.T) {
 	root := t.TempDir()
 	cliDir := filepath.Join(root, "cli")
 	mustMkdirCLI(t, cliDir)
-
-	// Create valid legacy CLI structure
+	writeCLIManifest(t, root, `{
+  "service": {"name": "test-scenario"},
+  "cli": {
+    "enabled": true,
+    "command": "test-scenario",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/test-scenario",
+      "install_script": "cli/install.sh"
+    },
+    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
+    "invoke": {"kind": "installed_command", "command": "test-scenario"}
+  }
+}`)
 	writeExecutableCLI(t, filepath.Join(cliDir, "test-scenario"), "#!/bin/bash\necho cli")
 	writeFileCLI(t, filepath.Join(cliDir, "install.sh"), "#!/bin/bash\necho install")
 
@@ -176,17 +155,29 @@ func TestValidateCLI_LegacyValid(t *testing.T) {
 	if !result.Result.Success {
 		t.Fatalf("expected success, got error: %v", result.Result.Error)
 	}
-	if result.Approach != CLIApproachLegacy {
-		t.Errorf("expected legacy approach, got %s", result.Approach)
+	if result.Approach != CLIApproachShellScript {
+		t.Errorf("expected shell_script approach, got %s", result.Approach)
 	}
 }
 
-func TestValidateCLI_LegacyNonExecutable(t *testing.T) {
+func TestValidateCLI_ShellScriptNonExecutable(t *testing.T) {
 	root := t.TempDir()
 	cliDir := filepath.Join(root, "cli")
 	mustMkdirCLI(t, cliDir)
-
-	// Create non-executable script (should produce warning)
+	writeCLIManifest(t, root, `{
+  "service": {"name": "test-scenario"},
+  "cli": {
+    "enabled": true,
+    "command": "test-scenario",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/test-scenario",
+      "install_script": "cli/install.sh"
+    },
+    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
+    "invoke": {"kind": "installed_command", "command": "test-scenario"}
+  }
+}`)
 	writeFileCLI(t, filepath.Join(cliDir, "test-scenario"), "#!/bin/bash\necho cli")
 	writeFileCLI(t, filepath.Join(cliDir, "install.sh"), "#!/bin/bash\necho install")
 
@@ -195,7 +186,6 @@ func TestValidateCLI_LegacyNonExecutable(t *testing.T) {
 		t.Fatalf("expected success (with warning), got error: %v", result.Result.Error)
 	}
 
-	// Check for warning observation
 	hasWarning := false
 	for _, obs := range result.Result.Observations {
 		if obs.Type == ObservationWarning {
@@ -204,34 +194,41 @@ func TestValidateCLI_LegacyNonExecutable(t *testing.T) {
 		}
 	}
 	if !hasWarning {
-		t.Error("expected warning about non-executable script")
+		t.Error("expected warning about non-executable shell script")
 	}
 }
 
-func TestValidateCLI_MissingCLIDir(t *testing.T) {
+func TestValidateCLI_MissingManifest(t *testing.T) {
 	root := t.TempDir()
-	// Don't create cli directory
 
 	result := ValidateCLI(root, "test-scenario", io.Discard)
 	if result.Result.Success {
-		t.Fatal("expected failure when cli directory missing")
+		t.Fatal("expected failure when service manifest missing")
 	}
 	if result.Approach != CLIApproachUnknown {
-		t.Errorf("expected unknown approach when dir missing, got %s", result.Approach)
+		t.Errorf("expected unknown approach, got %s", result.Approach)
 	}
 }
 
-func TestValidateCLI_UnknownApproachGuidance(t *testing.T) {
+func TestValidateCLI_InvalidCommonContract(t *testing.T) {
 	root := t.TempDir()
-	cliDir := filepath.Join(root, "cli")
-	mustMkdirCLI(t, cliDir)
-
-	// Only main.go (missing go.mod)
-	writeFileCLI(t, filepath.Join(cliDir, "main.go"), "package main")
+	mustMkdirCLI(t, filepath.Join(root, "cli"))
+	writeCLIManifest(t, root, `{
+  "service": {"name": "test-scenario"},
+  "cli": {
+    "enabled": true,
+    "command": "test-scenario",
+    "adapter": {"kind": "go_module", "module_dir": "cli"},
+    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
+    "invoke": {"kind": "installed_command", "command": "other-name"}
+  }
+}`)
+	writeFileCLI(t, filepath.Join(root, "cli", "app.go"), "package main\nfunc main() {}")
+	writeFileCLI(t, filepath.Join(root, "cli", "go.mod"), "module test-scenario/cli")
 
 	result := ValidateCLI(root, "test-scenario", io.Discard)
 	if result.Result.Success {
-		t.Fatal("expected failure for incomplete CLI structure")
+		t.Fatal("expected failure for mismatched invoke.command")
 	}
 	if result.Result.Remediation == "" {
 		t.Error("expected remediation guidance")
@@ -242,10 +239,18 @@ func TestCLIValidator_Interface(t *testing.T) {
 	root := t.TempDir()
 	cliDir := filepath.Join(root, "cli")
 	mustMkdirCLI(t, cliDir)
-
-	writeFileCLI(t, filepath.Join(cliDir, "main.go"), "package main\nfunc main() {}")
+	writeCLIManifest(t, root, `{
+  "service": {"name": "test-scenario"},
+  "cli": {
+    "enabled": true,
+    "command": "test-scenario",
+    "adapter": {"kind": "go_module", "module_dir": "cli"},
+    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
+    "invoke": {"kind": "installed_command", "command": "test-scenario"}
+  }
+}`)
+	writeFileCLI(t, filepath.Join(cliDir, "app.go"), "package main\nfunc main() {}")
 	writeFileCLI(t, filepath.Join(cliDir, "go.mod"), "module test-scenario/cli")
-	writeFileCLI(t, filepath.Join(cliDir, "install.sh"), "#!/bin/bash")
 
 	v := NewCLIValidator(root, "test-scenario", io.Discard)
 	result := v.Validate()
@@ -253,43 +258,30 @@ func TestCLIValidator_Interface(t *testing.T) {
 	if !result.Result.Success {
 		t.Errorf("Validate() failed: %v", result.Result.Error)
 	}
-	if result.Approach != CLIApproachCrossPlatform {
-		t.Errorf("expected cross-platform approach, got %s", result.Approach)
+	if result.Approach != CLIApproachGoModule {
+		t.Errorf("expected go_module approach, got %s", result.Approach)
 	}
 }
 
-func TestIsTextFile_Text(t *testing.T) {
-	root := t.TempDir()
-	path := filepath.Join(root, "script.sh")
-	writeFileCLI(t, path, "#!/bin/bash\necho hello world\n")
-
-	if !isTextFile(path) {
-		t.Error("expected isTextFile to return true for shell script")
+func writeCLIManifest(t *testing.T, root, content string) {
+	t.Helper()
+	serviceDir := filepath.Join(root, ".vrooli")
+	if err := os.MkdirAll(serviceDir, 0o755); err != nil {
+		t.Fatalf("mkdir .vrooli: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(serviceDir, "service.json"), []byte(content), 0o644); err != nil {
+		t.Fatalf("write service.json: %v", err)
 	}
 }
 
-func TestIsTextFile_Binary(t *testing.T) {
-	root := t.TempDir()
-	path := filepath.Join(root, "binary")
-
-	// Write content with null bytes
-	content := []byte{0x7f, 0x45, 0x4c, 0x46, 0x00, 0x01, 0x02}
-	if err := os.WriteFile(path, content, 0o755); err != nil {
-		t.Fatalf("failed to write binary file: %v", err)
+func mustLoadManifest(t *testing.T, root string) serviceManifest {
+	t.Helper()
+	manifest, err := loadServiceManifest(root)
+	if err != nil {
+		t.Fatalf("load service manifest: %v", err)
 	}
-
-	if isTextFile(path) {
-		t.Error("expected isTextFile to return false for binary file")
-	}
+	return manifest
 }
-
-func TestIsTextFile_NonExistent(t *testing.T) {
-	if isTextFile("/nonexistent/path") {
-		t.Error("expected isTextFile to return false for non-existent file")
-	}
-}
-
-// Test helpers
 
 func mustMkdirCLI(t *testing.T, path string) {
 	t.Helper()
@@ -318,18 +310,4 @@ func writeExecutableCLI(t *testing.T, path, content string) {
 	if err := os.WriteFile(path, []byte(content), 0o755); err != nil {
 		t.Fatalf("failed to write executable %s: %v", path, err)
 	}
-}
-
-func containsStr(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
-		(len(s) > 0 && len(substr) > 0 && findSubstring(s, substr)))
-}
-
-func findSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

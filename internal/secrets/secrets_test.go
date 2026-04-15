@@ -16,11 +16,11 @@ import (
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=4 | LAST: 2026-04-12
 
 func TestNewProjectStoreUsesDefaultBoundaries(t *testing.T) {
-	root := t.TempDir()
-	store := NewProjectStore(root)
+	home := t.TempDir()
+	store := NewUserStore(home)
 
-	if store.Root != filepath.Clean(root) {
-		t.Fatalf("Root = %q, want %q", store.Root, filepath.Clean(root))
+	if store.HomeDir != filepath.Clean(home) {
+		t.Fatalf("HomeDir = %q, want %q", store.HomeDir, filepath.Clean(home))
 	}
 	if store.KeyProvider == nil {
 		t.Fatal("KeyProvider is nil")
@@ -37,9 +37,9 @@ func TestNewProjectStoreUsesDefaultBoundaries(t *testing.T) {
 }
 
 func TestStoreMethodsUseDefaultDepsWhenConstructedDirectly(t *testing.T) {
-	root := t.TempDir()
+	home := t.TempDir()
 	store := &Store{
-		Root:        root,
+		HomeDir:     home,
 		KeyProvider: staticKeyProvider("test-passphrase"),
 	}
 
@@ -131,7 +131,7 @@ func TestStoreLoadFailsWhenEncryptedSecretsRequireKey(t *testing.T) {
 		t.Fatalf("Save: %v", err)
 	}
 
-	reader := NewProjectStore(writer.Root)
+	reader := NewUserStore(writer.HomeDir)
 	_, err := reader.Load()
 	if !errors.Is(err, ErrMissingKey) {
 		t.Fatalf("Load error = %v, want ErrMissingKey", err)
@@ -210,7 +210,7 @@ func TestStoreLoadEncryptedRejectsWrongKeyAndTampering(t *testing.T) {
 		t.Fatalf("Save: %v", err)
 	}
 
-	wrongKeyStore := NewProjectStore(store.Root)
+	wrongKeyStore := NewUserStore(store.HomeDir)
 	wrongKeyStore.KeyProvider = staticKeyProvider("different-passphrase")
 	_, err := wrongKeyStore.LoadEncrypted()
 	if err == nil || !errors.Is(err, ErrDecryptFailed) || !strings.Contains(err.Error(), "decrypt secrets") {
@@ -755,7 +755,7 @@ func TestDecryptPayloadRejectsInvalidKeyLength(t *testing.T) {
 
 func TestStoreDepsAppliesDefaultsForPartialInjection(t *testing.T) {
 	store := &Store{
-		Root: t.TempDir(),
+		HomeDir: t.TempDir(),
 		deps: storeDeps{
 			readFile: func(path string) ([]byte, error) { return []byte("fixture"), nil },
 		},
@@ -850,7 +850,7 @@ func TestStoreSaveKeyDoesNotBreakLiveStaleAgedLock(t *testing.T) {
 func newTestStore(t *testing.T) *Store {
 	t.Helper()
 	root := t.TempDir()
-	store := NewProjectStore(root)
+	store := NewUserStore(root)
 	store.KeyProvider = staticKeyProvider("test-passphrase")
 	return store
 }

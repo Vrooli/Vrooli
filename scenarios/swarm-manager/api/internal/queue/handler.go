@@ -1,6 +1,6 @@
 // Package queue provides a filesystem-backed queue for local operations.
 //
-// Queue items are stored at scenarios/swarm-manager/.vrooli/queue.json by default.
+// Queue items are stored in scenario runtime state via api-core/storage by default.
 //
 // DOC: docs/concepts/ARCHITECTURE.md#api-boundaries
 // DOC: docs/internal/SEAMS.md
@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -20,7 +19,7 @@ import (
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/idgen"
-	"swarm-manager/internal/pathutil"
+	"swarm-manager/internal/runtimepaths"
 	"swarm-manager/internal/storage"
 )
 
@@ -56,7 +55,9 @@ type Store struct {
 // NewStore creates a queue store. If path is empty, uses the scenario default.
 func NewStore(path string) *Store {
 	if strings.TrimSpace(path) == "" {
-		path = filepath.Join(pathutil.ResolveScenarioRoot("swarm-manager"), ".vrooli", "queue.json")
+		if resolved, err := runtimepaths.StatePath("queue.json"); err == nil {
+			path = resolved
+		}
 	}
 	return &Store{path: path}
 }

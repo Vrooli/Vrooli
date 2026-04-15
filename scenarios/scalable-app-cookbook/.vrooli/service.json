@@ -137,11 +137,6 @@
           "description": "Initialize database with architectural patterns"
         },
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o scalable-app-cookbook-api .",
           "description": "Build Go API binary"
@@ -235,6 +230,36 @@
           "mistral"
         ]
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "scalable-app-cookbook",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/scalable-app-cookbook",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "scalable-app-cookbook"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/scalable-app-cookbook",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

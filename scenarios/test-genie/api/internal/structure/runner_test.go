@@ -81,7 +81,7 @@ func TestRunner_AllValidatorsPass(t *testing.T) {
 		},
 		&mockCLIValidator{
 			result: existence.CLIResult{
-				Approach: existence.CLIApproachCrossPlatform,
+				Approach: existence.CLIApproachGoModule,
 				Result:   types.OK().WithObservations(types.NewSuccessObservation("CLI valid")),
 			},
 		},
@@ -168,8 +168,8 @@ func TestRunner_CLIValidationFails(t *testing.T) {
 			result: existence.CLIResult{
 				Approach: existence.CLIApproachUnknown,
 				Result: types.FailMisconfiguration(
-					errors.New("CLI structure incomplete"),
-					"Create cli/main.go and cli/go.mod",
+					errors.New("CLI manifest contract incomplete"),
+					"Add the top-level cli block to .vrooli/service.json",
 				),
 			},
 		},
@@ -192,7 +192,7 @@ func TestRunner_ManifestValidationFails(t *testing.T) {
 		},
 		&mockCLIValidator{
 			result: existence.CLIResult{
-				Approach: existence.CLIApproachCrossPlatform,
+				Approach: existence.CLIApproachGoModule,
 				Result:   types.OK(),
 			},
 		},
@@ -220,7 +220,7 @@ func TestRunner_JSONValidationFails(t *testing.T) {
 		},
 		&mockCLIValidator{
 			result: existence.CLIResult{
-				Approach: existence.CLIApproachCrossPlatform,
+				Approach: existence.CLIApproachGoModule,
 				Result:   types.OK(),
 			},
 		},
@@ -257,7 +257,7 @@ func TestRunner_SchemaValidationDisabled(t *testing.T) {
 		}),
 		WithCLIValidator(&mockCLIValidator{
 			result: existence.CLIResult{
-				Approach: existence.CLIApproachCrossPlatform,
+				Approach: existence.CLIApproachGoModule,
 				Result:   types.OK(),
 			},
 		}),
@@ -361,7 +361,7 @@ func BenchmarkRunnerAllPass(b *testing.B) {
 		},
 		&mockCLIValidator{
 			result: existence.CLIResult{
-				Approach: existence.CLIApproachCrossPlatform,
+				Approach: existence.CLIApproachGoModule,
 				Result:   types.OK(),
 			},
 		},
@@ -390,7 +390,7 @@ func BenchmarkRunnerNoSchema(b *testing.B) {
 		}),
 		WithCLIValidator(&mockCLIValidator{
 			result: existence.CLIResult{
-				Approach: existence.CLIApproachCrossPlatform,
+				Approach: existence.CLIApproachGoModule,
 				Result:   types.OK(),
 			},
 		}),
@@ -566,7 +566,7 @@ func TestRunner_LoggingWithNilWriter(t *testing.T) {
 		},
 		&mockCLIValidator{
 			result: existence.CLIResult{
-				Approach: existence.CLIApproachCrossPlatform,
+				Approach: existence.CLIApproachGoModule,
 				Result:   types.OK(),
 			},
 		},
@@ -604,7 +604,7 @@ func TestRunner_WithAdditionalDirsAndFiles(t *testing.T) {
 		}),
 		WithCLIValidator(&mockCLIValidator{
 			result: existence.CLIResult{
-				Approach: existence.CLIApproachCrossPlatform,
+				Approach: existence.CLIApproachGoModule,
 				Result:   types.OK(),
 			},
 		}),
@@ -643,7 +643,7 @@ func TestRunner_WithExcludedDirsAndFiles(t *testing.T) {
 		}),
 		WithCLIValidator(&mockCLIValidator{
 			result: existence.CLIResult{
-				Approach: existence.CLIApproachCrossPlatform,
+				Approach: existence.CLIApproachGoModule,
 				Result:   types.OK(),
 			},
 		}),

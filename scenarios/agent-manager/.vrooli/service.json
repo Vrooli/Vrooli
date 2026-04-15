@@ -92,7 +92,9 @@
         "checks": [
           {
             "type": "binaries",
-            "targets": ["api/agent-manager-api"]
+            "targets": [
+              "api/agent-manager-api"
+            ]
           },
           {
             "type": "cli",
@@ -106,11 +108,6 @@
         ]
       },
       "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
         {
           "name": "build-api",
           "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o agent-manager-api .",
@@ -230,6 +227,41 @@
         "required": true,
         "description": "Provides sandbox creation, diff generation, and patch application for isolated agent execution"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "agent-manager",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "agent-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

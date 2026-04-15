@@ -1,31 +1,33 @@
 package existence
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
-// CLIApproach represents the type of CLI implementation used by a scenario.
+// CLIApproach represents the manifest-declared CLI adapter used by a scenario.
 type CLIApproach int
 
 const (
-	// CLIApproachUnknown indicates the CLI approach could not be determined.
+	// CLIApproachUnknown indicates the CLI contract could not be determined.
 	CLIApproachUnknown CLIApproach = iota
-	// CLIApproachLegacy indicates a bash script CLI (cli/<name> is a shell script).
-	CLIApproachLegacy
-	// CLIApproachCrossPlatform indicates a Go-based cross-platform CLI.
-	CLIApproachCrossPlatform
+	// CLIApproachGoModule indicates a Go module adapter.
+	CLIApproachGoModule
+	// CLIApproachShellScript indicates a shell script adapter.
+	CLIApproachShellScript
 )
 
 // String returns a human-readable name for the CLI approach.
 func (a CLIApproach) String() string {
 	switch a {
-	case CLIApproachLegacy:
-		return "legacy"
-	case CLIApproachCrossPlatform:
-		return "cross-platform"
+	case CLIApproachGoModule:
+		return "go_module"
+	case CLIApproachShellScript:
+		return "shell_script"
 	default:
 		return "unknown"
 	}
@@ -53,6 +55,44 @@ type cliValidator struct {
 	logWriter    io.Writer
 }
 
+type serviceManifest struct {
+	Service struct {
+		Name string `json:"name"`
+	} `json:"service"`
+	CLI *serviceCLIConfig `json:"cli"`
+}
+
+type serviceCLIConfig struct {
+	Enabled   bool                 `json:"enabled"`
+	Command   string               `json:"command"`
+	Adapter   serviceCLIAdapter    `json:"adapter"`
+	Install   []serviceCLIInstall  `json:"install"`
+	Invoke    serviceCLIInvoke     `json:"invoke"`
+	Freshness *serviceCLIFreshness `json:"freshness,omitempty"`
+}
+
+type serviceCLIAdapter struct {
+	Kind          string `json:"kind"`
+	ModuleDir     string `json:"module_dir"`
+	ScriptPath    string `json:"script_path"`
+	InstallScript string `json:"install_script"`
+}
+
+type serviceCLIInstall struct {
+	OS   []string `json:"os"`
+	Kind string   `json:"kind"`
+	Run  string   `json:"run"`
+}
+
+type serviceCLIInvoke struct {
+	Kind    string `json:"kind"`
+	Command string `json:"command"`
+}
+
+type serviceCLIFreshness struct {
+	Inputs []string `json:"inputs"`
+}
+
 // NewCLIValidator creates a new CLI validator.
 func NewCLIValidator(scenarioDir, scenarioName string, logWriter io.Writer) CLIValidator {
 	return &cliValidator{
@@ -67,208 +107,238 @@ func (v *cliValidator) Validate() CLIResult {
 	return ValidateCLI(v.scenarioDir, v.scenarioName, v.logWriter)
 }
 
-// ValidateCLI validates the CLI directory structure based on the detected approach.
+// ValidateCLI validates the CLI directory structure based on the declared manifest adapter.
 func ValidateCLI(scenarioDir, scenarioName string, logWriter io.Writer) CLIResult {
-	cliDir := filepath.Join(scenarioDir, "cli")
-
-	// First verify cli/ directory exists
-	if err := ensureDir(cliDir); err != nil {
+	manifest, err := LoadServiceManifest(scenarioDir)
+	if err != nil {
 		return CLIResult{
 			Approach: CLIApproachUnknown,
 			Result: FailMisconfiguration(
-				fmt.Errorf("cli directory missing"),
-				"Create the 'cli' directory to match the scenario template.",
+				err,
+				"Add a valid .vrooli/service.json with a top-level cli contract.",
 			),
 		}
 	}
 
-	approach := DetectCLIApproach(scenarioDir, scenarioName)
-	logStep(logWriter, "Detected CLI approach: %s", approach)
+	if strings.TrimSpace(manifest.Service.Name) == "" {
+		manifest.Service.Name = scenarioName
+	}
+
+	approach := DetectCLIApproach(manifest)
+	logStep(logWriter, "Detected CLI approach from manifest: %s", approach)
 
 	switch approach {
-	case CLIApproachCrossPlatform:
-		return validateCrossPlatformCLI(scenarioDir, scenarioName, logWriter)
-	case CLIApproachLegacy:
-		return validateLegacyCLI(scenarioDir, scenarioName, logWriter)
+	case CLIApproachGoModule:
+		return validateGoModuleCLI(scenarioDir, manifest, logWriter)
+	case CLIApproachShellScript:
+		return validateShellScriptCLI(scenarioDir, manifest, logWriter)
 	default:
-		return validateUnknownCLI(scenarioDir, scenarioName, logWriter)
+		return validateUnknownCLI(manifest)
 	}
 }
 
-// DetectCLIApproach determines whether a scenario uses the legacy bash CLI
-// or the newer cross-platform Go CLI based on file presence.
-//
-// Cross-platform detection: cli/main.go + cli/go.mod exist
-// Legacy detection: cli/<scenario-name> exists and is not a compiled binary
-func DetectCLIApproach(scenarioDir, scenarioName string) CLIApproach {
-	cliDir := filepath.Join(scenarioDir, "cli")
-
-	// Check for cross-platform indicators: Go module with main.go
-	mainGo := filepath.Join(cliDir, "main.go")
-	goMod := filepath.Join(cliDir, "go.mod")
-
-	if FileExists(mainGo) && FileExists(goMod) {
-		return CLIApproachCrossPlatform
-	}
-
-	// Check for legacy indicator: cli/<scenario-name> bash script
-	cliScript := filepath.Join(cliDir, scenarioName)
-	if FileExists(cliScript) {
-		// Verify it's a text file (bash script), not a compiled binary
-		if isTextFile(cliScript) {
-			return CLIApproachLegacy
-		}
-		// If it's a binary, this is likely a cross-platform CLI that was built locally
-		// Check if Go sources also exist
-		if FileExists(mainGo) {
-			return CLIApproachCrossPlatform
-		}
-	}
-
-	return CLIApproachUnknown
+// LoadServiceManifest reads the scenario service manifest for CLI inspection.
+func LoadServiceManifest(scenarioDir string) (serviceManifest, error) {
+	return loadServiceManifest(scenarioDir)
 }
 
-// validateCrossPlatformCLI validates a Go-based cross-platform CLI structure.
-func validateCrossPlatformCLI(scenarioDir, scenarioName string, logWriter io.Writer) CLIResult {
-	cliDir := filepath.Join(scenarioDir, "cli")
-	var observations []Observation
+// DetectCLIApproach determines the CLI adapter from service.json.
+func DetectCLIApproach(manifest serviceManifest) CLIApproach {
+	if manifest.CLI == nil || !manifest.CLI.Enabled {
+		return CLIApproachUnknown
+	}
+	switch strings.TrimSpace(manifest.CLI.Adapter.Kind) {
+	case "go_module":
+		return CLIApproachGoModule
+	case "shell_script":
+		return CLIApproachShellScript
+	default:
+		return CLIApproachUnknown
+	}
+}
 
-	requiredFiles := []string{
-		"main.go",
-		"go.mod",
-		"install.sh",
+func validateGoModuleCLI(scenarioDir string, manifest serviceManifest, logWriter io.Writer) CLIResult {
+	if result := validateCommonCLIContract(manifest); !result.Success {
+		return CLIResult{Approach: CLIApproachGoModule, Result: result}
 	}
 
+	moduleDir := filepath.Join(scenarioDir, filepath.FromSlash(manifest.CLI.Adapter.ModuleDir))
+	if err := ensureDir(moduleDir); err != nil {
+		return CLIResult{
+			Approach: CLIApproachGoModule,
+			Result: FailMisconfiguration(
+				fmt.Errorf("missing CLI module directory %q", manifest.CLI.Adapter.ModuleDir),
+				fmt.Sprintf("Create %s and keep it in sync with cli.adapter.module_dir.", manifest.CLI.Adapter.ModuleDir),
+			),
+		}
+	}
+
+	requiredFiles := []string{"go.mod"}
 	for _, file := range requiredFiles {
-		path := filepath.Join(cliDir, file)
+		path := filepath.Join(moduleDir, file)
 		if err := ensureFile(path); err != nil {
-			logError(logWriter, "Missing cross-platform CLI file: cli/%s", file)
 			return CLIResult{
-				Approach: CLIApproachCrossPlatform,
+				Approach: CLIApproachGoModule,
 				Result: FailMisconfiguration(
-					fmt.Errorf("missing cli/%s", file),
-					fmt.Sprintf("Create cli/%s for the cross-platform Go CLI. See packages/cli-core/README.md for guidance.", file),
+					fmt.Errorf("missing %s/%s", manifest.CLI.Adapter.ModuleDir, file),
+					fmt.Sprintf("Create %s/%s for the go_module CLI adapter.", manifest.CLI.Adapter.ModuleDir, file),
 				),
 			}
 		}
-		logStep(logWriter, "  ✓ cli/%s", file)
+		logStep(logWriter, "  ✓ %s/%s", manifest.CLI.Adapter.ModuleDir, file)
 	}
 
-	// Optional but recommended: install.ps1 for Windows support
-	installPs1 := filepath.Join(cliDir, "install.ps1")
-	if FileExists(installPs1) {
-		logStep(logWriter, "  ✓ cli/install.ps1 (Windows support)")
-		observations = append(observations, NewSuccessObservation("Cross-platform CLI with Windows support"))
-	} else {
-		logStep(logWriter, "  ⚠ cli/install.ps1 missing (no Windows support)")
-		observations = append(observations, NewInfoObservation("Cross-platform CLI detected (add install.ps1 for Windows support)"))
+	if !dirContainsGoSource(moduleDir) {
+		return CLIResult{
+			Approach: CLIApproachGoModule,
+			Result: FailMisconfiguration(
+				fmt.Errorf("no Go source files found in %s", manifest.CLI.Adapter.ModuleDir),
+				fmt.Sprintf("Add Go source files under %s so the CLI installer has an entrypoint to build.", manifest.CLI.Adapter.ModuleDir),
+			),
+		}
 	}
 
-	observations = append(observations, NewSuccessObservation("Go cross-platform CLI structure valid"))
-
+	observations := []Observation{
+		NewSuccessObservation("CLI manifest contract valid"),
+		NewSuccessObservation("Go module CLI structure valid"),
+	}
 	return CLIResult{
-		Approach: CLIApproachCrossPlatform,
+		Approach: CLIApproachGoModule,
 		Result:   OK().WithObservations(observations...),
 	}
 }
 
-// validateLegacyCLI validates a legacy bash script CLI structure.
-func validateLegacyCLI(scenarioDir, scenarioName string, logWriter io.Writer) CLIResult {
-	cliDir := filepath.Join(scenarioDir, "cli")
-	var observations []Observation
-
-	// Legacy CLI requires the bash script and install.sh
-	requiredFiles := []string{
-		scenarioName,
-		"install.sh",
+func validateShellScriptCLI(scenarioDir string, manifest serviceManifest, logWriter io.Writer) CLIResult {
+	if result := validateCommonCLIContract(manifest); !result.Success {
+		return CLIResult{Approach: CLIApproachShellScript, Result: result}
 	}
 
-	for _, file := range requiredFiles {
-		path := filepath.Join(cliDir, file)
+	requiredPaths := []string{
+		manifest.CLI.Adapter.ScriptPath,
+		manifest.CLI.Adapter.InstallScript,
+	}
+	for _, rel := range requiredPaths {
+		path := filepath.Join(scenarioDir, filepath.FromSlash(rel))
 		if err := ensureFile(path); err != nil {
-			logError(logWriter, "Missing legacy CLI file: cli/%s", file)
 			return CLIResult{
-				Approach: CLIApproachLegacy,
+				Approach: CLIApproachShellScript,
 				Result: FailMisconfiguration(
-					fmt.Errorf("missing cli/%s", file),
-					fmt.Sprintf("Create cli/%s for the legacy bash CLI.", file),
+					fmt.Errorf("missing %s", rel),
+					fmt.Sprintf("Create %s for the shell_script CLI adapter.", rel),
 				),
 			}
 		}
-		logStep(logWriter, "  ✓ cli/%s", file)
+		logStep(logWriter, "  ✓ %s", rel)
 	}
 
-	// Verify the CLI script is executable
-	cliScript := filepath.Join(cliDir, scenarioName)
-	info, err := os.Stat(cliScript)
-	if err == nil && info.Mode()&0111 == 0 {
-		logWarn(logWriter, "cli/%s is not executable", scenarioName)
-		observations = append(observations, NewWarningObservation(fmt.Sprintf("cli/%s should be executable (chmod +x)", scenarioName)))
+	var observations []Observation
+	scriptPath := filepath.Join(scenarioDir, filepath.FromSlash(manifest.CLI.Adapter.ScriptPath))
+	info, err := os.Stat(scriptPath)
+	if err == nil && info.Mode()&0o111 == 0 {
+		observations = append(observations, NewWarningObservation(fmt.Sprintf("%s should be executable (chmod +x)", manifest.CLI.Adapter.ScriptPath)))
 	}
 
-	observations = append(observations, NewSuccessObservation("Legacy bash CLI structure valid"))
-	observations = append(observations, NewInfoObservation("Legacy bash CLI detected. Cross-platform Go CLI available - see docs/phases/structure/cli-approaches.md"))
-
+	observations = append(observations,
+		NewSuccessObservation("CLI manifest contract valid"),
+		NewSuccessObservation("Shell script CLI structure valid"),
+	)
 	return CLIResult{
-		Approach: CLIApproachLegacy,
+		Approach: CLIApproachShellScript,
 		Result:   OK().WithObservations(observations...),
 	}
 }
 
-// validateUnknownCLI handles cases where the CLI approach cannot be determined.
-func validateUnknownCLI(scenarioDir, scenarioName string, logWriter io.Writer) CLIResult {
-	cliDir := filepath.Join(scenarioDir, "cli")
-
-	// Check what files exist to provide helpful guidance
-	hasMainGo := FileExists(filepath.Join(cliDir, "main.go"))
-	hasGoMod := FileExists(filepath.Join(cliDir, "go.mod"))
-	hasScript := FileExists(filepath.Join(cliDir, scenarioName))
-	hasInstallSh := FileExists(filepath.Join(cliDir, "install.sh"))
-
-	var remediation string
-	switch {
-	case hasMainGo && !hasGoMod:
-		remediation = "cli/main.go exists but cli/go.mod is missing. Run 'go mod init' in cli/ or see packages/cli-core/README.md."
-	case hasGoMod && !hasMainGo:
-		remediation = "cli/go.mod exists but cli/main.go is missing. Create main.go or see packages/cli-core/README.md."
-	case !hasInstallSh:
-		remediation = "cli/install.sh is required. Create it to enable CLI installation."
-	case !hasScript && !hasMainGo:
-		remediation = fmt.Sprintf("No CLI implementation found. Create either cli/%s (bash script) or cli/main.go + cli/go.mod (Go CLI).", scenarioName)
-	default:
-		remediation = "CLI structure is incomplete. See docs/phases/structure/cli-approaches.md for valid patterns."
+func validateUnknownCLI(manifest serviceManifest) CLIResult {
+	remediation := "Define service.json cli.enabled=true, set cli.command, declare a supported cli.adapter.kind, and configure cli.invoke."
+	if manifest.CLI == nil {
+		remediation = "Add a top-level cli block to .vrooli/service.json so the scenario declares how its CLI is installed and invoked."
+	} else if !manifest.CLI.Enabled {
+		remediation = "Set cli.enabled=true for scenarios that ship a CLI, or update structure expectations if this scenario intentionally has no CLI."
+	} else if strings.TrimSpace(manifest.CLI.Adapter.Kind) == "" {
+		remediation = "Set cli.adapter.kind to one of: go_module, shell_script."
 	}
 
-	logError(logWriter, "Could not determine CLI approach")
 	return CLIResult{
 		Approach: CLIApproachUnknown,
 		Result: FailMisconfiguration(
-			fmt.Errorf("CLI structure incomplete or unrecognized"),
+			fmt.Errorf("CLI manifest contract incomplete or unsupported"),
 			remediation,
 		),
 	}
 }
 
-// isTextFile performs a simple heuristic check to determine if a file is text (not binary).
-// It reads the first 512 bytes and checks for null bytes.
-func isTextFile(path string) bool {
-	f, err := os.Open(path)
-	if err != nil {
-		return false
+func validateCommonCLIContract(manifest serviceManifest) Result {
+	if manifest.CLI == nil {
+		return FailMisconfiguration(
+			fmt.Errorf("missing cli manifest"),
+			"Add a top-level cli block to .vrooli/service.json.",
+		)
 	}
-	defer f.Close()
-
-	buf := make([]byte, 512)
-	n, err := f.Read(buf)
-	if err != nil {
-		return false
+	if !manifest.CLI.Enabled {
+		return FailMisconfiguration(
+			fmt.Errorf("cli.enabled is false"),
+			"Set cli.enabled=true for scenarios that declare a CLI.",
+		)
 	}
-
-	// Check for null bytes which indicate binary content
-	for i := 0; i < n; i++ {
-		if buf[i] == 0 {
-			return false
+	if strings.TrimSpace(manifest.CLI.Command) == "" {
+		return FailMisconfiguration(
+			fmt.Errorf("cli.command is required"),
+			"Set cli.command to the installed executable name.",
+		)
+	}
+	if strings.TrimSpace(manifest.CLI.Invoke.Kind) != "installed_command" {
+		return FailMisconfiguration(
+			fmt.Errorf("cli.invoke.kind must be installed_command"),
+			"Set cli.invoke.kind to 'installed_command' so runtime resolution matches the manifest.",
+		)
+	}
+	if strings.TrimSpace(manifest.CLI.Invoke.Command) != strings.TrimSpace(manifest.CLI.Command) {
+		return FailMisconfiguration(
+			fmt.Errorf("cli.invoke.command must match cli.command"),
+			"Set cli.invoke.command to the same value as cli.command.",
+		)
+	}
+	if len(manifest.CLI.Install) == 0 {
+		return FailMisconfiguration(
+			fmt.Errorf("cli.install is required"),
+			"Declare at least one cli.install command strategy in .vrooli/service.json.",
+		)
+	}
+	for _, step := range manifest.CLI.Install {
+		if strings.TrimSpace(step.Kind) != "command" || strings.TrimSpace(step.Run) == "" {
+			return FailMisconfiguration(
+				fmt.Errorf("cli.install entries must declare kind=command and a run string"),
+				"Define each cli.install entry with kind 'command' and a concrete run command.",
+			)
 		}
 	}
-	return true
+	return OK()
+}
+
+func loadServiceManifest(scenarioDir string) (serviceManifest, error) {
+	servicePath := filepath.Join(scenarioDir, ".vrooli", "service.json")
+	data, err := os.ReadFile(servicePath)
+	if err != nil {
+		return serviceManifest{}, fmt.Errorf("read %s: %w", servicePath, err)
+	}
+	var manifest serviceManifest
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return serviceManifest{}, fmt.Errorf("parse %s: %w", servicePath, err)
+	}
+	return manifest, nil
+}
+
+func dirContainsGoSource(root string) bool {
+	found := false
+	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		if strings.HasSuffix(d.Name(), ".go") {
+			found = true
+			return io.EOF
+		}
+		return nil
+	})
+	return found
 }

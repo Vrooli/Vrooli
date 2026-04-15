@@ -8,15 +8,14 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
 	apisecrets "github.com/vrooli/api-core/secrets"
+	repocontract "github.com/vrooli/repo-contract-go"
 
-	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
 )
@@ -249,35 +248,20 @@ func HandleDeleteLocalSecret() http.HandlerFunc {
 }
 
 func resolveLocalSecretsPath(scope, scenarioID string) (string, error) {
-	repoRoot, err := bundle.FindRepoRootFromCWD()
+	userStore, err := apisecrets.NewUserStore(apisecrets.Config{})
 	if err != nil {
-		projectStore, projectErr := apisecrets.NewProjectStoreFromEnvOrCWD(apisecrets.Config{})
-		if projectErr != nil {
-			return "", fmt.Errorf("repo root not found: %w", err)
-		}
-		repoRoot = projectStore.RepoRoot()
+		return "", fmt.Errorf("resolve local secrets root: %w", err)
 	}
-	projectStore, err := apisecrets.NewProjectStore(apisecrets.Config{RepoRoot: repoRoot})
-	if err != nil {
-		return "", fmt.Errorf("repo root not found: %w", err)
-	}
-	repoRoot = projectStore.RepoRoot()
 
 	switch scope {
 	case localSecretsScopeWorkspace:
-		return projectStore.PlaintextPath(), nil
+		return userStore.PlaintextPath(), nil
 	case localSecretsScopeScenario:
-		if strings.TrimSpace(scenarioID) == "" {
-			return "", fmt.Errorf("scenario_id is required for scope=%q", localSecretsScopeScenario)
-		}
-		if strings.Contains(scenarioID, "..") || strings.ContainsAny(scenarioID, `/\`) {
-			return "", fmt.Errorf("invalid scenario_id %q", scenarioID)
-		}
-		scenarioPath, err := bundle.ResolveScenarioPath(repoRoot, scenarioID)
+		path, err := repocontract.UserScenarioPlaintextSecretsPath(userStore.HomeDir(), scenarioID)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("resolve scenario secrets path: %w", err)
 		}
-		return filepath.Join(scenarioPath, ".vrooli", "secrets.json"), nil
+		return path, nil
 	default:
 		return "", fmt.Errorf("unknown scope %q (valid scopes: %s, %s)", scope, localSecretsScopeWorkspace, localSecretsScopeScenario)
 	}

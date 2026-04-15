@@ -121,11 +121,6 @@
       },
       "steps": [
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o bookmark-intelligence-hub-api .",
           "description": "Build Go API binary"
@@ -244,6 +239,36 @@
           "nomic-embed-text"
         ]
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "bookmark-intelligence-hub",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/bookmark-intelligence-hub",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "bookmark-intelligence-hub"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/bookmark-intelligence-hub",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

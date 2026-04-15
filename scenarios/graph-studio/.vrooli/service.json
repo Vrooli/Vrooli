@@ -124,11 +124,6 @@
       },
       "steps": [
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o graph-studio-api .",
           "description": "Build Go API binary"
@@ -254,6 +249,36 @@
         "purpose": "Vector search for semantic graph similarity",
         "fallback": "Keyword-based search only"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "graph-studio",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/graph-studio",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "graph-studio"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/graph-studio",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

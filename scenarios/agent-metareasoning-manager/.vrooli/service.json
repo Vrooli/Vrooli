@@ -122,11 +122,6 @@
           "description": "Add app data to resources"
         },
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o agent-metareasoning-manager-api .",
           "description": "Build Go coordination API binary"
@@ -242,5 +237,35 @@
       }
     },
     "scenarios": {}
+  },
+  "cli": {
+    "enabled": true,
+    "command": "agent-metareasoning-manager",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/agent-metareasoning-manager",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "agent-metareasoning-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/agent-metareasoning-manager",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
+    }
   }
 }

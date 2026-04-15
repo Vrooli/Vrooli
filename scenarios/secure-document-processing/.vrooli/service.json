@@ -133,11 +133,6 @@
           "description": "Add app data to resources"
         },
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o secure-document-processing-api .",
           "description": "Build Go coordination API binary"
@@ -268,6 +263,36 @@
         "required": true,
         "purpose": "Encryption key management, access control, and audit trail for document security"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "secure-document-processing",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/secure-document-processing",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "secure-document-processing"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/secure-document-processing",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

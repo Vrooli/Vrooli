@@ -146,11 +146,6 @@
           "description": "Initialize auth data in resources"
         },
         {
-          "name": "install-cli",
-          "run": "chmod +x cli/scenario-authenticator && ln -sf $(pwd)/cli/scenario-authenticator ~/.local/bin/scenario-authenticator 2>/dev/null || true",
-          "description": "Install authentication CLI globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o scenario-authenticator-api .",
           "description": "Build authentication API server"
@@ -268,6 +263,36 @@
           }
         ]
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "scenario-authenticator",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/scenario-authenticator",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "scenario-authenticator"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/scenario-authenticator",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

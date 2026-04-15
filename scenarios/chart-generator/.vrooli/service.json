@@ -127,11 +127,6 @@
           "description": "Build Go chart generation API binary"
         },
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install chart-generator CLI command globally"
-        },
-        {
           "name": "install-ui-deps",
           "run": "cd ui && pnpm install --ignore-workspace",
           "description": "Install UI dependencies",
@@ -246,6 +241,36 @@
         "required": false,
         "purpose": "Optional PNG rendering via the shared browserless screenshot compatibility path"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "chart-generator",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/chart-generator",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "chart-generator"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/chart-generator",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

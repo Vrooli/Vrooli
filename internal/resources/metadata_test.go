@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/secrets"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
@@ -79,7 +80,7 @@ func TestLoadResourceEnvironmentUsesTypedDefaultsAndSecrets(t *testing.T) {
 		},
 	})
 	t.Setenv(secrets.KeyEnvVar, "metadata-test-secret-key")
-	store := secrets.NewProjectStore(root)
+	store := secrets.NewUserStore(home)
 	if err := store.Save(map[string]string{
 		"POSTGRES_PASSWORD": "secret",
 		"POSTGRES_USER":     "vrooli",
@@ -131,7 +132,7 @@ func TestLoadResourceEnvironmentUsesEncryptedSecrets(t *testing.T) {
 	writePostgresManifestFixture(t, root)
 
 	t.Setenv(secrets.KeyEnvVar, "resource-secret-key")
-	store := secrets.NewProjectStore(root)
+	store := secrets.NewUserStore(home)
 	if err := store.Save(map[string]string{
 		"POSTGRES_PASSWORD": "encrypted-secret",
 		"POSTGRES_USER":     "vrooli",
@@ -184,7 +185,7 @@ func TestLoadResourceEnvironmentPrefersSecretsOverRuntimePlaceholders(t *testing
 	})
 
 	t.Setenv(secrets.KeyEnvVar, "metadata-prefers-encrypted")
-	store := secrets.NewProjectStore(root)
+	store := secrets.NewUserStore(home)
 	if err := store.Save(map[string]string{
 		"POSTGRES_PASSWORD": "real-secret",
 	}); err != nil {
@@ -595,7 +596,7 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 		},
 	})
 	t.Setenv(secrets.KeyEnvVar, "native-non-docker-encrypted")
-	store := secrets.NewProjectStore(root)
+	store := secrets.NewUserStore(home)
 	if err := store.Save(map[string]string{
 		"OPENROUTER_API_KEY":   "sk-or-test",
 		"HOME_ASSISTANT_TOKEN": "ha-token",
@@ -704,7 +705,7 @@ func TestLoadResourceEnvironmentFailsWhenEncryptedSecretsRequireKey(t *testing.T
 	}, 0o600)
 
 	t.Setenv(secrets.KeyEnvVar, "writer-secret-key")
-	store := secrets.NewProjectStore(root)
+	store := secrets.NewUserStore(home)
 	if err := store.Save(map[string]string{
 		"POSTGRES_PASSWORD": "encrypted-secret",
 		"POSTGRES_USER":     "vrooli",
@@ -728,9 +729,13 @@ func TestLoadResourceEnvironmentFailsClosedWhenEncryptedSecretsAreInvalid(t *tes
 		ReservedRanges: map[string]string{},
 	})
 	writePostgresManifestFixture(t, root)
-	testkitgo.WriteRawJSON(t, filepath.Join(root, ".vrooli", "secrets.enc.json"), `{`, 0o600)
+	encryptedPath, err := repocontract.UserEncryptedSecretsPath(home)
+	if err != nil {
+		t.Fatalf("UserEncryptedSecretsPath: %v", err)
+	}
+	testkitgo.WriteRawJSON(t, encryptedPath, `{`, 0o600)
 
-	_, err := LoadResourceEnvironment(root, home, "postgres")
+	_, err = LoadResourceEnvironment(root, home, "postgres")
 	if err == nil {
 		t.Fatal("expected invalid encrypted secrets to fail closed")
 	}
@@ -880,10 +885,14 @@ func writePostgresManifestFixture(t *testing.T, root string) {
 func skipIfRepoSecretsRequireMigrationOrKey(t *testing.T, root string) {
 	t.Helper()
 
-	store := secrets.NewProjectStore(root)
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skipf("resolve home dir: %v", err)
+	}
+	store := secrets.NewUserStore(home)
 	if _, err := os.Stat(store.EncryptedPath()); err == nil {
 		if strings.TrimSpace(os.Getenv(secrets.KeyEnvVar)) == "" {
-			t.Skipf("repo secrets at %s are encrypted but %s is unset", store.EncryptedPath(), secrets.KeyEnvVar)
+			t.Skipf("user secrets at %s are encrypted but %s is unset", store.EncryptedPath(), secrets.KeyEnvVar)
 		}
 	}
 }

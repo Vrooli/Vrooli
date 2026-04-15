@@ -4,8 +4,8 @@
   "service": {
     "parent": "vrooli",
     "name": "brand-manager",
-    "displayName": "Brand Manager – Full Branding Lifecycle for All Scenarios",
-    "description": "Manages the full branding lifecycle for all Vrooli scenarios — generating, storing, applying, and validating brand identity across UI, CLI, and API surfaces",
+    "displayName": "Brand Manager \u2013 Full Branding Lifecycle for All Scenarios",
+    "description": "Manages the full branding lifecycle for all Vrooli scenarios \u2014 generating, storing, applying, and validating brand identity across UI, CLI, and API surfaces",
     "version": "0.0.1",
     "type": "business-application",
     "category": "ai_tools",
@@ -83,7 +83,9 @@
         "checks": [
           {
             "type": "binaries",
-            "targets": ["api/brand-manager-api"]
+            "targets": [
+              "api/brand-manager-api"
+            ]
           },
           {
             "type": "cli",
@@ -101,11 +103,6 @@
           "name": "build-cli",
           "run": "cd cli && GOWORK=off go mod download && GOWORK=off go build -o brand-manager .",
           "description": "Build CLI binary"
-        },
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
         },
         {
           "name": "build-api",
@@ -226,5 +223,40 @@
   },
   "environment": {
     "BM_SQLITE_PATH": "${SCENARIO_DATA_DIR}/brand-manager.db"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "brand-manager",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "brand-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
   }
 }

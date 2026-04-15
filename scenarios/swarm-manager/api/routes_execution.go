@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
-	"path/filepath"
 	"time"
 
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/review"
+	"swarm-manager/internal/runtimepaths"
 	"swarm-manager/internal/scenarios"
 	"swarm-manager/internal/settings"
 )
@@ -19,10 +19,15 @@ func (s *Server) registerExecutionRoutes(scenarioRoot string) *execution.Service
 		archiver = scenarios.NewArchiver(s.scenariosHandler)
 	}
 
+	storePath, err := runtimepaths.StatePath("execution-runs.json")
+	if err != nil {
+		panic(err)
+	}
+
 	// Execution control endpoints
 	cfg := execution.ServiceConfig{
 		RootDir:                  scenarioRoot,
-		StorePath:                filepath.Join(scenarioRoot, ".vrooli", "execution-runs.json"),
+		StorePath:                storePath,
 		SelfScenarioName:         "swarm-manager",
 		PolicyProvider:           settings.NewPolicyAdapter(s.settingsStore),
 		GovernanceProvider:       settings.NewGovernanceAdapter(s.settingsStore),

@@ -688,7 +688,6 @@ func TestFixReactVite_InsertedStepValidJSON(t *testing.T) {
   "lifecycle": {
     "setup": {
       "steps": [
-        {"name": "install-cli", "run": "cd cli && ./install.sh"},
         {"name": "build-api", "run": "cd api && go build ."},
         {"name": "setup-db", "run": "scripts/setup-db.sh"},
         {"name": "seed-data", "run": "scripts/seed.sh"},

@@ -99,7 +99,7 @@ postgis::status::collect_data() {
     # Check for test results (skip in fast mode)
     local test_status="not_run"
     local test_timestamp=""
-    local test_results_file="${POSTGIS_DATA_DIR}/test_results.json"
+    local test_results_file="${POSTGIS_TEST_RESULTS_FILE}"
     
     if [[ "$fast_mode" == "false" && -f "$test_results_file" ]]; then
         # Read last test results

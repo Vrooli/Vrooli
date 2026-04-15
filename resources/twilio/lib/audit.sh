@@ -13,12 +13,12 @@ SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
 RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
 REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 TWILIO_DIR="${RESOURCE_DIR}"
-TWILIO_DATA_DIR="${TWILIO_DIR}/data"
-TWILIO_AUDIT_DIR="${TWILIO_DATA_DIR}/audit"
-TWILIO_AUDIT_FILE="${TWILIO_AUDIT_DIR}/audit_$(date +%Y%m).log"
 
 # Source required libraries
 source "${REPO_ROOT}/scripts/lib/utils/log.sh"
+source "${TWILIO_DIR}/lib/common.sh"
+
+TWILIO_AUDIT_FILE="${TWILIO_AUDIT_DIR}/audit_$(date +%Y%m).log"
 
 ################################################################################
 # Audit Directory Management

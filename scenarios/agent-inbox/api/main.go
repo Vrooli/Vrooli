@@ -27,6 +27,7 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 )
 
@@ -57,6 +58,18 @@ func sqliteDSN() (string, error) {
 		dataRoot = strings.TrimSpace(os.Getenv("VROOLI_DATA"))
 	}
 	if dataRoot == "" {
+		resolver, err := storage.NewResolver(storage.ResolverConfig{
+			AppID:   "vrooli",
+			Profile: storage.ProfileAuto,
+		})
+		if err == nil {
+			if path, resolveErr := resolver.Path(storage.Options{ScenarioID: "agent-inbox"}, storage.ClassData, "agent-inbox.db"); resolveErr == nil {
+				if migrateErr := migrateLegacySQLite("agent-inbox.db", path); migrateErr != nil {
+					return "", migrateErr
+				}
+				return sqliteFileDSN(path)
+			}
+		}
 		home, _ := os.UserHomeDir()
 		if home == "" {
 			home = "."
@@ -80,6 +93,32 @@ func sqliteFileDSN(path string) (string, error) {
 		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
 		path,
 	), nil
+}
+
+func migrateLegacySQLite(filename, dst string) error {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return nil
+	}
+	src := filepath.Join(home, ".vrooli", "data", "sqlite", "databases", filename)
+	if src == dst {
+		return nil
+	}
+	if _, err := os.Stat(src); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	if _, err := os.Stat(dst); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	return os.Rename(src, dst)
 }
 
 func main() {

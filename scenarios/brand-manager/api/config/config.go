@@ -12,6 +12,8 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+
+	"github.com/vrooli/api-core/storage"
 )
 
 // Config holds all tunable levers for the brand-manager service.
@@ -237,11 +239,17 @@ func (c Config) validated() Config {
 }
 
 func defaultDBPath() string {
-	return filepath.Join(os.Getenv("HOME"), ".vrooli", "brand-manager", "brand-manager.db")
+	if path, err := resolveStoragePath(storage.ClassData, "brand-manager.db"); err == nil {
+		return path
+	}
+	return legacyDBPath()
 }
 
 func defaultAssetPath() string {
-	return filepath.Join(os.Getenv("HOME"), ".vrooli", "brand-manager", "assets")
+	if path, err := resolveStoragePath(storage.ClassData, "assets"); err == nil {
+		return path
+	}
+	return legacyAssetPath()
 }
 
 func defaultScenariosDir() string {
@@ -273,4 +281,31 @@ func envFloat(key string, fallback float64) float64 {
 		return fallback
 	}
 	return f
+}
+
+func resolveStoragePath(class storage.Class, rel string) (string, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return "", err
+	}
+	return resolver.Path(storage.Options{ScenarioID: "brand-manager"}, class, rel)
+}
+
+func legacyDBPath() string {
+	home := os.Getenv("HOME")
+	if home == "" {
+		home = "."
+	}
+	return filepath.Join(home, ".vrooli", "brand-manager", "brand-manager.db")
+}
+
+func legacyAssetPath() string {
+	home := os.Getenv("HOME")
+	if home == "" {
+		home = "."
+	}
+	return filepath.Join(home, ".vrooli", "brand-manager", "assets")
 }

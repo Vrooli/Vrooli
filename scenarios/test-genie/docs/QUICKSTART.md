@@ -119,7 +119,7 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 - [UI Smoke Testing](phases/structure/ui-smoke.md) - Fast UI validation with Browserless
 - [Lighthouse Integration](phases/performance/lighthouse.md) - Performance and accessibility testing
 - [Performance Testing](phases/performance/performance-testing.md) - Build benchmarks and regression detection
-- [CLI Approaches](phases/structure/cli-approaches.md) - Legacy vs cross-platform CLI patterns
+- [CLI Manifest Contract](phases/structure/cli-approaches.md) - Manifest-driven scenario CLI adapter patterns
 - [Custom Presets](guides/custom-presets.md) - Create tailored test presets for CI/CD
 - [Dashboard Guide](guides/dashboard-guide.md) - Using the web dashboard UI
 - [Vault Testing](guides/vault-testing.md) - Multi-phase lifecycle validation

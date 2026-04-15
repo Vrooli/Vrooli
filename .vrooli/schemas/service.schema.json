@@ -116,6 +116,9 @@
       },
       "additionalProperties": false
     },
+    "cli": {
+      "$ref": "#/definitions/cliConfig"
+    },
     "ports": {
       "type": "object",
       "additionalProperties": {
@@ -295,6 +298,137 @@
     }
   ],
   "definitions": {
+    "cliConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "command": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$"
+        },
+        "adapter": {
+          "$ref": "#/definitions/cliAdapter"
+        },
+        "install": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/cliInstallStep"
+          }
+        },
+        "invoke": {
+          "$ref": "#/definitions/cliInvoke"
+        },
+        "freshness": {
+          "$ref": "#/definitions/cliFreshness"
+        }
+      },
+      "required": [
+        "enabled"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "command",
+              "adapter"
+            ]
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "cliAdapter": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "go_module",
+            "shell_script"
+          ]
+        },
+        "module_dir": {
+          "type": "string"
+        },
+        "script_path": {
+          "type": "string"
+        },
+        "install_script": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false
+    },
+    "cliInstallStep": {
+      "type": "object",
+      "properties": {
+        "os": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "command"
+          ]
+        },
+        "run": {
+          "type": "string"
+        },
+        "install_dir": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "run"
+      ],
+      "additionalProperties": false
+    },
+    "cliInvoke": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "installed_command"
+          ]
+        },
+        "command": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "cliFreshness": {
+      "type": "object",
+      "properties": {
+        "inputs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "metadata_file": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
     "hostRequirement": {
       "type": "object",
       "properties": {

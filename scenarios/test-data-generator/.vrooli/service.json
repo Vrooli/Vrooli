@@ -67,14 +67,6 @@
       },
       "steps": [
         {
-          "name": "install-cli",
-          "run": "bash cli/install.sh",
-          "description": "Install CLI command globally",
-          "condition": {
-            "file_exists": "cli/install.sh"
-          }
-        },
-        {
           "name": "install-api-deps",
           "run": "cd api && npm install",
           "description": "Install API dependencies"
@@ -207,5 +199,35 @@
       }
     }
   },
-  "$schema": "../../../.vrooli/schemas/service.schema.json"
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "cli": {
+    "enabled": true,
+    "command": "test-data-generator",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/test-data-generator",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "test-data-generator"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/test-data-generator",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
+    }
+  }
 }

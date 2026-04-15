@@ -7,46 +7,34 @@ import (
 	"path/filepath"
 
 	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/storage"
+	"swarm-manager/internal/runtimepaths"
 
 	"swarm-manager/internal/eventlog"
 	"swarm-manager/internal/stats"
 )
 
 // resolveEventDBPath returns the SQLite DSN for the event log database.
-func resolveEventDBPath() string {
+func resolveEventDBPath() (string, error) {
 	if p := os.Getenv("SWARM_MANAGER_SQLITE_PATH"); p != "" {
-		return "file:" + p + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=synchronous(NORMAL)"
+		return "file:" + p + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=synchronous(NORMAL)", nil
 	}
-	resolver, err := storage.NewResolver(storage.ResolverConfig{
-		AppID:   "vrooli",
-		Profile: storage.ProfileAuto,
-	})
+	dbPath, err := runtimepaths.DataPath("events.db")
 	if err != nil {
-		slog.Warn("storage resolver error, using fallback", "error", err)
-		home, _ := os.UserHomeDir()
-		p := filepath.Join(home, ".vrooli", "data", "swarm-manager", "events.db")
-		return "file:" + p + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=synchronous(NORMAL)"
-	}
-	dbPath, err := resolver.Path(
-		storage.Options{ScenarioID: "swarm-manager"},
-		storage.ClassData,
-		"events.db",
-	)
-	if err != nil {
-		slog.Warn("path resolution error, using fallback", "error", err)
-		home, _ := os.UserHomeDir()
-		dbPath = filepath.Join(home, ".vrooli", "data", "swarm-manager", "events.db")
+		return "", err
 	}
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
-		slog.Warn("mkdir error for event log", "error", err)
+		return "", err
 	}
-	return "file:" + dbPath + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=synchronous(NORMAL)"
+	return "file:" + dbPath + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=synchronous(NORMAL)", nil
 }
 
 // initEventLog initializes the event log database, emitter, and stats engine.
 func (s *Server) initEventLog() {
-	dsn := resolveEventDBPath()
+	dsn, err := resolveEventDBPath()
+	if err != nil {
+		slog.Warn("failed to resolve event database path", "error", err)
+		return
+	}
 	eventDB, err := database.Connect(context.Background(), database.Config{
 		Driver:       database.DriverSQLite,
 		DSN:          dsn,

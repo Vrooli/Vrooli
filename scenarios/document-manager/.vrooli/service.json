@@ -128,11 +128,6 @@
           "description": "Add application data to resources (database schema, collections, workflows)"
         },
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o document-manager-api .",
           "description": "Build Go coordination API binary"
@@ -284,6 +279,36 @@
         "startup_policy": "try_start",
         "purpose": "Advanced document parsing and content extraction"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "document-manager",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/document-manager",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "document-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/document-manager",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

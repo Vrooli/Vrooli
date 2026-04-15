@@ -280,7 +280,7 @@ func seedDefaultData(db *sql.DB) error {
 		return fmt.Errorf("failed to apply schema: %w", err)
 	}
 
-	// Seed admin user, using secrets from env vars or .vrooli/secrets.json (scenario-to-cloud Secrets Tab)
+	// Seed admin user, using secrets from env vars or ~/.vrooli/secrets.json (scenario-to-cloud Secrets Tab)
 	// Log secrets resolution source for debugging
 	if secretsFile := findSecretsFile(); secretsFile != "" {
 		logStructured("secrets_file_found", map[string]interface{}{

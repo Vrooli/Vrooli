@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/secrets"
 	"scenario-to-cloud/ssh"
@@ -125,10 +126,14 @@ func TestSecretsWriterPreservesExisting(t *testing.T) {
 	ctx := context.Background()
 
 	// Fake SSH runner that returns existing secrets
+	remoteSecretsPath, err := repocontract.UserPlaintextSecretsPath("/root")
+	if err != nil {
+		t.Fatalf("UserPlaintextSecretsPath: %v", err)
+	}
 	fakeSSH := &FakeSSHRunner{
 		Responses: map[string]ssh.Result{
 			// Return existing secrets.json with a password
-			"cat '/root/Vrooli/.vrooli/secrets.json' 2>/dev/null || echo '{}'": {
+			"cat '" + remoteSecretsPath + "' 2>/dev/null || echo '{}'": {
 				Stdout: `{
 					"_metadata": {"generated_by": "scenario-to-cloud"},
 					"POSTGRES_PASSWORD": "existing-password-keep-me"

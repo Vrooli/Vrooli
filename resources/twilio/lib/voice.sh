@@ -15,7 +15,7 @@ source "$TWILIO_LIB_DIR/audit.sh"
 source "${REPO_ROOT}/scripts/lib/utils/log.sh"
 
 # Voice call history file
-VOICE_HISTORY_FILE="${TWILIO_CONFIG_DIR}/voice_history.json"
+VOICE_HISTORY_FILE="${TWILIO_VOICE_HISTORY_FILE}"
 
 # Initialize voice history file if it doesn't exist
 if [[ ! -f "$VOICE_HISTORY_FILE" ]]; then

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
 )
@@ -20,7 +21,7 @@ type Metadata struct {
 	ScenarioID  string    `json:"scenario_id"`
 }
 
-// JSONPayload represents the structure of .vrooli/secrets.json.
+// JSONPayload represents the structure of ~/.vrooli/secrets.json.
 // This matches the format expected by secrets::resolve() in Vrooli core.
 type JSONPayload struct {
 	Metadata Metadata `json:"_metadata"`
@@ -77,9 +78,9 @@ func ReadFromVPS(
 	ctx context.Context,
 	sshRunner ssh.Runner,
 	cfg ssh.Config,
-	workdir string,
+	_ string,
 ) (map[string]string, error) {
-	secretsPath := shellutil.SafeRemoteJoin(workdir, ".vrooli", "secrets.json")
+	secretsPath := remoteUserSecretsPath()
 
 	// Try to read existing secrets file
 	cmd := fmt.Sprintf("cat %s 2>/dev/null || echo '{}'", shellutil.QuoteSingle(secretsPath))
@@ -98,7 +99,7 @@ func ReadFromVPS(
 }
 
 // WriteToVPS writes secrets.json to the VPS via SSH.
-// This creates .vrooli/secrets.json with generated credentials BEFORE resource startup.
+// This creates ~/.vrooli/secrets.json with generated credentials BEFORE resource startup.
 // IMPORTANT: Preserves existing secrets to avoid breaking database connections on redeploy.
 func WriteToVPS(
 	ctx context.Context,
@@ -161,8 +162,8 @@ func WriteToVPS(
 	}
 
 	// Paths on VPS
-	secretsDir := shellutil.SafeRemoteJoin(workdir, ".vrooli")
-	secretsPath := shellutil.SafeRemoteJoin(secretsDir, "secrets.json")
+	secretsDir := remoteVrooliDir()
+	secretsPath := remoteUserSecretsPath()
 
 	// Write secrets.json with proper permissions (600 = owner read/write only)
 	// Use printf with %s to avoid shell interpretation of special characters
@@ -184,6 +185,16 @@ func WriteToVPS(
 	}
 
 	return nil
+}
+
+func remoteVrooliDir() string {
+	dir, _ := repocontract.VrooliUserRoot("$HOME")
+	return shellutil.SafeRemoteJoin(dir)
+}
+
+func remoteUserSecretsPath() string {
+	path, _ := repocontract.UserPlaintextSecretsPath("$HOME")
+	return shellutil.SafeRemoteJoin(path)
 }
 
 // BuildJSON builds the secrets.json content without writing it.

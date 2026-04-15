@@ -2,12 +2,12 @@ package scenarios
 
 import (
 	"encoding/json"
-	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/vrooli/api-core/scenariocli"
 )
 
 // TestingCapabilities captures how to run tests for a scenario using Go-native or scenario-local entrypoints.
@@ -38,7 +38,7 @@ func DetectTestingCapabilities(scenarioDir string) TestingCapabilities {
 	appRoot := projectRootFromScenario(scenarioDir)
 	scenarioName := filepath.Base(scenarioDir)
 
-	if cmd := detectTestGenieCommand(); len(cmd) > 0 && appRoot != "" {
+	if cmd := detectTestGenieCommand(appRoot); len(cmd) > 0 && appRoot != "" {
 		caps.Genie = true
 		caps.Commands = append(caps.Commands, TestingCommand{
 			Type:        "genie",
@@ -162,7 +162,11 @@ func fileExists(path string) bool {
 	return err == nil && !info.IsDir()
 }
 
-func detectTestGenieCommand() []string {
+var resolveTestGenieExecutable = func(root string) (string, error) {
+	return scenariocli.ResolveExecutable(root, "", "test-genie")
+}
+
+func detectTestGenieCommand(appRoot string) []string {
 	if disable := strings.TrimSpace(os.Getenv("TEST_GENIE_DISABLE")); disable != "" {
 		return nil
 	}
@@ -172,14 +176,14 @@ func detectTestGenieCommand() []string {
 		}
 		return nil
 	}
-	path, err := exec.LookPath("test-genie")
-	if err == nil && path != "" {
-		return []string{path}
-	}
-	if errors.Is(err, exec.ErrDot) {
+	if strings.TrimSpace(appRoot) == "" {
 		return nil
 	}
-	return nil
+	path, err := resolveTestGenieExecutable(appRoot)
+	if err != nil || strings.TrimSpace(path) == "" {
+		return nil
+	}
+	return []string{path}
 }
 
 func projectRootFromScenario(scenarioDir string) string {

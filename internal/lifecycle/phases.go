@@ -227,6 +227,9 @@ func (r *Runner) ExecutePhaseDetailed(item scenario.Scenario, phaseName string, 
 			}
 			finalCmd += " " + strings.Join(quotedArgs, " ")
 		}
+		if phaseName == "test" {
+			finalCmd = injectTestGenieAutoStart(finalCmd)
+		}
 
 		if step.Background {
 			if err := r.startTrackedProcess(item, phaseName, step, env); err != nil {
@@ -256,6 +259,37 @@ func (r *Runner) ExecutePhaseDetailed(item scenario.Scenario, phaseName string, 
 	}
 
 	return result, nil
+}
+
+func injectTestGenieAutoStart(command string) string {
+	fields := strings.Fields(command)
+	if len(fields) < 2 {
+		return command
+	}
+
+	commandIndex := -1
+	for index, field := range fields {
+		if strings.Contains(field, "=") && !strings.HasPrefix(field, "-") {
+			continue
+		}
+		commandIndex = index
+		break
+	}
+	if commandIndex < 0 || commandIndex+1 >= len(fields) {
+		return command
+	}
+	if filepath.Base(fields[commandIndex]) != "test-genie" || fields[commandIndex+1] != "execute" {
+		return command
+	}
+	for _, field := range fields[commandIndex+2:] {
+		if field == "--auto-start" || strings.HasPrefix(field, "--auto-start=") {
+			return command
+		}
+	}
+
+	target := fields[commandIndex] + " execute"
+	replacement := fields[commandIndex] + " --auto-start execute"
+	return strings.Replace(command, target, replacement, 1)
 }
 
 func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step scenario.PhaseStep, env map[string]string) error {

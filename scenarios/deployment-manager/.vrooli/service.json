@@ -110,11 +110,6 @@
       },
       "steps": [
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o deployment-manager-api .",
           "description": "Build Go API binary (deployment-manager-api) in api/ directory"
@@ -245,6 +240,41 @@
         "versionRange": ">=2.0.0-file-based",
         "purpose": "Migration task creation when dependency swaps are approved"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "deployment-manager",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "deployment-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

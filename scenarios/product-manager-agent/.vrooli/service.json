@@ -48,6 +48,36 @@
       "range": "35000-39999"
     }
   },
+  "cli": {
+    "enabled": true,
+    "command": "product-manager-agent",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/product-manager-agent",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "product-manager-agent"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/product-manager-agent",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
+    }
+  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -112,11 +142,6 @@
           "name": "add-data",
           "run": "../../scripts/resources/populate/populate.sh . || echo \"Resource population skipped\"",
           "description": "Add app data to resources"
-        },
-        {
-          "name": "install-cli",
-          "run": "chmod +x cli/product-manager && mkdir -p ~/.local/bin && ln -sf $(pwd)/cli/product-manager ~/.local/bin/product-manager-agent",
-          "description": "Install CLI command globally"
         },
         {
           "name": "build-api",

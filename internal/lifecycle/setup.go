@@ -46,7 +46,7 @@ func (r *Runner) evaluateSetupCheck(item scenario.Scenario, check scenario.Condi
 	case "", "binaries":
 		return binariesNeedSetup(item.Path, check)
 	case "cli":
-		return cliNeedsSetup(item.Path, check)
+		return cliNeedsSetup(item, check)
 	case "ui-bundle":
 		return uiBundleNeedsSetup(item.Path, check)
 	case "resources":

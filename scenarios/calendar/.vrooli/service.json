@@ -114,11 +114,6 @@
       },
       "steps": [
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o calendar-api .",
           "description": "Build Go API binary"
@@ -258,6 +253,36 @@
         "description": "Event reminders and schedule change notifications",
         "degraded_behavior": "In-memory reminder queue without delivery"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "calendar",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/calendar",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "calendar"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/calendar",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

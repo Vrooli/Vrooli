@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/storage"
 )
 
 // CampaignSummary represents a lightweight deployment campaign row used by the UI.
@@ -163,7 +164,10 @@ func (h *CampaignHandlers) seedFromScenarios(ctx context.Context) []CampaignSumm
 }
 
 func (h *CampaignHandlers) loadCampaignsFromFile() ([]CampaignSummary, error) {
-	path := filepath.Join(getVrooliRoot(), "scenarios", "secrets-manager", "data", "campaigns.json")
+	path, err := campaignsFilePath()
+	if err != nil {
+		return nil, err
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -226,7 +230,11 @@ func (h *CampaignHandlers) UpsertCampaign(w http.ResponseWriter, r *http.Request
 			return
 		}
 
-		path := filepath.Join(getVrooliRoot(), "scenarios", "secrets-manager", "data", "campaigns.json")
+		path, err := campaignsFilePath()
+		if err != nil {
+			http.Error(w, fmt.Sprintf("failed to resolve campaigns path: %v", err), http.StatusInternalServerError)
+			return
+		}
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			http.Error(w, "failed to ensure data directory", http.StatusInternalServerError)
 			return
@@ -242,6 +250,45 @@ func (h *CampaignHandlers) UpsertCampaign(w http.ResponseWriter, r *http.Request
 		"campaign": incoming,
 		"saved":    true,
 	})
+}
+
+func campaignsFilePath() (string, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return "", fmt.Errorf("create storage resolver: %w", err)
+	}
+	path, err := resolver.Path(
+		storage.Options{ScenarioID: "secrets-manager"},
+		storage.ClassData,
+		"campaigns.json",
+	)
+	if err != nil {
+		return "", fmt.Errorf("resolve campaigns path: %w", err)
+	}
+	if err := migrateLegacyCampaigns(path); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+func migrateLegacyCampaigns(dst string) error {
+	legacy := filepath.Join(getVrooliRoot(), "scenarios", "secrets-manager", "data", "campaigns.json")
+	if _, err := os.Stat(legacy); err != nil {
+		return nil
+	}
+	if _, err := os.Stat(dst); err == nil {
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return fmt.Errorf("ensure campaigns destination dir: %w", err)
+	}
+	if err := os.Rename(legacy, dst); err != nil {
+		return fmt.Errorf("migrate campaigns file: %w", err)
+	}
+	return nil
 }
 
 // enrichWithReadiness attaches readiness summaries per campaign using the manifest builder.

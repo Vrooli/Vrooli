@@ -14,8 +14,6 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
-const plaintextFilename = "secrets.json"
-
 const (
 	SourceEnv     = "env"
 	SourceFile    = "file"
@@ -23,12 +21,13 @@ const (
 )
 
 type Config struct {
-	RepoRoot  string
-	EnvLookup func(string) string
+	HomeDir     string
+	EnvLookup   func(string) string
+	UserHomeDir func() (string, error)
 }
 
 type Store struct {
-	repoRoot  string
+	homeDir   string
 	path      string
 	envLookup func(string) string
 }
@@ -45,29 +44,20 @@ type Document struct {
 }
 
 var (
-	findRepoRootFromEnvOrCWD = repocontract.FindRepoRootFromEnvOrCWD
-	findRepoRootFromPath     = repocontract.FindRepoRootFromPath
-	loadDefaultContract      = repocontract.LoadDefault
-	getwdFn                  = os.Getwd
-	readFileFn               = os.ReadFile
-	lstatFn                  = os.Lstat
+	readFileFn = os.ReadFile
+	lstatFn    = os.Lstat
 )
 
-func NewProjectStore(cfg Config) (*Store, error) {
-	repoRoot, path, err := resolveProjectSecretsPath(cfg)
+func NewUserStore(cfg Config) (*Store, error) {
+	homeDir, path, err := resolveUserSecretsPath(cfg)
 	if err != nil {
 		return nil, err
 	}
 	return &Store{
-		repoRoot:  repoRoot,
+		homeDir:   homeDir,
 		path:      path,
 		envLookup: normalizeEnvLookup(cfg.EnvLookup),
 	}, nil
-}
-
-func NewProjectStoreFromEnvOrCWD(cfg Config) (*Store, error) {
-	cfg.RepoRoot = ""
-	return NewProjectStore(cfg)
 }
 
 func NewFileStore(path string) (*Store, error) {
@@ -81,8 +71,8 @@ func NewFileStore(path string) (*Store, error) {
 	}, nil
 }
 
-func (s *Store) RepoRoot() string {
-	return s.repoRoot
+func (s *Store) HomeDir() string {
+	return s.homeDir
 }
 
 func (s *Store) PlaintextPath() string {
@@ -272,65 +262,24 @@ func WriteFileDocument(path string, doc Document) error {
 	return storage.WriteFileAtomic(path, append(encoded, '\n'), storage.SecretFilePerm)
 }
 
-func resolveProjectSecretsPath(cfg Config) (string, string, error) {
-	if root := strings.TrimSpace(cfg.RepoRoot); root != "" {
-		return resolveProjectSecretsPathFromRoot(root)
-	}
-
-	for _, key := range []string{"VROOLI_SOURCE_ROOT", "VROOLI_ROOT"} {
-		if root := strings.TrimSpace(normalizeEnvLookup(cfg.EnvLookup)(key)); root != "" {
-			return resolveProjectSecretsPathFromRoot(root)
+func resolveUserSecretsPath(cfg Config) (string, string, error) {
+	homeDir := strings.TrimSpace(cfg.HomeDir)
+	if homeDir == "" {
+		userHomeDir := cfg.UserHomeDir
+		if userHomeDir == nil {
+			userHomeDir = os.UserHomeDir
 		}
+		resolved, err := userHomeDir()
+		if err != nil {
+			return "", "", &Error{Kind: ErrResolve, Message: "resolve user home dir", Err: err}
+		}
+		homeDir = resolved
 	}
-
-	if root, err := findRepoRootFromEnvOrCWD(); err == nil {
-		return resolveProjectSecretsPathFromRoot(root)
-	}
-
-	cwd, err := getwdFn()
+	path, err := repocontract.UserPlaintextSecretsPath(homeDir)
 	if err != nil {
-		return "", "", &Error{Kind: ErrResolve, Message: "resolve current working directory", Err: err}
+		return "", "", &Error{Kind: ErrResolve, Message: "resolve user secrets path", Err: err}
 	}
-	return discoverNearestSecretsPath(cwd)
-}
-
-func resolveProjectSecretsPathFromRoot(root string) (string, string, error) {
-	root = filepath.Clean(strings.TrimSpace(root))
-	if root == "" {
-		return "", "", &Error{Kind: ErrInvalidInput, Message: "repo root is required"}
-	}
-	if contractRoot, err := findRepoRootFromPath(root); err == nil {
-		contract, loadErr := loadDefaultContract(contractRoot)
-		if loadErr == nil {
-			configDir, dirErr := contract.TopLevelDir(contractRoot, "project_config")
-			if dirErr == nil {
-				return contractRoot, filepath.Join(configDir, plaintextFilename), nil
-			}
-		}
-		root = contractRoot
-	}
-	return root, filepath.Join(root, ".vrooli", plaintextFilename), nil
-}
-
-func discoverNearestSecretsPath(start string) (string, string, error) {
-	current := filepath.Clean(start)
-	info, err := lstatFn(current)
-	if err == nil && !info.IsDir() {
-		current = filepath.Dir(current)
-	}
-
-	for {
-		configDir := filepath.Join(current, ".vrooli")
-		if info, err := lstatFn(configDir); err == nil && info.IsDir() {
-			return current, filepath.Join(configDir, plaintextFilename), nil
-		}
-		parent := filepath.Dir(current)
-		if parent == current {
-			break
-		}
-		current = parent
-	}
-	return "", "", &Error{Kind: ErrResolve, Message: "repo root not found from current working directory", Details: start}
+	return filepath.Clean(homeDir), path, nil
 }
 
 func validateSecretFile(path string) error {

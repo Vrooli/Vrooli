@@ -115,6 +115,10 @@ func newValidationFixtureRepo(t *testing.T) testkitgo.RepoFixture {
 - `+"`vrooli contract match-glob <pattern> <path>`"+`
 - `+"`make validate-repo-contract` remains the CI/automation entrypoint"+`
 
+## Allowed `+".vrooli/"+` Surface
+
+- `+"`~/.vrooli/secrets.json`"+`
+
 ## Landed Consumer Migrations
 
 - `+"`swarm-manager`"+`

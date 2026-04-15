@@ -114,7 +114,7 @@ func (s *DeployStage) Execute(ctx context.Context, input *StageInput) *StageResu
 	// Get service token
 	serviceToken := sharedenv.ResolveSecret("LPBS_SERVICE_SECRET")
 	if serviceToken == "" {
-		failStage(result, s.timeProvider, errors.New(errors.CodeUnauthorized, "LPBS_SERVICE_SECRET is not set (checked env and .vrooli/secrets.json)").
+		failStage(result, s.timeProvider, errors.New(errors.CodeUnauthorized, "LPBS_SERVICE_SECRET is not set (checked env and ~/.vrooli/secrets.json)").
 			WithRecovery(errors.RecoveryProvideCredentials, "Set LPBS_SERVICE_SECRET to enable service-to-service auth via scenario-to-cloud secrets command").
 			WithManualSteps([]string{
 				"Set LPBS_SERVICE_SECRET using scenario-to-cloud secrets set ... --targets scenario,deployment",

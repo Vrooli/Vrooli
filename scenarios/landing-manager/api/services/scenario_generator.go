@@ -423,24 +423,6 @@ func rewriteServiceConfig(outputDir, name, slug string) error {
 		return fmt.Errorf("failed to parse service.json: %w", err)
 	}
 
-	if lifecycle, ok := cfg["lifecycle"].(map[string]interface{}); ok {
-		if setup, ok := lifecycle["setup"].(map[string]interface{}); ok {
-			if steps, ok := setup["steps"].([]interface{}); ok {
-				var filtered []interface{}
-				for _, s := range steps {
-					stepMap, ok := s.(map[string]interface{})
-					if ok {
-						if stepName, _ := stepMap["name"].(string); stepName == "install-cli" {
-							continue
-						}
-					}
-					filtered = append(filtered, s)
-				}
-				setup["steps"] = filtered
-			}
-		}
-	}
-
 	updated, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal updated service.json: %w", err)

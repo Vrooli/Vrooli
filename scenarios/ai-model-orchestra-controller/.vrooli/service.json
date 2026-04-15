@@ -116,11 +116,6 @@
       },
       "steps": [
         {
-          "name": "install-cli",
-          "run": "bash cli/install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod tidy && go build -o ai-model-orchestra-controller-api .",
           "description": "Build Go API binary"
@@ -223,6 +218,36 @@
         "required": true,
         "purpose": "real-time orchestration events and caching"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "ai-model-orchestra-controller",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/ai-model-orchestra-controller",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "ai-model-orchestra-controller"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/ai-model-orchestra-controller",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

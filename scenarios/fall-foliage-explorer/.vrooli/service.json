@@ -128,11 +128,6 @@
           "description": "Add app data to resources"
         },
         {
-          "name": "install-cli",
-          "run": "cd cli && chmod +x foliage-explorer && ./install.sh",
-          "description": "Install CLI command"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o fall-foliage-explorer-api .",
           "description": "Build Go API binary"
@@ -245,5 +240,35 @@
       }
     },
     "scenarios": {}
+  },
+  "cli": {
+    "enabled": true,
+    "command": "fall-foliage-explorer",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/fall-foliage-explorer",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "fall-foliage-explorer"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/fall-foliage-explorer",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
+    }
   }
 }

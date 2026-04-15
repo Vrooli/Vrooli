@@ -14,8 +14,10 @@ import (
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
+	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioexec"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
+	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
 )
 
 func newRuntimeTestApp(t *testing.T, root string) *App {
@@ -67,43 +69,34 @@ func TestCommandEnvPreservesExistingSourceRootAndNoColor(t *testing.T) {
 	}
 }
 
-func TestLocateTestGenieCLIResolutionOrder(t *testing.T) {
+func TestLocateTestGenieCLIUsesManifestDrivenInstalledPath(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	app := newRuntimeTestApp(t, root)
+	testkitgo.WriteRepoContract(t, root, "scenarios")
+	testscenario.WriteScenarioService(t, root, "test-genie", testscenario.ScenarioServiceManifest(
+		"test-genie",
+		testscenario.WithCLI(&scenario.CLIConfig{
+			Enabled: true,
+			Command: "test-genie",
+			Adapter: scenario.CLIAdapterConfig{
+				Kind:      "go_module",
+				ModuleDir: "cli",
+			},
+			Install: []scenario.CLIInstallStep{{Kind: "command", Run: "cd cli && ./install.sh"}},
+		}),
+	))
+	testkitgo.WriteFile(t, filepath.Join(root, "scenarios", "test-genie", "cli", "go.mod"), "module test-genie/cli\n")
 
-	overrideCLI := testkitgo.WriteRelativeExecutable(t, root, filepath.Join("override", "test-genie"), "#!/usr/bin/env bash\nexit 0\n")
-	t.Setenv("VROOLI_TEST_GENIE_CLI", overrideCLI)
+	app.EnsureScenarioCLIFn = func(root, home, name string) error { return nil }
+	expected := testkitgo.WriteRelativeExecutable(t, home, filepath.Join(".vrooli", "bin", "test-genie"), "#!/usr/bin/env bash\nexit 0\n")
+
 	path, err := app.LocateTestGenieCLI(root, home)
 	if err != nil {
-		t.Fatalf("LocateTestGenieCLI() override error = %v", err)
+		t.Fatalf("LocateTestGenieCLI() error = %v", err)
 	}
-	if path != overrideCLI {
-		t.Fatalf("override path = %q", path)
-	}
-
-	t.Setenv("VROOLI_TEST_GENIE_CLI", "")
-	homeCLI := testkitgo.WriteRelativeExecutable(t, home, filepath.Join(".vrooli", "bin", "test-genie"), "#!/usr/bin/env bash\nexit 0\n")
-	app.LookPathFn = func(string) (string, error) { return "", exec.ErrNotFound }
-	path, err = app.LocateTestGenieCLI(root, home)
-	if err != nil {
-		t.Fatalf("LocateTestGenieCLI() home error = %v", err)
-	}
-	if path != homeCLI {
-		t.Fatalf("home path = %q", path)
-	}
-
-	if err := os.Remove(homeCLI); err != nil {
-		t.Fatalf("remove home CLI: %v", err)
-	}
-	pathCLI := testkitgo.WriteRelativeExecutable(t, root, filepath.Join("bin", "test-genie"), "#!/usr/bin/env bash\nexit 0\n")
-	app.LookPathFn = func(string) (string, error) { return pathCLI, nil }
-	path, err = app.LocateTestGenieCLI(root, home)
-	if err != nil {
-		t.Fatalf("LocateTestGenieCLI() PATH error = %v", err)
-	}
-	if path != pathCLI {
-		t.Fatalf("PATH path = %q", path)
+	if path != expected {
+		t.Fatalf("path = %q, want %q", path, expected)
 	}
 }
 

@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	apistorage "github.com/vrooli/api-core/storage"
+
 	"test-genie/internal/storage/sqlitedb"
 )
 
@@ -56,12 +58,8 @@ func resolveDatabaseConfig() (sqlitedb.Config, error) {
 		return cfg, nil
 	}
 
-	// Lifecycle should normally provide SCENARIO_DATA_DIR, but some execution
-	// paths only guarantee the scenario working directory. Default to
-	// <scenario>/data/test-genie.db so embedded storage still works portably.
-	root, rootErr := scenarioRoot()
-	if rootErr == nil {
-		fallbackPath := filepath.Join(root, "data", "test-genie.db")
+	fallbackPath, fallbackErr := resolveFallbackDatabasePath()
+	if fallbackErr == nil {
 		fallbackCfg, fallbackResolveErr := sqlitedb.ResolveExplicit(fallbackPath)
 		if fallbackResolveErr == nil {
 			return fallbackCfg, nil
@@ -69,7 +67,7 @@ func resolveDatabaseConfig() (sqlitedb.Config, error) {
 		return sqlitedb.Config{}, fmt.Errorf("sqlite configuration failed: %w (fallback path %s also failed: %v)", err, fallbackPath, fallbackResolveErr)
 	}
 
-	return sqlitedb.Config{}, fmt.Errorf("sqlite configuration failed: %w", err)
+	return sqlitedb.Config{}, fmt.Errorf("sqlite configuration failed: %w (storage fallback error: %v)", err, fallbackErr)
 }
 
 func resolveScenariosRoot() (string, error) {
@@ -83,4 +81,47 @@ func resolveScenariosRoot() (string, error) {
 	scenarioDir := filepath.Dir(wd)
 	root := filepath.Dir(scenarioDir)
 	return root, nil
+}
+
+func resolveFallbackDatabasePath() (string, error) {
+	resolver, err := apistorage.NewResolver(apistorage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: apistorage.ProfileAuto,
+	})
+	if err != nil {
+		return "", fmt.Errorf("create storage resolver: %w", err)
+	}
+	dbPath, err := resolver.Path(
+		apistorage.Options{ScenarioID: "test-genie"},
+		apistorage.ClassData,
+		"test-genie.db",
+	)
+	if err != nil {
+		return "", fmt.Errorf("resolve storage-backed database path: %w", err)
+	}
+	if err := migrateLegacyDatabase(dbPath); err != nil {
+		return "", err
+	}
+	return dbPath, nil
+}
+
+func migrateLegacyDatabase(dst string) error {
+	root, err := scenarioRoot()
+	if err != nil {
+		return nil
+	}
+	legacy := filepath.Join(root, "data", "test-genie.db")
+	if _, err := os.Stat(legacy); err != nil {
+		return nil
+	}
+	if _, err := os.Stat(dst); err == nil {
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return fmt.Errorf("ensure fallback database dir: %w", err)
+	}
+	if err := os.Rename(legacy, dst); err != nil {
+		return fmt.Errorf("migrate legacy test-genie database: %w", err)
+	}
+	return nil
 }

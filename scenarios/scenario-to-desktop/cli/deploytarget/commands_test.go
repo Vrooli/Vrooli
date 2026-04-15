@@ -46,7 +46,7 @@ func TestIsServiceAuthReadinessError(t *testing.T) {
 
 func TestBuildServiceAuthNextSteps(t *testing.T) {
 	t.Run("scenario-to-desktop-secret-missing", func(t *testing.T) {
-		err := errors.New("api error (400): LPBS_SERVICE_SECRET is not set for scenario-to-desktop runtime (checked env and .vrooli/secrets.json)")
+		err := errors.New("api error (400): LPBS_SERVICE_SECRET is not set for scenario-to-desktop runtime (checked env and ~/.vrooli/secrets.json)")
 		steps := buildServiceAuthNextSteps(err, "prod")
 		if !strings.Contains(steps, "--scenario scenario-to-desktop") {
 			t.Fatalf("expected scenario-to-desktop guidance, got: %s", steps)

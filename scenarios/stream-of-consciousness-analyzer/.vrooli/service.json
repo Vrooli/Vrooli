@@ -83,7 +83,9 @@
         "checks": [
           {
             "type": "binaries",
-            "targets": ["api/stream-of-consciousness-analyzer-api"]
+            "targets": [
+              "api/stream-of-consciousness-analyzer-api"
+            ]
           },
           {
             "type": "cli",
@@ -97,11 +99,6 @@
         ]
       },
       "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
         {
           "name": "build-api",
           "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o stream-of-consciousness-analyzer-api .",
@@ -196,6 +193,41 @@
           }
         ]
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "stream-of-consciousness-analyzer",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "stream-of-consciousness-analyzer"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

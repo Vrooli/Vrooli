@@ -5,8 +5,14 @@
       "name": "stripe",
       "required": false,
       "reason": "Forward local Stripe webhooks and trigger payment events while validating landing-page billing flows",
-      "when": ["setup", "develop", "test"],
-      "environments": ["development"],
+      "when": [
+        "setup",
+        "develop",
+        "test"
+      ],
+      "environments": [
+        "development"
+      ],
       "notes": "Landing Manager docs and generated scenarios rely on the Stripe CLI for local webhook workflows"
     }
   ],
@@ -118,11 +124,6 @@
         ]
       },
       "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
         {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o landing-manager-api .",
@@ -256,6 +257,36 @@
         "description": "Template recommendations based on user intent",
         "notes": "Optional for P2 features (semantic template search)"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "landing-manager",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/landing-manager",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "landing-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/landing-manager",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

@@ -132,11 +132,6 @@
           "description": "Add app data to resources"
         },
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o app-monitor-api .",
           "description": "Build Go coordination API binary"
@@ -277,6 +272,36 @@
         "versionRange": ">=1.0.0",
         "description": "Auto-detected dependency via scenario_port_cli"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "app-monitor",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/app-monitor",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "app-monitor"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/app-monitor",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

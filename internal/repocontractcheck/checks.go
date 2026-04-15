@@ -58,6 +58,7 @@ func Run(root string) (Report, error) {
 		{name: "phase1_semantics", fn: checkPhase1Semantics},
 		{name: "canonical_markers_and_paths", fn: checkCanonicalMarkersAndPaths},
 		{name: "live_repo_structure", fn: checkLiveRepoStructure},
+		{name: "project_config_surface", fn: checkProjectConfigSurface},
 		{name: "excluded_legacy_rules_and_paths", fn: checkExcludedLegacyRulesAndPaths},
 		{name: "profile_roots_within_canonical_layout", fn: checkProfileRootsWithinCanonicalLayout},
 		{name: "bundle_profile_policy", fn: checkBundleProfilePolicy},
@@ -245,6 +246,28 @@ func checkLiveRepoStructure(contract *repocontract.Contract, root string, raw st
 	return nil
 }
 
+func checkProjectConfigSurface(contract *repocontract.Contract, root string, raw string) error {
+	projectConfigDir := filepath.Join(root, filepath.FromSlash(contract.Layout().ProjectConfigDir))
+	entries, err := os.ReadDir(projectConfigDir)
+	if err != nil {
+		return fmt.Errorf("read project config dir: %w", err)
+	}
+	allowed := map[string]struct{}{
+		"build":              {},
+		"repo-contract.json": {},
+		"resources":          {},
+		"schemas":            {},
+		"service.json":       {},
+	}
+	for _, entry := range entries {
+		if _, ok := allowed[entry.Name()]; ok {
+			continue
+		}
+		return fmt.Errorf("project config dir contains unapproved entry %q; keep only repo metadata plus local build output in .vrooli/", entry.Name())
+	}
+	return nil
+}
+
 func checkExcludedLegacyRulesAndPaths(contract *repocontract.Contract, root string, raw string) error {
 	disallowed := []string{
 		".vrooli/resource.json",
@@ -394,6 +417,8 @@ func checkDocsAlignment(contract *repocontract.Contract, root string, raw string
 		"`vrooli contract resolve scenario <name> --file service`",
 		"`vrooli contract match-glob <pattern> <path>`",
 		"`make validate-repo-contract` remains the CI/automation entrypoint",
+		"## Allowed `.vrooli/` Surface",
+		"`~/.vrooli/secrets.json`",
 		"## Landed Consumer Migrations",
 		"`swarm-manager`",
 	}

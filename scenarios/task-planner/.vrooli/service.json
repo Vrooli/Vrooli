@@ -135,11 +135,6 @@
           "description": "Build Go coordination API binary"
         },
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "install-ui-deps",
           "run": "cd ui && npm install",
           "description": "Install UI dependencies"
@@ -259,6 +254,36 @@
         "enabled": true,
         "required": false
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "task-planner",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/task-planner",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "task-planner"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/task-planner",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

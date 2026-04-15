@@ -135,11 +135,6 @@
           "description": "Add notes data to resources"
         },
         {
-          "name": "install-cli",
-          "run": "cd cli && chmod +x notes && ln -sf $(pwd)/notes ~/.local/bin/notes 2>/dev/null || true",
-          "description": "Install CLI command"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o notes-api .",
           "description": "Build Go API binary"
@@ -253,6 +248,36 @@
         "required": true,
         "purpose": "AI-powered note suggestions and summarization"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "notes",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/notes",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "notes"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/notes",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

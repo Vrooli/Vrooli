@@ -163,7 +163,6 @@ func TestMiniVrooliBundleSpec_GeneratesNativeMiniRootManifest(t *testing.T) {
   "lifecycle": {
     "setup": {
       "steps": [
-        { "name": "install-cli", "run": "make install" },
         { "name": "legacy-bootstrap", "run": "echo bootstrap" }
       ]
     }

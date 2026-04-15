@@ -377,15 +377,31 @@ func (app *App) ensureResourceCLI(ctx *CommandContext, name string) error {
 }
 
 func (app *App) locateTestGenieCLI(root, home string) (string, error) {
-	return scenarioexec.LocateTestGenieCLI(app.LookPathFn, root, home)
+	return app.resolveScenarioCLIExecutable(root, home, "test-genie")
 }
 
 func (app *App) LocateTestGenieCLI(root, home string) (string, error) {
 	return app.locateTestGenieCLI(root, home)
 }
 
-func (app *App) locateScenarioCompletenessCLI(root string) (string, error) {
-	return scenarioexec.LocateScenarioCompletenessCLI(app.LookPathFn, root)
+func (app *App) locateScenarioCompletenessCLI(root, home string) (string, error) {
+	return app.resolveScenarioCLIExecutable(root, home, "scenario-completeness-scoring")
+}
+
+func (app *App) resolveScenarioCLIExecutable(root, home, name string) (string, error) {
+	manager := cliinstall.NewManager(root, home)
+	item, err := manager.DiscoverScenarioCLI(name)
+	if err != nil {
+		return "", err
+	}
+	if app.EnsureScenarioCLIFn != nil {
+		if err := app.EnsureScenarioCLIFn(root, home, name); err != nil {
+			return "", err
+		}
+	} else if err := manager.EnsureScenarioCLI(name); err != nil {
+		return "", err
+	}
+	return manager.InstalledBinaryPath(item), nil
 }
 
 func (app *App) openScenarioURL(url string) error {
@@ -549,7 +565,18 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 		}),
 		topcli.CommandLifecycle: projectcli.LifecycleHandler(commandStdout, func(ctx *CommandContext, args []string) error { return ctx.app.runLifecycleProtectCommand(ctx, args) }),
 	}
-	handlers[topcli.CommandCleanup] = projectcli.CleanupHandler(commandStdout, handlers[topcli.CommandOrphans], handlers[topcli.CommandLocks])
+	storageHandler := projectcli.StorageCleanupHandler(commandStdout, projectOutputFormat, func(ctx *CommandContext, req projectcli.StorageCleanupRequest) (projectcli.StorageCleanupResponse, error) {
+		command, err := ctx.app.newProjectCommandService(ctx)
+		if err != nil {
+			return projectcli.StorageCleanupResponse{}, err
+		}
+		resp, err := command.CleanupUserStorage()
+		if err != nil {
+			return projectcli.StorageCleanupResponse{}, err
+		}
+		return projectcli.StorageCleanupResponse{Report: resp.Report}, nil
+	})
+	handlers[topcli.CommandCleanup] = projectcli.CleanupHandler(commandStdout, handlers[topcli.CommandOrphans], handlers[topcli.CommandLocks], storageHandler)
 	return handlers
 }
 
@@ -594,7 +621,11 @@ func (app *App) buildScenarioHandlerMap() map[scenariocli.CommandID]rootcli.Hand
 			return ctx.app.locateTestGenieCLI(ctx.Root, home)
 		},
 		LocateCompleteCLI: func(ctx *CommandContext) (string, error) {
-			return ctx.app.locateScenarioCompletenessCLI(ctx.Root)
+			home, err := ctx.HomeDir()
+			if err != nil {
+				return "", err
+			}
+			return ctx.app.locateScenarioCompletenessCLI(ctx.Root, home)
 		},
 		CommandEnv: func(ctx *CommandContext) []string {
 			return ctx.app.CommandEnv(ctx.Root, ctx.Globals)

@@ -593,11 +593,9 @@ func getVaultSecretImpl(ctx context.Context, key string) (string, error) {
 }
 
 func getLocalSecretsPath() (string, error) {
-	store, err := apisecrets.NewProjectStore(apisecrets.Config{
-		RepoRoot: getVrooliRoot(),
-	})
+	store, err := apisecrets.NewUserStore(apisecrets.Config{})
 	if err != nil {
-		return filepath.Join(getVrooliRoot(), ".vrooli", "secrets.json"), nil
+		return "", err
 	}
 	return store.PlaintextPath(), nil
 }

@@ -19,7 +19,7 @@ services:
       - -c
       - max_connections=100
     volumes:
-      - ${HOME}/.vrooli/postgis/data:/var/lib/postgresql/data
+      - ${RESOURCE_DATA_DIR}/data:/var/lib/postgresql/data
     healthcheck:
       test:
         - CMD-SHELL

@@ -47,9 +47,9 @@ const (
 )
 
 // resolveSecret resolves a secret from environment first, then the shared local
-// plaintext project secrets file.
+// plaintext user secrets file.
 func resolveSecret(key string) string {
-	store, err := apisecrets.NewProjectStoreFromEnvOrCWD(apisecrets.Config{
+	store, err := apisecrets.NewUserStore(apisecrets.Config{
 		EnvLookup: os.Getenv,
 	})
 	if err != nil {
@@ -58,10 +58,10 @@ func resolveSecret(key string) string {
 	return strings.TrimSpace(store.ResolveValue(key))
 }
 
-// findSecretsFile returns the resolved local plaintext project secrets path when
+// findSecretsFile returns the resolved local plaintext user secrets path when
 // it exists.
 func findSecretsFile() string {
-	store, err := apisecrets.NewProjectStoreFromEnvOrCWD(apisecrets.Config{
+	store, err := apisecrets.NewUserStore(apisecrets.Config{
 		EnvLookup: os.Getenv,
 	})
 	if err != nil {
@@ -75,7 +75,7 @@ func findSecretsFile() string {
 }
 
 // getAdminDefaults returns admin email and password hash.
-// Resolution order: environment variables -> .vrooli/secrets.json -> hardcoded defaults.
+// Resolution order: environment variables -> ~/.vrooli/secrets.json -> hardcoded defaults.
 // This enables customization via scenario-to-cloud's Secrets Tab.
 func getAdminDefaults() (email string, passwordHash string, err error) {
 	email = resolveSecret("ADMIN_DEFAULT_EMAIL")
@@ -109,7 +109,7 @@ func initSessionManager() SessionManager {
 		logStructured("session_secret_missing", map[string]interface{}{
 			"level":   "warn",
 			"message": "SESSION_SECRET not set; using placeholder for development",
-			"action":  "Set SESSION_SECRET in environment or .vrooli/secrets.json",
+			"action":  "Set SESSION_SECRET in environment or ~/.vrooli/secrets.json",
 		})
 		secret = "dev-session-placeholder"
 	}

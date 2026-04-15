@@ -127,11 +127,6 @@
           "description": "Make issue management CLI globally available"
         },
         {
-          "name": "install-cli",
-          "run": "ln -sf $(pwd)/cli/app-issue-tracker.sh ~/.local/bin/app-issue-tracker 2>/dev/null || echo '  CLI available at ./cli/app-issue-tracker.sh'",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o app-issue-tracker-api .",
           "description": "Build Go API server"
@@ -264,5 +259,35 @@
       }
     },
     "scenarios": {}
+  },
+  "cli": {
+    "enabled": true,
+    "command": "app-issue-tracker",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/app-issue-tracker",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "app-issue-tracker"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/app-issue-tracker",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
+    }
   }
 }

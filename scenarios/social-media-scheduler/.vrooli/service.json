@@ -125,11 +125,6 @@
       },
       "steps": [
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o social-media-scheduler-api .",
           "description": "Build Go API with platform integrations"
@@ -283,6 +278,36 @@
           "nomic-embed-text"
         ]
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "social-media-scheduler",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/social-media-scheduler",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "social-media-scheduler"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/social-media-scheduler",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

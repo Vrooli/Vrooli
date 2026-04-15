@@ -103,6 +103,17 @@ func TestRunStructurePhaseCanSkipServiceNameValidation(t *testing.T) {
 	h := newStructureTestHarness(t)
 	writeFile(t, h.manifestPath, `{
   "service": {"name": "legacy-service"},
+  "cli": {
+    "enabled": true,
+    "command": "demo-scenario",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/demo-scenario",
+      "install_script": "cli/install.sh"
+    },
+    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
+    "invoke": {"kind": "installed_command", "command": "demo-scenario"}
+  },
   "lifecycle": {"health": {"checks": [{}]}}
 }`)
 	h.writeTestingConfig(t, `{
@@ -157,8 +168,19 @@ func newStructureTestHarness(t *testing.T) *structureTestHarness {
 	manifestPath := filepath.Join(scenarioDir, ".vrooli", "service.json")
 	writeFile(t, manifestPath, fmt.Sprintf(`{
   "service": {"name": "%s"},
+  "cli": {
+    "enabled": true,
+    "command": "%s",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/%s",
+      "install_script": "cli/install.sh"
+    },
+    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
+    "invoke": {"kind": "installed_command", "command": "%s"}
+  },
   "lifecycle": {"health": {"checks": [{}]}}
-}`, scenarioName))
+}`, scenarioName, scenarioName, scenarioName, scenarioName))
 
 	configPath := filepath.Join(scenarioDir, ".vrooli", "testing.json")
 	writeFile(t, configPath, `{

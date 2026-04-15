@@ -5,8 +5,14 @@
       "name": "stripe",
       "required": false,
       "reason": "Run local Stripe webhook forwarding and payment test flows for landing-page subscriptions, bundles, and coupons",
-      "when": ["setup", "develop", "test"],
-      "environments": ["development"],
+      "when": [
+        "setup",
+        "develop",
+        "test"
+      ],
+      "environments": [
+        "development"
+      ],
       "notes": "Use the Stripe CLI to forward /api/v1/webhooks/stripe and trigger test events during scenario validation"
     }
   ],
@@ -124,14 +130,6 @@
       },
       "description": "Build API & UI for the generated landing scenario",
       "steps": [
-        {
-          "description": "Install landing-page-business-suite CLI command globally",
-          "name": "install-cli",
-          "run": "bash cli/install.sh",
-          "condition": {
-            "file_exists": "cli/install.sh"
-          }
-        },
         {
           "description": "Build Go API binary (landing-page-business-suite-api) in api/ directory for reuse by start-api step",
           "name": "build-api",
@@ -283,5 +281,40 @@
       }
     }
   },
-  "version": "1.1.0"
+  "version": "1.1.0",
+  "cli": {
+    "enabled": true,
+    "command": "landing-page-business-suite",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "landing-page-business-suite"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  }
 }

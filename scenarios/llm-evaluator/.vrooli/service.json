@@ -83,7 +83,9 @@
         "checks": [
           {
             "type": "binaries",
-            "targets": ["api/llm-evaluator-api"]
+            "targets": [
+              "api/llm-evaluator-api"
+            ]
           },
           {
             "type": "cli",
@@ -97,11 +99,6 @@
         ]
       },
       "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
         {
           "name": "build-api",
           "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o llm-evaluator-api .",
@@ -190,6 +187,41 @@
         "description": "Primary relational data store",
         "schema": "llm-evaluator"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "llm-evaluator",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "llm-evaluator"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

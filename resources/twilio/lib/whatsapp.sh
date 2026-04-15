@@ -15,7 +15,7 @@ source "$TWILIO_LIB_DIR/audit.sh"
 source "${REPO_ROOT}/scripts/lib/utils/log.sh"
 
 # WhatsApp history file
-WHATSAPP_HISTORY_FILE="${TWILIO_CONFIG_DIR}/whatsapp_history.json"
+WHATSAPP_HISTORY_FILE="${TWILIO_WHATSAPP_HISTORY_FILE}"
 
 # Initialize WhatsApp history file if it doesn't exist
 if [[ ! -f "$WHATSAPP_HISTORY_FILE" ]]; then

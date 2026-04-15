@@ -12,10 +12,10 @@ SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
 RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
 REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 TWILIO_DIR="${RESOURCE_DIR}"
-TWILIO_CONFIG_DIR="${var_vrooli_dir:-${HOME}/.vrooli}/twilio"
 
 # Source required libraries
 source "${REPO_ROOT}/scripts/lib/utils/log.sh"
+source "${TWILIO_DIR}/lib/common.sh"
 source "${TWILIO_DIR}/lib/rate-limiter.sh"
 
 # Configuration file

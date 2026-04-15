@@ -118,11 +118,6 @@
       },
       "steps": [
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o data-structurer-api .",
           "description": "Build Go API binary"
@@ -240,6 +235,36 @@
         "required": false,
         "purpose": "Semantic search and similarity matching of structured data - enables AI-powered content discovery and duplicate detection"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "data-structurer",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/data-structurer",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "data-structurer"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/data-structurer",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

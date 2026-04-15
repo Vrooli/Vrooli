@@ -117,11 +117,6 @@
           "description": "Create data directories for file storage"
         },
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o device-sync-hub-api .",
           "description": "Build Go API binary"
@@ -227,6 +222,36 @@
         "startup_policy": "must_start",
         "description": "Authentication service for user validation"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "device-sync-hub",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/device-sync-hub",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "device-sync-hub"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/device-sync-hub",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

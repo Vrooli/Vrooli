@@ -17,9 +17,9 @@ func TestResolveSecretFromEnv(t *testing.T) {
 	}
 }
 
-func TestResolveSecretFromVrooliRootFile(t *testing.T) {
-	root := t.TempDir()
-	secretsDir := filepath.Join(root, ".vrooli")
+func TestResolveSecretFromUserSecretsFile(t *testing.T) {
+	home := t.TempDir()
+	secretsDir := filepath.Join(home, ".vrooli")
 	if err := os.MkdirAll(secretsDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -27,7 +27,7 @@ func TestResolveSecretFromVrooliRootFile(t *testing.T) {
 		t.Fatalf("write secrets: %v", err)
 	}
 
-	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("HOME", home)
 	t.Setenv("LPBS_SERVICE_SECRET", "")
 
 	if got := ResolveSecret("LPBS_SERVICE_SECRET"); got != "file-secret" {
@@ -37,13 +37,13 @@ func TestResolveSecretFromVrooliRootFile(t *testing.T) {
 	if resolved.Source != "file" {
 		t.Fatalf("expected source file, got %q", resolved.Source)
 	}
-	if resolved.SourcePath != filepath.Join(root, ".vrooli", "secrets.json") {
+	if resolved.SourcePath != filepath.Join(home, ".vrooli", "secrets.json") {
 		t.Fatalf("unexpected source path: %q", resolved.SourcePath)
 	}
 }
 
 func TestResolveSecretMissing(t *testing.T) {
-	t.Setenv("VROOLI_ROOT", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
 	t.Setenv("LPBS_SERVICE_SECRET", "")
 	origWD, err := os.Getwd()
 	if err != nil {

@@ -9,8 +9,8 @@ import (
 
 /*
 Rule: Setup Conditions
-Description: Ensure lifecycle.setup.condition is configured with binary and CLI readiness checks
-Reason: Proper setup guards prevent scenarios from running without compiled binaries or installed CLI entrypoints
+Description: Ensure lifecycle.setup.condition is configured with binary, UI bundle, and manifest-aligned CLI readiness checks
+Reason: Proper setup guards prevent scenarios from running without compiled binaries, built bundles, or the declared CLI entrypoint
 Category: config
 Severity: high
 Standard: configuration-v1
@@ -35,6 +35,13 @@ Targets: service_json
   <input language="json"><![CDATA[
 {
   "service": {"name": "scenario-auditor"},
+  "cli": {
+    "enabled": true,
+    "command": "scenario-auditor",
+    "adapter": {"kind": "go_module", "module_dir": "cli"},
+    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
+    "invoke": {"kind": "installed_command", "command": "scenario-auditor"}
+  },
   "lifecycle": {
     "setup": {
       "condition": {
@@ -59,10 +66,17 @@ Targets: service_json
 </test-case>
 
 <test-case id="missing-cli-check" should-fail="true">
-  <description>Second check is not CLI with scenario target</description>
+  <description>Scenarios with cli.enabled=true must declare a CLI readiness check</description>
   <input language="json"><![CDATA[
 {
   "service": {"name": "scenario-auditor"},
+  "cli": {
+    "enabled": true,
+    "command": "scenario-auditor",
+    "adapter": {"kind": "go_module", "module_dir": "cli"},
+    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
+    "invoke": {"kind": "installed_command", "command": "scenario-auditor"}
+  },
   "lifecycle": {
     "setup": {
       "condition": {
@@ -86,10 +100,17 @@ Targets: service_json
 </test-case>
 
 <test-case id="incorrect-targets" should-fail="true">
-  <description>Binaries check must reference api/<scenario>-api and CLI command must be present</description>
+  <description>Binaries check must reference api/<scenario>-api and CLI command must match the manifest</description>
   <input language="json"><![CDATA[
 {
   "service": {"name": "scenario-auditor"},
+  "cli": {
+    "enabled": true,
+    "command": "scenario-auditor",
+    "adapter": {"kind": "go_module", "module_dir": "cli"},
+    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
+    "invoke": {"kind": "installed_command", "command": "scenario-auditor"}
+  },
   "lifecycle": {
     "setup": {
       "condition": {
@@ -121,7 +142,7 @@ Targets: service_json
       "condition": {
         "checks": [
           {"type": "binaries", "targets": ["api/scenario-auditor-api"]},
-          {"type": "cli", "command": "scenario-auditor", "targets": ["scenario-auditor"]}
+          {"type": "cli", "command": "scenario-auditor"}
         ]
       }
     }
@@ -146,6 +167,13 @@ Targets: service_json
   <input language="json"><![CDATA[
 {
   "service": {"name": "scenario-auditor"},
+  "cli": {
+    "enabled": true,
+    "command": "scenario-auditor",
+    "adapter": {"kind": "go_module", "module_dir": "cli"},
+    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
+    "invoke": {"kind": "installed_command", "command": "scenario-auditor"}
+  },
   "ports": {"ui": {"env_var": "UI_PORT"}},
   "lifecycle": {
     "setup": {
@@ -162,8 +190,7 @@ Targets: service_json
           },
           {
             "type": "cli",
-            "command": "scenario-auditor",
-            "targets": ["scenario-auditor", "another-cli"]
+            "command": "scenario-auditor"
           },
           {
             "type": "custom",
@@ -182,6 +209,13 @@ Targets: service_json
   <input language="json"><![CDATA[
 {
   "service": {"name": "scenario-auditor"},
+  "cli": {
+    "enabled": true,
+    "command": "scenario-auditor",
+    "adapter": {"kind": "go_module", "module_dir": "cli"},
+    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
+    "invoke": {"kind": "installed_command", "command": "scenario-auditor"}
+  },
   "lifecycle": {
     "setup": {
       "condition": {
@@ -197,8 +231,7 @@ Targets: service_json
           },
           {
             "type": "cli",
-            "command": "scenario-auditor",
-            "targets": ["scenario-auditor"]
+            "command": "scenario-auditor"
           }
         ]
       }
@@ -209,10 +242,17 @@ Targets: service_json
 </test-case>
 
 <test-case id="valid-cli-command" should-fail="false">
-  <description>CLI readiness can be expressed via command name</description>
+  <description>CLI readiness can be expressed via command name when it matches the cli manifest</description>
   <input language="json"><![CDATA[
 {
   "service": {"name": "scenario-auditor"},
+  "cli": {
+    "enabled": true,
+    "command": "scenario-auditor",
+    "adapter": {"kind": "go_module", "module_dir": "cli"},
+    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
+    "invoke": {"kind": "installed_command", "command": "scenario-auditor"}
+  },
   "lifecycle": {
     "setup": {
       "condition": {
@@ -234,10 +274,17 @@ Targets: service_json
 </test-case>
 
 <test-case id="invalid-cli-command" should-fail="true">
-  <description>CLI check without a command should fail because runtime cannot validate it</description>
+  <description>CLI check without a command should fail because runtime cannot validate it against the manifest</description>
   <input language="json"><![CDATA[
 {
   "service": {"name": "scenario-auditor"},
+  "cli": {
+    "enabled": true,
+    "command": "scenario-auditor",
+    "adapter": {"kind": "go_module", "module_dir": "cli"},
+    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
+    "invoke": {"kind": "installed_command", "command": "scenario-auditor"}
+  },
   "lifecycle": {
     "setup": {
       "condition": {
@@ -266,10 +313,17 @@ Targets: service_json
 </test-case>
 
 <test-case id="cli-command-mismatch" should-fail="true">
-  <description>CLI command that does not match service.name should be rejected</description>
+  <description>CLI command that does not match cli.command should be rejected</description>
   <input language="json"><![CDATA[
 {
   "service": {"name": "scenario-auditor"},
+  "cli": {
+    "enabled": true,
+    "command": "scenario-auditor",
+    "adapter": {"kind": "go_module", "module_dir": "cli"},
+    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
+    "invoke": {"kind": "installed_command", "command": "scenario-auditor"}
+  },
   "lifecycle": {
     "setup": {
       "condition": {
@@ -297,6 +351,13 @@ Targets: service_json
   <input language="json"><![CDATA[
 {
   "service": {"name": "scenario-auditor"},
+  "cli": {
+    "enabled": true,
+    "command": "scenario-auditor",
+    "adapter": {"kind": "go_module", "module_dir": "cli"},
+    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
+    "invoke": {"kind": "installed_command", "command": "scenario-auditor"}
+  },
   "ports": {
     "ui": {"env_var": "UI_PORT"}
   },
@@ -327,6 +388,13 @@ Targets: service_json
   <input language="json"><![CDATA[
 {
   "service": {"name": "scenario-auditor"},
+  "cli": {
+    "enabled": true,
+    "command": "scenario-auditor",
+    "adapter": {"kind": "go_module", "module_dir": "cli"},
+    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
+    "invoke": {"kind": "installed_command", "command": "scenario-auditor"}
+  },
   "ports": {
     "web": {"env_var": "WEB_PORT"}
   },
@@ -357,6 +425,13 @@ Targets: service_json
   <input language="json"><![CDATA[
 {
   "service": {"name": "scenario-auditor"},
+  "cli": {
+    "enabled": true,
+    "command": "scenario-auditor",
+    "adapter": {"kind": "go_module", "module_dir": "cli"},
+    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
+    "invoke": {"kind": "installed_command", "command": "scenario-auditor"}
+  },
   "ports": {
     "ui": {"env_var": "UI_PORT"}
   },
@@ -390,6 +465,13 @@ Targets: service_json
   <input language="json"><![CDATA[
 {
   "service": {"name": "scenario-auditor"},
+  "cli": {
+    "enabled": true,
+    "command": "scenario-auditor",
+    "adapter": {"kind": "go_module", "module_dir": "cli"},
+    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
+    "invoke": {"kind": "installed_command", "command": "scenario-auditor"}
+  },
   "ports": {
     "ui": {"env_var": "UI_PORT"}
   },
@@ -436,6 +518,7 @@ func CheckServiceSetupConditions(content []byte, filePath string) []Violation {
 	if err != nil {
 		return []Violation{newSetupViolation(filePath, findJSONLineSetup(string(content), "\"service\""), err.Error())}
 	}
+	cliConfig := extractCLIConfig(payload)
 
 	lifecycle, ok := getObject(payload, "lifecycle")
 	if !ok {
@@ -488,33 +571,30 @@ func CheckServiceSetupConditions(content []byte, filePath string) []Violation {
 		}
 	}
 
-	// Validate CLI readiness checks: ensure a CLI check exists with a command (runtime uses the command field)
-	cliChecks := extractChecksByType(checks, "cli")
-	if len(cliChecks) == 0 {
-		line := findJSONLineSetup(string(content), "\"checks\"", "\"cli\"")
-		message := fmt.Sprintf("lifecycle.setup.condition must include a CLI check whose command is exactly '%s'. The executable lives under cli/%s, but readiness resolves commands via PATH so the check must use the bare service name.", serviceName, serviceName)
-		violations = append(violations, newSetupViolation(filePath, line, message))
-	} else {
-		missingCommand := true
-		matchingCommand := false
-		for _, cliCheck := range cliChecks {
-			command := strings.TrimSpace(extractCommand(cliCheck))
-			if command == "" {
-				continue
-			}
-			missingCommand = false
-			if commandMatches(cliCheck, serviceName) {
-				matchingCommand = true
-				break
-			}
+	if cliConfig.Enabled {
+		if cliConfig.Command == "" {
+			line := findJSONLineSetup(string(content), "\"cli\"", "\"command\"")
+			violations = append(violations, newSetupViolation(filePath, line, "cli.enabled=true requires cli.command so lifecycle.setup.condition can probe the declared executable"))
 		}
-		if missingCommand || !matchingCommand {
+
+		cliChecks := extractChecksByType(checks, "cli")
+		if len(cliChecks) == 0 {
 			line := findJSONLineSetup(string(content), "\"checks\"", "\"cli\"")
-			msg := fmt.Sprintf("CLI check must set command '%s'. Keep the executable under cli/%s, but this readiness probe runs 'command -v %s' so the entry must be the bare service name, not a filesystem path.", serviceName, serviceName, serviceName)
-			if !missingCommand {
-				msg = fmt.Sprintf("CLI check command must exactly match '%s' so command -v can find it on PATH (place the binary under cli/%s but expose it via that name).", serviceName, serviceName)
+			message := fmt.Sprintf("lifecycle.setup.condition must include a CLI check whose command matches cli.command (%q).", cliConfig.Command)
+			violations = append(violations, newSetupViolation(filePath, line, message))
+		} else {
+			matchingCommand := false
+			for _, cliCheck := range cliChecks {
+				if strings.EqualFold(strings.TrimSpace(extractCommand(cliCheck)), cliConfig.Command) {
+					matchingCommand = true
+					break
+				}
 			}
-			violations = append(violations, newSetupViolation(filePath, line, msg))
+			if !matchingCommand {
+				line := findJSONLineSetup(string(content), "\"checks\"", "\"cli\"")
+				msg := fmt.Sprintf("CLI check command must exactly match cli.command (%q) so readiness probes the executable declared in the manifest.", cliConfig.Command)
+				violations = append(violations, newSetupViolation(filePath, line, msg))
+			}
 		}
 	}
 
@@ -609,17 +689,27 @@ func containsTarget(check map[string]any, target string) bool {
 	return false
 }
 
-func commandMatches(check map[string]any, serviceName string) bool {
-	cmd, ok := check["command"].(string)
-	if !ok {
-		return false
-	}
-	return strings.EqualFold(strings.TrimSpace(cmd), strings.TrimSpace(serviceName))
-}
-
 func extractCommand(check map[string]any) string {
 	value, _ := check["command"].(string)
 	return value
+}
+
+type lifecycleCLIConfig struct {
+	Enabled bool
+	Command string
+}
+
+func extractCLIConfig(payload map[string]any) lifecycleCLIConfig {
+	cliRaw, ok := payload["cli"].(map[string]any)
+	if !ok {
+		return lifecycleCLIConfig{}
+	}
+	enabled, _ := cliRaw["enabled"].(bool)
+	command := strings.TrimSpace(toStringOrDefault(cliRaw["command"]))
+	return lifecycleCLIConfig{
+		Enabled: enabled,
+		Command: command,
+	}
 }
 
 func stringField(check map[string]any, key string) string {
@@ -753,7 +843,7 @@ func newSetupViolation(filePath string, line int, message string) Violation {
 		Description:    message,
 		FilePath:       filePath,
 		LineNumber:     line,
-		Recommendation: "Configure lifecycle.setup.condition with binaries, CLI commands, and ui-bundle checks that match the scenario",
+		Recommendation: "Configure lifecycle.setup.condition with binaries, ui-bundle checks, and any manifest-declared CLI command that the scenario exposes",
 		Standard:       "configuration-v1",
 	}
 }

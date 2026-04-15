@@ -16,6 +16,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/scenariocli"
 )
 
 // ValidationRequest represents a validation request
@@ -50,7 +51,12 @@ type ValidationResponse struct {
 	CacheUsed            bool                         `json:"cache_used"`
 }
 
-var scenarioAuditorHTTPClient = &http.Client{Timeout: 45 * time.Second}
+var (
+	scenarioAuditorHTTPClient = &http.Client{Timeout: 45 * time.Second}
+	resolveScenarioAuditorCLI = func(ctx context.Context) (string, error) {
+		return scenariocli.ResolveExecutableFromRepoRootContext(ctx, "scenario-auditor")
+	}
+)
 
 const (
 	scenarioAuditorPollInterval = 2 * time.Second
@@ -269,8 +275,7 @@ func runScenarioAuditor(entityType string, entityName string) (any, error) {
 }
 
 func runScenarioAuditorCLI(entityName string) (any, error) {
-	// Check if scenario-auditor CLI is available
-	_, err := exec.LookPath("scenario-auditor")
+	executable, err := resolveScenarioAuditorCLI(context.Background())
 	if err != nil {
 		return map[string]any{
 			"error":   "scenario-auditor not available",
@@ -279,7 +284,7 @@ func runScenarioAuditorCLI(entityName string) (any, error) {
 	}
 
 	// Run scenario-auditor (no --json flag, returns JSON by default)
-	cmd := exec.Command("scenario-auditor", "audit", entityName, "--timeout", "240")
+	cmd := exec.Command(executable, "audit", entityName, "--timeout", "240")
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

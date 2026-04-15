@@ -86,7 +86,9 @@
         "checks": [
           {
             "type": "binaries",
-            "targets": ["api/swarm-manager-api"]
+            "targets": [
+              "api/swarm-manager-api"
+            ]
           },
           {
             "type": "cli",
@@ -100,11 +102,6 @@
         ]
       },
       "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
         {
           "name": "build-api",
           "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o swarm-manager-api .",
@@ -241,6 +238,41 @@
         "startup_policy": "try_start",
         "description": "Post-execution code review and readiness validation"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "swarm-manager",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "swarm-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

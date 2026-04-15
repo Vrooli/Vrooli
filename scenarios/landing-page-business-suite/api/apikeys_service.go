@@ -76,7 +76,7 @@ func NewAPIKeyServiceWithOptions(db *sql.DB, httpClient HTTPDoer, dialect string
 			return nil, fmt.Errorf(
 				"LPBS_API_KEY_ENCRYPTION_KEY is required in production.\n" +
 					"Generate a key with: ./lpbs-api generate-encryption-key\n" +
-					"Then set it in your environment or .vrooli/secrets.json",
+					"Then set it in your environment or ~/.vrooli/secrets.json",
 			)
 		}
 		// Development mode - allow unencrypted storage with prominent warning

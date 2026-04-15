@@ -1,5 +1,5 @@
-// Package secrets manages project-level encrypted secret persistence under
-// .vrooli/.
+// Package secrets manages user-scoped encrypted secret persistence under
+// ~/.vrooli/.
 //
 // Secret files are expected to be regular files with private permissions.
 // Symlinks are rejected, and on Unix-like platforms group/world-readable secret
@@ -35,11 +35,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 const (
 	KeyEnvVar           = "VROOLI_SECRETS_KEY"
-	ProjectSecretsPath  = ".vrooli/secrets.enc.json"
 	lockFileName        = "secrets.lock"
 	encryptionAlgorithm = "AES-256-GCM"
 	encryptionVersionV1 = 1
@@ -102,7 +103,7 @@ type encryptedFile struct {
 }
 
 type Store struct {
-	Root        string
+	HomeDir     string
 	KeyProvider KeyProvider
 	EnvLookup   LookupFunc
 	deps        storeDeps
@@ -122,13 +123,13 @@ type storeDeps struct {
 	sleep      func(time.Duration)
 }
 
-// NewProjectStore returns a Store rooted at the given project path.
+// NewUserStore returns a Store rooted at the given user home path.
 //
 // The default store is strict, reads the encryption key from
 // VROOLI_SECRETS_KEY, and uses process environment lookup for Resolve fallbacks.
-func NewProjectStore(root string) *Store {
+func NewUserStore(homeDir string) *Store {
 	return &Store{
-		Root: filepath.Clean(root),
+		HomeDir: filepath.Clean(homeDir),
 		KeyProvider: func() (string, bool) {
 			return os.LookupEnv(KeyEnvVar)
 		},
@@ -137,9 +138,13 @@ func NewProjectStore(root string) *Store {
 	}
 }
 
-// EncryptedPath returns the canonical encrypted project secrets path.
+// EncryptedPath returns the canonical encrypted user secrets path.
 func (s *Store) EncryptedPath() string {
-	return filepath.Join(s.Root, filepath.FromSlash(ProjectSecretsPath))
+	path, err := repocontract.UserEncryptedSecretsPath(s.HomeDir)
+	if err != nil {
+		return ""
+	}
+	return path
 }
 
 // LockPath returns the advisory lock used to serialize mutating operations.
@@ -147,7 +152,7 @@ func (s *Store) LockPath() string {
 	return filepath.Join(filepath.Dir(s.EncryptedPath()), lockFileName)
 }
 
-// Load reads encrypted secrets from the authoritative project store.
+// Load reads encrypted secrets from the authoritative user store.
 func (s *Store) Load() (map[string]string, error) {
 	data, err := s.loadEncryptedUnlocked()
 	if errors.Is(err, os.ErrNotExist) {

@@ -112,14 +112,6 @@
       "steps": [
         {
           "condition": {
-            "file_exists": "cli/install.sh"
-          },
-          "description": "Install CLI binary to ~/.vrooli/bin",
-          "name": "install-cli",
-          "run": "bash cli/install.sh"
-        },
-        {
-          "condition": {
             "file_exists": "api/go.mod"
           },
           "description": "Build Go API server",
@@ -216,5 +208,35 @@
     "type": "scenario",
     "version": "1.0.0"
   },
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "cli": {
+    "enabled": true,
+    "command": "accessibility-compliance-hub",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/accessibility-compliance-hub",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "accessibility-compliance-hub"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/accessibility-compliance-hub",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
+    }
+  }
 }

@@ -106,11 +106,6 @@
       },
       "steps": [
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install the secrets-manager CLI"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o secrets-manager-api .",
           "description": "Build the Go API server binary (secrets-manager-api) inside api/ directory for lifecycle execution"
@@ -216,6 +211,36 @@
         "required": false,
         "description": "Launch vulnerability-fixing agents"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "secrets-manager",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/secrets-manager",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "secrets-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/secrets-manager",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

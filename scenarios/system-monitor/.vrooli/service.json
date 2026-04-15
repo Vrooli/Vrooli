@@ -102,11 +102,6 @@
       },
       "steps": [
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
-        {
           "name": "build-api",
           "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o system-monitor-api ./cmd/server",
           "description": "Build Go API server"
@@ -210,6 +205,36 @@
         "required": true,
         "description": "Agent orchestration layer for investigations and anomaly checks"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "system-monitor",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/system-monitor",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "system-monitor"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/system-monitor",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

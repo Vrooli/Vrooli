@@ -117,11 +117,6 @@
           "description": "Build Go API server with WebSocket support"
         },
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "install-ui-deps",
           "run": "cd ui && npm install",
           "description": "Install React dashboard dependencies",
@@ -229,6 +224,36 @@
           }
         ]
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "ai-chatbot-manager",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/ai-chatbot-manager",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "ai-chatbot-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/ai-chatbot-manager",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

@@ -558,22 +558,42 @@ set -euo pipefail
 # Installs to %USERPROFILE%\bin\<scenario-name>
 ```
 
-#### 11.2 Lifecycle Integration
+#### 11.2 Manifest Integration
 
 In `.vrooli/service.json`:
 ```json
 {
-  "lifecycle": {
-    "setup": {
-      "steps": [
-        {"name": "install-cli", "run": "cd cli && ./install.sh"}
-      ]
+  "cli": {
+    "enabled": true,
+    "command": "prompt-manager",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "install": [
+      {
+        "os": ["linux", "darwin"],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": ["windows"],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "prompt-manager"
+    },
+    "freshness": {
+      "inputs": ["cli/**", ".vrooli/service.json"]
     }
   }
 }
 ```
 
-**Steer:** CLI installation should be part of scenario setup, not a manual step.
+**Steer:** The top-level `cli` section is the platform contract. `lifecycle.setup` should prepare runtime assets such as API binaries or UI bundles, not install the CLI.
 
 ---
 
@@ -665,7 +685,7 @@ You may update in `scenarios/{{TARGET}}/cli/`:
 - Refactor command organization into domain packages
 
 You may update in `scenarios/{{TARGET}}/.vrooli/service.json`:
-- Add CLI installation step to lifecycle setup
+- Add or correct the top-level `cli` manifest section
 
 You must:
 - Keep `{{TARGET}}` fully functional and non-regressed

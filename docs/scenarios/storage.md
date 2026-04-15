@@ -16,6 +16,22 @@ In particular:
 
 Scenario source trees are deployable inputs. Mutable runtime state belongs outside the repo.
 
+## Three File Categories
+
+Scenario files should be classified into three categories:
+
+- repo metadata
+  - structural files that define scenario identity or repo-contract-facing layout
+  - example: `scenarios/<name>/.vrooli/service.json`
+- tracked scenario-authored assets
+  - files intentionally edited by humans or scenario UIs and committed to git as shared defaults, policies, plans, or authored content
+  - examples: `config/`, `policy/`, `initiatives/`, `ideas/`, `research/`, `requirements/`, `docs/`
+- runtime mutable state
+  - operational data created or changed while the scenario runs and not intended to be shared through git
+  - examples: queues, runs, checkpoints, lockfiles, telemetry, local databases, caches
+
+If a file is edited through the UI but the intended result is a shared, reviewable change to scenario behavior, treat it as a tracked scenario-authored asset, not runtime state.
+
 ## Canonical Runtime Storage Contract
 
 For mutable filesystem state, scenarios should use:
@@ -56,6 +72,33 @@ At runtime this resolves to class-scoped directories like:
 - `<state-root>/vrooli/<scenario>/...`
 
 See [packages/api-core/docs/storage.md](/home/matthalloran8/Vrooli/packages/api-core/docs/storage.md) for the package-level contract.
+
+Tracked source-tree `config/` or `policy/` files are different from `api-core/storage` `config` class files:
+
+- source-tree `config/` or `policy/`
+  - versioned scenario defaults or policy authored in git
+- storage `config` class
+  - local operator or user-managed mutable configuration outside the repo
+
+## Tracked Scenario Assets
+
+Not all mutable-looking files are runtime state.
+
+Some files are intentionally edited through tooling or scenario UIs and are meant to be committed to git as shared defaults, policies, or authored content. These are tracked scenario-authored assets.
+
+These belong in explicit scenario directories such as:
+
+- `config/`
+- `policy/`
+- `initiatives/`
+- `ideas/`
+- `research/`
+- `requirements/`
+- `docs/`
+
+Do not place these in `.vrooli/` unless they are true repo or manifest metadata.
+
+Do not place these in `api-core/storage` unless they are local runtime state rather than shared source.
 
 ## Structured Persistence
 
@@ -135,4 +178,3 @@ When migrating a scenario:
 The top-level repo `data/` folder is legacy/transitional from the perspective of scenario runtime storage.
 
 New scenario work should not depend on it.
-

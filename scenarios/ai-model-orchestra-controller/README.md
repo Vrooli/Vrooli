@@ -42,9 +42,6 @@ cd scenarios/ai-model-orchestra-controller
 
 # Build the Go API
 make build
-
-# Install CLI (optional)
-make install-cli
 ```
 
 ### 2. Start Services
@@ -600,7 +597,6 @@ cd scenarios/ai-model-orchestra-controller
 
 # Setup development environment
 make build
-make install-cli
 
 # Run tests
 make test

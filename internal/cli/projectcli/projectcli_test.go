@@ -42,6 +42,16 @@ func TestParseCleanupRequestRejectsUnknownTarget(t *testing.T) {
 	}
 }
 
+func TestParseCleanupRequestAcceptsStorageTarget(t *testing.T) {
+	req, err := ParseCleanupRequest([]string{"storage"})
+	if err != nil {
+		t.Fatalf("ParseCleanupRequest: %v", err)
+	}
+	if req.Target != "storage" {
+		t.Fatalf("target = %q, want storage", req.Target)
+	}
+}
+
 func TestParseDiagnosePortRequestRejectsInvalidPort(t *testing.T) {
 	if _, err := ParseDiagnosePortRequest([]string{"bogus"}); err == nil {
 		t.Fatal("expected invalid port error")
@@ -73,6 +83,26 @@ func TestRenderLocksResponseHumanIncludesStaleStatus(t *testing.T) {
 	}
 	output := stdout.String()
 	if !strings.Contains(output, "21234") || !strings.Contains(output, "stale") {
+		t.Fatalf("stdout = %q", output)
+	}
+}
+
+func TestRenderStorageCleanupResponseHumanIncludesMigration(t *testing.T) {
+	var stdout bytes.Buffer
+	err := RenderStorageCleanupResponse(&stdout, cliout.FormatHuman, StorageCleanupResponse{
+		Report: maintenance.UserStorageReport{
+			Actions: []maintenance.UserStorageAction{{
+				Kind:   "migrated",
+				Source: "/tmp/old",
+				Dest:   "/tmp/new",
+			}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("RenderStorageCleanupResponse: %v", err)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, "Migrated /tmp/old") || !strings.Contains(output, "/tmp/new") {
 		t.Fatalf("stdout = %q", output)
 	}
 }

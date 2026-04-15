@@ -11,12 +11,12 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
 	apisecrets "github.com/vrooli/api-core/secrets"
+	repocontract "github.com/vrooli/repo-contract-go"
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/shellutil"
@@ -124,18 +124,15 @@ func buildUserSecretMap(manifest domain.CloudManifest, providedSecrets map[strin
 		return nil
 	}
 
-	repoRoot, _ := bundle.FindRepoRootFromCWD()
 	workspaceSecrets := map[string]string{}
-	if repoRoot != "" {
-		if projectStore, err := apisecrets.NewProjectStore(apisecrets.Config{RepoRoot: repoRoot}); err == nil {
-			repoRoot = projectStore.RepoRoot()
-			workspaceSecrets = readLocalSecretsMap(projectStore.PlaintextPath())
-		}
+	userStore, err := apisecrets.NewUserStore(apisecrets.Config{})
+	if err == nil {
+		workspaceSecrets = readLocalSecretsMap(userStore.PlaintextPath())
 	}
 	scenarioSecrets := map[string]string{}
-	if repoRoot != "" {
-		if scenarioSecretsPath, err := bundle.ResolveScenarioPath(repoRoot, manifest.Scenario.ID); err == nil {
-			scenarioSecrets = readLocalSecretsMap(filepath.Join(scenarioSecretsPath, ".vrooli", "secrets.json"))
+	if err == nil {
+		if scenarioSecretsPath, pathErr := repocontract.UserScenarioPlaintextSecretsPath(userStore.HomeDir(), manifest.Scenario.ID); pathErr == nil {
+			scenarioSecrets = readLocalSecretsMap(scenarioSecretsPath)
 		}
 	}
 
@@ -153,7 +150,7 @@ func buildUserSecretMap(manifest domain.CloudManifest, providedSecrets map[strin
 		}
 
 		// Merge precedence (lowest -> highest):
-		// workspace/.vrooli/secrets.json -> scenarios/<id>/.vrooli/secrets.json -> explicit provided secrets
+		// ~/.vrooli/secrets.json -> ~/.vrooli/scenarios/<id>/secrets.json -> explicit provided secrets
 		if v, ok := workspaceSecrets[key]; ok && strings.TrimSpace(v) != "" {
 			out[key] = v
 		}
@@ -333,7 +330,7 @@ func BuildDeployPlan(manifest domain.CloudManifest) ([]domain.VPSPlanStep, error
 		steps = append(steps, domain.VPSPlanStep{
 			ID:          "secrets_provision",
 			Title:       "Provision secrets",
-			Description: "Generate per-install secrets and write to .vrooli/secrets.json before resource startup.",
+			Description: "Generate per-install secrets and write to ~/.vrooli/secrets.json before resource startup.",
 			Command:     "(custom step - secrets generated and written via API)",
 		})
 	}

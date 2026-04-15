@@ -15,6 +15,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // PostgreSQL driver
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/constants"
 	_ "modernc.org/sqlite"
@@ -172,6 +173,13 @@ func sqliteDSN(log *logrus.Logger) (string, error) {
 			dataRoot = strings.TrimSpace(os.Getenv("VROOLI_DATA"))
 		}
 		if dataRoot == "" {
+			if path, err := scenarioDBPath(); err == nil {
+				if migrateErr := migrateLegacySQLite(path); migrateErr != nil {
+					return "", fmt.Errorf("migrate legacy sqlite: %w", migrateErr)
+				}
+				root = path
+				goto ensureDir
+			}
 			home, _ := os.UserHomeDir()
 			if home == "" {
 				home = "."
@@ -181,6 +189,7 @@ func sqliteDSN(log *logrus.Logger) (string, error) {
 		root = filepath.Join(dataRoot, "browser-automation-studio.db")
 	}
 
+ensureDir:
 	if err := os.MkdirAll(filepath.Dir(root), 0o755); err != nil {
 		return "", fmt.Errorf("prepare sqlite directory: %w", err)
 	}
@@ -193,6 +202,43 @@ func sqliteDSN(log *logrus.Logger) (string, error) {
 		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=page_size(4096)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)&_pragma=mmap_size(268435456)",
 		root,
 	), nil
+}
+
+func scenarioDBPath() (string, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return "", err
+	}
+	return resolver.Path(storage.Options{ScenarioID: "browser-automation-studio"}, storage.ClassData, "browser-automation-studio.db")
+}
+
+func migrateLegacySQLite(dst string) error {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return nil
+	}
+	src := filepath.Join(home, ".vrooli", "data", "sqlite", "databases", "browser-automation-studio.db")
+	if src == dst {
+		return nil
+	}
+	if _, err := os.Stat(src); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	if _, err := os.Stat(dst); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	return os.Rename(src, dst)
 }
 
 func ensureSQLiteResource(log *logrus.Logger) error {

@@ -58,6 +58,36 @@
       "range": "35000-39999"
     }
   },
+  "cli": {
+    "enabled": true,
+    "command": "seo-optimizer",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/seo-optimizer",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "seo-optimizer"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/seo-optimizer",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
+    }
+  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -132,11 +162,6 @@
           "name": "add-data",
           "run": "../../scripts/resources/populate/populate.sh .",
           "description": "Add app data to resources"
-        },
-        {
-          "name": "install-cli",
-          "run": "mkdir -p ~/.local/bin && chmod +x cli/seo-optimizer && ln -sf $(pwd)/cli/seo-optimizer ~/.local/bin/seo-optimizer",
-          "description": "Install CLI command globally"
         },
         {
           "name": "build-api",

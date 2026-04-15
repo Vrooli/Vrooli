@@ -105,7 +105,7 @@ func TestWorkshopSave_WithDelay_CreatesPendingFile(t *testing.T) {
 	h, rootDir := setupTestHandlerWithAgent(t, agent)
 
 	// Enable auto-advance with a 10-second delay.
-	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, "config", "settings.json"), map[string]any{
 		"theme":                      "dark",
 		"default_mode":               "manual",
 		"max_auto_rounds":            10,
@@ -239,7 +239,7 @@ func TestWorkshopSave_NewSaveReplacesPendingAdvance(t *testing.T) {
 	}
 	h, rootDir := setupTestHandlerWithAgent(t, agent)
 
-	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, "config", "settings.json"), map[string]any{
 		"theme":                      "dark",
 		"default_mode":               "manual",
 		"max_auto_rounds":            10,

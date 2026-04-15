@@ -224,6 +224,65 @@ func TestReadServiceRejectsDuplicateHostRequirements(t *testing.T) {
 	}
 }
 
+func TestReadServiceAcceptsGoModuleCLIContract(t *testing.T) {
+	root := t.TempDir()
+	servicePath := filepath.Join(root, ".vrooli", "service.json")
+	testkitgo.WriteJSON(t, servicePath, ServiceManifest{
+		Version: "1.0.0",
+		Service: ServiceMetadata{Name: "alpha"},
+		CLI: &CLIConfig{
+			Enabled: true,
+			Command: "alpha",
+			Adapter: CLIAdapterConfig{
+				Kind:      "go_module",
+				ModuleDir: "cli",
+			},
+			Install: []CLIInstallStep{{
+				Kind: "command",
+				Run:  "cd cli && ./install.sh",
+			}},
+		},
+	})
+
+	manifest, err := ReadService(servicePath)
+	if err != nil {
+		t.Fatalf("ReadService: %v", err)
+	}
+	if !manifest.CLIEnabled() {
+		t.Fatal("expected cli to be enabled")
+	}
+	if manifest.CLI.Invoke.Kind != "installed_command" {
+		t.Fatalf("invoke kind = %q, want installed_command", manifest.CLI.Invoke.Kind)
+	}
+	if manifest.CLI.Invoke.Command != "alpha" {
+		t.Fatalf("invoke command = %q, want alpha", manifest.CLI.Invoke.Command)
+	}
+}
+
+func TestReadServiceRejectsEnabledCLIWithoutAdapterContract(t *testing.T) {
+	root := t.TempDir()
+	servicePath := filepath.Join(root, ".vrooli", "service.json")
+	testkitgo.WriteJSON(t, servicePath, ServiceManifest{
+		Version: "1.0.0",
+		Service: ServiceMetadata{Name: "alpha"},
+		CLI: &CLIConfig{
+			Enabled: true,
+			Command: "alpha",
+			Adapter: CLIAdapterConfig{
+				Kind: "shell_script",
+			},
+		},
+	})
+
+	_, err := ReadService(servicePath)
+	if err == nil {
+		t.Fatal("expected cli validation error")
+	}
+	if !strings.Contains(err.Error(), "adapter.script_path") {
+		t.Fatalf("unexpected error = %v", err)
+	}
+}
+
 func TestResolveScenarioPathIgnoresOutOfScopeSandbox(t *testing.T) {
 	root := t.TempDir()
 	writeScenarioService(t, root, "alpha", "Canonical alpha")

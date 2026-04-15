@@ -64,7 +64,7 @@ type processPreflightEnvelope struct {
 func disableAutoWorkshopSettings(t *testing.T, rootDir string) {
 	t.Helper()
 	t.Setenv("SCENARIO_ROOT", rootDir)
-	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, "config", "settings.json"), map[string]any{
 		"theme":                    "dark",
 		"default_mode":             "manual",
 		"max_auto_rounds":          10,

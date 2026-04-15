@@ -568,15 +568,15 @@ func main() {
 - Available for HTTP clients, external APIs, etc.
 
 **Secrets:**
-- `api-core/secrets` is the shared boundary for local `.vrooli/secrets.json`
-- Uses `repo-contract-go` for path discovery and enforces trust checks before reads
+- `api-core/secrets` is the shared boundary for local `~/.vrooli/secrets.json`
+- Uses `repo-contract-go` for canonical user-home path resolution and enforces trust checks before reads
 - Preserves `_metadata` while requiring all secret values to be JSON strings
-- Supports both project-scoped stores and explicit-path stores for scenario-local files
+- Supports both user-scoped stores and explicit-path stores for scenario-local files
 
 Typical usage:
 
 ```go
-store, err := secrets.NewProjectStoreFromEnvOrCWD(secrets.Config{
+store, err := secrets.NewUserStore(secrets.Config{
 	EnvLookup: os.Getenv,
 })
 

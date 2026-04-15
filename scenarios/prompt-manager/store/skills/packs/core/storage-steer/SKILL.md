@@ -675,6 +675,31 @@ CREATE TABLE documents (
 );
 ```
 
+#### 9.5 Tracked Scenario Assets vs Runtime State
+
+Not every UI-edited file belongs in runtime storage.
+
+Before moving a file out of the source tree, ask:
+
+Is this file meant to be shared through git as part of the scenario's authored behavior?
+
+- Yes:
+  - keep it in the repo in an explicit source directory such as `config/`, or `policy/`
+  - do not treat it as runtime state just because a UI edits it
+- No:
+  - move it to `api-core/storage`
+
+Use this 3-way model:
+
+- repo metadata
+  - structural files such as `.vrooli/service.json`
+- tracked scenario-authored assets
+  - versioned defaults, policy, plans, and other shared source artifacts
+- runtime mutable state
+  - queues, runs, locks, telemetry, databases, caches, and user-local mutable config
+
+Do not use `.vrooli/` as a generic bucket for checked-in authoring content. Reserve it for repo-owned metadata unless the repo contract explicitly says otherwise.
+
 ---
 
 ### 10. Greenfield Default, Brownfield Exception

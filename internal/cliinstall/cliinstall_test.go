@@ -3,6 +3,8 @@ package cliinstall
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -25,6 +27,45 @@ type installCall struct {
 	installDir string
 }
 
+func writeGoScenarioCLIManifest(t *testing.T, root, name string) {
+	t.Helper()
+	testscenario.WriteScenarioService(t, root, name, testscenario.ScenarioServiceManifest(
+		name,
+		testscenario.WithCLI(&scenario.CLIConfig{
+			Enabled: true,
+			Command: name,
+			Adapter: scenario.CLIAdapterConfig{
+				Kind:      "go_module",
+				ModuleDir: "cli",
+			},
+			Install: []scenario.CLIInstallStep{{
+				Kind: "command",
+				Run:  "cd cli && ./install.sh",
+			}},
+		}),
+	))
+}
+
+func writeShellScenarioCLIManifest(t *testing.T, root, name string) {
+	t.Helper()
+	testscenario.WriteScenarioService(t, root, name, testscenario.ScenarioServiceManifest(
+		name,
+		testscenario.WithCLI(&scenario.CLIConfig{
+			Enabled: true,
+			Command: name,
+			Adapter: scenario.CLIAdapterConfig{
+				Kind:          "shell_script",
+				ScriptPath:    filepath.ToSlash(filepath.Join("cli", name)),
+				InstallScript: "cli/install.sh",
+			},
+			Install: []scenario.CLIInstallStep{{
+				Kind: "command",
+				Run:  "cd cli && ./install.sh",
+			}},
+		}),
+	))
+}
+
 func (s *stubInstaller) Install(_ context.Context, item InstallableCLI, installDir string) error {
 	s.calls = append(s.calls, installCall{item: item, installDir: installDir})
 	return nil
@@ -36,6 +77,8 @@ func TestDiscoverScenarioCLIs(t *testing.T) {
 	fixture.WriteScenarioStub(t, "alpha")
 	fixture.WriteScenarioStub(t, "beta")
 	fixture.WriteScenarioStub(t, "gamma")
+	writeGoScenarioCLIManifest(t, fixture.Root, "alpha")
+	writeGoScenarioCLIManifest(t, fixture.Root, "beta")
 	testscenario.WriteScenarioCLIGoMod(t, fixture.Root, "alpha", "alpha/cli")
 	testscenario.WriteScenarioCLIGoMod(t, fixture.Root, "beta", "beta/cli")
 
@@ -51,6 +94,63 @@ func TestDiscoverScenarioCLIs(t *testing.T) {
 	}
 	if items[0].BinaryName != "alpha" {
 		t.Fatalf("scenario binary name = %q, want %q", items[0].BinaryName, "alpha")
+	}
+}
+
+func TestDiscoverScenarioCLIsIncludesShellScriptAdapter(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	fixture.WriteScenarioStub(t, "alpha")
+	writeShellScenarioCLIManifest(t, fixture.Root, "alpha")
+	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("scenarios", "alpha", "cli", "alpha"), "#!/usr/bin/env bash\nexit 0\n")
+	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("scenarios", "alpha", "cli", "install.sh"), "#!/usr/bin/env bash\nexit 0\n")
+
+	manager := NewManager(fixture.Root, fixture.Home)
+	item, err := manager.DiscoverScenarioCLI("alpha")
+	if err != nil {
+		t.Fatalf("DiscoverScenarioCLI: %v", err)
+	}
+	if item.CLI == nil || item.CLI.Adapter.Kind != "shell_script" {
+		t.Fatalf("expected shell_script adapter, got %+v", item)
+	}
+	if item.ScenarioPath != filepath.Join(fixture.Root, "scenarios", "alpha") {
+		t.Fatalf("scenario path = %q", item.ScenarioPath)
+	}
+}
+
+func TestDiscoverScenarioCLIDoesNotInferGoModuleFromLayoutWithoutManifest(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	fixture.WriteScenarioStub(t, "alpha")
+	testscenario.WriteScenarioService(t, fixture.Root, "alpha", testscenario.ScenarioServiceManifest("alpha"))
+	testscenario.WriteScenarioCLIGoMod(t, fixture.Root, "alpha", "alpha/cli")
+	testkitgo.WriteRelativeFile(t, fixture.Root, filepath.Join("scenarios", "alpha", "cli", "main.go"), "package main\nfunc main() {}\n")
+
+	manager := NewManager(fixture.Root, fixture.Home)
+	_, err := manager.DiscoverScenarioCLI("alpha")
+	if err == nil {
+		t.Fatal("expected missing CLI manifest error, got nil")
+	}
+	if !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("expected not-exist error when layout exists without manifest, got %v", err)
+	}
+}
+
+func TestDiscoverScenarioCLIDoesNotInferShellScriptFromLayoutWithoutManifest(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	fixture.WriteScenarioStub(t, "alpha")
+	testscenario.WriteScenarioService(t, fixture.Root, "alpha", testscenario.ScenarioServiceManifest("alpha"))
+	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("scenarios", "alpha", "cli", "alpha"), "#!/usr/bin/env bash\nexit 0\n")
+	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("scenarios", "alpha", "cli", "install.sh"), "#!/usr/bin/env bash\nexit 0\n")
+
+	manager := NewManager(fixture.Root, fixture.Home)
+	_, err := manager.DiscoverScenarioCLI("alpha")
+	if err == nil {
+		t.Fatal("expected missing CLI manifest error, got nil")
+	}
+	if !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("expected not-exist error when shell layout exists without manifest, got %v", err)
 	}
 }
 
@@ -113,6 +213,7 @@ func TestDiscoverScenarioCLIsReturnsUnexpectedErrors(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(fixture.Root, "scenarios", "alpha", "cli", "go.mod"), 0o755); err != nil {
 		t.Fatalf("mkdir invalid go.mod path: %v", err)
 	}
+	writeGoScenarioCLIManifest(t, fixture.Root, "alpha")
 
 	manager := NewManager(fixture.Root, fixture.Home)
 	_, err := manager.DiscoverScenarioCLIs()
@@ -129,6 +230,8 @@ func TestInstallAllScenarioCLIsInvokesInstaller(t *testing.T) {
 	fixture.WriteRepoContract(t)
 	fixture.WriteScenarioStub(t, "alpha")
 	fixture.WriteScenarioStub(t, "beta")
+	writeGoScenarioCLIManifest(t, fixture.Root, "alpha")
+	writeGoScenarioCLIManifest(t, fixture.Root, "beta")
 	testscenario.WriteScenarioCLIGoMod(t, fixture.Root, "alpha", "alpha/cli")
 	testscenario.WriteScenarioCLIGoMod(t, fixture.Root, "beta", "beta/cli")
 
@@ -151,6 +254,7 @@ func TestEnsureScenarioCLIInstallsWhenMissing(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
 	fixture.WriteScenarioStub(t, "alpha")
+	writeGoScenarioCLIManifest(t, fixture.Root, "alpha")
 	testscenario.WriteScenarioCLIGoMod(t, fixture.Root, "alpha", "alpha/cli")
 
 	installer := &stubInstaller{}
@@ -162,6 +266,29 @@ func TestEnsureScenarioCLIInstallsWhenMissing(t *testing.T) {
 	}
 	if len(installer.calls) != 1 {
 		t.Fatalf("install calls = %d, want 1", len(installer.calls))
+	}
+}
+
+func TestEnsureScenarioCLIShellScriptInstallsWhenMissing(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	fixture.WriteScenarioStub(t, "alpha")
+	writeShellScenarioCLIManifest(t, fixture.Root, "alpha")
+	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("scenarios", "alpha", "cli", "alpha"), "#!/usr/bin/env bash\nexit 0\n")
+	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("scenarios", "alpha", "cli", "install.sh"), "#!/usr/bin/env bash\nexit 0\n")
+
+	installer := &stubInstaller{}
+	manager := NewManager(fixture.Root, fixture.Home)
+	manager.Installer = installer
+
+	if err := manager.EnsureScenarioCLI("alpha"); err != nil {
+		t.Fatalf("EnsureScenarioCLI: %v", err)
+	}
+	if len(installer.calls) != 1 {
+		t.Fatalf("install calls = %d, want 1", len(installer.calls))
+	}
+	if installer.calls[0].item.CLI == nil || installer.calls[0].item.CLI.Adapter.Kind != "shell_script" {
+		t.Fatalf("expected shell_script install item, got %+v", installer.calls[0].item)
 	}
 }
 

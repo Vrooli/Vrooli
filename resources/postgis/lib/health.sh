@@ -19,7 +19,7 @@ POSTGIS_HEALTH_PORT="${POSTGIS_HEALTH_PORT:-5435}"
 # Returns: 0 on success, 1 on failure
 #######################################
 postgis::health::start_server() {
-    local health_pid_file="${POSTGIS_DATA_DIR}/health_server.pid"
+    local health_pid_file="${POSTGIS_HEALTH_PID_FILE}"
     
     # Check if already running
     if [[ -f "$health_pid_file" ]]; then
@@ -85,7 +85,7 @@ postgis::health::start_server() {
 # Returns: 0 on success
 #######################################
 postgis::health::stop_server() {
-    local health_pid_file="${POSTGIS_DATA_DIR}/health_server.pid"
+    local health_pid_file="${POSTGIS_HEALTH_PID_FILE}"
     
     if [[ -f "$health_pid_file" ]]; then
         local pid
@@ -114,7 +114,7 @@ postgis::health::stop_server() {
 # Returns: 0 if running, 1 if not
 #######################################
 postgis::health::is_running() {
-    local health_pid_file="${POSTGIS_DATA_DIR}/health_server.pid"
+    local health_pid_file="${POSTGIS_HEALTH_PID_FILE}"
     
     if [[ -f "$health_pid_file" ]]; then
         local pid

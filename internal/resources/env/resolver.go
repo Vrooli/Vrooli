@@ -116,7 +116,7 @@ func resolveFromManifest(root, home string, resourceManifest manifestpkg.Resourc
 	warnings := []string{}
 	templateContext := buildTemplateContext(root, home, resourceManifest.Name)
 
-	secretsMap, err := loadSecrets(root)
+	secretsMap, err := loadSecrets(home)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -357,8 +357,8 @@ func LoadPortRegistry(root string) (PortRegistry, error) {
 	return registry, nil
 }
 
-func loadSecrets(root string) (map[string]string, error) {
-	store := secrets.NewProjectStore(root)
+func loadSecrets(home string) (map[string]string, error) {
+	store := secrets.NewUserStore(home)
 	return store.Load()
 }
 

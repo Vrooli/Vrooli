@@ -15,14 +15,14 @@ type SecretResolution struct {
 }
 
 // ResolveSecret resolves a secret using the standard order:
-// 1) environment variable, 2) nearest .vrooli/secrets.json, 3) empty string.
+// 1) environment variable, 2) ~/.vrooli/secrets.json, 3) empty string.
 func ResolveSecret(key string) string {
 	return ResolveSecretWithSource(key).Value
 }
 
 // ResolveSecretWithSource resolves a secret and reports where it came from.
 func ResolveSecretWithSource(key string) SecretResolution {
-	store, err := apisecrets.NewProjectStoreFromEnvOrCWD(apisecrets.Config{
+	store, err := apisecrets.NewUserStore(apisecrets.Config{
 		EnvLookup: os.Getenv,
 	})
 	if err != nil {

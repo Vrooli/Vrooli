@@ -130,14 +130,6 @@
           "description": "Add app data to resources"
         },
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally",
-          "condition": {
-            "file_exists": "cli/install.sh"
-          }
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o data-tools-api ./cmd/server/",
           "description": "Build Go API server",
@@ -280,5 +272,35 @@
       }
     },
     "scenarios": {}
+  },
+  "cli": {
+    "enabled": true,
+    "command": "data-tools",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/data-tools",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "data-tools"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/data-tools",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
+    }
   }
 }

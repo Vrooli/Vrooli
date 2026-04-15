@@ -147,11 +147,6 @@
           "description": "Add app data to resources"
         },
         {
-          "name": "install-cli",
-          "run": "cd cli && chmod +x palette-gen && cp palette-gen ~/.local/bin/",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o palette-gen-api .",
           "description": "Build Go API binary"
@@ -251,5 +246,35 @@
       }
     },
     "scenarios": {}
+  },
+  "cli": {
+    "enabled": true,
+    "command": "palette-gen",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/palette-gen",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "palette-gen"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/palette-gen",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
+    }
   }
 }

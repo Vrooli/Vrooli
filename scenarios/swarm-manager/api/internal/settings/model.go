@@ -129,7 +129,7 @@ var (
 // NewStore creates a settings store. If path is empty, uses the scenario default.
 func NewStore(path string) *Store {
 	if strings.TrimSpace(path) == "" {
-		path = filepath.Join(pathutil.ResolveScenarioRoot("swarm-manager"), ".vrooli", "settings.json")
+		path = filepath.Join(pathutil.ResolveScenarioRoot("swarm-manager"), "config", "settings.json")
 	}
 	return &Store{path: path}
 }

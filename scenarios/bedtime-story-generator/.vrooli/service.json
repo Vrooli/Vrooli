@@ -142,11 +142,6 @@
           "description": "Add scenario data to resources"
         },
         {
-          "name": "install-cli",
-          "run": "mkdir -p ~/.local/bin && chmod +x cli/bedtime-story-generator && { ln -sf $(pwd)/cli/bedtime-story-generator ~/.local/bin/bedtime-story-generator && ln -sf $(pwd)/cli/bedtime-story-generator ~/.local/bin/bedtime-story; } 2>/dev/null || true",
-          "description": "Install CLI globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o bedtime-story-generator-api .",
           "description": "Build API server"
@@ -270,6 +265,36 @@
         "purpose": "Cache frequently read stories for performance",
         "fallback": "Direct PostgreSQL queries"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "bedtime-story-generator",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/bedtime-story-generator",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "bedtime-story-generator"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/bedtime-story-generator",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

@@ -5,35 +5,63 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
-func TestNewProjectStoreResolvesContractBackedPath(t *testing.T) {
-	repoRoot := writeTempRepo(t)
-	store, err := NewProjectStore(Config{RepoRoot: repoRoot})
+func TestNewUserStoreResolvesCanonicalUserPath(t *testing.T) {
+	home := t.TempDir()
+	store, err := NewUserStore(Config{HomeDir: home})
 	if err != nil {
-		t.Fatalf("NewProjectStore: %v", err)
+		t.Fatalf("NewUserStore: %v", err)
 	}
-	want := filepath.Join(repoRoot, ".vrooli", "secrets.json")
+	want, err := repocontract.UserPlaintextSecretsPath(home)
+	if err != nil {
+		t.Fatalf("UserPlaintextSecretsPath: %v", err)
+	}
+	if got := store.PlaintextPath(); got != want {
+		t.Fatalf("PlaintextPath = %q, want %q", got, want)
+	}
+	if got := store.HomeDir(); got != home {
+		t.Fatalf("HomeDir = %q, want %q", got, home)
+	}
+}
+
+func TestNewUserStoreUsesUserHomeResolverWhenHomeDirUnset(t *testing.T) {
+	home := t.TempDir()
+	store, err := NewUserStore(Config{
+		UserHomeDir: func() (string, error) { return home, nil },
+	})
+	if err != nil {
+		t.Fatalf("NewUserStore: %v", err)
+	}
+	want, err := repocontract.UserPlaintextSecretsPath(home)
+	if err != nil {
+		t.Fatalf("UserPlaintextSecretsPath: %v", err)
+	}
 	if got := store.PlaintextPath(); got != want {
 		t.Fatalf("PlaintextPath = %q, want %q", got, want)
 	}
 }
 
-func TestNewProjectStoreFallsBackToConventionalRoot(t *testing.T) {
-	root := t.TempDir()
-	store, err := NewProjectStore(Config{RepoRoot: root})
-	if err != nil {
-		t.Fatalf("NewProjectStore: %v", err)
+func TestNewUserStoreReturnsErrorWhenHomeDirResolutionFails(t *testing.T) {
+	store, err := NewUserStore(Config{
+		UserHomeDir: func() (string, error) { return "", os.ErrNotExist },
+	})
+	if err == nil {
+		t.Fatal("expected home dir resolution error")
 	}
-	want := filepath.Join(root, ".vrooli", "secrets.json")
-	if got := store.PlaintextPath(); got != want {
-		t.Fatalf("PlaintextPath = %q, want %q", got, want)
+	if store != nil {
+		t.Fatalf("store = %#v, want nil", store)
 	}
 }
 
 func TestResolvePrefersEnvThenFile(t *testing.T) {
-	root := t.TempDir()
-	path := filepath.Join(root, ".vrooli", "secrets.json")
+	home := t.TempDir()
+	path, err := repocontract.UserPlaintextSecretsPath(home)
+	if err != nil {
+		t.Fatalf("UserPlaintextSecretsPath: %v", err)
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -41,8 +69,8 @@ func TestResolvePrefersEnvThenFile(t *testing.T) {
 		t.Fatalf("write: %v", err)
 	}
 
-	store, err := NewProjectStore(Config{
-		RepoRoot: root,
+	store, err := NewUserStore(Config{
+		HomeDir: home,
 		EnvLookup: func(key string) string {
 			if key == "API_KEY" {
 				return "env-secret"
@@ -51,7 +79,7 @@ func TestResolvePrefersEnvThenFile(t *testing.T) {
 		},
 	})
 	if err != nil {
-		t.Fatalf("NewProjectStore: %v", err)
+		t.Fatalf("NewUserStore: %v", err)
 	}
 
 	resolved, err := store.Resolve("API_KEY")
@@ -62,9 +90,9 @@ func TestResolvePrefersEnvThenFile(t *testing.T) {
 		t.Fatalf("Resolve = %#v, want env-secret from env", resolved)
 	}
 
-	store, err = NewProjectStore(Config{RepoRoot: root})
+	store, err = NewUserStore(Config{HomeDir: home})
 	if err != nil {
-		t.Fatalf("NewProjectStore: %v", err)
+		t.Fatalf("NewUserStore: %v", err)
 	}
 	resolved, err = store.Resolve("API_KEY")
 	if err != nil {
@@ -76,9 +104,9 @@ func TestResolvePrefersEnvThenFile(t *testing.T) {
 }
 
 func TestResolveReturnsMissingWhenUnavailable(t *testing.T) {
-	store, err := NewProjectStore(Config{RepoRoot: t.TempDir()})
+	store, err := NewUserStore(Config{HomeDir: t.TempDir()})
 	if err != nil {
-		t.Fatalf("NewProjectStore: %v", err)
+		t.Fatalf("NewUserStore: %v", err)
 	}
 	resolved, err := store.Resolve("MISSING")
 	if err != nil {
@@ -90,7 +118,10 @@ func TestResolveReturnsMissingWhenUnavailable(t *testing.T) {
 }
 
 func TestLoadFileDocumentPreservesMetadataAndRejectsBadValues(t *testing.T) {
-	path := filepath.Join(t.TempDir(), ".vrooli", "secrets.json")
+	path, err := repocontract.UserPlaintextSecretsPath(t.TempDir())
+	if err != nil {
+		t.Fatalf("UserPlaintextSecretsPath: %v", err)
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -119,14 +150,17 @@ func TestLoadFileDocumentPreservesMetadataAndRejectsBadValues(t *testing.T) {
 
 func TestLoadFileDocumentRejectsUnsafeFiles(t *testing.T) {
 	t.Run("broad perms", func(t *testing.T) {
-		path := filepath.Join(t.TempDir(), ".vrooli", "secrets.json")
+		path, err := repocontract.UserPlaintextSecretsPath(t.TempDir())
+		if err != nil {
+			t.Fatalf("UserPlaintextSecretsPath: %v", err)
+		}
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			t.Fatalf("mkdir: %v", err)
 		}
 		if err := os.WriteFile(path, []byte("{\"API_KEY\":\"secret\"}\n"), 0o644); err != nil {
 			t.Fatalf("write: %v", err)
 		}
-		_, err := LoadFileDocument(path)
+		_, err = LoadFileDocument(path)
 		if err == nil {
 			t.Fatal("expected insecure permissions error")
 		}
@@ -138,14 +172,17 @@ func TestLoadFileDocumentRejectsUnsafeFiles(t *testing.T) {
 		if err := os.WriteFile(target, []byte("{\"API_KEY\":\"secret\"}\n"), 0o600); err != nil {
 			t.Fatalf("write target: %v", err)
 		}
-		path := filepath.Join(dir, ".vrooli", "secrets.json")
+		path, err := repocontract.UserPlaintextSecretsPath(dir)
+		if err != nil {
+			t.Fatalf("UserPlaintextSecretsPath: %v", err)
+		}
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			t.Fatalf("mkdir: %v", err)
 		}
 		if err := os.Symlink(target, path); err != nil {
 			t.Fatalf("symlink: %v", err)
 		}
-		_, err := LoadFileDocument(path)
+		_, err = LoadFileDocument(path)
 		if err == nil {
 			t.Fatal("expected symlink error")
 		}
@@ -153,8 +190,11 @@ func TestLoadFileDocumentRejectsUnsafeFiles(t *testing.T) {
 }
 
 func TestWriteFileDocumentWritesPrivateAtomicFile(t *testing.T) {
-	path := filepath.Join(t.TempDir(), ".vrooli", "secrets.json")
-	err := WriteFileDocument(path, Document{
+	path, err := repocontract.UserPlaintextSecretsPath(t.TempDir())
+	if err != nil {
+		t.Fatalf("UserPlaintextSecretsPath: %v", err)
+	}
+	err = WriteFileDocument(path, Document{
 		Secrets: map[string]string{"API_KEY": "secret"},
 		Metadata: map[string]json.RawMessage{
 			"_metadata": json.RawMessage(`{"environment":"development"}`),
@@ -180,7 +220,10 @@ func TestWriteFileDocumentWritesPrivateAtomicFile(t *testing.T) {
 }
 
 func TestNewFileStoreSaveDeleteAndUpdatePreserveMetadata(t *testing.T) {
-	path := filepath.Join(t.TempDir(), ".vrooli", "secrets.json")
+	path, err := repocontract.UserPlaintextSecretsPath(t.TempDir())
+	if err != nil {
+		t.Fatalf("UserPlaintextSecretsPath: %v", err)
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -218,107 +261,4 @@ func TestNewFileStoreSaveDeleteAndUpdatePreserveMetadata(t *testing.T) {
 	if _, ok := doc.Metadata["_metadata"]; !ok {
 		t.Fatal("expected metadata to be preserved")
 	}
-}
-
-func TestNewProjectStoreFromEnvOrCWDFindsNearestConfigDir(t *testing.T) {
-	root := t.TempDir()
-	configDir := filepath.Join(root, ".vrooli")
-	if err := os.MkdirAll(configDir, 0o755); err != nil {
-		t.Fatalf("mkdir .vrooli: %v", err)
-	}
-	start := filepath.Join(root, "nested", "deeper")
-	if err := os.MkdirAll(start, 0o755); err != nil {
-		t.Fatalf("mkdir nested: %v", err)
-	}
-	origGetwd := getwdFn
-	getwdFn = func() (string, error) { return start, nil }
-	t.Cleanup(func() { getwdFn = origGetwd })
-	origFindRepoRootFromEnvOrCWD := findRepoRootFromEnvOrCWD
-	findRepoRootFromEnvOrCWD = func() (string, error) {
-		return "", &Error{Kind: ErrResolve, Message: "test fallback discovery"}
-	}
-	t.Cleanup(func() { findRepoRootFromEnvOrCWD = origFindRepoRootFromEnvOrCWD })
-
-	store, err := NewProjectStoreFromEnvOrCWD(Config{
-		EnvLookup: func(string) string { return "" },
-	})
-	if err != nil {
-		t.Fatalf("NewProjectStoreFromEnvOrCWD: %v", err)
-	}
-	want := filepath.Join(root, ".vrooli", "secrets.json")
-	if got := store.PlaintextPath(); got != want {
-		t.Fatalf("PlaintextPath = %q, want %q", got, want)
-	}
-}
-
-func writeTempRepo(t *testing.T) string {
-	t.Helper()
-	root := t.TempDir()
-	requiredDirs := []string{".vrooli", "scenarios", "resources", "packages", "cmd", "internal"}
-	for _, dir := range requiredDirs {
-		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
-			t.Fatalf("mkdir %s: %v", dir, err)
-		}
-	}
-	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/test\n\ngo 1.21\n"), 0o644); err != nil {
-		t.Fatalf("write go.mod: %v", err)
-	}
-	contract := map[string]any{
-		"$schema": "schemas/repo-contract.schema.json",
-		"version": "1.0.0",
-		"platform": map[string]any{
-			"mode":                          "cross_platform_go_native",
-			"legacy_project_bash_supported": false,
-		},
-		"root": map[string]any{
-			"markers": map[string]any{
-				"required_dirs":  requiredDirs,
-				"required_files": []string{"go.mod"},
-			},
-		},
-		"layout": map[string]any{
-			"project_config_dir": ".vrooli",
-			"scenario_dir":       "scenarios",
-			"resource_dir":       "resources",
-			"package_dir":        "packages",
-			"command_dir":        "cmd",
-			"internal_dir":       "internal",
-			"docs_dir":           "docs",
-		},
-		"scenario": map[string]any{
-			"required_files": []string{".vrooli/service.json"},
-			"well_known_paths": map[string]string{
-				"service": ".vrooli/service.json",
-			},
-		},
-		"resource": map[string]any{
-			"manifest":         "resource.json",
-			"well_known_paths": map[string]string{},
-		},
-		"globs": map[string]any{
-			"syntax":         "doublestar",
-			"root_relative":  true,
-			"case_sensitive": true,
-			"allow_absolute": false,
-			"path_format":    "slash_normalized",
-		},
-		"environment": map[string]any{
-			"variables": map[string]string{
-				"repo_root": "VROOLI_ROOT",
-			},
-		},
-		"sandbox": map[string]any{
-			"full_repo_scopes":      []string{"", ".", "/"},
-			"scenario_scope_prefix": "scenarios/",
-		},
-		"profiles": map[string]any{},
-	}
-	data, err := json.Marshal(contract)
-	if err != nil {
-		t.Fatalf("marshal contract: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), data, 0o644); err != nil {
-		t.Fatalf("write contract: %v", err)
-	}
-	return root
 }

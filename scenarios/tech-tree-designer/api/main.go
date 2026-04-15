@@ -17,6 +17,7 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/storage"
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
@@ -224,7 +225,11 @@ func main() {
 		log.Printf("WARNING: scenario catalog disabled (repo root unresolved): %v", rootErr)
 	} else {
 		log.Printf("INFO: Resolved repo root: %s", repoRoot)
-		visibilityPath := filepath.Join(repoRoot, "scenarios", "tech-tree-designer", "data", "scenario_visibility.json")
+		visibilityPath, pathErr := resolveVisibilityPath(repoRoot)
+		if pathErr != nil {
+			log.Printf("WARNING: scenario visibility path unavailable: %v", pathErr)
+			visibilityPath = filepath.Join(repoRoot, "scenarios", "tech-tree-designer", "data", "scenario_visibility.json")
+		}
 		log.Printf("INFO: Visibility path: %s", visibilityPath)
 		manager, catalogErr := NewScenarioCatalogManager(repoRoot, visibilityPath)
 		if catalogErr != nil {
@@ -336,6 +341,48 @@ func main() {
 	log.Printf("🌟 Strategic Intelligence System ready for superintelligence guidance")
 
 	r.Run(":" + port)
+}
+
+func resolveVisibilityPath(repoRoot string) (string, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return "", err
+	}
+	path, err := resolver.Path(storage.Options{ScenarioID: "tech-tree-designer"}, storage.ClassConfig, "scenario_visibility.json")
+	if err != nil {
+		return "", err
+	}
+	legacy := filepath.Join(repoRoot, "scenarios", "tech-tree-designer", "data", "scenario_visibility.json")
+	if legacy != path {
+		if err := migrateVisibilityPath(legacy, path); err != nil {
+			return "", err
+		}
+	}
+	return path, nil
+}
+
+func migrateVisibilityPath(src, dst string) error {
+	if src == dst {
+		return nil
+	}
+	if _, err := os.Stat(src); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	if _, err := os.Stat(dst); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	return os.Rename(src, dst)
 }
 
 // Get the main tech tree

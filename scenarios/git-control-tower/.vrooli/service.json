@@ -43,7 +43,7 @@
           },
           "description": "Start Go API server",
           "name": "start-api",
-          "run": "cd api \u0026\u0026 ./git-control-tower-api"
+          "run": "cd api && ./git-control-tower-api"
         },
         {
           "background": true,
@@ -52,12 +52,12 @@
           },
           "description": "Serve production UI bundle",
           "name": "start-ui",
-          "run": "cd ui \u0026\u0026 node server.js"
+          "run": "cd ui && node server.js"
         },
         {
           "description": "Show API/UI URLs",
           "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}/health\" \u0026\u0026 echo \"UI:  http://localhost:${UI_PORT}/\""
+          "run": "echo \"API: http://localhost:${API_PORT}/health\" && echo \"UI:  http://localhost:${UI_PORT}/\""
         }
       ]
     },
@@ -113,17 +113,9 @@
       "description": "Initialize Git Control Tower (build + install)",
       "steps": [
         {
-          "condition": {
-            "file_exists": "cli/install.sh"
-          },
-          "description": "Install CLI command globally",
-          "name": "install-cli",
-          "run": "bash cli/install.sh"
-        },
-        {
           "description": "Build Go API binary",
           "name": "build-api",
-          "run": "cd api \u0026\u0026 go mod download \u0026\u0026 go build -o git-control-tower-api ."
+          "run": "cd api && go mod download && go build -o git-control-tower-api ."
         },
         {
           "condition": {
@@ -131,17 +123,17 @@
           },
           "description": "Install UI dependencies",
           "name": "install-ui-deps",
-          "run": "cd ui \u0026\u0026 (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace)"
+          "run": "cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace)"
         },
         {
           "description": "Build production UI bundle",
           "name": "build-ui",
-          "run": "cd ui \u0026\u0026 pnpm run build"
+          "run": "cd ui && pnpm run build"
         },
         {
           "description": "Show API/UI URLs after setup",
           "name": "show-urls",
-          "run": "echo \"✅ Setup complete\" \u0026\u0026 echo \"API: http://localhost:${API_PORT}/health\" \u0026\u0026 echo \"UI:  http://localhost:${UI_PORT}/\""
+          "run": "echo \"\u2705 Setup complete\" && echo \"API: http://localhost:${API_PORT}/health\" && echo \"UI:  http://localhost:${UI_PORT}/\""
         }
       ]
     },
@@ -180,6 +172,41 @@
       "env_var": "UI_PORT",
       "port": 36400,
       "range": "35000-39999"
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "git-control-tower",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "git-control-tower"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
     }
   },
   "service": {

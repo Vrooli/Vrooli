@@ -6,12 +6,13 @@
 set -euo pipefail
 
 # Source shared integration test library
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-SCRIPT_DIR="${APP_ROOT}/resources/kokoro/test"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # Source var.sh for directory variables
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 
 # Source integration test libraries using var.sh
 # shellcheck disable=SC1091
@@ -50,8 +51,8 @@ if [[ -f "${var_RESOURCES_COMMON_FILE}" ]]; then
 fi
 
 # shellcheck disable=SC1091
-if [[ -f "${APP_ROOT}/resources/kokoro/config/defaults.sh" ]]; then
-    source "${APP_ROOT}/resources/kokoro/config/defaults.sh"
+if [[ -f "${RESOURCE_DIR}/config/defaults.sh" ]]; then
+    source "${RESOURCE_DIR}/config/defaults.sh"
     # Check if function exists before calling
     if declare -f defaults::export_config >/dev/null 2>&1; then
         defaults::export_config

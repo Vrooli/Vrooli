@@ -44,6 +44,8 @@ type DiagnosePortRequest struct {
 	ScenarioName string
 }
 
+type StorageCleanupRequest struct{}
+
 type CleanupRequest struct {
 	Target string
 	Args   []string
@@ -153,6 +155,13 @@ func ParseDiagnosePortRequest(args []string) (DiagnosePortRequest, error) {
 	return req, nil
 }
 
+func ParseStorageCleanupRequest(args []string) (StorageCleanupRequest, error) {
+	if _, err := commandtree.ParseArgs("cleanup storage", CleanupStorageHelpText(), commandtree.ArgSchema{}, args); err != nil {
+		return StorageCleanupRequest{}, err
+	}
+	return StorageCleanupRequest{}, nil
+}
+
 func ParseCleanupRequest(args []string) (CleanupRequest, error) {
 	parsed, err := commandtree.ParseArgs("cleanup", CleanupHelpText, commandtree.ArgSchema{
 		Positionals: []commandtree.PositionalArg{
@@ -167,14 +176,14 @@ func ParseCleanupRequest(args []string) (CleanupRequest, error) {
 	switch target {
 	case "help":
 		return CleanupRequest{}, clipolicy.CommandHelpOnly(CleanupHelpText)
-	case "orphans", "locks":
+	case "orphans", "locks", "storage":
 		return CleanupRequest{Target: target, Args: append([]string(nil), parsed.Positionals[1:]...)}, nil
 	default:
 		return CleanupRequest{}, &vroolierr.Error{
 			Err:         fmt.Errorf("unknown cleanup target: %s", target),
 			Category:    clipolicy.ErrorCategoryUsage,
 			Hint:        clipolicy.UsageHint("cleanup"),
-			Suggestions: []string{"orphans", "locks"},
+			Suggestions: []string{"orphans", "locks", "storage"},
 		}
 	}
 }
@@ -263,7 +272,11 @@ func parseLifecycleOptions(command string, args []string, helpText string) (proj
 	return opts, nil
 }
 
-const CleanupHelpText = "vrooli cleanup - Clean up orphaned processes and stale locks\n\nUsage:\n  vrooli cleanup orphans    Kill orphaned Vrooli processes\n  vrooli cleanup locks      Clean stale port lock files\n\nOptions:\n  --help, -h    Show this help message\n\nExamples:\n  vrooli cleanup orphans    # Kill orphaned processes (interactive)\n  vrooli cleanup locks      # Remove stale lock files\n"
+const CleanupHelpText = "vrooli cleanup - Clean up orphaned processes, stale locks, and legacy user storage\n\nUsage:\n  vrooli cleanup orphans    Kill orphaned Vrooli processes\n  vrooli cleanup locks      Clean stale port lock files\n  vrooli cleanup storage    Normalize legacy ~/.vrooli storage\n\nOptions:\n  --help, -h    Show this help message\n\nExamples:\n  vrooli cleanup orphans    # Kill orphaned processes (interactive)\n  vrooli cleanup locks      # Remove stale lock files\n  vrooli cleanup storage    # Migrate live resource storage and remove known-safe legacy paths\n"
+
+func CleanupStorageHelpText() string {
+	return commandtree.HelpText("", "vrooli cleanup storage", "Normalize legacy ~/.vrooli storage into canonical resource roots and remove known-safe legacy residue.", commandtree.Help{}, commandtree.ArgSchema{})
+}
 
 func statusArgSchema() commandtree.ArgSchema {
 	return commandtree.ArgSchema{

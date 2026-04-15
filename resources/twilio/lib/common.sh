@@ -17,18 +17,28 @@ source "${REPO_ROOT}/scripts/resources/port_registry.sh"
 # Resource constants
 export TWILIO_NAME="twilio"
 export TWILIO_CATEGORY="execution"
-export TWILIO_CONFIG_DIR="${var_vrooli_dir:-${HOME}/.vrooli}/twilio"
-export TWILIO_DATA_DIR="${var_vrooli_data_dir:-${HOME}/.vrooli/data}/twilio"
-export TWILIO_CREDENTIALS_FILE="${var_vrooli_dir:-${HOME}/.vrooli}/twilio-credentials.json"
-export TWILIO_MONITOR_PID_FILE="${TWILIO_DATA_DIR}/monitor.pid"
-export TWILIO_LOG_FILE="${TWILIO_DATA_DIR}/twilio.log"
+twilio_xdg_config_home="${XDG_CONFIG_HOME:-${HOME}/.config}"
+twilio_xdg_data_home="${XDG_DATA_HOME:-${HOME}/.local/share}"
+twilio_xdg_state_home="${XDG_STATE_HOME:-${HOME}/.local/state}"
+export TWILIO_CONFIG_DIR="${RESOURCE_CONFIG_DIR:-${twilio_xdg_config_home}/vrooli/resources/twilio}"
+export TWILIO_DATA_DIR="${RESOURCE_DATA_DIR:-${twilio_xdg_data_home}/vrooli/resources/twilio}"
+export TWILIO_STATE_DIR="${RESOURCE_STATE_DIR:-${twilio_xdg_state_home}/vrooli/resources/twilio}"
+export TWILIO_CREDENTIALS_FILE="${TWILIO_CONFIG_DIR}/credentials.json"
+export TWILIO_MONITOR_PID_FILE="${TWILIO_STATE_DIR}/monitor.pid"
+export TWILIO_LOG_FILE="${TWILIO_STATE_DIR}/twilio.log"
 export TWILIO_PHONE_NUMBERS_FILE="${TWILIO_CONFIG_DIR}/phone-numbers.json"
 export TWILIO_WORKFLOWS_DIR="${TWILIO_CONFIG_DIR}/workflows"
+export TWILIO_TEMPLATES_FILE="${TWILIO_DATA_DIR}/templates.json"
+export TWILIO_HISTORY_FILE="${TWILIO_DATA_DIR}/message_history.json"
+export TWILIO_AUDIT_DIR="${TWILIO_DATA_DIR}/audit"
+export TWILIO_VOICE_HISTORY_FILE="${TWILIO_DATA_DIR}/voice_history.json"
+export TWILIO_WHATSAPP_HISTORY_FILE="${TWILIO_DATA_DIR}/whatsapp_history.json"
 
 # Create directories if needed
 twilio::ensure_dirs() {
     mkdir -p "$TWILIO_CONFIG_DIR"
     mkdir -p "$TWILIO_DATA_DIR"
+    mkdir -p "$TWILIO_STATE_DIR"
     mkdir -p "$TWILIO_WORKFLOWS_DIR"
 }
 

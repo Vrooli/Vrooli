@@ -61,6 +61,7 @@ type ServiceManifest struct {
 	Schema         string                    `json:"$schema,omitempty"`
 	Version        string                    `json:"version,omitempty"`
 	Service        ServiceMetadata           `json:"service"`
+	CLI            *CLIConfig                `json:"cli,omitempty"`
 	Ports          map[string]Port           `json:"ports,omitempty"`
 	Lifecycle      Lifecycle                 `json:"lifecycle,omitempty"`
 	Health         *HealthConfig             `json:"health,omitempty"`
@@ -79,6 +80,39 @@ type ServiceMetadata struct {
 	Type        string   `json:"type,omitempty"`
 	Category    string   `json:"category,omitempty"`
 	Tags        []string `json:"tags,omitempty"`
+}
+
+type CLIConfig struct {
+	Enabled   bool               `json:"enabled"`
+	Command   string             `json:"command,omitempty"`
+	Adapter   CLIAdapterConfig   `json:"adapter,omitempty"`
+	Install   []CLIInstallStep   `json:"install,omitempty"`
+	Invoke    CLIInvokeConfig    `json:"invoke,omitempty"`
+	Freshness *CLIFreshnessCheck `json:"freshness,omitempty"`
+}
+
+type CLIAdapterConfig struct {
+	Kind          string `json:"kind,omitempty"`
+	ModuleDir     string `json:"module_dir,omitempty"`
+	ScriptPath    string `json:"script_path,omitempty"`
+	InstallScript string `json:"install_script,omitempty"`
+}
+
+type CLIInstallStep struct {
+	OS         []string `json:"os,omitempty"`
+	Kind       string   `json:"kind,omitempty"`
+	Run        string   `json:"run,omitempty"`
+	InstallDir string   `json:"install_dir,omitempty"`
+}
+
+type CLIInvokeConfig struct {
+	Kind    string `json:"kind,omitempty"`
+	Command string `json:"command,omitempty"`
+}
+
+type CLIFreshnessCheck struct {
+	Inputs       []string `json:"inputs,omitempty"`
+	MetadataFile string   `json:"metadata_file,omitempty"`
 }
 
 type Dependencies struct {
@@ -285,6 +319,12 @@ func ReadService(path string) (ServiceManifest, error) {
 	if manifest.Lifecycle.Health == nil && manifest.Health != nil {
 		manifest.Lifecycle.Health = manifest.Health
 	}
+	if manifest.CLI != nil {
+		manifest.CLI.applyDefaults()
+		if err := manifest.CLI.Validate(); err != nil {
+			return ServiceManifest{}, fmt.Errorf("validate cli in %s: %w", path, err)
+		}
+	}
 	if err := hostreqspec.ValidateDeclarations(hostreqspec.KindTool, manifest.HostTools); err != nil {
 		return ServiceManifest{}, fmt.Errorf("validate hostTools in %s: %w", path, err)
 	}
@@ -292,6 +332,79 @@ func ReadService(path string) (ServiceManifest, error) {
 		return ServiceManifest{}, fmt.Errorf("validate hostSafeguards in %s: %w", path, err)
 	}
 	return manifest, nil
+}
+
+func (manifest ServiceManifest) CLIEnabled() bool {
+	return manifest.CLI != nil && manifest.CLI.Enabled
+}
+
+func (manifest ServiceManifest) CLICommand() string {
+	if manifest.CLI == nil {
+		return ""
+	}
+	return strings.TrimSpace(manifest.CLI.Command)
+}
+
+func (cfg *CLIConfig) applyDefaults() {
+	if cfg == nil {
+		return
+	}
+	cfg.Command = strings.TrimSpace(cfg.Command)
+	cfg.Adapter.Kind = strings.TrimSpace(cfg.Adapter.Kind)
+	cfg.Adapter.ModuleDir = strings.TrimSpace(cfg.Adapter.ModuleDir)
+	cfg.Adapter.ScriptPath = strings.TrimSpace(cfg.Adapter.ScriptPath)
+	cfg.Adapter.InstallScript = strings.TrimSpace(cfg.Adapter.InstallScript)
+	cfg.Invoke.Kind = strings.TrimSpace(cfg.Invoke.Kind)
+	cfg.Invoke.Command = strings.TrimSpace(cfg.Invoke.Command)
+	if cfg.Enabled && cfg.Invoke.Kind == "" {
+		cfg.Invoke.Kind = "installed_command"
+	}
+	if cfg.Enabled && cfg.Invoke.Command == "" {
+		cfg.Invoke.Command = cfg.Command
+	}
+}
+
+func (cfg CLIConfig) Validate() error {
+	if !cfg.Enabled {
+		return nil
+	}
+	if strings.TrimSpace(cfg.Command) == "" {
+		return errors.New("command is required when cli.enabled=true")
+	}
+	switch cfg.Adapter.Kind {
+	case "go_module":
+		if cfg.Adapter.ModuleDir == "" {
+			return errors.New("adapter.module_dir is required for cli.adapter.kind=go_module")
+		}
+	case "shell_script":
+		if cfg.Adapter.ScriptPath == "" {
+			return errors.New("adapter.script_path is required for cli.adapter.kind=shell_script")
+		}
+		if cfg.Adapter.InstallScript == "" {
+			return errors.New("adapter.install_script is required for cli.adapter.kind=shell_script")
+		}
+	default:
+		return fmt.Errorf("unsupported cli.adapter.kind %q", cfg.Adapter.Kind)
+	}
+	switch cfg.Invoke.Kind {
+	case "", "installed_command":
+	default:
+		return fmt.Errorf("unsupported cli.invoke.kind %q", cfg.Invoke.Kind)
+	}
+	for i, step := range cfg.Install {
+		step.Kind = strings.TrimSpace(step.Kind)
+		step.Run = strings.TrimSpace(step.Run)
+		if step.Kind == "" {
+			return fmt.Errorf("install[%d].kind is required", i)
+		}
+		if step.Kind != "command" {
+			return fmt.Errorf("unsupported cli.install[%d].kind %q", i, step.Kind)
+		}
+		if step.Run == "" {
+			return fmt.Errorf("install[%d].run is required", i)
+		}
+	}
+	return nil
 }
 
 func (deps *Dependencies) UnmarshalJSON(data []byte) error {

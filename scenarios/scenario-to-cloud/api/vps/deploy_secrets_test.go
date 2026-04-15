@@ -6,12 +6,16 @@ import (
 	"path/filepath"
 	"testing"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"scenario-to-cloud/domain"
 )
 
 func TestReadLocalSecretsMapIgnoresMetadataAndInvalidData(t *testing.T) {
 	t.Run("metadata preserved but excluded", func(t *testing.T) {
-		path := filepath.Join(t.TempDir(), ".vrooli", "secrets.json")
+		path, err := repocontract.UserPlaintextSecretsPath(t.TempDir())
+		if err != nil {
+			t.Fatalf("UserPlaintextSecretsPath: %v", err)
+		}
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			t.Fatalf("mkdir: %v", err)
 		}
@@ -29,7 +33,10 @@ func TestReadLocalSecretsMapIgnoresMetadataAndInvalidData(t *testing.T) {
 	})
 
 	t.Run("invalid document returns empty map", func(t *testing.T) {
-		path := filepath.Join(t.TempDir(), ".vrooli", "secrets.json")
+		path, err := repocontract.UserPlaintextSecretsPath(t.TempDir())
+		if err != nil {
+			t.Fatalf("UserPlaintextSecretsPath: %v", err)
+		}
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			t.Fatalf("mkdir: %v", err)
 		}
@@ -48,15 +55,26 @@ func TestBuildUserSecretMapPrefersScenarioThenExplicitSecrets(t *testing.T) {
 	root := t.TempDir()
 	writeRepoContractFixture(t, root)
 	t.Setenv("SCENARIO_TO_CLOUD_REPO_ROOT", root)
+	home := t.TempDir()
+	t.Setenv("HOME", home)
 
-	writeJSONFile(t, filepath.Join(root, ".vrooli", "secrets.json"), map[string]interface{}{
+	workspacePath, err := repocontract.UserPlaintextSecretsPath(home)
+	if err != nil {
+		t.Fatalf("UserPlaintextSecretsPath: %v", err)
+	}
+	scenarioPath, err := repocontract.UserScenarioPlaintextSecretsPath(home, "demo")
+	if err != nil {
+		t.Fatalf("UserScenarioPlaintextSecretsPath: %v", err)
+	}
+
+	writeJSONFile(t, workspacePath, map[string]interface{}{
 		"_metadata": map[string]interface{}{"managed_by": "test"},
 		"API_KEY":   "workspace",
 	})
 	writeJSONFile(t, filepath.Join(root, "scenarios", "demo", ".vrooli", "service.json"), map[string]interface{}{
 		"service": map[string]interface{}{"name": "demo"},
 	})
-	writeJSONFile(t, filepath.Join(root, "scenarios", "demo", ".vrooli", "secrets.json"), map[string]interface{}{
+	writeJSONFile(t, scenarioPath, map[string]interface{}{
 		"_metadata": map[string]interface{}{"managed_by": "test"},
 		"API_KEY":   "scenario",
 	})
@@ -128,7 +146,7 @@ func writeRepoContractFixture(t *testing.T, root string) {
   "version": "1.0.0",
   "platform": {"mode": "cross_platform_go_native", "legacy_project_bash_supported": false},
   "root": {"markers": {"required_dirs": [".vrooli", "scenarios", "resources", "packages", "cmd", "internal"], "required_files": ["go.mod"]}},
-  "layout": {"project_config_dir": ".vrooli", "scenario_dir": "scenarios", "resource_dir": "resources", "package_dir": "packages", "command_dir": "cmd", "internal_dir": "internal", "docs_dir": "docs"},
+  "layout": {"project_config_dir": ".vrooli", "scenario_dir": "scenarios", "resource_dir": "resources", "template_dir": "templates", "package_dir": "packages", "command_dir": "cmd", "internal_dir": "internal", "docs_dir": "docs"},
   "scenario": {"required_files": [".vrooli/service.json"], "well_known_paths": {"service": ".vrooli/service.json", "docs": "docs", "requirements": "requirements", "api": "api", "ui": "ui", "cli": "cli", "initialization": "initialization"}},
   "resource": {"manifest": "resource.json", "well_known_paths": {"docs": "docs", "initialization": "initialization"}},
   "globs": {"syntax": "doublestar", "root_relative": true, "case_sensitive": true, "allow_absolute": false, "path_format": "slash_normalized"},

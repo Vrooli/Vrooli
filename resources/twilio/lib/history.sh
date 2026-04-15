@@ -7,8 +7,6 @@ RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
 REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 TWILIO_DIR="${RESOURCE_DIR}"
 TWILIO_LIB_DIR="${TWILIO_DIR}/lib"
-TWILIO_DATA_DIR="${TWILIO_DIR}/data"
-TWILIO_HISTORY_FILE="${TWILIO_DATA_DIR}/message_history.json"
 
 # Source common functions
 source "$TWILIO_LIB_DIR/common.sh"

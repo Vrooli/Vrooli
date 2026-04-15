@@ -110,11 +110,6 @@
           "description": "Build Go API binary"
         },
         {
-          "name": "install-cli",
-          "run": "chmod +x cli/data-backup-manager && ln -sf $(pwd)/cli/data-backup-manager ~/.local/bin/data-backup-manager 2>/dev/null || true",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "create-backup-dirs",
           "run": "mkdir -p data/backups/postgres data/backups/files data/backups/scenarios data/backups/metadata",
           "description": "Create backup directory structure"
@@ -199,6 +194,36 @@
         "enabled": true,
         "required": false
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "data-backup-manager",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/data-backup-manager",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "data-backup-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/data-backup-manager",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

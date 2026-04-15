@@ -112,11 +112,6 @@
           "description": "Build Go API binary"
         },
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI tool"
-        },
-        {
           "name": "show-urls",
           "run": "echo '\ud83d\ude80 Scenario to iOS initialized\\n  API: http://localhost:${API_PORT}\\n  CLI: scenario-to-ios --help'",
           "description": "Display service access URLs"
@@ -126,5 +121,35 @@
   },
   "dependencies": {
     "resources": {}
+  },
+  "cli": {
+    "enabled": true,
+    "command": "scenario-to-ios",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/scenario-to-ios",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "scenario-to-ios"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/scenario-to-ios",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
+    }
   }
 }

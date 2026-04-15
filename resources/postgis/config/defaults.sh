@@ -20,11 +20,18 @@ export POSTGIS_ENABLE_TOPOLOGY="${POSTGIS_ENABLE_TOPOLOGY:-false}"
 export POSTGIS_ENABLE_RASTER="${POSTGIS_ENABLE_RASTER:-true}"
 export POSTGIS_ENABLE_TIGER="${POSTGIS_ENABLE_TIGER:-false}"
 
-# Data directories
-export POSTGIS_DATA_DIR="${HOME}/.vrooli/postgis"
+# Canonical resource storage directories
+postgis_xdg_config_home="${XDG_CONFIG_HOME:-${HOME}/.config}"
+postgis_xdg_data_home="${XDG_DATA_HOME:-${HOME}/.local/share}"
+postgis_xdg_state_home="${XDG_STATE_HOME:-${HOME}/.local/state}"
+export POSTGIS_CONFIG_DIR="${RESOURCE_CONFIG_DIR:-${postgis_xdg_config_home}/vrooli/resources/postgis}"
+export POSTGIS_DATA_DIR="${RESOURCE_DATA_DIR:-${postgis_xdg_data_home}/vrooli/resources/postgis}"
+export POSTGIS_STATE_DIR="${RESOURCE_STATE_DIR:-${postgis_xdg_state_home}/vrooli/resources/postgis}"
 export POSTGIS_IMPORT_DIR="${POSTGIS_DATA_DIR}/import"
 export POSTGIS_EXPORT_DIR="${POSTGIS_DATA_DIR}/export"
 export POSTGIS_SQL_DIR="${POSTGIS_DATA_DIR}/sql"
+export POSTGIS_HEALTH_PID_FILE="${POSTGIS_STATE_DIR}/health_server.pid"
+export POSTGIS_TEST_RESULTS_FILE="${POSTGIS_STATE_DIR}/test_results.json"
 
 # Features to enable
 export POSTGIS_EXTENSIONS="postgis postgis_raster"

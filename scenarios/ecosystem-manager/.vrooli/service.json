@@ -54,8 +54,14 @@
       "name": "bats",
       "required": false,
       "reason": "Parse and reason about BATS-based shell metrics and generated test artifacts during scenario analysis",
-      "when": ["setup", "develop", "test"],
-      "environments": ["development"],
+      "when": [
+        "setup",
+        "develop",
+        "test"
+      ],
+      "environments": [
+        "development"
+      ],
       "notes": "Ecosystem analysis can continue without bats, but shell-test introspection is reduced"
     }
   ],
@@ -126,14 +132,6 @@
           "name": "create-directories",
           "run": "mkdir -p queue/{pending,in-progress,completed,failed,templates} data logs",
           "description": "Create required directory structure"
-        },
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally",
-          "condition": {
-            "file_exists": "cli/install.sh"
-          }
         },
         {
           "name": "build-api",
@@ -296,6 +294,41 @@
         "required": false,
         "description": "Tracks visited resources/scenarios for campaign management (optional - proxied via API)"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "ecosystem-manager",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "ecosystem-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

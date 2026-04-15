@@ -113,11 +113,6 @@
       },
       "steps": [
         {
-          "name": "install-cli",
-          "run": "cd cli && ln -sf $(pwd)/notification-hub ~/.local/bin/notification-hub 2>/dev/null || sudo ln -sf $(pwd)/notification-hub /usr/local/bin/notification-hub",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o notification-hub-api .",
           "description": "Build Go API server binary"
@@ -222,5 +217,35 @@
       }
     },
     "scenarios": {}
+  },
+  "cli": {
+    "enabled": true,
+    "command": "notification-hub",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/notification-hub",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "notification-hub"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/notification-hub",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
+    }
   }
 }

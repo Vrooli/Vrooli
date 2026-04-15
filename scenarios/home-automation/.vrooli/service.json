@@ -188,11 +188,6 @@
           "description": "Initialize home automation data in resources"
         },
         {
-          "name": "install-cli",
-          "run": "chmod +x cli/home-automation && ln -sf $(pwd)/cli/home-automation ~/.local/bin/home-automation 2>/dev/null || true",
-          "description": "Install home automation CLI globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o home-automation-api .",
           "description": "Build home automation API server"
@@ -364,6 +359,36 @@
         "description": "Multi-channel alerts for device failures, security events, and automation notifications",
         "degraded_behavior": "Log-only notifications without user alerts"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "home-automation",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/home-automation",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "home-automation"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/home-automation",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

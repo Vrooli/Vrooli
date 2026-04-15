@@ -114,11 +114,6 @@
       },
       "steps": [
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o prompt-injection-arena-api .",
           "description": "Build Go API binary"
@@ -244,6 +239,36 @@
         "required": false,
         "purpose": "Vector database for semantic similarity of injection techniques - enables clustering and discovery of related attack patterns"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "prompt-injection-arena",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/prompt-injection-arena",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "prompt-injection-arena"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/prompt-injection-arena",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

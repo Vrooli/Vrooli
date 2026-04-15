@@ -26,6 +26,10 @@ var schemaFS embed.FS
 // Connect opens a SQLite database using the provided Config and initializes the schema.
 // It creates the parent directory if needed.
 func Connect(cfg config.Config) (*sql.DB, error) {
+	if err := migrateLegacyPaths(cfg); err != nil {
+		return nil, err
+	}
+
 	log.Printf("Opening SQLite database at %s", cfg.SQLitePath)
 
 	// Ensure parent directory exists
@@ -53,6 +57,53 @@ func Connect(cfg config.Config) (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+func migrateLegacyPaths(cfg config.Config) error {
+	if err := migratePathIfPresent(legacyDBPath(), cfg.SQLitePath); err != nil {
+		return fmt.Errorf("migrate legacy sqlite db: %w", err)
+	}
+	if err := migratePathIfPresent(legacyAssetPath(), cfg.AssetBasePath); err != nil {
+		return fmt.Errorf("migrate legacy assets: %w", err)
+	}
+	return nil
+}
+
+func migratePathIfPresent(src, dst string) error {
+	if src == "" || dst == "" || src == dst {
+		return nil
+	}
+	if _, err := os.Stat(src); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	if _, err := os.Stat(dst); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	return os.Rename(src, dst)
+}
+
+func legacyDBPath() string {
+	home, _ := os.UserHomeDir()
+	if home == "" {
+		home = "."
+	}
+	return filepath.Join(home, ".vrooli", "brand-manager", "brand-manager.db")
+}
+
+func legacyAssetPath() string {
+	home, _ := os.UserHomeDir()
+	if home == "" {
+		home = "."
+	}
+	return filepath.Join(home, ".vrooli", "brand-manager", "assets")
 }
 
 // initSchema executes the embedded schema.sql to create tables idempotently.

@@ -52,7 +52,7 @@ func workshopSaveRequest(kind, name string, body []byte) *http.Request {
 // auto-initialize (so no agent spawn on item creation, only on workshop save).
 func enableAutoAdvanceSettings(t *testing.T, rootDir string) {
 	t.Helper()
-	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, "config", "settings.json"), map[string]any{
 		"theme":                      "dark",
 		"default_mode":               "manual",
 		"max_auto_rounds":            10,
@@ -168,7 +168,7 @@ func TestWorkshopSave_AutoAdvance_Triggers(t *testing.T) {
 	h, rootDir := setupTestHandlerWithAgent(t, agent)
 
 	// Enable auto-advance for this test.
-	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, "config", "settings.json"), map[string]any{
 		"theme":                      "dark",
 		"default_mode":               "manual",
 		"max_auto_rounds":            10,
@@ -372,7 +372,7 @@ func TestWorkshopSave_AutoAdvanceDisabledViaSetting(t *testing.T) {
 
 	// Disable auto-advance via settings.
 	t.Setenv("SCENARIO_ROOT", rootDir)
-	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, "config", "settings.json"), map[string]any{
 		"theme":                    "dark",
 		"default_mode":             "manual",
 		"max_auto_rounds":          10,
@@ -432,7 +432,7 @@ func TestWorkshopSave_AutoAdvanceDisabled_ReadyRequiresManualFinalize(t *testing
 	h, rootDir := setupTestHandlerWithAgent(t, agent)
 
 	t.Setenv("SCENARIO_ROOT", rootDir)
-	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, "config", "settings.json"), map[string]any{
 		"theme":                    "dark",
 		"default_mode":             "manual",
 		"max_auto_rounds":          10,
@@ -489,7 +489,7 @@ func TestWorkshopSave_AgentDown_StillSaves(t *testing.T) {
 	h, rootDir := setupTestHandlerWithAgent(t, agent)
 
 	// Enable auto-advance to test agent-down resilience.
-	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, "config", "settings.json"), map[string]any{
 		"theme":                      "dark",
 		"default_mode":               "manual",
 		"max_auto_rounds":            10,
@@ -554,7 +554,7 @@ func TestWorkshopSave_ConcurrentSaves_GuardPreventsDouble(t *testing.T) {
 	h, rootDir := setupTestHandlerWithAgent(t, agent)
 
 	// Enable auto-advance to trigger the spawn path.
-	testutil.WriteJSONFile(t, filepath.Join(rootDir, ".vrooli", "settings.json"), map[string]any{
+	testutil.WriteJSONFile(t, filepath.Join(rootDir, "config", "settings.json"), map[string]any{
 		"theme":                      "dark",
 		"default_mode":               "manual",
 		"max_auto_rounds":            10,

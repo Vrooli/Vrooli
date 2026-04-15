@@ -197,6 +197,9 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 				return ParseSetupRequest(deps.Globals(ctx).JSON, args)
 			},
 			func(ctx C, req SetupRequest) (cliout.Format, lifecycle.PhaseResult, error) {
+				if err := ensureScenarioCLIs(deps, ctx, req.Name); err != nil {
+					return "", lifecycle.PhaseResult{}, err
+				}
 				format, err := deps.OutputFormat(ctx)
 				if err != nil {
 					return "", lifecycle.PhaseResult{}, err
@@ -216,6 +219,9 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 				return ParseRestartRequest(deps.Globals(ctx).JSON, args)
 			},
 			func(ctx C, req RestartRequest) (cliout.Format, []LifecycleItemOutput, error) {
+				if err := ensureScenarioCLIs(deps, ctx, req.Name); err != nil {
+					return "", nil, err
+				}
 				format, err := deps.OutputFormat(ctx)
 				if err != nil {
 					return "", nil, err

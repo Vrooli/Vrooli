@@ -128,11 +128,6 @@
           "description": "Initialize database with tech tree schemas and seed data"
         },
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install tech-tree-designer CLI command globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o tech-tree-designer-api .",
           "description": "Build Go API for strategic analysis and data management"
@@ -255,6 +250,36 @@
         "required": false,
         "purpose": "Advanced AI models for stage idea generation, tree expansion recommendations, and strategic planning"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "tech-tree-designer",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/tech-tree-designer",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "tech-tree-designer"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/tech-tree-designer",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

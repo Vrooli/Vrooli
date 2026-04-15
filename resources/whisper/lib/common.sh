@@ -2,11 +2,13 @@
 # Whisper Common Utility Functions
 # Shared utilities used across all modules
 
-# Initialize APP_ROOT if not set
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+# Resolve repo paths from this library location
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 
 # Source defaults first (messages reference config variables like WHISPER_PORT)
 source "${var_RESOURCES_DIR}/whisper/config/defaults.sh"

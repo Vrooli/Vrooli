@@ -15,6 +15,7 @@ import (
 	"swarm-manager/internal/dispatch"
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/promptmanager"
+	"swarm-manager/internal/runtimepaths"
 )
 
 var (
@@ -128,6 +129,7 @@ type runTracker struct {
 type ServiceConfig struct {
 	RootDir                  string
 	StorePath                string
+	CircuitBreakerPath       string
 	SelfScenarioName         string
 	MaxConsecutiveErrors     int
 	MaxConsecutiveUnknown    int
@@ -205,6 +207,10 @@ func NewService(cfg ServiceConfig) *Service {
 	if selfName == "" {
 		selfName = filepath.Base(rootDir)
 	}
+	circuitBreakerPath := strings.TrimSpace(cfg.CircuitBreakerPath)
+	if circuitBreakerPath == "" {
+		circuitBreakerPath = defaultCircuitBreakerPath(cfg.StorePath)
+	}
 
 	maxConsecErrors := cfg.MaxConsecutiveErrors
 	if maxConsecErrors <= 0 {
@@ -237,7 +243,7 @@ func NewService(cfg ServiceConfig) *Service {
 		reviewClient:             cfg.ReviewClient,
 		scenarioLifecycle:        cfg.ScenarioLifecycle,
 		scenarioHealth:           cfg.ScenarioHealthChecker,
-		circuitBreaker:           NewCircuitBreaker(filepath.Join(rootDir, ".vrooli", "circuit-breaker.json")),
+		circuitBreaker:           NewCircuitBreaker(circuitBreakerPath),
 		processingFinalizations:  map[string]struct{}{},
 		runTrackers:              map[string]*runTracker{},
 	}
@@ -254,6 +260,17 @@ func NewService(cfg ServiceConfig) *Service {
 		service.stopper = stopper
 	}
 	return service
+}
+
+func defaultCircuitBreakerPath(storePath string) string {
+	if trimmed := strings.TrimSpace(storePath); trimmed != "" {
+		return filepath.Join(filepath.Dir(trimmed), "circuit-breaker.json")
+	}
+	path, err := runtimepaths.StatePath("circuit-breaker.json")
+	if err != nil {
+		panic(err)
+	}
+	return path
 }
 
 // SetEventDispatcher sets an optional event dispatcher for real-time graph updates.

@@ -114,6 +114,7 @@ func TestListCampaignsFiltersAndReadiness(t *testing.T) {
 func TestUpsertCampaignPersistsToFile(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("VROOLI_ROOT", tmp)
+	t.Setenv("XDG_DATA_HOME", filepath.Join(tmp, "xdg-data"))
 
 	handlers := NewCampaignHandlersWithCLI(&mockScenarioCLI{}, &mockManifestBuilder{}, nil)
 
@@ -126,7 +127,7 @@ func TestUpsertCampaignPersistsToFile(t *testing.T) {
 		t.Fatalf("expected 200, got %d", rr.Code)
 	}
 
-	path := filepath.Join(tmp, "scenarios", "secrets-manager", "data", "campaigns.json")
+	path := filepath.Join(tmp, "xdg-data", "vrooli", "secrets-manager", "campaigns.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("campaign file not written: %v", err)

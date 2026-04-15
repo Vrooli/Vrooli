@@ -42,6 +42,7 @@ import (
 	"swarm-manager/internal/prompts"
 	"swarm-manager/internal/queue"
 	"swarm-manager/internal/review"
+	"swarm-manager/internal/runtimepaths"
 	"swarm-manager/internal/scenarios"
 	"swarm-manager/internal/settings"
 	"swarm-manager/internal/stats"
@@ -159,9 +160,6 @@ func (s *Server) registerBacklogRoutes(scenarioRoot string) *backlog.Handler {
 
 func (s *Server) registerInitiativeRoutes(scenarioRoot string, backlogHandler *backlog.Handler) *initiatives.Service {
 	initStore := initiatives.NewStore(scenarioRoot)
-	if err := initStore.Migrate(); err != nil {
-		slog.Warn("initiatives migration warning", "error", err)
-	}
 	s.initStore = initStore
 	initService := initiatives.NewService(initStore, backlogHandler.Store())
 	initHandler := initiatives.NewHandler(initService)
@@ -193,7 +191,7 @@ func (s *Server) registerScenarioRoutes(scenariosDir string) {
 }
 
 func (s *Server) registerSettingsRoutes(scenarioRoot string) {
-	settingsPath := filepath.Join(scenarioRoot, ".vrooli", "settings.json")
+	settingsPath := filepath.Join(scenarioRoot, "config", "settings.json")
 	settingsHandler := settings.NewHandler(settingsPath)
 	settingsHandler.RegisterRoutes(s.router)
 	s.settingsStore = settingsHandler.GetStore()
@@ -204,9 +202,13 @@ func (s *Server) registerSettingsRoutes(scenarioRoot string) {
 	}
 }
 
-func (s *Server) registerAgentActivityRoutes(scenarioRoot string) {
+func (s *Server) registerAgentActivityRoutes(_ string) {
+	storePath, err := runtimepaths.StatePath("agent-activities.json")
+	if err != nil {
+		panic(err)
+	}
 	s.agentActivitySvc = agentactivity.NewService(agentactivity.ServiceConfig{
-		StorePath:    filepath.Join(scenarioRoot, ".vrooli", "agent-activities.json"),
+		StorePath:    storePath,
 		AgentService: s.agentSvc,
 	})
 	agentActivityHandler := agentactivity.NewHandler(s.agentActivitySvc)
@@ -218,8 +220,12 @@ func (s *Server) registerAgentManagerRoutes() {
 	agentManagerHandler.RegisterRoutes(s.router)
 }
 
-func (s *Server) registerQueueRoutes(scenarioRoot string) {
-	s.queueHandler = queue.NewHandler(filepath.Join(scenarioRoot, ".vrooli", "queue.json"))
+func (s *Server) registerQueueRoutes(_ string) {
+	storePath, err := runtimepaths.StatePath("queue.json")
+	if err != nil {
+		panic(err)
+	}
+	s.queueHandler = queue.NewHandler(storePath)
 	s.queueHandler.RegisterRoutes(s.router)
 }
 

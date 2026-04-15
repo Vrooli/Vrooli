@@ -55,8 +55,12 @@
       "name": "bats",
       "required": false,
       "reason": "Execute discovered BATS suites during integration-test orchestration",
-      "when": ["setup"],
-      "environments": ["development"],
+      "when": [
+        "setup"
+      ],
+      "environments": [
+        "development"
+      ],
       "notes": "Test Genie degrades with a clear missing-dependency error when bats is unavailable"
     }
   ],
@@ -110,11 +114,6 @@
         ]
       },
       "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
         {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o test-genie-api .",
@@ -193,5 +192,40 @@
   },
   "environment": {
     "TEST_GENIE_SQLITE_PATH": "${SCENARIO_DATA_DIR}/test-genie.db"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "test-genie",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "test-genie"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
   }
 }

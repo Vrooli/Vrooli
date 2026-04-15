@@ -4,12 +4,14 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
-K6_CLI_DIR="${APP_ROOT}/resources/k6"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+TEST_DIR="${SCRIPT_DIR}"
+K6_CLI_DIR="$(builtin cd "${SCRIPT_DIR}/../.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${K6_CLI_DIR}/../.." && builtin pwd)"
 
 # Source utilities
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${REPO_ROOT}/scripts/lib/utils/log.sh"
 # shellcheck disable=SC1091
 source "${K6_CLI_DIR}/config/defaults.sh"
 # shellcheck disable=SC1091  

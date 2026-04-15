@@ -101,11 +101,6 @@
       },
       "steps": [
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o react-component-library-api .",
           "description": "Compile Go API server"
@@ -193,6 +188,36 @@
         "startup_policy": "must_start",
         "description": "Integration for component adoption workflow"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "react-component-library",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/react-component-library",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "react-component-library"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/react-component-library",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

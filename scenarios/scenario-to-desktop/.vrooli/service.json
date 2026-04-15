@@ -45,48 +45,78 @@
       "name": "ffmpeg",
       "required": false,
       "reason": "Capture screenshots and assemble desktop smoke-test artifacts on Linux",
-      "when": ["setup", "develop"],
-      "platforms": ["linux"],
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ],
       "notes": "Native runtime handler exists; scenario also uses the resource-ffmpeg CLI for recording flows"
     },
     {
       "name": "Xvfb",
       "required": false,
       "reason": "Provide a virtual X display for Linux smoke tests and live desktop sessions",
-      "when": ["setup", "develop"],
-      "platforms": ["linux"],
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ],
       "notes": "Native runtime handler provisions the Linux virtual display dependency when absent"
     },
     {
       "name": "x11vnc",
       "required": false,
       "reason": "Expose the Linux virtual desktop over VNC for interactive desktop sessions",
-      "when": ["setup", "develop"],
-      "platforms": ["linux"],
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ],
       "notes": "Native runtime handler provisions the Linux VNC bridge when absent"
     },
     {
       "name": "websockify",
       "required": false,
       "reason": "Bridge the Linux VNC desktop session to a browser WebSocket endpoint",
-      "when": ["setup", "develop"],
-      "platforms": ["linux"],
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ],
       "notes": "Native runtime handler provisions the browser WebSocket bridge when absent"
     },
     {
       "name": "openbox",
       "required": false,
       "reason": "Provide a lightweight window manager inside the Linux virtual display",
-      "when": ["setup", "develop"],
-      "platforms": ["linux"],
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ],
       "notes": "Native runtime handler provisions the lightweight Linux window manager when absent"
     },
     {
       "name": "xdotool",
       "required": false,
       "reason": "Detect and inspect visible X11 windows during desktop smoke tests",
-      "when": ["setup", "develop"],
-      "platforms": ["linux"],
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ],
       "notes": "Native runtime handler provisions X11 window inspection tooling when absent"
     }
   ],
@@ -149,11 +179,6 @@
         ]
       },
       "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
         {
           "name": "build-api",
           "run": "cd api && go build -o scenario-to-desktop-api .",
@@ -262,5 +287,40 @@
       }
     }
   },
-  "$schema": "../../../.vrooli/schemas/service.schema.json"
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "cli": {
+    "enabled": true,
+    "command": "scenario-to-desktop",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "scenario-to-desktop"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  }
 }

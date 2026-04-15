@@ -14,7 +14,7 @@ graph TB
     subgraph "Structure Phase Checks"
         DIRS[Required Directories<br/>api, cli, docs, requirements, ui]
         FILES[Required Files<br/>README.md, PRD.md, Makefile]
-        CLI[CLI Validation<br/>Legacy bash or Go cross-platform]
+        CLI[CLI Validation<br/>Manifest-declared adapter]
         MANIFEST[Service Manifest<br/>.vrooli/service.json]
         SCHEMA[Schema Validation<br/>.vrooli config files]
     end
@@ -67,31 +67,22 @@ Optional directories (not required for all scenarios):
 | `.vrooli/service.json` | Scenario configuration |
 | `.vrooli/testing.json` | Test-genie configuration |
 | `api/main.go` | API entry point |
-| `cli/install.sh` | CLI installation script |
+| `cli/install.sh` | Optional adapter asset referenced by `service.json` |
 
 ## CLI Validation
 
-The structure phase detects and validates two CLI approaches:
+The structure phase validates the top-level `cli` block in `.vrooli/service.json`.
 
-### Cross-Platform Go CLI (Recommended)
+When `cli.enabled=true`, Test Genie checks:
 
-Detected when `cli/main.go` and `cli/go.mod` exist. This modern approach:
-- Compiles to native binaries for all platforms
-- Uses shared `packages/cli-core` infrastructure
-- Supports automatic stale-checking and rebuilds
-- Provides consistent flag parsing and configuration
+- `cli.command`
+- `cli.adapter.kind`
+- `cli.install`
+- `cli.invoke`
 
-### Legacy Bash CLI
+It then validates the concrete files referenced by that adapter. Repository layout is no longer treated as the contract.
 
-Detected when `cli/<scenario-name>` is a bash script. This older approach:
-- Works on Unix systems only
-- Requires bash runtime
-- Limited cross-platform support
-
-When a legacy CLI is detected, an informational message is shown:
-> "Legacy bash CLI detected. Cross-platform Go CLI available - see [CLI Approaches](cli-approaches.md)"
-
-See [CLI Approaches](cli-approaches.md) for migration guidance.
+See [CLI Manifest Contract](cli-approaches.md) for the supported adapter shapes.
 
 ## Service Manifest Validation
 
@@ -205,7 +196,7 @@ Customize structure validation in `.vrooli/testing.json`:
 
 ## Related Documentation
 
-- [CLI Approaches](cli-approaches.md) - Legacy vs cross-platform CLI patterns
+- [CLI Manifest Contract](cli-approaches.md) - Manifest-driven scenario CLI adapters
 - [UI Smoke Tests](ui-smoke.md) - Browserless-based UI validation
 - [Playbooks Directory Structure](../playbooks/directory-structure.md) - Canonical playbooks layout
 

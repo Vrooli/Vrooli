@@ -58,5 +58,9 @@ func runStructurePhase(ctx context.Context, env workspace.Environment, logWriter
 // GetCLIApproach returns the CLI approach for the given scenario.
 // This is exposed for other phases (like integration) that may need to know.
 func GetCLIApproach(scenarioDir, scenarioName string) existence.CLIApproach {
-	return existence.DetectCLIApproach(scenarioDir, scenarioName)
+	manifest, err := existence.LoadServiceManifest(scenarioDir)
+	if err != nil {
+		return existence.CLIApproachUnknown
+	}
+	return existence.DetectCLIApproach(manifest)
 }

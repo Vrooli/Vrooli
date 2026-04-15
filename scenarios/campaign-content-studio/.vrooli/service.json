@@ -127,11 +127,6 @@
           "description": "Add app data to resources"
         },
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o campaign-content-studio-api .",
           "description": "Build Go coordination API binary"
@@ -262,6 +257,36 @@
         "required": false,
         "purpose": "Document text extraction from PDFs, DOCX, and other formats"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "campaign-content-studio",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/campaign-content-studio",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "campaign-content-studio"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/campaign-content-studio",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

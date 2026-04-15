@@ -31,6 +31,7 @@ import (
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
 )
 
 // ServerConfig holds runtime configuration for the server
@@ -64,7 +65,10 @@ func NewServer() (*Server, error) {
 
 	// Initialize history database
 	// [REQ:SCS-HIST-002] SQLite database for history storage
-	dataDir := filepath.Join(cfg.VrooliRoot, "scenarios", "scenario-completeness-scoring", "data")
+	dataDir, err := resolveHistoryDataDir(cfg.VrooliRoot)
+	if err != nil {
+		return nil, fmt.Errorf("resolve history data dir: %w", err)
+	}
 	historyDB, err := history.NewDB(dataDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize history database: %w", err)
@@ -100,6 +104,47 @@ func NewServer() (*Server, error) {
 
 	srv.setupRoutes()
 	return srv, nil
+}
+
+func resolveHistoryDataDir(vrooliRoot string) (string, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return "", err
+	}
+	dir, err := storage.EnsureClassDir(resolver, storage.Options{ScenarioID: "scenario-completeness-scoring"}, storage.ClassData, 0)
+	if err != nil {
+		return "", err
+	}
+	legacyDB := filepath.Join(vrooliRoot, "scenarios", "scenario-completeness-scoring", "data", "scores.db")
+	currentDB := filepath.Join(dir, "scores.db")
+	if legacyDB != currentDB {
+		_ = migrateLegacyScoreHistory(legacyDB, currentDB)
+	}
+	return dir, nil
+}
+
+func migrateLegacyScoreHistory(src, dst string) error {
+	if src == dst {
+		return nil
+	}
+	if _, err := os.Stat(src); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	if _, err := os.Stat(dst); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	return os.Rename(src, dst)
 }
 
 // setupRoutes configures all API routes, organized by domain concept

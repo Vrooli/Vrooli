@@ -274,7 +274,7 @@ func runDeployTargetDoctor(ctx context.Context, name string, target *DeployTarge
 }
 
 func missingScenarioToDesktopSecretMessage() string {
-	return "LPBS_SERVICE_SECRET is not set for scenario-to-desktop runtime (checked env and .vrooli/secrets.json)"
+	return "LPBS_SERVICE_SECRET is not set for scenario-to-desktop runtime (checked env and ~/.vrooli/secrets.json)"
 }
 
 func appendUnique(values []string, additions ...string) []string {

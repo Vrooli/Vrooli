@@ -9,8 +9,10 @@ import (
 	"testing"
 )
 
-type commandExecFunc func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error
-type commandCaptureFunc func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error)
+type (
+	commandExecFunc    func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) error
+	commandCaptureFunc func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error)
+)
 
 func stubPhaseCommandExecutor(t *testing.T, fn commandExecFunc) {
 	t.Helper()
@@ -83,7 +85,21 @@ esac
 	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", name+".bats"), []byte("#!/usr/bin/env bats\n"), 0o644); err != nil {
 		t.Fatalf("failed to seed scenario bats file: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(scenarioDir, ".vrooli", "service.json"), []byte(`{"service":{"name":"`+name+`"}}`), 0o644); err != nil {
+	serviceJSON := `{
+  "service": {"name":"` + name + `"},
+  "cli": {
+    "enabled": true,
+    "command": "` + name + `",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/` + name + `",
+      "install_script": "cli/install.sh"
+    },
+    "install": [{"kind":"command","run":"bash ./cli/install.sh"}],
+    "invoke": {"kind":"installed_command","command":"` + name + `"}
+  }
+}`
+	if err := os.WriteFile(filepath.Join(scenarioDir, ".vrooli", "service.json"), []byte(serviceJSON), 0o644); err != nil {
 		t.Fatalf("failed to seed service.json: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(scenarioDir, ".vrooli", "testing.json"), []byte(`{"structure":{"ui_smoke":{"enabled":false}}}`), 0o644); err != nil {

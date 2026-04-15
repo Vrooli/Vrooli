@@ -10,16 +10,15 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 func TestLocalSecretSetGetDeleteScenarioScope(t *testing.T) {
-	root := t.TempDir()
-	writeRepoContractFixture(t, root)
-	t.Setenv("SCENARIO_TO_CLOUD_REPO_ROOT", root)
-
-	scenarioDir := filepath.Join(root, "scenarios", "landing-page-business-suite", ".vrooli")
-	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
-		t.Fatalf("mkdir scenario dir: %v", err)
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	scenarioPath, err := repocontract.UserScenarioPlaintextSecretsPath(home, "landing-page-business-suite")
+	if err != nil {
+		t.Fatalf("UserScenarioPlaintextSecretsPath: %v", err)
 	}
 
 	router := mux.NewRouter()
@@ -35,7 +34,7 @@ func TestLocalSecretSetGetDeleteScenarioScope(t *testing.T) {
 	if setRec.Code != http.StatusOK {
 		t.Fatalf("set expected 200, got %d body=%s", setRec.Code, setRec.Body.String())
 	}
-	contents, err := os.ReadFile(filepath.Join(scenarioDir, "secrets.json"))
+	contents, err := os.ReadFile(scenarioPath)
 	if err != nil {
 		t.Fatalf("read secrets file: %v", err)
 	}
@@ -72,9 +71,7 @@ func TestLocalSecretSetGetDeleteScenarioScope(t *testing.T) {
 }
 
 func TestLocalSecretGenerateHex(t *testing.T) {
-	root := t.TempDir()
-	writeRepoContractFixture(t, root)
-	t.Setenv("SCENARIO_TO_CLOUD_REPO_ROOT", root)
+	t.Setenv("HOME", t.TempDir())
 
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/local-secrets/{scope}/{key}", HandleSetLocalSecret()).Methods("PUT")
@@ -103,11 +100,15 @@ func TestLocalSecretGenerateHex(t *testing.T) {
 }
 
 func TestLocalSecretGetRejectsUnsafeWorkspaceSecretsFile(t *testing.T) {
-	root := t.TempDir()
-	writeRepoContractFixture(t, root)
-	t.Setenv("SCENARIO_TO_CLOUD_REPO_ROOT", root)
-
-	path := filepath.Join(root, ".vrooli", "secrets.json")
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	path, err := repocontract.UserPlaintextSecretsPath(home)
+	if err != nil {
+		t.Fatalf("UserPlaintextSecretsPath: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir secrets dir: %v", err)
+	}
 	if err := os.WriteFile(path, []byte(`{"LPBS_SERVICE_SECRET":"abc123"}`), 0o644); err != nil {
 		t.Fatalf("write insecure secrets file: %v", err)
 	}

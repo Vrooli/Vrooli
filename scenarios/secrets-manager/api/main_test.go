@@ -492,13 +492,13 @@ func TestGetLocalSecretsPath(t *testing.T) {
 	}()
 
 	t.Run("WithVROOLI_ROOT", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		os.Setenv("VROOLI_ROOT", tmpDir)
+		home := t.TempDir()
+		os.Setenv("HOME", home)
 		path, err := getLocalSecretsPath()
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
-		expected := filepath.Join(tmpDir, ".vrooli", "secrets.json")
+		expected := filepath.Join(home, ".vrooli", "secrets.json")
 		if path != expected {
 			t.Errorf("getLocalSecretsPath() = %q, want %q", path, expected)
 		}

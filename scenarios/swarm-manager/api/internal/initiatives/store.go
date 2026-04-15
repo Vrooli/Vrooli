@@ -15,17 +15,17 @@ import (
 const initiativeFileName = "initiative.json"
 
 // Store manages initiative persistence on the local filesystem.
-// Each initiative is stored as a folder at {baseDir}/.vrooli/initiatives/{name}/
+// Each initiative is stored as a folder at {baseDir}/initiatives/{name}/
 // containing an initiative.json metadata file and any additional context files.
 type Store struct {
 	dir string // absolute path to the initiatives directory
 }
 
 // NewStore creates a Store. baseDir is the scenario root; initiatives are
-// stored under {baseDir}/.vrooli/initiatives/.
+// stored under {baseDir}/initiatives/.
 func NewStore(baseDir string) *Store {
 	return &Store{
-		dir: filepath.Join(baseDir, ".vrooli", "initiatives"),
+		dir: filepath.Join(baseDir, "initiatives"),
 	}
 }
 

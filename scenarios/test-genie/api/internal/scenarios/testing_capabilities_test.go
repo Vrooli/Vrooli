@@ -1,6 +1,7 @@
 package scenarios
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -8,7 +9,6 @@ import (
 )
 
 func TestDetectTestingCapabilitiesPrefersPhased(t *testing.T) {
-	t.Setenv("PATH", "")
 	t.Setenv("TEST_GENIE_BIN", "")
 	t.Setenv("TEST_GENIE_DISABLE", "")
 	dir := t.TempDir()
@@ -31,7 +31,6 @@ func TestDetectTestingCapabilitiesPrefersPhased(t *testing.T) {
 }
 
 func TestDetectTestingCapabilitiesLifecycle(t *testing.T) {
-	t.Setenv("PATH", "")
 	t.Setenv("TEST_GENIE_BIN", "")
 	t.Setenv("TEST_GENIE_DISABLE", "")
 	dir := t.TempDir()
@@ -53,7 +52,6 @@ func TestDetectTestingCapabilitiesLifecycle(t *testing.T) {
 }
 
 func TestDetectTestingCapabilitiesLegacy(t *testing.T) {
-	t.Setenv("PATH", "")
 	t.Setenv("TEST_GENIE_BIN", "")
 	t.Setenv("TEST_GENIE_DISABLE", "")
 	dir := t.TempDir()
@@ -77,7 +75,6 @@ func TestDetectTestingCapabilitiesLegacy(t *testing.T) {
 }
 
 func TestDetectTestingCapabilitiesMultipleModes(t *testing.T) {
-	t.Setenv("PATH", "")
 	t.Setenv("TEST_GENIE_BIN", "")
 	t.Setenv("TEST_GENIE_DISABLE", "")
 	dir := t.TempDir()
@@ -139,8 +136,7 @@ func TestDetectTestingCapabilitiesPrefersGenie(t *testing.T) {
 	if err := os.WriteFile(binPath, []byte("#!/usr/bin/env bash\nexit 0\n"), mode); err != nil {
 		t.Fatalf("write fake binary: %v", err)
 	}
-	t.Setenv("PATH", binDir)
-	t.Setenv("TEST_GENIE_BIN", "")
+	t.Setenv("TEST_GENIE_BIN", binPath)
 	t.Setenv("TEST_GENIE_DISABLE", "")
 
 	caps := DetectTestingCapabilities(dir)
@@ -149,5 +145,21 @@ func TestDetectTestingCapabilitiesPrefersGenie(t *testing.T) {
 	}
 	if len(caps.Commands) == 0 || caps.Commands[0].Type != "genie" {
 		t.Fatalf("expected genie command first, got %#v", caps.Commands)
+	}
+}
+
+func TestDetectTestingCapabilitiesSkipsGenieWhenResolverFails(t *testing.T) {
+	dir := t.TempDir()
+	originalResolver := resolveTestGenieExecutable
+	t.Cleanup(func() { resolveTestGenieExecutable = originalResolver })
+	resolveTestGenieExecutable = func(string) (string, error) {
+		return "", errors.New("missing")
+	}
+	t.Setenv("TEST_GENIE_BIN", "")
+	t.Setenv("TEST_GENIE_DISABLE", "")
+
+	caps := DetectTestingCapabilities(filepath.Join(dir, "scenarios", "alpha"))
+	if caps.Genie {
+		t.Fatalf("expected genie detection to stay disabled, got %#v", caps)
 	}
 }

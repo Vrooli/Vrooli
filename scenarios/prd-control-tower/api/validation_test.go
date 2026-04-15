@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -15,6 +16,12 @@ import (
 // [REQ:PCT-VALIDATE-CALL] Validation service calls scenario-auditor API for PRD structure checks
 // TestRunScenarioAuditorCLI tests the CLI auditor runner
 func TestRunScenarioAuditorCLI(t *testing.T) {
+	originalResolver := resolveScenarioAuditorCLI
+	t.Cleanup(func() { resolveScenarioAuditorCLI = originalResolver })
+	resolveScenarioAuditorCLI = func(context.Context) (string, error) {
+		return "", exec.ErrNotFound
+	}
+
 	tests := []struct {
 		name       string
 		entityType string
@@ -58,6 +65,12 @@ func TestRunScenarioAuditorCLI(t *testing.T) {
 // [REQ:PCT-VALIDATE-CALL] Validation service calls scenario-auditor API for PRD structure checks
 // TestRunScenarioAuditor tests the main auditor runner with environment setup
 func TestRunScenarioAuditor(t *testing.T) {
+	originalResolver := resolveScenarioAuditorCLI
+	t.Cleanup(func() { resolveScenarioAuditorCLI = originalResolver })
+	resolveScenarioAuditorCLI = func(context.Context) (string, error) {
+		return "", exec.ErrNotFound
+	}
+
 	tests := []struct {
 		name       string
 		setupEnv   func()
@@ -108,8 +121,11 @@ func TestRunScenarioAuditor(t *testing.T) {
 // [REQ:PCT-VALIDATE-CALL] Validation service calls scenario-auditor API for PRD structure checks
 // TestHandleValidatePRD tests the published PRD validation endpoint
 func TestHandleValidatePRD(t *testing.T) {
-	// Ensure scenario-auditor CLI lookup fails quickly so tests don't invoke the real binary
-	t.Setenv("PATH", "")
+	originalResolver := resolveScenarioAuditorCLI
+	t.Cleanup(func() { resolveScenarioAuditorCLI = originalResolver })
+	resolveScenarioAuditorCLI = func(context.Context) (string, error) {
+		return "", exec.ErrNotFound
+	}
 
 	tests := []struct {
 		name           string
@@ -328,15 +344,11 @@ func TestValidationResponseStructure(t *testing.T) {
 
 // TestScenarioAuditorCLINotFound tests handling when CLI is not available
 func TestScenarioAuditorCLINotFound(t *testing.T) {
-	// This test verifies graceful handling when scenario-auditor is not installed
-	// We can't easily mock exec.LookPath, so we test with a nonexistent command
-
-	// Save original PATH
-	originalPath := os.Getenv("PATH")
-	defer os.Setenv("PATH", originalPath)
-
-	// Set PATH to empty to simulate command not found
-	os.Setenv("PATH", "")
+	originalResolver := resolveScenarioAuditorCLI
+	t.Cleanup(func() { resolveScenarioAuditorCLI = originalResolver })
+	resolveScenarioAuditorCLI = func(context.Context) (string, error) {
+		return "", exec.ErrNotFound
+	}
 
 	result, err := runScenarioAuditorCLI("test-scenario")
 	// Should not return an error, but a graceful message
@@ -424,8 +436,7 @@ func TestRunScenarioAuditorWithRealCommand(t *testing.T) {
 		t.Skip("Skipping scenario-auditor integration test; set RUN_SCENARIO_AUDITOR_TESTS=1 to enable")
 	}
 
-	// Check if scenario-auditor is available
-	if _, err := exec.LookPath("scenario-auditor"); err != nil {
+	if _, err := resolveScenarioAuditorCLI(context.Background()); err != nil {
 		t.Skip("scenario-auditor not available, skipping integration test")
 	}
 

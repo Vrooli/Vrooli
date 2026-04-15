@@ -58,8 +58,14 @@
       "name": "bats",
       "required": false,
       "reason": "Detect and score shell integration coverage that uses BATS suites",
-      "when": ["setup", "develop", "test"],
-      "environments": ["development"],
+      "when": [
+        "setup",
+        "develop",
+        "test"
+      ],
+      "environments": [
+        "development"
+      ],
       "notes": "Coverage scoring still runs without bats, but shell-suite detection is less complete"
     }
   ],
@@ -109,11 +115,6 @@
         ]
       },
       "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
         {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o scenario-completeness-scoring-api .",
@@ -180,5 +181,40 @@
   "dependencies": {
     "resources": {},
     "scenarios": {}
+  },
+  "cli": {
+    "enabled": true,
+    "command": "scenario-completeness-scoring",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "scenario-completeness-scoring"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
   }
 }

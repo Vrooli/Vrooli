@@ -141,6 +141,12 @@ func WithPorts(ports map[string]scenario.Port) ScenarioServiceOption {
 	}
 }
 
+func WithCLI(cli *scenario.CLIConfig) ScenarioServiceOption {
+	return func(manifest *scenario.ServiceManifest) {
+		manifest.CLI = cli
+	}
+}
+
 func WithEnvironment(env map[string]string) ScenarioServiceOption {
 	return func(manifest *scenario.ServiceManifest) {
 		manifest.Environment = env

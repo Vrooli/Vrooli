@@ -80,11 +80,6 @@
       },
       "steps": [
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go build -o elo-swipe-api .",
           "description": "Build Go API binary"
@@ -226,6 +221,34 @@
         "required": false,
         "purpose": "AI-powered smart pairing suggestions for more efficient ranking"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "elo-swipe",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "elo-swipe"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

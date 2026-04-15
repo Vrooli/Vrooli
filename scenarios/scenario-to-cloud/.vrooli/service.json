@@ -109,11 +109,6 @@
       },
       "steps": [
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
-        {
           "name": "build-api",
           "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o scenario-to-cloud-api .",
           "description": "Build Go API binary (api/scenario-to-cloud-api)"
@@ -233,6 +228,41 @@
         "required": true,
         "description": "Provides dependency analysis for manifest generation"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "scenario-to-cloud",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "scenario-to-cloud"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

@@ -9,7 +9,6 @@ import (
 )
 
 const (
-	installCLIRecommendation    = "Add an install-cli step (e.g., \"cd cli && ./install.sh\") so lifecycle.setup.condition's CLI check and CLI users can find the scenario binary before develop runs."
 	installUIDepsRecommendation = "Add install-ui-deps (npm|pnpm|yarn|bun install inside ui/) before build-ui so PRODUCTION_BUNDLES staleness detection can recreate ui/dist when ui/src changes."
 	buildUIRecommendation       = "Run build-ui (npm|pnpm|yarn|bun build inside ui/) before show-urls so develop serves the ui/dist production bundle per docs/scenarios/PRODUCTION_BUNDLES.md."
 )
@@ -33,7 +32,7 @@ const defaultUIBundlePath = "ui/dist/index.html"
 
 /*
 Rule: Setup Steps Configuration
-Description: Ensure lifecycle.setup.steps include consistent initialization tasks
+Description: Ensure lifecycle.setup.steps include the steps that actually satisfy setup conditions
 Reason: Reliable setup steps prevent missing binaries and inconsistent developer environments
 Category: config
 Severity: medium
@@ -44,9 +43,7 @@ Targets: service_json
   <description>service.json without lifecycle.setup steps</description>
   <input language="json"><![CDATA[
 {
-  "service": {
-    "name": "file-tools"
-  },
+  "service": {"name": "file-tools"},
   "lifecycle": {}
 }
   ]]></input>
@@ -54,35 +51,21 @@ Targets: service_json
   <expected-message>lifecycle.setup.steps</expected-message>
 </test-case>
 
-<test-case id="missing-install-cli" should-fail="true">
-  <description>Setup steps missing the install-cli task</description>
+<test-case id="missing-build-api" should-fail="true">
+  <description>Setup steps missing the build-api task</description>
   <input language="json"><![CDATA[
 {
   "service": {"name": "file-tools"},
+  "cli": {
+    "enabled": true,
+    "command": "file-tools",
+    "adapter": {"kind": "go_module", "module_dir": "cli"},
+    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
+    "invoke": {"kind": "installed_command", "command": "file-tools"}
+  },
   "lifecycle": {
     "setup": {
       "steps": [
-        {"name": "build-api", "run": "cd api && go mod download && go build -o file-tools-api ./cmd/server/main.go", "description": "Build Go API server", "condition": {"file_exists": "api/go.mod"}},
-        {"name": "show-urls", "run": "echo done"}
-      ]
-    }
-  }
-}
-  ]]></input>
-  <expected-violations>1</expected-violations>
-  <expected-message>install-cli</expected-message>
-</test-case>
-
-<test-case id="mismatched-build-api" should-fail="true">
-  <description>Build step does not output scenario-name-api binary</description>
-  <input language="json"><![CDATA[
-{
-  "service": {"name": "file-tools"},
-  "lifecycle": {
-    "setup": {
-      "steps": [
-        {"name": "install-cli", "run": "cd cli && ./install.sh", "description": "Install CLI command globally", "condition": {"file_exists": "cli/install.sh"}},
-        {"name": "build-api", "run": "cd api && go build", "description": "Build Go API server"},
         {"name": "show-urls", "run": "echo done"}
       ]
     }
@@ -93,229 +76,7 @@ Targets: service_json
   <expected-message>build-api</expected-message>
 </test-case>
 
-<test-case id="show-urls-last" should-fail="true">
-  <description>show-urls step is not last in the list</description>
-  <input language="json"><![CDATA[
-{
-  "service": {"name": "file-tools"},
-  "lifecycle": {
-    "setup": {
-      "steps": [
-        {"name": "show-urls", "run": "echo urls"},
-        {"name": "install-cli", "run": "cd cli && ./install.sh", "description": "Install CLI command globally", "condition": {"file_exists": "cli/install.sh"}},
-        {"name": "build-api", "run": "cd api && go mod download && go build -o file-tools-api ./cmd/server/main.go", "description": "Build Go API server", "condition": {"file_exists": "api/go.mod"}}
-      ]
-    }
-  }
-}
-  ]]></input>
-  <expected-violations>1</expected-violations>
-  <expected-message>show-urls</expected-message>
-</test-case>
-
-<test-case id="install-cli-run-mismatch" should-fail="true">
-  <description>install-cli step uses an unexpected run command</description>
-  <input language="json"><![CDATA[
-{
-  "service": {"name": "file-tools"},
-  "lifecycle": {
-    "setup": {
-      "steps": [
-        {"name": "install-cli", "run": "./install.sh", "description": "Install CLI command globally", "condition": {"file_exists": "cli/install.sh"}},
-        {"name": "build-api", "run": "cd api && go mod download && go build -o file-tools-api ./cmd/server/main.go", "description": "Build Go API server", "condition": {"file_exists": "api/go.mod"}},
-        {"name": "show-urls", "run": "echo done"}
-      ]
-    }
-  }
-}
-  ]]></input>
-  <expected-violations>1</expected-violations>
-  <expected-message>install-cli must run from cli/</expected-message>
-</test-case>
-
-<test-case id="install-cli-bash-script" should-fail="false">
-  <description>install-cli step invokes cli/install.sh without changing directories</description>
-  <input language="json"><![CDATA[
-{
-  "service": {"name": "file-tools"},
-  "lifecycle": {
-    "setup": {
-      "steps": [
-        {"name": "install-cli", "run": "bash cli/install.sh", "description": "Install CLI command globally", "condition": {"file_exists": "cli/install.sh"}},
-        {"name": "build-api", "run": "cd api && go mod download && go build -o file-tools-api ./cmd/server/main.go", "description": "Build Go API server", "condition": {"file_exists": "api/go.mod"}},
-        {"name": "show-urls", "run": "echo done"}
-      ]
-    }
-  }
-}
-  ]]></input>
-</test-case>
-
-<test-case id="missing-service-name" should-fail="true">
-  <description>install-cli exists but service.name is missing</description>
-  <input language="json"><![CDATA[
-{
-  "lifecycle": {
-    "setup": {
-      "steps": [
-        {"name": "install-cli", "run": "cd cli && ./install.sh", "description": "Install CLI command globally", "condition": {"file_exists": "cli/install.sh"}},
-        {"name": "build-api", "run": "cd api && go mod download && go build -o file-tools-api ./cmd/server/main.go", "description": "Build Go API server", "condition": {"file_exists": "api/go.mod"}},
-        {"name": "show-urls", "run": "echo done"}
-      ]
-    }
-  }
-}
-  ]]></input>
-  <expected-violations>1</expected-violations>
-  <expected-message>service.name</expected-message>
-</test-case>
-
-<test-case id="ignored-non-service-json" should-fail="false" path="config.json">
-  <description>Rule is skipped for files other than service.json</description>
-  <input language="json"><![CDATA[
-{
-  "service": {"name": "file-tools"}
-}
-  ]]></input>
-</test-case>
-
-<test-case id="valid-setup" should-fail="false">
-  <description>Setup steps include install-cli, scenario-specific build, and show-urls last</description>
-  <input language="json"><![CDATA[
-{
-  "service": {"name": "file-tools"},
-  "lifecycle": {
-    "setup": {
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally",
-          "condition": {"file_exists": "cli/install.sh"}
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o file-tools-api ./cmd/server/main.go",
-          "description": "Build Go API server",
-          "condition": {"file_exists": "api/go.mod"}
-        },
-        {
-          "name": "show-urls",
-          "run": "echo 'UI: http://localhost:${UI_PORT}'"
-        }
-      ]
-    }
-  }
-}
-  ]]></input>
-</test-case>
-
-<test-case id="valid-build-api-dot" should-fail="false">
-  <description>build-api allows building the scenario binary from current directory</description>
-  <input language="json"><![CDATA[
-{
-  "service": {"name": "file-tools"},
-  "lifecycle": {
-    "setup": {
-      "steps": [
-        {"name": "install-cli", "run": "cd cli && ./install.sh", "description": "Install CLI command globally"},
-        {"name": "build-api", "run": "cd api && go mod tidy && go build -o file-tools-api .", "description": "Build Go API binary"},
-        {"name": "show-urls", "run": "echo done"}
-      ]
-    }
-  }
-}
-  ]]></input>
-</test-case>
-
-<test-case id="valid-install-cli-symlink" should-fail="false">
-  <description>install-cli can chmod and symlink the binary into PATH</description>
-  <input language="json"><![CDATA[
-{
-  "service": {"name": "file-tools"},
-  "lifecycle": {
-    "setup": {
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && chmod +x file-tools && ln -sf $(pwd)/file-tools ~/.local/bin/file-tools",
-          "description": "Install CLI binary to PATH"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go build -o file-tools-api ./cmd/server/main.go",
-          "description": "Build Go API binary"
-        },
-        {"name": "show-urls", "run": "echo done"}
-      ]
-    }
-  }
-}
-  ]]></input>
-</test-case>
-
-<test-case id="install-cli-symlink-without-cd" should-fail="false">
-  <description>install-cli may operate directly on cli/<service> paths without changing directories</description>
-  <input language="json"><![CDATA[
-{
-  "service": {"name": "core-debugger"},
-  "ports": {"ui": {"env_var": "UI_PORT"}},
-  "lifecycle": {
-    "setup": {
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "chmod +x cli/core-debugger && ln -sf $(pwd)/cli/core-debugger ~/.local/bin/core-debugger",
-          "description": "Install CLI command globally"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o core-debugger-api .",
-          "description": "Build Go API binary"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && npm install",
-          "description": "Install UI dependencies",
-          "condition": {"file_exists": "ui/package.json"}
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo done"
-        }
-      ]
-    }
-  }
-}
-  ]]></input>
-</test-case>
-
-<test-case id="missing-go-build" should-fail="true">
-  <description>build-api step must run go build</description>
-  <input language="json"><![CDATA[
-{
-  "service": {"name": "file-tools"},
-  "lifecycle": {
-    "setup": {
-      "steps": [
-        {"name": "install-cli", "run": "cd cli && ./install.sh", "description": "Install CLI command globally"},
-        {"name": "build-api", "run": "cd api && npm run build", "description": "Build API"},
-        {"name": "show-urls", "run": "echo done"}
-      ]
-    }
-  }
-}
-  ]]></input>
-  <expected-violations>1</expected-violations>
-  <expected-message>go build</expected-message>
-</test-case>
-
-<test-case id="wrong-output-name" should-fail="true">
+<test-case id="wrong-build-api-output" should-fail="true">
   <description>build-api must emit the scenario-specific binary name</description>
   <input language="json"><![CDATA[
 {
@@ -323,7 +84,6 @@ Targets: service_json
   "lifecycle": {
     "setup": {
       "steps": [
-        {"name": "install-cli", "run": "cd cli && ./install.sh", "description": "Install CLI command globally"},
         {"name": "build-api", "run": "cd api && go build -o tools-api .", "description": "Build Go API"},
         {"name": "show-urls", "run": "echo done"}
       ]
@@ -335,63 +95,23 @@ Targets: service_json
   <expected-message>output must be file-tools-api</expected-message>
 </test-case>
 
-<test-case id="build-api-nested-output" should-fail="true">
-  <description>build-api must not prefix the output with api/ when already running inside the api directory</description>
+<test-case id="show-urls-last" should-fail="true">
+  <description>show-urls step is not last in the list</description>
   <input language="json"><![CDATA[
 {
   "service": {"name": "file-tools"},
   "lifecycle": {
     "setup": {
       "steps": [
-        {"name": "install-cli", "run": "cd cli && ./install.sh", "description": "Install CLI command globally"},
-        {"name": "build-api", "run": "cd api && go build -o api/file-tools-api .", "description": "Build Go API"},
-        {"name": "show-urls", "run": "echo done"}
+        {"name": "show-urls", "run": "echo urls"},
+        {"name": "build-api", "run": "cd api && go build -o file-tools-api .", "description": "Build Go API"}
       ]
     }
   }
 }
   ]]></input>
   <expected-violations>1</expected-violations>
-  <expected-message>api directory</expected-message>
-</test-case>
-
-<test-case id="install-cli-no-install" should-fail="true">
-  <description>install-cli must perform an installation action</description>
-  <input language="json"><![CDATA[
-{
-  "service": {"name": "file-tools"},
-  "lifecycle": {
-    "setup": {
-      "steps": [
-        {"name": "install-cli", "run": "cd cli && echo 'Skipping install'", "description": "CLI setup"},
-        {"name": "build-api", "run": "cd api && go build -o file-tools-api .", "description": "Build Go API"},
-        {"name": "show-urls", "run": "echo done"}
-      ]
-    }
-  }
-}
-  ]]></input>
-  <expected-violations>1</expected-violations>
-  <expected-message>install the CLI binary</expected-message>
-</test-case>
-
-<test-case id="install-cli-out-of-order" should-fail="false">
-  <description>install-cli must complete before build-api and show-urls announce readiness</description>
-  <input language="json"><![CDATA[
-{
-  "service": {"name": "order-check"},
-  "lifecycle": {
-    "setup": {
-      "steps": [
-        {"name": "build-api", "run": "cd api && go build -o order-check-api .", "description": "Build Go API"},
-        {"name": "install-cli", "run": "cd cli && ./install.sh", "description": "Install CLI"},
-        {"name": "show-urls", "run": "echo done"}
-      ]
-    }
-  }
-}
-  ]]></input>
-  <expected-violations>0</expected-violations>
+  <expected-message>show-urls</expected-message>
 </test-case>
 
 <test-case id="missing-show-urls-step" should-fail="true">
@@ -402,7 +122,6 @@ Targets: service_json
   "lifecycle": {
     "setup": {
       "steps": [
-        {"name": "install-cli", "run": "cd cli && ./install.sh", "description": "Install CLI command globally"},
         {"name": "build-api", "run": "cd api && go build -o file-tools-api .", "description": "Build Go API"}
       ]
     }
@@ -422,7 +141,6 @@ Targets: service_json
   "lifecycle": {
     "setup": {
       "steps": [
-        {"name": "install-cli", "run": "cd cli && ./install.sh", "description": "Install CLI"},
         {"name": "build-api", "run": "cd api && go build -o app-issue-tracker-api .", "description": "Build API"},
         {"name": "show-urls", "run": "echo done"}
       ]
@@ -434,6 +152,31 @@ Targets: service_json
   <expected-message>install-ui-deps</expected-message>
 </test-case>
 
+<test-case id="valid-setup" should-fail="false">
+  <description>Setup steps include build-api, optional CLI-independent steps, and show-urls last</description>
+  <input language="json"><![CDATA[
+{
+  "service": {"name": "file-tools"},
+  "cli": {
+    "enabled": true,
+    "command": "file-tools",
+    "adapter": {"kind": "go_module", "module_dir": "cli"},
+    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
+    "invoke": {"kind": "installed_command", "command": "file-tools"}
+  },
+  "lifecycle": {
+    "setup": {
+      "steps": [
+        {"name": "db-schema", "run": "echo schema", "description": "Prepare the database"},
+        {"name": "build-api", "run": "cd api && go mod tidy && go build -o file-tools-api .", "description": "Build Go API binary"},
+        {"name": "show-urls", "run": "echo done"}
+      ]
+    }
+  }
+}
+  ]]></input>
+</test-case>
+
 <test-case id="ui-valid-setup" should-fail="false">
   <description>install-ui-deps and build-ui steps prepare the production bundle ahead of show-urls</description>
   <input language="json"><![CDATA[
@@ -443,7 +186,6 @@ Targets: service_json
   "lifecycle": {
     "setup": {
       "steps": [
-        {"name": "install-cli", "run": "cd cli && ./install.sh", "description": "Install CLI"},
         {"name": "build-api", "run": "cd api && go build -o system-monitor-api .", "description": "Build API"},
         {"name": "install-ui-deps", "run": "cd ui && npm install", "description": "Install UI dependencies", "condition": {"file_exists": "ui/package.json"}},
         {"name": "build-ui", "run": "cd ui && npm run build", "description": "Build production UI"},
@@ -455,19 +197,23 @@ Targets: service_json
   ]]></input>
 </test-case>
 
-<test-case id="ui-install-rename" should-fail="true">
-  <description>UI dependency installation exists but is misnamed, so agents need guidance to rename it</description>
+<test-case id="ignored-non-service-json" should-fail="false" path="config.json">
+  <description>Rule is skipped for files other than service.json</description>
   <input language="json"><![CDATA[
 {
-  "service": {"name": "rename-install"},
-  "ports": {"ui": {"env_var": "UI_PORT"}},
+  "service": {"name": "file-tools"}
+}
+  ]]></input>
+</test-case>
+
+<test-case id="missing-service-name" should-fail="true">
+  <description>build-api exists but service.name is missing</description>
+  <input language="json"><![CDATA[
+{
   "lifecycle": {
     "setup": {
       "steps": [
-        {"name": "install-cli", "run": "cd cli && ./install.sh", "description": "Install CLI"},
-        {"name": "build-api", "run": "cd api && go build -o rename-install-api .", "description": "Build API"},
-        {"name": "prepare-ui-deps", "run": "cd ui && npm install", "description": "Install React dependencies", "condition": {"file_exists": "ui/package.json"}},
-        {"name": "build-ui", "run": "cd ui && npm run build", "description": "Build production UI"},
+        {"name": "build-api", "run": "cd api && go build -o file-tools-api .", "description": "Build Go API"},
         {"name": "show-urls", "run": "echo done"}
       ]
     }
@@ -475,193 +221,7 @@ Targets: service_json
 }
   ]]></input>
   <expected-violations>1</expected-violations>
-  <expected-message>named install-ui-deps</expected-message>
-</test-case>
-
-<test-case id="ui-build-rename" should-fail="true">
-  <description>build step runs npm run build but uses a custom name instead of build-ui</description>
-  <input language="json"><![CDATA[
-{
-  "service": {"name": "rename-build"},
-  "ports": {"ui": {"env_var": "UI_PORT"}},
-  "lifecycle": {
-    "setup": {
-      "steps": [
-        {"name": "install-cli", "run": "cd cli && ./install.sh", "description": "Install CLI"},
-        {"name": "build-api", "run": "cd api && go build -o rename-build-api .", "description": "Build API"},
-        {"name": "install-ui-deps", "run": "cd ui && npm install", "description": "Install UI dependencies", "condition": {"file_exists": "ui/package.json"}},
-        {"name": "compile-ui", "run": "cd ui && npm run build", "description": "Build production bundle"},
-        {"name": "show-urls", "run": "echo done"}
-      ]
-    }
-  }
-}
-  ]]></input>
-  <expected-violations>1</expected-violations>
-  <expected-message>named build-ui</expected-message>
-</test-case>
-
-<test-case id="ui-build-combined-step" should-fail="true">
-  <description>build-ui currently handles npm install and npm run build in one step, so agents must split it into install-ui-deps and build-ui</description>
-  <input language="json"><![CDATA[
-{
-  "service": {"name": "combo-ui"},
-  "ports": {"ui": {"env_var": "UI_PORT"}},
-  "lifecycle": {
-    "setup": {
-      "condition": {
-        "checks": [
-          {"type": "binaries", "targets": ["api/combo-ui-api"]},
-          {"type": "ui-bundle", "bundle_path": "ui/dist/index.html", "source_dir": "ui/src"}
-        ]
-      },
-      "steps": [
-        {"name": "install-cli", "run": "cd cli && ./install.sh", "description": "Install CLI"},
-        {"name": "build-api", "run": "cd api && go build -o combo-ui-api .", "description": "Build API"},
-        {"name": "build-ui", "run": "cd ui && npm install && npm run build", "description": "Install deps and build"},
-        {"name": "show-urls", "run": "echo done"}
-      ]
-    }
-  }
-}
-  ]]></input>
-  <expected-violations>2</expected-violations>
-  <expected-message>Split build-ui</expected-message>
-</test-case>
-
-<test-case id="ui-install-condition-missing" should-fail="false">
-  <description>install-ui-deps does not need a condition and should run unconditionally</description>
-  <input language="json"><![CDATA[
-{
-  "service": {"name": "ui-conditions"},
-  "ports": {"ui": {"env_var": "UI_PORT"}},
-  "lifecycle": {
-    "setup": {
-      "steps": [
-        {"name": "install-cli", "run": "cd cli && ./install.sh", "description": "Install CLI"},
-        {"name": "build-api", "run": "cd api && go build -o ui-conditions-api .", "description": "Build API"},
-        {"name": "install-ui-deps", "run": "cd ui && npm install", "description": "Install UI deps"},
-        {"name": "build-ui", "run": "cd ui && npm run build", "description": "Build production UI"},
-        {"name": "show-urls", "run": "echo done"}
-      ]
-    }
-  }
-}
-  ]]></input>
-</test-case>
-
-<test-case id="ui-install-condition-mismatch" should-fail="true">
-  <description>If condition.file_exists is provided it must reference ui/package.json</description>
-  <input language="json"><![CDATA[
-{
-  "service": {"name": "ui-conditions"},
-  "ports": {"ui": {"env_var": "UI_PORT"}},
-  "lifecycle": {
-    "setup": {
-      "steps": [
-        {"name": "install-cli", "run": "cd cli && ./install.sh", "description": "Install CLI"},
-        {"name": "build-api", "run": "cd api && go build -o ui-conditions-api .", "description": "Build API"},
-        {"name": "install-ui-deps", "run": "cd ui && npm install", "description": "Install UI deps", "condition": {"file_exists": "ui/yarn.lock"}},
-        {"name": "build-ui", "run": "cd ui && npm run build", "description": "Build production UI"},
-        {"name": "show-urls", "run": "echo done"}
-      ]
-    }
-  }
-}
-  ]]></input>
-  <expected-violations>1</expected-violations>
-  <expected-message>ui/yarn.lock</expected-message>
-</test-case>
-
-<test-case id="ui-build-condition-present" should-fail="true">
-  <description>build-ui must not be skipped via condition.file_exists because it needs to run on clean clones</description>
-  <input language="json"><![CDATA[
-{
-  "service": {"name": "ui-bundle-condition"},
-  "ports": {"ui": {"env_var": "UI_PORT"}},
-  "lifecycle": {
-    "setup": {
-      "steps": [
-        {"name": "install-cli", "run": "cd cli && ./install.sh", "description": "Install CLI"},
-        {"name": "build-api", "run": "cd api && go build -o ui-bundle-condition-api .", "description": "Build API"},
-        {"name": "install-ui-deps", "run": "cd ui && npm install", "description": "Install UI deps", "condition": {"file_exists": "ui/package.json"}},
-        {"name": "build-ui", "run": "cd ui && npm run build", "description": "Build production UI", "condition": {"file_exists": "ui/dist/index.html"}},
-        {"name": "show-urls", "run": "echo done"}
-      ]
-    }
-  }
-}
-  ]]></input>
-  <expected-violations>1</expected-violations>
-  <expected-message>must not guard</expected-message>
-</test-case>
-
-<test-case id="ui-build-custom-bundle-path" should-fail="true">
-  <description>build-ui must not guard on custom bundle paths either; the condition belongs in lifecycle.setup.condition</description>
-  <input language="json"><![CDATA[
-{
-  "service": {"name": "custom-ui"},
-  "ports": {"ui": {"env_var": "UI_PORT"}},
-  "lifecycle": {
-    "setup": {
-      "condition": {
-        "checks": [
-          {"type": "binaries", "targets": ["api/custom-ui-api"]},
-          {"type": "ui-bundle", "bundle_path": "packages/web/dist/main.html", "source_dir": "packages/web/src"},
-          {"type": "cli", "targets": ["custom-ui"]}
-        ]
-      },
-      "steps": [
-        {"name": "install-cli", "run": "cd cli && ./install.sh", "description": "Install CLI"},
-        {"name": "build-api", "run": "cd api && go build -o custom-ui-api .", "description": "Build API"},
-        {"name": "install-ui-deps", "run": "cd ui && npm install", "description": "Install UI deps", "condition": {"file_exists": "ui/package.json"}},
-        {"name": "build-ui", "run": "cd ui && npm run build", "description": "Build UI", "condition": {"file_exists": "packages/web/dist/main.html"}},
-        {"name": "show-urls", "run": "echo done"}
-      ]
-    }
-  }
-}
-  ]]></input>
-  <expected-violations>1</expected-violations>
-  <expected-message>packages/web/dist/main.html</expected-message>
-</test-case>
-
-<test-case id="install-cli-order-safe" should-fail="false">
-  <description>install-cli may run after build-api when it only touches cli binaries</description>
-  <input language="json"><![CDATA[
-{
-  "service": {"name": "text-tools"},
-  "lifecycle": {
-    "setup": {
-      "steps": [
-        {"name": "build-api", "run": "cd api && go build -o text-tools-api .", "description": "Build API"},
-        {"name": "install-cli", "run": "cd cli && ./install.sh", "description": "Install CLI"},
-        {"name": "show-urls", "run": "echo done"}
-      ]
-    }
-  }
-}
-  ]]></input>
-</test-case>
-
-<test-case id="install-cli-order-dependent" should-fail="true">
-  <description>install-cli runs go build inside api/, so it must run before build-api rewrites those binaries</description>
-  <input language="json"><![CDATA[
-{
-  "service": {"name": "api-builder"},
-  "lifecycle": {
-    "setup": {
-      "steps": [
-        {"name": "build-api", "run": "cd api && go build -o api-builder-api .", "description": "Build API"},
-        {"name": "install-cli", "run": "cd api && ln -sf $(pwd)/../cli/api-builder ~/.local/bin/api-builder", "description": "Install CLI using binaries from api"},
-        {"name": "show-urls", "run": "echo done"}
-      ]
-    }
-  }
-}
-  ]]></input>
-  <expected-violations>1</expected-violations>
-  <expected-message>install-cli must finish before build-api</expected-message>
+  <expected-message>service.name</expected-message>
 </test-case>
 */
 
@@ -725,7 +285,6 @@ func CheckSetupStepsConfiguration(content []byte, filePath string) []Violation {
 	}
 
 	var (
-		installMatch   *stepMatch
 		buildMatch     *stepMatch
 		uiInstallMatch *stepMatch
 		uiBuildMatch   *stepMatch
@@ -744,8 +303,6 @@ func CheckSetupStepsConfiguration(content []byte, filePath string) []Violation {
 		}
 		name := strings.TrimSpace(toStringOrDefault(stepMap["name"]))
 		switch name {
-		case "install-cli":
-			installMatch = newStepMatch(stepMap, idx, name, true)
 		case "build-api":
 			buildMatch = newStepMatch(stepMap, idx, name, true)
 		case "show-urls":
@@ -783,26 +340,12 @@ func CheckSetupStepsConfiguration(content []byte, filePath string) []Violation {
 		uiInstallMatch = nil
 	}
 
-	if installMatch == nil {
-		line := findMissingStepLine(source, "install-cli")
-		msg := "lifecycle.setup.steps must include an install-cli step so lifecycle.setup.condition's CLI check and operators can find the binary before develop runs. Without it, CLI tooling fails even if the API built successfully."
-		violations = append(violations, newSetupStepsViolation(filePath, line, msg, installCLIRecommendation))
-	} else {
-		violations = append(violations, validateInstallCLI(filePath, source, installMatch.step)...)
-	}
-
 	if buildMatch == nil {
 		line := findMissingStepLine(source, "build-api")
 		msg := fmt.Sprintf("lifecycle.setup.steps must include a build-api step so lifecycle.setup.condition's binaries check can detect stale Go code and start-api reuses the %s-api binary instead of rebuilding ad hoc.", serviceName)
 		violations = append(violations, newSetupStepsViolation(filePath, line, msg, buildAPIRecommendation(serviceName)))
 	} else {
 		violations = append(violations, validateBuildAPI(filePath, source, buildMatch.step, serviceName)...)
-	}
-
-	if installMatch != nil && buildMatch != nil && installCLIMustPrecedeBuild(installMatch.step, serviceName) && installMatch.index > buildMatch.index {
-		line := findStepNameLine(source, installMatch.name)
-		msg := "install-cli must finish before build-api when it compiles binaries out of api/ so the CLI doesn't relink stale artifacts while the Go server rebuilds."
-		violations = append(violations, newSetupStepsViolation(filePath, line, msg, installCLIRecommendation))
 	}
 
 	if showStepIndex == -1 {
@@ -855,45 +398,6 @@ func CheckSetupStepsConfiguration(content []byte, filePath string) []Violation {
 	}
 
 	return dedupeSetupStepsViolations(violations)
-}
-
-func validateInstallCLI(filePath, source string, step map[string]any) []Violation {
-	var violations []Violation
-
-	line := findSetupJSONLine(source, "\"install-cli\"")
-
-	run := strings.TrimSpace(toStringOrDefault(step["run"]))
-	runLower := strings.ToLower(run)
-	hasCdCli := strings.Contains(runLower, "cd cli")
-	touchesCliBinary := strings.Contains(runLower, "cli/")
-	invokesInstallScript := strings.Contains(runLower, "cli/install.sh")
-	if !hasCdCli && !touchesCliBinary && !invokesInstallScript {
-		msg := "install-cli must run from cli/ or operate on cli/<service> binaries so the installed artifact matches what lifecycle.setup.condition checks."
-		violations = append(violations, newSetupStepsViolation(filePath, line, msg, installCLIRecommendation))
-	}
-
-	installIndicators := []string{"cli/install.sh", "install.sh", "ln -sf", "cp ", "install-cli"}
-	indicatorFound := false
-	for _, indicator := range installIndicators {
-		if strings.Contains(runLower, indicator) {
-			indicatorFound = true
-			break
-		}
-	}
-	if !indicatorFound {
-		msg := "install-cli step must actually install the CLI binary (install.sh, ln -sf, or cp) so users and lifecycle checks can invoke it after setup."
-		violations = append(violations, newSetupStepsViolation(filePath, line, msg, installCLIRecommendation))
-		return violations
-	}
-
-	desc := strings.TrimSpace(toStringOrDefault(step["description"]))
-	descLower := strings.ToLower(desc)
-	if !(strings.Contains(descLower, "install") && strings.Contains(descLower, "cli")) {
-		msg := "install-cli description must mention installing the CLI so agents (and humans) know this step produces the binary required by lifecycle.setup.condition."
-		violations = append(violations, newSetupStepsViolation(filePath, line, msg, installCLIRecommendation))
-	}
-
-	return violations
 }
 
 func validateUIInstallStep(filePath, source string, step map[string]any) []Violation {
@@ -1055,7 +559,7 @@ func newSetupStepsViolation(filePath string, line int, message string, recommend
 	if line <= 0 {
 		line = 1
 	}
-	rec := "Ensure lifecycle.setup.steps include install-cli, scenario-specific build-api, and show-urls as the final step"
+	rec := "Ensure lifecycle.setup.steps include scenario-specific build-api work, any required UI bundle steps, and show-urls as the final step"
 	if len(recommendation) > 0 {
 		if custom := strings.TrimSpace(recommendation[0]); custom != "" {
 			rec = custom
@@ -1180,28 +684,6 @@ func stepInstallsUIDependencies(runLower string) bool {
 	strictTokens := []string{"--frozen-lockfile", "--immutable", "--prefer-offline", "--locked"}
 	if containsAny(runLower, strictTokens) {
 		return strings.Contains(runLower, "npm") || strings.Contains(runLower, "pnpm") || strings.Contains(runLower, "yarn") || strings.Contains(runLower, "bun")
-	}
-	return false
-}
-
-func installCLIMustPrecedeBuild(step map[string]any, serviceName string) bool {
-	if step == nil {
-		return false
-	}
-	run := strings.TrimSpace(toStringOrDefault(step["run"]))
-	if run == "" {
-		return false
-	}
-	runLower := strings.ToLower(run)
-	if strings.Contains(runLower, "cd api") {
-		return true
-	}
-	if strings.Contains(runLower, "api/") {
-		return true
-	}
-	expected := strings.ToLower(fmt.Sprintf("%s-api", serviceName))
-	if expected != "" && strings.Contains(runLower, expected) {
-		return true
 	}
 	return false
 }

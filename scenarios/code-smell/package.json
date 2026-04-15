@@ -5,8 +5,7 @@
   "main": "lib/rules-engine.js",
   "scripts": {
     "start": "vrooli lifecycle protect -- node api/server.js",
-    "test": "jest",
-    "install-cli": "./cli/install.sh"
+    "test": "jest"
   },
   "dependencies": {
     "axios": "^1.13.2",

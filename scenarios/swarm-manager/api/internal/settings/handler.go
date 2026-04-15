@@ -1,7 +1,7 @@
 // Package settings provides filesystem-backed settings persistence.
 //
-// Settings are stored at scenarios/swarm-manager/.vrooli/settings.json by default.
-// This keeps the scenario fully local and git-trackable without DB dependencies.
+// Settings are stored at scenarios/swarm-manager/config/settings.json by default.
+// This keeps them git-trackable as shared scenario behavior defaults.
 //
 // DOC: docs/reference/configuration.md
 // DOC: docs/reference/operational-targets.md

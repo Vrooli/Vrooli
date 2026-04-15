@@ -104,11 +104,6 @@
       },
       "steps": [
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o maintenance-orchestrator-api .",
           "description": "Build Go API binary"
@@ -198,6 +193,36 @@
         "required": false,
         "purpose": "Pub/sub for real-time state updates across instances"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "maintenance-orchestrator",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/maintenance-orchestrator",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "maintenance-orchestrator"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/maintenance-orchestrator",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

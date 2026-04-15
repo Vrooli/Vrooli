@@ -650,8 +650,23 @@ func TestCLINeedsSetupDetectsMissingAndStaleBinary(t *testing.T) {
 	appRoot := "/app"
 	probe := newFakeHostProbe()
 	probe.addDir(appRoot, time.Unix(10, 0))
+	item := scenario.Scenario{
+		Slug: "alpha",
+		Path: appRoot,
+		Manifest: scenario.ServiceManifest{
+			Service: scenario.ServiceMetadata{Name: "alpha"},
+			CLI: &scenario.CLIConfig{
+				Enabled: true,
+				Command: "fixture-cli",
+				Adapter: scenario.CLIAdapterConfig{
+					Kind:      "go_module",
+					ModuleDir: "cli",
+				},
+			},
+		},
+	}
 
-	needed, reason, err := cliNeedsSetupWithDeps(appRoot, scenario.ConditionCheck{Command: "fixture-cli"}, probe.deps())
+	needed, reason, err := cliNeedsSetupWithDeps(item, scenario.ConditionCheck{Command: "fixture-cli"}, probe.deps())
 	if err != nil {
 		t.Fatalf("cliNeedsSetup missing binary: %v", err)
 	}
@@ -670,7 +685,7 @@ func TestCLINeedsSetupDetectsMissingAndStaleBinary(t *testing.T) {
 	probe.addFile(cliPath, now, 0o755, []byte("#!/usr/bin/env bash\nexit 0\n"))
 	probe.lookPath["fixture-cli"] = cliPath
 
-	needed, reason, err = cliNeedsSetupWithDeps(appRoot, scenario.ConditionCheck{Command: "fixture-cli"}, probe.deps())
+	needed, reason, err = cliNeedsSetupWithDeps(item, scenario.ConditionCheck{Command: "fixture-cli"}, probe.deps())
 	if err != nil {
 		t.Fatalf("cliNeedsSetup fresh binary: %v", err)
 	}
@@ -680,7 +695,7 @@ func TestCLINeedsSetupDetectsMissingAndStaleBinary(t *testing.T) {
 
 	probe.addFile(sourcePath, future, 0o644, []byte("package main\n"))
 
-	needed, reason, err = cliNeedsSetupWithDeps(appRoot, scenario.ConditionCheck{Command: "fixture-cli"}, probe.deps())
+	needed, reason, err = cliNeedsSetupWithDeps(item, scenario.ConditionCheck{Command: "fixture-cli"}, probe.deps())
 	if err != nil {
 		t.Fatalf("cliNeedsSetup stale binary: %v", err)
 	}
@@ -1229,6 +1244,43 @@ func TestExecutePhaseAppendsTestArgsAndWarnsOnStopFailure(t *testing.T) {
 	}
 	if !strings.Contains(stopLog.String(), "[WARNING] Stop step completed with non-zero exit: failing-stop") {
 		t.Fatalf("expected stop warning log, got %q", stopLog.String())
+	}
+}
+
+func TestInjectTestGenieAutoStart(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "basic execute command",
+			in:   "test-genie execute alpha --preset comprehensive",
+			want: "test-genie --auto-start execute alpha --preset comprehensive",
+		},
+		{
+			name: "preserves env assignments",
+			in:   "TEST_MODE=1 test-genie execute alpha",
+			want: "TEST_MODE=1 test-genie --auto-start execute alpha",
+		},
+		{
+			name: "leaves explicit auto-start unchanged",
+			in:   "test-genie --auto-start execute alpha",
+			want: "test-genie --auto-start execute alpha",
+		},
+		{
+			name: "ignores unrelated commands",
+			in:   "echo test-genie execute alpha",
+			want: "echo test-genie execute alpha",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := injectTestGenieAutoStart(tc.in); got != tc.want {
+				t.Fatalf("injectTestGenieAutoStart(%q) = %q, want %q", tc.in, got, tc.want)
+			}
+		})
 	}
 }
 

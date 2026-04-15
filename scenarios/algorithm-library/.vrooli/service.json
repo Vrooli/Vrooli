@@ -144,11 +144,6 @@
           "description": "Initialize database with algorithms"
         },
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o algorithm-library-api .",
           "description": "Build Go API binary"
@@ -261,5 +256,35 @@
       }
     },
     "scenarios": {}
+  },
+  "cli": {
+    "enabled": true,
+    "command": "algorithm-library",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/algorithm-library",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "algorithm-library"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/algorithm-library",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
+    }
   }
 }
