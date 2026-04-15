@@ -127,11 +127,6 @@
           "name": "build-api",
           "run": "cd api && go mod download && go build -o vrooli-assistant-api .",
           "description": "Build Go API binary"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Vrooli Assistant initialized\\n  API and Web UI: http://localhost:${API_PORT}\\n  CLI: vrooli-assistant --help\\n  Electron overlay: set ENABLE_ELECTRON_OVERLAY=1 before start to enable\\n  Hotkey: Cmd+Shift+Space (Mac) / Ctrl+Shift+Space (Win/Linux)'",
-          "description": "Display service access info"
         }
       ]
     },
@@ -156,11 +151,6 @@
           "name": "start-electron-daemon",
           "run": "cd ui/electron && if [ \"${ENABLE_ELECTRON_OVERLAY:-0}\" = \"1\" ]; then npm run start:daemon; else echo 'Electron overlay disabled (set ENABLE_ELECTRON_OVERLAY=1 to enable).'; fi",
           "description": "Start Electron overlay daemon when explicitly enabled"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Vrooli Assistant running:\\n  API and Web UI: http://localhost:$API_PORT\\n  Electron overlay: enable by setting ENABLE_ELECTRON_OVERLAY=1 before start\\n  Hotkey: Cmd+Shift+Space (Mac) / Ctrl+Shift+Space (Win/Linux)'",
-          "description": "Display running service info"
         }
       ]
     },

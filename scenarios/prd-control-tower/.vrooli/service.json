@@ -137,11 +137,6 @@
           "name": "initialize-database",
           "run": "bash scripts/init-db.sh",
           "description": "Run schema in shared vrooli database (optional if using containerized DB)"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"\ud83d\ude80 PRD Control Tower initialized\" && echo \"  UI: http://localhost:${UI_PORT}\" && echo \"  API: http://localhost:${API_PORT}\" && echo \"  Health: http://localhost:${API_PORT}/health\"",
-          "description": "Display service access URLs"
         }
       ]
     },
@@ -165,11 +160,6 @@
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"\ud83d\ude80 PRD Control Tower running\" && echo \"  UI: http://localhost:${UI_PORT}\" && echo \"  API: http://localhost:${API_PORT}\" && echo \"  Health: http://localhost:${API_PORT}/health\"",
-          "description": "Display all running service URLs"
         }
       ]
     },

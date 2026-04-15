@@ -58,7 +58,7 @@ func TestFileProfileStore(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := NewFileProfileStore(tmpDir)
+	store := NewFileProfileStoreAtPath(filepath.Join(tmpDir, "profiles.json"))
 
 	t.Run("List returns builtin profiles when no custom profiles exist", func(t *testing.T) {
 		profiles, err := store.List()
@@ -186,7 +186,7 @@ func TestFileProfileStorePersistence(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Create and save a profile
-	store1 := NewFileProfileStore(tmpDir)
+	store1 := NewFileProfileStoreAtPath(filepath.Join(tmpDir, "profiles.json"))
 	custom := IsolationProfile{
 		ID:            "persist-test",
 		Name:          "Persistence Test",
@@ -199,7 +199,7 @@ func TestFileProfileStorePersistence(t *testing.T) {
 	}
 
 	// Create new store instance to verify file was written
-	store2 := NewFileProfileStore(tmpDir)
+	store2 := NewFileProfileStoreAtPath(filepath.Join(tmpDir, "profiles.json"))
 	retrieved, err := store2.Get("persist-test")
 	if err != nil {
 		t.Fatalf("failed to get after reload: %v", err)
@@ -212,7 +212,7 @@ func TestFileProfileStorePersistence(t *testing.T) {
 	}
 
 	// Verify file exists
-	filePath := filepath.Join(tmpDir, ".vrooli", "workspace-sandbox-profiles.json")
+	filePath := filepath.Join(tmpDir, "profiles.json")
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		t.Error("expected profiles file to exist")
 	}
@@ -226,7 +226,7 @@ func TestFileProfileStoreReload(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	store := NewFileProfileStore(tmpDir)
+	store := NewFileProfileStoreAtPath(filepath.Join(tmpDir, "profiles.json"))
 
 	// Save a profile
 	if err := store.Save(IsolationProfile{ID: "reload-test", Name: "Before Reload"}); err != nil {
@@ -234,7 +234,7 @@ func TestFileProfileStoreReload(t *testing.T) {
 	}
 
 	// Modify the file directly (simulating external modification)
-	filePath := filepath.Join(tmpDir, ".vrooli", "workspace-sandbox-profiles.json")
+	filePath := filepath.Join(tmpDir, "profiles.json")
 	newContent := `[{"id":"reload-test","name":"After External Edit","description":"","builtin":false,"networkAccess":"","readOnlyBinds":null,"readWriteBinds":null,"environment":null,"hostname":""}]`
 	if err := os.WriteFile(filePath, []byte(newContent), 0o644); err != nil {
 		t.Fatalf("failed to modify file: %v", err)
@@ -253,5 +253,22 @@ func TestFileProfileStoreReload(t *testing.T) {
 	reloaded, _ := store.Get("reload-test")
 	if reloaded.Name != "After External Edit" {
 		t.Errorf("expected reloaded Name 'After External Edit', got %s", reloaded.Name)
+	}
+}
+
+func TestFileProfileStoreUsesCanonicalConfigPath(t *testing.T) {
+	home := t.TempDir()
+	scenarioDir := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+
+	store, err := NewFileProfileStore(scenarioDir)
+	if err != nil {
+		t.Fatalf("NewFileProfileStore() error = %v", err)
+	}
+
+	canonicalPath := filepath.Join(home, ".config", "vrooli", "workspace-sandbox", "profiles.json")
+	if store.path != canonicalPath {
+		t.Fatalf("store.path = %q, want %q", store.path, canonicalPath)
 	}
 }

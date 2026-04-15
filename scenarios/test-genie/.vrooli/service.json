@@ -128,11 +128,6 @@
           "name": "build-ui",
           "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
           "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83e\uddea Test Genie ready!\\n  \ud83c\udf10 API: http://localhost:${API_PORT}\\n  \ud83d\udda5\ufe0f  UI: http://localhost:${UI_PORT}\\n  \ud83d\udee0\ufe0f CLI: test-genie --help\\n  \ud83d\udce6 SQLite DB: data/test-genie.db (override with TEST_GENIE_SQLITE_PATH)'",
-          "description": "Display service entrypoints after setup completes"
         }
       ]
     },
@@ -156,11 +151,6 @@
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo 'Test Genie running:\\n  \ud83c\udf10 API: http://localhost:${API_PORT}\\n  \ud83d\udda5\ufe0f  UI: http://localhost:${UI_PORT}\\n  \ud83e\uddea Execute suites via: curl -X POST http://localhost:${API_PORT}/api/v1/executions'",
-          "description": "Display scenario URLs for operators"
         }
       ]
     },

@@ -148,11 +148,6 @@
           "name": "build-ui",
           "run": "cd ui && npm run build",
           "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "printf '\ud83d\udcdd SmartNotes initialized\\n  UI: http://localhost:%s\\n  API: http://localhost:%s\\n' \"$UI_PORT\" \"$API_PORT\"",
-          "description": "Display service URLs"
         }
       ]
     },
@@ -176,11 +171,6 @@
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "printf '\ud83d\ude80 SmartNotes running:\\n  UI: http://localhost:%s\\n  API: http://localhost:%s\\n' \"$UI_PORT\" \"$API_PORT\"",
-          "description": "Display running services"
         }
       ]
     },

@@ -7,12 +7,13 @@
 set -euo pipefail
 
 # Setup paths
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+VROOLI_ROOT="${VROOLI_ROOT:-${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}}"
+APP_ROOT="${APP_ROOT:-$VROOLI_ROOT}"
 
 # Source required utilities
-source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
-source "${APP_ROOT}/scripts/lib/utils/setup.sh" 2>/dev/null || true
-source "${APP_ROOT}/scripts/lib/network/ports.sh" 2>/dev/null || true
+source "${VROOLI_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
+source "${VROOLI_ROOT}/scripts/lib/utils/setup.sh" 2>/dev/null || true
+source "${VROOLI_ROOT}/scripts/lib/network/ports.sh" 2>/dev/null || true
 
 STEP_CONDITION_REASON=""
 

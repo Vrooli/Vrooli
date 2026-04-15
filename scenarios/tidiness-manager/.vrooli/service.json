@@ -113,11 +113,6 @@
           "name": "build-ui",
           "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
           "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\" && echo \"Dashboard: http://localhost:${UI_PORT}/dashboard\"",
-          "description": "Display access URLs"
         }
       ]
     },
@@ -141,11 +136,6 @@
             "file_exists": "ui/dist/index.html"
           },
           "description": "Serve production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\" && echo \"Dashboard: http://localhost:${UI_PORT}/dashboard\"",
-          "description": "Display access URLs"
         }
       ]
     },

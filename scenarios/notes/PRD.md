@@ -546,7 +546,7 @@ vrooli scenario test notes
   - Reduced standards violations by 1 (service_test_steps violation resolved)
   - All P0 requirements remain fully functional, zero regressions
 - 2025-10-27 Session 11: UX improvements and data cleanup
-  - Fixed service.json show-urls display issue - now properly shows actual port numbers instead of ${UI_PORT}/${API_PORT} literals
+  - Fixed lifecycle URL output to show actual runtime port numbers instead of ${UI_PORT}/${API_PORT} literals
   - Cleaned up 23 legacy test notes from database (pre-cleanup implementation duplicates)
   - Database now contains only meaningful test data: "Semantic Search Test", "Test Note", and current BATS test notes
   - Verified all tests pass: integration (6/6), business (11/11), lifecycle (2/2)

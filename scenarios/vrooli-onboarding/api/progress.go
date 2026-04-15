@@ -10,8 +10,9 @@ import (
 )
 
 var (
-	userHomeDirFn = os.UserHomeDir
-	completeNowFn = time.Now
+	userHomeDirFn   = os.UserHomeDir
+	userConfigDirFn = os.UserConfigDir
+	completeNowFn   = time.Now
 )
 
 // OnboardingProgress represents a row in the onboarding_progress table.
@@ -158,11 +159,11 @@ func (s *Server) handleCompleteOnboarding(w http.ResponseWriter, r *http.Request
 }
 
 func vrooliConfigPath() (string, error) {
-	home, err := userHomeDirFn()
+	configDir, err := userConfigDirFn()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".vrooli", "config.json"), nil
+	return filepath.Join(configDir, "vrooli", "config.json"), nil
 }
 
 func markOnboardingCompleted(path, completedAt string) error {

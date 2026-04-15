@@ -5,6 +5,18 @@
     "last_updated": "2025-12-30T00:00:00Z"
   },
   "version": "1.0.0",
+  "lint": {
+    "languages": {
+      "go": {
+        "enabled": true,
+        "strict": true
+      },
+      "node": {
+        "enabled": true,
+        "strict": true
+      }
+    }
+  },
   "structure": {
     "additional_dirs": [
       "ui"

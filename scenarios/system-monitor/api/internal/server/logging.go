@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/api-core/storage"
 	"system-monitor-api/internal/config"
 )
 
@@ -166,11 +167,17 @@ func (rw *rotatingFileWriter) cleanup() {
 }
 
 func setupLogging(cfg *config.Config) {
+	if cfg.Logging.FilePath == "" || cfg.Logging.FilePath == "/var/log/system-monitor.log" {
+		if resolved, err := resolveScenarioLogPath(cfg.Server.ServiceName); err == nil {
+			cfg.Logging.FilePath = resolved
+		} else {
+			log.Printf("Failed to resolve scenario log path, using stdout: %v", err)
+			cfg.Logging.Output = "stdout"
+		}
+	}
+
 	if cfg.Logging.Output == "stdout" && os.Getenv("VROOLI_LIFECYCLE_MANAGED") == "true" {
 		cfg.Logging.Output = "file"
-		if cfg.Logging.FilePath == "" || cfg.Logging.FilePath == "/var/log/system-monitor.log" {
-			cfg.Logging.FilePath = filepath.Join(os.Getenv("HOME"), ".vrooli", "logs", "scenarios", cfg.Server.ServiceName, "api.log")
-		}
 	}
 
 	if cfg.Logging.Output == "file" {
@@ -187,4 +194,19 @@ func setupLogging(cfg *config.Config) {
 	} else {
 		log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 	}
+}
+
+func resolveScenarioLogPath(serviceName string) (string, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return "", fmt.Errorf("create storage resolver: %w", err)
+	}
+	return resolver.Path(
+		storage.Options{ScenarioID: "system-monitor"},
+		storage.ClassLogs,
+		filepath.Join(serviceName, "api.log"),
+	)
 }

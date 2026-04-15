@@ -199,11 +199,6 @@
           "condition": {
             "file_exists": "ui/package.json"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Scenario to Desktop initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: scenario-to-desktop --help'",
-          "description": "Display service access URLs"
         }
       ]
     },
@@ -227,11 +222,6 @@
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Scenario to Desktop running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
-          "description": "Display service access URLs"
         }
       ]
     },

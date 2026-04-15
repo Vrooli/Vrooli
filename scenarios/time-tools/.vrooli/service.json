@@ -91,11 +91,6 @@
           "condition": {
             "file_exists": "api/go.mod"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "printf '\ud83d\ude80 Time Tools ready!\\n  API: http://localhost:%s\\n  CLI: time-tools --help\\n' \"${API_PORT:-18765}\"",
-          "description": "Display service endpoints"
         }
       ]
     },
@@ -110,11 +105,6 @@
           "condition": {
             "file_exists": "api/time-tools-api"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "printf '\ud83d\ude80 Time Tools running\\n  API: http://localhost:%s\\n  CLI: time-tools --help\\n' \"${API_PORT:-18765}\"",
-          "description": "Display runtime endpoints"
         }
       ]
     },

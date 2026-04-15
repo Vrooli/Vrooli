@@ -86,6 +86,16 @@ cd ui && VITE_API_BASE_URL="http://localhost:${API_PORT}/api/v1" pnpm run dev --
 - The template ships adapter assets at `cli/install.sh` and `cli/install.ps1`, and the manifest declares when each should be used.
 - The CLI stores config in your user config directory (typically `~/.config/vrooli/{{SCENARIO_ID}}/config.json` or `~/.vrooli/config/{{SCENARIO_ID}}/config.json`).
 - Run `{{SCENARIO_ID}} configure api_base http://localhost:<API_PORT>/api/v1` (and optionally `{{SCENARIO_ID}} configure token <token>`) to point at a remote or non-standard API.
+- `status` and `configure` are provided by `cli-core`; `status` targets the canonical root `/health` endpoint.
+
+### CLI Extension Model
+- `cli/main.go`: entrypoint only.
+- `cli/app.go`: metadata + scaffold wiring only. Avoid endpoint logic here.
+- `cli/commands.go`: the primary extension point for domain commands.
+- `cli/cmd_<domain>.go`: preferred layout once the CLI grows beyond a couple commands.
+- Use `core.Get(...)` / `core.Request(...)` for versioned API routes and `core.GetRoot(...)` / `core.RequestRoot(...)` for root paths such as `/health`.
+- Mark API-backed commands with `NeedsAPI: true` so stale-checking, token validation, and `--auto-start` preflight stay connected automatically.
+- Prefer `SubcommandGroup` once the CLI has multiple domains (`tasks list`, `projects create`, etc.) instead of stuffing many flat commands into one file.
 
 ## Customize Safely
 1. **Update PRD.md + requirements/** first. Operational targets drive code + tests.

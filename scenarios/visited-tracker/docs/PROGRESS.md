@@ -1475,7 +1475,7 @@ The UX quality improvements are complete. Phase 2 cannot advance due to **metric
    - Added `lifecycle.setup.condition` with binaries, CLI commands, and UI bundle checks
    - Updated `build-api` description to clarify binary output location
    - Added `file_exists` condition to `start-api` step
-   - Added `show-urls` step to develop lifecycle
+   - Added runtime-owned URL output to the develop lifecycle flow
    - Reduced standards violations from 8 → 2 (only setup.condition line number issue remaining)
 
 ### Multi-Layer Test Validation
@@ -1551,7 +1551,7 @@ The UX quality improvements are complete. Phase 2 cannot advance due to **metric
 **Next Steps** (for future agents):
 1. **Improve lifecycle configuration** (addressing 4 medium-severity auditor findings):
    - Add file_exists condition for start-api step
-   - Add show-urls command to develop steps
+   - Add runtime-owned URL output to the develop flow
    - Define lifecycle.setup.condition
    - Enhance step descriptions
 2. **Option A - Metrics improvement** (3-4 hours): Convert playbooks to BAS executable format

@@ -85,7 +85,7 @@ cd ui && VITE_API_BASE_URL="http://localhost:${API_PORT}/api/v1" pnpm run dev --
 
 ## CLI Auto-Detection
 - Install the CLI on macOS/Linux with `./cli/install.sh` (or Windows with `.\cli\install.ps1`). By default the binary lands in `~/.vrooli/bin`.
-- The CLI stores config in your user config directory (typically `~/.config/vrooli/vrooli-onboarding/config.json` or `~/.vrooli/config/vrooli-onboarding/config.json`).
+- The shared onboarding lifecycle state is stored in your user config directory at `~/.config/vrooli/config.json`.
 - Run `vrooli-onboarding configure api_base http://localhost:<API_PORT>/api/v1` (and optionally `vrooli-onboarding configure token <token>`) to point at a remote or non-standard API.
 
 ## Customize Safely

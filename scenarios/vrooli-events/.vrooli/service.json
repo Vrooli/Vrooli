@@ -5,7 +5,7 @@
     "parent": "vrooli",
     "name": "vrooli-events",
     "displayName": "Vrooli Events",
-    "description": "Central event bus for inter-scenario communication \u2014 durable SQLite event store with SSE pub/sub and real-time analytics dashboard",
+    "description": "Central event bus for inter-scenario communication — durable SQLite event store with SSE pub/sub and real-time analytics dashboard",
     "version": "0.0.1",
     "type": "infrastructure",
     "category": "messaging",
@@ -120,11 +120,6 @@
           "name": "build-ui",
           "run": "cd ui && pnpm build",
           "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display access URLs"
         }
       ]
     },
@@ -148,11 +143,6 @@
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display access URLs"
         }
       ]
     },

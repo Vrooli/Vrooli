@@ -135,11 +135,6 @@
           "name": "build-ui",
           "run": "cd ui && pnpm run build",
           "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display access URLs"
         }
       ]
     },
@@ -168,11 +163,6 @@
           "name": "register-tts-hook",
           "run": "bash -c 'source lib/tts-hooks.sh && wc::register_tts_hook'",
           "description": "Register Claude Code Stop hook for auto-TTS"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\"",
-          "description": "Display access URLs"
         }
       ]
     },

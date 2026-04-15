@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/vrooli/api-core/storage"
 )
 
 // IsolationProfile defines a named isolation configuration.
@@ -74,11 +76,33 @@ type FileProfileStore struct {
 }
 
 // NewFileProfileStore creates a profile store backed by a JSON file.
-// basePath should be the scenario directory (e.g., scenarios/workspace-sandbox).
-func NewFileProfileStore(basePath string) *FileProfileStore {
-	return &FileProfileStore{
-		path: filepath.Join(basePath, ".vrooli", "workspace-sandbox-profiles.json"),
+func NewFileProfileStore(_ string) (*FileProfileStore, error) {
+	path, err := resolveProfilesPath()
+	if err != nil {
+		return nil, err
 	}
+	return &FileProfileStore{path: path}, nil
+}
+
+// NewFileProfileStoreAtPath creates a profile store pinned to an explicit file path.
+// This is primarily intended for tests.
+func NewFileProfileStoreAtPath(path string) *FileProfileStore {
+	return &FileProfileStore{path: path}
+}
+
+func resolveProfilesPath() (string, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return "", err
+	}
+	return resolver.Path(
+		storage.Options{ScenarioID: "workspace-sandbox"},
+		storage.ClassConfig,
+		"profiles.json",
+	)
 }
 
 // DefaultProfiles returns the built-in isolation profiles.

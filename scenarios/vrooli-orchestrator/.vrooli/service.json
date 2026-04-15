@@ -142,11 +142,6 @@
           "condition": {
             "binary_exists": "vrooli-orchestrator"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Vrooli Orchestrator initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-orchestrator --help\\n\\nProfile Management:\\n  vrooli-orchestrator list-profiles\\n  vrooli-orchestrator activate developer\\n  vrooli-orchestrator deactivate'",
-          "description": "Display service access URLs and basic commands"
         }
       ]
     },
@@ -170,11 +165,6 @@
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Orchestrator services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-orchestrator --help\\n\\nQuick Commands:\\n  vrooli-orchestrator status\\n  vrooli-orchestrator list-profiles\\n  vrooli-orchestrator activate <profile-name>'",
-          "description": "Display all running service URLs and commands"
         }
       ]
     },

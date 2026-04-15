@@ -5,8 +5,8 @@
 
 set -e
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-SCRIPT_DIR="${APP_ROOT}/scenarios/picker-wheel/cli"
+VROOLI_ROOT="${VROOLI_ROOT:-${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}}"
+SCRIPT_DIR="${VROOLI_ROOT}/scenarios/picker-wheel/cli"
 
 # Auto-detect API_PORT from running scenario if not set
 if [ -z "$API_PORT" ]; then

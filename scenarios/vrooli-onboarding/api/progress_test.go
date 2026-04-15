@@ -375,14 +375,17 @@ func TestProgressUpsertOverwrite(t *testing.T) {
 
 func TestCompleteOnboardingMarksSharedConfig(t *testing.T) {
 	originalHomeDirFn := userHomeDirFn
+	originalUserConfigDirFn := userConfigDirFn
 	originalCompleteNowFn := completeNowFn
 	defer func() {
 		userHomeDirFn = originalHomeDirFn
+		userConfigDirFn = originalUserConfigDirFn
 		completeNowFn = originalCompleteNowFn
 	}()
 
 	home := t.TempDir()
 	userHomeDirFn = func() (string, error) { return home, nil }
+	userConfigDirFn = func() (string, error) { return filepath.Join(home, ".config"), nil }
 	completeNowFn = func() time.Time { return time.Date(2026, 4, 14, 15, 4, 5, 0, time.UTC) }
 
 	srv := &Server{}
@@ -397,7 +400,7 @@ func TestCompleteOnboardingMarksSharedConfig(t *testing.T) {
 		t.Fatalf("POST status = %d, want %d; body: %s", w.Code, http.StatusOK, w.Body.String())
 	}
 
-	path := filepath.Join(home, ".vrooli", "config.json")
+	path := filepath.Join(home, ".config", "vrooli", "config.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read config: %v", err)
@@ -419,18 +422,21 @@ func TestCompleteOnboardingMarksSharedConfig(t *testing.T) {
 
 func TestCompleteOnboardingPreservesExistingAutoOpenState(t *testing.T) {
 	originalHomeDirFn := userHomeDirFn
+	originalUserConfigDirFn := userConfigDirFn
 	originalCompleteNowFn := completeNowFn
 	defer func() {
 		userHomeDirFn = originalHomeDirFn
+		userConfigDirFn = originalUserConfigDirFn
 		completeNowFn = originalCompleteNowFn
 	}()
 
 	home := t.TempDir()
 	userHomeDirFn = func() (string, error) { return home, nil }
+	userConfigDirFn = func() (string, error) { return filepath.Join(home, ".config"), nil }
 	completeNowFn = func() time.Time { return time.Date(2026, 4, 14, 15, 4, 5, 0, time.UTC) }
 
 	autoOpen := false
-	configPath := filepath.Join(home, ".vrooli", "config.json")
+	configPath := filepath.Join(home, ".config", "vrooli", "config.json")
 	if err := os.MkdirAll(filepath.Dir(configPath), 0o755); err != nil {
 		t.Fatalf("mkdir config dir: %v", err)
 	}
@@ -475,5 +481,27 @@ func TestCompleteOnboardingPreservesExistingAutoOpenState(t *testing.T) {
 	}
 	if !cfg.Onboarding.Completed {
 		t.Fatal("expected onboarding.completed to be true")
+	}
+}
+
+func TestVrooliConfigPathUsesCanonicalConfigDir(t *testing.T) {
+	originalHomeDirFn := userHomeDirFn
+	originalUserConfigDirFn := userConfigDirFn
+	defer func() {
+		userHomeDirFn = originalHomeDirFn
+		userConfigDirFn = originalUserConfigDirFn
+	}()
+
+	home := t.TempDir()
+	userHomeDirFn = func() (string, error) { return home, nil }
+	userConfigDirFn = func() (string, error) { return filepath.Join(home, ".config"), nil }
+
+	got, err := vrooliConfigPath()
+	if err != nil {
+		t.Fatalf("vrooliConfigPath() error = %v", err)
+	}
+	want := filepath.Join(home, ".config", "vrooli", "config.json")
+	if got != want {
+		t.Fatalf("vrooliConfigPath() = %q, want %q", got, want)
 	}
 }

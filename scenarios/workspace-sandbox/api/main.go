@@ -189,7 +189,10 @@ func NewServer() (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	profileStore := config.NewFileProfileStore(scenarioDir)
+	profileStore, err := config.NewFileProfileStore(scenarioDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize profile store: %w", err)
+	}
 
 	// Initialize GC service (OT-P1-003)
 	gcCfg := gc.Config{

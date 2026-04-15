@@ -149,11 +149,6 @@
           "name": "verify-civilization-data",
           "run": "./scripts/verify-postgres-data.sh",
           "description": "Validate civilization progress data directly in Postgres"
-        },
-        {
-          "name": "show-urls",
-          "run": "cat <<EOF\n\ud83d\ude80 Tech Tree Designer initialized\n  Strategic Dashboard: http://localhost:${UI_PORT}\n  Tree Analysis API: http://localhost:${API_PORT}/api/v1/tech-tree/analyze\n  Progress Tracking: http://localhost:${API_PORT}/api/v1/progress\n  CLI: tech-tree-designer --help\n\n\ud83c\udfaf Civilization Progress: Ready for strategic intelligence acceleration\nEOF",
-          "description": "Display tech tree access URLs and strategic overview"
         }
       ]
     },
@@ -177,11 +172,6 @@
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "cat <<EOF\n\ud83d\ude80 Strategic Intelligence System Online:\n  \ud83d\udcca Tech Tree Dashboard: http://localhost:${UI_PORT}\n  \ud83e\udde0 Analysis API: http://localhost:${API_PORT}\n  \ud83d\udcc8 Progress Tracking: http://localhost:${API_PORT}/api/v1/progress\n  \ud83c\udfaf Strategic CLI: tech-tree-designer --help\n\n\ud83c\udf1f Ready to guide Vrooli's evolution toward superintelligence\nEOF",
-          "description": "Display all running strategic planning services"
         }
       ]
     },

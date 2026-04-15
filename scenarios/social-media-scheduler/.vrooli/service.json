@@ -161,11 +161,6 @@
           "name": "setup-minio-buckets",
           "run": "mc alias set local http://localhost:${RESOURCE_PORTS[minio]} ${MINIO_ROOT_USER:-admin} ${MINIO_ROOT_PASSWORD:-password} && mc mb local/social-media-assets --ignore-existing",
           "description": "Create MinIO buckets for media storage"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Social Media Scheduler initialized\\n  \ud83d\udcc5 Web UI: http://localhost:${UI_PORT}\\n  \ud83d\udd17 API: http://localhost:${API_PORT}\\n  \ud83d\udcca Analytics: http://localhost:${UI_PORT}/analytics\\n  \ud83d\udee0\ufe0f  CLI: social-media-scheduler --help'",
-          "description": "Display service access URLs"
         }
       ]
     },
@@ -198,11 +193,6 @@
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Social Media Scheduler running:\\n  \ud83d\udcc5 Calendar UI: http://localhost:$UI_PORT\\n  \ud83d\udd17 API: http://localhost:$API_PORT\\n  \ud83d\udcca Analytics: http://localhost:$UI_PORT/analytics\\n  \u2699\ufe0f  Job Queue: Redis on ${RESOURCE_PORTS[redis]}\\n  \ud83d\udee0\ufe0f  CLI: social-media-scheduler --help'",
-          "description": "Display all running service URLs and status"
         }
       ]
     },

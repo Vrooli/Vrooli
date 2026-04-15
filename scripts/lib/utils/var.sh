@@ -4,8 +4,11 @@ set -euo pipefail
 # var.sh defines directory variables and should always be sourced
 # No source guard needed as variables are idempotent
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-var_ROOT_DIR="$APP_ROOT"
+VROOLI_ROOT="${VROOLI_ROOT:-${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}}"
+export VROOLI_ROOT
+APP_ROOT="${APP_ROOT:-$VROOLI_ROOT}"
+export APP_ROOT
+var_ROOT_DIR="$VROOLI_ROOT"
 export var_ROOT_DIR
 
 # DERIVE all paths from ROOT - zero subshells!

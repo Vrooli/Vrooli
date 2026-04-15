@@ -31,6 +31,17 @@ See [QUICKSTART.md](docs/QUICKSTART.md) for detailed first-time setup.
 - `.vrooli/service.json` is the source of truth for the CLI command, adapter kind, install strategies, and invocation contract.
 - The template includes `cli/install.sh` and `cli/install.ps1` as adapter assets referenced by that manifest.
 - Health check: `<scenario-id> status` (after install)
+- `status` and `configure` come from `cli-core`; `status` hits root `/health`.
+
+### CLI Extension Model
+
+- `cli/main.go`: entrypoint only.
+- `cli/app.go`: metadata + scaffold wiring only. Keep endpoint logic out of this file.
+- `cli/commands.go`: the primary extension point for domain commands.
+- `cli/cmd_<domain>.go`: preferred once the CLI grows beyond a couple commands.
+- Use `core.Get(...)` / `core.Request(...)` for versioned API routes and `core.GetRoot(...)` / `core.RequestRoot(...)` for root paths.
+- Mark API-backed commands with `NeedsAPI: true` so stale-checking, token validation, and `--auto-start` keep working automatically.
+- Prefer `SubcommandGroup` for command-rich CLIs so the file layout mirrors the scenario’s domain boundaries.
 
 ## Documentation
 
