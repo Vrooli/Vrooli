@@ -83,30 +83,17 @@ _wc::resolve_api_port() {
 
 #######################################
 # Resolve the hook auth token written by the Go backend.
-# Checks api-core/storage XDG state path first, then the fallback path.
+# Reads the canonical api-core/storage state path on Linux.
 # Outputs the token on stdout; returns 1 if unavailable.
 #######################################
 _wc::resolve_hook_token() {
     local token=""
 
-    # Primary: XDG state path used by api-core/storage on Linux
-    # ~/.local/state/vrooli/web-console/hook-token.txt
     local xdg_state="${XDG_STATE_HOME:-$HOME/.local/state}"
     local primary_path="${xdg_state}/vrooli/web-console/hook-token.txt"
     if [[ -f "$primary_path" ]]; then
         token=$(<"$primary_path")
         token="${token%%[[:space:]]}"  # trim trailing whitespace/newline
-        if [[ -n "$token" ]]; then
-            echo "$token"
-            return 0
-        fi
-    fi
-
-    # Fallback: relative to scenario root (matches fallbackHookTokenPath in Go)
-    local fallback_path="${_WC_SCENARIO_DIR}/store/hook-token.txt"
-    if [[ -f "$fallback_path" ]]; then
-        token=$(<"$fallback_path")
-        token="${token%%[[:space:]]}"
         if [[ -n "$token" ]]; then
             echo "$token"
             return 0

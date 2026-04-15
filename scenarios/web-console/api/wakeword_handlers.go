@@ -44,32 +44,7 @@ type WakeWordConfig struct {
 // ---------------------------------------------------------------------------
 
 func resolveWakeWordTemplatePath() string {
-	resolver, err := storage.NewResolver(storage.ResolverConfig{
-		AppID:   "vrooli",
-		Profile: storage.ProfileAuto,
-	})
-	if err != nil {
-		log.Printf("wakeword-config: storage resolver failed, using fallback: %v", err)
-		return fallbackWakeWordTemplatePath()
-	}
-
-	opts := storage.Options{ScenarioID: "web-console"}
-	if _, err := storage.EnsureClassDir(resolver, opts, storage.ClassState, 0); err != nil {
-		log.Printf("wakeword-config: ensure state dir failed, using fallback: %v", err)
-		return fallbackWakeWordTemplatePath()
-	}
-
-	path, err := resolver.Path(opts, storage.ClassState, "wakeword-template.json")
-	if err != nil {
-		log.Printf("wakeword-config: resolve path failed, using fallback: %v", err)
-		return fallbackWakeWordTemplatePath()
-	}
-	return path
-}
-
-func fallbackWakeWordTemplatePath() string {
-	exe, _ := os.Executable()
-	return filepath.Join(filepath.Dir(exe), "..", "store", "wakeword-template.json")
+	return mustResolveScenarioStoragePath(storage.ClassState, "wakeword-template.json")
 }
 
 func loadWakeWordTemplate(path string) (*WakeWordTemplate, error) {

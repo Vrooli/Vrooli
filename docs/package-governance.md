@@ -10,6 +10,7 @@ Vrooli scenarios stay intentionally independent. They do not join the root pnpm 
 - Real scenarios must not use workspace-star dependencies for shared package adoption.
 - Shared package propagation must not rely on scenario-local `postinstall` copy/symlink hacks.
 - Only packages marked `scenario_adoptable` may be consumed by governed external consumers such as scenarios, templates, or resources.
+- Leaf shared Go packages must not take on new local governed package dependencies unless that coupling is explicitly allowed by policy.
 
 ## Supported Adoption Modes
 
@@ -47,8 +48,31 @@ vrooli package audit --all
    - JS/TS isolated consumers use `file:`
    - Go consumers use governed `replace` directives
    - generated artifacts are adopted through their source package contract
+   - Go consumers must build as the main module under `GOWORK=off`; dependency-module `replace` directives do not count as sufficient
 3. Do not use workspace-star dependencies.
 4. Do not add shared-package copy/symlink logic to `postinstall`.
+
+### Leaf shared Go package policy
+
+Some shared Go packages are governed as leaves. They are intended to be
+directly reusable by consumers without forcing those consumers to adopt a wider
+local package graph.
+
+Current leaf packages:
+
+- `cli-core`
+- `repo-contract-go`
+
+Implications:
+
+- `cli-core` must stay self-contained relative to other governed local Go
+  packages, except for explicitly allowed leaf-safe dependencies such as
+  `repo-contract-go`.
+- If a shared package only needs a wire-format DTO or a tiny contract shape, it
+  should usually define that decode shape locally instead of importing another
+  governed local package just for convenience.
+- Consumer correctness is validated from the consumer module's point of view,
+  not from the dependency package's own module context.
 
 ### Refreshing package consumers
 
@@ -65,6 +89,7 @@ Refresh behavior is consumer-type-aware:
 ## CI And Validation
 
 - `make validate-package-governance` is the canonical repo-level validation target for package manifests, package refresh coverage, and governance drift.
+- `make validate-go-cli-consumers` is the canonical isolated-build check for scenario/resource CLI Go modules and must stay green alongside package governance.
 - CI runs that target directly, which means package governance must stay green at the CLI level and through the `scenario-stack-governor` rule surface.
 
 ## Why This Exists

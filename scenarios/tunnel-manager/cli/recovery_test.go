@@ -2,6 +2,8 @@ package main
 
 import (
 	"testing"
+
+	"tunnel-manager/cli/internal/flags"
 )
 
 // [REQ:CLI-RECOVERY-001] Recovery commands are registered
@@ -11,20 +13,18 @@ func TestRecoveryCommandsRegistered(t *testing.T) {
 		t.Fatalf("NewApp: %v", err)
 	}
 
-	groups := app.registerCommands()
-	wantCmds := map[string]bool{
-		"recovery state":         false,
-		"recovery trigger":       false,
-		"recovery events":        false,
-		"recovery circuit-reset": false,
-	}
+	groups := app.subcommandGroups()
+	wantCmds := map[string]bool{"state": false, "trigger": false, "events": false, "circuit-reset": false}
 
-	for _, g := range groups {
-		for _, cmd := range g.Commands {
+	for _, group := range groups {
+		if group.Name != "recovery" {
+			continue
+		}
+		for _, cmd := range group.Subcommands {
 			if _, ok := wantCmds[cmd.Name]; ok {
 				wantCmds[cmd.Name] = true
-				if !cmd.NeedsAPI {
-					t.Errorf("%s command should require API", cmd.Name)
+				if !group.NeedsAPI && !cmd.NeedsAPI {
+					t.Errorf("recovery %s should require API", cmd.Name)
 				}
 			}
 		}
@@ -32,7 +32,7 @@ func TestRecoveryCommandsRegistered(t *testing.T) {
 
 	for name, found := range wantCmds {
 		if !found {
-			t.Errorf("command %q not registered", name)
+			t.Errorf("subcommand recovery %q not registered", name)
 		}
 	}
 }
@@ -64,15 +64,10 @@ func TestRecoveryAPIPaths(t *testing.T) {
 
 // [REQ:CLI-RECOVERY-003] Recovery commands support JSON output
 func TestRecoveryJSONFlag(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp: %v", err)
-	}
-
-	if !app.useJSON([]string{"--json"}) {
+	if !flags.HasJSONOutput([]string{"--json"}) {
 		t.Error("recovery --json should be detected")
 	}
-	if !app.useJSON([]string{"-j"}) {
+	if !flags.HasJSONOutput([]string{"-j"}) {
 		t.Error("recovery -j should be detected")
 	}
 }

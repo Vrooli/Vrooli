@@ -191,7 +191,7 @@ func TestResponseStructs(t *testing.T) {
 
 func TestCommandGroups(t *testing.T) {
 	// Test that command group structure is correct by inspecting the expected groups
-	expectedGroups := []string{"Health", "Sandbox Operations", "Diff & Approval", "Driver", "Configuration"}
+	expectedGroups := []string{"Health", "Sandbox Operations", "Diff & Approval", "Driver"}
 
 	t.Run("verifies expected command groups", func(t *testing.T) {
 		// The actual groups are defined in registerCommands

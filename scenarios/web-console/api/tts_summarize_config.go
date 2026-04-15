@@ -180,30 +180,5 @@ func (s *Server) handleUpdateTTSSummarizeConfig(w http.ResponseWriter, r *http.R
 
 // resolveTTSSummarizeConfigPath returns the summarize config file path using api-core/storage.
 func resolveTTSSummarizeConfigPath() string {
-	resolver, err := storage.NewResolver(storage.ResolverConfig{
-		AppID:   "vrooli",
-		Profile: storage.ProfileAuto,
-	})
-	if err != nil {
-		log.Printf("tts-summarize-config: storage resolver failed, using fallback: %v", err)
-		return fallbackTTSSummarizeConfigPath()
-	}
-
-	opts := storage.Options{ScenarioID: "web-console"}
-	if _, err := storage.EnsureClassDir(resolver, opts, storage.ClassState, 0); err != nil {
-		log.Printf("tts-summarize-config: ensure state dir failed, using fallback: %v", err)
-		return fallbackTTSSummarizeConfigPath()
-	}
-
-	path, err := resolver.Path(opts, storage.ClassState, "tts-summarize-config.json")
-	if err != nil {
-		log.Printf("tts-summarize-config: resolve path failed, using fallback: %v", err)
-		return fallbackTTSSummarizeConfigPath()
-	}
-	return path
-}
-
-func fallbackTTSSummarizeConfigPath() string {
-	exe, _ := os.Executable()
-	return filepath.Join(filepath.Dir(exe), "..", "store", "tts-summarize-config.json")
+	return mustResolveScenarioStoragePath(storage.ClassState, "tts-summarize-config.json")
 }

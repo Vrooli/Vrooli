@@ -198,8 +198,6 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 		return Result{}, err
 	}
 
-	_ = os.Remove(process.ScenarioDegradedPath(r.Home, item.Slug))
-
 	records, err := deps.readScenarioRecords(r.Home, item.Slug)
 	if err != nil {
 		return Result{}, err
@@ -277,11 +275,6 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 			logx.AttrStatus, healthStatus,
 			"failed_dependencies", failedDeps,
 		)
-		// Preserve the degraded marker contract so remaining Bash-backed status
-		// and log flows still recognize a partial best-effort startup.
-		if err := r.writeDegradedState(item.Slug, failedDeps); err != nil {
-			return Result{}, err
-		}
 	}
 
 	return Result{
@@ -335,8 +328,6 @@ func (r *Runner) Stop(name string, opts StopOptions) error {
 		step := strings.TrimSuffix(filepath.Base(stepFile), filepath.Ext(stepFile))
 		_ = process.RemoveScenarioRecord(r.Home, name, step)
 	}
-	_ = os.Remove(process.ScenarioDegradedPath(r.Home, name))
-
 	portsToCheck := make(map[int]struct{})
 	locks, err := r.Ports.LocksForScenario(name)
 	if err != nil {
@@ -408,27 +399,6 @@ func (r *Runner) logWarn(msg string, args ...any) {
 
 func (r *Runner) logError(msg string, err error, args ...any) {
 	logx.Error(r.logger(), msg, err, args...)
-}
-
-func (r *Runner) writeDegradedState(name string, failedDeps []string) error {
-	deps := r.runtimeDeps()
-	processDir := process.ScenarioProcessDir(r.Home, name)
-	if err := os.MkdirAll(processDir, 0o755); err != nil {
-		return err
-	}
-
-	payload := map[string]any{
-		"status":              "degraded",
-		"reason":              "best-effort startup with failed dependencies",
-		"failed_dependencies": failedDeps,
-		"timestamp":           deps.now().UTC().Format(time.RFC3339),
-	}
-	data, err := json.MarshalIndent(payload, "", "  ")
-	if err != nil {
-		return err
-	}
-	data = append(data, '\n')
-	return os.WriteFile(process.ScenarioDegradedPath(r.Home, name), data, 0o644)
 }
 
 func (r *Runner) killOrphansOnPorts(portsToCheck map[int]struct{}) error {

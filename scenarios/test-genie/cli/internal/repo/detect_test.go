@@ -15,7 +15,7 @@ func resetRootCache() {
 func writeRepoContractFixture(t *testing.T, root string) {
 	t.Helper()
 
-	dirs := []string{".vrooli", "scenarios", "resources", "packages", "cmd", "internal"}
+	dirs := []string{".vrooli", "scenarios", "resources", "templates", "packages", "cmd", "internal", "docs"}
 	for _, dir := range dirs {
 		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", dir, err)
@@ -29,7 +29,7 @@ func writeRepoContractFixture(t *testing.T, root string) {
   "version": "1.0.0",
   "platform": {"mode": "cross_platform_go_native", "legacy_project_bash_supported": false},
   "root": {"markers": {"required_dirs": [".vrooli", "scenarios", "resources", "packages", "cmd", "internal"], "required_files": ["go.mod"]}},
-  "layout": {"project_config_dir": ".vrooli", "scenario_dir": "scenarios", "resource_dir": "resources", "package_dir": "packages", "command_dir": "cmd", "internal_dir": "internal", "docs_dir": "docs"},
+  "layout": {"project_config_dir": ".vrooli", "scenario_dir": "scenarios", "resource_dir": "resources", "template_dir": "templates", "package_dir": "packages", "command_dir": "cmd", "internal_dir": "internal", "docs_dir": "docs"},
   "scenario": {"required_files": [".vrooli/service.json"], "well_known_paths": {"service": ".vrooli/service.json"}},
   "resource": {"manifest": "resource.json", "well_known_paths": {"docs": "docs"}},
   "globs": {"syntax": "doublestar", "root_relative": true, "case_sensitive": true, "allow_absolute": false, "path_format": "slash_normalized"},

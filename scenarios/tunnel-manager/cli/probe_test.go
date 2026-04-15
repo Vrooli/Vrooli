@@ -2,6 +2,8 @@ package main
 
 import (
 	"testing"
+
+	"tunnel-manager/cli/internal/flags"
 )
 
 // [REQ:CLI-PROBE-001] Probe command is registered and callable
@@ -11,20 +13,19 @@ func TestProbeCommandRegistered(t *testing.T) {
 		t.Fatalf("NewApp: %v", err)
 	}
 
-	groups := app.registerCommands()
+	groups := app.subcommandGroups()
 	found := false
-	for _, g := range groups {
-		for _, cmd := range g.Commands {
-			if cmd.Name == "probe" {
-				found = true
-				if !cmd.NeedsAPI {
-					t.Error("probe command should require API")
-				}
-			}
+	for _, group := range groups {
+		if group.Name != "probe" {
+			continue
+		}
+		found = hasSubcommand(group, "run")
+		if !group.NeedsAPI {
+			t.Error("probe group should require API")
 		}
 	}
 	if !found {
-		t.Error("probe command not registered")
+		t.Error("probe run command not registered")
 	}
 }
 
@@ -44,15 +45,10 @@ func TestProbeAPIPath(t *testing.T) {
 
 // [REQ:CLI-PROBE-002] Probe command supports JSON output
 func TestProbeJSONFlag(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp: %v", err)
-	}
-
-	if !app.useJSON([]string{"--json"}) {
+	if !flags.HasJSONOutput([]string{"--json"}) {
 		t.Error("probe --json should be detected")
 	}
-	if !app.useJSON([]string{"-j"}) {
+	if !flags.HasJSONOutput([]string{"-j"}) {
 		t.Error("probe -j should be detected")
 	}
 }

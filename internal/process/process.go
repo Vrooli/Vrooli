@@ -64,10 +64,6 @@ func ScenarioStateDir(home string) string {
 	return filepath.Join(home, ".vrooli", "state", "scenarios")
 }
 
-func ScenarioDegradedPath(home, name string) string {
-	return filepath.Join(ScenarioProcessDir(home, name), "degraded.json")
-}
-
 func WriteScenarioRecord(home, name, step string, record Record) error {
 	processDir := ScenarioProcessDir(home, name)
 	if err := os.MkdirAll(processDir, 0o755); err != nil {

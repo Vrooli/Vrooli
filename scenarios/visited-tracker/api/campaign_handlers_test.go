@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -36,11 +35,7 @@ func TestListCampaignsHandler(t *testing.T) {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
 
-	// Create the required directory structure
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0755); err != nil {
-		t.Fatalf("Failed to create data directory: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	// Test empty list
 	req := httptest.NewRequest("GET", "/api/v1/campaigns", nil)
@@ -156,11 +151,7 @@ func TestCreateCampaignHandler(t *testing.T) {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
 
-	// Create the required directory structure
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0755); err != nil {
-		t.Fatalf("Failed to create data directory: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	// Test valid campaign creation
 	requestBody := CreateCampaignRequest{
@@ -276,11 +267,7 @@ func TestGetCampaignHandler(t *testing.T) {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
 
-	// Create the required directory structure
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0755); err != nil {
-		t.Fatalf("Failed to create data directory: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	// Create and save test campaign
 	campaign := &Campaign{
@@ -369,11 +356,7 @@ func TestDeleteCampaignHandler(t *testing.T) {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
 
-	// Create the required directory structure
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0755); err != nil {
-		t.Fatalf("Failed to create data directory: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	// Create and save test campaign
 	campaign := &Campaign{
@@ -556,10 +539,7 @@ func TestDeleteCampaignHandlerErrorPaths(t *testing.T) {
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
-
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init file storage: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	// Test missing campaign ID in URL vars
 	req := httptest.NewRequest("DELETE", "/api/v1/campaigns/missing", nil)
@@ -611,10 +591,7 @@ func TestGetCampaignHandlerWithDeletedFiles(t *testing.T) {
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
-
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init file storage: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	now := time.Now()
 	visited := now.Add(-1 * time.Hour)
@@ -698,10 +675,7 @@ func TestCreateCampaignHandlerMetadataInitialization(t *testing.T) {
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
-
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init file storage: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	reqBody := CreateCampaignRequest{
 		Name:      "test-no-metadata",
@@ -747,10 +721,7 @@ func TestCreateCampaignHandlerAutoSyncTracking(t *testing.T) {
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
-
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init file storage: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	reqBody := CreateCampaignRequest{
 		Name:      "test-autosync",
@@ -796,10 +767,7 @@ func TestDeleteCampaignHandlerIdempotent(t *testing.T) {
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
-
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init file storage: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	campaign := &Campaign{
 		ID:        uuid.New(),
@@ -862,10 +830,7 @@ func TestFindOrCreateCampaignHandler(t *testing.T) {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
 
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0755); err != nil {
-		t.Fatalf("Failed to create data directory: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	// Test creating new campaign with location and tag
 	location := "test-location"
@@ -1010,10 +975,7 @@ func TestUpdateCampaignHandler(t *testing.T) {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
 
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0755); err != nil {
-		t.Fatalf("Failed to create data directory: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	// Create test campaign
 	campaign := &Campaign{

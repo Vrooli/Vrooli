@@ -2,6 +2,8 @@ package main
 
 import (
 	"testing"
+
+	"tunnel-manager/cli/internal/flags"
 )
 
 // [REQ:CLI-METRICS-001] Metrics commands are registered
@@ -11,18 +13,18 @@ func TestMetricsCommandsRegistered(t *testing.T) {
 		t.Fatalf("NewApp: %v", err)
 	}
 
-	groups := app.registerCommands()
-	wantCmds := map[string]bool{
-		"metrics latest":  false,
-		"metrics history": false,
-	}
+	groups := app.subcommandGroups()
+	wantCmds := map[string]bool{"latest": false, "history": false}
 
-	for _, g := range groups {
-		for _, cmd := range g.Commands {
+	for _, group := range groups {
+		if group.Name != "metrics" {
+			continue
+		}
+		for _, cmd := range group.Subcommands {
 			if _, ok := wantCmds[cmd.Name]; ok {
 				wantCmds[cmd.Name] = true
-				if !cmd.NeedsAPI {
-					t.Errorf("%s command should require API", cmd.Name)
+				if !group.NeedsAPI && !cmd.NeedsAPI {
+					t.Errorf("metrics %s should require API", cmd.Name)
 				}
 			}
 		}
@@ -30,7 +32,7 @@ func TestMetricsCommandsRegistered(t *testing.T) {
 
 	for name, found := range wantCmds {
 		if !found {
-			t.Errorf("command %q not registered", name)
+			t.Errorf("subcommand metrics %q not registered", name)
 		}
 	}
 }
@@ -60,18 +62,13 @@ func TestMetricsAPIPaths(t *testing.T) {
 
 // [REQ:CLI-METRICS-003] Metrics commands support JSON output
 func TestMetricsJSONFlag(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp: %v", err)
-	}
-
-	if !app.useJSON([]string{"--json"}) {
+	if !flags.HasJSONOutput([]string{"--json"}) {
 		t.Error("metrics --json should be detected")
 	}
-	if !app.useJSON([]string{"-j"}) {
+	if !flags.HasJSONOutput([]string{"-j"}) {
 		t.Error("metrics -j should be detected")
 	}
-	if app.useJSON([]string{}) {
+	if flags.HasJSONOutput([]string{}) {
 		t.Error("metrics without --json should not detect JSON mode")
 	}
 }

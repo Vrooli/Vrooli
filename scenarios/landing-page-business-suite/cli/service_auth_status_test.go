@@ -196,6 +196,8 @@ func TestRemoteProfilesTestAcceptsTagSelector(t *testing.T) {
 func TestDeployReadinessReportsFailuresWhenUnconfigured(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/admin/download-storage/test":
+			_, _ = w.Write([]byte(`{"ok":false}`))
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/usage/health":
 			_, _ = w.Write([]byte(`{"healthy":true,"database_connected":true,"service_auth_configured":false,"service_auth_mode":"disabled"}`))
 		default:

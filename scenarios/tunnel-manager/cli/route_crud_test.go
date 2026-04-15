@@ -2,6 +2,8 @@ package main
 
 import (
 	"testing"
+
+	"tunnel-manager/cli/internal/flags"
 )
 
 // [REQ:CLI-ROUTE-CRUD-001] Route CRUD commands are registered
@@ -11,20 +13,18 @@ func TestRouteCRUDCommandsRegistered(t *testing.T) {
 		t.Fatalf("NewApp: %v", err)
 	}
 
-	groups := app.registerCommands()
-	wantCmds := map[string]bool{
-		"route get":    false,
-		"route create": false,
-		"route update": false,
-		"route delete": false,
-	}
+	groups := app.subcommandGroups()
+	wantCmds := map[string]bool{"get": false, "create": false, "update": false, "delete": false}
 
-	for _, g := range groups {
-		for _, cmd := range g.Commands {
+	for _, group := range groups {
+		if group.Name != "route" {
+			continue
+		}
+		for _, cmd := range group.Subcommands {
 			if _, ok := wantCmds[cmd.Name]; ok {
 				wantCmds[cmd.Name] = true
-				if !cmd.NeedsAPI {
-					t.Errorf("%s command should require API", cmd.Name)
+				if !group.NeedsAPI && !cmd.NeedsAPI {
+					t.Errorf("route %s should require API", cmd.Name)
 				}
 			}
 		}
@@ -32,7 +32,7 @@ func TestRouteCRUDCommandsRegistered(t *testing.T) {
 
 	for name, found := range wantCmds {
 		if !found {
-			t.Errorf("command %q not registered", name)
+			t.Errorf("subcommand route %q not registered", name)
 		}
 	}
 }
@@ -76,9 +76,9 @@ func TestParseFlag(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		val, ok := parseFlag(tc.args, tc.name)
+		val, ok := flags.StringValue(tc.args, tc.name)
 		if val != tc.wantVal || ok != tc.wantOK {
-			t.Errorf("parseFlag(%v, %q) = (%q, %v), want (%q, %v)", tc.args, tc.name, val, ok, tc.wantVal, tc.wantOK)
+			t.Errorf("StringValue(%v, %q) = (%q, %v), want (%q, %v)", tc.args, tc.name, val, ok, tc.wantVal, tc.wantOK)
 		}
 	}
 }
@@ -96,9 +96,9 @@ func TestParseBoolFlag(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		got := parseBoolFlag(tc.args, tc.name)
+		got := flags.BoolValue(tc.args, tc.name)
 		if got != tc.want {
-			t.Errorf("parseBoolFlag(%v, %q) = %v, want %v", tc.args, tc.name, got, tc.want)
+			t.Errorf("BoolValue(%v, %q) = %v, want %v", tc.args, tc.name, got, tc.want)
 		}
 	}
 }

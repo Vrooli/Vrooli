@@ -39,7 +39,8 @@ func TestCmdSubscribe_ConnectsWithFilters(t *testing.T) {
 	// Run subscribe in a goroutine since it blocks until the connection closes
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- app.cmdSubscribe([]string{
+		errCh <- app.Run([]string{
+			"subscribe",
 			"--type", "test.*",
 			"--source", "my-scenario",
 			"--target", "other",
@@ -50,10 +51,10 @@ func TestCmdSubscribe_ConnectsWithFilters(t *testing.T) {
 	select {
 	case err := <-errCh:
 		if err != nil {
-			t.Fatalf("cmdSubscribe returned error: %v", err)
+			t.Fatalf("subscribe returned error: %v", err)
 		}
 	case <-time.After(5 * time.Second):
-		t.Fatal("cmdSubscribe did not return in time")
+		t.Fatal("subscribe did not return in time")
 	}
 
 	if gotPath != "/api/v1/events/subscribe" {
@@ -95,7 +96,7 @@ func TestCmdSubscribe_HandlesServerError(t *testing.T) {
 		t.Fatalf("NewApp: %v", err)
 	}
 
-	err = app.cmdSubscribe(nil)
+	err = app.Run([]string{"subscribe"})
 	if err == nil {
 		t.Fatal("expected error for 503 response")
 	}
@@ -125,16 +126,16 @@ func TestCmdSubscribe_NoFilters(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- app.cmdSubscribe(nil)
+		errCh <- app.Run([]string{"subscribe"})
 	}()
 
 	select {
 	case err := <-errCh:
 		if err != nil {
-			t.Fatalf("cmdSubscribe returned error: %v", err)
+			t.Fatalf("subscribe returned error: %v", err)
 		}
 	case <-time.After(5 * time.Second):
-		t.Fatal("cmdSubscribe did not return in time")
+		t.Fatal("subscribe did not return in time")
 	}
 
 	if gotQuery != "" {

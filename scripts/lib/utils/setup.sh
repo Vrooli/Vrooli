@@ -42,15 +42,7 @@ setup::state_dir() {
 
 setup::marker_exists() {
     local current_path="${1}"
-    local legacy_path="${2:-}"
-    [[ -f "$current_path" ]] && return 0
-    if [[ -n "$legacy_path" && -f "$legacy_path" ]]; then
-        mkdir -p "$(dirname "$current_path")"
-        cp "$legacy_path" "$current_path" 2>/dev/null || touch "$current_path"
-        rm -f "$legacy_path" 2>/dev/null || true
-        return 0
-    fi
-    return 1
+    [[ -f "$current_path" ]]
 }
 
 setup::check_condition() {
@@ -180,12 +172,12 @@ setup::check_condition() {
             local state_dir
             state_dir=$(setup::state_dir)
             if [[ "$populated" == "true" || -z "$resources" ]]; then
-                setup::marker_exists "${state_dir}/.resources-populated" "${app_root}/data/.resources-populated" && return 1 || return 0
+                setup::marker_exists "${state_dir}/.resources-populated" && return 1 || return 0
             fi
             local resource
             while IFS= read -r resource; do
                 [[ -z "$resource" ]] && continue
-                setup::marker_exists "${state_dir}/.${resource}-populated" "${app_root}/data/.${resource}-populated" || return 0
+                setup::marker_exists "${state_dir}/.${resource}-populated" || return 0
             done <<< "$resources"
             return 1
             ;;

@@ -2,6 +2,7 @@ package packagegov
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"slices"
 )
@@ -63,7 +64,72 @@ func Validate(root string, filter string) (ValidationReport, error) {
 		}
 	}
 
+	issues = append(issues, validateLeafGoPackageDependencies(items)...)
+
 	return ValidationReport{Packages: items, Issues: normalizeIssues(issues)}, nil
+}
+
+var leafSharedGoPackageAllowedDeps = map[string]map[string]struct{}{
+	"cli-core": {
+		"repo-contract-go": {},
+	},
+	"repo-contract-go": {},
+}
+
+func validateLeafGoPackageDependencies(items []Package) []ValidationIssue {
+	if len(items) == 0 {
+		return nil
+	}
+
+	moduleToPackage := make(map[string]Package)
+	for _, item := range items {
+		for _, id := range packageModuleIdentifiers(item) {
+			moduleToPackage[id] = item
+		}
+	}
+
+	var issues []ValidationIssue
+	for _, item := range items {
+		allowedDeps, ok := leafSharedGoPackageAllowedDeps[item.Name]
+		if !ok {
+			continue
+		}
+		goModPath := filepath.Join(item.RootPath, "go.mod")
+		data, err := os.ReadFile(goModPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			issues = append(issues, ValidationIssue{
+				Severity:    "error",
+				Code:        "package-go-module-read-failed",
+				Message:     fmt.Sprintf("failed to read %s go.mod: %v", item.Name, err),
+				Path:        goModPath,
+				PackageName: item.Name,
+			})
+			continue
+		}
+
+		mod := parseGoMod(string(data))
+		for module := range mod.requires {
+			dep, ok := moduleToPackage[module]
+			if !ok || dep.Name == item.Name {
+				continue
+			}
+			if _, allowed := allowedDeps[dep.Name]; allowed {
+				continue
+			}
+			issues = append(issues, ValidationIssue{
+				Severity:    "error",
+				Code:        "package-go-leaf-local-dependency",
+				Message:     fmt.Sprintf("%s is governed as a leaf Go package and must not require local package %s", item.Name, dep.Name),
+				Path:        goModPath,
+				PackageName: item.Name,
+			})
+		}
+	}
+
+	return issues
 }
 
 func normalizeIssues(issues []ValidationIssue) []ValidationIssue {

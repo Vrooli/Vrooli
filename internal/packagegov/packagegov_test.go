@@ -230,6 +230,50 @@ replace github.com/example/cli-core => ../../packages/cli-core
 	}
 }
 
+func TestValidateFlagsLeafGoPackagesWithLocalDependencies(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	writePackageManifestFixture(t, fixture.Root, "cli-core", packageManifestFixture("cli-core", func(manifest *Manifest) {
+		manifest.Package.DisplayName = "github.com/example/cli-core"
+		manifest.Package.Kind = KindGoCLI
+		manifest.Package.ModuleIdentifiers = []string{"github.com/example/cli-core"}
+		manifest.Package.Adoption.AllowedConsumers = []ConsumerClass{ConsumerScenarioCLI}
+		manifest.Package.Adoption.AdoptionModes = []AdoptionMode{ModeGoModuleReplace}
+		manifest.Package.Refresh = RefreshPolicy{Strategy: RefreshRebuildCLI}
+	}))
+	writePackageManifestFixture(t, fixture.Root, "api-core", packageManifestFixture("api-core", func(manifest *Manifest) {
+		manifest.Package.DisplayName = "github.com/example/api-core"
+		manifest.Package.Kind = KindGoRuntime
+		manifest.Package.ModuleIdentifiers = []string{"github.com/example/api-core"}
+		manifest.Package.Adoption.AllowedConsumers = []ConsumerClass{ConsumerScenarioAPI}
+		manifest.Package.Adoption.AdoptionModes = []AdoptionMode{ModeGoModuleReplace}
+		manifest.Package.Refresh = RefreshPolicy{Strategy: RefreshRestartConsumers}
+	}))
+	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "packages", "cli-core", "go.mod"), `module github.com/example/cli-core
+
+go 1.25.0
+
+require github.com/example/api-core v0.0.0
+
+replace github.com/example/api-core => ../api-core
+`)
+
+	report, err := Validate(fixture.Root, "")
+	if err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	found := false
+	for _, issue := range report.Issues {
+		if issue.PackageName == "cli-core" && issue.Code == "package-go-leaf-local-dependency" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected package-go-leaf-local-dependency issue, got %#v", report.Issues)
+	}
+}
+
 func TestValidateRequiresGoReplaceForGovernedAdoption(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)

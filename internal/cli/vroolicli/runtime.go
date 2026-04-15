@@ -565,18 +565,7 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 		}),
 		topcli.CommandLifecycle: projectcli.LifecycleHandler(commandStdout, func(ctx *CommandContext, args []string) error { return ctx.app.runLifecycleProtectCommand(ctx, args) }),
 	}
-	storageHandler := projectcli.StorageCleanupHandler(commandStdout, projectOutputFormat, func(ctx *CommandContext, req projectcli.StorageCleanupRequest) (projectcli.StorageCleanupResponse, error) {
-		command, err := ctx.app.newProjectCommandService(ctx)
-		if err != nil {
-			return projectcli.StorageCleanupResponse{}, err
-		}
-		resp, err := command.CleanupUserStorage()
-		if err != nil {
-			return projectcli.StorageCleanupResponse{}, err
-		}
-		return projectcli.StorageCleanupResponse{Report: resp.Report}, nil
-	})
-	handlers[topcli.CommandCleanup] = projectcli.CleanupHandler(commandStdout, handlers[topcli.CommandOrphans], handlers[topcli.CommandLocks], storageHandler)
+	handlers[topcli.CommandCleanup] = projectcli.CleanupHandler(commandStdout, handlers[topcli.CommandOrphans], handlers[topcli.CommandLocks])
 	return handlers
 }
 

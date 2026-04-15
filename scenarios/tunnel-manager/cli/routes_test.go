@@ -2,6 +2,10 @@ package main
 
 import (
 	"testing"
+
+	"tunnel-manager/cli/internal/flags"
+
+	"github.com/vrooli/cli-core/cliapp"
 )
 
 // [REQ:CLI-ROUTES-001] Routes command is registered and callable
@@ -11,21 +15,19 @@ func TestRoutesCommandRegistered(t *testing.T) {
 		t.Fatalf("NewApp: %v", err)
 	}
 
-	// Verify the routes command is registered in the command groups
-	groups := app.registerCommands()
+	groups := app.subcommandGroups()
 	found := false
-	for _, g := range groups {
-		for _, cmd := range g.Commands {
-			if cmd.Name == "routes" {
-				found = true
-				if !cmd.NeedsAPI {
-					t.Error("routes command should require API")
-				}
-			}
+	for _, group := range groups {
+		if group.Name != "route" {
+			continue
+		}
+		found = hasSubcommand(group, "list")
+		if !group.NeedsAPI {
+			t.Error("route group should require API")
 		}
 	}
 	if !found {
-		t.Error("routes command not registered")
+		t.Error("route list command not registered")
 	}
 }
 
@@ -45,15 +47,19 @@ func TestRoutesAPIPath(t *testing.T) {
 
 // [REQ:CLI-ROUTES-002] Routes command supports JSON output
 func TestRoutesJSONFlag(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp: %v", err)
+	if !flags.HasJSONOutput([]string{"--json"}) {
+		t.Error("route list --json should be detected")
 	}
+	if flags.HasJSONOutput([]string{}) {
+		t.Error("route list without --json should not detect JSON mode")
+	}
+}
 
-	if !app.useJSON([]string{"--json"}) {
-		t.Error("routes --json should be detected")
+func hasSubcommand(group cliapp.SubcommandGroup, name string) bool {
+	for _, cmd := range group.Subcommands {
+		if cmd.Name == name {
+			return true
+		}
 	}
-	if app.useJSON([]string{}) {
-		t.Error("routes without --json should not detect JSON mode")
-	}
+	return false
 }

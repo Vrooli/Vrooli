@@ -2,16 +2,13 @@ package main
 
 import (
 	"testing"
+
+	"tunnel-manager/cli/internal/flags"
 )
 
 // [REQ:CLI-STATUS-001] Status command is registered
 // [REQ:CLI-STATUS-002] JSON output flag parsing
 func TestUseJSONFlag(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp: %v", err)
-	}
-
 	tests := []struct {
 		args []string
 		want bool
@@ -24,9 +21,9 @@ func TestUseJSONFlag(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		got := app.useJSON(tc.args)
+		got := flags.HasJSONOutput(tc.args)
 		if got != tc.want {
-			t.Errorf("useJSON(%v) = %v, want %v", tc.args, got, tc.want)
+			t.Errorf("HasJSONOutput(%v) = %v, want %v", tc.args, got, tc.want)
 		}
 	}
 }

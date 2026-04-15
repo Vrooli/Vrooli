@@ -1,8 +1,6 @@
 package main
 
-import (
-	"testing"
-)
+import "testing"
 
 // [REQ:CLI-HEALTH-DETAILED-001] Health detailed command is registered
 func TestHealthDetailedCommandRegistered(t *testing.T) {
@@ -11,20 +9,19 @@ func TestHealthDetailedCommandRegistered(t *testing.T) {
 		t.Fatalf("NewApp: %v", err)
 	}
 
-	groups := app.registerCommands()
+	groups := app.subcommandGroups()
 	found := false
-	for _, g := range groups {
-		for _, cmd := range g.Commands {
-			if cmd.Name == "health detailed" {
-				found = true
-				if !cmd.NeedsAPI {
-					t.Error("health detailed command should require API")
-				}
-			}
+	for _, group := range groups {
+		if group.Name != "health" {
+			continue
+		}
+		found = hasSubcommand(group, "detailed")
+		if !group.NeedsAPI {
+			t.Error("health group should require API")
 		}
 	}
 	if !found {
-		t.Error("health detailed command not registered")
+		t.Error("health detailed subcommand not registered")
 	}
 }
 
@@ -49,20 +46,19 @@ func TestProbesHistoryCommandRegistered(t *testing.T) {
 		t.Fatalf("NewApp: %v", err)
 	}
 
-	groups := app.registerCommands()
+	groups := app.subcommandGroups()
 	found := false
-	for _, g := range groups {
-		for _, cmd := range g.Commands {
-			if cmd.Name == "probes history" {
-				found = true
-				if !cmd.NeedsAPI {
-					t.Error("probes history command should require API")
-				}
-			}
+	for _, group := range groups {
+		if group.Name != "probe" {
+			continue
+		}
+		found = hasSubcommand(group, "history")
+		if !group.NeedsAPI {
+			t.Error("probe group should require API")
 		}
 	}
 	if !found {
-		t.Error("probes history command not registered")
+		t.Error("probe history subcommand not registered")
 	}
 }
 

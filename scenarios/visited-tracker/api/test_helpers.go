@@ -18,6 +18,22 @@ import (
 	"github.com/gorilla/mux"
 )
 
+func setTestStorageRoot(t *testing.T, root string) {
+	t.Helper()
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "storage"))
+}
+
+func initTestStorageRoot(t *testing.T, root string) {
+	t.Helper()
+	if logger == nil {
+		t.Cleanup(setupTestLogger())
+	}
+	setTestStorageRoot(t, root)
+	if err := initFileStorage(); err != nil {
+		t.Fatalf("Failed to init file storage: %v", err)
+	}
+}
+
 // TestLogger provides controlled logging during tests
 type TestLogger struct {
 	originalLogger *log.Logger
@@ -54,12 +70,7 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 		os.RemoveAll(tempDir)
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
-
-	if err := initFileStorage(); err != nil {
-		os.Chdir(originalWD)
-		os.RemoveAll(tempDir)
-		t.Fatalf("Failed to init file storage: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	return &TestEnvironment{
 		TempDir:    tempDir,

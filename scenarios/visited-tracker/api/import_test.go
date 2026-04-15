@@ -33,10 +33,7 @@ func TestImportHandler(t *testing.T) {
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
-
-	if err := initFileStorage(); err != nil {
-		t.Fatalf("Failed to init file storage: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	// Create test campaign data to import
 	now := time.Now()

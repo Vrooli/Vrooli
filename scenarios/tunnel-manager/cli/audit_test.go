@@ -2,6 +2,8 @@ package main
 
 import (
 	"testing"
+
+	"tunnel-manager/cli/internal/flags"
 )
 
 // [REQ:CLI-AUDIT-001] Audit command is registered and callable
@@ -11,20 +13,19 @@ func TestAuditCommandRegistered(t *testing.T) {
 		t.Fatalf("NewApp: %v", err)
 	}
 
-	groups := app.registerCommands()
+	groups := app.subcommandGroups()
 	found := false
-	for _, g := range groups {
-		for _, cmd := range g.Commands {
-			if cmd.Name == "audit" {
-				found = true
-				if !cmd.NeedsAPI {
-					t.Error("audit command should require API")
-				}
-			}
+	for _, group := range groups {
+		if group.Name != "audit" {
+			continue
+		}
+		found = hasSubcommand(group, "ports")
+		if !group.NeedsAPI {
+			t.Error("audit group should require API")
 		}
 	}
 	if !found {
-		t.Error("audit command not registered")
+		t.Error("audit ports command not registered")
 	}
 }
 
@@ -44,43 +45,39 @@ func TestAuditAPIPath(t *testing.T) {
 
 // [REQ:CLI-AUDIT-002] Audit command supports JSON output
 func TestAuditJSONFlag(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp: %v", err)
-	}
-
-	if !app.useJSON([]string{"--json"}) {
+	if !flags.HasJSONOutput([]string{"--json"}) {
 		t.Error("audit --json should be detected")
 	}
 }
 
-// [REQ:CLI-AUDIT-001] All five command groups are registered
+// [REQ:CLI-AUDIT-001] The migrated command surface is registered
 func TestAllCommandGroupsRegistered(t *testing.T) {
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp: %v", err)
 	}
 
-	groups := app.registerCommands()
-	wantGroups := map[string]bool{
-		"Health":        false,
-		"Routes":        false,
-		"Probes":        false,
-		"Audit":         false,
-		"Metrics":       false,
-		"Recovery":      false,
-		"Configuration": false,
+	if len(app.commandGroups()) != 1 {
+		t.Fatalf("expected 1 flat command group, got %d", len(app.commandGroups()))
 	}
 
-	for _, g := range groups {
-		if _, ok := wantGroups[g.Title]; ok {
-			wantGroups[g.Title] = true
+	wantSubgroups := map[string]bool{
+		"health":   false,
+		"route":    false,
+		"probe":    false,
+		"audit":    false,
+		"metrics":  false,
+		"recovery": false,
+	}
+	for _, group := range app.subcommandGroups() {
+		if _, ok := wantSubgroups[group.Name]; ok {
+			wantSubgroups[group.Name] = true
 		}
 	}
 
-	for name, found := range wantGroups {
+	for name, found := range wantSubgroups {
 		if !found {
-			t.Errorf("command group %q not registered", name)
+			t.Errorf("subcommand group %q not registered", name)
 		}
 	}
 }

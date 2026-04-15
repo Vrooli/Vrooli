@@ -28,8 +28,8 @@ type ImportConfig struct {
 
 // ImportResult summarizes what was copied into SQLite.
 type ImportResult struct {
-	TargetPath         string
-	SuiteRequestCount  int
+	TargetPath          string
+	SuiteRequestCount   int
 	SuiteExecutionCount int
 }
 

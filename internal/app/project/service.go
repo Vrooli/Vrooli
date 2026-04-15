@@ -18,7 +18,6 @@ type MaintenanceOperations interface {
 	ListLocks() ([]maintenance.LockInfo, error)
 	CleanStaleLocks() (control.StopReport, error)
 	DiagnosePort(port int, scenarioName string) (maintenance.PortDiagnostic, error)
-	CleanupUserStorage() (maintenance.UserStorageReport, error)
 }
 
 type StatusRequest struct {
@@ -52,10 +51,6 @@ type OrphansResponse struct {
 type LocksResponse struct {
 	List        []maintenance.LockInfo
 	CleanReport *control.StopReport
-}
-
-type StorageCleanupResponse struct {
-	Report maintenance.UserStorageReport
 }
 
 type Service struct {
@@ -111,12 +106,4 @@ func (s Service) Locks(req LocksRequest) (LocksResponse, error) {
 
 func (s Service) DiagnosePort(req DiagnosePortRequest) (maintenance.PortDiagnostic, error) {
 	return s.Maintenance.DiagnosePort(req.Port, req.ScenarioName)
-}
-
-func (s Service) CleanupUserStorage() (StorageCleanupResponse, error) {
-	report, err := s.Maintenance.CleanupUserStorage()
-	if err != nil {
-		return StorageCleanupResponse{}, err
-	}
-	return StorageCleanupResponse{Report: report}, nil
 }

@@ -347,9 +347,6 @@ func TestWriteAndRemoveScenarioRecordMaintainsProcessMetadataContract(t *testing
 	if ScenarioStateDir(home) != filepath.Join(home, ".vrooli", "state", "scenarios") {
 		t.Fatalf("ScenarioStateDir mismatch")
 	}
-	if ScenarioDegradedPath(home, "alpha") != filepath.Join(home, ".vrooli", "processes", "scenarios", "alpha", "degraded.json") {
-		t.Fatalf("ScenarioDegradedPath mismatch")
-	}
 
 	recordPath := filepath.Join(processDir, "start-api.json")
 	pidPath := filepath.Join(processDir, "start-api.pid")

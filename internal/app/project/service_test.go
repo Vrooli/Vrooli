@@ -49,10 +49,6 @@ func (fakeMaintenanceOps) DiagnosePort(port int, scenarioName string) (maintenan
 	return maintenance.PortDiagnostic{Port: port, Scenario: scenarioName, InUse: true}, nil
 }
 
-func (fakeMaintenanceOps) CleanupUserStorage() (maintenance.UserStorageReport, error) {
-	return maintenance.UserStorageReport{Actions: []maintenance.UserStorageAction{{Kind: "removed", Path: "/tmp/demo"}}}, nil
-}
-
 func TestServiceStatusUsesProjectOperations(t *testing.T) {
 	projectOps := &fakeProjectOps{}
 	svc := Service{Project: projectOps, Maintenance: fakeMaintenanceOps{}}
@@ -88,11 +84,4 @@ func TestServiceRoutesMaintenanceUseCases(t *testing.T) {
 		t.Fatalf("locks = %#v", locks)
 	}
 
-	storage, err := svc.CleanupUserStorage()
-	if err != nil {
-		t.Fatalf("CleanupUserStorage: %v", err)
-	}
-	if len(storage.Report.Actions) != 1 || storage.Report.Actions[0].Kind != "removed" {
-		t.Fatalf("storage = %#v", storage)
-	}
 }

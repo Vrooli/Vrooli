@@ -19,8 +19,6 @@ This is distinct from older documentation that described the entire platform as 
 make build
 make install
 make test
-make validate-repo-contract
-make validate-package-governance
 ```
 
 You can also use the root CLI:
@@ -43,11 +41,6 @@ These are the project-level Go entrypoints under `cmd/`.
 The project-level test target is the canonical project test entrypoint.
 
 It covers project-level Go test surfaces. Validation that has its own dedicated policy target should still be run explicitly when your change touches that area.
-
-Use these dedicated validation targets when relevant:
-
-- `make validate-repo-contract`
-- `make validate-package-governance`
 
 For scenario-level testing, use:
 

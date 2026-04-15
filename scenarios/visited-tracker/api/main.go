@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -116,7 +115,7 @@ func main() {
 
 	logger.Printf("🚀 %s API v%s starting on port %s", serviceName, apiVersion, port)
 	logger.Printf("📊 Endpoints available at http://localhost:%s/api/v1", port)
-	logger.Printf("💾 Data stored in JSON files at: %s", filepath.Join("scenarios", "visited-tracker", dataDir))
+	logger.Printf("💾 Data stored in JSON files at: %s", storageDataPath())
 
 	if err := http.ListenAndServe(":"+port, r); err != nil {
 		logger.Fatalf("Server failed to start: %v", err)

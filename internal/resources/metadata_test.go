@@ -479,7 +479,8 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 				"SQLITE_JOURNAL_MODE": "WAL",
 			},
 			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
-				"SQLITE_DATABASE_PATH": {Template: "${VROOLI_DATA}/sqlite/databases"},
+				"SQLITE_DATABASE_PATH":        {Template: "${RESOURCE_DATA_DIR}/databases"},
+				"SQLITE_REPLICATION_STATE_PATH": {Template: "${RESOURCE_STATE_DIR}/replication"},
 			},
 		},
 	})
@@ -609,7 +610,7 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadResourceEnvironment(sqlite): %v", err)
 	}
-	if got := sqliteEnv["SQLITE_DATABASE_PATH"]; got != filepath.Join(home, ".vrooli", "data", "sqlite", "databases") {
+	if got := sqliteEnv["SQLITE_DATABASE_PATH"]; got != filepath.Join(home, ".local", "share", "vrooli", "resources", "sqlite", "databases") {
 		t.Fatalf("SQLITE_DATABASE_PATH = %q", got)
 	}
 
@@ -787,7 +788,7 @@ func TestActualNonDockerResourceManifestsResolveNativeExports(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadResourceEnvironment(sqlite): %v", err)
 	}
-	if got := sqliteEnv["SQLITE_DATABASE_PATH"]; got != filepath.Join(home, ".vrooli", "data", "sqlite", "databases") {
+	if got := sqliteEnv["SQLITE_DATABASE_PATH"]; got != filepath.Join(home, ".local", "share", "vrooli", "resources", "sqlite", "databases") {
 		t.Fatalf("SQLITE_DATABASE_PATH = %q", got)
 	}
 

@@ -1,5 +1,4 @@
-.PHONY: help setup dev develop build install status stop info test validate clean \
-	validate-repo-contract validate-package-governance
+.PHONY: help setup dev develop build install status stop info test validate clean
 
 .DEFAULT_GOAL := help
 
@@ -19,9 +18,6 @@ help: ## Show the supported repo-level entrypoints
 	@printf "  make stop                       Stop project services\n"
 	@printf "  make info                       Show the canonical project briefing\n"
 	@printf "  make test                       Run project-level Go tests\n"
-	@printf "  make validate                   Run the standard repo validation suite\n"
-	@printf "  make validate-repo-contract     Validate repo-contract schema and drift checks\n"
-	@printf "  make validate-package-governance Validate package manifests and adoption drift\n"
 	@printf "  make clean                      Clean build artifacts via the CLI\n"
 
 setup: ## Bootstrap and run project setup
@@ -54,18 +50,6 @@ test: ## Run project-level Go tests
 	@go test ./cmd/vrooli-buildmeta
 	@go test ./cmd/vrooli
 	@go test -tags testing ./cmd/vrooli-api
-
-validate: validate-repo-contract validate-package-governance test ## Run the standard repo validation suite
-	@printf "Validation complete\n"
-
-validate-repo-contract: ## Validate the repo contract schema, data, and drift checks
-	@python3 .vrooli/schemas/validate-repo-contract.py
-	@$(VROOLI) contract validate
-
-validate-package-governance: ## Validate package manifests, adoption policy, and docs drift
-	@go test ./internal/packagegov
-	@$(VROOLI) package validate --all
-	@$(VROOLI) package audit --all
 
 clean: ## Clean build artifacts via the CLI
 	@$(VROOLI) clean

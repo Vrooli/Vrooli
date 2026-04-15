@@ -1,6 +1,6 @@
-package main
+package support
 
-type campaign struct {
+type Campaign struct {
 	ID              string   `json:"id"`
 	Name            string   `json:"name"`
 	FromAgent       string   `json:"from_agent"`
@@ -14,42 +14,42 @@ type campaign struct {
 	CoveragePercent float64  `json:"coverage_percent"`
 }
 
-type campaignListResponse struct {
-	Campaigns []campaign `json:"campaigns"`
+type CampaignListResponse struct {
+	Campaigns []Campaign `json:"campaigns"`
 	Count     int        `json:"count"`
 }
 
-type findOrCreateResponse struct {
+type FindOrCreateResponse struct {
 	Created  bool     `json:"created"`
-	Campaign campaign `json:"campaign"`
+	Campaign Campaign `json:"campaign"`
 }
 
-type visitResponse struct {
+type VisitResponse struct {
 	Recorded  int      `json:"recorded"`
 	Files     []string `json:"files"`
 	Unmatched []string `json:"unmatched_patterns"`
 }
 
-type excludeResponse struct {
+type ExcludeResponse struct {
 	ExcludedCount int      `json:"excluded_count"`
 	Files         []string `json:"files"`
 	Unmatched     []string `json:"unmatched_patterns"`
 }
 
-type adjustVisitResponse struct {
+type AdjustVisitResponse struct {
 	FileID     string `json:"file_id"`
 	VisitCount int    `json:"visit_count"`
 	Action     string `json:"action"`
 }
 
-type syncResponse struct {
+type SyncResponse struct {
 	Added   int `json:"added"`
 	Removed int `json:"removed"`
 	Moved   int `json:"moved"`
 	Total   int `json:"total"`
 }
 
-type coverageResponse struct {
+type CoverageResponse struct {
 	TotalFiles       int     `json:"total_files"`
 	VisitedFiles     int     `json:"visited_files"`
 	UnvisitedFiles   int     `json:"unvisited_files"`
@@ -58,7 +58,7 @@ type coverageResponse struct {
 	AverageStaleness float64 `json:"average_staleness"`
 }
 
-type trackedFile struct {
+type TrackedFile struct {
 	ID             string  `json:"id"`
 	FilePath       string  `json:"file_path"`
 	AbsolutePath   string  `json:"absolute_path"`
@@ -69,12 +69,12 @@ type trackedFile struct {
 	Notes          *string `json:"notes"`
 }
 
-type importResponse struct {
+type ImportResponse struct {
 	Message  string   `json:"message"`
-	Campaign campaign `json:"campaign"`
+	Campaign Campaign `json:"campaign"`
 }
 
-type healthResponse struct {
+type HealthResponse struct {
 	Status    string `json:"status"`
 	Service   string `json:"service"`
 	Version   string `json:"version"`

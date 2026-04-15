@@ -33,10 +33,7 @@ func TestUpdateFileNotesHandler(t *testing.T) {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
 
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0o755); err != nil {
-		t.Fatalf("Failed to create data directory: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	// Create test campaign with tracked file
 	fileID := uuid.New()
@@ -181,10 +178,7 @@ func TestBulkExcludeWithFileNotesAndGlobs(t *testing.T) {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
 
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0o755); err != nil {
-		t.Fatalf("Failed to create data directory: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	workDir := filepath.Join(tempDir, "work", "nested")
 	if err := os.MkdirAll(workDir, 0o755); err != nil {
@@ -283,11 +277,7 @@ func TestUpdateFilePriorityHandler(t *testing.T) {
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
-
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0o755); err != nil {
-		t.Fatalf("Failed to create data directory: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	// Create test campaign with tracked file
 	fileID := uuid.New()
@@ -431,11 +421,7 @@ func TestToggleFileExclusionHandler(t *testing.T) {
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
-
-	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
-	if err := os.MkdirAll(dataPath, 0o755); err != nil {
-		t.Fatalf("Failed to create data directory: %v", err)
-	}
+	initTestStorageRoot(t, tempDir)
 
 	// Create test campaign with tracked file
 	fileID := uuid.New()

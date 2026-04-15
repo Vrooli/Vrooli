@@ -31,10 +31,6 @@ type LocksResponse struct {
 	List        []maintenance.LockInfo
 }
 
-type StorageCleanupResponse struct {
-	Report maintenance.UserStorageReport
-}
-
 func RenderStatusReport(w io.Writer, format cliout.Format, resp StatusResponse) error {
 	if format == cliout.FormatJSON {
 		return cliout.WriteSuccessJSON(w, "status", resp.Report)
@@ -191,33 +187,6 @@ func RenderLocksResponse(w io.Writer, format cliout.Format, resp LocksResponse) 
 	return cliout.RenderTable(w, []string{"Port", "Scenario", "PID", "Status"}, rows)
 }
 
-func RenderStorageCleanupResponse(w io.Writer, format cliout.Format, resp StorageCleanupResponse) error {
-	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessJSON(w, "storage", resp.Report)
-	}
-	if len(resp.Report.Actions) == 0 {
-		_, _ = fmt.Fprintln(w, "No legacy storage changes were needed.")
-		return nil
-	}
-	for _, action := range resp.Report.Actions {
-		switch action.Kind {
-		case "migrated":
-			_, _ = fmt.Fprintf(w, "Migrated %s\n", action.Source)
-			if action.Dest != "" {
-				_, _ = fmt.Fprintf(w, "  -> %s\n", action.Dest)
-			}
-		case "removed":
-			_, _ = fmt.Fprintf(w, "Removed %s\n", action.Path)
-		case "stopped_resource":
-			_, _ = fmt.Fprintf(w, "Stopped resource %s\n", action.Name)
-		case "started_resource":
-			_, _ = fmt.Fprintf(w, "Started resource %s\n", action.Name)
-		default:
-			_, _ = fmt.Fprintf(w, "%s %s\n", action.Kind, action.Path)
-		}
-	}
-	return nil
-}
 
 func RenderPortDiagnostic(w io.Writer, format cliout.Format, diagnostic maintenance.PortDiagnostic) error {
 	if format == cliout.FormatJSON {

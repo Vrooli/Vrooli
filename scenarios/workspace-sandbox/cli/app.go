@@ -37,17 +37,16 @@ type App struct {
 func NewApp() (*App, error) {
 	app := &App{}
 	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
-		Name:                    appName,
-		Version:                 appVersion,
-		Description:             "Workspace Sandbox CLI - Safe copy-on-write workspaces for agents and tools",
-		DefaultAPIBase:          defaultAPIBase,
-		ExtraAPIEnvVars:         []string{"API_BASE_URL", "VITE_API_BASE_URL"},
-		BuildFingerprint:        buildFingerprint,
-		BuildTimestamp:          buildTimestamp,
-		BuildSourceRoot:         buildSourceRoot,
-		AllowAnonymous:          true,
-		IncludeStatusCommand:    boolPtr(false),
-		IncludeConfigureCommand: boolPtr(false),
+		Name:                 appName,
+		Version:              appVersion,
+		Description:          "Workspace Sandbox CLI - Safe copy-on-write workspaces for agents and tools",
+		DefaultAPIBase:       defaultAPIBase,
+		ExtraAPIEnvVars:      []string{"API_BASE_URL", "VITE_API_BASE_URL"},
+		BuildFingerprint:     buildFingerprint,
+		BuildTimestamp:       buildTimestamp,
+		BuildSourceRoot:      buildSourceRoot,
+		AllowAnonymous:       true,
+		IncludeStatusCommand: boolPtr(false),
 		CommandGroups: func(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 			app.core = core
 			return app.registerCommands()
@@ -132,14 +131,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	config := cliapp.CommandGroup{
-		Title: "Configuration",
-		Commands: []cliapp.Command{
-			a.core.ConfigureCommand([]string{"api_base"}, []string{"token", "api_token"}),
-		},
-	}
-
-	return []cliapp.CommandGroup{health, sandboxes, execution, diff, gc, provenance, driver, config}
+	return []cliapp.CommandGroup{health, sandboxes, execution, diff, gc, provenance, driver}
 }
 
 // resolveSandboxID resolves a short sandbox ID prefix to a full UUID.

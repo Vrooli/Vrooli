@@ -47,7 +47,7 @@
 - [x] Hook token via api-core/storage (ClassState)
 - [x] Session state via api-core/storage (ClassState)
 - [x] Upload directory via api-core/storage (ClassCache)
-- [x] All storage paths have binary-relative fallbacks when api-core/storage unavailable
+- [x] All runtime storage paths resolve through `api-core/storage` class directories
 
 ## Network Status
 - [x] API port configurable via API_PORT env var (default: 8080)
@@ -64,7 +64,7 @@
 | POSTGRES_PASSWORD | infrastructure | Not needed — using SQLite |
 
 ## Issues Resolved
-1. `upload_handler.go` — Hardcoded `/tmp/web-console-uploads` replaced with api-core/storage (ClassCache)
+1. `upload_handler.go` — Hardcoded temp upload directory replaced with `api-core/storage` (ClassCache)
 2. `voice_transcribe.go` — Package-level `whisperURL` now reads WHISPER_URL env var at init
 3. `main.go:Handler()` — Added CORS middleware accepting both localhost and 127.0.0.1
 4. `service.json` — Added `capabilities` section with `offline_capable` and AI provider documentation

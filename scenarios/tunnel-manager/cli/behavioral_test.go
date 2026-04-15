@@ -20,19 +20,16 @@ func newTestApp(t *testing.T, handler http.Handler) *App {
 	if err != nil {
 		t.Fatalf("NewApp: %v", err)
 	}
-	// Point the API client at our test server.
 	app.core.APIOverride = ts.URL
 	return app
 }
 
-// ---------- Route Create ----------
-
 func TestRouteCreateMissingPort(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp: %v", err)
-	}
-	err = app.cmdRouteCreate([]string{"--subdomain", "test", "--scenario", "test"})
+	app := newTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	err := app.Run([]string{"route", "create", "--subdomain", "test", "--scenario", "test"})
 	if err == nil {
 		t.Fatal("expected error for missing --port, got nil")
 	}
@@ -42,11 +39,11 @@ func TestRouteCreateMissingPort(t *testing.T) {
 }
 
 func TestRouteCreateInvalidPort(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp: %v", err)
-	}
-	err = app.cmdRouteCreate([]string{"--port", "abc"})
+	app := newTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	err := app.Run([]string{"route", "create", "--port", "abc"})
 	if err == nil {
 		t.Fatal("expected error for invalid --port, got nil")
 	}
@@ -54,8 +51,6 @@ func TestRouteCreateInvalidPort(t *testing.T) {
 		t.Fatalf("error should mention the bad value, got: %v", err)
 	}
 }
-
-// ---------- Route Delete ----------
 
 func TestRouteDeleteWithYes(t *testing.T) {
 	app := newTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -66,10 +61,10 @@ func TestRouteDeleteWithYes(t *testing.T) {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{}`))
+		_, _ = w.Write([]byte(`{}`))
 	}))
 
-	err := app.cmdRouteDelete([]string{"1", "--yes"})
+	err := app.Run([]string{"route", "delete", "1", "--yes"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -79,24 +74,22 @@ func TestRouteDeleteNotFound(t *testing.T) {
 	app := newTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(`{"error":"not_found","message":"route 999 not found"}`))
+		_, _ = w.Write([]byte(`{"error":"not_found","message":"route 999 not found"}`))
 	}))
 
-	err := app.cmdRouteDelete([]string{"999", "--yes"})
+	err := app.Run([]string{"route", "delete", "999", "--yes"})
 	if err == nil {
 		t.Fatal("expected error for 404 response, got nil")
 	}
 }
 
 func TestRouteDeleteCancelledWithoutYes(t *testing.T) {
-	// Simulate user pressing Enter (empty input = "N")
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp: %v", err)
-	}
+	app := newTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatalf("delete should not reach the server when the prompt is cancelled")
+	}))
 	app.Stdin = strings.NewReader("\n")
 
-	err = app.cmdRouteDelete([]string{"1"})
+	err := app.Run([]string{"route", "delete", "1"})
 	if err != nil {
 		t.Fatalf("cancellation should not return error, got: %v", err)
 	}
@@ -107,11 +100,11 @@ func TestRouteDeleteConfirmedViaStdin(t *testing.T) {
 	app := newTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{}`))
+		_, _ = w.Write([]byte(`{}`))
 	}))
 	app.Stdin = strings.NewReader("y\n")
 
-	err := app.cmdRouteDelete([]string{"1"})
+	err := app.Run([]string{"route", "delete", "1"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -120,38 +113,31 @@ func TestRouteDeleteConfirmedViaStdin(t *testing.T) {
 	}
 }
 
-// ---------- Route Get ----------
-
 func TestRouteGetInvalidID(t *testing.T) {
-	// The API client should return an error for a non-numeric ID (404 from server).
 	app := newTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(`{"error":"bad_request","message":"invalid route ID"}`))
+		_, _ = w.Write([]byte(`{"error":"bad_request","message":"invalid route ID"}`))
 	}))
 
-	err := app.cmdRouteGet([]string{"abc"})
+	err := app.Run([]string{"route", "get", "abc"})
 	if err == nil {
 		t.Fatal("expected error for invalid ID, got nil")
 	}
 }
 
-// ---------- Metrics ----------
-
 func TestMetricsLatestNoData(t *testing.T) {
 	app := newTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"no_data"}`))
+		_, _ = w.Write([]byte(`{"status":"no_data"}`))
 	}))
 
-	err := app.cmdMetricsLatest([]string{})
+	err := app.Run([]string{"metrics", "latest"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
-
-// ---------- Recovery ----------
 
 func TestRecoveryTriggerForce(t *testing.T) {
 	var receivedBody map[string]any
@@ -165,10 +151,10 @@ func TestRecoveryTriggerForce(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"action":"restart","outcome":"success"}`))
+		_, _ = w.Write([]byte(`{"action":"restart","outcome":"success"}`))
 	}))
 
-	err := app.cmdRecoveryTrigger([]string{"--force"})
+	err := app.Run([]string{"recovery", "trigger", "--force"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

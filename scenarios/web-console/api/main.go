@@ -551,128 +551,20 @@ func resolveSQLiteDSN() string {
 	)
 }
 
-// resolveVoiceConfigPath returns the voice config file path using api-core/storage.
-// Falls back to a path relative to the binary if storage resolution fails.
 func resolveVoiceConfigPath() string {
-	resolver, err := storage.NewResolver(storage.ResolverConfig{
-		AppID:   "vrooli",
-		Profile: storage.ProfileAuto,
-	})
-	if err != nil {
-		log.Printf("voice-config: storage resolver failed, using fallback: %v", err)
-		return fallbackVoiceConfigPath()
-	}
-
-	opts := storage.Options{ScenarioID: "web-console"}
-	if _, err := storage.EnsureClassDir(resolver, opts, storage.ClassState, 0); err != nil {
-		log.Printf("voice-config: ensure state dir failed, using fallback: %v", err)
-		return fallbackVoiceConfigPath()
-	}
-
-	path, err := resolver.Path(opts, storage.ClassState, "voice-config.json")
-	if err != nil {
-		log.Printf("voice-config: resolve path failed, using fallback: %v", err)
-		return fallbackVoiceConfigPath()
-	}
-	return path
+	return mustResolveScenarioStoragePath(storage.ClassState, "voice-config.json")
 }
 
-func fallbackVoiceConfigPath() string {
-	exe, _ := os.Executable()
-	return filepath.Join(filepath.Dir(exe), "..", "store", "voice-config.json")
-}
-
-// resolveSpeakerVerificationConfigPath returns the speaker verification config
-// path using api-core/storage. Falls back to a path relative to the binary if
-// storage resolution fails.
 func resolveSpeakerVerificationConfigPath() string {
-	resolver, err := storage.NewResolver(storage.ResolverConfig{
-		AppID:   "vrooli",
-		Profile: storage.ProfileAuto,
-	})
-	if err != nil {
-		log.Printf("speaker-verification-config: storage resolver failed, using fallback: %v", err)
-		return fallbackSpeakerVerificationConfigPath()
-	}
-
-	opts := storage.Options{ScenarioID: "web-console"}
-	if _, err := storage.EnsureClassDir(resolver, opts, storage.ClassState, 0); err != nil {
-		log.Printf("speaker-verification-config: ensure state dir failed, using fallback: %v", err)
-		return fallbackSpeakerVerificationConfigPath()
-	}
-
-	path, err := resolver.Path(opts, storage.ClassState, "speaker-verification-config.json")
-	if err != nil {
-		log.Printf("speaker-verification-config: resolve path failed, using fallback: %v", err)
-		return fallbackSpeakerVerificationConfigPath()
-	}
-	return path
+	return mustResolveScenarioStoragePath(storage.ClassState, "speaker-verification-config.json")
 }
 
-func fallbackSpeakerVerificationConfigPath() string {
-	exe, _ := os.Executable()
-	return filepath.Join(filepath.Dir(exe), "..", "store", "speaker-verification-config.json")
-}
-
-// resolveTTSConfigPath returns the TTS config file path using api-core/storage.
-// Falls back to a path relative to the binary if storage resolution fails.
 func resolveTTSConfigPath() string {
-	resolver, err := storage.NewResolver(storage.ResolverConfig{
-		AppID:   "vrooli",
-		Profile: storage.ProfileAuto,
-	})
-	if err != nil {
-		log.Printf("tts-config: storage resolver failed, using fallback: %v", err)
-		return fallbackTTSConfigPath()
-	}
-
-	opts := storage.Options{ScenarioID: "web-console"}
-	if _, err := storage.EnsureClassDir(resolver, opts, storage.ClassState, 0); err != nil {
-		log.Printf("tts-config: ensure state dir failed, using fallback: %v", err)
-		return fallbackTTSConfigPath()
-	}
-
-	path, err := resolver.Path(opts, storage.ClassState, "tts-config.json")
-	if err != nil {
-		log.Printf("tts-config: resolve path failed, using fallback: %v", err)
-		return fallbackTTSConfigPath()
-	}
-	return path
+	return mustResolveScenarioStoragePath(storage.ClassState, "tts-config.json")
 }
 
-func fallbackTTSConfigPath() string {
-	exe, _ := os.Executable()
-	return filepath.Join(filepath.Dir(exe), "..", "store", "tts-config.json")
-}
-
-// resolveHookTokenPath returns the hook token file path using api-core/storage.
 func resolveHookTokenPath() string {
-	resolver, err := storage.NewResolver(storage.ResolverConfig{
-		AppID:   "vrooli",
-		Profile: storage.ProfileAuto,
-	})
-	if err != nil {
-		log.Printf("hook-token: storage resolver failed, using fallback: %v", err)
-		return fallbackHookTokenPath()
-	}
-
-	opts := storage.Options{ScenarioID: "web-console"}
-	if _, err := storage.EnsureClassDir(resolver, opts, storage.ClassState, 0); err != nil {
-		log.Printf("hook-token: ensure state dir failed, using fallback: %v", err)
-		return fallbackHookTokenPath()
-	}
-
-	path, err := resolver.Path(opts, storage.ClassState, "hook-token.txt")
-	if err != nil {
-		log.Printf("hook-token: resolve path failed, using fallback: %v", err)
-		return fallbackHookTokenPath()
-	}
-	return path
-}
-
-func fallbackHookTokenPath() string {
-	exe, _ := os.Executable()
-	return filepath.Join(filepath.Dir(exe), "..", "store", "hook-token.txt")
+	return mustResolveScenarioStoragePath(storage.ClassState, "hook-token.txt")
 }
 
 func resolveClaudeProjectSettingsPath() string {

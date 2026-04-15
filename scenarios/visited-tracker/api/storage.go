@@ -12,10 +12,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/storage"
 )
 
 const (
-	dataDir = "data/campaigns"
+	appID         = "vrooli"
+	scenarioID    = "visited-tracker"
+	campaignsDir  = "campaigns"
+	dataDir       = campaignsDir
 )
 
 var (
@@ -35,7 +39,7 @@ func initFileStorage() error {
 }
 
 func storageDataPath() string {
-	return filepath.Join("scenarios", "visited-tracker", dataDir)
+	return mustStoragePath(storage.ClassData, campaignsDir)
 }
 
 func storageHealthCheck(ctx context.Context) error {
@@ -66,7 +70,7 @@ func getFileLock(filename string) *sync.RWMutex {
 
 // getCampaignPath returns the file path for a campaign
 func getCampaignPath(campaignID uuid.UUID) string {
-	return filepath.Join("scenarios", "visited-tracker", dataDir, campaignID.String()+".json")
+	return mustStoragePath(storage.ClassData, filepath.Join(campaignsDir, campaignID.String()+".json"))
 }
 
 // saveCampaign persists a campaign to disk
@@ -83,11 +87,30 @@ func saveCampaign(campaign *Campaign) error {
 		return fmt.Errorf("failed to marshal campaign: %w", err)
 	}
 
+	if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
+		return fmt.Errorf("failed to create campaign directory: %w", err)
+	}
+
 	if err := os.WriteFile(filePath, data, 0o644); err != nil {
 		return fmt.Errorf("failed to write campaign file: %w", err)
 	}
 
 	return nil
+}
+
+func mustStoragePath(class storage.Class, rel string) string {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   appID,
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		panic(fmt.Sprintf("build storage resolver: %v", err))
+	}
+	path, err := resolver.Path(storage.Options{ScenarioID: scenarioID}, class, rel)
+	if err != nil {
+		panic(fmt.Sprintf("resolve storage path: %v", err))
+	}
+	return path
 }
 
 // loadCampaign loads a campaign from disk
