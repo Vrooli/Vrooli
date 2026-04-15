@@ -119,11 +119,6 @@
           "name": "build-ui",
           "run": "cd ui && npm run build",
           "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Scenario to Extension initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: scenario-to-extension --help'",
-          "description": "Display service access URLs"
         }
       ]
     },
@@ -147,11 +142,6 @@
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Scenario to Extension running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
-          "description": "Display service access URLs"
         }
       ]
     },

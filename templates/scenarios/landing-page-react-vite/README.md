@@ -35,6 +35,7 @@ See [QUICKSTART.md](docs/QUICKSTART.md) for detailed first-time setup.
 
 ### CLI Extension Model
 
+- This is the only recommended greenfield CLI shape for new scenarios. Do not start with flat `cmd_<domain>.go` files as the intended long-term architecture.
 - `cli/main.go`: entrypoint only.
 - `cli/app.go`: metadata + scaffold wiring only. Keep endpoint logic out of this file.
 - `cli/domains/domains.go`: domain registration only.
@@ -44,6 +45,7 @@ See [QUICKSTART.md](docs/QUICKSTART.md) for detailed first-time setup.
 - Prefer `SubcommandGroup` by default for real domains so the file layout mirrors scenario boundaries.
 - Default human output should follow a command contract: operational commands use `Status -> Triage -> Next Steps`, list/read commands use `Summary -> Results -> Retrieval Hints`, and mutation commands use `Result -> What Changed -> Next Command`.
 - Use `cliapp.RenderOperationalReport`, `RenderListReport`, and `RenderMutationReport` so output stays consistent across scenarios.
+- When a command supports `--json`, render the same underlying structured report through `cliapp.PrintReportJSON(...)` instead of inventing a second output shape.
 
 ## Documentation
 

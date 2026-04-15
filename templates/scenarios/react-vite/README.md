@@ -89,6 +89,7 @@ cd ui && VITE_API_BASE_URL="http://localhost:${API_PORT}/api/v1" pnpm run dev --
 - `status` and `configure` are provided by `cli-core`; `status` targets the canonical root `/health` endpoint.
 
 ### CLI Extension Model
+- This is the only recommended greenfield CLI shape for new scenarios. Do not start with flat `cmd_<domain>.go` files as the intended long-term architecture.
 - `cli/main.go`: entrypoint only.
 - `cli/app.go`: metadata + scaffold wiring only. Avoid endpoint logic here.
 - `cli/domains/domains.go`: domain registration only.
@@ -98,6 +99,7 @@ cd ui && VITE_API_BASE_URL="http://localhost:${API_PORT}/api/v1" pnpm run dev --
 - Prefer `SubcommandGroup` by default for real domains (`tasks list`, `projects create`, etc.).
 - Default human output should follow a command contract: operational commands use `Status -> Triage -> Next Steps`, list/read commands use `Summary -> Results -> Retrieval Hints`, and mutation commands use `Result -> What Changed -> Next Command`.
 - Use `cliapp.RenderOperationalReport`, `RenderListReport`, and `RenderMutationReport` so the human output contract stays consistent across scenarios.
+- When a command supports `--json`, render the same underlying structured report through `cliapp.PrintReportJSON(...)` instead of inventing a second output shape.
 
 ## Customize Safely
 1. **Update PRD.md + requirements/** first. Operational targets drive code + tests.

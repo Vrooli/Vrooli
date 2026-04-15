@@ -13,9 +13,7 @@ class MCPDetector {
         if (scenariosPath && path.isAbsolute(scenariosPath)) {
             this.scenariosPath = scenariosPath;
         } else {
-            // Default to Vrooli scenarios directory using HOME or VROOLI_ROOT
-            const rootDir = process.env.VROOLI_ROOT || path.join(process.env.HOME || '/tmp', 'Vrooli');
-            this.scenariosPath = path.join(rootDir, 'scenarios');
+            this.scenariosPath = resolveScenariosPath();
         }
         this.mcpIndicators = {
             directories: ['mcp', '.mcp'],
@@ -368,6 +366,16 @@ class MCPDetector {
         // Sort by score
         return candidates.sort((a, b) => b.score - a.score);
     }
+}
+
+function resolveScenariosPath() {
+    if (process.env.SCENARIOS_PATH && path.isAbsolute(process.env.SCENARIOS_PATH)) {
+        return process.env.SCENARIOS_PATH;
+    }
+    if (process.env.VROOLI_ROOT && path.isAbsolute(process.env.VROOLI_ROOT)) {
+        return path.join(process.env.VROOLI_ROOT, 'scenarios');
+    }
+    return path.resolve(__dirname, '..', '..');
 }
 
 // Export for use in other modules

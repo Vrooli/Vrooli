@@ -497,16 +497,11 @@ func executeBuild(buildID string, req BuildRequest) {
 }
 
 func resolveVrooliRoot() string {
-	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
-		if resolved, err := repocontract.FindRepoRootFromPath(root); err == nil {
-			return resolved
-		}
-		return filepath.Clean(root)
+	root, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		return ""
 	}
-	if root, err := repocontract.ResolveRepoRoot(); err == nil {
-		return root
-	}
-	return filepath.Clean(".")
+	return root
 }
 
 func statusHandler(w http.ResponseWriter, r *http.Request) {

@@ -129,11 +129,6 @@
           "name": "build-ui",
           "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; fi",
           "description": "Build production UI bundle against the lifecycle-assigned API port"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\u2705 Setup complete!' && echo '' && echo '\ud83d\udd17 Access points:' && echo \"  API: http://localhost:${API_PORT}/health\" && echo \"  UI:  http://localhost:${UI_PORT}\" && echo '' && echo '\u25b6\ufe0f  Start with: make start'",
-          "description": "Display access URLs after setup"
         }
       ]
     },
@@ -157,11 +152,6 @@
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "sleep 2 && echo '' && echo '\ud83d\ude80 Secrets Manager is running!' && echo '' && echo '\ud83d\udd17 Access points:' && echo \"  API Health: http://localhost:${API_PORT}/health\" && echo \"  Dashboard:  http://localhost:${UI_PORT}\" && echo '' && echo '\ud83d\udcca View logs: make logs' && echo '\ud83d\uded1 Stop: make stop'",
-          "description": "Display running service URLs"
         }
       ]
     },

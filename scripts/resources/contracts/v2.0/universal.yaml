@@ -534,10 +534,6 @@ file_structure:
       description: "Legacy management script"
       migration_to: "cli.sh"
       removal_target: "v3.0"
-    manage.bats:
-      description: "Legacy test file"
-      migration_to: "lib/test.sh"
-      removal_target: "v3.0"
     inject.sh:
       description: "Legacy injection script"
       migration_to: "content add command"

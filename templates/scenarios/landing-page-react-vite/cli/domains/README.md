@@ -1,6 +1,8 @@
 # CLI Domains
 
 Start new command work here, not in `app.go`.
+This domain-package layout is the default greenfield architecture for scenario CLIs.
+Do not plan to grow a new scenario around flat `cmd_<domain>.go` files.
 
 Recommended layout as the CLI grows:
 
@@ -32,3 +34,4 @@ Guidance:
 - Prefer `SubcommandGroup` for command-rich domains.
 - Keep API calling thin: argument parsing, request building, response formatting.
 - Use `cliapp.RenderOperationalReport`, `RenderListReport`, and `RenderMutationReport` for human-first output by default.
+- If a command has a `--json` mode, emit the same report structure with `cliapp.PrintReportJSON(...)`.

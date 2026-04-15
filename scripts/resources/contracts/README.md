@@ -98,7 +98,6 @@ resource-name/
 
 ### Deprecated Files
 - `manage.sh` → migrate to `cli.sh`
-- `manage.bats` → migrate to `lib/test.sh`
 - `inject.sh` → use `content add` command
 
 ## Validation Layers

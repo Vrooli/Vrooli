@@ -590,11 +590,6 @@ func TestFixReactVite_InsertedStepMatchesExistingIndentation(t *testing.T) {
           "name": "build-api",
           "run": "cd api && go build ./...",
           "description": "Build Go API binary"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo 'Ready'",
-          "description": "Display info"
         }
       ]
     }
@@ -690,8 +685,7 @@ func TestFixReactVite_InsertedStepValidJSON(t *testing.T) {
       "steps": [
         {"name": "build-api", "run": "cd api && go build ."},
         {"name": "setup-db", "run": "scripts/setup-db.sh"},
-        {"name": "seed-data", "run": "scripts/seed.sh"},
-        {"name": "show-urls", "run": "echo ready"}
+        {"name": "seed-data", "run": "scripts/seed.sh"}
       ]
     }
   }

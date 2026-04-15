@@ -244,7 +244,6 @@ validate_v2_file_structure() {
     # Check for deprecated files
     local deprecated_files=(
         "manage.sh"
-        "manage.bats"
         "inject.sh"
     )
     
@@ -376,7 +375,7 @@ validate_v2_pattern_compliance() {
         if [[ $violations_count -gt 0 ]] && [[ "$FIX_ISSUES" == "true" ]]; then
             VALIDATION_FIXES["$resource_name"]="${VALIDATION_FIXES[$resource_name]:-}Convert resource-$resource_name inject to resource-$resource_name content add; "
         fi
-    done < <(find "$resource_dir" \( -name "*.sh" -o -name "*.md" -o -name "*.bats" \) -type f -print0 2>/dev/null)
+    done < <(find "$resource_dir" \( -name "*.sh" -o -name "*.md" \) -type f -print0 2>/dev/null)
     
     # Check for curl health check patterns (should use CLI)
     while IFS= read -r -d '' file; do

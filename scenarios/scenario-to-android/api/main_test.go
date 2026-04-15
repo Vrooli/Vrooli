@@ -195,7 +195,8 @@ func TestResolveVrooliRootCanonicalizesContractDescendantOverride(t *testing.T) 
 		t.Fatalf("mkdir nested: %v", err)
 	}
 
-	t.Setenv("VROOLI_ROOT", nested)
+	t.Setenv("VROOLI_SOURCE_ROOT", nested)
+	t.Setenv("VROOLI_ROOT", "")
 
 	if got := resolveVrooliRoot(); got != root {
 		t.Fatalf("resolveVrooliRoot() = %q, want %q", got, root)
@@ -1115,7 +1116,7 @@ func newScenarioToAndroidContractFixtureRepo(t *testing.T) string {
 	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/scenario-to-android-test\n\ngo 1.24.0\n"), 0o644); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
-	for _, dir := range []string{"scenarios", "resources", "packages", "cmd", "internal"} {
+	for _, dir := range []string{"templates", "scenarios", "resources", "packages", "cmd", "internal"} {
 		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", dir, err)
 		}
