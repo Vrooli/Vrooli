@@ -35,6 +35,7 @@ type Runner struct {
 	settings *Settings
 
 	goLinter     *golang.Linter
+	goCLILinter  *golang.Linter
 	nodeLinter   *nodejs.Linter
 	pythonLinter *python.Linter
 
@@ -66,6 +67,12 @@ func New(config Config, opts ...Option) *Runner {
 	if r.goLinter == nil {
 		r.goLinter = golang.New(golang.Config{
 			Dir:           filepath.Join(config.ScenarioDir, "api"),
+			CommandLookup: config.CommandLookup,
+		}, golang.WithLogger(r.logWriter))
+	}
+	if r.goCLILinter == nil {
+		r.goCLILinter = golang.New(golang.Config{
+			Dir:           filepath.Join(config.ScenarioDir, "cli"),
 			CommandLookup: config.CommandLookup,
 		}, golang.WithLogger(r.logWriter))
 	}
@@ -130,12 +137,13 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 	shared.LogInfo(r.logWriter, "Starting lint validation for %s", r.config.ScenarioName)
 
 	// Check which languages are present and enabled
-	hasGo := r.hasGoProject() && r.settings.Go.IsEnabled()
+	goTargets := r.goProjectTargets()
+	hasGo := len(goTargets) > 0 && r.settings.Go.IsEnabled()
 	hasNode := r.hasNodeProject() && r.settings.Node.IsEnabled()
 	hasPython := r.hasPythonProject() && r.settings.Python.IsEnabled()
 
 	// Log disabled languages
-	if r.hasGoProject() && !r.settings.Go.IsEnabled() {
+	if len(goTargets) > 0 && !r.settings.Go.IsEnabled() {
 		observations = append(observations, NewSkipObservation("Go linting disabled via configuration"))
 	}
 	if r.hasNodeProject() && !r.settings.Node.IsEnabled() {
@@ -158,30 +166,29 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 	if hasGo {
 		observations = append(observations, NewSectionObservation("🔷", "Linting Go code..."))
 		shared.LogInfo(r.logWriter, "Linting Go code...")
-
-		result := r.goLinter.Lint(ctx)
 		summary.GoChecked = true
-		summary.GoIssues = len(result.Issues)
-		summary.TypeErrors += result.TypeErrors
-		summary.LintErrors += result.LintWarnings
 
-		// Convert observations from the linter
-		observations = append(observations, result.Observations...)
+		for _, target := range goTargets {
+			result := r.lintGoTarget(ctx, target)
+			summary.GoIssues += len(result.Issues)
+			summary.TypeErrors += result.TypeErrors
+			summary.LintErrors += result.LintWarnings
+			observations = append(observations, result.Observations...)
 
-		// In strict mode, all issues are treated as type errors
-		if r.settings.Go.Strict && result.LintWarnings > 0 {
-			hasTypeErrors = true
-			summary.TypeErrors += result.LintWarnings
-		} else if result.TypeErrors > 0 {
-			hasTypeErrors = true
-		}
+			if r.settings.Go.Strict && result.LintWarnings > 0 {
+				hasTypeErrors = true
+				summary.TypeErrors += result.LintWarnings
+			} else if result.TypeErrors > 0 {
+				hasTypeErrors = true
+			}
 
-		if result.Skipped {
-			shared.LogInfo(r.logWriter, "Go linting skipped: %s", result.SkipReason)
-		} else if len(result.Issues) == 0 {
-			shared.LogSuccess(r.logWriter, "Go code passed all checks")
-		} else {
-			shared.LogWarn(r.logWriter, "Go linting found %d issues", len(result.Issues))
+			if result.Skipped {
+				shared.LogInfo(r.logWriter, "Go linting skipped for %s: %s", target, result.SkipReason)
+			} else if len(result.Issues) == 0 {
+				shared.LogSuccess(r.logWriter, "Go code passed all checks in %s", target)
+			} else {
+				shared.LogWarn(r.logWriter, "Go linting found %d issues in %s", len(result.Issues), target)
+			}
 		}
 	}
 
@@ -289,11 +296,29 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 	}
 }
 
-// hasGoProject checks if the scenario has a Go project (api/go.mod).
+// hasGoProject checks if the scenario has a Go project in api/ or cli/.
 func (r *Runner) hasGoProject() bool {
-	goModPath := filepath.Join(r.config.ScenarioDir, "api", "go.mod")
-	_, err := os.Stat(goModPath)
-	return err == nil
+	return len(r.goProjectTargets()) > 0
+}
+
+func (r *Runner) goProjectTargets() []string {
+	var targets []string
+	for _, dir := range []string{"api", "cli"} {
+		goModPath := filepath.Join(r.config.ScenarioDir, dir, "go.mod")
+		if _, err := os.Stat(goModPath); err == nil {
+			targets = append(targets, dir)
+		}
+	}
+	return targets
+}
+
+func (r *Runner) lintGoTarget(ctx context.Context, target string) *golang.Result {
+	switch target {
+	case "cli":
+		return r.goCLILinter.Lint(ctx)
+	default:
+		return r.goLinter.Lint(ctx)
+	}
 }
 
 // hasNodeProject checks if the scenario has a Node.js project (ui/package.json).

@@ -74,41 +74,52 @@ build: ## Build the scenario
 fmt: fmt-go fmt-ui ## Format all code
 
 fmt-go: ## Format Go code
-	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
-		echo "$(BLUE)🎨 Formatting Go code...$(RESET)"; \
-		if command -v gofumpt >/dev/null 2>&1; then \
-			cd api && gofumpt -w .; \
-		elif command -v gofmt >/dev/null 2>&1; then \
-			cd api && gofmt -w .; \
+	@for dir in api cli; do \
+		if [ -d $$dir ] && find $$dir -name "*.go" | head -1 | grep -q .; then \
+			echo "$(BLUE)🎨 Formatting Go code in $$dir...$(RESET)"; \
+			if command -v gofumpt >/dev/null 2>&1; then \
+				cd $$dir && gofumpt -w . && cd ..; \
+			elif command -v gofmt >/dev/null 2>&1; then \
+				cd $$dir && gofmt -w . && cd ..; \
+			fi; \
+			echo "$(GREEN)✓ Go code formatted in $$dir$(RESET)"; \
 		fi; \
-		echo "$(GREEN)✓ Go code formatted$(RESET)"; \
-	else \
-		echo "$(YELLOW)No Go code to format$(RESET)"; \
-	fi
+	done
 
 fmt-ui: ## Format UI code
-	@echo "$(YELLOW)UI formatting not configured$(RESET)"
+	@if [ -f ui/package.json ]; then \
+		echo "$(BLUE)🎨 Formatting UI code...$(RESET)"; \
+		cd ui && pnpm run lint:fix; \
+		echo "$(GREEN)✓ UI code formatted$(RESET)"; \
+	else \
+		echo "$(YELLOW)No UI code to format$(RESET)"; \
+	fi
 
 lint: lint-go lint-ui ## Lint all code
 
 lint-go: ## Lint Go code
-	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
-		echo "$(BLUE)🔍 Linting Go code...$(RESET)"; \
-		if command -v golangci-lint >/dev/null 2>&1; then \
-			cd api && golangci-lint run ./...; \
-		elif command -v go >/dev/null 2>&1; then \
-			cd api && go vet ./... && go fmt ./...; \
+	@for dir in api cli; do \
+		if [ -d $$dir ] && find $$dir -name "*.go" | head -1 | grep -q .; then \
+			echo "$(BLUE)🔍 Linting Go code in $$dir...$(RESET)"; \
+			if command -v golangci-lint >/dev/null 2>&1; then \
+				cd $$dir && golangci-lint run ./... && cd ..; \
+			elif command -v go >/dev/null 2>&1; then \
+				cd $$dir && go vet ./... && cd ..; \
+			fi; \
+			echo "$(GREEN)✓ Go code linted in $$dir$(RESET)"; \
 		fi; \
-		echo "$(GREEN)✓ Go code linted$(RESET)"; \
-	else \
-		echo "$(YELLOW)No Go code to lint$(RESET)"; \
-	fi
+	done
 
 lint-ui: ## Lint UI code
-	@echo "$(YELLOW)UI lint not configured$(RESET)"
+	@if [ -f ui/package.json ]; then \
+		echo "$(BLUE)🔍 Linting UI code...$(RESET)"; \
+		cd ui && pnpm run lint && pnpm run type-check; \
+		echo "$(GREEN)✓ UI code linted$(RESET)"; \
+	else \
+		echo "$(YELLOW)No UI code to lint$(RESET)"; \
+	fi
 
 check: fmt lint test ## Run full quality gates
 
 # Development shortcuts
 dev: start
-

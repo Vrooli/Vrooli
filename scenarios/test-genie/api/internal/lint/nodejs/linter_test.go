@@ -86,7 +86,7 @@ func TestLinter_HasTsConfig(t *testing.T) {
 	}
 
 	// Create tsconfig.json
-	if err := os.WriteFile(filepath.Join(tmpDir, "tsconfig.json"), []byte("{}"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "tsconfig.json"), []byte("{}"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -111,7 +111,7 @@ func TestLinter_HasEslintConfig(t *testing.T) {
 	}
 
 	// Create .eslintrc.js
-	if err := os.WriteFile(filepath.Join(tmpDir, ".eslintrc.js"), []byte("module.exports = {}"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, ".eslintrc.js"), []byte("module.exports = {}"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -179,7 +179,10 @@ func TestLinter_ParseEslintOutput(t *testing.T) {
 		}
 	]`
 
-	issues := linter.parseEslintOutput([]byte(eslintJSON))
+	issues, err := linter.parseEslintOutput([]byte(eslintJSON))
+	if err != nil {
+		t.Fatalf("unexpected parse error: %v", err)
+	}
 
 	if len(issues) != 2 {
 		t.Errorf("expected 2 issues, got %d", len(issues))
@@ -202,7 +205,10 @@ func TestLinter_ParseEslintOutput(t *testing.T) {
 func TestLinter_ParseEslintOutput_InvalidJSON(t *testing.T) {
 	linter := New(Config{Dir: "/tmp"})
 
-	issues := linter.parseEslintOutput([]byte("not json"))
+	issues, err := linter.parseEslintOutput([]byte("not json"))
+	if err == nil {
+		t.Fatal("expected parse error for invalid JSON")
+	}
 
 	if len(issues) != 0 {
 		t.Errorf("expected 0 issues for invalid JSON, got %d", len(issues))
@@ -218,11 +224,11 @@ func TestLinter_FindTsc(t *testing.T) {
 
 	// Create node_modules/.bin/tsc
 	binDir := filepath.Join(tmpDir, "node_modules", ".bin")
-	if err := os.MkdirAll(binDir, 0755); err != nil {
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	tscPath := filepath.Join(binDir, "tsc")
-	if err := os.WriteFile(tscPath, []byte("#!/bin/bash\n"), 0755); err != nil {
+	if err := os.WriteFile(tscPath, []byte("#!/bin/bash\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -273,7 +279,7 @@ func TestLinter_Lint_NoTools(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Create package.json but no tsconfig or eslint config
-	if err := os.WriteFile(filepath.Join(tmpDir, "package.json"), []byte(`{"name":"test"}`), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "package.json"), []byte(`{"name":"test"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

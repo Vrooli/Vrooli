@@ -87,7 +87,10 @@ func TestLinter_ParseGolangciLintOutput(t *testing.T) {
 		}
 	]}`
 
-	issues, typeErrors := linter.parseGolangciLintOutput([]byte(validJSON))
+	issues, typeErrors, err := linter.parseGolangciLintOutput([]byte(validJSON))
+	if err != nil {
+		t.Fatalf("unexpected parse error: %v", err)
+	}
 
 	if len(issues) != 2 {
 		t.Errorf("expected 2 issues, got %d", len(issues))
@@ -147,7 +150,10 @@ func TestLinter_ParseGolangciLintOutput_InvalidJSON(t *testing.T) {
 	linter := New(Config{Dir: "/tmp"})
 
 	// Test invalid JSON
-	issues, typeErrors := linter.parseGolangciLintOutput([]byte("not json"))
+	issues, typeErrors, err := linter.parseGolangciLintOutput([]byte("not json"))
+	if err == nil {
+		t.Fatal("expected parse error for invalid JSON")
+	}
 
 	if len(issues) != 0 {
 		t.Errorf("expected 0 issues for invalid JSON, got %d", len(issues))
@@ -193,7 +199,7 @@ func TestLinter_Integration_WithGoMod(t *testing.T) {
 	goModContent := `module testmodule
 go 1.21
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte(goModContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte(goModContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

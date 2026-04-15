@@ -113,77 +113,29 @@ func TestStoreSaveUsesAtomicRename(t *testing.T) {
 	}
 }
 
-func TestStoreLoadPrefersEncryptedOverLegacy(t *testing.T) {
+func TestStoreLoadReturnsEmptyWhenEncryptedSecretsMissing(t *testing.T) {
 	store := newTestStore(t)
-	writeLegacySecrets(t, store, `{"POSTGRES_PASSWORD":"legacy"}`)
-	if err := store.Save(map[string]string{"POSTGRES_PASSWORD": "encrypted"}); err != nil {
+
+	values, err := store.Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(values) != 0 {
+		t.Fatalf("len(values) = %d, want 0", len(values))
+	}
+}
+
+func TestStoreLoadFailsWhenEncryptedSecretsRequireKey(t *testing.T) {
+	writer := newTestStore(t)
+	if err := writer.Save(map[string]string{"API_KEY": "encrypted"}); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
 
-	values, err := store.Load()
-	if err != nil {
-		t.Fatalf("Load: %v", err)
+	reader := NewProjectStore(writer.Root)
+	_, err := reader.Load()
+	if !errors.Is(err, ErrMissingKey) {
+		t.Fatalf("Load error = %v, want ErrMissingKey", err)
 	}
-	if got := values["POSTGRES_PASSWORD"]; got != "encrypted" {
-		t.Fatalf("POSTGRES_PASSWORD = %q, want encrypted", got)
-	}
-}
-
-func TestStoreLoadFallsBackToLegacyPlaintext(t *testing.T) {
-	store := newTestStore(t)
-	writeLegacySecrets(t, store, `{"POSTGRES_PASSWORD":"legacy"}`)
-
-	values, err := store.Load()
-	if err != nil {
-		t.Fatalf("Load: %v", err)
-	}
-	if values["POSTGRES_PASSWORD"] != "legacy" {
-		t.Fatalf("POSTGRES_PASSWORD = %q, want legacy", values["POSTGRES_PASSWORD"])
-	}
-}
-
-func TestStoreLoadMigrationCompatibleMakesLegacyFallbackExplicit(t *testing.T) {
-	t.Run("strict load fails when encrypted file exists but key is missing", func(t *testing.T) {
-		writer := newTestStore(t)
-		writeLegacySecrets(t, writer, `{"API_KEY":"legacy"}`)
-		if err := writer.Save(map[string]string{"API_KEY": "encrypted"}); err != nil {
-			t.Fatalf("Save: %v", err)
-		}
-
-		reader := NewProjectStore(writer.Root)
-		_, err := reader.Load()
-		if !errors.Is(err, ErrMissingKey) {
-			t.Fatalf("Load error = %v, want ErrMissingKey", err)
-		}
-	})
-
-	t.Run("best effort load falls back to legacy when encrypted read cannot succeed", func(t *testing.T) {
-		writer := newTestStore(t)
-		writeLegacySecrets(t, writer, `{"API_KEY":"legacy"}`)
-		if err := writer.Save(map[string]string{"API_KEY": "encrypted"}); err != nil {
-			t.Fatalf("Save: %v", err)
-		}
-
-		reader := NewProjectStore(writer.Root)
-		values, err := reader.LoadMigrationCompatible()
-		if err != nil {
-			t.Fatalf("LoadMigrationCompatible: %v", err)
-		}
-		if got := values["API_KEY"]; got != "legacy" {
-			t.Fatalf("API_KEY = %q, want legacy", got)
-		}
-	})
-
-	t.Run("migration-compatible load fails closed when encrypted payload is invalid", func(t *testing.T) {
-		store := newTestStore(t)
-		writeLegacySecrets(t, store, `{"API_KEY":"legacy"}`)
-		writeEncryptedPayload(t, store, `{`)
-
-		_, err := store.LoadMigrationCompatible()
-		if err == nil || !errors.Is(err, ErrEncryptedInvalid) {
-			t.Fatalf("LoadMigrationCompatible error = %v, want ErrEncryptedInvalid", err)
-		}
-	})
 }
 
 func TestStoreLoadEncryptedPropagatesReadFailure(t *testing.T) {
@@ -291,56 +243,23 @@ func TestStoreLoadEncryptedRejectsWrongKeyAndTampering(t *testing.T) {
 	}
 }
 
-func TestStoreLoadLegacyReturnsEmptyWhenMissing(t *testing.T) {
+func TestStoreRejectsInsecureEncryptedSecretFilePermissions(t *testing.T) {
 	store := newTestStore(t)
-	values, err := store.LoadLegacy()
-	if err != nil {
-		t.Fatalf("LoadLegacy: %v", err)
-	}
-	if len(values) != 0 {
-		t.Fatalf("len(values) = %d, want 0", len(values))
-	}
-}
+	writeEncryptedPayloadMode(t, store, `{"version":2,"algorithm":"AES-256-GCM","kdf":"pbkdf2-sha256","salt":"c2FsdA==","iterations":100000,"nonce":"bm9uY2U=","ciphertext":"Y2lwaGVy"}`, 0o644)
 
-func TestStoreLoadLegacyPropagatesReadFailure(t *testing.T) {
-	store := newTestStore(t)
-	writeLegacySecrets(t, store, `{"API_KEY":"legacy"}`)
-	store.deps.readFile = func(path string) ([]byte, error) {
-		return nil, errors.New("read failed")
-	}
-
-	_, err := store.LoadLegacy()
-	if err == nil || !errors.Is(err, ErrLegacyRead) || !strings.Contains(err.Error(), "read legacy secrets") {
-		t.Fatalf("LoadLegacy error = %v, want ErrLegacyRead", err)
-	}
-}
-
-func TestStoreLoadLegacyRejectsInvalidJSON(t *testing.T) {
-	store := newTestStore(t)
-	writeLegacySecrets(t, store, `{`)
-	_, err := store.LoadLegacy()
-	if err == nil || !errors.Is(err, ErrLegacyInvalid) || !strings.Contains(err.Error(), "parse legacy secrets") {
-		t.Fatalf("LoadLegacy error = %v, want ErrLegacyInvalid", err)
-	}
-}
-
-func TestStoreRejectsInsecureSecretFilePermissions(t *testing.T) {
-	store := newTestStore(t)
-	writeLegacySecretsWithMode(t, store, `{"API_KEY":"legacy"}`, 0o644)
-
-	_, err := store.LoadLegacy()
+	_, err := store.LoadEncrypted()
 	if err == nil || !errors.Is(err, ErrInsecurePermissions) {
-		t.Fatalf("LoadLegacy error = %v, want ErrInsecurePermissions", err)
+		t.Fatalf("LoadEncrypted error = %v, want ErrInsecurePermissions", err)
 	}
 }
 
-func TestStoreRejectsSymlinkSecretFiles(t *testing.T) {
+func TestStoreRejectsSymlinkEncryptedSecretFiles(t *testing.T) {
 	store := newTestStore(t)
 	target := filepath.Join(t.TempDir(), "target.json")
-	if err := os.WriteFile(target, []byte("{\"API_KEY\":\"legacy\"}\n"), 0o600); err != nil {
+	if err := os.WriteFile(target, []byte("{}\n"), 0o600); err != nil {
 		t.Fatalf("WriteFile(%s): %v", target, err)
 	}
-	path := store.LegacyPath()
+	path := store.EncryptedPath()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
 	}
@@ -348,22 +267,22 @@ func TestStoreRejectsSymlinkSecretFiles(t *testing.T) {
 		t.Fatalf("Symlink(%s -> %s): %v", path, target, err)
 	}
 
-	_, err := store.LoadLegacy()
+	_, err := store.LoadEncrypted()
 	if err == nil || !errors.Is(err, ErrSymlinkPath) {
-		t.Fatalf("LoadLegacy error = %v, want ErrSymlinkPath", err)
+		t.Fatalf("LoadEncrypted error = %v, want ErrSymlinkPath", err)
 	}
 }
 
-func TestStoreRejectsNonRegularSecretFiles(t *testing.T) {
+func TestStoreRejectsNonRegularEncryptedSecretFiles(t *testing.T) {
 	store := newTestStore(t)
-	path := store.LegacyPath()
+	path := store.EncryptedPath()
 	if err := os.MkdirAll(path, 0o755); err != nil {
 		t.Fatalf("mkdir %s: %v", path, err)
 	}
 
-	_, err := store.LoadLegacy()
+	_, err := store.LoadEncrypted()
 	if err == nil || !errors.Is(err, ErrInvalidSecretData) {
-		t.Fatalf("LoadLegacy error = %v, want ErrInvalidSecretData", err)
+		t.Fatalf("LoadEncrypted error = %v, want ErrInvalidSecretData", err)
 	}
 }
 
@@ -540,132 +459,6 @@ func TestStoreSaveKeyUsesExclusiveLockForReadModifyWrite(t *testing.T) {
 	if err == nil || !errors.Is(err, ErrLockTimeout) {
 		t.Fatalf("SaveKey error = %v, want ErrLockTimeout", err)
 	}
-}
-
-func TestStoreMigrateLegacyScenarios(t *testing.T) {
-	t.Run("migrates and removes source", func(t *testing.T) {
-		store := newTestStore(t)
-		writeLegacySecrets(t, store, `{"POSTGRES_PASSWORD":"legacy-secret"}`)
-
-		migrated, err := store.MigrateLegacy(true)
-		if err != nil {
-			t.Fatalf("MigrateLegacy: %v", err)
-		}
-		if !migrated {
-			t.Fatal("expected migration")
-		}
-		if _, err := os.Stat(store.LegacyPath()); !os.IsNotExist(err) {
-			t.Fatalf("legacy file still exists or wrong error: %v", err)
-		}
-		values, err := store.Load()
-		if err != nil {
-			t.Fatalf("Load: %v", err)
-		}
-		if values["POSTGRES_PASSWORD"] != "legacy-secret" {
-			t.Fatalf("POSTGRES_PASSWORD = %q, want legacy-secret", values["POSTGRES_PASSWORD"])
-		}
-	})
-
-	t.Run("returns false when legacy missing", func(t *testing.T) {
-		store := newTestStore(t)
-		migrated, err := store.MigrateLegacy(true)
-		if err != nil {
-			t.Fatalf("MigrateLegacy: %v", err)
-		}
-		if migrated {
-			t.Fatal("expected no migration")
-		}
-	})
-
-	t.Run("migrates without removing source when requested", func(t *testing.T) {
-		store := newTestStore(t)
-		writeLegacySecrets(t, store, `{"POSTGRES_PASSWORD":"legacy-secret"}`)
-
-		migrated, err := store.MigrateLegacy(false)
-		if err != nil {
-			t.Fatalf("MigrateLegacy: %v", err)
-		}
-		if !migrated {
-			t.Fatal("expected migration")
-		}
-		if _, err := os.Stat(store.LegacyPath()); err != nil {
-			t.Fatalf("legacy file missing after keep-source migration: %v", err)
-		}
-	})
-
-	t.Run("matching encrypted secrets only remove legacy when requested", func(t *testing.T) {
-		store := newTestStore(t)
-		writeLegacySecrets(t, store, `{"POSTGRES_PASSWORD":"same-secret"}`)
-		if err := store.Save(map[string]string{"POSTGRES_PASSWORD": "same-secret"}); err != nil {
-			t.Fatalf("Save: %v", err)
-		}
-
-		migrated, err := store.MigrateLegacy(true)
-		if err != nil {
-			t.Fatalf("MigrateLegacy: %v", err)
-		}
-		if !migrated {
-			t.Fatal("expected cleanup migration when removing matching legacy source")
-		}
-		if _, err := os.Stat(store.LegacyPath()); !os.IsNotExist(err) {
-			t.Fatalf("legacy file still exists or wrong error: %v", err)
-		}
-	})
-
-	t.Run("conflicting encrypted secrets fail closed", func(t *testing.T) {
-		store := newTestStore(t)
-		writeLegacySecrets(t, store, `{"POSTGRES_PASSWORD":"legacy-secret"}`)
-		if err := store.Save(map[string]string{"POSTGRES_PASSWORD": "encrypted-secret"}); err != nil {
-			t.Fatalf("Save: %v", err)
-		}
-
-		migrated, err := store.MigrateLegacy(true)
-		if migrated {
-			t.Fatal("expected migration to report false when encrypted secrets conflict")
-		}
-		if err == nil || !errors.Is(err, ErrMigrationConflict) {
-			t.Fatalf("MigrateLegacy error = %v, want ErrMigrationConflict", err)
-		}
-
-		values, loadErr := store.Load()
-		if loadErr != nil {
-			t.Fatalf("Load after conflict: %v", loadErr)
-		}
-		if got := values["POSTGRES_PASSWORD"]; got != "encrypted-secret" {
-			t.Fatalf("POSTGRES_PASSWORD = %q, want encrypted-secret", got)
-		}
-		if _, statErr := os.Stat(store.LegacyPath()); statErr != nil {
-			t.Fatalf("legacy file should remain after conflict: %v", statErr)
-		}
-	})
-
-	t.Run("remove failure surfaces after save", func(t *testing.T) {
-		store := newTestStore(t)
-		writeLegacySecrets(t, store, `{"POSTGRES_PASSWORD":"legacy-secret"}`)
-		store.deps.removeFile = func(path string) error { return errors.New("remove failed") }
-
-		migrated, err := store.MigrateLegacy(true)
-		if !migrated {
-			t.Fatal("expected migration to report true when save completed")
-		}
-		if err == nil || !strings.Contains(err.Error(), "remove legacy secrets") {
-			t.Fatalf("MigrateLegacy error = %v, want remove error", err)
-		}
-	})
-
-	t.Run("save failure aborts migration", func(t *testing.T) {
-		store := newTestStore(t)
-		writeLegacySecrets(t, store, `{"POSTGRES_PASSWORD":"legacy-secret"}`)
-		store.KeyProvider = nil
-
-		migrated, err := store.MigrateLegacy(true)
-		if migrated {
-			t.Fatal("expected migration to report false when save fails")
-		}
-		if !errors.Is(err, ErrMissingKey) {
-			t.Fatalf("MigrateLegacy error = %v, want ErrMissingKey", err)
-		}
-	})
 }
 
 func TestStoreResolveBoundaries(t *testing.T) {
@@ -1090,35 +883,18 @@ func sequentialNow(values ...time.Time) func() time.Time {
 	}
 }
 
-func writeLegacySecrets(t *testing.T, store *Store, contents string) {
-	t.Helper()
-	path := store.LegacyPath()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
-	}
-	if err := os.WriteFile(path, []byte(contents+"\n"), 0o600); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
-}
-
-func writeLegacySecretsWithMode(t *testing.T, store *Store, contents string, mode os.FileMode) {
-	t.Helper()
-	path := store.LegacyPath()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
-	}
-	if err := os.WriteFile(path, []byte(contents+"\n"), mode); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
-}
-
 func writeEncryptedPayload(t *testing.T, store *Store, contents string) {
+	t.Helper()
+	writeEncryptedPayloadMode(t, store, contents, 0o600)
+}
+
+func writeEncryptedPayloadMode(t *testing.T, store *Store, contents string, mode os.FileMode) {
 	t.Helper()
 	path := store.EncryptedPath()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
 	}
-	if err := os.WriteFile(path, []byte(contents+"\n"), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte(contents+"\n"), mode); err != nil {
 		t.Fatalf("write %s: %v", path, err)
 	}
 }

@@ -26,7 +26,6 @@ type Resource struct {
 	Enabled         bool        `json:"enabled"`
 	Required        bool        `json:"required"`
 	HasCLI          bool        `json:"has_cli"`
-	HasScript       bool        `json:"has_script"`
 	Config          ConfigEntry `json:"config"`
 	ControlMode     string      `json:"control_mode,omitempty"`
 	Driver          string      `json:"driver,omitempty"`
@@ -84,8 +83,6 @@ func (s *Service) Discover(opts DiscoverOptions) ([]Resource, error) {
 		if opts.ResolveCLIPath != nil {
 			cliPath, hasCLI = opts.ResolveCLIPath(name)
 		}
-		scriptPath := filepath.Join(path, "cli.sh")
-		_, hasScriptErr := os.Stat(scriptPath)
 		manifestPath := manifestpkg.DefaultPath(s.Root, name)
 		manifest := manifestpkg.ResourceManifest{}
 		hasManifest := false
@@ -106,7 +103,6 @@ func (s *Service) Discover(opts DiscoverOptions) ([]Resource, error) {
 			Enabled:    configEntry.Enabled,
 			Required:   configEntry.Required,
 			HasCLI:     hasCLI && cliPath != "",
-			HasScript:  hasScriptErr == nil,
 			Config:     configEntry,
 		}
 		if hasManifest {

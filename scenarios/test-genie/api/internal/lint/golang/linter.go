@@ -151,6 +151,7 @@ func (l *Linter) runGolangciLint(ctx context.Context, result *Result) *Result {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			// Exit code 1 means issues found, which we handle below
 			if exitErr.ExitCode() != 1 {
+				result.TypeErrors = 1
 				result.Success = false
 				result.Observations = append(result.Observations,
 					shared.NewErrorObservation(fmt.Sprintf("golangci-lint failed: %v", err)))
@@ -161,6 +162,7 @@ func (l *Linter) runGolangciLint(ctx context.Context, result *Result) *Result {
 				output = exitErr.Stderr
 			}
 		} else {
+			result.TypeErrors = 1
 			result.Success = false
 			result.Observations = append(result.Observations,
 				shared.NewErrorObservation(fmt.Sprintf("golangci-lint failed: %v", err)))
@@ -169,7 +171,14 @@ func (l *Linter) runGolangciLint(ctx context.Context, result *Result) *Result {
 	}
 
 	// Parse JSON output
-	issues, typeErrors := l.parseGolangciLintOutput(output)
+	issues, typeErrors, parseErr := l.parseGolangciLintOutput(output)
+	if parseErr != nil {
+		result.TypeErrors = 1
+		result.Success = false
+		result.Observations = append(result.Observations,
+			shared.NewErrorObservation(fmt.Sprintf("Go: failed to parse golangci-lint output: %v", parseErr)))
+		return result
+	}
 	result.Issues = issues
 	result.TypeErrors = typeErrors
 	result.LintWarnings = len(issues) - typeErrors
@@ -211,6 +220,7 @@ func (l *Linter) runGoVet(ctx context.Context, result *Result) *Result {
 			return result
 		}
 		result.Success = false
+		result.TypeErrors = 1
 		result.Observations = append(result.Observations,
 			shared.NewErrorObservation(fmt.Sprintf("go vet failed: %v", err)))
 		return result
@@ -272,11 +282,11 @@ type golangciLintIssue struct {
 	} `json:"Pos"`
 }
 
-func (l *Linter) parseGolangciLintOutput(output []byte) ([]Issue, int) {
+func (l *Linter) parseGolangciLintOutput(output []byte) ([]Issue, int, error) {
 	var parsed golangciLintOutput
 	if err := json.Unmarshal(output, &parsed); err != nil {
 		shared.LogWarn(l.logWriter, "failed to parse golangci-lint JSON: %v", err)
-		return nil, 0
+		return nil, 0, err
 	}
 
 	var issues []Issue
@@ -305,7 +315,7 @@ func (l *Linter) parseGolangciLintOutput(output []byte) ([]Issue, int) {
 		})
 	}
 
-	return issues, typeErrors
+	return issues, typeErrors, nil
 }
 
 func (l *Linter) parseGoVetOutput(output string) []Issue {

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"test-genie/internal/shared"
@@ -27,6 +29,27 @@ func TestRunner_Run_NoLanguagesDetected(t *testing.T) {
 
 	if len(result.Observations) == 0 {
 		t.Error("expected at least one observation")
+	}
+}
+
+func TestRunner_HasGoProject_DetectsCLI(t *testing.T) {
+	tmpDir := t.TempDir()
+	cliDir := filepath.Join(tmpDir, "cli")
+	if err := os.MkdirAll(cliDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cliDir, "go.mod"), []byte("module example.com/cli\n\ngo 1.23\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	runner := New(Config{ScenarioDir: tmpDir, ScenarioName: "test-scenario"})
+	if !runner.hasGoProject() {
+		t.Fatal("expected CLI go.mod to count as a Go project")
+	}
+
+	targets := runner.goProjectTargets()
+	if len(targets) != 1 || targets[0] != "cli" {
+		t.Fatalf("expected targets [cli], got %v", targets)
 	}
 }
 

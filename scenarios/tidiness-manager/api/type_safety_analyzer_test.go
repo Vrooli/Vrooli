@@ -347,6 +347,172 @@ func TestTypeSafetyAnalyzer_FixTSConfig(t *testing.T) {
 	}
 }
 
+func TestTypeSafetyAnalyzer_GoLintConfigViolations(t *testing.T) {
+	tmpDir := t.TempDir()
+	apiDir := filepath.Join(tmpDir, "api")
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte("package main\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := NewTypeSafetyAnalyzer(tmpDir).Analyze()
+
+	var foundLintConfig, foundGoMod bool
+	for _, v := range result.Violations {
+		if v.RuleID == "GO_LINT_CONFIG_PRESENT" {
+			foundLintConfig = true
+		}
+		if v.RuleID == "GO_MOD_PRESENT_FOR_API_OR_CLI" {
+			foundGoMod = true
+		}
+	}
+	if !foundLintConfig {
+		t.Error("expected GO_LINT_CONFIG_PRESENT violation")
+	}
+	if !foundGoMod {
+		t.Error("expected GO_MOD_PRESENT_FOR_API_OR_CLI violation")
+	}
+}
+
+func TestTypeSafetyAnalyzer_GoLintRequiredLintersViolation(t *testing.T) {
+	tmpDir := t.TempDir()
+	apiDir := filepath.Join(tmpDir, "api")
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(apiDir, "go.mod"), []byte("module example.com/test\n\ngo 1.23\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte("package main\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(apiDir, ".golangci.yml"), []byte("linters:\n  enable:\n    - govet\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := NewTypeSafetyAnalyzer(tmpDir).Analyze()
+
+	found := false
+	for _, v := range result.Violations {
+		if v.RuleID == "GO_LINT_REQUIRED_LINTERS" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected GO_LINT_REQUIRED_LINTERS violation")
+	}
+}
+
+func TestTypeSafetyAnalyzer_TestingConfigStrictViolation(t *testing.T) {
+	tmpDir := t.TempDir()
+	uiDir := filepath.Join(tmpDir, "ui")
+	if err := os.MkdirAll(uiDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(uiDir, "package.json"), []byte(`{"scripts":{"build":"vite build"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, ".vrooli", "testing.json"), []byte(`{"lint":{"languages":{"node":{"enabled":true,"strict":false}}}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := NewTypeSafetyAnalyzer(tmpDir).Analyze()
+
+	var strictViolation, buildViolation bool
+	for _, v := range result.Violations {
+		if v.RuleID == "TESTING_CONFIG_LINT_STRICT" {
+			strictViolation = true
+		}
+		if v.RuleID == "NODE_BUILD_TYPECHECK" {
+			buildViolation = true
+		}
+	}
+	if !strictViolation {
+		t.Error("expected TESTING_CONFIG_LINT_STRICT violation")
+	}
+	if !buildViolation {
+		t.Error("expected NODE_BUILD_TYPECHECK violation")
+	}
+}
+
+func TestTypeSafetyAnalyzer_ESLintTypedConfigViolation(t *testing.T) {
+	tmpDir := t.TempDir()
+	uiDir := filepath.Join(tmpDir, "ui")
+	if err := os.MkdirAll(uiDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	eslintConfig := `export default {
+  rules: {
+    // ════════════════════════════════════════════════════════════════════════
+    // SAFETY-CRITICAL RULES - DO NOT REMOVE, DISABLE, OR WEAKEN
+    // ════════════════════════════════════════════════════════════════════════
+    // CRITICAL: Catches React Error #310
+    "react-hooks/rules-of-hooks": "error",
+    // CRITICAL: Prevents non-null assertion
+    "@typescript-eslint/no-non-null-assertion": "error",
+    "@typescript-eslint/no-explicit-any": "error",
+    // CRITICAL: Catches operations on any
+    "@typescript-eslint/no-unsafe-member-access": "warn",
+    "@typescript-eslint/no-unsafe-call": "warn",
+    "@typescript-eslint/no-unsafe-argument": "warn",
+    "@typescript-eslint/no-unsafe-assignment": "warn",
+    "@typescript-eslint/no-unsafe-return": "warn",
+    // CRITICAL: Detects circular deps
+    "import/no-cycle": "error"
+  }
+};`
+	if err := os.WriteFile(filepath.Join(uiDir, "eslint.config.js"), []byte(eslintConfig), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := NewTypeSafetyAnalyzer(tmpDir).Analyze()
+
+	found := false
+	for _, v := range result.Violations {
+		if v.RuleID == "ESLINT_TYPED_CONFIG" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected ESLINT_TYPED_CONFIG violation")
+	}
+}
+
+func TestTypeSafetyAnalyzer_MakefileQualityViolation(t *testing.T) {
+	tmpDir := t.TempDir()
+	uiDir := filepath.Join(tmpDir, "ui")
+	if err := os.MkdirAll(uiDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(uiDir, "package.json"), []byte(`{"scripts":{"build":"tsc --noEmit && vite build"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte("fmt-ui:\n\t@echo missing\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result := NewTypeSafetyAnalyzer(tmpDir).Analyze()
+
+	found := false
+	for _, v := range result.Violations {
+		if v.RuleID == "MAKEFILE_QUALITY_GATES" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected MAKEFILE_QUALITY_GATES violation")
+	}
+}
+
 func TestStripJSONCComments(t *testing.T) {
 	tests := []struct {
 		name     string

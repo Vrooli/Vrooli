@@ -302,14 +302,32 @@ func (l *Linter) runEslint(ctx context.Context) *Result {
 				}
 			} else if exitErr.ExitCode() == 2 {
 				// Configuration error
+				result.TypeErrors = 1
+				result.Success = false
 				result.Observations = append(result.Observations,
 					shared.NewErrorObservation(fmt.Sprintf("ESLint configuration error: %s", string(exitErr.Stderr))))
 				return result
 			}
+		} else {
+			result.TypeErrors = 1
+			result.Success = false
+			result.Observations = append(result.Observations,
+				shared.NewErrorObservation(fmt.Sprintf("eslint failed: %v", err)))
+			return result
 		}
 	}
 
-	issues := l.parseEslintOutput(output)
+	issues, parseErr := l.parseEslintOutput(output)
+	if parseErr != nil {
+		result.TypeErrors = 1
+		result.Success = false
+		result.Observations = append(result.Observations,
+			shared.NewErrorObservation(fmt.Sprintf("Node: failed to parse eslint output: %v", parseErr)))
+		if len(rawOutput) > 0 {
+			writeRawBlock(l.logWriter, "eslint raw output:", string(rawOutput))
+		}
+		return result
+	}
 	result.Issues = issues
 	result.LintWarnings = len(issues)
 	result.Success = true // ESLint issues are warnings, not failures
@@ -357,11 +375,11 @@ type eslintMessage struct {
 	Severity int    `json:"severity"` // 1 = warning, 2 = error
 }
 
-func (l *Linter) parseEslintOutput(output []byte) []Issue {
+func (l *Linter) parseEslintOutput(output []byte) ([]Issue, error) {
 	var parsed eslintOutput
 	if err := json.Unmarshal(output, &parsed); err != nil {
 		shared.LogWarn(l.logWriter, "failed to parse eslint JSON: %v", err)
-		return nil
+		return nil, err
 	}
 
 	var issues []Issue
@@ -383,7 +401,7 @@ func (l *Linter) parseEslintOutput(output []byte) []Issue {
 		}
 	}
 
-	return issues
+	return issues, nil
 }
 
 func logNodeIssues(w io.Writer, issues []Issue, limit int) {

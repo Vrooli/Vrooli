@@ -26,11 +26,6 @@ func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, r
 	for _, dependencyName := range names {
 		dependency := item.Manifest.Dependencies.Scenarios[dependencyName]
 		required := dependency.Required
-		// Legacy array-based manifests did not serialize explicit type/required fields
-		// for scenario dependencies; preserve the historical "required by default" behavior.
-		if !required && dependency.Type == "" && dependency.StartupPolicy == "" {
-			required = true
-		}
 		startupPolicy := dependency.StartupPolicy
 		if startupPolicy == "" {
 			if required {

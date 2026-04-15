@@ -1,29 +1,12 @@
-// Package secrets manages project-level secret persistence under .vrooli/.
-//
-// The package intentionally separates steady-state storage from migration
-// compatibility:
-//   - .vrooli/secrets.enc.json is the authoritative encrypted format
-//   - .vrooli/secrets.json is a legacy plaintext migration source
-//
-// Store.Load is strict. If an encrypted file exists but cannot be validated or
-// decrypted, the load fails closed rather than silently reactivating plaintext
-// state. Callers that are explicitly migration-tolerant must opt into the
-// narrower LoadMigrationCompatible path, which only falls back to legacy
-// plaintext when the encrypted file exists but the decryption key is
-// unavailable.
+// Package secrets manages project-level encrypted secret persistence under
+// .vrooli/.
 //
 // Secret files are expected to be regular files with private permissions.
 // Symlinks are rejected, and on Unix-like platforms group/world-readable secret
 // files are rejected before parsing.
 //
-// The project-level store treats encrypted secrets as authoritative once they
-// exist. Migration helpers may read legacy plaintext during controlled
-// transition paths, but they do not overwrite a readable encrypted file with
-// conflicting legacy state.
-//
-// Keys that begin with "_" are reserved for metadata in legacy plaintext files.
-// Those keys are ignored on read and rejected on encrypted writes so write and
-// read behavior stay symmetric.
+// Keys that begin with "_" are reserved for metadata and are ignored on read
+// and rejected on encrypted writes so write and read behavior stay symmetric.
 //
 // VROOLI_SECRETS_KEY accepts either:
 //   - a base64-encoded 32-byte AES key
@@ -57,7 +40,6 @@ import (
 const (
 	KeyEnvVar           = "VROOLI_SECRETS_KEY"
 	ProjectSecretsPath  = ".vrooli/secrets.enc.json"
-	LegacySecretsPath   = ".vrooli/secrets.json"
 	lockFileName        = "secrets.lock"
 	encryptionAlgorithm = "AES-256-GCM"
 	encryptionVersionV1 = 1
@@ -75,10 +57,8 @@ var (
 	ErrMissingKey           = errors.New("missing VROOLI_SECRETS_KEY for encrypted secrets")
 	ErrInvalidInput         = errors.New("invalid secrets input")
 	ErrEncryptedRead        = errors.New("encrypted secrets read failed")
-	ErrLegacyRead           = errors.New("legacy secrets read failed")
 	ErrEncryptedWrite       = errors.New("encrypted secrets write failed")
 	ErrEncryptedInvalid     = errors.New("invalid encrypted secrets payload")
-	ErrLegacyInvalid        = errors.New("invalid legacy secrets payload")
 	ErrInvalidSecretData    = errors.New("invalid secrets data")
 	ErrUnsupportedVersion   = errors.New("unsupported secrets version")
 	ErrUnsupportedAlgorithm = errors.New("unsupported secrets algorithm")
@@ -87,7 +67,6 @@ var (
 	ErrLockTimeout          = errors.New("timed out waiting for secrets lock")
 	ErrInsecurePermissions  = errors.New("secret file has insecure permissions")
 	ErrSymlinkPath          = errors.New("secret file must not be a symlink")
-	ErrMigrationConflict    = errors.New("legacy secrets conflict with encrypted secrets")
 )
 
 type (
@@ -100,10 +79,8 @@ type ErrorCode string
 const (
 	CodeInvalidInput         ErrorCode = "invalid_input"
 	CodeEncryptedRead        ErrorCode = "encrypted_read"
-	CodeLegacyRead           ErrorCode = "legacy_read"
 	CodeEncryptedWrite       ErrorCode = "encrypted_write"
 	CodeEncryptedInvalid     ErrorCode = "encrypted_invalid"
-	CodeLegacyInvalid        ErrorCode = "legacy_invalid"
 	CodeInvalidSecretData    ErrorCode = "invalid_secret_data"
 	CodeUnsupportedVersion   ErrorCode = "unsupported_version"
 	CodeUnsupportedAlgorithm ErrorCode = "unsupported_algorithm"
@@ -112,7 +89,6 @@ const (
 	CodeLockTimeout          ErrorCode = "lock_timeout"
 	CodeInsecurePermissions  ErrorCode = "insecure_permissions"
 	CodeSymlinkPath          ErrorCode = "symlink_path"
-	CodeMigrationConflict    ErrorCode = "migration_conflict"
 )
 
 type encryptedFile struct {
@@ -166,46 +142,18 @@ func (s *Store) EncryptedPath() string {
 	return filepath.Join(s.Root, filepath.FromSlash(ProjectSecretsPath))
 }
 
-// LegacyPath returns the canonical legacy plaintext secrets path.
-func (s *Store) LegacyPath() string {
-	return filepath.Join(s.Root, filepath.FromSlash(LegacySecretsPath))
-}
-
 // LockPath returns the advisory lock used to serialize mutating operations.
 func (s *Store) LockPath() string {
 	return filepath.Join(filepath.Dir(s.EncryptedPath()), lockFileName)
 }
 
-// Load reads secrets using the store's configured LoadPolicy.
+// Load reads encrypted secrets from the authoritative project store.
 func (s *Store) Load() (map[string]string, error) {
-	return s.loadStrict()
-}
-
-func (s *Store) loadStrict() (map[string]string, error) {
 	data, err := s.loadEncryptedUnlocked()
-	if err == nil {
-		return data, nil
-	}
 	if errors.Is(err, os.ErrNotExist) {
-		return s.loadLegacyUnlocked()
+		return map[string]string{}, nil
 	}
-	return nil, err
-}
-
-// LoadMigrationCompatible reads secrets using the authoritative encrypted file
-// when it is readable, but allows a narrowly-scoped legacy fallback when an
-// encrypted file exists and the only blocker is that the decryption key is not
-// currently available. Corrupt, tampered, or unsupported encrypted payloads
-// fail closed.
-func (s *Store) LoadMigrationCompatible() (map[string]string, error) {
-	if data, err := s.loadEncryptedUnlocked(); err == nil {
-		return data, nil
-	} else if errors.Is(err, os.ErrNotExist) {
-		return s.loadLegacyUnlocked()
-	} else if !errors.Is(err, ErrMissingKey) {
-		return nil, err
-	}
-	return s.loadLegacyUnlocked()
+	return data, err
 }
 
 // LoadEncrypted reads only the encrypted file and never falls back.
@@ -256,34 +204,6 @@ func (s *Store) loadEncryptedUnlocked() (map[string]string, error) {
 	result, err := parseSecretMap(plaintext)
 	if err != nil {
 		return nil, &Error{Code: CodeInvalidSecretData, Kind: ErrInvalidSecretData, Op: "parse decrypted secrets", Path: path, Err: err}
-	}
-	return result, nil
-}
-
-// LoadLegacy reads only the legacy plaintext file.
-func (s *Store) LoadLegacy() (map[string]string, error) {
-	return s.loadLegacyUnlocked()
-}
-
-func (s *Store) loadLegacyUnlocked() (map[string]string, error) {
-	deps := s.storeDeps()
-	path := s.LegacyPath()
-	if err := s.validateSecretFile(path); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return map[string]string{}, nil
-		}
-		return nil, err
-	}
-	data, err := deps.readFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return map[string]string{}, nil
-		}
-		return nil, &Error{Code: CodeLegacyRead, Kind: ErrLegacyRead, Op: "read legacy secrets", Path: path, Err: err}
-	}
-	result, err := parseSecretMap(data)
-	if err != nil {
-		return nil, &Error{Code: CodeLegacyInvalid, Kind: ErrLegacyInvalid, Op: "parse legacy secrets", Path: path, Err: err}
 	}
 	return result, nil
 }
@@ -350,67 +270,6 @@ func (s *Store) SaveKey(name, value string) error {
 		values[name] = value
 		return s.saveUnlocked(values)
 	})
-}
-
-// MigrateLegacy copies legacy plaintext secrets into encrypted storage.
-//
-// When removeSource is true, the legacy plaintext file is removed after a
-// successful encrypted write or when the legacy file already matches the
-// authoritative encrypted file. If both files exist and differ, migration fails
-// with ErrMigrationConflict rather than overwriting encrypted state.
-func (s *Store) MigrateLegacy(removeSource bool) (bool, error) {
-	deps := s.storeDeps()
-	var migrated bool
-	err := s.withWriteLock(func() error {
-		encryptedValues, encryptedErr := s.loadEncryptedUnlocked()
-		switch {
-		case encryptedErr == nil:
-			legacyValues, legacyErr := s.loadLegacyUnlocked()
-			if legacyErr != nil {
-				return legacyErr
-			}
-			if len(legacyValues) == 0 {
-				return nil
-			}
-			if !secretMapsEqual(encryptedValues, legacyValues) {
-				return &Error{
-					Code: CodeMigrationConflict,
-					Kind: ErrMigrationConflict,
-					Op:   "migrate legacy secrets",
-					Path: s.LegacyPath(),
-					Err:  fmt.Errorf("encrypted secrets at %s already differ", s.EncryptedPath()),
-				}
-			}
-			if removeSource {
-				if err := deps.removeFile(s.LegacyPath()); err != nil && !os.IsNotExist(err) {
-					return &Error{Code: CodeEncryptedWrite, Kind: ErrEncryptedWrite, Op: "remove legacy secrets", Path: s.LegacyPath(), Err: err}
-				}
-				migrated = true
-			}
-			return nil
-		case !errors.Is(encryptedErr, os.ErrNotExist):
-			return encryptedErr
-		}
-
-		values, err := s.loadLegacyUnlocked()
-		if err != nil {
-			return err
-		}
-		if len(values) == 0 {
-			return nil
-		}
-		if err := s.saveUnlocked(values); err != nil {
-			return err
-		}
-		migrated = true
-		if removeSource {
-			if err := deps.removeFile(s.LegacyPath()); err != nil && !os.IsNotExist(err) {
-				return &Error{Code: CodeEncryptedWrite, Kind: ErrEncryptedWrite, Op: "remove legacy secrets", Path: s.LegacyPath(), Err: err}
-			}
-		}
-		return nil
-	})
-	return migrated, err
 }
 
 // Resolve returns the named secret from stored values first, then from the
@@ -929,16 +788,4 @@ func pbkdf2PRF(key, data []byte) []byte {
 	mac := hmac.New(sha256.New, key)
 	_, _ = mac.Write(data)
 	return mac.Sum(nil)
-}
-
-func secretMapsEqual(left, right map[string]string) bool {
-	if len(left) != len(right) {
-		return false
-	}
-	for key, leftValue := range left {
-		if rightValue, ok := right[key]; !ok || rightValue != leftValue {
-			return false
-		}
-	}
-	return true
 }

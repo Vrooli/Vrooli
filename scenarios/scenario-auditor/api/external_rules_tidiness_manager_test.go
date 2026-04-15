@@ -14,14 +14,21 @@ import (
 )
 
 func TestExternalRules_TidinessManagerRegistered(t *testing.T) {
-	if !isExternalRule("TS_CONFIG_STRICT") {
-		t.Fatalf("expected TS_CONFIG_STRICT to be registered as an external rule")
-	}
-	if !isExternalRule("ESLINT_SAFETY_RULES") {
-		t.Fatalf("expected ESLINT_SAFETY_RULES to be registered as an external rule")
-	}
-	if !isExternalRule("TS_DANGEROUS_PATTERNS") {
-		t.Fatalf("expected TS_DANGEROUS_PATTERNS to be registered as an external rule")
+	for _, ruleID := range []string{
+		"TS_CONFIG_STRICT",
+		"ESLINT_SAFETY_RULES",
+		"TS_DANGEROUS_PATTERNS",
+		"ESLINT_TYPED_CONFIG",
+		"NODE_BUILD_TYPECHECK",
+		"TESTING_CONFIG_LINT_STRICT",
+		"GO_MOD_PRESENT_FOR_API_OR_CLI",
+		"GO_LINT_CONFIG_PRESENT",
+		"GO_LINT_REQUIRED_LINTERS",
+		"MAKEFILE_QUALITY_GATES",
+	} {
+		if !isExternalRule(ruleID) {
+			t.Fatalf("expected %s to be registered as an external rule", ruleID)
+		}
 	}
 }
 

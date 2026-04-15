@@ -47,12 +47,6 @@ func CommandWithDefaults(spec Spec) *exec.Cmd {
 	return cmd
 }
 
-func BashScript(path string, args []string, spec Spec) *exec.Cmd {
-	spec.Name = "bash"
-	spec.Args = append([]string{path}, args...)
-	return CommandWithDefaults(spec)
-}
-
 func BashCommand(command string, spec Spec) *exec.Cmd {
 	spec.Name = "bash"
 	spec.Args = []string{"-lc", command}

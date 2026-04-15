@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -182,9 +183,13 @@ func TestLoadResourceEnvironmentPrefersSecretsOverRuntimePlaceholders(t *testing
 		},
 	})
 
-	testkitgo.WriteJSONMode(t, filepath.Join(root, ".vrooli", "secrets.json"), map[string]any{
+	t.Setenv(secrets.KeyEnvVar, "metadata-prefers-encrypted")
+	store := secrets.NewProjectStore(root)
+	if err := store.Save(map[string]string{
 		"POSTGRES_PASSWORD": "real-secret",
-	}, 0o600)
+	}); err != nil {
+		t.Fatalf("Save encrypted secrets: %v", err)
+	}
 
 	postgresEnv, err := LoadResourceEnvironment(root, home, "postgres")
 	if err != nil {
@@ -589,11 +594,15 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 			},
 		},
 	})
-	testkitgo.WriteJSONMode(t, filepath.Join(root, ".vrooli", "secrets.json"), map[string]string{
+	t.Setenv(secrets.KeyEnvVar, "native-non-docker-encrypted")
+	store := secrets.NewProjectStore(root)
+	if err := store.Save(map[string]string{
 		"OPENROUTER_API_KEY":   "sk-or-test",
 		"HOME_ASSISTANT_TOKEN": "ha-token",
 		"JUDGE0_API_KEY":       "judge0-token",
-	}, 0o600)
+	}); err != nil {
+		t.Fatalf("Save encrypted secrets: %v", err)
+	}
 
 	sqliteEnv, err := LoadResourceEnvironment(root, home, "sqlite")
 	if err != nil {
@@ -680,7 +689,7 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 	}
 }
 
-func TestLoadResourceEnvironmentFallsBackToLegacySecretsDuringMigration(t *testing.T) {
+func TestLoadResourceEnvironmentFailsWhenEncryptedSecretsRequireKey(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
@@ -704,12 +713,9 @@ func TestLoadResourceEnvironmentFallsBackToLegacySecretsDuringMigration(t *testi
 	}
 	t.Setenv(secrets.KeyEnvVar, "")
 
-	postgresEnv, err := LoadResourceEnvironment(root, home, "postgres")
-	if err != nil {
-		t.Fatalf("LoadResourceEnvironment(postgres): %v", err)
-	}
-	if got := postgresEnv["POSTGRES_PASSWORD"]; got != "legacy-secret" {
-		t.Fatalf("POSTGRES_PASSWORD = %q, want legacy-secret", got)
+	_, err := LoadResourceEnvironment(root, home, "postgres")
+	if err == nil || !errors.Is(err, secrets.ErrMissingKey) {
+		t.Fatalf("LoadResourceEnvironment(postgres) error = %v, want ErrMissingKey", err)
 	}
 }
 
@@ -722,10 +728,6 @@ func TestLoadResourceEnvironmentFailsClosedWhenEncryptedSecretsAreInvalid(t *tes
 		ReservedRanges: map[string]string{},
 	})
 	writePostgresManifestFixture(t, root)
-	testkitgo.WriteJSONMode(t, filepath.Join(root, ".vrooli", "secrets.json"), map[string]string{
-		"POSTGRES_PASSWORD": "legacy-secret",
-		"POSTGRES_USER":     "vrooli",
-	}, 0o600)
 	testkitgo.WriteRawJSON(t, filepath.Join(root, ".vrooli", "secrets.enc.json"), `{`, 0o600)
 
 	_, err := LoadResourceEnvironment(root, home, "postgres")
@@ -739,6 +741,7 @@ func TestActualDockerServiceResourceManifestsResolveNativeExports(t *testing.T) 
 	if err != nil {
 		t.Fatalf("resolve repo root: %v", err)
 	}
+	skipIfRepoSecretsRequireMigrationOrKey(t, root)
 	home, err := os.UserHomeDir()
 	if err != nil {
 		t.Fatalf("resolve home: %v", err)
@@ -769,6 +772,7 @@ func TestActualNonDockerResourceManifestsResolveNativeExports(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve repo root: %v", err)
 	}
+	skipIfRepoSecretsRequireMigrationOrKey(t, root)
 	home, err := os.UserHomeDir()
 	if err != nil {
 		t.Fatalf("resolve home: %v", err)
@@ -871,4 +875,15 @@ func writePostgresManifestFixture(t *testing.T, root string) {
 			},
 		},
 	})
+}
+
+func skipIfRepoSecretsRequireMigrationOrKey(t *testing.T, root string) {
+	t.Helper()
+
+	store := secrets.NewProjectStore(root)
+	if _, err := os.Stat(store.EncryptedPath()); err == nil {
+		if strings.TrimSpace(os.Getenv(secrets.KeyEnvVar)) == "" {
+			t.Skipf("repo secrets at %s are encrypted but %s is unset", store.EncryptedPath(), secrets.KeyEnvVar)
+		}
+	}
 }

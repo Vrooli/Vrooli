@@ -360,14 +360,7 @@ func LoadPortRegistry(root string) (PortRegistry, error) {
 
 func loadSecrets(root string) (map[string]string, error) {
 	store := secrets.NewProjectStore(root)
-	values, err := store.LoadMigrationCompatible()
-	if err != nil {
-		if os.IsNotExist(err) {
-			return map[string]string{}, nil
-		}
-		return nil, err
-	}
-	return values, nil
+	return store.Load()
 }
 
 func normalizeEnvSegment(value string) string {

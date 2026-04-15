@@ -87,6 +87,16 @@ var requiredESLintRules = []ESLintRuleStatus{
 	{Rule: "import/no-cycle", MinLevel: "error"},
 }
 
+var requiredGoLinters = []string{
+	"errcheck",
+	"gofumpt",
+	"govet",
+	"ineffassign",
+	"staticcheck",
+	"typecheck",
+	"unused",
+}
+
 // tsconfig protective comment key phrases
 var tsconfigProtectivePhrases = []string{
 	"SAFETY-CRITICAL RULES",
@@ -174,6 +184,11 @@ func (a *TypeSafetyAnalyzer) Analyze() *TypeSafetyConfigResult {
 
 	a.checkTSConfig(result)
 	a.checkESLintConfig(result)
+	a.checkESLintTypedConfig(result)
+	a.checkNodeBuildTypecheck(result)
+	a.checkTestingConfig(result)
+	a.checkGoLintConfig(result)
+	a.checkMakefileQuality(result)
 
 	return result
 }
@@ -441,6 +456,324 @@ func (a *TypeSafetyAnalyzer) checkESLintConfig(result *TypeSafetyConfigResult) {
 			FilePath: configPath,
 		})
 	}
+}
+
+func (a *TypeSafetyAnalyzer) checkESLintTypedConfig(result *TypeSafetyConfigResult) {
+	uiDir := filepath.Join(a.scenarioPath, "ui")
+	if _, err := os.Stat(uiDir); os.IsNotExist(err) {
+		return
+	}
+
+	configPath, content := a.findESLintConfig()
+	if configPath == "" {
+		return
+	}
+
+	var missing []string
+	if !strings.Contains(content, "strictTypeChecked") {
+		missing = append(missing, "typescript-eslint strictTypeChecked preset")
+	}
+	if !strings.Contains(content, "parserOptions") || !strings.Contains(content, "project") {
+		missing = append(missing, "parserOptions.project for typed linting")
+	}
+	if strings.Contains(content, `"import/no-cycle"`) &&
+		(!strings.Contains(content, "import/resolver") || !strings.Contains(content, "typescript")) {
+		missing = append(missing, "TypeScript import resolver for import/no-cycle")
+	}
+
+	if len(missing) == 0 {
+		return
+	}
+
+	result.Violations = append(result.Violations, TypeSafetyViolation{
+		RuleID:      "ESLINT_TYPED_CONFIG",
+		Severity:    "high",
+		Title:       "ESLint typed configuration is incomplete",
+		Description: fmt.Sprintf("ESLint config is missing %s. Without these settings, type-aware rules either do not run or produce unreliable results.", strings.Join(missing, ", ")),
+		Remediation: "Update ui/eslint.config.js to use `...tseslint.configs.strictTypeChecked`, set `parserOptions.project`, and configure the TypeScript import resolver when using `import/no-cycle`.",
+		FilePath:    configPath,
+	})
+}
+
+func (a *TypeSafetyAnalyzer) checkNodeBuildTypecheck(result *TypeSafetyConfigResult) {
+	packagePath := filepath.Join(a.scenarioPath, "ui", "package.json")
+	raw, err := os.ReadFile(packagePath)
+	if err != nil {
+		return
+	}
+
+	var pkg struct {
+		Scripts map[string]string `json:"scripts"`
+	}
+	if err := json.Unmarshal(raw, &pkg); err != nil {
+		result.Violations = append(result.Violations, TypeSafetyViolation{
+			RuleID:      "NODE_BUILD_TYPECHECK",
+			Severity:    "high",
+			Title:       "package.json parse error",
+			Description: fmt.Sprintf("Failed to parse ui/package.json: %v", err),
+			Remediation: "Fix ui/package.json JSON syntax and ensure the build script runs a type check before bundling.",
+			FilePath:    packagePath,
+		})
+		return
+	}
+
+	buildScript := strings.TrimSpace(pkg.Scripts["build"])
+	if buildScript == "" {
+		result.Violations = append(result.Violations, TypeSafetyViolation{
+			RuleID:      "NODE_BUILD_TYPECHECK",
+			Severity:    "high",
+			Title:       "Missing build script",
+			Description: "ui/package.json does not define a build script, so type-check enforcement cannot be verified.",
+			Remediation: "Add a build script such as `tsc --noEmit && vite build` or `pnpm run type-check && vite build`.",
+			FilePath:    packagePath,
+		})
+		return
+	}
+
+	if !strings.Contains(buildScript, "tsc --noEmit") &&
+		!strings.Contains(buildScript, "run type-check") &&
+		!strings.Contains(buildScript, "type-check &&") {
+		result.Violations = append(result.Violations, TypeSafetyViolation{
+			RuleID:      "NODE_BUILD_TYPECHECK",
+			Severity:    "high",
+			Title:       "Build script skips TypeScript type checking",
+			Description: fmt.Sprintf("ui/package.json build script is `%s`, which does not clearly run TypeScript type checking before bundling.", buildScript),
+			Remediation: "Update the build script to run `tsc --noEmit` (or a `type-check` script that does the same) before `vite build`.",
+			FilePath:    packagePath,
+		})
+	}
+}
+
+func (a *TypeSafetyAnalyzer) checkTestingConfig(result *TypeSafetyConfigResult) {
+	testingPath := filepath.Join(a.scenarioPath, ".vrooli", "testing.json")
+	raw, err := os.ReadFile(testingPath)
+	if err != nil {
+		if a.hasGoProjectIn("api") || a.hasGoProjectIn("cli") || a.hasNodeProject() {
+			result.Violations = append(result.Violations, TypeSafetyViolation{
+				RuleID:      "TESTING_CONFIG_LINT_STRICT",
+				Severity:    "high",
+				Title:       "testing.json missing lint strictness policy",
+				Description: "Scenario has lintable code but .vrooli/testing.json does not exist, so strict lint enforcement cannot be guaranteed in test-genie.",
+				Remediation: "Create .vrooli/testing.json with `lint.languages.node.strict: true` for UI scenarios and `lint.languages.go.strict: true` for Go scenarios.",
+				FilePath:    testingPath,
+			})
+		}
+		return
+	}
+
+	var config struct {
+		Lint struct {
+			Languages struct {
+				Go struct {
+					Enabled *bool `json:"enabled"`
+					Strict  *bool `json:"strict"`
+				} `json:"go"`
+				Node struct {
+					Enabled *bool `json:"enabled"`
+					Strict  *bool `json:"strict"`
+				} `json:"node"`
+			} `json:"languages"`
+		} `json:"lint"`
+	}
+	if err := json.Unmarshal([]byte(stripJSONCComments(string(raw))), &config); err != nil {
+		result.Violations = append(result.Violations, TypeSafetyViolation{
+			RuleID:      "TESTING_CONFIG_LINT_STRICT",
+			Severity:    "high",
+			Title:       "testing.json parse error",
+			Description: fmt.Sprintf("Failed to parse .vrooli/testing.json: %v", err),
+			Remediation: "Fix .vrooli/testing.json and ensure it declares strict linting under `lint.languages`.",
+			FilePath:    testingPath,
+		})
+		return
+	}
+
+	if a.hasNodeProject() && !isStrictEnabled(config.Lint.Languages.Node.Enabled, config.Lint.Languages.Node.Strict) {
+		result.Violations = append(result.Violations, TypeSafetyViolation{
+			RuleID:      "TESTING_CONFIG_LINT_STRICT",
+			Severity:    "high",
+			Title:       "Node lint strict mode not enabled",
+			Description: ".vrooli/testing.json does not enforce `lint.languages.node.strict: true` for a scenario with a UI package. ESLint findings can pass without failing the lint phase.",
+			Remediation: "Set `.vrooli/testing.json -> lint.languages.node.enabled = true` and `strict = true`.",
+			FilePath:    testingPath,
+		})
+	}
+
+	if (a.hasGoProjectIn("api") || a.hasGoProjectIn("cli")) && !isStrictEnabled(config.Lint.Languages.Go.Enabled, config.Lint.Languages.Go.Strict) {
+		result.Violations = append(result.Violations, TypeSafetyViolation{
+			RuleID:      "TESTING_CONFIG_LINT_STRICT",
+			Severity:    "high",
+			Title:       "Go lint strict mode not enabled",
+			Description: ".vrooli/testing.json does not enforce `lint.languages.go.strict: true` for a scenario with Go code. golangci-lint warnings can pass without failing the lint phase.",
+			Remediation: "Set `.vrooli/testing.json -> lint.languages.go.enabled = true` and `strict = true`.",
+			FilePath:    testingPath,
+		})
+	}
+}
+
+func (a *TypeSafetyAnalyzer) checkGoLintConfig(result *TypeSafetyConfigResult) {
+	for _, target := range []string{"api", "cli"} {
+		if !a.hasGoFilesIn(target) {
+			continue
+		}
+
+		dirPath := filepath.Join(a.scenarioPath, target)
+		goModPath := filepath.Join(dirPath, "go.mod")
+		if _, err := os.Stat(goModPath); err != nil {
+			result.Violations = append(result.Violations, TypeSafetyViolation{
+				RuleID:      "GO_MOD_PRESENT_FOR_API_OR_CLI",
+				Severity:    "high",
+				Title:       fmt.Sprintf("Missing go.mod in %s/", target),
+				Description: fmt.Sprintf("%s/ contains Go files but no go.mod. Tooling such as golangci-lint, go vet, and test-genie cannot reliably evaluate it.", target),
+				Remediation: fmt.Sprintf("Initialize a Go module in %s/ (for example `cd %s && go mod init <module>`), then keep lint config alongside it.", target, target),
+				FilePath:    goModPath,
+			})
+		}
+
+		configPath, content := findFirstExistingFile(
+			filepath.Join(dirPath, ".golangci.yml"),
+			filepath.Join(dirPath, ".golangci.yaml"),
+		)
+		if configPath == "" {
+			result.Violations = append(result.Violations, TypeSafetyViolation{
+				RuleID:      "GO_LINT_CONFIG_PRESENT",
+				Severity:    "high",
+				Title:       fmt.Sprintf("Missing golangci-lint config in %s/", target),
+				Description: fmt.Sprintf("%s/ contains Go code but no .golangci.yml/.golangci.yaml. Lint behavior becomes environment-dependent and weaker by default.", target),
+				Remediation: fmt.Sprintf("Add %s/.golangci.yml with the baseline linters: %s.", target, strings.Join(requiredGoLinters, ", ")),
+				FilePath:    filepath.Join(dirPath, ".golangci.yml"),
+			})
+			continue
+		}
+
+		var missingLinters []string
+		for _, linter := range requiredGoLinters {
+			if !strings.Contains(content, linter) {
+				missingLinters = append(missingLinters, linter)
+			}
+		}
+		if len(missingLinters) > 0 {
+			result.Violations = append(result.Violations, TypeSafetyViolation{
+				RuleID:      "GO_LINT_REQUIRED_LINTERS",
+				Severity:    "high",
+				Title:       fmt.Sprintf("golangci-lint baseline incomplete in %s/", target),
+				Description: fmt.Sprintf("%s is missing required baseline linters: %s.", configPath, strings.Join(missingLinters, ", ")),
+				Remediation: fmt.Sprintf("Enable the standard baseline in %s: %s.", configPath, strings.Join(requiredGoLinters, ", ")),
+				FilePath:    configPath,
+			})
+		}
+	}
+}
+
+func (a *TypeSafetyAnalyzer) checkMakefileQuality(result *TypeSafetyConfigResult) {
+	makefilePath := filepath.Join(a.scenarioPath, "Makefile")
+	raw, err := os.ReadFile(makefilePath)
+	if err != nil {
+		return
+	}
+
+	content := string(raw)
+	var missing []string
+
+	if a.hasNodeProject() {
+		if !strings.Contains(content, "fmt-ui:") || !strings.Contains(content, "lint:fix") {
+			missing = append(missing, "fmt-ui target that runs lint:fix")
+		}
+		if !strings.Contains(content, "lint-ui:") || !strings.Contains(content, "pnpm run lint") || !strings.Contains(content, "pnpm run type-check") {
+			missing = append(missing, "lint-ui target that runs both lint and type-check")
+		}
+	}
+
+	if a.hasGoProjectIn("api") || a.hasGoProjectIn("cli") {
+		if !strings.Contains(content, "lint-go:") || !strings.Contains(content, "golangci-lint") {
+			missing = append(missing, "lint-go target that prefers golangci-lint")
+		}
+		if !strings.Contains(content, "fmt-go:") || (!strings.Contains(content, "gofumpt") && !strings.Contains(content, "gofmt")) {
+			missing = append(missing, "fmt-go target that runs gofumpt/gofmt")
+		}
+	}
+
+	if len(missing) == 0 {
+		return
+	}
+
+	result.Violations = append(result.Violations, TypeSafetyViolation{
+		RuleID:      "MAKEFILE_QUALITY_GATES",
+		Severity:    "medium",
+		Title:       "Makefile quality targets are incomplete",
+		Description: fmt.Sprintf("Scenario Makefile is missing expected developer quality targets: %s.", strings.Join(missing, ", ")),
+		Remediation: "Update the scenario Makefile so `fmt-ui`, `lint-ui`, `fmt-go`, and `lint-go` provide real quality gates instead of placeholders.",
+		FilePath:    makefilePath,
+	})
+}
+
+func (a *TypeSafetyAnalyzer) findESLintConfig() (string, string) {
+	uiDir := filepath.Join(a.scenarioPath, "ui")
+	configPatterns := []string{
+		"eslint.config.js", "eslint.config.mjs", "eslint.config.cjs",
+		".eslintrc.json", ".eslintrc.js", ".eslintrc.cjs",
+	}
+	for _, pattern := range configPatterns {
+		path := filepath.Join(uiDir, pattern)
+		raw, err := os.ReadFile(path)
+		if err == nil {
+			return path, string(raw)
+		}
+	}
+	return "", ""
+}
+
+func (a *TypeSafetyAnalyzer) hasNodeProject() bool {
+	_, err := os.Stat(filepath.Join(a.scenarioPath, "ui", "package.json"))
+	return err == nil
+}
+
+func (a *TypeSafetyAnalyzer) hasGoProjectIn(target string) bool {
+	_, err := os.Stat(filepath.Join(a.scenarioPath, target, "go.mod"))
+	return err == nil
+}
+
+func (a *TypeSafetyAnalyzer) hasGoFilesIn(target string) bool {
+	base := filepath.Join(a.scenarioPath, target)
+	if _, err := os.Stat(base); err != nil {
+		return false
+	}
+
+	found := false
+	_ = filepath.WalkDir(base, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d == nil {
+			return nil
+		}
+		if d.IsDir() {
+			switch d.Name() {
+			case "vendor", "node_modules", ".git":
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if filepath.Ext(path) == ".go" {
+			found = true
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	return found
+}
+
+func isStrictEnabled(enabled *bool, strict *bool) bool {
+	if enabled != nil && !*enabled {
+		return false
+	}
+	return strict != nil && *strict
+}
+
+func findFirstExistingFile(paths ...string) (string, string) {
+	for _, path := range paths {
+		raw, err := os.ReadFile(path)
+		if err == nil {
+			return path, string(raw)
+		}
+	}
+	return "", ""
 }
 
 // FixTSConfig adds missing strict settings and protective comments to tsconfig.json
