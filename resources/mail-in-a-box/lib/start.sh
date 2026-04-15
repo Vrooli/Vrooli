@@ -2,11 +2,13 @@
 
 # Start functions for Mail-in-a-Box resource
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-MAILINABOX_START_LIB_DIR="${APP_ROOT}/resources/mail-in-a-box/lib"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+MAILINABOX_START_LIB_DIR="${RESOURCE_DIR}/lib"
 
 # Source dependencies
-source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
+source "${REPO_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
 source "$MAILINABOX_START_LIB_DIR/core.sh"
 source "$MAILINABOX_START_LIB_DIR/install.sh"
 
@@ -41,14 +43,14 @@ mailinabox_start() {
     fi
     
     # Start containers using docker-compose if available
-    if command -v docker-compose &>/dev/null && [[ -f "$APP_ROOT/resources/mail-in-a-box/docker-compose.yml" ]]; then
+    if command -v docker-compose &>/dev/null && [[ -f "${REPO_ROOT}/resources/mail-in-a-box/docker-compose.yml" ]]; then
         log::info "Starting Mail-in-a-Box with docker-compose (includes webmail and CalDAV)..."
         
         # Export environment variables for docker-compose
         export MAILINABOX_DATA_DIR
         export MAILINABOX_CONFIG_DIR
         
-        cd "$APP_ROOT/resources/mail-in-a-box"
+        cd "${REPO_ROOT}/resources/mail-in-a-box"
         if docker-compose up -d; then
             log::info "Waiting for services to be ready..."
             local max_attempts=30

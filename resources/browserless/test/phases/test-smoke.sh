@@ -5,16 +5,19 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
-BROWSERLESS_CLI_DIR="${APP_ROOT}/resources/browserless"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+TEST_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${TEST_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+BROWSERLESS_CLI_DIR="${RESOURCE_DIR}"
 
 # Source utilities
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh" || { echo "FATAL: Failed to load variable definitions" >&2; exit 1; }
+source "${REPO_ROOT}/scripts/lib/utils/var.sh" || { echo "FATAL: Failed to load variable definitions" >&2; exit 1; }
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}" || { echo "FATAL: Failed to load logging library" >&2; exit 1; }
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/resources/common.sh"
+source "${REPO_ROOT}/scripts/resources/common.sh"
 # shellcheck disable=SC1091
 source "${BROWSERLESS_CLI_DIR}/config/defaults.sh"
 # Ensure configuration is exported
@@ -22,7 +25,7 @@ browserless::export_config
 # shellcheck disable=SC1091
 source "${BROWSERLESS_CLI_DIR}/lib/common.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/resources/lib/docker-utils.sh"
+source "${REPO_ROOT}/scripts/resources/lib/docker-utils.sh"
 # shellcheck disable=SC1091
 source "${BROWSERLESS_CLI_DIR}/lib/health.sh"
 

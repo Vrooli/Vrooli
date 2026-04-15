@@ -4,15 +4,17 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # Source dependencies
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${REPO_ROOT}/scripts/lib/utils/log.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/resources/judge0/config/defaults.sh"
+source "${RESOURCE_DIR}/config/defaults.sh"
 
 # Security configuration
 SECURITY_REPORT_DIR="${JUDGE0_LOGS_DIR}/security-reports"

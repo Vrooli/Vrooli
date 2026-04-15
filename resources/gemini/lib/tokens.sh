@@ -1,13 +1,15 @@
 #!/bin/bash
 # Gemini token counting and usage tracking functionality
 
-# Define directories using cached APP_ROOT
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-GEMINI_RESOURCE_DIR="${APP_ROOT}/resources/gemini"
+# Resolve local resource paths
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+GEMINI_RESOURCE_DIR="${RESOURCE_DIR}"
 
 # Source dependencies
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
-source "${APP_ROOT}/scripts/lib/utils/format.sh"
+source "${REPO_ROOT}/scripts/lib/utils/log.sh"
+source "${REPO_ROOT}/scripts/lib/utils/format.sh"
 source "${GEMINI_RESOURCE_DIR}/config/defaults.sh"
 
 # Token counting configuration

@@ -8,15 +8,17 @@
 set -uo pipefail
 
 # Get the directory of this script
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-TWILIO_DIR="${APP_ROOT}/resources/twilio"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+TWILIO_DIR="${RESOURCE_DIR}"
 TWILIO_LIB_DIR="${TWILIO_DIR}/lib"
 
 # Source utilities and common functions
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
-source "${APP_ROOT}/scripts/lib/utils/format.sh"
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
-source "${APP_ROOT}/scripts/resources/port_registry.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/format.sh"
+source "${REPO_ROOT}/scripts/lib/utils/log.sh"
+source "${REPO_ROOT}/scripts/resources/port_registry.sh"
 source "${TWILIO_LIB_DIR}/common.sh"
 
 ################################################################################

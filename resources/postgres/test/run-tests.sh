@@ -5,12 +5,14 @@
 set -euo pipefail
 
 # Source test framework
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
-source "${APP_ROOT}/scripts/resources/lib/test-framework.sh" 2>/dev/null || true
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+source "${REPO_ROOT}/scripts/lib/utils/log.sh"
+source "${REPO_ROOT}/scripts/resources/lib/test-framework.sh" 2>/dev/null || true
 
 # Test phase directory
-TEST_PHASES_DIR="${APP_ROOT}/resources/postgres/test/phases"
+TEST_PHASES_DIR="${RESOURCE_DIR}/test/phases"
 
 # Run specific test phase
 run_test_phase() {

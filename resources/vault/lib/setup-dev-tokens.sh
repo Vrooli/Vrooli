@@ -2,12 +2,14 @@
 # Vault Development Token Setup
 # Script for setting up development tokens for Vault
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/service/secrets.sh"
+source "${REPO_ROOT}/scripts/lib/service/secrets.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_TRASH_FILE}"
 # ====================================================================
@@ -46,7 +48,7 @@ NC='\033[0m' # No Color
 VAULT_BASE_URL="http://localhost:8200"
 TOKEN_FILE="/tmp/vault-token"
 CONFIG_FILE="$(secrets::get_project_config_file)"
-VAULT_LIB_DIR="${APP_ROOT}/resources/vault/lib"
+VAULT_LIB_DIR="${RESOURCE_DIR}/lib"
 
 # Parse command line arguments
 CREATE_TOKEN=false

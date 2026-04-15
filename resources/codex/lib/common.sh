@@ -2,18 +2,20 @@
 # Codex Common Functions
 
 # Set script directory for sourcing
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-CODEX_COMMON_DIR="${APP_ROOT}/resources/codex/lib"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+CODEX_COMMON_DIR="${RESOURCE_DIR}/lib"
 
 # Source configuration
 # shellcheck disable=SC1091
-source "${APP_ROOT}/resources/codex/config/defaults.sh"
+source "${RESOURCE_DIR}/config/defaults.sh"
 
 # Source shared utilities
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${REPO_ROOT}/scripts/lib/utils/log.sh"
 
 #######################################
 # Determine writable Codex home directory

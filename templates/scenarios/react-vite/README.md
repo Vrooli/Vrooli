@@ -23,7 +23,7 @@ Immediately replace placeholder tokens (scenario name, description, maintainer i
 ## What You Get
 - **Clean UI scaffold**: Vite + Tailwind + shadcn-style primitives, pnpm-based scripts, Vitest + Testing Library pre-configured, `.env.example` for API URL.
 - **Go API skeleton**: `go.mod` + `cmd/server` entrypoint ready for feature modules.
-- **CLI installer**: Installs into `~/.vrooli/bin` by default (prints PATH guidance if needed).
+- **CLI manifest contract**: `.vrooli/service.json` declares the CLI command, adapter, install strategies, and freshness inputs.
 - **Lifecycle-ready service.json**: ports aligned with the platform, only Postgres required by default, lifecycle steps that build API/UI and start dev servers.
 - **Iframe-ready UI**: Automatically initializes `@vrooli/iframe-bridge` so App Monitor and other hosts can embed the scenario without extra work.
 - **Smart API resolution**: UI uses `@vrooli/api-base` to resolve the correct API + WebSocket URLs across localhost/dev/proxy contexts.
@@ -39,7 +39,7 @@ cd scenarios/<your-scenario>
 # Install dependencies (Go 1.22+ + pnpm must be available)
 corepack pnpm install --dir ui --ignore-workspace
 
-# Build API + UI + CLI via lifecycle
+# Build API + UI via lifecycle
 vrooli scenario run <your-scenario> --setup
 
 # Start dev servers (API + Vite)
@@ -81,8 +81,9 @@ cd ui && VITE_API_BASE_URL="http://localhost:${API_PORT}/api/v1" pnpm run dev --
 - `src/main.tsx` initializes `@vrooli/iframe-bridge` automatically whenever the UI is rendered inside App Monitor or another host.
 - All API calls go through `@vrooli/api-base`, which means the UI works no matter where it’s served (localhost dev server, Cloudflare tunnel, proxied iframe, production ingress). Just keep `VITE_API_BASE_URL` pointed at `http://localhost:${API_PORT}/api/v1` during local work.
 
-## CLI Auto-Detection
-- Install the CLI on macOS/Linux with `./cli/install.sh` (or Windows with `.\cli\install.ps1`). By default the binary lands in `~/.vrooli/bin`.
+## CLI Contract
+- `vrooli` resolves and installs the CLI from `.vrooli/service.json` `cli.*`; the CLI implementation is not inferred from file layout anymore.
+- The template ships adapter assets at `cli/install.sh` and `cli/install.ps1`, and the manifest declares when each should be used.
 - The CLI stores config in your user config directory (typically `~/.config/vrooli/{{SCENARIO_ID}}/config.json` or `~/.vrooli/config/{{SCENARIO_ID}}/config.json`).
 - Run `{{SCENARIO_ID}} configure api_base http://localhost:<API_PORT>/api/v1` (and optionally `{{SCENARIO_ID}} configure token <token>`) to point at a remote or non-standard API.
 

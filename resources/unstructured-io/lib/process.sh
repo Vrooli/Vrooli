@@ -8,11 +8,13 @@
 UNSTRUCTURED_IO_PROCESS_SOURCED=1
 
 # Source trash module for safe cleanup
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-PROCESS_LIB_DIR="${APP_ROOT}/resources/unstructured-io/lib"
-UNSTRUCTURED_IO_DIR="${APP_ROOT}/resources/unstructured-io"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+PROCESS_LIB_DIR="${RESOURCE_DIR}/lib"
+UNSTRUCTURED_IO_DIR="${RESOURCE_DIR}"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_TRASH_FILE}"
 
@@ -103,9 +105,9 @@ unstructured_io::process_directory() {
         # Call process_document with timeout wrapper to prevent hanging
         # Source required files in subshell for function availability
         result=$(timeout 310 bash -c "
-            source '${APP_ROOT}/resources/unstructured-io/config/defaults.sh' 2>/dev/null
-            source '${APP_ROOT}/resources/unstructured-io/lib/core.sh' 2>/dev/null
-            source '${APP_ROOT}/resources/unstructured-io/lib/api.sh' 2>/dev/null
+            source '${RESOURCE_DIR}/config/defaults.sh' 2>/dev/null
+            source '${RESOURCE_DIR}/lib/core.sh' 2>/dev/null
+            source '${RESOURCE_DIR}/lib/api.sh' 2>/dev/null
             unstructured_io::process_document '$file' '$strategy' '$output_format' 2>'$stderr_file'
         ")
         local process_exit=$?

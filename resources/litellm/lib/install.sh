@@ -1,8 +1,11 @@
 #!/bin/bash
 # LiteLLM installation functionality
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-LITELLM_INSTALL_DIR="${APP_ROOT}/resources/litellm/lib"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+LITELLM_INSTALL_DIR="${SCRIPT_DIR}"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+LITELLM_RESOURCE_DIR="${RESOURCE_DIR}"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # Source dependencies
 source "${LITELLM_INSTALL_DIR}/core.sh"
@@ -104,7 +107,7 @@ litellm::register_port() {
     [[ "$verbose" == "true" ]] && log::info "Registering LiteLLM port in registry"
     
     # Check if port registry exists
-    local port_registry="${APP_ROOT}/port_registry.sh"
+    local port_registry="${REPO_ROOT}/port_registry.sh"
     
     if [[ ! -f "$port_registry" ]]; then
         log::warn "Port registry not found"

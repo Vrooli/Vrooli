@@ -2,11 +2,13 @@
 
 # Installation functions for Mail-in-a-Box resource
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-MAILINABOX_INSTALL_LIB_DIR="${APP_ROOT}/resources/mail-in-a-box/lib"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+MAILINABOX_INSTALL_LIB_DIR="${RESOURCE_DIR}/lib"
 
 # Source dependencies
-source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
+source "${REPO_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
 source "$MAILINABOX_INSTALL_LIB_DIR/core.sh"
 
 # Install Mail-in-a-Box
@@ -45,8 +47,8 @@ mailinabox_install() {
     
     # Copy config/mailserver.env if it exists, otherwise create it
     log::info "Creating configuration..."
-    if [[ -f "$APP_ROOT/resources/mail-in-a-box/config/mailserver.env" ]]; then
-        cp "$APP_ROOT/resources/mail-in-a-box/config/mailserver.env" "$MAILINABOX_CONFIG_DIR/mailserver.env"
+    if [[ -f "${REPO_ROOT}/resources/mail-in-a-box/config/mailserver.env" ]]; then
+        cp "${REPO_ROOT}/resources/mail-in-a-box/config/mailserver.env" "$MAILINABOX_CONFIG_DIR/mailserver.env"
     else
         cat > "$MAILINABOX_CONFIG_DIR/mailserver.env" <<EOF
 # Core settings
@@ -64,14 +66,14 @@ EOF
     fi
     
     # Check if docker-compose is available and use it for full setup
-    if command -v docker-compose &>/dev/null && [[ -f "$APP_ROOT/resources/mail-in-a-box/docker-compose.yml" ]]; then
+    if command -v docker-compose &>/dev/null && [[ -f "${REPO_ROOT}/resources/mail-in-a-box/docker-compose.yml" ]]; then
         log::info "Using docker-compose for installation with webmail..."
         
         # Export environment variables for docker-compose
         export MAILINABOX_DATA_DIR
         export MAILINABOX_CONFIG_DIR
         
-        cd "$APP_ROOT/resources/mail-in-a-box"
+        cd "${REPO_ROOT}/resources/mail-in-a-box"
         if docker-compose up -d --no-start; then
             log::success "Mail-in-a-Box with webmail installed successfully"
             return 0

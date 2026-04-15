@@ -4,19 +4,23 @@
 
 set -e
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+
+LITELLM_CONFIG_DIR="${RESOURCE_CONFIG_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/vrooli/resources/litellm}"
+LITELLM_LOG_DIR="${RESOURCE_LOGS_DIR:-${XDG_STATE_HOME:-${HOME}/.local/state}/logs/vrooli/resources/litellm}"
+LITELLM_DATA_DIR="${RESOURCE_DATA_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/vrooli/resources/litellm}"
 
 echo "🚀 LiteLLM Complete Setup Guide"
 echo "=============================="
 echo
 
 # Configuration paths
-LITELLM_CONFIG_DIR="${APP_ROOT}/data/litellm/config"
 LITELLM_CONFIG_FILE="${LITELLM_CONFIG_DIR}/config.yaml"
 LITELLM_ENV_FILE="${LITELLM_CONFIG_DIR}/.env"
 
 echo "1️⃣ Creating LiteLLM directories..."
-mkdir -p "${APP_ROOT}/data/litellm"/{config,logs,data}
+mkdir -p "${LITELLM_CONFIG_DIR}" "${LITELLM_LOG_DIR}" "${LITELLM_DATA_DIR}"
 echo "✅ Directories created"
 echo
 
@@ -206,8 +210,8 @@ docker run -d \
     -p 11435:4000 \
     -v "${LITELLM_CONFIG_FILE}:/app/config.yaml:ro" \
     -v "${LITELLM_ENV_FILE}:/app/.env:ro" \
-    -v "${APP_ROOT}/data/litellm/data:/app/data" \
-    -v "${APP_ROOT}/data/litellm/logs:/app/logs" \
+    -v "${LITELLM_DATA_DIR}:/app/data" \
+    -v "${LITELLM_LOG_DIR}:/app/logs" \
     --restart unless-stopped \
     --env-file "${LITELLM_ENV_FILE}" \
     ghcr.io/berriai/litellm:main-latest \

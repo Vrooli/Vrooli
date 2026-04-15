@@ -7,11 +7,13 @@
 set -euo pipefail
 
 # Determine script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_ROOT="$(cd "$SCRIPT_DIR/../../../../" && pwd)"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+TEST_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${TEST_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # Source utilities
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC2154  # var_LOG_FILE is set by var.sh
 source "${var_LOG_FILE}"
 
@@ -26,9 +28,9 @@ log::success() { test::success "$@"; }
 log::error() { test::error "$@"; }
 
 # Source PostGIS libraries
-source "${APP_ROOT}/resources/postgis/lib/core.sh"
-source "${APP_ROOT}/resources/postgis/lib/common.sh"
-source "${APP_ROOT}/resources/postgis/config/defaults.sh"
+source "${RESOURCE_DIR}/lib/core.sh"
+source "${RESOURCE_DIR}/lib/common.sh"
+source "${RESOURCE_DIR}/config/defaults.sh"
 
 # Test functions
 test_config_loading() {
@@ -92,7 +94,7 @@ test_port_configuration() {
 test_schema_validation() {
     test::start "Dependency schema validation"
     
-    local manifest_file="${APP_ROOT}/resources/postgis/resource.json"
+    local manifest_file="${RESOURCE_DIR}/resource.json"
     
     if [[ -f "$manifest_file" ]]; then
         if jq -e '.dependency_schema | type == "object"' "$manifest_file" >/dev/null 2>&1; then
@@ -110,7 +112,7 @@ test_schema_validation() {
 test_runtime_config() {
     test::start "Orchestration configuration"
     
-    local manifest_file="${APP_ROOT}/resources/postgis/resource.json"
+    local manifest_file="${RESOURCE_DIR}/resource.json"
     
     if [[ -f "$manifest_file" ]]; then
         local startup_order
@@ -134,7 +136,7 @@ test_cli_structure() {
     test::start "CLI command structure"
     
     # Check CLI script exists and is executable
-    local cli_script="${APP_ROOT}/resources/postgis/cli.sh"
+    local cli_script="${RESOURCE_DIR}/cli.sh"
     
     if [[ -f "$cli_script" ]] && [[ -x "$cli_script" ]]; then
         # Check for required command handlers

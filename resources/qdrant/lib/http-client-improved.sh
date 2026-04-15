@@ -12,10 +12,12 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # Source logging utilities
-source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${REPO_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
 source "${var_LIB_UTILS_DIR}/log.sh" 2>/dev/null || echo() { printf "%s\n" "$*"; }
 
 # Configuration with readonly conflict protection

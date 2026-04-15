@@ -116,11 +116,6 @@
           "description": "Build Go API binary"
         },
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "install-ui-deps",
           "run": "cd ui && npm install",
           "description": "Install UI dependencies",
@@ -218,6 +213,36 @@
         "required": false,
         "purpose": "cache project scanning results for faster UI updates"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "vrooli-bridge",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/vrooli-bridge",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "vrooli-bridge"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/vrooli-bridge",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

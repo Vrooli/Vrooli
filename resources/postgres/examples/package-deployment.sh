@@ -2,10 +2,12 @@
 set -euo pipefail
 
 # Source var.sh first to get proper directory variables
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
-SCRIPT_DIR="${APP_ROOT}/resources/postgres/examples"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+SCRIPT_DIR="${RESOURCE_DIR}/examples"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 
 # Source trash system for safe removal using var_ variables
 # shellcheck disable=SC1091
@@ -29,8 +31,8 @@ source "${var_LIB_UTILS_DIR}/sudo.sh"
 # Configuration
 #######################################
 
-SCRIPT_DIR="${APP_ROOT}/resources/postgres/examples"
-POSTGRES_DIR="${APP_ROOT}/resources/postgres"
+SCRIPT_DIR="${RESOURCE_DIR}/examples"
+POSTGRES_DIR="${RESOURCE_DIR}"
 
 # Source the PostgreSQL management script
 # shellcheck disable=SC1091
@@ -40,7 +42,7 @@ source "${POSTGRES_DIR}/manage.sh"
 # Deployment configuration
 #######################################
 PACKAGE_DIR="/tmp/vrooli_packages"
-TEMPLATE_DIR="${APP_ROOT}/resources/postgres/templates"
+TEMPLATE_DIR="${RESOURCE_DIR}/templates"
 
 #######################################
 # Utility functions
@@ -589,7 +591,7 @@ if [[ -z "${DATABASE_PASSWORD:-}" ]]; then
 fi
 
 # Change to docker directory
-cd "${APP_ROOT}/resources/postgres/docker"
+cd "${RESOURCE_DIR}/docker"
 
 # Build and start the container
 echo "Building PostgreSQL image..."
@@ -797,7 +799,7 @@ if ! kubectl cluster-info >/dev/null 2>&1; then
     exit 1
 fi
 
-cd "${APP_ROOT}/resources/postgres/kubernetes"
+cd "${RESOURCE_DIR}/kubernetes"
 
 # Apply manifests
 echo "Creating namespace..."
@@ -996,7 +998,7 @@ sudo::exec_with_fallback "chown postgres:postgres '$DATA_DIR'"
 sudo::exec_with_fallback "chown postgres:postgres '$CONFIG_DIR'"
 
 # Copy configuration
-sudo::exec_with_fallback "cp '${APP_ROOT}/resources/postgres/config/postgresql.conf' '$CONFIG_DIR/'"
+sudo::exec_with_fallback "cp '${RESOURCE_DIR}/config/postgresql.conf' '$CONFIG_DIR/'"
 sudo::exec_with_fallback "chown postgres:postgres '$CONFIG_DIR/postgresql.conf'"
 
 # Initialize database
@@ -1049,7 +1051,7 @@ if [[ -f "/etc/systemd/system/postgresql-${CLIENT_NAME}.service" ]]; then
     echo "Systemd service already exists"
 else
     echo "Installing systemd service..."
-    sudo::exec_with_fallback "cp '${APP_ROOT}/resources/postgres/systemd/postgresql-${CLIENT_NAME}.service' '/etc/systemd/system/'"
+    sudo::exec_with_fallback "cp '${RESOURCE_DIR}/systemd/postgresql-${CLIENT_NAME}.service' '/etc/systemd/system/'"
     sudo::exec_with_fallback "systemctl daemon-reload"
     sudo::exec_with_fallback "systemctl enable 'postgresql-${CLIENT_NAME}'"
     
@@ -1618,7 +1620,7 @@ compress_package() {
     local archive_name="${package_name}-${VERSION}.tar.gz"
     local archive_path="${OUTPUT_DIR}/${archive_name}"
     
-    cd "$(builtin cd "${package_path%/*" && builtin pwd)"
+    cd "$(builtin cd "${package_path%/*}" && builtin pwd)"
     if tar -czf "$archive_path" "$(basename "$package_path")"; then
         log_success "Package compressed: $archive_path"
         

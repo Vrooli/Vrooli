@@ -29,6 +29,10 @@ func main() {
 
 	cfg := config.Load()
 
+	if err := migrateLegacyDBPath(cfg.DBPath); err != nil {
+		log.Fatalf("migrate legacy db: %v", err)
+	}
+
 	if err := os.MkdirAll(filepath.Dir(cfg.DBPath), 0o755); err != nil {
 		log.Fatalf("create db dir: %v", err)
 	}
@@ -92,6 +96,32 @@ func main() {
 	}); err != nil {
 		log.Fatalf("server: %v", err)
 	}
+}
+
+func migrateLegacyDBPath(dst string) error {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return nil
+	}
+	src := filepath.Join(home, ".vrooli", "vrooli-events", "events.db")
+	if src == dst {
+		return nil
+	}
+	if _, err := os.Stat(src); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	if _, err := os.Stat(dst); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	return os.Rename(src, dst)
 }
 
 // Server holds dependencies for HTTP handlers.

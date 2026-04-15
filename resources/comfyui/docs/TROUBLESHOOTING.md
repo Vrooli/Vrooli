@@ -119,10 +119,10 @@ docker system prune  # Free up space if needed
 **Diagnosis Steps:**
 ```bash
 # Check available disk space (recommended)
-df -h ~/.comfyui
+df -h "${COMFYUI_DATA_DIR}"
 
 # Check model directory structure
-ls -la ~/.comfyui/models/
+ls -la "${COMFYUI_MODELS_DIR}/"
 
 # Test internet connectivity
 curl -I https://huggingface.co
@@ -135,14 +135,14 @@ curl -I https://huggingface.co
 
 # Method 2: Check space and clean up
 docker system prune -a
-rm -rf ~/.comfyui/temp/*
+rm -rf "${COMFYUI_DATA_DIR}/temp/"*
 
 # Method 3: Use external model directory
 export COMFYUI_MODEL_DIR=/external/models
 ./manage.sh --action install --force yes
 
 # Method 4: Download specific models manually
-cd ~/.comfyui/models/checkpoints
+cd "${COMFYUI_MODELS_DIR}/checkpoints"
 wget https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors
 ```
 
@@ -197,7 +197,7 @@ sudo ufw allow 5679
 docker stats comfyui
 
 # Check model loading
-ls -la ~/.comfyui/models/checkpoints/
+ls -la "${COMFYUI_MODELS_DIR}/checkpoints/"
 ```
 
 **Solutions:**
@@ -206,7 +206,7 @@ ls -la ~/.comfyui/models/checkpoints/
 ./manage.sh --action download-models
 
 # Method 2: Use smaller models for testing
-rm ~/.comfyui/models/checkpoints/large_model.safetensors
+rm "${COMFYUI_MODELS_DIR}/checkpoints/large_model.safetensors"
 
 # Method 3: Increase system resources
 docker update comfyui --memory 16g
@@ -240,7 +240,7 @@ free -h
 # Edit workflow: Change batch_size from 4 to 1
 
 # Method 2: Use smaller models
-cd ~/.comfyui/models/checkpoints
+cd "${COMFYUI_MODELS_DIR}/checkpoints"
 # Remove large models, keep only essential ones
 
 # Method 3: Enable low memory mode
@@ -368,11 +368,11 @@ cat workflow.json | jq '.' > /dev/null && echo "Valid JSON" || echo "Invalid JSO
 ./manage.sh --action list-models
 
 # Check model directory structure  
-ls -la ~/.comfyui/models/checkpoints/
-ls -la ~/.comfyui/models/vae/
+ls -la "${COMFYUI_MODELS_DIR}/checkpoints/"
+ls -la "${COMFYUI_MODELS_DIR}/vae/"
 
 # Check model file integrity
-file ~/.comfyui/models/checkpoints/*.safetensors
+file "${COMFYUI_MODELS_DIR}"/checkpoints/*.safetensors
 ```
 
 **Solutions:**
@@ -381,12 +381,12 @@ file ~/.comfyui/models/checkpoints/*.safetensors
 ./manage.sh --action download-models
 
 # Method 2: Download specific model
-cd ~/.comfyui/models/checkpoints
+cd "${COMFYUI_MODELS_DIR}/checkpoints"
 wget https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors
 
 # Method 3: Verify model integrity
 # Re-download corrupted models
-rm ~/.comfyui/models/checkpoints/corrupted_model.safetensors
+rm "${COMFYUI_MODELS_DIR}/checkpoints/corrupted_model.safetensors"
 ./manage.sh --action download-models
 
 # Method 4: Use alternative model names
@@ -542,7 +542,7 @@ docker exec n8n curl -f http://comfyui:8188/system_stats
 
 # Method 3: Use appropriate VAE
 # Ensure SDXL VAE is installed for SDXL models
-ls ~/.comfyui/models/vae/
+ls "${COMFYUI_MODELS_DIR}/vae/"
 
 # Method 4: Check sampler settings
 # Use euler_ancestral or dpm_2m_karras
@@ -559,8 +559,8 @@ ls ~/.comfyui/models/vae/
 docker stats comfyui --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}"
 
 # Check disk usage
-du -sh ~/.comfyui/
-du -sh ~/.comfyui/models/
+du -sh "${COMFYUI_DATA_DIR}/"
+du -sh "${COMFYUI_MODELS_DIR}/"
 
 # Monitor during workflow execution
 top -p $(docker inspect comfyui --format '{{.State.Pid}}')
@@ -578,8 +578,8 @@ export COMFYUI_CPU_THREADS=6
 
 # Method 3: Clean up disk space
 docker system prune -a
-rm -rf ~/.comfyui/temp/*
-rm -rf ~/.comfyui/outputs/old-images/
+rm -rf "${COMFYUI_DATA_DIR}/temp/"*
+rm -rf "${COMFYUI_OUTPUT_DIR:-${COMFYUI_DATA_DIR}/outputs}/old-images/"
 
 # Method 4: Optimize model storage
 # Keep only essential models
@@ -653,8 +653,8 @@ ifconfig
 ./manage.sh --action stop
 
 # Step 2: Backup important data
-tar -czf comfyui-backup-$(date +%Y%m%d).tar.gz ~/.comfyui/workflows/
-tar -czf models-backup-$(date +%Y%m%d).tar.gz ~/.comfyui/models/
+tar -czf comfyui-backup-$(date +%Y%m%d).tar.gz "${COMFYUI_WORKFLOWS_DIR}/"
+tar -czf models-backup-$(date +%Y%m%d).tar.gz "${COMFYUI_MODELS_DIR}/"
 
 # Step 3: Clean installation
 docker rm -f comfyui
@@ -662,7 +662,7 @@ docker system prune -a
 ./manage.sh --action install --force yes
 
 # Step 4: Restore workflows
-tar -xzf comfyui-backup-*.tar.gz -C ~/
+tar -xzf comfyui-backup-*.tar.gz -C "${COMFYUI_DATA_DIR}/.."
 
 # Step 5: Download models
 ./manage.sh --action download-models
@@ -676,21 +676,21 @@ curl -f http://localhost:8188/system_stats
 
 ```bash
 # Verify model integrity
-find ~/.comfyui/models -name "*.safetensors" -exec file {} \;
+find "${COMFYUI_MODELS_DIR}" -name "*.safetensors" -exec file {} \;
 
 # Re-download corrupted models
-rm ~/.comfyui/models/checkpoints/corrupted_model.safetensors
+rm "${COMFYUI_MODELS_DIR}/checkpoints/corrupted_model.safetensors"
 ./manage.sh --action download-models
 
 # Restore from backup
-tar -xzf models-backup-*.tar.gz -C ~/.comfyui/
+tar -xzf models-backup-*.tar.gz -C "${COMFYUI_DATA_DIR}/"
 ```
 
 ### Configuration Recovery
 
 ```bash
 # Reset to default configuration
-rm -f ~/.comfyui/config/*
+rm -f "${COMFYUI_DATA_DIR}/config/"*
 ./manage.sh --action restart
 
 # Restore from backup configuration
@@ -707,14 +707,14 @@ rm -f ~/.comfyui/config/*
 
 # Weekly cleanup
 docker system prune
-rm -rf ~/.comfyui/temp/*
+rm -rf "${COMFYUI_DATA_DIR}/temp/"*
 
 # Monthly model management
 ./manage.sh --action list-models
 # Remove unused models to free space
 
 # Quarterly backup
-tar -czf comfyui-full-backup-$(date +%Y%m%d).tar.gz ~/.comfyui/
+tar -czf comfyui-full-backup-$(date +%Y%m%d).tar.gz "${COMFYUI_DATA_DIR}/"
 ```
 
 ### Monitoring Setup
@@ -725,7 +725,7 @@ crontab -e
 # Add: */5 * * * * curl -f http://localhost:8188/system_stats || echo "ComfyUI unhealthy" | mail -s "Alert" admin@example.com
 
 # Monitor disk space
-df -h ~/.comfyui/ | awk 'NR==2{print $5}' | sed 's/%//' > /tmp/comfyui_disk_usage
+df -h "${COMFYUI_DATA_DIR}/" | awk 'NR==2{print $5}' | sed 's/%//' > /tmp/comfyui_disk_usage
 # Alert if > 90%
 ```
 

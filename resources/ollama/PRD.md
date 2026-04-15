@@ -106,7 +106,7 @@ standard_interfaces:
     - logging: systemd journal logs
     
   data_persistence:
-    - storage: ~/.ollama (user home directory)
+    - storage: ${RESOURCE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/vrooli/resources/ollama}
     - backup_strategy: Model files and configuration
     - migration_support: Model version management
 
@@ -336,7 +336,7 @@ content_storage:
   purpose: Manage AI models, custom configurations, and prompt templates
   
   implementation_patterns:
-    - Model storage: ~/.ollama/models directory
+    - Model storage: ${RESOURCE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/vrooli/resources/ollama}/models
     - Custom models: Created via Modelfiles
     - Prompt templates: Stored for reuse across scenarios
     - Metadata tracking: Model sizes, creation dates, usage stats
@@ -377,7 +377,7 @@ networking:
     
 data_management:
   persistence:
-    - storage: ~/.ollama (user home directory)
+    - storage: ${RESOURCE_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/vrooli/resources/ollama}
       purpose: Model files and configuration storage
       
   backup_strategy:

@@ -83,7 +83,9 @@
         "checks": [
           {
             "type": "binaries",
-            "targets": ["api/tunnel-manager-api"]
+            "targets": [
+              "api/tunnel-manager-api"
+            ]
           },
           {
             "type": "cli",
@@ -97,11 +99,6 @@
         ]
       },
       "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
         {
           "name": "build-api",
           "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o tunnel-manager-api .",
@@ -190,6 +187,41 @@
         "description": "Primary relational data store",
         "schema": "tunnel-manager"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "tunnel-manager",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "tunnel-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

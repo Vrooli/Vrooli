@@ -2,8 +2,10 @@
 # PostGIS Cleanup Functions - Test Data Management
 
 # Get script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-POSTGIS_CLEANUP_LIB_DIR="${APP_ROOT}/resources/postgis/lib"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+POSTGIS_CLEANUP_LIB_DIR="${RESOURCE_DIR}/lib"
 
 # Source common functions
 source "${POSTGIS_CLEANUP_LIB_DIR}/common.sh"

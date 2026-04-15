@@ -2,18 +2,20 @@
 # PostgreSQL Status Functions
 # Functions for checking PostgreSQL health and status
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-POSTGRES_STATUS_DIR="${APP_ROOT}/resources/postgres/lib"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+POSTGRES_STATUS_DIR="${RESOURCE_DIR}/lib"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
+source "${REPO_ROOT}/scripts/resources/lib/status-args.sh"
 
 # Source required dependencies
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${REPO_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/system/flow.sh" 2>/dev/null || true
+source "${REPO_ROOT}/scripts/lib/system/flow.sh" 2>/dev/null || true
 
 # Source common functions for postgres::common::list_instances
 # shellcheck disable=SC1091

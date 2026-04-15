@@ -2,13 +2,15 @@
 
 # REST API wrapper for Mail-in-a-Box email management
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-MAILINABOX_API_LIB_DIR="${APP_ROOT}/resources/mail-in-a-box/lib"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+MAILINABOX_API_LIB_DIR="${RESOURCE_DIR}/lib"
 
 # Source dependencies
 source "$MAILINABOX_API_LIB_DIR/core.sh"
 source "$MAILINABOX_API_LIB_DIR/content.sh"
-source "${APP_ROOT}/scripts/lib/utils/format.sh"
+source "${REPO_ROOT}/scripts/lib/utils/format.sh"
 
 # API endpoint handler
 mailinabox_api_handler() {

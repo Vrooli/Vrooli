@@ -2,15 +2,17 @@
 set -euo pipefail
 
 # Get the directory of this script
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-TWILIO_DIR="${APP_ROOT}/resources/twilio"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+TWILIO_DIR="${RESOURCE_DIR}"
 TWILIO_LIB_DIR="${TWILIO_DIR}/lib"
 TWILIO_DATA_DIR="${TWILIO_DIR}/data"
 TWILIO_TEMPLATES_FILE="${TWILIO_DATA_DIR}/templates.json"
 
 # Source common functions
 source "$TWILIO_LIB_DIR/common.sh"
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${REPO_ROOT}/scripts/lib/utils/log.sh"
 
 # Ensure templates directory exists
 twilio::templates::ensure_data_dir() {

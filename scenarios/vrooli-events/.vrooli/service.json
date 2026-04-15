@@ -5,7 +5,7 @@
     "parent": "vrooli",
     "name": "vrooli-events",
     "displayName": "Vrooli Events",
-    "description": "Central event bus for inter-scenario communication — durable SQLite event store with SSE pub/sub and real-time analytics dashboard",
+    "description": "Central event bus for inter-scenario communication \u2014 durable SQLite event store with SSE pub/sub and real-time analytics dashboard",
     "version": "0.0.1",
     "type": "infrastructure",
     "category": "messaging",
@@ -87,7 +87,9 @@
         "checks": [
           {
             "type": "binaries",
-            "targets": ["api/vrooli-events-api"]
+            "targets": [
+              "api/vrooli-events-api"
+            ]
           },
           {
             "type": "cli",
@@ -101,11 +103,6 @@
         ]
       },
       "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
         {
           "name": "build-api",
           "run": "GOWORK=off go mod download && cd api && GOWORK=off go build -o vrooli-events-api .",
@@ -188,5 +185,40 @@
   "dependencies": {
     "resources": {},
     "scenarios": {}
+  },
+  "cli": {
+    "enabled": true,
+    "command": "vrooli-events",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "vrooli-events"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
   }
 }

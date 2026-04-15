@@ -91,6 +91,9 @@
         }
       }
     },
+    "cli": {
+      "$ref": "#/definitions/cli_config"
+    },
     "ports": {
       "type": "object",
       "description": "Port configuration for scenario services",
@@ -213,6 +216,115 @@
     }
   },
   "definitions": {
+    "cli_config": {
+      "type": "object",
+      "required": ["enabled"],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "command": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$"
+        },
+        "adapter": {
+          "$ref": "#/definitions/cli_adapter"
+        },
+        "install": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/cli_install_step"
+          }
+        },
+        "invoke": {
+          "$ref": "#/definitions/cli_invoke"
+        },
+        "freshness": {
+          "$ref": "#/definitions/cli_freshness"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "required": ["command", "adapter"]
+          }
+        }
+      ]
+    },
+    "cli_adapter": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["go_module", "shell_script"]
+        },
+        "module_dir": {
+          "type": "string"
+        },
+        "script_path": {
+          "type": "string"
+        },
+        "install_script": {
+          "type": "string"
+        }
+      }
+    },
+    "cli_install_step": {
+      "type": "object",
+      "required": ["kind", "run"],
+      "properties": {
+        "os": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["command"]
+        },
+        "run": {
+          "type": "string"
+        },
+        "install_dir": {
+          "type": "string"
+        }
+      }
+    },
+    "cli_invoke": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["installed_command"]
+        },
+        "command": {
+          "type": "string"
+        }
+      }
+    },
+    "cli_freshness": {
+      "type": "object",
+      "properties": {
+        "inputs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "metadata_file": {
+          "type": "string"
+        }
+      }
+    },
     "maintainer": {
       "type": "object",
       "properties": {

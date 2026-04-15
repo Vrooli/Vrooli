@@ -3,11 +3,13 @@
 # All configuration constants and default values
 
 # Get the directory of this script for proper sourcing
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # Source port registry for centralized port management
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/resources/port_registry.sh"
+source "${REPO_ROOT}/scripts/resources/port_registry.sh"
 
 # Initialize all variables early to prevent unbound variable errors in messages.sh
 # These are set with default values and will be overridden by export_config function

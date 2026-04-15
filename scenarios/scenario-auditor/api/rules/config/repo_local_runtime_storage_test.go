@@ -34,3 +34,13 @@ func save(store *storage.Storage) (string, error) {
 		t.Fatalf("expected 0 violations, got %d", len(violations))
 	}
 }
+
+func TestCheckRepoLocalRuntimeStorageFlagsLegacyHomeScopedStorage(t *testing.T) {
+	violations := CheckRepoLocalRuntimeStorage([]byte(`#!/usr/bin/env bash
+mkdir -p "${HOME}/.qdrant/data"
+cp output.json "$HOME/.minio/cache/result.json"
+echo ~/.whisper/uploads`), "cli/cache.sh", "example")
+	if len(violations) != 3 {
+		t.Fatalf("expected 3 violations, got %d", len(violations))
+	}
+}

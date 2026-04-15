@@ -13,8 +13,8 @@ SearXNG aggregates results from multiple engines. Default configuration includes
 - Wikipedia
 
 ### Settings Location
-- Configuration: `${SEARXNG_DATA_DIR:-${XDG_CONFIG_HOME:-~/.config}/vrooli/resources/searxng}/settings.yml`
-- Rate Limiter: `${SEARXNG_DATA_DIR:-${XDG_CONFIG_HOME:-~/.config}/vrooli/resources/searxng}/limiter.toml` (optional)
+- Configuration: `${SEARXNG_DATA_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/vrooli/resources/searxng}/settings.yml`
+- Rate Limiter: `${SEARXNG_DATA_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/vrooli/resources/searxng}/limiter.toml` (optional)
 
 ### Key Settings
 ```yaml

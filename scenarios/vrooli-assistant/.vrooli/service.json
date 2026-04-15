@@ -124,11 +124,6 @@
           "description": "Add app data to resources"
         },
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o vrooli-assistant-api .",
           "description": "Build Go API binary"
@@ -215,6 +210,36 @@
         "required": false,
         "purpose": "Vector search for similar issues and pattern matching"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "vrooli-assistant",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/vrooli-assistant",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "vrooli-assistant"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/vrooli-assistant",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

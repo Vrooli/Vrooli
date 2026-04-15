@@ -2,16 +2,18 @@
 # PostgreSQL Installation Functions
 # Handles installation and uninstallation of PostgreSQL resource
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-POSTGRES_LIB_DIR="${APP_ROOT}/resources/postgres/lib"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+POSTGRES_LIB_DIR="${RESOURCE_DIR}/lib"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${REPO_ROOT}/scripts/lib/utils/log.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_TRASH_FILE}"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/resources/postgres/config/messages.sh"
+source "${RESOURCE_DIR}/config/messages.sh"
 # shellcheck disable=SC1091
 source "${POSTGRES_LIB_DIR}/common.sh"
 # shellcheck disable=SC1091
@@ -19,9 +21,9 @@ source "${POSTGRES_LIB_DIR}/docker.sh"
 # shellcheck disable=SC1091
 source "${POSTGRES_LIB_DIR}/instance.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/docker/utils.sh"
+source "${REPO_ROOT}/scripts/lib/docker/utils.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/system/flow.sh"
+source "${REPO_ROOT}/scripts/lib/system/flow.sh"
 
 #######################################
 # Install PostgreSQL resource
@@ -329,7 +331,7 @@ postgres::install::update_vrooli_config() {
         log::debug "Using manual configuration update"
         
         # Ensure directory exists
-        mkdir -p "${config_file%/*"
+        mkdir -p "${config_file%/*}"
         
         # Create basic config if it doesn't exist
         if [[ ! -f "$config_file" ]]; then

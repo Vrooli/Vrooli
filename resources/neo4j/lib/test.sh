@@ -8,8 +8,8 @@
 set -euo pipefail
 
 # Source dependencies
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-NEO4J_RESOURCE_DIR="${APP_ROOT}/resources/neo4j"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+NEO4J_RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
 
 # Source core functions
 source "${NEO4J_RESOURCE_DIR}/lib/core.sh"

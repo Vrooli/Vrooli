@@ -115,14 +115,6 @@
       },
       "steps": [
         {
-          "name": "install-cli",
-          "run": "bash cli/install.sh",
-          "description": "Install CLI command globally",
-          "condition": {
-            "file_exists": "cli/install.sh"
-          }
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod tidy && go build -o text-tools-api .",
           "description": "Build Go API binary",
@@ -272,6 +264,36 @@
         "required": false,
         "purpose": "Vector storage for semantic search and similarity matching"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "text-tools",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/text-tools",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "text-tools"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/text-tools",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

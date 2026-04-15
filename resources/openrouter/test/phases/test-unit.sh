@@ -12,10 +12,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PHASES_DIR="$SCRIPT_DIR"
 TEST_DIR="$(dirname "$PHASES_DIR")"
 RESOURCE_DIR="$(dirname "$TEST_DIR")"
-APP_ROOT="$(cd "$RESOURCE_DIR/../.." && pwd)"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+TEST_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${TEST_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # Source utilities
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${REPO_ROOT}/scripts/lib/utils/log.sh"
 source "${RESOURCE_DIR}/config/defaults.sh"
 
 # Define format functions if not available

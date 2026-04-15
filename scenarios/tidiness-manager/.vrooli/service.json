@@ -100,11 +100,6 @@
       },
       "steps": [
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o tidiness-manager-api .",
           "description": "Build Go API binary (tidiness-manager-api) in api/ directory for reuse by start-api step"
@@ -231,6 +226,36 @@
         "required": false,
         "description": "Campaign-based file tracking to ensure progressive coverage without redundancy"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "tidiness-manager",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/tidiness-manager",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "tidiness-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/tidiness-manager",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

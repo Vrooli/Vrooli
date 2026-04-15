@@ -2,10 +2,12 @@
 # PostGIS Common Functions
 
 # Get script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 # shellcheck disable=SC2034  # POSTGIS_LIB_DIR used by sourcing scripts
-POSTGIS_LIB_DIR="${APP_ROOT}/resources/postgis/lib"
-POSTGIS_ROOT_DIR="${APP_ROOT}/resources/postgis"
+POSTGIS_LIB_DIR="${RESOURCE_DIR}/lib"
+POSTGIS_ROOT_DIR="${RESOURCE_DIR}"
 
 # Default container name
 POSTGIS_CONTAINER="${POSTGIS_CONTAINER:-postgis-main}"
@@ -14,7 +16,7 @@ POSTGIS_CONTAINER="${POSTGIS_CONTAINER:-postgis-main}"
 source "${POSTGIS_ROOT_DIR}/config/defaults.sh"
 
 # Source shared utilities
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC2154  # var_LOG_FILE is set by var.sh
 source "${var_LOG_FILE}" 2>/dev/null || true
 

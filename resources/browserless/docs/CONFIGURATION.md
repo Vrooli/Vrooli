@@ -52,7 +52,7 @@ docker run -d \
 
 ## Vrooli Resource Configuration
 
-Browserless is automatically configured in `~/.vrooli/service.json`:
+Browserless is automatically configured in Vrooli's resource registry:
 
 ```json
 {
@@ -292,7 +292,7 @@ Disable local file access:
 docker exec browserless env | grep -E "(CONCURRENT|TIMEOUT)"
 
 # Check Vrooli configuration
-cat ~/.vrooli/service.json | jq '.services.agents.browserless'
+vrooli resource validate
 ```
 
 ### Common Configuration Issues

@@ -5,14 +5,16 @@
 # Functions for checking and displaying QuestDB status information
 
 # Source format utilities
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-QUESTDB_LIB_DIR="${APP_ROOT}/resources/questdb/lib"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+QUESTDB_LIB_DIR="${RESOURCE_DIR}/lib"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/format.sh"
+source "${REPO_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
+source "${REPO_ROOT}/scripts/resources/lib/status-args.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/resources/questdb/config/defaults.sh"
+source "${RESOURCE_DIR}/config/defaults.sh"
 # shellcheck disable=SC1091
 source "${QUESTDB_LIB_DIR}/common.sh"
 # shellcheck disable=SC1091
@@ -20,7 +22,7 @@ source "${QUESTDB_LIB_DIR}/docker.sh"
 # shellcheck disable=SC1091
 source "${QUESTDB_LIB_DIR}/api.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/logging.sh"
+source "${REPO_ROOT}/scripts/lib/utils/logging.sh"
 
 # Ensure configuration is exported
 if command -v questdb::export_config &>/dev/null; then

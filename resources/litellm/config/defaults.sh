@@ -2,7 +2,8 @@
 # LiteLLM resource default configuration
 
 # Get the directory of this script
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
 
 # Basic resource information
 [[ -z "${LITELLM_RESOURCE_NAME:-}" ]] && readonly LITELLM_RESOURCE_NAME="litellm"

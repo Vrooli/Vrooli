@@ -94,7 +94,7 @@ func Check(content string, scenarioPath string, scenario string) ([]Violation, e
 		data, err := os.ReadFile(filepath.Join(scenarioPath, "Makefile"))
 		if err != nil {
 			violations = append(violations, newStructureViolation("Makefile", fmt.Sprintf("Unable to read Makefile: %v", err)))
-		} else if normalizeFileContent(string(data)) != canonicalScenarioMakefile() {
+		} else if normalizeFileContent(string(data)) != canonicalScenarioMakefileForScenarioPath(scenarioPath) {
 			violations = append(violations, newStructureViolation("Makefile", "Makefile must match the canonical scenario wrapper template"))
 		}
 	}
@@ -127,6 +127,23 @@ func normalizeFileContent(content string) string {
 }
 
 func canonicalScenarioMakefile() string {
+	if cwd, err := os.Getwd(); err == nil {
+		return canonicalScenarioMakefileForScenarioPath(filepath.Join(filepath.Dir(cwd), "demo"))
+	}
+	return canonicalScenarioMakefileFallback()
+}
+
+func canonicalScenarioMakefileForScenarioPath(scenarioPath string) string {
+	repoRoot := filepath.Dir(filepath.Dir(filepath.Clean(scenarioPath)))
+	templatePath := filepath.Join(repoRoot, "templates", "scenarios", "react-vite", "Makefile")
+	if data, err := os.ReadFile(templatePath); err == nil {
+		return normalizeFileContent(string(data))
+	}
+
+	return canonicalScenarioMakefileFallback()
+}
+
+func canonicalScenarioMakefileFallback() string {
 	return strings.TrimSpace(`
 .PHONY: help setup start stop restart status logs test open run dev
 

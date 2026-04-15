@@ -1,6 +1,8 @@
 #!/bin/bash
 # OpenRouter configuration defaults
 
+openrouter_xdg_data_home="${XDG_DATA_HOME:-${HOME}/.local/share}"
+
 # Service configuration
 export OPENROUTER_SERVICE_NAME="openrouter"
 export OPENROUTER_SERVICE_CATEGORY="ai"
@@ -13,7 +15,7 @@ export OPENROUTER_DEFAULT_MODEL="openai/gpt-3.5-turbo"
 export OPENROUTER_TIMEOUT="${OPENROUTER_TIMEOUT:-30}"
 
 # Canonical resource storage directories
-export OPENROUTER_DATA_DIR="${OPENROUTER_DATA_DIR:-${RESOURCE_DATA_DIR:-${var_ROOT_DIR:-${APP_ROOT:-$HOME/Vrooli}}/data/openrouter}}"
+export OPENROUTER_DATA_DIR="${OPENROUTER_DATA_DIR:-${RESOURCE_DATA_DIR:-${openrouter_xdg_data_home}/vrooli/resources/openrouter}}"
 export OPENROUTER_CONFIG_DIR="${OPENROUTER_CONFIG_DIR:-${RESOURCE_CONFIG_DIR:-${OPENROUTER_DATA_DIR}/config}}"
 export OPENROUTER_CACHE_DIR="${OPENROUTER_CACHE_DIR:-${RESOURCE_CACHE_DIR:-${OPENROUTER_DATA_DIR}/cache}}"
 export OPENROUTER_LOG_DIR="${OPENROUTER_LOG_DIR:-${RESOURCE_LOGS_DIR:-${OPENROUTER_DATA_DIR}/logs}}"

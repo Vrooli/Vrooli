@@ -3,14 +3,16 @@
 # Comprehensive status monitoring and diagnostics
 
 # Source format utilities and required libraries
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-VAULT_STATUS_DIR="${APP_ROOT}/resources/vault/lib"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+VAULT_STATUS_DIR="${RESOURCE_DIR}/lib"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/format.sh"
+source "${REPO_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
+source "${REPO_ROOT}/scripts/resources/lib/status-args.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/resources/vault/config/defaults.sh"
+source "${RESOURCE_DIR}/config/defaults.sh"
 
 # Ensure configuration is exported
 if command -v vault::export_config &>/dev/null; then

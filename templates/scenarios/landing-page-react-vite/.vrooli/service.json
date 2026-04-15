@@ -64,6 +64,36 @@
       "range": "25000-29999"
     }
   },
+  "cli": {
+    "enabled": true,
+    "command": "{{SCENARIO_ID}}",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "install": [
+      {
+        "os": ["linux", "darwin"],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": ["windows"],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "{{SCENARIO_ID}}"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -112,11 +142,6 @@
         ]
       },
       "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
         {
           "name": "db-schema",
           "run": "if command -v psql >/dev/null; then psql \"$DATABASE_URL\" -f initialization/postgres/schema.sql; else echo \"psql not found; runtime will auto-init schema\"; fi",

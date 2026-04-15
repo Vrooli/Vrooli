@@ -8,9 +8,9 @@ import (
 )
 
 /*
-Rule: No Repo-Local Runtime Storage
-Description: Prevent scenarios from storing mutable runtime state under repo-local data paths
-Reason: Scenario source trees are deployable inputs, not runtime storage roots. Repo-local runtime paths break cross-platform storage policy and make deployments non-portable.
+Rule: No Legacy Runtime Storage Paths
+Description: Prevent scenarios from storing mutable runtime state under repo-local data paths or legacy user-home resource directories
+Reason: Scenario source trees are deployable inputs, not runtime storage roots. Repo-local and ad hoc home-scoped runtime paths break the storage standard and make deployments non-portable.
 Category: config
 Severity: high
 Standard: storage-v1
@@ -84,6 +84,18 @@ var repoLocalStoragePatterns = []repoLocalStoragePattern{
 		pattern: regexp.MustCompile(`filepath\.Join\(\s*"\.\."\s*,\s*"data"`),
 		label:   `filepath.Join("..", "data", ...)`,
 	},
+	{
+		pattern: regexp.MustCompile(`\$\{HOME\}/\.(?:browserless|comfyui|minio|ollama|qdrant|searxng|whisper)(?:/|")`),
+		label:   "${HOME}/.<resource>",
+	},
+	{
+		pattern: regexp.MustCompile(`\$HOME/\.(?:browserless|comfyui|minio|ollama|qdrant|searxng|whisper)(?:/|")`),
+		label:   "$HOME/.<resource>",
+	},
+	{
+		pattern: regexp.MustCompile(`~/\.(?:browserless|comfyui|minio|ollama|qdrant|searxng|whisper)(?:/|")`),
+		label:   "~/.<resource>",
+	},
 }
 
 type repoLocalStoragePattern struct {
@@ -91,7 +103,8 @@ type repoLocalStoragePattern struct {
 	label   string
 }
 
-// CheckRepoLocalRuntimeStorage detects scenario code that writes runtime state into repo-local data paths.
+// CheckRepoLocalRuntimeStorage detects scenario code that writes runtime state into repo-local data paths
+// or legacy home-scoped resource directories.
 func CheckRepoLocalRuntimeStorage(content []byte, filePath string, scenario string) []Violation {
 	_ = scenario
 
@@ -114,8 +127,8 @@ func CheckRepoLocalRuntimeStorage(content []byte, filePath string, scenario stri
 				Type:           "repo_local_runtime_storage",
 				Severity:       "high",
 				Title:          "Repo-local runtime storage",
-				Message:        fmt.Sprintf("Mutable runtime state should not use %s in scenario code", candidate.label),
-				Description:    "Scenario runtime state belongs in api-core/storage-backed classed directories, not under repo-local data paths.",
+				Message:        fmt.Sprintf("Mutable runtime state should not use legacy storage path %s in scenario code", candidate.label),
+				Description:    "Scenario runtime state belongs in api-core/storage-backed classed directories, not under repo-local paths or legacy home-scoped resource directories.",
 				File:           filepath.Base(filePath),
 				FilePath:       filePath,
 				Line:           i + 1,

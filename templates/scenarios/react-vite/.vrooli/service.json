@@ -49,6 +49,36 @@
       "range": "25000-29999"
     }
   },
+  "cli": {
+    "enabled": true,
+    "command": "{{SCENARIO_ID}}",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "install": [
+      {
+        "os": ["linux", "darwin"],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": ["windows"],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "{{SCENARIO_ID}}"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -78,7 +108,7 @@
       ]
     },
     "setup": {
-      "description": "Build API & UI, install CLI",
+      "description": "Build API and UI assets declared by the manifest-driven lifecycle contract",
       "condition": {
         "checks": [
           {
@@ -97,11 +127,6 @@
         ]
       },
       "steps": [
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
         {
           "name": "build-api",
           "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o {{SCENARIO_ID}}-api .",

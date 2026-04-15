@@ -118,11 +118,6 @@
           "description": "Add orchestrator data to resources"
         },
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o vrooli-orchestrator-api .",
           "description": "Build Go orchestration API binary"
@@ -241,5 +236,35 @@
       }
     },
     "scenarios": {}
+  },
+  "cli": {
+    "enabled": true,
+    "command": "vrooli-orchestrator",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/vrooli-orchestrator",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "vrooli-orchestrator"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/vrooli-orchestrator",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
+    }
   }
 }

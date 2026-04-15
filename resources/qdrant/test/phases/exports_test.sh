@@ -3,10 +3,12 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_ROOT="${APP_ROOT:-$(cd "$SCRIPT_DIR/../../../.." && pwd)}"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+TEST_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${TEST_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
-MANIFEST_FILE="${APP_ROOT}/resources/qdrant/resource.json"
+MANIFEST_FILE="${RESOURCE_DIR}/resource.json"
 
 if [[ ! -f "$MANIFEST_FILE" ]]; then
     echo "FAIL: resource.json not found at $MANIFEST_FILE"

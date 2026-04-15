@@ -4,11 +4,12 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
-SCRIPT_DIR="$APP_ROOT/resources/unstructured-io/lib"
-MANAGE_SCRIPT="$APP_ROOT/resources/unstructured-io/manage.sh"
-TEST_FIXTURES="$SCRIPT_DIR/test-fixtures"
-RESULTS_DIR="$SCRIPT_DIR/test-results"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+MANAGE_SCRIPT="${RESOURCE_DIR}/manage.sh"
+TEST_FIXTURES="${RESOURCE_DIR}/lib/test-fixtures"
+RESULTS_DIR="${RESOURCE_DIR}/lib/test-results"
 
 # Colors for output
 GREEN='\033[0;32m'

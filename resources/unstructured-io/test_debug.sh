@@ -3,13 +3,13 @@ set -u
 
 SCRIPT_DIR="/home/matthalloran8/Vrooli/resources/unstructured-io/test/phases"
 RESOURCE_DIR="/home/matthalloran8/Vrooli/resources/unstructured-io"
-APP_ROOT="/home/matthalloran8/Vrooli"
+REPO_ROOT="/home/matthalloran8/Vrooli"
 
 set +e
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LOG_FILE}"
 source "${var_RESOURCES_COMMON_FILE}"
-source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
+source "${REPO_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${RESOURCE_DIR}/config/defaults.sh"
 
 for lib in common core install status api process cache-simple validate test content; do

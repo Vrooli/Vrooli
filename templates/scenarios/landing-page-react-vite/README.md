@@ -28,8 +28,8 @@ See [QUICKSTART.md](docs/QUICKSTART.md) for detailed first-time setup.
 
 ## CLI
 
-- Install (macOS/Linux): `./cli/install.sh`
-- Install (Windows): `.\cli\install.ps1`
+- `.vrooli/service.json` is the source of truth for the CLI command, adapter kind, install strategies, and invocation contract.
+- The template includes `cli/install.sh` and `cli/install.ps1` as adapter assets referenced by that manifest.
 - Health check: `<scenario-id> status` (after install)
 
 ## Documentation

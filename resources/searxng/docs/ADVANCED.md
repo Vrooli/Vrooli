@@ -108,10 +108,10 @@ research_topic "machine learning"
 ```bash
 # Add to crontab: crontab -e
 # Daily news collection at 8 AM
-0 8 * * * resource-searxng content execute --name headlines --topic "tech" --save ~/daily-tech-news.json
+0 8 * * * resource-searxng content execute --name headlines --topic "tech" --save "$HOME/daily-tech-news.json"
 
 # Hourly monitoring of specific keywords
-0 * * * * resource-searxng content execute --name search --query "security breach" --time-range hour --append ~/security-alerts.jsonl
+0 * * * * resource-searxng content execute --name search --query "security breach" --time-range hour --append "$HOME/security-alerts.jsonl"
 ```
 
 ## 🤖 n8n Integration

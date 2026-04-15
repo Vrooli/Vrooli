@@ -3,16 +3,18 @@
 # Functions for checking and displaying Unstructured.io status information
 
 # Source format utilities and config
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-UNSTRUCTURED_IO_STATUS_DIR="${APP_ROOT}/resources/unstructured-io/lib"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+UNSTRUCTURED_IO_STATUS_DIR="${RESOURCE_DIR}/lib"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/format.sh"
+source "${REPO_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
+source "${REPO_ROOT}/scripts/resources/lib/status-args.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/resources/unstructured-io/config/defaults.sh"
+source "${RESOURCE_DIR}/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/resources/unstructured-io/config/messages.sh"
+source "${RESOURCE_DIR}/config/messages.sh"
 # shellcheck disable=SC1091
 source "${UNSTRUCTURED_IO_STATUS_DIR}/common.sh"
 

@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 # Neo4j Resource - Common Functions
 
-# Define directories using cached APP_ROOT
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-NEO4J_LIB_DIR="${APP_ROOT}/resources/neo4j/lib"
-NEO4J_RESOURCE_DIR="${APP_ROOT}/resources/neo4j"
+# Define directories from the current script location
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+NEO4J_LIB_DIR="${SCRIPT_DIR}"
+NEO4J_RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${NEO4J_RESOURCE_DIR}/../.." && builtin pwd)"
 
 # Source utilities
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
-source "${APP_ROOT}/scripts/lib/utils/format.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/format.sh"
 
 # Source all configuration from defaults.sh to avoid duplication
 # This ensures single source of truth for all Neo4j configuration

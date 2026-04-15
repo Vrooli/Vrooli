@@ -10,7 +10,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PHASES_DIR="$SCRIPT_DIR"
 TEST_DIR="$(dirname "$PHASES_DIR")"
 RESOURCE_DIR="$(dirname "$TEST_DIR")"
-APP_ROOT="$(cd "$RESOURCE_DIR/../.." && pwd)"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+TEST_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${TEST_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # Define format functions
 format::success() { echo -e "\033[32m$*\033[0m"; }

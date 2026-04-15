@@ -7,7 +7,7 @@ Qdrant is a vector similarity search engine with extended filtering support, des
 - **Category**: Storage
 - **Ports**: 6333 (REST API), 6334 (gRPC API)
 - **Container**: qdrant
-- **Data Directory**: `${QDRANT_DATA_DIR:-$XDG_DATA_HOME/vrooli/resources/qdrant}` with `$XDG_DATA_HOME` falling back to `~/.local/share`
+- **Data Directory**: `${QDRANT_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/vrooli/resources/qdrant}`
 - **Status**: Production Ready
 
 ## 🚀 Quick Start
@@ -89,7 +89,7 @@ resource-qdrant backup create [my-backup]
 # List backups
 resource-qdrant backup list
 
-# Backups are stored in `${QDRANT_STATE_DIR:-$XDG_STATE_HOME/vrooli/resources/qdrant}/backups`
+# Backups are stored in `${QDRANT_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/vrooli/resources/qdrant}/backups`
 # Restore is handled by the backup framework
 ```
 
@@ -114,8 +114,8 @@ resource-qdrant inject data.json
 | `QDRANT_CUSTOM_PORT` | 6333 | REST API port |
 | `QDRANT_CUSTOM_GRPC_PORT` | 6334 | gRPC API port |
 | `QDRANT_CUSTOM_API_KEY` | (none) | API authentication key |
-| `QDRANT_DATA_DIR` | `${XDG_DATA_HOME:-~/.local/share}/vrooli/resources/qdrant` | Data storage directory |
-| `QDRANT_SNAPSHOTS_DIR` | `${XDG_STATE_HOME:-~/.local/state}/vrooli/resources/qdrant/snapshots` | Backup snapshots |
+| `QDRANT_DATA_DIR` | `${XDG_DATA_HOME:-$HOME/.local/share}/vrooli/resources/qdrant` | Data storage directory |
+| `QDRANT_SNAPSHOTS_DIR` | `${XDG_STATE_HOME:-$HOME/.local/state}/vrooli/resources/qdrant/snapshots` | Backup snapshots |
 | `QDRANT_LOG_LEVEL` | INFO | Logging level |
 
 ### Performance Tuning

@@ -3,11 +3,13 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-BROWSERLESS_DIR="${APP_ROOT}/resources/browserless"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+BROWSERLESS_DIR="${RESOURCE_DIR}"
 
 # Source required libraries
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LOG_FILE}"
 source "${BROWSERLESS_DIR}/lib/browser-ops.sh"
 source "${BROWSERLESS_DIR}/lib/workflow-ops.sh"

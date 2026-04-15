@@ -7,12 +7,13 @@ set -euo pipefail
 
 export DESCRIPTION="Inject buckets and files into MinIO S3-compatible object storage"
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
-SCRIPT_DIR="${APP_ROOT}/resources/minio"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="${SCRIPT_DIR}"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 
 # Source common utilities
 # shellcheck disable=SC1091

@@ -10,11 +10,11 @@ set -euo pipefail
 # Setup paths
 SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
 RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
-APP_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # Source common utilities
 # Temporarily disable sourcing that might be causing issues
-# source "${APP_ROOT}/scripts/lib/utils/var.sh"
+# source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 # source "${var_LOG_FILE}"
 # source "${var_RESOURCES_COMMON_FILE}"
 

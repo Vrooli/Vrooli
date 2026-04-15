@@ -110,11 +110,6 @@
       },
       "steps": [
         {
-          "name": "install-cli",
-          "run": "cd cli && chmod +x vrooli-autoheal && ./install.sh",
-          "description": "Install CLI into ~/.vrooli/bin"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o vrooli-autoheal-api .",
           "description": "Build the Go API binary (vrooli-autoheal-api) for lifecycle orchestration"
@@ -136,7 +131,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Vrooli Autoheal initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-autoheal --help'",
+          "run": "echo '\ud83d\ude80 Vrooli Autoheal initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-autoheal --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -164,7 +159,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Vrooli Autoheal ready\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-autoheal --help'",
+          "run": "echo '\ud83d\ude80 Vrooli Autoheal ready\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: vrooli-autoheal --help'",
           "description": "Display service URLs after startup"
         }
       ]
@@ -205,5 +200,35 @@
       }
     },
     "scenarios": {}
+  },
+  "cli": {
+    "enabled": true,
+    "command": "vrooli-autoheal",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/vrooli-autoheal",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "vrooli-autoheal"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/vrooli-autoheal",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
+    }
   }
 }

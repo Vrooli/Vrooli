@@ -127,7 +127,7 @@ minio::install::pre_checks() {
 minio::install::update_vrooli_config() {
     local config_file
     config_file="$(secrets::get_project_config_file)"
-    local config_dir=${config_file%/*
+    local config_dir=${config_file%/*}
     
     # Create directory if it doesn't exist
     if [[ ! -d "$config_dir" ]]; then

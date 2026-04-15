@@ -3,17 +3,19 @@
 # Handles status checking and health monitoring with format-agnostic output
 
 # Source format utilities
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-JUDGE0_STATUS_DIR="${APP_ROOT}/resources/judge0/lib"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+JUDGE0_STATUS_DIR="${RESOURCE_DIR}/lib"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/format.sh"
+source "${REPO_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
+source "${REPO_ROOT}/scripts/resources/lib/status-args.sh"
 
 # Load dependencies if not already loaded
 if [[ -z "${JUDGE0_WORKERS_COUNT:-}" ]]; then
     # Try to load config from relative path
-    JUDGE0_PARENT_DIR="${APP_ROOT}/resources/judge0"
+    JUDGE0_PARENT_DIR="${RESOURCE_DIR}"
     if [[ -f "${JUDGE0_PARENT_DIR}/config/defaults.sh" ]]; then
         # shellcheck disable=SC1091
         source "${JUDGE0_PARENT_DIR}/config/defaults.sh"

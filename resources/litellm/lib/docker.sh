@@ -1,8 +1,11 @@
 #!/bin/bash
 # LiteLLM Docker management functionality
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-LITELLM_DOCKER_DIR="${APP_ROOT}/resources/litellm/lib"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+LITELLM_DOCKER_DIR="${SCRIPT_DIR}"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+LITELLM_RESOURCE_DIR="${RESOURCE_DIR}"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # Source dependencies
 source "${LITELLM_DOCKER_DIR}/core.sh"

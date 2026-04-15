@@ -3,9 +3,11 @@
 # This example demonstrates how to use OpenRouter for a simple chat completion
 
 # Get script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-EXAMPLE_DIR="${APP_ROOT}/resources/openrouter/examples"
-OPENROUTER_DIR="${APP_ROOT}/resources/openrouter"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+EXAMPLE_DIR="${RESOURCE_DIR}/examples"
+OPENROUTER_DIR="${RESOURCE_DIR}"
 
 # Source the OpenRouter core functions
 source "${OPENROUTER_DIR}/lib/core.sh"

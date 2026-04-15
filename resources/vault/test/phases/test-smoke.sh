@@ -5,14 +5,17 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
-VAULT_CLI_DIR="${APP_ROOT}/resources/vault"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+TEST_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${TEST_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+VAULT_CLI_DIR="${RESOURCE_DIR}"
 
 # Source utilities
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${REPO_ROOT}/scripts/lib/utils/log.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/resources/common.sh"
+source "${REPO_ROOT}/scripts/resources/common.sh"
 # shellcheck disable=SC1091
 source "${VAULT_CLI_DIR}/config/defaults.sh"
 # Ensure configuration is exported

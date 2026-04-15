@@ -7,9 +7,10 @@ set -euo pipefail
 
 export DESCRIPTION="Inject secrets and policies into HashiCorp Vault"
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
-VAULT_SCRIPT_DIR="${APP_ROOT}/resources/vault"
-RESOURCES_DIR="${APP_ROOT}/resources"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="${SCRIPT_DIR}"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+VAULT_RESOURCES_DIR="${REPO_ROOT}/resources"
 
 # Source common utilities
 # shellcheck disable=SC1091

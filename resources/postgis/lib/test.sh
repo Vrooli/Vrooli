@@ -2,9 +2,11 @@
 # PostGIS Test Functions - v2.0 Compliant
 
 # Get script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-POSTGIS_TEST_LIB_DIR="${APP_ROOT}/resources/postgis/lib"
-POSTGIS_TEST_DIR="${APP_ROOT}/resources/postgis/test"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+POSTGIS_TEST_LIB_DIR="${RESOURCE_DIR}/lib"
+POSTGIS_TEST_DIR="${RESOURCE_DIR}/test"
 
 # Source common functions
 source "${POSTGIS_TEST_LIB_DIR}/common.sh"

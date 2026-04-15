@@ -3,8 +3,10 @@
 
 set +u  # Temporarily disable unbound variable check for environment testing
 
-# Set APP_ROOT if not already set
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+# Resolve repo paths from this config file
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # Service configuration
 export NEO4J_NAME="neo4j"
@@ -19,8 +21,8 @@ export NEO4J_IMAGE="${NEO4J_IMAGE:-neo4j:${NEO4J_VERSION}}"
 
 # Port configuration - use standardized port registry access
 # Source the port registry to get RESOURCE_PORTS array
-if [[ -f "${APP_ROOT}/scripts/resources/port_registry.sh" ]]; then
-    source "${APP_ROOT}/scripts/resources/port_registry.sh"
+if [[ -f "${REPO_ROOT}/scripts/resources/port_registry.sh" ]]; then
+    source "${REPO_ROOT}/scripts/resources/port_registry.sh"
 fi
 
 # Get ports from registry if not already set

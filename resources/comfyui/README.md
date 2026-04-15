@@ -178,7 +178,7 @@ Vanilla Setup → Clean Architecture
 
 ### Model Storage Structure
 ```bash
-${COMFYUI_MODELS_DIR:-${XDG_DATA_HOME:-~/.local/share}/vrooli/resources/comfyui/models}/
+${COMFYUI_MODELS_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/vrooli/resources/comfyui/models}/
 ├── checkpoints/     # Main model files (SDXL, SD 1.5)
 ├── vae/            # VAE models for improved quality
 ├── loras/          # LoRA fine-tuning models

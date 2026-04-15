@@ -2,11 +2,13 @@
 
 # Stop functions for Mail-in-a-Box resource
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-MAILINABOX_STOP_LIB_DIR="${APP_ROOT}/resources/mail-in-a-box/lib"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+MAILINABOX_STOP_LIB_DIR="${RESOURCE_DIR}/lib"
 
 # Source dependencies
-source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
+source "${REPO_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
 source "$MAILINABOX_STOP_LIB_DIR/core.sh"
 
 # Stop Mail-in-a-Box
@@ -14,14 +16,14 @@ mailinabox_stop() {
     log::header "⏹️ Stopping Mail-in-a-Box"
     
     # Stop using docker-compose if available
-    if command -v docker-compose &>/dev/null && [[ -f "$APP_ROOT/resources/mail-in-a-box/docker-compose.yml" ]]; then
+    if command -v docker-compose &>/dev/null && [[ -f "${REPO_ROOT}/resources/mail-in-a-box/docker-compose.yml" ]]; then
         log::info "Stopping Mail-in-a-Box services with docker-compose..."
         
         # Export environment variables for docker-compose
         export MAILINABOX_DATA_DIR="${MAILINABOX_DATA_DIR:-/var/lib/mailinabox}"
         export MAILINABOX_CONFIG_DIR="${MAILINABOX_CONFIG_DIR:-/var/lib/mailinabox}"
         
-        cd "$APP_ROOT/resources/mail-in-a-box"
+        cd "${REPO_ROOT}/resources/mail-in-a-box"
         if docker-compose stop >/dev/null 2>&1; then
             log::success "Mail-in-a-Box services stopped successfully"
             return 0

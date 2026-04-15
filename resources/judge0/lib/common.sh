@@ -3,19 +3,21 @@
 # Shared functions used across Judge0 management modules
 
 # Source required utilities
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-JUDGE0_LIB_DIR="${APP_ROOT}/resources/judge0/lib"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+JUDGE0_LIB_DIR="${RESOURCE_DIR}/lib"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_TRASH_FILE}"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/docker-utils.sh"
+source "${REPO_ROOT}/scripts/lib/utils/docker-utils.sh"
 
 # Load dependencies if not already loaded (but preserve test environment)
 if [[ -z "${JUDGE0_API_KEY_LENGTH:-}" ]]; then
     # Try to load config from relative path
-    JUDGE0_PARENT_DIR="${APP_ROOT}/resources/judge0"
+    JUDGE0_PARENT_DIR="${RESOURCE_DIR}"
     if [[ -f "${JUDGE0_PARENT_DIR}/config/defaults.sh" ]]; then
         # Store test environment variables
         _test_config_dir="${JUDGE0_CONFIG_DIR:-}"
@@ -42,9 +44,9 @@ fi
 if ! declare -f log::info >/dev/null 2>&1; then
     # Try to source log utilities
     RESOURCES_DIR_COMMON="${JUDGE0_PARENT_DIR}/../.."
-    if [[ -f "${APP_ROOT}/scripts/lib/utils/log.sh" ]]; then
+    if [[ -f "${REPO_ROOT}/scripts/lib/utils/log.sh" ]]; then
         # shellcheck disable=SC1091
-        source "${APP_ROOT}/scripts/lib/utils/log.sh"
+        source "${REPO_ROOT}/scripts/lib/utils/log.sh"
     else
         # Fallback logging functions
         log::info() { echo "[INFO] $*"; }

@@ -5,12 +5,14 @@
 ################################################################################
 
 # Setup paths
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-CODEX_LIB_DIR="${APP_ROOT}/resources/codex/lib"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+CODEX_LIB_DIR="${RESOURCE_DIR}/lib"
 
 # Source dependencies
-source "${APP_ROOT}/resources/codex/config/defaults.sh"
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${RESOURCE_DIR}/config/defaults.sh"
+source "${REPO_ROOT}/scripts/lib/utils/log.sh"
 source "${CODEX_LIB_DIR}/common.sh"
 
 ################################################################################

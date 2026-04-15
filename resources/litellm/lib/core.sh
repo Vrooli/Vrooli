@@ -1,16 +1,18 @@
 #!/bin/bash
 # LiteLLM core functionality
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-LITELLM_CORE_DIR="${APP_ROOT}/resources/litellm/lib"
-LITELLM_RESOURCE_DIR="${APP_ROOT}/resources/litellm"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+LITELLM_CORE_DIR="${SCRIPT_DIR}"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+LITELLM_RESOURCE_DIR="${RESOURCE_DIR}"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # Source dependencies
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 source "${LITELLM_RESOURCE_DIR}/config/defaults.sh"
-source "${APP_ROOT}/scripts/lib/utils/format.sh"
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
-source "${APP_ROOT}/scripts/lib/credentials-utils.sh"
+source "${REPO_ROOT}/scripts/lib/utils/format.sh"
+source "${REPO_ROOT}/scripts/lib/utils/log.sh"
+source "${REPO_ROOT}/scripts/lib/credentials-utils.sh"
 
 # Initialize LiteLLM
 litellm::init() {

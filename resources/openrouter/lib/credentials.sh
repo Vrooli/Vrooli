@@ -2,13 +2,15 @@
 # OpenRouter credentials display functionality
 
 # Get script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-OPENROUTER_LIB_DIR="${APP_ROOT}/resources/openrouter/lib"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+OPENROUTER_LIB_DIR="${RESOURCE_DIR}/lib"
 
 # Source dependencies
 source "${OPENROUTER_LIB_DIR}/core.sh"
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
-source "${APP_ROOT}/scripts/lib/utils/format.sh"
+source "${REPO_ROOT}/scripts/lib/utils/log.sh"
+source "${REPO_ROOT}/scripts/lib/utils/format.sh"
 
 #######################################
 # Display integration credentials

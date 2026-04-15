@@ -3,14 +3,16 @@
 
 # Handle different sourcing contexts
 if [[ -n "${BASH_SOURCE[0]}" ]]; then
-    APP_ROOT="${APP_ROOT:-$(builtin cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && builtin pwd)}"
+    SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+    RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+    REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 else
-    APP_ROOT="${APP_ROOT:-$(pwd)}"
+    REPO_ROOT="$(builtin pwd)"
 fi
 
 # Source dependencies if available
-if [[ -f "${APP_ROOT}/scripts/lib/utils/log.sh" ]]; then
-    source "${APP_ROOT}/scripts/lib/utils/log.sh"
+if [[ -f "${REPO_ROOT}/scripts/lib/utils/log.sh" ]]; then
+    source "${REPO_ROOT}/scripts/lib/utils/log.sh"
 else
     # Define basic log functions if not available
     log::info() { echo "[INFO] $*"; }
@@ -19,8 +21,8 @@ else
     log::warn() { echo "[WARN] $*"; }
 fi
 
-if [[ -f "${APP_ROOT}/scripts/lib/utils/format.sh" ]]; then
-    source "${APP_ROOT}/scripts/lib/utils/format.sh"
+if [[ -f "${REPO_ROOT}/scripts/lib/utils/format.sh" ]]; then
+    source "${REPO_ROOT}/scripts/lib/utils/format.sh"
 fi
 
 # Cloudflare AI Gateway configuration

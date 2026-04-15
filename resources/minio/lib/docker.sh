@@ -3,14 +3,16 @@
 # Uses docker-resource-utils.sh for minimal boilerplate
 
 # Source var.sh to get proper directory variables
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-_MINIO_DOCKER_DIR="${APP_ROOT}/resources/minio/lib"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+_MINIO_DOCKER_DIR="${RESOURCE_DIR}/lib"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 
 # Source configuration and ensure it's exported
 # shellcheck disable=SC1091
-source "${APP_ROOT}/resources/minio/config/defaults.sh"
+source "${RESOURCE_DIR}/config/defaults.sh"
 minio::export_config 2>/dev/null || true
 
 # Source shared libraries

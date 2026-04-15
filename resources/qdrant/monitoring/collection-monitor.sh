@@ -4,10 +4,12 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(cd "${BASH_SOURCE[0]%/*}/../../.." && pwd)}"
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LIB_UTILS_DIR}/log.sh"
-source "${APP_ROOT}/resources/qdrant/config/defaults.sh"
+source "${RESOURCE_DIR}/config/defaults.sh"
 qdrant::export_config 2>/dev/null || {
     # Fallback configuration
     export QDRANT_BASE_URL="${QDRANT_BASE_URL:-http://localhost:6333}"

@@ -2,12 +2,14 @@
 # PostgreSQL Common Utilities
 # Shared functions used across PostgreSQL management scripts
 
-# Set up APP_ROOT if not already set
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+# Resolve local resource paths
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # Source configuration defaults
 # shellcheck disable=SC1091
-source "${APP_ROOT}/resources/postgres/config/defaults.sh"
+source "${RESOURCE_DIR}/config/defaults.sh"
 
 # Export configuration variables
 postgres::export_config 2>/dev/null || true
@@ -201,7 +203,7 @@ postgres::common::wait_for_ready() {
     log::info "${MSG_WAITING_STARTUP}"
     
     # Load health check configuration from resource.json orchestration metadata
-    local manifest_json="${APP_ROOT}/resources/postgres/resource.json"
+    local manifest_json="${RESOURCE_DIR}/resource.json"
     local check_interval=3
     local required_ready_checks=3
     
@@ -349,8 +351,8 @@ postgres::common::detect_and_recover_corruption() {
         fi
         
         # Need to source instance.sh for create function
-        if [[ -f "${APP_ROOT}/resources/postgres/lib/instance.sh" ]]; then
-            source "${APP_ROOT}/resources/postgres/lib/instance.sh"
+        if [[ -f "${RESOURCE_DIR}/lib/instance.sh" ]]; then
+            source "${RESOURCE_DIR}/lib/instance.sh"
         fi
         
         # Recreate the instance

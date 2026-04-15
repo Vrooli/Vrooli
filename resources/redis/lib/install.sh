@@ -2,10 +2,12 @@
 # Redis Installation Functions
 # Functions for installing and uninstalling Redis resource
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-_REDIS_INSTALL_DIR="${APP_ROOT}/resources/redis/lib"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+_REDIS_INSTALL_DIR="${SCRIPT_DIR}"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 
 # Source shared secrets management library
 # shellcheck disable=SC1091
@@ -19,9 +21,9 @@ source "${_REDIS_INSTALL_DIR}/common.sh"
 # shellcheck disable=SC1091
 source "${_REDIS_INSTALL_DIR}/docker.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/resources/redis/config/defaults.sh"
+source "${RESOURCE_DIR}/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/resources/redis/config/messages.sh"
+source "${RESOURCE_DIR}/config/messages.sh"
 # shellcheck disable=SC1091
 source "${_REDIS_INSTALL_DIR}/status.sh"
 # shellcheck disable=SC1091
@@ -177,18 +179,13 @@ redis::install::create_cli_helper() {
     redis_config_dir="$(secrets::get_project_config_dir)/redis"
     local cli_script="${redis_config_dir}/redis-cli"
     
-    cat > "$cli_script" << 'EOF'
+cat > "$cli_script" << 'EOF'
 #!/bin/bash
 # Redis CLI Helper for Vrooli Resource
 # This script connects to the Redis resource instance
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*/../../../.." && builtin pwd)}"
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
-
-source "${var_LIB_SERVICE_DIR}/secrets.sh"
-
 REDIS_PORT="${REDIS_PORT:-6380}"
-REDIS_PASSWORD="$(secrets::resolve "REDIS_PASSWORD" 2>/dev/null || echo "")"
+REDIS_PASSWORD="${REDIS_PASSWORD:-}"
 
 if [[ -n "$REDIS_PASSWORD" ]]; then
     docker exec -it vrooli-redis-resource redis-cli -p 6379 -a "$REDIS_PASSWORD" "$@"

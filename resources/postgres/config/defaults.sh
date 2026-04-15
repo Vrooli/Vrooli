@@ -3,11 +3,13 @@
 # PostgreSQL Resource Configuration Defaults
 # This file contains all configuration constants and defaults for the PostgreSQL resource
 
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+
 # Detect project root for proper configuration paths
 _postgres_defaults_detect_project_root() {
-    local current_dir
-    APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-    current_dir="$APP_ROOT/resources/postgres/config"
+    local current_dir="$REPO_ROOT"
     
     # Walk up directory tree looking for .vrooli directory
     while [[ "$current_dir" != "/" ]]; do
@@ -18,12 +20,7 @@ _postgres_defaults_detect_project_root() {
         current_dir="${current_dir%/*}"
     done
     
-    # Fallback: use standard scripts directory structure
-    local script_dir="$APP_ROOT/resources/postgres/config"
-    local postgres_dir="${script_dir%/*}"
-    local scripts_dir="${postgres_dir%/*/*}"
-    local project_root="${scripts_dir%/*}"
-    echo "$project_root"
+    echo "$REPO_ROOT"
 }
 
 # Set project root for proper config paths
@@ -69,7 +66,7 @@ postgres_xdg_state_home="${XDG_STATE_HOME:-${HOME}/.local/state}"
 [[ -z "${POSTGRES_BACKUP_RETENTION_DAYS:-}" ]] && readonly POSTGRES_BACKUP_RETENTION_DAYS=7
 
 # Template directory
-[[ -z "${POSTGRES_TEMPLATE_DIR:-}" ]] && readonly POSTGRES_TEMPLATE_DIR="${APP_ROOT}/resources/postgres/templates"
+[[ -z "${POSTGRES_TEMPLATE_DIR:-}" ]] && readonly POSTGRES_TEMPLATE_DIR="${RESOURCE_DIR}/templates"
 
 # Instance data directory
 [[ -z "${POSTGRES_INSTANCES_DIR:-}" ]] && readonly POSTGRES_INSTANCES_DIR="${POSTGRES_DATA_ROOT}/instances"

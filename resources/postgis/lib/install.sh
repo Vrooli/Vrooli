@@ -1,11 +1,13 @@
 #!/bin/bash
 # PostGIS Standalone Installation Functions
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # PostGIS Docker configuration
 # Check if custom Dockerfile exists for enhanced image with pgRouting
-if [[ -f "${APP_ROOT}/resources/postgis/Dockerfile" ]]; then
+if [[ -f "${RESOURCE_DIR}/Dockerfile" ]]; then
     POSTGIS_IMAGE="vrooli/postgis-routing:16-3.4"
     POSTGIS_USE_CUSTOM_IMAGE=true
 else
@@ -14,10 +16,10 @@ else
 fi
 POSTGIS_CONTAINER="postgis-main"
 POSTGIS_STANDALONE_PORT="${POSTGIS_STANDALONE_PORT:-5434}"
-POSTGIS_INSTALL_LIB_DIR="${APP_ROOT}/resources/postgis/lib"
+POSTGIS_INSTALL_LIB_DIR="${RESOURCE_DIR}/lib"
 
 # Source var.sh for access to project variables
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 
 # Source dependencies
 source "${POSTGIS_INSTALL_LIB_DIR}/common.sh"
@@ -53,7 +55,7 @@ postgis_install() {
     # Build or pull PostGIS image
     if [[ "$POSTGIS_USE_CUSTOM_IMAGE" == "true" ]]; then
         log::info "Building custom PostGIS image with pgRouting support..."
-        if ! docker build -t "${POSTGIS_IMAGE}" "${APP_ROOT}/resources/postgis" 2>&1 | tail -5; then
+        if ! docker build -t "${POSTGIS_IMAGE}" "${RESOURCE_DIR}" 2>&1 | tail -5; then
             log::warning "Failed to build custom image, falling back to standard image"
             POSTGIS_IMAGE="postgis/postgis:16-3.4-alpine"
             docker pull "${POSTGIS_IMAGE}" || {

@@ -114,11 +114,6 @@
           "description": "Create data directory for JSON file storage"
         },
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI into ~/.local/bin"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o visited-tracker-api .",
           "description": "Build the Go API binary (visited-tracker-api) for lifecycle orchestration"
@@ -196,5 +191,40 @@
   },
   "dependencies": {
     "resources": {}
+  },
+  "cli": {
+    "enabled": true,
+    "command": "visited-tracker",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "visited-tracker"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
   }
 }

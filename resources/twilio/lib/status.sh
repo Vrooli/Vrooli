@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Define directory using cached APP_ROOT
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-TWILIO_LIB_DIR="${APP_ROOT}/resources/twilio/lib"
+# Resolve local resource paths
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+TWILIO_LIB_DIR="${RESOURCE_DIR}/lib"
 
 # Source common functions
 source "$TWILIO_LIB_DIR/common.sh"
-source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
-source "${APP_ROOT}/scripts/lib/utils/format.sh"
+source "${REPO_ROOT}/scripts/resources/lib/status-args.sh"
+source "${REPO_ROOT}/scripts/lib/utils/format.sh"
 
 # Collect Twilio status data in format-agnostic structure
 twilio::status::collect_data() {

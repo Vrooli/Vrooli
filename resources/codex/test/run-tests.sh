@@ -7,12 +7,13 @@
 set -euo pipefail
 
 # Setup paths
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CODEX_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-APP_ROOT="$(cd "${CODEX_DIR}/../.." && pwd)"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+CODEX_DIR="${RESOURCE_DIR}"
 
 # Source utilities
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${REPO_ROOT}/scripts/lib/utils/log.sh"
 
 # Test configuration
 TEST_TIMEOUT="${TEST_TIMEOUT:-600}"

@@ -10,11 +10,11 @@ This guide covers common issues and their solutions when working with SearXNG.
 **Solution**:
 ```bash
 # Fix permissions on config directory
-docker run --rm -v ~/.searxng:/fix alpine chmod -R 777 /fix
+docker run --rm -v "${SEARXNG_DATA_DIR}:/fix" alpine chmod -R 777 /fix
 
 # Alternative: Reset permissions
-sudo chown -R $USER:$USER ~/.searxng
-chmod -R 755 ~/.searxng
+sudo chown -R "$USER:$USER" "${SEARXNG_DATA_DIR}"
+chmod -R 755 "${SEARXNG_DATA_DIR}"
 ```
 
 ### 2. Container Keeps Restarting
@@ -30,7 +30,7 @@ docker ps -a | grep searxng
 ```
 
 **Common Causes & Solutions**:
-- **Invalid config syntax**: Verify YAML syntax in `~/.searxng/settings.yml`
+- **Invalid config syntax**: Verify YAML syntax in `${SEARXNG_DATA_DIR}/settings.yml`
 - **Port conflicts**: Check if port 8280 is already in use with `lsof -i :8280`
 - **Memory issues**: Ensure sufficient Docker memory allocation
 
@@ -42,14 +42,14 @@ docker ps -a | grep searxng
 # Ensure GET method is enabled in settings.yml
 echo 'server:
   method: "GET"
-  limiter: false' >> ~/.searxng/settings.yml
+  limiter: false' >> "${SEARXNG_DATA_DIR}/settings.yml"
 
 # Verify JSON format is enabled
 echo 'search:
   formats:
     - html
     - json
-    - csv' >> ~/.searxng/settings.yml
+    - csv' >> "${SEARXNG_DATA_DIR}/settings.yml"
 
 # Restart service
 resource-searxng manage restart
@@ -81,7 +81,7 @@ curl -s "http://localhost:8280/search?q=test&format=json&engines=google"
 **Optimization**:
 ```bash
 # Check current timeout settings
-cat ~/.searxng/settings.yml | grep timeout
+cat "${SEARXNG_DATA_DIR}/settings.yml" | grep timeout
 
 # Reduce timeouts in settings.yml
 outgoing:
@@ -139,13 +139,13 @@ docker logs searxng 2>&1 | head -50
 ### Configuration Validation
 ```bash
 # Check YAML syntax
-python3 -c "import yaml; yaml.safe_load(open('~/.searxng/settings.yml'))" 2>/dev/null && echo "Config OK" || echo "Config Error"
+python3 -c "import os, yaml; yaml.safe_load(open(os.path.expandvars('${SEARXNG_DATA_DIR}/settings.yml')))" 2>/dev/null && echo "Config OK" || echo "Config Error"
 
 # View current configuration
 resource-searxng content execute --name config-show
 
 # Compare with template
-diff ~/.searxng/settings.yml config/settings.yml.template
+diff "${SEARXNG_DATA_DIR}/settings.yml" config/settings.yml.template
 ```
 
 ## 🔄 Reset and Recovery
@@ -159,7 +159,7 @@ resource-searxng manage restart
 docker system prune -f
 
 # Reset to default config (backup current first)
-cp ~/.searxng/settings.yml ~/.searxng/settings.yml.backup
+cp "${SEARXNG_DATA_DIR}/settings.yml" "${SEARXNG_DATA_DIR}/settings.yml.backup"
 resource-searxng content execute --name reset-config
 ```
 
@@ -170,7 +170,7 @@ resource-searxng manage stop
 docker rm -f searxng
 
 # Remove configuration (backup first!)
-mv ~/.searxng ~/.searxng.backup.$(date +%Y%m%d_%H%M%S)
+mv "${SEARXNG_DATA_DIR}" "${SEARXNG_DATA_DIR}.backup.$(date +%Y%m%d_%H%M%S)"
 
 # Reinstall from scratch
 resource-searxng manage install
@@ -179,16 +179,16 @@ resource-searxng manage install
 ### Data Recovery
 ```bash
 # Restore from backup
-cp ~/.searxng.backup.*/settings.yml ~/.searxng/
+cp "${SEARXNG_DATA_DIR}.backup."*/settings.yml "${SEARXNG_DATA_DIR}/"
 
 # Restore specific configuration
-resource-searxng manage install --restore-config ~/.searxng.backup.*/
+resource-searxng manage install --restore-config "${SEARXNG_DATA_DIR}.backup."*/
 ```
 
 ## 🐛 Debugging Mode
 
 ### Enable Debug Logging
-Add to `~/.searxng/settings.yml`:
+Add to `${SEARXNG_DATA_DIR}/settings.yml`:
 ```yaml
 general:
   debug: true
@@ -236,7 +236,7 @@ uname -a >> searxng-diagnostics.txt
 
 | Problem | Quick Fix |
 |---------|-----------|
-| Permission errors | `docker run --rm -v ~/.searxng:/fix alpine chmod -R 777 /fix` |
+| Permission errors | `docker run --rm -v "${SEARXNG_DATA_DIR}:/fix" alpine chmod -R 777 /fix` |
 | 403 Forbidden | Check `method: "GET"` and `formats: [json]` in settings.yml |
 | No results | Test engines individually, check network connectivity |
 | Slow responses | Reduce timeouts in configuration |

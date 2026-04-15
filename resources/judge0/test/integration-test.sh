@@ -5,12 +5,14 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-JUDGE0_TEST_DIR="${APP_ROOT}/resources/judge0/test"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+JUDGE0_TEST_DIR="${RESOURCE_DIR}/test"
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 
 # Source shared integration test library
 # shellcheck disable=SC1091
@@ -24,7 +26,7 @@ source "${var_SCRIPTS_RESOURCES_DIR}/tests/lib/integration-test-lib.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/resources/judge0/config/defaults.sh"
+source "${RESOURCE_DIR}/config/defaults.sh"
 judge0::export_config
 
 # Override library defaults with Judge0-specific settings

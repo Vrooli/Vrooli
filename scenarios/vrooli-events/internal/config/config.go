@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"time"
+
+	"github.com/vrooli/api-core/storage"
 )
 
 // Config holds all tunable parameters for vrooli-events.
@@ -65,6 +67,15 @@ func Load() Config {
 }
 
 func defaultDBPath() string {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err == nil {
+		if path, resolveErr := resolver.Path(storage.Options{ScenarioID: "vrooli-events"}, storage.ClassData, "events.db"); resolveErr == nil {
+			return path
+		}
+	}
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".vrooli", "vrooli-events", "events.db")
 }

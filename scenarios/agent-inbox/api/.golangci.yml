@@ -1,17 +1,36 @@
-# golangci-lint configuration for agent-inbox API
-# Run with: golangci-lint run
+run:
+  timeout: 5m
 
 linters:
   enable:
     - errcheck
+    - gofumpt
+    - govet
     - ineffassign
+    - revive
     - staticcheck
+    - typecheck
     - unused
 
+linters-settings:
+  revive:
+    rules:
+      - name: blank-imports
+      - name: context-as-argument
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings
+      - name: exported
+        disabled: true
+      - name: increment-decrement
+      - name: range
+      - name: var-declaration
+
 issues:
-  # Disable errcheck and unused for test files
   exclude-rules:
     - path: _test\.go
       linters:
         - errcheck
-        - unused
+        - revive
+  max-issues-per-linter: 0
+  max-same-issues: 0

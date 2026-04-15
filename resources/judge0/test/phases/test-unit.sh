@@ -11,7 +11,10 @@ set -uo pipefail  # Remove 'e' flag to prevent early exit
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEST_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 RESOURCE_DIR="$(cd "${TEST_DIR}/.." && pwd)"
-APP_ROOT="$(cd "${RESOURCE_DIR}/../.." && pwd)"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+TEST_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${TEST_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # Source only config (avoid complex dependencies that cause failures)
 source "${RESOURCE_DIR}/config/defaults.sh"

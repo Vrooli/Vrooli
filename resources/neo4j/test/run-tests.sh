@@ -10,7 +10,7 @@ set -euo pipefail
 # Get script directory
 TEST_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
 RESOURCE_DIR="$(builtin cd "${TEST_DIR}/.." && builtin pwd)"
-APP_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # Source test library
 source "${RESOURCE_DIR}/lib/test.sh"

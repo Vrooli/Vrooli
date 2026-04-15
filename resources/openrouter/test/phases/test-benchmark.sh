@@ -5,10 +5,13 @@
 set +e  # Don't exit on error for tests
 
 # Get directories
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+TEST_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${TEST_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # Source test framework
-source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
+source "${REPO_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
 
 # Initialize test counters
 TESTS_PASSED=0

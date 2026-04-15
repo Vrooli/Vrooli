@@ -2,16 +2,18 @@
 # Codex Status Functions
 
 # Set script directory for sourcing
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-CODEX_STATUS_DIR="${APP_ROOT}/resources/codex/lib"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+CODEX_STATUS_DIR="${RESOURCE_DIR}/lib"
 
 # Source required utilities
 # shellcheck disable=SC1091
 source "${CODEX_STATUS_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/format.sh"
+source "${REPO_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
+source "${REPO_ROOT}/scripts/resources/lib/status-args.sh"
 # shellcheck disable=SC1091
 source "${CODEX_STATUS_DIR}/orchestrator.sh" 2>/dev/null || true
 # shellcheck disable=SC1091

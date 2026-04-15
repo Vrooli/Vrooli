@@ -3,9 +3,9 @@
 This guide covers installation, configuration, and optimization of MinIO for object storage in Vrooli.
 
 Canonical storage paths:
-- Data: `${MINIO_DATA_DIR:-${XDG_DATA_HOME:-~/.local/share}/vrooli/resources/minio}`
-- Config: `${MINIO_CONFIG_DIR:-${XDG_CONFIG_HOME:-~/.config}/vrooli/resources/minio}`
-- State/backups: `${MINIO_STATE_DIR:-${XDG_STATE_HOME:-~/.local/state}/vrooli/resources/minio}`
+- Data: `${MINIO_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/vrooli/resources/minio}`
+- Config: `${MINIO_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/vrooli/resources/minio}`
+- State/backups: `${MINIO_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/vrooli/resources/minio}`
 
 ## 🚀 Installation Options
 
@@ -63,7 +63,7 @@ MINIO_REGION="us-west-1" \
 ### Directory Structure
 
 ```
-~/.minio/
+${MINIO_DATA_DIR}/
 ├── data/                    # Object storage data
 │   ├── .minio.sys/         # System metadata
 │   │   ├── buckets/        # Bucket configurations
@@ -73,8 +73,8 @@ MINIO_REGION="us-west-1" \
 │   ├── vrooli-agent-artifacts/
 │   ├── vrooli-model-cache/
 │   └── vrooli-temp-storage/
-└── config/
-    └── credentials          # Access credentials (600 permissions)
+${MINIO_CONFIG_DIR}/
+└── credentials              # Access credentials (600 permissions)
 ```
 
 ### Docker Configuration
@@ -101,8 +101,8 @@ ports:
 #### Volume Mounts
 ```yaml
 volumes:
-  - ~/.minio/data:/data                    # Data persistence
-  - ~/.minio/config:/root/.minio          # Configuration
+  - ${MINIO_DATA_DIR}:/data               # Data persistence
+  - ${MINIO_CONFIG_DIR}:/root/.minio      # Configuration
 ```
 
 ## 📦 Bucket Configuration
@@ -184,12 +184,12 @@ resource-minio manage install
 
 ```bash
 # Credentials file security
-ls -la ~/.minio/config/credentials
+ls -la "${MINIO_CONFIG_DIR}/credentials"
 # Should show: -rw------- (600 permissions)
 
 # Fix permissions if needed
-chmod 600 ~/.minio/config/credentials
-chmod 700 ~/.minio/config/
+chmod 600 "${MINIO_CONFIG_DIR}/credentials"
+chmod 700 "${MINIO_CONFIG_DIR}/"
 ```
 
 ### Network Security
@@ -297,7 +297,7 @@ resource-minio manage restart
 ```bash
 # Use SSD for better performance
 # Ensure adequate disk space
-df -h ~/.minio/data/
+df -h "${MINIO_DATA_DIR}/"
 
 # Monitor disk I/O
 iostat -x 1
@@ -397,29 +397,29 @@ const minioClient = new Minio.Client({
 
 ```bash
 # Full data backup
-tar -czf "minio-backup-$(date +%Y%m%d).tar.gz" ~/.minio/data/
+tar -czf "minio-backup-$(date +%Y%m%d).tar.gz" "${MINIO_DATA_DIR}/"
 
 # Incremental backup (using rsync)
-rsync -av --delete ~/.minio/data/ /backup/minio-data/
+rsync -av --delete "${MINIO_DATA_DIR}/" /backup/minio-data/
 
 # Automated backup script
-cat > ~/.minio/backup.sh << 'EOF'
+cat > "${MINIO_STATE_DIR}/backup.sh" << 'EOF'
 #!/bin/bash
 BACKUP_DIR="/backup/minio"
 DATE=$(date +%Y%m%d_%H%M%S)
 mkdir -p "$BACKUP_DIR"
-tar -czf "$BACKUP_DIR/minio-$DATE.tar.gz" ~/.minio/data/
+tar -czf "$BACKUP_DIR/minio-$DATE.tar.gz" "${MINIO_DATA_DIR}/"
 # Keep only last 7 backups
 ls -t "$BACKUP_DIR"/minio-*.tar.gz | tail -n +8 | xargs rm -f
 EOF
-chmod +x ~/.minio/backup.sh
+chmod +x "${MINIO_STATE_DIR}/backup.sh"
 ```
 
 ### Disaster Recovery
 
 ```bash
 # Create disaster recovery script
-cat > ~/.minio/restore.sh << 'EOF'
+cat > "${MINIO_STATE_DIR}/restore.sh" << 'EOF'
 #!/bin/bash
 BACKUP_FILE="$1"
 if [ -z "$BACKUP_FILE" ]; then
@@ -431,16 +431,16 @@ fi
 resource-minio manage stop
 
 # Backup current data
-mv ~/.minio/data ~/.minio/data.backup.$(date +%s)
+mv "${MINIO_DATA_DIR}" "${MINIO_DATA_DIR}.backup.$(date +%s)"
 
 # Restore from backup
-mkdir -p ~/.minio/data
-tar -xzf "$BACKUP_FILE" -C ~/.minio/
+mkdir -p "${MINIO_DATA_DIR}"
+tar -xzf "$BACKUP_FILE" -C "$(dirname "${MINIO_DATA_DIR}")/"
 
 # Start MinIO
 resource-minio manage start
 EOF
-chmod +x ~/.minio/restore.sh
+chmod +x "${MINIO_STATE_DIR}/restore.sh"
 ```
 
 ## 📊 Monitoring Configuration
@@ -475,10 +475,10 @@ resource-minio manage restart
 
 ```bash
 # Disk space monitoring
-cat > ~/.minio/monitor.sh << 'EOF'
+cat > "${MINIO_STATE_DIR}/monitor.sh" << 'EOF'
 #!/bin/bash
 THRESHOLD=80
-USAGE=$(df ~/.minio/data | tail -1 | awk '{print $5}' | sed 's/%//')
+USAGE=$(df "${MINIO_DATA_DIR}" | tail -1 | awk '{print $5}' | sed 's/%//')
 if [ "$USAGE" -gt "$THRESHOLD" ]; then
     echo "MinIO disk usage is ${USAGE}% (threshold: ${THRESHOLD}%)"
     # Add alerting logic here
@@ -486,7 +486,7 @@ fi
 EOF
 
 # Add to crontab
-echo "*/5 * * * * ~/.minio/monitor.sh" | crontab -
+echo "*/5 * * * * ${MINIO_STATE_DIR}/monitor.sh" | crontab -
 ```
 
 This configuration guide ensures optimal MinIO setup for your object storage requirements in the Vrooli ecosystem.

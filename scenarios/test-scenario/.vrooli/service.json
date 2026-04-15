@@ -36,6 +36,9 @@
       "description": "Primary API port"
     }
   },
+  "cli": {
+    "enabled": false
+  },
   "lifecycle": {
     "setup": {
       "description": "Prepare test-scenario binaries and CLI",
@@ -46,25 +49,10 @@
             "targets": [
               "api/test-scenario-api"
             ]
-          },
-          {
-            "type": "cli",
-            "command": "test-scenario",
-            "targets": [
-              "test-scenario"
-            ]
           }
         ]
       },
       "steps": [
-        {
-          "name": "install-cli",
-          "run": "bash cli/install.sh",
-          "description": "Install CLI helpers",
-          "condition": {
-            "file_exists": "cli/install.sh"
-          }
-        },
         {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o test-scenario-api .",

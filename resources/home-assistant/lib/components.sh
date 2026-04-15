@@ -1,12 +1,14 @@
 #!/bin/bash
 # Home Assistant Custom Components Management
 
-# Define directory using cached APP_ROOT
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-HOME_ASSISTANT_COMPONENTS_DIR="${APP_ROOT}/resources/home-assistant/lib"
+# Resolve local resource paths
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+HOME_ASSISTANT_COMPONENTS_DIR="${RESOURCE_DIR}/lib"
 
 # Source dependencies
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LOG_FILE}"
 source "${HOME_ASSISTANT_COMPONENTS_DIR}/core.sh"
 source "${HOME_ASSISTANT_COMPONENTS_DIR}/health.sh"

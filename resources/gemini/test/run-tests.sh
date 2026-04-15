@@ -8,12 +8,12 @@
 set -euo pipefail
 
 # Determine paths
-TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RESOURCE_DIR="$(cd "$TEST_DIR/.." && pwd)"
-APP_ROOT="$(cd "$RESOURCE_DIR/../.." && pwd)"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # Source utilities
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${REPO_ROOT}/scripts/lib/utils/log.sh"
 
 # Source resource configuration
 source "${RESOURCE_DIR}/config/defaults.sh"

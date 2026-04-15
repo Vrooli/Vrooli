@@ -6,10 +6,12 @@
 set -euo pipefail
 
 # Source var.sh first to get directory variables
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-SCRIPT_DIR="${APP_ROOT}/resources/minio/test"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+SCRIPT_DIR="${RESOURCE_DIR}/test"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 
 # Source enhanced integration test library using var_ variables
 # shellcheck disable=SC1091
@@ -23,7 +25,7 @@ source "${var_SCRIPTS_RESOURCES_DIR}/tests/lib/enhanced-integration-test-lib.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/resources/minio/config/defaults.sh"
+source "${RESOURCE_DIR}/config/defaults.sh"
 minio::export_config
 
 # Override library defaults with MinIO-specific settings

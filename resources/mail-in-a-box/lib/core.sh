@@ -2,15 +2,17 @@
 
 # Core functions for Mail-in-a-Box resource
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-MAILINABOX_LIB_DIR="${APP_ROOT}/resources/mail-in-a-box/lib"
-MAILINABOX_CONFIG_DIR="${APP_ROOT}/resources/mail-in-a-box/config"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+MAILINABOX_LIB_DIR="${RESOURCE_DIR}/lib"
+MAILINABOX_CONFIG_DIR="${RESOURCE_DIR}/config"
 
 # Source dependencies
 source "$MAILINABOX_CONFIG_DIR/defaults.sh"
-source "${APP_ROOT}/scripts/lib/utils/format.sh"
-source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
-source "${APP_ROOT}/scripts/lib/service/secrets.sh" 2>/dev/null || true
+source "${REPO_ROOT}/scripts/lib/utils/format.sh"
+source "${REPO_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
+source "${REPO_ROOT}/scripts/lib/service/secrets.sh" 2>/dev/null || true
 
 # Cache flag so we do not repeatedly call Vault export
 MAILINABOX_SECRETS_LOADED=${MAILINABOX_SECRETS_LOADED:-0}

@@ -3,15 +3,17 @@
 # Functions for interacting with MinIO S3 API
 
 # Get script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-MINIO_API_DIR="${APP_ROOT}/resources/minio/lib"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+MINIO_API_DIR="${RESOURCE_DIR}/lib"
 
 # Source required dependencies
 source "${MINIO_API_DIR}/common.sh"
 source "${MINIO_API_DIR}/docker.sh"
 
 # Source and initialize messages
-source "${APP_ROOT}/resources/minio/config/messages.sh"
+source "${RESOURCE_DIR}/config/messages.sh"
 if command -v minio::messages::init &>/dev/null; then
     minio::messages::init
 fi

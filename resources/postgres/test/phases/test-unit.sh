@@ -4,10 +4,13 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
-source "${APP_ROOT}/resources/postgres/config/defaults.sh" 2>/dev/null || true
-source "${APP_ROOT}/resources/postgres/lib/common.sh" 2>/dev/null || true
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+TEST_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${TEST_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+source "${REPO_ROOT}/scripts/lib/utils/log.sh"
+source "${RESOURCE_DIR}/config/defaults.sh" 2>/dev/null || true
+source "${RESOURCE_DIR}/lib/common.sh" 2>/dev/null || true
 
 # Test counter
 TESTS_PASSED=0

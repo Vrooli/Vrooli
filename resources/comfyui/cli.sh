@@ -12,17 +12,20 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+REPO_ROOT="$(builtin cd "${SCRIPT_DIR}/../.." && builtin pwd)"
 if [[ -L "${BASH_SOURCE[0]}" ]]; then
     COMFYUI_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
-    APP_ROOT="$(builtin cd "${COMFYUI_CLI_SCRIPT%/*}/../.." && builtin pwd)"
+    SCRIPT_DIR="$(builtin cd "${COMFYUI_CLI_SCRIPT%/*}" && builtin pwd)"
+    REPO_ROOT="$(builtin cd "${SCRIPT_DIR}/../.." && builtin pwd)"
 fi
-COMFYUI_CLI_DIR="${APP_ROOT}/resources/comfyui"
+RESOURCE_DIR="${REPO_ROOT}/resources/comfyui"
+COMFYUI_CLI_DIR="${RESOURCE_DIR}"
 
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LOG_FILE}"
 source "${var_RESOURCES_COMMON_FILE}"
-source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
+source "${REPO_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 
 source "${COMFYUI_CLI_DIR}/config/defaults.sh"
 

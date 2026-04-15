@@ -2,11 +2,13 @@
 # QuestDB Content Functions - Business Functionality
 # These functions handle the actual business use of QuestDB (queries, data operations, etc.)
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-QUESTDB_LIB_DIR="${APP_ROOT}/resources/questdb/lib"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+QUESTDB_LIB_DIR="${RESOURCE_DIR}/lib"
 
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
@@ -119,7 +121,7 @@ questdb::content::inject() {
     
     # Handle shared: prefix
     if [[ "$file" == shared:* ]]; then
-        file="${APP_ROOT}/${file#shared:}"
+        file="${REPO_ROOT}/${file#shared:}"
     fi
     
     if [[ ! -f "$file" ]]; then

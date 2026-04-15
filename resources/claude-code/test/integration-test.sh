@@ -6,12 +6,13 @@
 set -euo pipefail
 
 # Script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-SCRIPT_DIR="${APP_ROOT}/resources/claude-code/test"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 
 # Source shared integration test library if it exists
 # shellcheck disable=SC1091
@@ -123,7 +124,7 @@ fi
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${APP_ROOT}/resources/claude-code/config/defaults.sh"
+source "${RESOURCE_DIR}/config/defaults.sh"
 claude_code::export_config
 
 # Override library defaults with Claude Code-specific settings

@@ -85,14 +85,6 @@
       },
       "steps": [
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install the time-tools CLI",
-          "condition": {
-            "file_exists": "cli/install.sh"
-          }
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o time-tools-api",
           "description": "Build the Go API server",
@@ -177,6 +169,36 @@
         "required": false,
         "description": "Optional asset storage for exported calendars"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "time-tools",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/time-tools",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "time-tools"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/time-tools",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

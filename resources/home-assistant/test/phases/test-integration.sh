@@ -8,13 +8,13 @@
 set -euo pipefail
 
 # Get directories
-PHASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TEST_DIR="$(cd "$PHASE_DIR/.." && pwd)"
-RESOURCE_DIR="$(cd "$TEST_DIR/.." && pwd)"
-APP_ROOT="$(cd "$RESOURCE_DIR/../.." && pwd)"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+TEST_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${TEST_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # Source dependencies
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LOG_FILE}"
 source "${RESOURCE_DIR}/lib/test.sh"
 

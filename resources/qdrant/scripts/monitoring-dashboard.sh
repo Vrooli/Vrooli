@@ -8,12 +8,14 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # Source required utilities
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LIB_UTILS_DIR}/log.sh"
-source "${APP_ROOT}/resources/qdrant/lib/error-handler.sh"
+source "${RESOURCE_DIR}/lib/error-handler.sh"
 
 # Configuration
 QDRANT_URL="http://localhost:6333"
@@ -402,7 +404,7 @@ run_interactive_dashboard() {
             case "$action" in
                 r|R) continue ;;
                 h|H) 
-                    "${APP_ROOT}/resources/qdrant/monitoring/health-check.sh"
+                    "${RESOURCE_DIR}/monitoring/health-check.sh"
                     echo "Press any key to continue..."
                     read -n 1 -s
                     ;;

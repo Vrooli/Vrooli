@@ -1,16 +1,18 @@
 #!/bin/bash
 # Home Assistant Core Functions
 
-# Define directory using cached APP_ROOT
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-HOME_ASSISTANT_CORE_DIR="${APP_ROOT}/resources/home-assistant/lib"
+# Resolve local resource paths
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+HOME_ASSISTANT_CORE_DIR="${RESOURCE_DIR}/lib"
 
 # Source dependencies
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LOG_FILE}"
 source "${var_LIB_UTILS_DIR}/format.sh"
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-utils.sh"
-source "${APP_ROOT}/resources/home-assistant/config/defaults.sh"
+source "${RESOURCE_DIR}/config/defaults.sh"
 
 #######################################
 # Export Home Assistant configuration

@@ -12,18 +12,21 @@ set -u
 # Get directories
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RESOURCE_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-APP_ROOT="$(cd "${RESOURCE_DIR}/../.." && pwd)"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+TEST_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${TEST_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # Temporarily disable errexit during sourcing to avoid early exits
 set +e
 
 # Source utilities
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LOG_FILE}"
 source "${var_RESOURCES_COMMON_FILE}"
 
 # Source CLI framework
-source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
+source "${REPO_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 
 # Source resource configuration
 source "${RESOURCE_DIR}/config/defaults.sh"

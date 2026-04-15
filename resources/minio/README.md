@@ -295,7 +295,7 @@ resource-minio replication cleanup
 
 ### Directory Structure
 ```
-~/.minio/
+${MINIO_DATA_DIR:-${XDG_DATA_HOME:-~/.local/share}/vrooli/resources/minio}/
 ├── data/                    # Object storage data
 │   ├── vrooli-user-uploads/
 │   ├── vrooli-agent-artifacts/

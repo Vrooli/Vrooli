@@ -2,12 +2,14 @@
 # Gemini injection functionality
 
 # Get script directory
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-GEMINI_INJECT_DIR="${APP_ROOT}/resources/gemini/lib"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+GEMINI_INJECT_DIR="${RESOURCE_DIR}/lib"
 
 # Source dependencies
 source "${GEMINI_INJECT_DIR}/core.sh"
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${REPO_ROOT}/scripts/lib/utils/log.sh"
 
 # Inject Gemini configuration into other resources
 gemini::inject() {

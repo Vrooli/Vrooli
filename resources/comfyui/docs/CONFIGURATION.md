@@ -155,12 +155,12 @@ The ComfyUI container uses several volume mounts:
 
 ```bash
 # Data persistence
--v ~/.comfyui:/data                          # Main data directory
+-v "${COMFYUI_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/vrooli/resources/comfyui}:/data"                          # Main data directory
 
 # Model storage
--v ~/.comfyui/models:/data/models            # AI models
--v ~/.comfyui/outputs:/data/outputs          # Generated images
--v ~/.comfyui/workflows:/data/workflows      # Saved workflows
+-v "${COMFYUI_MODELS_DIR:-${COMFYUI_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/vrooli/resources/comfyui}/models}:/data/models"            # AI models
+-v "${COMFYUI_OUTPUT_DIR:-${COMFYUI_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/vrooli/resources/comfyui}/outputs}:/data/outputs"          # Generated images
+-v "${COMFYUI_WORKFLOWS_DIR:-${COMFYUI_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/vrooli/resources/comfyui}/workflows}:/data/workflows"      # Saved workflows
 
 # Optional custom mounts
 -v /custom/models:/data/models               # Custom model directory
@@ -211,7 +211,7 @@ docker update comfyui --restart unless-stopped
 
 **Model Directory Structure:**
 ```
-~/.comfyui/models/
+${COMFYUI_MODELS_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/vrooli/resources/comfyui/models}/
 ├── checkpoints/          # Main model files (SD, SDXL, etc.)
 │   ├── sd_xl_base_1.0.safetensors
 │   └── custom_model.safetensors
@@ -230,7 +230,7 @@ docker update comfyui --restart unless-stopped
 **Manual Model Installation:**
 ```bash
 # Download models to appropriate directories
-cd ~/.comfyui/models/checkpoints
+cd "${COMFYUI_MODELS_DIR}/checkpoints"
 wget https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors
 
 # Verify model installation
@@ -263,7 +263,7 @@ vae-ft-mse-840000-ema-pruned.safetensors # SD1.5 VAE (320MB)
 ### Default Directory Layout
 
 ```
-~/.comfyui/                          # Main data directory
+${COMFYUI_DATA_DIR}/                 # Main data directory
 ├── models/                         # All AI models
 │   ├── checkpoints/               # Main model files
 │   ├── vae/                      # VAE models
@@ -446,7 +446,7 @@ export COMFYUI_DISABLE_SYNCTHING=true
 
 ### Vrooli Resource Integration
 
-ComfyUI is automatically configured in `~/.vrooli/service.json`:
+ComfyUI is automatically configured in Vrooli's resource registry:
 
 ```json
 {
@@ -496,7 +496,7 @@ export COMFYUI_QUEUE_TIMEOUT=300        # Queue timeout in seconds
 
 ```bash
 # Install custom nodes manually
-cd ~/.comfyui/custom_nodes
+cd "${COMFYUI_DATA_DIR}/custom_nodes"
 git clone https://github.com/author/custom-node-repo
 
 # Restart ComfyUI to load new nodes
@@ -506,7 +506,7 @@ git clone https://github.com/author/custom-node-repo
 ### Custom Node Directory
 
 ```
-~/.comfyui/custom_nodes/
+${COMFYUI_DATA_DIR}/custom_nodes/
 ├── ComfyUI-Custom-Scripts/
 ├── ComfyUI-Manager/
 ├── ComfyUI-Advanced-ControlNet/
@@ -524,7 +524,7 @@ export COMFYUI_BACKUP_INTERVAL=daily
 export COMFYUI_BACKUP_RETENTION=7       # Keep 7 days of backups
 
 # Backup directory
-export COMFYUI_BACKUP_DIR=~/.comfyui/backups
+export COMFYUI_BACKUP_DIR="${COMFYUI_DATA_DIR}/backups"
 ```
 
 ### Manual Backup Commands
@@ -534,10 +534,10 @@ export COMFYUI_BACKUP_DIR=~/.comfyui/backups
 ./manage.sh --action export-workflows --output workflows-backup.json
 
 # Backup complete configuration
-tar -czf comfyui-backup-$(date +%Y%m%d).tar.gz ~/.comfyui/
+tar -czf comfyui-backup-$(date +%Y%m%d).tar.gz "${COMFYUI_DATA_DIR}/"
 
 # Backup only models (separate due to size)
-tar -czf models-backup-$(date +%Y%m%d).tar.gz ~/.comfyui/models/
+tar -czf models-backup-$(date +%Y%m%d).tar.gz "${COMFYUI_MODELS_DIR}/"
 ```
 
 ## Monitoring Configuration
@@ -560,7 +560,7 @@ export COMFYUI_HEALTH_CHECK_URL=http://localhost:8188/system_stats
 export COMFYUI_LOG_LEVEL=INFO           # DEBUG, INFO, WARNING, ERROR
 
 # Log file configuration
-export COMFYUI_LOG_FILE=~/.comfyui/logs/comfyui.log
+export COMFYUI_LOG_FILE="${COMFYUI_DATA_DIR}/logs/comfyui.log"
 export COMFYUI_LOG_MAX_SIZE=100M        # Max log file size
 export COMFYUI_LOG_RETENTION=7          # Keep 7 days of logs
 ```
@@ -576,7 +576,7 @@ export COMFYUI_VERBOSE=true
 
 # Enable performance profiling
 export COMFYUI_PROFILE=true
-export COMFYUI_PROFILE_OUTPUT=~/.comfyui/profiles/
+export COMFYUI_PROFILE_OUTPUT="${COMFYUI_DATA_DIR}/profiles/"
 ```
 
 ### Resource Monitoring
@@ -584,7 +584,7 @@ export COMFYUI_PROFILE_OUTPUT=~/.comfyui/profiles/
 ```bash
 # Enable resource monitoring
 export COMFYUI_MONITOR_RESOURCES=true
-export COMFYUI_RESOURCE_LOG=~/.comfyui/resource-usage.log
+export COMFYUI_RESOURCE_LOG="${COMFYUI_DATA_DIR}/resource-usage.log"
 
 # Memory monitoring
 export COMFYUI_MEMORY_WARNING_THRESHOLD=80    # Warn at 80% memory usage

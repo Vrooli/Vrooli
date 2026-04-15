@@ -1,4 +1,4 @@
-.PHONY: help setup start stop restart status logs test open run dev
+.PHONY: help setup start stop restart status logs test open run dev fmt fmt-go fmt-ui lint lint-go lint-ui check
 
 .DEFAULT_GOAL := help
 
@@ -17,4 +17,74 @@ help: ## Show the supported scenario entrypoints
 	@printf "  make run                        Alias for make start\n"
 	@printf "  make dev                        Alias for make start\n"
 	@printf "\n"
-	@printf "For scenario-specific commands, prefer the scenario CLI or 'vrooli scenario ...'.\\n"\n\nsetup: ## Run scenario setup lifecycle\n\t@vrooli scenario setup "$(SCENARIO_NAME)"\n\nstart: ## Start the scenario\n\t@vrooli scenario start "$(SCENARIO_NAME)"\n\nstop: ## Stop the scenario\n\t@vrooli scenario stop "$(SCENARIO_NAME)"\n\nrestart: ## Restart the scenario\n\t@vrooli scenario restart "$(SCENARIO_NAME)"\n\nstatus: ## Show scenario runtime status\n\t@vrooli scenario status "$(SCENARIO_NAME)"\n\nlogs: ## Show scenario logs\n\t@vrooli scenario logs "$(SCENARIO_NAME)"\n\ntest: ## Run scenario tests\n\t@vrooli scenario test "$(SCENARIO_NAME)"\n\nopen: ## Open the scenario in a browser\n\t@vrooli scenario open "$(SCENARIO_NAME)"\n\nrun: start\n\ndev: start\n
+	@printf "For scenario-specific commands, prefer the scenario CLI or 'vrooli scenario ...'.\n"
+
+setup: ## Run scenario setup lifecycle
+	@vrooli scenario setup "$(SCENARIO_NAME)"
+
+start: ## Start the scenario
+	@vrooli scenario start "$(SCENARIO_NAME)"
+
+stop: ## Stop the scenario
+	@vrooli scenario stop "$(SCENARIO_NAME)"
+
+restart: ## Restart the scenario
+	@vrooli scenario restart "$(SCENARIO_NAME)"
+
+status: ## Show scenario runtime status
+	@vrooli scenario status "$(SCENARIO_NAME)"
+
+logs: ## Show scenario logs
+	@vrooli scenario logs "$(SCENARIO_NAME)"
+
+test: ## Run scenario tests
+	@vrooli scenario test "$(SCENARIO_NAME)"
+
+open: ## Open the scenario in a browser
+	@vrooli scenario open "$(SCENARIO_NAME)"
+
+fmt: fmt-go fmt-ui ## Format all code
+
+fmt-go: ## Format Go code
+	@for dir in api cli; do \
+		if [ -d $$dir ] && find $$dir -name "*.go" | head -1 | grep -q .; then \
+			echo "Formatting Go code in $$dir..."; \
+			if command -v gofumpt >/dev/null 2>&1; then \
+				cd $$dir && gofumpt -w . && cd ..; \
+			elif command -v gofmt >/dev/null 2>&1; then \
+				cd $$dir && gofmt -w . && cd ..; \
+			fi; \
+		fi; \
+	done
+
+fmt-ui: ## Format UI code
+	@if [ -f ui/package.json ]; then \
+		echo "Formatting UI code..."; \
+		cd ui && pnpm run lint:fix; \
+	fi
+
+lint: lint-go lint-ui ## Lint all code
+
+lint-go: ## Lint Go code
+	@for dir in api cli; do \
+		if [ -d $$dir ] && find $$dir -name "*.go" | head -1 | grep -q .; then \
+			echo "Linting Go code in $$dir..."; \
+			if command -v golangci-lint >/dev/null 2>&1; then \
+				cd $$dir && golangci-lint run ./... && cd ..; \
+			elif command -v go >/dev/null 2>&1; then \
+				cd $$dir && go vet ./... && cd ..; \
+			fi; \
+		fi; \
+	done
+
+lint-ui: ## Lint UI code
+	@if [ -f ui/package.json ]; then \
+		echo "Linting UI code..."; \
+		cd ui && pnpm run lint && pnpm run type-check; \
+	fi
+
+check: fmt lint test ## Run full quality gates
+
+run: start
+
+dev: start

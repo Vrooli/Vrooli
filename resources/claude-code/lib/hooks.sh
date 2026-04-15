@@ -8,14 +8,16 @@ _CLAUDE_CODE_HOOKS_SOURCED=1
 
 # Source var.sh for directory variables if not already sourced
 # shellcheck disable=SC1091
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
+REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
+source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_TRASH_FILE}"
 
-if [[ -f "${APP_ROOT}/resources/claude-code/lib/settings.sh" ]]; then
+if [[ -f "${RESOURCE_DIR}/lib/settings.sh" ]]; then
     # shellcheck disable=SC1091
-    source "${APP_ROOT}/resources/claude-code/lib/settings.sh"
+    source "${RESOURCE_DIR}/lib/settings.sh"
 fi
 
 claude_code::hooks_scope_path() {
