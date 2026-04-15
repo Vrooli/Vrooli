@@ -28,35 +28,35 @@ var (
 	buildSourceRoot  = ""
 )
 
+func boolPtr(v bool) *bool { return &v }
+
 type App struct {
 	core *cliapp.ScenarioApp
 }
 
 func NewApp() (*App, error) {
-	env := cliapp.StandardScenarioEnv(appName, cliapp.ScenarioEnvOptions{
-		ExtraAPIEnvVars: []string{"API_BASE_URL", "VITE_API_BASE_URL"},
-	})
-	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
-		Name:              appName,
-		Version:           appVersion,
-		Description:       "Workspace Sandbox CLI - Safe copy-on-write workspaces for agents and tools",
-		DefaultAPIBase:    defaultAPIBase,
-		APIEnvVars:        env.APIEnvVars,
-		APIPortEnvVars:    env.APIPortEnvVars,
-		APIPortDetector:   cliutil.DetectPortFromVrooli(appName, "API_PORT"),
-		ConfigDirEnvVars:  env.ConfigDirEnvVars,
-		SourceRootEnvVars: env.SourceRootEnvVars,
-		TokenEnvVars:      env.TokenEnvVars,
-		BuildFingerprint:  buildFingerprint,
-		BuildTimestamp:    buildTimestamp,
-		BuildSourceRoot:   buildSourceRoot,
-		AllowAnonymous:    true,
+	app := &App{}
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
+		Name:                    appName,
+		Version:                 appVersion,
+		Description:             "Workspace Sandbox CLI - Safe copy-on-write workspaces for agents and tools",
+		DefaultAPIBase:          defaultAPIBase,
+		ExtraAPIEnvVars:         []string{"API_BASE_URL", "VITE_API_BASE_URL"},
+		BuildFingerprint:        buildFingerprint,
+		BuildTimestamp:          buildTimestamp,
+		BuildSourceRoot:         buildSourceRoot,
+		AllowAnonymous:          true,
+		IncludeStatusCommand:    boolPtr(false),
+		IncludeConfigureCommand: boolPtr(false),
+		CommandGroups: func(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
+			app.core = core
+			return app.registerCommands()
+		},
 	})
 	if err != nil {
 		return nil, err
 	}
-	app := &App{core: core}
-	app.core.SetCommands(app.registerCommands())
+	app.core = core
 	return app, nil
 }
 
@@ -142,21 +142,6 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 	return []cliapp.CommandGroup{health, sandboxes, execution, diff, gc, provenance, driver, config}
 }
 
-func (a *App) apiPath(v1Path string) string {
-	v1Path = strings.TrimSpace(v1Path)
-	if v1Path == "" {
-		return ""
-	}
-	if !strings.HasPrefix(v1Path, "/") {
-		v1Path = "/" + v1Path
-	}
-	base := strings.TrimRight(strings.TrimSpace(a.core.HTTPClient.BaseURL()), "/")
-	if strings.HasSuffix(base, "/api/v1") {
-		return v1Path
-	}
-	return "/api/v1" + v1Path
-}
-
 // resolveSandboxID resolves a short sandbox ID prefix to a full UUID.
 // Accepts either:
 //   - Full UUID (36 chars with dashes): returned as-is
@@ -177,7 +162,7 @@ func (a *App) resolveSandboxID(shortID string) (string, error) {
 	}
 
 	// Short ID - need to resolve by fetching sandbox list
-	body, err := a.core.APIClient.Get(a.apiPath("/sandboxes"), nil)
+	body, err := a.core.Get("/sandboxes", nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch sandboxes for ID resolution: %w", err)
 	}
@@ -265,7 +250,7 @@ type healthResponse struct {
 }
 
 func (a *App) cmdStatus(_ []string) error {
-	body, err := a.core.APIClient.Get(a.apiPath("/health"), nil)
+	body, err := a.core.Get("/health", nil)
 	if err != nil {
 		return err
 	}
@@ -355,7 +340,7 @@ func (a *App) cmdCreate(args []string) error {
 		reqBody["owner"] = owner
 	}
 
-	body, err := a.core.APIClient.Request("POST", a.apiPath("/sandboxes"), nil, reqBody)
+	body, err := a.core.Request("POST", "/sandboxes", nil, reqBody)
 	if err != nil {
 		return err
 	}
@@ -408,7 +393,7 @@ func (a *App) cmdList(args []string) error {
 		query.Set("owner", owner)
 	}
 
-	body, err := a.core.APIClient.Get(a.apiPath("/sandboxes"), query)
+	body, err := a.core.Get("/sandboxes", query)
 	if err != nil {
 		return err
 	}
@@ -462,7 +447,7 @@ func (a *App) cmdInspect(args []string) error {
 		return err
 	}
 
-	body, err := a.core.APIClient.Get(a.apiPath("/sandboxes/"+sandboxID), nil)
+	body, err := a.core.Get("/sandboxes/"+sandboxID, nil)
 	if err != nil {
 		return err
 	}
@@ -504,7 +489,7 @@ func (a *App) cmdStop(args []string) error {
 		return err
 	}
 
-	body, err := a.core.APIClient.Request("POST", a.apiPath("/sandboxes/"+sandboxID+"/stop"), nil, nil)
+	body, err := a.core.Request("POST", "/sandboxes/"+sandboxID+"/stop", nil, nil)
 	if err != nil {
 		return err
 	}
@@ -528,7 +513,7 @@ func (a *App) cmdDelete(args []string) error {
 		return err
 	}
 
-	_, err = a.core.APIClient.Request("DELETE", a.apiPath("/sandboxes/"+sandboxID), nil, nil)
+	_, err = a.core.Request("DELETE", "/sandboxes/"+sandboxID, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -547,7 +532,7 @@ func (a *App) cmdWorkspace(args []string) error {
 		return err
 	}
 
-	body, err := a.core.APIClient.Get(a.apiPath("/sandboxes/"+sandboxID+"/workspace"), nil)
+	body, err := a.core.Get("/sandboxes/"+sandboxID+"/workspace", nil)
 	if err != nil {
 		return err
 	}
@@ -587,7 +572,7 @@ func (a *App) cmdDiff(args []string) error {
 		return err
 	}
 
-	body, err := a.core.APIClient.Get(a.apiPath("/sandboxes/"+resolvedID+"/diff"), nil)
+	body, err := a.core.Get("/sandboxes/"+resolvedID+"/diff", nil)
 	if err != nil {
 		return err
 	}
@@ -686,7 +671,7 @@ func (a *App) cmdApprove(args []string) error {
 		reqBody["overrideAcceptance"] = true
 	}
 
-	body, err := a.core.APIClient.Request("POST", a.apiPath("/sandboxes/"+resolvedID+"/approve"), nil, reqBody)
+	body, err := a.core.Request("POST", "/sandboxes/"+resolvedID+"/approve", nil, reqBody)
 	if err != nil {
 		return err
 	}
@@ -721,7 +706,7 @@ func (a *App) cmdReject(args []string) error {
 		return err
 	}
 
-	body, err := a.core.APIClient.Request("POST", a.apiPath("/sandboxes/"+sandboxID+"/reject"), nil, nil)
+	body, err := a.core.Request("POST", "/sandboxes/"+sandboxID+"/reject", nil, nil)
 	if err != nil {
 		return err
 	}
@@ -736,7 +721,7 @@ func (a *App) cmdReject(args []string) error {
 }
 
 func (a *App) cmdDriverInfo(_ []string) error {
-	body, err := a.core.APIClient.Get(a.apiPath("/driver/info"), nil)
+	body, err := a.core.Get("/driver/info", nil)
 	if err != nil {
 		return err
 	}
@@ -831,7 +816,7 @@ func (a *App) runGC(args []string, forceDryRun bool) error {
 		endpoint = "/gc/preview"
 	}
 
-	body, err := a.core.APIClient.Request("POST", a.apiPath(endpoint), nil, reqBody)
+	body, err := a.core.Request("POST", endpoint, nil, reqBody)
 	if err != nil {
 		return err
 	}
@@ -956,7 +941,7 @@ func (a *App) cmdConflicts(args []string) error {
 		return err
 	}
 
-	body, err := a.core.APIClient.Get(a.apiPath("/sandboxes/"+resolvedID+"/conflicts"), nil)
+	body, err := a.core.Get("/sandboxes/"+resolvedID+"/conflicts", nil)
 	if err != nil {
 		return err
 	}
@@ -1041,7 +1026,7 @@ func (a *App) cmdRebase(args []string) error {
 		"strategy": "regenerate",
 	}
 
-	body, err := a.core.APIClient.Request("POST", a.apiPath("/sandboxes/"+resolvedID+"/rebase"), nil, reqBody)
+	body, err := a.core.Request("POST", "/sandboxes/"+resolvedID+"/rebase", nil, reqBody)
 	if err != nil {
 		return err
 	}
@@ -1226,7 +1211,7 @@ func (a *App) cmdExec(args []string) error {
 		reqBody["env"] = envVars
 	}
 
-	body, err := a.core.APIClient.Request("POST", a.apiPath("/sandboxes/"+resolvedID+"/exec"), nil, reqBody)
+	body, err := a.core.Request("POST", "/sandboxes/"+resolvedID+"/exec", nil, reqBody)
 	if err != nil {
 		return err
 	}
@@ -1395,7 +1380,7 @@ func (a *App) cmdRun(args []string) error {
 		reqBody["env"] = envVars
 	}
 
-	body, err := a.core.APIClient.Request("POST", a.apiPath("/sandboxes/"+resolvedID+"/start-process"), nil, reqBody)
+	body, err := a.core.Request("POST", "/sandboxes/"+resolvedID+"/start-process", nil, reqBody)
 	if err != nil {
 		return err
 	}
@@ -1468,7 +1453,7 @@ func (a *App) cmdProcesses(args []string) error {
 		query.Set("running", "true")
 	}
 
-	body, err := a.core.APIClient.Get(a.apiPath("/sandboxes/"+resolvedID+"/processes"), query)
+	body, err := a.core.Get("/sandboxes/"+resolvedID+"/processes", query)
 	if err != nil {
 		return err
 	}
@@ -1542,7 +1527,7 @@ func (a *App) cmdKill(args []string) error {
 
 	if killAll {
 		// Kill all processes
-		body, err := a.core.APIClient.Request("DELETE", a.apiPath("/sandboxes/"+resolvedID+"/processes"), nil, nil)
+		body, err := a.core.Request("DELETE", "/sandboxes/"+resolvedID+"/processes", nil, nil)
 		if err != nil {
 			return err
 		}
@@ -1564,7 +1549,7 @@ func (a *App) cmdKill(args []string) error {
 		}
 	} else {
 		// Kill specific process
-		_, err := a.core.APIClient.Request("DELETE", a.apiPath(fmt.Sprintf("/sandboxes/%s/processes/%d", resolvedID, pid)), nil, nil)
+		_, err := a.core.Request("DELETE", fmt.Sprintf("/sandboxes/%s/processes/%d", resolvedID, pid), nil, nil)
 		if err != nil {
 			return err
 		}
@@ -1626,7 +1611,7 @@ func (a *App) cmdLogs(args []string) error {
 
 	// If no PID specified, list all logs
 	if pid == 0 {
-		body, err := a.core.APIClient.Get(a.apiPath("/sandboxes/"+resolvedID+"/logs"), nil)
+		body, err := a.core.Get("/sandboxes/"+resolvedID+"/logs", nil)
 		if err != nil {
 			return err
 		}
@@ -1671,7 +1656,7 @@ func (a *App) cmdLogs(args []string) error {
 		query.Set("tail", fmt.Sprintf("%d", tail))
 	}
 
-	body, err := a.core.APIClient.Get(a.apiPath(fmt.Sprintf("/sandboxes/%s/processes/%d/logs", resolvedID, pid)), query)
+	body, err := a.core.Get(fmt.Sprintf("/sandboxes/%s/processes/%d/logs", resolvedID, pid), query)
 	if err != nil {
 		return err
 	}
@@ -1705,7 +1690,7 @@ func (a *App) streamLogs(sandboxID string, pid int) error {
 		query := url.Values{}
 		query.Set("offset", fmt.Sprintf("%d", lastOffset))
 
-		body, err := a.core.APIClient.Get(a.apiPath(fmt.Sprintf("/sandboxes/%s/processes/%d/logs", sandboxID, pid)), query)
+		body, err := a.core.Get(fmt.Sprintf("/sandboxes/%s/processes/%d/logs", sandboxID, pid), query)
 		if err != nil {
 			return err
 		}
@@ -2079,7 +2064,7 @@ func (a *App) cmdPending(args []string) error {
 		query.Set("projectRoot", projectRoot)
 	}
 
-	body, err := a.core.APIClient.Get(a.apiPath("/pending"), query)
+	body, err := a.core.Get("/pending", query)
 	if err != nil {
 		return err
 	}
@@ -2161,7 +2146,7 @@ func (a *App) cmdProvenance(args []string) error {
 		query.Set("limit", fmt.Sprintf("%d", limit))
 	}
 
-	body, err := a.core.APIClient.Get(a.apiPath("/provenance"), query)
+	body, err := a.core.Get("/provenance", query)
 	if err != nil {
 		return err
 	}
@@ -2239,7 +2224,7 @@ func (a *App) cmdCommitPending(args []string) error {
 		reqBody["actor"] = actor
 	}
 
-	body, err := a.core.APIClient.Request("POST", a.apiPath("/commit-pending"), nil, reqBody)
+	body, err := a.core.Request("POST", "/commit-pending", nil, reqBody)
 	if err != nil {
 		return err
 	}

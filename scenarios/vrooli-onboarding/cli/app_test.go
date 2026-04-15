@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -19,7 +20,7 @@ func TestNewApp(t *testing.T) {
 	}
 }
 
-func TestAppAPIPath(t *testing.T) {
+func TestAppPaths(t *testing.T) {
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp() returned error: %v", err)
@@ -39,23 +40,38 @@ func TestAppAPIPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := app.apiPath(tt.input)
+			got := app.core.APIPath(tt.input)
 			if got != tt.want {
-				t.Errorf("apiPath(%q) = %q, want %q", tt.input, got, tt.want)
+				t.Errorf("APIPath(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
 	}
 }
 
-func TestAppHasCommands(t *testing.T) {
+func TestAppHasBuiltInCommands(t *testing.T) {
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", t.TempDir())
+
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("NewApp() returned error: %v", err)
 	}
 
-	// Verify the CLI has registered commands
 	if app.core.CLI == nil {
 		t.Fatal("expected CLI to be initialized")
+	}
+	if err := app.Run([]string{"configure", "api_base", "http://example.com"}); err != nil {
+		t.Fatalf("configure failed: %v", err)
+	}
+
+	err = app.Run([]string{"status"})
+	if err == nil {
+		t.Fatal("expected status to fail without a reachable API")
+	}
+	if !strings.Contains(err.Error(), "API request failed") &&
+		!strings.Contains(err.Error(), "api error (404)") &&
+		!strings.Contains(err.Error(), "connection refused") &&
+		!strings.Contains(err.Error(), "lookup") {
+		t.Fatalf("expected built-in status command to execute, got %v", err)
 	}
 }
 

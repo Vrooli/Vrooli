@@ -235,7 +235,7 @@ func getVrooliRoot() (string, error) {
 			if root, err := repocontract.FindRepoRoot(value); err == nil {
 				return root, nil
 			}
-			return filepath.Clean(value), nil
+			return "", fmt.Errorf("%s does not point at a valid repo root", key)
 		}
 	}
 	return "", fmt.Errorf("neither VROOLI_SOURCE_ROOT nor VROOLI_ROOT points at a valid repo root")
@@ -253,18 +253,15 @@ func resolveEntityBaseDir(entityType, entityName, customPath string) (string, er
 		return "", err
 	}
 	if entityType == EntityTypeScenario {
-		if path, err := repocontract.ResolveScenarioPath(vrooliRoot, entityName); err == nil {
-			return path, nil
-		}
-		return filepath.Join(vrooliRoot, "scenarios", entityName), nil
+		return repocontract.ResolveScenarioPath(vrooliRoot, entityName)
 	}
 	contract, err := repocontract.LoadDefault(vrooliRoot)
 	if err != nil {
-		return filepath.Join(vrooliRoot, "resources", entityName), nil
+		return "", err
 	}
 	resourcesDir, err := contract.TopLevelDir(vrooliRoot, "resources")
 	if err != nil {
-		return filepath.Join(vrooliRoot, "resources", entityName), nil
+		return "", err
 	}
 	return filepath.Join(resourcesDir, entityName), nil
 }

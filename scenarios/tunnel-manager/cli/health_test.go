@@ -35,7 +35,7 @@ func TestHealthDetailedAPIPath(t *testing.T) {
 		t.Fatalf("NewApp: %v", err)
 	}
 
-	got := app.apiPath("/health/detailed")
+	got := app.core.APIPath("/health/detailed")
 	want := "/api/v1/health/detailed"
 	if got != want {
 		t.Errorf("apiPath(/health/detailed) = %q, want %q", got, want)
@@ -73,7 +73,7 @@ func TestProbesHistoryAPIPath(t *testing.T) {
 		t.Fatalf("NewApp: %v", err)
 	}
 
-	got := app.apiPath("/probes/history?limit=100")
+	got := app.core.APIPath("/probes/history?limit=100")
 	want := "/api/v1/probes/history?limit=100"
 	if got != want {
 		t.Errorf("apiPath(/probes/history?limit=100) = %q, want %q", got, want)

@@ -532,10 +532,7 @@ func resolveInvestigationWorkingDir() string {
 	if repoRoot, err := repocontract.ResolveRepoRoot(); err == nil {
 		return repoRoot
 	}
-	if cwd, err := os.Getwd(); err == nil {
-		return cwd
-	}
-	return "."
+	return ""
 }
 
 func truncateAgentLog(raw string, limit int) string {

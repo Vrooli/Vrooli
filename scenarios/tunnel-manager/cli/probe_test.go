@@ -35,7 +35,7 @@ func TestProbeAPIPath(t *testing.T) {
 		t.Fatalf("NewApp: %v", err)
 	}
 
-	got := app.apiPath("/probes")
+	got := app.core.APIPath("/probes")
 	want := "/api/v1/probes"
 	if got != want {
 		t.Errorf("apiPath(/probes) = %q, want %q", got, want)

@@ -1,12 +1,10 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"scenario-authenticator/auth"
@@ -15,9 +13,11 @@ import (
 	apimiddleware "scenario-authenticator/middleware"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/vrooli/api-core/health"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 func main() {
@@ -28,13 +28,10 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	// Change to project root directory for consistent file operations
-	if rootDir := resolveRepoRoot(); rootDir != "" {
-		if err := os.Chdir(rootDir); err != nil {
-			log.Printf("⚠️  Warning: Could not change to project root (%s): %v", rootDir, err)
-		}
-	} else {
-		log.Printf("⚠️  Warning: Could not determine repository root; continuing with current working directory")
+	// Change to project root directory for consistent file operations.
+	rootDir := resolveRepoRoot()
+	if err := os.Chdir(rootDir); err != nil {
+		log.Fatalf("[scenario-authenticator/api] ❌ Failed to change to project root (%s): %v", rootDir, err)
 	}
 
 	// Load configuration from environment variables
@@ -190,39 +187,11 @@ func getDBURL() string {
 		dbUser, dbPassword, dbHost, dbPort, dbName)
 }
 
-// resolveRepoRoot attempts to locate the repository root so relative assets (like JWT keys) persist between runs.
+// resolveRepoRoot returns the canonical repository root required for asset loading.
 func resolveRepoRoot() string {
-	if root := os.Getenv("VROOLI_ROOT"); root != "" {
-		return root
+	root, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		log.Fatalf("[scenario-authenticator/api] ❌ Failed to resolve repository root: %v", err)
 	}
-
-	if exePath, err := os.Executable(); err == nil {
-		dir := filepath.Dir(exePath)
-		if candidate := verifyRepoRoot(filepath.Join(dir, "..", "..", "..")); candidate != "" {
-			return candidate
-		}
-	}
-
-	if cwd, err := os.Getwd(); err == nil {
-		if candidate := verifyRepoRoot(filepath.Join(cwd, "..", "..", "..")); candidate != "" {
-			return candidate
-		}
-	}
-
-	return ""
+	return root
 }
-
-// verifyRepoRoot ensures the candidate path looks like the repository root.
-func verifyRepoRoot(candidate string) string {
-	candidate = filepath.Clean(candidate)
-	if candidate == "" {
-		return ""
-	}
-
-	if info, err := os.Stat(filepath.Join(candidate, "scenarios")); err == nil && info.IsDir() {
-		return candidate
-	}
-
-	return ""
-}
-// Test change

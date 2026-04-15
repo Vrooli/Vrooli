@@ -6,13 +6,13 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/vrooli/api-core/storage"
 )
 
 const (
 	// GlobalConfigFile is the filename for global configuration
 	GlobalConfigFile = "scoring-config.json"
-	// VrooliConfigDir is the directory name for Vrooli configuration
-	VrooliConfigDir = ".vrooli"
 )
 
 // Loader manages configuration loading and saving.
@@ -28,15 +28,20 @@ func NewLoader(vrooliRoot string) *Loader {
 	return &Loader{vrooliRoot: vrooliRoot}
 }
 
-// globalConfigPath returns the path to the global config file.
-// ASSUMPTION: User home directory is available
-// HARDENED: Falls back to /tmp if home dir lookup fails
-func (l *Loader) globalConfigPath() string {
-	homeDir, err := os.UserHomeDir()
-	if err != nil || homeDir == "" {
-		homeDir = "/tmp"
+// globalConfigPath returns the canonical path to the global config file.
+func (l *Loader) globalConfigPath() (string, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return "", err
 	}
-	return filepath.Join(homeDir, VrooliConfigDir, GlobalConfigFile)
+	return resolver.Path(
+		storage.Options{ScenarioID: "scenario-completeness-scoring"},
+		storage.ClassConfig,
+		GlobalConfigFile,
+	)
 }
 
 // LoadGlobal loads the global configuration from disk.
@@ -45,7 +50,10 @@ func (l *Loader) LoadGlobal() (*ScoringConfig, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	configPath := l.globalConfigPath()
+	configPath, err := l.globalConfigPath()
+	if err != nil {
+		return nil, fmt.Errorf("resolve global config path: %w", err)
+	}
 
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		cfg := DefaultConfig()
@@ -73,8 +81,11 @@ func (l *Loader) SaveGlobal(cfg *ScoringConfig) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	configPath := l.globalConfigPath()
-	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
+	configPath, err := l.globalConfigPath()
+	if err != nil {
+		return fmt.Errorf("resolve global config path: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(configPath), 0o755); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
@@ -83,7 +94,7 @@ func (l *Loader) SaveGlobal(cfg *ScoringConfig) error {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	if err := os.WriteFile(configPath, data, 0644); err != nil {
+	if err := os.WriteFile(configPath, data, 0o644); err != nil {
 		return fmt.Errorf("failed to write global config: %w", err)
 	}
 
@@ -172,4 +183,3 @@ func ValidateConfig(cfg *ScoringConfig) error {
 
 	return nil
 }
-

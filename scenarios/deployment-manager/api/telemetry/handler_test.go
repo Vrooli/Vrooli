@@ -49,7 +49,10 @@ func TestHandleUploadTelemetryJSON(t *testing.T) {
 	}
 
 	// Ensure file was written
-	out := shared.GetConfigResolver().ResolveTelemetryDir()
+	out, err := shared.GetConfigResolver().ResolveTelemetryDir()
+	if err != nil {
+		t.Fatalf("resolve telemetry dir: %v", err)
+	}
 	contents, err := os.ReadFile(filepath.Join(out, "picker-wheel.jsonl"))
 	if err != nil {
 		t.Fatalf("expected telemetry file: %v", err)

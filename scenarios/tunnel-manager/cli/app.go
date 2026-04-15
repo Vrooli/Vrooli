@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -26,36 +27,36 @@ var (
 	buildSourceRoot  = ""
 )
 
+func boolPtr(v bool) *bool { return &v }
+
 type App struct {
 	core  *cliapp.ScenarioApp
 	Stdin io.Reader // defaults to os.Stdin; override in tests
 }
 
 func NewApp() (*App, error) {
-	env := cliapp.StandardScenarioEnv(appName, cliapp.ScenarioEnvOptions{
-		ExtraAPIEnvVars: []string{"API_BASE_URL", "VITE_API_BASE_URL"},
-	})
-	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
-		Name:              appName,
-		Version:           appVersion,
-		Description:       "Tunnel Manager CLI",
-		DefaultAPIBase:    defaultAPIBase,
-		APIEnvVars:        env.APIEnvVars,
-		APIPortEnvVars:    env.APIPortEnvVars,
-		APIPortDetector:   cliutil.DetectPortFromVrooli(appName, "API_PORT"),
-		ConfigDirEnvVars:  env.ConfigDirEnvVars,
-		SourceRootEnvVars: env.SourceRootEnvVars,
-		TokenEnvVars:      env.TokenEnvVars,
-		BuildFingerprint:  buildFingerprint,
-		BuildTimestamp:    buildTimestamp,
-		BuildSourceRoot:   buildSourceRoot,
-		AllowAnonymous:    true,
+	app := &App{Stdin: os.Stdin}
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
+		Name:                    appName,
+		Version:                 appVersion,
+		Description:             "Tunnel Manager CLI",
+		DefaultAPIBase:          defaultAPIBase,
+		ExtraAPIEnvVars:         []string{"API_BASE_URL", "VITE_API_BASE_URL"},
+		BuildFingerprint:        buildFingerprint,
+		BuildTimestamp:          buildTimestamp,
+		BuildSourceRoot:         buildSourceRoot,
+		AllowAnonymous:          true,
+		IncludeStatusCommand:    boolPtr(false),
+		IncludeConfigureCommand: boolPtr(false),
+		CommandGroups: func(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
+			app.core = core
+			return app.registerCommands()
+		},
 	})
 	if err != nil {
 		return nil, err
 	}
-	app := &App{core: core, Stdin: os.Stdin}
-	app.core.SetCommands(app.registerCommands())
+	app.core = core
 	return app, nil
 }
 
@@ -126,21 +127,6 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 	return []cliapp.CommandGroup{health, routes, probes, audit, metrics, recovery, config}
 }
 
-func (a *App) apiPath(v1Path string) string {
-	v1Path = strings.TrimSpace(v1Path)
-	if v1Path == "" {
-		return ""
-	}
-	if !strings.HasPrefix(v1Path, "/") {
-		v1Path = "/" + v1Path
-	}
-	base := strings.TrimRight(strings.TrimSpace(a.core.HTTPClient.BaseURL()), "/")
-	if strings.HasSuffix(base, "/api/v1") {
-		return v1Path
-	}
-	return "/api/v1" + v1Path
-}
-
 func (a *App) useJSON(args []string) bool {
 	for _, arg := range args {
 		if arg == "--json" || arg == "-j" {
@@ -148,6 +134,15 @@ func (a *App) useJSON(args []string) bool {
 		}
 	}
 	return false
+}
+
+func urlValues(key, value string) url.Values {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	query := url.Values{}
+	query.Set(key, value)
+	return query
 }
 
 // --- Status Command (OT-P0-007) ---
@@ -163,10 +158,10 @@ type tunnelStatusResponse struct {
 }
 
 func (a *App) cmdStatus(args []string) error {
-	body, err := a.core.APIClient.Get(a.apiPath("/tunnel/health"), nil)
+	body, err := a.core.Get("/tunnel/health", nil)
 	if err != nil {
 		// Fall back to basic health check
-		body, err = a.core.APIClient.Get(a.apiPath("/health"), nil)
+		body, err = a.core.Get("/health", nil)
 		if err != nil {
 			return err
 		}
@@ -229,7 +224,7 @@ type routeResponse struct {
 }
 
 func (a *App) cmdRoutes(args []string) error {
-	body, err := a.core.APIClient.Get(a.apiPath("/routes"), nil)
+	body, err := a.core.Get("/routes", nil)
 	if err != nil {
 		return err
 	}
@@ -282,7 +277,7 @@ type probeResponse struct {
 }
 
 func (a *App) cmdProbe(args []string) error {
-	body, err := a.core.APIClient.Request("POST", a.apiPath("/probes"), nil, nil)
+	body, err := a.core.Request("POST", "/probes", nil, nil)
 	if err != nil {
 		return err
 	}
@@ -347,7 +342,7 @@ type auditResponse struct {
 }
 
 func (a *App) cmdAudit(args []string) error {
-	body, err := a.core.APIClient.Get(a.apiPath("/audit/ports"), nil)
+	body, err := a.core.Get("/audit/ports", nil)
 	if err != nil {
 		return err
 	}
@@ -423,7 +418,7 @@ func (a *App) cmdRouteGet(args []string) error {
 	}
 	id := args[0]
 
-	body, err := a.core.APIClient.Get(a.apiPath("/routes/"+id), nil)
+	body, err := a.core.Get("/routes/"+id, nil)
 	if err != nil {
 		return err
 	}
@@ -487,7 +482,7 @@ func (a *App) cmdRouteCreate(args []string) error {
 		payload["enabled"] = v == "true"
 	}
 
-	body, err := a.core.APIClient.Request("POST", a.apiPath("/routes"), nil, payload)
+	body, err := a.core.Request("POST", "/routes", nil, payload)
 	if err != nil {
 		return err
 	}
@@ -538,7 +533,7 @@ func (a *App) cmdRouteUpdate(args []string) error {
 		payload["enabled"] = v == "true"
 	}
 
-	body, err := a.core.APIClient.Request("PUT", a.apiPath("/routes/"+id), nil, payload)
+	body, err := a.core.Request("PUT", "/routes/"+id, nil, payload)
 	if err != nil {
 		return err
 	}
@@ -577,7 +572,7 @@ func (a *App) cmdRouteDelete(args []string) error {
 		}
 	}
 
-	_, err := a.core.APIClient.Request("DELETE", a.apiPath("/routes/"+id), nil, nil)
+	_, err := a.core.Request("DELETE", "/routes/"+id, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -589,7 +584,7 @@ func (a *App) cmdRouteDelete(args []string) error {
 // --- Metrics Commands ---
 
 func (a *App) cmdMetricsLatest(args []string) error {
-	body, err := a.core.APIClient.Get(a.apiPath("/metrics/latest"), nil)
+	body, err := a.core.Get("/metrics/latest", nil)
 	if err != nil {
 		return err
 	}
@@ -619,7 +614,7 @@ func (a *App) cmdMetricsHistory(args []string) error {
 		hours = v
 	}
 
-	body, err := a.core.APIClient.Get(a.apiPath("/metrics/history?hours="+hours), nil)
+	body, err := a.core.Get("/metrics/history", urlValues("hours", hours))
 	if err != nil {
 		return err
 	}
@@ -663,7 +658,7 @@ func (a *App) cmdProbesHistory(args []string) error {
 		limit = v
 	}
 
-	body, err := a.core.APIClient.Get(a.apiPath("/probes/history?limit="+limit), nil)
+	body, err := a.core.Get("/probes/history", urlValues("limit", limit))
 	if err != nil {
 		return err
 	}
@@ -711,7 +706,7 @@ func (a *App) cmdProbesHistory(args []string) error {
 // --- Recovery Commands ---
 
 func (a *App) cmdRecoveryState(args []string) error {
-	body, err := a.core.APIClient.Get(a.apiPath("/recovery/state"), nil)
+	body, err := a.core.Get("/recovery/state", nil)
 	if err != nil {
 		return err
 	}
@@ -746,7 +741,7 @@ func (a *App) cmdRecoveryTrigger(args []string) error {
 		"force": parseBoolFlag(args, "force"),
 	}
 
-	body, err := a.core.APIClient.Request("POST", a.apiPath("/recovery/trigger"), nil, payload)
+	body, err := a.core.Request("POST", "/recovery/trigger", nil, payload)
 	if err != nil {
 		return err
 	}
@@ -776,7 +771,7 @@ func (a *App) cmdRecoveryEvents(args []string) error {
 		limit = v
 	}
 
-	body, err := a.core.APIClient.Get(a.apiPath("/recovery/events?limit="+limit), nil)
+	body, err := a.core.Get("/recovery/events", urlValues("limit", limit))
 	if err != nil {
 		return err
 	}
@@ -817,7 +812,7 @@ func (a *App) cmdRecoveryEvents(args []string) error {
 }
 
 func (a *App) cmdRecoveryCircuitReset(args []string) error {
-	body, err := a.core.APIClient.Request("POST", a.apiPath("/recovery/circuit/reset"), nil, nil)
+	body, err := a.core.Request("POST", "/recovery/circuit/reset", nil, nil)
 	if err != nil {
 		return err
 	}
@@ -834,7 +829,7 @@ func (a *App) cmdRecoveryCircuitReset(args []string) error {
 // --- Health Detailed Command ---
 
 func (a *App) cmdHealthDetailed(args []string) error {
-	body, err := a.core.APIClient.Get(a.apiPath("/health/detailed"), nil)
+	body, err := a.core.Get("/health/detailed", nil)
 	if err != nil {
 		return err
 	}

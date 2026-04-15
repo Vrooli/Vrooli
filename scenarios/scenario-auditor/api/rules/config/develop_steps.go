@@ -9,10 +9,10 @@ import (
 )
 
 const (
-	developDefaultRecommendation     = "Provide start-api, start-ui (when UI_PORT is defined), and show-urls steps in lifecycle.develop so scenarios restart predictably."
+	developDefaultRecommendation     = "Provide start-api and start-ui (when UI_PORT is defined) in lifecycle.develop so scenarios restart predictably."
 	startUIRunRecommendation         = "Serve the built ui/dist bundle (node server.(js|cjs) or static file server) per PRODUCTION_BUNDLES.md so lifecycle restarts rebuild stale assets."
-	startUIBackgroundRecommendation  = "Set start-ui background: true so develop can continue to show-urls and agents regain their shell."
-	startAPIBackgroundRecommendation = "Set start-api background: true so lifecycle can inject resource environment variables (DATABASE_URL, REDIS_HOST, etc.), monitor the process via health checks, and return shell control to agents for show-urls and subsequent steps. Foreground processes block the lifecycle and prevent orchestration."
+	startUIBackgroundRecommendation  = "Set start-ui background: true so develop can complete and agents regain their shell."
+	startAPIBackgroundRecommendation = "Set start-api background: true so lifecycle can inject resource environment variables (DATABASE_URL, REDIS_HOST, etc.), monitor the process via health checks, and return shell control after startup. Foreground processes block the lifecycle and prevent orchestration."
 	developDefaultUIBundlePath       = "ui/dist/index.html"
 )
 
@@ -47,9 +47,7 @@ Targets: service_json
   },
   "lifecycle": {
     "develop": {
-      "steps": [
-        {"name": "show-urls", "run": "echo done"}
-      ]
+      "steps": []
     }
   }
 }
@@ -75,8 +73,7 @@ Targets: service_json
           "background": true,
           "description": "Start Go API server in background",
           "condition": {"file_exists": "api/demo-api"}
-        },
-        {"name": "show-urls", "run": "echo done"}
+        }
       ]
     }
   }
@@ -103,32 +100,6 @@ Targets: service_json
           "description": "Start Go API server in background",
           "background": true,
           "condition": {"file_exists": "api/demo-api"}
-        },
-        {"name": "show-urls", "run": "echo done"}
-      ]
-    }
-  }
-}
-  ]]></input>
-  <expected-violations>1</expected-violations>
-  <expected-message>start-ui</expected-message>
-</test-case>
-
-<test-case id="show-urls-last" should-fail="true">
-  <description>show-urls is not the final develop step</description>
-  <input language="json"><![CDATA[
-{
-  "service": {"name": "demo"},
-  "lifecycle": {
-    "develop": {
-      "steps": [
-        {"name": "show-urls", "run": "echo first"},
-        {
-          "name": "start-api",
-          "run": "cd api && ./demo-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {"file_exists": "api/demo-api"}
         }
       ]
     }
@@ -136,7 +107,7 @@ Targets: service_json
 }
   ]]></input>
   <expected-violations>1</expected-violations>
-  <expected-message>show-urls</expected-message>
+  <expected-message>start-ui</expected-message>
 </test-case>
 
 <test-case id="valid-develop" should-fail="false">
@@ -164,10 +135,6 @@ Targets: service_json
           "background": true,
           "description": "Serve production UI bundle",
           "condition": {"file_exists": "ui/dist/index.html"}
-        },
-        {
-          "name": "show-urls",
-          "run": "echo done"
         }
       ]
     }
@@ -193,10 +160,6 @@ Targets: service_json
           "description": "Start Go API server with prepared environment",
           "background": true,
           "condition": {"file_exists": "api/demo-api"}
-        },
-        {
-          "name": "show-urls",
-          "run": "echo done"
         }
       ]
     }
@@ -222,10 +185,6 @@ Targets: service_json
           "description": "Start Go API server",
           "background": true,
           "condition": {"file_exists": "api/demo-api"}
-        },
-        {
-          "name": "show-urls",
-          "run": "echo done"
         }
       ]
     }
@@ -257,10 +216,6 @@ Targets: service_json
           "description": "Start Go API server",
           "background": true,
           "condition": {"file_exists": "api/demo-api"}
-        },
-        {
-          "name": "show-urls",
-          "run": "echo done"
         }
       ]
     }
@@ -290,10 +245,6 @@ Targets: service_json
           "run": "cd ui && NODE_ENV=production node server.js",
           "background": true,
           "condition": {"file_exists": "ui/dist/index.html"}
-        },
-        {
-          "name": "show-urls",
-          "run": "echo done"
         }
       ]
     }
@@ -318,10 +269,6 @@ Targets: service_json
           "run": "cd ui && npm run dev",
           "background": true,
           "condition": {"file_exists": "ui/package.json"}
-        },
-        {
-          "name": "show-urls",
-          "run": "echo done"
         }
       ]
     }
@@ -356,10 +303,6 @@ Targets: service_json
           "run": "cd ui && node server.js",
           "description": "Serve production UI bundle",
           "condition": {"file_exists": "ui/dist/index.html"}
-        },
-        {
-          "name": "show-urls",
-          "run": "echo done"
         }
       ]
     }
@@ -386,10 +329,6 @@ Targets: service_json
           "run": "cd ui && node server.js",
           "description": "Serve production bundle",
           "background": true
-        },
-        {
-          "name": "show-urls",
-          "run": "echo done"
         }
       ]
     }
@@ -416,10 +355,6 @@ Targets: service_json
           "run": "cd ui && NODE_ENV=production node server.js",
           "background": true,
           "condition": {"file_exists": "ui/package.json"}
-        },
-        {
-          "name": "show-urls",
-          "run": "echo done"
         }
       ]
     }
@@ -465,7 +400,7 @@ func CheckDevelopLifecycleSteps(content []byte, filePath string) []Violation {
 	stepsSlice, ok := stepsRaw.([]any)
 	if !ok || len(stepsSlice) == 0 {
 		line := findJSONLineDevelop(source, "\"develop\"", "\"steps\"")
-		return []Violation{newDevelopViolation(filePath, line, "lifecycle.develop.steps must include at least the start and show-urls commands")}
+		return []Violation{newDevelopViolation(filePath, line, "lifecycle.develop.steps must include at least one start command")}
 	}
 
 	scenarioName := strings.TrimSpace(getScenarioName(payload))
@@ -502,7 +437,7 @@ func CheckDevelopLifecycleSteps(content []byte, filePath string) []Violation {
 
 			if bg, ok := startAPIStep["background"].(bool); !ok || !bg {
 				line := findJSONLineDevelop(source, "\"start-api\"", "\"background\"")
-				msg := "start-api must run in the background so lifecycle can inject resource environment variables, monitor the process via health checks, and return shell control to agents for show-urls and subsequent steps. Foreground processes block the lifecycle, prevent orchestration, and cause agents to hang waiting for shell access."
+				msg := "start-api must run in the background so lifecycle can inject resource environment variables, monitor the process via health checks, and return shell control once startup finishes. Foreground processes block the lifecycle, prevent orchestration, and cause agents to hang waiting for shell access."
 				violations = append(violations, newDevelopViolation(filePath, line, msg, startAPIBackgroundRecommendation))
 			}
 
@@ -531,7 +466,7 @@ func CheckDevelopLifecycleSteps(content []byte, filePath string) []Violation {
 		} else {
 			if bg, ok := startUIStep["background"].(bool); !ok || !bg {
 				line := findJSONLineDevelop(source, "\"start-ui\"", "\"background\"")
-				msg := "start-ui must run in the background so develop can continue to show-urls and agents regain their shell. Foreground UI servers block the lifecycle from completing, prevent show-urls from displaying connection info, and cause automation to hang waiting for shell access."
+				msg := "start-ui must run in the background so develop can complete and agents regain their shell. Foreground UI servers block the lifecycle from completing and cause automation to hang waiting for shell access."
 				violations = append(violations, newDevelopViolation(filePath, line, msg, startUIBackgroundRecommendation))
 			}
 
@@ -563,17 +498,6 @@ func CheckDevelopLifecycleSteps(content []byte, filePath string) []Violation {
 				}
 			}
 		}
-	}
-
-	showStep, showIndex := findStepByName(stepsSlice, "show-urls")
-	if showStep == nil {
-		line := contextualLine(findJSONLineDevelop(source, "\"show-urls\""), stepsLine, developLine)
-		msg := "Develop steps must include a \"show-urls\" command so operators and agents know which URLs to access after lifecycle completes. Without show-urls, users don't know the API_PORT or UI_PORT values, making it impossible to open the correct endpoints or verify the scenario is running correctly."
-		violations = append(violations, newDevelopViolation(filePath, line, msg))
-	} else if showIndex != len(stepsSlice)-1 {
-		line := findJSONLineDevelop(source, "\"show-urls\"")
-		msg := "show-urls step must be the final develop step so backgrounded services complete before displaying connection info. Showing URLs before services start causes agents and operators to attempt connections while health checks are still pending, leading to 'connection refused' errors and false failure reports."
-		violations = append(violations, newDevelopViolation(filePath, line, msg))
 	}
 
 	return deduplicateDevelopViolations(violations)

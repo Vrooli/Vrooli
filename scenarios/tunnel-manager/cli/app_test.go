@@ -49,7 +49,7 @@ func TestAPIPathConstruction(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		got := app.apiPath(tc.input)
+		got := app.core.APIPath(tc.input)
 		if got != tc.want {
 			t.Errorf("apiPath(%q) = %q, want %q", tc.input, got, tc.want)
 		}

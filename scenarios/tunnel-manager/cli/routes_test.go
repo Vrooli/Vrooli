@@ -36,7 +36,7 @@ func TestRoutesAPIPath(t *testing.T) {
 		t.Fatalf("NewApp: %v", err)
 	}
 
-	got := app.apiPath("/routes")
+	got := app.core.APIPath("/routes")
 	want := "/api/v1/routes"
 	if got != want {
 		t.Errorf("apiPath(/routes) = %q, want %q", got, want)

@@ -512,7 +512,8 @@ func TestGetVrooliRootCanonicalizesContractRoots(t *testing.T) {
 		t.Fatalf("mkdir nested: %v", err)
 	}
 
-	t.Setenv("VROOLI_ROOT", nested)
+	t.Setenv("VROOLI_SOURCE_ROOT", nested)
+	t.Setenv("VROOLI_ROOT", "")
 
 	if got := getVrooliRoot(); got != root {
 		t.Fatalf("getVrooliRoot() = %q, want %q", got, root)
@@ -526,7 +527,8 @@ func TestGetVrooliPathsCanonicalizesContractRoots(t *testing.T) {
 		t.Fatalf("mkdir nested: %v", err)
 	}
 
-	t.Setenv("VROOLI_ROOT", nested)
+	t.Setenv("VROOLI_SOURCE_ROOT", nested)
+	t.Setenv("VROOLI_ROOT", "")
 
 	paths, err := getVrooliPaths()
 	if err != nil {
@@ -877,7 +879,8 @@ func TestFileContentHandler(t *testing.T) {
 		if err := os.WriteFile(targetPath, []byte("from repo root"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		t.Setenv("VROOLI_ROOT", nested)
+		t.Setenv("VROOLI_SOURCE_ROOT", nested)
+		t.Setenv("VROOLI_ROOT", "")
 
 		req, err := http.NewRequest("GET", "/api/v1/files/content?path=notes.txt", nil)
 		if err != nil {

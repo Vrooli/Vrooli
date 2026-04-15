@@ -4,8 +4,8 @@
 package config
 
 import (
+	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 	"time"
 
@@ -71,13 +71,14 @@ func defaultDBPath() string {
 		AppID:   "vrooli",
 		Profile: storage.ProfileAuto,
 	})
-	if err == nil {
-		if path, resolveErr := resolver.Path(storage.Options{ScenarioID: "vrooli-events"}, storage.ClassData, "events.db"); resolveErr == nil {
-			return path
-		}
+	if err != nil {
+		panic(fmt.Sprintf("create storage resolver: %v", err))
 	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".vrooli", "vrooli-events", "events.db")
+	path, err := resolver.Path(storage.Options{ScenarioID: "vrooli-events"}, storage.ClassData, "events.db")
+	if err != nil {
+		panic(fmt.Sprintf("resolve vrooli-events db path: %v", err))
+	}
+	return path
 }
 
 func envStr(key, fallback string) string {

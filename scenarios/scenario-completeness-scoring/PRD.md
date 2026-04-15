@@ -67,7 +67,7 @@
   - Storage: SQLite for score history (simple, portable), JSON files for configuration
 - **Data + storage expectations**:
   - Score snapshots stored in SQLite database
-  - Configuration in `.vrooli/scoring-config.json` (global) and per-scenario overrides
+  - Configuration in `~/.config/vrooli/scenario-completeness-scoring/scoring-config.json` (global) and per-scenario tracked defaults
   - No external database dependencies for portability
 - **Integration strategy**:
   - REST API as primary interface
@@ -283,7 +283,7 @@
 
 -### References
 - Current Go implementation: `scenarios/scenario-completeness-scoring/api/pkg/scoring`
-- Configuration data: `scenarios/scenario-completeness-scoring/api/pkg/config` + `.vrooli/scoring-config.json`
+- Configuration data: `scenarios/scenario-completeness-scoring/api/pkg/config` + `~/.config/vrooli/scenario-completeness-scoring/scoring-config.json`
 - Legacy JS implementation (removed after migration): `scripts/scenarios/lib/completeness.js`
 - Legacy configuration file (removed after migration): `scripts/scenarios/lib/completeness-config.json`
 - Ecosystem-manager metrics: `scenarios/ecosystem-manager/api/pkg/autosteer/metrics*.go`

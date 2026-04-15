@@ -167,11 +167,6 @@
           "condition": {
             "file_not_exists": "data/keys/private.pem"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"Authentication Service initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: scenario-authenticator --help\"",
-          "description": "Display service access URLs"
         }
       ]
     },
@@ -195,11 +190,6 @@
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"Auth Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: scenario-authenticator --help\"",
-          "description": "Display all running service URLs"
         }
       ]
     },

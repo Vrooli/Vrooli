@@ -28,6 +28,8 @@ var (
 	buildSourceRoot  = ""
 )
 
+func boolPtr(v bool) *bool { return &v }
+
 // App wraps the cli-core ScenarioApp with knowledge-observatory commands.
 type App struct {
 	core *cliapp.ScenarioApp
@@ -35,30 +37,27 @@ type App struct {
 
 // NewApp constructs the CLI wiring.
 func NewApp() (*App, error) {
-	env := cliapp.StandardScenarioEnv(appName, cliapp.ScenarioEnvOptions{
-		ExtraAPIEnvVars: []string{"API_BASE_URL", "VITE_API_BASE_URL"},
-	})
-	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
-		Name:              appName,
-		Version:           appVersion,
-		Description:       "Knowledge Observatory CLI - search, ingest, and graph knowledge",
-		DefaultAPIBase:    defaultAPIBase,
-		APIEnvVars:        env.APIEnvVars,
-		APIPortEnvVars:    env.APIPortEnvVars,
-		APIPortDetector:   cliutil.DetectPortFromVrooli(appName, "API_PORT"),
-		ConfigDirEnvVars:  env.ConfigDirEnvVars,
-		SourceRootEnvVars: env.SourceRootEnvVars,
-		TokenEnvVars:      env.TokenEnvVars,
-		BuildFingerprint:  buildFingerprint,
-		BuildTimestamp:    buildTimestamp,
-		BuildSourceRoot:   buildSourceRoot,
-		AllowAnonymous:    true,
+	app := &App{}
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
+		Name:                    appName,
+		Version:                 appVersion,
+		Description:             "Knowledge Observatory CLI - search, ingest, and graph knowledge",
+		DefaultAPIBase:          defaultAPIBase,
+		ExtraAPIEnvVars:         []string{"API_BASE_URL", "VITE_API_BASE_URL"},
+		BuildFingerprint:        buildFingerprint,
+		BuildTimestamp:          buildTimestamp,
+		BuildSourceRoot:         buildSourceRoot,
+		AllowAnonymous:          true,
+		IncludeConfigureCommand: boolPtr(false),
+		CommandGroups: func(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
+			app.core = core
+			return app.registerCommands()
+		},
 	})
 	if err != nil {
 		return nil, err
 	}
-	app := &App{core: core}
-	app.core.SetCommands(app.registerCommands())
+	app.core = core
 	return app, nil
 }
 
@@ -71,7 +70,6 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 	health := cliapp.CommandGroup{
 		Title: "Health",
 		Commands: []cliapp.Command{
-			{Name: "status", NeedsAPI: true, Description: "Check API health", Run: a.cmdStatus},
 			{Name: "health", NeedsAPI: true, Description: "Get knowledge health metrics", Run: a.cmdHealth},
 			{Name: "metrics", NeedsAPI: true, Description: "Alias for health", Run: a.cmdHealth},
 		},
@@ -110,21 +108,6 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 	return []cliapp.CommandGroup{health, knowledge, docs, config}
 }
 
-func (a *App) apiPath(v1Path string) string {
-	v1Path = strings.TrimSpace(v1Path)
-	if v1Path == "" {
-		return ""
-	}
-	if !strings.HasPrefix(v1Path, "/") {
-		v1Path = "/" + v1Path
-	}
-	base := strings.TrimRight(strings.TrimSpace(a.core.APIClient.BaseURL()), "/")
-	if strings.HasSuffix(base, "/api/v1") {
-		return v1Path
-	}
-	return "/api/v1" + v1Path
-}
-
 func (a *App) apiRoot() (string, error) {
 	base := strings.TrimRight(strings.TrimSpace(a.core.APIClient.BaseURL()), "/")
 	if base == "" {
@@ -137,7 +120,7 @@ func (a *App) apiRoot() (string, error) {
 }
 
 func (a *App) doRequest(method, path string, query url.Values, payload interface{}) ([]byte, error) {
-	return a.core.APIClient.Request(method, a.apiPath(path), query, payload)
+	return a.core.Request(method, path, query, payload)
 }
 
 func (a *App) printJSON(body []byte) error {
@@ -155,63 +138,6 @@ func (a *App) printDocContent(body []byte) error {
 	}
 	fmt.Print(doc.Content)
 	return nil
-}
-
-type healthResponse struct {
-	Status       string            `json:"status"`
-	Service      string            `json:"service"`
-	Version      string            `json:"version"`
-	Timestamp    string            `json:"timestamp"`
-	Dependencies map[string]string `json:"dependencies"`
-}
-
-func (a *App) cmdStatus(args []string) error {
-	fs := flag.NewFlagSet("status", flag.ContinueOnError)
-	jsonOut := fs.Bool("json", false, "Output raw JSON")
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	root, err := a.apiRoot()
-	if err != nil {
-		return err
-	}
-
-	client := cliutil.NewHTTPClient(cliutil.HTTPClientOptions{
-		BaseOptions: cliutil.APIBaseOptions{DefaultBase: root},
-		Timeout:     a.core.HTTPClient.Timeout(),
-	})
-	body, err := client.Do("GET", "/health", nil, nil)
-	if err != nil {
-		return err
-	}
-
-	if *jsonOut {
-		return a.printJSON(body)
-	}
-
-	var parsed healthResponse
-	if err := json.Unmarshal(body, &parsed); err == nil && parsed.Status != "" {
-		fmt.Printf("Status: %s\n", parsed.Status)
-		if parsed.Service != "" {
-			fmt.Printf("Service: %s\n", parsed.Service)
-		}
-		if parsed.Version != "" {
-			fmt.Printf("Version: %s\n", parsed.Version)
-		}
-		if parsed.Timestamp != "" {
-			fmt.Printf("Timestamp: %s\n", parsed.Timestamp)
-		}
-		if len(parsed.Dependencies) > 0 {
-			fmt.Println("Dependencies:")
-			for key, value := range parsed.Dependencies {
-				fmt.Printf("  %s: %s\n", key, value)
-			}
-		}
-		return nil
-	}
-
-	return a.printJSON(body)
 }
 
 func (a *App) cmdSearch(args []string) error {

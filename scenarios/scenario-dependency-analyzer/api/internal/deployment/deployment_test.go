@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/api-core/storage"
 	types "scenario-dependency-analyzer/internal/types"
 )
 
@@ -190,7 +191,7 @@ func TestPersistReport(t *testing.T) {
 			t.Fatalf("PersistReport error: %v", err)
 		}
 
-		reportPath := filepath.Join(scenarioDir, ".vrooli", "deployment", "deployment-report.json")
+		reportPath := mustReportPath(t, scenarioDir)
 		if _, err := os.Stat(reportPath); os.IsNotExist(err) {
 			t.Error("expected report file to exist")
 		}
@@ -229,7 +230,7 @@ func TestPersistReport(t *testing.T) {
 
 	t.Run("NoRewriteWhenOnlyGeneratedAtChanges", func(t *testing.T) {
 		scenarioDir := t.TempDir()
-		reportPath := filepath.Join(scenarioDir, ".vrooli", "deployment", "deployment-report.json")
+		reportPath := mustReportPath(t, scenarioDir)
 
 		first := &types.DeploymentAnalysisReport{
 			Scenario:      "test-scenario",
@@ -309,7 +310,7 @@ func TestLoadReport(t *testing.T) {
 
 	t.Run("InvalidJSON", func(t *testing.T) {
 		scenarioDir := t.TempDir()
-		reportDir := filepath.Join(scenarioDir, ".vrooli", "deployment")
+		reportDir := filepath.Dir(mustReportPath(t, scenarioDir))
 		os.MkdirAll(reportDir, 0755)
 		os.WriteFile(filepath.Join(reportDir, "deployment-report.json"), []byte("invalid json"), 0644)
 
@@ -318,6 +319,26 @@ func TestLoadReport(t *testing.T) {
 			t.Error("expected error for invalid JSON")
 		}
 	})
+}
+
+func mustReportPath(t *testing.T, scenarioDir string) string {
+	t.Helper()
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		t.Fatalf("create storage resolver: %v", err)
+	}
+	path, err := resolver.Path(
+		storage.Options{ScenarioID: filepath.Base(filepath.Clean(scenarioDir))},
+		storage.ClassData,
+		filepath.Join("deployment", "deployment-report.json"),
+	)
+	if err != nil {
+		t.Fatalf("resolve report path: %v", err)
+	}
+	return path
 }
 
 // TestClassifyResource tests resource classification.

@@ -15,7 +15,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
+	"strings"
 	"time"
 
 	"scenario-completeness-scoring/pkg/analysis"
@@ -32,6 +32,7 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // ServerConfig holds runtime configuration for the server
@@ -56,8 +57,12 @@ type Server struct {
 // [REQ:SCS-ANALYSIS-001] Initialize what-if analyzer
 // [REQ:SCS-ANALYSIS-003] Initialize bulk refresher
 func NewServer() (*Server, error) {
+	vrooliRoot, err := resolveVrooliRoot()
+	if err != nil {
+		return nil, fmt.Errorf("resolve repo root: %w", err)
+	}
 	cfg := &ServerConfig{
-		VrooliRoot: getEnvWithDefault("VROOLI_ROOT", os.Getenv("HOME")+"/Vrooli"),
+		VrooliRoot: vrooliRoot,
 	}
 
 	// Initialize circuit breaker registry with default config
@@ -106,6 +111,13 @@ func NewServer() (*Server, error) {
 	return srv, nil
 }
 
+func resolveVrooliRoot() (string, error) {
+	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
+		return repocontract.FindRepoRootFromPath(root)
+	}
+	return repocontract.ResolveRepoRoot()
+}
+
 func resolveHistoryDataDir(vrooliRoot string) (string, error) {
 	resolver, err := storage.NewResolver(storage.ResolverConfig{
 		AppID:   "vrooli",
@@ -118,33 +130,7 @@ func resolveHistoryDataDir(vrooliRoot string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	legacyDB := filepath.Join(vrooliRoot, "scenarios", "scenario-completeness-scoring", "data", "scores.db")
-	currentDB := filepath.Join(dir, "scores.db")
-	if legacyDB != currentDB {
-		_ = migrateLegacyScoreHistory(legacyDB, currentDB)
-	}
 	return dir, nil
-}
-
-func migrateLegacyScoreHistory(src, dst string) error {
-	if src == dst {
-		return nil
-	}
-	if _, err := os.Stat(src); err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-	if _, err := os.Stat(dst); err == nil {
-		return nil
-	} else if !os.IsNotExist(err) {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return err
-	}
-	return os.Rename(src, dst)
 }
 
 // setupRoutes configures all API routes, organized by domain concept

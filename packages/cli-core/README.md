@@ -77,11 +77,15 @@ Consumers must keep local `replace` wiring explicit so scenario and resource mod
 ## Scenario wiring checklist
 - Prefer `cliapp.NewStandardScenarioApp(...)` for new scenario CLIs. It derives standard env vars, wires `vrooli scenario port` detection, and includes the standard `status` + `configure` command groups by default.
 - Drop to `cliapp.NewScenarioApp(...)` only when you need lower-level control over env derivation or command assembly.
+- Treat the standard scaffold as the only greenfield default. Do not start new scenario CLIs with hand-rolled bootstrap, per-scenario health plumbing, or flat `cmd_<domain>.go` as the planned long-term architecture.
 - `cliapp.StandardScenarioEnv("<scenario-name>", ...)` is still available when a CLI needs to customize env wiring directly. Scenario-specific API port envs are checked before global `API_PORT`.
 - Make API calls through `cliutil.APIClient` (wraps `HTTPClient`, handles base URL resolution and token injection).
 - Prefer `ScenarioApp.Get(...)` / `Request(...)` for versioned API routes and `GetRoot(...)` / `RequestRoot(...)` for root paths such as `/health`.
+- Use `ScenarioApp.StandardBaseCommandGroups(...)` when you need to selectively disable or reconfigure built-in `status` / `configure` without reimplementing them.
+- Use `ScenarioApp.StandardStatusCommand(...)` as the default status surface; keep custom status only when the scenario has materially richer diagnostics than generic `/health`.
 - Prefer domain packages (`cli/domains/<domain>/`) plus `SubcommandGroup` once a CLI has more than a couple commands.
 - Use `RenderOperationalReport`, `RenderListReport`, and `RenderMutationReport` for default human output contracts; keep `--json` as the machine-readable companion mode.
+- Use `PrintReportJSON(...)` when a command needs machine-readable parity with the same structured report it renders for humans.
 - For flags/inputs, use `cliutil.JSONFlag`, `StringList`, `ParseCSV`, and `MergeArgs` instead of hand-rolled parsers; read files with `ReadFileString`.
 - Pretty-print JSON responses with `cliutil.PrintJSON` / `PrintJSONMap`.
 - Keep `NeedsAPI` set on commands so the stale-checker can trigger auto-rebuilds before API calls and `--auto-start` can recover a stopped scenario automatically.

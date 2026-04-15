@@ -112,7 +112,7 @@ func TestApiPath(t *testing.T) {
 				result = "/api/v1" + v1Path
 			}
 			if result != tt.expected {
-				t.Errorf("apiPath(%q) with base %q = %q, want %q",
+				t.Errorf("APIPath(%q) with base %q = %q, want %q",
 					tt.input, tt.baseURL, result, tt.expected)
 			}
 		})

@@ -89,7 +89,7 @@ Calculate completeness scores across 4 dimensions (100 points total):
 
 ### 2. Configuration System
 
-**Global Configuration** (`~/.vrooli/scoring-config.json`):
+**Global Configuration** (`~/.config/vrooli/scenario-completeness-scoring/scoring-config.json`):
 ```json
 {
   "components": {
@@ -119,9 +119,9 @@ Calculate completeness scores across 4 dimensions (100 points total):
 }
 ```
 
-**Per-Scenario Overrides** (`scenarios/{name}/.vrooli/scoring-config.json`):
-- Inherits from global config
-- Can enable/disable specific components for that scenario only
+**Tracked Scenario Defaults** (`scenarios/{name}/config/scoring-config.json`):
+- Recommended location for committed scenario-specific defaults
+- Separate from operator-managed global config
 
 ### 3. Circuit Breaker Pattern
 
@@ -301,7 +301,7 @@ vrooli scenario completeness my-scenario  # same command, uses API internally
 | `API_PORT` | API server port | Auto-assigned |
 | `UI_PORT` | UI server port | Auto-assigned |
 | `DATABASE_PATH` | SQLite database location | `data/scores.db` |
-| `CONFIG_PATH` | Global config location | `~/.vrooli/scoring-config.json` |
+| `CONFIG_PATH` | Global config location | `~/.config/vrooli/scenario-completeness-scoring/scoring-config.json` |
 | `VROOLI_ROOT` | Vrooli repository root | Auto-detected |
 
 ## Development

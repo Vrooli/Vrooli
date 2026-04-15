@@ -3,10 +3,10 @@ package shared
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/storage"
 )
 
 // ConfigResolver defines the interface for resolving configuration values.
@@ -19,7 +19,7 @@ type ConfigResolver interface {
 	// ResolveDesktopPackagerURL returns the URL for the scenario-to-desktop service.
 	ResolveDesktopPackagerURL() (string, error)
 	// ResolveTelemetryDir returns the directory for storing telemetry files.
-	ResolveTelemetryDir() string
+	ResolveTelemetryDir() (string, error)
 }
 
 // EnvConfigResolver resolves configuration from environment variables.
@@ -58,15 +58,29 @@ func (r *EnvConfigResolver) ResolveDesktopPackagerURL() (string, error) {
 }
 
 // ResolveTelemetryDir returns the directory for storing telemetry files.
-func (r *EnvConfigResolver) ResolveTelemetryDir() string {
+func (r *EnvConfigResolver) ResolveTelemetryDir() (string, error) {
 	if override := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_TELEMETRY_DIR")); override != "" {
-		return override
+		return override, nil
 	}
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		return filepath.Join(".", ".vrooli", "deployment", "telemetry")
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return "", err
 	}
-	return filepath.Join(home, ".vrooli", "deployment", "telemetry")
+	path, err := resolver.Path(
+		storage.Options{ScenarioID: "deployment-manager"},
+		storage.ClassLogs,
+		"telemetry",
+	)
+	if err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		return "", err
+	}
+	return path, nil
 }
 
 // DefaultConfigResolver is the default environment-based config resolver.

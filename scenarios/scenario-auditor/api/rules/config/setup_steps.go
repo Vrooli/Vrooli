@@ -10,7 +10,7 @@ import (
 
 const (
 	installUIDepsRecommendation = "Add install-ui-deps (npm|pnpm|yarn|bun install inside ui/) before build-ui so PRODUCTION_BUNDLES staleness detection can recreate ui/dist when ui/src changes."
-	buildUIRecommendation       = "Run build-ui (npm|pnpm|yarn|bun build inside ui/) before show-urls so develop serves the ui/dist production bundle per docs/scenarios/PRODUCTION_BUNDLES.md."
+	buildUIRecommendation       = "Run build-ui (npm|pnpm|yarn|bun build inside ui/) so develop serves the ui/dist production bundle per docs/scenarios/PRODUCTION_BUNDLES.md."
 )
 
 type stepMatch struct {
@@ -66,7 +66,7 @@ Targets: service_json
   "lifecycle": {
     "setup": {
       "steps": [
-        {"name": "show-urls", "run": "echo done"}
+        {"name": "verify-db", "run": "echo done", "description": "Verify database access"}
       ]
     }
   }
@@ -84,8 +84,7 @@ Targets: service_json
   "lifecycle": {
     "setup": {
       "steps": [
-        {"name": "build-api", "run": "cd api && go build -o tools-api .", "description": "Build Go API"},
-        {"name": "show-urls", "run": "echo done"}
+        {"name": "build-api", "run": "cd api && go build -o tools-api .", "description": "Build Go API"}
       ]
     }
   }
@@ -95,45 +94,8 @@ Targets: service_json
   <expected-message>output must be file-tools-api</expected-message>
 </test-case>
 
-<test-case id="show-urls-last" should-fail="true">
-  <description>show-urls step is not last in the list</description>
-  <input language="json"><![CDATA[
-{
-  "service": {"name": "file-tools"},
-  "lifecycle": {
-    "setup": {
-      "steps": [
-        {"name": "show-urls", "run": "echo urls"},
-        {"name": "build-api", "run": "cd api && go build -o file-tools-api .", "description": "Build Go API"}
-      ]
-    }
-  }
-}
-  ]]></input>
-  <expected-violations>1</expected-violations>
-  <expected-message>show-urls</expected-message>
-</test-case>
-
-<test-case id="missing-show-urls-step" should-fail="true">
-  <description>Setup must include a final show-urls step</description>
-  <input language="json"><![CDATA[
-{
-  "service": {"name": "file-tools"},
-  "lifecycle": {
-    "setup": {
-      "steps": [
-        {"name": "build-api", "run": "cd api && go build -o file-tools-api .", "description": "Build Go API"}
-      ]
-    }
-  }
-}
-  ]]></input>
-  <expected-violations>1</expected-violations>
-  <expected-message>final show-urls step</expected-message>
-</test-case>
-
 <test-case id="ui-missing-build-step" should-fail="true">
-  <description>UI scenarios must build production bundles before develop shows URLs</description>
+  <description>UI scenarios must build production bundles before develop starts the UI server</description>
   <input language="json"><![CDATA[
 {
   "service": {"name": "app-issue-tracker"},
@@ -141,8 +103,7 @@ Targets: service_json
   "lifecycle": {
     "setup": {
       "steps": [
-        {"name": "build-api", "run": "cd api && go build -o app-issue-tracker-api .", "description": "Build API"},
-        {"name": "show-urls", "run": "echo done"}
+        {"name": "build-api", "run": "cd api && go build -o app-issue-tracker-api .", "description": "Build API"}
       ]
     }
   }
@@ -153,7 +114,7 @@ Targets: service_json
 </test-case>
 
 <test-case id="valid-setup" should-fail="false">
-  <description>Setup steps include build-api, optional CLI-independent steps, and show-urls last</description>
+  <description>Setup steps include build-api plus optional CLI-independent steps</description>
   <input language="json"><![CDATA[
 {
   "service": {"name": "file-tools"},
@@ -168,8 +129,7 @@ Targets: service_json
     "setup": {
       "steps": [
         {"name": "db-schema", "run": "echo schema", "description": "Prepare the database"},
-        {"name": "build-api", "run": "cd api && go mod tidy && go build -o file-tools-api .", "description": "Build Go API binary"},
-        {"name": "show-urls", "run": "echo done"}
+        {"name": "build-api", "run": "cd api && go mod tidy && go build -o file-tools-api .", "description": "Build Go API binary"}
       ]
     }
   }
@@ -178,7 +138,7 @@ Targets: service_json
 </test-case>
 
 <test-case id="ui-valid-setup" should-fail="false">
-  <description>install-ui-deps and build-ui steps prepare the production bundle ahead of show-urls</description>
+  <description>install-ui-deps and build-ui steps prepare the production bundle</description>
   <input language="json"><![CDATA[
 {
   "service": {"name": "system-monitor"},
@@ -188,8 +148,7 @@ Targets: service_json
       "steps": [
         {"name": "build-api", "run": "cd api && go build -o system-monitor-api .", "description": "Build API"},
         {"name": "install-ui-deps", "run": "cd ui && npm install", "description": "Install UI dependencies", "condition": {"file_exists": "ui/package.json"}},
-        {"name": "build-ui", "run": "cd ui && npm run build", "description": "Build production UI"},
-        {"name": "show-urls", "run": "echo done"}
+        {"name": "build-ui", "run": "cd ui && npm run build", "description": "Build production UI"}
       ]
     }
   }
@@ -213,8 +172,7 @@ Targets: service_json
   "lifecycle": {
     "setup": {
       "steps": [
-        {"name": "build-api", "run": "cd api && go build -o file-tools-api .", "description": "Build Go API"},
-        {"name": "show-urls", "run": "echo done"}
+        {"name": "build-api", "run": "cd api && go build -o file-tools-api .", "description": "Build Go API"}
       ]
     }
   }
@@ -288,13 +246,7 @@ func CheckSetupStepsConfiguration(content []byte, filePath string) []Violation {
 		buildMatch     *stepMatch
 		uiInstallMatch *stepMatch
 		uiBuildMatch   *stepMatch
-		lastStep       map[string]any
-		showStepIndex  = -1
-		showStepLine   = findSetupJSONLine(source, "\"show-urls\"")
 	)
-
-	lastStepRaw := stepsSlice[len(stepsSlice)-1]
-	lastStep, _ = lastStepRaw.(map[string]any)
 
 	for idx, step := range stepsSlice {
 		stepMap, ok := step.(map[string]any)
@@ -305,9 +257,6 @@ func CheckSetupStepsConfiguration(content []byte, filePath string) []Violation {
 		switch name {
 		case "build-api":
 			buildMatch = newStepMatch(stepMap, idx, name, true)
-		case "show-urls":
-			showStepIndex = idx
-			showStepLine = findSetupJSONLine(source, "\"name\": \"show-urls\"")
 		case "install-ui-deps":
 			uiInstallMatch = newStepMatch(stepMap, idx, name, true)
 		case "build-ui":
@@ -348,22 +297,6 @@ func CheckSetupStepsConfiguration(content []byte, filePath string) []Violation {
 		violations = append(violations, validateBuildAPI(filePath, source, buildMatch.step, serviceName)...)
 	}
 
-	if showStepIndex == -1 {
-		line := findMissingStepLine(source, "show-urls")
-		msg := "lifecycle.setup.steps must include a final show-urls step so humans and agents know setup completed and which endpoints to hit."
-		violations = append(violations, newSetupStepsViolation(filePath, line, msg))
-	} else {
-		if lastStep == nil {
-			line := findSetupJSONLine(source, "\"steps\"")
-			violations = append(violations, newSetupStepsViolation(filePath, line, "lifecycle.setup.steps must include a final show-urls step so restart logs end with the URLs operators should open."))
-		} else {
-			name := strings.TrimSpace(toStringOrDefault(lastStep["name"]))
-			if name != "show-urls" {
-				violations = append(violations, newSetupStepsViolation(filePath, showStepLine, "show-urls must be the final setup step so no additional work runs silently after we announce completion."))
-			}
-		}
-	}
-
 	if setupScenarioHasUI(payload, stepsSlice) {
 		if uiInstallMatch == nil {
 			line := findMissingStepLine(source, "install-ui-deps")
@@ -393,7 +326,7 @@ func CheckSetupStepsConfiguration(content []byte, filePath string) []Violation {
 			if uiInstallMatch != nil {
 				installIdx = uiInstallMatch.index
 			}
-			violations = append(violations, validateUIBuildStep(filePath, source, uiBuildMatch.step, installIdx, uiBuildMatch.index, showStepIndex, bundlePath)...)
+			violations = append(violations, validateUIBuildStep(filePath, source, uiBuildMatch.step, installIdx, uiBuildMatch.index, bundlePath)...)
 		}
 	}
 
@@ -437,7 +370,7 @@ func validateUIInstallStep(filePath, source string, step map[string]any) []Viola
 	return violations
 }
 
-func validateUIBuildStep(filePath, source string, step map[string]any, installIndex, buildIndex, showIndex int, expectedBundlePath string) []Violation {
+func validateUIBuildStep(filePath, source string, step map[string]any, installIndex, buildIndex int, expectedBundlePath string) []Violation {
 	var violations []Violation
 	line := findMissingStepLine(source, "build-ui")
 	if step == nil {
@@ -483,11 +416,6 @@ func validateUIBuildStep(filePath, source string, step map[string]any, installIn
 		msg := "install-ui-deps must run before build-ui so dependencies are in place when the production bundle is generated."
 		violations = append(violations, newSetupStepsViolation(filePath, line, msg, buildUIRecommendation))
 	}
-	if showIndex != -1 && buildIndex != -1 && buildIndex > showIndex {
-		msg := "build-ui must finish before show-urls so the restart message reflects the freshly built bundle."
-		violations = append(violations, newSetupStepsViolation(filePath, line, msg, buildUIRecommendation))
-	}
-
 	return violations
 }
 
@@ -559,7 +487,7 @@ func newSetupStepsViolation(filePath string, line int, message string, recommend
 	if line <= 0 {
 		line = 1
 	}
-	rec := "Ensure lifecycle.setup.steps include scenario-specific build-api work, any required UI bundle steps, and show-urls as the final step"
+	rec := "Ensure lifecycle.setup.steps include scenario-specific build-api work and any required UI bundle steps"
 	if len(recommendation) > 0 {
 		if custom := strings.TrimSpace(recommendation[0]); custom != "" {
 			rec = custom
