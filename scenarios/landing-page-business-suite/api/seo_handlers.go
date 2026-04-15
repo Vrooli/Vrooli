@@ -38,7 +38,7 @@ func handleGetVariantSEO(seoService *SEOService) http.HandlerFunc {
 }
 
 // NOTE: handleUpdateVariantSEO (database-backed VariantService) has been removed.
-// Variant SEO config is now stored in JSON files (.vrooli/variants/*.json) and accessed via ConfigStore.
+// Variant SEO config is stored in tracked config JSON files and accessed via ConfigStore.
 
 // handleUpdateVariantSEOConfigStore updates SEO config for a variant via ConfigStore
 func handleUpdateVariantSEOConfigStore(cs *ConfigStore) http.HandlerFunc {

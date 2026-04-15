@@ -1,7 +1,7 @@
 -- Seed Data for Landing Manager
 --
 -- NOTE: Variant, section, and branding configuration is now stored in JSON files
--- (.vrooli/variants/*.json and .vrooli/branding.json) and loaded into memory at startup.
+-- (config/variants/*.json and config/branding.json) and loaded into memory at startup.
 -- This seed file only seeds runtime/dynamic data.
 
 -- Insert default admin user (OT-P0-008: ADMIN-AUTH)
@@ -81,5 +81,5 @@ INSERT INTO payment_settings (id, publishable_key, secret_key, webhook_secret, d
 VALUES (1, NULL, NULL, NULL, NULL)
 ON CONFLICT (id) DO NOTHING;
 
--- NOTE: Site branding is now stored in JSON file (.vrooli/branding.json)
+-- NOTE: Site branding is now stored in tracked JSON file (config/branding.json)
 -- and loaded into memory at startup via ConfigStore.

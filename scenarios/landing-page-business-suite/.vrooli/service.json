@@ -48,11 +48,6 @@
           "description": "Serve production UI bundle",
           "name": "start-ui",
           "run": "cd ui && node server.js"
-        },
-        {
-          "description": "Display access URLs",
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\" && echo \"Admin: http://localhost:${UI_PORT}/admin\""
         }
       ]
     },
@@ -144,11 +139,6 @@
           "description": "Build production UI bundle",
           "name": "build-ui",
           "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi"
-        },
-        {
-          "description": "Display access URLs",
-          "name": "show-urls",
-          "run": "echo \"API: http://localhost:${API_PORT}\" && echo \"UI: http://localhost:${UI_PORT}\" && echo \"Admin: http://localhost:${UI_PORT}/admin\""
         }
       ]
     },

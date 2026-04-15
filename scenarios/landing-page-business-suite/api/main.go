@@ -82,7 +82,7 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("failed to seed default data: %w", err)
 	}
 
-	// Initialize config store from JSON files (source of truth for variants and branding)
+	// Initialize config store from tracked scenario config files.
 	variantsDir := resolveVariantsDir()
 	brandingPath := resolveBrandingPath()
 	configStore := NewConfigStore(variantsDir, brandingPath, defaultVariantSpace)
@@ -181,29 +181,31 @@ func resolveVariantsDir() string {
 		return dir
 	}
 	candidates := []string{
-		filepath.Join("..", ".vrooli", "variants"),
-		filepath.Join(".", ".vrooli", "variants"),
+		filepath.Join("..", "config", "variants"),
+		filepath.Join(".", "config", "variants"),
+		filepath.Join("..", "..", "config", "variants"),
 	}
 	for _, candidate := range candidates {
 		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
 			return candidate
 		}
 	}
-	return filepath.Join("..", ".vrooli", "variants")
+	return filepath.Join("..", "config", "variants")
 }
 
 // resolveBrandingPath finds the branding.json file
 func resolveBrandingPath() string {
 	candidates := []string{
-		filepath.Join("..", ".vrooli", "branding.json"),
-		filepath.Join(".", ".vrooli", "branding.json"),
+		filepath.Join("..", "config", "branding.json"),
+		filepath.Join(".", "config", "branding.json"),
+		filepath.Join("..", "..", "config", "branding.json"),
 	}
 	for _, candidate := range candidates {
 		if _, err := os.Stat(candidate); err == nil {
 			return candidate
 		}
 	}
-	return filepath.Join("..", ".vrooli", "branding.json")
+	return filepath.Join("..", "config", "branding.json")
 }
 
 // Router returns the HTTP handler for use with server.Run
@@ -333,7 +335,7 @@ func seedDefaultData(db *sql.DB) error {
 		return fmt.Errorf("failed to seed payment settings: %w", err)
 	}
 
-	// NOTE: Site branding is now stored in JSON file (.vrooli/branding.json)
+	// NOTE: Site branding is now stored in tracked config JSON.
 	// and loaded into memory at startup via ConfigStore.
 
 	// NOTE: Bundle pricing is now stored in JSON file (.vrooli/plans.json)
@@ -527,7 +529,7 @@ func valueOrDefault(value, fallback string) string {
 
 // ensureSchema creates required tables if they do not exist (runtime guard when psql is unavailable)
 // NOTE: Variant, section, and branding configuration is now stored in JSON files
-// (.vrooli/variants/*.json and .vrooli/branding.json) and loaded into memory at startup.
+// (config/variants/*.json and config/branding.json) and loaded into memory at startup.
 // This schema only contains tables for runtime/dynamic data.
 func ensureSchema(db *sql.DB) error {
 	stmts := []string{
@@ -575,7 +577,7 @@ func ensureSchema(db *sql.DB) error {
 		`CREATE INDEX IF NOT EXISTS idx_admin_sessions_email ON admin_sessions(admin_email);`,
 		`CREATE INDEX IF NOT EXISTS idx_admin_sessions_expires ON admin_sessions(expires_at);`,
 		// NOTE: variants, variant_axes, and content_sections tables have been removed.
-		// Variant configuration is now stored in JSON files (.vrooli/variants/*.json).
+		// Variant configuration is stored in tracked config JSON files.
 		`CREATE TABLE IF NOT EXISTS metrics_events (
 			id SERIAL PRIMARY KEY,
 			variant_slug VARCHAR(100),
@@ -655,7 +657,7 @@ func ensureSchema(db *sql.DB) error {
 		`ALTER TABLE subscription_schedules ADD COLUMN IF NOT EXISTS normal_amount_cents INTEGER;`,
 		`ALTER TABLE subscription_schedules ADD COLUMN IF NOT EXISTS next_billing_at TIMESTAMP;`,
 		// NOTE: content_sections table has been removed.
-		// Sections are now stored in JSON files (.vrooli/variants/*.json) as part of variant snapshots.
+		// Sections are stored in tracked config JSON files as part of variant snapshots.
 		`CREATE TABLE IF NOT EXISTS bundle_products (
 			id SERIAL PRIMARY KEY,
 			bundle_key VARCHAR(100) UNIQUE NOT NULL,
@@ -834,7 +836,7 @@ func ensureSchema(db *sql.DB) error {
 			updated_at TIMESTAMP DEFAULT NOW()
 		);`,
 		// NOTE: site_branding table has been removed.
-		// Branding is now stored in JSON file (.vrooli/branding.json).
+		// Branding is stored in tracked config JSON.
 		`CREATE TABLE IF NOT EXISTS assets (
 			id SERIAL PRIMARY KEY,
 			filename TEXT NOT NULL,

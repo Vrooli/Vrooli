@@ -1,7 +1,7 @@
 -- Landing Manager Database Schema
 --
 -- NOTE: Variant, section, and branding configuration is now stored in JSON files
--- (.vrooli/variants/*.json and .vrooli/branding.json) and loaded into memory at startup.
+-- (config/variants/*.json and config/branding.json) and loaded into memory at startup.
 -- This schema only contains tables for runtime/dynamic data.
 
 -- Admin Users Table (OT-P0-008: ADMIN-AUTH)
@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS subscription_schedules (
 CREATE INDEX IF NOT EXISTS idx_subscription_schedules_schedule_id ON subscription_schedules(schedule_id);
 CREATE INDEX IF NOT EXISTS idx_subscription_schedules_subscription_id ON subscription_schedules(subscription_id);
 
--- NOTE: Content sections are now stored in JSON files (.vrooli/variants/*.json)
+-- NOTE: Content sections are now stored in tracked JSON files (config/variants/*.json)
 -- and loaded into memory at startup via ConfigStore.
 
 -- NOTE: Bundle/pricing plan configuration is now stored in JSON files (.vrooli/plans.json)
@@ -204,7 +204,7 @@ CREATE INDEX IF NOT EXISTS idx_credit_transactions_customer ON credit_transactio
 CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_transactions_stripe_event
     ON credit_transactions(stripe_event_id) WHERE stripe_event_id IS NOT NULL;
 
--- NOTE: Site branding is now stored in JSON file (.vrooli/branding.json)
+-- NOTE: Site branding is now stored in tracked JSON file (config/branding.json)
 -- and loaded into memory at startup via ConfigStore.
 
 -- Uploaded Assets Table

@@ -123,19 +123,23 @@ func (a *ScenarioApp) runStandardStatus(args []string, stdout io.Writer) error {
 		return err
 	}
 
-	fmt.Fprintf(stdout, "Status: %s\n", parsed.Status)
-	fmt.Fprintf(stdout, "Ready: %v\n", parsed.Readiness)
+	report := OperationalReport{
+		Status: []string{
+			fmt.Sprintf("Status: %s", parsed.Status),
+			fmt.Sprintf("Ready: %v", parsed.Readiness),
+		},
+	}
 	if parsed.Service != "" {
-		fmt.Fprintf(stdout, "Service: %s\n", parsed.Service)
+		report.Status = append(report.Status, fmt.Sprintf("Service: %s", parsed.Service))
 	}
 	if parsed.Version != "" {
-		fmt.Fprintf(stdout, "Version: %s\n", parsed.Version)
+		report.Status = append(report.Status, fmt.Sprintf("Version: %s", parsed.Version))
 	}
 	if parsed.Timestamp != "" {
-		fmt.Fprintf(stdout, "Timestamp: %s\n", parsed.Timestamp)
+		report.Status = append(report.Status, fmt.Sprintf("Timestamp: %s", parsed.Timestamp))
 	}
 	if len(parsed.Dependencies) > 0 {
-		fmt.Fprintln(stdout, "Dependencies:")
+		group := TriageGroup{Heading: "Dependencies"}
 		keys := make([]string, 0, len(parsed.Dependencies))
 		for key := range parsed.Dependencies {
 			keys = append(keys, key)
@@ -147,10 +151,21 @@ func (a *ScenarioApp) runStandardStatus(args []string, stdout io.Writer) error {
 			if dep.Connected {
 				status = "connected"
 			}
-			fmt.Fprintf(stdout, "  %s: %s\n", key, status)
+			group.Items = append(group.Items, fmt.Sprintf("%s: %s", key, status))
+		}
+		report.Triage = append(report.Triage, group)
+	}
+	if parsed.Readiness {
+		report.NextSteps = []string{
+			fmt.Sprintf("%s status --json", a.options.Name),
+		}
+	} else {
+		report.NextSteps = []string{
+			fmt.Sprintf("%s --auto-start status", a.options.Name),
+			fmt.Sprintf("vrooli scenario start %s", a.options.Name),
 		}
 	}
-	return nil
+	return RenderOperationalReport(stdout, report)
 }
 
 func (a *ScenarioApp) fetchHealth() ([]byte, error) {

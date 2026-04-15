@@ -59,35 +59,11 @@ func (loc ScenarioLocation) RequiresPathArg() bool {
 //  1. VROOLI_ROOT environment variable (explicit override)
 //  2. Default: ~/Vrooli (standard installation location)
 func GetVrooliRoot() string {
-	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
-		return canonicalRepoRootFromOverride(root)
+	root, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		return ""
 	}
-
-	if scenarioRoot, err := ResolveScenarioRoot(); err == nil {
-		if root, err := repocontract.FindRepoRootFromPath(scenarioRoot); err == nil {
-			return root
-		}
-		if candidate := strings.TrimSpace(GetVrooliRootFromScenario(scenarioRoot)); candidate != "" && candidate != string(filepath.Separator) {
-			return candidate
-		}
-	}
-
-	if root, err := repocontract.ResolveRepoRoot(); err == nil {
-		return root
-	}
-
-	if cwd, err := os.Getwd(); err == nil {
-		return cwd
-	}
-
-	return "."
-}
-
-func canonicalRepoRootFromOverride(root string) string {
-	if resolved, err := repocontract.FindRepoRootFromPath(root); err == nil {
-		return resolved
-	}
-	return filepath.Clean(root)
+	return root
 }
 
 // ResolveScenarioPath finds a scenario in staging or production.

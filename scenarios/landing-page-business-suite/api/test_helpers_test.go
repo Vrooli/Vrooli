@@ -130,9 +130,9 @@ func setupTestConfigStore(t *testing.T) *ConfigStore {
 	brandingPath := ""
 
 	candidates := []string{
-		filepath.Join("..", ".vrooli", "variants"),
-		filepath.Join(".", ".vrooli", "variants"),
-		filepath.Join("..", "..", ".vrooli", "variants"),
+		filepath.Join("..", "config", "variants"),
+		filepath.Join(".", "config", "variants"),
+		filepath.Join("..", "..", "config", "variants"),
 	}
 	for _, candidate := range candidates {
 		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
@@ -142,9 +142,9 @@ func setupTestConfigStore(t *testing.T) *ConfigStore {
 	}
 
 	brandingCandidates := []string{
-		filepath.Join("..", ".vrooli", "branding.json"),
-		filepath.Join(".", ".vrooli", "branding.json"),
-		filepath.Join("..", "..", ".vrooli", "branding.json"),
+		filepath.Join("..", "config", "branding.json"),
+		filepath.Join(".", "config", "branding.json"),
+		filepath.Join("..", "..", "config", "branding.json"),
 	}
 	for _, candidate := range brandingCandidates {
 		if _, err := os.Stat(candidate); err == nil {

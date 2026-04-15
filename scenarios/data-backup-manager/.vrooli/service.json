@@ -118,11 +118,6 @@
           "name": "set-permissions",
           "run": "chmod -R 755 data/backups",
           "description": "Set backup directory permissions"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo 'Data Backup Manager initialized - API: http://localhost:${API_PORT} - CLI: data-backup-manager --help'",
-          "description": "Display service access URLs"
         }
       ]
     },
@@ -137,11 +132,6 @@
           "condition": {
             "file_exists": "api/data-backup-manager-api"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo 'Services running - API: http://localhost:${API_PORT} - CLI: data-backup-manager --help'",
-          "description": "Display running service URLs"
         }
       ]
     },

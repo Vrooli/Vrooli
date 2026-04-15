@@ -7,32 +7,19 @@ import (
 	"testing"
 )
 
-func TestGetVrooliRoot_UsesEnvVar(t *testing.T) {
-	t.Setenv("VROOLI_ROOT", "/tmp/custom-root")
-	got := GetVrooliRoot()
-	if got != "/tmp/custom-root" {
-		t.Fatalf("expected /tmp/custom-root, got %s", got)
+func TestGetVrooliRoot_UsesCanonicalEnvRoot(t *testing.T) {
+	root := newLandingManagerContractFixtureRepo(t)
+	nested := filepath.Join(root, "scenarios", "landing-manager", "api")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatalf("mkdir nested: %v", err)
 	}
-}
 
-func TestGetVrooliRoot_DerivesFromExecutablePath(t *testing.T) {
+	t.Setenv("VROOLI_SOURCE_ROOT", nested)
 	t.Setenv("VROOLI_ROOT", "")
-	t.Setenv("HOME", "/home/ignore-me")
-
-	originalExecutable := executablePath
-	t.Cleanup(func() {
-		executablePath = originalExecutable
-	})
-
-	fakeRoot := filepath.Join(os.TempDir(), "vrooli-root")
-	fakeExec := filepath.Join(fakeRoot, "scenarios", "landing-manager", "api", "landing-manager-api")
-	executablePath = func() (string, error) {
-		return fakeExec, nil
-	}
 
 	got := GetVrooliRoot()
-	if got != fakeRoot {
-		t.Fatalf("expected %s, got %s", fakeRoot, got)
+	if got != root {
+		t.Fatalf("expected %s, got %s", root, got)
 	}
 }
 
@@ -43,7 +30,8 @@ func TestGetVrooliRootCanonicalizesContractDescendantOverride(t *testing.T) {
 		t.Fatalf("mkdir nested: %v", err)
 	}
 
-	t.Setenv("VROOLI_ROOT", nested)
+	t.Setenv("VROOLI_SOURCE_ROOT", nested)
+	t.Setenv("VROOLI_ROOT", "")
 
 	if got := GetVrooliRoot(); got != root {
 		t.Fatalf("expected %s, got %s", root, got)
@@ -61,7 +49,8 @@ func TestResolveScenarioPathUsesCanonicalRepoRoot(t *testing.T) {
 		t.Fatalf("mkdir target: %v", err)
 	}
 
-	t.Setenv("VROOLI_ROOT", nested)
+	t.Setenv("VROOLI_SOURCE_ROOT", nested)
+	t.Setenv("VROOLI_ROOT", "")
 
 	loc := ResolveScenarioPath("alpha")
 	if !loc.Found {
@@ -134,7 +123,7 @@ func newLandingManagerContractFixtureRepo(t *testing.T) string {
 	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/landing-manager-util-test\n\ngo 1.24.0\n"), 0o644); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
-	for _, dir := range []string{"scenarios", "resources", "packages", "cmd", "internal"} {
+	for _, dir := range []string{"templates", "scenarios", "resources", "packages", "cmd", "internal"} {
 		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", dir, err)
 		}

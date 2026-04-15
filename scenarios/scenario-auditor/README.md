@@ -46,7 +46,6 @@ make setup
 # Or step by step
 make install  # Install dependencies
 make build    # Build binaries
-make install-cli  # Install CLI globally
 ```
 
 ### Usage
@@ -175,10 +174,10 @@ scenario-auditor scan agent-dashboard --rule service_json_ports --wait --timeout
 - ✅ Binary naming conventions (`<scenario>-api`, `<scenario>`)
 - ✅ Health check configuration (API + UI endpoints)
 - ✅ Required step ordering and presence
-- ✅ Develop lifecycle includes start-api/start-ui/show-urls conventions
+- ✅ Develop lifecycle includes start-api/start-ui conventions
 - ✅ Ports configuration enforces API_PORT 15000-19999 and UI_PORT 35000-39999 ranges
 - ✅ Test lifecycle uses the Go orchestrator via test-genie (`vrooli scenario test <scenario>`)
-- ✅ Setup steps cover install-cli, scenario-specific build-api, and show-urls finale
+- ✅ Setup steps cover scenario-specific build-api plus required UI bundle work
 - ✅ Setup conditions ensure binaries and CLI checks match the scenario name
 - ✅ Lifecycle.health config enforces /health endpoints and http checks
 

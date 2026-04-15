@@ -152,11 +152,6 @@
           "condition": {
             "json_path_exists": "ui/package.json:scripts.build"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"\ud83d\ude80 Application initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: data-tools --help\"",
-          "description": "Display service access URLs"
         }
       ]
     },
@@ -180,11 +175,6 @@
           "condition": {
             "file_exists": "ui/package.json"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"\ud83d\ude80 Services running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: data-tools --help\"",
-          "description": "Display all running service URLs"
         }
       ]
     },
@@ -213,7 +203,7 @@
         },
         {
           "name": "confirm-stop",
-          "run": "echo '\ud83d\uded1 Application services stopped'",
+          "run": "echo '🛑 Application services stopped'",
           "description": "Confirm services stopped"
         }
       ]

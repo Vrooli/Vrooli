@@ -88,7 +88,17 @@ func variantSpaceFilePath() string {
 	if override := strings.TrimSpace(os.Getenv("VARIANT_SPACE_PATH")); override != "" {
 		return override
 	}
-	return filepath.Join("..", ".vrooli", "variant_space.json")
+	candidates := []string{
+		filepath.Join("..", "config", "variant_space.json"),
+		filepath.Join(".", "config", "variant_space.json"),
+		filepath.Join("..", "..", "config", "variant_space.json"),
+	}
+	for _, candidate := range candidates {
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+	return filepath.Join("..", "config", "variant_space.json")
 }
 
 func loadVariantSpaceBytes(path string) []byte {

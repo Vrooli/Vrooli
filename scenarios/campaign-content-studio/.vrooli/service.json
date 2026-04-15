@@ -143,11 +143,6 @@
           "name": "build-ui",
           "run": "cd ui && npm run build",
           "description": "Build production UI bundle"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Campaign Content Studio initialized\\n  Web UI: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: campaign-content-studio --help'",
-          "description": "Display service access URLs"
         }
       ]
     },
@@ -171,11 +166,6 @@
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Campaign Content Studio running:\\n  Web UI: http://localhost:$UI_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: campaign-content-studio --help'",
-          "description": "Display all running service URLs"
         }
       ]
     },

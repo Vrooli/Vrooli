@@ -187,6 +187,4 @@ make lint
 | `WS_PORT` | WebSocket port |
 | `AM_SQLITE_PATH` | Direct path to SQLite database file (highest priority) |
 | `DATABASE_URL` | SQLite path via `file:` protocol (e.g. `file:/path/to/db`) |
-| `SQLITE_DATABASE_PATH` | Directory for SQLite database files |
-| `VROOLI_DATA` | Vrooli data root (default: `~/.vrooli/data/sqlite/databases/`) |
 | `WORKSPACE_SANDBOX_URL` | workspace-sandbox API URL |

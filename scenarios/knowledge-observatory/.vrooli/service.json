@@ -125,11 +125,6 @@
           "name": "build-ui",
           "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
           "description": "Build production UI"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\udd2d Knowledge Observatory initialized\\n  \ud83d\udcca API: http://localhost:${API_PORT}\\n  \ud83c\udf10 UI: http://localhost:${UI_PORT}\\n  \ud83c\udfaf CLI: knowledge-observatory --help'",
-          "description": "Display access URLs for API and UI"
         }
       ]
     },
@@ -153,11 +148,6 @@
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\udd2d Knowledge Observatory running:\\n  \ud83d\udcca API: http://localhost:${API_PORT}\\n  \ud83c\udf10 UI: http://localhost:${UI_PORT}\\n  \ud83c\udfaf CLI: knowledge-observatory --help'",
-          "description": "Display access URLs for API and UI after startup"
         }
       ]
     },

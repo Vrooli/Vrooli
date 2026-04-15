@@ -46,16 +46,16 @@ make stop
 
 ## Configuration
 
-Key configuration files in `.vrooli/`:
+Key configuration files:
 
 | File | Purpose |
 |------|---------|
-| `service.json` | Lifecycle, ports, dependencies |
-| `branding.json` | Site branding (name, logo, colors) |
-| `styling.json` | Design tokens and CSS theming |
-| `variant_space.json` | A/B testing axes (persona, JTBD, style) |
-| `variants/*.json` | Variant content snapshots |
-| `fallback/fallback.json` | Offline-safe landing payload |
+| `.vrooli/service.json` | Lifecycle, ports, dependencies |
+| `config/branding.json` | Site branding (name, logo, colors) |
+| `.vrooli/styling.json` | Design tokens and CSS theming |
+| `config/variant_space.json` | A/B testing axes (persona, JTBD, style) |
+| `config/variants/*.json` | Variant content snapshots |
+| `.vrooli/fallback/fallback.json` | Offline-safe landing payload |
 
 ## Tech Stack
 

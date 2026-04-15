@@ -80,6 +80,8 @@ Consumers must keep local `replace` wiring explicit so scenario and resource mod
 - `cliapp.StandardScenarioEnv("<scenario-name>", ...)` is still available when a CLI needs to customize env wiring directly. Scenario-specific API port envs are checked before global `API_PORT`.
 - Make API calls through `cliutil.APIClient` (wraps `HTTPClient`, handles base URL resolution and token injection).
 - Prefer `ScenarioApp.Get(...)` / `Request(...)` for versioned API routes and `GetRoot(...)` / `RequestRoot(...)` for root paths such as `/health`.
+- Prefer domain packages (`cli/domains/<domain>/`) plus `SubcommandGroup` once a CLI has more than a couple commands.
+- Use `RenderOperationalReport`, `RenderListReport`, and `RenderMutationReport` for default human output contracts; keep `--json` as the machine-readable companion mode.
 - For flags/inputs, use `cliutil.JSONFlag`, `StringList`, `ParseCSV`, and `MergeArgs` instead of hand-rolled parsers; read files with `ReadFileString`.
 - Pretty-print JSON responses with `cliutil.PrintJSON` / `PrintJSONMap`.
 - Keep `NeedsAPI` set on commands so the stale-checker can trigger auto-rebuilds before API calls and `--auto-start` can recover a stopped scenario automatically.
@@ -99,6 +101,7 @@ Consumers must keep local `replace` wiring explicit so scenario and resource mod
 - HTTP/API: `HTTPClient` (`Do`, base URL + token, timeout override via env), `APIClient` (base resolver + token source), `ValidateAPIBase`, `DetermineAPIBase`.
 - Config: `ResolveConfigDir`, `LoadAPIConfig`, `ConfigFile` (JSON load/save).
 - Output: `PrintJSON`, `PrintJSONMap`.
+- Output contracts: `RenderOperationalReport`, `RenderListReport`, `RenderMutationReport`, `PrintReportJSON`.
 - Ports: `DetectPortFromVrooli("<scenario>", "API_PORT")`.
 - Apps: `App` (command router with global flags and meta commands), `ScenarioApp` (scenario wiring + token preflight), `ConfigureCommand` (standard config UX).
 

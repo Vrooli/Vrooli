@@ -27,14 +27,13 @@ One canonical reference for configuring the browser-automation-studio scenario (
 | `BAS_DB_BACKEND` | Backend selector (`postgres` or `sqlite`) | `postgres` |
 | `DATABASE_URL` | Full connection URL (Postgres or SQLite) | — |
 | `POSTGRES_HOST` / `POSTGRES_PORT` / `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Postgres parts | `browser_automation_studio` (DB name) |
-| `BAS_SQLITE_PATH` | Absolute SQLite path (desktop/electron) | `~/.vrooli/data/browser-automation-studio/bas.sqlite` |
-| `SQLITE_DATABASE_PATH` | Override sqlite resource default root | `~/.vrooli/data/sqlite/databases` |
+| `BAS_SQLITE_PATH` | Absolute SQLite path (desktop/electron) | `~/.local/share/vrooli/browser-automation-studio/browser-automation-studio.db` |
 | `BAS_DB_MAX_OPEN_CONNS` | Max open connections | `25` |
 | `BAS_DB_MAX_IDLE_CONNS` | Max idle connections | `5` |
 | `BAS_DB_CONN_MAX_LIFETIME_MS` | Conn lifetime | `300000` |
 | `BAS_DB_MAX_RETRIES` / `BAS_DB_BASE_RETRY_DELAY_MS` / `BAS_DB_MAX_RETRY_DELAY_MS` / `BAS_DB_RETRY_JITTER_FACTOR` | Retry tuning | `10` / `1000` / `30000` / `0.25` |
 
-SQLite defaults to `~/.vrooli/data/sqlite/databases/browser-automation-studio.db` with WAL mode and tuned pragmas.
+SQLite defaults to `~/.local/share/vrooli/browser-automation-studio/browser-automation-studio.db` with WAL mode and tuned pragmas.
 
 ## Timeout Hierarchy
 

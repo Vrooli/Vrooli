@@ -308,7 +308,39 @@ func TestScenarioAppStandardStatusCommandUsesRootHealth(t *testing.T) {
 		t.Fatalf("requested path = %q, want %q", requestedPath, "/health")
 	}
 	output := stdout.String()
-	for _, needle := range []string{"Status: healthy", "Ready: true", "Service: demo-api", "postgres: connected"} {
+	for _, needle := range []string{"Status:\n", "Status: healthy", "Ready: true", "Service: demo-api", "Triage:\n", "postgres: connected", "Next Steps:\n  demo status --json"} {
+		if !strings.Contains(output, needle) {
+			t.Fatalf("status output missing %q in %q", needle, output)
+		}
+	}
+}
+
+func TestScenarioAppStandardStatusCommandIncludesRecoveryNextStepsWhenUnready(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"degraded","service":"demo-api","readiness":false}`))
+	}))
+	defer server.Close()
+
+	app, err := NewScenarioApp(ScenarioOptions{
+		Name:             "demo",
+		DefaultAPIBase:   server.URL,
+		ConfigDirEnvVars: []string{"CLI_CONFIG_DIR_OVERRIDE"},
+		AllowAnonymous:   true,
+	})
+	if err != nil {
+		t.Fatalf("NewScenarioApp: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	if err := app.runStandardStatus(nil, &stdout); err != nil {
+		t.Fatalf("runStandardStatus: %v", err)
+	}
+	output := stdout.String()
+	for _, needle := range []string{"Status: degraded", "Ready: false", "demo --auto-start status", "vrooli scenario start demo"} {
 		if !strings.Contains(output, needle) {
 			t.Fatalf("status output missing %q in %q", needle, output)
 		}

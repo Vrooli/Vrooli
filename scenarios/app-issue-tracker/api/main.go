@@ -71,7 +71,12 @@ func getVrooliRoot() string {
 			logging.LogError("APP_ISSUE_TRACKER_ROOT environment variable is set but empty")
 			os.Exit(1)
 		}
-		return canonicalRepoRootFromOverride(trimmed)
+		resolved, err := repocontract.FindRepoRootFromPath(trimmed)
+		if err != nil {
+			logging.LogErrorErr("APP_ISSUE_TRACKER_ROOT does not resolve to a valid repo root", err)
+			os.Exit(1)
+		}
+		return resolved
 	}
 
 	if root, ok := os.LookupEnv("VROOLI_ROOT"); ok {
@@ -80,7 +85,12 @@ func getVrooliRoot() string {
 			logging.LogError("VROOLI_ROOT environment variable is set but empty")
 			os.Exit(1)
 		}
-		return canonicalRepoRootFromOverride(trimmed)
+		resolved, err := repocontract.FindRepoRootFromPath(trimmed)
+		if err != nil {
+			logging.LogErrorErr("VROOLI_ROOT does not resolve to a valid repo root", err)
+			os.Exit(1)
+		}
+		return resolved
 	}
 
 	root, err := repocontract.ResolveRepoRoot()
@@ -92,17 +102,12 @@ func getVrooliRoot() string {
 }
 
 func resolveScenarioRoot(repoRoot string) string {
-	if resolved, err := repocontract.ResolveScenarioPath(repoRoot, "app-issue-tracker"); err == nil {
-		return resolved
+	resolved, err := repocontract.ResolveScenarioPath(repoRoot, "app-issue-tracker")
+	if err != nil {
+		logging.LogErrorErr("Failed to resolve app-issue-tracker scenario root", err)
+		os.Exit(1)
 	}
-	return filepath.Join(repoRoot, "scenarios", "app-issue-tracker")
-}
-
-func canonicalRepoRootFromOverride(root string) string {
-	if resolved, err := repocontract.FindRepoRootFromPath(root); err == nil {
-		return resolved
-	}
-	return filepath.Clean(root)
+	return resolved
 }
 
 func main() {

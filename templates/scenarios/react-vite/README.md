@@ -91,11 +91,13 @@ cd ui && VITE_API_BASE_URL="http://localhost:${API_PORT}/api/v1" pnpm run dev --
 ### CLI Extension Model
 - `cli/main.go`: entrypoint only.
 - `cli/app.go`: metadata + scaffold wiring only. Avoid endpoint logic here.
-- `cli/commands.go`: the primary extension point for domain commands.
-- `cli/cmd_<domain>.go`: preferred layout once the CLI grows beyond a couple commands.
+- `cli/domains/domains.go`: domain registration only.
+- `cli/domains/<domain>/`: default place for command handlers, request/response shaping, and output formatting.
 - Use `core.Get(...)` / `core.Request(...)` for versioned API routes and `core.GetRoot(...)` / `core.RequestRoot(...)` for root paths such as `/health`.
 - Mark API-backed commands with `NeedsAPI: true` so stale-checking, token validation, and `--auto-start` preflight stay connected automatically.
-- Prefer `SubcommandGroup` once the CLI has multiple domains (`tasks list`, `projects create`, etc.) instead of stuffing many flat commands into one file.
+- Prefer `SubcommandGroup` by default for real domains (`tasks list`, `projects create`, etc.).
+- Default human output should follow a command contract: operational commands use `Status -> Triage -> Next Steps`, list/read commands use `Summary -> Results -> Retrieval Hints`, and mutation commands use `Result -> What Changed -> Next Command`.
+- Use `cliapp.RenderOperationalReport`, `RenderListReport`, and `RenderMutationReport` so the human output contract stays consistent across scenarios.
 
 ## Customize Safely
 1. **Update PRD.md + requirements/** first. Operational targets drive code + tests.

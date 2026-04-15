@@ -37,11 +37,13 @@ See [QUICKSTART.md](docs/QUICKSTART.md) for detailed first-time setup.
 
 - `cli/main.go`: entrypoint only.
 - `cli/app.go`: metadata + scaffold wiring only. Keep endpoint logic out of this file.
-- `cli/commands.go`: the primary extension point for domain commands.
-- `cli/cmd_<domain>.go`: preferred once the CLI grows beyond a couple commands.
+- `cli/domains/domains.go`: domain registration only.
+- `cli/domains/<domain>/`: default place for command handlers, request/response shaping, and output formatting.
 - Use `core.Get(...)` / `core.Request(...)` for versioned API routes and `core.GetRoot(...)` / `core.RequestRoot(...)` for root paths.
 - Mark API-backed commands with `NeedsAPI: true` so stale-checking, token validation, and `--auto-start` keep working automatically.
-- Prefer `SubcommandGroup` for command-rich CLIs so the file layout mirrors the scenario’s domain boundaries.
+- Prefer `SubcommandGroup` by default for real domains so the file layout mirrors scenario boundaries.
+- Default human output should follow a command contract: operational commands use `Status -> Triage -> Next Steps`, list/read commands use `Summary -> Results -> Retrieval Hints`, and mutation commands use `Result -> What Changed -> Next Command`.
+- Use `cliapp.RenderOperationalReport`, `RenderListReport`, and `RenderMutationReport` so output stays consistent across scenarios.
 
 ## Documentation
 

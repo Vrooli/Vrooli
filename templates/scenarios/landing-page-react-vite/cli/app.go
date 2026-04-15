@@ -1,6 +1,8 @@
 package main
 
 import (
+	"{{SCENARIO_ID}}/cli/domains"
+
 	"github.com/vrooli/cli-core/cliapp"
 )
 
@@ -32,8 +34,8 @@ func NewApp() (*App, error) {
 		BuildTimestamp:   buildTimestamp,
 		BuildSourceRoot:  buildSourceRoot,
 		AllowAnonymous:   true,
-		CommandGroups:    app.registerCommandGroups,
-		SubcommandGroups: app.registerSubcommandGroups,
+		CommandGroups:    domains.CommandGroups,
+		SubcommandGroups: domains.SubcommandGroups,
 	})
 	if err != nil {
 		return nil, err
