@@ -44,7 +44,7 @@ func TestScenarioAndResourcePaths(t *testing.T) {
 }
 
 func TestPathHelpersValidateIdentifiersAndKeys(t *testing.T) {
-	contract := validContract()
+	contract := validContract(t)
 
 	_, err := contract.ScenarioRoot("/repo", "../bad")
 	assertErrorKind(t, err, ErrInvalidInput)
@@ -63,7 +63,7 @@ func TestPathHelpersValidateIdentifiersAndKeys(t *testing.T) {
 }
 
 func TestTopLevelDirAndStandaloneScenarioRoot(t *testing.T) {
-	contract := validContract()
+	contract := validContract(t)
 
 	got := mustTopLevelDir(t, contract, "/repo", "packages")
 	if got != filepath.Join("/repo", "packages") {
@@ -88,7 +88,7 @@ func TestTopLevelDirAndStandaloneScenarioRoot(t *testing.T) {
 
 func TestStandaloneScenarioRootUsesContractLayoutWhenAvailable(t *testing.T) {
 	root := t.TempDir()
-	doc := validContractDoc()
+	doc := validContractDoc(t)
 	doc.Root.Markers.RequiredDirs[1] = "apps"
 	doc.Layout.ScenarioDir = "apps"
 

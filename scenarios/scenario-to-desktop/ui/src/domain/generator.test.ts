@@ -93,6 +93,6 @@ describe("generator domain", () => {
     expect(computeStandardOutputPath("demo-scenario"))
       .toBe("scenarios/demo-scenario/platforms/electron");
     expect(computeStagingPreviewPath("demo-scenario"))
-      .toBe("scenarios/scenario-to-desktop/data/staging/demo-scenario/<build-id>");
+      .toBe("<cache-root>/vrooli/scenario-to-desktop/staging/demo-scenario/<build-id>");
   });
 });

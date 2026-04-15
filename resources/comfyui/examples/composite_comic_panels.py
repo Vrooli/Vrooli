@@ -24,7 +24,7 @@ from datetime import datetime
 def find_latest_panels(output_dir=None):
     """Find the most recent comic panel files."""
     if output_dir is None:
-        output_dir = os.path.expanduser("~/.comfyui/outputs")
+        output_dir = os.path.expanduser(os.environ.get("COMFYUI_OUTPUT_DIR", "~/.local/share/vrooli/resources/comfyui/outputs"))
     
     panel_patterns = [
         "comic_panel_1_spyglass_*.png",
@@ -158,7 +158,7 @@ def main():
     if len(sys.argv) > 1:
         output_dir = sys.argv[1]
     else:
-        output_dir = os.path.expanduser("~/.comfyui/outputs")
+        output_dir = os.path.expanduser(os.environ.get("COMFYUI_OUTPUT_DIR", "~/.local/share/vrooli/resources/comfyui/outputs"))
     
     if not os.path.exists(output_dir):
         print(f"Error: Output directory does not exist: {output_dir}")
@@ -172,7 +172,8 @@ def main():
         print("\n❌ Could not find all required comic panels")
         print("Make sure you've run the multi-panel comic workflow first:")
         print("curl -X POST http://localhost:8188/prompt -H 'Content-Type: application/json' \\")
-        print(f"  -d @{os.path.expanduser('~/.comfyui/workflows/pirate_rabbit_comic_composite_v2.json')}")
+        workflows_dir = os.path.expanduser(os.environ.get("COMFYUI_WORKFLOWS_DIR", "~/.local/share/vrooli/resources/comfyui/workflows"))
+        print(f"  -d @{os.path.join(workflows_dir, 'pirate_rabbit_comic_composite_v2.json')}")
         sys.exit(1)
     
     # Create output filename with timestamp

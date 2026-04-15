@@ -4,6 +4,9 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"flag"
+	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
@@ -18,7 +21,6 @@ import (
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
-	"github.com/vrooli/api-core/storage"
 
 	"scenario-to-desktop-api/agentmanager"
 	"scenario-to-desktop-api/build"
@@ -38,6 +40,8 @@ import (
 	"scenario-to-desktop-api/signing"
 	"scenario-to-desktop-api/smoketest"
 	"scenario-to-desktop-api/state"
+	"scenario-to-desktop-api/storagemigrate"
+	"scenario-to-desktop-api/storagepaths"
 	"scenario-to-desktop-api/system"
 	"scenario-to-desktop-api/tasks"
 	"scenario-to-desktop-api/telemetry"
@@ -93,13 +97,22 @@ type Server struct {
 func NewServer(port int) *Server {
 	vrooliRoot := detectVrooliRoot()
 	scenarioRoot := filepath.Join(vrooliRoot, "scenarios")
-	dataDir := filepath.Join(vrooliRoot, "scenarios", "scenario-to-desktop", "data")
 	templateDir := "../templates" // Templates are in parent directory when running from api/
 
 	// Initialize structured logger with JSON output
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	}))
+
+	storePaths, err := storagepaths.NewLocator()
+	if err != nil {
+		logger.Error("failed to initialize storage paths", "error", err)
+		return nil
+	}
+	if _, err := storePaths.EnsureAll(); err != nil {
+		logger.Error("failed to prepare storage roots", "error", err)
+		return nil
+	}
 
 	// ===== Domain Services (Screaming Architecture) =====
 
@@ -119,7 +132,11 @@ func NewServer(port int) *Server {
 	bundlePackager := bundle.NewPackager()
 
 	// Records domain (created before generation since generation uses recordDeleter)
-	recordsStore, err := records.NewFileStore(filepath.Join(dataDir, "desktop_records_v2.json"))
+	recordsPath, err := storePaths.RecordsPath()
+	if err != nil {
+		logger.Warn("records path unavailable", "error", err)
+	}
+	recordsStore, err := records.NewFileStore(recordsPath)
 	if err != nil {
 		logger.Warn("domain records store unavailable, using nil", "error", err)
 		recordsStore = nil
@@ -140,7 +157,11 @@ func NewServer(port int) *Server {
 	)
 
 	// Smoke test domain
-	smokeTestStore, err := smoketest.NewStore(filepath.Join(dataDir, "smoke_tests_v2.json"))
+	smokeTestsPath, pathErr := storePaths.SmokeTestsPath()
+	if pathErr != nil {
+		logger.Warn("smoke test path unavailable", "error", pathErr)
+	}
+	smokeTestStore, err := smoketest.NewStore(smokeTestsPath)
 	if err != nil {
 		logger.Warn("domain smoke test store unavailable, using in-memory", "error", err)
 		smokeTestStore = smoketest.NewInMemoryStore()
@@ -178,12 +199,18 @@ func NewServer(port int) *Server {
 	recordsHandler.SetSmokeTestStore(&smokeTestRecordAdapter{store: smokeTestStore})
 
 	// Captures domain (persistent screenshot/recording storage)
-	capturesService, capturesHandler := initCapturesDomain(logger)
+	capturesService, capturesHandler := initCapturesDomain(storePaths, logger)
 
 	// Live desktop domain (interactive VNC sessions)
 	linuxBackend := livedesktop.NewLinuxBackend(logger)
 	liveDesktopStore := livedesktop.NewInMemoryStore()
 	liveDesktopService := livedesktop.NewService(liveDesktopStore, linuxBackend, logger, vrooliRoot)
+	liveDesktopDataDir, err := storePaths.EnsureLiveDesktopDir()
+	if err != nil {
+		logger.Warn("live desktop directory unavailable", "error", err)
+	} else {
+		liveDesktopService.WithDataDir(liveDesktopDataDir)
+	}
 	liveDesktopService.WithRecorder(recorder)
 	if capturesService != nil {
 		liveDesktopService.WithCaptures(capturesService)
@@ -193,7 +220,11 @@ func NewServer(port int) *Server {
 	livedesktop.StartJanitor(context.Background(), liveDesktopService, 30*time.Second, 30*time.Minute)
 
 	// Telemetry domain
-	telemetryService := telemetry.NewService(vrooliRoot)
+	telemetryDir, err := storePaths.EnsureTelemetryDir()
+	if err != nil {
+		logger.Warn("telemetry directory unavailable", "error", err)
+	}
+	telemetryService := telemetry.NewService(telemetryDir)
 	telemetryHandler := telemetry.NewHandler(telemetryService)
 
 	// Scenario domain
@@ -201,7 +232,11 @@ func NewServer(port int) *Server {
 	scenarioHandler := scenario.NewHandler(vrooliRoot, scenarioRecordStore, logger)
 
 	// State domain (scenario state persistence)
-	stateStore, err := state.NewStore(state.DefaultDataDir())
+	stateDir, err := storePaths.EnsureScenarioStateDir()
+	if err != nil {
+		logger.Warn("state directory unavailable", "error", err)
+	}
+	stateStore, err := state.NewStore(stateDir)
 	if err != nil {
 		logger.Warn("state store unavailable, using nil", "error", err)
 		stateStore = nil
@@ -227,7 +262,11 @@ func NewServer(port int) *Server {
 	)
 
 	// Deploy target management
-	deployTargetRepo := deploy.NewTargetRepository(vrooliRoot)
+	deployTargetsPath, err := storePaths.DeployTargetsPath()
+	if err != nil {
+		logger.Warn("deploy targets path unavailable", "error", err)
+	}
+	deployTargetRepo := deploy.NewTargetRepository(deployTargetsPath)
 
 	// Create pipeline stages with their service dependencies
 	// Stage order: bundle → preflight → generate → build → smoketest → deploy
@@ -262,7 +301,10 @@ func NewServer(port int) *Server {
 	}
 
 	// Create file-backed pipeline store for persistence across restarts
-	pipelineDataDir := filepath.Join(dataDir, "pipelines")
+	pipelineDataDir, err := storePaths.EnsurePipelineStateDir()
+	if err != nil {
+		logger.Warn("pipeline storage directory unavailable", "error", err)
+	}
 	pipelineStore, err := pipeline.NewFileStore(pipelineDataDir,
 		pipeline.WithFileStoreLogger(&pipeline.SlogLogger{Logger: logger}),
 	)
@@ -272,7 +314,10 @@ func NewServer(port int) *Server {
 	}
 
 	// Create scenario index store for scenario-to-pipeline mapping
-	indexDataDir := filepath.Join(dataDir, "indexes")
+	indexDataDir, err := storePaths.EnsurePipelineIndexDir()
+	if err != nil {
+		logger.Warn("pipeline index directory unavailable", "error", err)
+	}
 	indexStore, err := pipeline.NewScenarioIndexStore(indexDataDir,
 		pipeline.WithIndexStoreLogger(&pipeline.SlogLogger{Logger: logger}),
 	)
@@ -352,7 +397,11 @@ func NewServer(port int) *Server {
 		"tools", toolReg.ToolCount(context.Background()))
 
 	// ===== Task Orchestration Service =====
-	taskSvc := initTaskOrchestration(dataDir, pipelineOrchestrator, logger)
+	dataRoot, err := storePaths.DataRoot()
+	if err != nil {
+		logger.Warn("data root unavailable", "error", err)
+	}
+	taskSvc := initTaskOrchestration(dataRoot, pipelineOrchestrator, logger)
 
 	// ===== Create Server =====
 
@@ -390,17 +439,8 @@ func NewServer(port int) *Server {
 }
 
 // initCapturesDomain sets up the captures service and handler.
-func initCapturesDomain(logger *slog.Logger) (*captures.Service, *captures.Handler) {
-	capturesResolver, err := storage.NewResolver(storage.ResolverConfig{
-		AppID:   "vrooli",
-		Profile: storage.ProfileAuto,
-	})
-	if err != nil {
-		logger.Warn("captures storage resolver unavailable", "error", err)
-		return nil, nil
-	}
-	capturesOpts := storage.Options{ScenarioID: "scenario-to-desktop-captures"}
-	metaPath, err := capturesResolver.Path(capturesOpts, storage.ClassData, "captures_meta.json")
+func initCapturesDomain(paths *storagepaths.Locator, logger *slog.Logger) (*captures.Service, *captures.Handler) {
+	metaPath, err := paths.CapturesMetaPath()
 	if err != nil {
 		logger.Warn("captures meta path unavailable", "error", err)
 		return nil, nil
@@ -410,7 +450,12 @@ func initCapturesDomain(logger *slog.Logger) (*captures.Service, *captures.Handl
 		logger.Warn("captures store unavailable", "error", err)
 		return nil, nil
 	}
-	svc := captures.NewService(capturesResolver, capturesOpts, capturesStore)
+	filesDir, err := paths.EnsureCapturesDir()
+	if err != nil {
+		logger.Warn("captures files directory unavailable", "error", err)
+		return nil, nil
+	}
+	svc := captures.NewService(paths.Resolver(), paths.Options(), filesDir, capturesStore)
 	logger.Info("captures service initialized", "meta_path", metaPath)
 	return svc, captures.NewHandler(svc)
 }
@@ -545,6 +590,14 @@ func (s *Server) Router() http.Handler {
 
 // Main function
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "storage-relocate" {
+		if err := runStorageRelocate(os.Args[2:]); err != nil {
+			globalLogger.Error("storage relocation failed", "error", err)
+			log.Fatal(err)
+		}
+		return
+	}
+
 	// Preflight checks - must be first, before any initialization
 	if preflight.Run(preflight.Config{
 		ScenarioName: "scenario-to-desktop",
@@ -595,4 +648,37 @@ func main() {
 		globalLogger.Error("server failed", "error", err)
 		log.Fatal(err)
 	}
+}
+
+func runStorageRelocate(args []string) error {
+	fs := flag.NewFlagSet("storage-relocate", flag.ContinueOnError)
+	repoRoot := fs.String("repo-root", "", "Override detected repo root")
+	homeDir := fs.String("home-dir", "", "Override detected home directory")
+	jsonOutput := fs.Bool("json", false, "Print machine-readable JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	result, err := storagemigrate.Run(storagemigrate.Options{
+		RepoRoot: *repoRoot,
+		HomeDir:  *homeDir,
+	})
+	if err != nil {
+		return err
+	}
+
+	if *jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(result)
+	}
+
+	for _, moved := range result.Moved {
+		fmt.Printf("moved %-4s %s -> %s\n", moved.Kind, moved.Source, moved.Destination)
+	}
+	for _, skipped := range result.Skipped {
+		fmt.Printf("skipped %-4s %s\n", skipped.Kind, skipped.Source)
+	}
+	fmt.Printf("storage relocation complete: %d moved, %d skipped\n", len(result.Moved), len(result.Skipped))
+	return nil
 }

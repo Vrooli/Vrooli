@@ -38,7 +38,7 @@ SERVICE_METADATA=(
     "HTTP Port: ${QDRANT_PORT:-6333}"
     "gRPC Port: ${QDRANT_GRPC_PORT:-6334}"
     "Container: ${QDRANT_CONTAINER_NAME:-qdrant}"
-    "Data Dir: ${QDRANT_DATA_DIR:-${HOME}/.qdrant/data}"
+    "Data Dir: ${QDRANT_DATA_DIR:-${RESOURCE_DATA_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/vrooli/resources/qdrant}}"
     "Collections: ${#QDRANT_DEFAULT_COLLECTIONS[@]}"
 )
 

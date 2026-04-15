@@ -21,6 +21,12 @@ vrooli scenario template show <template>
 vrooli scenario generate <template> --id <slug> --display-name <name> --description <text>
 ```
 
+For generation planning without writing files:
+
+```bash
+vrooli scenario generate <template> --id <slug> --display-name <name> --description <text> --dry-run
+```
+
 For requirement-aware work:
 
 ```bash
@@ -36,8 +42,10 @@ vrooli scenario requirements report
 - declare required resources honestly
 - document the scenario's intended behavior through requirements and tests
 - avoid claiming production readiness before validation and deployment checks exist
+- treat generation as the start of scenario work, not the end of it
 
 ## Related
 
 - [getting-started.md](getting-started.md)
 - [VALIDATION.md](VALIDATION.md)
+- [DEPLOYMENT.md](DEPLOYMENT.md)

@@ -33,7 +33,7 @@ log::info "Starting MinIO integration tests..."
 FAILED=0
 
 # Load credentials if available
-CREDS_FILE="${HOME}/.minio/config/credentials"
+CREDS_FILE="${MINIO_CONFIG_DIR}/credentials"
 if [[ -f "$CREDS_FILE" ]]; then
     # shellcheck disable=SC1090
     source "$CREDS_FILE" 2>/dev/null || true

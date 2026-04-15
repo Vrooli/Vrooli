@@ -484,8 +484,7 @@ postgres::status::collect_data() {
     
     # Ensure POSTGRES_INSTANCES_DIR is set
     if [[ -z "${POSTGRES_INSTANCES_DIR:-}" ]]; then
-        local postgres_resource_dir="${var_SCRIPTS_RESOURCES_DIR}/storage/postgres"
-        export POSTGRES_INSTANCES_DIR="${postgres_resource_dir}/instances"
+        export POSTGRES_INSTANCES_DIR="${RESOURCE_DATA_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/vrooli/resources/postgres}/instances"
     fi
     
     # Basic resource information
@@ -494,7 +493,7 @@ postgres::status::collect_data() {
     status_data+=("description" "PostgreSQL database with multi-instance support")
     
     # Check installation and running status
-    local instances_dir="${VROOLI_ROOT:-${HOME}/Vrooli}/resources/postgres/instances"
+    local instances_dir="${POSTGRES_INSTANCES_DIR}"
     local installed="false"
     local running="false"
     local healthy="false"

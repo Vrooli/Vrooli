@@ -19,6 +19,7 @@ import (
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/ports"
 	"github.com/vrooli/vrooli/internal/process"
+	"github.com/vrooli/vrooli/internal/projectstate"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
@@ -781,15 +782,13 @@ func uiBundleNeedsSetupWithDeps(appRoot string, check scenario.ConditionCheck, d
 
 func resourcesNeedSetup(appRoot string, check scenario.ConditionCheck) bool {
 	if check.Populated {
-		_, err := os.Stat(filepath.Join(appRoot, "data", ".resources-populated"))
-		return err != nil
+		return !projectstate.HasResourcesPopulated(appRoot)
 	}
 	if len(check.Resources) == 0 {
-		_, err := os.Stat(filepath.Join(appRoot, "data", ".resources-populated"))
-		return err != nil
+		return !projectstate.HasResourcesPopulated(appRoot)
 	}
 	for _, resourceName := range check.Resources {
-		if _, err := os.Stat(filepath.Join(appRoot, "data", "."+resourceName+"-populated")); err != nil {
+		if !projectstate.HasResourcePopulated(appRoot, resourceName) {
 			return true
 		}
 	}

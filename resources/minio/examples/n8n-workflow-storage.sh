@@ -20,7 +20,7 @@ N8N_PORT="${N8N_PORT:-5678}"
 N8N_ENDPOINT="http://localhost:${N8N_PORT}"
 
 # Load MinIO credentials if available
-CREDS_FILE="${HOME}/.minio/config/credentials"
+CREDS_FILE="${MINIO_CONFIG_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/vrooli/resources/minio}/credentials"
 if [[ -f "$CREDS_FILE" ]]; then
     # shellcheck disable=SC1090
     source "$CREDS_FILE"

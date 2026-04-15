@@ -5,8 +5,7 @@
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 OPENROUTER_LIB_DIR="${APP_ROOT}/resources/openrouter/lib"
 OPENROUTER_RESOURCE_DIR="${APP_ROOT}/resources/openrouter"
-OPENROUTER_DATA_DIR="${VROOLI_ROOT:-$HOME/Vrooli}/data/openrouter"
-BENCHMARK_DIR="${OPENROUTER_DATA_DIR}/benchmarks"
+BENCHMARK_DIR="${OPENROUTER_BENCHMARK_DIR}"
 
 # Source dependencies
 source "${APP_ROOT}/scripts/lib/utils/log.sh"

@@ -160,7 +160,7 @@ type Config struct {
 	TemplateType string `json:"template_type,omitempty"`
 
 	// LocationMode controls where the desktop output is written.
-	// Options: proper (default), staging/temp (write to scenario-to-desktop/data/staging), custom (requires output_path).
+	// Options: proper (default), staging/temp (write to the scenario-to-desktop cache staging root), custom (requires output_path).
 	LocationMode string `json:"location_mode,omitempty"`
 
 	// WebhookURL is an optional URL for webhook notifications.

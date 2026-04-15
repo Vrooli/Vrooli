@@ -17,10 +17,10 @@ MODEL_BUCKET="ollama-models"
 # Ollama configuration
 OLLAMA_HOST="${OLLAMA_HOST:-localhost}"
 OLLAMA_PORT="${OLLAMA_PORT:-11434}"
-OLLAMA_MODELS_DIR="${HOME}/.ollama/models"
+OLLAMA_MODELS_DIR="${OLLAMA_MODELS_DIR:-${RESOURCE_DATA_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/vrooli/resources/ollama}/models}"
 
 # Load MinIO credentials if available
-CREDS_FILE="${HOME}/.minio/config/credentials"
+CREDS_FILE="${MINIO_CONFIG_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/vrooli/resources/minio}/credentials"
 if [[ -f "$CREDS_FILE" ]]; then
     # shellcheck disable=SC1090
     source "$CREDS_FILE"

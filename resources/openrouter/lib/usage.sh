@@ -62,11 +62,11 @@ openrouter::usage::show() {
     echo "└─────────────────────────────────────────┘"
     
     # Show top models used if data is available
-    if [[ "$period" == "today" ]] && [[ -f "${var_ROOT_DIR}/data/openrouter/usage/usage-$(date +%Y-%m-%d).json" ]]; then
+    if [[ "$period" == "today" ]] && [[ -f "${OPENROUTER_USAGE_DIR}/usage-$(date +%Y-%m-%d).json" ]]; then
         echo
         echo "Top Models Used:"
         jq -r '.requests | group_by(.model) | map({model: .[0].model, count: length}) | sort_by(.count) | reverse | limit(5;.) | .[] | "  • \(.model): \(.count) requests"' \
-            "${var_ROOT_DIR}/data/openrouter/usage/usage-$(date +%Y-%m-%d).json" 2>/dev/null || true
+            "${OPENROUTER_USAGE_DIR}/usage-$(date +%Y-%m-%d).json" 2>/dev/null || true
     fi
 }
 

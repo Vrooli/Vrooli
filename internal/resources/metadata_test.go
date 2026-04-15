@@ -9,12 +9,12 @@ import (
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/secrets"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
-	testfixture "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
+	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
 )
 
 func TestLoadPortRegistryReadsTypedJSON(t *testing.T) {
 	root := t.TempDir()
-	testfixture.WritePortRegistryState(t, root, PortRegistry{
+	testresource.WritePortRegistryState(t, root, PortRegistry{
 		ResourcePorts:  map[string]int{"postgres": 5433},
 		ReservedRanges: map[string]string{"db": "5432-5499"},
 	})
@@ -35,11 +35,11 @@ func TestLoadResourceEnvironmentUsesTypedDefaultsAndSecrets(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	testfixture.WritePortRegistryState(t, root, PortRegistry{
+	testresource.WritePortRegistryState(t, root, PortRegistry{
 		ResourcePorts:  map[string]int{"browserless": 4110, "postgres": 5433},
 		ReservedRanges: map[string]string{},
 	})
-	writeEnvManifestFixture(t, root, "postgres", manifestpkg.ResourceManifest{
+	testresource.WriteResourceManifest(t, root, "postgres", manifestpkg.ResourceManifest{
 		Name:            "postgres",
 		Driver:          "docker-service",
 		PortabilityTier: "full",
@@ -123,7 +123,7 @@ func TestLoadResourceEnvironmentUsesEncryptedSecrets(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	testfixture.WritePortRegistryState(t, root, PortRegistry{
+	testresource.WritePortRegistryState(t, root, PortRegistry{
 		ResourcePorts:  map[string]int{"postgres": 5433},
 		ReservedRanges: map[string]string{},
 	})
@@ -154,7 +154,7 @@ func TestLoadResourceEnvironmentPrefersSecretsOverRuntimePlaceholders(t *testing
 	root := t.TempDir()
 	home := t.TempDir()
 
-	testfixture.WritePortRegistryState(t, root, PortRegistry{
+	testresource.WritePortRegistryState(t, root, PortRegistry{
 		ResourcePorts:  map[string]int{"postgres": 5433},
 		ReservedRanges: map[string]string{},
 	})
@@ -202,7 +202,7 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	testfixture.WritePortRegistryState(t, root, PortRegistry{
+	testresource.WritePortRegistryState(t, root, PortRegistry{
 		ResourcePorts: map[string]int{
 			"comfyui":         8188,
 			"minio":           9000,
@@ -684,7 +684,7 @@ func TestLoadResourceEnvironmentFallsBackToLegacySecretsDuringMigration(t *testi
 	root := t.TempDir()
 	home := t.TempDir()
 
-	testfixture.WritePortRegistryState(t, root, PortRegistry{
+	testresource.WritePortRegistryState(t, root, PortRegistry{
 		ResourcePorts:  map[string]int{"postgres": 5433},
 		ReservedRanges: map[string]string{},
 	})
@@ -717,7 +717,7 @@ func TestLoadResourceEnvironmentFailsClosedWhenEncryptedSecretsAreInvalid(t *tes
 	root := t.TempDir()
 	home := t.TempDir()
 
-	testfixture.WritePortRegistryState(t, root, PortRegistry{
+	testresource.WritePortRegistryState(t, root, PortRegistry{
 		ResourcePorts:  map[string]int{"postgres": 5433},
 		ReservedRanges: map[string]string{},
 	})
@@ -871,9 +871,4 @@ func writePostgresManifestFixture(t *testing.T, root string) {
 			},
 		},
 	})
-}
-
-func writeEnvManifestFixture(t *testing.T, root, name string, manifest manifestpkg.ResourceManifest) {
-	t.Helper()
-	testfixture.WriteResourceManifest(t, root, name, manifest)
 }

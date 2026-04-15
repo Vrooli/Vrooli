@@ -248,7 +248,7 @@ If telemetry upload fails during the test, the fallback mechanism reads from the
 
 The smoke test service persists test status to:
 ```
-{vrooliRoot}/scenarios/scenario-to-desktop/data/smoke_tests_v2.json
+<data-root>/vrooli/scenario-to-desktop/smoke_tests_v2.json
 ```
 
 ### Status Data Structure

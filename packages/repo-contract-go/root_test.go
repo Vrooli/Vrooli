@@ -52,7 +52,7 @@ func TestFindRepoRootReturnsNotFoundWhenNoMatchingRootExists(t *testing.T) {
 
 func TestFindRepoRootSupportsSeamsForContractAndStatFailures(t *testing.T) {
 	root := t.TempDir()
-	doc := validContractDoc()
+	doc := validContractDoc(t)
 	writeContractFile(t, root, doc)
 	for _, dir := range doc.Root.Markers.RequiredDirs {
 		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
@@ -91,7 +91,7 @@ func TestFindRepoRootSupportsSeamsForContractAndStatFailures(t *testing.T) {
 
 func TestCandidateMatchesRootMarkers(t *testing.T) {
 	root := t.TempDir()
-	markers := validContract().RootMarkers()
+	markers := validContract(t).RootMarkers()
 
 	for _, dir := range markers.RequiredDirs {
 		if err := os.MkdirAll(filepath.Join(root, filepath.FromSlash(dir)), 0o755); err != nil {

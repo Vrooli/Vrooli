@@ -18,7 +18,7 @@ fi
 
 minio::backup::create() {
     local backup_name="${1:-}"
-    local backup_dir="${2:-${HOME}/.minio/backups}"
+    local backup_dir="${2:-${MINIO_BACKUP_DIR:-${RESOURCE_STATE_DIR:-${XDG_STATE_HOME:-${HOME}/.local/state}/vrooli/resources/minio}/backups}}"
     
     if [[ -z "$backup_name" ]]; then
         backup_name="minio-backup-$(date +%Y%m%d-%H%M%S)"
@@ -37,7 +37,7 @@ minio::backup::create() {
     
     local backup_path="$backup_dir/$backup_name"
     local container_name="${MINIO_CONTAINER_NAME:-minio}"
-    local data_dir="${HOME}/.minio/data"
+    local data_dir="${MINIO_DATA_DIR:-${RESOURCE_DATA_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/vrooli/resources/minio}}"
     
     log::info "Backing up MinIO data to: $backup_path"
     
@@ -53,7 +53,7 @@ minio::backup::create() {
     fi
     
     # Load actual credentials (avoid readonly variable issue)
-    local creds_file="${HOME}/.minio/config/credentials"
+    local creds_file="${MINIO_CONFIG_DIR:-${RESOURCE_CONFIG_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/vrooli/resources/minio}}/credentials"
     local root_user="minioadmin"
     local root_password="minioadmin"
     
@@ -98,7 +98,7 @@ minio::backup::create() {
 }
 
 minio::backup::list() {
-    local backup_dir="${1:-${HOME}/.minio/backups}"
+    local backup_dir="${1:-${MINIO_BACKUP_DIR:-${RESOURCE_STATE_DIR:-${XDG_STATE_HOME:-${HOME}/.local/state}/vrooli/resources/minio}/backups}}"
     
     log::info "Available MinIO backups:"
     
@@ -136,7 +136,7 @@ minio::backup::list() {
 
 minio::backup::restore() {
     local backup_name="${1:-}"
-    local backup_dir="${2:-${HOME}/.minio/backups}"
+    local backup_dir="${2:-${MINIO_BACKUP_DIR:-${RESOURCE_STATE_DIR:-${XDG_STATE_HOME:-${HOME}/.local/state}/vrooli/resources/minio}/backups}}"
     
     if [[ -z "$backup_name" ]]; then
         log::error "Backup name required"
@@ -160,7 +160,7 @@ minio::backup::restore() {
     
     log::info "Restoring MinIO backup: $backup_name"
     
-    local data_dir="${HOME}/.minio/data"
+    local data_dir="${MINIO_DATA_DIR:-${RESOURCE_DATA_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/vrooli/resources/minio}}"
     local container_name="${MINIO_CONTAINER_NAME:-minio}"
     
     # Stop MinIO if running (to safely restore data)
@@ -189,7 +189,7 @@ minio::backup::restore() {
     # Restore credentials if available
     if [[ -f "$backup_path/credentials.env" ]]; then
         log::info "Restoring credentials..."
-        local creds_dir="${HOME}/.minio/config"
+        local creds_dir="${MINIO_CONFIG_DIR:-${RESOURCE_CONFIG_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/vrooli/resources/minio}}"
         mkdir -p "$creds_dir"
         cp "$backup_path/credentials.env" "$creds_dir/credentials" 2>/dev/null || true
         chmod 600 "$creds_dir/credentials"
@@ -226,7 +226,7 @@ minio::backup::restore() {
 
 minio::backup::delete() {
     local backup_name="${1:-}"
-    local backup_dir="${2:-${HOME}/.minio/backups}"
+    local backup_dir="${2:-${MINIO_BACKUP_DIR:-${RESOURCE_STATE_DIR:-${XDG_STATE_HOME:-${HOME}/.local/state}/vrooli/resources/minio}/backups}}"
     
     if [[ -z "$backup_name" ]]; then
         log::error "Backup name required"

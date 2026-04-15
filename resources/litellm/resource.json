@@ -41,19 +41,19 @@
     "container_name": "vrooli-litellm",
     "volumes": [
       {
-        "source": "${ROOT}/data/resources/litellm/config/config.yaml",
+        "source": "${RESOURCE_CONFIG_DIR}/config.yaml",
         "target": "/app/config.yaml"
       },
       {
-        "source": "${ROOT}/data/resources/litellm/config/.env",
+        "source": "${RESOURCE_CONFIG_DIR}/.env",
         "target": "/app/.env"
       },
       {
-        "source": "${ROOT}/data/resources/litellm/data",
+        "source": "${RESOURCE_DATA_DIR}",
         "target": "/app/data"
       },
       {
-        "source": "${ROOT}/data/resources/litellm/logs",
+        "source": "${RESOURCE_LOGS_DIR}",
         "target": "/app/logs"
       }
     ],

@@ -3,8 +3,6 @@
 
 # Get the directory of this script
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-# Source utilities
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Basic resource information
 [[ -z "${LITELLM_RESOURCE_NAME:-}" ]] && readonly LITELLM_RESOURCE_NAME="litellm"
@@ -20,10 +18,16 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh"
 [[ -z "${LITELLM_PORT:-}" ]] && readonly LITELLM_PORT="11435"
 [[ -z "${LITELLM_INTERNAL_PORT:-}" ]] && readonly LITELLM_INTERNAL_PORT="4000"
 
-# Paths and directories
-[[ -z "${LITELLM_CONFIG_DIR:-}" ]] && readonly LITELLM_CONFIG_DIR="${var_DATA_DIR}/resources/litellm/config"
-[[ -z "${LITELLM_LOG_DIR:-}" ]] && readonly LITELLM_LOG_DIR="${var_DATA_DIR}/resources/litellm/logs"
-[[ -z "${LITELLM_DATA_DIR:-}" ]] && readonly LITELLM_DATA_DIR="${var_DATA_DIR}/resources/litellm/data"
+# Canonical resource storage directories.
+# RESOURCE_* is injected by the Go control plane; XDG fallbacks keep standalone shell usage off repo-local paths.
+litellm_xdg_config_home="${XDG_CONFIG_HOME:-${HOME}/.config}"
+litellm_xdg_data_home="${XDG_DATA_HOME:-${HOME}/.local/share}"
+litellm_xdg_state_home="${XDG_STATE_HOME:-${HOME}/.local/state}"
+
+[[ -z "${LITELLM_CONFIG_DIR:-}" ]] && readonly LITELLM_CONFIG_DIR="${RESOURCE_CONFIG_DIR:-${litellm_xdg_config_home}/vrooli/resources/litellm}"
+[[ -z "${LITELLM_LOG_DIR:-}" ]] && readonly LITELLM_LOG_DIR="${RESOURCE_LOGS_DIR:-${litellm_xdg_state_home}/logs/vrooli/resources/litellm}"
+[[ -z "${LITELLM_DATA_DIR:-}" ]] && readonly LITELLM_DATA_DIR="${RESOURCE_DATA_DIR:-${litellm_xdg_data_home}/vrooli/resources/litellm}"
+[[ -z "${LITELLM_STATE_DIR:-}" ]] && readonly LITELLM_STATE_DIR="${RESOURCE_STATE_DIR:-${litellm_xdg_state_home}/vrooli/resources/litellm}"
 
 # Configuration files
 [[ -z "${LITELLM_CONFIG_FILE:-}" ]] && readonly LITELLM_CONFIG_FILE="${LITELLM_CONFIG_DIR}/config.yaml"

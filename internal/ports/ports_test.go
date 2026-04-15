@@ -13,7 +13,7 @@ import (
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
-	testfixture "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
+	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=4 | LAST: 2026-04-13
@@ -490,7 +490,7 @@ func TestLoadResourceEnvironmentReturnsEmptyWhenMetadataMissing(t *testing.T) {
 func writePortRegistry(t *testing.T, root string, ports map[string]int) {
 	t.Helper()
 	ensureTypedResourceMetadata(t, root)
-	testfixture.WritePortRegistry(t, root, ports)
+	testresource.WritePortRegistry(t, root, ports)
 }
 
 func writeSecrets(t *testing.T, root string, payload map[string]any) {
@@ -505,7 +505,7 @@ func ensureTypedResourceMetadata(t *testing.T, root string) {
 	if _, err := os.Stat(path); err == nil {
 		return
 	}
-	testfixture.WriteResourceManifest(t, root, "postgres", manifestpkg.ResourceManifest{
+	testresource.WriteResourceManifest(t, root, "postgres", manifestpkg.ResourceManifest{
 		Name:            "postgres",
 		Driver:          "docker-service",
 		Template:        "docker-service",

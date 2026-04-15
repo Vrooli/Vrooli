@@ -1,0 +1,138 @@
+# Scenario Storage
+
+This page defines the canonical storage policy for scenarios at the platform level.
+
+It exists to make the target architecture explicit rather than leaving it implied across implementation examples, audits, and prompt-manager skills.
+
+## Current Rule
+
+Scenario runtime state must not be stored under the scenario source tree.
+
+In particular:
+
+- do not treat `scenarios/<name>/` as a runtime data root
+- do not add new mutable runtime state under `scenarios/<name>/data/`
+- do not rely on repo-local `../data/...` paths for scenario runtime state
+
+Scenario source trees are deployable inputs. Mutable runtime state belongs outside the repo.
+
+## Canonical Runtime Storage Contract
+
+For mutable filesystem state, scenarios should use:
+
+- `github.com/vrooli/api-core/storage`
+
+This is the canonical runtime storage seam for scenarios.
+
+It provides:
+
+- profile-aware storage roots
+- classed storage directories
+- safe relative path resolution
+- atomic file write helpers
+- a cross-platform path policy that keeps mutable state out of source trees
+
+## Storage Classes
+
+Scenarios should use the `api-core/storage` classes intentionally:
+
+- `config`
+  - durable operator/user-managed configuration
+- `data`
+  - primary mutable application data
+- `cache`
+  - rebuildable artifacts safe to evict
+- `logs`
+  - diagnostics and operational logs
+- `state`
+  - checkpoints, locks, transient runtime state
+
+At runtime this resolves to class-scoped directories like:
+
+- `<config-root>/vrooli/<scenario>/...`
+- `<data-root>/vrooli/<scenario>/...`
+- `<cache-root>/vrooli/<scenario>/...`
+- `<logs-root>/vrooli/<scenario>/...`
+- `<state-root>/vrooli/<scenario>/...`
+
+See [packages/api-core/docs/storage.md](/home/matthalloran8/Vrooli/packages/api-core/docs/storage.md) for the package-level contract.
+
+## Structured Persistence
+
+Filesystem runtime storage is only one part of scenario storage.
+
+Scenarios should also follow these rules:
+
+- resource-backed persistence is declared in `scenarios/<name>/.vrooli/service.json`
+- schema and seed assets live under `initialization/`
+- scenarios should prefer resource-injected environment variables instead of hard-coded connection details
+- scenario-private database/file layout details should be documented in scenario-local docs when they matter
+
+Typical examples:
+
+- PostgreSQL schema init in `initialization/storage/postgres/schema.sql`
+- scenario dependency declaration in `.vrooli/service.json`
+- SQLite database path resolved through `api-core/storage` rather than under the scenario folder
+
+## Skills And Authority
+
+The prompt-manager skills are useful implementation steers, not the canonical policy layer.
+
+Relevant skills include:
+
+- `storage-steer`
+- `cross-platform-readiness`
+
+Those skills already steer agents toward:
+
+- declaring storage dependencies in `service.json`
+- using environment-driven configuration
+- using `api-core/storage` for mutable filesystem state
+- treating deploy directories as disposable
+
+That guidance is aligned with this document, but this page is the canonical cross-scenario documentation layer.
+
+## Anti-Patterns
+
+These are legacy or non-target patterns for scenarios:
+
+- mutable writes to `./data`, `./state`, or similar scenario-local folders
+- mutable writes to `../data/...`
+- hard-coded absolute paths such as `$HOME/...` or `/tmp/...` for durable state
+- hand-rolled `DATA_DIR` traversal logic when `api-core/storage` is available
+- storing real runtime state under bundle/deploy/app target directories
+
+## Relationship To The Repo Contract
+
+The repo contract defines canonical source-tree layout such as:
+
+- `scenarios/<name>/.vrooli/service.json`
+- `scenarios/<name>/api`
+- `scenarios/<name>/ui`
+- `scenarios/<name>/initialization`
+
+It does **not** define scenario-private runtime data layout.
+
+That separation is intentional:
+
+- repo contract: future-state source layout and shared structural semantics
+- this document: runtime storage policy for scenarios
+
+## Transitional Reality
+
+Some scenarios still contain repo-local runtime storage patterns today.
+
+Those should be treated as migration targets, not architecture authority.
+
+When migrating a scenario:
+
+- move mutable filesystem state to `api-core/storage`
+- keep source-tree assets under `initialization/`, `docs/`, `requirements/`, or other canonical source paths
+- add or update `docs/internal/STORAGE_AUDIT.md` when storage behavior is important enough to audit explicitly
+
+## Top-Level `data/`
+
+The top-level repo `data/` folder is legacy/transitional from the perspective of scenario runtime storage.
+
+New scenario work should not depend on it.
+

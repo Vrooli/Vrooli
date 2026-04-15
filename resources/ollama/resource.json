@@ -39,7 +39,7 @@
     },
     "volumes": [
       {
-        "source": "${HOME}/.ollama",
+        "source": "${RESOURCE_DATA_DIR}",
         "target": "/root/.ollama"
       }
     ]

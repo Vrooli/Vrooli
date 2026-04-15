@@ -38,10 +38,10 @@ minio::api::configure_mc() {
     local user="${MINIO_ROOT_USER}"
     local password="${MINIO_ROOT_PASSWORD}"
     
-    if [[ -f "${HOME}/.minio/config/credentials" ]]; then
+    if [[ -f "${MINIO_CONFIG_DIR}/credentials" ]]; then
         # Read credentials without sourcing to avoid readonly conflicts
-        user=$(grep "^MINIO_ROOT_USER=" "${HOME}/.minio/config/credentials" | cut -d'=' -f2-)
-        password=$(grep "^MINIO_ROOT_PASSWORD=" "${HOME}/.minio/config/credentials" | cut -d'=' -f2-)
+        user=$(grep "^MINIO_ROOT_USER=" "${MINIO_CONFIG_DIR}/credentials" | cut -d'=' -f2-)
+        password=$(grep "^MINIO_ROOT_PASSWORD=" "${MINIO_CONFIG_DIR}/credentials" | cut -d'=' -f2-)
         log::debug "Loaded credentials from file"
     fi
     

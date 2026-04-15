@@ -37,7 +37,7 @@ setup() {
     
     # Set whisper-specific environment for injection
     export WHISPER_HOST="http://localhost:9999"
-    export WHISPER_DATA_DIR="${HOME}/.whisper"
+    export WHISPER_DATA_DIR="${XDG_DATA_HOME:-${HOME}/.local/share}/vrooli/resources/whisper"
     export WHISPER_MODELS_DIR="${WHISPER_DATA_DIR}/models"
 }
 

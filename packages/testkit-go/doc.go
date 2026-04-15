@@ -1,6 +1,8 @@
-// Package testkitgo provides shared Go test-support infrastructure for Vrooli.
+// Package testkitgo provides the dependency-bottom shared Go test-support layer
+// for Vrooli.
 //
-// It is intended to become the canonical home for reusable repo fixtures,
-// manifest builders, file/JSON writers, and focused edge-case fixture helpers used
-// by Go tests across the repository.
+// The root package is intentionally narrow. It contains only repo fixtures,
+// file/JSON/malformed writers, and small path-safe utilities that any Go test
+// consumer in the repository can import without pulling in root-module
+// internal/* dependencies.
 package testkitgo

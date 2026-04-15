@@ -55,7 +55,7 @@
     ],
     "volumes": [
       {
-        "source": "${HOME}/.vrooli/redis/data",
+        "source": "${RESOURCE_DATA_DIR}",
         "target": "/data"
       }
     ]

@@ -36,7 +36,8 @@ browserless::export_config() {
         export BROWSERLESS_CONTAINER_NAME
     fi
     if [[ -z "${BROWSERLESS_DATA_DIR:-}" ]]; then
-        BROWSERLESS_DATA_DIR="${HOME}/.browserless"
+        local browserless_xdg_data_home="${XDG_DATA_HOME:-${HOME}/.local/share}"
+        BROWSERLESS_DATA_DIR="${RESOURCE_DATA_DIR:-${browserless_xdg_data_home}/vrooli/resources/browserless}"
         readonly BROWSERLESS_DATA_DIR
         export BROWSERLESS_DATA_DIR
     fi

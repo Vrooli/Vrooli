@@ -269,9 +269,10 @@ export function detectLikelyRootMismatch(
   const hasMissingArtifacts = Boolean(
     validationValid === false && (missingAssetsCount > 0 || missingBinariesCount > 0)
   );
+  const normalizedPath = bundleManifestPath.replaceAll("\\", "/");
   return Boolean(
     hasMissingArtifacts &&
     bundleManifestPath.trim() &&
-    !bundleManifestPath.includes("scenario-to-desktop/data/staging")
+    !normalizedPath.includes("/vrooli/scenario-to-desktop/staging/")
   );
 }

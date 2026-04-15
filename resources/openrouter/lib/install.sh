@@ -57,7 +57,8 @@ openrouter::install() {
         [[ "$verbose" == "true" ]] && log::info "OpenRouter configured with placeholder key"
         
         # Also create/update the credentials file for consistency
-        local creds_file="${var_ROOT_DIR}/data/credentials/openrouter-credentials.json"
+        local creds_file="${OPENROUTER_CREDENTIALS_FILE}"
+        mkdir -p "$(dirname "$creds_file")"
         cat > "$creds_file" <<EOF
 {
     "type": "openrouter",
@@ -78,7 +79,8 @@ EOF
         [[ "$verbose" == "true" ]] && log::success "OpenRouter API is accessible"
         
         # Also create/update the credentials file
-        local creds_file="${var_ROOT_DIR}/data/credentials/openrouter-credentials.json"
+        local creds_file="${OPENROUTER_CREDENTIALS_FILE}"
+        mkdir -p "$(dirname "$creds_file")"
         cat > "$creds_file" <<EOF
 {
     "type": "openrouter",

@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	runtimestorage "github.com/vrooli/vrooli/internal/resources/runtime/storage"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/secrets"
 )
@@ -238,13 +239,65 @@ func ValidateResourceManifest(root string, resourceManifest manifestpkg.Resource
 			if len(match) < 2 {
 				continue
 			}
-			if _, exists := baseValues[match[1]]; !exists && !mapsContainsKey(resourceManifest.EnvironmentExports.Derived, match[1]) {
+			if _, exists := baseValues[match[1]]; !exists &&
+				!mapsContainsKey(resourceManifest.EnvironmentExports.Derived, match[1]) &&
+				!isKnownTemplateContextVariable(root, resourceManifest.Name, match[1]) {
 				issues = append(issues, fmt.Sprintf("environment_exports.derived[%s] references unknown variable %s", key, match[1]))
 			}
 		}
 		exports[key] = "derived"
 	}
+	for _, issue := range validateResourceStorageSources(root, resourceManifest) {
+		issues = append(issues, issue)
+	}
 	return issues
+}
+
+func validateResourceStorageSources(root string, resourceManifest manifestpkg.ResourceManifest) []string {
+	issues := []string{}
+	for _, volume := range resourceManifest.Runtime.Volumes {
+		source := strings.TrimSpace(volume.Source)
+		if source == "" {
+			continue
+		}
+		if !isLegacyRepoDataPath(root, source) {
+			continue
+		}
+		if resourceManifest.LegacyRepoDataAllowed {
+			continue
+		}
+		issues = append(issues, fmt.Sprintf("runtime volume source %q uses repo-local data; migrate to ${RESOURCE_*_DIR} or set legacy_repo_data_allowed=true while retained shell-era paths are being removed", source))
+	}
+	return issues
+}
+
+func isLegacyRepoDataPath(root, source string) bool {
+	normalized := filepath.ToSlash(strings.TrimSpace(source))
+	if normalized == "" {
+		return false
+	}
+	for _, prefix := range []string{
+		"./data",
+		"data/",
+		"../data",
+		"${ROOT}/data",
+		"${APP_ROOT}/data",
+		"${VROOLI_ROOT}/data",
+	} {
+		if normalized == prefix || strings.HasPrefix(normalized, prefix+"/") {
+			return true
+		}
+	}
+	if strings.TrimSpace(root) == "" {
+		return false
+	}
+	cleanRootData := filepath.Clean(filepath.Join(root, "data"))
+	cleanSource := filepath.Clean(source)
+	rel, err := filepath.Rel(cleanRootData, cleanSource)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
 }
 
 func ValidateScenario(root, home, scenarioName string, manifest scenario.ServiceManifest) (ScenarioResolution, []string, error) {
@@ -415,7 +468,10 @@ func buildTemplateContext(root, home, resourceName string) map[string]string {
 		dataRoot = filepath.Join(home, ".vrooli", "data")
 	}
 
-	context := map[string]string{}
+	context := map[string]string{
+		"ROOT":     filepath.Clean(root),
+		"APP_ROOT": filepath.Clean(root),
+	}
 	if home != "" {
 		context["HOME"] = home
 	}
@@ -426,7 +482,28 @@ func buildTemplateContext(root, home, resourceName string) map[string]string {
 		context["VROOLI_ROOT"] = filepath.Clean(root)
 		context["RESOURCE_ROOT"] = filepath.Join(filepath.Clean(root), "resources", resourceName)
 	}
+	if paths, err := resolveResourceStoragePaths(home, resourceName); err == nil {
+		context["RESOURCE_CONFIG_DIR"] = paths.ConfigDir
+		context["RESOURCE_DATA_DIR"] = paths.DataDir
+		context["RESOURCE_CACHE_DIR"] = paths.CacheDir
+		context["RESOURCE_LOGS_DIR"] = paths.LogsDir
+		context["RESOURCE_STATE_DIR"] = paths.StateDir
+	}
 	return context
+}
+
+func resolveResourceStoragePaths(home, resourceName string) (runtimestorage.Paths, error) {
+	cfg := runtimestorage.ResolverConfig{AppID: "vrooli"}
+	if strings.TrimSpace(home) != "" {
+		cfg.UserHomeDir = func() (string, error) { return home, nil }
+		cfg.UserConfigDir = func() (string, error) { return filepath.Join(home, ".config"), nil }
+		cfg.UserCacheDir = func() (string, error) { return filepath.Join(home, ".cache"), nil }
+	}
+	resolver, err := runtimestorage.NewResolver(cfg)
+	if err != nil {
+		return runtimestorage.Paths{}, err
+	}
+	return resolver.Resolve(runtimestorage.Options{ResourceID: resourceName})
 }
 
 func defaultPortLabel(port manifestpkg.ResourcePort) string {
@@ -442,4 +519,15 @@ func defaultPortLabel(port manifestpkg.ResourcePort) string {
 func mapsContainsKey(m map[string]manifestpkg.ResourceDerivedTemplate, key string) bool {
 	_, ok := m[key]
 	return ok
+}
+
+func isKnownTemplateContextVariable(root, resourceName, key string) bool {
+	switch key {
+	case "HOME", "ROOT", "APP_ROOT", "VROOLI_ROOT", "VROOLI_DATA", "RESOURCE_ROOT",
+		"RESOURCE_CONFIG_DIR", "RESOURCE_DATA_DIR", "RESOURCE_CACHE_DIR", "RESOURCE_LOGS_DIR", "RESOURCE_STATE_DIR":
+		return true
+	default:
+		_, ok := buildTemplateContext(root, "", resourceName)[key]
+		return ok
+	}
 }

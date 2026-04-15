@@ -11,7 +11,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
-	testkitvrooli "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
+	testprocess "github.com/vrooli/vrooli/packages/testkit-go/processfixture"
+	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
 )
 
 func TestRespondErrorSetsHTTPStatusAndCode(t *testing.T) {
@@ -33,12 +34,12 @@ func TestRespondErrorSetsHTTPStatusAndCode(t *testing.T) {
 func TestGetScenarioStatusNativeReturnsRealProcessDataAndStatusCode(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	testkitvrooli.WriteScenarioService(t, root, "alpha", testkitvrooli.ScenarioServiceManifest(
+	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest(
 		"alpha",
-		testkitvrooli.WithDisplayName("alpha"),
-		testkitvrooli.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}),
+		testscenario.WithDisplayName("alpha"),
+		testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}),
 	))
-	testkitvrooli.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{
+	testprocess.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{
 		PID:       os.Getpid(),
 		PGID:      os.Getpid(),
 		Scenario:  "alpha",

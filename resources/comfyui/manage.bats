@@ -286,5 +286,5 @@ teardown() {
 # Test data directory configuration
 @test "data directory is configured correctly" {
     [ -n "$COMFYUI_DATA_DIR" ]
-    [ "$COMFYUI_DATA_DIR" = "${HOME}/.comfyui" ]
+    [ "$COMFYUI_DATA_DIR" = "${RESOURCE_DATA_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/vrooli/resources/comfyui}" ]
 }

@@ -109,7 +109,7 @@ openrouter::cloudflare::configure() {
     fi
     
     # Save configuration to file
-    local config_file="${APP_ROOT}/data/openrouter/cloudflare-config.json"
+    local config_file="${OPENROUTER_CLOUDFLARE_CONFIG_FILE}"
     mkdir -p "$(dirname "$config_file")"
     
     cat > "$config_file" <<EOF
@@ -136,7 +136,7 @@ EOF
 
 # Load Cloudflare configuration from file
 openrouter::cloudflare::load_config() {
-    local config_file="${APP_ROOT}/data/openrouter/cloudflare-config.json"
+    local config_file="${OPENROUTER_CLOUDFLARE_CONFIG_FILE}"
     
     if [[ ! -f "$config_file" ]]; then
         return 0  # Return success even if file doesn't exist

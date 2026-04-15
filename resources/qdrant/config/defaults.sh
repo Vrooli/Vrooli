@@ -15,6 +15,10 @@ fi
 # Idempotent - safe to call multiple times
 #######################################
 qdrant::export_config() {
+    local qdrant_xdg_config_home="${XDG_CONFIG_HOME:-${HOME}/.config}"
+    local qdrant_xdg_data_home="${XDG_DATA_HOME:-${HOME}/.local/share}"
+    local qdrant_xdg_state_home="${XDG_STATE_HOME:-${HOME}/.local/state}"
+
     # Guard against multiple calls
     if [[ -n "${QDRANT_CONFIG_EXPORTED:-}" ]]; then
         return 0
@@ -38,13 +42,16 @@ qdrant::export_config() {
         readonly QDRANT_CONTAINER_NAME="qdrant"
     fi
     if [[ -z "${QDRANT_DATA_DIR:-}" ]]; then
-        readonly QDRANT_DATA_DIR="${HOME}/.qdrant/data"
+        readonly QDRANT_DATA_DIR="${RESOURCE_DATA_DIR:-${qdrant_xdg_data_home}/vrooli/resources/qdrant}"
     fi
     if [[ -z "${QDRANT_CONFIG_DIR:-}" ]]; then
-        readonly QDRANT_CONFIG_DIR="${HOME}/.qdrant/config"
+        readonly QDRANT_CONFIG_DIR="${RESOURCE_CONFIG_DIR:-${qdrant_xdg_config_home}/vrooli/resources/qdrant}"
+    fi
+    if [[ -z "${QDRANT_STATE_DIR:-}" ]]; then
+        readonly QDRANT_STATE_DIR="${RESOURCE_STATE_DIR:-${qdrant_xdg_state_home}/vrooli/resources/qdrant}"
     fi
     if [[ -z "${QDRANT_SNAPSHOTS_DIR:-}" ]]; then
-        readonly QDRANT_SNAPSHOTS_DIR="${HOME}/.qdrant/snapshots"
+        readonly QDRANT_SNAPSHOTS_DIR="${QDRANT_STATE_DIR}/snapshots"
     fi
     if [[ -z "${QDRANT_IMAGE:-}" ]]; then
         readonly QDRANT_IMAGE="qdrant/qdrant:latest"
@@ -134,7 +141,7 @@ qdrant::export_config() {
     # Export for global access
     export QDRANT_DEFAULT_PORT QDRANT_DEFAULT_GRPC_PORT
     export QDRANT_PORT QDRANT_GRPC_PORT QDRANT_BASE_URL QDRANT_GRPC_URL
-    export QDRANT_CONTAINER_NAME QDRANT_DATA_DIR QDRANT_CONFIG_DIR QDRANT_SNAPSHOTS_DIR QDRANT_IMAGE QDRANT_VERSION
+    export QDRANT_CONTAINER_NAME QDRANT_DATA_DIR QDRANT_CONFIG_DIR QDRANT_STATE_DIR QDRANT_SNAPSHOTS_DIR QDRANT_IMAGE QDRANT_VERSION
     export QDRANT_API_KEY QDRANT_DEFAULT_COLLECTIONS QDRANT_COLLECTION_CONFIGS
     export QDRANT_NETWORK_NAME
     export QDRANT_HEALTH_CHECK_INTERVAL QDRANT_HEALTH_CHECK_MAX_ATTEMPTS

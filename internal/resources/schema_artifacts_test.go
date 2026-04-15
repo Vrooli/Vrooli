@@ -9,21 +9,22 @@ import (
 
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
-	testfixture "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
+	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
+	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
 )
 
 func TestSyncAndValidateSchemaArtifacts(t *testing.T) {
 	root := t.TempDir()
-	writeSchemaArtifactResource(t, root, "postgres", testfixture.ResourceManifest(
+	testresource.WriteResourceManifest(t, root, "postgres", testresource.ResourceManifest(
 		"postgres",
-		testfixture.WithResourceTemplate("docker-service"),
-		testfixture.WithResourceDriver("docker-service"),
-		testfixture.WithResourceDisplayName("PostgreSQL"),
-		testfixture.WithResourceDescription("Database"),
-		testfixture.WithResourceRuntime(manifestpkg.ResourceRuntime{
+		testresource.WithResourceTemplate("docker-service"),
+		testresource.WithResourceDriver("docker-service"),
+		testresource.WithResourceDisplayName("PostgreSQL"),
+		testresource.WithResourceDescription("Database"),
+		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
 			Image: "postgres:16-alpine",
 		}),
-		testfixture.WithResourceDependencySchema(json.RawMessage(`{
+		testresource.WithResourceDependencySchema(json.RawMessage(`{
   "type": "object",
   "properties": {
     "database": {
@@ -33,9 +34,9 @@ func TestSyncAndValidateSchemaArtifacts(t *testing.T) {
   "additionalProperties": false
 }`)),
 	))
-	writeScenarioManifest(t, root, "alpha", testfixture.ScenarioServiceManifest(
+	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest(
 		"alpha",
-		testfixture.WithDependencies(scenario.Dependencies{
+		testscenario.WithDependencies(scenario.Dependencies{
 			Resources: map[string]scenario.Dependency{
 				"postgres": {Enabled: true},
 			},
@@ -86,19 +87,19 @@ func TestSyncAndValidateSchemaArtifacts(t *testing.T) {
 
 func TestValidateSchemaArtifactsDetectsMissingScenarioResourceReferences(t *testing.T) {
 	root := t.TempDir()
-	writeSchemaArtifactResource(t, root, "postgres", testfixture.ResourceManifest(
+	testresource.WriteResourceManifest(t, root, "postgres", testresource.ResourceManifest(
 		"postgres",
-		testfixture.WithResourceTemplate("docker-service"),
-		testfixture.WithResourceDriver("docker-service"),
-		testfixture.WithResourceDisplayName("PostgreSQL"),
-		testfixture.WithResourceDescription("Database"),
-		testfixture.WithResourceRuntime(manifestpkg.ResourceRuntime{
+		testresource.WithResourceTemplate("docker-service"),
+		testresource.WithResourceDriver("docker-service"),
+		testresource.WithResourceDisplayName("PostgreSQL"),
+		testresource.WithResourceDescription("Database"),
+		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
 			Image: "postgres:16-alpine",
 		}),
 	))
-	writeScenarioManifest(t, root, "alpha", testfixture.ScenarioServiceManifest(
+	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest(
 		"alpha",
-		testfixture.WithDependencies(scenario.Dependencies{
+		testscenario.WithDependencies(scenario.Dependencies{
 			Resources: map[string]scenario.Dependency{
 				"n8n": {Enabled: true},
 			},
@@ -127,19 +128,19 @@ func TestValidateSchemaArtifactsDetectsMissingScenarioResourceReferences(t *test
 
 func TestValidateSchemaArtifactsDetectsStaleFiles(t *testing.T) {
 	root := t.TempDir()
-	writeSchemaArtifactResource(t, root, "postgres", testfixture.ResourceManifest(
+	testresource.WriteResourceManifest(t, root, "postgres", testresource.ResourceManifest(
 		"postgres",
-		testfixture.WithResourceTemplate("docker-service"),
-		testfixture.WithResourceDriver("docker-service"),
-		testfixture.WithResourceDisplayName("PostgreSQL"),
-		testfixture.WithResourceDescription("Database"),
-		testfixture.WithResourceRuntime(manifestpkg.ResourceRuntime{
+		testresource.WithResourceTemplate("docker-service"),
+		testresource.WithResourceDriver("docker-service"),
+		testresource.WithResourceDisplayName("PostgreSQL"),
+		testresource.WithResourceDescription("Database"),
+		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
 			Image: "postgres:16-alpine",
 		}),
 	))
-	writeScenarioManifest(t, root, "alpha", testfixture.ScenarioServiceManifest(
+	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest(
 		"alpha",
-		testfixture.WithDependencies(scenario.Dependencies{
+		testscenario.WithDependencies(scenario.Dependencies{
 			Resources: map[string]scenario.Dependency{
 				"postgres": {Enabled: true},
 			},
@@ -162,14 +163,4 @@ func TestValidateSchemaArtifactsDetectsStaleFiles(t *testing.T) {
 	if len(report.ArtifactIssues) == 0 || !strings.Contains(report.ArtifactIssues[0].Message, "stale") {
 		t.Fatalf("artifact issues = %+v", report.ArtifactIssues)
 	}
-}
-
-func writeSchemaArtifactResource(t *testing.T, root, name string, manifest manifestpkg.ResourceManifest) {
-	t.Helper()
-	testfixture.WriteResourceManifest(t, root, name, manifest)
-}
-
-func writeScenarioManifest(t *testing.T, root, name string, manifest scenario.ServiceManifest) {
-	t.Helper()
-	testfixture.WriteScenarioService(t, root, name, manifest)
 }

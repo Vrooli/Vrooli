@@ -6,7 +6,7 @@ import (
 )
 
 func TestIsFullRepoScope(t *testing.T) {
-	contract := validContract()
+	contract := validContract(t)
 
 	for _, scope := range []string{"", ".", "/"} {
 		if !contract.IsFullRepoScope(scope) {
@@ -19,7 +19,7 @@ func TestIsFullRepoScope(t *testing.T) {
 }
 
 func TestScenarioScopeMatch(t *testing.T) {
-	contract := validContract()
+	contract := validContract(t)
 	scenarioDir := contract.Layout().ScenarioDir
 
 	tests := []struct {
@@ -44,7 +44,7 @@ func TestScenarioScopeMatch(t *testing.T) {
 }
 
 func TestResolveSandboxScenarioPath(t *testing.T) {
-	contract := validContract()
+	contract := validContract(t)
 	merged := "/tmp/sandbox/merged"
 	scenarioDir := contract.Layout().ScenarioDir
 	scenarioRel := filepath.Join(scenarioDir, "demo")

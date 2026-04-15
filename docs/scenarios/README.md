@@ -8,6 +8,7 @@ Scenarios are one of Vrooli's core primitives. They are how the platform turns r
 
 - [getting-started.md](getting-started.md) for creating or modifying scenarios
 - [CONCEPTS.md](CONCEPTS.md) for the scenario mental model
+- [storage.md](storage.md) for canonical scenario runtime storage policy
 - [VALIDATION.md](VALIDATION.md) for testing and validation expectations
 - [DEPLOYMENT.md](DEPLOYMENT.md) for scenario deployment framing
 - [PRODUCTION_BUNDLES.md](PRODUCTION_BUNDLES.md) for UI-bundle lifecycle expectations
@@ -29,12 +30,15 @@ Some scenarios are user-facing products. Others are meta-scenarios that improve 
 vrooli scenario list
 vrooli scenario info <name>
 vrooli scenario status <name>
+vrooli scenario validate-env <name>
 vrooli scenario start <name>
 vrooli scenario run <name>
 vrooli scenario test <name>
 vrooli scenario logs <name>
 vrooli scenario template list
 vrooli scenario generate <template> --id <slug> --display-name <name> --description <text>
+vrooli scenario requirements report
+vrooli scenario requirements validate
 ```
 
 Preferred day-to-day workflow for one scenario:
@@ -53,6 +57,7 @@ make stop
 - [../TESTING.md](../TESTING.md)
 - [../resources/README.md](../resources/README.md)
 - [../reference/cli-commands.md](../reference/cli-commands.md)
+- [../../packages/api-core/docs/storage.md](/home/matthalloran8/Vrooli/packages/api-core/docs/storage.md)
 
 ## Documentation Boundary
 

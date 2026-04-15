@@ -11,6 +11,7 @@ import (
 )
 
 func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, ready map[string]struct{}, stack []string) ([]string, error) {
+	deps := r.runtimeDeps()
 	if len(item.Manifest.Dependencies.Scenarios) == 0 {
 		return nil, nil
 	}
@@ -65,7 +66,7 @@ func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, r
 			return nil, err
 		}
 
-		dependencyRecords, err := readScenarioRecords(r.Home, dependencyName)
+		dependencyRecords, err := deps.readScenarioRecords(r.Home, dependencyName)
 		if err != nil {
 			return nil, err
 		}

@@ -32,7 +32,7 @@ fi
 
 # Default Whisper settings
 readonly DEFAULT_WHISPER_HOST="http://localhost:9005"
-readonly DEFAULT_WHISPER_DATA_DIR="${HOME}/.whisper"
+readonly DEFAULT_WHISPER_DATA_DIR="${RESOURCE_DATA_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/vrooli/resources/whisper}"
 readonly DEFAULT_WHISPER_MODELS_DIR="${DEFAULT_WHISPER_DATA_DIR}/models"
 
 # Whisper settings (can be overridden by environment)

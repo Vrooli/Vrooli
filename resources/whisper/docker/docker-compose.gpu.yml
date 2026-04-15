@@ -47,13 +47,13 @@ volumes:
     driver_opts:
       type: none
       o: bind
-      device: "${WHISPER_MODELS_DIR:-$HOME/.whisper/models}"
+      device: "${WHISPER_MODELS_DIR:-${RESOURCE_DATA_DIR:-$HOME/.local/share/vrooli/resources/whisper}/models}"
   whisper_uploads:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: "${WHISPER_UPLOADS_DIR:-$HOME/.whisper/uploads}"
+      device: "${WHISPER_UPLOADS_DIR:-${RESOURCE_DATA_DIR:-$HOME/.local/share/vrooli/resources/whisper}/uploads}"
 
 networks:
   whisper-network:

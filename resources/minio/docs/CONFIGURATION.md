@@ -2,6 +2,11 @@
 
 This guide covers installation, configuration, and optimization of MinIO for object storage in Vrooli.
 
+Canonical storage paths:
+- Data: `${MINIO_DATA_DIR:-${XDG_DATA_HOME:-~/.local/share}/vrooli/resources/minio}`
+- Config: `${MINIO_CONFIG_DIR:-${XDG_CONFIG_HOME:-~/.config}/vrooli/resources/minio}`
+- State/backups: `${MINIO_STATE_DIR:-${XDG_STATE_HOME:-~/.local/state}/vrooli/resources/minio}`
+
 ## 🚀 Installation Options
 
 ### Default Installation

@@ -7,6 +7,8 @@ Resources are one of Vrooli's core primitives. They provide the raw capabilities
 ## Start Here
 
 - [configuration.md](configuration.md) for current configuration and dependency guidance
+- [storage.md](storage.md) for target resource runtime storage policy
+- [architecture.md](architecture.md) for target native-Go resource implementation structure
 - [interface-standards.md](interface-standards.md) for resource-surface expectations
 - [integration-cookbook.md](integration-cookbook.md) for practical integration guidance
 - [resource-blueprints.md](resource-blueprints.md) for blueprint-backed future capability records
@@ -39,10 +41,13 @@ vrooli resource info <name>
 vrooli resource status
 vrooli resource validate
 vrooli resource start <name>
+vrooli resource restart <name>
 vrooli resource start-all
 vrooli resource stop <name>
 vrooli resource stop-all
 vrooli resource logs <name>
+vrooli resource enable <name>
+vrooli resource disable <name>
 ```
 
 Blueprint and template workflows:

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/process"
-	testkitvrooli "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
+	testprocess "github.com/vrooli/vrooli/packages/testkit-go/processfixture"
 )
 
 func TestSandboxAffectedScenariosReturnsSortedMatches(t *testing.T) {
@@ -27,7 +27,7 @@ func TestSandboxAffectedScenariosReturnsSortedMatches(t *testing.T) {
 
 func writeSandboxRecord(t *testing.T, home, name, workingDir string, startedAt time.Time) {
 	t.Helper()
-	testkitvrooli.WriteScenarioProcessRecord(t, home, name, "start-api", process.Record{
+	testprocess.WriteScenarioProcessRecord(t, home, name, "start-api", process.Record{
 		PID:        1234,
 		PGID:       1234,
 		ProcessID:  "vrooli.develop." + name + ".start-api",

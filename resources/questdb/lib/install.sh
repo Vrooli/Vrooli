@@ -264,7 +264,7 @@ questdb::install::uninstall() {
         trash::safe_remove "${QUESTDB_DATA_DIR}" --no-confirm 2>/dev/null || true
         trash::safe_remove "${QUESTDB_CONFIG_DIR}" --no-confirm 2>/dev/null || true
         trash::safe_remove "${QUESTDB_LOG_DIR}" --no-confirm 2>/dev/null || true
-        trash::safe_remove "${HOME}/.questdb" --no-confirm 2>/dev/null || true
+        trash::safe_remove "${QUESTDB_STATE_DIR}" --no-confirm 2>/dev/null || true
     fi
     
     log::success "QuestDB uninstalled successfully"

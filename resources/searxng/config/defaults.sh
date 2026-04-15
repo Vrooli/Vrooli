@@ -13,7 +13,7 @@ source "${APP_ROOT}/scripts/resources/port_registry.sh"
 # These are set with default values and will be overridden by export_config function
 SEARXNG_PORT="${SEARXNG_CUSTOM_PORT:-8280}"  # Will be replaced by registry value in export_config
 SEARXNG_BASE_URL="http://localhost:${SEARXNG_PORT}"
-SEARXNG_DATA_DIR="${HOME}/.searxng"
+SEARXNG_DATA_DIR="${RESOURCE_CONFIG_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/vrooli/resources/searxng}"
 SEARXNG_CONTAINER_NAME="searxng"
 SEARXNG_DEFAULT_ENGINES="google,bing,duckduckgo,startpage"
 SEARXNG_REQUEST_TIMEOUT="3"
@@ -49,7 +49,7 @@ searxng::export_config() {
     # Container configuration
     SEARXNG_CONTAINER_NAME="searxng"
     SEARXNG_IMAGE="${SEARXNG_CUSTOM_IMAGE:-searxng/searxng:2025.1.31-157c9267e}"
-    SEARXNG_DATA_DIR="${HOME}/.searxng"
+    SEARXNG_DATA_DIR="${RESOURCE_CONFIG_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/vrooli/resources/searxng}"
     
     # Network configuration
     SEARXNG_NETWORK_NAME="searxng-network"

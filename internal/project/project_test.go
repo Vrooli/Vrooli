@@ -14,8 +14,9 @@ import (
 	"github.com/vrooli/vrooli/internal/process"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
-	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
-	testkitvrooli "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
+	testprocess "github.com/vrooli/vrooli/packages/testkit-go/processfixture"
+	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
+	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=3 | LAST: 2026-04-13
@@ -24,28 +25,28 @@ func TestStatusAggregatesResourcesAndScenarios(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	testkitvrooli.WriteProjectService(t, root, scenario.ServiceManifest{
+	testscenario.WriteProjectService(t, root, scenario.ServiceManifest{
 		Service: scenario.ServiceMetadata{Name: "project-alpha"},
 		Dependencies: scenario.Dependencies{
 			Resources: map[string]scenario.Dependency{"redis": {Enabled: true}},
 		},
 	})
-	testkitvrooli.WriteScenarioService(t, root, "alpha", testkitvrooli.ScenarioServiceManifest(
+	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest(
 		"alpha",
-		testkitvrooli.WithDisplayName("alpha"),
-		testkitvrooli.WithPorts(map[string]scenario.Port{
+		testscenario.WithDisplayName("alpha"),
+		testscenario.WithPorts(map[string]scenario.Port{
 			"api": {EnvVar: "API_PORT", Range: "18080-18090"},
 		}),
 	))
-	testkitvrooli.WriteResourceManifest(t, root, "redis", manifestpkg.ResourceManifest{
+	testresource.WriteResourceManifest(t, root, "redis", manifestpkg.ResourceManifest{
 		Name:            "redis",
 		Driver:          "external-cli",
 		Binary:          "resource-redis",
 		PortabilityTier: "full",
 		Platforms:       manifestpkg.ResourcePlatforms{Linux: "supported"},
 	})
-	writeResourceCLI(t, root, "redis", `{"installed":true,"running":true,"healthy":true,"message":"healthy"}`)
-	testkitvrooli.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{
+	testresource.WriteExternalCLIResourceFixture(t, root, "redis", "#!/usr/bin/env bash\nexit 0\n")
+	testprocess.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{
 		PID:       os.Getpid(),
 		PGID:      os.Getpid(),
 		Scenario:  "alpha",
@@ -91,7 +92,7 @@ func TestRunProjectPhaseRejectsUndefinedPhase(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	testkitvrooli.WriteProjectService(t, root, scenario.ServiceManifest{
+	testscenario.WriteProjectService(t, root, scenario.ServiceManifest{
 		Service: scenario.ServiceMetadata{Name: "project-alpha"},
 		Lifecycle: scenario.Lifecycle{
 			Develop: scenario.Phase{Steps: []scenario.PhaseStep{{Name: "noop", Run: "true"}}},
@@ -108,7 +109,7 @@ func TestRunProjectPhaseRejectsNativeOnlyPhase(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	testkitvrooli.WriteProjectService(t, root, scenario.ServiceManifest{
+	testscenario.WriteProjectService(t, root, scenario.ServiceManifest{
 		Service: scenario.ServiceMetadata{Name: "project-alpha"},
 		Lifecycle: scenario.Lifecycle{
 			Build: scenario.Phase{Steps: []scenario.PhaseStep{{Name: "noop", Run: "true"}}},
@@ -128,7 +129,7 @@ func TestRunProjectPhaseRejectsNativeOnlyPhase(t *testing.T) {
 func TestDoctorReportsToolingPortAndServiceManifest(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	testkitvrooli.WriteProjectService(t, root, scenario.ServiceManifest{
+	testscenario.WriteProjectService(t, root, scenario.ServiceManifest{
 		Service: scenario.ServiceMetadata{Name: "project-alpha"},
 	})
 	t.Setenv("VROOLI_API_PORT", "18092")
@@ -187,25 +188,25 @@ func TestDoctorReportsToolingPortAndServiceManifest(t *testing.T) {
 func TestStatusSupportsResourceAndScenarioFilters(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	testkitvrooli.WriteProjectService(t, root, scenario.ServiceManifest{
+	testscenario.WriteProjectService(t, root, scenario.ServiceManifest{
 		Service: scenario.ServiceMetadata{Name: "project-alpha"},
 	})
-	testkitvrooli.WriteScenarioService(t, root, "alpha", testkitvrooli.ScenarioServiceManifest(
+	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest(
 		"alpha",
-		testkitvrooli.WithDisplayName("alpha"),
-		testkitvrooli.WithPorts(map[string]scenario.Port{
+		testscenario.WithDisplayName("alpha"),
+		testscenario.WithPorts(map[string]scenario.Port{
 			"api": {EnvVar: "API_PORT", Range: "18080-18090"},
 		}),
 	))
-	testkitvrooli.WriteResourceManifest(t, root, "redis", manifestpkg.ResourceManifest{
+	testresource.WriteResourceManifest(t, root, "redis", manifestpkg.ResourceManifest{
 		Name:            "redis",
 		Driver:          "external-cli",
 		Binary:          "resource-redis",
 		PortabilityTier: "full",
 		Platforms:       manifestpkg.ResourcePlatforms{Linux: "supported"},
 	})
-	writeResourceCLI(t, root, "redis", `{"installed":true,"running":true,"healthy":true,"message":"healthy"}`)
-	testkitvrooli.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{
+	testresource.WriteExternalCLIResourceFixture(t, root, "redis", "#!/usr/bin/env bash\nexit 0\n")
+	testprocess.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{
 		PID:       os.Getpid(),
 		PGID:      os.Getpid(),
 		Scenario:  "alpha",
@@ -242,7 +243,7 @@ func TestStatusSupportsResourceAndScenarioFilters(t *testing.T) {
 func TestRunProjectPhaseExecutesDefinedLifecycle(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	testkitvrooli.WriteProjectService(t, root, scenario.ServiceManifest{
+	testscenario.WriteProjectService(t, root, scenario.ServiceManifest{
 		Service: scenario.ServiceMetadata{Name: "project-alpha"},
 		Lifecycle: scenario.Lifecycle{
 			Clean: scenario.Phase{
@@ -250,7 +251,7 @@ func TestRunProjectPhaseExecutesDefinedLifecycle(t *testing.T) {
 			},
 		},
 	})
-	testkitvrooli.WritePortRegistry(t, root, nil)
+	testresource.WritePortRegistry(t, root, nil)
 
 	controller := New(root, home, io.Discard, io.Discard)
 	if err := controller.RunProjectPhase("clean", nil); err != nil {
@@ -268,7 +269,7 @@ func TestRunProjectPhaseExecutesDefinedLifecycle(t *testing.T) {
 func TestRunProjectPhaseUsesInjectedPhaseRunner(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	testkitvrooli.WriteProjectService(t, root, scenario.ServiceManifest{
+	testscenario.WriteProjectService(t, root, scenario.ServiceManifest{
 		Service: scenario.ServiceMetadata{Name: "project-alpha"},
 		Lifecycle: scenario.Lifecycle{
 			Clean: scenario.Phase{Steps: []scenario.PhaseStep{{Name: "noop", Run: "true"}}},
@@ -300,7 +301,7 @@ func TestLoadProjectFallsBackToDirectoryNameWhenServiceNameMissing(t *testing.T)
 	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
 		t.Fatalf("mkdir root: %v", err)
 	}
-	testkitvrooli.WriteProjectService(t, root, scenario.ServiceManifest{Service: scenario.ServiceMetadata{}})
+	testscenario.WriteProjectService(t, root, scenario.ServiceManifest{Service: scenario.ServiceMetadata{}})
 
 	projectScenario, err := LoadProject(root)
 	if err != nil {
@@ -315,11 +316,4 @@ type phaseRunnerFunc func(name, phase string, opts lifecycle.PhaseOptions) error
 
 func (fn phaseRunnerFunc) RunPhase(name, phase string, opts lifecycle.PhaseOptions) error {
 	return fn(name, phase, opts)
-}
-
-func writeResourceCLI(t *testing.T, root, name, statusJSON string) {
-	t.Helper()
-	script := "#!/usr/bin/env bash\nset -e\nif [[ \"$1\" == \"status\" ]]; then\n  printf '%s\\n' '" + statusJSON + "'\n  exit 0\nfi\nprintf '{\"message\":\"ok\"}\\n'\n"
-	testkitvrooli.WriteResourceCLI(t, root, name, script)
-	testkitgo.WriteExecutableOnPath(t, "resource-"+name, script)
 }

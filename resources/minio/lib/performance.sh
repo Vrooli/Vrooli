@@ -66,7 +66,7 @@ minio::performance::configure() {
     esac
     
     # Save configuration
-    local config_file="${HOME}/.minio/config/performance.conf"
+    local config_file="${MINIO_CONFIG_DIR}/performance.conf"
     mkdir -p "$(dirname "$config_file")"
     
     cat > "$config_file" <<EOF
@@ -151,7 +151,7 @@ minio::performance::apply_profile() {
     minio::performance::configure "$profile"
     
     # Load the configuration
-    local config_file="${HOME}/.minio/config/performance.conf"
+    local config_file="${MINIO_CONFIG_DIR}/performance.conf"
     if [[ -f "$config_file" ]]; then
         # shellcheck disable=SC1090
         source "$config_file"
@@ -165,13 +165,13 @@ minio::performance::apply_profile() {
     log::info "Run 'vrooli resource minio manage restart' to apply all settings"
     
     # Save profile preference
-    echo "$profile" > "${HOME}/.minio/config/performance.profile"
+    echo "$profile" > "${MINIO_CONFIG_DIR}/performance.profile"
     
     return 0
 }
 
 minio::performance::get_profile() {
-    local profile_file="${HOME}/.minio/config/performance.profile"
+    local profile_file="${MINIO_CONFIG_DIR}/performance.profile"
     
     if [[ -f "$profile_file" ]]; then
         cat "$profile_file"

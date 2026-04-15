@@ -16,13 +16,13 @@ source "${RESOURCE_DIR}/config/defaults.sh" 2>/dev/null || true
 source "${SCRIPT_DIR}/core.sh" 2>/dev/null || true
 
 # Global variables - use defaults if not set
-OPENROUTER_DATA_DIR="${OPENROUTER_DATA_DIR:-${var_ROOT_DIR:-/tmp}/data/openrouter}"
-ROUTING_RULES_FILE="${OPENROUTER_DATA_DIR}/routing-rules.json"
-ROUTING_HISTORY_FILE="${OPENROUTER_DATA_DIR}/routing-history.json"
+ROUTING_RULES_FILE="${OPENROUTER_ROUTING_RULES_FILE}"
+ROUTING_HISTORY_FILE="${OPENROUTER_ROUTING_HISTORY_FILE}"
 
 # Initialize routing system
 openrouter::routing::init() {
-    mkdir -p "${OPENROUTER_DATA_DIR}"
+    mkdir -p "$(dirname "${ROUTING_RULES_FILE}")"
+    mkdir -p "$(dirname "${ROUTING_HISTORY_FILE}")"
     
     # Create default rules file if not exists
     if [[ ! -f "${ROUTING_RULES_FILE}" ]]; then

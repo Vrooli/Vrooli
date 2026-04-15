@@ -38,7 +38,7 @@ setup_file() {
     
     # Set Whisper configuration
     export WHISPER_CONTAINER_NAME="whisper-test"
-    export WHISPER_DATA_DIR="${HOME}/.whisper"
+    export WHISPER_DATA_DIR="${XDG_DATA_HOME:-${HOME}/.local/share}/vrooli/resources/whisper"
     export WHISPER_MODELS_DIR="${WHISPER_DATA_DIR}/models"
     export WHISPER_UPLOADS_DIR="${WHISPER_DATA_DIR}/uploads"
     export WHISPER_BASE_URL="http://localhost:9999"

@@ -15,6 +15,7 @@ import (
 	"scenario-to-desktop-api/generation"
 	httputil "scenario-to-desktop-api/shared/http"
 	sharedpath "scenario-to-desktop-api/shared/path"
+	"scenario-to-desktop-api/storagepaths"
 )
 
 type ProxyHint struct {
@@ -248,6 +249,13 @@ func (s *Server) resolveScenarioRoot(scenario string) string {
 
 // telemetryFilePath returns the path to the telemetry file for a scenario.
 func (s *Server) telemetryFilePath(scenario string) string {
-	vrooliRoot := sharedpath.DetectVrooliRoot()
-	return filepath.Join(vrooliRoot, ".vrooli", "deployment", "telemetry", fmt.Sprintf("%s.jsonl", scenario))
+	locator, err := storagepaths.NewLocator()
+	if err != nil {
+		return ""
+	}
+	path, err := locator.TelemetryFilePath(scenario)
+	if err != nil {
+		return ""
+	}
+	return path
 }

@@ -28,8 +28,7 @@ func TestSandboxEnvFromEnv(t *testing.T) {
 }
 
 func TestScenarioInScope(t *testing.T) {
-	root := t.TempDir()
-	testkitgo.WriteRepoContract(t, root, "scenarios")
+	root := newScenarioRepoFixture(t)
 
 	tests := []struct {
 		name     string
@@ -54,8 +53,7 @@ func TestScenarioInScope(t *testing.T) {
 }
 
 func TestResolveMergedPath(t *testing.T) {
-	root := t.TempDir()
-	testkitgo.WriteRepoContract(t, root, "scenarios")
+	root := newScenarioRepoFixture(t)
 
 	merged := "/tmp/sandbox/merged"
 	if got := ResolveMergedPath(root, "alpha", "scenarios/alpha", merged); got != merged {
@@ -70,8 +68,7 @@ func TestResolveMergedPath(t *testing.T) {
 }
 
 func TestScenarioInScopeUsesContractDefinedScopePrefix(t *testing.T) {
-	root := t.TempDir()
-	testkitgo.WriteRepoContract(t, root, "apps")
+	root := newScenarioRepoFixture(t, testkitgo.WithScenarioDir("apps"))
 
 	if !ScenarioInScope(root, "alpha", "apps/alpha/api") {
 		t.Fatal("expected contract-defined app scope to match scenario")
@@ -82,8 +79,7 @@ func TestScenarioInScopeUsesContractDefinedScopePrefix(t *testing.T) {
 }
 
 func TestResolveMergedPathUsesContractDefinedScenarioDir(t *testing.T) {
-	root := t.TempDir()
-	testkitgo.WriteRepoContract(t, root, "apps")
+	root := newScenarioRepoFixture(t, testkitgo.WithScenarioDir("apps"))
 
 	merged := "/tmp/sandbox/merged"
 	if got := ResolveMergedPath(root, "alpha", "", merged); got != filepath.Join(merged, "apps", "alpha") {
@@ -140,8 +136,7 @@ func TestLoadUsesSandboxScenarioWhenInScope(t *testing.T) {
 }
 
 func TestLoadUsesContractDefinedScenarioLayout(t *testing.T) {
-	root := t.TempDir()
-	testkitgo.WriteRepoContract(t, root, "apps")
+	root := newScenarioRepoFixture(t, testkitgo.WithScenarioDir("apps"))
 	writeScenarioServiceUnderBase(t, filepath.Join(root, "apps"), "alpha", "Contract alpha")
 
 	loaded, err := Load(root, "alpha", SandboxEnv{})
@@ -249,8 +244,7 @@ func TestResolveScenarioPathIgnoresOutOfScopeSandbox(t *testing.T) {
 }
 
 func TestDiscoverUsesContractDefinedScenarioBase(t *testing.T) {
-	root := t.TempDir()
-	testkitgo.WriteRepoContract(t, root, "apps")
+	root := newScenarioRepoFixture(t, testkitgo.WithScenarioDir("apps"))
 	writeScenarioServiceUnderBase(t, filepath.Join(root, "apps"), "alpha", "Contract alpha")
 	writeScenarioServiceUnderBase(t, filepath.Join(root, "apps"), "beta", "Contract beta")
 
@@ -534,8 +528,7 @@ func TestPerformHealthCheckRejectsInvalidHTTPURL(t *testing.T) {
 }
 
 func TestScanSandboxScenarioNamesRespectsScope(t *testing.T) {
-	root := t.TempDir()
-	testkitgo.WriteRepoContract(t, root, "scenarios")
+	root := newScenarioRepoFixture(t)
 
 	merged := t.TempDir()
 	writeScenarioServiceAtPath(t, merged, "Scoped alpha")
@@ -558,8 +551,7 @@ func TestScanSandboxScenarioNamesRespectsScope(t *testing.T) {
 }
 
 func TestScanSandboxScenarioNamesSupportsRepoRootScope(t *testing.T) {
-	root := t.TempDir()
-	testkitgo.WriteRepoContract(t, root, "scenarios")
+	root := newScenarioRepoFixture(t)
 
 	merged := t.TempDir()
 	writeScenarioServiceAtPath(t, filepath.Join(merged, "scenarios", "alpha"), "Sandbox alpha")
@@ -574,8 +566,7 @@ func TestScanSandboxScenarioNamesSupportsRepoRootScope(t *testing.T) {
 }
 
 func TestScanSandboxScenarioNamesUsesContractDefinedScenarioDir(t *testing.T) {
-	root := t.TempDir()
-	testkitgo.WriteRepoContract(t, root, "apps")
+	root := newScenarioRepoFixture(t, testkitgo.WithScenarioDir("apps"))
 
 	merged := t.TempDir()
 	writeScenarioServiceAtPath(t, filepath.Join(merged, "apps", "alpha"), "Sandbox alpha")
@@ -713,7 +704,6 @@ func writeScenarioServiceAtPath(t *testing.T, scenarioPath, description string) 
 			Name:        name,
 			DisplayName: strings.ToUpper(name[:1]) + name[1:],
 			Description: description,
-			Version:     "0.1.0",
 		},
 		Ports: map[string]Port{
 			"api": {EnvVar: "API_PORT", Range: "15000-19999"},
@@ -732,6 +722,13 @@ func writeScenarioServiceAtPath(t *testing.T, scenarioPath, description string) 
 	})
 }
 
+func newScenarioRepoFixture(t *testing.T, opts ...testkitgo.RepoFixtureOption) string {
+	t.Helper()
+	fixture := testkitgo.NewRepoFixture(t, opts...)
+	fixture.WriteRepoContract(t)
+	return fixture.Root
+}
+
 func extractPort(t *testing.T, rawURL string) int {
 	t.Helper()
 	parts := strings.Split(rawURL, ":")
@@ -745,19 +742,6 @@ func extractPort(t *testing.T, rawURL string) int {
 		t.Fatalf("parse port from %q: %v", rawURL, err)
 	}
 	return value
-}
-
-func testScenarioDisplayName(name string) string {
-	parts := strings.FieldsFunc(strings.TrimSpace(name), func(r rune) bool {
-		return r == '-' || r == '_' || r == ' '
-	})
-	for i, part := range parts {
-		if part == "" {
-			continue
-		}
-		parts[i] = strings.ToUpper(part[:1]) + strings.ToLower(part[1:])
-	}
-	return strings.Join(parts, " ")
 }
 
 type fakeScenarioContractPaths struct {

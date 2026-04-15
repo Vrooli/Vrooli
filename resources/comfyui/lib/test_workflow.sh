@@ -130,7 +130,7 @@ test_models() {
     echo "Testing model availability..."
     
     # Check if SDXL model exists
-    local model_path="${HOME}/.comfyui/models/checkpoints/sd_xl_base_1.0.safetensors"
+    local model_path="${COMFYUI_MODELS_DIR:-${COMFYUI_DATA_DIR:-${RESOURCE_DATA_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/vrooli/resources/comfyui}}/models}/checkpoints/sd_xl_base_1.0.safetensors"
     if [[ -f "$model_path" ]]; then
         # Verify size (should be ~6.5GB)
         local size=$(stat -c%s "$model_path" 2>/dev/null || stat -f%z "$model_path" 2>/dev/null)

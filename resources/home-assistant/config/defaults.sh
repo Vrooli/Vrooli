@@ -3,8 +3,6 @@
 
 # Get the directory of this script
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-# Source utilities
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
 
 # Container settings
 export HOME_ASSISTANT_CONTAINER_NAME="${HOME_ASSISTANT_CONTAINER_NAME:-home-assistant}"
@@ -14,9 +12,13 @@ export HOME_ASSISTANT_IMAGE="${HOME_ASSISTANT_IMAGE:-homeassistant/home-assistan
 export HOME_ASSISTANT_PORT="${HOME_ASSISTANT_PORT:-8123}"
 export HOME_ASSISTANT_BASE_URL="${HOME_ASSISTANT_BASE_URL:-http://localhost:${HOME_ASSISTANT_PORT}}"
 
-# Data directories
-export HOME_ASSISTANT_DATA_DIR="${HOME_ASSISTANT_DATA_DIR:-${var_DATA_DIR}/resources/home-assistant}"
-export HOME_ASSISTANT_CONFIG_DIR="${HOME_ASSISTANT_CONFIG_DIR:-${HOME_ASSISTANT_DATA_DIR}/config}"
+# Canonical resource storage directories.
+# RESOURCE_* is injected by the Go control plane; XDG fallbacks keep standalone shell usage off repo-local paths.
+home_assistant_xdg_config_home="${XDG_CONFIG_HOME:-${HOME}/.config}"
+home_assistant_xdg_data_home="${XDG_DATA_HOME:-${HOME}/.local/share}"
+
+export HOME_ASSISTANT_DATA_DIR="${HOME_ASSISTANT_DATA_DIR:-${RESOURCE_DATA_DIR:-${home_assistant_xdg_data_home}/vrooli/resources/home-assistant}}"
+export HOME_ASSISTANT_CONFIG_DIR="${HOME_ASSISTANT_CONFIG_DIR:-${RESOURCE_CONFIG_DIR:-${home_assistant_xdg_config_home}/vrooli/resources/home-assistant}}"
 
 # Runtime settings
 export HOME_ASSISTANT_TIME_ZONE="${HOME_ASSISTANT_TIME_ZONE:-America/New_York}"

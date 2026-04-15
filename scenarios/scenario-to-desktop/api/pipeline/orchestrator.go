@@ -11,6 +11,7 @@ import (
 	"scenario-to-desktop-api/deploy"
 	"scenario-to-desktop-api/generation"
 	sharedpath "scenario-to-desktop-api/shared/path"
+	"scenario-to-desktop-api/storagepaths"
 	"scenario-to-desktop-api/shared/validation"
 )
 
@@ -112,13 +113,19 @@ func NewOrchestrator(opts ...OrchestratorOption) *DefaultOrchestrator {
 		// NewAnalyzer expects vrooliRoot (parent of scenarios directory), not scenarioRoot
 		vrooliRoot := filepath.Dir(o.scenarioRoot)
 		analyzer := generation.NewAnalyzer(vrooliRoot)
+		var targetRepo *deploy.TargetRepository
+		if locator, err := storagepaths.NewLocator(); err == nil {
+			if path, err := locator.DeployTargetsPath(); err == nil {
+				targetRepo = deploy.NewTargetRepository(path)
+			}
+		}
 		o.stages = []Stage{
 			NewBundleStage(WithScenarioRoot(o.scenarioRoot)),
 			NewPreflightStage(WithBundleabilityChecker(analyzer)),
 			NewGenerateStage(WithGenerateScenarioRoot(o.scenarioRoot)),
 			NewBuildStage(),
 			NewSmokeTestStage(),
-			NewDeployStage(WithDeployTargetRepo(deploy.NewTargetRepository(vrooliRoot))),
+			NewDeployStage(WithDeployTargetRepo(targetRepo)),
 		}
 	}
 

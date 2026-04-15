@@ -11,9 +11,6 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${OPENROUTER_LIB_DIR}/core.sh"
 source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
-# Content directory for storing prompts and configurations
-OPENROUTER_CONTENT_DIR="${var_ROOT_DIR}/data/resources/openrouter/content"
-
 # Initialize content directory
 openrouter::content::init() {
     mkdir -p "${OPENROUTER_CONTENT_DIR}/prompts"

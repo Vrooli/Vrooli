@@ -274,13 +274,13 @@ describe("formSelectors", () => {
     it("returns correct path for scenario", () => {
       const path = selectStagingPreviewPath("my-scenario");
 
-      expect(path).toBe("scenarios/scenario-to-desktop/data/staging/my-scenario/<build-id>");
+      expect(path).toBe("<cache-root>/vrooli/scenario-to-desktop/staging/my-scenario/<build-id>");
     });
 
     it("returns placeholder for empty scenario name", () => {
       const path = selectStagingPreviewPath("");
 
-      expect(path).toBe("scenarios/scenario-to-desktop/data/staging/<scenario>/<build-id>");
+      expect(path).toBe("<cache-root>/vrooli/scenario-to-desktop/staging/<scenario>/<build-id>");
     });
   });
 

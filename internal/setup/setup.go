@@ -23,6 +23,7 @@ import (
 	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/ports"
 	"github.com/vrooli/vrooli/internal/project"
+	"github.com/vrooli/vrooli/internal/projectstate"
 	"github.com/vrooli/vrooli/internal/resources"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -406,6 +407,7 @@ func ensureProjectFilesystem(root, home string) error {
 		filepath.Join(root, "data"),
 		filepath.Join(root, ".vrooli", "build"),
 		filepath.Join(root, ".vrooli", "logs"),
+		projectstate.SetupStateDir(root),
 		filepath.Join(home, ".vrooli", "bin"),
 		filepath.Join(home, ".vrooli", "logs"),
 		filepath.Join(home, ".vrooli", "processes"),
@@ -523,8 +525,7 @@ func setupNeeded(root, slug string) bool {
 	if forceSetupApplies(slug) {
 		return true
 	}
-	_, err := os.Stat(filepath.Join(root, "data", ".setup-complete"))
-	return err != nil
+	return !projectstate.HasSetupComplete(root)
 }
 
 func (s *setupService) applyDotEnv(root string) error {
@@ -858,8 +859,8 @@ func (s *setupService) resolveOnboardingURL(executable string) (string, error) {
 }
 
 func markComplete(root string) error {
-	dataDir := filepath.Join(root, "data")
-	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+	stateDir := projectstate.SetupStateDir(root)
+	if err := os.MkdirAll(stateDir, 0o755); err != nil {
 		return err
 	}
 
@@ -872,7 +873,7 @@ func markComplete(root string) error {
 		return err
 	}
 	data = append(data, '\n')
-	if err := os.WriteFile(filepath.Join(dataDir, ".setup-complete"), data, 0o644); err != nil {
+	if err := os.WriteFile(projectstate.SetupCompletePath(root), data, 0o644); err != nil {
 		return err
 	}
 	return nil

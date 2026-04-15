@@ -46,11 +46,11 @@
     },
     "volumes": [
       {
-        "source": "${HOME}/.minio/data",
+        "source": "${RESOURCE_DATA_DIR}",
         "target": "/data"
       },
       {
-        "source": "${HOME}/.minio/config",
+        "source": "${RESOURCE_CONFIG_DIR}",
         "target": "/root/.minio"
       }
     ],

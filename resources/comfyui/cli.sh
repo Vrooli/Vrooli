@@ -67,13 +67,13 @@ comfyui::test::integration() {
 
 comfyui::content::get() {
     local name="${1:-}"; [[ -z "$name" ]] && { log::error "Workflow name required"; return 1; }
-    local file="${COMFYUI_DATA_DIR:-${HOME}/.comfyui}/workflows/$name"
+    local file="${COMFYUI_WORKFLOWS_DIR:-${COMFYUI_DATA_DIR:-${RESOURCE_DATA_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/vrooli/resources/comfyui}}/workflows}/$name"
     [[ -f "$file" ]] && cat "$file" || { log::error "Workflow not found: $name"; return 1; }
 }
 
 comfyui::content::remove() {
     local name="${1:-}"; [[ -z "$name" ]] && { log::error "Workflow name required"; return 1; }
-    local file="${COMFYUI_DATA_DIR:-${HOME}/.comfyui}/workflows/$name"
+    local file="${COMFYUI_WORKFLOWS_DIR:-${COMFYUI_DATA_DIR:-${RESOURCE_DATA_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/vrooli/resources/comfyui}}/workflows}/$name"
     [[ -f "$file" ]] && { rm -f "$file"; log::success "Workflow removed: $name"; } || { log::error "Workflow not found: $name"; return 1; }
 }
 

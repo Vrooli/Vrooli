@@ -32,11 +32,13 @@ func newTestService(t *testing.T) (*Service, string) {
 	opts := storage.Options{ScenarioID: "scenario-to-desktop-captures"}
 	metaPath, err := resolver.Path(opts, storage.ClassData, "captures_meta.json")
 	require.NoError(t, err)
+	filesDir, err := resolver.Path(opts, storage.ClassData, "captures")
+	require.NoError(t, err)
 
 	store, err := NewFileStore(metaPath)
 	require.NoError(t, err)
 
-	svc := NewService(resolver, opts, store)
+	svc := NewService(resolver, opts, filesDir, store)
 	return svc, tmpDir
 }
 

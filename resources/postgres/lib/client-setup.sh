@@ -345,8 +345,8 @@ client_setup::generate_client_package() {
     echo "  Copying backup files..."
     local latest_backup
     latest_backup=$("${SCRIPT_DIR}/manage.sh" --action list-backups --instance "$CLIENT_NAME" 2>/dev/null | grep -v "INFO" | grep -v "====" | head -1 | awk '{print $1}' || echo "")
-    if [[ -n "$latest_backup" && -d ~/.vrooli/backups/postgres/"$CLIENT_NAME"/"$latest_backup" ]]; then
-        cp -r ~/.vrooli/backups/postgres/"$CLIENT_NAME"/"$latest_backup"/* "$package_dir/backup/"
+    if [[ -n "$latest_backup" && -d "${POSTGRES_BACKUP_DIR}/${CLIENT_NAME}/${latest_backup}" ]]; then
+        cp -r "${POSTGRES_BACKUP_DIR}/${CLIENT_NAME}/${latest_backup}"/* "$package_dir/backup/"
     fi
     
     # Copy password file if it exists

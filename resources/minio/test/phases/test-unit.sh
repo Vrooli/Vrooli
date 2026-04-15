@@ -85,7 +85,7 @@ done
 # Test 5: Credential file permissions
 log::info "Test 5: Credential file security..."
 
-CREDS_FILE="${HOME}/.minio/config/credentials"
+CREDS_FILE="${MINIO_CONFIG_DIR}/credentials"
 if [[ -f "$CREDS_FILE" ]]; then
     PERMS=$(stat -c "%a" "$CREDS_FILE" 2>/dev/null || stat -f "%OLp" "$CREDS_FILE" 2>/dev/null || echo "unknown")
     

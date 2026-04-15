@@ -8,5 +8,5 @@ services:
     environment:
       TZ: America/New_York
     volumes:
-      - ${APP_ROOT}/data/resources/home-assistant/config:/config
+      - ${RESOURCE_CONFIG_DIR}:/config
       - /etc/localtime:/etc/localtime:ro

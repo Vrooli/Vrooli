@@ -38,11 +38,11 @@
     "container_name": "qdrant",
     "volumes": [
       {
-        "source": "${HOME}/.qdrant/data",
+        "source": "${RESOURCE_DATA_DIR}",
         "target": "/qdrant/storage"
       },
       {
-        "source": "${HOME}/.qdrant/snapshots",
+        "source": "${RESOURCE_STATE_DIR}/snapshots",
         "target": "/qdrant/snapshots"
       }
     ]

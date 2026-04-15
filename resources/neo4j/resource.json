@@ -49,19 +49,19 @@
     },
     "volumes": [
       {
-        "source": "${ROOT}/data/resources/neo4j/data",
+        "source": "${RESOURCE_DATA_DIR}/data",
         "target": "/data"
       },
       {
-        "source": "${ROOT}/data/resources/neo4j/logs",
+        "source": "${RESOURCE_LOGS_DIR}",
         "target": "/logs"
       },
       {
-        "source": "${ROOT}/data/resources/neo4j/import",
+        "source": "${RESOURCE_DATA_DIR}/import",
         "target": "/var/lib/neo4j/import"
       },
       {
-        "source": "${ROOT}/data/resources/neo4j/plugins",
+        "source": "${RESOURCE_DATA_DIR}/plugins",
         "target": "/plugins"
       }
     ]

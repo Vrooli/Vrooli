@@ -1,6 +1,6 @@
 # Getting Started With Scenarios
 
-This page is the canonical entrypoint for creating or modifying scenarios.
+This page is the canonical entrypoint for creating or modifying scenarios at the platform level.
 
 ## Inspect Available Templates
 
@@ -44,7 +44,7 @@ vrooli scenario test <name>
 
 ## Requirements
 
-If the scenario needs requirement tracking:
+If the scenario uses requirement tracking:
 
 ```bash
 vrooli scenario requirements init
@@ -61,16 +61,19 @@ When shaping a scenario, focus on:
 - lifecycle correctness
 - requirement coverage where appropriate
 - validation that matches intended behavior
+- docs that describe the specific scenario locally rather than expanding project-wide canon
 
 ## What To Avoid
 
 - inventing undocumented scenario structure rules as if they were universal
 - claiming deployment readiness without tier-aware validation
 - describing old shell-era patterns as canonical
+- turning one scenario's internal conventions into platform-wide law
 
 ## Related
 
 - [CONCEPTS.md](CONCEPTS.md)
 - [VALIDATION.md](VALIDATION.md)
 - [DEPLOYMENT.md](DEPLOYMENT.md)
+- [PRODUCTION_BUNDLES.md](PRODUCTION_BUNDLES.md)
 - [../deployment/README.md](../deployment/README.md)

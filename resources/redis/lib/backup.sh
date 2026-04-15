@@ -18,7 +18,12 @@ redis::backup::dir() {
         return 0
     fi
 
-    echo "${HOME}/.vrooli/redis/backups"
+    if [[ -n "${RESOURCE_STATE_DIR:-}" ]]; then
+        echo "${RESOURCE_STATE_DIR}/backups"
+        return 0
+    fi
+
+    echo "${XDG_STATE_HOME:-${HOME}/.local/state}/vrooli/resources/redis/backups"
 }
 
 #######################################

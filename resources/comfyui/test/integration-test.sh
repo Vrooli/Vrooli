@@ -114,7 +114,7 @@ test_model_availability() {
     local test_name="SDXL model availability"
     
     # Check if SDXL model exists
-    local model_path="${HOME}/.comfyui/models/checkpoints/sd_xl_base_1.0.safetensors"
+    local model_path="${COMFYUI_MODELS_DIR:-${COMFYUI_DATA_DIR:-${RESOURCE_DATA_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/vrooli/resources/comfyui}}/models}/checkpoints/sd_xl_base_1.0.safetensors"
     if [[ -f "$model_path" ]]; then
         # Verify size (should be ~6.5GB)
         local size
@@ -367,7 +367,7 @@ show_verbose_info() {
     echo "ComfyUI Information:"
     echo "  Web UI: $BASE_URL"
     echo "  Required Model: sd_xl_base_1.0.safetensors (~6.5GB)"
-    echo "  Model Location: \${HOME}/.comfyui/models/checkpoints/"
+    echo "  Model Location: \${COMFYUI_MODELS_DIR:-\${RESOURCE_DATA_DIR:-\${XDG_DATA_HOME:-\${HOME}/.local/share}/vrooli/resources/comfyui}/models}/checkpoints/"
 }
 
 #######################################
@@ -377,7 +377,7 @@ show_verbose_info() {
 # Wrapper to handle model-dependent workflow tests
 test_workflow_tests() {
     # First check if model is available
-    local model_path="${HOME}/.comfyui/models/checkpoints/sd_xl_base_1.0.safetensors"
+    local model_path="${COMFYUI_MODELS_DIR:-${COMFYUI_DATA_DIR:-${RESOURCE_DATA_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/vrooli/resources/comfyui}}/models}/checkpoints/sd_xl_base_1.0.safetensors"
     if [[ ! -f "$model_path" ]]; then
         log_test_result "workflow submission" "SKIP" "model not available"
         log_test_result "workflow execution" "SKIP" "model not available"

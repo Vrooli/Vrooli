@@ -38,7 +38,7 @@
     },
     "volumes": [
       {
-        "source": "${HOME}/.vrooli/postgres/main/data",
+        "source": "${RESOURCE_DATA_DIR}/instances/main/data",
         "target": "/var/lib/postgresql/data"
       }
     ]

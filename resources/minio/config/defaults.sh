@@ -7,6 +7,10 @@
 # Idempotent - safe to call multiple times
 #######################################
 minio::export_config() {
+    local minio_xdg_config_home="${XDG_CONFIG_HOME:-${HOME}/.config}"
+    local minio_xdg_data_home="${XDG_DATA_HOME:-${HOME}/.local/share}"
+    local minio_xdg_state_home="${XDG_STATE_HOME:-${HOME}/.local/state}"
+
     # Service configuration (only set if not already defined)
     if [[ -z "${MINIO_PORT:-}" ]]; then
         # Get port from resources function - no hardcoded fallback
@@ -35,10 +39,19 @@ minio::export_config() {
         readonly MINIO_CONTAINER_NAME="minio"
     fi
     if [[ -z "${MINIO_DATA_DIR:-}" ]]; then
-        readonly MINIO_DATA_DIR="${HOME}/.minio/data"
+        readonly MINIO_DATA_DIR="${RESOURCE_DATA_DIR:-${minio_xdg_data_home}/vrooli/resources/minio}"
     fi
     if [[ -z "${MINIO_CONFIG_DIR:-}" ]]; then
-        readonly MINIO_CONFIG_DIR="${HOME}/.minio/config"
+        readonly MINIO_CONFIG_DIR="${RESOURCE_CONFIG_DIR:-${minio_xdg_config_home}/vrooli/resources/minio}"
+    fi
+    if [[ -z "${MINIO_STATE_DIR:-}" ]]; then
+        readonly MINIO_STATE_DIR="${RESOURCE_STATE_DIR:-${minio_xdg_state_home}/vrooli/resources/minio}"
+    fi
+    if [[ -z "${MINIO_BACKUP_DIR:-}" ]]; then
+        readonly MINIO_BACKUP_DIR="${MINIO_STATE_DIR}/backups"
+    fi
+    if [[ -z "${MINIO_CACHE_DIR:-}" ]]; then
+        readonly MINIO_CACHE_DIR="${MINIO_STATE_DIR}/cache"
     fi
     if [[ -z "${MINIO_IMAGE:-}" ]]; then
         readonly MINIO_IMAGE="minio/minio:latest"
@@ -117,7 +130,7 @@ minio::export_config() {
 
     # Export for global access
     export MINIO_PORT MINIO_CONSOLE_PORT MINIO_BASE_URL MINIO_CONSOLE_URL
-    export MINIO_CONTAINER_NAME MINIO_DATA_DIR MINIO_CONFIG_DIR MINIO_IMAGE
+    export MINIO_CONTAINER_NAME MINIO_DATA_DIR MINIO_CONFIG_DIR MINIO_STATE_DIR MINIO_BACKUP_DIR MINIO_CACHE_DIR MINIO_IMAGE
     export MINIO_ROOT_USER MINIO_ROOT_PASSWORD MINIO_DEFAULT_BUCKETS
     export MINIO_NETWORK_NAME MINIO_REGION MINIO_BROWSER
     export MINIO_HEALTH_CHECK_INTERVAL MINIO_HEALTH_CHECK_MAX_ATTEMPTS

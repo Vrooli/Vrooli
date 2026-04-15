@@ -33,7 +33,7 @@
     "env": {},
     "volumes": [
       {
-        "source": "./data",
+        "source": "${RESOURCE_DATA_DIR}",
         "target": "/var/lib/{{RESOURCE_NAME}}"
       }
     ]

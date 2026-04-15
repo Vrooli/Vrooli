@@ -13,8 +13,8 @@ SearXNG aggregates results from multiple engines. Default configuration includes
 - Wikipedia
 
 ### Settings Location
-- Configuration: `~/.searxng/settings.yml`
-- Rate Limiter: `~/.searxng/limiter.toml` (optional)
+- Configuration: `${SEARXNG_DATA_DIR:-${XDG_CONFIG_HOME:-~/.config}/vrooli/resources/searxng}/settings.yml`
+- Rate Limiter: `${SEARXNG_DATA_DIR:-${XDG_CONFIG_HOME:-~/.config}/vrooli/resources/searxng}/limiter.toml` (optional)
 
 ### Key Settings
 ```yaml
@@ -153,13 +153,13 @@ Rate limiting configuration (typically not needed for local usage).
 resource-searxng content execute --name config
 
 # View specific setting
-cat ~/.searxng/settings.yml | grep -A 5 "search:"
+cat "${SEARXNG_DATA_DIR}/settings.yml" | grep -A 5 "search:"
 ```
 
 ### Update Configuration
 ```bash
 # Edit configuration
-nano ~/.searxng/settings.yml
+nano "${SEARXNG_DATA_DIR}/settings.yml"
 
 # Restart to apply changes
 resource-searxng manage restart
@@ -168,7 +168,7 @@ resource-searxng manage restart
 ### Reset to Defaults
 ```bash
 # Backup current config
-cp ~/.searxng/settings.yml ~/.searxng/settings.yml.backup
+cp "${SEARXNG_DATA_DIR}/settings.yml" "${SEARXNG_DATA_DIR}/settings.yml.backup"
 
 # Reset to template
 resource-searxng content execute --name reset

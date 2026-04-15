@@ -3,25 +3,11 @@
 # Common variables and functions for SageMath resource
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/resources/sagemath/config/defaults.sh"
 
-# Container configuration
-SAGEMATH_CONTAINER_NAME="sagemath-main"
-SAGEMATH_IMAGE="sagemath/sagemath:latest"
-SAGEMATH_PORT_JUPYTER="${SAGEMATH_PORT_JUPYTER:-8888}"
-SAGEMATH_PORT_API="${SAGEMATH_PORT_API:-8889}"
-
-# Data directories
-SAGEMATH_DATA_DIR="${APP_ROOT}/data/resources/sagemath"
-SAGEMATH_SCRIPTS_DIR="${SAGEMATH_DATA_DIR}/scripts"
-SAGEMATH_NOTEBOOKS_DIR="${SAGEMATH_DATA_DIR}/notebooks"
-SAGEMATH_OUTPUTS_DIR="${SAGEMATH_DATA_DIR}/outputs"
-SAGEMATH_CONFIG_DIR="${SAGEMATH_DATA_DIR}/config"
-SAGEMATH_CACHE_DIR="${SAGEMATH_DATA_DIR}/cache"
-
-# Resource metadata
-SAGEMATH_RESOURCE_NAME="sagemath"
-SAGEMATH_RESOURCE_CATEGORY="execution"
-SAGEMATH_RESOURCE_DESCRIPTION="Open-source mathematics software system"
+# Cache dir is not set by the older defaults file in some callers; keep the canonical fallback here.
+SAGEMATH_CACHE_DIR="${SAGEMATH_CACHE_DIR:-${RESOURCE_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/vrooli/resources/sagemath}}"
 
 # Ensure data directories exist
 sagemath_ensure_directories() {
@@ -30,6 +16,8 @@ sagemath_ensure_directories() {
     mkdir -p "$SAGEMATH_OUTPUTS_DIR"
     mkdir -p "$SAGEMATH_CONFIG_DIR"
     mkdir -p "$SAGEMATH_CACHE_DIR"
+    mkdir -p "${SAGEMATH_LOGS_DIR:-}"
+    mkdir -p "${SAGEMATH_STATE_DIR:-}"
 }
 
 # Check if container exists

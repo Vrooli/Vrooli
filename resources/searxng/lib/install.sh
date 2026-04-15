@@ -236,7 +236,8 @@ searxng::reset() {
 # Backup SearXNG configuration
 #######################################
 searxng::backup() {
-    local backup_dir="${HOME}/.searxng-backup-$(date +%Y%m%d-%H%M%S)"
+    local backup_root="${XDG_STATE_HOME:-${HOME}/.local/state}/vrooli/resources/searxng/backups"
+    local backup_dir="${backup_root}/searxng-backup-$(date +%Y%m%d-%H%M%S)"
     
     if [[ ! -d "$SEARXNG_DATA_DIR" ]]; then
         log::error "SearXNG data directory not found: $SEARXNG_DATA_DIR"

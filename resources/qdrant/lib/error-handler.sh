@@ -15,9 +15,10 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
 source "${var_LIB_UTILS_DIR}/log.sh" 2>/dev/null || echo() { printf "%s\n" "$*"; }
 
 # Error handling configuration
-ERROR_LOG_FILE="${QDRANT_ERROR_LOG:-$HOME/.qdrant/errors.log}"
-ERROR_METRICS_FILE="$HOME/.qdrant/error-metrics.json"
-DEAD_LETTER_QUEUE_DIR="$HOME/.qdrant/failed-operations"
+QDRANT_STATE_DIR="${QDRANT_STATE_DIR:-${RESOURCE_STATE_DIR:-${XDG_STATE_HOME:-${HOME}/.local/state}/vrooli/resources/qdrant}}"
+ERROR_LOG_FILE="${QDRANT_ERROR_LOG:-${QDRANT_STATE_DIR}/errors.log}"
+ERROR_METRICS_FILE="${QDRANT_STATE_DIR}/error-metrics.json"
+DEAD_LETTER_QUEUE_DIR="${QDRANT_STATE_DIR}/failed-operations"
 MAX_RETRY_ATTEMPTS="${MAX_RETRY_ATTEMPTS:-3}"
 RETRY_BACKOFF_BASE="${RETRY_BACKOFF_BASE:-2}"
 

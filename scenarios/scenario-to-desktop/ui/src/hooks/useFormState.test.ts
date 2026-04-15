@@ -161,7 +161,7 @@ describe("useFormState", () => {
       );
 
       expect(result.current.stagingPreviewPath).toBe(
-        "scenarios/scenario-to-desktop/data/staging/my-scenario/<build-id>"
+        "<cache-root>/vrooli/scenario-to-desktop/staging/my-scenario/<build-id>"
       );
     });
 

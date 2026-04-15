@@ -19,6 +19,8 @@ source "${APP_ROOT}/resources/qdrant/lib/error-handler.sh"
 QDRANT_URL="http://localhost:6333"
 REFRESH_INTERVAL="${DASHBOARD_REFRESH:-10}"
 CONTAINER_NAME="${QDRANT_CONTAINER:-qdrant}"
+QDRANT_STATE_DIR="${QDRANT_STATE_DIR:-${RESOURCE_STATE_DIR:-${XDG_STATE_HOME:-${HOME}/.local/state}/vrooli/resources/qdrant}}"
+QDRANT_IDENTITY_DIR="${QDRANT_IDENTITY_DIR:-${QDRANT_STATE_DIR}/identity}"
 
 #######################################
 # Get system uptime and basic stats
@@ -122,7 +124,7 @@ get_collections_stats() {
 # Get error statistics
 #######################################
 get_error_stats() {
-    local error_metrics_file="$HOME/.qdrant/error-metrics.json"
+    local error_metrics_file="${QDRANT_STATE_DIR}/error-metrics.json"
     
     if [[ -f "$error_metrics_file" ]]; then
         local metrics
@@ -159,7 +161,7 @@ get_error_stats() {
     
     # Count failed operations in queue
     local failed_ops_count
-    failed_ops_count=$(find "$HOME/.qdrant/failed-operations" -name "*.json" -type f 2>/dev/null | wc -l || echo "0")
+    failed_ops_count=$(find "${QDRANT_STATE_DIR}/failed-operations" -name "*.json" -type f 2>/dev/null | wc -l || echo "0")
     echo "FAILED_OPERATIONS=$failed_ops_count"
 }
 
@@ -167,7 +169,7 @@ get_error_stats() {
 # Get embeddings system stats
 #######################################
 get_embeddings_stats() {
-    local embeddings_identity_file="$HOME/.qdrant/identity/vrooli-main.json"
+    local embeddings_identity_file="${QDRANT_IDENTITY_DIR}/vrooli-main.json"
     
     if [[ -f "$embeddings_identity_file" ]]; then
         local identity
@@ -293,9 +295,9 @@ display_dashboard() {
     
     # Display Recent Activity
     echo "📋 Recent Activity"
-    if [[ -f "$HOME/.qdrant/health.log" ]]; then
+    if [[ -f "${QDRANT_STATE_DIR}/health.log" ]]; then
         echo "├─ Last Health Check:"
-        tail -n 3 "$HOME/.qdrant/health.log" 2>/dev/null | sed 's/^/│  /' || echo "│  No recent health checks"
+        tail -n 3 "${QDRANT_STATE_DIR}/health.log" 2>/dev/null | sed 's/^/│  /' || echo "│  No recent health checks"
     else
         echo "├─ No health check logs available"
     fi
@@ -346,10 +348,10 @@ show_error_details() {
     echo
     
     # Show recent errors
-    if [[ -f "$HOME/.qdrant/errors.log" ]]; then
+    if [[ -f "${QDRANT_STATE_DIR}/errors.log" ]]; then
         echo "Recent Errors (last 20):"
-        tail -n 20 "$HOME/.qdrant/errors.log" | jq -r '"\(.timestamp) [\(.type | ascii_upcase)] \(.message)"' 2>/dev/null || \
-            tail -n 20 "$HOME/.qdrant/errors.log"
+        tail -n 20 "${QDRANT_STATE_DIR}/errors.log" | jq -r '"\(.timestamp) [\(.type | ascii_upcase)] \(.message)"' 2>/dev/null || \
+            tail -n 20 "${QDRANT_STATE_DIR}/errors.log"
     else
         echo "No error log found"
     fi
@@ -357,11 +359,11 @@ show_error_details() {
     echo
     echo "Failed Operations:"
     local failed_count
-    failed_count=$(find "$HOME/.qdrant/failed-operations" -name "*.json" -type f 2>/dev/null | wc -l)
+    failed_count=$(find "${QDRANT_STATE_DIR}/failed-operations" -name "*.json" -type f 2>/dev/null | wc -l)
     
     if [[ $failed_count -gt 0 ]]; then
         echo "Found $failed_count failed operations in queue"
-        find "$HOME/.qdrant/failed-operations" -name "*.json" -type f -exec basename {} \; | head -10
+        find "${QDRANT_STATE_DIR}/failed-operations" -name "*.json" -type f -exec basename {} \; | head -10
         if [[ $failed_count -gt 10 ]]; then
             echo "... and $((failed_count - 10)) more"
         fi

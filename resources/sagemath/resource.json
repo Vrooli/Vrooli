@@ -66,15 +66,15 @@
     },
     "volumes": [
       {
-        "source": "${ROOT}/data/resources/sagemath/scripts",
+        "source": "${RESOURCE_DATA_DIR}/scripts",
         "target": "/home/sage/scripts"
       },
       {
-        "source": "${ROOT}/data/resources/sagemath/notebooks",
+        "source": "${RESOURCE_DATA_DIR}/notebooks",
         "target": "/home/sage/notebooks"
       },
       {
-        "source": "${ROOT}/data/resources/sagemath/outputs",
+        "source": "${RESOURCE_DATA_DIR}/outputs",
         "target": "/home/sage/outputs"
       }
     ],

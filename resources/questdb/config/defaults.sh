@@ -32,14 +32,20 @@ questdb::export_config() {
     if [[ -z "${QUESTDB_CONTAINER_NAME:-}" ]]; then
         export QUESTDB_CONTAINER_NAME="vrooli-questdb"
     fi
+    local questdb_xdg_config_home="${XDG_CONFIG_HOME:-${HOME}/.config}"
+    local questdb_xdg_data_home="${XDG_DATA_HOME:-${HOME}/.local/share}"
+    local questdb_xdg_state_home="${XDG_STATE_HOME:-${HOME}/.local/state}"
     if [[ -z "${QUESTDB_DATA_DIR:-}" ]]; then
-        export QUESTDB_DATA_DIR="${HOME}/.questdb/data"
+        export QUESTDB_DATA_DIR="${RESOURCE_DATA_DIR:-${questdb_xdg_data_home}/vrooli/resources/questdb}"
     fi
     if [[ -z "${QUESTDB_CONFIG_DIR:-}" ]]; then
-        export QUESTDB_CONFIG_DIR="${HOME}/.questdb/config"
+        export QUESTDB_CONFIG_DIR="${RESOURCE_CONFIG_DIR:-${questdb_xdg_config_home}/vrooli/resources/questdb}"
     fi
     if [[ -z "${QUESTDB_LOG_DIR:-}" ]]; then
-        export QUESTDB_LOG_DIR="${HOME}/.questdb/logs"
+        export QUESTDB_LOG_DIR="${RESOURCE_LOGS_DIR:-${questdb_xdg_state_home}/logs/vrooli/resources/questdb}"
+    fi
+    if [[ -z "${QUESTDB_STATE_DIR:-}" ]]; then
+        export QUESTDB_STATE_DIR="${RESOURCE_STATE_DIR:-${questdb_xdg_state_home}/vrooli/resources/questdb}"
     fi
     if [[ -z "${QUESTDB_IMAGE:-}" ]]; then
         export QUESTDB_IMAGE="questdb/questdb:8.1.2"
@@ -107,7 +113,7 @@ questdb::export_config() {
     # Export for global access
     export QUESTDB_HTTP_PORT QUESTDB_PG_PORT QUESTDB_ILP_PORT
     export QUESTDB_BASE_URL QUESTDB_PG_URL QUESTDB_CONTAINER_NAME
-    export QUESTDB_DATA_DIR QUESTDB_CONFIG_DIR QUESTDB_LOG_DIR QUESTDB_IMAGE
+    export QUESTDB_DATA_DIR QUESTDB_CONFIG_DIR QUESTDB_LOG_DIR QUESTDB_STATE_DIR QUESTDB_IMAGE
     export QUESTDB_SHARED_WORKER_COUNT QUESTDB_HTTP_WORKER_COUNT
     export QUESTDB_WAL_ENABLED QUESTDB_COMMIT_LAG
     export QUESTDB_HTTP_SECURITY_READONLY QUESTDB_PG_USER QUESTDB_PG_PASSWORD

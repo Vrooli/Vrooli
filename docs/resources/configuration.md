@@ -50,3 +50,4 @@ vrooli resource schema validate
 - keep dependency declarations honest
 - avoid inventing old `resource-*` alias conventions in config
 - treat scenario manifests and resource manifests as living operational truth
+- keep project, scenario, and resource configuration roles distinct even when they interact

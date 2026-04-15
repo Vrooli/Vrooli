@@ -89,4 +89,5 @@ The right way to document them is:
 
 - explain the scenario system at the platform level here
 - document current template and generation flows in [getting-started.md](getting-started.md)
+- document cross-scenario validation and deployment expectations in [VALIDATION.md](VALIDATION.md) and [DEPLOYMENT.md](DEPLOYMENT.md)
 - document scenario-specific implementation details inside each scenario

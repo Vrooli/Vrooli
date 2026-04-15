@@ -21,7 +21,7 @@ sagemath::export::latex() {
     
     # Set default output file if not provided
     if [[ -z "$output_file" ]]; then
-        output_file="/home/matthalloran8/Vrooli/data/resources/sagemath/outputs/latex_${timestamp}.tex"
+        output_file="${SAGEMATH_OUTPUTS_DIR}/latex_${timestamp}.tex"
     fi
     
     echo "🔄 Exporting to LaTeX format..."
@@ -63,7 +63,7 @@ sagemath::export::mathml() {
     
     # Set default output file if not provided
     if [[ -z "$output_file" ]]; then
-        output_file="/home/matthalloran8/Vrooli/data/resources/sagemath/outputs/mathml_${timestamp}.xml"
+        output_file="${SAGEMATH_OUTPUTS_DIR}/mathml_${timestamp}.xml"
     fi
     
     echo "🔄 Exporting to MathML format..."
@@ -110,7 +110,7 @@ sagemath::export::image() {
     
     # Set default output file if not provided
     if [[ -z "$output_file" ]]; then
-        output_file="/home/matthalloran8/Vrooli/data/resources/sagemath/outputs/equation_${timestamp}.png"
+        output_file="${SAGEMATH_OUTPUTS_DIR}/equation_${timestamp}.png"
     fi
     
     echo "🔄 Rendering equation to image..."
@@ -147,7 +147,7 @@ sagemath::export::all() {
     fi
     
     local timestamp=$(date +%Y%m%d_%H%M%S)
-    local output_dir="/home/matthalloran8/Vrooli/data/resources/sagemath/outputs"
+    local output_dir="${SAGEMATH_OUTPUTS_DIR}"
     
     echo "🔄 Exporting to all formats..."
     

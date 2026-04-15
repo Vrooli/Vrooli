@@ -5,7 +5,6 @@ package process
 import (
 	"os"
 	"strconv"
-	"strings"
 	"syscall"
 )
 
@@ -18,17 +17,5 @@ func readProcessEnvironment(pid int) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	values := make(map[string]string)
-	for _, entry := range strings.Split(string(data), "\x00") {
-		if entry == "" {
-			continue
-		}
-		parts := strings.SplitN(entry, "=", 2)
-		if len(parts) != 2 {
-			continue
-		}
-		values[parts[0]] = parts[1]
-	}
-	return values, nil
+	return parseEnvironmentEntries(data), nil
 }

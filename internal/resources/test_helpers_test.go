@@ -4,14 +4,16 @@ import (
 	"path/filepath"
 	"testing"
 
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
-	testfixture "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
+	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
+	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
 )
 
 func writeResourceCLI(t *testing.T, root, name string) {
 	t.Helper()
-	testfixture.WriteResourceCLI(t, root, name, "#!/usr/bin/env bash\nexit 0\n")
+	testresource.WriteResourceCLI(t, root, name, "#!/usr/bin/env bash\nexit 0\n")
 }
 
 func writeDeprecatedMetadata(t *testing.T, root string, items ...DeprecatedResource) {
@@ -30,9 +32,9 @@ func writeBlueprintArchivedMetadata(t *testing.T, root string, items ...Blueprin
 
 func writeScenarioResourceManifest(t *testing.T, root, scenarioName, resourceName string) {
 	t.Helper()
-	testfixture.WriteScenarioService(t, root, scenarioName, testfixture.ScenarioServiceManifest(
+	testscenario.WriteScenarioService(t, root, scenarioName, testscenario.ScenarioServiceManifest(
 		scenarioName,
-		testfixture.WithDependencies(scenario.Dependencies{
+		testscenario.WithDependencies(scenario.Dependencies{
 			Resources: map[string]scenario.Dependency{
 				resourceName: {
 					Enabled:  true,
@@ -41,4 +43,19 @@ func writeScenarioResourceManifest(t *testing.T, root, scenarioName, resourceNam
 			},
 		}),
 	))
+}
+
+func writeResourceConfig(t *testing.T, root, name string, enabled bool) {
+	t.Helper()
+	testscenario.WriteProjectResourceConfig(t, root, name, enabled)
+}
+
+func writeResourceManifest(t *testing.T, root, name string, manifest manifestpkg.ResourceManifest) {
+	t.Helper()
+	testresource.WriteResourceManifest(t, root, name, manifest)
+}
+
+func writeEnvManifestFixture(t *testing.T, root, name string, manifest manifestpkg.ResourceManifest) {
+	t.Helper()
+	testresource.WriteResourceManifest(t, root, name, manifest)
 }

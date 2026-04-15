@@ -19,10 +19,11 @@ import (
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/process"
-	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
-	testkitvrooli "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
+	testprocess "github.com/vrooli/vrooli/packages/testkit-go/processfixture"
+	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
+	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=4 | LAST: 2026-04-13
@@ -84,10 +85,10 @@ func TestStopAllScenariosEndpointReturnsTypedReport(t *testing.T) {
 
 func TestStopScenarioEndpointReturnsTypedMessage(t *testing.T) {
 	root := t.TempDir()
-	testkitvrooli.WriteScenarioService(t, root, "alpha", testkitvrooli.ScenarioServiceManifest(
+	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest(
 		"alpha",
-		testkitvrooli.WithDisplayName("alpha"),
-		testkitvrooli.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}),
+		testscenario.WithDisplayName("alpha"),
+		testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}),
 	))
 	app := New(root, t.TempDir())
 	app.StopScenarioFn = func(name string) error { return nil }
@@ -173,15 +174,13 @@ func TestGetDetailedAppStatusReturnsStoppedPayloadWhenScenarioMissing(t *testing
 func TestGetAppLogsReturnsTypedPayload(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	testkitvrooli.WriteScenarioService(t, root, "alpha", testkitvrooli.ScenarioServiceManifest(
+	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest(
 		"alpha",
-		testkitvrooli.WithDisplayName("alpha"),
-		testkitvrooli.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}),
+		testscenario.WithDisplayName("alpha"),
+		testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}),
 	))
 	logPath := filepath.Join(home, ".vrooli", "logs", "alpha.log")
-	if err := osWriteFileAll(logPath, "first\nsecond\n"); err != nil {
-		t.Fatalf("write log: %v", err)
-	}
+	testkitgo.WriteFile(t, logPath, "first\nsecond\n")
 
 	app := New(root, home)
 	rec := httptest.NewRecorder()
@@ -201,12 +200,12 @@ func TestGetAppLogsReturnsTypedPayload(t *testing.T) {
 func TestListScenariosNativeReturnsScenarioData(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	testkitvrooli.WriteScenarioService(t, root, "alpha", testkitvrooli.ScenarioServiceManifest(
+	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest(
 		"alpha",
-		testkitvrooli.WithDisplayName("alpha"),
-		testkitvrooli.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}),
+		testscenario.WithDisplayName("alpha"),
+		testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}),
 	))
-	testkitvrooli.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{
+	testprocess.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{
 		PID:       os.Getpid(),
 		PGID:      os.Getpid(),
 		Scenario:  "alpha",
@@ -238,12 +237,12 @@ func TestListScenariosNativeReturnsScenarioData(t *testing.T) {
 func TestGetScenarioStatusNativeReturnsDetailedScenarioData(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	testkitvrooli.WriteScenarioService(t, root, "alpha", testkitvrooli.ScenarioServiceManifest(
+	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest(
 		"alpha",
-		testkitvrooli.WithDisplayName("alpha"),
-		testkitvrooli.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}),
+		testscenario.WithDisplayName("alpha"),
+		testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}),
 	))
-	testkitvrooli.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{
+	testprocess.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{
 		PID:       os.Getpid(),
 		PGID:      os.Getpid(),
 		Scenario:  "alpha",
@@ -272,8 +271,8 @@ func TestListResourcesReturnsTypedStatusPayload(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	t.Setenv("PATH", "/usr/bin:/bin")
-	testkitvrooli.WriteProjectResourceConfig(t, root, "redis", true)
-	writeResourceCLI(t, root, "redis", `{"installed":true,"running":true,"healthy":true,"message":"healthy"}`)
+	testscenario.WriteProjectResourceConfig(t, root, "redis", true)
+	testresource.WriteExternalCLIResourceFixture(t, root, "redis", "#!/usr/bin/env bash\nexit 0\n")
 
 	app := New(root, home)
 	rec := httptest.NewRecorder()
@@ -297,7 +296,7 @@ func TestListResourcesReturnsTypedStatusPayload(t *testing.T) {
 func TestHandleLifecycleReturnsProjectError(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	testkitvrooli.WriteProjectService(t, root, testkitvrooli.ProjectServiceManifest())
+	testscenario.WriteProjectService(t, root, testscenario.ProjectServiceManifest())
 
 	app := New(root, home)
 	rec := httptest.NewRecorder()
@@ -363,34 +362,4 @@ func decodeJSONMap(t *testing.T, rec *httptest.ResponseRecorder) map[string]any 
 		t.Fatalf("unmarshal response: %v\nbody=%s", err, rec.Body.String())
 	}
 	return payload
-}
-
-func writeResourceCLI(t *testing.T, root, name, statusJSON string) {
-	t.Helper()
-	_ = statusJSON
-	testkitvrooli.WriteResourceManifest(t, root, name, manifestpkg.ResourceManifest{
-		Name:            name,
-		DisplayName:     name,
-		Description:     "fixture resource",
-		Template:        "external-cli",
-		Driver:          "external-cli",
-		Binary:          "bash",
-		PortabilityTier: "full",
-	})
-	testkitgo.WriteExecutable(t, filepath.Join(root, "resources", name, "cli.sh"), "#!/usr/bin/env bash\nprintf 'ok\\n'\n")
-}
-
-func osMkdirAll(path string) error {
-	return os.MkdirAll(path, 0o755)
-}
-
-func osWriteFileAll(path, data string) error {
-	if err := ensureParentDir(path); err != nil {
-		return err
-	}
-	return os.WriteFile(path, []byte(data), 0o644)
-}
-
-func ensureParentDir(path string) error {
-	return os.MkdirAll(filepath.Dir(path), 0o755)
 }

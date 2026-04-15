@@ -29,7 +29,7 @@ func TestResolveProfile(t *testing.T) {
 }
 
 func TestResolveProfileValidationBoundaries(t *testing.T) {
-	contract := validContract()
+	contract := validContract(t)
 
 	_, err := contract.ResolveProfile("mini_vrooli_bundle", ResolveParams{})
 	assertErrorKind(t, err, ErrInvalidInput)

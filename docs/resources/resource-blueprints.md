@@ -13,6 +13,7 @@ Resource blueprints preserve capability knowledge without implying that a resour
 - not an implemented resource
 - not evidence that `vrooli resource start <name>` is supported
 - not a substitute for actual validation or runtime behavior
+- not a promise that restoration work is low-effort or currently prioritized
 
 ## Current CLI Surface
 
@@ -30,6 +31,7 @@ Use a blueprint when:
 - the capability is worth preserving
 - there is not yet a supported active implementation
 - the resource should remain part of future planning without pretending to be live
+- the project wants to preserve design intent without keeping a runnable resource in the active surface
 
 ## Related
 

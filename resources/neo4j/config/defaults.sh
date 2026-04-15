@@ -59,13 +59,22 @@ fi
 # Memory configuration
 export NEO4J_HEAP_SIZE="${NEO4J_HEAP_SIZE:-512M}"
 
-# Data directories (these use var_ROOT_DIR from framework)
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
-export NEO4J_DATA_DIR="${NEO4J_DATA_DIR:-${var_ROOT_DIR}/data/resources/neo4j/data}"
-export NEO4J_LOGS_DIR="${NEO4J_LOGS_DIR:-${var_ROOT_DIR}/data/resources/neo4j/logs}"
-export NEO4J_IMPORT_DIR="${NEO4J_IMPORT_DIR:-${var_ROOT_DIR}/data/resources/neo4j/import}"
-export NEO4J_PLUGINS_DIR="${NEO4J_PLUGINS_DIR:-${var_ROOT_DIR}/data/resources/neo4j/plugins}"
-export NEO4J_CONF_DIR="${NEO4J_CONF_DIR:-${var_ROOT_DIR}/data/resources/neo4j/conf}"
+# Canonical resource storage directories.
+# RESOURCE_* is injected by the Go control plane; XDG fallbacks keep shell use off repo-local paths.
+neo4j_xdg_config_home="${XDG_CONFIG_HOME:-${HOME}/.config}"
+neo4j_xdg_data_home="${XDG_DATA_HOME:-${HOME}/.local/share}"
+neo4j_xdg_state_home="${XDG_STATE_HOME:-${HOME}/.local/state}"
+neo4j_base_data_dir="${RESOURCE_DATA_DIR:-${neo4j_xdg_data_home}/vrooli/resources/neo4j}"
+neo4j_base_logs_dir="${RESOURCE_LOGS_DIR:-${neo4j_xdg_state_home}/logs/vrooli/resources/neo4j}"
+neo4j_base_config_dir="${RESOURCE_CONFIG_DIR:-${neo4j_xdg_config_home}/vrooli/resources/neo4j}"
+neo4j_base_state_dir="${RESOURCE_STATE_DIR:-${neo4j_xdg_state_home}/vrooli/resources/neo4j}"
+
+export NEO4J_DATA_DIR="${NEO4J_DATA_DIR:-${neo4j_base_data_dir}/data}"
+export NEO4J_LOGS_DIR="${NEO4J_LOGS_DIR:-${neo4j_base_logs_dir}}"
+export NEO4J_IMPORT_DIR="${NEO4J_IMPORT_DIR:-${neo4j_base_data_dir}/import}"
+export NEO4J_PLUGINS_DIR="${NEO4J_PLUGINS_DIR:-${neo4j_base_data_dir}/plugins}"
+export NEO4J_CONF_DIR="${NEO4J_CONF_DIR:-${neo4j_base_config_dir}}"
+export NEO4J_STATE_DIR="${NEO4J_STATE_DIR:-${neo4j_base_state_dir}}"
 
 # Re-enable strict mode after environment checks
 set -u
@@ -75,5 +84,5 @@ neo4j::export_config() {
     export NEO4J_NAME NEO4J_DISPLAY_NAME NEO4J_CATEGORY NEO4J_DESCRIPTION
     export NEO4J_CONTAINER_NAME NEO4J_VERSION NEO4J_IMAGE
     export NEO4J_HTTP_PORT NEO4J_BOLT_PORT NEO4J_AUTH NEO4J_HEAP_SIZE
-    export NEO4J_DATA_DIR NEO4J_LOGS_DIR NEO4J_IMPORT_DIR NEO4J_PLUGINS_DIR NEO4J_CONF_DIR
+    export NEO4J_DATA_DIR NEO4J_LOGS_DIR NEO4J_IMPORT_DIR NEO4J_PLUGINS_DIR NEO4J_CONF_DIR NEO4J_STATE_DIR
 }

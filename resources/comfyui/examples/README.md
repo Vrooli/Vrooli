@@ -160,7 +160,7 @@ curl -X POST http://localhost:8188/prompt \
   -H "Content-Type: application/json" \
   -d '{
     "client_id": "comic-generation",
-    "prompt": '$(cat ${HOME}/.comfyui/workflows/pirate_rabbit_comic_advanced.json)'
+    "prompt": '$(cat ${XDG_DATA_HOME:-${HOME}/.local/share}/vrooli/resources/comfyui/workflows/pirate_rabbit_comic_advanced.json)'
   }'
 
 # Multi-panel comic  
@@ -168,7 +168,7 @@ curl -X POST http://localhost:8188/prompt \
   -H "Content-Type: application/json" \
   -d '{
     "client_id": "comic-panels",
-    "prompt": '$(cat ${HOME}/.comfyui/workflows/pirate_rabbit_comic_multi_panel.json)'
+    "prompt": '$(cat ${XDG_DATA_HOME:-${HOME}/.local/share}/vrooli/resources/comfyui/workflows/pirate_rabbit_comic_multi_panel.json)'
   }'
 ```
 

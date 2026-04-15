@@ -13,6 +13,7 @@ From the scenario-system perspective, the most important current facts are:
 - Tier 1 is the mature deployment path today
 - scenario-local lifecycle flows matter
 - portability beyond Tier 1 depends on deployment intelligence, dependency fitness, and target-specific constraints
+- scenario docs should be explicit about their intended deployment tier instead of implying universal portability
 
 ## Tier 1
 
@@ -45,9 +46,11 @@ Scenario docs should therefore:
 - avoid implying universal portability
 - point readers to the Deployment Hub
 - keep scenario-specific deployment metadata honest
+- distinguish current operation from target future packaging
 
 ## Guidance
 
 - treat deployment as tier-aware
 - do not revive older one-size-fits-all packaging stories
 - when in doubt, defer to the Deployment Hub
+- keep target-specific details in the owning scenario docs once they stop being cross-scenario guidance

@@ -239,7 +239,7 @@ Endpoints:
 Configuration:
 - Default Models (2025): ${DEFAULT_MODELS[@]}
 - Model Catalog: $(echo "${!MODEL_CATALOG[@]}" | wc -w) models available
-- Model Storage: ~/.ollama/models
+- Model Storage: ${RESOURCE_DATA_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/vrooli/resources/ollama}/models
 - Total Default Size: $(ollama::calculate_default_size)GB
 
 Ollama Features:

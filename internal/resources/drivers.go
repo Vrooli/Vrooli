@@ -14,6 +14,9 @@ import (
 	"time"
 
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	runtimeenv "github.com/vrooli/vrooli/internal/resources/runtime/env"
+	runtimelogs "github.com/vrooli/vrooli/internal/resources/runtime/logs"
+	runtimestorage "github.com/vrooli/vrooli/internal/resources/runtime/storage"
 	"github.com/vrooli/vrooli/internal/shell"
 )
 
@@ -449,11 +452,11 @@ func startDockerService(ctx context.Context, controller *Controller, manifest Re
 		args = append(args, "-p", strconv.Itoa(hostPort)+":"+strconv.Itoa(port.Container))
 	}
 	for key, value := range manifest.Runtime.Env {
-		args = append(args, "-e", key+"="+expandResourceRuntimeValue(controller, value))
+		args = append(args, "-e", key+"="+expandResourceRuntimeValue(controller, manifest, value))
 	}
 	resourceDir := filepath.Join(controller.Root, "resources", manifest.Name)
 	for _, volume := range manifest.Runtime.Volumes {
-		source := expandResourceRuntimeValue(controller, volume.Source)
+		source := expandResourceRuntimeValue(controller, manifest, volume.Source)
 		if !filepath.IsAbs(source) {
 			source = filepath.Join(resourceDir, filepath.FromSlash(source))
 		}
@@ -476,12 +479,12 @@ func startDockerService(ctx context.Context, controller *Controller, manifest Re
 		}
 		args = append(args, "-v", source+":"+volume.Target)
 	}
-	if workDir := strings.TrimSpace(expandResourceRuntimeValue(controller, manifest.Runtime.WorkingDir)); workDir != "" {
+	if workDir := strings.TrimSpace(expandResourceRuntimeValue(controller, manifest, manifest.Runtime.WorkingDir)); workDir != "" {
 		args = append(args, "-w", workDir)
 	}
 	args = append(args, manifest.Runtime.Image)
 	for _, part := range manifest.Runtime.Command {
-		args = append(args, expandResourceRuntimeValue(controller, part))
+		args = append(args, expandResourceRuntimeValue(controller, manifest, part))
 	}
 	return dockerCommand(ctx, controller, io.Discard, io.Discard, args...)
 }
@@ -546,13 +549,40 @@ func dockerCommand(ctx context.Context, controller *Controller, stdout, stderr i
 func composeOutput(ctx context.Context, controller *Controller, manifest ResourceManifest, args ...string) ([]byte, error) {
 	cmdArgs := []string{"compose", "-f", composeFilePath(controller, manifest), "--project-name", composeProjectName(manifest)}
 	cmdArgs = append(cmdArgs, args...)
-	return dockerOutput(ctx, controller, cmdArgs...)
+	cmd := shell.Command(shell.Spec{
+		Name: "docker",
+		Args: cmdArgs,
+		Dir:  controller.Root,
+		Env:  resourceEnvForResource(controller.Root, controller.Home, manifest.Name),
+	})
+	result := runCommandResource(ctx, cmd)
+	if result.err != nil {
+		return nil, fmt.Errorf("%w: %s", result.err, strings.TrimSpace(string(result.output)))
+	}
+	return result.output, nil
 }
 
 func composeCommand(ctx context.Context, controller *Controller, manifest ResourceManifest, stdout, stderr io.Writer, args ...string) error {
 	cmdArgs := []string{"compose", "-f", composeFilePath(controller, manifest), "--project-name", composeProjectName(manifest)}
 	cmdArgs = append(cmdArgs, args...)
-	return dockerCommand(ctx, controller, stdout, stderr, cmdArgs...)
+	cmd := shell.Command(shell.Spec{
+		Name:   "docker",
+		Args:   cmdArgs,
+		Dir:    controller.Root,
+		Env:    resourceEnvForResource(controller.Root, controller.Home, manifest.Name),
+		Stdout: stdout,
+		Stderr: stderr,
+	})
+	runCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	waitErr := cmd.Wait()
+	if runCtx.Err() != nil {
+		return runCtx.Err()
+	}
+	return waitErr
 }
 
 func containsString(items []string, target string) bool {
@@ -576,12 +606,40 @@ func nextArgValue(args []string, flag string) string {
 	return ""
 }
 
-func expandResourceRuntimeValue(controller *Controller, value string) string {
-	value = strings.ReplaceAll(value, "${HOME}", controller.Home)
-	value = strings.ReplaceAll(value, "$HOME", controller.Home)
-	value = strings.ReplaceAll(value, "${ROOT}", controller.Root)
-	value = strings.ReplaceAll(value, "$ROOT", controller.Root)
-	return value
+func expandResourceRuntimeValue(controller *Controller, manifest ResourceManifest, value string) string {
+	renderer, err := newResourceRuntimeRenderer(controller, manifest.Name)
+	if err != nil {
+		value = strings.ReplaceAll(value, "${HOME}", controller.Home)
+		value = strings.ReplaceAll(value, "$HOME", controller.Home)
+		value = strings.ReplaceAll(value, "${ROOT}", controller.Root)
+		value = strings.ReplaceAll(value, "$ROOT", controller.Root)
+		return value
+	}
+	return renderer.RenderValue(value)
+}
+
+func newResourceRuntimeRenderer(controller *Controller, resourceName string) (*runtimeenv.Renderer, error) {
+	resolver, err := runtimestorage.NewResolver(runtimestorage.ResolverConfig{AppID: "vrooli"})
+	if err != nil {
+		return nil, err
+	}
+	paths, err := resolver.Resolve(runtimestorage.Options{ResourceID: resourceName})
+	if err != nil {
+		return nil, err
+	}
+	return runtimeenv.NewRenderer(controller.Root, controller.Home, resourceName, paths), nil
+}
+
+func managedLogCandidates(controller *Controller, manifest ResourceManifest) []string {
+	resolver, err := runtimestorage.NewResolver(runtimestorage.ResolverConfig{AppID: "vrooli"})
+	if err != nil {
+		return nil
+	}
+	paths, err := resolver.Resolve(runtimestorage.Options{ResourceID: manifest.Name})
+	if err != nil {
+		return nil
+	}
+	return runtimelogs.CandidatePaths(manifestpkg.ResourceManifest(manifest), paths)
 }
 
 func volumeSourceLooksLikeFile(volume ResourceVolume) bool {
@@ -693,6 +751,13 @@ func (d externalCLIDriver) Run(ctx context.Context, controller *Controller, item
 		_, err := fmt.Fprintf(stdout, "%s does not run as a managed background service\n", item.Name)
 		return err
 	case "logs":
+		if manifest.Capabilities.SupportsLogs {
+			candidates := managedLogCandidates(controller, manifest)
+			if len(candidates) > 0 {
+				_, err := fmt.Fprintf(stdout, "%s managed logs may be available under:\n- %s\n", item.Name, strings.Join(candidates, "\n- "))
+				return err
+			}
+		}
 		_, err := fmt.Fprintf(stdout, "%s does not expose managed logs through the resource control plane\n", item.Name)
 		return err
 	default:
@@ -806,6 +871,13 @@ func (d cloudAPIDriver) Run(ctx context.Context, controller *Controller, item Re
 		_, err := fmt.Fprintf(stdout, "%s is a hosted API and does not have a local stop step\n", item.Name)
 		return err
 	case "logs":
+		if manifest.Capabilities.SupportsLogs {
+			candidates := managedLogCandidates(controller, manifest)
+			if len(candidates) > 0 {
+				_, err := fmt.Fprintf(stdout, "%s managed logs may be available under:\n- %s\n", item.Name, strings.Join(candidates, "\n- "))
+				return err
+			}
+		}
 		_, err := fmt.Fprintf(stdout, "%s does not expose managed logs through the resource control plane\n", item.Name)
 		return err
 	default:
@@ -852,7 +924,7 @@ func runInstallCommand(ctx context.Context, controller *Controller, manifest Res
 		Name:   command[0],
 		Args:   command[1:],
 		Dir:    controller.Root,
-		Env:    resourceEnv(controller.Root, controller.Home),
+		Env:    resourceEnvForResource(controller.Root, controller.Home, manifest.Name),
 		Stdout: io.Discard,
 		Stderr: io.Discard,
 	})

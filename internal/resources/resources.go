@@ -14,6 +14,7 @@ import (
 	catalogpkg "github.com/vrooli/vrooli/internal/resources/catalog"
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	runtimestorage "github.com/vrooli/vrooli/internal/resources/runtime/storage"
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/vroolierr"
 )
@@ -235,7 +236,7 @@ func (c *Controller) commandForResource(name string, args ...string) (*exec.Cmd,
 			Name: path,
 			Args: args,
 			Dir:  c.Root,
-			Env:  resourceEnv(c.Root, c.Home),
+			Env:  resourceEnvForResource(c.Root, c.Home, name),
 		}), nil
 	}
 
@@ -255,6 +256,29 @@ func resourceEnv(root, home string) []string {
 	if strings.TrimSpace(home) != "" {
 		env = setEnvValue(env, "HOME", home)
 	}
+	return env
+}
+
+func resourceEnvForResource(root, home, resourceName string) []string {
+	env := resourceEnv(root, home)
+	resourceName = strings.TrimSpace(resourceName)
+	if resourceName == "" {
+		return env
+	}
+	resolver, err := runtimestorage.NewResolver(runtimestorage.ResolverConfig{AppID: "vrooli"})
+	if err != nil {
+		return env
+	}
+	paths, err := resolver.Resolve(runtimestorage.Options{ResourceID: resourceName})
+	if err != nil {
+		return env
+	}
+	env = setEnvValue(env, "RESOURCE_ROOT", filepath.Join(root, "resources", resourceName))
+	env = setEnvValue(env, "RESOURCE_CONFIG_DIR", paths.ConfigDir)
+	env = setEnvValue(env, "RESOURCE_DATA_DIR", paths.DataDir)
+	env = setEnvValue(env, "RESOURCE_CACHE_DIR", paths.CacheDir)
+	env = setEnvValue(env, "RESOURCE_LOGS_DIR", paths.LogsDir)
+	env = setEnvValue(env, "RESOURCE_STATE_DIR", paths.StateDir)
 	return env
 }
 

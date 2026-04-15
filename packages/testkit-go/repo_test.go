@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	repocontract "github.com/vrooli/repo-contract-go"
-	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
 func TestNewRepoFixtureUsesDefaultScenarioDir(t *testing.T) {
@@ -31,7 +30,7 @@ func TestWriteRepoContractSupportsScenarioDirOverride(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadDefault(%s): %v", fixture.Root, err)
 	}
-	if got := contract.Scenario().WellKnownPaths["service"]; got != repocontractmeta.ServiceManifestPathname {
+	if got := contract.Scenario().WellKnownPaths["service"]; got != serviceManifestPathname {
 		t.Fatalf("service path = %q", got)
 	}
 	if got := contract.SandboxScenarioScopePrefix(); got != "apps/" {
@@ -46,8 +45,8 @@ func TestRepoFixtureStubWritersCreateScenarioAndResourceFixtures(t *testing.T) {
 	fixture.WriteResourceStub(t, "redis")
 
 	for _, rel := range []string{
-		filepath.Join("apps", "alpha", repocontractmeta.ServiceManifestPathname),
-		filepath.Join("resources", "redis", repocontractmeta.ResourceManifestFilename),
+		filepath.Join("apps", "alpha", serviceManifestPathname),
+		filepath.Join("resources", "redis", resourceManifestPath),
 	} {
 		if _, err := os.Stat(filepath.Join(fixture.Root, filepath.FromSlash(rel))); err != nil {
 			t.Fatalf("expected %s: %v", rel, err)

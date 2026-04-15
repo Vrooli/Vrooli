@@ -130,7 +130,7 @@ litellm::status::collect_data() {
     # Check test results
     local test_status="not_run"
     local test_timestamp="N/A"
-    local test_file="${var_ROOT_DIR}/data/test-results/litellm-test.json"
+    local test_file="${LITELLM_STATE_DIR}/test-results/litellm-test.json"
     
     if [[ -f "$test_file" ]]; then
         test_status=$(jq -r '.status // "unknown"' "$test_file" 2>/dev/null || echo "unknown")

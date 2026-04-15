@@ -18,7 +18,7 @@ defaults::export_config() {
         readonly WHISPER_CONTAINER_NAME="whisper"
     fi
     if [[ -z "${WHISPER_DATA_DIR:-}" ]]; then
-        readonly WHISPER_DATA_DIR="${HOME}/.whisper"
+        readonly WHISPER_DATA_DIR="${RESOURCE_DATA_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/vrooli/resources/whisper}"
     fi
     if [[ -z "${WHISPER_MODELS_DIR:-}" ]]; then
         readonly WHISPER_MODELS_DIR="${WHISPER_DATA_DIR}/models"

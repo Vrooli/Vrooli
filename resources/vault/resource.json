@@ -47,15 +47,15 @@
     },
     "volumes": [
       {
-        "source": "${HOME}/.vault/data",
+        "source": "${RESOURCE_DATA_DIR}",
         "target": "/vault/data"
       },
       {
-        "source": "${HOME}/.vault/config",
+        "source": "${RESOURCE_CONFIG_DIR}",
         "target": "/vault/config"
       },
       {
-        "source": "${HOME}/.vault/logs",
+        "source": "${RESOURCE_LOGS_DIR}",
         "target": "/vault/logs"
       }
     ],

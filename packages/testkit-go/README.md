@@ -6,9 +6,8 @@ Its purpose is to centralize reusable Go test infrastructure so migrated project
 
 - repo fixtures
 - repo-contract fixtures
-- project/scenario/resource manifests
 - JSON/file/executable writers
-- focused edge-case fixture setup when a test cannot use the canonical manifest/runtime shape
+- focused malformed fixture setup
 
 ## Scope
 
@@ -28,11 +27,13 @@ Its purpose is to centralize reusable Go test infrastructure so migrated project
 - broad assertion helper wrappers
 - real integration orchestration that belongs in consumer packages
 - fake language-neutral abstractions that are not yet justified
+- tests that assert planning or inventory documents as if they were runtime contracts
 
 ## Design principles
 
 - Prefer typed builders for valid fixtures.
 - Keep malformed fixture helpers explicit and separate from valid builders.
+- Tests should validate code contracts, manifests, and runtime behavior, not the continued presence of migration-plan artifacts.
 - Preserve clear ownership boundaries:
   - `repo-contract-go` owns repo contract semantics.
   - `testkit-go` owns reusable Go test fixture construction.
@@ -41,21 +42,30 @@ Its purpose is to centralize reusable Go test infrastructure so migrated project
 ## Package structure
 
 - root package `packages/testkit-go`
-  - cycle-safe base helpers
+  - dependency-bottom base helpers
   - repo fixture construction
   - repo-contract setup
   - support docs
-  - file, executable, JSON, and relative path writers
-- `packages/testkit-go/vrooli`
-  - Vrooli-specific typed fixture helpers that depend on root-module `internal/*` packages
-  - project/scenario/resource manifest builders
-  - focused runtime fixture helpers for the remaining edge-case integration tests
+  - file, executable, JSON, malformed JSON, and relative path writers
+- `packages/testkit-go/scenariofixture`
+  - project and scenario manifest builders
+  - scenario template manifest builders
+  - scenario-specific malformed fixtures
+  - composite scenario fixture writers used by setup/lifecycle-style tests
+- `packages/testkit-go/resourcefixture`
+  - resource manifest builders
+  - resource template manifest builders
+  - resource runtime shims and registry fixtures
+- `packages/testkit-go/processfixture`
+  - scenario process-record fixtures
+- `packages/testkit-go/packagefixture`
+  - package-governance and Node package fixture builders
 
-This split is intentional. Lower-level packages and external sibling modules such as `packages/repo-contract-go` can depend on the root package without importing Vrooli domain types and creating test-time import cycles.
+This split replaces the former `packages/testkit-go/vrooli` umbrella package. Tests now import the narrow fixture package that matches the dependency they actually need.
 
 ## Basic usage
 
-Cycle-safe repo and file helpers live in the root package:
+Dependency-bottom repo and file helpers live in the root package:
 
 ```go
 fixture := testkitgo.NewRepoFixture(t)
@@ -65,22 +75,24 @@ testkitgo.WriteJSON(t, filepath.Join(fixture.Root, ".vrooli", "settings.json"), 
 })
 ```
 
-Vrooli-domain manifest fixtures live under `vrooli`:
+Scenario-domain manifest fixtures live under `scenariofixture`:
 
 ```go
-manifest := testkitvrooli.ScenarioServiceManifest(
+manifest := testscenario.ScenarioServiceManifest(
 	"alpha",
-	testkitvrooli.WithDisplayName("Alpha"),
-	testkitvrooli.WithPorts(map[string]scenario.Port{
+	testscenario.WithDisplayName("Alpha"),
+	testscenario.WithPorts(map[string]scenario.Port{
 		"api": {EnvVar: "API_PORT", Range: "18080-18090"},
 	}),
 )
-testkitvrooli.WriteScenarioService(t, fixture.Root, "alpha", manifest)
+testscenario.WriteScenarioService(t, fixture.Root, "alpha", manifest)
 ```
 
 ## Adoption rule
 
-When a Go test needs a valid Vrooli repo fixture or valid manifest fixture, the default path should be `testkit-go`, not local handwritten JSON or duplicated repo setup.
+When a Go test needs canonical repo setup, file/JSON writers, or malformed JSON fixtures, the default path should be the root `testkit-go` package, not local handwritten helpers.
+
+When a Go test needs richer fixtures above the root base layer, it should import the narrow package that owns that fixture family: `scenariofixture`, `resourcefixture`, `processfixture`, or `packagefixture`.
 
 ## Package Governance
 

@@ -36,6 +36,23 @@ setup::local_replace_paths() {
     ' "$go_mod" | grep '^\.\./' || true
 }
 
+setup::state_dir() {
+    printf '%s\n' "${APP_ROOT}/.vrooli/state/setup"
+}
+
+setup::marker_exists() {
+    local current_path="${1}"
+    local legacy_path="${2:-}"
+    [[ -f "$current_path" ]] && return 0
+    if [[ -n "$legacy_path" && -f "$legacy_path" ]]; then
+        mkdir -p "$(dirname "$current_path")"
+        cp "$legacy_path" "$current_path" 2>/dev/null || touch "$current_path"
+        rm -f "$legacy_path" 2>/dev/null || true
+        return 0
+    fi
+    return 1
+}
+
 setup::check_condition() {
     local app_root="${1}"
     local check="${2}"
@@ -160,13 +177,15 @@ setup::check_condition() {
             local populated resources
             populated=$(echo "$check" | jq -r '.populated // false' 2>/dev/null)
             resources=$(echo "$check" | jq -r '.resources[]?' 2>/dev/null || true)
+            local state_dir
+            state_dir=$(setup::state_dir)
             if [[ "$populated" == "true" || -z "$resources" ]]; then
-                [[ -f "${app_root}/data/.resources-populated" ]] && return 1 || return 0
+                setup::marker_exists "${state_dir}/.resources-populated" "${app_root}/data/.resources-populated" && return 1 || return 0
             fi
             local resource
             while IFS= read -r resource; do
                 [[ -z "$resource" ]] && continue
-                [[ -f "${app_root}/data/.${resource}-populated" ]] || return 0
+                setup::marker_exists "${state_dir}/.${resource}-populated" "${app_root}/data/.${resource}-populated" || return 0
             done <<< "$resources"
             return 1
             ;;
@@ -389,14 +408,15 @@ setup::get_steps_list() {
 # This helps the condition checks know setup has been run
 #######################################
 setup::mark_complete() {
-    local data_dir="${APP_ROOT}/data"
-    mkdir -p "$data_dir"
+    local state_dir
+    state_dir=$(setup::state_dir)
+    mkdir -p "$state_dir"
     
     # Create a general setup completion marker
     local setup_steps
     setup_steps=$(setup::get_steps_list)
     
-    cat > "$data_dir/.setup-complete" << EOF
+    cat > "$state_dir/.setup-complete" << EOF
 {
   "setup_version": "2.0.0",
   "completed_at": "$(date -Iseconds)",
@@ -407,7 +427,7 @@ EOF
     # Also create resource population marker if resources were populated
     # This is checked by the inline shell compatibility condition and native Go lifecycle checks
     if jq -e '.lifecycle.setup.steps[] | select(.name == "populate-resources" or .name == "add-data")' "${SERVICE_JSON:-${APP_ROOT}/.vrooli/service.json}" >/dev/null 2>&1; then
-        touch "$data_dir/.resources-populated"
+        touch "$state_dir/.resources-populated"
     fi
     
     log::debug "Setup marked as complete"

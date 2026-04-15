@@ -67,7 +67,7 @@ REQUIRED_TOOLS=("curl" "jq" "docker")
 SERVICE_METADATA=(
     "API Port: ${WHISPER_PORT:-9000}"
     "Container: ${WHISPER_CONTAINER_NAME:-whisper}"
-    "Models Dir: ${WHISPER_MODELS_DIR:-${HOME}/.whisper/models}"
+    "Models Dir: ${WHISPER_MODELS_DIR:-${RESOURCE_DATA_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/vrooli/resources/whisper}/models}"
 )
 
 # Test configuration

@@ -48,7 +48,7 @@ minio::docker::create_container() {
     docker_resource::validate_env_vars "MINIO_ROOT_USER" "MINIO_ROOT_PASSWORD" "MINIO_IMAGE" || return 1
     
     # Load performance configuration if exists
-    local perf_config="${HOME}/.minio/config/performance.conf"
+    local perf_config="${MINIO_CONFIG_DIR}/performance.conf"
     if [[ -f "$perf_config" ]]; then
         # shellcheck disable=SC1090
         source "$perf_config"
@@ -82,7 +82,7 @@ minio::docker::create_container() {
     
     # Add cache volume if caching is enabled
     if [[ -n "${MINIO_CACHE_SIZE:-}" ]]; then
-        volumes="${volumes} ${HOME}/.minio/cache:/cache"
+        volumes="${volumes} ${MINIO_CACHE_DIR}:/cache"
     fi
     
     # Health check command

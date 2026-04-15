@@ -1,371 +1,716 @@
-# testkit-go Implementation Plan
+# testkit-go Re-Layering Implementation Plan
 
-## Purpose
+**Status:** Phase 13 complete on April 14, 2026  
+**Primary scope:** `packages/testkit-go`, `packages/repo-contract-go`, and migrated Go test consumers in `internal/`, `packages/`, and `cmd/`  
+**Goal:** Re-layer shared Go test infrastructure so the base layer is dependency-bottom, fixture construction is more canonical, import-cycle pressure is reduced, and duplicated test setup continues to shrink without replacing it with wrappers, compatibility shims, or helper sprawl.
 
-Initialize `packages/testkit-go/` as the canonical Go test-support package for Vrooli and fully migrate the appropriate Go tests onto it so the resulting test architecture is clean, professional, low-drift, and maintainable.
+---
 
-This plan focuses on:
+## 0. Why this plan exists
 
-- shared Go test fixture construction
-- repo/layout/manifest consolidation
-- seam adoption where tests currently rely on real behavior unnecessarily
-- cleanup of duplicated helper layers
-- documentation and validation
+The first `testkit-go` rollout was useful and materially improved the repo:
 
-## Desired end state
+- shared repo fixture creation exists
+- shared file/JSON writers exist
+- typed manifest builders exist
+- many duplicated local helpers were removed
 
-- `packages/testkit-go/` is the default reusable Go test fixture package.
-- Root-module tests and package-module tests no longer duplicate valid repo-contract fixtures, valid service/resource manifests, or common file-writing helpers.
-- Test seams exist where logic-heavy tests currently rely on real subprocesses, shell behavior, or fragile filesystem setup.
-- Edge-case fixture surfaces are isolated so core tests stay on the canonical contracts.
-- Local duplicated test helpers are removed after migration.
-- `testkit-go` itself is documented and directly tested.
+That progress is real.
 
-## Architectural boundaries
+The remaining problem is architectural: the current helper graph is still only partially layered.
 
-### `testkit-go` owns
+Most importantly:
 
-- reusable Go test fixture construction
-- typed builders for valid repo/layout/manifest fixtures
-- explicit malformed fixture helpers for negative tests
-- common file/JSON/executable writers
-- focused fixture construction for edge-case runtime scenarios that still need direct setup
+- root `packages/testkit-go` had a dependency on `internal/repocontractmeta`
+- the former `packages/testkit-go/vrooli` umbrella package aggregated helpers that pulled in multiple unrelated `internal/*` domains
+- many same-package tests still rely on a broad helper package because the shared fixtures are not yet split by dependency boundary
 
-### `testkit-go` does not own
+If we keep growing the current structure, `testkit-go` becomes a junk drawer. This plan exists to prevent that.
 
-- production logic
-- domain behavior assertions for consumer packages
-- package-specific test doubles that are not reusable
-- broad assertion abstractions
-- end-to-end orchestration beyond verifying fixtures are consumable
+---
 
-### Ownership boundaries with adjacent packages
+## 1. Desired end state
 
-- `packages/repo-contract-go` owns repo contract APIs and semantics.
-- `packages/testkit-go` owns shared Go test fixture setup using those semantics.
-- Consumer packages own behavior and output assertions.
+At the end of this work:
 
-## Proposed structure
+- the base shared Go testkit layer is dependency-bottom and imports no `internal/*`
+- broad umbrella helper packages are gone
+- shared helper packages are narrow and ownership is obvious
+- exported-behavior tests can move to external `foo_test` packages more easily
+- valid fixtures are usually canonical and typed
+- malformed fixtures remain explicit and localized
+- duplicated package-local fixture helpers are reduced further
+- unit tests and smoke tests are easier to distinguish
 
-Initial target layout:
+The target state is intentionally boring. Test infrastructure should be obvious and stable, not clever.
+
+---
+
+## 2. Hard rules
+
+These rules are non-negotiable for the entire migration.
+
+1. Root shared testkit must not import `internal/*`.
+2. No new umbrella helper package is allowed.
+3. No compatibility facade or forwarding wrapper is allowed for deprecated helper paths.
+4. Shared helpers must encode contracts, not incidental current implementation details.
+5. Local helpers stay local unless there is clear multi-package reuse.
+6. Migration is not complete until replaced helper layers are deleted.
+7. Unit and smoke tests must be explicitly separated when the distinction matters.
+
+---
+
+## 3. Package map target
+
+This is the target direction for the shared test-support stack.
+
+### 3.1 Base dependency-bottom layer
+
+This layer must remain safe for any Go test consumer in the repo.
+
+Candidate structure:
 
 ```text
 packages/testkit-go/
-  README.md
-  PLAN.md
+  doc.go
   repo.go
-  repo_test.go
   files.go
-  files_test.go
-  vrooli/
-    manifests.go
-    manifests_test.go
-    runtime_helpers.go
-    runtime_helpers_test.go
+  package_boundary_test.go
+  adoption_hygiene_test.go
 ```
 
-This split is already justified by import-boundary constraints:
+Responsibilities:
 
-- the root `testkit-go` package must remain cycle-safe for repo/layout/file helpers
-- Vrooli-domain fixture helpers that depend on `internal/scenario`, `internal/resources/manifest`, or `internal/process` belong under `packages/testkit-go/vrooli`
+- repo fixture bootstrapping
+- contract cloning/writing
+- file, executable, JSON, and malformed JSON writers
+- path-safe helper utilities
+- hygiene tests that enforce layering rules
 
-That keeps:
+Forbidden in this layer:
 
-- `internal/scenario` tests free to import base repo/file helpers
-- `packages/repo-contract-go` free to import shared repo/file helpers
-- richer project/scenario/resource fixture helpers available to higher-level consumers without collapsing everything into one cyclic package
+- `internal/*` imports
+- runtime domain fixture builders
+- process/runtime-specific helpers
+- compatibility wrappers
 
-## Initial API direction
+### 3.2 Narrow domain fixture layers
 
-The first iteration should support:
+Any richer shared helper layer must be split by dependency shape rather than by generic “Vrooli helpers”.
 
-- `NewRepoFixture(t)`
-- repo fixture options for `scenarios` vs `apps`
-- support-doc and exceptions setup
-- cycle-safe base file/JSON/path helpers
-- typed project/scenario/resource manifest builders
-- valid JSON writers
-- explicit malformed JSON writers
-- relative file/executable writers
-- focused fixture writers for edge-case runtime artifacts still covered by tests
+Implemented structure:
 
-## Migration targets
+```text
+packages/testkit-go/scenariofixture/
+packages/testkit-go/processfixture/
+packages/testkit-go/resourcefixture/
+packages/testkit-go/packagefixture/
+```
 
-### First-wave adopters
+The exact split may change slightly during implementation, but the following rule may not:
 
-These are the highest-value consumers because they currently duplicate repo/layout/manifest test setup:
+- no replacement for `packages/testkit-go/vrooli` as one broad catch-all helper package
 
-- `cmd/vrooli/test_helpers_test.go`
-- `cmd/vrooli-api/main_test.go`
-- `internal/repocontractcheck/checks_test.go`
-- `internal/scenario/scenario_test.go`
-- `packages/cli-core/cliapp/scenario_app_test.go`
-- `packages/repo-contract-go/*_test.go`
+### 3.3 Package-local fixture helpers
 
-### Second-wave adopters
+These remain allowed when they are:
 
-These already use some shared helpers but still contain local duplication or fixture churn:
+- package-specific
+- unexported-internals-aware
+- not reusable enough to justify shared API surface
 
-- `internal/project/project_test.go`
-- `internal/api/app_test.go`
-- `internal/setup/setup_test.go`
-- `internal/resources/resources_test.go`
-- `internal/lifecycle/lifecycle_test.go`
+The goal is not to eliminate all local test helpers. The goal is to stop duplicating canonical reusable ones.
 
-## Seams to introduce or standardize
+---
 
-After fixture consolidation, prioritize seam cleanup in packages where tests still rely on real behavior:
+## 4. Helper admission rubric
 
-- command execution
-- process liveness
-- process environment reads
-- time/clock
-- health polling
-- filesystem probe boundaries where behavior is not the subject under test
+A helper may be promoted into shared infrastructure only if all of these are true:
 
-The goal is:
+- it is reused, or clearly about to be reused, across multiple packages
+- it represents a stable contract fixture
+- it improves readability at the call site
+- it does not hide behavior that matters to the test reader
+- it reduces net maintenance cost
 
-- deterministic unit tests for logic
-- explicit smoke tests for real platform/shell behavior
+A helper must remain local if any of these are true:
 
-## Documentation requirements
+- it is only used by one package
+- it depends on package-private details
+- it mainly renames or forwards to another helper
+- it represents a one-off scenario or quirky edge case
 
-Before the migration is complete:
+---
 
-- `packages/testkit-go/README.md` must describe scope and usage
-- `docs/CONTRIBUTING.md` should gain a short section directing Go tests to prefer `testkit-go`
-- package doc comments should explain each major area if multiple files/subpackages are introduced
+## 5. Unit vs smoke boundary policy
 
-## Validation requirements
+This migration is not only about fixture packaging. It is also about test quality.
 
-At the end of the migration, the following must be green:
+The repository should explicitly distinguish:
+
+- deterministic unit tests using seams and fixtures
+- smoke tests that intentionally exercise real OS/process/network/shell behavior
+
+Rules:
+
+- logic-heavy tests should prefer seams over real subprocesses or `/proc`
+- smoke tests should remain small and intentional
+- one real-behavior smoke test is better than many incidental real-behavior tests
+
+This policy matters most in:
+
+- `internal/lifecycle`
+- `internal/resources`
+- `internal/setup`
+- `internal/process`
+
+---
+
+## 6. Baseline metrics captured for this plan
+
+These counts were measured at Phase 0 start and must move in the right direction over time.
+
+- package-local test helper declarations matching fixture/setup-style patterns: `75`
+- imports of `packages/testkit-go/vrooli` from Go test files: `17`
+- raw or malformed JSON fixture hotspots matched by a broad search: `70`
+- same-package Go test files in `internal/`, `packages/`, and `cmd/`: `110`
+
+These are directional metrics, not perfect truth. They are good enough to judge whether the refactor is shrinking or expanding test debt.
+
+---
+
+## 7. Phase plan
+
+## Phase 0: Baseline and guardrails
+
+**Objective:** prevent the re-layering from creating more debt than it removes.
+
+### Tasks
+
+- [x] Replace the root `packages/testkit-go` dependency on `internal/repocontractmeta`
+- [x] Define the target package map and migration rules in a single authoritative plan
+- [x] Capture baseline metrics for helper duplication and broad-helper usage
+- [x] Add a hygiene test that forbids `internal/*` imports from root `packages/testkit-go` production files
+- [ ] Add a hygiene test that forbids deprecated helper import paths once consumer migration begins
+- [x] Record the initial consumer migration wave ordering in the execution notes below
+
+### Phase 0 deliverables
+
+- a strict implementation plan
+- an enforced root-package import boundary
+- baseline counts for the current test-helper landscape
+
+### Exit criteria
+
+- the base shared layer has a guardrail test protecting its dependency boundary
+- the implementation plan is authoritative enough to drive the remaining phases
+
+---
+
+## Phase 1: Dependency-bottom extraction
+
+**Objective:** make the base shared helper layer permanently safe.
+
+### Tasks
+
+- [x] audit every root `packages/testkit-go` symbol and classify it as:
+  - [x] base-layer-safe
+  - [x] domain-specific and must move
+  - [x] obsolete and should delete
+- [x] move any remaining contract/path constants needed by shared fixtures into a cycle-safe home
+- [x] ensure root `packages/testkit-go` is limited to repo/file/JSON/malformed/path-safe helpers
+- [x] verify no root-package production file imports `internal/*`
+
+### Exit criteria
+
+- root `packages/testkit-go` is cleanly below runtime code in the import graph
+
+### Phase 1 audit result
+
+The root exported surface has been explicitly audited and locked down with a hygiene test.
+
+**Base-layer-safe and retained**
+
+- `RepoFixture`, `RepoFixtureOption`, `NewRepoFixture`, `WithScenarioDir`
+- `ProjectRoot`, `WriteRepoContract`, `WriteScenarioStub`, `WriteResourceStub`
+- `WriteFile`, `WriteExecutable`, `WriteExecutableOnPath`
+- `WriteJSON`, `WriteJSONMode`, `WriteRawJSON`, `WriteMalformedJSON`
+- `ReadJSONFile`, `ReadJSONFileInto`
+- `WriteRelativeFile`, `WriteRelativeExecutable`, `WriteRelativeMalformedJSON`
+- `WaitForFile`, `ReserveFreePort`
+
+**Obsolete and deleted from the base layer**
+
+- `ContainsString`
+
+Reason: it was a generic slice utility, not canonical repo/file/JSON fixture support. Keeping helpers like that in the root package is how the base layer drifts back into a junk drawer.
+
+**Domain-specific and intentionally not promoted into the root layer**
+
+- everything currently under `packages/testkit-go/vrooli`
+
+Reason: those helpers depend on root-module `internal/*` packages and belong in the Phase 2 decomposition, not in the dependency-bottom base layer.
+
+---
+
+## Phase 2: Domain helper decomposition
+
+**Objective:** delete the umbrella helper model.
+
+### Tasks
+
+- [x] inventory `packages/testkit-go/vrooli`
+- [x] split helpers by dependency shape and ownership
+- [x] create narrow domain-specific fixture packages as justified
+- [x] migrate consumers off the umbrella package
+- [x] delete `packages/testkit-go/vrooli` after migration completes
+
+### Exit criteria
+
+- no broad shared helper package remains
+
+### Phase 2 decomposition result
+
+The former umbrella package was decomposed into:
+
+- `scenariofixture` for project/scenario manifests and scenario-oriented composite fixtures
+- `resourcefixture` for resource manifests, registry fixtures, CLI shims, and Docker/test runtime helpers
+- `processfixture` for process record fixtures
+- `packagefixture` for package-governance and Node package fixtures
+
+The old import path `github.com/vrooli/vrooli/packages/testkit-go/vrooli` is now forbidden by hygiene tests. No compatibility facade was kept.
+
+---
+
+## Phase 3: Consumer migration wave 1
+
+**Objective:** move the easiest and highest-value consumers first.
+
+### Priority targets
+
+- `packages/repo-contract-go`
+- `internal/scenario`
+- `internal/process`
+- `packages/api-core/scenario`
+- any exported-behavior suites that can move to external `foo_test`
+
+### Tasks
+
+- [x] replace valid handwritten repo/layout/manifest fixtures with canonical builders
+- [x] delete obsolete local helpers immediately after adoption
+- [x] convert easy same-package suites to external packages where appropriate
+
+### Exit criteria
+
+- high-value duplicated fixture logic drops measurably
+
+### Phase 3 migration result
+
+This phase concentrated on the highest-value low-risk adopters:
+
+- `packages/repo-contract-go` now derives its canonical valid contract fixture from the shared repo-contract fixture instead of restating the full contract document inline.
+- `packages/api-core/scenario` now uses an external `scenario_test` package and a contract-derived repo fixture helper instead of a handwritten repo tree.
+- `internal/scenario` kept its same-package tests, but repeated repo-contract fixture setup was collapsed behind a package-local helper and dead helper code was removed.
+- `internal/process` was intentionally left same-package because the suite still exercises unexported seam variables directly. That is a legitimate boundary exception, not unfinished migration.
+
+---
+
+## Phase 4: Consumer migration wave 2
+
+**Objective:** consolidate heavier packages without turning shared infrastructure into a dumping ground.
+
+### Priority targets
+
+- `internal/resources`
+- `internal/setup`
+- `internal/api`
+- `internal/project`
+- fixture portions of `internal/lifecycle`
+
+### Tasks
+
+- [x] centralize only the clearly reusable contract fixtures
+- [x] replace raw valid JSON fixtures with typed or canonical builders where justified
+- [x] keep one-off package-specific setup local
+
+### Exit criteria
+
+- these suites are using clearer shared fixtures with less raw valid JSON and fewer duplicated writers
+
+### Phase 4 migration result
+
+This phase focused on the heavier fixture-driven suites without turning the shared test layer into a dumping ground.
+
+- `resourcefixture` now owns a realistic external-CLI resource fixture helper that writes the manifest, the resource-local CLI script, and the binary on `PATH`.
+- `internal/api` and `internal/project` no longer carry misleading local helpers that accepted raw status JSON strings even though the real external-CLI driver boundary only depends on the manifest and the binary lookup.
+- `internal/setup` fixture construction was tightened so the canonical project fixture path reuses the shared project-service writer instead of duplicating valid setup manifest bootstrapping.
+- the fixture portion of `internal/lifecycle` dropped a redundant local port-registry wrapper and now calls the shared resource fixture helper directly.
+- `internal/setup` no longer carries a brittle repo-drift assertion on `INSTALL_DIR` assignment syntax; the canonical install-dir contract is now asserted independent of `=` vs `:=`.
+
+---
+
+## Phase 5: Seam and boundary cleanup
+
+**Objective:** make major test suites read as either unit tests or smoke tests, not both.
+
+### Tasks
+
+- [x] split mixed suites, especially `internal/lifecycle`, into unit-focused and smoke-focused coverage
+- [x] add seams where logic-heavy tests still rely on real runtime behavior unnecessarily
+- [x] keep a small explicit smoke slice for real Linux/process/network boundaries
+
+### Exit criteria
+
+- major mixed suites have clearer intent and less accidental integration behavior
+
+### Phase 5 cleanup result
+
+This phase focused on making the lifecycle suite read like two different classes of tests instead of one oversized mixed file.
+
+- `internal/lifecycle/lifecycle_smoke_test.go` now owns the Linux/process/listener smoke coverage:
+  - start/stop/restart lifecycle
+  - source-freshness rebuild detection against a real started scenario
+  - dependency startup behavior that intentionally exercises real lifecycle process management
+  - `listeningPIDs` live-listener smoke coverage
+- `internal/lifecycle/lifecycle_test.go` now reads as the seam-oriented unit suite for:
+  - setup condition evaluation
+  - health timeout/clock behavior
+  - orphan cleanup signaling
+  - runtime-port and strict-health interpretation
+  - custom-path loading and local replace parsing
+- dependency startup logic now uses the injected `readScenarioRecords` seam instead of a hard-wired package function, and the unit suite has an explicit test that proves the injected record reader is honored.
+
+The lifecycle package still has meaningful smoke coverage, but it is now intentional and isolated instead of mixed into the general unit suite.
+
+---
+
+## Phase 6: Deletion and hardening
+
+**Objective:** remove all transitional residue.
+
+### Tasks
+
+- [x] delete obsolete helper files and deprecated imports
+- [x] update docs to describe final usage rules
+- [x] rerun the baseline metrics and compare them against Phase 0
+
+### Exit criteria
+
+- no compatibility wrapper residue remains
+- duplication and broad-helper usage are down relative to baseline
+
+### Phase 6 hardening result
+
+This phase removed the remaining transitional residue and locked in the final usage rules.
+
+- the obsolete inventory-driven resource tests were deleted because they treated a migration-plan document as a runtime contract
+- the remaining migrated suites no longer import the deleted umbrella helper path
+- the README now explicitly states that planning and inventory documents are not valid test contracts
+
+### Phase 6 metric snapshot
+
+These counts are still directional, but they now clearly show net simplification in the migrated surface area.
+
+- package-local fixture/setup helper declarations across the main migrated consumers: `38` versus the Phase 0 broad baseline of `75`
+- imports of `packages/testkit-go/vrooli` from Go test files: `0` versus the Phase 0 baseline of `17`
+- broad raw/malformed JSON fixture hotspots (`WriteRawJSON`, `WriteMalformedJSON`, `{broken`): `13` versus the Phase 0 broad baseline of `70`
+- same-package Go test files across the main migrated consumers: `31`
+
+The same-package count is intentionally reported for the migrated consumer set rather than the entire repository because Phase 5 added explicit smoke/unit file splits, which can increase file count while still improving boundary quality.
+
+---
+
+## Phase 7: Template fixture canonicalization
+
+**Objective:** remove the remaining handwritten valid template-manifest JSON from shared test fixtures and the next highest-value consumer.
+
+### Tasks
+
+- [x] add typed scenario-template fixture builders in `scenariofixture`
+- [x] add typed resource-template fixture builders in `resourcefixture`
+- [x] replace handwritten valid template JSON in shared fixture helpers with canonical writers
+- [x] migrate `internal/resources/templates_test.go` off raw valid `template.json` strings
+- [x] remove the stale empty `packages/testkit-go/vrooli` directory so the deleted umbrella package is gone on disk, not just unused in imports
+
+### Exit criteria
+
+- shared testkit packages no longer hand-roll valid template-manifest JSON
+- the next template-heavy consumer is using typed shared builders instead of raw `template.json` strings
+
+### Phase 7 result
+
+This phase tightened the shared fixture layer itself before expanding adoption further.
+
+- `scenariofixture` now has typed scenario-template manifest builders, and `WriteScenarioTemplateFixture` writes canonical JSON through shared writers instead of embedding raw valid JSON strings.
+- `resourcefixture` now owns typed resource-template manifest builders for tests that need `templates/resources/<name>/template.json` fixtures without importing `internal/resources`.
+- `internal/resources/templates_test.go` now uses the shared typed resource-template manifest builder plus canonical base-layer file/JSON writers instead of handwritten `template.json` strings and a local `writeTestFile` helper.
+- the stale empty `packages/testkit-go/vrooli` directory was removed, so the deleted umbrella package no longer survives as filesystem residue.
+
+### Phase 7 metric snapshot
+
+These are scoped follow-up checks for the new phase rather than replacements for the Phase 6 broad baseline comparison.
+
+- handwritten raw valid `template.json` fixture strings in `packages/testkit-go` and `internal/resources/templates_test.go`: `0`
+- filesystem presence of `packages/testkit-go/vrooli`: removed
+
+---
+
+## Phase 8: Package-local resource helper consolidation
+
+**Objective:** finish the next internal cleanup pass by deleting pure forwarding helpers in `internal/resources` while keeping genuinely package-shared helpers local to that package.
+
+### Tasks
+
+- [x] replace single-file forwarding helpers in `internal/resources/resources_test.go` with direct calls to `testkit-go` and `resourcefixture`
+- [x] remove forwarding-only helpers from `internal/resources/schema_artifacts_test.go`
+- [x] collapse repeated package-wide resource manifest/config writers into `internal/resources/test_helpers_test.go`
+- [x] keep package-specific seam helpers local instead of promoting them into shared testkit packages
+
+### Exit criteria
+
+- one-file forwarding helpers are gone from the `internal/resources` suite
+- package-wide helpers that remain have clear ownership and are shared across the package, not hidden inside one test file
+
+### Phase 8 result
+
+This phase continued the adoption work without widening the shared API surface.
+
+- `internal/resources/resources_test.go` no longer carries one-file forwarding wrappers for project resource config, resource manifests, resource CLI scripts, or generic relative file writes; those call sites now use `testscenario`, `testresource`, and base `testkit-go` directly.
+- `internal/resources/schema_artifacts_test.go` now uses the shared scenario/resource fixture writers directly instead of local pass-through helpers.
+- package-wide helpers that are still useful across multiple `internal/resources` test files now live in `internal/resources/test_helpers_test.go`, which is the right boundary for helpers like `writeResourceConfig`, `writeResourceManifest`, and `writeEnvManifestFixture`.
+- package-specific seam helpers such as the PATH and `docker` shim installers remain local to `resources_test.go` because they encode package-global seam wiring, not generic fixture construction.
+
+### Phase 8 metric snapshot
+
+- pure forwarding helper functions removed from `internal/resources/resources_test.go` and `internal/resources/schema_artifacts_test.go`: `6`
+- remaining `internal/resources` package-local shared helpers are centralized in `internal/resources/test_helpers_test.go` instead of scattered across multiple files
+
+---
+
+## Phase 9: Package-local setup helper consolidation
+
+**Objective:** apply the same package-boundary cleanup to `internal/setup` by moving genuinely package-wide test fixtures into a package-local helper file and deleting stale or dead test drift.
+
+### Tasks
+
+- [x] move package-wide project/onboarding fixture builders out of `internal/setup/setup_test.go`
+- [x] centralize repeated setup-marker creation behind a package-local helper
+- [x] delete dead setup test helpers that no longer have any consumers
+- [x] repair stale repo-contract drift assertions encountered during validation
+
+### Exit criteria
+
+- `internal/setup/setup_test.go` no longer carries buried package-wide fixture builders
+- repeated setup marker writes are centralized
+- package validation passes against the current repo contract
+
+### Phase 9 result
+
+This phase kept the same architectural rule: canonical reusable setup fixtures should either come from shared testkit packages or from a small package-local helper file when they encode setup-package specifics.
+
+- `internal/setup/test_helpers_test.go` now owns the package-wide setup fixtures: project service fixture creation, onboarding fixture creation, and setup-marker writes.
+- `internal/setup/setup_test.go` lost the buried fixture block at the bottom of the file and now reads more directly as a behavior suite.
+- the dead helper `writeProjectFixtureWithManifest` was removed instead of being preserved “just in case”.
+- `TestRepoMaintainsCanonicalInstallContract` now asserts the current repo contract through the Makefile install target and canonical install directory, rather than a stale `install-cli` lifecycle step that no longer exists in `.vrooli/service.json`.
+
+### Phase 9 metric snapshot
+
+- package-wide helper functions moved out of `internal/setup/setup_test.go`: `4`
+- dead setup-specific helper functions deleted: `1`
+- repeated setup-marker writes replaced with a package-local helper: `4`
+
+---
+
+## Phase 10: API test helper simplification
+
+**Objective:** finish the next small consumer cleanup by removing the last one-off file-writing shim from `internal/api` and using the dependency-bottom shared writer directly.
+
+### Tasks
+
+- [x] replace local one-off file-writing helpers in `internal/api/app_test.go` with base `testkit-go` writers
+- [x] delete the unused helper stack once the call site is migrated
+- [x] confirm `internal/api` still has only API-specific local helpers after cleanup
+
+### Exit criteria
+
+- `internal/api` does not carry bespoke generic file-writing helpers
+- tests use the canonical dependency-bottom writer directly where that is sufficient
+
+### Phase 10 result
+
+This was a smaller phase than the `resources` and `setup` cleanup passes, but it follows the same rule: do not keep a local helper when the shared base-layer writer already expresses the test intent cleanly.
+
+- `internal/api/app_test.go` now writes log fixtures through `testkit-go.WriteFile` instead of a private `osWriteFileAll` helper stack.
+- the local helper trio `osMkdirAll`, `osWriteFileAll`, and `ensureParentDir` was deleted because it was only supporting one call site and duplicated base-layer behavior.
+- the remaining local helpers in `internal/api` are behavior-oriented response decoding helpers, not generic fixture-writing wrappers.
+
+### Phase 10 metric snapshot
+
+- one-off generic file-writing helper stacks removed from `internal/api`: `1`
+- remaining occurrences of `osMkdirAll`, `osWriteFileAll`, and `ensureParentDir` in `internal/api` tests: `0`
+
+---
+
+## Phase 11: Lifecycle helper boundary cleanup
+
+**Objective:** finish the remaining high-value consumer cleanup by moving shared lifecycle test fixtures out of the smoke file and using the dependency-bottom writer for generic lifecycle test files.
+
+### Tasks
+
+- [x] move shared lifecycle fixture builders into a package-local helper file used by both unit and smoke suites
+- [x] remove generic file-writing calls where `testkit-go` base writers already express the intent
+- [x] keep the explicit smoke/unit file split intact while reducing fixture duplication
+
+### Exit criteria
+
+- shared lifecycle fixtures no longer live inside `lifecycle_smoke_test.go`
+- smoke and unit suites share the same package-local lifecycle fixture boundary
+- lifecycle validation still passes with the smoke slice enabled
+
+### Phase 11 result
+
+This phase kept the lifecycle smoke/unit split intact while cleaning up the remaining fixture ownership drift.
+
+- `internal/lifecycle/test_helpers_test.go` now owns the package-local lifecycle fixtures shared by both suites: `writeLifecycleFixture`, `writeLifecycleFixtureManifest`, and `lifecycleFixtureManifest`.
+- `internal/lifecycle/lifecycle_smoke_test.go` no longer hides shared fixture builders at the bottom of the smoke file; it now focuses on explicit Linux/process smoke coverage.
+- `internal/lifecycle/lifecycle_test.go` and `internal/lifecycle/lifecycle_smoke_test.go` now route generic test file creation through `testkit-go` base writers where the tests were only creating ordinary files or executables.
+- the smoke and unit suites still remain explicitly separated; this phase reduced helper drift without collapsing the boundary back together.
+
+### Phase 11 metric snapshot
+
+- shared lifecycle fixture helpers moved out of the smoke file into a package-local helper file: `3`
+- remaining generic `os.WriteFile` calls in lifecycle tests after cleanup: `0`
+
+---
+
+## Phase 12: Cross-cutting validation and drift cleanup
+
+**Objective:** run the minimum migrated-surface validation set end-to-end, fix any test drift uncovered by the broader run, and confirm the cleaned fixture boundaries hold across package edges.
+
+### Tasks
+
+- [x] run the root-module migrated validation subset
+- [x] run `packages/repo-contract-go` from its own module root
+- [x] run `make validate-repo-contract`
+- [x] fix repo-contract check fixture drift discovered by the broader validation run
+- [x] align setup/lifecycle tests with the canonical `projectstate` marker paths
+- [x] delete obsolete tests that no longer correspond to any active validator rule
+
+### Exit criteria
+
+- the minimum migrated validation set passes end-to-end
+- repo-contract validation and its test fixture surface are aligned with the current live contract
+- setup/lifecycle tests assert the canonical typed state-marker paths rather than stale legacy locations
+
+### Phase 12 result
+
+This phase validated the migration as a coherent whole instead of as isolated package cleanups.
+
+- the root-module migrated subset passed across `internal/process`, `internal/scenario`, `internal/lifecycle`, `internal/setup`, `internal/resources`, `internal/api`, `internal/project`, `internal/repocontractcheck`, `cmd/vrooli`, `cmd/vrooli-api`, and `packages/testkit-go`.
+- `packages/repo-contract-go` passed from its own module root, which is the correct invocation model for that package.
+- `make validate-repo-contract` passed.
+- `internal/repocontractcheck` fixture repos now include the minimum `docs/repo-contract.md` surface needed to isolate adoption-rule failures from docs-alignment failures.
+- the obsolete AGENTS-based repocontractcheck test was removed because no current validator rule enforces AGENTS guidance.
+- `internal/setup` and `internal/lifecycle` tests now assert the canonical `projectstate` marker paths rather than relying on legacy `data/.setup-complete` and sibling marker paths.
+
+### Phase 12 validation snapshot
+
+Validated successfully with:
+
+```bash
+go test ./packages/testkit-go/... ./internal/process ./internal/scenario ./internal/lifecycle ./internal/setup ./internal/resources ./internal/api ./internal/project ./internal/repocontractcheck ./cmd/vrooli ./cmd/vrooli-api
+(cd packages/repo-contract-go && go test ./...)
+make validate-repo-contract
+```
+
+---
+
+## Phase 13: Remaining hotspot sweep and boundary confirmation
+
+**Objective:** finish the remaining low-risk hotspot cleanup while explicitly preserving local helpers where import cycles or module boundaries make sharing counterproductive.
+
+### Tasks
+
+- [x] remove remaining pure forwarding helpers in cycle-safe root-module suites
+- [x] confirm same-package internal tests do not import shared fixture packages that depend back on the package under test
+- [x] confirm separate-module tests do not gain unnecessary new dependencies on `packages/testkit-go`
+- [x] document the final rule for when helpers should remain package-local
+
+### Exit criteria
+
+- root-module hotspot suites use shared fixtures directly where the dependency graph allows it
+- cycle-prone same-package tests keep package-local helpers instead of forcing shared-fixture imports
+- separate-module tests stay self-contained unless a new cross-module dependency is clearly justified
+
+### Phase 13 result
+
+This phase closed the remaining cleanup pass by removing low-value wrappers where the architecture allowed it and by explicitly preserving local helpers where sharing would have made the codebase worse.
+
+- `internal/app/package/service_integration_test.go` now uses `packagefixture`, `resourcefixture`, and `scenariofixture` directly instead of routing through local forwarding helpers.
+- `internal/orchestrator/orchestrator_test.go` now uses shared scenario and process fixtures directly instead of keeping local wrapper functions for process records and scenario services.
+- `internal/packagegov/packagegov_test.go` was intentionally kept package-local for package-manifest fixtures because importing `packagefixture` from a same-package `internal/packagegov` test creates an import cycle through `internal/packagegov`.
+- `internal/scenario/scenario_test.go` likewise keeps its scenario service helper local because `scenariofixture` depends on `internal/scenario`, so same-package tests cannot import it without recreating the cycle this migration is trying to remove.
+- `packages/api-core/scenario/scenario_test.go` was intentionally left self-contained after verifying that importing `packages/testkit-go` there would introduce a new separate-module dependency and `go.sum` churn for minimal cleanup benefit.
+
+The important architectural result is that the migration now has a clearer stopping rule: shared fixtures should be used directly when they reduce duplication without worsening dependencies, but same-package cycle pressure and separate-module boundaries are valid reasons to keep helpers local.
+
+### Phase 13 validation snapshot
+
+Validated successfully with:
+
+```bash
+go test ./internal/app/package ./internal/packagegov ./internal/orchestrator ./internal/scenario
+(cd packages/api-core && go test ./scenario)
+```
+
+---
+
+## 14. Initial migration wave ordering
+
+This is the initial recommended execution order after Phase 0.
+
+1. root `packages/testkit-go` classification and cleanup
+2. `packages/repo-contract-go`
+3. `internal/process`
+4. `internal/scenario`
+5. `packages/api-core/scenario`
+6. `internal/resources`
+7. `internal/setup`
+8. `internal/api`
+9. `internal/lifecycle`
+
+This order is intentional:
+
+- it starts with the dependency-bottom layer
+- then fixes the packages most sensitive to import-cycle pressure
+- then moves into the larger fixture-heavy suites
+
+---
+
+## 15. Validation requirements
+
+At the end of each phase, run the relevant subset. The final minimum validation set is:
 
 ```bash
 go test ./packages/testkit-go/...
 go test ./packages/repo-contract-go/...
-go test ./packages/cli-core/...
-go test ./internal/scenario ./internal/process ./internal/lifecycle ./internal/setup ./internal/resources ./internal/api ./internal/project ./internal/repocontractcheck ./internal/repocontract ./cmd/vrooli ./cmd/vrooli-api
+go test ./internal/process ./internal/scenario ./internal/lifecycle ./internal/setup ./internal/resources ./internal/api ./internal/project ./internal/repocontractcheck
+go test ./cmd/vrooli ./cmd/vrooli-api
 make validate-repo-contract
 ```
 
-If additional package groups are touched during migration, expand the validation set accordingly.
+If additional consumers are migrated, expand the validation set accordingly.
 
-## Phased checklist
+---
 
-### Phase 0: Foundation
+## 16. Definition of done
 
-Goal: establish `testkit-go` as a documented package with a clear scope.
+This re-layering is done only when:
 
-- [x] Create `packages/testkit-go/`
-- [x] Add package README with scope, non-goals, and adoption intent
-- [x] Add this implementation plan with phased checklist
-- [x] Decide whether the first version is one package or a few focused subpackages
-- [x] Add package-level Go files so `go test ./packages/testkit-go/...` is meaningful
-
-Acceptance criteria:
-
-- `packages/testkit-go/` exists as a real package area, not just an empty directory
-- scope is documented locally
-
-### Phase 1: Repo fixture core
-
-Goal: create one canonical repo fixture API for Go tests.
-
-- [x] Implement canonical repo fixture creation
-- [x] Support fixture root and home temp dirs
-- [x] Support cloning the live repo contract into a temp fixture repo
-- [x] Support patching scenario dir between `scenarios` and `apps`
-- [x] Support writing repo-contract exceptions
-- [x] Support writing support docs
-- [x] Add direct tests for the repo fixture API
-
-Acceptance criteria:
-
-- consumers can build a valid temp repo fixture without hand-writing repo-contract JSON
-- `repo_test.go` validates layout creation and scenario-dir overrides
-
-### Phase 2: Typed manifest builders
-
-Goal: centralize valid project/scenario/resource manifest construction.
-
-- [x] Move and refine reusable manifest builders into `testkit-go`
-- [x] Support project manifests
-- [x] Support scenario manifests with lifecycle, ports, dependencies
-- [x] Support resource manifests with portability and runtime fields
-- [x] Add explicit malformed manifest helpers for negative tests
-- [x] Add unit tests for the manifest builders
-
-Acceptance criteria:
-
-- valid manifest fixtures no longer require raw JSON in migrated suites
-- negative tests use clearly-named malformed helpers when raw JSON is still required
-
-### Phase 3: Shared file and JSON helpers
-
-Goal: eliminate duplicated write helpers across migrated Go test suites.
-
-- [x] Add shared file writer
-- [x] Add shared executable writer
-- [x] Add shared JSON writer with stable formatting and trailing newline
-- [x] Add shared raw JSON writer
-- [x] Add shared malformed JSON writer helpers
-- [x] Add tests for newline, permissions, and malformed-output behavior
-
-Acceptance criteria:
-
-- common `write file/json/executable` helpers no longer need to be redefined per package
-
-### Phase 4: Edge-case fixture layer
-
-Goal: isolate non-canonical runtime fixtures still intentionally covered by tests.
-
-- [x] Add helpers for port registry fixtures
-- [x] Add helpers for resource CLI fixtures used by direct runtime tests
-- [ ] Add helpers for remaining defaults/config fragments where still needed
-- [ ] Add helpers for resource/scenario marker files used by migrated tests
-- [x] Add tests proving the edge-case helpers create the intended paths and contents
-
-Acceptance criteria:
-
-- non-canonical fixture setup becomes explicit and localized
-- migrated tests stop hand-rolling edge-case files repeatedly
-
-### Phase 5: First-wave adoption
-
-Goal: migrate the highest-value consumers onto `testkit-go`.
-
-- [x] Migrate `cmd/vrooli/test_helpers_test.go`
-- [x] Migrate `cmd/vrooli-api/main_test.go`
-- [x] Migrate `internal/repocontractcheck/checks_test.go`
-- [x] Migrate `internal/scenario/scenario_test.go`
-- [x] Migrate `packages/cli-core/cliapp/scenario_app_test.go`
-- [x] Migrate `packages/repo-contract-go/*_test.go`
-- [x] Remove duplicated local helpers made obsolete by the migration
-
-Acceptance criteria:
-
-- first-wave adopters build valid fixtures through `testkit-go`
-- duplicated repo fixture builders are removed from those areas
-
-### Phase 6: Second-wave adoption
-
-Goal: migrate the larger controller/lifecycle/resource suites.
-
-- [x] Migrate `internal/project/project_test.go`
-- [x] Migrate `internal/api/app_test.go`
-- [x] Migrate `internal/setup/setup_test.go`
-- [x] Migrate `internal/resources/resources_test.go`
-- [x] Migrate `internal/lifecycle/lifecycle_test.go`
-- [x] Remove now-obsolete local helper code
-
-Acceptance criteria:
-
-- second-wave adopters use typed shared fixtures for valid setup
-- remaining raw JSON or shell fixture text is limited to negative tests or explicit edge-case coverage
-
-### Phase 7: Seam hardening
-
-Goal: reduce reliance on real behavior for logic coverage.
-
-- [ ] Audit migrated packages for unnecessary use of real subprocesses or shell behavior
-- [ ] Add seams for command execution where needed
-- [ ] Add seams for time/clock where needed
-- [ ] Add seams for environment reads where needed
-- [ ] Add seams for process inspection where needed
-- [ ] Convert logic-heavy tests to seam-based unit tests
-- [ ] Keep a narrow smoke layer for real behavior
-
-Acceptance criteria:
-
-- logic coverage is mostly deterministic
-- smoke tests are explicit and small in number
-
-### Phase 8: File organization cleanup
-
-Goal: align the resulting tests with screaming architecture and clear boundaries.
-
-- [ ] Split oversized test files by domain behavior
-- [ ] Rename helpers/files whose names no longer match responsibilities
-- [ ] Keep edge-case runtime tests separate from core behavior tests
-- [ ] Keep owner-level exact-value tests near the owning package
-
-Acceptance criteria:
-
-- test file names reflect the behavior under test
-- suites are easier to navigate by responsibility
-
-### Phase 9: Documentation and adoption rules
-
-Goal: make the new testing architecture legible and durable.
-
-- [x] Expand `packages/testkit-go/README.md` with real usage examples
-- [x] Add Go testing guidance to `docs/CONTRIBUTING.md`
-- [ ] Document when raw JSON is acceptable
-- [ ] Document when helpers should stay package-local
-- [ ] Document the seam-vs-smoke testing strategy
-
-Acceptance criteria:
-
-- contributors can discover and correctly use `testkit-go` without reverse-engineering existing tests
-
-### Phase 10: Enforcement and final cleanup
-
-Goal: prevent regression into duplicated fixture infrastructure.
-
-- [x] Add a lightweight check or hygiene test for duplicated canonical fixture builders outside approved locations
-- [x] Remove dead code left behind in old helper files
-- [x] Delete temporary migration wrappers if any remain
-- [x] Run the full validation suite
-- [ ] Review the resulting diff for lingering duplicated helper patterns
-
-## Current status
-
-As of 2026-04-13:
-
-- Root-module and package-module migrated tests under `internal/`, `cmd/`, and `packages/` no longer import `internal/testfixture` or `internal/testutil` directly.
-- `packages/testkit-go` and `packages/testkit-go/vrooli` have direct tests and are the canonical path for shared Go fixture setup.
-- Explicit malformed JSON and malformed manifest helpers now exist for negative-path tests, with direct package coverage and initial consumer adoption.
-- The former `internal/testfixture` and `internal/testutil` wrappers have been removed from the repo.
-- Broad validation has passed for:
-  - `go test ./packages/testkit-go ./packages/testkit-go/vrooli`
-  - `go test ./internal/scenario ./internal/process ./internal/lifecycle ./internal/setup ./internal/resources ./internal/api ./internal/project ./internal/repocontractcheck ./internal/repocontract ./internal/orchestrator ./internal/hostreq ./internal/hostreqcheck ./cmd/vrooli-api`
-  - `(cd packages/repo-contract-go && go test ./...)`
-  - `(cd packages/cli-core && go test ./cliapp)`
-  - `make validate-repo-contract`
-- The highest-value remaining work is now seam hardening and retirement of the remaining edge-case helper assumptions, not additional first-party test adoption.
-
-Acceptance criteria:
-
-- no major duplicated fixture layers remain
-- validation is green
-- the testing architecture is consistent and documented
-
-## `testkit-go` should have its own tests
-
-This package must be directly tested.
-
-Minimum direct coverage:
-
-- repo fixture creation and scenario-dir overrides
-- manifest builder output
-- file/JSON/executable writer behavior
-- malformed fixture helper behavior
-- edge-case helper behavior
-
-Also add at least one higher-level integration-style package test proving a generated repo fixture is consumable by real code such as:
-
-- `repo-contract-go.LoadDefault`
-- `internal/scenario.Load`
-
-The point is to treat `testkit-go` as real shared infrastructure, not unvalidated helper code.
-
-## Definition of done
-
-This effort is complete when:
-
-- `packages/testkit-go/` is the canonical Go fixture package
-- adopted suites use it consistently
-- duplicated helper layers are removed
-- seam coverage is improved where real behavior was previously carrying logic tests
-- docs clearly define the boundary and usage
-- the full validation set passes
+- root shared test infrastructure is dependency-bottom
+- broad helper aggregation is gone
+- valid fixtures are mostly canonical and typed
+- malformed fixtures are explicit
+- obsolete helper paths are deleted, not wrapped
+- duplicated package-local fixture helpers are reduced
+- the resulting structure is simpler to explain than the one it replaced

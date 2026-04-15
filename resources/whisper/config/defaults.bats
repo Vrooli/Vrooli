@@ -7,6 +7,7 @@ setup() {
     export WHISPER_CUSTOM_PORT="9090"
     export GPU="yes"
     export WHISPER_DEFAULT_MODEL="medium"
+    export RESOURCE_DATA_DIR="${XDG_DATA_HOME:-${HOME}/.local/share}/vrooli/resources/whisper"
     
     # Mock resources function
     resources::get_default_port() {
@@ -26,9 +27,9 @@ setup() {
     [ "$WHISPER_PORT" = "9090" ]  # Custom port should override default
     [ "$WHISPER_BASE_URL" = "http://localhost:9090" ]
     [ "$WHISPER_CONTAINER_NAME" = "whisper" ]
-    [ "$WHISPER_DATA_DIR" = "${HOME}/.whisper" ]
-    [ "$WHISPER_MODELS_DIR" = "${HOME}/.whisper/models" ]
-    [ "$WHISPER_UPLOADS_DIR" = "${HOME}/.whisper/uploads" ]
+    [ "$WHISPER_DATA_DIR" = "${RESOURCE_DATA_DIR}" ]
+    [ "$WHISPER_MODELS_DIR" = "${RESOURCE_DATA_DIR}/models" ]
+    [ "$WHISPER_UPLOADS_DIR" = "${RESOURCE_DATA_DIR}/uploads" ]
 }
 
 @test "whisper::export_config sets docker image configuration" {

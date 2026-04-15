@@ -14,6 +14,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 )
 
@@ -34,6 +35,7 @@ var (
 var resourceTemplateRequiredFiles = []string{
 	"README.md",
 	"resource.json",
+	"cli/main.go",
 	"test/smoke.json",
 	"test/integration.json",
 	"docs/OPERATIONS.md",
@@ -601,6 +603,9 @@ func verifyGeneratedResourceManifest(destination string) error {
 	}
 	if err := manifestpkg.Validate(manifest); err != nil {
 		return fmt.Errorf("validate generated resource manifest: %w", err)
+	}
+	if issues := resourceenv.ValidateResourceManifest(destination, manifest); len(issues) > 0 {
+		return fmt.Errorf("validate generated resource manifest policy: %s", strings.Join(issues, "; "))
 	}
 	return nil
 }

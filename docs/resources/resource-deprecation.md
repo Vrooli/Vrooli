@@ -21,6 +21,7 @@ vrooli resource archive gc
 
 - use deprecation for stale active-surface resources that should leave supported use
 - use blueprint archival when you want to preserve future capability without keeping the implementation active
+- do not leave deprecated resources described as if they remain part of the normal supported runtime surface
 
 ## Related
 

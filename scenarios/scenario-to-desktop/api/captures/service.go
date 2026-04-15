@@ -15,14 +15,16 @@ type Service struct {
 	resolver *storage.Resolver
 	opts     storage.Options
 	store    Store
+	filesDir string
 }
 
 // NewService creates a new captures service.
-func NewService(resolver *storage.Resolver, opts storage.Options, store Store) *Service {
+func NewService(resolver *storage.Resolver, opts storage.Options, filesDir string, store Store) *Service {
 	return &Service{
 		resolver: resolver,
 		opts:     opts,
 		store:    store,
+		filesDir: filesDir,
 	}
 }
 
@@ -32,6 +34,12 @@ func (s *Service) Store() Store {
 }
 
 func (s *Service) capturesDir() (string, error) {
+	if s.filesDir != "" {
+		if err := os.MkdirAll(s.filesDir, storage.DefaultDirPerm); err != nil {
+			return "", err
+		}
+		return s.filesDir, nil
+	}
 	return storage.EnsureClassDir(s.resolver, s.opts, storage.ClassData, 0)
 }
 

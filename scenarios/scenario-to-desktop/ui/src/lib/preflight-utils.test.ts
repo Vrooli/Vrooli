@@ -408,7 +408,7 @@ describe("detectLikelyRootMismatch", () => {
   });
 
   it("returns false when path includes staging directory", () => {
-    expect(detectLikelyRootMismatch(false, 1, 0, "/path/scenario-to-desktop/data/staging/manifest.yaml")).toBe(false);
+    expect(detectLikelyRootMismatch(false, 1, 0, "/path/vrooli/scenario-to-desktop/staging/manifest.yaml")).toBe(false);
   });
 
   it("returns true when artifacts missing and path is not staging", () => {

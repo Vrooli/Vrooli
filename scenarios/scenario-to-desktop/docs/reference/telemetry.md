@@ -17,7 +17,7 @@ scenario-to-desktop telemetry collect \
   --scenario <name> \
   --file "<path-to>/deployment-telemetry.jsonl"
 ```
-- The API stores results at `.vrooli/deployment/telemetry/<scenario>.jsonl`.
+- The API stores results at `deployment/telemetry/<scenario>.jsonl` beneath the resolved scenario-to-desktop logs root.
 - The UI has an upload card under Scenario Inventory.
 
 ## Auto-manage Tier 1 (optional)

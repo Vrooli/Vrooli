@@ -199,7 +199,7 @@ minio::test::s3_api() {
 
 minio::test::bucket_operations() {
     # Load credentials
-    local creds_file="${HOME}/.minio/config/credentials"
+    local creds_file="${MINIO_CONFIG_DIR}/credentials"
     if [[ -f "$creds_file" ]]; then
         # shellcheck disable=SC1090
         source "$creds_file"
@@ -240,7 +240,7 @@ minio::test::bucket_operations() {
 
 minio::test::object_operations() {
     # Load credentials
-    local creds_file="${HOME}/.minio/config/credentials"
+    local creds_file="${MINIO_CONFIG_DIR}/credentials"
     if [[ -f "$creds_file" ]]; then
         # shellcheck disable=SC1090
         source "$creds_file"
@@ -306,7 +306,7 @@ minio::test::default_buckets() {
     local container_name="${MINIO_CONTAINER_NAME:-minio}"
     
     # Load credentials
-    local creds_file="${HOME}/.minio/config/credentials"
+    local creds_file="${MINIO_CONFIG_DIR}/credentials"
     if [[ -f "$creds_file" ]]; then
         # shellcheck disable=SC1090
         source "$creds_file"
@@ -361,7 +361,7 @@ minio::test::config_loading() {
 
 minio::test::credentials() {
     # Test credential file handling
-    local creds_file="${HOME}/.minio/config/credentials"
+    local creds_file="${MINIO_CONFIG_DIR}/credentials"
     
     # Check if credentials file would be created with proper permissions
     if [[ -f "$creds_file" ]]; then

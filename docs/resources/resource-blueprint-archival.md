@@ -21,6 +21,11 @@ vrooli resource archive gc-blueprints
 - blueprint archival preserves future candidate status
 - deprecation removes the resource from the active supported surface without treating it as an active future blueprint-backed path by default
 
+## Guidance
+
+- use blueprint archival when future capability preservation matters more than short-term recoverability of the current implementation
+- keep archived resources out of normal support claims and day-to-day resource guidance
+
 ## Related
 
 - [resource-blueprints.md](resource-blueprints.md)

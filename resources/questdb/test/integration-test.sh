@@ -33,7 +33,7 @@ SERVICE_METADATA=(
     "PostgreSQL Port: ${QUESTDB_PG_PORT:-8812}"
     "ILP Port: ${QUESTDB_ILP_PORT:-9011}"
     "Container: ${QUESTDB_CONTAINER_NAME:-questdb}"
-    "Data Dir: ${QUESTDB_DATA_DIR:-${HOME}/.questdb/data}"
+    "Data Dir: ${QUESTDB_DATA_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/vrooli/resources/questdb}"
 )
 
 #######################################

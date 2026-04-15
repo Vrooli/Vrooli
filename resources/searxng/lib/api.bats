@@ -45,7 +45,7 @@ setup() {
     export SEARXNG_TEST_MODE=yes
     export SEARXNG_PORT=9200
     export SEARXNG_BASE_URL='http://localhost:9200'
-    export SEARXNG_DATA_DIR="$HOME/.searxng"
+    export SEARXNG_DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/vrooli/resources/searxng"
     
     # Mock variables
     export MOCK_SEARXNG_HEALTHY=yes

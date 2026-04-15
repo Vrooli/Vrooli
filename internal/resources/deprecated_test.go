@@ -8,14 +8,14 @@ import (
 	"time"
 
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
-	testfixture "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
+	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
 )
 
 func TestDeprecateResourceArchivesAndRemovesActiveState(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	writeResourceConfig(t, root, "fixture", true)
-	testfixture.WriteResourceCLI(t, root, "fixture", "#!/usr/bin/env bash\nexit 0\n")
+	testresource.WriteResourceCLI(t, root, "fixture", "#!/usr/bin/env bash\nexit 0\n")
 
 	controller := NewController(root, home)
 	report, err := controller.DeprecateResource("fixture")
@@ -51,7 +51,7 @@ func TestRestoreDeprecatedResourceWritesQuarantinedCopy(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	writeResourceConfig(t, root, "fixture", true)
-	testfixture.WriteResourceCLI(t, root, "fixture", "#!/usr/bin/env bash\nexit 0\n")
+	testresource.WriteResourceCLI(t, root, "fixture", "#!/usr/bin/env bash\nexit 0\n")
 
 	controller := NewController(root, home)
 	if _, err := controller.DeprecateResource("fixture"); err != nil {
@@ -115,23 +115,23 @@ func TestDiscoverExcludesDeprecatedResources(t *testing.T) {
 	home := t.TempDir()
 	writeResourceConfig(t, root, "active", true)
 	writeResourceConfig(t, root, "deprecated-fixture", false)
-	writeResourceManifest(t, root, "active", testfixture.ResourceManifest(
+	writeResourceManifest(t, root, "active", testresource.ResourceManifest(
 		"active",
-		testfixture.WithResourceDisplayName("Active"),
-		testfixture.WithResourceDescription("Active manifest-backed resource"),
-		testfixture.WithResourceDriver("docker-service"),
-		testfixture.WithResourceTemplate("docker-service"),
-		testfixture.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+		testresource.WithResourceDisplayName("Active"),
+		testresource.WithResourceDescription("Active manifest-backed resource"),
+		testresource.WithResourceDriver("docker-service"),
+		testresource.WithResourceTemplate("docker-service"),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
 			Linux:   "supported",
 			MacOS:   "supported",
 			Windows: "partial",
 		}),
-		testfixture.WithResourceRuntime(manifestpkg.ResourceRuntime{
+		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
 			Image: "active:latest",
 		}),
 	))
-	testfixture.WriteResourceCLI(t, root, "active", "#!/usr/bin/env bash\nexit 0\n")
-	testfixture.WriteResourceCLI(t, root, "deprecated-fixture", "#!/usr/bin/env bash\nexit 0\n")
+	testresource.WriteResourceCLI(t, root, "active", "#!/usr/bin/env bash\nexit 0\n")
+	testresource.WriteResourceCLI(t, root, "deprecated-fixture", "#!/usr/bin/env bash\nexit 0\n")
 	writeDeprecatedMetadata(t, root, DeprecatedResource{
 		Name:                "deprecated-fixture",
 		DeprecatedAt:        "2026-04-11",

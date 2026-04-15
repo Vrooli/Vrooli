@@ -6,7 +6,7 @@ This guide explains how scenario-to-desktop deploys built artifacts to a Landing
 
 - [CODE: api/pipeline/stage_deploy.go] - deploy stage execution, validation, artifact upload loop
 - [CODE: api/deploy/lpbs_client.go] - LPBS discovery, proxy calls, presign/upload/commit/apply flow
-- [CODE: api/deploy/targets.go] - saved deploy target persistence (`.vrooli/deploy-targets.json`)
+- [CODE: api/deploy/targets.go] - saved deploy target persistence in the scenario-to-desktop config storage root
 - [CODE: cli/pipeline/commands.go] - `--deploy-target`, `--deploy-to`, `--remote-profile`, `--app-key`
 - [CODE: ui/src/components/sections/deploy/DeploySection.tsx] - UI status and deploy result rendering
 
@@ -34,7 +34,7 @@ scenario-to-desktop          Local LPBS              Remote LPBS (production)
 
 ## Deploy Targets
 
-Deploy targets are saved configurations stored in `.vrooli/deploy-targets.json`:
+Deploy targets are saved configurations stored in `deploy-targets.json` beneath the resolved scenario-to-desktop config storage root:
 
 ```json
 {

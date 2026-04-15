@@ -9,7 +9,7 @@ import (
 )
 
 func TestLoadLiveContract(t *testing.T) {
-	root := repoRoot(t)
+	root := fixtureRoot(t)
 	contract, err := LoadDefault(root)
 	if err != nil {
 		t.Fatalf("LoadDefault() error = %v", err)
@@ -86,7 +86,7 @@ func TestLoadDefaultValidatesRepoRoot(t *testing.T) {
 }
 
 func TestValidateContractDocHappyPath(t *testing.T) {
-	if err := validateContractDoc(validContractDoc()); err != nil {
+	if err := validateContractDoc(validContractDoc(t)); err != nil {
 		t.Fatalf("validateContractDoc() error = %v", err)
 	}
 }
@@ -152,7 +152,7 @@ func TestValidateContractDocRejectsSemanticDrift(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			doc := validContractDoc()
+			doc := validContractDoc(t)
 			tt.mutate(&doc)
 			err := validateContractDoc(doc)
 			assertErrorKind(t, err, tt.kind)
@@ -220,7 +220,7 @@ func TestValidateHelpers(t *testing.T) {
 }
 
 func TestDeepCopyContractDoc(t *testing.T) {
-	doc := validContractDoc()
+	doc := validContractDoc(t)
 	copy := deepCopyContractDoc(doc)
 
 	copy.Root.Markers.RequiredDirs[0] = "BROKEN"

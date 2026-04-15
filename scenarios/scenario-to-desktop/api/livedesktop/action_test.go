@@ -561,9 +561,11 @@ func newCapturesService(t *testing.T) *captures.Service {
 	opts := storage.Options{ScenarioID: "scenario-to-desktop-captures"}
 	metaPath, err := resolver.Path(opts, storage.ClassData, "captures_meta.json")
 	require.NoError(t, err)
+	filesDir, err := resolver.Path(opts, storage.ClassData, "captures")
+	require.NoError(t, err)
 	store, err := captures.NewFileStore(metaPath)
 	require.NoError(t, err)
-	return captures.NewService(resolver, opts, store)
+	return captures.NewService(resolver, opts, filesDir, store)
 }
 
 // screenshotCreatingBackend creates the screenshot file when CaptureScreenshot is called.

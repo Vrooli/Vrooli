@@ -1,18 +1,17 @@
 # Documentation Problems
 
-This file tracks project-level documentation debt that still needs follow-up after the first-pass rewrite.
+This file tracks the highest-value remaining documentation debt after the main project-level rewrite.
 
 ## Current Known Problems
 
-- Many `docs/` files still reflect shell-era, Python-era, or other transitional project-level workflows.
-- Some strategic docs are conceptually useful but operationally stale.
-- Several older docs describe commands or deployment surfaces that are no longer canonical.
-- Project-level docs and subsystem docs still overlap in ways that create duplication and drift.
-- Not all canonical project docs are yet organized under the new `concepts/`, `guides/`, and `reference/` taxonomy.
+- Some specialized leaf docs are still intentionally thin and may need deeper rewrites later.
+- The docs will drift again unless command surfaces and canonical pages are updated together.
+- Scenario-level and resource-level docs can still accumulate overlap with project-level canon if not curated.
+- Plan documents remain numerous and need discipline so they do not get mistaken for current truth.
 
-## Highest-Priority Second Pass
+## Highest-Value Remaining Follow-Up
 
-- continue curating `docs/scenarios/` and `docs/resources/` so they stay small, canonical, and cross-cutting
-- decide which compatibility wrappers can be removed after inbound links are updated
-- decide whether any remaining archive material should be deleted rather than preserved
+- continue curating specialized leaves under `docs/deployment/`, `docs/strategy/`, and other focused sections
 - keep `docs/manifest.json` aligned with the actual canonical tree
+- keep project-level command reference pages aligned with `go run ./cmd/vrooli ... --help`
+- keep scenario and resource system docs small, cross-cutting, and clearly distinct from owning subsystem docs

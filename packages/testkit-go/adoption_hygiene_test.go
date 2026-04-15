@@ -14,6 +14,7 @@ func TestMigratedCoreTestsDoNotImportLegacyWrappers(t *testing.T) {
 	forbidden := []string{
 		legacyImportPrefix + "fixture",
 		legacyImportPrefix + "util",
+		"github.com/vrooli/vrooli/packages/testkit-go/vrooli",
 	}
 	scanRoots := []string{
 		filepath.Join(root, "internal"),

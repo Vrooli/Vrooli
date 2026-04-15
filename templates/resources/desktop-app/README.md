@@ -10,3 +10,9 @@ This scaffold was generated from the `desktop-app` resource template on {{CURREN
 - Category: `{{RESOURCE_CATEGORY}}`
 - Driver: `desktop-app`
 - Portability tier: `{{RESOURCE_PORTABILITY_TIER}}`
+
+## Next Steps
+
+1. Keep config/cache/log state outside the repo through the resource storage/runtime layer.
+2. Extend `cli/main.go` only when the resource needs commands beyond the standard native lifecycle surface.
+3. Document supported platforms and unsupported behavior honestly.

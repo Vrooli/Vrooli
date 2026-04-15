@@ -295,6 +295,6 @@ export function computeStandardOutputPath(scenarioName: string): string {
  */
 export function computeStagingPreviewPath(scenarioName: string): string {
   return scenarioName
-    ? `scenarios/scenario-to-desktop/data/staging/${scenarioName}/<build-id>`
-    : "scenarios/scenario-to-desktop/data/staging/<scenario>/<build-id>";
+    ? `<cache-root>/vrooli/scenario-to-desktop/staging/${scenarioName}/<build-id>`
+    : "<cache-root>/vrooli/scenario-to-desktop/staging/<scenario>/<build-id>";
 }

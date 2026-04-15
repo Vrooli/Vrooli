@@ -30,6 +30,7 @@ vrooli resource info <name>
 vrooli resource status
 vrooli resource validate <name>
 vrooli resource logs <name>
+vrooli resource restart <name>
 ```
 
 ## Guidance
@@ -37,3 +38,10 @@ vrooli resource logs <name>
 - prefer consistency with the root CLI
 - avoid inventing special-case interfaces without strong reason
 - keep compatibility shims isolated and documented as transitional when they still exist
+- keep resource-specific wrappers subordinate to the canonical `vrooli resource ...` surface
+- keep resource-local entrypoints thin when shared control-plane packages can own the behavior
+
+## Related
+
+- [architecture.md](architecture.md)
+- [storage.md](storage.md)

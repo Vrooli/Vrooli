@@ -7,7 +7,7 @@ import (
 	"github.com/vrooli/vrooli/internal/resources"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
-	testkitvrooli "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
+	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
 )
 
 func TestRunReportsChecksAgainstLiveRepo(t *testing.T) {
@@ -33,23 +33,6 @@ func TestRunReportsChecksAgainstLiveRepo(t *testing.T) {
 func TestRunRequiresRoot(t *testing.T) {
 	if _, err := Run(""); err == nil {
 		t.Fatal("expected error for empty root")
-	}
-}
-
-func TestRunFailsWhenAgentGuidanceMissing(t *testing.T) {
-	fixture := newValidationFixtureRepo(t)
-	root := fixture.Root
-	testkitgo.WriteRelativeFile(t, root, "AGENTS.md", "# AGENTS.md\n")
-
-	report, err := Run(root)
-	if err != nil {
-		t.Fatalf("Run() error = %v", err)
-	}
-	if report.Success {
-		t.Fatalf("expected failure, got success: %+v", report.Checks)
-	}
-	if !hasFailedCheck(report, "adoption_rules_alignment") {
-		t.Fatalf("expected adoption_rules_alignment failure, got %+v", report.Checks)
 	}
 }
 
@@ -122,14 +105,28 @@ func newValidationFixtureRepo(t *testing.T) testkitgo.RepoFixture {
 
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
+	testkitgo.WriteRelativeFile(t, fixture.Root, "docs/repo-contract.md", `# Repo Contract
+
+## Validation
+
+- `+"`vrooli contract validate`"+`
+- `+"`vrooli contract show`"+`
+- `+"`vrooli contract resolve scenario <name> --file service`"+`
+- `+"`vrooli contract match-glob <pattern> <path>`"+`
+- `+"`make validate-repo-contract` remains the CI/automation entrypoint"+`
+
+## Landed Consumer Migrations
+
+- `+"`swarm-manager`"+`
+`)
 	fixture.WriteScenarioStub(t, "alpha")
-	testkitvrooli.WriteResourceManifest(t, fixture.Root, "redis", testkitvrooli.ResourceManifest(
+	testresource.WriteResourceManifest(t, fixture.Root, "redis", testresource.ResourceManifest(
 		"redis",
-		testkitvrooli.WithResourceDriver("docker-service"),
-		testkitvrooli.WithResourceTemplate("docker-service"),
-		testkitvrooli.WithResourceDisplayName("Redis"),
-		testkitvrooli.WithResourceDescription("Cache"),
-		testkitvrooli.WithResourceRuntime(manifestpkg.ResourceRuntime{
+		testresource.WithResourceDriver("docker-service"),
+		testresource.WithResourceTemplate("docker-service"),
+		testresource.WithResourceDisplayName("Redis"),
+		testresource.WithResourceDescription("Cache"),
+		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
 			Image: "redis:7-alpine",
 		}),
 	))

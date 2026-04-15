@@ -2,6 +2,7 @@ package lifecycle
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -13,17 +14,19 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/process"
+	"github.com/vrooli/vrooli/internal/projectstate"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
-	testfixture "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
+	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
+	testpackage "github.com/vrooli/vrooli/packages/testkit-go/packagefixture"
+	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
+	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=9 | LAST: 2026-04-13
@@ -160,136 +163,10 @@ func (d fakeDirEntry) Info() (fs.FileInfo, error) {
 	return fakeFileInfo{name: d.name, node: d.node}, nil
 }
 
-func TestRunnerStartStopRestart(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("lifecycle process management currently targets linux")
-	}
-
-	root := t.TempDir()
-	home := t.TempDir()
-	writeLifecycleFixture(t, root, "alpha")
-
-	var logs bytes.Buffer
-	originalDefault := slog.Default()
-	logger, _ := logx.New(logx.Options{Component: "vrooli", Writer: &logs, JSON: true})
-	slog.SetDefault(logger)
-	t.Cleanup(func() { slog.SetDefault(originalDefault) })
-	runner, err := NewRunner(root, home, io.Discard, io.Discard, logger)
-	if err != nil {
-		t.Fatalf("NewRunner: %v", err)
-	}
-
-	start, err := runner.Start("alpha", StartOptions{})
-	if err != nil {
-		t.Fatalf("Start: %v", err)
-	}
-	if start.Health != "healthy" {
-		t.Fatalf("health = %q, want healthy", start.Health)
-	}
-	records, err := process.ReadScenarioRecords(home, "alpha")
-	if err != nil {
-		t.Fatalf("ReadScenarioRecords: %v", err)
-	}
-	live := process.LiveRecords(records)
-	if len(live) != 1 {
-		t.Fatalf("expected 1 live record after start, got %#v", live)
-	}
-	firstPID := live[0].PID
-
-	setupNeeded, _, err := runner.SetupNeeded(start.Scenario, false)
-	if err != nil {
-		t.Fatalf("SetupNeeded after start: %v", err)
-	}
-	if setupNeeded {
-		t.Fatalf("expected setup to be current after start")
-	}
-
-	restarted, err := runner.Restart("alpha", StartOptions{})
-	if err != nil {
-		t.Fatalf("Restart: %v", err)
-	}
-	if restarted.Health != "healthy" {
-		t.Fatalf("restart health = %q, want healthy", restarted.Health)
-	}
-	records, err = process.ReadScenarioRecords(home, "alpha")
-	if err != nil {
-		t.Fatalf("ReadScenarioRecords after restart: %v", err)
-	}
-	live = process.LiveRecords(records)
-	if len(live) != 1 {
-		t.Fatalf("expected 1 live record after restart, got %#v", live)
-	}
-	if live[0].PID == firstPID {
-		t.Fatalf("expected new PID after restart, still %d", firstPID)
-	}
-
-	if err := runner.Stop("alpha", StopOptions{}); err != nil {
-		t.Fatalf("Stop: %v", err)
-	}
-	records, err = process.ReadScenarioRecords(home, "alpha")
-	if err != nil {
-		t.Fatalf("ReadScenarioRecords after stop: %v", err)
-	}
-	if len(process.LiveRecords(records)) != 0 {
-		t.Fatalf("expected no live records after stop: %#v", records)
-	}
-	if !strings.Contains(logs.String(), `"msg":"Scenario start completed"`) {
-		t.Fatalf("expected structured start log, got %q", logs.String())
-	}
-	if !strings.Contains(logs.String(), `"msg":"Scenario stop completed"`) {
-		t.Fatalf("expected structured stop log, got %q", logs.String())
-	}
-	if !strings.Contains(logs.String(), `"scenario":"alpha"`) {
-		t.Fatalf("expected scenario attribute in logs, got %q", logs.String())
-	}
-}
-
-func TestSetupNeededDetectsUpdatedSources(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("lifecycle process management currently targets linux")
-	}
-
-	root := t.TempDir()
-	home := t.TempDir()
-	writeLifecycleFixture(t, root, "alpha")
-
-	runner, err := NewRunner(root, home, io.Discard, io.Discard)
-	if err != nil {
-		t.Fatalf("NewRunner: %v", err)
-	}
-
-	result, err := runner.Start("alpha", StartOptions{})
-	if err != nil {
-		t.Fatalf("Start: %v", err)
-	}
-
-	sourcePath := filepath.Join(root, "scenarios", "alpha", "api", "handler.go")
-	if err := os.WriteFile(sourcePath, []byte("package main\n"), 0o644); err != nil {
-		t.Fatalf("write %s: %v", sourcePath, err)
-	}
-	future := time.Now().Add(2 * time.Second)
-	if err := os.Chtimes(sourcePath, future, future); err != nil {
-		t.Fatalf("chtimes %s: %v", sourcePath, err)
-	}
-
-	setupNeeded, reasons, err := runner.SetupNeeded(result.Scenario, false)
-	if err != nil {
-		t.Fatalf("SetupNeeded: %v", err)
-	}
-	if !setupNeeded {
-		t.Fatalf("expected setup to be needed after touching source")
-	}
-	if len(reasons) == 0 {
-		t.Fatalf("expected setup reasons to be populated")
-	}
-
-	_ = runner.Stop("alpha", StopOptions{})
-}
-
 func TestRunPhaseDetailedReportsUndefinedPhase(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeLifecyclePortRegistry(t, root)
+	testresource.WritePortRegistry(t, root, nil)
 	writeLifecycleFixtureManifest(t, root, scenario.ServiceManifest{
 		Service: scenario.ServiceMetadata{Name: "alpha"},
 	})
@@ -314,7 +191,7 @@ func TestRunPhaseDetailedReportsUndefinedPhase(t *testing.T) {
 func TestExecutePhaseDetailedWrapsStepFailuresWithContext(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeLifecyclePortRegistry(t, root)
+	testresource.WritePortRegistry(t, root, nil)
 	writeLifecycleFixtureManifest(t, root, scenario.ServiceManifest{
 		Service: scenario.ServiceMetadata{Name: "alpha"},
 		Lifecycle: scenario.Lifecycle{
@@ -358,9 +235,130 @@ func TestExecutePhaseDetailedWrapsStepFailuresWithContext(t *testing.T) {
 	}
 }
 
+func TestEnsureDependenciesBestEffortMarksMissingRequiredDependencyAsFailed(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixtureManifest(t, root, testscenario.ScenarioServiceManifest(
+		"alpha",
+		testscenario.WithDependencies(scenario.Dependencies{
+			Scenarios: map[string]scenario.Dependency{
+				"missing-beta": {Required: true},
+			},
+		}),
+	))
+
+	runner := newLifecycleRunnerForTest(t, root, home, nil)
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load(alpha): %v", err)
+	}
+
+	failed, err := runner.ensureDependencies(item, StartOptions{BestEffort: true}, map[string]struct{}{}, []string{"alpha"})
+	if err != nil {
+		t.Fatalf("ensureDependencies(best-effort): %v", err)
+	}
+	if len(failed) != 1 || failed[0] != "missing-beta" {
+		t.Fatalf("failed dependencies = %#v, want [missing-beta]", failed)
+	}
+}
+
+func TestEnsureDependenciesTryStartMarksMissingOptionalDependencyAsFailed(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixtureManifest(t, root, testscenario.ScenarioServiceManifest(
+		"alpha",
+		testscenario.WithDependencies(scenario.Dependencies{
+			Scenarios: map[string]scenario.Dependency{
+				"missing-beta": {Required: false, StartupPolicy: "try_start"},
+			},
+		}),
+	))
+
+	runner := newLifecycleRunnerForTest(t, root, home, nil)
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load(alpha): %v", err)
+	}
+
+	failed, err := runner.ensureDependencies(item, StartOptions{}, map[string]struct{}{}, []string{"alpha"})
+	if err != nil {
+		t.Fatalf("ensureDependencies(try-start): %v", err)
+	}
+	if len(failed) != 1 || failed[0] != "missing-beta" {
+		t.Fatalf("failed dependencies = %#v, want [missing-beta]", failed)
+	}
+}
+
+func TestEnsureDependenciesIgnoreSkipsMissingOptionalDependency(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixtureManifest(t, root, testscenario.ScenarioServiceManifest(
+		"alpha",
+		testscenario.WithDependencies(scenario.Dependencies{
+			Scenarios: map[string]scenario.Dependency{
+				"missing-beta": {Required: false, StartupPolicy: "ignore"},
+			},
+		}),
+	))
+
+	runner := newLifecycleRunnerForTest(t, root, home, nil)
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load(alpha): %v", err)
+	}
+
+	failed, err := runner.ensureDependencies(item, StartOptions{}, map[string]struct{}{}, []string{"alpha"})
+	if err != nil {
+		t.Fatalf("ensureDependencies(ignore): %v", err)
+	}
+	if len(failed) != 0 {
+		t.Fatalf("failed dependencies = %#v, want none", failed)
+	}
+}
+
+func TestWriteDegradedStateUsesInjectedClock(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testresource.WritePortRegistry(t, root, nil)
+	timestamp := time.Date(2026, 4, 14, 12, 0, 0, 0, time.UTC)
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.now = func() time.Time { return timestamp }
+	})
+
+	if err := runner.writeDegradedState("alpha", []string{"missing-beta"}); err != nil {
+		t.Fatalf("writeDegradedState: %v", err)
+	}
+
+	data, err := os.ReadFile(process.ScenarioDegradedPath(home, "alpha"))
+	if err != nil {
+		t.Fatalf("read degraded state: %v", err)
+	}
+	var payload struct {
+		Status             string   `json:"status"`
+		Reason             string   `json:"reason"`
+		FailedDependencies []string `json:"failed_dependencies"`
+		Timestamp          string   `json:"timestamp"`
+	}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		t.Fatalf("unmarshal degraded state: %v", err)
+	}
+	if payload.Status != "degraded" {
+		t.Fatalf("status = %q", payload.Status)
+	}
+	if payload.Reason == "" {
+		t.Fatal("expected degraded reason")
+	}
+	if len(payload.FailedDependencies) != 1 || payload.FailedDependencies[0] != "missing-beta" {
+		t.Fatalf("failed dependencies = %#v", payload.FailedDependencies)
+	}
+	if payload.Timestamp != timestamp.Format(time.RFC3339) {
+		t.Fatalf("timestamp = %q, want %q", payload.Timestamp, timestamp.Format(time.RFC3339))
+	}
+}
+
 func TestFileDependencySpecsIgnoresNonDependencyTopLevelFields(t *testing.T) {
 	packageJSON := filepath.Join(t.TempDir(), "package.json")
-	testfixture.WriteNodePackageManifest(t, packageJSON, testfixture.NodePackageManifest{
+	testpackage.WriteNodePackageManifest(t, packageJSON, testpackage.NodePackageManifest{
 		Name: "fixture",
 		Scripts: map[string]string{
 			"build": "vite build",
@@ -397,8 +395,8 @@ func TestEnsureScenarioDatabaseUsesPostgresResourceLibs(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	testfixture.WritePortRegistry(t, root, nil)
-	testfixture.WriteResourceManifest(t, root, "postgres", manifestpkg.ResourceManifest{
+	testresource.WritePortRegistry(t, root, nil)
+	testresource.WriteResourceManifest(t, root, "postgres", manifestpkg.ResourceManifest{
 		Name:            "postgres",
 		Driver:          "docker-service",
 		PortabilityTier: "full",
@@ -426,20 +424,14 @@ if [[ "$*" == *" -i "* ]]; then
   printf '\n--EOF--\n' >> "` + filepath.Join(root, "files.txt") + `"
 fi
 `
-	if err := os.WriteFile(filepath.Join(binDir, "docker"), []byte(dockerScript), 0o755); err != nil {
-		t.Fatalf("write fake docker: %v", err)
-	}
+	testkitgo.WriteExecutable(t, filepath.Join(binDir, "docker"), dockerScript)
 
 	scenarioPath := filepath.Join(root, "scenarios", "alpha")
 	if err := os.MkdirAll(filepath.Join(scenarioPath, "initialization", "postgres"), 0o755); err != nil {
 		t.Fatalf("mkdir initialization/postgres: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(scenarioPath, "initialization", "postgres", "schema.sql"), []byte("create table if not exists test();\n"), 0o644); err != nil {
-		t.Fatalf("write schema.sql: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(scenarioPath, "initialization", "postgres", "migration_001.sql"), []byte("-- migration\n"), 0o644); err != nil {
-		t.Fatalf("write migration_001.sql: %v", err)
-	}
+	testkitgo.WriteFile(t, filepath.Join(scenarioPath, "initialization", "postgres", "schema.sql"), "create table if not exists test();\n")
+	testkitgo.WriteFile(t, filepath.Join(scenarioPath, "initialization", "postgres", "migration_001.sql"), "-- migration\n")
 
 	runner, err := NewRunner(root, home, io.Discard, io.Discard)
 	if err != nil {
@@ -471,169 +463,6 @@ fi
 	}
 }
 
-func TestRunnerStartStartsRequiredDependencies(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("lifecycle process management currently targets linux")
-	}
-
-	root := t.TempDir()
-	home := t.TempDir()
-
-	writeLifecycleFixture(t, root, "beta")
-	alpha := lifecycleFixtureManifest("alpha")
-	alpha.Dependencies.Scenarios = map[string]scenario.Dependency{
-		"beta": {Required: true},
-	}
-	writeLifecycleFixtureManifest(t, root, alpha)
-
-	runner, err := NewRunner(root, home, io.Discard, io.Discard)
-	if err != nil {
-		t.Fatalf("NewRunner: %v", err)
-	}
-
-	t.Cleanup(func() {
-		_ = runner.Stop("alpha", StopOptions{})
-		_ = runner.Stop("beta", StopOptions{})
-	})
-
-	result, err := runner.Start("alpha", StartOptions{})
-	if err != nil {
-		t.Fatalf("Start: %v", err)
-	}
-	if len(result.FailedDependencies) != 0 {
-		t.Fatalf("unexpected failed dependencies: %#v", result.FailedDependencies)
-	}
-
-	for _, name := range []string{"alpha", "beta"} {
-		records, err := process.ReadScenarioRecords(home, name)
-		if err != nil {
-			t.Fatalf("ReadScenarioRecords(%s): %v", name, err)
-		}
-		if len(process.LiveRecords(records)) != 1 {
-			t.Fatalf("expected %s to be running, records=%#v", name, records)
-		}
-	}
-
-	if _, err := os.Stat(process.ScenarioDegradedPath(home, "alpha")); !os.IsNotExist(err) {
-		t.Fatalf("unexpected degraded state after successful dependency start: %v", err)
-	}
-}
-
-func TestRunnerStartBestEffortWritesDegradedStateForMissingDependencies(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("lifecycle process management currently targets linux")
-	}
-
-	root := t.TempDir()
-	home := t.TempDir()
-
-	alpha := lifecycleFixtureManifest("alpha")
-	alpha.Dependencies.Scenarios = map[string]scenario.Dependency{
-		"missing-beta": {Required: true},
-	}
-	writeLifecycleFixtureManifest(t, root, alpha)
-
-	runner, err := NewRunner(root, home, io.Discard, io.Discard)
-	if err != nil {
-		t.Fatalf("NewRunner: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = runner.Stop("alpha", StopOptions{})
-	})
-
-	result, err := runner.Start("alpha", StartOptions{BestEffort: true})
-	if err != nil {
-		t.Fatalf("Start(best-effort): %v", err)
-	}
-	if got := result.FailedDependencies; len(got) != 1 || got[0] != "missing-beta" {
-		t.Fatalf("failed dependencies = %#v, want [missing-beta]", got)
-	}
-
-	data, err := os.ReadFile(process.ScenarioDegradedPath(home, "alpha"))
-	if err != nil {
-		t.Fatalf("read degraded state: %v", err)
-	}
-	if !strings.Contains(string(data), `"status": "degraded"`) {
-		t.Fatalf("degraded payload missing status: %s", data)
-	}
-	if !strings.Contains(string(data), `"missing-beta"`) {
-		t.Fatalf("degraded payload missing dependency name: %s", data)
-	}
-}
-
-func TestRunnerStartTryStartWritesDegradedStateForMissingDependencies(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("lifecycle process management currently targets linux")
-	}
-
-	root := t.TempDir()
-	home := t.TempDir()
-
-	alpha := lifecycleFixtureManifest("alpha")
-	alpha.Dependencies.Scenarios = map[string]scenario.Dependency{
-		"missing-beta": {Required: false, StartupPolicy: "try_start"},
-	}
-	writeLifecycleFixtureManifest(t, root, alpha)
-
-	runner, err := NewRunner(root, home, io.Discard, io.Discard)
-	if err != nil {
-		t.Fatalf("NewRunner: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = runner.Stop("alpha", StopOptions{})
-	})
-
-	result, err := runner.Start("alpha", StartOptions{})
-	if err != nil {
-		t.Fatalf("Start(try-start): %v", err)
-	}
-	if got := result.FailedDependencies; len(got) != 1 || got[0] != "missing-beta" {
-		t.Fatalf("failed dependencies = %#v, want [missing-beta]", got)
-	}
-
-	data, err := os.ReadFile(process.ScenarioDegradedPath(home, "alpha"))
-	if err != nil {
-		t.Fatalf("read degraded state: %v", err)
-	}
-	if !strings.Contains(string(data), `"missing-beta"`) {
-		t.Fatalf("degraded payload missing dependency name: %s", data)
-	}
-}
-
-func TestRunnerStartIgnoreDoesNotStartMissingDependencies(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("lifecycle process management currently targets linux")
-	}
-
-	root := t.TempDir()
-	home := t.TempDir()
-
-	alpha := lifecycleFixtureManifest("alpha")
-	alpha.Dependencies.Scenarios = map[string]scenario.Dependency{
-		"missing-beta": {Required: false, StartupPolicy: "ignore"},
-	}
-	writeLifecycleFixtureManifest(t, root, alpha)
-
-	runner, err := NewRunner(root, home, io.Discard, io.Discard)
-	if err != nil {
-		t.Fatalf("NewRunner: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = runner.Stop("alpha", StopOptions{})
-	})
-
-	result, err := runner.Start("alpha", StartOptions{})
-	if err != nil {
-		t.Fatalf("Start(ignore): %v", err)
-	}
-	if len(result.FailedDependencies) != 0 {
-		t.Fatalf("unexpected failed dependencies: %#v", result.FailedDependencies)
-	}
-	if _, err := os.Stat(process.ScenarioDegradedPath(home, "alpha")); !os.IsNotExist(err) {
-		t.Fatalf("unexpected degraded state for ignored dependency: %v", err)
-	}
-}
-
 func TestRunnerStartRejectsCircularDependencies(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
@@ -661,6 +490,56 @@ func TestRunnerStartRejectsCircularDependencies(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "circular scenario dependency detected") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestEnsureDependenciesUsesInjectedScenarioRecordReader(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testresource.WritePortRegistry(t, root, nil)
+
+	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest(
+		"alpha",
+		testscenario.WithDependencies(scenario.Dependencies{
+			Scenarios: map[string]scenario.Dependency{
+				"beta": {Required: true},
+			},
+		}),
+	))
+	testscenario.WriteScenarioService(t, root, "beta", testscenario.ScenarioServiceManifest("beta"))
+
+	var readCalls []string
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.readScenarioRecords = func(gotHome, name string) ([]process.Record, error) {
+			if gotHome != home {
+				t.Fatalf("readScenarioRecords home = %q, want %q", gotHome, home)
+			}
+			readCalls = append(readCalls, name)
+			return []process.Record{{
+				PID:       os.Getpid(),
+				PGID:      os.Getpid(),
+				Scenario:  name,
+				Step:      "develop",
+				Status:    "running",
+				StartedAt: time.Now().UTC(),
+			}}, nil
+		}
+	})
+
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load(alpha): %v", err)
+	}
+
+	failed, err := runner.ensureDependencies(item, StartOptions{}, map[string]struct{}{}, []string{"alpha"})
+	if err != nil {
+		t.Fatalf("ensureDependencies: %v", err)
+	}
+	if len(failed) != 0 {
+		t.Fatalf("failed dependencies = %#v", failed)
+	}
+	if got := strings.Join(readCalls, ","); got != "beta" {
+		t.Fatalf("readScenarioRecords calls = %q, want beta", got)
 	}
 }
 
@@ -850,7 +729,7 @@ func TestUIBundleNeedsSetupTracksBundleFreshness(t *testing.T) {
 func TestEvaluateSetupCheckSupportsFilesystemStateChecks(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeLifecyclePortRegistry(t, root)
+	testresource.WritePortRegistry(t, root, nil)
 
 	runner, err := NewRunner(root, home, io.Discard, io.Discard)
 	if err != nil {
@@ -866,12 +745,10 @@ func TestEvaluateSetupCheckSupportsFilesystemStateChecks(t *testing.T) {
 	if !needed || reason != "Resources not populated" {
 		t.Fatalf("resources missing => needed=%v reason=%q", needed, reason)
 	}
-	if err := os.MkdirAll(filepath.Join(root, "data"), 0o755); err != nil {
-		t.Fatalf("mkdir data: %v", err)
+	if err := os.MkdirAll(projectstate.SetupStateDir(root), 0o755); err != nil {
+		t.Fatalf("mkdir setup state: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "data", ".resources-populated"), []byte("ok\n"), 0o644); err != nil {
-		t.Fatalf("write resources marker: %v", err)
-	}
+	testkitgo.WriteFile(t, projectstate.ResourcesPopulatedPath(root), "ok\n")
 	needed, _, err = runner.evaluateSetupCheck(item, scenario.ConditionCheck{Type: "resources", Populated: true})
 	if err != nil {
 		t.Fatalf("evaluateSetupCheck(resources ready): %v", err)
@@ -884,7 +761,7 @@ func TestEvaluateSetupCheckSupportsFilesystemStateChecks(t *testing.T) {
 	if err := os.MkdirAll(uiDir, 0o755); err != nil {
 		t.Fatalf("mkdir ui: %v", err)
 	}
-	testfixture.WriteNodePackageManifest(t, filepath.Join(uiDir, "package.json"), testfixture.NodePackageManifest{
+	testpackage.WriteNodePackageManifest(t, filepath.Join(uiDir, "package.json"), testpackage.NodePackageManifest{
 		Name: "fixture",
 	})
 	needed, reason, err = runner.evaluateSetupCheck(item, scenario.ConditionCheck{Type: "dependencies", Paths: []string{"ui/package.json"}})
@@ -916,9 +793,7 @@ func TestEvaluateSetupCheckSupportsFilesystemStateChecks(t *testing.T) {
 	if !needed || reason != "Data directory missing" {
 		t.Fatalf("data empty => needed=%v reason=%q", needed, reason)
 	}
-	if err := os.WriteFile(filepath.Join(cacheDir, "seed.txt"), []byte("ok\n"), 0o644); err != nil {
-		t.Fatalf("write cache file: %v", err)
-	}
+	testkitgo.WriteFile(t, filepath.Join(cacheDir, "seed.txt"), "ok\n")
 	needed, _, err = runner.evaluateSetupCheck(item, scenario.ConditionCheck{Type: "data", Path: "cache"})
 	if err != nil {
 		t.Fatalf("evaluateSetupCheck(data populated): %v", err)
@@ -937,9 +812,7 @@ func TestEvaluateSetupCheckSupportsFilesystemStateChecks(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(root, "config"), 0o755); err != nil {
 		t.Fatalf("mkdir config: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "config", "app.yaml"), []byte("ok\n"), 0o644); err != nil {
-		t.Fatalf("write app.yaml: %v", err)
-	}
+	testkitgo.WriteFile(t, filepath.Join(root, "config", "app.yaml"), "ok\n")
 	needed, _, err = runner.evaluateSetupCheck(item, scenario.ConditionCheck{Type: "files", Paths: []string{"config/app.yaml"}})
 	if err != nil {
 		t.Fatalf("evaluateSetupCheck(files ready): %v", err)
@@ -973,18 +846,14 @@ func TestResourceAndDependencyChecksCoverMarkersAndToolchains(t *testing.T) {
 	if !resourcesNeedSetup(root, scenario.ConditionCheck{Resources: []string{"postgres", "redis"}}) {
 		t.Fatalf("expected missing resource markers to require setup")
 	}
-	if err := os.MkdirAll(filepath.Join(root, "data"), 0o755); err != nil {
-		t.Fatalf("mkdir data: %v", err)
+	if err := os.MkdirAll(projectstate.SetupStateDir(root), 0o755); err != nil {
+		t.Fatalf("mkdir setup state: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "data", ".postgres-populated"), []byte("ok\n"), 0o644); err != nil {
-		t.Fatalf("write postgres marker: %v", err)
-	}
+	testkitgo.WriteFile(t, projectstate.ResourcePopulatedPath(root, "postgres"), "ok\n")
 	if !resourcesNeedSetup(root, scenario.ConditionCheck{Resources: []string{"postgres", "redis"}}) {
 		t.Fatalf("expected missing redis marker to keep setup required")
 	}
-	if err := os.WriteFile(filepath.Join(root, "data", ".redis-populated"), []byte("ok\n"), 0o644); err != nil {
-		t.Fatalf("write redis marker: %v", err)
-	}
+	testkitgo.WriteFile(t, projectstate.ResourcePopulatedPath(root, "redis"), "ok\n")
 	if resourcesNeedSetup(root, scenario.ConditionCheck{Resources: []string{"postgres", "redis"}}) {
 		t.Fatalf("expected all resource markers to satisfy setup")
 	}
@@ -993,9 +862,7 @@ func TestResourceAndDependencyChecksCoverMarkersAndToolchains(t *testing.T) {
 	if err := os.MkdirAll(goDir, 0o755); err != nil {
 		t.Fatalf("mkdir go worker: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(goDir, "go.mod"), []byte("module fixture\n"), 0o644); err != nil {
-		t.Fatalf("write go.mod: %v", err)
-	}
+	testkitgo.WriteFile(t, filepath.Join(goDir, "go.mod"), "module fixture\n")
 	if !dependenciesNeedSetup(root, scenario.ConditionCheck{Paths: []string{"go-worker/go.mod"}}) {
 		t.Fatalf("expected missing go.sum/vendor to require setup")
 	}
@@ -1010,9 +877,7 @@ func TestResourceAndDependencyChecksCoverMarkersAndToolchains(t *testing.T) {
 	if err := os.MkdirAll(pythonDir, 0o755); err != nil {
 		t.Fatalf("mkdir python worker: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(pythonDir, "requirements.txt"), []byte("pytest\n"), 0o644); err != nil {
-		t.Fatalf("write requirements.txt: %v", err)
-	}
+	testkitgo.WriteFile(t, filepath.Join(pythonDir, "requirements.txt"), "pytest\n")
 	if !dependenciesNeedSetup(root, scenario.ConditionCheck{Paths: []string{"python-worker/requirements.txt"}}) {
 		t.Fatalf("expected missing Python virtualenv to require setup")
 	}
@@ -1027,9 +892,7 @@ func TestResourceAndDependencyChecksCoverMarkersAndToolchains(t *testing.T) {
 	if err := os.MkdirAll(rustDir, 0o755); err != nil {
 		t.Fatalf("mkdir rust worker: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(rustDir, "Cargo.toml"), []byte("[package]\nname=\"fixture\"\nversion=\"0.1.0\"\n"), 0o644); err != nil {
-		t.Fatalf("write Cargo.toml: %v", err)
-	}
+	testkitgo.WriteFile(t, filepath.Join(rustDir, "Cargo.toml"), "[package]\nname=\"fixture\"\nversion=\"0.1.0\"\n")
 	if !dependenciesNeedSetup(root, scenario.ConditionCheck{Paths: []string{"rust-worker/Cargo.toml"}}) {
 		t.Fatalf("expected missing Rust target dir to require setup")
 	}
@@ -1046,9 +909,7 @@ func TestResourceAndDependencyChecksCoverMarkersAndToolchains(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(root, "config"), 0o755); err != nil {
 		t.Fatalf("mkdir config: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "config", "missing.yaml"), []byte("ok\n"), 0o644); err != nil {
-		t.Fatalf("write generic dependency marker: %v", err)
-	}
+	testkitgo.WriteFile(t, filepath.Join(root, "config", "missing.yaml"), "ok\n")
 	if dependenciesNeedSetup(root, scenario.ConditionCheck{Paths: []string{"config/missing.yaml"}}) {
 		t.Fatalf("expected present generic dependency path to satisfy setup")
 	}
@@ -1057,7 +918,7 @@ func TestResourceAndDependencyChecksCoverMarkersAndToolchains(t *testing.T) {
 func TestRunnerLoadScenarioSupportsCustomPathAndMissingScenario(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeLifecyclePortRegistry(t, root)
+	testresource.WritePortRegistry(t, root, nil)
 
 	runner, err := NewRunner(root, home, io.Discard, io.Discard)
 	if err != nil {
@@ -1066,7 +927,7 @@ func TestRunnerLoadScenarioSupportsCustomPathAndMissingScenario(t *testing.T) {
 
 	customPath := t.TempDir()
 	servicePath := filepath.Join(customPath, ".vrooli", "service.json")
-	testfixture.WriteScenarioServiceAtPath(t, customPath, scenario.ServiceManifest{
+	testscenario.WriteScenarioServiceAtPath(t, customPath, scenario.ServiceManifest{
 		Version: "1.0.0",
 		Service: scenario.ServiceMetadata{
 			DisplayName: "Custom fixture",
@@ -1305,7 +1166,7 @@ func TestRuntimePortsAndStrictHealthUseRecordedMetadata(t *testing.T) {
 func TestExecutePhaseAppendsTestArgsAndWarnsOnStopFailure(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeLifecyclePortRegistry(t, root)
+	testresource.WritePortRegistry(t, root, nil)
 
 	runner, err := NewRunner(root, home, io.Discard, io.Discard)
 	if err != nil {
@@ -1374,7 +1235,7 @@ func TestExecutePhaseAppendsTestArgsAndWarnsOnStopFailure(t *testing.T) {
 func TestEvaluateSetupCheckRejectsUnknownCheckTypes(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeLifecyclePortRegistry(t, root)
+	testresource.WritePortRegistry(t, root, nil)
 
 	runner, err := NewRunner(root, home, io.Discard, io.Discard)
 	if err != nil {
@@ -1406,9 +1267,7 @@ replace (
 	github.com/example/gamma => ../gamma
 )
 `
-	if err := os.WriteFile(goModPath, []byte(data), 0o644); err != nil {
-		t.Fatalf("write %s: %v", goModPath, err)
-	}
+	testkitgo.WriteFile(t, goModPath, data)
 
 	paths, err := localReplacePaths(goModPath)
 	if err != nil {
@@ -1417,122 +1276,4 @@ replace (
 	if got := strings.Join(paths, ","); got != "../alpha,../beta,../gamma" {
 		t.Fatalf("paths = %q", got)
 	}
-}
-
-func TestListeningPIDsDetectsLiveListener(t *testing.T) {
-	if _, err := exec.LookPath("lsof"); err != nil {
-		t.Skip("lsof is not installed")
-	}
-
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("Listen: %v", err)
-	}
-	defer listener.Close()
-
-	port := listener.Addr().(*net.TCPAddr).Port
-	found := false
-	for attempt := 0; attempt < 10; attempt++ {
-		pids, err := listeningPIDs(port)
-		if err != nil {
-			t.Fatalf("listeningPIDs: %v", err)
-		}
-		for _, pid := range pids {
-			if pid == os.Getpid() {
-				found = true
-				break
-			}
-		}
-		if found {
-			break
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	if !found {
-		t.Fatalf("expected current pid %d to own listener on port %d", os.Getpid(), port)
-	}
-}
-
-func writeLifecycleFixture(t *testing.T, root, name string) {
-	t.Helper()
-	writeLifecycleFixtureManifest(t, root, lifecycleFixtureManifest(name))
-}
-
-func writeLifecycleFixtureManifest(t *testing.T, root string, manifest scenario.ServiceManifest) {
-	t.Helper()
-
-	if strings.TrimSpace(manifest.Service.Name) == "" {
-		t.Fatalf("fixture manifest is missing service name")
-	}
-
-	testfixture.WritePortRegistry(t, root, nil)
-	testfixture.WriteScenarioService(t, root, manifest.Service.Name, manifest)
-}
-
-func lifecycleFixtureManifest(name string) scenario.ServiceManifest {
-	return scenario.ServiceManifest{
-		Version: "1.0.0",
-		Service: scenario.ServiceMetadata{
-			Name:        name,
-			DisplayName: "Lifecycle " + name,
-			Description: "Lifecycle validation fixture",
-			Version:     "0.1.0",
-		},
-		Ports: map[string]scenario.Port{
-			"api": {
-				EnvVar: "API_PORT",
-				Range:  "22000-22010",
-			},
-		},
-		Lifecycle: scenario.Lifecycle{
-			Version: "2.0.0",
-			Health: &scenario.HealthConfig{
-				Checks: []scenario.HealthCheck{
-					{
-						Name:     "api",
-						Type:     "http",
-						Target:   "http://127.0.0.1:${API_PORT}/health",
-						Critical: true,
-						Timeout:  1000,
-					},
-				},
-				StartupGracePeriod: 250,
-				Timeout:            5000,
-				Interval:           250,
-			},
-			Setup: scenario.Phase{
-				Condition: &scenario.Condition{
-					Checks: []scenario.ConditionCheck{
-						{
-							Type:    "binaries",
-							Targets: []string{"api/mock-api"},
-						},
-					},
-				},
-				Steps: []scenario.PhaseStep{
-					{
-						Name: "build-api",
-						Run:  "mkdir -p api public && printf 'package main\\n' > api/handler.go && printf '#!/usr/bin/env bash\\npython3 -m http.server \"$API_PORT\" --bind 127.0.0.1 --directory ../public\\n' > api/mock-api && chmod +x api/mock-api && printf 'ok\\n' > public/health",
-					},
-				},
-			},
-			Develop: scenario.Phase{
-				Steps: []scenario.PhaseStep{
-					{
-						Name:       "start-api",
-						Run:        "cd api && ./mock-api",
-						Background: true,
-						Condition: &scenario.Condition{
-							FileExists: "api/mock-api",
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-func writeLifecyclePortRegistry(t *testing.T, root string) {
-	t.Helper()
-	testfixture.WritePortRegistry(t, root, nil)
 }

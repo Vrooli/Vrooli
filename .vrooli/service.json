@@ -129,16 +129,6 @@
       "notes": "Native runtime applies managed Linux sysctl and systemd protections for remote sessions"
     }
   ],
-  "lifecycle": {
-    "setup": {
-      "steps": [
-        {
-          "name": "install-cli",
-          "run": "make install"
-        }
-      ]
-    }
-  },
   "dependencies": {
     "resources": {
       "browserless": {

@@ -28,6 +28,9 @@ _postgres_defaults_detect_project_root() {
 
 # Set project root for proper config paths
 POSTGRES_PROJECT_ROOT="$(_postgres_defaults_detect_project_root)"
+postgres_xdg_config_home="${XDG_CONFIG_HOME:-${HOME}/.config}"
+postgres_xdg_data_home="${XDG_DATA_HOME:-${HOME}/.local/share}"
+postgres_xdg_state_home="${XDG_STATE_HOME:-${HOME}/.local/state}"
 
 # Resource metadata - use guards to prevent "readonly variable" errors when sourced multiple times
 [[ -z "${POSTGRES_RESOURCE_NAME:-}" ]] && readonly POSTGRES_RESOURCE_NAME="postgres"
@@ -56,18 +59,23 @@ POSTGRES_PROJECT_ROOT="$(_postgres_defaults_detect_project_root)"
 [[ -z "${POSTGRES_HEALTH_CHECK_TIMEOUT:-}" ]] && readonly POSTGRES_HEALTH_CHECK_TIMEOUT=5
 [[ -z "${POSTGRES_HEALTH_CHECK_RETRIES:-}" ]] && readonly POSTGRES_HEALTH_CHECK_RETRIES=5
 
-# Backup configuration (using project root)
-[[ -z "${POSTGRES_BACKUP_DIR:-}" ]] && readonly POSTGRES_BACKUP_DIR="${POSTGRES_PROJECT_ROOT}/.vrooli/backups/postgres"
+# Canonical resource storage directories.
+# RESOURCE_* is injected by the Go control plane; XDG fallbacks keep standalone shell usage off repo-local paths.
+[[ -z "${POSTGRES_DATA_ROOT:-}" ]] && readonly POSTGRES_DATA_ROOT="${RESOURCE_DATA_DIR:-${postgres_xdg_data_home}/vrooli/resources/postgres}"
+[[ -z "${POSTGRES_STATE_ROOT:-}" ]] && readonly POSTGRES_STATE_ROOT="${RESOURCE_STATE_DIR:-${postgres_xdg_state_home}/vrooli/resources/postgres}"
+
+# Backup configuration
+[[ -z "${POSTGRES_BACKUP_DIR:-}" ]] && readonly POSTGRES_BACKUP_DIR="${POSTGRES_DATA_ROOT}/backups"
 [[ -z "${POSTGRES_BACKUP_RETENTION_DAYS:-}" ]] && readonly POSTGRES_BACKUP_RETENTION_DAYS=7
 
 # Template directory
 [[ -z "${POSTGRES_TEMPLATE_DIR:-}" ]] && readonly POSTGRES_TEMPLATE_DIR="${APP_ROOT}/resources/postgres/templates"
 
 # Instance data directory
-[[ -z "${POSTGRES_INSTANCES_DIR:-}" ]] && readonly POSTGRES_INSTANCES_DIR="${APP_ROOT}/resources/postgres/instances"
+[[ -z "${POSTGRES_INSTANCES_DIR:-}" ]] && readonly POSTGRES_INSTANCES_DIR="${POSTGRES_DATA_ROOT}/instances"
 
-# Configuration directory (using project root)
-[[ -z "${POSTGRES_CONFIG_DIR:-}" ]] && readonly POSTGRES_CONFIG_DIR="${POSTGRES_PROJECT_ROOT}/.vrooli/postgres"
+# Configuration directory
+[[ -z "${POSTGRES_CONFIG_DIR:-}" ]] && readonly POSTGRES_CONFIG_DIR="${RESOURCE_CONFIG_DIR:-${postgres_xdg_config_home}/vrooli/resources/postgres}"
 
 # Default PostgreSQL configuration
 [[ -z "${POSTGRES_DEFAULT_MAX_CONNECTIONS:-}" ]] && readonly POSTGRES_DEFAULT_MAX_CONNECTIONS=100

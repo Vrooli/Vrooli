@@ -155,7 +155,7 @@ docker exec minio mc rb --force local/old-bucket
 ### With AWS CLI (Optional - requires separate installation)
 ```bash
 # Load MinIO credentials
-source ~/.minio/config/credentials
+source "${MINIO_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/vrooli/resources/minio}/credentials"
 
 # Configure AWS CLI
 aws configure set aws_access_key_id "$MINIO_ROOT_USER"

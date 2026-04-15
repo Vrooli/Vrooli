@@ -17,7 +17,8 @@ import (
 	hostreqspec "github.com/vrooli/vrooli/internal/hostreqspec"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
-	testfixture "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
+	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
+	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=5 | LAST: 2026-04-13
@@ -185,17 +186,17 @@ func TestRunReturnsCategorizedErrors(t *testing.T) {
 func TestDiscoverMarksManifestNativeResources(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeResourceConfig(t, root, "fixture", true)
-	writeResourceManifestFixture(t, root, testfixture.ResourceManifest(
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
 		"fixture",
-		testfixture.WithResourceDriver("docker-service"),
-		testfixture.WithResourceTemplate("docker-service"),
-		testfixture.WithResourceDescription("Fixture resource"),
-		testfixture.WithResourceRuntime(manifestpkg.ResourceRuntime{
+		testresource.WithResourceDriver("docker-service"),
+		testresource.WithResourceTemplate("docker-service"),
+		testresource.WithResourceDescription("Fixture resource"),
+		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
 			Image:         "fixture:latest",
 			ContainerName: "vrooli-fixture",
 		}),
-		testfixture.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
 			Linux:   "supported",
 			MacOS:   "supported",
 			Windows: "partial",
@@ -220,8 +221,8 @@ func TestDiscoverMarksManifestNativeResources(t *testing.T) {
 func TestDiscoverHidesLegacyShellDirectoriesWithoutManifest(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeResourceConfig(t, root, "fixture", true)
-	writeResourceScript(t, root, "fixture", "#!/usr/bin/env bash\nexit 0\n")
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	testresource.WriteResourceCLI(t, root, "fixture", "#!/usr/bin/env bash\nexit 0\n")
 
 	items, err := NewController(root, home).Discover()
 	if err != nil {
@@ -235,7 +236,7 @@ func TestDiscoverHidesLegacyShellDirectoriesWithoutManifest(t *testing.T) {
 func TestDiscoverHidesConfigOnlyResourcesWithoutManifest(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeResourceConfig(t, root, "fixture", true)
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
 
 	items, err := NewController(root, home).Discover()
 	if err != nil {
@@ -249,17 +250,17 @@ func TestDiscoverHidesConfigOnlyResourcesWithoutManifest(t *testing.T) {
 func TestStatusForManifestNativeDockerResource(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeResourceConfig(t, root, "fixture", true)
-	writeResourceManifestFixture(t, root, testfixture.ResourceManifest(
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
 		"fixture",
-		testfixture.WithResourceDriver("docker-service"),
-		testfixture.WithResourceTemplate("docker-service"),
-		testfixture.WithResourceDescription("Fixture resource"),
-		testfixture.WithResourceRuntime(manifestpkg.ResourceRuntime{
+		testresource.WithResourceDriver("docker-service"),
+		testresource.WithResourceTemplate("docker-service"),
+		testresource.WithResourceDescription("Fixture resource"),
+		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
 			Image:         "fixture:latest",
 			ContainerName: "vrooli-fixture",
 		}),
-		testfixture.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
 			Linux:   "supported",
 			MacOS:   "supported",
 			Windows: "partial",
@@ -288,17 +289,17 @@ func TestStatusForManifestNativeDockerResource(t *testing.T) {
 func TestRunManifestNativeDockerLifecycle(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeResourceConfig(t, root, "fixture", true)
-	writeResourceManifestFixture(t, root, testfixture.ResourceManifest(
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
 		"fixture",
-		testfixture.WithResourceDriver("docker-service"),
-		testfixture.WithResourceTemplate("docker-service"),
-		testfixture.WithResourceDescription("Fixture resource"),
-		testfixture.WithResourceRuntime(manifestpkg.ResourceRuntime{
+		testresource.WithResourceDriver("docker-service"),
+		testresource.WithResourceTemplate("docker-service"),
+		testresource.WithResourceDescription("Fixture resource"),
+		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
 			Image:         "fixture:latest",
 			ContainerName: "vrooli-fixture",
 		}),
-		testfixture.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
 			Linux:   "supported",
 			MacOS:   "supported",
 			Windows: "partial",
@@ -341,20 +342,20 @@ func TestRunManifestNativeDockerLifecycle(t *testing.T) {
 func TestStatusForManifestNativeComposeResource(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeResourceConfig(t, root, "fixture", true)
-	writeResourceManifestFixture(t, root, testfixture.ResourceManifest(
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
 		"fixture",
-		testfixture.WithResourceDriver("compose-service"),
-		testfixture.WithResourceTemplate("compose-service"),
-		testfixture.WithResourceDescription("Fixture compose resource"),
-		testfixture.WithResourceComposeFile("compose.yaml"),
-		testfixture.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+		testresource.WithResourceDriver("compose-service"),
+		testresource.WithResourceTemplate("compose-service"),
+		testresource.WithResourceDescription("Fixture compose resource"),
+		testresource.WithResourceComposeFile("compose.yaml"),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
 			Linux:   "supported",
 			MacOS:   "supported",
 			Windows: "partial",
 		}),
 	))
-	writeResourceFileFixture(t, root, filepath.Join("resources", "fixture", "compose.yaml"), "services:\n  app:\n    image: fixture:latest\n")
+	testkitgo.WriteRelativeFile(t, root, filepath.Join("resources", "fixture", "compose.yaml"), "services:\n  app:\n    image: fixture:latest\n")
 	stateFile := writeFakeDocker(t)
 	if err := os.WriteFile(stateFile, []byte("running\n"), 0o644); err != nil {
 		t.Fatalf("write state: %v", err)
@@ -375,20 +376,20 @@ func TestStatusForManifestNativeComposeResource(t *testing.T) {
 func TestRunManifestNativeComposeLifecycle(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeResourceConfig(t, root, "fixture", true)
-	writeResourceManifestFixture(t, root, testfixture.ResourceManifest(
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
 		"fixture",
-		testfixture.WithResourceDriver("compose-service"),
-		testfixture.WithResourceTemplate("compose-service"),
-		testfixture.WithResourceDescription("Fixture compose resource"),
-		testfixture.WithResourceComposeFile("compose.yaml"),
-		testfixture.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+		testresource.WithResourceDriver("compose-service"),
+		testresource.WithResourceTemplate("compose-service"),
+		testresource.WithResourceDescription("Fixture compose resource"),
+		testresource.WithResourceComposeFile("compose.yaml"),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
 			Linux:   "supported",
 			MacOS:   "supported",
 			Windows: "partial",
 		}),
 	))
-	writeResourceFileFixture(t, root, filepath.Join("resources", "fixture", "compose.yaml"), "services:\n  app:\n    image: fixture:latest\n")
+	testkitgo.WriteRelativeFile(t, root, filepath.Join("resources", "fixture", "compose.yaml"), "services:\n  app:\n    image: fixture:latest\n")
 	stateFile := writeFakeDocker(t)
 
 	controller := NewController(root, home)
@@ -426,18 +427,18 @@ func TestRunManifestNativeComposeLifecycle(t *testing.T) {
 func TestStatusForManifestNativeUnsupportedPlatform(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeResourceConfig(t, root, "fixture", true)
-	writeResourceManifestFixture(t, root, testfixture.ResourceManifest(
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
 		"fixture",
-		testfixture.WithResourceDriver("docker-service"),
-		testfixture.WithResourceTemplate("docker-service"),
-		testfixture.WithResourceDescription("Fixture resource"),
-		testfixture.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+		testresource.WithResourceDriver("docker-service"),
+		testresource.WithResourceTemplate("docker-service"),
+		testresource.WithResourceDescription("Fixture resource"),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
 			Linux:   "unsupported",
 			MacOS:   "unsupported",
 			Windows: "unsupported",
 		}),
-		testfixture.WithResourceRuntime(manifestpkg.ResourceRuntime{
+		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
 			Image: "fixture:latest",
 		}),
 	))
@@ -454,21 +455,21 @@ func TestStatusForManifestNativeUnsupportedPlatform(t *testing.T) {
 func TestStatusForManifestNativeExternalCLIResource(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeResourceConfig(t, root, "fixture", true)
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
 	commandPath := writeExecutableOnPath(t, "fixture-cli", "#!/usr/bin/env bash\nif [[ \"$1\" == \"--version\" ]]; then\n  echo 'fixture-cli 1.0.0'\n  exit 0\nfi\nexit 0\n")
-	writeResourceManifestFixture(t, root, testfixture.ResourceManifest(
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
 		"fixture",
-		testfixture.WithResourceDriver("external-cli"),
-		testfixture.WithResourceTemplate("external-cli"),
-		testfixture.WithResourceDescription("Fixture external CLI resource"),
-		testfixture.WithResourceBinary("fixture-cli"),
-		testfixture.WithResourceVersionArgs("--version"),
-		testfixture.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+		testresource.WithResourceDriver("external-cli"),
+		testresource.WithResourceTemplate("external-cli"),
+		testresource.WithResourceDescription("Fixture external CLI resource"),
+		testresource.WithResourceBinary("fixture-cli"),
+		testresource.WithResourceVersionArgs("--version"),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
 			Linux:   "supported",
 			MacOS:   "supported",
 			Windows: "supported",
 		}),
-		testfixture.WithResourceHealthChecks(manifestpkg.ResourceHealthCheck{
+		testresource.WithResourceHealthChecks(manifestpkg.ResourceHealthCheck{
 			Type:    "command",
 			Command: []string{commandPath, "--version"},
 		}),
@@ -492,20 +493,20 @@ func TestStatusForManifestNativeExternalCLIResource(t *testing.T) {
 func TestRunManifestNativeExternalCLIInstallRejectsUnsupportedAction(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeResourceConfig(t, root, "fixture", true)
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
 	installMarker := filepath.Join(root, "install.marker")
-	writeResourceManifestFixture(t, root, testfixture.ResourceManifest(
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
 		"fixture",
-		testfixture.WithResourceDriver("external-cli"),
-		testfixture.WithResourceTemplate("external-cli"),
-		testfixture.WithResourceDescription("Fixture external CLI resource"),
-		testfixture.WithResourceBinary("fixture-cli"),
-		testfixture.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+		testresource.WithResourceDriver("external-cli"),
+		testresource.WithResourceTemplate("external-cli"),
+		testresource.WithResourceDescription("Fixture external CLI resource"),
+		testresource.WithResourceBinary("fixture-cli"),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
 			Linux:   "supported",
 			MacOS:   "supported",
 			Windows: "supported",
 		}),
-		testfixture.WithResourceInstall(manifestpkg.ResourceInstall{
+		testresource.WithResourceInstall(manifestpkg.ResourceInstall{
 			Platforms: map[string][]string{
 				"linux":   {"sh", "-c", "printf installed > " + shellQuote(installMarker)},
 				"macos":   {"sh", "-c", "printf installed > " + shellQuote(installMarker)},
@@ -530,25 +531,25 @@ func TestRunManifestNativeExternalCLIInstallRejectsUnsupportedAction(t *testing.
 func TestStatusForManifestNativeCloudAPIResource(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeResourceConfig(t, root, "fixture", true)
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
 	server := startHTTPServer(t, "127.0.0.1:"+strconv.Itoa(mustAllocatePort(t)), func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 	})
 	defer server.Shutdown(context.Background())
 
-	writeResourceManifestFixture(t, root, testfixture.ResourceManifest(
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
 		"fixture",
-		testfixture.WithResourceDriver("cloud-api"),
-		testfixture.WithResourceTemplate("cloud-api"),
-		testfixture.WithResourceDescription("Fixture cloud API resource"),
-		testfixture.WithResourceEndpoint("http://"+server.Addr+"/health"),
-		testfixture.WithResourceCredentialsEnv("FIXTURE_API_KEY"),
-		testfixture.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+		testresource.WithResourceDriver("cloud-api"),
+		testresource.WithResourceTemplate("cloud-api"),
+		testresource.WithResourceDescription("Fixture cloud API resource"),
+		testresource.WithResourceEndpoint("http://"+server.Addr+"/health"),
+		testresource.WithResourceCredentialsEnv("FIXTURE_API_KEY"),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
 			Linux:   "supported",
 			MacOS:   "supported",
 			Windows: "supported",
 		}),
-		testfixture.WithResourceHealthChecks(manifestpkg.ResourceHealthCheck{
+		testresource.WithResourceHealthChecks(manifestpkg.ResourceHealthCheck{
 			Type:           "http",
 			Target:         "http://" + server.Addr + "/health",
 			ExpectedStatus: []int{http.StatusUnauthorized},
@@ -571,15 +572,15 @@ func TestStatusForManifestNativeCloudAPIResource(t *testing.T) {
 func TestStatusForManifestNativeCloudAPIMissingCredentials(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeResourceConfig(t, root, "fixture", true)
-	writeResourceManifestFixture(t, root, testfixture.ResourceManifest(
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
 		"fixture",
-		testfixture.WithResourceDriver("cloud-api"),
-		testfixture.WithResourceTemplate("cloud-api"),
-		testfixture.WithResourceDescription("Fixture cloud API resource"),
-		testfixture.WithResourceEndpoint("https://api.example.com/health"),
-		testfixture.WithResourceCredentialsEnv("FIXTURE_API_KEY"),
-		testfixture.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+		testresource.WithResourceDriver("cloud-api"),
+		testresource.WithResourceTemplate("cloud-api"),
+		testresource.WithResourceDescription("Fixture cloud API resource"),
+		testresource.WithResourceEndpoint("https://api.example.com/health"),
+		testresource.WithResourceCredentialsEnv("FIXTURE_API_KEY"),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
 			Linux:   "supported",
 			MacOS:   "supported",
 			Windows: "supported",
@@ -682,14 +683,14 @@ func TestProjectPhase5ResourceManifestsValidate(t *testing.T) {
 func TestLoadResourceManifestParsesHostRequirements(t *testing.T) {
 	root := t.TempDir()
 	controller := NewController(root, t.TempDir())
-	writeResourceManifestFixture(t, root, testfixture.ResourceManifest(
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
 		"fixture",
-		testfixture.WithResourceDriver("external-cli"),
-		testfixture.WithResourceBinary("fixture"),
-		testfixture.WithResourceHostTools(
+		testresource.WithResourceDriver("external-cli"),
+		testresource.WithResourceBinary("fixture"),
+		testresource.WithResourceHostTools(
 			hostreqspec.Declaration{Name: "sqlite", Required: true, Reason: "resource sqlite", When: []string{"setup"}},
 		),
-		testfixture.WithResourceHostSafeguards(
+		testresource.WithResourceHostSafeguards(
 			hostreqspec.Declaration{Name: "remote_session_protection", Required: false, Reason: "resource safeguard", Platforms: []string{"linux"}},
 		),
 	))
@@ -709,11 +710,11 @@ func TestLoadResourceManifestParsesHostRequirements(t *testing.T) {
 func TestLoadResourceManifestRejectsDuplicateHostRequirements(t *testing.T) {
 	root := t.TempDir()
 	controller := NewController(root, t.TempDir())
-	writeResourceManifestFixture(t, root, testfixture.ResourceManifest(
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
 		"fixture",
-		testfixture.WithResourceDriver("external-cli"),
-		testfixture.WithResourceBinary("fixture"),
-		testfixture.WithResourceHostTools(
+		testresource.WithResourceDriver("external-cli"),
+		testresource.WithResourceBinary("fixture"),
+		testresource.WithResourceHostTools(
 			hostreqspec.Declaration{Name: "sqlite", Required: true, Reason: "one"},
 			hostreqspec.Declaration{Name: "sqlite", Required: false, Reason: "two"},
 		),
@@ -721,38 +722,6 @@ func TestLoadResourceManifestRejectsDuplicateHostRequirements(t *testing.T) {
 
 	if _, err := controller.loadResourceManifest(defaultResourceManifestPath(root, "fixture")); err == nil || !strings.Contains(err.Error(), `duplicate tool declaration "sqlite"`) {
 		t.Fatalf("loadResourceManifest error = %v", err)
-	}
-}
-
-func TestProjectPhase6KeepResourcesAreExplicitlyTyped(t *testing.T) {
-	root := projectRootForResourcesTest(t)
-	controller := NewController(root, t.TempDir())
-
-	items, err := controller.Discover()
-	if err != nil {
-		t.Fatalf("Discover: %v", err)
-	}
-
-	keepResources := phase0InventoryResourcesByState(t, root, "keep")
-	discovered := make(map[string]Resource, len(items))
-	for _, item := range items {
-		discovered[item.Name] = item
-	}
-
-	for _, name := range keepResources {
-		item, ok := discovered[name]
-		if !ok {
-			t.Fatalf("keep resource %q not discovered", name)
-		}
-		if item.ControlMode == "legacy-shell" {
-			t.Fatalf("keep resource %q is still hidden as legacy-shell", name)
-		}
-		if item.ControlMode != "manifest-native" {
-			t.Fatalf("%s ControlMode = %q, want manifest-native", name, item.ControlMode)
-		}
-		if item.ManifestPath == "" {
-			t.Fatalf("%s manifest-native resource missing manifest path", name)
-		}
 	}
 }
 
@@ -825,11 +794,11 @@ func TestProjectDockerResourceStatusesUseNativeManifests(t *testing.T) {
 	controller := NewController(root, home)
 	stateFile := writeFakeDocker(t)
 
-	writeResourceConfig(t, root, "postgres", true)
-	writeResourceConfig(t, root, "redis", true)
-	writeResourceConfig(t, root, "qdrant", true)
-	writeResourceConfig(t, root, "browserless", true)
-	writeResourceConfig(t, root, "vault", true)
+	testscenario.WriteProjectResourceConfig(t, root, "postgres", true)
+	testscenario.WriteProjectResourceConfig(t, root, "redis", true)
+	testscenario.WriteProjectResourceConfig(t, root, "qdrant", true)
+	testscenario.WriteProjectResourceConfig(t, root, "browserless", true)
+	testscenario.WriteProjectResourceConfig(t, root, "vault", true)
 
 	postgresPort := mustAllocatePort(t)
 	redisPort := mustAllocatePort(t)
@@ -896,25 +865,25 @@ func TestProjectDockerResourceStatusesUseNativeManifests(t *testing.T) {
 func TestManifestNativeDockerStandardCommandsDoNotFallbackToLegacyCLI(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeResourceConfig(t, root, "fixture", true)
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
 	legacyMarker := filepath.Join(root, "legacy-docker.marker")
-	writeResourceManifestFixture(t, root, testfixture.ResourceManifest(
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
 		"fixture",
-		testfixture.WithResourceDisplayName("Fixture Docker"),
-		testfixture.WithResourceDriver("docker-service"),
-		testfixture.WithResourceTemplate("docker-service"),
-		testfixture.WithResourceDescription("Fixture docker resource"),
-		testfixture.WithResourceRuntime(manifestpkg.ResourceRuntime{
+		testresource.WithResourceDisplayName("Fixture Docker"),
+		testresource.WithResourceDriver("docker-service"),
+		testresource.WithResourceTemplate("docker-service"),
+		testresource.WithResourceDescription("Fixture docker resource"),
+		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
 			Image:         "fixture:latest",
 			ContainerName: "vrooli-fixture",
 		}),
-		testfixture.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
 			Linux:   "supported",
 			MacOS:   "supported",
 			Windows: "partial",
 		}),
 	))
-	writeResourceScript(t, root, "fixture", "#!/usr/bin/env bash\nset -e\nprintf legacy > "+shellQuote(legacyMarker)+"\n")
+	testresource.WriteResourceCLI(t, root, "fixture", "#!/usr/bin/env bash\nset -e\nprintf legacy > "+shellQuote(legacyMarker)+"\n")
 	writeFakeDocker(t)
 
 	controller := NewController(root, home)
@@ -931,22 +900,22 @@ func TestManifestNativeDockerStandardCommandsDoNotFallbackToLegacyCLI(t *testing
 func TestManifestNativeExternalCLIStandardCommandsDoNotFallbackToLegacyCLI(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeResourceConfig(t, root, "fixture", true)
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
 	legacyMarker := filepath.Join(root, "legacy-external.marker")
 	installMarker := filepath.Join(root, "install-external.marker")
-	writeResourceManifestFixture(t, root, testfixture.ResourceManifest(
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
 		"fixture",
-		testfixture.WithResourceDisplayName("Fixture CLI"),
-		testfixture.WithResourceDriver("external-cli"),
-		testfixture.WithResourceTemplate("external-cli"),
-		testfixture.WithResourceDescription("Fixture external CLI resource"),
-		testfixture.WithResourceBinary("fixture-cli"),
-		testfixture.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+		testresource.WithResourceDisplayName("Fixture CLI"),
+		testresource.WithResourceDriver("external-cli"),
+		testresource.WithResourceTemplate("external-cli"),
+		testresource.WithResourceDescription("Fixture external CLI resource"),
+		testresource.WithResourceBinary("fixture-cli"),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
 			Linux:   "supported",
 			MacOS:   "supported",
 			Windows: "supported",
 		}),
-		testfixture.WithResourceInstall(manifestpkg.ResourceInstall{
+		testresource.WithResourceInstall(manifestpkg.ResourceInstall{
 			Platforms: map[string][]string{
 				"linux":   {"sh", "-c", "printf installed > " + shellQuote(installMarker)},
 				"macos":   {"sh", "-c", "printf installed > " + shellQuote(installMarker)},
@@ -954,7 +923,7 @@ func TestManifestNativeExternalCLIStandardCommandsDoNotFallbackToLegacyCLI(t *te
 			},
 		}),
 	))
-	writeResourceScript(t, root, "fixture", "#!/usr/bin/env bash\nset -e\nprintf legacy > "+shellQuote(legacyMarker)+"\n")
+	testresource.WriteResourceCLI(t, root, "fixture", "#!/usr/bin/env bash\nset -e\nprintf legacy > "+shellQuote(legacyMarker)+"\n")
 	writeExecutableOnPath(t, "fixture-cli", "#!/usr/bin/env bash\necho 'fixture-cli 1.0.0'\n")
 
 	controller := NewController(root, home)
@@ -974,7 +943,7 @@ func TestManifestNativeExternalCLIStandardCommandsDoNotFallbackToLegacyCLI(t *te
 func TestManifestNativeCloudAPIStandardCommandsDoNotFallbackToLegacyCLI(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeResourceConfig(t, root, "fixture", true)
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
 	legacyMarker := filepath.Join(root, "legacy-cloud.marker")
 	installMarker := filepath.Join(root, "install-cloud.marker")
 	server := startHTTPServer(t, "127.0.0.1:"+strconv.Itoa(mustAllocatePort(t)), func(w http.ResponseWriter, r *http.Request) {
@@ -982,34 +951,34 @@ func TestManifestNativeCloudAPIStandardCommandsDoNotFallbackToLegacyCLI(t *testi
 	})
 	defer server.Shutdown(context.Background())
 
-	writeResourceManifestFixture(t, root, testfixture.ResourceManifest(
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
 		"fixture",
-		testfixture.WithResourceDisplayName("Fixture API"),
-		testfixture.WithResourceDriver("cloud-api"),
-		testfixture.WithResourceTemplate("cloud-api"),
-		testfixture.WithResourceDescription("Fixture cloud API resource"),
-		testfixture.WithResourceEndpoint("http://"+server.Addr+"/health"),
-		testfixture.WithResourceCredentialsEnv("FIXTURE_API_KEY"),
-		testfixture.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+		testresource.WithResourceDisplayName("Fixture API"),
+		testresource.WithResourceDriver("cloud-api"),
+		testresource.WithResourceTemplate("cloud-api"),
+		testresource.WithResourceDescription("Fixture cloud API resource"),
+		testresource.WithResourceEndpoint("http://"+server.Addr+"/health"),
+		testresource.WithResourceCredentialsEnv("FIXTURE_API_KEY"),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
 			Linux:   "supported",
 			MacOS:   "supported",
 			Windows: "supported",
 		}),
-		testfixture.WithResourceInstall(manifestpkg.ResourceInstall{
+		testresource.WithResourceInstall(manifestpkg.ResourceInstall{
 			Platforms: map[string][]string{
 				"linux":   {"sh", "-c", "printf installed > " + shellQuote(installMarker)},
 				"macos":   {"sh", "-c", "printf installed > " + shellQuote(installMarker)},
 				"windows": {"sh", "-c", "printf installed > " + shellQuote(installMarker)},
 			},
 		}),
-		testfixture.WithResourceHealthChecks(manifestpkg.ResourceHealthCheck{
+		testresource.WithResourceHealthChecks(manifestpkg.ResourceHealthCheck{
 			Type:           "http",
 			Target:         "http://" + server.Addr + "/health",
 			ExpectedStatus: []int{200, 400, 401, 403},
 			TimeoutSeconds: 5,
 		}),
 	))
-	writeResourceScript(t, root, "fixture", "#!/usr/bin/env bash\nset -e\nprintf legacy > "+shellQuote(legacyMarker)+"\n")
+	testresource.WriteResourceCLI(t, root, "fixture", "#!/usr/bin/env bash\nset -e\nprintf legacy > "+shellQuote(legacyMarker)+"\n")
 	t.Setenv("FIXTURE_API_KEY", "test-key")
 
 	controller := NewController(root, home)
@@ -1030,48 +999,23 @@ type ioDiscard struct{}
 
 func (ioDiscard) Write(p []byte) (int, error) { return len(p), nil }
 
-func writeResourceConfig(t *testing.T, root, name string, enabled bool) {
-	t.Helper()
-	testfixture.WriteProjectResourceConfig(t, root, name, enabled)
-}
-
 func shellQuote(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'"
-}
-
-func writeResourceManifestFixture(t *testing.T, root string, manifest manifestpkg.ResourceManifest) {
-	t.Helper()
-	writeResourceManifest(t, root, "fixture", manifest)
-}
-
-func writeResourceManifest(t *testing.T, root, name string, manifest manifestpkg.ResourceManifest) {
-	t.Helper()
-	testfixture.WriteResourceManifest(t, root, name, manifest)
-}
-
-func writeResourceScript(t *testing.T, root, name, contents string) {
-	t.Helper()
-	testfixture.WriteResourceCLI(t, root, name, contents)
 }
 
 func writeExecutableOnPath(t *testing.T, name, contents string) string {
 	t.Helper()
 	path := testkitgo.WriteExecutableOnPath(t, name, contents)
-	testfixture.UseSystemLookPath(t, &lookPathCommandFn)
-	testfixture.UseSystemLookPath(t, &lookPathResourceFn)
+	testresource.UseSystemLookPath(t, &lookPathCommandFn)
+	testresource.UseSystemLookPath(t, &lookPathResourceFn)
 	return path
 }
 
 func writeFakeDocker(t *testing.T) string {
 	t.Helper()
-	stateFile := testfixture.WriteFakeDocker(t)
-	testfixture.UseSystemLookPath(t, &lookPathCommandFn)
+	stateFile := testresource.WriteFakeDocker(t)
+	testresource.UseSystemLookPath(t, &lookPathCommandFn)
 	return stateFile
-}
-
-func writeResourceFileFixture(t *testing.T, root, relPath, contents string) {
-	t.Helper()
-	testkitgo.WriteRelativeFile(t, root, relPath, contents)
 }
 
 func projectRootForResourcesTest(t *testing.T) string {
@@ -1175,35 +1119,4 @@ func copyManifestWithOverrides(t *testing.T, srcRoot, dstRoot, name string, prim
 	if err := os.WriteFile(path, append(data, '\n'), 0o644); err != nil {
 		t.Fatalf("write %s: %v", path, err)
 	}
-}
-
-func phase0InventoryResourcesByState(t *testing.T, root, state string) []string {
-	t.Helper()
-	path := filepath.Join(root, "docs", "resources", "resource-phase0-inventory.md")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("read %s: %v", path, err)
-	}
-	lines := strings.Split(string(data), "\n")
-	results := make([]string, 0)
-	for _, line := range lines {
-		if !strings.HasPrefix(line, "| `") {
-			continue
-		}
-		parts := strings.Split(line, "|")
-		if len(parts) < 7 {
-			continue
-		}
-		name := strings.TrimSpace(parts[1])
-		proposedState := strings.TrimSpace(parts[6])
-		name = strings.Trim(name, "`")
-		proposedState = strings.Trim(proposedState, "`")
-		if proposedState == state {
-			results = append(results, name)
-		}
-	}
-	if len(results) == 0 {
-		t.Fatalf("no Phase 0 inventory resources found for state %q", state)
-	}
-	return results
 }

@@ -106,7 +106,7 @@ scenario-to-desktop telemetry collect \
   --file "$HOME/Library/Application Support/Picker Wheel/deployment-telemetry.jsonl"
 ```
 
-The API stores the events under `.vrooli/deployment/telemetry/picker-wheel.jsonl`, giving deployment-manager and scenario-dependency-analyzer a single source of truth for how thin clients behave in the wild.
+The API stores the ingested events under the scenario-to-desktop logs root (`deployment/telemetry/picker-wheel.jsonl` beneath the resolved runtime logs directory), giving deployment-manager and scenario-dependency-analyzer a single source of truth for how thin clients behave in the wild.
 
 ### Preflight Validation (Bundled Mode)
 

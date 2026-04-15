@@ -12,21 +12,25 @@ import (
 	packagegov "github.com/vrooli/vrooli/internal/packagegov"
 	"github.com/vrooli/vrooli/internal/scenario"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
-	testkitvrooli "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
+	testpackage "github.com/vrooli/vrooli/packages/testkit-go/packagefixture"
+	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
+	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
 )
 
 func TestListInfoDependentsValidateAndAudit(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
-	writePackageManifestFixture(t, fixture.Root, "alpha", testkitvrooli.PackageManifest(
+	testpackage.WritePackageManifest(t, fixture.Root, "alpha", testpackage.PackageManifest(
 		"alpha",
-		testkitvrooli.WithPackageDocs("docs/package-governance.md"),
-		testkitvrooli.WithPackageRefresh(packagegov.RefreshScenarioSetup, true),
+		testpackage.WithPackageDocs("docs/package-governance.md"),
+		testpackage.WithPackageRefresh(packagegov.RefreshScenarioSetup, true),
 	))
 	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "docs", "package-governance.md"), "# ok\n")
-	testkitvrooli.WriteScenarioService(t, fixture.Root, "demo", testkitvrooli.ScenarioServiceManifest("demo"))
-	writeScenarioUIDependenciesFixture(t, fixture.Root, "demo", map[string]string{
-		"@vrooli/alpha": "file:../../../packages/alpha",
+	testscenario.WriteScenarioService(t, fixture.Root, "demo", testscenario.ScenarioServiceManifest("demo"))
+	testpackage.WriteScenarioUIPackageManifest(t, fixture.Root, "demo", testpackage.NodePackageManifest{
+		Dependencies: map[string]string{
+			"@vrooli/alpha": "file:../../../packages/alpha",
+		},
 	})
 
 	svc := newIntegrationPackageService(fixture, false)
@@ -81,14 +85,14 @@ func TestListInfoDependentsValidateAndAudit(t *testing.T) {
 func TestRefreshScenarioSetupRunsBuildAndSetup(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
-	testkitvrooli.WriteScenarioPortRegistryFixture(t, fixture.Root)
-	writePackageManifestFixture(t, fixture.Root, "alpha", testkitvrooli.PackageManifest(
+	testresource.WritePortRegistry(t, fixture.Root, nil)
+	testpackage.WritePackageManifest(t, fixture.Root, "alpha", testpackage.PackageManifest(
 		"alpha",
-		testkitvrooli.WithPackageBuildCommands(commandSpec("build", "mkdir -p build && printf build > build/build.txt")),
-		testkitvrooli.WithPackageRefresh(packagegov.RefreshScenarioSetup, false),
+		testpackage.WithPackageBuildCommands(commandSpec("build", "mkdir -p build && printf build > build/build.txt")),
+		testpackage.WithPackageRefresh(packagegov.RefreshScenarioSetup, false),
 	))
-	testkitvrooli.WriteScenarioService(t, fixture.Root, "demo", testkitvrooli.ScenarioServiceManifest("demo",
-		testkitvrooli.WithLifecycle(scenario.Lifecycle{
+	testscenario.WriteScenarioService(t, fixture.Root, "demo", testscenario.ScenarioServiceManifest("demo",
+		testscenario.WithLifecycle(scenario.Lifecycle{
 			Version: "2.0.0",
 			Setup: scenario.Phase{Steps: []scenario.PhaseStep{{
 				Name: "capture-setup",
@@ -96,8 +100,10 @@ func TestRefreshScenarioSetupRunsBuildAndSetup(t *testing.T) {
 			}}},
 		}),
 	))
-	writeScenarioUIDependenciesFixture(t, fixture.Root, "demo", map[string]string{
-		"@vrooli/alpha": "file:../../../packages/alpha",
+	testpackage.WriteScenarioUIPackageManifest(t, fixture.Root, "demo", testpackage.NodePackageManifest{
+		Dependencies: map[string]string{
+			"@vrooli/alpha": "file:../../../packages/alpha",
+		},
 	})
 
 	resp, err := newIntegrationPackageService(fixture, false).Refresh(RefreshRequest{PackageName: "alpha", Target: "all"})
@@ -118,18 +124,18 @@ func TestRefreshScenarioSetupRunsBuildAndSetup(t *testing.T) {
 func TestRefreshGenerateThenSetupRunsGenerateBuildAndSetup(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
-	testkitvrooli.WriteScenarioPortRegistryFixture(t, fixture.Root)
-	writePackageManifestFixture(t, fixture.Root, "proto", testkitvrooli.PackageManifest(
+	testresource.WritePortRegistry(t, fixture.Root, nil)
+	testpackage.WritePackageManifest(t, fixture.Root, "proto", testpackage.PackageManifest(
 		"proto",
-		testkitvrooli.WithPackageDisplayName("@vrooli/proto"),
-		testkitvrooli.WithPackageKind(packagegov.KindSchemaOrContract),
-		testkitvrooli.WithPackageModuleIdentifiers("@vrooli/proto-types"),
-		testkitvrooli.WithPackageGenerateCommands(commandSpec("generate", "mkdir -p build && printf generate > build/generate.txt")),
-		testkitvrooli.WithPackageBuildCommands(commandSpec("build", "mkdir -p build && printf build > build/build.txt")),
-		testkitvrooli.WithPackageRefresh(packagegov.RefreshGenerateThenSetup, false),
+		testpackage.WithPackageDisplayName("@vrooli/proto"),
+		testpackage.WithPackageKind(packagegov.KindSchemaOrContract),
+		testpackage.WithPackageModuleIdentifiers("@vrooli/proto-types"),
+		testpackage.WithPackageGenerateCommands(commandSpec("generate", "mkdir -p build && printf generate > build/generate.txt")),
+		testpackage.WithPackageBuildCommands(commandSpec("build", "mkdir -p build && printf build > build/build.txt")),
+		testpackage.WithPackageRefresh(packagegov.RefreshGenerateThenSetup, false),
 	))
-	testkitvrooli.WriteScenarioService(t, fixture.Root, "demo", testkitvrooli.ScenarioServiceManifest("demo",
-		testkitvrooli.WithLifecycle(scenario.Lifecycle{
+	testscenario.WriteScenarioService(t, fixture.Root, "demo", testscenario.ScenarioServiceManifest("demo",
+		testscenario.WithLifecycle(scenario.Lifecycle{
 			Version: "2.0.0",
 			Setup: scenario.Phase{Steps: []scenario.PhaseStep{{
 				Name: "capture-setup",
@@ -137,8 +143,10 @@ func TestRefreshGenerateThenSetupRunsGenerateBuildAndSetup(t *testing.T) {
 			}}},
 		}),
 	))
-	writeScenarioUIDependenciesFixture(t, fixture.Root, "demo", map[string]string{
-		"@vrooli/proto-types": "file:../../../packages/proto",
+	testpackage.WriteScenarioUIPackageManifest(t, fixture.Root, "demo", testpackage.NodePackageManifest{
+		Dependencies: map[string]string{
+			"@vrooli/proto-types": "file:../../../packages/proto",
+		},
 	})
 
 	resp, err := newIntegrationPackageService(fixture, false).Refresh(RefreshRequest{PackageName: "proto", Target: "all"})
@@ -162,19 +170,19 @@ func TestRefreshGenerateThenSetupRunsGenerateBuildAndSetup(t *testing.T) {
 func TestRefreshRebuildCLIConsumers(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
-	testkitvrooli.WriteScenarioPortRegistryFixture(t, fixture.Root)
-	writePackageManifestFixture(t, fixture.Root, "cli-core", testkitvrooli.PackageManifest(
+	testresource.WritePortRegistry(t, fixture.Root, nil)
+	testpackage.WritePackageManifest(t, fixture.Root, "cli-core", testpackage.PackageManifest(
 		"cli-core",
-		testkitvrooli.WithPackageDisplayName("example.com/cli-core"),
-		testkitvrooli.WithPackageKind(packagegov.KindGoCLI),
-		testkitvrooli.WithPackageModuleIdentifiers("example.com/cli-core"),
-		testkitvrooli.WithPackageAllowedConsumers(packagegov.ConsumerScenarioCLI),
-		testkitvrooli.WithPackageAdoptionModes(packagegov.ModeGoModuleReplace),
-		testkitvrooli.WithPackageRefresh(packagegov.RefreshRebuildCLI, false),
+		testpackage.WithPackageDisplayName("example.com/cli-core"),
+		testpackage.WithPackageKind(packagegov.KindGoCLI),
+		testpackage.WithPackageModuleIdentifiers("example.com/cli-core"),
+		testpackage.WithPackageAllowedConsumers(packagegov.ConsumerScenarioCLI),
+		testpackage.WithPackageAdoptionModes(packagegov.ModeGoModuleReplace),
+		testpackage.WithPackageRefresh(packagegov.RefreshRebuildCLI, false),
 	))
 	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "packages", "cli-core", "go.mod"), "module example.com/cli-core\n\ngo 1.25.0\n")
 	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "packages", "cli-core", "cli_core.go"), "package clicore\n\nfunc Name() string { return \"ok\" }\n")
-	testkitvrooli.WriteScenarioService(t, fixture.Root, "demo", testkitvrooli.ScenarioServiceManifest("demo", testkitvrooli.WithLifecycle(scenario.Lifecycle{Version: "2.0.0"})))
+	testscenario.WriteScenarioService(t, fixture.Root, "demo", testscenario.ScenarioServiceManifest("demo", testscenario.WithLifecycle(scenario.Lifecycle{Version: "2.0.0"})))
 	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "scenarios", "demo", "cli", "go.mod"), `module example.com/demo/cli
 
 go 1.25.0
@@ -204,15 +212,15 @@ func main() {
 func TestRefreshTargetFiltersAffectedScenario(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
-	testkitvrooli.WriteScenarioPortRegistryFixture(t, fixture.Root)
-	writePackageManifestFixture(t, fixture.Root, "alpha", testkitvrooli.PackageManifest(
+	testresource.WritePortRegistry(t, fixture.Root, nil)
+	testpackage.WritePackageManifest(t, fixture.Root, "alpha", testpackage.PackageManifest(
 		"alpha",
-		testkitvrooli.WithPackageBuildCommands(commandSpec("build", "mkdir -p build && printf build > build/build.txt")),
-		testkitvrooli.WithPackageRefresh(packagegov.RefreshScenarioSetup, false),
+		testpackage.WithPackageBuildCommands(commandSpec("build", "mkdir -p build && printf build > build/build.txt")),
+		testpackage.WithPackageRefresh(packagegov.RefreshScenarioSetup, false),
 	))
 	for _, name := range []string{"alpha-ui", "beta-ui"} {
-		testkitvrooli.WriteScenarioService(t, fixture.Root, name, testkitvrooli.ScenarioServiceManifest(name,
-			testkitvrooli.WithLifecycle(scenario.Lifecycle{
+		testscenario.WriteScenarioService(t, fixture.Root, name, testscenario.ScenarioServiceManifest(name,
+			testscenario.WithLifecycle(scenario.Lifecycle{
 				Version: "2.0.0",
 				Setup: scenario.Phase{Steps: []scenario.PhaseStep{{
 					Name: "capture-setup",
@@ -220,8 +228,10 @@ func TestRefreshTargetFiltersAffectedScenario(t *testing.T) {
 				}}},
 			}),
 		))
-		writeScenarioUIDependenciesFixture(t, fixture.Root, name, map[string]string{
-			"@vrooli/alpha": "file:../../../packages/alpha",
+		testpackage.WriteScenarioUIPackageManifest(t, fixture.Root, name, testpackage.NodePackageManifest{
+			Dependencies: map[string]string{
+				"@vrooli/alpha": "file:../../../packages/alpha",
+			},
 		})
 	}
 
@@ -240,15 +250,15 @@ func TestRefreshTargetFiltersAffectedScenario(t *testing.T) {
 func TestRefreshIncludesTemplateConsumersExplicitly(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
-	testkitvrooli.WriteScenarioPortRegistryFixture(t, fixture.Root)
-	writePackageManifestFixture(t, fixture.Root, "alpha", testkitvrooli.PackageManifest(
+	testresource.WritePortRegistry(t, fixture.Root, nil)
+	testpackage.WritePackageManifest(t, fixture.Root, "alpha", testpackage.PackageManifest(
 		"alpha",
-		testkitvrooli.WithPackageAllowedConsumers(packagegov.ConsumerScenarioUI, packagegov.ConsumerTemplateUI),
-		testkitvrooli.WithPackageBuildCommands(commandSpec("build", "mkdir -p build && printf build > build/build.txt")),
-		testkitvrooli.WithPackageRefresh(packagegov.RefreshScenarioSetup, false),
+		testpackage.WithPackageAllowedConsumers(packagegov.ConsumerScenarioUI, packagegov.ConsumerTemplateUI),
+		testpackage.WithPackageBuildCommands(commandSpec("build", "mkdir -p build && printf build > build/build.txt")),
+		testpackage.WithPackageRefresh(packagegov.RefreshScenarioSetup, false),
 	))
-	testkitvrooli.WriteScenarioService(t, fixture.Root, "demo", testkitvrooli.ScenarioServiceManifest("demo",
-		testkitvrooli.WithLifecycle(scenario.Lifecycle{
+	testscenario.WriteScenarioService(t, fixture.Root, "demo", testscenario.ScenarioServiceManifest("demo",
+		testscenario.WithLifecycle(scenario.Lifecycle{
 			Version: "2.0.0",
 			Setup: scenario.Phase{Steps: []scenario.PhaseStep{{
 				Name: "capture-setup",
@@ -256,10 +266,12 @@ func TestRefreshIncludesTemplateConsumersExplicitly(t *testing.T) {
 			}}},
 		}),
 	))
-	writeScenarioUIDependenciesFixture(t, fixture.Root, "demo", map[string]string{
-		"@vrooli/alpha": "file:../../../packages/alpha",
+	testpackage.WriteScenarioUIPackageManifest(t, fixture.Root, "demo", testpackage.NodePackageManifest{
+		Dependencies: map[string]string{
+			"@vrooli/alpha": "file:../../../packages/alpha",
+		},
 	})
-	testkitvrooli.WriteTemplateScenarioUIPackageManifest(t, fixture.Root, "react-vite", testkitvrooli.NodePackageManifest{
+	testpackage.WriteTemplateScenarioUIPackageManifest(t, fixture.Root, "react-vite", testpackage.NodePackageManifest{
 		Dependencies: map[string]string{
 			"@vrooli/alpha": "file:../../../packages/alpha",
 		},
@@ -283,15 +295,15 @@ func TestRefreshIncludesTemplateConsumersExplicitly(t *testing.T) {
 func TestRefreshRebuildsResourceConsumers(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
-	testkitvrooli.WriteScenarioPortRegistryFixture(t, fixture.Root)
-	writePackageManifestFixture(t, fixture.Root, "cli-core", testkitvrooli.PackageManifest(
+	testresource.WritePortRegistry(t, fixture.Root, nil)
+	testpackage.WritePackageManifest(t, fixture.Root, "cli-core", testpackage.PackageManifest(
 		"cli-core",
-		testkitvrooli.WithPackageDisplayName("example.com/cli-core"),
-		testkitvrooli.WithPackageKind(packagegov.KindGoCLI),
-		testkitvrooli.WithPackageModuleIdentifiers("example.com/cli-core"),
-		testkitvrooli.WithPackageAllowedConsumers(packagegov.ConsumerResourceRuntime),
-		testkitvrooli.WithPackageAdoptionModes(packagegov.ModeGoModuleReplace),
-		testkitvrooli.WithPackageRefresh(packagegov.RefreshRebuildCLI, false),
+		testpackage.WithPackageDisplayName("example.com/cli-core"),
+		testpackage.WithPackageKind(packagegov.KindGoCLI),
+		testpackage.WithPackageModuleIdentifiers("example.com/cli-core"),
+		testpackage.WithPackageAllowedConsumers(packagegov.ConsumerResourceRuntime),
+		testpackage.WithPackageAdoptionModes(packagegov.ModeGoModuleReplace),
+		testpackage.WithPackageRefresh(packagegov.RefreshRebuildCLI, false),
 	))
 	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "packages", "cli-core", "go.mod"), "module example.com/cli-core\n\ngo 1.25.0\n")
 	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "packages", "cli-core", "cli_core.go"), "package clicore\n\nfunc Name() string { return \"ok\" }\n")
@@ -324,24 +336,24 @@ func Name() string {
 func TestRefreshDedupesMultiSurfaceScenarioSetup(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
-	testkitvrooli.WriteScenarioPortRegistryFixture(t, fixture.Root)
-	writePackageManifestFixture(t, fixture.Root, "proto", testkitvrooli.PackageManifest(
+	testresource.WritePortRegistry(t, fixture.Root, nil)
+	testpackage.WritePackageManifest(t, fixture.Root, "proto", testpackage.PackageManifest(
 		"proto",
-		testkitvrooli.WithPackageDisplayName("@vrooli/proto"),
-		testkitvrooli.WithPackageKind(packagegov.KindSchemaOrContract),
-		testkitvrooli.WithPackageModuleIdentifiers("github.com/example/proto", "@vrooli/proto-types"),
-		testkitvrooli.WithPackageGeneratedOutputs(packagegov.GeneratedOutput{
+		testpackage.WithPackageDisplayName("@vrooli/proto"),
+		testpackage.WithPackageKind(packagegov.KindSchemaOrContract),
+		testpackage.WithPackageModuleIdentifiers("github.com/example/proto", "@vrooli/proto-types"),
+		testpackage.WithPackageGeneratedOutputs(packagegov.GeneratedOutput{
 			Name:        "proto-types",
 			Identifiers: []string{"@vrooli/proto-types"},
 			Consumers:   []packagegov.ConsumerClass{packagegov.ConsumerScenarioUI},
 		}),
-		testkitvrooli.WithPackageAllowedConsumers(packagegov.ConsumerScenarioUI, packagegov.ConsumerScenarioAPI),
-		testkitvrooli.WithPackageAdoptionModes(packagegov.ModeGoModuleReplace, packagegov.ModeGeneratedArtifact),
-		testkitvrooli.WithPackageGenerateCommands(commandSpec("generate", "mkdir -p build && printf generate > build/generate.txt")),
-		testkitvrooli.WithPackageRefresh(packagegov.RefreshGenerateThenSetup, false),
+		testpackage.WithPackageAllowedConsumers(packagegov.ConsumerScenarioUI, packagegov.ConsumerScenarioAPI),
+		testpackage.WithPackageAdoptionModes(packagegov.ModeGoModuleReplace, packagegov.ModeGeneratedArtifact),
+		testpackage.WithPackageGenerateCommands(commandSpec("generate", "mkdir -p build && printf generate > build/generate.txt")),
+		testpackage.WithPackageRefresh(packagegov.RefreshGenerateThenSetup, false),
 	))
-	testkitvrooli.WriteScenarioService(t, fixture.Root, "desktop", testkitvrooli.ScenarioServiceManifest("desktop",
-		testkitvrooli.WithLifecycle(scenario.Lifecycle{
+	testscenario.WriteScenarioService(t, fixture.Root, "desktop", testscenario.ScenarioServiceManifest("desktop",
+		testscenario.WithLifecycle(scenario.Lifecycle{
 			Version: "2.0.0",
 			Setup: scenario.Phase{Steps: []scenario.PhaseStep{{
 				Name: "capture-setup",
@@ -357,8 +369,10 @@ require github.com/example/proto v0.0.0
 
 replace github.com/example/proto => ../../../packages/proto
 `)
-	writeScenarioUIDependenciesFixture(t, fixture.Root, "desktop", map[string]string{
-		"@vrooli/proto-types": "file:../../../packages/proto/gen/typescript",
+	testpackage.WriteScenarioUIPackageManifest(t, fixture.Root, "desktop", testpackage.NodePackageManifest{
+		Dependencies: map[string]string{
+			"@vrooli/proto-types": "file:../../../packages/proto/gen/typescript",
+		},
 	})
 
 	resp, err := newIntegrationPackageService(fixture, false).Refresh(RefreshRequest{PackageName: "proto", Target: "desktop"})
@@ -383,14 +397,14 @@ replace github.com/example/proto => ../../../packages/proto
 func TestRefreshRestartsRunningScenario(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
-	testkitvrooli.WriteScenarioPortRegistryFixture(t, fixture.Root)
-	writePackageManifestFixture(t, fixture.Root, "alpha", testkitvrooli.PackageManifest(
+	testresource.WritePortRegistry(t, fixture.Root, nil)
+	testpackage.WritePackageManifest(t, fixture.Root, "alpha", testpackage.PackageManifest(
 		"alpha",
-		testkitvrooli.WithPackageBuildCommands(commandSpec("build", "mkdir -p build && printf build > build/build.txt")),
-		testkitvrooli.WithPackageRefresh(packagegov.RefreshScenarioSetup, true),
+		testpackage.WithPackageBuildCommands(commandSpec("build", "mkdir -p build && printf build > build/build.txt")),
+		testpackage.WithPackageRefresh(packagegov.RefreshScenarioSetup, true),
 	))
-	testkitvrooli.WriteScenarioService(t, fixture.Root, "demo", testkitvrooli.ScenarioServiceManifest("demo",
-		testkitvrooli.WithLifecycle(scenario.Lifecycle{
+	testscenario.WriteScenarioService(t, fixture.Root, "demo", testscenario.ScenarioServiceManifest("demo",
+		testscenario.WithLifecycle(scenario.Lifecycle{
 			Version: "2.0.0",
 			Setup: scenario.Phase{Steps: []scenario.PhaseStep{{
 				Name: "capture-setup",
@@ -403,8 +417,10 @@ func TestRefreshRestartsRunningScenario(t *testing.T) {
 			}}},
 		}),
 	))
-	writeScenarioUIDependenciesFixture(t, fixture.Root, "demo", map[string]string{
-		"@vrooli/alpha": "file:../../../packages/alpha",
+	testpackage.WriteScenarioUIPackageManifest(t, fixture.Root, "demo", testpackage.NodePackageManifest{
+		Dependencies: map[string]string{
+			"@vrooli/alpha": "file:../../../packages/alpha",
+		},
 	})
 
 	svc := newIntegrationPackageService(fixture, false)
@@ -439,13 +455,13 @@ func TestRefreshRestartsRunningScenario(t *testing.T) {
 func TestRefreshNoRestartLeavesScenarioStopped(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
-	testkitvrooli.WriteScenarioPortRegistryFixture(t, fixture.Root)
-	writePackageManifestFixture(t, fixture.Root, "alpha", testkitvrooli.PackageManifest(
+	testresource.WritePortRegistry(t, fixture.Root, nil)
+	testpackage.WritePackageManifest(t, fixture.Root, "alpha", testpackage.PackageManifest(
 		"alpha",
-		testkitvrooli.WithPackageRefresh(packagegov.RefreshScenarioSetup, true),
+		testpackage.WithPackageRefresh(packagegov.RefreshScenarioSetup, true),
 	))
-	testkitvrooli.WriteScenarioService(t, fixture.Root, "demo", testkitvrooli.ScenarioServiceManifest("demo",
-		testkitvrooli.WithLifecycle(scenario.Lifecycle{
+	testscenario.WriteScenarioService(t, fixture.Root, "demo", testscenario.ScenarioServiceManifest("demo",
+		testscenario.WithLifecycle(scenario.Lifecycle{
 			Version: "2.0.0",
 			Setup: scenario.Phase{Steps: []scenario.PhaseStep{{
 				Name: "capture-setup",
@@ -458,8 +474,10 @@ func TestRefreshNoRestartLeavesScenarioStopped(t *testing.T) {
 			}}},
 		}),
 	))
-	writeScenarioUIDependenciesFixture(t, fixture.Root, "demo", map[string]string{
-		"@vrooli/alpha": "file:../../../packages/alpha",
+	testpackage.WriteScenarioUIPackageManifest(t, fixture.Root, "demo", testpackage.NodePackageManifest{
+		Dependencies: map[string]string{
+			"@vrooli/alpha": "file:../../../packages/alpha",
+		},
 	})
 
 	svc := newIntegrationPackageService(fixture, false)
@@ -510,18 +528,6 @@ func newIntegrationPackageService(fixture testkitgo.RepoFixture, json bool) Serv
 			return services.LifecycleRunner()
 		},
 	}
-}
-
-func writePackageManifestFixture(t *testing.T, root, name string, manifest packagegov.Manifest) {
-	t.Helper()
-	testkitvrooli.WritePackageManifest(t, root, name, manifest)
-}
-
-func writeScenarioUIDependenciesFixture(t *testing.T, root, name string, dependencies map[string]string) {
-	t.Helper()
-	testkitvrooli.WriteScenarioUIPackageManifest(t, root, name, testkitvrooli.NodePackageManifest{
-		Dependencies: dependencies,
-	})
 }
 
 func commandSpec(name, shellCommand string) packagegov.CommandSpec {

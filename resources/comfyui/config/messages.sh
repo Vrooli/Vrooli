@@ -210,7 +210,7 @@ ControlNet v1.1:
   https://huggingface.co/lllyasviel/ControlNet-v1-1
 
 Place downloaded models in:
-  ~/.comfyui/models/<type>/
+  ${COMFYUI_MODELS_DIR:-${XDG_DATA_HOME:-~/.local/share}/vrooli/resources/comfyui/models}/<type>/
 
 Model types:
   - checkpoints/  → Main SD models

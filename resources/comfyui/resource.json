@@ -40,27 +40,27 @@
     },
     "volumes": [
       {
-        "source": "${HOME}/.comfyui/models",
+        "source": "${RESOURCE_DATA_DIR}/models",
         "target": "/workspace/ComfyUI/models"
       },
       {
-        "source": "${HOME}/.comfyui/custom_nodes",
+        "source": "${RESOURCE_DATA_DIR}/custom_nodes",
         "target": "/workspace/ComfyUI/custom_nodes"
       },
       {
-        "source": "${HOME}/.comfyui/outputs",
+        "source": "${RESOURCE_DATA_DIR}/outputs",
         "target": "/workspace/ComfyUI/outputs"
       },
       {
-        "source": "${HOME}/.comfyui/input",
+        "source": "${RESOURCE_DATA_DIR}/input",
         "target": "/workspace/ComfyUI/input"
       },
       {
-        "source": "${HOME}/.comfyui/workflows",
+        "source": "${RESOURCE_DATA_DIR}/workflows",
         "target": "/workspace/ComfyUI/workflows"
       },
       {
-        "source": "${HOME}/.comfyui/user",
+        "source": "${RESOURCE_DATA_DIR}/user",
         "target": "/workspace/ComfyUI/user"
       }
     ]

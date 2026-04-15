@@ -21,7 +21,7 @@ source "${var_LOG_FILE}" || { echo "FATAL: Failed to load logging library" >&2; 
 
 # Default configuration
 BROWSERLESS_PORT="${BROWSERLESS_PORT:-4110}"
-BROWSERLESS_DATA_DIR="${BROWSERLESS_DATA_DIR:-${HOME}/.vrooli/browserless}"
+BROWSERLESS_DATA_DIR="${BROWSERLESS_DATA_DIR:-${RESOURCE_DATA_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/vrooli/resources/browserless}}"
 
 # Global variable to store the browser state code
 BROWSER_STATE_CODE=""

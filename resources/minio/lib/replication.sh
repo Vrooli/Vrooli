@@ -30,7 +30,7 @@ if ! command -v load_credentials &>/dev/null; then
 fi
 
 # Replication configuration
-CONFIG_DIR="${CONFIG_DIR:-$HOME/.minio/config}"
+CONFIG_DIR="${CONFIG_DIR:-${MINIO_CONFIG_DIR:-${RESOURCE_CONFIG_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/vrooli/resources/minio}}}"
 REPLICATION_CONFIG="$CONFIG_DIR/replication.json"
 REPLICATION_ALIAS="minio-replica"
 

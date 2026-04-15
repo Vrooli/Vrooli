@@ -10,7 +10,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/scenario"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
+	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
+	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
 )
 
 type stubInstaller struct {
@@ -33,8 +36,8 @@ func TestDiscoverScenarioCLIs(t *testing.T) {
 	fixture.WriteScenarioStub(t, "alpha")
 	fixture.WriteScenarioStub(t, "beta")
 	fixture.WriteScenarioStub(t, "gamma")
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "scenarios", "alpha", "cli", "go.mod"), "module alpha/cli\n")
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "scenarios", "beta", "cli", "go.mod"), "module beta/cli\n")
+	testscenario.WriteScenarioCLIGoMod(t, fixture.Root, "alpha", "alpha/cli")
+	testscenario.WriteScenarioCLIGoMod(t, fixture.Root, "beta", "beta/cli")
 
 	manager := NewManager(fixture.Root, fixture.Home)
 	items, err := manager.DiscoverScenarioCLIs()
@@ -57,17 +60,17 @@ func TestDiscoverEnabledResourceCLIs(t *testing.T) {
 	fixture.WriteResourceStub(t, "postgres")
 	fixture.WriteResourceStub(t, "redis")
 	fixture.WriteResourceStub(t, "ollama")
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "resources", "postgres", "cli", "go.mod"), "module resource-postgres/cli\n")
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "resources", "ollama", "cli", "go.mod"), "module resource-ollama/cli\n")
-	testkitgo.WriteJSON(t, filepath.Join(fixture.Root, ".vrooli", "service.json"), map[string]any{
-		"dependencies": map[string]any{
-			"resources": map[string]any{
-				"postgres": map[string]any{"enabled": true},
-				"redis":    map[string]any{"enabled": true},
-				"ollama":   map[string]any{"enabled": false},
+	testresource.WriteResourceCLIGoMod(t, fixture.Root, "postgres", "resource-postgres/cli")
+	testresource.WriteResourceCLIGoMod(t, fixture.Root, "ollama", "resource-ollama/cli")
+	testscenario.WriteProjectService(t, fixture.Root, testscenario.ProjectServiceManifest(
+		testscenario.WithDependencies(mapProjectResources(
+			map[string]bool{
+				"postgres": true,
+				"redis":    true,
+				"ollama":   false,
 			},
-		},
-	})
+		)),
+	))
 
 	manager := NewManager(fixture.Root, fixture.Home)
 	items, err := manager.DiscoverEnabledResourceCLIs()
@@ -88,8 +91,8 @@ func TestDiscoverResourceCLIsReturnsAllInstallableModules(t *testing.T) {
 	fixture.WriteRepoContract(t)
 	fixture.WriteResourceStub(t, "postgres")
 	fixture.WriteResourceStub(t, "redis")
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "resources", "postgres", "cli", "go.mod"), "module resource-postgres/cli\n")
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "resources", "redis", "cli", "go.mod"), "module resource-redis/cli\n")
+	testresource.WriteResourceCLIGoMod(t, fixture.Root, "postgres", "resource-postgres/cli")
+	testresource.WriteResourceCLIGoMod(t, fixture.Root, "redis", "resource-redis/cli")
 
 	manager := NewManager(fixture.Root, fixture.Home)
 	items, err := manager.DiscoverResourceCLIs()
@@ -126,8 +129,8 @@ func TestInstallAllScenarioCLIsInvokesInstaller(t *testing.T) {
 	fixture.WriteRepoContract(t)
 	fixture.WriteScenarioStub(t, "alpha")
 	fixture.WriteScenarioStub(t, "beta")
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "scenarios", "alpha", "cli", "go.mod"), "module alpha/cli\n")
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "scenarios", "beta", "cli", "go.mod"), "module beta/cli\n")
+	testscenario.WriteScenarioCLIGoMod(t, fixture.Root, "alpha", "alpha/cli")
+	testscenario.WriteScenarioCLIGoMod(t, fixture.Root, "beta", "beta/cli")
 
 	installer := &stubInstaller{}
 	manager := NewManager(fixture.Root, fixture.Home)
@@ -148,7 +151,7 @@ func TestEnsureScenarioCLIInstallsWhenMissing(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
 	fixture.WriteScenarioStub(t, "alpha")
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "scenarios", "alpha", "cli", "go.mod"), "module alpha/cli\n")
+	testscenario.WriteScenarioCLIGoMod(t, fixture.Root, "alpha", "alpha/cli")
 
 	installer := &stubInstaller{}
 	manager := NewManager(fixture.Root, fixture.Home)
@@ -166,7 +169,7 @@ func TestEnsureResourceCLISkipsWhenInstalled(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
 	fixture.WriteResourceStub(t, "postgres")
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "resources", "postgres", "cli", "go.mod"), "module resource-postgres/cli\n")
+	testresource.WriteResourceCLIGoMod(t, fixture.Root, "postgres", "resource-postgres/cli")
 
 	installer := &stubInstaller{}
 	manager := NewManager(fixture.Root, fixture.Home)
@@ -199,7 +202,7 @@ func TestEnsureResourceCLIInstallsWhenMetadataMissing(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
 	fixture.WriteResourceStub(t, "postgres")
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "resources", "postgres", "cli", "go.mod"), "module resource-postgres/cli\n")
+	testresource.WriteResourceCLIGoMod(t, fixture.Root, "postgres", "resource-postgres/cli")
 
 	installer := &stubInstaller{}
 	manager := NewManager(fixture.Root, fixture.Home)
@@ -225,7 +228,7 @@ func TestEnsureResourceCLIReinstallsWhenFingerprintStale(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
 	fixture.WriteResourceStub(t, "postgres")
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "resources", "postgres", "cli", "go.mod"), "module resource-postgres/cli\n")
+	testresource.WriteResourceCLIGoMod(t, fixture.Root, "postgres", "resource-postgres/cli")
 
 	installer := &stubInstaller{}
 	manager := NewManager(fixture.Root, fixture.Home)
@@ -331,4 +334,16 @@ func writeInstallMetadataFixture(t *testing.T, path string, meta InstallMetadata
 
 func computeTestFingerprint(modulePath, binaryName string) (string, error) {
 	return computeFingerprint(modulePath, binaryName)
+}
+
+func mapProjectResources(enabled map[string]bool) scenario.Dependencies {
+	return scenario.Dependencies{Resources: mapResourceDependencies(enabled)}
+}
+
+func mapResourceDependencies(enabled map[string]bool) map[string]scenario.Dependency {
+	deps := make(map[string]scenario.Dependency, len(enabled))
+	for name, ok := range enabled {
+		deps[name] = scenario.Dependency{Enabled: ok}
+	}
+	return deps
 }

@@ -10,9 +10,11 @@ Validation should measure desired behavior and deployment readiness signals with
 
 ```bash
 vrooli scenario test <name>
+vrooli scenario validate-env <name>
 vrooli scenario requirements validate
 vrooli scenario requirements report
 vrooli scenario requirements sync
+vrooli scenario requirements snapshot
 ```
 
 Preferred scenario-local flow:
@@ -27,6 +29,7 @@ make test
 Depending on the scenario, validation may include:
 
 - lifecycle correctness
+- environment injection correctness
 - resource integration
 - requirement coverage
 - UI/API/CLI behavior
@@ -43,6 +46,9 @@ Useful commands:
 vrooli scenario requirements init
 vrooli scenario requirements validate
 vrooli scenario requirements report
+vrooli scenario requirements manual-log
+vrooli scenario requirements lint-prd
+vrooli scenario requirements phase
 vrooli scenario requirements snapshot
 ```
 
@@ -53,9 +59,11 @@ For the deeper testing stack, use the Test Genie docs via [../TESTING.md](../TES
 - Prefer validating one named scenario intentionally.
 - Avoid claiming that one passing command automatically guarantees universal deployment readiness across every target tier.
 - Keep validation expectations aligned with the scenario's actual manifests, lifecycle, and requirement files.
+- Keep scenario-system guidance here small; scenario-specific test detail belongs with the scenario.
 
 ## Related
 
 - [getting-started.md](getting-started.md)
 - [DEPLOYMENT.md](DEPLOYMENT.md)
+- [PRODUCTION_BUNDLES.md](PRODUCTION_BUNDLES.md)
 - [../TESTING.md](../TESTING.md)

@@ -4,6 +4,8 @@ This page describes the current production-bundle expectations for UI-bearing sc
 
 Use it when you are defining or validating scenario lifecycle steps that produce deployable UI assets.
 
+It is not a general statement that every scenario must produce a deployable front-end bundle.
+
 ## Core Rule
 
 Scenarios with a front-end should build production assets during setup and serve the built output during lifecycle-managed runs. Do not treat ad hoc dev servers as the canonical runtime path.
@@ -31,6 +33,7 @@ The exact commands can vary by toolchain, but the lifecycle intent should remain
 - install dependencies first
 - build `ui/dist` or the equivalent production artifact
 - make the runtime use the built artifact
+- keep scenario-local docs explicit about where the built output lives and how it is served
 
 ## Related Docs
 

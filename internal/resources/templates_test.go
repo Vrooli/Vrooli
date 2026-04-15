@@ -7,6 +7,9 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
+	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
 )
 
 func TestValidateResourceTemplates(t *testing.T) {
@@ -45,6 +48,36 @@ func TestGenerateResourceTemplateDryRun(t *testing.T) {
 	}
 	if len(report.Files) == 0 {
 		t.Fatal("expected generated file preview")
+	}
+}
+
+func TestGenerateResourceTemplateIncludesNativeCLIAndStorageSafeManifest(t *testing.T) {
+	controller := NewController(projectRootForResourceTests(t), t.TempDir())
+	dest := filepath.Join(t.TempDir(), "demo-db")
+
+	_, err := controller.GenerateResourceTemplate(ResourceTemplateGenerateRequest{
+		TemplateName: "docker-service",
+		Destination:  dest,
+		Values: map[string]string{
+			"RESOURCE_NAME":         "demo-db",
+			"RESOURCE_DISPLAY_NAME": "Demo DB",
+		},
+	})
+	if err != nil {
+		t.Fatalf("GenerateResourceTemplate: %v", err)
+	}
+
+	cliMain := readTestFile(t, filepath.Join(dest, "cli", "main.go"))
+	if !strings.Contains(cliMain, "cliapp.NewResourceApp") {
+		t.Fatalf("cli/main.go missing ResourceApp scaffold: %s", cliMain)
+	}
+
+	resourceJSON := readTestFile(t, filepath.Join(dest, "resource.json"))
+	if !strings.Contains(resourceJSON, `"source": "${RESOURCE_DATA_DIR}"`) {
+		t.Fatalf("resource.json missing canonical storage placeholder: %s", resourceJSON)
+	}
+	if strings.Contains(resourceJSON, `"source": "./data"`) || strings.Contains(resourceJSON, `"source": "${ROOT}/data"`) {
+		t.Fatalf("resource.json still references repo-local data: %s", resourceJSON)
 	}
 }
 
@@ -218,23 +251,24 @@ func TestGenerateResourceTemplateRequiresForceToOverwrite(t *testing.T) {
 func TestValidateResourceTemplatesRejectsMissingRequiredFiles(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	templateDir := filepath.Join(root, "templates", "resources", "docker-service")
-	writeTestFile(t, filepath.Join(templateDir, "template.json"), `{
-  "name": "docker-service",
-  "displayName": "Docker Service",
-  "description": "Fixture template",
-  "driver": "docker-service",
-  "requiredVars": {
-    "RESOURCE_NAME": {"flag": "name", "description": "Fixture"}
-  },
-  "docs": {
-    "phase3-plan": "docs/plans/resource-cross-platform-migration-plan.md"
-  }
-}`)
-	writeTestFile(t, filepath.Join(templateDir, "README.md"), "# Fixture\n")
-	writeTestFile(t, filepath.Join(templateDir, "resource.json"), "{}\n")
-	writeTestFile(t, filepath.Join(templateDir, "test", "smoke.json"), "{}\n")
-	writeTestFile(t, filepath.Join(root, "docs", "plans", "resource-cross-platform-migration-plan.md"), "# Plan\n")
+	templateDir := filepath.Join("templates", "resources", "docker-service")
+	testresource.WriteResourceTemplateManifest(t, root, "docker-service", testresource.ResourceTemplate(
+		"docker-service",
+		testresource.WithTemplateDisplayName("Docker Service"),
+		testresource.WithTemplateDescription("Fixture template"),
+		testresource.WithTemplateDriver("docker-service"),
+		testresource.WithTemplateRequiredVars(map[string]testresource.ResourceTemplateVar{
+			"RESOURCE_NAME": {Flag: "name", Description: "Fixture"},
+		}),
+		testresource.WithTemplateDocs(map[string]string{
+			"phase3-plan": "docs/plans/resource-cross-platform-migration-plan.md",
+		}),
+	))
+	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "README.md"), "# Fixture\n")
+	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "cli", "main.go"), "package main\n")
+	testkitgo.WriteJSON(t, filepath.Join(root, filepath.FromSlash(templateDir), "resource.json"), map[string]any{})
+	testkitgo.WriteJSON(t, filepath.Join(root, filepath.FromSlash(templateDir), "test", "smoke.json"), map[string]any{})
+	testkitgo.WriteRelativeFile(t, root, filepath.Join("docs", "plans", "resource-cross-platform-migration-plan.md"), "# Plan\n")
 
 	_, err := NewController(root, home).ValidateResourceTemplates()
 	if err == nil || !strings.Contains(err.Error(), "missing required file test/integration.json") {
@@ -245,24 +279,25 @@ func TestValidateResourceTemplatesRejectsMissingRequiredFiles(t *testing.T) {
 func TestValidateResourceTemplatesRejectsMissingDocReferences(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	templateDir := filepath.Join(root, "templates", "resources", "docker-service")
-	writeTestFile(t, filepath.Join(templateDir, "template.json"), `{
-  "name": "docker-service",
-  "displayName": "Docker Service",
-  "description": "Fixture template",
-  "driver": "docker-service",
-  "requiredVars": {
-    "RESOURCE_NAME": {"flag": "name", "description": "Fixture"}
-  },
-  "docs": {
-    "phase3-plan": "docs/plans/missing.md"
-  }
-}`)
-	writeTestFile(t, filepath.Join(templateDir, "README.md"), "# Fixture\n")
-	writeTestFile(t, filepath.Join(templateDir, "resource.json"), "{}\n")
-	writeTestFile(t, filepath.Join(templateDir, "test", "smoke.json"), "{}\n")
-	writeTestFile(t, filepath.Join(templateDir, "test", "integration.json"), "{}\n")
-	writeTestFile(t, filepath.Join(templateDir, "docs", "OPERATIONS.md"), "# Operations\n")
+	templateDir := filepath.Join("templates", "resources", "docker-service")
+	testresource.WriteResourceTemplateManifest(t, root, "docker-service", testresource.ResourceTemplate(
+		"docker-service",
+		testresource.WithTemplateDisplayName("Docker Service"),
+		testresource.WithTemplateDescription("Fixture template"),
+		testresource.WithTemplateDriver("docker-service"),
+		testresource.WithTemplateRequiredVars(map[string]testresource.ResourceTemplateVar{
+			"RESOURCE_NAME": {Flag: "name", Description: "Fixture"},
+		}),
+		testresource.WithTemplateDocs(map[string]string{
+			"phase3-plan": "docs/plans/missing.md",
+		}),
+	))
+	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "README.md"), "# Fixture\n")
+	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "cli", "main.go"), "package main\n")
+	testkitgo.WriteJSON(t, filepath.Join(root, filepath.FromSlash(templateDir), "resource.json"), map[string]any{})
+	testkitgo.WriteJSON(t, filepath.Join(root, filepath.FromSlash(templateDir), "test", "smoke.json"), map[string]any{})
+	testkitgo.WriteJSON(t, filepath.Join(root, filepath.FromSlash(templateDir), "test", "integration.json"), map[string]any{})
+	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "docs", "OPERATIONS.md"), "# Operations\n")
 
 	_, err := NewController(root, home).ValidateResourceTemplates()
 	if err == nil || !strings.Contains(err.Error(), "docs entry") {
@@ -296,6 +331,7 @@ func assertGeneratedTemplateLayout(t *testing.T, dest string) {
 	requiredFiles := []string{
 		"README.md",
 		"resource.json",
+		"cli/main.go",
 		"test/smoke.json",
 		"test/integration.json",
 		"docs/OPERATIONS.md",
@@ -309,16 +345,6 @@ func assertGeneratedTemplateLayout(t *testing.T, dest string) {
 		if contents := readTestFile(t, path); strings.Contains(contents, "{{") {
 			t.Fatalf("file %s still contains placeholders", path)
 		}
-	}
-}
-
-func writeTestFile(t *testing.T, path, contents string) {
-	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
-	}
-	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
-		t.Fatalf("write %s: %v", path, err)
 	}
 }
 

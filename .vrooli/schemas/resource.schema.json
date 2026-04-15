@@ -24,6 +24,10 @@
     "description": {
       "type": "string"
     },
+    "legacy_repo_data_allowed": {
+      "type": "boolean",
+      "description": "Temporary escape hatch for retained resources that still rely on repo-local data paths."
+    },
     "template": {
       "type": "string"
     },

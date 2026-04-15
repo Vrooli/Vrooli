@@ -12,12 +12,14 @@ import (
 
 	"github.com/vrooli/vrooli/internal/hostreq"
 	hostreqspec "github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/projectstate"
 	"github.com/vrooli/vrooli/internal/resources"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/scenario"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
-	testkitvrooli "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
+	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
+	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=3 | LAST: 2026-04-11
@@ -92,51 +94,18 @@ func TestMarkCompleteWritesSetupMarker(t *testing.T) {
 		t.Fatalf("markComplete: %v", err)
 	}
 
-	setupMarker := filepath.Join(root, "data", ".setup-complete")
+	setupMarker := projectstate.SetupCompletePath(root)
 	payload := testkitgo.ReadJSONFile(t, setupMarker)
 	if payload["setup_version"] != "2.0.0" {
 		t.Fatalf("setup_version = %v", payload["setup_version"])
 	}
-	if _, err := os.Stat(filepath.Join(root, "data", ".resources-populated")); !os.IsNotExist(err) {
+	if _, err := os.Stat(projectstate.ResourcesPopulatedPath(root)); !os.IsNotExist(err) {
 		t.Fatalf("expected no resources marker, got %v", err)
 	}
 }
 
 func TestRepoMaintainsCanonicalInstallContract(t *testing.T) {
 	repoRoot := testkitgo.ProjectRoot(t)
-
-	serviceData, err := os.ReadFile(filepath.Join(repoRoot, ".vrooli", "service.json"))
-	if err != nil {
-		t.Fatalf("read service.json: %v", err)
-	}
-
-	var service struct {
-		Lifecycle struct {
-			Setup struct {
-				Steps []struct {
-					Name string `json:"name"`
-					Run  string `json:"run"`
-				} `json:"steps"`
-			} `json:"setup"`
-		} `json:"lifecycle"`
-	}
-	if err := json.Unmarshal(serviceData, &service); err != nil {
-		t.Fatalf("unmarshal service.json: %v", err)
-	}
-
-	var installStep string
-	for _, step := range service.Lifecycle.Setup.Steps {
-		if step.Name == "install-cli" {
-			installStep = step.Run
-			break
-		}
-	}
-	if installStep == "" {
-		t.Fatal("expected install-cli setup step")
-	}
-	if !strings.Contains(installStep, "make install") {
-		t.Fatalf("install step = %q", installStep)
-	}
 
 	makefileData, err := os.ReadFile(filepath.Join(repoRoot, "Makefile"))
 	if err != nil {
@@ -146,7 +115,8 @@ func TestRepoMaintainsCanonicalInstallContract(t *testing.T) {
 	if !strings.Contains(makefileContents, "install: build") {
 		t.Fatalf("Makefile missing install target contract")
 	}
-	if !strings.Contains(makefileContents, "INSTALL_DIR = $(HOME)/.vrooli/bin") {
+	if !strings.Contains(makefileContents, "INSTALL_DIR = $(HOME)/.vrooli/bin") &&
+		!strings.Contains(makefileContents, "INSTALL_DIR := $(HOME)/.vrooli/bin") {
 		t.Fatalf("Makefile missing canonical install dir")
 	}
 }
@@ -177,8 +147,8 @@ func TestRepoRemovesLegacyHostSetupSurfaces(t *testing.T) {
 	}
 
 	for _, rel := range []string{
-		"docs/GETTING_STARTED.md",
-		"docs/devops/README.md",
+		"docs/QUICKSTART.md",
+		"docs/operations/README.md",
 		"internal/lifecycle/setup.go",
 		"scenarios/scenario-to-cloud/api/bundling_rules_test.go",
 		"scripts/README.md",
@@ -583,8 +553,8 @@ func TestRunSetupDryRunResolvesRootScenarioAndResourceDeclarations(t *testing.T)
 
 	root := t.TempDir()
 	home := t.TempDir()
-	projectManifest := testkitvrooli.ProjectServiceManifest(
-		testkitvrooli.WithDependencies(scenario.Dependencies{
+	projectManifest := testscenario.ProjectServiceManifest(
+		testscenario.WithDependencies(scenario.Dependencies{
 			Resources: map[string]scenario.Dependency{"redis": {Enabled: false}},
 		}),
 	)
@@ -593,9 +563,9 @@ func TestRunSetupDryRunResolvesRootScenarioAndResourceDeclarations(t *testing.T)
 		{Name: "docker", Required: true, Reason: "container runtime"},
 	}
 	projectScenario := writeProjectFixtureWithServiceManifest(t, root, projectManifest)
-	testkitvrooli.WriteScenarioService(t, root, "alpha", testkitvrooli.ScenarioServiceManifest(
+	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest(
 		"alpha",
-		testkitvrooli.WithLifecycle(scenario.Lifecycle{}),
+		testscenario.WithLifecycle(scenario.Lifecycle{}),
 	))
 	alphaPath := scenario.ServicePath(root, "alpha")
 	alphaManifest, err := scenario.ReadService(alphaPath)
@@ -609,16 +579,16 @@ func TestRunSetupDryRunResolvesRootScenarioAndResourceDeclarations(t *testing.T)
 		{Name: "remote_session_protection", Required: true, Reason: "protect remote sessions"},
 	}
 	testkitgo.WriteJSON(t, alphaPath, alphaManifest)
-	testkitvrooli.WriteResourceManifest(t, root, "redis", testkitvrooli.ResourceManifest(
+	testresource.WriteResourceManifest(t, root, "redis", testresource.ResourceManifest(
 		"redis",
-		testkitvrooli.WithResourceDriver("external-cli"),
-		testkitvrooli.WithResourceBinary("redis-server"),
-		testkitvrooli.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+		testresource.WithResourceDriver("external-cli"),
+		testresource.WithResourceBinary("redis-server"),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
 			Linux:   "supported",
 			MacOS:   "partial",
 			Windows: "unsupported",
 		}),
-		testkitvrooli.WithResourceHostTools(
+		testresource.WithResourceHostTools(
 			hostreqspec.Declaration{Name: "sqlite", Required: false, Reason: "resource cache introspection", Manual: true},
 		),
 	))
@@ -818,8 +788,8 @@ func TestRunDevelopRunsSetupWhenNeededAndStartsNativeServices(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	projectScenario := writeProjectFixture(t, root)
-	writePortRegistryFixture(t, root)
-	writeExecutableFile(t, filepath.Join(root, ".vrooli", "build", "vrooli-api"), "#!/usr/bin/env bash\nexit 0\n")
+	testresource.WritePortRegistry(t, root, nil)
+	testkitgo.WriteExecutable(t, filepath.Join(root, ".vrooli", "build", "vrooli-api"), "#!/usr/bin/env bash\nexit 0\n")
 	t.Setenv("VROOLI_API_PORT", "18096")
 	t.Setenv("VROOLI_API_PORT", "18095")
 
@@ -838,7 +808,7 @@ func TestRunDevelopRunsSetupWhenNeededAndStartsNativeServices(t *testing.T) {
 	setupCalls := 0
 	svc.deps.markComplete = func(root string) error {
 		setupCalls++
-		return os.WriteFile(filepath.Join(root, "data", ".setup-complete"), []byte("ok\n"), 0o644)
+		return writeSetupCompleteMarker(t, root)
 	}
 
 	apiStarted := false
@@ -890,8 +860,8 @@ func TestRunDevelopExportsLegacyEnvironmentContractToAPILaunch(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	projectScenario := writeProjectFixture(t, root)
-	writePortRegistryFixture(t, root)
-	writeExecutableFile(t, filepath.Join(root, ".vrooli", "build", "vrooli-api"), "#!/usr/bin/env bash\nexit 0\n")
+	testresource.WritePortRegistry(t, root, nil)
+	testkitgo.WriteExecutable(t, filepath.Join(root, ".vrooli", "build", "vrooli-api"), "#!/usr/bin/env bash\nexit 0\n")
 	t.Setenv("VROOLI_API_PORT", "18095")
 
 	svc.deps.currentHost = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
@@ -906,7 +876,7 @@ func TestRunDevelopExportsLegacyEnvironmentContractToAPILaunch(t *testing.T) {
 		return vrooliruntime.Report{Environment: opts.Environment}, nil
 	}
 	svc.deps.markComplete = func(root string) error {
-		return os.WriteFile(filepath.Join(root, "data", ".setup-complete"), []byte("ok\n"), 0o644)
+		return writeSetupCompleteMarker(t, root)
 	}
 	svc.deps.loadDotEnv = func(path string) (map[string]string, error) {
 		return map[string]string{
@@ -984,12 +954,9 @@ func TestRunDevelopSkipsSetupWhenMarkerExists(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	projectScenario := writeProjectFixture(t, root)
-	writePortRegistryFixture(t, root)
-	writeExecutableFile(t, filepath.Join(root, ".vrooli", "build", "vrooli-api"), "#!/usr/bin/env bash\nexit 0\n")
-	if err := os.MkdirAll(filepath.Join(root, "data"), 0o755); err != nil {
-		t.Fatalf("mkdir data: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "data", ".setup-complete"), []byte("ok\n"), 0o644); err != nil {
+	testresource.WritePortRegistry(t, root, nil)
+	testkitgo.WriteExecutable(t, filepath.Join(root, ".vrooli", "build", "vrooli-api"), "#!/usr/bin/env bash\nexit 0\n")
+	if err := writeSetupCompleteMarker(t, root); err != nil {
 		t.Fatalf("write setup marker: %v", err)
 	}
 
@@ -1028,12 +995,9 @@ func TestRunDevelopTriggersOnboardingFallback(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	projectScenario := writeProjectFixture(t, root)
-	writePortRegistryFixture(t, root)
-	writeExecutableFile(t, filepath.Join(root, ".vrooli", "build", "vrooli-api"), "#!/usr/bin/env bash\nexit 0\n")
-	if err := os.MkdirAll(filepath.Join(root, "data"), 0o755); err != nil {
-		t.Fatalf("mkdir data: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, "data", ".setup-complete"), []byte("ok\n"), 0o644); err != nil {
+	testresource.WritePortRegistry(t, root, nil)
+	testkitgo.WriteExecutable(t, filepath.Join(root, ".vrooli", "build", "vrooli-api"), "#!/usr/bin/env bash\nexit 0\n")
+	if err := writeSetupCompleteMarker(t, root); err != nil {
 		t.Fatalf("write setup marker: %v", err)
 	}
 
@@ -1298,63 +1262,6 @@ func (s *stubCLIInstallManager) InstallEnabledResourceCLIs() error {
 	return nil
 }
 
-func writeProjectFixture(t *testing.T, root string) scenario.Scenario {
-	t.Helper()
-	testkitgo.WriteRepoContract(t, root, "scenarios")
-	manifest := testkitvrooli.ProjectServiceManifest(
-		testkitvrooli.WithPorts(map[string]scenario.Port{
-			"api": {EnvVar: "VROOLI_API_PORT", Port: intPtr(8092)},
-		}),
-		testkitvrooli.WithDependencies(scenario.Dependencies{
-			Resources: map[string]scenario.Dependency{"redis": {Enabled: false}},
-		}),
-	)
-	testkitvrooli.WriteProjectService(t, root, manifest)
-	return scenario.Scenario{
-		Slug:        "project-alpha",
-		Path:        root,
-		ServicePath: scenario.ProjectServicePath(root),
-		Manifest:    manifest,
-	}
-}
-
-func writeProjectFixtureWithServiceManifest(t *testing.T, root string, manifest scenario.ServiceManifest) scenario.Scenario {
-	t.Helper()
-	testkitgo.WriteRepoContract(t, root, "scenarios")
-	testkitvrooli.WriteProjectService(t, root, manifest)
-	servicePath := scenario.ProjectServicePath(root)
-	if strings.TrimSpace(manifest.Service.Name) == "" {
-		manifest.Service.Name = filepath.Base(root)
-	}
-	return scenario.Scenario{
-		Slug:        manifest.Service.Name,
-		Path:        root,
-		ServicePath: servicePath,
-		Manifest:    manifest,
-	}
-}
-
-func writeProjectFixtureWithManifest(t *testing.T, root, manifest string) scenario.Scenario {
-	t.Helper()
-	servicePath := filepath.Join(root, ".vrooli", "service.json")
-	testkitvrooli.WriteMalformedProjectService(t, root, manifest)
-	parsed, err := scenario.ReadService(servicePath)
-	if err != nil {
-		t.Fatalf("ReadService: %v", err)
-	}
-	return scenario.Scenario{
-		Slug:        parsed.Service.Name,
-		Path:        root,
-		ServicePath: servicePath,
-		Manifest:    parsed,
-	}
-}
-
-func writeSetupTestFile(t *testing.T, path, contents string) {
-	t.Helper()
-	testkitgo.WriteFile(t, path, contents)
-}
-
 func findResolvedRequirement(items []hostreq.ResolvedRequirement, name string) *hostreq.ResolvedRequirement {
 	for i := range items {
 		if items[i].Name == name {
@@ -1362,21 +1269,6 @@ func findResolvedRequirement(items []hostreq.ResolvedRequirement, name string) *
 		}
 	}
 	return nil
-}
-
-func writePortRegistryFixture(t *testing.T, root string) {
-	t.Helper()
-	testkitvrooli.WritePortRegistry(t, root, nil)
-}
-
-func writeExecutableFile(t *testing.T, path, contents string) {
-	t.Helper()
-	testkitgo.WriteExecutable(t, path, contents)
-}
-
-func writeOnboardingScenarioFixture(t *testing.T, root string) {
-	t.Helper()
-	testkitgo.WriteFile(t, scenario.ServicePath(root, onboardingSlug), "{}\n")
 }
 
 var _ resourceRunner = (*resources.Controller)(nil)

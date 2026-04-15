@@ -10,8 +10,9 @@ set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SCRIPT_DIR="${BASH_SOURCE[0]%/*}"
-LOG_FILE="$HOME/.qdrant/health.log"
-mkdir -p "$HOME/.qdrant"
+QDRANT_STATE_DIR="${QDRANT_STATE_DIR:-${RESOURCE_STATE_DIR:-${XDG_STATE_HOME:-${HOME}/.local/state}/vrooli/resources/qdrant}}"
+LOG_FILE="${QDRANT_STATE_DIR}/health.log"
+mkdir -p "$QDRANT_STATE_DIR"
 
 # Source logging utilities
 source "${APP_ROOT}/scripts/lib/utils/var.sh"

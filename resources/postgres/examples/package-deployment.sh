@@ -572,9 +572,9 @@ if ! command -v docker-compose >/dev/null 2>&1; then
 fi
 
 # Load configuration
-if [[ -f "${APP_ROOT}/resources/postgres/config/database.env" ]]; then
+if [[ -f "./config/database.env" ]]; then
     set -a
-    source "${APP_ROOT}/resources/postgres/config/database.env"
+    source "./config/database.env"
     set +a
     echo "Configuration loaded from database.env"
 else
@@ -885,8 +885,8 @@ EOF
 
 USER="postgres"
 DAEMON="postgres"
-ROOT_DIR="/var/lib/postgresql/${CLIENT_NAME}"
-DATA_DIR="\$ROOT_DIR/data"
+PG_ROOT_DIR="/var/lib/postgresql/${CLIENT_NAME}"
+DATA_DIR="\$PG_ROOT_DIR/data"
 CONFIG_FILE="/etc/postgresql/${CLIENT_NAME}/postgresql.conf"
 
 LOCK_FILE="/var/lock/subsys/postgresql-${CLIENT_NAME}"
@@ -976,9 +976,9 @@ if [[ $EUID -eq 0 ]]; then
 fi
 
 # Load configuration
-if [[ -f "${APP_ROOT}/resources/postgres/config/database.env" ]]; then
+if [[ -f "./config/database.env" ]]; then
     set -a
-    source "${APP_ROOT}/resources/postgres/config/database.env"
+    source "./config/database.env"
     set +a
     echo "Configuration loaded from database.env"
 fi
@@ -1474,9 +1474,9 @@ set -euo pipefail
 echo "Verifying PostgreSQL deployment..."
 
 # Load configuration
-if [[ -f "${APP_ROOT}/resources/postgres/config/database.env" ]]; then
+if [[ -f "./config/database.env" ]]; then
     set -a
-    source "${APP_ROOT}/resources/postgres/config/database.env"
+    source "./config/database.env"
     set +a
 fi
 

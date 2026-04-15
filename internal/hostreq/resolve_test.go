@@ -9,14 +9,15 @@ import (
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
-	testfixture "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
+	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
+	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
 )
 
 func TestResolveMergesRootScenarioAndResourceDeclarations(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	testfixture.WriteProjectService(t, root, scenario.ServiceManifest{
+	testscenario.WriteProjectService(t, root, scenario.ServiceManifest{
 		Service: scenario.ServiceMetadata{Name: "vrooli"},
 		Dependencies: scenario.Dependencies{
 			Resources: map[string]scenario.Dependency{
@@ -31,14 +32,14 @@ func TestResolveMergesRootScenarioAndResourceDeclarations(t *testing.T) {
 			{Name: "remote_session_protection", Required: false, Reason: "root safeguard", Platforms: []string{"linux"}},
 		},
 	})
-	testfixture.WriteScenarioService(t, root, "alpha", scenario.ServiceManifest{
+	testscenario.WriteScenarioService(t, root, "alpha", scenario.ServiceManifest{
 		Service: scenario.ServiceMetadata{Name: "alpha"},
 		HostTools: []hostreqspec.Declaration{
 			{Name: "node", Required: false, Reason: "scenario node", When: []string{"develop"}, Notes: "scenario note"},
 			{Name: "ffmpeg", Required: true, Reason: "scenario ffmpeg", Platforms: []string{"linux"}},
 		},
 	})
-	testfixture.WriteResourceManifest(t, root, "alpha-resource", manifestpkg.ResourceManifest{
+	testresource.WriteResourceManifest(t, root, "alpha-resource", manifestpkg.ResourceManifest{
 		Name:            "alpha-resource",
 		Driver:          "external-cli",
 		Binary:          "alpha",
@@ -98,7 +99,7 @@ func TestResolveHonorsSelectorsAndFilters(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	testfixture.WriteProjectService(t, root, scenario.ServiceManifest{
+	testscenario.WriteProjectService(t, root, scenario.ServiceManifest{
 		Service: scenario.ServiceMetadata{Name: "vrooli"},
 		HostTools: []hostreqspec.Declaration{
 			{Name: "docker", Required: true, Reason: "root docker", Environments: []string{"development", "production"}},
@@ -106,22 +107,22 @@ func TestResolveHonorsSelectorsAndFilters(t *testing.T) {
 			{Name: "openbox", Required: true, Reason: "linux only", Platforms: []string{"linux"}},
 		},
 	})
-	testfixture.WriteScenarioService(t, root, "alpha", scenario.ServiceManifest{
+	testscenario.WriteScenarioService(t, root, "alpha", scenario.ServiceManifest{
 		Service:   scenario.ServiceMetadata{Name: "alpha"},
 		HostTools: []hostreqspec.Declaration{{Name: "ffmpeg", Required: true, Reason: "alpha ffmpeg"}},
 	})
-	testfixture.WriteScenarioService(t, root, "beta", scenario.ServiceManifest{
+	testscenario.WriteScenarioService(t, root, "beta", scenario.ServiceManifest{
 		Service:   scenario.ServiceMetadata{Name: "beta"},
 		HostTools: []hostreqspec.Declaration{{Name: "buf", Required: true, Reason: "beta buf"}},
 	})
-	testfixture.WriteResourceManifest(t, root, "alpha-resource", manifestpkg.ResourceManifest{
+	testresource.WriteResourceManifest(t, root, "alpha-resource", manifestpkg.ResourceManifest{
 		Name:            "alpha-resource",
 		Driver:          "external-cli",
 		Binary:          "alpha",
 		PortabilityTier: "full",
 		HostTools:       []hostreqspec.Declaration{{Name: "sqlite", Required: true, Reason: "alpha sqlite"}},
 	})
-	testfixture.WriteResourceManifest(t, root, "beta-resource", manifestpkg.ResourceManifest{
+	testresource.WriteResourceManifest(t, root, "beta-resource", manifestpkg.ResourceManifest{
 		Name:            "beta-resource",
 		Driver:          "external-cli",
 		Binary:          "beta",
@@ -162,7 +163,7 @@ func TestResolveHonorsSelectorsAndFilters(t *testing.T) {
 func TestResolveRejectsUnknownExplicitSelections(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	testfixture.WriteProjectService(t, root, scenario.ServiceManifest{
+	testscenario.WriteProjectService(t, root, scenario.ServiceManifest{
 		Service: scenario.ServiceMetadata{Name: "vrooli"},
 	})
 

@@ -98,7 +98,7 @@ openrouter::status::collect_data() {
     # Check test results
     local test_status="not_run"
     local test_timestamp="N/A"
-    local test_file="${var_ROOT_DIR}/data/test-results/openrouter-test.json"
+    local test_file="${OPENROUTER_TEST_RESULTS_DIR}/openrouter-test.json"
     
     if [[ -f "$test_file" ]]; then
         test_status=$(jq -r '.status // "unknown"' "$test_file" 2>/dev/null || echo "unknown")

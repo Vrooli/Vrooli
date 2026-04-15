@@ -98,7 +98,7 @@ func (p *PipelineToolProvider) runPipelineTool() *toolspb.ToolDefinition {
 				},
 				"location_mode": {
 					Type:        "string",
-					Description: "Output location mode: proper (default), staging, or temp. Staging/temp keep outputs under scenario-to-desktop/data/staging.",
+					Description: "Output location mode: proper (default), staging, or temp. Staging/temp keep outputs under the scenario-to-desktop cache staging root.",
 				},
 				"deploy_target": {
 					Type:        "string",

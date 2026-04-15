@@ -30,8 +30,7 @@ openrouter::models::require_jq() {
 }
 
 openrouter::models::manual_models_path() {
-    local data_dir="${var_DATA_DIR:-${APP_ROOT}/data}"
-    echo "${data_dir}/openrouter/manual-models.json"
+    echo "${OPENROUTER_MANUAL_MODELS_FILE}"
 }
 
 openrouter::models::append_manual() {
@@ -429,7 +428,7 @@ openrouter::models::track_usage() {
     local cost="${4:-0}"
     
     # Create usage tracking directory if it doesn't exist
-    local usage_dir="${var_ROOT_DIR}/data/openrouter/usage"
+    local usage_dir="${OPENROUTER_USAGE_DIR}"
     mkdir -p "$usage_dir"
     
     # Create daily usage file
@@ -471,7 +470,7 @@ openrouter::models::track_usage() {
 # Get usage analytics
 openrouter::models::get_usage_analytics() {
     local period="${1:-today}"  # today, week, month, all
-    local usage_dir="${var_ROOT_DIR}/data/openrouter/usage"
+    local usage_dir="${OPENROUTER_USAGE_DIR}"
     
     if [[ ! -d "$usage_dir" ]]; then
         echo '{"error": "No usage data available"}'

@@ -1,6 +1,7 @@
 package process
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -273,6 +274,21 @@ func ReadEnvironmentPorts(records []Record, keys []string) map[string]int {
 	}
 
 	return ports
+}
+
+func parseEnvironmentEntries(data []byte) map[string]string {
+	values := make(map[string]string)
+	for _, entry := range bytes.Split(data, []byte{0}) {
+		if len(entry) == 0 {
+			continue
+		}
+		parts := bytes.SplitN(entry, []byte{'='}, 2)
+		if len(parts) != 2 || len(parts[0]) == 0 {
+			continue
+		}
+		values[string(parts[0])] = string(parts[1])
+	}
+	return values
 }
 
 func humanDuration(duration time.Duration) string {

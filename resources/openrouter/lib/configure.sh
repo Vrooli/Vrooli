@@ -110,8 +110,8 @@ openrouter::configure() {
             
         file)
             # Store in credentials file
-            local creds_dir="${var_ROOT_DIR}/data/credentials"
-            local creds_file="${creds_dir}/openrouter-credentials.json"
+            local creds_dir="${OPENROUTER_CONFIG_DIR}"
+            local creds_file="${OPENROUTER_CREDENTIALS_FILE}"
             
             mkdir -p "$creds_dir"
             
@@ -192,7 +192,7 @@ openrouter::show_config() {
                 fi
             fi
             
-            local creds_file="${var_ROOT_DIR}/data/credentials/openrouter-credentials.json"
+            local creds_file="${OPENROUTER_CREDENTIALS_FILE}"
             if [[ -f "$creds_file" ]]; then
                 local file_key
                 file_key=$(jq -r '.data.apiKey // empty' "$creds_file" 2>/dev/null || true)

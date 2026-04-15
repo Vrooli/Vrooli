@@ -136,7 +136,7 @@ qdrant::backup::list() {
     fi
     
     # List framework backups
-    local backup_dir="${BACKUP_ROOT:-$HOME/.vrooli/backups}/qdrant"
+    local backup_dir="${BACKUP_ROOT:-${QDRANT_STATE_DIR:-${RESOURCE_STATE_DIR:-${XDG_STATE_HOME:-${HOME}/.local/state}/vrooli/resources/qdrant}}/backups}"
     
     if [[ -d "$backup_dir" ]]; then
         echo "Framework-managed backups:"

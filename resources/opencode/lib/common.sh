@@ -13,16 +13,22 @@ source "${APP_ROOT}/scripts/lib/service/secrets.sh" 2>/dev/null || true
 # Load defaults
 source "${OPENCODE_DIR}/config/defaults.sh"
 
-# Data directories (var_DATA_DIR is exported by the global resource runtime)
-OPENCODE_DATA_DIR="${var_DATA_DIR:-${APP_ROOT}/data}/opencode"
+# Canonical resource storage directories.
+# RESOURCE_* is injected by the Go control plane; XDG fallbacks keep standalone shell usage off repo-local paths.
+opencode_xdg_config_home="${XDG_CONFIG_HOME:-${HOME}/.config}"
+opencode_xdg_data_home="${XDG_DATA_HOME:-${HOME}/.local/share}"
+opencode_xdg_cache_home="${XDG_CACHE_HOME:-${HOME}/.cache}"
+opencode_xdg_state_home="${XDG_STATE_HOME:-${HOME}/.local/state}"
+
+OPENCODE_DATA_DIR="${RESOURCE_DATA_DIR:-${opencode_xdg_data_home}/vrooli/resources/opencode}"
 OPENCODE_BIN_DIR="${OPENCODE_DATA_DIR}/bin"
 OPENCODE_BIN="${OPENCODE_BIN_DIR}/opencode"
-OPENCODE_CACHE_DIR="${OPENCODE_DATA_DIR}/cache"
-OPENCODE_LOG_DIR="${OPENCODE_DATA_DIR}/logs"
+OPENCODE_CACHE_DIR="${RESOURCE_CACHE_DIR:-${opencode_xdg_cache_home}/vrooli/resources/opencode}"
+OPENCODE_LOG_DIR="${RESOURCE_LOGS_DIR:-${opencode_xdg_state_home}/logs/vrooli/resources/opencode}"
 OPENCODE_VERSION_FILE="${OPENCODE_DATA_DIR}/VERSION"
 
 # Config paths (we pin them via env vars before invoking the CLI)
-OPENCODE_CONFIG_DIR="${OPENCODE_DATA_DIR}/config"
+OPENCODE_CONFIG_DIR="${RESOURCE_CONFIG_DIR:-${opencode_xdg_config_home}/vrooli/resources/opencode}"
 OPENCODE_CONFIG_FILE="${OPENCODE_CONFIG_DIR}/opencode.json"
 OPENCODE_XDG_CONFIG_HOME="${OPENCODE_DATA_DIR}/xdg-config"
 OPENCODE_XDG_DATA_HOME="${OPENCODE_DATA_DIR}/xdg-data"
@@ -33,7 +39,7 @@ OPENCODE_SECRETS_LOADED=${OPENCODE_SECRETS_LOADED:-0}
 # Server runtime defaults
 OPENCODE_SERVER_HOST="${OPENCODE_SERVER_HOST:-127.0.0.1}"
 OPENCODE_SERVER_PORT="${OPENCODE_SERVER_PORT:-4096}"
-OPENCODE_SERVER_PID_FILE="${OPENCODE_DATA_DIR}/opencode-serve.pid"
+OPENCODE_SERVER_PID_FILE="${RESOURCE_STATE_DIR:-${opencode_xdg_state_home}/vrooli/resources/opencode}/opencode-serve.pid"
 OPENCODE_SERVER_LOG_FILE="${OPENCODE_LOG_DIR}/server.log"
 
 # Global API status helpers (exported for callers)
@@ -150,7 +156,7 @@ opencode::load_secrets() {
     done
 
     if [[ -z "${OPENROUTER_API_KEY:-}" || "${OPENROUTER_API_KEY}" == auto-null-* ]] || opencode::secret_value_invalid "${OPENROUTER_API_KEY:-}"; then
-        local credentials_file="${var_ROOT_DIR:-${APP_ROOT}}/data/credentials/openrouter-credentials.json"
+        local credentials_file="${OPENROUTER_CREDENTIALS_FILE:-${opencode_xdg_config_home}/vrooli/resources/openrouter/openrouter-credentials.json}"
         if [[ -f "${credentials_file}" ]]; then
             local credential_key
             credential_key=$(jq -r '.data.apiKey // empty' "${credentials_file}" 2>/dev/null || true)

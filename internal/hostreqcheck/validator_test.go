@@ -2,27 +2,29 @@ package hostreqcheck
 
 import (
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
-	testfixture "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
+	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
+	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
 )
 
 func TestValidateReportsUndeclaredReferencesMissingHandlersAndRootOverreach(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	testfixture.WriteProjectService(t, root, scenario.ServiceManifest{
+	testscenario.WriteProjectService(t, root, scenario.ServiceManifest{
 		Service: scenario.ServiceMetadata{Name: "vrooli"},
 		HostTools: []hostreqspec.Declaration{
 			{Name: "git", Required: true, Reason: "root git"},
 			{Name: "ffmpeg", Required: false, Reason: "should not be root"},
 		},
 	})
-	testfixture.WriteScenarioService(t, root, "alpha", scenario.ServiceManifest{
+	testscenario.WriteScenarioService(t, root, "alpha", scenario.ServiceManifest{
 		Service: scenario.ServiceMetadata{Name: "alpha"},
 		HostTools: []hostreqspec.Declaration{
 			{Name: "x11vnc", Required: false, Reason: "desktop bridge"},
@@ -35,7 +37,7 @@ import "os/exec"
 func main() {
 	_ = exec.Command("websockify", "--help")
 }`)
-	testfixture.WriteResourceManifest(t, root, "beta", manifestpkg.ResourceManifest{
+	testresource.WriteResourceManifest(t, root, "beta", manifestpkg.ResourceManifest{
 		Name:            "beta",
 		Driver:          "external-cli",
 		Binary:          "beta",
@@ -120,7 +122,7 @@ func TestContainsCandidateReferenceIgnoresCommentsAndHyphenatedNames(t *testing.
 func assertManifestContainsTool(t *testing.T, path, name string) {
 	t.Helper()
 	names := manifestToolNames(t, path)
-	if !testkitgo.ContainsString(names, name) {
+	if !slices.Contains(names, name) {
 		t.Fatalf("%s does not declare %q", path, name)
 	}
 }
@@ -128,7 +130,7 @@ func assertManifestContainsTool(t *testing.T, path, name string) {
 func assertManifestLacksTool(t *testing.T, path, name string) {
 	t.Helper()
 	names := manifestToolNames(t, path)
-	if testkitgo.ContainsString(names, name) {
+	if slices.Contains(names, name) {
 		t.Fatalf("%s unexpectedly declares %q", path, name)
 	}
 }

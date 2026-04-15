@@ -42,3 +42,18 @@ func TestSupportForCurrentPlatformUsesMappedOSNames(t *testing.T) {
 		t.Fatal("expected support state for current platform")
 	}
 }
+
+func TestValidateAcceptsLegacyRepoDataMarker(t *testing.T) {
+	err := Validate(ResourceManifest{
+		Name:                  "litellm",
+		Driver:                "docker-service",
+		PortabilityTier:       "full",
+		LegacyRepoDataAllowed: true,
+		Runtime: ResourceRuntime{
+			Image: "ghcr.io/berriai/litellm:main-latest",
+		},
+	})
+	if err != nil {
+		t.Fatalf("Validate(): %v", err)
+	}
+}

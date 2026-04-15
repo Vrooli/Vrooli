@@ -3,7 +3,6 @@ package state
 import (
 	"context"
 	"errors"
-	"os"
 	"path/filepath"
 	"time"
 
@@ -16,14 +15,12 @@ var ErrInvalidKey = errors.New("invalid key: scenario name is required")
 // Store manages scenario state persistence.
 type Store struct {
 	fileStore *store.JSONFileStore[string, ScenarioState]
-	dataDir   string
+	stateDir  string
 }
 
-// NewStore creates a new state store at the given data directory.
-// State files are stored as {dataDir}/{scenario-name}.json.
-func NewStore(dataDir string) (*Store, error) {
-	stateDir := filepath.Join(dataDir, "state")
-
+// NewStore creates a new state store at the given state directory.
+// State files are stored as {stateDir}/{scenario-name}.json.
+func NewStore(stateDir string) (*Store, error) {
 	fileStore, err := store.NewJSONFileStoreString[ScenarioState](
 		stateDir,
 		store.PerItem,
@@ -52,7 +49,7 @@ func NewStore(dataDir string) (*Store, error) {
 
 	return &Store{
 		fileStore: fileStore,
-		dataDir:   stateDir,
+		stateDir:  stateDir,
 	}, nil
 }
 
@@ -120,24 +117,15 @@ func (s *Store) Update(ctx context.Context, scenarioName string, modifier func(*
 
 // GetStatePath returns the file path for a scenario's state file.
 func (s *Store) GetStatePath(scenarioName string) string {
-	return filepath.Join(s.dataDir, scenarioName+".json")
+	return filepath.Join(s.stateDir, scenarioName+".json")
 }
 
 // GetDataDir returns the state storage directory.
 func (s *Store) GetDataDir() string {
-	return s.dataDir
+	return s.stateDir
 }
 
 // Close flushes any pending changes.
 func (s *Store) Close() error {
 	return s.fileStore.Close()
-}
-
-// DefaultDataDir returns the default state storage location.
-func DefaultDataDir() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		home = "."
-	}
-	return filepath.Join(home, ".vrooli", "scenario-to-desktop")
 }

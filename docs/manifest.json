@@ -1,5 +1,5 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "title": "Vrooli Documentation",
   "description": "Project-level documentation for the Vrooli platform",
   "defaultDocument": "QUICKSTART.md",
@@ -154,6 +154,11 @@
           "path": "deployment/README.md",
           "title": "Deployment",
           "description": "Deployment tiers, maturity, and portability"
+        },
+        {
+          "path": "deployment/reference/server-deployment.md",
+          "title": "Server Deployment Reference",
+          "description": "Reference-oriented server deployment notes and constraints"
         }
       ]
     },
@@ -191,6 +196,11 @@
           "path": "strategy/business-solutions.md",
           "title": "Business Solutions",
           "description": "Commercial and positioning framing"
+        },
+        {
+          "path": "strategy/personal-ai-server.md",
+          "title": "Personal AI Server",
+          "description": "Exploratory infrastructure and appliance-style reference"
         }
       ]
     },

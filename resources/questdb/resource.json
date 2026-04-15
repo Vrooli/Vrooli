@@ -46,15 +46,15 @@
     },
     "volumes": [
       {
-        "source": "${HOME}/.questdb/data",
+        "source": "${RESOURCE_DATA_DIR}",
         "target": "/var/lib/questdb"
       },
       {
-        "source": "${HOME}/.questdb/config",
+        "source": "${RESOURCE_CONFIG_DIR}",
         "target": "/questdb/conf"
       },
       {
-        "source": "${HOME}/.questdb/logs",
+        "source": "${RESOURCE_LOGS_DIR}",
         "target": "/var/log/questdb"
       }
     ]

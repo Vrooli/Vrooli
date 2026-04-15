@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
+	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
 )
 
 func TestLoadAllReportsMissingManifest(t *testing.T) {
@@ -37,10 +38,8 @@ func TestValidateFlagsWorkspaceDepsAndPostinstallDebt(t *testing.T) {
 			RestartRunningConsumers: true,
 		}
 	}))
-	writeScenarioServiceFixture(t, fixture.Root, "demo")
-	writeScenarioUIPackageManifestFixture(t, fixture.Root, "demo", map[string]string{
-		"@vrooli/alpha": "workspace:*",
-	}, map[string]string{
+	testscenario.WriteScenarioService(t, fixture.Root, "demo", testscenario.ScenarioServiceManifest("demo"))
+	writeScenarioUIPackageManifestFixture(t, fixture.Root, "demo", map[string]string{"@vrooli/alpha": "workspace:*"}, map[string]string{
 		"postinstall": "mkdir -p node_modules/@vrooli && cp -a ../../../packages/alpha node_modules/@vrooli/alpha",
 	})
 
@@ -76,7 +75,7 @@ func TestValidateFlagsScenarioAdoptionOfInternalOnlyPackage(t *testing.T) {
 			},
 		},
 	})
-	writeScenarioServiceFixture(t, fixture.Root, "demo")
+	testscenario.WriteScenarioService(t, fixture.Root, "demo", testscenario.ScenarioServiceManifest("demo"))
 	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "scenarios", "demo", "api", "go.mod"), `module example.com/demo/api
 
 go 1.25.0
@@ -174,10 +173,8 @@ func TestDiscoverDependentsClassifiesGeneratedArtifacts(t *testing.T) {
 			RestartRunningConsumers: true,
 		}
 	}))
-	writeScenarioServiceFixture(t, fixture.Root, "demo")
-	writeScenarioUIPackageManifestFixture(t, fixture.Root, "demo", map[string]string{
-		"@vrooli/proto-types": "file:../../../packages/proto/gen/typescript",
-	}, nil)
+	testscenario.WriteScenarioService(t, fixture.Root, "demo", testscenario.ScenarioServiceManifest("demo"))
+	writeScenarioUIPackageManifestFixture(t, fixture.Root, "demo", map[string]string{"@vrooli/proto-types": "file:../../../packages/proto/gen/typescript"}, nil)
 
 	items, issues, err := LoadAll(fixture.Root)
 	if err != nil {
@@ -249,7 +246,7 @@ func TestValidateRequiresGoReplaceForGovernedAdoption(t *testing.T) {
 		}
 		manifest.Package.Docs = []string{"docs/package-governance.md"}
 	}))
-	writeScenarioServiceFixture(t, fixture.Root, "demo")
+	testscenario.WriteScenarioService(t, fixture.Root, "demo", testscenario.ScenarioServiceManifest("demo"))
 	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "scenarios", "demo", "api", "go.mod"), `module example.com/demo/api
 
 go 1.25.0
@@ -335,22 +332,12 @@ func writePackageManifestFixture(t *testing.T, root, name string, manifest Manif
 	testkitgo.WriteJSON(t, filepath.Join(root, "packages", name, ".vrooli", "package.json"), manifest)
 }
 
-func writeScenarioServiceFixture(t *testing.T, root, name string) {
+func writeScenarioUIPackageManifestFixture(t *testing.T, root, scenarioName string, dependencies, scripts map[string]string) {
 	t.Helper()
-	testkitgo.WriteJSON(t, filepath.Join(root, "scenarios", name, ".vrooli", "service.json"), map[string]any{
-		"service":   map[string]any{"name": name, "parent": "vrooli"},
-		"lifecycle": map[string]any{"version": "2.0.0"},
+	testkitgo.WriteJSON(t, filepath.Join(root, "scenarios", scenarioName, "ui", "package.json"), map[string]any{
+		"name":         scenarioName + "-ui",
+		"private":      true,
+		"dependencies": dependencies,
+		"scripts":      scripts,
 	})
-}
-
-func writeScenarioUIPackageManifestFixture(t *testing.T, root, name string, dependencies, scripts map[string]string) {
-	t.Helper()
-	manifest := map[string]any{}
-	if len(dependencies) > 0 {
-		manifest["dependencies"] = dependencies
-	}
-	if len(scripts) > 0 {
-		manifest["scripts"] = scripts
-	}
-	testkitgo.WriteJSON(t, filepath.Join(root, "scenarios", name, "ui", "package.json"), manifest)
 }

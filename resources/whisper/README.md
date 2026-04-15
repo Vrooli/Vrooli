@@ -159,8 +159,8 @@ The Whisper service currently loads a single model at startup:
 
 ### File Locations
 
-- Models: `~/.whisper/models/`
-- Uploads: `~/.whisper/uploads/`
+- Models: `${WHISPER_MODELS_DIR:-$XDG_DATA_HOME/vrooli/resources/whisper/models}` with `$XDG_DATA_HOME` falling back to `~/.local/share`
+- Uploads: `${WHISPER_UPLOADS_DIR:-$XDG_DATA_HOME/vrooli/resources/whisper/uploads}` with `$XDG_DATA_HOME` falling back to `~/.local/share`
 - Config: Integrated with Vrooli resource configuration
 
 ## Troubleshooting
@@ -212,7 +212,7 @@ Once installed, Whisper is automatically configured in Vrooli's resource registr
 
 ## Security Considerations
 
-- Audio files are temporarily stored in `~/.whisper/uploads/`
+- Audio files are temporarily stored in `${WHISPER_UPLOADS_DIR:-$XDG_DATA_HOME/vrooli/resources/whisper/uploads}`
 - Use `./manage.sh --action cleanup` to remove old upload files
 - Consider scheduling cleanup via cron for production deployments:
   ```bash

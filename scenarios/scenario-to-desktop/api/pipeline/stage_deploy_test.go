@@ -220,7 +220,7 @@ func TestDeployStage_Execute_SavedTarget(t *testing.T) {
 
 	// Set up target repo
 	targetDir := t.TempDir()
-	repo := deploy.NewTargetRepository(targetDir)
+	repo := deploy.NewTargetRepository(filepath.Join(targetDir, "deploy-targets.json"))
 	_ = repo.Save("production", &deploy.DeployTarget{
 		Label:         "Production",
 		ScenarioName:  "lpbs",
@@ -351,7 +351,7 @@ func TestDeployStage_Execute_TargetNotFound(t *testing.T) {
 	t.Setenv("LPBS_SERVICE_SECRET", "test-token")
 
 	targetDir := t.TempDir()
-	repo := deploy.NewTargetRepository(targetDir)
+	repo := deploy.NewTargetRepository(filepath.Join(targetDir, "deploy-targets.json"))
 
 	stage := NewDeployStage(
 		WithDeployTargetRepo(repo),

@@ -63,11 +63,15 @@ minio::uninstall() {
     
     # Optionally remove data
     if [[ "${1:-}" != "--keep-data" ]]; then
-        local data_dir="${HOME}/.minio"
-        if [[ -d "$data_dir" ]]; then
-            log::warning "Removing MinIO data directory: $data_dir"
-            rm -rf "$data_dir"
-        fi
+        local data_dir="${MINIO_DATA_DIR:-${RESOURCE_DATA_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/vrooli/resources/minio}}"
+        local config_dir="${MINIO_CONFIG_DIR:-${RESOURCE_CONFIG_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/vrooli/resources/minio}}"
+        local state_dir="${MINIO_STATE_DIR:-${RESOURCE_STATE_DIR:-${XDG_STATE_HOME:-${HOME}/.local/state}/vrooli/resources/minio}}"
+        for path in "$data_dir" "$config_dir" "$state_dir"; do
+            if [[ -d "$path" ]]; then
+                log::warning "Removing MinIO resource directory: $path"
+                rm -rf "$path"
+            fi
+        done
     fi
     
     log::success "MinIO uninstalled successfully"
@@ -218,7 +222,7 @@ minio::core::basic_install() {
     log::info "Performing basic MinIO installation..."
     
     # Create data directory
-    local data_dir="${HOME}/.minio/data"
+    local data_dir="${MINIO_DATA_DIR:-${RESOURCE_DATA_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/vrooli/resources/minio}}"
     mkdir -p "$data_dir"
     
     # Generate credentials if not provided
@@ -226,7 +230,7 @@ minio::core::basic_install() {
     local root_password="${MINIO_CUSTOM_ROOT_PASSWORD:-$(openssl rand -base64 32 2>/dev/null || echo "minio123")}"
     
     # Save credentials
-    local creds_file="${HOME}/.minio/config/credentials"
+    local creds_file="${MINIO_CONFIG_DIR:-${RESOURCE_CONFIG_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/vrooli/resources/minio}}/credentials"
     mkdir -p "$(dirname "$creds_file")"
     cat > "$creds_file" <<EOF
 MINIO_ROOT_USER=$root_user
@@ -250,6 +254,7 @@ EOF
         -e "MINIO_ROOT_USER=$root_user" \
         -e "MINIO_ROOT_PASSWORD=$root_password" \
         -v "${data_dir}:/data" \
+        -v "$(dirname "$creds_file"):/root/.minio" \
         minio/minio server /data --console-address ":9001"
     
     # Wait for ready

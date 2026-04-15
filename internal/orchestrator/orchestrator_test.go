@@ -12,7 +12,8 @@ import (
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/vroolierr"
-	testfixture "github.com/vrooli/vrooli/packages/testkit-go/vrooli"
+	testprocess "github.com/vrooli/vrooli/packages/testkit-go/processfixture"
+	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=1 | LAST: 2026-04-11
@@ -21,9 +22,9 @@ func TestListAndStatusReflectRuntimeRecords(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	writeScenarioService(t, root, "alpha", "Alpha", "running")
-	writeScenarioService(t, root, "beta", "Beta", "stopped")
-	writeProcessRecord(t, home, "alpha", "start-api", os.Getpid(), 18080, time.Now().Add(-2*time.Minute))
+	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest("alpha", testscenario.WithDisplayName("Alpha"), testscenario.WithDescription("running"), testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT", Range: "18080-18090"}})))
+	testscenario.WriteScenarioService(t, root, "beta", testscenario.ScenarioServiceManifest("beta", testscenario.WithDisplayName("Beta"), testscenario.WithDescription("stopped"), testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT", Range: "18080-18090"}})))
+	testprocess.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{PID: os.Getpid(), PGID: os.Getpid(), Scenario: "alpha", Step: "start-api", Port: 18080, StartedAt: time.Now().Add(-2 * time.Minute).UTC(), Status: "running"})
 
 	service := New(root, home, io.Discard, io.Discard)
 
@@ -73,8 +74,8 @@ func TestDetailReturnsTypedNotFoundError(t *testing.T) {
 func TestResolvePortFallsBackFromUIToAPI(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeScenarioService(t, root, "alpha", "Alpha", "running")
-	writeProcessRecord(t, home, "alpha", "start-api", os.Getpid(), 18080, time.Now().Add(-2*time.Minute))
+	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest("alpha", testscenario.WithDisplayName("Alpha"), testscenario.WithDescription("running"), testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT", Range: "18080-18090"}})))
+	testprocess.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{PID: os.Getpid(), PGID: os.Getpid(), Scenario: "alpha", Step: "start-api", Port: 18080, StartedAt: time.Now().Add(-2 * time.Minute).UTC(), Status: "running"})
 
 	service := New(root, home, io.Discard, io.Discard)
 	resolved, err := service.ResolvePort("alpha", "UI_PORT")
@@ -89,7 +90,7 @@ func TestResolvePortFallsBackFromUIToAPI(t *testing.T) {
 func TestResolvePortRejectsStoppedScenario(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeScenarioService(t, root, "alpha", "Alpha", "stopped")
+	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest("alpha", testscenario.WithDisplayName("Alpha"), testscenario.WithDescription("stopped"), testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT", Range: "18080-18090"}})))
 
 	service := New(root, home, io.Discard, io.Discard)
 	_, err := service.ResolvePort("alpha", "API_PORT")
@@ -105,9 +106,9 @@ func TestInventoryIgnoresRuntimeRecordsForUnknownScenarios(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	writeScenarioService(t, root, "alpha", "Alpha", "running")
-	writeProcessRecord(t, home, "alpha", "start-api", os.Getpid(), 18080, time.Now().Add(-2*time.Minute))
-	writeProcessRecord(t, home, "ghost", "start-api", os.Getpid(), 28080, time.Now().Add(-2*time.Minute))
+	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest("alpha", testscenario.WithDisplayName("Alpha"), testscenario.WithDescription("running"), testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT", Range: "18080-18090"}})))
+	testprocess.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{PID: os.Getpid(), PGID: os.Getpid(), Scenario: "alpha", Step: "start-api", Port: 18080, StartedAt: time.Now().Add(-2 * time.Minute).UTC(), Status: "running"})
+	testprocess.WriteScenarioProcessRecord(t, home, "ghost", "start-api", process.Record{PID: os.Getpid(), PGID: os.Getpid(), Scenario: "ghost", Step: "start-api", Port: 28080, StartedAt: time.Now().Add(-2 * time.Minute).UTC(), Status: "running"})
 
 	service := New(root, home, io.Discard, io.Discard)
 	inventory, err := service.Inventory()
@@ -123,7 +124,7 @@ func TestDetailRejectsBrokenProcessMetadata(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	writeScenarioService(t, root, "alpha", "Alpha", "running")
+	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest("alpha", testscenario.WithDisplayName("Alpha"), testscenario.WithDescription("running"), testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT", Range: "18080-18090"}})))
 	brokenPath := filepath.Join(home, ".vrooli", "processes", "scenarios", "alpha", "broken.json")
 	if err := os.MkdirAll(filepath.Dir(brokenPath), 0o755); err != nil {
 		t.Fatalf("mkdir %s: %v", filepath.Dir(brokenPath), err)
@@ -141,8 +142,8 @@ func TestDetailRejectsBrokenProcessMetadata(t *testing.T) {
 func TestStartDetailedUsesInjectedRunnerFactory(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	writeScenarioService(t, root, "alpha", "Alpha", "running")
-	writeProcessRecord(t, home, "alpha", "start-api", os.Getpid(), 18080, time.Now().Add(-2*time.Minute))
+	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest("alpha", testscenario.WithDisplayName("Alpha"), testscenario.WithDescription("running"), testscenario.WithPorts(map[string]scenario.Port{"api": {EnvVar: "API_PORT", Range: "18080-18090"}})))
+	testprocess.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{PID: os.Getpid(), PGID: os.Getpid(), Scenario: "alpha", Step: "start-api", Port: 18080, StartedAt: time.Now().Add(-2 * time.Minute).UTC(), Status: "running"})
 
 	service := New(root, home, io.Discard, io.Discard)
 	service.newRunner = func(root, home string, stdout, stderr io.Writer, logger ...*slog.Logger) (lifecycleRunner, error) {
@@ -208,29 +209,4 @@ func scenarioFixture(name, path string) scenario.Scenario {
 			},
 		},
 	}
-}
-
-func writeScenarioService(t *testing.T, root, name, displayName, description string) {
-	t.Helper()
-	testfixture.WriteScenarioService(t, root, name, testfixture.ScenarioServiceManifest(
-		name,
-		testfixture.WithDisplayName(displayName),
-		testfixture.WithDescription(description),
-		testfixture.WithPorts(map[string]scenario.Port{
-			"api": {EnvVar: "API_PORT", Range: "18080-18090"},
-		}),
-	))
-}
-
-func writeProcessRecord(t *testing.T, home, scenarioName, step string, pid, port int, startedAt time.Time) {
-	t.Helper()
-	testfixture.WriteScenarioProcessRecord(t, home, scenarioName, step, process.Record{
-		PID:       pid,
-		PGID:      pid,
-		Scenario:  scenarioName,
-		Step:      step,
-		Port:      port,
-		StartedAt: startedAt.UTC(),
-		Status:    "running",
-	})
 }

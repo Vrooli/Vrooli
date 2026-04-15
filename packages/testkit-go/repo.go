@@ -7,8 +7,14 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+)
 
-	"github.com/vrooli/vrooli/internal/repocontractmeta"
+const (
+	projectConfigDir        = ".vrooli"
+	contractFilename        = "repo-contract.json"
+	serviceManifestFilename = "service.json"
+	serviceManifestPathname = projectConfigDir + "/" + serviceManifestFilename
+	resourceManifestPath    = "resource.json"
 )
 
 type RepoFixture struct {
@@ -67,7 +73,7 @@ func ProjectRoot(t *testing.T) string {
 func WriteRepoContract(t *testing.T, root, scenarioDir string) {
 	t.Helper()
 	projectRoot := ProjectRoot(t)
-	contractPath := repocontractmeta.ContractPath(projectRoot)
+	contractPath := filepath.Join(projectRoot, projectConfigDir, contractFilename)
 	data, err := os.ReadFile(contractPath)
 	if err != nil {
 		t.Fatalf("read live repo contract: %v", err)
@@ -117,12 +123,12 @@ func WriteRepoContract(t *testing.T, root, scenarioDir string) {
 		}
 	}
 	WriteFile(t, filepath.Join(root, "go.mod"), "module test\n")
-	WriteJSON(t, repocontractmeta.ContractPath(root), doc)
+	WriteJSON(t, filepath.Join(root, projectConfigDir, contractFilename), doc)
 }
 
 func WriteScenarioStub(t *testing.T, root, scenarioDir, name string) {
 	t.Helper()
-	WriteJSON(t, filepath.Join(root, scenarioDir, name, repocontractmeta.ServiceManifestPathname), map[string]any{
+	WriteJSON(t, filepath.Join(root, scenarioDir, name, serviceManifestPathname), map[string]any{
 		"service": map[string]any{
 			"name": name,
 		},
@@ -131,18 +137,9 @@ func WriteScenarioStub(t *testing.T, root, scenarioDir, name string) {
 
 func WriteResourceStub(t *testing.T, root, name string) {
 	t.Helper()
-	WriteJSON(t, repocontractmeta.ResourceManifestPath(root, name), map[string]any{
+	WriteJSON(t, filepath.Join(root, "resources", name, resourceManifestPath), map[string]any{
 		"name": name,
 	})
-}
-
-func ContainsString(values []string, target string) bool {
-	for _, value := range values {
-		if value == target {
-			return true
-		}
-	}
-	return false
 }
 
 func ensureObject(parent map[string]any, key string) map[string]any {

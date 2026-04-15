@@ -46,7 +46,7 @@ func TestMatchRepoGlob(t *testing.T) {
 }
 
 func TestContractMatchRepoGlobDelegatesToSharedBehavior(t *testing.T) {
-	contract := validContract()
+	contract := validContract(t)
 	got, err := contract.MatchRepoGlob("scenarios/demo/**", "scenarios/demo/api/main.go")
 	if err != nil || !got {
 		t.Fatalf("Contract.MatchRepoGlob() = %v, %v", got, err)
@@ -54,7 +54,7 @@ func TestContractMatchRepoGlobDelegatesToSharedBehavior(t *testing.T) {
 }
 
 func TestAffectedScenarios(t *testing.T) {
-	contract := validContract()
+	contract := validContract(t)
 	got := contract.AffectedScenarios([]string{
 		"scenarios/test-genie/**",
 		"scenarios/test-genie/api/*.go",

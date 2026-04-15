@@ -44,7 +44,7 @@
     },
     "volumes": [
       {
-        "source": "${HOME}/.browserless",
+        "source": "${RESOURCE_DATA_DIR}",
         "target": "/workspace"
       }
     ]

@@ -107,7 +107,7 @@ questdb::status::collect_data() {
     # Test results - check for recent test runs
     local test_status="not_run"
     local test_timestamp=""
-    local test_result_file="${VROOLI_ROOT:-${HOME}/Vrooli}/data/questdb/test_results.json"
+    local test_result_file="${QUESTDB_STATE_DIR}/test_results.json"
     
     if [[ -f "$test_result_file" ]]; then
         test_status=$(jq -r '.status // "unknown"' "$test_result_file" 2>/dev/null || echo "unknown")
@@ -409,8 +409,8 @@ questdb::status::monitor() {
 questdb::test() {
     log::info "Testing QuestDB functionality..."
     
-    local test_result_file="${VROOLI_ROOT:-${HOME}/Vrooli}/data/questdb/test_results.json"
-    mkdir -p "${test_result_file%/*"
+    local test_result_file="${QUESTDB_STATE_DIR}/test_results.json"
+    mkdir -p "${test_result_file%/*}"
     local test_passed=true
     local start_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
     
@@ -474,7 +474,7 @@ questdb::test() {
     # Test 6: Check storage metrics
     log::info "Testing storage metrics..."
     local storage_info
-    storage_info=$(docker exec "$QUESTDB_CONTAINER_NAME" df -h /root/.questdb 2>/dev/null | tail -1 | awk '{print $3}' || echo "unknown")
+    storage_info=$(docker exec "$QUESTDB_CONTAINER_NAME" df -h /var/lib/questdb 2>/dev/null | tail -1 | awk '{print $3}' || echo "unknown")
     if [[ "$storage_info" != "unknown" ]]; then
         log::success "✅ Storage metrics available (used: $storage_info)"
     else

@@ -437,7 +437,7 @@ setup() {
     
     # Cleanup
     trash::safe_remove "$SEARXNG_DATA_DIR" --test-cleanup
-    trash::safe_remove ~/.searxng-backup-* --test-cleanup
+    trash::safe_remove "${XDG_STATE_HOME:-${HOME}/.local/state}/vrooli/resources/searxng/backups" --test-cleanup
 }
 
 @test "searxng::backup fails when data directory missing" {

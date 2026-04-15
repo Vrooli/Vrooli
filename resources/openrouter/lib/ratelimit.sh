@@ -12,7 +12,7 @@ source "${OPENROUTER_LIB_DIR}/core.sh"
 source "${OPENROUTER_RESOURCE_DIR}/config/defaults.sh"
 
 # Rate limit tracking directory
-RATE_LIMIT_DIR="${var_ROOT_DIR}/data/openrouter/ratelimits"
+RATE_LIMIT_DIR="${OPENROUTER_RATE_LIMIT_DIR}"
 
 # Initialize rate limit tracking
 openrouter::ratelimit::init() {

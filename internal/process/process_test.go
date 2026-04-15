@@ -44,36 +44,8 @@ func TestHomeDirPrefersEnv(t *testing.T) {
 
 func TestReadAndSummarizeScenarioRecords(t *testing.T) {
 	home := t.TempDir()
-	if err := WriteScenarioRecord(home, "alpha", "start-api", Record{
-		PID:        os.Getpid(),
-		PGID:       os.Getpid(),
-		Phase:      "develop",
-		Scenario:   "alpha",
-		Step:       "start-api",
-		Command:    "sleep 10",
-		WorkingDir: "/repo/scenarios/alpha",
-		LogFile:    "/tmp/alpha.log",
-		Port:       18080,
-		StartedAt:  time.Now().Add(-2 * time.Minute),
-		Status:     "running",
-	}); err != nil {
-		t.Fatalf("WriteScenarioRecord alpha/start-api: %v", err)
-	}
-	if err := WriteScenarioRecord(home, "alpha", "start-ui", Record{
-		PID:        999999,
-		PGID:       999999,
-		Phase:      "develop",
-		Scenario:   "alpha",
-		Step:       "start-ui",
-		Command:    "sleep 10",
-		WorkingDir: "/repo/scenarios/alpha",
-		LogFile:    "/tmp/alpha.log",
-		Port:       38080,
-		StartedAt:  time.Now().Add(-1 * time.Minute),
-		Status:     "running",
-	}); err != nil {
-		t.Fatalf("WriteScenarioRecord alpha/start-ui: %v", err)
-	}
+	writeScenarioRecordFixture(t, home, "alpha", "start-api", os.Getpid(), 18080, time.Now().Add(-2*time.Minute))
+	writeScenarioRecordFixture(t, home, "alpha", "start-ui", 999999, 38080, time.Now().Add(-1*time.Minute))
 	withIsPIDRunningFn(t, func(pid int) bool {
 		return pid == os.Getpid()
 	})
@@ -127,36 +99,8 @@ func TestHomeDirFallsBackToUserHomeWhenHOMEUnset(t *testing.T) {
 
 func TestDiscoverRunningScenariosFiltersStopped(t *testing.T) {
 	home := t.TempDir()
-	if err := WriteScenarioRecord(home, "alpha", "start-api", Record{
-		PID:        os.Getpid(),
-		PGID:       os.Getpid(),
-		Phase:      "develop",
-		Scenario:   "alpha",
-		Step:       "start-api",
-		Command:    "sleep 10",
-		WorkingDir: "/repo/scenarios/alpha",
-		LogFile:    "/tmp/alpha.log",
-		Port:       18080,
-		StartedAt:  time.Now().Add(-2 * time.Minute),
-		Status:     "running",
-	}); err != nil {
-		t.Fatalf("WriteScenarioRecord alpha/start-api: %v", err)
-	}
-	if err := WriteScenarioRecord(home, "beta", "start-api", Record{
-		PID:        999999,
-		PGID:       999999,
-		Phase:      "develop",
-		Scenario:   "beta",
-		Step:       "start-api",
-		Command:    "sleep 10",
-		WorkingDir: "/repo/scenarios/beta",
-		LogFile:    "/tmp/beta.log",
-		Port:       18081,
-		StartedAt:  time.Now().Add(-1 * time.Minute),
-		Status:     "running",
-	}); err != nil {
-		t.Fatalf("WriteScenarioRecord beta/start-api: %v", err)
-	}
+	writeScenarioRecordFixture(t, home, "alpha", "start-api", os.Getpid(), 18080, time.Now().Add(-2*time.Minute))
+	writeScenarioRecordFixture(t, home, "beta", "start-api", 999999, 18081, time.Now().Add(-1*time.Minute))
 	withIsPIDRunningFn(t, func(pid int) bool {
 		return pid == os.Getpid()
 	})
@@ -291,6 +235,26 @@ func TestReadEnvironmentPortsIgnoresInvalidValuesAndEmptyKeys(t *testing.T) {
 	}
 }
 
+func TestParseEnvironmentEntriesIgnoresMalformedPairs(t *testing.T) {
+	values := parseEnvironmentEntries([]byte("API_PORT=18080\x00BROKEN\x00=missing\x00UI_PORT=38080\x00EMPTY=\x00"))
+
+	if values["API_PORT"] != "18080" {
+		t.Fatalf("API_PORT = %q, want 18080", values["API_PORT"])
+	}
+	if values["UI_PORT"] != "38080" {
+		t.Fatalf("UI_PORT = %q, want 38080", values["UI_PORT"])
+	}
+	if _, exists := values["BROKEN"]; exists {
+		t.Fatalf("unexpected BROKEN entry: %#v", values)
+	}
+	if _, exists := values[""]; exists {
+		t.Fatalf("unexpected empty-key entry: %#v", values)
+	}
+	if values["EMPTY"] != "" {
+		t.Fatalf("EMPTY = %q, want empty string", values["EMPTY"])
+	}
+}
+
 func TestReadEnvironmentPortsFromLiveProcessSmoke(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("process environment inspection uses /proc on linux")
@@ -418,5 +382,25 @@ func TestWriteAndRemoveScenarioRecordMaintainsProcessMetadataContract(t *testing
 	}
 	if _, err := os.Stat(pidPath); !os.IsNotExist(err) {
 		t.Fatalf("expected pid file removal, stat err=%v", err)
+	}
+}
+
+func writeScenarioRecordFixture(t *testing.T, home, name, step string, pid, port int, startedAt time.Time) {
+	t.Helper()
+	if err := WriteScenarioRecord(home, name, step, Record{
+		PID:        pid,
+		PGID:       pid,
+		ProcessID:  "vrooli.develop." + name + "." + step,
+		Phase:      "develop",
+		Scenario:   name,
+		Step:       step,
+		Command:    "sleep 10",
+		WorkingDir: "/repo/scenarios/" + name,
+		LogFile:    "/tmp/" + name + ".log",
+		Port:       port,
+		StartedAt:  startedAt.UTC(),
+		Status:     "running",
+	}); err != nil {
+		t.Fatalf("WriteScenarioRecord %s/%s: %v", name, step, err)
 	}
 }

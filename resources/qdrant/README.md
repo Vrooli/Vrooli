@@ -7,7 +7,7 @@ Qdrant is a vector similarity search engine with extended filtering support, des
 - **Category**: Storage
 - **Ports**: 6333 (REST API), 6334 (gRPC API)
 - **Container**: qdrant
-- **Data Directory**: ~/.qdrant/data
+- **Data Directory**: `${QDRANT_DATA_DIR:-$XDG_DATA_HOME/vrooli/resources/qdrant}` with `$XDG_DATA_HOME` falling back to `~/.local/share`
 - **Status**: Production Ready
 
 ## 🚀 Quick Start
@@ -89,7 +89,7 @@ resource-qdrant backup create [my-backup]
 # List backups
 resource-qdrant backup list
 
-# Backups are stored in ~/.vrooli/backups/qdrant/
+# Backups are stored in `${QDRANT_STATE_DIR:-$XDG_STATE_HOME/vrooli/resources/qdrant}/backups`
 # Restore is handled by the backup framework
 ```
 
@@ -114,8 +114,8 @@ resource-qdrant inject data.json
 | `QDRANT_CUSTOM_PORT` | 6333 | REST API port |
 | `QDRANT_CUSTOM_GRPC_PORT` | 6334 | gRPC API port |
 | `QDRANT_CUSTOM_API_KEY` | (none) | API authentication key |
-| `QDRANT_DATA_DIR` | ~/.qdrant/data | Data storage directory |
-| `QDRANT_SNAPSHOTS_DIR` | ~/.qdrant/snapshots | Backup snapshots |
+| `QDRANT_DATA_DIR` | `${XDG_DATA_HOME:-~/.local/share}/vrooli/resources/qdrant` | Data storage directory |
+| `QDRANT_SNAPSHOTS_DIR` | `${XDG_STATE_HOME:-~/.local/state}/vrooli/resources/qdrant/snapshots` | Backup snapshots |
 | `QDRANT_LOG_LEVEL` | INFO | Logging level |
 
 ### Performance Tuning
@@ -257,11 +257,11 @@ docker update --memory 4g qdrant
 **Backup/Recovery Issues:**
 ```bash
 # Check disk space
-df -h ~/.qdrant/snapshots/
+df -h "${QDRANT_SNAPSHOTS_DIR}"
 
 # Fix permissions
-chmod 755 ~/.qdrant/snapshots/
-chown -R $USER:$USER ~/.qdrant/
+chmod 755 "${QDRANT_SNAPSHOTS_DIR}"
+chown -R "$USER:$USER" "${QDRANT_DATA_DIR}" "${QDRANT_SNAPSHOTS_DIR}"
 ```
 
 ### Performance Tips
@@ -290,12 +290,12 @@ This Qdrant resource enables high-value AI applications:
 ## 📁 Directory Structure
 
 ```
-~/.qdrant/
+${QDRANT_DATA_DIR}/
 ├── data/                    # Vector data and indices
 │   ├── collections/         # Collection data
 │   └── meta/               # Metadata and cluster info
-├── config/                 # Configuration files
-└── snapshots/              # Backup files
+${QDRANT_CONFIG_DIR}/       # Configuration files
+${QDRANT_SNAPSHOTS_DIR}/    # Backup files
 ```
 
 ---

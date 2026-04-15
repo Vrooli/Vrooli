@@ -128,7 +128,7 @@ postgres::docker::start() {
             export POSTGRES_PASSWORD
         fi
         if [[ -z "${POSTGRES_PASSWORD:-}" ]]; then
-            local config_file="${APP_ROOT}/resources/postgres/instances/${instance_name}/config/instance.conf"
+            local config_file="${POSTGRES_INSTANCES_DIR}/${instance_name}/config/instance.conf"
             if [[ -f "$config_file" ]]; then
                 POSTGRES_PASSWORD="$(grep '^password=' "$config_file" 2>/dev/null | cut -d'=' -f2- | tr -d '\"')"
                 export POSTGRES_PASSWORD
