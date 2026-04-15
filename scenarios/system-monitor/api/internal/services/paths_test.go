@@ -9,7 +9,8 @@ import (
 
 func TestResolvePathsFromRepoContract(t *testing.T) {
 	root := repoRootForPathsTest(t)
-	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_SOURCE_ROOT", root)
+	t.Setenv("VROOLI_ROOT", "")
 
 	if got, want := ResolveConfigBasePath(), filepath.Join(root, "scenarios", "system-monitor", "initialization", "configuration"); got != want {
 		t.Fatalf("ResolveConfigBasePath() = %q, want %q", got, want)
@@ -22,11 +23,11 @@ func TestResolvePathsFromRepoContract(t *testing.T) {
 	}
 }
 
-func TestResolveScriptsDirFallsBackToRepoRelativeLocation(t *testing.T) {
+func TestResolveScriptsDirReturnsScenarioPathEvenWhenMissing(t *testing.T) {
 	repoRoot := t.TempDir()
 	writePathsFixture(t, repoRoot, ".vrooli/repo-contract.json", readLiveRepoContract(t))
 	writePathsFixture(t, repoRoot, "go.mod", "module example.com/test\n\ngo 1.24.0\n")
-	for _, dir := range []string{".vrooli", "scenarios", "resources", "packages", "cmd", "internal"} {
+	for _, dir := range []string{".vrooli", "templates", "scenarios", "resources", "packages", "cmd", "internal"} {
 		if dir == ".vrooli" {
 			continue
 		}
@@ -36,15 +37,17 @@ func TestResolveScriptsDirFallsBackToRepoRelativeLocation(t *testing.T) {
 	}
 	writePathsFixture(t, repoRoot, filepath.Join("scenarios", "system-monitor", ".vrooli", "service.json"), `{"service":{"name":"system-monitor"}}`)
 
-	t.Setenv("VROOLI_ROOT", repoRoot)
-	if got, want := ResolveScriptsDir(), filepath.Join(repoRoot, "investigations", "active"); got != want {
+	t.Setenv("VROOLI_SOURCE_ROOT", repoRoot)
+	t.Setenv("VROOLI_ROOT", "")
+	if got, want := ResolveScriptsDir(), filepath.Join(repoRoot, "scenarios", "system-monitor", "investigations", "active"); got != want {
 		t.Fatalf("ResolveScriptsDir() = %q, want %q", got, want)
 	}
 }
 
 func TestResolveInvestigationWorkingDirUsesContractScenarioRoot(t *testing.T) {
 	root := repoRootForPathsTest(t)
-	t.Setenv("VROOLI_ROOT", filepath.Join(root, "scenarios", "system-monitor", "api"))
+	t.Setenv("VROOLI_SOURCE_ROOT", filepath.Join(root, "scenarios", "system-monitor", "api"))
+	t.Setenv("VROOLI_ROOT", "")
 
 	if got, want := resolveInvestigationWorkingDir(), filepath.Join(root, "scenarios", "system-monitor"); got != want {
 		t.Fatalf("resolveInvestigationWorkingDir() = %q, want %q", got, want)

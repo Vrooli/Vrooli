@@ -75,7 +75,7 @@ func (a *App) cmdDiff(args []string) error {
 		query.Set("staged", "true")
 	}
 
-	body, err := a.core.APIClient.Get(a.apiPath("/repo/diff"), query)
+	body, err := a.core.Get("/repo/diff", query)
 	if err != nil {
 		return err
 	}
@@ -162,7 +162,7 @@ func (a *App) cmdStage(args []string) error {
 	}
 
 	req := stageRequest{Paths: f.paths, Scope: f.scope}
-	body, err := a.core.APIClient.Request("POST", a.apiPath("/repo/stage"), nil, req)
+	body, err := a.core.Request("POST", "/repo/stage", nil, req)
 	if err != nil {
 		return err
 	}
@@ -185,7 +185,7 @@ func (a *App) cmdUnstage(args []string) error {
 	}
 
 	req := stageRequest{Paths: f.paths, Scope: f.scope}
-	body, err := a.core.APIClient.Request("POST", a.apiPath("/repo/unstage"), nil, req)
+	body, err := a.core.Request("POST", "/repo/unstage", nil, req)
 	if err != nil {
 		return err
 	}
@@ -274,7 +274,7 @@ func (a *App) cmdCommit(args []string) error {
 		Amend:                f.amend,
 	}
 
-	body, err := a.core.APIClient.Request("POST", a.apiPath("/repo/commit"), nil, req)
+	body, err := a.core.Request("POST", "/repo/commit", nil, req)
 	if err != nil {
 		return err
 	}
@@ -338,7 +338,7 @@ func (a *App) cmdSyncStatus(args []string) error {
 		query.Set("remote", f.remote)
 	}
 
-	body, err := a.core.APIClient.Get(a.apiPath("/repo/sync-status"), query)
+	body, err := a.core.Get("/repo/sync-status", query)
 	if err != nil {
 		return err
 	}

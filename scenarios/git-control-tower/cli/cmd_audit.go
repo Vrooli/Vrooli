@@ -83,7 +83,7 @@ func (a *App) cmdAudit(args []string) error {
 		query.Set("limit", f.limit)
 	}
 
-	body, err := a.core.APIClient.Get(a.apiPath("/audit"), query)
+	body, err := a.core.Get("/audit", query)
 	if err != nil {
 		return err
 	}

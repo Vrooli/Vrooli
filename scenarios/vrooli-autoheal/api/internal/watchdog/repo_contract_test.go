@@ -16,7 +16,8 @@ func TestResolveVrooliRootCanonicalizesContractDescendant(t *testing.T) {
 	if err := os.MkdirAll(nested, 0o755); err != nil {
 		t.Fatalf("mkdir nested: %v", err)
 	}
-	probe.env["VROOLI_ROOT"] = nested
+	probe.env["VROOLI_SOURCE_ROOT"] = nested
+	probe.env["VROOLI_ROOT"] = ""
 
 	d := detectorWithProbe(plat, probe)
 	if got := d.resolveVrooliRoot(); got != root {

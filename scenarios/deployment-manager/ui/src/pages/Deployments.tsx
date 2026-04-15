@@ -194,7 +194,7 @@ export function Deployments() {
                 </div>
                 <p className="text-sm text-slate-400">
                   Import the telemetry file from the packaged app to see which dependencies or secrets failed. We store it under
-                  <code className="mx-1 rounded bg-black/30 px-1 py-0.5 text-[11px] text-slate-100">~/.vrooli/deployment/telemetry/</code>
+                  <code className="mx-1 rounded bg-black/30 px-1 py-0.5 text-[11px] text-slate-100">~/.local/state/logs/vrooli/deployment-manager/telemetry/</code>
                   and surface failures below.
                 </p>
                 <p className="text-xs text-slate-400">

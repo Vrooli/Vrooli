@@ -174,7 +174,7 @@ Events are stored in JSONL format:
 {telemetry_dir}/{scenario}.jsonl
 ```
 
-Default telemetry directory: `~/.vrooli/deployment/telemetry/`
+Default telemetry directory: `~/.local/state/logs/vrooli/deployment-manager/telemetry/`
 
 Each line is a JSON object:
 

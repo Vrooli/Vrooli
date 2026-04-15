@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 const (
@@ -240,24 +242,19 @@ func decorateNote(classification, note string) string {
 }
 
 func resolveVrooliRoot() string {
-	if root := os.Getenv("VROOLI_ROOT"); root != "" {
+	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
+		if resolved, err := repocontract.FindRepoRootFromPath(root); err == nil {
+			return resolved
+		}
+	}
+
+	if root, err := repocontract.ResolveRepoRoot(); err == nil {
 		return root
 	}
 
 	if wd, err := os.Getwd(); err == nil {
-		dir := wd
-		for dir != string(filepath.Separator) && dir != "." {
-			if _, statErr := os.Stat(filepath.Join(dir, ".vrooli")); statErr == nil {
-				return dir
-			}
-			parent := filepath.Dir(dir)
-			if parent == dir {
-				break
-			}
-			dir = parent
-		}
+		return filepath.Clean(wd)
 	}
-
 	return "."
 }
 

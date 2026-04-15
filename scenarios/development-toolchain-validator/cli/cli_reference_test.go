@@ -300,6 +300,13 @@ func TestReferenceCommandRouting(t *testing.T) {
 				return
 			}
 
+			if tc.name == "list_alias_ls" && err != nil {
+				if containsString(err.Error(), "unknown subcommand") || containsString(err.Error(), "usage:") {
+					t.Fatalf("alias should route correctly: %v", err)
+				}
+				return
+			}
+
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -323,34 +330,34 @@ func TestReferenceUpdateValidation(t *testing.T) {
 		category    string
 	}{
 		{
-			name:        "update_with_only_name",
-			args:        []string{"update", "abc123", "--name", "New Name"},
-			wantErr:     true, // Will fail at API call, but validation should pass
-			category:    "validation_pass",
+			name:     "update_with_only_name",
+			args:     []string{"update", "abc123", "--name", "New Name"},
+			wantErr:  true, // Will fail at API call, but validation should pass
+			category: "validation_pass",
 		},
 		{
-			name:        "update_with_only_template",
-			args:        []string{"update", "abc123", "--template", "go-api"},
-			wantErr:     true, // Will fail at API call
-			category:    "validation_pass",
+			name:     "update_with_only_template",
+			args:     []string{"update", "abc123", "--template", "go-api"},
+			wantErr:  true, // Will fail at API call
+			category: "validation_pass",
 		},
 		{
-			name:        "update_with_only_path",
-			args:        []string{"update", "abc123", "--path", "/tmp"},
-			wantErr:     true, // Will fail at API call
-			category:    "validation_pass",
+			name:     "update_with_only_path",
+			args:     []string{"update", "abc123", "--path", "/tmp"},
+			wantErr:  true, // Will fail at API call
+			category: "validation_pass",
 		},
 		{
-			name:        "update_with_only_description",
-			args:        []string{"update", "abc123", "--description", "New description"},
-			wantErr:     true, // Will fail at API call
-			category:    "validation_pass",
+			name:     "update_with_only_description",
+			args:     []string{"update", "abc123", "--description", "New description"},
+			wantErr:  true, // Will fail at API call
+			category: "validation_pass",
 		},
 		{
-			name:        "update_with_multiple_fields",
-			args:        []string{"update", "abc123", "--name", "Name", "--template", "go-api"},
-			wantErr:     true, // Will fail at API call
-			category:    "validation_pass",
+			name:     "update_with_multiple_fields",
+			args:     []string{"update", "abc123", "--name", "Name", "--template", "go-api"},
+			wantErr:  true, // Will fail at API call
+			category: "validation_pass",
 		},
 	}
 

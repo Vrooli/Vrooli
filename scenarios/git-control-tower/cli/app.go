@@ -1,11 +1,6 @@
 package main
 
-import (
-	"strings"
-
-	"github.com/vrooli/cli-core/cliapp"
-	"github.com/vrooli/cli-core/cliutil"
-)
+import "github.com/vrooli/cli-core/cliapp"
 
 const (
 	appName        = "git-control-tower"
@@ -19,35 +14,34 @@ var (
 	buildSourceRoot  = ""
 )
 
+func boolPtr(v bool) *bool { return &v }
+
 type App struct {
 	core *cliapp.ScenarioApp
 }
 
 func NewApp() (*App, error) {
-	env := cliapp.StandardScenarioEnv(appName, cliapp.ScenarioEnvOptions{
-		ExtraAPIEnvVars: []string{"API_BASE_URL", "VITE_API_BASE_URL"},
-	})
-	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
-		Name:              appName,
-		Version:           appVersion,
-		Description:       "Git Control Tower CLI",
-		DefaultAPIBase:    defaultAPIBase,
-		APIEnvVars:        env.APIEnvVars,
-		APIPortEnvVars:    env.APIPortEnvVars,
-		APIPortDetector:   cliutil.DetectPortFromVrooli(appName, "API_PORT"),
-		ConfigDirEnvVars:  env.ConfigDirEnvVars,
-		SourceRootEnvVars: env.SourceRootEnvVars,
-		TokenEnvVars:      env.TokenEnvVars,
-		BuildFingerprint:  buildFingerprint,
-		BuildTimestamp:    buildTimestamp,
-		BuildSourceRoot:   buildSourceRoot,
-		AllowAnonymous:    true,
+	app := &App{}
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
+		Name:                    appName,
+		Version:                 appVersion,
+		Description:             "Git Control Tower CLI",
+		DefaultAPIBase:          defaultAPIBase,
+		ExtraAPIEnvVars:         []string{"API_BASE_URL", "VITE_API_BASE_URL"},
+		BuildFingerprint:        buildFingerprint,
+		BuildTimestamp:          buildTimestamp,
+		BuildSourceRoot:         buildSourceRoot,
+		AllowAnonymous:          true,
+		IncludeConfigureCommand: boolPtr(false),
+		CommandGroups: func(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
+			app.core = core
+			return app.registerCommands()
+		},
 	})
 	if err != nil {
 		return nil, err
 	}
-	app := &App{core: core}
-	app.core.SetCommands(app.registerCommands())
+	app.core = core
 	return app, nil
 }
 
@@ -56,13 +50,6 @@ func (a *App) Run(args []string) error {
 }
 
 func (a *App) registerCommands() []cliapp.CommandGroup {
-	health := cliapp.CommandGroup{
-		Title: "Health",
-		Commands: []cliapp.Command{
-			{Name: "status", NeedsAPI: true, Description: "Check API health", Run: a.cmdStatus},
-		},
-	}
-
 	repo := cliapp.CommandGroup{
 		Title: "Repository",
 		Commands: []cliapp.Command{
@@ -102,24 +89,5 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	return []cliapp.CommandGroup{health, repo, review, audit, config}
-}
-
-func (a *App) apiPath(v1Path string) string {
-	return apiPathFromBaseURL(a.core.HTTPClient.BaseURL(), v1Path)
-}
-
-func apiPathFromBaseURL(baseURL string, v1Path string) string {
-	v1Path = strings.TrimSpace(v1Path)
-	if v1Path == "" {
-		return ""
-	}
-	if !strings.HasPrefix(v1Path, "/") {
-		v1Path = "/" + v1Path
-	}
-	base := strings.TrimRight(strings.TrimSpace(baseURL), "/")
-	if strings.HasSuffix(base, "/api/v1") {
-		return v1Path
-	}
-	return "/api/v1" + v1Path
+	return []cliapp.CommandGroup{repo, review, audit, config}
 }

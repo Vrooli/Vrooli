@@ -110,25 +110,11 @@ func sqliteDSN() (string, error) {
 		return dsn, nil
 	}
 
-	dataRoot := strings.TrimSpace(os.Getenv("SQLITE_DATABASE_PATH"))
-	if dataRoot == "" {
-		dataRoot = strings.TrimSpace(os.Getenv("VROOLI_DATA"))
+	path, err := scenarioDBPath()
+	if err != nil {
+		return "", fmt.Errorf("resolve git-control-tower db path: %w", err)
 	}
-	if dataRoot == "" {
-		if path, err := scenarioDBPath(); err == nil {
-			if migrateErr := migrateLegacySQLite(path); migrateErr != nil {
-				return "", migrateErr
-			}
-			return sqliteFileDSN(path)
-		}
-		home, _ := os.UserHomeDir()
-		if home == "" {
-			home = "."
-		}
-		dataRoot = filepath.Join(home, ".vrooli", "data", "sqlite", "databases")
-	}
-
-	return sqliteFileDSN(filepath.Join(dataRoot, "git-control-tower.db"))
+	return sqliteFileDSN(path)
 }
 
 func sqliteFileDSN(path string) (string, error) {
@@ -155,30 +141,4 @@ func scenarioDBPath() (string, error) {
 		return "", err
 	}
 	return resolver.Path(storage.Options{ScenarioID: "git-control-tower"}, storage.ClassData, "git-control-tower.db")
-}
-
-func migrateLegacySQLite(dst string) error {
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		return nil
-	}
-	src := filepath.Join(home, ".vrooli", "data", "sqlite", "databases", "git-control-tower.db")
-	if src == dst {
-		return nil
-	}
-	if _, err := os.Stat(src); err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-	if _, err := os.Stat(dst); err == nil {
-		return nil
-	} else if !os.IsNotExist(err) {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return err
-	}
-	return os.Rename(src, dst)
 }

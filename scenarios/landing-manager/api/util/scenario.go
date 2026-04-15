@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -55,9 +56,7 @@ func (loc ScenarioLocation) RequiresPathArg() bool {
 }
 
 // GetVrooliRoot returns the Vrooli root directory path.
-// Decision Priority:
-//  1. VROOLI_ROOT environment variable (explicit override)
-//  2. Default: ~/Vrooli (standard installation location)
+// Decision: Use repo-contract-backed root detection.
 func GetVrooliRoot() string {
 	root, err := repocontract.ResolveRepoRoot()
 	if err != nil {
@@ -75,16 +74,14 @@ func GetVrooliRoot() string {
 // This ordering ensures that recently generated scenarios are found first,
 // which is the common case during development and testing workflows.
 func ResolveScenarioPath(scenarioID string) ScenarioLocation {
-	vrooliRoot := GetVrooliRoot()
-
 	// Decision: Check staging first - recently generated scenarios are more likely
-	stagingPath := filepath.Join(vrooliRoot, "scenarios", "landing-manager", "generated", scenarioID)
+	stagingPath := StagingPath(scenarioID)
 	if _, err := os.Stat(stagingPath); err == nil {
 		return ScenarioLocation{Path: stagingPath, Location: LocationStaging, Found: true}
 	}
 
 	// Decision: Fall back to production for promoted scenarios
-	productionPath := filepath.Join(vrooliRoot, "scenarios", scenarioID)
+	productionPath := ProductionPath(scenarioID)
 	if _, err := os.Stat(productionPath); err == nil {
 		return ScenarioLocation{Path: productionPath, Location: LocationProduction, Found: true}
 	}
@@ -95,13 +92,25 @@ func ResolveScenarioPath(scenarioID string) ScenarioLocation {
 // StagingPath returns the expected staging path for a scenario ID.
 // Use this to construct paths without resolving location.
 func StagingPath(scenarioID string) string {
-	return filepath.Join(GetVrooliRoot(), "scenarios", "landing-manager", "generated", scenarioID)
+	root, err := ResolveScenarioRoot()
+	if err != nil {
+		return filepath.Join("scenarios", "landing-manager", "generated", scenarioID)
+	}
+	return filepath.Join(root, "generated", scenarioID)
 }
 
 // ProductionPath returns the expected production path for a scenario ID.
 // Use this to construct paths without resolving location.
 func ProductionPath(scenarioID string) string {
-	return filepath.Join(GetVrooliRoot(), "scenarios", scenarioID)
+	root := GetVrooliRoot()
+	if root == "" {
+		return filepath.Join("scenarios", scenarioID)
+	}
+	path, err := repocontract.ResolveScenarioPath(root, scenarioID)
+	if err != nil {
+		return filepath.Join(root, "scenarios", scenarioID)
+	}
+	return path
 }
 
 // ============================================================================
@@ -156,11 +165,22 @@ func SanitizeCommandOutput(output string) string {
 // These functions determine filesystem locations for various components.
 
 // ResolveScenarioRoot finds the landing-manager scenario root directory.
-// Decision: Assumes binary resides in /scenarios/landing-manager/api,
-// so the scenario root is one directory up from the executable.
+// Decision: Resolve via repo-contract as the canonical production scenario path.
 func ResolveScenarioRoot() (string, error) {
-	execPath, err := executablePath()
+	root, err := repocontract.FindRepoRootFromEnvOrCWD()
 	if err != nil {
+		return "", fmt.Errorf("resolve repo root: %w", err)
+	}
+
+	path, err := repocontract.ResolveScenarioPath(root, "landing-manager")
+	if err == nil {
+		return path, nil
+	}
+
+	// Compatibility fallback for local binary layouts when repo detection fails
+	// to match the current executable context.
+	execPath, execErr := executablePath()
+	if execErr != nil {
 		return "", err
 	}
 	execDir := filepath.Dir(execPath)
@@ -168,20 +188,35 @@ func ResolveScenarioRoot() (string, error) {
 }
 
 // GetVrooliRootFromScenario derives Vrooli root from scenario root.
-// Decision: Assumes standard directory structure where scenario is
-// two levels below Vrooli root (/Vrooli/scenarios/{name}).
+// Decision: Prefer repo-contract-backed root detection; fall back to the
+// scenario-derived ancestor when local tooling passes only a scenario path.
 func GetVrooliRootFromScenario(scenarioRoot string) string {
+	if root := GetVrooliRoot(); root != "" {
+		return root
+	}
 	return filepath.Dir(filepath.Dir(scenarioRoot))
 }
 
 // ResolvePackagesDir finds the absolute path to the Vrooli packages directory.
 func ResolvePackagesDir() (string, error) {
-	scenarioRoot, err := ResolveScenarioRoot()
+	root := GetVrooliRoot()
+	if root == "" {
+		scenarioRoot, err := ResolveScenarioRoot()
+		if err != nil {
+			return "", err
+		}
+		root = GetVrooliRootFromScenario(scenarioRoot)
+	}
+
+	contract, err := repocontract.LoadDefault(root)
 	if err != nil {
 		return "", err
 	}
-	vrooliRoot := GetVrooliRootFromScenario(scenarioRoot)
-	return filepath.Join(vrooliRoot, "packages"), nil
+	packagesDir, err := contract.TopLevelDir(root, "packages")
+	if err != nil {
+		return "", err
+	}
+	return packagesDir, nil
 }
 
 // GenerationRoot resolves the base directory for generated scenarios.

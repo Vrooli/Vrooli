@@ -648,39 +648,16 @@ func (d *Detector) getWindowsTaskTemplate() string {
 func (d *Detector) resolveVrooliRoot() string {
 	for _, key := range []string{"VROOLI_SOURCE_ROOT", "VROOLI_ROOT"} {
 		if root := strings.TrimSpace(d.probe.getenv(key)); root != "" {
-			if resolved, ok := canonicalRepoRootFromOverride(root); ok {
-				return resolved
+			resolved, err := repocontract.FindRepoRootFromPath(root)
+			if err != nil {
+				return ""
 			}
-			return filepath.Clean(root)
-		}
-	}
-	if root, err := repocontract.ResolveRepoRoot(); err == nil {
-		return root
-	}
-	if homeDir, err := d.probe.userHomeDir(); err == nil && strings.TrimSpace(homeDir) != "" {
-		fallback := filepath.Clean(homeDir + string(os.PathSeparator) + "Vrooli")
-		if resolved, ok := canonicalRepoRootFromOverride(fallback); ok {
 			return resolved
 		}
-		return fallback
 	}
-	return ""
-}
-
-func canonicalRepoRootFromOverride(path string) (string, bool) {
-	current := filepath.Clean(strings.TrimSpace(path))
-	if current == "" || current == "." {
-		return "", false
+	root, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		return ""
 	}
-	for depth := 0; depth < 25; depth++ {
-		if resolved, err := repocontract.FindRepoRoot(current); err == nil {
-			return resolved, true
-		}
-		parent := filepath.Dir(current)
-		if parent == current {
-			break
-		}
-		current = parent
-	}
-	return "", false
+	return root
 }

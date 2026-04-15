@@ -8,7 +8,7 @@ import (
 )
 
 // NOTE: Handlers that used database-backed ContentService have been removed.
-// Content sections are now stored in JSON files (.vrooli/variants/*.json) and accessed via ConfigStore.
+// Content sections are stored in tracked config JSON files and accessed via ConfigStore.
 
 // handleGetPublicSectionsFromConfigStore retrieves enabled sections from ConfigStore (no auth required)
 func handleGetPublicSectionsFromConfigStore(cs *ConfigStore) http.HandlerFunc {

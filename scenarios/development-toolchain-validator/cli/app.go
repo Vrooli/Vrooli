@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
@@ -33,36 +32,35 @@ var (
 	buildSourceRoot  = ""
 )
 
+func boolPtr(v bool) *bool { return &v }
+
 // App wraps the cli-core ScenarioApp with scenario-specific commands.
 type App struct {
 	core *cliapp.ScenarioApp
 }
 
 func NewApp() (*App, error) {
-	env := cliapp.StandardScenarioEnv(appName, cliapp.ScenarioEnvOptions{
-		ExtraAPIEnvVars: []string{"API_BASE_URL", "VITE_API_BASE_URL"},
-	})
-	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
-		Name:              appName,
-		Version:           appVersion,
-		Description:       "Development Toolchain Validator CLI",
-		DefaultAPIBase:    defaultAPIBase,
-		APIEnvVars:        env.APIEnvVars,
-		APIPortEnvVars:    env.APIPortEnvVars,
-		APIPortDetector:   cliutil.DetectPortFromVrooli(appName, "API_PORT"),
-		ConfigDirEnvVars:  env.ConfigDirEnvVars,
-		SourceRootEnvVars: env.SourceRootEnvVars,
-		TokenEnvVars:      env.TokenEnvVars,
-		BuildFingerprint:  buildFingerprint,
-		BuildTimestamp:    buildTimestamp,
-		BuildSourceRoot:   buildSourceRoot,
-		AllowAnonymous:    true,
+	app := &App{}
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
+		Name:                    appName,
+		Version:                 appVersion,
+		Description:             "Development Toolchain Validator CLI",
+		DefaultAPIBase:          defaultAPIBase,
+		ExtraAPIEnvVars:         []string{"API_BASE_URL", "VITE_API_BASE_URL"},
+		BuildFingerprint:        buildFingerprint,
+		BuildTimestamp:          buildTimestamp,
+		BuildSourceRoot:         buildSourceRoot,
+		AllowAnonymous:          true,
+		IncludeConfigureCommand: boolPtr(false),
+		CommandGroups: func(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
+			app.core = core
+			return app.registerCommands()
+		},
 	})
 	if err != nil {
 		return nil, err
 	}
-	app := &App{core: core}
-	app.core.SetCommands(app.registerCommands())
+	app.core = core
 	return app, nil
 }
 
@@ -71,13 +69,6 @@ func (a *App) Run(args []string) error {
 }
 
 func (a *App) registerCommands() []cliapp.CommandGroup {
-	health := cliapp.CommandGroup{
-		Title: "Health",
-		Commands: []cliapp.Command{
-			{Name: "status", NeedsAPI: true, Description: "Check API health", Run: a.cmdStatus},
-		},
-	}
-
 	// Reference commands - maps to /api/v1/references endpoints
 	references := cliapp.CommandGroup{
 		Title: "References",
@@ -114,22 +105,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	return []cliapp.CommandGroup{health, references, connections, config}
-}
-
-func (a *App) apiPath(v1Path string) string {
-	v1Path = strings.TrimSpace(v1Path)
-	if v1Path == "" {
-		return ""
-	}
-	if !strings.HasPrefix(v1Path, "/") {
-		v1Path = "/" + v1Path
-	}
-	base := strings.TrimRight(strings.TrimSpace(a.core.HTTPClient.BaseURL()), "/")
-	if strings.HasSuffix(base, "/api/v1") {
-		return v1Path
-	}
-	return "/api/v1" + v1Path
+	return []cliapp.CommandGroup{references, connections, config}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -143,7 +119,7 @@ func (a *App) get(path string, result interface{}) error {
 
 // getWithQuery performs a GET request with query parameters.
 func (a *App) getWithQuery(path string, query url.Values, result interface{}) error {
-	body, err := a.core.APIClient.Request("GET", a.apiPath(path), query, nil)
+	body, err := a.core.Get(path, query)
 	if err != nil {
 		return err
 	}
@@ -152,7 +128,7 @@ func (a *App) getWithQuery(path string, query url.Values, result interface{}) er
 
 // post performs a POST request with the given payload.
 func (a *App) post(path string, payload interface{}, result interface{}) error {
-	body, err := a.core.APIClient.Request("POST", a.apiPath(path), nil, payload)
+	body, err := a.core.Request("POST", path, nil, payload)
 	if err != nil {
 		return err
 	}
@@ -164,7 +140,7 @@ func (a *App) post(path string, payload interface{}, result interface{}) error {
 
 // patch performs a PATCH request with the given payload.
 func (a *App) patch(path string, payload interface{}, result interface{}) error {
-	body, err := a.core.APIClient.Request("PATCH", a.apiPath(path), nil, payload)
+	body, err := a.core.Request("PATCH", path, nil, payload)
 	if err != nil {
 		return err
 	}
@@ -176,53 +152,8 @@ func (a *App) patch(path string, payload interface{}, result interface{}) error 
 
 // delete performs a DELETE request.
 func (a *App) delete(path string) error {
-	_, err := a.core.APIClient.Request("DELETE", a.apiPath(path), nil, nil)
+	_, err := a.core.Request("DELETE", path, nil, nil)
 	return err
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Health Command
-// ─────────────────────────────────────────────────────────────────────────────
-
-type healthResponse struct {
-	Status     string            `json:"status"`
-	Service    string            `json:"service"`
-	Version    string            `json:"version"`
-	Readiness  bool              `json:"readiness"`
-	Timestamp  string            `json:"timestamp"`
-	Deps       map[string]string `json:"dependencies"`
-	Error      string            `json:"error,omitempty"`
-	Message    string            `json:"message,omitempty"`
-	Operations map[string]any    `json:"operations,omitempty"`
-}
-
-func (a *App) cmdStatus(_ []string) error {
-	body, err := a.core.APIClient.Get(a.apiPath("/health"), nil)
-	if err != nil {
-		return err
-	}
-
-	var parsed healthResponse
-	if unmarshalErr := json.Unmarshal(body, &parsed); unmarshalErr == nil && parsed.Status != "" {
-		fmt.Printf("Status: %s\n", parsed.Status)
-		fmt.Printf("Ready: %v\n", parsed.Readiness)
-		if parsed.Service != "" {
-			fmt.Printf("Service: %s\n", parsed.Service)
-		}
-		if parsed.Version != "" {
-			fmt.Printf("Version: %s\n", parsed.Version)
-		}
-		if len(parsed.Deps) > 0 {
-			fmt.Println("Dependencies:")
-			for key, value := range parsed.Deps {
-				fmt.Printf("  %s: %s\n", key, value)
-			}
-		}
-		return nil
-	}
-
-	cliutil.PrintJSON(body)
-	return nil
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

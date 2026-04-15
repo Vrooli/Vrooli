@@ -4,11 +4,12 @@ import (
 	"database/sql"
 	"net/http"
 	"os"
-	"path/filepath"
+	"strings"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/health"
+	repocontract "github.com/vrooli/repo-contract-go"
 
 	"tunnel-manager/handler"
 	"tunnel-manager/service"
@@ -108,14 +109,17 @@ func (s *Server) Handler() http.Handler {
 
 // detectScenariosRoot finds the scenarios directory relative to the API binary.
 func detectScenariosRoot() string {
-	// Try environment variable first
-	if root := os.Getenv("SCENARIOS_ROOT"); root != "" {
+	if root := strings.TrimSpace(os.Getenv("SCENARIOS_ROOT")); root != "" {
 		return root
 	}
-	// Default: assume we're in scenarios/<name>/api/
-	wd, err := os.Getwd()
+
+	contract, repoRoot, err := repocontract.LoadDefaultFromEnvOrCWD()
 	if err != nil {
-		return "/home/matthalloran8/Vrooli/scenarios"
+		return ""
 	}
-	return filepath.Join(wd, "..", "..")
+	scenariosRoot, err := contract.TopLevelDir(repoRoot, "scenarios")
+	if err != nil {
+		return ""
+	}
+	return scenariosRoot
 }

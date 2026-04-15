@@ -1,7 +1,6 @@
 package services
 
 import (
-	"os"
 	"path/filepath"
 
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -19,7 +18,7 @@ func resolveSystemMonitorScenarioRoot() (string, error) {
 func ResolveConfigBasePath() string {
 	scenarioRoot, err := resolveSystemMonitorScenarioRoot()
 	if err != nil {
-		return filepath.Join(".", "initialization", "configuration")
+		return ""
 	}
 	return filepath.Join(scenarioRoot, "initialization", "configuration")
 }
@@ -28,7 +27,7 @@ func ResolveConfigBasePath() string {
 func ResolvePromptBasePath() string {
 	scenarioRoot, err := resolveSystemMonitorScenarioRoot()
 	if err != nil {
-		return filepath.Join(".", "initialization", "claude-code")
+		return ""
 	}
 	return filepath.Join(scenarioRoot, "initialization", "claude-code")
 }
@@ -37,18 +36,9 @@ func ResolvePromptBasePath() string {
 func ResolveScriptsDir() string {
 	scenarioRoot, err := resolveSystemMonitorScenarioRoot()
 	if err != nil {
-		if cwd, err := os.Getwd(); err == nil {
-			return filepath.Join(cwd, "investigations", "active")
-		} else {
-			return "."
-		}
+		return ""
 	}
 
 	scriptsPath := filepath.Join(scenarioRoot, "investigations", "active")
-	if info, err := os.Stat(scriptsPath); err == nil && info.IsDir() {
-		return scriptsPath
-	}
-
-	repoRoot := filepath.Dir(filepath.Dir(scenarioRoot))
-	return filepath.Join(repoRoot, "investigations", "active")
+	return scriptsPath
 }

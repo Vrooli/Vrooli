@@ -81,7 +81,8 @@ func (m *FileManager) runScript(ctx context.Context, command string, args ...str
 	cmd.Dir = m.scenarioDir
 	cmd.Env = append(os.Environ(),
 		fmt.Sprintf("TEST_GENIE_SCENARIO_DIR=%s", m.scenarioDir),
-		fmt.Sprintf("TEST_GENIE_APP_ROOT=%s", m.appRoot),
+		fmt.Sprintf("TEST_GENIE_REPO_ROOT=%s", m.appRoot),
+		fmt.Sprintf("VROOLI_ROOT=%s", m.appRoot),
 		"TEST_GENIE_SEEDS=1",
 	)
 	cmd.Stdout = m.logWriter

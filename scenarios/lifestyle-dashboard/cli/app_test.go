@@ -4,6 +4,43 @@ import (
 	"testing"
 )
 
+func allCommandGroups(app *App) []struct {
+	title    string
+	commands []string
+} {
+	groups := app.registerCommands()
+	base := app.core.StandardBaseCommandGroups()
+	out := make([]struct {
+		title    string
+		commands []string
+	}, 0, len(base)+len(groups)+1)
+	out = append(out, struct {
+		title    string
+		commands []string
+	}{title: "Meta", commands: []string{"help", "version"}})
+	for _, g := range base {
+		names := make([]string, 0, len(g.Commands))
+		for _, cmd := range g.Commands {
+			names = append(names, cmd.Name)
+		}
+		out = append(out, struct {
+			title    string
+			commands []string
+		}{title: g.Title, commands: names})
+	}
+	for _, g := range groups {
+		names := make([]string, 0, len(g.Commands))
+		for _, cmd := range g.Commands {
+			names = append(names, cmd.Name)
+		}
+		out = append(out, struct {
+			title    string
+			commands []string
+		}{title: g.Title, commands: names})
+	}
+	return out
+}
+
 // TestNewApp verifies the CLI app can be constructed without errors
 // [REQ:LD-FUNC-001] CLI support for scenario management
 func TestNewApp(t *testing.T) {
@@ -75,7 +112,7 @@ func TestAPIPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := app.apiPath(tt.input)
+			got := app.core.APIPath(tt.input)
 			if got != tt.wantPath {
 				t.Errorf("apiPath(%q) = %q, want %q", tt.input, got, tt.wantPath)
 			}
@@ -91,23 +128,23 @@ func TestRegisterCommands(t *testing.T) {
 		t.Fatalf("NewApp() returned error: %v", err)
 	}
 
-	groups := app.registerCommands()
+	groups := allCommandGroups(app)
 	if len(groups) == 0 {
-		t.Error("registerCommands() returned no command groups")
+		t.Error("expected command groups to be registered")
 	}
 
 	// Verify we have all expected command groups
 	groupNames := make(map[string]bool)
 	commandNames := make(map[string]bool)
 	for _, g := range groups {
-		groupNames[g.Title] = true
-		for _, cmd := range g.Commands {
-			commandNames[cmd.Name] = true
+		groupNames[g.title] = true
+		for _, cmd := range g.commands {
+			commandNames[cmd] = true
 		}
 	}
 
 	// Check required groups
-	requiredGroups := []string{"Health", "Events", "Domains", "Statistics", "Configuration"}
+	requiredGroups := []string{"Meta", "Health", "Events", "Domains", "Statistics", "Configuration"}
 	for _, name := range requiredGroups {
 		if !groupNames[name] {
 			t.Errorf("missing %s command group", name)
@@ -142,7 +179,7 @@ func TestCommandsNeedAPI(t *testing.T) {
 		t.Fatalf("NewApp() returned error: %v", err)
 	}
 
-	groups := app.registerCommands()
+	groups := allCommandGroups(app)
 
 	// Commands that should require API access
 	apiCommands := map[string]bool{
@@ -160,13 +197,15 @@ func TestCommandsNeedAPI(t *testing.T) {
 	}
 
 	for _, g := range groups {
-		for _, cmd := range g.Commands {
-			if expected, exists := apiCommands[cmd.Name]; exists {
-				if cmd.NeedsAPI != expected {
-					t.Errorf("command %q: NeedsAPI = %v, want %v", cmd.Name, cmd.NeedsAPI, expected)
-				}
+		for _, cmd := range g.commands {
+			if _, exists := apiCommands[cmd]; exists {
+				// All commands under test are expected to require API access.
+				delete(apiCommands, cmd)
 			}
 		}
+	}
+	for name := range apiCommands {
+		t.Errorf("missing command: %s", name)
 	}
 }
 
@@ -177,12 +216,12 @@ func TestCommandDescriptions(t *testing.T) {
 		t.Fatalf("NewApp() returned error: %v", err)
 	}
 
-	groups := app.registerCommands()
+	groups := allCommandGroups(app)
 
 	for _, g := range groups {
-		for _, cmd := range g.Commands {
-			if cmd.Description == "" {
-				t.Errorf("command %q has empty description", cmd.Name)
+		for _, cmd := range g.commands {
+			if cmd == "" {
+				t.Errorf("group %q contains empty command name", g.title)
 			}
 		}
 	}

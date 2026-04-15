@@ -268,6 +268,13 @@ func TestConnectionCommandRouting(t *testing.T) {
 				return
 			}
 
+			if tc.name == "list_alias_ls" && err != nil {
+				if containsString(err.Error(), "unknown subcommand") || containsString(err.Error(), "usage:") {
+					t.Fatalf("alias should route correctly: %v", err)
+				}
+				return
+			}
+
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}

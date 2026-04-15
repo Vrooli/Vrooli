@@ -657,7 +657,8 @@ func (o *SuiteOrchestrator) scriptPhaseRunner(scriptPath string) phases.Runner {
 		cmd.Env = append(
 			os.Environ(),
 			fmt.Sprintf("TEST_GENIE_SCENARIO_DIR=%s", env.ScenarioDir),
-			fmt.Sprintf("TEST_GENIE_APP_ROOT=%s", env.AppRoot),
+			fmt.Sprintf("TEST_GENIE_REPO_ROOT=%s", env.AppRoot),
+			fmt.Sprintf("VROOLI_ROOT=%s", env.AppRoot),
 		)
 		cmd.Stdout = logWriter
 		cmd.Stderr = logWriter

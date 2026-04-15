@@ -4,48 +4,25 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
-// getVrooliRoot returns the active repo root, preferring canonical contract
-// resolution while preserving explicit non-contract overrides as a fallback.
+// getVrooliRoot returns the active repo root using only contract resolution.
 func getVrooliRoot() string {
 	for _, key := range []string{"VROOLI_SOURCE_ROOT", "VROOLI_ROOT"} {
 		if root := strings.TrimSpace(os.Getenv(key)); root != "" {
-			if resolved, ok := canonicalRepoRootFromOverride(root); ok {
+			if resolved, err := repocontract.FindRepoRootFromPath(root); err == nil {
 				return resolved
 			}
-			return filepath.Clean(root)
 		}
 	}
-	if root, err := repocontract.ResolveRepoRoot(); err == nil {
-		return root
+	root, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		return ""
 	}
-	if cwd, err := os.Getwd(); err == nil {
-		return filepath.Clean(cwd)
-	}
-	return "."
-}
-
-func canonicalRepoRootFromOverride(path string) (string, bool) {
-	current := filepath.Clean(strings.TrimSpace(path))
-	if current == "" || current == "." {
-		return "", false
-	}
-	for depth := 0; depth < 25; depth++ {
-		if resolved, err := repocontract.FindRepoRoot(current); err == nil {
-			return resolved, true
-		}
-		parent := filepath.Dir(current)
-		if parent == current {
-			break
-		}
-		current = parent
-	}
-	return "", false
+	return root
 }
 
 func resolveScenarioRoot(scenario string) string {
@@ -54,10 +31,11 @@ func resolveScenarioRoot(scenario string) string {
 	if repoRoot == "" || scenario == "" {
 		return ""
 	}
-	if resolved, err := repocontract.ResolveScenarioPath(repoRoot, scenario); err == nil {
-		return resolved
+	resolved, err := repocontract.ResolveScenarioPath(repoRoot, scenario)
+	if err != nil {
+		return ""
 	}
-	return filepath.Join(repoRoot, "scenarios", scenario)
+	return resolved
 }
 
 func resolveTopLevelDir(key string) string {
@@ -66,12 +44,14 @@ func resolveTopLevelDir(key string) string {
 		return ""
 	}
 	contract, err := repocontract.LoadDefault(repoRoot)
-	if err == nil {
-		if resolved, resolveErr := contract.TopLevelDir(repoRoot, key); resolveErr == nil {
-			return resolved
-		}
+	if err != nil {
+		return ""
 	}
-	return filepath.Join(repoRoot, key)
+	resolved, err := contract.TopLevelDir(repoRoot, key)
+	if err != nil {
+		return ""
+	}
+	return resolved
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload interface{}) {

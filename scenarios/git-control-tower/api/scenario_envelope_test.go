@@ -43,8 +43,7 @@ func TestParseServiceJSON_FullData(t *testing.T) {
 			"setup": {
 				"steps": [
 					{"name": "install-deps", "run": "npm install"},
-					{"name": "build-api", "run": "go build -o api ."},
-					{"name": "show-urls", "run": "echo done"}
+					{"name": "build-api", "run": "go build -o api ."}
 				]
 			}
 		}
@@ -212,7 +211,7 @@ func TestContainsBuild(t *testing.T) {
 		{"BUILD", true},
 		{"rebuild-all", true},
 		{"install-deps", false},
-		{"show-urls", false},
+		{"start-api", false},
 		{"buil", false}, // too short
 		{"", false},
 	}

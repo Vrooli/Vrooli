@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"path/filepath"
 	"strings"
 
 	"swarm-manager/internal/apierr"
@@ -136,7 +135,6 @@ func (h *Handler) BatchQueue(w http.ResponseWriter, r *http.Request) {
 	} else {
 		eq = execution.NewService(execution.ServiceConfig{
 			RootDir:            h.rootDir,
-			StorePath:          filepath.Join(h.rootDir, ".vrooli", "execution-runs.json"),
 			PolicyProvider:     h.policyProvider,
 			GovernanceProvider: h.governanceProvider,
 			AgentService:       h.agentService,

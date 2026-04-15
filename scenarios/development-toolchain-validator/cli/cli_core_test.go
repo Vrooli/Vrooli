@@ -47,8 +47,8 @@ func TestNewApp(t *testing.T) {
 	}
 }
 
-// TestApiPath verifies the API path construction logic.
-func TestApiPath(t *testing.T) {
+// TestAPIPath verifies the API path construction logic.
+func TestAPIPath(t *testing.T) {
 	app, err := NewApp()
 	if err != nil {
 		t.Fatalf("failed to create app: %v", err)
@@ -89,7 +89,7 @@ func TestApiPath(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// ACT
-			result := app.apiPath(tc.input)
+			result := app.core.APIPath(tc.input)
 
 			// ASSERT
 			if result != tc.wantPath {
@@ -99,51 +99,20 @@ func TestApiPath(t *testing.T) {
 	}
 }
 
-// TestHealthResponseParsing verifies that the health response structure is correctly defined.
-func TestHealthResponseParsing(t *testing.T) {
-	tests := []struct {
-		name     string
-		response healthResponse
-		category string
-	}{
-		{
-			name: "full_response",
-			response: healthResponse{
-				Status:    "ok",
-				Service:   "development-toolchain-validator",
-				Version:   "0.1.0",
-				Readiness: true,
-				Timestamp: "2026-03-11T12:00:00Z",
-				Deps:      map[string]string{"postgres": "connected"},
-			},
-			category: "happy_path",
-		},
-		{
-			name: "minimal_response",
-			response: healthResponse{
-				Status:    "ok",
-				Readiness: true,
-			},
-			category: "boundary",
-		},
-		{
-			name: "error_response",
-			response: healthResponse{
-				Status:  "error",
-				Error:   "database connection failed",
-				Message: "Service unavailable",
-			},
-			category: "error",
-		},
+func TestBuiltInCommandsAvailable(t *testing.T) {
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", t.TempDir())
+
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("failed to create app: %v", err)
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			// ASSERT - verify struct fields are accessible
-			if tc.response.Status == "" && tc.category != "boundary" {
-				t.Error("expected non-empty status")
-			}
-		})
+	if err := app.Run([]string{"configure", "api_base", "http://example.com"}); err != nil {
+		t.Fatalf("configure failed: %v", err)
+	}
+
+	if err := app.Run([]string{"reference"}); err != nil {
+		t.Fatalf("expected reference command help to succeed, got %v", err)
 	}
 }
 

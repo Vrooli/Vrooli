@@ -164,7 +164,8 @@ func TestManagerEnvironmentVariables(t *testing.T) {
 	envMarker := filepath.Join(tempDir, "env.txt")
 	applyScript := `#!/bin/bash
 echo "SCENARIO_DIR=$TEST_GENIE_SCENARIO_DIR" > "` + envMarker + `"
-echo "APP_ROOT=$TEST_GENIE_APP_ROOT" >> "` + envMarker + `"
+echo "REPO_ROOT=$TEST_GENIE_REPO_ROOT" >> "` + envMarker + `"
+echo "VROOLI_ROOT=$VROOLI_ROOT" >> "` + envMarker + `"
 `
 	if err := os.WriteFile(filepath.Join(seedsDir, ShellEntrypoint), []byte(applyScript), 0o755); err != nil {
 		t.Fatalf("failed to create seed script: %v", err)
@@ -190,8 +191,11 @@ echo "APP_ROOT=$TEST_GENIE_APP_ROOT" >> "` + envMarker + `"
 	if !strings.Contains(envStr, "SCENARIO_DIR="+scenarioDir) {
 		t.Errorf("expected SCENARIO_DIR=%s in output, got: %s", scenarioDir, envStr)
 	}
-	if !strings.Contains(envStr, "APP_ROOT="+appRoot) {
-		t.Errorf("expected APP_ROOT=%s in output, got: %s", appRoot, envStr)
+	if !strings.Contains(envStr, "REPO_ROOT="+appRoot) {
+		t.Errorf("expected REPO_ROOT=%s in output, got: %s", appRoot, envStr)
+	}
+	if !strings.Contains(envStr, "VROOLI_ROOT="+appRoot) {
+		t.Errorf("expected VROOLI_ROOT=%s in output, got: %s", appRoot, envStr)
 	}
 }
 

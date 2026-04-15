@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	apistorage "github.com/vrooli/api-core/storage"
+	repocontract "github.com/vrooli/repo-contract-go"
 
 	"test-genie/internal/storage/sqlitedb"
 )
@@ -74,13 +75,22 @@ func resolveScenariosRoot() (string, error) {
 	if raw := strings.TrimSpace(os.Getenv("SCENARIOS_ROOT")); raw != "" {
 		return filepath.Abs(raw)
 	}
-	wd, err := os.Getwd()
+
+	root, err := repocontract.FindRepoRootFromEnvOrCWD()
 	if err != nil {
-		return "", fmt.Errorf("failed to determine working directory: %w", err)
+		return "", fmt.Errorf("resolve repo root: %w", err)
 	}
-	scenarioDir := filepath.Dir(wd)
-	root := filepath.Dir(scenarioDir)
-	return root, nil
+
+	contract, err := repocontract.LoadDefault(root)
+	if err != nil {
+		return "", fmt.Errorf("load repo contract: %w", err)
+	}
+
+	scenariosRoot, err := contract.TopLevelDir(root, "scenarios")
+	if err != nil {
+		return "", fmt.Errorf("resolve scenarios dir: %w", err)
+	}
+	return scenariosRoot, nil
 }
 
 func resolveFallbackDatabasePath() (string, error) {

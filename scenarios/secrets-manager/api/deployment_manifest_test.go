@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/vrooli/api-core/storage"
 )
 
 // -----------------------------------------------------------------------------
@@ -383,6 +385,10 @@ func TestSummaryBuilder_BlockingDetailsSource(t *testing.T) {
 
 func TestDefaultResourceResolverResolveScenarioResourcesUsesContractScenarioPath(t *testing.T) {
 	root := newContractFixtureRepo(t)
+	nested := filepath.Join(root, "scenarios", "secrets-manager", "api")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatalf("mkdir nested: %v", err)
+	}
 	servicePath := filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json")
 	if err := os.MkdirAll(filepath.Dir(servicePath), 0o755); err != nil {
 		t.Fatalf("mkdir service dir: %v", err)
@@ -391,7 +397,8 @@ func TestDefaultResourceResolverResolveScenarioResourcesUsesContractScenarioPath
 		t.Fatalf("write service.json: %v", err)
 	}
 
-	t.Setenv("VROOLI_ROOT", filepath.Join(root, "scenarios", "secrets-manager", "api"))
+	t.Setenv("VROOLI_SOURCE_ROOT", nested)
+	t.Setenv("VROOLI_ROOT", "")
 
 	resolver := &DefaultResourceResolver{}
 	got := resolver.resolveScenarioResources("alpha")
@@ -402,11 +409,30 @@ func TestDefaultResourceResolverResolveScenarioResourcesUsesContractScenarioPath
 
 func TestHTTPAnalyzerClientReportPathUsesContractScenarioPath(t *testing.T) {
 	root := newContractFixtureRepo(t)
-	t.Setenv("VROOLI_ROOT", filepath.Join(root, "scenarios", "secrets-manager", "api"))
+	nested := filepath.Join(root, "scenarios", "secrets-manager", "api")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatalf("mkdir nested: %v", err)
+	}
+	t.Setenv("VROOLI_SOURCE_ROOT", nested)
+	t.Setenv("VROOLI_ROOT", "")
 
 	client := &HTTPAnalyzerClient{}
 	got := client.reportPath("alpha")
-	want := filepath.Join(root, "scenarios", "alpha", ".vrooli", "deployment", "deployment-report.json")
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		t.Fatalf("create storage resolver: %v", err)
+	}
+	want, err := resolver.Path(
+		storage.Options{ScenarioID: "alpha"},
+		storage.ClassData,
+		filepath.Join("deployment", "deployment-report.json"),
+	)
+	if err != nil {
+		t.Fatalf("resolve report path: %v", err)
+	}
 	if got != want {
 		t.Fatalf("reportPath() = %q, want %q", got, want)
 	}

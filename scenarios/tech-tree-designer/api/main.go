@@ -228,16 +228,16 @@ func main() {
 		visibilityPath, pathErr := resolveVisibilityPath(repoRoot)
 		if pathErr != nil {
 			log.Printf("WARNING: scenario visibility path unavailable: %v", pathErr)
-			visibilityPath = filepath.Join(repoRoot, "scenarios", "tech-tree-designer", "data", "scenario_visibility.json")
-		}
-		log.Printf("INFO: Visibility path: %s", visibilityPath)
-		manager, catalogErr := NewScenarioCatalogManager(repoRoot, visibilityPath)
-		if catalogErr != nil {
-			log.Printf("WARNING: scenario catalog unavailable: %v", catalogErr)
 		} else {
-			catalogManager = manager
-			log.Printf("INFO: Scenario catalog manager initialized successfully")
-			catalogManager.StartBackgroundRefresh(24 * time.Hour)
+			log.Printf("INFO: Visibility path: %s", visibilityPath)
+			manager, catalogErr := NewScenarioCatalogManager(repoRoot, visibilityPath)
+			if catalogErr != nil {
+				log.Printf("WARNING: scenario catalog unavailable: %v", catalogErr)
+			} else {
+				catalogManager = manager
+				log.Printf("INFO: Scenario catalog manager initialized successfully")
+				catalogManager.StartBackgroundRefresh(24 * time.Hour)
+			}
 		}
 	}
 
@@ -354,12 +354,6 @@ func resolveVisibilityPath(repoRoot string) (string, error) {
 	path, err := resolver.Path(storage.Options{ScenarioID: "tech-tree-designer"}, storage.ClassConfig, "scenario_visibility.json")
 	if err != nil {
 		return "", err
-	}
-	legacy := filepath.Join(repoRoot, "scenarios", "tech-tree-designer", "data", "scenario_visibility.json")
-	if legacy != path {
-		if err := migrateVisibilityPath(legacy, path); err != nil {
-			return "", err
-		}
 	}
 	return path, nil
 }

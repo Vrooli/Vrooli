@@ -35,35 +35,34 @@ var (
 	buildSourceRoot  = ""
 )
 
+func boolPtr(v bool) *bool { return &v }
+
 type App struct {
 	core *cliapp.ScenarioApp
 }
 
 func NewApp() (*App, error) {
-	env := cliapp.StandardScenarioEnv(appName, cliapp.ScenarioEnvOptions{
-		ExtraAPIEnvVars: []string{"API_BASE_URL", "VITE_API_BASE_URL"},
-	})
-	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
-		Name:              appName,
-		Version:           appVersion,
-		Description:       "Lifestyle Dashboard CLI",
-		DefaultAPIBase:    defaultAPIBase,
-		APIEnvVars:        env.APIEnvVars,
-		APIPortEnvVars:    env.APIPortEnvVars,
-		APIPortDetector:   cliutil.DetectPortFromVrooli(appName, "API_PORT"),
-		ConfigDirEnvVars:  env.ConfigDirEnvVars,
-		SourceRootEnvVars: env.SourceRootEnvVars,
-		TokenEnvVars:      env.TokenEnvVars,
-		BuildFingerprint:  buildFingerprint,
-		BuildTimestamp:    buildTimestamp,
-		BuildSourceRoot:   buildSourceRoot,
-		AllowAnonymous:    true,
+	app := &App{}
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
+		Name:                    appName,
+		Version:                 appVersion,
+		Description:             "Lifestyle Dashboard CLI",
+		DefaultAPIBase:          defaultAPIBase,
+		ExtraAPIEnvVars:         []string{"API_BASE_URL", "VITE_API_BASE_URL"},
+		BuildFingerprint:        buildFingerprint,
+		BuildTimestamp:          buildTimestamp,
+		BuildSourceRoot:         buildSourceRoot,
+		AllowAnonymous:          true,
+		IncludeConfigureCommand: boolPtr(false),
+		CommandGroups: func(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
+			app.core = core
+			return app.registerCommands()
+		},
 	})
 	if err != nil {
 		return nil, err
 	}
-	app := &App{core: core}
-	app.core.SetCommands(app.registerCommands())
+	app.core = core
 	return app, nil
 }
 
@@ -72,13 +71,6 @@ func (a *App) Run(args []string) error {
 }
 
 func (a *App) registerCommands() []cliapp.CommandGroup {
-	health := cliapp.CommandGroup{
-		Title: "Health",
-		Commands: []cliapp.Command{
-			{Name: "status", NeedsAPI: true, Description: "Check API health", Run: a.cmdStatus},
-		},
-	}
-
 	events := cliapp.CommandGroup{
 		Title: "Events",
 		Commands: []cliapp.Command{
@@ -115,78 +107,7 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 		},
 	}
 
-	return []cliapp.CommandGroup{health, events, domains, stats, config}
-}
-
-func (a *App) apiPath(v1Path string) string {
-	v1Path = strings.TrimSpace(v1Path)
-	if v1Path == "" {
-		return ""
-	}
-	if !strings.HasPrefix(v1Path, "/") {
-		v1Path = "/" + v1Path
-	}
-	base := strings.TrimRight(strings.TrimSpace(a.core.HTTPClient.BaseURL()), "/")
-	if strings.HasSuffix(base, "/api/v1") {
-		return v1Path
-	}
-	return "/api/v1" + v1Path
-}
-
-// =============================================================================
-// Health Commands
-// =============================================================================
-
-type healthResponse struct {
-	Status     string            `json:"status"`
-	Service    string            `json:"service"`
-	Version    string            `json:"version"`
-	Readiness  bool              `json:"readiness"`
-	Timestamp  string            `json:"timestamp"`
-	Deps       map[string]string `json:"dependencies"`
-	Error      string            `json:"error,omitempty"`
-	Message    string            `json:"message,omitempty"`
-	Operations map[string]any    `json:"operations,omitempty"`
-}
-
-func (a *App) cmdStatus(args []string) error {
-	fs := flag.NewFlagSet("status", flag.ContinueOnError)
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	body, err := a.core.APIClient.Get(a.apiPath("/health"), nil)
-	if err != nil {
-		return err
-	}
-
-	if *jsonOutput {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-
-	var parsed healthResponse
-	if unmarshalErr := json.Unmarshal(body, &parsed); unmarshalErr == nil && parsed.Status != "" {
-		fmt.Printf("Status: %s\n", parsed.Status)
-		fmt.Printf("Ready: %v\n", parsed.Readiness)
-		if parsed.Service != "" {
-			fmt.Printf("Service: %s\n", parsed.Service)
-		}
-		if parsed.Version != "" {
-			fmt.Printf("Version: %s\n", parsed.Version)
-		}
-		if len(parsed.Deps) > 0 {
-			fmt.Println("Dependencies:")
-			for key, value := range parsed.Deps {
-				fmt.Printf("  %s: %s\n", key, value)
-			}
-		}
-		return nil
-	}
-
-	cliutil.PrintJSON(body)
-	return nil
+	return []cliapp.CommandGroup{events, domains, stats, config}
 }
 
 // =============================================================================
@@ -254,7 +175,7 @@ func (a *App) cmdEventCreate(args []string) error {
 		req.HypothesisID = hypothesisID
 	}
 
-	body, err := a.core.APIClient.Request("POST", a.apiPath("/events"), nil, req)
+	body, err := a.core.Request("POST", "/events", nil, req)
 	if err != nil {
 		return err
 	}
@@ -305,7 +226,7 @@ func (a *App) cmdEventList(args []string) error {
 		params["limit"] = fmt.Sprintf("%d", *limit)
 	}
 
-	body, err := a.core.APIClient.Get(a.apiPath("/events"), toURLValues(params))
+	body, err := a.core.Get("/events", toURLValues(params))
 	if err != nil {
 		return err
 	}
@@ -343,7 +264,7 @@ func (a *App) cmdEventGet(args []string) error {
 	}
 	id := fs.Arg(0)
 
-	body, err := a.core.APIClient.Get(a.apiPath("/events/"+id), nil)
+	body, err := a.core.Get("/events/"+id, nil)
 	if err != nil {
 		return err
 	}
@@ -438,7 +359,7 @@ func (a *App) cmdDomainRegister(args []string) error {
 		req.Capabilities = cliutil.ParseCSV(*capabilities)
 	}
 
-	body, err := a.core.APIClient.Request("POST", a.apiPath("/domains"), nil, req)
+	body, err := a.core.Request("POST", "/domains", nil, req)
 	if err != nil {
 		return err
 	}
@@ -466,7 +387,7 @@ func (a *App) cmdDomainList(args []string) error {
 		return err
 	}
 
-	body, err := a.core.APIClient.Get(a.apiPath("/domains"), nil)
+	body, err := a.core.Get("/domains", nil)
 	if err != nil {
 		return err
 	}
@@ -504,7 +425,7 @@ func (a *App) cmdDomainGet(args []string) error {
 	}
 	name := fs.Arg(0)
 
-	body, err := a.core.APIClient.Get(a.apiPath("/domains/"+name), nil)
+	body, err := a.core.Get("/domains/"+name, nil)
 	if err != nil {
 		return err
 	}
@@ -570,7 +491,7 @@ func (a *App) cmdDomainUpdate(args []string) error {
 		return fmt.Errorf("no updates specified; use --display-name, --description, or --health-url")
 	}
 
-	body, err := a.core.APIClient.Request("PATCH", a.apiPath("/domains/"+name), nil, updates)
+	body, err := a.core.Request("PATCH", "/domains/"+name, nil, updates)
 	if err != nil {
 		return err
 	}
@@ -604,7 +525,7 @@ func (a *App) cmdDomainHealth(args []string) error {
 	}
 	name := fs.Arg(0)
 
-	body, err := a.core.APIClient.Get(a.apiPath("/domains/"+name+"/health"), nil)
+	body, err := a.core.Get("/domains/"+name+"/health", nil)
 	if err != nil {
 		return err
 	}
@@ -669,7 +590,7 @@ func (a *App) cmdStatsTimeline(args []string) error {
 		params["days"] = fmt.Sprintf("%d", *days)
 	}
 
-	body, err := a.core.APIClient.Get(a.apiPath("/stats/timeline"), toURLValues(params))
+	body, err := a.core.Get("/stats/timeline", toURLValues(params))
 	if err != nil {
 		return err
 	}
@@ -712,7 +633,7 @@ func (a *App) cmdStatsSummary(args []string) error {
 		return err
 	}
 
-	body, err := a.core.APIClient.Get(a.apiPath("/stats/summary"), nil)
+	body, err := a.core.Get("/stats/summary", nil)
 	if err != nil {
 		return err
 	}
@@ -788,7 +709,7 @@ func (a *App) cmdStatsScore(args []string) error {
 		params["history_days"] = fmt.Sprintf("%d", *historyDays)
 	}
 
-	body, err := a.core.APIClient.Get(a.apiPath("/stats/score"), toURLValues(params))
+	body, err := a.core.Get("/stats/score", toURLValues(params))
 	if err != nil {
 		return err
 	}

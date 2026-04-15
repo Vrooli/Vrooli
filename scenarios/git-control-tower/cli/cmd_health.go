@@ -7,58 +7,6 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 )
 
-type healthResponse struct {
-	Status    string `json:"status"`
-	Service   string `json:"service"`
-	Version   string `json:"version"`
-	Readiness bool   `json:"readiness"`
-	Timestamp string `json:"timestamp"`
-	Deps      map[string]struct {
-		Connected bool   `json:"connected"`
-		Status    string `json:"status"`
-	} `json:"dependencies"`
-	Error      string         `json:"error,omitempty"`
-	Message    string         `json:"message,omitempty"`
-	Operations map[string]any `json:"operations,omitempty"`
-}
-
-func (a *App) cmdStatus(_ []string) error {
-	body, err := a.core.APIClient.Get(a.apiPath("/health"), nil)
-	if err != nil {
-		return err
-	}
-
-	var parsed healthResponse
-	if unmarshalErr := json.Unmarshal(body, &parsed); unmarshalErr == nil && parsed.Status != "" {
-		fmt.Printf("Status: %s\n", parsed.Status)
-		fmt.Printf("Ready: %v\n", parsed.Readiness)
-		if parsed.Service != "" {
-			fmt.Printf("Service: %s\n", parsed.Service)
-		}
-		if parsed.Version != "" {
-			fmt.Printf("Version: %s\n", parsed.Version)
-		}
-		if len(parsed.Deps) > 0 {
-			fmt.Println("Dependencies:")
-			for key, value := range parsed.Deps {
-				state := "disconnected"
-				if value.Connected {
-					state = "connected"
-				}
-				if value.Status != "" {
-					fmt.Printf("  %s: %s (%s)\n", key, state, value.Status)
-					continue
-				}
-				fmt.Printf("  %s: %s\n", key, state)
-			}
-		}
-		return nil
-	}
-
-	cliutil.PrintJSON(body)
-	return nil
-}
-
 // [REQ:GCT-OT-P0-002] Repository status API
 
 type repoStatusResponse struct {
@@ -78,7 +26,7 @@ type repoStatusResponse struct {
 }
 
 func (a *App) cmdRepoStatus(_ []string) error {
-	body, err := a.core.APIClient.Get(a.apiPath("/repo/status"), nil)
+	body, err := a.core.Get("/repo/status", nil)
 	if err != nil {
 		return err
 	}

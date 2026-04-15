@@ -34,7 +34,7 @@ func (a *App) cmdReviewSummary(args []string) error {
 		query.Set("details", fmt.Sprintf("%d", *details))
 	}
 
-	body, err := a.core.APIClient.Get(a.apiPath("/review/summary"), query)
+	body, err := a.core.Get("/review/summary", query)
 	if err != nil {
 		return err
 	}
@@ -77,7 +77,7 @@ func (a *App) cmdReviewRun(args []string) error {
 		req.Checks = strings.Split(*checks, ",")
 	}
 
-	body, err := a.core.APIClient.Request("POST", a.apiPath("/review/run"), nil, req)
+	body, err := a.core.Request("POST", "/review/run", nil, req)
 	if err != nil {
 		return err
 	}
@@ -115,7 +115,7 @@ func (a *App) pollReviewJob(jobID, scenario string) (*reviewJobStatusResponse, e
 	for {
 		time.Sleep(3 * time.Second)
 
-		statusBody, pollErr := a.core.APIClient.Get(a.apiPath("/review/run/"+jobID), nil)
+		statusBody, pollErr := a.core.Get("/review/run/"+jobID, nil)
 		if pollErr != nil {
 			return nil, fmt.Errorf("polling job status: %w", pollErr)
 		}
@@ -177,7 +177,7 @@ func (a *App) cmdReviewStatus(args []string) error {
 	}
 	jobID := fs.Arg(0)
 
-	body, err := a.core.APIClient.Get(a.apiPath("/review/run/"+jobID), nil)
+	body, err := a.core.Get("/review/run/"+jobID, nil)
 	if err != nil {
 		return err
 	}

@@ -73,7 +73,7 @@ type branchPublishResponse struct {
 }
 
 func (a *App) cmdBranchList(_ []string) error {
-	body, err := a.core.APIClient.Get(a.apiPath("/repo/branches"), nil)
+	body, err := a.core.Get("/repo/branches", nil)
 	if err != nil {
 		return err
 	}
@@ -170,7 +170,7 @@ func (a *App) cmdBranchCreate(args []string) error {
 		AllowDirty: f.allowDirty,
 	}
 
-	body, err := a.core.APIClient.Request("POST", a.apiPath("/repo/branch/create"), nil, req)
+	body, err := a.core.Request("POST", "/repo/branch/create", nil, req)
 	if err != nil {
 		return err
 	}
@@ -239,7 +239,7 @@ func (a *App) cmdBranchSwitch(args []string) error {
 		TrackRemote: f.trackRemote,
 	}
 
-	body, err := a.core.APIClient.Request("POST", a.apiPath("/repo/branch/switch"), nil, req)
+	body, err := a.core.Request("POST", "/repo/branch/switch", nil, req)
 	if err != nil {
 		return err
 	}
@@ -301,7 +301,7 @@ func (a *App) cmdBranchPublish(args []string) error {
 		Fetch:  f.fetch,
 	}
 
-	body, err := a.core.APIClient.Request("POST", a.apiPath("/repo/branch/publish"), nil, req)
+	body, err := a.core.Request("POST", "/repo/branch/publish", nil, req)
 	if err != nil {
 		return err
 	}

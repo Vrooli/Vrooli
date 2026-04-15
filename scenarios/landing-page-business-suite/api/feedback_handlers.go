@@ -10,7 +10,7 @@ import (
 )
 
 // NOTE: handleFeedbackCreate (database-backed BrandingService) has been removed.
-// Branding is now stored in JSON files (.vrooli/branding.json) and accessed via ConfigStore.
+// Branding is stored in tracked config JSON and accessed via ConfigStore.
 
 // handleFeedbackCreateWithConfigStore handles POST /api/v1/feedback using ConfigStore for branding (public endpoint)
 func handleFeedbackCreateWithConfigStore(svc *FeedbackService, cs *ConfigStore, emailSvc *EmailService) http.HandlerFunc {

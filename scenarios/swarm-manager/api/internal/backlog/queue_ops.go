@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -93,7 +92,6 @@ func (h *Handler) Queue(w http.ResponseWriter, r *http.Request) {
 	} else {
 		executionService = execution.NewService(execution.ServiceConfig{
 			RootDir:            h.rootDir,
-			StorePath:          filepath.Join(h.rootDir, ".vrooli", "execution-runs.json"),
 			PolicyProvider:     h.policyProvider,
 			GovernanceProvider: h.governanceProvider,
 			AgentService:       h.agentService,
@@ -283,7 +281,6 @@ func (h *Handler) ProcessPreflight(w http.ResponseWriter, r *http.Request) {
 
 	executionService := execution.NewService(execution.ServiceConfig{
 		RootDir:            h.rootDir,
-		StorePath:          filepath.Join(h.rootDir, ".vrooli", "execution-runs.json"),
 		PolicyProvider:     h.policyProvider,
 		GovernanceProvider: h.governanceProvider,
 		AgentService:       h.agentService,
