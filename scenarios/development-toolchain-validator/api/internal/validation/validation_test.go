@@ -160,7 +160,7 @@ func TestValidateCommandSafety(t *testing.T) {
 		expectPattern  string
 	}{
 		// Safe commands
-		{"allowed scenario-auditor", "scenario-auditor audit my-scenario", true, true, ""},
+		{"allowed scenario-auditor", "scenario-auditor standards scan my-scenario --wait", true, true, ""},
 		{"allowed test-genie", "test-genie run all", true, true, ""},
 		{"generic safe command", "ls -la", true, false, ""},
 		{"echo command", "echo hello", true, false, ""},

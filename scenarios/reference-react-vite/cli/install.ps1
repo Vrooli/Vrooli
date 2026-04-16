@@ -1,8 +1,9 @@
 Param(
     [string]$ModulePath = "scenarios/reference-react-vite/cli",
-    [string]$Name = "reference-react-vite"
+    [string]$Name = "reference-react-vite",
+    [string]$Manifest = "scenarios/reference-react-vite/.vrooli/service.json"
 )
 
 $repoRoot = (Resolve-Path "$PSScriptRoot/../../.." | Select-Object -First 1).Path
 
-& "$repoRoot/packages/cli-core/install.ps1" -ModulePath $ModulePath -Name $Name 
+& "$repoRoot/packages/cli-core/install.ps1" -ModulePath $ModulePath -Name $Name -Manifest $Manifest

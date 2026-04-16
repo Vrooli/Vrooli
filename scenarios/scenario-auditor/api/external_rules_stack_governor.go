@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/discovery"
 
+	"scenario-auditor/internal/repocontext"
 	rulespkg "scenario-auditor/rules"
 )
 
@@ -33,10 +34,6 @@ func newStackGovernorProvider() externalRuleProvider {
 		p.ruleLookup[rule.ID] = rule
 	}
 	return p
-}
-
-func init() {
-	registerExternalProvider(newStackGovernorProvider())
 }
 
 func (p *stackGovernorProvider) ID() string {
@@ -183,7 +180,12 @@ func (p *stackGovernorProvider) runAgainstBaseURL(ctx context.Context, baseURL, 
 	now := time.Now().Format(time.RFC3339)
 	scenarioDir := ""
 	if parsed.RepoRoot != "" {
-		if resolvedPath, err := resolveContractScenarioPathFromRepoRoot(parsed.RepoRoot, scenarioName); err == nil {
+		if repoCtx, err := repocontext.FromRepoRoot(parsed.RepoRoot); err == nil {
+			resolvedPath, err := repoCtx.ResolveScenarioPath(scenarioName)
+			if err == nil {
+				scenarioDir = resolvedPath
+			}
+		} else if resolvedPath, err := filepath.Abs(filepath.Join(parsed.RepoRoot, "scenarios", scenarioName)); err == nil {
 			scenarioDir = resolvedPath
 		}
 	}

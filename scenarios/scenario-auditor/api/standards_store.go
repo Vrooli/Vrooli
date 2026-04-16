@@ -27,25 +27,20 @@ type StandardsData struct {
 	LastUpdate time.Time                       `json:"last_update"`
 }
 
-var standardsStore = initStandardsStore()
+var standardsStore = newStandardsStore()
 
-func initStandardsStore() *StandardsStore {
-	fmt.Fprintf(os.Stderr, "[INIT] Initializing standards store...\n")
-	store := &StandardsStore{
+func newStandardsStore() *StandardsStore {
+	return &StandardsStore{
 		violations: make(map[string][]StandardsViolation),
 		lastCheck:  make(map[string]time.Time),
 	}
-
-	// Try to enable persistence, but don't fail if we can't
-	fmt.Fprintf(os.Stderr, "[INIT] Enabling standards store persistence...\n")
-	store.enablePersistence()
-	fmt.Fprintf(os.Stderr, "[INIT] Standards store initialized\n")
-
-	return store
 }
 
 // enablePersistence attempts to enable file-based persistence
 func (ss *StandardsStore) enablePersistence() {
+	if ss.filePath != "" {
+		return
+	}
 	path, err := resolveScenarioAuditorStoragePath(storage.ClassCache, "standards-violations.json")
 	if err != nil {
 		logger.Error("Failed to resolve scenario-auditor standards cache path", err)

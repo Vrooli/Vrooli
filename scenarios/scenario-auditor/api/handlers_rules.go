@@ -32,18 +32,18 @@ type ruleStateData struct {
 	LastUpdate time.Time       `json:"last_update"`
 }
 
-var ruleStateStore = initRuleStateStore()
+var ruleStateStore = newRuleStateStore()
 
-func initRuleStateStore() *RuleStateStore {
-	fmt.Fprintf(os.Stderr, "[INIT] Initializing rule state store...\n")
-	store := &RuleStateStore{
+func newRuleStateStore() *RuleStateStore {
+	return &RuleStateStore{
 		states: make(map[string]bool),
 	}
-	store.enablePersistence()
-	return store
 }
 
 func (rs *RuleStateStore) enablePersistence() {
+	if rs.filePath != "" {
+		return
+	}
 	path, err := resolveScenarioAuditorStoragePath(storage.ClassConfig, "rule-preferences.json")
 	if err != nil {
 		logger.Error("Failed to resolve scenario-auditor rule preferences config path", err)

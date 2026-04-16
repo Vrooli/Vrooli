@@ -12,7 +12,7 @@ The scenario-improver.md prompt used by ecosystem-manager instructs agents to ru
 |------|---------|---------|
 | `vrooli scenario status` | `vrooli scenario status {target}` | Lifecycle health check |
 | `scenario-completeness-scoring` | `scenario-completeness-scoring score {target}` | Quality scoring (0-100) |
-| `scenario-auditor` | `scenario-auditor audit {target} --timeout 240` | Standards violations |
+| `scenario-auditor` | `scenario-auditor standards scan {target} --wait --timeout 240s` | Standards violations |
 | `test-genie` | `vrooli scenario test {target}` | 11-phase test suite |
 | `vrooli scenario ui-smoke` | `vrooli scenario ui-smoke {target}` | UI validation |
 

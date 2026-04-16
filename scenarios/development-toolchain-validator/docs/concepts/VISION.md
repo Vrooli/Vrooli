@@ -23,7 +23,7 @@ The ecosystem-manager's scenario-improver loop uses several tools in its Quick V
 
 1. `vrooli scenario status` — lifecycle health
 2. `scenario-completeness-scoring score` — quality scoring (0-100)
-3. `scenario-auditor audit` — standards violations
+3. `scenario-auditor standards scan --wait` — standards violations
 4. `vrooli scenario test` (test-genie) — 11-phase test suite
 5. `vrooli scenario ui-smoke` — UI validation
 

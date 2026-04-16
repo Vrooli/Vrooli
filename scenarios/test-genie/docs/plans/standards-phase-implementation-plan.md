@@ -32,7 +32,7 @@ Add a new Test Genie phase named **Standards** (canonical key: `standards`) that
   - [ ] Default: fail on `critical|high`.
   - [ ] Alternate: fail on `critical` only for initial rollout.
 
-### 1) Make `scenario-auditor audit --json` reliably consumable
+### 1) Make `scenario-auditor standards scan --wait --json` reliably consumable
 
 **Goal**: One command, one JSON object on stdout.
 
@@ -49,8 +49,8 @@ File: `scenarios/scenario-auditor/cli/scenario-auditor`
 
 Acceptance tests (manual):
 
-- [ ] `scenario-auditor audit test-genie --standards-only --timeout 60 --json | jq .` succeeds and parses.
-- [ ] `scenario-auditor audit test-genie --standards-only --timeout 0 --json` fails non-zero (timeout path) and still prints parseable JSON if possible (optional).
+- [ ] `scenario-auditor standards scan test-genie --wait --timeout 60s --json | jq .` succeeds and parses.
+- [ ] `scenario-auditor standards scan test-genie --wait --timeout 0s --json` fails non-zero (timeout path) and still prints parseable JSON if possible (optional).
 
 ### 2) Add the new Go-native phase to test-genie
 
@@ -67,7 +67,7 @@ File (new): `scenarios/test-genie/api/internal/orchestrator/phases/phase_standar
 Behavior:
 
 - [ ] Execute scenario-auditor via CLI:
-  - [ ] Command: `scenario-auditor audit <scenario> --standards-only --timeout <seconds> --json`
+  - [ ] Command: `scenario-auditor standards scan <scenario> --wait --timeout <seconds>s --json`
   - [ ] Ensure runtime is bounded by the phase timeout (use `exec.CommandContext`).
 - [ ] Parse the JSON summary payload and convert into Test Genie observations:
   - [ ] Total violations, highest severity
@@ -167,7 +167,7 @@ Because this is opt-out, it will surface pre-existing violations immediately.
 - `cd scenarios/test-genie && make build`
 - `test-genie execute test-genie --phases standards --fail-fast`
 - `test-genie execute <scenario> --preset smoke --skip standards` (ensures opt-out works)
-- `scenario-auditor audit <scenario> --standards-only --timeout 60 --json | jq .`
+- `scenario-auditor standards scan <scenario> --wait --timeout 60s --json | jq .`
 
 ## Deliverables
 

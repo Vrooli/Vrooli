@@ -472,7 +472,7 @@ make test
 # Result: 6/6 phases passing ✅
 
 # Standards baseline
-scenario-auditor audit scenario-auditor --timeout 240 --standards-only
+scenario-auditor standards scan scenario-auditor --wait --timeout 240s
 # Result: 1315 violations (4 critical, 17 high, 1294 medium) ✅
 ```
 
@@ -519,7 +519,7 @@ make test
 # Result: 6/6 phases passing ✅
 
 # Standards baseline
-scenario-auditor audit scenario-auditor --timeout 240 --standards-only
+scenario-auditor standards scan scenario-auditor --wait --timeout 240s
 # Result: 1315 violations (4 critical, 17 high, 1294 medium) ✅
 ```
 
@@ -564,7 +564,7 @@ make test
 # Result: 6/6 phases passing ✅
 
 # Standards baseline
-scenario-auditor audit scenario-auditor --timeout 240 --standards-only
+scenario-auditor standards scan scenario-auditor --wait --timeout 240s
 # Result: 1315 violations (4 critical, 17 high, 1294 medium) ✅
 ```
 
@@ -651,7 +651,7 @@ make test
 # Result: 6/6 phases passing ✅
 
 # Standards baseline
-scenario-auditor audit scenario-auditor --timeout 240 --standards-only
+scenario-auditor standards scan scenario-auditor --wait --timeout 240s
 # Result: 1318 violations (4 critical, 17 high, 1297 medium) ✅
 ```
 
@@ -784,7 +784,7 @@ curl http://localhost:18507/api/v1/health | jq '{status, readiness}'
 # Result: {"status": "healthy", "readiness": true} ✅
 
 # Baseline audit
-scenario-auditor audit scenario-auditor --timeout 180
+scenario-auditor standards scan scenario-auditor --wait --timeout 180s
 # Result: 8 security findings, 1318 standards violations ✅
 
 # Lifecycle restart
@@ -823,7 +823,7 @@ make test
 # Result: 6/6 phases passing ✅
 
 # Audit confirms improvement
-scenario-auditor audit scenario-auditor --standards-only
+scenario-auditor standards scan scenario-auditor --wait
 # Result: handlers_health.go Content-Type violation resolved ✅
 ```
 
@@ -1087,11 +1087,11 @@ curl http://localhost:36224/health | jq '{status, readiness}'         # healthy,
 **Validation**:
 ```bash
 # Test with large result set
-scenario-auditor audit scenario-auditor --timeout 240
+scenario-auditor standards scan scenario-auditor --wait --timeout 240s
 # Result: ✅ Successfully processes 1368 violations
 
 # Verify standards scan summary
-scenario-auditor audit scenario-auditor --standards-only --timeout 120 | jq '.standards.status.result.statistics'
+scenario-auditor standards scan scenario-auditor --wait --timeout 120s --json | jq '.result.statistics'
 # Result: {"critical": 4, "high": 20, "medium": 1344, "total": 1368}
 ```
 
@@ -1299,7 +1299,7 @@ curl http://localhost:36224/health         # healthy
 **Validation**:
 ```bash
 # Verify reduced violations
-scenario-auditor audit scenario-auditor --standards-only
+scenario-auditor standards scan scenario-auditor --wait
 # Result: 1356 violations (down from 1368)
 
 # Verify tests pass

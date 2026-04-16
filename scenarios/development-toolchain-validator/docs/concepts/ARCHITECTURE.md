@@ -131,7 +131,7 @@ Runs external development tools against references and validates expected result
 1. Trigger: POST /api/v1/baselines/{reference}
 
 2. Run each tool:
-   a. scenario-auditor audit {reference} --json → parse violations
+   a. scenario-auditor standards scan {reference} --wait --json → parse violations
    b. test-genie execute {reference} --preset comprehensive --json → parse phase results
    c. scenario-completeness-scoring score {reference} --json → parse score
 
@@ -161,7 +161,7 @@ Runs external development tools against references and validates expected result
 **Purpose**: Run read-only validation tools against reference scenarios.
 
 **Tools invoked**:
-- `scenario-auditor audit {reference} --json --timeout 240`
+- `scenario-auditor standards scan {reference} --wait --json --timeout 240s`
 - `test-genie execute {reference} --preset comprehensive --json`
 - `scenario-completeness-scoring score {reference} --json`
 

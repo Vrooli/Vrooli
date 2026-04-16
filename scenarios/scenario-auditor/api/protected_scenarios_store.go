@@ -26,18 +26,18 @@ type protectedScenariosData struct {
 	LastUpdate time.Time `json:"last_update"`
 }
 
-var protectedScenariosStore = initProtectedScenariosStore()
+var protectedScenariosStore = newProtectedScenariosStore()
 
-func initProtectedScenariosStore() *ProtectedScenariosStore {
-	fmt.Fprintf(os.Stderr, "[INIT] Initializing protected scenarios store...\n")
-	store := &ProtectedScenariosStore{
+func newProtectedScenariosStore() *ProtectedScenariosStore {
+	return &ProtectedScenariosStore{
 		protectedSet: make(map[string]bool),
 	}
-	store.enablePersistence()
-	return store
 }
 
 func (ps *ProtectedScenariosStore) enablePersistence() {
+	if ps.persistenceReady || ps.filePath != "" {
+		return
+	}
 	path, err := resolveScenarioAuditorStoragePath(storage.ClassConfig, "protected-scenarios.json")
 	if err != nil {
 		logger.Error("Failed to resolve scenario-auditor protected scenarios config path", err)

@@ -3,26 +3,28 @@ package phases
 import (
 	"context"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/vrooli/api-core/discovery"
 
 	"test-genie/internal/orchestrator/workspace"
 )
 
 func TestParseAuditorStandardsSummaryParsesValidJSON(t *testing.T) {
 	raw := `{
-  "security": null,
-  "standards": {
-    "summary": {
-      "total": 2,
-      "by_severity": {"HIGH": 1, "low": 1},
-      "by_rule": [{"rule_id":"prd_structure","count":2,"severity":"high","title":"PRD structure"}],
-      "highest_severity": "HIGH",
-      "top_violations": [{"severity":"high","rule_id":"prd_structure","file_path":"PRD.md","line_number":1,"title":"Bad PRD"}],
-      "artifact": {"path":"logs/scenario-auditor/standards/demo.json"},
-      "recommended_steps": ["Fix PRD.md"]
-    }
+  "summary": {
+    "total": 2,
+    "by_severity": {"HIGH": 1, "low": 1},
+    "by_rule": [{"rule_id":"prd_structure","count":2,"severity":"high","title":"PRD structure"}],
+    "highest_severity": "HIGH",
+    "top_violations": [{"severity":"high","rule_id":"prd_structure","file_path":"PRD.md","line_number":1,"title":"Bad PRD"}],
+    "artifact": {"path":"logs/scenario-auditor/standards/demo.json"},
+    "recommended_steps": ["Fix PRD.md"]
   }
 }`
 
@@ -44,19 +46,36 @@ func TestParseAuditorStandardsSummaryParsesValidJSON(t *testing.T) {
 	}
 }
 
+func overrideScenarioAuditorBaseURL(url string, err error) func() {
+	prev := resolveScenarioAuditorBaseURL
+	resolveScenarioAuditorBaseURL = func(context.Context) (string, error) {
+		return url, err
+	}
+	return func() { resolveScenarioAuditorBaseURL = prev }
+}
+
 func TestRunStandardsPhaseFailsOnHighWhenFailOnHigh(t *testing.T) {
 	root := t.TempDir()
 	scenarioDir := createScenarioLayout(t, root, "demo")
 
-	stubCommandLookup(t, func(name string) (string, error) {
-		return "/tmp/" + name, nil
-	})
-	stubPhaseCommandCapture(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error) {
-		if name != "scenario-auditor" {
-			return "", nil
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/standards/check/demo":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"job_id":"job-123","status":{"id":"job-123","status":"running"}}`))
+		case "/api/v1/standards/check/jobs/job-123":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":"job-123","status":"completed"}`))
+		case "/api/v1/standards/check/jobs/job-123/summary":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"summary":{"total":1,"by_severity":{"high":1},"highest_severity":"high","top_violations":[{"severity":"high","rule_id":"prd_structure","file_path":"PRD.md","line_number":1,"title":"Bad PRD"}]}}`))
+		default:
+			http.NotFound(w, r)
 		}
-		return `{"security":null,"standards":{"summary":{"total":1,"by_severity":{"high":1},"highest_severity":"high","top_violations":[{"severity":"high","rule_id":"prd_structure","file_path":"PRD.md","line_number":1,"title":"Bad PRD"}]}}}`, nil
-	})
+	}))
+	defer server.Close()
+	restoreResolver := overrideScenarioAuditorBaseURL(server.URL, nil)
+	defer restoreResolver()
 
 	t.Setenv("TEST_GENIE_STANDARDS_FAIL_ON", "high")
 
@@ -74,16 +93,15 @@ func TestRunStandardsPhaseFailsOnHighWhenFailOnHigh(t *testing.T) {
 	}
 }
 
-func TestRunStandardsPhaseHandlesMissingBinary(t *testing.T) {
+func TestRunStandardsPhaseHandlesUnavailableScenarioAuditorAPI(t *testing.T) {
 	root := t.TempDir()
 	scenarioDir := createScenarioLayout(t, root, "demo")
-
-	stubCommandLookup(t, func(name string) (string, error) {
-		if name == "scenario-auditor" {
-			return "", &commandNotFoundError{name}
-		}
-		return "/tmp/" + name, nil
+	restoreResolver := overrideScenarioAuditorBaseURL("", &discovery.Error{
+		Kind:     discovery.ErrScenarioNotRunning,
+		Scenario: "scenario-auditor",
+		PortKey:  "API_PORT",
 	})
+	defer restoreResolver()
 
 	env := workspace.Environment{
 		ScenarioName: "demo",
@@ -100,19 +118,31 @@ func TestRunStandardsPhaseClassifiesTimeout(t *testing.T) {
 	root := t.TempDir()
 	scenarioDir := createScenarioLayout(t, root, "demo")
 
-	stubCommandLookup(t, func(name string) (string, error) {
-		return "/tmp/" + name, nil
-	})
-	stubPhaseCommandCapture(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error) {
-		return `{"security":null,"standards":{"summary":{"total":0,"by_severity":{},"highest_severity":"","top_violations":[]}}}`, context.DeadlineExceeded
-	})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/standards/check/demo":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"job_id":"job-timeout","status":{"id":"job-timeout","status":"running"}}`))
+		case "/api/v1/standards/check/jobs/job-timeout":
+			time.Sleep(50 * time.Millisecond)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":"job-timeout","status":"running","message":"still running"}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	restoreResolver := overrideScenarioAuditorBaseURL(server.URL, nil)
+	defer restoreResolver()
 
 	env := workspace.Environment{
 		ScenarioName: "demo",
 		ScenarioDir:  scenarioDir,
 		AppRoot:      filepath.Dir(filepath.Dir(scenarioDir)),
 	}
-	report := runStandardsPhase(context.Background(), env, io.Discard)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	report := runStandardsPhase(ctx, env, io.Discard)
 	if report.FailureClassification != FailureClassTimeout {
 		t.Fatalf("expected timeout classification, got %s", report.FailureClassification)
 	}
@@ -125,12 +155,24 @@ func TestRunStandardsPhaseHonorsMinSeverityForDisplay(t *testing.T) {
 	root := t.TempDir()
 	scenarioDir := createScenarioLayout(t, root, "demo")
 
-	stubCommandLookup(t, func(name string) (string, error) {
-		return "/tmp/" + name, nil
-	})
-	stubPhaseCommandCapture(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error) {
-		return `{"security":null,"standards":{"summary":{"total":2,"by_severity":{"high":1,"low":1},"highest_severity":"high","top_violations":[{"severity":"low","rule_id":"x","file_path":"a","line_number":1,"title":"low"},{"severity":"high","rule_id":"y","file_path":"b","line_number":2,"title":"high"}]}}}`, nil
-	})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/standards/check/demo":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"job_id":"job-456","status":{"id":"job-456","status":"running"}}`))
+		case "/api/v1/standards/check/jobs/job-456":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":"job-456","status":"completed"}`))
+		case "/api/v1/standards/check/jobs/job-456/summary":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"summary":{"total":2,"by_severity":{"high":1,"low":1},"highest_severity":"high","top_violations":[{"severity":"low","rule_id":"x","file_path":"a","line_number":1,"title":"low"},{"severity":"high","rule_id":"y","file_path":"b","line_number":2,"title":"high"}]}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	restoreResolver := overrideScenarioAuditorBaseURL(server.URL, nil)
+	defer restoreResolver()
 
 	t.Setenv("TEST_GENIE_STANDARDS_MIN_SEVERITY", "high")
 	t.Setenv("TEST_GENIE_STANDARDS_FAIL_ON", "critical")

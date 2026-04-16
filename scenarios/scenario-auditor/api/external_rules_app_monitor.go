@@ -32,10 +32,6 @@ func newAppMonitorInteropProvider() externalRuleProvider {
 	return provider
 }
 
-func init() {
-	registerExternalProvider(newAppMonitorInteropProvider())
-}
-
 func (p *appMonitorInteropProvider) ID() string {
 	return "app-monitor"
 }

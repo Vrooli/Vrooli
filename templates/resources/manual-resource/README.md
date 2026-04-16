@@ -11,6 +11,14 @@ This scaffold was generated from the `manual-resource` resource template on {{CU
 - Driver: `manual`
 - Portability tier: `{{RESOURCE_PORTABILITY_TIER}}`
 
+## Use Cases
+
+Replace these bullets with the real scenario-facing uses for this resource.
+
+- Serve as the operator-managed dependency for scenarios that need {{primary function}}.
+- Support {{secondary workflow}} without each scenario owning its own setup instructions.
+- Provide a foundation for {{integration pattern}} across the Vrooli stack.
+
 ## Architecture
 
 This template keeps the generated CLI thin on purpose.

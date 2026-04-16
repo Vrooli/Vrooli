@@ -79,7 +79,7 @@ vrooli scenario port scenario-auditor API_PORT
 # All CLI commands working correctly
 scenario-auditor health     # ✅ Detects port 18507
 scenario-auditor rules      # ✅ Lists 34 rules
-scenario-auditor audit scenario-auditor --timeout 120  # ✅ Completes successfully
+scenario-auditor standards scan scenario-auditor --wait --timeout 120s  # ✅ Completes successfully
 ```
 
 **Key Feature**: The `vrooli scenario port` command (tier 2) retrieves the actual port from the lifecycle-managed process, ensuring the CLI always connects to the correct instance even when other scenarios set generic environment variables.
@@ -434,7 +434,7 @@ scenario-auditor --help
 cd scenarios/scenario-auditor/cli && ./install.sh
 
 # Verify fix
-scenario-auditor audit scenario-auditor --timeout 240
+scenario-auditor standards scan scenario-auditor --wait --timeout 240s
 # Should complete without errors
 ```
 

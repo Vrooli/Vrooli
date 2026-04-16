@@ -3,7 +3,5 @@ set -euo pipefail
 
 SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
 REPO_ROOT="$(builtin cd "${SCRIPT_DIR}/../../.." && builtin pwd)"
-CLI_DIR="${REPO_ROOT}/scenarios/funnel-builder/cli"
-source "${REPO_ROOT}/scripts/lib/utils/cli-install.sh"
 
-install_cli "$CLI_DIR/funnel-builder" "funnel-builder"
+"${REPO_ROOT}/packages/cli-core/install.sh" "scenarios/funnel-builder/cli" --name "funnel-builder" --manifest "scenarios/funnel-builder/.vrooli/service.json"

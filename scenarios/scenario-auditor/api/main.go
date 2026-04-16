@@ -279,6 +279,14 @@ func main() {
 	logger.Info(fmt.Sprintf("Starting %s v%s", serviceName, apiVersion))
 	fmt.Fprintf(os.Stderr, "[STARTUP] Logger initialized\n")
 
+	initializeScenarioAuditorRuntime()
+
+	if _, err := initRepoContext(); err != nil {
+		logger.Error("Failed to initialize repo context", err)
+		fmt.Fprintf(os.Stderr, "[STARTUP] Repo context initialization FAILED: %v\n", err)
+		return
+	}
+
 	// Initialize database
 	fmt.Fprintf(os.Stderr, "[STARTUP] Initializing database...\n")
 	var err error
@@ -642,7 +650,7 @@ func checkFilesystemHealth() map[string]any {
 		"checks": map[string]any{},
 	}
 
-	scenariosDir, err := resolveScenariosRoot()
+	ctx, err := repoContext()
 	if err != nil {
 		health["status"] = "unhealthy"
 		health["error"] = map[string]any{
@@ -653,6 +661,7 @@ func checkFilesystemHealth() map[string]any {
 		}
 		return health
 	}
+	scenariosDir := ctx.ScenariosRoot()
 	if info, err := os.Stat(scenariosDir); err != nil {
 		health["status"] = "unhealthy"
 		health["error"] = map[string]any{
@@ -1536,17 +1545,15 @@ func applyAutomatedFixWithSafetyHandler(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	scenarioRoot := getScenarioRoot()
-	scenariosDir := filepath.Clean(filepath.Join(scenarioRoot, ".."))
-	absBase, err := filepath.Abs(scenariosDir)
+	ctx, err := repoContext()
 	if err != nil {
-		HTTPError(w, "Failed to resolve scenarios root", http.StatusInternalServerError, err)
+		HTTPError(w, "Failed to resolve repo context", http.StatusInternalServerError, err)
 		return
 	}
 
-	scenarioPath := filepath.Clean(filepath.Join(absBase, scenarioName))
-	if !isSubpath(absBase, scenarioPath) {
-		HTTPError(w, "scenario name resolved outside of scenarios directory", http.StatusBadRequest, nil)
+	scenarioPath, err := ctx.ResolveScenarioPath(scenarioName)
+	if err != nil {
+		HTTPError(w, "Failed to resolve scenario path", http.StatusBadRequest, err)
 		return
 	}
 

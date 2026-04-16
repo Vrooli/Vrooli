@@ -218,9 +218,8 @@
     "enabled": true,
     "command": "device-sync-hub",
     "adapter": {
-      "kind": "shell_script",
-      "script_path": "cli/device-sync-hub",
-      "install_script": "cli/install.sh"
+      "kind": "go_module",
+      "module_dir": "cli"
     },
     "install": [
       {
@@ -230,6 +229,13 @@
         ],
         "kind": "command",
         "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
       }
     ],
     "invoke": {
@@ -238,8 +244,7 @@
     },
     "freshness": {
       "inputs": [
-        "cli/device-sync-hub",
-        "cli/install.sh",
+        "cli/**",
         ".vrooli/service.json"
       ]
     }

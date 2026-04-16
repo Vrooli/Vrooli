@@ -56,6 +56,16 @@ const (
 	SeverityInfo    Severity = "info"
 )
 
+// PolicySeverity is the severity used for lint policy findings.
+type PolicySeverity string
+
+const (
+	PolicySeverityIgnore  PolicySeverity = "ignore"
+	PolicySeverityInfo    PolicySeverity = "info"
+	PolicySeverityWarning PolicySeverity = "warning"
+	PolicySeverityError   PolicySeverity = "error"
+)
+
 // Issue represents a single lint or type error finding.
 type Issue struct {
 	File     string   `json:"file"`
@@ -64,44 +74,77 @@ type Issue struct {
 	Message  string   `json:"message"`
 	Severity Severity `json:"severity"`
 	Rule     string   `json:"rule,omitempty"`
-	Source   string   `json:"source"` // e.g., "golangci-lint", "tsc", "eslint"
+	Source   string   `json:"source"`
 }
 
-// RunResult is an alias for the generic shared.RunResult with LintSummary.
-type RunResult = shared.RunResult[LintSummary]
+// Component describes one top-level lint candidate.
+type Component struct {
+	Name            string   `json:"name"`
+	RelativePath    string   `json:"relativePath"`
+	AbsolutePath    string   `json:"absolutePath"`
+	IsRoot          bool     `json:"isRoot"`
+	CodeBearing     bool     `json:"codeBearing"`
+	CodeEvidence    []string `json:"codeEvidence,omitempty"`
+	DetectionReason []string `json:"detectionReason,omitempty"`
+}
 
-// LintSummary tracks lint validation counts by language.
+// PolicyFinding reports a component-level policy issue outside a handler's own tool findings.
+type PolicyFinding struct {
+	Component string         `json:"component"`
+	Path      string         `json:"path"`
+	Severity  PolicySeverity `json:"severity"`
+	Message   string         `json:"message"`
+}
+
+// ComponentResult captures lint execution for one component.
+type ComponentResult struct {
+	Component      Component       `json:"component"`
+	HandlerID      string          `json:"handlerId,omitempty"`
+	Matched        bool            `json:"matched"`
+	Success        bool            `json:"success"`
+	Issues         []Issue         `json:"issues,omitempty"`
+	TypeErrors     int             `json:"typeErrors"`
+	LintWarnings   int             `json:"lintWarnings"`
+	ToolsUsed      []string        `json:"toolsUsed,omitempty"`
+	Skipped        bool            `json:"skipped"`
+	SkipReason     string          `json:"skipReason,omitempty"`
+	Strict         bool            `json:"strict"`
+	Observations   []Observation   `json:"observations,omitempty"`
+	PolicyFindings []PolicyFinding `json:"policyFindings,omitempty"`
+}
+
+// RunResult is the lint phase result.
+type RunResult struct {
+	Success        bool
+	Error          error
+	FailureClass   FailureClass
+	Remediation    string
+	Observations   []Observation
+	Summary        LintSummary
+	Components     []ComponentResult
+	PolicyFindings []PolicyFinding
+}
+
+// LintSummary tracks lint validation counts by component and policy findings.
 type LintSummary struct {
-	GoChecked     bool `json:"goChecked"`
-	NodeChecked   bool `json:"nodeChecked"`
-	PythonChecked bool `json:"pythonChecked"`
-
-	GoIssues     int `json:"goIssues"`
-	NodeIssues   int `json:"nodeIssues"`
-	PythonIssues int `json:"pythonIssues"`
-
-	TypeErrors int `json:"typeErrors"` // Across all languages
-	LintErrors int `json:"lintErrors"` // Across all languages (warnings)
+	ComponentsDiscovered int `json:"componentsDiscovered"`
+	ComponentsLinted     int `json:"componentsLinted"`
+	ComponentsSkipped    int `json:"componentsSkipped"`
+	ComponentsUnmatched  int `json:"componentsUnmatched"`
+	TypeErrors           int `json:"typeErrors"`
+	LintWarnings         int `json:"lintWarnings"`
+	PolicyWarnings       int `json:"policyWarnings"`
+	PolicyErrors         int `json:"policyErrors"`
 }
 
-// TotalChecks returns the number of languages checked.
+// TotalChecks returns the number of matched components linted.
 func (s LintSummary) TotalChecks() int {
-	count := 0
-	if s.GoChecked {
-		count++
-	}
-	if s.NodeChecked {
-		count++
-	}
-	if s.PythonChecked {
-		count++
-	}
-	return count
+	return s.ComponentsLinted
 }
 
-// TotalIssues returns the total number of issues found.
+// TotalIssues returns the total number of lint, type, and policy issues.
 func (s LintSummary) TotalIssues() int {
-	return s.GoIssues + s.NodeIssues + s.PythonIssues
+	return s.TypeErrors + s.LintWarnings + s.PolicyWarnings + s.PolicyErrors
 }
 
 // HasTypeErrors returns true if any type errors were found.
@@ -111,35 +154,26 @@ func (s LintSummary) HasTypeErrors() bool {
 
 // String returns a human-readable summary.
 func (s LintSummary) String() string {
-	var parts []string
-	if s.GoChecked {
-		parts = append(parts, fmt.Sprintf("Go: %d issues", s.GoIssues))
+	parts := []string{
+		fmt.Sprintf("%d components linted", s.ComponentsLinted),
 	}
-	if s.NodeChecked {
-		parts = append(parts, fmt.Sprintf("Node: %d issues", s.NodeIssues))
+	if s.ComponentsUnmatched > 0 {
+		parts = append(parts, fmt.Sprintf("%d unmatched", s.ComponentsUnmatched))
 	}
-	if s.PythonChecked {
-		parts = append(parts, fmt.Sprintf("Python: %d issues", s.PythonIssues))
+	if s.TypeErrors > 0 {
+		parts = append(parts, fmt.Sprintf("%d type errors", s.TypeErrors))
 	}
-	if len(parts) == 0 {
-		return "no languages checked"
+	if s.LintWarnings > 0 {
+		parts = append(parts, fmt.Sprintf("%d lint warnings", s.LintWarnings))
+	}
+	if s.PolicyWarnings > 0 {
+		parts = append(parts, fmt.Sprintf("%d policy warnings", s.PolicyWarnings))
+	}
+	if s.PolicyErrors > 0 {
+		parts = append(parts, fmt.Sprintf("%d policy errors", s.PolicyErrors))
 	}
 	return strings.Join(parts, ", ")
 }
 
-// LanguageResult holds the result of linting a single language.
-type LanguageResult struct {
-	Language     string        `json:"language"`
-	Success      bool          `json:"success"`
-	Issues       []Issue       `json:"issues,omitempty"`
-	TypeErrors   int           `json:"typeErrors"`
-	LintWarnings int           `json:"lintWarnings"`
-	ToolsUsed    []string      `json:"toolsUsed"`
-	Skipped      bool          `json:"skipped"`
-	SkipReason   string        `json:"skipReason,omitempty"`
-	Observations []Observation `json:"observations,omitempty"`
-}
-
 // LookupFunc is a function that looks up a command by name.
-// Re-exported from shared for convenience.
 type LookupFunc = shared.LookupFunc

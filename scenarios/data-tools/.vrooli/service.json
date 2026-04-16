@@ -267,9 +267,8 @@
     "enabled": true,
     "command": "data-tools",
     "adapter": {
-      "kind": "shell_script",
-      "script_path": "cli/data-tools",
-      "install_script": "cli/install.sh"
+      "kind": "go_module",
+      "module_dir": "cli"
     },
     "install": [
       {
@@ -279,6 +278,13 @@
         ],
         "kind": "command",
         "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
       }
     ],
     "invoke": {
@@ -287,8 +293,7 @@
     },
     "freshness": {
       "inputs": [
-        "cli/data-tools",
-        "cli/install.sh",
+        "cli/**",
         ".vrooli/service.json"
       ]
     }

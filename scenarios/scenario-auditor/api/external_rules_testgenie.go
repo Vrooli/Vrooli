@@ -36,10 +36,6 @@ func newTestGenieProvider() externalRuleProvider {
 	return provider
 }
 
-func init() {
-	registerExternalProvider(newTestGenieProvider())
-}
-
 func (p *testGenieProvider) ID() string {
 	return "test-genie"
 }
@@ -67,11 +63,11 @@ func (p *testGenieProvider) Rules() []rulespkg.Rule {
 // testGenieStandardsResponse matches the response format from test-genie's
 // /api/v1/quality/scenario/{name}/structure endpoint.
 type testGenieStandardsResponse struct {
-	EntityName  string                      `json:"entity_name"`
-	ValidatedAt string                      `json:"validated_at"`
-	Success     bool                        `json:"success"`
+	EntityName  string                        `json:"entity_name"`
+	ValidatedAt string                        `json:"validated_at"`
+	Success     bool                          `json:"success"`
 	Violations  []testGenieStructureViolation `json:"violations"`
-	Summary     string                      `json:"summary"`
+	Summary     string                        `json:"summary"`
 }
 
 type testGenieStructureViolation struct {

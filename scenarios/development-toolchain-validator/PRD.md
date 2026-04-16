@@ -38,7 +38,7 @@
 
 ### 🟠 P1 – Should have post-launch
 
-- [ ] OT-P1-001 | Scenario-Auditor Baseline | Run `scenario-auditor audit <reference> --json` against each reference and assert zero violations (or a configured allowlist). Report any unexpected violations as tooling issues.
+- [ ] OT-P1-001 | Scenario-Auditor Baseline | Run `scenario-auditor standards scan <reference> --wait --json` against each reference and assert zero violations (or a configured allowlist). Report any unexpected violations as tooling issues.
 - [ ] OT-P1-002 | Test-Genie Baseline | Run `test-genie execute <reference> --preset comprehensive --json` against each reference and assert all phases pass. Report any unexpected failures as tooling issues.
 - [ ] OT-P1-003 | Completeness Scoring Baseline | Run `scenario-completeness-scoring score <reference> --json` against each reference and assert score >= 96 (Production Ready). Report unexpected low scores as scoring model issues.
 - [ ] OT-P1-004 | Conflict Detection | Beyond overlap detection, identify semantic conflicts: structural expectations from different skills that are mutually exclusive (e.g., skill A requires folder structure X, skill B requires incompatible structure Y in the same location).

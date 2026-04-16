@@ -3,7 +3,5 @@ set -euo pipefail
 
 SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
 REPO_ROOT="$(builtin cd "${SCRIPT_DIR}/../../.." && builtin pwd)"
-CLI_DIR="${REPO_ROOT}/scenarios/fall-foliage-explorer/cli"
-source "${REPO_ROOT}/scripts/lib/utils/cli-install.sh"
 
-install_cli "$CLI_DIR/fall-foliage-explorer" "fall-foliage-explorer"
+"${REPO_ROOT}/packages/cli-core/install.sh" "scenarios/fall-foliage-explorer/cli" --name "fall-foliage-explorer" --manifest "scenarios/fall-foliage-explorer/.vrooli/service.json"

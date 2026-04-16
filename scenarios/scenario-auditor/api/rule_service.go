@@ -16,24 +16,19 @@ var (
 
 func ruleService() (*ruleengine.Service, error) {
 	ruleServiceOnce.Do(func() {
-		repoRoot, err := resolveRepoRoot()
+		ctx, err := repoContext()
 		if err != nil {
 			ruleServiceErr = err
 			return
 		}
 
-		ruleDirs, err := ruleengine.DiscoverRuleDirs(repoRoot)
+		ruleDirs, err := ruleengine.DiscoverRuleDirs(ctx.ScenarioAuditorRoot())
 		if err != nil {
 			ruleServiceErr = err
 			return
 		}
 
-		scenarioRoot, err := resolveScenarioAuditorRoot()
-		if err != nil {
-			ruleServiceErr = err
-			return
-		}
-		moduleRoot := filepath.Join(scenarioRoot, "api")
+		moduleRoot := filepath.Join(ctx.ScenarioAuditorRoot(), "api")
 		opts := ruleengine.Options{
 			RuleDirs:   ruleDirs,
 			ModuleRoot: moduleRoot,

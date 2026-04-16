@@ -86,7 +86,7 @@ development-toolchain-validator expectations add structural \
 # Expect auditor passes all API rules
 development-toolchain-validator expectations add cli-tool \
   --connection api-steer:reference-react-vite \
-  --command "scenario-auditor audit reference-react-vite --json" \
+  --command "scenario-auditor standards scan reference-react-vite --wait --json" \
   --path "$.bySeverity.critical" --op eq --value 0
 ```
 
@@ -124,7 +124,7 @@ development-toolchain-validator skills refresh api-steer --reference reference-r
 
 2. **Focus on structural contracts**: Define expectations for things the skill clearly mandates (folder structure, file patterns), not implementation details.
 
-3. **Use CLI assertions for tool output**: If the skill references a CLI tool for validation (e.g., "run `scenario-auditor audit`"), create a CLI assertion for it.
+3. **Use CLI assertions for tool output**: If the skill references a CLI tool for validation (e.g., "run `scenario-auditor standards scan --wait`"), create a CLI assertion for it.
 
 4. **Review drift promptly**: When drift is detected, the expectations may be stale. Review the skill's changes before assuming the expectations are still correct.
 

@@ -202,10 +202,11 @@ func (am *AgentManager) StartAgent(cfg AgentStartConfig) (*AgentInfo, error) {
 		return nil, fmt.Errorf("prompt is required")
 	}
 
-	scenarioRoot := strings.TrimSpace(getScenarioRoot())
-	if scenarioRoot == "" {
-		return nil, fmt.Errorf("failed to resolve scenario-auditor root")
+	repoCtx, err := repoContext()
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve repo context: %w", err)
 	}
+	scenarioRoot := strings.TrimSpace(repoCtx.ScenarioAuditorRoot())
 
 	cfg.Model = normalizeAgentModel(cfg.Model)
 	allowedTools := configuredAllowedTools()
@@ -396,7 +397,11 @@ func (am *AgentManager) AgentLogPath(agentID string) string {
 	if err == nil && run != nil && strings.TrimSpace(run.LogPath) != "" {
 		return strings.TrimSpace(run.LogPath)
 	}
-	return filepath.Join(getScenarioRoot(), "logs", "agents", fmt.Sprintf("%s.log", agentID))
+	ctx, err := repoContext()
+	if err != nil {
+		return filepath.Join("logs", "agents", fmt.Sprintf("%s.log", agentID))
+	}
+	return filepath.Join(ctx.ScenarioAuditorRoot(), "logs", "agents", fmt.Sprintf("%s.log", agentID))
 }
 
 func (am *AgentManager) watchRun(agentID, runID, taskID string, startedAt time.Time, meta auditorAgentMetadata) {
@@ -851,37 +856,4 @@ func fallbackAgentName(name, label, action, ruleID string) string {
 		}
 		return "Scenario agent"
 	}
-}
-
-var (
-	scenarioRootOnce sync.Once
-	scenarioRootPath string
-	vrooliRootOnce   sync.Once
-	vrooliRootPath   string
-)
-
-func getScenarioRoot() string {
-	scenarioRootOnce.Do(func() {
-		root, err := resolveScenarioAuditorRoot()
-		if err == nil {
-			scenarioRootPath = root
-			return
-		}
-		scenarioRootPath = ""
-	})
-
-	return scenarioRootPath
-}
-
-func currentVrooliRoot() string {
-	vrooliRootOnce.Do(func() {
-		root, err := resolveRepoRoot()
-		if err == nil {
-			vrooliRootPath = root
-			return
-		}
-		vrooliRootPath = ""
-	})
-
-	return vrooliRootPath
 }

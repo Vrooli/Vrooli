@@ -7,7 +7,7 @@ REPO_ROOT="$(builtin cd "${SCRIPT_DIR}/../../.." && builtin pwd)"
 INSTALL_DIR="${INSTALL_DIR:-${HOME}/.vrooli/bin}"
 REAL_NAME="scenario-to-cloud.bin"
 
-GOWORK=off "${REPO_ROOT}/packages/cli-core/install.sh" scenarios/scenario-to-cloud/cli --name "${REAL_NAME}" --install-dir "${INSTALL_DIR}"
+GOWORK=off "${REPO_ROOT}/packages/cli-core/install.sh" scenarios/scenario-to-cloud/cli --name "${REAL_NAME}" --manifest "scenarios/scenario-to-cloud/.vrooli/service.json" --install-dir "${INSTALL_DIR}"
 
 cat > "${INSTALL_DIR}/scenario-to-cloud" <<'EOF'
 #!/usr/bin/env bash

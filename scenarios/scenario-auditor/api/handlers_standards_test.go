@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	re "scenario-auditor/internal/ruleengine"
+	"scenario-auditor/internal/repocontext"
 	rulespkg "scenario-auditor/rules"
 )
 
@@ -296,11 +296,35 @@ func TestResolveVrooliRootFromWorkingDirectory(t *testing.T) {
 
 	tmp := t.TempDir()
 	repoRoot := filepath.Join(tmp, "repo")
-	writeRepoContractFixtureAtRoot(t, repoRoot)
+	h := newRepoHarness(t)
+	if err := os.MkdirAll(repoRoot, 0o755); err != nil {
+		t.Fatalf("failed to create repo root: %v", err)
+	}
+	contractData, err := os.ReadFile(filepath.Join(h.Root, ".vrooli", "repo-contract.json"))
+	if err != nil {
+		t.Fatalf("failed to read fixture contract: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(repoRoot, ".vrooli"), 0o755); err != nil {
+		t.Fatalf("failed to create config dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(repoRoot, ".vrooli", "repo-contract.json"), contractData, 0o644); err != nil {
+		t.Fatalf("failed to write repo contract: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(repoRoot, "go.mod"), []byte("module fixture\n\ngo 1.24.0\n"), 0o644); err != nil {
+		t.Fatalf("failed to write go.mod: %v", err)
+	}
+	for _, dir := range []string{"scenarios", "resources", "packages", "cmd", "internal", "templates"} {
+		if err := os.MkdirAll(filepath.Join(repoRoot, dir), 0o755); err != nil {
+			t.Fatalf("failed to create %s: %v", dir, err)
+		}
+	}
 	scenarioRoot := filepath.Join(repoRoot, "scenarios", "scenario-auditor")
 	if err := os.MkdirAll(filepath.Join(scenarioRoot, "api", "rules"), 0o755); err != nil {
 		t.Fatalf("failed to create rule directory structure: %v", err)
 	}
+	writeJSONFile(t, filepath.Join(scenarioRoot, ".vrooli", "service.json"), map[string]any{
+		"service": map[string]any{"name": "scenario-auditor"},
+	})
 
 	workingDir := filepath.Join(scenarioRoot, "api")
 	if err := os.MkdirAll(workingDir, 0o755); err != nil {
@@ -319,11 +343,12 @@ func TestResolveVrooliRootFromWorkingDirectory(t *testing.T) {
 		_ = os.Chdir(originalWD)
 	})
 
-	root, err := re.DiscoverRepoRoot()
+	clearRepoContext()
+	ctx, err := repocontext.FromEnvOrCWD()
 	if err != nil {
 		t.Fatalf("resolveVrooliRoot returned error: %v", err)
 	}
-	if root != repoRoot {
-		t.Fatalf("expected root %s, got %s", repoRoot, root)
+	if ctx.RepoRoot() != repoRoot {
+		t.Fatalf("expected root %s, got %s", repoRoot, ctx.RepoRoot())
 	}
 }

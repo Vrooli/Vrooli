@@ -481,14 +481,6 @@ func (job *StandardsScanJob) run(ctx context.Context, targets []standardsScanTar
 	logger.Info(fmt.Sprintf("Standards scan %s completed", jobSnapshot.ID))
 }
 
-func getScenariosRoot() string {
-	root, err := resolveScenariosRoot()
-	if err != nil {
-		return ""
-	}
-	return root
-}
-
 // buildStandardsScanTargets resolves the scenario(s) to scan.
 // When scenarioPathOverride is non-empty (set by a CLI running inside a
 // sandboxed agent), it is used as the scan path for the target scenario
@@ -496,7 +488,11 @@ func getScenariosRoot() string {
 // files within the sandbox overlay.
 // See packages/cli-core/cliutil/sandbox.go for sandbox path resolution.
 func buildStandardsScanTargets(scenarioName string, scenarioPathOverride string) ([]standardsScanTarget, error) {
-	root := getScenariosRoot()
+	ctx, err := repoContext()
+	if err != nil {
+		return nil, err
+	}
+	root := ctx.ScenariosRoot()
 
 	if scenarioName == "" {
 		scenarioName = "all"
@@ -512,7 +508,7 @@ func buildStandardsScanTargets(scenarioName string, scenarioPathOverride string)
 			if !entry.IsDir() {
 				continue
 			}
-			scenarioPath, err := resolveContractScenarioPathFromRepoRoot(strings.TrimSpace(filepath.Dir(root)), entry.Name())
+			scenarioPath, err := ctx.ResolveScenarioPath(entry.Name())
 			if err != nil {
 				return nil, err
 			}
@@ -530,8 +526,7 @@ func buildStandardsScanTargets(scenarioName string, scenarioPathOverride string)
 	// Use the sandbox-provided path if available, otherwise resolve from root.
 	scenarioPath := scenarioPathOverride
 	if scenarioPath == "" {
-		var err error
-		scenarioPath, err = resolveContractScenarioPathFromRepoRoot(strings.TrimSpace(filepath.Dir(root)), scenarioName)
+		scenarioPath, err = ctx.ResolveScenarioPath(scenarioName)
 		if err != nil {
 			return nil, err
 		}
@@ -690,7 +685,11 @@ func performStandardsCheck(ctx context.Context, scanPath, scenarioName string, s
 
 	structureData := make(map[string]*structureScenarioInfo)
 	structurePaths := make(map[string]string)
-	scenariosRoot := getScenariosRoot()
+	repoCtx, err := repoContext()
+	if err != nil {
+		return nil, 0, err
+	}
+	scenariosRoot := repoCtx.ScenariosRoot()
 	ensureStructureScenario := func(name string) *structureScenarioInfo {
 		if strings.TrimSpace(name) == "" {
 			return nil
@@ -884,8 +883,11 @@ func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViol
 		return nil, 0, nil, fmt.Errorf("rule implementation unavailable: %s", firstNonEmpty(rule.Implementation.Error, "unavailable"))
 	}
 
-	scenarioRoot := getScenariosRoot()
-	scenarioPath := filepath.Join(scenarioRoot, scenarioName)
+	repoCtx, err := repoContext()
+	if err != nil {
+		return nil, 0, nil, err
+	}
+	scenarioPath, err := repoCtx.ResolveScenarioPath(scenarioName)
 	info, err := os.Stat(scenarioPath)
 	if err != nil {
 		return nil, 0, nil, err

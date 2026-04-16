@@ -11,6 +11,14 @@ This scaffold was generated from the `cloud-api` resource template on {{CURRENT_
 - Driver: `cloud-api`
 - Portability tier: `{{RESOURCE_PORTABILITY_TIER}}`
 
+## Use Cases
+
+Replace these bullets with the real scenario-facing uses for this resource.
+
+- Serve as the hosted provider integration for scenarios that need {{primary function}}.
+- Support {{secondary workflow}} without each scenario owning provider-specific auth and endpoint handling.
+- Provide a foundation for {{integration pattern}} across the Vrooli stack.
+
 ## Architecture
 
 This template keeps the generated CLI thin on purpose.

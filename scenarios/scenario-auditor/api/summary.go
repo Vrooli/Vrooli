@@ -204,7 +204,7 @@ func buildRecommendedSteps(summary *ViolationSummary) []string {
 	if summary.Artifact != nil {
 		steps = append(steps, fmt.Sprintf("Review %s for the full list of %d violations before re-running the audit.", summary.Artifact.Path, summary.Total))
 	}
-	steps = append(steps, "Re-run scenario-auditor audit after applying fixes to validate remediation.")
+	steps = append(steps, "Re-run scenario-auditor standards scan after applying fixes to validate remediation.")
 	return steps
 }
 
@@ -276,10 +276,11 @@ func filterSummaryViolations(violations []ViolationExcerpt, limit int, minSeveri
 }
 
 func persistScanArtifact(scanType, scenarioName, jobID string, payload any) (*ScanArtifactRef, error) {
-	root, err := resolveRepoRoot()
+	ctx, err := repoContext()
 	if err != nil {
 		return nil, err
 	}
+	root := ctx.RepoRoot()
 
 	dir := filepath.Join(root, scanArtifactRootDir, scanType, sanitizePathComponent(scenarioName))
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -319,10 +320,11 @@ func resolveArtifactAbsolutePath(relPath string) (string, error) {
 		return "", fmt.Errorf("artifact path missing")
 	}
 
-	root, err := resolveRepoRoot()
+	ctx, err := repoContext()
 	if err != nil {
 		return "", err
 	}
+	root := ctx.RepoRoot()
 
 	cleanRoot := filepath.Clean(root)
 	var full string

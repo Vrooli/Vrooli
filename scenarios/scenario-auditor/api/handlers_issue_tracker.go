@@ -239,6 +239,10 @@ func buildIssuePayload(req reportIssueRequest, rule Rule, ruleInfo RuleInfo) (ma
 
 func buildAddTestsDescription(rule Rule, ruleInfo RuleInfo, customInstructions string) string {
 	var b strings.Builder
+	ruleFilePath := ruleInfo.FilePath
+	if ctx, err := repoContext(); err == nil {
+		ruleFilePath = relativePathFrom(ruleInfo.FilePath, ctx.ScenarioAuditorRoot())
+	}
 	b.WriteString("Scenario Auditor requests automated test generation for this rule.\n\n")
 	b.WriteString(fmt.Sprintf("**Rule**: %s\n", safeFallback(rule.Name, rule.ID)))
 	b.WriteString(fmt.Sprintf("**Rule ID**: %s\n", rule.ID))
@@ -250,7 +254,7 @@ func buildAddTestsDescription(rule Rule, ruleInfo RuleInfo, customInstructions s
 
 	// Rule implementation context
 	b.WriteString("\n## Rule Implementation Context\n\n")
-	b.WriteString(fmt.Sprintf("**Rule File**: `%s`\n\n", relativePathFrom(ruleInfo.FilePath, getScenarioRoot())))
+	b.WriteString(fmt.Sprintf("**Rule File**: `%s`\n\n", ruleFilePath))
 
 	// Read and include rule implementation
 	if ruleSource, err := os.ReadFile(ruleInfo.FilePath); err == nil {
@@ -350,6 +354,10 @@ func buildAddTestsDescription(rule Rule, ruleInfo RuleInfo, customInstructions s
 
 func buildFixTestsDescription(rule Rule, ruleInfo RuleInfo, customInstructions string) string {
 	var b strings.Builder
+	ruleFilePath := ruleInfo.FilePath
+	if ctx, err := repoContext(); err == nil {
+		ruleFilePath = relativePathFrom(ruleInfo.FilePath, ctx.ScenarioAuditorRoot())
+	}
 	b.WriteString("Scenario Auditor detected failing test cases for this rule.\n\n")
 	b.WriteString(fmt.Sprintf("**Rule**: %s\n", safeFallback(rule.Name, rule.ID)))
 	b.WriteString(fmt.Sprintf("**Rule ID**: %s\n", rule.ID))
@@ -358,7 +366,7 @@ func buildFixTestsDescription(rule Rule, ruleInfo RuleInfo, customInstructions s
 
 	// Rule implementation context
 	b.WriteString("\n## Rule Implementation Context\n\n")
-	b.WriteString(fmt.Sprintf("**Rule File**: `%s`\n\n", relativePathFrom(ruleInfo.FilePath, getScenarioRoot())))
+	b.WriteString(fmt.Sprintf("**Rule File**: `%s`\n\n", ruleFilePath))
 
 	// Read and include rule implementation
 	if ruleSource, err := os.ReadFile(ruleInfo.FilePath); err == nil {
@@ -480,6 +488,10 @@ func buildFixTestsDescription(rule Rule, ruleInfo RuleInfo, customInstructions s
 
 func buildFixViolationsDescription(rule Rule, ruleInfo RuleInfo, customInstructions string, scenarios []string) string {
 	var b strings.Builder
+	ruleFilePath := ruleInfo.FilePath
+	if ctx, err := repoContext(); err == nil {
+		ruleFilePath = relativePathFrom(ruleInfo.FilePath, ctx.ScenarioAuditorRoot())
+	}
 	b.WriteString("Scenario Auditor detected rule violations in multiple scenarios.\n\n")
 
 	// Rule details
@@ -596,7 +608,7 @@ func buildFixViolationsDescription(rule Rule, ruleInfo RuleInfo, customInstructi
 	// Rule implementation reference
 	b.WriteString("## Rule Implementation Reference\n\n")
 	b.WriteString("To understand exact detection logic, see rule implementation:\n")
-	b.WriteString(fmt.Sprintf("**File**: `%s`\n\n", relativePathFrom(ruleInfo.FilePath, getScenarioRoot())))
+	b.WriteString(fmt.Sprintf("**File**: `%s`\n\n", ruleFilePath))
 
 	// Read and include relevant portions of rule Check() method
 	if ruleSource, err := os.ReadFile(ruleInfo.FilePath); err == nil {
@@ -806,7 +818,10 @@ func buildViolationArtifact(rule Rule, scenarios []string, ruleInfo RuleInfo) st
 		}
 
 		for _, violation := range violations {
-			relPath := relativeToRepoRoot(violation.FilePath)
+			relPath := violation.FilePath
+			if ctx, err := repoContext(); err == nil {
+				relPath = ctx.RelativeToRepoRoot(violation.FilePath)
+			}
 
 			b.WriteString(fmt.Sprintf("#### File: `%s:%d`\n\n", relPath, violation.LineNumber))
 
@@ -852,13 +867,13 @@ func scanScenarioForRule(scenarioName, ruleID string, ruleInfo RuleInfo) []rules
 		return nil
 	}
 
-	vrooliRoot := currentVrooliRoot()
-	if strings.TrimSpace(vrooliRoot) == "" {
+	ctx, err := repoContext()
+	if err != nil {
 		logger.Warn("Unable to resolve Vrooli root while building violation artifact", nil)
 		return nil
 	}
 
-	scenarioPath, err := resolveContractScenarioPath(scenarioName)
+	scenarioPath, err := ctx.ResolveScenarioPath(scenarioName)
 	if err != nil {
 		logger.Warn(fmt.Sprintf("Unable to resolve scenario path: %s", scenarioName), map[string]any{"error": err.Error()})
 		return nil
@@ -1208,7 +1223,12 @@ func buildCreateRuleIssuePayload(req createRuleRequest) (map[string]any, error) 
 	}
 
 	// Read and attach rule creation prompt template
-	promptPath := filepath.Join(getScenarioRoot(), "prompts", "rule-creation.txt")
+	ctx, err := repoContext()
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve repo context: %w", err)
+	}
+
+	promptPath := filepath.Join(ctx.ScenarioAuditorRoot(), "prompts", "rule-creation.txt")
 	promptContent, err := os.ReadFile(promptPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read rule creation prompt: %w", err)

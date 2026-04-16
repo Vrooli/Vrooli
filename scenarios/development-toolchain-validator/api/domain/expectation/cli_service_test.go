@@ -99,7 +99,7 @@ func TestService_ValidateCLIInput(t *testing.T) {
 			name: "valid assertion",
 			input: CreateCLIInput{
 				ConnectionID:  "conn-123",
-				Command:       "scenario-auditor audit ref-123 --json",
+				Command:       "scenario-auditor standards scan ref-123 --wait --json",
 				JSONPath:      "$.security.violations",
 				Operator:      OpEq,
 				ExpectedValue: 0,
@@ -180,7 +180,7 @@ func TestService_ValidateCLIInput(t *testing.T) {
 			name: "invalid JSONPath",
 			input: CreateCLIInput{
 				ConnectionID: "conn-123",
-				Command:      "scenario-auditor audit ref-123 --json",
+				Command:      "scenario-auditor standards scan ref-123 --wait --json",
 				JSONPath:     "invalid path",
 				Operator:     OpEq,
 			},
@@ -190,7 +190,7 @@ func TestService_ValidateCLIInput(t *testing.T) {
 			name: "invalid operator",
 			input: CreateCLIInput{
 				ConnectionID: "conn-123",
-				Command:      "scenario-auditor audit ref-123 --json",
+				Command:      "scenario-auditor standards scan ref-123 --wait --json",
 				JSONPath:     "$.score",
 				Operator:     "invalid",
 			},
@@ -220,7 +220,7 @@ func TestService_CreateCLI(t *testing.T) {
 
 	input := CreateCLIInput{
 		ConnectionID:  "conn-123",
-		Command:       "scenario-auditor audit ref-123 --json",
+		Command:       "scenario-auditor standards scan ref-123 --wait --json",
 		JSONPath:      "$.security.violations",
 		Operator:      OpEq,
 		ExpectedValue: 0,
@@ -284,7 +284,7 @@ func TestCommandValidation(t *testing.T) {
 		command string
 		wantErr error
 	}{
-		{"scenario-auditor audit ref-123 --json", nil},
+		{"scenario-auditor standards scan ref-123 --wait --json", nil},
 		{"test-genie execute ref-123 --json", nil},
 		{"scenario-completeness-scoring score ref-123", nil},
 		{"vrooli scenario status ref-123", nil},
@@ -320,7 +320,7 @@ func TestService_GetCLIByID(t *testing.T) {
 	// Create an assertion
 	created, err := svc.CreateCLI(ctx, CreateCLIInput{
 		ConnectionID:  "conn-123",
-		Command:       "scenario-auditor audit ref-123 --json",
+		Command:       "scenario-auditor standards scan ref-123 --wait --json",
 		JSONPath:      "$.security.violations",
 		Operator:      OpEq,
 		ExpectedValue: 0,
@@ -375,7 +375,7 @@ func TestService_ListCLI(t *testing.T) {
 	})
 	_, _ = svc.CreateCLI(ctx, CreateCLIInput{
 		ConnectionID: "conn-1",
-		Command:      "scenario-auditor audit ref-1 --json",
+		Command:      "scenario-auditor standards scan ref-1 --wait --json",
 		JSONPath:     "$.score1",
 		Operator:     OpGte,
 	})
@@ -468,7 +468,7 @@ func TestService_DeleteCLIByConnection(t *testing.T) {
 	})
 	_, _ = svc.CreateCLI(ctx, CreateCLIInput{
 		ConnectionID: "conn-1",
-		Command:      "scenario-auditor audit ref-1 --json",
+		Command:      "scenario-auditor standards scan ref-1 --wait --json",
 		JSONPath:     "$.score",
 		Operator:     OpGte,
 	})
@@ -516,7 +516,7 @@ func TestService_CreateCLI_ValidationFailure(t *testing.T) {
 			name: "invalid JSONPath rejected",
 			input: CreateCLIInput{
 				ConnectionID: "conn-123",
-				Command:      "scenario-auditor audit ref-123 --json",
+				Command:      "scenario-auditor standards scan ref-123 --wait --json",
 				JSONPath:     "invalid-path",
 				Operator:     OpEq,
 			},

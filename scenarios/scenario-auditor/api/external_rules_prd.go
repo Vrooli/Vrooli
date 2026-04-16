@@ -32,10 +32,6 @@ func newPRDControlTowerProvider() externalRuleProvider {
 	return provider
 }
 
-func init() {
-	registerExternalProvider(newPRDControlTowerProvider())
-}
-
 func (p *prdControlTowerProvider) ID() string {
 	return "prd-control-tower"
 }

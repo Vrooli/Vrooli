@@ -13,6 +13,14 @@ This scaffold was generated from the `external-cli` resource template on {{CURRE
 
 Use this template for CLIs like `codex`, `claude-code`, `terraform`, or `ffmpeg`.
 
+## Use Cases
+
+Replace these bullets with the real scenario-facing uses for this resource.
+
+- Serve as the shared host CLI integration for scenarios that need {{primary function}}.
+- Support {{secondary workflow}} without each scenario owning its own binary setup.
+- Provide a foundation for {{integration pattern}} across the Vrooli stack.
+
 ## Architecture
 
 This template keeps the generated CLI thin on purpose.

@@ -12,7 +12,7 @@ import (
 func TestAnalyzePhaseFailuresDoesNotMisclassifyTimeoutParameterAsPhaseTimeout(t *testing.T) {
 	dir := t.TempDir()
 	logPath := filepath.Join(dir, "standards.log")
-	if err := os.WriteFile(logPath, []byte("running standards audit via scenario-auditor (timeout=60s, fail_on=high)\n"), 0o644); err != nil {
+	if err := os.WriteFile(logPath, []byte("running standards scan via scenario-auditor API (timeout=60s, fail_on=high)\n"), 0o644); err != nil {
 		t.Fatalf("write log: %v", err)
 	}
 
@@ -37,8 +37,8 @@ func TestAnalyzePhaseFailuresDoesNotLeakJSONFromStandardsLog(t *testing.T) {
 	dir := t.TempDir()
 	logPath := filepath.Join(dir, "standards.log")
 	logContent := strings.Join([]string{
-		"running standards audit via scenario-auditor (timeout=60s, fail_on=high)",
-		`{"security":null,"standards":{"summary":{"total":1,"highest_severity":"high","top_violations":[{"severity":"high","title":"Example","file_path":"PRD.md","line_number":1,"recommendation":"❌ example"}]}}}`,
+		"running standards scan via scenario-auditor API (timeout=60s, fail_on=high)",
+		`{"summary":{"total":1,"highest_severity":"high","top_violations":[{"severity":"high","title":"Example","file_path":"PRD.md","line_number":1,"recommendation":"❌ example"}]}}`,
 	}, "\n")
 	if err := os.WriteFile(logPath, []byte(logContent), 0o644); err != nil {
 		t.Fatalf("write log: %v", err)
@@ -50,13 +50,13 @@ func TestAnalyzePhaseFailuresDoesNotLeakJSONFromStandardsLog(t *testing.T) {
 			Status:      "failed",
 			LogPath:     logPath,
 			Error:       "standards violations exceed fail_on=high (highest=high)",
-			Remediation: "Run `scenario-auditor audit demo --standards-only` and fix findings.",
+			Remediation: "Run `scenario-auditor standards scan demo --wait` and fix findings.",
 		},
 	})
 	if len(insights) != 1 {
 		t.Fatalf("expected 1 insight, got %d", len(insights))
 	}
-	if strings.Contains(insights[0].Detail, `{"security"`) {
+	if strings.Contains(insights[0].Detail, `{"summary"`) {
 		t.Fatalf("expected JSON to be omitted from insight detail, got %q", insights[0].Detail)
 	}
 	if insights[0].Cause == "" || !strings.Contains(insights[0].Cause, "standards violations") {

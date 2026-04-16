@@ -95,8 +95,11 @@ secrets-manager vault list --resource postgres
 # Scan for vulnerabilities
 secrets-manager security scan --severity high
 
+# Show effective override strategy for one scenario/tier
+secrets-manager overrides effective picker-wheel --tier tier-2-desktop
+
 # Export deployment manifest
-secrets-manager deployment export --tier 2 --format json
+secrets-manager deployment plan --scenario picker-wheel --tier tier-2-desktop --json
 ```
 
 #### API Endpoints

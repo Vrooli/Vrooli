@@ -10,6 +10,14 @@
       "kind": "go_module",
       "module_dir": "cli"
     },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
     "install": [
       {
         "os": ["linux", "darwin"],

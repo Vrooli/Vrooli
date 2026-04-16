@@ -1,5 +1,5 @@
 {
-  "description": "Run `scenario-auditor audit \u003creference\u003e --json` against each reference and assert zero violations (or a configured allowlist). Report any unexpected violations as tooling issues.",
+  "description": "Run `scenario-auditor standards scan \u003creference\u003e --wait --json` against each reference and assert zero violations (or a configured allowlist). Report any unexpected violations as tooling issues.",
   "module_id": "MOD-P1-011",
   "prd_ref": "OT-P1-001",
   "priority": "P1",

@@ -1,11 +1,9 @@
 package main
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 
 	re "scenario-auditor/internal/ruleengine"
@@ -67,9 +65,8 @@ func TestCloneSummaryFiltersBySeverityAndLimit(t *testing.T) {
 }
 
 func TestPersistScanArtifactUsesContractResolvedRepoRoot(t *testing.T) {
-	root := writeRepoContractFixture(t)
-	t.Setenv("VROOLI_ROOT", root)
-	chdirForTest(t, filepath.Join(root, "scenarios", "scenario-auditor", "api"))
+	h := newRepoHarness(t)
+	h.UseRepoContext(t)
 
 	artifact, err := persistScanArtifact("standards", "demo", "job-123", map[string]any{"ok": true})
 	if err != nil {
@@ -83,142 +80,53 @@ func TestPersistScanArtifactUsesContractResolvedRepoRoot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolveArtifactAbsolutePath: %v", err)
 	}
-	if !strings.HasPrefix(fullPath, filepath.Join(root, "logs", "scenario-auditor")) {
+	if !strings.HasPrefix(fullPath, filepath.Join(h.Root, "logs", "scenario-auditor")) {
 		t.Fatalf("artifact absolute path = %q", fullPath)
 	}
 }
 
 func TestGetRootsUseRepoContractHelpers(t *testing.T) {
-	root := writeRepoContractFixture(t)
-	t.Setenv("VROOLI_ROOT", root)
-	chdirForTest(t, filepath.Join(root, "scenarios", "scenario-auditor", "api"))
-	resetCachedRootsForTest()
+	h := newRepoHarness(t)
+	h.UseRepoContext(t)
 
-	if got := currentVrooliRoot(); got != root {
-		t.Fatalf("getVrooliRoot = %q, want %q", got, root)
+	ctx, err := repoContext()
+	if err != nil {
+		t.Fatalf("repoContext: %v", err)
 	}
-	if got := getScenarioRoot(); got != filepath.Join(root, "scenarios", "scenario-auditor") {
-		t.Fatalf("getScenarioRoot = %q", got)
+	if got := ctx.RepoRoot(); got != h.Root {
+		t.Fatalf("RepoRoot = %q, want %q", got, h.Root)
+	}
+	if got := ctx.ScenarioAuditorRoot(); got != filepath.Join(h.Root, "scenarios", "scenario-auditor") {
+		t.Fatalf("ScenarioAuditorRoot = %q", got)
 	}
 }
 
 func TestRelativeToRepoRootUsesResolvedRepoRoot(t *testing.T) {
-	root := writeRepoContractFixture(t)
-	t.Setenv("VROOLI_ROOT", root)
-	chdirForTest(t, filepath.Join(root, "scenarios", "scenario-auditor", "api"))
+	h := newRepoHarness(t)
+	h.UseRepoContext(t)
 
-	got := relativeToRepoRoot(filepath.Join(root, "scenarios", "demo", "api", "main.go"))
+	ctx, err := repoContext()
+	if err != nil {
+		t.Fatalf("repoContext: %v", err)
+	}
+	got := ctx.RelativeToRepoRoot(filepath.Join(h.Root, "scenarios", "demo", "api", "main.go"))
 	if got != "scenarios/demo/api/main.go" {
-		t.Fatalf("relativeToRepoRoot = %q", got)
+		t.Fatalf("RelativeToRepoRoot = %q", got)
 	}
 }
 
 func TestDiscoverRuleDirsUsesContractResolvedScenarioAuditorPath(t *testing.T) {
-	root := writeRepoContractFixture(t)
-	rulesDir := filepath.Join(root, "scenarios", "scenario-auditor", "api", "rules")
+	h := newRepoHarness(t)
+	rulesDir := filepath.Join(h.Root, "scenarios", "scenario-auditor", "api", "rules")
 	if err := os.MkdirAll(rulesDir, 0o755); err != nil {
 		t.Fatalf("mkdir rules dir: %v", err)
 	}
 
-	dirs, err := re.DiscoverRuleDirs(root)
+	dirs, err := re.DiscoverRuleDirs(h.ContextOrBuild(t).ScenarioAuditorRoot())
 	if err != nil {
 		t.Fatalf("DiscoverRuleDirs: %v", err)
 	}
 	if len(dirs) != 1 || dirs[0] != rulesDir {
 		t.Fatalf("DiscoverRuleDirs = %#v, want [%q]", dirs, rulesDir)
 	}
-}
-
-func writeRepoContractFixture(t *testing.T) string {
-	t.Helper()
-
-	root := t.TempDir()
-	writeRepoContractFixtureAtRoot(t, root)
-	return root
-}
-
-func writeRepoContractFixtureAtRoot(t *testing.T, root string) {
-	t.Helper()
-
-	for _, dir := range []string{".vrooli", "scenarios", "resources", "packages", "cmd", "internal"} {
-		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
-			t.Fatalf("mkdir %s: %v", dir, err)
-		}
-	}
-	if err := os.MkdirAll(filepath.Join(root, "scenarios", "scenario-auditor", "api"), 0o755); err != nil {
-		t.Fatalf("mkdir scenario-auditor api: %v", err)
-	}
-	if err := os.MkdirAll(filepath.Join(root, "scenarios", "demo", "api"), 0o755); err != nil {
-		t.Fatalf("mkdir demo api: %v", err)
-	}
-	writeJSONFile(t, filepath.Join(root, "scenarios", "scenario-auditor", ".vrooli", "service.json"), map[string]any{
-		"service": map[string]any{"name": "scenario-auditor"},
-	})
-	writeJSONFile(t, filepath.Join(root, "scenarios", "demo", ".vrooli", "service.json"), map[string]any{
-		"service": map[string]any{"name": "demo"},
-	})
-	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module fixture\n\ngo 1.24.0\n"), 0o644); err != nil {
-		t.Fatalf("write go.mod: %v", err)
-	}
-	contract := `{
-  "$schema": "schemas/repo-contract.schema.json",
-  "version": "1.0.0",
-  "platform": {"mode": "cross_platform_go_native", "legacy_project_bash_supported": false},
-  "root": {"markers": {"required_dirs": [".vrooli", "scenarios", "resources", "packages", "cmd", "internal"], "required_files": ["go.mod"]}},
-  "layout": {"project_config_dir": ".vrooli", "scenario_dir": "scenarios", "resource_dir": "resources", "package_dir": "packages", "command_dir": "cmd", "internal_dir": "internal", "docs_dir": "docs"},
-  "scenario": {"required_files": [".vrooli/service.json"], "well_known_paths": {"service": ".vrooli/service.json", "docs": "docs", "requirements": "requirements", "api": "api", "ui": "ui", "cli": "cli", "initialization": "initialization"}},
-  "resource": {"manifest": "resource.json", "well_known_paths": {"docs": "docs", "initialization": "initialization"}},
-  "globs": {"syntax": "doublestar", "root_relative": true, "case_sensitive": true, "allow_absolute": false, "path_format": "slash_normalized"},
-  "environment": {"variables": {"repo_root": "VROOLI_ROOT", "source_root": "VROOLI_SOURCE_ROOT", "sandbox_id": "VROOLI_SANDBOX_ID", "sandbox_merged": "VROOLI_SANDBOX_MERGED", "sandbox_scope": "VROOLI_SANDBOX_SCOPE"}},
-  "sandbox": {"full_repo_scopes": ["", ".", "/"], "scenario_scope_prefix": "scenarios/"},
-  "profiles": {
-    "fixture": {
-      "description": "fixture profile",
-      "parameters": ["scenario"],
-      "include": ["scenarios/{scenario}"],
-      "optional_include": ["go.mod"],
-      "exclude": [".git/**"]
-    }
-  }
-}`
-	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), []byte(contract), 0o644); err != nil {
-		t.Fatalf("write repo-contract.json: %v", err)
-	}
-}
-
-func writeJSONFile(t *testing.T, path string, payload map[string]any) {
-	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir for %s: %v", path, err)
-	}
-	data, err := json.Marshal(payload)
-	if err != nil {
-		t.Fatalf("marshal %s: %v", path, err)
-	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
-		t.Fatalf("write %s: %v", path, err)
-	}
-}
-
-func resetCachedRootsForTest() {
-	scenarioRootOnce = sync.Once{}
-	scenarioRootPath = ""
-	vrooliRootOnce = sync.Once{}
-	vrooliRootPath = ""
-}
-
-func chdirForTest(t *testing.T, dir string) {
-	t.Helper()
-
-	originalWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd: %v", err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("chdir %s: %v", dir, err)
-	}
-	t.Cleanup(func() {
-		_ = os.Chdir(originalWD)
-	})
-	resetCachedRootsForTest()
 }

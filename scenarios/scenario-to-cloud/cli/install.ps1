@@ -8,6 +8,7 @@ $installer = Join-Path $repoRoot "packages/cli-core/install.ps1"
 $parameters = @{
 	ModulePath = "scenarios/scenario-to-cloud/cli"
 	Name       = "scenario-to-cloud-bin"
+	Manifest   = "scenarios/scenario-to-cloud/.vrooli/service.json"
 }
 if ($InstallDir) {
 	$parameters.InstallDir = $InstallDir

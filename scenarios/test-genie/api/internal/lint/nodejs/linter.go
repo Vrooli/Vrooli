@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"test-genie/internal/lint/execution"
 	"test-genie/internal/shared"
 )
 
@@ -52,6 +53,7 @@ type Result struct {
 type Config struct {
 	Dir           string
 	CommandLookup shared.LookupFunc
+	Runner        execution.Runner
 }
 
 // Linter performs Node.js linting.
@@ -68,6 +70,9 @@ func New(config Config, opts ...Option) *Linter {
 	l := &Linter{
 		config:    config,
 		logWriter: io.Discard,
+	}
+	if l.config.Runner == nil {
+		l.config.Runner = execution.ProductionRunner{}
 	}
 	for _, opt := range opts {
 		opt(l)
@@ -195,26 +200,32 @@ func (l *Linter) runTsc(ctx context.Context) *Result {
 		return result
 	}
 
-	cmd := exec.CommandContext(ctx, tscPath, "--noEmit")
-	cmd.Dir = l.config.Dir
-
-	output, err := cmd.CombinedOutput()
-	rawOutput := string(output)
-
+	cmdResult, err := l.config.Runner.Run(ctx, execution.Command{
+		Dir:  l.config.Dir,
+		Name: tscPath,
+		Args: []string{"--noEmit"},
+	})
 	if err != nil {
-		// tsc exits with non-zero if there are errors
-		issues := l.parseTscOutput(string(output))
+		result.TypeErrors = 1
+		result.Observations = append(result.Observations,
+			shared.NewErrorObservation(fmt.Sprintf("tsc failed: %v", err)))
+		return result
+	}
+	output := append(append([]byte(nil), cmdResult.Stdout...), cmdResult.Stderr...)
+	rawOutput := string(output)
+	if cmdResult.ExitCode != 0 {
+		issues := l.parseTscOutput(rawOutput)
 		result.Issues = issues
-		result.TypeErrors = len(issues)
-
 		if len(issues) > 0 {
+			result.TypeErrors = len(issues)
 			logNodeIssues(l.logWriter, issues, 20)
 			writeRawBlock(l.logWriter, "tsc raw output:", rawOutput)
 			result.Observations = append(result.Observations,
 				shared.NewErrorObservation(fmt.Sprintf("Node: tsc found %d type error(s)", len(issues))))
 		} else {
+			result.TypeErrors = 1
 			result.Observations = append(result.Observations,
-				shared.NewErrorObservation(fmt.Sprintf("tsc failed: %v", err)))
+				shared.NewErrorObservation(fmt.Sprintf("tsc failed with exit code %d", cmdResult.ExitCode)))
 			if len(output) > 0 {
 				writeRawBlock(l.logWriter, "tsc raw output:", rawOutput)
 			}
@@ -285,36 +296,36 @@ func (l *Linter) runEslint(ctx context.Context) *Result {
 		return result
 	}
 
-	cmd := exec.CommandContext(ctx, eslintPath, ".", "--format", "json")
-	cmd.Dir = l.config.Dir
-
-	output, err := cmd.Output()
-	rawOutput := output
-
-	// eslint exits with 1 if there are issues
+	cmdResult, err := l.config.Runner.Run(ctx, execution.Command{
+		Dir:  l.config.Dir,
+		Name: eslintPath,
+		Args: []string{".", "--format", "json"},
+	})
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			if exitErr.ExitCode() == 1 {
-				// Issues found, parse them
-				if len(output) == 0 {
-					output = exitErr.Stderr
-					rawOutput = exitErr.Stderr
-				}
-			} else if exitErr.ExitCode() == 2 {
-				// Configuration error
-				result.TypeErrors = 1
-				result.Success = false
-				result.Observations = append(result.Observations,
-					shared.NewErrorObservation(fmt.Sprintf("ESLint configuration error: %s", string(exitErr.Stderr))))
-				return result
-			}
-		} else {
-			result.TypeErrors = 1
-			result.Success = false
-			result.Observations = append(result.Observations,
-				shared.NewErrorObservation(fmt.Sprintf("eslint failed: %v", err)))
-			return result
-		}
+		result.TypeErrors = 1
+		result.Success = false
+		result.Observations = append(result.Observations,
+			shared.NewErrorObservation(fmt.Sprintf("eslint failed: %v", err)))
+		return result
+	}
+	output := cmdResult.Stdout
+	if len(output) == 0 {
+		output = cmdResult.Stderr
+	}
+	rawOutput := output
+	if cmdResult.ExitCode == 2 {
+		result.TypeErrors = 1
+		result.Success = false
+		result.Observations = append(result.Observations,
+			shared.NewErrorObservation(fmt.Sprintf("ESLint configuration error: %s", string(cmdResult.Stderr))))
+		return result
+	}
+	if cmdResult.ExitCode != 0 && cmdResult.ExitCode != 1 {
+		result.TypeErrors = 1
+		result.Success = false
+		result.Observations = append(result.Observations,
+			shared.NewErrorObservation(fmt.Sprintf("eslint failed with exit code %d", cmdResult.ExitCode)))
+		return result
 	}
 
 	issues, parseErr := l.parseEslintOutput(output)

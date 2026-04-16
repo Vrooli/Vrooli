@@ -1,17 +1,20 @@
 package phases
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/discovery"
 
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/shared"
@@ -23,12 +26,8 @@ const (
 	defaultStandardsMinDisplay  = "medium"
 )
 
-type auditorAuditEnvelope struct {
-	Standards *auditorSummaryResponse `json:"standards"`
-}
-
 type auditorSummaryResponse struct {
-	Summary auditorViolationSummary `json:"summary"`
+	Summary *auditorViolationSummary `json:"summary"`
 }
 
 type auditorScanArtifactRef struct {
@@ -60,24 +59,31 @@ type auditorViolationSummary struct {
 	Recommended     []string                  `json:"recommended_steps,omitempty"`
 }
 
+type auditorStandardsStartResponse struct {
+	JobID  string                 `json:"job_id"`
+	Status auditorStandardsStatus `json:"status"`
+}
+
+type auditorStandardsStatus struct {
+	ID      string `json:"id"`
+	Status  string `json:"status"`
+	Message string `json:"message"`
+	Error   string `json:"error"`
+}
+
+var (
+	resolveScenarioAuditorBaseURL = func(ctx context.Context) (string, error) {
+		return discovery.ResolveScenarioURLDefault(ctx, "scenario-auditor")
+	}
+	auditorStandardsHTTPClient = &http.Client{Timeout: 10 * time.Second}
+)
+
 func runStandardsPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
 	if report := CheckContext(ctx); report != nil {
 		return *report
 	}
 
 	cleanLog := wrapLogSansANSI(logWriter)
-
-	auditorBin, err := resolveScenarioAuditorBinary(env)
-	if err != nil {
-		return RunReport{
-			Err:                   err,
-			FailureClassification: FailureClassMissingDependency,
-			Remediation:           "Install the scenario-auditor CLI (or ensure it is on PATH) so Test Genie can enforce standards.",
-			Observations: []Observation{
-				NewErrorObservation("scenario-auditor CLI is missing"),
-			},
-		}
-	}
 
 	failOn := normalizeSeverity(os.Getenv("TEST_GENIE_STANDARDS_FAIL_ON"))
 	if failOn == "" {
@@ -94,31 +100,25 @@ func runStandardsPhase(ctx context.Context, env workspace.Environment, logWriter
 		timeoutSeconds = 60
 	}
 
-	shared.LogStep(cleanLog, "running standards audit via scenario-auditor (timeout=%ds, fail_on=%s)", timeoutSeconds, failOn)
-	output, err := phaseCommandCapture(
-		ctx,
-		env.AppRoot,
-		cleanLog,
-		auditorBin,
-		"audit",
-		env.ScenarioName,
-		"--standards-only",
-		"--timeout",
-		strconv.Itoa(timeoutSeconds),
-		"--limit",
-		strconv.Itoa(summaryLimit),
-		"--min-severity",
-		"info",
-		"--json",
-	)
+	shared.LogStep(cleanLog, "running standards scan via scenario-auditor API (timeout=%ds, fail_on=%s)", timeoutSeconds, failOn)
+	baseURL, err := resolveScenarioAuditorBaseURL(ctx)
+	if err != nil {
+		classification, remediation := classifyAuditorError(err)
+		return RunReport{
+			Err:                   err,
+			FailureClassification: classification,
+			Remediation:           remediation,
+			Observations: []Observation{
+				NewSectionObservation("📏", "Standards"),
+				NewErrorObservation("scenario-auditor API unavailable"),
+			},
+		}
+	}
 
-	summary, parseErr := parseAuditorStandardsSummary(output)
+	summary, err := fetchAuditorStandardsSummary(ctx, cleanLog, baseURL, env.ScenarioName, env.ScenarioDir, summaryLimit)
 	observations := buildStandardsObservations(summary, failOn, minDisplay)
 
-	if parseErr != nil {
-		if err == nil {
-			err = parseErr
-		}
+	if err != nil {
 		classification, remediation := classifyAuditorError(err)
 		writePhasePointer(env, "standards", RunReport{
 			Err:                   err,
@@ -142,7 +142,7 @@ func runStandardsPhase(ctx context.Context, env workspace.Environment, logWriter
 		classification, remediation := classifyAuditorError(err)
 		if failedThreshold {
 			classification = FailureClassMisconfiguration
-			remediation = fmt.Sprintf("Run `scenario-auditor audit %s --standards-only --timeout %d` and address %s+ findings.", env.ScenarioName, timeoutSeconds, strings.ToUpper(failOn))
+			remediation = fmt.Sprintf("Run `scenario-auditor standards scan %s --wait --timeout %ds` and address %s+ findings.", env.ScenarioName, timeoutSeconds, strings.ToUpper(failOn))
 		}
 
 		extras := map[string]any{
@@ -176,30 +176,124 @@ func runStandardsPhase(ctx context.Context, env workspace.Environment, logWriter
 	return report
 }
 
-func resolveScenarioAuditorBinary(env workspace.Environment) (string, error) {
-	if _, err := commandLookup("scenario-auditor"); err == nil {
-		return "scenario-auditor", nil
+func fetchAuditorStandardsSummary(ctx context.Context, logWriter io.Writer, baseURL, scenarioName, scenarioPath string, summaryLimit int) (*auditorViolationSummary, error) {
+	jobID, err := startAuditorStandardsScan(ctx, baseURL, scenarioName, scenarioPath)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(jobID) == "" {
+		return nil, fmt.Errorf("scenario-auditor returned an empty standards job id")
 	}
 
-	appRoot := strings.TrimSpace(env.AppRoot)
-	if appRoot == "" && strings.TrimSpace(env.ScenarioDir) != "" {
-		appRoot = workspace.AppRootFromScenario(env.ScenarioDir)
-	}
-	if appRoot == "" {
-		return "", fmt.Errorf("required command 'scenario-auditor' is not available (and app root is unknown)")
-	}
+	pollInterval := 2 * time.Second
+	for {
+		status, err := fetchAuditorStandardsStatus(ctx, baseURL, jobID)
+		if err != nil {
+			return nil, err
+		}
+		state := strings.ToLower(strings.TrimSpace(status.Status))
+		switch state {
+		case "completed", "success":
+			return fetchAuditorStandardsSummaryByJob(ctx, baseURL, jobID, summaryLimit)
+		case "failed", "error":
+			return nil, fmt.Errorf("scenario-auditor standards scan failed: %s", firstNonEmpty(status.Error, status.Message, "unknown failure"))
+		case "cancelled", "canceled":
+			return nil, fmt.Errorf("scenario-auditor standards scan cancelled: %s", firstNonEmpty(status.Message, "scan cancelled"))
+		}
 
-	candidates := []string{
-		filepath.Join(appRoot, "scenarios", "scenario-auditor", "cli", "scenario-auditor"),
-		filepath.Join(appRoot, "scenarios", "scenario-auditor", "cli", "scenario-auditor.sh"),
-	}
-	for _, candidate := range candidates {
-		if err := ensureExecutable(candidate); err == nil {
-			return candidate, nil
+		if logWriter != nil && strings.TrimSpace(status.Message) != "" {
+			shared.LogStep(logWriter, "scenario-auditor status=%s (%s)", state, strings.TrimSpace(status.Message))
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(pollInterval):
 		}
 	}
+}
 
-	return "", fmt.Errorf("required command 'scenario-auditor' is not available on PATH and no repo-local CLI was found under %s", filepath.Join(appRoot, "scenarios", "scenario-auditor", "cli"))
+func startAuditorStandardsScan(ctx context.Context, baseURL, scenarioName, scenarioPath string) (string, error) {
+	payload := map[string]any{
+		"type": "full",
+	}
+	if strings.TrimSpace(scenarioPath) != "" {
+		payload["scenario_path"] = strings.TrimSpace(scenarioPath)
+	}
+
+	responseBody, err := auditorStandardsRequestJSON(ctx, http.MethodPost, strings.TrimRight(baseURL, "/")+"/api/v1/standards/check/"+scenarioName, payload)
+	if err != nil {
+		return "", err
+	}
+
+	var response auditorStandardsStartResponse
+	if err := json.Unmarshal(responseBody, &response); err != nil {
+		return "", fmt.Errorf("decode scenario-auditor standards start response: %w", err)
+	}
+	if strings.TrimSpace(response.JobID) != "" {
+		return strings.TrimSpace(response.JobID), nil
+	}
+	if strings.TrimSpace(response.Status.ID) != "" {
+		return strings.TrimSpace(response.Status.ID), nil
+	}
+	return "", fmt.Errorf("scenario-auditor standards start response did not include a job id")
+}
+
+func fetchAuditorStandardsStatus(ctx context.Context, baseURL, jobID string) (*auditorStandardsStatus, error) {
+	responseBody, err := auditorStandardsRequestJSON(ctx, http.MethodGet, strings.TrimRight(baseURL, "/")+"/api/v1/standards/check/jobs/"+jobID, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var status auditorStandardsStatus
+	if err := json.Unmarshal(responseBody, &status); err != nil {
+		return nil, fmt.Errorf("decode scenario-auditor standards status response: %w", err)
+	}
+	return &status, nil
+}
+
+func fetchAuditorStandardsSummaryByJob(ctx context.Context, baseURL, jobID string, summaryLimit int) (*auditorViolationSummary, error) {
+	url := fmt.Sprintf("%s/api/v1/standards/check/jobs/%s/summary?limit=%d&min_severity=info", strings.TrimRight(baseURL, "/"), jobID, summaryLimit)
+	responseBody, err := auditorStandardsRequestJSON(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	return parseAuditorStandardsSummary(string(responseBody))
+}
+
+func auditorStandardsRequestJSON(ctx context.Context, method, endpoint string, payload any) ([]byte, error) {
+	var body io.Reader
+	if payload != nil {
+		encoded, err := json.Marshal(payload)
+		if err != nil {
+			return nil, fmt.Errorf("encode scenario-auditor request: %w", err)
+		}
+		body = bytes.NewReader(encoded)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, endpoint, body)
+	if err != nil {
+		return nil, fmt.Errorf("create scenario-auditor request: %w", err)
+	}
+	if payload != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	resp, err := auditorStandardsHTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	responseBody, readErr := io.ReadAll(resp.Body)
+	if readErr != nil {
+		return nil, fmt.Errorf("read scenario-auditor response: %w", readErr)
+	}
+	if resp.StatusCode >= http.StatusBadRequest {
+		return nil, fmt.Errorf("scenario-auditor returned status %d: %s", resp.StatusCode, strings.TrimSpace(string(responseBody)))
+	}
+
+	return responseBody, nil
 }
 
 func parseAuditorStandardsSummary(raw string) (*auditorViolationSummary, error) {
@@ -208,15 +302,15 @@ func parseAuditorStandardsSummary(raw string) (*auditorViolationSummary, error) 
 		return nil, fmt.Errorf("scenario-auditor produced no output")
 	}
 
-	var envelope auditorAuditEnvelope
+	var envelope auditorSummaryResponse
 	if err := ParseJSON(payload, &envelope); err != nil {
 		return nil, fmt.Errorf("failed to parse scenario-auditor JSON: %w", err)
 	}
-	if envelope.Standards == nil {
-		return nil, fmt.Errorf("scenario-auditor JSON missing 'standards' payload")
+	if envelope.Summary == nil {
+		return nil, fmt.Errorf("scenario-auditor JSON missing 'summary' payload")
 	}
 
-	summary := envelope.Standards.Summary
+	summary := *envelope.Summary
 	if summary.BySeverity == nil {
 		summary.BySeverity = map[string]int{}
 	}
@@ -430,17 +524,19 @@ func classifyAuditorError(err error) (classification string, remediation string)
 		return FailureClassTimeout, "Increase the standards phase timeout via `.vrooli/testing.json` (phases.standards.timeout) or reduce the audit scope."
 	}
 
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
-		switch exitErr.ExitCode() {
-		case 124:
+	var discoveryErr *discovery.Error
+	if errors.As(err, &discoveryErr) {
+		switch discoveryErr.Kind {
+		case discovery.ErrTimeout:
 			return FailureClassTimeout, "Increase the standards phase timeout via `.vrooli/testing.json` (phases.standards.timeout) or reduce the audit scope."
-		case 127:
-			return FailureClassMissingDependency, "Ensure `scenario-auditor` (and `vrooli`) are installed and accessible on PATH."
+		case discovery.ErrVrooliNotFound:
+			return FailureClassMissingDependency, "Ensure `vrooli` is installed and accessible so Test Genie can discover the scenario-auditor API."
+		case discovery.ErrScenarioNotRunning:
+			return FailureClassMissingDependency, "Start `scenario-auditor` so Test Genie can reach its API for standards checks."
 		default:
-			return FailureClassSystem, "Re-run with `scenario-auditor audit <scenario> --standards-only --json` and inspect logs for errors."
+			return FailureClassSystem, "Resolve scenario-auditor API discovery failures, then rerun the standards phase."
 		}
 	}
 
-	return FailureClassSystem, "Re-run the standards phase and inspect logs for errors."
+	return FailureClassSystem, "Re-run the standards phase after verifying the scenario-auditor API is healthy and reachable."
 }

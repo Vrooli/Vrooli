@@ -105,7 +105,7 @@ CLI tool assertions run read-only commands and validate their JSON output.
 ### Assertion Structure
 ```json
 {
-  "command": "scenario-auditor audit reference-react-vite --json",
+  "command": "scenario-auditor standards scan reference-react-vite --wait --json",
   "json_path": "$.total",
   "operator": "eq",
   "expected_value": 0,

@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"test-genie/internal/lint/execution"
 	"test-genie/internal/shared"
 )
 
@@ -52,6 +53,7 @@ type Result struct {
 type Config struct {
 	Dir           string
 	CommandLookup shared.LookupFunc
+	Runner        execution.Runner
 }
 
 // Linter performs Python linting.
@@ -68,6 +70,9 @@ func New(config Config, opts ...Option) *Linter {
 	l := &Linter{
 		config:    config,
 		logWriter: io.Discard,
+	}
+	if l.config.Runner == nil {
+		l.config.Runner = execution.ProductionRunner{}
 	}
 	for _, opt := range opts {
 		opt(l)
@@ -206,21 +211,24 @@ func (l *Linter) runRuff(ctx context.Context) *Result {
 		ToolsUsed: []string{"ruff"},
 	}
 
-	cmd := exec.CommandContext(ctx, "ruff", "check", "--output-format", "json", ".")
-	cmd.Dir = l.config.Dir
-
-	output, err := cmd.Output()
-	// ruff exits with 1 if there are issues
+	cmdResult, err := l.config.Runner.Run(ctx, execution.Command{
+		Dir:  l.config.Dir,
+		Name: "ruff",
+		Args: []string{"check", "--output-format", "json", "."},
+	})
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
-			if len(output) == 0 {
-				output = exitErr.Stderr
-			}
-		} else {
-			result.Observations = append(result.Observations,
-				shared.NewErrorObservation(fmt.Sprintf("ruff failed: %v", err)))
-			return result
-		}
+		result.Observations = append(result.Observations,
+			shared.NewErrorObservation(fmt.Sprintf("ruff failed: %v", err)))
+		return result
+	}
+	output := cmdResult.Stdout
+	if len(output) == 0 {
+		output = cmdResult.Stderr
+	}
+	if cmdResult.ExitCode != 0 && cmdResult.ExitCode != 1 {
+		result.Observations = append(result.Observations,
+			shared.NewErrorObservation(fmt.Sprintf("ruff failed with exit code %d", cmdResult.ExitCode)))
+		return result
 	}
 
 	issues := l.parseRuffOutput(output)
@@ -278,18 +286,21 @@ func (l *Linter) runFlake8(ctx context.Context) *Result {
 		ToolsUsed: []string{"flake8"},
 	}
 
-	cmd := exec.CommandContext(ctx, "flake8", "--format=%(path)s:%(row)d:%(col)d: %(code)s %(text)s", ".")
-	cmd.Dir = l.config.Dir
-
-	output, err := cmd.CombinedOutput()
+	cmdResult, err := l.config.Runner.Run(ctx, execution.Command{
+		Dir:  l.config.Dir,
+		Name: "flake8",
+		Args: []string{"--format=%(path)s:%(row)d:%(col)d: %(code)s %(text)s", "."},
+	})
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
-			// Issues found
-		} else {
-			result.Observations = append(result.Observations,
-				shared.NewErrorObservation(fmt.Sprintf("flake8 failed: %v", err)))
-			return result
-		}
+		result.Observations = append(result.Observations,
+			shared.NewErrorObservation(fmt.Sprintf("flake8 failed: %v", err)))
+		return result
+	}
+	output := append(append([]byte(nil), cmdResult.Stdout...), cmdResult.Stderr...)
+	if cmdResult.ExitCode != 0 && cmdResult.ExitCode != 1 {
+		result.Observations = append(result.Observations,
+			shared.NewErrorObservation(fmt.Sprintf("flake8 failed with exit code %d", cmdResult.ExitCode)))
+		return result
 	}
 
 	issues := l.parseFlake8Output(string(output))
@@ -350,23 +361,29 @@ func (l *Linter) runMypy(ctx context.Context) *Result {
 		return result
 	}
 
-	cmd := exec.CommandContext(ctx, "mypy", ".")
-	cmd.Dir = l.config.Dir
-
-	output, err := cmd.CombinedOutput()
+	cmdResult, err := l.config.Runner.Run(ctx, execution.Command{
+		Dir:  l.config.Dir,
+		Name: "mypy",
+		Args: []string{"."},
+	})
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
-			// Type errors found
-			issues := l.parseMypyOutput(string(output))
-			result.Issues = issues
-			result.TypeErrors = len(issues)
-			logPythonIssues(l.logWriter, issues, 20)
-			result.Observations = append(result.Observations,
-				shared.NewErrorObservation(fmt.Sprintf("Python: mypy found %d type error(s)", len(issues))))
-			return result
-		}
 		result.Observations = append(result.Observations,
 			shared.NewErrorObservation(fmt.Sprintf("mypy failed: %v", err)))
+		return result
+	}
+	output := append(append([]byte(nil), cmdResult.Stdout...), cmdResult.Stderr...)
+	if cmdResult.ExitCode == 1 {
+		issues := l.parseMypyOutput(string(output))
+		result.Issues = issues
+		result.TypeErrors = len(issues)
+		logPythonIssues(l.logWriter, issues, 20)
+		result.Observations = append(result.Observations,
+			shared.NewErrorObservation(fmt.Sprintf("Python: mypy found %d type error(s)", len(issues))))
+		return result
+	}
+	if cmdResult.ExitCode != 0 {
+		result.Observations = append(result.Observations,
+			shared.NewErrorObservation(fmt.Sprintf("mypy failed with exit code %d", cmdResult.ExitCode)))
 		return result
 	}
 

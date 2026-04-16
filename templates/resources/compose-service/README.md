@@ -13,6 +13,14 @@ This scaffold was generated from the `compose-service` resource template on {{CU
 
 Use this template when the resource needs a coordinated runtime graph instead of a single container.
 
+## Use Cases
+
+Replace these bullets with the real scenario-facing uses for this resource.
+
+- Serve as the shared local multi-service runtime for scenarios that need {{primary function}}.
+- Support {{secondary workflow}} without each scenario owning its own service graph.
+- Provide a foundation for {{integration pattern}} across the Vrooli stack.
+
 ## Architecture
 
 This template keeps the generated CLI thin on purpose.

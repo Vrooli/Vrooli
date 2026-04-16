@@ -219,7 +219,7 @@ func DiagnoseFailures(phases []execTypes.Phase) *FailureDiagnosis {
 				if phase.Remediation != "" {
 					diag.QuickFixes = append(diag.QuickFixes, strings.TrimSpace(phase.Remediation))
 				} else {
-					diag.QuickFixes = append(diag.QuickFixes, "Re-run: scenario-auditor audit <scenario> --standards-only --timeout 60")
+					diag.QuickFixes = append(diag.QuickFixes, "Re-run: scenario-auditor standards scan <scenario> --wait")
 				}
 			}
 

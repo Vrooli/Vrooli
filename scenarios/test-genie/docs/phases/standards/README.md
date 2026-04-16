@@ -4,10 +4,12 @@ The `standards` phase runs **scenario-auditor** standards rules to enforce repos
 
 ## How It Runs
 
-Test Genie invokes:
+Test Genie resolves the `scenario-auditor` API via `api-core/discovery`, starts an async standards scan, waits for completion, then fetches the job summary.
+
+Equivalent operator flow:
 
 ```bash
-scenario-auditor audit <scenario> --standards-only --timeout <seconds> --json
+scenario-auditor standards scan <scenario> --wait
 ```
 
 ## Opt-Out
@@ -45,4 +47,3 @@ Environment variables:
 - `TEST_GENIE_STANDARDS_FAIL_ON` (default: `high`)
 - `TEST_GENIE_STANDARDS_LIMIT` (default: `20`)
 - `TEST_GENIE_STANDARDS_MIN_SEVERITY` (default: `medium`) — affects which violations are printed in observations
-

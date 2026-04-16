@@ -44,7 +44,7 @@ The scenario that manages all skills (steer, search, tools, practice, meta). DTV
 The scenario that orchestrates scenario development through task queues, auto-steer profiles, and agent loops. It uses the scenario-improver.md prompt which invokes development tools in its Quick Validation Loop.
 
 ### scenario-improver.md
-The prompt template used by ecosystem-manager for scenario improvement iterations. It instructs agents to run `vrooli scenario status`, `scenario-completeness-scoring score`, `scenario-auditor audit`, `vrooli scenario test`, and `vrooli scenario ui-smoke` as validation steps.
+The prompt template used by ecosystem-manager for scenario improvement iterations. It instructs agents to run `vrooli scenario status`, `scenario-completeness-scoring score`, `scenario-auditor standards scan --wait`, `vrooli scenario test`, and `vrooli scenario ui-smoke` as validation steps.
 
 ### Auto Steer Profile
 An ecosystem-manager configuration that defines multi-phase development cycles. Each phase references specific skill IDs from prompt-manager, with metric-driven stop conditions. DTV validates that the skills referenced in profiles are coherent.

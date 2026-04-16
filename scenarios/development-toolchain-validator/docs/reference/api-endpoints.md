@@ -143,7 +143,7 @@ Add a CLI tool assertion.
 **Request**:
 ```json
 {
-  "command": "scenario-auditor audit reference-react-vite --json",
+  "command": "scenario-auditor standards scan reference-react-vite --wait --json",
   "json_path": "$.total",
   "operator": "eq",
   "expected_value": 0,

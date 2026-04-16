@@ -33,10 +33,6 @@ func newTidinessManagerProvider() externalRuleProvider {
 	return p
 }
 
-func init() {
-	registerExternalProvider(newTidinessManagerProvider())
-}
-
 func (p *tidinessManagerProvider) ID() string {
 	return "tidiness-manager"
 }

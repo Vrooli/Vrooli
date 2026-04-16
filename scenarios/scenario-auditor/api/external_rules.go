@@ -45,10 +45,25 @@ type ExternalFixChange struct {
 }
 
 var (
-	externalProvidersMu sync.RWMutex
-	externalProviders   = make(map[string]externalRuleProvider)
-	externalRulesIndex  = make(map[string]externalRuleDefinition)
+	externalProvidersMu   sync.RWMutex
+	externalProviders     = make(map[string]externalRuleProvider)
+	externalRulesIndex    = make(map[string]externalRuleDefinition)
+	externalProvidersOnce sync.Once
 )
+
+func registerDefaultExternalProviders() {
+	externalProvidersOnce.Do(func() {
+		for _, provider := range []externalRuleProvider{
+			newAppMonitorInteropProvider(),
+			newPRDControlTowerProvider(),
+			newStackGovernorProvider(),
+			newTestGenieProvider(),
+			newTidinessManagerProvider(),
+		} {
+			registerExternalProvider(provider)
+		}
+	})
+}
 
 func registerExternalProvider(provider externalRuleProvider) {
 	if provider == nil {
@@ -86,6 +101,7 @@ func registerExternalProvider(provider externalRuleProvider) {
 }
 
 func loadExternalRuleInfos() map[string]RuleInfo {
+	registerDefaultExternalProviders()
 	externalProvidersMu.RLock()
 	defer externalProvidersMu.RUnlock()
 
@@ -97,6 +113,7 @@ func loadExternalRuleInfos() map[string]RuleInfo {
 }
 
 func isExternalRule(ruleID string) bool {
+	registerDefaultExternalProviders()
 	externalProvidersMu.RLock()
 	defer externalProvidersMu.RUnlock()
 	_, ok := externalRulesIndex[ruleID]
@@ -104,6 +121,7 @@ func isExternalRule(ruleID string) bool {
 }
 
 func externalRuleProviderFor(ruleID string) (externalRuleProvider, bool) {
+	registerDefaultExternalProviders()
 	externalProvidersMu.RLock()
 	defer externalProvidersMu.RUnlock()
 	entry, ok := externalRulesIndex[ruleID]
@@ -114,6 +132,7 @@ func externalRuleProviderFor(ruleID string) (externalRuleProvider, bool) {
 }
 
 func externalFixerForRule(ruleID string) (externalRuleFixer, bool) {
+	registerDefaultExternalProviders()
 	externalProvidersMu.RLock()
 	defer externalProvidersMu.RUnlock()
 	info, ok := externalRulesIndex[ruleID]
@@ -125,6 +144,7 @@ func externalFixerForRule(ruleID string) (externalRuleFixer, bool) {
 }
 
 func mergeWithExternalRules(ruleInfos map[string]RuleInfo) map[string]RuleInfo {
+	registerDefaultExternalProviders()
 	merged := make(map[string]RuleInfo, len(ruleInfos)+len(externalRulesIndex))
 	for id, info := range ruleInfos {
 		merged[id] = info
@@ -138,6 +158,7 @@ func mergeWithExternalRules(ruleInfos map[string]RuleInfo) map[string]RuleInfo {
 }
 
 func runExternalRuleChecks(ctx context.Context, scenarioName string, requested map[string]struct{}, includeDisabled bool) ([]StandardsViolation, error) {
+	registerDefaultExternalProviders()
 	if strings.TrimSpace(scenarioName) == "" {
 		return nil, nil
 	}

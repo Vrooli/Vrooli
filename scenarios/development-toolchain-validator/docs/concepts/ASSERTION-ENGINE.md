@@ -110,7 +110,7 @@ Different tools have different execution times:
 
 | Tool | Typical Duration | Recommended Timeout |
 |------|-----------------|-------------------|
-| `scenario-auditor audit --json` | 10-60s | 240s |
+| `scenario-auditor standards scan --wait --json` | 10-60s | 240s |
 | `test-genie execute --json` | 2-15min | 900s |
 | `scenario-completeness-scoring score --json` | 5-30s | 120s |
 | Custom validation commands | varies | 60s (default) |

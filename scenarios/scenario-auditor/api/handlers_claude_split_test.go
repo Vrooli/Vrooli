@@ -80,15 +80,14 @@ func TestSplitStandardsTargets(t *testing.T) {
 }
 
 func TestResolveScenarioPathUsesRepoContract(t *testing.T) {
-	root := writeRepoContractFixture(t)
-	t.Setenv("VROOLI_ROOT", root)
-	chdirForTest(t, filepath.Join(root, "scenarios", "scenario-auditor", "api"))
+	h := newRepoHarness(t)
+	h.UseRepoContext(t)
 
 	got, err := resolveScenarioPath("demo")
 	if err != nil {
 		t.Fatalf("resolveScenarioPath: %v", err)
 	}
-	if got != filepath.Join(root, "scenarios", "demo") {
+	if got != filepath.Join(h.Root, "scenarios", "demo") {
 		t.Fatalf("resolveScenarioPath = %q", got)
 	}
 }

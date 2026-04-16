@@ -514,18 +514,6 @@ func extractSetupStepServiceName(payload map[string]any) string {
 	return name
 }
 
-func toStringOrDefault(val any) string {
-	if val == nil {
-		return ""
-	}
-	switch v := val.(type) {
-	case string:
-		return v
-	default:
-		return fmt.Sprintf("%v", v)
-	}
-}
-
 func shouldCheckSetupStepsJSON(path string) bool {
 	trimmed := strings.TrimSpace(path)
 	if trimmed == "" {

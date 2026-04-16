@@ -98,7 +98,7 @@ development-toolchain-validator expectations add cli-tool \
 ```bash
 development-toolchain-validator expectations add cli-tool \
   --connection api-steer:reference-react-vite \
-  --command "scenario-auditor audit reference-react-vite --json" \
+  --command "scenario-auditor standards scan reference-react-vite --wait --json" \
   --path "$.total" --op eq --value 0 \
   --description "No auditor violations"
 ```

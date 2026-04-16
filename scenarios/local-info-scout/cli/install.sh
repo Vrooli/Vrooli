@@ -4,4 +4,4 @@ set -euo pipefail
 SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
 REPO_ROOT="$(builtin cd "${SCRIPT_DIR}/../../.." && builtin pwd)"
 
-"${REPO_ROOT}/packages/cli-core/install.sh" "scenarios/local-info-scout/cli" --name "local-info-scout"
+"${REPO_ROOT}/packages/cli-core/install.sh" "scenarios/local-info-scout/cli" --name "local-info-scout" --manifest "scenarios/local-info-scout/.vrooli/service.json"

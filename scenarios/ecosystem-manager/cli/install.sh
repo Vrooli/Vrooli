@@ -24,4 +24,4 @@ if [[ "$#" -gt 0 ]]; then
   exit 1
 fi
 
-"${REPO_ROOT}/packages/cli-core/install.sh" "scenarios/ecosystem-manager/cli" --name "ecosystem-manager"
+"${REPO_ROOT}/packages/cli-core/install.sh" "scenarios/ecosystem-manager/cli" --name "ecosystem-manager" --manifest "scenarios/ecosystem-manager/.vrooli/service.json"

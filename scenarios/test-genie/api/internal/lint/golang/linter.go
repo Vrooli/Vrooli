@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"test-genie/internal/lint/execution"
 	"test-genie/internal/shared"
 )
 
@@ -50,6 +51,7 @@ type Result struct {
 type Config struct {
 	Dir           string
 	CommandLookup shared.LookupFunc
+	Runner        execution.Runner
 }
 
 // Linter performs Go linting.
@@ -66,6 +68,9 @@ func New(config Config, opts ...Option) *Linter {
 	l := &Linter{
 		config:    config,
 		logWriter: io.Discard,
+	}
+	if l.config.Runner == nil {
+		l.config.Runner = execution.ProductionRunner{}
 	}
 	for _, opt := range opts {
 		opt(l)
@@ -142,32 +147,29 @@ func (l *Linter) hasCommand(name string) bool {
 func (l *Linter) runGolangciLint(ctx context.Context, result *Result) *Result {
 	result.ToolsUsed = append(result.ToolsUsed, "golangci-lint")
 
-	cmd := exec.CommandContext(ctx, "golangci-lint", "run", "--out-format", "json", "./...")
-	cmd.Dir = l.config.Dir
-
-	output, err := cmd.Output()
-	// golangci-lint exits with 1 if there are issues, which is not an error for us
+	cmdResult, err := l.config.Runner.Run(ctx, execution.Command{
+		Dir:  l.config.Dir,
+		Name: "golangci-lint",
+		Args: []string{"run", "--out-format", "json", "./..."},
+	})
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			// Exit code 1 means issues found, which we handle below
-			if exitErr.ExitCode() != 1 {
-				result.TypeErrors = 1
-				result.Success = false
-				result.Observations = append(result.Observations,
-					shared.NewErrorObservation(fmt.Sprintf("golangci-lint failed: %v", err)))
-				return result
-			}
-			// Use stderr output if stdout is empty
-			if len(output) == 0 {
-				output = exitErr.Stderr
-			}
-		} else {
-			result.TypeErrors = 1
-			result.Success = false
-			result.Observations = append(result.Observations,
-				shared.NewErrorObservation(fmt.Sprintf("golangci-lint failed: %v", err)))
-			return result
-		}
+		result.TypeErrors = 1
+		result.Success = false
+		result.Observations = append(result.Observations,
+			shared.NewErrorObservation(fmt.Sprintf("golangci-lint failed: %v", err)))
+		return result
+	}
+	if cmdResult.ExitCode != 0 && cmdResult.ExitCode != 1 {
+		result.TypeErrors = 1
+		result.Success = false
+		result.Observations = append(result.Observations,
+			shared.NewErrorObservation(fmt.Sprintf("golangci-lint failed with exit code %d", cmdResult.ExitCode)))
+		return result
+	}
+
+	output := cmdResult.Stdout
+	if len(output) == 0 {
+		output = cmdResult.Stderr
 	}
 
 	// Parse JSON output
@@ -199,30 +201,40 @@ func (l *Linter) runGolangciLint(ctx context.Context, result *Result) *Result {
 func (l *Linter) runGoVet(ctx context.Context, result *Result) *Result {
 	result.ToolsUsed = append(result.ToolsUsed, "go vet")
 
-	cmd := exec.CommandContext(ctx, "go", "vet", "./...")
-	cmd.Dir = l.config.Dir
+	env := []string(nil)
 	if os.Getenv("GOWORK") == "" {
-		cmd.Env = append(os.Environ(), "GOWORK=off")
+		env = append(os.Environ(), "GOWORK=off")
 	}
 
-	output, err := cmd.CombinedOutput()
+	cmdResult, err := l.config.Runner.Run(ctx, execution.Command{
+		Dir:  l.config.Dir,
+		Env:  env,
+		Name: "go",
+		Args: []string{"vet", "./..."},
+	})
 	if err != nil {
-		// go vet exits with 1 if there are issues
-		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
-			// Parse the output for issues
-			issues := l.parseGoVetOutput(string(output))
-			result.Issues = issues
-			result.TypeErrors = len(issues) // go vet issues are considered type-level errors
-			result.Success = false
-			logGoIssues(l.logWriter, issues, 20)
-			result.Observations = append(result.Observations,
-				shared.NewErrorObservation(fmt.Sprintf("Go: go vet found %d issue(s)", len(issues))))
-			return result
-		}
 		result.Success = false
 		result.TypeErrors = 1
 		result.Observations = append(result.Observations,
 			shared.NewErrorObservation(fmt.Sprintf("go vet failed: %v", err)))
+		return result
+	}
+	output := append(append([]byte(nil), cmdResult.Stdout...), cmdResult.Stderr...)
+	if cmdResult.ExitCode == 1 {
+		issues := l.parseGoVetOutput(string(output))
+		result.Issues = issues
+		result.TypeErrors = len(issues)
+		result.Success = false
+		logGoIssues(l.logWriter, issues, 20)
+		result.Observations = append(result.Observations,
+			shared.NewErrorObservation(fmt.Sprintf("Go: go vet found %d issue(s)", len(issues))))
+		return result
+	}
+	if cmdResult.ExitCode != 0 {
+		result.Success = false
+		result.TypeErrors = 1
+		result.Observations = append(result.Observations,
+			shared.NewErrorObservation(fmt.Sprintf("go vet failed with exit code %d", cmdResult.ExitCode)))
 		return result
 	}
 

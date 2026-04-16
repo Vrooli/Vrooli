@@ -9,6 +9,7 @@ Phase 3 now ships the canonical implementation templates described in the migrat
 - `docker-service`
 - `compose-service`
 - `external-cli`
+- `native-cli`
 - `cloud-api`
 - `desktop-app`
 - `manual-resource`
@@ -58,6 +59,8 @@ That difference does not change the CLI contract. Canonical resource templates s
 - explicit `resource.json` `cli.freshness`
 
 Resource CLIs remain thinner than scenario CLIs by design. The default bootstrap is `cliapp.NewResourceApp(...)` with delegated lifecycle commands, not `NewStandardScenarioApp(...)`.
+
+The one explicit exception is `native-cli`: use it when the resource is a repo-owned Go binary with a real operator command surface. In that archetype, `cli/main.go` still stays thin, but `cli/internal/app` and resource-domain packages become first-class rather than optional placeholders.
 
 ## Quality Standards
 

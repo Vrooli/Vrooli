@@ -11,6 +11,14 @@ This scaffold was generated from the `docker-service` resource template on {{CUR
 - Driver: `docker-service`
 - Portability tier: `{{RESOURCE_PORTABILITY_TIER}}`
 
+## Use Cases
+
+Replace these bullets with the real scenario-facing uses for this resource.
+
+- Serve as the shared local runtime for scenarios that need {{primary function}}.
+- Support {{secondary workflow}} without each scenario owning its own runtime.
+- Provide a foundation for {{integration pattern}} across the Vrooli stack.
+
 ## Architecture
 
 This template keeps the generated CLI thin on purpose.

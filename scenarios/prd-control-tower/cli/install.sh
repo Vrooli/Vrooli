@@ -4,4 +4,4 @@ set -euo pipefail
 SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
 REPO_ROOT="$(builtin cd "${SCRIPT_DIR}/../../.." && builtin pwd)"
 
-"${REPO_ROOT}/packages/cli-core/install.sh" scenarios/prd-control-tower/cli --name prd-control-tower
+"${REPO_ROOT}/packages/cli-core/install.sh" scenarios/prd-control-tower/cli --name prd-control-tower --manifest "scenarios/prd-control-tower/.vrooli/service.json"

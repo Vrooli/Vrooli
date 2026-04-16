@@ -65,10 +65,11 @@ Secrets Manager provides centralized secret intelligence across the Vrooli platf
 secrets-manager status              # Health + quick stats
 secrets-manager vault list          # All secrets with validation status
 secrets-manager vault validate      # Re-run validation checks
-secrets-manager scan scenarios      # Security scan across scenarios
-secrets-manager compliance          # Aggregate compliance report
+secrets-manager security scan       # Security scan across scenarios/resources
+secrets-manager security compliance # Aggregate compliance report
+secrets-manager deployment plan     # Tier-aware manifest export
 ```
-All commands accept `--api-url` and `--format json|table` for automation.
+All commands accept `--api-base`, `--auto-start`, and `--json` for automation.
 
 ## 🔄 Integration Requirements
 - **Vault Integration**: Depends on `resource-vault` CLI for secret operations

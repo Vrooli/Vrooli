@@ -57,10 +57,10 @@ make run
 open http://localhost:35001
 
 # Use the CLI
-scenario-auditor scan current
-scenario-auditor rules --category config
-scenario-auditor fix ecosystem-manager --auto
-scenario-auditor audit browser-automation-studio --limit 10 --min-severity high
+scenario-auditor standards scan current --wait
+scenario-auditor rules list --category config
+scenario-auditor fixes status
+scenario-auditor standards violations --scenario browser-automation-studio
 ```
 
 ## 📋 CLI Commands
@@ -72,16 +72,16 @@ The CLI is a lightweight wrapper around the scenario-auditor API. Make sure the 
 vrooli scenario start scenario-auditor
 
 # Then use CLI commands
-scenario-auditor scan [scenario] [--rule <rule_id>] [--wait] [--timeout <s>]
-scenario-auditor rules               # List available rules
-scenario-auditor health              # Check API health
+scenario-auditor standards scan [scenario] [--rule <rule_id>] [--wait] [--timeout <duration>]
+scenario-auditor rules list          # List available rules
+scenario-auditor status              # Check API health
 scenario-auditor version             # Show version
 scenario-auditor help                # Show help
 ```
 
 **Note**: The CLI now uses async job-based scanning. Scans run in the background and the CLI polls for completion. Large scenarios may take 20-30 seconds to scan completely.
 
-`scenario-auditor audit` defaults to summary output optimized for agent loops: once the security + standards scans finish, the CLI prints severity counts, the top N violations (default 20), and the artifact path for each scan. Use `--limit <n>` to change how many entries appear, `--min-severity <critical|high|...>` to filter noise, `--json` to emit the summary payload for downstream tooling, and `--all` to fall back to the legacy raw JSON stream. Pass `--download-artifacts <dir>` if you want the CLI to save the referenced artifact files locally.
+`scenario-auditor standards scan --wait` is the main agent/operator flow: it starts a standards job, polls until completion, and returns the final job status. Use `scenario-auditor standards summary <job-id>` when you need the curated summary payload with severity counts, top violations, and recommended steps. Pass `--json` to either command for machine-readable output.
 
 ### Summary API & Artifacts
 
@@ -91,7 +91,7 @@ scenario-auditor help                # Show help
   - `group_by=rule` – include an aggregated `groups` array keyed by rule_id for quick remediation planning
 - `GET /api/v1/standards/violations/summary?scenario=<name>` returns the cached summary for the latest standards scan of a scenario (or the fleet-wide `all` bucket when omitted). It accepts the same filtering parameters so dashboards like app-monitor can present prioritized results without rerunning a scan.
 - `GET /api/v1/scenarios/scan/jobs/{id}/artifact` (and `/standards/.../artifact`) streams the archived JSON blob persisted under `logs/scenario-auditor/<type>/<scenario>/…`. Artifacts stay on disk for 14 days and the CLI’s `--download-artifacts <dir>` flag simply mirrors these endpoints locally.
-- Consumers that still need the full payload can combine the artifact endpoint with `scenario-auditor audit --all`; everyone else should rely on the lightweight summary for faster feedback loops.
+- Consumers that still need the full payload can fetch the scan artifact endpoint directly after the job completes; everyone else should rely on the lightweight summary for faster feedback loops.
 
 ### Port Detection
 
@@ -107,25 +107,25 @@ This ensures the CLI works correctly even when multiple scenarios are running wi
 ### Examples
 ```bash
 # Scan current scenario
-scenario-auditor scan
+scenario-auditor standards scan scenario-auditor --wait
 
 # Target a specific rule and wait for completion (recommended for fixes)
-scenario-auditor scan ecosystem-manager --rule interop_iframe_guard --wait --timeout 600
+scenario-auditor standards scan ecosystem-manager --rule interop_iframe_guard --wait --timeout 10m
 
 # Run a full scan only if you need the complete violation list
-scenario-auditor scan ecosystem-manager
+scenario-auditor standards scan ecosystem-manager
 
 # List available rules
-scenario-auditor rules
+scenario-auditor rules list
 
 # Check API health
-scenario-auditor health
+scenario-auditor status
 
 # Show version
 scenario-auditor version
 
 # List a scenario's violations after the scan job completes
-scenario-auditor rules --category interop
+scenario-auditor standards violations --scenario ecosystem-manager
 
 ```
 

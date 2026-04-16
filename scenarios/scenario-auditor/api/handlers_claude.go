@@ -786,7 +786,11 @@ func resolveScenarioPath(scenario string) (string, error) {
 	if scenario == "" {
 		return "", fmt.Errorf("scenario name is empty")
 	}
-	return resolveContractScenarioPath(scenario)
+	ctx, err := repoContext()
+	if err != nil {
+		return "", err
+	}
+	return ctx.ResolveScenarioPath(scenario)
 }
 
 func clampAgentCount(requested, total int) int {

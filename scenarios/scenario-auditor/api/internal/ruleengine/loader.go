@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strings"
 
-	repocontract "github.com/vrooli/repo-contract-go"
 	rulespkg "scenario-auditor/rules"
 )
 
@@ -274,13 +273,9 @@ func BuildExecutionInfo(rule Info) ExecutionInfo {
 	}
 }
 
-// DiscoverRuleDirs attempts to find rule directories under the provided repository root.
-func DiscoverRuleDirs(repoRoot string) ([]string, error) {
-	scenarioAuditorRoot, err := repocontract.ResolveScenarioPath(repoRoot, "scenario-auditor")
-	if err != nil {
-		return nil, fmt.Errorf("ruleengine: resolve scenario-auditor path: %w", err)
-	}
-
+// DiscoverRuleDirs attempts to find rule directories under the provided
+// scenario-auditor root.
+func DiscoverRuleDirs(scenarioAuditorRoot string) ([]string, error) {
 	candidates := []string{
 		filepath.Join(scenarioAuditorRoot, "api", "rules"),
 		filepath.Join(scenarioAuditorRoot, "rules"),
@@ -294,41 +289,11 @@ func DiscoverRuleDirs(repoRoot string) ([]string, error) {
 	}
 
 	if len(dirs) == 0 {
-		return nil, fmt.Errorf("ruleengine: no rule directories found under %s", repoRoot)
+		return nil, fmt.Errorf("ruleengine: no rule directories found under %s", scenarioAuditorRoot)
 	}
 
 	sort.Strings(dirs)
 	return dirs, nil
-}
-
-// DiscoverRepoRoot locates the repository root using the repo contract markers.
-func DiscoverRepoRoot(startPoints ...string) (string, error) {
-	for _, start := range startPoints {
-		start = strings.TrimSpace(start)
-		if start == "" {
-			continue
-		}
-		root, err := repocontract.FindRepoRoot(start)
-		if err == nil {
-			return root, nil
-		}
-	}
-
-	root, err := repocontract.FindRepoRootFromEnvOrCWD()
-	if err == nil {
-		return root, nil
-	}
-
-	return "", fmt.Errorf("ruleengine: unable to locate repo root: %w", err)
-}
-
-// ResolveScenarioPath resolves a canonical scenario root using the shared repo contract.
-func ResolveScenarioPath(repoRoot, scenario string) (string, error) {
-	path, err := repocontract.ResolveScenarioPath(repoRoot, scenario)
-	if err != nil {
-		return "", fmt.Errorf("ruleengine: resolve scenario path: %w", err)
-	}
-	return path, nil
 }
 
 // RuleFiles returns a list of rule files for tooling/CLI usage.

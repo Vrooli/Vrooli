@@ -264,7 +264,7 @@ func TestExpectationHandler_CreateCLI(t *testing.T) {
 
 	input := expectation.CreateCLIInput{
 		ConnectionID:  "conn-123",
-		Command:       "scenario-auditor audit ref-123 --json",
+		Command:       "scenario-auditor standards scan ref-123 --wait --json",
 		JSONPath:      "$.security.violations",
 		Operator:      expectation.OpEq,
 		ExpectedValue: 0,
@@ -296,7 +296,7 @@ func TestExpectationHandler_CreateCLI_DryRun(t *testing.T) {
 			name: "valid input",
 			input: expectation.CreateCLIInput{
 				ConnectionID:  "conn-123",
-				Command:       "scenario-auditor audit ref-123 --json",
+				Command:       "scenario-auditor standards scan ref-123 --wait --json",
 				JSONPath:      "$.score",
 				Operator:      expectation.OpGte,
 				ExpectedValue: 80,
@@ -317,7 +317,7 @@ func TestExpectationHandler_CreateCLI_DryRun(t *testing.T) {
 			name: "invalid - bad JSONPath",
 			input: expectation.CreateCLIInput{
 				ConnectionID: "conn-123",
-				Command:      "scenario-auditor audit ref-123 --json",
+				Command:      "scenario-auditor standards scan ref-123 --wait --json",
 				JSONPath:     "invalid",
 				Operator:     expectation.OpEq,
 			},
@@ -475,7 +475,7 @@ func TestExpectationHandler_GetCLI(t *testing.T) {
 				m.assertions["cli-123"] = &expectation.CLIAssertion{
 					ID:           "cli-123",
 					ConnectionID: "conn-123",
-					Command:      "scenario-auditor audit ref-123 --json",
+					Command:      "scenario-auditor standards scan ref-123 --wait --json",
 					JSONPath:     "$.security.violations",
 					Operator:     expectation.OpEq,
 				}
@@ -589,7 +589,7 @@ func TestExpectationHandler_DeleteCLI(t *testing.T) {
 				m.assertions["cli-123"] = &expectation.CLIAssertion{
 					ID:           "cli-123",
 					ConnectionID: "conn-123",
-					Command:      "scenario-auditor audit ref-123 --json",
+					Command:      "scenario-auditor standards scan ref-123 --wait --json",
 					JSONPath:     "$.security.violations",
 					Operator:     expectation.OpEq,
 				}
@@ -754,7 +754,7 @@ func TestExpectationHandler_DeleteCLI_DryRun(t *testing.T) {
 				m.assertions["cli-123"] = &expectation.CLIAssertion{
 					ID:           "cli-123",
 					ConnectionID: "conn-123",
-					Command:      "scenario-auditor audit ref-123 --json",
+					Command:      "scenario-auditor standards scan ref-123 --wait --json",
 					JSONPath:     "$.security.violations",
 					Operator:     expectation.OpEq,
 				}
@@ -803,7 +803,7 @@ func TestExpectationHandler_ListCLI_WithConnectionFilter(t *testing.T) {
 	for _, connID := range []string{"conn-123", "conn-456"} {
 		input := expectation.CreateCLIInput{
 			ConnectionID:  connID,
-			Command:       "scenario-auditor audit ref --json",
+			Command:       "scenario-auditor standards scan ref --wait --json",
 			JSONPath:      "$.score",
 			Operator:      expectation.OpGte,
 			ExpectedValue: 80,

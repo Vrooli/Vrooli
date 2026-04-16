@@ -74,7 +74,7 @@ type AutomatedFixStore struct {
 	maxHistory  int
 }
 
-var automatedFixStore = initAutomatedFixStore()
+var automatedFixStore = newAutomatedFixStore()
 
 const (
 	defaultAutomatedFixStrategy = "critical_first"
@@ -83,8 +83,8 @@ const (
 	defaultMaxFixes             = 0
 )
 
-func initAutomatedFixStore() *AutomatedFixStore {
-	store := &AutomatedFixStore{
+func newAutomatedFixStore() *AutomatedFixStore {
+	return &AutomatedFixStore{
 		config: AutomatedFixConfig{
 			Enabled:        false,
 			ViolationTypes: []string{"security"},
@@ -98,11 +98,12 @@ func initAutomatedFixStore() *AutomatedFixStore {
 		},
 		maxHistory: 100,
 	}
-	store.enablePersistence()
-	return store
 }
 
 func (s *AutomatedFixStore) enablePersistence() {
+	if s.configPath != "" || s.historyPath != "" {
+		return
+	}
 	configPath, err := resolveScenarioAuditorStoragePath(storage.ClassConfig, "automated-fix-config.json")
 	if err != nil {
 		logger.Error("Failed to resolve scenario-auditor automated fix config path", err)
