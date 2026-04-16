@@ -348,8 +348,12 @@ func TestParseScenarioStartArgsAndSingleStartValidation(t *testing.T) {
 func TestTemplateHelpAndManualHooksOutput(t *testing.T) {
 	var templateHelp bytes.Buffer
 	RenderTemplateHelp(&templateHelp)
-	if !strings.Contains(templateHelp.String(), "show               Show scenario template details") {
+	helpText := templateHelp.String()
+	if !strings.Contains(helpText, "show               Show scenario template details") {
 		t.Fatalf("template help = %q", templateHelp.String())
+	}
+	if !strings.Contains(helpText, "validate           Validate scenario templates") {
+		t.Fatalf("template help = %q", helpText)
 	}
 
 	var generateHelp bytes.Buffer
@@ -405,6 +409,15 @@ func TestTemplateParsersCaptureFlagsAndValues(t *testing.T) {
 	}
 	if _, _, err := ParseTemplateKeyValue("broken"); err == nil {
 		t.Fatal("expected ParseTemplateKeyValue() to reject invalid pair")
+	}
+}
+
+func TestParseTemplateValidateRequestRejectsUnexpectedArgs(t *testing.T) {
+	if _, err := ParseTemplateValidateRequest(nil); err != nil {
+		t.Fatalf("ParseTemplateValidateRequest() error = %v", err)
+	}
+	if _, err := ParseTemplateValidateRequest([]string{"extra"}); err == nil {
+		t.Fatal("expected ParseTemplateValidateRequest() to reject extra args")
 	}
 }
 

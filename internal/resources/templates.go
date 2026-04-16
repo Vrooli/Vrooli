@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -14,6 +15,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 )
@@ -35,6 +37,9 @@ var (
 var resourceTemplateRequiredFiles = []string{
 	"README.md",
 	"resource.json",
+	"cli/go.mod",
+	"cli/install.sh",
+	"cli/install.ps1",
 	"cli/main.go",
 	"test/smoke.json",
 	"test/integration.json",
@@ -186,6 +191,12 @@ func (c *Controller) ValidateResourceTemplates() (ResourceTemplateValidationRepo
 		Count:     len(templates),
 	}
 	for _, item := range templates {
+		if err := validateResourceTemplateGoModuleSource(item); err != nil {
+			return ResourceTemplateValidationReport{}, fmt.Errorf("validate resource template %s go.mod source: %w", item.Name, err)
+		}
+		if err := c.validateGeneratedResourceTemplate(item); err != nil {
+			return ResourceTemplateValidationReport{}, fmt.Errorf("validate generated resource template %s: %w", item.Name, err)
+		}
 		seen[item.Name] = struct{}{}
 		report.Templates = append(report.Templates, resourceTemplateSummary(item))
 	}
@@ -223,6 +234,9 @@ func (c *Controller) GenerateResourceTemplate(req ResourceTemplateGenerateReques
 		destination = filepath.Join(c.Root, filepath.FromSlash(destination))
 	}
 	destination = filepath.Clean(destination)
+	if err := c.populateResourceTemplatePathValues(destination, values); err != nil {
+		return ResourceTemplateGenerateReport{}, fmt.Errorf("resolve resource template path placeholders: %w", err)
+	}
 
 	files, err := previewResourceTemplateFiles(info.Path, destination, values)
 	if err != nil {
@@ -261,6 +275,9 @@ func (c *Controller) GenerateResourceTemplate(req ResourceTemplateGenerateReques
 		return ResourceTemplateGenerateReport{}, err
 	}
 	if err := verifyGeneratedResourceManifest(destination); err != nil {
+		return ResourceTemplateGenerateReport{}, err
+	}
+	if err := verifyGeneratedResourceGoModules(destination); err != nil {
 		return ResourceTemplateGenerateReport{}, err
 	}
 	return report, nil
@@ -381,6 +398,9 @@ func (c *Controller) validateResourceTemplateAssets(templateDir string, manifest
 			if relErr != nil {
 				return relErr
 			}
+			if filepath.ToSlash(relPath) == "cli/install.sh" {
+				return nil
+			}
 			return fmt.Errorf("canonical templates must not include bash files: %s", filepath.ToSlash(relPath))
 		}
 		return nil
@@ -488,6 +508,9 @@ func previewResourceTemplateFiles(templateDir, destination string, values map[st
 		if path == templateDir {
 			return nil
 		}
+		if entry.IsDir() && shouldSkipGeneratedTemplateDir(entry.Name()) {
+			return filepath.SkipDir
+		}
 
 		relPath, err := filepath.Rel(templateDir, path)
 		if err != nil {
@@ -521,6 +544,9 @@ func copyResourceTemplate(templateDir, destination string, values map[string]str
 		}
 		if path == templateDir {
 			return nil
+		}
+		if entry.IsDir() && shouldSkipGeneratedTemplateDir(entry.Name()) {
+			return filepath.SkipDir
 		}
 
 		relPath, err := filepath.Rel(templateDir, path)
@@ -620,6 +646,226 @@ func looksLikeTemplateTextFile(data []byte) bool {
 	return utf8.Valid(data)
 }
 
+func (c *Controller) populateResourceTemplatePathValues(destination string, values map[string]string) error {
+	contract, err := repocontract.LoadDefault(c.Root)
+	if err != nil {
+		return err
+	}
+	repoRoot := filepath.Clean(c.Root)
+	packagesDir, err := contract.TopLevelDir(c.Root, "packages")
+	if err != nil {
+		return err
+	}
+	for key, dir := range map[string]string{
+		"RESOURCE": filepath.Clean(destination),
+		"CLI":      filepath.Join(destination, "cli"),
+	} {
+		repoRel, err := filepath.Rel(dir, repoRoot)
+		if err != nil {
+			return err
+		}
+		packagesRel, err := filepath.Rel(dir, packagesDir)
+		if err != nil {
+			return err
+		}
+		values["REPO_ROOT_REL_FROM_"+key] = filepath.ToSlash(repoRel)
+		values["PACKAGES_REL_FROM_"+key] = filepath.ToSlash(packagesRel)
+	}
+	return nil
+}
+
+func (c *Controller) validateGeneratedResourceTemplate(info ResourceTemplateInfo) error {
+	tempRoot, err := os.MkdirTemp("", "vrooli-resource-template-validate-*")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tempRoot)
+
+	values := resourceTemplateValidationSeedValues(info)
+	destination := filepath.Join(tempRoot, "resource")
+	if err := c.populateResourceTemplatePathValues(destination, values); err != nil {
+		return err
+	}
+	seedResourceTemplateValues(values, info, nil)
+	applyResourceTemplateDefaults(values, info.Manifest)
+	if missing := missingResourceTemplateVars(values, info.Manifest.RequiredVars); len(missing) > 0 {
+		return fmt.Errorf("missing required values: %s", strings.Join(missing, ", "))
+	}
+	if err := copyResourceTemplate(info.Path, destination, values); err != nil {
+		return err
+	}
+	if err := verifyRenderedResourceTemplate(destination); err != nil {
+		return err
+	}
+	if err := verifyGeneratedResourceManifest(destination); err != nil {
+		return err
+	}
+	if err := verifyGeneratedResourceGoModules(destination); err != nil {
+		return err
+	}
+	return nil
+}
+
+var resourceGoModReplaceLinePattern = regexp.MustCompile(`^\s*([A-Za-z0-9._/\-{}]+)(?:\s+[^\s]+)?\s*=>\s*([^\s]+)(?:\s+[^\s]+)?\s*(?://.*)?$`)
+
+func validateResourceTemplateGoModuleSource(info ResourceTemplateInfo) error {
+	return filepath.WalkDir(info.Path, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil || entry.IsDir() || filepath.Base(path) != "go.mod" {
+			return err
+		}
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		for _, target := range parseResourceLocalReplaceTargets(string(data)) {
+			if strings.Contains(target, "{{") {
+				continue
+			}
+			relPath, relErr := filepath.Rel(info.Path, path)
+			if relErr != nil {
+				relPath = path
+			}
+			return fmt.Errorf("%s contains hardcoded local replace target %q; use generator-computed placeholders", filepath.ToSlash(relPath), target)
+		}
+		return nil
+	})
+}
+
+func verifyGeneratedResourceGoModules(destination string) error {
+	return filepath.WalkDir(destination, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil || entry.IsDir() || filepath.Base(path) != "go.mod" {
+			return err
+		}
+		moduleDir := filepath.Dir(path)
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return fmt.Errorf("read generated go.mod %s: %w", path, readErr)
+		}
+		for _, target := range parseResourceLocalReplaceTargets(string(data)) {
+			resolved := target
+			if !filepath.IsAbs(resolved) {
+				resolved = filepath.Join(moduleDir, filepath.FromSlash(target))
+			}
+			if _, statErr := os.Stat(filepath.Clean(resolved)); statErr != nil {
+				relPath, _ := filepath.Rel(destination, path)
+				return fmt.Errorf("%s replace target %q does not resolve: %w", filepath.ToSlash(relPath), target, statErr)
+			}
+		}
+		if !resourceModuleHasGoFiles(moduleDir) {
+			return nil
+		}
+		cmd := exec.Command("bash", "-lc", "GOWORK=off go mod tidy")
+		cmd.Dir = moduleDir
+		cmd.Env = os.Environ()
+		output, execErr := cmd.CombinedOutput()
+		if execErr != nil {
+			relPath, _ := filepath.Rel(destination, path)
+			msg := strings.TrimSpace(string(output))
+			if msg == "" {
+				msg = execErr.Error()
+			}
+			return fmt.Errorf("%s generated module validation failed: %s", filepath.ToSlash(relPath), msg)
+		}
+		return nil
+	})
+}
+
+func parseResourceLocalReplaceTargets(content string) []string {
+	var targets []string
+	var inReplaceBlock bool
+	for _, rawLine := range strings.Split(content, "\n") {
+		line := strings.TrimSpace(rawLine)
+		if line == "" || strings.HasPrefix(line, "//") {
+			continue
+		}
+		switch line {
+		case "replace (":
+			inReplaceBlock = true
+			continue
+		case ")":
+			inReplaceBlock = false
+			continue
+		}
+		switch {
+		case strings.HasPrefix(line, "replace "):
+			if target, ok := parseResourceReplaceTarget(strings.TrimSpace(strings.TrimPrefix(line, "replace "))); ok {
+				targets = append(targets, target)
+			}
+		case inReplaceBlock:
+			if target, ok := parseResourceReplaceTarget(line); ok {
+				targets = append(targets, target)
+			}
+		}
+	}
+	return targets
+}
+
+func parseResourceReplaceTarget(line string) (string, bool) {
+	matches := resourceGoModReplaceLinePattern.FindStringSubmatch(line)
+	if len(matches) != 3 {
+		return "", false
+	}
+	target := strings.TrimSpace(matches[2])
+	if target == "" {
+		return "", false
+	}
+	if !(strings.HasPrefix(target, ".") || strings.HasPrefix(target, "/") || strings.Contains(target, "{{")) {
+		return "", false
+	}
+	return target, true
+}
+
+func resourceModuleHasGoFiles(moduleDir string) bool {
+	entries, err := os.ReadDir(moduleDir)
+	if err != nil {
+		return false
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if strings.HasSuffix(entry.Name(), ".go") {
+			return true
+		}
+	}
+	return false
+}
+
+func shouldSkipGeneratedTemplateDir(name string) bool {
+	switch strings.TrimSpace(name) {
+	case "node_modules", "dist", "build", "coverage", ".turbo", ".vite":
+		return true
+	default:
+		return false
+	}
+}
+
+func resourceTemplateValidationSeedValues(info ResourceTemplateInfo) map[string]string {
+	values := map[string]string{}
+	requiredKeys := make([]string, 0, len(info.Manifest.RequiredVars))
+	for key := range info.Manifest.RequiredVars {
+		requiredKeys = append(requiredKeys, key)
+	}
+	sort.Strings(requiredKeys)
+	for _, key := range requiredKeys {
+		switch key {
+		case "RESOURCE_NAME":
+			values[key] = info.Name + "-validation"
+		case "RESOURCE_DISPLAY_NAME":
+			values[key] = coalesce(info.Manifest.DisplayName, info.Name+" Validation")
+		case "RESOURCE_DESCRIPTION":
+			values[key] = coalesce(info.Manifest.Description, "Validation resource generated from "+info.Name)
+		default:
+			if fallback := strings.TrimSpace(info.Manifest.RequiredVars[key].Default); fallback != "" {
+				values[key] = fallback
+			} else {
+				values[key] = strings.ToLower(strings.ReplaceAll(key, "_", "-"))
+			}
+		}
+	}
+	return values
+}
+
 func renderResourceTemplateString(value string, values map[string]string) string {
 	if value == "" {
 		return value
@@ -659,6 +905,15 @@ func copyStringMap(values map[string]string) map[string]string {
 		out[key] = value
 	}
 	return out
+}
+
+func coalesce(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func copyStringSlice(values []string) []string {

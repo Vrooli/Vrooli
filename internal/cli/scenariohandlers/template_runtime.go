@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -16,6 +17,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	. "github.com/vrooli/vrooli/internal/cli/scenariocli"
@@ -54,6 +56,22 @@ func TemplateCommandHandler[C any](deps HandlerDeps[C]) func(C, []string) error 
 				},
 				RenderTemplateShowResponse,
 			)(ctx, args[1:])
+		case "validate":
+			req, err := ParseTemplateValidateRequest(args[1:])
+			if err != nil {
+				return rootcli.UsageErrorf("scenario template validate", err.Error())
+			}
+			format, report, err := runTemplateValidate(deps, ctx, req)
+			if err != nil {
+				return err
+			}
+			if err := RenderTemplateValidateResponse(deps.Stdout(ctx), format, report); err != nil {
+				return err
+			}
+			if len(report.Issues) > 0 {
+				return fmt.Errorf("scenario template validation failed")
+			}
+			return nil
 		case "--help", "-h":
 			RenderTemplateHelp(deps.Stdout(ctx))
 			return nil
@@ -97,35 +115,91 @@ func runTemplateShow[C any](deps HandlerDeps[C], ctx C, req TemplateShowRequest)
 	return cliout.FormatHuman, info, nil
 }
 
+func runTemplateValidate[C any](deps HandlerDeps[C], ctx C, _ TemplateValidateRequest) (cliout.Format, TemplateValidationReport, error) {
+	templates, err := loadTemplates(deps.Root(ctx))
+	if err != nil {
+		return "", TemplateValidationReport{}, err
+	}
+	format, err := deps.OutputFormat(ctx)
+	if err != nil {
+		return "", TemplateValidationReport{}, err
+	}
+	report := TemplateValidationReport{Count: len(templates)}
+	for _, info := range templates {
+		report.Issues = append(report.Issues, validateTemplateSource(info)...)
+		if info.Missing {
+			report.Issues = append(report.Issues, TemplateValidationIssue{
+				Template: info.Name,
+				Message:  "template.json is missing",
+			})
+			continue
+		}
+		tempRoot, err := os.MkdirTemp("", "vrooli-template-validate-*")
+		if err != nil {
+			report.Issues = append(report.Issues, TemplateValidationIssue{
+				Template: info.Name,
+				Message:  fmt.Sprintf("create validation temp dir: %v", err),
+			})
+			continue
+		}
+		destination := filepath.Join(tempRoot, "scenario")
+		issues := func() []TemplateValidationIssue {
+			defer os.RemoveAll(tempRoot)
+			values, err := buildTemplateValues(
+				deps.Root(ctx),
+				destination,
+				info.Name,
+				info.Manifest,
+				templateValidationSeedValues(info),
+			)
+			if err != nil {
+				return []TemplateValidationIssue{{
+					Template: info.Name,
+					Message:  err.Error(),
+				}}
+			}
+			if err := copyTemplate(info.Path, destination, values); err != nil {
+				return []TemplateValidationIssue{{
+					Template: info.Name,
+					Message:  fmt.Sprintf("generate validation copy: %v", err),
+				}}
+			}
+			if err := verifyTemplate(destination); err != nil {
+				return []TemplateValidationIssue{{
+					Template: info.Name,
+					Message:  err.Error(),
+				}}
+			}
+			return validateGeneratedScenario(destination, deps.RunSubprocess != nil, func(spec scenarioexec.SubprocessSpec) error {
+				if deps.RunSubprocess == nil {
+					return nil
+				}
+				spec.Env = deps.CommandEnv(ctx)
+				spec.Stdout = io.Discard
+				spec.Stderr = deps.Stderr(ctx)
+				return deps.RunSubprocess(ctx, spec)
+			}, info.Name)
+		}()
+		report.Issues = append(report.Issues, issues...)
+	}
+	return format, report, nil
+}
+
 func runGenerate[C any](deps HandlerDeps[C], ctx C, req GenerateRequest) (cliout.Format, GenerateResult, error) {
 	info := req.TemplateInfo
 	opts := req.Options
-	currentDate := time.Now().UTC().Format("2006-01-02")
-	randomToken, err := randomTemplateToken()
-	if err != nil {
-		return "", GenerateResult{}, err
-	}
-	values := copyStringMap(opts.Values)
-	values["CURRENT_DATE"] = currentDate
-	values["RANDOM_TOKEN"] = randomToken
-	optionalKeys := make([]string, 0, len(info.Manifest.OptionalVars))
-	for key := range info.Manifest.OptionalVars {
-		optionalKeys = append(optionalKeys, key)
-	}
-	sort.Strings(optionalKeys)
-	for _, key := range optionalKeys {
-		if strings.TrimSpace(values[key]) == "" {
-			values[key] = renderTemplateString(info.Manifest.OptionalVars[key].Default, values)
-		}
-	}
 	destination := opts.Destination
 	if destination == "" {
-		destination = filepath.Join(deps.Root(ctx), "scenarios", values["SCENARIO_ID"])
+		destination = filepath.Join(deps.Root(ctx), "scenarios", opts.Values["SCENARIO_ID"])
 	}
 	if !filepath.IsAbs(destination) {
 		destination = filepath.Join(deps.Root(ctx), filepath.FromSlash(destination))
 	}
 	destination = filepath.Clean(destination)
+	values, err := buildTemplateValues(deps.Root(ctx), destination, info.Name, info.Manifest, opts.Values)
+	if err != nil {
+		return "", GenerateResult{}, err
+	}
 	if opts.DryRun {
 		return cliout.FormatHuman, GenerateResult{
 			TemplateName: info.Name,
@@ -149,6 +223,14 @@ func runGenerate[C any](deps HandlerDeps[C], ctx C, req GenerateRequest) (cliout
 	}
 	if err := verifyTemplate(destination); err != nil {
 		return "", GenerateResult{}, err
+	}
+	if issues := validateGeneratedScenario(destination, deps.RunSubprocess != nil, func(spec scenarioexec.SubprocessSpec) error {
+		spec.Env = deps.CommandEnv(ctx)
+		spec.Stdout = io.Discard
+		spec.Stderr = deps.Stderr(ctx)
+		return deps.RunSubprocess(ctx, spec)
+	}, info.Name); len(issues) > 0 {
+		return "", GenerateResult{}, fmt.Errorf("%s", formatTemplateValidationIssues(issues))
 	}
 	result := GenerateResult{
 		TemplateName: info.Name,
@@ -227,6 +309,60 @@ func loadTemplate(root, name string) (TemplateInfo, error) {
 	return TemplateInfo{Name: name, Path: templateDir, Manifest: manifest}, nil
 }
 
+func buildTemplateValues(root, destination, templateName string, manifest TemplateManifest, baseValues map[string]string) (map[string]string, error) {
+	currentDate := time.Now().UTC().Format("2006-01-02")
+	randomToken, err := randomTemplateToken()
+	if err != nil {
+		return nil, err
+	}
+	values := copyStringMap(baseValues)
+	values["CURRENT_DATE"] = currentDate
+	values["RANDOM_TOKEN"] = randomToken
+	if err := populateTemplatePathValues(root, destination, values); err != nil {
+		return nil, fmt.Errorf("resolve template path placeholders for %s: %w", templateName, err)
+	}
+	optionalKeys := make([]string, 0, len(manifest.OptionalVars))
+	for key := range manifest.OptionalVars {
+		optionalKeys = append(optionalKeys, key)
+	}
+	sort.Strings(optionalKeys)
+	for _, key := range optionalKeys {
+		if strings.TrimSpace(values[key]) == "" {
+			values[key] = renderTemplateString(manifest.OptionalVars[key].Default, values)
+		}
+	}
+	return values, nil
+}
+
+func populateTemplatePathValues(root, destination string, values map[string]string) error {
+	contract, err := repocontract.LoadDefault(root)
+	if err != nil {
+		return err
+	}
+	repoRoot := filepath.Clean(root)
+	packagesDir, err := contract.TopLevelDir(root, "packages")
+	if err != nil {
+		return err
+	}
+	for key, dir := range map[string]string{
+		"API":     filepath.Join(destination, "api"),
+		"CLI":     filepath.Join(destination, "cli"),
+		"RUNTIME": filepath.Join(destination, "runtime"),
+	} {
+		repoRel, err := filepath.Rel(dir, repoRoot)
+		if err != nil {
+			return err
+		}
+		packagesRel, err := filepath.Rel(dir, packagesDir)
+		if err != nil {
+			return err
+		}
+		values["REPO_ROOT_REL_FROM_"+key] = filepath.ToSlash(repoRel)
+		values["PACKAGES_REL_FROM_"+key] = filepath.ToSlash(packagesRel)
+	}
+	return nil
+}
+
 func copyTemplate(templateDir, destination string, values map[string]string) error {
 	if err := os.MkdirAll(destination, 0o755); err != nil {
 		return err
@@ -237,6 +373,9 @@ func copyTemplate(templateDir, destination string, values map[string]string) err
 		}
 		if path == templateDir {
 			return nil
+		}
+		if entry.IsDir() && shouldSkipTemplateCopyDir(entry.Name()) {
+			return filepath.SkipDir
 		}
 		relPath, err := filepath.Rel(templateDir, path)
 		if err != nil {
@@ -299,6 +438,15 @@ func verifyTemplate(destination string) error {
 	return fmt.Errorf("unresolved placeholders remain in: %s", strings.Join(unresolved, ", "))
 }
 
+func shouldSkipTemplateCopyDir(name string) bool {
+	switch strings.TrimSpace(name) {
+	case "node_modules", "dist", "build", "coverage", ".turbo", ".vite":
+		return true
+	default:
+		return false
+	}
+}
+
 func looksLikeTextFile(data []byte) bool {
 	return len(data) == 0 || (bytes.IndexByte(data, 0) < 0 && utf8.Valid(data))
 }
@@ -318,6 +466,195 @@ func renderTemplateString(value string, values map[string]string) string {
 		rendered = strings.ReplaceAll(rendered, "{{"+key+"}}", values[key])
 	}
 	return rendered
+}
+
+func templateValidationSeedValues(info TemplateInfo) map[string]string {
+	values := map[string]string{}
+	requiredKeys := make([]string, 0, len(info.Manifest.RequiredVars))
+	for key := range info.Manifest.RequiredVars {
+		requiredKeys = append(requiredKeys, key)
+	}
+	sort.Strings(requiredKeys)
+	for _, key := range requiredKeys {
+		switch key {
+		case "SCENARIO_ID":
+			values[key] = "template-validation-" + info.Name
+		case "SCENARIO_DISPLAY_NAME":
+			values[key] = coalesce(info.Manifest.DisplayName, info.Name+" Validation")
+		case "SCENARIO_DESCRIPTION":
+			values[key] = coalesce(info.Manifest.Description, "Validation scenario generated from "+info.Name)
+		default:
+			if fallback := strings.TrimSpace(info.Manifest.RequiredVars[key].Default); fallback != "" {
+				values[key] = fallback
+			} else {
+				values[key] = strings.ToLower(strings.ReplaceAll(key, "_", "-"))
+			}
+		}
+	}
+	return values
+}
+
+func validateTemplateSource(info TemplateInfo) []TemplateValidationIssue {
+	if info.Missing {
+		return nil
+	}
+	var issues []TemplateValidationIssue
+	_ = filepath.WalkDir(info.Path, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil || entry.IsDir() || filepath.Base(path) != "go.mod" {
+			return err
+		}
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			issues = append(issues, TemplateValidationIssue{
+				Template: info.Name,
+				Path:     filepath.ToSlash(filepath.Base(path)),
+				Message:  fmt.Sprintf("read go.mod: %v", readErr),
+			})
+			return nil
+		}
+		for _, target := range parseLocalReplaceTargets(string(data)) {
+			if strings.Contains(target, "{{") {
+				continue
+			}
+			rel, relErr := filepath.Rel(info.Path, path)
+			if relErr != nil {
+				rel = path
+			}
+			issues = append(issues, TemplateValidationIssue{
+				Template: info.Name,
+				Path:     filepath.ToSlash(rel),
+				Message:  fmt.Sprintf("go.mod local replace target %q must use generator-computed placeholders", target),
+			})
+		}
+		return nil
+	})
+	return issues
+}
+
+func validateGeneratedScenario(destination string, runCommands bool, run func(scenarioexec.SubprocessSpec) error, templateName string) []TemplateValidationIssue {
+	var issues []TemplateValidationIssue
+	_ = filepath.WalkDir(destination, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil || entry.IsDir() || filepath.Base(path) != "go.mod" {
+			return err
+		}
+		moduleDir := filepath.Dir(path)
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			issues = append(issues, TemplateValidationIssue{
+				Template: templateName,
+				Path:     filepath.ToSlash(strings.TrimPrefix(path, destination+string(filepath.Separator))),
+				Message:  fmt.Sprintf("read generated go.mod: %v", readErr),
+			})
+			return nil
+		}
+		for _, target := range parseLocalReplaceTargets(string(data)) {
+			resolved := target
+			if !filepath.IsAbs(resolved) {
+				resolved = filepath.Join(moduleDir, filepath.FromSlash(target))
+			}
+			if _, statErr := os.Stat(filepath.Clean(resolved)); statErr != nil {
+				issues = append(issues, TemplateValidationIssue{
+					Template: templateName,
+					Path:     filepath.ToSlash(strings.TrimPrefix(path, destination+string(filepath.Separator))),
+					Message:  fmt.Sprintf("go.mod replace target %q does not resolve from generated module: %v", target, statErr),
+				})
+			}
+		}
+		if runCommands && moduleHasGoFiles(moduleDir) {
+			if execErr := run(scenarioexec.SubprocessSpec{
+				Name: "bash",
+				Args: []string{"-lc", "GOWORK=off go mod tidy"},
+				Dir:  moduleDir,
+			}); execErr != nil {
+				issues = append(issues, TemplateValidationIssue{
+					Template: templateName,
+					Path:     filepath.ToSlash(strings.TrimPrefix(path, destination+string(filepath.Separator))),
+					Message:  fmt.Sprintf("generated module validation failed: %v", execErr),
+				})
+			}
+		}
+		return nil
+	})
+	return issues
+}
+
+var goModReplaceLinePattern = regexp.MustCompile(`^\s*([A-Za-z0-9._/\-{}]+)(?:\s+[^\s]+)?\s*=>\s*([^\s]+)(?:\s+[^\s]+)?\s*(?://.*)?$`)
+
+func parseLocalReplaceTargets(content string) []string {
+	var targets []string
+	var inReplaceBlock bool
+	for _, rawLine := range strings.Split(content, "\n") {
+		line := strings.TrimSpace(rawLine)
+		if line == "" || strings.HasPrefix(line, "//") {
+			continue
+		}
+		switch line {
+		case "replace (":
+			inReplaceBlock = true
+			continue
+		case ")":
+			inReplaceBlock = false
+			continue
+		}
+		switch {
+		case strings.HasPrefix(line, "replace "):
+			if target, ok := parseGoReplaceTarget(strings.TrimSpace(strings.TrimPrefix(line, "replace "))); ok {
+				targets = append(targets, target)
+			}
+		case inReplaceBlock:
+			if target, ok := parseGoReplaceTarget(line); ok {
+				targets = append(targets, target)
+			}
+		}
+	}
+	return targets
+}
+
+func parseGoReplaceTarget(line string) (string, bool) {
+	matches := goModReplaceLinePattern.FindStringSubmatch(line)
+	if len(matches) != 3 {
+		return "", false
+	}
+	target := strings.TrimSpace(matches[2])
+	if target == "" {
+		return "", false
+	}
+	if !(strings.HasPrefix(target, ".") || strings.HasPrefix(target, "/") || strings.Contains(target, "{{")) {
+		return "", false
+	}
+	return target, true
+}
+
+func moduleHasGoFiles(moduleDir string) bool {
+	entries, err := os.ReadDir(moduleDir)
+	if err != nil {
+		return false
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if strings.HasSuffix(entry.Name(), ".go") {
+			return true
+		}
+	}
+	return false
+}
+
+func formatTemplateValidationIssues(issues []TemplateValidationIssue) string {
+	if len(issues) == 0 {
+		return ""
+	}
+	lines := make([]string, 0, len(issues))
+	for _, issue := range issues {
+		line := issue.Template
+		if strings.TrimSpace(issue.Path) != "" {
+			line += " [" + issue.Path + "]"
+		}
+		line += ": " + issue.Message
+		lines = append(lines, line)
+	}
+	return strings.Join(lines, "; ")
 }
 
 func runTemplateHooks[C any](deps HandlerDeps[C], ctx C, destination string, manifest TemplateManifest) error {

@@ -29,6 +29,10 @@
     "freshness": {
       "inputs": [
         "cli/**",
+        "internal/**",
+        "docs/**",
+        "README.md",
+        "compose.yaml",
         "resource.json"
       ]
     }

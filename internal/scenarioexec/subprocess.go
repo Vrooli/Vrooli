@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/vrooli/api-core/scenariocli"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/shell"
@@ -62,35 +63,24 @@ func LocateTestGenieCLI(lookPath func(string) (string, error), root, home string
 			return override, nil
 		}
 	}
-
-	homeCLI := filepath.Join(config.VrooliDir(home), "bin", "test-genie")
-	if IsExecutable(homeCLI) {
-		return homeCLI, nil
+	_ = lookPath
+	path, err := scenariocli.ResolveExecutable(root, home, "test-genie")
+	if err != nil {
+		homeCLI := filepath.Join(config.VrooliDir(home), "bin", "test-genie")
+		return "", fmt.Errorf("test-genie CLI not found via manifest-driven resolution (checked VROOLI_TEST_GENIE_CLI and attempted %s): %w", homeCLI, err)
 	}
-
-	if pathCLI, err := lookPath("test-genie"); err == nil && IsExecutable(pathCLI) {
-		return pathCLI, nil
-	}
-
-	repoCLI := filepath.Join(root, "scenarios", "test-genie", "cli", "test-genie")
-	if IsExecutable(repoCLI) {
-		return repoCLI, nil
-	}
-
-	return "", fmt.Errorf("test-genie CLI not found (checked VROOLI_TEST_GENIE_CLI, PATH, %s, and %s)", homeCLI, repoCLI)
+	return path, nil
 }
 
 func LocateScenarioCompletenessCLI(lookPath func(string) (string, error), root string) (string, error) {
-	if pathCLI, err := lookPath("scenario-completeness-scoring"); err == nil && IsExecutable(pathCLI) {
-		return pathCLI, nil
+	_ = lookPath
+	home, _ := os.UserHomeDir()
+	path, err := scenariocli.ResolveExecutable(root, home, "scenario-completeness-scoring")
+	if err != nil {
+		homeCLI := filepath.Join(config.VrooliDir(home), "bin", "scenario-completeness-scoring")
+		return "", fmt.Errorf("scenario-completeness-scoring CLI not found via manifest-driven resolution (attempted %s): %w", homeCLI, err)
 	}
-
-	repoCLI := filepath.Join(root, "scenarios", "scenario-completeness-scoring", "cli", "scenario-completeness-scoring")
-	if IsExecutable(repoCLI) {
-		return repoCLI, nil
-	}
-
-	return "", fmt.Errorf("scenario-completeness-scoring CLI not found (checked PATH and %s)", repoCLI)
+	return path, nil
 }
 
 func OpenURL(lookPath func(string) (string, error), run func(SubprocessSpec) error, url string) error {

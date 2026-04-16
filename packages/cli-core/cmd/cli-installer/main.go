@@ -113,6 +113,7 @@ func run() error {
 
 	fmt.Printf("✅ installed CLI to %s\n", dst)
 	ensurePathHint(dst)
+	ensureShellRefreshHint()
 	return nil
 }
 
@@ -208,6 +209,14 @@ func ensurePathHint(binaryPath string) {
 	}
 
 	fmt.Printf("⚠️  Add to PATH: export PATH=\"%s:$PATH\"\n", installDir)
+}
+
+func ensureShellRefreshHint() {
+	if runtime.GOOS == "windows" {
+		fmt.Println("ℹ️  If you are replacing an existing CLI command, open a new shell so command lookup refreshes.")
+		return
+	}
+	fmt.Println("ℹ️  If you are replacing an existing CLI command in this shell, run: hash -r")
 }
 
 func escapeLdflagValue(value string) string {

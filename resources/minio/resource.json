@@ -3,6 +3,14 @@
   "name": "minio",
   "display_name": "MinIO",
   "description": "Managed MinIO object storage service with native docker lifecycle and shell-retained S3 administration commands.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-minio",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    }
+  },
   "template": "docker-service",
   "driver": "docker-service",
   "portability_tier": "full",

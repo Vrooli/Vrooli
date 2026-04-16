@@ -480,7 +480,7 @@ redis-cli -p 6380 BGSAVE
 ### Log Analysis
 ```bash
 # Redis logs location
-tail -f ~/.vrooli/redis/logs/redis.log
+tail -f ~/.local/state/logs/vrooli/resources/redis/redis.log
 
 # Container logs
 docker logs vrooli-redis-resource -f

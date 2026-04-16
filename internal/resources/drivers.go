@@ -713,6 +713,15 @@ func (d externalCLIDriver) Status(ctx context.Context, controller *Controller, i
 		status.ProbeError = err.Error()
 		return status, nil
 	}
+	if err := probeExternalCLICommand(ctx, controller, manifest); err != nil {
+		status.StatusCode = StatusCodeUnavailable
+		status.Message = fmt.Sprintf("%s is unavailable", binary)
+		status.ProbeError = err.Error()
+		healthy := false
+		status.Healthy = &healthy
+		status.Health = "unhealthy"
+		return status, nil
+	}
 
 	status.Installed = true
 	status.Running = true
@@ -783,8 +792,15 @@ func (d externalCLIDriver) Run(ctx context.Context, controller *Controller, item
 	case "install":
 		return runInstallCommand(ctx, controller, manifest)
 	case "start", "restart":
-		_, err := fmt.Fprintf(stdout, "%s does not require a managed start step\n", item.Name)
-		return err
+		status, err := d.Status(ctx, controller, item, manifest, false)
+		if err != nil {
+			return err
+		}
+		if status.Running && status.Healthy != nil && *status.Healthy {
+			_, err := fmt.Fprintf(stdout, "%s does not require a managed start step\n", item.Name)
+			return err
+		}
+		return runInstallCommand(ctx, controller, manifest)
 	case "stop":
 		_, err := fmt.Fprintf(stdout, "%s does not run as a managed background service\n", item.Name)
 		return err
@@ -807,6 +823,27 @@ func (d externalCLIDriver) Run(ctx context.Context, controller *Controller, item
 			Err:       fmt.Errorf("action %q is not supported by driver %q", action, d.Name()),
 		}
 	}
+}
+
+func probeExternalCLICommand(ctx context.Context, controller *Controller, manifest ResourceManifest) error {
+	binary := strings.TrimSpace(externalCLIBinary(manifest))
+	if binary == "" {
+		return nil
+	}
+	args := append([]string(nil), manifest.VersionArgs...)
+	if len(args) == 0 {
+		return nil
+	}
+
+	cmd := shell.Command(shell.Spec{
+		Name:  binary,
+		Args:  args,
+		Dir:   controller.Root,
+		Env:   resourceEnvForResource(controller.Root, controller.Home, manifest.Name),
+		Stdin: nil,
+	})
+	result := runCommandResource(ctx, cmd)
+	return result.err
 }
 
 type cloudAPIDriver struct{}

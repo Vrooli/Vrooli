@@ -3,6 +3,14 @@
   "name": "k6",
   "display_name": "k6",
   "description": "Grafana k6 CLI for load and performance testing, with native binary/install/status handling.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-k6",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    }
+  },
   "template": "external-cli",
   "driver": "external-cli",
   "binary": "k6",

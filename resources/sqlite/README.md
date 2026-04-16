@@ -152,11 +152,14 @@ resource-sqlite content remove <name> [--force]
 ```
 
 ## Defaults / environment
-Matches the prior resource defaults:
-- `VROOLI_DATA` (default: `~/.vrooli/data`)
-- `SQLITE_DATABASE_PATH` (`${VROOLI_DATA}/sqlite/databases`)
-- `SQLITE_BACKUP_PATH` (`${VROOLI_DATA}/sqlite/backups`)
-- `SQLITE_REPLICATION_PATH` (`${VROOLI_DATA}/sqlite/replicas`)
+Canonical resource storage:
+- `RESOURCE_DATA_DIR` (default: `~/.local/share/vrooli/resources/sqlite`)
+- `RESOURCE_STATE_DIR` (default: `~/.local/state/vrooli/resources/sqlite`)
+- `SQLITE_DATABASE_PATH` (`${RESOURCE_DATA_DIR}/databases`)
+- `SQLITE_BACKUP_PATH` (`${RESOURCE_DATA_DIR}/backups`)
+- `SQLITE_REPLICATION_PATH` (`${RESOURCE_DATA_DIR}/replicas`)
+- `SQLITE_MIGRATION_PATH` (`${RESOURCE_DATA_DIR}/migrations`)
+- `SQLITE_REPLICATION_STATE_PATH` (`${RESOURCE_STATE_DIR}/replication`)
 - `SQLITE_JOURNAL_MODE` (`WAL`), `SQLITE_BUSY_TIMEOUT` (10000 ms), `SQLITE_CACHE_SIZE` (2000 pages), `SQLITE_PAGE_SIZE` (4096 bytes), `SQLITE_SYNCHRONOUS` (`NORMAL`), `SQLITE_TEMP_STORE` (`MEMORY`), `SQLITE_MMAP_SIZE` (268435456 bytes), `SQLITE_FILE_PERMISSIONS` (`0600`), `SQLITE_CLI_TIMEOUT` (30s), `SQLITE_BACKUP_RETENTION_DAYS` (7).
 - Backups respect `SQLITE_BACKUP_RETENTION_DAYS` by pruning older backups per database name when a new backup is taken.
 - Encryption/decryption removes lingering `-wal`/`-shm` files to avoid leaking unencrypted data.

@@ -63,7 +63,7 @@ func RenderOperationalReport(w io.Writer, report OperationalReport) error {
 				continue
 			}
 			for _, item := range items {
-				if _, err := fmt.Fprintf(w, "    %s\n", item); err != nil {
+				if err := writeIndentedLines(w, item, "    "); err != nil {
 					return err
 				}
 			}
@@ -118,7 +118,17 @@ func printSectionLines(w io.Writer, heading string, lines []string, empty string
 		return nil
 	}
 	for _, line := range lines {
-		if _, err := fmt.Fprintf(w, "  %s\n", line); err != nil {
+		if err := writeIndentedLines(w, line, "  "); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func writeIndentedLines(w io.Writer, value string, indent string) error {
+	lines := strings.Split(strings.TrimRight(value, "\n"), "\n")
+	for _, line := range lines {
+		if _, err := fmt.Fprintf(w, "%s%s\n", indent, strings.TrimRight(line, "\r")); err != nil {
 			return err
 		}
 	}

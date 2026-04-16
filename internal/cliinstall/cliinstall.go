@@ -10,10 +10,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 
 	repocontract "github.com/vrooli/repo-contract-go"
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
@@ -30,6 +32,7 @@ type InstallableCLI struct {
 	BinaryName   string
 	ModulePath   string
 	ScenarioPath string
+	ResourcePath string
 	ServicePath  string
 	CLI          *scenario.CLIConfig
 }
@@ -51,6 +54,19 @@ type InstallMetadata struct {
 	ModulePath  string `json:"module_path"`
 	Fingerprint string `json:"fingerprint"`
 	InstalledAt string `json:"installed_at,omitempty"`
+}
+
+type InstallLocationStatus struct {
+	Command           string `json:"command"`
+	CanonicalPath     string `json:"canonical_path"`
+	ResolvedPath      string `json:"resolved_path,omitempty"`
+	CanonicalExists   bool   `json:"canonical_exists"`
+	Resolved          bool   `json:"resolved"`
+	ResolvedCanonical bool   `json:"resolved_canonical"`
+}
+
+func (s InstallLocationStatus) PathMismatch() bool {
+	return s.Resolved && !s.ResolvedCanonical
 }
 
 func NewManager(root, home string) *Manager {
@@ -124,6 +140,22 @@ func (m *Manager) ResolveScenarioCLIExecutable(name string) (string, error) {
 	return m.InstalledBinaryPath(item), nil
 }
 
+func (m *Manager) InspectScenarioCLIInstallLocation(name string, lookPath func(string) (string, error)) (InstallLocationStatus, error) {
+	item, err := m.DiscoverScenarioCLI(name)
+	if err != nil {
+		return InstallLocationStatus{}, err
+	}
+	return m.inspectInstallLocation(item, lookPath)
+}
+
+func (m *Manager) InspectResourceCLIInstallLocation(name string, lookPath func(string) (string, error)) (InstallLocationStatus, error) {
+	item, err := m.DiscoverResourceCLI(name)
+	if err != nil {
+		return InstallLocationStatus{}, err
+	}
+	return m.inspectInstallLocation(item, lookPath)
+}
+
 func (m *Manager) EnsureResourceCLI(name string) error {
 	item, err := m.DiscoverResourceCLI(name)
 	if err != nil {
@@ -195,16 +227,38 @@ func (m *Manager) DiscoverResourceCLI(name string) (InstallableCLI, error) {
 	if err := requireFile(manifestPath); err != nil {
 		return InstallableCLI{}, fmt.Errorf("discover resource CLI %q: %w", name, err)
 	}
-	modulePath := filepath.Join(resourceRoot, "cli")
-	if err := requireFile(filepath.Join(modulePath, "go.mod")); err != nil {
+	manifest, err := manifestpkg.Load(manifestPath)
+	if err != nil {
 		return InstallableCLI{}, fmt.Errorf("discover resource CLI %q: %w", name, err)
 	}
-	return InstallableCLI{
-		Kind:       KindResource,
-		Name:       name,
-		BinaryName: ResourceBinaryName(name),
-		ModulePath: modulePath,
-	}, nil
+	if manifest.CLI == nil || !manifest.CLI.Enabled {
+		return InstallableCLI{}, fmt.Errorf("discover resource CLI %q: %w", name, fs.ErrNotExist)
+	}
+	item := InstallableCLI{
+		Kind:         KindResource,
+		Name:         name,
+		BinaryName:   ScenarioBinaryName(manifest.CLI.Command),
+		ResourcePath: resourceRoot,
+		ServicePath:  manifestPath,
+		CLI:          manifest.CLI,
+	}
+	switch manifest.CLI.Adapter.Kind {
+	case "go_module":
+		item.ModulePath = filepath.Join(resourceRoot, filepath.FromSlash(manifest.CLI.Adapter.ModuleDir))
+		if err := requireFile(filepath.Join(item.ModulePath, "go.mod")); err != nil {
+			return InstallableCLI{}, fmt.Errorf("discover resource CLI %q: %w", name, err)
+		}
+	case "shell_script":
+		if err := requireFile(filepath.Join(resourceRoot, filepath.FromSlash(manifest.CLI.Adapter.ScriptPath))); err != nil {
+			return InstallableCLI{}, fmt.Errorf("discover resource CLI %q: %w", name, err)
+		}
+		if err := requireFile(filepath.Join(resourceRoot, filepath.FromSlash(manifest.CLI.Adapter.InstallScript))); err != nil {
+			return InstallableCLI{}, fmt.Errorf("discover resource CLI %q: %w", name, err)
+		}
+	default:
+		return InstallableCLI{}, fmt.Errorf("discover resource CLI %q: unsupported adapter kind %q", name, manifest.CLI.Adapter.Kind)
+	}
+	return item, nil
 }
 
 func (m *Manager) DiscoverScenarioCLIs() ([]InstallableCLI, error) {
@@ -300,6 +354,35 @@ func (m *Manager) InstalledBinaryPath(item InstallableCLI) string {
 
 func (m *Manager) InstallMetadataPath(item InstallableCLI) string {
 	return m.InstalledBinaryPath(item) + ".build.meta"
+}
+
+func (m *Manager) inspectInstallLocation(item InstallableCLI, lookPath func(string) (string, error)) (InstallLocationStatus, error) {
+	if lookPath == nil {
+		lookPath = exec.LookPath
+	}
+
+	canonicalPath := m.InstalledBinaryPath(item)
+	status := InstallLocationStatus{
+		Command:       item.BinaryName,
+		CanonicalPath: canonicalPath,
+	}
+	if _, err := os.Stat(canonicalPath); err == nil {
+		status.CanonicalExists = true
+	} else if err != nil && !os.IsNotExist(err) {
+		return InstallLocationStatus{}, err
+	}
+
+	resolvedPath, err := lookPath(item.BinaryName)
+	if err != nil {
+		if errors.Is(err, exec.ErrNotFound) {
+			return status, nil
+		}
+		return InstallLocationStatus{}, err
+	}
+	status.Resolved = true
+	status.ResolvedPath = normalizeInstallPath(resolvedPath)
+	status.ResolvedCanonical = sameInstallPath(status.CanonicalPath, resolvedPath)
+	return status, nil
 }
 
 func (m *Manager) ensure(ctx context.Context, item InstallableCLI) error {
@@ -401,8 +484,13 @@ func (m *Manager) writeInstallMetadata(item InstallableCLI, meta InstallMetadata
 }
 
 func (m *Manager) computeInstallFingerprint(item InstallableCLI) (string, error) {
-	if item.Kind == KindScenario && item.CLI != nil {
-		return computeScenarioCLIFingerprint(item)
+	if item.CLI != nil {
+		switch item.Kind {
+		case KindScenario:
+			return computeScenarioCLIFingerprint(item)
+		case KindResource:
+			return computeResourceCLIFingerprint(item)
+		}
 	}
 	return computeFingerprint(item.ModulePath, item.BinaryName)
 }
@@ -413,19 +501,41 @@ func computeScenarioCLIFingerprint(item InstallableCLI) (string, error) {
 		return computeFingerprint(item.ModulePath, item.BinaryName)
 	case "shell_script":
 		if item.CLI.Freshness != nil && len(item.CLI.Freshness.Inputs) > 0 {
-			return computeFingerprintFromScenarioInputs(item.ScenarioPath, item.CLI.Freshness.Inputs, item.BinaryName)
+			return computeFingerprintFromDeclaredInputs(item.ScenarioPath, item.CLI.Freshness.Inputs, item.BinaryName)
 		}
 		serviceRel, err := filepath.Rel(item.ScenarioPath, item.ServicePath)
 		if err != nil {
 			return "", err
 		}
-		return computeFingerprintFromScenarioInputs(item.ScenarioPath, []string{
+		return computeFingerprintFromDeclaredInputs(item.ScenarioPath, []string{
 			item.CLI.Adapter.ScriptPath,
 			item.CLI.Adapter.InstallScript,
 			filepath.ToSlash(serviceRel),
 		}, item.BinaryName)
 	default:
 		return "", fmt.Errorf("unsupported scenario CLI adapter kind %q", item.CLI.Adapter.Kind)
+	}
+}
+
+func computeResourceCLIFingerprint(item InstallableCLI) (string, error) {
+	switch item.CLI.Adapter.Kind {
+	case "go_module":
+		return computeFingerprint(item.ModulePath, item.BinaryName)
+	case "shell_script":
+		if item.CLI.Freshness != nil && len(item.CLI.Freshness.Inputs) > 0 {
+			return computeFingerprintFromDeclaredInputs(item.ResourcePath, item.CLI.Freshness.Inputs, item.BinaryName)
+		}
+		manifestRel, err := filepath.Rel(item.ResourcePath, item.ServicePath)
+		if err != nil {
+			return "", err
+		}
+		return computeFingerprintFromDeclaredInputs(item.ResourcePath, []string{
+			item.CLI.Adapter.ScriptPath,
+			item.CLI.Adapter.InstallScript,
+			filepath.ToSlash(manifestRel),
+		}, item.BinaryName)
+	default:
+		return "", fmt.Errorf("unsupported resource CLI adapter kind %q", item.CLI.Adapter.Kind)
 	}
 }
 
@@ -505,21 +615,37 @@ func (GoInstaller) Install(ctx context.Context, item InstallableCLI, installDir 
 			return fmt.Errorf("unsupported scenario CLI adapter kind %q", item.CLI.Adapter.Kind)
 		}
 	case KindResource:
-		repoRoot, ok := findInstallerRepoRoot(item.ModulePath)
-		if !ok {
-			return fmt.Errorf("locate repo root for %s CLI %q", item.Kind, item.Name)
+		if item.CLI == nil {
+			return errors.New("resource CLI manifest is required")
 		}
-		installerDir := filepath.Join(repoRoot, "packages", "cli-core")
-		cmd := exec.CommandContext(ctx, "go", "run", "./cmd/cli-installer",
-			"--module", item.ModulePath,
-			"--name", item.BinaryName,
-			"--install-dir", installDir,
-		)
-		cmd.Dir = installerDir
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Stdin = os.Stdin
-		return cmd.Run()
+		switch item.CLI.Adapter.Kind {
+		case "go_module":
+			repoRoot, ok := findInstallerRepoRoot(item.ModulePath)
+			if !ok {
+				return fmt.Errorf("locate repo root for %s CLI %q", item.Kind, item.Name)
+			}
+			installerDir := filepath.Join(repoRoot, "packages", "cli-core")
+			cmd := exec.CommandContext(ctx, "go", "run", "./cmd/cli-installer",
+				"--module", item.ModulePath,
+				"--name", item.BinaryName,
+				"--install-dir", installDir,
+			)
+			cmd.Dir = installerDir
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			cmd.Stdin = os.Stdin
+			return cmd.Run()
+		case "shell_script":
+			installScript := filepath.Join(item.ResourcePath, filepath.FromSlash(item.CLI.Adapter.InstallScript))
+			cmd := exec.CommandContext(ctx, "bash", installScript)
+			cmd.Dir = item.ResourcePath
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			cmd.Stdin = os.Stdin
+			return cmd.Run()
+		default:
+			return fmt.Errorf("unsupported resource CLI adapter kind %q", item.CLI.Adapter.Kind)
+		}
 	default:
 		return fmt.Errorf("unsupported installable CLI kind %q", item.Kind)
 	}
@@ -556,6 +682,32 @@ func childDirNames(dir string) ([]string, error) {
 	}
 	sort.Strings(names)
 	return names, nil
+}
+
+func normalizeInstallPath(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return ""
+	}
+	if resolved, err := filepath.EvalSymlinks(path); err == nil && strings.TrimSpace(resolved) != "" {
+		path = resolved
+	}
+	if abs, err := filepath.Abs(path); err == nil && strings.TrimSpace(abs) != "" {
+		path = abs
+	}
+	return filepath.Clean(path)
+}
+
+func sameInstallPath(a, b string) bool {
+	a = normalizeInstallPath(a)
+	b = normalizeInstallPath(b)
+	if a == "" || b == "" {
+		return false
+	}
+	if runtime.GOOS == "windows" {
+		return strings.EqualFold(a, b)
+	}
+	return a == b
 }
 
 func requireFile(path string) error {
@@ -644,14 +796,14 @@ func computeFingerprint(root string, extraSkipFiles ...string) (string, error) {
 	return fmt.Sprintf("%x", hasher.Sum(nil)), nil
 }
 
-func computeFingerprintFromScenarioInputs(scenarioRoot string, inputs []string, extraSkipFiles ...string) (string, error) {
+func computeFingerprintFromDeclaredInputs(root string, inputs []string, extraSkipFiles ...string) (string, error) {
 	entries := make(map[string]fileEntry)
 	for _, input := range inputs {
 		input = strings.TrimSpace(input)
 		if input == "" {
 			continue
 		}
-		matches, err := expandScenarioInputPaths(scenarioRoot, input)
+		matches, err := expandDeclaredInputPaths(root, input)
 		if err != nil {
 			return "", err
 		}
@@ -668,7 +820,7 @@ func computeFingerprintFromScenarioInputs(scenarioRoot string, inputs []string, 
 					if err != nil {
 						return err
 					}
-					rel, relErr := filepath.Rel(scenarioRoot, path)
+					rel, relErr := filepath.Rel(root, path)
 					if relErr != nil {
 						return relErr
 					}
@@ -697,7 +849,7 @@ func computeFingerprintFromScenarioInputs(scenarioRoot string, inputs []string, 
 				}
 				continue
 			}
-			rel, err := filepath.Rel(scenarioRoot, match)
+			rel, err := filepath.Rel(root, match)
 			if err != nil {
 				return "", err
 			}
@@ -724,11 +876,15 @@ func computeFingerprintFromScenarioInputs(scenarioRoot string, inputs []string, 
 	return fmt.Sprintf("%x", hasher.Sum(nil)), nil
 }
 
-func expandScenarioInputPaths(scenarioRoot, input string) ([]string, error) {
+func computeFingerprintFromScenarioInputs(scenarioRoot string, inputs []string, extraSkipFiles ...string) (string, error) {
+	return computeFingerprintFromDeclaredInputs(scenarioRoot, inputs, extraSkipFiles...)
+}
+
+func expandDeclaredInputPaths(root, input string) ([]string, error) {
 	if hasGlobPattern(input) {
-		return filepath.Glob(filepath.Join(scenarioRoot, filepath.FromSlash(input)))
+		return filepath.Glob(filepath.Join(root, filepath.FromSlash(input)))
 	}
-	return []string{filepath.Join(scenarioRoot, filepath.FromSlash(input))}, nil
+	return []string{filepath.Join(root, filepath.FromSlash(input))}, nil
 }
 
 func hasGlobPattern(value string) bool {

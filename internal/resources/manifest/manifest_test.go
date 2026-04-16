@@ -3,6 +3,8 @@ package manifest
 import (
 	"strings"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/scenario"
 )
 
 func TestValidateRejectsMissingRequiredFields(t *testing.T) {
@@ -14,7 +16,15 @@ func TestValidateRejectsMissingRequiredFields(t *testing.T) {
 
 func TestValidateRejectsInvalidDriver(t *testing.T) {
 	err := Validate(ResourceManifest{
-		Name:            "redis",
+		Name: "redis",
+		CLI: &scenario.CLIConfig{
+			Enabled: true,
+			Command: "resource-redis",
+			Adapter: scenario.CLIAdapterConfig{
+				Kind:      "go_module",
+				ModuleDir: "cli",
+			},
+		},
 		Driver:          "legacy-adapter",
 		PortabilityTier: "partial",
 	})
@@ -25,7 +35,15 @@ func TestValidateRejectsInvalidDriver(t *testing.T) {
 
 func TestValidateAcceptsExternalCLIManifest(t *testing.T) {
 	err := Validate(ResourceManifest{
-		Name:            "redis",
+		Name: "redis",
+		CLI: &scenario.CLIConfig{
+			Enabled: true,
+			Command: "resource-redis",
+			Adapter: scenario.CLIAdapterConfig{
+				Kind:      "go_module",
+				ModuleDir: "cli",
+			},
+		},
 		Driver:          "external-cli",
 		Binary:          "redis-server",
 		PortabilityTier: "full",
@@ -45,13 +63,66 @@ func TestSupportForCurrentPlatformUsesMappedOSNames(t *testing.T) {
 
 func TestValidateAcceptsLegacyRepoDataMarker(t *testing.T) {
 	err := Validate(ResourceManifest{
-		Name:                  "litellm",
+		Name: "litellm",
+		CLI: &scenario.CLIConfig{
+			Enabled: true,
+			Command: "resource-litellm",
+			Adapter: scenario.CLIAdapterConfig{
+				Kind:      "go_module",
+				ModuleDir: "cli",
+			},
+		},
 		Driver:                "docker-service",
 		PortabilityTier:       "full",
 		LegacyRepoDataAllowed: true,
 		Runtime: ResourceRuntime{
 			Image: "ghcr.io/berriai/litellm:main-latest",
 		},
+	})
+	if err != nil {
+		t.Fatalf("Validate(): %v", err)
+	}
+}
+
+func TestValidateRejectsMissingCLIBlock(t *testing.T) {
+	err := Validate(ResourceManifest{
+		Name:            "fixture",
+		Driver:          "manual",
+		PortabilityTier: "full",
+	})
+	if err == nil || !strings.Contains(err.Error(), "cli is required") {
+		t.Fatalf("Validate() error = %v", err)
+	}
+}
+
+func TestValidateAcceptsExplicitDisabledCLIBlock(t *testing.T) {
+	err := Validate(ResourceManifest{
+		Name: "fixture",
+		CLI: &scenario.CLIConfig{
+			Enabled: false,
+		},
+		Driver:          "manual",
+		PortabilityTier: "full",
+	})
+	if err != nil {
+		t.Fatalf("Validate(): %v", err)
+	}
+}
+
+func TestValidateAcceptsShellScriptCLIBlock(t *testing.T) {
+	err := Validate(ResourceManifest{
+		Name: "fixture",
+		CLI: &scenario.CLIConfig{
+			Enabled: true,
+			Command: "resource-fixture",
+			Adapter: scenario.CLIAdapterConfig{
+				Kind:          "shell_script",
+				ScriptPath:    "cli/resource-fixture",
+				InstallScript: "cli/install.sh",
+			},
+		},
+		Driver:          "manual",
+		PortabilityTier: "full",
 	})
 	if err != nil {
 		t.Fatalf("Validate(): %v", err)

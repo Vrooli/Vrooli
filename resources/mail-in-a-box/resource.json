@@ -3,6 +3,14 @@
   "name": "mail-in-a-box",
   "display_name": "Mail-in-a-Box",
   "description": "Managed self-hosted mail stack with native compose-backed lifecycle and shell-retained account, domain, API, and CalDAV workflows.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-mail-in-a-box",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    }
+  },
   "template": "compose-service",
   "driver": "compose-service",
   "compose_file": "docker-compose.yml",

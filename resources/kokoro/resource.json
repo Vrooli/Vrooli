@@ -3,6 +3,14 @@
   "name": "kokoro",
   "display_name": "Kokoro",
   "description": "Managed Kokoro text-to-speech service with native compose-backed lifecycle and shell-retained voice synthesis workflows.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-kokoro",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    }
+  },
   "template": "compose-service",
   "driver": "compose-service",
   "compose_file": "docker/docker-compose.yml",

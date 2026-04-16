@@ -3,6 +3,14 @@
   "name": "home-assistant",
   "display_name": "Home Assistant",
   "description": "Managed Home Assistant service with native compose-backed lifecycle and shell-retained automation, backup, and voice workflows.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-home-assistant",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    }
+  },
   "template": "compose-service",
   "driver": "compose-service",
   "compose_file": "compose.yaml",

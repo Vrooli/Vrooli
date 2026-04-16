@@ -10,6 +10,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/scenario"
 )
 
 const SchemaPath = ".vrooli/schemas/resource.schema.json"
@@ -33,6 +34,7 @@ type ResourceManifest struct {
 	Name                  string                       `json:"name"`
 	DisplayName           string                       `json:"display_name,omitempty"`
 	Description           string                       `json:"description,omitempty"`
+	CLI                   *scenario.CLIConfig          `json:"cli"`
 	LegacyRepoDataAllowed bool                         `json:"legacy_repo_data_allowed,omitempty"`
 	Template              string                       `json:"template,omitempty"`
 	Driver                string                       `json:"driver"`
@@ -165,6 +167,13 @@ func Validate(manifest ResourceManifest) error {
 	if strings.TrimSpace(manifest.Name) == "" {
 		return fmt.Errorf("name is required")
 	}
+	if manifest.CLI == nil {
+		return fmt.Errorf("cli is required")
+	}
+	normalizeCLIConfig(manifest.CLI)
+	if err := manifest.CLI.Validate(); err != nil {
+		return fmt.Errorf("cli: %w", err)
+	}
 	if strings.TrimSpace(manifest.Driver) == "" {
 		return fmt.Errorf("driver is required")
 	}
@@ -224,6 +233,25 @@ func Validate(manifest ResourceManifest) error {
 		}
 	}
 	return nil
+}
+
+func normalizeCLIConfig(cfg *scenario.CLIConfig) {
+	if cfg == nil {
+		return
+	}
+	cfg.Command = strings.TrimSpace(cfg.Command)
+	cfg.Adapter.Kind = strings.TrimSpace(cfg.Adapter.Kind)
+	cfg.Adapter.ModuleDir = strings.TrimSpace(cfg.Adapter.ModuleDir)
+	cfg.Adapter.ScriptPath = strings.TrimSpace(cfg.Adapter.ScriptPath)
+	cfg.Adapter.InstallScript = strings.TrimSpace(cfg.Adapter.InstallScript)
+	cfg.Invoke.Kind = strings.TrimSpace(cfg.Invoke.Kind)
+	cfg.Invoke.Command = strings.TrimSpace(cfg.Invoke.Command)
+	if cfg.Enabled && cfg.Invoke.Kind == "" {
+		cfg.Invoke.Kind = "installed_command"
+	}
+	if cfg.Enabled && cfg.Invoke.Command == "" {
+		cfg.Invoke.Command = cfg.Command
+	}
 }
 
 func validateDependencySchema(raw json.RawMessage) error {

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -64,6 +65,41 @@ func writeShellScenarioCLIManifest(t *testing.T, root, name string) {
 			}},
 		}),
 	))
+}
+
+func writeGoResourceCLIManifest(t *testing.T, root, name string) {
+	t.Helper()
+	testresource.WriteResourceManifest(t, root, name, testresource.ResourceManifest(
+		name,
+		testresource.WithResourceDriver("external-cli"),
+		testresource.WithResourceBinary("bash"),
+	))
+}
+
+func writeDisabledResourceCLIManifest(t *testing.T, root, name string) {
+	t.Helper()
+	manifest := testresource.ResourceManifest(name)
+	manifest.CLI = &scenario.CLIConfig{Enabled: false}
+	testresource.WriteResourceManifest(t, root, name, manifest)
+}
+
+func writeShellResourceCLIManifest(t *testing.T, root, name string) {
+	t.Helper()
+	manifest := testresource.ResourceManifest(name)
+	manifest.CLI = &scenario.CLIConfig{
+		Enabled: true,
+		Command: "resource-" + name,
+		Adapter: scenario.CLIAdapterConfig{
+			Kind:          "shell_script",
+			ScriptPath:    filepath.ToSlash(filepath.Join("cli", "resource-"+name)),
+			InstallScript: "cli/install.sh",
+		},
+		Install: []scenario.CLIInstallStep{{
+			Kind: "command",
+			Run:  "cd cli && ./install.sh",
+		}},
+	}
+	testresource.WriteResourceManifest(t, root, name, manifest)
 }
 
 func (s *stubInstaller) Install(_ context.Context, item InstallableCLI, installDir string) error {
@@ -157,9 +193,9 @@ func TestDiscoverScenarioCLIDoesNotInferShellScriptFromLayoutWithoutManifest(t *
 func TestDiscoverEnabledResourceCLIs(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
-	fixture.WriteResourceStub(t, "postgres")
-	fixture.WriteResourceStub(t, "redis")
-	fixture.WriteResourceStub(t, "ollama")
+	writeGoResourceCLIManifest(t, fixture.Root, "postgres")
+	writeDisabledResourceCLIManifest(t, fixture.Root, "redis")
+	writeGoResourceCLIManifest(t, fixture.Root, "ollama")
 	testresource.WriteResourceCLIGoMod(t, fixture.Root, "postgres", "resource-postgres/cli")
 	testresource.WriteResourceCLIGoMod(t, fixture.Root, "ollama", "resource-ollama/cli")
 	testscenario.WriteProjectService(t, fixture.Root, testscenario.ProjectServiceManifest(
@@ -189,8 +225,8 @@ func TestDiscoverEnabledResourceCLIs(t *testing.T) {
 func TestDiscoverResourceCLIsReturnsAllInstallableModules(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
-	fixture.WriteResourceStub(t, "postgres")
-	fixture.WriteResourceStub(t, "redis")
+	writeGoResourceCLIManifest(t, fixture.Root, "postgres")
+	writeGoResourceCLIManifest(t, fixture.Root, "redis")
 	testresource.WriteResourceCLIGoMod(t, fixture.Root, "postgres", "resource-postgres/cli")
 	testresource.WriteResourceCLIGoMod(t, fixture.Root, "redis", "resource-redis/cli")
 
@@ -203,6 +239,60 @@ func TestDiscoverResourceCLIsReturnsAllInstallableModules(t *testing.T) {
 	got := []string{items[0].BinaryName, items[1].BinaryName}
 	if !reflect.DeepEqual(got, []string{"resource-postgres", "resource-redis"}) {
 		t.Fatalf("resource CLI binaries = %v, want %v", got, []string{"resource-postgres", "resource-redis"})
+	}
+}
+
+func TestDiscoverResourceCLIIncludesShellScriptAdapter(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	writeShellResourceCLIManifest(t, fixture.Root, "postgres")
+	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("resources", "postgres", "cli", "resource-postgres"), "#!/usr/bin/env bash\nexit 0\n")
+	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("resources", "postgres", "cli", "install.sh"), "#!/usr/bin/env bash\nexit 0\n")
+
+	manager := NewManager(fixture.Root, fixture.Home)
+	item, err := manager.DiscoverResourceCLI("postgres")
+	if err != nil {
+		t.Fatalf("DiscoverResourceCLI: %v", err)
+	}
+	if item.CLI == nil || item.CLI.Adapter.Kind != "shell_script" {
+		t.Fatalf("expected shell_script adapter, got %+v", item)
+	}
+	if item.ResourcePath != filepath.Join(fixture.Root, "resources", "postgres") {
+		t.Fatalf("resource path = %q", item.ResourcePath)
+	}
+}
+
+func TestDiscoverResourceCLIDoesNotInferGoModuleFromLayoutWithoutEnabledManifest(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	writeDisabledResourceCLIManifest(t, fixture.Root, "postgres")
+	testresource.WriteResourceCLIGoMod(t, fixture.Root, "postgres", "resource-postgres/cli")
+	testkitgo.WriteRelativeFile(t, fixture.Root, filepath.Join("resources", "postgres", "cli", "main.go"), "package main\nfunc main() {}\n")
+
+	manager := NewManager(fixture.Root, fixture.Home)
+	_, err := manager.DiscoverResourceCLI("postgres")
+	if err == nil {
+		t.Fatal("expected missing CLI manifest error, got nil")
+	}
+	if !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("expected not-exist error when layout exists without enabled manifest, got %v", err)
+	}
+}
+
+func TestDiscoverResourceCLIDoesNotInferShellScriptFromLayoutWithoutEnabledManifest(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	writeDisabledResourceCLIManifest(t, fixture.Root, "postgres")
+	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("resources", "postgres", "cli", "resource-postgres"), "#!/usr/bin/env bash\nexit 0\n")
+	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("resources", "postgres", "cli", "install.sh"), "#!/usr/bin/env bash\nexit 0\n")
+
+	manager := NewManager(fixture.Root, fixture.Home)
+	_, err := manager.DiscoverResourceCLI("postgres")
+	if err == nil {
+		t.Fatal("expected missing CLI manifest error, got nil")
+	}
+	if !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("expected not-exist error when shell layout exists without enabled manifest, got %v", err)
 	}
 }
 
@@ -292,10 +382,66 @@ func TestEnsureScenarioCLIShellScriptInstallsWhenMissing(t *testing.T) {
 	}
 }
 
+func TestInspectScenarioCLIInstallLocationReportsPathMismatch(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	fixture.WriteScenarioStub(t, "alpha")
+	writeGoScenarioCLIManifest(t, fixture.Root, "alpha")
+	testscenario.WriteScenarioCLIGoMod(t, fixture.Root, "alpha", "alpha/cli")
+
+	manager := NewManager(fixture.Root, fixture.Home)
+	canonical := filepath.Join(fixture.Home, ".vrooli", "bin", "alpha")
+	if err := os.MkdirAll(filepath.Dir(canonical), 0o755); err != nil {
+		t.Fatalf("mkdir install dir: %v", err)
+	}
+	if err := os.WriteFile(canonical, []byte("installed"), 0o755); err != nil {
+		t.Fatalf("write canonical binary: %v", err)
+	}
+
+	other := testkitgo.WriteRelativeExecutable(t, fixture.Home, filepath.Join(".local", "bin", "alpha"), "#!/usr/bin/env bash\nexit 0\n")
+	status, err := manager.InspectScenarioCLIInstallLocation("alpha", func(string) (string, error) {
+		return other, nil
+	})
+	if err != nil {
+		t.Fatalf("InspectScenarioCLIInstallLocation: %v", err)
+	}
+	if !status.CanonicalExists {
+		t.Fatal("expected canonical install to exist")
+	}
+	if !status.PathMismatch() {
+		t.Fatalf("expected path mismatch, got %+v", status)
+	}
+	if status.CanonicalPath != canonical {
+		t.Fatalf("canonical path = %q, want %q", status.CanonicalPath, canonical)
+	}
+}
+
+func TestInspectScenarioCLIInstallLocationHandlesCommandNotFound(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	fixture.WriteScenarioStub(t, "alpha")
+	writeGoScenarioCLIManifest(t, fixture.Root, "alpha")
+	testscenario.WriteScenarioCLIGoMod(t, fixture.Root, "alpha", "alpha/cli")
+
+	manager := NewManager(fixture.Root, fixture.Home)
+	status, err := manager.InspectScenarioCLIInstallLocation("alpha", func(string) (string, error) {
+		return "", exec.ErrNotFound
+	})
+	if err != nil {
+		t.Fatalf("InspectScenarioCLIInstallLocation: %v", err)
+	}
+	if status.Resolved {
+		t.Fatalf("expected unresolved status, got %+v", status)
+	}
+	if status.PathMismatch() {
+		t.Fatalf("unexpected path mismatch for unresolved command: %+v", status)
+	}
+}
+
 func TestEnsureResourceCLISkipsWhenInstalled(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
-	fixture.WriteResourceStub(t, "postgres")
+	writeGoResourceCLIManifest(t, fixture.Root, "postgres")
 	testresource.WriteResourceCLIGoMod(t, fixture.Root, "postgres", "resource-postgres/cli")
 
 	installer := &stubInstaller{}
@@ -328,7 +474,7 @@ func TestEnsureResourceCLISkipsWhenInstalled(t *testing.T) {
 func TestEnsureResourceCLIInstallsWhenMetadataMissing(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
-	fixture.WriteResourceStub(t, "postgres")
+	writeGoResourceCLIManifest(t, fixture.Root, "postgres")
 	testresource.WriteResourceCLIGoMod(t, fixture.Root, "postgres", "resource-postgres/cli")
 
 	installer := &stubInstaller{}
@@ -354,7 +500,7 @@ func TestEnsureResourceCLIInstallsWhenMetadataMissing(t *testing.T) {
 func TestEnsureResourceCLIReinstallsWhenFingerprintStale(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
-	fixture.WriteResourceStub(t, "postgres")
+	writeGoResourceCLIManifest(t, fixture.Root, "postgres")
 	testresource.WriteResourceCLIGoMod(t, fixture.Root, "postgres", "resource-postgres/cli")
 
 	installer := &stubInstaller{}
@@ -377,6 +523,28 @@ func TestEnsureResourceCLIReinstallsWhenFingerprintStale(t *testing.T) {
 	}
 	if len(installer.calls) != 1 {
 		t.Fatalf("install calls = %d, want 1", len(installer.calls))
+	}
+}
+
+func TestEnsureResourceCLIShellScriptInstallsWhenMissing(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	writeShellResourceCLIManifest(t, fixture.Root, "postgres")
+	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("resources", "postgres", "cli", "resource-postgres"), "#!/usr/bin/env bash\nexit 0\n")
+	testkitgo.WriteRelativeExecutable(t, fixture.Root, filepath.Join("resources", "postgres", "cli", "install.sh"), "#!/usr/bin/env bash\nexit 0\n")
+
+	installer := &stubInstaller{}
+	manager := NewManager(fixture.Root, fixture.Home)
+	manager.Installer = installer
+
+	if err := manager.EnsureResourceCLI("postgres"); err != nil {
+		t.Fatalf("EnsureResourceCLI: %v", err)
+	}
+	if len(installer.calls) != 1 {
+		t.Fatalf("install calls = %d, want 1", len(installer.calls))
+	}
+	if installer.calls[0].item.CLI == nil || installer.calls[0].item.CLI.Adapter.Kind != "shell_script" {
+		t.Fatalf("expected shell_script install item, got %+v", installer.calls[0].item)
 	}
 }
 

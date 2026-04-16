@@ -3,6 +3,14 @@
   "name": "browserless",
   "display_name": "Browserless Chrome",
   "description": "Remote browser automation service for UI testing and browser-driven scenarios.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-browserless",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    }
+  },
   "template": "docker-service",
   "driver": "docker-service",
   "portability_tier": "full",

@@ -8,10 +8,11 @@ import (
 	"strings"
 	"testing"
 
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 )
 
-func TestEnabledResourcesUseGoNativeCLIContract(t *testing.T) {
+func TestEnabledResourcesDeclareExplicitCLIContract(t *testing.T) {
 	root := testkitgo.ProjectRoot(t)
 
 	data, err := os.ReadFile(filepath.Join(root, ".vrooli", "service.json"))
@@ -40,17 +41,20 @@ func TestEnabledResourcesUseGoNativeCLIContract(t *testing.T) {
 
 	for _, name := range enabled {
 		t.Run(name, func(t *testing.T) {
-			for _, rel := range []string{
-				filepath.Join("resources", name, "cli", "go.mod"),
-				filepath.Join("resources", name, "cli", "go.sum"),
-				filepath.Join("resources", name, "cli", "main.go"),
-				filepath.Join("resources", name, "cli", "install.sh"),
-				filepath.Join("resources", name, "cli", "install.ps1"),
-			} {
-				if _, err := os.Stat(filepath.Join(root, rel)); err != nil {
-					t.Fatalf("expected %s: %v", rel, err)
-				}
+			manifest, err := manifestpkg.Load(filepath.Join(root, "resources", name, "resource.json"))
+			if err != nil {
+				t.Fatalf("load manifest: %v", err)
 			}
+			if manifest.CLI == nil {
+				t.Fatal("expected explicit cli block")
+			}
+			if !manifest.CLI.Enabled {
+				t.Fatal("expected enabled resource to declare cli.enabled=true")
+			}
+			if got, want := manifest.CLI.Command, "resource-"+name; got != want {
+				t.Fatalf("cli.command = %q, want %q", got, want)
+			}
+			requireDeclaredCLIAssets(t, root, name, manifest)
 			if _, err := os.Stat(filepath.Join(root, "resources", name, "cli.sh")); !os.IsNotExist(err) {
 				t.Fatalf("expected root-level cli.sh removal for %s, stat err=%v", name, err)
 			}
@@ -78,5 +82,38 @@ func TestResourceShellInstallHelpersAreRemoved(t *testing.T) {
 	root := testkitgo.ProjectRoot(t)
 	if _, err := os.Stat(filepath.Join(root, "scripts", "lib", "resources")); !os.IsNotExist(err) {
 		t.Fatalf("expected scripts/lib/resources removal, stat err=%v", err)
+	}
+}
+
+func requireDeclaredCLIAssets(t *testing.T, root, name string, manifest manifestpkg.ResourceManifest) {
+	t.Helper()
+
+	base := filepath.Join(root, "resources", name)
+	switch manifest.CLI.Adapter.Kind {
+	case "go_module":
+		if got := manifest.CLI.Adapter.ModuleDir; got != "cli" {
+			t.Fatalf("cli.adapter.module_dir = %q, want cli", got)
+		}
+		moduleDir := filepath.Join(base, filepath.FromSlash(manifest.CLI.Adapter.ModuleDir))
+		requireFile(t, filepath.Join(moduleDir, "go.mod"))
+		entries, err := filepath.Glob(filepath.Join(moduleDir, "*.go"))
+		if err != nil {
+			t.Fatalf("glob Go sources in %s: %v", moduleDir, err)
+		}
+		if len(entries) == 0 {
+			t.Fatalf("expected Go sources under %s for go_module adapter", moduleDir)
+		}
+	case "shell_script":
+		requireFile(t, filepath.Join(base, filepath.FromSlash(manifest.CLI.Adapter.ScriptPath)))
+		requireFile(t, filepath.Join(base, filepath.FromSlash(manifest.CLI.Adapter.InstallScript)))
+	default:
+		t.Fatalf("unsupported cli.adapter.kind %q", manifest.CLI.Adapter.Kind)
+	}
+}
+
+func requireFile(t *testing.T, path string) {
+	t.Helper()
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("expected %s: %v", path, err)
 	}
 }

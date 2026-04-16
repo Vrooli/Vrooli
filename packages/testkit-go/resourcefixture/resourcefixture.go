@@ -13,6 +13,7 @@ import (
 	hostreqspec "github.com/vrooli/vrooli/internal/hostreqspec"
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	"github.com/vrooli/vrooli/internal/scenario"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 	"github.com/vrooli/vrooli/packages/testkit-go/internal/displayname"
 )
@@ -44,6 +45,7 @@ func ResourceManifest(name string, opts ...ResourceManifestOption) manifestpkg.R
 		Name:            name,
 		DisplayName:     displayname.Default(name),
 		Description:     fmt.Sprintf("%s fixture", displayname.Default(name)),
+		CLI:             defaultResourceCLIConfig(name),
 		Driver:          "external-cli",
 		Template:        "external-cli",
 		Binary:          "bash",
@@ -225,6 +227,9 @@ func WriteResourceManifest(t *testing.T, root, name string, manifest manifestpkg
 	if strings.TrimSpace(manifest.Name) == "" {
 		manifest.Name = name
 	}
+	if manifest.CLI == nil {
+		manifest.CLI = defaultResourceCLIConfig(name)
+	}
 	testkitgo.WriteJSON(t, manifestpkg.DefaultPath(root, name), manifest)
 }
 
@@ -257,6 +262,17 @@ func ReadResourceManifest(t *testing.T, root, name string) manifestpkg.ResourceM
 func WriteResourceCLI(t *testing.T, root, name, contents string) string {
 	t.Helper()
 	return testkitgo.WriteRelativeExecutable(t, root, filepath.Join("resources", name, "cli.sh"), contents)
+}
+
+func defaultResourceCLIConfig(name string) *scenario.CLIConfig {
+	return &scenario.CLIConfig{
+		Enabled: true,
+		Command: "resource-" + strings.TrimSpace(name),
+		Adapter: scenario.CLIAdapterConfig{
+			Kind:      "go_module",
+			ModuleDir: "cli",
+		},
+	}
 }
 
 func WriteExternalCLIResourceFixture(t *testing.T, root, name, script string, opts ...ResourceManifestOption) string {

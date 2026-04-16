@@ -3,6 +3,14 @@
   "name": "openrouter",
   "display_name": "OpenRouter API",
   "description": "Hosted OpenRouter API gateway for access to multiple model providers.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-openrouter",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    }
+  },
   "template": "cloud-api",
   "driver": "cloud-api",
   "endpoint": "https://openrouter.ai/api/v1/models",

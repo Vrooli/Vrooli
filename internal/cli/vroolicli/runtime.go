@@ -356,10 +356,24 @@ func (app *App) ensureScenarioCLI(ctx *CommandContext, name string) error {
 	if err != nil {
 		return err
 	}
+	manager := cliinstall.NewManager(ctx.Root, home)
+	preStatus, _ := manager.InspectScenarioCLIInstallLocation(name, app.LookPathFn)
 	if app.EnsureScenarioCLIFn != nil {
-		return app.EnsureScenarioCLIFn(ctx.Root, home, name)
+		if err := app.EnsureScenarioCLIFn(ctx.Root, home, name); err != nil {
+			return err
+		}
+	} else {
+		if err := manager.EnsureScenarioCLI(name); err != nil {
+			return err
+		}
 	}
-	return cliinstall.NewManager(ctx.Root, home).EnsureScenarioCLI(name)
+	postStatus, inspectErr := manager.InspectScenarioCLIInstallLocation(name, app.LookPathFn)
+	if inspectErr == nil {
+		if warning := formatScenarioCLIInstallWarning(preStatus, postStatus); warning != "" {
+			_, _ = fmt.Fprint(ctx.Stderr, warning)
+		}
+	}
+	return nil
 }
 
 func (app *App) ensureResourceCLI(ctx *CommandContext, name string) error {
@@ -426,6 +440,52 @@ func (app *App) LaunchDetachedScenario(root string, globals rootcli.GlobalOption
 
 func commandStdout(ctx *CommandContext) io.Writer {
 	return ctx.Stdout
+}
+
+func formatScenarioCLIInstallWarning(before, after cliinstall.InstallLocationStatus) string {
+	command := strings.TrimSpace(after.Command)
+	if command == "" {
+		command = strings.TrimSpace(before.Command)
+	}
+	if command == "" {
+		return ""
+	}
+
+	var lines []string
+	switch {
+	case before.PathMismatch() && after.CanonicalExists && after.ResolvedCanonical:
+		lines = append(lines,
+			fmt.Sprintf("[WARN] %s previously resolved to a non-canonical CLI path.", command),
+			fmt.Sprintf("  previous: %s", before.ResolvedPath),
+			fmt.Sprintf("  canonical: %s", after.CanonicalPath),
+			"  The canonical CLI install has been ensured.",
+			"  If your current shell continues to invoke the previous path, refresh command lookup:",
+			"    hash -r",
+			"",
+		)
+	case after.PathMismatch():
+		lines = append(lines,
+			fmt.Sprintf("[WARN] %s resolves to a non-canonical CLI path.", command),
+			fmt.Sprintf("  resolved: %s", after.ResolvedPath),
+			fmt.Sprintf("  canonical: %s", after.CanonicalPath),
+			"  The command on your PATH may not match the managed install.",
+			"  Recommended fixes:",
+			"    hash -r",
+			"    ensure ~/.vrooli/bin appears before other install directories on PATH",
+			"",
+		)
+	case after.CanonicalExists && !after.Resolved:
+		lines = append(lines,
+			fmt.Sprintf("[WARN] %s is installed canonically but is not currently resolvable on PATH.", command),
+			fmt.Sprintf("  canonical: %s", after.CanonicalPath),
+			"  Add ~/.vrooli/bin to PATH or invoke the canonical binary directly.",
+			"",
+		)
+	}
+	if len(lines) == 0 {
+		return ""
+	}
+	return strings.Join(lines, "\n") + "\n"
 }
 
 func projectOutputFormat(ctx *CommandContext) (cliout.Format, error) {

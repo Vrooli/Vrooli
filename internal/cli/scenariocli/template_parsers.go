@@ -12,8 +12,9 @@ import (
 type TemplateCommandID string
 
 const (
-	TemplateCommandList TemplateCommandID = "list"
-	TemplateCommandShow TemplateCommandID = "show"
+	TemplateCommandList     TemplateCommandID = "list"
+	TemplateCommandShow     TemplateCommandID = "show"
+	TemplateCommandValidate TemplateCommandID = "validate"
 )
 
 func templateCommandSpecs() []commandtree.Spec[TemplateCommandID] {
@@ -30,6 +31,11 @@ func templateCommandSpecs() []commandtree.Spec[TemplateCommandID] {
 				Positionals: []commandtree.PositionalArg{{Name: "template name", Required: true}},
 			},
 			Handler: TemplateCommandShow,
+		},
+		{
+			Name:    string(TemplateCommandValidate),
+			Summary: "Validate scenario templates",
+			Handler: TemplateCommandValidate,
 		},
 	}
 }
@@ -63,6 +69,13 @@ func ParseTemplateShowRequest(args []string) (TemplateShowRequest, error) {
 		return TemplateShowRequest{}, err
 	}
 	return TemplateShowRequest{Name: parsed.Positionals[0]}, nil
+}
+
+func ParseTemplateValidateRequest(args []string) (TemplateValidateRequest, error) {
+	if _, err := commandtree.ParseArgs("scenario template validate", TemplateCommandHelpText(), templateCommandSpec(TemplateCommandValidate).Args, args); err != nil {
+		return TemplateValidateRequest{}, err
+	}
+	return TemplateValidateRequest{}, nil
 }
 
 func ParseGenerateRequest(

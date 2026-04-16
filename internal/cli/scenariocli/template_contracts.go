@@ -49,9 +49,10 @@ type GenerateOptions struct {
 }
 
 type (
-	TemplateListRequest struct{}
-	TemplateShowRequest struct{ Name string }
-	GenerateRequest     struct {
+	TemplateListRequest     struct{}
+	TemplateShowRequest     struct{ Name string }
+	TemplateValidateRequest struct{}
+	GenerateRequest         struct {
 		TemplateInfo TemplateInfo
 		Options      GenerateOptions
 	}
@@ -65,6 +66,17 @@ type GenerateResult struct {
 	Manifest     TemplateManifest
 	DryRun       bool
 	RunHooks     bool
+}
+
+type TemplateValidationIssue struct {
+	Template string `json:"template"`
+	Path     string `json:"path,omitempty"`
+	Message  string `json:"message"`
+}
+
+type TemplateValidationReport struct {
+	Count  int                       `json:"count"`
+	Issues []TemplateValidationIssue `json:"issues,omitempty"`
 }
 
 func RenderTemplateListResponse(w io.Writer, format cliout.Format, templates []TemplateInfo) error {
@@ -157,6 +169,25 @@ func RenderGenerateResponse(w io.Writer, format cliout.Format, result GenerateRe
 	WriteTemplateNextSteps(w, result.Destination, result.Manifest)
 	if !result.RunHooks {
 		WriteTemplateHooks(w, result.Manifest)
+	}
+	return nil
+}
+
+func RenderTemplateValidateResponse(w io.Writer, format cliout.Format, report TemplateValidationReport) error {
+	if format == cliout.FormatJSON {
+		return cliout.WriteSuccessJSON(w, "report", report)
+	}
+	if len(report.Issues) == 0 {
+		_, _ = fmt.Fprintf(w, "Validated %d scenario templates\n", report.Count)
+		return nil
+	}
+	_, _ = fmt.Fprintf(w, "Scenario template validation failed (%d templates checked)\n", report.Count)
+	for _, issue := range report.Issues {
+		line := issue.Template
+		if strings.TrimSpace(issue.Path) != "" {
+			line += " [" + issue.Path + "]"
+		}
+		_, _ = fmt.Fprintf(w, "  - %s: %s\n", line, issue.Message)
 	}
 	return nil
 }

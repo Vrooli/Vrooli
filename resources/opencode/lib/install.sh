@@ -180,6 +180,11 @@ opencode::install::write_shim() {
 cat >"${shim_path}" <<EOF
 #!/usr/bin/env bash
 VROOLI_ROOT="${VROOLI_ROOT}"
+export RESOURCE_CONFIG_DIR="\${RESOURCE_CONFIG_DIR:-\${XDG_CONFIG_HOME:-\${HOME}/.config}/vrooli/resources/opencode}"
+export RESOURCE_DATA_DIR="\${RESOURCE_DATA_DIR:-\${XDG_DATA_HOME:-\${HOME}/.local/share}/vrooli/resources/opencode}"
+export RESOURCE_CACHE_DIR="\${RESOURCE_CACHE_DIR:-\${XDG_CACHE_HOME:-\${HOME}/.cache}/vrooli/resources/opencode}"
+export RESOURCE_LOGS_DIR="\${RESOURCE_LOGS_DIR:-\${XDG_STATE_HOME:-\${HOME}/.local/state}/logs/vrooli/resources/opencode}"
+export RESOURCE_STATE_DIR="\${RESOURCE_STATE_DIR:-\${XDG_STATE_HOME:-\${HOME}/.local/state}/vrooli/resources/opencode}"
 # shellcheck disable=SC1090
 source "${OPENCODE_DIR}/lib/common.sh"
 opencode::run_cli "\$@"

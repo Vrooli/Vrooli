@@ -23,7 +23,6 @@ import (
 	"github.com/vrooli/vrooli/internal/projectstate"
 	"github.com/vrooli/vrooli/internal/resources"
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
-	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 	testpackage "github.com/vrooli/vrooli/packages/testkit-go/packagefixture"
@@ -769,37 +768,77 @@ func TestFileDependencySpecsIgnoresNonDependencyTopLevelFields(t *testing.T) {
 func TestEnsureScenarioDatabaseUsesPostgresResourceLibs(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-
 	testresource.WritePortRegistry(t, root, nil)
-	testresource.WriteResourceManifest(t, root, "postgres", manifestpkg.ResourceManifest{
-		Name:            "postgres",
-		Driver:          "docker-service",
-		PortabilityTier: "full",
-		Runtime: manifestpkg.ResourceRuntime{
-			Image:         "postgres:16-alpine",
-			ContainerName: "vrooli-postgres-main",
-		},
-	})
+
 	binDir := t.TempDir()
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	dockerScript := `#!/usr/bin/env bash
+	psqlScript := `#!/usr/bin/env bash
 set -euo pipefail
-printf '%s\n' "$*" >> "` + filepath.Join(root, "psql.log") + `"
-if [[ "$*" == *"SELECT 1 FROM pg_database"* ]]; then
-  exit 0
-fi
+state_file="` + filepath.Join(root, "bootstrap-state.txt") + `"
+db_file="` + filepath.Join(root, "db-created.txt") + `"
+sql=""
+file=""
 for ((i=1; i<=$#; i++)); do
   if [[ "${!i}" == "-c" ]]; then
     next=$((i+1))
-    printf '%s\n' "${!next}" >> "` + filepath.Join(root, "create.txt") + `"
+    sql="${!next}"
+  fi
+  if [[ "${!i}" == "-f" ]]; then
+    next=$((i+1))
+    file="${!next}"
   fi
 done
-if [[ "$*" == *" -i "* ]]; then
-  cat >> "` + filepath.Join(root, "files.txt") + `"
-  printf '\n--EOF--\n' >> "` + filepath.Join(root, "files.txt") + `"
+printf '%s\n' "$*" >> "` + filepath.Join(root, "psql.log") + `"
+if [[ -n "$sql" && "$sql" == *"SELECT 1 FROM pg_database"* ]]; then
+  if [[ -f "$db_file" ]]; then
+    printf '1\n'
+  fi
+  exit 0
+fi
+if [[ -n "$sql" && "$sql" == *"CREATE DATABASE"* ]]; then
+  printf '%s\n' "$sql" >> "` + filepath.Join(root, "create.txt") + `"
+  : > "$db_file"
+  exit 0
+fi
+if [[ -n "$sql" && "$sql" == *"CREATE TABLE IF NOT EXISTS vrooli_bootstrap_artifacts"* ]]; then
+  exit 0
+fi
+if [[ -n "$sql" && "$sql" == *"SELECT checksum FROM vrooli_bootstrap_artifacts"* ]]; then
+  compact="$(printf '%s' "$sql" | tr '\n' ' ')"
+  key="$(printf '%s' "$compact" | sed -n "s/.*scenario_slug = '\\([^']*\\)'.*artifact_kind = '\\([^']*\\)'.*artifact_name = '\\([^']*\\)'.*/\\1|\\2|\\3/p")"
+  if [[ -n "$key" && -f "$state_file" ]]; then
+    value="$(grep "^$key|" "$state_file" | tail -n 1 | cut -d'|' -f4 || true)"
+    if [[ -n "$value" ]]; then
+      printf '%s\n' "$value"
+    fi
+  fi
+  exit 0
+fi
+if [[ -n "$sql" && "$sql" == *"INSERT INTO vrooli_bootstrap_artifacts"* ]]; then
+  compact="$(printf '%s' "$sql" | tr '\n' ' ')"
+  mapfile -t quoted < <(printf '%s' "$compact" | grep -o "'[^']*'" | sed "s/'//g")
+  record=""
+  if [[ ${#quoted[@]} -ge 4 ]]; then
+    record="${quoted[0]}|${quoted[1]}|${quoted[2]}|${quoted[3]}"
+  fi
+  if [[ -n "$record" ]]; then
+    key="$(printf '%s' "$record" | cut -d'|' -f1-3)"
+    tmp="${state_file}.tmp"
+    if [[ -f "$state_file" ]]; then
+      grep -v "^$key|" "$state_file" > "$tmp" || true
+    else
+      : > "$tmp"
+    fi
+    printf '%s\n' "$record" >> "$tmp"
+    mv "$tmp" "$state_file"
+  fi
+  exit 0
+fi
+if [[ -n "$file" ]]; then
+  basename "$file" >> "` + filepath.Join(root, "files.txt") + `"
 fi
 `
-	testkitgo.WriteExecutable(t, filepath.Join(binDir, "docker"), dockerScript)
+	testkitgo.WriteExecutable(t, filepath.Join(binDir, "psql"), psqlScript)
 
 	scenarioPath := filepath.Join(root, "scenarios", "alpha")
 	if err := os.MkdirAll(filepath.Join(scenarioPath, "initialization", "postgres"), 0o755); err != nil {
@@ -820,6 +859,9 @@ fi
 	if err := runner.ensureScenarioDatabase(item, map[string]string{"POSTGRES_DB": "alpha_db"}, io.Discard); err != nil {
 		t.Fatalf("ensureScenarioDatabase: %v", err)
 	}
+	if err := runner.ensureScenarioDatabase(item, map[string]string{"POSTGRES_DB": "alpha_db"}, io.Discard); err != nil {
+		t.Fatalf("ensureScenarioDatabase second run: %v", err)
+	}
 
 	createData, err := os.ReadFile(filepath.Join(root, "create.txt"))
 	if err != nil {
@@ -833,8 +875,172 @@ fi
 	if err != nil {
 		t.Fatalf("read files.txt: %v", err)
 	}
-	if got := string(schemaData); got != "create table if not exists test();\n\n--EOF--\n-- migration\n\n--EOF--\n" {
+	if got := string(schemaData); got != "schema.sql\nmigration_001.sql\n" {
 		t.Fatalf("files.txt = %q", got)
+	}
+}
+
+func TestApplyPostgresArtifactReappliesSchemaWhenChecksumChanges(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testresource.WritePortRegistry(t, root, nil)
+	binDir := t.TempDir()
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	psqlScript := `#!/usr/bin/env bash
+set -euo pipefail
+state_file="` + filepath.Join(root, "bootstrap-state.txt") + `"
+sql=""
+file=""
+for ((i=1; i<=$#; i++)); do
+  if [[ "${!i}" == "-c" ]]; then
+    next=$((i+1))
+    sql="${!next}"
+  fi
+  if [[ "${!i}" == "-f" ]]; then
+    next=$((i+1))
+    file="${!next}"
+  fi
+done
+if [[ -n "$sql" && "$sql" == *"CREATE TABLE IF NOT EXISTS vrooli_bootstrap_artifacts"* ]]; then
+  exit 0
+fi
+if [[ -n "$sql" && "$sql" == *"SELECT checksum FROM vrooli_bootstrap_artifacts"* ]]; then
+  compact="$(printf '%s' "$sql" | tr '\n' ' ')"
+  key="$(printf '%s' "$compact" | sed -n "s/.*scenario_slug = '\\([^']*\\)'.*artifact_kind = '\\([^']*\\)'.*artifact_name = '\\([^']*\\)'.*/\\1|\\2|\\3/p")"
+  if [[ -n "$key" && -f "$state_file" ]]; then
+    value="$(grep "^$key|" "$state_file" | tail -n 1 | cut -d'|' -f4 || true)"
+    if [[ -n "$value" ]]; then
+      printf '%s\n' "$value"
+    fi
+  fi
+  exit 0
+fi
+if [[ -n "$sql" && "$sql" == *"INSERT INTO vrooli_bootstrap_artifacts"* ]]; then
+  compact="$(printf '%s' "$sql" | tr '\n' ' ')"
+  mapfile -t quoted < <(printf '%s' "$compact" | grep -o "'[^']*'" | sed "s/'//g")
+  record=""
+  if [[ ${#quoted[@]} -ge 4 ]]; then
+    record="${quoted[0]}|${quoted[1]}|${quoted[2]}|${quoted[3]}"
+  fi
+  key="$(printf '%s' "$record" | cut -d'|' -f1-3)"
+  tmp="${state_file}.tmp"
+  if [[ -f "$state_file" ]]; then
+    grep -v "^$key|" "$state_file" > "$tmp" || true
+  else
+    : > "$tmp"
+  fi
+  printf '%s\n' "$record" >> "$tmp"
+  mv "$tmp" "$state_file"
+  exit 0
+fi
+if [[ -n "$file" ]]; then
+  basename "$file" >> "` + filepath.Join(root, "files.txt") + `"
+fi
+`
+	testkitgo.WriteExecutable(t, filepath.Join(binDir, "psql"), psqlScript)
+
+	runner, err := NewRunner(root, home, io.Discard, io.Discard)
+	if err != nil {
+		t.Fatalf("NewRunner: %v", err)
+	}
+	if err := runner.ensurePostgresBootstrapRegistry(map[string]string{}, "alpha_db", io.Discard); err != nil {
+		t.Fatalf("ensurePostgresBootstrapRegistry: %v", err)
+	}
+
+	schemaPath := filepath.Join(root, "schema.sql")
+	testkitgo.WriteFile(t, schemaPath, "create table if not exists alpha();\n")
+	if err := runner.applyPostgresArtifact("alpha", map[string]string{}, "alpha_db", bootstrapArtifactKindSchema, schemaPath, io.Discard); err != nil {
+		t.Fatalf("apply schema first pass: %v", err)
+	}
+
+	testkitgo.WriteFile(t, schemaPath, "create table if not exists alpha();\ncreate table if not exists beta();\n")
+	if err := runner.applyPostgresArtifact("alpha", map[string]string{}, "alpha_db", bootstrapArtifactKindSchema, schemaPath, io.Discard); err != nil {
+		t.Fatalf("apply schema second pass: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(root, "files.txt"))
+	if err != nil {
+		t.Fatalf("read files.txt: %v", err)
+	}
+	if got := string(data); got != "schema.sql\nschema.sql\n" {
+		t.Fatalf("files.txt = %q", got)
+	}
+}
+
+func TestApplyPostgresArtifactRejectsChangedMigrationChecksum(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testresource.WritePortRegistry(t, root, nil)
+	binDir := t.TempDir()
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	psqlScript := `#!/usr/bin/env bash
+set -euo pipefail
+state_file="` + filepath.Join(root, "bootstrap-state.txt") + `"
+sql=""
+file=""
+for ((i=1; i<=$#; i++)); do
+  if [[ "${!i}" == "-c" ]]; then
+    next=$((i+1))
+    sql="${!next}"
+  fi
+  if [[ "${!i}" == "-f" ]]; then
+    next=$((i+1))
+    file="${!next}"
+  fi
+done
+if [[ -n "$sql" && "$sql" == *"CREATE TABLE IF NOT EXISTS vrooli_bootstrap_artifacts"* ]]; then
+  exit 0
+fi
+if [[ -n "$sql" && "$sql" == *"SELECT checksum FROM vrooli_bootstrap_artifacts"* ]]; then
+  compact="$(printf '%s' "$sql" | tr '\n' ' ')"
+  key="$(printf '%s' "$compact" | sed -n "s/.*scenario_slug = '\\([^']*\\)'.*artifact_kind = '\\([^']*\\)'.*artifact_name = '\\([^']*\\)'.*/\\1|\\2|\\3/p")"
+  if [[ -n "$key" && -f "$state_file" ]]; then
+    value="$(grep "^$key|" "$state_file" | tail -n 1 | cut -d'|' -f4 || true)"
+    if [[ -n "$value" ]]; then
+      printf '%s\n' "$value"
+    fi
+  fi
+  exit 0
+fi
+if [[ -n "$sql" && "$sql" == *"INSERT INTO vrooli_bootstrap_artifacts"* ]]; then
+  compact="$(printf '%s' "$sql" | tr '\n' ' ')"
+  mapfile -t quoted < <(printf '%s' "$compact" | grep -o "'[^']*'" | sed "s/'//g")
+  record=""
+  if [[ ${#quoted[@]} -ge 4 ]]; then
+    record="${quoted[0]}|${quoted[1]}|${quoted[2]}|${quoted[3]}"
+  fi
+  printf '%s\n' "$record" >> "$state_file"
+  exit 0
+fi
+if [[ -n "$file" ]]; then
+  basename "$file" >> "` + filepath.Join(root, "files.txt") + `"
+fi
+`
+	testkitgo.WriteExecutable(t, filepath.Join(binDir, "psql"), psqlScript)
+
+	runner, err := NewRunner(root, home, io.Discard, io.Discard)
+	if err != nil {
+		t.Fatalf("NewRunner: %v", err)
+	}
+	if err := runner.ensurePostgresBootstrapRegistry(map[string]string{}, "alpha_db", io.Discard); err != nil {
+		t.Fatalf("ensurePostgresBootstrapRegistry: %v", err)
+	}
+
+	migrationPath := filepath.Join(root, "migration_001.sql")
+	testkitgo.WriteFile(t, migrationPath, "-- first\n")
+	if err := runner.applyPostgresArtifact("alpha", map[string]string{}, "alpha_db", bootstrapArtifactKindMigration, migrationPath, io.Discard); err != nil {
+		t.Fatalf("apply migration first pass: %v", err)
+	}
+
+	testkitgo.WriteFile(t, migrationPath, "-- changed\n")
+	err = runner.applyPostgresArtifact("alpha", map[string]string{}, "alpha_db", bootstrapArtifactKindMigration, migrationPath, io.Discard)
+	if err == nil {
+		t.Fatalf("expected changed migration checksum to fail")
+	}
+	if !strings.Contains(err.Error(), "different checksum") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
@@ -1137,6 +1343,117 @@ func TestCLINeedsSetupDetectsMissingAndStaleBinary(t *testing.T) {
 	}
 	if !needed || reason != "CLI not installed: fixture-cli" {
 		t.Fatalf("stale binary => needed=%v reason=%q", needed, reason)
+	}
+}
+
+func TestCLINeedsSetupUsesDeclaredGoModuleDir(t *testing.T) {
+	appRoot := "/app"
+	probe := newFakeHostProbe()
+	probe.addDir(appRoot, time.Unix(10, 0))
+	item := scenario.Scenario{
+		Slug: "alpha",
+		Path: appRoot,
+		Manifest: scenario.ServiceManifest{
+			Service: scenario.ServiceMetadata{Name: "alpha"},
+			CLI: &scenario.CLIConfig{
+				Enabled: true,
+				Command: "fixture-cli",
+				Adapter: scenario.CLIAdapterConfig{
+					Kind:      "go_module",
+					ModuleDir: "tools/cli",
+				},
+			},
+		},
+	}
+
+	moduleDir := filepath.Join(appRoot, "tools", "cli")
+	cliPath := "/bin/fixture-cli"
+	old := time.Unix(100, 0)
+	now := time.Unix(200, 0)
+	future := time.Unix(300, 0)
+	probe.addDir(filepath.Join(appRoot, "tools"), old)
+	probe.addDir(moduleDir, old)
+	probe.addFile(filepath.Join(moduleDir, "main.go"), old, 0o644, []byte("package main\n"))
+	probe.addFile(cliPath, now, 0o755, []byte("#!/usr/bin/env bash\nexit 0\n"))
+	probe.lookPath["fixture-cli"] = cliPath
+
+	needed, reason, err := cliNeedsSetupWithDeps(item, scenario.ConditionCheck{}, probe.deps())
+	if err != nil {
+		t.Fatalf("cliNeedsSetup fresh binary: %v", err)
+	}
+	if needed {
+		t.Fatalf("expected fresh CLI binary to satisfy setup, reason=%q", reason)
+	}
+
+	probe.addFile(filepath.Join(moduleDir, "main.go"), future, 0o644, []byte("package main\n"))
+	needed, reason, err = cliNeedsSetupWithDeps(item, scenario.ConditionCheck{}, probe.deps())
+	if err != nil {
+		t.Fatalf("cliNeedsSetup stale binary: %v", err)
+	}
+	if !needed || reason != "CLI not installed: fixture-cli" {
+		t.Fatalf("stale binary => needed=%v reason=%q", needed, reason)
+	}
+}
+
+func TestCLINeedsSetupUsesShellScriptFreshnessInputs(t *testing.T) {
+	appRoot := "/app"
+	probe := newFakeHostProbe()
+	probe.addDir(appRoot, time.Unix(10, 0))
+	item := scenario.Scenario{
+		Slug: "alpha",
+		Path: appRoot,
+		Manifest: scenario.ServiceManifest{
+			Service: scenario.ServiceMetadata{Name: "alpha"},
+			CLI: &scenario.CLIConfig{
+				Enabled: true,
+				Command: "fixture-cli",
+				Adapter: scenario.CLIAdapterConfig{
+					Kind:          "shell_script",
+					ScriptPath:    "tools/fixture-cli",
+					InstallScript: "tools/install.sh",
+				},
+				Freshness: &scenario.CLIFreshnessCheck{
+					Inputs: []string{"tools/manifest.json"},
+				},
+			},
+		},
+	}
+
+	cliPath := "/bin/fixture-cli"
+	old := time.Unix(100, 0)
+	now := time.Unix(200, 0)
+	future := time.Unix(300, 0)
+	probe.addDir(filepath.Join(appRoot, "tools"), old)
+	probe.addFile(filepath.Join(appRoot, "tools", "fixture-cli"), old, 0o755, []byte("#!/usr/bin/env bash\nexit 0\n"))
+	probe.addFile(filepath.Join(appRoot, "tools", "install.sh"), old, 0o755, []byte("#!/usr/bin/env bash\nexit 0\n"))
+	probe.addFile(filepath.Join(appRoot, "tools", "manifest.json"), old, 0o644, []byte("{\"version\":1}\n"))
+	probe.addFile(cliPath, now, 0o755, []byte("#!/usr/bin/env bash\nexit 0\n"))
+	probe.lookPath["fixture-cli"] = cliPath
+
+	needed, reason, err := cliNeedsSetupWithDeps(item, scenario.ConditionCheck{}, probe.deps())
+	if err != nil {
+		t.Fatalf("cliNeedsSetup fresh shell CLI: %v", err)
+	}
+	if needed {
+		t.Fatalf("expected fresh shell CLI to satisfy setup, reason=%q", reason)
+	}
+
+	probe.addFile(filepath.Join(appRoot, "tools", "fixture-cli"), future, 0o755, []byte("#!/usr/bin/env bash\necho changed\n"))
+	needed, reason, err = cliNeedsSetupWithDeps(item, scenario.ConditionCheck{}, probe.deps())
+	if err != nil {
+		t.Fatalf("cliNeedsSetup ignored script freshness input: %v", err)
+	}
+	if needed {
+		t.Fatalf("expected non-declared shell script change to be ignored, reason=%q", reason)
+	}
+
+	probe.addFile(filepath.Join(appRoot, "tools", "manifest.json"), future, 0o644, []byte("{\"version\":2}\n"))
+	needed, reason, err = cliNeedsSetupWithDeps(item, scenario.ConditionCheck{}, probe.deps())
+	if err != nil {
+		t.Fatalf("cliNeedsSetup stale shell CLI: %v", err)
+	}
+	if !needed || reason != "CLI not installed: fixture-cli" {
+		t.Fatalf("stale shell CLI => needed=%v reason=%q", needed, reason)
 	}
 }
 

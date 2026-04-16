@@ -3,6 +3,14 @@
   "name": "cloudflare-ai-gateway",
   "display_name": "Cloudflare AI Gateway",
   "description": "Hosted Cloudflare AI Gateway control plane with native credential/status checks and shell-retained gateway configuration actions.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-cloudflare-ai-gateway",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    }
+  },
   "template": "cloud-api",
   "driver": "cloud-api",
   "endpoint": "https://api.cloudflare.com/client/v4/accounts",

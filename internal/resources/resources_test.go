@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -664,6 +665,84 @@ func TestStatusForManifestNativeExternalCLIResource(t *testing.T) {
 	}
 }
 
+func TestStatusForManifestNativeExternalCLIResourceUsesResourceScopedEnvForHealthChecks(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	scriptPath := filepath.Join(root, "fixture-health.sh")
+	expectedDataDir := ""
+	for _, entry := range resourceEnvForResource(root, home, "fixture") {
+		if strings.HasPrefix(entry, "RESOURCE_DATA_DIR=") {
+			expectedDataDir = strings.TrimPrefix(entry, "RESOURCE_DATA_DIR=")
+			break
+		}
+	}
+	if expectedDataDir == "" {
+		t.Fatal("expected RESOURCE_DATA_DIR in resource env")
+	}
+	script := fmt.Sprintf("#!/usr/bin/env bash\nset -euo pipefail\n[[ \"$RESOURCE_DATA_DIR\" == %q ]]\n", expectedDataDir)
+	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("write health script: %v", err)
+	}
+	writeExecutableOnPath(t, "fixture-cli", "#!/usr/bin/env bash\nexit 0\n")
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
+		"fixture",
+		testresource.WithResourceDriver("external-cli"),
+		testresource.WithResourceTemplate("external-cli"),
+		testresource.WithResourceDescription("Fixture external CLI resource"),
+		testresource.WithResourceBinary("fixture-cli"),
+		testresource.WithResourceVersionArgs("--version"),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+			Linux:   "supported",
+			MacOS:   "supported",
+			Windows: "supported",
+		}),
+		testresource.WithResourceHealthChecks(manifestpkg.ResourceHealthCheck{
+			Type:    "command",
+			Command: []string{"bash", scriptPath},
+		}),
+	))
+
+	status, err := NewController(root, home).Status("fixture", false)
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if status.Healthy == nil || !*status.Healthy {
+		t.Fatalf("status = %#v, want healthy", status)
+	}
+}
+
+func TestStatusForManifestNativeExternalCLIResourceMarksUnavailableWhenVersionProbeFails(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	writeExecutableOnPath(t, "fixture-cli", "#!/usr/bin/env bash\nif [[ \"$1\" == \"--version\" ]]; then\n  exit 1\nfi\nexit 0\n")
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
+		"fixture",
+		testresource.WithResourceDriver("external-cli"),
+		testresource.WithResourceTemplate("external-cli"),
+		testresource.WithResourceDescription("Fixture external CLI resource"),
+		testresource.WithResourceBinary("fixture-cli"),
+		testresource.WithResourceVersionArgs("--version"),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+			Linux:   "supported",
+			MacOS:   "supported",
+			Windows: "supported",
+		}),
+	))
+
+	status, err := NewController(root, home).Status("fixture", true)
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if status.StatusCode != StatusCodeUnavailable {
+		t.Fatalf("StatusCode = %q, want %q", status.StatusCode, StatusCodeUnavailable)
+	}
+	if status.Healthy == nil || *status.Healthy {
+		t.Fatalf("Healthy = %#v, want false", status.Healthy)
+	}
+}
+
 func TestRunManifestNativeExternalCLIInstallRejectsUnsupportedAction(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
@@ -699,6 +778,40 @@ func TestRunManifestNativeExternalCLIInstallRejectsUnsupportedAction(t *testing.
 	}
 	if err := controller.Run("fixture", []string{"custom"}, ioDiscard{}, ioDiscard{}); err == nil || !strings.Contains(err.Error(), `action "custom" is not supported`) {
 		t.Fatalf("Run(custom) error = %v", err)
+	}
+}
+
+func TestRunManifestNativeExternalCLIStartInstallsWhenUnavailable(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	installMarker := filepath.Join(root, "install.marker")
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
+		"fixture",
+		testresource.WithResourceDriver("external-cli"),
+		testresource.WithResourceTemplate("external-cli"),
+		testresource.WithResourceDescription("Fixture external CLI resource"),
+		testresource.WithResourceBinary("missing-cli"),
+		testresource.WithResourceVersionArgs("--version"),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+			Linux:   "supported",
+			MacOS:   "supported",
+			Windows: "supported",
+		}),
+		testresource.WithResourceInstall(manifestpkg.ResourceInstall{
+			Platforms: map[string][]string{
+				"linux":   {"sh", "-c", "printf installed > " + shellQuote(installMarker)},
+				"macos":   {"sh", "-c", "printf installed > " + shellQuote(installMarker)},
+				"windows": {"sh", "-c", "printf installed > " + shellQuote(installMarker)},
+			},
+		}),
+	))
+
+	if err := NewController(root, home).Run("fixture", []string{"start"}, ioDiscard{}, ioDiscard{}); err != nil {
+		t.Fatalf("Run(start): %v", err)
+	}
+	if _, err := os.Stat(installMarker); err != nil {
+		t.Fatalf("expected install marker after start: %v", err)
 	}
 }
 

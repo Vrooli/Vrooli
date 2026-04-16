@@ -3,6 +3,14 @@
   "name": "opencode",
   "display_name": "OpenCode",
   "description": "OpenCode CLI resource with native binary/install/status handling and shell-retained higher-level workflows.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-opencode",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    }
+  },
   "template": "external-cli",
   "driver": "external-cli",
   "binary": "opencode",

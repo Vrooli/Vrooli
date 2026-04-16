@@ -3,6 +3,14 @@
   "name": "neo4j",
   "display_name": "Neo4j",
   "description": "Managed Neo4j graph database service with native docker lifecycle and shell-retained graph operations.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-neo4j",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    }
+  },
   "template": "docker-service",
   "driver": "docker-service",
   "portability_tier": "full",

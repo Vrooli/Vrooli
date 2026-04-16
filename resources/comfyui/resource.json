@@ -3,6 +3,9 @@
   "name": "comfyui",
   "display_name": "ComfyUI",
   "description": "Managed ComfyUI workflow service with native lifecycle handling and shell-retained workflow, model, and GPU compatibility commands.",
+  "cli": {
+    "enabled": false
+  },
   "template": "docker-service",
   "driver": "docker-service",
   "portability_tier": "partial",

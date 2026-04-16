@@ -3,6 +3,14 @@
   "name": "claude-code",
   "display_name": "Claude Code CLI",
   "description": "Anthropic's Claude Code CLI for interactive and scripted development workflows.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-claude-code",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    }
+  },
   "template": "external-cli",
   "driver": "external-cli",
   "binary": "claude",

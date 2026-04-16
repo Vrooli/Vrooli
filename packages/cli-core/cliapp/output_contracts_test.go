@@ -50,6 +50,36 @@ func TestRenderOperationalReport(t *testing.T) {
 	assertSectionOrder(t, got, "Status:\n", "Triage:\n", "Next Steps:\n")
 }
 
+func TestRenderOperationalReportMultilineItems(t *testing.T) {
+	var out bytes.Buffer
+	err := RenderOperationalReport(&out, OperationalReport{
+		Status: []string{
+			"Healthy\nVersion: 1.2.3",
+		},
+		Triage: []TriageGroup{
+			{
+				Heading: "Manual review",
+				Items: []string{
+					"Primary issue\nFollow-up detail",
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("RenderOperationalReport: %v", err)
+	}
+
+	got := out.String()
+	for _, needle := range []string{
+		"Status:\n  Healthy\n  Version: 1.2.3\n",
+		"Triage:\n  Manual review:\n    Primary issue\n    Follow-up detail\n",
+	} {
+		if !strings.Contains(got, needle) {
+			t.Fatalf("output missing %q in %q", needle, got)
+		}
+	}
+}
+
 func TestRenderOperationalReportEmptyState(t *testing.T) {
 	var out bytes.Buffer
 	if err := RenderOperationalReport(&out, OperationalReport{}); err != nil {

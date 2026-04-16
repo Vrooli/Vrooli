@@ -14,6 +14,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
+	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioexec"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
@@ -211,5 +212,90 @@ func TestRunVersionDoesNotRequireRootResolution(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "Vrooli CLI v1.0.0") {
 		t.Fatalf("stdout = %q", stdout.String())
+	}
+}
+
+func TestEnsureScenarioCLIWarnsWhenPreviousPathWasNonCanonical(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testkitgo.WriteRepoContract(t, root, "scenarios")
+	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest(
+		"alpha",
+		testscenario.WithCLI(&scenario.CLIConfig{
+			Enabled: true,
+			Command: "alpha",
+			Adapter: scenario.CLIAdapterConfig{
+				Kind:      "go_module",
+				ModuleDir: "cli",
+			},
+			Install: []scenario.CLIInstallStep{{Kind: "command", Run: "cd cli && ./install.sh"}},
+		}),
+	))
+	testkitgo.WriteFile(t, filepath.Join(root, "scenarios", "alpha", "cli", "go.mod"), "module alpha/cli\n")
+
+	app := newRuntimeTestApp(t, root)
+	app.HomeDirFn = func() (string, error) { return home, nil }
+	app.EnsureScenarioCLIFn = func(root, home, name string) error {
+		path := filepath.Join(home, ".vrooli", "bin", name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return err
+		}
+		return os.WriteFile(path, []byte("installed"), 0o755)
+	}
+	lookups := 0
+	nonCanonical := testkitgo.WriteRelativeExecutable(t, home, filepath.Join(".local", "bin", "alpha"), "#!/usr/bin/env bash\nexit 0\n")
+	app.LookPathFn = func(file string) (string, error) {
+		lookups++
+		if lookups == 1 {
+			return nonCanonical, nil
+		}
+		return filepath.Join(home, ".vrooli", "bin", file), nil
+	}
+
+	var stderr bytes.Buffer
+	ctx := &CommandContext{
+		Root:   root,
+		Stdout: io.Discard,
+		Stderr: &stderr,
+		app:    app,
+	}
+	if err := app.ensureScenarioCLI(ctx, "alpha"); err != nil {
+		t.Fatalf("ensureScenarioCLI() error = %v", err)
+	}
+
+	output := stderr.String()
+	for _, want := range []string{
+		"previously resolved to a non-canonical CLI path",
+		nonCanonical,
+		filepath.Join(home, ".vrooli", "bin", "alpha"),
+		"hash -r",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("missing %q in warning %q", want, output)
+		}
+	}
+}
+
+func TestFormatScenarioCLIInstallWarningForPersistentMismatch(t *testing.T) {
+	msg := formatScenarioCLIInstallWarning(
+		cliinstall.InstallLocationStatus{},
+		cliinstall.InstallLocationStatus{
+			Command:           "alpha",
+			CanonicalPath:     "/home/user/.vrooli/bin/alpha",
+			ResolvedPath:      "/home/user/.local/bin/alpha",
+			CanonicalExists:   true,
+			Resolved:          true,
+			ResolvedCanonical: false,
+		},
+	)
+	for _, want := range []string{
+		"alpha resolves to a non-canonical CLI path",
+		"/home/user/.local/bin/alpha",
+		"/home/user/.vrooli/bin/alpha",
+		"hash -r",
+	} {
+		if !strings.Contains(msg, want) {
+			t.Fatalf("missing %q in warning %q", want, msg)
+		}
 	}
 }

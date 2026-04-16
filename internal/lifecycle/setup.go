@@ -2,6 +2,8 @@ package lifecycle
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -76,14 +78,19 @@ func (r *Runner) ensureScenarioDatabase(item scenario.Scenario, env map[string]s
 		r.warnf(logWriter, "Database creation encountered errors: %v", err)
 	}
 
-	schemaFile := filepath.Join(item.Path, "initialization", "postgres", "schema.sql")
+	migrationsDir := filepath.Join(item.Path, "initialization", "postgres")
+	if err := r.ensurePostgresBootstrapRegistry(env, dbName, logWriter); err != nil {
+		r.warnf(logWriter, "Bootstrap registry setup encountered errors: %v", err)
+		return nil
+	}
+
+	schemaFile := filepath.Join(migrationsDir, "schema.sql")
 	if _, err := os.Stat(schemaFile); err == nil {
-		if err := r.executePostgresFile(env, dbName, schemaFile, logWriter); err != nil {
+		if err := r.applyPostgresArtifact(item.Slug, env, dbName, bootstrapArtifactKindSchema, schemaFile, logWriter); err != nil {
 			r.warnf(logWriter, "Schema bootstrap encountered errors: %v", err)
 		}
 	}
 
-	migrationsDir := filepath.Join(item.Path, "initialization", "postgres")
 	pattern := filepath.Join(migrationsDir, "migration_*.sql")
 	migrationFiles, err := filepath.Glob(pattern)
 	if err != nil {
@@ -92,16 +99,129 @@ func (r *Runner) ensureScenarioDatabase(item scenario.Scenario, env map[string]s
 	}
 	sort.Strings(migrationFiles)
 	for _, migrationFile := range migrationFiles {
-		if err := r.executePostgresFile(env, dbName, migrationFile, logWriter); err != nil {
+		if err := r.applyPostgresArtifact(item.Slug, env, dbName, bootstrapArtifactKindMigration, migrationFile, logWriter); err != nil {
 			r.warnf(logWriter, "Migration %s encountered errors: %v", filepath.Base(migrationFile), err)
 		}
 	}
 	return nil
 }
 
+type postgresBootstrapArtifactKind string
+
+const (
+	bootstrapArtifactKindSchema    postgresBootstrapArtifactKind = "schema"
+	bootstrapArtifactKindMigration postgresBootstrapArtifactKind = "migration"
+)
+
+func (r *Runner) ensurePostgresBootstrapRegistry(env map[string]string, dbName string, logWriter io.Writer) error {
+	const sql = `
+CREATE TABLE IF NOT EXISTS vrooli_bootstrap_artifacts (
+    scenario_slug TEXT NOT NULL,
+    artifact_kind TEXT NOT NULL,
+    artifact_name TEXT NOT NULL,
+    checksum TEXT NOT NULL,
+    applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (scenario_slug, artifact_kind, artifact_name)
+);`
+	_, err := r.runPostgresCommand(env, dbName, []string{"-c", sql}, logWriter)
+	return err
+}
+
+func (r *Runner) applyPostgresArtifact(
+	scenarioSlug string,
+	env map[string]string,
+	dbName string,
+	kind postgresBootstrapArtifactKind,
+	filePath string,
+	logWriter io.Writer,
+) error {
+	checksum, err := postgresArtifactChecksum(filePath)
+	if err != nil {
+		return err
+	}
+
+	artifactName := filepath.Base(filePath)
+	appliedChecksum, err := r.lookupPostgresBootstrapArtifact(env, dbName, scenarioSlug, kind, artifactName, logWriter)
+	if err != nil {
+		return err
+	}
+
+	switch kind {
+	case bootstrapArtifactKindSchema:
+		if appliedChecksum == checksum {
+			return nil
+		}
+	case bootstrapArtifactKindMigration:
+		if appliedChecksum == checksum {
+			return nil
+		}
+		if appliedChecksum != "" && appliedChecksum != checksum {
+			return fmt.Errorf("migration %s was already applied with a different checksum; create a new migration instead of editing an existing one", artifactName)
+		}
+	}
+
+	if err := r.executePostgresFile(env, dbName, filePath, logWriter); err != nil {
+		return err
+	}
+	return r.recordPostgresBootstrapArtifact(env, dbName, scenarioSlug, kind, artifactName, checksum, logWriter)
+}
+
+func postgresArtifactChecksum(filePath string) (string, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:]), nil
+}
+
+func (r *Runner) lookupPostgresBootstrapArtifact(
+	env map[string]string,
+	dbName string,
+	scenarioSlug string,
+	kind postgresBootstrapArtifactKind,
+	artifactName string,
+	logWriter io.Writer,
+) (string, error) {
+	sql := fmt.Sprintf(
+		"SELECT checksum FROM vrooli_bootstrap_artifacts WHERE scenario_slug = %s AND artifact_kind = %s AND artifact_name = %s;",
+		quotePostgresLiteral(scenarioSlug),
+		quotePostgresLiteral(string(kind)),
+		quotePostgresLiteral(artifactName),
+	)
+	output, err := r.runPostgresCommand(env, dbName, []string{"-tA", "-c", sql}, io.Discard)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
+func (r *Runner) recordPostgresBootstrapArtifact(
+	env map[string]string,
+	dbName string,
+	scenarioSlug string,
+	kind postgresBootstrapArtifactKind,
+	artifactName string,
+	checksum string,
+	logWriter io.Writer,
+) error {
+	sql := fmt.Sprintf(
+		`INSERT INTO vrooli_bootstrap_artifacts (scenario_slug, artifact_kind, artifact_name, checksum, applied_at)
+VALUES (%s, %s, %s, %s, NOW())
+ON CONFLICT (scenario_slug, artifact_kind, artifact_name)
+DO UPDATE SET checksum = EXCLUDED.checksum, applied_at = EXCLUDED.applied_at;`,
+		quotePostgresLiteral(scenarioSlug),
+		quotePostgresLiteral(string(kind)),
+		quotePostgresLiteral(artifactName),
+		quotePostgresLiteral(checksum),
+	)
+	_, err := r.runPostgresCommand(env, dbName, []string{"-c", sql}, logWriter)
+	return err
+}
+
 func (r *Runner) ensurePostgresDatabaseExists(env map[string]string, dbName string, logWriter io.Writer) error {
 	sql := fmt.Sprintf("SELECT 1 FROM pg_database WHERE datname = %s;", quotePostgresLiteral(dbName))
-	output, err := r.runPostgresCommand(env, "postgres", []string{"-tA", "-c", sql}, logWriter)
+	output, err := r.runPostgresCommand(env, "postgres", []string{"-tA", "-c", sql}, io.Discard)
 	if err != nil {
 		return err
 	}
@@ -120,6 +240,7 @@ func (r *Runner) executePostgresFile(env map[string]string, dbName, filePath str
 
 func (r *Runner) runPostgresCommand(env map[string]string, database string, args []string, logWriter io.Writer) ([]byte, error) {
 	baseArgs := []string{
+		"-q",
 		"-v", "ON_ERROR_STOP=1",
 		"-h", defaultEnv(env, "POSTGRES_HOST", "localhost"),
 		"-p", defaultEnv(env, "POSTGRES_PORT", "5433"),
@@ -131,6 +252,7 @@ func (r *Runner) runPostgresCommand(env map[string]string, database string, args
 	if password := strings.TrimSpace(env["POSTGRES_PASSWORD"]); password != "" {
 		commandEnv = mergeEnv(commandEnv, map[string]string{"PGPASSWORD": password})
 	}
+	commandEnv = mergeEnv(commandEnv, map[string]string{"PGOPTIONS": appendPostgresOption(env["PGOPTIONS"], "--client-min-messages=warning")})
 
 	containerName := postgresContainerName(r.Root)
 	if output, err, ok := r.runPostgresInContainer(containerName, env, database, args, commandEnv, logWriter); ok {
@@ -181,9 +303,13 @@ func (r *Runner) runPostgresInContainer(containerName string, env map[string]str
 	if password := strings.TrimSpace(env["POSTGRES_PASSWORD"]); password != "" {
 		dockerArgs = append(dockerArgs, "-e", "PGPASSWORD="+password)
 	}
+	if pgOptions := postgresClientOptions(commandEnv); pgOptions != "" {
+		dockerArgs = append(dockerArgs, "-e", "PGOPTIONS="+pgOptions)
+	}
 	dockerArgs = append(dockerArgs,
 		containerName,
 		"psql",
+		"-q",
 		"-v", "ON_ERROR_STOP=1",
 		"-h", "localhost",
 		"-p", "5432",
@@ -207,6 +333,26 @@ func (r *Runner) runPostgresInContainer(containerName string, env map[string]str
 		return nil, err, true
 	}
 	return output, nil, true
+}
+
+func appendPostgresOption(existing, option string) string {
+	existing = strings.TrimSpace(existing)
+	if existing == "" {
+		return option
+	}
+	if strings.Contains(existing, option) {
+		return existing
+	}
+	return existing + " " + option
+}
+
+func postgresClientOptions(env []string) string {
+	for _, entry := range env {
+		if value, ok := strings.CutPrefix(entry, "PGOPTIONS="); ok {
+			return value
+		}
+	}
+	return ""
 }
 
 func postgresFileInput(args []string) (io.Reader, []string, error) {

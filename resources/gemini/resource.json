@@ -3,6 +3,14 @@
   "name": "gemini",
   "display_name": "Google Gemini API",
   "description": "Hosted Gemini API integration for multimodal and text generation workloads.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-gemini",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    }
+  },
   "template": "cloud-api",
   "driver": "cloud-api",
   "endpoint": "https://generativelanguage.googleapis.com/v1beta/models",

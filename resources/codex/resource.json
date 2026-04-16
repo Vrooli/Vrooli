@@ -3,6 +3,14 @@
   "name": "codex",
   "display_name": "OpenAI Codex CLI",
   "description": "OpenAI Codex CLI for local code generation and agentic engineering workflows.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-codex",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    }
+  },
   "template": "external-cli",
   "driver": "external-cli",
   "binary": "codex",

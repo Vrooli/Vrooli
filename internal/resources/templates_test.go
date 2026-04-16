@@ -71,13 +71,309 @@ func TestGenerateResourceTemplateIncludesNativeCLIAndStorageSafeManifest(t *test
 	if !strings.Contains(cliMain, "cliapp.NewResourceApp") {
 		t.Fatalf("cli/main.go missing ResourceApp scaffold: %s", cliMain)
 	}
+	cliGoMod := readTestFile(t, filepath.Join(dest, "cli", "go.mod"))
+	if !strings.Contains(cliGoMod, "module resource-demo-db/cli") {
+		t.Fatalf("cli/go.mod missing rendered module path: %s", cliGoMod)
+	}
+	installSh := readTestFile(t, filepath.Join(dest, "cli", "install.sh"))
+	if !strings.Contains(installSh, "resources/demo-db/cli") || !strings.Contains(installSh, "--name \"resource-demo-db\"") {
+		t.Fatalf("cli/install.sh missing canonical install wiring: %s", installSh)
+	}
+	installPS1 := readTestFile(t, filepath.Join(dest, "cli", "install.ps1"))
+	if !strings.Contains(installPS1, "resources/demo-db/cli") || !strings.Contains(installPS1, "[string]$Name = \"resource-demo-db\"") {
+		t.Fatalf("cli/install.ps1 missing canonical install wiring: %s", installPS1)
+	}
 
 	resourceJSON := readTestFile(t, filepath.Join(dest, "resource.json"))
+	if !strings.Contains(resourceJSON, `"command": "resource-demo-db"`) {
+		t.Fatalf("resource.json missing rendered cli.command: %s", resourceJSON)
+	}
+	for _, expected := range []string{
+		`"install": [`,
+		`"run": "bash ./cli/install.sh"`,
+		`"run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"`,
+		`"invoke": {`,
+		`"kind": "installed_command"`,
+		`"freshness": {`,
+		`"inputs": [`,
+		`"resource.json"`,
+	} {
+		if !strings.Contains(resourceJSON, expected) {
+			t.Fatalf("resource.json missing %s: %s", expected, resourceJSON)
+		}
+	}
 	if !strings.Contains(resourceJSON, `"source": "${RESOURCE_DATA_DIR}"`) {
 		t.Fatalf("resource.json missing canonical storage placeholder: %s", resourceJSON)
 	}
 	if strings.Contains(resourceJSON, `"source": "./data"`) || strings.Contains(resourceJSON, `"source": "${ROOT}/data"`) {
 		t.Fatalf("resource.json still references repo-local data: %s", resourceJSON)
+	}
+}
+
+func TestGenerateResourceTemplateSupportsExplicitCLICommandOverride(t *testing.T) {
+	controller := NewController(projectRootForResourceTests(t), t.TempDir())
+	dest := filepath.Join(t.TempDir(), "demo-db")
+
+	_, err := controller.GenerateResourceTemplate(ResourceTemplateGenerateRequest{
+		TemplateName: "docker-service",
+		Destination:  dest,
+		Values: map[string]string{
+			"RESOURCE_NAME":         "demo-db",
+			"RESOURCE_DISPLAY_NAME": "Demo DB",
+			"RESOURCE_CLI_COMMAND":  "dbctl",
+		},
+	})
+	if err != nil {
+		t.Fatalf("GenerateResourceTemplate: %v", err)
+	}
+
+	resourceJSON := readTestFile(t, filepath.Join(dest, "resource.json"))
+	if !strings.Contains(resourceJSON, `"command": "dbctl"`) {
+		t.Fatalf("resource.json missing explicit cli command override: %s", resourceJSON)
+	}
+}
+
+func TestGenerateDockerServiceTemplateIncludesInternalArchitectureScaffold(t *testing.T) {
+	controller := NewController(projectRootForResourceTests(t), t.TempDir())
+	dest := filepath.Join(t.TempDir(), "demo-db")
+
+	_, err := controller.GenerateResourceTemplate(ResourceTemplateGenerateRequest{
+		TemplateName: "docker-service",
+		Destination:  dest,
+		Values: map[string]string{
+			"RESOURCE_NAME":         "demo-db",
+			"RESOURCE_DISPLAY_NAME": "Demo DB",
+		},
+	})
+	if err != nil {
+		t.Fatalf("GenerateResourceTemplate: %v", err)
+	}
+
+	resourceJSON := readTestFile(t, filepath.Join(dest, "resource.json"))
+	for _, expected := range []string{
+		`"internal/**"`,
+		`"docs/**"`,
+		`"README.md"`,
+	} {
+		if !strings.Contains(resourceJSON, expected) {
+			t.Fatalf("resource.json missing freshness input %s: %s", expected, resourceJSON)
+		}
+	}
+
+	readme := readTestFile(t, filepath.Join(dest, "README.md"))
+	for _, expected := range []string{
+		"`cli/` is entrypoint and command wiring only.",
+		"`internal/` is the default home for resource-specific Go logic",
+		"`internal/install`: install/bootstrap behavior unique to the resource",
+		"Keep `cli/main.go` focused on bootstrap and delegation; put resource-specific logic in `internal/...`.",
+	} {
+		if !strings.Contains(readme, expected) {
+			t.Fatalf("README missing architecture guidance %q: %s", expected, readme)
+		}
+	}
+
+	operations := readTestFile(t, filepath.Join(dest, "docs", "OPERATIONS.md"))
+	if !strings.Contains(operations, "Do not turn `cli/main.go` into the primary implementation surface.") {
+		t.Fatalf("OPERATIONS.md missing CLI boundary guidance: %s", operations)
+	}
+
+	for relPath, expected := range map[string]string{
+		filepath.Join("internal", "install", "install.go"): "// Package install is the default home",
+		filepath.Join("internal", "runtime", "runtime.go"): "// Package runtime is the default home",
+		filepath.Join("internal", "status", "status.go"):   "// Package status is the default home",
+		filepath.Join("internal", "health", "health.go"):   "// Package health is the default home",
+		filepath.Join("internal", "env", "env.go"):         "// Package env is the default home",
+	} {
+		contents := readTestFile(t, filepath.Join(dest, relPath))
+		if !strings.Contains(contents, expected) {
+			t.Fatalf("%s missing expected guidance: %s", relPath, contents)
+		}
+	}
+}
+
+func TestGenerateRemainingResourceTemplatesIncludeInternalArchitectureScaffold(t *testing.T) {
+	controller := NewController(projectRootForResourceTests(t), t.TempDir())
+
+	cases := []struct {
+		templateName      string
+		extraValues       map[string]string
+		freshnessContains []string
+		readmeContains    []string
+		docsContains      map[string]string
+		internalFiles     map[string]string
+	}{
+		{
+			templateName: "compose-service",
+			freshnessContains: []string{
+				`"internal/**"`,
+				`"docs/**"`,
+				`"README.md"`,
+				`"compose.yaml"`,
+			},
+			readmeContains: []string{
+				"`internal/` is the default home for compose-specific Go logic",
+				"`internal/compose`: compose-specific graph and command helpers",
+				"Keep `cli/main.go` focused on bootstrap and delegation; put compose-specific logic in `internal/...`.",
+			},
+			docsContains: map[string]string{
+				filepath.Join("docs", "OPERATIONS.md"): "Do not turn `cli/main.go` into the primary implementation surface.",
+			},
+			internalFiles: map[string]string{
+				filepath.Join("internal", "compose", "compose.go"):   "// Package compose is the default home",
+				filepath.Join("internal", "topology", "topology.go"): "// Package topology is the default home",
+				filepath.Join("internal", "runtime", "runtime.go"):   "// Package runtime is the default home",
+				filepath.Join("internal", "health", "health.go"):     "// Package health is the default home",
+				filepath.Join("internal", "env", "env.go"):           "// Package env is the default home",
+			},
+		},
+		{
+			templateName: "external-cli",
+			extraValues: map[string]string{
+				"RESOURCE_BINARY": "demo-tool",
+			},
+			freshnessContains: []string{
+				`"internal/**"`,
+				`"docs/**"`,
+				`"README.md"`,
+			},
+			readmeContains: []string{
+				"`internal/` is the default home for external-tool-specific Go logic",
+				"`internal/discovery`: host binary detection and probing helpers",
+				"Keep `cli/main.go` focused on bootstrap and delegation; put binary/version/auth logic in `internal/...`.",
+			},
+			docsContains: map[string]string{
+				filepath.Join("docs", "OPERATIONS.md"): "Do not turn `cli/main.go` into the primary implementation surface.",
+			},
+			internalFiles: map[string]string{
+				filepath.Join("internal", "discovery", "discovery.go"): "// Package discovery is the default home",
+				filepath.Join("internal", "install", "install.go"):     "// Package install is the default home",
+				filepath.Join("internal", "version", "version.go"):     "// Package version is the default home",
+				filepath.Join("internal", "env", "env.go"):             "// Package env is the default home",
+				filepath.Join("internal", "auth", "auth.go"):           "// Package auth is the default home",
+			},
+		},
+		{
+			templateName: "cloud-api",
+			extraValues: map[string]string{
+				"RESOURCE_ENDPOINT":       "https://api.example.com/health",
+				"RESOURCE_CREDENTIAL_ENV": "DEMO_API_KEY",
+			},
+			freshnessContains: []string{
+				`"internal/**"`,
+				`"docs/**"`,
+				`"README.md"`,
+			},
+			readmeContains: []string{
+				"`internal/` is the default home for provider-specific Go logic",
+				"`internal/config`: endpoint and provider configuration helpers",
+				"Keep `cli/main.go` focused on bootstrap and delegation; put provider-specific config/auth/health logic in `internal/...`.",
+			},
+			docsContains: map[string]string{
+				filepath.Join("docs", "OPERATIONS.md"):  "Do not turn `cli/main.go` into the primary implementation surface.",
+				filepath.Join("docs", "CREDENTIALS.md"): "Keep `resource.json` as the declarative credential contract",
+			},
+			internalFiles: map[string]string{
+				filepath.Join("internal", "config", "config.go"): "// Package config is the default home",
+				filepath.Join("internal", "auth", "auth.go"):     "// Package auth is the default home",
+				filepath.Join("internal", "health", "health.go"): "// Package health is the default home",
+				filepath.Join("internal", "env", "env.go"):       "// Package env is the default home",
+			},
+		},
+		{
+			templateName: "desktop-app",
+			freshnessContains: []string{
+				`"internal/**"`,
+				`"docs/**"`,
+				`"README.md"`,
+			},
+			readmeContains: []string{
+				"`internal/` is the default home for desktop-app-specific Go logic",
+				"`internal/discovery`: host-path and application detection helpers",
+				"Keep `cli/main.go` focused on bootstrap and delegation; put platform/detection logic in `internal/...`.",
+			},
+			docsContains: map[string]string{
+				filepath.Join("docs", "OPERATIONS.md"):   "Do not turn `cli/main.go` into the primary implementation surface.",
+				filepath.Join("docs", "MANUAL-STEPS.md"): "Keep the operator workflow here instead of hiding it in weak automation.",
+			},
+			internalFiles: map[string]string{
+				filepath.Join("internal", "discovery", "discovery.go"): "// Package discovery is the default home",
+				filepath.Join("internal", "install", "install.go"):     "// Package install is the default home",
+				filepath.Join("internal", "platform", "platform.go"):   "// Package platform is the default home",
+				filepath.Join("internal", "health", "health.go"):       "// Package health is the default home",
+			},
+		},
+		{
+			templateName: "manual-resource",
+			freshnessContains: []string{
+				`"internal/**"`,
+				`"docs/**"`,
+				`"README.md"`,
+			},
+			readmeContains: []string{
+				"`internal/` is optional and intentionally small;",
+				"`internal/validate`: validation helpers for documented manual setup",
+				"Keep `cli/main.go` focused on bootstrap and delegation; keep any real validation logic under `internal/...`.",
+			},
+			docsContains: map[string]string{
+				filepath.Join("docs", "OPERATIONS.md"):      "Do not turn `cli/main.go` into the primary implementation surface.",
+				filepath.Join("docs", "SETUP-CHECKLIST.md"): "Keep this checklist as the primary setup contract.",
+			},
+			internalFiles: map[string]string{
+				filepath.Join("internal", "validate", "validate.go"): "// Package validate is the default home",
+				filepath.Join("internal", "env", "env.go"):           "// Package env is the default home",
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.templateName, func(t *testing.T) {
+			dest := filepath.Join(t.TempDir(), tc.templateName)
+			values := map[string]string{
+				"RESOURCE_NAME":         tc.templateName + "-fixture",
+				"RESOURCE_DISPLAY_NAME": kebabToDisplayName(tc.templateName + "-fixture"),
+			}
+			for key, value := range tc.extraValues {
+				values[key] = value
+			}
+
+			_, err := controller.GenerateResourceTemplate(ResourceTemplateGenerateRequest{
+				TemplateName: tc.templateName,
+				Destination:  dest,
+				Values:       values,
+			})
+			if err != nil {
+				t.Fatalf("GenerateResourceTemplate(%s): %v", tc.templateName, err)
+			}
+
+			resourceJSON := readTestFile(t, filepath.Join(dest, "resource.json"))
+			for _, expected := range tc.freshnessContains {
+				if !strings.Contains(resourceJSON, expected) {
+					t.Fatalf("resource.json missing %s: %s", expected, resourceJSON)
+				}
+			}
+
+			readme := readTestFile(t, filepath.Join(dest, "README.md"))
+			for _, expected := range tc.readmeContains {
+				if !strings.Contains(readme, expected) {
+					t.Fatalf("README missing %q: %s", expected, readme)
+				}
+			}
+
+			for relPath, expected := range tc.docsContains {
+				contents := readTestFile(t, filepath.Join(dest, relPath))
+				if !strings.Contains(contents, expected) {
+					t.Fatalf("%s missing %q: %s", relPath, expected, contents)
+				}
+			}
+
+			for relPath, expected := range tc.internalFiles {
+				contents := readTestFile(t, filepath.Join(dest, relPath))
+				if !strings.Contains(contents, expected) {
+					t.Fatalf("%s missing expected guidance: %s", relPath, contents)
+				}
+			}
+		})
 	}
 }
 
@@ -265,6 +561,9 @@ func TestValidateResourceTemplatesRejectsMissingRequiredFiles(t *testing.T) {
 		}),
 	))
 	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "README.md"), "# Fixture\n")
+	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "cli", "go.mod"), "module example.com/resource/cli\n\ngo 1.22\n")
+	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "cli", "install.sh"), "#!/usr/bin/env bash\n")
+	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "cli", "install.ps1"), "Write-Host 'install'\n")
 	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "cli", "main.go"), "package main\n")
 	testkitgo.WriteJSON(t, filepath.Join(root, filepath.FromSlash(templateDir), "resource.json"), map[string]any{})
 	testkitgo.WriteJSON(t, filepath.Join(root, filepath.FromSlash(templateDir), "test", "smoke.json"), map[string]any{})
@@ -293,6 +592,9 @@ func TestValidateResourceTemplatesRejectsMissingDocReferences(t *testing.T) {
 		}),
 	))
 	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "README.md"), "# Fixture\n")
+	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "cli", "go.mod"), "module example.com/resource/cli\n\ngo 1.22\n")
+	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "cli", "install.sh"), "#!/usr/bin/env bash\n")
+	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "cli", "install.ps1"), "Write-Host 'install'\n")
 	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "cli", "main.go"), "package main\n")
 	testkitgo.WriteJSON(t, filepath.Join(root, filepath.FromSlash(templateDir), "resource.json"), map[string]any{})
 	testkitgo.WriteJSON(t, filepath.Join(root, filepath.FromSlash(templateDir), "test", "smoke.json"), map[string]any{})
@@ -302,6 +604,73 @@ func TestValidateResourceTemplatesRejectsMissingDocReferences(t *testing.T) {
 	_, err := NewController(root, home).ValidateResourceTemplates()
 	if err == nil || !strings.Contains(err.Error(), "docs entry") {
 		t.Fatalf("expected missing docs validation error, got %v", err)
+	}
+}
+
+func TestPopulateResourceTemplatePathValuesAndCopyRenderGoModPaths(t *testing.T) {
+	controller := NewController(projectRootForResourceTests(t), t.TempDir())
+	templateDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(templateDir, "cli"), 0o755); err != nil {
+		t.Fatalf("mkdir cli: %v", err)
+	}
+	goMod := `module example.com/resource/cli
+
+go 1.22
+
+replace github.com/vrooli/cli-core => {{PACKAGES_REL_FROM_CLI}}/cli-core
+replace github.com/vrooli/repo-contract-go => {{PACKAGES_REL_FROM_CLI}}/repo-contract-go
+replace github.com/vrooli/vrooli => {{REPO_ROOT_REL_FROM_CLI}}
+`
+	testkitgo.WriteRelativeFile(t, templateDir, filepath.Join("cli", "go.mod"), goMod)
+	testkitgo.WriteRelativeFile(t, templateDir, filepath.Join("cli", "main.go"), "package main\nfunc main() {}\n")
+
+	destination := filepath.Join(t.TempDir(), "resources", "demo")
+	values := map[string]string{}
+	if err := controller.populateResourceTemplatePathValues(destination, values); err != nil {
+		t.Fatalf("populateResourceTemplatePathValues: %v", err)
+	}
+	if err := copyResourceTemplate(templateDir, destination, values); err != nil {
+		t.Fatalf("copyResourceTemplate: %v", err)
+	}
+
+	rendered := readTestFile(t, filepath.Join(destination, "cli", "go.mod"))
+	wantPackagesRel, err := filepath.Rel(filepath.Join(destination, "cli"), filepath.Join(controller.Root, "packages"))
+	if err != nil {
+		t.Fatalf("filepath.Rel(packages): %v", err)
+	}
+	if !strings.Contains(rendered, filepath.ToSlash(filepath.Join(wantPackagesRel, "cli-core"))) {
+		t.Fatalf("rendered go.mod missing cli-core replace path: %s", rendered)
+	}
+	if err := verifyGeneratedResourceGoModules(destination); err != nil {
+		t.Fatalf("verifyGeneratedResourceGoModules: %v", err)
+	}
+}
+
+func TestValidateResourceTemplateGoModuleSourceRejectsHardcodedLocalReplace(t *testing.T) {
+	templateDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(templateDir, "cli"), 0o755); err != nil {
+		t.Fatalf("mkdir cli: %v", err)
+	}
+	testkitgo.WriteRelativeFile(t, templateDir, filepath.Join("cli", "go.mod"), "module example.com/demo\n\nreplace github.com/vrooli/cli-core => ../../../packages/cli-core\n")
+
+	err := validateResourceTemplateGoModuleSource(ResourceTemplateInfo{Name: "docker-service", Path: templateDir})
+	if err == nil || !strings.Contains(err.Error(), "hardcoded local replace target") {
+		t.Fatalf("expected hardcoded replace validation error, got %v", err)
+	}
+}
+
+func TestVerifyGeneratedResourceGoModulesRejectsBrokenReplaceTarget(t *testing.T) {
+	destination := t.TempDir()
+	moduleDir := filepath.Join(destination, "cli")
+	if err := os.MkdirAll(moduleDir, 0o755); err != nil {
+		t.Fatalf("mkdir cli: %v", err)
+	}
+	testkitgo.WriteRelativeFile(t, destination, filepath.Join("cli", "go.mod"), "module example.com/demo\n\ngo 1.22\n\nreplace github.com/vrooli/cli-core => ../../../packages/cli-core\n")
+	testkitgo.WriteRelativeFile(t, destination, filepath.Join("cli", "main.go"), "package main\nfunc main() {}\n")
+
+	err := verifyGeneratedResourceGoModules(destination)
+	if err == nil || !strings.Contains(err.Error(), "does not resolve") {
+		t.Fatalf("expected broken replace validation error, got %v", err)
 	}
 }
 
@@ -331,6 +700,9 @@ func assertGeneratedTemplateLayout(t *testing.T, dest string) {
 	requiredFiles := []string{
 		"README.md",
 		"resource.json",
+		"cli/go.mod",
+		"cli/install.sh",
+		"cli/install.ps1",
 		"cli/main.go",
 		"test/smoke.json",
 		"test/integration.json",

@@ -3,6 +3,14 @@
   "name": "judge0",
   "display_name": "Judge0",
   "description": "Managed Judge0 execution stack for sandboxed code execution with Redis and PostgreSQL sidecars.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-judge0",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    }
+  },
   "template": "compose-service",
   "driver": "compose-service",
   "compose_file": "compose.yaml",

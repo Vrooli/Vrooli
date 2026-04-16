@@ -15,7 +15,7 @@ type HealthResult struct {
 func (c *Controller) runResourceHealthChecks(ctx context.Context, manifest ResourceManifest) (HealthResult, error) {
 	result, err := runtimehealth.RunChecks(ctx, manifest.HealthChecks, runtimehealth.Config{
 		Root: c.Root,
-		Env:  resourceEnv(c.Root, c.Home),
+		Env:  resourceEnvForResource(c.Root, c.Home, manifest.Name),
 		Runner: func(ctx context.Context, cmd *exec.Cmd) ([]byte, error) {
 			result := runCommandResource(ctx, cmd)
 			return result.output, result.err
