@@ -41,12 +41,8 @@ resources/
     initialization/
     cli/
       main.go
-    internal/
-      install/
-      runtime/
-      status/
-      health/
-      env/
+      internal/
+        ...
 ```
 
 ### Required
@@ -179,6 +175,18 @@ Expected design:
 - shared control plane handles discovery, install probes, version checks, and status surfaces
 - per-resource code handles only genuinely unique config or credential flows
 
+### `native-cli`
+
+Use when the resource is a repo-owned Go binary with a real operator command surface.
+
+Expected design:
+
+- `resource.json` still owns install/invoke/freshness/runtime metadata
+- `cli/main.go` stays thin
+- `cli/internal/app` owns command registration and app wiring
+- resource-local Go packages under `cli/internal/...` own the actual implementation
+- the control plane treats the installed binary as the managed interface instead of pretending the resource is a third-party host executable
+
 ### `cloud-api`
 
 Use when Vrooli does not own the service runtime, only the local representation and validation of a hosted capability.
@@ -231,6 +239,13 @@ Phase 2 defines what each canonical template kind is expected to converge toward
 - binary detection and install guidance are first-class
 - version detection is separate from auth/config validation
 - shared probing/install behavior is preferred over resource-local shell glue
+
+### `native-cli`
+
+- repo-owned Go binary is the design center
+- `cli/internal/app` owns the operator command surface
+- `cli/internal/<domain>` owns resource-local implementation logic
+- the manifest still owns command/install/invoke/freshness metadata
 
 ### `cloud-api`
 
@@ -319,4 +334,3 @@ Recommended split:
 - resources use a resource-specific shared control-plane storage/runtime layer
 
 That separation preserves clean domain boundaries while still allowing similar class vocabulary and portability expectations.
-

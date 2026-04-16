@@ -31,7 +31,7 @@ Resources should **not** standardize on `api-core/storage` as their final storag
 Reason:
 
 - many resources are not APIs
-- many resources are Docker/compose/external-cli wrappers
+- many resources are Docker/compose/external-cli/native-cli wrappers
 - many resources need host/service storage rather than scenario app storage
 - resources are primarily a control-plane domain, not a scenario API domain
 
@@ -92,19 +92,15 @@ resources/
     initialization/
     cli/
       main.go
-    internal/
-      install/
-      runtime/
-      status/
-      health/
-      env/
+      internal/
+        ...
 ```
 
 Guidance:
 
 - `resource.json` is the declarative contract
 - `cli/` is the executable entrypoint
-- per-resource Go code lives under resource-local Go code, not shell libraries, in the target architecture
+- per-resource Go code lives under `cli/internal/...`, not shell libraries, in the target architecture
 - shared logic should live in common resource control-plane packages rather than copied across resources
 - shell files may remain as transitional adapters while migration is underway, but they are not the design center
 

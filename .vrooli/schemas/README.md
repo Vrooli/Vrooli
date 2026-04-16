@@ -130,8 +130,8 @@ Those references are historical. The current implementation uses:
 Useful validation entrypoints:
 
 ```bash
+vrooli contract validate
 vrooli resource schema validate
 vrooli resource schema sync
-python3 .vrooli/schemas/validate-repo-contract.py
 make validate-repo-contract
 ```

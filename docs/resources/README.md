@@ -73,7 +73,7 @@ Canonical resource templates emit the same shared CLI manifest shape used by sce
 - explicit invocation policy
 - explicit freshness inputs
 
-The generated resource CLI remains a thin control-plane delegate, not a scenario-style API client.
+Most generated resource CLIs remain thin control-plane delegates, not scenario-style API clients. The explicit exception is the `native-cli` archetype for repo-owned Go resource binaries with richer operator surfaces.
 
 Archive and schema workflows:
 

@@ -48,6 +48,7 @@ export type ApiErrorType = "network" | "timeout" | "http" | "parse";
 export class ApiError extends Error {
   readonly type: ApiErrorType;
   readonly status?: number;
+  readonly cause?: unknown;
   readonly isClientError: boolean;
   readonly isServerError: boolean;
   readonly isRetryable: boolean;
@@ -57,10 +58,11 @@ export class ApiError extends Error {
     message: string,
     options?: { status?: number; cause?: unknown }
   ) {
-    super(message, { cause: options?.cause });
+    super(message);
     this.name = "ApiError";
     this.type = type;
     this.status = options?.status;
+    this.cause = options?.cause;
     this.isClientError = type === "http" && !!options?.status && options.status >= 400 && options.status < 500;
     this.isServerError = type === "http" && !!options?.status && options.status >= 500;
     // Network errors and 5xx are typically retryable; 4xx are not

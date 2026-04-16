@@ -42,7 +42,7 @@ vrooli resource schema sync
 
 - prefer canonical templates over copying old resource directories
 - treat generated resource CLI behavior as manifest-owned: update `resource.json` first, not ad hoc installer or layout conventions
-- keep resource CLI scaffolds thin and control-plane-oriented; do not copy scenario CLI architecture unless the resource genuinely needs richer commands
+- keep resource CLI scaffolds thin and control-plane-oriented; when the resource is a repo-owned Go binary with a real operator surface, use the `native-cli` template instead of forcing it into `external-cli`
 - keep manifests honest about capability and support level
 - use blueprint and archive flows for speculative or retired capability instead of pretending everything is active
 - move resource-specific implementation detail into the resource once it stops being cross-resource guidance

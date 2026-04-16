@@ -27,6 +27,7 @@ It should not start from copying an old `resources/<name>/` directory unless you
 - `docker-service`
 - `compose-service`
 - `external-cli`
+- `native-cli`
 - `cloud-api`
 - `desktop-app`
 - `manual-resource`
@@ -51,6 +52,7 @@ See [architecture.md](architecture.md) for the ownership model and template-kind
 - generated templates expose `RESOURCE_CLI_COMMAND` so the installed command name is declared in manifest data instead of inferred
 - resource templates should match scenario templates at the manifest/install contract level, not at the app architecture level
 - generated resource CLIs remain thin control-plane delegates built on `cliapp.NewResourceApp(...)`, not scenario-style API clients
+- `native-cli` is the deliberate exception: it is for repo-owned Go resource binaries whose real operator surface lives in `cli/internal/...`
 - keep retained shell compatibility isolated and clearly transitional
 
 ## Related

@@ -1,4 +1,4 @@
-.PHONY: help setup start stop restart status logs test open run dev
+.PHONY: help setup start stop restart status logs test open run dev fmt fmt-go fmt-ui lint lint-go lint-ui check
 
 .DEFAULT_GOAL := help
 
@@ -42,6 +42,48 @@ test: ## Run scenario tests
 
 open: ## Open the scenario in a browser
 	@vrooli scenario open "$(SCENARIO_NAME)"
+
+fmt: fmt-go fmt-ui ## Format all code
+
+fmt-go: ## Format Go code
+	@for dir in api cli; do \
+		if [ -d $$dir ] && find $$dir -name "*.go" | head -1 | grep -q .; then \
+			echo "Formatting Go code in $$dir..."; \
+			if command -v gofumpt >/dev/null 2>&1; then \
+				cd $$dir && gofumpt -w . && cd ..; \
+			elif command -v gofmt >/dev/null 2>&1; then \
+				cd $$dir && gofmt -w . && cd ..; \
+			fi; \
+		fi; \
+	done
+
+fmt-ui: ## Format UI code
+	@if [ -f ui/package.json ]; then \
+		echo "Formatting UI code..."; \
+		cd ui && pnpm run lint:fix; \
+	fi
+
+lint: lint-go lint-ui ## Lint all code
+
+lint-go: ## Lint Go code
+	@for dir in api cli; do \
+		if [ -d $$dir ] && find $$dir -name "*.go" | head -1 | grep -q .; then \
+			echo "Linting Go code in $$dir..."; \
+			if command -v golangci-lint >/dev/null 2>&1; then \
+				cd $$dir && golangci-lint run ./... && cd ..; \
+			elif command -v go >/dev/null 2>&1; then \
+				cd $$dir && go vet ./... && cd ..; \
+			fi; \
+		fi; \
+	done
+
+lint-ui: ## Lint UI code
+	@if [ -f ui/package.json ]; then \
+		echo "Linting UI code..."; \
+		cd ui && pnpm run lint && pnpm run type-check; \
+	fi
+
+check: fmt lint test ## Run full quality gates
 
 run: start
 

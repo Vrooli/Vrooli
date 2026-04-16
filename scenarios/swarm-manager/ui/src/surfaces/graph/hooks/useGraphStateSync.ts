@@ -40,7 +40,6 @@ export function useGraphStateSync(): UseGraphStateSyncResult {
   const urlFocus = searchParams.get("focus");
   const urlReturnLens = searchParams.get("returnLens");
 
-  const _lens = useGraphDataStore((s) => s.lens);
   const fetchGraph = useGraphDataStore((s) => s.fetchGraph);
   const nodes = useGraphDataStore((s) => s.nodes);
   const setLens = useGraphDataStore((s) => s.setLens);
@@ -49,7 +48,6 @@ export function useGraphStateSync(): UseGraphStateSyncResult {
   const returnLens = useGraphDataStore((s) => s.returnLens);
   const setReturnLens = useGraphDataStore((s) => s.setReturnLens);
 
-  const _focusNodeLabel = useGraphUIStore((s) => s.focusNodeLabel);
   const setFocusNodeLabel = useGraphUIStore((s) => s.setFocusNodeLabel);
   const selectedNodeId = useGraphUIStore((s) => s.selectedNodeId);
   const selectNode = useGraphUIStore((s) => s.selectNode);

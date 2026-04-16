@@ -55,7 +55,8 @@ Phase 1 should be considered complete only when all of the following remain true
 
 - `.vrooli/repo-contract.json` stays aligned with the future-state repo shape
 - `.vrooli/schemas/repo-contract.schema.json` enforces the current contract shape
-- `make validate-repo-contract` remains the single documented validation entrypoint
+- `vrooli contract validate` remains the canonical operator-facing validation entrypoint
+- `make validate-repo-contract` remains the CI/automation wrapper
 - `internal/repocontract` catches schema drift, semantic drift, and legacy-path regressions
 - remaining non-migrated consumers are clearly documented as migration targets rather than contract authority
 
@@ -140,11 +141,10 @@ These do not belong in the contract:
 
 ## Validation
 
-Use either of these:
+Use the direct CLI for local validation or the Make target for CI/automation:
 
 ```bash
 vrooli contract validate
-python3 .vrooli/schemas/validate-repo-contract.py
 make validate-repo-contract
 ```
 
