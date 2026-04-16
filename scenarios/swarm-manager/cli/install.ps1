@@ -1,8 +1,9 @@
 Param(
     [string]$ModulePath = "scenarios/swarm-manager/cli",
-    [string]$Name = "swarm-manager"
+    [string]$Name = "swarm-manager",
+    [string]$Manifest = "scenarios/swarm-manager/.vrooli/service.json"
 )
 
 $repoRoot = (Resolve-Path "$PSScriptRoot/../../.." | Select-Object -First 1).Path
 
-& "$repoRoot/packages/cli-core/install.ps1" -ModulePath $ModulePath -Name $Name 
+& "$repoRoot/packages/cli-core/install.ps1" -ModulePath $ModulePath -Name $Name -Manifest $Manifest

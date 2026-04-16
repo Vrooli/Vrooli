@@ -101,7 +101,7 @@ integration_priorities:
       purpose: Notify other scenarios when priorities change
 
   2_resource_cli:
-    - command: resource-openrouter infer --prompt <…>
+    - command: resource-openrouter generate --prompt <…>
       purpose: Generate AI recommendations and summaries
 
   3_direct_api:

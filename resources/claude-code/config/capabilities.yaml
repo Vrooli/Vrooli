@@ -198,7 +198,7 @@ spec:
   documentation:
     readme: "resources/claude-code/README.md"
     api_reference: "resources/claude-code/docs/API.md"
-    examples_dir: "resources/claude-code/examples/"
+    examples_dir: "resources/claude-code/docs/AUTOMATION.md"
     configuration: "resources/claude-code/docs/CONFIGURATION.md"
     troubleshooting: "resources/claude-code/docs/TROUBLESHOOTING.md"
   

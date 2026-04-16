@@ -12,7 +12,7 @@ Comprehensive documentation for the Ollama local LLM inference resource.
 ### Usage & API
 - [API Reference](API.md) - REST endpoints and examples
 - [Command Line Usage](CLI.md) - Using the manage.sh script
-- [Integration Examples](../examples/README.md) - Code examples and workflows
+- [Usage Examples](API.md#examples) - Request patterns and workflows
 
 ### Advanced Topics
 - [Performance Tuning](PERFORMANCE.md) - Optimization and hardware requirements

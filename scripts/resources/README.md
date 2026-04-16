@@ -55,9 +55,11 @@ resource-name/
 ├── lib/               # Functionality 
 ├── config/            # Configuration files
 ├── docs/              # Resource-specific documentation
-├── examples/          # Usage examples
+├── examples/          # Optional reusable example artifacts only
 └── cli/               # (Preferred) CLI entrypoints for actions
 ```
+
+Usage examples should generally live in the resource `README.md` or `docs/`. Keep an `examples/` directory only when the resource ships real artifacts users should run, import, or adapt directly, such as workflow JSON, SQL seed bundles, or sample payload files.
 
 ## 🔍 Common Operations
 

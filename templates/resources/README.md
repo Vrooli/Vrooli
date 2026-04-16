@@ -68,5 +68,5 @@ All generated resource scaffolds should:
 - ✅ Start from an approved canonical template
 - ✅ Produce a valid placeholder `resource.json`
 - ✅ Include a complete manifest-driven resource CLI scaffold
-- ✅ Include config, docs, and test stubs
+- ✅ Include docs plus baseline Go lint/test scaffolding
 - ✅ Stay honest about portability and operational limits

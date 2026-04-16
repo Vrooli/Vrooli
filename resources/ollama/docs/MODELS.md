@@ -234,4 +234,4 @@ export OLLAMA_LOW_MEMORY_THRESHOLD=0.8
 - [Configure model parameters](CONFIGURATION.md#model-configuration)
 - [Learn the API](API.md) for programmatic access
 - [Optimize performance](PERFORMANCE.md) for your hardware
-- [Explore examples](../examples/README.md) with different models
+- [Review the resource docs](README.md) for current usage guidance

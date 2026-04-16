@@ -1,8 +1,0 @@
-{
-  "resource": "{{RESOURCE_NAME}}",
-  "kind": "smoke",
-  "checks": [
-    "compose stack starts",
-    "primary service becomes reachable"
-  ]
-}

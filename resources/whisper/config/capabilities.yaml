@@ -215,7 +215,7 @@ spec:
   documentation:
     readme: "resources/whisper/README.md"
     api_reference: "resources/whisper/docs/API.md"
-    examples_dir: "resources/whisper/examples/"
+    examples_dir: "resources/whisper/docs/USAGE_EXAMPLES.md"
     configuration: "resources/whisper/docs/CONFIGURATION.md"
     troubleshooting: "resources/whisper/docs/TROUBLESHOOTING.md"
   

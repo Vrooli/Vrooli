@@ -1,8 +1,0 @@
-{
-  "resource": "{{RESOURCE_NAME}}",
-  "kind": "integration",
-  "checks": [
-    "required plugins or profiles are detected",
-    "manual steps are documented and repeatable"
-  ]
-}

@@ -385,7 +385,8 @@ test_specification:
     - Integration tests in test/ directory
     - Shared fixtures from __test/fixtures/data/
     - Test results included in status output with timestamp
-    - At least one example in examples/ directory
+    - Usage examples documented in README.md or docs/
+    - examples/ reserved for reusable artifacts only
   
   lifecycle_tests:
     - name: "Resource Installation"

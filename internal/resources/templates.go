@@ -39,11 +39,11 @@ var resourceTemplateRequiredFiles = []string{
 	"README.md",
 	"resource.json",
 	"cli/go.mod",
+	"cli/.golangci.yml",
 	"cli/install.sh",
 	"cli/install.ps1",
 	"cli/main.go",
-	"test/smoke.json",
-	"test/integration.json",
+	"cli/main_test.go",
 	"docs/OPERATIONS.md",
 }
 

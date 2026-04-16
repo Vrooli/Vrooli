@@ -1,8 +1,0 @@
-{
-  "resource": "{{RESOURCE_NAME}}",
-  "kind": "smoke",
-  "checks": [
-    "manual prerequisites are present",
-    "documented validation probes can be executed"
-  ]
-}

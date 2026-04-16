@@ -215,7 +215,7 @@ spec:
   documentation:
     readme: "resources/vault/README.md"
     api_reference: "resources/vault/docs/API.md"
-    examples_dir: "resources/vault/examples/"
+    examples_dir: "resources/vault/docs/SECURITY-PATTERNS.md"
     configuration: "resources/vault/docs/CONFIGURATION.md"
     quickstart: "resources/vault/docs/QUICKSTART.md"
   

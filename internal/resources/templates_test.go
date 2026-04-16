@@ -450,8 +450,8 @@ func TestGenerateResourceTemplateFromBlueprint(t *testing.T) {
 	}
 
 	assertJSONFile(t, filepath.Join(dest, "resource.json"))
-	assertJSONFile(t, filepath.Join(dest, "test", "smoke.json"))
-	assertJSONFile(t, filepath.Join(dest, "test", "integration.json"))
+	readTestFile(t, filepath.Join(dest, "cli", ".golangci.yml"))
+	readTestFile(t, filepath.Join(dest, "cli", "main_test.go"))
 
 	readme := readTestFile(t, filepath.Join(dest, "README.md"))
 	if strings.Contains(readme, "{{") {
@@ -590,15 +590,16 @@ func TestValidateResourceTemplatesRejectsMissingRequiredFiles(t *testing.T) {
 	))
 	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "README.md"), "# Fixture\n")
 	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "cli", "go.mod"), "module example.com/resource/cli\n\ngo 1.22\n")
+	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "cli", ".golangci.yml"), "run:\n  timeout: 5m\n")
 	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "cli", "install.sh"), "#!/usr/bin/env bash\n")
 	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "cli", "install.ps1"), "Write-Host 'install'\n")
 	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "cli", "main.go"), "package main\n")
+	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "cli", "main_test.go"), "package main\n")
 	testkitgo.WriteJSON(t, filepath.Join(root, filepath.FromSlash(templateDir), "resource.json"), map[string]any{})
-	testkitgo.WriteJSON(t, filepath.Join(root, filepath.FromSlash(templateDir), "test", "smoke.json"), map[string]any{})
 	testkitgo.WriteRelativeFile(t, root, filepath.Join("docs", "plans", "resource-cross-platform-migration-plan.md"), "# Plan\n")
 
 	_, err := NewController(root, home).ValidateResourceTemplates()
-	if err == nil || !strings.Contains(err.Error(), "missing required file test/integration.json") {
+	if err == nil || !strings.Contains(err.Error(), "missing required file docs/OPERATIONS.md") {
 		t.Fatalf("expected missing file validation error, got %v", err)
 	}
 }
@@ -621,12 +622,12 @@ func TestValidateResourceTemplatesRejectsMissingDocReferences(t *testing.T) {
 	))
 	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "README.md"), "# Fixture\n")
 	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "cli", "go.mod"), "module example.com/resource/cli\n\ngo 1.22\n")
+	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "cli", ".golangci.yml"), "run:\n  timeout: 5m\n")
 	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "cli", "install.sh"), "#!/usr/bin/env bash\n")
 	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "cli", "install.ps1"), "Write-Host 'install'\n")
 	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "cli", "main.go"), "package main\n")
+	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "cli", "main_test.go"), "package main\n")
 	testkitgo.WriteJSON(t, filepath.Join(root, filepath.FromSlash(templateDir), "resource.json"), map[string]any{})
-	testkitgo.WriteJSON(t, filepath.Join(root, filepath.FromSlash(templateDir), "test", "smoke.json"), map[string]any{})
-	testkitgo.WriteJSON(t, filepath.Join(root, filepath.FromSlash(templateDir), "test", "integration.json"), map[string]any{})
 	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "docs", "OPERATIONS.md"), "# Operations\n")
 
 	_, err := NewController(root, home).ValidateResourceTemplates()
@@ -729,11 +730,11 @@ func assertGeneratedTemplateLayout(t *testing.T, dest string) {
 		"README.md",
 		"resource.json",
 		"cli/go.mod",
+		"cli/.golangci.yml",
 		"cli/install.sh",
 		"cli/install.ps1",
 		"cli/main.go",
-		"test/smoke.json",
-		"test/integration.json",
+		"cli/main_test.go",
 		"docs/OPERATIONS.md",
 	}
 	for _, relPath := range requiredFiles {

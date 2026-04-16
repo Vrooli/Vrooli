@@ -327,7 +327,7 @@ fallback_behavior:
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Rate Limit Management](docs/RATE_LIMITS.md)
 - [Automation Guide](docs/AUTOMATION.md)
-- [Examples](examples/README.md)
+- [Usage Guidance](README.md)
 
 ## 💰 Infrastructure Value
 

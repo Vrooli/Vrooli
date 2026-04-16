@@ -210,7 +210,7 @@ spec:
   documentation:
     readme: "resources/minio/README.md"
     api_reference: "resources/minio/docs/API.md"
-    examples_dir: "resources/minio/examples/"
+    examples_dir: "resources/minio/docs/python-boto3-basic_operations.py"
     configuration: "resources/minio/docs/CONFIGURATION.md"
     troubleshooting: "resources/minio/docs/TROUBLESHOOTING.md"
   

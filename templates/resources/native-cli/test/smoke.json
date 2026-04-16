@@ -1,8 +1,0 @@
-{
-  "resource": "{{RESOURCE_NAME}}",
-  "kind": "smoke",
-  "checks": [
-    "installed command exists",
-    "info command succeeds"
-  ]
-}

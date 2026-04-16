@@ -1,8 +1,0 @@
-{
-  "resource": "{{RESOURCE_NAME}}",
-  "kind": "smoke",
-  "checks": [
-    "credentials are configured",
-    "health endpoint responds"
-  ]
-}

@@ -1,0 +1,102 @@
+package support
+
+import "github.com/vrooli/cli-core/cliapp"
+
+type CommandFunc func(args []string) error
+
+type Dependencies struct {
+	Overview             CommandFunc
+	MigrateWorkshop      CommandFunc
+	BacklogList          CommandFunc
+	BacklogGet           CommandFunc
+	BacklogCreate        CommandFunc
+	BacklogUpdate        CommandFunc
+	BacklogDelete        CommandFunc
+	BacklogWorkshopReset CommandFunc
+	BacklogFiles         CommandFunc
+	BacklogFileGet       CommandFunc
+	BacklogFileUpload    CommandFunc
+	BacklogProcess       CommandFunc
+	BacklogQueue         CommandFunc
+	BacklogResearch      CommandFunc
+	BacklogPromptTrace   CommandFunc
+	BacklogBatchCreate   CommandFunc
+	BacklogBatchQueue    CommandFunc
+	BacklogExport        CommandFunc
+	BacklogImport        CommandFunc
+	BacklogClarify       CommandFunc
+	BacklogClarifyGet    CommandFunc
+	BacklogClarifyNext   CommandFunc
+	BacklogClarifyAction CommandFunc
+	ScenariosList        CommandFunc
+	ScenariosGet         CommandFunc
+	ScenariosUpdate      CommandFunc
+	ScenariosDelete      CommandFunc
+	ScenariosFiles       CommandFunc
+	ScenariosSpecSync    CommandFunc
+	ScenariosStart       CommandFunc
+	ScenariosStop        CommandFunc
+	ScenariosRestart     CommandFunc
+	ScenariosReviewQueue CommandFunc
+	SettingsGet          CommandFunc
+	SettingsUpdate       CommandFunc
+	QueueList            CommandFunc
+	QueueCreate          CommandFunc
+	QueueDelete          CommandFunc
+	ExecutionList        CommandFunc
+	ExecutionGet         CommandFunc
+	ExecutionCreate      CommandFunc
+	ExecutionPolicyGet   CommandFunc
+	ExecutionPolicyPut   CommandFunc
+	ExecutionPromptTrace CommandFunc
+	ExecutionStart       CommandFunc
+	ExecutionCancel      CommandFunc
+	ExecutionRetry       CommandFunc
+	CircuitBreakerReset  CommandFunc
+	ReviewList           CommandFunc
+	ReviewVerify         CommandFunc
+	ReviewRequest        CommandFunc
+	ReviewTrigger        CommandFunc
+	PromptsCatalog       CommandFunc
+	PromptsSkills        CommandFunc
+	PromptsSkillGet      CommandFunc
+	PromptsSkillUpdate   CommandFunc
+	PromptsSkillVersions CommandFunc
+	PromptsSkillRevert   CommandFunc
+	PromptsPreview       CommandFunc
+	PromptsSimulate      CommandFunc
+	PromptsExperiment    CommandFunc
+	InitiativesList      CommandFunc
+	InitiativesGet       CommandFunc
+	InitiativesCreate    CommandFunc
+	InitiativesUpdate    CommandFunc
+	InitiativesDelete    CommandFunc
+	InitiativesAddItems  CommandFunc
+	InitiativesRemove    CommandFunc
+	InitiativesFiles     CommandFunc
+	InitiativesFileGet   CommandFunc
+	InitiativesFileUp    CommandFunc
+	InitiativesFileOp    CommandFunc
+	CapturesList         CommandFunc
+	CapturesCreate       CommandFunc
+	CapturesGet          CommandFunc
+	CapturesDelete       CommandFunc
+	CapturesClassify     CommandFunc
+	AgentManagerStatus   CommandFunc
+	AgentManagerRunGet   CommandFunc
+	AgentManagerRunStop  CommandFunc
+	StatsSummary         CommandFunc
+	StatsThroughput      CommandFunc
+	StatsBlocking        CommandFunc
+	StatsInitiatives     CommandFunc
+	StatsAgent           CommandFunc
+}
+
+func APICommand(name, description string, run CommandFunc) cliapp.Command {
+	return cliapp.Command{
+		Name:        name,
+		NeedsAPI:    true,
+		Description: description,
+		Run:         run,
+	}
+}

@@ -1,6 +1,10 @@
 package main
 
-import "github.com/vrooli/cli-core/cliapp"
+import (
+	"llm-evaluator/cli/domains"
+
+	"github.com/vrooli/cli-core/cliapp"
+)
 
 const (
 	appName        = "llm-evaluator"
@@ -19,21 +23,25 @@ type App struct {
 }
 
 func NewApp() (*App, error) {
+	app := &App{}
 	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
 		Name:             appName,
 		Version:          appVersion,
 		Description:      "LLM Evaluator CLI",
 		DefaultAPIBase:   defaultAPIBase,
-		ExtraAPIEnvVars:  []string{"API_BASE_URL", "VITE_API_BASE_URL"},
+		ExtraAPIEnvVars:  []string{"LLM_EVALUATOR_API_URL", "API_BASE_URL", "VITE_API_BASE_URL"},
 		BuildFingerprint: buildFingerprint,
 		BuildTimestamp:   buildTimestamp,
 		BuildSourceRoot:  buildSourceRoot,
 		AllowAnonymous:   true,
+		CommandGroups:    domains.CommandGroups,
+		SubcommandGroups: domains.SubcommandGroups,
 	})
 	if err != nil {
 		return nil, err
 	}
-	return &App{core: core}, nil
+	app.core = core
+	return app, nil
 }
 
 func (a *App) Run(args []string) error {

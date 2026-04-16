@@ -84,7 +84,6 @@ func (a *App) Run(args []string) error {
 
 func (a *App) dependencies() support.Dependencies {
 	return support.Dependencies{
-		Status:               a.cmdStatus,
 		Overview:             a.cmdOverview,
 		MigrateWorkshop:      a.cmdMigrateWorkshop,
 		BacklogList:          a.cmdBacklogList,

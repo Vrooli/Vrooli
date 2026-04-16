@@ -196,7 +196,7 @@ services:
 
 ### N8n Workflow Integration
 The Vault resource includes an N8n integration example at:
-`examples/n8n-vault-integration.json`
+`docs/n8n-vault-integration.json`
 
 This workflow demonstrates:
 - Retrieving secrets from Vault

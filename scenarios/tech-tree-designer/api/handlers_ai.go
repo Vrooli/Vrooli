@@ -93,7 +93,7 @@ func generateIdeasWithOpenRouter(ctx context.Context, sector *Sector, hint strin
 	if model == "" {
 		model = "openai/gpt-4o-mini"
 	}
-	cmd := exec.CommandContext(requestCtx, "resource-openrouter", "infer",
+	cmd := exec.CommandContext(requestCtx, "resource-openrouter", "generate",
 		"--model", model,
 		"--max-tokens", "640",
 		"--prompt", modelPrompt,

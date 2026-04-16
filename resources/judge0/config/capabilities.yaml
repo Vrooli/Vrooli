@@ -210,7 +210,7 @@ spec:
   documentation:
     readme: "resources/judge0/README.md"
     api_reference: "resources/judge0/docs/API.md"
-    examples_dir: "resources/judge0/examples/"
+    examples_dir: "resources/judge0/docs/integration-guide.md"
     configuration: "resources/judge0/docs/CONFIGURATION.md"
     security: "resources/judge0/docs/SECURITY.md"
   

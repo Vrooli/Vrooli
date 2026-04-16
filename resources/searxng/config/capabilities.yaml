@@ -216,7 +216,7 @@ spec:
   documentation:
     readme: "resources/searxng/README.md"
     api_reference: "resources/searxng/docs/API.md"
-    examples_dir: "resources/searxng/examples/"
+    examples_dir: "resources/searxng/docs/INTEGRATIONS.md"
     configuration: "resources/searxng/docs/CONFIGURATION.md"
     troubleshooting: "resources/searxng/docs/TROUBLESHOOTING.md"
   

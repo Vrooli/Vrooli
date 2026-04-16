@@ -40,13 +40,9 @@ func (c *Commands) apiDelete(path string) ([]byte, error) {
 
 func CommandGroups(deps support.Dependencies) []cliapp.CommandGroup {
 	cmds := New(deps)
+	// Root /health is served by cli-core's built-in `status` command, so this
+	// group only wraps scenario-specific operations.
 	return []cliapp.CommandGroup{
-		{
-			Title: "Health & Status",
-			Commands: []cliapp.Command{
-				{Name: "status", NeedsAPI: true, Description: "Check API health and system status", Run: cmds.Status},
-			},
-		},
 		{
 			Title: "Templates",
 			Commands: []cliapp.Command{
@@ -89,62 +85,6 @@ func WineRegister(deps support.Dependencies) cliapp.SubcommandGroup {
 			{Name: "status", Description: "Get Wine install status: status <id>", Run: cmds.WineStatus},
 		},
 	}
-}
-
-// Status checks API health and system status.
-func (c *Commands) Status(args []string) error {
-	fs := flag.NewFlagSet("status", flag.ContinueOnError)
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	// Get health
-	healthBody, err := c.apiGet("/health", nil)
-	if err != nil {
-		return fmt.Errorf("health check failed: %w", err)
-	}
-
-	// Get status
-	statusBody, err := c.apiGet("/status", nil)
-	if err != nil {
-		return fmt.Errorf("status check failed: %w", err)
-	}
-
-	if *jsonOutput {
-		fmt.Println("{")
-		fmt.Printf("  \"health\": %s,\n", string(healthBody))
-		fmt.Printf("  \"status\": %s\n", string(statusBody))
-		fmt.Println("}")
-		return nil
-	}
-
-	var health map[string]interface{}
-	var status map[string]interface{}
-	_ = json.Unmarshal(healthBody, &health)
-	_ = json.Unmarshal(statusBody, &status)
-	report := cliapp.OperationalReport{
-		Status: []string{fmt.Sprintf("Health: %v", health["status"])},
-		NextSteps: []string{
-			"scenario-to-desktop desktop-status",
-			"scenario-to-desktop pipeline list",
-		},
-	}
-	if svc, ok := status["service"].(map[string]interface{}); ok {
-		report.Status = append(report.Status, fmt.Sprintf("Service: %v v%v (%v)", svc["name"], svc["version"], svc["status"]))
-	}
-	if stats, ok := status["statistics"].(map[string]interface{}); ok {
-		report.Triage = append(report.Triage, cliapp.TriageGroup{
-			Heading: "Build Activity",
-			Items: []string{
-				fmt.Sprintf("Total builds: %v", stats["total_builds"]),
-				fmt.Sprintf("Active builds: %v", stats["active_builds"]),
-				fmt.Sprintf("Completed builds: %v", stats["completed_builds"]),
-				fmt.Sprintf("Failed builds: %v", stats["failed_builds"]),
-			},
-		})
-	}
-	return cliapp.RenderOperationalReport(os.Stdout, report)
 }
 
 // TemplatesList lists available desktop templates.

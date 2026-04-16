@@ -1,8 +1,6 @@
 package config
 
 import (
-	"encoding/json"
-	"flag"
 	"fmt"
 	"os"
 
@@ -12,27 +10,30 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 )
 
-const cliName = "scenario-completeness-scoring"
-
-func Register(core *cliapp.ScenarioApp) cliapp.CommandGroup {
-	return cliapp.CommandGroup{
-		Title: "Server Configuration",
-		Commands: []cliapp.Command{
-			{Name: "config", NeedsAPI: true, Description: "Show server scoring configuration", Run: func(args []string) error { return runConfig(core, args) }},
+// Register builds the `config` subcommand group for server-side scoring
+// configuration (weights, thresholds, schema). Note: this is distinct from the
+// built-in `configure` command (CLI local settings like api_base).
+func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
+	return cliapp.SubcommandGroup{
+		Name:        "config",
+		Description: "View and update server-side scoring configuration",
+		NeedsAPI:    true,
+		Subcommands: []cliapp.Command{
+			{Name: "show", Aliases: []string{"get"}, Description: "Show current scoring configuration", Run: func(args []string) error { return runShow(core, args) }},
+			{Name: "update", Description: "Replace the scoring configuration (requires --body-file)", Run: func(args []string) error { return runUpdate(core, args) }},
+			{Name: "schema", Description: "Show the scoring configuration JSON schema", Run: func(args []string) error { return runSchema(core, args) }},
+			{Name: "reset", Description: "Reset scoring configuration to defaults", Run: func(args []string) error { return runReset(core, args) }},
+			{Name: "thresholds", Description: "Show configured classification thresholds (optionally for a category)", Run: func(args []string) error { return runThresholds(core, args) }},
 		},
 	}
 }
 
-func runConfig(core *cliapp.ScenarioApp, args []string) error {
-	if len(args) > 0 && args[0] == "set" {
-		return runConfigSet(core, args[1:])
-	}
-
-	fs, jsonOut, err := support.ParseFlags("config", args)
-	if err != nil {
+func runShow(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("config show")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
-	_ = fs
 
 	body, err := core.Get("/config", nil)
 	if err != nil {
@@ -41,62 +42,141 @@ func runConfig(core *cliapp.ScenarioApp, args []string) error {
 
 	report := cliapp.ListReport{
 		Summary:        []string{"Scoring configuration loaded"},
-		ResultsHeading: "Configuration Payload",
+		ResultsHeading: "Configuration",
 		Results:        support.JSONLines(body),
-		RetrievalHints: []string{cliName + " config set --file ./config.json", cliName + " configure api_base <url>"},
+		RetrievalHints: []string{
+			fmt.Sprintf("%s config schema", support.CLIName),
+			fmt.Sprintf("%s config thresholds", support.CLIName),
+			fmt.Sprintf("%s config update --body-file config.json", support.CLIName),
+		},
 	}
-	if *jsonOut {
+	if *jsonOutput {
 		return cliapp.PrintReportJSON(os.Stdout, report)
 	}
 	return cliapp.RenderListReport(os.Stdout, report)
 }
 
-func runConfigSet(core *cliapp.ScenarioApp, args []string) error {
-	fs := flag.NewFlagSet("config set", flag.ContinueOnError)
-	filePath := fs.String("file", "", "Path to JSON config file")
-	inline := fs.String("json", "", "Inline JSON payload")
-	jsonOut := cliutil.JSONFlag(fs)
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+func runUpdate(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("config update")
+	bodyFile := fs.String("body-file", "", "Path to a JSON file with the new configuration payload")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
-
-	var payload map[string]interface{}
-	switch {
-	case *filePath != "":
-		data, err := os.ReadFile(*filePath)
-		if err != nil {
-			return fmt.Errorf("read file: %w", err)
-		}
-		if err := json.Unmarshal(data, &payload); err != nil {
-			return fmt.Errorf("parse json: %w", err)
-		}
-	case *inline != "":
-		if err := json.Unmarshal([]byte(*inline), &payload); err != nil {
-			return fmt.Errorf("parse json: %w", err)
-		}
-	default:
-		return fmt.Errorf("config set requires --file or --json")
-	}
-
-	body, err := core.Request("PUT", "/config", nil, payload)
+	raw, err := support.ReadJSONFile(*bodyFile, true)
 	if err != nil {
 		return err
 	}
 
+	respBody, err := core.Request("PUT", "/config", nil, raw)
+	if err != nil {
+		return err
+	}
+	message := support.EnvelopeMessage(respBody)
+	if message == "" {
+		message = "Scoring configuration updated"
+	}
+
 	report := cliapp.MutationReport{
-		Result:      []string{"Scoring configuration updated"},
-		Changes:     []string{"Server-side scoring weights and components were updated."},
-		NextCommand: []string{cliName + " config", cliName + " scores"},
+		Result:  []string{message},
+		Changes: []string{"Server-side scoring weights and components were updated.", "Source: " + *bodyFile},
+		NextCommand: []string{
+			fmt.Sprintf("%s config show", support.CLIName),
+			fmt.Sprintf("%s score list", support.CLIName),
+		},
 	}
-	if *filePath != "" {
-		report.Changes = append(report.Changes, "Config file: "+*filePath)
-	}
-	if *inline != "" {
-		report.Changes = append(report.Changes, "Inline JSON payload applied.")
-	}
-	if *jsonOut {
+	if *jsonOutput {
 		return cliapp.PrintReportJSON(os.Stdout, report)
 	}
-	_ = body
 	return cliapp.RenderMutationReport(os.Stdout, report)
+}
+
+func runSchema(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("config schema")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+
+	body, err := core.Get("/config/schema", nil)
+	if err != nil {
+		return err
+	}
+
+	report := cliapp.ListReport{
+		Summary:        []string{"Scoring configuration schema"},
+		ResultsHeading: "Schema",
+		Results:        support.JSONLines(body),
+		RetrievalHints: []string{
+			fmt.Sprintf("%s config show", support.CLIName),
+		},
+	}
+	if *jsonOutput {
+		return cliapp.PrintReportJSON(os.Stdout, report)
+	}
+	return cliapp.RenderListReport(os.Stdout, report)
+}
+
+func runReset(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("config reset")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+
+	body, err := core.Request("POST", "/config/reset", nil, map[string]interface{}{})
+	if err != nil {
+		return err
+	}
+	message := support.EnvelopeMessage(body)
+	if message == "" {
+		message = "Scoring configuration reset to defaults"
+	}
+
+	report := cliapp.MutationReport{
+		Result:  []string{message},
+		Changes: []string{"All scoring weights and thresholds restored to their defaults."},
+		NextCommand: []string{
+			fmt.Sprintf("%s config show", support.CLIName),
+			fmt.Sprintf("%s score list", support.CLIName),
+		},
+	}
+	if *jsonOutput {
+		return cliapp.PrintReportJSON(os.Stdout, report)
+	}
+	return cliapp.RenderMutationReport(os.Stdout, report)
+}
+
+func runThresholds(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("config thresholds")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+
+	path := "/config/thresholds"
+	label := "All categories"
+	if fs.NArg() >= 1 {
+		category := fs.Arg(0)
+		path = "/config/thresholds/" + category
+		label = "Category: " + category
+	}
+
+	body, err := core.Get(path, nil)
+	if err != nil {
+		return err
+	}
+
+	report := cliapp.ListReport{
+		Summary:        []string{"Scoring thresholds", label},
+		ResultsHeading: "Thresholds",
+		Results:        support.JSONLines(body),
+		RetrievalHints: []string{
+			fmt.Sprintf("%s config show", support.CLIName),
+		},
+	}
+	if *jsonOutput {
+		return cliapp.PrintReportJSON(os.Stdout, report)
+	}
+	return cliapp.RenderListReport(os.Stdout, report)
 }

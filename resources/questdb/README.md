@@ -49,6 +49,11 @@ vrooli resource install questdb
 resource-questdb status
 ```
 
+Importable workflow artifacts live in `docs/`:
+
+- `questdb-monitoring.n8n.json`
+- `real-time-dashboard.node-red.json`
+
 Connection defaults:
 
 - HTTP: `http://localhost:9009`

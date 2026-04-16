@@ -164,7 +164,7 @@ spec:
   documentation:
     readme: "resources/ollama/README.md"
     api_reference: "resources/ollama/docs/API.md"
-    examples_dir: "resources/ollama/examples/"
+    examples_dir: "resources/ollama/docs/README.md"
     configuration: "resources/ollama/docs/CONFIGURATION.md"
   
   # Version and compatibility

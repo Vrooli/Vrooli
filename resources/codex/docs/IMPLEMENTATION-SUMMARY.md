@@ -152,11 +152,8 @@ resource-codex manage install-cli
 resource-codex agent "Create a calculator with tests"
 ```
 
-### Demo Script
-```bash
-./resources/codex/examples/codex-cli-demo.sh
-# Shows full comparison and capabilities
-```
+### Validation Surface
+Use the commands in `resources/codex/QUICK-START.md` to validate the CLI integration surface directly.
 
 ## Architecture Benefits
 

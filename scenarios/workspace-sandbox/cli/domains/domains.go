@@ -2,7 +2,6 @@ package domains
 
 import (
 	"workspace-sandbox/cli/domains/changes"
-	"workspace-sandbox/cli/domains/health"
 	"workspace-sandbox/cli/domains/maintenance"
 	"workspace-sandbox/cli/domains/process"
 	"workspace-sandbox/cli/domains/provenance"
@@ -12,10 +11,11 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 )
 
-func CommandGroups(deps support.Dependencies) []cliapp.CommandGroup {
-	return []cliapp.CommandGroup{
-		health.Register(deps),
-	}
+// CommandGroups aggregates flat command groups. The root /health probe is
+// served by cli-core's built-in `status` command, so no status/health/system
+// domain is registered here.
+func CommandGroups(_ support.Dependencies) []cliapp.CommandGroup {
+	return nil
 }
 
 func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {

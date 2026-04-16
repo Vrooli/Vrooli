@@ -423,7 +423,7 @@ test_specification:
     - Integration tests in test/ directory
     - Shared fixtures from __test/fixtures/data/
     - Test results included in status output with timestamp
-    - Examples in examples/ directory
+    - Usage examples documented in README.md or docs/
   
   lifecycle_tests:
     - name: "Resource Installation"

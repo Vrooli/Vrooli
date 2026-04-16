@@ -212,7 +212,7 @@ spec:
   documentation:
     readme: "resources/unstructured-io/README.md"
     api_reference: "resources/unstructured-io/docs/API.md"
-    examples_dir: "resources/unstructured-io/examples/"
+    examples_dir: "resources/unstructured-io/README.md"
     configuration: "resources/unstructured-io/docs/CONFIGURATION.md"
     troubleshooting: "resources/unstructured-io/docs/TROUBLESHOOTING.md"
   

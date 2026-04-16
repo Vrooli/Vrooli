@@ -16,10 +16,11 @@ import (
 )
 
 func Register(deps support.Dependencies) cliapp.CommandGroup {
+	// Root /health is served by cli-core's built-in `status` command. This
+	// group only wraps LPBS-specific readiness checks.
 	return cliapp.CommandGroup{
-		Title: "Health",
+		Title: "Readiness",
 		Commands: []cliapp.Command{
-			deps.EndpointCommand(support.EndpointDef{Name: "health", Method: "GET", Path: "/health", Description: "Check API health (/api/v1/health)"}),
 			{Name: "service-auth-status", NeedsAPI: true, Description: "Check LPBS service-to-service auth readiness", Run: func(args []string) error { return RunServiceAuthStatus(deps, args) }},
 			{Name: "deploy-readiness", NeedsAPI: true, Description: "Run LPBS readiness checks for desktop deploy handoff", Run: func(args []string) error { return RunDeployReadiness(deps, args) }},
 		},

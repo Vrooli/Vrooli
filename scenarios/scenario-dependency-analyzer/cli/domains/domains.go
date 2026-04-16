@@ -8,7 +8,6 @@ import (
 	"scenario-dependency-analyzer/cli/domains/dependencies"
 	"scenario-dependency-analyzer/cli/domains/deployment"
 	"scenario-dependency-analyzer/cli/domains/graph"
-	"scenario-dependency-analyzer/cli/domains/health"
 	"scenario-dependency-analyzer/cli/domains/impact"
 	"scenario-dependency-analyzer/cli/domains/optimize"
 	"scenario-dependency-analyzer/cli/domains/proposals"
@@ -18,6 +17,9 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 )
 
+// CommandGroups aggregates flat command groups. The root /health probe is
+// served by cli-core's built-in `status` command, so no status/health/system
+// domain is registered here.
 func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 	return []cliapp.CommandGroup{
 		analyze.Register(core),
@@ -29,7 +31,6 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 		optimize.Register(core),
 		dependencies.Register(core),
 		deployment.Register(core),
-		health.Register(core),
 	}
 }
 

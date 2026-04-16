@@ -1,8 +1,0 @@
-{
-  "resource": "{{RESOURCE_NAME}}",
-  "kind": "integration",
-  "checks": [
-    "authenticated request succeeds",
-    "rate limiting and error handling are documented"
-  ]
-}

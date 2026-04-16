@@ -214,7 +214,7 @@ spec:
   documentation:
     readme: "resources/redis/README.md"
     api_reference: "resources/redis/docs/API.md"
-    examples_dir: "resources/redis/examples/"
+    examples_dir: "resources/redis/README.md"
     configuration: "resources/redis/docs/CONFIGURATION.md"
     troubleshooting: "resources/redis/docs/TROUBLESHOOTING.md"
   

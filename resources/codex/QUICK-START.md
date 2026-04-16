@@ -164,7 +164,7 @@ The system automatically uses the cheapest effective method for your task.
 
 ```bash
 resource-codex help                    # Show all commands
-./resources/codex/examples/codex-cli-demo.sh  # Run interactive demo
+resource-codex status                  # Inspect available backends
 ```
 
 Or check the full documentation in `resources/codex/README.md`

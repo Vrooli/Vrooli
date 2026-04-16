@@ -252,7 +252,7 @@ spec:
   documentation:
     readme: "resources/qdrant/README.md"
     api_reference: "resources/qdrant/docs/API.md"
-    examples_dir: "resources/qdrant/examples/"
+    examples_dir: "resources/qdrant/README.md"
     configuration: "resources/qdrant/docs/CONFIGURATION.md"
     troubleshooting: "resources/qdrant/docs/TROUBLESHOOTING.md"
   
