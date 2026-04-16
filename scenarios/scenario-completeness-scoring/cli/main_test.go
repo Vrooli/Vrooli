@@ -126,7 +126,7 @@ func TestScoreCommandRunsStaleCheckViaDispatcher(t *testing.T) {
 	app.core.CLI.SetStaleChecker(&cliutil.StaleChecker{
 		BuildFingerprint: "fp",
 		BuildSourceRoot:  t.TempDir(),
-		FingerprintFunc: func(root string, skip ...string) (string, error) {
+		FingerprintFunc: func(spec cliutil.FreshnessSpec) (string, error) {
 			called = true
 			return "fp", nil
 		},

@@ -3,7 +3,5 @@ set -euo pipefail
 
 SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
 REPO_ROOT="$(builtin cd "${SCRIPT_DIR}/../../.." && builtin pwd)"
-CLI_DIR="${REPO_ROOT}/scenarios/social-media-scheduler/cli"
-source "${REPO_ROOT}/scripts/lib/utils/cli-install.sh"
 
-install_cli "$CLI_DIR/social-media-scheduler" "social-media-scheduler"
+"${REPO_ROOT}/packages/cli-core/install.sh" "scenarios/social-media-scheduler/cli" --name "social-media-scheduler" --manifest "scenarios/social-media-scheduler/.vrooli/service.json"

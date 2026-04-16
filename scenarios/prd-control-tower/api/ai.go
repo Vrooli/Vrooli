@@ -498,7 +498,7 @@ func generateAIContentCLI(draft Draft, section string, context string, action st
 	prompt := buildPrompt(draft, section, context, action, includeExisting, referencePRDs)
 
 	// Run resource-openrouter
-	cmd := exec.Command("resource-openrouter", "chat", "--model", "anthropic/claude-3.5-sonnet", "--message", prompt)
+	cmd := exec.Command("resource-openrouter", "generate", "--model", "anthropic/claude-3.5-sonnet", "--prompt", prompt)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

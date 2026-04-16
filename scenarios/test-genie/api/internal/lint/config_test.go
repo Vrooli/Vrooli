@@ -9,89 +9,42 @@ import (
 func TestDefaultSettings(t *testing.T) {
 	settings := DefaultSettings()
 
-	// By default, all languages are enabled
-	if !settings.Go.IsEnabled() {
-		t.Error("Go should be enabled by default")
+	if !settings.Handlers[HandlerGoModule].EnabledOrDefault() {
+		t.Fatal("expected go_module handler enabled by default")
 	}
-	if !settings.Node.IsEnabled() {
-		t.Error("Node should be enabled by default")
+	if settings.Policy.UnconfiguredCommonComponents["api"] != PolicySeverityError {
+		t.Fatalf("expected api policy to default to error, got %q", settings.Policy.UnconfiguredCommonComponents["api"])
 	}
-	if !settings.Python.IsEnabled() {
-		t.Error("Python should be enabled by default")
+	if settings.Policy.UnmatchedCodeComponents != PolicySeverityWarning {
+		t.Fatalf("expected unmatched code policy warning, got %q", settings.Policy.UnmatchedCodeComponents)
 	}
-
-	// By default, strict mode is off
-	if settings.Go.Strict {
-		t.Error("Go strict mode should be off by default")
-	}
-	if settings.Node.Strict {
-		t.Error("Node strict mode should be off by default")
-	}
-	if settings.Python.Strict {
-		t.Error("Python strict mode should be off by default")
+	if len(settings.Ignore) == 0 {
+		t.Fatal("expected default ignore list")
 	}
 }
 
-func TestLanguageSettings_IsEnabled(t *testing.T) {
-	tests := []struct {
-		name     string
-		enabled  *bool
-		expected bool
-	}{
-		{"nil is enabled", nil, true},
-		{"true is enabled", boolPtr(true), true},
-		{"false is disabled", boolPtr(false), false},
+func TestHandlerSettingsEnabledOrDefault(t *testing.T) {
+	if !(HandlerSettings{}).EnabledOrDefault() {
+		t.Fatal("nil enabled should default to true")
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := LanguageSettings{Enabled: tt.enabled}
-			if s.IsEnabled() != tt.expected {
-				t.Errorf("IsEnabled() = %v, want %v", s.IsEnabled(), tt.expected)
-			}
-		})
+	disabled := false
+	if (HandlerSettings{Enabled: &disabled}).EnabledOrDefault() {
+		t.Fatal("expected explicit false to disable handler")
 	}
 }
 
 func TestLoadSettings_NoFile(t *testing.T) {
 	tempDir := t.TempDir()
-
 	settings, err := LoadSettings(tempDir)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-
-	// Should return default settings when no file exists
-	if !settings.Go.IsEnabled() {
-		t.Error("Go should be enabled when no config file")
+	if !settings.Handlers[HandlerNodePackage].EnabledOrDefault() {
+		t.Fatal("expected default settings when file absent")
 	}
 }
 
-func TestLoadSettings_EmptyLintSection(t *testing.T) {
-	tempDir := t.TempDir()
-	vrooliDir := filepath.Join(tempDir, ".vrooli")
-	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
-		t.Fatalf("failed to create .vrooli dir: %v", err)
-	}
-
-	// testing.json without lint section
-	config := `{"structure": {}}`
-	if err := os.WriteFile(filepath.Join(vrooliDir, "testing.json"), []byte(config), 0o644); err != nil {
-		t.Fatalf("failed to write testing.json: %v", err)
-	}
-
-	settings, err := LoadSettings(tempDir)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	// Should return default settings when lint section is missing
-	if !settings.Go.IsEnabled() {
-		t.Error("Go should be enabled when lint section missing")
-	}
-}
-
-func TestLoadSettings_DisableLanguage(t *testing.T) {
+func TestLoadSettings_OverridesHandlersPolicyAndComponents(t *testing.T) {
 	tempDir := t.TempDir()
 	vrooliDir := filepath.Join(tempDir, ".vrooli")
 	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
@@ -100,10 +53,21 @@ func TestLoadSettings_DisableLanguage(t *testing.T) {
 
 	config := `{
 		"lint": {
-			"languages": {
-				"go": {"enabled": false},
-				"node": {"enabled": true}
-			}
+			"handlers": {
+				"go_module": {"strict": true},
+				"python_project": {"enabled": false}
+			},
+			"policy": {
+				"unconfigured_common_components": {
+					"api": "error",
+					"ui": "info"
+				},
+				"unmatched_code_components": "info"
+			},
+			"components": {
+				"worker": {"handler": "go_module", "strict": true}
+			},
+			"ignore": ["docs", "fixtures"]
 		}
 	}`
 	if err := os.WriteFile(filepath.Join(vrooliDir, "testing.json"), []byte(config), 0o644); err != nil {
@@ -114,72 +78,38 @@ func TestLoadSettings_DisableLanguage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-
-	if settings.Go.IsEnabled() {
-		t.Error("Go should be disabled")
+	if !settings.Handlers[HandlerGoModule].Strict {
+		t.Fatal("expected go_module strict override")
 	}
-	if !settings.Node.IsEnabled() {
-		t.Error("Node should be enabled")
+	if settings.Handlers[HandlerPythonProject].EnabledOrDefault() {
+		t.Fatal("expected python_project to be disabled")
 	}
-	// Python not specified, should use default (enabled)
-	if !settings.Python.IsEnabled() {
-		t.Error("Python should be enabled by default")
+	if settings.Policy.UnconfiguredCommonComponents["ui"] != PolicySeverityInfo {
+		t.Fatal("expected ui policy override")
+	}
+	if settings.Policy.UnmatchedCodeComponents != PolicySeverityInfo {
+		t.Fatal("expected unmatched code policy override")
+	}
+	if settings.Components["worker"].Handler != HandlerGoModule {
+		t.Fatal("expected worker handler override")
+	}
+	if len(settings.Ignore) != 2 || settings.Ignore[1] != "fixtures" {
+		t.Fatalf("unexpected ignore list: %v", settings.Ignore)
 	}
 }
 
-func TestLoadSettings_StrictMode(t *testing.T) {
+func TestLoadSettings_InvalidPolicySeverity(t *testing.T) {
 	tempDir := t.TempDir()
 	vrooliDir := filepath.Join(tempDir, ".vrooli")
 	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
 		t.Fatalf("failed to create .vrooli dir: %v", err)
 	}
-
-	config := `{
-		"lint": {
-			"languages": {
-				"go": {"strict": true},
-				"node": {"strict": false}
-			}
-		}
-	}`
+	config := `{"lint": {"policy": {"unmatched_code_components": "fatal"}}}`
 	if err := os.WriteFile(filepath.Join(vrooliDir, "testing.json"), []byte(config), 0o644); err != nil {
 		t.Fatalf("failed to write testing.json: %v", err)
 	}
 
-	settings, err := LoadSettings(tempDir)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	if _, err := LoadSettings(tempDir); err == nil {
+		t.Fatal("expected invalid policy severity error")
 	}
-
-	if !settings.Go.Strict {
-		t.Error("Go strict should be true")
-	}
-	if settings.Node.Strict {
-		t.Error("Node strict should be false")
-	}
-	// Python not specified, should use default (not strict)
-	if settings.Python.Strict {
-		t.Error("Python strict should be false by default")
-	}
-}
-
-func TestLoadSettings_InvalidJSON(t *testing.T) {
-	tempDir := t.TempDir()
-	vrooliDir := filepath.Join(tempDir, ".vrooli")
-	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
-		t.Fatalf("failed to create .vrooli dir: %v", err)
-	}
-
-	if err := os.WriteFile(filepath.Join(vrooliDir, "testing.json"), []byte("not json"), 0o644); err != nil {
-		t.Fatalf("failed to write testing.json: %v", err)
-	}
-
-	_, err := LoadSettings(tempDir)
-	if err == nil {
-		t.Fatal("expected error for invalid JSON")
-	}
-}
-
-func boolPtr(b bool) *bool {
-	return &b
 }

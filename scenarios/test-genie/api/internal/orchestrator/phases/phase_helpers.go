@@ -12,12 +12,16 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"test-genie/internal/lint/execution"
 	"test-genie/internal/shared"
 )
 
-var commandLookup = exec.LookPath
-var phaseCommandExecutor = runCommand
-var phaseCommandCapture = runCommandCapture
+var (
+	commandLookup                         = exec.LookPath
+	lintCommandRunner    execution.Runner = execution.ProductionRunner{}
+	phaseCommandExecutor                  = runCommand
+	phaseCommandCapture                   = runCommandCapture
+)
 
 // ParseJSON parses JSON from a string into a target value.
 // This is the standard helper for parsing JSON across phases.
@@ -178,6 +182,13 @@ func OverrideCommandCapture(fn func(context.Context, string, io.Writer, string, 
 	prev := phaseCommandCapture
 	phaseCommandCapture = fn
 	return func() { phaseCommandCapture = prev }
+}
+
+// OverrideLintCommandRunner temporarily replaces lint tool execution.
+func OverrideLintCommandRunner(r execution.Runner) func() {
+	prev := lintCommandRunner
+	lintCommandRunner = r
+	return func() { lintCommandRunner = prev }
 }
 
 // Scenario interaction utilities - used by playbooks, smoke, and other runtime phases.

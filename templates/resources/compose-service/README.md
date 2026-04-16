@@ -17,9 +17,9 @@ Use this template when the resource needs a coordinated runtime graph instead of
 
 Replace these bullets with the real scenario-facing uses for this resource.
 
-- Serve as the shared local multi-service runtime for scenarios that need {{primary function}}.
-- Support {{secondary workflow}} without each scenario owning its own service graph.
-- Provide a foundation for {{integration pattern}} across the Vrooli stack.
+- Serve as the shared local multi-service runtime for scenarios that need a coordinated service graph.
+- Support repeatable local workflows without each scenario owning its own compose topology.
+- Provide a foundation for cross-scenario multi-service reuse across the Vrooli stack.
 
 ## Architecture
 

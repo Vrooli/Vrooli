@@ -9,6 +9,18 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 )
 
+const UsageLine = "test-genie generate <scenario> [--types unit,integration] [--coverage 95] [--priority normal] [--notes text] [--notes-file path] [--json]"
+
+// HelpText returns the framework-rendered help body for the generate command.
+func HelpText() string {
+	return `Queue suite generation for a scenario.
+
+Examples:
+  test-genie generate swarm-manager --types unit,integration
+  test-genie generate prompt-manager --coverage 90 --priority high
+  test-genie generate agent-inbox --notes-file notes.txt`
+}
+
 // Run executes the generate command.
 func Run(client *Client, args []string) error {
 	parsed, err := ParseArgs(args)
@@ -68,7 +80,7 @@ func Run(client *Client, args []string) error {
 // ParseArgs parses command line arguments for the generate command.
 func ParseArgs(args []string) (Args, error) {
 	if len(args) == 0 {
-		return Args{}, usageError("usage: generate <scenario> [--types unit,integration] [--coverage 95] [--priority normal] [--notes text] [--notes-file path] [--json]")
+		return Args{}, usageError("usage: " + strings.TrimPrefix(UsageLine, "test-genie "))
 	}
 	out := Args{Scenario: args[0]}
 	fs := flag.NewFlagSet("generate", flag.ContinueOnError)

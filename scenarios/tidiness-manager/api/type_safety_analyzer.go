@@ -554,7 +554,7 @@ func (a *TypeSafetyAnalyzer) checkTestingConfig(result *TypeSafetyConfigResult) 
 				Severity:    "high",
 				Title:       "testing.json missing lint strictness policy",
 				Description: "Scenario has lintable code but .vrooli/testing.json does not exist, so strict lint enforcement cannot be guaranteed in test-genie.",
-				Remediation: "Create .vrooli/testing.json with `lint.languages.node.strict: true` for UI scenarios and `lint.languages.go.strict: true` for Go scenarios.",
+				Remediation: "Create .vrooli/testing.json with `lint.handlers.node_package.strict: true` for UI scenarios and `lint.handlers.go_module.strict: true` for Go scenarios.",
 				FilePath:    testingPath,
 			})
 		}
@@ -563,16 +563,16 @@ func (a *TypeSafetyAnalyzer) checkTestingConfig(result *TypeSafetyConfigResult) 
 
 	var config struct {
 		Lint struct {
-			Languages struct {
-				Go struct {
+			Handlers struct {
+				GoModule struct {
 					Enabled *bool `json:"enabled"`
 					Strict  *bool `json:"strict"`
-				} `json:"go"`
-				Node struct {
+				} `json:"go_module"`
+				NodePackage struct {
 					Enabled *bool `json:"enabled"`
 					Strict  *bool `json:"strict"`
-				} `json:"node"`
-			} `json:"languages"`
+				} `json:"node_package"`
+			} `json:"handlers"`
 		} `json:"lint"`
 	}
 	if err := json.Unmarshal([]byte(stripJSONCComments(string(raw))), &config); err != nil {
@@ -581,30 +581,30 @@ func (a *TypeSafetyAnalyzer) checkTestingConfig(result *TypeSafetyConfigResult) 
 			Severity:    "high",
 			Title:       "testing.json parse error",
 			Description: fmt.Sprintf("Failed to parse .vrooli/testing.json: %v", err),
-			Remediation: "Fix .vrooli/testing.json and ensure it declares strict linting under `lint.languages`.",
+			Remediation: "Fix .vrooli/testing.json and ensure it declares strict linting under `lint.handlers`.",
 			FilePath:    testingPath,
 		})
 		return
 	}
 
-	if a.hasNodeProject() && !isStrictEnabled(config.Lint.Languages.Node.Enabled, config.Lint.Languages.Node.Strict) {
+	if a.hasNodeProject() && !isStrictEnabled(config.Lint.Handlers.NodePackage.Enabled, config.Lint.Handlers.NodePackage.Strict) {
 		result.Violations = append(result.Violations, TypeSafetyViolation{
 			RuleID:      "TESTING_CONFIG_LINT_STRICT",
 			Severity:    "high",
 			Title:       "Node lint strict mode not enabled",
-			Description: ".vrooli/testing.json does not enforce `lint.languages.node.strict: true` for a scenario with a UI package. ESLint findings can pass without failing the lint phase.",
-			Remediation: "Set `.vrooli/testing.json -> lint.languages.node.enabled = true` and `strict = true`.",
+			Description: ".vrooli/testing.json does not enforce `lint.handlers.node_package.strict: true` for a scenario with a UI package. ESLint findings can pass without failing the lint phase.",
+			Remediation: "Set `.vrooli/testing.json -> lint.handlers.node_package.enabled = true` and `strict = true`.",
 			FilePath:    testingPath,
 		})
 	}
 
-	if (a.hasGoProjectIn("api") || a.hasGoProjectIn("cli")) && !isStrictEnabled(config.Lint.Languages.Go.Enabled, config.Lint.Languages.Go.Strict) {
+	if (a.hasGoProjectIn("api") || a.hasGoProjectIn("cli")) && !isStrictEnabled(config.Lint.Handlers.GoModule.Enabled, config.Lint.Handlers.GoModule.Strict) {
 		result.Violations = append(result.Violations, TypeSafetyViolation{
 			RuleID:      "TESTING_CONFIG_LINT_STRICT",
 			Severity:    "high",
 			Title:       "Go lint strict mode not enabled",
-			Description: ".vrooli/testing.json does not enforce `lint.languages.go.strict: true` for a scenario with Go code. golangci-lint warnings can pass without failing the lint phase.",
-			Remediation: "Set `.vrooli/testing.json -> lint.languages.go.enabled = true` and `strict = true`.",
+			Description: ".vrooli/testing.json does not enforce `lint.handlers.go_module.strict: true` for a scenario with Go code. golangci-lint warnings can pass without failing the lint phase.",
+			Remediation: "Set `.vrooli/testing.json -> lint.handlers.go_module.enabled = true` and `strict = true`.",
 			FilePath:    testingPath,
 		})
 	}

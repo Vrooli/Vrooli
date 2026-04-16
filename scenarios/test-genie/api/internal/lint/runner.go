@@ -4,41 +4,16 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 
-	"test-genie/internal/lint/golang"
-	"test-genie/internal/lint/nodejs"
-	"test-genie/internal/lint/python"
+	"test-genie/internal/lint/execution"
 	"test-genie/internal/shared"
 )
 
-// Config holds configuration for lint validation.
-type Config struct {
-	// ScenarioDir is the absolute path to the scenario directory.
-	ScenarioDir string
-
-	// ScenarioName is the name of the scenario.
-	ScenarioName string
-
-	// CommandLookup is an optional custom command lookup function.
-	CommandLookup LookupFunc
-
-	// Settings holds lint configuration from .vrooli/testing.json.
-	// If nil, default settings are used.
-	Settings *Settings
-}
-
-// Runner orchestrates lint validation across Go, Node.js, and Python.
+// Runner orchestrates lint validation across discovered top-level components.
 type Runner struct {
-	config   Config
-	settings *Settings
-
-	goLinter     *golang.Linter
-	goCLILinter  *golang.Linter
-	nodeLinter   *nodejs.Linter
-	pythonLinter *python.Linter
-
+	config    Config
+	settings  *Settings
+	registry  *handlerRegistry
 	logWriter io.Writer
 }
 
@@ -47,48 +22,23 @@ type Option func(*Runner)
 
 // New creates a new lint validation runner.
 func New(config Config, opts ...Option) *Runner {
-	// Use provided settings or defaults
 	settings := config.Settings
 	if settings == nil {
 		settings = DefaultSettings()
+	}
+	if config.CommandRunner == nil {
+		config.CommandRunner = execution.ProductionRunner{}
 	}
 
 	r := &Runner{
 		config:    config,
 		settings:  settings,
+		registry:  newHandlerRegistry(config),
 		logWriter: io.Discard,
 	}
-
 	for _, opt := range opts {
 		opt(r)
 	}
-
-	// Set defaults for linters if not provided via options
-	if r.goLinter == nil {
-		r.goLinter = golang.New(golang.Config{
-			Dir:           filepath.Join(config.ScenarioDir, "api"),
-			CommandLookup: config.CommandLookup,
-		}, golang.WithLogger(r.logWriter))
-	}
-	if r.goCLILinter == nil {
-		r.goCLILinter = golang.New(golang.Config{
-			Dir:           filepath.Join(config.ScenarioDir, "cli"),
-			CommandLookup: config.CommandLookup,
-		}, golang.WithLogger(r.logWriter))
-	}
-	if r.nodeLinter == nil {
-		r.nodeLinter = nodejs.New(nodejs.Config{
-			Dir:           filepath.Join(config.ScenarioDir, "ui"),
-			CommandLookup: config.CommandLookup,
-		}, nodejs.WithLogger(r.logWriter))
-	}
-	if r.pythonLinter == nil {
-		r.pythonLinter = python.New(python.Config{
-			Dir:           config.ScenarioDir,
-			CommandLookup: config.CommandLookup,
-		}, python.WithLogger(r.logWriter))
-	}
-
 	return r
 }
 
@@ -99,28 +49,7 @@ func WithLogger(w io.Writer) Option {
 	}
 }
 
-// WithGoLinter sets a custom Go linter (for testing).
-func WithGoLinter(l *golang.Linter) Option {
-	return func(r *Runner) {
-		r.goLinter = l
-	}
-}
-
-// WithNodeLinter sets a custom Node.js linter (for testing).
-func WithNodeLinter(l *nodejs.Linter) Option {
-	return func(r *Runner) {
-		r.nodeLinter = l
-	}
-}
-
-// WithPythonLinter sets a custom Python linter (for testing).
-func WithPythonLinter(l *python.Linter) Option {
-	return func(r *Runner) {
-		r.pythonLinter = l
-	}
-}
-
-// Run executes all lint validations and returns the aggregated result.
+// Run executes lint validation across discovered components.
 func (r *Runner) Run(ctx context.Context) *RunResult {
 	if err := ctx.Err(); err != nil {
 		return &RunResult{
@@ -130,227 +59,174 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		}
 	}
 
-	var observations []Observation
-	var summary LintSummary
-	var hasTypeErrors bool
+	components, err := discoverComponents(r.config.ScenarioDir, r.settings)
+	if err != nil {
+		return &RunResult{
+			Success:      false,
+			Error:        err,
+			FailureClass: FailureClassSystem,
+		}
+	}
+
+	var (
+		observations   []Observation
+		componentRuns  []ComponentResult
+		policyFindings []PolicyFinding
+		summary        = LintSummary{ComponentsDiscovered: len(components)}
+		failed         bool
+	)
 
 	shared.LogInfo(r.logWriter, "Starting lint validation for %s", r.config.ScenarioName)
 
-	// Check which languages are present and enabled
-	goTargets := r.goProjectTargets()
-	hasGo := len(goTargets) > 0 && r.settings.Go.IsEnabled()
-	hasNode := r.hasNodeProject() && r.settings.Node.IsEnabled()
-	hasPython := r.hasPythonProject() && r.settings.Python.IsEnabled()
-
-	// Log disabled languages
-	if len(goTargets) > 0 && !r.settings.Go.IsEnabled() {
-		observations = append(observations, NewSkipObservation("Go linting disabled via configuration"))
-	}
-	if r.hasNodeProject() && !r.settings.Node.IsEnabled() {
-		observations = append(observations, NewSkipObservation("Node.js linting disabled via configuration"))
-	}
-	if r.hasPythonProject() && !r.settings.Python.IsEnabled() {
-		observations = append(observations, NewSkipObservation("Python linting disabled via configuration"))
-	}
-
-	if !hasGo && !hasNode && !hasPython {
-		observations = append(observations, NewInfoObservation("No lintable languages detected or all disabled"))
-		return &RunResult{
-			Success:      true,
-			Observations: observations,
-			Summary:      summary,
+	for _, component := range components {
+		if component.IsRoot && len(component.CodeEvidence) == 0 {
+			continue
 		}
-	}
 
-	// Section: Go Linting
-	if hasGo {
-		observations = append(observations, NewSectionObservation("🔷", "Linting Go code..."))
-		shared.LogInfo(r.logWriter, "Linting Go code...")
-		summary.GoChecked = true
-
-		for _, target := range goTargets {
-			result := r.lintGoTarget(ctx, target)
-			summary.GoIssues += len(result.Issues)
-			summary.TypeErrors += result.TypeErrors
-			summary.LintErrors += result.LintWarnings
-			observations = append(observations, result.Observations...)
-
-			if r.settings.Go.Strict && result.LintWarnings > 0 {
-				hasTypeErrors = true
-				summary.TypeErrors += result.LintWarnings
-			} else if result.TypeErrors > 0 {
-				hasTypeErrors = true
-			}
-
-			if result.Skipped {
-				shared.LogInfo(r.logWriter, "Go linting skipped for %s: %s", target, result.SkipReason)
-			} else if len(result.Issues) == 0 {
-				shared.LogSuccess(r.logWriter, "Go code passed all checks in %s", target)
-			} else {
-				shared.LogWarn(r.logWriter, "Go linting found %d issues in %s", len(result.Issues), target)
-			}
+		override := r.settings.Components[component.Name]
+		if !override.ComponentEnabled() {
+			componentRuns = append(componentRuns, ComponentResult{
+				Component:    component,
+				Skipped:      true,
+				SkipReason:   "disabled via lint.components override",
+				Observations: []Observation{NewSkipObservation(fmt.Sprintf("%s: linting disabled via configuration", component.RelativePath))},
+			})
+			summary.ComponentsSkipped++
+			continue
 		}
-	}
 
-	// Section: Node.js Linting
-	if hasNode {
-		observations = append(observations, NewSectionObservation("🟨", "Linting TypeScript/JavaScript..."))
-		shared.LogInfo(r.logWriter, "Linting TypeScript/JavaScript...")
+		h, evidence, resolveErr := resolveHandler(component, r.settings, r.registry)
+		if resolveErr != nil {
+			failed = true
+			summary.PolicyErrors++
+			finding := PolicyFinding{
+				Component: component.Name,
+				Path:      component.RelativePath,
+				Severity:  PolicySeverityError,
+				Message:   resolveErr.Error(),
+			}
+			policyFindings = append(policyFindings, finding)
+			componentRuns = append(componentRuns, ComponentResult{
+				Component:      component,
+				Matched:        false,
+				Success:        false,
+				PolicyFindings: []PolicyFinding{finding},
+				Observations:   []Observation{observationForPolicyFinding(finding)},
+			})
+			continue
+		}
 
-		result := r.nodeLinter.Lint(ctx)
-		summary.NodeChecked = true
-		summary.NodeIssues = len(result.Issues)
+		if h == nil {
+			findings := evaluatePolicy(component, false, r.settings)
+			componentRuns = append(componentRuns, ComponentResult{
+				Component:      component,
+				Matched:        false,
+				Success:        len(findings) == 0,
+				PolicyFindings: findings,
+			})
+			if len(findings) > 0 {
+				summary.ComponentsUnmatched++
+				for _, finding := range findings {
+					policyFindings = append(policyFindings, finding)
+					switch finding.Severity {
+					case PolicySeverityWarning:
+						summary.PolicyWarnings++
+					case PolicySeverityError:
+						summary.PolicyErrors++
+						failed = true
+					}
+				}
+			}
+			continue
+		}
+
+		component.DetectionReason = evidence
+		result := h.Run(ctx, component)
+		result.HandlerID = h.ID()
+		result.Strict = r.settings.Handlers[h.ID()].StrictForComponent(override)
+		componentRuns = append(componentRuns, result)
+		summary.ComponentsLinted++
 		summary.TypeErrors += result.TypeErrors
-		summary.LintErrors += result.LintWarnings
-
-		// Convert observations from the linter
+		summary.LintWarnings += result.LintWarnings
+		observations = append(observations, NewSectionObservation("🧪", fmt.Sprintf("Linting %s (%s)", component.RelativePath, h.ID())))
 		observations = append(observations, result.Observations...)
 
-		// In strict mode, all issues are treated as type errors
-		if r.settings.Node.Strict && result.LintWarnings > 0 {
-			hasTypeErrors = true
-			summary.TypeErrors += result.LintWarnings
-		} else if result.TypeErrors > 0 {
-			hasTypeErrors = true
-		}
-
 		if result.Skipped {
-			shared.LogInfo(r.logWriter, "Node linting skipped: %s", result.SkipReason)
-		} else if len(result.Issues) == 0 {
-			shared.LogSuccess(r.logWriter, "TypeScript/JavaScript passed all checks")
-		} else {
-			shared.LogWarn(r.logWriter, "Node linting found %d issues", len(result.Issues))
+			summary.ComponentsSkipped++
+		}
+		if result.TypeErrors > 0 {
+			failed = true
+		}
+		if result.Strict && result.LintWarnings > 0 {
+			failed = true
+			summary.TypeErrors += result.LintWarnings
 		}
 	}
 
-	// Section: Python Linting
-	if hasPython {
-		observations = append(observations, NewSectionObservation("🐍", "Linting Python code..."))
-		shared.LogInfo(r.logWriter, "Linting Python code...")
-
-		result := r.pythonLinter.Lint(ctx)
-		summary.PythonChecked = true
-		summary.PythonIssues = len(result.Issues)
-		summary.TypeErrors += result.TypeErrors
-		summary.LintErrors += result.LintWarnings
-
-		// Convert observations from the linter
-		observations = append(observations, result.Observations...)
-
-		// In strict mode, all issues are treated as type errors
-		if r.settings.Python.Strict && result.LintWarnings > 0 {
-			hasTypeErrors = true
-			summary.TypeErrors += result.LintWarnings
-		} else if result.TypeErrors > 0 {
-			hasTypeErrors = true
+	for idx := range componentRuns {
+		if len(componentRuns[idx].PolicyFindings) == 0 {
+			continue
 		}
-
-		if result.Skipped {
-			shared.LogInfo(r.logWriter, "Python linting skipped: %s", result.SkipReason)
-		} else if len(result.Issues) == 0 {
-			shared.LogSuccess(r.logWriter, "Python code passed all checks")
-		} else {
-			shared.LogWarn(r.logWriter, "Python linting found %d issues", len(result.Issues))
+		for _, finding := range componentRuns[idx].PolicyFindings {
+			if finding.Severity == PolicySeverityIgnore {
+				continue
+			}
+			obs := observationForPolicyFinding(finding)
+			if obs.Message != "" {
+				componentRuns[idx].Observations = append(componentRuns[idx].Observations, obs)
+				observations = append(observations, obs)
+			}
 		}
 	}
 
-	// Determine success: type errors fail, lint warnings don't
-	success := !hasTypeErrors
-	var failureClass FailureClass
+	if summary.ComponentsLinted == 0 && len(policyFindings) == 0 {
+		observations = append(observations, NewInfoObservation("No lintable top-level components detected"))
+	}
+
+	success := !failed && summary.TypeErrors == 0 && summary.PolicyErrors == 0
 	var remediation string
-	var err error
-
-	if hasTypeErrors {
-		failureClass = FailureClassMisconfiguration
-		remediation = fmt.Sprintf("Fix %d type error(s) before proceeding. Run type checker locally to see details.", summary.TypeErrors)
-		err = fmt.Errorf("type checking failed with %d error(s)", summary.TypeErrors)
+	var runErr error
+	if !success {
+		runErr = fmt.Errorf("lint validation failed")
+		remediation = "Fix lint/type issues and configure lint handlers for unmatched components before proceeding."
 	}
 
-	// Final summary
-	totalIssues := summary.TotalIssues()
 	if success {
-		if totalIssues > 0 {
+		if summary.TotalIssues() > 0 {
 			observations = append(observations, NewWarningObservation(
-				fmt.Sprintf("Lint completed with %d warning(s) (%d languages checked)", totalIssues, summary.TotalChecks()),
+				fmt.Sprintf("Lint completed with %d issue(s) across %d component(s)", summary.TotalIssues(), summary.ComponentsLinted),
 			))
 		} else {
 			observations = append(observations, NewSuccessObservation(
-				fmt.Sprintf("Lint validation passed (%d languages checked)", summary.TotalChecks()),
+				fmt.Sprintf("Lint validation passed (%d component(s) linted)", summary.ComponentsLinted),
 			))
 		}
 	} else {
 		observations = append(observations, NewErrorObservation(
-			fmt.Sprintf("Lint validation failed: %d type error(s)", summary.TypeErrors),
+			fmt.Sprintf("Lint validation failed: %d type error(s), %d policy error(s)", summary.TypeErrors, summary.PolicyErrors),
 		))
 	}
 
 	shared.LogInfo(r.logWriter, "Lint validation complete: %s", summary.String())
 
 	return &RunResult{
-		Success:      success,
-		Error:        err,
-		FailureClass: failureClass,
-		Remediation:  remediation,
-		Observations: observations,
-		Summary:      summary,
+		Success:        success,
+		Error:          runErr,
+		FailureClass:   failureClassForLint(summary, success),
+		Remediation:    remediation,
+		Observations:   observations,
+		Summary:        summary,
+		Components:     componentRuns,
+		PolicyFindings: policyFindings,
 	}
 }
 
-// hasGoProject checks if the scenario has a Go project in api/ or cli/.
-func (r *Runner) hasGoProject() bool {
-	return len(r.goProjectTargets()) > 0
-}
-
-func (r *Runner) goProjectTargets() []string {
-	var targets []string
-	for _, dir := range []string{"api", "cli"} {
-		goModPath := filepath.Join(r.config.ScenarioDir, dir, "go.mod")
-		if _, err := os.Stat(goModPath); err == nil {
-			targets = append(targets, dir)
-		}
+func failureClassForLint(summary LintSummary, success bool) FailureClass {
+	if success {
+		return FailureClassNone
 	}
-	return targets
-}
-
-func (r *Runner) lintGoTarget(ctx context.Context, target string) *golang.Result {
-	switch target {
-	case "cli":
-		return r.goCLILinter.Lint(ctx)
-	default:
-		return r.goLinter.Lint(ctx)
+	if summary.TypeErrors > 0 || summary.PolicyErrors > 0 {
+		return FailureClassMisconfiguration
 	}
-}
-
-// hasNodeProject checks if the scenario has a Node.js project (ui/package.json).
-func (r *Runner) hasNodeProject() bool {
-	packagePath := filepath.Join(r.config.ScenarioDir, "ui", "package.json")
-	_, err := os.Stat(packagePath)
-	return err == nil
-}
-
-// hasPythonProject checks if the scenario has Python files.
-func (r *Runner) hasPythonProject() bool {
-	// Check for common Python indicators
-	indicators := []string{
-		"pyproject.toml",
-		"setup.py",
-		"requirements.txt",
-		"pytest.ini",
-	}
-	for _, indicator := range indicators {
-		if _, err := os.Stat(filepath.Join(r.config.ScenarioDir, indicator)); err == nil {
-			return true
-		}
-	}
-	// Also check for any .py files in the root
-	entries, err := os.ReadDir(r.config.ScenarioDir)
-	if err != nil {
-		return false
-	}
-	for _, entry := range entries {
-		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".py" {
-			return true
-		}
-	}
-	return false
+	return FailureClassSystem
 }

@@ -16,6 +16,8 @@ func Register(runtime deps.Runtime) cliapp.CommandGroup {
 				Name:        "status",
 				NeedsAPI:    true,
 				Description: "Check Test Genie health",
+				Usage:       status.UsageLine,
+				HelpText:    status.HelpText(),
 				Run:         func(args []string) error { return status.Run(runtime.Status) },
 			},
 		},

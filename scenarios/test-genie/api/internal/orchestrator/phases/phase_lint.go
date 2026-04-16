@@ -9,7 +9,7 @@ import (
 	"test-genie/internal/orchestrator/workspace"
 )
 
-// runLintPhase performs static analysis (linting and type checking) for Go, Node.js, and Python.
+// runLintPhase performs static analysis for discovered top-level components.
 func runLintPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
 	var summary string
 
@@ -25,6 +25,7 @@ func runLintPhase(ctx context.Context, env workspace.Environment, logWriter io.W
 				ScenarioDir:   env.ScenarioDir,
 				ScenarioName:  env.ScenarioName,
 				CommandLookup: commandLookup,
+				CommandRunner: lintCommandRunner,
 				Settings:      settings,
 			}
 
@@ -33,7 +34,7 @@ func runLintPhase(ctx context.Context, env workspace.Environment, logWriter io.W
 		},
 		func(r *lint.RunResult) PhaseResult[lint.Observation] {
 			if r != nil {
-				summary = fmt.Sprintf("%d languages, %d issues", r.Summary.TotalChecks(), r.Summary.TotalIssues())
+				summary = fmt.Sprintf("%d components, %d issues", r.Summary.TotalChecks(), r.Summary.TotalIssues())
 			}
 			return ExtractWithSummary(
 				r.Success,
@@ -42,7 +43,7 @@ func runLintPhase(ctx context.Context, env workspace.Environment, logWriter io.W
 				r.Remediation,
 				r.Observations,
 				"",
-				fmt.Sprintf("Lint validation completed (%d languages, %d issues)", r.Summary.TotalChecks(), r.Summary.TotalIssues()),
+				fmt.Sprintf("Lint validation completed (%d components, %d issues)", r.Summary.TotalChecks(), r.Summary.TotalIssues()),
 			)
 		},
 	)

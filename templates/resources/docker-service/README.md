@@ -15,9 +15,9 @@ This scaffold was generated from the `docker-service` resource template on {{CUR
 
 Replace these bullets with the real scenario-facing uses for this resource.
 
-- Serve as the shared local runtime for scenarios that need {{primary function}}.
-- Support {{secondary workflow}} without each scenario owning its own runtime.
-- Provide a foundation for {{integration pattern}} across the Vrooli stack.
+- Serve as the shared local runtime for scenarios that need a managed service dependency.
+- Support repeatable local workflows without each scenario owning its own runtime lifecycle.
+- Provide a foundation for cross-scenario service reuse across the Vrooli stack.
 
 ## Architecture
 

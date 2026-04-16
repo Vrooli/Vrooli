@@ -15,9 +15,9 @@ This scaffold was generated from the `cloud-api` resource template on {{CURRENT_
 
 Replace these bullets with the real scenario-facing uses for this resource.
 
-- Serve as the hosted provider integration for scenarios that need {{primary function}}.
-- Support {{secondary workflow}} without each scenario owning provider-specific auth and endpoint handling.
-- Provide a foundation for {{integration pattern}} across the Vrooli stack.
+- Serve as the hosted provider integration for scenarios that need an external API capability.
+- Support repeatable provider workflows without each scenario owning auth and endpoint handling.
+- Provide a foundation for cross-scenario provider reuse across the Vrooli stack.
 
 ## Architecture
 

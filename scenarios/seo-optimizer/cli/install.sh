@@ -2,10 +2,6 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
-INSTALL_DIR="${HOME}/.vrooli/bin"
+REPO_ROOT="$(builtin cd "${SCRIPT_DIR}/../../.." && builtin pwd)"
 
-mkdir -p "${INSTALL_DIR}"
-chmod +x "${SCRIPT_DIR}/seo-optimizer"
-ln -sf "${SCRIPT_DIR}/seo-optimizer" "${INSTALL_DIR}/seo-optimizer"
-
-echo "Installed seo-optimizer to ${INSTALL_DIR}/seo-optimizer"
+"${REPO_ROOT}/packages/cli-core/install.sh" "scenarios/seo-optimizer/cli" --name "seo-optimizer" --manifest "scenarios/seo-optimizer/.vrooli/service.json"

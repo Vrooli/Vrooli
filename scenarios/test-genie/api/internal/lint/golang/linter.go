@@ -94,10 +94,10 @@ func (l *Linter) Lint(ctx context.Context) *Result {
 	// Check if directory exists
 	if _, err := os.Stat(l.config.Dir); os.IsNotExist(err) {
 		result.Skipped = true
-		result.SkipReason = "api/ directory not found"
+		result.SkipReason = "component directory not found"
 		result.Success = true
 		result.Observations = append(result.Observations,
-			shared.NewSkipObservation("Go: api/ directory not found"))
+			shared.NewSkipObservation("Go: component directory not found"))
 		return result
 	}
 
@@ -108,7 +108,7 @@ func (l *Linter) Lint(ctx context.Context) *Result {
 		result.SkipReason = "no go.mod found"
 		result.Success = true
 		result.Observations = append(result.Observations,
-			shared.NewSkipObservation("Go: no go.mod found in api/"))
+			shared.NewSkipObservation("Go: no go.mod found in component"))
 		return result
 	}
 

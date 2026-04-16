@@ -15,15 +15,23 @@
     ]
   },
   "lint": {
-    "languages": {
-      "go": {
+    "handlers": {
+      "go_module": {
         "enabled": true,
         "strict": false
       },
-      "node": {
+      "node_package": {
         "enabled": true,
         "strict": false
       }
+    },
+    "policy": {
+      "unconfigured_common_components": {
+        "api": "error",
+        "ui": "warning",
+        "cli": "warning"
+      },
+      "unmatched_code_components": "warning"
     }
   },
   "unit": {

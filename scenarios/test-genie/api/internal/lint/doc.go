@@ -1,15 +1,15 @@
-// Package lint provides static analysis validation for scenarios.
+// Package lint provides component-based static analysis validation for scenarios.
 //
-// It orchestrates linting and type checking across multiple languages:
-//   - Go: golangci-lint (preferred) or go vet (fallback)
-//   - TypeScript/JavaScript: tsc for type checking, eslint for linting
-//   - Python: ruff (preferred) or flake8 (fallback), mypy for type checking
+// It discovers top-level components, matches them to supported lint handlers,
+// runs the matched handler, and applies policy to unmatched components.
 //
-// The package follows the same patterns as the dependencies package,
-// with a Runner that coordinates language-specific linters and
-// aggregates their results into a unified report.
+// Current handlers:
+//   - go_module: golangci-lint (preferred) or go vet (fallback)
+//   - node_package: tsc for type checking, eslint for linting
+//   - python_project: ruff (preferred) or flake8 (fallback), mypy for type checking
 //
-// Severity Handling:
-//   - Type errors (tsc, mypy, go vet, typecheck): Fail the phase
-//   - Lint warnings (eslint, ruff, stylistic linters): Pass with warnings
+// Severity handling:
+//   - type errors fail the phase
+//   - lint warnings fail only when strict mode is enabled
+//   - policy errors for unmatched components fail the phase
 package lint

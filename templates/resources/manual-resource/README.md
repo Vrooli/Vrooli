@@ -15,9 +15,9 @@ This scaffold was generated from the `manual-resource` resource template on {{CU
 
 Replace these bullets with the real scenario-facing uses for this resource.
 
-- Serve as the operator-managed dependency for scenarios that need {{primary function}}.
-- Support {{secondary workflow}} without each scenario owning its own setup instructions.
-- Provide a foundation for {{integration pattern}} across the Vrooli stack.
+- Serve as the operator-managed dependency for scenarios that need a manually provisioned capability.
+- Support repeatable setup workflows without each scenario owning its own installation instructions.
+- Provide a foundation for cross-scenario manual dependency reuse across the Vrooli stack.
 
 ## Architecture
 

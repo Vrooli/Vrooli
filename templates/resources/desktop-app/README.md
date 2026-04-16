@@ -15,9 +15,9 @@ This scaffold was generated from the `desktop-app` resource template on {{CURREN
 
 Replace these bullets with the real scenario-facing uses for this resource.
 
-- Serve as the shared desktop application dependency for scenarios that need {{primary function}}.
-- Support {{secondary workflow}} without each scenario owning its own host-app setup.
-- Provide a foundation for {{integration pattern}} across the Vrooli stack.
+- Serve as the shared desktop application dependency for scenarios that need a host-installed app.
+- Support repeatable host-app workflows without each scenario owning its own setup path.
+- Provide a foundation for cross-scenario desktop-app reuse across the Vrooli stack.
 
 ## Architecture
 

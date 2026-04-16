@@ -17,9 +17,9 @@ Use this template for CLIs like `codex`, `claude-code`, `terraform`, or `ffmpeg`
 
 Replace these bullets with the real scenario-facing uses for this resource.
 
-- Serve as the shared host CLI integration for scenarios that need {{primary function}}.
-- Support {{secondary workflow}} without each scenario owning its own binary setup.
-- Provide a foundation for {{integration pattern}} across the Vrooli stack.
+- Serve as the shared host CLI integration for scenarios that need a third-party executable.
+- Support repeatable operator workflows without each scenario owning its own binary setup.
+- Provide a foundation for cross-scenario CLI reuse across the Vrooli stack.
 
 ## Architecture
 

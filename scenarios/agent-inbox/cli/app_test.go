@@ -60,6 +60,21 @@ func TestAppCommandsAgainstAPI(t *testing.T) {
 	}
 }
 
+func TestStatusHelpDoesNotCallAPI(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp: %v", err)
+	}
+	output := captureOutput(t, func() {
+		if err := app.Run([]string{"status", "--help"}); err != nil {
+			t.Fatalf("Run: %v", err)
+		}
+	})
+	if !strings.Contains(output, "agent-inbox status [--json]") {
+		t.Fatalf("expected status help output, got %q", output)
+	}
+}
+
 func withCapturedStdout(t *testing.T, fn func()) {
 	t.Helper()
 	old := os.Stdout
@@ -81,4 +96,28 @@ func withCapturedStdout(t *testing.T, fn func()) {
 	fn()
 	_ = w.Close()
 	<-done
+}
+
+func captureOutput(t *testing.T, fn func()) string {
+	t.Helper()
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe: %v", err)
+	}
+	os.Stdout = w
+	defer func() {
+		os.Stdout = old
+	}()
+
+	done := make(chan string, 1)
+	go func() {
+		var builder strings.Builder
+		_, _ = io.Copy(&builder, r)
+		done <- builder.String()
+	}()
+
+	fn()
+	_ = w.Close()
+	return <-done
 }

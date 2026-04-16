@@ -57,7 +57,7 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Name:           Lint,
 		Runner:         runLintPhase,
 		DefaultTimeout: 30 * time.Second,
-		Description:    "Runs static analysis including linting and type checking for Go, TypeScript, and Python.",
+		Description:    "Runs component-based linting, type checking, and unmatched-component policy validation.",
 	})
 	register(Spec{
 		Name:           Docs,

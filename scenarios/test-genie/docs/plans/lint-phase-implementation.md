@@ -1,5 +1,9 @@
 # Lint Phase Implementation Plan
 
+> Superseded by [lint-phase-greenfield-redesign-plan.md](/home/matthalloran8/Vrooli/scenarios/test-genie/docs/plans/lint-phase-greenfield-redesign-plan.md:1).
+>
+> This document reflects the old folder/language-assumption model and is retained only as historical context. Do not use it to guide current lint-phase work.
+
 **Status**: Planned
 **Created**: 2024-12-04
 **Target**: test-genie scenario

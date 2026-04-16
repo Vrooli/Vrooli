@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -138,26 +137,13 @@ func runOpenRouter(ctx context.Context, model, prompt string) (Result, error) {
 	}
 
 	root := resolveVrooliRoot()
-	promptDir := filepath.Join(root, "data", "resources", "openrouter", "content", "prompts")
-	if err := os.MkdirAll(promptDir, 0o775); err != nil {
-		return Result{}, fmt.Errorf("failed to ensure OpenRouter prompt directory: %w", err)
-	}
-
-	// Note: RecyclerPromptPrefix is defined in queue package but we don't import it
-	// to avoid circular dependency. Using direct constant here.
-	promptID := fmt.Sprintf("ecosystem-recycler-%d", time.Now().UnixNano())
-	promptFile := filepath.Join(promptDir, promptID+".txt")
-	if err := os.WriteFile(promptFile, []byte(prompt), 0o600); err != nil {
-		return Result{}, fmt.Errorf("failed to write OpenRouter prompt file: %w", err)
-	}
-	defer os.Remove(promptFile)
-
-	cmd := exec.CommandContext(ctx, "resource-openrouter", "content", "execute", "--name", promptID, "--model", model)
+	cmd := exec.CommandContext(ctx, "resource-openrouter", "generate", "--model", model)
 	cmd.Dir = root
 	cmd.Env = os.Environ()
 	if os.Getenv("VROOLI_ROOT") == "" {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("VROOLI_ROOT=%s", root))
 	}
+	cmd.Stdin = strings.NewReader(prompt)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {

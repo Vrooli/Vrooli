@@ -6,15 +6,23 @@
   },
   "version": "1.0.0",
   "lint": {
-    "languages": {
-      "go": {
+    "handlers": {
+      "go_module": {
         "enabled": true,
         "strict": true
       },
-      "node": {
+      "node_package": {
         "enabled": true,
         "strict": true
       }
+    },
+    "policy": {
+      "unconfigured_common_components": {
+        "api": "error",
+        "ui": "warning",
+        "cli": "warning"
+      },
+      "unmatched_code_components": "warning"
     }
   },
   "structure": {

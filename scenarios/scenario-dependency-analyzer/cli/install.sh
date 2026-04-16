@@ -3,7 +3,5 @@ set -euo pipefail
 
 SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
 REPO_ROOT="$(builtin cd "${SCRIPT_DIR}/../../.." && builtin pwd)"
-CLI_DIR="${REPO_ROOT}/scenarios/scenario-dependency-analyzer/cli"
-source "${REPO_ROOT}/scripts/lib/utils/cli-install.sh"
 
-install_cli "$CLI_DIR/scenario-dependency-analyzer" "scenario-dependency-analyzer"
+"${REPO_ROOT}/packages/cli-core/install.sh" "scenarios/scenario-dependency-analyzer/cli" --name "scenario-dependency-analyzer" --manifest "scenarios/scenario-dependency-analyzer/.vrooli/service.json"

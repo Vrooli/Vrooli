@@ -96,10 +96,10 @@ func (l *Linter) Lint(ctx context.Context) *Result {
 	// Check if directory exists
 	if _, err := os.Stat(l.config.Dir); os.IsNotExist(err) {
 		result.Skipped = true
-		result.SkipReason = "ui/ directory not found"
+		result.SkipReason = "component directory not found"
 		result.Success = true
 		result.Observations = append(result.Observations,
-			shared.NewSkipObservation("Node: ui/ directory not found"))
+			shared.NewSkipObservation("Node: component directory not found"))
 		return result
 	}
 
@@ -110,7 +110,7 @@ func (l *Linter) Lint(ctx context.Context) *Result {
 		result.SkipReason = "no package.json found"
 		result.Success = true
 		result.Observations = append(result.Observations,
-			shared.NewSkipObservation("Node: no package.json found in ui/"))
+			shared.NewSkipObservation("Node: no package.json found in component"))
 		return result
 	}
 

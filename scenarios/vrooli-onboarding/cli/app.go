@@ -1,6 +1,10 @@
 package main
 
-import "github.com/vrooli/cli-core/cliapp"
+import (
+	"vrooli-onboarding/cli/domains"
+
+	"github.com/vrooli/cli-core/cliapp"
+)
 
 const (
 	appName        = "vrooli-onboarding"
@@ -19,6 +23,7 @@ type App struct {
 }
 
 func NewApp() (*App, error) {
+	app := &App{}
 	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
 		Name:             appName,
 		Version:          appVersion,
@@ -29,11 +34,14 @@ func NewApp() (*App, error) {
 		BuildTimestamp:   buildTimestamp,
 		BuildSourceRoot:  buildSourceRoot,
 		AllowAnonymous:   true,
+		CommandGroups:    domains.CommandGroups,
+		SubcommandGroups: domains.SubcommandGroups,
 	})
 	if err != nil {
 		return nil, err
 	}
-	return &App{core: core}, nil
+	app.core = core
+	return app, nil
 }
 
 func (a *App) Run(args []string) error {

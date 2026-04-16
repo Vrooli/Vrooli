@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/services/logutil"
 )
@@ -44,41 +42,9 @@ func (c *OpenRouterClient) ExecutePrompt(ctx context.Context, prompt string) (st
 	if strings.TrimSpace(prompt) == "" {
 		return "", errors.New("prompt is required")
 	}
-
-	rootDir := os.Getenv("VROOLI_ROOT")
-	if rootDir == "" {
-		cwd, err := os.Getwd()
-		if err != nil {
-			return "", fmt.Errorf("failed to resolve project root: %w", err)
-		}
-		rootDir = cwd
-	}
-
-	promptDir := filepath.Join(rootDir, "data", "resources", "openrouter", "content", "prompts")
-	if err := os.MkdirAll(promptDir, 0o775); err != nil {
-		return "", fmt.Errorf("failed to ensure prompt directory: %w", err)
-	}
-
-	promptID := "bas-ai-" + uuid.NewString()
-	promptFile := filepath.Join(promptDir, promptID+".txt")
-
-	if err := os.WriteFile(promptFile, []byte(prompt), 0o600); err != nil {
-		return "", fmt.Errorf("failed to write prompt file: %w", err)
-	}
-	// Clean up the temp file regardless of success/failure.
-	defer func() {
-		if removeErr := os.Remove(promptFile); removeErr != nil && !os.IsNotExist(removeErr) {
-			c.log.WithError(removeErr).WithField("prompt_file", promptFile).Warn("Failed to remove temp OpenRouter prompt file")
-		}
-	}()
-
-	name := promptID // resource-openrouter strips extension internally
-	cmd := exec.CommandContext(ctx, openRouterCommand, "content", "execute", "--name", name, "--model", c.model)
-	cmd.Dir = rootDir
+	cmd := exec.CommandContext(ctx, openRouterCommand, "generate", "--model", c.model)
 	cmd.Env = os.Environ()
-	if os.Getenv("VROOLI_ROOT") == "" {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("VROOLI_ROOT=%s", rootDir))
-	}
+	cmd.Stdin = strings.NewReader(prompt)
 
 	start := time.Now()
 	output, err := cmd.CombinedOutput()

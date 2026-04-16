@@ -6,14 +6,21 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/vrooli/cli-core/cliutil"
+	"test-genie/cli/execute"
+	"test-genie/cli/generate"
 )
 
 func TestExecuteAcceptsPositionalPhases(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case "/health":
+			fmt.Fprintf(w, `{"status":"ok","service":"test-genie"}`)
+			return
 		case "/api/v1/executions/plan":
 			fmt.Fprintf(w, `{"scenarioName":"demo","phases":[{"name":"unit","estimatedDurationSeconds":1,"timeoutSeconds":60},{"name":"integration","estimatedDurationSeconds":2,"timeoutSeconds":120}],"summary":{"phaseCount":2,"estimatedDurationSeconds":3,"timeoutSeconds":180}}`)
 			return
@@ -42,6 +49,9 @@ func TestExecuteAcceptsPositionalPhases(t *testing.T) {
 func TestExecuteAllPhaseSkipsExplicitList(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case "/health":
+			fmt.Fprintf(w, `{"status":"ok","service":"test-genie"}`)
+			return
 		case "/api/v1/executions/plan":
 			fmt.Fprintf(w, `{"scenarioName":"demo","phases":[{"name":"structure","estimatedDurationSeconds":1,"timeoutSeconds":60},{"name":"standards","estimatedDurationSeconds":1,"timeoutSeconds":60}],"summary":{"phaseCount":2,"estimatedDurationSeconds":2,"timeoutSeconds":120}}`)
 			return
@@ -94,7 +104,12 @@ func TestBuildAPIBaseOptionsUsesPortEnv(t *testing.T) {
 
 func TestGenerateCommandSendsRequest(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/suite-requests" {
+		switch r.URL.Path {
+		case "/health":
+			fmt.Fprintf(w, `{"status":"ok","service":"test-genie"}`)
+			return
+		case "/api/v1/suite-requests":
+		default:
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
 		body, _ := io.ReadAll(r.Body)
@@ -116,7 +131,12 @@ func TestGenerateCommandSendsRequest(t *testing.T) {
 
 func TestRunTestsCommandSendsType(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/scenarios/demo/run-tests" {
+		switch r.URL.Path {
+		case "/health":
+			fmt.Fprintf(w, `{"status":"ok","service":"test-genie"}`)
+			return
+		case "/api/v1/scenarios/demo/run-tests":
+		default:
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
 		body, _ := io.ReadAll(r.Body)
@@ -162,8 +182,32 @@ func TestStatusCommandRequestsHealth(t *testing.T) {
 	if err := app.Run([]string{"status"}); err != nil {
 		t.Fatalf("status failed: %v", err)
 	}
-	if calls != 1 {
-		t.Fatalf("expected one health call, got %d", calls)
+	if calls != 2 {
+		t.Fatalf("expected two health calls, got %d", calls)
+	}
+}
+
+func TestExecuteCommandHelpDoesNotCallAPI(t *testing.T) {
+	app := newTestApp(t)
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{"execute", "--help"}); err != nil {
+			t.Fatalf("execute help failed: %v", err)
+		}
+	})
+	if !strings.Contains(output, execute.UsageLine) {
+		t.Fatalf("expected execute help output, got %s", output)
+	}
+}
+
+func TestGenerateCommandHelpDoesNotCallAPI(t *testing.T) {
+	app := newTestApp(t)
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{"generate", "--help"}); err != nil {
+			t.Fatalf("generate help failed: %v", err)
+		}
+	})
+	if !strings.Contains(output, generate.UsageLine) {
+		t.Fatalf("expected generate help output, got %s", output)
 	}
 }
 
@@ -178,4 +222,28 @@ func newTestApp(t *testing.T) *App {
 		t.Fatalf("new app: %v", err)
 	}
 	return app
+}
+
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe: %v", err)
+	}
+	os.Stdout = w
+	defer func() {
+		os.Stdout = old
+	}()
+
+	done := make(chan string, 1)
+	go func() {
+		var buf bytes.Buffer
+		_, _ = io.Copy(&buf, r)
+		done <- buf.String()
+	}()
+
+	fn()
+	_ = w.Close()
+	return <-done
 }

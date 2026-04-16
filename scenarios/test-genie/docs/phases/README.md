@@ -48,7 +48,7 @@ graph TB
 | [Structure](structure/README.md) | 15s | No | No | Validate files, config, CLI setup |
 | [Standards](standards/README.md) | 60s | No | No | Runs scenario-auditor standards rules (PRD/service.json/proxy/lifecycle config) |
 | [Dependencies](dependencies/README.md) | 30s | No | No | Verify tools and resources |
-| [Lint](lint/README.md) | 30s | No | No | Type checking and linting (Go, TS, Python) |
+| [Lint](lint/README.md) | 30s | No | No | Component-based linting, type checking, and unmatched-component policy |
 | [Docs](docs/README.md) | 60s | No | No | Validate Markdown, mermaid, links, portability |
 | [Smoke](smoke/README.md) | 90s | Yes | Yes | UI load and iframe-bridge validation |
 | [Unit](unit/README.md) | 60s | No | No | Run unit tests (Go, Node, Python) |
@@ -63,7 +63,7 @@ graph TB
 - Validate files exist and are well-formed
 - Enforce scenario standards (PRD/service.json/proxy setup)
 - Check dependencies are installed
-- Run type checking and linting
+- Run component-based type checking and linting
 - Validate docs, links, and mermaid diagrams
 
 **Runtime phases** (6-11) require the scenario to be running:
@@ -152,7 +152,7 @@ Each phase has its own documentation folder with detailed guides:
 - **[Structure](structure/README.md)** - File validation, CLI approaches
 - **[Standards](standards/README.md)** - Standards enforcement via scenario-auditor
 - **[Dependencies](dependencies/README.md)** - Tool and resource verification
-- **[Lint](lint/README.md)** - Type checking and linting (Go, TypeScript, Python)
+- **[Lint](lint/README.md)** - Component-based linting, type checking, and unmatched-component policy
 - **[Docs](docs/README.md)** - Markdown, mermaid, link, and portability validation
 - **[Smoke](smoke/README.md)** - UI load validation and iframe-bridge testing
 - **[Unit](unit/README.md)** - Test runners, coverage, requirement tagging

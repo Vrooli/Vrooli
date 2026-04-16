@@ -246,9 +246,11 @@
     "enabled": true,
     "command": "tech-tree-designer",
     "adapter": {
-      "kind": "shell_script",
-      "script_path": "cli/tech-tree-designer",
-      "install_script": "cli/install.sh"
+      "kind": "go_module",
+      "module_path": "cli",
+      "binary_name": "tech-tree-designer",
+      "install_script": "cli/install.sh",
+      "windows_install_script": "cli/install.ps1"
     },
     "install": [
       {
@@ -266,8 +268,7 @@
     },
     "freshness": {
       "inputs": [
-        "cli/tech-tree-designer",
-        "cli/install.sh",
+        "cli/**",
         ".vrooli/service.json"
       ]
     }

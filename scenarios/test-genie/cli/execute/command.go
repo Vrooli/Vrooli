@@ -16,6 +16,19 @@ import (
 	"test-genie/cli/internal/phases"
 )
 
+const UsageLine = "test-genie execute <scenario> [phases...] [--preset quick] [--skip performance] [--ui-url URL] [--browserless-url URL] [--fail-fast] [--json]"
+
+// HelpText returns the framework-rendered help body for the execute command.
+func HelpText() string {
+	return `Execute a scenario suite and stream or summarize the phase results.
+
+Examples:
+  test-genie execute swarm-manager
+  test-genie execute swarm-manager standards lint integration
+  test-genie execute swarm-manager --preset quick --fail-fast
+  test-genie execute swarm-manager --skip performance --json`
+}
+
 // Run executes the execute command.
 func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 	parsed, err := ParseArgs(args)
@@ -164,7 +177,7 @@ func isInteractiveTTY() bool {
 // ParseArgs parses command line arguments for the execute command.
 func ParseArgs(args []string) (Args, error) {
 	if len(args) == 0 {
-		return Args{}, usageError("usage: execute <scenario> [phases...] [--preset quick] [--skip performance] [--ui-url URL] [--browserless-url URL] [--fail-fast] [--json]")
+		return Args{}, usageError("usage: " + strings.TrimPrefix(UsageLine, "test-genie "))
 	}
 	out := Args{Scenario: args[0]}
 	fs := flag.NewFlagSet("execute", flag.ContinueOnError)

@@ -165,9 +165,8 @@
     "enabled": true,
     "command": "time-tools",
     "adapter": {
-      "kind": "shell_script",
-      "script_path": "cli/time-tools",
-      "install_script": "cli/install.sh"
+      "kind": "go_module",
+      "module_dir": "cli"
     },
     "install": [
       {
@@ -177,6 +176,13 @@
         ],
         "kind": "command",
         "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
       }
     ],
     "invoke": {
@@ -185,8 +191,7 @@
     },
     "freshness": {
       "inputs": [
-        "cli/time-tools",
-        "cli/install.sh",
+        "cli/**",
         ".vrooli/service.json"
       ]
     }

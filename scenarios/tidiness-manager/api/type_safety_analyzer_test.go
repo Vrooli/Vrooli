@@ -418,7 +418,7 @@ func TestTypeSafetyAnalyzer_TestingConfigStrictViolation(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(tmpDir, ".vrooli"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(tmpDir, ".vrooli", "testing.json"), []byte(`{"lint":{"languages":{"node":{"enabled":true,"strict":false}}}}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, ".vrooli", "testing.json"), []byte(`{"lint":{"handlers":{"node_package":{"enabled":true,"strict":false}}}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

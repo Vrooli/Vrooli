@@ -9,6 +9,13 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 )
 
+const UsageLine = "test-genie status"
+
+// HelpText returns the framework-rendered help body for the status command.
+func HelpText() string {
+	return `Show Test Genie health, queue state, and the latest execution summary.`
+}
+
 // Run executes the status command.
 func Run(client *Client) error {
 	body, resp, err := client.Check()

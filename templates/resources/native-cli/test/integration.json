@@ -1,0 +1,8 @@
+{
+  "resource": "{{RESOURCE_NAME}}",
+  "kind": "integration",
+  "checks": [
+    "resource-specific command surface responds",
+    "state paths resolve outside the repo"
+  ]
+}

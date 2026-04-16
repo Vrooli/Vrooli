@@ -22,7 +22,7 @@ func TestLinter_Lint_NoDirectory(t *testing.T) {
 	if !result.Success {
 		t.Error("expected success (skipped is success)")
 	}
-	if result.SkipReason != "ui/ directory not found" {
+	if result.SkipReason != "component directory not found" {
 		t.Errorf("unexpected skip reason: %s", result.SkipReason)
 	}
 }

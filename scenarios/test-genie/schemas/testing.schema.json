@@ -293,6 +293,69 @@
         }
       }
     },
+    "lint": {
+      "type": "object",
+      "description": "Lint phase configuration. Discovers top-level components, matches them to supported lint handlers, and applies policy for unmatched components.",
+      "additionalProperties": false,
+      "properties": {
+        "handlers": {
+          "type": "object",
+          "description": "Handler-specific lint configuration keyed by handler ID.",
+          "properties": {
+            "go_module": {
+              "$ref": "#/definitions/lint_handler_config",
+              "description": "Lint any top-level component rooted at a Go module."
+            },
+            "node_package": {
+              "$ref": "#/definitions/lint_handler_config",
+              "description": "Lint any top-level component rooted at a Node package."
+            },
+            "python_project": {
+              "$ref": "#/definitions/lint_handler_config",
+              "description": "Lint any top-level component rooted at a Python project."
+            }
+          },
+          "additionalProperties": false
+        },
+        "policy": {
+          "type": "object",
+          "description": "Policy for unmatched or unconfigured components.",
+          "additionalProperties": false,
+          "properties": {
+            "unconfigured_common_components": {
+              "type": "object",
+              "description": "Severity to use when common top-level components exist without a supported lint contract.",
+              "properties": {
+                "api": { "$ref": "#/definitions/lint_policy_severity" },
+                "ui": { "$ref": "#/definitions/lint_policy_severity" },
+                "cli": { "$ref": "#/definitions/lint_policy_severity" }
+              },
+              "additionalProperties": {
+                "$ref": "#/definitions/lint_policy_severity"
+              }
+            },
+            "unmatched_code_components": {
+              "$ref": "#/definitions/lint_policy_severity",
+              "description": "Severity for code-bearing top-level components that do not match any supported lint handler."
+            }
+          }
+        },
+        "components": {
+          "type": "object",
+          "description": "Per-component lint overrides keyed by top-level component name.",
+          "additionalProperties": {
+            "$ref": "#/definitions/lint_component_config"
+          }
+        },
+        "ignore": {
+          "type": "array",
+          "description": "Top-level directory names to ignore during lint component discovery.",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "unit": {
       "type": "object",
       "description": "Unit test phase configuration. Uses convention: only define languages you want to test. Defaults: go→api, node→ui, python→api",
@@ -628,6 +691,43 @@
           "description": "Whether this phase requires the scenario runtime to be running"
         }
       }
+    },
+    "lint_handler_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "strict": {
+          "type": "boolean",
+          "default": false,
+          "description": "Treat lint warnings from this handler as phase-failing errors."
+        }
+      }
+    },
+    "lint_component_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "handler": {
+          "type": "string",
+          "description": "Force a specific handler for this top-level component."
+        },
+        "strict": {
+          "type": "boolean",
+          "description": "Override strictness for this component."
+        }
+      }
+    },
+    "lint_policy_severity": {
+      "type": "string",
+      "enum": ["ignore", "info", "warning", "error"]
     },
     "language_config": {
       "type": "object",

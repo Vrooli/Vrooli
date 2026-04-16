@@ -2,20 +2,32 @@ package phases
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"test-genie/internal/lint/execution"
 	"test-genie/internal/orchestrator/workspace"
 )
 
-func TestRunLintPhaseWithGoProject(t *testing.T) {
+type stubLintRunner struct {
+	byName map[string]execution.Result
+}
+
+func (s stubLintRunner) Run(_ context.Context, cmd execution.Command) (execution.Result, error) {
+	if result, ok := s.byName[filepath.Base(cmd.Name)]; ok {
+		return result, nil
+	}
+	return execution.Result{}, errors.New("unexpected command")
+}
+
+func TestRunLintPhaseWithGoComponent(t *testing.T) {
 	root := t.TempDir()
 	scenarioDir := createScenarioLayout(t, root, "demo")
 
-	// Create a Go project
 	if err := os.WriteFile(filepath.Join(scenarioDir, "api", "go.mod"), []byte("module demo\n"), 0o644); err != nil {
 		t.Fatalf("failed to seed go.mod: %v", err)
 	}
@@ -23,114 +35,97 @@ func TestRunLintPhaseWithGoProject(t *testing.T) {
 		t.Fatalf("failed to seed main.go: %v", err)
 	}
 
-	// Stub command lookup - simulate golangci-lint being available
-	stubCommandLookup(t, func(name string) (string, error) {
+	restoreLookup := OverrideCommandLookup(func(name string) (string, error) {
 		return "/tmp/" + name, nil
 	})
+	defer restoreLookup()
 
-	env := workspace.Environment{
-		ScenarioName: "demo",
-		ScenarioDir:  scenarioDir,
-		TestDir:      filepath.Join(scenarioDir, "test"),
-	}
+	restoreRunner := OverrideLintCommandRunner(stubLintRunner{
+		byName: map[string]execution.Result{
+			"golangci-lint": {Stdout: []byte(`{"Issues":[]}`), ExitCode: 0},
+		},
+	})
+	defer restoreRunner()
+
+	env := workspace.Environment{ScenarioName: "demo", ScenarioDir: scenarioDir, TestDir: filepath.Join(scenarioDir, "test")}
 	report := runLintPhase(context.Background(), env, io.Discard)
-
-	// The phase should succeed (even if actual linting is skipped due to mocked commands)
 	if report.Err != nil {
 		t.Fatalf("lint phase failed unexpectedly: %v", report.Err)
 	}
 }
 
-func TestRunLintPhaseWithNodeProject(t *testing.T) {
+func TestRunLintPhaseNoLintableComponents(t *testing.T) {
 	root := t.TempDir()
 	scenarioDir := createScenarioLayout(t, root, "demo")
-
-	// Create a Node.js project with TypeScript
-	uiDir := filepath.Join(scenarioDir, "ui")
-	if err := os.WriteFile(filepath.Join(uiDir, "package.json"), []byte(`{"name":"demo-ui"}`), 0o644); err != nil {
-		t.Fatalf("failed to seed package.json: %v", err)
+	if err := os.WriteFile(filepath.Join(scenarioDir, ".vrooli", "testing.json"), []byte(`{
+  "lint": {
+    "policy": {
+      "unconfigured_common_components": {
+        "api": "ignore",
+        "ui": "ignore",
+        "cli": "ignore"
+      },
+      "unmatched_code_components": "ignore"
+    }
+  }
+}`), 0o644); err != nil {
+		t.Fatalf("failed to write testing.json: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(uiDir, "tsconfig.json"), []byte(`{"compilerOptions":{}}`), 0o644); err != nil {
-		t.Fatalf("failed to seed tsconfig.json: %v", err)
-	}
 
-	stubCommandLookup(t, func(name string) (string, error) {
+	restoreLookup := OverrideCommandLookup(func(name string) (string, error) {
 		return "/tmp/" + name, nil
 	})
+	defer restoreLookup()
+	restoreRunner := OverrideLintCommandRunner(stubLintRunner{})
+	defer restoreRunner()
 
-	env := workspace.Environment{
-		ScenarioName: "demo",
-		ScenarioDir:  scenarioDir,
-		TestDir:      filepath.Join(scenarioDir, "test"),
-	}
+	env := workspace.Environment{ScenarioName: "demo", ScenarioDir: scenarioDir, TestDir: filepath.Join(scenarioDir, "test")}
 	report := runLintPhase(context.Background(), env, io.Discard)
-
 	if report.Err != nil {
-		t.Fatalf("lint phase failed unexpectedly: %v", report.Err)
-	}
-}
-
-func TestRunLintPhaseNoLintableProjects(t *testing.T) {
-	root := t.TempDir()
-	scenarioDir := createScenarioLayout(t, root, "demo")
-
-	// No go.mod in api/, no package.json in ui/, no Python files
-	// The lint phase should succeed with "no lintable languages" observation
-
-	stubCommandLookup(t, func(name string) (string, error) {
-		return "/tmp/" + name, nil
-	})
-
-	env := workspace.Environment{
-		ScenarioName: "demo",
-		ScenarioDir:  scenarioDir,
-		TestDir:      filepath.Join(scenarioDir, "test"),
-	}
-	report := runLintPhase(context.Background(), env, io.Discard)
-
-	if report.Err != nil {
-		t.Fatalf("lint phase should succeed when no lintable projects: %v", report.Err)
+		t.Fatalf("lint phase should succeed when no lintable components: %v", report.Err)
 	}
 
-	// Should have an observation about no lintable languages
 	found := false
 	for _, obs := range report.Observations {
-		if strings.Contains(obs.Text, "no lintable") || strings.Contains(obs.Text, "No lintable") {
+		if strings.Contains(obs.Text, "0 component(s) linted") || strings.Contains(obs.Text, "No lintable top-level components") {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Log("Observations:", report.Observations)
-		// Not a hard failure - the message format may vary
+		t.Fatalf("expected no-components observation, got %+v", report.Observations)
 	}
 }
 
-func TestRunLintPhaseGeneratesObservations(t *testing.T) {
+func TestRunLintPhaseCommonUnconfiguredUIWarns(t *testing.T) {
 	root := t.TempDir()
 	scenarioDir := createScenarioLayout(t, root, "demo")
-
-	// Create a Go project
-	if err := os.WriteFile(filepath.Join(scenarioDir, "api", "go.mod"), []byte("module demo\n"), 0o644); err != nil {
-		t.Fatalf("failed to seed go.mod: %v", err)
+	if err := os.WriteFile(filepath.Join(scenarioDir, ".vrooli", "testing.json"), []byte(`{
+  "lint": {
+    "policy": {
+      "unconfigured_common_components": {
+        "api": "ignore",
+        "ui": "warning",
+        "cli": "ignore"
+      },
+      "unmatched_code_components": "warning"
+    }
+  }
+}`), 0o644); err != nil {
+		t.Fatalf("failed to write testing.json: %v", err)
 	}
 
-	stubCommandLookup(t, func(name string) (string, error) {
-		return "/tmp/" + name, nil
-	})
-
-	env := workspace.Environment{
-		ScenarioName: "demo",
-		ScenarioDir:  scenarioDir,
-		TestDir:      filepath.Join(scenarioDir, "test"),
+	if err := os.WriteFile(filepath.Join(scenarioDir, "ui", "main.rs"), []byte("fn main() {}\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed ui file: %v", err)
 	}
+
+	restoreRunner := OverrideLintCommandRunner(stubLintRunner{})
+	defer restoreRunner()
+
+	env := workspace.Environment{ScenarioName: "demo", ScenarioDir: scenarioDir, TestDir: filepath.Join(scenarioDir, "test")}
 	report := runLintPhase(context.Background(), env, io.Discard)
-
 	if report.Err != nil {
-		t.Fatalf("unexpected error: %v", report.Err)
-	}
-	if len(report.Observations) == 0 {
-		t.Fatalf("expected observations to be recorded")
+		t.Fatalf("lint phase should warn, not fail, for unmatched ui: %v", report.Err)
 	}
 }
 
@@ -141,13 +136,8 @@ func TestRunLintPhaseWithCancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	env := workspace.Environment{
-		ScenarioName: "demo",
-		ScenarioDir:  scenarioDir,
-		TestDir:      filepath.Join(scenarioDir, "test"),
-	}
+	env := workspace.Environment{ScenarioName: "demo", ScenarioDir: scenarioDir, TestDir: filepath.Join(scenarioDir, "test")}
 	report := runLintPhase(ctx, env, io.Discard)
-
 	if report.Err == nil {
 		t.Fatalf("expected failure for cancelled context")
 	}
@@ -156,66 +146,135 @@ func TestRunLintPhaseWithCancelledContext(t *testing.T) {
 	}
 }
 
-func TestRunLintPhaseWithPythonProject(t *testing.T) {
+func TestRunLintPhaseMultipleComponents(t *testing.T) {
 	root := t.TempDir()
 	scenarioDir := createScenarioLayout(t, root, "demo")
 
-	// Create a Python project indicator
-	if err := os.WriteFile(filepath.Join(scenarioDir, "pyproject.toml"), []byte("[project]\nname = \"demo\"\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(scenarioDir, "api", "go.mod"), []byte("module demo\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed go.mod: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(scenarioDir, "api", "main.go"), []byte("package main\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed main.go: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(scenarioDir, "worker"), 0o755); err != nil {
+		t.Fatalf("failed to create worker dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(scenarioDir, "worker", "package.json"), []byte(`{"name":"worker"}`), 0o644); err != nil {
+		t.Fatalf("failed to seed package.json: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(scenarioDir, "worker", "eslint.config.js"), []byte(`export default [];`), 0o644); err != nil {
+		t.Fatalf("failed to seed eslint config: %v", err)
+	}
+
+	restoreLookup := OverrideCommandLookup(func(name string) (string, error) {
+		return "/tmp/" + name, nil
+	})
+	defer restoreLookup()
+	restoreRunner := OverrideLintCommandRunner(stubLintRunner{
+		byName: map[string]execution.Result{
+			"golangci-lint": {Stdout: []byte(`{"Issues":[]}`), ExitCode: 0},
+			"eslint":        {Stdout: []byte(`[]`), ExitCode: 0},
+		},
+	})
+	defer restoreRunner()
+
+	env := workspace.Environment{ScenarioName: "demo", ScenarioDir: scenarioDir, TestDir: filepath.Join(scenarioDir, "test")}
+	report := runLintPhase(context.Background(), env, io.Discard)
+	if report.Err != nil {
+		t.Fatalf("unexpected error: %v", report.Err)
+	}
+	if len(report.Observations) == 0 {
+		t.Fatal("expected observations to be recorded")
+	}
+}
+
+func TestRunLintPhaseUsesComponentOverridesAndRootDiscovery(t *testing.T) {
+	root := t.TempDir()
+	scenarioDir := createScenarioLayout(t, root, "demo")
+
+	if err := os.WriteFile(filepath.Join(scenarioDir, ".vrooli", "testing.json"), []byte(`{
+  "lint": {
+    "policy": {
+      "unconfigured_common_components": {
+        "api": "ignore",
+        "ui": "warning",
+        "cli": "ignore"
+      }
+    },
+    "components": {
+      "worker": {
+        "handler": "node_package",
+        "strict": true
+      }
+    },
+    "ignore": ["docs"]
+  }
+}`), 0o644); err != nil {
+		t.Fatalf("failed to write testing.json: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(scenarioDir, "pyproject.toml"), []byte("[project]\nname='demo'\nversion='0.1.0'\n"), 0o644); err != nil {
 		t.Fatalf("failed to seed pyproject.toml: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(scenarioDir, "main.py"), []byte("print('hello')\n"), 0o644); err != nil {
 		t.Fatalf("failed to seed main.py: %v", err)
 	}
+	if err := os.MkdirAll(filepath.Join(scenarioDir, "worker"), 0o755); err != nil {
+		t.Fatalf("failed to create worker dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(scenarioDir, "worker", "package.json"), []byte(`{"name":"worker"}`), 0o644); err != nil {
+		t.Fatalf("failed to seed worker package.json: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(scenarioDir, "worker", "eslint.config.js"), []byte(`export default [];`), 0o644); err != nil {
+		t.Fatalf("failed to seed worker eslint config: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(scenarioDir, "ui", "main.rs"), []byte("fn main() {}\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed unmatched ui file: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(scenarioDir, "docs", "helper.go"), []byte("package docs\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed ignored docs file: %v", err)
+	}
 
-	stubCommandLookup(t, func(name string) (string, error) {
+	restoreLookup := OverrideCommandLookup(func(name string) (string, error) {
 		return "/tmp/" + name, nil
 	})
-
-	env := workspace.Environment{
-		ScenarioName: "demo",
-		ScenarioDir:  scenarioDir,
-		TestDir:      filepath.Join(scenarioDir, "test"),
-	}
-	report := runLintPhase(context.Background(), env, io.Discard)
-
-	if report.Err != nil {
-		t.Fatalf("lint phase failed unexpectedly: %v", report.Err)
-	}
-}
-
-func TestRunLintPhaseMultipleLanguages(t *testing.T) {
-	root := t.TempDir()
-	scenarioDir := createScenarioLayout(t, root, "demo")
-
-	// Create Go project
-	if err := os.WriteFile(filepath.Join(scenarioDir, "api", "go.mod"), []byte("module demo\n"), 0o644); err != nil {
-		t.Fatalf("failed to seed go.mod: %v", err)
-	}
-
-	// Create Node.js project
-	uiDir := filepath.Join(scenarioDir, "ui")
-	if err := os.WriteFile(filepath.Join(uiDir, "package.json"), []byte(`{"name":"demo-ui"}`), 0o644); err != nil {
-		t.Fatalf("failed to seed package.json: %v", err)
-	}
-
-	stubCommandLookup(t, func(name string) (string, error) {
-		return "/tmp/" + name, nil
+	defer restoreLookup()
+	restoreRunner := OverrideLintCommandRunner(stubLintRunner{
+		byName: map[string]execution.Result{
+			"ruff":   {Stdout: []byte(`[]`), ExitCode: 0},
+			"eslint": {Stdout: []byte(`[]`), ExitCode: 0},
+		},
 	})
+	defer restoreRunner()
 
-	env := workspace.Environment{
-		ScenarioName: "demo",
-		ScenarioDir:  scenarioDir,
-		TestDir:      filepath.Join(scenarioDir, "test"),
-	}
+	env := workspace.Environment{ScenarioName: "demo", ScenarioDir: scenarioDir, TestDir: filepath.Join(scenarioDir, "test")}
 	report := runLintPhase(context.Background(), env, io.Discard)
-
 	if report.Err != nil {
-		t.Fatalf("lint phase failed unexpectedly: %v", report.Err)
+		t.Fatalf("unexpected lint phase error: %v", report.Err)
 	}
 
-	// Should have observations for both languages
-	if len(report.Observations) < 2 {
-		t.Logf("expected multiple observations for multi-language project, got %d", len(report.Observations))
+	var sawRootPython, sawWorkerOverride, sawUIWarning bool
+	for _, obs := range report.Observations {
+		combined := obs.Section + " " + obs.Text
+		switch {
+		case strings.Contains(combined, "Linting . (python_project)"):
+			sawRootPython = true
+		case strings.Contains(combined, "Linting worker (node_package)"):
+			sawWorkerOverride = true
+		case strings.Contains(combined, "ui: common component is present without a supported lint contract"):
+			sawUIWarning = true
+		case strings.Contains(combined, "docs:"):
+			t.Fatalf("ignored docs component should not appear in observations: %+v", report.Observations)
+		}
+	}
+
+	if !sawRootPython {
+		t.Fatalf("expected root python component observation, got %+v", report.Observations)
+	}
+	if !sawWorkerOverride {
+		t.Fatalf("expected worker override observation, got %+v", report.Observations)
+	}
+	if !sawUIWarning {
+		t.Fatalf("expected unmatched ui policy warning, got %+v", report.Observations)
 	}
 }

@@ -2,10 +2,6 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
-INSTALL_DIR="${HOME}/.vrooli/bin"
+REPO_ROOT="$(builtin cd "${SCRIPT_DIR}/../../.." && builtin pwd)"
 
-mkdir -p "${INSTALL_DIR}"
-chmod +x "${SCRIPT_DIR}/product-manager-agent"
-ln -sf "${SCRIPT_DIR}/product-manager-agent" "${INSTALL_DIR}/product-manager-agent"
-
-echo "Installed product-manager-agent to ${INSTALL_DIR}/product-manager-agent"
+"${REPO_ROOT}/packages/cli-core/install.sh" "scenarios/product-manager-agent/cli" --name "product-manager-agent" --manifest "scenarios/product-manager-agent/.vrooli/service.json"
