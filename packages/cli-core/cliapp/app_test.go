@@ -161,3 +161,29 @@ func TestAppPreflightErrorStopsRun(t *testing.T) {
 		t.Fatalf("expected preflight error, got %v", err)
 	}
 }
+
+func TestAppPreflightReceivesFullSubcommandName(t *testing.T) {
+	var gotName string
+	app := NewApp(AppOptions{
+		Name: "demo",
+		SubcommandGroups: []SubcommandGroup{
+			{
+				Name: "campaigns",
+				Subcommands: []Command{
+					{Name: "list", NeedsAPI: true, Run: func(args []string) error { return nil }},
+				},
+			},
+		},
+		Preflight: func(cmd Command, global GlobalOptions) error {
+			gotName = cmd.Name
+			return nil
+		},
+	})
+
+	if err := app.Run([]string{"campaigns", "list"}); err != nil {
+		t.Fatalf("expected run to succeed: %v", err)
+	}
+	if gotName != "campaigns list" {
+		t.Fatalf("preflight command name = %q, want %q", gotName, "campaigns list")
+	}
+}

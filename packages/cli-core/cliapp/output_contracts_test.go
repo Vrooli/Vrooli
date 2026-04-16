@@ -204,6 +204,71 @@ func TestPrintReportJSON(t *testing.T) {
 	}
 }
 
+func TestRenderOperationalReportString(t *testing.T) {
+	rendered, err := RenderOperationalReportString(OperationalReport{
+		Status:    []string{"Unavailable"},
+		NextSteps: []string{"demo --auto-start status"},
+	})
+	if err != nil {
+		t.Fatalf("RenderOperationalReportString: %v", err)
+	}
+	if !strings.Contains(rendered, "Status:\n  Unavailable\n") {
+		t.Fatalf("rendered = %q", rendered)
+	}
+	if !strings.Contains(rendered, "Next Steps:\n  demo --auto-start status\n") {
+		t.Fatalf("rendered = %q", rendered)
+	}
+}
+
+func TestNewAPIRecoveryReportIncludesRuntimeAndConfigGuidance(t *testing.T) {
+	report := NewAPIRecoveryReport(APIRecoveryReportOptions{
+		AppName:           "demo",
+		CommandName:       "tasks list",
+		ResolvedAPIBase:   "http://localhost:18080",
+		ConfiguredAPIBase: "http://localhost:19090",
+		DetectedAPIBase:   "http://localhost:18080",
+		Cause:             "request failed: dial tcp 127.0.0.1:18080: connect: connection refused",
+	})
+
+	rendered, err := RenderOperationalReportString(report)
+	if err != nil {
+		t.Fatalf("RenderOperationalReportString: %v", err)
+	}
+	for _, needle := range []string{
+		"Status:\n  Unable to reach the demo API.\n  Resolved API base: http://localhost:18080\n",
+		"Last error: request failed: dial tcp 127.0.0.1:18080: connect: connection refused",
+		"Triage:\n  Runtime:\n    Detected running API base: http://localhost:18080\n",
+		"Configuration:\n    Saved config api_base: http://localhost:19090\n    Saved api_base does not match the currently detected running API and may be stale.\n",
+		"Next Steps:\n  demo --auto-start tasks list\n  vrooli scenario status demo\n  vrooli scenario start demo\n  demo configure api_base http://localhost:18080\n",
+	} {
+		if !strings.Contains(rendered, needle) {
+			t.Fatalf("output missing %q in %q", needle, rendered)
+		}
+	}
+}
+
+func TestNewAPIRecoveryReportForMissingAPIBase(t *testing.T) {
+	report := NewAPIRecoveryReport(APIRecoveryReportOptions{
+		AppName:        "demo",
+		CommandName:    "status",
+		Cause:          "api base URL is empty",
+		MissingAPIBase: true,
+	})
+	rendered, err := RenderOperationalReportString(report)
+	if err != nil {
+		t.Fatalf("RenderOperationalReportString: %v", err)
+	}
+	for _, needle := range []string{
+		"Status:\n  Unable to resolve the demo API base.\n  Last error: api base URL is empty\n",
+		"Triage:\n  Runtime:\n    No running API port was detected for demo. The scenario may be stopped.\n",
+		"Next Steps:\n  demo --auto-start status\n  vrooli scenario status demo\n  vrooli scenario start demo\n",
+	} {
+		if !strings.Contains(rendered, needle) {
+			t.Fatalf("output missing %q in %q", needle, rendered)
+		}
+	}
+}
+
 func assertSectionOrder(t *testing.T, output string, sections ...string) {
 	t.Helper()
 

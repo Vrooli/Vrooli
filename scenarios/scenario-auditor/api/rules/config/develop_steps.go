@@ -398,7 +398,7 @@ func CheckDevelopLifecycleSteps(content []byte, filePath string) []Violation {
 	}
 
 	stepsSlice, ok := stepsRaw.([]any)
-	if !ok || len(stepsSlice) == 0 {
+	if !ok {
 		line := findJSONLineDevelop(source, "\"develop\"", "\"steps\"")
 		return []Violation{newDevelopViolation(filePath, line, "lifecycle.develop.steps must include at least one start command")}
 	}
@@ -408,6 +408,13 @@ func CheckDevelopLifecycleSteps(content []byte, filePath string) []Violation {
 	var violations []Violation
 	developLine := findJSONLineDevelop(source, "\"develop\"")
 	stepsLine := findJSONLineDevelop(source, "\"develop\"", "\"steps\"")
+	if len(stepsSlice) == 0 {
+		requiresAPI := requireAPIStart(payload)
+		requiresUI := requireUIStart(payload)
+		if !requiresAPI && !requiresUI {
+			return []Violation{newDevelopViolation(filePath, stepsLine, "lifecycle.develop.steps must include at least one start command")}
+		}
+	}
 
 	if requireAPIStart(payload) {
 		startAPIStep, _ := findStepByName(stepsSlice, "start-api")

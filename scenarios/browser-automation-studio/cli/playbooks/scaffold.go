@@ -9,6 +9,8 @@ import (
 	"browser-automation-studio/cli/internal/appctx"
 	internalplaybooks "browser-automation-studio/cli/internal/playbooks"
 	"browser-automation-studio/cli/internal/util"
+
+	"github.com/vrooli/cli-core/cliapp"
 )
 
 func runScaffold(ctx *appctx.Context, args []string) error {
@@ -112,10 +114,16 @@ func runScaffold(ctx *appctx.Context, args []string) error {
 		return fmt.Errorf("write workflow template: %w", err)
 	}
 
-	fmt.Printf("OK: Created %s\n", targetFile)
-	fmt.Println("Next steps:")
-	fmt.Println("  * Edit the JSON to add real nodes and selectors")
-	fmt.Printf("  * Link the workflow from requirements/*.json\n")
-	fmt.Printf("  * Regenerate the registry (test-genie registry build --scenario %s)\n", scenarioDir)
-	return nil
+	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+		Result: []string{"Playbook scaffold created"},
+		Changes: []string{
+			fmt.Sprintf("File: %s", targetFile),
+			fmt.Sprintf("Reset mode: %s", resetMode),
+		},
+		NextCommand: []string{
+			"Edit the JSON to add real nodes and selectors",
+			"Link the workflow from requirements/*.json",
+			fmt.Sprintf("test-genie registry build --scenario %s", scenarioDir),
+		},
+	})
 }

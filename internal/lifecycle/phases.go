@@ -99,15 +99,9 @@ func (r *Runner) RunPhaseDetailed(name, phaseName string, opts PhaseOptions) (Ph
 	if phaseRequiresBootstrap(phaseName) {
 		ready := make(map[string]struct{})
 		bootstrapOpts := StartOptions{CustomPath: opts.CustomPath}
-		if _, err := r.ensureDependencies(item, bootstrapOpts, ready, []string{item.Slug}); err != nil {
+		if _, _, err := r.bootstrapScenarioDependencies(item, bootstrapOpts, ready, nil); err != nil {
 			return PhaseResult{}, err
 		}
-		if _, err := r.ensureResourceDependencies(item, bootstrapOpts); err != nil {
-			return PhaseResult{}, err
-		}
-	}
-	if err := r.cleanupFixedPortOrphans(item, nil); err != nil {
-		return PhaseResult{}, err
 	}
 
 	var envResult ports.Environment
@@ -117,7 +111,7 @@ func (r *Runner) RunPhaseDetailed(name, phaseName string, opts PhaseOptions) (Ph
 			return PhaseResult{}, err
 		}
 	} else {
-		envResult, err = r.Ports.BuildEnvironment(item, nil)
+		envResult, err = r.prepareScenarioEnvironment(item, nil)
 		if err != nil {
 			return PhaseResult{}, err
 		}
@@ -137,12 +131,6 @@ func (r *Runner) RunPhaseDetailed(name, phaseName string, opts PhaseOptions) (Ph
 		if mode != "on" && mode != "auto" {
 			env["GOWORK"] = "off"
 		}
-	}
-
-	if err := r.runWithLifecycleLog(item.Slug, func(logWriter io.Writer) error {
-		return r.ensureScenarioDatabase(item, env, logWriter)
-	}); err != nil {
-		return PhaseResult{}, err
 	}
 
 	args := append([]string(nil), opts.Args...)

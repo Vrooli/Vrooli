@@ -4,6 +4,8 @@ This section explains the resource ecosystem at the platform level.
 
 Resources are one of Vrooli's core primitives. They provide the raw capabilities that scenarios compose into products, tools, and operator workflows.
 
+Resource CLI behavior is manifest-driven. Implemented resources declare their CLI contract explicitly in `resources/<name>/resource.json` rather than relying on `resources/<name>/cli` layout folklore.
+
 ## Start Here
 
 - [configuration.md](configuration.md) for current configuration and dependency guidance
@@ -62,6 +64,16 @@ vrooli resource template show <template>
 vrooli resource template validate
 vrooli resource template generate <template> --name <name>
 ```
+
+Canonical resource templates emit the same shared CLI manifest shape used by scenarios:
+
+- explicit `cli.command`
+- explicit adapter metadata
+- explicit install steps
+- explicit invocation policy
+- explicit freshness inputs
+
+The generated resource CLI remains a thin control-plane delegate, not a scenario-style API client.
 
 Archive and schema workflows:
 

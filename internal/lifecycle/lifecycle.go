@@ -215,6 +215,10 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 		if err == nil || !cleanupOnError {
 			return
 		}
+		// Rollback is intentionally scoped to the scenario currently being started.
+		// Dependencies and resources that were started earlier in the recursive chain
+		// are shared runtime infrastructure and may already be needed by other live
+		// scenarios, so this rollback must not unwind them opportunistically.
 		if cleanupErr := r.cleanupScenarioRuntime(item.Slug, opts.CustomPath, false); cleanupErr != nil {
 			r.logError("Failed to roll back failed scenario start", cleanupErr, logx.AttrScenario, item.Slug)
 			err = errors.Join(err, fmt.Errorf("rollback failed: %w", cleanupErr))
@@ -227,11 +231,7 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 		}
 	}
 
-	failedDeps, err := r.ensureDependencies(item, opts, ready, append(stack, item.Slug))
-	if err != nil {
-		return Result{}, err
-	}
-	failedResources, err := r.ensureResourceDependencies(item, opts)
+	failedDeps, failedResources, err := r.bootstrapScenarioDependencies(item, opts, ready, stack)
 	if err != nil {
 		return Result{}, err
 	}
@@ -271,19 +271,9 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 		deps.sleep(1 * time.Second)
 	}
 
-	if err := r.cleanupFixedPortOrphans(item, records); err != nil {
-		return Result{}, err
-	}
-
-	env, err := r.Ports.BuildEnvironment(item, nil)
-	if err != nil {
-		return Result{}, err
-	}
+	env, err := r.prepareScenarioEnvironment(item, records)
 	cleanupOnError = true
-
-	if err := r.runWithLifecycleLog(item.Slug, func(logWriter io.Writer) error {
-		return r.ensureScenarioDatabase(item, env.EnvVars, logWriter)
-	}); err != nil {
+	if err != nil {
 		return Result{}, err
 	}
 
@@ -337,6 +327,37 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 	}
 	cleanupOnError = false
 	return result, nil
+}
+
+func (r *Runner) bootstrapScenarioDependencies(item scenario.Scenario, opts StartOptions, ready map[string]struct{}, stack []string) ([]string, []string, error) {
+	failedDeps, err := r.ensureDependencies(item, opts, ready, append(stack, item.Slug))
+	if err != nil {
+		return nil, nil, err
+	}
+	failedResources, err := r.ensureResourceDependencies(item, opts)
+	if err != nil {
+		return nil, nil, err
+	}
+	return failedDeps, failedResources, nil
+}
+
+func (r *Runner) prepareScenarioEnvironment(item scenario.Scenario, records []process.Record) (ports.Environment, error) {
+	if err := r.cleanupFixedPortOrphans(item, records); err != nil {
+		return ports.Environment{}, err
+	}
+
+	env, err := r.Ports.BuildEnvironment(item, nil)
+	if err != nil {
+		return ports.Environment{}, err
+	}
+
+	if err := r.runWithLifecycleLog(item.Slug, func(logWriter io.Writer) error {
+		return r.ensureScenarioDatabase(item, env.EnvVars, logWriter)
+	}); err != nil {
+		return ports.Environment{}, err
+	}
+
+	return env, nil
 }
 
 func (r *Runner) Stop(name string, opts StopOptions) error {

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	runtimeenv "github.com/vrooli/vrooli/internal/resources/runtime/env"
 	runtimelogs "github.com/vrooli/vrooli/internal/resources/runtime/logs"
@@ -865,7 +866,13 @@ func (d cloudAPIDriver) Status(ctx context.Context, controller *Controller, item
 		return status, nil
 	}
 
-	missing := missingCredentialEnv(manifest)
+	missing, err := resourceenv.MissingCredentialKeys(controller.Root, controller.Home, manifest)
+	if err != nil {
+		status.StatusCode = StatusCodeCommandError
+		status.Message = "credential resolution failed"
+		status.ProbeError = err.Error()
+		return status, nil
+	}
 	if len(missing) > 0 {
 		healthy := false
 		status.Healthy = &healthy
@@ -971,20 +978,6 @@ func externalCLIBinary(manifest ResourceManifest) string {
 		return strings.TrimSpace(manifest.Binary)
 	}
 	return manifest.Name
-}
-
-func missingCredentialEnv(manifest ResourceManifest) []string {
-	missing := make([]string, 0)
-	for _, key := range manifest.Credentials.Env {
-		key = strings.TrimSpace(key)
-		if key == "" {
-			continue
-		}
-		if strings.TrimSpace(os.Getenv(key)) == "" {
-			missing = append(missing, key)
-		}
-	}
-	return missing
 }
 
 func runInstallCommand(ctx context.Context, controller *Controller, manifest ResourceManifest) error {

@@ -1,6 +1,8 @@
 -- Prompt Manager Database Schema v2.0
 -- Simplified schema for file-based skill storage with metrics tracking
 
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
 -- Tags for categorizing skills
 CREATE TABLE IF NOT EXISTS tags (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

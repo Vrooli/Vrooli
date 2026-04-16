@@ -46,7 +46,11 @@ See [architecture.md](architecture.md) for the ownership model and template-kind
 - validate template manifests before treating generated work as canonical
 - treat generated resource code as a starting point that still needs lifecycle, manifest, and validation review
 - prefer shared control-plane/runtime packages over resource-local reinvention
-- generated resources should start with the standard `cli/main.go` native entrypoint and storage-safe manifest paths
+- generated resources should start with the standard native resource CLI scaffold: `cli/main.go`, `cli/go.mod`, `cli/install.sh`, and `cli/install.ps1`
+- generated resource manifests must include an explicit top-level `cli` block with `command`, `adapter`, `install`, `invoke`, and `freshness`
+- generated templates expose `RESOURCE_CLI_COMMAND` so the installed command name is declared in manifest data instead of inferred
+- resource templates should match scenario templates at the manifest/install contract level, not at the app architecture level
+- generated resource CLIs remain thin control-plane delegates built on `cliapp.NewResourceApp(...)`, not scenario-style API clients
 - keep retained shell compatibility isolated and clearly transitional
 
 ## Related

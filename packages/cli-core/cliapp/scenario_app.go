@@ -1,7 +1,6 @@
 package cliapp
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -21,6 +20,9 @@ var (
 	resolveScenarioRoot    = repocontract.ResolveScenarioPath
 	resolveScenarioCLIPath = func(root, scenario string) (string, error) {
 		return repocontract.ResolveScenarioFile(root, scenario, "cli")
+	}
+	execScenarioStartCommand = func(name string) *exec.Cmd {
+		return exec.Command("vrooli", "scenario", "start", name)
 	}
 )
 
@@ -252,23 +254,8 @@ func (a *ScenarioApp) SetCommandsWithSubgroups(commands []CommandGroup, subcomma
 		a.warnIfRunningScenarioLocalBinary()
 
 		if cmd.NeedsAPI {
-			if _, err := cliutil.ValidateAPIBase(a.APIBaseOptions()); err != nil {
-				// If auto-start is enabled, try to start the scenario
-				if global.AutoStart {
-					if startErr := a.tryAutoStart(); startErr != nil {
-						return fmt.Errorf("failed to auto-start %s: %w", a.options.Name, startErr)
-					}
-					// Retry API validation after starting
-					if _, err := cliutil.ValidateAPIBase(a.APIBaseOptions()); err != nil {
-						return fmt.Errorf("%s API still not reachable after auto-start", a.options.Name)
-					}
-				} else {
-					// Provide actionable error with auto-start suggestion
-					return fmt.Errorf("%s API is not reachable.\n\nTo auto-start the scenario:\n  %s --auto-start %s\n\nOr start manually:\n  vrooli scenario start %s", a.options.Name, a.options.Name, cmd.Name, a.options.Name)
-				}
-			}
-			if !a.options.AllowAnonymous && strings.TrimSpace(a.tokenSource()) == "" {
-				return fmt.Errorf("API token is required for %s; set one via configure or %s", cmd.Name, strings.Join(a.options.TokenEnvVars, ", "))
+			if err := a.ensureAPIReachable(cmd, global.AutoStart); err != nil {
+				return err
 			}
 		}
 		if global.DryRun {
@@ -531,15 +518,105 @@ func applyTimeoutOpts(opts ScenarioOptions) cliutil.HTTPClientOptions {
 	return clientOpts
 }
 
+type apiRecoveryContext struct {
+	ResolvedAPIBase   string
+	ConfiguredAPIBase string
+	DetectedAPIBase   string
+	Cause             string
+	MissingAPIBase    bool
+}
+
+func (a *ScenarioApp) ensureAPIReachable(cmd Command, autoStart bool) error {
+	base, err := cliutil.ValidateAPIBase(a.APIBaseOptions())
+	if err != nil {
+		if autoStart {
+			if startErr := a.tryAutoStart(); startErr != nil {
+				return fmt.Errorf("failed to auto-start %s: %w", a.options.Name, startErr)
+			}
+			base, err = cliutil.ValidateAPIBase(a.APIBaseOptions())
+		}
+		if err != nil {
+			return a.apiRecoveryError(cmd.Name, apiRecoveryContext{
+				ResolvedAPIBase:   base,
+				ConfiguredAPIBase: strings.TrimSpace(a.Config.APIBase),
+				DetectedAPIBase:   a.detectedAPIBase(),
+				Cause:             err.Error(),
+				MissingAPIBase:    true,
+			})
+		}
+	}
+
+	if !a.options.AllowAnonymous && strings.TrimSpace(a.tokenSource()) == "" {
+		return fmt.Errorf("API token is required for %s; set one via configure or %s", cmd.Name, strings.Join(a.options.TokenEnvVars, ", "))
+	}
+
+	probeErr := a.probeAPIHealth()
+	if probeErr == nil {
+		return nil
+	} else if autoStart {
+		if startErr := a.tryAutoStart(); startErr != nil {
+			return fmt.Errorf("failed to auto-start %s: %w", a.options.Name, startErr)
+		}
+		probeErr = a.probeAPIHealth()
+		if probeErr == nil {
+			return nil
+		}
+		return a.apiRecoveryError(cmd.Name, apiRecoveryContext{
+			ResolvedAPIBase:   strings.TrimSpace(cliutil.DetermineAPIBase(a.APIBaseOptions())),
+			ConfiguredAPIBase: strings.TrimSpace(a.Config.APIBase),
+			DetectedAPIBase:   a.detectedAPIBase(),
+			Cause:             probeErr.Error(),
+		})
+	}
+
+	return a.apiRecoveryError(cmd.Name, apiRecoveryContext{
+		ResolvedAPIBase:   strings.TrimSpace(cliutil.DetermineAPIBase(a.APIBaseOptions())),
+		ConfiguredAPIBase: strings.TrimSpace(a.Config.APIBase),
+		DetectedAPIBase:   a.detectedAPIBase(),
+		Cause:             probeErr.Error(),
+	})
+}
+
+func (a *ScenarioApp) probeAPIHealth() error {
+	_, err := a.fetchHealth()
+	return err
+}
+
+func (a *ScenarioApp) detectedAPIBase() string {
+	if a.options.APIPortDetector == nil {
+		return ""
+	}
+	port := strings.TrimSpace(a.options.APIPortDetector())
+	if port == "" {
+		return ""
+	}
+	return fmt.Sprintf("http://localhost:%s", port)
+}
+
+func (a *ScenarioApp) apiRecoveryError(commandName string, ctx apiRecoveryContext) error {
+	report := NewAPIRecoveryReport(APIRecoveryReportOptions{
+		AppName:           a.options.Name,
+		CommandName:       commandName,
+		ResolvedAPIBase:   ctx.ResolvedAPIBase,
+		ConfiguredAPIBase: ctx.ConfiguredAPIBase,
+		DetectedAPIBase:   ctx.DetectedAPIBase,
+		Cause:             ctx.Cause,
+		MissingAPIBase:    ctx.MissingAPIBase,
+	})
+	rendered, err := RenderOperationalReportString(report)
+	if err != nil {
+		return fmt.Errorf("render API recovery report: %w", err)
+	}
+	return fmt.Errorf(strings.TrimRight(rendered, "\n"))
+}
+
 // tryAutoStart attempts to start the scenario via vrooli and waits for the API to become available.
 func (a *ScenarioApp) tryAutoStart() error {
 	fmt.Printf("Starting %s...\n", a.options.Name)
 
-	// Start the scenario in background
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "start", a.options.Name)
+	// Scenario start is itself a lifecycle orchestration command. Let it run to
+	// completion instead of imposing an arbitrary local subprocess deadline.
+	cmd := execScenarioStartCommand(a.options.Name)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -551,7 +628,7 @@ func (a *ScenarioApp) tryAutoStart() error {
 	fmt.Printf("Waiting for %s API...\n", a.options.Name)
 	deadline := time.Now().Add(30 * time.Second)
 	for time.Now().Before(deadline) {
-		if _, err := cliutil.ValidateAPIBase(a.APIBaseOptions()); err == nil {
+		if _, err := cliutil.ValidateAPIBase(a.APIBaseOptions()); err == nil && a.probeAPIHealth() == nil {
 			fmt.Printf("%s API is ready\n", a.options.Name)
 			return nil
 		}

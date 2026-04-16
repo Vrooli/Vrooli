@@ -41,7 +41,7 @@ func TestFixGoCli_AddsMissingAPIReplace(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Write cli/go.mod without replace.
+	// Write the declared CLI module go.mod without the needed replace.
 	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "go.mod"), []byte("module github.com/vrooli/test-go-cli/cli\n\ngo 1.23\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestFixGoCli_AddsMissingProtoReplace(t *testing.T) {
 	root := setupGoCliTestDir(t, scenarioName)
 	scenarioDir := filepath.Join(root, "scenarios", scenarioName)
 
-	// Write cli/go.mod that references proto but no replace.
+	// Write the declared CLI module go.mod that references proto but has no replace.
 	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "go.mod"), []byte(`module github.com/vrooli/test-proto/cli
 
 go 1.23
@@ -171,12 +171,12 @@ replace github.com/vrooli/cli-core => ../../../packages/cli-core
 		}
 	}
 	if !found {
-		t.Fatal("expected cli/go.mod to be fixed")
+		t.Fatal("expected the declared CLI module go.mod to be fixed")
 	}
 
 	content, _ := os.ReadFile(filepath.Join(scenarioDir, "cli", "go.mod"))
 	if !strings.Contains(string(content), "replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go") {
-		t.Error("expected repo-contract-go replace directive in cli/go.mod")
+		t.Error("expected repo-contract-go replace directive in the declared CLI module go.mod")
 	}
 }
 
@@ -189,7 +189,7 @@ func TestFixGoCli_Idempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Write cli/go.mod that already has the correct directives.
+	// Write the declared CLI module go.mod with the correct directives already present.
 	if err := os.WriteFile(filepath.Join(scenarioDir, "cli", "go.mod"), []byte(`module github.com/vrooli/test-idempotent/cli
 
 go 1.23

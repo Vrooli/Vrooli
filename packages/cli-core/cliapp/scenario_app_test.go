@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -48,7 +49,17 @@ func TestScenarioAppConfigureCommandSavesConfig(t *testing.T) {
 func TestScenarioAppPreflightValidatesAPIBase(t *testing.T) {
 	configDir := t.TempDir()
 	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)
-	t.Setenv("API_BASE_ENV", "http://localhost:9999")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/health" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"ok","readiness":true}`))
+	}))
+	defer server.Close()
+
+	t.Setenv("API_BASE_ENV", server.URL)
 
 	app, err := NewScenarioApp(ScenarioOptions{
 		Name:             "demo",
@@ -88,8 +99,54 @@ func TestScenarioAppPreflightFailsWhenAPIBaseMissing(t *testing.T) {
 	cmd := Command{Name: "run", NeedsAPI: true, Run: func(args []string) error { return nil }}
 	app.SetCommands([]CommandGroup{{Title: "Test", Commands: []Command{cmd}}})
 
-	if err := app.CLI.Run([]string{"run"}); err == nil {
+	err = app.CLI.Run([]string{"run"})
+	if err == nil {
 		t.Fatalf("expected preflight error for missing API base")
+	}
+	for _, needle := range []string{
+		"Status:\n  Unable to resolve the demo API base.",
+		"Triage:\n  Runtime:\n    No running API port was detected for demo. The scenario may be stopped.",
+		"Next Steps:\n  demo --auto-start run\n  vrooli scenario status demo\n  vrooli scenario start demo",
+	} {
+		if !strings.Contains(err.Error(), needle) {
+			t.Fatalf("error missing %q in %q", needle, err.Error())
+		}
+	}
+}
+
+func TestScenarioAppPreflightReportsRecoveryGuidanceWhenAPIUnreachable(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)
+	t.Setenv("API_PORT_ENV", "18080")
+
+	app, err := NewScenarioApp(ScenarioOptions{
+		Name:             "demo",
+		ConfigDirEnvVars: []string{"CLI_CONFIG_DIR_OVERRIDE"},
+		APIPortEnvVars:   []string{"API_PORT_ENV"},
+		APIPortDetector:  func() string { return "18080" },
+		AllowAnonymous:   true,
+	})
+	if err != nil {
+		t.Fatalf("NewScenarioApp: %v", err)
+	}
+	app.Config.APIBase = "http://localhost:19999"
+
+	cmd := Command{Name: "campaigns", NeedsAPI: true, Run: func(args []string) error { return nil }}
+	app.SetCommands([]CommandGroup{{Title: "Test", Commands: []Command{cmd}}})
+
+	err = app.CLI.Run([]string{"campaigns"})
+	if err == nil {
+		t.Fatalf("expected preflight error for unreachable API")
+	}
+	for _, needle := range []string{
+		"Status:\n  Unable to reach the demo API.\n  Resolved API base: http://localhost:19999",
+		"Triage:\n  Runtime:\n    Detected running API base: http://localhost:18080",
+		"Configuration:\n    Saved config api_base: http://localhost:19999\n    Saved api_base does not match the currently detected running API and may be stale.",
+		"Next Steps:\n  demo --auto-start campaigns\n  vrooli scenario status demo\n  vrooli scenario start demo\n  demo configure api_base http://localhost:18080",
+	} {
+		if !strings.Contains(err.Error(), needle) {
+			t.Fatalf("error missing %q in %q", needle, err.Error())
+		}
 	}
 }
 
@@ -447,6 +504,49 @@ func TestScenarioAppStandardStatusCommandSupportsJSON(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "\"status\": \"healthy\"") {
 		t.Fatalf("expected pretty JSON output, got %q", stdout.String())
+	}
+}
+
+func TestScenarioAppTryAutoStartRunsScenarioStartCommand(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/health" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"healthy","readiness":true}`))
+	}))
+	defer server.Close()
+
+	app, err := NewScenarioApp(ScenarioOptions{
+		Name:             "demo",
+		APIEnvVars:       []string{"API_BASE_ENV"},
+		ConfigDirEnvVars: []string{"CLI_CONFIG_DIR_OVERRIDE"},
+		AllowAnonymous:   true,
+	})
+	if err != nil {
+		t.Fatalf("NewScenarioApp: %v", err)
+	}
+	t.Setenv("API_BASE_ENV", server.URL)
+
+	originalExec := execScenarioStartCommand
+	t.Cleanup(func() {
+		execScenarioStartCommand = originalExec
+	})
+
+	var started string
+	execScenarioStartCommand = func(name string) *exec.Cmd {
+		started = name
+		return exec.Command("true")
+	}
+
+	if err := app.tryAutoStart(); err != nil {
+		t.Fatalf("tryAutoStart: %v", err)
+	}
+	if started != "demo" {
+		t.Fatalf("started scenario = %q, want %q", started, "demo")
 	}
 }
 

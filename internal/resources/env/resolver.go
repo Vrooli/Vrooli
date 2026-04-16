@@ -112,15 +112,37 @@ func ResolveResource(root, home, resourceName string, opts ResolveOptions) (Reso
 	}, nil
 }
 
+func ResolveCredentialValues(root, home string, resourceManifest manifestpkg.ResourceManifest) (map[string]string, error) {
+	values, _, err := resolveRequestedEnvValues(root, home, resourceManifest, resourceManifest.Credentials.Env, nil)
+	if err != nil {
+		return nil, err
+	}
+	return values, nil
+}
+
+func MissingCredentialKeys(root, home string, resourceManifest manifestpkg.ResourceManifest) ([]string, error) {
+	resolved, err := ResolveCredentialValues(root, home, resourceManifest)
+	if err != nil {
+		return nil, err
+	}
+
+	missing := make([]string, 0)
+	for _, key := range resourceManifest.Credentials.Env {
+		name := strings.TrimSpace(key)
+		if name == "" {
+			continue
+		}
+		if strings.TrimSpace(resolved[name]) == "" {
+			missing = append(missing, name)
+		}
+	}
+	return missing, nil
+}
+
 func resolveFromManifest(root, home string, resourceManifest manifestpkg.ResourceManifest, opts ResolveOptions) (map[string]string, []string, error) {
 	values := map[string]string{}
 	warnings := []string{}
 	templateContext := buildTemplateContext(root, home, resourceManifest.Name)
-
-	secretsMap, err := loadSecrets(home)
-	if err != nil {
-		return nil, nil, err
-	}
 
 	for key, value := range resourceManifest.EnvironmentExports.Static {
 		values[key] = expandTemplateWithContext(value, values, templateContext)
@@ -138,21 +160,14 @@ func resolveFromManifest(root, home string, resourceManifest manifestpkg.Resourc
 		values[key] = strconv.Itoa(resolved)
 	}
 
-	for _, key := range resourceManifest.EnvironmentExports.FromRuntimeEnv {
-		name := strings.TrimSpace(key)
-		if name == "" {
-			continue
-		}
-		if value, ok := secretsMap[name]; ok {
-			values[name] = value
-			continue
-		}
-		if value, ok := resourceManifest.Runtime.Env[name]; ok {
-			values[name] = expandTemplateWithContext(value, values, templateContext)
-			continue
-		}
-		warnings = append(warnings, fmt.Sprintf("%s environment export %s was requested but no runtime or secret value was found", resourceManifest.Name, name))
+	runtimeValues, runtimeWarnings, err := resolveRequestedEnvValues(root, home, resourceManifest, resourceManifest.EnvironmentExports.FromRuntimeEnv, values)
+	if err != nil {
+		return nil, nil, err
 	}
+	for key, value := range runtimeValues {
+		values[key] = value
+	}
+	warnings = append(warnings, runtimeWarnings...)
 
 	applyDependencyOverrides(resourceManifest.Name, opts, values)
 
@@ -171,6 +186,44 @@ func resolveFromManifest(root, home string, resourceManifest manifestpkg.Resourc
 	applyDependencyOverrides(resourceManifest.Name, opts, values)
 	for key, derived := range resourceManifest.EnvironmentExports.Derived {
 		values[key] = expandTemplateWithContext(derived.Template, values, templateContext)
+	}
+
+	return values, warnings, nil
+}
+
+func resolveRequestedEnvValues(
+	root, home string,
+	resourceManifest manifestpkg.ResourceManifest,
+	requested []string,
+	baseValues map[string]string,
+) (map[string]string, []string, error) {
+	values := map[string]string{}
+	warnings := []string{}
+
+	secretsMap, err := loadSecrets(home)
+	if err != nil {
+		return nil, nil, err
+	}
+	templateContext := buildTemplateContext(root, home, resourceManifest.Name)
+
+	for _, key := range requested {
+		name := strings.TrimSpace(key)
+		if name == "" {
+			continue
+		}
+		if value := strings.TrimSpace(os.Getenv(name)); value != "" {
+			values[name] = value
+			continue
+		}
+		if value, ok := secretsMap[name]; ok {
+			values[name] = value
+			continue
+		}
+		if value, ok := resourceManifest.Runtime.Env[name]; ok {
+			values[name] = expandTemplateWithContext(value, baseValues, templateContext)
+			continue
+		}
+		warnings = append(warnings, fmt.Sprintf("%s environment export %s was requested but no runtime or secret value was found", resourceManifest.Name, name))
 	}
 
 	return values, warnings, nil

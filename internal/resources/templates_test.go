@@ -151,7 +151,7 @@ func TestGenerateDockerServiceTemplateIncludesInternalArchitectureScaffold(t *te
 
 	resourceJSON := readTestFile(t, filepath.Join(dest, "resource.json"))
 	for _, expected := range []string{
-		`"internal/**"`,
+		`"cli/internal/**"`,
 		`"docs/**"`,
 		`"README.md"`,
 	} {
@@ -162,10 +162,10 @@ func TestGenerateDockerServiceTemplateIncludesInternalArchitectureScaffold(t *te
 
 	readme := readTestFile(t, filepath.Join(dest, "README.md"))
 	for _, expected := range []string{
-		"`cli/` is entrypoint and command wiring only.",
-		"`internal/` is the default home for resource-specific Go logic",
-		"`internal/install`: install/bootstrap behavior unique to the resource",
-		"Keep `cli/main.go` focused on bootstrap and delegation; put resource-specific logic in `internal/...`.",
+		"`cli/` is the single binary entrypoint and command wiring surface.",
+		"`cli/internal/` is the default home for resource-specific Go logic",
+		"`cli/internal/install`: install/bootstrap behavior unique to the resource",
+		"Keep `cli/main.go` focused on bootstrap and delegation; put resource-specific logic in `cli/internal/...`.",
 	} {
 		if !strings.Contains(readme, expected) {
 			t.Fatalf("README missing architecture guidance %q: %s", expected, readme)
@@ -178,11 +178,11 @@ func TestGenerateDockerServiceTemplateIncludesInternalArchitectureScaffold(t *te
 	}
 
 	for relPath, expected := range map[string]string{
-		filepath.Join("internal", "install", "install.go"): "// Package install is the default home",
-		filepath.Join("internal", "runtime", "runtime.go"): "// Package runtime is the default home",
-		filepath.Join("internal", "status", "status.go"):   "// Package status is the default home",
-		filepath.Join("internal", "health", "health.go"):   "// Package health is the default home",
-		filepath.Join("internal", "env", "env.go"):         "// Package env is the default home",
+		filepath.Join("cli", "internal", "install", "install.go"): "// Package install is the default home",
+		filepath.Join("cli", "internal", "runtime", "runtime.go"): "// Package runtime is the default home",
+		filepath.Join("cli", "internal", "status", "status.go"):   "// Package status is the default home",
+		filepath.Join("cli", "internal", "health", "health.go"):   "// Package health is the default home",
+		filepath.Join("cli", "internal", "env", "env.go"):         "// Package env is the default home",
 	} {
 		contents := readTestFile(t, filepath.Join(dest, relPath))
 		if !strings.Contains(contents, expected) {
@@ -205,25 +205,25 @@ func TestGenerateRemainingResourceTemplatesIncludeInternalArchitectureScaffold(t
 		{
 			templateName: "compose-service",
 			freshnessContains: []string{
-				`"internal/**"`,
+				`"cli/internal/**"`,
 				`"docs/**"`,
 				`"README.md"`,
 				`"compose.yaml"`,
 			},
 			readmeContains: []string{
-				"`internal/` is the default home for compose-specific Go logic",
-				"`internal/compose`: compose-specific graph and command helpers",
-				"Keep `cli/main.go` focused on bootstrap and delegation; put compose-specific logic in `internal/...`.",
+				"`cli/internal/` is the default home for compose-specific Go logic",
+				"`cli/internal/compose`: compose-specific graph and command helpers",
+				"Keep `cli/main.go` focused on bootstrap and delegation; put compose-specific logic in `cli/internal/...`.",
 			},
 			docsContains: map[string]string{
 				filepath.Join("docs", "OPERATIONS.md"): "Do not turn `cli/main.go` into the primary implementation surface.",
 			},
 			internalFiles: map[string]string{
-				filepath.Join("internal", "compose", "compose.go"):   "// Package compose is the default home",
-				filepath.Join("internal", "topology", "topology.go"): "// Package topology is the default home",
-				filepath.Join("internal", "runtime", "runtime.go"):   "// Package runtime is the default home",
-				filepath.Join("internal", "health", "health.go"):     "// Package health is the default home",
-				filepath.Join("internal", "env", "env.go"):           "// Package env is the default home",
+				filepath.Join("cli", "internal", "compose", "compose.go"):   "// Package compose is the default home",
+				filepath.Join("cli", "internal", "topology", "topology.go"): "// Package topology is the default home",
+				filepath.Join("cli", "internal", "runtime", "runtime.go"):   "// Package runtime is the default home",
+				filepath.Join("cli", "internal", "health", "health.go"):     "// Package health is the default home",
+				filepath.Join("cli", "internal", "env", "env.go"):           "// Package env is the default home",
 			},
 		},
 		{
@@ -232,24 +232,24 @@ func TestGenerateRemainingResourceTemplatesIncludeInternalArchitectureScaffold(t
 				"RESOURCE_BINARY": "demo-tool",
 			},
 			freshnessContains: []string{
-				`"internal/**"`,
+				`"cli/internal/**"`,
 				`"docs/**"`,
 				`"README.md"`,
 			},
 			readmeContains: []string{
-				"`internal/` is the default home for external-tool-specific Go logic",
-				"`internal/discovery`: host binary detection and probing helpers",
-				"Keep `cli/main.go` focused on bootstrap and delegation; put binary/version/auth logic in `internal/...`.",
+				"`cli/internal/` is the default home for external-tool-specific Go logic",
+				"`cli/internal/discovery`: host binary detection and probing helpers",
+				"Keep `cli/main.go` focused on bootstrap and delegation; put binary/version/auth logic in `cli/internal/...`.",
 			},
 			docsContains: map[string]string{
 				filepath.Join("docs", "OPERATIONS.md"): "Do not turn `cli/main.go` into the primary implementation surface.",
 			},
 			internalFiles: map[string]string{
-				filepath.Join("internal", "discovery", "discovery.go"): "// Package discovery is the default home",
-				filepath.Join("internal", "install", "install.go"):     "// Package install is the default home",
-				filepath.Join("internal", "version", "version.go"):     "// Package version is the default home",
-				filepath.Join("internal", "env", "env.go"):             "// Package env is the default home",
-				filepath.Join("internal", "auth", "auth.go"):           "// Package auth is the default home",
+				filepath.Join("cli", "internal", "discovery", "discovery.go"): "// Package discovery is the default home",
+				filepath.Join("cli", "internal", "install", "install.go"):     "// Package install is the default home",
+				filepath.Join("cli", "internal", "version", "version.go"):     "// Package version is the default home",
+				filepath.Join("cli", "internal", "env", "env.go"):             "// Package env is the default home",
+				filepath.Join("cli", "internal", "auth", "auth.go"):           "// Package auth is the default home",
 			},
 		},
 		{
@@ -259,68 +259,68 @@ func TestGenerateRemainingResourceTemplatesIncludeInternalArchitectureScaffold(t
 				"RESOURCE_CREDENTIAL_ENV": "DEMO_API_KEY",
 			},
 			freshnessContains: []string{
-				`"internal/**"`,
+				`"cli/internal/**"`,
 				`"docs/**"`,
 				`"README.md"`,
 			},
 			readmeContains: []string{
-				"`internal/` is the default home for provider-specific Go logic",
-				"`internal/config`: endpoint and provider configuration helpers",
-				"Keep `cli/main.go` focused on bootstrap and delegation; put provider-specific config/auth/health logic in `internal/...`.",
+				"`cli/internal/` is the default home for provider-specific Go logic",
+				"`cli/internal/config`: endpoint and provider configuration helpers",
+				"Keep `cli/main.go` focused on bootstrap and delegation; put provider-specific config/auth/health logic in `cli/internal/...`.",
 			},
 			docsContains: map[string]string{
 				filepath.Join("docs", "OPERATIONS.md"):  "Do not turn `cli/main.go` into the primary implementation surface.",
 				filepath.Join("docs", "CREDENTIALS.md"): "Keep `resource.json` as the declarative credential contract",
 			},
 			internalFiles: map[string]string{
-				filepath.Join("internal", "config", "config.go"): "// Package config is the default home",
-				filepath.Join("internal", "auth", "auth.go"):     "// Package auth is the default home",
-				filepath.Join("internal", "health", "health.go"): "// Package health is the default home",
-				filepath.Join("internal", "env", "env.go"):       "// Package env is the default home",
+				filepath.Join("cli", "internal", "config", "config.go"): "// Package config is the default home",
+				filepath.Join("cli", "internal", "auth", "auth.go"):     "// Package auth is the default home",
+				filepath.Join("cli", "internal", "health", "health.go"): "// Package health is the default home",
+				filepath.Join("cli", "internal", "env", "env.go"):       "// Package env is the default home",
 			},
 		},
 		{
 			templateName: "desktop-app",
 			freshnessContains: []string{
-				`"internal/**"`,
+				`"cli/internal/**"`,
 				`"docs/**"`,
 				`"README.md"`,
 			},
 			readmeContains: []string{
-				"`internal/` is the default home for desktop-app-specific Go logic",
-				"`internal/discovery`: host-path and application detection helpers",
-				"Keep `cli/main.go` focused on bootstrap and delegation; put platform/detection logic in `internal/...`.",
+				"`cli/internal/` is the default home for desktop-app-specific Go logic",
+				"`cli/internal/discovery`: host-path and application detection helpers",
+				"Keep `cli/main.go` focused on bootstrap and delegation; put platform/detection logic in `cli/internal/...`.",
 			},
 			docsContains: map[string]string{
 				filepath.Join("docs", "OPERATIONS.md"):   "Do not turn `cli/main.go` into the primary implementation surface.",
 				filepath.Join("docs", "MANUAL-STEPS.md"): "Keep the operator workflow here instead of hiding it in weak automation.",
 			},
 			internalFiles: map[string]string{
-				filepath.Join("internal", "discovery", "discovery.go"): "// Package discovery is the default home",
-				filepath.Join("internal", "install", "install.go"):     "// Package install is the default home",
-				filepath.Join("internal", "platform", "platform.go"):   "// Package platform is the default home",
-				filepath.Join("internal", "health", "health.go"):       "// Package health is the default home",
+				filepath.Join("cli", "internal", "discovery", "discovery.go"): "// Package discovery is the default home",
+				filepath.Join("cli", "internal", "install", "install.go"):     "// Package install is the default home",
+				filepath.Join("cli", "internal", "platform", "platform.go"):   "// Package platform is the default home",
+				filepath.Join("cli", "internal", "health", "health.go"):       "// Package health is the default home",
 			},
 		},
 		{
 			templateName: "manual-resource",
 			freshnessContains: []string{
-				`"internal/**"`,
+				`"cli/internal/**"`,
 				`"docs/**"`,
 				`"README.md"`,
 			},
 			readmeContains: []string{
-				"`internal/` is optional and intentionally small;",
-				"`internal/validate`: validation helpers for documented manual setup",
-				"Keep `cli/main.go` focused on bootstrap and delegation; keep any real validation logic under `internal/...`.",
+				"`cli/internal/` is optional and intentionally small;",
+				"`cli/internal/validate`: validation helpers for documented manual setup",
+				"Keep `cli/main.go` focused on bootstrap and delegation; keep any real validation logic under `cli/internal/...`.",
 			},
 			docsContains: map[string]string{
 				filepath.Join("docs", "OPERATIONS.md"):      "Do not turn `cli/main.go` into the primary implementation surface.",
 				filepath.Join("docs", "SETUP-CHECKLIST.md"): "Keep this checklist as the primary setup contract.",
 			},
 			internalFiles: map[string]string{
-				filepath.Join("internal", "validate", "validate.go"): "// Package validate is the default home",
-				filepath.Join("internal", "env", "env.go"):           "// Package env is the default home",
+				filepath.Join("cli", "internal", "validate", "validate.go"): "// Package validate is the default home",
+				filepath.Join("cli", "internal", "env", "env.go"):           "// Package env is the default home",
 			},
 		},
 	}

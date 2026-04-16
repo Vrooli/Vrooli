@@ -593,11 +593,17 @@ var (
     buildSourceRoot  = ""         // Injected at build
 )
 
-core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
-    // ...
-    BuildFingerprint:  buildFingerprint,
-    BuildTimestamp:    buildTimestamp,
-    BuildSourceRoot:   buildSourceRoot,
+core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
+    Name:             appName,
+    Version:          appVersion,
+    Description:      "Example CLI",
+    ExtraAPIEnvVars:  []string{"API_BASE_URL", "VITE_API_BASE_URL"},
+    BuildFingerprint: buildFingerprint,
+    BuildTimestamp:   buildTimestamp,
+    BuildSourceRoot:  buildSourceRoot,
+    AllowAnonymous:   true,
+    CommandGroups:    domains.CommandGroups,
+    SubcommandGroups: domains.SubcommandGroups,
 })
 ```
 

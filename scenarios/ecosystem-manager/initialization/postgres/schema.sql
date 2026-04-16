@@ -1,6 +1,8 @@
 -- Ecosystem Manager Database Schema
 -- Minimal schema focused on task history and operational metrics
 
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
 -- Task execution history for analytics and learning
 CREATE TABLE IF NOT EXISTS task_executions (
     id SERIAL PRIMARY KEY,

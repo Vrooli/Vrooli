@@ -13,6 +13,24 @@ cd scenarios/scenario-stack-governor
 make start
 ```
 
+## CLI
+```bash
+scenario-stack-governor status
+scenario-stack-governor rules list
+scenario-stack-governor rules get MAKEFILE_STRUCTURE
+scenario-stack-governor rules disable MAKEFILE_QUALITY
+scenario-stack-governor scenarios list
+scenario-stack-governor run --scenario scenario-auditor
+scenario-stack-governor fix --scenario scenario-auditor --dry-run
+```
+
+The Go CLI follows the standard `cli-core` contract:
+- `status` and `configure` come from the shared scenario scaffold.
+- `rules` manages rule inventory and enablement.
+- `scenarios` discovers target scenarios.
+- `run` executes enabled governance rules.
+- `fix` previews or applies automated fixes for selected scenarios.
+
 ## Key endpoints
 - `GET /health`
 - `GET /api/v1/rules`

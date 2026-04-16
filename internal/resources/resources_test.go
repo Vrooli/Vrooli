@@ -15,6 +15,7 @@ import (
 	"strings"
 	"testing"
 
+	apicoresecrets "github.com/vrooli/api-core/secrets"
 	hostreqspec "github.com/vrooli/vrooli/internal/hostreqspec"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
@@ -883,6 +884,44 @@ func TestStatusForManifestNativeCloudAPIMissingCredentials(t *testing.T) {
 	}
 	if !strings.Contains(status.Message, "FIXTURE_API_KEY") {
 		t.Fatalf("Message = %q, want credential hint", status.Message)
+	}
+}
+
+func TestStatusForManifestNativeCloudAPIReadsCredentialsFromUserSecrets(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
+		"fixture",
+		testresource.WithResourceDriver("cloud-api"),
+		testresource.WithResourceTemplate("cloud-api"),
+		testresource.WithResourceDescription("Fixture cloud API resource"),
+		testresource.WithResourceEndpoint("https://api.example.com/health"),
+		testresource.WithResourceCredentialsEnv("FIXTURE_API_KEY"),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+			Linux:   "supported",
+			MacOS:   "supported",
+			Windows: "supported",
+		}),
+	))
+
+	store, err := apicoresecrets.NewUserStore(apicoresecrets.Config{HomeDir: home})
+	if err != nil {
+		t.Fatalf("NewUserStore: %v", err)
+	}
+	if err := store.Save(map[string]string{"FIXTURE_API_KEY": "secret"}); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	status, err := NewController(root, home).Status("fixture", true)
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if status.Healthy == nil || !*status.Healthy {
+		t.Fatalf("Healthy = %#v, want true", status.Healthy)
+	}
+	if status.Message != "configured" {
+		t.Fatalf("Message = %q, want %q", status.Message, "configured")
 	}
 }
 

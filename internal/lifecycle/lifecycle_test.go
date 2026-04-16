@@ -549,6 +549,11 @@ func TestRunnerStartRollsBackLocksOnSetupFailure(t *testing.T) {
 		t.Fatalf("Load(alpha): %v", err)
 	}
 	item.Manifest.Lifecycle.Setup = scenario.Phase{
+		Condition: &scenario.Condition{
+			Checks: []scenario.ConditionCheck{
+				{Type: "binaries", Targets: []string{"api/mock-api"}},
+			},
+		},
 		Steps: []scenario.PhaseStep{
 			{Name: "explode", Run: "exit 9"},
 		},

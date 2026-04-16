@@ -14,6 +14,7 @@ import (
 	"github.com/vrooli/vrooli/internal/process"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
+	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 	testprocess "github.com/vrooli/vrooli/packages/testkit-go/processfixture"
 	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
 	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
@@ -129,6 +130,7 @@ func TestRunProjectPhaseRejectsNativeOnlyPhase(t *testing.T) {
 func TestDoctorReportsToolingPortAndServiceManifest(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
+	testkitgo.WriteRepoContract(t, root, "scenarios")
 	testscenario.WriteProjectService(t, root, scenario.ServiceManifest{
 		Service: scenario.ServiceMetadata{Name: "project-alpha"},
 	})
@@ -182,6 +184,77 @@ func TestDoctorReportsToolingPortAndServiceManifest(t *testing.T) {
 	}
 	if !strings.Contains(output, "hostreq_root_overreach=ok") {
 		t.Fatalf("doctor checks missing root-overreach summary: %s", output)
+	}
+	if !strings.Contains(output, "scenario_cli_install_locations=ok") {
+		t.Fatalf("doctor checks missing scenario CLI install summary: %s", output)
+	}
+	if !strings.Contains(output, "resource_cli_install_locations=ok") {
+		t.Fatalf("doctor checks missing resource CLI install summary: %s", output)
+	}
+}
+
+func TestDoctorReportsNonCanonicalCLIInstallLocations(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testkitgo.WriteRepoContract(t, root, "scenarios")
+	testscenario.WriteProjectService(t, root, scenario.ServiceManifest{
+		Service: scenario.ServiceMetadata{Name: "project-alpha"},
+	})
+	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest(
+		"alpha",
+		testscenario.WithCLI(&scenario.CLIConfig{
+			Enabled: true,
+			Command: "alpha",
+			Adapter: scenario.CLIAdapterConfig{
+				Kind:      "go_module",
+				ModuleDir: "cli",
+			},
+		}),
+	))
+	testscenario.WriteScenarioCLIGoMod(t, root, "alpha", "example.com/alpha/cli")
+	if err := os.MkdirAll(filepath.Join(home, ".vrooli", "bin"), 0o755); err != nil {
+		t.Fatalf("mkdir canonical bin: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(home, ".vrooli", "bin", "alpha"), []byte("#!/usr/bin/env bash\n"), 0o755); err != nil {
+		t.Fatalf("write canonical cli: %v", err)
+	}
+
+	controller := New(root, home, io.Discard, io.Discard)
+	controller.MaintenanceSnapshotFn = func() (maintenance.ProcessSnapshot, error) {
+		return maintenance.ProcessSnapshot{}, nil
+	}
+	controller.MaintenanceLocksFn = func() ([]maintenance.LockInfo, error) {
+		return nil, nil
+	}
+	controller.LookPathFn = func(name string) (string, error) {
+		if name == "alpha" {
+			return filepath.Join(home, ".local", "bin", "alpha"), nil
+		}
+		return "/usr/bin/" + name, nil
+	}
+
+	report, err := controller.Doctor()
+	if err != nil {
+		t.Fatalf("Doctor: %v", err)
+	}
+
+	var scenarioCheck DoctorCheck
+	found := false
+	for _, check := range report.Checks {
+		if check.Name == "scenario_cli_install_locations" {
+			scenarioCheck = check
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("scenario_cli_install_locations check missing: %#v", report.Checks)
+	}
+	if scenarioCheck.Status != "warning" {
+		t.Fatalf("scenario_cli_install_locations status = %q, want warning", scenarioCheck.Status)
+	}
+	if !strings.Contains(scenarioCheck.Message, "alpha resolved to non-canonical path") {
+		t.Fatalf("scenario_cli_install_locations message = %q", scenarioCheck.Message)
 	}
 }
 

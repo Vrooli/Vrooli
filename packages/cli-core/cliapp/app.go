@@ -170,6 +170,7 @@ func (a *App) runSubcommand(group *SubcommandGroup, args []string, originalArgs 
 
 	if a.opts.Preflight != nil {
 		preflightCmd := *cmd
+		preflightCmd.Name = strings.TrimSpace(group.Name + " " + cmd.Name)
 		preflightCmd.NeedsAPI = needsAPI
 		if err := a.opts.Preflight(preflightCmd, a.global); err != nil {
 			return err

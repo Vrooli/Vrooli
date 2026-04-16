@@ -124,11 +124,11 @@ func buildOperationalReport(report statusReport) cliapp.OperationalReport {
 	triage := []cliapp.TriageGroup{
 		{
 			Heading: "API",
-			Items: apiTriage(report),
+			Items:   apiTriage(report),
 		},
 		{
 			Heading: "Browserless",
-			Items: browserlessTriage(report.Browserless.Status),
+			Items:   browserlessTriage(report.Browserless.Status),
 		},
 	}
 

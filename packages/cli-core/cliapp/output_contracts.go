@@ -1,6 +1,7 @@
 package cliapp
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -37,6 +38,18 @@ type MutationReport struct {
 	Result      []string `json:"result,omitempty"`
 	Changes     []string `json:"changes,omitempty"`
 	NextCommand []string `json:"next_command,omitempty"`
+}
+
+// APIRecoveryReportOptions captures the common recovery context for commands
+// that could not reach their scenario API.
+type APIRecoveryReportOptions struct {
+	AppName           string
+	CommandName       string
+	ResolvedAPIBase   string
+	ConfiguredAPIBase string
+	DetectedAPIBase   string
+	Cause             string
+	MissingAPIBase    bool
 }
 
 func RenderOperationalReport(w io.Writer, report OperationalReport) error {
@@ -102,6 +115,69 @@ func PrintReportJSON(w io.Writer, report interface{}) error {
 	return enc.Encode(report)
 }
 
+func RenderOperationalReportString(report OperationalReport) (string, error) {
+	var out bytes.Buffer
+	if err := RenderOperationalReport(&out, report); err != nil {
+		return "", err
+	}
+	return out.String(), nil
+}
+
+func NewAPIRecoveryReport(opts APIRecoveryReportOptions) OperationalReport {
+	appName := strings.TrimSpace(opts.AppName)
+	commandName := strings.TrimSpace(opts.CommandName)
+
+	report := OperationalReport{}
+	switch {
+	case opts.MissingAPIBase:
+		report.Status = append(report.Status, fmt.Sprintf("Unable to resolve the %s API base.", appName))
+	default:
+		report.Status = append(report.Status, fmt.Sprintf("Unable to reach the %s API.", appName))
+	}
+	if resolved := strings.TrimSpace(opts.ResolvedAPIBase); resolved != "" {
+		report.Status = append(report.Status, fmt.Sprintf("Resolved API base: %s", resolved))
+	}
+	if cause := strings.TrimSpace(opts.Cause); cause != "" {
+		report.Status = append(report.Status, fmt.Sprintf("Last error: %s", cause))
+	}
+
+	runtimeItems := make([]string, 0, 2)
+	if detected := strings.TrimSpace(opts.DetectedAPIBase); detected != "" {
+		runtimeItems = append(runtimeItems, fmt.Sprintf("Detected running API base: %s", detected))
+	} else {
+		runtimeItems = append(runtimeItems, fmt.Sprintf("No running API port was detected for %s. The scenario may be stopped.", appName))
+	}
+	report.Triage = append(report.Triage, TriageGroup{
+		Heading: "Runtime",
+		Items:   runtimeItems,
+	})
+
+	configItems := make([]string, 0, 2)
+	if configured := strings.TrimSpace(opts.ConfiguredAPIBase); configured != "" {
+		configItems = append(configItems, fmt.Sprintf("Saved config api_base: %s", configured))
+	}
+	if configured := strings.TrimSpace(opts.ConfiguredAPIBase); configured != "" && strings.TrimSpace(opts.DetectedAPIBase) != "" && !sameAPIBase(configured, opts.DetectedAPIBase) {
+		configItems = append(configItems, "Saved api_base does not match the currently detected running API and may be stale.")
+	}
+	if len(configItems) > 0 {
+		report.Triage = append(report.Triage, TriageGroup{
+			Heading: "Configuration",
+			Items:   configItems,
+		})
+	}
+
+	if commandName != "" {
+		report.NextSteps = append(report.NextSteps, fmt.Sprintf("%s --auto-start %s", appName, commandName))
+	}
+	report.NextSteps = append(report.NextSteps, fmt.Sprintf("vrooli scenario status %s", appName))
+	report.NextSteps = append(report.NextSteps, fmt.Sprintf("vrooli scenario start %s", appName))
+	if detected := strings.TrimSpace(opts.DetectedAPIBase); detected != "" {
+		report.NextSteps = append(report.NextSteps, fmt.Sprintf("%s configure api_base %s", appName, detected))
+	}
+
+	return report
+}
+
 func printSectionLines(w io.Writer, heading string, lines []string, empty string) error {
 	heading = strings.TrimSpace(heading)
 	if heading == "" {
@@ -145,4 +221,14 @@ func sanitizedLines(lines []string) []string {
 		out = append(out, trimmed)
 	}
 	return out
+}
+
+func sameAPIBase(a, b string) bool {
+	return normalizeAPIBaseComparison(a) == normalizeAPIBaseComparison(b)
+}
+
+func normalizeAPIBaseComparison(value string) string {
+	trimmed := strings.TrimRight(strings.TrimSpace(value), "/")
+	trimmed = strings.TrimSuffix(trimmed, "/api/v1")
+	return strings.TrimRight(trimmed, "/")
 }

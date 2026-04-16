@@ -7,8 +7,10 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/hostreqcheck"
 	"github.com/vrooli/vrooli/internal/lifecycle"
@@ -32,6 +34,7 @@ type Controller struct {
 	HostReqValidateFn     func(string, string) (hostreqcheck.Report, error)
 	MaintenanceSnapshotFn func() (maintenance.ProcessSnapshot, error)
 	MaintenanceLocksFn    func() ([]maintenance.LockInfo, error)
+	LookPathFn            func(string) (string, error)
 	NewPhaseRunner        func(root, home string, stdout, stderr io.Writer) (PhaseRunner, error)
 }
 
@@ -118,6 +121,7 @@ func NewWithDependencies(root, home string, stdout, stderr io.Writer, deps Depen
 		Scenarios:         deps.Scenarios,
 		Maintenance:       deps.Maintenance,
 		HostReqValidateFn: hostreqcheck.Validate,
+		LookPathFn:        shell.LookPath,
 		NewPhaseRunner: func(root, home string, stdout, stderr io.Writer) (PhaseRunner, error) {
 			return lifecycle.NewRunner(root, home, stdout, stderr)
 		},
@@ -230,7 +234,7 @@ func (c *Controller) Doctor() (DoctorReport, error) {
 	for _, name := range []string{"jq", "curl", "git", "docker", "go", "lsof", "tput"} {
 		status := "missing"
 		message := ""
-		if _, err := shell.LookPath(name); err == nil {
+		if _, err := c.lookPath(name); err == nil {
 			status = "ok"
 		} else {
 			message = err.Error()
@@ -313,7 +317,49 @@ func (c *Controller) Doctor() (DoctorReport, error) {
 		}
 	}
 
+	installChecks, err := c.cliInstallLocationChecks()
+	if err != nil {
+		return DoctorReport{}, err
+	}
+	checks = append(checks, installChecks...)
+
 	return DoctorReport{Checks: checks}, nil
+}
+
+func (c *Controller) cliInstallLocationChecks() ([]DoctorCheck, error) {
+	manager := cliinstall.NewManager(c.Root, c.Home)
+
+	scenarioItems, err := manager.DiscoverScenarioCLIs()
+	if err != nil {
+		return nil, err
+	}
+	resourceItems, err := manager.DiscoverEnabledResourceCLIs()
+	if err != nil {
+		return nil, err
+	}
+
+	scenarioStatuses := make([]cliinstall.InstallLocationStatus, 0, len(scenarioItems))
+	for _, item := range scenarioItems {
+		status, err := manager.InspectScenarioCLIInstallLocation(item.Name, c.lookPath)
+		if err != nil {
+			return nil, err
+		}
+		scenarioStatuses = append(scenarioStatuses, status)
+	}
+
+	resourceStatuses := make([]cliinstall.InstallLocationStatus, 0, len(resourceItems))
+	for _, item := range resourceItems {
+		status, err := manager.InspectResourceCLIInstallLocation(item.Name, c.lookPath)
+		if err != nil {
+			return nil, err
+		}
+		resourceStatuses = append(resourceStatuses, status)
+	}
+
+	return []DoctorCheck{
+		summarizeCLIInstallStatuses("scenario_cli_install_locations", scenarioStatuses),
+		summarizeCLIInstallStatuses("resource_cli_install_locations", resourceStatuses),
+	}, nil
 }
 
 func summarizeHostReqFindings(name string, findings []hostreqcheck.Finding, code hostreqcheck.FindingCode) DoctorCheck {
@@ -338,6 +384,62 @@ func summarizeHostReqFindings(name string, findings []hostreqcheck.Finding, code
 	return DoctorCheck{Name: name, Status: "warning", Message: message}
 }
 
+func summarizeCLIInstallStatuses(name string, statuses []cliinstall.InstallLocationStatus) DoctorCheck {
+	if len(statuses) == 0 {
+		return DoctorCheck{Name: name, Status: "ok", Message: "no managed CLIs discovered"}
+	}
+
+	samples := make([]string, 0, 3)
+	nonCanonical := 0
+	notInstalled := 0
+	notOnPath := 0
+	for _, status := range statuses {
+		switch {
+		case status.PathMismatch():
+			nonCanonical++
+			if len(samples) < 3 {
+				samples = append(samples, fmt.Sprintf("%s resolved to non-canonical path %s (canonical: %s)", status.Command, status.ResolvedPath, status.CanonicalPath))
+			}
+		case !status.CanonicalExists:
+			notInstalled++
+			if len(samples) < 3 {
+				samples = append(samples, fmt.Sprintf("%s is not installed in the canonical path %s", status.Command, status.CanonicalPath))
+			}
+		case !status.Resolved:
+			notOnPath++
+			if len(samples) < 3 {
+				samples = append(samples, fmt.Sprintf("%s is installed canonically at %s but not currently resolvable on PATH", status.Command, status.CanonicalPath))
+			}
+		}
+	}
+
+	if nonCanonical == 0 && notInstalled == 0 && notOnPath == 0 {
+		return DoctorCheck{
+			Name:    name,
+			Status:  "ok",
+			Message: fmt.Sprintf("%d managed CLIs resolve canonically", len(statuses)),
+		}
+	}
+
+	parts := make([]string, 0, 3)
+	if nonCanonical > 0 {
+		parts = append(parts, fmt.Sprintf("%d resolve to non-canonical paths", nonCanonical))
+	}
+	if notInstalled > 0 {
+		parts = append(parts, fmt.Sprintf("%d are not installed in the canonical path", notInstalled))
+	}
+	if notOnPath > 0 {
+		parts = append(parts, fmt.Sprintf("%d canonical installs are not on PATH", notOnPath))
+	}
+	sort.Strings(samples)
+
+	message := strings.Join(parts, "; ")
+	if len(samples) > 0 {
+		message += ": " + strings.Join(samples, ", ")
+	}
+	return DoctorCheck{Name: name, Status: "warning", Message: message}
+}
+
 func countStatus(count int) string {
 	if count > 0 {
 		return "warning"
@@ -356,6 +458,13 @@ func listenerInspectionMessage(status network.ListenerInspection) string {
 		return status.Reason
 	}
 	return "listener inspection unavailable"
+}
+
+func (c *Controller) lookPath(name string) (string, error) {
+	if c.LookPathFn != nil {
+		return c.LookPathFn(name)
+	}
+	return shell.LookPath(name)
 }
 
 func (c *Controller) maintenanceSnapshot() (maintenance.ProcessSnapshot, error) {

@@ -23,7 +23,7 @@ func TestDo_SetsClientSourceHeader(t *testing.T) {
 	defer ts.Close()
 
 	// Create a minimal context with the test server URL
-	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
 		Name:           "test-app",
 		Version:        "1.0.0",
 		AllowAnonymous: true,
@@ -69,11 +69,11 @@ func TestDo_SetsAuthorizationHeader(t *testing.T) {
 	os.Setenv(testTokenEnv, "test-token-123")
 	defer os.Unsetenv(testTokenEnv)
 
-	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
-		Name:           "test-app",
-		Version:        "1.0.0",
-		AllowAnonymous: true,
-		TokenEnvVars:   []string{testTokenEnv},
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
+		Name:              "test-app",
+		Version:           "1.0.0",
+		AllowAnonymous:    true,
+		ExtraTokenEnvVars: []string{testTokenEnv},
 	})
 	if err != nil {
 		t.Fatalf("Failed to create scenario app: %v", err)
@@ -105,7 +105,7 @@ func TestDo_SetsContentTypeForBody(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
 		Name:           "test-app",
 		Version:        "1.0.0",
 		AllowAnonymous: true,
@@ -141,7 +141,7 @@ func TestDo_CustomHeaders(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
 		Name:           "test-app",
 		Version:        "1.0.0",
 		AllowAnonymous: true,
@@ -184,7 +184,7 @@ func TestDo_NilContext(t *testing.T) {
 }
 
 func TestDo_EmptyAPIBase(t *testing.T) {
-	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
 		Name:           "test-app",
 		Version:        "1.0.0",
 		AllowAnonymous: true,
