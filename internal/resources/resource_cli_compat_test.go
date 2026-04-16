@@ -54,6 +54,34 @@ func TestEnabledResourcesDeclareExplicitCLIContract(t *testing.T) {
 			if got, want := manifest.CLI.Command, "resource-"+name; got != want {
 				t.Fatalf("cli.command = %q, want %q", got, want)
 			}
+			if manifest.CLI.Artifacts.Manifest.Location != "sibling" {
+				t.Fatalf("cli.artifacts.manifest.location = %q, want sibling", manifest.CLI.Artifacts.Manifest.Location)
+			}
+			if manifest.CLI.Artifacts.BuildMetadata.Location != "sibling" {
+				t.Fatalf("cli.artifacts.build_metadata.location = %q, want sibling", manifest.CLI.Artifacts.BuildMetadata.Location)
+			}
+			if len(manifest.CLI.Install) == 0 {
+				t.Fatal("expected explicit cli.install steps")
+			}
+			if manifest.CLI.Invoke.Kind != "installed_command" {
+				t.Fatalf("cli.invoke.kind = %q, want installed_command", manifest.CLI.Invoke.Kind)
+			}
+			if manifest.CLI.Invoke.Command != manifest.CLI.Command {
+				t.Fatalf("cli.invoke.command = %q, want %q", manifest.CLI.Invoke.Command, manifest.CLI.Command)
+			}
+			if manifest.CLI.Freshness == nil || len(manifest.CLI.Freshness.Inputs) == 0 {
+				t.Fatal("expected explicit cli.freshness.inputs")
+			}
+			var hasResourceManifest bool
+			for _, input := range manifest.CLI.Freshness.Inputs {
+				if input == "resource.json" {
+					hasResourceManifest = true
+					break
+				}
+			}
+			if !hasResourceManifest {
+				t.Fatalf("cli.freshness.inputs = %v, want resource.json included", manifest.CLI.Freshness.Inputs)
+			}
 			requireDeclaredCLIAssets(t, root, name, manifest)
 			if _, err := os.Stat(filepath.Join(root, "resources", name, "cli.sh")); !os.IsNotExist(err) {
 				t.Fatalf("expected root-level cli.sh removal for %s, stat err=%v", name, err)

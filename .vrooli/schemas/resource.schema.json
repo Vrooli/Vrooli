@@ -2,11 +2,12 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://vrooli.com/schemas/resource.schema.json",
   "title": "Vrooli Resource Manifest",
-  "description": "Manifest schema for Go-native resource control plane resources.",
+  "description": "Manifest schema for manifest-driven resource control plane resources.",
   "type": "object",
   "additionalProperties": true,
   "required": [
     "name",
+    "cli",
     "driver",
     "portability_tier"
   ],
@@ -24,6 +25,10 @@
     "description": {
       "type": "string"
     },
+    "cli": {
+      "$ref": "service.schema.json#/definitions/cliConfig",
+      "description": "Installed artifact contract for the resource CLI, including build/install/invoke/freshness semantics."
+    },
     "legacy_repo_data_allowed": {
       "type": "boolean",
       "description": "Temporary escape hatch for retained resources that still rely on repo-local data paths."
@@ -39,7 +44,8 @@
         "external-cli",
         "cloud-api",
         "desktop-app",
-        "manual"
+        "manual",
+        "native-cli"
       ]
     },
     "compose_file": {

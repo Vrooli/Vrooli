@@ -22,6 +22,7 @@ var AllowedDrivers = []string{
 	"cloud-api",
 	"desktop-app",
 	"manual",
+	"native-cli",
 }
 
 var (
@@ -223,9 +224,9 @@ func Validate(manifest ResourceManifest) error {
 		if strings.TrimSpace(manifest.ComposeFile) == "" {
 			return fmt.Errorf("compose_file is required for compose-service resources")
 		}
-	case "external-cli":
+	case "external-cli", "native-cli":
 		if strings.TrimSpace(manifest.Binary) == "" {
-			return fmt.Errorf("binary is required for external-cli resources")
+			return fmt.Errorf("binary is required for %s resources", manifest.Driver)
 		}
 	case "cloud-api":
 		if strings.TrimSpace(manifest.Endpoint) == "" {
@@ -239,19 +240,7 @@ func normalizeCLIConfig(cfg *scenario.CLIConfig) {
 	if cfg == nil {
 		return
 	}
-	cfg.Command = strings.TrimSpace(cfg.Command)
-	cfg.Adapter.Kind = strings.TrimSpace(cfg.Adapter.Kind)
-	cfg.Adapter.ModuleDir = strings.TrimSpace(cfg.Adapter.ModuleDir)
-	cfg.Adapter.ScriptPath = strings.TrimSpace(cfg.Adapter.ScriptPath)
-	cfg.Adapter.InstallScript = strings.TrimSpace(cfg.Adapter.InstallScript)
-	cfg.Invoke.Kind = strings.TrimSpace(cfg.Invoke.Kind)
-	cfg.Invoke.Command = strings.TrimSpace(cfg.Invoke.Command)
-	if cfg.Enabled && cfg.Invoke.Kind == "" {
-		cfg.Invoke.Kind = "installed_command"
-	}
-	if cfg.Enabled && cfg.Invoke.Command == "" {
-		cfg.Invoke.Command = cfg.Command
-	}
+	cfg.ApplyDefaultsForManifest()
 }
 
 func validateDependencySchema(raw json.RawMessage) error {

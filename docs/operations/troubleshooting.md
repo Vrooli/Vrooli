@@ -69,10 +69,22 @@ Useful commands:
 ```bash
 vrooli locks
 vrooli orphans
-vrooli diagnose-port
+vrooli diagnose-port <port>
 ```
 
 These are the preferred first-line tools for stale lock files, orphaned processes, and port conflicts.
+
+Current lifecycle behavior:
+
+- scenario startup now automatically cleans stale lock files before a top-level start
+- startup also rolls back failed runs instead of leaving tracked process records and owned locks behind
+- fixed-port startup will proactively terminate clearly-owned same-scenario managed orphan listeners before relaunch
+
+Use `vrooli diagnose-port <port>` when the conflict is still unresolved, especially for:
+
+- a listener owned by another scenario
+- a non-Vrooli process already bound to the port
+- a live listener whose ownership is unclear from the startup error alone
 
 ## Guidance
 

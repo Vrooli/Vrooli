@@ -2,13 +2,51 @@
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "k6",
   "display_name": "k6",
-  "description": "Grafana k6 CLI for load and performance testing, with native binary/install/status handling.",
+  "description": "Grafana k6 CLI resource with a thin Go entrypoint and external-cli-specific logic organized under internal packages.",
   "cli": {
     "enabled": true,
     "command": "resource-k6",
     "adapter": {
       "kind": "go_module",
       "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-k6"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
     }
   },
   "template": "external-cli",

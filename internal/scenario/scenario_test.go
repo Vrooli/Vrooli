@@ -257,6 +257,12 @@ func TestReadServiceAcceptsGoModuleCLIContract(t *testing.T) {
 	if manifest.CLI.Invoke.Command != "alpha" {
 		t.Fatalf("invoke command = %q, want alpha", manifest.CLI.Invoke.Command)
 	}
+	if manifest.CLI.Artifacts.Manifest.Location != CLIArtifactLocationSibling {
+		t.Fatalf("manifest artifact location = %q, want %q", manifest.CLI.Artifacts.Manifest.Location, CLIArtifactLocationSibling)
+	}
+	if manifest.CLI.Artifacts.BuildMetadata.Location != CLIArtifactLocationSibling {
+		t.Fatalf("build metadata artifact location = %q, want %q", manifest.CLI.Artifacts.BuildMetadata.Location, CLIArtifactLocationSibling)
+	}
 }
 
 func TestReadServiceRejectsEnabledCLIWithoutAdapterContract(t *testing.T) {

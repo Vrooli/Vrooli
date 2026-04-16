@@ -1,10 +1,13 @@
 package cliutil
 
 import (
+	"crypto/sha256"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/vrooli/cli-core/buildinfo"
@@ -13,19 +16,23 @@ import (
 // StaleChecker compares the embedded build fingerprint against source files,
 // optionally auto-rebuilding via cli-installer when a mismatch is detected.
 type StaleChecker struct {
-	AppName           string
-	BuildFingerprint  string
-	BuildTimestamp    string
-	BuildSourceRoot   string
-	SourceRootEnvVars []string
-	InstallerModule   string // relative path to cli-core (default: packages/cli-core)
-	ReexecArgs        []string
+	AppName            string
+	BuildFingerprint   string
+	BuildTimestamp     string
+	BuildSourceRoot    string
+	SourceContextPath  string
+	ManifestSourcePath string
+	FreshnessInputs    []string
+	SourceRootEnvVars  []string
+	InstallerModule    string // relative path to cli-core (default: packages/cli-core)
+	ReexecArgs         []string
 
-	FingerprintFunc func(root string, skip ...string) (string, error)
-	LookPathFunc    func(file string) (string, error)
-	CommandRunner   func(cmd *exec.Cmd) error
-	Logger          func(format string, args ...interface{})
-	Reexec          func(executable string, args []string) error
+	FingerprintFunc      func(root string, skip ...string) (string, error)
+	InputFingerprintFunc func(root string, inputs []string, skip ...string) (string, error)
+	LookPathFunc         func(file string) (string, error)
+	CommandRunner        func(cmd *exec.Cmd) error
+	Logger               func(format string, args ...interface{})
+	Reexec               func(executable string, args []string) error
 }
 
 // NewStaleChecker builds a StaleChecker with common defaults. Provide the app
@@ -52,13 +59,14 @@ func (c *StaleChecker) CheckAndMaybeRebuild() bool {
 	if srcRoot == "" {
 		return false
 	}
+	contextRoot := c.sourceContextRoot(srcRoot)
 
 	var skipNames []string
 	if executable, err := os.Executable(); err == nil {
 		skipNames = append(skipNames, filepath.Base(executable))
 	}
 
-	fingerprint, err := c.fingerprint(srcRoot, skipNames...)
+	fingerprint, err := c.fingerprint(contextRoot, srcRoot, skipNames...)
 	if err != nil {
 		c.log("Warning: unable to verify CLI freshness: %v\n", err)
 		return false
@@ -77,7 +85,7 @@ func (c *StaleChecker) CheckAndMaybeRebuild() bool {
 		return false
 	}
 
-	if c.autoRebuild(srcRoot, fingerprint) {
+	if c.autoRebuild(srcRoot, contextRoot, fingerprint) {
 		return true
 	}
 
@@ -85,7 +93,7 @@ func (c *StaleChecker) CheckAndMaybeRebuild() bool {
 	return false
 }
 
-func (c *StaleChecker) autoRebuild(srcRoot, currentFingerprint string) bool {
+func (c *StaleChecker) autoRebuild(srcRoot, contextRoot, currentFingerprint string) bool {
 	if _, err := c.lookPath()("go"); err != nil {
 		return false
 	}
@@ -113,6 +121,9 @@ func (c *StaleChecker) autoRebuild(srcRoot, currentFingerprint string) bool {
 		"--name", binaryName,
 		"--force", "true",
 	)
+	if manifestPath := c.manifestSourcePath(contextRoot); manifestPath != "" {
+		cmd.Args = append(cmd.Args, "--manifest", manifestPath)
+	}
 	cmd.Dir = filepath.Join(repoRoot, c.installerModule())
 	cmd.Env = os.Environ()
 	cmd.Stdout = os.Stdout
@@ -147,11 +158,17 @@ func findRepositoryRoot(start, installerModule string) (string, bool) {
 	return "", false
 }
 
-func (c *StaleChecker) fingerprint(root string, skip ...string) (string, error) {
-	if c.FingerprintFunc != nil {
-		return c.FingerprintFunc(root, skip...)
+func (c *StaleChecker) fingerprint(contextRoot, sourceRoot string, skip ...string) (string, error) {
+	if len(c.FreshnessInputs) > 0 {
+		if c.InputFingerprintFunc != nil {
+			return c.InputFingerprintFunc(contextRoot, c.FreshnessInputs, skip...)
+		}
+		return computeFingerprintFromDeclaredInputs(contextRoot, c.FreshnessInputs, skip...)
 	}
-	return buildinfo.ComputeFingerprint(root, skip...)
+	if c.FingerprintFunc != nil {
+		return c.FingerprintFunc(sourceRoot, skip...)
+	}
+	return buildinfo.ComputeFingerprint(sourceRoot, skip...)
 }
 
 func (c *StaleChecker) lookPath() func(string) (string, error) {
@@ -214,4 +231,140 @@ func (c *StaleChecker) appLabel() string {
 		return c.AppName
 	}
 	return "CLI"
+}
+
+func (c *StaleChecker) sourceContextRoot(srcRoot string) string {
+	if strings.TrimSpace(c.SourceContextPath) == "" {
+		return srcRoot
+	}
+	return filepath.Join(srcRoot, filepath.FromSlash(c.SourceContextPath))
+}
+
+func (c *StaleChecker) manifestSourcePath(contextRoot string) string {
+	if strings.TrimSpace(c.ManifestSourcePath) == "" {
+		return ""
+	}
+	return filepath.Join(contextRoot, filepath.FromSlash(c.ManifestSourcePath))
+}
+
+type staleFileEntry struct {
+	rel  string
+	size int64
+	hash [32]byte
+}
+
+func computeFingerprintFromDeclaredInputs(root string, inputs []string, extraSkipFiles ...string) (string, error) {
+	entries := make(map[string]staleFileEntry)
+	for _, input := range inputs {
+		input = strings.TrimSpace(input)
+		if input == "" {
+			continue
+		}
+		matches, err := expandDeclaredInputPaths(root, input)
+		if err != nil {
+			return "", err
+		}
+		for _, match := range matches {
+			info, err := os.Stat(match)
+			if err != nil {
+				if os.IsNotExist(err) {
+					continue
+				}
+				return "", err
+			}
+			if info.IsDir() {
+				if err := filepath.WalkDir(match, func(path string, d fs.DirEntry, err error) error {
+					if err != nil {
+						return err
+					}
+					rel, relErr := filepath.Rel(root, path)
+					if relErr != nil {
+						return relErr
+					}
+					rel = filepath.ToSlash(rel)
+					if rel == "." {
+						return nil
+					}
+					if buildinfoSkipDir(rel) && d.IsDir() {
+						return filepath.SkipDir
+					}
+					if d.IsDir() || buildinfoSkipFile(rel, extraSkipFiles) {
+						return nil
+					}
+					content, readErr := os.ReadFile(path)
+					if readErr != nil {
+						return readErr
+					}
+					fileInfo, infoErr := d.Info()
+					if infoErr != nil {
+						return infoErr
+					}
+					entries[rel] = staleFileEntry{rel: rel, size: fileInfo.Size(), hash: sha256.Sum256(content)}
+					return nil
+				}); err != nil {
+					return "", err
+				}
+				continue
+			}
+			rel, err := filepath.Rel(root, match)
+			if err != nil {
+				return "", err
+			}
+			rel = filepath.ToSlash(rel)
+			if buildinfoSkipFile(rel, extraSkipFiles) {
+				continue
+			}
+			content, err := os.ReadFile(match)
+			if err != nil {
+				return "", err
+			}
+			entries[rel] = staleFileEntry{rel: rel, size: info.Size(), hash: sha256.Sum256(content)}
+		}
+	}
+	list := make([]staleFileEntry, 0, len(entries))
+	for _, entry := range entries {
+		list = append(list, entry)
+	}
+	sort.Slice(list, func(i, j int) bool { return list[i].rel < list[j].rel })
+	hasher := sha256.New()
+	for _, entry := range list {
+		fmt.Fprintf(hasher, "%s|%d|%x\n", entry.rel, entry.size, entry.hash)
+	}
+	return fmt.Sprintf("%x", hasher.Sum(nil)), nil
+}
+
+func expandDeclaredInputPaths(root, input string) ([]string, error) {
+	if hasGlobPattern(input) {
+		return filepath.Glob(filepath.Join(root, filepath.FromSlash(input)))
+	}
+	return []string{filepath.Join(root, filepath.FromSlash(input))}, nil
+}
+
+func hasGlobPattern(value string) bool {
+	return strings.ContainsAny(value, "*?[")
+}
+
+func buildinfoSkipDir(path string) bool {
+	path = strings.ReplaceAll(filepath.ToSlash(path), "\\", "/")
+	for _, skip := range []string{".git", ".vscode", ".idea", "coverage", "dist", "build", "tmp", "data", "node_modules"} {
+		if path == skip || strings.HasPrefix(path, skip+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+func buildinfoSkipFile(path string, extra []string) bool {
+	path = strings.ReplaceAll(filepath.ToSlash(path), "\\", "/")
+	for _, skip := range []string{"build.meta"} {
+		if path == skip || strings.HasPrefix(path, skip+"/") {
+			return true
+		}
+	}
+	for _, skip := range extra {
+		if path == skip || strings.HasPrefix(path, skip+"/") {
+			return true
+		}
+	}
+	return false
 }

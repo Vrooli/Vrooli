@@ -5,7 +5,7 @@ SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
 REPO_ROOT="$(builtin cd "${SCRIPT_DIR}/../.." && builtin pwd)"
 
 usage() {
-    echo "Usage: $0 <module_path> [--name binary-name] [--install-dir path]"
+    echo "Usage: $0 <module_path> [--name binary-name] [--manifest path] [--install-dir path]"
     echo
     echo "Examples:"
     echo "  $0 scenarios/scenario-completeness-scoring/cli --name scenario-completeness-scoring"
@@ -21,6 +21,7 @@ MODULE_PATH="$1"
 shift
 
 NAME=""
+MANIFEST=""
 INSTALL_DIR="${HOME}/.vrooli/bin"
 
 while [[ $# -gt 0 ]]; do
@@ -39,6 +40,14 @@ while [[ $# -gt 0 ]]; do
                 exit 1
             fi
             INSTALL_DIR="$2"
+            shift 2
+            ;;
+        --manifest)
+            if [[ $# -lt 2 ]]; then
+                echo "Missing value for --manifest"
+                exit 1
+            fi
+            MANIFEST="$2"
             shift 2
             ;;
         *)
@@ -75,6 +84,19 @@ if [[ ! -f "${MODULE_ABS}/go.mod" ]]; then
     exit 1
 fi
 
+MANIFEST_ABS=""
+if [[ -n "${MANIFEST}" ]]; then
+    if [[ "${MANIFEST}" != /* ]]; then
+        MANIFEST_ABS="${REPO_ROOT}/${MANIFEST}"
+    else
+        MANIFEST_ABS="${MANIFEST}"
+    fi
+    if [[ ! -f "${MANIFEST_ABS}" ]]; then
+        echo "Manifest path must contain a file: ${MANIFEST_ABS}"
+        exit 1
+    fi
+fi
+
 INSTALLER_TARGET="${CLI_CORE_VERSION:+github.com/vrooli/cli-core/cmd/cli-installer@${CLI_CORE_VERSION}}"
 INSTALLER_DIR="${REPO_ROOT}"
 
@@ -86,8 +108,14 @@ fi
 echo "Building ${NAME} from ${MODULE_ABS}..."
 (
     cd "${INSTALLER_DIR}"
-    go run "${INSTALLER_TARGET}" \
-        --module "${MODULE_ABS}" \
-        --name "${NAME}" \
+    cmd=(
+        go run "${INSTALLER_TARGET}"
+        --module "${MODULE_ABS}"
+        --name "${NAME}"
         --install-dir "${INSTALL_DIR}"
+    )
+    if [[ -n "${MANIFEST_ABS}" ]]; then
+        cmd+=(--manifest "${MANIFEST_ABS}")
+    fi
+    "${cmd[@]}"
 )

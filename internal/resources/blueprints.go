@@ -66,11 +66,12 @@ var allowedBlueprintTemplateRules = map[string][]string{
 	"docker-service":  {"docker-service"},
 	"compose-service": {"compose-service"},
 	"external-cli":    {"external-cli"},
+	"native-cli":      {"native-cli"},
 	"cloud-api":       {"cloud-api"},
 	"desktop-app":     {"desktop-app"},
 	"manual":          {"manual-resource"},
 	"hardware":        {"manual-resource"},
-	"library":         {"manual-resource", "external-cli"},
+	"library":         {"manual-resource", "external-cli", "native-cli"},
 }
 
 func (c *Controller) ListBlueprints() ([]Blueprint, error) {
@@ -214,7 +215,7 @@ func validateBlueprint(item Blueprint) error {
 	if len(item.WhenToUse) == 0 {
 		return fmt.Errorf("when_to_use must contain at least one entry")
 	}
-	if !isAllowedValue(item.IntegrationKind, []string{"docker-service", "compose-service", "external-cli", "cloud-api", "library", "desktop-app", "hardware", "manual"}) {
+	if !isAllowedValue(item.IntegrationKind, []string{"docker-service", "compose-service", "external-cli", "native-cli", "cloud-api", "library", "desktop-app", "hardware", "manual"}) {
 		return fmt.Errorf("integration_kind %q is invalid", item.IntegrationKind)
 	}
 	if !isAllowedValue(item.SuggestedTemplate, AllowedSuggestedTemplates()) {

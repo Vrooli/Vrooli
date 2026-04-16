@@ -54,6 +54,54 @@ func TestValidateAcceptsExternalCLIManifest(t *testing.T) {
 	}
 }
 
+func TestValidateAcceptsNativeCLIManifest(t *testing.T) {
+	err := Validate(ResourceManifest{
+		Name: "sqlite",
+		CLI: &scenario.CLIConfig{
+			Enabled: true,
+			Command: "resource-sqlite",
+			Adapter: scenario.CLIAdapterConfig{
+				Kind:      "go_module",
+				ModuleDir: "cli",
+			},
+		},
+		Driver:          "native-cli",
+		Binary:          "resource-sqlite",
+		PortabilityTier: "full",
+		Platforms:       ResourcePlatforms{Linux: "supported", MacOS: "supported", Windows: "supported"},
+	})
+	if err != nil {
+		t.Fatalf("Validate(): %v", err)
+	}
+}
+
+func TestValidateAppliesDefaultCLIArtifacts(t *testing.T) {
+	manifest := ResourceManifest{
+		Name: "redis",
+		CLI: &scenario.CLIConfig{
+			Enabled: true,
+			Command: "resource-redis",
+			Adapter: scenario.CLIAdapterConfig{
+				Kind:      "go_module",
+				ModuleDir: "cli",
+			},
+		},
+		Driver:          "external-cli",
+		Binary:          "redis-server",
+		PortabilityTier: "full",
+		Platforms:       ResourcePlatforms{Linux: "supported", MacOS: "partial", Windows: "unsupported"},
+	}
+	if err := Validate(manifest); err != nil {
+		t.Fatalf("Validate(): %v", err)
+	}
+	if manifest.CLI.Artifacts.Manifest.Location != scenario.CLIArtifactLocationSibling {
+		t.Fatalf("manifest artifact location = %q", manifest.CLI.Artifacts.Manifest.Location)
+	}
+	if manifest.CLI.Artifacts.BuildMetadata.Location != scenario.CLIArtifactLocationSibling {
+		t.Fatalf("build metadata artifact location = %q", manifest.CLI.Artifacts.BuildMetadata.Location)
+	}
+}
+
 func TestSupportForCurrentPlatformUsesMappedOSNames(t *testing.T) {
 	value := ResourcePlatforms{Linux: "supported", MacOS: "partial", Windows: "unsupported"}.SupportForCurrentPlatform()
 	if value == "" {

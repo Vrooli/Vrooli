@@ -39,6 +39,8 @@ func driverForManifest(manifest ResourceManifest) (resourceDriver, error) {
 		return composeServiceDriver{}, nil
 	case "external-cli":
 		return externalCLIDriver{}, nil
+	case "native-cli":
+		return nativeCLIDriver{}, nil
 	case "cloud-api":
 		return cloudAPIDriver{}, nil
 	default:
@@ -694,6 +696,10 @@ type externalCLIDriver struct{}
 
 func (externalCLIDriver) Name() string { return "external-cli" }
 
+type nativeCLIDriver struct{}
+
+func (nativeCLIDriver) Name() string { return "native-cli" }
+
 func (d externalCLIDriver) Status(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, fast bool) (Status, error) {
 	status := Status{
 		Resource:   item,
@@ -824,6 +830,14 @@ func (d externalCLIDriver) Run(ctx context.Context, controller *Controller, item
 			Err:       fmt.Errorf("action %q is not supported by driver %q", action, d.Name()),
 		}
 	}
+}
+
+func (d nativeCLIDriver) Status(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, fast bool) (Status, error) {
+	return externalCLIDriver{}.Status(ctx, controller, item, manifest, fast)
+}
+
+func (d nativeCLIDriver) Run(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, action string, args []string, stdout, stderr io.Writer) error {
+	return externalCLIDriver{}.Run(ctx, controller, item, manifest, action, args, stdout, stderr)
 }
 
 func probeExternalCLICommand(ctx context.Context, controller *Controller, manifest ResourceManifest) error {

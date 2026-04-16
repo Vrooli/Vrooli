@@ -53,6 +53,9 @@ type ScenarioOptions struct {
 	BuildFingerprint   string
 	BuildTimestamp     string
 	BuildSourceRoot    string
+	SourceContextPath  string
+	ManifestSourcePath string
+	FreshnessInputs    []string
 	HTTPClientOptions  cliutil.HTTPClientOptions
 	HTTPTimeoutEnvVars []string
 	DefaultHTTPTimeout time.Duration
@@ -150,6 +153,9 @@ func NewScenarioApp(opts ScenarioOptions) (*ScenarioApp, error) {
 		StaleChecker: cliutil.NewStaleChecker(opts.Name, opts.BuildFingerprint, opts.BuildTimestamp, opts.BuildSourceRoot, opts.SourceRootEnvVars...),
 		options:      opts,
 	}
+	app.StaleChecker.SourceContextPath = opts.SourceContextPath
+	app.StaleChecker.ManifestSourcePath = opts.ManifestSourcePath
+	app.StaleChecker.FreshnessInputs = append([]string(nil), opts.FreshnessInputs...)
 	app.tokenSource = func() string {
 		for _, env := range opts.TokenEnvVars {
 			if val := strings.TrimSpace(os.Getenv(env)); val != "" {
@@ -205,6 +211,9 @@ func NewStandardScenarioApp(opts StandardScenarioOptions) (*ScenarioApp, error) 
 		BuildFingerprint:   opts.BuildFingerprint,
 		BuildTimestamp:     opts.BuildTimestamp,
 		BuildSourceRoot:    opts.BuildSourceRoot,
+		SourceContextPath:  "..",
+		ManifestSourcePath: ".vrooli/service.json",
+		FreshnessInputs:    []string{"cli/**", ".vrooli/service.json"},
 		HTTPClientOptions:  opts.HTTPClientOptions,
 		HTTPTimeoutEnvVars: env.HTTPTimeoutEnvVars,
 		DefaultHTTPTimeout: opts.DefaultHTTPTimeout,

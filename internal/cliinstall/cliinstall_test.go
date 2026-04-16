@@ -131,6 +131,9 @@ func TestDiscoverScenarioCLIs(t *testing.T) {
 	if items[0].BinaryName != "alpha" {
 		t.Fatalf("scenario binary name = %q, want %q", items[0].BinaryName, "alpha")
 	}
+	if items[0].ManifestPath != filepath.Join(fixture.Root, "scenarios", "alpha", ".vrooli", "service.json") {
+		t.Fatalf("scenario manifest path = %q", items[0].ManifestPath)
+	}
 }
 
 func TestDiscoverScenarioCLIsIncludesShellScriptAdapter(t *testing.T) {
@@ -219,6 +222,9 @@ func TestDiscoverEnabledResourceCLIs(t *testing.T) {
 	}
 	if got := items[0].BinaryName; got != "resource-postgres" {
 		t.Fatalf("resource binary name = %q, want %q", got, "resource-postgres")
+	}
+	if got := items[0].ManifestPath; got != filepath.Join(fixture.Root, "resources", "postgres", "resource.json") {
+		t.Fatalf("resource manifest path = %q", got)
 	}
 }
 
@@ -455,7 +461,11 @@ func TestEnsureResourceCLISkipsWhenInstalled(t *testing.T) {
 	if err := os.WriteFile(binaryPath, []byte("installed"), 0o755); err != nil {
 		t.Fatalf("write installed binary: %v", err)
 	}
-	fingerprint, err := computeTestFingerprint(filepath.Join(fixture.Root, "resources", "postgres", "cli"), "resource-postgres")
+	item, err := manager.DiscoverResourceCLI("postgres")
+	if err != nil {
+		t.Fatalf("DiscoverResourceCLI: %v", err)
+	}
+	fingerprint, err := computeResourceCLIFingerprint(item)
 	if err != nil {
 		t.Fatalf("compute fingerprint: %v", err)
 	}
@@ -604,6 +614,9 @@ func TestInstallResourceCLIWithGoInstallerCreatesBinaryAndMetadata(t *testing.T)
 	if _, err := os.Stat(manager.InstalledBinaryPath(item)); err != nil {
 		t.Fatalf("installed binary missing: %v", err)
 	}
+	if _, err := os.Stat(manager.InstalledManifestPath(item)); err != nil {
+		t.Fatalf("installed manifest missing: %v", err)
+	}
 	meta, ok, err := manager.readInstallMetadata(item)
 	if err != nil {
 		t.Fatalf("readInstallMetadata: %v", err)
@@ -613,6 +626,104 @@ func TestInstallResourceCLIWithGoInstallerCreatesBinaryAndMetadata(t *testing.T)
 	}
 	if strings.TrimSpace(meta.Fingerprint) == "" {
 		t.Fatalf("metadata fingerprint = %q", meta.Fingerprint)
+	}
+}
+
+func TestComputeScenarioCLIFingerprintIncludesManifestForGoModule(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	fixture.WriteScenarioStub(t, "alpha")
+	testscenario.WriteScenarioCLIGoMod(t, fixture.Root, "alpha", "alpha/cli")
+	testscenario.WriteScenarioService(t, fixture.Root, "alpha", testscenario.ScenarioServiceManifest(
+		"alpha",
+		testscenario.WithCLI(&scenario.CLIConfig{
+			Enabled: true,
+			Command: "alpha",
+			Adapter: scenario.CLIAdapterConfig{
+				Kind:      "go_module",
+				ModuleDir: "cli",
+			},
+			Freshness: &scenario.CLIFreshnessCheck{
+				Inputs: []string{"cli/**", ".vrooli/service.json"},
+			},
+		}),
+	))
+
+	item, err := NewManager(fixture.Root, t.TempDir()).DiscoverScenarioCLI("alpha")
+	if err != nil {
+		t.Fatalf("DiscoverScenarioCLI: %v", err)
+	}
+	before, err := computeScenarioCLIFingerprint(item)
+	if err != nil {
+		t.Fatalf("computeScenarioCLIFingerprint before: %v", err)
+	}
+
+	servicePath := filepath.Join(fixture.Root, "scenarios", "alpha", ".vrooli", "service.json")
+	data, err := os.ReadFile(servicePath)
+	if err != nil {
+		t.Fatalf("read service manifest: %v", err)
+	}
+	data = []byte(strings.Replace(string(data), "\"alpha\"", "\"alpha-updated\"", 1))
+	if err := os.WriteFile(servicePath, data, 0o644); err != nil {
+		t.Fatalf("write service manifest: %v", err)
+	}
+
+	after, err := computeScenarioCLIFingerprint(item)
+	if err != nil {
+		t.Fatalf("computeScenarioCLIFingerprint after: %v", err)
+	}
+	if before == after {
+		t.Fatal("expected service.json change to affect go-module CLI fingerprint")
+	}
+}
+
+func TestComputeResourceCLIFingerprintIncludesManifestForGoModule(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	fixture.WriteResourceStub(t, "alpha")
+	testresource.WriteResourceCLIGoMod(t, fixture.Root, "alpha", "alpha/cli")
+	manifest := testresource.ResourceManifest("alpha",
+		testresource.WithResourceDriver("external-cli"),
+		testresource.WithResourceBinary("alpha"),
+	)
+	manifest.CLI = &scenario.CLIConfig{
+		Enabled: true,
+		Command: "resource-alpha",
+		Adapter: scenario.CLIAdapterConfig{
+			Kind:      "go_module",
+			ModuleDir: "cli",
+		},
+		Freshness: &scenario.CLIFreshnessCheck{
+			Inputs: []string{"cli/**", "resource.json"},
+		},
+	}
+	testresource.WriteResourceManifest(t, fixture.Root, "alpha", manifest)
+
+	item, err := NewManager(fixture.Root, t.TempDir()).DiscoverResourceCLI("alpha")
+	if err != nil {
+		t.Fatalf("DiscoverResourceCLI: %v", err)
+	}
+	before, err := computeResourceCLIFingerprint(item)
+	if err != nil {
+		t.Fatalf("computeResourceCLIFingerprint before: %v", err)
+	}
+
+	manifestPath := filepath.Join(fixture.Root, "resources", "alpha", "resource.json")
+	data, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatalf("read resource manifest: %v", err)
+	}
+	data = []byte(strings.Replace(string(data), "\"alpha\"", "\"alpha-updated\"", 1))
+	if err := os.WriteFile(manifestPath, data, 0o644); err != nil {
+		t.Fatalf("write resource manifest: %v", err)
+	}
+
+	after, err := computeResourceCLIFingerprint(item)
+	if err != nil {
+		t.Fatalf("computeResourceCLIFingerprint after: %v", err)
+	}
+	if before == after {
+		t.Fatal("expected resource.json change to affect go-module CLI fingerprint")
 	}
 }
 

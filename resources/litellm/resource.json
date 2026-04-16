@@ -9,6 +9,33 @@
     "adapter": {
       "kind": "go_module",
       "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "install": [
+      {
+        "os": ["linux", "darwin"],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": ["windows"],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-litellm"
+    },
+    "freshness": {
+      "inputs": ["cli/**", "cli/internal/**", "docs/**", "README.md", "resource.json"]
     }
   },
   "template": "docker-service",

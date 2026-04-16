@@ -300,6 +300,7 @@
   "definitions": {
     "cliConfig": {
       "type": "object",
+      "description": "Installed artifact contract for a scenario or resource CLI. Go-module installs produce a binary plus sibling manifest and build metadata files.",
       "properties": {
         "enabled": {
           "type": "boolean"
@@ -310,6 +311,9 @@
         },
         "adapter": {
           "$ref": "#/definitions/cliAdapter"
+        },
+        "artifacts": {
+          "$ref": "#/definitions/cliArtifacts"
         },
         "install": {
           "type": "array",
@@ -371,6 +375,32 @@
       ],
       "additionalProperties": false
     },
+    "cliArtifacts": {
+      "type": "object",
+      "description": "Installed companion artifacts generated beside the CLI binary.",
+      "properties": {
+        "manifest": {
+          "$ref": "#/definitions/cliArtifact"
+        },
+        "build_metadata": {
+          "$ref": "#/definitions/cliArtifact"
+        }
+      },
+      "additionalProperties": false
+    },
+    "cliArtifact": {
+      "type": "object",
+      "properties": {
+        "location": {
+          "type": "string",
+          "enum": [
+            "sibling"
+          ],
+          "description": "Install the artifact beside the binary using the canonical cli-core naming convention."
+        }
+      },
+      "additionalProperties": false
+    },
     "cliInstallStep": {
       "type": "object",
       "properties": {
@@ -387,7 +417,8 @@
           ]
         },
         "run": {
-          "type": "string"
+          "type": "string",
+          "description": "Install command that must produce the full CLI artifact set, including any declared sibling manifest metadata."
         },
         "install_dir": {
           "type": "string"
@@ -401,6 +432,7 @@
     },
     "cliInvoke": {
       "type": "object",
+      "description": "How the installed CLI is invoked after installation.",
       "properties": {
         "kind": {
           "type": "string",
@@ -416,6 +448,7 @@
     },
     "cliFreshness": {
       "type": "object",
+      "description": "Source inputs used to determine whether the installed CLI artifact is stale and should be rebuilt.",
       "properties": {
         "inputs": {
           "type": "array",
@@ -424,7 +457,8 @@
           }
         },
         "metadata_file": {
-          "type": "string"
+          "type": "string",
+          "description": "Optional path to the installed build metadata file used by freshness checks."
         }
       },
       "additionalProperties": false

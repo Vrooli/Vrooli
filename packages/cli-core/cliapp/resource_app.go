@@ -24,6 +24,9 @@ type ResourceOptions struct {
 	BuildFingerprint    string
 	BuildTimestamp      string
 	BuildSourceRoot     string
+	SourceContextPath   string
+	ManifestSourcePath  string
+	FreshnessInputs     []string
 	LookPathFunc        func(string) (string, error)
 	CommandRunner       func(*exec.Cmd) error
 }
@@ -42,6 +45,21 @@ func NewResourceApp(opts ResourceOptions) (*ResourceApp, error) {
 	app := &ResourceApp{
 		StaleChecker: cliutil.NewStaleChecker(opts.Name, opts.BuildFingerprint, opts.BuildTimestamp, opts.BuildSourceRoot, opts.SourceRootEnvVars...),
 		options:      opts,
+	}
+	if strings.TrimSpace(opts.SourceContextPath) == "" {
+		app.StaleChecker.SourceContextPath = ".."
+	} else {
+		app.StaleChecker.SourceContextPath = opts.SourceContextPath
+	}
+	if strings.TrimSpace(opts.ManifestSourcePath) == "" {
+		app.StaleChecker.ManifestSourcePath = "resource.json"
+	} else {
+		app.StaleChecker.ManifestSourcePath = opts.ManifestSourcePath
+	}
+	if len(opts.FreshnessInputs) > 0 {
+		app.StaleChecker.FreshnessInputs = append([]string(nil), opts.FreshnessInputs...)
+	} else {
+		app.StaleChecker.FreshnessInputs = []string{"cli/**", "resource.json"}
 	}
 	app.SetCommands(opts.Commands)
 	return app, nil

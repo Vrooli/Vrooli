@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/vrooli/cli-core/buildinfo"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 func main() {
@@ -24,6 +26,7 @@ func main() {
 
 func run() error {
 	moduleRoot := flag.String("module", ".", "path to the Go module directory")
+	manifestSource := flag.String("manifest", "", "path to the source manifest that should be installed beside the binary")
 	output := flag.String("output", "", "explicit output path for the built binary")
 	installDir := flag.String("install-dir", "", "directory where the binary should be installed")
 	name := flag.String("name", "", "binary name (defaults to module directory name)")
@@ -41,6 +44,10 @@ func run() error {
 
 	if _, err := os.Stat(filepath.Join(modulePath, "go.mod")); err != nil {
 		return fmt.Errorf("module root must contain go.mod: %w", err)
+	}
+	manifestPath, err := resolveManifestPath(*manifestSource)
+	if err != nil {
+		return err
 	}
 
 	dst, err := determineDestination(modulePath, *output, *installDir, *name)
@@ -101,6 +108,11 @@ func run() error {
 
 	if err := replaceBinary(tmpPath, dst); err != nil {
 		return fmt.Errorf("install binary: %w", err)
+	}
+	if manifestPath != "" {
+		if err := installManifest(manifestPath, cliutil.InstalledManifestPath(dst)); err != nil {
+			return fmt.Errorf("install manifest: %w", err)
+		}
 	}
 	if err := writeInstallMetadata(dst, installMetadata{
 		BinaryName:  binaryName,
@@ -187,13 +199,71 @@ func replaceBinary(src, dst string) error {
 	return fmt.Errorf("replace binary: %w", renameErr)
 }
 
+func resolveManifestPath(path string) (string, error) {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return "", nil
+	}
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("resolve manifest path: %w", err)
+	}
+	if info, err := os.Stat(absPath); err != nil {
+		return "", fmt.Errorf("manifest source must exist: %w", err)
+	} else if info.IsDir() {
+		return "", fmt.Errorf("manifest source must be a file: %s", absPath)
+	}
+	return absPath, nil
+}
+
+func installManifest(src, dst string) error {
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return fmt.Errorf("prepare manifest directory: %w", err)
+	}
+	tmpFile, err := os.CreateTemp(filepath.Dir(dst), "cli-manifest-*")
+	if err != nil {
+		return fmt.Errorf("create temporary manifest: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+	defer os.Remove(tmpPath)
+
+	if err := copyFileContents(src, tmpFile); err != nil {
+		_ = tmpFile.Close()
+		return err
+	}
+	if err := tmpFile.Close(); err != nil {
+		return fmt.Errorf("close temporary manifest: %w", err)
+	}
+	if runtime.GOOS != "windows" {
+		if err := os.Chmod(tmpPath, 0o644); err != nil {
+			return fmt.Errorf("chmod temporary manifest: %w", err)
+		}
+	}
+	if err := replaceBinary(tmpPath, dst); err != nil {
+		return fmt.Errorf("replace manifest: %w", err)
+	}
+	return nil
+}
+
+func copyFileContents(src string, dst *os.File) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("open manifest source: %w", err)
+	}
+	defer in.Close()
+	if _, err := io.Copy(dst, in); err != nil {
+		return fmt.Errorf("copy manifest source: %w", err)
+	}
+	return nil
+}
+
 func writeInstallMetadata(binaryPath string, meta installMetadata) error {
 	data, err := json.MarshalIndent(meta, "", "  ")
 	if err != nil {
 		return err
 	}
 	data = append(data, '\n')
-	return os.WriteFile(binaryPath+".build.meta", data, 0o644)
+	return os.WriteFile(cliutil.InstalledBuildMetadataPath(binaryPath), data, 0o644)
 }
 
 func ensurePathHint(binaryPath string) {

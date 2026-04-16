@@ -31,6 +31,7 @@ type InstallableCLI struct {
 	Name         string
 	BinaryName   string
 	ModulePath   string
+	ManifestPath string
 	ScenarioPath string
 	ResourcePath string
 	ServicePath  string
@@ -188,6 +189,7 @@ func (m *Manager) DiscoverScenarioCLI(name string) (InstallableCLI, error) {
 		Kind:         KindScenario,
 		Name:         name,
 		BinaryName:   ScenarioBinaryName(manifest.CLI.Command),
+		ManifestPath: servicePath,
 		ScenarioPath: scenarioRoot,
 		ServicePath:  servicePath,
 		CLI:          manifest.CLI,
@@ -238,6 +240,7 @@ func (m *Manager) DiscoverResourceCLI(name string) (InstallableCLI, error) {
 		Kind:         KindResource,
 		Name:         name,
 		BinaryName:   ScenarioBinaryName(manifest.CLI.Command),
+		ManifestPath: manifestPath,
 		ResourcePath: resourceRoot,
 		ServicePath:  manifestPath,
 		CLI:          manifest.CLI,
@@ -353,7 +356,11 @@ func (m *Manager) InstalledBinaryPath(item InstallableCLI) string {
 }
 
 func (m *Manager) InstallMetadataPath(item InstallableCLI) string {
-	return m.InstalledBinaryPath(item) + ".build.meta"
+	return installedBuildMetadataPath(m.InstalledBinaryPath(item))
+}
+
+func (m *Manager) InstalledManifestPath(item InstallableCLI) string {
+	return installedManifestPath(m.InstalledBinaryPath(item))
 }
 
 func (m *Manager) inspectInstallLocation(item InstallableCLI, lookPath func(string) (string, error)) (InstallLocationStatus, error) {
@@ -498,7 +505,7 @@ func (m *Manager) computeInstallFingerprint(item InstallableCLI) (string, error)
 func computeScenarioCLIFingerprint(item InstallableCLI) (string, error) {
 	switch item.CLI.Adapter.Kind {
 	case "go_module":
-		return computeFingerprint(item.ModulePath, item.BinaryName)
+		return computeGoModuleFingerprint(item.ScenarioPath, item.ModulePath, item.ServicePath, item.CLI, item.BinaryName)
 	case "shell_script":
 		if item.CLI.Freshness != nil && len(item.CLI.Freshness.Inputs) > 0 {
 			return computeFingerprintFromDeclaredInputs(item.ScenarioPath, item.CLI.Freshness.Inputs, item.BinaryName)
@@ -520,7 +527,7 @@ func computeScenarioCLIFingerprint(item InstallableCLI) (string, error) {
 func computeResourceCLIFingerprint(item InstallableCLI) (string, error) {
 	switch item.CLI.Adapter.Kind {
 	case "go_module":
-		return computeFingerprint(item.ModulePath, item.BinaryName)
+		return computeGoModuleFingerprint(item.ResourcePath, item.ModulePath, item.ServicePath, item.CLI, item.BinaryName)
 	case "shell_script":
 		if item.CLI.Freshness != nil && len(item.CLI.Freshness.Inputs) > 0 {
 			return computeFingerprintFromDeclaredInputs(item.ResourcePath, item.CLI.Freshness.Inputs, item.BinaryName)
@@ -595,6 +602,7 @@ func (GoInstaller) Install(ctx context.Context, item InstallableCLI, installDir 
 			installerDir := filepath.Join(repoRoot, "packages", "cli-core")
 			cmd := exec.CommandContext(ctx, "go", "run", "./cmd/cli-installer",
 				"--module", item.ModulePath,
+				"--manifest", item.ManifestPath,
 				"--name", item.BinaryName,
 				"--install-dir", installDir,
 			)
@@ -627,6 +635,7 @@ func (GoInstaller) Install(ctx context.Context, item InstallableCLI, installDir 
 			installerDir := filepath.Join(repoRoot, "packages", "cli-core")
 			cmd := exec.CommandContext(ctx, "go", "run", "./cmd/cli-installer",
 				"--module", item.ModulePath,
+				"--manifest", item.ManifestPath,
 				"--name", item.BinaryName,
 				"--install-dir", installDir,
 			)
@@ -719,6 +728,28 @@ func requireFile(path string) error {
 		return fmt.Errorf("%s is a directory", path)
 	}
 	return nil
+}
+
+func installedManifestPath(binaryPath string) string {
+	return binaryPath + ".manifest.json"
+}
+
+func installedBuildMetadataPath(binaryPath string) string {
+	return binaryPath + ".build.meta"
+}
+
+func computeGoModuleFingerprint(ownerRoot, modulePath, manifestPath string, cfg *scenario.CLIConfig, binaryName string) (string, error) {
+	if cfg != nil && cfg.Freshness != nil && len(cfg.Freshness.Inputs) > 0 {
+		return computeFingerprintFromDeclaredInputs(ownerRoot, cfg.Freshness.Inputs, binaryName)
+	}
+	manifestRel, err := filepath.Rel(modulePath, manifestPath)
+	if err != nil {
+		return "", err
+	}
+	return computeFingerprintFromDeclaredInputs(modulePath, []string{
+		".",
+		filepath.ToSlash(manifestRel),
+	}, binaryName)
 }
 
 func isSkippableDiscoveryError(err error) bool {

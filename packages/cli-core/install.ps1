@@ -2,6 +2,7 @@ param(
 	[Parameter(Mandatory = $true, Position = 0)]
 	[string]$ModulePath,
 	[string]$Name,
+	[string]$Manifest,
 	[string]$InstallDir,
 	[string]$AppRoot
 )
@@ -36,6 +37,20 @@ if (-not (Test-Path (Join-Path $ModulePath "go.mod"))) {
 	exit 1
 }
 
+$manifestPath = ""
+if ($Manifest) {
+	if (-not [System.IO.Path]::IsPathRooted($Manifest)) {
+		$manifestPath = Join-Path $repoRoot $Manifest
+	}
+	else {
+		$manifestPath = $Manifest
+	}
+	if (-not (Test-Path $manifestPath -PathType Leaf)) {
+		Write-Error "Manifest path must contain a file: $manifestPath"
+		exit 1
+	}
+}
+
 if (-not $Name -or $Name -eq "") {
 	$base = Split-Path $ModulePath -Leaf
 	$parent = Split-Path (Split-Path $ModulePath -Parent) -Leaf
@@ -57,7 +72,11 @@ Write-Output "Building $Name from $ModulePath..."
 
 Push-Location $installerDir
 try {
-	& go run $installerTarget --module $ModulePath --name $Name --install-dir $InstallDir
+	$args = @("run", $installerTarget, "--module", $ModulePath, "--name", $Name, "--install-dir", $InstallDir)
+	if ($manifestPath) {
+		$args += @("--manifest", $manifestPath)
+	}
+	& go @args
 }
 finally {
 	Pop-Location

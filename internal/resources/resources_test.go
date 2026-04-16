@@ -955,7 +955,7 @@ func TestProjectPhase5ResourcesAreManifestNative(t *testing.T) {
 		"codex":                 "external-cli",
 		"k6":                    "external-cli",
 		"opencode":              "external-cli",
-		"sqlite":                "external-cli",
+		"sqlite":                "native-cli",
 		"ollama":                "docker-service",
 		"judge0":                "compose-service",
 		"postgis":               "compose-service",

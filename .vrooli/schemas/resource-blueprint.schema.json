@@ -67,6 +67,7 @@
         "docker-service",
         "compose-service",
         "external-cli",
+        "native-cli",
         "cloud-api",
         "library",
         "desktop-app",
@@ -128,6 +129,7 @@
         "docker-service",
         "compose-service",
         "external-cli",
+        "native-cli",
         "cloud-api",
         "desktop-app",
         "manual-resource"

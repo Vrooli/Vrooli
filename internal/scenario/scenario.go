@@ -86,9 +86,19 @@ type CLIConfig struct {
 	Enabled   bool               `json:"enabled"`
 	Command   string             `json:"command,omitempty"`
 	Adapter   CLIAdapterConfig   `json:"adapter,omitempty"`
+	Artifacts CLIArtifactsConfig `json:"artifacts,omitempty"`
 	Install   []CLIInstallStep   `json:"install,omitempty"`
 	Invoke    CLIInvokeConfig    `json:"invoke,omitempty"`
 	Freshness *CLIFreshnessCheck `json:"freshness,omitempty"`
+}
+
+type CLIArtifactsConfig struct {
+	Manifest      CLIArtifactConfig `json:"manifest,omitempty"`
+	BuildMetadata CLIArtifactConfig `json:"build_metadata,omitempty"`
+}
+
+type CLIArtifactConfig struct {
+	Location string `json:"location,omitempty"`
 }
 
 type CLIAdapterConfig struct {
@@ -114,6 +124,8 @@ type CLIFreshnessCheck struct {
 	Inputs       []string `json:"inputs,omitempty"`
 	MetadataFile string   `json:"metadata_file,omitempty"`
 }
+
+const CLIArtifactLocationSibling = "sibling"
 
 type Dependencies struct {
 	Resources map[string]Dependency `json:"resources,omitempty"`
@@ -363,14 +375,26 @@ func (cfg *CLIConfig) applyDefaults() {
 	cfg.Adapter.ModuleDir = strings.TrimSpace(cfg.Adapter.ModuleDir)
 	cfg.Adapter.ScriptPath = strings.TrimSpace(cfg.Adapter.ScriptPath)
 	cfg.Adapter.InstallScript = strings.TrimSpace(cfg.Adapter.InstallScript)
+	cfg.Artifacts.Manifest.Location = strings.TrimSpace(cfg.Artifacts.Manifest.Location)
+	cfg.Artifacts.BuildMetadata.Location = strings.TrimSpace(cfg.Artifacts.BuildMetadata.Location)
 	cfg.Invoke.Kind = strings.TrimSpace(cfg.Invoke.Kind)
 	cfg.Invoke.Command = strings.TrimSpace(cfg.Invoke.Command)
+	if cfg.Enabled && cfg.Artifacts.Manifest.Location == "" {
+		cfg.Artifacts.Manifest.Location = CLIArtifactLocationSibling
+	}
+	if cfg.Enabled && cfg.Artifacts.BuildMetadata.Location == "" {
+		cfg.Artifacts.BuildMetadata.Location = CLIArtifactLocationSibling
+	}
 	if cfg.Enabled && cfg.Invoke.Kind == "" {
 		cfg.Invoke.Kind = "installed_command"
 	}
 	if cfg.Enabled && cfg.Invoke.Command == "" {
 		cfg.Invoke.Command = cfg.Command
 	}
+}
+
+func (cfg *CLIConfig) ApplyDefaultsForManifest() {
+	cfg.applyDefaults()
 }
 
 func (cfg CLIConfig) Validate() error {
@@ -399,6 +423,16 @@ func (cfg CLIConfig) Validate() error {
 	case "", "installed_command":
 	default:
 		return fmt.Errorf("unsupported cli.invoke.kind %q", cfg.Invoke.Kind)
+	}
+	switch cfg.Artifacts.Manifest.Location {
+	case "", CLIArtifactLocationSibling:
+	default:
+		return fmt.Errorf("unsupported cli.artifacts.manifest.location %q", cfg.Artifacts.Manifest.Location)
+	}
+	switch cfg.Artifacts.BuildMetadata.Location {
+	case "", CLIArtifactLocationSibling:
+	default:
+		return fmt.Errorf("unsupported cli.artifacts.build_metadata.location %q", cfg.Artifacts.BuildMetadata.Location)
 	}
 	for i, step := range cfg.Install {
 		step.Kind = strings.TrimSpace(step.Kind)

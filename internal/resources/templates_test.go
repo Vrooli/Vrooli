@@ -76,11 +76,11 @@ func TestGenerateResourceTemplateIncludesNativeCLIAndStorageSafeManifest(t *test
 		t.Fatalf("cli/go.mod missing rendered module path: %s", cliGoMod)
 	}
 	installSh := readTestFile(t, filepath.Join(dest, "cli", "install.sh"))
-	if !strings.Contains(installSh, "resources/demo-db/cli") || !strings.Contains(installSh, "--name \"resource-demo-db\"") {
+	if !strings.Contains(installSh, "resources/demo-db/cli") || !strings.Contains(installSh, "--name \"resource-demo-db\"") || !strings.Contains(installSh, "--manifest \"resources/demo-db/resource.json\"") {
 		t.Fatalf("cli/install.sh missing canonical install wiring: %s", installSh)
 	}
 	installPS1 := readTestFile(t, filepath.Join(dest, "cli", "install.ps1"))
-	if !strings.Contains(installPS1, "resources/demo-db/cli") || !strings.Contains(installPS1, "[string]$Name = \"resource-demo-db\"") {
+	if !strings.Contains(installPS1, "resources/demo-db/cli") || !strings.Contains(installPS1, "[string]$Name = \"resource-demo-db\"") || !strings.Contains(installPS1, "[string]$Manifest = \"resources/demo-db/resource.json\"") {
 		t.Fatalf("cli/install.ps1 missing canonical install wiring: %s", installPS1)
 	}
 
@@ -89,6 +89,10 @@ func TestGenerateResourceTemplateIncludesNativeCLIAndStorageSafeManifest(t *test
 		t.Fatalf("resource.json missing rendered cli.command: %s", resourceJSON)
 	}
 	for _, expected := range []string{
+		`"artifacts": {`,
+		`"manifest": {`,
+		`"build_metadata": {`,
+		`"location": "sibling"`,
 		`"install": [`,
 		`"run": "bash ./cli/install.sh"`,
 		`"run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"`,
@@ -321,6 +325,30 @@ func TestGenerateRemainingResourceTemplatesIncludeInternalArchitectureScaffold(t
 			internalFiles: map[string]string{
 				filepath.Join("cli", "internal", "validate", "validate.go"): "// Package validate is the default home",
 				filepath.Join("cli", "internal", "env", "env.go"):           "// Package env is the default home",
+			},
+		},
+		{
+			templateName: "native-cli",
+			freshnessContains: []string{
+				`"cli/internal/**"`,
+				`"docs/**"`,
+				`"README.md"`,
+			},
+			readmeContains: []string{
+				"`cli/internal/app` is the default home for command registration and CLI wiring.",
+				"`cli/internal/domain` is the default home for resource-specific Go logic.",
+				"Keep `cli/main.go` focused on bootstrap; put command wiring in `cli/internal/app` and resource logic in `cli/internal/domain`.",
+			},
+			docsContains: map[string]string{
+				filepath.Join("docs", "OPERATIONS.md"): "Do not turn `cli/main.go` into the primary implementation surface.",
+			},
+			internalFiles: map[string]string{
+				filepath.Join("cli", "internal", "app", "app.go"):             "BuildCommandApp wires the native resource command surface",
+				filepath.Join("cli", "internal", "domain", "service.go"):      "// Service is the default home for resource-specific Go logic",
+				filepath.Join("cli", "internal", "discovery", "discovery.go"): "// Runtime is the default home for runtime and source-root discovery",
+				filepath.Join("cli", "internal", "install", "install.go"):     "// Package install is the default home",
+				filepath.Join("cli", "internal", "version", "version.go"):     "// Manifest is the default home for manifest/build metadata helpers",
+				filepath.Join("cli", "internal", "env", "env.go"):             "// Config is the default home for environment/config helpers",
 			},
 		},
 	}
