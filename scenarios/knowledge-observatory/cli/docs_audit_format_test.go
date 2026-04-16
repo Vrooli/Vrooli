@@ -4,14 +4,16 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	docsdomain "knowledge-observatory/cli/domains/docs"
 )
 
 func TestRenderDocsAuditReport_NoFindings(t *testing.T) {
-	report := renderDocsAuditReport(docsAuditResponse{
+	report := docsdomain.RenderAuditReport(docsdomain.AuditResponse{
 		ScenarioName: "alpha",
 		HealthScore:  1,
 		TotalDocs:    12,
-		Infrastructure: &docsAuditInfrastructure{
+		Infrastructure: &docsdomain.AuditInfrastructure{
 			MisplacedDocs: nil,
 			MissingDocs:   nil,
 			ExtraDocs:     nil,
@@ -36,12 +38,12 @@ func TestRenderDocsAuditReport_NoFindings(t *testing.T) {
 }
 
 func TestRenderDocsAuditReport_MixedWithOverflowAndFail(t *testing.T) {
-	report := renderDocsAuditReport(docsAuditResponse{
+	report := docsdomain.RenderAuditReport(docsdomain.AuditResponse{
 		ScenarioName: "beta",
 		HealthScore:  0.82,
 		TotalDocs:    23,
-		Infrastructure: &docsAuditInfrastructure{
-			MisplacedDocs: []docsAuditMisplacedDoc{
+		Infrastructure: &docsdomain.AuditInfrastructure{
+			MisplacedDocs: []docsdomain.AuditMisplacedDoc{
 				{ActualPath: "ARCHITECTURE.md", ExpectedPath: "docs/concepts/ARCHITECTURE.md"},
 				{ActualPath: "PROGRESS.md", ExpectedPath: "docs/internal/PROGRESS.md"},
 				{ActualPath: "SEAMS.md", ExpectedPath: "docs/internal/SEAMS.md"},
@@ -53,15 +55,15 @@ func TestRenderDocsAuditReport_MixedWithOverflowAndFail(t *testing.T) {
 				"IMPLEMENTATION_PLAN.md",
 			},
 		},
-		CodeWithoutDocRefs: []docsAuditUndocumentedFile{
+		CodeWithoutDocRefs: []docsdomain.AuditUndocumentedFile{
 			{Path: "api/server.go", ExportedSymbols: 4},
 			{Path: "ui/src/App.tsx", ExportedSymbols: 2},
 		},
-		BrokenCodeRefs: []docsAuditBrokenRef{
+		BrokenCodeRefs: []docsdomain.AuditBrokenRef{
 			{DocPath: "docs/reference/api-endpoints.md", Line: 88, Target: "api/missing.go"},
 		},
 		OrphanedDocs: []string{"docs/internal/UNTRACKED.md"},
-		DuplicateTitles: []docsAuditDuplicateTitle{
+		DuplicateTitles: []docsdomain.AuditDuplicateTitle{
 			{Title: "Overview", Files: []string{"docs/a.md", "docs/b.md"}},
 		},
 		UndocumentedTargets: []string{"OT-P01-04"},
@@ -90,12 +92,12 @@ func TestRenderDocsAuditReport_MixedWithOverflowAndFail(t *testing.T) {
 }
 
 func TestRenderDocsAuditReport_WarnAutoFixOnly(t *testing.T) {
-	report := renderDocsAuditReport(docsAuditResponse{
+	report := docsdomain.RenderAuditReport(docsdomain.AuditResponse{
 		ScenarioName: "gamma",
 		HealthScore:  0.91,
 		TotalDocs:    14,
-		Infrastructure: &docsAuditInfrastructure{
-			MisplacedDocs: []docsAuditMisplacedDoc{
+		Infrastructure: &docsdomain.AuditInfrastructure{
+			MisplacedDocs: []docsdomain.AuditMisplacedDoc{
 				{ActualPath: "ARCHITECTURE.md", ExpectedPath: "docs/concepts/ARCHITECTURE.md"},
 			},
 		},
@@ -120,14 +122,14 @@ func TestRenderDocsAuditReport_WarnAutoFixOnly(t *testing.T) {
 }
 
 func TestRenderDocsAuditReport_ManualOverflowShowsPlusMore(t *testing.T) {
-	manual := make([]docsAuditUndocumentedFile, 0, 12)
+	manual := make([]docsdomain.AuditUndocumentedFile, 0, 12)
 	for i := 0; i < 12; i++ {
-		manual = append(manual, docsAuditUndocumentedFile{
+		manual = append(manual, docsdomain.AuditUndocumentedFile{
 			Path:            "api/file_" + string(rune('a'+i)) + ".go",
 			ExportedSymbols: i + 1,
 		})
 	}
-	report := renderDocsAuditReport(docsAuditResponse{
+	report := docsdomain.RenderAuditReport(docsdomain.AuditResponse{
 		ScenarioName:       "overflow",
 		HealthScore:        0.9,
 		TotalDocs:          10,
@@ -142,11 +144,11 @@ func TestRenderDocsAuditReport_ManualOverflowShowsPlusMore(t *testing.T) {
 }
 
 func TestRenderDocsHealthReport_Default(t *testing.T) {
-	report := renderDocsHealthReport(docsHealthResponse{
+	report := docsdomain.RenderHealthReport(docsdomain.HealthResponse{
 		ScenarioName: "healthy",
 		HealthScore:  0.87,
 		TotalDocs:    9,
-		MisplacedDocs: []docsAuditMisplacedDoc{
+		MisplacedDocs: []docsdomain.AuditMisplacedDoc{
 			{ActualPath: "ARCHITECTURE.md", ExpectedPath: "docs/concepts/ARCHITECTURE.md"},
 		},
 		MissingDocs: []string{"seams"},
@@ -192,7 +194,7 @@ func TestLegacyInfrastructureJSON_Unmarshal(t *testing.T) {
 	}`
 
 	var decoded struct {
-		Infrastructure docsAuditInfrastructure `json:"infrastructure"`
+		Infrastructure docsdomain.AuditInfrastructure `json:"infrastructure"`
 	}
 	if err := json.Unmarshal([]byte(payload), &decoded); err != nil {
 		t.Fatalf("unmarshal failed: %v", err)

@@ -39,7 +39,7 @@ func (a *App) cmdScenariosList(args []string) error {
 		query.Set("order", strings.TrimSpace(*order))
 	}
 
-	body, err := a.getV1("/scenarios", query)
+	body, err := a.core.Get("/scenarios", query)
 	if err != nil {
 		return err
 	}
@@ -103,7 +103,7 @@ func (a *App) cmdScenariosGet(args []string) error {
 	}
 	name := strings.TrimSpace(*nameFlag)
 
-	body, err := a.getV1("/scenarios/"+name, nil)
+	body, err := a.core.Get("/scenarios/"+name, nil)
 	if err != nil {
 		return err
 	}
@@ -163,7 +163,7 @@ func (a *App) cmdScenariosUpdate(args []string) error {
 		return fmt.Errorf("invalid JSON: %w", err)
 	}
 
-	body, err := a.requestV1("PATCH", "/scenarios/"+name, nil, payload)
+	body, err := a.core.Request("PATCH", "/scenarios/"+name, nil, payload)
 	if err != nil {
 		return err
 	}
@@ -206,7 +206,7 @@ func (a *App) cmdScenariosDelete(args []string) error {
 		query.Set("archive", "true")
 	}
 
-	body, err := a.requestV1("DELETE", "/scenarios/"+name, query, nil)
+	body, err := a.core.Request("DELETE", "/scenarios/"+name, query, nil)
 	if err != nil {
 		return err
 	}
@@ -240,7 +240,7 @@ func (a *App) cmdScenariosFiles(args []string) error {
 	}
 	name := strings.TrimSpace(*nameFlag)
 
-	body, err := a.getV1("/scenarios/"+name+"/files", nil)
+	body, err := a.core.Get("/scenarios/"+name+"/files", nil)
 	if err != nil {
 		return err
 	}
@@ -321,7 +321,7 @@ func (a *App) cmdScenariosSpecSyncArchive(args []string) error {
 		}
 	}
 
-	body, err := a.requestV1("POST", "/scenarios/"+name+"/spec-sync-archive", nil, payload)
+	body, err := a.core.Request("POST", "/scenarios/"+name+"/spec-sync-archive", nil, payload)
 	if err != nil {
 		return err
 	}
@@ -374,7 +374,7 @@ func (a *App) cmdScenariosReviewQueue(args []string) error {
 		query.Set("exclude_tag", strings.TrimSpace(*excludeTag))
 	}
 
-	body, err := a.getV1("/scenarios/review-queue", query)
+	body, err := a.core.Get("/scenarios/review-queue", query)
 	if err != nil {
 		return err
 	}
@@ -437,7 +437,7 @@ func (a *App) runScenarioLifecycle(args []string, action string) error {
 		return fmt.Errorf("usage: scenarios %s --name NAME [--json]\n\n%s", action, err)
 	}
 	name := strings.TrimSpace(*nameFlag)
-	body, err := a.requestV1("POST", "/scenarios/"+name+"/"+action, nil, nil)
+	body, err := a.core.Request("POST", "/scenarios/"+name+"/"+action, nil, nil)
 	if err != nil {
 		return err
 	}

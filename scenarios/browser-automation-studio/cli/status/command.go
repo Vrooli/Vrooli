@@ -3,21 +3,21 @@ package status
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
+	"os"
 	"os/exec"
 	"strings"
-	"time"
 
 	"browser-automation-studio/cli/internal/appctx"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
 
-type statusOutput struct {
-	APIServer struct {
+type statusReport struct {
+	cliapp.OperationalReport
+	API struct {
 		Running bool   `json:"running"`
 		URL     string `json:"url"`
-	} `json:"api_server"`
+	} `json:"api"`
 	Browserless struct {
 		Status string `json:"status"`
 	} `json:"browserless"`
@@ -59,78 +59,140 @@ func runStatus(ctx *appctx.Context, args []string) error {
 		}
 	}
 
-	apiBase := strings.TrimRight(ctx.ResolvedAPIRoot(), "/")
-	apiRunning := false
-	if apiBase != "" {
-		healthURL := apiBase + "/health"
-		client := &http.Client{Timeout: 5 * time.Second}
-		resp, err := client.Get(healthURL)
-		if err == nil {
-			apiRunning = resp.StatusCode < 400
-			_ = resp.Body.Close()
-		}
-	}
-
-	browserlessStatus := "not_installed"
-	if _, err := exec.LookPath("resource-browserless"); err == nil {
-		cmd := exec.Command("resource-browserless", "status")
-		output, err := cmd.Output()
-		if err != nil {
-			browserlessStatus = "stopped"
-		} else if strings.Contains(strings.ToLower(string(output)), "running") {
-			browserlessStatus = "running"
-		} else {
-			browserlessStatus = "stopped"
-		}
-	}
-
-	workflowCount := 0
-	if apiRunning {
-		body, err := ctx.Core.APIClient.Get(ctx.APIPath("/workflows"), nil)
-		if err == nil {
-			var parsed workflowListResponse
-			if json.Unmarshal(body, &parsed) == nil {
-				workflowCount = len(parsed.Workflows)
-			}
-		}
-	}
+	report := statusReport{}
+	report.API.URL = ctx.Core.APIBase()
+	report.API.Running = apiRunning(ctx)
+	report.Browserless.Status = browserlessStatus()
+	report.Workflows.Count = workflowCount(ctx, report.API.Running)
+	report.OperationalReport = buildOperationalReport(report)
 
 	if jsonOutput {
-		var output statusOutput
-		output.APIServer.Running = apiRunning
-		output.APIServer.URL = ctx.ResolvedAPIV1Base()
-		output.Browserless.Status = browserlessStatus
-		output.Workflows.Count = workflowCount
-		data, _ := json.MarshalIndent(output, "", "  ")
-		fmt.Println(string(data))
-		return nil
+		return cliapp.PrintReportJSON(os.Stdout, report)
+	}
+	return cliapp.RenderOperationalReport(os.Stdout, report.OperationalReport)
+}
+
+func apiRunning(ctx *appctx.Context) bool {
+	if ctx == nil || ctx.Core == nil {
+		return false
+	}
+	_, err := ctx.Core.GetRoot(ctx.Core.HealthPath(), nil)
+	return err == nil
+}
+
+func browserlessStatus() string {
+	if _, err := exec.LookPath("resource-browserless"); err != nil {
+		return "not_installed"
 	}
 
-	fmt.Println("Browser Automation Studio Status")
-	fmt.Println("================================")
-	if apiRunning {
-		fmt.Println("status: running")
-	} else {
-		fmt.Println("status: down")
+	cmd := exec.Command("resource-browserless", "status")
+	output, err := cmd.Output()
+	if err != nil {
+		return "stopped"
+	}
+	if strings.Contains(strings.ToLower(string(output)), "running") {
+		return "running"
+	}
+	return "stopped"
+}
+
+func workflowCount(ctx *appctx.Context, apiRunning bool) int {
+	if !apiRunning || ctx == nil || ctx.Core == nil {
+		return 0
+	}
+	body, err := ctx.Core.Get("/workflows", nil)
+	if err != nil {
+		return 0
+	}
+	var parsed workflowListResponse
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		return 0
+	}
+	return len(parsed.Workflows)
+}
+
+func buildOperationalReport(report statusReport) cliapp.OperationalReport {
+	statusLines := []string{
+		fmt.Sprintf("API: %s", statusLabel(report.API.Running, "running", "down")),
+		fmt.Sprintf("Browserless: %s", browserlessLabel(report.Browserless.Status)),
+		fmt.Sprintf("Workflows indexed: %d", report.Workflows.Count),
+	}
+	if strings.TrimSpace(report.API.URL) != "" {
+		statusLines = append(statusLines, fmt.Sprintf("API URL: %s", report.API.URL))
 	}
 
-	if apiRunning {
-		fmt.Println("API Server: OK")
-	} else {
-		fmt.Println("API Server: ERROR (not responding)")
+	triage := []cliapp.TriageGroup{
+		{
+			Heading: "API",
+			Items: apiTriage(report),
+		},
+		{
+			Heading: "Browserless",
+			Items: browserlessTriage(report.Browserless.Status),
+		},
 	}
 
-	switch browserlessStatus {
+	return cliapp.OperationalReport{
+		Status:    statusLines,
+		Triage:    triage,
+		NextSteps: nextSteps(report),
+	}
+}
+
+func apiTriage(report statusReport) []string {
+	if report.API.Running {
+		return []string{"Health endpoint responded successfully."}
+	}
+	items := []string{"API health endpoint is not responding."}
+	if strings.TrimSpace(report.API.URL) == "" {
+		items = append(items, "No API base is configured for the CLI.")
+	}
+	return items
+}
+
+func browserlessTriage(status string) []string {
+	switch status {
 	case "running":
-		fmt.Println("Browserless: OK")
+		return []string{"Browserless resource is installed and responding."}
 	case "stopped":
-		fmt.Println("Browserless: WARN (not running)")
+		return []string{"Browserless is installed but not currently running."}
 	default:
-		fmt.Println("Browserless: ERROR (not installed)")
+		return []string{"Browserless resource CLI is not installed on this machine."}
 	}
+}
 
-	fmt.Printf("Workflows: %d\n", workflowCount)
-	fmt.Println("")
-	fmt.Println("Ready for automation!")
-	return nil
+func nextSteps(report statusReport) []string {
+	steps := []string{}
+	if !report.API.Running {
+		steps = append(steps, "cd scenarios/browser-automation-studio && make start")
+		steps = append(steps, "browser-automation-studio configure api_base <url>")
+	}
+	switch report.Browserless.Status {
+	case "stopped":
+		steps = append(steps, "resource-browserless status")
+	case "not_installed":
+		steps = append(steps, "vrooli resource status browserless")
+	}
+	if report.API.Running {
+		steps = append(steps, "browser-automation-studio workflow list")
+	}
+	return steps
+}
+
+func statusLabel(ok bool, whenOK, whenBad string) string {
+	if ok {
+		return whenOK
+	}
+	return whenBad
+}
+
+func browserlessLabel(status string) string {
+	switch status {
+	case "running":
+		return "running"
+	case "stopped":
+		return "stopped"
+	default:
+		return "not installed"
+	}
 }

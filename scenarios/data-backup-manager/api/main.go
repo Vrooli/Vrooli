@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -361,7 +362,7 @@ func main() {
 	r := mux.NewRouter()
 
 	// Health endpoint - using standardized api-core/health
-	var dbPinger interface{ Ping() error }
+	var dbPinger *sql.DB
 	if backupManager != nil {
 		dbPinger = backupManager.db
 	}

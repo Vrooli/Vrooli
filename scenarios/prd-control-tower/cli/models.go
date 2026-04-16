@@ -2,14 +2,6 @@ package main
 
 import "time"
 
-type HealthResponse struct {
-	Status     string                 `json:"status"`
-	Readiness  bool                   `json:"readiness"`
-	Service    string                 `json:"service,omitempty"`
-	Operations map[string]interface{} `json:"operations,omitempty"`
-	Timestamp  string                 `json:"timestamp,omitempty"`
-}
-
 type Draft struct {
 	ID         string    `json:"id"`
 	EntityType string    `json:"entity_type"`

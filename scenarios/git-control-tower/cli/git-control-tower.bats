@@ -30,12 +30,12 @@ setup() {
 
 @test "CLI can fetch repository status if API is running" {
   if curl -sf "$GIT_CONTROL_TOWER_API_BASE/health" >/dev/null; then
-    run "$CLI_SCRIPT" --api-base "$GIT_CONTROL_TOWER_API_BASE" repo-status
+    run "$CLI_SCRIPT" --api-base "$GIT_CONTROL_TOWER_API_BASE" repo status
     if [ "$status" -ne 0 ]; then
-      skip "repo-status failed: $output"
+      skip "repo status failed: $output"
     fi
     [[ "$output" =~ "Branch:" ]]
-    [[ "$output" =~ "Changes:" ]]
+    [[ "$output" =~ "Staged:" || "$output" =~ "Changes:" ]]
   else
     skip "API not running"
   fi

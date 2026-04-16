@@ -561,13 +561,11 @@ func detectEntityTypeFromRepo(name string) string {
 }
 
 func resolveRepoRootOrEmpty() string {
-	if root, err := repocontract.ResolveRepoRoot(); err == nil {
-		return root
+	root, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		return ""
 	}
-	if cwd, err := os.Getwd(); err == nil {
-		return filepath.Clean(cwd)
-	}
-	return ""
+	return root
 }
 
 func statDir(path string) bool {

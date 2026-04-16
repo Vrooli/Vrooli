@@ -12,7 +12,7 @@ func runStop(ctx *appctx.Context, args []string) error {
 	}
 	executionID := args[0]
 
-	_, err := ctx.Core.APIClient.Request("POST", ctx.APIPath("/executions/"+executionID+"/stop"), nil, nil)
+	_, err := ctx.Core.Request("POST", "/executions/"+executionID+"/stop", nil, nil)
 	if err != nil {
 		return err
 	}

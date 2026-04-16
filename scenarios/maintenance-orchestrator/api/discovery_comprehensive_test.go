@@ -31,6 +31,9 @@ func TestDiscoverScenarios(t *testing.T) {
 		t.Fatalf("Failed to change to temp dir: %v", err)
 	}
 
+	t.Setenv("VROOLI_ROOT", "")
+	t.Setenv("VROOLI_SCENARIOS_PATH", filepath.Join(tempDir, "scenarios"))
+
 	t.Run("NoScenariosDirectory", func(t *testing.T) {
 		orch := NewOrchestrator()
 		discoverScenarios(orch, logger)

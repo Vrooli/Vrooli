@@ -7,20 +7,16 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 func discoverScenarios(orchestrator *Orchestrator, logger *log.Logger) {
-	// Use project root-relative path or environment variable
-	scenariosPath := "scenarios"
-	if envPath := os.Getenv("VROOLI_SCENARIOS_PATH"); envPath != "" {
-		scenariosPath = envPath
-	} else {
-		// Try to find scenarios directory relative to project root
-		if cwd, err := os.Getwd(); err == nil {
-			if _, err := os.Stat(filepath.Join(cwd, "scenarios")); err == nil {
-				scenariosPath = filepath.Join(cwd, "scenarios")
-			}
-		}
+	scenariosPath, err := resolveScenariosPath()
+	if err != nil {
+		logger.Printf("Error resolving scenarios directory: %v", err)
+		return
 	}
 
 	entries, err := ioutil.ReadDir(scenariosPath)
@@ -34,7 +30,10 @@ func discoverScenarios(orchestrator *Orchestrator, logger *log.Logger) {
 			continue
 		}
 
-		serviceJsonPath := filepath.Join(scenariosPath, entry.Name(), ".vrooli", "service.json")
+		serviceJsonPath, err := resolveServicePath(scenariosPath, entry.Name())
+		if err != nil {
+			continue
+		}
 		data, err := ioutil.ReadFile(serviceJsonPath)
 		if err != nil {
 			continue
@@ -101,6 +100,55 @@ func discoverScenarios(orchestrator *Orchestrator, logger *log.Logger) {
 	}
 
 	orchestrator.UpdatePresetStates()
+}
+
+func resolveScenariosPath() (string, error) {
+	if envPath := strings.TrimSpace(os.Getenv("VROOLI_SCENARIOS_PATH")); envPath != "" {
+		return filepath.Abs(envPath)
+	}
+
+	if rootOverride := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); rootOverride != "" {
+		if root, err := repocontract.FindRepoRoot(rootOverride); err == nil {
+			if path, resolveErr := resolveScenariosPathFromRepoRoot(root); resolveErr == nil {
+				return path, nil
+			}
+		}
+		return filepath.Join(filepath.Clean(rootOverride), "scenarios"), nil
+	}
+
+	if cwd, err := os.Getwd(); err == nil {
+		if _, findErr := repocontract.FindRepoRoot(cwd); findErr != nil {
+			return filepath.Join(cwd, "scenarios"), nil
+		}
+	}
+
+	if root, err := repocontract.FindRepoRootFromEnvOrCWD(); err == nil {
+		if path, resolveErr := resolveScenariosPathFromRepoRoot(root); resolveErr == nil {
+			return path, nil
+		}
+	}
+
+	if cwd, err := os.Getwd(); err == nil {
+		return filepath.Join(cwd, "scenarios"), nil
+	}
+
+	return "", fmt.Errorf("resolve scenarios path: unable to determine repo root or working directory")
+}
+
+func resolveScenariosPathFromRepoRoot(root string) (string, error) {
+	contract, err := repocontract.LoadDefault(root)
+	if err != nil {
+		return "", err
+	}
+	return contract.TopLevelDir(root, "scenarios")
+}
+
+func resolveServicePath(scenariosPath, scenarioName string) (string, error) {
+	repoRoot := filepath.Dir(filepath.Clean(scenariosPath))
+	if path, err := repocontract.ResolveScenarioFile(repoRoot, scenarioName, "service"); err == nil {
+		return path, nil
+	}
+	return filepath.Join(scenariosPath, scenarioName, ".vrooli", "service.json"), nil
 }
 
 func getStringField(m map[string]interface{}, field, defaultValue string) string {

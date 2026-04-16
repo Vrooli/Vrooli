@@ -9,7 +9,10 @@ import (
 	"os/exec"
 	"sort"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/vrooli/api-core/scenariocli"
 )
 
 // ScoreFn computes a named scoring factor for a node within the graph context.
@@ -289,14 +292,23 @@ type scenarioCompletenessJSON struct {
 // ScenarioCompletenessCLIProvider resolves scores by invoking:
 // scenario-completeness-scoring score <scenario> --json
 type ScenarioCompletenessCLIProvider struct {
-	timeout time.Duration
+	timeout          time.Duration
+	resolveExec      func(context.Context) (string, error)
+	resolveExecOnce  sync.Once
+	resolvedExecPath string
+	resolvedExecErr  error
 }
 
 func NewScenarioCompletenessCLIProvider(timeout time.Duration) *ScenarioCompletenessCLIProvider {
 	if timeout <= 0 {
 		timeout = 15 * time.Second
 	}
-	return &ScenarioCompletenessCLIProvider{timeout: timeout}
+	return &ScenarioCompletenessCLIProvider{
+		timeout: timeout,
+		resolveExec: func(ctx context.Context) (string, error) {
+			return scenariocli.ResolveExecutableFromRepoRootContext(ctx, "scenario-completeness-scoring")
+		},
+	}
 }
 
 func (p *ScenarioCompletenessCLIProvider) ScenarioScore(ctx context.Context, scenario string) (float64, error) {
@@ -307,7 +319,12 @@ func (p *ScenarioCompletenessCLIProvider) ScenarioScore(ctx context.Context, sce
 	}
 	defer cancel()
 
-	cmd := exec.CommandContext(callCtx, "scenario-completeness-scoring", "score", scenario, "--json")
+	executable, err := p.resolveExecutable(callCtx)
+	if err != nil {
+		return 0.0, err
+	}
+
+	cmd := exec.CommandContext(callCtx, executable, "score", scenario, "--json")
 	output, err := cmd.Output()
 	if err != nil {
 		return 0.0, err
@@ -318,6 +335,17 @@ func (p *ScenarioCompletenessCLIProvider) ScenarioScore(ctx context.Context, sce
 		return 0.0, err
 	}
 	return parsed.Score, nil
+}
+
+func (p *ScenarioCompletenessCLIProvider) resolveExecutable(ctx context.Context) (string, error) {
+	p.resolveExecOnce.Do(func() {
+		if p.resolveExec == nil {
+			p.resolvedExecErr = fmt.Errorf("scenario completeness CLI resolver is not configured")
+			return
+		}
+		p.resolvedExecPath, p.resolvedExecErr = p.resolveExec(ctx)
+	})
+	return p.resolvedExecPath, p.resolvedExecErr
 }
 
 // DefaultScoreFns returns the default set of scoring functions.

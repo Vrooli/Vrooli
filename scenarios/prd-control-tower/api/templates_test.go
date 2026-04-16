@@ -14,7 +14,8 @@ import (
 // [REQ:PCT-CATALOG-ENUMERATE] Catalog enumerates all scenarios and resources with PRD status
 func TestHandleListScenarioTemplates(t *testing.T) {
 	tmpRoot := newContractFixtureRepo(t)
-	t.Setenv("VROOLI_ROOT", tmpRoot)
+	t.Setenv("VROOLI_SOURCE_ROOT", tmpRoot)
+	t.Setenv("VROOLI_ROOT", "")
 
 	templatesDir := filepath.Join(tmpRoot, "scripts", "scenarios", "templates")
 	testTemplateDir := filepath.Join(templatesDir, "test-template")
@@ -92,7 +93,8 @@ func TestHandleListScenarioTemplates(t *testing.T) {
 // [REQ:PCT-CATALOG-ENUMERATE] Catalog enumerates all scenarios and resources with PRD status
 func TestHandleGetScenarioTemplate(t *testing.T) {
 	tmpRoot := newContractFixtureRepo(t)
-	t.Setenv("VROOLI_ROOT", tmpRoot)
+	t.Setenv("VROOLI_SOURCE_ROOT", tmpRoot)
+	t.Setenv("VROOLI_ROOT", "")
 
 	templatesDir := filepath.Join(tmpRoot, "scripts", "scenarios", "templates")
 	testTemplateDir := filepath.Join(templatesDir, "minimal-template")
@@ -183,7 +185,8 @@ func TestHandleGetScenarioTemplate(t *testing.T) {
 // [REQ:PCT-CATALOG-ENUMERATE] Catalog enumerates all scenarios and resources with PRD status
 func TestLoadScenarioTemplateManifest(t *testing.T) {
 	tmpRoot := newContractFixtureRepo(t)
-	t.Setenv("VROOLI_ROOT", tmpRoot)
+	t.Setenv("VROOLI_SOURCE_ROOT", tmpRoot)
+	t.Setenv("VROOLI_ROOT", "")
 
 	templatesDir := filepath.Join(tmpRoot, "scripts", "scenarios", "templates")
 	validTemplateDir := filepath.Join(templatesDir, "valid-template")

@@ -141,7 +141,7 @@ func runNavigate(ctx *appctx.Context, args []string) error {
 		return fmt.Errorf("failed to encode request: %w", err)
 	}
 
-	statusCode, body, err := api.Do(ctx, http.MethodPost, ctx.APIPath("/ai-navigate"), nil, payload, nil)
+	statusCode, body, err := api.Do(ctx, http.MethodPost, "/ai-navigate", nil, payload, nil)
 	if err != nil {
 		return fmt.Errorf("failed to start navigation: %w", err)
 	}

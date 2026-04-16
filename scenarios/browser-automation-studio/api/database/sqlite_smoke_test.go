@@ -51,3 +51,25 @@ func TestSQLiteBackendSmoke(t *testing.T) {
 		t.Fatalf("expected sqlite file on disk: %v", err)
 	}
 }
+
+func TestSQLiteDSNIgnoresLegacyFallbackEnv(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_DATA_HOME", filepath.Join(home, ".local", "share"))
+	t.Setenv("BAS_SQLITE_PATH", "")
+	t.Setenv("DATABASE_URL", "")
+	t.Setenv("SQLITE_DATABASE_PATH", filepath.Join(home, "legacy-sqlite-root"))
+	t.Setenv("VROOLI_DATA", filepath.Join(home, "legacy-vrooli-data"))
+
+	dsn, err := sqliteDSN(nil)
+	if err != nil {
+		t.Fatalf("sqliteDSN() error = %v", err)
+	}
+	wantPath := filepath.Join(home, ".local", "share", "vrooli", "browser-automation-studio", "browser-automation-studio.db")
+	if !strings.Contains(dsn, wantPath) {
+		t.Fatalf("sqliteDSN() = %q, want path containing %q", dsn, wantPath)
+	}
+	if _, err := os.Stat(filepath.Dir(wantPath)); err != nil {
+		t.Fatalf("expected canonical sqlite dir at %s: %v", filepath.Dir(wantPath), err)
+	}
+}

@@ -375,7 +375,7 @@ export DATA_STRUCTURER_BATCH_SIZE="10"
 ### Configuration Files
 
 ```yaml
-# ~/.vrooli/data-structurer/config.yaml
+# ~/.config/vrooli/data-structurer/config.yaml
 api:
   base_url: "http://localhost:8080"
   timeout: 30
@@ -423,7 +423,7 @@ batch_process() {
 get_or_create_schema() {
   local schema_name="$1"
   local schema_file="$2"
-  local cache_file="$HOME/.vrooli/data-structurer/schema_cache.json"
+  local cache_file="${XDG_CACHE_HOME:-$HOME/.cache}/vrooli/data-structurer/schema_cache.json"
   
   # Check cache first
   if [[ -f "$cache_file" ]]; then

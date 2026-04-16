@@ -9,6 +9,9 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"landing-page-business-suite/cli/domains/health"
+	"landing-page-business-suite/cli/internal/support"
 )
 
 func withAPIBase(t *testing.T, base string) {
@@ -42,7 +45,7 @@ func TestServiceAuthStatusRequireEnabledPassesWhenConfigured(t *testing.T) {
 		t.Fatalf("NewApp() error: %v", err)
 	}
 
-	if err := app.cmdServiceAuthStatus([]string{"--require-enabled"}); err != nil {
+	if err := app.Run([]string{"service-auth-status", "--require-enabled"}); err != nil {
 		t.Fatalf("cmdServiceAuthStatus returned error: %v", err)
 	}
 }
@@ -62,18 +65,18 @@ func TestServiceAuthStatusRequireEnabledFailsWhenDisabled(t *testing.T) {
 		t.Fatalf("NewApp() error: %v", err)
 	}
 
-	err = app.cmdServiceAuthStatus([]string{"--require-enabled"})
+	err = health.RunServiceAuthStatus(app.dependencies(), []string{"--require-enabled"})
 	if err == nil {
 		t.Fatal("expected error when service auth is disabled")
 	}
-	if !strings.Contains(err.Error(), "Next steps:") {
+	if !strings.Contains(err.Error(), "Next Steps:") {
 		t.Fatalf("expected next-step guidance, got: %v", err)
 	}
 }
 
 func withAdminSession(t *testing.T, app *App, apiBase string) {
 	t.Helper()
-	if err := app.saveAdminSession(adminSessionConfig{
+	if err := app.dependencies().SaveAdminSession(support.AdminSessionConfig{
 		Session: "test-admin-session",
 		APIBase: apiBase,
 	}); err != nil {
@@ -114,7 +117,7 @@ func TestRemoteProfilesLoginAcceptsTagSelector(t *testing.T) {
 	}
 	withAdminSession(t, app, server.URL)
 
-	if err := app.cmdRemoteProfilesLogin([]string{"--tag", "prod", "--email", "admin@example.com", "--password", "secret"}); err != nil {
+	if err := app.Run([]string{"remote-profiles-login", "--tag", "prod", "--email", "admin@example.com", "--password", "secret"}); err != nil {
 		t.Fatalf("cmdRemoteProfilesLogin returned error: %v", err)
 	}
 	if !sawList {
@@ -148,7 +151,7 @@ func TestRemoteProfilesLoginAcceptsProfileIDFlag(t *testing.T) {
 	}
 	withAdminSession(t, app, server.URL)
 
-	if err := app.cmdRemoteProfilesLogin([]string{"--profile-id", "22", "--email", "admin@example.com", "--password", "secret"}); err != nil {
+	if err := app.Run([]string{"remote-profiles-login", "--profile-id", "22", "--email", "admin@example.com", "--password", "secret"}); err != nil {
 		t.Fatalf("cmdRemoteProfilesLogin returned error: %v", err)
 	}
 	if sawList {
@@ -182,7 +185,7 @@ func TestRemoteProfilesTestAcceptsTagSelector(t *testing.T) {
 	}
 	withAdminSession(t, app, server.URL)
 
-	if err := app.cmdRemoteProfilesTest([]string{"--tag", "prod"}); err != nil {
+	if err := app.Run([]string{"remote-profiles-test", "--tag", "prod"}); err != nil {
 		t.Fatalf("cmdRemoteProfilesTest returned error: %v", err)
 	}
 	if !sawList {
@@ -212,7 +215,7 @@ func TestDeployReadinessReportsFailuresWhenUnconfigured(t *testing.T) {
 		t.Fatalf("NewApp() error: %v", err)
 	}
 
-	err = app.cmdDeployReadiness([]string{"--domain", "example.com"})
+	err = app.Run([]string{"deploy-readiness", "--domain", "example.com"})
 	if err == nil {
 		t.Fatal("expected deploy readiness to fail without admin session/service auth")
 	}
@@ -248,7 +251,7 @@ func TestDeployReadinessPassesWithProfileTag(t *testing.T) {
 	}
 	withAdminSession(t, app, server.URL)
 
-	if err := app.cmdDeployReadiness([]string{"--profile-tag", "prod"}); err != nil {
+	if err := app.Run([]string{"deploy-readiness", "--profile-tag", "prod"}); err != nil {
 		t.Fatalf("cmdDeployReadiness returned error: %v", err)
 	}
 }
@@ -278,7 +281,7 @@ func TestDeployReadinessDoesNotSuggestRemoteLoginWhenBlockedByAdminSession(t *te
 	os.Stdout = w
 	t.Cleanup(func() { os.Stdout = originalStdout })
 
-	runErr := app.cmdDeployReadiness([]string{"--profile-tag", "prod", "--domain", "example.com"})
+	runErr := health.RunDeployReadiness(app.dependencies(), []string{"--profile-tag", "prod", "--domain", "example.com"})
 	_ = w.Close()
 	var buf bytes.Buffer
 	_, _ = io.Copy(&buf, r)

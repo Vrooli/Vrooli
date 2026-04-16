@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"landing-page-business-suite/cli/domains/remoteprofiles"
 )
 
 func TestRemoteProfilesProxyAcceptsProfileTagSelector(t *testing.T) {
@@ -41,7 +43,8 @@ func TestRemoteProfilesProxyAcceptsProfileTagSelector(t *testing.T) {
 	}
 	withAdminSession(t, app, server.URL)
 
-	if err := app.cmdRemoteProfilesProxy([]string{
+	if err := app.Run([]string{
+		"remote-profiles-proxy",
 		"--profile-tag", "prod",
 		"--method", "GET",
 		"--path", "/admin/download-apps",
@@ -62,7 +65,7 @@ func TestRemoteProfilesProxyRejectsMixingIDAndProfileTag(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewApp() error: %v", err)
 	}
-	err = app.cmdRemoteProfilesProxy([]string{
+	err = remoteprofiles.RunProxy(app.dependencies(), []string{
 		"12",
 		"--profile-tag", "prod",
 		"--method", "GET",
@@ -94,7 +97,8 @@ func TestRemoteProfilesProxyPositionalIDStillWorks(t *testing.T) {
 	}
 	withAdminSession(t, app, server.URL)
 
-	if err := app.cmdRemoteProfilesProxy([]string{
+	if err := app.Run([]string{
+		"remote-profiles-proxy",
 		"12",
 		"--method", "GET",
 		"--path", "/admin/download-apps",
@@ -140,7 +144,8 @@ func TestRemoteProfilesDownloadStorageTest_UsesProxyEndpoint(t *testing.T) {
 	}
 	withAdminSession(t, app, server.URL)
 
-	if err := app.cmdRemoteProfilesDownloadStorageTest([]string{
+	if err := app.Run([]string{
+		"remote-profiles-download-storage-test",
 		"--profile-tag", "prod",
 		"--json",
 	}); err != nil {
@@ -182,7 +187,8 @@ func TestRemoteProfilesDownloadAppsList_UsesProxyEndpoint(t *testing.T) {
 	}
 	withAdminSession(t, app, server.URL)
 
-	if err := app.cmdRemoteProfilesDownloadAppsList([]string{
+	if err := app.Run([]string{
+		"remote-profiles-download-apps-list",
 		"12",
 		"--json",
 	}); err != nil {

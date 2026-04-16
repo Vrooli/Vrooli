@@ -68,9 +68,9 @@ func TestResolveV1Endpoint(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := app.resolveV1Endpoint(tt.path)
+			result := app.core.APIPath(tt.path)
 			if result != tt.expected {
-				t.Errorf("resolveV1Endpoint(%q) = %q, want %q", tt.path, result, tt.expected)
+				t.Errorf("APIPath(%q) = %q, want %q", tt.path, result, tt.expected)
 			}
 		})
 	}
@@ -647,14 +647,14 @@ func TestBacklogEndpointResolution(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		result := app.resolveV1Endpoint(tt.path)
+		result := app.core.APIPath(tt.path)
 		if result != tt.expected {
-			t.Errorf("resolveV1Endpoint(%q) = %q, want %q", tt.path, result, tt.expected)
+			t.Errorf("APIPath(%q) = %q, want %q", tt.path, result, tt.expected)
 		}
 	}
 }
 
-// [REQ:REQ-P0-009] Test resolveV1Endpoint with various edge cases
+// [REQ:REQ-P0-009] Test APIPath with various edge cases
 func TestResolveV1Endpoint_EdgeCases(t *testing.T) {
 	app, err := NewApp()
 	if err != nil {
@@ -677,9 +677,9 @@ func TestResolveV1Endpoint_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := app.resolveV1Endpoint(tt.path)
+			result := app.core.APIPath(tt.path)
 			if result != tt.expected {
-				t.Errorf("resolveV1Endpoint(%q) = %q, want %q", tt.path, result, tt.expected)
+				t.Errorf("APIPath(%q) = %q, want %q", tt.path, result, tt.expected)
 			}
 		})
 	}
@@ -830,9 +830,9 @@ func TestRequestMultipartV1IncludesAuthHeader(t *testing.T) {
 		t.Fatalf("NewApp() returned error: %v", err)
 	}
 
-	body, err := app.requestMultipartV1("POST", "/backlog/idea/test/files", []byte("payload"), "text/plain")
+	body, err := app.requestMultipart("POST", "/backlog/idea/test/files", []byte("payload"), "text/plain")
 	if err != nil {
-		t.Fatalf("requestMultipartV1 returned error: %v", err)
+		t.Fatalf("requestMultipart returned error: %v", err)
 	}
 	if string(body) != `{"ok":true}` {
 		t.Fatalf("unexpected response body: %s", string(body))

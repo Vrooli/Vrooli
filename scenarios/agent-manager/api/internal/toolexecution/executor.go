@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"agent-manager/internal/adapters/sandbox"
@@ -12,6 +13,7 @@ import (
 	"agent-manager/internal/orchestration"
 
 	"github.com/google/uuid"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // Orchestrator defines the subset of orchestration.Service used by toolexecution.
@@ -80,10 +82,7 @@ func (e *ServerExecutor) spawnCodingAgent(ctx context.Context, args map[string]i
 	runnerType := getStringArg(args, "runner_type", "claude-code")
 	workspacePath := getStringArg(args, "workspace_path", "")
 	if workspacePath == "" {
-		workspacePath = os.Getenv("VROOLI_ROOT")
-		if workspacePath == "" {
-			workspacePath = os.Getenv("HOME") + "/Vrooli"
-		}
+		workspacePath = resolveWorkspacePath()
 	}
 	timeoutMinutes := getIntArg(args, "timeout_minutes", 30)
 
@@ -152,6 +151,20 @@ func (e *ServerExecutor) spawnCodingAgent(ctx context.Context, args map[string]i
 		"status":  string(run.Status),
 		"message": fmt.Sprintf("Coding agent spawned successfully. Run ID: %s, Task ID: %s", run.ID, createdTask.ID),
 	}, run.ID.String()), nil
+}
+
+func resolveWorkspacePath() string {
+	if value := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); value != "" {
+		if root, err := repocontract.FindRepoRootFromPath(value); err == nil {
+			return root
+		}
+	}
+
+	if root, err := repocontract.ResolveRepoRoot(); err == nil {
+		return root
+	}
+
+	return ""
 }
 
 // checkAgentStatus gets the status of a coding agent run.

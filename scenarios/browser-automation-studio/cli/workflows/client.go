@@ -67,7 +67,7 @@ type validationIssue struct {
 }
 
 func listWorkflows(ctx *appctx.Context) ([]workflowSummary, []byte, error) {
-	body, err := ctx.Core.APIClient.Get(ctx.APIPath("/workflows"), nil)
+	body, err := ctx.Core.Get("/workflows", nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -80,7 +80,7 @@ func listWorkflows(ctx *appctx.Context) ([]workflowSummary, []byte, error) {
 
 func getWorkflow(ctx *appctx.Context, id string) (workflowDetail, error) {
 	var detail workflowDetail
-	body, err := ctx.Core.APIClient.Get(ctx.APIPath("/workflows/"+id), nil)
+	body, err := ctx.Core.Get("/workflows/"+id, nil)
 	if err != nil {
 		return detail, err
 	}
@@ -93,13 +93,13 @@ func getWorkflow(ctx *appctx.Context, id string) (workflowDetail, error) {
 func listWorkflowVersions(ctx *appctx.Context, workflowID string, limit int) ([]byte, error) {
 	values := url.Values{}
 	values.Set("limit", fmt.Sprintf("%d", limit))
-	return ctx.Core.APIClient.Get(ctx.APIPath("/workflows/"+workflowID+"/versions"), values)
+	return ctx.Core.Get("/workflows/"+workflowID+"/versions", values)
 }
 
 func getWorkflowVersion(ctx *appctx.Context, workflowID, version string) ([]byte, error) {
-	return ctx.Core.APIClient.Get(ctx.APIPath("/workflows/"+workflowID+"/versions/"+version), nil)
+	return ctx.Core.Get("/workflows/"+workflowID+"/versions/"+version, nil)
 }
 
 func restoreWorkflowVersion(ctx *appctx.Context, workflowID, version string, payload any) ([]byte, error) {
-	return ctx.Core.APIClient.Request("POST", ctx.APIPath("/workflows/"+workflowID+"/versions/"+version+"/restore"), nil, payload)
+	return ctx.Core.Request("POST", "/workflows/"+workflowID+"/versions/"+version+"/restore", nil, payload)
 }

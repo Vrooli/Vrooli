@@ -268,7 +268,7 @@ type Collector interface {
 
 **Implementations:**
 - SQLite-backed implementations in `database/` package (`repository.go`, `repository_run.go`, `repository_stats.go`, `repository_pricing.go`, `repository_support.go`)
-- Single embedded SQLite database file at `~/.vrooli/data/sqlite/databases/agent-manager.db`
+- Single embedded SQLite database file at the scenario `api-core/storage` data path
 - Schema auto-initialized on connection via `database/schema.sql`
 
 ---

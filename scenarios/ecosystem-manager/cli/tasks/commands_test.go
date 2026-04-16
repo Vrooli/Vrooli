@@ -17,6 +17,7 @@ func (f *fakeContext) Get(path string, result interface{}) error { return nil }
 func (f *fakeContext) GetWithQuery(path string, query url.Values, result interface{}) error {
 	return nil
 }
+
 func (f *fakeContext) Post(path string, payload interface{}, result interface{}) error {
 	f.postPath = path
 	f.postPayload = payload

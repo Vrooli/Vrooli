@@ -84,7 +84,7 @@ func runExport(ctx *appctx.Context, args []string) error {
 	}
 
 	// JSON format export (direct API call for streaming response)
-	status, body, err := api.Do(ctx, "POST", ctx.APIPath("/executions/"+executionID+"/export"), nil, nil, nil)
+	status, body, err := api.Do(ctx, "POST", "/executions/"+executionID+"/export", nil, nil, nil)
 	if err != nil {
 		return err
 	}

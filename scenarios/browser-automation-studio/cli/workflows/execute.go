@@ -316,7 +316,7 @@ func runExecute(ctx *appctx.Context, args []string) error {
 		adhoc = true
 	}
 
-	fmt.Printf("API URL: %s\n", ctx.ResolvedAPIV1Base())
+	fmt.Printf("API URL: %s\n", ctx.Core.APIBase())
 	if projectRoot != "" {
 		fmt.Printf("Project root: %s\n", projectRoot)
 	} else {
@@ -529,14 +529,14 @@ func runExecute(ctx *appctx.Context, args []string) error {
 			}
 		}
 
-		executePath := ctx.APIPath("/workflows/execute-adhoc")
+		executePath := ctx.Core.APIPath("/workflows/execute-adhoc")
 		executePath = appendExecuteQuery(executePath, requiresVideo, requiresTrace, requiresHAR, seedMode, seedScenario)
 		response, err = ctx.Core.APIClient.Request("POST", executePath, nil, payload)
 		if err != nil {
 			return err
 		}
 	} else {
-		executePath := ctx.APIPath("/workflows/" + workflow + "/execute")
+		executePath := ctx.Core.APIPath("/workflows/" + workflow + "/execute")
 		executePath = appendExecuteQuery(executePath, requiresVideo, requiresTrace, requiresHAR, seedMode, seedScenario)
 		payload := map[string]any{
 			"parameters":          params,
@@ -610,7 +610,7 @@ func runExecute(ctx *appctx.Context, args []string) error {
 				time.Sleep(5 * time.Second)
 				continue
 			}
-			statusResp, err := ctx.Core.APIClient.Get(ctx.APIPath("/executions/"+executionID), nil)
+			statusResp, err := ctx.Core.Get("/executions/"+executionID, nil)
 			if err != nil {
 				if isExecutionNotFoundErr(err) {
 					fmt.Println("")
@@ -771,10 +771,7 @@ func refreshScenarioAPIBase(ctx *appctx.Context, scenarioName string) error {
 		return err
 	}
 	base = strings.TrimRight(base, "/")
-	current := strings.TrimRight(ctx.APIRoot(), "/")
-	if current == "" {
-		current = strings.TrimRight(ctx.ResolvedAPIRoot(), "/")
-	}
+	current := strings.TrimRight(ctx.Core.APIRootBase(), "/")
 	if base != "" && base != current {
 		ctx.Core.APIOverride = base
 		fmt.Printf("Re-resolved API base: %s\n", strings.TrimRight(base, "/")+"/api/v1")
@@ -883,19 +880,19 @@ func printCollectedArtifacts(ctx *appctx.Context, executionID, recordingsRoot st
 	}
 
 	if hasTimeline {
-		fmt.Printf("Timeline: %s/executions/%s/timeline\n", ctx.ResolvedAPIV1Base(), executionID)
+		fmt.Printf("Timeline: %s/executions/%s/timeline\n", ctx.Core.APIBase(), executionID)
 	}
 	if hasScreenshots {
-		fmt.Printf("Screenshots: %s/executions/%s/screenshots\n", ctx.ResolvedAPIV1Base(), executionID)
+		fmt.Printf("Screenshots: %s/executions/%s/screenshots\n", ctx.Core.APIBase(), executionID)
 	}
 	if hasVideos {
-		fmt.Printf("Recorded videos: %s/executions/%s/recorded-videos\n", ctx.ResolvedAPIV1Base(), executionID)
+		fmt.Printf("Recorded videos: %s/executions/%s/recorded-videos\n", ctx.Core.APIBase(), executionID)
 	}
 	if hasTraces {
-		fmt.Printf("Traces: %s/executions/%s/recorded-traces\n", ctx.ResolvedAPIV1Base(), executionID)
+		fmt.Printf("Traces: %s/executions/%s/recorded-traces\n", ctx.Core.APIBase(), executionID)
 	}
 	if hasHAR {
-		fmt.Printf("HAR files: %s/executions/%s/recorded-har\n", ctx.ResolvedAPIV1Base(), executionID)
+		fmt.Printf("HAR files: %s/executions/%s/recorded-har\n", ctx.Core.APIBase(), executionID)
 	}
 	if !hasTimeline && !hasScreenshots && !hasVideos && !hasTraces && !hasHAR {
 		fmt.Println("No artifacts detected yet.")
@@ -1095,8 +1092,7 @@ func scheduleSeedCleanup(ctx *appctx.Context, executionID, seedScenario, cleanup
 	if strings.TrimSpace(seedScenario) != "" {
 		payload["seed_scenario"] = seedScenario
 	}
-	path := ctx.APIPath("/executions/" + executionID + "/seed-cleanup")
-	_, err := ctx.Core.APIClient.Request("POST", path, nil, payload)
+	_, err := ctx.Core.Request("POST", "/executions/"+executionID+"/seed-cleanup", nil, payload)
 	return err
 }
 
@@ -1340,7 +1336,7 @@ func resolveSessionProfile(ctx *appctx.Context, identifier string) (*sessionProf
 		return nil, fmt.Errorf("profile identifier is required")
 	}
 
-	body, err := ctx.Core.APIClient.Get(ctx.APIPath("/recordings/sessions"), nil)
+	body, err := ctx.Core.Get("/recordings/sessions", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list profiles: %w", err)
 	}
@@ -1394,7 +1390,7 @@ func resolveSessionProfile(ctx *appctx.Context, identifier string) (*sessionProf
 // createSessionProfile creates a new session profile.
 func createSessionProfile(ctx *appctx.Context, name string) (*sessionProfileInfo, error) {
 	payload := map[string]string{"name": name}
-	body, err := ctx.Core.APIClient.Request("POST", ctx.APIPath("/recordings/sessions"), nil, payload)
+	body, err := ctx.Core.Request("POST", "/recordings/sessions", nil, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -1435,7 +1431,7 @@ type sessionStorageStats struct {
 
 // getSessionStorageState retrieves the storage state for a session profile.
 func getSessionStorageState(ctx *appctx.Context, profileID string) (*sessionStorageState, error) {
-	body, err := ctx.Core.APIClient.Get(ctx.APIPath("/recordings/sessions/"+profileID+"/storage"), nil)
+	body, err := ctx.Core.Get("/recordings/sessions/"+profileID+"/storage", nil)
 	if err != nil {
 		return nil, err
 	}

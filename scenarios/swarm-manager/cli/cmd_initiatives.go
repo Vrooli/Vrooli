@@ -30,7 +30,7 @@ func (a *App) cmdInitiativesList(args []string) error {
 		return err
 	}
 
-	body, err := a.getV1("/initiatives", nil)
+	body, err := a.core.Get("/initiatives", nil)
 	if err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func (a *App) cmdInitiativesGet(args []string) error {
 	}
 	name := strings.TrimSpace(*nameFlag)
 
-	body, err := a.getV1("/initiatives/"+name, nil)
+	body, err := a.core.Get("/initiatives/"+name, nil)
 	if err != nil {
 		return err
 	}
@@ -164,7 +164,7 @@ func (a *App) cmdInitiativesCreate(args []string) error {
 		return fmt.Errorf("status must be active or completed")
 	}
 
-	body, err := a.requestV1("POST", "/initiatives", nil, payload)
+	body, err := a.core.Request("POST", "/initiatives", nil, payload)
 	if err != nil {
 		return err
 	}
@@ -216,7 +216,7 @@ func (a *App) cmdInitiativesUpdate(args []string) error {
 		return fmt.Errorf("status must be active or completed")
 	}
 
-	body, err := a.requestV1("PUT", "/initiatives/"+name, nil, payload)
+	body, err := a.core.Request("PUT", "/initiatives/"+name, nil, payload)
 	if err != nil {
 		return err
 	}
@@ -247,7 +247,7 @@ func (a *App) cmdInitiativesDelete(args []string) error {
 	}
 	name := strings.TrimSpace(*nameFlag)
 
-	_, err := a.requestV1("DELETE", "/initiatives/"+name, nil, nil)
+	_, err := a.core.Request("DELETE", "/initiatives/"+name, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -279,7 +279,7 @@ func (a *App) cmdInitiativesAddItems(args []string) error {
 		return err
 	}
 
-	body, err := a.requestV1("POST", "/initiatives/"+name+"/items", nil, payload)
+	body, err := a.core.Request("POST", "/initiatives/"+name+"/items", nil, payload)
 	if err != nil {
 		return err
 	}
@@ -323,7 +323,7 @@ func (a *App) cmdInitiativesRemoveItems(args []string) error {
 		return err
 	}
 
-	body, err := a.requestV1("DELETE", "/initiatives/"+name+"/items", nil, payload)
+	body, err := a.core.Request("DELETE", "/initiatives/"+name+"/items", nil, payload)
 	if err != nil {
 		return err
 	}
@@ -357,7 +357,7 @@ func (a *App) cmdInitiativesFiles(args []string) error {
 	}
 	name := strings.TrimSpace(*nameFlag)
 
-	body, err := a.getV1("/initiatives/"+name+"/files", nil)
+	body, err := a.core.Get("/initiatives/"+name+"/files", nil)
 	if err != nil {
 		return err
 	}
@@ -413,7 +413,7 @@ func (a *App) cmdInitiativesFileGet(args []string) error {
 	name := strings.TrimSpace(*nameFlag)
 	filePath := strings.TrimSpace(*pathFlag)
 
-	body, err := a.getV1("/initiatives/"+name+"/files/"+filePath, nil)
+	body, err := a.core.Get("/initiatives/"+name+"/files/"+filePath, nil)
 	if err != nil {
 		return err
 	}
@@ -531,7 +531,7 @@ func (a *App) cmdInitiativesFileUpload(args []string) error {
 		return fmt.Errorf("finalize multipart request: %w", err)
 	}
 
-	respBody, err := a.requestMultipartV1("POST", "/initiatives/"+name+"/files", formBody.Bytes(), writer.FormDataContentType())
+	respBody, err := a.requestMultipart("POST", "/initiatives/"+name+"/files", formBody.Bytes(), writer.FormDataContentType())
 	if err != nil {
 		return err
 	}
@@ -593,7 +593,7 @@ func (a *App) cmdInitiativesFileOp(args []string) error {
 	}
 	payloadBytes, _ := json.Marshal(payload)
 
-	body, err := a.requestV1("PATCH", "/initiatives/"+name+"/files", nil, payloadBytes)
+	body, err := a.core.Request("PATCH", "/initiatives/"+name+"/files", nil, payloadBytes)
 	if err != nil {
 		return err
 	}

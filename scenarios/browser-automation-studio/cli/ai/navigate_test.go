@@ -56,8 +56,7 @@ func TestAINavigateResponse_JSONTags(t *testing.T) {
 
 func TestRunNavigate_Help(t *testing.T) {
 	ctx := &appctx.Context{
-		Name:    "test-cli",
-		Version: "1.0.0",
+		Name: "test-cli",
 	}
 
 	// Test --help flag
@@ -75,8 +74,7 @@ func TestRunNavigate_Help(t *testing.T) {
 
 func TestRunNavigate_MissingArgs(t *testing.T) {
 	ctx := &appctx.Context{
-		Name:    "test-cli",
-		Version: "1.0.0",
+		Name: "test-cli",
 	}
 
 	tests := []struct {

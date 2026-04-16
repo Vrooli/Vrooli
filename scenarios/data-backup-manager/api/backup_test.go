@@ -37,7 +37,7 @@ func TestNewBackupManager(t *testing.T) {
 
 	t.Run("BackupPathCreation", func(t *testing.T) {
 		// Test that backup path is created
-		backupPath := filepath.Join("data", "backups")
+		backupPath := env.BackupDir
 		if _, err := os.Stat(backupPath); os.IsNotExist(err) {
 			t.Errorf("Expected backup path to exist: %s", backupPath)
 		}
@@ -158,7 +158,7 @@ func TestBackupFiles(t *testing.T) {
 
 	t.Run("BackupDirectoryStructure", func(t *testing.T) {
 		// Test that backup manager sets up correct directory structure
-		backupPath := filepath.Join(env.TempDir, "backups")
+		backupPath := env.BackupDir
 		filesDir := filepath.Join(backupPath, "files")
 
 		// Create the directory structure
@@ -183,14 +183,12 @@ func TestBackupFiles(t *testing.T) {
 	})
 
 	t.Run("DefaultTargetPath", func(t *testing.T) {
-		// Test default path logic
-		targetPath := ""
-		if targetPath == "" {
-			targetPath = "/home/matthalloran8/Vrooli/scenarios"
+		targetPath, err := defaultScenarioBackupTarget()
+		if err != nil {
+			t.Fatalf("Expected default target path, got error: %v", err)
 		}
-
-		if targetPath == "" {
-			t.Error("Expected default target path to be set")
+		if filepath.Base(targetPath) != "scenarios" {
+			t.Errorf("Expected scenarios target path, got %s", targetPath)
 		}
 	})
 }
@@ -205,7 +203,7 @@ func TestBackupPostgres(t *testing.T) {
 
 	t.Run("BackupDirectoryStructure", func(t *testing.T) {
 		// Test directory structure setup
-		backupPath := filepath.Join(env.TempDir, "backups")
+		backupPath := env.BackupDir
 		postgresDir := filepath.Join(backupPath, "postgres")
 
 		// Create the directory
@@ -267,7 +265,7 @@ func TestBackupMinIO(t *testing.T) {
 
 	t.Run("BackupDirectoryStructure", func(t *testing.T) {
 		// Test directory structure setup
-		backupPath := filepath.Join(env.TempDir, "backups")
+		backupPath := env.BackupDir
 		minioDir := filepath.Join(backupPath, "minio")
 
 		// Create the directory

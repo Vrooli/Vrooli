@@ -59,17 +59,17 @@
         "enabled": {
           "type": "boolean",
           "default": false,
-          "description": "Whether this dependency is active in this configuration"
+          "description": "Whether this dependency participates in orchestration for this configuration. Disabled dependencies are skipped entirely."
         },
         "required": {
           "type": "boolean",
           "default": false,
-          "description": "Whether this resource is required for the service to function correctly"
+          "description": "Whether this resource is semantically important for correct behavior. When `startup_policy` is omitted, required resources default to `must_start`."
         },
         "startup_policy": {
           "type": "string",
           "enum": ["must_start", "try_start", "ignore"],
-          "description": "How lifecycle orchestration should treat this dependency during startup"
+          "description": "How lifecycle orchestration should treat this dependency during startup. Defaults to `must_start` when `required=true`, otherwise `ignore`."
         },
         "version": {
           "type": "string",
@@ -85,7 +85,7 @@
         },
         "degraded_behavior": {
           "type": "string",
-          "description": "What functionality is reduced if this resource is unavailable"
+          "description": "Human explanation of fallback behavior when this resource is unavailable. Required for intentional degradation patterns such as `required=true` with `startup_policy=try_start`."
         },
         "startup_order": {
           "type": "integer",

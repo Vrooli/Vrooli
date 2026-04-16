@@ -239,17 +239,11 @@ func (c Config) validated() Config {
 }
 
 func defaultDBPath() string {
-	if path, err := resolveStoragePath(storage.ClassData, "brand-manager.db"); err == nil {
-		return path
-	}
-	return legacyDBPath()
+	return mustResolveStoragePath(storage.ClassData, "brand-manager.db")
 }
 
 func defaultAssetPath() string {
-	if path, err := resolveStoragePath(storage.ClassData, "assets"); err == nil {
-		return path
-	}
-	return legacyAssetPath()
+	return mustResolveStoragePath(storage.ClassData, "assets")
 }
 
 func defaultScenariosDir() string {
@@ -294,18 +288,10 @@ func resolveStoragePath(class storage.Class, rel string) (string, error) {
 	return resolver.Path(storage.Options{ScenarioID: "brand-manager"}, class, rel)
 }
 
-func legacyDBPath() string {
-	home := os.Getenv("HOME")
-	if home == "" {
-		home = "."
+func mustResolveStoragePath(class storage.Class, rel string) string {
+	path, err := resolveStoragePath(class, rel)
+	if err != nil {
+		panic(fmt.Sprintf("resolve brand-manager storage path (%s): %v", rel, err))
 	}
-	return filepath.Join(home, ".vrooli", "brand-manager", "brand-manager.db")
-}
-
-func legacyAssetPath() string {
-	home := os.Getenv("HOME")
-	if home == "" {
-		home = "."
-	}
-	return filepath.Join(home, ".vrooli", "brand-manager", "assets")
+	return path
 }

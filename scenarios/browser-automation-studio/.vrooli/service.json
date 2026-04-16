@@ -173,11 +173,6 @@
           "name": "setup-database",
           "run": "echo 'Database schema will be initialized on first API startup'",
           "description": "Prepare database schema"
-        },
-        {
-          "name": "show-urls",
-          "run": "printf '\ud83d\ude80 Vrooli Ascension initialized\\n  Workflow Builder: http://localhost:%s\\n  API: http://localhost:%s\\n  CLI: browser-automation-studio --help\\n' \"${UI_PORT:-?}\" \"${API_PORT:-?}\"",
-          "description": "Display service access URLs"
         }
       ]
     },
@@ -186,7 +181,7 @@
       "steps": [
         {
           "name": "start-playwright-driver",
-          "run": "echo '\u2139\ufe0f  Playwright driver lifecycle managed by API sidecar supervisor'",
+          "run": "echo 'ℹ️  Playwright driver lifecycle managed by API sidecar supervisor'",
           "description": "Skipped - API manages playwright driver lifecycle via sidecar supervisor. Set BAS_SIDECAR_ENABLED=false or PLAYWRIGHT_DRIVER_URL to use external driver."
         },
         {
@@ -206,11 +201,6 @@
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "printf '\ud83d\ude80 Services running:\\n  Workflow Builder: http://localhost:%s\\n  API: http://localhost:%s\\n  CLI: browser-automation-studio --help\\n' \"${UI_PORT:-?}\" \"${API_PORT:-?}\"",
-          "description": "Display all running service URLs"
         }
       ]
     },

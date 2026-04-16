@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/api-core/storage"
 	appoptimization "scenario-dependency-analyzer/internal/app/optimization"
 	appconfig "scenario-dependency-analyzer/internal/config"
 	"scenario-dependency-analyzer/internal/deployment"
@@ -532,13 +533,32 @@ func TestBuildDeploymentReportAggregates(t *testing.T) {
 		t.Fatalf("expected postgres to surface sqlite alternative")
 	}
 
-	if _, err := os.Stat(filepath.Join(rootPath, ".vrooli", "deployment", "deployment-report.json")); err != nil {
+	reportPath, err := canonicalDeploymentReportPath("root-app")
+	if err != nil {
+		t.Fatalf("resolve canonical deployment report path: %v", err)
+	}
+	if _, err := os.Stat(reportPath); err != nil {
 		t.Fatalf("expected deployment report file to exist: %v", err)
 	}
 
 	if _, err := os.Stat(filepath.Join(childPath, ".vrooli", "service.json")); err != nil {
 		t.Fatalf("child scenario missing service.json: %v", err)
 	}
+}
+
+func canonicalDeploymentReportPath(scenario string) (string, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return "", err
+	}
+	return resolver.Path(
+		storage.Options{ScenarioID: scenario},
+		storage.ClassData,
+		filepath.Join("deployment", "deployment-report.json"),
+	)
 }
 
 func writeTestServiceConfig(t *testing.T, scenariosDir, name string, cfg *types.ServiceConfig) string {

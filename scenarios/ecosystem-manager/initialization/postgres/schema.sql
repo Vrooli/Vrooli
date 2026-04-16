@@ -135,6 +135,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to automatically update metrics
+DROP TRIGGER IF EXISTS trigger_update_operation_metrics ON task_executions;
 CREATE TRIGGER trigger_update_operation_metrics
     BEFORE INSERT OR UPDATE ON task_executions
     FOR EACH ROW
@@ -257,6 +258,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to automatically update last_updated for execution state
+DROP TRIGGER IF EXISTS trigger_profile_execution_state_updated ON profile_execution_state;
 CREATE TRIGGER trigger_profile_execution_state_updated
     BEFORE UPDATE ON profile_execution_state
     FOR EACH ROW

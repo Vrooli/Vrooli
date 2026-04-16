@@ -6,42 +6,18 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
 )
 
-func (a *App) resolveV1Endpoint(endpointPath string) string {
-	endpointPath = strings.TrimSpace(endpointPath)
-	if endpointPath == "" {
-		return ""
-	}
-	if !strings.HasPrefix(endpointPath, "/") {
-		endpointPath = "/" + endpointPath
-	}
-	base := strings.TrimRight(strings.TrimSpace(a.core.HTTPClient.BaseURL()), "/")
-	if strings.HasSuffix(base, "/api/v1") {
-		return endpointPath
-	}
-	return "/api/v1" + endpointPath
-}
-
-func (a *App) getV1(path string, query url.Values) ([]byte, error) {
-	return a.core.APIClient.Get(a.resolveV1Endpoint(path), query)
-}
-
-func (a *App) requestV1(method, path string, query url.Values, payload any) ([]byte, error) {
-	return a.core.APIClient.Request(method, a.resolveV1Endpoint(path), query, payload)
-}
-
-func (a *App) requestMultipartV1(method, path string, payload []byte, contentType string) ([]byte, error) {
-	base := strings.TrimRight(strings.TrimSpace(a.core.APIClient.BaseURL()), "/")
+func (a *App) requestMultipart(method, path string, payload []byte, contentType string) ([]byte, error) {
+	base := strings.TrimRight(strings.TrimSpace(a.core.APIRootBase()), "/")
 	if base == "" {
 		return nil, fmt.Errorf("api base URL is empty; configure an API base or set an API port")
 	}
-	endpoint := base + a.resolveV1Endpoint(path)
+	endpoint := base + a.core.APIPath(path)
 
 	req, err := http.NewRequest(method, endpoint, bytes.NewReader(payload))
 	if err != nil {

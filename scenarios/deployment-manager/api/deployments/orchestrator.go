@@ -700,55 +700,31 @@ func (o *Orchestrator) deployFinalizeAndPublish(ds *deployState) {
 }
 
 func resolveRepoRoot() string {
-	for _, key := range []string{"VROOLI_SOURCE_ROOT", "VROOLI_ROOT"} {
-		if root := strings.TrimSpace(os.Getenv(key)); root != "" {
-			if resolved, ok := canonicalRepoRootFromOverride(root); ok {
-				return resolved
-			}
-			return filepath.Clean(root)
-		}
+	root, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		return ""
 	}
-	if root, err := repocontract.ResolveRepoRoot(); err == nil {
-		return root
-	}
-	if cwd, err := os.Getwd(); err == nil {
-		return filepath.Clean(cwd)
-	}
-	return "."
+	return root
 }
 
 func resolveTopLevelScenarioDir(repoRoot string) string {
-	if contract, err := repocontract.LoadDefault(repoRoot); err == nil {
-		if resolved, resolveErr := contract.TopLevelDir(repoRoot, "scenarios"); resolveErr == nil {
-			return resolved
-		}
+	contract, err := repocontract.LoadDefault(repoRoot)
+	if err != nil {
+		return ""
 	}
-	return filepath.Join(repoRoot, "scenarios")
+	resolved, err := contract.TopLevelDir(repoRoot, "scenarios")
+	if err != nil {
+		return ""
+	}
+	return resolved
 }
 
 func resolveScenarioDir(repoRoot, scenario string) string {
-	if resolved, err := repocontract.ResolveScenarioPath(repoRoot, strings.TrimSpace(scenario)); err == nil {
-		return resolved
+	resolved, err := repocontract.ResolveScenarioPath(repoRoot, strings.TrimSpace(scenario))
+	if err != nil {
+		return ""
 	}
-	return filepath.Join(repoRoot, "scenarios", strings.TrimSpace(scenario))
-}
-
-func canonicalRepoRootFromOverride(path string) (string, bool) {
-	current := filepath.Clean(strings.TrimSpace(path))
-	if current == "" || current == "." {
-		return "", false
-	}
-	for depth := 0; depth < 25; depth++ {
-		if resolved, err := repocontract.FindRepoRoot(current); err == nil {
-			return resolved, true
-		}
-		parent := filepath.Dir(current)
-		if parent == current {
-			break
-		}
-		current = parent
-	}
-	return "", false
+	return resolved
 }
 
 // blockingDependencies lists dependencies that require swaps for desktop deployment.

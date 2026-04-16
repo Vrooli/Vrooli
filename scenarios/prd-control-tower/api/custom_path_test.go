@@ -92,7 +92,8 @@ func TestResolveEntityBaseDir(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("VROOLI_ROOT", tt.vrooliRoot)
+			t.Setenv("VROOLI_SOURCE_ROOT", tt.vrooliRoot)
+			t.Setenv("VROOLI_ROOT", "")
 			if tt.vrooliRoot == "" && tt.customPath == "" {
 				origWD, err := os.Getwd()
 				if err != nil {
@@ -152,6 +153,7 @@ func TestExtractOperationalTargets_CustomPath(t *testing.T) {
 	}
 
 	// Don't set VROOLI_ROOT — custom path should bypass it entirely
+	t.Setenv("VROOLI_SOURCE_ROOT", "")
 	t.Setenv("VROOLI_ROOT", "")
 	t.Setenv("HOME", "")
 
@@ -196,8 +198,9 @@ func TestExtractOperationalTargets_CustomPathNoPRD(t *testing.T) {
 }
 
 func TestExtractOperationalTargets_WithoutCustomPathUsesStandardPath(t *testing.T) {
-	vrooliRoot := t.TempDir()
-	t.Setenv("VROOLI_ROOT", vrooliRoot)
+	vrooliRoot := newContractFixtureRepo(t)
+	t.Setenv("VROOLI_SOURCE_ROOT", vrooliRoot)
+	t.Setenv("VROOLI_ROOT", "")
 
 	scenarioDir := filepath.Join(vrooliRoot, "scenarios", "std-scenario")
 	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
@@ -251,6 +254,7 @@ func TestLoadRequirementsForEntity_CustomPath(t *testing.T) {
 	}
 
 	// No VROOLI_ROOT needed
+	t.Setenv("VROOLI_SOURCE_ROOT", "")
 	t.Setenv("VROOLI_ROOT", "")
 	t.Setenv("HOME", "")
 
@@ -481,8 +485,9 @@ func TestBuildPrompt_CustomPathMissingPRD(t *testing.T) {
 }
 
 func TestBuildPrompt_WithoutCustomPathUsesStandardPath(t *testing.T) {
-	vrooliRoot := t.TempDir()
-	t.Setenv("VROOLI_ROOT", vrooliRoot)
+	vrooliRoot := newContractFixtureRepo(t)
+	t.Setenv("VROOLI_SOURCE_ROOT", vrooliRoot)
+	t.Setenv("VROOLI_ROOT", "")
 
 	scenarioDir := filepath.Join(vrooliRoot, "scenarios", "my-scenario")
 	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
@@ -528,6 +533,7 @@ func TestComputeQualityReport_CustomPath(t *testing.T) {
 	}
 
 	// Don't need VROOLI_ROOT
+	t.Setenv("VROOLI_SOURCE_ROOT", "")
 	t.Setenv("VROOLI_ROOT", "")
 	t.Setenv("HOME", "")
 
@@ -601,8 +607,9 @@ func TestBuildQualityReport_CustomPathCacheKey(t *testing.T) {
 	}
 
 	// No custom path also should NOT hit cache for the same entity name
-	vrooliRoot := t.TempDir()
-	t.Setenv("VROOLI_ROOT", vrooliRoot)
+	vrooliRoot := newContractFixtureRepo(t)
+	t.Setenv("VROOLI_SOURCE_ROOT", vrooliRoot)
+	t.Setenv("VROOLI_ROOT", "")
 	scenarioDir := filepath.Join(vrooliRoot, "scenarios", "cache-test")
 	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)

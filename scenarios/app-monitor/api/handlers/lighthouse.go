@@ -19,7 +19,7 @@ import (
 
 // LighthouseHandler handles Lighthouse audit requests
 type LighthouseHandler struct {
-	appRoot string
+	repoRoot string
 }
 
 const (
@@ -30,25 +30,16 @@ const (
 // NewLighthouseHandler creates a new Lighthouse handler
 func NewLighthouseHandler() *LighthouseHandler {
 	return &LighthouseHandler{
-		appRoot: resolveAppRoot(),
+		repoRoot: resolveRepoRoot(),
 	}
 }
 
-func resolveAppRoot() string {
-	if value, ok := os.LookupEnv("APP_ROOT"); ok {
-		root := strings.TrimSpace(value)
-		if root == "" {
-			return filepath.Clean(".")
-		}
-		if resolved, err := repocontract.FindRepoRootFromPath(root); err == nil {
-			return resolved
-		}
-		return filepath.Clean(root)
+func resolveRepoRoot() string {
+	root, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		panic(fmt.Sprintf("resolve repo root: %v", err))
 	}
-	if root, err := repocontract.ResolveRepoRoot(); err == nil {
-		return root
-	}
-	return filepath.Clean(".")
+	return root
 }
 
 // LighthouseRunRequest represents a request to run Lighthouse audits
@@ -131,11 +122,11 @@ func (h *LighthouseHandler) RunLighthouse(c *gin.Context) {
 		c.Request.Context(),
 		"test-genie", "execute", scenarioName, "performance", "--no-stream", "--skip", "structure,dependencies,unit,integration,business",
 	)
-	cmd.Dir = h.appRoot
+	cmd.Dir = h.repoRoot
 
 	// Set environment
 	cmd.Env = append(os.Environ(),
-		fmt.Sprintf("APP_ROOT=%s", h.appRoot),
+		fmt.Sprintf("VROOLI_ROOT=%s", h.repoRoot),
 		fmt.Sprintf("TESTING_LIGHTHOUSE_PAGES=%s", strings.Join(req.Pages, ",")),
 	)
 
@@ -207,7 +198,7 @@ func (h *LighthouseHandler) RunLighthouse(c *gin.Context) {
 // ListMissingConfigs returns all scenarios that are missing Lighthouse configuration.
 // GET /api/v1/lighthouse/missing-configs
 func (h *LighthouseHandler) ListMissingConfigs(c *gin.Context) {
-	scenariosDir := filepath.Join(h.appRoot, "scenarios")
+	scenariosDir := filepath.Join(h.repoRoot, "scenarios")
 	entries, err := os.ReadDir(scenariosDir)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -249,7 +240,7 @@ func (h *LighthouseHandler) ListMissingConfigs(c *gin.Context) {
 }
 
 func (h *LighthouseHandler) scenarioPath(name string) string {
-	return filepath.Join(h.appRoot, "scenarios", name)
+	return filepath.Join(h.repoRoot, "scenarios", name)
 }
 
 func (h *LighthouseHandler) configPath(name string) string {
@@ -325,7 +316,7 @@ func (h *LighthouseHandler) GetLighthouseReport(c *gin.Context) {
 	format := c.DefaultQuery("format", "html")
 
 	// Find report file
-	artifactsDir := filepath.Join(h.appRoot, "scenarios", scenarioName, "test", "artifacts", "lighthouse")
+	artifactsDir := filepath.Join(h.repoRoot, "scenarios", scenarioName, "test", "artifacts", "lighthouse")
 	ext := ".html"
 	if format == "json" {
 		ext = ".json"
@@ -355,10 +346,10 @@ func (h *LighthouseHandler) GetLighthouseReport(c *gin.Context) {
 
 // loadLatestReports loads the most recent Lighthouse reports for a scenario
 func (h *LighthouseHandler) loadLatestReports(scenarioName string) ([]LighthouseReport, error) {
-	artifactsDir := filepath.Join(h.appRoot, "scenarios", scenarioName, "test", "artifacts", "lighthouse")
+	artifactsDir := filepath.Join(h.repoRoot, "scenarios", scenarioName, "test", "artifacts", "lighthouse")
 
 	// Read phase results for structured data
-	phaseResultsPath := filepath.Join(h.appRoot, "scenarios", scenarioName, "coverage", "phase-results", "lighthouse.json")
+	phaseResultsPath := filepath.Join(h.repoRoot, "scenarios", scenarioName, "coverage", "phase-results", "lighthouse.json")
 	data, err := os.ReadFile(phaseResultsPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read lighthouse phase results: %w", err)
@@ -410,7 +401,7 @@ func (h *LighthouseHandler) loadLatestReports(scenarioName string) ([]Lighthouse
 
 // loadAllReports loads all Lighthouse reports for a scenario (for history)
 func (h *LighthouseHandler) loadAllReports(scenarioName string) ([]LighthouseReport, error) {
-	artifactsDir := filepath.Join(h.appRoot, "scenarios", scenarioName, "test", "artifacts", "lighthouse")
+	artifactsDir := filepath.Join(h.repoRoot, "scenarios", scenarioName, "test", "artifacts", "lighthouse")
 
 	// Check if directory exists
 	if _, err := os.Stat(artifactsDir); os.IsNotExist(err) {

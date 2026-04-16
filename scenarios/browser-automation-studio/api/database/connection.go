@@ -18,6 +18,7 @@ import (
 	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/constants"
+	repocontract "github.com/vrooli/repo-contract-go"
 	_ "modernc.org/sqlite"
 )
 
@@ -168,25 +169,12 @@ func sqliteDSN(log *logrus.Logger) (string, error) {
 		if custom := strings.TrimSpace(os.Getenv("DATABASE_URL")); strings.HasPrefix(custom, "file:") {
 			return custom, nil
 		}
-		dataRoot := strings.TrimSpace(os.Getenv("SQLITE_DATABASE_PATH"))
-		if dataRoot == "" {
-			dataRoot = strings.TrimSpace(os.Getenv("VROOLI_DATA"))
+		path, err := scenarioDBPath()
+		if err != nil {
+			return "", fmt.Errorf("resolve canonical sqlite path: %w", err)
 		}
-		if dataRoot == "" {
-			if path, err := scenarioDBPath(); err == nil {
-				if migrateErr := migrateLegacySQLite(path); migrateErr != nil {
-					return "", fmt.Errorf("migrate legacy sqlite: %w", migrateErr)
-				}
-				root = path
-				goto ensureDir
-			}
-			home, _ := os.UserHomeDir()
-			if home == "" {
-				home = "."
-			}
-			dataRoot = filepath.Join(home, ".vrooli", "data", "sqlite", "databases")
-		}
-		root = filepath.Join(dataRoot, "browser-automation-studio.db")
+		root = path
+		goto ensureDir
 	}
 
 ensureDir:
@@ -213,32 +201,6 @@ func scenarioDBPath() (string, error) {
 		return "", err
 	}
 	return resolver.Path(storage.Options{ScenarioID: "browser-automation-studio"}, storage.ClassData, "browser-automation-studio.db")
-}
-
-func migrateLegacySQLite(dst string) error {
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		return nil
-	}
-	src := filepath.Join(home, ".vrooli", "data", "sqlite", "databases", "browser-automation-studio.db")
-	if src == dst {
-		return nil
-	}
-	if _, err := os.Stat(src); err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-	if _, err := os.Stat(dst); err == nil {
-		return nil
-	} else if !os.IsNotExist(err) {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return err
-	}
-	return os.Rename(src, dst)
 }
 
 func ensureSQLiteResource(log *logrus.Logger) error {
@@ -326,21 +288,9 @@ func (db *DB) initSchema() error {
 		filename = "schema_sqlite.sql"
 	}
 
-	// Resolve schema path from standard location: initialization/postgres/
-	// This uses the scenario root, resolved from VROOLI_ROOT or executable path
-	scenarioRoot := os.Getenv("VROOLI_ROOT")
-	if scenarioRoot != "" {
-		scenarioRoot = filepath.Join(scenarioRoot, "scenarios", "browser-automation-studio")
-	} else {
-		// Fallback: resolve from executable location
-		// Expected structure: {scenario}/api/binary -> go up 1 level to scenario root
-		if execPath, err := os.Executable(); err == nil {
-			scenarioRoot = filepath.Join(filepath.Dir(execPath), "..")
-			scenarioRoot, _ = filepath.Abs(scenarioRoot)
-		} else {
-			// Last resort: use relative path from current working directory
-			scenarioRoot = "."
-		}
+	scenarioRoot, err := resolveScenarioRoot()
+	if err != nil {
+		return fmt.Errorf("resolve browser-automation-studio scenario root: %w", err)
 	}
 	schemaPath := filepath.Join(scenarioRoot, "initialization", "postgres", filename)
 
@@ -366,6 +316,22 @@ func (db *DB) initSchema() error {
 
 	db.log.Info("Database schema initialized successfully")
 	return nil
+}
+
+func resolveScenarioRoot() (string, error) {
+	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
+		repoRoot, err := repocontract.FindRepoRootFromPath(root)
+		if err != nil {
+			return "", err
+		}
+		return repocontract.ResolveScenarioPath(repoRoot, "browser-automation-studio")
+	}
+
+	repoRoot, err := repocontract.FindRepoRootFromEnvOrCWD()
+	if err != nil {
+		return "", err
+	}
+	return repocontract.ResolveScenarioPath(repoRoot, "browser-automation-studio")
 }
 
 func (db *DB) applyIndexSchemaMigrations(ctx context.Context) error {

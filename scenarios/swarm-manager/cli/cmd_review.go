@@ -21,7 +21,7 @@ func (a *App) cmdReviewList(args []string) error {
 		return fmt.Errorf("usage: review-list --kind KIND --name NAME [--json]")
 	}
 
-	body, err := a.getV1(fmt.Sprintf("/backlog/%s/%s/review", *kind, *name), nil)
+	body, err := a.core.Get(fmt.Sprintf("/backlog/%s/%s/review", *kind, *name), nil)
 	if err != nil {
 		return err
 	}
@@ -100,7 +100,7 @@ func (a *App) cmdReviewVerify(args []string) error {
 	verified := !*unverify
 	payload := map[string]any{"verified": verified}
 	path := fmt.Sprintf("/backlog/%s/%s/review/%d/verify/%s", *kind, *name, *round, *evidenceID)
-	body, err := a.requestV1("POST", path, nil, payload)
+	body, err := a.core.Request("POST", path, nil, payload)
 	if err != nil {
 		return err
 	}
@@ -136,7 +136,7 @@ func (a *App) cmdReviewRequest(args []string) error {
 	}
 
 	path := fmt.Sprintf("/backlog/%s/%s/review/%d/request", *kind, *name, *round)
-	body, err := a.requestV1("POST", path, nil, payload)
+	body, err := a.core.Request("POST", path, nil, payload)
 	if err != nil {
 		return err
 	}
@@ -172,7 +172,7 @@ func (a *App) cmdReviewTrigger(args []string) error {
 		"backlog_name": *name,
 	}
 	path := fmt.Sprintf("/execution/%s/trigger-review-agent", *execID)
-	body, err := a.requestV1("POST", path, nil, payload)
+	body, err := a.core.Request("POST", path, nil, payload)
 	if err != nil {
 		return err
 	}

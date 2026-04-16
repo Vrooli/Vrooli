@@ -13,6 +13,8 @@ import (
 
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/storage"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // BackupManager handles all backup operations
@@ -21,21 +23,28 @@ type BackupManager struct {
 	backupPath string
 }
 
+const (
+	backupManagerAppID      = "vrooli"
+	backupManagerScenarioID = "data-backup-manager"
+)
+
 // NewBackupManager creates a new backup manager instance with automatic retry and backoff.
 // Reads POSTGRES_* environment variables set by the lifecycle system.
 func NewBackupManager() (*BackupManager, error) {
+	backupPath, err := resolveBackupRoot()
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve backup directory: %w", err)
+	}
+	if err := os.MkdirAll(backupPath, 0o755); err != nil {
+		return nil, fmt.Errorf("failed to create backup directory: %w", err)
+	}
+
 	// Connect to database with automatic retry and backoff
 	db, err := database.Connect(context.Background(), database.Config{
 		Driver: "postgres",
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
-	}
-
-	// Set up backup path
-	backupPath := filepath.Join("data", "backups")
-	if err := os.MkdirAll(backupPath, 0o755); err != nil {
-		return nil, fmt.Errorf("failed to create backup directory: %w", err)
 	}
 
 	bm := &BackupManager{
@@ -194,7 +203,12 @@ func (bm *BackupManager) BackupFiles(jobID string, targetPath string) error {
 
 	// Default to backing up scenario configurations
 	if targetPath == "" {
-		targetPath = "/home/matthalloran8/Vrooli/scenarios"
+		var err error
+		targetPath, err = defaultScenarioBackupTarget()
+		if err != nil {
+			bm.updateJobStatus(jobID, "failed")
+			return err
+		}
 	}
 
 	// Create tar archive
@@ -421,6 +435,25 @@ func (bm *BackupManager) ScheduleBackup(name string, cronExpr string, backupType
 
 	log.Printf("Scheduled backup created: %s", name)
 	return nil
+}
+
+func resolveBackupRoot() (string, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   backupManagerAppID,
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return "", err
+	}
+	return resolver.Path(storage.Options{ScenarioID: backupManagerScenarioID}, storage.ClassData, "backups")
+}
+
+func defaultScenarioBackupTarget() (string, error) {
+	repoRoot, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		return "", fmt.Errorf("resolve repo root for default file backup target: %w", err)
+	}
+	return filepath.Join(repoRoot, "scenarios"), nil
 }
 
 // ensureSchema creates the database schema if it doesn't exist

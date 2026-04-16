@@ -16,7 +16,7 @@ func (a *App) cmdStatus(args []string) error {
 		return err
 	}
 
-	body, err := a.getV1("/health", nil)
+	body, err := a.core.Get("/health", nil)
 	if err != nil {
 		return err
 	}

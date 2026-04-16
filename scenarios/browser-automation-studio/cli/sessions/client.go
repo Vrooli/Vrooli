@@ -93,7 +93,7 @@ func parseBrowserProfile(raw json.RawMessage) *browserProfile {
 }
 
 func listProfiles(ctx *appctx.Context) ([]sessionProfile, []byte, error) {
-	body, err := ctx.Core.APIClient.Get(ctx.APIPath("/recordings/sessions"), nil)
+	body, err := ctx.Core.Get("/recordings/sessions", nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -106,7 +106,7 @@ func listProfiles(ctx *appctx.Context) ([]sessionProfile, []byte, error) {
 
 func createProfile(ctx *appctx.Context, name string) (sessionProfile, []byte, error) {
 	payload := map[string]string{"name": name}
-	body, err := ctx.Core.APIClient.Request("POST", ctx.APIPath("/recordings/sessions"), nil, payload)
+	body, err := ctx.Core.Request("POST", "/recordings/sessions", nil, payload)
 	if err != nil {
 		return sessionProfile{}, nil, err
 	}
@@ -118,12 +118,12 @@ func createProfile(ctx *appctx.Context, name string) (sessionProfile, []byte, er
 }
 
 func deleteProfile(ctx *appctx.Context, profileID string) error {
-	_, err := ctx.Core.APIClient.Request("DELETE", ctx.APIPath("/recordings/sessions/"+profileID), url.Values{}, nil)
+	_, err := ctx.Core.Request("DELETE", "/recordings/sessions/"+profileID, url.Values{}, nil)
 	return err
 }
 
 func getStorageState(ctx *appctx.Context, profileID string) (*storageStateResponse, []byte, error) {
-	body, err := ctx.Core.APIClient.Get(ctx.APIPath("/recordings/sessions/"+profileID+"/storage"), nil)
+	body, err := ctx.Core.Get("/recordings/sessions/"+profileID+"/storage", nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -135,13 +135,13 @@ func getStorageState(ctx *appctx.Context, profileID string) (*storageStateRespon
 }
 
 func clearStorage(ctx *appctx.Context, profileID string) error {
-	_, err := ctx.Core.APIClient.Request("DELETE", ctx.APIPath("/recordings/sessions/"+profileID+"/storage"), url.Values{}, nil)
+	_, err := ctx.Core.Request("DELETE", "/recordings/sessions/"+profileID+"/storage", url.Values{}, nil)
 	return err
 }
 
 func renameProfile(ctx *appctx.Context, profileID, newName string) (sessionProfile, []byte, error) {
 	payload := map[string]string{"name": newName}
-	body, err := ctx.Core.APIClient.Request("PATCH", ctx.APIPath("/recordings/sessions/"+profileID), nil, payload)
+	body, err := ctx.Core.Request("PATCH", "/recordings/sessions/"+profileID, nil, payload)
 	if err != nil {
 		return sessionProfile{}, nil, err
 	}

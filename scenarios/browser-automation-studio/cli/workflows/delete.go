@@ -12,7 +12,7 @@ func runDelete(ctx *appctx.Context, args []string) error {
 		return fmt.Errorf("usage: browser-automation-studio workflow delete <id>")
 	}
 	workflowID := args[0]
-	_, err := ctx.Core.APIClient.Request("DELETE", ctx.APIPath("/workflows/"+workflowID), url.Values{}, nil)
+	_, err := ctx.Core.Request("DELETE", "/workflows/"+workflowID, url.Values{}, nil)
 	if err != nil {
 		return err
 	}

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"scenario-to-desktop/cli/pipeline"
+	"scenario-to-desktop/cli/domains/pipeline"
 )
 
 func main() {

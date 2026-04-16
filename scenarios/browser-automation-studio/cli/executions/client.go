@@ -42,7 +42,7 @@ type exportSummary struct {
 }
 
 func listExecutions(ctx *appctx.Context, values url.Values) ([]executionSummary, []byte, error) {
-	body, err := ctx.Core.APIClient.Get(ctx.APIPath("/executions"), values)
+	body, err := ctx.Core.Get("/executions", values)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -59,7 +59,7 @@ func listExecutions(ctx *appctx.Context, values url.Values) ([]executionSummary,
 
 func getExecution(ctx *appctx.Context, executionID string) (executionDetail, []byte, error) {
 	var detail executionDetail
-	body, err := ctx.Core.APIClient.Get(ctx.APIPath("/executions/"+executionID), nil)
+	body, err := ctx.Core.Get("/executions/"+executionID, nil)
 	if err != nil {
 		return detail, nil, err
 	}

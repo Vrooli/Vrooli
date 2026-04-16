@@ -116,10 +116,10 @@ func TestApp_RegisterCommands_Groups(t *testing.T) {
 		t.Fatalf("NewApp() failed: %v", err)
 	}
 
-	groups := app.registerCommands()
+	groups := app.commandGroups()
 
 	// Verify expected command groups exist
-	expectedGroups := []string{"Health", "Profiles", "Tasks", "Runs", "Runners", "Settings", "Maintenance", "Configuration"}
+	expectedGroups := []string{"Health", "Configuration", "Profiles", "Tasks", "Runs", "Runners", "Settings", "Maintenance"}
 	if len(groups) != len(expectedGroups) {
 		t.Errorf("expected %d command groups, got %d", len(expectedGroups), len(groups))
 	}
@@ -140,7 +140,7 @@ func TestApp_RegisterCommands_HealthGroup(t *testing.T) {
 		t.Fatalf("NewApp() failed: %v", err)
 	}
 
-	groups := app.registerCommands()
+	groups := app.commandGroups()
 
 	// Find Health group
 	var healthGroup *struct {
@@ -178,60 +178,6 @@ func TestApp_RegisterCommands_HealthGroup(t *testing.T) {
 	}
 	if !hasStatus {
 		t.Error("expected 'status' command in Health group")
-	}
-}
-
-// =============================================================================
-// API PATH HELPER TESTS
-// =============================================================================
-
-func TestApp_ApiPath_EmptyString(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
-	}
-
-	result := app.apiPath("")
-	if result != "" {
-		t.Errorf("expected empty string for empty input, got '%s'", result)
-	}
-}
-
-func TestApp_ApiPath_WhitespaceOnly(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
-	}
-
-	result := app.apiPath("   ")
-	if result != "" {
-		t.Errorf("expected empty string for whitespace input, got '%s'", result)
-	}
-}
-
-func TestApp_ApiPath_WithLeadingSlash(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
-	}
-
-	result := app.apiPath("/health")
-	// Should include /api/v1 prefix when not already present in base URL
-	if result != "/api/v1/health" {
-		t.Errorf("expected '/api/v1/health', got '%s'", result)
-	}
-}
-
-func TestApp_ApiPath_WithoutLeadingSlash(t *testing.T) {
-	app, err := NewApp()
-	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
-	}
-
-	result := app.apiPath("profiles")
-	// Should add leading slash and /api/v1 prefix
-	if result != "/api/v1/profiles" {
-		t.Errorf("expected '/api/v1/profiles', got '%s'", result)
 	}
 }
 

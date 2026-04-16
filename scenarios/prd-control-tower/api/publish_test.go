@@ -235,8 +235,9 @@ func TestCopyFileOverwritesExisting(t *testing.T) {
 }
 
 func TestValidateOperationalTargetsLinkage_EmptyRequirementsIndexSkips(t *testing.T) {
-	vrooliRoot := t.TempDir()
-	t.Setenv("VROOLI_ROOT", vrooliRoot)
+	vrooliRoot := newContractFixtureRepo(t)
+	t.Setenv("VROOLI_SOURCE_ROOT", vrooliRoot)
+	t.Setenv("VROOLI_ROOT", "")
 
 	entityType := "scenario"
 	entityName := "sample-scenario"
@@ -267,8 +268,9 @@ func TestValidateOperationalTargetsLinkage_EmptyRequirementsIndexSkips(t *testin
 }
 
 func TestValidateOperationalTargetsLinkage_NonEmptyRequirementsIndexEnforcesLinks(t *testing.T) {
-	vrooliRoot := t.TempDir()
-	t.Setenv("VROOLI_ROOT", vrooliRoot)
+	vrooliRoot := newContractFixtureRepo(t)
+	t.Setenv("VROOLI_SOURCE_ROOT", vrooliRoot)
+	t.Setenv("VROOLI_ROOT", "")
 
 	entityType := "scenario"
 	entityName := "sample-scenario"
@@ -296,8 +298,9 @@ func TestValidateOperationalTargetsLinkage_NonEmptyRequirementsIndexEnforcesLink
 }
 
 func TestValidateOperationalTargetsLinkage_InvalidRequirementsIndexErrors(t *testing.T) {
-	vrooliRoot := t.TempDir()
-	t.Setenv("VROOLI_ROOT", vrooliRoot)
+	vrooliRoot := newContractFixtureRepo(t)
+	t.Setenv("VROOLI_SOURCE_ROOT", vrooliRoot)
+	t.Setenv("VROOLI_ROOT", "")
 
 	entityType := "scenario"
 	entityName := "sample-scenario"

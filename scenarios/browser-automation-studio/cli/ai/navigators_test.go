@@ -99,8 +99,7 @@ func TestNavigatorsResponse_Struct(t *testing.T) {
 
 func TestRunNavigators_Help(t *testing.T) {
 	ctx := &appctx.Context{
-		Name:    "test-cli",
-		Version: "1.0.0",
+		Name: "test-cli",
 	}
 
 	// Test --help flag
@@ -118,8 +117,7 @@ func TestRunNavigators_Help(t *testing.T) {
 
 func TestRunNavigators_InvalidArgs(t *testing.T) {
 	ctx := &appctx.Context{
-		Name:    "test-cli",
-		Version: "1.0.0",
+		Name: "test-cli",
 	}
 
 	tests := []struct {

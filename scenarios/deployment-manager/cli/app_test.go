@@ -29,7 +29,7 @@ func TestHelpListsCommandGroups(t *testing.T) {
 	_ = w.Close()
 
 	out, _ := io.ReadAll(r)
-	for _, section := range []string{"Overview", "Profiles", "Swaps", "Deployments", "Configuration"} {
+	for _, section := range []string{"Health", "Overview", "Profiles", "Swaps", "Deployments", "Configuration"} {
 		if !strings.Contains(string(out), section) {
 			t.Fatalf("expected help output to include %q; got: %s", section, string(out))
 		}
@@ -41,7 +41,7 @@ func TestRunProfileRejectsUnknown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new app: %v", err)
 	}
-	if err := app.runProfile([]string{"bogus"}); err == nil {
+	if err := app.Run([]string{"profile", "bogus"}); err == nil {
 		t.Fatalf("expected error for unknown subcommand")
 	}
 }

@@ -65,7 +65,7 @@ func runNavigators(ctx *appctx.Context, args []string) error {
 	}
 
 	// Call the API using our custom Do function that sets X-Client-Source header
-	statusCode, body, err := api.Do(ctx, http.MethodGet, ctx.APIPath("/ai-navigate/navigators"), nil, nil, nil)
+	statusCode, body, err := api.Do(ctx, http.MethodGet, "/ai-navigate/navigators", nil, nil, nil)
 	if err != nil {
 		return fmt.Errorf("failed to get navigators: %w", err)
 	}

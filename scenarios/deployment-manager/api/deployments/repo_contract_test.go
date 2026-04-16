@@ -14,7 +14,8 @@ func TestNewOrchestratorFullCanonicalizesContractDescendant(t *testing.T) {
 		t.Fatalf("mkdir nested: %v", err)
 	}
 
-	t.Setenv("VROOLI_ROOT", nested)
+	t.Setenv("VROOLI_SOURCE_ROOT", nested)
+	t.Setenv("VROOLI_ROOT", "")
 
 	orchestrator := NewOrchestratorFull(nil, nil, nil, nil)
 	if orchestrator.vrooli != root {
@@ -58,7 +59,7 @@ func newDeploymentsContractFixtureRepo(t *testing.T) string {
 	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/deployment-manager-deployments-test\n\ngo 1.21\n"), 0o644); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
-	for _, dir := range []string{"scenarios", "resources", "packages", "cmd", "internal"} {
+	for _, dir := range []string{"templates", "scenarios", "resources", "packages", "cmd", "internal"} {
 		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", dir, err)
 		}

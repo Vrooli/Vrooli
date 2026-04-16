@@ -249,8 +249,10 @@
       "openrouter": {
         "type": "openrouter",
         "enabled": true,
-        "required": true,
-        "description": "Auto-detected via analyzer (resource_cli)"
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Optional cloud model provider for recycler workflows and model selection",
+        "degraded_behavior": "OpenRouter-backed recycler runs and model discovery are unavailable until OPENROUTER_API_KEY is configured"
       },
       "ollama": {
         "type": "ollama",

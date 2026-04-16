@@ -5,10 +5,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 
 	"deployment-manager/cli/cmdutil"
 
+	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -67,7 +69,7 @@ func (c *Commands) list(args []string) error {
 	}
 	formatVal := cmdutil.ResolveFormat(*format)
 	if strings.ToLower(formatVal) == "table" {
-		if err := printSwapTable(body); err == nil {
+		if err := renderSwapListReport(scenario, body); err == nil {
 			return nil
 		}
 	}
@@ -167,24 +169,44 @@ func (c *Commands) apply(args []string) error {
 		cmdutil.PrintByFormat(*format, body)
 		return nil
 	}
-	fmt.Println("Swap applied successfully")
-	return nil
+	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+		Result: []string{
+			"Swap applied successfully",
+		},
+		Changes: []string{
+			fmt.Sprintf("Profile: %s", profileID),
+			fmt.Sprintf("From: %s", from),
+			fmt.Sprintf("To: %s", to),
+		},
+		NextCommand: []string{
+			fmt.Sprintf("deployment-manager profile show %s", profileID),
+			fmt.Sprintf("deployment-manager swaps list %s", profileID),
+		},
+	})
 }
 
-func printSwapTable(body []byte) error {
+func renderSwapListReport(scenario string, body []byte) error {
 	var suggestions []SwapSuggestion
 	if err := json.Unmarshal(body, &suggestions); err != nil {
 		return err
 	}
-	rows := make([][]string, 0, len(suggestions))
-	for _, s := range suggestions {
-		rows = append(rows, []string{
-			s.From,
-			s.To,
-			s.Impact,
-			s.Reason,
-		})
+	report := cliapp.ListReport{
+		Summary: []string{
+			fmt.Sprintf("Scenario: %s", scenario),
+			fmt.Sprintf("Suggestions: %d", len(suggestions)),
+		},
+		ResultsHeading: "Suggested Swaps",
+		RetrievalHints: []string{
+			fmt.Sprintf("deployment-manager swaps analyze <from> <to>"),
+			fmt.Sprintf("deployment-manager swaps apply <profile> <from> <to>"),
+		},
 	}
-	cmdutil.PrintTable([]string{"From", "To", "Impact", "Reason"}, rows)
-	return nil
+	for _, s := range suggestions {
+		line := fmt.Sprintf("%s -> %s impact=%s", s.From, s.To, s.Impact)
+		if strings.TrimSpace(s.Reason) != "" {
+			line += fmt.Sprintf(" reason=%s", s.Reason)
+		}
+		report.Results = append(report.Results, line)
+	}
+	return cliapp.RenderListReport(os.Stdout, report)
 }

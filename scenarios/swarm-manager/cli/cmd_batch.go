@@ -112,7 +112,7 @@ func (a *App) cmdBacklogBatchCreate(args []string) error {
 		return fmt.Errorf("failed to encode request: %w", err)
 	}
 
-	body, err := a.requestV1("POST", "/backlog/batch", nil, json.RawMessage(payload))
+	body, err := a.core.Request("POST", "/backlog/batch", nil, json.RawMessage(payload))
 	if err != nil {
 		return err
 	}
@@ -215,7 +215,7 @@ func (a *App) cmdBacklogBatchQueue(args []string) error {
 		return fmt.Errorf("failed to encode request: %w", err)
 	}
 
-	body, err := a.requestV1("POST", "/backlog/batch/queue", nil, json.RawMessage(payload))
+	body, err := a.core.Request("POST", "/backlog/batch/queue", nil, json.RawMessage(payload))
 	if err != nil {
 		return err
 	}

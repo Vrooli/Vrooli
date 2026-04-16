@@ -17,7 +17,7 @@ func (a *App) cmdPromptsCatalog(args []string) error {
 		return err
 	}
 
-	body, err := a.getV1("/prompts/catalog", nil)
+	body, err := a.core.Get("/prompts/catalog", nil)
 	if err != nil {
 		return err
 	}
@@ -116,7 +116,7 @@ func (a *App) cmdPromptsSkills(args []string) error {
 		return err
 	}
 
-	body, err := a.getV1("/prompts/skills", nil)
+	body, err := a.core.Get("/prompts/skills", nil)
 	if err != nil {
 		return err
 	}
@@ -191,7 +191,7 @@ func (a *App) cmdPromptsSkillGet(args []string) error {
 	}
 	skillID := strings.TrimSpace(*idFlag)
 
-	body, err := a.getV1("/prompts/skills/"+skillID, nil)
+	body, err := a.core.Get("/prompts/skills/"+skillID, nil)
 	if err != nil {
 		return err
 	}
@@ -258,7 +258,7 @@ func (a *App) cmdPromptsSkillUpdate(args []string) error {
 		return err
 	}
 
-	body, err := a.requestV1("PUT", "/prompts/skills/"+skillID, nil, payload)
+	body, err := a.core.Request("PUT", "/prompts/skills/"+skillID, nil, payload)
 	if err != nil {
 		return err
 	}
@@ -299,7 +299,7 @@ func (a *App) cmdPromptsSkillVersions(args []string) error {
 	}
 	skillID := strings.TrimSpace(*idFlag)
 
-	body, err := a.getV1("/prompts/skills/"+skillID+"/versions", nil)
+	body, err := a.core.Get("/prompts/skills/"+skillID+"/versions", nil)
 	if err != nil {
 		return err
 	}
@@ -355,7 +355,7 @@ func (a *App) cmdPromptsSkillRevert(args []string) error {
 		return fmt.Errorf("usage: prompts skill-revert --id ID --version VERSION [--json]\n\nversion must be a positive integer")
 	}
 
-	body, err := a.requestV1("POST", "/prompts/skills/"+skillID+"/revert/"+strconv.Itoa(version), nil, nil)
+	body, err := a.core.Request("POST", "/prompts/skills/"+skillID+"/revert/"+strconv.Itoa(version), nil, nil)
 	if err != nil {
 		return err
 	}
@@ -406,7 +406,7 @@ func (a *App) cmdPromptsPreview(args []string) error {
 		"variables":  vars,
 		"with_scope": *withScope,
 	}
-	body, err := a.requestV1("POST", "/prompts/preview", nil, payload)
+	body, err := a.core.Request("POST", "/prompts/preview", nil, payload)
 	if err != nil {
 		return err
 	}
@@ -487,7 +487,7 @@ func (a *App) cmdPromptsSimulate(args []string) error {
 		payload["variables"] = vars
 	}
 
-	body, err := a.requestV1("POST", "/prompts/simulate", nil, payload)
+	body, err := a.core.Request("POST", "/prompts/simulate", nil, payload)
 	if err != nil {
 		return err
 	}
@@ -532,7 +532,7 @@ func (a *App) cmdPromptsExperimentResults(args []string) error {
 	}
 	experimentID := strings.TrimSpace(*idFlag)
 
-	body, err := a.getV1("/prompts/experiments/"+experimentID+"/results", nil)
+	body, err := a.core.Get("/prompts/experiments/"+experimentID+"/results", nil)
 	if err != nil {
 		return err
 	}

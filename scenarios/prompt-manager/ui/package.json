@@ -7,7 +7,7 @@
   "scripts": {
     "generate:selectors": "node ./scripts/generate-selector-manifest.mjs",
     "dev": "vrooli lifecycle protect -- vite",
-    "build": "tsc && vite build",
+    "build": "pnpm run type-check && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

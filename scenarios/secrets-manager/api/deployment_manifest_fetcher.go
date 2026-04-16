@@ -22,6 +22,7 @@ import (
 
 	"github.com/lib/pq"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/storage"
 )
 
 // -----------------------------------------------------------------------------
@@ -353,15 +354,22 @@ func (c *HTTPAnalyzerClient) persistReport(scenario string, report *analyzerDepl
 
 // reportPath returns the filesystem path for a scenario's analyzer report.
 func (c *HTTPAnalyzerClient) reportPath(scenario string) string {
-	scenarioRoot := resolveScenarioRoot(scenario)
-	if scenarioRoot == "" {
-		root := getVrooliRoot()
-		if root == "" {
-			root = "."
-		}
-		return filepath.Join(root, "scenarios", scenario, ".vrooli", "deployment", "deployment-report.json")
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return ""
 	}
-	return filepath.Join(scenarioRoot, ".vrooli", "deployment", "deployment-report.json")
+	path, err := resolver.Path(
+		storage.Options{ScenarioID: scenario},
+		storage.ClassData,
+		filepath.Join("deployment", "deployment-report.json"),
+	)
+	if err != nil {
+		return ""
+	}
+	return path
 }
 
 // fetchFromService makes an HTTP request to the analyzer service.

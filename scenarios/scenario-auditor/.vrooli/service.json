@@ -102,11 +102,6 @@
       },
       "steps": [
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI command globally"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o scenario-auditor-api .",
           "description": "Build API server binary"
@@ -123,10 +118,6 @@
           "name": "build-ui",
           "run": "cd ui && npm run build",
           "description": "Build production UI"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"\u2705 Scenario Auditor is ready:\" && echo \"  Dashboard: http://localhost:${UI_PORT}\" && echo \"  API: http://localhost:${API_PORT}/api/v1\" && echo \"  Health: http://localhost:${API_PORT}/api/v1/health\""
         }
       ]
     },
@@ -150,10 +141,6 @@
           "condition": {
             "file_exists": "ui/dist/index.html"
           }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo \"\u2705 Scenario Auditor is running:\" && echo \"  Dashboard: http://localhost:${UI_PORT}\" && echo \"  API: http://localhost:${API_PORT}/api/v1\" && echo \"  Health: http://localhost:${API_PORT}/api/v1/health\""
         }
       ]
     },
@@ -224,6 +211,36 @@
         "versionRange": ">=2.0.0-file-based",
         "description": "Auto-detected dependency via scenario_port_cli"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "scenario-auditor",
+    "adapter": {
+      "kind": "shell_script",
+      "script_path": "cli/scenario-auditor",
+      "install_script": "cli/install.sh"
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "scenario-auditor"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/scenario-auditor",
+        "cli/install.sh",
+        ".vrooli/service.json"
+      ]
     }
   }
 }

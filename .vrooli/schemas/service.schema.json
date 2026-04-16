@@ -480,12 +480,12 @@
     },
     "scenarioDependency": {
       "type": "object",
-      "description": "Metadata describing a dependent scenario",
+      "description": "Metadata describing a dependent scenario. `required` describes business importance, while `startup_policy` describes orchestration behavior.",
       "properties": {
         "enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Whether this dependency is active for this scenario"
+          "description": "Whether this dependency participates in runtime orchestration. Disabled dependencies are skipped entirely."
         },
         "name": {
           "type": "string",
@@ -494,12 +494,12 @@
         "required": {
           "type": "boolean",
           "default": true,
-          "description": "Whether the dependency is mandatory for correct behavior"
+          "description": "Whether the dependency is semantically important for correct behavior. When `startup_policy` is omitted, required dependencies default to `must_start`."
         },
         "startup_policy": {
           "type": "string",
           "enum": ["must_start", "try_start", "ignore"],
-          "description": "How lifecycle orchestration should treat this dependency during startup"
+          "description": "How lifecycle orchestration should treat this dependency during startup. Defaults to `must_start` when `required=true`, otherwise `ignore`."
         },
         "version": {
           "$ref": "common.schema.json#/definitions/semver",
@@ -515,7 +515,7 @@
         },
         "degraded_behavior": {
           "type": "string",
-          "description": "What functionality is reduced if the dependency is unavailable"
+          "description": "Human explanation of the fallback behavior when this dependency is unavailable. Required for intentional degradation patterns such as `required=true` with `startup_policy=try_start`."
         }
       },
       "additionalProperties": false

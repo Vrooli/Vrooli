@@ -91,7 +91,7 @@ func (a *App) fetchStats(category string) ([]byte, error) {
 	if category != "" {
 		q = url.Values{"category": {category}}
 	}
-	return a.getV1("/stats", q)
+	return a.core.Get("/stats", q)
 }
 
 func (a *App) cmdStatsSummary(args []string) error {

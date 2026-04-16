@@ -73,7 +73,7 @@ func runSchemaWorkflow(ctx *appctx.Context, args []string) error {
 	}
 
 	// Build query string
-	path := ctx.APIPath("/schema/workflow")
+	path := "/schema/workflow"
 	if nodes != "" {
 		path = path + "?nodes=" + nodes
 	}
@@ -101,7 +101,7 @@ func runSchemaWorkflow(ctx *appctx.Context, args []string) error {
 }
 
 func runSchemaNodeTypes(ctx *appctx.Context, args []string) error {
-	path := ctx.APIPath("/schema/workflow/node-types")
+	path := "/schema/workflow/node-types"
 
 	status, body, err := api.Do(ctx, "GET", path, nil, nil, nil)
 	if err != nil {

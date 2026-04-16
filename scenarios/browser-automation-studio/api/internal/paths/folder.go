@@ -7,11 +7,22 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // ResolveScenarioDir attempts to locate the absolute scenario root directory (scenarios/browser-automation-studio)
-// by walking up from the current working directory. Falls back to a best-effort path under cwd.
+// using repo-contract-backed repository discovery. Falls back to a best-effort path under cwd.
 func ResolveScenarioDir(log *logrus.Logger) string {
+	if root, err := repocontract.FindRepoRootFromEnvOrCWD(); err == nil {
+		if scenarioDir, resolveErr := repocontract.ResolveScenarioPath(root, scenarioRoot); resolveErr == nil {
+			return scenarioDir
+		} else if log != nil {
+			log.WithError(resolveErr).Warn("Failed to resolve scenario path from repo contract; falling back to cwd-derived path")
+		}
+	} else if log != nil {
+		log.WithError(err).Warn("Failed to resolve repo root from repo contract; falling back to cwd-derived path")
+	}
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		if log != nil {

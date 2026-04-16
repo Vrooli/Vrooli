@@ -16,12 +16,12 @@ func Do(ctx *appctx.Context, method, path string, query url.Values, body []byte,
 	if ctx == nil || ctx.Core == nil {
 		return 0, nil, fmt.Errorf("missing app context")
 	}
-	base := strings.TrimRight(strings.TrimSpace(ctx.ResolvedAPIRoot()), "/")
+	base := strings.TrimRight(strings.TrimSpace(ctx.Core.APIRootBase()), "/")
 	if base == "" {
 		return 0, nil, fmt.Errorf("api base URL is empty")
 	}
 
-	endpoint := base + path
+	endpoint := base + ctx.Core.APIPath(path)
 	if query != nil && len(query) > 0 {
 		endpoint += "?" + query.Encode()
 	}

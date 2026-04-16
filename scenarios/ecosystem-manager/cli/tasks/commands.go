@@ -234,23 +234,20 @@ func cmdAdd(ctx appctx.Context, args []string) error {
 	task := resp.Task
 
 	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(resp)
+		return cliapp.PrintReportJSON(os.Stdout, resp)
 	}
 
 	if resp.DryRun {
-		format.MutationResult(
+		return format.MutationResult(
 			fmt.Sprintf("[DRY RUN] Would create task: %s [%s]", task.Title, task.ID),
 			"", nil,
 		)
 	} else {
-		format.MutationResult(
+		return format.MutationResult(
 			fmt.Sprintf("Created task: %s [%s]", task.Title, task.ID),
 			"", resp.NextSteps,
 		)
 	}
-	return nil
 }
 
 func cmdImprove(ctx appctx.Context, args []string) error {
@@ -314,23 +311,20 @@ func cmdImprove(ctx appctx.Context, args []string) error {
 	task := resp.Task
 
 	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(resp)
+		return cliapp.PrintReportJSON(os.Stdout, resp)
 	}
 
 	if resp.DryRun {
-		format.MutationResult(
+		return format.MutationResult(
 			fmt.Sprintf("[DRY RUN] Would create improvement task: %s [%s]", task.Title, task.ID),
 			"", nil,
 		)
 	} else {
-		format.MutationResult(
+		return format.MutationResult(
 			fmt.Sprintf("Created improvement task: %s [%s]", task.Title, task.ID),
 			"", resp.NextSteps,
 		)
 	}
-	return nil
 }
 
 type taskOriginInput struct {
@@ -443,26 +437,29 @@ func cmdList(ctx appctx.Context, args []string) error {
 	}
 
 	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(resp)
+		return cliapp.PrintReportJSON(os.Stdout, resp)
 	}
 
 	if len(resp.Tasks) == 0 {
-		fmt.Println("No tasks found")
-		fmt.Println("  Hint: ecosystem-manager task add scenario <name>")
-		return nil
+		return cliapp.RenderListReport(os.Stdout, cliapp.ListReport{
+			Summary:        []string{"No tasks found"},
+			RetrievalHints: []string{"ecosystem-manager task add scenario <name>"},
+		})
 	}
 
-	fmt.Printf("Tasks (%d):\n", resp.Count)
+	results := make([]string, 0, len(resp.Tasks))
 	for _, t := range resp.Tasks {
 		phase := ""
 		if t.CurrentPhase != "" {
 			phase = fmt.Sprintf(" [%s]", t.CurrentPhase)
 		}
-		fmt.Printf("  %-25s %-8s %-10s %-8s %s%s\n", t.ID, t.Type, t.Operation, t.Priority, t.Title, phase)
+		results = append(results, fmt.Sprintf("%-25s %-8s %-10s %-8s %s%s", t.ID, t.Type, t.Operation, t.Priority, t.Title, phase))
 	}
-	return nil
+	return cliapp.RenderListReport(os.Stdout, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Tasks returned: %d", resp.Count)},
+		Results:        results,
+		RetrievalHints: []string{"ecosystem-manager task show <task-id>"},
+	})
 }
 
 func cmdShow(ctx appctx.Context, args []string) error {
@@ -483,57 +480,62 @@ func cmdShow(ctx appctx.Context, args []string) error {
 	}
 
 	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(task)
+		return cliapp.PrintReportJSON(os.Stdout, task)
 	}
 
-	fmt.Printf("ID: %s\n", task.ID)
-	fmt.Printf("Title: %s\n", task.Title)
-	fmt.Printf("Type: %s\n", task.Type)
-	fmt.Printf("Operation: %s\n", task.Operation)
-	fmt.Printf("Status: %s\n", task.Status)
-	fmt.Printf("Priority: %s\n", task.Priority)
+	summary := []string{
+		fmt.Sprintf("Task: %s", task.Title),
+		fmt.Sprintf("ID: %s", task.ID),
+		fmt.Sprintf("Type: %s", task.Type),
+		fmt.Sprintf("Operation: %s", task.Operation),
+		fmt.Sprintf("Status: %s", task.Status),
+		fmt.Sprintf("Priority: %s", task.Priority),
+	}
+	results := []string{}
 	if task.Category != "" {
-		fmt.Printf("Category: %s\n", task.Category)
+		results = append(results, fmt.Sprintf("Category: %s", task.Category))
 	}
 	if task.CurrentPhase != "" {
-		fmt.Printf("Phase: %s\n", task.CurrentPhase)
+		results = append(results, fmt.Sprintf("Phase: %s", task.CurrentPhase))
 	}
 	if task.SteerMode != "" {
-		fmt.Printf("Steer Mode: %s\n", task.SteerMode)
+		results = append(results, fmt.Sprintf("Steer mode: %s", task.SteerMode))
 	}
 	if task.AutoSteerProfileID != "" {
-		fmt.Printf("Auto Steer Profile: %s\n", task.AutoSteerProfileID)
+		results = append(results, fmt.Sprintf("Auto-steer profile: %s", task.AutoSteerProfileID))
 	}
-	fmt.Printf("Completions: %d\n", task.CompletionCount)
+	results = append(results, fmt.Sprintf("Completions: %d", task.CompletionCount))
 	if task.LastCompletedAt != "" {
-		fmt.Printf("Last Completed: %s\n", task.LastCompletedAt)
+		results = append(results, fmt.Sprintf("Last completed: %s", task.LastCompletedAt))
 	}
 	if task.CreatedAt != "" {
-		fmt.Printf("Created: %s\n", task.CreatedAt)
+		results = append(results, fmt.Sprintf("Created: %s", task.CreatedAt))
 	}
 	if task.UpdatedAt != "" {
-		fmt.Printf("Updated: %s\n", task.UpdatedAt)
+		results = append(results, fmt.Sprintf("Updated: %s", task.UpdatedAt))
 	}
 	if task.Notes != "" {
-		fmt.Printf("Notes: %s\n", task.Notes)
+		results = append(results, fmt.Sprintf("Notes: %s", task.Notes))
 	}
 	if task.Origin != nil {
 		if task.Origin.Source != "" {
-			fmt.Printf("Origin Source: %s\n", task.Origin.Source)
+			results = append(results, fmt.Sprintf("Origin source: %s", task.Origin.Source))
 		}
 		if task.Origin.BacklogItem != "" {
-			fmt.Printf("Origin Backlog Item: %s\n", task.Origin.BacklogItem)
+			results = append(results, fmt.Sprintf("Origin backlog item: %s", task.Origin.BacklogItem))
 		}
 		if task.Origin.ItemFolder != "" {
-			fmt.Printf("Origin Item Folder: %s\n", task.Origin.ItemFolder)
+			results = append(results, fmt.Sprintf("Origin item folder: %s", task.Origin.ItemFolder))
 		}
 		if task.Origin.HandoffDir != "" {
-			fmt.Printf("Origin Handoff Dir: %s\n", task.Origin.HandoffDir)
+			results = append(results, fmt.Sprintf("Origin handoff dir: %s", task.Origin.HandoffDir))
 		}
 	}
-	return nil
+	return cliapp.RenderListReport(os.Stdout, cliapp.ListReport{
+		Summary:        summary,
+		Results:        results,
+		RetrievalHints: []string{"ecosystem-manager task status <task-id> --status <new-status>"},
+	})
 }
 
 func cmdStatus(ctx appctx.Context, args []string) error {
@@ -568,9 +570,7 @@ func cmdStatus(ctx appctx.Context, args []string) error {
 	}
 
 	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(resp)
+		return cliapp.PrintReportJSON(os.Stdout, resp)
 	}
 
 	if resp.DryRun {
@@ -591,7 +591,7 @@ func cmdStatus(ctx appctx.Context, args []string) error {
 		if *phase != "" {
 			parts = append(parts, fmt.Sprintf("Phase: %s", *phase))
 		}
-		format.MutationResult(
+		return format.MutationResult(
 			"Task updated successfully",
 			strings.Join(parts, ", "),
 			resp.NextSteps,
@@ -620,15 +620,13 @@ func cmdDelete(ctx appctx.Context, args []string) error {
 	}
 
 	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(resp)
+		return cliapp.PrintReportJSON(os.Stdout, resp)
 	}
 
 	if resp.DryRun {
 		fmt.Printf("[DRY RUN] Would delete task: %s\n", taskID)
 	} else {
-		format.MutationResult(
+		return format.MutationResult(
 			fmt.Sprintf("Task deleted: %s", taskID),
 			"", resp.NextSteps,
 		)

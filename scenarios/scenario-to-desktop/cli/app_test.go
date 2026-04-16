@@ -24,9 +24,9 @@ func TestNewApp_AllCommandGroupsRegistered(t *testing.T) {
 	}
 
 	groups := app.registerCommands()
-	// Expect 6 command groups: Health, Templates, Records, Download, Scenarios, Config
-	if len(groups) != 6 {
-		t.Errorf("registerCommands() returned %d groups, want 6", len(groups))
+	// Domain groups exclude the standard configure command, which is added by cli-core.
+	if len(groups) != 5 {
+		t.Errorf("registerCommands() returned %d groups, want 5", len(groups))
 	}
 
 	expectedTitles := map[string]bool{
@@ -35,7 +35,6 @@ func TestNewApp_AllCommandGroupsRegistered(t *testing.T) {
 		"Desktop Records": false,
 		"Download":        false,
 		"Scenarios":       false,
-		"Configuration":   false,
 	}
 	for _, g := range groups {
 		if _, ok := expectedTitles[g.Title]; ok {
@@ -64,7 +63,7 @@ func TestNewApp_AllSubcommandGroupsRegistered(t *testing.T) {
 	}
 
 	expectedNames := map[string]int{
-		"pipeline":      10,
+		"pipeline":      11,
 		"bundle":        1,
 		"telemetry":     6,
 		"signing":       8,

@@ -7,6 +7,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/storage"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 const scenarioRoot = "browser-automation-studio"
@@ -25,6 +26,16 @@ func ResolveRecordingsRoot(log *logrus.Logger) string {
 
 	if resolved := resolveScenarioStoragePath("recordings", legacyRecordingsRoot()); resolved != "" {
 		return resolved
+	}
+
+	if root, err := repocontract.FindRepoRootFromEnvOrCWD(); err == nil {
+		if scenarioDir, resolveErr := repocontract.ResolveScenarioPath(root, scenarioRoot); resolveErr == nil {
+			return filepath.Join(scenarioDir, "data", "recordings")
+		} else if log != nil {
+			log.WithError(resolveErr).Warn("Failed to resolve recordings root from repo contract; falling back to cwd-derived path")
+		}
+	} else if log != nil {
+		log.WithError(err).Warn("Failed to resolve repo root for recordings; falling back to cwd-derived path")
 	}
 
 	cwd, err := os.Getwd()
@@ -72,6 +83,16 @@ func ResolveSessionProfilesRoot(log *logrus.Logger) string {
 		return resolved
 	}
 
+	if root, err := repocontract.FindRepoRootFromEnvOrCWD(); err == nil {
+		if scenarioDir, resolveErr := repocontract.ResolveScenarioPath(root, scenarioRoot); resolveErr == nil {
+			return filepath.Join(scenarioDir, "data", "session-profiles")
+		} else if log != nil {
+			log.WithError(resolveErr).Warn("Failed to resolve session profiles root from repo contract; falling back to cwd-derived path")
+		}
+	} else if log != nil {
+		log.WithError(err).Warn("Failed to resolve repo root for session profiles; falling back to cwd-derived path")
+	}
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		if log != nil {
@@ -101,7 +122,7 @@ func ResolveSessionProfilesRoot(log *logrus.Logger) string {
 	return root
 }
 
-func resolveScenarioStoragePath(rel string, legacy string) string {
+func resolveScenarioStoragePath(rel, legacy string) string {
 	resolver, err := storage.NewResolver(storage.ResolverConfig{
 		AppID:   "vrooli",
 		Profile: storage.ProfileAuto,
@@ -126,6 +147,12 @@ func legacySessionProfilesRoot() string {
 }
 
 func resolveLegacyScenarioDataPath(name string) string {
+	if root, err := repocontract.FindRepoRootFromEnvOrCWD(); err == nil {
+		if scenarioDir, resolveErr := repocontract.ResolveScenarioPath(root, scenarioRoot); resolveErr == nil {
+			return filepath.Join(scenarioDir, "data", name)
+		}
+	}
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		return filepath.Join("scenarios", scenarioRoot, "data", name)

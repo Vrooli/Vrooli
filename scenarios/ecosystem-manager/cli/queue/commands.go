@@ -2,7 +2,6 @@
 package queue
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -109,37 +108,42 @@ func cmdStatus(ctx appctx.Context, args []string) error {
 	}
 
 	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(status)
+		return cliapp.PrintReportJSON(os.Stdout, status)
 	}
 
-	active := "inactive"
+	active := "Queue processor is inactive"
 	if status.IsActive {
-		active = "active"
+		active = "Queue processor is active"
 	}
-	paused := ""
+	triage := []cliapp.TriageGroup{
+		{
+			Heading: "Capacity",
+			Items: []string{
+				fmt.Sprintf("Pending tasks: %d", status.PendingCount),
+				fmt.Sprintf("In-progress tasks: %d", status.InProgressCount),
+				fmt.Sprintf("Running processes: %d / %d", status.RunningProcesses, status.MaxSlots),
+				fmt.Sprintf("Available slots: %d", status.AvailableSlots),
+				fmt.Sprintf("Cooldown: %ds", status.CooldownSeconds),
+				fmt.Sprintf("Task timeout: %dm", status.TaskTimeoutMinutes),
+			},
+		},
+	}
 	if status.IsPaused {
-		paused = " (paused)"
+		active += " (paused)"
 	}
 	if status.IsRateLimitPaused {
-		paused = fmt.Sprintf(" (rate-limited until %s)", status.RateLimitResumeAt)
+		active += fmt.Sprintf(" (rate-limited until %s)", status.RateLimitResumeAt)
 	}
-
-	fmt.Printf("Queue: %s%s\n", active, paused)
-	fmt.Printf("Pending: %d\n", status.PendingCount)
-	fmt.Printf("In Progress: %d\n", status.InProgressCount)
-	fmt.Printf("Running Processes: %d / %d\n", status.RunningProcesses, status.MaxSlots)
-	fmt.Printf("Available Slots: %d\n", status.AvailableSlots)
-	fmt.Printf("Cooldown: %ds\n", status.CooldownSeconds)
-	fmt.Printf("Task Timeout: %dm\n", status.TaskTimeoutMinutes)
-	if len(status.NextSteps) > 0 {
-		fmt.Println("\nNext steps:")
-		for _, step := range status.NextSteps {
-			fmt.Printf("  $ %s\n", step)
-		}
-	}
-	return nil
+	return cliapp.RenderOperationalReport(os.Stdout, cliapp.OperationalReport{
+		Status: []string{active},
+		Triage: triage,
+		NextSteps: func() []string {
+			if len(status.NextSteps) > 0 {
+				return status.NextSteps
+			}
+			return []string{"ecosystem-manager task list"}
+		}(),
+	})
 }
 
 func cmdStart(ctx appctx.Context, args []string) error {
@@ -155,15 +159,13 @@ func cmdStart(ctx appctx.Context, args []string) error {
 	}
 
 	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(resp)
+		return cliapp.PrintReportJSON(os.Stdout, resp)
 	}
 
 	if resp.DryRun {
 		fmt.Println("[DRY RUN] Queue processor would be started")
 	} else if resp.Success {
-		format.MutationResult("Queue started successfully", "", resp.NextSteps)
+		return format.MutationResult("Queue started successfully", "", resp.NextSteps)
 	} else {
 		fmt.Printf("Failed to start queue: %s\n", resp.Message)
 	}
@@ -183,15 +185,13 @@ func cmdStop(ctx appctx.Context, args []string) error {
 	}
 
 	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(resp)
+		return cliapp.PrintReportJSON(os.Stdout, resp)
 	}
 
 	if resp.DryRun {
 		fmt.Println("[DRY RUN] Queue processor would be stopped")
 	} else if resp.Success {
-		format.MutationResult("Queue stopped successfully", "", resp.NextSteps)
+		return format.MutationResult("Queue stopped successfully", "", resp.NextSteps)
 	} else {
 		fmt.Printf("Failed to stop queue: %s\n", resp.Message)
 	}

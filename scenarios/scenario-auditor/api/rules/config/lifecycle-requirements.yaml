@@ -1,7 +1,7 @@
 ---
 - id: config-lifecycle-condition-checks
   name: "Lifecycle Setup Condition Checks"
-  description: "Ensures lifecycle.setup.condition.checks array contains required binary and CLI checks"
+  description: "Ensures lifecycle.setup.condition.checks array contains required binary checks and a CLI check aligned with the top-level cli manifest section"
   category: config
   severity: high
   enabled: true
@@ -13,8 +13,8 @@
         - type: "binaries"
           target_pattern: "${SCENARIO_NAME}-api"
         - type: "cli"
-          target_pattern: "${SCENARIO_NAME}"
-  message: "lifecycle.setup.condition.checks must contain 'binaries' check for '<scenario>-api' and 'cli' check for '<scenario>'"
+          command_from: "cli.command"
+  message: "lifecycle.setup.condition.checks must contain a 'binaries' check for 'api/<scenario>-api' and a 'cli' check whose command matches cli.command"
   fix:
     type: json_update
     action: add_to_array
@@ -22,10 +22,10 @@
     path: "lifecycle.setup.condition.checks"
     value:
       - type: "binaries"
-        targets: ["${SCENARIO_NAME}-api"]
+        targets: ["api/${SCENARIO_NAME}-api"]
       - type: "cli"
-        targets: ["${SCENARIO_NAME}"]
-    description: "Add required condition checks for binaries and CLI"
+        command: "${SCENARIO_NAME}"
+    description: "Add required condition checks for binaries and the manifest-declared CLI command"
   tags:
     - lifecycle
     - setup
@@ -96,7 +96,7 @@
 
 - id: config-lifecycle-setup-steps-order
   name: "Lifecycle Setup Steps Order"
-  description: "Ensures lifecycle.setup.steps contains required steps in correct order"
+  description: "Ensures lifecycle.setup.steps contains required runtime-preparation steps in correct order"
   category: config
   severity: medium
   enabled: true
@@ -105,16 +105,12 @@
     target: ".vrooli/service.json"
     properties:
       required_steps:
-        - name: "install-cli"
-          order: 1
         - name: "build-api"
-          order: 2
+          order: 1
         - name: "install-ui-deps"
-          order: 3
+          order: 2
           condition: "has_react_ui"
-        - name: "show-urls"
-          order: -1 # Must be last
-  message: "lifecycle.setup.steps must contain 'install-cli', 'build-api', 'install-ui-deps' (for React apps), and 'show-urls' in correct order"
+  message: "lifecycle.setup.steps must contain 'build-api' and 'install-ui-deps' (for React apps) in correct order"
   fix:
     type: json_update
     action: reorder_array
@@ -130,7 +126,7 @@
 
 - id: config-lifecycle-develop-steps
   name: "Lifecycle Develop Steps"
-  description: "Ensures lifecycle.develop.steps contains 'start-api', 'start-ui', and 'show-urls' in correct order"
+  description: "Ensures lifecycle.develop.steps contains 'start-api' and 'start-ui' in correct order"
   category: config
   severity: medium
   enabled: true
@@ -143,9 +139,7 @@
           order: 1
         - name: "start-ui"
           order: 2
-        - name: "show-urls"
-          order: -1 # Must be last
-  message: "lifecycle.develop.steps must contain 'start-api', 'start-ui', and 'show-urls' in correct order"
+  message: "lifecycle.develop.steps must contain 'start-api' and 'start-ui' in correct order"
   fix:
     type: json_update
     action: reorder_array

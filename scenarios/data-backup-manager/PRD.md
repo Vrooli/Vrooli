@@ -373,7 +373,7 @@ implementation_requirements:
   - dependencies: Minimal - reuse API client libraries
   - error_handling: Consistent exit codes (0=success, 1=error, 2=warning)
   - configuration: 
-      - Read from ~/.vrooli/data-backup-manager/config.yaml
+      - Read from ~/.config/vrooli/data-backup-manager/config.yaml
       - Environment variables override config
       - Command flags override everything
   

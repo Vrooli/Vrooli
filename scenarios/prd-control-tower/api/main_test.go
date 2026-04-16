@@ -86,6 +86,7 @@ func TestGetVrooliRoot(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("VROOLI_SOURCE_ROOT", "")
 			t.Setenv("VROOLI_ROOT", tt.vrooliRoot)
 
 			result, err := getVrooliRoot()
@@ -122,7 +123,7 @@ func newContractFixtureRepo(t *testing.T) string {
 	t.Helper()
 
 	root := t.TempDir()
-	for _, dir := range []string{".vrooli", "scenarios", "resources", "packages", "cmd", "internal"} {
+	for _, dir := range []string{".vrooli", "templates", "scenarios", "resources", "packages", "cmd", "internal"} {
 		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", dir, err)
 		}

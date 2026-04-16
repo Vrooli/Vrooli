@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -49,6 +48,7 @@ import (
 	toolhandlers "github.com/vrooli/browser-automation-studio/internal/handlers"
 	"github.com/vrooli/browser-automation-studio/internal/toolexecution"
 	"github.com/vrooli/browser-automation-studio/internal/toolregistry"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 const globalRequestTimeout = 15 * time.Minute
@@ -61,35 +61,14 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	// Determine project root securely
-	// API runs from scenarios/browser-automation-studio/api/ directory
-	projectRoot := os.Getenv("VROOLI_ROOT")
-	if projectRoot == "" {
-		// Fallback: resolve from current executable location
-		if execPath, err := os.Executable(); err == nil {
-			// Expected structure: {VROOLI_ROOT}/scenarios/browser-automation-studio/api/binary
-			// So go up 3 directories to reach VROOLI_ROOT
-			projectRoot = filepath.Join(filepath.Dir(execPath), "..", "..", "..")
-			projectRoot, _ = filepath.Abs(projectRoot)
-		} else {
-			fmt.Fprintf(os.Stderr, "❌ VROOLI_ROOT not set and cannot determine project root: %v\n", err)
-			os.Exit(1)
-		}
+	projectRoot, err := resolveProjectRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "❌ Failed to determine project root via repo contract: %v\n", err)
+		os.Exit(1)
 	}
 
-	// Validate and change to project root
-	if absRoot, err := filepath.Abs(projectRoot); err == nil {
-		// Security check: ensure path doesn't contain suspicious patterns
-		if filepath.Clean(absRoot) != absRoot {
-			fmt.Fprintf(os.Stderr, "❌ Invalid project root path (potential path traversal): %s\n", projectRoot)
-			os.Exit(1)
-		}
-		if err := os.Chdir(absRoot); err != nil {
-			fmt.Fprintf(os.Stderr, "❌ Failed to change to project root directory %s: %v\n", absRoot, err)
-			os.Exit(1)
-		}
-	} else {
-		fmt.Fprintf(os.Stderr, "❌ Failed to resolve project root path %s: %v\n", projectRoot, err)
+	if err := os.Chdir(projectRoot); err != nil {
+		fmt.Fprintf(os.Stderr, "❌ Failed to change to project root directory %s: %v\n", projectRoot, err)
 		os.Exit(1)
 	}
 
@@ -756,6 +735,13 @@ func main() {
 	}); err != nil {
 		log.WithError(err).Fatal("Server error")
 	}
+}
+
+func resolveProjectRoot() (string, error) {
+	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
+		return repocontract.FindRepoRootFromPath(root)
+	}
+	return repocontract.ResolveRepoRoot()
 }
 
 // performStartupHealthCheck validates critical dependencies are available before accepting requests.

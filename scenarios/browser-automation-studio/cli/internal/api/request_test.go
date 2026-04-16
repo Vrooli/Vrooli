@@ -36,9 +36,8 @@ func TestDo_SetsClientSourceHeader(t *testing.T) {
 	core.APIOverride = ts.URL
 
 	ctx := &appctx.Context{
-		Name:    "test-app",
-		Version: "1.0.0",
-		Core:    core,
+		Name: "test-app",
+		Core: core,
 	}
 
 	// Make a request
@@ -83,7 +82,6 @@ func TestDo_SetsAuthorizationHeader(t *testing.T) {
 
 	ctx := &appctx.Context{
 		Name:         "test-app",
-		Version:      "1.0.0",
 		Core:         core,
 		TokenEnvVars: []string{testTokenEnv},
 	}
@@ -118,9 +116,8 @@ func TestDo_SetsContentTypeForBody(t *testing.T) {
 	core.APIOverride = ts.URL
 
 	ctx := &appctx.Context{
-		Name:    "test-app",
-		Version: "1.0.0",
-		Core:    core,
+		Name: "test-app",
+		Core: core,
 	}
 
 	// Request with body
@@ -155,9 +152,8 @@ func TestDo_CustomHeaders(t *testing.T) {
 	core.APIOverride = ts.URL
 
 	ctx := &appctx.Context{
-		Name:    "test-app",
-		Version: "1.0.0",
-		Core:    core,
+		Name: "test-app",
+		Core: core,
 	}
 
 	customHeaders := map[string]string{
@@ -199,9 +195,8 @@ func TestDo_EmptyAPIBase(t *testing.T) {
 	// Don't set API base - leave it empty
 
 	ctx := &appctx.Context{
-		Name:    "test-app",
-		Version: "1.0.0",
-		Core:    core,
+		Name: "test-app",
+		Core: core,
 	}
 
 	_, _, err = Do(ctx, "GET", "/test", nil, nil, nil)

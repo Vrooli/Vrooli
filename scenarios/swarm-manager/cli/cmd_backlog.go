@@ -41,7 +41,7 @@ func (a *App) cmdBacklogList(args []string) error {
 		query.Set("scenario", strings.TrimSpace(*scenarioFlag))
 	}
 
-	body, err := a.getV1("/backlog", query)
+	body, err := a.core.Get("/backlog", query)
 	if err != nil {
 		return err
 	}
@@ -124,7 +124,7 @@ func (a *App) cmdBacklogGet(args []string) error {
 	kind := strings.TrimSpace(*kindFlag)
 	name := strings.TrimSpace(*nameFlag)
 
-	body, err := a.getV1("/backlog/"+kind+"/"+name, nil)
+	body, err := a.core.Get("/backlog/"+kind+"/"+name, nil)
 	if err != nil {
 		return err
 	}
@@ -210,7 +210,7 @@ func (a *App) cmdBacklogCreate(args []string) error {
 		return fmt.Errorf("name, title, and kind are required fields")
 	}
 
-	body, err := a.requestV1("POST", "/backlog", nil, payload)
+	body, err := a.core.Request("POST", "/backlog", nil, payload)
 	if err != nil {
 		return err
 	}
@@ -270,7 +270,7 @@ func (a *App) cmdBacklogUpdate(args []string) error {
 		return fmt.Errorf("marshal update payload: %w", err)
 	}
 
-	body, err := a.requestV1("PATCH", "/backlog/"+kind+"/"+name, nil, json.RawMessage(requestBody))
+	body, err := a.core.Request("PATCH", "/backlog/"+kind+"/"+name, nil, json.RawMessage(requestBody))
 	if err != nil {
 		return err
 	}
@@ -310,7 +310,7 @@ func (a *App) cmdBacklogDelete(args []string) error {
 	kind := strings.TrimSpace(*kindFlag)
 	name := strings.TrimSpace(*nameFlag)
 
-	body, err := a.requestV1("DELETE", "/backlog/"+kind+"/"+name, nil, nil)
+	body, err := a.core.Request("DELETE", "/backlog/"+kind+"/"+name, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -341,7 +341,7 @@ func (a *App) cmdBacklogWorkshopReset(args []string) error {
 	kind := strings.TrimSpace(*kindFlag)
 	name := strings.TrimSpace(*nameFlag)
 
-	body, err := a.requestV1("POST", "/backlog/"+kind+"/"+name+"/workshop/reset", nil, nil)
+	body, err := a.core.Request("POST", "/backlog/"+kind+"/"+name+"/workshop/reset", nil, nil)
 	if err != nil {
 		return err
 	}
@@ -384,7 +384,7 @@ func (a *App) cmdBacklogFiles(args []string) error {
 	kind := strings.TrimSpace(*kindFlag)
 	name := strings.TrimSpace(*nameFlag)
 
-	body, err := a.getV1("/backlog/"+kind+"/"+name+"/files", nil)
+	body, err := a.core.Get("/backlog/"+kind+"/"+name+"/files", nil)
 	if err != nil {
 		return err
 	}
@@ -439,7 +439,7 @@ func (a *App) cmdBacklogProcessPreflight(args []string) error {
 
 	kind := strings.TrimSpace(*kindFlag)
 	name := strings.TrimSpace(*nameFlag)
-	body, err := a.getV1("/backlog/"+kind+"/"+name+"/process-preflight", nil)
+	body, err := a.core.Get("/backlog/"+kind+"/"+name+"/process-preflight", nil)
 	if err != nil {
 		return err
 	}
@@ -523,7 +523,7 @@ func (a *App) cmdBacklogQueue(args []string) error {
 		return fmt.Errorf("failed to encode request: %w", err)
 	}
 
-	body, err := a.requestV1("POST", "/backlog/"+kind+"/"+name+"/queue", nil, json.RawMessage(payload))
+	body, err := a.core.Request("POST", "/backlog/"+kind+"/"+name+"/queue", nil, json.RawMessage(payload))
 	if err != nil {
 		return err
 	}
@@ -630,7 +630,7 @@ func (a *App) cmdBacklogResearch(args []string) error {
 		return fmt.Errorf("failed to encode request: %w", err)
 	}
 
-	body, err := a.requestV1("POST", "/backlog/"+kind+"/"+name+"/research", nil, json.RawMessage(payload))
+	body, err := a.core.Request("POST", "/backlog/"+kind+"/"+name+"/research", nil, json.RawMessage(payload))
 	if err != nil {
 		return err
 	}
@@ -703,7 +703,7 @@ func (a *App) cmdBacklogPromptTrace(args []string) error {
 	kind := strings.TrimSpace(*kindFlag)
 	name := strings.TrimSpace(*nameFlag)
 
-	body, err := a.getV1("/backlog/"+kind+"/"+name+"/prompt-trace", nil)
+	body, err := a.core.Get("/backlog/"+kind+"/"+name+"/prompt-trace", nil)
 	if err != nil {
 		return err
 	}
@@ -744,7 +744,7 @@ func (a *App) cmdBacklogFileGet(args []string) error {
 	name := strings.TrimSpace(*nameFlag)
 	filePath := strings.TrimSpace(*pathFlag)
 
-	body, err := a.getV1("/backlog/"+kind+"/"+name+"/files/"+filePath, nil)
+	body, err := a.core.Get("/backlog/"+kind+"/"+name+"/files/"+filePath, nil)
 	if err != nil {
 		return err
 	}
@@ -865,7 +865,7 @@ func (a *App) cmdBacklogFileUpload(args []string) error {
 		return fmt.Errorf("finalize multipart request: %w", err)
 	}
 
-	respBody, err := a.requestMultipartV1("POST", "/backlog/"+kind+"/"+name+"/files", formBody.Bytes(), writer.FormDataContentType())
+	respBody, err := a.requestMultipart("POST", "/backlog/"+kind+"/"+name+"/files", formBody.Bytes(), writer.FormDataContentType())
 	if err != nil {
 		return err
 	}
@@ -930,7 +930,7 @@ func (a *App) cmdBacklogExport(args []string) error {
 		return fmt.Errorf("failed to encode request: %w", err)
 	}
 
-	body, err := a.requestV1("POST", "/backlog/export", nil, json.RawMessage(bodyBytes))
+	body, err := a.core.Request("POST", "/backlog/export", nil, json.RawMessage(bodyBytes))
 	if err != nil {
 		return err
 	}
@@ -1003,7 +1003,7 @@ func (a *App) cmdBacklogImport(args []string) error {
 		return fmt.Errorf("finalize multipart request: %w", err)
 	}
 
-	body, err := a.requestMultipartV1("POST", "/backlog/import", formBody.Bytes(), writer.FormDataContentType())
+	body, err := a.requestMultipart("POST", "/backlog/import", formBody.Bytes(), writer.FormDataContentType())
 	if err != nil {
 		return err
 	}

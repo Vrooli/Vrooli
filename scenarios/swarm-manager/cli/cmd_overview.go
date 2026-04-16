@@ -58,7 +58,7 @@ func (a *App) cmdOverview(args []string) error {
 		return err
 	}
 
-	body, err := a.getV1("/overview", nil)
+	body, err := a.core.Get("/overview", nil)
 	if err != nil {
 		return err
 	}

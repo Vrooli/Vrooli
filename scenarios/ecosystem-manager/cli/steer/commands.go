@@ -2,7 +2,6 @@
 package steer
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -115,18 +114,18 @@ func cmdProfiles(ctx appctx.Context, args []string) error {
 	}
 
 	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(resp)
+		return cliapp.PrintReportJSON(os.Stdout, resp)
 	}
 
 	if len(resp.Profiles) == 0 {
-		fmt.Println("No auto-steer profiles found")
-		fmt.Println("  Hint: Check templates: ecosystem-manager steer templates")
-		return nil
+		return cliapp.RenderListReport(os.Stdout, cliapp.ListReport{
+			Summary:        []string{"No auto-steer profiles found"},
+			Results:        nil,
+			RetrievalHints: []string{"ecosystem-manager steer templates"},
+		})
 	}
 
-	fmt.Printf("Auto-Steer Profiles (%d):\n", resp.Count)
+	results := make([]string, 0, len(resp.Profiles))
 	for _, p := range resp.Profiles {
 		enabled := "enabled"
 		if !p.Enabled {
@@ -136,9 +135,13 @@ func cmdProfiles(ctx appctx.Context, args []string) error {
 		if p.Description != "" {
 			desc = fmt.Sprintf(" - %s", p.Description)
 		}
-		fmt.Printf("  %s (%s)%s [%s]\n", p.Name, enabled, desc, p.ID)
+		results = append(results, fmt.Sprintf("%s (%s)%s [%s]", p.Name, enabled, desc, p.ID))
 	}
-	return nil
+	return cliapp.RenderListReport(os.Stdout, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Auto-steer profiles available: %d", resp.Count)},
+		Results:        results,
+		RetrievalHints: []string{"ecosystem-manager steer show <profile-id>"},
+	})
 }
 
 func cmdTemplates(ctx appctx.Context, args []string) error {
@@ -154,26 +157,29 @@ func cmdTemplates(ctx appctx.Context, args []string) error {
 	}
 
 	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(resp)
+		return cliapp.PrintReportJSON(os.Stdout, resp)
 	}
 
 	if len(resp.Templates) == 0 {
-		fmt.Println("No auto-steer templates found")
-		fmt.Println("  Hint: Check API status: ecosystem-manager status")
-		return nil
+		return cliapp.RenderListReport(os.Stdout, cliapp.ListReport{
+			Summary:        []string{"No auto-steer templates found"},
+			RetrievalHints: []string{"ecosystem-manager status"},
+		})
 	}
 
-	fmt.Printf("Auto-Steer Templates (%d):\n", resp.Count)
+	results := make([]string, 0, len(resp.Templates))
 	for _, t := range resp.Templates {
 		desc := ""
 		if t.Description != "" {
 			desc = fmt.Sprintf(" - %s", t.Description)
 		}
-		fmt.Printf("  %s%s [%s]\n", t.Name, desc, t.ID)
+		results = append(results, fmt.Sprintf("%s%s [%s]", t.Name, desc, t.ID))
 	}
-	return nil
+	return cliapp.RenderListReport(os.Stdout, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Auto-steer templates available: %d", resp.Count)},
+		Results:        results,
+		RetrievalHints: []string{"ecosystem-manager steer profiles"},
+	})
 }
 
 func cmdShow(ctx appctx.Context, args []string) error {
@@ -194,29 +200,33 @@ func cmdShow(ctx appctx.Context, args []string) error {
 	}
 
 	if *jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(profile)
+		return cliapp.PrintReportJSON(os.Stdout, profile)
 	}
 
-	fmt.Printf("Name: %s\n", profile.Name)
-	fmt.Printf("ID: %s\n", profile.ID)
+	summary := []string{
+		fmt.Sprintf("Profile: %s", profile.Name),
+		fmt.Sprintf("ID: %s", profile.ID),
+	}
 	if profile.Description != "" {
-		fmt.Printf("Description: %s\n", profile.Description)
+		summary = append(summary, fmt.Sprintf("Description: %s", profile.Description))
 	}
 	enabled := "yes"
 	if !profile.Enabled {
 		enabled = "no"
 	}
-	fmt.Printf("Enabled: %s\n", enabled)
+	results := []string{fmt.Sprintf("Enabled: %s", enabled)}
 	if len(profile.TaskTypes) > 0 {
-		fmt.Printf("Task Types: %v\n", profile.TaskTypes)
+		results = append(results, fmt.Sprintf("Task types: %v", profile.TaskTypes))
 	}
 	if len(profile.Tags) > 0 {
-		fmt.Printf("Tags: %v\n", profile.Tags)
+		results = append(results, fmt.Sprintf("Tags: %v", profile.Tags))
 	}
 	if len(profile.Phases) > 0 {
-		fmt.Printf("Phases: %d configured\n", len(profile.Phases))
+		results = append(results, fmt.Sprintf("Configured phases: %d", len(profile.Phases)))
 	}
-	return nil
+	return cliapp.RenderListReport(os.Stdout, cliapp.ListReport{
+		Summary:        summary,
+		Results:        results,
+		RetrievalHints: []string{"ecosystem-manager steer profiles"},
+	})
 }

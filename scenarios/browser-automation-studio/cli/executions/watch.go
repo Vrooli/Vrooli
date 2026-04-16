@@ -72,7 +72,7 @@ func runWatch(ctx *appctx.Context, args []string) error {
 }
 
 func streamExecution(ctx *appctx.Context, executionID string, stop <-chan struct{}) {
-	wsURL := buildWebSocketURL(ctx.ResolvedAPIRoot(), executionID)
+	wsURL := buildWebSocketURL(ctx.Core.APIRootBase(), executionID)
 	if wsURL == "" {
 		fmt.Println("[stream] WebSocket base unavailable")
 		return
@@ -344,7 +344,7 @@ func pollExecution(ctx *appctx.Context, executionID string, stop <-chan struct{}
 }
 
 func printTimelineSummary(ctx *appctx.Context, executionID string) error {
-	body, err := ctx.Core.APIClient.Get(ctx.APIPath("/executions/"+executionID+"/timeline"), nil)
+	body, err := ctx.Core.Get("/executions/"+executionID+"/timeline", nil)
 	if err != nil {
 		return fmt.Errorf("No timeline response received from API")
 	}

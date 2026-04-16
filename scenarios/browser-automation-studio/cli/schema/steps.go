@@ -88,7 +88,7 @@ func runSchemaSteps(ctx *appctx.Context, args []string) error {
 		query.Set("cli_only", "true")
 	}
 
-	path := ctx.APIPath("/schema/steps")
+	path := "/schema/steps"
 	status, body, err := api.Do(ctx, "GET", path, query, nil, nil)
 	if err != nil {
 		return err

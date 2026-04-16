@@ -19,7 +19,7 @@ func TestDiscoverComponentsUsesConfiguredContractRoot(t *testing.T) {
 		}
 	}
 
-	server := &Server{config: &Config{VrooliRoot: nested}}
+	server := &Server{config: &Config{VrooliRoot: root}}
 
 	components, err := server.discoverComponents()
 	if err != nil {
@@ -68,7 +68,7 @@ func newServerContractFixtureRepo(t *testing.T) string {
 	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/app-issue-tracker-server-test\n\ngo 1.24.0\n"), 0o644); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
-	for _, dir := range []string{"scenarios", "resources", "packages", "cmd", "internal"} {
+	for _, dir := range []string{"templates", "scenarios", "resources", "packages", "cmd", "internal"} {
 		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", dir, err)
 		}

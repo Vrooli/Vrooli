@@ -12,12 +12,14 @@ package deployment
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
 	"time"
 
+	"github.com/vrooli/api-core/storage"
 	"scenario-dependency-analyzer/internal/config"
 	types "scenario-dependency-analyzer/internal/types"
 )
@@ -119,16 +121,19 @@ func buildRootScenarioNode(scenarioName, scenarioPath string, cfg *types.Service
 	return node
 }
 
-// PersistReport saves the deployment report to .vrooli/deployment/deployment-report.json
+// PersistReport saves the deployment report to canonical scenario runtime storage.
 func PersistReport(scenarioPath string, report *types.DeploymentAnalysisReport) error {
 	if report == nil {
 		return nil
 	}
-	reportDir := filepath.Join(scenarioPath, ".vrooli", "deployment")
+	reportPath, err := reportPathForScenario(scenarioPath)
+	if err != nil {
+		return err
+	}
+	reportDir := filepath.Dir(reportPath)
 	if err := os.MkdirAll(reportDir, 0755); err != nil {
 		return err
 	}
-	reportPath := filepath.Join(reportDir, "deployment-report.json")
 	if existing, err := LoadReport(scenarioPath); err == nil && existing != nil {
 		if reportsEqualIgnoringGeneratedAt(existing, report) {
 			report.GeneratedAt = existing.GeneratedAt
@@ -186,7 +191,10 @@ func cloneReport(report *types.DeploymentAnalysisReport) (*types.DeploymentAnaly
 
 // LoadReport loads a previously saved deployment report.
 func LoadReport(scenarioPath string) (*types.DeploymentAnalysisReport, error) {
-	reportPath := filepath.Join(scenarioPath, ".vrooli", "deployment", "deployment-report.json")
+	reportPath, err := reportPathForScenario(scenarioPath)
+	if err != nil {
+		return nil, err
+	}
 	data, err := os.ReadFile(reportPath)
 	if err != nil {
 		return nil, err
@@ -196,4 +204,23 @@ func LoadReport(scenarioPath string) (*types.DeploymentAnalysisReport, error) {
 		return nil, err
 	}
 	return &report, nil
+}
+
+func reportPathForScenario(scenarioPath string) (string, error) {
+	scenarioName := filepath.Base(filepath.Clean(scenarioPath))
+	if scenarioName == "." || scenarioName == string(filepath.Separator) || scenarioName == "" {
+		return "", fmt.Errorf("resolve scenario report path: invalid scenario path %q", scenarioPath)
+	}
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return "", fmt.Errorf("create storage resolver: %w", err)
+	}
+	return resolver.Path(
+		storage.Options{ScenarioID: scenarioName},
+		storage.ClassData,
+		filepath.Join("deployment", "deployment-report.json"),
+	)
 }

@@ -3,13 +3,59 @@
 -- Description: Renames prompt_metrics table to skill_metrics and updates column names
 
 -- Rename table prompt_metrics to skill_metrics
-ALTER TABLE IF EXISTS prompt_metrics RENAME TO skill_metrics;
+DO $$ BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+          AND table_name = 'prompt_metrics'
+    ) AND NOT EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+          AND table_name = 'skill_metrics'
+    ) THEN
+        ALTER TABLE prompt_metrics RENAME TO skill_metrics;
+    END IF;
+END $$;
 
 -- Rename column prompt_id to skill_id in skill_metrics
-ALTER TABLE IF EXISTS skill_metrics RENAME COLUMN prompt_id TO skill_id;
+DO $$ BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'skill_metrics'
+          AND column_name = 'prompt_id'
+    ) AND NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'skill_metrics'
+          AND column_name = 'skill_id'
+    ) THEN
+        ALTER TABLE skill_metrics RENAME COLUMN prompt_id TO skill_id;
+    END IF;
+END $$;
 
 -- Rename column prompt_id to skill_id in test_results
-ALTER TABLE IF EXISTS test_results RENAME COLUMN prompt_id TO skill_id;
+DO $$ BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'test_results'
+          AND column_name = 'prompt_id'
+    ) AND NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'test_results'
+          AND column_name = 'skill_id'
+    ) THEN
+        ALTER TABLE test_results RENAME COLUMN prompt_id TO skill_id;
+    END IF;
+END $$;
 
 -- Drop old indexes and create new ones with updated names
 DROP INDEX IF EXISTS idx_prompt_metrics_prompt_id;
@@ -36,6 +82,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Create new trigger
+DROP TRIGGER IF EXISTS trigger_update_skill_metrics_timestamp ON skill_metrics;
 CREATE TRIGGER trigger_update_skill_metrics_timestamp
     BEFORE UPDATE ON skill_metrics
     FOR EACH ROW EXECUTE FUNCTION update_skill_metrics_timestamp();

@@ -2,23 +2,23 @@ package main
 
 import (
 	"testing"
+
+	"lifestyle-dashboard/cli/domains"
 )
 
-func allCommandGroups(app *App) []struct {
+func allGroups(app *App) []struct {
 	title    string
 	commands []string
 } {
-	groups := app.registerCommands()
-	base := app.core.StandardBaseCommandGroups()
 	out := make([]struct {
 		title    string
 		commands []string
-	}, 0, len(base)+len(groups)+1)
+	}, 0, 6)
 	out = append(out, struct {
 		title    string
 		commands []string
 	}{title: "Meta", commands: []string{"help", "version"}})
-	for _, g := range base {
+	for _, g := range app.core.StandardBaseCommandGroups() {
 		names := make([]string, 0, len(g.Commands))
 		for _, cmd := range g.Commands {
 			names = append(names, cmd.Name)
@@ -28,15 +28,15 @@ func allCommandGroups(app *App) []struct {
 			commands []string
 		}{title: g.Title, commands: names})
 	}
-	for _, g := range groups {
-		names := make([]string, 0, len(g.Commands))
-		for _, cmd := range g.Commands {
+	for _, g := range domains.SubcommandGroups(app.core) {
+		names := make([]string, 0, len(g.Subcommands))
+		for _, cmd := range g.Subcommands {
 			names = append(names, cmd.Name)
 		}
 		out = append(out, struct {
 			title    string
 			commands []string
-		}{title: g.Title, commands: names})
+		}{title: g.Name, commands: names})
 	}
 	return out
 }
@@ -128,7 +128,7 @@ func TestRegisterCommands(t *testing.T) {
 		t.Fatalf("NewApp() returned error: %v", err)
 	}
 
-	groups := allCommandGroups(app)
+	groups := allGroups(app)
 	if len(groups) == 0 {
 		t.Error("expected command groups to be registered")
 	}
@@ -144,7 +144,7 @@ func TestRegisterCommands(t *testing.T) {
 	}
 
 	// Check required groups
-	requiredGroups := []string{"Meta", "Health", "Events", "Domains", "Statistics", "Configuration"}
+	requiredGroups := []string{"Meta", "Health", "Configuration", "event", "domain", "stats"}
 	for _, name := range requiredGroups {
 		if !groupNames[name] {
 			t.Errorf("missing %s command group", name)
@@ -154,16 +154,16 @@ func TestRegisterCommands(t *testing.T) {
 	// Check required commands for API parity
 	requiredCommands := []string{
 		"status",
-		"event create",
-		"event list",
-		"event get",
-		"domain register",
-		"domain list",
-		"domain get",
-		"domain update",
-		"domain health",
-		"stats timeline",
-		"stats summary",
+		"configure",
+		"create",
+		"list",
+		"get",
+		"register",
+		"update",
+		"health",
+		"timeline",
+		"summary",
+		"score",
 	}
 	for _, name := range requiredCommands {
 		if !commandNames[name] {
@@ -179,21 +179,20 @@ func TestCommandsNeedAPI(t *testing.T) {
 		t.Fatalf("NewApp() returned error: %v", err)
 	}
 
-	groups := allCommandGroups(app)
+	groups := allGroups(app)
 
 	// Commands that should require API access
 	apiCommands := map[string]bool{
-		"status":          true,
-		"event create":    true,
-		"event list":      true,
-		"event get":       true,
-		"domain register": true,
-		"domain list":     true,
-		"domain get":      true,
-		"domain update":   true,
-		"domain health":   true,
-		"stats timeline":  true,
-		"stats summary":   true,
+		"status":   true,
+		"create":   true,
+		"list":     true,
+		"get":      true,
+		"register": true,
+		"update":   true,
+		"health":   true,
+		"timeline": true,
+		"summary":  true,
+		"score":    true,
 	}
 
 	for _, g := range groups {
@@ -216,7 +215,7 @@ func TestCommandDescriptions(t *testing.T) {
 		t.Fatalf("NewApp() returned error: %v", err)
 	}
 
-	groups := allCommandGroups(app)
+	groups := allGroups(app)
 
 	for _, g := range groups {
 		for _, cmd := range g.commands {

@@ -64,7 +64,7 @@ func (a *App) resolveExecutionMode(mode string) (string, error) {
 		return mode, nil
 	}
 
-	body, err := a.getV1("/settings", nil)
+	body, err := a.core.Get("/settings", nil)
 	if err != nil {
 		return "", fmt.Errorf("resolve execution mode from settings: %w", err)
 	}
@@ -123,7 +123,7 @@ func (a *App) cmdExecutionList(args []string) error {
 		query.Set("created_to", strings.TrimSpace(*createdTo))
 	}
 
-	body, err := a.getV1("/execution", query)
+	body, err := a.core.Get("/execution", query)
 	if err != nil {
 		return err
 	}
@@ -184,7 +184,7 @@ func (a *App) cmdExecutionGet(args []string) error {
 		return fmt.Errorf("usage: execution get --id ID [--json]\n\n%s", err)
 	}
 	executionID := strings.TrimSpace(*id)
-	body, err := a.getV1("/execution/"+executionID, nil)
+	body, err := a.core.Get("/execution/"+executionID, nil)
 	if err != nil {
 		return err
 	}
@@ -250,7 +250,7 @@ func (a *App) cmdExecutionCreate(args []string) error {
 		"started_by":    opts.startedBy,
 	}
 
-	body, err := a.requestV1("POST", "/execution", nil, payload)
+	body, err := a.core.Request("POST", "/execution", nil, payload)
 	if err != nil {
 		return err
 	}
@@ -283,7 +283,7 @@ func (a *App) cmdExecutionPolicyGet(args []string) error {
 		return err
 	}
 
-	body, err := a.getV1("/settings", nil)
+	body, err := a.core.Get("/settings", nil)
 	if err != nil {
 		return err
 	}
@@ -343,7 +343,7 @@ func (a *App) cmdExecutionPolicyUpdate(args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to encode request: %w", err)
 	}
-	body, err := a.requestV1("PUT", "/settings", nil, json.RawMessage(payloadBytes))
+	body, err := a.core.Request("PUT", "/settings", nil, json.RawMessage(payloadBytes))
 	if err != nil {
 		return err
 	}
@@ -389,7 +389,7 @@ func (a *App) cmdExecutionPromptTrace(args []string) error {
 	}
 	executionID := strings.TrimSpace(*id)
 
-	body, err := a.getV1("/execution/"+executionID+"/prompt-trace", nil)
+	body, err := a.core.Get("/execution/"+executionID+"/prompt-trace", nil)
 	if err != nil {
 		return err
 	}
@@ -436,7 +436,7 @@ func (a *App) cmdCircuitBreakerReset(args []string) error {
 	}
 
 	payload := map[string]string{"item": strings.TrimSpace(*item)}
-	_, err := a.requestV1("POST", "/execution/circuit-breaker/reset", nil, payload)
+	_, err := a.core.Request("POST", "/execution/circuit-breaker/reset", nil, payload)
 	if err != nil {
 		return err
 	}
@@ -456,7 +456,7 @@ func (a *App) runExecutionMutation(args []string, action string) error {
 		return fmt.Errorf("usage: execution %s --id ID [--json]\n\n%s", action, err)
 	}
 	executionID := strings.TrimSpace(*id)
-	body, err := a.requestV1("POST", "/execution/"+executionID+"/"+action, nil, nil)
+	body, err := a.core.Request("POST", "/execution/"+executionID+"/"+action, nil, nil)
 	if err != nil {
 		return err
 	}

@@ -615,7 +615,10 @@ func TestEnvConfigResolver_ResolveDesktopPackagerURL_FromEnv(t *testing.T) {
 func TestEnvConfigResolver_ResolveTelemetryDir_FromEnv(t *testing.T) {
 	t.Setenv("DEPLOYMENT_MANAGER_TELEMETRY_DIR", "/custom/telemetry")
 	r := NewEnvConfigResolver()
-	got := r.ResolveTelemetryDir()
+	got, err := r.ResolveTelemetryDir()
+	if err != nil {
+		t.Fatalf("ResolveTelemetryDir() unexpected error: %v", err)
+	}
 	if got != "/custom/telemetry" {
 		t.Errorf("ResolveTelemetryDir() = %q, want %q", got, "/custom/telemetry")
 	}
@@ -624,19 +627,18 @@ func TestEnvConfigResolver_ResolveTelemetryDir_FromEnv(t *testing.T) {
 func TestEnvConfigResolver_ResolveTelemetryDir_Default(t *testing.T) {
 	t.Setenv("DEPLOYMENT_MANAGER_TELEMETRY_DIR", "")
 	r := NewEnvConfigResolver()
-	got := r.ResolveTelemetryDir()
+	got, err := r.ResolveTelemetryDir()
+	if err != nil {
+		t.Fatalf("ResolveTelemetryDir() unexpected error: %v", err)
+	}
 
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
-		want := filepath.Join(".", ".vrooli", "deployment", "telemetry")
-		if got != want {
-			t.Errorf("ResolveTelemetryDir() = %q, want %q", got, want)
-		}
-	} else {
-		want := filepath.Join(home, ".vrooli", "deployment", "telemetry")
-		if got != want {
-			t.Errorf("ResolveTelemetryDir() = %q, want %q", got, want)
-		}
+		t.Fatalf("UserHomeDir() unexpected error: %v", err)
+	}
+	want := filepath.Join(home, ".local", "state", "logs", "vrooli", "deployment-manager", "telemetry")
+	if got != want {
+		t.Errorf("ResolveTelemetryDir() = %q, want %q", got, want)
 	}
 }
 
@@ -680,11 +682,11 @@ func (s *staticConfigResolver) ResolveDesktopPackagerURL() (string, error) {
 	return s.desktopURL, s.desktopErr
 }
 
-func (s *staticConfigResolver) ResolveTelemetryDir() string {
+func (s *staticConfigResolver) ResolveTelemetryDir() (string, error) {
 	if s.telemetryDir != "" {
-		return s.telemetryDir
+		return s.telemetryDir, nil
 	}
-	return "/tmp/test-telemetry"
+	return "/tmp/test-telemetry", nil
 }
 
 // containsSubstring reports whether s contains substr.

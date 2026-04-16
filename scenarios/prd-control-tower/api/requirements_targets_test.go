@@ -9,8 +9,7 @@ import (
 // [REQ:PCT-FUNC-004][REQ:PCT-REQ-TARGETS] Requirements registry - Test operational target extraction
 func TestExtractOperationalTargets(t *testing.T) {
 	// Create a temporary PRD file for testing
-	tmpDir := t.TempDir()
-	vrooliRoot := filepath.Join(tmpDir, "vrooli")
+	vrooliRoot := newContractFixtureRepo(t)
 	scenarioDir := filepath.Join(vrooliRoot, "scenarios", "test-scenario")
 
 	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
@@ -34,8 +33,11 @@ func TestExtractOperationalTargets(t *testing.T) {
 	}
 
 	// Set VROOLI_ROOT for test
+	oldSourceRoot := os.Getenv("VROOLI_SOURCE_ROOT")
 	oldRoot := os.Getenv("VROOLI_ROOT")
-	os.Setenv("VROOLI_ROOT", vrooliRoot)
+	os.Setenv("VROOLI_SOURCE_ROOT", vrooliRoot)
+	os.Setenv("VROOLI_ROOT", "")
+	defer os.Setenv("VROOLI_SOURCE_ROOT", oldSourceRoot)
 	defer os.Setenv("VROOLI_ROOT", oldRoot)
 
 	targets, err := extractOperationalTargets("scenario", "test-scenario")

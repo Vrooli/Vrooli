@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/health"
 )
 
 // TestLogger provides controlled logging during tests
@@ -54,8 +55,19 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 		t.Fatalf("Failed to get working directory: %v", err)
 	}
 
+	xdgDataHome := filepath.Join(tempDir, "xdg-data")
+	if err := os.Setenv("XDG_DATA_HOME", xdgDataHome); err != nil {
+		os.RemoveAll(tempDir)
+		t.Fatalf("Failed to set XDG_DATA_HOME: %v", err)
+	}
+
+	backupDir, err := resolveBackupRoot()
+	if err != nil {
+		os.RemoveAll(tempDir)
+		t.Fatalf("Failed to resolve backup dir: %v", err)
+	}
+
 	// Create backup directory structure
-	backupDir := filepath.Join(tempDir, "data", "backups")
 	if err := os.MkdirAll(backupDir, 0755); err != nil {
 		os.RemoveAll(tempDir)
 		t.Fatalf("Failed to create backup dir: %v", err)
@@ -80,6 +92,7 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 		BackupDir:  backupDir,
 		OriginalWD: originalWD,
 		Cleanup: func() {
+			os.Unsetenv("XDG_DATA_HOME")
 			os.Chdir(originalWD)
 			os.RemoveAll(tempDir)
 		},
@@ -220,7 +233,7 @@ func createTestRouter() *mux.Router {
 	r := mux.NewRouter()
 
 	// Health endpoint
-	r.HandleFunc("/health", handleHealth).Methods("GET")
+	r.HandleFunc("/health", health.New().Version("1.0.0").Handler()).Methods("GET")
 
 	// API v1 routes
 	api := r.PathPrefix("/api/v1").Subrouter()

@@ -97,7 +97,7 @@ func runCreate(ctx *appctx.Context, args []string) error {
 		payload["ai_prompt"] = aiPrompt
 	}
 
-	body, err := ctx.Core.APIClient.Request("POST", ctx.APIPath("/workflows/create"), nil, payload)
+	body, err := ctx.Core.Request("POST", "/workflows/create", nil, payload)
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func runCreate(ctx *appctx.Context, args []string) error {
 }
 
 func resolveProjectID(ctx *appctx.Context, name string) string {
-	body, err := ctx.Core.APIClient.Get(ctx.APIPath("/projects"), nil)
+	body, err := ctx.Core.Get("/projects", nil)
 	if err != nil {
 		return ""
 	}
@@ -157,7 +157,7 @@ func createDemoProject(ctx *appctx.Context) string {
 		"folder_path": demoFolder,
 		"preset":      "recommended",
 	}
-	body, err := ctx.Core.APIClient.Request("POST", ctx.APIPath("/projects"), nil, payload)
+	body, err := ctx.Core.Request("POST", "/projects", nil, payload)
 	if err != nil {
 		return ""
 	}

@@ -15,8 +15,9 @@ import (
 // TestHandleGetCatalog tests the catalog endpoint
 func TestHandleGetCatalog(t *testing.T) {
 	// Set up test environment
-	tmpDir := t.TempDir()
-	t.Setenv("VROOLI_ROOT", tmpDir)
+	tmpDir := newContractFixtureRepo(t)
+	t.Setenv("VROOLI_SOURCE_ROOT", tmpDir)
+	t.Setenv("VROOLI_ROOT", "")
 
 	// Create test scenarios directory structure
 	scenariosDir := filepath.Join(tmpDir, "scenarios")
@@ -107,8 +108,9 @@ This is a test scenario for unit testing.
 // TestHandleGetPublishedPRD tests retrieving a published PRD
 func TestHandleGetPublishedPRD(t *testing.T) {
 	// Set up test environment
-	tmpDir := t.TempDir()
-	t.Setenv("VROOLI_ROOT", tmpDir)
+	tmpDir := newContractFixtureRepo(t)
+	t.Setenv("VROOLI_SOURCE_ROOT", tmpDir)
+	t.Setenv("VROOLI_ROOT", "")
 
 	// Create test scenario with PRD
 	scenarioDir := filepath.Join(tmpDir, "scenarios", "test-scenario")
@@ -185,6 +187,7 @@ func TestHandleGetPublishedPRD(t *testing.T) {
 // TestHandleGetCatalogWithInvalidEnvironment tests error handling
 func TestHandleGetCatalogWithInvalidEnvironment(t *testing.T) {
 	// Unset both VROOLI_ROOT and HOME to trigger error
+	t.Setenv("VROOLI_SOURCE_ROOT", "")
 	t.Setenv("VROOLI_ROOT", "")
 	t.Setenv("HOME", "")
 

@@ -349,7 +349,7 @@ func TestPlanPostsToPlanEndpoint(t *testing.T) {
 	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
 
 	output := captureStdout(t, func() {
-		if err := app.Run([]string{"plan", manifestPath}); err != nil {
+		if err := app.Run([]string{"deployment", "plan", manifestPath}); err != nil {
 			t.Fatalf("plan failed: %v", err)
 		}
 	})
@@ -379,12 +379,12 @@ func TestBundleBuildPostsToBundleBuildEndpoint(t *testing.T) {
 	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
 
 	output := captureStdout(t, func() {
-		if err := app.Run([]string{"bundle-build", manifestPath}); err != nil {
-			t.Fatalf("bundle-build failed: %v", err)
+		if err := app.Run([]string{"bundle", "build", manifestPath}); err != nil {
+			t.Fatalf("bundle build failed: %v", err)
 		}
 	})
 	if !strings.Contains(output, "\"artifact\"") {
-		t.Fatalf("expected bundle-build output, got: %s", output)
+		t.Fatalf("expected bundle build output, got: %s", output)
 	}
 }
 
@@ -437,8 +437,8 @@ func TestVPSInspectPlanPostsToInspectPlanEndpoint(t *testing.T) {
 	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
 
 	output := captureStdout(t, func() {
-		if err := app.Run([]string{"vps-inspect-plan", manifestPath}); err != nil {
-			t.Fatalf("vps-inspect-plan failed: %v", err)
+		if err := app.Run([]string{"inspect", "plan", manifestPath}); err != nil {
+			t.Fatalf("inspect plan failed: %v", err)
 		}
 	})
 	if !strings.Contains(output, "\"scenario_status\"") {
@@ -1194,8 +1194,8 @@ func TestVPSInspectApplyPostsToInspectApplyEndpoint(t *testing.T) {
 	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
 
 	output := captureStdout(t, func() {
-		if err := app.Run([]string{"vps-inspect-apply", manifestPath}); err != nil {
-			t.Fatalf("vps-inspect-apply failed: %v", err)
+		if err := app.Run([]string{"inspect", "status", manifestPath}); err != nil {
+			t.Fatalf("inspect status failed: %v", err)
 		}
 	})
 	if !strings.Contains(output, "\"ok\": true") {
@@ -1280,8 +1280,8 @@ func TestVPSSetupPlanPostsToSetupPlanEndpoint(t *testing.T) {
 	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
 
 	output := captureStdout(t, func() {
-		if err := app.Run([]string{"vps-setup-plan", manifestPath, bundlePath}); err != nil {
-			t.Fatalf("vps-setup-plan failed: %v", err)
+		if err := app.Run([]string{"vps", "setup", "plan", manifestPath, bundlePath}); err != nil {
+			t.Fatalf("vps setup plan failed: %v", err)
 		}
 	})
 	if !strings.Contains(output, "\"remote_tar_path\"") {
@@ -1317,8 +1317,8 @@ func TestVPSSetupApplyPostsToSetupApplyEndpoint(t *testing.T) {
 	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
 
 	output := captureStdout(t, func() {
-		if err := app.Run([]string{"vps-setup-apply", manifestPath, bundlePath}); err != nil {
-			t.Fatalf("vps-setup-apply failed: %v", err)
+		if err := app.Run([]string{"vps", "setup", "apply", manifestPath, bundlePath}); err != nil {
+			t.Fatalf("vps setup apply failed: %v", err)
 		}
 	})
 	if !strings.Contains(output, "\"ok\": true") {
@@ -1353,8 +1353,8 @@ func TestVPSDeployPlanPostsToDeployPlanEndpoint(t *testing.T) {
 	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
 
 	output := captureStdout(t, func() {
-		if err := app.Run([]string{"vps-deploy-plan", manifestPath}); err != nil {
-			t.Fatalf("vps-deploy-plan failed: %v", err)
+		if err := app.Run([]string{"vps", "deploy", "plan", manifestPath}); err != nil {
+			t.Fatalf("vps deploy plan failed: %v", err)
 		}
 	})
 	if !strings.Contains(output, "\"caddy_install\"") {
@@ -1389,8 +1389,8 @@ func TestVPSDeployApplyPostsToDeployApplyEndpoint(t *testing.T) {
 	t.Setenv("SCENARIO_TO_CLOUD_API_BASE", server.URL)
 
 	output := captureStdout(t, func() {
-		if err := app.Run([]string{"vps-deploy-apply", manifestPath}); err != nil {
-			t.Fatalf("vps-deploy-apply failed: %v", err)
+		if err := app.Run([]string{"vps", "deploy", "apply", manifestPath}); err != nil {
+			t.Fatalf("vps deploy apply failed: %v", err)
 		}
 	})
 	if !strings.Contains(output, "\"ok\": true") {

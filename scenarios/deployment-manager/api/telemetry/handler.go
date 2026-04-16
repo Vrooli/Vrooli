@@ -35,7 +35,7 @@ func NewHandler(log func(string, map[string]interface{})) *Handler {
 	return &Handler{log: log}
 }
 
-func telemetryDir() string {
+func telemetryDir() (string, error) {
 	return shared.GetConfigResolver().ResolveTelemetryDir()
 }
 
@@ -63,7 +63,11 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 	EnrichEvents(events, params, now)
 
 	// Ensure telemetry directory exists
-	dir := telemetryDir()
+	dir, err := telemetryDir()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("resolve telemetry dir: %s", err), http.StatusInternalServerError)
+		return
+	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		http.Error(w, fmt.Sprintf("prepare telemetry dir: %s", err), http.StatusInternalServerError)
 		return
@@ -88,7 +92,11 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 
 // List handles telemetry list requests.
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	dir := telemetryDir()
+	dir, err := telemetryDir()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("resolve telemetry dir: %s", err), http.StatusInternalServerError)
+		return
+	}
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {

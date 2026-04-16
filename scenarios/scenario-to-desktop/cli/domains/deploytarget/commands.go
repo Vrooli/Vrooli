@@ -1,0 +1,326 @@
+// Package deploytarget provides CLI commands for managing deploy targets.
+package deploytarget
+
+import (
+	"encoding/json"
+	"flag"
+	"fmt"
+	"os"
+	"sort"
+	"strings"
+
+	"scenario-to-desktop/cli/internal/support"
+
+	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
+)
+
+// Commands provides deploy target CLI commands.
+type Commands struct {
+	deps support.Dependencies
+}
+
+type doctorReport struct {
+	Ready         bool   `json:"ready"`
+	Name          string `json:"name"`
+	ScenarioName  string `json:"scenario_name"`
+	RemoteProfile string `json:"remote_profile"`
+	Checks        []struct {
+		Name     string `json:"name"`
+		Required bool   `json:"required"`
+		Passed   bool   `json:"passed"`
+		Blocked  bool   `json:"blocked"`
+		Detail   string `json:"detail"`
+	} `json:"checks"`
+	NextSteps []string `json:"next_steps"`
+}
+
+// New creates a new deploy target Commands instance.
+func New(deps support.Dependencies) *Commands {
+	return &Commands{deps: deps}
+}
+
+func Register(deps support.Dependencies) cliapp.SubcommandGroup {
+	cmds := New(deps)
+	return cliapp.SubcommandGroup{
+		Name:        "deploy-target",
+		Description: "Manage LPBS deploy targets (run 'deploy-target help' for details)",
+		NeedsAPI:    true,
+		Subcommands: []cliapp.Command{
+			{Name: "list", Description: "List saved deploy targets", Run: cmds.List},
+			{Name: "add", Description: "Add/update deploy target: add <name> --scenario <s> --profile <p> [--label <l>]", Run: cmds.Add},
+			{Name: "remove", Description: "Remove deploy target: remove <name>", Run: cmds.Remove},
+			{Name: "test", Description: "Test deploy target session: test <name> [--require-service-auth]", Run: cmds.Test},
+			{Name: "doctor", Description: "Diagnose deploy target readiness: doctor <name>", Run: cmds.Doctor},
+		},
+	}
+}
+
+// List shows all saved deploy targets.
+func (c *Commands) List(args []string) error {
+	fs := flag.NewFlagSet("deploy-target-list", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+
+	body, err := c.deps.Get("/deploy-targets", nil)
+	if err != nil {
+		return err
+	}
+
+	if *jsonOutput {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	var resp struct {
+		Targets map[string]struct {
+			Label         string `json:"label"`
+			ScenarioName  string `json:"scenario_name"`
+			RemoteProfile string `json:"remote_profile"`
+		} `json:"targets"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	if len(resp.Targets) == 0 {
+		return cliapp.RenderListReport(os.Stdout, cliapp.ListReport{
+			Summary:        []string{"Deploy targets: 0"},
+			ResultsHeading: "Targets",
+			RetrievalHints: []string{"Add one with `scenario-to-desktop deploy-target add <name> --scenario <s> --profile <p>`."},
+		})
+	}
+
+	names := make([]string, 0, len(resp.Targets))
+	for name := range resp.Targets {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	report := cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Deploy targets: %d", len(names))},
+		ResultsHeading: "Targets",
+		RetrievalHints: []string{"Use `scenario-to-desktop deploy-target doctor <name>` to diagnose readiness."},
+	}
+	for _, name := range names {
+		t := resp.Targets[name]
+		label := t.Label
+		if label == "" {
+			label = name
+		}
+		report.Results = append(report.Results, fmt.Sprintf("%s | label=%q | scenario=%s | profile=%s", name, label, t.ScenarioName, t.RemoteProfile))
+	}
+	return cliapp.RenderListReport(os.Stdout, report)
+}
+
+// Add creates or updates a deploy target.
+func (c *Commands) Add(args []string) error {
+	fs := flag.NewFlagSet("deploy-target-add", flag.ContinueOnError)
+	scenario := fs.String("scenario", "", "LPBS scenario name (required)")
+	profile := fs.String("profile", "", "Remote profile tag (required)")
+	label := fs.String("label", "", "Human-readable label")
+	jsonOutput := cliutil.JSONFlag(fs)
+
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+
+	if len(fs.Args()) == 0 {
+		return fmt.Errorf("usage: deploy-target add <name> --scenario <s> --profile <p> [--label <l>]")
+	}
+	name := fs.Args()[0]
+
+	if *scenario == "" || *profile == "" {
+		return fmt.Errorf("--scenario and --profile are required")
+	}
+
+	req := map[string]interface{}{
+		"scenario_name":  *scenario,
+		"remote_profile": *profile,
+	}
+	if *label != "" {
+		req["label"] = *label
+	}
+
+	body, err := c.deps.Request("PUT", "/deploy-targets/"+name, nil, req)
+	if err != nil {
+		return err
+	}
+
+	if *jsonOutput {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+		Result:      []string{fmt.Sprintf("Deploy target %q saved.", name)},
+		Changes:     []string{fmt.Sprintf("Scenario: %s", *scenario), fmt.Sprintf("Profile: %s", *profile)},
+		NextCommand: []string{fmt.Sprintf("scenario-to-desktop deploy-target doctor %s", name)},
+	})
+}
+
+// Remove deletes a deploy target.
+func (c *Commands) Remove(args []string) error {
+	fs := flag.NewFlagSet("deploy-target-remove", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+
+	if len(fs.Args()) == 0 {
+		return fmt.Errorf("usage: deploy-target remove <name>")
+	}
+	name := fs.Args()[0]
+
+	body, err := c.deps.Request("DELETE", "/deploy-targets/"+name, nil, nil)
+	if err != nil {
+		return err
+	}
+
+	if *jsonOutput {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{
+		Result:      []string{fmt.Sprintf("Deploy target %q removed.", name)},
+		Changes:     []string{"Saved deploy-target configuration was deleted."},
+		NextCommand: []string{"scenario-to-desktop deploy-target list"},
+	})
+}
+
+// Test validates a deploy target's remote profile session.
+func (c *Commands) Test(args []string) error {
+	fs := flag.NewFlagSet("deploy-target-test", flag.ContinueOnError)
+	requireServiceAuth := fs.Bool("require-service-auth", false, "Also verify LPBS service auth is enabled and LPBS_SERVICE_SECRET is set")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+
+	if len(fs.Args()) == 0 {
+		return fmt.Errorf("usage: deploy-target test <name>")
+	}
+	name := fs.Args()[0]
+
+	req := map[string]bool{
+		"require_service_auth": *requireServiceAuth,
+	}
+	body, err := c.deps.Request("POST", "/deploy-targets/"+name+"/test", nil, req)
+	if err != nil {
+		if *requireServiceAuth && isServiceAuthReadinessError(err) {
+			return fmt.Errorf(
+				"%v\n\nNext steps:\n%s",
+				err,
+				buildServiceAuthNextSteps(err, name),
+			)
+		}
+		return err
+	}
+
+	if *jsonOutput {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	status := fmt.Sprintf("Deploy target %q: remote profile session is active.", name)
+	if *requireServiceAuth {
+		status = fmt.Sprintf("Deploy target %q: remote profile session is active and service auth is ready.", name)
+	}
+	return cliapp.RenderOperationalReport(os.Stdout, cliapp.OperationalReport{
+		Status:    []string{status},
+		NextSteps: []string{fmt.Sprintf("scenario-to-desktop deploy-target doctor %s", name)},
+	})
+}
+
+// Doctor runs an end-to-end deploy-target readiness diagnosis with triage output.
+func (c *Commands) Doctor(args []string) error {
+	fs := flag.NewFlagSet("deploy-target-doctor", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+
+	if len(fs.Args()) == 0 {
+		return fmt.Errorf("usage: deploy-target doctor <name>")
+	}
+	name := fs.Args()[0]
+
+	body, err := c.deps.Request("POST", "/deploy-targets/"+name+"/doctor", nil, map[string]bool{})
+	if err != nil {
+		return err
+	}
+
+	if *jsonOutput {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	var report doctorReport
+	if err := json.Unmarshal(body, &report); err != nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	status := "NOT READY"
+	if report.Ready {
+		status = "READY"
+	}
+	opReport := cliapp.OperationalReport{
+		Status: []string{
+			fmt.Sprintf("Status: %s", status),
+			fmt.Sprintf("Target: %s (scenario=%s profile=%s)", report.Name, report.ScenarioName, report.RemoteProfile),
+		},
+		NextSteps: report.NextSteps,
+	}
+	for _, check := range report.Checks {
+		state := "PASS"
+		if check.Blocked {
+			state = "BLOCKED"
+		} else if !check.Passed {
+			state = "FAIL"
+		}
+		opReport.Triage = append(opReport.Triage, cliapp.TriageGroup{
+			Heading: check.Name,
+			Items:   []string{fmt.Sprintf("[%s] %s", state, check.Detail)},
+		})
+	}
+	if err := cliapp.RenderOperationalReport(os.Stdout, opReport); err != nil {
+		return err
+	}
+	if !report.Ready {
+		return fmt.Errorf("deploy target doctor checks failed")
+	}
+	return nil
+}
+
+func isServiceAuthReadinessError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(strings.TrimSpace(err.Error()))
+	return strings.Contains(msg, "lpbs_service_secret is not set") ||
+		strings.Contains(msg, "service auth") ||
+		strings.Contains(msg, "service-auth")
+}
+
+func buildServiceAuthNextSteps(err error, name string) string {
+	msg := ""
+	if err != nil {
+		msg = strings.ToLower(strings.TrimSpace(err.Error()))
+	}
+
+	if strings.Contains(msg, "scenario-to-desktop runtime") {
+		return fmt.Sprintf(
+			"  1) Verify LPBS source secret exists: scenario-to-cloud secrets get LPBS_SERVICE_SECRET --scenario landing-page-business-suite --targets scenario\n  2) Set scenario-to-desktop secret to the same value: scenario-to-cloud secrets set LPBS_SERVICE_SECRET --scenario scenario-to-desktop --value <same_secret_value> --targets scenario\n  3) Retry deploy-target auth gate: scenario-to-desktop deploy-target test %s --require-service-auth",
+			name,
+		)
+	}
+
+	return fmt.Sprintf(
+		"  1) Set shared secret (portable): scenario-to-cloud secrets set LPBS_SERVICE_SECRET --scenario landing-page-business-suite --generate hex:64 --targets scenario,deployment --domain <domain> --restart\n  2) Verify LPBS runtime auth gate: landing-page-business-suite service-auth-status --require-enabled\n  3) Retry deploy-target auth gate: scenario-to-desktop deploy-target test %s --require-service-auth",
+		name,
+	)
+}

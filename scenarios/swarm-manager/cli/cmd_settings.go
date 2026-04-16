@@ -15,7 +15,7 @@ func (a *App) cmdSettingsGet(args []string) error {
 		return err
 	}
 
-	body, err := a.getV1("/settings", nil)
+	body, err := a.core.Get("/settings", nil)
 	if err != nil {
 		return err
 	}
@@ -103,7 +103,7 @@ func (a *App) cmdSettingsUpdate(args []string) error {
 		return fmt.Errorf("usage: settings update --data JSON [--json]\n\n%s", err)
 	}
 
-	body, err := a.requestV1("PUT", "/settings", nil, payload)
+	body, err := a.core.Request("PUT", "/settings", nil, payload)
 	if err != nil {
 		return err
 	}

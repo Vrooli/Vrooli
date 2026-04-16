@@ -64,7 +64,7 @@ func runRenderVideo(ctx *appctx.Context, args []string) error {
 	}
 
 	checkPayload, _ := json.Marshal(map[string]any{"format": "json"})
-	status, body, err := api.Do(ctx, "POST", ctx.APIPath("/executions/"+executionID+"/export"), nil, checkPayload, nil)
+	status, body, err := api.Do(ctx, "POST", "/executions/"+executionID+"/export", nil, checkPayload, nil)
 	if err != nil {
 		return err
 	}
@@ -97,7 +97,7 @@ func runRenderVideo(ctx *appctx.Context, args []string) error {
 		"Content-Type": "application/json",
 	}
 
-	status, body, err = api.Do(ctx, "POST", ctx.APIPath("/executions/"+executionID+"/export"), nil, renderPayload, headers)
+	status, body, err = api.Do(ctx, "POST", "/executions/"+executionID+"/export", nil, renderPayload, headers)
 	if err != nil {
 		return err
 	}

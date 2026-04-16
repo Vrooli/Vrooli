@@ -20,7 +20,7 @@ func (a *App) cmdCapturesList(args []string) error {
 		return err
 	}
 
-	body, err := a.getV1("/captures", nil)
+	body, err := a.core.Get("/captures", nil)
 	if err != nil {
 		return err
 	}
@@ -108,7 +108,7 @@ func (a *App) cmdCapturesCreate(args []string) error {
 		return fmt.Errorf("finalize multipart request: %w", err)
 	}
 
-	body, err := a.requestMultipartV1("POST", "/captures", formBody.Bytes(), writer.FormDataContentType())
+	body, err := a.requestMultipart("POST", "/captures", formBody.Bytes(), writer.FormDataContentType())
 	if err != nil {
 		return err
 	}
@@ -148,7 +148,7 @@ func (a *App) cmdCapturesGet(args []string) error {
 	}
 	id := strings.TrimSpace(*idFlag)
 
-	body, err := a.getV1("/captures/"+id, nil)
+	body, err := a.core.Get("/captures/"+id, nil)
 	if err != nil {
 		return err
 	}
@@ -207,7 +207,7 @@ func (a *App) cmdCapturesDelete(args []string) error {
 	}
 	id := strings.TrimSpace(*idFlag)
 
-	if _, err := a.requestV1("DELETE", "/captures/"+id, nil, nil); err != nil {
+	if _, err := a.core.Request("DELETE", "/captures/"+id, nil, nil); err != nil {
 		return err
 	}
 
@@ -227,7 +227,7 @@ func (a *App) cmdCapturesClassify(args []string) error {
 	}
 	id := strings.TrimSpace(*idFlag)
 
-	body, err := a.requestV1("POST", "/captures/"+id+"/classify", nil, nil)
+	body, err := a.core.Request("POST", "/captures/"+id+"/classify", nil, nil)
 	if err != nil {
 		return err
 	}

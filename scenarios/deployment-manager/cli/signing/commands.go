@@ -5,10 +5,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 
 	"deployment-manager/cli/cmdutil"
 
+	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -145,8 +147,11 @@ func (c *Commands) Show(args []string) error {
 
 	formatVal := cmdutil.ResolveFormat(*format)
 	if strings.ToLower(formatVal) == "table" {
-		c.printSigningTable(&config)
-		return nil
+		report := signingShowReport(&config)
+		if *platform != "" {
+			report.Summary = append(report.Summary, fmt.Sprintf("Platform filter: %s", *platform))
+		}
+		return cliapp.RenderListReport(os.Stdout, report)
 	}
 
 	cmdutil.PrintByFormat(formatVal, body)
@@ -320,34 +325,43 @@ func (c *Commands) Validate(args []string) error {
 		return nil
 	}
 
-	// Table format
+	report := cliapp.OperationalReport{}
 	if result.Valid {
-		fmt.Println("✓ Signing configuration is valid")
-		if result.Message != "" {
-			fmt.Println("  " + result.Message)
-		}
+		report.Status = append(report.Status, "Signing validation: valid")
 	} else {
-		fmt.Println("✗ Signing validation failed")
+		report.Status = append(report.Status, "Signing validation: failed")
 	}
-
+	if result.Message != "" {
+		report.Status = append(report.Status, fmt.Sprintf("Message: %s", result.Message))
+	}
 	if len(result.Errors) > 0 {
-		fmt.Println("\nErrors:")
+		group := cliapp.TriageGroup{Heading: "Errors"}
 		for _, e := range result.Errors {
-			fmt.Printf("  • [%s] %s: %s\n", e["platform"], e["code"], e["message"])
+			item := fmt.Sprintf("[%s] %s: %s", e["platform"], e["code"], e["message"])
 			if rem := e["remediation"]; rem != "" {
-				fmt.Printf("    Remediation: %s\n", rem)
+				item += fmt.Sprintf(" | Remediation: %s", rem)
 			}
+			group.Items = append(group.Items, item)
 		}
+		report.Triage = append(report.Triage, group)
 	}
 
 	if len(result.Warnings) > 0 {
-		fmt.Println("\nWarnings:")
+		group := cliapp.TriageGroup{Heading: "Warnings"}
 		for _, w := range result.Warnings {
-			fmt.Printf("  • [%s] %s: %s\n", w["platform"], w["code"], w["message"])
+			group.Items = append(group.Items, fmt.Sprintf("[%s] %s: %s", w["platform"], w["code"], w["message"]))
+		}
+		report.Triage = append(report.Triage, group)
+	}
+	if result.Valid {
+		report.NextSteps = []string{"deployment-manager signing show <profile-id>"}
+	} else {
+		report.NextSteps = []string{
+			"deployment-manager signing prerequisites",
+			"deployment-manager signing show <profile-id>",
 		}
 	}
-
-	return nil
+	return cliapp.RenderOperationalReport(os.Stdout, report)
 }
 
 // Prerequisites checks available signing tools.
@@ -386,33 +400,27 @@ func (c *Commands) Prerequisites(args []string) error {
 		return nil
 	}
 
-	// Table format
-	fmt.Println("Signing Tool Prerequisites:")
-	fmt.Println()
-
-	rows := [][]string{}
+	report := cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Signing tools checked: %d", len(result.Tools))},
+		ResultsHeading: "Prerequisites",
+		RetrievalHints: []string{"deployment-manager signing discover --platform <windows|macos|linux>"},
+	}
 	for _, t := range result.Tools {
-		status := "✓"
+		status := "installed"
 		if !t.Installed {
-			status = "✗"
+			status = "missing"
 		}
 		version := t.Version
 		if version == "" {
 			version = "-"
 		}
-		path := t.Path
-		if path == "" {
-			if t.Error != "" {
-				path = t.Error
-			} else {
-				path = "-"
-			}
+		location := t.Path
+		if location == "" {
+			location = fallbackString(t.Error, "-")
 		}
-		rows = append(rows, []string{status, t.Platform, t.Tool, version, path})
+		report.Results = append(report.Results, fmt.Sprintf("%s %s %s version=%s source=%s", t.Platform, t.Tool, status, version, location))
 	}
-
-	cmdutil.PrintTable([]string{"Status", "Platform", "Tool", "Version", "Path/Error"}, rows)
-	return nil
+	return cliapp.RenderListReport(os.Stdout, report)
 }
 
 // DiscoveredCertificate matches the API response structure.
@@ -470,58 +478,66 @@ func (c *Commands) Discover(args []string) error {
 		return nil
 	}
 
-	// Table format
 	platformName := strings.ToUpper(platformLower[:1]) + platformLower[1:]
 	if platformLower == "macos" {
 		platformName = "macOS"
 	}
-
-	fmt.Printf("%s Signing Certificates/Identities Found:\n\n", platformName)
-
+	report := cliapp.ListReport{
+		Summary: []string{
+			fmt.Sprintf("Platform: %s", platformName),
+			fmt.Sprintf("Certificates found: %d", len(result.Certificates)),
+		},
+		ResultsHeading: "Certificates",
+		RetrievalHints: []string{
+			fmt.Sprintf("deployment-manager signing set <profile> --platform %s ...", platformLower),
+		},
+	}
 	if len(result.Certificates) == 0 {
-		fmt.Println("  No certificates found.")
+		report.Results = []string{"(none found)"}
 		if len(result.Errors) > 0 {
-			fmt.Println("\nErrors:")
 			for _, e := range result.Errors {
-				fmt.Printf("  • %s\n", e)
+				report.RetrievalHints = append(report.RetrievalHints, e)
 			}
 		}
-		return nil
+		return cliapp.RenderListReport(os.Stdout, report)
 	}
 
 	for i, cert := range result.Certificates {
-		status := "✓"
+		status := "valid"
 		if cert.IsExpired {
-			status = "✗ EXPIRED"
+			status = "expired"
 		} else if cert.DaysToExpiry >= 0 && cert.DaysToExpiry <= 30 {
-			status = "⚠ Expiring soon"
+			status = "expiring-soon"
 		}
-
-		fmt.Printf("  %d) %s\n", i+1, cert.Name)
-		fmt.Printf("     ID: %s\n", cert.ID)
+		line := fmt.Sprintf("%d. %s id=%s status=%s", i+1, cert.Name, cert.ID, status)
 		if cert.Type != "" {
-			fmt.Printf("     Type: %s\n", cert.Type)
+			line += fmt.Sprintf(" type=%s", cert.Type)
 		}
 		if cert.ExpiresAt != "" && cert.ExpiresAt != "never" {
-			fmt.Printf("     Expires: %s (%d days) %s\n", cert.ExpiresAt, cert.DaysToExpiry, status)
+			line += fmt.Sprintf(" expires=%s (%d days)", cert.ExpiresAt, cert.DaysToExpiry)
 		} else if cert.ExpiresAt == "never" {
-			fmt.Printf("     Expires: Never\n")
+			line += " expires=never"
 		}
 		if cert.IsCodeSign {
-			fmt.Printf("     Code Signing: ✓\n")
+			line += " code-signing=yes"
 		}
 		if cert.UsageHint != "" {
-			fmt.Printf("     Usage: %s\n", cert.UsageHint)
+			line += fmt.Sprintf(" usage=%s", cert.UsageHint)
 		}
-		fmt.Println()
+		report.Results = append(report.Results, line)
 	}
 
 	if len(result.Errors) > 0 {
-		fmt.Println("Errors:")
 		for _, e := range result.Errors {
-			fmt.Printf("  • %s\n", e)
+			report.RetrievalHints = append(report.RetrievalHints, e)
 		}
 	}
+	return cliapp.RenderListReport(os.Stdout, report)
+}
 
-	return nil
+func fallbackString(value string, fallback string) string {
+	if strings.TrimSpace(value) == "" {
+		return fallback
+	}
+	return value
 }

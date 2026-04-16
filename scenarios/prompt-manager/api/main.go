@@ -41,6 +41,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // discoverScenarioNames returns the names of all scenario directories.
@@ -457,10 +458,10 @@ func main() {
 
 	// Heartbeat system
 	// Get Vrooli root for working directory
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		// Default to parent of store dir
-		vrooliRoot, _ = filepath.Abs(filepath.Join(storeDir, ".."))
+	vrooliRoot, err := resolveRepoRoot(absStoreDir)
+	if err != nil {
+		log.Printf("Warning: failed to resolve repo root from repo contract: %v", err)
+		vrooliRoot = ""
 	}
 
 	// Initialize heartbeat components
@@ -613,6 +614,16 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+func resolveRepoRoot(storeDir string) (string, error) {
+	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
+		return repocontract.FindRepoRootFromPath(root)
+	}
+	if root, err := repocontract.ResolveRepoRoot(); err == nil {
+		return root, nil
+	}
+	return repocontract.FindRepoRootFromPath(storeDir)
 }
 
 // buildTopicMatchFn creates a TopicMatchFunc that uses the AI search service

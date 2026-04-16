@@ -5,19 +5,23 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Sandbox status enum
-CREATE TYPE sandbox_status AS ENUM (
-    'creating',   -- Sandbox is being initialized
-    'active',     -- Sandbox is mounted and ready
-    'stopped',    -- Sandbox is unmounted but preserved
-    'approved',   -- Changes have been approved and applied
-    'rejected',   -- Changes have been rejected
-    'deleted',    -- Sandbox has been deleted (soft delete)
-    'error'       -- Sandbox is in an error state
-);
+DO $$ BEGIN
+    CREATE TYPE sandbox_status AS ENUM (
+        'creating',   -- Sandbox is being initialized
+        'active',     -- Sandbox is mounted and ready
+        'stopped',    -- Sandbox is unmounted but preserved
+        'approved',   -- Changes have been approved and applied
+        'rejected',   -- Changes have been rejected
+        'deleted',    -- Sandbox has been deleted (soft delete)
+        'error'       -- Sandbox is in an error state
+    );
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Main sandboxes table
 CREATE TABLE sandboxes (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
     name TEXT,                          -- Optional human-readable name for organization
 
     -- Scope configuration
@@ -82,7 +86,7 @@ CREATE TABLE sandboxes (
 
 -- Changed files tracking
 CREATE TABLE sandbox_changes (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
     sandbox_id UUID NOT NULL REFERENCES sandboxes(id) ON DELETE CASCADE,
 
     -- File information
@@ -104,7 +108,7 @@ CREATE TABLE sandbox_changes (
 
 -- Audit log for sandbox operations
 CREATE TABLE sandbox_audit_log (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
     sandbox_id UUID REFERENCES sandboxes(id) ON DELETE SET NULL,
 
     -- Event information
@@ -128,7 +132,7 @@ CREATE TABLE sandbox_audit_log (
 -- - Batch committing of pending changes
 -- - Audit trail of file modifications
 CREATE TABLE applied_changes (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
     sandbox_id UUID REFERENCES sandboxes(id) ON DELETE SET NULL,
 
     -- Original sandbox ownership (preserved even if sandbox deleted)
@@ -214,6 +218,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS sandbox_last_used_trigger ON sandboxes;
 CREATE TRIGGER sandbox_last_used_trigger
     BEFORE UPDATE ON sandboxes
     FOR EACH ROW

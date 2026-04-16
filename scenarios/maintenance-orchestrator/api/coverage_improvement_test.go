@@ -384,9 +384,8 @@ func TestDiscoveryEdgeCases(t *testing.T) {
 		defer os.RemoveAll(tmpDir)
 
 		// Save and change VROOLI_ROOT
-		origRoot := os.Getenv("VROOLI_ROOT")
-		os.Setenv("VROOLI_ROOT", tmpDir)
-		defer os.Setenv("VROOLI_ROOT", origRoot)
+		t.Setenv("VROOLI_ROOT", tmpDir)
+		t.Setenv("VROOLI_SCENARIOS_PATH", filepath.Join(tmpDir, "scenarios"))
 
 		// Create orchestrator and logger for discovery
 		orchestrator := NewOrchestrator()

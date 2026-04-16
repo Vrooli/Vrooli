@@ -14,7 +14,8 @@ import (
 // [REQ:PCT-CATALOG-ENUMERATE] Catalog enumerates all scenarios and resources with PRD status
 func TestHandleScenarioExistence(t *testing.T) {
 	tmpRoot := newContractFixtureRepo(t)
-	t.Setenv("VROOLI_ROOT", tmpRoot)
+	t.Setenv("VROOLI_SOURCE_ROOT", tmpRoot)
+	t.Setenv("VROOLI_ROOT", "")
 
 	// Create a test scenario directory
 	scenariosDir := filepath.Join(tmpRoot, "scenarios")

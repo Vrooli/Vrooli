@@ -1,17 +1,19 @@
 package format
 
-import "fmt"
+import (
+	"os"
 
-// MutationResult prints a mutation result with optional details and next-step commands.
-func MutationResult(result string, details string, nextSteps []string) {
-	fmt.Println(result)
+	"github.com/vrooli/cli-core/cliapp"
+)
+
+// MutationResult renders the standard mutation contract with optional details and next steps.
+func MutationResult(result string, details string, nextSteps []string) error {
+	report := cliapp.MutationReport{
+		Result:      []string{result},
+		NextCommand: nextSteps,
+	}
 	if details != "" {
-		fmt.Printf("  %s\n", details)
+		report.Changes = []string{details}
 	}
-	if len(nextSteps) > 0 {
-		fmt.Println("\nNext steps:")
-		for _, step := range nextSteps {
-			fmt.Printf("  $ %s\n", step)
-		}
-	}
+	return cliapp.RenderMutationReport(os.Stdout, report)
 }

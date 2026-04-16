@@ -68,11 +68,11 @@ func (s *Server) discoverComponents() ([]Component, error) {
 	if vrooliRoot == "" {
 		return nil, fmt.Errorf("failed to discover components: Vrooli root is not configured")
 	}
-	if resolved, err := repocontract.FindRepoRootFromPath(vrooliRoot); err == nil {
-		vrooliRoot = resolved
-	} else {
-		vrooliRoot = filepath.Clean(vrooliRoot)
+	resolved, err := repocontract.FindRepoRootFromPath(vrooliRoot)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve configured Vrooli root: %w", err)
 	}
+	vrooliRoot = resolved
 
 	components := make([]Component, 0)
 

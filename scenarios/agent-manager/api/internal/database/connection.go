@@ -78,21 +78,10 @@ func DataDir() string {
 	if root != "" {
 		return filepath.Dir(root)
 	}
-	dataRoot := strings.TrimSpace(os.Getenv("SQLITE_DATABASE_PATH"))
-	if dataRoot == "" {
-		dataRoot = strings.TrimSpace(os.Getenv("VROOLI_DATA"))
+	if path, err := scenarioDBPath(); err == nil {
+		return filepath.Dir(path)
 	}
-	if dataRoot == "" {
-		if path, err := scenarioDBPath(); err == nil {
-			return filepath.Dir(path)
-		}
-		home, _ := os.UserHomeDir()
-		if home == "" {
-			home = "."
-		}
-		dataRoot = filepath.Join(home, ".vrooli", "data", "sqlite", "databases")
-	}
-	return dataRoot
+	return "."
 }
 
 func sqliteDSN(log *logrus.Logger) (string, error) {
@@ -101,25 +90,12 @@ func sqliteDSN(log *logrus.Logger) (string, error) {
 		if custom := strings.TrimSpace(os.Getenv("DATABASE_URL")); strings.HasPrefix(custom, "file:") {
 			return custom, nil
 		}
-		dataRoot := strings.TrimSpace(os.Getenv("SQLITE_DATABASE_PATH"))
-		if dataRoot == "" {
-			dataRoot = strings.TrimSpace(os.Getenv("VROOLI_DATA"))
+		path, err := scenarioDBPath()
+		if err != nil {
+			return "", domain.NewConfigInvalidError("AM_SQLITE_PATH", "resolve canonical sqlite path", err)
 		}
-		if dataRoot == "" {
-			if path, err := scenarioDBPath(); err == nil {
-				if migrateErr := migrateLegacySQLite(path); migrateErr != nil {
-					return "", domain.NewConfigInvalidError("AM_SQLITE_PATH", "migrate legacy sqlite", migrateErr)
-				}
-				root = path
-				goto ensureDir
-			}
-			home, _ := os.UserHomeDir()
-			if home == "" {
-				home = "."
-			}
-			dataRoot = filepath.Join(home, ".vrooli", "data", "sqlite", "databases")
-		}
-		root = filepath.Join(dataRoot, "agent-manager.db")
+		root = path
+		goto ensureDir
 	}
 
 ensureDir:
@@ -146,32 +122,6 @@ func scenarioDBPath() (string, error) {
 		return "", err
 	}
 	return resolver.Path(storage.Options{ScenarioID: "agent-manager"}, storage.ClassData, "agent-manager.db")
-}
-
-func migrateLegacySQLite(dst string) error {
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
-		return nil
-	}
-	src := filepath.Join(home, ".vrooli", "data", "sqlite", "databases", "agent-manager.db")
-	if src == dst {
-		return nil
-	}
-	if _, err := os.Stat(src); err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-	if _, err := os.Stat(dst); err == nil {
-		return nil
-	} else if !os.IsNotExist(err) {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return err
-	}
-	return os.Rename(src, dst)
 }
 
 // Close closes the database connection.

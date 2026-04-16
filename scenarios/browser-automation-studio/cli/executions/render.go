@@ -67,7 +67,7 @@ func runRender(ctx *appctx.Context, args []string) error {
 	bodyPayload, _ := json.Marshal(payload)
 
 	headers := map[string]string{"Accept": "application/zip", "Content-Type": "application/json"}
-	status, body, err := api.Do(ctx, "POST", ctx.APIPath("/executions/"+executionID+"/export"), nil, bodyPayload, headers)
+	status, body, err := api.Do(ctx, "POST", "/executions/"+executionID+"/export", nil, bodyPayload, headers)
 	if err != nil {
 		return err
 	}

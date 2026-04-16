@@ -81,7 +81,7 @@ func runLint(ctx *appctx.Context, args []string) error {
 			"strict":   strict,
 		}
 
-		body, err := ctx.Core.APIClient.Request("POST", ctx.APIPath("/workflows/validate"), nil, payload)
+		body, err := ctx.Core.Request("POST", "/workflows/validate", nil, payload)
 		if err != nil {
 			lintFailed = true
 			if jsonOutput {

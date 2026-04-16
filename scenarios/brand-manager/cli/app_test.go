@@ -27,7 +27,7 @@ func TestNewApp(t *testing.T) {
 	}
 }
 
-func TestApiPath_Prefix(t *testing.T) {
+func TestAPIPath_Prefix(t *testing.T) {
 	app := mustNewApp(t)
 
 	tests := []struct {
@@ -43,7 +43,7 @@ func TestApiPath_Prefix(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := app.apiPath(tt.input)
+			result := app.core.APIPath(tt.input)
 			if tt.contains == "" && result != "" {
 				t.Errorf("expected empty, got %q", result)
 			} else if tt.contains != "" && result != tt.contains {

@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/health"
-	"github.com/vrooli/api-core/preflight"
 	"fmt"
 	"log"
 	"net/http"
@@ -10,7 +8,9 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"path/filepath"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 const (
@@ -31,62 +31,9 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	// Change working directory to project root for scenario discovery
-	// Use VROOLI_ROOT environment variable if available, otherwise derive from relative path
-	root := os.Getenv("VROOLI_ROOT")
-	if root == "" {
-		// Fallback: API runs from scenarios/maintenance-orchestrator/api/, so go up 3 levels
-		//
-		// SECURITY NOTE: Path Traversal False Positive (CWE-22 / main.go:51)
-		// =================================================================
-		// This code is flagged by static analysis tools as potential path traversal.
-		// However, this is a FALSE POSITIVE due to multiple layers of protection:
-		//
-		// Layer 1 - Lifecycle Protection: Binary MUST be run via lifecycle system
-		//   - Check at line 26 ensures VROOLI_LIFECYCLE_MANAGED=true
-		//   - Direct execution exits with error before reaching this code
-		//   - Lifecycle system provides trusted VROOLI_ROOT environment variable
-		//
-		// Layer 2 - Path Normalization: filepath.Abs + filepath.Clean
-		//   - filepath.Abs resolves to absolute path (no relative components)
-		//   - filepath.Clean normalizes and removes traversal patterns (.., ., //)
-		//   - Combined effect: "../../../" becomes "/absolute/path/to/vrooli"
-		//
-		// Layer 3 - Directory Structure Validation (lines 65-70)
-		//   - Validates "scenarios" subdirectory exists in resolved path
-		//   - Exits immediately if expected Vrooli structure not found
-		//   - Prevents using arbitrary directories as project root
-		//
-		// Attack Surface Analysis:
-		//   - Attacker cannot control os.Args[0] without OS-level access
-		//   - If attacker has OS access to modify binary path, they already have
-		//     full system access and path traversal is irrelevant
-		//   - Lifecycle check prevents running from arbitrary locations
-		//
-		// Conclusion: No exploitable path traversal vulnerability exists.
-		// #nosec G304 - Path traversal risk fully mitigated by multi-layer validation
-		var err error
-		binaryDir := filepath.Dir(os.Args[0])
-		// Resolve absolute path (normalizes ".." patterns)
-		root, err = filepath.Abs(filepath.Join(binaryDir, "../../../"))
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "❌ Failed to resolve project root directory: %v\n", err)
-			os.Exit(1)
-		}
-		// Clean the path to normalize and remove any remaining traversal patterns
-		root = filepath.Clean(root)
-	} else {
-		// Clean environment variable path for consistency
-		root = filepath.Clean(root)
-	}
-
-	// Critical validation: Verify the resolved path contains expected Vrooli directory structure
-	// This prevents using arbitrary directories as the project root
-	// Part of Layer 3 security protection against path traversal (see security note above)
-	scenariosDir := filepath.Join(root, "scenarios")
-	if _, err := os.Stat(scenariosDir); os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "❌ Invalid project root: scenarios directory not found at %s\n", scenariosDir)
-		fmt.Fprintf(os.Stderr, "   Expected Vrooli project structure not present. This prevents path traversal attacks.\n")
+	root, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "❌ Failed to resolve project root directory: %v\n", err)
 		os.Exit(1)
 	}
 

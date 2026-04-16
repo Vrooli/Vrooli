@@ -143,13 +143,16 @@ Is there an existing CLI for {{TARGET}}?
 ```
 scenarios/{{TARGET}}/cli/
 ├── main.go              # Entry point (minimal)
-├── app.go               # App struct, command registration
+├── app.go               # App struct, metadata, cli-core wiring
 ├── go.mod               # Module with cli-core dependency
 ├── install.sh           # Cross-platform installer (bash)
-└── install.ps1          # Windows installer (PowerShell)
+├── install.ps1          # Windows installer (PowerShell)
+└── domains/
+    ├── domains.go       # Aggregate domain registration
+    └── README.md        # Extension guidance
 ```
 
-**For larger CLIs with many commands:**
+**Default growth structure for real CLIs:**
 ```
 scenarios/{{TARGET}}/cli/
 ├── main.go
@@ -157,15 +160,29 @@ scenarios/{{TARGET}}/cli/
 ├── go.mod
 ├── install.sh
 ├── install.ps1
-├── health/              # Domain-specific command package
-│   ├── command.go       # Run() function
-│   ├── client.go        # API client wrapper
-│   └── types.go         # Request/Response types
-├── resources/           # Another domain
-│   ├── command.go
+├── domains/
+│   ├── domains.go
+│   ├── health/
+│   │   ├── register.go
+│   │   ├── status.go
+│   │   └── output.go
+│   ├── resources/
+│   │   ├── register.go
+│   │   ├── list.go
+│   │   ├── get.go
+│   │   ├── create.go
+│   │   ├── update.go
+│   │   ├── delete.go
+│   │   ├── output.go
+│   │   └── types.go
 │   └── ...
-└── ...
+└── internal/
+    ├── output/
+    ├── flags/
+    └── client/
 ```
+
+**Steer:** domain packages are the greenfield default. `cmd_<domain>.go` may exist temporarily in legacy or tiny CLIs, but do not choose it as the planned architecture for a new scenario expected to grow.
 
 #### 4.1 go.mod Pattern
 
@@ -176,54 +193,56 @@ go 1.22
 
 require github.com/vrooli/cli-core v0.0.0
 
+replace github.com/vrooli/api-core => ../../../packages/api-core
+
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
+
+replace github.com/vrooli/vrooli => ../../..
 ```
 
 **Key points:**
-- Single dependency on cli-core
-- Replace directive points to local packages
-- Relative path: `../../../packages/cli-core`
+- Single direct dependency on cli-core
+- Carry local replace wiring for `api-core`, `cli-core`, `repo-contract-go`, and root `vrooli`
+- Generated-scenario path from `scenarios/{{TARGET}}/cli/`: `../../../packages/...`
 
 ---
 
 ### 5. Command Registration Pattern
 
-Commands are organized into **CommandGroups** by functional domain.
+Commands should be organized by **domain packages** first, then registered as `CommandGroup` or `SubcommandGroup`.
 
 ```go
-func (a *App) registerCommands() []cliapp.CommandGroup {
-    health := cliapp.CommandGroup{
-        Title: "Health",
-        Commands: []cliapp.Command{
-            {
-                Name:        "status",
-                Aliases:     []string{"health"},
-                NeedsAPI:    true,
-                Description: "Check API health and readiness",
-                Run:         a.cmdStatus,
-            },
+func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
+    return nil
+}
+
+func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
+    return []cliapp.SubcommandGroup{
+        resources.Register(core),
+    }
+}
+```
+
+Example domain package:
+
+```go
+package resources
+
+import "github.com/vrooli/cli-core/cliapp"
+
+func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
+    _ = core
+    return cliapp.SubcommandGroup{
+        Name:        "resources",
+        Description: "Resource operations",
+        Subcommands: []cliapp.Command{
+            {Name: "list", NeedsAPI: true, Description: "List resources", Run: runList},
+            {Name: "get", NeedsAPI: true, Description: "Get resource by ID", Run: runGet},
+            {Name: "create", NeedsAPI: true, Description: "Create resource", Run: runCreate},
         },
     }
-
-    resources := cliapp.CommandGroup{
-        Title: "Resources",
-        Commands: []cliapp.Command{
-            {Name: "list", NeedsAPI: true, Description: "List all resources", Run: a.cmdList},
-            {Name: "get", NeedsAPI: true, Description: "Get resource by ID", Run: a.cmdGet},
-            {Name: "create", NeedsAPI: true, Description: "Create new resource", Run: a.cmdCreate},
-        },
-    }
-
-    config := cliapp.CommandGroup{
-        Title: "Configuration",
-        Commands: []cliapp.Command{
-            a.core.ConfigureCommand([]string{"api_base"}, []string{"token", "api_token"}),
-        },
-    }
-
-    return []cliapp.CommandGroup{health, resources, config}
 }
 ```
 
@@ -257,7 +276,26 @@ func (a *App) registerCommands() []cliapp.CommandGroup {
 
 #### 6.1 Standard Environment Variable Derivation
 
-Use `StandardScenarioEnv()` to derive conventional env var names:
+Use `NewStandardScenarioApp()` by default. It already derives standard env wiring, default `status`, default `configure`, stale checking, and auto-start preflight.
+
+```go
+core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
+    Name:             appName,
+    Version:          appVersion,
+    Description:      "Example CLI",
+    ExtraAPIEnvVars:  []string{"API_BASE_URL", "VITE_API_BASE_URL"},
+    BuildFingerprint: buildFingerprint,
+    BuildTimestamp:   buildTimestamp,
+    BuildSourceRoot:  buildSourceRoot,
+    AllowAnonymous:   true,
+    CommandGroups:    domains.CommandGroups,
+    SubcommandGroups: domains.SubcommandGroups,
+})
+```
+
+Drop to `StandardScenarioEnv()` + `NewScenarioApp()` only when lower-level control is necessary.
+
+Use `StandardScenarioEnv()` directly when you need custom env derivation:
 
 ```go
 env := cliapp.StandardScenarioEnv(appName, cliapp.ScenarioEnvOptions{
@@ -416,6 +454,25 @@ if *jsonOutput {
 }
 ```
 
+Prefer cli-core renderers for human-mode defaults:
+
+```go
+report := cliapp.MutationReport{
+    Result: []string{"Resource created"},
+    Changes: []string{
+        "id=res_123",
+        "status=ready",
+    },
+    NextCommand: []string{
+        "example resources get res_123",
+    },
+}
+if *jsonOutput {
+    return cliapp.PrintReportJSON(os.Stdout, report)
+}
+return cliapp.RenderMutationReport(os.Stdout, report)
+```
+
 **Mode policy:**
 - Default mode is canonical for operators and agents
 - `--json` is supported for integration/debug/export paths
@@ -489,6 +546,12 @@ This keeps output concise for operators while still giving agents a stable struc
 - Include copy-paste-ready commands
 - Put highest-impact command first
 - Prefer one command per remediation group
+
+**Implementation steer:**
+- Use `cliapp.RenderOperationalReport(...)` for this contract
+- Use `cliapp.RenderListReport(...)` for read/list commands
+- Use `cliapp.RenderMutationReport(...)` for create/update/delete/start/stop flows
+- Keep `--json` as the exact machine-readable companion via `cliapp.PrintReportJSON(...)`
 
 Promotion trigger:
 - If the same troubleshooting clarification appears across multiple Tools skills (or repeatedly in one skill's `Troubleshooting & Edge Cases`), treat that as a CLI product gap.

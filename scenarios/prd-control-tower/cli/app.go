@@ -3,8 +3,10 @@ package main
 import (
 	"time"
 
+	"prd-control-tower/cli/domains"
+	"prd-control-tower/cli/internal/support"
+
 	"github.com/vrooli/cli-core/cliapp"
-	"github.com/vrooli/cli-core/cliutil"
 )
 
 const (
@@ -25,20 +27,13 @@ type App struct {
 }
 
 func NewApp() (*App, error) {
-	env := cliapp.StandardScenarioEnv(appName, cliapp.ScenarioEnvOptions{})
-	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
+	app := &App{}
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
 		Name:               appName,
 		Version:            appVersion,
 		Description:        "PRD Control Tower CLI",
 		DefaultAPIBase:     defaultAPIBase,
 		DefaultHTTPTimeout: 300 * time.Second, // AI generation can take several minutes
-		APIEnvVars:         env.APIEnvVars,
-		APIPortEnvVars:     env.APIPortEnvVars,
-		APIPortDetector:    cliutil.DetectPortFromVrooli(appName, "API_PORT"),
-		ConfigDirEnvVars:   env.ConfigDirEnvVars,
-		SourceRootEnvVars:  env.SourceRootEnvVars,
-		TokenEnvVars:       env.TokenEnvVars,
-		HTTPTimeoutEnvVars: env.HTTPTimeoutEnvVars,
 		Preflight: func(cmd cliapp.Command, global cliapp.GlobalOptions, app *cliapp.ScenarioApp) error {
 			if !cmd.NeedsAPI {
 				return nil
@@ -49,51 +44,36 @@ func NewApp() (*App, error) {
 		BuildTimestamp:   buildTimestamp,
 		BuildSourceRoot:  buildSourceRoot,
 		AllowAnonymous:   true,
+		CommandGroups: func(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
+			app.core = core
+			return app.customCommandGroups()
+		},
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	app := &App{core: core}
+	app.core = core
 	app.services = NewServices(app.core.APIClient)
-	app.core.SetCommands(app.registerCommands())
 	return app, nil
 }
 
-func (a *App) registerCommands() []cliapp.CommandGroup {
-	health := cliapp.CommandGroup{
-		Title: "Health",
-		Commands: []cliapp.Command{
-			{Name: "status", NeedsAPI: true, Description: "Check API health", Run: func(args []string) error { return a.cmdStatus(args) }},
-		},
-	}
-	drafts := cliapp.CommandGroup{
-		Title: "Drafts",
-		Commands: []cliapp.Command{
-			{Name: "list-drafts", NeedsAPI: true, Description: "List PRD drafts", Run: a.cmdListDrafts},
-		},
-	}
-	prds := cliapp.CommandGroup{
-		Title: "PRDs",
-		Commands: []cliapp.Command{
-			{Name: "prd", NeedsAPI: true, Description: "PRD management (generate, validate, fix)", Run: a.cmdPRD},
-		},
-	}
-	requirements := cliapp.CommandGroup{
-		Title: "Requirements",
-		Commands: []cliapp.Command{
-			{Name: "requirements", NeedsAPI: true, Description: "Requirements management (generate, validate)", Run: a.cmdRequirements},
-		},
-	}
-	config := cliapp.CommandGroup{
-		Title: "Configuration",
-		Commands: []cliapp.Command{
-			a.core.ConfigureCommand(nil, nil),
-		},
-	}
-	return []cliapp.CommandGroup{health, drafts, prds, requirements, config}
+func (a *App) customCommandGroups() []cliapp.CommandGroup {
+	return domains.CommandGroups(a.dependencies())
+}
+
+func (a *App) commandGroups() []cliapp.CommandGroup {
+	return append(a.core.StandardBaseCommandGroups(cliapp.StandardBaseCommandOptions{}), a.customCommandGroups()...)
 }
 
 func (a *App) Run(args []string) error {
 	return a.core.CLI.Run(args)
+}
+
+func (a *App) dependencies() support.Dependencies {
+	return support.Dependencies{
+		ListDrafts:   a.cmdListDrafts,
+		PRD:          a.cmdPRD,
+		Requirements: a.cmdRequirements,
+	}
 }

@@ -31,19 +31,16 @@ func TestHealthEndpoint(t *testing.T) {
 				return false
 			}
 
-			// Validate resources map exists
-			resources, ok := r["resources"].(map[string]interface{})
-			if !ok {
-				t.Error("Expected resources map")
+			service, ok := r["service"].(string)
+			if !ok || service == "" {
+				t.Errorf("Expected service name, got %v", r["service"])
 				return false
 			}
 
-			// Check for expected resources
-			for _, resource := range []string{"postgres", "minio", "n8n"} {
-				if _, exists := resources[resource]; !exists {
-					t.Errorf("Expected resource %s in health check", resource)
-					return false
-				}
+			readiness, ok := r["readiness"].(bool)
+			if !ok || !readiness {
+				t.Errorf("Expected readiness true, got %v", r["readiness"])
+				return false
 			}
 
 			return true

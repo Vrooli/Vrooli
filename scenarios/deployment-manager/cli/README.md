@@ -38,10 +38,13 @@ deployment-manager secrets template demo --format env
 Electron builds run with pnpm by default (falls back to npm if pnpm is unavailable). Use `--timeout` to extend long-running builds (default 10m).
 
 ## Structure
-- `overview/` — status, analyze, fitness
+- `app.go` — standard `cli-core` bootstrap via `NewStandardScenarioApp(...)`
+- `domains/` — canonical registration layer for CLI domains
+- `overview/` — analyze and fitness domain logic
 - `profiles/` — profile CRUD, versions, swaps, secrets, diff/save/rollback
 - `swaps/` — swap discovery and application
-- `deployments/` — deploy, deploy-desktop, validate, cost-estimate, logs (packagers/package kept as compatibility stubs)
+- `deployments/` — deploy, deploy-desktop, validate, cost-estimate, logs
+- `approvals/`, `signing/`, `validations/` — approval gate, signing, and visual validation workflows
 - `cmdutil/` — shared flag/output helpers
 
 The CLI auto-discovers the API base when the scenario runs via `vrooli scenario start deployment-manager`. Override with `DEPLOYMENT_MANAGER_API_BASE` or `deployment-manager configure api_base <url>`. Config and token files live under `~/.deployment-manager/` by default.

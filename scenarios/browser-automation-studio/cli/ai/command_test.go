@@ -11,8 +11,7 @@ import (
 func TestCommands(t *testing.T) {
 	// Create a minimal context for testing
 	ctx := &appctx.Context{
-		Name:    "test-cli",
-		Version: "1.0.0",
+		Name: "test-cli",
 	}
 
 	group := Commands(ctx)
@@ -39,8 +38,7 @@ func TestCommands(t *testing.T) {
 
 func TestRunAI_Help(t *testing.T) {
 	ctx := &appctx.Context{
-		Name:    "test-cli",
-		Version: "1.0.0",
+		Name: "test-cli",
 	}
 
 	// Test --help flag
@@ -58,8 +56,7 @@ func TestRunAI_Help(t *testing.T) {
 
 func TestRunAI_NoSubcommand(t *testing.T) {
 	ctx := &appctx.Context{
-		Name:    "test-cli",
-		Version: "1.0.0",
+		Name: "test-cli",
 	}
 
 	err := runAI(ctx, []string{})
@@ -70,8 +67,7 @@ func TestRunAI_NoSubcommand(t *testing.T) {
 
 func TestRunAI_UnknownSubcommand(t *testing.T) {
 	ctx := &appctx.Context{
-		Name:    "test-cli",
-		Version: "1.0.0",
+		Name: "test-cli",
 	}
 
 	err := runAI(ctx, []string{"unknown"})
@@ -83,8 +79,7 @@ func TestRunAI_UnknownSubcommand(t *testing.T) {
 // TestCommandGroupStructure verifies the command group matches the expected cliapp interface.
 func TestCommandGroupStructure(t *testing.T) {
 	ctx := &appctx.Context{
-		Name:    "test-cli",
-		Version: "1.0.0",
+		Name: "test-cli",
 	}
 
 	group := Commands(ctx)

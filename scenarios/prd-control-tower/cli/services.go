@@ -10,7 +10,6 @@ import (
 )
 
 type Services struct {
-	Health       *HealthService
 	Drafts       *DraftService
 	AI           *AIService
 	PRD          *PRDService
@@ -19,28 +18,11 @@ type Services struct {
 
 func NewServices(api *cliutil.APIClient) *Services {
 	return &Services{
-		Health:       &HealthService{api: api},
 		Drafts:       &DraftService{api: api},
 		AI:           &AIService{api: api},
 		PRD:          &PRDService{api: api},
 		Requirements: &RequirementsService{api: api},
 	}
-}
-
-type HealthService struct {
-	api *cliutil.APIClient
-}
-
-func (s *HealthService) Status() ([]byte, HealthResponse, error) {
-	body, err := s.api.Get("/health", nil)
-	if err != nil {
-		return nil, HealthResponse{}, err
-	}
-	var parsed HealthResponse
-	if err := json.Unmarshal(body, &parsed); err != nil {
-		return body, HealthResponse{}, fmt.Errorf("parse response: %w", err)
-	}
-	return body, parsed, nil
 }
 
 type DraftService struct {

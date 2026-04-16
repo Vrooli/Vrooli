@@ -32,7 +32,7 @@ func (a *App) cmdBacklogClarify(args []string) error {
 	}
 
 	path := fmt.Sprintf("/backlog/%s/%s/workshop/clarification", *kindFlag, *nameFlag)
-	body, err := a.requestV1("POST", path, nil, payload)
+	body, err := a.core.Request("POST", path, nil, payload)
 	if err != nil {
 		return err
 	}
@@ -77,7 +77,7 @@ func (a *App) cmdBacklogClarifyGet(args []string) error {
 	}
 
 	path := fmt.Sprintf("/backlog/%s/%s/workshop/clarification/%s", *kindFlag, *nameFlag, *threadFlag)
-	body, err := a.getV1(path, nil)
+	body, err := a.core.Get(path, nil)
 	if err != nil {
 		return err
 	}
@@ -153,7 +153,7 @@ func (a *App) cmdBacklogClarifyContinue(args []string) error {
 	}
 
 	path := fmt.Sprintf("/backlog/%s/%s/workshop/clarification/%s/continue", *kindFlag, *nameFlag, *threadFlag)
-	body, err := a.requestV1("POST", path, nil, payload)
+	body, err := a.core.Request("POST", path, nil, payload)
 	if err != nil {
 		return err
 	}
@@ -191,7 +191,7 @@ func (a *App) cmdBacklogClarifyAction(args []string) error {
 	}
 
 	path := fmt.Sprintf("/backlog/%s/%s/workshop/clarification/%s/action", *kindFlag, *nameFlag, *threadFlag)
-	body, err := a.requestV1("POST", path, nil, payload)
+	body, err := a.core.Request("POST", path, nil, payload)
 	if err != nil {
 		return err
 	}
