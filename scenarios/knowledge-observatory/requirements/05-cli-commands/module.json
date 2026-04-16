@@ -12,13 +12,13 @@
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "not_implemented",
-          "ref": "test/cli/knowledge-observatory.bats"
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "cli/app_test.go"
         }
       ],
       "notes": "Required for lifecycle system integration",
-      "status": "pending"
+      "status": "complete"
     },
     {
       "id": "KO-CLI-002",
@@ -28,13 +28,13 @@
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "not_implemented",
-          "ref": "test/cli/knowledge-observatory.bats"
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "cli/maintenance_commands_test.go"
         }
       ],
       "notes": "Support --collection, --limit, and --json flags",
-      "status": "pending"
+      "status": "complete"
     },
     {
       "id": "KO-CLI-003",
@@ -44,13 +44,13 @@
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "not_implemented",
-          "ref": "test/cli/knowledge-observatory.bats"
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "cli/app_test.go"
         }
       ],
       "notes": "Support --watch flag for continuous monitoring",
-      "status": "pending"
+      "status": "complete"
     },
     {
       "id": "KO-CLI-004",
@@ -60,13 +60,13 @@
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "not_implemented",
-          "ref": "test/cli/knowledge-observatory.bats"
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "cli/maintenance_commands_test.go"
         }
       ],
       "notes": "Support --depth, --format (json/dot/mermaid), and --concept flags",
-      "status": "pending"
+      "status": "complete"
     },
     {
       "id": "KO-CLI-005",
@@ -76,13 +76,13 @@
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "not_implemented",
-          "ref": "test/cli/knowledge-observatory.bats"
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "cli/app_test.go"
         }
       ],
       "notes": "Non-zero exit codes for errors, helpful error messages",
-      "status": "pending"
+      "status": "complete"
     }
   ]
 }

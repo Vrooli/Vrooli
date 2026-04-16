@@ -136,7 +136,7 @@ make status
 
 # Run tests
 make test                      # Full test suite (all 5 phases)
-cd cli && bats local-info-scout.bats  # CLI-specific tests (23 tests)
+cd cli && go test ./...        # Go CLI unit tests
 
 # View logs
 make logs

@@ -3,6 +3,14 @@
   "name": "postgis",
   "display_name": "PostGIS",
   "description": "Managed PostGIS spatial database with compose-backed custom image build support and shell-retained GIS workflows.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-postgis",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    }
+  },
   "template": "compose-service",
   "driver": "compose-service",
   "compose_file": "compose.yaml",

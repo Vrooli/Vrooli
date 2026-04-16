@@ -394,6 +394,22 @@ case "$cmd" in
       exit 0
     fi
     ;;
+  container)
+    if [[ "${1:-}" == "inspect" ]]; then
+      shift || true
+      if [[ -f "$state_file" ]]; then
+        state="$(tr -d '\n' < "$state_file")"
+        if [[ "$state" == "running" ]]; then
+          printf '{"Running":true}'
+        else
+          printf '{"Running":false}'
+        fi
+        exit 0
+      fi
+      echo "Error: No such container" >&2
+      exit 1
+    fi
+    ;;
   inspect)
     if [[ -f "$state_file" ]]; then
       state="$(tr -d '\n' < "$state_file")"

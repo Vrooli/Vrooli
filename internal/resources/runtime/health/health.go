@@ -3,7 +3,6 @@ package health
 import (
 	"context"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"os/exec"
@@ -92,13 +91,11 @@ func RunCheck(ctx context.Context, check manifestpkg.ResourceHealthCheck, cfg Co
 			}
 		}
 		cmd := shell.Command(shell.Spec{
-			Name:   check.Command[0],
-			Args:   check.Command[1:],
-			Dir:    cfg.Root,
-			Env:    cfg.Env,
-			Stdin:  nil,
-			Stdout: io.Discard,
-			Stderr: io.Discard,
+			Name:  check.Command[0],
+			Args:  check.Command[1:],
+			Dir:   cfg.Root,
+			Env:   cfg.Env,
+			Stdin: nil,
 		})
 		if _, err := runner(checkCtx, cmd); err != nil {
 			return Result{Message: fmt.Sprintf("command check failed for %s", strings.Join(check.Command, " "))}, nil
@@ -108,4 +105,3 @@ func RunCheck(ctx context.Context, check manifestpkg.ResourceHealthCheck, cfg Co
 		return Result{}, fmt.Errorf("unsupported health check type %q", check.Type)
 	}
 }
-

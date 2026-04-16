@@ -3,6 +3,14 @@
   "name": "sagemath",
   "display_name": "SageMath",
   "description": "Managed SageMath computation service with native Docker lifecycle and shell-retained notebook, math, GPU, and export workflows.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-sagemath",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    }
+  },
   "template": "docker-service",
   "driver": "docker-service",
   "portability_tier": "partial",

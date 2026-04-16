@@ -3,6 +3,14 @@
   "name": "qdrant",
   "display_name": "Qdrant Vector Database",
   "description": "Vector database for embeddings and semantic search workloads.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-qdrant",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    }
+  },
   "template": "docker-service",
   "driver": "docker-service",
   "portability_tier": "full",

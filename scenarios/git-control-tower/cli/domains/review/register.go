@@ -5,6 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
+	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -138,12 +140,22 @@ func printRunResult(jobStatus *jobStatusResponse, jsonOutput bool) error {
 		return nil
 	}
 	if jobStatus.Status == "failed" {
-		fmt.Printf("Review run failed: %s\n", jobStatus.Error)
-		return nil
+		report := cliapp.OperationalReport{
+			Status: []string{
+				fmt.Sprintf("Job: %s", jobStatus.JobID),
+				fmt.Sprintf("Status: %s", strings.ToUpper(jobStatus.Status)),
+			},
+		}
+		if jobStatus.Error != "" {
+			report.Triage = []cliapp.TriageGroup{{
+				Heading: "Failure",
+				Items:   []string{jobStatus.Error},
+			}}
+		}
+		return cliapp.RenderOperationalReport(os.Stdout, report)
 	}
-	fmt.Println()
 	if jobStatus.Summary != nil {
-		printSummary(jobStatus.Summary)
+		return renderSummary(os.Stdout, jobStatus.Summary)
 	}
 	return nil
 }
@@ -171,21 +183,36 @@ func runStatus(core *cliapp.ScenarioApp, args []string) error {
 		cliutil.PrintJSON(body)
 		return nil
 	}
-	fmt.Printf("Job: %s\n", resp.JobID)
-	fmt.Printf("Status: %s\n", strings.ToUpper(resp.Status))
-	fmt.Printf("Started: %s\n", resp.StartedAt)
+	report := cliapp.OperationalReport{
+		Status: []string{
+			fmt.Sprintf("Job: %s", resp.JobID),
+			fmt.Sprintf("Status: %s", strings.ToUpper(resp.Status)),
+		},
+	}
+	if strings.TrimSpace(resp.StartedAt) != "" {
+		report.Status = append(report.Status, fmt.Sprintf("Started: %s", resp.StartedAt))
+	}
 	if len(resp.Checks) > 0 {
-		fmt.Println("Checks:")
-		for check, status := range resp.Checks {
-			fmt.Printf("  %s: %s\n", check, status)
+		checkNames := make([]string, 0, len(resp.Checks))
+		for check := range resp.Checks {
+			checkNames = append(checkNames, check)
 		}
+		sort.Strings(checkNames)
+		items := make([]string, 0, len(checkNames))
+		for _, check := range checkNames {
+			items = append(items, fmt.Sprintf("%s: %s", check, resp.Checks[check]))
+		}
+		report.Triage = append(report.Triage, cliapp.TriageGroup{Heading: "Checks", Items: items})
 	}
 	if resp.Error != "" {
-		fmt.Printf("Error: %s\n", resp.Error)
+		report.Triage = append(report.Triage, cliapp.TriageGroup{Heading: "Error", Items: []string{resp.Error}})
+	}
+	if err := cliapp.RenderOperationalReport(os.Stdout, report); err != nil {
+		return err
 	}
 	if resp.Summary != nil {
-		fmt.Println()
-		printSummary(resp.Summary)
+		fmt.Fprintln(os.Stdout)
+		return renderSummary(os.Stdout, resp.Summary)
 	}
 	return nil
 }

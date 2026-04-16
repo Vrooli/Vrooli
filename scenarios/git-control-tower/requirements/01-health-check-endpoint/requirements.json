@@ -28,10 +28,10 @@
         },
         {
           "type": "test",
-          "ref": "cli/git-control-tower.bats",
-          "phase": "integration",
+          "ref": "cli/app_test.go",
+          "phase": "unit",
           "status": "implemented",
-          "notes": "Runs CLI status against /health when API is available"
+          "notes": "Validates the standard Go CLI health path wiring"
         }
       ]
     }

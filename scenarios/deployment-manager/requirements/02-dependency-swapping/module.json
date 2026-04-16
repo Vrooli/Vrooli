@@ -18,10 +18,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/dependency-swapping.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-007] tags"
+          "ref": "cli/swaps/commands_test.go",
+          "notes": "Go CLI tests validate swap command behavior"
         }
       ]
     },
@@ -39,10 +39,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/dependency-swapping.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-008] tags"
+          "ref": "cli/swaps/commands_test.go",
+          "notes": "Go CLI tests validate swap command behavior"
         }
       ]
     },
@@ -60,10 +60,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/dependency-swapping.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-009] tags"
+          "ref": "cli/swaps/commands_test.go",
+          "notes": "Go CLI tests validate swap command behavior"
         }
       ]
     },
@@ -81,10 +81,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/dependency-swapping.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-010] tags"
+          "ref": "cli/swaps/commands_test.go",
+          "notes": "Go CLI tests validate swap command behavior"
         }
       ]
     },
@@ -102,10 +102,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/dependency-swapping.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-011] tags"
+          "ref": "cli/swaps/commands_test.go",
+          "notes": "Go CLI tests validate swap command behavior"
         }
       ]
     }

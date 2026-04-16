@@ -18,10 +18,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/deployment-orchestration.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-028] tags"
+          "ref": "cli/deployments/commands_test.go",
+          "notes": "Go CLI tests validate deployment orchestration commands"
         }
       ]
     },
@@ -39,10 +39,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/deployment-orchestration.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-029] tags"
+          "ref": "cli/deployments/commands_test.go",
+          "notes": "Go CLI tests validate deployment orchestration commands"
         }
       ]
     },
@@ -60,10 +60,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/deployment-orchestration.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-030] tags"
+          "ref": "cli/deployments/commands_test.go",
+          "notes": "Go CLI tests validate deployment orchestration commands"
         }
       ]
     },
@@ -81,10 +81,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/deployment-orchestration.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-031] tags"
+          "ref": "cli/deployments/commands_test.go",
+          "notes": "Go CLI tests validate deployment orchestration commands"
         }
       ]
     },
@@ -102,10 +102,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/deployment-orchestration.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-032] tags"
+          "ref": "cli/deployments/commands_test.go",
+          "notes": "Go CLI tests validate deployment orchestration commands"
         }
       ]
     },
@@ -123,10 +123,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/deployment-orchestration.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-033] tags"
+          "ref": "cli/deployments/commands_test.go",
+          "notes": "Go CLI tests validate deployment orchestration commands"
         }
       ]
     },
@@ -144,10 +144,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/deployment-orchestration.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-034] tags"
+          "ref": "cli/deployments/commands_test.go",
+          "notes": "Go CLI tests validate deployment orchestration commands"
         }
       ]
     }

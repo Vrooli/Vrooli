@@ -25,6 +25,7 @@ func (f *fakeScenarioOps) StartDetailed(name string, opts lifecycle.StartOptions
 		AllocatedPorts:     map[string]int{"api": 8080},
 		Details:            scenariomodel.RuntimeDetails{Ports: map[string]int{"API_PORT": 8080}},
 		FailedDependencies: nil,
+		FailedResources:    []string{"qdrant"},
 	}, nil
 }
 
@@ -69,6 +70,9 @@ func TestStartUsesScenarioOperationsInterface(t *testing.T) {
 	}
 	if len(items[0].Endpoints) != 1 || items[0].Endpoints[0].URL != "http://localhost:8080" {
 		t.Fatalf("items[0].Endpoints = %#v", items[0].Endpoints)
+	}
+	if len(items[0].FailedResources) != 1 || items[0].FailedResources[0] != "qdrant" {
+		t.Fatalf("items[0].FailedResources = %#v", items[0].FailedResources)
 	}
 	if len(ops.started) != 1 || ops.started[0] != "demo" {
 		t.Fatalf("started = %#v", ops.started)

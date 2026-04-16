@@ -8,11 +8,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/resources"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
-	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
+	"github.com/vrooli/vrooli/internal/secrets"
 	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
 )
 
@@ -83,9 +84,9 @@ func TestBuildEnvironmentHonorsRealSimpleTestPostgresContract(t *testing.T) {
 
 func TestBuildEnvironmentAllocatesPortsAndExpandsScenarioEnv(t *testing.T) {
 	root := t.TempDir()
-	home := t.TempDir()
+	home := root
 	writePortRegistry(t, root, map[string]int{"postgres": 5433})
-	writeSecrets(t, root, map[string]any{
+	writeSecrets(t, home, root, map[string]string{
 		"POSTGRES_USER":     "tester",
 		"POSTGRES_PASSWORD": "secret",
 		"POSTGRES_HOST":     "localhost",
@@ -279,11 +280,125 @@ func TestEnsurePortClaimedRejectsLiveForeignLock(t *testing.T) {
 	}
 }
 
-func TestBuildEnvironmentUsesTypedResourceMetadataAndSecrets(t *testing.T) {
+func TestEnsurePortClaimedReportsVrooliScenarioOwner(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
+	writePortRegistry(t, root, nil)
+
+	manager, err := NewManager(root, home)
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+
+	previousInUse := isTCPPortInUseFn
+	previousInspect := inspectPortListenersFn
+	previousReadEnv := readProcessEnvironmentPortFn
+	isTCPPortInUseFn = func(port int) (bool, error) { return true, nil }
+	inspectPortListenersFn = func(port int) (network.PortInspection, error) {
+		return network.PortInspection{
+			Inspection: network.ListenerInspection{Available: true, Tool: "stub"},
+			Listeners:  []network.PortListener{{PID: 4242}},
+		}, nil
+	}
+	readProcessEnvironmentPortFn = func(pid int) (map[string]string, error) {
+		return map[string]string{
+			"VROOLI_LIFECYCLE_MANAGED": "true",
+			"VROOLI_SCENARIO":          "beta",
+		}, nil
+	}
+	t.Cleanup(func() {
+		isTCPPortInUseFn = previousInUse
+		inspectPortListenersFn = previousInspect
+		readProcessEnvironmentPortFn = previousReadEnv
+	})
+
+	if _, err := manager.ensurePortClaimed(21236, "alpha", nil); err == nil {
+		t.Fatal("expected Vrooli listener conflict")
+	} else if !strings.Contains(err.Error(), `Vrooli scenario "beta"`) || !strings.Contains(err.Error(), "4242") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestEnsurePortClaimedReportsSameScenarioVrooliListener(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writePortRegistry(t, root, nil)
+
+	manager, err := NewManager(root, home)
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+
+	previousInUse := isTCPPortInUseFn
+	previousInspect := inspectPortListenersFn
+	previousReadEnv := readProcessEnvironmentPortFn
+	isTCPPortInUseFn = func(port int) (bool, error) { return true, nil }
+	inspectPortListenersFn = func(port int) (network.PortInspection, error) {
+		return network.PortInspection{
+			Inspection: network.ListenerInspection{Available: true, Tool: "stub"},
+			Listeners:  []network.PortListener{{PID: 5151}},
+		}, nil
+	}
+	readProcessEnvironmentPortFn = func(pid int) (map[string]string, error) {
+		return map[string]string{
+			"VROOLI_LIFECYCLE_MANAGED": "true",
+			"VROOLI_SCENARIO":          "alpha",
+		}, nil
+	}
+	t.Cleanup(func() {
+		isTCPPortInUseFn = previousInUse
+		inspectPortListenersFn = previousInspect
+		readProcessEnvironmentPortFn = previousReadEnv
+	})
+
+	if _, err := manager.ensurePortClaimed(21236, "alpha", nil); err == nil {
+		t.Fatal("expected same-scenario listener conflict")
+	} else if !strings.Contains(err.Error(), `existing Vrooli listener for scenario "alpha"`) || !strings.Contains(err.Error(), "5151") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestEnsurePortClaimedFallsBackToGenericConflictForNonVrooliListeners(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writePortRegistry(t, root, nil)
+
+	manager, err := NewManager(root, home)
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+
+	previousInUse := isTCPPortInUseFn
+	previousInspect := inspectPortListenersFn
+	previousReadEnv := readProcessEnvironmentPortFn
+	isTCPPortInUseFn = func(port int) (bool, error) { return true, nil }
+	inspectPortListenersFn = func(port int) (network.PortInspection, error) {
+		return network.PortInspection{
+			Inspection: network.ListenerInspection{Available: true, Tool: "stub"},
+			Listeners:  []network.PortListener{{PID: 6161}},
+		}, nil
+	}
+	readProcessEnvironmentPortFn = func(pid int) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	t.Cleanup(func() {
+		isTCPPortInUseFn = previousInUse
+		inspectPortListenersFn = previousInspect
+		readProcessEnvironmentPortFn = previousReadEnv
+	})
+
+	if _, err := manager.ensurePortClaimed(21236, "alpha", nil); err == nil {
+		t.Fatal("expected generic listener conflict")
+	} else if !strings.Contains(err.Error(), "port already in use") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestBuildEnvironmentUsesTypedResourceMetadataAndSecrets(t *testing.T) {
+	root := t.TempDir()
+	home := root
 	writePortRegistry(t, root, map[string]int{"postgres": 5433})
-	writeSecrets(t, root, map[string]any{
+	writeSecrets(t, home, root, map[string]string{
 		"POSTGRES_USER":     "legacy",
 		"POSTGRES_PASSWORD": "secret",
 	})
@@ -493,10 +608,14 @@ func writePortRegistry(t *testing.T, root string, ports map[string]int) {
 	testresource.WritePortRegistry(t, root, ports)
 }
 
-func writeSecrets(t *testing.T, root string, payload map[string]any) {
+func writeSecrets(t *testing.T, home, root string, payload map[string]string) {
 	t.Helper()
 	ensureTypedResourceMetadata(t, root)
-	testkitgo.WriteJSONMode(t, filepath.Join(root, ".vrooli", "secrets.json"), payload, 0o600)
+	t.Setenv(secrets.KeyEnvVar, "test-secret-passphrase")
+	store := secrets.NewUserStore(home)
+	if err := store.Save(payload); err != nil {
+		t.Fatalf("save secrets: %v", err)
+	}
 }
 
 func ensureTypedResourceMetadata(t *testing.T, root string) {

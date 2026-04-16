@@ -76,17 +76,18 @@ func TestWriteLifecycleItemsJSONIncludesSuccessEnvelope(t *testing.T) {
 func TestWriteLifecycleItemsHumanIncludesURLs(t *testing.T) {
 	var stdout bytes.Buffer
 	err := WriteLifecycleItems(&stdout, cliout.FormatHuman, []LifecycleItemOutput{{
-		Name:      "alpha",
-		Status:    "started",
-		Health:    "healthy",
-		Ports:     map[string]int{"API_PORT": 18080},
-		Endpoints: []EndpointOutput{{Key: "API_PORT", URL: "http://localhost:18080", Port: 18080}},
+		Name:            "alpha",
+		Status:          "started",
+		Health:          "healthy",
+		Ports:           map[string]int{"API_PORT": 18080},
+		Endpoints:       []EndpointOutput{{Key: "API_PORT", URL: "http://localhost:18080", Port: 18080}},
+		FailedResources: []string{"qdrant"},
 	}})
 	if err != nil {
 		t.Fatalf("WriteLifecycleItems: %v", err)
 	}
 	output := stdout.String()
-	for _, want := range []string{"Started scenario 'alpha' (healthy)", "Ports: API_PORT=18080", "URLs:", "API_PORT: http://localhost:18080"} {
+	for _, want := range []string{"Started scenario 'alpha' (healthy)", "Ports: API_PORT=18080", "URLs:", "API_PORT: http://localhost:18080", "Failed resources: qdrant"} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("missing %q in output:\n%s", want, output)
 		}

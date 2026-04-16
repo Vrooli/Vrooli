@@ -27,6 +27,11 @@
       "flag": "portability-tier",
       "description": "Portability tier for the generated scaffold.",
       "default": "platform-specific"
+    },
+    "RESOURCE_CLI_COMMAND": {
+      "flag": "cli-command",
+      "description": "Installed command name for the generated resource CLI.",
+      "default": "resource-{{RESOURCE_NAME}}"
     }
   },
   "docs": {

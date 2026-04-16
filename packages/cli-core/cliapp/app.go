@@ -298,6 +298,10 @@ func ParseGlobalFlags(args []string, global *GlobalOptions, apiOverrideTarget *s
 
 	remaining := make([]string, 0, len(args))
 	for i := 0; i < len(args); i++ {
+		if args[i] == "--" {
+			remaining = append(remaining, args[i:]...)
+			break
+		}
 		switch args[i] {
 		case "--api-base":
 			if i+1 >= len(args) {
@@ -317,7 +321,8 @@ func ParseGlobalFlags(args []string, global *GlobalOptions, apiOverrideTarget *s
 		case "--color":
 			global.ColorEnabled = true
 		default:
-			remaining = append(remaining, args[i])
+			remaining = append(remaining, args[i:]...)
+			return remaining, nil
 		}
 	}
 	return remaining, nil

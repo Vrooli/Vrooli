@@ -90,6 +90,7 @@ type LifecycleItemOutput struct {
 	Ports              map[string]int   `json:"ports,omitempty"`
 	Endpoints          []EndpointOutput `json:"endpoints,omitempty"`
 	FailedDependencies []string         `json:"failed_dependencies,omitempty"`
+	FailedResources    []string         `json:"failed_resources,omitempty"`
 }
 
 type EndpointOutput struct {
@@ -278,6 +279,9 @@ func WriteLifecycleItems(w io.Writer, format cliout.Format, items []LifecycleIte
 		}
 		if len(item.FailedDependencies) > 0 {
 			_, _ = fmt.Fprintf(w, "  Failed dependencies: %s\n", strings.Join(item.FailedDependencies, ", "))
+		}
+		if len(item.FailedResources) > 0 {
+			_, _ = fmt.Fprintf(w, "  Failed resources: %s\n", strings.Join(item.FailedResources, ", "))
 		}
 	}
 	return nil

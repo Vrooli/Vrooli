@@ -272,6 +272,10 @@ func ReadEnvironmentPorts(records []Record, keys []string) map[string]int {
 	return ports
 }
 
+func ReadEnvironment(pid int) (map[string]string, error) {
+	return readProcessEnvironmentFn(pid)
+}
+
 func parseEnvironmentEntries(data []byte) map[string]string {
 	values := make(map[string]string)
 	for _, entry := range bytes.Split(data, []byte{0}) {

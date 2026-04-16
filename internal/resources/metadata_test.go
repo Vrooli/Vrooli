@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	apicoresecrets "github.com/vrooli/api-core/secrets"
 	repocontract "github.com/vrooli/repo-contract-go"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/secrets"
@@ -201,6 +202,80 @@ func TestLoadResourceEnvironmentPrefersSecretsOverRuntimePlaceholders(t *testing
 	}
 	if got := postgresEnv["DATABASE_URL"]; !strings.Contains(got, ":real-secret@") {
 		t.Fatalf("DATABASE_URL = %q, want runtime password from secrets", got)
+	}
+}
+
+func TestLoadResourceEnvironmentFallsBackToPlaintextUserSecrets(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+
+	testresource.WritePortRegistryState(t, root, PortRegistry{
+		ResourcePorts:  map[string]int{"postgres": 5433},
+		ReservedRanges: map[string]string{},
+	})
+	writePostgresManifestFixture(t, root)
+
+	store, err := apicoresecrets.NewUserStore(apicoresecrets.Config{HomeDir: home})
+	if err != nil {
+		t.Fatalf("NewUserStore: %v", err)
+	}
+	if err := store.Save(map[string]string{
+		"POSTGRES_PASSWORD": "plaintext-secret",
+		"POSTGRES_USER":     "vrooli",
+	}); err != nil {
+		t.Fatalf("Save plaintext secrets: %v", err)
+	}
+
+	postgresEnv, err := LoadResourceEnvironment(root, home, "postgres")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(postgres): %v", err)
+	}
+	if got := postgresEnv["POSTGRES_PASSWORD"]; got != "plaintext-secret" {
+		t.Fatalf("POSTGRES_PASSWORD = %q, want plaintext-secret", got)
+	}
+	if got := postgresEnv["DATABASE_URL"]; !strings.Contains(got, ":plaintext-secret@") {
+		t.Fatalf("DATABASE_URL = %q, want plaintext user secret", got)
+	}
+}
+
+func TestLoadResourceEnvironmentPrefersEncryptedSecretsOverPlaintextUserSecrets(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+
+	testresource.WritePortRegistryState(t, root, PortRegistry{
+		ResourcePorts:  map[string]int{"postgres": 5433},
+		ReservedRanges: map[string]string{},
+	})
+	writePostgresManifestFixture(t, root)
+
+	plaintextStore, err := apicoresecrets.NewUserStore(apicoresecrets.Config{HomeDir: home})
+	if err != nil {
+		t.Fatalf("NewUserStore: %v", err)
+	}
+	if err := plaintextStore.Save(map[string]string{
+		"POSTGRES_PASSWORD": "plaintext-secret",
+		"POSTGRES_USER":     "vrooli",
+	}); err != nil {
+		t.Fatalf("Save plaintext secrets: %v", err)
+	}
+
+	t.Setenv(secrets.KeyEnvVar, "metadata-prefers-encrypted-over-plaintext")
+	encryptedStore := secrets.NewUserStore(home)
+	if err := encryptedStore.Save(map[string]string{
+		"POSTGRES_PASSWORD": "encrypted-secret",
+	}); err != nil {
+		t.Fatalf("Save encrypted secrets: %v", err)
+	}
+
+	postgresEnv, err := LoadResourceEnvironment(root, home, "postgres")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment(postgres): %v", err)
+	}
+	if got := postgresEnv["POSTGRES_PASSWORD"]; got != "encrypted-secret" {
+		t.Fatalf("POSTGRES_PASSWORD = %q, want encrypted-secret", got)
+	}
+	if got := postgresEnv["DATABASE_URL"]; !strings.Contains(got, ":encrypted-secret@") {
+		t.Fatalf("DATABASE_URL = %q, want encrypted user secret", got)
 	}
 }
 
@@ -479,7 +554,7 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 				"SQLITE_JOURNAL_MODE": "WAL",
 			},
 			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
-				"SQLITE_DATABASE_PATH":        {Template: "${RESOURCE_DATA_DIR}/databases"},
+				"SQLITE_DATABASE_PATH":          {Template: "${RESOURCE_DATA_DIR}/databases"},
 				"SQLITE_REPLICATION_STATE_PATH": {Template: "${RESOURCE_STATE_DIR}/replication"},
 			},
 		},

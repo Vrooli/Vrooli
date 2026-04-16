@@ -32,6 +32,11 @@
       "flag": "binary",
       "description": "Executable name to probe on PATH.",
       "default": "{{RESOURCE_NAME}}"
+    },
+    "RESOURCE_CLI_COMMAND": {
+      "flag": "cli-command",
+      "description": "Installed command name for the generated resource CLI.",
+      "default": "resource-{{RESOURCE_NAME}}"
     }
   },
   "docs": {

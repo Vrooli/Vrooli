@@ -131,6 +131,12 @@ type Dependency struct {
 	Database         string `json:"database,omitempty"`
 }
 
+const (
+	DependencyStartupPolicyMustStart = "must_start"
+	DependencyStartupPolicyTryStart  = "try_start"
+	DependencyStartupPolicyIgnore    = "ignore"
+)
+
 type rawDependencies struct {
 	Resources json.RawMessage `json:"resources,omitempty"`
 	Scenarios json.RawMessage `json:"scenarios,omitempty"`
@@ -331,6 +337,9 @@ func ReadService(path string) (ServiceManifest, error) {
 	if err := hostreqspec.ValidateDeclarations(hostreqspec.KindSafeguard, manifest.HostSafeguards); err != nil {
 		return ServiceManifest{}, fmt.Errorf("validate hostSafeguards in %s: %w", path, err)
 	}
+	if err := manifest.Dependencies.Validate(); err != nil {
+		return ServiceManifest{}, fmt.Errorf("validate dependencies in %s: %w", path, err)
+	}
 	return manifest, nil
 }
 
@@ -427,6 +436,16 @@ func (deps *Dependencies) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (deps Dependencies) Validate() error {
+	if err := validateDependencyCollection("resources", deps.Resources); err != nil {
+		return err
+	}
+	if err := validateDependencyCollection("scenarios", deps.Scenarios); err != nil {
+		return err
+	}
+	return nil
+}
+
 func ResolveScenarioPath(root, name string, env SandboxEnv) (string, bool) {
 	defaultPath := scenarioRootPath(root, name)
 	if !env.Enabled() || !ScenarioInScope(root, name, env.Scope) {
@@ -464,6 +483,81 @@ func decodeDependencyCollection(data json.RawMessage, defaultType string) (map[s
 		}
 	}
 	return direct, nil
+}
+
+func (dependency *Dependency) UnmarshalJSON(data []byte) error {
+	type rawDependency Dependency
+	aux := struct {
+		rawDependency
+		Enabled *bool `json:"enabled"`
+	}{}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	*dependency = Dependency(aux.rawDependency)
+	if aux.Enabled == nil {
+		dependency.Enabled = true
+	} else {
+		dependency.Enabled = *aux.Enabled
+	}
+	dependency.Type = strings.TrimSpace(dependency.Type)
+	dependency.StartupPolicy = strings.TrimSpace(dependency.StartupPolicy)
+	dependency.DegradedBehavior = strings.TrimSpace(dependency.DegradedBehavior)
+	dependency.Purpose = strings.TrimSpace(dependency.Purpose)
+	dependency.Description = strings.TrimSpace(dependency.Description)
+	dependency.Database = strings.TrimSpace(dependency.Database)
+	return nil
+}
+
+func (dependency Dependency) NormalizedStartupPolicy() string {
+	if !dependency.Enabled {
+		return DependencyStartupPolicyIgnore
+	}
+	switch strings.TrimSpace(dependency.StartupPolicy) {
+	case "":
+		if dependency.Required {
+			return DependencyStartupPolicyMustStart
+		}
+		return DependencyStartupPolicyIgnore
+	case DependencyStartupPolicyMustStart, DependencyStartupPolicyTryStart, DependencyStartupPolicyIgnore:
+		return strings.TrimSpace(dependency.StartupPolicy)
+	default:
+		return strings.TrimSpace(dependency.StartupPolicy)
+	}
+}
+
+func validateDependencyCollection(kind string, dependencies map[string]Dependency) error {
+	for name, dependency := range dependencies {
+		if err := dependency.Validate(kind, name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (dependency Dependency) Validate(kind, name string) error {
+	policy := dependency.NormalizedStartupPolicy()
+	if !dependency.Enabled {
+		return nil
+	}
+	switch policy {
+	case DependencyStartupPolicyMustStart, DependencyStartupPolicyTryStart, DependencyStartupPolicyIgnore:
+	default:
+		return fmt.Errorf("%s.%s.startup_policy must be one of %q, %q, or %q; got %q",
+			kind, name,
+			DependencyStartupPolicyMustStart,
+			DependencyStartupPolicyTryStart,
+			DependencyStartupPolicyIgnore,
+			dependency.StartupPolicy,
+		)
+	}
+	if dependency.Required && policy == DependencyStartupPolicyIgnore {
+		return fmt.Errorf("%s.%s is required but resolves to startup_policy=%q", kind, name, policy)
+	}
+	if dependency.Required && policy == DependencyStartupPolicyTryStart && dependency.DegradedBehavior == "" {
+		return fmt.Errorf("%s.%s is required with startup_policy=%q and must declare degraded_behavior", kind, name, policy)
+	}
+	return nil
 }
 
 func ScenarioInScope(root, name, scope string) bool {

@@ -177,10 +177,16 @@ vrooli cleanup
 vrooli doctor
 vrooli orphans
 vrooli locks
-vrooli diagnose-port
+vrooli diagnose-port <port>
 ```
 
 These commands help inspect stale locks, orphaned processes, diagnostics, and port conflicts.
+
+Practical guidance:
+
+- `vrooli cleanup locks` removes stale lock files
+- `vrooli orphans` inspects or terminates orphaned Vrooli-managed processes
+- `vrooli diagnose-port <port>` is the targeted tool for a fixed-port startup failure after lifecycle has already attempted automatic cleanup
 
 ## Common Make Targets
 

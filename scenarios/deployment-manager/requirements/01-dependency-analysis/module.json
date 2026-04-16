@@ -18,10 +18,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/dependency-analysis.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-001] tags"
+          "ref": "cli/overview/commands_test.go",
+          "notes": "Go CLI tests validate dependency analysis command behavior"
         }
       ]
     },
@@ -39,10 +39,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/dependency-analysis.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-002] tags"
+          "ref": "cli/overview/commands_test.go",
+          "notes": "Go CLI tests validate dependency analysis command behavior"
         }
       ]
     },
@@ -60,10 +60,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/dependency-analysis.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-003] tags"
+          "ref": "cli/overview/commands_test.go",
+          "notes": "Go CLI tests validate dependency analysis command behavior"
         }
       ]
     },
@@ -81,10 +81,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/dependency-analysis.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-004] tags"
+          "ref": "cli/overview/commands_test.go",
+          "notes": "Go CLI tests validate dependency analysis command behavior"
         }
       ]
     },
@@ -102,10 +102,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/dependency-analysis.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-005] tags"
+          "ref": "cli/overview/commands_test.go",
+          "notes": "Go CLI tests validate dependency analysis command behavior"
         }
       ]
     },
@@ -123,10 +123,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/dependency-analysis.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-006] tags"
+          "ref": "cli/overview/commands_test.go",
+          "notes": "Go CLI tests validate dependency analysis command behavior"
         }
       ]
     }

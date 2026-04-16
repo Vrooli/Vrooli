@@ -92,13 +92,13 @@
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "not_implemented",
-          "ref": "test/cli/knowledge-observatory.bats"
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "cli/app_test.go"
         }
       ],
       "notes": "Browserless captures screenshot, console, network artifacts",
-      "status": "pending"
+      "status": "complete"
     }
   ]
 }

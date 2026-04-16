@@ -1,11 +1,14 @@
 package docs
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/vrooli/cli-core/cliapp"
 )
 
 type AuditResponse struct {
@@ -151,6 +154,12 @@ type nextStep struct {
 }
 
 func RenderAuditReport(result AuditResponse, fallbackScenario string) string {
+	var out bytes.Buffer
+	_ = cliapp.RenderOperationalReport(&out, BuildAuditReport(result, fallbackScenario))
+	return out.String()
+}
+
+func BuildAuditReport(result AuditResponse, fallbackScenario string) cliapp.OperationalReport {
 	scenario := strings.TrimSpace(result.ScenarioName)
 	if scenario == "" {
 		scenario = strings.TrimSpace(fallbackScenario)
@@ -177,47 +186,63 @@ func RenderAuditReport(result AuditResponse, fallbackScenario string) string {
 		healthPct = 100
 	}
 
-	var b strings.Builder
-	fmt.Fprintf(&b, "Documentation Audit: %s\n", scenario)
-	fmt.Fprintf(&b, "Status: %s", status)
+	statusLine := fmt.Sprintf("Documentation Audit: %s", scenario)
+	healthLine := fmt.Sprintf("Health: %d%% (%d docs", healthPct, result.TotalDocs)
 	drivers := auditStatusDrivers(result)
 	if len(drivers) > 0 {
-		fmt.Fprintf(&b, " (drivers: %s)", strings.Join(drivers, ", "))
+		statusLine += fmt.Sprintf(" | Status: %s (drivers: %s)", status, strings.Join(drivers, ", "))
+	} else {
+		statusLine += fmt.Sprintf(" | Status: %s", status)
 	}
-	fmt.Fprintf(&b, "\nHealth: %d%% (%d docs", healthPct, result.TotalDocs)
 	if len(misplaced)+len(missing)+len(extra)+len(temporary) > 0 {
-		fmt.Fprintf(&b, "; %d misplaced, %d missing, %d extra, %d temporary", len(misplaced), len(missing), len(extra), len(temporary))
+		healthLine += fmt.Sprintf("; %d misplaced, %d missing, %d extra, %d temporary", len(misplaced), len(missing), len(extra), len(temporary))
 	}
-	b.WriteString(")\n")
-	fmt.Fprintf(&b, "Findings: %d total\n\n", totalFindings)
+	healthLine += ")"
 
-	b.WriteString("Triage\n")
-	wroteAny := false
+	report := cliapp.OperationalReport{
+		Status: []string{
+			statusLine,
+			healthLine,
+			fmt.Sprintf("Findings: %d total", totalFindings),
+		},
+	}
+
 	if len(autoItems) > 0 {
-		writeTriageBucket(&b, "Auto-fix now", autoItems)
-		wroteAny = true
+		report.Triage = append(report.Triage, cliapp.TriageGroup{
+			Heading: fmt.Sprintf("Auto-fix now (%d)", len(autoItems)),
+			Items:   triageTexts(autoItems),
+		})
 	}
 	if len(agentItems) > 0 {
-		writeTriageBucket(&b, "Agent repair", agentItems)
-		wroteAny = true
+		report.Triage = append(report.Triage, cliapp.TriageGroup{
+			Heading: fmt.Sprintf("Agent repair (%d)", len(agentItems)),
+			Items:   triageTexts(agentItems),
+		})
 	}
 	if manualCount > 0 {
-		writeManualReviewBucket(&b, manualGroups)
-		wroteAny = true
+		report.Triage = append(report.Triage, buildManualReviewGroup(manualGroups, manualCount))
 	}
-	if !wroteAny {
-		b.WriteString("- No findings\n")
+	if len(report.Triage) == 0 {
+		report.Triage = append(report.Triage, cliapp.TriageGroup{
+			Heading: "Triage",
+			Items:   []string{"No findings"},
+		})
 	}
 
-	b.WriteString("\nNext steps\n")
+	report.NextSteps = make([]string, 0, 4)
 	for i, step := range nextStepGuidance(scenario, autoCount, agentCount, manualCount, result.HealthScore) {
-		fmt.Fprintf(&b, "%d. %s\n", i+1, step.description)
-		fmt.Fprintf(&b, "   %s\n", step.command)
+		report.NextSteps = append(report.NextSteps, fmt.Sprintf("%d. %s", i+1, step.description), step.command)
 	}
-	return b.String()
+	return report
 }
 
 func RenderHealthReport(result HealthResponse, fallbackScenario string) string {
+	var out bytes.Buffer
+	_ = cliapp.RenderOperationalReport(&out, BuildHealthReport(result, fallbackScenario))
+	return out.String()
+}
+
+func BuildHealthReport(result HealthResponse, fallbackScenario string) cliapp.OperationalReport {
 	scenario := strings.TrimSpace(result.ScenarioName)
 	if scenario == "" {
 		scenario = strings.TrimSpace(fallbackScenario)
@@ -253,25 +278,77 @@ func RenderHealthReport(result HealthResponse, fallbackScenario string) string {
 		healthPct = 100
 	}
 
-	var b strings.Builder
-	fmt.Fprintf(&b, "Documentation Health: %s\n", scenario)
-	fmt.Fprintf(&b, "Score: %d%% (%d docs)\n", healthPct, result.TotalDocs)
-	fmt.Fprintf(&b, "Issues: %d misplaced, %d missing, %d extra, %d temporary\n\n", len(result.MisplacedDocs), len(result.MissingDocs), len(result.ExtraDocs), len(result.TemporaryDocs))
-	b.WriteString("Score breakdown\n")
-	fmt.Fprintf(&b, "- Required docs baseline: %.0f%% (%d/%d present)\n", requiredCoverage*100, requiredPresent, requiredDocs)
-	fmt.Fprintf(&b, "- Misplaced penalty: -%.0f%% (%d x 5%%)\n", misplacedPenalty*100, len(result.MisplacedDocs))
-	fmt.Fprintf(&b, "- Temporary-docs penalty: -%.0f%% (%d x 1%%)\n", temporaryPenalty*100, len(result.TemporaryDocs))
-	fmt.Fprintf(&b, "- Extra docs are informational only (%d)\n", len(result.ExtraDocs))
-	b.WriteString("- Final score is clamped to 0-100%\n\n")
-	b.WriteString("Fixability\n")
-	fmt.Fprintf(&b, "- Fix category: %s\n", strings.TrimSpace(result.FixCategory))
-	fmt.Fprintf(&b, "- Quick-fixable files: %d\n", len(result.MisplacedDocs))
-	if result.CanAutoFix {
-		b.WriteString("- Auto-fix available: yes\n")
-	} else {
-		b.WriteString("- Auto-fix available: no\n")
+	report := cliapp.OperationalReport{
+		Status: []string{
+			fmt.Sprintf("Documentation Health: %s", scenario),
+			fmt.Sprintf("Score: %d%% (%d docs)", healthPct, result.TotalDocs),
+			fmt.Sprintf("Issues: %d misplaced, %d missing, %d extra, %d temporary", len(result.MisplacedDocs), len(result.MissingDocs), len(result.ExtraDocs), len(result.TemporaryDocs)),
+		},
+		Triage: []cliapp.TriageGroup{
+			{
+				Heading: "Score breakdown",
+				Items: []string{
+					fmt.Sprintf("Required docs baseline: %.0f%% (%d/%d present)", requiredCoverage*100, requiredPresent, requiredDocs),
+					fmt.Sprintf("Misplaced penalty: -%.0f%% (%d x 5%%)", misplacedPenalty*100, len(result.MisplacedDocs)),
+					fmt.Sprintf("Temporary-docs penalty: -%.0f%% (%d x 1%%)", temporaryPenalty*100, len(result.TemporaryDocs)),
+					fmt.Sprintf("Extra docs are informational only (%d)", len(result.ExtraDocs)),
+					"Final score is clamped to 0-100%",
+				},
+			},
+			{
+				Heading: "Fixability",
+				Items: []string{
+					fmt.Sprintf("Fix category: %s", strings.TrimSpace(result.FixCategory)),
+					fmt.Sprintf("Quick-fixable files: %d", len(result.MisplacedDocs)),
+				},
+			},
+		},
 	}
-	return b.String()
+	if result.CanAutoFix {
+		report.Triage[1].Items = append(report.Triage[1].Items, "Auto-fix available: yes")
+	} else {
+		report.Triage[1].Items = append(report.Triage[1].Items, "Auto-fix available: no")
+	}
+	return report
+}
+
+func triageTexts(items []triageItem) []string {
+	const maxExamples = 10
+	limit := len(items)
+	if limit > maxExamples {
+		limit = maxExamples
+	}
+	lines := make([]string, 0, limit+1)
+	for i := 0; i < limit; i++ {
+		item := items[i]
+		lines = append(lines, item.text)
+	}
+	if len(items) > maxExamples {
+		lines = append(lines, fmt.Sprintf("... +%d more", len(items)-maxExamples))
+	}
+	return lines
+}
+
+func buildManualReviewGroup(groups []manualGroup, total int) cliapp.TriageGroup {
+	const maxExamples = 10
+	items := make([]string, 0, total+len(groups))
+	for _, group := range groups {
+		items = append(items, fmt.Sprintf("%s (%d)", group.name, len(group.items)))
+		limit := len(group.items)
+		if limit > maxExamples {
+			limit = maxExamples
+		}
+		for i := 0; i < limit; i++ {
+			items = append(items, group.items[i].text)
+		}
+		if len(group.items) > maxExamples {
+			items = append(items, fmt.Sprintf("... +%d more", len(group.items)-maxExamples))
+		}
+	}
+	return cliapp.TriageGroup{
+		Heading: fmt.Sprintf("Manual review (%d)", total),
+		Items:   items,
+	}
 }
 
 func classifyAuditStatus(totalFindings int, result AuditResponse) auditSeverity {

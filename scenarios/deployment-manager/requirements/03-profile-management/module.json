@@ -18,10 +18,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/profile-management.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-012] tags"
+          "ref": "cli/profiles/commands_test.go",
+          "notes": "Go CLI tests validate profile management commands"
         }
       ]
     },
@@ -39,10 +39,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/profile-management.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-013] tags"
+          "ref": "cli/profiles/commands_test.go",
+          "notes": "Go CLI tests validate profile management commands"
         }
       ]
     },
@@ -60,10 +60,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/profile-management.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-014] tags"
+          "ref": "cli/profiles/commands_test.go",
+          "notes": "Go CLI tests validate profile management commands"
         }
       ]
     },
@@ -81,10 +81,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/profile-management.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-015] tags"
+          "ref": "cli/profiles/commands_test.go",
+          "notes": "Go CLI tests validate profile management commands"
         }
       ]
     },
@@ -102,10 +102,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/profile-management.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-016] tags"
+          "ref": "cli/profiles/commands_test.go",
+          "notes": "Go CLI tests validate profile management commands"
         }
       ]
     },
@@ -123,10 +123,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/profile-management.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-017] tags"
+          "ref": "cli/profiles/commands_test.go",
+          "notes": "Go CLI tests validate profile management commands"
         }
       ]
     }

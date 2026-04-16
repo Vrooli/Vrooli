@@ -58,6 +58,7 @@ func (s Service) Start(req StartRequest) ([]LifecycleItemOutput, error) {
 			Ports:              envPortMap(result.Scenario.Manifest, result.AllocatedPorts),
 			Endpoints:          endpointOutputs(result.Scenario.Manifest, result.Details.Ports),
 			FailedDependencies: append([]string(nil), result.FailedDependencies...),
+			FailedResources:    append([]string(nil), result.FailedResources...),
 		})
 
 		if req.OpenAfter {
@@ -86,6 +87,7 @@ func (s Service) Restart(req RestartRequest) ([]LifecycleItemOutput, error) {
 		Ports:              envPortMap(result.Scenario.Manifest, result.AllocatedPorts),
 		Endpoints:          endpointOutputs(result.Scenario.Manifest, result.Details.Ports),
 		FailedDependencies: append([]string(nil), result.FailedDependencies...),
+		FailedResources:    append([]string(nil), result.FailedResources...),
 	}
 
 	if req.OpenAfter {

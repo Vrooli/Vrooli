@@ -3,6 +3,14 @@
   "name": "twilio",
   "display_name": "Twilio",
   "description": "Hosted Twilio API resource with native credential/status checks and shell-retained messaging actions.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-twilio",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    }
+  },
   "template": "cloud-api",
   "driver": "cloud-api",
   "endpoint": "https://api.twilio.com/2010-04-01/Accounts.json",

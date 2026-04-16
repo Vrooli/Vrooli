@@ -17,9 +17,12 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/logx"
+	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/ports"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/projectstate"
+	"github.com/vrooli/vrooli/internal/resources"
+	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
@@ -41,6 +44,10 @@ type lifecycleDeps struct {
 	listeningPIDs       func(int) ([]int, error)
 	readScenarioRecords func(string, string) ([]process.Record, error)
 	isPIDRunning        func(int) bool
+	resourceStatus      func(string, bool) (resourcecontrol.Status, error)
+	runResource         func(string, []string, io.Writer, io.Writer) error
+	inspectPort         func(int) (network.PortInspection, error)
+	readProcessEnv      func(int) (map[string]string, error)
 }
 
 type hostProbeDeps struct {
@@ -100,6 +107,7 @@ type Result struct {
 	AllocatedPorts     map[string]int
 	Health             string
 	FailedDependencies []string
+	FailedResources    []string
 	AlreadyRunning     bool
 }
 
@@ -151,6 +159,22 @@ func (r *Runner) runtimeDeps() lifecycleDeps {
 	if deps.isPIDRunning == nil {
 		deps.isPIDRunning = defaults.isPIDRunning
 	}
+	if deps.resourceStatus == nil {
+		deps.resourceStatus = func(name string, fast bool) (resourcecontrol.Status, error) {
+			return resources.NewController(r.Root, r.Home).Status(name, fast)
+		}
+	}
+	if deps.runResource == nil {
+		deps.runResource = func(name string, args []string, stdout, stderr io.Writer) error {
+			return resources.NewController(r.Root, r.Home).Run(name, args, stdout, stderr)
+		}
+	}
+	if deps.inspectPort == nil {
+		deps.inspectPort = network.InspectPortListeners
+	}
+	if deps.readProcessEnv == nil {
+		deps.readProcessEnv = process.ReadEnvironment
+	}
 	return deps
 }
 
@@ -184,8 +208,18 @@ func (r *Runner) startWithState(name string, opts StartOptions, ready map[string
 	return r.startScenario(item, opts, ready, stack)
 }
 
-func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready map[string]struct{}, stack []string) (Result, error) {
+func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready map[string]struct{}, stack []string) (result Result, err error) {
 	deps := r.runtimeDeps()
+	cleanupOnError := false
+	defer func() {
+		if err == nil || !cleanupOnError {
+			return
+		}
+		if cleanupErr := r.cleanupScenarioRuntime(item.Slug, opts.CustomPath, false); cleanupErr != nil {
+			r.logError("Failed to roll back failed scenario start", cleanupErr, logx.AttrScenario, item.Slug)
+			err = errors.Join(err, fmt.Errorf("rollback failed: %w", cleanupErr))
+		}
+	}()
 	if opts.CleanStale && len(stack) == 0 {
 		r.logDebug("Cleaning stale port locks before scenario start", logx.AttrScenario, item.Slug)
 		if err := r.Ports.CleanStaleLocks(); err != nil {
@@ -194,6 +228,10 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 	}
 
 	failedDeps, err := r.ensureDependencies(item, opts, ready, append(stack, item.Slug))
+	if err != nil {
+		return Result{}, err
+	}
+	failedResources, err := r.ensureResourceDependencies(item, opts)
 	if err != nil {
 		return Result{}, err
 	}
@@ -223,6 +261,7 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 				AllocatedPorts:     currentPorts,
 				Health:             health,
 				FailedDependencies: failedDeps,
+				FailedResources:    failedResources,
 				AlreadyRunning:     true,
 			}, nil
 		}
@@ -232,10 +271,15 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 		deps.sleep(1 * time.Second)
 	}
 
+	if err := r.cleanupFixedPortOrphans(item, records); err != nil {
+		return Result{}, err
+	}
+
 	env, err := r.Ports.BuildEnvironment(item, nil)
 	if err != nil {
 		return Result{}, err
 	}
+	cleanupOnError = true
 
 	if err := r.runWithLifecycleLog(item.Slug, func(logWriter io.Writer) error {
 		return r.ensureScenarioDatabase(item, env.EnvVars, logWriter)
@@ -276,21 +320,39 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 			"failed_dependencies", failedDeps,
 		)
 	}
+	if len(failedResources) > 0 {
+		r.logWarn("Scenario started with degraded resources",
+			logx.AttrScenario, item.Slug,
+			logx.AttrStatus, healthStatus,
+			"failed_resources", failedResources,
+		)
+	}
 
-	return Result{
+	result = Result{
 		Scenario:           item,
 		AllocatedPorts:     env.AllocatedPorts,
 		Health:             healthStatus,
 		FailedDependencies: failedDeps,
-	}, nil
+		FailedResources:    failedResources,
+	}
+	cleanupOnError = false
+	return result, nil
 }
 
 func (r *Runner) Stop(name string, opts StopOptions) error {
-	deps := r.runtimeDeps()
 	r.logInfo("Scenario stop requested", logx.AttrScenario, name)
+	if err := r.cleanupScenarioRuntime(name, opts.CustomPath, true); err != nil {
+		r.logError("Failed to remove scenario locks", err, logx.AttrScenario, name)
+		return err
+	}
+	r.logInfo("Scenario stop completed", logx.AttrScenario, name)
+	return nil
+}
+
+func (r *Runner) cleanupScenarioRuntime(name, customPath string, includeManifestFixedPorts bool) error {
+	deps := r.runtimeDeps()
 	records, err := deps.readScenarioRecords(r.Home, name)
 	if err != nil {
-		r.logError("Failed to read scenario records before stop", err, logx.AttrScenario, name)
 		return err
 	}
 
@@ -328,34 +390,33 @@ func (r *Runner) Stop(name string, opts StopOptions) error {
 		step := strings.TrimSuffix(filepath.Base(stepFile), filepath.Ext(stepFile))
 		_ = process.RemoveScenarioRecord(r.Home, name, step)
 	}
+
 	portsToCheck := make(map[int]struct{})
 	locks, err := r.Ports.LocksForScenario(name)
 	if err != nil {
-		r.logError("Failed to read scenario locks before stop", err, logx.AttrScenario, name)
 		return err
 	}
 	for _, lock := range locks {
 		portsToCheck[lock.Port] = struct{}{}
 	}
 
-	if item, loadErr := r.loadScenario(name, opts.CustomPath); loadErr == nil {
-		for _, portSummary := range item.Manifest.SortedPorts() {
-			if portSummary.FixedPort != nil {
-				portsToCheck[*portSummary.FixedPort] = struct{}{}
+	if includeManifestFixedPorts {
+		if item, loadErr := r.loadScenario(name, customPath); loadErr == nil {
+			for _, portSummary := range item.Manifest.SortedPorts() {
+				if portSummary.FixedPort != nil {
+					portsToCheck[*portSummary.FixedPort] = struct{}{}
+				}
 			}
 		}
 	}
 
 	if err := r.killOrphansOnPorts(portsToCheck); err != nil {
-		r.logError("Failed to clean orphaned listeners", err, logx.AttrScenario, name)
 		return err
 	}
 
 	if err := r.Ports.RemoveScenarioLocks(name); err != nil {
-		r.logError("Failed to remove scenario locks", err, logx.AttrScenario, name)
 		return err
 	}
-	r.logInfo("Scenario stop completed", logx.AttrScenario, name)
 	return nil
 }
 
@@ -425,6 +486,72 @@ func (r *Runner) killOrphansOnPorts(portsToCheck map[int]struct{}) error {
 		}
 	}
 	return nil
+}
+
+func (r *Runner) cleanupFixedPortOrphans(item scenario.Scenario, records []process.Record) error {
+	portsToCheck := make(map[int]struct{})
+	for _, portSummary := range item.Manifest.SortedPorts() {
+		if portSummary.FixedPort == nil {
+			continue
+		}
+		if runtimeOwnerPID(records, *portSummary.FixedPort) > 0 {
+			continue
+		}
+		portsToCheck[*portSummary.FixedPort] = struct{}{}
+	}
+	if len(portsToCheck) == 0 {
+		return nil
+	}
+	return r.killManagedScenarioListeners(portsToCheck, item.Slug)
+}
+
+func (r *Runner) killManagedScenarioListeners(portsToCheck map[int]struct{}, scenarioName string) error {
+	deps := r.runtimeDeps()
+	targets := make(map[int]struct{})
+	for port := range portsToCheck {
+		inspection, err := deps.inspectPort(port)
+		if err != nil {
+			return err
+		}
+		if !inspection.Inspection.Available {
+			continue
+		}
+		for _, listener := range inspection.Listeners {
+			env, err := deps.readProcessEnv(listener.PID)
+			if err != nil {
+				continue
+			}
+			if !strings.EqualFold(strings.TrimSpace(env["VROOLI_LIFECYCLE_MANAGED"]), "true") {
+				continue
+			}
+			if strings.TrimSpace(env["VROOLI_SCENARIO"]) != scenarioName {
+				continue
+			}
+			targets[listener.PID] = struct{}{}
+		}
+	}
+	if len(targets) == 0 {
+		return nil
+	}
+	for pid := range targets {
+		_ = deps.signalPID(pid, false)
+	}
+	deps.sleep(500 * time.Millisecond)
+	for pid := range targets {
+		if deps.isPIDRunning(pid) {
+			_ = deps.signalPID(pid, true)
+		}
+	}
+	return nil
+}
+
+func runtimeOwnerPID(records []process.Record, port int) int {
+	for _, record := range process.LiveRecords(records) {
+		if record.Port == port && record.PID > 0 {
+			return record.PID
+		}
+	}
+	return 0
 }
 
 func listeningPIDs(port int) ([]int, error) {

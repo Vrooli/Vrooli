@@ -3,6 +3,14 @@
   "name": "searxng",
   "display_name": "SearXNG",
   "description": "Managed SearXNG metasearch service with native docker lifecycle and shell-retained search/configuration workflows.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-searxng",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    }
+  },
   "template": "docker-service",
   "driver": "docker-service",
   "portability_tier": "full",

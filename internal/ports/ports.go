@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/process"
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -22,6 +23,12 @@ const (
 	mutationLockTimeout     = 2 * time.Second
 	mutationLockRetry       = 10 * time.Millisecond
 	mutationLockStaleWindow = 30 * time.Second
+)
+
+var (
+	isTCPPortInUseFn             = isTCPPortInUse
+	inspectPortListenersFn       = network.InspectPortListeners
+	readProcessEnvironmentPortFn = process.ReadEnvironment
 )
 
 type Manager struct {
@@ -547,15 +554,57 @@ func (m *Manager) ensurePortClaimed(port int, scenarioName string, records []pro
 		return pid, nil
 	}
 
-	inUse, err := isTCPPortInUse(port)
+	inUse, err := isTCPPortInUseFn(port)
 	if err != nil {
 		return 0, err
 	}
 	if inUse {
+		if detail, ok, err := describeVrooliPortConflict(port, scenarioName); err != nil {
+			return 0, err
+		} else if ok {
+			return 0, errors.New(detail)
+		}
 		return 0, errors.New("port already in use")
 	}
 
 	return os.Getpid(), nil
+}
+
+func describeVrooliPortConflict(port int, scenarioName string) (string, bool, error) {
+	inspection, err := inspectPortListenersFn(port)
+	if err != nil {
+		return "", false, err
+	}
+	if !inspection.Inspection.Available {
+		return "", false, nil
+	}
+
+	for _, listener := range inspection.Listeners {
+		env, err := readProcessEnvironmentPortFn(listener.PID)
+		if err != nil {
+			continue
+		}
+		if !isVrooliManagedListener(env) {
+			continue
+		}
+		ownerScenario := strings.TrimSpace(env["VROOLI_SCENARIO"])
+		if ownerScenario == "" {
+			return fmt.Sprintf("port already in use by Vrooli-managed listener (pid %d)", listener.PID), true, nil
+		}
+		if ownerScenario == scenarioName {
+			return fmt.Sprintf("port already in use by existing Vrooli listener for scenario %q (pid %d)", ownerScenario, listener.PID), true, nil
+		}
+		return fmt.Sprintf("port already in use by Vrooli scenario %q (pid %d)", ownerScenario, listener.PID), true, nil
+	}
+
+	return "", false, nil
+}
+
+func isVrooliManagedListener(env map[string]string) bool {
+	if strings.EqualFold(strings.TrimSpace(env["VROOLI_LIFECYCLE_MANAGED"]), "true") {
+		return true
+	}
+	return strings.TrimSpace(env["VROOLI_SCENARIO"]) != ""
 }
 
 func reservedByResource(resourcePorts map[string]int, port int) bool {

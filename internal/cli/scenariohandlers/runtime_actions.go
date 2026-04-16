@@ -101,6 +101,7 @@ func toCLILifecycleItems(items []scenarioapp.LifecycleItemOutput) []LifecycleIte
 			Ports:              CopyIntMap(item.Ports),
 			Endpoints:          toCLIEndpoints(item.Endpoints),
 			FailedDependencies: CopyStrings(item.FailedDependencies),
+			FailedResources:    CopyStrings(item.FailedResources),
 		})
 	}
 	return out
@@ -218,6 +219,7 @@ func toCLIBatchResponse(resp scenarioapp.BatchResponse) BatchResponse {
 			Ports:              CopyIntMap(item.Ports),
 			Endpoints:          toCLIEndpoints(item.Endpoints),
 			FailedDependencies: CopyStrings(item.FailedDependencies),
+			FailedResources:    CopyStrings(item.FailedResources),
 		})
 	}
 	failed := make([]BatchFailure, 0, len(resp.Failed))

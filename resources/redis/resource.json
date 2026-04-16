@@ -3,6 +3,14 @@
   "name": "redis",
   "display_name": "Redis Cache",
   "description": "Redis event bus and cache layer for project and scenario workflows.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-redis",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    }
+  },
   "template": "docker-service",
   "driver": "docker-service",
   "portability_tier": "full",

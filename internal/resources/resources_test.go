@@ -119,6 +119,41 @@ func TestNormalizeComposePSOutputIgnoresWarnings(t *testing.T) {
 	}
 }
 
+func TestInspectDockerContainerUsesContainerInspectBoundary(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	controller := NewController(root, home)
+	manifest := manifestpkg.ResourceManifest{
+		Name: "ollama",
+		Runtime: manifestpkg.ResourceRuntime{
+			ContainerName: "ollama",
+		},
+	}
+
+	originalRun := runCommandResource
+	t.Cleanup(func() {
+		runCommandResource = originalRun
+	})
+
+	runCommandResource = func(ctx context.Context, cmd *exec.Cmd) commandResult {
+		if got := strings.Join(cmd.Args[:3], " "); got != "docker container inspect" {
+			t.Fatalf("inspect command = %q, want docker container inspect", got)
+		}
+		return commandResult{
+			output: []byte("Error: No such container: ollama"),
+			err:    errors.New("exit status 1"),
+		}
+	}
+
+	_, exists, err := inspectDockerContainer(context.Background(), controller, manifest)
+	if err != nil {
+		t.Fatalf("inspectDockerContainer: %v", err)
+	}
+	if exists {
+		t.Fatal("expected missing container to report exists=false")
+	}
+}
+
 func TestStatusForResourceParsesStructuredPayload(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
@@ -336,6 +371,145 @@ func TestRunManifestNativeDockerLifecycle(t *testing.T) {
 	}
 	if strings.TrimSpace(string(data)) != "stopped" {
 		t.Fatalf("state after stop = %q, want stopped", string(data))
+	}
+}
+
+func TestStatusForManifestNativeDockerResourceAcceptsExternalHealthyService(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	port := mustAllocatePort(t)
+	server := startHTTPServer(t, "127.0.0.1:"+strconv.Itoa(port), func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	defer server.Shutdown(context.Background())
+
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
+		"fixture",
+		testresource.WithResourceDriver("docker-service"),
+		testresource.WithResourceTemplate("docker-service"),
+		testresource.WithResourceDescription("Fixture resource"),
+		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
+			Image:         "fixture:latest",
+			ContainerName: "vrooli-fixture",
+		}),
+		testresource.WithResourceHealthChecks(manifestpkg.ResourceHealthCheck{
+			Type:           "http",
+			Target:         "http://127.0.0.1:" + strconv.Itoa(port) + "/health",
+			ExpectedStatus: []int{200},
+			TimeoutSeconds: 5,
+		}),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+			Linux:   "supported",
+			MacOS:   "supported",
+			Windows: "partial",
+		}),
+	))
+	writeFakeDocker(t)
+
+	status, err := NewController(root, home).Status("fixture", false)
+	if err != nil {
+		t.Fatalf("Status: %v", err)
+	}
+	if !status.Running {
+		t.Fatal("expected external healthy service to satisfy running status")
+	}
+	if status.Healthy == nil || !*status.Healthy {
+		t.Fatalf("Healthy = %#v, want true", status.Healthy)
+	}
+	if status.Message != "healthy (external)" {
+		t.Fatalf("Message = %q, want healthy (external)", status.Message)
+	}
+}
+
+func TestRunManifestNativeDockerStartNoopsWhenExternalServiceIsHealthy(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	port := mustAllocatePort(t)
+	server := startHTTPServer(t, "127.0.0.1:"+strconv.Itoa(port), func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	defer server.Shutdown(context.Background())
+
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
+		"fixture",
+		testresource.WithResourceDriver("docker-service"),
+		testresource.WithResourceTemplate("docker-service"),
+		testresource.WithResourceDescription("Fixture resource"),
+		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
+			Image:         "fixture:latest",
+			ContainerName: "vrooli-fixture",
+		}),
+		testresource.WithResourceHealthChecks(manifestpkg.ResourceHealthCheck{
+			Type:           "http",
+			Target:         "http://127.0.0.1:" + strconv.Itoa(port) + "/health",
+			ExpectedStatus: []int{200},
+			TimeoutSeconds: 5,
+		}),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+			Linux:   "supported",
+			MacOS:   "supported",
+			Windows: "partial",
+		}),
+	))
+	stateFile := writeFakeDocker(t)
+
+	controller := NewController(root, home)
+	if err := controller.Run("fixture", []string{"start"}, ioDiscard{}, ioDiscard{}); err != nil {
+		t.Fatalf("Run(start): %v", err)
+	}
+	if _, err := os.Stat(stateFile); !os.IsNotExist(err) {
+		t.Fatalf("expected no managed container state file, got err=%v", err)
+	}
+}
+
+func TestRunManifestNativeDockerStartPrefersExternalHealthyServiceOverStoppedContainer(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	port := mustAllocatePort(t)
+	server := startHTTPServer(t, "127.0.0.1:"+strconv.Itoa(port), func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	defer server.Shutdown(context.Background())
+
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
+		"fixture",
+		testresource.WithResourceDriver("docker-service"),
+		testresource.WithResourceTemplate("docker-service"),
+		testresource.WithResourceDescription("Fixture resource"),
+		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
+			Image:         "fixture:latest",
+			ContainerName: "vrooli-fixture",
+		}),
+		testresource.WithResourceHealthChecks(manifestpkg.ResourceHealthCheck{
+			Type:           "http",
+			Target:         "http://127.0.0.1:" + strconv.Itoa(port) + "/health",
+			ExpectedStatus: []int{200},
+			TimeoutSeconds: 5,
+		}),
+		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
+			Linux:   "supported",
+			MacOS:   "supported",
+			Windows: "partial",
+		}),
+	))
+	stateFile := writeFakeDocker(t)
+	if err := os.WriteFile(stateFile, []byte("stopped\n"), 0o644); err != nil {
+		t.Fatalf("write fake docker state: %v", err)
+	}
+
+	controller := NewController(root, home)
+	if err := controller.Run("fixture", []string{"start"}, ioDiscard{}, ioDiscard{}); err != nil {
+		t.Fatalf("Run(start): %v", err)
+	}
+	data, err := os.ReadFile(stateFile)
+	if err != nil {
+		t.Fatalf("read state: %v", err)
+	}
+	if strings.TrimSpace(string(data)) != "stopped" {
+		t.Fatalf("state after external-preferred start = %q, want stopped", string(data))
 	}
 }
 

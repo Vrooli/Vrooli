@@ -3,6 +3,14 @@
   "name": "whisper",
   "display_name": "Whisper",
   "description": "Managed Whisper speech-to-text service with native compose-backed lifecycle and shell-retained transcription workflows.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-whisper",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    }
+  },
   "template": "compose-service",
   "driver": "compose-service",
   "compose_file": "docker/docker-compose.yml",

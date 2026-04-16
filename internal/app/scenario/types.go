@@ -175,6 +175,7 @@ type LifecycleItemOutput struct {
 	Ports              map[string]int   `json:"ports,omitempty"`
 	Endpoints          []EndpointOutput `json:"endpoints,omitempty"`
 	FailedDependencies []string         `json:"failed_dependencies,omitempty"`
+	FailedResources    []string         `json:"failed_resources,omitempty"`
 }
 
 type EndpointOutput struct {

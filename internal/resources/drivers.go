@@ -222,6 +222,14 @@ func (dockerServiceDriver) Status(ctx context.Context, controller *Controller, i
 		return status, nil
 	}
 	if !exists {
+		if external, err := probeExternalDockerService(ctx, controller, manifest); err == nil && external {
+			status.Running = true
+			healthy := true
+			status.Healthy = &healthy
+			status.Health = "healthy"
+			status.Message = "healthy (external)"
+			return status, nil
+		}
 		status.Message = "not installed"
 		return status, nil
 	}
@@ -253,6 +261,15 @@ func (dockerServiceDriver) Status(ctx context.Context, controller *Controller, i
 			status.Health = "unhealthy"
 			status.Message = "unhealthy"
 		}
+		return status, nil
+	}
+
+	if external, err := probeExternalDockerService(ctx, controller, manifest); err == nil && external {
+		status.Running = true
+		healthy := true
+		status.Healthy = &healthy
+		status.Health = "healthy"
+		status.Message = "healthy (external)"
 		return status, nil
 	}
 
@@ -397,9 +414,9 @@ func normalizeComposePSOutput(output []byte) string {
 }
 
 func inspectDockerContainer(ctx context.Context, controller *Controller, manifest ResourceManifest) (dockerState, bool, error) {
-	output, err := dockerOutput(ctx, controller, "inspect", dockerContainerName(manifest), "--format", "{{json .State}}")
+	output, err := dockerOutput(ctx, controller, "container", "inspect", dockerContainerName(manifest), "--format", "{{json .State}}")
 	if err != nil {
-		if strings.Contains(err.Error(), "No such object") {
+		if strings.Contains(err.Error(), "No such object") || strings.Contains(err.Error(), "No such container") {
 			return dockerState{}, false, nil
 		}
 		return dockerState{}, false, err
@@ -422,15 +439,25 @@ func ensureDockerImage(ctx context.Context, controller *Controller, manifest Res
 }
 
 func startDockerService(ctx context.Context, controller *Controller, manifest ResourceManifest, restart bool) error {
-	if err := ensureDockerImage(ctx, controller, manifest); err != nil {
-		return err
-	}
 	state, exists, err := inspectDockerContainer(ctx, controller, manifest)
 	if err != nil {
 		return err
 	}
+	if !exists {
+		if external, err := probeExternalDockerService(ctx, controller, manifest); err == nil && external {
+			return nil
+		}
+	}
+	if err := ensureDockerImage(ctx, controller, manifest); err != nil {
+		return err
+	}
 	name := dockerContainerName(manifest)
 	if exists {
+		if !state.Running {
+			if external, err := probeExternalDockerService(ctx, controller, manifest); err == nil && external {
+				return nil
+			}
+		}
 		if restart {
 			return dockerCommand(ctx, controller, io.Discard, io.Discard, "restart", name)
 		}
@@ -487,6 +514,17 @@ func startDockerService(ctx context.Context, controller *Controller, manifest Re
 		args = append(args, expandResourceRuntimeValue(controller, manifest, part))
 	}
 	return dockerCommand(ctx, controller, io.Discard, io.Discard, args...)
+}
+
+func probeExternalDockerService(ctx context.Context, controller *Controller, manifest ResourceManifest) (bool, error) {
+	if len(manifest.HealthChecks) == 0 {
+		return false, nil
+	}
+	health, err := controller.runResourceHealthChecks(ctx, manifest)
+	if err != nil {
+		return false, err
+	}
+	return health.Healthy, nil
 }
 
 func stopDockerService(ctx context.Context, controller *Controller, manifest ResourceManifest) error {

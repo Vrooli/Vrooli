@@ -102,7 +102,7 @@
         },
         {
           "name": "build-cli",
-          "run": "cd cli && go build -o local-info-scout main.go",
+          "run": "cd cli && go build -o local-info-scout .",
           "description": "Build CLI binary"
         }
       ]

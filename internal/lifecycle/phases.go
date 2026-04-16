@@ -102,6 +102,12 @@ func (r *Runner) RunPhaseDetailed(name, phaseName string, opts PhaseOptions) (Ph
 		if _, err := r.ensureDependencies(item, bootstrapOpts, ready, []string{item.Slug}); err != nil {
 			return PhaseResult{}, err
 		}
+		if _, err := r.ensureResourceDependencies(item, bootstrapOpts); err != nil {
+			return PhaseResult{}, err
+		}
+	}
+	if err := r.cleanupFixedPortOrphans(item, nil); err != nil {
+		return PhaseResult{}, err
 	}
 
 	var envResult ports.Environment

@@ -45,10 +45,10 @@
         },
         {
           "type": "test",
-          "ref": "cli/git-control-tower.bats",
-          "phase": "integration",
+          "ref": "cli/app_test.go",
+          "phase": "unit",
           "status": "implemented",
-          "notes": "CLI runs repo-status against running API"
+          "notes": "Validates the standard Go CLI wiring for repository status commands"
         },
         {
           "type": "test",

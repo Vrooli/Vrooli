@@ -3,6 +3,14 @@
   "name": "postgres",
   "display_name": "PostgreSQL Database",
   "description": "Managed PostgreSQL service for project and scenario storage.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-postgres",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    }
+  },
   "template": "docker-service",
   "driver": "docker-service",
   "portability_tier": "full",

@@ -18,10 +18,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/dependency-visualization.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-035] tags"
+          "ref": "cli/overview/commands_test.go",
+          "notes": "Go CLI tests validate dependency visualization command behavior"
         }
       ]
     },
@@ -39,10 +39,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/dependency-visualization.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-036] tags"
+          "ref": "cli/overview/commands_test.go",
+          "notes": "Go CLI tests validate dependency visualization command behavior"
         }
       ]
     },
@@ -60,10 +60,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/dependency-visualization.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-037] tags"
+          "ref": "cli/overview/commands_test.go",
+          "notes": "Go CLI tests validate dependency visualization command behavior"
         }
       ]
     }

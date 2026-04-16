@@ -118,10 +118,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/knowledge-observatory.bats",
-          "phase": "integration",
+          "ref": "cli/maintenance_commands_test.go",
+          "phase": "unit",
           "status": "implemented",
-          "notes": "CLI command behavior validated via Bats"
+          "notes": "CLI command behavior validated via Go tests"
         }
       ]
     },

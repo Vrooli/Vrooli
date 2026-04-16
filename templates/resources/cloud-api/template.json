@@ -37,6 +37,11 @@
       "flag": "credential-env",
       "description": "Primary environment variable checked for credentials.",
       "default": "API_KEY"
+    },
+    "RESOURCE_CLI_COMMAND": {
+      "flag": "cli-command",
+      "description": "Installed command name for the generated resource CLI.",
+      "default": "resource-{{RESOURCE_NAME}}"
     }
   },
   "docs": {

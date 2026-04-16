@@ -46,3 +46,28 @@ func TestRunCheckCommandFailureReturnsUnhealthy(t *testing.T) {
 	}
 }
 
+func TestRunCheckCommandLeavesCombinedOutputUnset(t *testing.T) {
+	var captured *exec.Cmd
+
+	result, err := RunCheck(context.Background(), manifestpkg.ResourceHealthCheck{
+		Type:    "command",
+		Command: []string{"claude", "--version"},
+	}, Config{
+		Runner: func(_ context.Context, cmd *exec.Cmd) ([]byte, error) {
+			captured = cmd
+			return nil, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("RunCheck: %v", err)
+	}
+	if !result.Healthy {
+		t.Fatalf("expected healthy result: %+v", result)
+	}
+	if captured == nil {
+		t.Fatal("expected runner to receive command")
+	}
+	if captured.Stdout != nil || captured.Stderr != nil {
+		t.Fatalf("expected command health check to leave stdout/stderr unset, got stdout=%v stderr=%v", captured.Stdout, captured.Stderr)
+	}
+}

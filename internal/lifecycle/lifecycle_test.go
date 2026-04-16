@@ -18,8 +18,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/projectstate"
+	"github.com/vrooli/vrooli/internal/resources"
+	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
@@ -41,6 +44,10 @@ func newLifecycleRunnerForTest(t *testing.T, root, home string, mutate func(*lif
 		t.Fatalf("newRunnerWithDeps: %v", err)
 	}
 	return runner
+}
+
+func intPtr(value int) *int {
+	return &value
 }
 
 type fakeHostNode struct {
@@ -315,6 +322,415 @@ func TestEnsureDependenciesIgnoreSkipsMissingOptionalDependency(t *testing.T) {
 	}
 }
 
+func TestResolveDependencyDecisionUsesNormalizedContract(t *testing.T) {
+	required := resolveDependencyDecision(scenario.Dependency{Enabled: true, Required: true}, false)
+	if required.policy != scenario.DependencyStartupPolicyMustStart || required.skip || required.continueOnFailure {
+		t.Fatalf("required decision = %+v", required)
+	}
+
+	tryStart := resolveDependencyDecision(scenario.Dependency{
+		Enabled:       true,
+		Required:      false,
+		StartupPolicy: scenario.DependencyStartupPolicyTryStart,
+	}, false)
+	if tryStart.policy != scenario.DependencyStartupPolicyTryStart || tryStart.skip || !tryStart.continueOnFailure {
+		t.Fatalf("try-start decision = %+v", tryStart)
+	}
+
+	disabled := resolveDependencyDecision(scenario.Dependency{
+		Enabled:       false,
+		Required:      true,
+		StartupPolicy: scenario.DependencyStartupPolicyMustStart,
+	}, false)
+	if disabled.policy != scenario.DependencyStartupPolicyIgnore || !disabled.skip || disabled.continueOnFailure {
+		t.Fatalf("disabled decision = %+v", disabled)
+	}
+
+	bestEffort := resolveDependencyDecision(scenario.Dependency{Enabled: true, Required: true}, true)
+	if !bestEffort.continueOnFailure {
+		t.Fatalf("best-effort decision = %+v", bestEffort)
+	}
+}
+
+func TestEnsureResourceDependenciesBlocksRequiredUnavailableResource(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixtureManifest(t, root, testscenario.ScenarioServiceManifest(
+		"alpha",
+		testscenario.WithDependencies(scenario.Dependencies{
+			Resources: map[string]scenario.Dependency{
+				"postgres": {Enabled: true, Required: true},
+			},
+		}),
+	))
+
+	now := time.Unix(0, 0)
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.resourceStatus = func(name string, fast bool) (resourcecontrol.Status, error) {
+			return resourcecontrol.Status{Resource: resources.Resource{Name: name}, Running: false, StatusCode: resourcecontrol.StatusCodeUnavailable}, nil
+		}
+		deps.runResource = func(name string, args []string, stdout, stderr io.Writer) error {
+			return nil
+		}
+		deps.now = func() time.Time { return now }
+		deps.sleep = func(d time.Duration) { now = now.Add(resourceDependencyReadyTimeout) }
+	})
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load(alpha): %v", err)
+	}
+
+	_, err = runner.ensureResourceDependencies(item, StartOptions{})
+	if err == nil || !strings.Contains(err.Error(), "not ready after start") {
+		t.Fatalf("ensureResourceDependencies error = %v", err)
+	}
+}
+
+func TestEnsureResourceDependenciesTryStartMarksUnavailableResourceAsFailed(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixtureManifest(t, root, testscenario.ScenarioServiceManifest(
+		"alpha",
+		testscenario.WithDependencies(scenario.Dependencies{
+			Resources: map[string]scenario.Dependency{
+				"qdrant": {Enabled: true, StartupPolicy: scenario.DependencyStartupPolicyTryStart},
+			},
+		}),
+	))
+
+	statusCalls := 0
+	now := time.Unix(0, 0)
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.resourceStatus = func(name string, fast bool) (resourcecontrol.Status, error) {
+			statusCalls++
+			return resourcecontrol.Status{Resource: resources.Resource{Name: name}, Running: false, StatusCode: resourcecontrol.StatusCodeUnavailable}, nil
+		}
+		deps.runResource = func(name string, args []string, stdout, stderr io.Writer) error {
+			return nil
+		}
+		deps.now = func() time.Time { return now }
+		deps.sleep = func(d time.Duration) { now = now.Add(resourceDependencyReadyTimeout) }
+	})
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load(alpha): %v", err)
+	}
+
+	failed, err := runner.ensureResourceDependencies(item, StartOptions{})
+	if err != nil {
+		t.Fatalf("ensureResourceDependencies: %v", err)
+	}
+	if len(failed) != 1 || failed[0] != "qdrant" {
+		t.Fatalf("failed resources = %#v, want [qdrant]", failed)
+	}
+	if statusCalls < 2 {
+		t.Fatalf("statusCalls = %d, want at least 2", statusCalls)
+	}
+}
+
+func TestEnsureResourceDependenciesIgnoreSkipsOptionalResource(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixtureManifest(t, root, testscenario.ScenarioServiceManifest(
+		"alpha",
+		testscenario.WithDependencies(scenario.Dependencies{
+			Resources: map[string]scenario.Dependency{
+				"redis": {Enabled: true, StartupPolicy: scenario.DependencyStartupPolicyIgnore},
+			},
+		}),
+	))
+
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.resourceStatus = func(name string, fast bool) (resourcecontrol.Status, error) {
+			t.Fatalf("resourceStatus should not be called for ignored resource %s", name)
+			return resourcecontrol.Status{}, nil
+		}
+		deps.runResource = func(name string, args []string, stdout, stderr io.Writer) error {
+			t.Fatalf("runResource should not be called for ignored resource %s", name)
+			return nil
+		}
+	})
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load(alpha): %v", err)
+	}
+
+	failed, err := runner.ensureResourceDependencies(item, StartOptions{})
+	if err != nil {
+		t.Fatalf("ensureResourceDependencies: %v", err)
+	}
+	if len(failed) != 0 {
+		t.Fatalf("failed resources = %#v, want none", failed)
+	}
+}
+
+func TestRunnerStartContinuesWithTryStartResourceDependency(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixtureManifest(t, root, testscenario.ScenarioServiceManifest(
+		"alpha",
+		testscenario.WithDependencies(scenario.Dependencies{
+			Resources: map[string]scenario.Dependency{
+				"qdrant": {Enabled: true, StartupPolicy: scenario.DependencyStartupPolicyTryStart},
+			},
+		}),
+	))
+
+	now := time.Unix(0, 0)
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.resourceStatus = func(name string, fast bool) (resourcecontrol.Status, error) {
+			return resourcecontrol.Status{Resource: resources.Resource{Name: name}, Running: false, StatusCode: resourcecontrol.StatusCodeUnavailable}, nil
+		}
+		deps.runResource = func(name string, args []string, stdout, stderr io.Writer) error {
+			return nil
+		}
+		deps.now = func() time.Time { return now }
+		deps.sleep = func(d time.Duration) { now = now.Add(resourceDependencyReadyTimeout) }
+	})
+
+	result, err := runner.Start("alpha", StartOptions{})
+	if err != nil {
+		t.Fatalf("Start(alpha): %v", err)
+	}
+	if len(result.FailedResources) != 1 || result.FailedResources[0] != "qdrant" {
+		t.Fatalf("FailedResources = %#v, want [qdrant]", result.FailedResources)
+	}
+}
+
+func TestRunnerStartRollsBackBackgroundProcessRecordsAndLocksOnHealthFailure(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixture(t, root, "alpha")
+
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load(alpha): %v", err)
+	}
+	item.Manifest.Lifecycle.Health = &scenario.HealthConfig{
+		Checks: []scenario.HealthCheck{{
+			Name:     "api",
+			Type:     "unsupported",
+			Critical: true,
+		}},
+		Timeout:  25,
+		Interval: 1,
+	}
+	writeLifecycleFixtureManifest(t, root, item.Manifest)
+
+	runner := newLifecycleRunnerForTest(t, root, home, nil)
+	_, err = runner.Start("alpha", StartOptions{})
+	if err == nil {
+		t.Fatal("expected health failure")
+	}
+
+	records, readErr := process.ReadScenarioRecords(home, "alpha")
+	if readErr != nil {
+		t.Fatalf("ReadScenarioRecords(alpha): %v", readErr)
+	}
+	if len(records) != 0 {
+		t.Fatalf("records after failed start = %#v, want none", records)
+	}
+
+	locks, lockErr := runner.Ports.LocksForScenario("alpha")
+	if lockErr != nil {
+		t.Fatalf("LocksForScenario(alpha): %v", lockErr)
+	}
+	if len(locks) != 0 {
+		t.Fatalf("locks after failed start = %#v, want none", locks)
+	}
+}
+
+func TestRunnerStartRollsBackLocksOnSetupFailure(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixture(t, root, "alpha")
+
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load(alpha): %v", err)
+	}
+	item.Manifest.Lifecycle.Setup = scenario.Phase{
+		Steps: []scenario.PhaseStep{
+			{Name: "explode", Run: "exit 9"},
+		},
+	}
+	writeLifecycleFixtureManifest(t, root, item.Manifest)
+
+	runner := newLifecycleRunnerForTest(t, root, home, nil)
+	_, err = runner.Start("alpha", StartOptions{})
+	if err == nil {
+		t.Fatal("expected setup failure")
+	}
+
+	records, readErr := process.ReadScenarioRecords(home, "alpha")
+	if readErr != nil {
+		t.Fatalf("ReadScenarioRecords(alpha): %v", readErr)
+	}
+	if len(records) != 0 {
+		t.Fatalf("records after failed setup = %#v, want none", records)
+	}
+
+	locks, lockErr := runner.Ports.LocksForScenario("alpha")
+	if lockErr != nil {
+		t.Fatalf("LocksForScenario(alpha): %v", lockErr)
+	}
+	if len(locks) != 0 {
+		t.Fatalf("locks after failed setup = %#v, want none", locks)
+	}
+}
+
+func TestRunPhaseDetailedBootstrapsResourceDependencies(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixtureManifest(t, root, testscenario.ScenarioServiceManifest(
+		"alpha",
+		testscenario.WithDependencies(scenario.Dependencies{
+			Resources: map[string]scenario.Dependency{
+				"postgres": {Enabled: true, Required: true},
+			},
+		}),
+	))
+
+	statusCalls := 0
+	runCalls := 0
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.resourceStatus = func(name string, fast bool) (resourcecontrol.Status, error) {
+			statusCalls++
+			if statusCalls == 1 {
+				return resourcecontrol.Status{Resource: resources.Resource{Name: name}, Running: false, StatusCode: resourcecontrol.StatusCodeUnavailable}, nil
+			}
+			healthy := true
+			return resourcecontrol.Status{Resource: resources.Resource{Name: name}, Running: true, Healthy: &healthy, StatusCode: resourcecontrol.StatusCodeOK}, nil
+		}
+		deps.runResource = func(name string, args []string, stdout, stderr io.Writer) error {
+			runCalls++
+			return nil
+		}
+	})
+
+	result, err := runner.RunPhaseDetailed("alpha", "test", PhaseOptions{})
+	if err != nil {
+		t.Fatalf("RunPhaseDetailed(test): %v", err)
+	}
+	if result.Status != PhaseExecutionUndefined {
+		t.Fatalf("result.Status = %q, want %q", result.Status, PhaseExecutionUndefined)
+	}
+	if runCalls != 1 {
+		t.Fatalf("runCalls = %d, want 1", runCalls)
+	}
+	if statusCalls < 2 {
+		t.Fatalf("statusCalls = %d, want at least 2", statusCalls)
+	}
+}
+
+func TestEnsureResourceDependenciesWaitsForStartedResourceReadiness(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixtureManifest(t, root, testscenario.ScenarioServiceManifest(
+		"alpha",
+		testscenario.WithDependencies(scenario.Dependencies{
+			Resources: map[string]scenario.Dependency{
+				"postgres": {Enabled: true, Required: true},
+			},
+		}),
+	))
+
+	statusCalls := 0
+	now := time.Unix(0, 0)
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.resourceStatus = func(name string, fast bool) (resourcecontrol.Status, error) {
+			statusCalls++
+			if statusCalls < 3 {
+				healthy := false
+				return resourcecontrol.Status{
+					Resource:   resources.Resource{Name: name},
+					Running:    true,
+					Healthy:    &healthy,
+					StatusCode: resourcecontrol.StatusCodeUnavailable,
+					Health:     "starting",
+				}, nil
+			}
+			healthy := true
+			return resourcecontrol.Status{
+				Resource:   resources.Resource{Name: name},
+				Running:    true,
+				Healthy:    &healthy,
+				StatusCode: resourcecontrol.StatusCodeOK,
+				Health:     "healthy",
+			}, nil
+		}
+		deps.runResource = func(name string, args []string, stdout, stderr io.Writer) error {
+			return nil
+		}
+		deps.now = func() time.Time { return now }
+		deps.sleep = func(d time.Duration) { now = now.Add(d) }
+	})
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load(alpha): %v", err)
+	}
+
+	failed, err := runner.ensureResourceDependencies(item, StartOptions{})
+	if err != nil {
+		t.Fatalf("ensureResourceDependencies: %v", err)
+	}
+	if len(failed) != 0 {
+		t.Fatalf("failed resources = %#v, want none", failed)
+	}
+	if statusCalls != 3 {
+		t.Fatalf("statusCalls = %d, want 3", statusCalls)
+	}
+}
+
+func TestEnsureResourceDependenciesTryStartWaitsThenDegradesOnTimeout(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixtureManifest(t, root, testscenario.ScenarioServiceManifest(
+		"alpha",
+		testscenario.WithDependencies(scenario.Dependencies{
+			Resources: map[string]scenario.Dependency{
+				"qdrant": {Enabled: true, StartupPolicy: scenario.DependencyStartupPolicyTryStart},
+			},
+		}),
+	))
+
+	statusCalls := 0
+	now := time.Unix(0, 0)
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.resourceStatus = func(name string, fast bool) (resourcecontrol.Status, error) {
+			statusCalls++
+			healthy := false
+			return resourcecontrol.Status{
+				Resource:   resources.Resource{Name: name},
+				Running:    true,
+				Healthy:    &healthy,
+				StatusCode: resourcecontrol.StatusCodeUnavailable,
+				Health:     "starting",
+			}, nil
+		}
+		deps.runResource = func(name string, args []string, stdout, stderr io.Writer) error {
+			return nil
+		}
+		deps.now = func() time.Time { return now }
+		deps.sleep = func(d time.Duration) { now = now.Add(resourceDependencyReadyTimeout) }
+	})
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load(alpha): %v", err)
+	}
+
+	failed, err := runner.ensureResourceDependencies(item, StartOptions{})
+	if err != nil {
+		t.Fatalf("ensureResourceDependencies: %v", err)
+	}
+	if len(failed) != 1 || failed[0] != "qdrant" {
+		t.Fatalf("failed resources = %#v, want [qdrant]", failed)
+	}
+	if statusCalls < 2 {
+		t.Fatalf("statusCalls = %d, want at least 2", statusCalls)
+	}
+}
+
 func TestFileDependencySpecsIgnoresNonDependencyTopLevelFields(t *testing.T) {
 	packageJSON := filepath.Join(t.TempDir(), "package.json")
 	testpackage.WriteNodePackageManifest(t, packageJSON, testpackage.NodePackageManifest{
@@ -499,6 +915,67 @@ func TestEnsureDependenciesUsesInjectedScenarioRecordReader(t *testing.T) {
 	}
 	if got := strings.Join(readCalls, ","); got != "beta" {
 		t.Fatalf("readScenarioRecords calls = %q, want beta", got)
+	}
+}
+
+func TestRunnerStartBootstrapsTransitiveResourceDependencies(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testresource.WritePortRegistry(t, root, nil)
+
+	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest(
+		"alpha",
+		testscenario.WithDependencies(scenario.Dependencies{
+			Scenarios: map[string]scenario.Dependency{
+				"beta": {Required: true},
+			},
+		}),
+	))
+	testscenario.WriteScenarioService(t, root, "beta", testscenario.ScenarioServiceManifest(
+		"beta",
+		testscenario.WithDependencies(scenario.Dependencies{
+			Resources: map[string]scenario.Dependency{
+				"postgres": {Enabled: true, Required: true},
+			},
+		}),
+	))
+
+	var startedResources []string
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.resourceStatus = func(name string, fast bool) (resourcecontrol.Status, error) {
+			for _, started := range startedResources {
+				if started == name {
+					healthy := true
+					return resourcecontrol.Status{
+						Resource:   resources.Resource{Name: name},
+						Running:    true,
+						Healthy:    &healthy,
+						StatusCode: resourcecontrol.StatusCodeOK,
+						Health:     "healthy",
+					}, nil
+				}
+			}
+			return resourcecontrol.Status{
+				Resource:   resources.Resource{Name: name},
+				Running:    false,
+				StatusCode: resourcecontrol.StatusCodeUnavailable,
+			}, nil
+		}
+		deps.runResource = func(name string, args []string, stdout, stderr io.Writer) error {
+			startedResources = append(startedResources, name)
+			return nil
+		}
+	})
+
+	result, err := runner.Start("alpha", StartOptions{})
+	if err != nil {
+		t.Fatalf("Start(alpha): %v", err)
+	}
+	if result.Health != "running" {
+		t.Fatalf("result.Health = %q, want running", result.Health)
+	}
+	if got := strings.Join(startedResources, ","); got != "postgres" {
+		t.Fatalf("startedResources = %q, want postgres", got)
 	}
 }
 
@@ -1086,6 +1563,105 @@ func TestKillOrphansOnPortsUsesInjectedListenerAndSignalSeams(t *testing.T) {
 		if signaled[i] != want[i] {
 			t.Fatalf("signaled[%d] = %q, want %q", i, signaled[i], want[i])
 		}
+	}
+}
+
+func TestCleanupFixedPortOrphansKillsOnlyManagedSameScenarioListeners(t *testing.T) {
+	item := scenario.Scenario{
+		Slug: "alpha",
+		Manifest: scenario.ServiceManifest{
+			Ports: map[string]scenario.Port{
+				"ui":  {EnvVar: "UI_PORT", Port: intPtr(36235)},
+				"api": {EnvVar: "API_PORT", Port: intPtr(18800)},
+			},
+		},
+	}
+
+	var signaled []string
+	runner := &Runner{
+		deps: lifecycleDeps{
+			inspectPort: func(port int) (network.PortInspection, error) {
+				switch port {
+				case 36235:
+					return network.PortInspection{
+						Inspection: network.ListenerInspection{Available: true, Tool: "stub"},
+						Listeners: []network.PortListener{
+							{PID: 101},
+							{PID: 202},
+						},
+					}, nil
+				case 18800:
+					return network.PortInspection{
+						Inspection: network.ListenerInspection{Available: true, Tool: "stub"},
+						Listeners:  []network.PortListener{{PID: 303}},
+					}, nil
+				default:
+					return network.PortInspection{}, nil
+				}
+			},
+			readProcessEnv: func(pid int) (map[string]string, error) {
+				switch pid {
+				case 101:
+					return map[string]string{
+						"VROOLI_LIFECYCLE_MANAGED": "true",
+						"VROOLI_SCENARIO":          "alpha",
+					}, nil
+				case 202:
+					return map[string]string{
+						"VROOLI_LIFECYCLE_MANAGED": "true",
+						"VROOLI_SCENARIO":          "beta",
+					}, nil
+				case 303:
+					return map[string]string{}, nil
+				default:
+					return map[string]string{}, nil
+				}
+			},
+			signalPID: func(pid int, force bool) error {
+				signaled = append(signaled, fmt.Sprintf("%d:%t", pid, force))
+				return nil
+			},
+			isPIDRunning: func(pid int) bool { return pid == 101 },
+			sleep:        func(time.Duration) {},
+		},
+	}
+
+	if err := runner.cleanupFixedPortOrphans(item, nil); err != nil {
+		t.Fatalf("cleanupFixedPortOrphans: %v", err)
+	}
+
+	want := []string{"101:false", "101:true"}
+	if len(signaled) != len(want) {
+		t.Fatalf("signaled = %v, want %v", signaled, want)
+	}
+	for i := range want {
+		if signaled[i] != want[i] {
+			t.Fatalf("signaled[%d] = %q, want %q", i, signaled[i], want[i])
+		}
+	}
+}
+
+func TestCleanupFixedPortOrphansSkipsTrackedRuntimeOwner(t *testing.T) {
+	item := scenario.Scenario{
+		Slug: "alpha",
+		Manifest: scenario.ServiceManifest{
+			Ports: map[string]scenario.Port{
+				"ui": {EnvVar: "UI_PORT", Port: intPtr(36235)},
+			},
+		},
+	}
+
+	runner := &Runner{
+		deps: lifecycleDeps{
+			inspectPort: func(port int) (network.PortInspection, error) {
+				t.Fatal("inspectPort should not be called for tracked runtime owner")
+				return network.PortInspection{}, nil
+			},
+		},
+	}
+
+	if err := runner.cleanupFixedPortOrphans(item, []process.Record{{PID: os.Getpid(), Port: 36235}}); err != nil {
+		t.Fatalf("cleanupFixedPortOrphans: %v", err)
 	}
 }
 

@@ -3,6 +3,14 @@
   "name": "vault",
   "display_name": "HashiCorp Vault",
   "description": "Managed Vault service for local secret storage and resource secret validation.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-vault",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    }
+  },
   "template": "docker-service",
   "driver": "docker-service",
   "portability_tier": "full",

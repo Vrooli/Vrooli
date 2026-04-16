@@ -3,6 +3,14 @@
   "name": "unstructured-io",
   "display_name": "Unstructured IO",
   "description": "Managed Unstructured API service for document partitioning and OCR-backed extraction.",
+  "cli": {
+    "enabled": true,
+    "command": "resource-unstructured-io",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    }
+  },
   "template": "docker-service",
   "driver": "docker-service",
   "portability_tier": "full",

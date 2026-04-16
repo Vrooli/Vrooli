@@ -18,10 +18,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/pre-deployment-validation.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-023] tags"
+          "ref": "cli/validations/commands_test.go",
+          "notes": "Go CLI tests validate pre-deployment validation commands"
         }
       ]
     },
@@ -39,10 +39,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/pre-deployment-validation.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-024] tags"
+          "ref": "cli/validations/commands_test.go",
+          "notes": "Go CLI tests validate pre-deployment validation commands"
         }
       ]
     },
@@ -60,10 +60,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/pre-deployment-validation.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-025] tags"
+          "ref": "cli/validations/commands_test.go",
+          "notes": "Go CLI tests validate pre-deployment validation commands"
         }
       ]
     },
@@ -81,10 +81,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/pre-deployment-validation.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-026] tags"
+          "ref": "cli/validations/commands_test.go",
+          "notes": "Go CLI tests validate pre-deployment validation commands"
         }
       ]
     },
@@ -102,10 +102,10 @@
       "validation": [
         {
           "type": "test",
-          "phase": "integration",
+          "phase": "unit",
           "status": "implemented",
-          "ref": "test/cli/pre-deployment-validation.bats",
-          "notes": "CLI integration tests with [REQ:DM-P0-027] tags"
+          "ref": "cli/validations/commands_test.go",
+          "notes": "Go CLI tests validate pre-deployment validation commands"
         }
       ]
     }

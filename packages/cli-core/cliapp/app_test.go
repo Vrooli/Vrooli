@@ -36,6 +36,23 @@ func TestParseGlobalFlagsMissingValue(t *testing.T) {
 	}
 }
 
+func TestParseGlobalFlagsStopsAtCommandBoundary(t *testing.T) {
+	api := ""
+	global := GlobalOptions{ColorEnabled: true}
+	args := []string{"run", "--api-base", "http://command-local"}
+
+	remaining, err := ParseGlobalFlags(args, &global, &api)
+	if err != nil {
+		t.Fatalf("ParseGlobalFlags: %v", err)
+	}
+	if api != "" || global.APIBaseOverride != "" {
+		t.Fatalf("expected command-local --api-base to remain untouched, got %q", api)
+	}
+	if len(remaining) != 3 || remaining[0] != "run" || remaining[1] != "--api-base" || remaining[2] != "http://command-local" {
+		t.Fatalf("unexpected remaining args: %v", remaining)
+	}
+}
+
 func TestAppRoutesCommandsAndRunsStaleCheck(t *testing.T) {
 	called := false
 	stale := &cliutil.StaleChecker{

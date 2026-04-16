@@ -23,6 +23,7 @@ type StartResult struct {
 	Scenario           scenario.Scenario       `json:"scenario"`
 	AllocatedPorts     map[string]int          `json:"allocated_ports"`
 	FailedDependencies []string                `json:"failed_dependencies,omitempty"`
+	FailedResources    []string                `json:"failed_resources,omitempty"`
 	AlreadyRunning     bool                    `json:"already_running,omitempty"`
 	Details            scenario.RuntimeDetails `json:"details"`
 }
@@ -127,6 +128,7 @@ func (s *Service) StartDetailed(name string, opts lifecycle.StartOptions) (Start
 		Scenario:           result.Scenario,
 		AllocatedPorts:     result.AllocatedPorts,
 		FailedDependencies: append([]string(nil), result.FailedDependencies...),
+		FailedResources:    append([]string(nil), result.FailedResources...),
 		AlreadyRunning:     result.AlreadyRunning,
 		Details:            detail.Details,
 	}, nil
@@ -150,6 +152,7 @@ func (s *Service) RestartDetailed(name string, opts lifecycle.StartOptions) (Sta
 		Scenario:           result.Scenario,
 		AllocatedPorts:     result.AllocatedPorts,
 		FailedDependencies: append([]string(nil), result.FailedDependencies...),
+		FailedResources:    append([]string(nil), result.FailedResources...),
 		AlreadyRunning:     result.AlreadyRunning,
 		Details:            detail.Details,
 	}, nil

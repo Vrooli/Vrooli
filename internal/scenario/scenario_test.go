@@ -494,6 +494,12 @@ func TestReadServiceLoadsCanonicalDependencyMaps(t *testing.T) {
 	if redis.Required {
 		t.Fatalf("redis should stay optional: %+v", redis)
 	}
+	if !redis.Enabled {
+		t.Fatalf("redis should default to enabled when declared: %+v", redis)
+	}
+	if policy := redis.NormalizedStartupPolicy(); policy != DependencyStartupPolicyIgnore {
+		t.Fatalf("redis policy = %q, want ignore", policy)
+	}
 
 	testGenie, ok := manifest.Dependencies.Scenarios["test-genie"]
 	if !ok {
@@ -502,8 +508,94 @@ func TestReadServiceLoadsCanonicalDependencyMaps(t *testing.T) {
 	if testGenie.Required {
 		t.Fatalf("test-genie should stay optional: %+v", testGenie)
 	}
+	if !testGenie.Enabled {
+		t.Fatalf("test-genie should default to enabled when declared: %+v", testGenie)
+	}
 	if testGenie.Type != "scenario" {
 		t.Fatalf("test-genie type = %q", testGenie.Type)
+	}
+}
+
+func TestDependencyNormalizedStartupPolicyUsesContractDefaults(t *testing.T) {
+	if policy := (Dependency{Enabled: true, Required: true}).NormalizedStartupPolicy(); policy != DependencyStartupPolicyMustStart {
+		t.Fatalf("required dependency policy = %q, want %q", policy, DependencyStartupPolicyMustStart)
+	}
+	if policy := (Dependency{Enabled: true, Required: false}).NormalizedStartupPolicy(); policy != DependencyStartupPolicyIgnore {
+		t.Fatalf("optional dependency policy = %q, want %q", policy, DependencyStartupPolicyIgnore)
+	}
+	if policy := (Dependency{Enabled: false, Required: true, StartupPolicy: DependencyStartupPolicyMustStart}).NormalizedStartupPolicy(); policy != DependencyStartupPolicyIgnore {
+		t.Fatalf("disabled dependency policy = %q, want %q", policy, DependencyStartupPolicyIgnore)
+	}
+}
+
+func TestReadServiceRejectsRequiredDependencyWithIgnorePolicy(t *testing.T) {
+	root := t.TempDir()
+	servicePath := filepath.Join(root, "service.json")
+	testkitgo.WriteJSON(t, servicePath, ServiceManifest{
+		Version: "1.0.0",
+		Service: ServiceMetadata{Name: "alpha"},
+		Dependencies: Dependencies{
+			Resources: map[string]Dependency{
+				"postgres": {
+					Required:      true,
+					StartupPolicy: DependencyStartupPolicyIgnore,
+				},
+			},
+		},
+	})
+
+	if _, err := ReadService(servicePath); err == nil || !strings.Contains(err.Error(), "resources.postgres is required") {
+		t.Fatalf("ReadService error = %v", err)
+	}
+}
+
+func TestReadServiceRejectsRequiredTryStartWithoutDegradedBehavior(t *testing.T) {
+	root := t.TempDir()
+	servicePath := filepath.Join(root, "service.json")
+	testkitgo.WriteJSON(t, servicePath, ServiceManifest{
+		Version: "1.0.0",
+		Service: ServiceMetadata{Name: "alpha"},
+		Dependencies: Dependencies{
+			Scenarios: map[string]Dependency{
+				"beta": {
+					Required:      true,
+					StartupPolicy: DependencyStartupPolicyTryStart,
+				},
+			},
+		},
+	})
+
+	if _, err := ReadService(servicePath); err == nil || !strings.Contains(err.Error(), "scenarios.beta is required with startup_policy") {
+		t.Fatalf("ReadService error = %v", err)
+	}
+}
+
+func TestReadServiceDisabledDependencySkipsContradictoryPolicyValidation(t *testing.T) {
+	root := t.TempDir()
+	servicePath := filepath.Join(root, "service.json")
+	testkitgo.WriteFile(t, servicePath, `{
+  "version": "1.0.0",
+  "service": {"name": "alpha"},
+  "dependencies": {
+    "resources": {
+      "postgres": {
+        "enabled": false,
+        "required": true,
+        "startup_policy": "ignore"
+      }
+    },
+    "scenarios": {
+      "beta": {
+        "enabled": false,
+        "required": true,
+        "startup_policy": "try_start"
+      }
+    }
+  }
+}`)
+
+	if _, err := ReadService(servicePath); err != nil {
+		t.Fatalf("ReadService: %v", err)
 	}
 }
 

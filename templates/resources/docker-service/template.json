@@ -32,6 +32,11 @@
       "flag": "env-prefix",
       "description": "Scenario-facing environment variable prefix.",
       "default": "RESOURCE"
+    },
+    "RESOURCE_CLI_COMMAND": {
+      "flag": "cli-command",
+      "description": "Installed command name for the generated resource CLI.",
+      "default": "resource-{{RESOURCE_NAME}}"
     }
   },
   "docs": {

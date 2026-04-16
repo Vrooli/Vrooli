@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	apicoresecrets "github.com/vrooli/api-core/secrets"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	runtimestorage "github.com/vrooli/vrooli/internal/resources/runtime/storage"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -358,8 +359,30 @@ func LoadPortRegistry(root string) (PortRegistry, error) {
 }
 
 func loadSecrets(home string) (map[string]string, error) {
-	store := secrets.NewUserStore(home)
-	return store.Load()
+	merged := map[string]string{}
+
+	plaintextStore, err := apicoresecrets.NewUserStore(apicoresecrets.Config{HomeDir: home})
+	if err != nil {
+		return nil, err
+	}
+	plaintextValues, err := plaintextStore.Load()
+	if err != nil {
+		return nil, err
+	}
+	for key, value := range plaintextValues {
+		merged[key] = value
+	}
+
+	encryptedStore := secrets.NewUserStore(home)
+	encryptedValues, err := encryptedStore.Load()
+	if err != nil {
+		return nil, err
+	}
+	for key, value := range encryptedValues {
+		merged[key] = value
+	}
+
+	return merged, nil
 }
 
 func normalizeEnvSegment(value string) string {
