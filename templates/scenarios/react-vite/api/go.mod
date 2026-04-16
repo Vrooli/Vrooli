@@ -10,6 +10,8 @@ require (
 	github.com/vrooli/api-core v0.0.0
 )
 
-replace github.com/vrooli/api-core => ../../../../packages/api-core
+replace github.com/vrooli/api-core => {{PACKAGES_REL_FROM_API}}/api-core
 
-replace github.com/vrooli/repo-contract-go => ../../../../packages/repo-contract-go
+replace github.com/vrooli/repo-contract-go => {{PACKAGES_REL_FROM_API}}/repo-contract-go
+
+replace github.com/vrooli/vrooli => {{REPO_ROOT_REL_FROM_API}}

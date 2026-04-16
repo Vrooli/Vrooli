@@ -16,5 +16,6 @@ Use this template for CLIs like `codex`, `claude-code`, `terraform`, or `ffmpeg`
 ## Next Steps
 
 1. Keep mutable runtime state outside the repo; if the CLI needs files, resolve them through the resource storage/runtime layer.
-2. Extend `cli/main.go` only when the resource needs commands beyond the standard native lifecycle surface.
-3. Replace placeholder install/version checks with the real binary contract.
+2. Keep the generated CLI contract manifest-driven: `resource.json` owns `cli.command`, `cli.install`, `cli.invoke`, and `cli.freshness`.
+3. Extend `cli/main.go` only when the resource needs commands beyond the standard native lifecycle surface.
+4. Replace placeholder install/version checks with the real binary contract.

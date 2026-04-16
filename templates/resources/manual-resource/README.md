@@ -14,5 +14,6 @@ This scaffold was generated from the `manual-resource` resource template on {{CU
 ## Next Steps
 
 1. Keep any operator-managed state outside the repo through the resource storage/runtime layer.
-2. Extend `cli/main.go` only when the resource needs commands beyond the standard native lifecycle surface.
-3. Document manual prerequisites and validation probes explicitly.
+2. Keep the generated CLI contract manifest-driven: `resource.json` owns `cli.command`, `cli.install`, `cli.invoke`, and `cli.freshness`.
+3. Extend `cli/main.go` only when the resource needs commands beyond the standard native lifecycle surface.
+4. Document manual prerequisites and validation probes explicitly.

@@ -58,7 +58,7 @@
     },
     {
       "description": "Sync Go modules (go mod tidy)",
-      "cmd": "go mod tidy",
+      "cmd": "GOWORK=off go mod tidy",
       "cwd": "api"
     }
   ]

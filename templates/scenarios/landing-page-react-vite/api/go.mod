@@ -16,11 +16,13 @@ require (
 	google.golang.org/protobuf v1.36.9
 )
 
-replace github.com/vrooli/api-core => ../../../../packages/api-core
+replace github.com/vrooli/api-core => {{PACKAGES_REL_FROM_API}}/api-core
 
-replace github.com/vrooli/repo-contract-go => ../../../../packages/repo-contract-go
+replace github.com/vrooli/repo-contract-go => {{PACKAGES_REL_FROM_API}}/repo-contract-go
 
-replace github.com/vrooli/vrooli/packages/proto => ../../../../packages/proto
+replace github.com/vrooli/vrooli/packages/proto => {{PACKAGES_REL_FROM_API}}/proto
+
+replace github.com/vrooli/vrooli => {{REPO_ROOT_REL_FROM_API}}
 
 require (
 	dario.cat/mergo v1.0.0 // indirect

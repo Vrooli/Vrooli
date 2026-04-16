@@ -48,10 +48,22 @@ Resource scaffolds focus on:
 - Resource-specific management interfaces
 - System-level configuration and optimization
 
+That difference does not change the CLI contract. Canonical resource templates should still emit the same manifest-driven CLI surface shape as scenario templates:
+
+- `cli/go.mod`
+- `cli/install.sh`
+- `cli/install.ps1`
+- explicit `resource.json` `cli.install`
+- explicit `resource.json` `cli.invoke`
+- explicit `resource.json` `cli.freshness`
+
+Resource CLIs remain thinner than scenario CLIs by design. The default bootstrap is `cliapp.NewResourceApp(...)` with delegated lifecycle commands, not `NewStandardScenarioApp(...)`.
+
 ## Quality Standards
 
 All generated resource scaffolds should:
 - ✅ Start from an approved canonical template
 - ✅ Produce a valid placeholder `resource.json`
+- ✅ Include a complete manifest-driven resource CLI scaffold
 - ✅ Include config, docs, and test stubs
 - ✅ Stay honest about portability and operational limits

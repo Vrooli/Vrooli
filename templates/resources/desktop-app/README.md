@@ -14,5 +14,6 @@ This scaffold was generated from the `desktop-app` resource template on {{CURREN
 ## Next Steps
 
 1. Keep config/cache/log state outside the repo through the resource storage/runtime layer.
-2. Extend `cli/main.go` only when the resource needs commands beyond the standard native lifecycle surface.
-3. Document supported platforms and unsupported behavior honestly.
+2. Keep the generated CLI contract manifest-driven: `resource.json` owns `cli.command`, `cli.install`, `cli.invoke`, and `cli.freshness`.
+3. Extend `cli/main.go` only when the resource needs commands beyond the standard native lifecycle surface.
+4. Document supported platforms and unsupported behavior honestly.
