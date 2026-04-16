@@ -1,96 +1,62 @@
-# HashiCorp Vault Resource
+# Vault Resource
 
-Vault remains the central secret store for Vrooli, but its supported CLI surface is now intentionally narrow. The retained commands are the ones active code paths use today:
+Managed HashiCorp Vault runtime for local secret storage and resource-secret workflows.
 
-- `status`
-- `content add`
-- `content get`
-- `content remove`
-- `secrets check`
-- `secrets init`
-- `secrets validate`
-- `secrets export`
-- `secrets create-template`
+## Intent
 
-Unused admin, audit, monitoring, migration, and recovery subcommands were removed instead of being carried into migration work.
+- Resource ID: `vault`
+- Category: `storage`
+- Driver: `docker-service`
+- Portability tier: `full`
 
-## Quick Start
+## Use Cases
 
-### Check Vault health
+- Provide a central local secret store for resources and scenarios.
+- Validate and export resource-specific secrets from a shared contract.
+- Support development and internal automation that should not hardcode credentials.
+
+## Architecture
+
+This resource is being aligned to the updated `docker-service` structure.
+
+- `resource.json` is the declarative authority for lifecycle, runtime, ports, exports, health, and freshness metadata.
+- `cli/` is the thin binary entrypoint and delegated command wiring surface.
+- `cli/internal/` is the default home for Vault-specific Go logic when the manifest and shared control plane are not enough.
+- `lib/` still contains retained shell behavior during the migration. That behavior should move into `cli/internal/...` over time rather than back into `cli/main.go`.
+
+The intended escalation path is:
+
+1. express behavior in `resource.json`
+2. rely on the shared `vrooli resource ...` control plane
+3. add Vault-specific Go code under `cli/internal/...` only where specialization is real
+4. add custom CLI commands only when the resource truly needs resource-local operator actions beyond the standard lifecycle surface
+
+Current internal package boundaries:
+
+- `cli/internal/install`: install/bootstrap helpers unique to Vault
+- `cli/internal/runtime`: runtime and config materialization helpers
+- `cli/internal/status`: richer Vault status interpretation
+- `cli/internal/health`: Vault-specific probe helpers
+- `cli/internal/env`: environment export and derived-config helpers
+
+## Usage
+
 ```bash
-vrooli resource vault status
+# Install or validate the resource contract
+vrooli resource install vault
+
+# Check status through the shared control plane
+resource-vault status
 ```
 
-### Manage resource secrets
-```bash
-# Check whether a resource has the required secrets
-vrooli resource vault secrets check openrouter
+Connection defaults:
 
-# Initialize a resource's secrets interactively
-vrooli resource vault secrets init openrouter
-
-# Validate all configured resource secrets
-vrooli resource vault secrets validate
-
-# Export a resource's secrets as environment variables
-vrooli resource vault secrets export openrouter > openrouter-env.sh
-source openrouter-env.sh
-
-# Create a new secrets.yaml template for a resource
-vrooli resource vault secrets create-template my-resource
-```
-
-### Read and write Vault content
-```bash
-# Store a plain value
-vrooli resource vault content add --path "resources/openrouter/api_key" --value "sk-..."
-
-# Store a keyed value inside a path
-vrooli resource vault content add --path "resources/postgres" --key "db_password" --value "secret"
-
-# Read a raw value
-vrooli resource vault content get --path "resources/openrouter/api_key" --format raw
-
-# Read a keyed value
-vrooli resource vault content get --path "resources/postgres" --key "db_password" --format raw
-
-# Remove a path
-vrooli resource vault content remove --path "resources/openrouter/api_key"
-```
-
-## Resource Secrets Workflow
-
-Vault integrates with resource `config/secrets.yaml` files.
-
-1. A resource defines required and optional secrets in `config/secrets.yaml`.
-2. `vrooli resource vault secrets check <resource>` reports whether those secrets are present.
-3. `vrooli resource vault secrets init <resource>` helps populate missing secrets.
-4. `vrooli resource vault secrets export <resource>` emits environment variables for consumers that still expect env-based configuration.
-
-See [SECRETS-STANDARD.md](docs/SECRETS-STANDARD.md) for the shared contract.
-
-## Supported Commands
-
-### Standard resource lifecycle
-- `install`
-- `uninstall`
-- `start`
-- `stop`
-- `restart`
-- `status`
-- `logs`
-
-### Supported Vault-specific commands
-- `content add --path <path> --value <value> [--key <key>]`
-- `content get --path <path> [--key <key>] [--format raw]`
-- `content remove --path <path>`
-- `secrets check <resource>`
-- `secrets init <resource>`
-- `secrets validate`
-- `secrets export <resource>`
-- `secrets create-template <resource>`
+- URL: `http://localhost:8200`
+- Dev token: `myroot`
 
 ## Notes
 
-- The Vault resource is still active, but most of the historical shell surface was not used by non-Vault code.
-- The reduced interface is intentional and is meant to keep the upcoming native migration focused on the code paths the repo actually depends on.
+- Keep `cli/main.go` thin. Do not treat it as the implementation surface for secret, template, or validation workflows.
+- Keep runtime storage rooted in `${RESOURCE_*_DIR}` paths rather than repo-local mutable directories.
+- Existing shell-heavy workflows in `lib/` are transitional. New logic should land in Go under `cli/internal/...`.
+- Use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/vault/docs/OPERATIONS.md) as the architecture boundary for future migrations.

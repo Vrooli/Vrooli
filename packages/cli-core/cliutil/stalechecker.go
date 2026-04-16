@@ -9,8 +9,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-
-	"github.com/vrooli/cli-core/buildinfo"
 )
 
 // StaleChecker compares the embedded build fingerprint against source files,
@@ -27,12 +25,11 @@ type StaleChecker struct {
 	InstallerModule    string // relative path to cli-core (default: packages/cli-core)
 	ReexecArgs         []string
 
-	FingerprintFunc      func(root string, skip ...string) (string, error)
-	InputFingerprintFunc func(root string, inputs []string, skip ...string) (string, error)
-	LookPathFunc         func(file string) (string, error)
-	CommandRunner        func(cmd *exec.Cmd) error
-	Logger               func(format string, args ...interface{})
-	Reexec               func(executable string, args []string) error
+	FingerprintFunc func(spec FreshnessSpec) (string, error)
+	LookPathFunc    func(file string) (string, error)
+	CommandRunner   func(cmd *exec.Cmd) error
+	Logger          func(format string, args ...interface{})
+	Reexec          func(executable string, args []string) error
 }
 
 // NewStaleChecker builds a StaleChecker with common defaults. Provide the app
@@ -59,14 +56,13 @@ func (c *StaleChecker) CheckAndMaybeRebuild() bool {
 	if srcRoot == "" {
 		return false
 	}
-	contextRoot := c.sourceContextRoot(srcRoot)
+	spec := c.freshnessSpec(srcRoot)
 
-	var skipNames []string
 	if executable, err := os.Executable(); err == nil {
-		skipNames = append(skipNames, filepath.Base(executable))
+		spec.SkipFiles = append(spec.SkipFiles, filepath.Base(executable))
 	}
 
-	fingerprint, err := c.fingerprint(contextRoot, srcRoot, skipNames...)
+	fingerprint, err := c.fingerprint(spec)
 	if err != nil {
 		c.log("Warning: unable to verify CLI freshness: %v\n", err)
 		return false
@@ -80,12 +76,12 @@ func (c *StaleChecker) CheckAndMaybeRebuild() bool {
 	// but still have a mismatch, something is wrong - don't rebuild again
 	if prevFingerprint := os.Getenv(rebuildLoopEnvVar); prevFingerprint == fingerprint {
 		c.log("Warning: %s CLI rebuild loop detected (fingerprint %s). Skipping auto-rebuild.\n", c.appLabel(), fingerprint)
-		c.log("  This usually means the binary name doesn't match between the stale checker and installer.\n")
+		c.log("  This usually means stale checking and installation still disagree about the freshness inputs.\n")
 		c.log("  Build fingerprint: %s, Source fingerprint: %s\n", c.BuildFingerprint, fingerprint)
 		return false
 	}
 
-	if c.autoRebuild(srcRoot, contextRoot, fingerprint) {
+	if c.autoRebuild(spec, fingerprint) {
 		return true
 	}
 
@@ -93,12 +89,12 @@ func (c *StaleChecker) CheckAndMaybeRebuild() bool {
 	return false
 }
 
-func (c *StaleChecker) autoRebuild(srcRoot, contextRoot, currentFingerprint string) bool {
+func (c *StaleChecker) autoRebuild(spec FreshnessSpec, currentFingerprint string) bool {
 	if _, err := c.lookPath()("go"); err != nil {
 		return false
 	}
 
-	repoRoot, ok := findRepositoryRoot(srcRoot, c.installerModule())
+	repoRoot, ok := findRepositoryRoot(spec.SourceRoot, c.installerModule())
 	if !ok {
 		return false
 	}
@@ -116,13 +112,17 @@ func (c *StaleChecker) autoRebuild(srcRoot, contextRoot, currentFingerprint stri
 	binaryName := filepath.Base(executable)
 
 	cmd := exec.Command("go", "run", "./cmd/cli-installer",
-		"--module", srcRoot,
+		"--module", spec.SourceRoot,
 		"--output", executable,
 		"--name", binaryName,
 		"--force", "true",
 	)
-	if manifestPath := c.manifestSourcePath(contextRoot); manifestPath != "" {
+	if manifestPath := c.manifestSourcePath(spec.ContextRoot); manifestPath != "" {
 		cmd.Args = append(cmd.Args, "--manifest", manifestPath)
+	}
+	cmd.Args = append(cmd.Args, "--context-root", spec.ContextRoot)
+	for _, input := range spec.Inputs {
+		cmd.Args = append(cmd.Args, "--freshness-input", input)
 	}
 	cmd.Dir = filepath.Join(repoRoot, c.installerModule())
 	cmd.Env = os.Environ()
@@ -158,17 +158,11 @@ func findRepositoryRoot(start, installerModule string) (string, bool) {
 	return "", false
 }
 
-func (c *StaleChecker) fingerprint(contextRoot, sourceRoot string, skip ...string) (string, error) {
-	if len(c.FreshnessInputs) > 0 {
-		if c.InputFingerprintFunc != nil {
-			return c.InputFingerprintFunc(contextRoot, c.FreshnessInputs, skip...)
-		}
-		return computeFingerprintFromDeclaredInputs(contextRoot, c.FreshnessInputs, skip...)
-	}
+func (c *StaleChecker) fingerprint(spec FreshnessSpec) (string, error) {
 	if c.FingerprintFunc != nil {
-		return c.FingerprintFunc(sourceRoot, skip...)
+		return c.FingerprintFunc(spec)
 	}
-	return buildinfo.ComputeFingerprint(sourceRoot, skip...)
+	return ComputeFreshnessFingerprint(spec)
 }
 
 func (c *StaleChecker) lookPath() func(string) (string, error) {
@@ -238,6 +232,14 @@ func (c *StaleChecker) sourceContextRoot(srcRoot string) string {
 		return srcRoot
 	}
 	return filepath.Join(srcRoot, filepath.FromSlash(c.SourceContextPath))
+}
+
+func (c *StaleChecker) freshnessSpec(srcRoot string) FreshnessSpec {
+	return FreshnessSpec{
+		SourceRoot:  srcRoot,
+		ContextRoot: c.sourceContextRoot(srcRoot),
+		Inputs:      append([]string(nil), c.FreshnessInputs...),
+	}
 }
 
 func (c *StaleChecker) manifestSourcePath(contextRoot string) string {

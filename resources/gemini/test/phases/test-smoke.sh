@@ -1,86 +1,9 @@
 #!/usr/bin/env bash
-################################################################################
-# Gemini Resource Smoke Tests
-# 
-# Quick health check for Gemini API service (< 30s)
-################################################################################
-
 set -euo pipefail
 
-# Determine paths
-PHASES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TEST_DIR="$(cd "$PHASES_DIR/.." && pwd)"
-RESOURCE_DIR="$(cd "$TEST_DIR/.." && pwd)"
 SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
 TEST_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
 RESOURCE_DIR="$(builtin cd "${TEST_DIR}/.." && builtin pwd)"
-REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
-
-# Source utilities
-source "${REPO_ROOT}/scripts/lib/utils/log.sh"
-source "${REPO_ROOT}/scripts/lib/utils/format.sh"
-
-# Source resource libraries
-source "${RESOURCE_DIR}/config/defaults.sh"
-source "${RESOURCE_DIR}/lib/core.sh"
-
-log::info "Starting Gemini smoke tests..."
-
-# Test 1: Configuration loads
-log::info "Test 1: Checking configuration..."
-if [[ -n "$GEMINI_API_BASE" ]] && [[ -n "$GEMINI_DEFAULT_MODEL" ]]; then
-    log::success "✓ Configuration loaded successfully"
-else
-    log::error "✗ Configuration not loaded properly"
-    exit 1
-fi
-
-# Test 2: API initialization
-log::info "Test 2: Initializing Gemini..."
-if gemini::init; then
-    log::success "✓ Gemini initialized successfully"
-else
-    log::error "✗ Failed to initialize Gemini"
-    exit 1
-fi
-
-# Test 3: Health check (API connectivity)
-log::info "Test 3: Testing API connectivity..."
-if [[ "$GEMINI_API_KEY" == "placeholder-gemini-key" ]]; then
-    log::warn "⚠ Using placeholder API key - skipping connectivity test"
-    log::info "  To enable full testing, configure a real API key via:"
-    log::info "  - Environment: export GEMINI_API_KEY='your-key'"
-    log::info "  - Vault: vault kv put secret/resources/gemini/api/key gemini_api_key='your-key'"
-else
-    if timeout 5 gemini::test_connection; then
-        log::success "✓ API connectivity verified"
-    else
-        log::error "✗ API connectivity test failed"
-        exit 1
-    fi
-fi
-
-# Test 4: Orchestration configuration exists
-log::info "Test 4: Checking orchestration configuration..."
-if [[ -f "${RESOURCE_DIR}/resource.json" ]]; then
-    if jq -e '.orchestration.startup_order' "${RESOURCE_DIR}/resource.json" >/dev/null 2>&1; then
-        log::success "✓ Orchestration configuration valid"
-    else
-        log::error "✗ Orchestration configuration missing required fields"
-        exit 1
-    fi
-else
-    log::error "✗ resource.json file not found"
-    exit 1
-fi
-
-# Test 5: Secrets configuration exists
-log::info "Test 5: Checking secrets configuration..."
-if [[ -f "${RESOURCE_DIR}/config/secrets.yaml" ]]; then
-    log::success "✓ Secrets configuration exists"
-else
-    log::warn "⚠ Secrets configuration not found (optional)"
-fi
-
-log::success "✅ All smoke tests passed!"
-exit 0
+test -f "${RESOURCE_DIR}/resource.json"
+cd "${RESOURCE_DIR}/cli"
+go test ./internal/auth ./internal/env ./internal/health

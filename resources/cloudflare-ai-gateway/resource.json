@@ -2,13 +2,51 @@
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "cloudflare-ai-gateway",
   "display_name": "Cloudflare AI Gateway",
-  "description": "Hosted Cloudflare AI Gateway control plane with native credential/status checks and shell-retained gateway configuration actions.",
+  "description": "Hosted Cloudflare AI Gateway control plane with a thin Go CLI and provider-specific logic organized under internal cloud-api packages.",
   "cli": {
     "enabled": true,
     "command": "resource-cloudflare-ai-gateway",
     "adapter": {
       "kind": "go_module",
       "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-cloudflare-ai-gateway"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
     }
   },
   "template": "cloud-api",

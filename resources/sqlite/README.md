@@ -1,11 +1,26 @@
-# SQLite Resource (Go)
+# SQLite Resource
 
-A portable, serverless SQLite resource implemented in Go for Vrooli scenarios. This replaces the legacy Bash-based implementation (now in `resources/sqlite-old`) with a cross-platform binary suitable for Electron and other desktop packaging targets.
+A portable, serverless SQLite resource implemented fully in Go for Vrooli scenarios. This replaces the legacy Bash-based implementation with a cross-platform binary suitable for Electron and other desktop packaging targets.
 
 ## Status
-- Core Go CLI with manage/status/info and content operations (create, execute, list, get, backup, restore, remove, batch, CSV import/export, encrypt/decrypt).
-- Replication, migrations, query helpers, stats implemented in Go. Web UI was intentionally removed from the port (serverless-only contract).
-- CLI follows the resource v2.0 shape (manage/content/replicate/migrate/query/stats/test) and uses `packages/cli-core` for fingerprinting and auto-rebuilds when Go is present.
+- The resource is Go-native end to end. Resource-specific behavior no longer depends on Bash libraries.
+- The single binary entrypoint lives in `cli/`, with all custom Go logic organized under `cli/internal/...`.
+- SQLite-specific operations for content, replication, migrations, query helpers, and stats are implemented in Go.
+
+## Architecture
+
+`sqlite` now follows the updated `native-cli` resource philosophy. It is a repo-owned Go resource binary with a real operator command surface, not a wrapper over a third-party executable.
+
+- `resource.json` is the declarative authority for install metadata, binary metadata, environment exports, portability, and CLI freshness.
+- `cli/` is the single binary entrypoint and keeps bootstrap logic minimal.
+- `cli/internal/app` owns SQLite-specific command registration and startup wiring.
+- `cli/internal/env` owns canonical storage and environment configuration.
+- `cli/internal/discovery` owns manifest and source-root discovery.
+- `cli/internal/install` owns rebuild/install and Go test execution helpers.
+- `cli/internal/version` owns manifest loading and runtime metadata access.
+- `cli/internal/sqlite` owns SQLite-specific operations.
+
+This is intentionally not scenario-style `cli/domains/...`. The architecture center is the resource itself and its repo-owned CLI, not a thin wrapper over an external tool.
 
 ## Go SQLite Driver Selection for Scenarios
 
@@ -83,18 +98,18 @@ If migrating from `go-sqlite3` to `modernc.org/sqlite`:
 
 ## Building / Installing
 ```bash
-cd resources/sqlite
+cd resources/sqlite/cli
 # Unix/macOS
-./install.sh            # wraps packages/cli-core/install.sh
+./install.sh
 # Windows (PowerShell)
 ./install.ps1
 # From an installed CLI: `resource-sqlite manage install` will attempt to rebuild and install
 # the Go binary into ${VROOLI_BIN:-~/.vrooli/bin} when Go is available.
 ```
 
-A compatibility wrapper lives at `resources/sqlite/cli.sh` and will use a local build, an installed binary in `~/.vrooli/bin`, or a PATH binary. There is no `go run` fallback at runtime; build once via the install scripts.
+`manage install` creates the canonical data directories and then attempts a best-effort binary rebuild through `packages/cli-core`.
 
-CLI auto-rebuilds only when a Go toolchain is present and the embedded fingerprint is stale. Otherwise, the bundled binary is used (matching the scenario CLI behavior).
+The `cli/` entrypoint is intentionally small. The richer SQLite command surface is wired from `cli/internal/app` and the other `cli/internal/...` packages.
 
 ## CLI usage (current)
 ```bash
@@ -164,8 +179,6 @@ Canonical resource storage:
 - Backups respect `SQLITE_BACKUP_RETENTION_DAYS` by pruning older backups per database name when a new backup is taken.
 - Encryption/decryption removes lingering `-wal`/`-shm` files to avoid leaking unencrypted data.
 
-## Next steps
-- Flesh out replication, migrations, query builder, stats, encryption/decryption, CSV import/export, and batch execution parity.
-- Add parity tests mirroring the legacy Bash tests and wire `vrooli resource sqlite test …` to run Go tests (now uses `go test ./...`).
-- Integrate build/install hooks into the resource lifecycle so `vrooli resource sqlite manage install` builds the Go binary automatically.
-- Confirm Windows/macOS/Linux packaging behavior for Electron scenarios.
+## Operations
+
+See [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/sqlite/docs/OPERATIONS.md) for the architecture boundary and operator guidance.

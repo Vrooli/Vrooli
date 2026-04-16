@@ -77,3 +77,25 @@ func main() { fmt.Println("demo") }
 		t.Fatal("module_path should not be empty")
 	}
 }
+
+func TestBuildFreshnessSpecUsesDeclaredContextAndInputs(t *testing.T) {
+	modulePath := filepath.Join(t.TempDir(), "scenario", "cli")
+	contextRoot := filepath.Join(filepath.Dir(modulePath))
+
+	spec, err := buildFreshnessSpec(modulePath, contextRoot, []string{"cli/**", ".vrooli/service.json"}, "demo")
+	if err != nil {
+		t.Fatalf("buildFreshnessSpec: %v", err)
+	}
+	if spec.SourceRoot != modulePath {
+		t.Fatalf("SourceRoot = %q, want %q", spec.SourceRoot, modulePath)
+	}
+	if spec.ContextRoot != contextRoot {
+		t.Fatalf("ContextRoot = %q, want %q", spec.ContextRoot, contextRoot)
+	}
+	if len(spec.Inputs) != 2 {
+		t.Fatalf("Inputs = %v", spec.Inputs)
+	}
+	if len(spec.SkipFiles) != 1 || spec.SkipFiles[0] != "demo" {
+		t.Fatalf("SkipFiles = %v", spec.SkipFiles)
+	}
+}

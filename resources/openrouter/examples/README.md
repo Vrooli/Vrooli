@@ -16,10 +16,9 @@ Before running these examples, ensure you have:
 
 ### basic-chat.sh
 Demonstrates basic usage of OpenRouter API including:
-- Simple chat completion
-- Multi-turn conversations with system prompts
+- Simple prompt execution
+- Stdin-based prompt execution
 - Listing available models
-- Checking API usage/credits
 
 Run with:
 ```bash
@@ -54,19 +53,12 @@ OpenRouter provides access to models from multiple providers. Common models incl
 
 List all available models:
 ```bash
-vrooli resource openrouter list-models
-```
-
-## Rate Limits and Usage
-
-Check your current usage and limits:
-```bash
-vrooli resource openrouter usage
+resource-openrouter list-models
 ```
 
 ## Troubleshooting
 
 If examples fail:
-1. Verify API key is configured: `vrooli resource openrouter status`
-2. Check connectivity: `vrooli resource openrouter test-connection`
-3. Ensure you have credits: `vrooli resource openrouter usage`
+1. Verify API key is configured: `resource-openrouter show-config`
+2. Check the resource status: `resource-openrouter status`
+3. Confirm model discovery works: `resource-openrouter content models --json --limit 20`

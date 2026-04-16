@@ -4,4 +4,4 @@ set -euo pipefail
 SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
 REPO_ROOT="$(builtin cd "${SCRIPT_DIR}/../../.." && builtin pwd)"
 
-"${REPO_ROOT}/packages/cli-core/install.sh" "resources/sqlite/cli" --name "resource-sqlite"
+"${REPO_ROOT}/packages/cli-core/install.sh" "resources/sqlite/cli" --name "resource-sqlite" --manifest "resources/sqlite/resource.json"

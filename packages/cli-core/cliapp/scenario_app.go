@@ -469,6 +469,8 @@ func (a *ScenarioApp) ConfigureCommand(apiBaseKeys, tokenKeys []string) Command 
 		Name:        "configure",
 		NeedsAPI:    false,
 		Description: "View or update CLI settings (api_base, token)",
+		Usage:       fmt.Sprintf("%s configure [<key> <value>]", a.options.Name),
+		HelpText:    "Run without arguments to print the current config. Supported keys include api_base and token.",
 		Run: func(args []string) error {
 			if len(args) == 0 {
 				payload, _ := json.MarshalIndent(a.Config, "", "  ")

@@ -101,6 +101,8 @@ func (a *ScenarioApp) StandardStatusCommand(opts ...StatusCommandOptions) Comman
 		Name:        config.Name,
 		NeedsAPI:    true,
 		Description: config.Description,
+		Usage:       fmt.Sprintf("%s %s [--json]", a.options.Name, config.Name),
+		HelpText:    "Use --json to print the raw health payload instead of the operational summary.",
 		Run: func(args []string) error {
 			return a.runStandardStatus(args, os.Stdout)
 		},

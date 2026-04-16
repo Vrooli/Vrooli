@@ -13,9 +13,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vrooli/cli-core/buildinfo"
 	"github.com/vrooli/cli-core/cliutil"
 )
+
+type stringListFlag []string
+
+func (f *stringListFlag) String() string {
+	return strings.Join(*f, ",")
+}
+
+func (f *stringListFlag) Set(value string) error {
+	*f = append(*f, value)
+	return nil
+}
 
 func main() {
 	if err := run(); err != nil {
@@ -30,7 +40,10 @@ func run() error {
 	output := flag.String("output", "", "explicit output path for the built binary")
 	installDir := flag.String("install-dir", "", "directory where the binary should be installed")
 	name := flag.String("name", "", "binary name (defaults to module directory name)")
+	contextRoot := flag.String("context-root", "", "path to the freshness context root (defaults to module root)")
 	force := flag.Bool("force", true, "overwrite existing binary when present")
+	var freshnessInputs stringListFlag
+	flag.Var(&freshnessInputs, "freshness-input", "declared freshness input relative to the context root (repeatable)")
 	flag.Parse()
 
 	if *output == "" && *installDir == "" {
@@ -69,12 +82,15 @@ func run() error {
 		return fmt.Errorf("Go toolchain is required: %w", err)
 	}
 
-	// Skip the binary name when computing fingerprint (matches stale checker behavior)
 	binaryName := *name
 	if binaryName == "" {
 		binaryName = filepath.Base(modulePath)
 	}
-	fingerprint, err := buildinfo.ComputeFingerprint(modulePath, binaryName)
+	spec, err := buildFreshnessSpec(modulePath, *contextRoot, []string(freshnessInputs), binaryName)
+	if err != nil {
+		return fmt.Errorf("build freshness spec: %w", err)
+	}
+	fingerprint, err := cliutil.ComputeFreshnessFingerprint(spec)
 	if err != nil {
 		return fmt.Errorf("compute fingerprint: %w", err)
 	}
@@ -134,6 +150,27 @@ type installMetadata struct {
 	ModulePath  string `json:"module_path"`
 	Fingerprint string `json:"fingerprint"`
 	InstalledAt string `json:"installed_at,omitempty"`
+}
+
+func buildFreshnessSpec(modulePath, contextRoot string, inputs []string, binaryName string) (cliutil.FreshnessSpec, error) {
+	modulePath = strings.TrimSpace(modulePath)
+	if modulePath == "" {
+		return cliutil.FreshnessSpec{}, errors.New("module path must not be empty")
+	}
+	modulePath = filepath.Clean(modulePath)
+
+	if strings.TrimSpace(contextRoot) == "" {
+		contextRoot = modulePath
+	} else {
+		contextRoot = filepath.Clean(strings.TrimSpace(contextRoot))
+	}
+
+	return cliutil.FreshnessSpec{
+		SourceRoot:  modulePath,
+		ContextRoot: contextRoot,
+		Inputs:      append([]string(nil), inputs...),
+		SkipFiles:   []string{binaryName},
+	}, nil
 }
 
 func determineDestination(modulePath, explicitOutput, installDir, name string) (string, error) {

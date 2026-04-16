@@ -2,17 +2,55 @@
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "sqlite",
   "display_name": "SQLite",
-  "description": "Portable Go-based SQLite CLI resource with native binary/install/status handling and binary-retained database operations.",
+  "description": "Portable Go-native SQLite resource with a repo-owned operator CLI and structured internal packages for command wiring, runtime resolution, install, version, and SQLite operations.",
   "cli": {
     "enabled": true,
     "command": "resource-sqlite",
     "adapter": {
       "kind": "go_module",
       "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-sqlite"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "resource.json",
+        "README.md"
+      ]
     }
   },
-  "template": "external-cli",
-  "driver": "external-cli",
+  "template": "native-cli",
+  "driver": "native-cli",
   "binary": "resource-sqlite",
   "version_args": [
     "info"
@@ -28,18 +66,18 @@
     "platforms": {
       "linux": [
         "bash",
-        "resources/sqlite/install.sh"
+        "resources/sqlite/cli/install.sh"
       ],
       "macos": [
         "bash",
-        "resources/sqlite/install.sh"
+        "resources/sqlite/cli/install.sh"
       ],
       "windows": [
         "powershell",
         "-ExecutionPolicy",
         "Bypass",
         "-File",
-        "resources/sqlite/install.ps1"
+        "resources/sqlite/cli/install.ps1"
       ]
     }
   },

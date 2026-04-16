@@ -1,22 +1,14 @@
 #!/usr/bin/env bash
-################################################################################
-# Gemini Resource Test Runner
-# 
-# Central test runner that delegates to test phases
-################################################################################
-
 set -euo pipefail
 
 # Determine paths
 SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+TEST_DIR="${SCRIPT_DIR}"
 RESOURCE_DIR="$(builtin cd "${SCRIPT_DIR}/.." && builtin pwd)"
 REPO_ROOT="$(builtin cd "${RESOURCE_DIR}/../.." && builtin pwd)"
 
 # Source utilities
 source "${REPO_ROOT}/scripts/lib/utils/log.sh"
-
-# Source resource configuration
-source "${RESOURCE_DIR}/config/defaults.sh"
 
 # Parse arguments
 TEST_PHASE="${1:-all}"
@@ -46,19 +38,19 @@ case "$TEST_PHASE" in
         
         # Run each phase
         if "${TEST_DIR}/phases/test-unit.sh"; then
-            ((tests_passed++))
+            tests_passed=$((tests_passed + 1))
         fi
         
         if "${TEST_DIR}/phases/test-smoke.sh"; then
-            ((tests_passed++))
+            tests_passed=$((tests_passed + 1))
         fi
         
         if "${TEST_DIR}/phases/test-integration.sh"; then
-            ((tests_passed++))
+            tests_passed=$((tests_passed + 1))
         fi
         
         if "${TEST_DIR}/phases/test-cache.sh"; then
-            ((tests_passed++))
+            tests_passed=$((tests_passed + 1))
         fi
         
         # Report results

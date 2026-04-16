@@ -17,12 +17,12 @@ Hosted Google Gemini API integration for multimodal and text-generation workload
 
 ## Architecture
 
-This resource is being aligned to the updated `cloud-api` structure.
+This resource now follows the updated `cloud-api` structure.
 
 - `resource.json` is the declarative authority for endpoint, credentials, health, and freshness metadata.
 - `cli/` is the thin binary entrypoint and delegated command wiring surface.
 - `cli/internal/` is the default home for Gemini-specific Go logic when the manifest and shared control plane are not enough.
-- `lib/` still contains retained shell behavior during the migration. That behavior should move into `cli/internal/...` over time rather than back into `cli/main.go`.
+- `lib/` is no longer the implementation surface for this resource.
 
 The intended escalation path is:
 
@@ -38,6 +38,13 @@ Current internal package boundaries:
 - `cli/internal/health`: provider-safe connectivity helpers
 - `cli/internal/env`: environment export helpers
 
+Concrete Go-owned responsibilities now include:
+
+- Vault, environment, and compatibility-file Gemini API key resolution
+- derived runtime settings for endpoints, default models, cache flags, and storage paths
+- repo-external prompt/template/function storage for future explicit command wiring
+- safe Gemini probe and model-listing logic that does not belong in `cli/main.go`
+
 ## Usage
 
 ```bash
@@ -46,6 +53,12 @@ vrooli resource install gemini
 
 # Check status through the shared control plane
 resource-gemini status
+
+# List available Gemini models
+resource-gemini list-models
+
+# Generate a response directly
+resource-gemini generate "Explain vector embeddings simply"
 ```
 
 Credentials can come from:
@@ -58,4 +71,6 @@ Credentials can come from:
 - This is a cloud API resource, not a local runtime owner.
 - Keep `cli/main.go` thin. Do not move provider logic into CLI wiring.
 - Keep credential, endpoint, and health expectations declarative in `resource.json` whenever possible.
+- The old shell-era `generate/content/cache` helpers were intentionally retired instead of being treated as an implicit CLI contract. If Gemini needs those operator actions again, add them back explicitly on top of the Go packages under `cli/internal/...`.
+- `generate` and `list-models` are now explicit native commands. They are part of the Go CLI surface rather than leftover shell behavior.
 - Use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/gemini/docs/OPERATIONS.md) as the architecture boundary for future migrations.

@@ -1,165 +1,73 @@
 # Cloudflare AI Gateway Resource
 
-## Overview
-The Cloudflare AI Gateway resource provides a resilient proxy layer for AI traffic with caching, rate limiting, analytics, retries, and model fallbacks. It acts as an intelligent intermediary between Vrooli's AI resources and external providers, optimizing costs and improving reliability.
+Hosted Cloudflare AI Gateway control plane for routing AI traffic through a managed cache, policy, and analytics layer.
 
-## Key Features
-- **Intelligent Caching**: Reduce API costs by caching repeated requests
-- **Rate Limiting**: Prevent API quota exhaustion
-- **Automatic Retries**: Handle transient failures gracefully
-- **Provider Fallbacks**: Switch between providers when one fails
-- **Analytics**: Track usage, costs, and performance
-- **Request Logging**: Debug and audit AI interactions
+## Intent
 
-## Benefits for Vrooli
-- **Cost Reduction**: 30-50% reduction in AI API costs through caching
-- **Improved Reliability**: Automatic failover between providers
-- **Better Observability**: Detailed analytics and logging
-- **Quota Management**: Prevent hitting provider rate limits
-- **Unified Interface**: Single point for all AI traffic
-
-## Quick Start
-
-### Prerequisites
-1. Cloudflare account (free tier available)
-2. API token with AI Gateway permissions
-3. Account ID from Cloudflare dashboard
-
-### Installation
-```bash
-vrooli resource install cloudflare-ai-gateway
-```
-
-### Configuration
-```bash
-# Store credentials in Vault (recommended)
-resource-vault content add --path "resources/cloudflare/account_id" --value "YOUR_ACCOUNT_ID"
-resource-vault content add --path "resources/cloudflare/api_token" --value "YOUR_API_TOKEN"
-
-# Or use environment variables
-export CLOUDFLARE_ACCOUNT_ID=YOUR_ACCOUNT_ID
-export CLOUDFLARE_API_TOKEN=YOUR_API_TOKEN
-```
-
-### Basic Usage
-```bash
-# Check status
-resource-cloudflare-ai-gateway status
-
-# Start the gateway
-resource-cloudflare-ai-gateway start
-
-# Configure providers
-resource-cloudflare-ai-gateway configure --provider openrouter --cache-ttl 3600
-
-# View logs and analytics
-resource-cloudflare-ai-gateway logs
-```
-
-## Content Management
-The gateway supports configuration management for rules, providers, and policies:
-
-```bash
-# Add a configuration
-resource-cloudflare-ai-gateway content add --file gateway-rules.json
-
-# List configurations
-resource-cloudflare-ai-gateway content list
-
-# Apply a configuration
-resource-cloudflare-ai-gateway content execute --name production-rules
-```
-
-## Integration with Other Resources
-
-### OpenRouter
-Configure OpenRouter to route through the gateway:
-```bash
-# Set gateway URL in OpenRouter configuration
-resource-openrouter configure --gateway-url https://gateway.ai.cloudflare.com/v1/YOUR_GATEWAY_ID
-```
-
-### Ollama
-For external model access through Ollama:
-```bash
-# Configure Ollama to use gateway for remote models
-resource-ollama configure --remote-gateway cloudflare
-```
-
-### Cline/Agents
-Agents automatically benefit from the gateway's caching and fallback features.
-
-## Example Configurations
-
-### Basic Caching Rule
-```json
-{
-  "rules": [
-    {
-      "pattern": "/chat/completions",
-      "cache": {
-        "enabled": true,
-        "ttl": 3600,
-        "key": ["model", "messages"]
-      }
-    }
-  ]
-}
-```
-
-### Provider Fallback Chain
-```json
-{
-  "providers": [
-    {
-      "name": "openrouter",
-      "priority": 1,
-      "timeout": 30000
-    },
-    {
-      "name": "openai",
-      "priority": 2,
-      "timeout": 30000
-    }
-  ],
-  "fallback": {
-    "enabled": true,
-    "retry_count": 3
-  }
-}
-```
-
-## Troubleshooting
-
-### Gateway not responding
-1. Check credentials: `resource-cloudflare-ai-gateway status`
-2. Verify network connectivity
-3. Check Cloudflare dashboard for service status
-
-### High cache miss rate
-1. Review cache key configuration
-2. Increase TTL for stable queries
-3. Check request variations
-
-### Rate limiting issues
-1. Adjust rate limits in configuration
-2. Enable request queuing
-3. Consider upgrading Cloudflare plan
+- Resource ID: `cloudflare-ai-gateway`
+- Category: `ai`
+- Driver: `cloud-api`
+- Portability tier: `full`
 
 ## Architecture
-```
-┌─────────────┐     ┌──────────────────┐     ┌──────────────┐
-│   Vrooli    │────▶│  CF AI Gateway   │────▶│  Providers   │
-│  Resources  │     │  (Proxy Layer)   │     │ (OpenRouter, │
-└─────────────┘     └──────────────────┘     │   OpenAI)    │
-                            │                 └──────────────┘
-                            ▼
-                    ┌──────────────────┐
-                    │  Cache & Analytics│
-                    └──────────────────┘
+
+This resource now follows the `cloud-api` template structure.
+
+- `resource.json` is the declarative authority for endpoint, credentials, health checks, freshness, and lifecycle metadata.
+- `cli/` is the single binary entrypoint and command wiring surface.
+- `cli/internal/` is the default home for Cloudflare-specific Go logic when the manifest and shared control plane are not enough.
+- `lib/` is no longer the implementation surface for this resource. Provider-specific logic now lives in Go under `cli/internal/...`.
+
+The intended escalation path is:
+
+1. express behavior in `resource.json`
+2. rely on the shared `vrooli resource ...` control plane
+3. add resource-specific Go code under `cli/internal/...` only where specialization is real
+4. add custom CLI commands only when the resource truly needs operator actions beyond the standard lifecycle surface
+
+Current internal package boundaries:
+
+- `cli/internal/config`: endpoint and provider configuration helpers
+- `cli/internal/auth`: credential and auth validation helpers
+- `cli/internal/health`: provider-safe connectivity and smoke probe helpers
+- `cli/internal/env`: environment/export helpers
+
+Concrete Go-owned responsibilities now include:
+
+- credential resolution from Vault or environment variables
+- repo-external config/state storage for gateway metadata and named config payloads
+- safe connectivity probing against the Cloudflare API
+- derived runtime paths and exported environment values
+
+## Usage
+
+```bash
+# Install or validate the resource contract
+vrooli resource install cloudflare-ai-gateway
+
+# Check status against the shared control plane
+resource-cloudflare-ai-gateway status
 ```
 
-## Links
+## Credentials
+
+Use either:
+
+- `CLOUDFLARE_ACCOUNT_ID`
+- `CLOUDFLARE_API_TOKEN`
+
+or the declared secret source in `resource.json`.
+
+Keep auth wiring declarative in `resource.json`. Only add logic to `cli/internal/auth` when Cloudflare-specific validation or translation is genuinely required.
+
+## Notes
+
+- This resource is a cloud API integration, not a local runtime owner.
+- Keep the CLI thin. Do not move provider logic into `cli/main.go`.
+- Prefer shared control-plane behavior first; grow `cli/internal/config`, `cli/internal/auth`, `cli/internal/health`, and `cli/internal/env` only where Cloudflare-specific behavior is real.
+- The old shell-era gateway helpers were removed. New behavior for this resource should land in Go under `cli/internal/...`.
+
+## References
+
 - [Cloudflare AI Gateway Docs](https://developers.cloudflare.com/ai-gateway/)
 - [API Token Management](https://dash.cloudflare.com/profile/api-tokens)
-- [Gateway Dashboard](https://dash.cloudflare.com/ai-gateway)

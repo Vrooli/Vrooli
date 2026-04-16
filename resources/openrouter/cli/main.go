@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/vrooli/cli-core/cliapp"
+	resourceapp "resource-openrouter/cli/internal/app"
 )
 
 const (
@@ -19,7 +19,7 @@ var (
 )
 
 func main() {
-	app, err := newApp()
+	app, err := resourceapp.New(buildFingerprint, buildTimestamp, buildSourceRoot)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -28,23 +28,4 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
-}
-
-func newApp() (*cliapp.ResourceApp, error) {
-	env := cliapp.StandardResourceEnv(appName, cliapp.ResourceEnvOptions{})
-	app, err := cliapp.NewResourceApp(cliapp.ResourceOptions{
-		Name:                appName,
-		Version:             appVersion,
-		Description:         "OpenRouter resource CLI",
-		SourceRootEnvVars:   env.SourceRootEnvVars,
-		ControlPlaneEnvVars: env.ControlPlaneEnvVars,
-		BuildFingerprint:    buildFingerprint,
-		BuildTimestamp:      buildTimestamp,
-		BuildSourceRoot:     buildSourceRoot,
-	})
-	if err != nil {
-		return nil, err
-	}
-	app.SetCommands(app.StandardLifecycleCommands())
-	return app, nil
 }

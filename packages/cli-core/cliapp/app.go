@@ -15,6 +15,8 @@ type Command struct {
 	Name        string
 	Aliases     []string
 	Description string
+	Usage       string
+	HelpText    string
 	NeedsAPI    bool
 	Run         func(args []string) error
 }
@@ -114,6 +116,10 @@ func (a *App) Run(args []string) error {
 	if !ok {
 		return fmt.Errorf("Unknown command: %s", remaining[0])
 	}
+	if wantsHelp(remaining[1:]) {
+		a.printCommandHelp(a.opts.Name, cmd)
+		return nil
+	}
 
 	if cmd.NeedsAPI && a.opts.StaleChecker != nil {
 		a.opts.StaleChecker.ReexecArgs = args
@@ -133,7 +139,7 @@ func (a *App) Run(args []string) error {
 
 // runSubcommand handles dispatch within a subcommand group.
 func (a *App) runSubcommand(group *SubcommandGroup, args []string, originalArgs []string) error {
-	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
+	if len(args) == 0 || isHelpToken(args[0]) {
 		a.printSubcommandHelp(group)
 		return nil
 	}
@@ -158,6 +164,10 @@ func (a *App) runSubcommand(group *SubcommandGroup, args []string, originalArgs 
 
 	if cmd == nil {
 		return fmt.Errorf("Unknown subcommand: %s %s\nRun '%s %s help' for available subcommands", group.Name, args[0], a.opts.Name, group.Name)
+	}
+	if wantsHelp(args[1:]) {
+		a.printCommandHelp(strings.TrimSpace(a.opts.Name+" "+group.Name), *cmd)
+		return nil
 	}
 
 	needsAPI := cmd.NeedsAPI || group.NeedsAPI
@@ -190,6 +200,30 @@ func (a *App) printSubcommandHelp(group *SubcommandGroup) {
 	}
 	fmt.Println()
 	fmt.Printf("Run '%s %s <subcommand> --help' for subcommand-specific options.\n", a.opts.Name, group.Name)
+}
+
+func (a *App) printCommandHelp(prefix string, cmd Command) {
+	fullName := strings.TrimSpace(prefix + " " + cmd.Name)
+	title := strings.TrimSpace(fullName)
+	if cmd.Description != "" {
+		fmt.Printf("%s - %s\n\n", title, cmd.Description)
+	} else {
+		fmt.Printf("%s\n\n", title)
+	}
+
+	usage := strings.TrimSpace(cmd.Usage)
+	if usage == "" {
+		usage = fullName
+	}
+	fmt.Printf("Usage:\n  %s\n", usage)
+
+	if len(cmd.Aliases) > 0 {
+		fmt.Printf("\nAliases:\n  %s\n", strings.Join(cmd.Aliases, ", "))
+	}
+
+	if helpText := strings.TrimSpace(cmd.HelpText); helpText != "" {
+		fmt.Printf("\n%s\n", helpText)
+	}
 }
 
 // SetStaleChecker overrides the stale checker (useful in tests).
@@ -327,6 +361,27 @@ func ParseGlobalFlags(args []string, global *GlobalOptions, apiOverrideTarget *s
 		}
 	}
 	return remaining, nil
+}
+
+func isHelpToken(arg string) bool {
+	switch strings.TrimSpace(arg) {
+	case "help", "-h", "--help":
+		return true
+	default:
+		return false
+	}
+}
+
+func wantsHelp(args []string) bool {
+	for _, arg := range args {
+		if arg == "--" {
+			return false
+		}
+		if isHelpToken(arg) {
+			return true
+		}
+	}
+	return false
 }
 
 // SortedCommands returns commands ordered by name (useful for tests).

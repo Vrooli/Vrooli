@@ -52,7 +52,7 @@ func TestStaleCheckerRebuildsAndReexecs(t *testing.T) {
 	restarted := false
 	checker := NewStaleChecker("demo", "old", "ts", srcRoot, "ENV")
 	checker.ReexecArgs = []string{"foo"}
-	checker.FingerprintFunc = func(root string, skip ...string) (string, error) {
+	checker.FingerprintFunc = func(spec FreshnessSpec) (string, error) {
 		return "new", nil
 	}
 	checker.LookPathFunc = func(file string) (string, error) {
@@ -100,9 +100,9 @@ func TestStaleCheckerUsesDeclaredInputsFromSourceContext(t *testing.T) {
 	checker := NewStaleChecker("demo", "old", "ts", srcRoot)
 	checker.SourceContextPath = ".."
 	checker.FreshnessInputs = []string{"cli/**", "resource.json"}
-	checker.InputFingerprintFunc = func(root string, inputs []string, skip ...string) (string, error) {
-		gotRoot = root
-		gotInputs = append([]string(nil), inputs...)
+	checker.FingerprintFunc = func(spec FreshnessSpec) (string, error) {
+		gotRoot = spec.ContextRoot
+		gotInputs = append([]string(nil), spec.Inputs...)
 		return "match", nil
 	}
 	checker.LookPathFunc = func(file string) (string, error) { return "/usr/bin/go", nil }
@@ -135,7 +135,7 @@ func TestStaleCheckerPassesContextRelativeManifestToInstaller(t *testing.T) {
 	checker := NewStaleChecker("demo", "old", "ts", srcRoot)
 	checker.SourceContextPath = ".."
 	checker.ManifestSourcePath = "resource.json"
-	checker.FingerprintFunc = func(root string, skip ...string) (string, error) { return "new", nil }
+	checker.FingerprintFunc = func(spec FreshnessSpec) (string, error) { return "new", nil }
 	checker.LookPathFunc = func(file string) (string, error) { return "/usr/bin/go", nil }
 	checker.CommandRunner = func(cmd *exec.Cmd) error {
 		ranArgs = append([]string(nil), cmd.Args...)
@@ -160,7 +160,7 @@ func TestStaleCheckerNoRebuildWhenFingerprintMatches(t *testing.T) {
 	checker := &StaleChecker{
 		BuildFingerprint: "match",
 		BuildSourceRoot:  srcRoot,
-		FingerprintFunc: func(root string, skip ...string) (string, error) {
+		FingerprintFunc: func(spec FreshnessSpec) (string, error) {
 			return "match", nil
 		},
 		LookPathFunc: func(file string) (string, error) {
@@ -196,7 +196,7 @@ func TestStaleCheckerRebuildsOutsideScenarioPath(t *testing.T) {
 	ranCommand := false
 	restarted := false
 	checker := NewStaleChecker("custom-cli", "old", "ts", srcRoot)
-	checker.FingerprintFunc = func(root string, skip ...string) (string, error) {
+	checker.FingerprintFunc = func(spec FreshnessSpec) (string, error) {
 		return "new", nil
 	}
 	checker.LookPathFunc = func(file string) (string, error) {
@@ -219,5 +219,55 @@ func TestStaleCheckerRebuildsOutsideScenarioPath(t *testing.T) {
 	}
 	if !restarted {
 		t.Fatalf("expected reexec to be called")
+	}
+}
+
+func TestComputeFreshnessFingerprintUsesDeclaredInputs(t *testing.T) {
+	root := t.TempDir()
+	contextRoot := filepath.Join(root, "scenario")
+	sourceRoot := filepath.Join(contextRoot, "cli")
+	if err := os.MkdirAll(sourceRoot, 0o755); err != nil {
+		t.Fatalf("mkdir source root: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(contextRoot, ".vrooli"), 0o755); err != nil {
+		t.Fatalf("mkdir manifest dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(sourceRoot, "main.go"), []byte("package main\n"), 0o644); err != nil {
+		t.Fatalf("write main.go: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(contextRoot, ".vrooli", "service.json"), []byte("{}\n"), 0o644); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+
+	spec := FreshnessSpec{
+		SourceRoot:  sourceRoot,
+		ContextRoot: contextRoot,
+		Inputs:      []string{"cli/**", ".vrooli/service.json"},
+	}
+	first, err := ComputeFreshnessFingerprint(spec)
+	if err != nil {
+		t.Fatalf("first fingerprint: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(contextRoot, "README.md"), []byte("ignored\n"), 0o644); err != nil {
+		t.Fatalf("write unrelated file: %v", err)
+	}
+	second, err := ComputeFreshnessFingerprint(spec)
+	if err != nil {
+		t.Fatalf("second fingerprint: %v", err)
+	}
+	if first != second {
+		t.Fatalf("unrelated file changed declared-input fingerprint: %q vs %q", first, second)
+	}
+
+	if err := os.WriteFile(filepath.Join(contextRoot, ".vrooli", "service.json"), []byte("{\"name\":\"demo\"}\n"), 0o644); err != nil {
+		t.Fatalf("mutate manifest: %v", err)
+	}
+	third, err := ComputeFreshnessFingerprint(spec)
+	if err != nil {
+		t.Fatalf("third fingerprint: %v", err)
+	}
+	if third == second {
+		t.Fatalf("declared file change should affect fingerprint")
 	}
 }

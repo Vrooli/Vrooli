@@ -1,92 +1,64 @@
 # Mail-in-a-Box Resource
 
-All-in-one email server with webmail, contacts, calendar, and file storage capabilities for Vrooli scenarios.
+Managed Mail-in-a-Box runtime for local mail, calendar, and contact workflows.
 
-## Features
+## Intent
 
-- **Complete Email Server**: SMTP, IMAP, POP3 with TLS support
-- **Webmail Interface**: Roundcube for web-based email access (port 8881)
-- **Calendar & Contacts**: CalDAV and CardDAV support (port 5232)
-- **Spam Protection**: SpamAssassin, greylisting, and fail2ban
-- **Auto-configuration**: Automatic email client configuration
-- **Multi-domain Support**: Host email for multiple domains
-- **Web Admin Panel**: Easy management interface
+- Resource ID: `mail-in-a-box`
+- Category: `infrastructure`
+- Driver: `compose-service`
+- Portability tier: `platform-specific`
 
-## Quick Start
+## Use Cases
+
+- Run a self-hosted mail stack for testing or internal infrastructure workflows.
+- Provide local SMTP, IMAP, webmail, and calendar endpoints for scenario integration.
+- Experiment with mail-driven automations without relying on external providers.
+
+## Architecture
+
+This resource is being aligned to the updated `compose-service` structure.
+
+- `resource.json` is the declarative authority for lifecycle, compose orchestration, ports, health, and freshness metadata.
+- `cli/` is the thin binary entrypoint and delegated command wiring surface.
+- `cli/internal/` is the default home for Mail-in-a-Box-specific Go logic when the manifest and shared control plane are not enough.
+- `lib/` still contains retained shell behavior during the migration. That behavior should move into `cli/internal/...` over time rather than back into `cli/main.go`.
+
+The intended escalation path is:
+
+1. express behavior in `resource.json` and `docker-compose.yml`
+2. rely on the shared `vrooli resource ...` control plane
+3. add Mail-in-a-Box-specific Go code under `cli/internal/...` only where specialization is real
+4. add custom CLI commands only when the resource truly needs resource-local operator actions beyond the standard lifecycle surface
+
+Current internal package boundaries:
+
+- `cli/internal/compose`: compose-specific runtime graph helpers
+- `cli/internal/topology`: service dependency and readiness semantics
+- `cli/internal/runtime`: runtime shaping helpers
+- `cli/internal/health`: Mail-in-a-Box-specific readiness helpers
+- `cli/internal/env`: environment export helpers
+
+## Usage
 
 ```bash
-# Install and start Mail-in-a-Box
-resource-mail-in-a-box install
-resource-mail-in-a-box start
+# Install or validate the resource contract
+vrooli resource install mail-in-a-box
 
-# Check status
+# Check status through the shared control plane
 resource-mail-in-a-box status
-
-# Add email account
-resource-mail-in-a-box add-account user@example.com SecurePassword123
-
-# Add email alias
-resource-mail-in-a-box add-alias info@example.com user@example.com
 ```
 
-## Configuration
+Default access points:
 
-Environment variables can be set to customize Mail-in-a-Box:
+- Webmail: `http://localhost:8881`
+- SMTP: `localhost:25`
+- Submission: `localhost:587`
+- IMAPS: `localhost:993`
 
-- `MAILINABOX_PRIMARY_HOSTNAME`: Primary mail server hostname (default: mail.local)
-- `MAILINABOX_ADMIN_EMAIL`: Administrator email (default: admin@mail.local)
-- `MAILINABOX_ADMIN_PASSWORD`: Administrator password
-- `MAILINABOX_BIND_ADDRESS`: Bind address for services (default: 127.0.0.1)
-- `MAILINABOX_POSTMASTER_ALIAS`: Forwarding target for postmaster@ and abuse@ aliases (defaults to the admin mailbox)
-- `MAILINABOX_DEFAULT_MAILBOX`: Optional mailbox (user@domain) to create on first start
-- `MAILINABOX_DEFAULT_MAILBOX_PASSWORD`: Password for the optional mailbox
+## Notes
 
-> **Vault integration:** Use the Secrets Manager scenario (`vrooli scenario run secrets-manager`) to populate these values in Vault. The resource automatically loads the secrets, regenerates the docker-mailserver config, and provisions the admin + optional mailboxes on startup.
-
-## Injection Support
-
-Mail-in-a-Box supports injecting email configurations:
-
-### CSV Format
-```csv
-user1@example.com,Password123
-user2@example.com,Password456
-```
-
-### JSON Format
-```json
-[
-  {"email": "user1@example.com", "password": "Password123"},
-  {"email": "user2@example.com", "password": "Password456"}
-]
-```
-
-### Usage
-```bash
-resource-mail-in-a-box inject accounts.csv
-resource-mail-in-a-box inject config.json
-```
-
-## Access Points
-
-- **Admin Panel**: https://localhost:8543/admin
-- **Webmail**: https://localhost/mail
-- **SMTP**: localhost:25 (or 587 for submission)
-- **IMAP**: localhost:143 (or 993 for IMAPS)
-- **POP3**: localhost:110 (or 995 for POP3S)
-
-## Integration with Scenarios
-
-Mail-in-a-Box can be used in scenarios for:
-- Email automation and testing
-- Newsletter distribution
-- Customer communication workflows
-- Alert and notification systems
-- Multi-user collaboration scenarios
-
-## Security Notes
-
-- Default installation uses self-signed certificates
-- Enable TLS for all connections in production
-- Configure SPF, DKIM, and DMARC for domain reputation
-- Regular backups are stored in `~/.mailinabox/backup`
+- Keep `cli/main.go` thin. Do not treat it as the implementation surface for mail, account, or CalDAV workflows.
+- Keep runtime state rooted in `${RESOURCE_*_DIR}` paths and compose-managed mounts rather than repo-local mutable directories.
+- Existing shell-heavy workflows in `lib/` are transitional. New logic should land in Go under `cli/internal/...`.
+- Use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/mail-in-a-box/docs/OPERATIONS.md) as the architecture boundary for future migrations.

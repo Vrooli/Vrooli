@@ -5,7 +5,7 @@ SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
 REPO_ROOT="$(builtin cd "${SCRIPT_DIR}/../.." && builtin pwd)"
 
 usage() {
-    echo "Usage: $0 <module_path> [--name binary-name] [--manifest path] [--install-dir path]"
+    echo "Usage: $0 <module_path> [--name binary-name] [--manifest path] [--install-dir path] [--context-root path] [--freshness-input pattern]"
     echo
     echo "Examples:"
     echo "  $0 scenarios/scenario-completeness-scoring/cli --name scenario-completeness-scoring"
@@ -23,6 +23,8 @@ shift
 NAME=""
 MANIFEST=""
 INSTALL_DIR="${HOME}/.vrooli/bin"
+CONTEXT_ROOT=""
+FRESHNESS_INPUTS=()
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -48,6 +50,22 @@ while [[ $# -gt 0 ]]; do
                 exit 1
             fi
             MANIFEST="$2"
+            shift 2
+            ;;
+        --context-root)
+            if [[ $# -lt 2 ]]; then
+                echo "Missing value for --context-root"
+                exit 1
+            fi
+            CONTEXT_ROOT="$2"
+            shift 2
+            ;;
+        --freshness-input)
+            if [[ $# -lt 2 ]]; then
+                echo "Missing value for --freshness-input"
+                exit 1
+            fi
+            FRESHNESS_INPUTS+=("$2")
             shift 2
             ;;
         *)
@@ -97,6 +115,16 @@ if [[ -n "${MANIFEST}" ]]; then
     fi
 fi
 
+if [[ -z "${CONTEXT_ROOT}" && "$(basename "${MODULE_ABS}")" == "cli" ]]; then
+    CONTEXT_ROOT="$(dirname "${MODULE_ABS}")"
+fi
+
+if [[ ${#FRESHNESS_INPUTS[@]} -eq 0 && -n "${MANIFEST_ABS}" && -n "${CONTEXT_ROOT}" ]]; then
+    if [[ "${MANIFEST_ABS}" == "${CONTEXT_ROOT}/.vrooli/service.json" ]]; then
+        FRESHNESS_INPUTS=("cli/**" ".vrooli/service.json")
+    fi
+fi
+
 INSTALLER_TARGET="${CLI_CORE_VERSION:+github.com/vrooli/cli-core/cmd/cli-installer@${CLI_CORE_VERSION}}"
 INSTALLER_DIR="${REPO_ROOT}"
 
@@ -117,5 +145,11 @@ echo "Building ${NAME} from ${MODULE_ABS}..."
     if [[ -n "${MANIFEST_ABS}" ]]; then
         cmd+=(--manifest "${MANIFEST_ABS}")
     fi
+    if [[ -n "${CONTEXT_ROOT}" ]]; then
+        cmd+=(--context-root "${CONTEXT_ROOT}")
+    fi
+    for input in "${FRESHNESS_INPUTS[@]}"; do
+        cmd+=(--freshness-input "${input}")
+    done
     "${cmd[@]}"
 )

@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 func TestStandardResourceEnv(t *testing.T) {
@@ -85,7 +87,7 @@ func TestResourceAppUsesStaleCheckerForDelegatingCommands(t *testing.T) {
 		t.Fatalf("NewResourceApp: %v", err)
 	}
 	restarted := false
-	app.StaleChecker.FingerprintFunc = func(root string, skip ...string) (string, error) {
+	app.StaleChecker.FingerprintFunc = func(spec cliutil.FreshnessSpec) (string, error) {
 		return "new", nil
 	}
 	app.StaleChecker.LookPathFunc = func(file string) (string, error) {

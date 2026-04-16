@@ -2,13 +2,51 @@
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "opencode",
   "display_name": "OpenCode",
-  "description": "OpenCode CLI resource with native binary/install/status handling and shell-retained higher-level workflows.",
+  "description": "OpenCode CLI resource with a thin Go entrypoint and external-cli-specific logic organized under internal packages.",
   "cli": {
     "enabled": true,
     "command": "resource-opencode",
     "adapter": {
       "kind": "go_module",
       "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "install": [
+      {
+        "os": [
+          "linux",
+          "darwin"
+        ],
+        "kind": "command",
+        "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
+      }
+    ],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-opencode"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "cli/internal/**",
+        "docs/**",
+        "README.md",
+        "resource.json"
+      ]
     }
   },
   "template": "external-cli",

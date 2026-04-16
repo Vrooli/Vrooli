@@ -16,6 +16,7 @@ type ResourceOptions struct {
 	Version             string
 	Description         string
 	Commands            []CommandGroup
+	SubcommandGroups    []SubcommandGroup
 	SourceRootEnvVars   []string
 	ControlPlaneEnvVars []string
 	ColorEnabled        *bool
@@ -61,14 +62,21 @@ func NewResourceApp(opts ResourceOptions) (*ResourceApp, error) {
 	} else {
 		app.StaleChecker.FreshnessInputs = []string{"cli/**", "resource.json"}
 	}
-	app.SetCommands(opts.Commands)
+	app.SetCommandsWithSubgroups(opts.Commands, opts.SubcommandGroups)
 	return app, nil
 }
 
 // SetCommands rebuilds the CLI with the provided command groups while keeping
 // the shared wiring intact.
 func (a *ResourceApp) SetCommands(commands []CommandGroup) {
+	a.SetCommandsWithSubgroups(commands, nil)
+}
+
+// SetCommandsWithSubgroups rebuilds the CLI with both flat command groups and
+// hierarchical subcommand groups.
+func (a *ResourceApp) SetCommandsWithSubgroups(commands []CommandGroup, subcommandGroups []SubcommandGroup) {
 	a.options.Commands = commands
+	a.options.SubcommandGroups = subcommandGroups
 
 	colorEnabled := DefaultColorEnabled()
 	if a.options.ColorEnabled != nil {
@@ -83,13 +91,14 @@ func (a *ResourceApp) SetCommands(commands []CommandGroup) {
 	}
 
 	a.CLI = NewApp(AppOptions{
-		Name:         a.options.Name,
-		Version:      a.options.Version,
-		Description:  a.options.Description,
-		Commands:     commands,
-		ColorEnabled: colorEnabled,
-		OnColor:      a.options.OnColor,
-		Preflight:    preflight,
+		Name:             a.options.Name,
+		Version:          a.options.Version,
+		Description:      a.options.Description,
+		Commands:         commands,
+		SubcommandGroups: subcommandGroups,
+		ColorEnabled:     colorEnabled,
+		OnColor:          a.options.OnColor,
+		Preflight:        preflight,
 	})
 }
 

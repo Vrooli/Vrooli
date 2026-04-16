@@ -1,7 +1,9 @@
 package cliapp
 
 import (
+	"bytes"
 	"errors"
+	"os"
 	"strings"
 	"testing"
 
@@ -58,7 +60,7 @@ func TestAppRoutesCommandsAndRunsStaleCheck(t *testing.T) {
 	stale := &cliutil.StaleChecker{
 		BuildFingerprint: "fp",
 		BuildSourceRoot:  t.TempDir(),
-		FingerprintFunc: func(root string, skip ...string) (string, error) {
+		FingerprintFunc: func(spec cliutil.FreshnessSpec) (string, error) {
 			called = true
 			return "fp", nil
 		},
@@ -185,5 +187,115 @@ func TestAppPreflightReceivesFullSubcommandName(t *testing.T) {
 	}
 	if gotName != "campaigns list" {
 		t.Fatalf("preflight command name = %q, want %q", gotName, "campaigns list")
+	}
+}
+
+func TestAppCommandHelpSkipsStaleCheckAndPreflight(t *testing.T) {
+	var output bytes.Buffer
+	staleCalled := false
+	preflightCalled := false
+
+	app := NewApp(AppOptions{
+		Name: "demo",
+		Commands: []CommandGroup{{
+			Title: "Demo",
+			Commands: []Command{{
+				Name:        "status",
+				Description: "Show health",
+				Usage:       "demo status [--json]",
+				HelpText:    "Use --json to print the raw payload.",
+				NeedsAPI:    true,
+				Run: func(args []string) error {
+					t.Fatal("command should not run for help")
+					return nil
+				},
+			}},
+		}},
+		StaleChecker: &cliutil.StaleChecker{
+			BuildFingerprint: "fp",
+			BuildSourceRoot:  t.TempDir(),
+			FingerprintFunc: func(spec cliutil.FreshnessSpec) (string, error) {
+				staleCalled = true
+				return "fp", nil
+			},
+		},
+		Preflight: func(cmd Command, global GlobalOptions) error {
+			preflightCalled = true
+			return nil
+		},
+	})
+
+	originalStdout := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe: %v", err)
+	}
+	os.Stdout = w
+	done := make(chan struct{})
+	go func() {
+		_, _ = output.ReadFrom(r)
+		close(done)
+	}()
+
+	runErr := app.Run([]string{"status", "--help"})
+	_ = w.Close()
+	os.Stdout = originalStdout
+	<-done
+	if runErr != nil {
+		t.Fatalf("Run: %v", runErr)
+	}
+	if staleCalled {
+		t.Fatalf("stale checker should not run for command help")
+	}
+	if preflightCalled {
+		t.Fatalf("preflight should not run for command help")
+	}
+	text := output.String()
+	if !strings.Contains(text, "demo status [--json]") {
+		t.Fatalf("expected command usage in help output, got %q", text)
+	}
+}
+
+func TestAppSubcommandHelpSkipsStaleCheckAndPreflight(t *testing.T) {
+	staleCalled := false
+	preflightCalled := false
+	app := NewApp(AppOptions{
+		Name: "demo",
+		SubcommandGroups: []SubcommandGroup{{
+			Name:        "chat",
+			Description: "Chat operations",
+			NeedsAPI:    true,
+			Subcommands: []Command{{
+				Name:        "list",
+				Description: "List chats",
+				Usage:       "demo chat list [--json]",
+				Run: func(args []string) error {
+					t.Fatal("subcommand should not run for help")
+					return nil
+				},
+			}},
+		}},
+		StaleChecker: &cliutil.StaleChecker{
+			BuildFingerprint: "fp",
+			BuildSourceRoot:  t.TempDir(),
+			FingerprintFunc: func(spec cliutil.FreshnessSpec) (string, error) {
+				staleCalled = true
+				return "fp", nil
+			},
+		},
+		Preflight: func(cmd Command, global GlobalOptions) error {
+			preflightCalled = true
+			return nil
+		},
+	})
+
+	if err := app.Run([]string{"chat", "list", "--help"}); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if staleCalled {
+		t.Fatalf("stale checker should not run for subcommand help")
+	}
+	if preflightCalled {
+		t.Fatalf("preflight should not run for subcommand help")
 	}
 }

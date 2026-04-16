@@ -1,61 +1,59 @@
-# OpenCode AI CLI Resource
+# OpenCode Resource
 
-This resource installs the official [OpenCode](https://opencode.ai) CLI so agents can drive the terminal-first coding workflow inside Vrooli. The binary is downloaded from the upstream GitHub releases and isolated under `data/opencode/` alongside configuration, cache, and auth state.
+OpenCode CLI resource for terminal-first coding workflows inside Vrooli.
 
-## Quick start
+## Intent
+
+- Resource ID: `opencode`
+- Category: `development`
+- Driver: `external-cli`
+- Portability tier: `partial`
+
+## Architecture
+
+This resource now follows the `external-cli` template structure.
+
+- `resource.json` is the declarative authority for install, binary probing, version checks, environment exports, freshness, and lifecycle metadata.
+- `cli/` is the single binary entrypoint and command wiring surface.
+- `cli/internal/` is the default home for OpenCode-specific Go logic when the manifest and shared control plane are not enough.
+
+The intended escalation path is:
+
+1. express behavior in `resource.json`
+2. rely on the shared `vrooli resource ...` control plane
+3. add resource-specific Go code under `cli/internal/...` only where specialization is real
+4. add custom CLI commands only when the resource truly needs operator actions beyond the standard lifecycle surface
+
+Current internal package boundaries:
+
+- `cli/internal/discovery`: host binary detection and probing helpers
+- `cli/internal/install`: install/bootstrap helpers
+- `cli/internal/version`: version parsing and compatibility helpers
+- `cli/internal/env`: environment, config-path, and runtime file helpers
+- `cli/internal/auth`: provider credential validation and auth-store translation helpers
+
+## Usage
+
 ```bash
-# Download the latest OpenCode binary and scaffold a config
-resource-opencode manage install
+# Install the upstream binary through the shared resource control plane
+vrooli resource install opencode
 
-# After install, a shim is placed in ~/.local/bin so you can call the CLI directly
-# (make sure ~/.local/bin is on your PATH)
-opencode --version
-
-# Inspect installation details and config
+# Check binary availability and health
 resource-opencode status
-
-# Start the OpenCode HTTP server
-resource-opencode manage start
-
-# Run a one-off command (non-interactive)
-resource-opencode run run --model openrouter/x-ai/grok-code-fast-1 "Summarise the repo"
-
-# Explore the interactive TUI
-resource-opencode run
 ```
 
-## Configuration & Secrets
-- The active config lives at `data/opencode/config/opencode.json`. Alternate profiles are stored as `config-*.json` in the same directory and can be activated via `resource-opencode content execute <name>`.
-- Environment secrets such as `OPENROUTER_API_KEY` or `CLOUDFLARE_API_TOKEN` are loaded automatically from Vault / `~/.vrooli/secrets.json` and exposed to the CLI. They can also be written into the CLI's auth store with `resource-opencode run auth login`.
-- Secrets remain declared in `config/secrets.yaml`, allowing the Secrets Manager scenario to prompt for and provision credentials.
-- Default model selection now targets OpenRouter's `x-ai/grok-code-fast-1`; set `OPENROUTER_API_KEY` (or edit `opencode.json`) before running automated or manual CLI workflows. Existing installations are auto-migrated the next time you invoke the resource.
+## Configuration
 
-## AGENTS.md & custom instructions
-- The official CLI recursively scans for `AGENTS.md` from the working directory upward (and respects any paths listed in `opencode.json`).
-- The resource's default config pins `OPENCODE_CONFIG` to `data/opencode/config/opencode.json` so you can manage instructions without touching global user state.
+- Mutable config and auth state should flow through canonical resource storage, not ad hoc repo-local paths.
+- Keep environment exports and binary contract metadata declarative in `resource.json`.
+- Only add logic to `cli/internal/env` or `cli/internal/auth` when OpenCode-specific shaping or validation is genuinely needed.
 
-## Models
-Use the resource-native command to enumerate available models (optionally as JSON) once you've configured credentials:
+## Notes
 
-```bash
-resource-opencode models --json | jq '.models | length'
+- This resource wraps an external CLI. It should stay thin by default.
+- Do not grow `cli/main.go` into a second operator framework.
+- If the resource needs specialized discovery, install translation, or auth handling, place it under `cli/internal/...` rather than in shell wrappers.
 
-# Plain text listing
-resource-opencode models --limit 20
-```
+## References
 
-Model discovery pulls from local Ollama installs as well as any provider keys configured via `opencode auth login` or environment variables.
-
-## Programmatic usage
-`resource-opencode run …` is a thin wrapper around the official `opencode` binary. Pass arguments exactly as you would to the upstream CLI. Scenario runners such as `agent-manager` use this surface directly rather than a separate `agents` command:
-
-```bash
-# Non-interactive run with explicit model override
-resource-opencode run run --model openrouter/gpt-4o-mini "Generate release notes for the last commit"
-
-# Manage credentials
-resource-opencode run auth login
-```
-
-## Logs
-Standard output is streamed directly to the caller. The resource also sets `OPENCODE_LOG_DIR` to `data/opencode/logs/` so you can enable structured logging via the CLI's `--print-logs` or config options if desired. When the HTTP server is running its detailed logs are stored at `data/opencode/logs/server.log` and can be inspected with `resource-opencode logs`.
+- [OpenCode](https://opencode.ai)
