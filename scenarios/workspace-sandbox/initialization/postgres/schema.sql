@@ -3,6 +3,20 @@
 
 -- Extension for UUID generation
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- Stable UUID helper that works regardless of extension/schema placement.
+CREATE OR REPLACE FUNCTION vrooli_uuid_v4()
+RETURNS UUID AS $$
+BEGIN
+    BEGIN
+        RETURN uuid_generate_v4();
+    EXCEPTION
+        WHEN undefined_function THEN
+            RETURN gen_random_uuid();
+    END;
+END;
+$$ LANGUAGE plpgsql;
 
 -- Sandbox status enum
 DO $$ BEGIN
@@ -20,8 +34,8 @@ EXCEPTION
 END $$;
 
 -- Main sandboxes table
-CREATE TABLE sandboxes (
-    id UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
+CREATE TABLE IF NOT EXISTS sandboxes (
+    id UUID PRIMARY KEY DEFAULT vrooli_uuid_v4(),
     name TEXT,                          -- Optional human-readable name for organization
 
     -- Scope configuration
@@ -85,8 +99,8 @@ CREATE TABLE sandboxes (
 );
 
 -- Changed files tracking
-CREATE TABLE sandbox_changes (
-    id UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
+CREATE TABLE IF NOT EXISTS sandbox_changes (
+    id UUID PRIMARY KEY DEFAULT vrooli_uuid_v4(),
     sandbox_id UUID NOT NULL REFERENCES sandboxes(id) ON DELETE CASCADE,
 
     -- File information
@@ -107,8 +121,8 @@ CREATE TABLE sandbox_changes (
 );
 
 -- Audit log for sandbox operations
-CREATE TABLE sandbox_audit_log (
-    id UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
+CREATE TABLE IF NOT EXISTS sandbox_audit_log (
+    id UUID PRIMARY KEY DEFAULT vrooli_uuid_v4(),
     sandbox_id UUID REFERENCES sandboxes(id) ON DELETE SET NULL,
 
     -- Event information
@@ -131,8 +145,8 @@ CREATE TABLE sandbox_audit_log (
 -- - Attribution of changes to specific sandboxes/agents
 -- - Batch committing of pending changes
 -- - Audit trail of file modifications
-CREATE TABLE applied_changes (
-    id UUID PRIMARY KEY DEFAULT public.uuid_generate_v4(),
+CREATE TABLE IF NOT EXISTS applied_changes (
+    id UUID PRIMARY KEY DEFAULT vrooli_uuid_v4(),
     sandbox_id UUID REFERENCES sandboxes(id) ON DELETE SET NULL,
 
     -- Original sandbox ownership (preserved even if sandbox deleted)
@@ -152,32 +166,36 @@ CREATE TABLE applied_changes (
     committed_at TIMESTAMPTZ,
     commit_hash TEXT,
     commit_message TEXT,
+    agent_manager_run_id TEXT,
 
     CONSTRAINT valid_applied_change_type CHECK (change_type IN ('added', 'modified', 'deleted'))
 );
 
+ALTER TABLE applied_changes ADD COLUMN IF NOT EXISTS agent_manager_run_id TEXT;
+
 -- Indexes for common queries
-CREATE INDEX idx_sandboxes_status ON sandboxes(status);
-CREATE INDEX idx_sandboxes_owner ON sandboxes(owner);
-CREATE INDEX idx_sandboxes_scope_path ON sandboxes(scope_path);
-CREATE INDEX idx_sandboxes_reserved_path ON sandboxes(reserved_path);
-CREATE INDEX idx_sandboxes_project_root ON sandboxes(project_root);
-CREATE INDEX idx_sandboxes_created_at ON sandboxes(created_at);
-CREATE INDEX idx_sandboxes_last_used_at ON sandboxes(last_used_at);
-CREATE INDEX idx_sandboxes_active ON sandboxes(status) WHERE status IN ('creating', 'active');
-CREATE INDEX idx_sandboxes_idempotency_key ON sandboxes(idempotency_key) WHERE idempotency_key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_sandboxes_status ON sandboxes(status);
+CREATE INDEX IF NOT EXISTS idx_sandboxes_owner ON sandboxes(owner);
+CREATE INDEX IF NOT EXISTS idx_sandboxes_scope_path ON sandboxes(scope_path);
+CREATE INDEX IF NOT EXISTS idx_sandboxes_reserved_path ON sandboxes(reserved_path);
+CREATE INDEX IF NOT EXISTS idx_sandboxes_project_root ON sandboxes(project_root);
+CREATE INDEX IF NOT EXISTS idx_sandboxes_created_at ON sandboxes(created_at);
+CREATE INDEX IF NOT EXISTS idx_sandboxes_last_used_at ON sandboxes(last_used_at);
+CREATE INDEX IF NOT EXISTS idx_sandboxes_active ON sandboxes(status) WHERE status IN ('creating', 'active');
+CREATE INDEX IF NOT EXISTS idx_sandboxes_idempotency_key ON sandboxes(idempotency_key) WHERE idempotency_key IS NOT NULL;
 
-CREATE INDEX idx_sandbox_changes_sandbox_id ON sandbox_changes(sandbox_id);
-CREATE INDEX idx_sandbox_changes_approval ON sandbox_changes(approval_status);
+CREATE INDEX IF NOT EXISTS idx_sandbox_changes_sandbox_id ON sandbox_changes(sandbox_id);
+CREATE INDEX IF NOT EXISTS idx_sandbox_changes_approval ON sandbox_changes(approval_status);
 
-CREATE INDEX idx_sandbox_audit_log_sandbox_id ON sandbox_audit_log(sandbox_id);
-CREATE INDEX idx_sandbox_audit_log_event_type ON sandbox_audit_log(event_type);
-CREATE INDEX idx_sandbox_audit_log_event_time ON sandbox_audit_log(event_time);
+CREATE INDEX IF NOT EXISTS idx_sandbox_audit_log_sandbox_id ON sandbox_audit_log(sandbox_id);
+CREATE INDEX IF NOT EXISTS idx_sandbox_audit_log_event_type ON sandbox_audit_log(event_type);
+CREATE INDEX IF NOT EXISTS idx_sandbox_audit_log_event_time ON sandbox_audit_log(event_time);
 
-CREATE INDEX idx_applied_changes_sandbox_id ON applied_changes(sandbox_id);
-CREATE INDEX idx_applied_changes_file_path ON applied_changes(file_path);
-CREATE INDEX idx_applied_changes_project_root ON applied_changes(project_root);
-CREATE INDEX idx_applied_changes_pending ON applied_changes(committed_at) WHERE committed_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_applied_changes_sandbox_id ON applied_changes(sandbox_id);
+CREATE INDEX IF NOT EXISTS idx_applied_changes_file_path ON applied_changes(file_path);
+CREATE INDEX IF NOT EXISTS idx_applied_changes_project_root ON applied_changes(project_root);
+CREATE INDEX IF NOT EXISTS idx_applied_changes_pending ON applied_changes(committed_at) WHERE committed_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_applied_changes_run_id ON applied_changes(agent_manager_run_id);
 
 -- Function to check for overlapping scope paths
 CREATE OR REPLACE FUNCTION check_scope_overlap(

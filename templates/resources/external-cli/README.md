@@ -18,27 +18,27 @@ Use this template for CLIs like `codex`, `claude-code`, `terraform`, or `ffmpeg`
 This template keeps the generated CLI thin on purpose.
 
 - `resource.json` is the declarative authority for install, invoke, freshness, binary probing, and health metadata.
-- `cli/` is entrypoint and command wiring only.
-- `internal/` is the default home for external-tool-specific Go logic when the manifest and shared control plane are not enough.
+- `cli/` is the single binary entrypoint and command wiring surface.
+- `cli/internal/` is the default home for external-tool-specific Go logic when the manifest and shared control plane are not enough.
 
 The intended escalation path is:
 
 1. express behavior in `resource.json`
 2. rely on the shared `vrooli resource ...` control plane
-3. add resource-specific Go code under `internal/...` only where specialization is real
+3. add resource-specific Go code under `cli/internal/...` only where specialization is real
 4. add custom CLI commands only when the resource truly needs resource-local operator actions beyond the standard lifecycle surface
 
 Generated placeholder packages:
 
-- `internal/discovery`: host binary detection and probing helpers
-- `internal/install`: install/bootstrap helpers
-- `internal/version`: version parsing and compatibility helpers
-- `internal/env`: environment/config helpers
-- `internal/auth`: auth/config validation helpers when the external CLI needs them
+- `cli/internal/discovery`: host binary detection and probing helpers
+- `cli/internal/install`: install/bootstrap helpers
+- `cli/internal/version`: version parsing and compatibility helpers
+- `cli/internal/env`: environment/config helpers
+- `cli/internal/auth`: auth/config validation helpers when the external CLI needs them
 
 ## Next Steps
 
 1. Keep mutable runtime state outside the repo; if the CLI needs files, resolve them through the resource storage/runtime layer.
 2. Keep the generated CLI contract manifest-driven: `resource.json` owns `cli.command`, `cli.install`, `cli.invoke`, and `cli.freshness`.
-3. Keep `cli/main.go` focused on bootstrap and delegation; put binary/version/auth logic in `internal/...`.
+3. Keep `cli/main.go` focused on bootstrap and delegation; put binary/version/auth logic in `cli/internal/...`.
 4. Replace placeholder install/version checks with the real binary contract.

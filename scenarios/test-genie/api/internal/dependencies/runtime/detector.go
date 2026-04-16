@@ -1,9 +1,11 @@
 package runtime
 
 import (
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"test-genie/internal/dependencies/commands"
 )
@@ -25,6 +27,9 @@ type Detector interface {
 type FileChecker interface {
 	// Exists returns true if the file exists and is not a directory.
 	Exists(path string) bool
+
+	// ReadFile returns the file contents.
+	ReadFile(path string) ([]byte, error)
 
 	// GlobMatch returns true if any files match the pattern.
 	GlobMatch(pattern string) bool
@@ -93,28 +98,67 @@ func (d *detector) Detect() []Runtime {
 
 // hasGo checks for Go project indicators.
 func (d *detector) hasGo() bool {
-	candidates := []string{
-		filepath.Join(d.scenarioDir, "api", "go.mod"),
-		filepath.Join(d.scenarioDir, "cli", "go.mod"),
-	}
+	candidates := []string{filepath.Join(d.scenarioDir, "api", "go.mod")}
 	for _, path := range candidates {
 		if d.fileChecker.Exists(path) {
 			return true
 		}
 	}
 
-	// Check for loose .go files
-	patterns := []string{
-		filepath.Join(d.scenarioDir, "api", "*.go"),
-		filepath.Join(d.scenarioDir, "cli", "*.go"),
-	}
+	patterns := []string{filepath.Join(d.scenarioDir, "api", "*.go")}
 	for _, pattern := range patterns {
 		if d.fileChecker.GlobMatch(pattern) {
 			return true
 		}
 	}
 
+	if d.hasGoModuleCLI() {
+		return true
+	}
+
 	return false
+}
+
+type serviceManifest struct {
+	CLI *serviceCLIConfig `json:"cli"`
+}
+
+type serviceCLIConfig struct {
+	Enabled bool              `json:"enabled"`
+	Adapter serviceCLIAdapter `json:"adapter"`
+}
+
+type serviceCLIAdapter struct {
+	Kind      string `json:"kind"`
+	ModuleDir string `json:"module_dir"`
+}
+
+func (d *detector) hasGoModuleCLI() bool {
+	data, err := d.fileChecker.ReadFile(filepath.Join(d.scenarioDir, ".vrooli", "service.json"))
+	if err != nil {
+		return false
+	}
+
+	var manifest serviceManifest
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return false
+	}
+	if manifest.CLI == nil || !manifest.CLI.Enabled {
+		return false
+	}
+	if strings.TrimSpace(manifest.CLI.Adapter.Kind) != "go_module" {
+		return false
+	}
+
+	moduleDir := strings.TrimSpace(manifest.CLI.Adapter.ModuleDir)
+	if moduleDir == "" {
+		return false
+	}
+	moduleRoot := filepath.Join(d.scenarioDir, filepath.FromSlash(moduleDir))
+	if d.fileChecker.Exists(filepath.Join(moduleRoot, "go.mod")) {
+		return true
+	}
+	return d.fileChecker.GlobMatch(filepath.Join(moduleRoot, "*.go"))
 }
 
 // hasNode checks for Node.js project indicators.
@@ -151,6 +195,10 @@ type osFileChecker struct{}
 func (c *osFileChecker) Exists(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && !info.IsDir()
+}
+
+func (c *osFileChecker) ReadFile(path string) ([]byte, error) {
+	return os.ReadFile(path)
 }
 
 func (c *osFileChecker) GlobMatch(pattern string) bool {

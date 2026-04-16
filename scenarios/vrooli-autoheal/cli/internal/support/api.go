@@ -1,0 +1,217 @@
+package support
+
+import "time"
+
+type PlatformInfo struct {
+	Platform                string `json:"platform"`
+	SupportsRdp             bool   `json:"supportsRdp"`
+	SupportsSystemd         bool   `json:"supportsSystemd"`
+	SupportsLaunchd         bool   `json:"supportsLaunchd"`
+	SupportsWindowsServices bool   `json:"supportsWindowsServices"`
+	IsHeadlessServer        bool   `json:"isHeadlessServer"`
+	HasDocker               bool   `json:"hasDocker"`
+	IsWsl                   bool   `json:"isWsl"`
+	SupportsCloudflared     bool   `json:"supportsCloudflared"`
+}
+
+type Summary struct {
+	Total    int `json:"total"`
+	OK       int `json:"ok"`
+	Warning  int `json:"warning"`
+	Critical int `json:"critical"`
+}
+
+type CheckResult struct {
+	CheckID   string                 `json:"checkId"`
+	Status    string                 `json:"status"`
+	Message   string                 `json:"message"`
+	Details   map[string]interface{} `json:"details,omitempty"`
+	Timestamp time.Time              `json:"timestamp"`
+	Duration  time.Duration          `json:"duration"`
+}
+
+type StatusResponse struct {
+	Status        string        `json:"status"`
+	Platform      PlatformInfo  `json:"platform"`
+	TickRunning   bool          `json:"tickRunning"`
+	TickStartedAt *time.Time    `json:"tickStartedAt"`
+	Summary       Summary       `json:"summary"`
+	Checks        []CheckResult `json:"checks"`
+	Timestamp     time.Time     `json:"timestamp"`
+}
+
+type TickResponse struct {
+	Success   bool          `json:"success"`
+	Status    string        `json:"status"`
+	Summary   Summary       `json:"summary"`
+	Results   []CheckResult `json:"results"`
+	Warnings  []string      `json:"warnings,omitempty"`
+	Timestamp time.Time     `json:"timestamp"`
+}
+
+type CheckInfo struct {
+	ID              string   `json:"id"`
+	Title           string   `json:"title"`
+	Description     string   `json:"description"`
+	Importance      string   `json:"importance"`
+	Category        string   `json:"category"`
+	IntervalSeconds int      `json:"intervalSeconds"`
+	Platforms       []string `json:"platforms,omitempty"`
+}
+
+type CheckHistoryResponse struct {
+	CheckID string        `json:"checkId"`
+	History []CheckResult `json:"history"`
+	Count   int           `json:"count"`
+}
+
+type RecoveryAction struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Dangerous   bool   `json:"dangerous"`
+	Available   bool   `json:"available"`
+}
+
+type CheckActionsResponse struct {
+	CheckID string           `json:"checkId"`
+	Actions []RecoveryAction `json:"actions"`
+}
+
+type ActionResult struct {
+	ActionID  string        `json:"actionId"`
+	CheckID   string        `json:"checkId"`
+	Success   bool          `json:"success"`
+	Message   string        `json:"message"`
+	Output    string        `json:"output,omitempty"`
+	Error     string        `json:"error,omitempty"`
+	Timestamp time.Time     `json:"timestamp"`
+	Duration  time.Duration `json:"duration"`
+}
+
+type ActionLog struct {
+	ID         int64  `json:"id"`
+	CheckID    string `json:"checkId"`
+	ActionID   string `json:"actionId"`
+	Success    bool   `json:"success"`
+	Message    string `json:"message"`
+	Output     string `json:"output,omitempty"`
+	Error      string `json:"error,omitempty"`
+	DurationMS int64  `json:"durationMs"`
+	Timestamp  string `json:"timestamp"`
+}
+
+type ActionLogsResponse struct {
+	Logs  []ActionLog `json:"logs"`
+	Total int         `json:"total"`
+}
+
+type WatchdogStatus struct {
+	LoopRunning          bool   `json:"loopRunning"`
+	WatchdogType         string `json:"watchdogType"`
+	WatchdogInstalled    bool   `json:"watchdogInstalled"`
+	WatchdogEnabled      bool   `json:"watchdogEnabled"`
+	WatchdogRunning      bool   `json:"watchdogRunning"`
+	BootProtectionActive bool   `json:"bootProtectionActive"`
+	CanInstall           bool   `json:"canInstall"`
+	ServicePath          string `json:"servicePath,omitempty"`
+	LastError            string `json:"lastError,omitempty"`
+	ProtectionLevel      string `json:"protectionLevel"`
+	LingeringEnabled     bool   `json:"lingeringEnabled"`
+	Username             string `json:"username,omitempty"`
+	IsUserService        bool   `json:"isUserService,omitempty"`
+}
+
+type WatchdogInstallStatus struct {
+	Installed        bool   `json:"installed"`
+	Enabled          bool   `json:"enabled"`
+	Running          bool   `json:"running"`
+	BootProtected    bool   `json:"bootProtected"`
+	ServicePath      string `json:"servicePath,omitempty"`
+	WatchdogType     string `json:"watchdogType"`
+	CanInstall       bool   `json:"canInstall"`
+	NeedsLinger      bool   `json:"needsLinger"`
+	LingerCommand    string `json:"lingerCommand,omitempty"`
+	ProtectionLevel  string `json:"protectionLevel"`
+	LastChecked      string `json:"lastChecked"`
+	RecommendedSetup string `json:"recommendedSetup"`
+}
+
+type WatchdogMutationResult struct {
+	Success       bool   `json:"success"`
+	Message       string `json:"message"`
+	ServicePath   string `json:"servicePath,omitempty"`
+	NeedsLinger   bool   `json:"needsLinger,omitempty"`
+	LingerCommand string `json:"lingerCommand,omitempty"`
+	Error         string `json:"error,omitempty"`
+}
+
+type TimelineEvent struct {
+	CheckID   string                 `json:"checkId"`
+	Status    string                 `json:"status"`
+	Message   string                 `json:"message"`
+	Details   map[string]interface{} `json:"details,omitempty"`
+	Timestamp string                 `json:"timestamp"`
+}
+
+type TimelineResponse struct {
+	Events  []TimelineEvent `json:"events"`
+	Count   int             `json:"count"`
+	Summary map[string]int  `json:"summary"`
+}
+
+type Incident struct {
+	Timestamp  string `json:"timestamp"`
+	CheckID    string `json:"checkId"`
+	FromStatus string `json:"fromStatus"`
+	ToStatus   string `json:"toStatus"`
+	Message    string `json:"message"`
+}
+
+type IncidentsResponse struct {
+	Incidents   []Incident `json:"incidents"`
+	WindowHours int        `json:"windowHours"`
+	Total       int        `json:"total"`
+}
+
+type UptimeStats struct {
+	TotalEvents      int     `json:"totalEvents"`
+	OkEvents         int     `json:"okEvents"`
+	WarningEvents    int     `json:"warningEvents"`
+	CriticalEvents   int     `json:"criticalEvents"`
+	UptimePercentage float64 `json:"uptimePercentage"`
+	WindowHours      int     `json:"windowHours"`
+}
+
+type UptimeHistoryBucket struct {
+	Timestamp time.Time `json:"timestamp"`
+	Total     int       `json:"total"`
+	OK        int       `json:"ok"`
+	Warning   int       `json:"warning"`
+	Critical  int       `json:"critical"`
+}
+
+type UptimeHistory struct {
+	Buckets     []UptimeHistoryBucket `json:"buckets"`
+	Overall     UptimeStats           `json:"overall"`
+	WindowHours int                   `json:"windowHours"`
+	BucketCount int                   `json:"bucketCount"`
+}
+
+type CheckTrend struct {
+	CheckID        string   `json:"checkId"`
+	Total          int      `json:"total"`
+	OK             int      `json:"ok"`
+	Warning        int      `json:"warning"`
+	Critical       int      `json:"critical"`
+	UptimePercent  float64  `json:"uptimePercent"`
+	CurrentStatus  string   `json:"currentStatus"`
+	RecentStatuses []string `json:"recentStatuses"`
+	LastChecked    string   `json:"lastChecked"`
+}
+
+type CheckTrendsResponse struct {
+	Trends      []CheckTrend `json:"trends"`
+	WindowHours int          `json:"windowHours"`
+	TotalChecks int          `json:"totalChecks"`
+}

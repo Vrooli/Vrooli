@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	repocontract "github.com/vrooli/repo-contract-go"
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
+	"vrooli-autoheal/internal/reporoot"
 )
 
 // APICheck monitors the main Vrooli API health endpoint.
@@ -652,42 +652,16 @@ func (c *APICheck) executeDiagnose(ctx context.Context, start time.Time) checks.
 var _ checks.HealableCheck = (*APICheck)(nil)
 
 func resolveVrooliRoot() string {
-	for _, key := range []string{"VROOLI_SOURCE_ROOT", "VROOLI_ROOT"} {
-		if root := strings.TrimSpace(os.Getenv(key)); root != "" {
-			if resolved, ok := canonicalRepoRootFromOverride(root); ok {
-				return resolved
-			}
-			return filepath.Clean(root)
-		}
-	}
-	if root, err := repocontract.ResolveRepoRoot(); err == nil {
+	if root := reporoot.Resolve(os.Getenv); root != "" {
 		return root
 	}
 	for _, path := range []string{"/opt/vrooli", "/usr/local/vrooli"} {
 		if _, err := os.Stat(path); err == nil {
-			if resolved, ok := canonicalRepoRootFromOverride(path); ok {
+			if resolved, ok := reporoot.CanonicalizeOverride(path); ok {
 				return resolved
 			}
 			return filepath.Clean(path)
 		}
 	}
 	return ""
-}
-
-func canonicalRepoRootFromOverride(path string) (string, bool) {
-	current := filepath.Clean(strings.TrimSpace(path))
-	if current == "" || current == "." {
-		return "", false
-	}
-	for depth := 0; depth < 25; depth++ {
-		if resolved, err := repocontract.FindRepoRoot(current); err == nil {
-			return resolved, true
-		}
-		parent := filepath.Dir(current)
-		if parent == current {
-			break
-		}
-		current = parent
-	}
-	return "", false
 }

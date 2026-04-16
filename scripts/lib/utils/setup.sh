@@ -19,6 +19,20 @@ setup::resolve_path() {
     fi
 }
 
+setup::manifest_service_json() {
+    local app_root="${1}"
+    printf '%s\n' "${app_root}/.vrooli/service.json"
+}
+
+setup::manifest_cli_field() {
+    local app_root="${1}"
+    local jq_expr="${2}"
+    local service_json
+    service_json=$(setup::manifest_service_json "$app_root")
+    [[ -f "$service_json" ]] || return 1
+    jq -r "$jq_expr" "$service_json" 2>/dev/null
+}
+
 setup::local_replace_paths() {
     local go_mod="${1}"
     [[ -f "$go_mod" ]] || return 0
@@ -34,6 +48,46 @@ setup::local_replace_paths() {
             print $NF
         }
     ' "$go_mod" | grep '^\.\./' || true
+}
+
+setup::path_newer_than_target() {
+    local path="${1}"
+    local target="${2}"
+
+    [[ -e "$path" ]] || return 1
+
+    if [[ -f "$path" ]]; then
+        [[ "$path" -nt "$target" ]] && return 0 || return 1
+    fi
+
+    find "$path" \
+        \( -path '*/.git/*' -o -path '*/.idea/*' -o -path '*/.vscode/*' -o -path '*/node_modules/*' -o -path '*/dist/*' -o -path '*/build/*' -o -path '*/coverage/*' -o -path '*/tmp/*' -o -path '*/data/*' \) -prune \
+        -o -type f -newer "$target" -print -quit 2>/dev/null | grep -q .
+}
+
+setup::any_declared_input_newer() {
+    local app_root="${1}"
+    local target="${2}"
+    shift 2
+
+    local input match
+    for input in "$@"; do
+        [[ -z "$input" ]] && continue
+        if [[ "$input" == *"*"* || "$input" == *"?"* || "$input" == *"["* ]]; then
+            while IFS= read -r match; do
+                [[ -z "$match" ]] && continue
+                if setup::path_newer_than_target "$match" "$target"; then
+                    return 0
+                fi
+            done < <(compgen -G "$(setup::resolve_path "$app_root" "$input")" || true)
+            continue
+        fi
+        match=$(setup::resolve_path "$app_root" "$input")
+        if setup::path_newer_than_target "$match" "$target"; then
+            return 0
+        fi
+    done
+    return 1
 }
 
 setup::state_dir() {
@@ -85,35 +139,70 @@ setup::check_condition() {
             return 1
             ;;
         cli)
-            local command
+            local command cli_enabled adapter_kind
             command=$(echo "$check" | jq -r '.command // empty' 2>/dev/null)
+            if [[ -z "$command" ]]; then
+                command=$(setup::manifest_cli_field "$app_root" '.cli.command // empty' || true)
+            fi
             [[ -z "$command" ]] && return 1
+
+            cli_enabled=$(setup::manifest_cli_field "$app_root" '.cli.enabled // false' || true)
+            [[ "$cli_enabled" == "true" ]] || return 1
+
+            adapter_kind=$(setup::manifest_cli_field "$app_root" '.cli.adapter.kind // empty' || true)
+            [[ -z "$adapter_kind" ]] && return 1
 
             local cli_path
             cli_path=$(command -v "$command" 2>/dev/null || true)
             [[ -z "$cli_path" ]] && return 0
 
-            local cli_source_dir="${app_root}/cli"
-            [[ -d "$cli_source_dir" ]] || return 1
-            if find "$cli_source_dir" -name "*.go" -newer "$cli_path" 2>/dev/null | head -1 | grep -q .; then
-                return 0
-            fi
-            for dep_file in go.mod go.sum; do
-                if [[ -f "$cli_source_dir/$dep_file" && "$cli_source_dir/$dep_file" -nt "$cli_path" ]]; then
-                    return 0
-                fi
-            done
-            while IFS= read -r replace_path; do
-                [[ -z "$replace_path" ]] && continue
-                local replace_dir
-                replace_dir=$(setup::resolve_path "$cli_source_dir" "$replace_path")
-                if [[ -d "$replace_dir" ]]; then
-                    if find "$replace_dir" \( -name "*.go" -o -name "go.mod" \) -newer "$cli_path" 2>/dev/null | head -1 | grep -q .; then
+            case "$adapter_kind" in
+                go_module)
+                    local module_dir
+                    module_dir=$(setup::manifest_cli_field "$app_root" '.cli.adapter.module_dir // empty' || true)
+                    [[ -z "$module_dir" ]] && return 1
+
+                    local cli_source_dir
+                    cli_source_dir=$(setup::resolve_path "$app_root" "$module_dir")
+                    [[ -d "$cli_source_dir" ]] || return 1
+
+                    if find "$cli_source_dir" -name "*.go" -newer "$cli_path" 2>/dev/null | head -1 | grep -q .; then
                         return 0
                     fi
-                fi
-            done < <(setup::local_replace_paths "$cli_source_dir/go.mod")
-            return 1
+                    for dep_file in go.mod go.sum; do
+                        if [[ -f "$cli_source_dir/$dep_file" && "$cli_source_dir/$dep_file" -nt "$cli_path" ]]; then
+                            return 0
+                        fi
+                    done
+                    while IFS= read -r replace_path; do
+                        [[ -z "$replace_path" ]] && continue
+                        local replace_dir
+                        replace_dir=$(setup::resolve_path "$cli_source_dir" "$replace_path")
+                        if [[ -d "$replace_dir" ]]; then
+                            if find "$replace_dir" \( -name "*.go" -o -name "go.mod" \) -newer "$cli_path" 2>/dev/null | head -1 | grep -q .; then
+                                return 0
+                            fi
+                        fi
+                    done < <(setup::local_replace_paths "$cli_source_dir/go.mod")
+                    return 1
+                    ;;
+                shell_script)
+                    local script_path install_script freshness_inputs
+                    script_path=$(setup::manifest_cli_field "$app_root" '.cli.adapter.script_path // empty' || true)
+                    install_script=$(setup::manifest_cli_field "$app_root" '.cli.adapter.install_script // empty' || true)
+                    mapfile -t freshness_inputs < <(setup::manifest_cli_field "$app_root" '.cli.freshness.inputs[]?' || true)
+                    if [[ "${#freshness_inputs[@]}" -eq 0 ]]; then
+                        freshness_inputs=("$script_path" "$install_script" ".vrooli/service.json")
+                    fi
+                    if setup::any_declared_input_newer "$app_root" "$cli_path" "${freshness_inputs[@]}"; then
+                        return 0
+                    fi
+                    return 1
+                    ;;
+                *)
+                    return 1
+                    ;;
+            esac
             ;;
         ui-bundle)
             local bundle_path source_dir watch_file_dependencies

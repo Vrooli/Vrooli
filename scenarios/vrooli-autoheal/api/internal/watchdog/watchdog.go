@@ -13,8 +13,8 @@ import (
 	"strings"
 	"sync"
 
-	repocontract "github.com/vrooli/repo-contract-go"
 	"vrooli-autoheal/internal/platform"
+	"vrooli-autoheal/internal/reporoot"
 )
 
 // WatchdogType represents the type of OS-level service manager
@@ -646,18 +646,5 @@ func (d *Detector) getWindowsTaskTemplate() string {
 }
 
 func (d *Detector) resolveVrooliRoot() string {
-	for _, key := range []string{"VROOLI_SOURCE_ROOT", "VROOLI_ROOT"} {
-		if root := strings.TrimSpace(d.probe.getenv(key)); root != "" {
-			resolved, err := repocontract.FindRepoRootFromPath(root)
-			if err != nil {
-				return ""
-			}
-			return resolved
-		}
-	}
-	root, err := repocontract.ResolveRepoRoot()
-	if err != nil {
-		return ""
-	}
-	return root
+	return reporoot.Resolve(d.probe.getenv)
 }

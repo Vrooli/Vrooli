@@ -9,10 +9,18 @@ import (
 type mockFileChecker struct {
 	existingFiles map[string]bool
 	globMatches   map[string]bool
+	fileContents  map[string][]byte
 }
 
 func (m *mockFileChecker) Exists(path string) bool {
 	return m.existingFiles[path]
+}
+
+func (m *mockFileChecker) ReadFile(path string) ([]byte, error) {
+	if data, ok := m.fileContents[path]; ok {
+		return data, nil
+	}
+	return nil, io.EOF
 }
 
 func (m *mockFileChecker) GlobMatch(pattern string) bool {
@@ -50,6 +58,56 @@ func TestDetectorDetectsGoFromGlobPattern(t *testing.T) {
 	}
 	if runtimes[0].Command != "go" {
 		t.Fatalf("expected go runtime, got %s", runtimes[0].Command)
+	}
+}
+
+func TestDetectorDetectsGoFromManifestDeclaredCLIModule(t *testing.T) {
+	scenarioDir := "/scenarios/demo"
+	d := New(scenarioDir, io.Discard, WithFileChecker(&mockFileChecker{
+		existingFiles: map[string]bool{
+			"/scenarios/demo/cli/go.mod": true,
+		},
+		fileContents: map[string][]byte{
+			"/scenarios/demo/.vrooli/service.json": []byte(`{
+				"cli": {
+					"enabled": true,
+					"adapter": {
+						"kind": "go_module",
+						"module_dir": "cli"
+					}
+				}
+			}`),
+		},
+	}))
+
+	runtimes := d.Detect()
+	if len(runtimes) != 1 {
+		t.Fatalf("expected 1 runtime, got %d", len(runtimes))
+	}
+	if runtimes[0].Command != "go" {
+		t.Fatalf("expected go runtime, got %s", runtimes[0].Command)
+	}
+}
+
+func TestDetectorDoesNotInferGoFromShellScriptCLIManifest(t *testing.T) {
+	scenarioDir := "/scenarios/demo"
+	d := New(scenarioDir, io.Discard, WithFileChecker(&mockFileChecker{
+		fileContents: map[string][]byte{
+			"/scenarios/demo/.vrooli/service.json": []byte(`{
+				"cli": {
+					"enabled": true,
+					"adapter": {
+						"kind": "shell_script",
+						"script_path": "cli/demo"
+					}
+				}
+			}`),
+		},
+	}))
+
+	runtimes := d.Detect()
+	if len(runtimes) != 0 {
+		t.Fatalf("expected no runtimes, got %d", len(runtimes))
 	}
 }
 

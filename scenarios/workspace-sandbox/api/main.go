@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -413,9 +412,10 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 }
 
 // ensureSchema runs automatic migrations to ensure required tables exist.
-// This is idempotent and safe to run on every startup.
+// Lifecycle bootstrap owns schema creation and migration replay. The API only
+// verifies the runtime contract so startup fails clearly if bootstrap was
+// skipped or the database is stale.
 func ensureSchema(db *sql.DB) error {
-	// Create and use scenario-specific PostgreSQL schema to avoid conflicts
 	schemaName := "workspace_sandbox"
 	if _, err := db.Exec(fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", schemaName)); err != nil {
 		return fmt.Errorf("failed to create schema: %w", err)
@@ -438,171 +438,38 @@ func ensureSchema(db *sql.DB) error {
 	}
 
 	if !sandboxesExists {
-		log.Println("running migration: initializing workspace-sandbox schema")
-		schemaSQL, err := loadSchemaSQL()
-		if err != nil {
-			return fmt.Errorf("failed to load schema.sql: %w", err)
-		}
-		if _, err := db.Exec(schemaSQL); err != nil {
-			return fmt.Errorf("failed to apply schema.sql: %w", err)
-		}
-		log.Println("migration complete: schema.sql applied")
+		return fmt.Errorf("required table workspace_sandbox.sandboxes is missing; rerun scenario bootstrap so initialization/postgres artifacts are applied before the API starts")
 	}
 
-	// Check if applied_changes table exists
-	var exists bool
+	var appliedChangesExists bool
 	err = db.QueryRow(`
 		SELECT EXISTS (
 			SELECT FROM information_schema.tables
 			WHERE table_name = 'applied_changes' AND table_schema = $1
 		)
-	`, schemaName).Scan(&exists)
+	`, schemaName).Scan(&appliedChangesExists)
 	if err != nil {
 		return fmt.Errorf("failed to check applied_changes table: %w", err)
 	}
-
-	if !exists {
-		log.Println("running migration: creating applied_changes table")
-		_, err = db.Exec(`
-			CREATE TABLE applied_changes (
-				id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-				sandbox_id UUID REFERENCES sandboxes(id) ON DELETE SET NULL,
-				sandbox_owner TEXT,
-				sandbox_owner_type TEXT,
-				file_path TEXT NOT NULL,
-				project_root TEXT NOT NULL,
-				change_type TEXT NOT NULL,
-				file_size BIGINT DEFAULT 0,
-				applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-				committed_at TIMESTAMPTZ,
-				commit_hash TEXT,
-				commit_message TEXT,
-				CONSTRAINT valid_applied_change_type CHECK (change_type IN ('added', 'modified', 'deleted'))
-			);
-			CREATE INDEX idx_applied_changes_sandbox_id ON applied_changes(sandbox_id);
-			CREATE INDEX idx_applied_changes_file_path ON applied_changes(file_path);
-			CREATE INDEX idx_applied_changes_project_root ON applied_changes(project_root);
-			CREATE INDEX idx_applied_changes_pending ON applied_changes(committed_at) WHERE committed_at IS NULL;
-		`)
-		if err != nil {
-			return fmt.Errorf("failed to create applied_changes table: %w", err)
-		}
-		log.Println("migration complete: applied_changes table created")
+	if !appliedChangesExists {
+		return fmt.Errorf("required table workspace_sandbox.applied_changes is missing; rerun scenario bootstrap so initialization/postgres artifacts are applied before the API starts")
 	}
 
-	// --- agent_manager_run_id on applied_changes ---
-	if _, err := db.Exec(`ALTER TABLE applied_changes ADD COLUMN IF NOT EXISTS agent_manager_run_id TEXT`); err != nil {
-		return fmt.Errorf("failed to add agent_manager_run_id column: %w", err)
+	var agentManagerRunIDExists bool
+	err = db.QueryRow(`
+		SELECT EXISTS (
+			SELECT FROM information_schema.columns
+			WHERE table_schema = $1 AND table_name = 'applied_changes' AND column_name = 'agent_manager_run_id'
+		)
+	`, schemaName).Scan(&agentManagerRunIDExists)
+	if err != nil {
+		return fmt.Errorf("failed to check applied_changes.agent_manager_run_id column: %w", err)
 	}
-	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_applied_changes_run_id ON applied_changes(agent_manager_run_id)`); err != nil {
-		return fmt.Errorf("failed to create agent_manager_run_id index: %w", err)
-	}
-
-	// --- reserved_path support (soft safety reserved directory) ---
-	// Add column if missing (idempotent).
-	if _, err := db.Exec(`ALTER TABLE sandboxes ADD COLUMN IF NOT EXISTS reserved_path TEXT`); err != nil {
-		return fmt.Errorf("failed to add reserved_path column: %w", err)
-	}
-
-	// Add reserved_paths array for multi-reserve support (idempotent).
-	if _, err := db.Exec(`ALTER TABLE sandboxes ADD COLUMN IF NOT EXISTS reserved_paths TEXT[] DEFAULT '{}'`); err != nil {
-		return fmt.Errorf("failed to add reserved_paths column: %w", err)
-	}
-
-	// Add no_lock flag for lockless sandboxes (idempotent).
-	if _, err := db.Exec(`ALTER TABLE sandboxes ADD COLUMN IF NOT EXISTS no_lock BOOLEAN NOT NULL DEFAULT FALSE`); err != nil {
-		return fmt.Errorf("failed to add no_lock column: %w", err)
-	}
-
-	// Backfill reserved_path for existing rows to preserve legacy behavior.
-	if _, err := db.Exec(`UPDATE sandboxes SET reserved_path = scope_path WHERE reserved_path IS NULL AND no_lock = false`); err != nil {
-		return fmt.Errorf("failed to backfill reserved_path: %w", err)
-	}
-
-	// Backfill reserved_paths when empty or NULL to align with reserved_path/scope_path.
-	if _, err := db.Exec(`
-		UPDATE sandboxes
-		SET reserved_paths = ARRAY[COALESCE(reserved_path, scope_path)]
-		WHERE (reserved_paths IS NULL OR array_length(reserved_paths, 1) IS NULL OR array_length(reserved_paths, 1) = 0)
-		  AND no_lock = false
-	`); err != nil {
-		return fmt.Errorf("failed to backfill reserved_paths: %w", err)
-	}
-
-	// Index for reserved_path overlap queries and UI filtering.
-	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_sandboxes_reserved_path ON sandboxes(reserved_path)`); err != nil {
-		return fmt.Errorf("failed to create idx_sandboxes_reserved_path: %w", err)
-	}
-
-	// --- sandbox behavior (lifecycle + acceptance) ---
-	if _, err := db.Exec(`ALTER TABLE sandboxes ADD COLUMN IF NOT EXISTS behavior JSONB NOT NULL DEFAULT '{}'::jsonb`); err != nil {
-		return fmt.Errorf("failed to add behavior column: %w", err)
-	}
-	if _, err := db.Exec(`UPDATE sandboxes SET behavior = '{}'::jsonb WHERE behavior IS NULL`); err != nil {
-		return fmt.Errorf("failed to backfill behavior column: %w", err)
-	}
-
-	// Update overlap check function to use reserved_paths when present.
-	// Note: We keep the function name/signature for backwards compatibility.
-	if _, err := db.Exec(`
-		CREATE OR REPLACE FUNCTION check_scope_overlap(
-			new_scope TEXT,
-			new_project TEXT,
-			exclude_id UUID DEFAULT NULL
-		) RETURNS TABLE(id UUID, scope_path TEXT, status sandbox_status) AS $$
-		BEGIN
-			RETURN QUERY
-			SELECT s.id, existing_prefix, s.status
-			FROM sandboxes s,
-			     LATERAL unnest(
-			        CASE
-			            WHEN s.reserved_paths IS NOT NULL AND array_length(s.reserved_paths, 1) > 0 THEN s.reserved_paths
-			            ELSE ARRAY[COALESCE(s.reserved_path, s.scope_path)]
-			        END
-			     ) AS existing_prefix
-			WHERE s.project_root = new_project
-			  AND s.no_lock = false
-			  AND s.status IN ('creating', 'active')
-			  AND (exclude_id IS NULL OR s.id != exclude_id)
-			  AND (
-			      existing_prefix LIKE new_scope || '/%'
-			      OR existing_prefix = new_scope
-			      OR new_scope LIKE existing_prefix || '/%'
-			  );
-		END;
-		$$ LANGUAGE plpgsql;
-	`); err != nil {
-		return fmt.Errorf("failed to update check_scope_overlap function: %w", err)
+	if !agentManagerRunIDExists {
+		return fmt.Errorf("required column workspace_sandbox.applied_changes.agent_manager_run_id is missing; rerun scenario bootstrap so lifecycle migrations bring the schema current")
 	}
 
 	return nil
-}
-
-func loadSchemaSQL() (string, error) {
-	candidates := []string{}
-
-	if scenarioDir, err := resolveWorkspaceSandboxScenarioDir(); err == nil {
-		candidates = append(candidates, filepath.Join(scenarioDir, "initialization", "postgres", "schema.sql"))
-	}
-
-	if cwd, err := os.Getwd(); err == nil {
-		candidates = append(candidates, filepath.Join(cwd, "initialization", "postgres", "schema.sql"))
-	}
-
-	for _, path := range candidates {
-		if path == "" {
-			continue
-		}
-		if _, err := os.Stat(path); err == nil {
-			bytes, readErr := os.ReadFile(path)
-			if readErr != nil {
-				return "", readErr
-			}
-			return string(bytes), nil
-		}
-	}
-
-	return "", fmt.Errorf("schema.sql not found (checked %s)", strings.Join(candidates, ", "))
 }
 
 // buildDSNWithSearchPath constructs a PostgreSQL DSN from environment variables

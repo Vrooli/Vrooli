@@ -5,4 +5,4 @@
 3. Run the documented validation probes.
 4. Capture known caveats for future operators.
 
-Keep this checklist as the primary setup contract. Do not replace it with vague automation; only add code under `internal/validate` when the validation workflow genuinely benefits from it.
+Keep this checklist as the primary setup contract. Do not replace it with vague automation; only add code under `cli/internal/validate` when the validation workflow genuinely benefits from it.

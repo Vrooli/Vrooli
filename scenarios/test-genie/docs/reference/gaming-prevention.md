@@ -99,7 +99,7 @@ A perfect 1:1 ratio suggests single-layer validation.
 
 **Gaming**:
 ```json
-{"type": "test", "ref": "test/cli/dependency-analysis.bats"}
+{"type": "test", "ref": "test/cli/example-cli-wrapper.bats"}
 ```
 
 **Proper**:

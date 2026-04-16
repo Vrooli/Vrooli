@@ -65,7 +65,7 @@ npm run test           # Runs Vitest tests
 **test/cli/** tests validate the CLI wrapper, not business logic:
 
 ```bash
-# test/cli/profile-operations.bats - Tests CLI interface
+# test/cli/example-cli-wrapper.bats - Tests CLI interface
 @test "vrooli profile create accepts --name flag" {
   run vrooli profile create --name test
   [ "$status" -eq 0 ]

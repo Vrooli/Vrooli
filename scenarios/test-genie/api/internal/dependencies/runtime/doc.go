@@ -1,7 +1,7 @@
 // Package runtime detects required language runtimes for a scenario.
 //
-// Detection is based on file presence in the scenario directory:
-//   - Go: api/go.mod, cli/go.mod, or *.go files
+// Detection is based on file presence and manifest-declared CLI adapters:
+//   - Go: api/go.mod, api/*.go, or a service.json CLI adapter with kind=go_module
 //   - Node.js: package.json in root or ui/ directory
 //   - Python: requirements.txt or pyproject.toml
 //
