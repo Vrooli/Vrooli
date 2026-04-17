@@ -1,7 +1,7 @@
 # Desktop Bundle Health/Readiness Alignment Plan
 
 ## Context
-- `vrooli scenario status <scenario>` uses standard health endpoints at `http://localhost:${UI_PORT}/health` and `http://localhost:${API_PORT}/health` and validates schema compliance. (See `cli/commands/scenario/modules/health.sh` and `cli/commands/scenario/schemas/health-*.schema.json`.)
+- `vrooli scenario status <scenario>` uses standard health endpoints at `http://localhost:${UI_PORT}/health` and `http://localhost:${API_PORT}/health` and validates schema compliance (see the native status implementation under `internal/cli/scenariohandlers/`).
 - Desktop bundle preflight readiness is driven by the bundle manifest and the runtime readiness checker, but:
   - API readiness in the generated manifest currently uses `port_open` even though `/health` is available.
   - UI manifest health path is currently `/`, not `/health`.

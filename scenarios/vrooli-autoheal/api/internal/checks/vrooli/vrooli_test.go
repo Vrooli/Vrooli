@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+
 	"vrooli-autoheal/internal/checks"
 )
 
@@ -231,22 +232,36 @@ func TestResourceCheckRunWithMock(t *testing.T) {
 		expectedMsg    string
 	}{
 		{
-			name:           "resource running",
-			cliOutput:      "postgres: running (healthy)",
+			name:           "resource healthy",
+			cliOutput:      `{"success":true,"name":"postgres","installed":true,"running":true,"healthy":true,"status":"healthy"}`,
 			cliError:       nil,
 			expectedStatus: checks.StatusOK,
-			expectedMsg:    "postgres resource is running",
+			expectedMsg:    "postgres resource is healthy",
 		},
 		{
 			name:           "resource stopped",
-			cliOutput:      "postgres: stopped",
+			cliOutput:      `{"success":true,"name":"postgres","installed":true,"running":false,"healthy":false,"status":"stopped"}`,
 			cliError:       nil,
 			expectedStatus: checks.StatusCritical,
 			expectedMsg:    "postgres resource is stopped",
 		},
 		{
+			name:           "resource unhealthy",
+			cliOutput:      `{"success":true,"name":"postgres","installed":true,"running":true,"healthy":false,"status":"unhealthy"}`,
+			cliError:       nil,
+			expectedStatus: checks.StatusCritical,
+			expectedMsg:    "postgres resource is unhealthy",
+		},
+		{
+			name:           "resource not installed",
+			cliOutput:      `{"success":true,"name":"postgres","installed":false,"running":false,"status":"not installed"}`,
+			cliError:       nil,
+			expectedStatus: checks.StatusCritical,
+			expectedMsg:    "postgres resource is not installed",
+		},
+		{
 			name:           "resource unclear status",
-			cliOutput:      "postgres: some unknown state",
+			cliOutput:      `{"success":true,"name":"postgres","installed":true,"running":true,"status":"unknown"}`,
 			cliError:       nil,
 			expectedStatus: checks.StatusWarning,
 			expectedMsg:    "postgres resource status unclear",
@@ -263,7 +278,7 @@ func TestResourceCheckRunWithMock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockExecutor := checks.NewMockExecutor()
-			mockExecutor.Responses["vrooli resource status postgres"] = checks.MockResponse{
+			mockExecutor.Responses["vrooli resource status postgres --json"] = checks.MockResponse{
 				Output: []byte(tt.cliOutput),
 				Error:  tt.cliError,
 			}
@@ -373,7 +388,7 @@ func TestScenarioCheckRunWithMock(t *testing.T) {
 			name:           "critical scenario healthy",
 			scenarioName:   "vrooli-autoheal",
 			critical:       true,
-			cliOutput:      `{"success":true,"scenario_data":{"status":"running","health_status":"healthy"}}`,
+			cliOutput:      `{"success":true,"scenario":{"name":"vrooli-autoheal","status":"running","health_status":"healthy"}}`,
 			cliError:       nil,
 			expectedStatus: checks.StatusOK,
 			expectedMsg:    "vrooli-autoheal scenario is healthy",
@@ -382,7 +397,7 @@ func TestScenarioCheckRunWithMock(t *testing.T) {
 			name:           "critical scenario degraded",
 			scenarioName:   "vrooli-autoheal",
 			critical:       true,
-			cliOutput:      `{"success":true,"scenario_data":{"status":"running","health_status":"degraded"}}`,
+			cliOutput:      `{"success":true,"scenario":{"name":"vrooli-autoheal","status":"running","health_status":"degraded"}}`,
 			cliError:       nil,
 			expectedStatus: checks.StatusWarning,
 			expectedMsg:    "vrooli-autoheal scenario is degraded",
@@ -391,7 +406,7 @@ func TestScenarioCheckRunWithMock(t *testing.T) {
 			name:           "critical scenario unhealthy",
 			scenarioName:   "vrooli-autoheal",
 			critical:       true,
-			cliOutput:      `{"success":true,"scenario_data":{"status":"running","health_status":"unhealthy"}}`,
+			cliOutput:      `{"success":true,"scenario":{"name":"vrooli-autoheal","status":"running","health_status":"unhealthy"}}`,
 			cliError:       nil,
 			expectedStatus: checks.StatusCritical,
 			expectedMsg:    "vrooli-autoheal scenario is unhealthy",
@@ -400,7 +415,7 @@ func TestScenarioCheckRunWithMock(t *testing.T) {
 			name:           "non-critical scenario unhealthy",
 			scenarioName:   "deployment-manager",
 			critical:       false,
-			cliOutput:      `{"success":true,"scenario_data":{"status":"running","health_status":"unhealthy"}}`,
+			cliOutput:      `{"success":true,"scenario":{"name":"deployment-manager","status":"running","health_status":"unhealthy"}}`,
 			cliError:       nil,
 			expectedStatus: checks.StatusWarning,
 			expectedMsg:    "deployment-manager scenario is unhealthy",
@@ -409,7 +424,7 @@ func TestScenarioCheckRunWithMock(t *testing.T) {
 			name:           "critical scenario stopped",
 			scenarioName:   "vrooli-autoheal",
 			critical:       true,
-			cliOutput:      `{"success":true,"scenario_data":{"status":"stopped","health_status":""}}`,
+			cliOutput:      `{"success":true,"scenario":{"name":"vrooli-autoheal","status":"stopped","health_status":null}}`,
 			cliError:       nil,
 			expectedStatus: checks.StatusCritical,
 			expectedMsg:    "vrooli-autoheal scenario is stopped",
@@ -418,7 +433,7 @@ func TestScenarioCheckRunWithMock(t *testing.T) {
 			name:           "non-critical scenario stopped",
 			scenarioName:   "test-app",
 			critical:       false,
-			cliOutput:      `{"success":true,"scenario_data":{"status":"stopped","health_status":""}}`,
+			cliOutput:      `{"success":true,"scenario":{"name":"test-app","status":"stopped","health_status":null}}`,
 			cliError:       nil,
 			expectedStatus: checks.StatusWarning,
 			expectedMsg:    "test-app scenario is stopped",
@@ -806,7 +821,7 @@ func TestResourceCheckExecuteAction_AllActions(t *testing.T) {
 			cmdKey:        "vrooli resource start postgres",
 			cmdOutput:     "Started postgres resource",
 			cmdError:      nil,
-			statusOutput:  "postgres: running (healthy)", // Verification returns healthy
+			statusOutput:  `{"success":true,"name":"postgres","installed":true,"running":true,"healthy":true,"status":"healthy"}`,
 			expectSuccess: true,
 		},
 		{
@@ -824,7 +839,7 @@ func TestResourceCheckExecuteAction_AllActions(t *testing.T) {
 			cmdKey:        "vrooli resource restart postgres",
 			cmdOutput:     "Restarted postgres resource",
 			cmdError:      nil,
-			statusOutput:  "postgres: running (healthy)", // Verification returns healthy
+			statusOutput:  `{"success":true,"name":"postgres","installed":true,"running":true,"healthy":true,"status":"healthy"}`,
 			expectSuccess: true,
 		},
 		{
@@ -856,7 +871,7 @@ func TestResourceCheckExecuteAction_AllActions(t *testing.T) {
 			}
 			// Add status response for verification (used by start/restart)
 			if tt.statusOutput != "" {
-				mockExecutor.Responses["vrooli resource status postgres"] = checks.MockResponse{
+				mockExecutor.Responses["vrooli resource status postgres --json"] = checks.MockResponse{
 					Output: []byte(tt.statusOutput),
 					Error:  nil,
 				}
@@ -1139,7 +1154,8 @@ func TestScenarioCheckRun_DetectsSharedPackageDriftRootCause(t *testing.T) {
 	mockExecutor.Responses["vrooli scenario status test-scenario --json"] = checks.MockResponse{
 		Output: []byte(`{
 			"success": true,
-			"scenario_data": {
+			"scenario": {
+				"name": "test-scenario",
 				"status": "running",
 				"health_status": "degraded"
 			},

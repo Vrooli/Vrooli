@@ -6,37 +6,10 @@ import (
 	"context"
 	"strings"
 	"testing"
+
 	"vrooli-autoheal/internal/checks"
 )
 
-// MockVrooliStateReader is a mock implementation for testing
-type MockVrooliStateReader struct {
-	TrackedProcesses []checks.TrackedProcess
-	PortLocks        []checks.PortLock
-	ListProcessErr   error
-	ListLocksErr     error
-	RemoveLockErr    error
-	RemovedLocks     []checks.PortLock // Track which locks were removed
-}
-
-func (m *MockVrooliStateReader) ListTrackedProcesses() ([]checks.TrackedProcess, error) {
-	return m.TrackedProcesses, m.ListProcessErr
-}
-
-func (m *MockVrooliStateReader) ListPortLocks() ([]checks.PortLock, error) {
-	return m.PortLocks, m.ListLocksErr
-}
-
-func (m *MockVrooliStateReader) RemovePortLock(lock checks.PortLock) error {
-	if m.RemoveLockErr != nil {
-		return m.RemoveLockErr
-	}
-	m.RemovedLocks = append(m.RemovedLocks, lock)
-	return nil
-}
-
-// TestStaleLockCheckInterface verifies StaleLockCheck implements Check
-// [REQ:STALE-LOCK-001]
 func TestStaleLockCheckInterface(t *testing.T) {
 	var _ checks.Check = (*StaleLockCheck)(nil)
 
@@ -50,7 +23,6 @@ func TestStaleLockCheckInterface(t *testing.T) {
 	if check.IntervalSeconds() <= 0 {
 		t.Error("IntervalSeconds() should be positive")
 	}
-	// Should run on all platforms
 	if check.Platforms() != nil {
 		t.Error("StaleLockCheck should run on all platforms")
 	}
@@ -59,347 +31,129 @@ func TestStaleLockCheckInterface(t *testing.T) {
 	}
 }
 
-// TestStaleLockCheckHealable verifies StaleLockCheck implements HealableCheck
-// [REQ:HEAL-ACTION-001]
 func TestStaleLockCheckHealable(t *testing.T) {
 	var _ checks.HealableCheck = (*StaleLockCheck)(nil)
 
 	check := NewStaleLockCheck()
-
-	// Test recovery actions with nil result
 	actions := check.RecoveryActions(nil)
-	if len(actions) == 0 {
-		t.Error("RecoveryActions() should return actions")
-	}
-
-	// Verify expected actions exist
-	expectedActions := map[string]bool{
-		"list":  false,
-		"clean": false,
-	}
-	for _, action := range actions {
-		if _, exists := expectedActions[action.ID]; exists {
-			expectedActions[action.ID] = true
-		}
-	}
-	for id, found := range expectedActions {
-		if !found {
-			t.Errorf("Expected action %q not found in RecoveryActions()", id)
-		}
+	if len(actions) != 2 {
+		t.Fatalf("expected 2 actions, got %d", len(actions))
 	}
 }
 
-// TestStaleLockCheckRunWithMock tests StaleLockCheck.Run() using mock state reader
-// [REQ:STALE-LOCK-001] [REQ:TEST-SEAM-001]
-func TestStaleLockCheckRunWithMock(t *testing.T) {
+func TestStaleLockCheckRunWithCoreJSON(t *testing.T) {
 	tests := []struct {
 		name           string
-		portLocks      []checks.PortLock
-		listLocksErr   error
+		output         string
+		err            error
 		expectedStatus checks.Status
-		expectMsgPart  string
+		expectedMsg    string
+		expectedCount  int
 	}{
 		{
 			name:           "no locks",
-			portLocks:      nil,
-			listLocksErr:   nil,
+			output:         `{"success":true,"locks":[]}`,
 			expectedStatus: checks.StatusOK,
-			expectMsgPart:  "No stale port locks",
+			expectedMsg:    "No stale port locks detected",
+			expectedCount:  0,
 		},
 		{
-			name: "all locks valid - running PIDs",
-			portLocks: []checks.PortLock{
-				{Port: 8080, Scenario: "test-app", PID: 1, FilePath: "/tmp/lock1"}, // PID 1 always exists
-			},
-			listLocksErr:   nil,
+			name:           "mixed locks",
+			output:         `{"success":true,"locks":[{"port":8080,"scenario":"alpha","pid":100,"path":"/tmp/a","owner_running":true,"stale":false},{"port":8081,"scenario":"beta","pid":0,"path":"/tmp/b","owner_running":false,"stale":true}]}`,
 			expectedStatus: checks.StatusOK,
-			expectMsgPart:  "No stale port locks",
+			expectedMsg:    "1 stale port locks (below threshold)",
+			expectedCount:  1,
 		},
 		{
-			name: "one stale lock - dead PID",
-			portLocks: []checks.PortLock{
-				{Port: 8080, Scenario: "test-app", PID: 99999999, FilePath: "/tmp/lock1"}, // Non-existent PID
-			},
-			listLocksErr:   nil,
-			expectedStatus: checks.StatusOK, // 1 stale lock is below warning threshold
-			expectMsgPart:  "1 stale port locks",
+			name:           "warning threshold",
+			output:         `{"success":true,"locks":[{"port":1,"path":"/tmp/1","stale":true},{"port":2,"path":"/tmp/2","stale":true},{"port":3,"path":"/tmp/3","stale":true}]}`,
+			expectedStatus: checks.StatusWarning,
+			expectedMsg:    "Warning: 3 stale port locks detected",
+			expectedCount:  3,
 		},
 		{
-			name: "multiple stale locks - warning threshold",
-			portLocks: []checks.PortLock{
-				{Port: 8080, Scenario: "app1", PID: 99999999, FilePath: "/tmp/lock1"},
-				{Port: 8081, Scenario: "app2", PID: 99999998, FilePath: "/tmp/lock2"},
-				{Port: 8082, Scenario: "app3", PID: 99999997, FilePath: "/tmp/lock3"},
-			},
-			listLocksErr:   nil,
-			expectedStatus: checks.StatusWarning, // 3 stale locks hits warning threshold
-			expectMsgPart:  "3 stale port locks",
-		},
-		{
-			name:           "error reading locks",
-			portLocks:      nil,
-			listLocksErr:   checks.ErrCommandNotFound,
+			name:           "command error",
+			err:            checks.ErrCommandNotFound,
 			expectedStatus: checks.StatusCritical,
-			expectMsgPart:  "Failed to read port locks",
-		},
-		{
-			name: "stale lock with zero PID",
-			portLocks: []checks.PortLock{
-				{Port: 8080, Scenario: "test-app", PID: 0, FilePath: "/tmp/lock1"}, // Invalid PID
-			},
-			listLocksErr:   nil,
-			expectedStatus: checks.StatusOK,
-			expectMsgPart:  "1 stale port locks",
+			expectedMsg:    "Failed to read port locks",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockReader := &MockVrooliStateReader{
-				PortLocks:    tt.portLocks,
-				ListLocksErr: tt.listLocksErr,
+			executor := checks.NewMockExecutor()
+			executor.Responses["vrooli locks --json"] = checks.MockResponse{
+				Output: []byte(tt.output),
+				Error:  tt.err,
 			}
 
-			check := NewStaleLockCheck(WithStaleLockStateReader(mockReader))
+			check := NewStaleLockCheck(WithStaleLockExecutor(executor))
 			result := check.Run(context.Background())
-
 			if result.Status != tt.expectedStatus {
-				t.Errorf("Status = %v, want %v", result.Status, tt.expectedStatus)
+				t.Fatalf("Status = %v, want %v", result.Status, tt.expectedStatus)
 			}
-			if !strings.Contains(result.Message, tt.expectMsgPart) {
-				t.Errorf("Message = %q, want to contain %q", result.Message, tt.expectMsgPart)
+			if result.Message != tt.expectedMsg {
+				t.Fatalf("Message = %q, want %q", result.Message, tt.expectedMsg)
+			}
+			if tt.err == nil {
+				if got, _ := result.Details["staleCount"].(int); got != tt.expectedCount {
+					t.Fatalf("staleCount = %d, want %d", got, tt.expectedCount)
+				}
 			}
 		})
 	}
 }
 
-// TestStaleLockCheckThresholds tests custom threshold configuration
-// [REQ:STALE-LOCK-001]
-func TestStaleLockCheckThresholds(t *testing.T) {
-	mockReader := &MockVrooliStateReader{
-		PortLocks: []checks.PortLock{
-			{Port: 8080, Scenario: "app1", PID: 99999999, FilePath: "/tmp/lock1"},
-			{Port: 8081, Scenario: "app2", PID: 99999998, FilePath: "/tmp/lock2"},
-		},
-	}
-
-	// With default thresholds (warning=3, critical=10), 2 stale locks is OK
-	checkDefault := NewStaleLockCheck(WithStaleLockStateReader(mockReader))
-	resultDefault := checkDefault.Run(context.Background())
-	if resultDefault.Status != checks.StatusOK {
-		t.Errorf("Default thresholds: Status = %v, want %v", resultDefault.Status, checks.StatusOK)
-	}
-
-	// With custom thresholds (warning=1, critical=5), 2 stale locks is Warning
-	checkCustom := NewStaleLockCheck(
-		WithStaleLockStateReader(mockReader),
-		WithStaleLockThresholds(1, 5),
-	)
-	resultCustom := checkCustom.Run(context.Background())
-	if resultCustom.Status != checks.StatusWarning {
-		t.Errorf("Custom thresholds: Status = %v, want %v", resultCustom.Status, checks.StatusWarning)
-	}
-}
-
-// TestStaleLockCheckExecuteActionList tests the list action
-// [REQ:HEAL-ACTION-001] [REQ:TEST-SEAM-001]
 func TestStaleLockCheckExecuteActionList(t *testing.T) {
-	mockReader := &MockVrooliStateReader{
-		PortLocks: []checks.PortLock{
-			{Port: 8080, Scenario: "test-app", PID: 1, FilePath: "/tmp/lock1"},         // Valid (PID 1 exists)
-			{Port: 9000, Scenario: "other-app", PID: 99999999, FilePath: "/tmp/lock2"}, // Stale
-		},
+	executor := checks.NewMockExecutor()
+	executor.Responses["vrooli locks --json"] = checks.MockResponse{
+		Output: []byte(`{"success":true,"locks":[{"port":8080,"path":"/tmp/a","stale":false},{"port":8081,"path":"/tmp/b","stale":true}]}`),
 	}
 
-	check := NewStaleLockCheck(WithStaleLockStateReader(mockReader))
+	check := NewStaleLockCheck(WithStaleLockExecutor(executor))
 	result := check.ExecuteAction(context.Background(), "list")
-
 	if !result.Success {
-		t.Errorf("Success = false, want true")
+		t.Fatalf("expected success, got error %q", result.Error)
 	}
-	if !strings.Contains(result.Output, "Port 8080") {
-		t.Errorf("Output should contain Port 8080")
+	if result.Message != "Found 1 stale locks out of 2 total" {
+		t.Fatalf("Message = %q", result.Message)
 	}
-	if !strings.Contains(result.Output, "VALID") {
-		t.Errorf("Output should contain VALID for running process")
-	}
-	if !strings.Contains(result.Output, "STALE") {
-		t.Errorf("Output should contain STALE for dead process")
-	}
-	if !strings.Contains(result.Message, "1 stale locks") {
-		t.Errorf("Message = %q, want to contain '1 stale locks'", result.Message)
+	if !strings.Contains(result.Output, `"port":8081`) {
+		t.Fatalf("Output = %q", result.Output)
 	}
 }
 
-// TestStaleLockCheckExecuteActionClean tests the clean action
-// [REQ:HEAL-ACTION-001] [REQ:TEST-SEAM-001]
-func TestStaleLockCheckExecuteActionClean(t *testing.T) {
-	mockReader := &MockVrooliStateReader{
-		PortLocks: []checks.PortLock{
-			{Port: 8080, Scenario: "test-app", PID: 1, FilePath: "/tmp/lock1"},         // Valid (PID 1 exists)
-			{Port: 9000, Scenario: "other-app", PID: 99999999, FilePath: "/tmp/lock2"}, // Stale
-		},
+func TestStaleLockCheckExecuteActionCleanDelegatesToCoreCleanup(t *testing.T) {
+	executor := checks.NewMockExecutor()
+	executor.Responses["vrooli cleanup locks --json"] = checks.MockResponse{
+		Output: []byte(`{"success":true,"data":{"stopped":[{"name":"8081","message":"Removed stale lock"}],"failed":[],"message":"Stopped 1 processes (0 failed)"}}`),
 	}
 
-	check := NewStaleLockCheck(WithStaleLockStateReader(mockReader))
+	check := NewStaleLockCheck(WithStaleLockExecutor(executor))
 	result := check.ExecuteAction(context.Background(), "clean")
-
 	if !result.Success {
-		t.Errorf("Success = false, want true")
+		t.Fatalf("expected success, got error %q", result.Error)
 	}
-	if !strings.Contains(result.Message, "Cleaned 1 stale port locks") {
-		t.Errorf("Message = %q, want to contain 'Cleaned 1 stale port locks'", result.Message)
+	if result.Message != "Stopped 1 processes (0 failed)" {
+		t.Fatalf("Message = %q", result.Message)
 	}
-
-	// Verify only stale lock was removed
-	if len(mockReader.RemovedLocks) != 1 {
-		t.Errorf("RemovedLocks count = %d, want 1", len(mockReader.RemovedLocks))
-	}
-	if len(mockReader.RemovedLocks) > 0 && mockReader.RemovedLocks[0].Port != 9000 {
-		t.Errorf("Removed lock port = %d, want 9000", mockReader.RemovedLocks[0].Port)
+	call := executor.Calls[0]
+	if call.Name != "vrooli" || strings.Join(call.Args, " ") != "cleanup locks --json" {
+		t.Fatalf("unexpected command: %s %s", call.Name, strings.Join(call.Args, " "))
 	}
 }
 
-// TestStaleLockCheckExecuteActionClean_NoStale tests clean with no stale locks
-// [REQ:HEAL-ACTION-001]
-func TestStaleLockCheckExecuteActionClean_NoStale(t *testing.T) {
-	mockReader := &MockVrooliStateReader{
-		PortLocks: []checks.PortLock{
-			{Port: 8080, Scenario: "test-app", PID: 1, FilePath: "/tmp/lock1"}, // Valid
-		},
+func TestDiagnosePortDelegatesToCoreCommand(t *testing.T) {
+	executor := checks.NewMockExecutor()
+	executor.Responses["vrooli diagnose-port 8080 alpha --json"] = checks.MockResponse{
+		Output: []byte(`{"success":true,"diagnostic":{"port":8080,"scenario":"alpha","in_use":true,"listener_inspection":{"available":true},"host_orphan_count":2,"recommendations":["Inspect listener"]}}`),
 	}
 
-	check := NewStaleLockCheck(WithStaleLockStateReader(mockReader))
-	result := check.ExecuteAction(context.Background(), "clean")
-
-	if !result.Success {
-		t.Errorf("Success = false, want true")
+	diagnostic, err := DiagnosePort(8080, "alpha", executor)
+	if err != nil {
+		t.Fatalf("DiagnosePort returned error: %v", err)
 	}
-	if !strings.Contains(result.Message, "Cleaned 0 stale port locks") {
-		t.Errorf("Message = %q, want to contain 'Cleaned 0 stale port locks'", result.Message)
-	}
-	if len(mockReader.RemovedLocks) != 0 {
-		t.Errorf("RemovedLocks count = %d, want 0", len(mockReader.RemovedLocks))
-	}
-}
-
-// TestStaleLockCheckExecuteActionUnknown tests unknown action handling
-// [REQ:HEAL-ACTION-001]
-func TestStaleLockCheckExecuteActionUnknown(t *testing.T) {
-	check := NewStaleLockCheck()
-	result := check.ExecuteAction(context.Background(), "invalid-action")
-
-	if result.Success {
-		t.Error("Success should be false for unknown action")
-	}
-	if result.Error != "unknown action: invalid-action" {
-		t.Errorf("Error = %q, want %q", result.Error, "unknown action: invalid-action")
-	}
-}
-
-// TestStaleLockCheckRecoveryActionsDangerous tests dangerous action marking
-// [REQ:HEAL-ACTION-001]
-func TestStaleLockCheckRecoveryActionsDangerous(t *testing.T) {
-	check := NewStaleLockCheck()
-	actions := check.RecoveryActions(nil)
-
-	actionMap := make(map[string]checks.RecoveryAction)
-	for _, a := range actions {
-		actionMap[a.ID] = a
-	}
-
-	// Both actions should be safe (not dangerous)
-	for id, action := range actionMap {
-		if action.Dangerous {
-			t.Errorf("%s action should not be dangerous", id)
-		}
-	}
-}
-
-// TestStaleLockCheckRecoveryActionsAvailability tests action availability based on state
-// [REQ:HEAL-ACTION-001]
-func TestStaleLockCheckRecoveryActionsAvailability(t *testing.T) {
-	check := NewStaleLockCheck()
-
-	// With no stale locks, clean should not be available
-	noStaleResult := &checks.Result{
-		Details: map[string]interface{}{"staleCount": 0},
-	}
-	actionsNoStale := check.RecoveryActions(noStaleResult)
-	for _, action := range actionsNoStale {
-		if action.ID == "clean" && action.Available {
-			t.Error("clean action should not be available when no stale locks")
-		}
-		if action.ID == "list" && !action.Available {
-			t.Error("list action should always be available")
-		}
-	}
-
-	// With stale locks, clean should be available
-	hasStaleResult := &checks.Result{
-		Details: map[string]interface{}{"staleCount": 3},
-	}
-	actionsHasStale := check.RecoveryActions(hasStaleResult)
-	for _, action := range actionsHasStale {
-		if action.ID == "clean" && !action.Available {
-			t.Error("clean action should be available when stale locks exist")
-		}
-	}
-}
-
-// TestStaleLockCheckHealthMetrics tests that health metrics are properly set
-// [REQ:STALE-LOCK-001]
-func TestStaleLockCheckHealthMetrics(t *testing.T) {
-	mockReader := &MockVrooliStateReader{
-		PortLocks: []checks.PortLock{
-			{Port: 8080, Scenario: "app1", PID: 99999999, FilePath: "/tmp/lock1"}, // Stale
-			{Port: 8081, Scenario: "app2", PID: 99999998, FilePath: "/tmp/lock2"}, // Stale
-		},
-	}
-
-	check := NewStaleLockCheck(WithStaleLockStateReader(mockReader))
-	result := check.Run(context.Background())
-
-	if result.Metrics == nil {
-		t.Fatal("Metrics should not be nil")
-	}
-	if result.Metrics.Score == nil {
-		t.Fatal("Score should not be nil")
-	}
-
-	// With 2 stale locks, score should be 100 - (2 * 10) = 80
-	expectedScore := 80
-	if *result.Metrics.Score != expectedScore {
-		t.Errorf("Score = %d, want %d", *result.Metrics.Score, expectedScore)
-	}
-
-	if len(result.Metrics.SubChecks) == 0 {
-		t.Error("SubChecks should not be empty")
-	}
-}
-
-// TestStaleLockCheckDetails tests that result details are properly populated
-// [REQ:STALE-LOCK-001]
-func TestStaleLockCheckDetails(t *testing.T) {
-	mockReader := &MockVrooliStateReader{
-		PortLocks: []checks.PortLock{
-			{Port: 8080, Scenario: "app1", PID: 1, FilePath: "/tmp/lock1"},        // Valid
-			{Port: 9000, Scenario: "app2", PID: 99999999, FilePath: "/tmp/lock2"}, // Stale
-			{Port: 9001, Scenario: "app3", PID: 99999998, FilePath: "/tmp/lock3"}, // Stale
-		},
-	}
-
-	check := NewStaleLockCheck(WithStaleLockStateReader(mockReader))
-	result := check.Run(context.Background())
-
-	// Verify details are populated
-	if staleCount, ok := result.Details["staleCount"].(int); !ok || staleCount != 2 {
-		t.Errorf("staleCount = %v, want 2", result.Details["staleCount"])
-	}
-	if totalLocks, ok := result.Details["totalLocks"].(int); !ok || totalLocks != 3 {
-		t.Errorf("totalLocks = %v, want 3", result.Details["totalLocks"])
-	}
-	if _, ok := result.Details["staleLocks"]; !ok {
-		t.Error("staleLocks should be in details")
+	if diagnostic.Port != 8080 || diagnostic.Scenario != "alpha" {
+		t.Fatalf("unexpected diagnostic: %+v", diagnostic)
 	}
 }

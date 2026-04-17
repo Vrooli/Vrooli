@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "docker_host_firewall",
+  "description": "Manage iptables chain for Docker container to host service connectivity",
+  "handler": "docker_host_firewall",
+  "platforms": ["linux"],
+  "healthCheck": {
+    "command": "iptables",
+    "args": ["-n", "-L", "VROOLI-DOCKER"],
+    "expectExitCode": 0
+  }
+}

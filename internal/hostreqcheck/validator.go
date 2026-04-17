@@ -63,6 +63,8 @@ var (
 		"yq",
 		"bats",
 		"ast-grep",
+		"cloudflared",
+		"lychee",
 		"Xvfb",
 		"xdotool",
 		"x11vnc",
@@ -83,7 +85,11 @@ func Validate(root, home string) (Report, error) {
 
 	findings := make([]Finding, 0)
 	for _, owner := range owners {
-		findings = append(findings, validateDeclarations(owner)...)
+		declarationFindings, declErr := validateDeclarations(owner)
+		if declErr != nil {
+			return Report{}, declErr
+		}
+		findings = append(findings, declarationFindings...)
 		findings = append(findings, validateReferences(root, owner)...)
 	}
 
@@ -163,7 +169,7 @@ func loadOwners(root, home string) ([]ownerManifest, error) {
 	return owners, nil
 }
 
-func validateDeclarations(owner ownerManifest) []Finding {
+func validateDeclarations(owner ownerManifest) ([]Finding, error) {
 	findings := make([]Finding, 0)
 
 	for _, declaration := range owner.hostTools {
@@ -180,7 +186,11 @@ func validateDeclarations(owner ownerManifest) []Finding {
 				})
 			}
 		}
-		if !runtime.HasHandler(hostreq.KindTool, name) {
+		has, err := runtime.HasHandler(hostreq.KindTool, name)
+		if err != nil {
+			return nil, fmt.Errorf("runtime registry unavailable while validating %s/%s: %w", owner.kind, owner.name, err)
+		}
+		if !has {
 			findings = append(findings, Finding{
 				Code:        FindingMissingHandler,
 				OwnerKind:   owner.kind,
@@ -194,7 +204,11 @@ func validateDeclarations(owner ownerManifest) []Finding {
 
 	for _, declaration := range owner.safeguards {
 		name := strings.TrimSpace(declaration.Name)
-		if !runtime.HasHandler(hostreq.KindSafeguard, name) {
+		has, err := runtime.HasHandler(hostreq.KindSafeguard, name)
+		if err != nil {
+			return nil, fmt.Errorf("runtime registry unavailable while validating %s/%s: %w", owner.kind, owner.name, err)
+		}
+		if !has {
 			findings = append(findings, Finding{
 				Code:        FindingMissingHandler,
 				OwnerKind:   owner.kind,
@@ -206,7 +220,7 @@ func validateDeclarations(owner ownerManifest) []Finding {
 		}
 	}
 
-	return findings
+	return findings, nil
 }
 
 func validateReferences(root string, owner ownerManifest) []Finding {

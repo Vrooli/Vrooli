@@ -598,10 +598,6 @@ type onboardingPreferences struct {
 	Skipped    bool   `json:"skipped,omitempty"`
 }
 
-func maybeOpenOnboarding(root, home string, stdout, stderr io.Writer) error {
-	return newSetupService(defaultSetupDeps()).maybeOpenOnboarding(root, home, stdout, stderr)
-}
-
 func (s *setupService) maybeOpenOnboarding(root, home string, stdout, stderr io.Writer) error {
 	if onboardingDisabledByEnv() {
 		return nil

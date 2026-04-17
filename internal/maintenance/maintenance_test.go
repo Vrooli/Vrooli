@@ -82,6 +82,36 @@ func TestLooksLikeVrooliProcessMatchesInstalledCLIs(t *testing.T) {
 	}
 }
 
+func TestLooksLikeVrooliProcessExcludesAutohealLoop(t *testing.T) {
+	root := "/home/alice/Vrooli"
+	home := "/home/alice"
+
+	entry := processTableEntry{
+		PID:        4100,
+		Executable: "/home/alice/Vrooli/scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop",
+		Command:    "/home/alice/Vrooli/scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop",
+		Cwd:        "/home/alice/Vrooli/scenarios/vrooli-autoheal/cli",
+	}
+	if looksLikeVrooliProcess(root, home, entry) {
+		t.Fatalf("expected watchdog loop to be excluded from orphan classification")
+	}
+}
+
+func TestLooksLikeVrooliProcessExcludesDeletedAutohealLoopExecutable(t *testing.T) {
+	root := "/home/alice/Vrooli"
+	home := "/home/alice"
+
+	entry := processTableEntry{
+		PID:        4101,
+		Executable: "/home/alice/Vrooli/scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop (deleted)",
+		Command:    "/home/alice/Vrooli/scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop",
+		Cwd:        "/home/alice/Vrooli/scenarios/vrooli-autoheal/cli",
+	}
+	if looksLikeVrooliProcess(root, home, entry) {
+		t.Fatalf("expected deleted watchdog executable to be excluded from orphan classification")
+	}
+}
+
 func TestLooksLikeVrooliProcessMatchesScenarioBinary(t *testing.T) {
 	root := "/home/alice/Vrooli"
 	home := "/home/alice"
@@ -233,17 +263,25 @@ func TestKillOrphansUsesGracefulThenForce(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
+	orphan := processTableEntry{PID: 5200, PPID: 1, PGID: 5200, Executable: filepath.Join(root, "scenarios", "beta", "api", "server"), Command: filepath.Join(root, "scenarios", "beta", "api", "server")}
+
 	originalListProcessTable := listProcessTableFn
 	originalKillProcess := killProcessFn
+	originalReadEntry := readProcessEntryFn
 	t.Cleanup(func() {
 		listProcessTableFn = originalListProcessTable
 		killProcessFn = originalKillProcess
+		readProcessEntryFn = originalReadEntry
 	})
 
 	listProcessTableFn = func() (map[int]processTableEntry, error) {
-		return map[int]processTableEntry{
-			5200: {PID: 5200, PPID: 1, PGID: 5200, Command: filepath.Join(root, "scenarios", "beta", "api", "server")},
-		}, nil
+		return map[int]processTableEntry{5200: orphan}, nil
+	}
+	readProcessEntryFn = func(pid int) (processTableEntry, bool) {
+		if pid == 5200 {
+			return orphan, true
+		}
+		return processTableEntry{}, false
 	}
 
 	calls := make([]string, 0, 2)
@@ -262,6 +300,198 @@ func TestKillOrphansUsesGracefulThenForce(t *testing.T) {
 	}
 	if !reflect.DeepEqual(calls, []string{"pid=5200,force=false"}) {
 		t.Fatalf("kill calls = %#v", calls)
+	}
+}
+
+// TestKillOrphansSkipsRecycledPID verifies the check-and-act race fix: if the
+// orphan PID has been recycled to an unrelated process by the time we iterate,
+// we do not send a signal to it. The orphan is still reported as "stopped"
+// since it is effectively gone.
+func TestKillOrphansSkipsRecycledPID(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+
+	vrooliOrphan := processTableEntry{PID: 5200, PPID: 1, PGID: 5200, Executable: filepath.Join(root, "scenarios", "beta", "api", "server"), Command: filepath.Join(root, "scenarios", "beta", "api", "server")}
+	recycled := processTableEntry{PID: 5200, PPID: 1, PGID: 5200, Executable: "/usr/bin/sshd", Command: "/usr/bin/sshd"}
+
+	originalListProcessTable := listProcessTableFn
+	originalKillProcess := killProcessFn
+	originalReadEntry := readProcessEntryFn
+	t.Cleanup(func() {
+		listProcessTableFn = originalListProcessTable
+		killProcessFn = originalKillProcess
+		readProcessEntryFn = originalReadEntry
+	})
+
+	// Snapshot sees the orphan as Vrooli.
+	listProcessTableFn = func() (map[int]processTableEntry, error) {
+		return map[int]processTableEntry{5200: vrooliOrphan}, nil
+	}
+	// By the time KillOrphans re-reads /proc, the PID has been recycled.
+	readProcessEntryFn = func(pid int) (processTableEntry, bool) {
+		if pid == 5200 {
+			return recycled, true
+		}
+		return processTableEntry{}, false
+	}
+
+	calls := make([]string, 0)
+	killProcessFn = func(pid int, force bool) error {
+		calls = append(calls, "pid="+strconv.Itoa(pid)+",force="+boolString(force))
+		return nil
+	}
+
+	controller := NewController(root, home)
+	report, err := controller.KillOrphans()
+	if err != nil {
+		t.Fatalf("KillOrphans: %v", err)
+	}
+	if len(calls) != 0 {
+		t.Fatalf("expected no signals sent to a recycled PID; got %v", calls)
+	}
+	if len(report.Stopped) != 1 || report.Stopped[0].Name != "5200" {
+		t.Fatalf("expected recycled orphan to be reported stopped; got %#v", report.Stopped)
+	}
+}
+
+// TestKillOrphansSkipsExitedPID: if the PID has already exited between the
+// snapshot and KillOrphans iteration, no signal should fire.
+func TestKillOrphansSkipsExitedPID(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+
+	vrooliOrphan := processTableEntry{PID: 5200, PPID: 1, PGID: 5200, Executable: filepath.Join(root, "scenarios", "beta", "api", "server"), Command: filepath.Join(root, "scenarios", "beta", "api", "server")}
+
+	originalListProcessTable := listProcessTableFn
+	originalKillProcess := killProcessFn
+	originalReadEntry := readProcessEntryFn
+	t.Cleanup(func() {
+		listProcessTableFn = originalListProcessTable
+		killProcessFn = originalKillProcess
+		readProcessEntryFn = originalReadEntry
+	})
+
+	listProcessTableFn = func() (map[int]processTableEntry, error) {
+		return map[int]processTableEntry{5200: vrooliOrphan}, nil
+	}
+	readProcessEntryFn = func(pid int) (processTableEntry, bool) {
+		return processTableEntry{}, false // process gone
+	}
+
+	calls := make([]string, 0)
+	killProcessFn = func(pid int, force bool) error {
+		calls = append(calls, "pid="+strconv.Itoa(pid)+",force="+boolString(force))
+		return nil
+	}
+
+	controller := NewController(root, home)
+	report, err := controller.KillOrphans()
+	if err != nil {
+		t.Fatalf("KillOrphans: %v", err)
+	}
+	if len(calls) != 0 {
+		t.Fatalf("expected no signals for an exited PID; got %v", calls)
+	}
+	if len(report.Stopped) != 1 {
+		t.Fatalf("expected exited orphan to still be reported stopped; got %#v", report.Stopped)
+	}
+}
+
+// TestListOrphansHonorsTrackedSession covers the session-id fallback: a worker
+// process spawned by a tracked dev server may have its own PGID (via setsid in
+// node's tinypool/esbuild) but still shares the session with the tracked
+// parent. Such workers must NOT be classified as orphans.
+func TestListOrphansHonorsTrackedSession(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+
+	if err := os.MkdirAll(process.ScenarioProcessDir(home, "alpha"), 0o755); err != nil {
+		t.Fatalf("mkdir process dir: %v", err)
+	}
+	if err := process.WriteScenarioRecord(home, "alpha", "start-ui", process.Record{PID: 4100, PGID: 4100}); err != nil {
+		t.Fatalf("write scenario record: %v", err)
+	}
+
+	originalListProcessTable := listProcessTableFn
+	t.Cleanup(func() { listProcessTableFn = originalListProcessTable })
+	listProcessTableFn = func() (map[int]processTableEntry, error) {
+		// 4100 is the tracked node dev server (session leader).
+		// 4200 is an esbuild worker spawned by node with its own PGID (setsid)
+		// but still in the same session. 4200's ppid is 1 here to simulate a
+		// reparented intermediate (the chain walk alone could not catch it).
+		return map[int]processTableEntry{
+			4100: {PID: 4100, PPID: 1, PGID: 4100, SID: 4100, Executable: filepath.Join(root, "scenarios", "alpha", "ui", "node")},
+			4200: {PID: 4200, PPID: 1, PGID: 4200, SID: 4100, Executable: filepath.Join(root, "scenarios", "alpha", "ui", "node_modules", ".pnpm", "@esbuild+linux-x64@0.21.5", "node_modules", "@esbuild", "linux-x64", "bin", "esbuild")},
+			// 5200 is a genuine orphan from a dead scenario.
+			5200: {PID: 5200, PPID: 1, PGID: 5200, SID: 5200, Executable: filepath.Join(root, "scenarios", "beta", "api", "server")},
+		}, nil
+	}
+
+	controller := NewController(root, home)
+	orphans, err := controller.ListOrphans()
+	if err != nil {
+		t.Fatalf("ListOrphans: %v", err)
+	}
+	if len(orphans) != 1 || orphans[0].PID != 5200 {
+		t.Fatalf("expected only 5200 orphan (esbuild worker sharing SID should be filtered); got %#v", orphans)
+	}
+}
+
+// TestListOrphansIgnoresSessionOneMatch guards against the degenerate case
+// where a tracked process reports SID=1 (session leader is init). We must not
+// then claim every process in the system is tracked.
+func TestListOrphansIgnoresSessionOneMatch(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+
+	if err := os.MkdirAll(process.ScenarioProcessDir(home, "alpha"), 0o755); err != nil {
+		t.Fatalf("mkdir process dir: %v", err)
+	}
+	if err := process.WriteScenarioRecord(home, "alpha", "start-api", process.Record{PID: 4100, PGID: 4100}); err != nil {
+		t.Fatalf("write scenario record: %v", err)
+	}
+
+	originalListProcessTable := listProcessTableFn
+	t.Cleanup(func() { listProcessTableFn = originalListProcessTable })
+	listProcessTableFn = func() (map[int]processTableEntry, error) {
+		// Tracked pid 4100 has SID=1 (pathological). Unrelated orphan 5200 also
+		// has SID=1. It must still be classified as orphan.
+		return map[int]processTableEntry{
+			4100: {PID: 4100, PPID: 1, PGID: 4100, SID: 1, Executable: filepath.Join(root, "scenarios", "alpha", "api", "server")},
+			5200: {PID: 5200, PPID: 1, PGID: 5200, SID: 1, Executable: filepath.Join(root, "scenarios", "beta", "api", "server")},
+		}, nil
+	}
+
+	controller := NewController(root, home)
+	orphans, err := controller.ListOrphans()
+	if err != nil {
+		t.Fatalf("ListOrphans: %v", err)
+	}
+	if len(orphans) != 1 || orphans[0].PID != 5200 {
+		t.Fatalf("SID=1 must not bridge unrelated processes; orphans=%#v", orphans)
+	}
+}
+
+// TestParseProcessTableLineParsesSIDColumn covers the new ps -o sid= parse.
+func TestParseProcessTableLineParsesSIDColumn(t *testing.T) {
+	entry, ok := parseProcessTableLine("  4100  1  4100  4100  S  /usr/bin/node server.js")
+	if !ok {
+		t.Fatal("parse failed")
+	}
+	if entry.PID != 4100 || entry.PPID != 1 || entry.PGID != 4100 || entry.SID != 4100 || entry.State != "S" {
+		t.Fatalf("fields = %+v", entry)
+	}
+	if entry.Command != "/usr/bin/node server.js" {
+		t.Fatalf("command = %q", entry.Command)
+	}
+}
+
+func TestParseProcessTableLineRejectsTooFewFields(t *testing.T) {
+	if _, ok := parseProcessTableLine("4100 1 4100 S cmd"); ok {
+		t.Fatal("expected rejection for missing sid column")
+	}
+	if _, ok := parseProcessTableLine(""); ok {
+		t.Fatal("expected rejection for empty line")
 	}
 }
 

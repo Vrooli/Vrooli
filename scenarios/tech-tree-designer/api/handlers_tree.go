@@ -85,16 +85,7 @@ func createTechTreeHandler(c *gin.Context) {
 		ctx = context.Background()
 	}
 
-	params := CreateTreeParams{
-		Name:         payload.Name,
-		Slug:         payload.Slug,
-		Description:  payload.Description,
-		TreeType:     payload.TreeType,
-		Status:       payload.Status,
-		Version:      payload.Version,
-		ParentTreeID: payload.ParentTreeID,
-		IsActive:     payload.IsActive,
-	}
+	params := CreateTreeParams(payload)
 
 	tree, err := treeService.CreateTree(ctx, params)
 	if err != nil {
@@ -143,15 +134,7 @@ func updateTechTreeHandler(c *gin.Context) {
 		ctx = context.Background()
 	}
 
-	params := UpdateTreeParams{
-		Name:        payload.Name,
-		Description: payload.Description,
-		TreeType:    payload.TreeType,
-		Status:      payload.Status,
-		Version:     payload.Version,
-		Slug:        payload.Slug,
-		IsActive:    payload.IsActive,
-	}
+	params := UpdateTreeParams(payload)
 
 	tree, err := treeService.UpdateTree(ctx, techTreeID, params)
 	if err != nil {
@@ -202,14 +185,7 @@ func cloneTechTreeHandler(c *gin.Context) {
 		ctx = context.Background()
 	}
 
-	params := CloneTreeParams{
-		Name:        payload.Name,
-		Slug:        payload.Slug,
-		Description: payload.Description,
-		TreeType:    payload.TreeType,
-		Status:      payload.Status,
-		IsActive:    payload.IsActive,
-	}
+	params := CloneTreeParams(payload)
 
 	tree, err := treeService.CloneTree(ctx, sourceTreeID, params)
 	if err != nil {

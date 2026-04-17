@@ -868,10 +868,6 @@ func stepConditionsMetWithDeps(item scenario.Scenario, condition *scenario.Condi
 	return true, "", nil
 }
 
-func jsonPathExists(filePath, spec string) (bool, error) {
-	return jsonPathExistsWithDeps(filePath, spec, defaultHostProbeDeps())
-}
-
 func jsonPathExistsWithDeps(filePath, spec string, deps hostProbeDeps) (bool, error) {
 	parts := strings.SplitN(spec, ":", 2)
 	if len(parts) != 2 {
@@ -1212,10 +1208,6 @@ func directoriesNeedSetup(appRoot string, check scenario.ConditionCheck) bool {
 		}
 	}
 	return false
-}
-
-func readScenarioRecords(home, name string) ([]process.Record, error) {
-	return process.ReadScenarioRecords(home, name)
 }
 
 func localReplacePaths(goModPath string) ([]string, error) {

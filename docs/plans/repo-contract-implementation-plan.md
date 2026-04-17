@@ -45,17 +45,15 @@ The contract must treat those sources as higher authority than legacy implementa
 
 ## 3. Explicit Exclusions
 
-The following project-level shell-era paths are transitional debt and must **not** appear in the canonical repo contract:
+The following project-level shell-era paths are excluded from the canonical repo contract:
 
-- `cli/`
-- `cli/commands/`
-- `cli/lib/`
-- `scripts/lib/`
-- `scripts/manage.sh`
+- `cli/` (deleted)
+- `scripts/lib/` (remaining shared helpers are out of scope for the contract)
+- `scripts/manage.sh` (deleted)
 - project-level shell dispatch assumptions
 - project-level shell helper locations
 
-These paths may still exist physically while migration cleanup continues, but they are not part of the future-state repository contract and new consumers must not depend on them.
+New consumers must not depend on any of these, and the `scripts/lib/**` / `scripts/manage.sh` globs remain in the bundle profile exclude list to block reintroduction.
 
 The contract should also exclude:
 - incidental paths used only in tests

@@ -781,13 +781,6 @@ func writeInstallMetadataFixture(t *testing.T, path string, meta InstallMetadata
 	}
 }
 
-func computeTestFingerprint(modulePath, binaryName string) (string, error) {
-	return cliutil.ComputeFreshnessFingerprint(cliutil.FreshnessSpec{
-		SourceRoot: modulePath,
-		SkipFiles:  []string{binaryName},
-	})
-}
-
 func mapProjectResources(enabled map[string]bool) scenario.Dependencies {
 	return scenario.Dependencies{Resources: mapResourceDependencies(enabled)}
 }

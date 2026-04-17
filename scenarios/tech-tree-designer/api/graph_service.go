@@ -80,14 +80,14 @@ func (s *GraphService) UpdateGraph(ctx context.Context, treeID string, request G
 	// Get allowed stages for this tree (security check)
 	allowedStages, err := s.getAllowedStages(ctx, tx, treeID)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return nil, nil, fmt.Errorf("failed to load stage catalog: %w", err)
 	}
 
 	// Update stage positions
 	if len(request.StagePositions) > 0 {
 		if err := s.updateStagePositions(ctx, tx, request.StagePositions, allowedStages); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return nil, nil, err
 		}
 	}
@@ -95,7 +95,7 @@ func (s *GraphService) UpdateGraph(ctx context.Context, treeID string, request G
 	// Update dependencies
 	if request.Dependencies != nil {
 		if err := s.updateDependencies(ctx, tx, treeID, request.Dependencies, allowedStages); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return nil, nil, err
 		}
 	}

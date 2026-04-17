@@ -75,7 +75,10 @@ func TestCurrentRepoPhase4DeclarationsPresent(t *testing.T) {
 	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "palette-gen", ".vrooli", "service.json"), "bats")
 	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "scenario-completeness-scoring", ".vrooli", "service.json"), "bats")
 	assertManifestContainsTool(t, filepath.Join(root, "resources", "whisper", "resource.json"), "ffmpeg")
-	assertManifestLacksTool(t, filepath.Join(root, "resources", "vault", "resource.json"), "vault")
+	assertManifestContainsTool(t, filepath.Join(root, "resources", "vault", "resource.json"), "vault")
+	assertManifestContainsTool(t, filepath.Join(root, "resources", "litellm", "resource.json"), "vault")
+	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "tunnel-manager", ".vrooli", "service.json"), "cloudflared")
+	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "deployment-manager", ".vrooli", "service.json"), "helm")
 }
 
 func TestCurrentRepoPhase4ValidatorIsClean(t *testing.T) {
@@ -124,14 +127,6 @@ func assertManifestContainsTool(t *testing.T, path, name string) {
 	names := manifestToolNames(t, path)
 	if !slices.Contains(names, name) {
 		t.Fatalf("%s does not declare %q", path, name)
-	}
-}
-
-func assertManifestLacksTool(t *testing.T, path, name string) {
-	t.Helper()
-	names := manifestToolNames(t, path)
-	if slices.Contains(names, name) {
-		t.Fatalf("%s unexpectedly declares %q", path, name)
 	}
 }
 

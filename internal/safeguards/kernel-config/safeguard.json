@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "kernel_config",
+  "description": "Configure kernel parameters for optimal Vrooli operation (inotify file watcher limits)",
+  "handler": "kernel_config",
+  "platforms": ["linux"],
+  "healthCheck": {
+    "files": ["/etc/sysctl.d/99-vrooli.conf"]
+  }
+}

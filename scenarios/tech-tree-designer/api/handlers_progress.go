@@ -66,7 +66,6 @@ func getScenarioMappings(c *gin.Context) {
 	if scenarioFilter := strings.TrimSpace(c.Query("scenario")); scenarioFilter != "" {
 		filters = append(filters, fmt.Sprintf("sm.scenario_name = $%d", argIndex))
 		args = append(args, scenarioFilter)
-		argIndex++
 	}
 
 	query := `
@@ -339,7 +338,7 @@ func updateStageMaturity(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to begin transaction"})
 		return
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// Update stage maturity
 	_, err = tx.ExecContext(c.Request.Context(), `

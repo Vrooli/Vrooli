@@ -5,9 +5,10 @@ package vrooli
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
+
 	"vrooli-autoheal/internal/checks"
+	integration "vrooli-autoheal/internal/integrations/vrooli"
 	"vrooli-autoheal/internal/platform"
 )
 
@@ -21,6 +22,7 @@ type ResourceCheck struct {
 	importance   string
 	interval     int
 	executor     checks.CommandExecutor
+	client       *integration.Client
 }
 
 // ResourceCheckOption configures a ResourceCheck.
@@ -30,6 +32,7 @@ type ResourceCheckOption func(*ResourceCheck)
 func WithResourceExecutor(executor checks.CommandExecutor) ResourceCheckOption {
 	return func(c *ResourceCheck) {
 		c.executor = executor
+		c.client = integration.NewClient(executor)
 	}
 }
 
@@ -96,6 +99,7 @@ func NewResourceCheck(resourceName string, opts ...ResourceCheckOption) *Resourc
 		importance:   meta.importance,
 		interval:     60,
 		executor:     checks.DefaultExecutor,
+		client:       integration.NewClient(checks.DefaultExecutor),
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -117,11 +121,8 @@ func (c *ResourceCheck) Run(ctx context.Context) checks.Result {
 		Details: make(map[string]interface{}),
 	}
 
-	// Run vrooli resource status using injected executor
-	output, err := c.executor.CombinedOutput(ctx, "vrooli", "resource", "status", c.resourceName)
-
+	status, output, err := c.client.ResourceStatus(ctx, c.resourceName)
 	result.Details["output"] = string(output)
-
 	if err != nil {
 		result.Status = checks.StatusCritical
 		result.Message = c.resourceName + " resource is not healthy"
@@ -129,12 +130,39 @@ func (c *ResourceCheck) Run(ctx context.Context) checks.Result {
 		return result
 	}
 
-	// Use centralized CLI output classifier
-	// Resources are critical infrastructure, so stopped = critical
-	const isCritical = true
-	cliStatus := ClassifyCLIOutput(string(output))
-	result.Status = CLIStatusToCheckStatus(cliStatus, isCritical)
-	result.Message = CLIStatusDescription(cliStatus, c.resourceName+" resource")
+	result.Details["installed"] = status.Installed
+	result.Details["running"] = status.Running
+	result.Details["statusText"] = status.NormalizedStatus()
+	if status.Healthy != nil {
+		result.Details["healthy"] = *status.Healthy
+	}
+
+	switch {
+	case !status.Success:
+		result.Status = checks.StatusWarning
+		result.Message = c.resourceName + " resource status check was not successful"
+	case !status.Installed:
+		result.Status = checks.StatusCritical
+		result.Message = c.resourceName + " resource is not installed"
+	case !status.Running:
+		result.Status = checks.StatusCritical
+		result.Message = c.resourceName + " resource is stopped"
+	case status.Healthy != nil && !*status.Healthy:
+		result.Status = checks.StatusCritical
+		result.Message = c.resourceName + " resource is unhealthy"
+	case status.Healthy != nil && *status.Healthy:
+		result.Status = checks.StatusOK
+		result.Message = c.resourceName + " resource is healthy"
+	case status.NormalizedStatus() == "healthy":
+		result.Status = checks.StatusOK
+		result.Message = c.resourceName + " resource is healthy"
+	case status.NormalizedStatus() == "unhealthy":
+		result.Status = checks.StatusCritical
+		result.Message = c.resourceName + " resource is unhealthy"
+	default:
+		result.Status = checks.StatusWarning
+		result.Message = c.resourceName + " resource status unclear"
+	}
 
 	return result
 }
@@ -147,45 +175,17 @@ func (c *ResourceCheck) ResourceName() string {
 // RecoveryActions returns the available recovery actions for this resource check
 // [REQ:HEAL-ACTION-001]
 func (c *ResourceCheck) RecoveryActions(lastResult *checks.Result) []checks.RecoveryAction {
-	// Determine current state from last result
-	// Use check status as the primary indicator, with output parsing as secondary
 	isRunning := false
 	isStopped := false
 	if lastResult != nil {
-		// Primary: use check status (most reliable)
-		if lastResult.Status == checks.StatusOK {
-			isRunning = true
-		} else if lastResult.Status == checks.StatusCritical {
-			isStopped = true
-		}
-
-		// Secondary: parse output for more specific state info
-		// Only override if we find definitive state indicators
-		output, ok := lastResult.Details["output"].(string)
-		if ok {
-			lowerOutput := strings.ToLower(output)
-			// Check for negative phrases FIRST to avoid false positives
-			hasNotRunning := strings.Contains(lowerOutput, "not running") ||
-				strings.Contains(lowerOutput, "may not be running") ||
-				strings.Contains(lowerOutput, "isn't running") ||
-				strings.Contains(lowerOutput, "is not running")
-
-			// Look for definitive positive state indicators (format: "Running: true/false")
-			hasDefinitiveRunning := strings.Contains(lowerOutput, "running: true") ||
-				strings.Contains(lowerOutput, "status: running") ||
-				strings.Contains(lowerOutput, "state: running")
-
-			hasDefinitiveStopped := strings.Contains(lowerOutput, "running: false") ||
-				strings.Contains(lowerOutput, "status: stopped") ||
-				strings.Contains(lowerOutput, "state: stopped")
-
-			// Only update state if we have definitive indicators
-			if hasDefinitiveRunning && !hasNotRunning {
+		if running, ok := lastResult.Details["running"].(bool); ok {
+			isRunning = running
+			isStopped = !running
+		} else {
+			if lastResult.Status == checks.StatusOK {
 				isRunning = true
-				isStopped = false
-			} else if hasDefinitiveStopped || hasNotRunning {
+			} else if lastResult.Status == checks.StatusCritical {
 				isStopped = true
-				isRunning = false
 			}
 		}
 	}

@@ -10,7 +10,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
-	. "github.com/vrooli/vrooli/internal/cli/scenariocli"
+	. "github.com/vrooli/vrooli/internal/cli/scenariocli" //nolint:revive // scenariohandlers is a thin glue layer over scenariocli; dot-import keeps wiring readable.
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/scenarioexec"
 )
@@ -21,6 +21,7 @@ func UISmokeHandler[C any](deps HandlerDeps[C]) func(C, []string) error {
 		if err != nil {
 			return err
 		}
+		emitScenarioStaleWarning(deps.Stderr(ctx), deps.Root(ctx), firstPositionalArg(args), deps.Globals(ctx))
 		commandArgs := BuildUISmokeArgs(deps.Globals(ctx), args)
 		return deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
 			Name:   cliPath,
@@ -45,6 +46,7 @@ func CompletenessHandler[C any](deps HandlerDeps[C]) func(C, []string) error {
 		if err != nil {
 			return err
 		}
+		emitScenarioStaleWarning(deps.Stderr(ctx), deps.Root(ctx), extractCompletenessScenario(args), deps.Globals(ctx))
 		commandArgs := BuildScenarioCompletenessArgs(deps.Globals(ctx), args)
 		return deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
 			Name:   cliPath,

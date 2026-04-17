@@ -13,6 +13,8 @@ import (
 
 // staleCheckEnvVar lets tests and CI disable the warning without threading the
 // --no-stale-check global flag through every caller.
+//
+//nolint:unused // reached only via generic scenariohandlers; unused linter can't trace through instantiations.
 const staleCheckEnvVar = "VROOLI_NO_SCENARIO_STALE_CHECK"
 
 // emitScenarioStaleWarning runs a best-effort stale check against the named
@@ -20,6 +22,8 @@ const staleCheckEnvVar = "VROOLI_NO_SCENARIO_STALE_CHECK"
 // relative to its Go source. It is silent for all other outcomes (fresh,
 // rebuild-detected, initial baseline, no sources). Errors during the check are
 // swallowed: staleness reporting must never block a command.
+//
+//nolint:unused // reached only via generic scenariohandlers; unused linter can't trace through instantiations.
 func emitScenarioStaleWarning(stderr io.Writer, root, scenarioName string, globals rootcli.GlobalOptions) {
 	if globals.NoStaleCheck {
 		return
@@ -64,6 +68,8 @@ func emitScenarioStaleWarning(stderr io.Writer, root, scenarioName string, globa
 //	score history <name>
 //	score trends <name>
 //	score recommend <name>
+//
+//nolint:unused // reached only via generic scenariohandlers; unused linter can't trace through instantiations.
 func extractCompletenessScenario(args []string) string {
 	positional := stripCompletenessFlags(args)
 	if len(positional) < 3 {
@@ -88,6 +94,8 @@ func extractCompletenessScenario(args []string) string {
 // advertised by the completeness CLI's global help; unrecognised flags are
 // kept as-is so we don't accidentally drop a positional that happens to
 // resemble one.
+//
+//nolint:unused // reached only via generic scenariohandlers; unused linter can't trace through instantiations.
 func stripCompletenessFlags(args []string) []string {
 	valuedFlags := map[string]struct{}{
 		"--api-base": {},
@@ -113,6 +121,8 @@ func stripCompletenessFlags(args []string) []string {
 // firstPositionalArg returns the first non-flag token in args, or an empty
 // string if none exists. Used to infer the scenario name from pass-through
 // subcommand arguments.
+//
+//nolint:unused // reached only via generic scenariohandlers; unused linter can't trace through instantiations.
 func firstPositionalArg(args []string) string {
 	for _, arg := range args {
 		if arg == "" || strings.HasPrefix(arg, "-") {

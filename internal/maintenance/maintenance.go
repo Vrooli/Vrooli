@@ -95,15 +95,28 @@ func (c *Controller) KillOrphans() (control.StopReport, error) {
 	stopped := make([]control.ResultItem, 0, len(orphans))
 	failed := make([]control.ResultItem, 0)
 	for _, item := range orphans {
+		// Re-validate right before signaling: if the PID has been recycled to
+		// an unrelated process (or has already exited) between the snapshot and
+		// now, skip the kill entirely. This closes the check-and-act race
+		// between ListOrphans and kill.
+		if !c.stillVrooliOrphan(item.PID) {
+			stopped = append(stopped, control.Stopped(strconv.Itoa(item.PID), item.Command))
+			continue
+		}
 		if err := killProcessFn(item.PID, false); err != nil && !isMissingProcessError(err) {
 			failed = append(failed, control.Failed(strconv.Itoa(item.PID), err))
 			continue
 		}
 		time.Sleep(150 * time.Millisecond)
 		if process.IsPIDRunning(item.PID) {
-			if err := killProcessFn(item.PID, true); err != nil && !isMissingProcessError(err) {
-				failed = append(failed, control.Failed(strconv.Itoa(item.PID), err))
-				continue
+			// Re-validate again: 150ms is long enough for the kernel to recycle
+			// a PID on a busy box. Only escalate to SIGKILL while the PID still
+			// resolves to a Vrooli process.
+			if c.stillVrooliOrphan(item.PID) {
+				if err := killProcessFn(item.PID, true); err != nil && !isMissingProcessError(err) {
+					failed = append(failed, control.Failed(strconv.Itoa(item.PID), err))
+					continue
+				}
 			}
 		}
 		stopped = append(stopped, control.Stopped(strconv.Itoa(item.PID), item.Command))
@@ -114,6 +127,18 @@ func (c *Controller) KillOrphans() (control.StopReport, error) {
 		Failed:  failed,
 		Message: control.StopSummary(len(stopped), len(failed)),
 	}, nil
+}
+
+// stillVrooliOrphan performs a fresh /proc read for the given PID and returns
+// true only if the current process still looks Vrooli-owned. It is the narrow
+// re-validation step used by KillOrphans to guard against PID reuse between the
+// snapshot and signal delivery.
+func (c *Controller) stillVrooliOrphan(pid int) bool {
+	entry, ok := readProcessEntryFn(pid)
+	if !ok {
+		return false
+	}
+	return looksLikeVrooliProcessFn(c.Root, c.Home, entry)
 }
 
 func (c *Controller) DiagnosePort(port int, scenarioName string) (PortDiagnostic, error) {
@@ -218,17 +243,29 @@ var interpreterExeBasenames = map[string]struct{}{
 	"go":      {},
 }
 
+var protectedVrooliExecutableBasenames = map[string]struct{}{
+	"vrooli-autoheal-loop":     {},
+	"vrooli-autoheal-loop.exe": {},
+}
+
 func looksLikeVrooliProcess(root, home string, entry processTableEntry) bool {
 	root = filepath.Clean(root)
 	home = filepath.Clean(home)
 
 	exe := strings.TrimSpace(entry.Executable)
 	cwd := strings.TrimSpace(entry.Cwd)
-	basename := filepath.Base(exe)
+	basename := processPathBase(exe)
+	commandBasename := processPathBase(strings.TrimSpace(entry.Command))
 
 	// Never classify known system daemons or user shells as Vrooli, even if
 	// their cwd or argv happens to touch Vrooli paths.
 	if _, ok := systemDaemonExeBasenames[basename]; ok {
+		return false
+	}
+	if _, ok := protectedVrooliExecutableBasenames[basename]; ok {
+		return false
+	}
+	if _, ok := protectedVrooliExecutableBasenames[commandBasename]; ok {
 		return false
 	}
 
@@ -276,6 +313,15 @@ func looksLikeVrooliProcess(root, home string, entry processTableEntry) bool {
 	}
 
 	return false
+}
+
+func processPathBase(path string) string {
+	path = strings.TrimSpace(path)
+	path = strings.TrimSuffix(path, " (deleted)")
+	if path == "" {
+		return ""
+	}
+	return filepath.Base(path)
 }
 
 func vrooliOwnedPrefixes(root, home string) []string {

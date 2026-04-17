@@ -26,10 +26,7 @@ var (
 	newLoggerFn         = createCommandLogger
 )
 
-type (
-	globalOptions = rootcli.GlobalOptions
-	parsedArgs    = rootcli.ParsedArgs
-)
+type globalOptions = rootcli.GlobalOptions
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
@@ -37,14 +34,6 @@ func main() {
 
 func run(args []string, stdout, stderr io.Writer) int {
 	return configuredRunner().Run(args, stdout, stderr)
-}
-
-func containsArg(args []string, target string) bool {
-	return rootcli.ContainsArg(args, target)
-}
-
-func passthroughFlags(globals globalOptions, existing []string) []string {
-	return rootcli.PassthroughFlags(globals, existing)
 }
 
 func configuredRunner() *rootcli.Runner[*vroolicli.CommandContext] {

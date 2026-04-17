@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+
 	"vrooli-autoheal/internal/platform"
 )
 
@@ -797,10 +798,10 @@ func (r *Registry) shouldTriggerAutoHeal(result Result) bool {
 func selectAutoHealAction(result Result, actions []RecoveryAction) *RecoveryAction {
 	checkID := result.CheckID
 
-	// Policy: orphan cleanup may auto-run a restricted safe kill action.
+	// Policy: orphan cleanup may auto-run the core maintenance cleanup action.
 	if checkID == "vrooli-orphans" {
 		for _, action := range actions {
-			if action.Available && action.ID == "kill-safe" && !action.Dangerous {
+			if action.Available && action.ID == "kill" {
 				return &action
 			}
 		}

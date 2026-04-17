@@ -246,7 +246,7 @@ func generateTextExport(tree *TechTree, neighborhood *NeighborhoodResponse) stri
 
 	builder.WriteString(fmt.Sprintf("# Tech Tree: %s\n", tree.Name))
 	builder.WriteString(fmt.Sprintf("Tree Type: %s\n", tree.TreeType))
-	builder.WriteString(fmt.Sprintf("Query Type: Neighborhood\n\n"))
+	builder.WriteString("Query Type: Neighborhood\n\n")
 
 	builder.WriteString(fmt.Sprintf("## Origin Stage: %s\n", neighborhood.Origin.Stage.Name))
 	builder.WriteString(fmt.Sprintf("Sector: %s (%s)\n", neighborhood.Origin.Sector.Name, neighborhood.Origin.Sector.Category))

@@ -101,23 +101,9 @@ Today, top-level setup is native:
 
 ### Current Shell-era Setup Debt
 
-Relevant shell-era setup surfaces still present or still referenced:
+The previously listed shell-era setup surfaces (`scripts/lib/setup.sh`, `scripts/lib/setup-conditions/*`, `scripts/lib/utils/setup.sh`, `scripts/lib/utils/cli-install.sh`, `scripts/lib/deps/*`, `scripts/lib/system/remote_session_protect.sh`) are removed from the tree, and the in-tree references (root `base-setup` step, `internal/lifecycle` fallback to `scripts/lib/setup-conditions/<type>-check.sh`) have also been cleaned up. UI lifecycle entrypoints run through the hidden native `vrooli lifecycle protect -- ...` command.
 
-- `scripts/lib/setup.sh`
-- `scripts/lib/setup-conditions/*`
-- `scripts/lib/utils/setup.sh`
-- hidden native `vrooli lifecycle protect -- ...` now replaces the old `ui-guard.sh` behavior for lifecycle-managed UI entrypoints
-- `scripts/lib/utils/cli-install.sh`
-- various old `scripts/lib/deps/*` installers/helpers
-- historical safeguard scripts such as `remote_session_protect.sh`
-
-Relevant stale or transitional references still in-tree:
-
-- root `.vrooli/service.json` still contains a shell `base-setup` step pointing at `scripts/lib/setup.sh`;
-- `internal/lifecycle` still shells out to `scripts/lib/setup-conditions/<type>-check.sh` for unknown setup condition types;
-- UI lifecycle entrypoints have been migrated to the hidden native `vrooli lifecycle protect -- ...` command, with `scenario-auditor` enforcement covering raw and legacy launch paths;
-- many scenario CLI install scripts still source `scripts/lib/utils/cli-install.sh`;
-- tests and fixtures still assert against old shell setup references.
+Remaining host-requirements debt is captured in the Cleanup Targets list below and in the adjacent resource/scenario cross-platform tracks.
 
 ## Proposed Architecture
 
@@ -667,7 +653,7 @@ The implementation work should not begin migrating large batches of tools until 
 ### Tasks
 
 - [x] Replace or redesign `scripts/lib/ui-guard.sh`.
-- [~] Defer replacement of `scripts/lib/utils/cli-install.sh` as a temporary compatibility shim for legacy script-based scenario CLIs.
+- [x] Replace `scripts/lib/utils/cli-install.sh` (the helper is deleted; remaining scenario CLI installers use `packages/cli-core/install.sh`).
 - [x] Remove or modernize scenario package/CLI references to those helpers.
 - [x] Decide whether these become:
   - native CLI subcommands,
@@ -676,13 +662,13 @@ The implementation work should not begin migrating large batches of tools until 
   - or are deleted entirely.
 - [x] Update scaffolding/templates so new scenarios/resources do not reintroduce old helper patterns.
 
-`scripts/lib/utils/cli-install.sh` is no longer part of the preferred architecture. It remains temporarily for older non-Go scenario CLIs that still install repo-local shell entrypoints, while current scenario templates already use `packages/cli-core/install.sh` and therefore do not add new consumers.
+`scripts/lib/utils/cli-install.sh` has been removed; scenario CLI installers now use `packages/cli-core/install.sh`.
 
 ### Acceptance
 
 - [x] New scenarios/resources do not depend on old shared shell helper patterns.
 - [x] Existing `ui-guard.sh` consumers are migrated or intentionally quarantined behind explicit compatibility boundaries.
-- [x] `scripts/lib/utils/cli-install.sh` is explicitly documented as deferred compatibility debt rather than an active dependency of the redesigned host requirements architecture.
+- [x] `scripts/lib/utils/cli-install.sh` is removed; no active host requirement depends on it.
 
 ## Phase 8: Validation, Docs, And Enforcement
 
@@ -745,12 +731,12 @@ The implementation must be:
 
 This plan is not complete until the following are either deleted or intentionally replaced:
 
-- [ ] stale shell `base-setup` path in root manifest
-- [ ] `scripts/lib/setup.sh`
-- [ ] obsolete `scripts/lib/deps/*`
-- [ ] obsolete shell safeguard scripts
-- [ ] shell `setup-conditions` infrastructure for native-owned behavior
-- [ ] stale tests/docs asserting old setup behavior
+- [x] stale shell `base-setup` path in root manifest
+- [x] `scripts/lib/setup.sh`
+- [x] obsolete `scripts/lib/deps/*`
+- [x] obsolete shell safeguard scripts
+- [x] shell `setup-conditions` infrastructure for native-owned behavior
+- [x] stale tests/docs asserting old setup behavior
 - [ ] old helper patterns that reintroduce hidden host setup assumptions
 
 ## Phase 0 Decisions Resolved Early

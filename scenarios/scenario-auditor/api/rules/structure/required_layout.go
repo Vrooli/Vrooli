@@ -55,6 +55,11 @@ type Violation = rules.Violation
 
 var scenarioMakefileTargetRegexp = regexp.MustCompile(`(?m)^([A-Za-z0-9_.-]+)\s*:`)
 
+type scenarioMakefileTarget struct {
+	Header  string
+	Recipes []string
+}
+
 // Check validates the presence of required scenario files and the standard lifecycle wrapper Makefile.
 func Check(content string, scenarioPath string, scenario string) ([]Violation, error) {
 	var payload struct {
@@ -201,13 +206,21 @@ dev: start
 
 func matchesScenarioLifecycleWrapper(content string, scenarioPath string) bool {
 	normalized := normalizeFileContent(content)
-	if normalized == canonicalScenarioMakefileForScenarioPath(scenarioPath) {
+	if matchesScenarioLifecycleTemplate(normalized, canonicalScenarioMakefileForScenarioPath(scenarioPath)) {
 		return true
 	}
-	return looksLikeScenarioLifecycleWrapper(normalized)
+	return matchesScenarioLifecycleTemplate(normalized, canonicalScenarioMakefileFallback())
 }
 
-func looksLikeScenarioLifecycleWrapper(content string) bool {
+func matchesScenarioLifecycleTemplate(content string, template string) bool {
+	if normalizeFileContent(content) == normalizeFileContent(template) {
+		return true
+	}
+
+	return matchesScenarioLifecycleTargets(content, template)
+}
+
+func matchesScenarioLifecycleTargets(content string, template string) bool {
 	requiredSnippets := []string{
 		".DEFAULT_GOAL := help",
 		"SCENARIO_NAME := $(notdir $(CURDIR))",
@@ -226,18 +239,85 @@ func looksLikeScenarioLifecycleWrapper(content string) bool {
 		}
 	}
 
-	requiredTargets := []string{"help", "setup", "start", "stop", "restart", "status", "logs", "test", "open", "run", "dev"}
-	foundTargets := make(map[string]struct{}, len(requiredTargets))
-	for _, match := range scenarioMakefileTargetRegexp.FindAllStringSubmatch(content, -1) {
-		if len(match) == 2 {
-			foundTargets[match[1]] = struct{}{}
-		}
+	candidateTargets, candidatePhony := parseScenarioMakefileTargets(content)
+	templateTargets, templatePhony := parseScenarioMakefileTargets(template)
+	if len(templateTargets) == 0 {
+		return false
 	}
-	for _, target := range requiredTargets {
-		if _, ok := foundTargets[target]; !ok {
+
+	candidatePhonySet := make(map[string]struct{}, len(candidatePhony))
+	for _, target := range candidatePhony {
+		candidatePhonySet[target] = struct{}{}
+	}
+	for _, target := range templatePhony {
+		if _, ok := candidatePhonySet[target]; !ok {
 			return false
 		}
 	}
 
-	return strings.Contains(content, "run: start") && strings.Contains(content, "dev: start")
+	for name, expected := range templateTargets {
+		actual, ok := candidateTargets[name]
+		if !ok {
+			return false
+		}
+		if normalizeFileContent(actual.Header) != normalizeFileContent(expected.Header) {
+			return false
+		}
+		if len(actual.Recipes) != len(expected.Recipes) {
+			return false
+		}
+		for i := range expected.Recipes {
+			if normalizeFileContent(actual.Recipes[i]) != normalizeFileContent(expected.Recipes[i]) {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+func parseScenarioMakefileTargets(content string) (map[string]scenarioMakefileTarget, []string) {
+	lines := strings.Split(strings.ReplaceAll(content, "\r\n", "\n"), "\n")
+	targets := make(map[string]scenarioMakefileTarget)
+	phony := []string{}
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, ".PHONY:") {
+			phony = append(phony, strings.Fields(strings.TrimSpace(strings.TrimPrefix(trimmed, ".PHONY:")))...)
+		}
+	}
+
+	for i := 0; i < len(lines); i++ {
+		line := lines[i]
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, ".") || strings.Contains(trimmed, "=") {
+			continue
+		}
+		match := scenarioMakefileTargetRegexp.FindStringSubmatch(line)
+		if len(match) != 2 {
+			continue
+		}
+
+		name := strings.TrimSpace(match[1])
+		var recipes []string
+		for j := i + 1; j < len(lines); j++ {
+			next := lines[j]
+			if strings.HasPrefix(next, "\t") {
+				recipes = append(recipes, strings.TrimRight(next, " \t"))
+				continue
+			}
+			if strings.TrimSpace(next) == "" {
+				continue
+			}
+			break
+		}
+
+		targets[name] = scenarioMakefileTarget{
+			Header:  strings.TrimSpace(line),
+			Recipes: recipes,
+		}
+	}
+
+	return targets, phony
 }

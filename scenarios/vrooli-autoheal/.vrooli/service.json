@@ -180,6 +180,15 @@
       ]
     }
   },
+  "hostTools": [
+    {
+      "name": "cloudflared",
+      "required": true,
+      "reason": "Infrastructure health checks and self-healing for the Cloudflare tunnel process",
+      "when": ["develop"],
+      "platforms": ["linux", "macos", "windows"]
+    }
+  ],
   "dependencies": {
     "resources": {
       "redis": {

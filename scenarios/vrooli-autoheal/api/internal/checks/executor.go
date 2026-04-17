@@ -6,8 +6,13 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"time"
+
+	"vrooli-autoheal/internal/reporoot"
 )
 
 // CommandExecutor abstracts command execution for testability.
@@ -26,19 +31,43 @@ type CommandExecutor interface {
 // It delegates to os/exec for actual command execution.
 type RealExecutor struct{}
 
+func resolveCommandPath(name string) string {
+	if strings.TrimSpace(name) != "vrooli" {
+		return name
+	}
+	if override := strings.TrimSpace(os.Getenv("VROOLI_CMD_PATH")); override != "" {
+		return override
+	}
+	root := reporoot.ResolveFromOS()
+	if root == "" {
+		return name
+	}
+	for _, candidate := range []string{
+		filepath.Join(root, ".vrooli", "build", "vrooli"),
+		filepath.Join(root, ".vrooli", "build", "vrooli.exe"),
+		filepath.Join(root, "vrooli"),
+		filepath.Join(root, "vrooli.exe"),
+	} {
+		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+			return candidate
+		}
+	}
+	return name
+}
+
 // Output runs the command and returns stdout.
 func (e *RealExecutor) Output(ctx context.Context, name string, args ...string) ([]byte, error) {
-	return exec.CommandContext(ctx, name, args...).Output()
+	return exec.CommandContext(ctx, resolveCommandPath(name), args...).Output()
 }
 
 // CombinedOutput runs the command and returns combined stdout/stderr.
 func (e *RealExecutor) CombinedOutput(ctx context.Context, name string, args ...string) ([]byte, error) {
-	return exec.CommandContext(ctx, name, args...).CombinedOutput()
+	return exec.CommandContext(ctx, resolveCommandPath(name), args...).CombinedOutput()
 }
 
 // Run executes the command without capturing output.
 func (e *RealExecutor) Run(ctx context.Context, name string, args ...string) error {
-	return exec.CommandContext(ctx, name, args...).Run()
+	return exec.CommandContext(ctx, resolveCommandPath(name), args...).Run()
 }
 
 // DefaultExecutor is the global executor instance used when none is injected.

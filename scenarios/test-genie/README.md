@@ -55,7 +55,7 @@ test-genie/
 |--------|--------|----------|
 | `quick` | Structure, Standards, Docs, Unit | Fast sanity check |
 | `smoke` | Structure, Standards, Lint, Docs, Integration | Pre-commit validation |
-| `comprehensive` | All 11 phases | Full CI/CD validation |
+| `comprehensive` | Structure, Standards, Dependencies, Lint, Docs, Smoke, Unit, Integration, Playbooks, Business, Performance | Full CI/CD validation |
 
 ```bash
 test-genie execute my-scenario --preset smoke
@@ -77,6 +77,12 @@ test-genie status [--executions] [--verbose]
 
 # Queue test generation (delegates to AI agents)
 test-genie generate <scenario> --types unit,integration
+
+# Trigger the scenario-local runner
+test-genie run-tests <scenario> [--type phased]
+
+# Run only the shared UI smoke harness
+test-genie ui-smoke <scenario>
 ```
 
 ## REST API

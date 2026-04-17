@@ -79,7 +79,10 @@ func inspectResolution(host Host, environment string, resolution hostreq.Resolut
 }
 
 func inspectRequirement(host Host, requirement hostreq.ResolvedRequirement) ItemStatus {
-	h := lookupHandler(requirement.Kind, requirement.Name)
+	h, err := lookupHandler(requirement.Kind, requirement.Name)
+	if err != nil {
+		return hostreqkit.UnsupportedRequirementStatus(requirement, fmt.Sprintf("runtime registry unavailable: %v", err))
+	}
 	if h == nil {
 		return hostreqkit.UnsupportedRequirementStatus(requirement, "no native runtime handler registered")
 	}
@@ -87,7 +90,10 @@ func inspectRequirement(host Host, requirement hostreq.ResolvedRequirement) Item
 }
 
 func applyRequirement(host Host, status ItemStatus, opts EnsureOptions) (ItemStatus, error) {
-	h := lookupHandler(status.Kind, status.Name)
+	h, err := lookupHandler(status.Kind, status.Name)
+	if err != nil {
+		return status, fmt.Errorf("runtime registry unavailable: %w", err)
+	}
 	if h == nil {
 		status.Notes = append(status.Notes, "no native runtime handler registered")
 		status.SupportClass = SupportUnsupported

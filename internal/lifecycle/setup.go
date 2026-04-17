@@ -255,7 +255,7 @@ func (r *Runner) runPostgresCommand(env map[string]string, database string, args
 	commandEnv = mergeEnv(commandEnv, map[string]string{"PGOPTIONS": appendPostgresOption(env["PGOPTIONS"], "--client-min-messages=warning")})
 
 	containerName := postgresContainerName(r.Root)
-	if output, err, ok := r.runPostgresInContainer(containerName, env, database, args, commandEnv, logWriter); ok {
+	if output, ok, err := r.runPostgresInContainer(containerName, env, database, args, commandEnv, logWriter); ok {
 		return output, err
 	}
 
@@ -279,21 +279,21 @@ func (r *Runner) runPostgresCommand(env map[string]string, database string, args
 	if strings.TrimSpace(containerName) == "" {
 		containerName = "vrooli-postgres-main"
 	}
-	output, err, _ := r.runPostgresInContainer(containerName, env, database, args, commandEnv, logWriter)
+	output, _, err := r.runPostgresInContainer(containerName, env, database, args, commandEnv, logWriter)
 	return output, err
 }
 
-func (r *Runner) runPostgresInContainer(containerName string, env map[string]string, database string, args []string, commandEnv []string, logWriter io.Writer) ([]byte, error, bool) {
+func (r *Runner) runPostgresInContainer(containerName string, env map[string]string, database string, args []string, commandEnv []string, logWriter io.Writer) ([]byte, bool, error) {
 	if strings.TrimSpace(containerName) == "" {
-		return nil, nil, false
+		return nil, false, nil
 	}
 	if _, err := shell.LookPath("docker"); err != nil {
-		return nil, nil, false
+		return nil, false, nil
 	}
 
 	stdin, filteredArgs, err := postgresFileInput(args)
 	if err != nil {
-		return nil, err, true
+		return nil, true, err
 	}
 
 	dockerArgs := []string{"exec"}
@@ -330,9 +330,9 @@ func (r *Runner) runPostgresInContainer(containerName string, env map[string]str
 		_, _ = logWriter.Write(output)
 	}
 	if err != nil {
-		return nil, err, true
+		return nil, true, err
 	}
-	return output, nil, true
+	return output, true, nil
 }
 
 func appendPostgresOption(existing, option string) string {

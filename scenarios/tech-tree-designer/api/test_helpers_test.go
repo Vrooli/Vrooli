@@ -206,32 +206,6 @@ func assertJSONResponse(t *testing.T, w *httptest.ResponseRecorder, expectedStat
 	return response
 }
 
-// assertErrorResponse validates an error response
-func assertErrorResponse(t *testing.T, w *httptest.ResponseRecorder, expectedStatus int, errorContains string) {
-	if w.Code != expectedStatus {
-		t.Errorf("Expected status %d, got %d", expectedStatus, w.Code)
-	}
-
-	var response map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
-		t.Fatalf("Failed to unmarshal error response: %v", err)
-	}
-
-	if errorMsg, ok := response["error"].(string); ok {
-		if errorContains != "" && !contains(errorMsg, errorContains) {
-			t.Errorf("Expected error to contain '%s', got '%s'", errorContains, errorMsg)
-		}
-	} else {
-		t.Error("Response does not contain error field")
-	}
-}
-
-// contains is a helper function to check if a string contains a substring
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
-		bytes.Contains([]byte(s), []byte(substr)))
-}
-
 // createTestTechTree creates a test tech tree in the database
 func createTestTechTree(t *testing.T, db *sql.DB) string {
 	treeID := "00000000-0000-0000-0000-000000000001"
@@ -342,37 +316,4 @@ func createTestSectorConnection(t *testing.T, db *sql.DB, sourceID, targetID str
 	}
 
 	return connID
-}
-
-// cleanupTestData removes all test data from the database
-func cleanupTestData(db *sql.DB) {
-	db.Exec("DELETE FROM scenario_mappings")
-	db.Exec("DELETE FROM stage_dependencies")
-	db.Exec("DELETE FROM sector_connections")
-	db.Exec("DELETE FROM strategic_milestones")
-	db.Exec("DELETE FROM progression_stages")
-	db.Exec("DELETE FROM sectors")
-	db.Exec("DELETE FROM tech_trees")
-}
-
-// assertArrayLength checks that an array field has the expected length
-func assertArrayLength(t *testing.T, response map[string]interface{}, field string, expectedMin int) []interface{} {
-	arr, ok := response[field].([]interface{})
-	if !ok {
-		t.Errorf("Expected field '%s' to be an array, got %T", field, response[field])
-		return nil
-	}
-
-	if len(arr) < expectedMin {
-		t.Errorf("Expected at least %d items in '%s', got %d", expectedMin, field, len(arr))
-	}
-
-	return arr
-}
-
-// assertFieldExists checks that a field exists in the response
-func assertFieldExists(t *testing.T, response map[string]interface{}, field string) {
-	if _, ok := response[field]; !ok {
-		t.Errorf("Expected field '%s' in response", field)
-	}
 }

@@ -54,6 +54,12 @@
       "reason": "Parse resource secrets.yaml templates and initialization metadata from retained Vault shell workflows",
       "when": ["setup", "develop"],
       "notes": "Vault secret helper scripts fall back to basic parsing when yq is unavailable"
+    },
+    {
+      "name": "vault",
+      "required": true,
+      "reason": "Core CLI for all Vault server operations: inject, status, health, and storage strategy management",
+      "when": ["setup", "develop"]
     }
   ],
   "dependencies": [],

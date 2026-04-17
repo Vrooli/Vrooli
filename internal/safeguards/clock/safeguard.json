@@ -1,0 +1,7 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "clock",
+  "description": "Verify and synchronize system clock accuracy for TLS and authentication",
+  "handler": "clock",
+  "platforms": ["linux"]
+}

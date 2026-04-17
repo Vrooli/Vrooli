@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"io"
 	"path/filepath"
+	"time"
+
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/shared"
-	"time"
 
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )
@@ -62,10 +63,20 @@ func deriveStatus(obs []Observation, err error, failureClass string) string {
 	if err != nil || failureClass != "" {
 		return "failed"
 	}
-	for _, o := range obs {
-		if o.Prefix == "SKIP" {
-			return "skipped"
+
+	meaningful := 0
+	skips := 0
+	for _, observation := range obs {
+		if observation.Section != "" && observation.Text == "" && observation.Prefix == "" {
+			continue
 		}
+		meaningful++
+		if observation.Prefix == "SKIP" {
+			skips++
+		}
+	}
+	if meaningful > 0 && skips == meaningful {
+		return "skipped"
 	}
 	return "passed"
 }

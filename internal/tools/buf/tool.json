@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "buf",
+  "description": "Protobuf tooling for linting, breaking change detection, and code generation",
+  "commands": ["buf"],
+  "versionArgs": ["--version"],
+  "packages": {
+    "brew": "bufbuild/buf/buf"
+  },
+  "installHint": "Install buf from GitHub releases: https://github.com/bufbuild/buf/releases — or via brew install bufbuild/buf/buf",
+  "platforms": ["linux", "macos"]
+}

@@ -117,6 +117,43 @@
   ],
   "hostSafeguards": [
     {
+      "name": "clock",
+      "required": false,
+      "reason": "Verify system clock accuracy for TLS certificate validation and JWT operations",
+      "when": [
+        "setup"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Checks clock against remote HTTP time sources; syncs via hwclock/ntpdate/timedatectl if >5 minutes off"
+    },
+    {
+      "name": "docker_host_firewall",
+      "required": false,
+      "reason": "Enable Docker containers to reach native host services via iptables VROOLI-DOCKER chain",
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Creates and wires VROOLI-DOCKER iptables chain into DOCKER-USER for container-to-host networking"
+    },
+    {
+      "name": "kernel_config",
+      "required": false,
+      "reason": "Configure kernel parameters for optimal Vrooli operation (inotify limits for dev servers)",
+      "when": [
+        "setup"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Manages /etc/sysctl.d/99-vrooli.conf with inotify and other kernel parameters"
+    },
+    {
       "name": "remote_session_protection",
       "required": false,
       "reason": "Protect remote Linux GUI sessions when the deployment profile calls for it",

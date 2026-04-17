@@ -3,15 +3,12 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/maintenance"
@@ -67,14 +64,6 @@ func (a *App) DiscoverScenarioPorts(scenarioName string) map[string]int {
 		return map[string]int{}
 	}
 	return scenario.RuntimePorts(item.Manifest, process.LiveRecords(records))
-}
-
-func isPIDRunning(pid int) bool {
-	process, err := os.FindProcess(pid)
-	if err != nil {
-		return false
-	}
-	return process.Signal(syscall.Signal(0)) == nil
 }
 
 func checkForkBomb() error {
@@ -241,8 +230,4 @@ func parsePostgresAddress(target string) (string, error) {
 		return "", err
 	}
 	return "", nil
-}
-
-func (a *App) notFoundStopsApp(err error) bool {
-	return errors.Is(err, scenario.ErrNotFound)
 }

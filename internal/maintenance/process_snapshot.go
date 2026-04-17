@@ -17,6 +17,7 @@ type processTableEntry struct {
 	PID        int
 	PPID       int
 	PGID       int
+	SID        int // session id; used to keep dev-server worker subtrees out of the orphan list
 	State      string
 	Command    string
 	Executable string // resolved /proc/<pid>/exe symlink target (empty on non-Linux or when unreadable)
@@ -60,12 +61,12 @@ func (c *Controller) Snapshot() (ProcessSnapshot, error) {
 		return ProcessSnapshot{}, err
 	}
 
-	tracked, trackedCount, runningTracked, err := trackedProcessStats(c.Home, processTable)
+	tracked, trackedSIDs, trackedCount, runningTracked, err := trackedProcessStats(c.Home, processTable)
 	if err != nil {
 		return ProcessSnapshot{}, err
 	}
 
-	orphans := collectOrphans(c.Root, c.Home, processTable, tracked)
+	orphans := collectOrphans(c.Root, c.Home, processTable, tracked, trackedSIDs)
 	zombieCount := 0
 	for _, entry := range processTable {
 		if strings.HasPrefix(entry.State, "Z") {
@@ -144,8 +145,9 @@ func interpretOrphanStatus(count int) (string, string) {
 	}
 }
 
-func trackedProcessStats(home string, processTable map[int]processTableEntry) (map[int]struct{}, int, int, error) {
+func trackedProcessStats(home string, processTable map[int]processTableEntry) (map[int]struct{}, map[int]struct{}, int, int, error) {
 	tracked := make(map[int]struct{})
+	trackedSIDs := make(map[int]struct{})
 	trackedCount := 0
 	runningTracked := 0
 
@@ -153,9 +155,9 @@ func trackedProcessStats(home string, processTable map[int]processTableEntry) (m
 	entries, err := os.ReadDir(processRoot)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return tracked, trackedCount, runningTracked, nil
+			return tracked, trackedSIDs, trackedCount, runningTracked, nil
 		}
-		return nil, 0, 0, err
+		return nil, nil, 0, 0, err
 	}
 
 	for _, entry := range entries {
@@ -164,7 +166,7 @@ func trackedProcessStats(home string, processTable map[int]processTableEntry) (m
 		}
 		records, err := processReadScenarioRecordsFn(home, entry.Name())
 		if err != nil {
-			return nil, 0, 0, err
+			return nil, nil, 0, 0, err
 		}
 		for _, record := range records {
 			if record.PID > 0 {
@@ -179,10 +181,27 @@ func trackedProcessStats(home string, processTable map[int]processTableEntry) (m
 			}
 		}
 	}
-	return tracked, trackedCount, runningTracked, nil
+
+	// Derive the set of session IDs owned by tracked processes. Subtree
+	// workers (e.g. node tinypool / esbuild children of a tracked dev server)
+	// often have their own PGID via setsid, so they miss the PGID match in
+	// isTrackedOrAncestorTracked. The session ID is stable across the subtree
+	// and lets us classify them as tracked even when the ppid chain is broken
+	// by a reparented intermediate process.
+	for pid := range tracked {
+		entry, ok := processTable[pid]
+		if !ok {
+			continue
+		}
+		if entry.SID > 1 {
+			trackedSIDs[entry.SID] = struct{}{}
+		}
+	}
+
+	return tracked, trackedSIDs, trackedCount, runningTracked, nil
 }
 
-func collectOrphans(root, home string, processTable map[int]processTableEntry, tracked map[int]struct{}) []SystemProcess {
+func collectOrphans(root, home string, processTable map[int]processTableEntry, tracked, trackedSIDs map[int]struct{}) []SystemProcess {
 	orphans := make([]SystemProcess, 0)
 	self := os.Getpid()
 	memo := make(map[int]bool)
@@ -195,7 +214,7 @@ func collectOrphans(root, home string, processTable map[int]processTableEntry, t
 		if !looksLikeVrooliProcessFn(root, home, entry) {
 			continue
 		}
-		if isTrackedOrAncestorTracked(pid, tracked, processTable, memo, visiting) {
+		if isTrackedOrAncestorTracked(pid, tracked, trackedSIDs, processTable, memo, visiting) {
 			continue
 		}
 		orphans = append(orphans, SystemProcess{
@@ -214,7 +233,7 @@ func collectOrphans(root, home string, processTable map[int]processTableEntry, t
 	return orphans
 }
 
-func isTrackedOrAncestorTracked(pid int, tracked map[int]struct{}, processTable map[int]processTableEntry, memo map[int]bool, visiting map[int]bool) bool {
+func isTrackedOrAncestorTracked(pid int, tracked, trackedSIDs map[int]struct{}, processTable map[int]processTableEntry, memo map[int]bool, visiting map[int]bool) bool {
 	if _, ok := tracked[pid]; ok {
 		memo[pid] = true
 		return true
@@ -233,6 +252,12 @@ func isTrackedOrAncestorTracked(pid int, tracked map[int]struct{}, processTable 
 			return true
 		}
 	}
+	if entry.SID > 1 {
+		if _, ok := trackedSIDs[entry.SID]; ok {
+			memo[pid] = true
+			return true
+		}
+	}
 	if entry.PPID == 0 || entry.PPID == 1 {
 		memo[pid] = false
 		return false
@@ -242,7 +267,7 @@ func isTrackedOrAncestorTracked(pid int, tracked map[int]struct{}, processTable 
 		return false
 	}
 	visiting[pid] = true
-	trackedAncestor := isTrackedOrAncestorTracked(entry.PPID, tracked, processTable, memo, visiting)
+	trackedAncestor := isTrackedOrAncestorTracked(entry.PPID, tracked, trackedSIDs, processTable, memo, visiting)
 	visiting[pid] = false
 	memo[pid] = trackedAncestor
 	return trackedAncestor
@@ -251,7 +276,7 @@ func isTrackedOrAncestorTracked(pid int, tracked map[int]struct{}, processTable 
 func listProcessTable() (map[int]processTableEntry, error) {
 	output, err := shell.Output(shell.Spec{
 		Name: "ps",
-		Args: []string{"-eo", "pid=,ppid=,pgid=,state=,command="},
+		Args: []string{"-eo", "pid=,ppid=,pgid=,sid=,state=,command="},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("inspect process table: %w", err)
@@ -260,40 +285,82 @@ func listProcessTable() (map[int]processTableEntry, error) {
 	processTable := make(map[int]processTableEntry)
 	scanner := bufio.NewScanner(strings.NewReader(string(output)))
 	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
+		entry, ok := parseProcessTableLine(scanner.Text())
+		if !ok {
 			continue
 		}
-		fields := strings.Fields(line)
-		if len(fields) < 5 {
-			continue
-		}
-		pid, err := strconv.Atoi(fields[0])
-		if err != nil {
-			continue
-		}
-		ppid, err := strconv.Atoi(fields[1])
-		if err != nil {
-			continue
-		}
-		pgid, err := strconv.Atoi(fields[2])
-		if err != nil {
-			continue
-		}
-		exe, _ := os.Readlink(fmt.Sprintf("/proc/%d/exe", pid))
-		cwd, _ := os.Readlink(fmt.Sprintf("/proc/%d/cwd", pid))
-		processTable[pid] = processTableEntry{
-			PID:        pid,
-			PPID:       ppid,
-			PGID:       pgid,
-			State:      fields[3],
-			Command:    strings.Join(fields[4:], " "),
-			Executable: exe,
-			Cwd:        cwd,
-		}
+		processTable[entry.PID] = entry
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("scan process table: %w", err)
 	}
 	return processTable, nil
+}
+
+func parseProcessTableLine(line string) (processTableEntry, bool) {
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return processTableEntry{}, false
+	}
+	fields := strings.Fields(line)
+	if len(fields) < 6 {
+		return processTableEntry{}, false
+	}
+	pid, err := strconv.Atoi(fields[0])
+	if err != nil {
+		return processTableEntry{}, false
+	}
+	ppid, err := strconv.Atoi(fields[1])
+	if err != nil {
+		return processTableEntry{}, false
+	}
+	pgid, err := strconv.Atoi(fields[2])
+	if err != nil {
+		return processTableEntry{}, false
+	}
+	sid, err := strconv.Atoi(fields[3])
+	if err != nil {
+		return processTableEntry{}, false
+	}
+	exe, _ := os.Readlink(fmt.Sprintf("/proc/%d/exe", pid))
+	cwd, _ := os.Readlink(fmt.Sprintf("/proc/%d/cwd", pid))
+	return processTableEntry{
+		PID:        pid,
+		PPID:       ppid,
+		PGID:       pgid,
+		SID:        sid,
+		State:      fields[4],
+		Command:    strings.Join(fields[5:], " "),
+		Executable: exe,
+		Cwd:        cwd,
+	}, true
+}
+
+// readProcessEntryFn reads a single process's table entry. It is overridable in
+// tests and is used by KillOrphans to re-validate an orphan right before
+// sending a signal, guarding against the PID being recycled between the
+// snapshot and the kill.
+var readProcessEntryFn = readProcessEntry
+
+func readProcessEntry(pid int) (processTableEntry, bool) {
+	if pid <= 0 {
+		return processTableEntry{}, false
+	}
+	output, err := shell.Output(shell.Spec{
+		Name: "ps",
+		Args: []string{"-p", strconv.Itoa(pid), "-o", "pid=,ppid=,pgid=,sid=,state=,command="},
+	})
+	if err != nil {
+		// ps returns a non-zero exit when the PID doesn't exist — the caller
+		// should treat that as "process gone".
+		return processTableEntry{}, false
+	}
+	entry, ok := parseProcessTableLine(string(output))
+	if !ok {
+		return processTableEntry{}, false
+	}
+	if entry.PID != pid {
+		return processTableEntry{}, false
+	}
+	return entry, true
 }

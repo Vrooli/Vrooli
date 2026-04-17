@@ -234,6 +234,14 @@ func resolveVrooliRoot() string {
 func findVrooliCommand(config *Config) string {
 	switch runtime.GOOS {
 	case "windows":
+		for _, candidate := range []string{
+			filepath.Join(config.VrooliRoot, ".vrooli", "build", "vrooli.exe"),
+			filepath.Join(config.VrooliRoot, "vrooli.exe"),
+		} {
+			if _, err := os.Stat(candidate); err == nil {
+				return candidate
+			}
+		}
 		// Check for vrooli.bat in the CLI directory
 		batPath := filepath.Join(config.VrooliRoot, "cli", "vrooli.bat")
 		if _, err := os.Stat(batPath); err == nil {
@@ -245,14 +253,16 @@ func findVrooliCommand(config *Config) string {
 		}
 		return ""
 	default:
-		// Check PATH first
+		for _, candidate := range []string{
+			filepath.Join(config.VrooliRoot, ".vrooli", "build", "vrooli"),
+			filepath.Join(config.VrooliRoot, "vrooli"),
+		} {
+			if _, err := os.Stat(candidate); err == nil {
+				return candidate
+			}
+		}
 		if path, err := exec.LookPath("vrooli"); err == nil {
 			return path
-		}
-		// Check direct path
-		directPath := filepath.Join(config.VrooliRoot, "cli", "vrooli")
-		if _, err := os.Stat(directPath); err == nil {
-			return directPath
 		}
 		return ""
 	}

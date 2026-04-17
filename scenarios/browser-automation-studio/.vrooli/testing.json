@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../scripts/scenarios/testing/schemas/testing.schema.json",
+  "$schema": "https://vrooli.com/schemas/testing.schema.json",
   "_metadata": {
     "description": "Testing configuration for browser-automation-studio",
     "last_updated": "2025-11-07T03:45:00Z"

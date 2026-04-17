@@ -451,11 +451,16 @@ func TestInstallCommandMappings(t *testing.T) {
 }
 
 func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
-	toolNames := runtimeRegistry.names(hostreq.KindTool)
+	reg, err := ensureRegistry()
+	if err != nil {
+		t.Fatalf("ensureRegistry: %v", err)
+	}
+	toolNames := reg.names(hostreq.KindTool)
 	expectedTools := []string{
-		"Xvfb", "bats", "curl", "docker", "ffmpeg", "git", "go",
-		"helm", "jq", "node", "openbox", "python", "stripe",
-		"tmux", "websockify", "x11vnc", "xdotool", "yq",
+		"Xvfb", "ast-grep", "bats", "buf", "cloudflared", "curl",
+		"docker", "ffmpeg", "git", "go", "helm", "jq", "lychee",
+		"node", "openbox", "python", "stripe", "tmux", "vault",
+		"websockify", "x11vnc", "xdotool", "yq",
 	}
 	if len(toolNames) != len(expectedTools) {
 		t.Fatalf("tool count = %d, want %d; got %v", len(toolNames), len(expectedTools), toolNames)
@@ -469,12 +474,20 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 		}
 	}
 
-	safeguardNames := runtimeRegistry.names(hostreq.KindSafeguard)
-	if len(safeguardNames) != 1 {
-		t.Fatalf("safeguard count = %d, want 1; got %v", len(safeguardNames), safeguardNames)
+	safeguardNames := reg.names(hostreq.KindSafeguard)
+	expectedSafeguards := []string{
+		"clock", "docker_host_firewall", "kernel_config", "remote_session_protection",
 	}
-	if got := strings.Join(safeguardNames, ","); got != "remote_session_protection" {
-		t.Fatalf("safeguard names = %q", got)
+	if len(safeguardNames) != len(expectedSafeguards) {
+		t.Fatalf("safeguard count = %d, want %d; got %v", len(safeguardNames), len(expectedSafeguards), safeguardNames)
+	}
+	if !sort.StringsAreSorted(safeguardNames) {
+		t.Fatalf("safeguard names not sorted: %v", safeguardNames)
+	}
+	for _, name := range expectedSafeguards {
+		if !contains(safeguardNames, name) {
+			t.Fatalf("safeguard %q not found in registry: %v", name, safeguardNames)
+		}
 	}
 }
 

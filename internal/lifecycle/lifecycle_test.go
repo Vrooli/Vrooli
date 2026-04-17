@@ -172,7 +172,7 @@ func (d fakeDirEntry) Name() string      { return d.name }
 func (d fakeDirEntry) IsDir() bool       { return d.node.mode.IsDir() }
 func (d fakeDirEntry) Type() fs.FileMode { return fs.FileMode(d.node.mode) }
 func (d fakeDirEntry) Info() (fs.FileInfo, error) {
-	return fakeFileInfo{name: d.name, node: d.node}, nil
+	return fakeFileInfo(d), nil
 }
 
 func TestRunPhaseDetailedReportsUndefinedPhase(t *testing.T) {

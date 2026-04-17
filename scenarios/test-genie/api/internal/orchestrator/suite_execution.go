@@ -13,10 +13,11 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
+
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/orchestrator/requirements"
 	"test-genie/internal/shared"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -30,7 +31,7 @@ var (
 	defaultExecutionPresets = map[string][]string{
 		"quick":         {"structure", "standards", "docs", "unit"},
 		"smoke":         {"structure", "standards", "lint", "docs", "integration"},
-		"comprehensive": {"structure", "standards", "dependencies", "lint", "docs", "unit", "integration", "playbooks", "business", "performance"},
+		"comprehensive": {"structure", "standards", "dependencies", "lint", "docs", "smoke", "unit", "integration", "playbooks", "business", "performance"},
 	}
 	defaultPhaseSortFallback = 1000
 )

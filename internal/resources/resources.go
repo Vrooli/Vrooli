@@ -175,14 +175,6 @@ func (c *Controller) readConfigEntries() (map[string]ConfigEntry, error) {
 	return catalogpkg.New(c.Root).ReadConfigEntries()
 }
 
-func (c *Controller) filesystemNames() ([]string, error) {
-	return catalogpkg.New(c.Root).FilesystemNames()
-}
-
-func (c *Controller) manifestNames() ([]string, error) {
-	return catalogpkg.New(c.Root).ManifestNames()
-}
-
 func (c *Controller) statusForResource(item Resource, fast bool) (Status, error) {
 	return c.resourceControl().StatusForResource(item, fast)
 }

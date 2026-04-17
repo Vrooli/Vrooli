@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -132,25 +131,6 @@ func resolveRepoRoot() (string, error) {
 	return repocontract.ResolveRepoRoot()
 }
 
-func computeNextStageOrder(ctx context.Context, sectorID string) (int, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	var nextOrder int
-	err := db.QueryRowContext(ctx, `
-		SELECT COALESCE(MAX(stage_order), 0) + 1
-		FROM progression_stages
-		WHERE sector_id = $1
-	`, sectorID).Scan(&nextOrder)
-	if err != nil {
-		return 0, err
-	}
-	if nextOrder <= 0 {
-		nextOrder = 1
-	}
-	return nextOrder, nil
-}
-
 func fetchTreeStats(ctx context.Context, treeID string) (int, int, int, error) {
 	var sectorCount, stageCount, mappingCount int
 	err := db.QueryRowContext(ctx, `
@@ -252,9 +232,8 @@ func main() {
 		}
 
 		origin := c.Request.Header.Get("Origin")
-		// Only set CORS header if origin is in allowed list
-		for _, allowed := range []string{"http://localhost:3000", "http://localhost:35000"} {
-			if origin == allowed {
+		for _, allowed := range strings.Split(allowedOrigins, ",") {
+			if origin == strings.TrimSpace(allowed) {
 				c.Header("Access-Control-Allow-Origin", origin)
 				break
 			}
@@ -340,7 +319,9 @@ func main() {
 	log.Printf("🚀 Tech Tree Designer API starting on port %s", port)
 	log.Printf("🌟 Strategic Intelligence System ready for superintelligence guidance")
 
-	r.Run(":" + port)
+	if err := r.Run(":" + port); err != nil {
+		log.Fatalf("server exited: %v", err)
+	}
 }
 
 func resolveVisibilityPath(repoRoot string) (string, error) {
@@ -356,27 +337,6 @@ func resolveVisibilityPath(repoRoot string) (string, error) {
 		return "", err
 	}
 	return path, nil
-}
-
-func migrateVisibilityPath(src, dst string) error {
-	if src == dst {
-		return nil
-	}
-	if _, err := os.Stat(src); err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-	if _, err := os.Stat(dst); err == nil {
-		return nil
-	} else if !os.IsNotExist(err) {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return err
-	}
-	return os.Rename(src, dst)
 }
 
 // Get the main tech tree

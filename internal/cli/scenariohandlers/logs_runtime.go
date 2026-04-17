@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	. "github.com/vrooli/vrooli/internal/cli/scenariocli"
+	. "github.com/vrooli/vrooli/internal/cli/scenariocli" //nolint:revive // scenariohandlers is a thin glue layer over scenariocli; dot-import keeps wiring readable.
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioexec"

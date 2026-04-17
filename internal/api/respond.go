@@ -37,13 +37,6 @@ func respondError(w http.ResponseWriter, err error) {
 	})
 }
 
-func defaultStatus(value, fallback int) int {
-	if value <= 0 {
-		return fallback
-	}
-	return value
-}
-
 func newAPIError(status int, code, message string, err error) error {
 	return &vroolierr.Error{
 		HTTPStatus: status,

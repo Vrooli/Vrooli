@@ -168,6 +168,15 @@
       ]
     }
   },
+  "hostTools": [
+    {
+      "name": "cloudflared",
+      "required": true,
+      "reason": "Core tunnel client managed by this scenario for all Cloudflare tunnel operations",
+      "when": ["setup", "develop"],
+      "platforms": ["linux", "macos", "windows"]
+    }
+  ],
   "dependencies": {
     "resources": {
       "postgres": {

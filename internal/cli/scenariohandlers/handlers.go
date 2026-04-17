@@ -7,7 +7,7 @@ import (
 
 	scenarioapp "github.com/vrooli/vrooli/internal/app/scenario"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
-	. "github.com/vrooli/vrooli/internal/cli/scenariocli"
+	. "github.com/vrooli/vrooli/internal/cli/scenariocli" //nolint:revive // scenariohandlers is a thin glue layer over scenariocli; dot-import keeps wiring readable.
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/orchestrator"
@@ -280,6 +280,7 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 				if err := ensureScenarioCLIs(deps, ctx, req.Name); err != nil {
 					return "", struct{}{}, err
 				}
+				emitScenarioStaleWarning(deps.Stderr(ctx), deps.Root(ctx), req.Name, deps.Globals(ctx))
 				runner, err := deps.LifecycleRunner(ctx)
 				if err != nil {
 					return "", struct{}{}, err

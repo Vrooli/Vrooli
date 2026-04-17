@@ -83,7 +83,7 @@
         {
           "name": "postgres_connection",
           "type": "postgres",
-          "target": "tech_tree_db",
+          "target": "localhost:5433",
           "critical": true,
           "timeout": 5000,
           "interval": 60000
@@ -247,10 +247,7 @@
     "command": "tech-tree-designer",
     "adapter": {
       "kind": "go_module",
-      "module_path": "cli",
-      "binary_name": "tech-tree-designer",
-      "install_script": "cli/install.sh",
-      "windows_install_script": "cli/install.ps1"
+      "module_dir": "cli"
     },
     "install": [
       {

@@ -54,6 +54,13 @@
       "reason": "Inspect and summarize retained LiteLLM YAML configuration from shell status workflows",
       "when": ["setup", "develop"],
       "notes": "Status output degrades gracefully when yq is unavailable"
+    },
+    {
+      "name": "vault",
+      "required": false,
+      "reason": "Fetch API keys and credentials from Vault for LiteLLM provider configuration",
+      "when": ["setup", "develop"],
+      "notes": "Shell install and core scripts use vault CLI for secret injection"
     }
   ],
   "dependencies": [],

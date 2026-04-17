@@ -531,7 +531,6 @@ func (s *TreeService) ListTrees(ctx context.Context, filters ListTreesFilters) (
 	if filters.Slug != "" {
 		listFilters = append(listFilters, fmt.Sprintf("slug = $%d", index))
 		args = append(args, filters.Slug)
-		index++
 	}
 
 	baseQuery := `

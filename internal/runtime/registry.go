@@ -2,26 +2,42 @@ package runtime
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/vrooli/vrooli/internal/hostreq"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/safeguards"
+	"github.com/vrooli/vrooli/internal/safeguards/clock"
+	dockerhostfirewall "github.com/vrooli/vrooli/internal/safeguards/docker-host-firewall"
+	kernelconfig "github.com/vrooli/vrooli/internal/safeguards/kernel-config"
 	remotesessionprotection "github.com/vrooli/vrooli/internal/safeguards/remote-session-protection"
 	"github.com/vrooli/vrooli/internal/tools"
+	"github.com/vrooli/vrooli/internal/tools/cloudflared"
 	"github.com/vrooli/vrooli/internal/tools/stripe"
+	"github.com/vrooli/vrooli/internal/tools/vault"
 )
 
-type handler = hostreqkit.Handler
-
+// customToolHandlers must stay in sync with every tool.json "handler" field
+// under internal/tools/. The invariant is enforced by
+// TestToolManifestsReferenceRegisteredHandlers.
 var customToolHandlers = map[string]func(hostreqkit.ToolManifest) hostreqkit.Handler{
-	"stripe": stripe.NewHandler,
+	"cloudflared": cloudflared.NewHandler,
+	"stripe":      stripe.NewHandler,
+	"vault":       vault.NewHandler,
 }
 
+// customSafeguardHandlers must stay in sync with every safeguard.json
+// "handler" field under internal/safeguards/. The invariant is enforced by
+// TestSafeguardManifestsReferenceRegisteredHandlers.
 var customSafeguardHandlers = map[string]func(hostreqkit.SafeguardManifest) hostreqkit.Handler{
+	"clock":                     clock.NewHandler,
+	"docker_host_firewall":      dockerhostfirewall.NewHandler,
+	"kernel_config":             kernelconfig.NewHandler,
 	"remote_session_protection": remotesessionprotection.NewHandler,
 }
 
@@ -30,30 +46,36 @@ type registry struct {
 	safeguards map[string]hostreqkit.Handler
 }
 
+// newRegistry builds a registry from a static list of handlers. It panics on
+// invalid input because the caller is in-process Go code whose inputs are
+// validated at compile time; use loadRegistry for data-driven construction.
 func newRegistry(items ...hostreqkit.Handler) registry {
 	r := registry{
 		tools:      map[string]hostreqkit.Handler{},
 		safeguards: map[string]hostreqkit.Handler{},
 	}
 	for _, item := range items {
-		r.register(item)
+		if err := r.register(item); err != nil {
+			panic(err)
+		}
 	}
 	return r
 }
 
-func (r *registry) register(item hostreqkit.Handler) {
+func (r *registry) register(item hostreqkit.Handler) error {
 	if item == nil {
-		panic("runtime registry: nil handler")
+		return errors.New("runtime registry: nil handler")
 	}
 	name := strings.TrimSpace(item.Name())
 	if name == "" {
-		panic("runtime registry: handler name is required")
+		return errors.New("runtime registry: handler name is required")
 	}
 	target := r.handlersForKind(item.Kind())
 	if _, exists := target[name]; exists {
-		panic(fmt.Sprintf("runtime registry: duplicate %s handler %q", item.Kind(), name))
+		return fmt.Errorf("runtime registry: duplicate %s handler %q", item.Kind(), name)
 	}
 	target[name] = item
+	return nil
 }
 
 func (r registry) lookup(kind hostreq.Kind, name string) hostreqkit.Handler {
@@ -79,78 +101,141 @@ func (r registry) handlersForKind(kind hostreq.Kind) map[string]hostreqkit.Handl
 	}
 }
 
-var runtimeRegistry = loadRegistry()
+var (
+	runtimeRegistryOnce sync.Once
+	runtimeRegistryVal  registry
+	runtimeRegistryErr  error
+)
 
-func loadRegistry() registry {
+// ensureRegistry lazily loads the process-wide registry and memoizes the
+// result (including errors) for the life of the process. Loading is deferred
+// so that manifest/handler inconsistencies surface as returnable errors
+// rather than init-time panics that kill the binary before main runs.
+func ensureRegistry() (registry, error) {
+	runtimeRegistryOnce.Do(func() {
+		runtimeRegistryVal, runtimeRegistryErr = loadRegistry()
+	})
+	return runtimeRegistryVal, runtimeRegistryErr
+}
+
+func loadRegistry() (registry, error) {
 	r := registry{
 		tools:      make(map[string]hostreqkit.Handler),
 		safeguards: make(map[string]hostreqkit.Handler),
 	}
-	loadTools(&r, tools.Manifests)
-	loadSafeguards(&r, safeguards.Manifests)
-	return r
+	if err := loadTools(&r, tools.Manifests); err != nil {
+		return registry{}, err
+	}
+	if err := loadSafeguards(&r, safeguards.Manifests); err != nil {
+		return registry{}, err
+	}
+	return r, nil
 }
 
-func loadTools(r *registry, fsys fs.FS) {
-	_ = fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || d.Name() != "tool.json" {
+func loadTools(r *registry, fsys fs.FS) error {
+	var loadErr error
+	_ = fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			loadErr = fmt.Errorf("walk tool manifests at %s: %w", path, walkErr)
+			return fs.SkipAll
+		}
+		if d.IsDir() || d.Name() != "tool.json" {
 			return nil
 		}
 		data, readErr := fs.ReadFile(fsys, path)
 		if readErr != nil {
-			panic(fmt.Sprintf("read tool manifest %s: %v", path, readErr))
+			loadErr = fmt.Errorf("read tool manifest %s: %w", path, readErr)
+			return fs.SkipAll
 		}
 		var manifest hostreqkit.ToolManifest
 		if jsonErr := json.Unmarshal(data, &manifest); jsonErr != nil {
-			panic(fmt.Sprintf("parse tool manifest %s: %v", path, jsonErr))
+			loadErr = fmt.Errorf("parse tool manifest %s: %w", path, jsonErr)
+			return fs.SkipAll
 		}
 		if strings.TrimSpace(manifest.Name) == "" {
-			panic(fmt.Sprintf("tool manifest %s has no name", path))
+			loadErr = fmt.Errorf("tool manifest %s has no name", path)
+			return fs.SkipAll
 		}
 		var h hostreqkit.Handler
 		if manifest.Handler != "" {
 			ctor, ok := customToolHandlers[manifest.Handler]
 			if !ok {
-				panic(fmt.Sprintf("tool %q references unknown handler %q", manifest.Name, manifest.Handler))
+				loadErr = fmt.Errorf(
+					"tool %q references unknown handler %q (register it in internal/runtime/registry.go or drop the handler field in %s)",
+					manifest.Name, manifest.Handler, path,
+				)
+				return fs.SkipAll
 			}
 			h = ctor(manifest)
 		} else {
 			h = newGenericToolHandler(manifest)
 		}
-		r.register(h)
+		if regErr := r.register(h); regErr != nil {
+			loadErr = fmt.Errorf("register tool from %s: %w", path, regErr)
+			return fs.SkipAll
+		}
 		return nil
 	})
+	return loadErr
 }
 
-func loadSafeguards(r *registry, fsys fs.FS) {
-	_ = fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || d.Name() != "safeguard.json" {
+func loadSafeguards(r *registry, fsys fs.FS) error {
+	var loadErr error
+	_ = fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			loadErr = fmt.Errorf("walk safeguard manifests at %s: %w", path, walkErr)
+			return fs.SkipAll
+		}
+		if d.IsDir() || d.Name() != "safeguard.json" {
 			return nil
 		}
 		data, readErr := fs.ReadFile(fsys, path)
 		if readErr != nil {
-			panic(fmt.Sprintf("read safeguard manifest %s: %v", path, readErr))
+			loadErr = fmt.Errorf("read safeguard manifest %s: %w", path, readErr)
+			return fs.SkipAll
 		}
 		var manifest hostreqkit.SafeguardManifest
 		if jsonErr := json.Unmarshal(data, &manifest); jsonErr != nil {
-			panic(fmt.Sprintf("parse safeguard manifest %s: %v", path, jsonErr))
+			loadErr = fmt.Errorf("parse safeguard manifest %s: %w", path, jsonErr)
+			return fs.SkipAll
 		}
 		if strings.TrimSpace(manifest.Name) == "" {
-			panic(fmt.Sprintf("safeguard manifest %s has no name", path))
+			loadErr = fmt.Errorf("safeguard manifest %s has no name", path)
+			return fs.SkipAll
 		}
 		ctor, ok := customSafeguardHandlers[manifest.Handler]
 		if !ok {
-			panic(fmt.Sprintf("safeguard %q references unknown handler %q", manifest.Name, manifest.Handler))
+			loadErr = fmt.Errorf(
+				"safeguard %q references unknown handler %q (register it in internal/runtime/registry.go or drop the handler field in %s)",
+				manifest.Name, manifest.Handler, path,
+			)
+			return fs.SkipAll
 		}
-		r.register(ctor(manifest))
+		if regErr := r.register(ctor(manifest)); regErr != nil {
+			loadErr = fmt.Errorf("register safeguard from %s: %w", path, regErr)
+			return fs.SkipAll
+		}
 		return nil
 	})
+	return loadErr
 }
 
-func lookupHandler(kind hostreq.Kind, name string) hostreqkit.Handler {
-	return runtimeRegistry.lookup(kind, name)
+func lookupHandler(kind hostreq.Kind, name string) (hostreqkit.Handler, error) {
+	reg, err := ensureRegistry()
+	if err != nil {
+		return nil, err
+	}
+	return reg.lookup(kind, name), nil
 }
 
-func HasHandler(kind hostreq.Kind, name string) bool {
-	return lookupHandler(kind, name) != nil
+// HasHandler reports whether a handler is registered for (kind, name). The
+// error is non-nil when the embedded manifests failed to load (e.g. a
+// tool.json references a handler missing from customToolHandlers); callers
+// should surface that error rather than treating the boolean as authoritative.
+func HasHandler(kind hostreq.Kind, name string) (bool, error) {
+	reg, err := ensureRegistry()
+	if err != nil {
+		return false, err
+	}
+	return reg.lookup(kind, name) != nil, nil
 }

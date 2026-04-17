@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -65,5 +66,47 @@ func TestSQLiteDSNIgnoresLegacyFallbackEnv(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Dir(wantPath)); err != nil {
 		t.Fatalf("expected canonical sqlite dir at %s: %v", filepath.Dir(wantPath), err)
+	}
+}
+
+func TestInitSchemaAddsMissingWorkflowFilePathColumn(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "legacy-bas.db")
+
+	t.Setenv("BAS_SQLITE_PATH", dbPath)
+	t.Setenv("BAS_SKIP_DEMO_SEED", "true")
+
+	log := logrus.New()
+	db, err := connectSQLite(log)
+	if err != nil {
+		t.Fatalf("connect sqlite: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	if _, err := db.Exec(`
+		CREATE TABLE workflows (
+			id TEXT PRIMARY KEY,
+			project_id TEXT,
+			name TEXT NOT NULL,
+			folder_path TEXT NOT NULL,
+			version INTEGER NOT NULL DEFAULT 1,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)
+	`); err != nil {
+		t.Fatalf("create legacy workflows table: %v", err)
+	}
+
+	wrapped := &DB{DB: db, log: log}
+	if err := wrapped.ensureWorkflowSchemaCompatibility(context.Background()); err != nil {
+		t.Fatalf("ensureWorkflowSchemaCompatibility() error = %v", err)
+	}
+
+	hasColumn, err := wrapped.columnExists(context.Background(), "workflows", "file_path")
+	if err != nil {
+		t.Fatalf("columnExists() error = %v", err)
+	}
+	if !hasColumn {
+		t.Fatal("expected workflows.file_path column to be added")
 	}
 }

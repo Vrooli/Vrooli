@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "ast-grep",
+  "description": "Structural code search and lint tool using AST patterns",
+  "commands": ["ast-grep", "sg"],
+  "versionArgs": ["--version"],
+  "packages": {
+    "brew": "ast-grep"
+  },
+  "installHint": "Install ast-grep from GitHub releases: https://github.com/ast-grep/ast-grep/releases — or via cargo install ast-grep, or npm install -g @ast-grep/cli",
+  "platforms": ["linux", "macos"]
+}

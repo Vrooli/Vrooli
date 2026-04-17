@@ -7,9 +7,11 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
+	"github.com/vrooli/vrooli/internal/cli/metrics"
 	"github.com/vrooli/vrooli/internal/cli/scenariocli"
 	"github.com/vrooli/vrooli/internal/cli/topcli"
 	"github.com/vrooli/vrooli/internal/cliout"
@@ -30,6 +32,7 @@ type GlobalOptions struct {
 	Quiet        bool
 	NoColor      bool
 	NoStaleCheck bool
+	NoMetrics    bool
 }
 
 func (g GlobalOptions) LogFormat() logx.Format {
@@ -130,6 +133,9 @@ func ParseArgs(args []string) (ParsedArgs, error) {
 		case "--no-stale-check":
 			parsed.Globals.NoStaleCheck = true
 			args = args[1:]
+		case "--no-metrics":
+			parsed.Globals.NoMetrics = true
+			args = args[1:]
 		case "--help", "-h":
 			return ParsedArgs{Command: "help", Globals: parsed.Globals}, nil
 		case "--version", "-v":
@@ -160,6 +166,8 @@ func ConsumeInlineGlobalFlags(globals GlobalOptions, args []string) (GlobalOptio
 			globals.NoColor = true
 		case "--no-stale-check":
 			globals.NoStaleCheck = true
+		case "--no-metrics":
+			globals.NoMetrics = true
 		default:
 			filtered = append(filtered, args[index])
 		}
@@ -423,6 +431,10 @@ type RunnerConfig[C any] struct {
 	ShowMainHelp     func(C)
 	ShowVersion      func(C) error
 	DebugLog         func(*slog.Logger, string, ...any)
+
+	MetricsRecorder *metrics.Recorder
+	CLIVersion      string
+	PlatformVersion string
 }
 
 type Runner[C any] struct {
@@ -551,6 +563,13 @@ func (r *Runner[C]) Run(args []string, stdout, stderr io.Writer) int {
 }
 
 func (r *Runner[C]) dispatch(ctx C, parsed ParsedArgs) error {
+	start := time.Now()
+	err := r.dispatchInner(ctx, parsed)
+	r.recordMetrics(parsed, start, err)
+	return err
+}
+
+func (r *Runner[C]) dispatchInner(ctx C, parsed ParsedArgs) error {
 	switch parsed.Command {
 	case "help":
 		r.config.ShowMainHelp(ctx)
@@ -563,6 +582,28 @@ func (r *Runner[C]) dispatch(ctx C, parsed ParsedArgs) error {
 		return NewUnknownCommandError(parsed.Command, r.config.Registry.SuggestTopLevel(parsed.Command))
 	}
 	return handler(ctx, parsed.Args)
+}
+
+func (r *Runner[C]) recordMetrics(parsed ParsedArgs, start time.Time, err error) {
+	if r.config.MetricsRecorder == nil || r.config.MetricsRecorder.Disabled() {
+		return
+	}
+	if parsed.Globals.NoMetrics {
+		return
+	}
+	r.config.MetricsRecorder.Record(metrics.Event{
+		StartedAt:       start.UTC(),
+		Command:         parsed.Command,
+		Args:            metrics.RedactArgs(parsed.Args),
+		Argc:            len(parsed.Args),
+		DurationMs:      time.Since(start).Milliseconds(),
+		ExitCode:        ExitCode(err),
+		ErrorClass:      metrics.ClassifyError(err),
+		CLIVersion:      r.config.CLIVersion,
+		PlatformVersion: r.config.PlatformVersion,
+		Hostname:        metrics.Hostname(),
+		PID:             os.Getpid(),
+	})
 }
 
 func BindGlobalCommand[C any, Req any, Resp any](

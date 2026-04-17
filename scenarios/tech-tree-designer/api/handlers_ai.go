@@ -65,7 +65,7 @@ func aiStageIdeasHandler(c *gin.Context) {
 		return
 	}
 
-	ideas := []StageIdea{}
+	var ideas []StageIdea
 	if aiIdeas, aiErr := generateIdeasWithOpenRouter(ctx, sector, payload.Prompt, count); aiErr == nil && len(aiIdeas) > 0 {
 		ideas = aiIdeas
 	} else {

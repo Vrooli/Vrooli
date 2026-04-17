@@ -6,6 +6,7 @@ import (
 	"context"
 	"testing"
 	"time"
+
 	"vrooli-autoheal/internal/platform"
 )
 
@@ -808,7 +809,7 @@ func TestRunAutoHeal_ScenarioSharedPackageDriftPrefersSetupRestart(t *testing.T)
 	}
 }
 
-func TestRunAutoHeal_OrphanCheckPrefersKillSafe(t *testing.T) {
+func TestRunAutoHeal_OrphanCheckPrefersCleanup(t *testing.T) {
 	reg := newTestRegistry()
 
 	healableCheck := &mockHealableCheck{
@@ -816,7 +817,6 @@ func TestRunAutoHeal_OrphanCheckPrefersKillSafe(t *testing.T) {
 		result: Result{CheckID: "vrooli-orphans", Status: StatusCritical},
 		actions: []RecoveryAction{
 			{ID: "list", Available: true, Dangerous: false},
-			{ID: "kill-safe", Available: true, Dangerous: false},
 			{ID: "kill", Available: true, Dangerous: true},
 		},
 		executeResult: ActionResult{Success: true},
@@ -841,8 +841,8 @@ func TestRunAutoHeal_OrphanCheckPrefersKillSafe(t *testing.T) {
 	if !autoHealResults[0].Attempted {
 		t.Fatal("expected auto-heal to be attempted")
 	}
-	if len(healableCheck.executedActions) != 1 || healableCheck.executedActions[0] != "kill-safe" {
-		t.Errorf("expected kill-safe to be selected, got %v", healableCheck.executedActions)
+	if len(healableCheck.executedActions) != 1 || healableCheck.executedActions[0] != "kill" {
+		t.Errorf("expected kill to be selected, got %v", healableCheck.executedActions)
 	}
 }
 

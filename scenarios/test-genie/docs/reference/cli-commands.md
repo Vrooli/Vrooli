@@ -34,12 +34,13 @@ These options apply to all commands:
 |---------|-------------|
 | `generate` | Generate test suites for a scenario |
 | `execute` | Execute a test suite |
-| `coverage` | Analyze test coverage |
-| `vault` | Create and run vault (lifecycle) tests |
+| `run-tests` | Trigger the scenario-local phased runner |
+| `ui-smoke` | Run the shared UI smoke harness |
+| `registry` | Manage playbook registries |
+| `requirements` | Inspect and sync requirements evidence |
+| `playbooks-seed` | Apply or clean up playbooks seed data |
+| `storage` | Run storage maintenance tasks |
 | `status` | Check test-genie operational status |
-| `scenarios` | List and inspect scenarios |
-| `phases` | List available test phases |
-| `history` | View execution history |
 
 ---
 
@@ -119,6 +120,91 @@ Track progress:
 
 View generated tests:
   git status  # After issue completion
+```
+
+---
+
+## run-tests
+
+Trigger the scenario-local runner through the Test Genie API.
+
+```bash
+test-genie run-tests <scenario-name> [options]
+```
+
+### Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--type <runner>` | `phased` | Scenario-local runner type |
+| `--path <path>` | none | Restrict to one or more files/directories |
+| `--playbook <path>` | none | Restrict playbooks to one or more workflow files |
+| `--filter <text>` | none | Forward a text filter to the runner |
+| `--json` | `false` | Output machine-readable JSON |
+
+### Examples
+
+```bash
+test-genie run-tests my-scenario
+test-genie run-tests my-scenario --path api --filter UserService
+test-genie run-tests my-scenario --playbook bas/cases/smoke/dashboard-loads.json
+```
+
+---
+
+## ui-smoke
+
+Run only the shared Browserless-backed UI smoke harness.
+
+```bash
+test-genie ui-smoke <scenario-name> [options]
+```
+
+### Examples
+
+```bash
+test-genie ui-smoke my-scenario
+test-genie ui-smoke my-scenario --json
+```
+
+---
+
+## registry
+
+Manage `bas/registry.json` generation and validation.
+
+```bash
+test-genie registry --help
+```
+
+---
+
+## requirements
+
+Inspect, validate, and sync requirement evidence without the legacy bash tooling.
+
+```bash
+test-genie requirements --help
+```
+
+---
+
+## playbooks-seed
+
+Apply or clean up `bas/__seeds` lifecycle data for playbook execution.
+
+```bash
+test-genie playbooks-seed --help
+```
+
+---
+
+## storage
+
+Run one-time operational storage maintenance tasks.
+
+```bash
+test-genie storage --help
 ```
 
 ---

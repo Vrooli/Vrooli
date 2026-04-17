@@ -40,10 +40,12 @@ Vrooli-managed services:
 ### Vrooli Checks
 Internal Vrooli platform health:
 - **Vrooli API** - Core API responsiveness
-- **Scenarios** - Per-scenario health (dynamic, based on config)
+- **Scenarios** - Per-scenario health from `vrooli scenario status --json`
 - **Watchdog** - OS-level watchdog service status
-- **Orphan Processes** - Leaked processes from stopped scenarios
-- **Stale Locks** - Stale lock file detection
+- **Orphan Processes** - Core-maintained orphan state from `vrooli orphans --json`
+- **Stale Locks** - Core-maintained lock state from `vrooli locks --json`
+
+Autoheal does not maintain fallback orphan or stale-lock heuristics. Cleanup delegates to `vrooli cleanup orphans` and `vrooli cleanup locks`.
 
 ## Status Levels
 

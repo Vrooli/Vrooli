@@ -441,3 +441,6 @@ scripts/main/generated/test-genie
 vrooli
 !cmd/vrooli/
 !cmd/vrooli/**
+
+# Per-clone scenario stale-check sidecar (see internal/scenariostale).
+scenarios/*/.build-fingerprint.json

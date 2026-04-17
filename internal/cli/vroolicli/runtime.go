@@ -17,6 +17,7 @@ import (
 	"github.com/vrooli/vrooli/internal/bootstrap"
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/cli/contracthandlers"
+	"github.com/vrooli/vrooli/internal/cli/metrics"
 	"github.com/vrooli/vrooli/internal/cli/packagehandlers"
 	"github.com/vrooli/vrooli/internal/cli/projectcli"
 	"github.com/vrooli/vrooli/internal/cli/resourcehandlers"
@@ -171,8 +172,19 @@ func (app *App) Runner() *rootcli.Runner[*CommandContext] {
 		ShowVersion: func(ctx *CommandContext) error {
 			return WriteVersion(ctx.Stdout, ctx.Root, ctx.Globals, app.VersionInfo)
 		},
-		DebugLog: app.DebugLogFn,
+		DebugLog:        app.DebugLogFn,
+		MetricsRecorder: app.newMetricsRecorder(),
+		CLIVersion:      app.VersionInfo.CLIVersion,
+		PlatformVersion: app.VersionInfo.PlatformVersion,
 	})
+}
+
+func (app *App) newMetricsRecorder() *metrics.Recorder {
+	home, err := app.HomeDirFn()
+	if err != nil || strings.TrimSpace(home) == "" {
+		return nil
+	}
+	return metrics.New(home, nil)
 }
 
 func (app *App) Run(args []string, stdout, stderr io.Writer) int {

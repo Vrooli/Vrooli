@@ -3,7 +3,6 @@ package overview
 import (
 	"fmt"
 	"os"
-
 	"tech-tree-designer/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"

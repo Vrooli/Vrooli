@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1020,17 +1019,4 @@ func runInstallCommand(ctx context.Context, controller *Controller, manifest Res
 		return runCtx.Err()
 	}
 	return waitErr
-}
-
-func httpStatusReachable(endpoint string) bool {
-	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
-	if err != nil {
-		return false
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return false
-	}
-	defer resp.Body.Close()
-	return true
 }

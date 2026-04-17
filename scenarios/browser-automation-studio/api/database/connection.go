@@ -217,8 +217,76 @@ func (db *DB) initSchema() error {
 		return err
 	}
 
+	if err := db.ensureWorkflowSchemaCompatibility(ctx); err != nil {
+		return err
+	}
+
 	db.log.Info("Database schema initialized successfully")
 	return nil
+}
+
+func (db *DB) ensureWorkflowSchemaCompatibility(ctx context.Context) error {
+	hasWorkflows, err := db.tableExists(ctx, "workflows")
+	if err != nil {
+		return fmt.Errorf("check workflows table: %w", err)
+	}
+	if !hasWorkflows {
+		return nil
+	}
+
+	hasFilePath, err := db.columnExists(ctx, "workflows", "file_path")
+	if err != nil {
+		return fmt.Errorf("check workflows.file_path column: %w", err)
+	}
+	if hasFilePath {
+		return nil
+	}
+
+	if _, err := db.ExecContext(ctx, `ALTER TABLE workflows ADD COLUMN file_path TEXT`); err != nil {
+		db.log.WithError(err).Warn("Failed to add workflows.file_path compatibility column")
+		return fmt.Errorf("add workflows.file_path column: %w", err)
+	}
+	if db.log != nil {
+		db.log.Warn("Added missing workflows.file_path column for SQLite compatibility")
+	}
+	return nil
+}
+
+func (db *DB) tableExists(ctx context.Context, tableName string) (bool, error) {
+	var count int
+	if err := db.GetContext(ctx, &count, `SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?`, tableName); err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+func (db *DB) columnExists(ctx context.Context, tableName, columnName string) (bool, error) {
+	rows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", tableName))
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			cid        int
+			name       string
+			dataType   string
+			notNull    int
+			defaultVal sql.NullString
+			primaryKey int
+		)
+		if err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultVal, &primaryKey); err != nil {
+			return false, err
+		}
+		if name == columnName {
+			return true, nil
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return false, err
+	}
+	return false, nil
 }
 
 func resolveScenarioRoot() (string, error) {

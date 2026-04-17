@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../scripts/scenarios/testing/schemas/testing.schema.json",
+  "$schema": "https://vrooli.com/schemas/testing.schema.json",
   "_metadata": {
     "description": "Testing configuration for prd-control-tower scenario",
     "last_updated": "2025-11-08T17:24:48Z"

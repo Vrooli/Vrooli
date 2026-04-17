@@ -4,7 +4,6 @@ package vrooli
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -12,7 +11,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
 	"vrooli-autoheal/internal/checks"
+	integration "vrooli-autoheal/internal/integrations/vrooli"
 	"vrooli-autoheal/internal/platform"
 )
 
@@ -27,6 +28,7 @@ type ScenarioCheck struct {
 	interval     int
 	critical     bool // determines if stopped/failed → critical or warning
 	executor     checks.CommandExecutor
+	client       *integration.Client
 	directHealth func(context.Context) (bool, string)
 	recoveryPoll scenarioRecoveryPollConfig
 }
@@ -41,14 +43,6 @@ type scenarioRecoveryPollConfig struct {
 	initialDelay time.Duration
 }
 
-type scenarioStatusJSON struct {
-	Success      bool `json:"success"`
-	ScenarioData struct {
-		Status       string `json:"status"`
-		HealthStatus string `json:"health_status"`
-	} `json:"scenario_data"`
-}
-
 // ScenarioCheckOption configures a ScenarioCheck.
 type ScenarioCheckOption func(*ScenarioCheck)
 
@@ -56,6 +50,14 @@ type ScenarioCheckOption func(*ScenarioCheck)
 func WithScenarioExecutor(executor checks.CommandExecutor) ScenarioCheckOption {
 	return func(c *ScenarioCheck) {
 		c.executor = executor
+		c.client = integration.NewClient(executor)
+	}
+}
+
+// WithScenarioClient sets the integration client (for testing).
+func WithScenarioClient(client *integration.Client) ScenarioCheckOption {
+	return func(c *ScenarioCheck) {
+		c.client = client
 	}
 }
 
@@ -99,6 +101,7 @@ func NewScenarioCheck(scenarioName string, critical bool, opts ...ScenarioCheckO
 		interval:     60,
 		critical:     critical,
 		executor:     checks.DefaultExecutor,
+		client:       integration.NewClient(checks.DefaultExecutor),
 		recoveryPoll: scenarioRecoveryPollConfig{
 			timeout:      45 * time.Second,
 			interval:     3 * time.Second,
@@ -184,7 +187,7 @@ func (c *ScenarioCheck) Run(ctx context.Context) checks.Result {
 		return result
 	}
 
-	parsed, parseErr := parseScenarioStatusJSON(output)
+	parsed, parseErr := integration.ParseScenarioStatus(output)
 	if parseErr != nil {
 		result.Status = checks.StatusWarning
 		result.Message = c.scenarioName + " scenario status parse failed"
@@ -192,8 +195,14 @@ func (c *ScenarioCheck) Run(ctx context.Context) checks.Result {
 		return result
 	}
 
-	scenarioStatus := strings.ToLower(parsed.ScenarioData.Status)
-	healthStatus := strings.ToLower(parsed.ScenarioData.HealthStatus)
+	scenarioStatus := strings.ToLower(strings.TrimSpace(parsed.Scenario.Status))
+	healthStatus, healthErr := parsed.Scenario.NormalizedHealthStatus()
+	if healthErr != nil {
+		result.Status = checks.StatusWarning
+		result.Message = c.scenarioName + " scenario status parse failed"
+		result.Details["error"] = healthErr.Error()
+		return result
+	}
 	result.Details["scenarioStatus"] = scenarioStatus
 	result.Details["healthStatus"] = healthStatus
 	if hasSharedPackageDriftSignature(outputText) {
@@ -232,14 +241,6 @@ func (c *ScenarioCheck) Run(ctx context.Context) checks.Result {
 	}
 
 	return result
-}
-
-func parseScenarioStatusJSON(output []byte) (*scenarioStatusJSON, error) {
-	var parsed scenarioStatusJSON
-	if err := json.Unmarshal(output, &parsed); err != nil {
-		return nil, err
-	}
-	return &parsed, nil
 }
 
 func shouldFallbackToDirectHealthCheck(output string, err error) bool {

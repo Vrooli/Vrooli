@@ -301,9 +301,7 @@ func ValidateResourceManifest(root string, resourceManifest manifestpkg.Resource
 		}
 		exports[key] = "derived"
 	}
-	for _, issue := range validateResourceStorageSources(root, resourceManifest) {
-		issues = append(issues, issue)
-	}
+	issues = append(issues, validateResourceStorageSources(root, resourceManifest)...)
 	return issues
 }
 
@@ -438,22 +436,6 @@ func loadSecrets(home string) (map[string]string, error) {
 	return merged, nil
 }
 
-func normalizeEnvSegment(value string) string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return ""
-	}
-	replacer := strings.NewReplacer("-", "_", ".", "_", " ", "_")
-	return strings.ToUpper(replacer.Replace(value))
-}
-
-func isExplicitEnvVar(value string) bool {
-	if value == "" {
-		return false
-	}
-	return value == strings.ToUpper(value) && strings.ContainsAny(value, "_ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-}
-
 func applyFallbackDefaults(resourceName string, values map[string]string, hostPorts map[string]int) {
 	switch resourceName {
 	case "postgres":
@@ -498,10 +480,6 @@ func applyDependencyOverrides(resourceName string, opts ResolveOptions, values m
 	if dbName != "" {
 		values["POSTGRES_DB"] = dbName
 	}
-}
-
-func expandTemplate(value string, env map[string]string) string {
-	return expandTemplateWithContext(value, env, nil)
 }
 
 func expandTemplateWithContext(value string, env map[string]string, extra map[string]string) string {

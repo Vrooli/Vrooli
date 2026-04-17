@@ -253,11 +253,3 @@ func (s *Service) runnerBaseLogger() *slog.Logger {
 	}
 	return slog.Default()
 }
-
-func (s *Service) viewForScenario(item scenario.Scenario) (ScenarioView, error) {
-	detail, err := s.Detail(item.Slug)
-	if err != nil {
-		return ScenarioView{}, err
-	}
-	return s.viewForDetail(detail), nil
-}
