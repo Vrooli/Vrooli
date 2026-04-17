@@ -231,9 +231,6 @@
         "enabled": true,
         "required": false
       },
-      "parlant": {
-        "enabled": false
-      },
       "postgis": {
         "container_name": "postgis-main",
         "data_directory": "${HOME}/.vrooli/postgis",
@@ -294,9 +291,6 @@
         "description": "Privacy-respecting search engine",
         "enabled": true,
         "required": true
-      },
-      "sqlite": {
-        "enabled": true
       },
       "twilio": {
         "credentials_file": "~/.vrooli/twilio-credentials.json",

@@ -16,6 +16,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/hostreq"
+	"github.com/vrooli/vrooli/internal/hostreqrun"
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/ports"
@@ -23,31 +25,34 @@ import (
 	"github.com/vrooli/vrooli/internal/projectstate"
 	"github.com/vrooli/vrooli/internal/resources"
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
+	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
 type Runner struct {
-	Root   string
-	Home   string
-	Out    io.Writer
-	Err    io.Writer
-	Ports  *ports.Manager
-	Logger *slog.Logger
-	deps   lifecycleDeps
+	Root        string
+	Home        string
+	Environment string
+	Out         io.Writer
+	Err         io.Writer
+	Ports       *ports.Manager
+	Logger      *slog.Logger
+	deps        lifecycleDeps
 }
 
 type lifecycleDeps struct {
-	sleep               func(time.Duration)
-	now                 func() time.Time
-	signalProcessGroup  func(int, bool) error
-	signalPID           func(int, bool) error
-	listeningPIDs       func(int) ([]int, error)
-	readScenarioRecords func(string, string) ([]process.Record, error)
-	isPIDRunning        func(int) bool
-	resourceStatus      func(string, bool) (resourcecontrol.Status, error)
-	runResource         func(string, []string, io.Writer, io.Writer) error
-	inspectPort         func(int) (network.PortInspection, error)
-	readProcessEnv      func(int) (map[string]string, error)
+	sleep                   func(time.Duration)
+	now                     func() time.Time
+	signalProcessGroup      func(int, bool) error
+	signalPID               func(int, bool) error
+	listeningPIDs           func(int) ([]int, error)
+	readScenarioRecords     func(string, string) ([]process.Record, error)
+	isPIDRunning            func(int) bool
+	resourceStatus          func(string, bool) (resourcecontrol.Status, error)
+	runResource             func(string, []string, io.Writer, io.Writer) error
+	inspectPort             func(int) (network.PortInspection, error)
+	readProcessEnv          func(int) (map[string]string, error)
+	enforceHostRequirements func(hostreqrun.Options) (vrooliruntime.Report, error)
 }
 
 type hostProbeDeps struct {
@@ -125,14 +130,19 @@ func newRunnerWithDeps(root, home string, stdout, stderr io.Writer, deps lifecyc
 		baseLogger = logger[0]
 	}
 	return &Runner{
-		Root:   filepath.Clean(root),
-		Home:   filepath.Clean(home),
-		Out:    stdout,
-		Err:    stderr,
-		Ports:  manager,
-		Logger: logx.WithSubsystem(baseLogger, "lifecycle"),
-		deps:   deps,
+		Root:        filepath.Clean(root),
+		Home:        filepath.Clean(home),
+		Environment: hostreq.NormalizeEnvironment(""),
+		Out:         stdout,
+		Err:         stderr,
+		Ports:       manager,
+		Logger:      logx.WithSubsystem(baseLogger, "lifecycle"),
+		deps:        deps,
 	}, nil
+}
+
+func (r *Runner) environmentProfile() string {
+	return hostreq.NormalizeEnvironment(r.Environment)
 }
 
 func (r *Runner) runtimeDeps() lifecycleDeps {
@@ -174,6 +184,9 @@ func (r *Runner) runtimeDeps() lifecycleDeps {
 	}
 	if deps.readProcessEnv == nil {
 		deps.readProcessEnv = process.ReadEnvironment
+	}
+	if deps.enforceHostRequirements == nil {
+		deps.enforceHostRequirements = hostreqrun.Enforce
 	}
 	return deps
 }
@@ -269,6 +282,10 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 			return Result{}, err
 		}
 		deps.sleep(1 * time.Second)
+	}
+
+	if err := r.enforceScenarioHostRequirements(item); err != nil {
+		return Result{}, err
 	}
 
 	env, err := r.prepareScenarioEnvironment(item, records)
@@ -458,6 +475,61 @@ func (r *Runner) Restart(name string, opts StartOptions) (Result, error) {
 	}
 	r.logInfo("Scenario restart completed", logx.AttrScenario, name, logx.AttrStatus, result.Health)
 	return result, nil
+}
+
+// enforceScenarioHostRequirements resolves and installs host requirements
+// declared directly on the scenario. Resource-level declarations are handled by
+// enforceResourceHostRequirements before each resource dep starts, so scope is
+// kept tight: only the root manifest plus the scenario's own declarations.
+// A scenario with no declared hostTools/hostSafeguards yields a no-op.
+func (r *Runner) enforceScenarioHostRequirements(item scenario.Scenario) error {
+	deps := r.runtimeDeps()
+	if deps.enforceHostRequirements == nil {
+		return nil
+	}
+	if _, err := deps.enforceHostRequirements(hostreqrun.Options{
+		Root:        r.Root,
+		Home:        r.Home,
+		Environment: r.environmentProfile(),
+		When:        "develop",
+		Resources:   "none",
+		Scenarios:   item.Slug,
+		AutoInstall: true,
+		Stdout:      r.Out,
+		Stderr:      r.Err,
+		Label:       "scenario:" + item.Slug,
+	}); err != nil {
+		r.logError("Host requirements enforcement failed", err, logx.AttrScenario, item.Slug)
+		return err
+	}
+	return nil
+}
+
+// enforceResourceHostRequirements installs the host requirements declared on a
+// single resource manifest before the resource itself is started. Root-manifest
+// tools are always included by the resolver, which is fine — handlers are
+// idempotent.
+func (r *Runner) enforceResourceHostRequirements(resourceName string) error {
+	deps := r.runtimeDeps()
+	if deps.enforceHostRequirements == nil {
+		return nil
+	}
+	if _, err := deps.enforceHostRequirements(hostreqrun.Options{
+		Root:        r.Root,
+		Home:        r.Home,
+		Environment: r.environmentProfile(),
+		When:        "develop",
+		Resources:   resourceName,
+		Scenarios:   "none",
+		AutoInstall: true,
+		Stdout:      r.Out,
+		Stderr:      r.Err,
+		Label:       "resource:" + resourceName,
+	}); err != nil {
+		r.logError("Host requirements enforcement failed", err, logx.AttrDependency, resourceName)
+		return err
+	}
+	return nil
 }
 
 func (r *Runner) logger() *slog.Logger {

@@ -13,15 +13,15 @@ import (
 )
 
 func (a *App) ListScenariosNative(w http.ResponseWriter, r *http.Request) {
-	views, err := a.Scenarios.List()
+	report, err := a.Scenarios.ListReport()
 	if err != nil {
 		a.logError("Scenario list request failed", err, logx.AttrOperation, "list_scenarios")
 		respondError(w, newAPIError(http.StatusInternalServerError, "scenario_list_failed", "failed to read scenarios directory", err))
 		return
 	}
 	healthSnapshot := a.collectProcessHealthSnapshot()
-	scenarios := make([]map[string]interface{}, 0, len(views))
-	for _, item := range views {
+	scenarios := make([]map[string]interface{}, 0, len(report.Items))
+	for _, item := range report.Items {
 		scenario := map[string]interface{}{
 			"name":          item.Name,
 			"display_name":  item.DisplayName,
@@ -41,6 +41,9 @@ func (a *App) ListScenariosNative(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
 		"success": true,
 		"data":    scenarios,
+	}
+	if len(report.Failures) > 0 {
+		response["discovery_failures"] = report.Failures
 	}
 	var warnings []map[string]interface{}
 	if healthSnapshot.ZombieStatus != "healthy" && healthSnapshot.ZombieStatus != "normal" {
@@ -66,7 +69,7 @@ func (a *App) ListScenariosNative(w http.ResponseWriter, r *http.Request) {
 		response["system_warnings"] = warnings
 		response["system_health"] = healthSnapshot.OverallStatus
 	}
-	a.logInfo("Scenario list request completed", "count", len(views))
+	a.logInfo("Scenario list request completed", "count", len(report.Items), "discovery_failures", len(report.Failures))
 	respondJSON(w, http.StatusOK, response)
 }
 

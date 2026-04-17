@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/process"
@@ -116,11 +117,13 @@ type BatchResponse struct {
 type ListResponse struct {
 	Items        []ListItemOutput
 	RunningCount int
+	Failures     []discovery.Failure `json:"failures,omitempty"`
 }
 
 type StatusResponse struct {
-	Single *StatusSingleOutput
-	List   []StatusItemOutput
+	Single   *StatusSingleOutput
+	List     []StatusItemOutput
+	Failures []discovery.Failure `json:"failures,omitempty"`
 }
 
 type PortSingleOutput struct {
@@ -331,14 +334,18 @@ func WriteBatchReport(w io.Writer, format cliout.Format, resp BatchResponse) err
 
 func RenderListResponse(w io.Writer, format cliout.Format, resp ListResponse) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessFields(w, map[string]any{
+		fields := map[string]any{
 			"summary": map[string]int{
 				"total_scenarios": len(resp.Items),
 				"running":         resp.RunningCount,
 				"available":       len(resp.Items) - resp.RunningCount,
 			},
 			"scenarios": resp.Items,
-		})
+		}
+		if len(resp.Failures) > 0 {
+			fields["discovery_failures"] = resp.Failures
+		}
+		return cliout.WriteSuccessFields(w, fields)
 	}
 
 	_, _ = fmt.Fprintln(w, "[INFO]    Available scenarios:")
@@ -355,6 +362,12 @@ func RenderListResponse(w io.Writer, format cliout.Format, resp ListResponse) er
 			line += " (ports: " + strings.Join(portParts, ", ") + ")"
 		}
 		_, _ = fmt.Fprintln(w, line)
+	}
+	if len(resp.Failures) > 0 {
+		_, _ = fmt.Fprintf(w, "\n[WARN]    Skipped %d scenarios with discovery errors\n", len(resp.Failures))
+		for _, failure := range resp.Failures {
+			_, _ = fmt.Fprintf(w, "  - %s: %s\n", failure.Name, failure.Error)
+		}
 	}
 	return nil
 }
@@ -376,16 +389,26 @@ func RenderStatusResponse(w io.Writer, format cliout.Format, resp StatusResponse
 					runningCount++
 				}
 			}
-			return cliout.WriteSuccessFields(w, map[string]any{
+			fields := map[string]any{
 				"summary": map[string]int{
 					"total_scenarios": len(resp.List),
 					"running":         runningCount,
 					"stopped":         len(resp.List) - runningCount,
 				},
 				"scenarios": resp.List,
-			})
+			}
+			if len(resp.Failures) > 0 {
+				fields["discovery_failures"] = resp.Failures
+			}
+			return cliout.WriteSuccessFields(w, fields)
 		}
 		WriteStatusTable(w, resp.List)
+		if len(resp.Failures) > 0 {
+			_, _ = fmt.Fprintf(w, "\nSkipped %d scenarios with discovery errors:\n", len(resp.Failures))
+			for _, failure := range resp.Failures {
+				_, _ = fmt.Fprintf(w, "  %s: %s\n", failure.Name, failure.Error)
+			}
+		}
 		return nil
 	}
 

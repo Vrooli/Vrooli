@@ -93,7 +93,7 @@ func main() {
 
 ### How It Works
 
-For known drivers (`postgres`, `sqlite3`), connection parameters are automatically read from environment variables set by the Vrooli lifecycle system:
+For known drivers (`postgres`, `sqlite`, `sqlite3`), connection parameters are automatically read from environment variables set by the Vrooli lifecycle system:
 
 | Variable | Description |
 |----------|-------------|
@@ -150,12 +150,12 @@ db, err := database.Connect(ctx, database.Config{
 ### SQLite Support
 
 ```go
-// Reads SQLITE_PATH or SQLITE_DB from environment
+// Preferred modern SQLite driver name. Reads SQLITE_PATH or SQLITE_DB from environment.
 db, err := database.Connect(ctx, database.Config{
-    Driver: "sqlite3",
+    Driver: "sqlite",
 })
 
-// Or explicit path
+// Legacy CGO-based sqlite3 driver name remains supported for older scenarios.
 db, err := database.Connect(ctx, database.Config{
     Driver: "sqlite3",
     DSN:    "/data/app.db",

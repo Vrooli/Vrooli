@@ -842,6 +842,33 @@ func TestHealthConfigPrefersLifecycleHealth(t *testing.T) {
 	}
 }
 
+func TestDiscoverReportContinuesAfterInvalidScenario(t *testing.T) {
+	root := newScenarioRepoFixture(t)
+	writeScenarioService(t, root, "alpha", "Valid alpha")
+	testkitgo.WriteFile(t, filepath.Join(root, "scenarios", "broken", ".vrooli", "service.json"), `{
+  "service": {"name": "broken"},
+  "cli": {
+    "enabled": true,
+    "command": "broken",
+    "adapter": {"kind": "go_module", "module_path": "cli"}
+  }
+}`)
+
+	report, err := DiscoverReport(root, SandboxEnv{})
+	if err != nil {
+		t.Fatalf("DiscoverReport: %v", err)
+	}
+	if len(report.Items) != 1 || report.Items[0].Slug != "alpha" {
+		t.Fatalf("items = %#v", report.Items)
+	}
+	if len(report.Failures) != 1 {
+		t.Fatalf("failures = %#v", report.Failures)
+	}
+	if report.Failures[0].Name != "broken" || report.Failures[0].Kind != "scenario" {
+		t.Fatalf("failure = %#v", report.Failures[0])
+	}
+}
+
 func writeScenarioService(t *testing.T, root, name, description string) {
 	t.Helper()
 	writeScenarioServiceAtPath(t, filepath.Join(root, "scenarios", name), description)

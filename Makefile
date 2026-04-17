@@ -1,4 +1,4 @@
-.PHONY: help setup dev develop build install status stop info test validate clean
+.PHONY: help setup dev develop build install status stop test clean
 
 .DEFAULT_GOAL := help
 
@@ -16,7 +16,6 @@ help: ## Show the supported repo-level entrypoints
 	@printf "  make install                    Install project-level binaries to %s\n" "$(INSTALL_DIR)"
 	@printf "  make status                     Show project status\n"
 	@printf "  make stop                       Stop project services\n"
-	@printf "  make info                       Show the canonical project briefing\n"
 	@printf "  make test                       Run project-level Go tests\n"
 	@printf "  make clean                      Clean build artifacts via the CLI\n"
 
@@ -41,9 +40,6 @@ status: ## Show project status
 
 stop: ## Stop project services
 	@$(VROOLI) stop
-
-info: ## Show the canonical project briefing
-	@$(VROOLI) info
 
 test: ## Run project-level Go tests
 	@go test ./internal/...

@@ -127,11 +127,11 @@ func loadOwners(root, home string) ([]ownerManifest, error) {
 	}}
 
 	controller := resources.NewController(root, home)
-	resourceItems, err := controller.Discover()
+	resourceReport, err := controller.DiscoverReport()
 	if err != nil {
 		return nil, fmt.Errorf("discover resources: %w", err)
 	}
-	for _, item := range resourceItems {
+	for _, item := range resourceReport.Items {
 		if strings.TrimSpace(item.ManifestPath) == "" {
 			continue
 		}
@@ -149,11 +149,11 @@ func loadOwners(root, home string) ([]ownerManifest, error) {
 		})
 	}
 
-	scenarioItems, err := scenario.Discover(root, scenario.SandboxEnv{})
+	scenarioReport, err := scenario.DiscoverReport(root, scenario.SandboxEnv{})
 	if err != nil {
 		return nil, fmt.Errorf("discover scenarios: %w", err)
 	}
-	for _, item := range scenarioItems {
+	for _, item := range scenarioReport.Items {
 		owners = append(owners, ownerManifest{
 			kind:       "scenario",
 			name:       item.Slug,

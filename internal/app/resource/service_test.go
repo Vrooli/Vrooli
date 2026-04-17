@@ -18,12 +18,20 @@ func (f *fakeResourceOps) Discover() ([]resources.Resource, error) {
 	return []resources.Resource{{Name: "redis"}}, nil
 }
 
+func (f *fakeResourceOps) DiscoverReport() (resources.DiscoveryReport, error) {
+	return resources.DiscoveryReport{Items: []resources.Resource{{Name: "redis"}}}, nil
+}
+
 func (f *fakeResourceOps) ValidateResources(name string) (resources.ResourceValidationReport, error) {
 	return resources.ResourceValidationReport{Passed: true}, nil
 }
 
 func (f *fakeResourceOps) ListStatuses(fast bool, includeDisabled bool) ([]resources.Status, error) {
 	return []resources.Status{{Resource: resources.Resource{Name: "redis"}}}, nil
+}
+
+func (f *fakeResourceOps) ListStatusesReport(fast bool, includeDisabled bool) (resources.StatusReport, error) {
+	return resources.StatusReport{Items: []resources.Status{{Resource: resources.Resource{Name: "redis"}}}}, nil
 }
 
 func (f *fakeResourceOps) Status(name string, fast bool) (resources.Status, error) {

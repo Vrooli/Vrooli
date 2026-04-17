@@ -179,12 +179,6 @@
   },
   "dependencies": {
     "resources": {
-      "sqlite": {
-        "type": "sqlite",
-        "enabled": false,
-        "required": false,
-        "description": "Uses embedded local SQLite file (no standalone resource daemon required)"
-      },
       "claude-code": {
         "type": "claude-code",
         "enabled": true,
@@ -218,6 +212,9 @@
         "description": "Provides sandbox creation, diff generation, and patch application for isolated agent execution"
       }
     }
+  },
+  "environment": {
+    "AM_SQLITE_PATH": "${SCENARIO_DATA_DIR}/agent-manager.db"
   },
   "cli": {
     "enabled": true,

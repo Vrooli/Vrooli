@@ -4,10 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"io"
 	"math/rand"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -155,11 +153,6 @@ func connectSQLite(log *logrus.Logger) (*sqlx.DB, error) {
 		return nil, err
 	}
 
-	// Best-effort invoke sqlite resource install
-	if err := ensureSQLiteResource(log); err != nil {
-		log.WithError(err).Debug("SQLite resource install check failed; continuing")
-	}
-
 	return sqlx.Connect("sqlite", dsn)
 }
 
@@ -201,26 +194,6 @@ func scenarioDBPath() (string, error) {
 		return "", err
 	}
 	return resolver.Path(storage.Options{ScenarioID: "browser-automation-studio"}, storage.ClassData, "browser-automation-studio.db")
-}
-
-func ensureSQLiteResource(log *logrus.Logger) error {
-	cli := strings.TrimSpace(os.Getenv("SQLITE_CLI_PATH"))
-	if cli == "" {
-		cli = filepath.Join("resources", "sqlite", "cli.sh")
-		if _, err := os.Stat(cli); err != nil {
-			cli = "resource-sqlite"
-		}
-	}
-	cmd := exec.Command(cli, "manage", "install")
-	cmd.Stdout = io.Discard
-	cmd.Stderr = io.Discard
-	if err := cmd.Run(); err != nil {
-		if log != nil {
-			log.WithError(err).Debug("resource-sqlite manage install failed or missing")
-		}
-		return err
-	}
-	return nil
 }
 
 // Dialect returns the active dialect for this DB

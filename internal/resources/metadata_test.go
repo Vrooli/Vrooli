@@ -543,19 +543,19 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	writeEnvManifestFixture(t, root, "sqlite", manifestpkg.ResourceManifest{
-		Name:            "sqlite",
+	writeEnvManifestFixture(t, root, "fixturecli", manifestpkg.ResourceManifest{
+		Name:            "fixturecli",
 		Driver:          "external-cli",
-		Binary:          "resource-sqlite",
+		Binary:          "resource-fixturecli",
 		PortabilityTier: "full",
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
 			Static: map[string]string{
-				"SQLITE_CLI_PATH":     "resource-sqlite",
-				"SQLITE_JOURNAL_MODE": "WAL",
+				"FIXTURECLI_PATH":        "resource-fixturecli",
+				"FIXTURECLI_JOURNAL_MODE": "WAL",
 			},
 			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
-				"SQLITE_DATABASE_PATH":          {Template: "${RESOURCE_DATA_DIR}/databases"},
-				"SQLITE_REPLICATION_STATE_PATH": {Template: "${RESOURCE_STATE_DIR}/replication"},
+				"FIXTURECLI_DATA_PATH":  {Template: "${RESOURCE_DATA_DIR}/data"},
+				"FIXTURECLI_STATE_PATH": {Template: "${RESOURCE_STATE_DIR}/state"},
 			},
 		},
 	})
@@ -681,12 +681,12 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 		t.Fatalf("Save encrypted secrets: %v", err)
 	}
 
-	sqliteEnv, err := LoadResourceEnvironment(root, home, "sqlite")
+	fixtureEnv, err := LoadResourceEnvironment(root, home, "fixturecli")
 	if err != nil {
-		t.Fatalf("LoadResourceEnvironment(sqlite): %v", err)
+		t.Fatalf("LoadResourceEnvironment(fixturecli): %v", err)
 	}
-	if got := sqliteEnv["SQLITE_DATABASE_PATH"]; got != filepath.Join(home, ".local", "share", "vrooli", "resources", "sqlite", "databases") {
-		t.Fatalf("SQLITE_DATABASE_PATH = %q", got)
+	if got := fixtureEnv["FIXTURECLI_DATA_PATH"]; got != filepath.Join(home, ".local", "share", "vrooli", "resources", "fixturecli", "data") {
+		t.Fatalf("FIXTURECLI_DATA_PATH = %q", got)
 	}
 
 	openrouterEnv, err := LoadResourceEnvironment(root, home, "openrouter")
@@ -857,14 +857,6 @@ func TestActualNonDockerResourceManifestsResolveNativeExports(t *testing.T) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		t.Fatalf("resolve home: %v", err)
-	}
-
-	sqliteEnv, err := LoadResourceEnvironment(root, home, "sqlite")
-	if err != nil {
-		t.Fatalf("LoadResourceEnvironment(sqlite): %v", err)
-	}
-	if got := sqliteEnv["SQLITE_DATABASE_PATH"]; got != filepath.Join(home, ".local", "share", "vrooli", "resources", "sqlite", "databases") {
-		t.Fatalf("SQLITE_DATABASE_PATH = %q", got)
 	}
 
 	openrouterEnv, err := LoadResourceEnvironment(root, home, "openrouter")

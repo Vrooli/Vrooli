@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -37,13 +38,21 @@ type ResolvedPort struct {
 }
 
 func (s *Service) Inventory() ([]Detail, error) {
-	items, err := scenario.Discover(s.Root, scenario.SandboxEnvFromEnv())
+	report, err := s.InventoryReport()
 	if err != nil {
 		return nil, err
 	}
+	return report.Items, nil
+}
 
-	valid := make(map[string]struct{}, len(items))
-	for _, item := range items {
+func (s *Service) InventoryReport() (InventoryReport, error) {
+	discoveryReport, err := scenario.DiscoverReport(s.Root, scenario.SandboxEnvFromEnv())
+	if err != nil {
+		return InventoryReport{}, err
+	}
+
+	valid := make(map[string]struct{}, len(discoveryReport.Items))
+	for _, item := range discoveryReport.Items {
 		valid[item.Slug] = struct{}{}
 	}
 
@@ -52,7 +61,7 @@ func (s *Service) Inventory() ([]Detail, error) {
 		return ok
 	})
 	if err != nil {
-		return nil, err
+		return InventoryReport{}, err
 	}
 
 	runtimes := make(map[string]process.ScenarioRuntime, len(running))
@@ -60,8 +69,8 @@ func (s *Service) Inventory() ([]Detail, error) {
 		runtimes[runtime.Name] = runtime
 	}
 
-	details := make([]Detail, 0, len(items))
-	for _, item := range items {
+	details := make([]Detail, 0, len(discoveryReport.Items))
+	for _, item := range discoveryReport.Items {
 		runtime := runtimes[item.Slug]
 		details = append(details, Detail{
 			Scenario: item,
@@ -70,7 +79,10 @@ func (s *Service) Inventory() ([]Detail, error) {
 		})
 	}
 	sort.Slice(details, func(i, j int) bool { return details[i].Scenario.Slug < details[j].Scenario.Slug })
-	return details, nil
+	return InventoryReport{
+		Items:    details,
+		Failures: append([]discovery.Failure(nil), discoveryReport.Failures...),
+	}, nil
 }
 
 func (s *Service) Lookup(name string) (Detail, bool, error) {

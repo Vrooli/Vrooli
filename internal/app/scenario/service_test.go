@@ -33,6 +33,10 @@ func (f *fakeScenarioOps) RestartDetailed(name string, opts lifecycle.StartOptio
 	return orchestrator.StartResult{}, nil
 }
 func (f *fakeScenarioOps) Inventory() ([]orchestrator.Detail, error) { return nil, nil }
+func (f *fakeScenarioOps) InventoryReport() (orchestrator.InventoryReport, error) {
+	return orchestrator.InventoryReport{}, nil
+}
+
 func (f *fakeScenarioOps) Detail(name string) (orchestrator.Detail, error) {
 	return orchestrator.Detail{Runtime: process.ScenarioRuntime{}}, nil
 }

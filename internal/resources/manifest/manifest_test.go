@@ -56,17 +56,17 @@ func TestValidateAcceptsExternalCLIManifest(t *testing.T) {
 
 func TestValidateAcceptsNativeCLIManifest(t *testing.T) {
 	err := Validate(ResourceManifest{
-		Name: "sqlite",
+		Name: "fixturecli",
 		CLI: &scenario.CLIConfig{
 			Enabled: true,
-			Command: "resource-sqlite",
+			Command: "resource-fixturecli",
 			Adapter: scenario.CLIAdapterConfig{
 				Kind:      "go_module",
 				ModuleDir: "cli",
 			},
 		},
 		Driver:          "native-cli",
-		Binary:          "resource-sqlite",
+		Binary:          "resource-fixturecli",
 		PortabilityTier: "full",
 		Platforms:       ResourcePlatforms{Linux: "supported", MacOS: "supported", Windows: "supported"},
 	})

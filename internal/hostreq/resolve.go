@@ -86,10 +86,11 @@ func (s resolverState) addResources(home, selector string) error {
 	}
 
 	controller := resources.NewController(s.root, home)
-	items, err := controller.Discover()
+	report, err := controller.DiscoverReport()
 	if err != nil {
 		return fmt.Errorf("discover resources: %w", err)
 	}
+	items := report.Items
 
 	selected := make([]resources.Resource, 0, len(items))
 	switch selector {
@@ -141,13 +142,13 @@ func (s resolverState) addScenarios(selector string) error {
 	}
 
 	var items []scenario.Scenario
-	var err error
 	switch selector {
 	case "all":
-		items, err = scenario.Discover(s.root, scenario.SandboxEnv{})
+		report, err := scenario.DiscoverReport(s.root, scenario.SandboxEnv{})
 		if err != nil {
 			return fmt.Errorf("discover scenarios: %w", err)
 		}
+		items = report.Items
 	default:
 		names := normalizeCSV(selector)
 		items = make([]scenario.Scenario, 0, len(names))

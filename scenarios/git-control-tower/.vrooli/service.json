@@ -1,14 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "dependencies": {
-    "resources": {
-      "sqlite": {
-        "description": "Audit log and metadata storage (local SQLite database)",
-        "enabled": true,
-        "required": true,
-        "type": "sqlite"
-      }
-    },
+    "resources": {},
     "scenarios": {
       "workspace-sandbox": {
         "description": "Approved changes tracking and commit preview",
@@ -31,6 +24,9 @@
         "required": false
       }
     }
+  },
+  "environment": {
+    "GCT_SQLITE_PATH": "${SCENARIO_DATA_DIR}/git-control-tower.db"
   },
   "lifecycle": {
     "develop": {

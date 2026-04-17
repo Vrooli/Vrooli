@@ -13,6 +13,9 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cli/topcli"
 	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/internal/discovery"
+	"github.com/vrooli/vrooli/internal/hostreq"
+	"github.com/vrooli/vrooli/internal/hostreqrun"
 	"github.com/vrooli/vrooli/internal/resources"
 )
 
@@ -27,6 +30,18 @@ type HandlerDeps[C any] struct {
 
 var TimeNowForArchiveGC = func() time.Time {
 	return time.Now().UTC()
+}
+
+// enforceHostRequirementsFn runs hostreqrun.Enforce before mutating resource
+// operations (install/start/restart). Tests may override it with a stub.
+var enforceHostRequirementsFn = hostreqrun.Enforce
+
+// actionsRequiringHostRequirements enumerates CLI actions that must ensure
+// declared tools/safeguards are present before the resource runs.
+var actionsRequiringHostRequirements = map[string]struct{}{
+	"install": {},
+	"start":   {},
+	"restart": {},
 }
 
 func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
@@ -73,19 +88,22 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 	handlerMap := map[resourcecli.CommandID]rootcli.ResourceHandler[C]{
 		resourcecli.CommandList: bindResourceCommand(deps,
 			func(args []string) (resourcecli.NoArgsRequest, error) { return parseResourceListRequest(args) },
-			func(ctx C, controller *resources.Controller, req resourcecli.NoArgsRequest) (cliout.Format, []resources.Resource, error) {
+			func(ctx C, controller *resources.Controller, req resourcecli.NoArgsRequest) (cliout.Format, resourceListResponse, error) {
 				_ = req
-				items, err := newResourceCommandService(deps, ctx, controller).List()
+				resp, err := newResourceCommandService(deps, ctx, controller).List()
 				if err != nil {
-					return "", nil, err
+					return "", resourceListResponse{}, err
 				}
 				format, err := deps.OutputFormat(ctx)
 				if err != nil {
-					return "", nil, err
+					return "", resourceListResponse{}, err
 				}
-				return format, items, nil
+				return format, resourceListResponse{
+					Items:    resp.Items,
+					Failures: append([]discovery.Failure(nil), resp.Failures...),
+				}, nil
 			},
-			resourcecli.WriteList,
+			renderResourceListResponse,
 		),
 		resourcecli.CommandStatus: bindResourceCommand(deps,
 			func(args []string) (resourcecli.StatusRequest, error) { return parseResourceStatusRequest(args) },
@@ -97,14 +115,17 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 				if err != nil {
 					return "", resourceStatusResponse{}, err
 				}
-				items, item, err := newResourceCommandService(deps, ctx, controller).Status(req.Name, req.Fast)
+				resp, err := newResourceCommandService(deps, ctx, controller).Status(req.Name, req.Fast)
 				if err != nil {
 					return "", resourceStatusResponse{}, err
 				}
-				if item != nil {
-					return format, resourceStatusResponse{Item: item}, nil
+				if resp.Item != nil {
+					return format, resourceStatusResponse{Item: resp.Item}, nil
 				}
-				return format, resourceStatusResponse{Items: items}, nil
+				return format, resourceStatusResponse{
+					Items:    resp.Items,
+					Failures: append([]discovery.Failure(nil), resp.Failures...),
+				}, nil
 			},
 			renderResourceStatusResponse,
 		),
@@ -563,8 +584,14 @@ func showResourceSchemaHelp(w io.Writer) {
 }
 
 type resourceStatusResponse struct {
-	Item  *resources.Status
-	Items []resources.Status
+	Item     *resources.Status
+	Items    []resources.Status
+	Failures []discovery.Failure
+}
+
+type resourceListResponse struct {
+	Items    []resources.Resource
+	Failures []discovery.Failure
 }
 
 type resourceBlueprintSearchResponse struct {
@@ -625,8 +652,39 @@ func singleResourceControlHandler[C any](deps HandlerDeps[C], action string) roo
 		if err := ensureNamedResourceCLI(deps, ctx, args[0]); err != nil {
 			return err
 		}
+		if err := enforceResourceHostRequirements(ctx, deps, controller, args[0], action); err != nil {
+			return err
+		}
 		return controller.Run(args[0], []string{action}, deps.Stdout(ctx), deps.Stderr(ctx))
 	}
+}
+
+// enforceResourceHostRequirements installs the declared hostTools and
+// hostSafeguards for the target resource before install/start/restart actions
+// so the resource is not invoked with missing tools. It is a no-op for other
+// actions and for resources that declare nothing.
+func enforceResourceHostRequirements[C any](ctx C, deps HandlerDeps[C], controller *resources.Controller, name, action string) error {
+	if _, ok := actionsRequiringHostRequirements[action]; !ok {
+		return nil
+	}
+	if enforceHostRequirementsFn == nil {
+		return nil
+	}
+	if _, err := enforceHostRequirementsFn(hostreqrun.Options{
+		Root:        controller.Root,
+		Home:        controller.Home,
+		Environment: hostreq.NormalizeEnvironment(controller.Environment),
+		When:        "develop",
+		Resources:   name,
+		Scenarios:   "none",
+		AutoInstall: true,
+		Stdout:      deps.Stdout(ctx),
+		Stderr:      deps.Stderr(ctx),
+		Label:       "resource:" + name,
+	}); err != nil {
+		return err
+	}
+	return nil
 }
 
 func ensureNamedResourceCLI[C any](deps HandlerDeps[C], ctx C, name string) error {
@@ -796,7 +854,11 @@ func renderResourceStatusResponse(w io.Writer, format cliout.Format, resp resour
 	if resp.Item != nil {
 		return resourcecli.WriteStatus(w, format, *resp.Item)
 	}
-	return resourcecli.WriteStatuses(w, format, resp.Items)
+	return resourcecli.WriteStatuses(w, format, resp.Items, resp.Failures)
+}
+
+func renderResourceListResponse(w io.Writer, format cliout.Format, resp resourceListResponse) error {
+	return resourcecli.WriteList(w, format, resp.Items, resp.Failures)
 }
 
 func renderResourceValidateResponse(w io.Writer, format cliout.Format, report resources.ResourceValidationReport) error {

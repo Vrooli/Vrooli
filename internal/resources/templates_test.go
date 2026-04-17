@@ -450,6 +450,8 @@ func TestGenerateResourceTemplateFromBlueprint(t *testing.T) {
 	}
 
 	assertJSONFile(t, filepath.Join(dest, "resource.json"))
+	readTestFile(t, filepath.Join(dest, ".gitignore"))
+	readTestFile(t, filepath.Join(dest, "Makefile"))
 	readTestFile(t, filepath.Join(dest, "cli", ".golangci.yml"))
 	readTestFile(t, filepath.Join(dest, "cli", "main_test.go"))
 
@@ -588,6 +590,8 @@ func TestValidateResourceTemplatesRejectsMissingRequiredFiles(t *testing.T) {
 			"phase3-plan": "docs/plans/resource-cross-platform-migration-plan.md",
 		}),
 	))
+	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, ".gitignore"), "/cli/cli\n/cli/cli.exe\n/cli/*.test\n/cli/coverage.out\n/cli/*.out\n/cli/*.prof\n/cli/*.manifest.json\n/cli/*.build.meta\n")
+	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "Makefile"), ".PHONY: help\n")
 	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "README.md"), "# Fixture\n")
 	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "cli", "go.mod"), "module example.com/resource/cli\n\ngo 1.22\n")
 	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "cli", ".golangci.yml"), "run:\n  timeout: 5m\n")
@@ -620,6 +624,8 @@ func TestValidateResourceTemplatesRejectsMissingDocReferences(t *testing.T) {
 			"phase3-plan": "docs/plans/missing.md",
 		}),
 	))
+	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, ".gitignore"), "/cli/cli\n/cli/cli.exe\n/cli/*.test\n/cli/coverage.out\n/cli/*.out\n/cli/*.prof\n/cli/*.manifest.json\n/cli/*.build.meta\n")
+	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "Makefile"), ".PHONY: help\n")
 	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "README.md"), "# Fixture\n")
 	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "cli", "go.mod"), "module example.com/resource/cli\n\ngo 1.22\n")
 	testkitgo.WriteRelativeFile(t, root, filepath.Join(templateDir, "cli", ".golangci.yml"), "run:\n  timeout: 5m\n")
@@ -727,6 +733,8 @@ func readTestFile(t *testing.T, path string) string {
 func assertGeneratedTemplateLayout(t *testing.T, dest string) {
 	t.Helper()
 	requiredFiles := []string{
+		".gitignore",
+		"Makefile",
 		"README.md",
 		"resource.json",
 		"cli/go.mod",

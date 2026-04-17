@@ -142,7 +142,11 @@ func toCLIListResponse(resp scenarioapp.ListResponse) ListResponse {
 			Ports:       toCLIListPorts(item.Ports),
 		})
 	}
-	return ListResponse{Items: items, RunningCount: resp.RunningCount}
+	return ListResponse{
+		Items:        items,
+		RunningCount: resp.RunningCount,
+		Failures:     append(resp.Failures[:0:0], resp.Failures...),
+	}
 }
 
 func toCLIInfoOutput(resp scenarioapp.InfoOutput) InfoOutput {
@@ -206,6 +210,7 @@ func toCLIStatusResponse(resp scenarioapp.StatusResponse) StatusResponse {
 	for _, item := range resp.List {
 		out.List = append(out.List, toCLIStatusItem(item))
 	}
+	out.Failures = append(resp.Failures[:0:0], resp.Failures...)
 	return out
 }
 

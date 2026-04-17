@@ -136,6 +136,34 @@ func TestDiscoverScenarioCLIs(t *testing.T) {
 	}
 }
 
+func TestDiscoverScenarioCLIReportIncludesFailuresWithoutAborting(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	fixture.WriteScenarioStub(t, "alpha")
+	fixture.WriteScenarioStub(t, "broken")
+	writeGoScenarioCLIManifest(t, fixture.Root, "alpha")
+	testscenario.WriteScenarioCLIGoMod(t, fixture.Root, "alpha", "alpha/cli")
+	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "scenarios", "broken", ".vrooli", "service.json"), `{
+  "service": {"name": "broken"},
+  "cli": {
+    "enabled": true,
+    "command": "broken",
+    "adapter": {"kind": "go_module", "module_path": "cli"}
+  }
+}`)
+
+	report, err := NewManager(fixture.Root, fixture.Home).DiscoverScenarioCLIReport()
+	if err != nil {
+		t.Fatalf("DiscoverScenarioCLIReport: %v", err)
+	}
+	if len(report.Items) != 1 || report.Items[0].Name != "alpha" {
+		t.Fatalf("items = %#v", report.Items)
+	}
+	if len(report.Failures) != 1 || report.Failures[0].Name != "broken" {
+		t.Fatalf("failures = %#v", report.Failures)
+	}
+}
+
 func TestDiscoverScenarioCLIsIncludesShellScriptAdapter(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)

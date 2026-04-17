@@ -8,14 +8,18 @@ import (
 )
 
 func (a *App) ListResources(w http.ResponseWriter, r *http.Request) {
-	items, err := a.Resources.ListStatuses(true, false)
+	report, err := a.Resources.ListStatusesReport(true, false)
 	if err != nil {
 		a.logError("Resource list request failed", err, logx.AttrOperation, "list_resources")
 		respondError(w, newAPIError(http.StatusInternalServerError, "resource_list_failed", "failed to list resources", err))
 		return
 	}
-	a.logInfo("Resource list request completed", "count", len(items))
-	respondSuccess(w, http.StatusOK, items)
+	payload := map[string]any{"resources": report.Items}
+	if len(report.Failures) > 0 {
+		payload["discovery_failures"] = report.Failures
+	}
+	a.logInfo("Resource list request completed", "count", len(report.Items), "discovery_failures", len(report.Failures))
+	respondSuccess(w, http.StatusOK, payload)
 }
 
 func (a *App) HandleLifecycle(w http.ResponseWriter, r *http.Request) {

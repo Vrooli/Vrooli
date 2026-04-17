@@ -13,8 +13,8 @@ Vrooli Ascension transforms browser automation from code-based scripts to visual
 
 ### Database backend (Postgres vs SQLite)
 - Default backend is Postgres (`BAS_DB_BACKEND` unset or `postgres`), using `DATABASE_URL` or the `POSTGRES_*` envs.
-- SQLite is available for desktop/Electron or lightweight runs: set `BAS_DB_BACKEND=sqlite` and optionally `BAS_SQLITE_PATH` (or `DATABASE_URL=file:/abs/path.db`). If unset, the path defaults to the scenario's `api-core/storage` data path with resource-style pragmas (WAL, busy_timeout, cache_size, page_size, synchronous=NORMAL, temp_store=MEMORY, mmap).
-- On sqlite startup we best-effort call `resource-sqlite manage install` to prep directories; it’s safe to continue if the CLI isn’t present. Set `BAS_SKIP_SQLITE_TESTS=true` to skip sqlite smoke tests in CI.
+- SQLite is available for desktop/Electron or lightweight runs: set `BAS_DB_BACKEND=sqlite` and optionally `BAS_SQLITE_PATH` (or `DATABASE_URL=file:/abs/path.db`). If unset, the path defaults to the scenario's `api-core/storage` data path with WAL/busy-timeout/cache pragmas applied in-process.
+- SQLite runs as embedded local storage inside the scenario; no standalone SQLite resource dependency is required. Set `BAS_SKIP_SQLITE_TESTS=true` to skip sqlite smoke tests in CI.
 
 ### Screenshot storage
 - Default: local filesystem (`BAS_SCREENSHOT_STORAGE=local` or unset) rooted at `scenarios/browser-automation-studio/data/recordings`.

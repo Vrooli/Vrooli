@@ -197,14 +197,7 @@
     }
   },
   "dependencies": {
-    "resources": {
-      "sqlite": {
-        "type": "sqlite",
-        "enabled": false,
-        "required": false,
-        "description": "Uses embedded local SQLite file (no standalone resource daemon required)"
-      }
-    }
+    "resources": {}
   },
   "environment": {
     "BM_SQLITE_PATH": "${SCENARIO_DATA_DIR}/brand-manager.db"

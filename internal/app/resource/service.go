@@ -5,13 +5,16 @@ import (
 
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/control"
+	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/resources"
 )
 
 type ResourceOperations interface {
 	Discover() ([]resources.Resource, error)
+	DiscoverReport() (resources.DiscoveryReport, error)
 	ValidateResources(name string) (resources.ResourceValidationReport, error)
 	ListStatuses(fast bool, includeDisabled bool) ([]resources.Status, error)
+	ListStatusesReport(fast bool, includeDisabled bool) (resources.StatusReport, error)
 	Status(name string, fast bool) (resources.Status, error)
 	Run(name string, args []string, stdout, stderr io.Writer) error
 	SetEnabled(name string, enabled bool) error
@@ -57,24 +60,48 @@ type ControlReportResponse struct {
 	Stop  *control.StopReport
 }
 
-func (s Service) List() ([]resources.Resource, error) {
-	return s.Resources.Discover()
+type ListResponse struct {
+	Items    []resources.Resource
+	Failures []discovery.Failure
+}
+
+type StatusResponse struct {
+	Items    []resources.Status
+	Item     *resources.Status
+	Failures []discovery.Failure
+}
+
+func (s Service) List() (ListResponse, error) {
+	report, err := s.Resources.DiscoverReport()
+	if err != nil {
+		return ListResponse{}, err
+	}
+	return ListResponse{
+		Items:    report.Items,
+		Failures: append([]discovery.Failure(nil), report.Failures...),
+	}, nil
 }
 
 func (s Service) Validate(name string) (resources.ResourceValidationReport, error) {
 	return s.Resources.ValidateResources(name)
 }
 
-func (s Service) Status(name string, fast bool) ([]resources.Status, *resources.Status, error) {
+func (s Service) Status(name string, fast bool) (StatusResponse, error) {
 	if name == "" {
-		items, err := s.Resources.ListStatuses(fast, false)
-		return items, nil, err
+		report, err := s.Resources.ListStatusesReport(fast, false)
+		if err != nil {
+			return StatusResponse{}, err
+		}
+		return StatusResponse{
+			Items:    report.Items,
+			Failures: append([]discovery.Failure(nil), report.Failures...),
+		}, nil
 	}
 	item, err := s.Resources.Status(name, fast)
 	if err != nil {
-		return nil, nil, err
+		return StatusResponse{}, err
 	}
-	return nil, &item, nil
+	return StatusResponse{Item: &item}, nil
 }
 
 func (s Service) Info(name string) (resources.Status, error) {

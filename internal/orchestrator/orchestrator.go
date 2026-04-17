@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/control"
+	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -45,6 +46,16 @@ type ScenarioView struct {
 	Health      any            `json:"health_status,omitempty"`
 }
 
+type InventoryReport struct {
+	Items    []Detail            `json:"items"`
+	Failures []discovery.Failure `json:"failures,omitempty"`
+}
+
+type ListReport struct {
+	Items    []ScenarioView      `json:"items"`
+	Failures []discovery.Failure `json:"failures,omitempty"`
+}
+
 func New(root, home string, stdout, stderr io.Writer, logger ...*slog.Logger) *Service {
 	baseLogger := slog.Default()
 	if len(logger) > 0 && logger[0] != nil {
@@ -63,17 +74,25 @@ func New(root, home string, stdout, stderr io.Writer, logger ...*slog.Logger) *S
 }
 
 func (s *Service) List() ([]ScenarioView, error) {
-	items, err := s.Inventory()
+	report, err := s.ListReport()
 	if err != nil {
 		return nil, err
 	}
+	return report.Items, nil
+}
 
-	views := make([]ScenarioView, 0, len(items))
-	for _, item := range items {
+func (s *Service) ListReport() (ListReport, error) {
+	report, err := s.InventoryReport()
+	if err != nil {
+		return ListReport{}, err
+	}
+
+	views := make([]ScenarioView, 0, len(report.Items))
+	for _, item := range report.Items {
 		views = append(views, s.viewForDetail(item))
 	}
 	sort.Slice(views, func(i, j int) bool { return views[i].Name < views[j].Name })
-	return views, nil
+	return ListReport{Items: views, Failures: append([]discovery.Failure(nil), report.Failures...)}, nil
 }
 
 func (s *Service) Running() ([]ScenarioView, error) {

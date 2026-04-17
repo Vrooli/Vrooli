@@ -18,11 +18,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/hostreqrun"
 	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/projectstate"
 	"github.com/vrooli/vrooli/internal/resources"
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
+	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/scenario"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 	testpackage "github.com/vrooli/vrooli/packages/testkit-go/packagefixture"
@@ -35,6 +37,11 @@ import (
 func newLifecycleRunnerForTest(t *testing.T, root, home string, mutate func(*lifecycleDeps), logger ...*slog.Logger) *Runner {
 	t.Helper()
 	deps := defaultLifecycleDeps()
+	// Stub host-requirement enforcement by default so tests don't need a root
+	// manifest on disk. Tests exercising the enforcement hook override this.
+	deps.enforceHostRequirements = func(_ hostreqrun.Options) (vrooliruntime.Report, error) {
+		return vrooliruntime.Report{}, nil
+	}
 	if mutate != nil {
 		mutate(&deps)
 	}
@@ -2184,5 +2191,195 @@ replace (
 	}
 	if got := strings.Join(paths, ","); got != "../alpha,../beta,../gamma" {
 		t.Fatalf("paths = %q", got)
+	}
+}
+
+func TestRunnerStartEnforcesScenarioHostRequirements(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixture(t, root, "alpha")
+
+	var captured hostreqrun.Options
+	calls := 0
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.enforceHostRequirements = func(opts hostreqrun.Options) (vrooliruntime.Report, error) {
+			captured = opts
+			calls++
+			return vrooliruntime.Report{}, nil
+		}
+		// Short-circuit the actual phase execution by forcing a "healthy" early
+		// return path is not possible here; instead keep the runResource/status
+		// defaults — phases will try to execute the fixture's steps. Since this
+		// test cares only about whether enforcement fires BEFORE phase work, we
+		// override the phase runner via the condition: the fixture declares an
+		// api binary build that runs bash. To avoid actually booting, we stub
+		// resource status/runResource (no resource deps exist for alpha, so
+		// these are effectively unused).
+		deps.resourceStatus = func(name string, fast bool) (resourcecontrol.Status, error) {
+			return resourcecontrol.Status{Resource: resources.Resource{Name: name}, Running: true, StatusCode: resourcecontrol.StatusCodeOK}, nil
+		}
+		deps.runResource = func(name string, args []string, stdout, stderr io.Writer) error {
+			return nil
+		}
+	})
+
+	// Trigger enforcement by invoking the scenario start path indirectly:
+	// loadScenario + call the unexported enforcer. This keeps the test
+	// hermetic — we do not need to bring up the full phase runtime, but we
+	// still verify the scope passed to the hook.
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load(alpha): %v", err)
+	}
+	if err := runner.enforceScenarioHostRequirements(item); err != nil {
+		t.Fatalf("enforceScenarioHostRequirements: %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("enforce calls = %d, want 1", calls)
+	}
+	if captured.Scenarios != "alpha" {
+		t.Fatalf("Scenarios = %q, want alpha", captured.Scenarios)
+	}
+	if captured.Resources != "none" {
+		t.Fatalf("Resources = %q, want none", captured.Resources)
+	}
+	if captured.Environment != "development" {
+		t.Fatalf("Environment = %q, want development", captured.Environment)
+	}
+	if captured.When != "develop" {
+		t.Fatalf("When = %q, want develop", captured.When)
+	}
+	if !captured.AutoInstall {
+		t.Fatal("AutoInstall must be true")
+	}
+	if captured.Label != "scenario:alpha" {
+		t.Fatalf("Label = %q, want scenario:alpha", captured.Label)
+	}
+}
+
+func TestRunnerStartPropagatesHostRequirementErrors(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixture(t, root, "alpha")
+
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.enforceHostRequirements = func(_ hostreqrun.Options) (vrooliruntime.Report, error) {
+			return vrooliruntime.Report{}, errors.New("docker missing")
+		}
+	})
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load(alpha): %v", err)
+	}
+	if err := runner.enforceScenarioHostRequirements(item); err == nil || !strings.Contains(err.Error(), "docker missing") {
+		t.Fatalf("expected docker missing error, got %v", err)
+	}
+}
+
+func TestRunnerEnforcesResourceHostRequirementsBeforeStart(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixtureManifest(t, root, testscenario.ScenarioServiceManifest(
+		"alpha",
+		testscenario.WithDependencies(scenario.Dependencies{
+			Resources: map[string]scenario.Dependency{
+				"postgres": {Enabled: true, Required: true},
+			},
+		}),
+	))
+
+	callOrder := []string{}
+	var capturedResource hostreqrun.Options
+	statusCalls := 0
+	now := time.Unix(0, 0)
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.enforceHostRequirements = func(opts hostreqrun.Options) (vrooliruntime.Report, error) {
+			callOrder = append(callOrder, "enforce:"+opts.Label)
+			if opts.Resources == "postgres" {
+				capturedResource = opts
+			}
+			return vrooliruntime.Report{}, nil
+		}
+		deps.resourceStatus = func(name string, fast bool) (resourcecontrol.Status, error) {
+			statusCalls++
+			// First call (before start) reports unavailable so start runs; the
+			// wait-for-ready loop then sees a ready resource on subsequent polls.
+			if statusCalls == 1 {
+				return resourcecontrol.Status{Resource: resources.Resource{Name: name}, Running: false, StatusCode: resourcecontrol.StatusCodeUnavailable}, nil
+			}
+			return resourcecontrol.Status{Resource: resources.Resource{Name: name}, Running: true, StatusCode: resourcecontrol.StatusCodeOK}, nil
+		}
+		deps.runResource = func(name string, args []string, stdout, stderr io.Writer) error {
+			callOrder = append(callOrder, "run:"+name+":"+strings.Join(args, ","))
+			return nil
+		}
+		deps.now = func() time.Time { return now }
+		deps.sleep = func(d time.Duration) { now = now.Add(d) }
+	})
+
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load(alpha): %v", err)
+	}
+
+	_, err = runner.ensureResourceDependencies(item, StartOptions{})
+	if err != nil {
+		t.Fatalf("ensureResourceDependencies: %v", err)
+	}
+
+	if capturedResource.Resources != "postgres" {
+		t.Fatalf("expected enforce call for postgres, got %+v", capturedResource)
+	}
+	if capturedResource.Environment != "development" {
+		t.Fatalf("Environment = %q, want development", capturedResource.Environment)
+	}
+	if capturedResource.Scenarios != "none" {
+		t.Fatalf("Scenarios = %q, want none", capturedResource.Scenarios)
+	}
+	if capturedResource.Label != "resource:postgres" {
+		t.Fatalf("Label = %q, want resource:postgres", capturedResource.Label)
+	}
+
+	// Enforcement must happen BEFORE the run:postgres:start call.
+	enforceIdx, runIdx := -1, -1
+	for i, entry := range callOrder {
+		if entry == "enforce:resource:postgres" && enforceIdx == -1 {
+			enforceIdx = i
+		}
+		if entry == "run:postgres:start" && runIdx == -1 {
+			runIdx = i
+		}
+	}
+	if enforceIdx == -1 || runIdx == -1 {
+		t.Fatalf("missing expected calls in order: %v", callOrder)
+	}
+	if enforceIdx >= runIdx {
+		t.Fatalf("enforce (idx=%d) must precede run (idx=%d) in %v", enforceIdx, runIdx, callOrder)
+	}
+}
+
+func TestRunnerHostRequirementEnforcementUsesRunnerEnvironment(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixture(t, root, "alpha")
+
+	var captured hostreqrun.Options
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.enforceHostRequirements = func(opts hostreqrun.Options) (vrooliruntime.Report, error) {
+			captured = opts
+			return vrooliruntime.Report{}, nil
+		}
+	})
+	runner.Environment = "production"
+
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load(alpha): %v", err)
+	}
+	if err := runner.enforceScenarioHostRequirements(item); err != nil {
+		t.Fatalf("enforceScenarioHostRequirements: %v", err)
+	}
+	if captured.Environment != "production" {
+		t.Fatalf("Environment = %q, want production", captured.Environment)
 	}
 }

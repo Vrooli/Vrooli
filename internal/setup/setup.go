@@ -33,8 +33,6 @@ import (
 
 const (
 	defaultEnvironment = "development"
-	defaultTarget      = "docker"
-	defaultLocation    = "Local"
 	defaultAPIPort     = 8092
 	onboardingSlug     = "vrooli-onboarding"
 	onboardingSkipEnv  = "VROOLI_SKIP_ONBOARDING"
@@ -133,16 +131,9 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 		return err
 	}
 
-	projectScenario, err := s.deps.loadProject(root)
-	if err != nil {
+	if _, err := s.deps.loadProject(root); err != nil {
 		return err
 	}
-
-	restoreEnv, err := applyEnvironment(root, projectScenario.ServicePath, opts)
-	if err != nil {
-		return err
-	}
-	defer restoreEnv()
 
 	if !opts.DryRun {
 		if err := ensureProjectFilesystem(root, home); err != nil {
@@ -242,12 +233,6 @@ func (s *setupService) RunDevelopWithOptions(root, home string, opts Options, st
 		return err
 	}
 
-	restoreEnv, err := applyEnvironment(root, projectScenario.ServicePath, opts)
-	if err != nil {
-		return err
-	}
-	defer restoreEnv()
-
 	if setupNeeded(root, projectScenario.Slug) {
 		_, _ = fmt.Fprintln(stdout, "[INFO]    Running setup before develop")
 		if err := s.RunSetupWithOptions(root, home, opts, stdout, stderr); err != nil {
@@ -325,80 +310,6 @@ func buildProjectBinary(root, outputPath, target string, fingerprintPaths []stri
 	})
 }
 
-type envSnapshot struct {
-	value   string
-	existed bool
-}
-
-func applyEnvironment(root, servicePath string, opts Options) (func(), error) {
-	changes := map[string]envSnapshot{}
-	set := func(key, value string, onlyIfUnset bool) error {
-		current, existed := os.LookupEnv(key)
-		if onlyIfUnset && existed && strings.TrimSpace(current) != "" {
-			return nil
-		}
-		if _, tracked := changes[key]; !tracked {
-			changes[key] = envSnapshot{value: current, existed: existed}
-		}
-		return os.Setenv(key, value)
-	}
-
-	if err := set("SERVICE_JSON_PATH", servicePath, false); err != nil {
-		return nil, err
-	}
-	if err := set("TARGET", defaultTarget, true); err != nil {
-		return nil, err
-	}
-	if err := set("LOCATION", defaultLocation, true); err != nil {
-		return nil, err
-	}
-	if opts.Environment != "" {
-		if err := set("ENVIRONMENT", opts.Environment, false); err != nil {
-			return nil, err
-		}
-	} else if err := set("ENVIRONMENT", defaultEnvironment, true); err != nil {
-		return nil, err
-	}
-	if opts.Resources != "" {
-		if err := set("RESOURCES", opts.Resources, false); err != nil {
-			return nil, err
-		}
-	}
-	if opts.Scenarios != "" {
-		if err := set("SCENARIOS", opts.Scenarios, false); err != nil {
-			return nil, err
-		}
-	}
-	if opts.Yes != "" {
-		if err := set("YES", opts.Yes, false); err != nil {
-			return nil, err
-		}
-	}
-	if opts.SudoMode != "" {
-		if err := set("SUDO_MODE", opts.SudoMode, false); err != nil {
-			return nil, err
-		}
-		if err := set("SUDO_MODE_EXPLICIT", opts.SudoMode, false); err != nil {
-			return nil, err
-		}
-	}
-	if opts.DryRun {
-		if err := set("DRY_RUN", "true", false); err != nil {
-			return nil, err
-		}
-	}
-
-	return func() {
-		for key, snapshot := range changes {
-			if snapshot.existed {
-				_ = os.Setenv(key, snapshot.value)
-				continue
-			}
-			_ = os.Unsetenv(key)
-		}
-	}, nil
-}
-
 func ensureProjectFilesystem(root, home string) error {
 	paths := []string{
 		filepath.Join(root, "data"),
@@ -413,29 +324,6 @@ func ensureProjectFilesystem(root, home string) error {
 		if err := os.MkdirAll(path, 0o755); err != nil {
 			return err
 		}
-	}
-	return makeShellScriptsExecutable(root)
-}
-
-func makeShellScriptsExecutable(root string) error {
-	dirs := []string{filepath.Join(root, "scripts"), filepath.Join(root, "cli"), filepath.Join(root, "api")}
-	for _, dir := range dirs {
-		_ = filepath.WalkDir(dir, func(path string, entry os.DirEntry, walkErr error) error {
-			if walkErr != nil || entry.IsDir() || filepath.Ext(path) != ".sh" {
-				return walkErr
-			}
-			info, err := entry.Info()
-			if err != nil {
-				return err
-			}
-			mode := info.Mode()
-			if mode&0o111 != 0o111 {
-				if err := os.Chmod(path, mode|0o755); err != nil {
-					return err
-				}
-			}
-			return nil
-		})
 	}
 	return nil
 }

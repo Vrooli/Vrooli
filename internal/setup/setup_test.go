@@ -22,64 +22,7 @@ import (
 	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
 )
 
-// AI_CHECK: GO_MIGRATION_TEST_QUALITY=3 | LAST: 2026-04-11
-
-func TestApplyEnvironmentSetsDefaultsAndRestoresState(t *testing.T) {
-	t.Setenv("TARGET", "")
-	t.Setenv("LOCATION", "")
-	root := t.TempDir()
-	restore, err := applyEnvironment(root, filepath.Join(root, ".vrooli", "service.json"), Options{
-		Environment: "production",
-		Resources:   "none",
-		Scenarios:   "scenario-a,scenario-b",
-		Yes:         "yes",
-		SudoMode:    "skip",
-		DryRun:      true,
-	})
-	if err != nil {
-		t.Fatalf("applyEnvironment: %v", err)
-	}
-
-	if got := os.Getenv("TARGET"); got != defaultTarget {
-		t.Fatalf("TARGET = %q", got)
-	}
-	if got := os.Getenv("LOCATION"); got != defaultLocation {
-		t.Fatalf("LOCATION = %q", got)
-	}
-	if got := os.Getenv("ENVIRONMENT"); got != "production" {
-		t.Fatalf("ENVIRONMENT = %q", got)
-	}
-	if got := os.Getenv("RESOURCES"); got != "none" {
-		t.Fatalf("RESOURCES = %q", got)
-	}
-	if got := os.Getenv("SCENARIOS"); got != "scenario-a,scenario-b" {
-		t.Fatalf("SCENARIOS = %q", got)
-	}
-	if got := os.Getenv("YES"); got != "yes" {
-		t.Fatalf("YES = %q", got)
-	}
-	if got := os.Getenv("SUDO_MODE"); got != "skip" {
-		t.Fatalf("SUDO_MODE = %q", got)
-	}
-	if got := os.Getenv("DRY_RUN"); got != "true" {
-		t.Fatalf("DRY_RUN = %q", got)
-	}
-	if got := os.Getenv("SERVICE_JSON_PATH"); got != filepath.Join(root, ".vrooli", "service.json") {
-		t.Fatalf("SERVICE_JSON_PATH = %q", got)
-	}
-
-	restore()
-
-	if got := os.Getenv("TARGET"); got != "" {
-		t.Fatalf("TARGET after restore = %q", got)
-	}
-	if got := os.Getenv("SERVICE_JSON_PATH"); got != "" {
-		t.Fatalf("SERVICE_JSON_PATH after restore = %q", got)
-	}
-	if got := os.Getenv("SCENARIOS"); got != "" {
-		t.Fatalf("SCENARIOS after restore = %q", got)
-	}
-}
+// AI_CHECK: GO_MIGRATION_TEST_QUALITY=4 | LAST: 2026-04-16
 
 func TestMarkCompleteWritesSetupMarker(t *testing.T) {
 	root := t.TempDir()
@@ -642,7 +585,7 @@ func TestRunSetupDryRunResolvesRootScenarioAndResourceDeclarations(t *testing.T)
 	}
 }
 
-func TestRunSetupExportsLegacyEnvironmentContractToResourceInstall(t *testing.T) {
+func TestRunSetupDoesNotLeakLegacyEnvironmentContractToResourceInstall(t *testing.T) {
 	svc := stubSetupDeps(t)
 
 	root := t.TempDir()
@@ -707,32 +650,10 @@ func TestRunSetupExportsLegacyEnvironmentContractToResourceInstall(t *testing.T)
 		if got := strings.Join(call.args, "|"); got != "install" {
 			t.Fatalf("resource %s args = %q", call.name, got)
 		}
-		if call.env["SERVICE_JSON_PATH"] != filepath.Join(root, ".vrooli", "service.json") {
-			t.Fatalf("resource %s SERVICE_JSON_PATH = %q", call.name, call.env["SERVICE_JSON_PATH"])
-		}
-		if call.env["ENVIRONMENT"] != "minimal" {
-			t.Fatalf("resource %s ENVIRONMENT = %q", call.name, call.env["ENVIRONMENT"])
-		}
-		if call.env["RESOURCES"] != "redis,postgres" {
-			t.Fatalf("resource %s RESOURCES = %q", call.name, call.env["RESOURCES"])
-		}
-		if call.env["SCENARIOS"] != "scenario-a,scenario-b" {
-			t.Fatalf("resource %s SCENARIOS = %q", call.name, call.env["SCENARIOS"])
-		}
-		if call.env["YES"] != "yes" {
-			t.Fatalf("resource %s YES = %q", call.name, call.env["YES"])
-		}
-		if call.env["SUDO_MODE"] != "skip" || call.env["SUDO_MODE_EXPLICIT"] != "skip" {
-			t.Fatalf("resource %s sudo env = %#v", call.name, call.env)
-		}
-		if call.env["TARGET"] != defaultTarget {
-			t.Fatalf("resource %s TARGET = %q", call.name, call.env["TARGET"])
-		}
-		if call.env["LOCATION"] != defaultLocation {
-			t.Fatalf("resource %s LOCATION = %q", call.name, call.env["LOCATION"])
-		}
-		if call.env["DRY_RUN"] != "" {
-			t.Fatalf("resource %s DRY_RUN = %q", call.name, call.env["DRY_RUN"])
+		for _, key := range []string{"SERVICE_JSON_PATH", "ENVIRONMENT", "RESOURCES", "SCENARIOS", "YES", "SUDO_MODE", "SUDO_MODE_EXPLICIT", "TARGET", "LOCATION", "DRY_RUN"} {
+			if call.env[key] != "" {
+				t.Fatalf("resource %s leaked legacy env %s = %q", call.name, key, call.env[key])
+			}
 		}
 	}
 }
@@ -900,29 +821,10 @@ func TestRunDevelopExportsLegacyEnvironmentContractToAPILaunch(t *testing.T) {
 		t.Fatalf("LogFile = %q", capturedSpec.LogFile)
 	}
 	env := envMapFromList(capturedSpec.Env)
-	if env["SERVICE_JSON_PATH"] != filepath.Join(root, ".vrooli", "service.json") {
-		t.Fatalf("SERVICE_JSON_PATH = %q", env["SERVICE_JSON_PATH"])
-	}
-	if env["ENVIRONMENT"] != "production" {
-		t.Fatalf("ENVIRONMENT = %q", env["ENVIRONMENT"])
-	}
-	if env["RESOURCES"] != "enabled" {
-		t.Fatalf("RESOURCES = %q", env["RESOURCES"])
-	}
-	if env["YES"] != "yes" {
-		t.Fatalf("YES = %q", env["YES"])
-	}
-	if env["SUDO_MODE"] != "skip" || env["SUDO_MODE_EXPLICIT"] != "skip" {
-		t.Fatalf("sudo env = %#v", env)
-	}
-	if env["TARGET"] != defaultTarget {
-		t.Fatalf("TARGET = %q", env["TARGET"])
-	}
-	if env["LOCATION"] != defaultLocation {
-		t.Fatalf("LOCATION = %q", env["LOCATION"])
-	}
-	if env["DRY_RUN"] != "true" {
-		t.Fatalf("DRY_RUN = %q", env["DRY_RUN"])
+	for _, key := range []string{"SERVICE_JSON_PATH", "ENVIRONMENT", "RESOURCES", "YES", "SUDO_MODE", "SUDO_MODE_EXPLICIT", "TARGET", "LOCATION", "DRY_RUN"} {
+		if env[key] != "" {
+			t.Fatalf("%s = %q, want empty legacy env surface", key, env[key])
+		}
 	}
 	if env["FROM_DOT_ENV"] != "present" {
 		t.Fatalf("FROM_DOT_ENV = %q", env["FROM_DOT_ENV"])

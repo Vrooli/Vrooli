@@ -36,6 +36,8 @@ var (
 )
 
 var resourceTemplateRequiredFiles = []string{
+	".gitignore",
+	"Makefile",
 	"README.md",
 	"resource.json",
 	"cli/go.mod",

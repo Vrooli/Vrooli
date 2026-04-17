@@ -7,12 +7,17 @@ import (
 
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/control"
+	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/resources"
 )
 
-func WriteList(w io.Writer, format cliout.Format, items []resources.Resource) error {
+func WriteList(w io.Writer, format cliout.Format, items []resources.Resource, failures []discovery.Failure) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessJSON(w, "resources", items)
+		fields := map[string]any{"resources": items}
+		if len(failures) > 0 {
+			fields["discovery_failures"] = failures
+		}
+		return cliout.WriteSuccessFields(w, fields)
 	}
 	rows := make([][]string, 0, len(items))
 	for _, item := range items {
@@ -25,12 +30,25 @@ func WriteList(w io.Writer, format cliout.Format, items []resources.Resource) er
 			cliout.BoolLabel(item.Registered),
 		})
 	}
-	return cliout.RenderTable(w, []string{"Name", "Enabled", "Control", "Driver", "Portability", "Registered"}, rows)
+	if err := cliout.RenderTable(w, []string{"Name", "Enabled", "Control", "Driver", "Portability", "Registered"}, rows); err != nil {
+		return err
+	}
+	if len(failures) > 0 {
+		_, _ = fmt.Fprintf(w, "\nSkipped %d resources with discovery errors:\n", len(failures))
+		for _, failure := range failures {
+			_, _ = fmt.Fprintf(w, "  %s: %s\n", failure.Name, failure.Error)
+		}
+	}
+	return nil
 }
 
-func WriteStatuses(w io.Writer, format cliout.Format, items []resources.Status) error {
+func WriteStatuses(w io.Writer, format cliout.Format, items []resources.Status, failures []discovery.Failure) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessJSON(w, "resources", items)
+		fields := map[string]any{"resources": items}
+		if len(failures) > 0 {
+			fields["discovery_failures"] = failures
+		}
+		return cliout.WriteSuccessFields(w, fields)
 	}
 	rows := make([][]string, 0, len(items))
 	for _, item := range items {
@@ -51,7 +69,16 @@ func WriteStatuses(w io.Writer, format cliout.Format, items []resources.Status) 
 			item.Message,
 		})
 	}
-	return cliout.RenderTable(w, []string{"Name", "Enabled", "Control", "Running", "Health", "Status"}, rows)
+	if err := cliout.RenderTable(w, []string{"Name", "Enabled", "Control", "Running", "Health", "Status"}, rows); err != nil {
+		return err
+	}
+	if len(failures) > 0 {
+		_, _ = fmt.Fprintf(w, "\nSkipped %d resources with discovery errors:\n", len(failures))
+		for _, failure := range failures {
+			_, _ = fmt.Fprintf(w, "  %s: %s\n", failure.Name, failure.Error)
+		}
+	}
+	return nil
 }
 
 func WriteStatus(w io.Writer, format cliout.Format, item resources.Status) error {

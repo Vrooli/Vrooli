@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/discovery"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
@@ -64,6 +65,11 @@ type InstallLocationStatus struct {
 	CanonicalExists   bool   `json:"canonical_exists"`
 	Resolved          bool   `json:"resolved"`
 	ResolvedCanonical bool   `json:"resolved_canonical"`
+}
+
+type DiscoveryReport struct {
+	Items    []InstallableCLI    `json:"items"`
+	Failures []discovery.Failure `json:"failures,omitempty"`
 }
 
 func (s InstallLocationStatus) PathMismatch() bool {
@@ -265,80 +271,79 @@ func (m *Manager) DiscoverResourceCLI(name string) (InstallableCLI, error) {
 }
 
 func (m *Manager) DiscoverScenarioCLIs() ([]InstallableCLI, error) {
-	contract, err := repocontract.LoadDefault(m.Root)
+	report, err := m.DiscoverScenarioCLIReport()
 	if err != nil {
 		return nil, err
+	}
+	if len(report.Failures) > 0 {
+		failure := report.Failures[0]
+		return nil, fmt.Errorf("discover %s CLI %q: %s", failure.Kind, failure.Name, failure.Error)
+	}
+	return report.Items, nil
+}
+
+func (m *Manager) DiscoverScenarioCLIReport() (DiscoveryReport, error) {
+	contract, err := repocontract.LoadDefault(m.Root)
+	if err != nil {
+		return DiscoveryReport{}, err
 	}
 	scenarioDir, err := contract.TopLevelDir(m.Root, "scenarios")
 	if err != nil {
-		return nil, err
+		return DiscoveryReport{}, err
 	}
 	names, err := childDirNames(scenarioDir)
 	if err != nil {
-		return nil, err
+		return DiscoveryReport{}, err
 	}
-	items := make([]InstallableCLI, 0, len(names))
-	for _, name := range names {
-		item, err := m.DiscoverScenarioCLI(name)
-		if err == nil {
-			items = append(items, item)
-			continue
-		}
-		if isSkippableDiscoveryError(err) {
-			continue
-		}
-		return nil, err
-	}
-	return items, nil
+	return m.discoverCLIs(names, KindScenario, m.DiscoverScenarioCLI)
 }
 
 func (m *Manager) DiscoverResourceCLIs() ([]InstallableCLI, error) {
-	contract, err := repocontract.LoadDefault(m.Root)
+	report, err := m.DiscoverResourceCLIReport()
 	if err != nil {
 		return nil, err
+	}
+	if len(report.Failures) > 0 {
+		failure := report.Failures[0]
+		return nil, fmt.Errorf("discover %s CLI %q: %s", failure.Kind, failure.Name, failure.Error)
+	}
+	return report.Items, nil
+}
+
+func (m *Manager) DiscoverResourceCLIReport() (DiscoveryReport, error) {
+	contract, err := repocontract.LoadDefault(m.Root)
+	if err != nil {
+		return DiscoveryReport{}, err
 	}
 	resourceDir, err := contract.TopLevelDir(m.Root, "resources")
 	if err != nil {
-		return nil, err
+		return DiscoveryReport{}, err
 	}
 	names, err := childDirNames(resourceDir)
 	if err != nil {
-		return nil, err
+		return DiscoveryReport{}, err
 	}
-	items := make([]InstallableCLI, 0, len(names))
-	for _, name := range names {
-		item, err := m.DiscoverResourceCLI(name)
-		if err == nil {
-			items = append(items, item)
-			continue
-		}
-		if isSkippableDiscoveryError(err) {
-			continue
-		}
-		return nil, err
-	}
-	return items, nil
+	return m.discoverCLIs(names, KindResource, m.DiscoverResourceCLI)
 }
 
 func (m *Manager) DiscoverEnabledResourceCLIs() ([]InstallableCLI, error) {
-	enabled, err := m.enabledResourceNames()
+	report, err := m.DiscoverEnabledResourceCLIReport()
 	if err != nil {
 		return nil, err
 	}
-	items := make([]InstallableCLI, 0, len(enabled))
-	for _, name := range enabled {
-		item, err := m.DiscoverResourceCLI(name)
-		if err == nil {
-			items = append(items, item)
-			continue
-		}
-		if isSkippableDiscoveryError(err) {
-			continue
-		}
-		return nil, err
+	if len(report.Failures) > 0 {
+		failure := report.Failures[0]
+		return nil, fmt.Errorf("discover %s CLI %q: %s", failure.Kind, failure.Name, failure.Error)
 	}
-	sort.Slice(items, func(i, j int) bool { return items[i].Name < items[j].Name })
-	return items, nil
+	return report.Items, nil
+}
+
+func (m *Manager) DiscoverEnabledResourceCLIReport() (DiscoveryReport, error) {
+	enabled, err := m.enabledResourceNames()
+	if err != nil {
+		return DiscoveryReport{}, err
+	}
+	return m.discoverCLIs(enabled, KindResource, m.DiscoverResourceCLI)
 }
 
 func (m *Manager) InstallDir() string {
@@ -754,6 +759,31 @@ func computeGoModuleFingerprint(ownerRoot, modulePath, manifestPath string, cfg 
 
 func isSkippableDiscoveryError(err error) bool {
 	return errors.Is(err, fs.ErrNotExist) || os.IsNotExist(err)
+}
+
+func (m *Manager) discoverCLIs(names []string, kind Kind, discoverOne func(string) (InstallableCLI, error)) (DiscoveryReport, error) {
+	report := DiscoveryReport{
+		Items:    make([]InstallableCLI, 0, len(names)),
+		Failures: make([]discovery.Failure, 0),
+	}
+	for _, name := range names {
+		item, err := discoverOne(name)
+		if err == nil {
+			report.Items = append(report.Items, item)
+			continue
+		}
+		if isSkippableDiscoveryError(err) {
+			continue
+		}
+		report.Failures = append(report.Failures, discovery.Failure{
+			Kind:  string(kind),
+			Name:  name,
+			Stage: "discover_cli",
+			Error: err.Error(),
+		})
+	}
+	sort.Slice(report.Items, func(i, j int) bool { return report.Items[i].Name < report.Items[j].Name })
+	return report, nil
 }
 
 type fileEntry struct {

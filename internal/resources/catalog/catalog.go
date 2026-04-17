@@ -2,10 +2,12 @@ package catalog
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 
+	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 )
@@ -48,14 +50,26 @@ func New(root string) *Service {
 }
 
 func (s *Service) Discover(opts DiscoverOptions) ([]Resource, error) {
-	configEntries, err := s.ReadConfigEntries()
+	report, err := s.DiscoverReport(opts)
 	if err != nil {
 		return nil, err
+	}
+	if len(report.Failures) > 0 {
+		failure := report.Failures[0]
+		return nil, fmt.Errorf("load resource %s: %s", failure.Name, failure.Error)
+	}
+	return report.Items, nil
+}
+
+func (s *Service) DiscoverReport(opts DiscoverOptions) (discovery.Report[Resource], error) {
+	configEntries, err := s.ReadConfigEntries()
+	if err != nil {
+		return discovery.Report[Resource]{}, err
 	}
 
 	manifestNames, err := s.ManifestNames()
 	if err != nil {
-		return nil, err
+		return discovery.Report[Resource]{}, err
 	}
 
 	namesMap := make(map[string]struct{}, len(manifestNames))
@@ -72,7 +86,10 @@ func (s *Service) Discover(opts DiscoverOptions) ([]Resource, error) {
 	}
 	sort.Strings(names)
 
-	items := make([]Resource, 0, len(names))
+	report := discovery.Report[Resource]{
+		Items:    make([]Resource, 0, len(names)),
+		Failures: make([]discovery.Failure, 0),
+	}
 	for _, name := range names {
 		configEntry, registered := configEntries[name]
 		path := filepath.Join(s.Root, "resources", name)
@@ -89,7 +106,14 @@ func (s *Service) Discover(opts DiscoverOptions) ([]Resource, error) {
 		if _, err := os.Stat(manifestPath); err == nil {
 			loaded, err := manifestpkg.Load(manifestPath)
 			if err != nil {
-				return nil, err
+				report.Failures = append(report.Failures, discovery.Failure{
+					Kind:  "resource",
+					Name:  name,
+					Path:  manifestPath,
+					Stage: "load_manifest",
+					Error: err.Error(),
+				})
+				continue
 			}
 			manifest = loaded
 			hasManifest = true
@@ -112,23 +136,56 @@ func (s *Service) Discover(opts DiscoverOptions) ([]Resource, error) {
 			item.ManifestPath = manifestPath
 			item.ControlMode = "manifest-native"
 		}
-		items = append(items, item)
+		report.Items = append(report.Items, item)
 	}
 
-	return items, nil
+	return report, nil
 }
 
 func (s *Service) DiscoverOne(name string, opts DiscoverOptions) (*Resource, error) {
-	items, err := s.Discover(opts)
+	configEntries, err := s.ReadConfigEntries()
 	if err != nil {
 		return nil, err
 	}
-	for i := range items {
-		if items[i].Name == name {
-			return &items[i], nil
-		}
+	if _, hidden := opts.DeprecatedNames[name]; hidden {
+		return nil, nil
 	}
-	return nil, nil
+	path := filepath.Join(s.Root, "resources", name)
+	_, statErr := os.Stat(path)
+	exists := statErr == nil
+	manifestPath := manifestpkg.DefaultPath(s.Root, name)
+	_, manifestErr := os.Stat(manifestPath)
+	if os.IsNotExist(statErr) && os.IsNotExist(manifestErr) {
+		return nil, nil
+	}
+	configEntry, registered := configEntries[name]
+	cliPath := ""
+	hasCLI := false
+	if opts.ResolveCLIPath != nil {
+		cliPath, hasCLI = opts.ResolveCLIPath(name)
+	}
+	item := &Resource{
+		Name:       name,
+		Path:       path,
+		Exists:     exists,
+		Registered: registered,
+		Enabled:    configEntry.Enabled,
+		Required:   configEntry.Required,
+		HasCLI:     hasCLI && cliPath != "",
+		Config:     configEntry,
+	}
+	if manifestErr == nil {
+		manifest, err := manifestpkg.Load(manifestPath)
+		if err != nil {
+			return nil, err
+		}
+		item.Driver = manifest.Driver
+		item.Template = manifest.Template
+		item.PortabilityTier = manifest.PortabilityTier
+		item.ManifestPath = manifestPath
+		item.ControlMode = "manifest-native"
+	}
+	return item, nil
 }
 
 func (s *Service) ReadConfigEntries() (map[string]ConfigEntry, error) {

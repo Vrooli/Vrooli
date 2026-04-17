@@ -170,12 +170,6 @@
   },
   "dependencies": {
     "resources": {
-      "sqlite": {
-        "type": "sqlite",
-        "enabled": true,
-        "required": true,
-        "description": "Embedded relational data store"
-      },
       "ollama": {
         "type": "ollama",
         "enabled": true,
@@ -209,6 +203,9 @@
         "description": "Provides skills/prompts for agent context injection (optional - graceful degradation)"
       }
     }
+  },
+  "environment": {
+    "AI_SQLITE_PATH": "${SCENARIO_DATA_DIR}/agent-inbox.db"
   },
   "cli": {
     "enabled": true,

@@ -172,12 +172,6 @@
   },
   "dependencies": {
     "resources": {
-      "sqlite": {
-        "type": "sqlite",
-        "enabled": true,
-        "required": true,
-        "description": "Persistent storage for metrics, investigations, reports, and alerts"
-      },
       "ollama": {
         "type": "ollama",
         "enabled": true,
@@ -196,6 +190,9 @@
         "description": "Agent orchestration layer for investigations and anomaly checks"
       }
     }
+  },
+  "notes": {
+    "storage_strategy": "Embedded SQLite repository for metrics, investigations, reports, and alerts"
   },
   "cli": {
     "enabled": true,

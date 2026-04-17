@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/control"
+	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/resources"
@@ -20,6 +21,7 @@ type ScenarioOperations interface {
 	StartDetailed(name string, opts lifecycle.StartOptions) (orchestrator.StartResult, error)
 	RestartDetailed(name string, opts lifecycle.StartOptions) (orchestrator.StartResult, error)
 	Inventory() ([]orchestrator.Detail, error)
+	InventoryReport() (orchestrator.InventoryReport, error)
 	Detail(name string) (orchestrator.Detail, error)
 	StartAll() (control.StartReport, error)
 	StopAll() (control.StopReport, error)
@@ -111,13 +113,16 @@ func (s Service) Stop(req StopRequest) ([]LifecycleItemOutput, error) {
 }
 
 func (s Service) List(req ListRequest) (ListResponse, error) {
-	inventory, err := s.Scenarios.Inventory()
+	inventory, err := s.Scenarios.InventoryReport()
 	if err != nil {
 		return ListResponse{}, err
 	}
 
-	resp := ListResponse{Items: make([]ListItemOutput, 0, len(inventory))}
-	for _, item := range inventory {
+	resp := ListResponse{
+		Items:    make([]ListItemOutput, 0, len(inventory.Items)),
+		Failures: append([]discovery.Failure(nil), inventory.Failures...),
+	}
+	for _, item := range inventory.Items {
 		status := "available"
 		if item.Details.Status == "running" {
 			status = item.Details.Status
@@ -156,15 +161,18 @@ func (s Service) Info(req InfoRequest) (InfoOutput, error) {
 
 func (s Service) Status(req StatusRequest) (StatusResponse, error) {
 	if req.Name == "" {
-		inventory, err := s.Scenarios.Inventory()
+		inventory, err := s.Scenarios.InventoryReport()
 		if err != nil {
 			return StatusResponse{}, err
 		}
-		items := make([]StatusItemOutput, 0, len(inventory))
-		for _, item := range inventory {
+		items := make([]StatusItemOutput, 0, len(inventory.Items))
+		for _, item := range inventory.Items {
 			items = append(items, BuildStatusDetail(item))
 		}
-		return StatusResponse{List: items}, nil
+		return StatusResponse{
+			List:     items,
+			Failures: append([]discovery.Failure(nil), inventory.Failures...),
+		}, nil
 	}
 
 	detail, err := s.Scenarios.Detail(req.Name)

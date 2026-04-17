@@ -12,6 +12,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/control"
+	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/hostreqcheck"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/maintenance"
@@ -329,17 +330,17 @@ func (c *Controller) Doctor() (DoctorReport, error) {
 func (c *Controller) cliInstallLocationChecks() ([]DoctorCheck, error) {
 	manager := cliinstall.NewManager(c.Root, c.Home)
 
-	scenarioItems, err := manager.DiscoverScenarioCLIs()
+	scenarioReport, err := manager.DiscoverScenarioCLIReport()
 	if err != nil {
 		return nil, err
 	}
-	resourceItems, err := manager.DiscoverEnabledResourceCLIs()
+	resourceReport, err := manager.DiscoverEnabledResourceCLIReport()
 	if err != nil {
 		return nil, err
 	}
 
-	scenarioStatuses := make([]cliinstall.InstallLocationStatus, 0, len(scenarioItems))
-	for _, item := range scenarioItems {
+	scenarioStatuses := make([]cliinstall.InstallLocationStatus, 0, len(scenarioReport.Items))
+	for _, item := range scenarioReport.Items {
 		status, err := manager.InspectScenarioCLIInstallLocation(item.Name, c.lookPath)
 		if err != nil {
 			return nil, err
@@ -347,8 +348,8 @@ func (c *Controller) cliInstallLocationChecks() ([]DoctorCheck, error) {
 		scenarioStatuses = append(scenarioStatuses, status)
 	}
 
-	resourceStatuses := make([]cliinstall.InstallLocationStatus, 0, len(resourceItems))
-	for _, item := range resourceItems {
+	resourceStatuses := make([]cliinstall.InstallLocationStatus, 0, len(resourceReport.Items))
+	for _, item := range resourceReport.Items {
 		status, err := manager.InspectResourceCLIInstallLocation(item.Name, c.lookPath)
 		if err != nil {
 			return nil, err
@@ -357,7 +358,9 @@ func (c *Controller) cliInstallLocationChecks() ([]DoctorCheck, error) {
 	}
 
 	return []DoctorCheck{
+		summarizeDiscoveryFailures("scenario_cli_discovery", scenarioReport.Failures),
 		summarizeCLIInstallStatuses("scenario_cli_install_locations", scenarioStatuses),
+		summarizeDiscoveryFailures("resource_cli_discovery", resourceReport.Failures),
 		summarizeCLIInstallStatuses("resource_cli_install_locations", resourceStatuses),
 	}, nil
 }
@@ -434,6 +437,24 @@ func summarizeCLIInstallStatuses(name string, statuses []cliinstall.InstallLocat
 	sort.Strings(samples)
 
 	message := strings.Join(parts, "; ")
+	if len(samples) > 0 {
+		message += ": " + strings.Join(samples, ", ")
+	}
+	return DoctorCheck{Name: name, Status: "warning", Message: message}
+}
+
+func summarizeDiscoveryFailures(name string, failures []discovery.Failure) DoctorCheck {
+	if len(failures) == 0 {
+		return DoctorCheck{Name: name, Status: "ok"}
+	}
+	samples := make([]string, 0, 3)
+	for _, failure := range failures {
+		if len(samples) >= 3 {
+			break
+		}
+		samples = append(samples, fmt.Sprintf("%s: %s", failure.Name, failure.Error))
+	}
+	message := fmt.Sprintf("%d discovery failures", len(failures))
 	if len(samples) > 0 {
 		message += ": " + strings.Join(samples, ", ")
 	}

@@ -135,7 +135,7 @@ func TestNewAppBuildsStandardScenarioCLI(t *testing.T) {
 
 ### Database Integration Testing
 
-**Location**: `/resources/sqlite/` or the target scenario's persistence tests
+**Location**: The target scenario's persistence tests
 
 Demonstrates:
 - Database connection validation

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/control"
+	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/process"
@@ -201,11 +202,13 @@ type BatchResponse struct {
 type ListResponse struct {
 	Items        []ListItemOutput
 	RunningCount int
+	Failures     []discovery.Failure
 }
 
 type StatusResponse struct {
-	Single *StatusSingleOutput
-	List   []StatusItemOutput
+	Single   *StatusSingleOutput
+	List     []StatusItemOutput
+	Failures []discovery.Failure
 }
 
 type PortSingleOutput struct {

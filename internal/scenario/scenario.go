@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
@@ -285,11 +286,23 @@ func Load(root, name string, env SandboxEnv) (Scenario, error) {
 }
 
 func Discover(root string, env SandboxEnv) ([]Scenario, error) {
+	report, err := DiscoverReport(root, env)
+	if err != nil {
+		return nil, err
+	}
+	if len(report.Failures) > 0 {
+		failure := report.Failures[0]
+		return nil, fmt.Errorf("load scenario %s: %s", failure.Name, failure.Error)
+	}
+	return report.Items, nil
+}
+
+func DiscoverReport(root string, env SandboxEnv) (discovery.Report[Scenario], error) {
 	names := make(map[string]struct{})
 
 	canonicalNames, err := scanScenarioNames(scenarioBaseDir(root))
 	if err != nil {
-		return nil, err
+		return discovery.Report[Scenario]{}, err
 	}
 	for _, name := range canonicalNames {
 		names[name] = struct{}{}
@@ -297,7 +310,7 @@ func Discover(root string, env SandboxEnv) ([]Scenario, error) {
 
 	sandboxNames, err := scanSandboxScenarioNames(root, env)
 	if err != nil {
-		return nil, err
+		return discovery.Report[Scenario]{}, err
 	}
 	for _, name := range sandboxNames {
 		names[name] = struct{}{}
@@ -309,19 +322,29 @@ func Discover(root string, env SandboxEnv) ([]Scenario, error) {
 	}
 	sort.Strings(ordered)
 
-	scenarios := make([]Scenario, 0, len(ordered))
+	report := discovery.Report[Scenario]{
+		Items:    make([]Scenario, 0, len(ordered)),
+		Failures: make([]discovery.Failure, 0),
+	}
 	for _, name := range ordered {
 		scenario, err := Load(root, name, env)
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
 				continue
 			}
-			return nil, fmt.Errorf("load scenario %s: %w", name, err)
+			report.Failures = append(report.Failures, discovery.Failure{
+				Kind:  "scenario",
+				Name:  name,
+				Path:  ServicePath(root, name),
+				Stage: "load",
+				Error: err.Error(),
+			})
+			continue
 		}
-		scenarios = append(scenarios, scenario)
+		report.Items = append(report.Items, scenario)
 	}
 
-	return scenarios, nil
+	return report, nil
 }
 
 func ReadService(path string) (ServiceManifest, error) {

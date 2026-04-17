@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	internalcontrol "github.com/vrooli/vrooli/internal/control"
+	"github.com/vrooli/vrooli/internal/discovery"
 	catalogpkg "github.com/vrooli/vrooli/internal/resources/catalog"
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
@@ -34,15 +35,18 @@ const (
 )
 
 type Controller struct {
-	Root string
-	Home string
+	Root        string
+	Home        string
+	Environment string
 }
 
 type (
-	ConfigEntry = catalogpkg.ConfigEntry
-	Error       = vroolierr.Error
-	Resource    = catalogpkg.Resource
-	Status      = resourcecontrol.Status
+	ConfigEntry     = catalogpkg.ConfigEntry
+	Error           = vroolierr.Error
+	Resource        = catalogpkg.Resource
+	Status          = resourcecontrol.Status
+	StatusReport    = resourcecontrol.StatusReport
+	DiscoveryReport = discovery.Report[Resource]
 )
 
 type commandResult struct {
@@ -60,9 +64,18 @@ var (
 
 func NewController(root, home string) *Controller {
 	return &Controller{
-		Root: filepath.Clean(root),
-		Home: filepath.Clean(home),
+		Root:        filepath.Clean(root),
+		Home:        filepath.Clean(home),
+		Environment: normalizeEnvironment(""),
 	}
+}
+
+func normalizeEnvironment(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return "development"
+	}
+	return value
 }
 
 func (c *Controller) LoadManifest(path string) (ResourceManifest, error) {
@@ -70,11 +83,23 @@ func (c *Controller) LoadManifest(path string) (ResourceManifest, error) {
 }
 
 func (c *Controller) Discover() ([]Resource, error) {
-	deprecated, err := c.deprecatedNameSet()
+	report, err := c.DiscoverReport()
 	if err != nil {
 		return nil, err
 	}
-	return catalogpkg.New(c.Root).Discover(catalogpkg.DiscoverOptions{
+	if len(report.Failures) > 0 {
+		failure := report.Failures[0]
+		return nil, fmt.Errorf("discover resource %s: %s", failure.Name, failure.Error)
+	}
+	return report.Items, nil
+}
+
+func (c *Controller) DiscoverReport() (DiscoveryReport, error) {
+	deprecated, err := c.deprecatedNameSet()
+	if err != nil {
+		return DiscoveryReport{}, err
+	}
+	return catalogpkg.New(c.Root).DiscoverReport(catalogpkg.DiscoverOptions{
 		DeprecatedNames: deprecated,
 		ResolveCLIPath:  c.resolveCLIPath,
 	})
@@ -167,6 +192,9 @@ func (c *Controller) resourceControl() *resourcecontrol.Service {
 		DiscoverFn: func() ([]catalogpkg.Resource, error) {
 			return c.Discover()
 		},
+		DiscoverReportFn: func() (discovery.Report[catalogpkg.Resource], error) {
+			return c.DiscoverReport()
+		},
 		DiscoverOneFn: func(name string) (*catalogpkg.Resource, error) {
 			return c.discoverResource(name)
 		},
@@ -206,6 +234,10 @@ func (c *Controller) Status(name string, fast bool) (Status, error) {
 
 func (c *Controller) ListStatuses(fast bool, onlyEnabled bool) ([]Status, error) {
 	return c.resourceControl().ListStatuses(fast, onlyEnabled)
+}
+
+func (c *Controller) ListStatusesReport(fast bool, onlyEnabled bool) (StatusReport, error) {
+	return c.resourceControl().ListStatusesReport(fast, onlyEnabled)
 }
 
 func (c *Controller) Run(name string, args []string, stdout, stderr io.Writer) error {

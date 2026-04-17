@@ -283,11 +283,12 @@ func TestListResourcesReturnsTypedStatusPayload(t *testing.T) {
 	if payload["success"] != true {
 		t.Fatalf("success = %v", payload["success"])
 	}
-	data := payload["data"].([]any)
-	if len(data) != 1 {
-		t.Fatalf("len(data) = %d, want 1", len(data))
+	data := payload["data"].(map[string]any)
+	items := data["resources"].([]any)
+	if len(items) != 1 {
+		t.Fatalf("len(items) = %d, want 1", len(items))
 	}
-	resource := data[0].(map[string]any)
+	resource := items[0].(map[string]any)
 	if resource["health"] != "healthy" || resource["status_code"] != "ok" || resource["message"] != "available" {
 		t.Fatalf("resource = %#v", resource)
 	}

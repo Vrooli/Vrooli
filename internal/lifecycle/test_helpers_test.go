@@ -22,6 +22,11 @@ func writeLifecycleFixtureManifest(t *testing.T, root string, manifest scenario.
 	}
 
 	testresource.WritePortRegistry(t, root, nil)
+	// Smoke tests construct a real Runner, which loads the root manifest during
+	// host-requirement resolution. Write an empty project manifest so resolution
+	// succeeds with an empty scope; tests that exercise host requirements can
+	// overwrite this fixture.
+	testscenario.WriteProjectService(t, root, testscenario.ProjectServiceManifest())
 	testscenario.WriteScenarioService(t, root, manifest.Service.Name, manifest)
 }
 

@@ -307,7 +307,7 @@ func TestRefreshRebuildsResourceConsumers(t *testing.T) {
 	))
 	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "packages", "cli-core", "go.mod"), "module example.com/cli-core\n\ngo 1.25.0\n")
 	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "packages", "cli-core", "cli_core.go"), "package clicore\n\nfunc Name() string { return \"ok\" }\n")
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "resources", "sqlite", "go.mod"), `module example.com/resources/sqlite
+	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "resources", "fixturecli", "go.mod"), `module example.com/resources/fixturecli
 
 go 1.25.0
 
@@ -315,7 +315,7 @@ require example.com/cli-core v0.0.0
 
 replace example.com/cli-core => ../../packages/cli-core
 `)
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "resources", "sqlite", "main.go"), `package sqlite
+	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "resources", "fixturecli", "main.go"), `package fixturecli
 
 import core "example.com/cli-core"
 
@@ -328,7 +328,7 @@ func Name() string {
 	if err != nil {
 		t.Fatalf("Refresh: %v", err)
 	}
-	if len(resp.Items) != 1 || resp.Items[0].Consumer != "sqlite" || resp.Items[0].Status != "rebuilt" {
+	if len(resp.Items) != 1 || resp.Items[0].Consumer != "fixturecli" || resp.Items[0].Status != "rebuilt" {
 		t.Fatalf("resp.Items = %#v", resp.Items)
 	}
 }

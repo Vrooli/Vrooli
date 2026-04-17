@@ -223,7 +223,7 @@ func getSQLitePath() string {
 }
 ```
 
-See `resources/sqlite/README.md` for comprehensive SQLite guidance.
+Use `modernc.org/sqlite` with the `sqlite` driver name for embedded scenario storage. For scenario runtime architecture, prefer embedded SQLite in the scenario rather than a standalone SQLite resource.
 
 #### 3.3 Full Replacement vs Runtime Swap
 
@@ -299,16 +299,13 @@ There are two strategies for handling non-portable resources:
 Document your resource strategy in service.json or bundle manifest:
 
 ```json
-// For FULL REPLACEMENT - just use the portable resource
+// For FULL REPLACEMENT - embed SQLite in the scenario
 {
-  "dependencies": {
-    "resources": {
-      "sqlite": {
-        "type": "sqlite",
-        "enabled": true,
-        "description": "Primary storage (portable, no server required)"
-      }
-    }
+  "environment": {
+    "MYAPP_SQLITE_PATH": "${SCENARIO_DATA_DIR}/myapp.db"
+  },
+  "notes": {
+    "storage_strategy": "Embedded SQLite via modernc.org/sqlite; no standalone SQLite resource"
   }
 }
 
@@ -321,17 +318,14 @@ Document your resource strategy in service.json or bundle manifest:
         "enabled": true,
         "required": false,
         "description": "Production storage (Tier 1/4)"
-      },
-      "sqlite": {
-        "type": "sqlite",
-        "enabled": true,
-        "required": false,
-        "description": "Portable storage (Tier 2/3)"
       }
     }
   },
+  "environment": {
+    "MYAPP_SQLITE_PATH": "${SCENARIO_DATA_DIR}/myapp.db"
+  },
   "notes": {
-    "storage_selection": "Uses STORAGE_BACKEND env var; defaults to sqlite if postgres unavailable"
+    "storage_selection": "Uses STORAGE_BACKEND env var; defaults to embedded sqlite if postgres unavailable"
   }
 }
 
@@ -690,7 +684,7 @@ Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION 
 Read existing portability documentation:
 - `scenarios/{{TARGET}}/.vrooli/service.json` - Resource dependencies
 - `scenarios/{{TARGET}}/docs/internal/PORTABILITY_AUDIT.md` - Prior findings (if exists)
-- `resources/sqlite/README.md` - If database swap is needed
+- `packages/api-core/README.md` - If shared SQLite driver/env guidance is needed
 - `packages/api-core/docs/storage.md` - Filesystem runtime storage contract
 - `scenarios/deployment-manager/docs/guides/fitness-scoring.md` - Fitness criteria
 

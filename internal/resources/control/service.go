@@ -11,6 +11,7 @@ import (
 	"time"
 
 	batchcontrol "github.com/vrooli/vrooli/internal/control"
+	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/resources/catalog"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/vroolierr"
@@ -46,8 +47,14 @@ type CommandResult struct {
 	Err    error
 }
 
+type StatusReport struct {
+	Items    []Status            `json:"items"`
+	Failures []discovery.Failure `json:"failures,omitempty"`
+}
+
 type Service struct {
 	DiscoverFn           func() ([]catalog.Resource, error)
+	DiscoverReportFn     func() (discovery.Report[catalog.Resource], error)
 	DiscoverOneFn        func(name string) (*catalog.Resource, error)
 	IsDeprecatedFn       func(name string) (bool, error)
 	IsBlueprintArchFn    func(name string) (bool, error)
@@ -60,9 +67,32 @@ type Service struct {
 }
 
 func (s *Service) ListStatuses(fast bool, onlyEnabled bool) ([]Status, error) {
-	items, err := s.DiscoverFn()
+	report, err := s.ListStatusesReport(fast, onlyEnabled)
 	if err != nil {
 		return nil, err
+	}
+	return report.Items, nil
+}
+
+func (s *Service) ListStatusesReport(fast bool, onlyEnabled bool) (StatusReport, error) {
+	var (
+		items    []catalog.Resource
+		failures []discovery.Failure
+		err      error
+	)
+	if s.DiscoverReportFn != nil {
+		var report discovery.Report[catalog.Resource]
+		report, err = s.DiscoverReportFn()
+		if err != nil {
+			return StatusReport{}, err
+		}
+		items = report.Items
+		failures = append([]discovery.Failure(nil), report.Failures...)
+	} else {
+		items, err = s.DiscoverFn()
+		if err != nil {
+			return StatusReport{}, err
+		}
 	}
 
 	statuses := make([]Status, 0, len(items))
@@ -80,7 +110,7 @@ func (s *Service) ListStatuses(fast bool, onlyEnabled bool) ([]Status, error) {
 		}
 		statuses = append(statuses, status)
 	}
-	return statuses, nil
+	return StatusReport{Items: statuses, Failures: failures}, nil
 }
 
 func (s *Service) Status(name string, fast bool) (Status, error) {

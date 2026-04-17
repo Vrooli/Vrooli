@@ -185,8 +185,14 @@ func TestDoctorReportsToolingPortAndServiceManifest(t *testing.T) {
 	if !strings.Contains(output, "hostreq_root_overreach=ok") {
 		t.Fatalf("doctor checks missing root-overreach summary: %s", output)
 	}
+	if !strings.Contains(output, "scenario_cli_discovery=ok") {
+		t.Fatalf("doctor checks missing scenario CLI discovery summary: %s", output)
+	}
 	if !strings.Contains(output, "scenario_cli_install_locations=ok") {
 		t.Fatalf("doctor checks missing scenario CLI install summary: %s", output)
+	}
+	if !strings.Contains(output, "resource_cli_discovery=ok") {
+		t.Fatalf("doctor checks missing resource CLI discovery summary: %s", output)
 	}
 	if !strings.Contains(output, "resource_cli_install_locations=ok") {
 		t.Fatalf("doctor checks missing resource CLI install summary: %s", output)
@@ -255,6 +261,67 @@ func TestDoctorReportsNonCanonicalCLIInstallLocations(t *testing.T) {
 	}
 	if !strings.Contains(scenarioCheck.Message, "alpha resolved to non-canonical path") {
 		t.Fatalf("scenario_cli_install_locations message = %q", scenarioCheck.Message)
+	}
+}
+
+func TestDoctorToleratesBrokenScenarioCLIDiscovery(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testkitgo.WriteRepoContract(t, root, "scenarios")
+	testscenario.WriteProjectService(t, root, scenario.ServiceManifest{
+		Service: scenario.ServiceMetadata{Name: "project-alpha"},
+	})
+	testscenario.WriteScenarioService(t, root, "alpha", testscenario.ScenarioServiceManifest(
+		"alpha",
+		testscenario.WithCLI(&scenario.CLIConfig{
+			Enabled: true,
+			Command: "alpha",
+			Adapter: scenario.CLIAdapterConfig{
+				Kind:      "go_module",
+				ModuleDir: "cli",
+			},
+		}),
+	))
+	testscenario.WriteScenarioCLIGoMod(t, root, "alpha", "example.com/alpha/cli")
+	testkitgo.WriteFile(t, filepath.Join(root, "scenarios", "broken", ".vrooli", "service.json"), `{
+  "service": {"name": "broken"},
+  "cli": {
+    "enabled": true,
+    "command": "broken",
+    "adapter": {"kind": "go_module", "module_path": "cli"}
+  }
+}`)
+
+	controller := New(root, home, io.Discard, io.Discard)
+	controller.MaintenanceSnapshotFn = func() (maintenance.ProcessSnapshot, error) {
+		return maintenance.ProcessSnapshot{}, nil
+	}
+	controller.MaintenanceLocksFn = func() ([]maintenance.LockInfo, error) {
+		return nil, nil
+	}
+	controller.LookPathFn = func(name string) (string, error) {
+		return "/usr/bin/" + name, nil
+	}
+
+	report, err := controller.Doctor()
+	if err != nil {
+		t.Fatalf("Doctor: %v", err)
+	}
+
+	found := false
+	for _, check := range report.Checks {
+		if check.Name == "scenario_cli_discovery" {
+			found = true
+			if check.Status != "warning" {
+				t.Fatalf("scenario_cli_discovery status = %q", check.Status)
+			}
+			if !strings.Contains(check.Message, "broken") {
+				t.Fatalf("scenario_cli_discovery message = %q", check.Message)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("expected scenario_cli_discovery check")
 	}
 }
 

@@ -210,7 +210,7 @@ func TestValidateAllowsResourceRuntimeConsumers(t *testing.T) {
 		manifest.Package.Adoption.AdoptionModes = []AdoptionMode{ModeGoModuleReplace}
 		manifest.Package.Refresh = RefreshPolicy{Strategy: RefreshRebuildCLI}
 	}))
-	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "resources", "sqlite", "go.mod"), `module github.com/example/resources/sqlite
+	testkitgo.WriteFile(t, filepath.Join(fixture.Root, "resources", "fixturecli", "go.mod"), `module github.com/example/resources/fixturecli
 
 go 1.25.0
 
