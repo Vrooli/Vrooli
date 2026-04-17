@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "websockify",
+  "description": "WebSocket-to-TCP proxy for bridging VNC sessions into browsers",
+  "commands": ["websockify"],
+  "versionArgs": ["--version"],
+  "defaultPackage": "websockify",
+  "packages": {
+    "apt-get": "websockify"
+  },
+  "installHint": "Install websockify to bridge VNC desktop sessions into browser WebSocket endpoints",
+  "platforms": ["linux"]
+}

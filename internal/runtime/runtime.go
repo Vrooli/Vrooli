@@ -3,32 +3,17 @@ package runtime
 import (
 	"errors"
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/hostreq"
+	"github.com/vrooli/vrooli/internal/hostreqkit"
 )
 
-var ErrUnsupportedPlatform = errors.New("unsupported platform")
+var ErrUnsupportedPlatform = hostreqkit.ErrUnsupportedPlatform
 
-type EnsureOptions struct {
-	Environment string
-	SudoMode    string
-	DryRun      bool
-	AutoInstall bool
-	Stdout      io.Writer
-	Stderr      io.Writer
-}
+type Host = hostreqkit.Host
 
-type Host struct {
-	OS              string   `json:"os"`
-	PackageManager  string   `json:"package_manager,omitempty"`
-	SupportsSetup   bool     `json:"supports_setup"`
-	SupportsDevelop bool     `json:"supports_develop"`
-	SupportsSysctl  bool     `json:"supports_sysctl"`
-	SupportsSystemd bool     `json:"supports_systemd"`
-	Notes           []string `json:"notes,omitempty"`
-}
+type EnsureOptions = hostreqkit.EnsureOptions
 
 func Current() Host {
 	return currentHost()
@@ -103,49 +88,21 @@ func inspectResolution(host Host, environment string, resolution hostreq.Resolut
 }
 
 func inspectRequirement(host Host, requirement hostreq.ResolvedRequirement) ItemStatus {
-	handler := lookupHandler(requirement.Kind, requirement.Name)
-	if handler == nil {
-		return unsupportedRequirementStatus(requirement, "no native runtime handler registered")
+	h := lookupHandler(requirement.Kind, requirement.Name)
+	if h == nil {
+		return hostreqkit.UnsupportedRequirementStatus(requirement, "no native runtime handler registered")
 	}
-	return handler.Inspect(host, requirement)
+	return h.Inspect(host, requirement)
 }
 
 func applyRequirement(host Host, status ItemStatus, opts EnsureOptions) (ItemStatus, error) {
-	handler := lookupHandler(status.Kind, status.Name)
-	if handler == nil {
+	h := lookupHandler(status.Kind, status.Name)
+	if h == nil {
 		status.Notes = append(status.Notes, "no native runtime handler registered")
 		status.SupportClass = SupportUnsupported
 		return status, nil
 	}
-	return handler.Apply(host, status, opts)
-}
-
-func (h Host) ValidateSetup() error {
-	if h.SupportsSetup {
-		return nil
-	}
-	return h.unsupportedError("setup")
-}
-
-func (h Host) ValidateDevelop() error {
-	if h.SupportsDevelop {
-		return nil
-	}
-	return h.unsupportedError("develop")
-}
-
-func (h Host) unsupportedError(command string) error {
-	if len(h.Notes) == 0 {
-		return fmt.Errorf("%w: vrooli %s is not supported on %s", ErrUnsupportedPlatform, command, defaultOS(h.OS))
-	}
-	return fmt.Errorf("%w: vrooli %s is not supported on %s (%s)", ErrUnsupportedPlatform, command, defaultOS(h.OS), strings.Join(h.Notes, "; "))
-}
-
-func defaultOS(value string) string {
-	if strings.TrimSpace(value) == "" {
-		return "this platform"
-	}
-	return value
+	return h.Apply(host, status, opts)
 }
 
 func summarizeReport(report Report) Report {

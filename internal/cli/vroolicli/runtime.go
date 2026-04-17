@@ -592,11 +592,11 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 			if err != nil {
 				return projectcli.OrphansResponse{}, err
 			}
-			resp, err := command.Orphans(projectapp.OrphansRequest{Kill: req.Kill})
+			resp, err := command.Orphans(projectapp.OrphansRequest{Kill: req.Kill, DryRun: req.DryRun})
 			if err != nil {
 				return projectcli.OrphansResponse{}, err
 			}
-			return projectcli.OrphansResponse{List: resp.List, KillReport: resp.KillReport}, nil
+			return projectcli.OrphansResponse{List: resp.List, KillReport: resp.KillReport, DryRun: resp.DryRun}, nil
 		}),
 		topcli.CommandLocks: projectcli.LocksHandler(commandStdout, projectOutputFormat, func(ctx *CommandContext, req projectcli.LocksRequest) (projectcli.LocksResponse, error) {
 			command, err := ctx.app.newProjectCommandService(ctx)

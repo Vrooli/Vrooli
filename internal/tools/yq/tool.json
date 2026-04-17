@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "yq",
+  "description": "YAML processor for shell workflows and configuration parsing",
+  "commands": ["yq"],
+  "versionArgs": ["--version"],
+  "defaultPackage": "yq",
+  "packages": {
+    "apt-get": "yq",
+    "brew": "yq",
+    "winget": "MikeF.yq"
+  },
+  "installHint": "Install yq for YAML-aware shell workflows",
+  "platforms": ["linux", "macos", "windows"]
+}

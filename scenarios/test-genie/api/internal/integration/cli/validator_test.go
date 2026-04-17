@@ -337,6 +337,165 @@ func TestValidator_FindsFallbackBinary(t *testing.T) {
 	}
 }
 
+func TestValidator_PrefersManifestInvokeCommand(t *testing.T) {
+	h := newTestHarness(t)
+	writeFile(t, filepath.Join(h.scenarioDir, ".vrooli", "service.json"), `{
+  "cli": {
+    "enabled": true,
+    "command": "demo",
+    "invoke": {
+      "kind": "installed_command",
+      "command": "agent-inbox"
+    }
+  }
+}`)
+	writeExecutable(t, filepath.Join(h.scenarioDir, "cli", "agent-inbox"), "#!/bin/bash\necho cli")
+	os.Remove(filepath.Join(h.scenarioDir, "cli", h.scenarioName))
+
+	v := New(
+		Config{
+			ScenarioDir:  h.scenarioDir,
+			ScenarioName: h.scenarioName,
+		},
+		WithLogger(io.Discard),
+		WithLookup(func(file string) (string, error) { return "", errors.New("not found") }),
+		WithExecutor(successExecutor),
+		WithCapture(versionCapture("1.0.0")),
+	)
+
+	result := v.Validate(context.Background())
+
+	if !result.Success {
+		t.Fatalf("expected success, got error: %v", result.Error)
+	}
+	expectedPath := filepath.Join(h.scenarioDir, "cli", "agent-inbox")
+	if result.BinaryPath != expectedPath {
+		t.Errorf("expected manifest-selected binary %s, got: %s", expectedPath, result.BinaryPath)
+	}
+}
+
+func TestValidator_UsesInstalledCommandFromLookup(t *testing.T) {
+	h := newTestHarness(t)
+	writeFile(t, filepath.Join(h.scenarioDir, ".vrooli", "service.json"), `{
+  "cli": {
+    "enabled": true,
+    "command": "agent-inbox",
+    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "agent-inbox"
+    }
+  }
+}`)
+	os.Remove(filepath.Join(h.scenarioDir, "cli", h.scenarioName))
+
+	v := New(
+		Config{
+			ScenarioDir:  h.scenarioDir,
+			ScenarioName: h.scenarioName,
+		},
+		WithLogger(io.Discard),
+		WithLookup(func(file string) (string, error) {
+			if file == "agent-inbox" {
+				return "/usr/local/bin/agent-inbox", nil
+			}
+			return "", errors.New("not found")
+		}),
+		WithExecutor(successExecutor),
+		WithCapture(versionCapture("1.0.0")),
+	)
+
+	result := v.Validate(context.Background())
+
+	if !result.Success {
+		t.Fatalf("expected success, got error: %v", result.Error)
+	}
+	if result.BinaryPath != "agent-inbox" {
+		t.Errorf("expected installed command name, got: %s", result.BinaryPath)
+	}
+}
+
+func TestValidator_RunsInstallerForInstalledCommand(t *testing.T) {
+	h := newTestHarness(t)
+	writeFile(t, filepath.Join(h.scenarioDir, ".vrooli", "service.json"), `{
+  "cli": {
+    "enabled": true,
+    "command": "agent-inbox",
+    "install": [{"kind": "command", "run": "bash ./cli/install.sh"}],
+    "invoke": {
+      "kind": "installed_command",
+      "command": "agent-inbox"
+    }
+  }
+}`)
+	os.Remove(filepath.Join(h.scenarioDir, "cli", h.scenarioName))
+
+	lookupCount := 0
+	ranInstaller := false
+	v := New(
+		Config{
+			ScenarioDir:  h.scenarioDir,
+			ScenarioName: h.scenarioName,
+		},
+		WithLogger(io.Discard),
+		WithLookup(func(file string) (string, error) {
+			lookupCount++
+			if file == "agent-inbox" && ranInstaller {
+				return "/home/test/.vrooli/bin/agent-inbox", nil
+			}
+			return "", errors.New("not found")
+		}),
+		WithExecutor(func(ctx context.Context, dir string, w io.Writer, name string, args ...string) error {
+			if name == "bash" && len(args) == 2 && args[0] == "-lc" && args[1] == "bash ./cli/install.sh" {
+				ranInstaller = true
+				return nil
+			}
+			return nil
+		}),
+		WithCapture(versionCapture("1.0.0")),
+	)
+
+	result := v.Validate(context.Background())
+
+	if !result.Success {
+		t.Fatalf("expected success, got error: %v", result.Error)
+	}
+	if !ranInstaller {
+		t.Fatal("expected installer to run before validating installed command")
+	}
+	if lookupCount < 2 {
+		t.Fatalf("expected lookup before and after install, got %d calls", lookupCount)
+	}
+	if result.BinaryPath != "agent-inbox" {
+		t.Errorf("expected installed command name, got: %s", result.BinaryPath)
+	}
+}
+
+func TestValidator_DoesNotTreatInstallerAsBinary(t *testing.T) {
+	h := newTestHarness(t)
+	os.Remove(filepath.Join(h.scenarioDir, "cli", h.scenarioName))
+	writeExecutable(t, filepath.Join(h.scenarioDir, "cli", "install.sh"), "#!/bin/bash\necho install")
+
+	v := New(
+		Config{
+			ScenarioDir:  h.scenarioDir,
+			ScenarioName: h.scenarioName,
+		},
+		WithLogger(io.Discard),
+		WithExecutor(successExecutor),
+		WithCapture(versionCapture("1.0.0")),
+	)
+
+	result := v.Validate(context.Background())
+
+	if result.Success {
+		t.Fatal("expected failure when only installer script exists")
+	}
+	if !strings.Contains(result.Error.Error(), "no executable CLI binary") && !strings.Contains(result.Error.Error(), "unable to resolve installed CLI command") {
+		t.Errorf("expected no executable or unresolved installed command error, got: %v", result.Error)
+	}
+}
+
 func TestValidator_NoExecutorConfigured(t *testing.T) {
 	h := newTestHarness(t)
 
@@ -725,6 +884,17 @@ func writeExecutable(t *testing.T, path, content string) {
 	}
 	if err := os.WriteFile(path, []byte(content), perm); err != nil {
 		t.Fatalf("failed to write executable: %v", err)
+	}
+}
+
+func writeFile(t *testing.T, path, content string) {
+	t.Helper()
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("failed to create directory: %v", err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
 	}
 }
 

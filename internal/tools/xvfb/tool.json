@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "Xvfb",
+  "description": "Virtual framebuffer X server for headless display sessions",
+  "commands": ["Xvfb"],
+  "versionArgs": ["-version"],
+  "defaultPackage": "xvfb",
+  "packages": {
+    "apt-get": "xvfb"
+  },
+  "installHint": "Install Xvfb to provide a virtual Linux display for desktop smoke tests",
+  "platforms": ["linux"]
+}

@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+var execCommandContext = exec.CommandContext
+
 // VrooliScenarioLister shells out to the Vrooli CLI to discover every scenario on disk.
 type VrooliScenarioLister struct{}
 
@@ -21,7 +23,7 @@ func (l *VrooliScenarioLister) ListScenarios(ctx context.Context) ([]ScenarioMet
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "list", "--json")
+	cmd := execCommandContext(ctx, "vrooli", "--no-stale-check", "scenario", "list", "--json")
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("vrooli scenario list failed: %w", err)

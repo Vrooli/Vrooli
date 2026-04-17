@@ -2,6 +2,9 @@ package orchestrator
 
 import (
 	"context"
+	"errors"
+	"os/exec"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -74,6 +77,69 @@ func TestMockScenarioStarter_Stop(t *testing.T) {
 	}
 	if mock.StoppedScenarios[0] != "test-scenario" {
 		t.Errorf("expected scenario 'test-scenario', got '%s'", mock.StoppedScenarios[0])
+	}
+}
+
+func TestDefaultScenarioStarterStopUsesNoStaleCheck(t *testing.T) {
+	original := execCommandContext
+	t.Cleanup(func() {
+		execCommandContext = original
+	})
+
+	var gotName string
+	var gotArgs []string
+	execCommandContext = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+		gotName = name
+		gotArgs = append([]string(nil), args...)
+		return exec.CommandContext(ctx, "bash", "-lc", "exit 0")
+	}
+
+	starter := NewDefaultScenarioStarter()
+	if err := starter.Stop(context.Background(), "test-scenario"); err != nil {
+		t.Fatalf("Stop: %v", err)
+	}
+
+	if gotName != "vrooli" {
+		t.Fatalf("command = %q, want %q", gotName, "vrooli")
+	}
+	wantArgs := []string{"--no-stale-check", "scenario", "stop", "test-scenario"}
+	if !reflect.DeepEqual(gotArgs, wantArgs) {
+		t.Fatalf("args = %v, want %v", gotArgs, wantArgs)
+	}
+}
+
+func TestDefaultScenarioStarterStartUsesNoStaleCheck(t *testing.T) {
+	original := execCommandContext
+	t.Cleanup(func() {
+		execCommandContext = original
+	})
+
+	var gotName string
+	var gotArgs []string
+	execCommandContext = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+		gotName = name
+		gotArgs = append([]string(nil), args...)
+		return exec.CommandContext(ctx, "bash", "-lc", "exit 0")
+	}
+
+	starter := NewDefaultScenarioStarter()
+	starter.StartTimeout = 20 * time.Millisecond
+	starter.PollInterval = 5 * time.Millisecond
+
+	_, err := starter.Start(context.Background(), "test-scenario")
+	if err == nil {
+		t.Fatal("expected timeout because no UI port becomes available")
+	}
+	if !errors.Is(err, context.DeadlineExceeded) && err.Error() == "" {
+		t.Fatalf("expected non-empty timeout error, got %v", err)
+	}
+
+	if gotName != "vrooli" {
+		t.Fatalf("command = %q, want %q", gotName, "vrooli")
+	}
+	wantArgs := []string{"--no-stale-check", "scenario", "start", "test-scenario"}
+	if !reflect.DeepEqual(gotArgs, wantArgs) {
+		t.Fatalf("args = %v, want %v", gotArgs, wantArgs)
 	}
 }
 

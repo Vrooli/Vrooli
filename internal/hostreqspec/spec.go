@@ -60,6 +60,26 @@ func validateList(kind Kind, name, field string, values []string) error {
 	return nil
 }
 
+type Provenance struct {
+	Kind   string `json:"kind"`
+	Name   string `json:"name"`
+	Path   string `json:"path"`
+	Source string `json:"source"`
+}
+
+type ResolvedRequirement struct {
+	Name         string       `json:"name"`
+	Kind         Kind         `json:"kind"`
+	Required     bool         `json:"required"`
+	Manual       bool         `json:"manual"`
+	Reasons      []string     `json:"reasons,omitempty"`
+	When         []string     `json:"when,omitempty"`
+	Environments []string     `json:"environments,omitempty"`
+	Platforms    []string     `json:"platforms,omitempty"`
+	Notes        []string     `json:"notes,omitempty"`
+	Provenance   []Provenance `json:"provenance,omitempty"`
+}
+
 func CurrentPlatform() string {
 	switch runtime.GOOS {
 	case "darwin":

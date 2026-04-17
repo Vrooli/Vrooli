@@ -10,6 +10,8 @@ import (
 	"github.com/vrooli/api-core/discovery"
 )
 
+var execCommandContext = exec.CommandContext
+
 // DefaultScenarioStarter implements ScenarioStarter using the vrooli CLI.
 type DefaultScenarioStarter struct {
 	// StartTimeout is the maximum time to wait for scenario startup.
@@ -43,7 +45,7 @@ func (s *DefaultScenarioStarter) Start(ctx context.Context, scenarioName string)
 	}
 
 	// Start the scenario
-	cmd := exec.CommandContext(startCtx, "vrooli", "scenario", "start", scenarioName)
+	cmd := execCommandContext(startCtx, "vrooli", "--no-stale-check", "scenario", "start", scenarioName)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("failed to start scenario: %w\nOutput: %s", err, string(output))
@@ -77,7 +79,7 @@ func (s *DefaultScenarioStarter) Stop(ctx context.Context, scenarioName string) 
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "stop", scenarioName)
+	cmd := execCommandContext(ctx, "vrooli", "--no-stale-check", "scenario", "stop", scenarioName)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to stop scenario: %w\nOutput: %s", err, string(output))

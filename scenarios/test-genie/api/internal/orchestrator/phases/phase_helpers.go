@@ -23,6 +23,25 @@ var (
 	phaseCommandCapture                   = runCommandCapture
 )
 
+func normalizeCommandInvocation(name string, args []string) (string, []string) {
+	if name != "vrooli" || containsArg(args, "--no-stale-check") {
+		return name, args
+	}
+	normalized := make([]string, 0, len(args)+1)
+	normalized = append(normalized, "--no-stale-check")
+	normalized = append(normalized, args...)
+	return name, normalized
+}
+
+func containsArg(args []string, target string) bool {
+	for _, arg := range args {
+		if arg == target {
+			return true
+		}
+	}
+	return false
+}
+
 // ParseJSON parses JSON from a string into a target value.
 // This is the standard helper for parsing JSON across phases.
 func ParseJSON(data string, v interface{}) error {
@@ -65,6 +84,7 @@ func runCommand(ctx context.Context, dir string, logWriter io.Writer, name strin
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	name, args = normalizeCommandInvocation(name, args)
 	cmd := exec.CommandContext(ctx, name, args...)
 	if dir != "" {
 		cmd.Dir = dir
@@ -87,6 +107,7 @@ func runCommandCapture(ctx context.Context, dir string, logWriter io.Writer, nam
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
+	name, args = normalizeCommandInvocation(name, args)
 	cmd := exec.CommandContext(ctx, name, args...)
 	if dir != "" {
 		cmd.Dir = dir

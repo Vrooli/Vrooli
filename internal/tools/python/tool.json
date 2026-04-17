@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "python",
+  "description": "Python programming language runtime",
+  "commands": ["python3", "python"],
+  "versionArgs": ["--version"],
+  "defaultPackage": "python3",
+  "packages": {
+    "brew": "python",
+    "winget": "Python.Python.3.12"
+  },
+  "installHint": "Install Python 3.10+",
+  "platforms": ["linux", "macos", "windows"]
+}

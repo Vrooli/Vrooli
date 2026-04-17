@@ -1,4 +1,4 @@
-.PHONY: help setup dev develop build install status stop test clean
+.PHONY: help setup dev develop build install status stop fmt lint type test check clean
 
 .DEFAULT_GOAL := help
 
@@ -16,7 +16,11 @@ help: ## Show the supported repo-level entrypoints
 	@printf "  make install                    Install project-level binaries to %s\n" "$(INSTALL_DIR)"
 	@printf "  make status                     Show project status\n"
 	@printf "  make stop                       Stop project services\n"
+	@printf "  make fmt                        Format project-level Go code\n"
+	@printf "  make lint                       Lint project-level Go code\n"
+	@printf "  make type                       Compile-check project-level Go packages\n"
 	@printf "  make test                       Run project-level Go tests\n"
+	@printf "  make check                      Run lint, type, and test quality gates\n"
 	@printf "  make clean                      Clean build artifacts via the CLI\n"
 
 setup: ## Bootstrap and run project setup
@@ -41,11 +45,35 @@ status: ## Show project status
 stop: ## Stop project services
 	@$(VROOLI) stop
 
+fmt: ## Format project-level Go code
+	@if command -v gofumpt >/dev/null; then \
+		gofumpt -w ./cmd ./internal; \
+	elif command -v gofmt >/dev/null; then \
+		gofmt -w ./cmd ./internal; \
+	else \
+		echo "Neither gofumpt nor gofmt is available"; \
+		exit 1; \
+	fi
+
+lint: ## Lint project-level Go code
+	@if command -v golangci-lint >/dev/null; then \
+		golangci-lint run ./cmd/... ./internal/...; \
+	else \
+		echo "golangci-lint not installed; falling back to go vet"; \
+		go vet ./cmd/... ./internal/...; \
+	fi
+
+type: ## Compile-check project-level Go packages without running tests
+	@go test -run '^$$' ./cmd/... ./internal/...
+	@go test -run '^$$' -tags testing ./cmd/vrooli-api
+
 test: ## Run project-level Go tests
 	@go test ./internal/...
 	@go test ./cmd/vrooli-buildmeta
 	@go test ./cmd/vrooli
 	@go test -tags testing ./cmd/vrooli-api
+
+check: lint type test ## Run lint, type, and test quality gates
 
 clean: ## Clean build artifacts via the CLI
 	@$(VROOLI) clean

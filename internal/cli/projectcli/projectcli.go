@@ -24,6 +24,7 @@ type StatusResponse struct {
 type OrphansResponse struct {
 	KillReport *control.StopReport
 	List       []maintenance.SystemProcess
+	DryRun     bool
 }
 
 type LocksResponse struct {
@@ -139,7 +140,28 @@ func RenderOrphansResponse(w io.Writer, format cliout.Format, resp OrphansRespon
 		return nil
 	}
 	if format == cliout.FormatJSON {
+		if resp.DryRun {
+			return cliout.WriteSuccessJSON(w, "dry_run", struct {
+				Orphans []maintenance.SystemProcess `json:"orphans"`
+			}{Orphans: resp.List})
+		}
 		return cliout.WriteSuccessJSON(w, "orphans", resp.List)
+	}
+	if resp.DryRun {
+		if len(resp.List) == 0 {
+			_, _ = fmt.Fprintln(w, "[dry-run] No orphaned Vrooli processes would be killed.")
+			return nil
+		}
+		_, _ = fmt.Fprintf(w, "[dry-run] %d orphaned Vrooli process(es) would be killed:\n", len(resp.List))
+		rows := make([][]string, 0, len(resp.List))
+		for _, item := range resp.List {
+			rows = append(rows, []string{strconv.Itoa(item.PID), strconv.Itoa(item.PPID), item.Command})
+		}
+		if err := cliout.RenderTable(w, []string{"PID", "PPID", "Command"}, rows); err != nil {
+			return err
+		}
+		_, _ = fmt.Fprintln(w, "Re-run without --dry-run to send SIGTERM (then SIGKILL on unresponsive processes).")
+		return nil
 	}
 	if len(resp.List) == 0 {
 		_, _ = fmt.Fprintln(w, "No orphaned Vrooli processes found.")
@@ -219,7 +241,7 @@ func RenderPortDiagnostic(w io.Writer, format cliout.Format, diagnostic maintena
 	} else {
 		_, _ = fmt.Fprintln(w, "Lock: none")
 	}
-	_, _ = fmt.Fprintf(w, "Orphans detected: %d\n", diagnostic.OrphanCount)
+	_, _ = fmt.Fprintf(w, "Host orphan Vrooli processes: %d (run `vrooli orphans` to list)\n", diagnostic.HostOrphanCount)
 	_, _ = fmt.Fprintln(w, "Recommended actions:")
 	for _, recommendation := range diagnostic.Recommendations {
 		_, _ = fmt.Fprintf(w, "  - %s\n", recommendation)

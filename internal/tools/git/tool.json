@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "git",
+  "description": "Distributed version control for repository operations",
+  "commands": ["git"],
+  "versionArgs": ["--version"],
+  "defaultPackage": "git",
+  "packages": {
+    "winget": "Git.Git"
+  },
+  "installHint": "Install Git for repository operations",
+  "platforms": ["linux", "macos", "windows"]
+}

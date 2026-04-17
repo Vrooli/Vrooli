@@ -13,11 +13,26 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/vrooli/internal/scenario"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
 	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
 )
+
+// computeScenarioCLIFingerprint is a test-only helper that exercises the
+// canonical FreshnessSpec path end-to-end.
+func computeScenarioCLIFingerprint(item InstallableCLI) (string, error) {
+	spec, err := item.FreshnessSpec()
+	if err != nil {
+		return "", err
+	}
+	return cliutil.ComputeFreshnessFingerprint(spec)
+}
+
+func computeResourceCLIFingerprint(item InstallableCLI) (string, error) {
+	return computeScenarioCLIFingerprint(item)
+}
 
 type stubInstaller struct {
 	calls []installCall
@@ -767,7 +782,10 @@ func writeInstallMetadataFixture(t *testing.T, path string, meta InstallMetadata
 }
 
 func computeTestFingerprint(modulePath, binaryName string) (string, error) {
-	return computeFingerprint(modulePath, binaryName)
+	return cliutil.ComputeFreshnessFingerprint(cliutil.FreshnessSpec{
+		SourceRoot: modulePath,
+		SkipFiles:  []string{binaryName},
+	})
 }
 
 func mapProjectResources(enabled map[string]bool) scenario.Dependencies {

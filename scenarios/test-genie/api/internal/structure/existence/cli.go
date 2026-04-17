@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -202,6 +203,11 @@ func validateGoModuleCLI(scenarioDir string, manifest serviceManifest, logWriter
 		NewSuccessObservation("CLI manifest contract valid"),
 		NewSuccessObservation("Go module CLI structure valid"),
 	}
+	if !hasLocalExecutableCandidate(moduleDir, manifest.CLI.Command) {
+		observations = append(observations, NewWarningObservation(
+			fmt.Sprintf("Recommended local CLI artifact missing: %s/%s (installed_command validation works without it, but a scenario-local binary improves deterministic debugging)", manifest.CLI.Adapter.ModuleDir, manifest.CLI.Command),
+		))
+	}
 	return CLIResult{
 		Approach: CLIApproachGoModule,
 		Result:   OK().WithObservations(observations...),
@@ -341,4 +347,20 @@ func dirContainsGoSource(root string) bool {
 		return nil
 	})
 	return found
+}
+
+func hasLocalExecutableCandidate(moduleDir, command string) bool {
+	command = strings.TrimSpace(command)
+	if command == "" {
+		return false
+	}
+	path := filepath.Join(moduleDir, command)
+	info, err := os.Stat(path)
+	if err != nil || info.IsDir() {
+		return false
+	}
+	if runtime.GOOS == "windows" {
+		return true
+	}
+	return info.Mode()&0o111 != 0
 }

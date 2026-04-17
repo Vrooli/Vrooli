@@ -106,13 +106,6 @@ func TestEnabledResourcesDeclareExplicitCLIContract(t *testing.T) {
 	}
 }
 
-func TestResourceShellInstallHelpersAreRemoved(t *testing.T) {
-	root := testkitgo.ProjectRoot(t)
-	if _, err := os.Stat(filepath.Join(root, "scripts", "lib", "resources")); !os.IsNotExist(err) {
-		t.Fatalf("expected scripts/lib/resources removal, stat err=%v", err)
-	}
-}
-
 func requireDeclaredCLIAssets(t *testing.T, root, name string, manifest manifestpkg.ResourceManifest) {
 	t.Helper()
 

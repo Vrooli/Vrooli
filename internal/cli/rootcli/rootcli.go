@@ -382,7 +382,7 @@ func (r *Runner[C]) Run(args []string, stdout, stderr io.Writer) int {
 	ctx := r.config.NewContext(parsed.Globals, stdout, stderr, logger)
 
 	if r.config.Registry.CanRunWithoutRoot(parsed) {
-		if parsed.Command == "version" && r.config.ResolveRoot != nil {
+		if r.config.ResolveRoot != nil {
 			if root, err := r.config.ResolveRoot(); err == nil {
 				if r.config.SetRoot != nil {
 					r.config.SetRoot(ctx, root)

@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tool Manifest",
+  "description": "Declares a host tool that can be auto-installed by the Vrooli runtime",
+  "type": "object",
+  "required": ["name", "description", "commands", "versionArgs"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string",
+      "description": "Unique tool identifier matching the handler registry name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable purpose of the tool"
+    },
+    "commands": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "Command names to check on PATH (first match wins)"
+    },
+    "versionArgs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Arguments passed to the resolved command to extract version output"
+    },
+    "defaultPackage": {
+      "type": "string",
+      "description": "Fallback package name when the host package manager is not listed in packages"
+    },
+    "packages": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Per-package-manager package name overrides (e.g. apt, brew, winget, dnf, pacman, apk)"
+    },
+    "installHint": {
+      "type": "string",
+      "description": "Human-readable install guidance shown when the tool is missing"
+    },
+    "platforms": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["linux", "macos", "windows"]
+      },
+      "description": "Platforms this tool applies to. Omit for all platforms."
+    },
+    "handler": {
+      "type": "string",
+      "description": "Name of a custom Go handler. When set, the generic package-install logic is bypassed."
+    },
+    "healthCheck": {
+      "$ref": "#/$defs/healthCheck"
+    },
+    "version": {
+      "type": "string",
+      "description": "Manifest schema version"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Freeform annotation for maintainers (not shown to users during install)"
+    }
+  },
+  "$defs": {
+    "healthCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional post-install health check. If absent, command presence on PATH is sufficient.",
+      "properties": {
+        "command": {
+          "type": "string",
+          "description": "Command to run for the health check"
+        },
+        "args": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Arguments for the health check command"
+        },
+        "expectExitCode": {
+          "type": "integer",
+          "description": "Expected exit code (default 0)"
+        },
+        "files": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Files that must exist for the check to pass"
+        }
+      }
+    }
+  }
+}

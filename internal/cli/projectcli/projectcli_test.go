@@ -48,6 +48,59 @@ func TestParseDiagnosePortRequestRejectsInvalidPort(t *testing.T) {
 	}
 }
 
+func TestParseDiagnosePortRequestRejectsOutOfRange(t *testing.T) {
+	for _, v := range []string{"0", "-1", "65536", "99999"} {
+		if _, err := ParseDiagnosePortRequest([]string{v}); err == nil {
+			t.Fatalf("expected out-of-range port error for %q", v)
+		}
+	}
+}
+
+func TestParseDiagnosePortRequestAcceptsBoundaries(t *testing.T) {
+	for _, v := range []string{"1", "65535"} {
+		if _, err := ParseDiagnosePortRequest([]string{v}); err != nil {
+			t.Fatalf("unexpected error for port %q: %v", v, err)
+		}
+	}
+}
+
+func TestParseOrphansRequestDryRunRequiresKill(t *testing.T) {
+	if _, err := ParseOrphansRequest([]string{"--dry-run"}); err == nil {
+		t.Fatal("expected error: --dry-run alone should be rejected")
+	}
+}
+
+func TestParseOrphansRequestKillWithDryRun(t *testing.T) {
+	req, err := ParseOrphansRequest([]string{"kill", "--dry-run"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !req.Kill || !req.DryRun {
+		t.Fatalf("req = %+v, want Kill=true DryRun=true", req)
+	}
+}
+
+func TestRenderOrphansResponseDryRunHumanListsPIDs(t *testing.T) {
+	var stdout bytes.Buffer
+	err := RenderOrphansResponse(&stdout, cliout.FormatHuman, OrphansResponse{
+		List: []maintenance.SystemProcess{{PID: 999, PPID: 1, Command: "scenario-api"}},
+		DryRun: true,
+	})
+	if err != nil {
+		t.Fatalf("RenderOrphansResponse: %v", err)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, "[dry-run]") {
+		t.Fatalf("stdout = %q", output)
+	}
+	if !strings.Contains(output, "999") {
+		t.Fatalf("stdout missing pid: %q", output)
+	}
+	if !strings.Contains(output, "Re-run without --dry-run") {
+		t.Fatalf("stdout missing re-run hint: %q", output)
+	}
+}
+
 func TestRenderOrphansResponseHumanEmpty(t *testing.T) {
 	var stdout bytes.Buffer
 	if err := RenderOrphansResponse(&stdout, cliout.FormatHuman, OrphansResponse{}); err != nil {

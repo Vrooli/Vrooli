@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "ffmpeg",
+  "description": "Multimedia framework for media processing scenarios and resources",
+  "commands": ["ffmpeg"],
+  "versionArgs": ["-version"],
+  "defaultPackage": "ffmpeg",
+  "packages": {
+    "winget": "Gyan.FFmpeg"
+  },
+  "installHint": "Install FFmpeg for media-processing scenarios and resources",
+  "platforms": ["linux", "macos", "windows"]
+}

@@ -1,56 +1,33 @@
 package runtime
 
-import "github.com/vrooli/vrooli/internal/hostreq"
+import "github.com/vrooli/vrooli/internal/hostreqkit"
 
-type SupportClass string
-type ExecutionState string
+type SupportClass = hostreqkit.SupportClass
+type ExecutionState = hostreqkit.ExecutionState
 
 const (
-	SupportSupported     SupportClass = "supported"
-	SupportUnsupported   SupportClass = "unsupported"
-	SupportNotApplicable SupportClass = "not_applicable"
-	SupportManualOnly    SupportClass = "manual_only"
+	SupportSupported     = hostreqkit.SupportSupported
+	SupportUnsupported   = hostreqkit.SupportUnsupported
+	SupportNotApplicable = hostreqkit.SupportNotApplicable
+	SupportManualOnly    = hostreqkit.SupportManualOnly
 )
 
 const (
-	ExecutionPending              ExecutionState = "pending"
-	ExecutionAlreadyPresent       ExecutionState = "already_present"
-	ExecutionWouldInstall         ExecutionState = "would_install"
-	ExecutionWouldApply           ExecutionState = "would_apply"
-	ExecutionInstalled            ExecutionState = "installed"
-	ExecutionApplied              ExecutionState = "applied"
-	ExecutionManualActionRequired ExecutionState = "manual_action_required"
-	ExecutionUnsupported          ExecutionState = "unsupported"
-	ExecutionNotApplicable        ExecutionState = "not_applicable"
-	ExecutionFailed               ExecutionState = "failed"
+	ExecutionPending              = hostreqkit.ExecutionPending
+	ExecutionAlreadyPresent       = hostreqkit.ExecutionAlreadyPresent
+	ExecutionWouldInstall         = hostreqkit.ExecutionWouldInstall
+	ExecutionWouldApply           = hostreqkit.ExecutionWouldApply
+	ExecutionInstalled            = hostreqkit.ExecutionInstalled
+	ExecutionApplied              = hostreqkit.ExecutionApplied
+	ExecutionManualActionRequired = hostreqkit.ExecutionManualActionRequired
+	ExecutionUnsupported          = hostreqkit.ExecutionUnsupported
+	ExecutionNotApplicable        = hostreqkit.ExecutionNotApplicable
+	ExecutionFailed               = hostreqkit.ExecutionFailed
 )
 
-type ItemStatus struct {
-	Name             string               `json:"name"`
-	Kind             hostreq.Kind         `json:"kind"`
-	Command          string               `json:"command,omitempty"`
-	Version          string               `json:"version,omitempty"`
-	Installed        bool                 `json:"installed"`
-	Applied          bool                 `json:"applied,omitempty"`
-	Required         bool                 `json:"required"`
-	InstallSupported bool                 `json:"install_supported"`
-	PackageName      string               `json:"package_name,omitempty"`
-	SupportClass     SupportClass         `json:"support_class"`
-	ExecutionState   ExecutionState       `json:"execution_state"`
-	Manual           bool                 `json:"manual"`
-	Reasons          []string             `json:"reasons,omitempty"`
-	Notes            []string             `json:"notes,omitempty"`
-	Provenance       []hostreq.Provenance `json:"provenance,omitempty"`
-}
+type ItemStatus = hostreqkit.ItemStatus
 
-type ToolStatus = ItemStatus
-type SafeguardStatus = ItemStatus
+type ToolStatus = hostreqkit.ToolStatus
+type SafeguardStatus = hostreqkit.SafeguardStatus
 
-type Report struct {
-	Environment     string            `json:"environment"`
-	Host            Host              `json:"host"`
-	Tools           []ToolStatus      `json:"tools"`
-	Safeguards      []SafeguardStatus `json:"safeguards,omitempty"`
-	MissingRequired []string          `json:"missing_required,omitempty"`
-	MissingOptional []string          `json:"missing_optional,omitempty"`
-}
+type Report = hostreqkit.Report

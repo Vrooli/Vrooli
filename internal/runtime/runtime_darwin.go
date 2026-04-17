@@ -2,13 +2,15 @@
 
 package runtime
 
+import "github.com/vrooli/vrooli/internal/hostreqkit"
+
 func currentHost() Host {
 	return Host{
 		OS:              "darwin",
 		PackageManager:  packageManager(),
 		SupportsSetup:   false,
 		SupportsDevelop: false,
-		SupportsSysctl:  commandAvailable("sysctl"),
+		SupportsSysctl:  hostreqkit.CommandAvailable("sysctl"),
 		SupportsSystemd: false,
 		Notes: []string{
 			"project-level setup/develop are native, but resource and scenario lifecycle support still assumes Linux-oriented tooling",
@@ -17,5 +19,5 @@ func currentHost() Host {
 }
 
 func packageManager() string {
-	return detectFirstAvailable([]string{"brew"})
+	return hostreqkit.DetectFirstAvailable([]string{"brew"})
 }

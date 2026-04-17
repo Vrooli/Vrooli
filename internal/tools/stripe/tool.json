@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "stripe",
+  "description": "Stripe CLI for payment workflow testing and webhook forwarding",
+  "commands": ["stripe"],
+  "versionArgs": ["version"],
+  "handler": "stripe",
+  "packages": {
+    "brew": "stripe/stripe-cli/stripe"
+  },
+  "installHint": "Install the Stripe CLI for local webhook forwarding and payment-workflow validation",
+  "platforms": ["linux", "macos"]
+}

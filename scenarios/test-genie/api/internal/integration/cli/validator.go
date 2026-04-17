@@ -2,9 +2,11 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -36,6 +38,9 @@ type CommandExecutor func(ctx context.Context, dir string, logWriter io.Writer, 
 
 // CommandCapture executes commands and captures output.
 type CommandCapture func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error)
+
+// CommandLookup resolves a command in PATH.
+type CommandLookup func(file string) (string, error)
 
 // AdaptExecutor adapts an integration.CommandExecutor to cli.CommandExecutor.
 // Since they have the same signature, this is just a type conversion helper.
@@ -97,7 +102,28 @@ type validator struct {
 	config    Config
 	executor  CommandExecutor
 	capture   CommandCapture
+	lookup    CommandLookup
 	logWriter io.Writer
+}
+
+type serviceManifest struct {
+	CLI struct {
+		Enabled bool   `json:"enabled"`
+		Command string `json:"command"`
+		Adapter struct {
+			Kind      string `json:"kind"`
+			ModuleDir string `json:"module_dir"`
+		} `json:"adapter"`
+		Install []struct {
+			OS   []string `json:"os"`
+			Kind string   `json:"kind"`
+			Run  string   `json:"run"`
+		} `json:"install"`
+		Invoke struct {
+			Kind    string `json:"kind"`
+			Command string `json:"command"`
+		} `json:"invoke"`
+	} `json:"cli"`
 }
 
 // Option configures a validator.
@@ -108,6 +134,7 @@ type Option func(*validator)
 func New(config Config, opts ...Option) Validator {
 	v := &validator{
 		config:    config,
+		lookup:    exec.LookPath,
 		logWriter: io.Discard,
 	}
 
@@ -150,6 +177,13 @@ func WithCapture(cap CommandCapture) Option {
 	}
 }
 
+// WithLookup sets the command lookup function (for testing).
+func WithLookup(lookup CommandLookup) Option {
+	return func(v *validator) {
+		v.lookup = lookup
+	}
+}
+
 // Validate performs all CLI validation checks.
 func (v *validator) Validate(ctx context.Context) ValidationResult {
 	if err := ctx.Err(); err != nil {
@@ -161,11 +195,11 @@ func (v *validator) Validate(ctx context.Context) ValidationResult {
 	var observations []types.Observation
 	observations = append(observations, types.NewSectionObservation("🖥️", "Validating CLI..."))
 
-	// Step 1: Discover CLI binary
-	binaryPath, err := v.discoverBinary()
+	// Step 1: Discover CLI invocation target
+	binaryPath, err := v.discoverBinary(ctx)
 	if err != nil {
 		return ValidationResult{
-			Result: types.FailMisconfiguration(err, "Add an executable CLI binary under cli/ so operators can invoke the scenario."),
+			Result: types.FailMisconfiguration(err, "Declare a valid cli.invoke command and ensure the scenario can install or expose that executable."),
 		}
 	}
 	v.logStep("CLI binary verified: %s", binaryPath)
@@ -269,8 +303,9 @@ func (v *validator) Validate(ctx context.Context) ValidationResult {
 	}
 }
 
-// discoverBinary finds the CLI binary in the scenario's cli/ directory.
-func (v *validator) discoverBinary() (string, error) {
+// discoverBinary resolves the CLI invocation target, preferring manifest-declared
+// installed commands and falling back to local executables for legacy scenarios.
+func (v *validator) discoverBinary(ctx context.Context) (string, error) {
 	cliDir := filepath.Join(v.config.ScenarioDir, "cli")
 	info, err := os.Stat(cliDir)
 	if err != nil {
@@ -280,21 +315,31 @@ func (v *validator) discoverBinary() (string, error) {
 		return "", fmt.Errorf("cli path is not a directory: %s", cliDir)
 	}
 
-	// Build candidate list based on scenario name
+	manifest, manifestErr := v.loadServiceManifest()
+
+	if manifestErr == nil {
+		if command, ok := v.resolveInstalledCommand(ctx, manifest); ok {
+			return command, nil
+		}
+	}
+
+	// Build candidate list from the declared CLI contract first.
 	var candidates []string
+	if command := strings.TrimSpace(manifest.CLI.Invoke.Command); command != "" {
+		candidates = append(candidates, v.commandCandidates(cliDir, command)...)
+	}
+	if command := strings.TrimSpace(manifest.CLI.Command); command != "" {
+		candidates = append(candidates, v.commandCandidates(cliDir, command)...)
+	}
+
+	// Fall back to scenario-name heuristics for older manifests.
 	name := strings.TrimSpace(v.config.ScenarioName)
 	if name != "" {
-		candidates = append(candidates,
-			filepath.Join(cliDir, name),
-			filepath.Join(cliDir, name+".sh"),
-			filepath.Join(cliDir, name+".exe"),
-		)
+		candidates = append(candidates, v.commandCandidates(cliDir, name)...)
 	}
+
 	// Also check for test-genie as fallback
-	candidates = append(candidates,
-		filepath.Join(cliDir, "test-genie"),
-		filepath.Join(cliDir, "test-genie.exe"),
-	)
+	candidates = append(candidates, v.commandCandidates(cliDir, "test-genie")...)
 
 	// Check preferred candidates first
 	for _, candidate := range candidates {
@@ -313,12 +358,69 @@ func (v *validator) discoverBinary() (string, error) {
 			continue
 		}
 		path := filepath.Join(cliDir, entry.Name())
+		if v.isInstallerScript(path) {
+			continue
+		}
 		if v.isExecutable(path) {
 			return path, nil
 		}
 	}
 
+	if manifestErr == nil && strings.TrimSpace(manifest.CLI.Invoke.Kind) == "installed_command" {
+		return "", fmt.Errorf("unable to resolve installed CLI command %q and no local executable fallback found under %s", strings.TrimSpace(manifest.CLI.Invoke.Command), cliDir)
+	}
+
 	return "", fmt.Errorf("no executable CLI binary found under %s", cliDir)
+}
+
+func (v *validator) loadServiceManifest() (serviceManifest, error) {
+	var manifest serviceManifest
+
+	manifestPath := filepath.Join(v.config.ScenarioDir, ".vrooli", "service.json")
+	content, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return manifest, err
+	}
+	if err := json.Unmarshal(content, &manifest); err != nil {
+		return manifest, fmt.Errorf("parse service manifest: %w", err)
+	}
+
+	return manifest, nil
+}
+
+func (v *validator) resolveInstalledCommand(ctx context.Context, manifest serviceManifest) (string, bool) {
+	command := strings.TrimSpace(manifest.CLI.Invoke.Command)
+	if !manifest.CLI.Enabled || strings.TrimSpace(manifest.CLI.Invoke.Kind) != "installed_command" || command == "" {
+		return "", false
+	}
+
+	if v.commandAvailable(command) {
+		return command, true
+	}
+
+	if err := v.runInstaller(ctx, manifest); err == nil && v.commandAvailable(command) {
+		return command, true
+	}
+
+	return "", false
+}
+
+func (v *validator) commandCandidates(cliDir, command string) []string {
+	command = strings.TrimSpace(command)
+	if command == "" {
+		return nil
+	}
+
+	candidates := []string{filepath.Join(cliDir, command)}
+	if runtime.GOOS == "windows" {
+		candidates = append(candidates,
+			filepath.Join(cliDir, command+".exe"),
+			filepath.Join(cliDir, command+".bat"),
+			filepath.Join(cliDir, command+".cmd"),
+		)
+	}
+
+	return candidates
 }
 
 // isExecutable checks if a file exists and is executable.
@@ -330,11 +432,72 @@ func (v *validator) isExecutable(path string) bool {
 	if info.IsDir() {
 		return false
 	}
+	if v.isInstallerScript(path) {
+		return false
+	}
 	if runtime.GOOS == "windows" {
 		// Windows does not expose POSIX execute bits, so existence is enough.
 		return true
 	}
 	return info.Mode()&0o111 != 0
+}
+
+func (v *validator) isInstallerScript(path string) bool {
+	base := strings.ToLower(filepath.Base(path))
+	return base == "install.sh" || base == "install.ps1" || base == "install.bat" || base == "install.cmd"
+}
+
+func (v *validator) commandAvailable(command string) bool {
+	if strings.TrimSpace(command) == "" || v.lookup == nil {
+		return false
+	}
+	_, err := v.lookup(command)
+	return err == nil
+}
+
+func (v *validator) runInstaller(ctx context.Context, manifest serviceManifest) error {
+	if v.executor == nil {
+		return fmt.Errorf("command executor not configured")
+	}
+
+	for _, step := range manifest.CLI.Install {
+		if !installStepApplies(step.OS) {
+			continue
+		}
+		if strings.TrimSpace(step.Kind) != "command" || strings.TrimSpace(step.Run) == "" {
+			continue
+		}
+		v.logStep("Running CLI install step: %s", strings.TrimSpace(step.Run))
+		return v.executor(ctx, v.config.ScenarioDir, v.logWriter, installerShell(), installerArgs(step.Run)...)
+	}
+
+	return fmt.Errorf("no applicable cli.install command for %s", runtime.GOOS)
+}
+
+func installStepApplies(targets []string) bool {
+	if len(targets) == 0 {
+		return true
+	}
+	for _, target := range targets {
+		if strings.EqualFold(strings.TrimSpace(target), runtime.GOOS) {
+			return true
+		}
+	}
+	return false
+}
+
+func installerShell() string {
+	if runtime.GOOS == "windows" {
+		return "powershell"
+	}
+	return "bash"
+}
+
+func installerArgs(command string) []string {
+	if runtime.GOOS == "windows" {
+		return []string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", command}
+	}
+	return []string{"-lc", command}
 }
 
 // validateNoArgs runs the CLI with no arguments and verifies it doesn't hang and exits cleanly.

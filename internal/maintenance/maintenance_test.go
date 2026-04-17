@@ -12,6 +12,158 @@ import (
 	"github.com/vrooli/vrooli/internal/process"
 )
 
+func TestLooksLikeVrooliProcessSkipsSystemDaemons(t *testing.T) {
+	root := "/home/alice/Vrooli"
+	home := "/home/alice"
+
+	cases := []struct {
+		name  string
+		entry processTableEntry
+	}{
+		{
+			name: "postgres worker with vrooli in command",
+			entry: processTableEntry{
+				PID:        900,
+				Command:    "postgres: vrooli vrooli_ecosystem_manager 172.18.0.1(39256) idle",
+				Executable: "/usr/lib/postgresql/15/bin/postgres",
+				Cwd:        "/var/lib/postgresql/15/main",
+			},
+		},
+		{
+			name: "fuse-overlayfs with vrooli paths in argv",
+			entry: processTableEntry{
+				PID:        901,
+				Command:    "fuse-overlayfs -o lowerdir=/home/alice/Vrooli,upperdir=/home/alice/.local/...",
+				Executable: "/usr/bin/fuse-overlayfs",
+				Cwd:        "/",
+			},
+		},
+		{
+			name: "user shell with Vrooli cwd",
+			entry: processTableEntry{
+				PID:        902,
+				Command:    "/bin/bash -c ...",
+				Executable: "/bin/bash",
+				Cwd:        root,
+			},
+		},
+		{
+			name: "opencode in data dir",
+			entry: processTableEntry{
+				PID:        903,
+				Command:    "/home/alice/Vrooli/data/opencode/bin/opencode",
+				Executable: "/home/alice/Vrooli/data/opencode/bin/opencode",
+				Cwd:        "/home/alice",
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if looksLikeVrooliProcess(root, home, tc.entry) {
+				t.Fatalf("entry should not be classified as Vrooli: %+v", tc.entry)
+			}
+		})
+	}
+}
+
+func TestLooksLikeVrooliProcessMatchesInstalledCLIs(t *testing.T) {
+	root := "/home/alice/Vrooli"
+	home := "/home/alice"
+
+	entry := processTableEntry{
+		PID:        4100,
+		Executable: "/home/alice/.vrooli/bin/test-genie",
+		Command:    "test-genie status",
+		Cwd:        "/home/alice",
+	}
+	if !looksLikeVrooliProcess(root, home, entry) {
+		t.Fatalf("expected installed Vrooli CLI to match")
+	}
+}
+
+func TestLooksLikeVrooliProcessMatchesScenarioBinary(t *testing.T) {
+	root := "/home/alice/Vrooli"
+	home := "/home/alice"
+
+	entry := processTableEntry{
+		PID:        4101,
+		Executable: "/home/alice/Vrooli/scenarios/agent-manager/api/agent-manager-api",
+		Command:    "agent-manager-api",
+		Cwd:        "/home/alice/Vrooli/scenarios/agent-manager/api",
+	}
+	if !looksLikeVrooliProcess(root, home, entry) {
+		t.Fatalf("expected compiled scenario binary to match")
+	}
+}
+
+func TestLooksLikeVrooliProcessMatchesVrooliBinary(t *testing.T) {
+	root := "/home/alice/Vrooli"
+	home := "/home/alice"
+
+	entry := processTableEntry{
+		PID:        4102,
+		Executable: "/home/alice/Vrooli/vrooli",
+		Command:    "/home/alice/Vrooli/vrooli status",
+	}
+	if !looksLikeVrooliProcess(root, home, entry) {
+		t.Fatalf("expected root-level vrooli binary to match")
+	}
+}
+
+func TestLooksLikeVrooliProcessMatchesInterpreterInScenarioCwd(t *testing.T) {
+	root := "/home/alice/Vrooli"
+	home := "/home/alice"
+
+	entry := processTableEntry{
+		PID:        4103,
+		Executable: "/usr/bin/node",
+		Command:    "node node_modules/.bin/vite",
+		Cwd:        "/home/alice/Vrooli/scenarios/test-genie/ui",
+	}
+	if !looksLikeVrooliProcess(root, home, entry) {
+		t.Fatalf("expected node in scenario cwd to match")
+	}
+}
+
+func TestLooksLikeVrooliProcessIgnoresInterpreterOutsideScenarios(t *testing.T) {
+	root := "/home/alice/Vrooli"
+	home := "/home/alice"
+
+	entry := processTableEntry{
+		PID:        4104,
+		Executable: "/usr/bin/node",
+		Command:    "node some-unrelated-script",
+		Cwd:        "/home/alice",
+	}
+	if looksLikeVrooliProcess(root, home, entry) {
+		t.Fatalf("expected node outside scenarios/resources to be excluded")
+	}
+}
+
+func TestLooksLikeVrooliProcessLegacyFallbackWhenProcUnavailable(t *testing.T) {
+	// When /proc is unavailable, Executable is empty. Fall back to checking
+	// whether the command line contains a Vrooli-owned prefix.
+	root := "/home/alice/Vrooli"
+	home := "/home/alice"
+
+	match := processTableEntry{
+		PID:     5200,
+		Command: "/home/alice/Vrooli/scenarios/beta/api/server --port 18700",
+	}
+	if !looksLikeVrooliProcess(root, home, match) {
+		t.Fatalf("legacy fallback should match scenario path in command")
+	}
+
+	noMatch := processTableEntry{
+		PID:     5201,
+		Command: "postgres: vrooli vrooli_beta 172.18.0.1(12345) idle",
+	}
+	if looksLikeVrooliProcess(root, home, noMatch) {
+		t.Fatalf("legacy fallback must not match postgres worker by substring alone")
+	}
+}
+
 func TestListOrphansFiltersTrackedAncestors(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()

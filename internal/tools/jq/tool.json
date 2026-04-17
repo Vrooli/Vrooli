@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "jq",
+  "description": "Lightweight JSON processor for setup and resource flows",
+  "commands": ["jq"],
+  "versionArgs": ["--version"],
+  "defaultPackage": "jq",
+  "packages": {
+    "winget": "jqlang.jq"
+  },
+  "installHint": "Install jq for JSON processing in setup and resource flows",
+  "platforms": ["linux", "macos", "windows"]
+}

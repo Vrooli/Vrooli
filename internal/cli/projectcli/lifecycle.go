@@ -32,7 +32,8 @@ type StopRequest struct {
 }
 
 type OrphansRequest struct {
-	Kill bool
+	Kill   bool
+	DryRun bool
 }
 
 type LocksRequest struct {
@@ -98,11 +99,14 @@ func ParseStopRequest(args []string) (StopRequest, error) {
 func ParseOrphansRequest(args []string) (OrphansRequest, error) {
 	parsed, err := commandtree.ParseArgs("orphans", OrphansHelpText(), commandtree.ArgSchema{
 		Positionals: []commandtree.PositionalArg{{Name: "action"}},
+		Options: []commandtree.OptionArg{
+			{Name: "--dry-run", Description: "With `kill`: list processes that would be terminated without sending signals"},
+		},
 	}, args)
 	if err != nil {
 		return OrphansRequest{}, err
 	}
-	req := OrphansRequest{}
+	req := OrphansRequest{DryRun: parsed.HasFlag("--dry-run")}
 	if len(parsed.Positionals) == 1 {
 		switch parsed.Positionals[0] {
 		case "kill":
@@ -112,6 +116,9 @@ func ParseOrphansRequest(args []string) (OrphansRequest, error) {
 		default:
 			return OrphansRequest{}, clipolicy.UnknownOptionError("orphans", parsed.Positionals[0])
 		}
+	}
+	if req.DryRun && !req.Kill {
+		return OrphansRequest{}, clipolicy.UsageErrorf("orphans", "--dry-run is only meaningful with `kill`")
 	}
 	return req, nil
 }
@@ -143,8 +150,8 @@ func ParseDiagnosePortRequest(args []string) (DiagnosePortRequest, error) {
 		return DiagnosePortRequest{}, err
 	}
 	port, err := strconv.Atoi(strings.TrimSpace(parsed.Positionals[0]))
-	if err != nil || port <= 0 {
-		return DiagnosePortRequest{}, clipolicy.UsageErrorf("diagnose-port", "invalid port: %s", parsed.Positionals[0])
+	if err != nil || port < 1 || port > 65535 {
+		return DiagnosePortRequest{}, clipolicy.UsageErrorf("diagnose-port", "invalid port %q: must be an integer in [1, 65535]", parsed.Positionals[0])
 	}
 	req := DiagnosePortRequest{Port: port}
 	if len(parsed.Positionals) > 1 {
@@ -159,16 +166,23 @@ func ParseCleanupRequest(args []string) (CleanupRequest, error) {
 			{Name: "target", Required: true},
 			{Name: "argument", Repeatable: true},
 		},
+		Options: []commandtree.OptionArg{
+			{Name: "--dry-run", Description: "For `orphans`: list the processes that would be killed without sending signals"},
+		},
 	}, args)
 	if err != nil {
 		return CleanupRequest{}, err
 	}
 	target := strings.TrimSpace(parsed.Positionals[0])
+	forwarded := append([]string(nil), parsed.Positionals[1:]...)
+	if parsed.HasFlag("--dry-run") {
+		forwarded = append(forwarded, "--dry-run")
+	}
 	switch target {
 	case "help":
 		return CleanupRequest{}, clipolicy.CommandHelpOnly(CleanupHelpText)
 	case "orphans", "locks":
-		return CleanupRequest{Target: target, Args: append([]string(nil), parsed.Positionals[1:]...)}, nil
+		return CleanupRequest{Target: target, Args: forwarded}, nil
 	default:
 		return CleanupRequest{}, &vroolierr.Error{
 			Err:         fmt.Errorf("unknown cleanup target: %s", target),
@@ -263,7 +277,7 @@ func parseLifecycleOptions(command string, args []string, helpText string) (proj
 	return opts, nil
 }
 
-const CleanupHelpText = "vrooli cleanup - Clean up orphaned processes and stale locks\n\nUsage:\n  vrooli cleanup orphans    Kill orphaned Vrooli processes\n  vrooli cleanup locks      Clean stale port lock files\n\nOptions:\n  --help, -h    Show this help message\n\nExamples:\n  vrooli cleanup orphans    # Kill orphaned processes (interactive)\n  vrooli cleanup locks      # Remove stale lock files\n"
+const CleanupHelpText = "vrooli cleanup - Clean up orphaned processes and stale locks\n\nUsage:\n  vrooli cleanup orphans [--dry-run]    Kill orphaned Vrooli processes\n  vrooli cleanup locks                  Clean stale port lock files\n\nOptions:\n  --dry-run     For `orphans`: list the processes that would be killed without sending signals\n  --help, -h    Show this help message\n\nExamples:\n  vrooli cleanup orphans --dry-run      # Preview which Vrooli processes would be killed\n  vrooli cleanup orphans                # Kill orphaned Vrooli processes (SIGTERM, then SIGKILL)\n  vrooli cleanup locks                  # Remove stale lock files\n"
 
 func statusArgSchema() commandtree.ArgSchema {
 	return commandtree.ArgSchema{
@@ -324,7 +338,10 @@ func StopHelpText() string {
 func OrphansHelpText() string {
 	return commandtree.HelpText("", "vrooli orphans", "Inspect or clean orphaned Vrooli processes.", commandtree.Help{}, commandtree.ArgSchema{
 		Positionals: []commandtree.PositionalArg{{Name: "action"}},
-		Options:     []commandtree.OptionArg{commandtree.JSONOption()},
+		Options: []commandtree.OptionArg{
+			commandtree.JSONOption(),
+			{Name: "--dry-run", Description: "With `kill`: list the processes that would be terminated without actually sending signals"},
+		},
 	})
 }
 

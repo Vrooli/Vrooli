@@ -2,17 +2,19 @@
 
 package runtime
 
+import "github.com/vrooli/vrooli/internal/hostreqkit"
+
 func currentHost() Host {
 	return Host{
 		OS:              "linux",
 		PackageManager:  detectPackageManager(),
 		SupportsSetup:   true,
 		SupportsDevelop: true,
-		SupportsSysctl:  commandAvailable("sysctl"),
-		SupportsSystemd: commandAvailable("systemctl"),
+		SupportsSysctl:  hostreqkit.CommandAvailable("sysctl"),
+		SupportsSystemd: hostreqkit.CommandAvailable("systemctl"),
 	}
 }
 
 func detectPackageManager() string {
-	return detectFirstAvailable([]string{"apt-get", "dnf", "yum", "pacman", "apk", "brew"})
+	return hostreqkit.DetectFirstAvailable([]string{"apt-get", "dnf", "yum", "pacman", "apk", "brew"})
 }

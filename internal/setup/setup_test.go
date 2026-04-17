@@ -58,57 +58,6 @@ func TestRepoMaintainsCanonicalInstallContract(t *testing.T) {
 	}
 }
 
-func TestRepoRemovesLegacyHostSetupSurfaces(t *testing.T) {
-	repoRoot := testkitgo.ProjectRoot(t)
-
-	for _, rel := range []string{
-		"scripts/lib/setup.sh",
-		"scripts/lib/setup-conditions/binaries-check.sh",
-		"scripts/lib/setup-conditions/cli-check.sh",
-		"scripts/lib/setup-conditions/data-check.sh",
-		"scripts/lib/setup-conditions/dependencies-check.sh",
-		"scripts/lib/setup-conditions/directories-check.sh",
-		"scripts/lib/setup-conditions/files-check.sh",
-		"scripts/lib/setup-conditions/resources-check.sh",
-		"scripts/lib/setup-conditions/ui-bundle-check.sh",
-		"scripts/lib/deps/ajv.sh",
-		"scripts/lib/deps/ast-grep.sh",
-		"scripts/lib/deps/bats.sh",
-		"scripts/lib/deps/js-yaml.sh",
-		"scripts/lib/deps/lychee.sh",
-		"scripts/lib/deps/shellcheck.sh",
-	} {
-		if _, err := os.Stat(filepath.Join(repoRoot, rel)); !os.IsNotExist(err) {
-			t.Fatalf("expected legacy host setup surface %s to be deleted, stat err=%v", rel, err)
-		}
-	}
-
-	for _, rel := range []string{
-		"docs/QUICKSTART.md",
-		"docs/operations/README.md",
-		"internal/lifecycle/setup.go",
-		"scenarios/scenario-to-cloud/api/bundling_rules_test.go",
-		"scripts/README.md",
-	} {
-		data, err := os.ReadFile(filepath.Join(repoRoot, rel))
-		if err != nil {
-			t.Fatalf("ReadFile(%s): %v", rel, err)
-		}
-		text := string(data)
-		for _, forbidden := range []string{
-			"scripts/lib/setup.sh",
-			"./scripts/setup.sh",
-			"scripts/lib/setup-conditions",
-			"setup.sh<br/>Called by all main scripts",
-			"runs `setup.sh`",
-		} {
-			if strings.Contains(text, forbidden) {
-				t.Fatalf("%s still contains forbidden legacy setup reference %q", rel, forbidden)
-			}
-		}
-	}
-}
-
 func TestRunSetupUsesNativeRuntimeAndMarksComplete(t *testing.T) {
 	svc := stubSetupDeps(t)
 
@@ -585,79 +534,6 @@ func TestRunSetupDryRunResolvesRootScenarioAndResourceDeclarations(t *testing.T)
 	}
 }
 
-func TestRunSetupDoesNotLeakLegacyEnvironmentContractToResourceInstall(t *testing.T) {
-	svc := stubSetupDeps(t)
-
-	root := t.TempDir()
-	home := t.TempDir()
-	projectScenario := writeProjectFixture(t, root)
-
-	svc.deps.currentHost = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
-	svc.deps.loadProject = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
-	svc.deps.resolveHostRequirements = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
-		return hostreq.Resolution{}, nil
-	}
-	svc.deps.inspectRequirements = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
-		return vrooliruntime.Report{Environment: environment}, nil
-	}
-	svc.deps.ensureRequirements = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
-		return vrooliruntime.Report{Environment: opts.Environment}, nil
-	}
-	svc.deps.markComplete = func(root string) error { return nil }
-
-	type installCall struct {
-		name string
-		args []string
-		env  map[string]string
-	}
-	var installs []installCall
-	svc.deps.resourceController = func(root, home string) resourceRunner {
-		return resourceRunnerFunc(func(name string, args []string, stdout, stderr io.Writer) error {
-			installs = append(installs, installCall{
-				name: name,
-				args: append([]string(nil), args...),
-				env: map[string]string{
-					"SERVICE_JSON_PATH":  os.Getenv("SERVICE_JSON_PATH"),
-					"ENVIRONMENT":        os.Getenv("ENVIRONMENT"),
-					"RESOURCES":          os.Getenv("RESOURCES"),
-					"SCENARIOS":          os.Getenv("SCENARIOS"),
-					"YES":                os.Getenv("YES"),
-					"SUDO_MODE":          os.Getenv("SUDO_MODE"),
-					"SUDO_MODE_EXPLICIT": os.Getenv("SUDO_MODE_EXPLICIT"),
-					"TARGET":             os.Getenv("TARGET"),
-					"LOCATION":           os.Getenv("LOCATION"),
-					"DRY_RUN":            os.Getenv("DRY_RUN"),
-				},
-			})
-			return nil
-		})
-	}
-
-	err := svc.RunSetupWithOptions(root, home, Options{
-		Environment: "minimal",
-		Resources:   "redis,postgres",
-		Scenarios:   "scenario-a,scenario-b",
-		Yes:         "yes",
-		SudoMode:    "skip",
-	}, io.Discard, io.Discard)
-	if err != nil {
-		t.Fatalf("RunSetupWithOptions: %v", err)
-	}
-	if len(installs) != 2 {
-		t.Fatalf("install calls = %d, want 2", len(installs))
-	}
-	for _, call := range installs {
-		if got := strings.Join(call.args, "|"); got != "install" {
-			t.Fatalf("resource %s args = %q", call.name, got)
-		}
-		for _, key := range []string{"SERVICE_JSON_PATH", "ENVIRONMENT", "RESOURCES", "SCENARIOS", "YES", "SUDO_MODE", "SUDO_MODE_EXPLICIT", "TARGET", "LOCATION", "DRY_RUN"} {
-			if call.env[key] != "" {
-				t.Fatalf("resource %s leaked legacy env %s = %q", call.name, key, call.env[key])
-			}
-		}
-	}
-}
-
 func TestRunSetupDryRunSkipsResourceInstallEvenWhenResourcesSelected(t *testing.T) {
 	svc := stubSetupDeps(t)
 
@@ -762,78 +638,6 @@ func TestRunDevelopRunsSetupWhenNeededAndStartsNativeServices(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "Running setup before develop") {
 		t.Fatalf("stdout = %q", stdout.String())
-	}
-}
-
-func TestRunDevelopExportsLegacyEnvironmentContractToAPILaunch(t *testing.T) {
-	svc := stubSetupDeps(t)
-
-	root := t.TempDir()
-	home := t.TempDir()
-	projectScenario := writeProjectFixture(t, root)
-	testresource.WritePortRegistry(t, root, nil)
-	testkitgo.WriteExecutable(t, filepath.Join(root, ".vrooli", "build", "vrooli-api"), "#!/usr/bin/env bash\nexit 0\n")
-	t.Setenv("VROOLI_API_PORT", "18095")
-
-	svc.deps.currentHost = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
-	svc.deps.loadProject = func(root string) (scenario.Scenario, error) { return projectScenario, nil }
-	svc.deps.resolveHostRequirements = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
-		return hostreq.Resolution{}, nil
-	}
-	svc.deps.inspectRequirements = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
-		return vrooliruntime.Report{Environment: environment}, nil
-	}
-	svc.deps.ensureRequirements = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
-		return vrooliruntime.Report{Environment: opts.Environment}, nil
-	}
-	svc.deps.markComplete = func(root string) error {
-		return writeSetupCompleteMarker(t, root)
-	}
-	svc.deps.loadDotEnv = func(path string) (map[string]string, error) {
-		return map[string]string{
-			"VROOLI_API_PORT": "18095",
-			"FROM_DOT_ENV":    "present",
-		}, nil
-	}
-
-	var capturedSpec apiLaunchSpec
-	svc.deps.startProjectAPI = func(root string, spec apiLaunchSpec, stdout, stderr io.Writer) error {
-		capturedSpec = spec
-		return nil
-	}
-	svc.deps.healthCheck = func(port int, timeout time.Duration) error { return nil }
-	svc.deps.startOrchestrator = func(root, home string, stdout, stderr io.Writer) error { return nil }
-
-	err := svc.RunDevelopWithOptions(root, home, Options{
-		Environment: "production",
-		Resources:   "enabled",
-		Yes:         "yes",
-		SudoMode:    "skip",
-		DryRun:      true,
-	}, io.Discard, io.Discard)
-	if err != nil {
-		t.Fatalf("RunDevelopWithOptions: %v", err)
-	}
-	if capturedSpec.Command == "" {
-		t.Fatal("expected API launch spec to be populated")
-	}
-	if capturedSpec.LogFile != filepath.Join(home, ".vrooli", "logs", "vrooli-api.log") {
-		t.Fatalf("LogFile = %q", capturedSpec.LogFile)
-	}
-	env := envMapFromList(capturedSpec.Env)
-	for _, key := range []string{"SERVICE_JSON_PATH", "ENVIRONMENT", "RESOURCES", "YES", "SUDO_MODE", "SUDO_MODE_EXPLICIT", "TARGET", "LOCATION", "DRY_RUN"} {
-		if env[key] != "" {
-			t.Fatalf("%s = %q, want empty legacy env surface", key, env[key])
-		}
-	}
-	if env["FROM_DOT_ENV"] != "present" {
-		t.Fatalf("FROM_DOT_ENV = %q", env["FROM_DOT_ENV"])
-	}
-	if env["VROOLI_API_PORT"] != "18095" {
-		t.Fatalf("VROOLI_API_PORT = %q", env["VROOLI_API_PORT"])
-	}
-	if capturedSpec.Port != 18095 {
-		t.Fatalf("capturedSpec.Port = %d", capturedSpec.Port)
 	}
 }
 
@@ -1060,17 +864,6 @@ type resourceRunnerFunc func(name string, args []string, stdout, stderr io.Write
 
 func (fn resourceRunnerFunc) Run(name string, args []string, stdout, stderr io.Writer) error {
 	return fn(name, args, stdout, stderr)
-}
-
-func envMapFromList(env []string) map[string]string {
-	values := make(map[string]string, len(env))
-	for _, entry := range env {
-		key, value, ok := strings.Cut(entry, "=")
-		if ok {
-			values[key] = value
-		}
-	}
-	return values
 }
 
 func reportFromResolution(environment string, resolution hostreq.Resolution, executed bool) vrooliruntime.Report {

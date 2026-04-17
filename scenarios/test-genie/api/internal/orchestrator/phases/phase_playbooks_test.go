@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -559,6 +560,24 @@ func TestStartScenario(t *testing.T) {
 	err := StartScenario(ctx, "test-scenario", io.Discard)
 	if err == nil {
 		t.Error("expected error when context is cancelled")
+	}
+}
+
+func TestNormalizeCommandInvocationAddsNoStaleCheckForVrooli(t *testing.T) {
+	name, args := normalizeCommandInvocation("vrooli", []string{"scenario", "start", "test-scenario", "--clean-stale"})
+	if name != "vrooli" {
+		t.Fatalf("name = %q, want %q", name, "vrooli")
+	}
+	if len(args) == 0 || args[0] != "--no-stale-check" {
+		t.Fatalf("expected --no-stale-check prefix, got %v", args)
+	}
+}
+
+func TestNormalizeCommandInvocationPreservesExistingNoStaleCheck(t *testing.T) {
+	input := []string{"--no-stale-check", "scenario", "status", "test-scenario"}
+	_, args := normalizeCommandInvocation("vrooli", input)
+	if !reflect.DeepEqual(args, input) {
+		t.Fatalf("args = %v, want %v", args, input)
 	}
 }
 

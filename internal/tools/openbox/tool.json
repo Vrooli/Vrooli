@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "openbox",
+  "description": "Lightweight X11 window manager for virtual desktop sessions",
+  "commands": ["openbox"],
+  "versionArgs": ["--version"],
+  "defaultPackage": "openbox",
+  "packages": {
+    "apt-get": "openbox"
+  },
+  "installHint": "Install openbox to provide a lightweight Linux window manager for virtual desktop sessions",
+  "platforms": ["linux"]
+}

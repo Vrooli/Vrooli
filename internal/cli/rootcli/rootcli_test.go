@@ -3,6 +3,8 @@ package rootcli
 import (
 	"bytes"
 	"errors"
+	"io"
+	"log/slog"
 	"strings"
 	"testing"
 
@@ -159,5 +161,97 @@ func TestPassthroughFlagsOmitsExistingFlags(t *testing.T) {
 func TestContainsArgDoesNotMatchAbsentFlag(t *testing.T) {
 	if ContainsArg([]string{"alpha", "beta"}, "--json") {
 		t.Fatal("ContainsArg() should not match absent flag")
+	}
+}
+
+type runnerCtx struct {
+	root string
+}
+
+func TestRunResolvesRootEvenForHelpOnlyCommands(t *testing.T) {
+	captured := runnerCtx{}
+	resolveCalls := 0
+	primeCalls := 0
+
+	registry := NewRegistry(
+		map[topcli.CommandID]Handler[*runnerCtx]{
+			topcli.CommandScenario: func(ctx *runnerCtx, args []string) error { return nil },
+		},
+		map[scenariocli.CommandID]Handler[*runnerCtx]{
+			scenariocli.CommandUISmoke: func(ctx *runnerCtx, args []string) error {
+				if ctx.root == "" {
+					t.Errorf("handler received empty root; args=%v", args)
+				}
+				return nil
+			},
+		},
+	)
+
+	runner := NewRunner(RunnerConfig[*runnerCtx]{
+		Registry: registry,
+		NewLogger: func(GlobalOptions, io.Writer) (*slog.Logger, func()) {
+			return slog.New(slog.NewTextHandler(io.Discard, nil)), func() {}
+		},
+		NewContext: func(GlobalOptions, io.Writer, io.Writer, *slog.Logger) *runnerCtx {
+			return &captured
+		},
+		SetRoot: func(ctx *runnerCtx, root string) { ctx.root = root },
+		ResolveRoot: func() (string, error) {
+			resolveCalls++
+			return "/resolved/root", nil
+		},
+		PrimeRootEnv: func(string) { primeCalls++ },
+		ShowMainHelp: func(*runnerCtx) {},
+		ShowVersion:  func(*runnerCtx) error { return nil },
+	})
+
+	var stdout, stderr bytes.Buffer
+	code := runner.Run([]string{"scenario", "ui-smoke", "--help"}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("exit code = %d, stderr=%q", code, stderr.String())
+	}
+	if resolveCalls != 1 {
+		t.Fatalf("ResolveRoot calls = %d, want 1", resolveCalls)
+	}
+	if primeCalls != 1 {
+		t.Fatalf("PrimeRootEnv calls = %d, want 1", primeCalls)
+	}
+	if captured.root != "/resolved/root" {
+		t.Fatalf("ctx root = %q, want /resolved/root", captured.root)
+	}
+}
+
+func TestRunHelpOnlyTolerantOfResolveRootError(t *testing.T) {
+	captured := runnerCtx{}
+
+	registry := NewRegistry(
+		map[topcli.CommandID]Handler[*runnerCtx]{
+			topcli.CommandScenario: func(*runnerCtx, []string) error { return nil },
+		},
+		map[scenariocli.CommandID]Handler[*runnerCtx]{
+			scenariocli.CommandUISmoke: func(*runnerCtx, []string) error { return nil },
+		},
+	)
+
+	runner := NewRunner(RunnerConfig[*runnerCtx]{
+		Registry: registry,
+		NewLogger: func(GlobalOptions, io.Writer) (*slog.Logger, func()) {
+			return slog.New(slog.NewTextHandler(io.Discard, nil)), func() {}
+		},
+		NewContext: func(GlobalOptions, io.Writer, io.Writer, *slog.Logger) *runnerCtx {
+			return &captured
+		},
+		SetRoot:      func(ctx *runnerCtx, root string) { ctx.root = root },
+		ResolveRoot:  func() (string, error) { return "", errors.New("no root") },
+		ShowMainHelp: func(*runnerCtx) {},
+		ShowVersion:  func(*runnerCtx) error { return nil },
+	})
+
+	var stdout, stderr bytes.Buffer
+	if code := runner.Run([]string{"scenario", "ui-smoke", "--help"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("exit code = %d, stderr=%q", code, stderr.String())
+	}
+	if captured.root != "" {
+		t.Fatalf("ctx root = %q, want empty (resolve failed)", captured.root)
 	}
 }

@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "helm",
+  "description": "Kubernetes package manager",
+  "commands": ["helm"],
+  "versionArgs": ["version", "--short"],
+  "defaultPackage": "helm",
+  "packages": {
+    "winget": "Helm.Helm"
+  },
+  "installHint": "Install Helm for Kubernetes packaging flows",
+  "platforms": ["linux", "macos", "windows"],
+  "notes": "Not yet declared by any scenario — kept for upcoming scenario-to-cloud integration"
+}

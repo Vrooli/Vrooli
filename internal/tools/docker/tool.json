@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "docker",
+  "description": "Container runtime for running resources and services",
+  "commands": ["docker"],
+  "versionArgs": ["--version"],
+  "defaultPackage": "docker.io",
+  "packages": {
+    "brew": "docker",
+    "winget": "Docker.DockerDesktop"
+  },
+  "installHint": "Install Docker Engine or Docker Desktop",
+  "platforms": ["linux", "macos", "windows"],
+  "healthCheck": {
+    "command": "docker",
+    "args": ["info"],
+    "expectExitCode": 0
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Safeguard Manifest",
+  "description": "Declares a host safeguard (idempotent machine-state modification) managed by the Vrooli runtime",
+  "type": "object",
+  "required": ["name", "description", "handler"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string",
+      "description": "Unique safeguard identifier matching the handler registry name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable purpose of the safeguard"
+    },
+    "handler": {
+      "type": "string",
+      "description": "Name of the Go handler that implements Inspect and Apply for this safeguard"
+    },
+    "platforms": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["linux", "macos", "windows"]
+      },
+      "description": "Platforms this safeguard applies to. Omit for all platforms."
+    },
+    "healthCheck": {
+      "$ref": "#/$defs/healthCheck"
+    },
+    "version": {
+      "type": "string",
+      "description": "Manifest schema version"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Freeform annotation for maintainers (not shown to users during install)"
+    }
+  },
+  "$defs": {
+    "healthCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional health check to verify the safeguard is applied",
+      "properties": {
+        "command": {
+          "type": "string",
+          "description": "Command to run for the health check"
+        },
+        "args": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Arguments for the health check command"
+        },
+        "expectExitCode": {
+          "type": "integer",
+          "description": "Expected exit code (default 0)"
+        },
+        "files": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Files that must exist and match expected content for the safeguard to be considered applied"
+        }
+      }
+    }
+  }
+}

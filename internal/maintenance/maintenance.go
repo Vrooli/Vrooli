@@ -34,7 +34,7 @@ type PortDiagnostic struct {
 	Listeners          []PortListener             `json:"listeners,omitempty"`
 	ListenerInspection network.ListenerInspection `json:"listener_inspection"`
 	Lock               *LockInfo                  `json:"lock,omitempty"`
-	OrphanCount        int                        `json:"orphan_count"`
+	HostOrphanCount    int                        `json:"host_orphan_count"`
 	Recommendations    []string                   `json:"recommendations,omitempty"`
 }
 
@@ -142,7 +142,7 @@ func (c *Controller) DiagnosePort(port int, scenarioName string) (PortDiagnostic
 		Listeners:          inspection.Listeners,
 		ListenerInspection: inspection.Inspection,
 		Lock:               lock,
-		OrphanCount:        snapshot.OrphanProcesses,
+		HostOrphanCount:    snapshot.OrphanProcesses,
 	}
 	diagnostic.Recommendations = buildRecommendations(port, diagnostic)
 	return diagnostic, nil
@@ -159,8 +159,8 @@ func buildRecommendations(port int, diagnostic PortDiagnostic) []string {
 	if !diagnostic.ListenerInspection.Available {
 		recommendations = append(recommendations, fmt.Sprintf("Listener inspection unavailable: %s", diagnostic.ListenerInspection.Reason))
 	}
-	if diagnostic.OrphanCount > 0 {
-		recommendations = append(recommendations, "Run `vrooli cleanup orphans` to terminate orphaned Vrooli processes")
+	if diagnostic.HostOrphanCount > 0 {
+		recommendations = append(recommendations, fmt.Sprintf("Host has %d orphaned Vrooli process(es); run `vrooli orphans` to inspect before `vrooli cleanup orphans`", diagnostic.HostOrphanCount))
 	}
 	if len(recommendations) == 0 {
 		recommendations = append(recommendations, "No lock or listener conflict detected; inspect scenario logs for the failing service")
@@ -168,32 +168,135 @@ func buildRecommendations(port int, diagnostic PortDiagnostic) []string {
 	return recommendations
 }
 
-func looksLikeVrooliProcess(root, command string) bool {
-	lower := strings.ToLower(strings.TrimSpace(command))
-	if lower == "" {
+// systemDaemonExeBasenames are executables that must never be classified as
+// Vrooli processes, even when invoked with Vrooli-looking arguments or cwd.
+// Postgres workers inherit a connection string that mentions "vrooli"; fuse
+// overlay mounts have Vrooli paths in their argv; the user's shell, SSH, IDE,
+// and Claude Code subprocesses all frequently have a Vrooli cwd.
+var systemDaemonExeBasenames = map[string]struct{}{
+	"postgres":           {},
+	"postmaster":         {},
+	"fuse-overlayfs":     {},
+	"fusermount":         {},
+	"fusermount3":        {},
+	"sshd":               {},
+	"ssh":                {},
+	"bash":               {},
+	"dash":               {},
+	"sh":                 {},
+	"zsh":                {},
+	"fish":               {},
+	"opencode":           {},
+	"code":               {},
+	"code-insiders":      {},
+	"docker":             {},
+	"dockerd":            {},
+	"containerd":         {},
+	"containerd-shim":    {},
+	"containerd-shim-runc-v2": {},
+	"runc":               {},
+	"git":                {},
+	"gpg":                {},
+	"gpg-agent":          {},
+	"gnome-keyring-daemon": {},
+}
+
+// interpreterExeBasenames identifies runtime interpreters that are themselves
+// system binaries but may execute Vrooli code. For these, we require cwd to
+// be under a Vrooli-owned directory (scenarios/ or resources/) to classify
+// the process as Vrooli.
+var interpreterExeBasenames = map[string]struct{}{
+	"node":   {},
+	"python": {},
+	"python3": {},
+	"ruby":   {},
+	"deno":   {},
+	"bun":    {},
+	"java":   {},
+	"go":     {},
+}
+
+func looksLikeVrooliProcess(root, home string, entry processTableEntry) bool {
+	root = filepath.Clean(root)
+	home = filepath.Clean(home)
+
+	exe := strings.TrimSpace(entry.Executable)
+	cwd := strings.TrimSpace(entry.Cwd)
+	basename := filepath.Base(exe)
+
+	// Never classify known system daemons or user shells as Vrooli, even if
+	// their cwd or argv happens to touch Vrooli paths.
+	if _, ok := systemDaemonExeBasenames[basename]; ok {
 		return false
 	}
-	for _, excluded := range []string{
-		"zombie-detector",
-		"vrooli cleanup",
-		"vrooli orphans",
-		"vrooli diagnose-port",
-		"vrooli status",
-		"vrooli-autoheal",
-	} {
-		if strings.Contains(lower, excluded) {
-			return false
+
+	vrooliOwnedPrefixes := vrooliOwnedPrefixes(root, home)
+
+	// Primary signal: the executable itself lives under a Vrooli-owned path.
+	if exe != "" {
+		for _, prefix := range vrooliOwnedPrefixes {
+			if hasPathPrefix(exe, prefix) {
+				return true
+			}
+		}
+		// The compiled vrooli binary sits at <root>/vrooli (repo checkout).
+		if exe == filepath.Join(root, "vrooli") {
+			return true
 		}
 	}
 
-	root = strings.ToLower(filepath.Clean(root))
-	scenariosPath := strings.ToLower(filepath.Join(root, "scenarios"))
-	return strings.Contains(lower, "vrooli") ||
-		strings.Contains(lower, scenariosPath) ||
-		strings.Contains(lower, "/scenarios/") ||
-		strings.Contains(lower, "node_modules/.bin/vite") ||
-		strings.Contains(lower, "ecosystem-manager") ||
-		strings.Contains(lower, "picker-wheel")
+	// Secondary signal: a language interpreter whose working directory is
+	// clearly inside a Vrooli scenario or resource tree (e.g. `node` running
+	// vite inside scenarios/<name>/ui).
+	if _, isInterpreter := interpreterExeBasenames[basename]; isInterpreter && cwd != "" {
+		for _, prefix := range []string{
+			filepath.Join(root, "scenarios") + string(filepath.Separator),
+			filepath.Join(root, "resources") + string(filepath.Separator),
+		} {
+			if strings.HasPrefix(cwd, prefix) {
+				return true
+			}
+		}
+	}
+
+	// Legacy fallback for environments where /proc is unavailable (e.g. some
+	// container/host OS combinations): if the Executable field could not be
+	// read, accept a conservative match on the command line — but only when
+	// the command explicitly references a Vrooli-owned install path. This
+	// avoids the false positives on postgres/fuse-overlayfs/shell cwds that
+	// the previous substring-on-"vrooli" heuristic produced.
+	if exe == "" && strings.TrimSpace(entry.Command) != "" {
+		for _, prefix := range vrooliOwnedPrefixes {
+			if strings.Contains(entry.Command, prefix) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func vrooliOwnedPrefixes(root, home string) []string {
+	sep := string(filepath.Separator)
+	prefixes := []string{
+		filepath.Join(home, ".vrooli") + sep,
+		filepath.Join(root, "scenarios") + sep,
+		filepath.Join(root, "resources") + sep,
+		filepath.Join(root, "bin") + sep,
+		filepath.Join(root, "packages") + sep,
+		filepath.Join(root, "cmd") + sep,
+	}
+	return prefixes
+}
+
+func hasPathPrefix(path, prefix string) bool {
+	if !strings.HasPrefix(path, prefix) {
+		return false
+	}
+	if len(path) == len(prefix) {
+		return true
+	}
+	return path[len(prefix)] == filepath.Separator || strings.HasSuffix(prefix, string(filepath.Separator))
 }
 
 func isMissingProcessError(err error) bool {

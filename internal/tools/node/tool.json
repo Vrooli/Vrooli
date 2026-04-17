@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "node",
+  "description": "Node.js JavaScript runtime",
+  "commands": ["node"],
+  "versionArgs": ["--version"],
+  "defaultPackage": "nodejs",
+  "packages": {
+    "brew": "node",
+    "winget": "OpenJS.NodeJS.LTS"
+  },
+  "installHint": "Install Node.js 20+",
+  "platforms": ["linux", "macos", "windows"]
+}

@@ -14,11 +14,13 @@ import (
 )
 
 type processTableEntry struct {
-	PID     int
-	PPID    int
-	PGID    int
-	State   string
-	Command string
+	PID        int
+	PPID       int
+	PGID       int
+	State      string
+	Command    string
+	Executable string // resolved /proc/<pid>/exe symlink target (empty on non-Linux or when unreadable)
+	Cwd        string // resolved /proc/<pid>/cwd symlink target (empty on non-Linux or when unreadable)
 }
 
 // ProcessSnapshot is the maintenance subsystem's canonical view of host-level
@@ -61,7 +63,7 @@ func (c *Controller) Snapshot() (ProcessSnapshot, error) {
 		return ProcessSnapshot{}, err
 	}
 
-	orphans := collectOrphans(c.Root, processTable, tracked)
+	orphans := collectOrphans(c.Root, c.Home, processTable, tracked)
 	zombieCount := 0
 	for _, entry := range processTable {
 		if strings.HasPrefix(entry.State, "Z") {
@@ -178,7 +180,7 @@ func trackedProcessStats(home string, processTable map[int]processTableEntry) (m
 	return tracked, trackedCount, runningTracked, nil
 }
 
-func collectOrphans(root string, processTable map[int]processTableEntry, tracked map[int]struct{}) []SystemProcess {
+func collectOrphans(root, home string, processTable map[int]processTableEntry, tracked map[int]struct{}) []SystemProcess {
 	orphans := make([]SystemProcess, 0)
 	self := os.Getpid()
 	memo := make(map[int]bool)
@@ -188,7 +190,7 @@ func collectOrphans(root string, processTable map[int]processTableEntry, tracked
 		if pid <= 1 || pid == self {
 			continue
 		}
-		if !looksLikeVrooliProcessFn(root, entry.Command) {
+		if !looksLikeVrooliProcessFn(root, home, entry) {
 			continue
 		}
 		if isTrackedOrAncestorTracked(pid, tracked, processTable, memo, visiting) {
@@ -276,12 +278,16 @@ func listProcessTable() (map[int]processTableEntry, error) {
 		if err != nil {
 			continue
 		}
+		exe, _ := os.Readlink(fmt.Sprintf("/proc/%d/exe", pid))
+		cwd, _ := os.Readlink(fmt.Sprintf("/proc/%d/cwd", pid))
 		processTable[pid] = processTableEntry{
-			PID:     pid,
-			PPID:    ppid,
-			PGID:    pgid,
-			State:   fields[3],
-			Command: strings.Join(fields[4:], " "),
+			PID:        pid,
+			PPID:       ppid,
+			PGID:       pgid,
+			State:      fields[3],
+			Command:    strings.Join(fields[4:], " "),
+			Executable: exe,
+			Cwd:        cwd,
 		}
 	}
 	if err := scanner.Err(); err != nil {

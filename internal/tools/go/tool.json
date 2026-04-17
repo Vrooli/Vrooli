@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "go",
+  "description": "Go programming language toolchain",
+  "commands": ["go"],
+  "versionArgs": ["version"],
+  "defaultPackage": "golang-go",
+  "packages": {
+    "brew": "go",
+    "winget": "GoLang.Go"
+  },
+  "installHint": "Install Go 1.22+",
+  "platforms": ["linux", "macos", "windows"]
+}

@@ -31,7 +31,8 @@ type StopRequest struct {
 }
 
 type OrphansRequest struct {
-	Kill bool
+	Kill   bool
+	DryRun bool
 }
 
 type LocksRequest struct {
@@ -46,6 +47,7 @@ type DiagnosePortRequest struct {
 type OrphansResponse struct {
 	List       []maintenance.SystemProcess
 	KillReport *control.StopReport
+	DryRun     bool
 }
 
 type LocksResponse struct {
@@ -75,6 +77,13 @@ func (s Service) Stop(req StopRequest) (control.StopReport, error) {
 }
 
 func (s Service) Orphans(req OrphansRequest) (OrphansResponse, error) {
+	if req.Kill && req.DryRun {
+		items, err := s.Maintenance.ListOrphans()
+		if err != nil {
+			return OrphansResponse{}, err
+		}
+		return OrphansResponse{List: items, DryRun: true}, nil
+	}
 	if req.Kill {
 		report, err := s.Maintenance.KillOrphans()
 		if err != nil {

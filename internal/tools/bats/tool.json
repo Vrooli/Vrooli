@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "bats",
+  "description": "Bash Automated Testing System for shell-based integration suites",
+  "commands": ["bats"],
+  "versionArgs": ["--version"],
+  "defaultPackage": "bats",
+  "packages": {
+    "apt-get": "bats",
+    "brew": "bats-core"
+  },
+  "installHint": "Install bats for shell-based integration suites",
+  "platforms": ["linux", "macos"]
+}

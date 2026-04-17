@@ -255,21 +255,6 @@ func TestDiscoverMarksManifestNativeResources(t *testing.T) {
 	}
 }
 
-func TestDiscoverHidesLegacyShellDirectoriesWithoutManifest(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
-	testresource.WriteResourceCLI(t, root, "fixture", "#!/usr/bin/env bash\nexit 0\n")
-
-	items, err := NewController(root, home).Discover()
-	if err != nil {
-		t.Fatalf("Discover: %v", err)
-	}
-	if len(items) != 0 {
-		t.Fatalf("len(items) = %d, want 0: %#v", len(items), items)
-	}
-}
-
 func TestDiscoverHidesConfigOnlyResourcesWithoutManifest(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
@@ -1050,21 +1035,6 @@ func TestLoadResourceManifestRejectsDuplicateHostRequirements(t *testing.T) {
 	}
 }
 
-func TestProjectPhase6LegacyAdapterBacklogIsCleared(t *testing.T) {
-	root := projectRootForResourcesTest(t)
-	controller := NewController(root, t.TempDir())
-
-	items, err := controller.Discover()
-	if err != nil {
-		t.Fatalf("Discover: %v", err)
-	}
-	for _, item := range items {
-		if item.ControlMode == "legacy-adapter" {
-			t.Fatalf("%s unexpectedly remains a legacy-adapter resource", item.Name)
-		}
-	}
-}
-
 func TestProjectMigratedResourcesUseNativeDrivers(t *testing.T) {
 	root := projectRootForResourcesTest(t)
 	controller := NewController(root, t.TempDir())
@@ -1184,139 +1154,6 @@ func TestProjectDockerResourceStatusesUseNativeManifests(t *testing.T) {
 		if status.Healthy == nil || !*status.Healthy {
 			t.Fatalf("%s Healthy = %#v, want true", name, status.Healthy)
 		}
-	}
-}
-
-func TestManifestNativeDockerStandardCommandsDoNotFallbackToLegacyCLI(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
-	legacyMarker := filepath.Join(root, "legacy-docker.marker")
-	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
-		"fixture",
-		testresource.WithResourceDisplayName("Fixture Docker"),
-		testresource.WithResourceDriver("docker-service"),
-		testresource.WithResourceTemplate("docker-service"),
-		testresource.WithResourceDescription("Fixture docker resource"),
-		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
-			Image:         "fixture:latest",
-			ContainerName: "vrooli-fixture",
-		}),
-		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
-			Linux:   "supported",
-			MacOS:   "supported",
-			Windows: "partial",
-		}),
-	))
-	testresource.WriteResourceCLI(t, root, "fixture", "#!/usr/bin/env bash\nset -e\nprintf legacy > "+shellQuote(legacyMarker)+"\n")
-	writeFakeDocker(t)
-
-	controller := NewController(root, home)
-	for _, action := range []string{"install", "start", "logs", "stop", "uninstall"} {
-		if err := controller.Run("fixture", []string{action}, ioDiscard{}, ioDiscard{}); err != nil {
-			t.Fatalf("Run(%s): %v", action, err)
-		}
-	}
-	if _, err := os.Stat(legacyMarker); !os.IsNotExist(err) {
-		t.Fatalf("legacy CLI marker exists after native docker commands, err=%v", err)
-	}
-}
-
-func TestManifestNativeExternalCLIStandardCommandsDoNotFallbackToLegacyCLI(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
-	legacyMarker := filepath.Join(root, "legacy-external.marker")
-	installMarker := filepath.Join(root, "install-external.marker")
-	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
-		"fixture",
-		testresource.WithResourceDisplayName("Fixture CLI"),
-		testresource.WithResourceDriver("external-cli"),
-		testresource.WithResourceTemplate("external-cli"),
-		testresource.WithResourceDescription("Fixture external CLI resource"),
-		testresource.WithResourceBinary("fixture-cli"),
-		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
-			Linux:   "supported",
-			MacOS:   "supported",
-			Windows: "supported",
-		}),
-		testresource.WithResourceInstall(manifestpkg.ResourceInstall{
-			Platforms: map[string][]string{
-				"linux":   {"sh", "-c", "printf installed > " + shellQuote(installMarker)},
-				"macos":   {"sh", "-c", "printf installed > " + shellQuote(installMarker)},
-				"windows": {"sh", "-c", "printf installed > " + shellQuote(installMarker)},
-			},
-		}),
-	))
-	testresource.WriteResourceCLI(t, root, "fixture", "#!/usr/bin/env bash\nset -e\nprintf legacy > "+shellQuote(legacyMarker)+"\n")
-	writeExecutableOnPath(t, "fixture-cli", "#!/usr/bin/env bash\necho 'fixture-cli 1.0.0'\n")
-
-	controller := NewController(root, home)
-	for _, action := range []string{"install", "status", "start", "stop", "logs"} {
-		if err := controller.Run("fixture", []string{action}, ioDiscard{}, ioDiscard{}); err != nil {
-			t.Fatalf("Run(%s): %v", action, err)
-		}
-	}
-	if _, err := os.Stat(installMarker); err != nil {
-		t.Fatalf("expected external CLI install marker: %v", err)
-	}
-	if _, err := os.Stat(legacyMarker); !os.IsNotExist(err) {
-		t.Fatalf("legacy CLI marker exists after native external-cli commands, err=%v", err)
-	}
-}
-
-func TestManifestNativeCloudAPIStandardCommandsDoNotFallbackToLegacyCLI(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
-	legacyMarker := filepath.Join(root, "legacy-cloud.marker")
-	installMarker := filepath.Join(root, "install-cloud.marker")
-	server := startHTTPServer(t, "127.0.0.1:"+strconv.Itoa(mustAllocatePort(t)), func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusUnauthorized)
-	})
-	defer server.Shutdown(context.Background())
-
-	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
-		"fixture",
-		testresource.WithResourceDisplayName("Fixture API"),
-		testresource.WithResourceDriver("cloud-api"),
-		testresource.WithResourceTemplate("cloud-api"),
-		testresource.WithResourceDescription("Fixture cloud API resource"),
-		testresource.WithResourceEndpoint("http://"+server.Addr+"/health"),
-		testresource.WithResourceCredentialsEnv("FIXTURE_API_KEY"),
-		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
-			Linux:   "supported",
-			MacOS:   "supported",
-			Windows: "supported",
-		}),
-		testresource.WithResourceInstall(manifestpkg.ResourceInstall{
-			Platforms: map[string][]string{
-				"linux":   {"sh", "-c", "printf installed > " + shellQuote(installMarker)},
-				"macos":   {"sh", "-c", "printf installed > " + shellQuote(installMarker)},
-				"windows": {"sh", "-c", "printf installed > " + shellQuote(installMarker)},
-			},
-		}),
-		testresource.WithResourceHealthChecks(manifestpkg.ResourceHealthCheck{
-			Type:           "http",
-			Target:         "http://" + server.Addr + "/health",
-			ExpectedStatus: []int{200, 400, 401, 403},
-			TimeoutSeconds: 5,
-		}),
-	))
-	testresource.WriteResourceCLI(t, root, "fixture", "#!/usr/bin/env bash\nset -e\nprintf legacy > "+shellQuote(legacyMarker)+"\n")
-	t.Setenv("FIXTURE_API_KEY", "test-key")
-
-	controller := NewController(root, home)
-	for _, action := range []string{"install", "status", "start", "stop", "logs"} {
-		if err := controller.Run("fixture", []string{action}, ioDiscard{}, ioDiscard{}); err != nil {
-			t.Fatalf("Run(%s): %v", action, err)
-		}
-	}
-	if _, err := os.Stat(installMarker); err != nil {
-		t.Fatalf("expected cloud API install marker: %v", err)
-	}
-	if _, err := os.Stat(legacyMarker); !os.IsNotExist(err) {
-		t.Fatalf("legacy CLI marker exists after native cloud-api commands, err=%v", err)
 	}
 }
 

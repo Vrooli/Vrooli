@@ -10,9 +10,24 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/hostreq"
+	"github.com/vrooli/vrooli/internal/hostreqkit"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=3 | LAST: 2026-04-11
+
+// Constants mirroring the remote-session-protection safeguard handler for
+// integration-level assertions. The canonical values live in
+// internal/safeguards/remote-session-protection/handler.go.
+const (
+	remoteSessionSysctlPath    = "/etc/sysctl.d/99-vrooli-remote-session-protection.conf"
+	remoteSessionSystemdDir    = "/etc/systemd/system/user@.service.d"
+	remoteSessionSystemdPath   = "/etc/systemd/system/user@.service.d/90-vrooli-remote-session-protection.conf"
+	remoteSessionLogindDir     = "/etc/systemd/logind.conf.d"
+	remoteSessionLogindPath    = "/etc/systemd/logind.conf.d/90-vrooli-remote-session-protection.conf"
+	remoteSessionSysctlContent = "vm.swappiness = 10\nvm.oom_kill_allocating_task = 0\n"
+	remoteSessionUnitContent   = "[Service]\nOOMScoreAdjust=-900\n"
+	remoteSessionLogindContent = "[Login]\nKillUserProcesses=no\n"
+)
 
 func TestCurrentMatchesRuntimeGOOS(t *testing.T) {
 	host := Current()
@@ -79,7 +94,7 @@ func TestEnsureRequirementsSupportsDeclaredToolAndSafeguard(t *testing.T) {
 	restore := stubRuntimeLookups(t)
 	defer restore()
 
-	lookPathFn = func(name string) (string, error) {
+	hostreqkit.LookPathFn = func(name string) (string, error) {
 		switch name {
 		case "docker", "sh":
 			return "/usr/bin/docker", nil
@@ -98,7 +113,7 @@ func TestEnsureRequirementsSupportsDeclaredToolAndSafeguard(t *testing.T) {
 	}, hostreq.Resolution{
 		Tools: []hostreq.ResolvedRequirement{
 			{Name: "tmux", Kind: hostreq.KindTool, Required: true, Reasons: []string{"scenario tmux"}},
-			{Name: "sqlite", Kind: hostreq.KindTool, Required: false, Manual: true, Reasons: []string{"manual sqlite"}},
+			{Name: "bats", Kind: hostreq.KindTool, Required: false, Manual: true, Reasons: []string{"manual bats"}},
 		},
 		Safeguards: []hostreq.ResolvedRequirement{
 			{Name: "remote_session_protection", Kind: hostreq.KindSafeguard, Required: true, Reasons: []string{"linux guard"}},
@@ -119,12 +134,12 @@ func TestEnsureRequirementsSupportsDeclaredToolAndSafeguard(t *testing.T) {
 		t.Fatalf("tmux notes = %v", tmux.Notes)
 	}
 
-	sqlite := findStatus(t, report.Tools, "sqlite")
-	if sqlite.SupportClass != SupportManualOnly {
-		t.Fatalf("sqlite support class = %q", sqlite.SupportClass)
+	bats := findStatus(t, report.Tools, "bats")
+	if bats.SupportClass != SupportManualOnly {
+		t.Fatalf("bats support class = %q", bats.SupportClass)
 	}
-	if sqlite.ExecutionState != ExecutionManualActionRequired {
-		t.Fatalf("sqlite execution state = %q", sqlite.ExecutionState)
+	if bats.ExecutionState != ExecutionManualActionRequired {
+		t.Fatalf("bats execution state = %q", bats.ExecutionState)
 	}
 
 	safeguard := findStatus(t, report.Safeguards, "remote_session_protection")
@@ -140,7 +155,7 @@ func TestEnsureRequirementsReportsFailedInstallWithoutPretendingSuccess(t *testi
 	restore := stubRuntimeLookups(t)
 	defer restore()
 
-	lookPathFn = func(name string) (string, error) {
+	hostreqkit.LookPathFn = func(name string) (string, error) {
 		if name == "sudo" {
 			return "/usr/bin/sudo", nil
 		}
@@ -149,7 +164,7 @@ func TestEnsureRequirementsReportsFailedInstallWithoutPretendingSuccess(t *testi
 		}
 		return "", os.ErrNotExist
 	}
-	runCommandFn = func(name string, args []string, opts EnsureOptions) error {
+	hostreqkit.RunCommandFn = func(name string, args []string, opts EnsureOptions) error {
 		return errors.New("install exploded")
 	}
 
@@ -200,7 +215,7 @@ func TestInspectRequirementsIncludesNewCoreHandlers(t *testing.T) {
 	restore := stubRuntimeLookups(t)
 	defer restore()
 
-	lookPathFn = func(name string) (string, error) {
+	hostreqkit.LookPathFn = func(name string) (string, error) {
 		switch name {
 		case "git", "curl":
 			return "/usr/bin/" + name, nil
@@ -208,7 +223,7 @@ func TestInspectRequirementsIncludesNewCoreHandlers(t *testing.T) {
 			return "", os.ErrNotExist
 		}
 	}
-	combinedOutputFn = func(name string, args ...string) ([]byte, error) {
+	hostreqkit.CombinedOutputFn = func(name string, args ...string) ([]byte, error) {
 		return []byte(name + " version\n"), nil
 	}
 
@@ -251,7 +266,7 @@ func TestInspectRequirementsIncludesStripeHandler(t *testing.T) {
 	restore := stubRuntimeLookups(t)
 	defer restore()
 
-	lookPathFn = func(name string) (string, error) {
+	hostreqkit.LookPathFn = func(name string) (string, error) {
 		if name == "apt-get" {
 			return "/usr/bin/apt-get", nil
 		}
@@ -283,7 +298,7 @@ func TestRemoteSessionProtectionClassifiesUnsupportedAndNotApplicable(t *testing
 	restore := stubRuntimeLookups(t)
 	defer restore()
 
-	readFileFn = func(path string) ([]byte, error) {
+	hostreqkit.ReadFileFn = func(path string) ([]byte, error) {
 		switch path {
 		case remoteSessionSysctlPath:
 			return []byte(remoteSessionSysctlContent), nil
@@ -344,7 +359,7 @@ func TestRemoteSessionProtectionApplyRunsManagedScript(t *testing.T) {
 	restore := stubRuntimeLookups(t)
 	defer restore()
 
-	lookPathFn = func(name string) (string, error) {
+	hostreqkit.LookPathFn = func(name string) (string, error) {
 		switch name {
 		case "sudo", "mkdir", "install", "sysctl", "systemctl":
 			return "/usr/bin/" + name, nil
@@ -358,7 +373,7 @@ func TestRemoteSessionProtectionApplyRunsManagedScript(t *testing.T) {
 		args []string
 	}
 	calls := []commandCall{}
-	runCommandFn = func(name string, args []string, opts EnsureOptions) error {
+	hostreqkit.RunCommandFn = func(name string, args []string, opts EnsureOptions) error {
 		calls = append(calls, commandCall{name: name, args: append([]string(nil), args...)})
 		return nil
 	}
@@ -424,24 +439,24 @@ func TestInstallCommandMappings(t *testing.T) {
 	restore := stubRuntimeLookups(t)
 	defer restore()
 
-	lookPathFn = func(name string) (string, error) {
+	hostreqkit.LookPathFn = func(name string) (string, error) {
 		if name == "sudo" {
 			return "/usr/bin/sudo", nil
 		}
 		return "", os.ErrNotExist
 	}
 
-	command, args, err := installCommand(Host{OS: "linux", PackageManager: "apt-get"}, "jq", "ask")
+	command, args, err := hostreqkit.InstallCommand(Host{OS: "linux", PackageManager: "apt-get"}, "jq", "ask")
 	if err != nil {
-		t.Fatalf("linux installCommand: %v", err)
+		t.Fatalf("linux InstallCommand: %v", err)
 	}
 	if command != "sudo" || strings.Join(args, " ") != "apt-get install -y jq" {
 		t.Fatalf("linux install command = %s %v", command, args)
 	}
 
-	command, args, err = installCommand(Host{OS: "darwin", PackageManager: "brew"}, "jq", "ask")
+	command, args, err = hostreqkit.InstallCommand(Host{OS: "darwin", PackageManager: "brew"}, "jq", "ask")
 	if err != nil {
-		t.Fatalf("darwin installCommand: %v", err)
+		t.Fatalf("darwin InstallCommand: %v", err)
 	}
 	if command != "brew" || strings.Join(args, " ") != "install jq" {
 		t.Fatalf("darwin install command = %s %v", command, args)
@@ -450,27 +465,27 @@ func TestInstallCommandMappings(t *testing.T) {
 
 func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 	toolNames := runtimeRegistry.names(hostreq.KindTool)
-	if len(toolNames) == 0 {
-		t.Fatal("expected tool handlers")
+	expectedTools := []string{
+		"Xvfb", "bats", "curl", "docker", "ffmpeg", "git", "go",
+		"helm", "jq", "node", "openbox", "python", "stripe",
+		"tmux", "websockify", "x11vnc", "xdotool", "yq",
+	}
+	if len(toolNames) != len(expectedTools) {
+		t.Fatalf("tool count = %d, want %d; got %v", len(toolNames), len(expectedTools), toolNames)
 	}
 	if !sort.StringsAreSorted(toolNames) {
 		t.Fatalf("tool names not sorted: %v", toolNames)
 	}
-	if !contains(toolNames, "docker") ||
-		!contains(toolNames, "ffmpeg") ||
-		!contains(toolNames, "stripe") ||
-		!contains(toolNames, "tmux") ||
-		!contains(toolNames, "bats") ||
-		!contains(toolNames, "yq") ||
-		!contains(toolNames, "Xvfb") ||
-		!contains(toolNames, "x11vnc") ||
-		!contains(toolNames, "xdotool") ||
-		!contains(toolNames, "websockify") ||
-		!contains(toolNames, "openbox") {
-		t.Fatalf("tool names missing expected entries: %v", toolNames)
+	for _, name := range expectedTools {
+		if !contains(toolNames, name) {
+			t.Fatalf("tool %q not found in registry: %v", name, toolNames)
+		}
 	}
 
 	safeguardNames := runtimeRegistry.names(hostreq.KindSafeguard)
+	if len(safeguardNames) != 1 {
+		t.Fatalf("safeguard count = %d, want 1; got %v", len(safeguardNames), safeguardNames)
+	}
 	if got := strings.Join(safeguardNames, ","); got != "remote_session_protection" {
 		t.Fatalf("safeguard names = %q", got)
 	}
@@ -480,14 +495,14 @@ func TestDetectFirstAvailableUsesSharedLookup(t *testing.T) {
 	restore := stubRuntimeLookups(t)
 	defer restore()
 
-	lookPathFn = func(name string) (string, error) {
+	hostreqkit.LookPathFn = func(name string) (string, error) {
 		if name == "apk" {
 			return "/sbin/apk", nil
 		}
 		return "", os.ErrNotExist
 	}
 
-	if got := detectFirstAvailable([]string{"apt-get", "apk", "brew"}); got != "apk" {
+	if got := hostreqkit.DetectFirstAvailable([]string{"apt-get", "apk", "brew"}); got != "apk" {
 		t.Fatalf("detectFirstAvailable = %q", got)
 	}
 }
@@ -499,20 +514,21 @@ func TestNewRegistryRejectsDuplicateHandlers(t *testing.T) {
 		}
 	}()
 
-	newRegistry(newDockerTool(), newDockerTool())
+	dup := newGenericToolHandler(hostreqkit.ToolManifest{Name: "dup"})
+	newRegistry(dup, dup)
 }
 
 func stubRuntimeLookups(t *testing.T) func() {
 	t.Helper()
-	originalLookPathFn := lookPathFn
-	originalReadFileFn := readFileFn
-	originalCombinedOutputFn := combinedOutputFn
-	originalRunCommandFn := runCommandFn
+	originalLookPathFn := hostreqkit.LookPathFn
+	originalReadFileFn := hostreqkit.ReadFileFn
+	originalCombinedOutputFn := hostreqkit.CombinedOutputFn
+	originalRunCommandFn := hostreqkit.RunCommandFn
 	return func() {
-		lookPathFn = originalLookPathFn
-		readFileFn = originalReadFileFn
-		combinedOutputFn = originalCombinedOutputFn
-		runCommandFn = originalRunCommandFn
+		hostreqkit.LookPathFn = originalLookPathFn
+		hostreqkit.ReadFileFn = originalReadFileFn
+		hostreqkit.CombinedOutputFn = originalCombinedOutputFn
+		hostreqkit.RunCommandFn = originalRunCommandFn
 	}
 }
 

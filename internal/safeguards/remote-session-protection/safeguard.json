@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "remote_session_protection",
+  "description": "Linux sysctl and systemd hardening for remote GUI/SSH sessions",
+  "handler": "remote_session_protection",
+  "platforms": ["linux"],
+  "healthCheck": {
+    "files": [
+      "/etc/sysctl.d/99-vrooli-remote-session-protection.conf",
+      "/etc/systemd/system/user@.service.d/90-vrooli-remote-session-protection.conf",
+      "/etc/systemd/logind.conf.d/90-vrooli-remote-session-protection.conf"
+    ]
+  }
+}

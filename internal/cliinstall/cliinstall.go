@@ -2,7 +2,6 @@ package cliinstall
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +13,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vrooli/cli-core/cliutil"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/discovery"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
@@ -496,58 +496,61 @@ func (m *Manager) writeInstallMetadata(item InstallableCLI, meta InstallMetadata
 }
 
 func (m *Manager) computeInstallFingerprint(item InstallableCLI) (string, error) {
-	if item.CLI != nil {
-		switch item.Kind {
-		case KindScenario:
-			return computeScenarioCLIFingerprint(item)
-		case KindResource:
-			return computeResourceCLIFingerprint(item)
-		}
+	spec, err := item.FreshnessSpec()
+	if err != nil {
+		return "", err
 	}
-	return computeFingerprint(item.ModulePath, item.BinaryName)
+	return cliutil.ComputeFreshnessFingerprint(spec)
 }
 
-func computeScenarioCLIFingerprint(item InstallableCLI) (string, error) {
-	switch item.CLI.Adapter.Kind {
-	case "go_module":
-		return computeGoModuleFingerprint(item.ScenarioPath, item.ModulePath, item.ServicePath, item.CLI, item.BinaryName)
-	case "shell_script":
-		if item.CLI.Freshness != nil && len(item.CLI.Freshness.Inputs) > 0 {
-			return computeFingerprintFromDeclaredInputs(item.ScenarioPath, item.CLI.Freshness.Inputs, item.BinaryName)
+// FreshnessSpec returns the canonical freshness contract for this installable.
+// Both the Go-native installer and the baked-in runtime StaleChecker must
+// evaluate the same spec to avoid perpetual reinstalls. See
+// cliutil.CanonicalScenarioGoModuleFreshnessSpec et al. for the mapping used
+// by cli-core's NewStandardScenarioApp / NewResourceApp.
+func (item InstallableCLI) FreshnessSpec() (cliutil.FreshnessSpec, error) {
+	if item.CLI == nil {
+		if item.ModulePath == "" {
+			return cliutil.FreshnessSpec{}, fmt.Errorf("cannot compute freshness spec without CLI manifest or module path")
 		}
-		serviceRel, err := filepath.Rel(item.ScenarioPath, item.ServicePath)
-		if err != nil {
-			return "", err
-		}
-		return computeFingerprintFromDeclaredInputs(item.ScenarioPath, []string{
-			item.CLI.Adapter.ScriptPath,
-			item.CLI.Adapter.InstallScript,
-			filepath.ToSlash(serviceRel),
-		}, item.BinaryName)
-	default:
-		return "", fmt.Errorf("unsupported scenario CLI adapter kind %q", item.CLI.Adapter.Kind)
+		return cliutil.FreshnessSpec{
+			SourceRoot: item.ModulePath,
+			SkipFiles:  []string{item.BinaryName},
+		}, nil
 	}
-}
-
-func computeResourceCLIFingerprint(item InstallableCLI) (string, error) {
-	switch item.CLI.Adapter.Kind {
-	case "go_module":
-		return computeGoModuleFingerprint(item.ResourcePath, item.ModulePath, item.ServicePath, item.CLI, item.BinaryName)
-	case "shell_script":
-		if item.CLI.Freshness != nil && len(item.CLI.Freshness.Inputs) > 0 {
-			return computeFingerprintFromDeclaredInputs(item.ResourcePath, item.CLI.Freshness.Inputs, item.BinaryName)
+	var customInputs []string
+	if item.CLI.Freshness != nil {
+		customInputs = item.CLI.Freshness.Inputs
+	}
+	switch item.Kind {
+	case KindScenario:
+		switch item.CLI.Adapter.Kind {
+		case "go_module":
+			return cliutil.CanonicalScenarioGoModuleFreshnessSpec(item.ScenarioPath, item.ModulePath, item.BinaryName, customInputs), nil
+		case "shell_script":
+			manifestRel, err := filepath.Rel(item.ScenarioPath, item.ServicePath)
+			if err != nil {
+				return cliutil.FreshnessSpec{}, err
+			}
+			return cliutil.CanonicalShellScriptFreshnessSpec(item.ScenarioPath, item.CLI.Adapter.ScriptPath, item.CLI.Adapter.InstallScript, manifestRel, item.BinaryName, customInputs), nil
+		default:
+			return cliutil.FreshnessSpec{}, fmt.Errorf("unsupported scenario CLI adapter kind %q", item.CLI.Adapter.Kind)
 		}
-		manifestRel, err := filepath.Rel(item.ResourcePath, item.ServicePath)
-		if err != nil {
-			return "", err
+	case KindResource:
+		switch item.CLI.Adapter.Kind {
+		case "go_module":
+			return cliutil.CanonicalResourceGoModuleFreshnessSpec(item.ResourcePath, item.ModulePath, item.BinaryName, customInputs), nil
+		case "shell_script":
+			manifestRel, err := filepath.Rel(item.ResourcePath, item.ServicePath)
+			if err != nil {
+				return cliutil.FreshnessSpec{}, err
+			}
+			return cliutil.CanonicalShellScriptFreshnessSpec(item.ResourcePath, item.CLI.Adapter.ScriptPath, item.CLI.Adapter.InstallScript, manifestRel, item.BinaryName, customInputs), nil
+		default:
+			return cliutil.FreshnessSpec{}, fmt.Errorf("unsupported resource CLI adapter kind %q", item.CLI.Adapter.Kind)
 		}
-		return computeFingerprintFromDeclaredInputs(item.ResourcePath, []string{
-			item.CLI.Adapter.ScriptPath,
-			item.CLI.Adapter.InstallScript,
-			filepath.ToSlash(manifestRel),
-		}, item.BinaryName)
 	default:
-		return "", fmt.Errorf("unsupported resource CLI adapter kind %q", item.CLI.Adapter.Kind)
+		return cliutil.FreshnessSpec{}, fmt.Errorf("unsupported installable CLI kind %q", item.Kind)
 	}
 }
 
@@ -600,22 +603,7 @@ func (GoInstaller) Install(ctx context.Context, item InstallableCLI, installDir 
 		}
 		switch item.CLI.Adapter.Kind {
 		case "go_module":
-			repoRoot, ok := findInstallerRepoRoot(item.ModulePath)
-			if !ok {
-				return fmt.Errorf("locate repo root for %s CLI %q", item.Kind, item.Name)
-			}
-			installerDir := filepath.Join(repoRoot, "packages", "cli-core")
-			cmd := exec.CommandContext(ctx, "go", "run", "./cmd/cli-installer",
-				"--module", item.ModulePath,
-				"--manifest", item.ManifestPath,
-				"--name", item.BinaryName,
-				"--install-dir", installDir,
-			)
-			cmd.Dir = installerDir
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			cmd.Stdin = os.Stdin
-			return cmd.Run()
+			return runGoModuleInstaller(ctx, item, installDir)
 		case "shell_script":
 			installScript := filepath.Join(item.ScenarioPath, filepath.FromSlash(item.CLI.Adapter.InstallScript))
 			cmd := exec.CommandContext(ctx, "bash", installScript)
@@ -633,22 +621,7 @@ func (GoInstaller) Install(ctx context.Context, item InstallableCLI, installDir 
 		}
 		switch item.CLI.Adapter.Kind {
 		case "go_module":
-			repoRoot, ok := findInstallerRepoRoot(item.ModulePath)
-			if !ok {
-				return fmt.Errorf("locate repo root for %s CLI %q", item.Kind, item.Name)
-			}
-			installerDir := filepath.Join(repoRoot, "packages", "cli-core")
-			cmd := exec.CommandContext(ctx, "go", "run", "./cmd/cli-installer",
-				"--module", item.ModulePath,
-				"--manifest", item.ManifestPath,
-				"--name", item.BinaryName,
-				"--install-dir", installDir,
-			)
-			cmd.Dir = installerDir
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			cmd.Stdin = os.Stdin
-			return cmd.Run()
+			return runGoModuleInstaller(ctx, item, installDir)
 		case "shell_script":
 			installScript := filepath.Join(item.ResourcePath, filepath.FromSlash(item.CLI.Adapter.InstallScript))
 			cmd := exec.CommandContext(ctx, "bash", installScript)
@@ -663,6 +636,39 @@ func (GoInstaller) Install(ctx context.Context, item InstallableCLI, installDir 
 	default:
 		return fmt.Errorf("unsupported installable CLI kind %q", item.Kind)
 	}
+}
+
+func runGoModuleInstaller(ctx context.Context, item InstallableCLI, installDir string) error {
+	repoRoot, ok := findInstallerRepoRoot(item.ModulePath)
+	if !ok {
+		return fmt.Errorf("locate repo root for %s CLI %q", item.Kind, item.Name)
+	}
+	installerDir := filepath.Join(repoRoot, "packages", "cli-core")
+
+	spec, err := item.FreshnessSpec()
+	if err != nil {
+		return err
+	}
+
+	args := []string{"run", "./cmd/cli-installer",
+		"--module", item.ModulePath,
+		"--manifest", item.ManifestPath,
+		"--name", item.BinaryName,
+		"--install-dir", installDir,
+	}
+	if strings.TrimSpace(spec.ContextRoot) != "" && filepath.Clean(spec.ContextRoot) != filepath.Clean(item.ModulePath) {
+		args = append(args, "--context-root", spec.ContextRoot)
+	}
+	for _, input := range spec.Inputs {
+		args = append(args, "--freshness-input", input)
+	}
+
+	cmd := exec.CommandContext(ctx, "go", args...)
+	cmd.Dir = installerDir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	return cmd.Run()
 }
 
 func findInstallerRepoRoot(start string) (string, bool) {
@@ -743,20 +749,6 @@ func installedBuildMetadataPath(binaryPath string) string {
 	return binaryPath + ".build.meta"
 }
 
-func computeGoModuleFingerprint(ownerRoot, modulePath, manifestPath string, cfg *scenario.CLIConfig, binaryName string) (string, error) {
-	if cfg != nil && cfg.Freshness != nil && len(cfg.Freshness.Inputs) > 0 {
-		return computeFingerprintFromDeclaredInputs(ownerRoot, cfg.Freshness.Inputs, binaryName)
-	}
-	manifestRel, err := filepath.Rel(modulePath, manifestPath)
-	if err != nil {
-		return "", err
-	}
-	return computeFingerprintFromDeclaredInputs(modulePath, []string{
-		".",
-		filepath.ToSlash(manifestRel),
-	}, binaryName)
-}
-
 func isSkippableDiscoveryError(err error) bool {
 	return errors.Is(err, fs.ErrNotExist) || os.IsNotExist(err)
 }
@@ -786,193 +778,3 @@ func (m *Manager) discoverCLIs(names []string, kind Kind, discoverOne func(strin
 	return report, nil
 }
 
-type fileEntry struct {
-	rel  string
-	size int64
-	hash [32]byte
-}
-
-var skipDirs = []string{
-	".git",
-	".vscode",
-	".idea",
-	"coverage",
-	"dist",
-	"build",
-	"tmp",
-	"data",
-	"node_modules",
-}
-
-var skipFiles = []string{
-	"build.meta",
-}
-
-func computeFingerprint(root string, extraSkipFiles ...string) (string, error) {
-	var entries []fileEntry
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		rel, relErr := filepath.Rel(root, path)
-		if relErr != nil {
-			return relErr
-		}
-		rel = filepath.ToSlash(rel)
-		if rel == "." {
-			return nil
-		}
-		if shouldSkipDir(rel) && d.IsDir() {
-			return filepath.SkipDir
-		}
-		if d.IsDir() {
-			return nil
-		}
-		if shouldSkipFile(rel, extraSkipFiles) {
-			return nil
-		}
-		content, readErr := fs.ReadFile(os.DirFS(root), rel)
-		if readErr != nil {
-			return fmt.Errorf("read %s: %w", rel, readErr)
-		}
-		info, infoErr := d.Info()
-		if infoErr != nil {
-			return infoErr
-		}
-		entries = append(entries, fileEntry{
-			rel:  rel,
-			size: info.Size(),
-			hash: sha256.Sum256(content),
-		})
-		return nil
-	})
-	if err != nil {
-		return "", err
-	}
-	sort.Slice(entries, func(i, j int) bool { return entries[i].rel < entries[j].rel })
-	hasher := sha256.New()
-	for _, entry := range entries {
-		fmt.Fprintf(hasher, "%s|%d|%x\n", entry.rel, entry.size, entry.hash)
-	}
-	return fmt.Sprintf("%x", hasher.Sum(nil)), nil
-}
-
-func computeFingerprintFromDeclaredInputs(root string, inputs []string, extraSkipFiles ...string) (string, error) {
-	entries := make(map[string]fileEntry)
-	for _, input := range inputs {
-		input = strings.TrimSpace(input)
-		if input == "" {
-			continue
-		}
-		matches, err := expandDeclaredInputPaths(root, input)
-		if err != nil {
-			return "", err
-		}
-		for _, match := range matches {
-			info, err := os.Stat(match)
-			if err != nil {
-				if os.IsNotExist(err) {
-					continue
-				}
-				return "", err
-			}
-			if info.IsDir() {
-				if err := filepath.WalkDir(match, func(path string, d fs.DirEntry, err error) error {
-					if err != nil {
-						return err
-					}
-					rel, relErr := filepath.Rel(root, path)
-					if relErr != nil {
-						return relErr
-					}
-					rel = filepath.ToSlash(rel)
-					if rel == "." {
-						return nil
-					}
-					if shouldSkipDir(rel) && d.IsDir() {
-						return filepath.SkipDir
-					}
-					if d.IsDir() || shouldSkipFile(rel, extraSkipFiles) {
-						return nil
-					}
-					content, readErr := os.ReadFile(path)
-					if readErr != nil {
-						return readErr
-					}
-					fileInfo, infoErr := d.Info()
-					if infoErr != nil {
-						return infoErr
-					}
-					entries[rel] = fileEntry{rel: rel, size: fileInfo.Size(), hash: sha256.Sum256(content)}
-					return nil
-				}); err != nil {
-					return "", err
-				}
-				continue
-			}
-			rel, err := filepath.Rel(root, match)
-			if err != nil {
-				return "", err
-			}
-			rel = filepath.ToSlash(rel)
-			if shouldSkipFile(rel, extraSkipFiles) {
-				continue
-			}
-			content, err := os.ReadFile(match)
-			if err != nil {
-				return "", err
-			}
-			entries[rel] = fileEntry{rel: rel, size: info.Size(), hash: sha256.Sum256(content)}
-		}
-	}
-	list := make([]fileEntry, 0, len(entries))
-	for _, entry := range entries {
-		list = append(list, entry)
-	}
-	sort.Slice(list, func(i, j int) bool { return list[i].rel < list[j].rel })
-	hasher := sha256.New()
-	for _, entry := range list {
-		fmt.Fprintf(hasher, "%s|%d|%x\n", entry.rel, entry.size, entry.hash)
-	}
-	return fmt.Sprintf("%x", hasher.Sum(nil)), nil
-}
-
-func computeFingerprintFromScenarioInputs(scenarioRoot string, inputs []string, extraSkipFiles ...string) (string, error) {
-	return computeFingerprintFromDeclaredInputs(scenarioRoot, inputs, extraSkipFiles...)
-}
-
-func expandDeclaredInputPaths(root, input string) ([]string, error) {
-	if hasGlobPattern(input) {
-		return filepath.Glob(filepath.Join(root, filepath.FromSlash(input)))
-	}
-	return []string{filepath.Join(root, filepath.FromSlash(input))}, nil
-}
-
-func hasGlobPattern(value string) bool {
-	return strings.ContainsAny(value, "*?[")
-}
-
-func shouldSkipDir(path string) bool {
-	path = strings.ReplaceAll(filepath.ToSlash(path), "\\", "/")
-	for _, skip := range skipDirs {
-		if path == skip || strings.HasPrefix(path, skip+"/") {
-			return true
-		}
-	}
-	return false
-}
-
-func shouldSkipFile(path string, extra []string) bool {
-	path = strings.ReplaceAll(filepath.ToSlash(path), "\\", "/")
-	for _, skip := range skipFiles {
-		if path == skip || strings.HasPrefix(path, skip+"/") {
-			return true
-		}
-	}
-	for _, skip := range extra {
-		if path == skip || strings.HasPrefix(path, skip+"/") {
-			return true
-		}
-	}
-	return false
-}
