@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-
 	"resource-gemini/cli/internal/auth"
 	"resource-gemini/cli/internal/config"
+
 	resourceenv "resource-gemini/cli/internal/env"
 )
 

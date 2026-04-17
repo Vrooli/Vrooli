@@ -107,7 +107,11 @@ func (s *Service) AddReplica(dbName, target string, interval time.Duration) erro
 	if err != nil {
 		return err
 	}
-	defer lock.Unlock()
+	defer func() {
+		if unlockErr := lock.Unlock(); unlockErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: failed to unlock replica state: %v\n", unlockErr)
+		}
+	}()
 
 	state, err := s.loadReplicaStateLocked()
 	if err != nil {
@@ -130,7 +134,11 @@ func (s *Service) RemoveReplica(dbName, target string) error {
 	if err != nil {
 		return err
 	}
-	defer lock.Unlock()
+	defer func() {
+		if unlockErr := lock.Unlock(); unlockErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: failed to unlock replica state: %v\n", unlockErr)
+		}
+	}()
 
 	state, err := s.loadReplicaStateLocked()
 	if err != nil {
@@ -151,7 +159,11 @@ func (s *Service) ListReplicas() ([]Replica, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer lock.Unlock()
+	defer func() {
+		if unlockErr := lock.Unlock(); unlockErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: failed to unlock replica state: %v\n", unlockErr)
+		}
+	}()
 
 	state, err := s.loadReplicaStateLocked()
 	if err != nil {
@@ -165,7 +177,11 @@ func (s *Service) ToggleReplica(dbName, target string, enabled bool) error {
 	if err != nil {
 		return err
 	}
-	defer lock.Unlock()
+	defer func() {
+		if unlockErr := lock.Unlock(); unlockErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: failed to unlock replica state: %v\n", unlockErr)
+		}
+	}()
 
 	state, err := s.loadReplicaStateLocked()
 	if err != nil {
@@ -196,7 +212,11 @@ func (s *Service) SyncReplica(ctx context.Context, dbName string, force bool) (i
 	if err != nil {
 		return 0, 0, err
 	}
-	defer lock.Unlock()
+	defer func() {
+		if unlockErr := lock.Unlock(); unlockErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: failed to unlock replica state: %v\n", unlockErr)
+		}
+	}()
 
 	state, err := s.loadReplicaStateLocked()
 	if err != nil {
@@ -238,7 +258,11 @@ func (s *Service) VerifyReplicas(ctx context.Context, dbName string) ([]string, 
 	if err != nil {
 		return nil, err
 	}
-	defer lock.Unlock()
+	defer func() {
+		if unlockErr := lock.Unlock(); unlockErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: failed to unlock replica state: %v\n", unlockErr)
+		}
+	}()
 
 	state, err := s.loadReplicaStateLocked()
 	if err != nil {
@@ -271,7 +295,11 @@ func (s *Service) SyncDueReplicas(ctx context.Context, force bool) (int, int, er
 	if err != nil {
 		return 0, 0, err
 	}
-	defer lock.Unlock()
+	defer func() {
+		if unlockErr := lock.Unlock(); unlockErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: failed to unlock replica state: %v\n", unlockErr)
+		}
+	}()
 
 	state, err := s.loadReplicaStateLocked()
 	if err != nil {

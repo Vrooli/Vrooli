@@ -5,10 +5,10 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"resource-gemini/cli/internal/auth"
 	"strings"
 	"testing"
 
-	"resource-gemini/cli/internal/auth"
 	resourceenv "resource-gemini/cli/internal/env"
 )
 

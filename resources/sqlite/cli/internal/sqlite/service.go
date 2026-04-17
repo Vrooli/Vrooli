@@ -20,6 +20,7 @@ import (
 
 	"github.com/vrooli/resources/sqlite/cli/internal/env"
 	"golang.org/x/crypto/pbkdf2"
+	// Register the pure-Go SQLite driver used by database/sql.
 	_ "modernc.org/sqlite"
 )
 

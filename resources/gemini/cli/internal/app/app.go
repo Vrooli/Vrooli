@@ -9,14 +9,14 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"resource-gemini/cli/internal/auth"
+	"resource-gemini/cli/internal/config"
+	"resource-gemini/cli/internal/health"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
 
-	"resource-gemini/cli/internal/auth"
-	"resource-gemini/cli/internal/config"
 	resourceenv "resource-gemini/cli/internal/env"
-	"resource-gemini/cli/internal/health"
 )
 
 const (

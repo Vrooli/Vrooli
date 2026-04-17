@@ -20,12 +20,12 @@ var (
 
 func main() {
 	app, err := resourceapp.BuildCommandApp(resourceapp.BuildInfo{
-		Name:         appName,
-		Version:      appVersion,
-		Description:  "Serverless SQLite resource",
-		Fingerprint:  buildFingerprint,
-		Timestamp:    buildTimestamp,
-		SourceRoot:   buildSourceRoot,
+		Name:        appName,
+		Version:     appVersion,
+		Description: "Serverless SQLite resource",
+		Fingerprint: buildFingerprint,
+		Timestamp:   buildTimestamp,
+		SourceRoot:  buildSourceRoot,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)

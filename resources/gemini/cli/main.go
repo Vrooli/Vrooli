@@ -7,11 +7,6 @@ import (
 	resourceapp "resource-gemini/cli/internal/app"
 )
 
-const (
-	appName    = "gemini"
-	appVersion = "0.1.0"
-)
-
 var (
 	buildFingerprint = "unknown"
 	buildTimestamp   = "unknown"

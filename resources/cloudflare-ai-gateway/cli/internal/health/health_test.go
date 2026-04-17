@@ -5,10 +5,9 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"resource-cloudflare-ai-gateway/cli/internal/auth"
 	"strings"
 	"testing"
-
-	"resource-cloudflare-ai-gateway/cli/internal/auth"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)

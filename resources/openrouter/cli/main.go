@@ -7,11 +7,6 @@ import (
 	resourceapp "resource-openrouter/cli/internal/app"
 )
 
-const (
-	appName    = "openrouter"
-	appVersion = "0.1.0"
-)
-
 var (
 	buildFingerprint = "unknown"
 	buildTimestamp   = "unknown"

@@ -2,11 +2,11 @@ package app
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -385,12 +385,6 @@ func (c *CLI) handleStatus() int {
 	return 0
 }
 
-func (c *CLI) notImplemented(cmd string) int {
-	fmt.Fprintf(os.Stderr, "%s commands are not implemented yet in the Go port.\n", cmd)
-	fmt.Fprintln(os.Stderr, "See README for the remaining parity work.")
-	return 1
-}
-
 func (c *CLI) printUsage() {
 	fmt.Println(`SQLite Resource (Go)
 Usage:
@@ -432,7 +426,11 @@ func (c *CLI) handleReplicate(args []string) int {
 				target = args[i]
 			case "--interval", "-i":
 				i++
-				fmt.Sscanf(args[i], "%d", &interval)
+				parsed, err := strconv.Atoi(args[i])
+				if err != nil {
+					return fail(fmt.Errorf("invalid --interval value %q: %w", args[i], err))
+				}
+				interval = parsed
 			}
 		}
 		if err := c.Service.AddReplica(db, target, time.Duration(interval)*time.Second); err != nil {
@@ -671,7 +669,11 @@ func (c *CLI) handleQuery(args []string) int {
 				order = args[i]
 			case "--limit":
 				i++
-				fmt.Sscanf(args[i], "%d", &limit)
+				parsed, err := strconv.Atoi(args[i])
+				if err != nil {
+					return fail(fmt.Errorf("invalid --limit value %q: %w", args[i], err))
+				}
+				limit = parsed
 			}
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), c.Config.CLITimeout)
@@ -824,10 +826,4 @@ func fail(err error) int {
 	}
 	fmt.Fprintf(os.Stderr, "%v\n", err)
 	return 1
-}
-
-// Debug helper to pretty-print JSON structures if needed in the future.
-func toJSON(v any) string {
-	data, _ := json.MarshalIndent(v, "", "  ")
-	return string(data)
 }

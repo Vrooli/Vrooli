@@ -9,15 +9,15 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"resource-openrouter/cli/internal/auth"
+	"resource-openrouter/cli/internal/config"
+	"resource-openrouter/cli/internal/health"
 	"strings"
 	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
 
-	"resource-openrouter/cli/internal/auth"
-	"resource-openrouter/cli/internal/config"
 	resourceenv "resource-openrouter/cli/internal/env"
-	"resource-openrouter/cli/internal/health"
 )
 
 const (

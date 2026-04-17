@@ -4,10 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strings"
-
 	"resource-cloudflare-ai-gateway/cli/internal/auth"
 	"resource-cloudflare-ai-gateway/cli/internal/config"
+	"strings"
 )
 
 // HTTPClient is the narrow HTTP client contract used for safe connectivity
