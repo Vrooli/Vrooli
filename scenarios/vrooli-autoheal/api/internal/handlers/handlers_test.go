@@ -9,13 +9,12 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
-
-	"github.com/gorilla/mux"
-
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/persistence"
 	"vrooli-autoheal/internal/platform"
 	"vrooli-autoheal/internal/testutil"
+
+	"github.com/gorilla/mux"
 )
 
 func TestHealth_Healthy(t *testing.T) {

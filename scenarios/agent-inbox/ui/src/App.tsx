@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, useRef, type RefObject } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useChats } from "./hooks/useChats";
 import { useAsyncStatus } from "./hooks/useAsyncStatus";
@@ -92,10 +92,10 @@ function AppContent() {
 
   useEffect(() => {
     templateDeactivateRef.current = () => {
-      if (selectedChatId && chatData?.chat?.id === selectedChatId) activeTemplate.deactivate();
+      if (selectedChatId && chatData?.chat.id === selectedChatId) void activeTemplate.deactivate();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTemplate.deactivate, selectedChatId, chatData?.chat?.id]);
+  }, [activeTemplate.deactivate, selectedChatId, chatData?.chat.id]);
 
   const handleTemplateActivated = useCallback(
     async (templateId: string, toolIds: string[]) => {
@@ -142,13 +142,13 @@ function AppContent() {
 
   const handleClearArchived = useCallback(async () => {
     setIsClearingArchived(true);
-    try { await deleteArchivedChats(); queryClient.invalidateQueries({ queryKey: ["chats"] }); }
+    try { await deleteArchivedChats(); void queryClient.invalidateQueries({ queryKey: ["chats"] }); }
     finally { setIsClearingArchived(false); }
   }, [queryClient]);
 
   const handleMarkAllAsRead = useCallback(async () => {
     setIsMarkingAllAsRead(true);
-    try { await markAllChatsAsRead(); queryClient.invalidateQueries({ queryKey: ["chats"] }); }
+    try { await markAllChatsAsRead(); void queryClient.invalidateQueries({ queryKey: ["chats"] }); }
     finally { setIsMarkingAllAsRead(false); }
   }, [queryClient]);
 
@@ -161,16 +161,18 @@ function AppContent() {
 
   const chatViewCallbacks = useChatViewCallbacks({
     selectedChatId, updateChat, toggleRead, toggleStar, toggleArchive,
-    deleteChat, assignLabel, removeLabel, regenerateMessage,
-    editingMessage, editMessageAndComplete, setScrollToMessageId,
+    deleteChat, assignLabel, removeLabel,
+    regenerateMessage: (chatId, messageId) => { void regenerateMessage(chatId, messageId); },
+    editingMessage,
+    editMessageAndComplete: (messageId, payload) => { void editMessageAndComplete(messageId, payload); },
+    setScrollToMessageId,
   });
 
   const visibleChats = useMemo(() => {
     return chats.filter((c) => {
       if (currentView === "inbox") return !c.is_archived;
       if (currentView === "starred") return c.is_starred;
-      if (currentView === "archived") return c.is_archived;
-      return true;
+      return c.is_archived;
     });
   }, [chats, currentView]);
 
@@ -188,7 +190,7 @@ function AppContent() {
   });
 
   return (
-    <div ref={sidebarContainerRef as RefObject<HTMLDivElement>} className="h-screen bg-slate-950 text-slate-50 flex overflow-hidden" data-testid={appTestIds.container}>
+    <div ref={sidebarContainerRef} className="h-screen bg-slate-950 text-slate-50 flex overflow-hidden" data-testid={appTestIds.container}>
       <SidebarPanel
         ref={searchInputRef}
         sidebarOpen={sidebarOpen} chatListOpen={chatListOpen}
@@ -219,7 +221,9 @@ function AppContent() {
         loadingChat={loadingChat} isGenerating={isGenerating}
         streamingContent={streamingContent} activeToolCalls={activeToolCalls}
         generatedImages={generatedImages} scrollToMessageId={scrollToMessageId}
-        chatViewCallbacks={chatViewCallbacks} sendMessage={sendMessage} viewMode={viewMode}
+        chatViewCallbacks={chatViewCallbacks}
+        sendMessage={(payload) => { void sendMessage(payload); }}
+        viewMode={viewMode}
         selectBranch={selectBranch} forkConversation={forkConversation}
         isRegenerating={isRegenerating} isForking={isForking}
         editingMessage={editingMessage} setEditingMessage={setEditingMessage} cancelEdit={cancelEdit}
@@ -232,13 +236,13 @@ function AppContent() {
         handleRemoveAsyncReference={handleRemoveAsyncReference}
         handleTemplateActivated={handleTemplateActivated}
         activeTemplateId={activeTemplate.activeTemplateId}
-        onTemplateDeactivate={activeTemplate.deactivate}
+        onTemplateDeactivate={() => { void activeTemplate.deactivate(); }}
         handleOpenAgentSettings={modals.handleOpenAgentSettings}
         handleBackToList={handleBackToList} isMobile={isMobile}
         setSidebarOpen={setSidebarOpen} chatListOpen={chatListOpen}
-        createChatWithMessage={createChatWithMessage}
-        handleStartAgentChat={handleStartAgentChat}
-        handleAttachRunFromEmpty={handleAttachRunFromEmpty}
+        createChatWithMessage={(payload) => { void createChatWithMessage(payload); }}
+        handleStartAgentChat={(payload, config) => { void handleStartAgentChat(payload, config); }}
+        handleAttachRunFromEmpty={(run) => { void handleAttachRunFromEmpty(run); }}
         isCreatingChat={isCreatingChat}
       />
 

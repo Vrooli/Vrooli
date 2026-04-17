@@ -2,6 +2,8 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import RequirementReporter from "@vrooli/vitest-requirement-reporter";
 
+// INTEROP-CRITICAL: base must stay relative so tunnel, proxy, and iframe-hosted
+// deployments resolve built assets correctly regardless of parent route prefix.
 export default defineConfig({
   base: "./", // Required for tunnel/proxy contexts
   plugins: [react()],

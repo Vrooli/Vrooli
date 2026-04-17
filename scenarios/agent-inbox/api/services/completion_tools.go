@@ -3,11 +3,10 @@
 package services
 
 import (
+	"agent-inbox/domain"
 	"context"
 	"fmt"
 	"log"
-
-	"agent-inbox/domain"
 )
 
 // ToolExecutionOutcome represents the result of attempting to execute tool calls.

@@ -1,12 +1,11 @@
 package handlers
 
 import (
+	"agent-inbox/services"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"agent-inbox/services"
 )
 
 // =============================================================================

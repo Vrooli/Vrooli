@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"resource-postgres/cli/internal/content"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -45,6 +46,9 @@ func newApp() (*cliapp.ResourceApp, error) {
 	if err != nil {
 		return nil, err
 	}
-	app.SetCommands(app.StandardLifecycleCommands())
+	app.SetCommandsWithSubgroups(
+		app.StandardLifecycleCommands(),
+		[]cliapp.SubcommandGroup{content.Commands(nil)},
+	)
 	return app, nil
 }

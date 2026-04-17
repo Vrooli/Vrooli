@@ -50,7 +50,7 @@ export function SchemaFormField({
         </label>
         {description && <p className="text-xs text-slate-500 mb-2">{description}</p>}
         <select
-          value={(value as string) ?? ""}
+          value={typeof value === "string" ? value : ""}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
           className={inputClass}
@@ -71,7 +71,7 @@ export function SchemaFormField({
     return (
       <div className="mb-4 flex items-start gap-3" style={containerStyle}>
         <Switch
-          checked={(value as boolean) ?? false}
+          checked={typeof value === "boolean" ? value : false}
           onCheckedChange={(checked) => onChange(checked)}
           disabled={disabled}
           className="mt-1"
@@ -99,7 +99,7 @@ export function SchemaFormField({
         {description && <p className="text-xs text-slate-500 mb-2">{description}</p>}
         <Input
           type="number"
-          value={(value as number) ?? ""}
+          value={typeof value === "number" ? value : ""}
           onChange={(e) => {
             const num = type === "integer" ? parseInt(e.target.value, 10) : parseFloat(e.target.value);
             onChange(isNaN(num) ? undefined : num);
@@ -157,7 +157,7 @@ export function SchemaFormField({
         </label>
         {description && <p className="text-xs text-slate-500 mb-2">{description}</p>}
         <textarea
-          value={(value as string) ?? ""}
+          value={typeof value === "string" ? value : ""}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
           rows={4}
@@ -178,7 +178,7 @@ export function SchemaFormField({
       {description && <p className="text-xs text-slate-500 mb-2">{description}</p>}
       <Input
         type={isUrl ? "url" : isEmail ? "email" : "text"}
-        value={(value as string) ?? ""}
+        value={typeof value === "string" ? value : ""}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
         placeholder={`Enter ${formatLabel(name).toLowerCase()}...`}

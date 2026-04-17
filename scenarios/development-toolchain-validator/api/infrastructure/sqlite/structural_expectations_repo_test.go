@@ -2,11 +2,10 @@ package sqlite
 
 import (
 	"context"
-	"testing"
-
 	"development-toolchain-validator/domain/expectation"
 	"development-toolchain-validator/domain/reference"
 	"development-toolchain-validator/domain/skill"
+	"testing"
 )
 
 // createTestConnection creates a reference + skill connection for FK constraints.

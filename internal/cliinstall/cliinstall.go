@@ -650,7 +650,8 @@ func runGoModuleInstaller(ctx context.Context, item InstallableCLI, installDir s
 		return err
 	}
 
-	args := []string{"run", "./cmd/cli-installer",
+	args := []string{
+		"run", "./cmd/cli-installer",
 		"--module", item.ModulePath,
 		"--manifest", item.ManifestPath,
 		"--name", item.BinaryName,
@@ -777,4 +778,3 @@ func (m *Manager) discoverCLIs(names []string, kind Kind, discoverOne func(strin
 	sort.Slice(report.Items, func(i, j int) bool { return report.Items[i].Name < report.Items[j].Name })
 	return report, nil
 }
-

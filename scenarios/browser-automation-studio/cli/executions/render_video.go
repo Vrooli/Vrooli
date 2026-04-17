@@ -1,14 +1,13 @@
 package executions
 
 import (
+	"browser-automation-studio/cli/internal/api"
+	"browser-automation-studio/cli/internal/appctx"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"browser-automation-studio/cli/internal/api"
-	"browser-automation-studio/cli/internal/appctx"
 )
 
 func runRenderVideo(ctx *appctx.Context, args []string) error {

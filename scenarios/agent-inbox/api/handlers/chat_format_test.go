@@ -1,11 +1,10 @@
 package handlers
 
 import (
+	"agent-inbox/domain"
 	"strings"
 	"testing"
 	"time"
-
-	"agent-inbox/domain"
 )
 
 // TestFormatMarkdown_SystemMessage verifies system messages are handled.

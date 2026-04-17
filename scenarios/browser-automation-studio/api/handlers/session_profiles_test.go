@@ -104,7 +104,7 @@ func TestListRecordingSessionProfiles_ServiceUnavailable(t *testing.T) {
 
 	handler := &Handler{
 		sessionProfileService: nil, // No service configured
-		log:             log,
+		log:                   log,
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/session-profiles", nil)
@@ -197,7 +197,7 @@ func TestCreateRecordingSessionProfile_ServiceUnavailable(t *testing.T) {
 
 	handler := &Handler{
 		sessionProfileService: nil,
-		log:             log,
+		log:                   log,
 	}
 
 	body := `{"name": "Test"}`
@@ -342,7 +342,7 @@ func TestUpdateRecordingSessionProfile_ServiceUnavailable(t *testing.T) {
 
 	handler := &Handler{
 		sessionProfileService: nil,
-		log:             log,
+		log:                   log,
 	}
 
 	body := `{"name": "Test"}`
@@ -433,7 +433,7 @@ func TestDeleteRecordingSessionProfile_ServiceUnavailable(t *testing.T) {
 
 	handler := &Handler{
 		sessionProfileService: nil,
-		log:             log,
+		log:                   log,
 	}
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/session-profiles/some-id", nil)

@@ -21,31 +21,49 @@ interface ConfigurationProps {
   scenarioContext?: string;
 }
 
+type PathRecord = Record<string, unknown>;
+
+function isPathRecord(value: unknown): value is PathRecord {
+  return typeof value === "object" && value !== null;
+}
+
 function clone<T>(value: T): T {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   return typeof structuredClone === "function" ? structuredClone(value) : (JSON.parse(JSON.stringify(value)) as T);
 }
 
 function getAtPath(obj: unknown, path: string): unknown {
   const parts = path.split(".");
-  let cur: any = obj;
+  let cur: unknown = obj;
   for (const part of parts) {
-    if (cur == null) return undefined;
+    if (!isPathRecord(cur)) return undefined;
     cur = cur[part];
   }
   return cur;
 }
 
 function setAtPath<T extends object>(obj: T, path: string, value: unknown): T {
-  const next = clone(obj);
+  const next = clone(obj) as T & PathRecord;
   const parts = path.split(".");
-  let cur: any = next;
+  let cur: PathRecord = next;
   for (let i = 0; i < parts.length - 1; i++) {
     const key = parts[i];
-    if (cur[key] == null) cur[key] = {};
-    cur = cur[key];
+    const existing = cur[key];
+    if (!isPathRecord(existing)) {
+      cur[key] = {};
+    }
+
+    const child = cur[key];
+    if (!isPathRecord(child)) {
+      return next;
+    }
+    cur = child;
   }
-  cur[parts[parts.length - 1]] = value;
+
+  const finalKey = parts[parts.length - 1];
+  if (finalKey) {
+    cur[finalKey] = value;
+  }
+
   return next;
 }
 
@@ -61,28 +79,29 @@ function validateConfigDraft(cfg: ScoringConfig | null): { ok: boolean; errors: 
   if (!hasDimension) errors.push("Enable at least one scoring dimension.");
 
   if (cfg.components.quality.enabled) {
-    const any = cfg.components.quality.requirement_pass_rate || cfg.components.quality.target_pass_rate || cfg.components.quality.test_pass_rate;
-    if (!any) errors.push("Quality is enabled but no quality sub-metrics are enabled.");
+    const hasSubMetric =
+      cfg.components.quality.requirement_pass_rate || cfg.components.quality.target_pass_rate || cfg.components.quality.test_pass_rate;
+    if (!hasSubMetric) errors.push("Quality is enabled but no quality sub-metrics are enabled.");
   }
   if (cfg.components.coverage.enabled) {
-    const any = cfg.components.coverage.test_coverage_ratio || cfg.components.coverage.requirement_depth;
-    if (!any) errors.push("Coverage is enabled but no coverage sub-metrics are enabled.");
+    const hasSubMetric = cfg.components.coverage.test_coverage_ratio || cfg.components.coverage.requirement_depth;
+    if (!hasSubMetric) errors.push("Coverage is enabled but no coverage sub-metrics are enabled.");
   }
   if (cfg.components.quantity.enabled) {
-    const any = cfg.components.quantity.requirements || cfg.components.quantity.targets || cfg.components.quantity.tests;
-    if (!any) errors.push("Quantity is enabled but no quantity sub-metrics are enabled.");
+    const hasSubMetric = cfg.components.quantity.requirements || cfg.components.quantity.targets || cfg.components.quantity.tests;
+    if (!hasSubMetric) errors.push("Quantity is enabled but no quantity sub-metrics are enabled.");
   }
   if (cfg.components.ui.enabled) {
-    const any =
+    const hasSubMetric =
       cfg.components.ui.template_detection ||
       cfg.components.ui.component_complexity ||
       cfg.components.ui.api_integration ||
       cfg.components.ui.routing ||
       cfg.components.ui.code_volume;
-    if (!any) errors.push("UI is enabled but no UI sub-metrics are enabled.");
+    if (!hasSubMetric) errors.push("UI is enabled but no UI sub-metrics are enabled.");
   }
   if (cfg.penalties.enabled) {
-    const any =
+    const hasPenalty =
       cfg.penalties.insufficient_test_coverage ||
       cfg.penalties.invalid_test_location ||
       cfg.penalties.monolithic_test_files ||
@@ -90,7 +109,7 @@ function validateConfigDraft(cfg: ScoringConfig | null): { ok: boolean; errors: 
       cfg.penalties.target_mapping_ratio ||
       cfg.penalties.superficial_test_implementation ||
       cfg.penalties.manual_validations;
-    if (!any) errors.push("Penalties are enabled but no penalty types are enabled.");
+    if (!hasPenalty) errors.push("Penalties are enabled but no penalty types are enabled.");
   }
 
   return { ok: errors.length === 0, errors, weightSum };
@@ -110,6 +129,8 @@ function Section({
 
   const enabledValue = enabledPath ? Boolean(getAtPath(cfg, enabledPath)) : undefined;
   const weightValue = weightPath ? Number(getAtPath(cfg, weightPath) ?? 0) : undefined;
+  const canEditWeight = typeof weightPath === "string" && typeof weightValue === "number";
+  const canEditEnabled = typeof enabledPath === "string" && typeof enabledValue === "boolean";
 
   return (
     <section className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden" data-testid={`config-section-${schema.key}`}>
@@ -119,7 +140,7 @@ function Section({
           <p className="text-xs text-slate-400 mt-1">{schema.description}</p>
         </div>
         <div className="flex items-center gap-3 flex-shrink-0">
-          {typeof weightValue === "number" && (
+          {canEditWeight && (
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-400">Weight</span>
               <input
@@ -127,17 +148,17 @@ function Section({
                 min={0}
                 max={100}
                 value={Number.isFinite(weightValue) ? weightValue : 0}
-                onChange={(e) => onChange(weightPath!, Number(e.target.value))}
+                onChange={(e) => onChange(weightPath, Number(e.target.value))}
                 className="w-20 px-2 py-1 rounded-md bg-slate-900 border border-white/10 text-slate-200 text-sm"
               />
             </div>
           )}
-          {typeof enabledValue === "boolean" && (
+          {canEditEnabled && (
             <label className="flex items-center gap-2 text-sm text-slate-300">
               <input
                 type="checkbox"
                 checked={enabledValue}
-                onChange={(e) => onChange(enabledPath!, e.target.checked)}
+                onChange={(e) => onChange(enabledPath, e.target.checked)}
                 className="accent-emerald-500"
               />
               Enabled
@@ -440,4 +461,3 @@ export function Configuration({ onClose, scenarioContext }: ConfigurationProps) 
     </div>
   );
 }
-

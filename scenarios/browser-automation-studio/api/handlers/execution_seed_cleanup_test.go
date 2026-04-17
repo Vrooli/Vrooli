@@ -223,27 +223,27 @@ func TestScheduleExecutionSeedCleanup_ScheduleError(t *testing.T) {
 
 func TestSeedCleanupScheduleRequest_Fields(t *testing.T) {
 	tests := []struct {
-		name         string
-		json         string
-		expectToken  string
+		name           string
+		json           string
+		expectToken    string
 		expectScenario string
 	}{
 		{
-			name:         "all fields",
-			json:         `{"cleanup_token":"token123","seed_scenario":"my-scenario"}`,
-			expectToken:  "token123",
+			name:           "all fields",
+			json:           `{"cleanup_token":"token123","seed_scenario":"my-scenario"}`,
+			expectToken:    "token123",
 			expectScenario: "my-scenario",
 		},
 		{
-			name:         "only token",
-			json:         `{"cleanup_token":"token456"}`,
-			expectToken:  "token456",
+			name:           "only token",
+			json:           `{"cleanup_token":"token456"}`,
+			expectToken:    "token456",
 			expectScenario: "",
 		},
 		{
-			name:         "empty object",
-			json:         `{}`,
-			expectToken:  "",
+			name:           "empty object",
+			json:           `{}`,
+			expectToken:    "",
 			expectScenario: "",
 		},
 	}

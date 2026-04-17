@@ -11,8 +11,10 @@ import (
 
 var ErrUnsupportedPlatform = errors.New("unsupported platform")
 
-type SupportClass string
-type ExecutionState string
+type (
+	SupportClass   string
+	ExecutionState string
+)
 
 const (
 	SupportSupported     SupportClass = "supported"
@@ -54,21 +56,21 @@ type EnsureOptions struct {
 }
 
 type ItemStatus struct {
-	Name             string                       `json:"name"`
-	Kind             hostreqspec.Kind             `json:"kind"`
-	Command          string                       `json:"command,omitempty"`
-	Version          string                       `json:"version,omitempty"`
-	Installed        bool                         `json:"installed"`
-	Applied          bool                         `json:"applied,omitempty"`
-	Required         bool                         `json:"required"`
-	InstallSupported bool                         `json:"install_supported"`
-	PackageName      string                       `json:"package_name,omitempty"`
-	SupportClass     SupportClass                 `json:"support_class"`
-	ExecutionState   ExecutionState               `json:"execution_state"`
-	Manual           bool                         `json:"manual"`
-	Reasons          []string                     `json:"reasons,omitempty"`
-	Notes            []string                     `json:"notes,omitempty"`
-	Provenance       []hostreqspec.Provenance     `json:"provenance,omitempty"`
+	Name             string                   `json:"name"`
+	Kind             hostreqspec.Kind         `json:"kind"`
+	Command          string                   `json:"command,omitempty"`
+	Version          string                   `json:"version,omitempty"`
+	Installed        bool                     `json:"installed"`
+	Applied          bool                     `json:"applied,omitempty"`
+	Required         bool                     `json:"required"`
+	InstallSupported bool                     `json:"install_supported"`
+	PackageName      string                   `json:"package_name,omitempty"`
+	SupportClass     SupportClass             `json:"support_class"`
+	ExecutionState   ExecutionState           `json:"execution_state"`
+	Manual           bool                     `json:"manual"`
+	Reasons          []string                 `json:"reasons,omitempty"`
+	Notes            []string                 `json:"notes,omitempty"`
+	Provenance       []hostreqspec.Provenance `json:"provenance,omitempty"`
 }
 
 func (h Host) ValidateSetup() error {
@@ -96,8 +98,10 @@ func (h Host) unsupportedError(command string) error {
 	return fmt.Errorf("%w: vrooli %s is not supported on %s (%s)", ErrUnsupportedPlatform, command, os, strings.Join(h.Notes, "; "))
 }
 
-type ToolStatus = ItemStatus
-type SafeguardStatus = ItemStatus
+type (
+	ToolStatus      = ItemStatus
+	SafeguardStatus = ItemStatus
+)
 
 type Report struct {
 	Environment     string            `json:"environment"`

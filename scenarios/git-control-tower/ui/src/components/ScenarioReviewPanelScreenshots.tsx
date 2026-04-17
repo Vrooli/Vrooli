@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { ClipboardCheck, Loader2, AlertTriangle, ChevronDown, X, Anchor, Camera, Settings } from "lucide-react";
 import { Button } from "./ui/button";
 import { buildCaptureScreenshotUrl, presetSuffix, presetLabel, presetKey } from "../lib/api";
@@ -62,7 +62,10 @@ export function ScreenshotsTab({
 
   // Determine which presets were captured (from snapshot metadata)
   const primarySnapshot = capture ?? baseline;
-  const capturedPresets: CapturePreset[] = primarySnapshot?.presets ?? [];
+  const capturedPresets = useMemo<CapturePreset[]>(
+    () => primarySnapshot?.presets ?? [],
+    [primarySnapshot],
+  );
 
   const defaultPreset = capturedPresets[0] ?? presetConfig[0] ?? { name: "Desktop Light", width: 1440, height: 900, theme: "light" as CaptureTheme };
   // Active preset for filtering — restore from per-scenario state or use first available
@@ -384,4 +387,3 @@ export function ScreenshotsTab({
     </div>
   );
 }
-

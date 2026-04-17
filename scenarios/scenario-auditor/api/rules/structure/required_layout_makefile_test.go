@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -31,8 +32,38 @@ func TestRequiredLayoutRejectsNonCanonicalMakefile(t *testing.T) {
 	if len(violations) != 1 {
 		t.Fatalf("expected 1 violation, got %d: %+v", len(violations), violations)
 	}
-	if got := violations[0].Message; got != "Makefile must match the canonical scenario wrapper template" {
+	if got := violations[0].Message; got != "Makefile must provide the standard scenario lifecycle wrapper targets" {
 		t.Fatalf("unexpected violation message: %q", got)
+	}
+}
+
+func TestRequiredLayoutAcceptsExpandedGovernanceMakefile(t *testing.T) {
+	root := t.TempDir()
+	makefile, err := os.ReadFile(filepath.Join(repoRootForRequiredLayoutTest(t), "scenarios", "vrooli-autoheal", "Makefile"))
+	if err != nil {
+		t.Fatalf("read expanded Makefile: %v", err)
+	}
+	writeRequiredLayoutFixture(t, root, string(makefile))
+
+	violations, err := Check(requiredLayoutPayload(t), root, "demo")
+	if err != nil {
+		t.Fatalf("Check returned error: %v", err)
+	}
+	if len(violations) != 0 {
+		t.Fatalf("expected no violations, got %d: %+v", len(violations), violations)
+	}
+}
+
+func TestRequiredLayoutAcceptsLegacyLifecycleWrapper(t *testing.T) {
+	root := t.TempDir()
+	writeRequiredLayoutFixture(t, root, canonicalScenarioMakefileFallback())
+
+	violations, err := Check(requiredLayoutPayload(t), root, "demo")
+	if err != nil {
+		t.Fatalf("Check returned error: %v", err)
+	}
+	if len(violations) != 0 {
+		t.Fatalf("expected no violations, got %d: %+v", len(violations), violations)
 	}
 }
 
@@ -73,4 +104,13 @@ func requiredLayoutPayload(t *testing.T) string {
 		t.Fatalf("json.Marshal payload: %v", err)
 	}
 	return string(data)
+}
+
+func repoRootForRequiredLayoutTest(t *testing.T) string {
+	t.Helper()
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", "..", "..", ".."))
 }

@@ -2,9 +2,8 @@
 package validation
 
 import (
-	"testing"
-
 	"development-toolchain-validator/domain/expectation"
+	"testing"
 )
 
 // [REQ:REQ-P0-007a] Content validation tests

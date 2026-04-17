@@ -165,11 +165,9 @@ export default function Backlog() {
         )
         if (mode === 'convert') {
           const results = await convertBacklogEntriesRequest(created.map((entry) => entry.id))
-          
 
           const successes = results.filter((result) => !result.error)
           const failures = results.length - successes.length
-          
 
           // Determine navigation target based on conversion results
           let navigationTarget: string | null = null
@@ -177,14 +175,9 @@ export default function Backlog() {
             // Single draft: navigate directly to draft editor
             const draft = successes[0].draft
             navigationTarget = `/draft/${draft.entity_type}/${encodeURIComponent(draft.entity_name)}`
-            
-            
           } else if (successes.length > 1) {
             // Multiple drafts: navigate to drafts list page
             navigationTarget = '/drafts'
-            
-          } else {
-            
           }
 
           if (successes.length) {
@@ -196,12 +189,9 @@ export default function Backlog() {
 
           // Navigate before refresh to avoid race conditions
           if (navigationTarget) {
-            
             navigate(navigationTarget)
-            
             return // Skip refresh and preview selection clear since we're leaving the page
           }
-          
         } else {
           toast.success(`Added ${created.length} idea${created.length === 1 ? '' : 's'} to backlog`)
         }
@@ -217,7 +207,7 @@ export default function Backlog() {
         setPreviewBusyId(null)
       }
     },
-    [previewIdeas, previewSelection, refreshBacklog],
+    [navigate, previewIdeas, previewSelection, refreshBacklog],
   )
 
   return (

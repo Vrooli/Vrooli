@@ -11,12 +11,11 @@
 package services
 
 import (
+	"agent-inbox/config"
+	"agent-inbox/domain"
 	"context"
 	"encoding/json"
 	"log"
-
-	"agent-inbox/config"
-	"agent-inbox/domain"
 
 	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 )

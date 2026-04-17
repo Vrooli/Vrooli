@@ -1,15 +1,14 @@
 package executions
 
 import (
+	"browser-automation-studio/cli/internal/api"
+	"browser-automation-studio/cli/internal/appctx"
+	"browser-automation-studio/cli/internal/export"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"browser-automation-studio/cli/internal/api"
-	"browser-automation-studio/cli/internal/appctx"
-	"browser-automation-studio/cli/internal/export"
 )
 
 func runExport(ctx *appctx.Context, args []string) error {
@@ -143,4 +142,3 @@ func extractMessage(body []byte) string {
 	}
 	return strings.TrimSpace(string(body))
 }
-

@@ -181,7 +181,7 @@ func (h *HTTPClient) DoWithContext(ctx context.Context, method, path string, que
 		return nil, fmt.Errorf("invalid api base URL %q", base)
 	}
 	endpoint := strings.TrimRight(base, "/") + path
-	if query != nil && len(query) > 0 {
+	if len(query) > 0 {
 		endpoint += "?" + query.Encode()
 	}
 

@@ -83,5 +83,4 @@ func TestServiceRoutesMaintenanceUseCases(t *testing.T) {
 	if locks.CleanReport == nil || locks.CleanReport.Message != "cleaned" {
 		t.Fatalf("locks = %#v", locks)
 	}
-
 }

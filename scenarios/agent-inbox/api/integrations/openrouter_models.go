@@ -3,14 +3,13 @@
 package integrations
 
 import (
+	"agent-inbox/domain"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os/exec"
 	"strings"
 	"time"
-
-	"agent-inbox/domain"
 )
 
 // ConvertMessages converts domain messages to OpenRouter format.

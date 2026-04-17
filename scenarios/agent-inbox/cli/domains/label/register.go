@@ -1,10 +1,9 @@
 package label
 
 import (
+	"agent-inbox/cli/internal/support"
 	"fmt"
 	"strings"
-
-	"agent-inbox/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"

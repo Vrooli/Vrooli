@@ -60,4 +60,3 @@ func TestWorkflowValidationResultToProto(t *testing.T) {
 		t.Fatalf("unexpected meta fields")
 	}
 }
-

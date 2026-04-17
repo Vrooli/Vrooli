@@ -6,7 +6,6 @@ import (
 	"context"
 	"path/filepath"
 	"testing"
-
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
 	"vrooli-autoheal/internal/userconfig"

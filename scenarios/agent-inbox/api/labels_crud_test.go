@@ -1,13 +1,12 @@
 package main
 
 import (
+	"agent-inbox/domain"
 	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"agent-inbox/domain"
 )
 
 // [REQ:LABEL-001] [REQ:LABEL-002] Test create and list labels

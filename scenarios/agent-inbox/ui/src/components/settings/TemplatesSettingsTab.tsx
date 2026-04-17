@@ -157,7 +157,7 @@ export function TemplatesSettingsTab({
           {/* Reset button - only for modified templates */}
           {template.source === "modified" && (
             <button
-              onClick={() => handleReset(template.id)}
+              onClick={() => { void handleReset(template.id); }}
               disabled={isOperating}
               className="p-1.5 rounded hover:bg-white/10 text-amber-400 hover:text-amber-300 transition-colors disabled:opacity-50"
               title="Reset to default"
@@ -169,7 +169,7 @@ export function TemplatesSettingsTab({
           {/* Delete button - only for user and modified templates */}
           {(template.source === "user" || template.source === "modified") && (
             <button
-              onClick={() => handleDelete(template.id)}
+              onClick={() => { void handleDelete(template.id); }}
               disabled={isOperating}
               className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-red-400 transition-colors disabled:opacity-50"
               title={template.source === "modified" ? "Remove customization" : "Delete template"}

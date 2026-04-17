@@ -3,14 +3,13 @@
 package handlers
 
 import (
+	"agent-inbox/config"
+	"agent-inbox/domain"
+	"agent-inbox/services"
 	"context"
 	"log"
 	"net/http"
 	"strings"
-
-	"agent-inbox/config"
-	"agent-inbox/domain"
-	"agent-inbox/services"
 
 	"github.com/gorilla/mux"
 )

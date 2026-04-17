@@ -27,4 +27,3 @@ func TestRenderValue(t *testing.T) {
 		t.Fatalf("expected absolute rendered value, got %q", got)
 	}
 }
-

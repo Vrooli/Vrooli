@@ -62,19 +62,19 @@ func (c *Collector) Limits() autocontracts.EventBufferLimits {
 	return c.delegate.Limits()
 }
 
-	// OnStepOutcome implements uxmetrics.Collector for direct calls.
-	func (c *Collector) OnStepOutcome(ctx context.Context, executionID uuid.UUID, outcome uxmetrics.StepOutcomeData) error {
-		// Build cursor path from trail
-		if len(outcome.CursorTrail) > 0 {
-			trail := make([]autocontracts.CursorPosition, len(outcome.CursorTrail))
-			for i := range outcome.CursorTrail {
-				p := &outcome.CursorTrail[i]
-				trail[i] = autocontracts.CursorPosition{
-					Point: &autocontracts.Point{X: p.X, Y: p.Y},
-				}
+// OnStepOutcome implements uxmetrics.Collector for direct calls.
+func (c *Collector) OnStepOutcome(ctx context.Context, executionID uuid.UUID, outcome uxmetrics.StepOutcomeData) error {
+	// Build cursor path from trail
+	if len(outcome.CursorTrail) > 0 {
+		trail := make([]autocontracts.CursorPosition, len(outcome.CursorTrail))
+		for i := range outcome.CursorTrail {
+			p := &outcome.CursorTrail[i]
+			trail[i] = autocontracts.CursorPosition{
+				Point: &autocontracts.Point{X: p.X, Y: p.Y},
 			}
-			path := c.buildCursorPath(outcome.StepIndex, trail, outcome.StartedAt, outcome.CompletedAt)
-			if err := c.repo.SaveCursorPath(ctx, executionID, path); err != nil {
+		}
+		path := c.buildCursorPath(outcome.StepIndex, trail, outcome.StartedAt, outcome.CompletedAt)
+		if err := c.repo.SaveCursorPath(ctx, executionID, path); err != nil {
 			return err
 		}
 	}

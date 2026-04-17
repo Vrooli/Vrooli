@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"agent-inbox/services"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -8,8 +9,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"agent-inbox/services"
 
 	"github.com/gorilla/mux"
 )
@@ -74,16 +73,6 @@ func (m *mockAsyncTracker) AddOperation(op *services.AsyncOperation) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.operations[op.ToolCallID] = op
-}
-
-// setupTestHandler creates a Handlers instance with the mock tracker.
-func setupTestHandler(tracker *mockAsyncTracker) *Handlers {
-	// Create a real AsyncTrackerService for the actual Handlers struct
-	realTracker := services.NewAsyncTrackerService(nil, nil, nil)
-	h := &Handlers{
-		AsyncTracker: realTracker,
-	}
-	return h
 }
 
 // setupTestHandlerWithMock creates a router and handler for testing.

@@ -116,11 +116,13 @@ export function Settings({
         return (
           <ToolsSettingsTab
             yoloMode={s.yoloMode} isLoadingYoloMode={s.isLoadingYoloMode} isUpdatingYoloMode={s.isUpdatingYoloMode}
-            onYoloModeToggle={s.handleYoloModeToggle}
+            onYoloModeToggle={(checked) => { s.handleYoloModeToggle(checked); }}
             toolsByScenario={s.toolsByScenario} categories={s.toolSet?.categories ?? []} scenarioStatuses={s.scenarios}
             isLoadingTools={s.isLoadingTools} isSyncingTools={s.isSyncingTools} isUpdatingTools={s.isUpdatingTools}
             toolsError={s.toolsError?.message}
-            onToggleTool={s.toggleTool} onSetApproval={s.handleSetApproval} onSyncTools={s.syncDiscoveredTools}
+            onToggleTool={s.toggleTool}
+            onSetApproval={(scenario, toolName, override) => { s.handleSetApproval(scenario, toolName, override); }}
+            onSyncTools={() => { void s.syncDiscoveredTools(); }}
             onRunTool={s.handleRunTool} enabledCount={s.enabledTools.length} totalCount={s.toolSet?.tools.length ?? 0}
           />
         );
@@ -134,7 +136,7 @@ export function Settings({
             autoSuggestError={s.autoSuggestError} suggestionsSaveError={s.suggestionsSaveError}
             autoSuggestLoading={s.autoSuggestLoading} suggestionsDraft={s.suggestionsDraft}
             onSuggestionsDraftChange={s.setSuggestionsDraft} isSavingSuggestions={s.isSavingSuggestions}
-            onSaveSuggestions={s.handleSaveSuggestions}
+            onSaveSuggestions={() => { void s.handleSaveSuggestions(); }}
           />
         );
       case "skills":
@@ -202,7 +204,7 @@ export function Settings({
         open={s.isCreatingSkill || s.editingSkill !== null}
         onClose={() => { s.setEditingSkill(null); s.setIsCreatingSkill(false); }}
         skill={s.editingSkill ?? undefined}
-        onSave={s.handleSaveSkill}
+        onSave={(skillData) => { void s.handleSaveSkill(skillData); }}
         allSkills={s.skills}
         onSelectSkill={(skill) => { s.setEditingSkill(skill); s.setIsCreatingSkill(false); }}
         onSaveAll={async (updates) => {

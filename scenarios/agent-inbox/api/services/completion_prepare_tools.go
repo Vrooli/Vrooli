@@ -3,13 +3,12 @@
 package services
 
 import (
+	"agent-inbox/domain"
+	"agent-inbox/integrations"
 	"context"
 	"fmt"
 	"log"
 	"strings"
-
-	"agent-inbox/domain"
-	"agent-inbox/integrations"
 )
 
 // resolveToolConfiguration sets up tool and tool_choice fields on the request.

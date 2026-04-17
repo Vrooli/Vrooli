@@ -783,15 +783,15 @@ func (h *Handler) createUnifiedEntry(action *driver.RecordedAction) *websocket.U
 		Timestamp: action.Timestamp,
 		PageID:    action.PageID,
 		Action: &websocket.TimelineAction{
-			ID:         action.ID,
-			ActionType: action.ActionType,
+			ID:          action.ID,
+			ActionType:  action.ActionType,
 			SequenceNum: action.SequenceNum,
-			Timestamp:  action.Timestamp,
-			Confidence: action.Confidence,
-			URL:        action.URL,
-			PageTitle:  action.PageTitle,
-			Selector:   selector,
-			Payload:    action.Payload,
+			Timestamp:   action.Timestamp,
+			Confidence:  action.Confidence,
+			URL:         action.URL,
+			PageTitle:   action.PageTitle,
+			Selector:    selector,
+			Payload:     action.Payload,
 		},
 	}
 }

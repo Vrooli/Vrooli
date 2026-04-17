@@ -153,11 +153,11 @@ func TestIsLengthInRange(t *testing.T) {
 
 func TestValidateCommandSafety(t *testing.T) {
 	tests := []struct {
-		name           string
-		cmd            string
-		expectSafe     bool
-		expectAllowed  bool
-		expectPattern  string
+		name          string
+		cmd           string
+		expectSafe    bool
+		expectAllowed bool
+		expectPattern string
 	}{
 		// Safe commands
 		{"allowed scenario-auditor", "scenario-auditor standards scan my-scenario --wait", true, true, ""},

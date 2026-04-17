@@ -71,7 +71,6 @@ func newFallbackServices() services.Registry {
 	}
 }
 
-func (h *handler) dbConn() *sql.DB                                   { return h.dbHandle }
 func (h *handler) analysisService() services.AnalysisService         { return h.services.Analysis }
 func (h *handler) scanService() services.ScanService                 { return h.services.Scan }
 func (h *handler) optimizationService() services.OptimizationService { return h.services.Optimization }

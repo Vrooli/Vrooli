@@ -3,12 +3,11 @@
 package services
 
 import (
+	"agent-inbox/domain"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log"
-
-	"agent-inbox/domain"
 )
 
 // SaveCompletionResult persists a completion result to the database.

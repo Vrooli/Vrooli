@@ -18,6 +18,13 @@
  */
 
 type LiteralSelectorTree = { readonly [key: string]: string | LiteralSelectorTree };
+type SelectorRegistry<T extends LiteralSelectorTree> = {
+  [K in keyof T]: T[K] extends string
+    ? T[K]
+    : T[K] extends LiteralSelectorTree
+      ? SelectorRegistry<T[K]>
+      : never;
+};
 
 const literalSelectors = {
   catalog: {
@@ -153,7 +160,7 @@ const mergeLiteralNodes = (
 };
 
 const createSelectorRegistry = <L extends LiteralSelectorTree>(literalTree: L) => {
-  const selectors = mergeLiteralNodes(literalTree) as any;
+  const selectors = mergeLiteralNodes(literalTree) as SelectorRegistry<L>;
   const manifest = {
     selectors: flattenLiteralSelectors(literalTree),
     dynamicSelectors: {},

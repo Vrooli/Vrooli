@@ -3,7 +3,6 @@
  */
 
 import { vi } from "vitest";
-import type { StreamingEvent } from "./api";
 
 // Mock fetch globally
 export const mockFetch = vi.fn();
@@ -43,16 +42,16 @@ export function createStreamingResponse(events: string[], options: { status?: nu
   const encoder = new TextEncoder();
 
   const reader: ReadableStreamDefaultReader<Uint8Array> = {
-    read: async () => {
+    read: () => {
       if (readIndex >= events.length) {
-        return { done: true, value: undefined };
+        return Promise.resolve({ done: true, value: undefined });
       }
       const value = encoder.encode(events[readIndex]);
       readIndex++;
-      return { done: false, value };
+      return Promise.resolve({ done: false, value });
     },
     releaseLock: () => {},
-    cancel: async () => {},
+    cancel: () => Promise.resolve(),
     closed: Promise.resolve(undefined),
   };
 

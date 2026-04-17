@@ -76,7 +76,7 @@ export function WorkflowsTab({
       else next.add(mode);
       return next;
     });
-  }, []);
+  }, [setSelectedModes]);
 
   const toggleExpanded = useCallback((idx: number) => {
     setExpandedRows(prev => {
@@ -371,4 +371,3 @@ function ExecutionModeSelector({ selectedModes, onToggle }: { selectedModes: Set
     </div>
   );
 }
-

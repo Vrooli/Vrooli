@@ -12,9 +12,9 @@ if (typeof window !== "undefined" && window.parent !== window) {
   initIframeBridgeChild(
     {
       appId: "secrets-manager",
-      enableConsoleCapture: true,
-      enableNetworkCapture: true
-    } as any
+      captureLogs: true,
+      captureNetwork: true
+    }
   );
 }
 

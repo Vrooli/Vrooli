@@ -24,22 +24,19 @@ if ! command -v resource-postgres &> /dev/null; then
     exit 1
 fi
 
-# Create database if it doesn't exist
+# Create database if it doesn't exist (create-database is idempotent)
 echo "📦 Creating database: $DB_NAME"
-resource-postgres content execute --instance main "CREATE DATABASE $DB_NAME;" 2>/dev/null || echo "Database may already exist"
+resource-postgres content create-database --instance main "$DB_NAME"
+
+# Reset any pre-existing tables so the schema applies cleanly
+resource-postgres content execute --instance main --database "$DB_NAME" \
+    --sql "DROP TABLE IF EXISTS escalations, messages, conversations, intent_patterns, daily_analytics, chatbots CASCADE;"
 
 # Run schema.sql
 if [ -f "$SCENARIO_ROOT/initialization/storage/postgres/schema.sql" ]; then
     echo "📄 Applying schema..."
-    # Use a temporary file to combine commands
-    TEMP_SQL=$(mktemp)
-    echo "\\c $DB_NAME" > "$TEMP_SQL"
-    # Drop existing tables to ensure fresh schema
-    echo "DROP TABLE IF EXISTS escalations, messages, conversations, intent_patterns, daily_analytics, chatbots CASCADE;" >> "$TEMP_SQL"
-    cat "$SCENARIO_ROOT/initialization/storage/postgres/schema.sql" >> "$TEMP_SQL"
-    
-    resource-postgres content execute --instance main --file "$TEMP_SQL"
-    rm -f "$TEMP_SQL"
+    resource-postgres content execute --instance main --database "$DB_NAME" \
+        --file "$SCENARIO_ROOT/initialization/storage/postgres/schema.sql"
     echo "✅ Schema applied successfully"
 else
     echo "⚠️  Schema file not found"
@@ -48,12 +45,8 @@ fi
 # Run seed.sql if it exists
 if [ -f "$SCENARIO_ROOT/initialization/storage/postgres/seed.sql" ]; then
     echo "🌱 Applying seed data..."
-    TEMP_SQL=$(mktemp)
-    echo "\\c $DB_NAME" > "$TEMP_SQL"
-    cat "$SCENARIO_ROOT/initialization/storage/postgres/seed.sql" >> "$TEMP_SQL"
-    
-    resource-postgres content execute --instance main --file "$TEMP_SQL"
-    rm -f "$TEMP_SQL"
+    resource-postgres content execute --instance main --database "$DB_NAME" \
+        --file "$SCENARIO_ROOT/initialization/storage/postgres/seed.sql"
     echo "✅ Seed data applied successfully"
 else
     echo "ℹ️  No seed data file found (this is OK)"

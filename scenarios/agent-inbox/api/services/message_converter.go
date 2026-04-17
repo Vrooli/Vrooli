@@ -3,11 +3,10 @@
 package services
 
 import (
-	"context"
-	"log"
-
 	"agent-inbox/domain"
 	"agent-inbox/integrations"
+	"context"
+	"log"
 )
 
 // MessageConverter transforms domain messages into OpenRouter API format.

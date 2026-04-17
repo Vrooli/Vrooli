@@ -26,13 +26,13 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/ai"
 	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
 	"github.com/vrooli/browser-automation-studio/services/credits"
-	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile"
-	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 	"github.com/vrooli/browser-automation-studio/services/export"
 	"github.com/vrooli/browser-automation-studio/services/export/render"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
 	unifiedrecording "github.com/vrooli/browser-automation-studio/services/recording"
+	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile"
+	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	"github.com/vrooli/browser-automation-studio/services/testgenie"
 	"github.com/vrooli/browser-automation-studio/services/uxmetrics"
 	uxcollector "github.com/vrooli/browser-automation-studio/services/uxmetrics/collector"
@@ -95,19 +95,19 @@ type Handler struct {
 	catalogService   workflow.CatalogService   // Workflow/project CRUD, versioning, sync
 	executionService workflow.ExecutionService // Execution lifecycle, timeline, export
 
-	workflowValidator *workflowvalidator.Validator
-	repo              database.Repository
-	wsHub             wsHub.HubInterface
-	storage           storage.StorageInterface
-	recordingService  archiveingestion.IngestionServiceInterface
-	recordModeService RecordModeService // Live recording session management (interface for testability)
-	recordingsRoot          string
-	replayRenderer          replayRenderer
-	sessionProfileService   *sessionprofile.Service
-	log                     *logrus.Logger
-	upgrader          websocket.Upgrader
-	wsAllowAll        bool
-	wsAllowedOrigins  []string
+	workflowValidator     *workflowvalidator.Validator
+	repo                  database.Repository
+	wsHub                 wsHub.HubInterface
+	storage               storage.StorageInterface
+	recordingService      archiveingestion.IngestionServiceInterface
+	recordModeService     RecordModeService // Live recording session management (interface for testability)
+	recordingsRoot        string
+	replayRenderer        replayRenderer
+	sessionProfileService *sessionprofile.Service
+	log                   *logrus.Logger
+	upgrader              websocket.Upgrader
+	wsAllowAll            bool
+	wsAllowedOrigins      []string
 
 	// Performance monitoring
 	perfRegistry       *performance.CollectorRegistry
@@ -155,19 +155,19 @@ type HandlerDeps struct {
 	CatalogService   workflow.CatalogService   // Workflow/project CRUD, versioning, sync
 	ExecutionService workflow.ExecutionService // Execution lifecycle, timeline, export
 
-	WorkflowValidator  *workflowvalidator.Validator
-	Storage            storage.StorageInterface
-	RecordingService   archiveingestion.IngestionServiceInterface
-	RecordModeService  RecordModeService // Live recording session management (interface for testability)
-	RecordingsRoot          string
-	ReplayRenderer          replayRenderer
-	SessionProfileService   *sessionprofile.Service
-	UXMetricsRepo           uxmetrics.Repository         // Optional: enables UX metrics collection
-	EntitlementService  *entitlement.Service         // Optional: enables tier-based feature gating
-	CreditService       credits.CreditService        // Optional: enables unified credit tracking
-	AIClientFactory     *ai.AIClientFactory          // Optional: enables per-request AI client creation
-	NavigatorRegistry   *vision.NavigatorRegistry    // Optional: enables vision navigator selection
-	PlaywrightNavigator *vision.PlaywrightVisionNavigator // Optional: direct reference to playwright navigator
+	WorkflowValidator     *workflowvalidator.Validator
+	Storage               storage.StorageInterface
+	RecordingService      archiveingestion.IngestionServiceInterface
+	RecordModeService     RecordModeService // Live recording session management (interface for testability)
+	RecordingsRoot        string
+	ReplayRenderer        replayRenderer
+	SessionProfileService *sessionprofile.Service
+	UXMetricsRepo         uxmetrics.Repository              // Optional: enables UX metrics collection
+	EntitlementService    *entitlement.Service              // Optional: enables tier-based feature gating
+	CreditService         credits.CreditService             // Optional: enables unified credit tracking
+	AIClientFactory       *ai.AIClientFactory               // Optional: enables per-request AI client creation
+	NavigatorRegistry     *vision.NavigatorRegistry         // Optional: enables vision navigator selection
+	PlaywrightNavigator   *vision.PlaywrightVisionNavigator // Optional: direct reference to playwright navigator
 }
 
 // InitDefaultDeps initializes the standard production dependencies.
@@ -181,11 +181,11 @@ func InitDefaultDeps(repo database.Repository, wsHub *wsHub.Hub, log *logrus.Log
 type DepsOptions struct {
 	UXMetricsRepo           uxmetrics.Repository
 	EntitlementService      *entitlement.Service
-	CreditService           credits.CreditService                    // Unified credit tracking
-	AIClientFactory         *ai.AIClientFactory                      // Per-request AI client creation
-	NavigatorRegistry       *vision.NavigatorRegistry                // Vision navigator selection
-	PlaywrightNavigator     *vision.PlaywrightVisionNavigator        // Direct reference to playwright navigator
-	UnifiedRecordingService *unifiedrecording.Service                // Timeline persistence for recorded actions
+	CreditService           credits.CreditService             // Unified credit tracking
+	AIClientFactory         *ai.AIClientFactory               // Per-request AI client creation
+	NavigatorRegistry       *vision.NavigatorRegistry         // Vision navigator selection
+	PlaywrightNavigator     *vision.PlaywrightVisionNavigator // Direct reference to playwright navigator
+	UnifiedRecordingService *unifiedrecording.Service         // Timeline persistence for recorded actions
 }
 
 // InitDefaultDepsWithUXMetrics initializes dependencies with optional UX metrics collection.
@@ -271,21 +271,21 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 
 	return HandlerDeps{
 		// WorkflowService implements both CatalogService and ExecutionService interfaces
-		CatalogService:          workflowSvc,
-		ExecutionService:        workflowSvc,
-		WorkflowValidator:       validatorInstance,
-		Storage:                 storageClient,
-		RecordingService:        recordingService,
-		RecordModeService:       recordModeSvc,
-		RecordingsRoot:          recordingsRoot,
-		ReplayRenderer:          render.NewReplayRenderer(log, recordingsRoot),
-		SessionProfileService:   sessionProfileSvc,
-		UXMetricsRepo:           opts.UXMetricsRepo,
-		EntitlementService:      opts.EntitlementService,
-		CreditService:           opts.CreditService,
-		AIClientFactory:         opts.AIClientFactory,
-		NavigatorRegistry:       opts.NavigatorRegistry,
-		PlaywrightNavigator:     opts.PlaywrightNavigator,
+		CatalogService:        workflowSvc,
+		ExecutionService:      workflowSvc,
+		WorkflowValidator:     validatorInstance,
+		Storage:               storageClient,
+		RecordingService:      recordingService,
+		RecordModeService:     recordModeSvc,
+		RecordingsRoot:        recordingsRoot,
+		ReplayRenderer:        render.NewReplayRenderer(log, recordingsRoot),
+		SessionProfileService: sessionProfileSvc,
+		UXMetricsRepo:         opts.UXMetricsRepo,
+		EntitlementService:    opts.EntitlementService,
+		CreditService:         opts.CreditService,
+		AIClientFactory:       opts.AIClientFactory,
+		NavigatorRegistry:     opts.NavigatorRegistry,
+		PlaywrightNavigator:   opts.PlaywrightNavigator,
 	}
 }
 
@@ -317,26 +317,26 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 	)
 
 	handler := &Handler{
-		catalogService:          deps.CatalogService,
-		executionService:        deps.ExecutionService,
-		workflowValidator:       deps.WorkflowValidator,
-		repo:                    repo,
-		wsHub:                   wsHub,
-		storage:                 deps.Storage,
-		recordingService:        deps.RecordingService,
-		recordModeService:       deps.RecordModeService,
-		recordingsRoot:          deps.RecordingsRoot,
-		replayRenderer:          deps.ReplayRenderer,
-		sessionProfileService:   deps.SessionProfileService,
-		log:                     log,
-		wsAllowAll:         allowAllOrigins,
-		wsAllowedOrigins:   allowedCopy,
-		upgrader:           websocket.Upgrader{},
-		perfRegistry:       perfRegistry,
-		seedCleanupManager: seedCleanupManager,
-		entitlementService: deps.EntitlementService,
-		creditService:      deps.CreditService,
-		aiClientFactory:    deps.AIClientFactory,
+		catalogService:        deps.CatalogService,
+		executionService:      deps.ExecutionService,
+		workflowValidator:     deps.WorkflowValidator,
+		repo:                  repo,
+		wsHub:                 wsHub,
+		storage:               deps.Storage,
+		recordingService:      deps.RecordingService,
+		recordModeService:     deps.RecordModeService,
+		recordingsRoot:        deps.RecordingsRoot,
+		replayRenderer:        deps.ReplayRenderer,
+		sessionProfileService: deps.SessionProfileService,
+		log:                   log,
+		wsAllowAll:            allowAllOrigins,
+		wsAllowedOrigins:      allowedCopy,
+		upgrader:              websocket.Upgrader{},
+		perfRegistry:          perfRegistry,
+		seedCleanupManager:    seedCleanupManager,
+		entitlementService:    deps.EntitlementService,
+		creditService:         deps.CreditService,
+		aiClientFactory:       deps.AIClientFactory,
 	}
 	handler.upgrader.CheckOrigin = handler.isOriginAllowed
 

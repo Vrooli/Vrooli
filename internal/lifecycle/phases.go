@@ -1,6 +1,7 @@
 package lifecycle
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -135,9 +136,9 @@ func (r *Runner) RunPhaseDetailed(name, phaseName string, opts PhaseOptions) (Ph
 
 	args := append([]string(nil), opts.Args...)
 	var result PhaseResult
-	if err := r.runWithLifecycleLog(item.Slug, func(logWriter io.Writer) error {
+	if err := r.runWithLifecycleLog(item.Slug, func(logWriter, childWriter io.Writer) error {
 		var executeErr error
-		result, executeErr = r.ExecutePhaseDetailed(item, phaseName, env, args, logWriter)
+		result, executeErr = r.ExecutePhaseDetailed(item, phaseName, env, args, logWriter, childWriter)
 		return executeErr
 	}); err != nil {
 		r.logError("Scenario phase failed", err, logx.AttrScenario, item.Slug, logx.AttrPhase, phaseName)
@@ -163,11 +164,22 @@ func phaseRequiresBootstrap(phaseName string) bool {
 }
 
 func (r *Runner) ExecutePhase(item scenario.Scenario, phaseName string, env map[string]string, args []string, logWriter io.Writer) error {
-	_, err := r.ExecutePhaseDetailed(item, phaseName, env, args, logWriter)
+	_, err := r.ExecutePhaseDetailed(item, phaseName, env, args, logWriter, logWriter)
 	return err
 }
 
-func (r *Runner) ExecutePhaseDetailed(item scenario.Scenario, phaseName string, env map[string]string, args []string, logWriter io.Writer) (PhaseResult, error) {
+// ExecutePhaseDetailed runs a phase's steps. logWriter receives orchestrator
+// messages (infof/warnf headers, slog text if routed there); childWriter
+// receives raw child-process stdout for foreground steps. Callers that do
+// not need to split the two can pass the same writer for both
+// (tests/io.Discard). Production callers should provide a logWriter that
+// tees to the scenario lifecycle log file plus the console at the current
+// verbosity, and a childWriter that tees to the log file plus the console
+// only at verbose — see runWithLifecycleLog.
+func (r *Runner) ExecutePhaseDetailed(item scenario.Scenario, phaseName string, env map[string]string, args []string, logWriter io.Writer, childWriter io.Writer) (PhaseResult, error) {
+	if childWriter == nil {
+		childWriter = logWriter
+	}
 	phase, ok := lookupPhase(item.Manifest, phaseName)
 	if !ok {
 		r.logDebug("Scenario phase not defined", logx.AttrScenario, item.Slug, logx.AttrPhase, phaseName)
@@ -234,7 +246,10 @@ func (r *Runner) ExecutePhaseDetailed(item scenario.Scenario, phaseName string, 
 			continue
 		}
 
-		if err := r.runForegroundStep(item, phaseName, finalCmd, env, logWriter); err != nil {
+		sink := newStepSink(childWriter)
+		stepErr := r.runForegroundStep(item, phaseName, finalCmd, env, sink)
+		sink.Flush()
+		if stepErr != nil {
 			if phaseName == "stop" {
 				r.warnf(logWriter, "Stop step completed with non-zero exit: %s", step.Name)
 				r.logWarn("Stop lifecycle step returned non-zero exit but execution will continue",
@@ -246,7 +261,14 @@ func (r *Runner) ExecutePhaseDetailed(item scenario.Scenario, phaseName string, 
 				result.Status = PhaseExecutionCompleted
 				continue
 			}
-			return result, newPhaseStepError(item.Slug, phaseName, step.Name, lifecycleLogPath, err)
+			// Replay the tail of the failing step to stderr so users never
+			// have to rerun with --verbose just to see the compiler/linker
+			// error. Skip replay on context.Canceled (the user interrupted
+			// — the log file already has everything).
+			if r.Verbosity != VerbosityVerbose && !errors.Is(stepErr, context.Canceled) && r.Err != nil {
+				sink.ReplayTo(r.Err, item.Slug+" "+phaseName+" "+step.Name, lifecycleLogPath)
+			}
+			return result, newPhaseStepError(item.Slug, phaseName, step.Name, lifecycleLogPath, stepErr)
 		}
 		result.ExecutedSteps++
 		result.Status = PhaseExecutionCompleted
@@ -382,7 +404,13 @@ func (r *Runner) runForegroundStep(item scenario.Scenario, phase, command string
 	return cmd.Run()
 }
 
-func (r *Runner) runWithLifecycleLog(name string, fn func(logWriter io.Writer) error) error {
+// runWithLifecycleLog opens the scenario lifecycle log file and invokes fn
+// with two writers: logWriter is for orchestrator-level output (slog text
+// and [INFO]/[WARNING] step headers) — it tees the log file and the
+// console, gated by the current verbosity; childWriter is for raw tool
+// stdout (vite/pnpm) — it tees the log file and reaches the console only
+// at VerbosityVerbose. The log file always receives everything.
+func (r *Runner) runWithLifecycleLog(name string, fn func(logWriter, childWriter io.Writer) error) error {
 	path := process.ScenarioLifecycleLogPath(r.Home, name)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
@@ -393,8 +421,9 @@ func (r *Runner) runWithLifecycleLog(name string, fn func(logWriter io.Writer) e
 	}
 	defer file.Close()
 
-	writer := io.MultiWriter(r.Out, file)
-	return fn(writer)
+	logWriter := io.MultiWriter(r.consoleOut(), file)
+	childWriter := io.MultiWriter(r.childStdoutConsole(), file)
+	return fn(logWriter, childWriter)
 }
 
 func lookupPhase(manifest scenario.ServiceManifest, phaseName string) (scenario.Phase, bool) {

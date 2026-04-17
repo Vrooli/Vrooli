@@ -209,7 +209,6 @@ func RenderLocksResponse(w io.Writer, format cliout.Format, resp LocksResponse) 
 	return cliout.RenderTable(w, []string{"Port", "Scenario", "PID", "Status"}, rows)
 }
 
-
 func RenderPortDiagnostic(w io.Writer, format cliout.Format, diagnostic maintenance.PortDiagnostic) error {
 	if format == cliout.FormatJSON {
 		return cliout.WriteSuccessJSON(w, "diagnostic", diagnostic)

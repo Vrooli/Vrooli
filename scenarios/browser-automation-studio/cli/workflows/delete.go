@@ -1,10 +1,9 @@
 package workflows
 
 import (
+	"browser-automation-studio/cli/internal/appctx"
 	"fmt"
 	"net/url"
-
-	"browser-automation-studio/cli/internal/appctx"
 )
 
 func runDelete(ctx *appctx.Context, args []string) error {

@@ -83,7 +83,9 @@ describe('useDrafts', () => {
     expect(result.current.filteredDrafts).toHaveLength(3)
 
     // Set filter to 'test'
-    result.current.setFilter('test')
+    act(() => {
+      result.current.setFilter('test')
+    })
     await waitFor(() => expect(result.current.filteredDrafts).toHaveLength(2))
     expect(result.current.filteredDrafts.map((d) => d.id)).toEqual(['1', '3'])
   })

@@ -3,13 +3,12 @@
 package persistence
 
 import (
+	"agent-inbox/domain"
 	"context"
 	"fmt"
 	"regexp"
 	"strings"
 	"unicode/utf8"
-
-	"agent-inbox/domain"
 )
 
 // SearchResult represents a single search match.

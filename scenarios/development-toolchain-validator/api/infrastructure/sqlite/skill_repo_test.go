@@ -2,10 +2,9 @@ package sqlite
 
 import (
 	"context"
-	"testing"
-
 	"development-toolchain-validator/domain/reference"
 	"development-toolchain-validator/domain/skill"
+	"testing"
 )
 
 // createTestReference creates a reference for FK constraints in skill tests.

@@ -1,12 +1,11 @@
 package resilience_test
 
 import (
+	"agent-inbox/resilience"
 	"context"
 	"errors"
 	"testing"
 	"time"
-
-	"agent-inbox/resilience"
 )
 
 func TestCircuitBreaker_StartsInClosedState(t *testing.T) {

@@ -1,10 +1,9 @@
 package main
 
 import (
+	"agent-inbox/persistence"
 	"fmt"
 	"testing"
-
-	"agent-inbox/persistence"
 )
 
 func TestExtractSnippet_CentersOnMatch(t *testing.T) {

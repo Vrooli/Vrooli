@@ -40,7 +40,7 @@ export function StepComplete({ selected, onStartOver }: StepCompleteProps) {
   }, [config, error, loading, resourcesList.length]);
 
   const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(configText).then(() => {
+    void navigator.clipboard.writeText(configText).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });

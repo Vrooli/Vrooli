@@ -3,12 +3,11 @@
 package handlers
 
 import (
+	"agent-inbox/domain"
+	"agent-inbox/middleware"
 	"encoding/json"
 	"log"
 	"net/http"
-
-	"agent-inbox/domain"
-	"agent-inbox/middleware"
 )
 
 // DeleteArchivedChats removes all archived chats.

@@ -2,6 +2,8 @@ package executions
 
 import (
 	"archive/zip"
+	"browser-automation-studio/cli/internal/api"
+	"browser-automation-studio/cli/internal/appctx"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -9,9 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"browser-automation-studio/cli/internal/api"
-	"browser-automation-studio/cli/internal/appctx"
 )
 
 func runRender(ctx *appctx.Context, args []string) error {

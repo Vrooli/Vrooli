@@ -4,7 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
-import { useCompletion, type ActiveToolCall } from "./useCompletion";
+import { useCompletion } from "./useCompletion";
 import * as api from "../lib/api";
 
 // Mock the API module
@@ -42,10 +42,11 @@ describe("useCompletion - streaming and tool calls", () => {
       vi.useRealTimers();
 
       let eventHandler: ((event: api.StreamingEvent) => void) | undefined;
-      vi.mocked(api.completeChat).mockImplementation(async (_chatId, options) => {
+      vi.mocked(api.completeChat).mockImplementation((_chatId, options) => {
         eventHandler = options?.onEvent;
         eventHandler?.({ type: "content", content: "Hello " });
         eventHandler?.({ type: "content", content: "world" });
+        return Promise.resolve();
       });
 
       const { result } = renderHook(() => useCompletion());
@@ -56,7 +57,6 @@ describe("useCompletion - streaming and tool calls", () => {
 
       expect(api.completeChat).toHaveBeenCalledWith("chat-123", expect.objectContaining({
         stream: true,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         onEvent: expect.any(Function),
       }));
     });
@@ -65,10 +65,11 @@ describe("useCompletion - streaming and tool calls", () => {
       vi.useRealTimers();
 
       let eventHandler: ((event: api.StreamingEvent) => void) | undefined;
-      vi.mocked(api.completeChat).mockImplementation(async (_chatId, options) => {
+      vi.mocked(api.completeChat).mockImplementation((_chatId, options) => {
         eventHandler = options?.onEvent;
         eventHandler?.({ type: "image_generated", image_url: "https://example.com/image1.png" });
         eventHandler?.({ type: "image_generated", image_url: "https://example.com/image2.png" });
+        return Promise.resolve();
       });
 
       const { result } = renderHook(() => useCompletion());
@@ -84,8 +85,6 @@ describe("useCompletion - streaming and tool calls", () => {
   describe("tool call lifecycle", () => {
     it("adds tool call on tool_call_start event", async () => {
       vi.useRealTimers();
-
-      const _capturedState: ActiveToolCall[] = [];
 
       vi.mocked(api.completeChat).mockImplementation(async (_chatId, options) => {
         options?.onEvent?.({
@@ -110,7 +109,7 @@ describe("useCompletion - streaming and tool calls", () => {
     it("updates tool call status on tool_call_result event", async () => {
       vi.useRealTimers();
 
-      vi.mocked(api.completeChat).mockImplementation(async (_chatId, options) => {
+      vi.mocked(api.completeChat).mockImplementation((_chatId, options) => {
         options?.onEvent?.({
           type: "tool_call_start",
           tool_id: "call_123",
@@ -123,6 +122,7 @@ describe("useCompletion - streaming and tool calls", () => {
           status: "completed",
           result: '{"success": true}',
         });
+        return Promise.resolve();
       });
 
       const { result } = renderHook(() => useCompletion());
@@ -137,7 +137,7 @@ describe("useCompletion - streaming and tool calls", () => {
     it("marks tool call as failed on failed result", async () => {
       vi.useRealTimers();
 
-      vi.mocked(api.completeChat).mockImplementation(async (_chatId, options) => {
+      vi.mocked(api.completeChat).mockImplementation((_chatId, options) => {
         options?.onEvent?.({
           type: "tool_call_start",
           tool_id: "call_456",
@@ -149,6 +149,7 @@ describe("useCompletion - streaming and tool calls", () => {
           status: "failed",
           error: "Tool execution failed",
         });
+        return Promise.resolve();
       });
 
       const { result } = renderHook(() => useCompletion());
@@ -165,13 +166,14 @@ describe("useCompletion - streaming and tool calls", () => {
     it("adds pending approval on tool_pending_approval event", async () => {
       vi.useRealTimers();
 
-      vi.mocked(api.completeChat).mockImplementation(async (_chatId, options) => {
+      vi.mocked(api.completeChat).mockImplementation((_chatId, options) => {
         options?.onEvent?.({
           type: "tool_pending_approval",
           tool_call_id: "call_789",
           tool_name: "dangerous-tool",
           arguments: '{"action": "delete"}',
         });
+        return Promise.resolve();
       });
 
       const { result } = renderHook(() => useCompletion());
@@ -194,7 +196,7 @@ describe("useCompletion - streaming and tool calls", () => {
       const { result } = renderHook(() => useCompletion());
 
       act(() => {
-        result.current.runCompletion("chat-123");
+        void result.current.runCompletion("chat-123");
       });
 
       await waitFor(() => {

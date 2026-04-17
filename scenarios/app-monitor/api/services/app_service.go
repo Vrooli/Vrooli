@@ -19,6 +19,16 @@ func NewAppService(repo repository.AppRepository) *AppService {
 	return NewAppServiceWithOptions(repo, nil, nil)
 }
 
+// WaitForBackgroundTasks blocks until all background hydration and invalidation
+// goroutines finish. Intended for tests that need a deterministic shutdown before
+// cleaning up temp dirs or environment variables that background subprocesses depend on.
+func (s *AppService) WaitForBackgroundTasks() {
+	if s == nil {
+		return
+	}
+	s.backgroundWg.Wait()
+}
+
 // NewAppServiceWithOptions creates a new service instance with custom dependencies for testing
 func NewAppServiceWithOptions(repo repository.AppRepository, httpClient HTTPClient, timeProvider TimeProvider) *AppService {
 	if httpClient == nil {
@@ -280,7 +290,9 @@ func (s *AppService) invalidateProxyCache(appName string) {
 		return
 	}
 
+	s.backgroundWg.Add(1)
 	go func() {
+		defer s.backgroundWg.Done()
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 

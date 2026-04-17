@@ -11,8 +11,8 @@ import (
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
-	autoexec "github.com/vrooli/browser-automation-studio/automation/executor"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
+	autoexec "github.com/vrooli/browser-automation-studio/automation/executor"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/services/ai"
@@ -30,11 +30,13 @@ const (
 // Type alias for ReplayMovieSpec from export package
 type ReplayMovieSpec = export.ReplayMovieSpec
 
-var ErrWorkflowVersionConflict = errors.New("workflow version conflict")
-var ErrWorkflowVersionNotFound = errors.New("workflow version not found")
-var ErrWorkflowRestoreProjectMismatch = errors.New("workflow does not belong to a project")
-var ErrWorkflowNameConflict = errors.New("workflow name already exists in this project")
-var ErrWorkflowCaseExpectationMissing = errors.New("case workflows must include at least one assertion node or an expected outcome")
+var (
+	ErrWorkflowVersionConflict        = errors.New("workflow version conflict")
+	ErrWorkflowVersionNotFound        = errors.New("workflow version not found")
+	ErrWorkflowRestoreProjectMismatch = errors.New("workflow does not belong to a project")
+	ErrWorkflowNameConflict           = errors.New("workflow name already exists in this project")
+	ErrWorkflowCaseExpectationMissing = errors.New("case workflows must include at least one assertion node or an expected outcome")
+)
 
 // WorkflowVersionSummary captures version metadata alongside high-level definition statistics so
 // the UI can render history timelines without rehydrating full workflow payloads on every row.
@@ -52,20 +54,20 @@ type WorkflowVersionSummary struct {
 
 // WorkflowService handles workflow business logic
 type WorkflowService struct {
-	repo             database.Repository
-	log              *logrus.Logger
-	aiClient         ai.AIClient
-	executor         autoexec.Executor
-	engineFactory    autoengine.Factory
-	artifactRecorder executionwriter.ExecutionWriter
-	planCompiler     autoexec.PlanCompiler
-	eventSinkFactory func() autoevents.Sink
-	executionDataRoot string
+	repo                  database.Repository
+	log                   *logrus.Logger
+	aiClient              ai.AIClient
+	executor              autoexec.Executor
+	engineFactory         autoengine.Factory
+	artifactRecorder      executionwriter.ExecutionWriter
+	planCompiler          autoexec.PlanCompiler
+	eventSinkFactory      func() autoevents.Sink
+	executionDataRoot     string
 	sessionProfileService *sessionprofile.Service
-	syncLocks        sync.Map
-	filePathCache    sync.Map
-	executionCancels sync.Map
-	projectSyncTimes sync.Map
+	syncLocks             sync.Map
+	filePathCache         sync.Map
+	executionCancels      sync.Map
+	projectSyncTimes      sync.Map
 }
 
 // AIWorkflowError represents a structured error returned by the AI generator when

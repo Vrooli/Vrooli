@@ -3,6 +3,7 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"development-toolchain-validator/domain/expectation"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,8 +11,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
-	"development-toolchain-validator/domain/expectation"
 )
 
 // CLIAssertionsRepository implements expectation.CLIRepository using SQLite.

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
@@ -209,7 +210,8 @@ func ensureLinuxInstall(host hostreqkit.Host, opts hostreqkit.EnsureOptions) err
 }
 
 func downloadKey() ([]byte, error) {
-	response, err := http.Get(aptKeyURL)
+	client := &http.Client{Timeout: 30 * time.Second}
+	response, err := client.Get(aptKeyURL)
 	if err != nil {
 		return nil, fmt.Errorf("download Stripe signing key: %w", err)
 	}

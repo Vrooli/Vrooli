@@ -4,10 +4,9 @@ package mocks
 
 import (
 	"context"
-	"sync"
-
 	"development-toolchain-validator/domain/reference"
 	"development-toolchain-validator/domain/skill"
+	"sync"
 )
 
 // MockRepository is a configurable mock implementation of reference.Repository.
@@ -300,25 +299,25 @@ type MockSkillRepository struct {
 	mu sync.RWMutex
 
 	// Storage for in-memory state
-	connections    map[string]*skill.Connection
-	refSkillIndex  map[string]string // "refID:skillID" -> connection id mapping
+	connections   map[string]*skill.Connection
+	refSkillIndex map[string]string // "refID:skillID" -> connection id mapping
 
 	// Error injection
-	connectErr                      error
-	getByIDErr                      error
-	getByReferenceAndSkillErr       error
-	listErr                         error
-	updateErr                       error
-	disconnectErr                   error
+	connectErr                       error
+	getByIDErr                       error
+	getByReferenceAndSkillErr        error
+	listErr                          error
+	updateErr                        error
+	disconnectErr                    error
 	disconnectByReferenceAndSkillErr error
 
 	// Call tracking
-	connectCalls                      []skill.ConnectInput
-	getByIDCalls                      []string
-	getByReferenceAndSkillCalls       [][2]string
-	listCalls                         []skill.ListOptions
-	updateCalls                       []skillUpdateCall
-	disconnectCalls                   []string
+	connectCalls                       []skill.ConnectInput
+	getByIDCalls                       []string
+	getByReferenceAndSkillCalls        [][2]string
+	listCalls                          []skill.ListOptions
+	updateCalls                        []skillUpdateCall
+	disconnectCalls                    []string
 	disconnectByReferenceAndSkillCalls [][2]string
 }
 

@@ -3,7 +3,6 @@ package sqlite
 import (
 	"context"
 	"database/sql"
-
 	"development-toolchain-validator/domain/report"
 )
 

@@ -836,7 +836,6 @@ func TestCanPerformAIOperation_BYOKBypass(t *testing.T) {
 	ctx := context.Background()
 
 	canProceed, errCode, errMsg, remaining, err := svc.CanPerformAIOperation(ctx, "test@example.com", OpAIWorkflowGenerate, true)
-
 	if err != nil {
 		t.Fatalf("CanPerformAIOperation() returned error: %v", err)
 	}
@@ -867,7 +866,6 @@ func TestCanPerformAIOperation_TierDeniesAI(t *testing.T) {
 	ctx := context.Background()
 
 	canProceed, errCode, errMsg, remaining, err := svc.CanPerformAIOperation(ctx, "test@example.com", OpAIWorkflowGenerate, false)
-
 	if err != nil {
 		t.Fatalf("CanPerformAIOperation() returned error: %v", err)
 	}
@@ -898,7 +896,6 @@ func TestCanPerformAIOperation_TierAllowsAI_NoCreditsAccess(t *testing.T) {
 	ctx := context.Background()
 
 	canProceed, errCode, errMsg, remaining, err := svc.CanPerformAIOperation(ctx, "test@example.com", OpAIWorkflowGenerate, false)
-
 	if err != nil {
 		t.Fatalf("CanPerformAIOperation() returned error: %v", err)
 	}
@@ -949,7 +946,6 @@ func TestCanPerformAIOperation_InsufficientCredits(t *testing.T) {
 
 	// Now check if we can perform another operation
 	canProceed, errCode, errMsg, remaining, err := svc.CanPerformAIOperation(ctx, "test@example.com", OpAIWorkflowGenerate, false)
-
 	if err != nil {
 		t.Fatalf("CanPerformAIOperation() returned error: %v", err)
 	}
@@ -980,7 +976,6 @@ func TestCanPerformAIOperation_Success(t *testing.T) {
 	ctx := context.Background()
 
 	canProceed, errCode, errMsg, remaining, err := svc.CanPerformAIOperation(ctx, "test@example.com", OpAIWorkflowGenerate, false)
-
 	if err != nil {
 		t.Fatalf("CanPerformAIOperation() returned error: %v", err)
 	}
@@ -1012,7 +1007,6 @@ func TestCanPerformAIOperation_EntitlementError_FailsOpen(t *testing.T) {
 	ctx := context.Background()
 
 	canProceed, errCode, _, _, err := svc.CanPerformAIOperation(ctx, "test@example.com", OpAIWorkflowGenerate, false)
-
 	if err != nil {
 		t.Fatalf("CanPerformAIOperation() returned error: %v", err)
 	}
@@ -1035,7 +1029,6 @@ func TestCanPerformAIOperation_EmptyUserIdentity(t *testing.T) {
 
 	// Empty user identity should still work (normalized to empty string)
 	canProceed, _, _, remaining, err := svc.CanPerformAIOperation(ctx, "", OpAIWorkflowGenerate, false)
-
 	if err != nil {
 		t.Fatalf("CanPerformAIOperation() returned error: %v", err)
 	}
@@ -1087,7 +1080,6 @@ func TestCanPerformAIOperation_UnlimitedTier(t *testing.T) {
 	ctx := context.Background()
 
 	canProceed, errCode, errMsg, remaining, err := svc.CanPerformAIOperation(ctx, "test@example.com", OpAIWorkflowGenerate, false)
-
 	if err != nil {
 		t.Fatalf("CanPerformAIOperation() returned error: %v", err)
 	}
@@ -1129,7 +1121,6 @@ func TestCanPerformAIOperation_DifferentOperationTypes(t *testing.T) {
 			ctx := context.Background()
 
 			canProceed, _, _, _, err := svc.CanPerformAIOperation(ctx, "test@example.com", tc.operation, false)
-
 			if err != nil {
 				t.Fatalf("CanPerformAIOperation() returned error for %s: %v", tc.operation, err)
 			}
@@ -1319,7 +1310,6 @@ func TestCanPerformAIOperation_InsufficientCredits_MessageIncludesRemaining(t *t
 
 	// Now check - should have insufficient credits
 	canProceed, errCode, errMsg, remaining, err := svc.CanPerformAIOperation(ctx, "test@example.com", OpAIWorkflowGenerate, false)
-
 	if err != nil {
 		t.Fatalf("CanPerformAIOperation() returned error: %v", err)
 	}
@@ -1342,7 +1332,7 @@ func TestCanPerformAIOperation_InsufficientCredits_MessageIncludesRemaining(t *t
 func TestCanPerformAIOperation_TierDenied_MessageDescriptive(t *testing.T) {
 	mock := &MockEntitlementProvider{
 		Entitlement:    &entitlement.Entitlement{Tier: entitlement.TierFree},
-		AICreditsLimit: 100, // Has credits
+		AICreditsLimit: 100,   // Has credits
 		CanUseAI:       false, // But tier denies AI
 	}
 	svc, db := createTestServiceWithEntitlementProvider(t, mock)
@@ -1351,7 +1341,6 @@ func TestCanPerformAIOperation_TierDenied_MessageDescriptive(t *testing.T) {
 	ctx := context.Background()
 
 	canProceed, errCode, errMsg, _, err := svc.CanPerformAIOperation(ctx, "test@example.com", OpAIWorkflowGenerate, false)
-
 	if err != nil {
 		t.Fatalf("CanPerformAIOperation() returned error: %v", err)
 	}

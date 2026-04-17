@@ -151,22 +151,6 @@ func generateDependencyGraph(graphType string) (*types.DependencyGraph, error) {
 	return builder.Generate(graphType)
 }
 
-// generateDependencyGraphWithSeams generates a dependency graph using injected seams.
-// This enables deterministic testing by controlling time and ID generation.
-func generateDependencyGraphWithSeams(graphType string, deps *seams.Dependencies) (*types.DependencyGraph, error) {
-	if analyzer := analyzerInstance(); analyzer != nil {
-		return analyzer.generateGraphWithSeams(graphType, deps)
-	}
-
-	depSvc := defaultDependencyService()
-	builder := graphBuilder{
-		store:   depSvc.store,
-		catalog: depSvc.detector,
-		seams:   deps,
-	}
-	return builder.Generate(graphType)
-}
-
 func calculateComplexityScore(nodes []types.GraphNode, edges []types.GraphEdge) float64 {
 	if len(nodes) == 0 {
 		return 0.0

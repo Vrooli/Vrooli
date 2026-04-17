@@ -90,7 +90,8 @@ func marshalIDList(values []string) json.RawMessage {
 
 func scanStrategicMilestoneRow(scanner interface {
 	Scan(dest ...interface{}) error
-}) (StrategicMilestone, error) {
+},
+) (StrategicMilestone, error) {
 	var milestone StrategicMilestone
 	err := scanner.Scan(
 		&milestone.ID,

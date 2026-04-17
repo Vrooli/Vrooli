@@ -4,7 +4,6 @@ package healers
 
 import (
 	"context"
-
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/healing/strategies"
 )

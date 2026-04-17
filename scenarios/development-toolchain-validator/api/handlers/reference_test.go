@@ -3,17 +3,16 @@
 package handlers
 
 import (
+	"development-toolchain-validator/domain/reference"
+	"development-toolchain-validator/internal/config"
+	"development-toolchain-validator/internal/mocks"
+	"development-toolchain-validator/internal/testutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/gorilla/mux"
-
-	"development-toolchain-validator/domain/reference"
-	"development-toolchain-validator/internal/config"
-	"development-toolchain-validator/internal/mocks"
-	"development-toolchain-validator/internal/testutil"
 )
 
 // setupTestRouter creates a router with the reference handler registered.
@@ -128,9 +127,9 @@ func TestReferenceHandler_Create(t *testing.T) {
 		category   string
 	}{
 		{
-			name: "valid_input",
-			body: `{"slug":"test-scenario","name":"Test Scenario","template":"react-vite","path":"` + tempDir + `"}`,
-			setupMock: func(m *mocks.MockRepository) {},
+			name:       "valid_input",
+			body:       `{"slug":"test-scenario","name":"Test Scenario","template":"react-vite","path":"` + tempDir + `"}`,
+			setupMock:  func(m *mocks.MockRepository) {},
 			wantStatus: http.StatusCreated,
 			category:   "happy_path",
 		},
@@ -562,8 +561,8 @@ func TestReferenceHandler_Create_DryRun(t *testing.T) {
 
 			if tc.wantDryRun {
 				var response struct {
-					DryRun  bool   `json:"dry_run"`
-					Success bool   `json:"success"`
+					DryRun  bool `json:"dry_run"`
+					Success bool `json:"success"`
 					Data    struct {
 						ID   string `json:"id"`
 						Slug string `json:"slug"`

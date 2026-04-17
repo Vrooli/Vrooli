@@ -1,9 +1,8 @@
 package model
 
 import (
-	"fmt"
-
 	"agent-inbox/cli/internal/support"
+	"fmt"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"

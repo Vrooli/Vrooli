@@ -3,9 +3,8 @@ package dag
 import (
 	"fmt"
 	"os"
-	"strings"
-
 	"scenario-dependency-analyzer/cli/internal/support"
+	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

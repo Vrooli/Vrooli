@@ -3,13 +3,12 @@
 package handlers
 
 import (
+	"development-toolchain-validator/domain/expectation"
 	"encoding/json"
 	"errors"
 	"net/http"
 
 	"github.com/gorilla/mux"
-
-	"development-toolchain-validator/domain/expectation"
 )
 
 // ExpectationHandler handles HTTP requests for expectation operations.

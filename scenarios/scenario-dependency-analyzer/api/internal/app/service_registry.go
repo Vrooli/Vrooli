@@ -175,8 +175,10 @@ type scenarioService struct {
 }
 
 func (s *scenarioService) ListScenarios() ([]types.ScenarioSummary, error) {
-	metadata := map[string]types.ScenarioSummary{}
-	var err error
+	var (
+		metadata map[string]types.ScenarioSummary
+		err      error
+	)
 	if s.store != nil {
 		metadata, err = s.store.LoadScenarioMetadataMap()
 	} else {

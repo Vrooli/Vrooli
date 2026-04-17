@@ -1,11 +1,10 @@
 package tool
 
 import (
+	"agent-inbox/cli/internal/support"
 	"fmt"
 	"net/url"
 	"strings"
-
-	"agent-inbox/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"

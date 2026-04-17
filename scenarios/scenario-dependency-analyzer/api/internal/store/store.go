@@ -69,7 +69,7 @@ func (s *Store) StoreDependencies(analysis *types.DependencyAnalysisResponse, ex
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	if _, err := tx.Exec("DELETE FROM scenario_dependencies WHERE scenario_name = $1", analysis.Scenario); err != nil {
 		return err
@@ -175,7 +175,7 @@ func (s *Store) PersistOptimizationRecommendations(scenario string, recs []types
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	if _, err := tx.Exec("DELETE FROM optimization_recommendations WHERE scenario_name = $1", scenario); err != nil {
 		return err

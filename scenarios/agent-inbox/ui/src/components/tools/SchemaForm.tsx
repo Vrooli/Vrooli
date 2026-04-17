@@ -44,7 +44,7 @@ export function SchemaForm({
   // Defensive: parameters.properties might be undefined for tools with no parameters
   const defaultValues = useMemo(() => {
     const values: Record<string, unknown> = {};
-    const properties = parameters?.properties ?? {};
+    const properties = parameters.properties;
     for (const [name, schema] of Object.entries(properties)) {
       if (initialValues?.[name] !== undefined) {
         values[name] = initialValues[name];
@@ -53,7 +53,7 @@ export function SchemaForm({
       }
     }
     return values;
-  }, [parameters?.properties, initialValues]);
+  }, [parameters.properties, initialValues]);
 
   const [values, setValues] = useState<Record<string, unknown>>(defaultValues);
   const [errors, setErrors] = useState<string[]>([]);
@@ -68,14 +68,11 @@ export function SchemaForm({
   // Validate the form
   const validate = useCallback((): boolean => {
     const validationErrors: string[] = [];
-    const requiredFields = parameters?.required ?? [];
-    const props = parameters?.properties ?? {};
+    const requiredFields = parameters.required ?? [];
 
     for (const fieldName of requiredFields) {
       const value = values[fieldName];
       if (value === undefined || value === null || value === "") {
-        // Only look up schema if properties exist
-        const _schema = props[fieldName];
         const label = fieldName
           .replace(/_/g, " ")
           .replace(/([a-z])([A-Z])/g, "$1 $2")
@@ -106,8 +103,8 @@ export function SchemaForm({
     [validate, values, onSubmit]
   );
 
-  const required = parameters?.required ?? [];
-  const properties = parameters?.properties ?? {};
+  const required = parameters.required ?? [];
+  const properties = parameters.properties;
   const propertyEntries = Object.entries(properties);
 
   // No parameters - just show submit button

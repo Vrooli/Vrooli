@@ -228,6 +228,7 @@ describe('previewWorkspaceStore', () => {
       historyIndex: -1,
       initialPreviewUrl: null,
       isLogsVisible: false,
+      isFullView: false,
     });
   });
 

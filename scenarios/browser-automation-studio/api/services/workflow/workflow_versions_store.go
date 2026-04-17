@@ -165,4 +165,3 @@ func getWorkflowVersion(ctx context.Context, project *database.ProjectIndex, wor
 	}
 	return &pb, nil
 }
-

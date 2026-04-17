@@ -11,4 +11,3 @@ import (
 func (s *WorkflowService) HydrateProject(ctx context.Context, project *database.ProjectIndex) (*basprojects.Project, error) {
 	return hydrateProjectProto(ctx, project)
 }
-

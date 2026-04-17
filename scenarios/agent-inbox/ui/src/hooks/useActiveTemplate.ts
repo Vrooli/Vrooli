@@ -118,7 +118,7 @@ export function useActiveTemplate(
     },
     onSettled: () => {
       // Refetch to ensure consistency
-      queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
+      void queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
     },
   });
 
@@ -157,7 +157,7 @@ export function useActiveTemplate(
     },
     onSettled: () => {
       // Refetch to ensure consistency
-      queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
+      void queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
     },
   });
 

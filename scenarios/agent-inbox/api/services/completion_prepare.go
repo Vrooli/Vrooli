@@ -3,12 +3,11 @@
 package services
 
 import (
+	"agent-inbox/domain"
+	"agent-inbox/integrations"
 	"context"
 	"fmt"
 	"log"
-
-	"agent-inbox/domain"
-	"agent-inbox/integrations"
 )
 
 // CompletionRequest contains validated data needed to make a completion.

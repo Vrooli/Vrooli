@@ -1,12 +1,11 @@
 package schema
 
 import (
+	"browser-automation-studio/cli/internal/api"
+	"browser-automation-studio/cli/internal/appctx"
 	"fmt"
 	"os"
 	"strings"
-
-	"browser-automation-studio/cli/internal/api"
-	"browser-automation-studio/cli/internal/appctx"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

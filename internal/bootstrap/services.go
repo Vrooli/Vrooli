@@ -19,7 +19,11 @@ type Services struct {
 	Home   string
 	Stdout io.Writer
 	Stderr io.Writer
+	// Logger is the bootstrap-scoped logger (subsystem=bootstrap), used for
+	// emissions from this layer. Child services receive base instead so
+	// their own subsystem attributes do not stack atop this one.
 	Logger *slog.Logger
+	base   *slog.Logger
 
 	once         sync.Once
 	orchestrator *orchestrator.Service
@@ -39,6 +43,7 @@ func New(root, home string, stdout, stderr io.Writer, logger *slog.Logger) *Serv
 		Stdout: stdout,
 		Stderr: stderr,
 		Logger: logx.WithSubsystem(baseLogger, "bootstrap"),
+		base:   baseLogger,
 	}
 }
 
@@ -63,13 +68,13 @@ func (s *Services) Project() *project.Controller {
 }
 
 func (s *Services) LifecycleRunner() (*lifecycle.Runner, error) {
-	return lifecycle.NewRunner(s.Root, s.Home, s.Stdout, s.Stderr, s.Logger)
+	return lifecycle.NewRunner(s.Root, s.Home, s.Stdout, s.Stderr, s.base)
 }
 
 func (s *Services) init() {
 	s.once.Do(func() {
 		s.resources = resources.NewController(s.Root, s.Home)
-		s.orchestrator = orchestrator.New(s.Root, s.Home, s.Stdout, s.Stderr, s.Logger)
+		s.orchestrator = orchestrator.New(s.Root, s.Home, s.Stdout, s.Stderr, s.base)
 		s.maintenance = maintenance.NewController(s.Root, s.Home)
 		s.project = project.NewWithDependencies(s.Root, s.Home, s.Stdout, s.Stderr, project.Dependencies{
 			Resources:   s.resources,

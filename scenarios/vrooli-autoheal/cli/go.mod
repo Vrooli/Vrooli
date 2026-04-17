@@ -2,6 +2,8 @@ module vrooli-autoheal/cli
 
 go 1.22
 
+require vrooli-autoheal v0.0.0
+
 require github.com/vrooli/cli-core v0.0.0
 
 require (
@@ -16,3 +18,5 @@ replace github.com/vrooli/cli-core => ../../../packages/cli-core
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
 replace github.com/vrooli/vrooli => ../../..
+
+replace vrooli-autoheal => ../api

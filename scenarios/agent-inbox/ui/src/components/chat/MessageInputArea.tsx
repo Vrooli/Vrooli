@@ -57,7 +57,7 @@ export function MessageInputArea({ state, inputTestId, sendButtonTestId }: Messa
         existingMessage={templateActions.savedMessage}
         templateName={templateActions.pendingTemplate?.name || ""}
         isMerging={isMerging}
-        onAction={templateActions.handleMergeAction}
+        onAction={(action) => { void templateActions.handleMergeAction(action); }}
       />
 
       {enableAttachments && (

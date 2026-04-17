@@ -1,11 +1,10 @@
 package sessions
 
 import (
+	"browser-automation-studio/cli/internal/appctx"
 	"encoding/json"
 	"fmt"
 	"strings"
-
-	"browser-automation-studio/cli/internal/appctx"
 
 	"github.com/vrooli/cli-core/cliutil"
 )

@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -19,17 +18,9 @@ func Current() Host {
 	return currentHost()
 }
 
-func Inspect(environment string) (Report, error) {
-	return Report{}, errors.New("runtime inspection requires explicit host requirements; use InspectRequirements")
-}
-
 func InspectRequirements(environment string, resolution hostreq.Resolution) (Report, error) {
 	env := hostreq.NormalizeEnvironment(environment)
 	return inspectResolution(Current(), env, resolution)
-}
-
-func Ensure(opts EnsureOptions) (Report, error) {
-	return Report{}, errors.New("runtime ensure requires explicit host requirements; use EnsureRequirements")
 }
 
 func EnsureRequirements(opts EnsureOptions, resolution hostreq.Resolution) (Report, error) {

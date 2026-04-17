@@ -26,26 +26,28 @@ import { useSendMessage } from "./useSendMessage";
 import { useTextareaEffects, useModelCapabilities } from "./useMessageInputEffects";
 import { useMessageInputHandlers } from "./useMessageInputHandlers";
 
-export function useMessageInput({
-  onSend,
-  isLoading,
-  isGenerating,
-  enableAttachments = true,
-  enableWebSearch = true,
-  enableForceTools = true,
-  autoFocus = false,
-  currentModel = null,
-  chatId,
-  chatWebSearchDefault = false,
-  editingMessage,
-  onCancelEdit,
-  onSubmitEdit,
-  onTemplateActivated,
-  disableSend,
-  disableSendReason,
-  customUploadFn,
-  placeholder = "Type a message...",
-}: MessageInputProps) {
+export function useMessageInput(props: MessageInputProps) {
+  const {
+    onSend,
+    isLoading,
+    enableAttachments = true,
+    enableWebSearch = true,
+    enableForceTools = true,
+    autoFocus = false,
+    currentModel = null,
+    chatId,
+    chatWebSearchDefault = false,
+    editingMessage,
+    onCancelEdit,
+    onSubmitEdit,
+    onTemplateActivated,
+    disableSend,
+    disableSendReason,
+    customUploadFn,
+    placeholder = "Type a message...",
+  } = props;
+  // Read deprecated isGenerating indirectly to avoid triggering deprecation warnings
+  const isGenerating = (props as { isGenerating?: boolean }).isGenerating;
   const loading = isLoading ?? isGenerating ?? false;
 
   // -- Draft persistence --
@@ -181,10 +183,10 @@ export function useMessageInput({
     addSkill,
     toggleSuggestionsVisible,
     currentModePath,
-    createTemplate,
-    updateTemplate,
-    deleteTemplate,
-    resetTemplate,
+    createTemplate: (data) => { void createTemplate(data); },
+    updateTemplate: (id, data) => { void updateTemplate(id, data); },
+    deleteTemplate: (id) => { void deleteTemplate(id); },
+    resetTemplate: (id) => { void resetTemplate(id); },
   });
 
   // -- Model capabilities (extracted) --

@@ -42,6 +42,25 @@ type StoredScanPayload = {
   reports: ScenarioQualityReport[]
 }
 
+function SortIcon({
+  column,
+  sortColumn,
+  sortDirection,
+}: {
+  column: SortColumn
+  sortColumn: SortColumn
+  sortDirection: SortDirection
+}) {
+  if (sortColumn !== column) {
+    return <ArrowDown size={14} className="ml-1 inline opacity-30" />
+  }
+
+  return sortDirection === 'asc' ? (
+    <ArrowUp size={14} className="ml-1 inline" />
+  ) : (
+    <ArrowDown size={14} className="ml-1 inline" />
+  )
+}
 
 export default function QualityScanner() {
   const [entries, setEntries] = useState<CatalogEntry[]>([])
@@ -753,17 +772,6 @@ function ReportTable({
     return sorted
   }, [reports, sortColumn, sortDirection])
 
-  const SortIcon = ({ column }: { column: SortColumn }) => {
-    if (sortColumn !== column) {
-      return <ArrowDown size={14} className="ml-1 inline opacity-30" />
-    }
-    return sortDirection === 'asc' ? (
-      <ArrowUp size={14} className="ml-1 inline" />
-    ) : (
-      <ArrowDown size={14} className="ml-1 inline" />
-    )
-  }
-
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -782,7 +790,7 @@ function ReportTable({
                 onClick={() => handleSort('entity')}
               >
                 Entity
-                <SortIcon column="entity" />
+                <SortIcon column="entity" sortColumn={sortColumn} sortDirection={sortDirection} />
               </button>
             </th>
             <th className="px-4 py-3 min-w-[140px]">
@@ -792,7 +800,7 @@ function ReportTable({
                 onClick={() => handleSort('status')}
               >
                 Status
-                <SortIcon column="status" />
+                <SortIcon column="status" sortColumn={sortColumn} sortDirection={sortDirection} />
               </button>
             </th>
             <th className="px-4 py-3 text-center">
@@ -802,7 +810,7 @@ function ReportTable({
                 onClick={() => handleSort('issues')}
               >
                 Issues
-                <SortIcon column="issues" />
+                <SortIcon column="issues" sortColumn={sortColumn} sortDirection={sortDirection} />
               </button>
             </th>
             <th className="px-4 py-3 text-center">
@@ -812,7 +820,7 @@ function ReportTable({
                 onClick={() => handleSort('targets')}
               >
                 Targets
-                <SortIcon column="targets" />
+                <SortIcon column="targets" sortColumn={sortColumn} sortDirection={sortDirection} />
               </button>
             </th>
             <th className="px-4 py-3 text-center">
@@ -822,7 +830,7 @@ function ReportTable({
                 onClick={() => handleSort('requirements')}
               >
                 Reqs
-                <SortIcon column="requirements" />
+                <SortIcon column="requirements" sortColumn={sortColumn} sortDirection={sortDirection} />
               </button>
             </th>
             <th className="px-4 py-3 text-right">Actions</th>

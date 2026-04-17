@@ -1,13 +1,12 @@
 package integrations
 
 import (
+	"agent-inbox/domain"
 	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
-
-	"agent-inbox/domain"
 
 	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 	"google.golang.org/protobuf/encoding/protojson"

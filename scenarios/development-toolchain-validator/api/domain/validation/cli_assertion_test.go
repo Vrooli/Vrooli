@@ -3,15 +3,14 @@ package validation
 
 import (
 	"context"
-	"testing"
-
 	"development-toolchain-validator/domain/expectation"
+	"testing"
 )
 
 func TestExtractJSONPath(t *testing.T) {
 	// [REQ:REQ-P0-008a] JSON parsing robust
 	data := map[string]interface{}{
-		"name": "test",
+		"name":  "test",
 		"count": float64(42),
 		"items": []interface{}{
 			map[string]interface{}{"id": float64(1)},
@@ -256,7 +255,6 @@ func TestEvaluateAssertion_Exists(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := evaluateAssertion(tt.actual, expectation.OpExists, nil)
-
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 				return
@@ -418,12 +416,12 @@ func TestCLIExecutor_IntegrationWithJSONPath(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
-		name          string
-		command       string
-		jsonPath      string
-		operator      expectation.AssertionOperator
-		expected      interface{}
-		wantStatus    ValidationStatus
+		name       string
+		command    string
+		jsonPath   string
+		operator   expectation.AssertionOperator
+		expected   interface{}
+		wantStatus ValidationStatus
 	}{
 		{
 			name:       "extract nested field",
@@ -530,10 +528,10 @@ func TestCountAssertionResults(t *testing.T) {
 
 func TestToFloat64(t *testing.T) {
 	tests := []struct {
-		name    string
-		input   interface{}
-		want    float64
-		wantOK  bool
+		name   string
+		input  interface{}
+		want   float64
+		wantOK bool
 	}{
 		{"float64", float64(42.5), 42.5, true},
 		{"int", 42, 42, true},

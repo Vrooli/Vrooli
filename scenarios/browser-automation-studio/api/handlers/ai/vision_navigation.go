@@ -28,10 +28,10 @@ import (
 
 // VisionNavigationHandler handles AI-powered vision navigation.
 type VisionNavigationHandler struct {
-	log            *logrus.Logger
-	creditService  credits.CreditService
-	registry       *vision.NavigatorRegistry
-	playwrightNav  *vision.PlaywrightVisionNavigator // Direct reference for callback handling
+	log           *logrus.Logger
+	creditService credits.CreditService
+	registry      *vision.NavigatorRegistry
+	playwrightNav *vision.PlaywrightVisionNavigator // Direct reference for callback handling
 }
 
 // VisionNavigationHandlerOption configures VisionNavigationHandler.
@@ -81,8 +81,8 @@ type AINavigateRequest struct {
 	Prompt        string `json:"prompt"`
 	Model         string `json:"model"`
 	MaxSteps      int    `json:"max_steps,omitempty"`
-	APIKey        string `json:"api_key,omitempty"`           // Optional: use BYOK
-	NavigatorType string `json:"navigator_type,omitempty"`    // Optional: "playwright" | "claude_code"
+	APIKey        string `json:"api_key,omitempty"`        // Optional: use BYOK
+	NavigatorType string `json:"navigator_type,omitempty"` // Optional: "playwright" | "claude_code"
 }
 
 // AINavigateResponse is returned when navigation starts.

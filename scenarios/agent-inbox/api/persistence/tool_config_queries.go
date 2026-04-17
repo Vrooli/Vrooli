@@ -4,11 +4,10 @@
 package persistence
 
 import (
+	"agent-inbox/domain"
 	"context"
 	"database/sql"
 	"fmt"
-
-	"agent-inbox/domain"
 )
 
 // GetEffectiveToolEnabled determines if a tool is enabled for a chat.

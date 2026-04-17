@@ -15,14 +15,13 @@
 package integrations
 
 import (
+	"agent-inbox/domain"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"sync"
 	"time"
-
-	"agent-inbox/domain"
 )
 
 // ScenarioHandler defines the interface for executing tools from a specific scenario.

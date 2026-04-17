@@ -10,14 +10,14 @@ import (
 	"net/http"
 	"sync"
 	"time"
-
-	"github.com/gorilla/mux"
-
 	"vrooli-autoheal/internal/checks"
-	apierrors "vrooli-autoheal/internal/errors"
 	"vrooli-autoheal/internal/persistence"
 	"vrooli-autoheal/internal/platform"
 	"vrooli-autoheal/internal/watchdog"
+
+	"github.com/gorilla/mux"
+
+	apierrors "vrooli-autoheal/internal/errors"
 )
 
 // StoreInterface defines the database operations needed by handlers

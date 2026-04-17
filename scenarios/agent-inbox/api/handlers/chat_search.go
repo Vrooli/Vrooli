@@ -3,13 +3,12 @@
 package handlers
 
 import (
+	"agent-inbox/domain"
+	"agent-inbox/middleware"
 	"encoding/json"
 	"log"
 	"net/http"
 	"strings"
-
-	"agent-inbox/domain"
-	"agent-inbox/middleware"
 )
 
 // SearchChats performs full-text search across chat names and message content.

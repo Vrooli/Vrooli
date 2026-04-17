@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -332,8 +333,8 @@ type MockProcess struct {
 	StartErr      error
 	StopErr       error
 	WaitErr       error
-	StartCalled   int
-	StopCalled    int
+	StartCalled   atomic.Int64
+	StopCalled    atomic.Int64
 	SimulateCrash chan struct{} // Close to simulate a crash
 
 	mu       sync.Mutex
@@ -355,7 +356,7 @@ func (m *MockProcess) Start() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.StartCalled++
+	m.StartCalled.Add(1)
 	if m.StartErr != nil {
 		return m.StartErr
 	}
@@ -393,7 +394,7 @@ func (m *MockProcess) Stop(gracePeriod time.Duration) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.StopCalled++
+	m.StopCalled.Add(1)
 	if m.StopErr != nil {
 		return m.StopErr
 	}

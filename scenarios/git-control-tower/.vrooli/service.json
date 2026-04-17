@@ -142,7 +142,7 @@
     "api": {
       "description": "Git Control Tower API port",
       "env_var": "API_PORT",
-      "port": 18700,
+      "port": 18710,
       "range": "15000-19999"
     },
     "ui": {

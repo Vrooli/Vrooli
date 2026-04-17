@@ -137,8 +137,8 @@
       "steps": [
         {
           "name": "initialize-database",
-          "run": "resource-postgres content create-database main scenario_authenticator",
-          "description": "Create authentication database"
+          "run": "resource-postgres content create-database --instance main scenario_authenticator",
+          "description": "Create authentication database (idempotent)"
         },
         {
           "name": "add-data",
@@ -237,7 +237,7 @@
           },
           {
             "file": "initialization/postgres/seed.sql",
-            "type": "data"
+            "type": "seed"
           }
         ]
       },

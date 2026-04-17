@@ -13,7 +13,8 @@ async function typedFetch<T>(url: string, init?: RequestInit): Promise<T> {
   if (!res.ok) {
     throw new Error(`API request failed: ${res.status}`);
   }
-  return res.json();
+  const data = (await res.json()) as unknown;
+  return data as T;
 }
 
 export function fetchHealth() {

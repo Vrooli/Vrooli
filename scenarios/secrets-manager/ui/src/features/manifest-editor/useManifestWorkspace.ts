@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   generateDeploymentManifest,
@@ -6,8 +6,6 @@ import {
   setScenarioOverride,
   deleteScenarioOverride,
   copyOverridesFromTier,
-  type DeploymentManifestResponse,
-  type DeploymentManifestRequest,
   type SetOverridePayload
 } from "../../lib/api";
 import type { FilterMode, PendingOverrideEdit, OverrideFields } from "./types";
@@ -79,7 +77,7 @@ export function useManifestWorkspace({
     if (initialScenario && initialScenario !== scenario) {
       setScenarioInternal(initialScenario);
     }
-  }, [initialScenario]);
+  }, [initialScenario, scenario]);
 
   // Debounce scenario input to prevent excessive API calls
   useEffect(() => {
@@ -119,12 +117,15 @@ export function useManifestWorkspace({
   });
 
   // Build set of overridden secrets from server data
-  const overriddenSecrets = new Set<string>();
-  if (overridesQuery.data?.overrides) {
-    for (const override of overridesQuery.data.overrides) {
-      overriddenSecrets.add(secretIdToString({ resource: override.resource_name, key: override.secret_key }));
+  const overriddenSecrets = useMemo(() => {
+    const next = new Set<string>();
+    if (overridesQuery.data?.overrides) {
+      for (const override of overridesQuery.data.overrides) {
+        next.add(secretIdToString({ resource: override.resource_name, key: override.secret_key }));
+      }
     }
-  }
+    return next;
+  }, [overridesQuery.data?.overrides]);
 
   // Auto-expand resources when manifest loads
   useEffect(() => {
@@ -134,24 +135,33 @@ export function useManifestWorkspace({
   }, [manifest?.resources]);
 
   // Group secrets by resource
-  const resourceGroups = manifest?.secrets
-    ? groupSecretsByResource(manifest.secrets, excludedResources, excludedSecrets, overriddenSecrets)
-    : [];
+  const resourceGroups = useMemo(
+    () => (manifest?.secrets
+      ? groupSecretsByResource(manifest.secrets, excludedResources, excludedSecrets)
+      : []),
+    [manifest?.secrets, excludedResources, excludedSecrets]
+  );
 
   // Filter resource groups
-  const filteredGroups = filterResourceGroups(
-    resourceGroups,
-    filter,
-    excludedResources,
-    excludedSecrets,
-    overriddenSecrets,
-    searchQuery
+  const filteredGroups = useMemo(
+    () => filterResourceGroups(
+      resourceGroups,
+      filter,
+      excludedResources,
+      excludedSecrets,
+      overriddenSecrets,
+      searchQuery
+    ),
+    [resourceGroups, filter, excludedResources, excludedSecrets, overriddenSecrets, searchQuery]
   );
 
   // Compute summary statistics
-  const summary = manifest
-    ? computeManifestSummary(manifest, excludedResources, excludedSecrets, overriddenSecrets)
-    : { totalSecrets: 0, strategizedSecrets: 0, blockingSecrets: 0, excludedSecrets: 0, overriddenSecrets: 0, resourceCount: 0 };
+  const summary = useMemo(
+    () => (manifest
+      ? computeManifestSummary(manifest, excludedResources, excludedSecrets, overriddenSecrets)
+      : { totalSecrets: 0, strategizedSecrets: 0, blockingSecrets: 0, excludedSecrets: 0, overriddenSecrets: 0, resourceCount: 0 }),
+    [manifest, excludedResources, excludedSecrets, overriddenSecrets]
+  );
 
   // Get the selected secret object
   const selectedSecretData = selectedSecret && manifest?.secrets

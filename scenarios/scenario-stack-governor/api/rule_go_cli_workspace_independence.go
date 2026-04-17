@@ -202,10 +202,6 @@ func checkCliInternalImports(repoRoot, scenarioName string) []Finding {
 	return findings
 }
 
-func checkProtoReplaceForCliModules(repoRoot, scenarioName string) []Finding {
-	return nil
-}
-
 // parseGoModModule extracts the module path from a go.mod file using golang.org/x/mod/modfile.
 func parseGoModModule(goModPath string) string {
 	f := parseGoModFile(goModPath)

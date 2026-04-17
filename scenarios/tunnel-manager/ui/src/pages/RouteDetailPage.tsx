@@ -2,9 +2,9 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { fetchRoute, fetchProbeHistory, type Route, type ProbeResult } from "../lib/api";
-import { timeAgo } from "../lib/utils";
+import { statusToVariant, timeAgo } from "../lib/utils";
 import { Tooltip } from "../components/ui/tooltip";
-import { StatusBadge, statusToVariant } from "../components/ui/status-badge";
+import { StatusBadge } from "../components/ui/status-badge";
 import { RefreshButton } from "../components/ui/refresh-button";
 import { QueryState } from "../components/ui/query-state";
 

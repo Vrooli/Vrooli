@@ -270,7 +270,26 @@ func (app *App) newScenarioLifecycleRunner(ctx *CommandContext) (*lifecycle.Runn
 	if err != nil {
 		return nil, err
 	}
-	return services.LifecycleRunner()
+	runner, err := services.LifecycleRunner()
+	if err != nil {
+		return nil, err
+	}
+	return runner.WithVerbosity(verbosityFromGlobals(ctx.Globals)), nil
+}
+
+// verbosityFromGlobals translates CLI globals into the lifecycle package's
+// own Verbosity enum. The two types are intentionally not the same — the
+// lifecycle package does not import rootcli — so we map them here at the
+// seam between the CLI shell and the scenario runner.
+func verbosityFromGlobals(g rootcli.GlobalOptions) lifecycle.Verbosity {
+	switch g.Output() {
+	case rootcli.VerbosityQuiet:
+		return lifecycle.VerbosityQuiet
+	case rootcli.VerbosityVerbose:
+		return lifecycle.VerbosityVerbose
+	default:
+		return lifecycle.VerbosityNormal
+	}
 }
 
 func (app *App) newScenarioService(ctx *CommandContext) (*orchestrator.Service, error) {

@@ -56,7 +56,7 @@ export function ToolSelector({
     return allTools.filter(
       ({ scenario, tool }) =>
         tool.tool.name.toLowerCase().includes(query) ||
-        tool.tool.description?.toLowerCase().includes(query) ||
+        tool.tool.description.toLowerCase().includes(query) ||
         scenario.toLowerCase().includes(query) ||
         tool.tool.category?.toLowerCase().includes(query)
     );
@@ -142,8 +142,8 @@ export function ToolSelector({
     if (focusedIndex === -1) {
       searchInputRef.current?.focus();
     } else if (toolRefs.current[focusedIndex]) {
-      toolRefs.current[focusedIndex]?.focus();
-      toolRefs.current[focusedIndex]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      toolRefs.current[focusedIndex].focus();
+      toolRefs.current[focusedIndex].scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
   }, [focusedIndex, open]);
 
@@ -204,7 +204,7 @@ export function ToolSelector({
                             scenario={scenario}
                             tool={tool}
                             index={index}
-                            isSelected={forcedTool?.scenario === scenario && forcedTool?.toolName === tool.tool.name}
+                            isSelected={forcedTool?.scenario === scenario && forcedTool.toolName === tool.tool.name}
                             isFocused={focusedIndex === index}
                             onSelect={handleSelect}
                             onFocus={setFocusedIndex}

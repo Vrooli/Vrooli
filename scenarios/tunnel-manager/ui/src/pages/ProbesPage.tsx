@@ -2,10 +2,11 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Radio } from "lucide-react";
 import { fetchProbeHistory, type ProbeResult } from "../lib/api";
+import { DESKTOP_PAGE_SIZE, MOBILE_PAGE_SIZE, statusToVariant, useSort } from "../lib/utils";
 import { ProbeResults } from "../components/ProbeResults";
-import { StatusBadge, statusToVariant } from "../components/ui/status-badge";
+import { StatusBadge } from "../components/ui/status-badge";
 import { Pagination } from "../components/ui/pagination";
-import { SortHeader, useSort, MOBILE_PAGE_SIZE, DESKTOP_PAGE_SIZE } from "../components/ui/sort-header";
+import { SortHeader } from "../components/ui/sort-header";
 import { RefreshButton } from "../components/ui/refresh-button";
 import { QueryState } from "../components/ui/query-state";
 

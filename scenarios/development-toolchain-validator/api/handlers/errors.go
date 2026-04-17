@@ -29,13 +29,13 @@
 package handlers
 
 import (
+	"development-toolchain-validator/domain/reference"
+	"development-toolchain-validator/domain/skill"
 	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
 
-	"development-toolchain-validator/domain/reference"
-	"development-toolchain-validator/domain/skill"
 	apierrors "development-toolchain-validator/internal/errors"
 )
 
@@ -75,7 +75,9 @@ func WriteStructuredError(w http.ResponseWriter, err *apierrors.Error) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(err.ToHTTPStatus())
-	json.NewEncoder(w).Encode(response)
+	if encodeErr := json.NewEncoder(w).Encode(response); encodeErr != nil {
+		log.Printf("[ERROR] failed to encode error response: %v", encodeErr)
+	}
 }
 
 // MapDomainError converts domain-layer errors to structured API errors.
@@ -149,7 +151,9 @@ func logError(err *apierrors.Error) {
 func writeErrorCompat(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]string{"error": message})
+	if encodeErr := json.NewEncoder(w).Encode(map[string]string{"error": message}); encodeErr != nil {
+		log.Printf("[ERROR] failed to encode error response: %v", encodeErr)
+	}
 }
 
 // HandleCreateError processes errors from the Create operation.

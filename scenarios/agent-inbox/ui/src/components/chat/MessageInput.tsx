@@ -86,7 +86,6 @@ export function MessageInput(props: MessageInputProps) {
     toolsByScenario,
     setMessageState,
     onCancelEdit,
-    chatId,
   } = state;
 
   return (
@@ -120,7 +119,7 @@ export function MessageInput(props: MessageInputProps) {
           templates={templates}
           currentModePath={currentModePath}
           modeHistory={modeHistory}
-          handleTemplateSelect={templateActions.handleTemplateSelect}
+          handleTemplateSelect={(template) => { void templateActions.handleTemplateSelect(template); }}
           navigateToMode={navigateToMode}
           navigateBack={navigateBack}
           resetModePath={resetModePath}
@@ -215,7 +214,7 @@ export function MessageInput(props: MessageInputProps) {
         templates={templates}
         onSelectTemplate={(template) => {
           templateActions.setShowTemplateSelector(false);
-          templateActions.handleTemplateSelect(template);
+          void templateActions.handleTemplateSelect(template);
         }}
         activeTemplateId={activeTemplate?.template.id}
         showSkillSelector={templateActions.showSkillSelector}

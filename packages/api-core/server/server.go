@@ -191,7 +191,7 @@ func runStandardServer(cfg Config) error {
 		return fmt.Errorf("server shutdown failed: %w", err)
 	}
 
-	return runCleanup(cfg, ctx)
+	return runCleanup(ctx, cfg)
 }
 
 // runCustomServer runs a custom server using the provided callbacks.
@@ -222,7 +222,7 @@ func runCustomServer(cfg Config) error {
 		return fmt.Errorf("server shutdown failed: %w", err)
 	}
 
-	return runCleanup(cfg, ctx)
+	return runCleanup(ctx, cfg)
 }
 
 // waitForShutdown waits for either a shutdown signal or a startup error.
@@ -243,7 +243,7 @@ func waitForShutdown(cfg Config, errCh <-chan error) error {
 }
 
 // runCleanup runs the cleanup function and logs the server stop message.
-func runCleanup(cfg Config, ctx context.Context) error {
+func runCleanup(ctx context.Context, cfg Config) error {
 	if cfg.Cleanup != nil {
 		if err := cfg.Cleanup(ctx); err != nil {
 			cfg.log("Cleanup error: %v", err)

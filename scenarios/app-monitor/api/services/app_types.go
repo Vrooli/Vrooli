@@ -210,6 +210,7 @@ type AppService struct {
 	enrichmentMu       sync.RWMutex
 	enrichmentCache    map[string]*enrichmentCacheEntry // key: lowercase scenario name
 	uiServerPort       string
+	backgroundWg       sync.WaitGroup
 }
 
 // =============================================================================

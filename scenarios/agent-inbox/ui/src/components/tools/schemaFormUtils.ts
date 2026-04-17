@@ -8,11 +8,11 @@ import type { ParameterSchema } from "../../lib/api";
  * Get a default value for a schema type.
  */
 export function getDefaultValue(schema: ParameterSchema): unknown {
-  if (schema?.default !== undefined) {
+  if (schema.default !== undefined) {
     return schema.default;
   }
 
-  switch (schema?.type) {
+  switch (schema.type) {
     case "string":
       return "";
     case "number":

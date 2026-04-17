@@ -1,12 +1,11 @@
 package handlers
 
 import (
-	"log"
-	"net/http"
-
 	"agent-inbox/domain"
 	"agent-inbox/integrations"
 	"agent-inbox/services"
+	"log"
+	"net/http"
 )
 
 // handleNonStreamingResponse processes a non-streaming AI response.

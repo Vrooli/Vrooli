@@ -100,7 +100,7 @@ describe("useTools - Optimistic Update Verification", () => {
     if (!toolSetBefore) throw new Error("toolSetBefore is undefined");
 
     act(() => {
-      result.current.toggleTool("scenario-a", "tool2", false);
+      void result.current.toggleTool("scenario-a", "tool2", false);
     });
 
     await waitFor(() => {
@@ -132,8 +132,8 @@ describe("useTools - Optimistic Update Verification", () => {
       createMockTool("scenario-a", "tool3", true),
     ]);
 
-    vi.mocked(api.fetchToolSet).mockImplementation(async () => serverState);
-    vi.mocked(api.setToolEnabled).mockImplementation(async (config) => {
+    vi.mocked(api.fetchToolSet).mockImplementation(() => Promise.resolve(serverState));
+    vi.mocked(api.setToolEnabled).mockImplementation((config) => {
       serverState = {
         ...serverState,
         tools: serverState.tools.map((t) =>
@@ -142,6 +142,7 @@ describe("useTools - Optimistic Update Verification", () => {
             : t
         ),
       };
+      return Promise.resolve();
     });
 
     const { result } = renderHook(() => useTools(), { wrapper: createWrapper() });
@@ -182,8 +183,8 @@ describe("useTools - Optimistic Update Verification", () => {
       createMockTool("scenario-b", "tool2", true),
     ]);
 
-    vi.mocked(api.fetchToolSet).mockImplementation(async () => serverState);
-    vi.mocked(api.setToolEnabled).mockImplementation(async (config) => {
+    vi.mocked(api.fetchToolSet).mockImplementation(() => Promise.resolve(serverState));
+    vi.mocked(api.setToolEnabled).mockImplementation((config) => {
       serverState = {
         ...serverState,
         tools: serverState.tools.map((t) =>
@@ -192,6 +193,7 @@ describe("useTools - Optimistic Update Verification", () => {
             : t
         ),
       };
+      return Promise.resolve();
     });
 
     const { result } = renderHook(() => useTools(), { wrapper: createWrapper() });

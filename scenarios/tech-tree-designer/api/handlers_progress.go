@@ -150,7 +150,6 @@ func updateScenarioStatus(c *gin.Context) {
 			WHERE s.tree_id = $5
 		  )
 	`, request.CompletionStatus, request.Notes, request.EstimatedImpact, scenarioName, tree.ID)
-
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update scenario status"})
 		return
@@ -221,7 +220,6 @@ func updateScenarioMapping(c *gin.Context) {
 	`, mapping.ID, mapping.ScenarioName, mapping.StageID, mapping.ContributionWeight,
 		mapping.CompletionStatus, mapping.Priority, mapping.EstimatedImpact,
 		mapping.LastStatusCheck, mapping.Notes, mapping.CreatedAt, mapping.UpdatedAt)
-
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update scenario mapping"})
 		return
@@ -256,7 +254,6 @@ func deleteScenarioMapping(c *gin.Context) {
 		JOIN sectors s ON ps.sector_id = s.id
 		WHERE sm.id = $1 AND s.tree_id = $2
 	`, mappingID, tree.ID).Scan(&stageID)
-
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Scenario mapping not found"})
@@ -316,7 +313,6 @@ func updateStageMaturity(c *gin.Context) {
 	err := db.QueryRowContext(c.Request.Context(), `
 		SELECT maturity FROM progression_stages WHERE id = $1
 	`, stageID).Scan(&oldMaturity)
-
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Stage not found"})
@@ -329,10 +325,10 @@ func updateStageMaturity(c *gin.Context) {
 	// If maturity hasn't changed, return early
 	if oldMaturity == request.Maturity {
 		c.JSON(http.StatusOK, gin.H{
-			"message":      "Maturity unchanged",
-			"stage_id":     stageID,
-			"maturity":     request.Maturity,
-			"no_change":    true,
+			"message":   "Maturity unchanged",
+			"stage_id":  stageID,
+			"maturity":  request.Maturity,
+			"no_change": true,
 		})
 		return
 	}
@@ -351,7 +347,6 @@ func updateStageMaturity(c *gin.Context) {
 		SET maturity = $1, updated_at = CURRENT_TIMESTAMP
 		WHERE id = $2
 	`, request.Maturity, stageID)
-
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update maturity"})
 		return
@@ -368,7 +363,6 @@ func updateStageMaturity(c *gin.Context) {
 		INSERT INTO maturity_events (id, stage_id, old_maturity, new_maturity, changed_by, notes)
 		VALUES ($1, $2, $3, $4, $5, $6)
 	`, eventID, stageID, oldMaturity, request.Maturity, changedBy, request.Notes)
-
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to record maturity event"})
 		return
@@ -400,7 +394,6 @@ func getStageMaturityEvents(c *gin.Context) {
 		ORDER BY changed_at DESC
 		LIMIT 50
 	`, stageID)
-
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch maturity events"})
 		return

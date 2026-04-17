@@ -3,12 +3,11 @@ package validation
 
 import (
 	"context"
+	"development-toolchain-validator/domain/expectation"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
-
-	"development-toolchain-validator/domain/expectation"
 )
 
 func TestCLIExecutor_NewCLIExecutor(t *testing.T) {
@@ -189,7 +188,7 @@ func TestCLIExecutor_WorkingDirectory(t *testing.T) {
 	// Create temp dir with a test file
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.json")
-	if err := os.WriteFile(testFile, []byte(`{"exists": true}`), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(`{"exists": true}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

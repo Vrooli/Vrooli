@@ -123,7 +123,7 @@ function MessageListInner({
 
   // Precompute siblingInfo for all assistant messages at the list level
   const siblingInfoMap = useMemo(() => {
-    if (!messagesForSiblings || messagesForSiblings.length === 0) return EMPTY_SIBLING_MAP;
+    if (messagesForSiblings.length === 0) return EMPTY_SIBLING_MAP;
     const map = new Map<string, { current: number; total: number; siblings: Message[] }>();
     for (const message of messages) {
       if (message.role === "assistant") {

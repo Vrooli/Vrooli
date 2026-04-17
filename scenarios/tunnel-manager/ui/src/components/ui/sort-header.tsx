@@ -1,11 +1,5 @@
-import { useState, useMemo, useCallback } from "react";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
-
-export type SortDir = "asc" | "desc";
-
-/** Shared page sizes for mobile/desktop table pagination. */
-export const MOBILE_PAGE_SIZE = 20;
-export const DESKTOP_PAGE_SIZE = 25;
+import type { SortDir } from "../../lib/utils";
 
 /**
  * Generic sortable column header button with visual sort indicators.
@@ -40,43 +34,4 @@ export function SortHeader<F extends string>({
       )}
     </button>
   );
-}
-
-/**
- * Generic hook for sortable table state with optional default direction per field.
- *
- * @param defaultField - Initial sort field
- * @param defaultDir - Initial sort direction (default: "asc")
- * @param compareFn - Comparison function: (a, b, field) => number
- * @param data - Array to sort
- */
-export function useSort<T, F extends string>(
-  data: T[] | undefined,
-  defaultField: F,
-  compareFn: (a: T, b: T, field: F) => number,
-  defaultDir: SortDir = "asc",
-) {
-  const [sortField, setSortField] = useState<F>(defaultField);
-  const [sortDir, setSortDir] = useState<SortDir>(defaultDir);
-
-  const sorted = useMemo(() => {
-    if (!data) return [];
-    return [...data].sort((a, b) => {
-      const cmp = compareFn(a, b, sortField);
-      return sortDir === "desc" ? -cmp : cmp;
-    });
-  }, [data, sortField, sortDir, compareFn]);
-
-  const toggleSort = useCallback((field: F) => {
-    setSortField((prev) => {
-      if (prev === field) {
-        setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-        return prev;
-      }
-      setSortDir("asc");
-      return field;
-    });
-  }, []);
-
-  return { sorted, sortField, sortDir, toggleSort };
 }

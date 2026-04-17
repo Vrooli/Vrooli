@@ -5,7 +5,6 @@ import (
 	"net/url"
 	"os"
 	"strconv"
-
 	"vrooli-autoheal/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"

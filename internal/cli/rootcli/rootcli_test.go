@@ -158,6 +158,91 @@ func TestPassthroughFlagsOmitsExistingFlags(t *testing.T) {
 	}
 }
 
+func TestPassthroughFlagsIncludesQuiet(t *testing.T) {
+	flags := PassthroughFlags(GlobalOptions{Quiet: true}, []string{"scenario"})
+	if got, want := strings.Join(flags, ","), "--quiet"; got != want {
+		t.Fatalf("flags = %q, want %q", got, want)
+	}
+	flags = PassthroughFlags(GlobalOptions{Quiet: true}, []string{"scenario", "-q"})
+	if len(flags) != 0 {
+		t.Fatalf("flags = %v, want empty (already has -q)", flags)
+	}
+}
+
+func TestParseArgsAcceptsQuietShortAndLong(t *testing.T) {
+	for _, flag := range []string{"--quiet", "-q"} {
+		parsed, err := ParseArgs([]string{flag, "scenario", "list"})
+		if err != nil {
+			t.Fatalf("%s: ParseArgs returned error: %v", flag, err)
+		}
+		if !parsed.Globals.Quiet {
+			t.Fatalf("%s: expected Quiet=true, got %#v", flag, parsed.Globals)
+		}
+	}
+}
+
+func TestGlobalOptionsOutputPrecedence(t *testing.T) {
+	// Clear env to isolate from host
+	t.Setenv(OutputEnvVar, "")
+
+	cases := []struct {
+		name string
+		in   GlobalOptions
+		want Verbosity
+	}{
+		{"default", GlobalOptions{}, VerbosityNormal},
+		{"quiet", GlobalOptions{Quiet: true}, VerbosityQuiet},
+		{"verbose", GlobalOptions{Verbose: true}, VerbosityVerbose},
+		{"verbose beats quiet", GlobalOptions{Verbose: true, Quiet: true}, VerbosityVerbose},
+		{"json implies quiet", GlobalOptions{JSON: true}, VerbosityQuiet},
+		{"verbose beats json", GlobalOptions{JSON: true, Verbose: true}, VerbosityVerbose},
+		{"quiet beats json", GlobalOptions{JSON: true, Quiet: true}, VerbosityQuiet},
+	}
+	for _, tc := range cases {
+		if got := tc.in.Output(); got != tc.want {
+			t.Errorf("%s: Output() = %d, want %d", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestGlobalOptionsOutputReadsEnv(t *testing.T) {
+	t.Setenv(OutputEnvVar, "quiet")
+	if got := (GlobalOptions{}).Output(); got != VerbosityQuiet {
+		t.Errorf("env quiet: Output() = %d, want VerbosityQuiet", got)
+	}
+	t.Setenv(OutputEnvVar, "verbose")
+	if got := (GlobalOptions{}).Output(); got != VerbosityVerbose {
+		t.Errorf("env verbose: Output() = %d, want VerbosityVerbose", got)
+	}
+	// Flag beats env.
+	t.Setenv(OutputEnvVar, "verbose")
+	if got := (GlobalOptions{Quiet: true}).Output(); got != VerbosityQuiet {
+		t.Errorf("flag quiet + env verbose: Output() = %d, want VerbosityQuiet", got)
+	}
+}
+
+func TestGlobalOptionsOutputInvalidEnvFallsBack(t *testing.T) {
+	t.Setenv(OutputEnvVar, "loud")
+	if got := (GlobalOptions{}).Output(); got != VerbosityNormal {
+		t.Errorf("Output() = %d, want VerbosityNormal", got)
+	}
+	warn := (GlobalOptions{}).OutputWarning()
+	if !strings.Contains(warn, "unrecognized") || !strings.Contains(warn, "loud") {
+		t.Errorf("OutputWarning() = %q, want mention of unrecognized value", warn)
+	}
+}
+
+func TestGlobalOptionsOutputWarningOnConflict(t *testing.T) {
+	t.Setenv(OutputEnvVar, "")
+	warn := GlobalOptions{Verbose: true, Quiet: true}.OutputWarning()
+	if !strings.Contains(warn, "verbose") || !strings.Contains(warn, "quiet") {
+		t.Errorf("OutputWarning() = %q, want mention of flag conflict", warn)
+	}
+	if warn := (GlobalOptions{}).OutputWarning(); warn != "" {
+		t.Errorf("OutputWarning() on clean globals = %q, want empty", warn)
+	}
+}
+
 func TestContainsArgDoesNotMatchAbsentFlag(t *testing.T) {
 	if ContainsArg([]string{"alpha", "beta"}, "--json") {
 		t.Fatal("ContainsArg() should not match absent flag")

@@ -33,7 +33,7 @@ func LoadServiceConfig(scenarioPath string) (*types.ServiceConfig, error) {
 // ResolvedResourceMap returns the resources from a service config, preferring
 // dependencies.resources over the legacy resources field.
 func ResolvedResourceMap(cfg *types.ServiceConfig) map[string]types.Resource {
-	if cfg.Dependencies.Resources != nil && len(cfg.Dependencies.Resources) > 0 {
+	if len(cfg.Dependencies.Resources) > 0 {
 		return cfg.Dependencies.Resources
 	}
 	if cfg.Resources == nil {

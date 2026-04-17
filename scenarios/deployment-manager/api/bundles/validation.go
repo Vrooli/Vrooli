@@ -106,12 +106,15 @@ func validateService(svc ServiceEntry) error {
 		return err
 	}
 
-	if len(svc.Binaries) == 0 {
-		return fmt.Errorf("at least one platform binary is required")
-	}
-	for platform, bin := range svc.Binaries {
-		if bin.Path == "" {
-			return fmt.Errorf("binary path is required for platform %s", platform)
+	requiresBinary := svc.Type != shared.ServiceTypeEmbeddedStorage
+	if requiresBinary {
+		if len(svc.Binaries) == 0 {
+			return fmt.Errorf("at least one platform binary is required")
+		}
+		for platform, bin := range svc.Binaries {
+			if bin.Path == "" {
+				return fmt.Errorf("binary path is required for platform %s", platform)
+			}
 		}
 	}
 	if svc.Health.Type == "" {

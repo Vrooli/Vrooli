@@ -107,8 +107,8 @@ func (d *Driver) CreateSession(ctx context.Context, spec driver.SessionSpec) (dr
 	d.mu.Unlock()
 
 	d.log.WithFields(logrus.Fields{
-		"session_id":   sess.id,
-		"execution_id": spec.ExecutionID,
+		"session_id":    sess.id,
+		"execution_id":  spec.ExecutionID,
 		"has_recording": spec.Recording != nil,
 	}).Debug("Created playwright session")
 
@@ -502,5 +502,7 @@ func (s *session) isClosed() bool {
 }
 
 // Compile-time interface compliance
-var _ driver.Driver = (*Driver)(nil)
-var _ driver.Session = (*session)(nil)
+var (
+	_ driver.Driver  = (*Driver)(nil)
+	_ driver.Session = (*session)(nil)
+)

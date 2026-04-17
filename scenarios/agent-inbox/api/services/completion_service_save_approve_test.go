@@ -1,12 +1,11 @@
 package services
 
 import (
+	"agent-inbox/domain"
 	"context"
 	"encoding/json"
 	"errors"
 	"testing"
-
-	"agent-inbox/domain"
 )
 
 func TestExecuteToolCalls_MixedApproval(t *testing.T) {

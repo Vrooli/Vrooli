@@ -91,7 +91,7 @@ export function ManualToolDialog({
         typeof result.result === "string"
           ? result.result
           : JSON.stringify(result.result, null, 2);
-      navigator.clipboard.writeText(text);
+      void navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -120,7 +120,7 @@ export function ManualToolDialog({
         {state === "form" && (
           <SchemaForm
             parameters={tool.tool.parameters}
-            onSubmit={handleSubmit}
+            onSubmit={(values) => { void handleSubmit(values); }}
             onCancel={handleClose}
             submitLabel="Execute Tool"
           />

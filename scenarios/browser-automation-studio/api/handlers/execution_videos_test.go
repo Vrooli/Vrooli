@@ -27,60 +27,78 @@ type executionServiceStub struct {
 func (s *executionServiceStub) ExecuteWorkflow(context.Context, uuid.UUID, map[string]any) (*database.ExecutionIndex, error) {
 	return nil, errors.New("not implemented")
 }
+
 func (s *executionServiceStub) ExecuteWorkflowAPI(context.Context, *basapi.ExecuteWorkflowRequest) (*basapi.ExecuteWorkflowResponse, error) {
 	return nil, errors.New("not implemented")
 }
+
 func (s *executionServiceStub) ExecuteWorkflowAPIWithOptions(context.Context, *basapi.ExecuteWorkflowRequest, *workflow.ExecuteOptions) (*basapi.ExecuteWorkflowResponse, error) {
 	return nil, errors.New("not implemented")
 }
+
 func (s *executionServiceStub) ExecuteAdhocWorkflowAPI(context.Context, *basexecution.ExecuteAdhocRequest) (*basexecution.ExecuteAdhocResponse, error) {
 	return nil, errors.New("not implemented")
 }
+
 func (s *executionServiceStub) ExecuteAdhocWorkflowAPIWithOptions(context.Context, *basexecution.ExecuteAdhocRequest, *workflow.ExecuteOptions) (*basexecution.ExecuteAdhocResponse, error) {
 	return nil, errors.New("not implemented")
 }
+
 func (s *executionServiceStub) StopExecution(context.Context, uuid.UUID) error {
 	return errors.New("not implemented")
 }
+
 func (s *executionServiceStub) ResumeExecution(context.Context, uuid.UUID, map[string]any) (*database.ExecutionIndex, error) {
 	return nil, errors.New("not implemented")
 }
+
 func (s *executionServiceStub) ListExecutions(context.Context, *uuid.UUID, *uuid.UUID, int, int) ([]*database.ExecutionIndex, error) {
 	return nil, errors.New("not implemented")
 }
+
 func (s *executionServiceStub) GetExecution(context.Context, uuid.UUID) (*database.ExecutionIndex, error) {
 	return nil, errors.New("not implemented")
 }
+
 func (s *executionServiceStub) UpdateExecution(context.Context, *database.ExecutionIndex) error {
 	return errors.New("not implemented")
 }
+
 func (s *executionServiceStub) GetExecutionScreenshots(context.Context, uuid.UUID) ([]*basexecution.ExecutionScreenshot, error) {
 	return nil, errors.New("not implemented")
 }
+
 func (s *executionServiceStub) GetExecutionVideoArtifacts(context.Context, uuid.UUID) ([]workflow.ExecutionVideoArtifact, error) {
 	if s.err != nil {
 		return nil, s.err
 	}
 	return s.videos, nil
 }
+
 func (s *executionServiceStub) GetExecutionTraceArtifacts(context.Context, uuid.UUID) ([]workflow.ExecutionFileArtifact, error) {
 	return nil, errors.New("not implemented")
 }
+
 func (s *executionServiceStub) GetExecutionHarArtifacts(context.Context, uuid.UUID) ([]workflow.ExecutionFileArtifact, error) {
 	return nil, errors.New("not implemented")
 }
+
 func (s *executionServiceStub) HydrateExecutionProto(context.Context, *database.ExecutionIndex) (*basexecution.Execution, error) {
 	return nil, errors.New("not implemented")
 }
+
 func (s *executionServiceStub) GetExecutionTimeline(context.Context, uuid.UUID) (*workflow.ExecutionTimeline, error) {
 	return nil, errors.New("not implemented")
 }
+
 func (s *executionServiceStub) GetExecutionTimelineProto(context.Context, uuid.UUID) (*bastimeline.ExecutionTimeline, error) {
 	return nil, errors.New("not implemented")
 }
+
 func (s *executionServiceStub) DescribeExecutionExport(context.Context, uuid.UUID) (*workflow.ExecutionExportPreview, error) {
 	return nil, errors.New("not implemented")
 }
+
 func (s *executionServiceStub) ExportToFolder(context.Context, uuid.UUID, string, storage.StorageInterface) error {
 	return errors.New("not implemented")
 }

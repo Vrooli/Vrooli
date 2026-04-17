@@ -110,7 +110,7 @@ export function extractSectionContent(prdContent: string, sectionName: string): 
   }
 
   // Normalize section name by removing emojis and standardizing
-  const normalizedSectionName = sectionName.replace(/[🎯🧱🤝🎨📎🔴🟠🟢]/g, '').trim()
+  const normalizedSectionName = sectionName.replace(/[🎯🧱🤝🎨📎🔴🟠🟢]/gu, '').trim()
 
   // Split content into lines for processing
   const lines = prdContent.split('\n')
@@ -125,7 +125,7 @@ export function extractSectionContent(prdContent: string, sectionName: string): 
     const headerMatch = line.match(/^(#{1,6})\s+(.*)$/)
     if (headerMatch) {
       const level = headerMatch[1].length
-      const headerText = headerMatch[2].replace(/[🎯🧱🤝🎨📎🔴🟠🟢]/g, '').trim()
+      const headerText = headerMatch[2].replace(/[🎯🧱🤝🎨📎🔴🟠🟢]/gu, '').trim()
 
       // Check if this header matches our target section
       if (headerText.toLowerCase().includes(normalizedSectionName.toLowerCase())) {

@@ -292,6 +292,7 @@ func TestPerformStandardsCheckRunsStructureRules(t *testing.T) {
 
 func TestResolveVrooliRootFromWorkingDirectory(t *testing.T) {
 	t.Setenv("VROOLI_ROOT", "")
+	t.Setenv("VROOLI_SOURCE_ROOT", "")
 	t.Setenv("APP_ROOT", "")
 
 	tmp := t.TempDir()

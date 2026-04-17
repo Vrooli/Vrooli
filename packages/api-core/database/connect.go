@@ -190,8 +190,8 @@ func buildDSNFromEnv(cfg Config) (string, error) {
 	case DriverPostgres:
 		return buildPostgresDSN(getenv)
 
-		case DriverSQLite, DriverSQLiteLegacy:
-			return buildSQLiteDSN(getenv)
+	case DriverSQLite, DriverSQLiteLegacy:
+		return buildSQLiteDSN(getenv)
 
 	default:
 		return "", fmt.Errorf(
@@ -270,7 +270,7 @@ func buildSQLiteDSN(getenv func(string) string) (string, error) {
 		return path, nil
 	}
 	return "", fmt.Errorf(
-			"sqlite connection requires SQLITE_PATH or SQLITE_DB environment variable",
+		"sqlite connection requires SQLITE_PATH or SQLITE_DB environment variable",
 	)
 }
 

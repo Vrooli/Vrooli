@@ -1,6 +1,7 @@
 package integrations
 
 import (
+	"agent-inbox/config"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -8,8 +9,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-
-	"agent-inbox/config"
 )
 
 // OllamaClient provides access to a local Ollama instance for fast, private operations.

@@ -384,19 +384,6 @@ func reorderTopLevelKeys(cfg *orderedmap.OrderedMap) *orderedmap.OrderedMap {
 	return reordered
 }
 
-func cloneOrderedMap(src *orderedmap.OrderedMap) *orderedmap.OrderedMap {
-	if src == nil {
-		return orderedmap.New()
-	}
-	clone := orderedmap.New()
-	for _, key := range src.Keys() {
-		if val, ok := src.Get(key); ok {
-			clone.Set(key, val)
-		}
-	}
-	return clone
-}
-
 func resolveScenarioVersionSpec(dependencyName string) (string, string) {
 	scenarioPath := filepath.Join(appconfig.Load().ScenariosDir, dependencyName)
 	cfg, err := appconfig.LoadServiceConfig(scenarioPath)

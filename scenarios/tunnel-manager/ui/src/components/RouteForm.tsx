@@ -285,12 +285,6 @@ export function RouteManagement() {
     setEditRoute(undefined);
     setShowForm(true);
   }
-
-  function openEdit(route: Route) {
-    setEditRoute(route);
-    setShowForm(true);
-  }
-
   function closeForm() {
     setShowForm(false);
     setEditRoute(undefined);

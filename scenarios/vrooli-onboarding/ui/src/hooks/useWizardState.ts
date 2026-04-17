@@ -17,12 +17,9 @@ export function useWizardState() {
         if (progress.current_step > 0) {
           setResumeAvailable(true);
           setResumeStep(progress.current_step);
-          const configData = progress.config_data;
-          if (configData && Array.isArray(configData.resources)) {
-            const resources = configData.resources;
-            if (Array.isArray(resources) && resources.every((r): r is string => typeof r === "string")) {
-              setSelectedResources(new Set(resources));
-            }
+          const resources = progress.config_data.resources;
+          if (Array.isArray(resources) && resources.every((r): r is string => typeof r === "string")) {
+            setSelectedResources(new Set(resources));
           }
         }
       })

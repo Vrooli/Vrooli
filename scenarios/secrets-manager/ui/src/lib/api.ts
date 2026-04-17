@@ -58,7 +58,7 @@ export interface HealthResponse {
       };
       latency_ms: number;
     };
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 

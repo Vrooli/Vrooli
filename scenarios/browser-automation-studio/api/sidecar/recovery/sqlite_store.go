@@ -23,7 +23,7 @@ type checkpointRow struct {
 	ID            string    `db:"id"`
 	SessionID     string    `db:"session_id"`
 	WorkflowID    *string   `db:"workflow_id"`
-	Actions       string    `db:"actions"`       // JSON array
+	Actions       string    `db:"actions"` // JSON array
 	CurrentURL    string    `db:"current_url"`
 	BrowserConfig string    `db:"browser_config"` // JSON object
 	CreatedAt     time.Time `db:"created_at"`

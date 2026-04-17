@@ -8,14 +8,13 @@ package reference_test
 
 import (
 	"context"
+	"development-toolchain-validator/domain/reference"
+	"development-toolchain-validator/internal/mocks"
+	"development-toolchain-validator/internal/testutil"
 	"errors"
 	"os"
 	"path/filepath"
 	"testing"
-
-	"development-toolchain-validator/domain/reference"
-	"development-toolchain-validator/internal/mocks"
-	"development-toolchain-validator/internal/testutil"
 )
 
 // TestService_Create tests the Create method with table-driven tests.

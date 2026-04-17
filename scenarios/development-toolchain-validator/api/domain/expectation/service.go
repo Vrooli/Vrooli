@@ -6,10 +6,9 @@ package expectation
 
 import (
 	"context"
-	"errors"
-
 	"development-toolchain-validator/internal/config"
 	"development-toolchain-validator/internal/validation"
+	"errors"
 )
 
 var (

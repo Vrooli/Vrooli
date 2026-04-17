@@ -2,9 +2,8 @@ package analyze
 
 import (
 	"fmt"
-	"strings"
-
 	"scenario-dependency-analyzer/cli/internal/support"
+	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

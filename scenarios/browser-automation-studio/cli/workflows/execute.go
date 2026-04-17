@@ -1,6 +1,8 @@
 package workflows
 
 import (
+	"browser-automation-studio/cli/internal/appctx"
+	"browser-automation-studio/cli/internal/export"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -12,9 +14,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	"browser-automation-studio/cli/internal/appctx"
-	"browser-automation-studio/cli/internal/export"
 
 	"github.com/vrooli/api-core/discovery"
 )

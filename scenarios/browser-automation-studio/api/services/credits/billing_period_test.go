@@ -232,13 +232,13 @@ func TestBillingPeriod_YearBoundary_DecemberToJanuary(t *testing.T) {
 		{
 			name:          "Jan 5 (before cycle day)",
 			date:          time.Date(2026, 1, 5, 12, 0, 0, 0, time.UTC),
-			expectedYear:  2025,     // Period started in December
+			expectedYear:  2025, // Period started in December
 			expectedMonth: time.December,
 		},
 		{
 			name:          "Jan 20 (after cycle day)",
 			date:          time.Date(2026, 1, 20, 12, 0, 0, 0, time.UTC),
-			expectedYear:  2026,     // Period started in January
+			expectedYear:  2026, // Period started in January
 			expectedMonth: time.January,
 		},
 		{

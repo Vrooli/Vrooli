@@ -12,11 +12,11 @@ import (
 // TestAssertStatus verifies the status assertion helper.
 func TestAssertStatus(t *testing.T) {
 	tests := []struct {
-		name           string
-		responseCode   int
-		expectedCode   int
-		shouldPass     bool
-		category       string
+		name         string
+		responseCode int
+		expectedCode int
+		shouldPass   bool
+		category     string
 	}{
 		{
 			name:         "matching_status",
@@ -50,11 +50,11 @@ func TestAssertStatus(t *testing.T) {
 // TestAssertContentType verifies the content type assertion helper.
 func TestAssertContentType(t *testing.T) {
 	tests := []struct {
-		name         string
-		contentType  string
-		expected     string
-		shouldPass   bool
-		category     string
+		name        string
+		contentType string
+		expected    string
+		shouldPass  bool
+		category    string
 	}{
 		{
 			name:        "exact_match",
@@ -293,11 +293,11 @@ func TestDecodeJSONResponse(t *testing.T) {
 	}
 
 	tests := []struct {
-		name       string
-		body       string
-		wantName   string
-		wantValue  int
-		category   string
+		name      string
+		body      string
+		wantName  string
+		wantValue int
+		category  string
 	}{
 		{
 			name:      "decode_struct",

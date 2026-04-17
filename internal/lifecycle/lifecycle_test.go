@@ -200,6 +200,84 @@ func TestRunPhaseDetailedReportsUndefinedPhase(t *testing.T) {
 	}
 }
 
+func TestExecutePhaseDetailedReplaysTailToErrOnFailure(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testresource.WritePortRegistry(t, root, nil)
+	writeLifecycleFixtureManifest(t, root, scenario.ServiceManifest{
+		Service: scenario.ServiceMetadata{Name: "alpha"},
+		Lifecycle: scenario.Lifecycle{
+			Setup: scenario.Phase{
+				Steps: []scenario.PhaseStep{
+					{Name: "noisy-fail", Run: "echo 'alpha line'; echo 'beta line'; echo 'gamma line'; exit 3"},
+				},
+			},
+		},
+	})
+
+	var stderr bytes.Buffer
+	runner, err := NewRunner(root, home, io.Discard, &stderr)
+	if err != nil {
+		t.Fatalf("NewRunner: %v", err)
+	}
+	runner = runner.WithVerbosity(VerbosityNormal)
+
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	_, err = runner.ExecutePhaseDetailed(item, "setup", map[string]string{}, nil, io.Discard, io.Discard)
+	if err == nil {
+		t.Fatal("expected phase to fail")
+	}
+	replay := stderr.String()
+	for _, line := range []string{"alpha line", "beta line", "gamma line"} {
+		if !strings.Contains(replay, line) {
+			t.Errorf("stderr missing replay line %q: %q", line, replay)
+		}
+	}
+	if !strings.Contains(replay, "full log:") {
+		t.Errorf("stderr missing log pointer: %q", replay)
+	}
+}
+
+func TestExecutePhaseDetailedSkipsReplayAtVerbose(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testresource.WritePortRegistry(t, root, nil)
+	writeLifecycleFixtureManifest(t, root, scenario.ServiceManifest{
+		Service: scenario.ServiceMetadata{Name: "alpha"},
+		Lifecycle: scenario.Lifecycle{
+			Setup: scenario.Phase{
+				Steps: []scenario.PhaseStep{
+					{Name: "noisy-fail", Run: "echo 'zeta line'; exit 3"},
+				},
+			},
+		},
+	})
+
+	var stderr bytes.Buffer
+	runner, err := NewRunner(root, home, io.Discard, &stderr)
+	if err != nil {
+		t.Fatalf("NewRunner: %v", err)
+	}
+	runner = runner.WithVerbosity(VerbosityVerbose)
+
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	_, err = runner.ExecutePhaseDetailed(item, "setup", map[string]string{}, nil, io.Discard, io.Discard)
+	if err == nil {
+		t.Fatal("expected phase to fail")
+	}
+	if strings.Contains(stderr.String(), "full log:") {
+		t.Errorf("verbose mode should not replay (tool stdout already teed): %q", stderr.String())
+	}
+}
+
 func TestExecutePhaseDetailedWrapsStepFailuresWithContext(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
@@ -225,7 +303,7 @@ func TestExecutePhaseDetailedWrapsStepFailuresWithContext(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	result, err := runner.ExecutePhaseDetailed(item, "setup", map[string]string{}, nil, io.Discard)
+	result, err := runner.ExecutePhaseDetailed(item, "setup", map[string]string{}, nil, io.Discard, io.Discard)
 	if err == nil {
 		t.Fatal("expected wrapped phase error")
 	}

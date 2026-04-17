@@ -1,13 +1,12 @@
 package status
 
 import (
+	"browser-automation-studio/cli/internal/appctx"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
-
-	"browser-automation-studio/cli/internal/appctx"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

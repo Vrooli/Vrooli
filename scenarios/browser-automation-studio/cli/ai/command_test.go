@@ -1,9 +1,8 @@
 package ai
 
 import (
-	"testing"
-
 	"browser-automation-studio/cli/internal/appctx"
+	"testing"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

@@ -98,7 +98,7 @@ export function EmptyState({
   };
 
   // Handle attaching an existing run
-  const handleAttachRun = async (run: AgentRunSummary) => {
+  const handleAttachRun = (run: AgentRunSummary) => {
     if (!onAttachRun) return;
     setIsAttaching(true);
     try {

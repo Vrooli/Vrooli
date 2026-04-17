@@ -1,9 +1,8 @@
 package services
 
 import (
-	"context"
-
 	"agent-inbox/domain"
+	"context"
 )
 
 // =============================================================================

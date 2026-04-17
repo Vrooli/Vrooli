@@ -19,7 +19,7 @@ import { RelatedFilesPanel } from "./components/RelatedFilesPanel";
 import { type LayoutPreset, type LayoutSection } from "./components/LayoutSettingsModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { ScenarioReviewPanel } from "./components/ScenarioReviewPanel";
-import { useIsMobile, useUrlState, parseUrlState, useScenarioReviewState } from "./hooks";
+import { useGlobalKeydown, useIsMobile, useUrlState, parseUrlState, useScenarioReviewState } from "./hooks";
 import type { UrlState, ReviewTab } from "./hooks";
 import type { GroupingRule } from "./components/FileList";
 import { fetchSyncStatus } from "./lib/api";
@@ -61,6 +61,23 @@ import {
 const layoutOrder: LayoutSection[] = ["changes", "history", "diff", "commit"];
 
 type SelectionEntry = { path: string; staged: boolean };
+type GroupingRuleLike = Partial<GroupingRule> & { prefix?: string };
+
+function isLayoutSection(value: string): value is LayoutSection {
+  return value === "changes" || value === "diff" || value === "commit" || value === "history" || value === "review";
+}
+
+function isLayoutPreset(value: string): value is LayoutPreset {
+  return value === "classic" || value === "split" || value === "bottom";
+}
+
+function isGroupingRuleLike(value: unknown): value is GroupingRuleLike {
+  return typeof value === "object" && value !== null;
+}
+
+function isPresent<T>(value: T | null): value is T {
+  return value !== null;
+}
 
 /** Pure helper: compute the next selection given a mode ("single" | "toggle" | "range"). */
 function computeNextSelection(
@@ -168,9 +185,8 @@ export default function App() {
   const [mobileActivePanel, setMobileActivePanel] = useState<LayoutSection>(() => {
     if (typeof window === "undefined") return "changes";
     const stored = localStorage.getItem("gct.mobileActivePanel");
-    const validPanels: LayoutSection[] = ["changes", "diff", "commit", "history", "review"];
-    if (stored && validPanels.includes(stored as LayoutSection)) {
-      return stored as LayoutSection;
+    if (stored && isLayoutSection(stored)) {
+      return stored;
     }
     return "changes";
   });
@@ -284,9 +300,8 @@ export default function App() {
       // For now, we just store the hash - user can click on the commit in history to fully restore
     }
     if (state.primary) {
-      const validPrimary: LayoutSection[] = ["changes", "diff", "commit", "history", "review"];
-      if (validPrimary.includes(state.primary as LayoutSection)) {
-        setPrimaryPanel(state.primary as LayoutSection);
+      if (isLayoutSection(state.primary)) {
+        setPrimaryPanel(state.primary);
       }
     } else {
       setPrimaryPanel("diff");
@@ -567,9 +582,9 @@ export default function App() {
     [setRepoId]
   );
 
-  const orderedFiles = useMemo(() => {
+  const orderedFiles = useMemo<Array<{ path: string; staged: boolean }>>(() => {
     const files = statusQuery.data?.files;
-    if (!files) return [] as Array<{ path: string; staged: boolean }>;
+    if (!files) return [];
 
     return [
       ...(files.conflicts ?? []).map((path) => ({ path, staged: false })),
@@ -583,9 +598,9 @@ export default function App() {
     [statusQuery.data?.files?.untracked]
   );
 
-  const workingSetPaths = useMemo(() => {
+  const workingSetPaths = useMemo<string[]>(() => {
     const files = statusQuery.data?.files;
-    if (!files) return [] as string[];
+    if (!files) return [];
     return [
       ...(files.staged ?? []),
       ...(files.unstaged ?? []),
@@ -618,7 +633,7 @@ export default function App() {
     []
   );
   const normalizeGroupingRules = useCallback(
-    (rawRules: GroupingRule[]) => {
+    (rawRules: GroupingRuleLike[]): GroupingRule[] => {
       return rawRules
         .map((rule, index) => {
           const rawPrefixes = Array.isArray(rule?.prefixes)
@@ -631,15 +646,15 @@ export default function App() {
           const label =
             typeof rule?.label === "string" && rule.label.trim()
               ? rule.label.trim()
-              : prefixes[0];
-          const mode = rule?.mode === "segment" ? "segment" : "prefix";
+              : prefixes[0] ?? `Group ${index + 1}`;
+          const mode: GroupingRule["mode"] = rule?.mode === "segment" ? "segment" : "prefix";
           const id =
             typeof rule?.id === "string" && rule.id.trim()
               ? rule.id.trim()
               : `group-${prefixes[0] ?? index}`;
-          return { id, label, prefixes, mode } as GroupingRule;
+          return { id, label, prefixes, mode };
         })
-        .filter((rule): rule is GroupingRule => Boolean(rule));
+        .filter(isPresent);
     },
     []
   );
@@ -1399,26 +1414,21 @@ export default function App() {
   }, []);
 
   // Keyboard shortcut for file search (Cmd+K / Ctrl+K)
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
-        event.preventDefault();
-        if (isFileSearchOpen) {
-          emitShortcutIntent({
-            action: HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER,
-            outcome: "noop",
-            chord: "mod+k",
-            source: "keyboard",
-          });
-          return;
-        }
+  useGlobalKeydown((event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+      event.preventDefault();
+      if (isFileSearchOpen) {
+        emitShortcutIntent({
+          action: HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER,
+          outcome: "noop",
+          chord: "mod+k",
+          source: "keyboard",
+        });
+        return;
+      }
         setIsFileSearchOpen(true);
       }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isFileSearchOpen]);
+  });
 
   // View mode fallback: when selectedFile changes, ensure viewMode is valid for the new file
   useEffect(() => {
@@ -1510,8 +1520,10 @@ export default function App() {
       const storedRules = localStorage.getItem(rulesKey);
       if (storedRules) {
         try {
-          const parsed = JSON.parse(storedRules) as GroupingRule[];
-          const normalized = Array.isArray(parsed) ? normalizeGroupingRules(parsed) : [];
+          const parsed: unknown = JSON.parse(storedRules);
+          const normalized = Array.isArray(parsed)
+            ? normalizeGroupingRules(parsed.filter(isGroupingRuleLike))
+            : [];
           setGroupingRules(normalized);
           setGroupingDefaultsPending(false);
           // Migrate to API
@@ -1555,11 +1567,11 @@ export default function App() {
     const presetKey = `gct.layout.${repoKey}.preset`;
     const primaryKey = `gct.layout.${repoKey}.primary`;
     const stackKey = `gct.layout.${repoKey}.stackHeight`;
-    const storedPreset = localStorage.getItem(presetKey) as LayoutPreset | null;
-    const storedPrimary = localStorage.getItem(primaryKey) as LayoutSection | null;
+    const storedPreset = localStorage.getItem(presetKey);
+    const storedPrimary = localStorage.getItem(primaryKey);
     const storedStackHeight = Number(localStorage.getItem(stackKey));
     setLayoutPreset(
-      storedPreset === "classic" || storedPreset === "split" || storedPreset === "bottom"
+      storedPreset && isLayoutPreset(storedPreset)
         ? storedPreset
         : "classic"
     );

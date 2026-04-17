@@ -85,15 +85,6 @@ func classifyObjectStorageSecrets(normalized string) *SecretClassification {
 	}
 }
 
-// classifyAutomationSecrets: Workflow platforms need API key + webhook secret.
-func classifyAutomationSecrets(normalized string) *SecretClassification {
-	return &SecretClassification{
-		SecretType:      "automation_credentials",
-		RequiredSecrets: []string{normalized + "_api_key", normalized + "_webhook_secret"},
-		PlaybookRef:     "secrets-manager/playbooks/automation-platform.md",
-	}
-}
-
 // classifyAIAPISecrets: Cloud AI APIs need an API key.
 func classifyAIAPISecrets(normalized string) *SecretClassification {
 	return &SecretClassification{
@@ -109,15 +100,6 @@ func classifyVectorDBSecrets() *SecretClassification {
 		SecretType:      "vector_db_credentials",
 		RequiredSecrets: []string{"qdrant_api_key"},
 		PlaybookRef:     "secrets-manager/playbooks/vector-db.md",
-	}
-}
-
-// classifyBrowserAutomationSecrets: Browser automation services need auth tokens.
-func classifyBrowserAutomationSecrets(normalized string) *SecretClassification {
-	return &SecretClassification{
-		SecretType:      "browser_automation_token",
-		RequiredSecrets: []string{normalized + "_token"},
-		PlaybookRef:     "secrets-manager/playbooks/browser-automation.md",
 	}
 }
 

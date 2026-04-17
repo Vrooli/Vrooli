@@ -449,7 +449,7 @@ func TestMockFileSystem_Stat(t *testing.T) {
 	}
 
 	// Test directory stat
-	if err := mockFS.MkdirAll("/data/mydir", 0755); err != nil {
+	if err := mockFS.MkdirAll("/data/mydir", 0o755); err != nil {
 		t.Fatalf("MkdirAll failed: %v", err)
 	}
 	info, err = mockFS.Stat("/data/mydir")

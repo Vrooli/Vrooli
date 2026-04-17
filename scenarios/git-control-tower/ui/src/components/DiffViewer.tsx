@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import Editor, { type Monaco as MonacoInstance } from "@monaco-editor/react";
+import { useEffect, useState, useRef, useCallback, useMemo, type CSSProperties } from "react";
+import Editor from "@monaco-editor/react";
 import type * as Monaco from "monaco-editor";
 import { FileDiff, Plus, Minus, Loader2, AlertTriangle, Copy, Check, ChevronLeft, ChevronRight, Upload, Download, Trash2, X, Link2, Pencil, Save, RotateCcw, MoreVertical, Maximize2, Minimize2, SlidersHorizontal, Search, ClipboardCheck } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
@@ -113,7 +113,10 @@ function buildMinimapMarkers(annotatedLines: AnnotatedLine[]): MinimapMarker[] {
   const buckets = new Map<number, Exclude<LineChange, "">>();
 
   changedLines.forEach(({ line, index }) => {
-    const change = line.change as Exclude<LineChange, "">;
+    const change = line.change;
+    if (change !== "added" && change !== "deleted" && change !== "modified") {
+      return;
+    }
     const lineNumber = getChangedLineNumber(line, index + 1);
     const ratio = maxLineNumber <= 1 ? 0 : (lineNumber - 1) / (maxLineNumber - 1);
     const bucket = clamp(Math.round(ratio * (bucketCount - 1)), 0, bucketCount - 1);
@@ -218,7 +221,7 @@ function getMonacoLanguage(filePath?: string): string {
   return languageMap[detected] ?? detected;
 }
 
-function defineMonacoTheme(monaco: MonacoInstance): void {
+function defineMonacoTheme(monaco: typeof Monaco): void {
   monaco.editor.defineTheme(monacoThemeName, {
     base: "vs-dark",
     inherit: true,
@@ -624,7 +627,7 @@ export function DiffViewer({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [conflictHash, setConflictHash] = useState<string | null>(null);
   const monacoEditorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
-  const monacoRef = useRef<MonacoInstance | null>(null);
+  const monacoRef = useRef<typeof Monaco | null>(null);
   const monacoDecorationIdsRef = useRef<string[]>([]);
   const [scrollMetrics, setScrollMetrics] = useState({
     scrollTop: 0,
@@ -739,14 +742,14 @@ export function DiffViewer({
     selectedFile && !isLoading && !error && viewMode === "preview" && hasFullContent && isPreviewable?.category === "markdown";
   const showImagePreview =
     selectedFile && !isLoading && !error && viewMode === "preview" && hasFullContent && isPreviewable?.category === "image" && isPreviewable.mimeType;
-  const minimapSourceLines = useMemo(() => {
+  const minimapSourceLines = useMemo<string[]>(() => {
     if (viewMode === "source") {
       return fullContent.split("\n");
     }
     if (viewMode === "full_diff") {
       return annotatedLines.map((line) => line.content);
     }
-    return [] as string[];
+    return [];
   }, [annotatedLines, fullContent, viewMode]);
   const minimapLineCount = viewMode === "source" ? fullContentLineCount : viewMode === "full_diff" ? annotatedLines.length : 0;
   const minimapMarkers = useMemo(
@@ -818,7 +821,7 @@ export function DiffViewer({
       setSaveError(err instanceof Error ? err.message : "Failed to save file");
     }
   }, [draftContent, expectedHash, onSaveFileContent, selectedFile]);
-  const handleMonacoBeforeMount = useCallback((monaco: MonacoInstance) => {
+  const handleMonacoBeforeMount = useCallback((monaco: typeof Monaco) => {
     monacoRef.current = monaco;
     defineMonacoTheme(monaco);
   }, []);
@@ -989,8 +992,12 @@ export function DiffViewer({
 
   const displayPath = selectedFile ? formatPath(selectedFile, maxPathChars) : null;
 
+  const diffViewerStyle: CSSProperties & Record<"--code-font-size", string> = {
+    "--code-font-size": `${codeFontSize}px`
+  };
+
   return (
-    <Card className={`flex flex-col ${isFullscreen ? "fixed inset-0 z-50 rounded-none border-0 bg-slate-950" : "h-full"}`} style={{ "--code-font-size": `${codeFontSize}px` } as React.CSSProperties} data-testid="diff-viewer-panel">
+    <Card className={`flex flex-col ${isFullscreen ? "fixed inset-0 z-50 rounded-none border-0 bg-slate-950" : "h-full"}`} style={diffViewerStyle} data-testid="diff-viewer-panel">
       <CardHeader className={`space-y-0 ${isFullscreen ? "py-2 px-3" : isMobile ? "py-3 px-4" : "py-3 flex-row items-center justify-between"}`}>
         {/* Row 1: Title + primary indicators */}
         <div ref={titleRowRef} className={`flex items-center min-w-0 ${isMobile ? "gap-2" : "gap-3"}`}>

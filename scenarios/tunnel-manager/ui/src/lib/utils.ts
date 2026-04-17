@@ -1,5 +1,11 @@
+import { useCallback, useMemo, useState } from "react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+
+export type SortDir = "asc" | "desc";
+
+export const MOBILE_PAGE_SIZE = 20;
+export const DESKTOP_PAGE_SIZE = 25;
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -30,3 +36,63 @@ export function timeAgo(dateStr: string): string {
 
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
+
+export function useSort<T, F extends string>(
+  data: T[] | undefined,
+  defaultField: F,
+  compareFn: (a: T, b: T, field: F) => number,
+  defaultDir: SortDir = "asc",
+) {
+  const [sortField, setSortField] = useState<F>(defaultField);
+  const [sortDir, setSortDir] = useState<SortDir>(defaultDir);
+
+  const sorted = useMemo(() => {
+    if (!data) return [];
+    return [...data].sort((a, b) => {
+      const cmp = compareFn(a, b, sortField);
+      return sortDir === "desc" ? -cmp : cmp;
+    });
+  }, [data, sortField, sortDir, compareFn]);
+
+  const toggleSort = useCallback((field: F) => {
+    setSortField((prev) => {
+      if (prev === field) {
+        setSortDir((dir) => (dir === "asc" ? "desc" : "asc"));
+        return prev;
+      }
+      setSortDir("asc");
+      return field;
+    });
+  }, []);
+
+  return { sorted, sortField, sortDir, toggleSort };
+}
+
+type StatusVariant = "success" | "error" | "warning" | "neutral" | "info";
+
+export function statusToVariant(status: string): StatusVariant {
+  switch (status) {
+    case "healthy":
+    case "up":
+    case "compliant":
+    case "success":
+    case "enabled":
+      return "success";
+    case "unhealthy":
+    case "down":
+    case "error":
+    case "mismatch":
+    case "failure":
+      return "error";
+    case "degraded":
+    case "timeout":
+    case "skipped":
+    case "missing_scenario":
+    case "missing_port":
+      return "warning";
+    default:
+      return "neutral";
+  }
+}
+
+export type { StatusVariant };

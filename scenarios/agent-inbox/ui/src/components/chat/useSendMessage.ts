@@ -160,10 +160,11 @@ export function useSendMessage({
   })();
 
   // Build send button tooltip
-  const modKey =
-    typeof navigator !== "undefined" && navigator.platform.includes("Mac")
-      ? "\u2318"
-      : "Ctrl";
+  const modKey = (() => {
+    if (typeof navigator === "undefined") return "Ctrl";
+    const nav = navigator as unknown as { platform?: string };
+    return nav.platform?.includes("Mac") ? "\u2318" : "Ctrl";
+  })();
   let sendTooltip = isEditMode
     ? `Save edit (${modKey}+Enter)`
     : `Send message (${modKey}+Enter)`;

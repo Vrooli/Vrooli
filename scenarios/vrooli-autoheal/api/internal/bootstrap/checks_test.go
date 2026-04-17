@@ -4,7 +4,6 @@ package bootstrap
 
 import (
 	"testing"
-
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
 )

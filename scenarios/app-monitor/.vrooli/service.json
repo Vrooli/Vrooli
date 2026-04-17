@@ -111,12 +111,10 @@
             "command": "app-monitor"
           },
           {
-            "type": "file",
-            "path": "ui/package.json"
-          },
-          {
-            "type": "command",
-            "command": "vrooli resource status"
+            "type": "files",
+            "paths": [
+              "ui/package.json"
+            ]
           }
         ]
       },

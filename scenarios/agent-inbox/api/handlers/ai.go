@@ -1,15 +1,14 @@
 package handlers
 
 import (
+	"agent-inbox/domain"
+	"agent-inbox/integrations"
+	"agent-inbox/services"
 	"encoding/json"
 	"errors"
 	"io"
 	"log"
 	"net/http"
-
-	"agent-inbox/domain"
-	"agent-inbox/integrations"
-	"agent-inbox/services"
 )
 
 // SkillPayload represents a skill with its content for tool context injection.

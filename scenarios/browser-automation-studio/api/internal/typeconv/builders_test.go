@@ -201,9 +201,9 @@ func TestBuildAssertParams_AttributeNameAliases(t *testing.T) {
 func TestBuildNavigateParams_SnakeCaseAliases(t *testing.T) {
 	// Test that snake_case aliases work for navigate params
 	data := map[string]any{
-		"url":              "https://example.com",
+		"url":               "https://example.com",
 		"wait_for_selector": "#loaded",
-		"timeout_ms":       5000,
+		"timeout_ms":        5000,
 	}
 
 	p := BuildNavigateParams(data)

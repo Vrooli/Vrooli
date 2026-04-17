@@ -1,7 +1,6 @@
 import { CheckCircle2, XCircle, AlertTriangle, MinusCircle, CircleDot } from "lucide-react";
 import { cn } from "../../lib/utils";
-
-type StatusVariant = "success" | "error" | "warning" | "neutral" | "info";
+import type { StatusVariant } from "../../lib/utils";
 
 const variantStyles: Record<StatusVariant, string> = {
   success: "bg-green-500/10 text-green-400",
@@ -40,31 +39,3 @@ export function StatusBadge({ variant, label, className, ...rest }: StatusBadgeP
     </span>
   );
 }
-
-/** Map common status strings to badge variants */
-export function statusToVariant(status: string): StatusVariant {
-  switch (status) {
-    case "healthy":
-    case "up":
-    case "compliant":
-    case "success":
-    case "enabled":
-      return "success";
-    case "unhealthy":
-    case "down":
-    case "error":
-    case "mismatch":
-    case "failure":
-      return "error";
-    case "degraded":
-    case "timeout":
-    case "skipped":
-    case "missing_scenario":
-    case "missing_port":
-      return "warning";
-    default:
-      return "neutral";
-  }
-}
-
-export type { StatusVariant };

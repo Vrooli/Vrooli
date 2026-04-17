@@ -1,11 +1,10 @@
 package services
 
 import (
+	"agent-inbox/integrations"
 	"context"
 	"sync"
 	"time"
-
-	"agent-inbox/integrations"
 
 	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 )

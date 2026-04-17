@@ -6,9 +6,10 @@
   "type": "module",
   "scripts": {
     "dev": "vrooli lifecycle protect -- vite",
-    "build": "vite build",
+    "build": "pnpm run type-check && vite build",
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx",
+    "lint:fix": "eslint src --ext ts,tsx --fix",
     "type-check": "tsc --noEmit",
     "test": "vitest run"
   },

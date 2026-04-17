@@ -3,8 +3,6 @@ package services
 import (
 	"context"
 	"testing"
-
-	"agent-inbox/domain"
 )
 
 // =============================================================================
@@ -16,39 +14,6 @@ import (
 //
 // Unlike unit tests which test individual functions in isolation, these tests
 // verify that the pieces work correctly together.
-
-// mockChatSettings is a minimal mock for testing chat settings retrieval.
-type mockChatSettings struct {
-	Model             string
-	ToolsEnabled      bool
-	WebSearchEnabled  bool
-	SystemPrompt      string
-	ShouldReturnNil   bool
-	ShouldReturnError error
-}
-
-// mockRepository provides a minimal repository mock for integration testing.
-type mockRepository struct {
-	chatSettings map[string]*mockChatSettings
-	messages     map[string][]domain.Message
-}
-
-func newMockRepository() *mockRepository {
-	return &mockRepository{
-		chatSettings: make(map[string]*mockChatSettings),
-		messages:     make(map[string][]domain.Message),
-	}
-}
-
-// SetChatSettings sets the chat settings for a chat ID.
-func (m *mockRepository) SetChatSettings(chatID string, settings *mockChatSettings) {
-	m.chatSettings[chatID] = settings
-}
-
-// SetMessages sets the messages for a chat ID.
-func (m *mockRepository) SetMessages(chatID string, messages []domain.Message) {
-	m.messages[chatID] = messages
-}
 
 // createTestCompletionService creates a CompletionService with injected mocks
 // for integration testing.

@@ -2,11 +2,10 @@
 package validation
 
 import (
+	"development-toolchain-validator/domain/expectation"
 	"os"
 	"path/filepath"
 	"testing"
-
-	"development-toolchain-validator/domain/expectation"
 )
 
 // setupTestDir creates a temporary directory structure for testing.
@@ -22,24 +21,24 @@ func setupTestDir(t *testing.T) string {
 		"docs",
 	}
 	for _, dir := range dirs {
-		if err := os.MkdirAll(filepath.Join(baseDir, dir), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Join(baseDir, dir), 0o755); err != nil {
 			t.Fatalf("failed to create dir %s: %v", dir, err)
 		}
 	}
 
 	// Create test files
 	files := map[string]string{
-		"README.md":               "# Test Project\n\nThis is a test project.",
-		"api/main.go":             "package main\n\nfunc main() {}\n",
-		"api/handlers/health.go":  "package handlers\n\n// HealthCheck handles /health endpoint\nfunc HealthCheck() {}\n",
-		"api/domain/model.go":     "package domain\n\ntype User struct{}\n",
-		"ui/src/App.tsx":          "export function App() { return <div>Hello</div> }\n",
+		"README.md":                    "# Test Project\n\nThis is a test project.",
+		"api/main.go":                  "package main\n\nfunc main() {}\n",
+		"api/handlers/health.go":       "package handlers\n\n// HealthCheck handles /health endpoint\nfunc HealthCheck() {}\n",
+		"api/domain/model.go":          "package domain\n\ntype User struct{}\n",
+		"ui/src/App.tsx":               "export function App() { return <div>Hello</div> }\n",
 		"ui/src/components/Button.tsx": "export function Button() {}\n",
-		"docs/README.md":          "# Documentation\n",
+		"docs/README.md":               "# Documentation\n",
 	}
 	for path, content := range files {
 		fullPath := filepath.Join(baseDir, path)
-		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil {
 			t.Fatalf("failed to create file %s: %v", path, err)
 		}
 	}

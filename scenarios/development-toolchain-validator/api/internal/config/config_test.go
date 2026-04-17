@@ -2,10 +2,9 @@
 package config_test
 
 import (
+	"development-toolchain-validator/internal/config"
 	"os"
 	"testing"
-
-	"development-toolchain-validator/internal/config"
 )
 
 func TestDefaultConfig(t *testing.T) {

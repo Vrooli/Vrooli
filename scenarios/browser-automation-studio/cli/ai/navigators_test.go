@@ -1,10 +1,9 @@
 package ai
 
 import (
+	"browser-automation-studio/cli/internal/appctx"
 	"strings"
 	"testing"
-
-	"browser-automation-studio/cli/internal/appctx"
 )
 
 func TestNavigatorInfo_Struct(t *testing.T) {

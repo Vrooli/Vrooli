@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Shield, CheckCircle2 } from "lucide-react";
 import { fetchAudit } from "../lib/api";
-import { StatusBadge, statusToVariant } from "./ui/status-badge";
+import { statusToVariant } from "../lib/utils";
+import { StatusBadge } from "./ui/status-badge";
 import { RefreshButton } from "./ui/refresh-button";
 import { QueryState } from "./ui/query-state";
 

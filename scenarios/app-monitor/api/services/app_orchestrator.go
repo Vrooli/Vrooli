@@ -643,7 +643,9 @@ func (s *AppService) mergeViewStats(ctx context.Context, apps []repository.App) 
 // the background hydration completes even if the originating request is cancelled.
 // This is intentional - we want the cache to be updated for future requests.
 func (s *AppService) hydrateOrchestratorInBackground(logContext string) {
+	s.backgroundWg.Add(1)
 	go func() {
+		defer s.backgroundWg.Done()
 		// Create a detached context with reasonable timeout for background work
 		// This ensures the hydration isn't cancelled if parent request completes
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -683,7 +685,9 @@ func (s *AppService) hydrateEnrichmentInBackground() {
 		return
 	}
 
+	s.backgroundWg.Add(1)
 	go func() {
+		defer s.backgroundWg.Done()
 		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 		defer cancel()
 
@@ -840,7 +844,9 @@ func (s *AppService) hydrateCompletenessInBackground() {
 	s.completenessCache.loading = true
 	s.completenessCache.mu.Unlock()
 
+	s.backgroundWg.Add(1)
 	go func() {
+		defer s.backgroundWg.Done()
 		defer func() {
 			s.completenessCache.mu.Lock()
 			s.completenessCache.loading = false

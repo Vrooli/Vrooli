@@ -102,8 +102,10 @@
             ]
           },
           {
-            "type": "command",
-            "command": "test -d ui/node_modules && [ \"$(ls -A ui/node_modules 2>/dev/null)\" ]"
+            "type": "dependencies",
+            "paths": [
+              "ui/package.json"
+            ]
           }
         ]
       },

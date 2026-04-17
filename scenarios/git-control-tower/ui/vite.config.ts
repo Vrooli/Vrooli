@@ -2,11 +2,13 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
+  // INTEROP-CRITICAL: Relative asset URLs are required when the UI is embedded behind scenario tunnels/proxies.
   base: "./", // Required for tunnel/proxy contexts
   plugins: [react()],
   build: {
     rollupOptions: {
       output: {
+        // INTEROP-CRITICAL: Keep the heavy mermaid bundle isolated so embedded hosts load consistently.
         manualChunks: {
           mermaid: ["mermaid"],
         },

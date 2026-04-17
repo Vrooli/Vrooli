@@ -261,6 +261,10 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
 
       for (const node of freshTopo.nodes) {
         const data = getGraphNodeData(node);
+        // Initiatives and scenarios are structural context — they have no
+        // attention state of their own. They're added in a second pass
+        // below, pulled in whenever they connect to an attention-worthy item.
+        if (data.entityType === "initiative" || data.entityType === "scenario") continue;
         let enrichment: NodeEnrichment | undefined;
         if (data.entityType === "backlog" && "kind" in data && "name" in data) {
           enrichment = enrichmentMap.get(`${data.kind}/${data.name}`);
@@ -277,6 +281,25 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
             },
           });
         }
+      }
+
+      // Second pass: pull in structural context nodes (initiatives, scenarios)
+      // that connect to any attention-worthy item. Initiatives are targets of
+      // member_of edges; scenarios are targets of "targets" edges. Without this,
+      // focus lens drops the surrounding context and shows bare backlog items.
+      const contextNodeIds = new Set<string>();
+      for (const edge of freshTopo.edges) {
+        if (!filteredNodeIds.has(edge.source)) continue;
+        if (edge.type === "member_of" || edge.type === "targets") {
+          contextNodeIds.add(edge.target);
+        }
+      }
+      for (const node of freshTopo.nodes) {
+        const entityType = getGraphNodeData(node).entityType;
+        if (entityType !== "initiative" && entityType !== "scenario") continue;
+        if (!contextNodeIds.has(node.id)) continue;
+        filteredNodeIds.add(node.id);
+        filteredNodes.push(node);
       }
 
       const filteredEdges = freshTopo.edges.filter(

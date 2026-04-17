@@ -4,14 +4,14 @@
 package handlers
 
 import (
+	"development-toolchain-validator/domain/reference"
+	"development-toolchain-validator/domain/skill"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"development-toolchain-validator/domain/reference"
-	"development-toolchain-validator/domain/skill"
 	apierrors "development-toolchain-validator/internal/errors"
 )
 
@@ -23,8 +23,8 @@ func TestMapDomainError(t *testing.T) {
 		cfg           ErrorMappingConfig
 		wantStatus    int
 		wantCategory  apierrors.Category
-		wantInMessage string   // Optional: expected string in message
-		wantDetailKey string   // Optional: expected key in details
+		wantInMessage string // Optional: expected string in message
+		wantDetailKey string // Optional: expected key in details
 	}{
 		{
 			name: "reference_not_found",

@@ -24,8 +24,10 @@ type SystemProcess struct {
 	Command string `json:"command"`
 }
 
-type LockInfo = network.LockInfo
-type PortListener = network.PortListener
+type (
+	LockInfo     = network.LockInfo
+	PortListener = network.PortListener
+)
 
 type PortDiagnostic struct {
 	Port               int                        `json:"port"`
@@ -174,31 +176,31 @@ func buildRecommendations(port int, diagnostic PortDiagnostic) []string {
 // overlay mounts have Vrooli paths in their argv; the user's shell, SSH, IDE,
 // and Claude Code subprocesses all frequently have a Vrooli cwd.
 var systemDaemonExeBasenames = map[string]struct{}{
-	"postgres":           {},
-	"postmaster":         {},
-	"fuse-overlayfs":     {},
-	"fusermount":         {},
-	"fusermount3":        {},
-	"sshd":               {},
-	"ssh":                {},
-	"bash":               {},
-	"dash":               {},
-	"sh":                 {},
-	"zsh":                {},
-	"fish":               {},
-	"opencode":           {},
-	"code":               {},
-	"code-insiders":      {},
-	"docker":             {},
-	"dockerd":            {},
-	"containerd":         {},
-	"containerd-shim":    {},
+	"postgres":                {},
+	"postmaster":              {},
+	"fuse-overlayfs":          {},
+	"fusermount":              {},
+	"fusermount3":             {},
+	"sshd":                    {},
+	"ssh":                     {},
+	"bash":                    {},
+	"dash":                    {},
+	"sh":                      {},
+	"zsh":                     {},
+	"fish":                    {},
+	"opencode":                {},
+	"code":                    {},
+	"code-insiders":           {},
+	"docker":                  {},
+	"dockerd":                 {},
+	"containerd":              {},
+	"containerd-shim":         {},
 	"containerd-shim-runc-v2": {},
-	"runc":               {},
-	"git":                {},
-	"gpg":                {},
-	"gpg-agent":          {},
-	"gnome-keyring-daemon": {},
+	"runc":                    {},
+	"git":                     {},
+	"gpg":                     {},
+	"gpg-agent":               {},
+	"gnome-keyring-daemon":    {},
 }
 
 // interpreterExeBasenames identifies runtime interpreters that are themselves
@@ -206,14 +208,14 @@ var systemDaemonExeBasenames = map[string]struct{}{
 // be under a Vrooli-owned directory (scenarios/ or resources/) to classify
 // the process as Vrooli.
 var interpreterExeBasenames = map[string]struct{}{
-	"node":   {},
-	"python": {},
+	"node":    {},
+	"python":  {},
 	"python3": {},
-	"ruby":   {},
-	"deno":   {},
-	"bun":    {},
-	"java":   {},
-	"go":     {},
+	"ruby":    {},
+	"deno":    {},
+	"bun":     {},
+	"java":    {},
+	"go":      {},
 }
 
 func looksLikeVrooliProcess(root, home string, entry processTableEntry) bool {

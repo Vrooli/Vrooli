@@ -49,7 +49,7 @@ describe("ToolConfiguration - Individual Toggle Isolation", () => {
     },
   ];
 
-  it("clicking one toggle should only call onToggleTool for that specific tool", async () => {
+  it("clicking one toggle should only call onToggleTool for that specific tool", () => {
     const onToggleTool = vi.fn();
     const tools = [
       createMockTool("test-scenario", "tool1", true),
@@ -162,7 +162,7 @@ describe("ToolConfiguration - Scenario Toggle", () => {
     );
 
     const scenarioToggle = screen.getByTestId("scenario-toggle-all-test-scenario");
-    await act(async () => {
+    act(() => {
       fireEvent.click(scenarioToggle);
     });
 
@@ -193,7 +193,7 @@ describe("ToolConfiguration - Scenario Toggle", () => {
     );
 
     const scenarioToggle = screen.getByTestId("scenario-toggle-all-test-scenario");
-    await act(async () => {
+    act(() => {
       fireEvent.click(scenarioToggle);
     });
 
@@ -229,7 +229,7 @@ describe("ToolConfiguration - Scenario Toggle", () => {
     );
 
     const scenarioToggle = screen.getByTestId("scenario-toggle-all-scenario-a");
-    await act(async () => {
+    act(() => {
       fireEvent.click(scenarioToggle);
     });
 

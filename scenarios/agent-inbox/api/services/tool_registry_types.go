@@ -4,14 +4,13 @@
 package services
 
 import (
-	"context"
-	"sync"
-	"time"
-
 	"agent-inbox/config"
 	"agent-inbox/domain"
 	"agent-inbox/integrations"
 	"agent-inbox/persistence"
+	"context"
+	"sync"
+	"time"
 )
 
 // ToolRegistry manages tool discovery and user configurations.

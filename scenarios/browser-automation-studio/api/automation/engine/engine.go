@@ -37,10 +37,10 @@ type SessionSpec struct {
 	ReuseMode      SessionReuseMode
 	BaseURL        string
 	Labels         map[string]string
-	Capabilities   contracts.CapabilityRequirement  // Required capabilities derived from plan.
-	FrameStreaming *FrameStreamingConfig            // Optional: enables live frame streaming during execution.
+	Capabilities   contracts.CapabilityRequirement           // Required capabilities derived from plan.
+	FrameStreaming *FrameStreamingConfig                     // Optional: enables live frame streaming during execution.
 	BrowserProfile *sessionprofilepersistence.BrowserProfile // Optional: anti-detection and human-like behavior settings.
-	StorageState   json.RawMessage                  // Optional: session profile's storage state (cookies, localStorage) for authenticated execution.
+	StorageState   json.RawMessage                           // Optional: session profile's storage state (cookies, localStorage) for authenticated execution.
 }
 
 // AutomationEngine exposes engine capabilities and produces engine sessions.

@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"vrooli-autoheal/internal/checks"
+	"vrooli-autoheal/internal/checks/vrooli"
+	"vrooli-autoheal/internal/userconfig"
 
 	"github.com/gorilla/mux"
 
-	"vrooli-autoheal/internal/checks"
-	"vrooli-autoheal/internal/checks/vrooli"
 	apierrors "vrooli-autoheal/internal/errors"
-	"vrooli-autoheal/internal/userconfig"
 )
 
 // ConfigHandlers wraps handlers for configuration management

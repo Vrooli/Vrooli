@@ -10,7 +10,7 @@ import (
 
 // Environment variable names for agent identity detection.
 const (
-	EnvIdentityToken   = "VROOLI_AGENT_IDENTITY_TOKEN"
+	EnvIdentityToken    = "VROOLI_AGENT_IDENTITY_TOKEN"
 	EnvAgentManagerBase = "VROOLI_AGENT_MANAGER_API_BASE"
 )
 

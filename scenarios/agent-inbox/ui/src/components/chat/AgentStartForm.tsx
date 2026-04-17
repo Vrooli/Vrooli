@@ -126,7 +126,7 @@ export function AgentStartForm({
             </span>
           )}
         </div>
-        {pathIsInvalid && pathValidation?.message ? (
+        {pathIsInvalid && pathValidation.message ? (
           <p className="mt-1 text-xs text-red-400">{pathValidation.message}</p>
         ) : (
           <p className="mt-1 text-xs text-zinc-500">

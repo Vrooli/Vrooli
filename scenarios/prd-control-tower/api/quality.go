@@ -407,7 +407,7 @@ func computeQualityReport(entityType, entityName string, customPath ...string) (
 
 	report.IssueCounts.Blocking = report.IssueCounts.MissingPRD
 	if structureIssues > 0 {
-		report.IssueCounts.Blocking += 1
+		report.IssueCounts.Blocking++
 	}
 	report.IssueCounts.Blocking += countCriticalTargetIssues(targetIssues, "P0")
 

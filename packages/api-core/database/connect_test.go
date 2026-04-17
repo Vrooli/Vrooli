@@ -11,21 +11,6 @@ import (
 	"github.com/vrooli/api-core/retry"
 )
 
-// mockDB simulates a sql.DB for testing
-type mockDB struct {
-	pingErr   error
-	pingCount int
-}
-
-func (m *mockDB) PingContext(ctx context.Context) error {
-	m.pingCount++
-	return m.pingErr
-}
-
-func (m *mockDB) Close() error {
-	return nil
-}
-
 // ============================================================================
 // PostgreSQL DSN Building Tests
 // ============================================================================

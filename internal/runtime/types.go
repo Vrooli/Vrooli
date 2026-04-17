@@ -2,8 +2,10 @@ package runtime
 
 import "github.com/vrooli/vrooli/internal/hostreqkit"
 
-type SupportClass = hostreqkit.SupportClass
-type ExecutionState = hostreqkit.ExecutionState
+type (
+	SupportClass   = hostreqkit.SupportClass
+	ExecutionState = hostreqkit.ExecutionState
+)
 
 const (
 	SupportSupported     = hostreqkit.SupportSupported
@@ -27,7 +29,9 @@ const (
 
 type ItemStatus = hostreqkit.ItemStatus
 
-type ToolStatus = hostreqkit.ToolStatus
-type SafeguardStatus = hostreqkit.SafeguardStatus
+type (
+	ToolStatus      = hostreqkit.ToolStatus
+	SafeguardStatus = hostreqkit.SafeguardStatus
+)
 
 type Report = hostreqkit.Report

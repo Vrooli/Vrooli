@@ -56,4 +56,13 @@ export async function handleResponse<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export async function fetchExternalUrl(path: string): Promise<string | null> {
+  const res = await fetch(path);
+  if (!res.ok) {
+    return null;
+  }
+  const data = await res.json() as { url?: unknown };
+  return typeof data.url === "string" && data.url.trim() ? data.url : null;
+}
+
 export { buildApiUrl };

@@ -65,4 +65,3 @@ func (r *Resolver) Path(opts Options, class Class, rel string) (string, error) {
 	}
 	return cleanJoin(base, rel)
 }
-

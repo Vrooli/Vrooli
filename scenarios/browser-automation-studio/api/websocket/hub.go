@@ -95,10 +95,10 @@ func (h *Hub) recordDroppedFrame(sessionID string, clientID uuid.UUID) {
 	now := time.Now()
 	if now.Sub(h.lastDropLogTime) >= time.Second {
 		h.log.WithFields(logrus.Fields{
-			"session_id":          sessionID,
-			"client_id":           clientID,
-			"total_dropped":       h.droppedFrameCount,
-			"reason":              "client_buffer_full",
+			"session_id":    sessionID,
+			"client_id":     clientID,
+			"total_dropped": h.droppedFrameCount,
+			"reason":        "client_buffer_full",
 		}).Warn("Frame dropped: client buffer full")
 		h.lastDropLogTime = now
 	}

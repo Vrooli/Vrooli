@@ -70,7 +70,7 @@ export function useTemplateEditorForm({
       icon !== (template.icon || "Sparkles") ||
       JSON.stringify(modes) !== JSON.stringify(template.modes || []) ||
       content !== template.content ||
-      JSON.stringify(variables) !== JSON.stringify(template.variables || []) ||
+      JSON.stringify(variables) !== JSON.stringify(template.variables) ||
       JSON.stringify([...tools.selectedToolIds].sort()) !== JSON.stringify([...tools.initialToolIds].sort()) ||
       draft !== (template.draft || false)
     );
@@ -132,7 +132,7 @@ export function useTemplateEditorForm({
         setIcon(template.icon || "Sparkles");
         setModes(template.modes || []);
         setContent(template.content);
-        setVariables(template.variables || []);
+        setVariables(template.variables);
         const normalizedIds = tools.normalizeToolIds(template.suggestedToolIds || [], tools.toolsByScenario);
         tools.setSelectedToolIds(normalizedIds);
         tools.setInitialToolIds(normalizedIds);

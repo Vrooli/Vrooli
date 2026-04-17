@@ -46,7 +46,7 @@ type EntitlementStatusResponse struct {
 	IsActive            bool                   `json:"is_active"`
 	Features            []string               `json:"features,omitempty"`
 	FeatureAccess       []FeatureAccessSummary `json:"feature_access,omitempty"`
-	MonthlyLimit        int                    `json:"monthly_limit"`     // -1 for unlimited
+	MonthlyLimit        int                    `json:"monthly_limit"` // -1 for unlimited
 	MonthlyUsed         int                    `json:"monthly_used"`
 	MonthlyRemaining    int                    `json:"monthly_remaining"` // -1 for unlimited
 	RequiresWatermark   bool                   `json:"requires_watermark"`
@@ -304,9 +304,9 @@ func (h *EntitlementHandler) GetUsageSummary(w http.ResponseWriter, r *http.Requ
 
 // UsageHistoryResponse represents the response for usage history.
 type UsageHistoryResponse struct {
-	UserIdentity string                   `json:"user_identity"`
-	Periods      []credits.UsageSummary   `json:"periods"`
-	HasMore      bool                     `json:"has_more"`
+	UserIdentity string                 `json:"user_identity"`
+	Periods      []credits.UsageSummary `json:"periods"`
+	HasMore      bool                   `json:"has_more"`
 }
 
 // GetUsageHistory handles GET /api/v1/entitlement/usage/history

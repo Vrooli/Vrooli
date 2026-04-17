@@ -98,13 +98,13 @@ type ListOptions struct {
 
 // DriftStatus represents whether a skill connection has drifted from its stored version.
 type DriftStatus struct {
-	ConnectionID     string `json:"connection_id"`
-	SkillID          string `json:"skill_id"`
-	StoredVersion    string `json:"stored_version"`
-	StoredHash       string `json:"stored_hash"`
-	CurrentVersion   string `json:"current_version"`
-	CurrentHash      string `json:"current_hash"`
-	HasDrifted       bool   `json:"has_drifted"`
-	VersionChanged   bool   `json:"version_changed"`
-	ContentChanged   bool   `json:"content_changed"`
+	ConnectionID   string `json:"connection_id"`
+	SkillID        string `json:"skill_id"`
+	StoredVersion  string `json:"stored_version"`
+	StoredHash     string `json:"stored_hash"`
+	CurrentVersion string `json:"current_version"`
+	CurrentHash    string `json:"current_hash"`
+	HasDrifted     bool   `json:"has_drifted"`
+	VersionChanged bool   `json:"version_changed"`
+	ContentChanged bool   `json:"content_changed"`
 }

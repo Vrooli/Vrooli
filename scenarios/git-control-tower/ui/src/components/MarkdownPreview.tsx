@@ -25,6 +25,35 @@ interface MarkdownCodeBlockProps {
 
 let highlighterPromise: Promise<Highlighter> | null = null;
 
+function toBundledLanguage(value: string): BundledLanguage | null {
+  switch (value) {
+    case "typescript":
+    case "javascript":
+    case "python":
+    case "go":
+    case "json":
+    case "bash":
+    case "sql":
+    case "html":
+    case "css":
+    case "yaml":
+    case "markdown":
+    case "jsx":
+    case "tsx":
+    case "rust":
+    case "java":
+    case "c":
+    case "cpp":
+    case "ruby":
+    case "php":
+    case "swift":
+    case "kotlin":
+      return value;
+    default:
+      return null;
+  }
+}
+
 async function getHighlighter(): Promise<Highlighter> {
   if (!highlighterPromise) {
     highlighterPromise = import("shiki").then((shiki) =>
@@ -125,17 +154,22 @@ const MarkdownCodeBlock = memo(function MarkdownCodeBlock({
 
         const loadedLangs = highlighter.getLoadedLanguages();
         let langToUse: string = normalizedLang || "text";
+        let bundledLanguage = toBundledLanguage(langToUse);
 
-        if (langToUse !== "text" && !loadedLangs.includes(langToUse as BundledLanguage)) {
+        if (langToUse !== "text" && (!bundledLanguage || !loadedLangs.includes(bundledLanguage))) {
           try {
-            await highlighter.loadLanguage(langToUse as BundledLanguage);
+            if (!bundledLanguage) {
+              throw new Error("Unsupported language");
+            }
+            await highlighter.loadLanguage(bundledLanguage);
           } catch {
             langToUse = "text";
+            bundledLanguage = null;
           }
         }
 
         const html = highlighter.codeToHtml(code, {
-          lang: langToUse as BundledLanguage | "text",
+          lang: bundledLanguage ?? "text",
           theme: "github-dark",
         });
         if (!cancelled) {

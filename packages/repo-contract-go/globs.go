@@ -79,9 +79,7 @@ func normalizeRepoRelative(value string, forbidEmpty bool) (string, error) {
 	if isAbsolutePathLike(value) {
 		return "", &Error{Kind: ErrInvalidInput, Message: "absolute paths are not allowed", Details: value}
 	}
-	if strings.HasPrefix(value, "./") {
-		value = strings.TrimPrefix(value, "./")
-	}
+	value = strings.TrimPrefix(value, "./")
 	value = cleanSlashPath(value)
 	if value == "." || value == "" {
 		if forbidEmpty {

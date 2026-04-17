@@ -63,8 +63,8 @@ export function ChatToolsSelector({ chatId, toolsEnabled = true }: ChatToolsSele
     try {
       await updateChat(chatId, { tools_enabled: enabled });
       // Invalidate chat queries to refresh the state
-      queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
-      queryClient.invalidateQueries({ queryKey: ["chats"] });
+      void queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
+      void queryClient.invalidateQueries({ queryKey: ["chats"] });
     } catch (err) {
       console.error("Failed to toggle tools:", err);
     } finally {
@@ -80,7 +80,7 @@ export function ChatToolsSelector({ chatId, toolsEnabled = true }: ChatToolsSele
   // Handle successful tool execution
   const handleToolSuccess = () => {
     // Refresh chat messages to show the new tool call
-    queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
+    void queryClient.invalidateQueries({ queryKey: ["chat", chatId] });
   };
 
   // Close popover when clicking outside
@@ -191,8 +191,8 @@ export function ChatToolsSelector({ chatId, toolsEnabled = true }: ChatToolsSele
                 isUpdating={isUpdating}
                 error={error?.message}
                 onToggleTool={toggleTool}
-                onResetTool={resetTool}
-                onSyncTools={syncDiscoveredTools}
+                onResetTool={(scenario, toolName) => { void resetTool(scenario, toolName); }}
+                onSyncTools={() => { void syncDiscoveredTools(); }}
                 onRunTool={handleRunTool}
               />
             ) : (

@@ -14,12 +14,11 @@
 package services
 
 import (
+	"agent-inbox/domain"
 	"context"
 	"fmt"
 	"log"
 	"time"
-
-	"agent-inbox/domain"
 )
 
 // RefreshTools fetches tools from scenarios and updates the cache.

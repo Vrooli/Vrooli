@@ -1,8 +1,6 @@
 module bedtime-story-generator
 
-go 1.21.1
-
-toolchain go1.21.13
+go 1.22
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2

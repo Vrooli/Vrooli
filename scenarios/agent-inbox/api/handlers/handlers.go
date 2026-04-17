@@ -9,13 +9,12 @@
 package handlers
 
 import (
-	"encoding/json"
-	"net/http"
-
 	"agent-inbox/domain"
 	"agent-inbox/integrations"
 	"agent-inbox/persistence"
 	"agent-inbox/services"
+	"encoding/json"
+	"net/http"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"

@@ -1,10 +1,9 @@
 package services
 
 import (
+	"agent-inbox/domain"
 	"context"
 	"testing"
-
-	"agent-inbox/domain"
 )
 
 func TestExecuteToolCalls_MultipleTools_Success(t *testing.T) {

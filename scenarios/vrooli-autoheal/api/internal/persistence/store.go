@@ -6,7 +6,6 @@ import (
 	"context"
 	"database/sql"
 	"time"
-
 	"vrooli-autoheal/internal/checks"
 )
 

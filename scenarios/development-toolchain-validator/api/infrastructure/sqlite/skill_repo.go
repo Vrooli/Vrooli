@@ -3,14 +3,13 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"development-toolchain-validator/domain/skill"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
-
-	"development-toolchain-validator/domain/skill"
 )
 
 // SkillRepository implements skill.Repository using SQLite.

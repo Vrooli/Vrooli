@@ -19,4 +19,3 @@ func TestIsStandard(t *testing.T) {
 		t.Fatal("expected custom action to be non-standard")
 	}
 }
-

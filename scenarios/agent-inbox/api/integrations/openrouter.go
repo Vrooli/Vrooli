@@ -4,6 +4,7 @@
 package integrations
 
 import (
+	"agent-inbox/config"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -13,8 +14,6 @@ import (
 	"net/http"
 	"os"
 	"time"
-
-	"agent-inbox/config"
 )
 
 // OpenRouterClient provides access to the OpenRouter API for chat completions.

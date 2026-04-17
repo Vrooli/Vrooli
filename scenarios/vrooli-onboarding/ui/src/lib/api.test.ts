@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 
 // Mock @vrooli/api-base before importing api module
 vi.mock("@vrooli/api-base", () => ({
@@ -275,8 +275,14 @@ describe("api", () => {
     it("sets Content-Type header on all requests", async () => {
       mockFetch({ status: "ok" });
       await fetchHealth();
-      const callArgs = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
-      expect(callArgs[1].headers).toEqual({ "Content-Type": "application/json" });
+      const fetchCalls = vi.mocked(globalThis.fetch).mock.calls;
+      const callArgs = fetchCalls[0];
+      expect(callArgs).toBeDefined();
+      if (!callArgs) {
+        throw new Error("Expected fetch to be called");
+      }
+
+      expect(callArgs[1]?.headers).toEqual({ "Content-Type": "application/json" });
     });
   });
 });

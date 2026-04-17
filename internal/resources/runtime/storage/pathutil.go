@@ -45,4 +45,3 @@ func cleanJoin(base, rel string) (string, error) {
 	}
 	return candidate, nil
 }
-

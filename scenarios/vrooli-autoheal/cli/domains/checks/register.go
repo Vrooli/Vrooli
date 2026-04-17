@@ -6,7 +6,6 @@ import (
 	"os"
 	"sort"
 	"strings"
-
 	"vrooli-autoheal/cli/domains/watchdog"
 	"vrooli-autoheal/cli/internal/support"
 

@@ -3,12 +3,11 @@
 package services
 
 import (
+	"agent-inbox/config"
+	"agent-inbox/integrations"
 	"net/http"
 	"sync"
 	"time"
-
-	"agent-inbox/config"
-	"agent-inbox/integrations"
 )
 
 // SuggestRequest is the input for skill suggestion.

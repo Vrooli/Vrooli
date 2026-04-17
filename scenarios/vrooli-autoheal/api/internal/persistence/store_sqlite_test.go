@@ -5,10 +5,9 @@ import (
 	"database/sql"
 	"testing"
 	"time"
+	"vrooli-autoheal/internal/checks"
 
 	_ "modernc.org/sqlite"
-
-	"vrooli-autoheal/internal/checks"
 )
 
 func TestSQLiteStore_SaveAndReadHealthResults(t *testing.T) {

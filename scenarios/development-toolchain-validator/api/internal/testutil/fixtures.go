@@ -3,10 +3,9 @@
 package testutil
 
 import (
-	"time"
-
 	"development-toolchain-validator/domain/reference"
 	"development-toolchain-validator/domain/skill"
+	"time"
 )
 
 // ReferenceFactory creates Reference test fixtures with builder pattern.

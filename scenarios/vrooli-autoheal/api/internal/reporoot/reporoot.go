@@ -11,7 +11,8 @@ import (
 // Resolve returns the canonical repo root when it can be derived, while still
 // honoring explicit overrides even when repo-contract discovery is unavailable.
 func Resolve(getenv func(string) string) string {
-	for _, key := range []string{"VROOLI_SOURCE_ROOT", "VROOLI_ROOT"} {
+	// Prefer the explicit runtime override over inherited source-root context.
+	for _, key := range []string{"VROOLI_ROOT", "VROOLI_SOURCE_ROOT"} {
 		if root := strings.TrimSpace(getenv(key)); root != "" {
 			if resolved, ok := CanonicalizeOverride(root); ok {
 				return resolved

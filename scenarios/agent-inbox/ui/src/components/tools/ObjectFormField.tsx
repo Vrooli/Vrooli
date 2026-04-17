@@ -28,7 +28,10 @@ export function ObjectFormField({
 }: ObjectFormFieldProps) {
   const { description } = schema;
   const containerStyle = depth > 0 ? { marginLeft: `${depth * 16}px` } : {};
-  const objectValue = (value as Record<string, unknown>) ?? {};
+  const objectValue: Record<string, unknown> =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
   const schemaProperties = schema.properties ?? {};
 
   const updateProperty = (propName: string, newValue: unknown) => {

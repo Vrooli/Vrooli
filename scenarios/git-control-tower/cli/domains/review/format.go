@@ -200,9 +200,7 @@ func untracedFileItems(p *provenanceDimension) []string {
 		return nil
 	}
 	items := make([]string, 0, len(p.UntracedFiles))
-	for _, f := range p.UntracedFiles {
-		items = append(items, f)
-	}
+	items = append(items, p.UntracedFiles...)
 	return items
 }
 

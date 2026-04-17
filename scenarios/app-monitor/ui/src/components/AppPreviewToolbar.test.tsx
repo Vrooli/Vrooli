@@ -20,6 +20,7 @@ vi.mock('@/hooks/useDraggablePosition', () => ({
     elementRef: { current: null },
     floatingStyle: undefined,
     isDragging: false,
+    position: { x: 0, y: 0 },
     pointerHandlers: {
       onPointerDown: vi.fn(),
       onPointerMove: vi.fn(),

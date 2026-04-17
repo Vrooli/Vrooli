@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { RefreshCw, Loader2, CheckCircle2, XCircle, AlertTriangle, Plus, Minus, Anchor, Camera, ExternalLink } from "lucide-react";
 import { Button } from "./ui/button";
 import { useTestExecutions, useTidinessScore, useTidinessStaleness, useScenarios, useReviewSummary, useTriggerReviewRun, useReviewJobStatus } from "../lib/hooks";
+import { fetchExternalUrl } from "../lib/api-internals";
 import type { SnapshotSetMeta, SnapshotStalenessInfo, TestExecutionResult, RepoFileStats, AgentContextItem, Readiness } from "../lib/api";
 import { aggregateFileStats, formatNetLines } from "../lib/metrics";
 import { AttachToAgentButton } from "./AgentTab";
@@ -55,11 +56,10 @@ export function OverviewTab({
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/embedded/${encodeURIComponent(scenarioSlug)}/external-url`)
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (!cancelled && data?.url) {
-          setProxyUrl(data.url as string);
+    fetchExternalUrl(`/embedded/${encodeURIComponent(scenarioSlug)}/external-url`)
+      .then((url) => {
+        if (!cancelled && url) {
+          setProxyUrl(url);
         }
       })
       .catch(() => { /* keep fallback */ });
@@ -395,4 +395,3 @@ export function OverviewTab({
     </div>
   );
 }
-

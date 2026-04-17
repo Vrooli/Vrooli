@@ -85,8 +85,8 @@ func (s *WorkflowService) CreateWorkflow(ctx context.Context, req *basapi.Create
 			}
 			return "Initial workflow creation"
 		}(),
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		CreatedAt:      now,
+		UpdatedAt:      now,
 		FlowDefinition: def,
 	}
 
@@ -111,7 +111,7 @@ func (s *WorkflowService) CreateWorkflow(ctx context.Context, req *basapi.Create
 	s.cacheWorkflowPath(workflowID, absPath, relPath)
 
 	return &basapi.CreateWorkflowResponse{
-		Workflow:      summary,
+		Workflow:       summary,
 		FlowDefinition: summary.FlowDefinition,
 	}, nil
 }
@@ -291,7 +291,7 @@ func (s *WorkflowService) UpdateWorkflow(ctx context.Context, req *basapi.Update
 	}
 
 	return &basapi.UpdateWorkflowResponse{
-		Workflow:      updated,
+		Workflow:       updated,
 		FlowDefinition: updated.FlowDefinition,
 	}, nil
 }

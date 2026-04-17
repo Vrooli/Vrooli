@@ -1,13 +1,12 @@
 package workflows
 
 import (
+	"browser-automation-studio/cli/internal/appctx"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"browser-automation-studio/cli/internal/appctx"
 
 	"github.com/vrooli/cli-core/cliutil"
 )

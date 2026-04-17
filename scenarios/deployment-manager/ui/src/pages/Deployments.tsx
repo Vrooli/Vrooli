@@ -20,7 +20,12 @@ export function Deployments() {
 
   const { data: deployment, isFetching, refetch, error } = useQuery({
     queryKey: ["deployment", id],
-    queryFn: () => getDeploymentStatus(id!),
+    queryFn: () => {
+      if (!id) {
+        throw new Error("Deployment id is required");
+      }
+      return getDeploymentStatus(id);
+    },
     enabled: Boolean(id),
     staleTime: 5_000,
   });

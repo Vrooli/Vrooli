@@ -12,12 +12,6 @@ import (
 	types "scenario-dependency-analyzer/internal/types"
 )
 
-func repoScenarioPath(parts ...string) string {
-	base := []string{"..", "..", "..", ".."}
-	base = append(base, parts...)
-	return filepath.Join(base...)
-}
-
 // TestAnalyzeScenario tests scenario analysis functionality
 func TestAnalyzeScenario(t *testing.T) {
 	cleanup := setupTestLogger()

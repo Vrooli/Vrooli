@@ -5,7 +5,6 @@ package vrooli
 import (
 	"context"
 	"fmt"
-
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
 	"vrooli-autoheal/internal/watchdog"

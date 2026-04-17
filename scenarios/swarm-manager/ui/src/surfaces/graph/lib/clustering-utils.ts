@@ -84,16 +84,16 @@ export function buildClusterHierarchy(
 
   const clusters: ClusterGroup[] = [];
 
-  // Build initiative clusters
-  for (const [initId, members] of clusterMembers) {
-    if (initId === UNASSIGNED_CLUSTER_ID) continue;
-
-    const initNode = initiativeNodes.get(initId);
-    const data = initNode ? getGraphNodeData(initNode) : undefined;
-    const rollupData = data?.rawType === "Initiative" ? data.rollup : undefined;
+  // Build initiative clusters for every initiative node, including those with
+  // no active backlog members. Without this, initiatives whose items are all
+  // completed/archived disappear from the topology entirely.
+  for (const [initId, initNode] of initiativeNodes) {
+    const members = clusterMembers.get(initId) ?? [];
+    const data = getGraphNodeData(initNode);
+    const rollupData = data.rawType === "Initiative" ? data.rollup : undefined;
     const label =
-      data?.label ??
-      (data && "title" in data && typeof data.title === "string" ? data.title : initId);
+      data.label ??
+      ("title" in data && typeof data.title === "string" ? data.title : initId);
 
     clusters.push({
       id: initId,

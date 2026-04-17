@@ -42,4 +42,3 @@ func (r *Renderer) RenderValue(input string) string {
 	}
 	return out
 }
-

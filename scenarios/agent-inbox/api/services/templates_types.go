@@ -3,9 +3,8 @@
 package services
 
 import (
-	"sync"
-
 	"agent-inbox/config"
+	"sync"
 )
 
 // TemplateVariable defines a form field for template customization.

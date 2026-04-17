@@ -16,22 +16,22 @@
 //
 // # Report Types
 //
-//   ConflictsReport: Cross-skill contradictions
-//     - Structural: incompatible expectations from different skills
-//     - CLI: overlapping assertions with different expected values
+//	ConflictsReport: Cross-skill contradictions
+//	  - Structural: incompatible expectations from different skills
+//	  - CLI: overlapping assertions with different expected values
 //
-//   DriftReport: Aggregated drift across all connections
-//     - Compares stored hashes to current hashes
-//     - Unlike per-connection drift in skill domain, aggregates all at once
+//	DriftReport: Aggregated drift across all connections
+//	  - Compares stored hashes to current hashes
+//	  - Unlike per-connection drift in skill domain, aggregates all at once
 //
-//   MaturityReport: Skill expectation coverage scoring
-//     - Low: no expectations
-//     - Medium: only structural OR only CLI
-//     - High: both structural AND CLI expectations
+//	MaturityReport: Skill expectation coverage scoring
+//	  - Low: no expectations
+//	  - Medium: only structural OR only CLI
+//	  - High: both structural AND CLI expectations
 //
-//   ToolBaselinesReport: Tool accuracy regression checks
-//     - Groups CLI results by tool name
-//     - Pass/fail/error counts per tool per reference
+//	ToolBaselinesReport: Tool accuracy regression checks
+//	  - Groups CLI results by tool name
+//	  - Pass/fail/error counts per tool per reference
 //
 // # Integration Points
 //

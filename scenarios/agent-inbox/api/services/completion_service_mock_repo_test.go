@@ -1,11 +1,10 @@
 package services
 
 import (
+	"agent-inbox/domain"
 	"context"
 	"strconv"
 	"sync"
-
-	"agent-inbox/domain"
 )
 
 // =============================================================================

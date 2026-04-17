@@ -115,7 +115,7 @@ func TestCreateProject_DuplicateFolderPath(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	projectPath := filepath.Join(tmpDir, "test-project")
-	if err := os.MkdirAll(projectPath, 0755); err != nil {
+	if err := os.MkdirAll(projectPath, 0o755); err != nil {
 		t.Fatalf("failed to create test directory: %v", err)
 	}
 

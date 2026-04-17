@@ -20,15 +20,15 @@
 package handlers
 
 import (
+	"development-toolchain-validator/domain/reference"
+	"development-toolchain-validator/internal/config"
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-
-	"development-toolchain-validator/domain/reference"
-	"development-toolchain-validator/internal/config"
 )
 
 // ReferenceHandler handles HTTP requests for reference scenarios.
@@ -278,7 +278,9 @@ func (h *ReferenceHandler) Delete(w http.ResponseWriter, r *http.Request) {
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		log.Printf("[ERROR] failed to encode JSON response: %v", err)
+	}
 }
 
 func writeError(w http.ResponseWriter, status int, message string) {

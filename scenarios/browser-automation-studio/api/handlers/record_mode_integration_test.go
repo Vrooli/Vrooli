@@ -103,7 +103,7 @@ func (h *TestRecordingHub) BroadcastRecordingEntry(sessionID string, entry *wsHu
 }
 
 func (h *TestRecordingHub) BroadcastRecordingFrame(sessionID string, frame *wsHub.RecordingFrame) {}
-func (h *TestRecordingHub) BroadcastBinaryFrame(sessionID string, jpegData []byte)               {}
+func (h *TestRecordingHub) BroadcastBinaryFrame(sessionID string, jpegData []byte)                {}
 func (h *TestRecordingHub) HasRecordingSubscribers(sessionID string) bool {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
@@ -116,6 +116,7 @@ func (h *TestRecordingHub) BroadcastPageSwitch(sessionID, activePageID string) {
 func (h *TestRecordingHub) HasExecutionFrameSubscribers(executionID string) bool {
 	return false
 }
+
 func (h *TestRecordingHub) BroadcastExecutionFrame(executionID string, frame *wsHub.ExecutionFrame) {
 }
 func (h *TestRecordingHub) BroadcastExportProgress(progress *wsHub.ExportProgress) {}
@@ -124,8 +125,8 @@ func (h *TestRecordingHub) GetClientCount() int {
 	defer h.mu.RUnlock()
 	return len(h.clients)
 }
-func (h *TestRecordingHub) Run()                        {}
-func (h *TestRecordingHub) CloseExecution(_ uuid.UUID)  {}
+func (h *TestRecordingHub) Run()                       {}
+func (h *TestRecordingHub) CloseExecution(_ uuid.UUID) {}
 
 // Compile-time interface check
 var _ wsHub.HubInterface = (*TestRecordingHub)(nil)

@@ -7,13 +7,12 @@ package reference
 
 import (
 	"context"
+	"development-toolchain-validator/internal/config"
+	"development-toolchain-validator/internal/validation"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-
-	"development-toolchain-validator/internal/config"
-	"development-toolchain-validator/internal/validation"
 )
 
 var (

@@ -180,9 +180,9 @@ export function useTemplateActions({
           // Handled by caller (setWebSearchEnabled)
           break;
         case "direct-template":
-          getTemplateById(command.id).then((template) => {
+          void getTemplateById(command.id).then((template) => {
             if (template) {
-              handleTemplateSelect(template);
+              void handleTemplateSelect(template);
             }
           });
           break;

@@ -61,4 +61,3 @@ type ResolverConfig struct {
 	UserConfigDir func() (string, error)
 	UserCacheDir  func() (string, error)
 }
-

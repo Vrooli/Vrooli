@@ -27,8 +27,8 @@ func NewHandler(manifest hostreqkit.SafeguardManifest) hostreqkit.Handler {
 	return handler{manifest: manifest}
 }
 
-func (h handler) Name() string            { return h.manifest.Name }
-func (h handler) Kind() hostreqspec.Kind  { return hostreqspec.KindSafeguard }
+func (h handler) Name() string           { return h.manifest.Name }
+func (h handler) Kind() hostreqspec.Kind { return hostreqspec.KindSafeguard }
 
 func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedRequirement) hostreqkit.ItemStatus {
 	status := hostreqkit.BaseStatus(requirement)

@@ -1,9 +1,8 @@
 package main
 
 import (
-	"strings"
-
 	"scenario-dependency-analyzer/cli/domains"
+	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

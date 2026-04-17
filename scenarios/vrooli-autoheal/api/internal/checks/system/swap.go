@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"runtime"
-
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
 )

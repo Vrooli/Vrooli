@@ -1,6 +1,7 @@
 package integrations
 
 import (
+	"agent-inbox/resilience"
 	"context"
 	"fmt"
 	"net/http"
@@ -9,8 +10,6 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
-
-	"agent-inbox/resilience"
 )
 
 // dynamicURLResolver allows switching the resolved URL at test time.

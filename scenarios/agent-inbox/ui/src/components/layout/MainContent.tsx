@@ -133,10 +133,10 @@ export function MainContent({
           )}>
             <LazyChatView
               key={selectedChatId}
-              chatData={chatData?.chat?.id === selectedChatId ? chatData : null}
+              chatData={chatData?.chat.id === selectedChatId ? chatData : null}
               models={models}
               labels={labels}
-              isLoading={loadingChat || (!!selectedChatId && chatData?.chat?.id !== selectedChatId)}
+              isLoading={loadingChat || (!!selectedChatId && chatData?.chat.id !== selectedChatId)}
               isGenerating={isGenerating}
               streamingContent={streamingContent}
               activeToolCalls={activeToolCalls}

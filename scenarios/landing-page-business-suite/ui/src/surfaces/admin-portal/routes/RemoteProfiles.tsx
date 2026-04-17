@@ -487,7 +487,7 @@ export function RemoteProfiles() {
                           </p>
                           {(links.remote_sessions?.length ?? 0) > 0 && (
                             <div className="mt-2 space-y-1">
-                              {links.remote_sessions!.map((session) => (
+                              {links.remote_sessions?.map((session) => (
                                 <p key={session.session_id} className="text-xs text-slate-400 font-mono">
                                   {session.session_id} • {session.origin || 'unknown'} • {formatDateTime(session.last_activity, 'short')}
                                 </p>

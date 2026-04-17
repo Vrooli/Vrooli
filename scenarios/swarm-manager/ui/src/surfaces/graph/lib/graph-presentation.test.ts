@@ -141,6 +141,24 @@ describe("filterGraphEdges", () => {
     const result = filterGraphEdges([], [makeNode("a", "backlog")], settings);
     expect(result).toHaveLength(0);
   });
+
+  it("keeps secondary edges in focus lens even when showSecondaryEdges is false", () => {
+    // Regression: focus lens already aggressively filters to attention-worthy
+    // items + structural context (initiatives via member_of, scenarios via
+    // targets). Applying the secondary-edge filter on top hides the context
+    // edges that were the reason we pulled those nodes in, leaving scenarios
+    // floating without visible connections to the backlog items.
+    const settings: GraphLensSettings = {
+      ...createDefaultLensSettings("focus"),
+      showSecondaryEdges: false,
+    };
+    const nodes = [makeNode("a", "backlog"), makeNode("b", "scenario")];
+    const edges = [makeEdge("e1", "a", "b", "targets")];
+
+    const result = filterGraphEdges(edges, nodes, settings, "focus");
+    expect(result).toHaveLength(1);
+    expect(result[0]?.id).toBe("e1");
+  });
 });
 
 describe("buildGraphPresentation", () => {

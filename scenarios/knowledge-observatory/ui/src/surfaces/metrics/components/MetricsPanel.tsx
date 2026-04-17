@@ -59,53 +59,6 @@ function MetricCard({ label, percentageLabel, description, tone }: MetricCardVie
   );
 }
 
-function scoreDriverHints(
-  diagnostics: CollectionDiagnostics | null | undefined,
-  ingestHealth: IngestHealthResponse | null | undefined
-): string[] {
-  const hints: string[] = [];
-
-  if (diagnostics) {
-    const duplicateRatio = diagnostics.redundancy?.duplicate_ratio ?? 0;
-    if (duplicateRatio >= 0.15) {
-      hints.push("Redundancy is likely suppressing health; preview dedupe-content and apply if candidates look safe.");
-    }
-
-    const staleCandidates = diagnostics.stale_chunks?.candidate_delete_rows ?? 0;
-    if (staleCandidates > 0) {
-      hints.push("Stale chunk versions detected; preview prune-stale-chunks to remove superseded document chunk indexes.");
-    }
-
-    const vectorDimensions = Array.isArray(diagnostics.vector_dimensions) ? diagnostics.vector_dimensions.length : 0;
-    if (vectorDimensions > 1) {
-      hints.push("Mixed vector dimensions detected; reingest with one embedding model to restore consistency.");
-    }
-
-    const avgChars = diagnostics.chunk_length?.avg_characters ?? 0;
-    if (avgChars > 0 && (avgChars < 300 || avgChars > 1500)) {
-      hints.push("Average chunk size is outside the healthy 300-1500 range; adjust chunk_size/chunk_overlap and reingest.");
-    }
-
-    const missingFields = diagnostics.missing_payload_fields ?? {};
-    if ((missingFields.namespace ?? 0) > 0 || (missingFields.document_id ?? 0) > 0) {
-      hints.push("Missing namespace/document_id payload fields reduce traceability; reingest affected records with complete metadata.");
-    }
-  }
-
-  if (ingestHealth) {
-    const failures = ingestHealth.failures_last_24h ?? 0;
-    if (failures > 0) {
-      hints.push("Recent ingest failures detected; verify Ollama/Qdrant availability before reingesting.");
-    }
-  }
-
-  if (hints.length === 0) {
-    hints.push("No critical drivers detected in current diagnostics; continue sampling and monitor drift over time.");
-  }
-
-  return hints;
-}
-
 function inferCollectionOwnership(
   collectionName: string,
   selectedCollection: string,
@@ -240,40 +193,40 @@ export function MetricsPanel({
   ingestHealth,
   selectedCollection,
   diagnostics,
-  diagnosticsError,
-  diagnosticsLoading,
-  diagnosticsMode,
-  diagnosticsLimit,
-  drilldownTab,
-  maintenanceInFlight,
+  diagnosticsError: _diagnosticsError,
+  diagnosticsLoading: _diagnosticsLoading,
+  diagnosticsMode: _diagnosticsMode,
+  diagnosticsLimit: _diagnosticsLimit,
+  drilldownTab: _drilldownTab,
+  maintenanceInFlight: _maintenanceInFlight,
   maintenanceNotice,
-  maintenanceMaxDeletes,
-  getMaintenancePreview,
+  maintenanceMaxDeletes: _maintenanceMaxDeletes,
+  getMaintenancePreview: _getMaintenancePreview,
   getCollectionInventory,
-  documentOptions,
-  selectedDocumentKey,
-  documentDeletePreview,
-  collectionRecords,
-  recordsLoading,
-  recordsError,
-  recordsSearch,
-  recordsNamespaceFilter,
-  recordsDocumentFilter,
+  documentOptions: _documentOptions,
+  selectedDocumentKey: _selectedDocumentKey,
+  documentDeletePreview: _documentDeletePreview,
+  collectionRecords: _collectionRecords,
+  recordsLoading: _recordsLoading,
+  recordsError: _recordsError,
+  recordsSearch: _recordsSearch,
+  recordsNamespaceFilter: _recordsNamespaceFilter,
+  recordsDocumentFilter: _recordsDocumentFilter,
   onSelectCollection,
-  onDrilldownTabChange,
-  onSelectedDocumentKeyChange,
-  onUseSampleDiagnostics,
-  onUseFullDiagnostics,
-  onMaintenanceMaxDeletesChange,
-  onRecordsSearchChange,
-  onRecordsNamespaceFilterChange,
-  onRecordsDocumentFilterChange,
-  onRecordsNextPage,
-  onRecordsPreviousPage,
-  onPreviewMaintenance,
-  onApplyMaintenance,
-  onPreviewDeleteDocument,
-  onApplyDeleteDocument,
+  onDrilldownTabChange: _onDrilldownTabChange,
+  onSelectedDocumentKeyChange: _onSelectedDocumentKeyChange,
+  onUseSampleDiagnostics: _onUseSampleDiagnostics,
+  onUseFullDiagnostics: _onUseFullDiagnostics,
+  onMaintenanceMaxDeletesChange: _onMaintenanceMaxDeletesChange,
+  onRecordsSearchChange: _onRecordsSearchChange,
+  onRecordsNamespaceFilterChange: _onRecordsNamespaceFilterChange,
+  onRecordsDocumentFilterChange: _onRecordsDocumentFilterChange,
+  onRecordsNextPage: _onRecordsNextPage,
+  onRecordsPreviousPage: _onRecordsPreviousPage,
+  onPreviewMaintenance: _onPreviewMaintenance,
+  onApplyMaintenance: _onApplyMaintenance,
+  onPreviewDeleteDocument: _onPreviewDeleteDocument,
+  onApplyDeleteDocument: _onApplyDeleteDocument,
   onRetry,
 }: MetricsPanelProps) {
   const handleRetry = () => {

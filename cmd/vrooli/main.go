@@ -5,12 +5,12 @@ import (
 	"os"
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
-	"github.com/vrooli/vrooli/internal/cli/vroolicli"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
-	"github.com/vrooli/vrooli/internal/shell"
+	"github.com/vrooli/vrooli/internal/cli/vroolicli"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/scenarioexec"
 	projectsetup "github.com/vrooli/vrooli/internal/setup"
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 const (
@@ -26,8 +26,10 @@ var (
 	newLoggerFn         = createCommandLogger
 )
 
-type globalOptions = rootcli.GlobalOptions
-type parsedArgs = rootcli.ParsedArgs
+type (
+	globalOptions = rootcli.GlobalOptions
+	parsedArgs    = rootcli.ParsedArgs
+)
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))

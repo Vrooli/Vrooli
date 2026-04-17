@@ -5,4 +5,3 @@
 // storage, env rendering, health probing, log path policy, and common
 // operation semantics out of per-resource ad hoc implementations.
 package runtime
-

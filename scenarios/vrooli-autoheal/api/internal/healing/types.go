@@ -6,7 +6,6 @@ package healing
 import (
 	"context"
 	"time"
-
 	"vrooli-autoheal/internal/checks"
 )
 

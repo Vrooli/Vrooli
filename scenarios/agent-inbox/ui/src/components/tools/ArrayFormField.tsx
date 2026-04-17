@@ -30,8 +30,9 @@ export function ArrayFormField({
 }: ArrayFormFieldProps) {
   const { description } = schema;
   const containerStyle = depth > 0 ? { marginLeft: `${depth * 16}px` } : {};
-  const arrayValue = (value as unknown[]) ?? [];
-  const itemSchema = schema.items!;
+  const arrayValue: unknown[] = Array.isArray(value) ? (value as unknown[]) : [];
+  const itemSchema = schema.items;
+  if (!itemSchema) return null;
 
   const addItem = () => {
     const newItem = getDefaultValue(itemSchema);

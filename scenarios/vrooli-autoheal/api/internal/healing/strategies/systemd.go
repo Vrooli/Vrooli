@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"time"
-
 	"vrooli-autoheal/internal/checks"
 )
 

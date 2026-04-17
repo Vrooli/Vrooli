@@ -1,67 +1,13 @@
 package services
 
 import (
-	"context"
-	"testing"
-	"time"
-
 	"agent-inbox/config"
 	"agent-inbox/domain"
 	"agent-inbox/integrations"
+	"testing"
 
 	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 )
-
-// mockScenarioClient is a test double for integrations.ScenarioClient
-type mockScenarioClient struct {
-	manifests map[string]*toolspb.ToolManifest
-	errors    map[string]error
-}
-
-func (m *mockScenarioClient) FetchToolManifest(ctx context.Context, scenarioName string) (*toolspb.ToolManifest, error) {
-	if err, ok := m.errors[scenarioName]; ok {
-		return nil, err
-	}
-	if manifest, ok := m.manifests[scenarioName]; ok {
-		return manifest, nil
-	}
-	return nil, nil
-}
-
-func (m *mockScenarioClient) FetchMultiple(ctx context.Context, scenarioNames []string) (map[string]*toolspb.ToolManifest, map[string]error) {
-	results := make(map[string]*toolspb.ToolManifest)
-	errors := make(map[string]error)
-
-	for _, name := range scenarioNames {
-		if err, ok := m.errors[name]; ok {
-			errors[name] = err
-		} else if manifest, ok := m.manifests[name]; ok {
-			results[name] = manifest
-		}
-	}
-
-	return results, errors
-}
-
-func (m *mockScenarioClient) CheckScenarioStatus(ctx context.Context, scenarioName string) *domain.ScenarioStatus {
-	status := &domain.ScenarioStatus{
-		Scenario:    scenarioName,
-		LastChecked: time.Now(),
-	}
-
-	if _, ok := m.errors[scenarioName]; ok {
-		status.Available = false
-		status.Error = "mock error"
-	} else if manifest, ok := m.manifests[scenarioName]; ok {
-		status.Available = true
-		status.ToolCount = len(manifest.Tools)
-	}
-
-	return status
-}
-
-func (m *mockScenarioClient) InvalidateCache(scenarioName string) {}
-func (m *mockScenarioClient) InvalidateAllCache()                 {}
 
 func TestToolRegistry_BuildToolSet(t *testing.T) {
 	registry := &ToolRegistry{

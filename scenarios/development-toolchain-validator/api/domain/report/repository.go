@@ -2,7 +2,6 @@ package report
 
 import (
 	"context"
-
 	"development-toolchain-validator/domain/expectation"
 	"development-toolchain-validator/domain/skill"
 )

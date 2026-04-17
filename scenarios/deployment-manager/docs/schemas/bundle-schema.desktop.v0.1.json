@@ -135,12 +135,25 @@
     },
     "service": {
       "type": "object",
-      "required": ["id", "type", "binaries", "health", "readiness"],
+      "required": ["id", "type", "health", "readiness"],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": { "const": "embedded-storage" }
+            }
+          },
+          "then": {},
+          "else": {
+            "required": ["binaries"]
+          }
+        }
+      ],
       "properties": {
         "id": { "type": "string", "minLength": 1 },
         "type": {
           "type": "string",
-          "enum": ["ui-bundle", "api-binary", "worker", "resource"]
+          "enum": ["ui-bundle", "api-binary", "worker", "resource", "embedded-storage"]
         },
         "description": { "type": "string" },
         "binaries": {

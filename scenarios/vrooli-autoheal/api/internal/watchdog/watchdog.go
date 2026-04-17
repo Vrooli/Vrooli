@@ -12,7 +12,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-
 	"vrooli-autoheal/internal/platform"
 	"vrooli-autoheal/internal/reporoot"
 )

@@ -156,6 +156,10 @@ export default function ReportIssueDialog({
 
       // Create issues sequentially
       for (let i = 0; i < batches.length; i++) {
+        const scenariosBatch = batches[i]
+        if (!scenariosBatch) {
+          continue
+        }
         setCurrentBatch(i + 1)
 
         try {
@@ -163,7 +167,7 @@ export default function ReportIssueDialog({
             reportType,
             ruleId,
             customInstructions: customInstructions.trim(),
-            selectedScenarios: batches[i],
+            selectedScenarios: scenariosBatch,
           }
 
           const response = await onSubmitReport(payload)
@@ -173,14 +177,14 @@ export default function ReportIssueDialog({
             issueId: response.issueId,
             issueUrl: response.issueUrl,
             message: response.message,
-            scenarios: batches[i],
+            scenarios: scenariosBatch,
           })
         } catch (err) {
           results.push({
             batchIndex: i + 1,
             success: false,
             error: err instanceof Error ? err.message : 'Failed to create issue',
-            scenarios: batches[i],
+            scenarios: scenariosBatch,
           })
         }
       }

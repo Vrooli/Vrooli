@@ -10,7 +10,6 @@ import (
 	"context"
 	"log"
 	"time"
-
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
 	"vrooli-autoheal/internal/userconfig"

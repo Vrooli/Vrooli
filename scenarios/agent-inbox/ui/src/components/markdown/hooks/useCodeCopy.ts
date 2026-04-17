@@ -15,17 +15,19 @@ export function useCodeCopy(code: string): UseCodeCopyReturn {
   const [copied, setCopied] = useState(false);
   const { addToast } = useToast();
 
-  const copyCode = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-      addToast("Copied to clipboard", "success");
+  const copyCode = useCallback(() => {
+    void (async () => {
+      try {
+        await navigator.clipboard.writeText(code);
+        setCopied(true);
+        addToast("Copied to clipboard", "success");
 
-      // Reset copied state after 2 seconds
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      addToast("Failed to copy", "error");
-    }
+        // Reset copied state after 2 seconds
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        addToast("Failed to copy", "error");
+      }
+    })();
   }, [code, addToast]);
 
   return { copied, copyCode };

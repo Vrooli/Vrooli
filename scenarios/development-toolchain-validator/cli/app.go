@@ -68,15 +68,12 @@ func truncate(s string, maxLen int) string {
 
 type (
 	referenceResponse      = references.ReferenceResponse
-	referenceListResponse  = references.ReferenceListResponse
 	referenceCreateRequest = references.ReferenceCreateRequest
 	referenceUpdateRequest = references.ReferenceUpdateRequest
 )
 
 type (
 	connectionResponse       = connections.ConnectionResponse
-	connectionListResponse   = connections.ConnectionListResponse
 	connectionConnectRequest = connections.ConnectionConnectRequest
-	driftCheckRequest        = connections.DriftCheckRequest
 	driftStatusResponse      = connections.DriftStatusResponse
 )

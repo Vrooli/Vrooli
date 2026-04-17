@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	rules "scenario-auditor/rules"
@@ -52,7 +53,9 @@ Targets: structure
 // Violation captures missing structure elements.
 type Violation = rules.Violation
 
-// Check validates the presence of required scenario files and the canonical Makefile.
+var scenarioMakefileTargetRegexp = regexp.MustCompile(`(?m)^([A-Za-z0-9_.-]+)\s*:`)
+
+// Check validates the presence of required scenario files and the standard lifecycle wrapper Makefile.
 func Check(content string, scenarioPath string, scenario string) ([]Violation, error) {
 	var payload struct {
 		Scenario string   `json:"scenario"`
@@ -94,8 +97,8 @@ func Check(content string, scenarioPath string, scenario string) ([]Violation, e
 		data, err := os.ReadFile(filepath.Join(scenarioPath, "Makefile"))
 		if err != nil {
 			violations = append(violations, newStructureViolation("Makefile", fmt.Sprintf("Unable to read Makefile: %v", err)))
-		} else if normalizeFileContent(string(data)) != canonicalScenarioMakefileForScenarioPath(scenarioPath) {
-			violations = append(violations, newStructureViolation("Makefile", "Makefile must match the canonical scenario wrapper template"))
+		} else if !matchesScenarioLifecycleWrapper(string(data), scenarioPath) {
+			violations = append(violations, newStructureViolation("Makefile", "Makefile must provide the standard scenario lifecycle wrapper targets"))
 		}
 	}
 
@@ -194,4 +197,47 @@ run: start
 
 dev: start
 `)
+}
+
+func matchesScenarioLifecycleWrapper(content string, scenarioPath string) bool {
+	normalized := normalizeFileContent(content)
+	if normalized == canonicalScenarioMakefileForScenarioPath(scenarioPath) {
+		return true
+	}
+	return looksLikeScenarioLifecycleWrapper(normalized)
+}
+
+func looksLikeScenarioLifecycleWrapper(content string) bool {
+	requiredSnippets := []string{
+		".DEFAULT_GOAL := help",
+		"SCENARIO_NAME := $(notdir $(CURDIR))",
+		"help: ## Show the supported scenario entrypoints",
+		"vrooli scenario start",
+		"vrooli scenario stop",
+		"vrooli scenario restart",
+		"vrooli scenario status",
+		"vrooli scenario logs",
+		"vrooli scenario test",
+		"vrooli scenario open",
+	}
+	for _, snippet := range requiredSnippets {
+		if !strings.Contains(content, snippet) {
+			return false
+		}
+	}
+
+	requiredTargets := []string{"help", "setup", "start", "stop", "restart", "status", "logs", "test", "open", "run", "dev"}
+	foundTargets := make(map[string]struct{}, len(requiredTargets))
+	for _, match := range scenarioMakefileTargetRegexp.FindAllStringSubmatch(content, -1) {
+		if len(match) == 2 {
+			foundTargets[match[1]] = struct{}{}
+		}
+	}
+	for _, target := range requiredTargets {
+		if _, ok := foundTargets[target]; !ok {
+			return false
+		}
+	}
+
+	return strings.Contains(content, "run: start") && strings.Contains(content, "dev: start")
 }

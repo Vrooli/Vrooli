@@ -6,8 +6,10 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
-var findRepoRoot = repocontract.FindRepoRootFromEnvOrCWD
-var loadContract = repocontract.LoadDefaultFromEnvOrCWD
+var (
+	findRepoRoot = repocontract.FindRepoRootFromEnvOrCWD
+	loadContract = repocontract.LoadDefaultFromEnvOrCWD
+)
 
 // ---------------------------------------------------------------------------
 // Sandbox-aware path resolution for scenario CLIs

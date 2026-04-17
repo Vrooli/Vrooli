@@ -48,5 +48,3 @@ func requiredTargets() []string {
 func canonicalAliases() []string {
 	return []string{"run"}
 }
-
-

@@ -91,7 +91,7 @@ export function useSuggestionsSettings(): UseSuggestionsSettingsReturn {
   }, []);
 
   useEffect(() => {
-    loadAutoSuggest();
+    void loadAutoSuggest();
   }, [loadAutoSuggest]);
 
   const setVisible = useCallback((visible: boolean) => {

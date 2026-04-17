@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { useGlobalKeydown } from "../../hooks/useGlobalKeydown";
 
 interface BottomSheetProps {
   isOpen: boolean;
@@ -22,19 +23,11 @@ export function BottomSheet({
   const startYRef = useRef<number>(0);
   const currentYRef = useRef<number>(0);
 
-  // Handle escape key
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+  useGlobalKeydown((e) => {
+    if (e.key === "Escape") {
+      onClose();
+    }
+  }, { disabled: !isOpen, target: document });
 
   // Prevent body scroll when open
   useEffect(() => {

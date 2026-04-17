@@ -1,13 +1,12 @@
 package agent
 
 import (
+	"agent-inbox/cli/internal/support"
 	"encoding/json"
 	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
-
-	"agent-inbox/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"

@@ -273,7 +273,7 @@ export function ToolConfiguration({
           status={statusByScenario.get(scenario)}
           isExpanded={expandedScenarios.has(scenario)}
           onToggleExpanded={toggleScenario}
-          onToggleScenario={handleToggleScenario}
+          onToggleScenario={(scenarioName, enableAll) => { void handleToggleScenario(scenarioName, enableAll); }}
           categoryById={categoryById}
           chatId={chatId}
           isUpdating={isUpdating}

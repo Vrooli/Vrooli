@@ -71,19 +71,11 @@
           "critical": false,
           "timeout": 5000,
           "interval": 30000
-        },
-        {
-          "name": "postgres_connection",
-          "type": "postgres",
-          "target": "vrooli",
-          "critical": true,
-          "timeout": 3000,
-          "interval": 60000
         }
       ],
-      "timeout": 5000,
+      "timeout": 15000,
       "interval": 30000,
-      "startup_grace_period": 10000
+      "startup_grace_period": 20000
     },
     "setup": {
       "description": "Initialize PRD Control Tower with database and storage",

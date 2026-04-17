@@ -74,22 +74,6 @@ func (a *Analyzer) AnalyzeAllScenarios() (map[string]*types.DependencyAnalysisRe
 	return results, nil
 }
 
-func analyzeScenario(scenarioName string) (*types.DependencyAnalysisResponse, error) {
-	analyzer := analyzerInstance()
-	if analyzer == nil {
-		return nil, fmt.Errorf("analyzer not initialized")
-	}
-	return analyzer.AnalyzeScenario(scenarioName)
-}
-
-func analyzeAllScenarios() (map[string]*types.DependencyAnalysisResponse, error) {
-	analyzer := analyzerInstance()
-	if analyzer == nil {
-		return nil, fmt.Errorf("analyzer not initialized")
-	}
-	return analyzer.AnalyzeAllScenarios()
-}
-
 func newAnalysisResponse(scenarioName string, serviceConfig *types.ServiceConfig) *types.DependencyAnalysisResponse {
 	declaredSpecs := map[string]types.ScenarioDependencySpec{}
 	if serviceConfig != nil {

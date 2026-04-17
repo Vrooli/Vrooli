@@ -614,7 +614,11 @@ export default function RulesManager() {
     })
 
     Object.keys(base).forEach(categoryId => {
-      base[categoryId].sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+      const categoryRules = base[categoryId]
+      if (!categoryRules) {
+        return
+      }
+      categoryRules.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
     })
 
     return base

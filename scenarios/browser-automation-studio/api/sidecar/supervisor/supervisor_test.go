@@ -46,7 +46,7 @@ func TestProcessSupervisor_Start(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, StateRunning, sup.State())
-		assert.Equal(t, 1, mock.StartCalled)
+		assert.Equal(t, int64(1), mock.StartCalled.Load())
 		assert.True(t, healthCalls > 0, "health check should have been called")
 
 		// Cleanup
@@ -97,7 +97,7 @@ func TestProcessSupervisor_Stop(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, StateStopped, sup.State())
-		assert.Equal(t, 1, mock.StopCalled)
+		assert.Equal(t, int64(1), mock.StopCalled.Load())
 	})
 
 	t.Run("idempotent - can call multiple times", func(t *testing.T) {
@@ -124,14 +124,14 @@ func TestProcessSupervisor_AutoRestart(t *testing.T) {
 		sup := NewProcessSupervisor(testConfig(), mock, healthCheck, testLogger())
 		_ = sup.Start(context.Background())
 		assert.Equal(t, StateRunning, sup.State())
-		assert.Equal(t, 1, mock.StartCalled)
+		assert.Equal(t, int64(1), mock.StartCalled.Load())
 
 		// Simulate crash using TriggerCrash which properly signals the supervisor
 		mock.TriggerCrash()
 
 		// Wait for restart - give enough time for backoff + health check polling
 		eventually(t, 1*time.Second, func() bool {
-			return sup.State() == StateRunning && mock.StartCalled == 2
+			return sup.State() == StateRunning && mock.StartCalled.Load() == 2
 		})
 
 		assert.Equal(t, 1, sup.RestartCount())
@@ -193,8 +193,8 @@ func TestProcessSupervisor_Restart(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, StateRunning, sup.State())
-		assert.Equal(t, 2, mock.StartCalled)
-		assert.Equal(t, 1, mock.StopCalled)
+		assert.Equal(t, int64(2), mock.StartCalled.Load())
+		assert.Equal(t, int64(1), mock.StopCalled.Load())
 
 		_ = sup.Stop(context.Background())
 	})

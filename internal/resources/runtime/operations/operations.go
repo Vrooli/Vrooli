@@ -34,4 +34,3 @@ func IsStandard(action Action) bool {
 		return false
 	}
 }
-

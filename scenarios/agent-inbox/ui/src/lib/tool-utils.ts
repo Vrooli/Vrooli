@@ -130,7 +130,11 @@ export function formatToolResult(result: unknown): string {
     return JSON.stringify(result, null, 2);
   }
 
-  return String(result);
+  if (typeof result === "number" || typeof result === "boolean" || typeof result === "bigint") {
+    return String(result);
+  }
+
+  return JSON.stringify(result);
 }
 
 /**
@@ -155,7 +159,7 @@ export function getResultSummary(result: unknown, maxLength: number = 50): strin
     return truncateText(result, maxLength);
   }
 
-  if (typeof result === "object" && result !== null) {
+  if (typeof result === "object") {
     const obj = result as Record<string, unknown>;
 
     // Check for common summary fields

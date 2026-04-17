@@ -150,8 +150,8 @@ func TestManager_ApplyDefaults_FrameStreaming(t *testing.T) {
 		ViewportWidth:  1280,
 		ViewportHeight: 720,
 		FrameStreaming: &FrameStreamingConfig{
-			Quality: 80,      // Should be preserved
-			FPS:     12,      // Should be preserved
+			Quality: 80,       // Should be preserved
+			FPS:     12,       // Should be preserved
 			Scale:   "device", // Should be preserved
 		},
 	}

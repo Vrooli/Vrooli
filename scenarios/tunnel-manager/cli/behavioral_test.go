@@ -13,7 +13,15 @@ import (
 // exercise real HTTP round-trips without touching a live API.
 func newTestApp(t *testing.T, handler http.Handler) *App {
 	t.Helper()
-	ts := httptest.NewServer(handler)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/health" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
+		handler.ServeHTTP(w, r)
+	}))
 	t.Cleanup(ts.Close)
 
 	app, err := NewApp()

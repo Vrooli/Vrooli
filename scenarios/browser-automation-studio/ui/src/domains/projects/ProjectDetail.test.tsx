@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "@/test-utils/testHelpers";
 import type { Project } from "./store";
 import ProjectDetail from "./ProjectDetail";
+import { useProjectDetailStore } from "./hooks/useProjectDetailStore";
 import { selectors } from "@constants/selectors";
 
 const mockDeleteProject = vi.fn();
@@ -61,6 +62,20 @@ vi.mock("@/domains/executions", () => {
     useExecutionStore: mockUseExecutionStore,
     ExecutionHistory: () => null,
     ExecutionViewer: () => null,
+    useStartWorkflow: () => ({
+      startWorkflow: async ({ workflowId }: { workflowId: string }) => {
+        await executionStoreState.startExecution(workflowId);
+        return "mock-execution-id";
+      },
+      promptDialogProps: {
+        open: false,
+        title: "",
+        description: "",
+        defaultValue: "",
+        onSubmit: vi.fn(),
+        onClose: vi.fn(),
+      },
+    }),
   };
 });
 
@@ -68,6 +83,12 @@ const getConfigMock = vi.hoisted(() => vi.fn());
 vi.mock("@/config", () => ({
   __esModule: true,
   getConfig: getConfigMock,
+  getCachedConfig: vi.fn(() => ({ API_URL: "", WS_URL: "" })),
+  config: vi.fn(() => ({ API_URL: "", WS_URL: "" })),
+  getApiBase: vi.fn(() => ""),
+  getWsBase: vi.fn(() => ""),
+  API_BASE: "",
+  WS_BASE: "",
 }));
 
 const toastMock = vi.hoisted(() => ({
@@ -97,6 +118,32 @@ vi.mock("@utils/logger", () => ({
     warn: vi.fn(),
     debug: vi.fn(),
   },
+}));
+
+vi.mock("@shared/modals", () => ({
+  __esModule: true,
+  useModals: () => ({
+    showAIModal: false,
+    showProjectModal: false,
+    showWorkflowCreationModal: false,
+    showAssetUploadModal: false,
+    assetUploadConfig: null,
+    showDocs: false,
+    docsInitialTab: "getting-started" as const,
+    openAIModal: vi.fn(),
+    closeAIModal: vi.fn(),
+    openProjectModal: vi.fn(),
+    closeProjectModal: vi.fn(),
+    openWorkflowCreationModal: vi.fn(),
+    closeWorkflowCreationModal: vi.fn(),
+    openAssetUploadModal: vi.fn(),
+    closeAssetUploadModal: vi.fn(),
+    openDocs: vi.fn(),
+    closeDocs: vi.fn(),
+    closeAllModals: vi.fn(),
+  }),
+  useIsAnyModalOpen: () => false,
+  ModalProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 describe("ProjectDetail workflow execution [REQ:BAS-EXEC-TELEMETRY-AUTOMATION]", () => {
@@ -170,6 +217,15 @@ describe("ProjectDetail workflow execution [REQ:BAS-EXEC-TELEMETRY-AUTOMATION]",
         onCreateWorkflow={() => {}}
       />,
     );
+
+    // Default viewMode is "tree" after the component's initializeForProject effect
+    // runs; switch to "card" so this test can interact with the workflow card UI.
+    await waitFor(() => {
+      expect(useProjectDetailStore.getState().projectId).toBe(project.id);
+    });
+    act(() => {
+      useProjectDetailStore.getState().setViewMode("card");
+    });
 
     // Wait for workflows to load first (workflow card should appear)
     await screen.findAllByTestId(selectors.workflows.card);

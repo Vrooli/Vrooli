@@ -180,6 +180,15 @@
       ]
     }
   },
+  "hostTools": [
+    {
+      "name": "helm",
+      "required": false,
+      "reason": "Legacy k8s deployment examples use helm template for chart rendering",
+      "when": ["develop"],
+      "platforms": ["linux", "macos", "windows"]
+    }
+  ],
   "dependencies": {
     "resources": {
       "postgres": {

@@ -58,6 +58,7 @@ interface UseJourneysOptions {
 }
 
 export const useJourneys = (options: UseJourneysOptions) => {
+  const { onDeploymentScenarioChange } = options;
   // Default to orientation journey on mount
   const [activeJourney, setActiveJourney] = useState<JourneyId | null>("orientation");
   const [journeyStep, setJourneyStep] = useState(0);
@@ -140,7 +141,7 @@ export const useJourneys = (options: UseJourneysOptions) => {
       resources,
       include_optional: false
     });
-  }, [manifestMutation.mutate, deploymentScenario, deploymentTier, parseResources, resourceInput]);
+  }, [manifestMutation, deploymentScenario, deploymentTier, parseResources, resourceInput]);
 
   // Auto-refresh manifest using debounced values to prevent flickering on every keystroke
   useEffect(() => {
@@ -243,14 +244,19 @@ export const useJourneys = (options: UseJourneysOptions) => {
   const handleSetDeploymentScenario = useCallback(
     (scenario: string) => {
       setDeploymentScenario(scenario);
-      options.onDeploymentScenarioChange?.(scenario);
+      onDeploymentScenarioChange?.(scenario);
     },
-    [options]
+    [onDeploymentScenarioChange]
   );
 
   const handleReadinessRefresh = useCallback(() => {
     setReadinessRefreshKey((value) => value + 1);
   }, []);
+
+  const selectedTierSnapshotSummary = selectedTierSnapshot?.summary;
+  const selectedTierSnapshotGeneratedAt = selectedTierSnapshot?.generatedAt;
+  const selectedTierSnapshotLoading = selectedTierSnapshot?.loading;
+  const selectedTierSnapshotError = selectedTierSnapshot?.error;
 
   const journeySteps = useMemo(
     () =>
@@ -272,11 +278,11 @@ export const useJourneys = (options: UseJourneysOptions) => {
         manifestIsError: manifestMutation.isError,
         manifestError: manifestMutation.error ?? undefined,
         vulnerabilitySummary: options.vulnerabilitySummary,
-        readinessSummary: selectedTierSnapshot?.summary,
-        readinessGeneratedAt: selectedTierSnapshot?.generatedAt,
-        readinessIsLoading: selectedTierSnapshot?.loading,
-        readinessIsError: !!selectedTierSnapshot?.error,
-        readinessError: selectedTierSnapshot?.error ? new Error(selectedTierSnapshot.error) : undefined,
+        readinessSummary: selectedTierSnapshotSummary,
+        readinessGeneratedAt: selectedTierSnapshotGeneratedAt,
+        readinessIsLoading: selectedTierSnapshotLoading,
+        readinessIsError: !!selectedTierSnapshotError,
+        readinessError: selectedTierSnapshotError ? new Error(selectedTierSnapshotError) : undefined,
         readinessByTier: tierSnapshots,
         onRefreshReadiness: handleReadinessRefresh,
         topResourceNeedingAttention: options.topResourceNeedingAttention,
@@ -324,6 +330,10 @@ export const useJourneys = (options: UseJourneysOptions) => {
       manifestMutation.isError,
       manifestMutation.error,
       tierSnapshots,
+      selectedTierSnapshotSummary,
+      selectedTierSnapshotGeneratedAt,
+      selectedTierSnapshotLoading,
+      selectedTierSnapshotError,
       options.topResourceNeedingAttention,
       options.onOpenResource,
       options.onRefetchVulnerabilities,

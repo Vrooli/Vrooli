@@ -21,6 +21,14 @@ interface FetchOptions {
   errorPrefix?: string;
 }
 
+interface ApiErrorResponse {
+  error?: string;
+}
+
+function isApiErrorResponse(value: unknown): value is ApiErrorResponse {
+  return Boolean(value && typeof value === "object");
+}
+
 async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T> {
   const { method = "GET", body, errorPrefix = "Request failed" } = options;
 
@@ -37,11 +45,12 @@ async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T>
   const res = await fetch(buildApiUrl(path, { baseUrl: getApiBaseUrl() }), fetchOptions);
 
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(error.error || `${errorPrefix}: ${res.status}`);
+    const errorPayload: unknown = await res.json().catch(() => ({ error: "Unknown error" }));
+    const message = isApiErrorResponse(errorPayload) ? errorPayload.error : undefined;
+    throw new Error(message || `${errorPrefix}: ${res.status}`);
   }
 
-  return res.json();
+  return (await res.json()) as T;
 }
 
 // ============================================================================
@@ -288,7 +297,7 @@ function parseJsonLines(raw: string): unknown[] {
   }
   return lines.map((line, idx) => {
     try {
-      return JSON.parse(line);
+      return JSON.parse(line) as unknown;
     } catch {
       throw new Error(`Line ${idx + 1} is not valid JSON`);
     }

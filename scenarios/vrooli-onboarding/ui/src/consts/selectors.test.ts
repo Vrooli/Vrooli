@@ -14,7 +14,13 @@ function getDynamic(value: unknown): AnyFn {
   if (typeof value !== "function") {
     throw new Error(`Expected dynamic selector function, got ${typeof value}`);
   }
-  return value;
+  return (...args) => {
+    const result: unknown = Reflect.apply(value, undefined, args);
+    if (typeof result !== "string") {
+      throw new Error(`Expected dynamic selector function to return string, got ${typeof result}`);
+    }
+    return result;
+  };
 }
 
 describe("selectors registry", () => {

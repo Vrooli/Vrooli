@@ -9,9 +9,8 @@
 package validation
 
 import (
-	"time"
-
 	"development-toolchain-validator/domain/expectation"
+	"time"
 )
 
 // ValidationStatus represents the outcome of a single validation check.
@@ -28,14 +27,14 @@ const (
 //
 // [REQ:REQ-P0-007] Structural Validation Engine
 type ExpectationResult struct {
-	ExpectationID string                       `json:"expectation_id"`
+	ExpectationID string                             `json:"expectation_id"`
 	Expectation   *expectation.StructuralExpectation `json:"expectation"`
-	Status        ValidationStatus             `json:"status"`
-	Message       string                       `json:"message,omitempty"`
-	MatchedPaths  []string                     `json:"matched_paths,omitempty"`
-	MissingPaths  []string                     `json:"missing_paths,omitempty"`
-	ContentMatch  bool                         `json:"content_match,omitempty"`
-	ValidatedAt   time.Time                    `json:"validated_at"`
+	Status        ValidationStatus                   `json:"status"`
+	Message       string                             `json:"message,omitempty"`
+	MatchedPaths  []string                           `json:"matched_paths,omitempty"`
+	MissingPaths  []string                           `json:"missing_paths,omitempty"`
+	ContentMatch  bool                               `json:"content_match,omitempty"`
+	ValidatedAt   time.Time                          `json:"validated_at"`
 }
 
 // AssertionResult holds the result of validating a single CLI assertion.
@@ -55,30 +54,30 @@ type AssertionResult struct {
 
 // ConnectionValidationResult aggregates all results for a skill connection.
 type ConnectionValidationResult struct {
-	ConnectionID         string              `json:"connection_id"`
-	ReferenceID          string              `json:"reference_id"`
-	SkillID              string              `json:"skill_id"`
-	StructuralResults    []*ExpectationResult `json:"structural_results"`
-	CLIResults           []*AssertionResult   `json:"cli_results"`
-	StructuralPassCount  int                 `json:"structural_pass_count"`
-	StructuralFailCount  int                 `json:"structural_fail_count"`
-	CLIPassCount         int                 `json:"cli_pass_count"`
-	CLIFailCount         int                 `json:"cli_fail_count"`
-	OverallStatus        ValidationStatus    `json:"overall_status"`
-	ValidatedAt          time.Time           `json:"validated_at"`
+	ConnectionID        string               `json:"connection_id"`
+	ReferenceID         string               `json:"reference_id"`
+	SkillID             string               `json:"skill_id"`
+	StructuralResults   []*ExpectationResult `json:"structural_results"`
+	CLIResults          []*AssertionResult   `json:"cli_results"`
+	StructuralPassCount int                  `json:"structural_pass_count"`
+	StructuralFailCount int                  `json:"structural_fail_count"`
+	CLIPassCount        int                  `json:"cli_pass_count"`
+	CLIFailCount        int                  `json:"cli_fail_count"`
+	OverallStatus       ValidationStatus     `json:"overall_status"`
+	ValidatedAt         time.Time            `json:"validated_at"`
 }
 
 // ReferenceValidationReport is the comprehensive validation report for a reference.
 // [REQ:REQ-P0-009] Validation Report API
 type ReferenceValidationReport struct {
-	ReferenceID         string                         `json:"reference_id"`
-	ReferencePath       string                         `json:"reference_path"`
-	ConnectionResults   []*ConnectionValidationResult  `json:"connection_results"`
-	TotalConnections    int                            `json:"total_connections"`
-	PassingConnections  int                            `json:"passing_connections"`
-	FailingConnections  int                            `json:"failing_connections"`
-	OverallStatus       ValidationStatus               `json:"overall_status"`
-	ValidatedAt         time.Time                      `json:"validated_at"`
+	ReferenceID        string                        `json:"reference_id"`
+	ReferencePath      string                        `json:"reference_path"`
+	ConnectionResults  []*ConnectionValidationResult `json:"connection_results"`
+	TotalConnections   int                           `json:"total_connections"`
+	PassingConnections int                           `json:"passing_connections"`
+	FailingConnections int                           `json:"failing_connections"`
+	OverallStatus      ValidationStatus              `json:"overall_status"`
+	ValidatedAt        time.Time                     `json:"validated_at"`
 }
 
 // ValidateOptions configures what to validate.

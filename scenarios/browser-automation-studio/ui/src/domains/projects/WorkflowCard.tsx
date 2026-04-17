@@ -17,6 +17,7 @@ import {
   MoreVertical,
   PlayCircle,
 } from 'lucide-react';
+import { selectors } from '@constants/selectors';
 import type { WorkflowWithStats } from './hooks/useProjectDetailStore';
 
 interface WorkflowCardProps {
@@ -210,6 +211,7 @@ export const WorkflowCard = memo(function WorkflowCard({
                 <div className="fixed inset-0 z-20" onClick={handleCloseActions} />
                 <div className="absolute right-0 top-full mt-1 z-30 w-44 bg-flow-node border border-gray-700 rounded-lg shadow-xl overflow-hidden animate-fade-in">
                   <button
+                    data-testid={selectors.workflowBuilder.executeButton}
                     onClick={handleRun}
                     disabled={isExecuting}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700/50 hover:text-surface transition-colors disabled:opacity-50"

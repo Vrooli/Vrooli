@@ -472,6 +472,7 @@ func main() {
 
 func TestGetAppScenarioStatus_RequiredFields(t *testing.T) {
 	service := NewAppService(nil)
+	t.Cleanup(service.WaitForBackgroundTasks)
 
 	_, err := service.GetAppScenarioStatus(context.Background(), "")
 	if err == nil {
@@ -485,6 +486,7 @@ func TestGetAppScenarioStatus_AppNotFound(t *testing.T) {
 	}
 
 	service := NewAppService(mockRepo)
+	t.Cleanup(service.WaitForBackgroundTasks)
 
 	_, err := service.GetAppScenarioStatus(context.Background(), "nonexistent-app")
 	if err == nil {
@@ -603,6 +605,7 @@ exit 1
 	}
 
 	service := NewAppService(mockRepo)
+	t.Cleanup(service.WaitForBackgroundTasks)
 
 	result, err := service.GetAppScenarioStatus(context.Background(), "app-monitor")
 	if err != nil {
@@ -709,6 +712,7 @@ exit 1
 	}
 
 	service := NewAppService(mockRepo)
+	t.Cleanup(service.WaitForBackgroundTasks)
 
 	result, err := service.GetAppScenarioStatus(context.Background(), "browser-automation-studio")
 	if err != nil {

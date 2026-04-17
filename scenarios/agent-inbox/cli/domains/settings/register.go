@@ -1,9 +1,8 @@
 package settings
 
 import (
-	"strconv"
-
 	"agent-inbox/cli/internal/support"
+	"strconv"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"

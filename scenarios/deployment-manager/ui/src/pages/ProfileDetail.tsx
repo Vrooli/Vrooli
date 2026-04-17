@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Rocket, Loader2, Focus, Package, AlertCircle, Shield, CheckCircle2, XCircle } from "lucide-react";
@@ -46,7 +46,12 @@ export function ProfileDetail() {
 
   const { data: profile, isLoading, error } = useQuery({
     queryKey: ["profile", id],
-    queryFn: () => getProfile(id!),
+    queryFn: () => {
+      if (!id) {
+        throw new Error("Profile id is required");
+      }
+      return getProfile(id);
+    },
     enabled: !!id,
   });
 
@@ -60,25 +65,49 @@ export function ProfileDetail() {
   // Release gate query — uses gateCommit if set, otherwise disabled until user enters one
   const { data: gateStatus, isLoading: gateLoading, error: gateError } = useQuery({
     queryKey: ["release-gate", id, gateCommit],
-    queryFn: () => checkReleaseGate(id!, gateCommit),
+    queryFn: () => {
+      if (!id) {
+        throw new Error("Profile id is required");
+      }
+      return checkReleaseGate(id, gateCommit);
+    },
     enabled: !!id && gateCommit.length > 0,
   });
 
   // Required platforms
   const { data: requiredPlatforms } = useQuery({
     queryKey: ["required-platforms", id],
-    queryFn: () => getRequiredPlatforms(id!),
+    queryFn: () => {
+      if (!id) {
+        throw new Error("Profile id is required");
+      }
+      return getRequiredPlatforms(id);
+    },
     enabled: !!id,
   });
 
   const savePlatformsMutation = useMutation({
-    mutationFn: () => setRequiredPlatforms(id!, selectedPlatforms),
+    mutationFn: () => {
+      if (!id) {
+        throw new Error("Profile id is required");
+      }
+      return setRequiredPlatforms(id, selectedPlatforms);
+    },
     onSuccess: () => {
       setPlatformEditing(false);
       queryClient.invalidateQueries({ queryKey: ["required-platforms", id] });
       queryClient.invalidateQueries({ queryKey: ["release-gate", id] });
     },
   });
+
+  useEffect(() => {
+    if (!requiredPlatforms || platformEditing || selectedPlatforms.length > 0) {
+      return;
+    }
+    if (requiredPlatforms.platforms.length > 0) {
+      setSelectedPlatforms(requiredPlatforms.platforms);
+    }
+  }, [platformEditing, requiredPlatforms, selectedPlatforms.length]);
 
   if (isLoading) {
     return (
@@ -106,11 +135,6 @@ export function ProfileDetail() {
 
   if (!profile) {
     return null;
-  }
-
-  // Initialize selectedPlatforms from server data on first load
-  if (requiredPlatforms && selectedPlatforms.length === 0 && requiredPlatforms.platforms.length > 0 && !platformEditing) {
-    setSelectedPlatforms(requiredPlatforms.platforms);
   }
 
   return (

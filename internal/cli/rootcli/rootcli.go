@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
@@ -26,6 +27,7 @@ const (
 type GlobalOptions struct {
 	JSON         bool
 	Verbose      bool
+	Quiet        bool
 	NoColor      bool
 	NoStaleCheck bool
 }
@@ -35,6 +37,68 @@ func (g GlobalOptions) LogFormat() logx.Format {
 		return logx.FormatJSON
 	}
 	return ""
+}
+
+// Verbosity controls how much command output reaches the console.
+// It is separate from the slog level: it also gates tool stdout
+// (vite/pnpm) and the [INFO] step-header printer.
+type Verbosity int
+
+const (
+	VerbosityQuiet Verbosity = iota
+	VerbosityNormal
+	VerbosityVerbose
+)
+
+// OutputEnvVar names the environment variable that selects a verbosity when
+// no flag is provided. Accepted values are "quiet", "normal", and "verbose".
+const OutputEnvVar = "VROOLI_OUTPUT"
+
+// Output resolves the effective verbosity using this precedence:
+//
+//  1. --verbose flag wins over everything (widest surface).
+//  2. --quiet flag.
+//  3. --json (implies quiet on stdout).
+//  4. VROOLI_OUTPUT env var ("quiet"|"normal"|"verbose").
+//  5. Default: normal.
+//
+// An invalid env value falls back to normal; callers that want to warn the
+// user should use OutputWarning.
+func (g GlobalOptions) Output() Verbosity {
+	if g.Verbose {
+		return VerbosityVerbose
+	}
+	if g.Quiet {
+		return VerbosityQuiet
+	}
+	if g.JSON {
+		return VerbosityQuiet
+	}
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(OutputEnvVar))) {
+	case "quiet":
+		return VerbosityQuiet
+	case "verbose":
+		return VerbosityVerbose
+	}
+	return VerbosityNormal
+}
+
+// OutputWarning returns a user-visible warning when flag combinations are
+// ambiguous or when VROOLI_OUTPUT holds an unrecognized value. An empty
+// string means no warning.
+func (g GlobalOptions) OutputWarning() string {
+	if g.Verbose && g.Quiet {
+		return "both --verbose and --quiet set; --verbose wins"
+	}
+	raw := strings.TrimSpace(os.Getenv(OutputEnvVar))
+	if raw == "" {
+		return ""
+	}
+	switch strings.ToLower(raw) {
+	case "quiet", "normal", "verbose":
+		return ""
+	}
+	return fmt.Sprintf("unrecognized %s=%q; falling back to normal", OutputEnvVar, raw)
 }
 
 type ParsedArgs struct {
@@ -56,6 +120,9 @@ func ParseArgs(args []string) (ParsedArgs, error) {
 			args = args[1:]
 		case "--verbose":
 			parsed.Globals.Verbose = true
+			args = args[1:]
+		case "--quiet", "-q":
+			parsed.Globals.Quiet = true
 			args = args[1:]
 		case "--no-color":
 			parsed.Globals.NoColor = true
@@ -87,6 +154,8 @@ func ConsumeInlineGlobalFlags(globals GlobalOptions, args []string) (GlobalOptio
 			globals.JSON = true
 		case "--verbose":
 			globals.Verbose = true
+		case "--quiet", "-q":
+			globals.Quiet = true
 		case "--no-color":
 			globals.NoColor = true
 		case "--no-stale-check":
@@ -108,12 +177,15 @@ func ContainsArg(args []string, target string) bool {
 }
 
 func PassthroughFlags(globals GlobalOptions, existing []string) []string {
-	flags := make([]string, 0, 3)
+	flags := make([]string, 0, 4)
 	if globals.JSON && !ContainsArg(existing, "--json") {
 		flags = append(flags, "--json")
 	}
 	if globals.Verbose && !ContainsArg(existing, "--verbose") {
 		flags = append(flags, "--verbose")
+	}
+	if globals.Quiet && !ContainsArg(existing, "--quiet") && !ContainsArg(existing, "-q") {
+		flags = append(flags, "--quiet")
 	}
 	if globals.NoColor && !ContainsArg(existing, "--no-color") {
 		flags = append(flags, "--no-color")
@@ -368,6 +440,22 @@ func (r *Runner[C]) Run(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	parsed.Globals, parsed.Args = ConsumeInlineGlobalFlags(parsed.Globals, parsed.Args)
+	if warning := parsed.Globals.OutputWarning(); warning != "" {
+		fmt.Fprintln(stderr, "warning:", warning)
+	}
+	// Mirror the resolved verbosity into VROOLI_OUTPUT so render functions
+	// and spawned subprocesses share a single source of truth. Done here
+	// once — before child processes inherit env — so downstream code can
+	// just read the env var instead of threading globals through every
+	// call site. Mirrors how NO_COLOR is set a few lines below.
+	switch parsed.Globals.Output() {
+	case VerbosityQuiet:
+		_ = os.Setenv(OutputEnvVar, "quiet")
+	case VerbosityVerbose:
+		_ = os.Setenv(OutputEnvVar, "verbose")
+	default:
+		_ = os.Setenv(OutputEnvVar, "normal")
+	}
 	logger, restoreLogger := r.config.NewLogger(parsed.Globals, stderr)
 	defer restoreLogger()
 	if r.config.DebugLog != nil {

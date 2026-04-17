@@ -4,10 +4,9 @@
 package handlers
 
 import (
+	"agent-inbox/domain"
 	"encoding/json"
 	"net/http"
-
-	"agent-inbox/domain"
 
 	"github.com/gorilla/mux"
 )

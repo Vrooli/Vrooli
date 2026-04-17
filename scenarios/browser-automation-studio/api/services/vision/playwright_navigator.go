@@ -25,14 +25,14 @@ type ActionRecordCallback func(sessionID string, action *RecordedNavigationActio
 
 // RecordedNavigationAction contains action details from AI navigation.
 type RecordedNavigationAction struct {
-	ActionType  string
-	URL         string
-	PageTitle   string
-	Selector    string
-	Reasoning   string
-	StepNumber  int
-	Timestamp   string
-	Source      string // "ai"
+	ActionType string
+	URL        string
+	PageTitle  string
+	Selector   string
+	Reasoning  string
+	StepNumber int
+	Timestamp  string
+	Source     string // "ai"
 }
 
 // PlaywrightVisionNavigator implements VisionNavigator using playwright-driver.

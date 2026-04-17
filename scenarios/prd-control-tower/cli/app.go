@@ -1,10 +1,9 @@
 package main
 
 import (
-	"time"
-
 	"prd-control-tower/cli/domains"
 	"prd-control-tower/cli/internal/support"
+	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -60,10 +59,6 @@ func NewApp() (*App, error) {
 
 func (a *App) customCommandGroups() []cliapp.CommandGroup {
 	return domains.CommandGroups(a.dependencies())
-}
-
-func (a *App) commandGroups() []cliapp.CommandGroup {
-	return append(a.core.StandardBaseCommandGroups(cliapp.StandardBaseCommandOptions{}), a.customCommandGroups()...)
 }
 
 func (a *App) Run(args []string) error {

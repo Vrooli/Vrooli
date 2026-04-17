@@ -97,7 +97,7 @@ export const SidebarPanel = forwardRef<HTMLInputElement, SidebarPanelProps>(func
         className={`fixed lg:relative inset-y-0 left-0 z-50 lg:z-auto transform transition-transform duration-200 ${
           sidebarOpen || chatListOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         } w-[85vw] max-w-[320px] lg:w-auto lg:max-w-none`}
-        style={!isMobile && !(sidebarCollapsed && !isMobile) ? { width: sidebarWidth } : undefined}
+        style={!isMobile && !sidebarCollapsed ? { width: sidebarWidth } : undefined}
       >
         <div className="lg:hidden absolute top-3 right-3 z-10">
           <Button variant="ghost" size="icon" onClick={() => { setSidebarOpen(false); setChatListOpen(false); }} data-testid={closeSidebarButtonTestId}>
@@ -135,7 +135,7 @@ export const SidebarPanel = forwardRef<HTMLInputElement, SidebarPanelProps>(func
       </div>
 
       {/* Resize Handle - Desktop only */}
-      {!isMobile && !(sidebarCollapsed && !isMobile) && (
+      {!isMobile && !sidebarCollapsed && (
         <div
           role="separator"
           aria-orientation="vertical"

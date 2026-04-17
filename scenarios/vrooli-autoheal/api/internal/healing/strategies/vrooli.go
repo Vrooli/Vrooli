@@ -8,11 +8,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"vrooli-autoheal/internal/checks"
 
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
-
-	"vrooli-autoheal/internal/checks"
 )
 
 // VrooliEntityType represents the type of Vrooli entity (resource or scenario).

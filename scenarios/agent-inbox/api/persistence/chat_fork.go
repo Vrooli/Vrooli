@@ -3,11 +3,10 @@
 package persistence
 
 import (
+	"agent-inbox/domain"
 	"context"
 	"database/sql"
 	"fmt"
-
-	"agent-inbox/domain"
 )
 
 // messageForFork holds message data temporarily during fork operation.

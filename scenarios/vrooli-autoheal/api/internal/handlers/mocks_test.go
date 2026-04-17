@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"time"
-
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/persistence"
 	"vrooli-autoheal/internal/platform"

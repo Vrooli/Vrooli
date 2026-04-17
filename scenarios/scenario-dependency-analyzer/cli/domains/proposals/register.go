@@ -3,9 +3,8 @@ package proposals
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
-
 	"scenario-dependency-analyzer/cli/internal/support"
+	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

@@ -1,12 +1,11 @@
 package main
 
 import (
+	"agent-inbox/persistence"
+	"agent-inbox/services"
 	"context"
 	"encoding/json"
 	"time"
-
-	"agent-inbox/persistence"
-	"agent-inbox/services"
 )
 
 // =============================================================================

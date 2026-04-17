@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-
 	"vrooli-autoheal/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -85,8 +84,8 @@ func (a *App) diagnosePort(args []string) error {
 			{Heading: "Diagnostics", Items: triage},
 		},
 		NextSteps: []string{
-			fmt.Sprintf("vrooli-autoheal locks list"),
-			fmt.Sprintf("vrooli-autoheal orphans list"),
+			"vrooli-autoheal locks list",
+			"vrooli-autoheal orphans list",
 			fmt.Sprintf("vrooli scenario logs %s", scenarioOrDefault(scenario)),
 		},
 	})

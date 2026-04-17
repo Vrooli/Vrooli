@@ -169,6 +169,54 @@ func TestNewVerboseOverridesConfiguredInfoLevel(t *testing.T) {
 	}
 }
 
+func TestNewQuietRaisesInfoLevelToWarn(t *testing.T) {
+	t.Setenv(LogLevelEnvVar, "info")
+
+	var buffer bytes.Buffer
+	logger, diagnostics := New(Options{
+		Component: "vrooli",
+		Writer:    &buffer,
+		Quiet:     true,
+	})
+	if got := diagnostics.Level; got != slog.LevelWarn {
+		t.Fatalf("level = %v, want warn", got)
+	}
+
+	logger.Info("suppressed")
+	logger.Warn("visible")
+	if bytes.Contains(buffer.Bytes(), []byte("suppressed")) {
+		t.Fatalf("info line leaked in quiet mode: %s", buffer.String())
+	}
+	if !bytes.Contains(buffer.Bytes(), []byte("visible")) {
+		t.Fatalf("warn line missing: %s", buffer.String())
+	}
+}
+
+func TestNewVerboseBeatsQuiet(t *testing.T) {
+	t.Setenv(LogLevelEnvVar, "info")
+
+	_, diagnostics := New(Options{
+		Component: "vrooli",
+		Verbose:   true,
+		Quiet:     true,
+	})
+	if got := diagnostics.Level; got != slog.LevelDebug {
+		t.Fatalf("level = %v, want debug (verbose beats quiet)", got)
+	}
+}
+
+func TestNewQuietDoesNotLowerExplicitDebugLevel(t *testing.T) {
+	t.Setenv(LogLevelEnvVar, "debug")
+
+	_, diagnostics := New(Options{
+		Component: "vrooli",
+		Quiet:     true,
+	})
+	if got := diagnostics.Level; got != slog.LevelDebug {
+		t.Fatalf("level = %v, want debug (explicit debug env beats quiet)", got)
+	}
+}
+
 func TestNewUsesFormatFromEnv(t *testing.T) {
 	t.Setenv(LogFormatEnvVar, "json")
 

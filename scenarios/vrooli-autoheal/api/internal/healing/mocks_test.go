@@ -2,7 +2,6 @@ package healing
 
 import (
 	"context"
-
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
 )

@@ -8,6 +8,8 @@ package validation
 import (
 	"bytes"
 	"context"
+	"development-toolchain-validator/domain/expectation"
+	"development-toolchain-validator/internal/validation"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,9 +19,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"development-toolchain-validator/domain/expectation"
-	"development-toolchain-validator/internal/validation"
 )
 
 // Default timeout for CLI command execution.

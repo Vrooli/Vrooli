@@ -3,6 +3,7 @@ package scenariocli
 import (
 	"fmt"
 	"io"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -14,6 +15,15 @@ import (
 	"github.com/vrooli/vrooli/internal/process"
 	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
 )
+
+// isQuietOutput consults VROOLI_OUTPUT (set once by the root CLI runner
+// based on --quiet / --verbose / --json) so render helpers that can't see
+// the GlobalOptions struct can still collapse their output. Keeping the
+// env var as the single source of truth avoids a scenariocli → rootcli
+// import cycle.
+func isQuietOutput() bool {
+	return strings.ToLower(strings.TrimSpace(os.Getenv("VROOLI_OUTPUT"))) == "quiet"
+}
 
 type ListPortOutput struct {
 	Key  string `json:"key"`
@@ -255,6 +265,9 @@ func WriteLifecycleItems(w io.Writer, format cliout.Format, items []LifecycleIte
 	if format == cliout.FormatJSON {
 		return cliout.WriteSuccessJSON(w, "scenarios", items)
 	}
+	if isQuietOutput() {
+		return writeLifecycleItemsCompact(w, items)
+	}
 
 	for _, item := range items {
 		switch item.Status {
@@ -288,6 +301,57 @@ func WriteLifecycleItems(w io.Writer, format cliout.Format, items []LifecycleIte
 		}
 	}
 	return nil
+}
+
+// writeLifecycleItemsCompact renders one line per scenario, inlining ports
+// and any failure lists so that `vrooli scenario restart` at quiet mode
+// stays under a handful of total lines. Failures still surface — they're
+// appended to the same line with an explicit marker rather than multi-line
+// blocks. JSON output is handled before this function is called.
+func writeLifecycleItemsCompact(w io.Writer, items []LifecycleItemOutput) error {
+	for _, item := range items {
+		var verb string
+		switch item.Status {
+		case "already_running":
+			verb = "already running"
+		case "restarted":
+			verb = "restarted"
+		case "stopped":
+			verb = "stopped"
+		default:
+			verb = "started"
+		}
+		health := ""
+		if item.Health != "" {
+			health = ", " + item.Health
+		}
+		_, _ = fmt.Fprintf(w, "%s %s (%s%s)", statusGlyph(item), item.Name, verb, health)
+		if len(item.Ports) > 0 {
+			_, _ = fmt.Fprintf(w, " | %s", FormatPortMap(item.Ports))
+		}
+		if len(item.FailedDependencies) > 0 {
+			_, _ = fmt.Fprintf(w, " | failed deps: %s", strings.Join(item.FailedDependencies, ","))
+		}
+		if len(item.FailedResources) > 0 {
+			_, _ = fmt.Fprintf(w, " | failed resources: %s", strings.Join(item.FailedResources, ","))
+		}
+		_, _ = fmt.Fprintln(w)
+	}
+	return nil
+}
+
+// statusGlyph picks a short ASCII marker for the compact form. The full
+// unicode checkmark would be nicer but would break under NO_COLOR / older
+// terminals and is not worth the branching cost for a one-line summary.
+func statusGlyph(item LifecycleItemOutput) string {
+	switch {
+	case len(item.FailedDependencies) > 0 || len(item.FailedResources) > 0:
+		return "!!"
+	case item.Health == "" || item.Health == "healthy":
+		return "OK"
+	default:
+		return "??"
+	}
 }
 
 func WriteBatchReport(w io.Writer, format cliout.Format, resp BatchResponse) error {

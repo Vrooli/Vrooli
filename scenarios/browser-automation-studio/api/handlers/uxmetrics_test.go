@@ -43,14 +43,14 @@ type MockUXMetricsService struct {
 }
 
 type MockUXAnalyzer struct {
-	AnalyzeStepError      error
-	AnalyzeStepResult     *contracts.StepMetrics
-	AnalyzeExecutionError error
+	AnalyzeStepError       error
+	AnalyzeStepResult      *contracts.StepMetrics
+	AnalyzeExecutionError  error
 	AnalyzeExecutionResult *contracts.ExecutionMetrics
 }
 
 type MockUXCollector struct {
-	OnStepOutcomeError error
+	OnStepOutcomeError  error
 	OnCursorUpdateError error
 	FlushExecutionError error
 }

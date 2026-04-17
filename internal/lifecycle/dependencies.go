@@ -164,7 +164,7 @@ func (r *Runner) ensureResourceDependencies(item scenario.Scenario, opts StartOp
 			}
 			return nil, fmt.Errorf("enforce host requirements for resource dependency %s: %w", resourceName, err)
 		}
-		if err := deps.runResource(resourceName, []string{"start"}, r.Out, r.Err); err != nil {
+		if err := deps.runResource(resourceName, []string{"start"}, r.consoleOut(), r.consoleErr()); err != nil {
 			if decision.continueOnFailure {
 				r.logWarn("Resource dependency failed to start; continuing in best-effort mode",
 					logx.AttrScenario, item.Slug,

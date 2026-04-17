@@ -109,7 +109,7 @@ export function ChatList({
   }, [groupedSearchResults, searchMode]);
 
   const getLabelsForChat = (chat: Chat) =>
-    (chat.label_ids || []).map((id) => getLabelById(labels, id)).filter(Boolean) as Label[];
+    chat.label_ids.map((id) => getLabelById(labels, id)).filter(Boolean) as Label[];
 
   return (
     <div className="flex-1 overflow-y-auto" data-testid={listTestId}>

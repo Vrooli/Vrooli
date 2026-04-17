@@ -3,6 +3,7 @@
 package services
 
 import (
+	"agent-inbox/domain"
 	"context"
 	"encoding/base64"
 	"fmt"
@@ -12,8 +13,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	"agent-inbox/domain"
 
 	"github.com/google/uuid"
 )

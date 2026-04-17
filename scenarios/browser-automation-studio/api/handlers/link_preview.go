@@ -36,7 +36,7 @@ var previewCache = &linkPreviewCache{
 }
 
 const (
-	linkPreviewCacheTTL    = 24 * time.Hour // Cache for 24 hours since OG data rarely changes
+	linkPreviewCacheTTL     = 24 * time.Hour // Cache for 24 hours since OG data rarely changes
 	linkPreviewFetchTimeout = 5 * time.Second
 	linkPreviewMaxBodySize  = 512 * 1024 // 512KB max HTML to parse
 )
@@ -145,13 +145,13 @@ func fetchLinkPreviewData(ctx context.Context, targetURL string) (*LinkPreviewRe
 
 // OpenGraph meta tag patterns
 var (
-	ogTitleRegex       = regexp.MustCompile(`(?i)<meta\s+(?:property|name)=["']og:title["']\s+content=["']([^"']+)["']`)
-	ogDescRegex        = regexp.MustCompile(`(?i)<meta\s+(?:property|name)=["']og:description["']\s+content=["']([^"']+)["']`)
-	ogImageRegex       = regexp.MustCompile(`(?i)<meta\s+(?:property|name)=["']og:image["']\s+content=["']([^"']+)["']`)
-	ogSiteNameRegex    = regexp.MustCompile(`(?i)<meta\s+(?:property|name)=["']og:site_name["']\s+content=["']([^"']+)["']`)
-	pageTitleRegex     = regexp.MustCompile(`(?i)<title[^>]*>([^<]+)</title>`)
-	faviconLinkRegex   = regexp.MustCompile(`(?i)<link[^>]+rel=["'](?:icon|shortcut icon)["'][^>]+href=["']([^"']+)["']`)
-	descMetaRegex      = regexp.MustCompile(`(?i)<meta\s+name=["']description["']\s+content=["']([^"']+)["']`)
+	ogTitleRegex     = regexp.MustCompile(`(?i)<meta\s+(?:property|name)=["']og:title["']\s+content=["']([^"']+)["']`)
+	ogDescRegex      = regexp.MustCompile(`(?i)<meta\s+(?:property|name)=["']og:description["']\s+content=["']([^"']+)["']`)
+	ogImageRegex     = regexp.MustCompile(`(?i)<meta\s+(?:property|name)=["']og:image["']\s+content=["']([^"']+)["']`)
+	ogSiteNameRegex  = regexp.MustCompile(`(?i)<meta\s+(?:property|name)=["']og:site_name["']\s+content=["']([^"']+)["']`)
+	pageTitleRegex   = regexp.MustCompile(`(?i)<title[^>]*>([^<]+)</title>`)
+	faviconLinkRegex = regexp.MustCompile(`(?i)<link[^>]+rel=["'](?:icon|shortcut icon)["'][^>]+href=["']([^"']+)["']`)
+	descMetaRegex    = regexp.MustCompile(`(?i)<meta\s+name=["']description["']\s+content=["']([^"']+)["']`)
 
 	// Alternative patterns with content first
 	ogTitleRegexAlt    = regexp.MustCompile(`(?i)<meta\s+content=["']([^"']+)["']\s+(?:property|name)=["']og:title["']`)

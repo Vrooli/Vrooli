@@ -14,14 +14,13 @@
 package handlers
 
 import (
+	"development-toolchain-validator/domain/skill"
 	"encoding/json"
 	"net/http"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-
-	"development-toolchain-validator/domain/skill"
 )
 
 // SkillHandler handles HTTP requests for skill connections.

@@ -83,7 +83,7 @@ func TestParseOrphansRequestKillWithDryRun(t *testing.T) {
 func TestRenderOrphansResponseDryRunHumanListsPIDs(t *testing.T) {
 	var stdout bytes.Buffer
 	err := RenderOrphansResponse(&stdout, cliout.FormatHuman, OrphansResponse{
-		List: []maintenance.SystemProcess{{PID: 999, PPID: 1, Command: "scenario-api"}},
+		List:   []maintenance.SystemProcess{{PID: 999, PPID: 1, Command: "scenario-api"}},
 		DryRun: true,
 	})
 	if err != nil {

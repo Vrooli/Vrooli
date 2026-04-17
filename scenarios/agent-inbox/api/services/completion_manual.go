@@ -3,13 +3,12 @@
 package services
 
 import (
+	"agent-inbox/domain"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"time"
-
-	"agent-inbox/domain"
 )
 
 // ManualExecutionResult contains the result of manually executing a tool.

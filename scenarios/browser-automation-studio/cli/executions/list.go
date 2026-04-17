@@ -1,11 +1,10 @@
 package executions
 
 import (
+	"browser-automation-studio/cli/internal/appctx"
 	"fmt"
 	"net/url"
 	"strings"
-
-	"browser-automation-studio/cli/internal/appctx"
 
 	"github.com/vrooli/cli-core/cliutil"
 )

@@ -26,7 +26,6 @@ function isLocalStorageAvailable(): boolean {
 
   try {
     // In strict sandboxed iframes, even accessing window.localStorage throws
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     const storage = window.localStorage;
     if (!storage) {
       return false;
@@ -53,7 +52,7 @@ export function useRecentScenarios() {
   useEffect(() => {
     if (!storageAvailable) return;
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = window.localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored) as RecentScenario[];
         // Sort by most recently viewed
@@ -85,7 +84,7 @@ export function useRecentScenarios() {
       // Persist to localStorage if available
       if (storageAvailable) {
         try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
         } catch {
           // Storage might be full, ignore
         }
@@ -105,7 +104,7 @@ export function useRecentScenarios() {
       // Persist if available
       if (storageAvailable) {
         try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
         } catch {
           // Ignore
         }

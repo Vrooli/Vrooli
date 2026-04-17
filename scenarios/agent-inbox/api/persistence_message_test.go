@@ -1,13 +1,12 @@
 package main
 
 import (
+	"agent-inbox/domain"
 	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"agent-inbox/domain"
 )
 
 // [REQ:PERSIST-001] [REQ:PERSIST-002] Test storing chat and messages

@@ -1,8 +1,9 @@
 import { useMutation } from "@tanstack/react-query";
 import { Zap, RefreshCw, Radio } from "lucide-react";
 import { runProbes } from "../lib/api";
+import { statusToVariant } from "../lib/utils";
 import { Button } from "./ui/button";
-import { StatusBadge, statusToVariant } from "./ui/status-badge";
+import { StatusBadge } from "./ui/status-badge";
 
 export function ProbeResults() {
   const { mutate, data, isPending } = useMutation({

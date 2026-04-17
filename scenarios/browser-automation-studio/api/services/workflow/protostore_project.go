@@ -17,8 +17,10 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-const projectMetadataDirName = ".bas"
-const projectMetadataFileName = "project.json"
+const (
+	projectMetadataDirName  = ".bas"
+	projectMetadataFileName = "project.json"
+)
 
 func projectMetadataPath(projectFolderPath string) string {
 	return filepath.Join(projectFolderPath, projectMetadataDirName, projectMetadataFileName)

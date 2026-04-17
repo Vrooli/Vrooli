@@ -30,6 +30,29 @@ interface VideoReviewPanelProps {
   apiBase?: string;
 }
 
+interface ApprovalStatusRecord {
+  id: string;
+  status: string;
+  platform: string;
+  validation_id?: string;
+}
+
+function isValidationRecord(value: unknown): value is ValidationRecord {
+  return Boolean(value && typeof value === "object" && "id" in value);
+}
+
+function isApprovalStatusArray(value: unknown): value is ApprovalStatusRecord[] {
+  return Array.isArray(value);
+}
+
+async function fetchJson(url: string): Promise<unknown> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
 export function VideoReviewPanel({ validationId, apiBase = "" }: VideoReviewPanelProps) {
   const [validation, setValidation] = useState<ValidationRecord | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,13 +62,14 @@ export function VideoReviewPanel({ validationId, apiBase = "" }: VideoReviewPane
   const [approvalStatus, setApprovalStatus] = useState<{ id: string; status: string } | null>(null);
 
   useEffect(() => {
-    fetch(`${apiBase}/api/v1/validations/${validationId}`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
+    fetchJson(`${apiBase}/api/v1/validations/${validationId}`)
+      .then((payload) => {
+        if (!isValidationRecord(payload)) {
+          throw new Error("Invalid validation payload");
+        }
+        setValidation(payload);
       })
-      .then(setValidation)
-      .catch((err) => setError(err.message))
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Failed to load validation"))
       .finally(() => setLoading(false));
   }, [validationId, apiBase]);
 
@@ -57,7 +81,10 @@ export function VideoReviewPanel({ validationId, apiBase = "" }: VideoReviewPane
         if (!res.ok) return [];
         return res.json();
       })
-      .then((approvals: Array<{ id: string; status: string; platform: string; validation_id?: string }>) => {
+      .then((approvals: unknown) => {
+        if (!isApprovalStatusArray(approvals)) {
+          return;
+        }
         const match = approvals.find((a) => a.validation_id === validationId);
         if (match) {
           setApprovalStatus({ id: match.id, status: match.status });
@@ -75,7 +102,7 @@ export function VideoReviewPanel({ validationId, apiBase = "" }: VideoReviewPane
         body: JSON.stringify({ decision, notes: reviewNotes }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const reviewResp: ReviewResponse = await res.json();
+      const reviewResp = (await res.json()) as ReviewResponse;
 
       // Capture approval status from enriched response.
       if (reviewResp.approval_id) {
@@ -83,7 +110,10 @@ export function VideoReviewPanel({ validationId, apiBase = "" }: VideoReviewPane
       }
 
       // Refresh validation data.
-      const updated = await fetch(`${apiBase}/api/v1/validations/${validationId}`).then((r) => r.json());
+      const updated = await fetchJson(`${apiBase}/api/v1/validations/${validationId}`);
+      if (!isValidationRecord(updated)) {
+        throw new Error("Invalid validation payload");
+      }
       setValidation(updated);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Review submission failed");

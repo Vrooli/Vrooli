@@ -168,7 +168,7 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
   }, [syncMutation.mutateAsync]);
 
   const refetchTools = useCallback(() => {
-    refetch();
+    void refetch();
   }, [refetch]);
 
   const enableToolsByIds = useCallback(
@@ -201,8 +201,8 @@ export function useTools(options: UseToolsOptions = {}): UseToolsReturn {
 
   const isSyncing = syncMutation.isPending;
   const isUpdating = toggleMutation.isPending || approvalMutation.isPending || resetMutation.isPending;
-  const errorValue = error as Error | null;
-  const scenariosErrorValue = scenariosError as Error | null;
+  const errorValue = error;
+  const scenariosErrorValue = scenariosError;
 
   return useMemo(
     () => ({

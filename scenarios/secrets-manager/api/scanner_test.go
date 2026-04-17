@@ -586,17 +586,17 @@ func TestGetSecretKeywords(t *testing.T) {
 func TestScanResources(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
-
-	// Set VROOLI_ROOT to test directory
-	oldVrooliRoot := os.Getenv("VROOLI_ROOT")
-	os.Setenv("VROOLI_ROOT", env.TempDir)
-	defer os.Setenv("VROOLI_ROOT", oldVrooliRoot)
+	root := newContractFixtureRepo(t)
+	nested := filepath.Join(root, "scenarios", "secrets-manager", "api")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatalf("mkdir nested: %v", err)
+	}
+	t.Setenv("VROOLI_SOURCE_ROOT", nested)
+	t.Setenv("VROOLI_ROOT", "")
 
 	t.Run("Success_QuickScan", func(t *testing.T) {
 		// Create test resource files
-		resourceDir := filepath.Join(env.TempDir, "resources", "test-resource")
+		resourceDir := filepath.Join(root, "resources", "test-resource")
 		if err := os.MkdirAll(resourceDir, 0755); err != nil {
 			t.Fatal(err)
 		}
@@ -658,17 +658,17 @@ PORT=8080`
 func TestFindResourceFiles(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
-
-	// Set VROOLI_ROOT to test directory
-	oldVrooliRoot := os.Getenv("VROOLI_ROOT")
-	os.Setenv("VROOLI_ROOT", env.TempDir)
-	defer os.Setenv("VROOLI_ROOT", oldVrooliRoot)
+	root := newContractFixtureRepo(t)
+	nested := filepath.Join(root, "scenarios", "secrets-manager", "api")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatalf("mkdir nested: %v", err)
+	}
+	t.Setenv("VROOLI_SOURCE_ROOT", nested)
+	t.Setenv("VROOLI_ROOT", "")
 
 	t.Run("Success_FindConfigFiles", func(t *testing.T) {
 		// Create test resources
-		resourceDir := filepath.Join(env.TempDir, "resources", "postgres")
+		resourceDir := filepath.Join(root, "resources", "postgres")
 		if err := os.MkdirAll(resourceDir, 0755); err != nil {
 			t.Fatal(err)
 		}

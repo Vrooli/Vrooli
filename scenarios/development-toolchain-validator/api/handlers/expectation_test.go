@@ -6,14 +6,13 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"development-toolchain-validator/domain/expectation"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/gorilla/mux"
-
-	"development-toolchain-validator/domain/expectation"
 )
 
 // newTestExpectationHandler creates a handler with mock repositories for testing.
@@ -146,15 +145,19 @@ type errorMockStructuralRepository struct{}
 func (e *errorMockStructuralRepository) Create(_ context.Context, _ expectation.CreateStructuralInput) (*expectation.StructuralExpectation, error) {
 	return nil, expectation.ErrNotFound
 }
+
 func (e *errorMockStructuralRepository) GetByID(_ context.Context, _ string) (*expectation.StructuralExpectation, error) {
 	return nil, expectation.ErrNotFound
 }
+
 func (e *errorMockStructuralRepository) List(_ context.Context, _ expectation.ListOptions) ([]*expectation.StructuralExpectation, error) {
 	return nil, expectation.ErrNotFound
 }
+
 func (e *errorMockStructuralRepository) Delete(_ context.Context, _ string) error {
 	return expectation.ErrNotFound
 }
+
 func (e *errorMockStructuralRepository) DeleteByConnection(_ context.Context, _ string) error {
 	return expectation.ErrNotFound
 }
@@ -165,15 +168,19 @@ type errorMockCLIRepository struct{}
 func (e *errorMockCLIRepository) Create(_ context.Context, _ expectation.CreateCLIInput) (*expectation.CLIAssertion, error) {
 	return nil, expectation.ErrNotFound
 }
+
 func (e *errorMockCLIRepository) GetByID(_ context.Context, _ string) (*expectation.CLIAssertion, error) {
 	return nil, expectation.ErrNotFound
 }
+
 func (e *errorMockCLIRepository) List(_ context.Context, _ expectation.ListOptions) ([]*expectation.CLIAssertion, error) {
 	return nil, expectation.ErrNotFound
 }
+
 func (e *errorMockCLIRepository) Delete(_ context.Context, _ string) error {
 	return expectation.ErrNotFound
 }
+
 func (e *errorMockCLIRepository) DeleteByConnection(_ context.Context, _ string) error {
 	return expectation.ErrNotFound
 }

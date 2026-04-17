@@ -130,10 +130,10 @@ export async function processSSEStream(
   });
 
   try {
-    while (true) {
+    for (;;) {
       // Check for abort before each read
       if (options?.signal?.aborted) {
-        reader.cancel();
+        void reader.cancel();
         throw new DOMException("Aborted", "AbortError");
       }
 
@@ -173,6 +173,11 @@ export interface SkillPayloadForAPI {
   targetToolId?: string;
 }
 
+/**
+ * Streaming path return type - callbacks deliver content, no message value.
+ */
+type StreamCompletionResult = ReturnType<() => void>;
+
 export async function completeChat(
   chatId: string,
   options?: {
@@ -183,7 +188,7 @@ export async function completeChat(
     forcedTool?: { scenario: string; toolName: string };
     skills?: SkillPayloadForAPI[];
   }
-): Promise<Message | void> {
+): Promise<Message | StreamCompletionResult> {
   const stream = options?.stream ?? true;
   const params = new URLSearchParams();
   params.set("stream", String(stream));

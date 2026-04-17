@@ -497,10 +497,10 @@ type ServiceWorkerInfo struct {
 
 // ServiceWorkerControl represents the service worker control settings for a session.
 type ServiceWorkerControl struct {
-	Mode            string                         `json:"mode"` // allow, block, block-on-domain, unregister-all
-	DomainOverrides []ServiceWorkerDomainOverride  `json:"domainOverrides,omitempty"`
-	BlockedDomains  []string                       `json:"blockedDomains,omitempty"`
-	UnregisterOnStart bool                         `json:"unregisterOnStart,omitempty"`
+	Mode              string                        `json:"mode"` // allow, block, block-on-domain, unregister-all
+	DomainOverrides   []ServiceWorkerDomainOverride `json:"domainOverrides,omitempty"`
+	BlockedDomains    []string                      `json:"blockedDomains,omitempty"`
+	UnregisterOnStart bool                          `json:"unregisterOnStart,omitempty"`
 }
 
 // ServiceWorkerDomainOverride represents per-domain service worker control.
@@ -511,10 +511,10 @@ type ServiceWorkerDomainOverride struct {
 
 // GetServiceWorkersResponse is the response from getting service workers.
 type GetServiceWorkersResponse struct {
-	SessionID string              `json:"session_id"`
-	Workers   []ServiceWorkerInfo `json:"workers"`
+	SessionID string               `json:"session_id"`
+	Workers   []ServiceWorkerInfo  `json:"workers"`
 	Control   ServiceWorkerControl `json:"control"`
-	Message   string              `json:"message,omitempty"`
+	Message   string               `json:"message,omitempty"`
 }
 
 // UnregisterServiceWorkersResponse is the response from unregistering service workers.

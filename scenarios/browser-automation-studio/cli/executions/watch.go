@@ -1,6 +1,8 @@
 package executions
 
 import (
+	"browser-automation-studio/cli/internal/appctx"
+	"browser-automation-studio/cli/internal/output"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -11,9 +13,6 @@ import (
 	"sync"
 	"syscall"
 	"time"
-
-	"browser-automation-studio/cli/internal/appctx"
-	"browser-automation-studio/cli/internal/output"
 
 	"github.com/gorilla/websocket"
 	"github.com/vrooli/api-core/discovery"

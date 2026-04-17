@@ -2,10 +2,9 @@ package report
 
 import (
 	"context"
-	"testing"
-
 	"development-toolchain-validator/domain/expectation"
 	"development-toolchain-validator/domain/skill"
+	"testing"
 )
 
 // --- mocks ---

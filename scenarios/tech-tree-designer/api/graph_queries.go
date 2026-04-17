@@ -20,12 +20,12 @@ func NewGraphQueryService(database *sql.DB) *GraphQueryService {
 
 // NeighborhoodOptions configures neighborhood query behavior.
 type NeighborhoodOptions struct {
-	StageID           string
-	Depth             int
-	Direction         string // "prerequisites", "dependents", "both"
-	IncludeHierarchy  bool   // Include hierarchical children
-	IncludeScenarios  bool   // Include scenario mappings
-	MaxResults        int    // Limit results to prevent huge responses
+	StageID          string
+	Depth            int
+	Direction        string // "prerequisites", "dependents", "both"
+	IncludeHierarchy bool   // Include hierarchical children
+	IncludeScenarios bool   // Include scenario mappings
+	MaxResults       int    // Limit results to prevent huge responses
 }
 
 // PathOptions configures path-finding queries.
@@ -52,17 +52,17 @@ type StageWithContext struct {
 
 // NeighborhoodResponse contains stages within N hops of a node.
 type NeighborhoodResponse struct {
-	Origin   StageWithContext   `json:"origin"`
-	Stages   []StageWithContext `json:"stages"`
-	EdgeCount int               `json:"edge_count"`
-	MaxDepth int                `json:"max_depth_reached"`
+	Origin    StageWithContext   `json:"origin"`
+	Stages    []StageWithContext `json:"stages"`
+	EdgeCount int                `json:"edge_count"`
+	MaxDepth  int                `json:"max_depth_reached"`
 }
 
 // PathResponse contains the shortest path between two stages.
 type PathResponse struct {
-	Path     []StageWithContext `json:"path"`
-	Length   int                `json:"length"`
-	Found    bool               `json:"found"`
+	Path   []StageWithContext `json:"path"`
+	Length int                `json:"length"`
+	Found  bool               `json:"found"`
 }
 
 // AncestorResponse contains hierarchical ancestor chain.
@@ -153,10 +153,10 @@ func (s *GraphQueryService) GetNeighborhood(ctx context.Context, treeID string, 
 	}
 
 	return &NeighborhoodResponse{
-		Origin:   *origin,
-		Stages:   stages,
+		Origin:    *origin,
+		Stages:    stages,
 		EdgeCount: len(stages),
-		MaxDepth: depth,
+		MaxDepth:  depth,
 	}, nil
 }
 
@@ -318,7 +318,6 @@ func (s *GraphQueryService) getStageWithContext(ctx context.Context, stageID, tr
 		&sector.ProgressPercentage, &sector.PositionX, &sector.PositionY, &sector.Color,
 		&sector.CreatedAt, &sector.UpdatedAt,
 	)
-
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("stage not found: %s", stageID)

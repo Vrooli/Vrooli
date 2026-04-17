@@ -7,11 +7,10 @@ package skill
 
 import (
 	"context"
-	"errors"
-	"fmt"
-
 	"development-toolchain-validator/internal/config"
 	"development-toolchain-validator/internal/validation"
+	"errors"
+	"fmt"
 )
 
 var (

@@ -1,15 +1,14 @@
 package handlers
 
 import (
+	"agent-inbox/domain"
+	"agent-inbox/integrations"
 	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"strings"
 	"time"
-
-	"agent-inbox/domain"
-	"agent-inbox/integrations"
 )
 
 // fetchAndSaveGenerationStats asynchronously fetches usage/cost data from OpenRouter

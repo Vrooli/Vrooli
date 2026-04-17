@@ -1,10 +1,9 @@
 package config_test
 
 import (
+	"agent-inbox/config"
 	"testing"
 	"time"
-
-	"agent-inbox/config"
 )
 
 func TestDefault_ReturnsValidConfig(t *testing.T) {

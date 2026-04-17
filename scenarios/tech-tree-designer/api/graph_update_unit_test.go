@@ -60,18 +60,18 @@ func TestUpdateGraphEndpoint(t *testing.T) {
 		},
 	}
 
-    w := makeHTTPRequest(t, router, "PUT", "/api/v1/tech-tree/graph", body)
-    if w.Code != http.StatusOK {
-        t.Fatalf("expected 200 from graph update, got %d: %s", w.Code, w.Body.String())
-    }
-    response := assertJSONResponse(t, w, http.StatusOK)
+	w := makeHTTPRequest(t, router, "PUT", "/api/v1/tech-tree/graph", body)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 from graph update, got %d: %s", w.Code, w.Body.String())
+	}
+	response := assertJSONResponse(t, w, http.StatusOK)
 
 	if message, ok := response["message"].(string); !ok || message != "Graph updated successfully" {
 		t.Fatalf("Unexpected message: %v", response["message"])
 	}
 
-    if _, ok := response["dependencies"]; !ok {
-        t.Fatal("Expected dependencies in response payload")
+	if _, ok := response["dependencies"]; !ok {
+		t.Fatal("Expected dependencies in response payload")
 	}
 
 	row := testDB.QueryRow(`SELECT position_x, position_y FROM progression_stages WHERE id = $1`, stageBID)

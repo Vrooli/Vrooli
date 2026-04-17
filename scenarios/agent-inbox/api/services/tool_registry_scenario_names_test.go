@@ -1,9 +1,8 @@
 package services
 
 import (
-	"testing"
-
 	"agent-inbox/domain"
+	"testing"
 
 	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 )

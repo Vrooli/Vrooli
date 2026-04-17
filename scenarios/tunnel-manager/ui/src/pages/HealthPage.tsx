@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { Heart } from "lucide-react";
 import { fetchDetailedHealth, type DetailedHealth } from "../lib/api";
-import { timeAgo } from "../lib/utils";
+import { statusToVariant, timeAgo } from "../lib/utils";
 import { Tooltip } from "../components/ui/tooltip";
-import { StatusBadge, statusToVariant } from "../components/ui/status-badge";
+import { StatusBadge } from "../components/ui/status-badge";
 import { RefreshButton } from "../components/ui/refresh-button";
 import { QueryState } from "../components/ui/query-state";
 

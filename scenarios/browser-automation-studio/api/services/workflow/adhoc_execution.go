@@ -79,16 +79,16 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 
 	now := time.Now().UTC()
 	wf := &basapi.WorkflowSummary{
-		Id:            workflowID.String(),
-		ProjectId:     "",
-		Name:          strings.TrimSpace(req.GetMetadata().GetName()),
-		FolderPath:    "/",
-		Description:   strings.TrimSpace(req.GetMetadata().GetDescription()),
-		Version:       1,
-		CreatedAt:     autocontracts.TimeToTimestamp(now),
-		UpdatedAt:     autocontracts.TimeToTimestamp(now),
-		FlowDefinition: req.FlowDefinition,
-		LastChangeSource: basbase.ChangeSource_CHANGE_SOURCE_MANUAL,
+		Id:                    workflowID.String(),
+		ProjectId:             "",
+		Name:                  strings.TrimSpace(req.GetMetadata().GetName()),
+		FolderPath:            "/",
+		Description:           strings.TrimSpace(req.GetMetadata().GetDescription()),
+		Version:               1,
+		CreatedAt:             autocontracts.TimeToTimestamp(now),
+		UpdatedAt:             autocontracts.TimeToTimestamp(now),
+		FlowDefinition:        req.FlowDefinition,
+		LastChangeSource:      basbase.ChangeSource_CHANGE_SOURCE_MANUAL,
 		LastChangeDescription: "Adhoc execution",
 	}
 	if strings.TrimSpace(wf.Name) == "" {
@@ -138,12 +138,12 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 	finalBrowserProfile := sessionprofilepersistence.MergeBrowserProfiles(baseBrowserProfile, execBrowserProfile)
 
 	execIndex := &database.ExecutionIndex{
-		ID:        executionID,
+		ID:         executionID,
 		WorkflowID: workflowID,
-		Status:    database.ExecutionStatusPending,
-		StartedAt: now,
-		CreatedAt: now,
-		UpdatedAt: now,
+		Status:     database.ExecutionStatusPending,
+		StartedAt:  now,
+		CreatedAt:  now,
+		UpdatedAt:  now,
 	}
 	if err := s.repo.CreateExecution(ctx, execIndex); err != nil {
 		return nil, fmt.Errorf("create execution: %w", err)

@@ -64,13 +64,20 @@ export function filterGraphEdges(
   edges: GraphEdge[],
   visibleNodes: GraphNode[],
   settings: GraphLensSettings,
+  lens?: GraphLens,
 ): GraphEdge[] {
   const visibleIds = new Set(visibleNodes.map((node) => node.id));
+  // Focus lens has already filtered to attention-worthy items plus their
+  // structural context — any remaining edge between two visible nodes is
+  // load-bearing, so skip the secondary-edge filter here. Without this,
+  // context edges like "targets" (scenario connections) disappear and
+  // scenarios show up floating with no visible link to the work.
+  const applySecondaryFilter = lens !== "focus" && !settings.showSecondaryEdges;
   return edges.filter((edge) => {
     if (!visibleIds.has(edge.source) || !visibleIds.has(edge.target)) {
       return false;
     }
-    if (!settings.showSecondaryEdges && SECONDARY_EDGE_TYPES.has(edge.type ?? "")) {
+    if (applySecondaryFilter && SECONDARY_EDGE_TYPES.has(edge.type ?? "")) {
       return false;
     }
     return true;
@@ -184,7 +191,7 @@ export function buildGraphPresentation({
   nodeCapLimit = DEFAULT_NODE_CAP_LIMIT,
 }: BuildGraphPresentationInput): GraphPresentationResult {
   let filteredNodes = filterGraphNodes(nodes, settings);
-  const filteredEdges = filterGraphEdges(edges, filteredNodes, settings);
+  const filteredEdges = filterGraphEdges(edges, filteredNodes, settings, lens);
 
   if (settings.highlightActionableNodes) {
     filteredNodes = applyAttentionHighlighting(filteredNodes);

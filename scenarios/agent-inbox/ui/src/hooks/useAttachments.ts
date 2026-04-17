@@ -86,7 +86,7 @@ export function useAttachments(
     setAttachments((prev) => [...prev, newAttachment]);
 
     // Start upload immediately
-    uploadFile(id, file);
+    void uploadFile(id, file);
   }, []);
 
   const uploadFile = async (id: string, file: File) => {

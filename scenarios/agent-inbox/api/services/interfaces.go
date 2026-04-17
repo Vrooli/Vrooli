@@ -3,11 +3,10 @@
 package services
 
 import (
+	"agent-inbox/domain"
 	"context"
 	"encoding/json"
 	"time"
-
-	"agent-inbox/domain"
 
 	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 )

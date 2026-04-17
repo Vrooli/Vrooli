@@ -1,21 +1,32 @@
 import js from "@eslint/js";
-import tseslint from "typescript-eslint";
+import importPlugin from "eslint-plugin-import";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
-import importPlugin from "eslint-plugin-import";
+import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  js.configs.recommended,
-  ...tseslint.configs.recommended,
+  { ignores: ["dist", "node_modules", "coverage"] },
   {
+    extends: [js.configs.recommended, ...tseslint.configs.strictTypeChecked],
+    files: ["**/*.{ts,tsx}"],
+    languageOptions: {
+      ecmaVersion: 2020,
+      parserOptions: {
+        project: "./tsconfig.json",
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
     plugins: {
+      import: importPlugin,
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
-      "import": importPlugin,
     },
     settings: {
       "import/resolver": {
-        typescript: true,
+        typescript: {
+          alwaysTryTypes: true,
+          project: "./tsconfig.json",
+        },
       },
     },
     rules: {
@@ -33,29 +44,52 @@ export default tseslint.config(
       // CRITICAL: Catches React Error #310 (hook count changes between renders)
       "react-hooks/rules-of-hooks": "error",
 
-      // CRITICAL: Prevents non-null assertion (!) bypassing TypeScript null checks
-      "@typescript-eslint/no-non-null-assertion": "error",
-
-      // CRITICAL: Catches operations on 'any' typed values that crash at runtime
-      "@typescript-eslint/no-unsafe-member-access": "warn",
-      "@typescript-eslint/no-unsafe-call": "warn",
-      "@typescript-eslint/no-unsafe-argument": "warn",
-      "@typescript-eslint/no-unsafe-assignment": "warn",
-      "@typescript-eslint/no-unsafe-return": "warn",
-
-      // CRITICAL: Prevents explicit 'any' disabling all type checking
+      // CRITICAL: Prevents explicit 'any' from disabling type safety at UI boundaries.
       "@typescript-eslint/no-explicit-any": "error",
 
-      // CRITICAL: Detects circular deps causing "Cannot access X before initialization"
-      "import/no-cycle": "error",
+      // CRITICAL: Prevents non-null assertion (!) which bypasses TypeScript null checks.
+      "@typescript-eslint/no-non-null-assertion": "error",
 
+      // CRITICAL: Catches unsafe arguments flowing from unchecked values into typed APIs.
+      "@typescript-eslint/no-unsafe-argument": "warn",
+
+      // CRITICAL: Catches assigning unchecked values that spread `any` through the codebase.
+      "@typescript-eslint/no-unsafe-assignment": "warn",
+
+      // CRITICAL: Catches invoking unchecked values that will crash at runtime.
+      "@typescript-eslint/no-unsafe-call": "warn",
+
+      // CRITICAL: Catches member access on unchecked values that will crash at runtime.
+      "@typescript-eslint/no-unsafe-member-access": "warn",
+
+      // CRITICAL: Catches returning unchecked values that leak unsafe types to callers.
+      "@typescript-eslint/no-unsafe-return": "warn",
+
+      // CRITICAL: Detects circular dependencies that produce initialization-order failures.
+      "import/no-cycle": "error",
       "react-refresh/only-export-components": [
         "warn",
         { allowConstantExport: true },
       ],
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+      "@typescript-eslint/restrict-template-expressions": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
     },
   },
   {
-    ignores: ["dist/**"],
+    files: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
+    rules: {
+      "@typescript-eslint/no-non-null-assertion": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/require-await": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "react-refresh/only-export-components": "off",
+    },
   }
 );

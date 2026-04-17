@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useRef } from 'react';
+import { useId, useMemo, useState, useCallback, useRef } from 'react';
 import { formatTime } from '../../../shared/utils/formatters';
 import type { ChartDataPoint } from '../../../types';
 
@@ -24,12 +24,13 @@ interface ComputedPoint {
 function smoothPath(pts: ComputedPoint[]): string {
   if (pts.length === 0) return '';
   if (pts.length === 1) {
-    const p = pts[0]!;
+    const [p] = pts;
+    if (!p) return '';
     return `M${p.x},${p.y}`;
   }
   if (pts.length === 2) {
-    const p0 = pts[0]!;
-    const p1 = pts[1]!;
+    const [p0, p1] = pts;
+    if (!p0 || !p1) return '';
     return `M${p0.x},${p0.y}L${p1.x},${p1.y}`;
   }
 
@@ -39,8 +40,11 @@ function smoothPath(pts: ComputedPoint[]): string {
   const mArr: number[] = [];
 
   for (let i = 0; i < n - 1; i++) {
-    const cur = pts[i]!;
-    const next = pts[i + 1]!;
+    const cur = pts[i];
+    const next = pts[i + 1];
+    if (!cur || !next) {
+      continue;
+    }
     const segDx = next.x - cur.x;
     const segDy = next.y - cur.y;
     dxArr.push(segDx);
@@ -48,12 +52,12 @@ function smoothPath(pts: ComputedPoint[]): string {
     mArr.push(segDy / (segDx || 1));
   }
 
-  const slopes: number[] = new Array(n).fill(0);
-  slopes[0] = mArr[0]!;
-  slopes[n - 1] = mArr[n - 2]!;
+  const slopes = Array.from({ length: n }, () => 0);
+  slopes[0] = mArr[0] ?? 0;
+  slopes[n - 1] = mArr[n - 2] ?? 0;
   for (let i = 1; i < n - 1; i++) {
-    const prev = mArr[i - 1]!;
-    const cur = mArr[i]!;
+    const prev = mArr[i - 1] ?? 0;
+    const cur = mArr[i] ?? 0;
     if (prev * cur <= 0) {
       slopes[i] = 0;
     } else {
@@ -61,16 +65,20 @@ function smoothPath(pts: ComputedPoint[]): string {
     }
   }
 
-  const first = pts[0]!;
+  const first = pts[0];
+  if (!first) return '';
   let d = `M${first.x.toFixed(2)},${first.y.toFixed(2)}`;
   for (let i = 0; i < n - 1; i++) {
-    const cur = pts[i]!;
-    const next = pts[i + 1]!;
-    const segLen = dxArr[i]! / 3;
+    const cur = pts[i];
+    const next = pts[i + 1];
+    if (!cur || !next) {
+      continue;
+    }
+    const segLen = (dxArr[i] ?? 0) / 3;
     const cp1x = cur.x + segLen;
-    const cp1y = cur.y + slopes[i]! * segLen;
+    const cp1y = cur.y + (slopes[i] ?? 0) * segLen;
     const cp2x = next.x - segLen;
-    const cp2y = next.y - slopes[i + 1]! * segLen;
+    const cp2y = next.y - (slopes[i + 1] ?? 0) * segLen;
     d += `C${cp1x.toFixed(2)},${cp1y.toFixed(2)},${cp2x.toFixed(2)},${cp2y.toFixed(2)},${next.x.toFixed(2)},${next.y.toFixed(2)}`;
   }
   return d;
@@ -88,6 +96,7 @@ export const MetricSparkline = ({
 }: MetricSparklineProps) => {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const gradientId = useId().replace(/:/g, '-');
   const width = 100;
 
   const points = useMemo(() => {
@@ -134,10 +143,18 @@ export const MetricSparkline = ({
     const mouseX = ((e.clientX - rect.left) / rect.width) * width;
 
     // Find nearest point
+    const firstPoint = points[0];
+    if (!firstPoint) {
+      return;
+    }
     let nearest = 0;
-    let minDist = Math.abs(points[0]!.x - mouseX);
+    let minDist = Math.abs(firstPoint.x - mouseX);
     for (let i = 1; i < points.length; i++) {
-      const dist = Math.abs(points[i]!.x - mouseX);
+      const point = points[i];
+      if (!point) {
+        continue;
+      }
+      const dist = Math.abs(point.x - mouseX);
       if (dist < minDist) {
         minDist = dist;
         nearest = i;
@@ -173,6 +190,11 @@ export const MetricSparkline = ({
   if (!latest) {
     return null;
   }
+  const firstPoint = points[0];
+  const lastPoint = points[points.length - 1];
+  if (!firstPoint || !lastPoint) {
+    return null;
+  }
 
   // Build smooth curve path
   const curvePath = points.length === 1
@@ -180,12 +202,7 @@ export const MetricSparkline = ({
     : smoothPath(points);
 
   // Build area path (curve + bottom edge)
-  const lastPt = points[points.length - 1]!;
-  const firstPt = points[0]!;
-  const areaPath = `${curvePath}L${lastPt.x.toFixed(2)},${height}L${firstPt.x.toFixed(2)},${height}Z`;
-
-  // Gradient ID unique per instance
-  const gradientId = useMemo(() => `spark-grad-${Math.random().toString(36).slice(2, 8)}`, []);
+  const areaPath = `${curvePath}L${lastPoint.x.toFixed(2)},${height}L${firstPoint.x.toFixed(2)},${height}Z`;
 
   let thresholdLine = null;
   if (typeof threshold === 'number') {

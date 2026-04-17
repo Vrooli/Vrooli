@@ -173,8 +173,8 @@
             ]
           },
           {
-            "type": "file",
-            "path": "ui/package.json"
+            "type": "files",
+            "paths": ["ui/package.json"]
           }
         ]
       },

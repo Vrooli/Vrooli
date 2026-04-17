@@ -3,6 +3,9 @@
 package handlers
 
 import (
+	"development-toolchain-validator/domain/skill"
+	"development-toolchain-validator/internal/mocks"
+	"development-toolchain-validator/internal/testutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -10,10 +13,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-
-	"development-toolchain-validator/domain/skill"
-	"development-toolchain-validator/internal/mocks"
-	"development-toolchain-validator/internal/testutil"
 )
 
 // setupSkillTestRouter creates a router with the skill handler registered.

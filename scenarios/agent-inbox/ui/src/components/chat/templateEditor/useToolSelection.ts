@@ -39,7 +39,7 @@ export function useToolSelection() {
 
   // Normalize tool IDs from old format (just tool name) to new format (scenario:toolName)
   const normalizeToolIds = useCallback((toolIds: string[], availableTools: Map<string, EffectiveTool[]>): string[] => {
-    if (!toolIds || availableTools.size === 0) return toolIds || [];
+    if (availableTools.size === 0) return toolIds;
     return toolIds.map(toolId => {
       if (toolId.includes(":")) return toolId;
       for (const [scenario, tools] of availableTools.entries()) {

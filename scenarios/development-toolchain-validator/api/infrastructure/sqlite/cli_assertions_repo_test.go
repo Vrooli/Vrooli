@@ -2,9 +2,8 @@ package sqlite
 
 import (
 	"context"
-	"testing"
-
 	"development-toolchain-validator/domain/expectation"
+	"testing"
 )
 
 func TestCLIAssertionsRepository_CRUD(t *testing.T) {

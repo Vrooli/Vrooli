@@ -29,7 +29,6 @@ func looksLikeWorkflowDefinitionV2(doc map[string]any) bool {
 	return ok
 }
 
-
 // ValidateWorkflow validates ad-hoc workflow definitions via schema + lint rules.
 func (h *Handler) ValidateWorkflow(w http.ResponseWriter, r *http.Request) {
 	if h == nil || h.workflowValidator == nil {

@@ -1,9 +1,8 @@
 package playbooks
 
 import (
-	"fmt"
-
 	"browser-automation-studio/cli/internal/appctx"
+	"fmt"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

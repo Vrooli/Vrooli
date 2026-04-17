@@ -22,7 +22,10 @@ import type { Theme, SettingsTab } from "./settingsTypes";
 
 export function useSettingsState(open: boolean, activeTab: SettingsTab, onClose: () => void, onEditTemplate?: (template: TemplateWithSource, allTemplates: TemplateWithSource[]) => void) {
   const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window !== "undefined") return (localStorage.getItem("theme") as Theme) || "dark";
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("theme");
+      if (stored === "light" || stored === "dark") return stored;
+    }
     return "dark";
   });
   const [defaultModel, setDefaultModelState] = useState<string>(() => {
@@ -63,14 +66,14 @@ export function useSettingsState(open: boolean, activeTab: SettingsTab, onClose:
   useEffect(() => {
     if (activeTab === "templates") {
       setIsLoadingTemplates(true);
-      getAllTemplates().then(setTemplates).finally(() => setIsLoadingTemplates(false));
+      void getAllTemplates().then(setTemplates).finally(() => setIsLoadingTemplates(false));
     }
   }, [activeTab]);
 
   useEffect(() => {
     if (activeTab === "skills") {
       setIsLoadingSkills(true);
-      getAllSkills().then(setSkills).finally(() => setIsLoadingSkills(false));
+      void getAllSkills().then(setSkills).finally(() => setIsLoadingSkills(false));
     }
   }, [activeTab]);
 
@@ -130,10 +133,10 @@ export function useSettingsState(open: boolean, activeTab: SettingsTab, onClose:
     setIsCreatingSkill(false);
   }, [isCreatingSkill, editingSkill]);
 
-  const handleYoloModeToggle = useCallback((checked: boolean) => setYoloMode(checked), [setYoloMode]);
+  const handleYoloModeToggle = useCallback((checked: boolean) => { void setYoloMode(checked); }, [setYoloMode]);
 
   const handleSetApproval = useCallback((scenario: string, toolName: string, override: ApprovalOverride) => {
-    setApproval(scenario, toolName, override);
+    void setApproval(scenario, toolName, override);
   }, [setApproval]);
 
   const handleRunTool = useCallback((tool: EffectiveTool) => setSelectedToolForRun(tool), []);

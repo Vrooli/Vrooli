@@ -891,4 +891,3 @@ func (s *Service) filterEntries(entries []persistence.UnifiedTimelineEntry, quer
 
 	return filtered
 }
-

@@ -1,11 +1,10 @@
 package handlers
 
 import (
+	"agent-inbox/integrations"
 	"net/http"
 	"testing"
 	"time"
-
-	"agent-inbox/integrations"
 )
 
 // =============================================================================

@@ -88,7 +88,7 @@ type ServiceEntry struct {
 	ID           string                   `json:"id"`
 	Type         string                   `json:"type"`
 	Description  string                   `json:"description"`
-	Binaries     map[string]ServiceBinary `json:"binaries"`
+	Binaries     map[string]ServiceBinary `json:"binaries,omitempty"`
 	Build        *BuildConfig             `json:"build,omitempty"`
 	Env          map[string]string        `json:"env,omitempty"`
 	Secrets      []string                 `json:"secrets,omitempty"`

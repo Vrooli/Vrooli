@@ -80,7 +80,7 @@ export default function App() {
   const heroStats = orientationData?.hero_stats;
   const journeyCards = orientationData?.journeys ?? [];
   const tierReadiness = orientationData?.tier_readiness ?? [];
-  const resourceInsights = orientationData?.resource_insights ?? [];
+  const resourceInsights = useMemo(() => orientationData?.resource_insights ?? [], [orientationData?.resource_insights]);
 
   const {
     search: scenarioSearch,
@@ -338,8 +338,6 @@ export default function App() {
               />
 
               <OrientationHub
-                heroStats={heroStats}
-                vulnerabilityInsights={orientationData?.vulnerability_insights ?? []}
                 journeyCards={journeyCards}
                 activeJourneyCard={activeJourneyCard}
                 activeJourney={activeJourney}
@@ -352,7 +350,6 @@ export default function App() {
                 onJourneyNext={handleJourneyNext}
                 onJourneyBack={handleJourneyBack}
                 journeyNextDisabled={journeyNextDisabled}
-                onShowReadiness={() => setActiveTab("resources")}
               />
             </>
           )}

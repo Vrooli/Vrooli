@@ -3,12 +3,11 @@
 package persistence
 
 import (
+	"agent-inbox/domain"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
-
-	"agent-inbox/domain"
 )
 
 // GetChatSettings retrieves just model and tools_enabled for a chat.

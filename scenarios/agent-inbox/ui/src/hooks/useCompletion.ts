@@ -161,14 +161,14 @@ export function useCompletion(options?: UseCompletionOptions): CompletionState &
         setActiveToolCalls((prev) =>
           prev.map((tc) =>
             tc.id === toolCallId
-              ? { ...tc, status: "completed" as const, result: result.tool_result?.result }
+              ? { ...tc, status: "completed" as const, result: result.tool_result.result }
               : tc
           )
         );
 
         if (result.auto_continued) {
           setAwaitingApprovals(false);
-        } else if (result.pending_approvals?.length === 0) {
+        } else if (result.pending_approvals.length === 0) {
           setAwaitingApprovals(false);
         }
 

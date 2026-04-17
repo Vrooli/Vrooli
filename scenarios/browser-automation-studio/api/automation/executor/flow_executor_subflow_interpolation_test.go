@@ -157,7 +157,9 @@ func (s *stubEngineSession) Reset(context.Context) error { return nil }
 
 func (s *stubEngineSession) Close(context.Context) error { return nil }
 
-func (s *stubEngineSession) GetStorageState(context.Context) (json.RawMessage, error) { return nil, nil }
+func (s *stubEngineSession) GetStorageState(context.Context) (json.RawMessage, error) {
+	return nil, nil
+}
 
 type stubExecutionWriter struct{}
 
@@ -169,9 +171,13 @@ func (s *stubExecutionWriter) RecordTelemetry(context.Context, contracts.Executi
 	return nil
 }
 
-func (s *stubExecutionWriter) MarkCrash(context.Context, uuid.UUID, contracts.StepFailure) error { return nil }
+func (s *stubExecutionWriter) MarkCrash(context.Context, uuid.UUID, contracts.StepFailure) error {
+	return nil
+}
 
-func (s *stubExecutionWriter) UpdateCheckpoint(context.Context, uuid.UUID, int, int) error { return nil }
+func (s *stubExecutionWriter) UpdateCheckpoint(context.Context, uuid.UUID, int, int) error {
+	return nil
+}
 
 func (s *stubExecutionWriter) RecordExecutionArtifacts(context.Context, contracts.ExecutionPlan, []executionwriter.ExternalArtifact) error {
 	return nil
@@ -183,7 +189,9 @@ func (s *stubExecutionWriter) GetArtifactConfig() config.ArtifactCollectionSetti
 	return config.ArtifactCollectionSettings{}
 }
 
-var _ executionwriter.ExecutionWriter = (*stubExecutionWriter)(nil)
-var _ WorkflowResolver = (*stubWorkflowResolver)(nil)
-var _ engine.AutomationEngine = (*stubAutomationEngine)(nil)
-var _ engine.EngineSession = (*stubEngineSession)(nil)
+var (
+	_ executionwriter.ExecutionWriter = (*stubExecutionWriter)(nil)
+	_ WorkflowResolver                = (*stubWorkflowResolver)(nil)
+	_ engine.AutomationEngine         = (*stubAutomationEngine)(nil)
+	_ engine.EngineSession            = (*stubEngineSession)(nil)
+)

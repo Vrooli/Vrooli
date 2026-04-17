@@ -15,6 +15,8 @@
 package integrations
 
 import (
+	"agent-inbox/config"
+	"agent-inbox/resilience"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -22,9 +24,6 @@ import (
 	"io"
 	"net/http"
 	"time"
-
-	"agent-inbox/config"
-	"agent-inbox/resilience"
 )
 
 // ProtocolHandler implements ScenarioHandler for any protocol-compliant scenario.

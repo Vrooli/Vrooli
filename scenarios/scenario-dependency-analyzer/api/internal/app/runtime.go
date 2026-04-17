@@ -59,15 +59,6 @@ func currentRuntime() *Runtime {
 	return defaultRuntime
 }
 
-// currentDB returns the database handle from the active runtime, or the global fallback.
-// Prefer using currentStore() for new code, but this provides a bridge for legacy code.
-func currentDB() *sql.DB {
-	if rt := currentRuntime(); rt != nil && rt.db != nil {
-		return rt.db
-	}
-	return db
-}
-
 // Analyzer exposes the runtime's analyzer instance.
 func (rt *Runtime) Analyzer() *Analyzer { return rt.analyzer }
 

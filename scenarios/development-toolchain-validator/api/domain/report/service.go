@@ -2,11 +2,10 @@ package report
 
 import (
 	"context"
-	"fmt"
-	"time"
-
 	"development-toolchain-validator/domain/expectation"
 	"development-toolchain-validator/domain/skill"
+	"fmt"
+	"time"
 )
 
 // Service generates aggregated reports from validation data.

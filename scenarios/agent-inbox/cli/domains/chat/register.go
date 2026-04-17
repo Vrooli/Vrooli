@@ -1,14 +1,13 @@
 package chat
 
 import (
+	"agent-inbox/cli/internal/support"
 	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-
-	"agent-inbox/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
@@ -64,14 +63,6 @@ type searchResult struct {
 	Rank      float64    `json:"rank"`
 	MatchType string     `json:"match_type"`
 }
-
-type bulkResult struct {
-	SuccessCount int `json:"success_count"`
-	FailCount    int `json:"fail_count"`
-	Total        int `json:"total"`
-}
-
-type toggleResult map[string]bool
 
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{

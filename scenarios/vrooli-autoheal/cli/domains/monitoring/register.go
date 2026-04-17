@@ -1,9 +1,9 @@
 package monitoring
 
 import (
+	"errors"
 	"fmt"
 	"os"
-
 	"vrooli-autoheal/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -128,7 +128,7 @@ func deleteByName(core *cliapp.ScenarioApp, args []string, pathFmt string, usage
 		return err
 	}
 	if fs.NArg() != 1 {
-		return fmt.Errorf(usage)
+		return errors.New(usage)
 	}
 	body, err := core.Request("DELETE", fmt.Sprintf(pathFmt, fs.Arg(0)), nil, nil)
 	if err != nil {

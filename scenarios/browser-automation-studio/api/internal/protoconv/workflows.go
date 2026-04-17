@@ -74,4 +74,3 @@ func WorkflowValidationResultToProto(result *workflowvalidator.Result) *basapi.W
 		DurationMs:    result.DurationMs,
 	}
 }
-

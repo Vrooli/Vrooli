@@ -69,7 +69,7 @@ export function useToolMutations({ chatId }: UseToolMutationsOptions = {}) {
       setTimeout(() => {
         const pendingCount = queryClient.isMutating({ mutationKey: toggleMutationKey });
         if (pendingCount === 0) {
-          queryClient.invalidateQueries({ queryKey: toolQueryKeys.toolSet(chatId) });
+          void queryClient.invalidateQueries({ queryKey: toolQueryKeys.toolSet(chatId) });
         }
       }, 0);
     },
@@ -120,7 +120,7 @@ export function useToolMutations({ chatId }: UseToolMutationsOptions = {}) {
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: toolQueryKeys.toolSet(chatId) });
+      void queryClient.invalidateQueries({ queryKey: toolQueryKeys.toolSet(chatId) });
     },
   });
 
@@ -130,7 +130,7 @@ export function useToolMutations({ chatId }: UseToolMutationsOptions = {}) {
       await resetToolConfig(scenario, toolName, chatId);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: toolQueryKeys.toolSet(chatId) });
+      void queryClient.invalidateQueries({ queryKey: toolQueryKeys.toolSet(chatId) });
     },
   });
 
@@ -138,7 +138,7 @@ export function useToolMutations({ chatId }: UseToolMutationsOptions = {}) {
   const syncMutation = useMutation({
     mutationFn: syncTools,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: toolQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: toolQueryKeys.all });
     },
   });
 

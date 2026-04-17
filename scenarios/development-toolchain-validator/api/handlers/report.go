@@ -1,12 +1,11 @@
 package handlers
 
 import (
+	"development-toolchain-validator/domain/report"
 	"encoding/json"
 	"net/http"
 
 	"github.com/gorilla/mux"
-
-	"development-toolchain-validator/domain/report"
 )
 
 // ReportHandler handles HTTP requests for report generation.

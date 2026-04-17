@@ -179,8 +179,8 @@
         },
         {
           "name": "initialize-database",
-          "run": "resource-postgres content create-database home_automation || echo 'Database already exists or creation skipped'",
-          "description": "Create home automation database"
+          "run": "resource-postgres content create-database home_automation",
+          "description": "Create home automation database (idempotent)"
         },
         {
           "name": "add-data",
@@ -281,7 +281,7 @@
           },
           {
             "file": "initialization/postgres/seed.sql",
-            "type": "data"
+            "type": "seed"
           }
         ]
       },

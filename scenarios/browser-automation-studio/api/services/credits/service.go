@@ -838,7 +838,7 @@ func (s *Service) upsertUsage(ctx context.Context, userIdentity, month string, o
 		}
 
 		creditsByOp[opKey] += credits
-		opsByType[opKey] += 1
+		opsByType[opKey]++
 
 		creditsByOpBytes, _ := json.Marshal(creditsByOp)
 		opsByTypeBytes, _ := json.Marshal(opsByType)

@@ -111,13 +111,18 @@
           "description": "Build the Go API server binary (secrets-manager-api) inside api/ directory for lifecycle execution"
         },
         {
+          "name": "create-database",
+          "run": "resource-postgres content create-database ${POSTGRES_DB:-vrooli_secrets_manager}",
+          "description": "Ensure the scenario's database exists (idempotent)"
+        },
+        {
           "name": "initialize-database",
-          "run": "../../resources/postgres/cli.sh content add initialization/storage/postgres/schema.sql",
-          "description": "Ensure the tracking schema exists"
+          "run": "resource-postgres content execute --file initialization/storage/postgres/schema.sql",
+          "description": "Load the tracking schema into the scenario database"
         },
         {
           "name": "seed-database",
-          "run": "../../resources/postgres/cli.sh content add initialization/storage/postgres/seed.sql",
+          "run": "resource-postgres content execute --file initialization/storage/postgres/seed.sql",
           "description": "Seed baseline secret definitions"
         },
         {

@@ -1,11 +1,10 @@
 package workflows
 
 import (
+	"browser-automation-studio/cli/internal/appctx"
 	"encoding/json"
 	"fmt"
 	"net/url"
-
-	"browser-automation-studio/cli/internal/appctx"
 )
 
 type listResponse struct {

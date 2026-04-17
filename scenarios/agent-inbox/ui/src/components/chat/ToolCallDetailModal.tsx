@@ -68,7 +68,7 @@ export function ToolCallDetailModal({
     setScenarioLoading(true);
     fetchScenarioInfo(scenarioName)
       .then((info) => setScenarioInfo(info))
-      .catch((err) => { console.warn("Failed to fetch scenario info:", err); setScenarioInfo(null); })
+      .catch((err: unknown) => { console.warn("Failed to fetch scenario info:", err); setScenarioInfo(null); })
       .finally(() => setScenarioLoading(false));
   }, [open, scenarioName]);
 

@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -30,12 +30,6 @@ func ensureTestEnvVars() {
 	}
 }
 
-// TestLogger provides controlled logging during tests
-type TestLogger struct {
-	originalOutput *os.File
-	cleanup        func()
-}
-
 // setupTestLogger initializes logging for testing with output suppression
 func setupTestLogger() func() {
 	// Suppress Gin debug output during tests
@@ -43,7 +37,7 @@ func setupTestLogger() func() {
 
 	// Redirect log output to discard during tests (can be enabled for debugging)
 	originalOutput := log.Writer()
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(io.Discard)
 
 	return func() {
 		log.SetOutput(originalOutput)
@@ -69,7 +63,7 @@ func (mockGraphService) GenerateGraph(graphType string) (*types.DependencyGraph,
 // setupTestDirectory creates an isolated test environment with proper cleanup
 func setupTestDirectory(t *testing.T) *TestEnvironment {
 	ensureTestEnvVars()
-	tempDir, err := ioutil.TempDir("", "scenario-dependency-analyzer-test")
+	tempDir, err := os.MkdirTemp("", "scenario-dependency-analyzer-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -92,7 +86,7 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 		OriginalWD:   originalWD,
 		ScenariosDir: scenariosDir,
 		Cleanup: func() {
-			os.Chdir(originalWD)
+			_ = os.Chdir(originalWD)
 			os.RemoveAll(tempDir)
 		},
 	}
@@ -141,7 +135,7 @@ func setupTestDatabase(t *testing.T) (*sql.DB, func()) {
 	}
 
 	cleanup := func() {
-		testDB.Exec("DROP TABLE IF EXISTS scenario_dependencies")
+		_, _ = testDB.Exec("DROP TABLE IF EXISTS scenario_dependencies")
 		testDB.Close()
 	}
 
@@ -195,7 +189,7 @@ func createTestScenario(t *testing.T, env *TestEnvironment, name string, resourc
 	}
 
 	serviceJSONPath := filepath.Join(vrooliPath, "service.json")
-	if err := ioutil.WriteFile(serviceJSONPath, serviceJSON, 0o644); err != nil {
+	if err := os.WriteFile(serviceJSONPath, serviceJSON, 0o644); err != nil {
 		t.Fatalf("Failed to write service.json: %v", err)
 	}
 
@@ -273,36 +267,6 @@ func makeHTTPRequest(t *testing.T, router *gin.Engine, method, path string, body
 	router.ServeHTTP(recorder, req)
 
 	return recorder
-}
-
-// assertJSONResponse validates JSON response structure and status code
-func assertJSONResponse(t *testing.T, recorder *httptest.ResponseRecorder, expectedStatus int, expectedFields map[string]interface{}) {
-	if recorder.Code != expectedStatus {
-		t.Errorf("Expected status %d, got %d. Body: %s", expectedStatus, recorder.Code, recorder.Body.String())
-		return
-	}
-
-	var response map[string]interface{}
-	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v. Body: %s", err, recorder.Body.String())
-	}
-
-	for key, expectedValue := range expectedFields {
-		actualValue, exists := response[key]
-		if !exists {
-			t.Errorf("Expected field %s not found in response", key)
-			continue
-		}
-
-		// For string comparisons
-		if expectedStr, ok := expectedValue.(string); ok {
-			if actualStr, ok := actualValue.(string); ok {
-				if actualStr != expectedStr {
-					t.Errorf("Field %s: expected %v, got %v", key, expectedValue, actualValue)
-				}
-			}
-		}
-	}
 }
 
 // assertErrorResponse validates error response

@@ -1,6 +1,6 @@
 import type { ForcedTool } from "./AttachmentButton";
 import type { Model, Message, UploadResponse } from "../../lib/api";
-import type { SkillPayload, Template } from "@/lib/types/templates";
+import type { SkillPayload } from "@/lib/types/templates";
 
 // ---------------------------------------------------------------------------
 // Constants

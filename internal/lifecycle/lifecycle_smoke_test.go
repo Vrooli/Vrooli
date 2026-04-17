@@ -185,7 +185,6 @@ func TestRunnerStartStartsRequiredDependencies(t *testing.T) {
 			t.Fatalf("expected %s to be running, records=%#v", name, records)
 		}
 	}
-
 }
 
 func TestListeningPIDsDetectsLiveListener(t *testing.T) {

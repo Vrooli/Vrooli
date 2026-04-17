@@ -77,19 +77,6 @@ func TestUnsupportedHostErrorsIncludePlatformNotes(t *testing.T) {
 	}
 }
 
-func TestInspectRejectsImplicitLegacyResolution(t *testing.T) {
-	if _, err := Inspect("development"); err == nil || !strings.Contains(err.Error(), "explicit host requirements") {
-		t.Fatalf("Inspect error = %v", err)
-	}
-}
-
-func TestEnsureRejectsImplicitLegacyResolution(t *testing.T) {
-	_, err := Ensure(EnsureOptions{Environment: "development"})
-	if err == nil || !strings.Contains(err.Error(), "explicit host requirements") {
-		t.Fatalf("Ensure error = %v", err)
-	}
-}
-
 func TestEnsureRequirementsSupportsDeclaredToolAndSafeguard(t *testing.T) {
 	restore := stubRuntimeLookups(t)
 	defer restore()

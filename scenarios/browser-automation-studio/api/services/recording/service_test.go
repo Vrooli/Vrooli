@@ -68,7 +68,6 @@ func TestService_CreateSession(t *testing.T) {
 		ViewportWidth:  1920,
 		ViewportHeight: 1080,
 	})
-
 	if err != nil {
 		t.Fatalf("CreateSession failed: %v", err)
 	}
@@ -411,7 +410,6 @@ func TestService_RecordActionUnified_Success(t *testing.T) {
 		Source:        ActionSourceManual,
 		CorrelationID: "test-correlation-123",
 	})
-
 	if err != nil {
 		t.Fatalf("RecordActionUnified failed: %v", err)
 	}
@@ -478,7 +476,6 @@ func TestService_RecordActionUnified_NilAction(t *testing.T) {
 		PageID:    pageID,
 		Source:    ActionSourceManual,
 	})
-
 	if err != nil {
 		t.Fatalf("RecordActionUnified should not return error for nil action: %v", err)
 	}
@@ -538,7 +535,6 @@ func TestService_RecordActionUnified_PersistenceError(t *testing.T) {
 		PageID:    pageID,
 		Source:    ActionSourceManual,
 	})
-
 	if err != nil {
 		t.Fatalf("RecordActionUnified should not return error on persistence failure: %v", err)
 	}
@@ -612,7 +608,6 @@ func TestService_RecordPageEventUnified_Success(t *testing.T) {
 		Event:         event,
 		CorrelationID: "test-page-event-123",
 	})
-
 	if err != nil {
 		t.Fatalf("RecordPageEventUnified failed: %v", err)
 	}
@@ -679,7 +674,6 @@ func TestService_RecordPageEventUnified_NilEvent(t *testing.T) {
 		SessionID: session.ID,
 		Event:     nil, // nil event
 	})
-
 	if err != nil {
 		t.Fatalf("RecordPageEventUnified should not return error for nil event: %v", err)
 	}

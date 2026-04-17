@@ -43,7 +43,7 @@ func (s *WorkflowService) ExportToFolder(ctx context.Context, executionID uuid.U
 		return fmt.Errorf("failed to marshal timeline: %w", err)
 	}
 
-	if err := os.WriteFile(filepath.Join(outputDir, "timeline.json"), timelineJSON, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(outputDir, "timeline.json"), timelineJSON, 0o644); err != nil {
 		return fmt.Errorf("failed to write timeline.json: %w", err)
 	}
 
@@ -54,7 +54,7 @@ func (s *WorkflowService) ExportToFolder(ctx context.Context, executionID uuid.U
 		return fmt.Errorf("failed to marshal result: %w", err)
 	}
 
-	if err := os.WriteFile(filepath.Join(outputDir, "result.json"), resultJSON, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(outputDir, "result.json"), resultJSON, 0o644); err != nil {
 		return fmt.Errorf("failed to write result.json: %w", err)
 	}
 
@@ -65,27 +65,27 @@ func (s *WorkflowService) ExportToFolder(ctx context.Context, executionID uuid.U
 	}
 
 	readmeContent := export.GenerateTimelineMarkdown(timeline, workflowName)
-	if err := os.WriteFile(filepath.Join(outputDir, "README.md"), []byte(readmeContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(outputDir, "README.md"), []byte(readmeContent), 0o644); err != nil {
 		return fmt.Errorf("failed to write README.md: %w", err)
 	}
 
 	summaryContent := export.GenerateExecutionSummaryMarkdown(timeline)
-	if err := os.WriteFile(filepath.Join(outputDir, "execution-summary.md"), []byte(summaryContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(outputDir, "execution-summary.md"), []byte(summaryContent), 0o644); err != nil {
 		return fmt.Errorf("failed to write execution-summary.md: %w", err)
 	}
 
 	consoleContent := export.GenerateConsoleLogsMarkdown(timeline)
-	if err := os.WriteFile(filepath.Join(outputDir, "console-logs.md"), []byte(consoleContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(outputDir, "console-logs.md"), []byte(consoleContent), 0o644); err != nil {
 		return fmt.Errorf("failed to write console-logs.md: %w", err)
 	}
 
 	networkContent := export.GenerateNetworkActivityMarkdown(timeline)
-	if err := os.WriteFile(filepath.Join(outputDir, "network-activity.md"), []byte(networkContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(outputDir, "network-activity.md"), []byte(networkContent), 0o644); err != nil {
 		return fmt.Errorf("failed to write network-activity.md: %w", err)
 	}
 
 	assertionsContent := export.GenerateAssertionsMarkdown(timeline)
-	if err := os.WriteFile(filepath.Join(outputDir, "assertions.md"), []byte(assertionsContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(outputDir, "assertions.md"), []byte(assertionsContent), 0o644); err != nil {
 		return fmt.Errorf("failed to write assertions.md: %w", err)
 	}
 
@@ -100,7 +100,7 @@ func (s *WorkflowService) ExportToFolder(ctx context.Context, executionID uuid.U
 	// Only export screenshots if we have a storage client and there are screenshots
 	if screenshotCount > 0 && storageClient != nil {
 		screenshotsDir := filepath.Join(outputDir, "screenshots")
-		if err := os.MkdirAll(screenshotsDir, 0755); err != nil {
+		if err := os.MkdirAll(screenshotsDir, 0o755); err != nil {
 			return fmt.Errorf("failed to create screenshots directory: %w", err)
 		}
 
@@ -195,7 +195,7 @@ func validateAndPrepareOutputDir(outputDir string) error {
 	}
 
 	// Create directory if it doesn't exist (including parents)
-	if err := os.MkdirAll(cleanPath, 0755); err != nil {
+	if err := os.MkdirAll(cleanPath, 0o755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 

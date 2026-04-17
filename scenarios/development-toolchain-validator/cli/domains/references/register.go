@@ -1,14 +1,13 @@
 package references
 
 import (
+	"development-toolchain-validator/cli/internal/textutil"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"net/url"
 	"os"
 	"strings"
-
-	"development-toolchain-validator/cli/internal/textutil"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"

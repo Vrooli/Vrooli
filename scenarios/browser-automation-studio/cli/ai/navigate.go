@@ -1,13 +1,12 @@
 package ai
 
 import (
+	"browser-automation-studio/cli/internal/api"
+	"browser-automation-studio/cli/internal/appctx"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
-
-	"browser-automation-studio/cli/internal/api"
-	"browser-automation-studio/cli/internal/appctx"
 )
 
 // AINavigateRequest matches the API request structure.

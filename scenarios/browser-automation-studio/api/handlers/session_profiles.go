@@ -13,12 +13,12 @@ import (
 )
 
 type sessionProfileResponse struct {
-	ID              string                                  `json:"id"`
-	Name            string                                  `json:"name"`
-	CreatedAt       string                                  `json:"created_at"`
-	UpdatedAt       string                                  `json:"updated_at"`
-	LastUsedAt      string                                  `json:"last_used_at"`
-	HasStorageState bool                                    `json:"has_storage_state"`
+	ID              string                                    `json:"id"`
+	Name            string                                    `json:"name"`
+	CreatedAt       string                                    `json:"created_at"`
+	UpdatedAt       string                                    `json:"updated_at"`
+	LastUsedAt      string                                    `json:"last_used_at"`
+	HasStorageState bool                                      `json:"has_storage_state"`
 	BrowserProfile  *sessionprofilepersistence.BrowserProfile `json:"browser_profile,omitempty"`
 }
 
@@ -124,7 +124,7 @@ func (h *Handler) UpdateRecordingSessionProfile(w http.ResponseWriter, r *http.R
 	}
 
 	var req struct {
-		Name           string                                  `json:"name"`
+		Name           string                                    `json:"name"`
 		BrowserProfile *sessionprofilepersistence.BrowserProfile `json:"browser_profile"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1066,9 +1066,9 @@ func (h *Handler) HistoryCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		SessionID      string                               `json:"session_id"`
+		SessionID      string                                 `json:"session_id"`
 		Entry          sessionprofilepersistence.HistoryEntry `json:"entry"`
-		NavigationType string                               `json:"navigation_type"`
+		NavigationType string                                 `json:"navigation_type"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{

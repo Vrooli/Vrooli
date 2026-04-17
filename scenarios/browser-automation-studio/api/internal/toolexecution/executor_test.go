@@ -175,11 +175,11 @@ func (m *mockCatalogService) ModifyWorkflowAPI(ctx context.Context, workflowID u
 
 // mockExecutionService implements workflow.ExecutionService for testing.
 type mockExecutionService struct {
-	executeWorkflowAPIFn    func(ctx context.Context, req *basapi.ExecuteWorkflowRequest) (*basapi.ExecuteWorkflowResponse, error)
-	getExecutionFn          func(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error)
-	getExecutionTimelineFn  func(ctx context.Context, executionID uuid.UUID) (*workflow.ExecutionTimeline, error)
-	stopExecutionFn         func(ctx context.Context, executionID uuid.UUID) error
-	listExecutionsFn        func(ctx context.Context, workflowID *uuid.UUID, projectID *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error)
+	executeWorkflowAPIFn   func(ctx context.Context, req *basapi.ExecuteWorkflowRequest) (*basapi.ExecuteWorkflowResponse, error)
+	getExecutionFn         func(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error)
+	getExecutionTimelineFn func(ctx context.Context, executionID uuid.UUID) (*workflow.ExecutionTimeline, error)
+	stopExecutionFn        func(ctx context.Context, executionID uuid.UUID) error
+	listExecutionsFn       func(ctx context.Context, workflowID *uuid.UUID, projectID *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error)
 }
 
 // Verify mockExecutionService implements ExecutionService interface
@@ -323,7 +323,6 @@ func TestExecuteWorkflow_Success(t *testing.T) {
 	result, err := executor.Execute(context.Background(), "execute_workflow", map[string]interface{}{
 		"workflow_id": workflowID.String(),
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -345,7 +344,6 @@ func TestExecuteWorkflow_MissingWorkflowID(t *testing.T) {
 	})
 
 	result, err := executor.Execute(context.Background(), "execute_workflow", map[string]interface{}{})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -366,7 +364,6 @@ func TestExecuteWorkflow_InvalidWorkflowID(t *testing.T) {
 	result, err := executor.Execute(context.Background(), "execute_workflow", map[string]interface{}{
 		"workflow_id": "not-a-valid-uuid",
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -402,7 +399,6 @@ func TestGetExecution_Success(t *testing.T) {
 	result, err := executor.Execute(context.Background(), "get_execution", map[string]interface{}{
 		"execution_id": executionID.String(),
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -434,7 +430,6 @@ func TestGetExecution_NotFound(t *testing.T) {
 	result, err := executor.Execute(context.Background(), "get_execution", map[string]interface{}{
 		"execution_id": uuid.New().String(),
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -468,7 +463,6 @@ func TestStopExecution_Success(t *testing.T) {
 	result, err := executor.Execute(context.Background(), "stop_execution", map[string]interface{}{
 		"execution_id": executionID.String(),
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -502,7 +496,6 @@ func TestListWorkflows_Success(t *testing.T) {
 	result, err := executor.Execute(context.Background(), "list_workflows", map[string]interface{}{
 		"limit": 50,
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -541,7 +534,6 @@ func TestListExecutions_Success(t *testing.T) {
 	})
 
 	result, err := executor.Execute(context.Background(), "list_executions", nil)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -572,7 +564,6 @@ func TestCreateWorkflow_Success(t *testing.T) {
 	result, err := executor.Execute(context.Background(), "create_workflow", map[string]interface{}{
 		"name": "Test Workflow",
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -596,7 +587,6 @@ func TestCreateWorkflow_MissingName(t *testing.T) {
 	})
 
 	result, err := executor.Execute(context.Background(), "create_workflow", map[string]interface{}{})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -630,7 +620,6 @@ func TestCreateProject_Success(t *testing.T) {
 		"name":        "Test Project",
 		"description": "A test project",
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -659,7 +648,6 @@ func TestListProjects_Success(t *testing.T) {
 	})
 
 	result, err := executor.Execute(context.Background(), "list_projects", nil)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -703,7 +691,6 @@ func TestGetExecutionTimeline_Success(t *testing.T) {
 	result, err := executor.Execute(context.Background(), "get_execution_timeline", map[string]interface{}{
 		"execution_id": executionID.String(),
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -729,7 +716,6 @@ func TestValidateWorkflow_Success(t *testing.T) {
 	result, err := executor.Execute(context.Background(), "validate_workflow", map[string]interface{}{
 		"definition": map[string]interface{}{"steps": []interface{}{}},
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -745,7 +731,6 @@ func TestValidateWorkflow_MissingDefinition(t *testing.T) {
 	})
 
 	result, err := executor.Execute(context.Background(), "validate_workflow", map[string]interface{}{})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -770,7 +755,6 @@ func TestInvalidExecutionID(t *testing.T) {
 			result, err := executor.Execute(context.Background(), tool, map[string]interface{}{
 				"execution_id": "not-a-valid-uuid",
 			})
-
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -803,7 +787,6 @@ func TestRecordingTools_NotImplemented(t *testing.T) {
 	for _, tc := range tools {
 		t.Run(tc.name, func(t *testing.T) {
 			result, err := executor.Execute(context.Background(), tc.name, tc.args)
-
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -834,7 +817,6 @@ func TestAITools_NotImplemented(t *testing.T) {
 	for _, tc := range tools {
 		t.Run(tc.name, func(t *testing.T) {
 			result, err := executor.Execute(context.Background(), tc.name, tc.args)
-
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}

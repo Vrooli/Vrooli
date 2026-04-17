@@ -47,8 +47,10 @@ type HealthSnapshot struct {
 	OverallStatus string `json:"overall_status"`
 }
 
-var listProcessTableFn = listProcessTable
-var processReadScenarioRecordsFn = process.ReadScenarioRecords
+var (
+	listProcessTableFn           = listProcessTable
+	processReadScenarioRecordsFn = process.ReadScenarioRecords
+)
 
 // Snapshot gathers the current tracked-process and orphan-process state from the
 // host and returns a single canonical maintenance view for downstream commands.

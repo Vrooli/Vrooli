@@ -11,6 +11,11 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+	"vrooli-autoheal/internal/bootstrap"
+	"vrooli-autoheal/internal/checks"
+	"vrooli-autoheal/internal/persistence"
+	"vrooli-autoheal/internal/platform"
+	"vrooli-autoheal/internal/userconfig"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -21,12 +26,7 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
-	"vrooli-autoheal/internal/bootstrap"
-	"vrooli-autoheal/internal/checks"
 	apiHandlers "vrooli-autoheal/internal/handlers"
-	"vrooli-autoheal/internal/persistence"
-	"vrooli-autoheal/internal/platform"
-	"vrooli-autoheal/internal/userconfig"
 )
 
 func main() {

@@ -96,6 +96,10 @@ type Options struct {
 	JSON bool
 	// Verbose forces debug logging when the configured level is less verbose.
 	Verbose bool
+	// Quiet raises the logging level to warn unless a more verbose level is
+	// already configured (and Verbose has not overridden it). Quiet is
+	// ignored when Verbose is set.
+	Quiet bool
 	// SetDefault installs the created logger as slog.Default.
 	SetDefault bool
 	// RedirectStdlib routes package log output through the structured logger.
@@ -236,7 +240,7 @@ func New(opts Options) (*slog.Logger, Diagnostics) {
 		writer = os.Stderr
 	}
 
-	level, levelSource, warnings := resolveLevel(opts.Verbose)
+	level, levelSource, warnings := resolveLevel(opts.Verbose, opts.Quiet)
 	format, formatSource, formatWarnings := resolveFormat(opts)
 	warnings = append(warnings, formatWarnings...)
 	handlerOptions := &slog.HandlerOptions{
@@ -409,7 +413,7 @@ func Error(logger *slog.Logger, msg string, err error, args ...any) {
 	logger.Error(msg, args...)
 }
 
-func resolveLevel(verbose bool) (slog.Level, ConfigSource, []Warning) {
+func resolveLevel(verbose, quiet bool) (slog.Level, ConfigSource, []Warning) {
 	rawValue := strings.TrimSpace(os.Getenv(LogLevelEnvVar))
 	level, err := LevelFromEnv()
 	warnings := []Warning{}
@@ -428,6 +432,9 @@ func resolveLevel(verbose bool) (slog.Level, ConfigSource, []Warning) {
 	}
 	if verbose && level > slog.LevelDebug {
 		level = slog.LevelDebug
+		source = ConfigSourceVerboseOverride
+	} else if !verbose && quiet && level > slog.LevelDebug && level < slog.LevelWarn {
+		level = slog.LevelWarn
 		source = ConfigSourceVerboseOverride
 	}
 	return level, source, warnings

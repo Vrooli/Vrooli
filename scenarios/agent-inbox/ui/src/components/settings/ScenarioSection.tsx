@@ -94,7 +94,7 @@ export function ScenarioSection({
           <Switch
             checked={allEnabled}
             onCheckedChange={(checked) => {
-              void onToggleScenario(scenario, checked);
+              onToggleScenario(scenario, checked);
             }}
             disabled={isUpdating || isBatchInProgress}
             className={!allEnabled && someEnabled ? "!bg-indigo-500/50" : undefined}

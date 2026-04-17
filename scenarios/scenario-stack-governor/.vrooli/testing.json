@@ -5,6 +5,23 @@
     "last_updated": "2025-11-08T00:00:00Z"
   },
   "version": "1.0.0",
+  "lint": {
+    "handlers": {
+      "go_module": {
+        "enabled": true,
+        "strict": true
+      },
+      "node_package": {
+        "enabled": true,
+        "strict": true
+      }
+    },
+    "ignore": [
+      "coverage",
+      "docs",
+      "initialization"
+    ]
+  },
   "structure": {
     "additional_dirs": [
       "ui"

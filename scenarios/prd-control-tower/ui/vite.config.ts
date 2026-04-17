@@ -5,6 +5,12 @@ import RequirementReporter from '@vrooli/vitest-requirement-reporter'
 export default defineConfig({
   base: './',
   plugins: [react()],
+  server: {
+    watch: {
+      usePolling: true,
+      interval: 1000,
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',

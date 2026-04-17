@@ -55,9 +55,9 @@ export async function startAgentMode(
 
   if (!res.ok) {
     const body: ApiErrorBody = await (res.json() as Promise<ApiErrorBody>).catch(() => ({ error: { message: res.statusText } }));
-    const detail = body?.error?.details?.user_message;
-    const message = detail || body?.error?.message || `Failed to start agent mode: ${res.status}`;
-    throw new AgentModeError(message, body?.error?.code, body?.error?.recovery);
+    const detail = body.error?.details?.user_message;
+    const message = detail || body.error?.message || `Failed to start agent mode: ${res.status}`;
+    throw new AgentModeError(message, body.error?.code, body.error?.recovery);
   }
 
   return jsonResponse<AgentModeResponse>(res);
@@ -87,9 +87,9 @@ export async function sendAgentMessage(
 
   if (!res.ok) {
     const errBody: ApiErrorBody = await (res.json() as Promise<ApiErrorBody>).catch(() => ({ error: { message: res.statusText } }));
-    const detail = errBody?.error?.details?.user_message;
-    const msg = detail || errBody?.error?.message || `Failed to send agent message: ${res.status}`;
-    throw new AgentModeError(msg, errBody?.error?.code, errBody?.error?.recovery);
+    const detail = errBody.error?.details?.user_message;
+    const msg = detail || errBody.error?.message || `Failed to send agent message: ${res.status}`;
+    throw new AgentModeError(msg, errBody.error?.code, errBody.error?.recovery);
   }
 
   return jsonResponse<{ success: boolean; run_id: string }>(res);
@@ -156,9 +156,9 @@ export async function stopAgentMode(
 
   if (!res.ok) {
     const body: ApiErrorBody = await (res.json() as Promise<ApiErrorBody>).catch(() => ({ error: { message: res.statusText } }));
-    const detail = body?.error?.details?.user_message;
-    const msg = detail || body?.error?.message || `Failed to stop agent: ${res.status}`;
-    throw new AgentModeError(msg, body?.error?.code, body?.error?.recovery);
+    const detail = body.error?.details?.user_message;
+    const msg = detail || body.error?.message || `Failed to stop agent: ${res.status}`;
+    throw new AgentModeError(msg, body.error?.code, body.error?.recovery);
   }
 
   return jsonResponse<{ success: boolean; run_id: string }>(res);
@@ -180,9 +180,9 @@ export async function clearAgentMode(
 
   if (!res.ok) {
     const body: ApiErrorBody = await (res.json() as Promise<ApiErrorBody>).catch(() => ({ error: { message: res.statusText } }));
-    const detail = body?.error?.details?.user_message;
-    const msg = detail || body?.error?.message || `Failed to clear agent mode: ${res.status}`;
-    throw new AgentModeError(msg, body?.error?.code, body?.error?.recovery);
+    const detail = body.error?.details?.user_message;
+    const msg = detail || body.error?.message || `Failed to clear agent mode: ${res.status}`;
+    throw new AgentModeError(msg, body.error?.code, body.error?.recovery);
   }
 
   return jsonResponse<{ success: boolean; chat_mode: "llm" }>(res);
@@ -211,9 +211,9 @@ export async function listAgentRuns(
 
   if (!res.ok) {
     const body: ApiErrorBody = await (res.json() as Promise<ApiErrorBody>).catch(() => ({ error: { message: res.statusText } }));
-    const detail = body?.error?.details?.user_message;
-    const msg = detail || body?.error?.message || `Failed to list agent runs: ${res.status}`;
-    throw new AgentModeError(msg, body?.error?.code, body?.error?.recovery);
+    const detail = body.error?.details?.user_message;
+    const msg = detail || body.error?.message || `Failed to list agent runs: ${res.status}`;
+    throw new AgentModeError(msg, body.error?.code, body.error?.recovery);
   }
 
   return jsonResponse<ListAgentRunsResponse>(res);
@@ -261,9 +261,9 @@ export async function attachAgentRun(
 
   if (!res.ok) {
     const body: ApiErrorBody = await (res.json() as Promise<ApiErrorBody>).catch(() => ({ error: { message: res.statusText } }));
-    const detail = body?.error?.details?.user_message;
-    const msg = detail || body?.error?.message || `Failed to attach agent run: ${res.status}`;
-    throw new AgentModeError(msg, body?.error?.code, body?.error?.recovery);
+    const detail = body.error?.details?.user_message;
+    const msg = detail || body.error?.message || `Failed to attach agent run: ${res.status}`;
+    throw new AgentModeError(msg, body.error?.code, body.error?.recovery);
   }
 
   return jsonResponse<AgentModeResponse>(res);

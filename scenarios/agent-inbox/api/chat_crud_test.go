@@ -1,13 +1,12 @@
 package main
 
 import (
+	"agent-inbox/domain"
 	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"agent-inbox/domain"
 )
 
 // [REQ:BUBBLE-001] Test create new chat

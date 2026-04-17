@@ -8,7 +8,6 @@ import (
 	"net"
 	"runtime"
 	"time"
-
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
 )

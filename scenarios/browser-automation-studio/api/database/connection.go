@@ -16,7 +16,8 @@ import (
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/constants"
 	repocontract "github.com/vrooli/repo-contract-go"
-	_ "modernc.org/sqlite"
+
+	_ "modernc.org/sqlite" // registers the pure-Go sqlite driver for database/sql
 )
 
 // DB wraps sqlx.DB with additional functionality

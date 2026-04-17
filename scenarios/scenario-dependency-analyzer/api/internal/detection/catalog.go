@@ -113,19 +113,3 @@ func (c *catalogManager) getScenarioCatalog() map[string]struct{} {
 
 	return snapshot
 }
-
-// getResourceCatalog returns a copy of the resource catalog for inspection
-func (c *catalogManager) getResourceCatalog() map[string]struct{} {
-	c.ensureLoaded()
-
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	// Return a copy to prevent external modification
-	snapshot := make(map[string]struct{}, len(c.knownResources))
-	for k := range c.knownResources {
-		snapshot[k] = struct{}{}
-	}
-
-	return snapshot
-}

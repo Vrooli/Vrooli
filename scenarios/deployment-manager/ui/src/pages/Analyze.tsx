@@ -13,6 +13,10 @@ import { InfoCard } from "../components/ui/info-card";
 import { analyzeDependencies, listProfiles } from "../lib/api";
 import { TIER_NAMES, TIER_KEY_BY_ID, getFitnessColor, buildScenarioOptions, isTierKey } from "../lib/tiers";
 
+function hasUrlField(value: unknown): value is { url: string } {
+  return Boolean(value && typeof value === "object" && "url" in value && typeof (value as { url: unknown }).url === "string");
+}
+
 function getFitnessIcon(score: number) {
   if (score >= 75) return CheckCircle2;
   if (score >= 50) return AlertTriangle;
@@ -42,8 +46,8 @@ export function Analyze() {
   useEffect(() => {
     fetch("/embedded/scenario-dependency-analyzer/external-url")
       .then((res) => res.json())
-      .then((json) => {
-        if (json?.url) setAnalyzerTarget(json.url as string);
+      .then((json: unknown) => {
+        if (hasUrlField(json)) setAnalyzerTarget(json.url);
       })
       .catch(() => {});
   }, []);

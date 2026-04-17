@@ -11,6 +11,7 @@ import {
   Tooltip,
   Legend
 } from 'recharts';
+import type { LegendPayload } from 'recharts';
 import { ArrowLeft } from 'lucide-react';
 
 import { formatTimeLabel, formatChartTime } from '../../../shared/utils/formatters';
@@ -107,6 +108,7 @@ const ChartTooltip = ({ active, payload, label, formatter, hiddenSeries }: Custo
 
   const visiblePayload = payload.filter(entry => !hiddenSeries.has(entry.dataKey));
   if (visiblePayload.length === 0) return null;
+  const formattedLabel = typeof label === 'string' ? formatTimeLabel(label) : '—';
 
   return (
     <div
@@ -129,7 +131,7 @@ const ChartTooltip = ({ active, payload, label, formatter, hiddenSeries }: Custo
           paddingBottom: 4
         }}
       >
-        {formatTimeLabel(label as string)}
+        {formattedLabel}
       </div>
       {visiblePayload.map(entry => (
         <div
@@ -167,7 +169,9 @@ const ChartTooltip = ({ active, payload, label, formatter, hiddenSeries }: Custo
 const ChartCursor = (props: { points?: Array<{ x: number }>; height?: number }) => {
   const { points, height } = props;
   if (!points || points.length === 0) return null;
-  const x = points[0]!.x;
+  const firstPoint = points[0];
+  if (!firstPoint) return null;
+  const x = firstPoint.x;
   return (
     <line
       x1={x}
@@ -180,6 +184,13 @@ const ChartCursor = (props: { points?: Array<{ x: number }>; height?: number }) 
     />
   );
 };
+
+function getLegendDataKey(entry: LegendPayload | undefined): string | undefined {
+  if (typeof entry?.dataKey === 'string') {
+    return entry.dataKey;
+  }
+  return undefined;
+}
 
 // ── MetricLineChart ─────────────────────────────────────────────────────────
 
@@ -200,9 +211,8 @@ export const MetricLineChart = ({
     [lines]
   );
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleLegendClick = useCallback((data: any) => {
-    const key = typeof data?.dataKey === 'string' ? data.dataKey : undefined;
+  const handleLegendClick = useCallback((data: LegendPayload) => {
+    const key = getLegendDataKey(data);
     if (!key) return;
     setHiddenSeries(prev => {
       const next = new Set(prev);
@@ -254,7 +264,7 @@ export const MetricLineChart = ({
               wrapperStyle={{ color: 'var(--color-text)', cursor: 'pointer', fontSize: 'var(--text-xs)' }}
               onClick={handleLegendClick}
               formatter={(value, entry) => {
-                const dataKey = (entry as { dataKey?: string }).dataKey ?? '';
+                const dataKey = getLegendDataKey(entry) ?? '';
                 const isHidden = hiddenSeries.has(dataKey);
                 return (
                   <span style={{ opacity: isHidden ? 0.35 : 1, textDecoration: isHidden ? 'line-through' : 'none' }}>

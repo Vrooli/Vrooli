@@ -1,13 +1,12 @@
 package schema
 
 import (
+	"browser-automation-studio/cli/internal/api"
+	"browser-automation-studio/cli/internal/appctx"
 	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
-
-	"browser-automation-studio/cli/internal/api"
-	"browser-automation-studio/cli/internal/appctx"
 )
 
 // StepDefinition mirrors the API's step definition structure.

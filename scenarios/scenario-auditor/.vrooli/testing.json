@@ -10,6 +10,26 @@
       "ui"
     ]
   },
+  "lint": {
+    "handlers": {
+      "go_module": {
+        "enabled": true,
+        "strict": true
+      },
+      "node_package": {
+        "enabled": true,
+        "strict": true
+      }
+    },
+    "ignore": [
+      "coverage",
+      "data",
+      "docs",
+      "initialization",
+      "logs",
+      "prompts"
+    ]
+  },
   "unit": {
     "languages": {
       "go": {

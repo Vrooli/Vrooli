@@ -3,10 +3,9 @@
 package handlers
 
 import (
+	"agent-inbox/services"
 	"encoding/json"
 	"net/http"
-
-	"agent-inbox/services"
 )
 
 // GetYoloMode returns the current YOLO mode setting.

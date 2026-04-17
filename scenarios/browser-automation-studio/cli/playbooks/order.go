@@ -1,14 +1,13 @@
 package playbooks
 
 import (
+	"browser-automation-studio/cli/internal/appctx"
+	"browser-automation-studio/cli/internal/output"
+	"browser-automation-studio/cli/internal/playbooks"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-
-	"browser-automation-studio/cli/internal/appctx"
-	"browser-automation-studio/cli/internal/output"
-	"browser-automation-studio/cli/internal/playbooks"
 )
 
 func runOrder(ctx *appctx.Context, args []string) error {

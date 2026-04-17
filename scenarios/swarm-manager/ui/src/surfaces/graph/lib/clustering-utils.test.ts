@@ -63,18 +63,64 @@ describe("buildClusterHierarchy", () => {
     expect(unassignedCluster.members).toHaveLength(2);
   });
 
-  it("handles empty initiatives", () => {
+  it("keeps empty initiatives visible as clusters with zero members", () => {
     const nodes = [
-      makeNode("initiative/empty", "initiative"),
+      makeNode("initiative/empty", "initiative", { title: "Empty Init" }),
       makeNode("backlog-item/execute/task-a", "backlog"),
     ];
 
     const { clusters } = buildClusterHierarchy(nodes, []);
 
-    // Only unassigned cluster (empty initiative has no members -> no cluster)
-    expect(clusters).toHaveLength(1);
-    const firstCluster = expectDefined(clusters[0], "Expected unassigned cluster");
-    expect(firstCluster.id).toBe(UNASSIGNED_CLUSTER_ID);
+    // Both the empty initiative (as a zero-member cluster) and the unassigned
+    // cluster containing the orphan backlog item should appear.
+    expect(clusters).toHaveLength(2);
+    const ids = clusters.map((c) => c.id).sort();
+    expect(ids).toEqual([UNASSIGNED_CLUSTER_ID, "initiative/empty"].sort());
+
+    const emptyCluster = expectDefined(
+      clusters.find((c) => c.id === "initiative/empty"),
+      "Expected empty initiative cluster",
+    );
+    expect(emptyCluster.members).toHaveLength(0);
+    expect(emptyCluster.label).toBe("initiative/empty");
+  });
+
+  it("keeps initiatives visible when all their items are completed or archived", () => {
+    // Regression: initiatives whose backlog items are all
+    // completed/archived (and therefore filtered out of the topology
+    // response) used to disappear from the graph because clusters were
+    // only built from existing member_of edges. They should remain
+    // visible as empty clusters so operators can still see and act on
+    // the initiative.
+    const nodes = [
+      makeNode("initiative/all-done", "initiative", {
+        title: "All Done Initiative",
+        rollup: { total: 3, completed: 3, in_progress: 0, failed: 0, pending: 0 },
+      }),
+      makeNode("initiative/active", "initiative", { title: "Active Initiative" }),
+      makeNode("backlog-item/execute/task-a", "backlog"),
+    ];
+    const edges = [
+      // Only the "active" initiative has a member_of edge in the
+      // topology response. "all-done" has none because its members
+      // were all filtered out by the backend.
+      makeEdge("mo1", "backlog-item/execute/task-a", "initiative/active", "member_of"),
+    ];
+
+    const { clusters } = buildClusterHierarchy(nodes, edges);
+
+    const clusterIds = clusters.map((c) => c.id).sort();
+    expect(clusterIds).toContain("initiative/all-done");
+    expect(clusterIds).toContain("initiative/active");
+
+    const allDoneCluster = expectDefined(
+      clusters.find((c) => c.id === "initiative/all-done"),
+      "Expected all-done initiative cluster",
+    );
+    expect(allDoneCluster.members).toHaveLength(0);
+    expect(allDoneCluster.rollup).toEqual({
+      total: 3, completed: 3, in_progress: 0, failed: 0, pending: 0,
+    });
   });
 
   it("extracts rollup data from initiative nodes", () => {
@@ -243,7 +289,12 @@ describe("buildClusterHierarchy — advanced", () => {
     // No edges — only backlog items get clustered, non-backlog entities stay unclustered.
     const { clusters, unclustered } = buildClusterHierarchy(nodes, []);
 
-    expect(clusters).toHaveLength(0); // no backlog items
+    // The initiative still surfaces as an empty cluster so operators can see
+    // it; the other non-backlog nodes remain unclustered.
+    expect(clusters).toHaveLength(1);
+    const initCluster = expectDefined(clusters[0], "Expected initiative cluster");
+    expect(initCluster.id).toBe("initiative/a");
+    expect(initCluster.members).toHaveLength(0);
     expect(unclustered).toHaveLength(3); // scenario, capture, execution
   });
 

@@ -42,24 +42,24 @@ type Sector struct {
 }
 
 type ProgressionStage struct {
-	ID                 string            `json:"id" db:"id"`
-	SectorID           string            `json:"sector_id" db:"sector_id"`
-	ParentStageID      *string           `json:"parent_stage_id,omitempty" db:"parent_stage_id"`
-	StageType          string            `json:"stage_type" db:"stage_type"`
-	StageOrder         int               `json:"stage_order" db:"stage_order"`
-	Name               string            `json:"name" db:"name"`
-	Description        string            `json:"description" db:"description"`
-	ProgressPercentage float64           `json:"progress_percentage" db:"progress_percentage"`
-	Maturity           string            `json:"maturity" db:"maturity"` // planned, building, live, scaled
-	Examples           json.RawMessage   `json:"examples" db:"examples"`
-	PositionX          float64           `json:"position_x" db:"position_x"`
-	PositionY          float64           `json:"position_y" db:"position_y"`
-	HasChildren        bool              `json:"has_children" db:"has_children"`
-	ChildrenLoaded     bool              `json:"children_loaded" db:"children_loaded"`
-	CreatedAt          time.Time         `json:"created_at" db:"created_at"`
-	UpdatedAt          time.Time         `json:"updated_at" db:"updated_at"`
-	ScenarioMappings   []ScenarioMapping `json:"scenario_mappings,omitempty"`
-	Dependencies       []StageDependency `json:"dependencies,omitempty"`
+	ID                 string             `json:"id" db:"id"`
+	SectorID           string             `json:"sector_id" db:"sector_id"`
+	ParentStageID      *string            `json:"parent_stage_id,omitempty" db:"parent_stage_id"`
+	StageType          string             `json:"stage_type" db:"stage_type"`
+	StageOrder         int                `json:"stage_order" db:"stage_order"`
+	Name               string             `json:"name" db:"name"`
+	Description        string             `json:"description" db:"description"`
+	ProgressPercentage float64            `json:"progress_percentage" db:"progress_percentage"`
+	Maturity           string             `json:"maturity" db:"maturity"` // planned, building, live, scaled
+	Examples           json.RawMessage    `json:"examples" db:"examples"`
+	PositionX          float64            `json:"position_x" db:"position_x"`
+	PositionY          float64            `json:"position_y" db:"position_y"`
+	HasChildren        bool               `json:"has_children" db:"has_children"`
+	ChildrenLoaded     bool               `json:"children_loaded" db:"children_loaded"`
+	CreatedAt          time.Time          `json:"created_at" db:"created_at"`
+	UpdatedAt          time.Time          `json:"updated_at" db:"updated_at"`
+	ScenarioMappings   []ScenarioMapping  `json:"scenario_mappings,omitempty"`
+	Dependencies       []StageDependency  `json:"dependencies,omitempty"`
 	Children           []ProgressionStage `json:"children,omitempty"` // Lazy loaded
 }
 

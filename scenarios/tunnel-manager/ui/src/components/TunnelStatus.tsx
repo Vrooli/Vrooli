@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { Activity, RefreshCw, RotateCcw } from "lucide-react";
 import { fetchTunnelHealth, type TunnelStatus as TunnelStatusType } from "../lib/api";
-import { timeAgo } from "../lib/utils";
+import { statusToVariant, timeAgo } from "../lib/utils";
 import { Button } from "./ui/button";
 import { Tooltip } from "./ui/tooltip";
-import { StatusBadge, statusToVariant } from "./ui/status-badge";
+import { StatusBadge } from "./ui/status-badge";
 
 export function TunnelStatusPanel() {
   const { data, isLoading, error, refetch, isFetching } = useQuery({

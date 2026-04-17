@@ -246,7 +246,8 @@ func installScenarioCLI(ctx context.Context, root, home string, item scenarioCLI
 		if err != nil {
 			return err
 		}
-		args := []string{"run", "./cmd/cli-installer",
+		args := []string{
+			"run", "./cmd/cli-installer",
 			"--module", item.modulePath,
 			"--name", item.binaryName,
 			"--install-dir", installDir,

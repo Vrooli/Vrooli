@@ -37,7 +37,81 @@ type Runner struct {
 	Err         io.Writer
 	Ports       *ports.Manager
 	Logger      *slog.Logger
+	Verbosity   Verbosity
 	deps        lifecycleDeps
+}
+
+// Verbosity controls how much of a lifecycle run is echoed to the console.
+// The scenario-wide lifecycle log file always receives the full output
+// regardless of this setting.
+type Verbosity int
+
+const (
+	// VerbosityQuiet discards tool stdout and suppresses [INFO] step headers.
+	// Errors and warnings still surface.
+	VerbosityQuiet Verbosity = iota
+	// VerbosityNormal is the default: [INFO] headers and final summary reach
+	// the console; raw tool stdout (vite/pnpm) is kept in the log file only.
+	VerbosityNormal
+	// VerbosityVerbose tees all tool stdout through to the console.
+	VerbosityVerbose
+)
+
+// WithVerbosity sets the console-verbosity mode and returns the runner for
+// chaining. It is intended to be called once right after NewRunner.
+func (r *Runner) WithVerbosity(v Verbosity) *Runner {
+	r.Verbosity = v
+	return r
+}
+
+// consoleOut returns the effective stdout writer for orchestrator-level
+// output (infof/warnf step headers, slog text when routed here). It is
+// suppressed only at VerbosityQuiet; at normal + verbose it reaches the
+// console. Note: raw tool stdout (vite/pnpm) goes through childStdoutConsole
+// instead so it can be suppressed at normal mode without hiding the
+// step-header flow.
+func (r *Runner) consoleOut() io.Writer {
+	if r.Verbosity == VerbosityQuiet {
+		return io.Discard
+	}
+	return r.Out
+}
+
+// consoleErr is the stderr counterpart to consoleOut. Error replay from
+// failing steps is routed through r.Err directly (not consoleErr) so that
+// failures are always visible regardless of mode.
+func (r *Runner) consoleErr() io.Writer {
+	if r.Verbosity == VerbosityQuiet {
+		return io.Discard
+	}
+	return r.Err
+}
+
+// childStdoutConsole returns the effective console writer for raw
+// child-process stdout produced by foreground lifecycle steps (e.g. vite
+// build, pnpm install). Only VerbosityVerbose lets the flood reach the
+// console; at normal and quiet it is discarded (the lifecycle log file
+// still captures it via the MultiWriter wired in runWithLifecycleLog).
+func (r *Runner) childStdoutConsole() io.Writer {
+	if r.Verbosity == VerbosityVerbose {
+		return r.Out
+	}
+	return io.Discard
+}
+
+// progressf emits a compact transition line to r.Out, but only at
+// VerbosityQuiet. At normal and verbose the slog lifecycle events and
+// [INFO] step headers already give the user a running picture, so
+// duplicating them here would add noise. The intent is to give quiet-mode
+// users a visible heartbeat during long setups (vite rebuilds etc.) that
+// would otherwise produce a silent 10+ second gap before the final
+// summary. Written without color codes or carriage returns so the output
+// stays CI- and log-capture-safe.
+func (r *Runner) progressf(format string, args ...any) {
+	if r.Verbosity != VerbosityQuiet || r.Out == nil {
+		return
+	}
+	fmt.Fprintf(r.Out, format+"\n", args...)
 }
 
 type lifecycleDeps struct {
@@ -192,6 +266,7 @@ func (r *Runner) runtimeDeps() lifecycleDeps {
 }
 
 func (r *Runner) Start(name string, opts StartOptions) (Result, error) {
+	r.progressf("starting %s...", name)
 	r.logInfo("Scenario start requested",
 		logx.AttrScenario, name,
 		"best_effort", opts.BestEffort,
@@ -301,16 +376,18 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 
 	if setupNeeded {
 		r.logInfo("Executing setup phase for scenario", logx.AttrScenario, item.Slug, logx.AttrPhase, "setup")
-		if err := r.runWithLifecycleLog(item.Slug, func(logWriter io.Writer) error {
-			return r.ExecutePhase(item, "setup", env.EnvVars, nil, logWriter)
+		if err := r.runWithLifecycleLog(item.Slug, func(logWriter, childWriter io.Writer) error {
+			_, err := r.ExecutePhaseDetailed(item, "setup", env.EnvVars, nil, logWriter, childWriter)
+			return err
 		}); err != nil {
 			return Result{}, err
 		}
 	}
 
 	r.logInfo("Executing develop phase for scenario", logx.AttrScenario, item.Slug, logx.AttrPhase, "develop")
-	if err := r.runWithLifecycleLog(item.Slug, func(logWriter io.Writer) error {
-		return r.ExecutePhase(item, "develop", env.EnvVars, nil, logWriter)
+	if err := r.runWithLifecycleLog(item.Slug, func(logWriter, childWriter io.Writer) error {
+		_, err := r.ExecutePhaseDetailed(item, "develop", env.EnvVars, nil, logWriter, childWriter)
+		return err
 	}); err != nil {
 		return Result{}, err
 	}
@@ -368,7 +445,7 @@ func (r *Runner) prepareScenarioEnvironment(item scenario.Scenario, records []pr
 		return ports.Environment{}, err
 	}
 
-	if err := r.runWithLifecycleLog(item.Slug, func(logWriter io.Writer) error {
+	if err := r.runWithLifecycleLog(item.Slug, func(logWriter, _ io.Writer) error {
 		return r.ensureScenarioDatabase(item, env.EnvVars, logWriter)
 	}); err != nil {
 		return ports.Environment{}, err
@@ -378,6 +455,7 @@ func (r *Runner) prepareScenarioEnvironment(item scenario.Scenario, records []pr
 }
 
 func (r *Runner) Stop(name string, opts StopOptions) error {
+	r.progressf("stopping %s...", name)
 	r.logInfo("Scenario stop requested", logx.AttrScenario, name)
 	if err := r.cleanupScenarioRuntime(name, opts.CustomPath, true); err != nil {
 		r.logError("Failed to remove scenario locks", err, logx.AttrScenario, name)

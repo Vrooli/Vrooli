@@ -61,30 +61,42 @@ interface StoredEntry {
  * Deep-merge `patch` into `base`. Arrays and primitives in `patch` replace
  * the corresponding value in `base`; plain objects are merged recursively.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function deepMerge<T extends Record<string, any>>(
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseStoredEntry(raw: string): StoredEntry | null {
+  const parsed: unknown = JSON.parse(raw);
+  if (!isPlainObject(parsed)) {
+    return null;
+  }
+  const { version, lastAccessed, state } = parsed;
+  if (version !== 1 || typeof lastAccessed !== "number" || !isPlainObject(state)) {
+    return null;
+  }
+  return {
+    version: 1,
+    lastAccessed,
+    state: deepMerge(DEFAULT_STATE, state as DeepPartial<ScenarioReviewState>),
+  };
+}
+
+export function deepMerge<T extends object>(
   base: T,
   patch: DeepPartial<T>,
 ): T {
-  const result = { ...base };
-  for (const key of Object.keys(patch) as (keyof T & string)[]) {
+  const result = { ...base } as T;
+  for (const key of Object.keys(patch) as (keyof T)[]) {
     const patchVal = patch[key];
     const baseVal = base[key];
-    if (
-      patchVal !== null &&
-      patchVal !== undefined &&
-      typeof patchVal === "object" &&
-      !Array.isArray(patchVal) &&
-      typeof baseVal === "object" &&
-      baseVal !== null &&
-      !Array.isArray(baseVal)
-    ) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (result as any)[key] = deepMerge(baseVal, patchVal as any);
-    } else {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (result as any)[key] = patchVal;
+    if (isPlainObject(patchVal) && isPlainObject(baseVal)) {
+      result[key] = deepMerge(
+        baseVal,
+        patchVal as DeepPartial<typeof baseVal>,
+      ) as T[keyof T];
+      continue;
     }
+    result[key] = patchVal as T[keyof T];
   }
   return result;
 }
@@ -95,10 +107,10 @@ export function loadState(slug: string): ScenarioReviewState {
   try {
     const raw = localStorage.getItem(`${STORAGE_PREFIX}${slug}`);
     if (!raw) return { ...DEFAULT_STATE };
-    const entry: StoredEntry = JSON.parse(raw);
+    const entry = parseStoredEntry(raw);
     if (!entry || entry.version !== 1 || !entry.state) return { ...DEFAULT_STATE };
     // Deep-merge stored partial with defaults to handle schema evolution
-    return deepMerge(DEFAULT_STATE, entry.state as DeepPartial<ScenarioReviewState>);
+    return entry.state;
   } catch {
     return { ...DEFAULT_STATE };
   }
@@ -135,7 +147,11 @@ export function pruneOldEntries(currentSlug: string): void {
       try {
         const raw = localStorage.getItem(key);
         if (!raw) continue;
-        const entry: StoredEntry = JSON.parse(raw);
+        const entry = parseStoredEntry(raw);
+        if (!entry) {
+          localStorage.removeItem(key);
+          continue;
+        }
         if (now - entry.lastAccessed > MAX_AGE_MS) {
           localStorage.removeItem(key);
         } else {

@@ -46,10 +46,29 @@ export function getCapturePresets(scenarioSlug: string): CapturePreset[] {
   const stored = localStorage.getItem(`gct.capturePresets.${scenarioSlug}`);
   if (stored) {
     try {
-      return JSON.parse(stored);
+      const parsed: unknown = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        const presets = parsed.filter(isCapturePreset);
+        if (presets.length > 0) {
+          return presets;
+        }
+      }
     } catch { /* fall through */ }
   }
   return DEFAULT_PRESETS;
+}
+
+function isCapturePreset(value: unknown): value is CapturePreset {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const preset = value as Record<string, unknown>;
+  return (
+    typeof preset.name === "string" &&
+    typeof preset.width === "number" &&
+    typeof preset.height === "number" &&
+    (preset.theme === "light" || preset.theme === "dark")
+  );
 }
 
 export function setCapturePresets(scenarioSlug: string, presets: CapturePreset[]): void {

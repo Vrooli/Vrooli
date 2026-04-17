@@ -5,13 +5,14 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", "node_modules", "vite.config.ts", "src/test-utils/**"] },
+  { ignores: ["dist", "node_modules"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
       parserOptions: {
-        project: "./tsconfig.app.json",  // Enable type-aware linting
+        project: "./tsconfig.eslint.json",
+        tsconfigRootDir: import.meta.dirname,
       },
     },
     plugins: {
@@ -72,7 +73,7 @@ export default tseslint.config(
       "react-hooks/exhaustive-deps": "warn",
 
       // Ensures only components are exported for proper HMR
-      "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
+      "react-refresh/only-export-components": ["warn", { allowConstantExport: true, allowExportNames: ["useToast", "useTheme"] }],
 
       // Allow unused vars prefixed with underscore (common pattern for ignored params)
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],

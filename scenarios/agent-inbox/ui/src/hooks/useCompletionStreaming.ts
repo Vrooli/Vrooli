@@ -41,8 +41,9 @@ export function useStreamingEventHandler(
       switch (event.type) {
         case "content":
           if (event.content) {
+            const content = event.content;
             startTransition(() => {
-              setStreamingContent((prev) => prev + event.content);
+              setStreamingContent((prev) => prev + content);
             });
           }
           break;

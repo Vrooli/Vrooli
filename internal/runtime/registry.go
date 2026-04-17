@@ -154,4 +154,3 @@ func lookupHandler(kind hostreq.Kind, name string) hostreqkit.Handler {
 func HasHandler(kind hostreq.Kind, name string) bool {
 	return lookupHandler(kind, name) != nil
 }
-

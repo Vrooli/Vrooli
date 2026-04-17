@@ -146,15 +146,15 @@ func flexibleWorkflowPayloadToProto(project *database.ProjectIndex, payload map[
 	}
 
 	return &basapi.WorkflowSummary{
-		Id:          id.String(),
-		ProjectId:   project.ID.String(),
-		Name:        name,
-		FolderPath:  folderPath,
-		Description: description,
-		Tags:        tags,
-		Version:     version,
-		CreatedAt:   createdAt,
-		UpdatedAt:   updatedAt,
+		Id:             id.String(),
+		ProjectId:      project.ID.String(),
+		Name:           name,
+		FolderPath:     folderPath,
+		Description:    description,
+		Tags:           tags,
+		Version:        version,
+		CreatedAt:      createdAt,
+		UpdatedAt:      updatedAt,
 		FlowDefinition: def,
 	}, needsWrite, nil
 }

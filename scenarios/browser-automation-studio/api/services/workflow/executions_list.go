@@ -170,15 +170,15 @@ func (s *WorkflowService) executeResumedWorkflowAsync(
 
 	// Configure the execution request with resume settings
 	req := autoexecutor.Request{
-		Plan:               plan,
-		EngineName:         engineName,
-		EngineFactory:      s.engineFactory,
-		Recorder:           s.artifactRecorder,
-		EventSink:          s.newEventSink(),
-		HeartbeatInterval:  2 * time.Second,
-		WorkflowResolver:   s,
-		PlanCompiler:       s.planCompiler,
-		MaxSubflowDepth:    5,
+		Plan:              plan,
+		EngineName:        engineName,
+		EngineFactory:     s.engineFactory,
+		Recorder:          s.artifactRecorder,
+		EventSink:         s.newEventSink(),
+		HeartbeatInterval: 2 * time.Second,
+		WorkflowResolver:  s,
+		PlanCompiler:      s.planCompiler,
+		MaxSubflowDepth:   5,
 		// Resume-specific fields
 		StartFromStepIndex: checkpoint.LastStepIndex,
 		InitialVariables:   checkpoint.Variables,

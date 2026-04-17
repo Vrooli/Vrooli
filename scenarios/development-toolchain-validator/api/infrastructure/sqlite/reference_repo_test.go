@@ -2,9 +2,8 @@ package sqlite
 
 import (
 	"context"
-	"testing"
-
 	"development-toolchain-validator/domain/reference"
+	"testing"
 )
 
 func TestReferenceRepository_CRUD(t *testing.T) {

@@ -254,16 +254,16 @@ func eventBufferLimits() autocontracts.EventBufferLimits {
 // HandlerDeps converts Dependencies to the format expected by handlers.
 // This provides backward compatibility while migrating to the new wire package.
 type HandlerDeps struct {
-	WorkflowCatalog   *workflow.WorkflowService
-	ExecutionService  *workflow.WorkflowService
-	ExportService     *workflow.WorkflowService
-	WorkflowValidator *workflowvalidator.Validator
-	Storage           storage.StorageInterface
-	RecordingService  archiveingestion.IngestionServiceInterface
-	RecordingsRoot    string
-	ReplayRenderer    ReplayRenderer
+	WorkflowCatalog       *workflow.WorkflowService
+	ExecutionService      *workflow.WorkflowService
+	ExportService         *workflow.WorkflowService
+	WorkflowValidator     *workflowvalidator.Validator
+	Storage               storage.StorageInterface
+	RecordingService      archiveingestion.IngestionServiceInterface
+	RecordingsRoot        string
+	ReplayRenderer        ReplayRenderer
 	SessionProfileService *sessionprofile.Service
-	UXMetricsRepo     uxmetrics.Repository
+	UXMetricsRepo         uxmetrics.Repository
 
 	// Unified recording service
 	// DOC: docs/architecture/recording.md#unified-recording

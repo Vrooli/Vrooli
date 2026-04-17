@@ -8,7 +8,6 @@ import {
   BarChart3,
   Settings,
   Beaker,
-  Check,
   AlertTriangle,
   Lightbulb,
 } from "lucide-react";
@@ -40,10 +39,6 @@ const safeRate = (passRate: { rate?: number } | undefined | null): number => {
 
 const safePoints = (metric: { points?: number } | undefined | null): number => {
   return metric?.points ?? 0;
-};
-
-const safeCount = (metric: { count?: number } | undefined | null): number => {
-  return metric?.count ?? 0;
 };
 
 const safeRatio = (ratio: { ratio?: number } | undefined | null): number => {

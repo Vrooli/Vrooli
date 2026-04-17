@@ -148,8 +148,8 @@ describe("ChatList - basic rendering and selection", () => {
       const chatName = getFirstElement(screen.getAllByTestId("chat-name"));
       await user.dblClick(chatName);
 
-      const input = screen.getByTestId("inline-rename-input") as HTMLInputElement;
-      expect(input.value).toBe("Test Chat 1");
+      const input = screen.getByTestId("inline-rename-input");
+      expect((input as HTMLInputElement).value).toBe("Test Chat 1");
     });
 
     it("calls onRenameChat when saving with Enter", async () => {

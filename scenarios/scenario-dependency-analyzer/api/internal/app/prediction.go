@@ -13,11 +13,6 @@ import (
 	"time"
 )
 
-// normalizeName lowercases and trims whitespace for consistent name comparisons.
-func normalizeName(name string) string {
-	return strings.TrimSpace(strings.ToLower(name))
-}
-
 // Integrate with Qdrant for semantic similarity matching
 func findSimilarScenariosQdrant(description string, existingScenarios []string) ([]map[string]interface{}, error) {
 	if strings.TrimSpace(os.Getenv("USE_RESOURCE_QDRANT_CLI")) == "true" {

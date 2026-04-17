@@ -195,7 +195,7 @@ export function useChatActions({
       if (!selectedChatId) return;
       const result = await completion.approveTool(selectedChatId, toolCallId);
       await cacheManager.invalidateChat(selectedChatId, ["chats"]);
-      if (result?.auto_continued) { /* no extra invalidation needed */ }
+      if (result.auto_continued) { /* no extra invalidation needed */ }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [selectedChatId, completion.approveTool, cacheManager]

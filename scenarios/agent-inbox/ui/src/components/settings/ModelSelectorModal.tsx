@@ -76,8 +76,7 @@ export function ModelSelectorModal({
       result = result.filter((model) => {
         if (modalityFilter === "text") return supportsModality(model, "text") && !supportsModality(model, "image");
         if (modalityFilter === "image") return supportsModality(model, "image");
-        if (modalityFilter === "text+image") return supportsModality(model, "text") && supportsModality(model, "image");
-        return true;
+        return supportsModality(model, "text") && supportsModality(model, "image");
       });
     }
     if (searchQuery.trim()) {
@@ -100,8 +99,12 @@ export function ModelSelectorModal({
     const groups = new Map<string, Model[]>();
     for (const model of filteredModels) {
       const provider = getProvider(model);
-      if (!groups.has(provider)) groups.set(provider, []);
-      groups.get(provider)!.push(model);
+      const existing = groups.get(provider);
+      if (existing) {
+        existing.push(model);
+      } else {
+        groups.set(provider, [model]);
+      }
     }
     return Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [filteredModels, sortBy]);

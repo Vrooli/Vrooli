@@ -1,11 +1,10 @@
 package services
 
 import (
+	"agent-inbox/domain"
 	"context"
 	"encoding/json"
 	"testing"
-
-	"agent-inbox/domain"
 )
 
 // TestInjectSkillsIntoArgs_InvalidJSON tests behavior with invalid JSON arguments.

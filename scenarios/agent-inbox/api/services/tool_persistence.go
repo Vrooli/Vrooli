@@ -3,11 +3,10 @@
 package services
 
 import (
+	"agent-inbox/domain"
 	"context"
 	"database/sql"
 	"fmt"
-
-	"agent-inbox/domain"
 )
 
 // ToolPersistenceRepository defines the interface for database operations used by ToolPersistence.

@@ -1,6 +1,8 @@
 package integrations
 
 import (
+	"agent-inbox/config"
+	"agent-inbox/resilience"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -11,9 +13,6 @@ import (
 	"os/exec"
 	"strings"
 	"time"
-
-	"agent-inbox/config"
-	"agent-inbox/resilience"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 	"google.golang.org/protobuf/encoding/protojson"

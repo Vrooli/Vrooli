@@ -1,21 +1,11 @@
 package repocontract
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 )
-
-func repoRoot(t *testing.T) string {
-	t.Helper()
-	root := testkitgo.ProjectRoot(t)
-	if _, err := os.Stat(filepath.Join(root, ".vrooli", "repo-contract.json")); err != nil {
-		t.Fatalf("repo root missing live contract: %v", err)
-	}
-	return root
-}
 
 func fixtureRoot(t *testing.T, opts ...testkitgo.RepoFixtureOption) string {
 	t.Helper()

@@ -1,11 +1,10 @@
 package handlers
 
 import (
+	"agent-inbox/services"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"agent-inbox/services"
 
 	"github.com/gorilla/mux"
 )

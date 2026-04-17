@@ -1,12 +1,11 @@
 package integrations
 
 import (
+	"agent-inbox/domain"
 	"context"
 	"errors"
 	"sync"
 	"testing"
-
-	"agent-inbox/domain"
 )
 
 // testHandler implements ScenarioHandler for testing.

@@ -2,10 +2,9 @@
 package testutil
 
 import (
+	"agent-inbox/domain"
 	"context"
 	"sync"
-
-	"agent-inbox/domain"
 )
 
 // MockToolExecutor provides a controllable tool executor for testing.

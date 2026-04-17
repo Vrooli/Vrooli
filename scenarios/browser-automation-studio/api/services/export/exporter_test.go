@@ -58,12 +58,12 @@ func TestBuildReplayMovieSpecGeneratesSpec(t *testing.T) {
 						Height:     720,
 					},
 					CursorTrail: []*autocontracts.Point{
-						&autocontracts.Point{X: 640, Y: 360},
-						&autocontracts.Point{X: 700, Y: 420},
+						{X: 640, Y: 360},
+						{X: 700, Y: 420},
 					},
 					ClickPosition: &autocontracts.Point{X: 700, Y: 420},
 					HighlightRegions: []*autocontracts.HighlightRegion{
-						&autocontracts.HighlightRegion{Selector: "#hero"},
+						{Selector: "#hero"},
 					},
 				},
 				{

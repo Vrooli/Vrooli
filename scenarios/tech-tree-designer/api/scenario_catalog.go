@@ -271,7 +271,6 @@ func (m *ScenarioCatalogManager) scanScenarios() (map[string]ScenarioCatalogEntr
 
 		return filepath.SkipDir
 	})
-
 	if err != nil {
 		log.Printf("ERROR: scanScenarios - WalkDir returned error: %v", err)
 		return nil, nil, err

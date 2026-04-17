@@ -5,12 +5,11 @@
 package validation
 
 import (
+	"development-toolchain-validator/domain/expectation"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
-
-	"development-toolchain-validator/domain/expectation"
 )
 
 // StructuralChecker validates structural expectations against a reference scenario.

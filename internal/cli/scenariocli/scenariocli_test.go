@@ -108,6 +108,58 @@ func TestWriteLifecycleItemsHumanUsesRestartVerb(t *testing.T) {
 	}
 }
 
+func TestWriteLifecycleItemsCompactAtQuiet(t *testing.T) {
+	t.Setenv("VROOLI_OUTPUT", "quiet")
+	var stdout bytes.Buffer
+	err := WriteLifecycleItems(&stdout, cliout.FormatHuman, []LifecycleItemOutput{{
+		Name:   "alpha",
+		Status: "restarted",
+		Health: "healthy",
+		Ports: map[string]int{
+			"API_PORT": 18800,
+			"UI_PORT":  36238,
+		},
+	}})
+	if err != nil {
+		t.Fatalf("WriteLifecycleItems: %v", err)
+	}
+	got := stdout.String()
+	lines := strings.Count(strings.TrimRight(got, "\n"), "\n") + 1
+	if lines != 1 {
+		t.Fatalf("quiet output should be single line, got %d lines: %q", lines, got)
+	}
+	if !strings.Contains(got, "alpha") || !strings.Contains(got, "restarted") {
+		t.Errorf("missing expected fields: %q", got)
+	}
+	if !strings.Contains(got, "API_PORT=18800") {
+		t.Errorf("ports not inlined: %q", got)
+	}
+	if !strings.Contains(got, "OK") {
+		t.Errorf("missing status glyph: %q", got)
+	}
+}
+
+func TestWriteLifecycleItemsCompactFlagsFailures(t *testing.T) {
+	t.Setenv("VROOLI_OUTPUT", "quiet")
+	var stdout bytes.Buffer
+	err := WriteLifecycleItems(&stdout, cliout.FormatHuman, []LifecycleItemOutput{{
+		Name:               "alpha",
+		Status:             "started",
+		Health:             "degraded",
+		FailedDependencies: []string{"workspace-sandbox"},
+	}})
+	if err != nil {
+		t.Fatalf("WriteLifecycleItems: %v", err)
+	}
+	got := stdout.String()
+	if !strings.Contains(got, "!!") {
+		t.Errorf("missing failure glyph: %q", got)
+	}
+	if !strings.Contains(got, "failed deps") {
+		t.Errorf("missing failed deps: %q", got)
+	}
+}
+
 func TestParseStartRequestRequiresSingleNameWhenPathProvided(t *testing.T) {
 	_, err := ParseStartRequest(false, []string{"alpha", "beta", "--path", "/tmp/custom"})
 	if err == nil {

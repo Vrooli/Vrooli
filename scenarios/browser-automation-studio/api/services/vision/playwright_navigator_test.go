@@ -77,7 +77,7 @@ type mockWSHub struct {
 	lastEnvelope   any
 }
 
-func (m *mockWSHub) ServeWS(_ *websocket.Conn, _ *uuid.UUID)                      {}
+func (m *mockWSHub) ServeWS(_ *websocket.Conn, _ *uuid.UUID) {}
 func (m *mockWSHub) BroadcastRecordingEntry(_ string, _ *ws.UnifiedTimelineEntry) ws.BroadcastResult {
 	return ws.BroadcastResult{}
 }
@@ -244,7 +244,6 @@ func TestPlaywrightVisionNavigator_Navigate(t *testing.T) {
 			Model:     "gpt-4o",
 			APIKey:    "test-key",
 		})
-
 		if err != nil {
 			t.Fatalf("Navigate() error = %v", err)
 		}
@@ -298,7 +297,6 @@ func TestPlaywrightVisionNavigator_Navigate(t *testing.T) {
 			APIKey:    "test-key",
 			MaxSteps:  200, // Over limit
 		})
-
 		if err != nil {
 			t.Fatalf("Navigate() error = %v", err)
 		}

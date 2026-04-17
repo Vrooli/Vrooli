@@ -1,4 +1,5 @@
 package handlers
+
 // DOC: docs/reference/api-endpoints.md#health
 
 import (
@@ -9,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 
 	"system-monitor-api/internal/config"
 	"system-monitor-api/internal/healthutil"
@@ -155,16 +158,21 @@ func (h *HealthHandler) checkMetricsCollection(ctx context.Context) map[string]i
 // checkInvestigationSystem tests the investigation file system access
 func (h *HealthHandler) checkInvestigationSystem() map[string]interface{} {
 	result := healthutil.NewResult()
+	scenarioRoot, err := resolveSystemMonitorScenarioRoot()
+	if err != nil {
+		return healthutil.WithError(result, "SCENARIO_ROOT_RESOLUTION",
+			fmt.Sprintf("Cannot resolve system-monitor scenario root: %v", err), "resource", false)
+	}
 
 	// Check if investigations directory exists and is accessible
-	investigationsDir := "investigations"
+	investigationsDir := filepath.Join(scenarioRoot, "investigations")
 	if _, err := os.Stat(investigationsDir); err != nil {
 		return healthutil.WithError(result, "INVESTIGATION_DIR_ACCESS",
 			fmt.Sprintf("Cannot access investigations directory: %v", err), "resource", false)
 	}
 
 	// Check if results directory exists and is writable
-	resultsDir := "results"
+	resultsDir := filepath.Join(investigationsDir, "results")
 	if err := os.MkdirAll(resultsDir, 0o755); err != nil {
 		return healthutil.WithError(result, "RESULTS_DIR_WRITE",
 			fmt.Sprintf("Cannot create/write results directory: %v", err), "resource", false)
@@ -181,6 +189,14 @@ func (h *HealthHandler) checkInvestigationSystem() map[string]interface{} {
 	os.Remove(testFile)
 
 	return healthutil.MarkConnected(result)
+}
+
+func resolveSystemMonitorScenarioRoot() (string, error) {
+	repoRoot, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		return "", err
+	}
+	return repocontract.ResolveScenarioPath(repoRoot, "system-monitor")
 }
 
 // checkNodeRed tests Node-RED connectivity

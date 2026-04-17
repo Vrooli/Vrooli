@@ -23,8 +23,8 @@ import (
 
 // MockRecordingService implements IngestionServiceInterface for testing
 type MockRecordingService struct {
-	ImportArchiveFunc  func(ctx context.Context, archivePath string, opts archiveingestion.IngestionOptions) (*archiveingestion.IngestionResult, error)
-	ImportArchiveError error
+	ImportArchiveFunc   func(ctx context.Context, archivePath string, opts archiveingestion.IngestionOptions) (*archiveingestion.IngestionResult, error)
+	ImportArchiveError  error
 	ImportArchiveResult *archiveingestion.IngestionResult
 }
 
@@ -233,13 +233,13 @@ func TestServeRecordingAsset_Success(t *testing.T) {
 
 	// Create execution directory and test file
 	execDir := filepath.Join(tmpDir, executionID.String())
-	if err := os.MkdirAll(execDir, 0755); err != nil {
+	if err := os.MkdirAll(execDir, 0o755); err != nil {
 		t.Fatalf("failed to create exec dir: %v", err)
 	}
 
 	testContent := []byte("fake-png-content")
 	testFile := filepath.Join(execDir, "screenshot.png")
-	if err := os.WriteFile(testFile, testContent, 0644); err != nil {
+	if err := os.WriteFile(testFile, testContent, 0o644); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -277,7 +277,7 @@ func TestServeRecordingAsset_NotFound(t *testing.T) {
 
 	// Create execution directory but no file
 	execDir := filepath.Join(tmpDir, executionID.String())
-	if err := os.MkdirAll(execDir, 0755); err != nil {
+	if err := os.MkdirAll(execDir, 0o755); err != nil {
 		t.Fatalf("failed to create exec dir: %v", err)
 	}
 
@@ -310,12 +310,12 @@ func TestServeRecordingAsset_CacheHeaders(t *testing.T) {
 
 	// Create execution directory and test file
 	execDir := filepath.Join(tmpDir, executionID.String())
-	if err := os.MkdirAll(execDir, 0755); err != nil {
+	if err := os.MkdirAll(execDir, 0o755); err != nil {
 		t.Fatalf("failed to create exec dir: %v", err)
 	}
 
 	testFile := filepath.Join(execDir, "cached.png")
-	if err := os.WriteFile(testFile, []byte("data"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("data"), 0o644); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 

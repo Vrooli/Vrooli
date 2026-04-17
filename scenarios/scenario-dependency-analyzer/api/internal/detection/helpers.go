@@ -169,7 +169,7 @@ func resolvedResourceMap(cfg *types.ServiceConfig) map[string]types.Resource {
 	if cfg == nil {
 		return map[string]types.Resource{}
 	}
-	if cfg.Dependencies.Resources != nil && len(cfg.Dependencies.Resources) > 0 {
+	if len(cfg.Dependencies.Resources) > 0 {
 		return cfg.Dependencies.Resources
 	}
 	if cfg.Resources == nil {

@@ -20,7 +20,13 @@ type Service struct {
 	Home   string
 	Stdout io.Writer
 	Stderr io.Writer
+	// Logger is the orchestrator-scoped logger (subsystem=orchestrator).
+	// Use for emissions that should be tagged with the orchestrator
+	// subsystem. To construct a child service's own scoped logger, use
+	// base instead so the child's subsystem does not inherit this layer's
+	// attribute and produce duplicate subsystem= tokens.
 	Logger *slog.Logger
+	base   *slog.Logger
 
 	newRunner lifecycleRunnerFactory
 }
@@ -67,6 +73,7 @@ func New(root, home string, stdout, stderr io.Writer, logger ...*slog.Logger) *S
 		Stdout: stdout,
 		Stderr: stderr,
 		Logger: logx.WithSubsystem(baseLogger, "orchestrator"),
+		base:   baseLogger,
 		newRunner: func(root, home string, stdout, stderr io.Writer, logger ...*slog.Logger) (lifecycleRunner, error) {
 			return lifecycle.NewRunner(root, home, stdout, stderr, logger...)
 		},
@@ -229,10 +236,22 @@ func (s *Service) logger() *slog.Logger {
 }
 
 func (s *Service) runner() (lifecycleRunner, error) {
+	runnerLogger := s.runnerBaseLogger()
 	if s != nil && s.newRunner != nil {
-		return s.newRunner(s.Root, s.Home, s.Stdout, s.Stderr, s.logger())
+		return s.newRunner(s.Root, s.Home, s.Stdout, s.Stderr, runnerLogger)
 	}
-	return lifecycle.NewRunner(s.Root, s.Home, s.Stdout, s.Stderr, s.logger())
+	return lifecycle.NewRunner(s.Root, s.Home, s.Stdout, s.Stderr, runnerLogger)
+}
+
+// runnerBaseLogger returns the unscoped logger the lifecycle runner should
+// wrap with its own subsystem. Passing the already-scoped s.Logger would
+// cause lifecycle to inherit subsystem=orchestrator and emit duplicate
+// subsystem= tokens on every line.
+func (s *Service) runnerBaseLogger() *slog.Logger {
+	if s != nil && s.base != nil {
+		return s.base
+	}
+	return slog.Default()
 }
 
 func (s *Service) viewForScenario(item scenario.Scenario) (ScenarioView, error) {

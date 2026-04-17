@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"git-control-tower/ssh"
+
 	gorillahandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/database"
@@ -17,8 +19,6 @@ import (
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite" // Pure-Go SQLite driver (CGO-free, enables static builds)
-
-	"git-control-tower/ssh"
 )
 
 // Config holds minimal runtime configuration

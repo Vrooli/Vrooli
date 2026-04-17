@@ -4,7 +4,7 @@
  * Extracted from AttachmentButton.tsx. Contains the image/PDF upload, web search toggle,
  * force tool selection, templates, and skills menu items.
  */
-import { useRef, useLayoutEffect, useState, useCallback } from "react";
+import { useRef, useLayoutEffect, useState } from "react";
 import {
   Image,
   FileText,
@@ -88,7 +88,7 @@ export function ForceToolMenu({
                       <div className="text-white truncate">{tool.tool.name}</div>
                       {tool.tool.description && <div className="text-xs text-slate-500 line-clamp-2">{tool.tool.description}</div>}
                     </div>
-                    {forcedTool?.scenario === scenario && forcedTool?.toolName === tool.tool.name && <Check className="h-4 w-4 text-violet-400 shrink-0" />}
+                    {forcedTool?.scenario === scenario && forcedTool.toolName === tool.tool.name && <Check className="h-4 w-4 text-violet-400 shrink-0" />}
                   </button>
                 ))}
               </div>

@@ -6,6 +6,12 @@ package main
 import (
 	"context"
 	"database/sql"
+	"development-toolchain-validator/domain/expectation"
+	"development-toolchain-validator/domain/reference"
+	"development-toolchain-validator/domain/report"
+	"development-toolchain-validator/domain/skill"
+	"development-toolchain-validator/infrastructure/sqlite"
+	"development-toolchain-validator/internal/config"
 	"log"
 	"net/http"
 	"time"
@@ -16,13 +22,7 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 
-	"development-toolchain-validator/domain/expectation"
-	"development-toolchain-validator/domain/reference"
-	"development-toolchain-validator/domain/report"
-	"development-toolchain-validator/domain/skill"
 	apihandlers "development-toolchain-validator/handlers"
-	"development-toolchain-validator/infrastructure/sqlite"
-	"development-toolchain-validator/internal/config"
 )
 
 // Server wires the HTTP router, database, and domain services.

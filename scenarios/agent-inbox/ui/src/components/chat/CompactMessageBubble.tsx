@@ -50,9 +50,7 @@ export function CompactMessageBubble({
       {isTool ? (
         <div className="max-h-80 overflow-y-auto">
           <CodeBlock code={(() => {
-            const content = typeof message.content === "string"
-              ? message.content
-              : (message.content ? JSON.stringify(message.content, null, 2) : "");
+            const content = message.content;
             try {
               const parsed: unknown = JSON.parse(content);
               return JSON.stringify(parsed, null, 2);

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"time"
-
 	"vrooli-autoheal/internal/checks"
 )
 

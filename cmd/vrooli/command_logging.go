@@ -13,6 +13,7 @@ func createCommandLogger(globals globalOptions, stderr io.Writer) (*slog.Logger,
 		Writer:         stderr,
 		Format:         globals.LogFormat(),
 		Verbose:        globals.Verbose,
+		Quiet:          globals.Quiet && !globals.Verbose,
 		SetDefault:     true,
 		RedirectStdlib: true,
 	})

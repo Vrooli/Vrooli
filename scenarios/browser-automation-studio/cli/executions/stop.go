@@ -1,9 +1,8 @@
 package executions
 
 import (
-	"fmt"
-
 	"browser-automation-studio/cli/internal/appctx"
+	"fmt"
 )
 
 func runStop(ctx *appctx.Context, args []string) error {

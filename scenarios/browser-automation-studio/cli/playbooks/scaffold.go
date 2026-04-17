@@ -1,14 +1,14 @@
 package playbooks
 
 import (
+	"browser-automation-studio/cli/internal/appctx"
+	"browser-automation-studio/cli/internal/util"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"browser-automation-studio/cli/internal/appctx"
 	internalplaybooks "browser-automation-studio/cli/internal/playbooks"
-	"browser-automation-studio/cli/internal/util"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

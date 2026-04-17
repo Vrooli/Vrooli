@@ -69,4 +69,3 @@ func TestResolveHonorsRootOverride(t *testing.T) {
 		t.Fatalf("LogsDir = %q", paths.LogsDir)
 	}
 }
-

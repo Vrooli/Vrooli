@@ -31,9 +31,9 @@ type Conflict struct {
 
 // ConflictsReport aggregates all cross-skill contradictions.
 type ConflictsReport struct {
-	Conflicts    []*Conflict `json:"conflicts"`
-	TotalCount   int         `json:"total_count"`
-	GeneratedAt  time.Time   `json:"generated_at"`
+	Conflicts   []*Conflict `json:"conflicts"`
+	TotalCount  int         `json:"total_count"`
+	GeneratedAt time.Time   `json:"generated_at"`
 }
 
 // DriftEntry represents a single skill connection that has drifted.
@@ -68,24 +68,24 @@ const (
 
 // SkillMaturity scores a skill's expectation coverage on a specific reference.
 type SkillMaturity struct {
-	ConnectionID         string        `json:"connection_id"`
-	ReferenceID          string        `json:"reference_id"`
-	SkillID              string        `json:"skill_id"`
-	StructuralCount      int           `json:"structural_count"`
-	CLICount             int           `json:"cli_count"`
-	TotalExpectations    int           `json:"total_expectations"`
-	HasStructural        bool          `json:"has_structural"`
-	HasCLI               bool          `json:"has_cli"`
-	Level                MaturityLevel `json:"level"`
-	Score                float64       `json:"score"`
+	ConnectionID      string        `json:"connection_id"`
+	ReferenceID       string        `json:"reference_id"`
+	SkillID           string        `json:"skill_id"`
+	StructuralCount   int           `json:"structural_count"`
+	CLICount          int           `json:"cli_count"`
+	TotalExpectations int           `json:"total_expectations"`
+	HasStructural     bool          `json:"has_structural"`
+	HasCLI            bool          `json:"has_cli"`
+	Level             MaturityLevel `json:"level"`
+	Score             float64       `json:"score"`
 }
 
 // MaturityReport aggregates skill maturity across connections.
 type MaturityReport struct {
-	Skills       []*SkillMaturity         `json:"skills"`
-	Distribution map[MaturityLevel]int    `json:"distribution"`
-	AverageScore float64                  `json:"average_score"`
-	GeneratedAt  time.Time                `json:"generated_at"`
+	Skills       []*SkillMaturity      `json:"skills"`
+	Distribution map[MaturityLevel]int `json:"distribution"`
+	AverageScore float64               `json:"average_score"`
+	GeneratedAt  time.Time             `json:"generated_at"`
 }
 
 // ToolBaselineStatus indicates whether a tool's results match stored baselines.

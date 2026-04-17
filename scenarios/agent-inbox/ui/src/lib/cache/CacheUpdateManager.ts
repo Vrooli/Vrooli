@@ -178,7 +178,7 @@ export class CacheUpdateManager {
           ...old.chat,
           active_leaf_message_id: expectedLeafId || message.id,
         },
-        messages: [...(old.messages || []), message],
+        messages: [...old.messages, message],
       };
     });
   }

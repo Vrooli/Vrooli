@@ -102,14 +102,14 @@ func buildScenarioGap(node types.DeploymentDependencyNode, scenariosDir string, 
 		return gap, gapHasFindings(gap)
 	}
 
-	hasResourceCatalog := cfg.Deployment.Dependencies.Resources != nil && len(cfg.Deployment.Dependencies.Resources) > 0
-	hasScenarioCatalog := cfg.Deployment.Dependencies.Scenarios != nil && len(cfg.Deployment.Dependencies.Scenarios) > 0
+	hasResourceCatalog := len(cfg.Deployment.Dependencies.Resources) > 0
+	hasScenarioCatalog := len(cfg.Deployment.Dependencies.Scenarios) > 0
 	gap.MissingDependencyCatalog = !hasResourceCatalog && !hasScenarioCatalog
 	if gap.MissingDependencyCatalog {
 		gap.SuggestedActions = append(gap.SuggestedActions, "Add deployment.dependencies catalog for resources/scenarios")
 	}
 
-	if cfg.Deployment.Tiers == nil || len(cfg.Deployment.Tiers) == 0 {
+	if len(cfg.Deployment.Tiers) == 0 {
 		for tier := range tierSet {
 			gap.MissingTierDefinitions = append(gap.MissingTierDefinitions, tier)
 		}

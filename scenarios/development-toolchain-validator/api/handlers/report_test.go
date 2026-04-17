@@ -2,6 +2,9 @@ package handlers
 
 import (
 	"context"
+	"development-toolchain-validator/domain/expectation"
+	"development-toolchain-validator/domain/report"
+	"development-toolchain-validator/domain/skill"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -9,10 +12,6 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
-
-	"development-toolchain-validator/domain/expectation"
-	"development-toolchain-validator/domain/report"
-	"development-toolchain-validator/domain/skill"
 )
 
 // --- mocks (handler-level) ---
@@ -30,6 +29,7 @@ type stubExpectationLister struct{}
 func (s *stubExpectationLister) ListStructural(_ context.Context, _ expectation.ListOptions) ([]*expectation.StructuralExpectation, error) {
 	return nil, nil
 }
+
 func (s *stubExpectationLister) ListCLI(_ context.Context, _ expectation.ListOptions) ([]*expectation.CLIAssertion, error) {
 	return nil, nil
 }

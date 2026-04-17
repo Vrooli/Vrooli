@@ -86,7 +86,7 @@ export function ScenarioReviewPanel({ scenarioSlug, repoId, fileStats, onChangeS
       return [...prev, item];
     });
     setActiveTab("agent");
-  }, []);
+  }, [setActiveTab]);
   const removeAgentContext = useCallback((id: string) => {
     setAgentContext((prev) => prev.filter((c) => c.id !== id));
   }, []);

@@ -37,22 +37,6 @@ func refreshDependencyCatalogs() {
 	}
 }
 
-func isKnownScenario(name string) bool {
-	det := detectorInstance()
-	if det == nil {
-		return true
-	}
-	return det.KnownScenario(name)
-}
-
-func isKnownResource(name string) bool {
-	det := detectorInstance()
-	if det == nil {
-		return true
-	}
-	return det.KnownResource(name)
-}
-
 func scanForScenarioDependencies(scenarioPath, scenarioName string) ([]types.ScenarioDependency, error) {
 	det := detectorInstance()
 	if det == nil {

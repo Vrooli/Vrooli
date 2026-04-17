@@ -10,7 +10,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/platform"
 )

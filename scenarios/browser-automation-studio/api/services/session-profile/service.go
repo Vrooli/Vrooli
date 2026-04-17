@@ -580,9 +580,9 @@ func (r *ActiveSessionRegistry) ClearForProfile(profileID string) {
 // MaskedStorageState represents the storage state with httpOnly cookie values hidden.
 // This is used for the API response to prevent exposing sensitive session cookies.
 type MaskedStorageState struct {
-	Cookies []MaskedCookie        `json:"cookies"`
-	Origins []MaskedOrigin        `json:"origins"`
-	Stats   MaskedStorageStats    `json:"stats"`
+	Cookies []MaskedCookie     `json:"cookies"`
+	Origins []MaskedOrigin     `json:"origins"`
+	Stats   MaskedStorageStats `json:"stats"`
 }
 
 // MaskedCookie represents a cookie with optional value masking.

@@ -355,7 +355,6 @@ func TestSession_StartRecording_Success(t *testing.T) {
 		Quality:           80,
 		FPS:               10,
 	})
-
 	if err != nil {
 		t.Fatalf("StartRecording failed: %v", err)
 	}
@@ -454,9 +453,9 @@ func TestSession_GetRecordingStatus_Success(t *testing.T) {
 	handler.HandleFunc("/session/rec-session/record/status", func(w http.ResponseWriter, r *http.Request) {
 		_ = r.Body.Close()
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"is_recording":  true,
-			"action_count":  5,
-			"duration_ms":   1234,
+			"is_recording": true,
+			"action_count": 5,
+			"duration_ms":  1234,
 		})
 	})
 
@@ -853,8 +852,8 @@ func TestSession_ValidateSelector_Success(t *testing.T) {
 	handler.HandleFunc("/session/sel-session/record/validate-selector", func(w http.ResponseWriter, r *http.Request) {
 		_ = r.Body.Close()
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"valid":        true,
-			"match_count":  3,
+			"valid":       true,
+			"match_count": 3,
 		})
 	})
 

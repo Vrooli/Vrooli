@@ -101,8 +101,8 @@ describe("useTools - toolsByScenario derivation", () => {
       createMockTool("scenario-a", "tool2", true),
     ]);
 
-    vi.mocked(api.fetchToolSet).mockImplementation(async () => serverState);
-    vi.mocked(api.setToolEnabled).mockImplementation(async (config) => {
+    vi.mocked(api.fetchToolSet).mockImplementation(() => Promise.resolve(serverState));
+    vi.mocked(api.setToolEnabled).mockImplementation((config) => {
       serverState = {
         ...serverState,
         tools: serverState.tools.map((t) =>
@@ -111,6 +111,7 @@ describe("useTools - toolsByScenario derivation", () => {
             : t
         ),
       };
+      return Promise.resolve();
     });
 
     const { result } = renderHook(() => useTools(), { wrapper: createWrapper() });
@@ -169,8 +170,8 @@ describe("useTools - concurrent mutations", () => {
       createMockTool("scenario-a", "tool3", true),
     ]);
 
-    vi.mocked(api.fetchToolSet).mockImplementation(async () => serverState);
-    vi.mocked(api.setToolEnabled).mockImplementation(async (config) => {
+    vi.mocked(api.fetchToolSet).mockImplementation(() => Promise.resolve(serverState));
+    vi.mocked(api.setToolEnabled).mockImplementation((config) => {
       serverState = {
         ...serverState,
         tools: serverState.tools.map((t) =>
@@ -179,6 +180,7 @@ describe("useTools - concurrent mutations", () => {
             : t
         ),
       };
+      return Promise.resolve();
     });
 
     const { result } = renderHook(() => useTools(), { wrapper: createWrapper() });

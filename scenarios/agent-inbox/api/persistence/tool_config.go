@@ -6,12 +6,11 @@
 package persistence
 
 import (
+	"agent-inbox/domain"
 	"context"
 	"database/sql"
 	"fmt"
 	"time"
-
-	"agent-inbox/domain"
 )
 
 // SaveToolConfiguration upserts a tool configuration.

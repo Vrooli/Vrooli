@@ -78,7 +78,7 @@ func ValidateAndNormalizeFolderPath(folderPath string, log *logrus.Logger) (stri
 // EnsureDirectoryExists creates the directory if it doesn't exist.
 // Returns an error if directory creation fails.
 func EnsureDirectoryExists(path string, log *logrus.Logger) error {
-	if err := os.MkdirAll(path, 0755); err != nil {
+	if err := os.MkdirAll(path, 0o755); err != nil {
 		if log != nil {
 			log.WithError(err).WithField("folder_path", path).Error("Failed to create project directory")
 		}

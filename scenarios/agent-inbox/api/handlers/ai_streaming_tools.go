@@ -1,12 +1,11 @@
 package handlers
 
 import (
+	"agent-inbox/domain"
+	"agent-inbox/services"
 	"fmt"
 	"log"
 	"net/http"
-
-	"agent-inbox/domain"
-	"agent-inbox/services"
 )
 
 // handleCompletionResultFull processes a completed AI response and returns full execution info.
