@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"vrooli-autoheal/internal/checks"
+	"vrooli-autoheal/internal/healing/strategies"
 	integration "vrooli-autoheal/internal/integrations/vrooli"
 	"vrooli-autoheal/internal/platform"
 )
@@ -128,6 +129,10 @@ func (c *ScenarioCheck) IsCritical() bool { return c.critical }
 
 // ScenarioName returns the name of the scenario (for action execution)
 func (c *ScenarioCheck) ScenarioName() string { return c.scenarioName }
+
+func (c *ScenarioCheck) strategy() *strategies.VrooliStrategy {
+	return strategies.NewVrooliStrategy(strategies.VrooliScenario, c.scenarioName, c.executor)
+}
 
 func (c *ScenarioCheck) Run(ctx context.Context) checks.Result {
 	result := checks.Result{
@@ -489,19 +494,14 @@ func (c *ScenarioCheck) ExecuteAction(ctx context.Context, actionID string) chec
 	}
 }
 
-// verifyRecovery checks that the scenario is actually healthy after a start/restart action.
-// This uses direct process and port checking instead of `vrooli scenario status` because
-// the status command requires the main Vrooli API to be running, which may not be available
-// during autoheal (especially when multiple things are healing in parallel).
+// verifyRecovery checks that the scenario reports healthy runtime state after a
+// start/restart action using the authoritative `vrooli scenario status --json`
+// contract.
 func (c *ScenarioCheck) verifyRecovery(ctx context.Context, result checks.ActionResult, actionID string, start time.Time) checks.ActionResult {
 	// Configure polling
 	timeout := c.recoveryPoll.timeout
 	interval := c.recoveryPoll.interval
 	initialDelay := c.recoveryPoll.initialDelay
-	healthFn := c.directHealth
-	if healthFn == nil {
-		healthFn = c.checkScenarioHealthDirect
-	}
 
 	// Wait initial delay for scenario startup
 	select {
@@ -514,7 +514,7 @@ func (c *ScenarioCheck) verifyRecovery(ctx context.Context, result checks.Action
 	case <-time.After(initialDelay):
 	}
 
-	// Poll for scenario health using direct checks (not vrooli scenario status)
+	// Poll for scenario health using the current CLI contract.
 	deadline := time.Now().Add(timeout - initialDelay)
 	attempts := 0
 	var lastErr string
@@ -533,19 +533,25 @@ func (c *ScenarioCheck) verifyRecovery(ctx context.Context, result checks.Action
 		default:
 		}
 
-		// Try direct health check - check if scenario processes are running
-		healthy, err := healthFn(ctx)
-		if healthy {
-			result.Duration = time.Since(start)
-			result.Success = true
-			result.Message = fmt.Sprintf("%s scenario %s successful and verified healthy", c.scenarioName, actionID)
-			result.Output += fmt.Sprintf("\n\n=== Verification ===\nScenario processes are running\n(verified after %d attempts in %s)",
-				attempts, time.Since(start).Round(time.Millisecond))
-			return result
-		}
-
-		if err != "" {
-			lastErr = err
+		status, _, err := c.client.ScenarioStatus(ctx, c.scenarioName)
+		if err == nil {
+			scenarioStatus := strings.ToLower(strings.TrimSpace(status.Scenario.Status))
+			healthStatus, healthErr := status.Scenario.NormalizedHealthStatus()
+			if healthErr == nil && scenarioStatus == "running" && (healthStatus == "healthy" || healthStatus == "running") {
+				result.Duration = time.Since(start)
+				result.Success = true
+				result.Message = fmt.Sprintf("%s scenario %s successful and verified healthy", c.scenarioName, actionID)
+				result.Output += fmt.Sprintf("\n\n=== Verification ===\nScenario status=%s health=%s\n(verified after %d attempts in %s)",
+					scenarioStatus, healthStatus, attempts, time.Since(start).Round(time.Millisecond))
+				return result
+			}
+			if healthErr != nil {
+				lastErr = healthErr.Error()
+			} else {
+				lastErr = fmt.Sprintf("scenario status=%s health=%s", scenarioStatus, healthStatus)
+			}
+		} else {
+			lastErr = err.Error()
 		}
 
 		// Wait before next attempt
@@ -644,44 +650,9 @@ func (c *ScenarioCheck) checkScenarioHealthDirect(ctx context.Context) (bool, st
 	return true, ""
 }
 
-// executeCleanRestart performs a stop, port cleanup, and restart
+// executeCleanRestart performs a stop, core cleanup, and restart.
 func (c *ScenarioCheck) executeCleanRestart(ctx context.Context, start time.Time) checks.ActionResult {
-	result := checks.ActionResult{
-		ActionID:  "restart-clean",
-		CheckID:   c.id,
-		Timestamp: start,
-	}
-
-	var outputBuilder strings.Builder
-
-	// Step 1: Stop the scenario
-	outputBuilder.WriteString("=== Stopping scenario ===\n")
-	stopOutput, _ := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "stop", c.scenarioName)
-	outputBuilder.Write(stopOutput)
-	outputBuilder.WriteString("\n")
-
-	// Step 2: Get and cleanup ports
-	outputBuilder.WriteString("=== Cleaning up ports ===\n")
-	portResult := c.executePortCleanup(ctx, start)
-	outputBuilder.WriteString(portResult.Output)
-	outputBuilder.WriteString("\n")
-
-	// Step 3: Start with --best-effort to avoid blocking on failed dependencies
-	outputBuilder.WriteString("=== Starting scenario ===\n")
-	startOutput, err := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "start", c.scenarioName, "--best-effort")
-	outputBuilder.Write(startOutput)
-	result.Output = outputBuilder.String()
-
-	if err != nil {
-		result.Duration = time.Since(start)
-		result.Success = false
-		result.Error = err.Error()
-		result.Message = "Clean restart failed for " + c.scenarioName
-		return result
-	}
-
-	// Verify the scenario is actually running after clean restart
-	return c.verifyRecovery(ctx, result, "restart-clean", start)
+	return c.strategy().CleanRestart(ctx, c.id)
 }
 
 // executeSetupRestart performs a setup pass before restarting the scenario.
@@ -731,79 +702,9 @@ func (c *ScenarioCheck) executeSetupRestart(ctx context.Context, start time.Time
 	return c.verifyRecovery(ctx, result, "setup-restart", start)
 }
 
-// executePortCleanup kills processes holding scenario ports
+// executePortCleanup delegates stale lock/orphan cleanup to core maintenance.
 func (c *ScenarioCheck) executePortCleanup(ctx context.Context, start time.Time) checks.ActionResult {
-	result := checks.ActionResult{
-		ActionID:  "cleanup-ports",
-		CheckID:   c.id,
-		Timestamp: start,
-	}
-
-	var outputBuilder strings.Builder
-
-	// Get scenario ports using vrooli CLI
-	portOutput, err := c.executor.CombinedOutput(ctx, "vrooli", "scenario", "port", c.scenarioName)
-	outputBuilder.WriteString("=== Scenario ports ===\n")
-	outputBuilder.Write(portOutput)
-	outputBuilder.WriteString("\n")
-
-	if err != nil {
-		result.Duration = time.Since(start)
-		result.Output = outputBuilder.String()
-		result.Success = false
-		result.Error = "Failed to get scenario ports: " + err.Error()
-		result.Message = "Could not determine ports for " + c.scenarioName
-		return result
-	}
-
-	// Parse ports from output (format varies, but typically includes port numbers)
-	ports := extractPorts(string(portOutput))
-	if len(ports) == 0 {
-		result.Duration = time.Since(start)
-		result.Output = outputBuilder.String()
-		result.Success = true
-		result.Message = "No ports found to cleanup for " + c.scenarioName
-		return result
-	}
-
-	outputBuilder.WriteString(fmt.Sprintf("Found ports: %v\n\n", ports))
-
-	// Kill processes on each port
-	killedCount := 0
-	for _, port := range ports {
-		outputBuilder.WriteString(fmt.Sprintf("=== Cleaning port %d ===\n", port))
-
-		// Find process on port using lsof
-		pidOutput, err := c.executor.Output(ctx, "lsof", "-ti", fmt.Sprintf(":%d", port))
-
-		if err != nil || len(strings.TrimSpace(string(pidOutput))) == 0 {
-			outputBuilder.WriteString("No process found on port\n")
-			continue
-		}
-
-		// Kill each PID
-		pids := strings.Fields(strings.TrimSpace(string(pidOutput)))
-		for _, pidStr := range pids {
-			outputBuilder.WriteString(fmt.Sprintf("Killing PID %s... ", pidStr))
-
-			// First try SIGTERM
-			if err := c.executor.Run(ctx, "kill", pidStr); err != nil {
-				// If SIGTERM fails, try SIGKILL
-				if err := c.executor.Run(ctx, "kill", "-9", pidStr); err != nil {
-					outputBuilder.WriteString(fmt.Sprintf("FAILED: %v\n", err))
-					continue
-				}
-			}
-			outputBuilder.WriteString("OK\n")
-			killedCount++
-		}
-	}
-
-	result.Duration = time.Since(start)
-	result.Output = outputBuilder.String()
-	result.Success = true
-	result.Message = fmt.Sprintf("Port cleanup complete: killed %d processes on %d ports", killedCount, len(ports))
-	return result
+	return c.strategy().CleanupPorts(ctx, c.id)
 }
 
 // executeDiagnose gathers diagnostic information about the scenario

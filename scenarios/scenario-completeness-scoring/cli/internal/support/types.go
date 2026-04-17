@@ -15,10 +15,15 @@ type ScoreListResponse struct {
 	Total     int             `json:"total"`
 }
 
-// Recommendation is a single improvement hint.
+// Recommendation is a single improvement hint returned by
+// GET /api/v1/recommendations/{scenario}. The server emits `priority`,
+// `description`, `impact`; older callers that hand-rolled decoders against
+// `message` will see an empty description, which is why the rendered list
+// used to print " (impact N)" with no text.
 type Recommendation struct {
-	Message string  `json:"message"`
-	Impact  float64 `json:"impact"`
+	Priority    int     `json:"priority"`
+	Description string  `json:"description"`
+	Impact      float64 `json:"impact"`
 }
 
 // RecommendationsResponse is the envelope for `GET /api/v1/recommendations/{scenario}`.

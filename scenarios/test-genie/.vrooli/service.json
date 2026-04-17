@@ -213,8 +213,10 @@
     },
     "freshness": {
       "inputs": [
+        "api/**",
         "cli/**",
-        ".vrooli/service.json"
+        ".vrooli/service.json",
+        ".vrooli/testing.json"
       ]
     }
   }

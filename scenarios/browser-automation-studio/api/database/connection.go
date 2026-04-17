@@ -217,11 +217,21 @@ func (db *DB) initSchema() error {
 		return err
 	}
 
-	if err := db.ensureWorkflowSchemaCompatibility(ctx); err != nil {
+	if err := db.ensureSchemaCompatibility(ctx); err != nil {
 		return err
 	}
 
 	db.log.Info("Database schema initialized successfully")
+	return nil
+}
+
+func (db *DB) ensureSchemaCompatibility(ctx context.Context) error {
+	if err := db.ensureWorkflowSchemaCompatibility(ctx); err != nil {
+		return err
+	}
+	if err := db.ensureExecutionSchemaCompatibility(ctx); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -242,12 +252,52 @@ func (db *DB) ensureWorkflowSchemaCompatibility(ctx context.Context) error {
 		return nil
 	}
 
-	if _, err := db.ExecContext(ctx, `ALTER TABLE workflows ADD COLUMN file_path TEXT`); err != nil {
-		db.log.WithError(err).Warn("Failed to add workflows.file_path compatibility column")
-		return fmt.Errorf("add workflows.file_path column: %w", err)
+	if err := db.ensureColumnCompatibility(ctx, "workflows", "file_path", "TEXT"); err != nil {
+		return fmt.Errorf("ensure workflows.file_path column: %w", err)
+	}
+	return nil
+}
+
+func (db *DB) ensureExecutionSchemaCompatibility(ctx context.Context) error {
+	hasExecutions, err := db.tableExists(ctx, "executions")
+	if err != nil {
+		return fmt.Errorf("check executions table: %w", err)
+	}
+	if !hasExecutions {
+		return nil
+	}
+
+	requiredColumns := map[string]string{
+		"error_message":   "TEXT",
+		"result_path":     "TEXT",
+		"resumed_from_id": "TEXT",
+	}
+	for columnName, columnDef := range requiredColumns {
+		if err := db.ensureColumnCompatibility(ctx, "executions", columnName, columnDef); err != nil {
+			return fmt.Errorf("ensure executions.%s column: %w", columnName, err)
+		}
+	}
+	return nil
+}
+
+func (db *DB) ensureColumnCompatibility(ctx context.Context, tableName, columnName, columnDefinition string) error {
+	hasColumn, err := db.columnExists(ctx, tableName, columnName)
+	if err != nil {
+		return fmt.Errorf("check %s.%s column: %w", tableName, columnName, err)
+	}
+	if hasColumn {
+		return nil
+	}
+
+	statement := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", tableName, columnName, columnDefinition)
+	if _, err := db.ExecContext(ctx, statement); err != nil {
+		if db.log != nil {
+			db.log.WithError(err).Warnf("Failed to add %s.%s compatibility column", tableName, columnName)
+		}
+		return fmt.Errorf("add %s.%s column: %w", tableName, columnName, err)
 	}
 	if db.log != nil {
-		db.log.Warn("Added missing workflows.file_path column for SQLite compatibility")
+		db.log.Warnf("Added missing %s.%s column for SQLite compatibility", tableName, columnName)
 	}
 	return nil
 }

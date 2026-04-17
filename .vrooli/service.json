@@ -129,6 +129,18 @@
       "notes": "Checks clock against remote HTTP time sources; syncs via hwclock/ntpdate/timedatectl if >5 minutes off"
     },
     {
+      "name": "dns_resolution",
+      "required": false,
+      "reason": "Configure reliable DNS servers via systemd-resolved for resilient name resolution",
+      "when": [
+        "setup"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Writes /etc/systemd/resolved.conf.d/99-vrooli-dns.conf with Google and Cloudflare DNS; flushes cache"
+    },
+    {
       "name": "docker_host_firewall",
       "required": false,
       "reason": "Enable Docker containers to reach native host services via iptables VROOLI-DOCKER chain",
@@ -154,6 +166,19 @@
       "notes": "Manages /etc/sysctl.d/99-vrooli.conf with inotify and other kernel parameters"
     },
     {
+      "name": "nat_protection",
+      "required": false,
+      "reason": "Detect and remove dead NAT iptables REDIRECT rules that hijack web traffic",
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Scans iptables -t nat OUTPUT for REDIRECT rules whose target ports have no listener and removes them"
+    },
+    {
       "name": "remote_session_protection",
       "required": false,
       "reason": "Protect remote Linux GUI sessions when the deployment profile calls for it",
@@ -164,6 +189,18 @@
         "linux"
       ],
       "notes": "Native runtime applies managed Linux sysctl and systemd protections for remote sessions"
+    },
+    {
+      "name": "tcp_tuning",
+      "required": false,
+      "reason": "Optimize TCP stack for reliable connectivity (disable ECN, enable PMTU probing)",
+      "when": [
+        "setup"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Manages /etc/sysctl.d/99-vrooli-tcp.conf with tcp_ecn, tcp_mtu_probing, tcp_base_mss"
     }
   ],
   "dependencies": {

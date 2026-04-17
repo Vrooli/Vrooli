@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"scenario-completeness-scoring/cli/internal/format"
 	"scenario-completeness-scoring/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -72,11 +73,17 @@ func runList(core *cliapp.ScenarioApp, args []string) error {
 func runGet(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("score get")
 	jsonOutput := cliutil.JSONFlag(fs)
+	verbose := fs.Bool("verbose", false, "Show detailed validation-issue breakdown")
+	fs.BoolVar(verbose, "v", false, "Show detailed validation-issue breakdown")
+	metrics := fs.Bool("metrics", false, "Include raw metric counters (implies --verbose)")
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: score get <scenario>")
+		return fmt.Errorf("usage: score get <scenario> [--verbose] [--metrics] [--json]")
+	}
+	if *metrics {
+		*verbose = true
 	}
 	scenario := fs.Arg(0)
 
@@ -84,43 +91,50 @@ func runGet(core *cliapp.ScenarioApp, args []string) error {
 	if err != nil {
 		return err
 	}
-	var summary support.ScoreSummary
-	if err := support.Decode(body, &summary); err != nil {
-		return err
+
+	if *jsonOutput {
+		// Pass the API body through verbatim so scripts get structured data
+		// rather than the pre-rendered human report. Mirrors master's behavior.
+		raw := support.DecodeRaw(body)
+		_, err := os.Stdout.Write(raw)
+		if err != nil {
+			return err
+		}
+		if len(raw) > 0 && raw[len(raw)-1] != '\n' {
+			fmt.Fprintln(os.Stdout)
+		}
+		return nil
 	}
 
-	results := []string{
-		fmt.Sprintf("Scenario: %s", summary.Scenario),
-		fmt.Sprintf("Category: %s", summary.Category),
-		fmt.Sprintf("Score: %.2f", summary.Score),
-		fmt.Sprintf("Base score: %.2f", summary.BaseScore),
-		fmt.Sprintf("Validation penalty: %.2f", summary.ValidationPenalty),
-		fmt.Sprintf("Classification: %s", summary.Classification),
+	var resp format.ScoreResponse
+	if err := support.Decode(body, &resp); err != nil {
+		return err
 	}
-	if summary.CalculatedAt != "" {
-		results = append(results, fmt.Sprintf("Calculated at: %s", support.FormatTime(summary.CalculatedAt)))
+	if strings.TrimSpace(resp.Scenario) == "" {
+		resp.Scenario = scenario
 	}
-	if len(summary.Breakdown) > 0 {
-		results = append(results, "Breakdown:")
-		for _, row := range support.MapRows(summary.Breakdown) {
-			results = append(results, "  "+row)
+
+	w := os.Stdout
+	format.FormatValidationIssues(w, resp.ValidationAnalysis, *verbose)
+	format.FormatScoreSummary(w, resp)
+	format.FormatBaseMetrics(w, resp.Breakdown)
+	format.FormatActionPlan(w, resp)
+
+	if *metrics {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "Metrics:")
+		for _, row := range support.MapRows(resp.Metrics) {
+			fmt.Fprintf(w, "  %s\n", row)
 		}
 	}
 
-	report := cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Score for %s: %.2f (%s)", summary.Scenario, summary.Score, summary.Classification)},
-		ResultsHeading: "Details",
-		Results:        results,
-		RetrievalHints: []string{
-			fmt.Sprintf("%s score validation %s", support.CLIName, scenario),
-			fmt.Sprintf("%s score recommend %s", support.CLIName, scenario),
-			fmt.Sprintf("%s score history %s", support.CLIName, scenario),
-		},
-	}
-	if *jsonOutput {
-		return cliapp.PrintReportJSON(os.Stdout, report)
-	}
-	return cliapp.RenderListReport(os.Stdout, report)
+	format.FormatComparisonContext(w, resp.ValidationAnalysis, resp.Score)
+
+	fmt.Fprintln(w, "Retrieval Hints:")
+	fmt.Fprintf(w, "  %s score validation %s\n", support.CLIName, scenario)
+	fmt.Fprintf(w, "  %s score recommend %s\n", support.CLIName, scenario)
+	fmt.Fprintf(w, "  %s score history %s\n", support.CLIName, scenario)
+	return nil
 }
 
 func runCalculate(core *cliapp.ScenarioApp, args []string) error {
@@ -455,7 +469,16 @@ func recommendationRows(recs []support.Recommendation) []string {
 	}
 	rows := make([]string, 0, len(recs))
 	for _, r := range recs {
-		rows = append(rows, fmt.Sprintf("%s (impact %.2f)", r.Message, r.Impact))
+		desc := strings.TrimSpace(r.Description)
+		if desc == "" {
+			desc = "(no description)"
+		}
+		switch {
+		case r.Priority > 0:
+			rows = append(rows, fmt.Sprintf("%d. %s (impact %.0f)", r.Priority, desc, r.Impact))
+		default:
+			rows = append(rows, fmt.Sprintf("%s (impact %.0f)", desc, r.Impact))
+		}
 	}
 	return rows
 }

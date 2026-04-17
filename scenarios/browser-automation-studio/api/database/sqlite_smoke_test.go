@@ -110,3 +110,47 @@ func TestInitSchemaAddsMissingWorkflowFilePathColumn(t *testing.T) {
 		t.Fatal("expected workflows.file_path column to be added")
 	}
 }
+
+func TestInitSchemaAddsMissingExecutionCompatibilityColumns(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "legacy-executions.db")
+
+	t.Setenv("BAS_SQLITE_PATH", dbPath)
+	t.Setenv("BAS_SKIP_DEMO_SEED", "true")
+
+	log := logrus.New()
+	db, err := connectSQLite(log)
+	if err != nil {
+		t.Fatalf("connect sqlite: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	if _, err := db.Exec(`
+		CREATE TABLE executions (
+			id TEXT PRIMARY KEY,
+			workflow_id TEXT NOT NULL,
+			status TEXT NOT NULL DEFAULT 'pending',
+			started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			completed_at DATETIME,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)
+	`); err != nil {
+		t.Fatalf("create legacy executions table: %v", err)
+	}
+
+	wrapped := &DB{DB: db, log: log}
+	if err := wrapped.ensureExecutionSchemaCompatibility(context.Background()); err != nil {
+		t.Fatalf("ensureExecutionSchemaCompatibility() error = %v", err)
+	}
+
+	for _, columnName := range []string{"error_message", "result_path", "resumed_from_id"} {
+		hasColumn, err := wrapped.columnExists(context.Background(), "executions", columnName)
+		if err != nil {
+			t.Fatalf("columnExists(%q) error = %v", columnName, err)
+		}
+		if !hasColumn {
+			t.Fatalf("expected executions.%s column to be added", columnName)
+		}
+	}
+}

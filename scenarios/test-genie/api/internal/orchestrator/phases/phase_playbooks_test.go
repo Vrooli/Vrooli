@@ -9,11 +9,12 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"testing"
+
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/playbooks"
 	"test-genie/internal/playbooks/isolation"
 	"test-genie/internal/shared"
-	"testing"
 )
 
 // playbooksTestHarness provides a consistent test setup for playbooks phase tests.
@@ -256,6 +257,87 @@ func TestRunPlaybooksPhaseObserverModeSkipsIsolationAndRestart(t *testing.T) {
 	}
 	if restartCalls != 0 {
 		t.Fatalf("expected observer mode to skip scenario restarts, got %d", restartCalls)
+	}
+}
+
+func TestRunPlaybooksPhaseSQLiteScenarioUsesIsolationOutsideObserverMode(t *testing.T) {
+	fakeIso := &fakeIsolation{
+		result: &isolation.Result{
+			RunID:   "sqlite-run",
+			Env:     map[string]string{"PLAYBOOKS_SQLITE_PATH": filepath.Join(t.TempDir(), "isolated.db")},
+			Cleanup: func(context.Context) error { return nil },
+		},
+	}
+
+	var capturedCfg isolation.Config
+	prevFactory := isolationManagerFactory
+	isolationManagerFactory = func(cfg isolation.Config) isolationProvider {
+		capturedCfg = cfg
+		return fakeIso
+	}
+	defer func() { isolationManagerFactory = prevFactory }()
+
+	h := newPlaybooksTestHarness(t)
+	if err := os.MkdirAll(filepath.Join(h.scenarioDir, "initialization", "storage", "sqlite"), 0o755); err != nil {
+		t.Fatalf("failed to create sqlite schema dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(h.scenarioDir, "initialization", "storage", "sqlite", "schema.sql"), []byte("CREATE TABLE demo(id INTEGER);"), 0o644); err != nil {
+		t.Fatalf("failed to write sqlite schema: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(h.scenarioDir, "api"), 0o755); err != nil {
+		t.Fatalf("failed to create api dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(h.scenarioDir, "api", "go.mod"), []byte("module fixture\n\ngo 1.24\n\nrequire modernc.org/sqlite v1.40.1\n"), 0o644); err != nil {
+		t.Fatalf("failed to write go.mod: %v", err)
+	}
+	h.writeRegistry(t, `{
+		"playbooks": [
+			{"file":"bas/cases/01-basic/test.json","description":"test","order":"01.01","requirements":[],"fixtures":[],"reset":"none"}
+		]
+	}`)
+	h.writeWorkflow(t, "bas/cases/01-basic/test.json", `{
+  "metadata": {"description": "basic", "version": 1},
+  "nodes": [{"id":"n1","type":"navigate","data":{"destinationType":"url","url":"http://example.com"}}],
+  "edges": []
+}`)
+
+	basServer, basPort := newStubBASServer(t)
+	defer basServer.Close()
+
+	var restartCalls int
+	restoreExec := OverrideCommandExecutor(func(_ context.Context, _ string, _ io.Writer, name string, args ...string) error {
+		if name == "vrooli" && len(args) >= 4 && args[0] == "scenario" && args[1] == "restart" && args[2] == h.env.ScenarioName {
+			restartCalls++
+		}
+		return nil
+	})
+	defer restoreExec()
+
+	restoreCapture := OverrideCommandCapture(func(_ context.Context, _ string, _ io.Writer, name string, args ...string) (string, error) {
+		joined := strings.Join(append([]string{name}, args...), " ")
+		if strings.Contains(joined, "browser-automation-studio") && strings.Contains(joined, "port") {
+			return basPort, nil
+		}
+		return "", nil
+	})
+	defer restoreCapture()
+
+	report := runPlaybooksPhase(context.Background(), h.env, io.Discard)
+
+	if report.Err != nil {
+		t.Fatalf("expected success for sqlite isolation path, got error: %v", report.Err)
+	}
+	if !fakeIso.called {
+		t.Fatal("expected non-observer playbooks to prepare isolation")
+	}
+	if !capturedCfg.RequireSQLite {
+		t.Fatalf("expected sqlite isolation to be requested, got %#v", capturedCfg)
+	}
+	if capturedCfg.RequirePostgres || capturedCfg.RequireRedis {
+		t.Fatalf("did not expect postgres/redis isolation for sqlite fixture, got %#v", capturedCfg)
+	}
+	if restartCalls != 2 {
+		t.Fatalf("expected scenario restart before and after isolated run, got %d", restartCalls)
 	}
 }
 

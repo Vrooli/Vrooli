@@ -901,63 +901,71 @@ func TestScenarioCheckExecuteAction_AllActions(t *testing.T) {
 	tests := []struct {
 		name          string
 		actionID      string
-		cmdKey        string
-		cmdOutput     string
-		cmdError      error
+		responses     map[string]checks.MockResponse
 		statusOutput  string // For verification after start/restart
 		expectSuccess bool
 	}{
 		{
-			name:          "start success",
-			actionID:      "start",
-			cmdKey:        "vrooli scenario start test-scenario --best-effort",
-			cmdOutput:     "Started test-scenario",
-			cmdError:      nil,
-			statusOutput:  "test-scenario: running (healthy)",
+			name:     "start success",
+			actionID: "start",
+			responses: map[string]checks.MockResponse{
+				"vrooli scenario start test-scenario --best-effort": {Output: []byte("Started test-scenario"), Error: nil},
+			},
+			statusOutput:  `{"success":true,"scenario":{"name":"test-scenario","status":"running","health_status":"healthy"}}`,
 			expectSuccess: true,
 		},
 		{
-			name:          "start failure - command error",
-			actionID:      "start",
-			cmdKey:        "vrooli scenario start test-scenario --best-effort",
-			cmdOutput:     "",
-			cmdError:      checks.ErrCommandNotFound,
+			name:     "start failure - command error",
+			actionID: "start",
+			responses: map[string]checks.MockResponse{
+				"vrooli scenario start test-scenario --best-effort": {Output: []byte(""), Error: checks.ErrCommandNotFound},
+			},
 			statusOutput:  "",
 			expectSuccess: false,
 		},
 		{
-			name:          "restart success",
-			actionID:      "restart",
-			cmdKey:        "vrooli scenario restart test-scenario --best-effort",
-			cmdOutput:     "Restarted test-scenario",
-			cmdError:      nil,
-			statusOutput:  "test-scenario: running (healthy)",
+			name:     "restart success",
+			actionID: "restart",
+			responses: map[string]checks.MockResponse{
+				"vrooli scenario restart test-scenario --best-effort": {Output: []byte("Restarted test-scenario"), Error: nil},
+			},
+			statusOutput:  `{"success":true,"scenario":{"name":"test-scenario","status":"running","health_status":"healthy"}}`,
 			expectSuccess: true,
 		},
 		{
-			name:          "restart-clean success",
-			actionID:      "restart-clean",
-			cmdKey:        "vrooli scenario start test-scenario --best-effort",
-			cmdOutput:     "Clean restart of test-scenario",
-			cmdError:      nil,
-			statusOutput:  "test-scenario: running (healthy)",
+			name:     "restart-clean success",
+			actionID: "restart-clean",
+			responses: map[string]checks.MockResponse{
+				"vrooli scenario stop test-scenario":             {Output: []byte("Stopped test-scenario"), Error: nil},
+				"vrooli scenario port test-scenario":             {Output: []byte("8080/tcp"), Error: nil},
+				"vrooli diagnose-port 8080 test-scenario --json": {Output: []byte(`{"success":true,"diagnostic":{"port":8080,"scenario":"test-scenario","listener_inspection":{"available":true}}}`), Error: nil},
+				"vrooli cleanup locks":                           {Output: []byte("cleaned locks"), Error: nil},
+				"vrooli cleanup orphans":                         {Output: []byte("cleaned orphans"), Error: nil},
+				"vrooli scenario start test-scenario":            {Output: []byte("Clean restart of test-scenario"), Error: nil},
+			},
+			statusOutput:  `{"success":true,"scenario":{"name":"test-scenario","status":"running","health_status":"healthy"}}`,
 			expectSuccess: true,
 		},
 		{
-			name:          "restart-clean failure - command error",
-			actionID:      "restart-clean",
-			cmdKey:        "vrooli scenario start test-scenario --best-effort",
-			cmdOutput:     "",
-			cmdError:      checks.ErrConnectionRefused,
+			name:     "restart-clean failure - command error",
+			actionID: "restart-clean",
+			responses: map[string]checks.MockResponse{
+				"vrooli scenario stop test-scenario":             {Output: []byte("Stopped test-scenario"), Error: nil},
+				"vrooli scenario port test-scenario":             {Output: []byte("8080/tcp"), Error: nil},
+				"vrooli diagnose-port 8080 test-scenario --json": {Output: []byte(`{"success":true,"diagnostic":{"port":8080,"scenario":"test-scenario","listener_inspection":{"available":true}}}`), Error: nil},
+				"vrooli cleanup locks":                           {Output: []byte("cleaned locks"), Error: nil},
+				"vrooli cleanup orphans":                         {Output: []byte("cleaned orphans"), Error: nil},
+				"vrooli scenario start test-scenario":            {Output: []byte(""), Error: checks.ErrConnectionRefused},
+			},
 			statusOutput:  "",
 			expectSuccess: false,
 		},
 		{
-			name:          "stop success",
-			actionID:      "stop",
-			cmdKey:        "vrooli scenario stop test-scenario",
-			cmdOutput:     "Stopped test-scenario",
-			cmdError:      nil,
+			name:     "stop success",
+			actionID: "stop",
+			responses: map[string]checks.MockResponse{
+				"vrooli scenario stop test-scenario": {Output: []byte("Stopped test-scenario"), Error: nil},
+			},
 			statusOutput:  "", // Stop doesn't need verification
 			expectSuccess: true,
 		},
@@ -969,9 +977,8 @@ func TestScenarioCheckExecuteAction_AllActions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockExecutor := checks.NewMockExecutor()
-			mockExecutor.Responses[tt.cmdKey] = checks.MockResponse{
-				Output: []byte(tt.cmdOutput),
-				Error:  tt.cmdError,
+			for key, response := range tt.responses {
+				mockExecutor.Responses[key] = response
 			}
 			// Add status response for verification (used by start/restart/restart-clean)
 			if tt.statusOutput != "" {
@@ -986,14 +993,6 @@ func TestScenarioCheckExecuteAction_AllActions(t *testing.T) {
 				true,
 				WithScenarioExecutor(mockExecutor),
 				WithScenarioRecoveryPolling(100*time.Millisecond, 10*time.Millisecond, 0),
-				WithScenarioDirectHealthChecker(func(context.Context) (bool, string) {
-					if tt.actionID == "start" || tt.actionID == "restart" || tt.actionID == "restart-clean" {
-						if tt.cmdError == nil {
-							return true, ""
-						}
-					}
-					return false, "mock direct health check failed"
-				}),
 			)
 			result := check.ExecuteAction(context.Background(), tt.actionID)
 
@@ -1035,23 +1034,28 @@ func TestScenarioCheckCleanupPorts(t *testing.T) {
 		name          string
 		portOutput    string
 		portError     error
-		killOutputs   map[string]checks.MockResponse
+		coreOutputs   map[string]checks.MockResponse
 		expectSuccess bool
 	}{
 		{
-			name:          "no ports to clean",
-			portOutput:    "No ports in use",
-			portError:     nil,
-			killOutputs:   nil,
+			name:       "no ports to clean",
+			portOutput: "No ports in use",
+			portError:  nil,
+			coreOutputs: map[string]checks.MockResponse{
+				"vrooli cleanup locks":   {Output: []byte("cleaned locks"), Error: nil},
+				"vrooli cleanup orphans": {Output: []byte("cleaned orphans"), Error: nil},
+			},
 			expectSuccess: true,
 		},
 		{
 			name:       "ports cleaned successfully",
 			portOutput: "8080/tcp\n9000/tcp",
 			portError:  nil,
-			killOutputs: map[string]checks.MockResponse{
-				"fuser -k 8080/tcp": {Output: []byte(""), Error: nil},
-				"fuser -k 9000/tcp": {Output: []byte(""), Error: nil},
+			coreOutputs: map[string]checks.MockResponse{
+				"vrooli diagnose-port 8080 test-scenario --json": {Output: []byte(`{"success":true,"diagnostic":{"port":8080,"scenario":"test-scenario","listener_inspection":{"available":true}}}`), Error: nil},
+				"vrooli diagnose-port 9000 test-scenario --json": {Output: []byte(`{"success":true,"diagnostic":{"port":9000,"scenario":"test-scenario","listener_inspection":{"available":true}}}`), Error: nil},
+				"vrooli cleanup locks":                           {Output: []byte("cleaned locks"), Error: nil},
+				"vrooli cleanup orphans":                         {Output: []byte("cleaned orphans"), Error: nil},
 			},
 			expectSuccess: true,
 		},
@@ -1059,7 +1063,7 @@ func TestScenarioCheckCleanupPorts(t *testing.T) {
 			name:          "port query fails",
 			portOutput:    "",
 			portError:     checks.ErrCommandNotFound,
-			killOutputs:   nil,
+			coreOutputs:   nil,
 			expectSuccess: false,
 		},
 	}
@@ -1072,7 +1076,7 @@ func TestScenarioCheckCleanupPorts(t *testing.T) {
 				Output: []byte(tt.portOutput),
 				Error:  tt.portError,
 			}
-			for key, resp := range tt.killOutputs {
+			for key, resp := range tt.coreOutputs {
 				mockExecutor.Responses[key] = resp
 			}
 
@@ -1221,18 +1225,18 @@ func TestScenarioCheckExecuteAction_SetupRestart(t *testing.T) {
 				Output: []byte("Started"),
 				Error:  tt.startError,
 			}
+			if tt.setupError == nil && tt.startError == nil {
+				mockExecutor.Responses["vrooli scenario status test-scenario --json"] = checks.MockResponse{
+					Output: []byte(`{"success":true,"scenario":{"name":"test-scenario","status":"running","health_status":"healthy"}}`),
+					Error:  nil,
+				}
+			}
 
 			check := NewScenarioCheck(
 				"test-scenario",
 				true,
 				WithScenarioExecutor(mockExecutor),
 				WithScenarioRecoveryPolling(100*time.Millisecond, 10*time.Millisecond, 0),
-				WithScenarioDirectHealthChecker(func(context.Context) (bool, string) {
-					if tt.setupError == nil && tt.startError == nil {
-						return true, ""
-					}
-					return false, "mock direct health check failed"
-				}),
 			)
 
 			result := check.ExecuteAction(context.Background(), "setup-restart")

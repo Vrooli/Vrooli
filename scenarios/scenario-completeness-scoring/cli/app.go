@@ -2,6 +2,7 @@ package main
 
 import (
 	"scenario-completeness-scoring/cli/domains"
+	"scenario-completeness-scoring/cli/internal/format"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -34,6 +35,7 @@ func NewApp() (*App, error) {
 		BuildTimestamp:   buildTimestamp,
 		BuildSourceRoot:  buildSourceRoot,
 		AllowAnonymous:   true,
+		OnColor:          format.SetColorEnabled,
 		CommandGroups:    domains.CommandGroups,
 		SubcommandGroups: domains.SubcommandGroups,
 	})
