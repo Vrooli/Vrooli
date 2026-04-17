@@ -1402,7 +1402,7 @@ func TestCLINeedsSetupDetectsMissingAndStaleBinary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cliNeedsSetup missing binary: %v", err)
 	}
-	if !needed || reason != "CLI not installed: fixture-cli" {
+	if !needed || reason != "CLI missing: fixture-cli" {
 		t.Fatalf("missing binary => needed=%v reason=%q", needed, reason)
 	}
 
@@ -1431,7 +1431,7 @@ func TestCLINeedsSetupDetectsMissingAndStaleBinary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cliNeedsSetup stale binary: %v", err)
 	}
-	if !needed || reason != "CLI not installed: fixture-cli" {
+	if !needed || reason != "CLI outdated: fixture-cli (module source newer than installed binary)" {
 		t.Fatalf("stale binary => needed=%v reason=%q", needed, reason)
 	}
 }
@@ -1480,7 +1480,7 @@ func TestCLINeedsSetupUsesDeclaredGoModuleDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cliNeedsSetup stale binary: %v", err)
 	}
-	if !needed || reason != "CLI not installed: fixture-cli" {
+	if !needed || reason != "CLI outdated: fixture-cli (module source newer than installed binary)" {
 		t.Fatalf("stale binary => needed=%v reason=%q", needed, reason)
 	}
 }
@@ -1542,7 +1542,7 @@ func TestCLINeedsSetupUsesShellScriptFreshnessInputs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cliNeedsSetup stale shell CLI: %v", err)
 	}
-	if !needed || reason != "CLI not installed: fixture-cli" {
+	if !needed || reason != "CLI outdated: fixture-cli (freshness inputs newer than installed binary)" {
 		t.Fatalf("stale shell CLI => needed=%v reason=%q", needed, reason)
 	}
 }

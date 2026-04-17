@@ -1,0 +1,7 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "nat_protection",
+  "description": "Detect and remove dead NAT iptables REDIRECT rules that hijack web traffic",
+  "handler": "nat_protection",
+  "platforms": ["linux"]
+}

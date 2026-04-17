@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "dns_resolution",
+  "description": "Configure reliable DNS servers via systemd-resolved for resilient name resolution",
+  "handler": "dns_resolution",
+  "platforms": ["linux"],
+  "healthCheck": {
+    "files": ["/etc/systemd/resolved.conf.d/99-vrooli-dns.conf"]
+  }
+}

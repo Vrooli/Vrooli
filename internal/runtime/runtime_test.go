@@ -285,6 +285,11 @@ func TestRemoteSessionProtectionClassifiesUnsupportedAndNotApplicable(t *testing
 	restore := stubRuntimeLookups(t)
 	defer restore()
 
+	// Prevent desktop detection from running real systemctl
+	hostreqkit.CombinedOutputFn = func(string, ...string) ([]byte, error) {
+		return nil, errors.New("stubbed: no desktop")
+	}
+
 	hostreqkit.ReadFileFn = func(path string) ([]byte, error) {
 		switch path {
 		case remoteSessionSysctlPath:
@@ -345,6 +350,11 @@ func TestRemoteSessionProtectionClassifiesUnsupportedAndNotApplicable(t *testing
 func TestRemoteSessionProtectionApplyRunsManagedScript(t *testing.T) {
 	restore := stubRuntimeLookups(t)
 	defer restore()
+
+	// Prevent desktop detection from running real systemctl
+	hostreqkit.CombinedOutputFn = func(string, ...string) ([]byte, error) {
+		return nil, errors.New("stubbed: no desktop")
+	}
 
 	hostreqkit.LookPathFn = func(name string) (string, error) {
 		switch name {

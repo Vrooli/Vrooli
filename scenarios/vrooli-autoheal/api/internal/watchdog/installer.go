@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -90,6 +91,29 @@ func (d *Detector) verifyLoopBinaryExists() error {
 	}
 
 	return nil
+}
+
+func (d *Detector) resolveVrooliBinary() string {
+	vrooliRoot := d.resolveVrooliRoot()
+	candidates := []string{
+		filepath.Join(vrooliRoot, ".vrooli", "build", "vrooli"),
+		filepath.Join(vrooliRoot, "vrooli"),
+	}
+	if d.probe.goos() == "windows" {
+		candidates = []string{
+			filepath.Join(vrooliRoot, ".vrooli", "build", "vrooli.exe"),
+			filepath.Join(vrooliRoot, "vrooli.exe"),
+		}
+	}
+	for _, candidate := range candidates {
+		if err := d.probe.stat(candidate); err == nil {
+			return candidate
+		}
+	}
+	if path, err := exec.LookPath("vrooli"); err == nil {
+		return path
+	}
+	return "vrooli"
 }
 
 // Uninstall removes the watchdog service from the current platform
@@ -212,21 +236,21 @@ func (d *Detector) installLinux(ctx context.Context, opts InstallOptions) *Insta
 	// Reload systemd daemon
 	reloadCmdName := "systemctl"
 	enableCmdName := "systemctl"
-	startCmdName := "systemctl"
+	restartCmdName := "systemctl"
 	var reloadArgs []string
 	var enableArgs []string
-	var startArgs []string
+	var restartArgs []string
 	if opts.UseSystemService {
 		reloadCmdName = "sudo"
 		enableCmdName = "sudo"
-		startCmdName = "sudo"
+		restartCmdName = "sudo"
 		reloadArgs = []string{"systemctl", "daemon-reload"}
 		enableArgs = []string{"systemctl", "enable", "vrooli-autoheal"}
-		startArgs = []string{"systemctl", "start", "vrooli-autoheal"}
+		restartArgs = []string{"systemctl", "restart", "vrooli-autoheal"}
 	} else {
 		reloadArgs = []string{"--user", "daemon-reload"}
 		enableArgs = []string{"--user", "enable", "vrooli-autoheal"}
-		startArgs = []string{"--user", "start", "vrooli-autoheal"}
+		restartArgs = []string{"--user", "restart", "vrooli-autoheal"}
 	}
 
 	if output, err := d.probe.commandOutput(reloadCmdName, reloadArgs...); err != nil {
@@ -247,16 +271,12 @@ func (d *Detector) installLinux(ctx context.Context, opts InstallOptions) *Insta
 		}
 	}
 
-	if output, err := d.probe.commandOutput(startCmdName, startArgs...); err != nil {
-		// Start may fail if already running, which is OK
-		errStr := string(output)
-		if !strings.Contains(errStr, "already") {
-			return &InstallResult{
-				Success:     false,
-				Message:     "Service enabled but start failed",
-				ServicePath: servicePath,
-				Error:       fmt.Sprintf("%v: %s", err, errStr),
-			}
+	if output, err := d.probe.commandOutput(restartCmdName, restartArgs...); err != nil {
+		return &InstallResult{
+			Success:     false,
+			Message:     "Service enabled but restart failed",
+			ServicePath: servicePath,
+			Error:       fmt.Sprintf("%v: %s", err, string(output)),
 		}
 	}
 

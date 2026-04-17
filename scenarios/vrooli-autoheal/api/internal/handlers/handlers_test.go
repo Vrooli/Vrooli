@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/persistence"
 	"vrooli-autoheal/internal/platform"
@@ -127,6 +128,12 @@ func TestStatus(t *testing.T) {
 	if _, ok := resp["tickStartedAt"]; !ok {
 		t.Error("response should include tickStartedAt field")
 	}
+	if statusFresh, ok := resp["statusFresh"].(bool); !ok || statusFresh {
+		t.Errorf("statusFresh = %v, want false before first completed tick", resp["statusFresh"])
+	}
+	if lastCompletedTickAt, ok := resp["lastCompletedTickAt"]; !ok || lastCompletedTickAt != nil {
+		t.Errorf("lastCompletedTickAt = %v, want null before first completed tick", resp["lastCompletedTickAt"])
+	}
 }
 
 func TestStatus_IncludesActiveTickState(t *testing.T) {
@@ -150,6 +157,53 @@ func TestStatus_IncludesActiveTickState(t *testing.T) {
 
 	if startedAt, ok := resp["tickStartedAt"].(string); !ok || startedAt == "" {
 		t.Fatalf("tickStartedAt = %v, want RFC3339 timestamp string", resp["tickStartedAt"])
+	}
+}
+
+func TestStatus_ReportsFreshCompletedTick(t *testing.T) {
+	store := &mockStore{}
+	h := setupTestHandlers(store)
+
+	completed := time.Now().Add(-45 * time.Second)
+	h.tickLock.Lock()
+	h.tickEnded = completed
+	h.tickLock.Unlock()
+
+	req := httptest.NewRequest("GET", "/api/v1/status", nil)
+	w := httptest.NewRecorder()
+	h.Status(w, req)
+
+	resp := testutil.MustDecodeJSON[map[string]interface{}](t, w)
+	if statusFresh, ok := resp["statusFresh"].(bool); !ok || !statusFresh {
+		t.Fatalf("statusFresh = %v, want true", resp["statusFresh"])
+	}
+	if reason, ok := resp["statusStaleReason"].(string); !ok || reason != "" {
+		t.Fatalf("statusStaleReason = %v, want empty string", resp["statusStaleReason"])
+	}
+	if age, ok := resp["statusAgeSeconds"].(float64); !ok || age < 40 || age > 50 {
+		t.Fatalf("statusAgeSeconds = %v, want about 45", resp["statusAgeSeconds"])
+	}
+}
+
+func TestStatus_ReportsStaleCompletedTick(t *testing.T) {
+	store := &mockStore{}
+	h := setupTestHandlers(store)
+
+	completed := time.Now().Add(-5 * time.Minute)
+	h.tickLock.Lock()
+	h.tickEnded = completed
+	h.tickLock.Unlock()
+
+	req := httptest.NewRequest("GET", "/api/v1/status", nil)
+	w := httptest.NewRecorder()
+	h.Status(w, req)
+
+	resp := testutil.MustDecodeJSON[map[string]interface{}](t, w)
+	if statusFresh, ok := resp["statusFresh"].(bool); !ok || statusFresh {
+		t.Fatalf("statusFresh = %v, want false", resp["statusFresh"])
+	}
+	if reason, ok := resp["statusStaleReason"].(string); !ok || reason == "" {
+		t.Fatalf("statusStaleReason = %v, want non-empty reason", resp["statusStaleReason"])
 	}
 }
 

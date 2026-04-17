@@ -99,16 +99,18 @@ func (r *Runner) childStdoutConsole() io.Writer {
 	return io.Discard
 }
 
-// progressf emits a compact transition line to r.Out, but only at
-// VerbosityQuiet. At normal and verbose the slog lifecycle events and
-// [INFO] step headers already give the user a running picture, so
-// duplicating them here would add noise. The intent is to give quiet-mode
-// users a visible heartbeat during long setups (vite rebuilds etc.) that
-// would otherwise produce a silent 10+ second gap before the final
-// summary. Written without color codes or carriage returns so the output
-// stays CI- and log-capture-safe.
+// progressf emits a compact transition line to r.Out at VerbosityQuiet
+// and VerbosityNormal. At VerbosityVerbose the raw slog debug stream and
+// tool stdout already give a running picture, so duplicating pings here
+// would add noise. The intent is to give users a visible heartbeat during
+// long setups (vite rebuilds etc.) that would otherwise produce a silent
+// 10+ second gap before the final summary; at Normal on a TTY the
+// structured info-log stream is suppressed (see resolveQuiet in the top
+// vrooli binary) so these pings become the primary in-flight signal.
+// Written without color codes or carriage returns so the output stays
+// CI- and log-capture-safe.
 func (r *Runner) progressf(format string, args ...any) {
-	if r.Verbosity != VerbosityQuiet || r.Out == nil {
+	if r.Verbosity == VerbosityVerbose || r.Out == nil {
 		return
 	}
 	fmt.Fprintf(r.Out, format+"\n", args...)
@@ -339,6 +341,7 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 		if strictHealthy && !setupNeeded {
 			currentPorts := r.runtimePorts(item.Manifest, runtime.Records)
 			health := scenario.EvaluateHealth(item.Manifest.HealthConfig(), currentPorts)
+			r.progressf("%s is already running", item.Slug)
 			r.logInfo("Scenario already running and healthy",
 				logx.AttrScenario, item.Slug,
 				logx.AttrStatus, health,
@@ -375,6 +378,7 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 	}
 
 	if setupNeeded {
+		r.progressf("running setup phase for %s...", item.Slug)
 		r.logInfo("Executing setup phase for scenario", logx.AttrScenario, item.Slug, logx.AttrPhase, "setup")
 		if err := r.runWithLifecycleLog(item.Slug, func(logWriter, childWriter io.Writer) error {
 			_, err := r.ExecutePhaseDetailed(item, "setup", env.EnvVars, nil, logWriter, childWriter)
@@ -384,6 +388,7 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 		}
 	}
 
+	r.progressf("running develop phase for %s...", item.Slug)
 	r.logInfo("Executing develop phase for scenario", logx.AttrScenario, item.Slug, logx.AttrPhase, "develop")
 	if err := r.runWithLifecycleLog(item.Slug, func(logWriter, childWriter io.Writer) error {
 		_, err := r.ExecutePhaseDetailed(item, "develop", env.EnvVars, nil, logWriter, childWriter)
@@ -392,6 +397,7 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 		return Result{}, err
 	}
 
+	r.progressf("waiting for %s to become healthy...", item.Slug)
 	healthStatus, err := r.WaitForHealth(item, env.EnvVars)
 	if err != nil {
 		return Result{}, err
@@ -960,7 +966,7 @@ func cliNeedsSetupWithDeps(item scenario.Scenario, check scenario.ConditionCheck
 	}
 	cliPath, err := deps.lookPath(command)
 	if err != nil {
-		return true, "CLI not installed: " + command, nil
+		return true, "CLI missing: " + command, nil
 	}
 	switch item.Manifest.CLI.Adapter.Kind {
 	case "go_module":
@@ -968,12 +974,12 @@ func cliNeedsSetupWithDeps(item scenario.Scenario, check scenario.ConditionCheck
 		if anyFileNewerWithDeps(moduleDir, cliPath, deps, func(path string, d fs.DirEntry) bool {
 			return strings.HasSuffix(path, ".go")
 		}) {
-			return true, "CLI not installed: " + command, nil
+			return true, "CLI outdated: " + command + " (module source newer than installed binary)", nil
 		}
 		for _, depFile := range []string{"go.mod", "go.sum"} {
 			depPath := filepath.Join(moduleDir, depFile)
 			if info, err := deps.stat(depPath); err == nil && info.ModTime().After(getModTimeWithDeps(cliPath, deps)) {
-				return true, "CLI not installed: " + command, nil
+				return true, "CLI outdated: " + command + " (" + depFile + " newer than installed binary)", nil
 			}
 		}
 		replacePaths, err := localReplacePathsWithDeps(filepath.Join(moduleDir, "go.mod"), deps)
@@ -985,7 +991,7 @@ func cliNeedsSetupWithDeps(item scenario.Scenario, check scenario.ConditionCheck
 			if anyFileNewerWithDeps(resolved, cliPath, deps, func(path string, d fs.DirEntry) bool {
 				return strings.HasSuffix(path, ".go") || filepath.Base(path) == "go.mod"
 			}) {
-				return true, "CLI not installed: " + command, nil
+				return true, "CLI outdated: " + command + " (local replace dependency " + replacePath + " newer than installed binary)", nil
 			}
 		}
 		return false, "", nil
@@ -1003,7 +1009,7 @@ func cliNeedsSetupWithDeps(item scenario.Scenario, check scenario.ConditionCheck
 			return false, "", err
 		}
 		if newer {
-			return true, "CLI not installed: " + command, nil
+			return true, "CLI outdated: " + command + " (freshness inputs newer than installed binary)", nil
 		}
 		return false, "", nil
 	default:

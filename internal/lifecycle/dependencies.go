@@ -23,6 +23,44 @@ const (
 	resourceDependencyReadyInterval = 500 * time.Millisecond
 )
 
+func dependencyRestartReason(processCount int, healthy bool, setupNeeded bool, setupReasons []string) string {
+	reasons := make([]string, 0, 3)
+	switch {
+	case processCount == 0:
+		reasons = append(reasons, "not running")
+	case !healthy:
+		reasons = append(reasons, "unhealthy")
+	}
+	if setupNeeded {
+		if len(setupReasons) > 0 {
+			reasons = append(reasons, "setup needed: "+strings.Join(setupReasons, "; "))
+		} else {
+			reasons = append(reasons, "setup needed")
+		}
+	}
+	if len(reasons) == 0 {
+		return "state changed"
+	}
+	return strings.Join(reasons, "; ")
+}
+
+func resourceDependencyStartReason(status resourcecontrol.Status) string {
+	reasons := make([]string, 0, 3)
+	if !status.Running {
+		reasons = append(reasons, "not running")
+	}
+	if status.Healthy != nil && !*status.Healthy {
+		reasons = append(reasons, "unhealthy")
+	}
+	if strings.TrimSpace(status.StatusCode) != "" && status.StatusCode != resourcecontrol.StatusCodeOK {
+		reasons = append(reasons, "status_code="+status.StatusCode)
+	}
+	if len(reasons) == 0 {
+		return "not ready"
+	}
+	return strings.Join(reasons, "; ")
+}
+
 func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, ready map[string]struct{}, stack []string) ([]string, error) {
 	deps := r.runtimeDeps()
 	if len(item.Manifest.Dependencies.Scenarios) == 0 {
@@ -72,15 +110,29 @@ func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, r
 		}
 		dependencyRuntime := process.SummarizeScenario(dependencyName, dependencyRecords)
 		dependencyForceSetup := opts.ForceSetup && opts.ForceSetupScenario == dependencyName
-		setupNeeded, _, err := r.SetupNeeded(dependencyItem, dependencyForceSetup)
+		setupNeeded, setupReasons, err := r.SetupNeeded(dependencyItem, dependencyForceSetup)
 		if err != nil {
 			return nil, err
 		}
-		if dependencyRuntime.ProcessCount > 0 && r.isScenarioHealthyStrict(dependencyItem, dependencyRuntime.Records) && !setupNeeded {
+		strictHealthy := r.isScenarioHealthyStrict(dependencyItem, dependencyRuntime.Records)
+		if dependencyRuntime.ProcessCount > 0 && strictHealthy && !setupNeeded {
+			r.progressf("%s: dependency %s already running; reusing existing process", item.Slug, dependencyName)
 			r.logDebug("Dependency already running and healthy", logx.AttrScenario, item.Slug, logx.AttrDependency, dependencyName)
 			ready[dependencyName] = struct{}{}
 			continue
 		}
+
+		reason := dependencyRestartReason(dependencyRuntime.ProcessCount, strictHealthy, setupNeeded, setupReasons)
+		r.progressf("%s: starting dependency %s (%s)", item.Slug, dependencyName, reason)
+		r.logInfo("Dependency start required",
+			logx.AttrScenario, item.Slug,
+			logx.AttrDependency, dependencyName,
+			"reason", reason,
+			"processes", dependencyRuntime.ProcessCount,
+			"healthy", strictHealthy,
+			"setup_needed", setupNeeded,
+			"setup_reasons", setupReasons,
+		)
 
 		dependencyOpts := opts
 		dependencyOpts.CustomPath = ""
@@ -148,9 +200,21 @@ func (r *Runner) ensureResourceDependencies(item scenario.Scenario, opts StartOp
 			return nil, fmt.Errorf("status resource dependency %s: %w", resourceName, err)
 		}
 		if resourceDependencyReady(status) {
+			r.progressf("%s: resource dependency %s already running; reusing existing service", item.Slug, resourceName)
 			r.logDebug("Resource dependency already running and healthy", logx.AttrScenario, item.Slug, logx.AttrDependency, resourceName)
 			continue
 		}
+
+		reason := resourceDependencyStartReason(status)
+		r.progressf("%s: starting resource dependency %s (%s)", item.Slug, resourceName, reason)
+		r.logInfo("Resource dependency start required",
+			logx.AttrScenario, item.Slug,
+			logx.AttrDependency, resourceName,
+			"reason", reason,
+			"running", status.Running,
+			"healthy", status.Healthy,
+			"status_code", status.StatusCode,
+		)
 
 		if err := r.enforceResourceHostRequirements(resourceName); err != nil {
 			if decision.continueOnFailure {

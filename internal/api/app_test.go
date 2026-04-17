@@ -108,7 +108,7 @@ func TestStartAppLogsFailures(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	var logs bytes.Buffer
-	logger, _ := logx.New(logx.Options{Component: "vrooli-api", Writer: &logs, JSON: true})
+	logger, _ := logx.New(logx.Options{Component: "vrooli-api", Writer: &logs, Format: logx.FormatJSON})
 	originalDefault := slog.Default()
 	slog.SetDefault(logger)
 	t.Cleanup(func() { slog.SetDefault(originalDefault) })
@@ -131,7 +131,7 @@ func TestStartAppLogsFailures(t *testing.T) {
 
 func TestStartAllScenariosEndpointLogsFailures(t *testing.T) {
 	var logs bytes.Buffer
-	logger, _ := logx.New(logx.Options{Component: "vrooli-api", Writer: &logs, JSON: true})
+	logger, _ := logx.New(logx.Options{Component: "vrooli-api", Writer: &logs, Format: logx.FormatJSON})
 	app := New(t.TempDir(), t.TempDir(), logger)
 	app.StartAllScenariosFn = func() (control.StartReport, error) {
 		return control.StartReport{}, errors.New("boom")

@@ -155,22 +155,27 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 			func(ctx C, args []string) (StartRequest, error) {
 				return ParseStartRequest(deps.Globals(ctx).JSON, args)
 			},
-			func(ctx C, req StartRequest) (cliout.Format, []LifecycleItemOutput, error) {
-				if err := ensureScenarioCLIs(deps, ctx, req.Names...); err != nil {
-					return "", nil, err
-				}
-				format, err := deps.OutputFormat(ctx)
-				if err != nil {
-					return "", nil, err
-				}
-				ops, err := deps.ScenarioOperations(ctx)
-				if err != nil {
-					return "", nil, err
-				}
-				service := NewStartService(ops, func(url string) error { return deps.OpenURL(ctx, url) })
-				items, err := service.Start(scenarioapp.StartRequest(req))
-				return format, toCLILifecycleItems(items), err
-			},
+			withLifecycleFailureBlock(
+				deps,
+				"start",
+				func(req StartRequest) []string { return append([]string(nil), req.Names...) },
+				func(ctx C, req StartRequest) (cliout.Format, []LifecycleItemOutput, error) {
+					if err := ensureScenarioCLIs(deps, ctx, req.Names...); err != nil {
+						return "", nil, err
+					}
+					format, err := deps.OutputFormat(ctx)
+					if err != nil {
+						return "", nil, err
+					}
+					ops, err := deps.ScenarioOperations(ctx)
+					if err != nil {
+						return "", nil, err
+					}
+					service := NewStartService(ops, func(url string) error { return deps.OpenURL(ctx, url) })
+					items, err := service.Start(scenarioapp.StartRequest(req))
+					return format, toCLILifecycleItems(items), err
+				},
+			),
 			WriteLifecycleItems,
 		),
 		CommandStartAll: bindGlobal(deps.Stdout,
@@ -218,39 +223,49 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 			func(ctx C, args []string) (RestartRequest, error) {
 				return ParseRestartRequest(deps.Globals(ctx).JSON, args)
 			},
-			func(ctx C, req RestartRequest) (cliout.Format, []LifecycleItemOutput, error) {
-				if err := ensureScenarioCLIs(deps, ctx, req.Name); err != nil {
-					return "", nil, err
-				}
-				format, err := deps.OutputFormat(ctx)
-				if err != nil {
-					return "", nil, err
-				}
-				ops, err := deps.ScenarioOperations(ctx)
-				if err != nil {
-					return "", nil, err
-				}
-				service := NewStartService(ops, func(url string) error { return deps.OpenURL(ctx, url) })
-				items, err := service.Restart(scenarioapp.RestartRequest(req))
-				return format, toCLILifecycleItems(items), err
-			},
+			withLifecycleFailureBlock(
+				deps,
+				"restart",
+				func(req RestartRequest) []string { return []string{req.Name} },
+				func(ctx C, req RestartRequest) (cliout.Format, []LifecycleItemOutput, error) {
+					if err := ensureScenarioCLIs(deps, ctx, req.Name); err != nil {
+						return "", nil, err
+					}
+					format, err := deps.OutputFormat(ctx)
+					if err != nil {
+						return "", nil, err
+					}
+					ops, err := deps.ScenarioOperations(ctx)
+					if err != nil {
+						return "", nil, err
+					}
+					service := NewStartService(ops, func(url string) error { return deps.OpenURL(ctx, url) })
+					items, err := service.Restart(scenarioapp.RestartRequest(req))
+					return format, toCLILifecycleItems(items), err
+				},
+			),
 			WriteLifecycleItems,
 		),
 		CommandStop: bindGlobal(deps.Stdout,
 			func(ctx C, args []string) (StopRequest, error) { return ParseStopRequest(deps.Globals(ctx).JSON, args) },
-			func(ctx C, req StopRequest) (cliout.Format, []LifecycleItemOutput, error) {
-				format, err := deps.OutputFormat(ctx)
-				if err != nil {
-					return "", nil, err
-				}
-				runner, err := deps.LifecycleRunner(ctx)
-				if err != nil {
-					return "", nil, err
-				}
-				service := NewRunnerService(runner)
-				items, err := service.Stop(scenarioapp.StopRequest(req))
-				return format, toCLILifecycleItems(items), err
-			},
+			withLifecycleFailureBlock(
+				deps,
+				"stop",
+				func(req StopRequest) []string { return []string{req.Name} },
+				func(ctx C, req StopRequest) (cliout.Format, []LifecycleItemOutput, error) {
+					format, err := deps.OutputFormat(ctx)
+					if err != nil {
+						return "", nil, err
+					}
+					runner, err := deps.LifecycleRunner(ctx)
+					if err != nil {
+						return "", nil, err
+					}
+					service := NewRunnerService(runner)
+					items, err := service.Stop(scenarioapp.StopRequest(req))
+					return format, toCLILifecycleItems(items), err
+				},
+			),
 			WriteLifecycleItems,
 		),
 		CommandStopAll: bindGlobal(deps.Stdout,

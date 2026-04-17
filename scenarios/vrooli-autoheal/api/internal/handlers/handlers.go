@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/persistence"
 	"vrooli-autoheal/internal/platform"
@@ -19,6 +20,8 @@ import (
 
 	apierrors "vrooli-autoheal/internal/errors"
 )
+
+const statusFreshnessThreshold = 3 * time.Minute
 
 // StoreInterface defines the database operations needed by handlers
 type StoreInterface interface {
@@ -47,6 +50,7 @@ type Handlers struct {
 	tickLock    sync.Mutex
 	tickRunning bool
 	tickStarted time.Time
+	tickEnded   time.Time
 }
 
 func (h *Handlers) getTickState() (bool, *time.Time) {
@@ -63,6 +67,18 @@ func (h *Handlers) getTickState() (bool, *time.Time) {
 
 	started := h.tickStarted.UTC()
 	return true, &started
+}
+
+func (h *Handlers) getLastCompletedTick() *time.Time {
+	h.tickLock.Lock()
+	defer h.tickLock.Unlock()
+
+	if h.tickEnded.IsZero() {
+		return nil
+	}
+
+	completed := h.tickEnded.UTC()
+	return &completed
 }
 
 // New creates a new Handlers instance
@@ -124,12 +140,19 @@ func (h *Handlers) Platform(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) Status(w http.ResponseWriter, r *http.Request) {
 	summary := h.registry.GetSummary()
 	tickRunning, tickStartedAt := h.getTickState()
+	lastCompletedTickAt := h.getLastCompletedTick()
+	statusFresh, statusAgeSeconds, staleReason := evaluateStatusFreshness(lastCompletedTickAt, time.Now())
 
 	response := map[string]interface{}{
-		"status":        summary.Status,
-		"platform":      h.platform,
-		"tickRunning":   tickRunning,
-		"tickStartedAt": tickStartedAt,
+		"status":                          summary.Status,
+		"platform":                        h.platform,
+		"tickRunning":                     tickRunning,
+		"tickStartedAt":                   tickStartedAt,
+		"lastCompletedTickAt":             lastCompletedTickAt,
+		"statusFresh":                     statusFresh,
+		"statusAgeSeconds":                statusAgeSeconds,
+		"statusFreshnessThresholdSeconds": int(statusFreshnessThreshold.Seconds()),
+		"statusStaleReason":               staleReason,
 		"summary": map[string]interface{}{
 			"total":    summary.TotalCount,
 			"ok":       summary.OkCount,
@@ -179,6 +202,7 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 		h.tickLock.Lock()
 		h.tickRunning = false
 		h.tickStarted = time.Time{}
+		h.tickEnded = time.Now()
 		h.tickLock.Unlock()
 	}()
 
@@ -280,6 +304,24 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		apierrors.LogError("tick", "encode_response", err)
 	}
+}
+
+func evaluateStatusFreshness(lastCompletedTickAt *time.Time, now time.Time) (bool, int64, string) {
+	if lastCompletedTickAt == nil || lastCompletedTickAt.IsZero() {
+		return false, 0, "no completed tick recorded"
+	}
+
+	age := now.Sub(*lastCompletedTickAt)
+	if age < 0 {
+		age = 0
+	}
+	ageSeconds := int64(age / time.Second)
+
+	if age > statusFreshnessThreshold {
+		return false, ageSeconds, fmt.Sprintf("last completed tick is older than %s", statusFreshnessThreshold)
+	}
+
+	return true, ageSeconds, ""
 }
 
 // ListChecks returns all registered checks

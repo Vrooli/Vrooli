@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
 	"vrooli-autoheal/internal/platform"
 )
 
@@ -540,6 +541,9 @@ func TestGetSystemdTemplateForService_UserServiceOmitsUserDirective(t *testing.T
 	if !strings.Contains(template, "WantedBy=default.target") {
 		t.Fatalf("expected user service WantedBy=default.target:\n%s", template)
 	}
+	if !strings.Contains(template, "Environment=VROOLI_BIN=") {
+		t.Fatalf("expected user service to include VROOLI_BIN pinning:\n%s", template)
+	}
 }
 
 func TestGetSystemdTemplateForService_SystemServiceUsesRootAndMultiUserTarget(t *testing.T) {
@@ -555,6 +559,9 @@ func TestGetSystemdTemplateForService_SystemServiceUsesRootAndMultiUserTarget(t 
 	}
 	if !strings.Contains(template, "WantedBy=multi-user.target") {
 		t.Fatalf("expected system service WantedBy=multi-user.target:\n%s", template)
+	}
+	if !strings.Contains(template, "Environment=VROOLI_BIN=") {
+		t.Fatalf("expected system service to include VROOLI_BIN pinning:\n%s", template)
 	}
 }
 

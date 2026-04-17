@@ -1,14 +1,16 @@
 {
   "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
   "name": "remote_session_protection",
-  "description": "Linux sysctl and systemd hardening for remote GUI/SSH sessions",
+  "description": "Linux sysctl, systemd, cgroup, and swap hardening for remote GUI/SSH sessions with desktop-aware memory protection",
   "handler": "remote_session_protection",
   "platforms": ["linux"],
   "healthCheck": {
     "files": [
       "/etc/sysctl.d/99-vrooli-remote-session-protection.conf",
       "/etc/systemd/system/user@.service.d/90-vrooli-remote-session-protection.conf",
-      "/etc/systemd/logind.conf.d/90-vrooli-remote-session-protection.conf"
+      "/etc/systemd/logind.conf.d/90-vrooli-remote-session-protection.conf",
+      "/etc/systemd/system/user-1000.slice.d/50-memory-protect.conf",
+      "/etc/systemd/system/workload.slice"
     ]
   }
 }

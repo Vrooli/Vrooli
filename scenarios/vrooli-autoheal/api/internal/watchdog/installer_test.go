@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+
 	"vrooli-autoheal/internal/platform"
 )
 
@@ -349,7 +350,7 @@ func TestInstallLinux_UserService_UsesProbeSideEffectSeam(t *testing.T) {
 	probe.stats["/var/lib/systemd/linger/tester"] = nil
 	probe.commandOutputs[commandKey("systemctl", "--user", "daemon-reload")] = fakeCommandResult{}
 	probe.commandOutputs[commandKey("systemctl", "--user", "enable", "vrooli-autoheal")] = fakeCommandResult{}
-	probe.commandOutputs[commandKey("systemctl", "--user", "start", "vrooli-autoheal")] = fakeCommandResult{}
+	probe.commandOutputs[commandKey("systemctl", "--user", "restart", "vrooli-autoheal")] = fakeCommandResult{}
 
 	d := detectorWithProbe(plat, probe)
 	result := d.Install(context.Background(), InstallOptions{})
@@ -366,6 +367,9 @@ func TestInstallLinux_UserService_UsesProbeSideEffectSeam(t *testing.T) {
 	if strings.Contains(string(probe.writtenFiles[servicePath]), "\nUser=") {
 		t.Fatalf("user service file should not contain User directive:\n%s", string(probe.writtenFiles[servicePath]))
 	}
+	if !strings.Contains(string(probe.writtenFiles[servicePath]), "Environment=VROOLI_BIN=") {
+		t.Fatalf("expected user service to pin VROOLI_BIN:\n%s", string(probe.writtenFiles[servicePath]))
+	}
 }
 
 func TestInstallLinux_SystemService_WritesRootUnitAndReinstallIsIdempotent(t *testing.T) {
@@ -381,7 +385,7 @@ func TestInstallLinux_SystemService_WritesRootUnitAndReinstallIsIdempotent(t *te
 	probe.stats["/workspace/Vrooli/scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop"] = nil
 	probe.commandOutputs[commandKey("sudo", "systemctl", "daemon-reload")] = fakeCommandResult{}
 	probe.commandOutputs[commandKey("sudo", "systemctl", "enable", "vrooli-autoheal")] = fakeCommandResult{}
-	probe.commandOutputs[commandKey("sudo", "systemctl", "start", "vrooli-autoheal")] = fakeCommandResult{}
+	probe.commandOutputs[commandKey("sudo", "systemctl", "restart", "vrooli-autoheal")] = fakeCommandResult{}
 
 	d := detectorWithProbe(plat, probe)
 	template := d.getSystemdTemplateForService(true)
@@ -429,7 +433,7 @@ func TestInstallLinux_UserService_ReportsIncompleteBootProtectionWithoutLingerin
 	}
 	probe.commandOutputs[commandKey("systemctl", "--user", "daemon-reload")] = fakeCommandResult{}
 	probe.commandOutputs[commandKey("systemctl", "--user", "enable", "vrooli-autoheal")] = fakeCommandResult{}
-	probe.commandOutputs[commandKey("systemctl", "--user", "start", "vrooli-autoheal")] = fakeCommandResult{}
+	probe.commandOutputs[commandKey("systemctl", "--user", "restart", "vrooli-autoheal")] = fakeCommandResult{}
 
 	d := detectorWithProbe(plat, probe)
 	result := d.Install(context.Background(), InstallOptions{UseSystemService: false})

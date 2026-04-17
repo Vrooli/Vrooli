@@ -1,12 +1,17 @@
 package remotesessionprotection
 
 import (
+	"encoding/json"
+	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
+
+// ── Static protection files (always applied on Linux with sysctl/systemd) ────
 
 const (
 	sysctlPath    = "/etc/sysctl.d/99-vrooli-remote-session-protection.conf"
@@ -19,6 +24,42 @@ const (
 	logindContent = "[Login]\nKillUserProcesses=no\n"
 )
 
+// ── Desktop-aware protection files (applied when GUI/remote desktop detected) ─
+
+const (
+	desktopMinPercent   = 15
+	desktopMinMB        = 4096
+	desktopBufferMB     = 2048
+	workloadHighPercent = 85
+	workloadMaxPercent  = 95
+	maxSwapGB           = 64
+	swapFile            = "/swapfile"
+	desktopUID          = 1000
+
+	desktopSliceDir   = "/etc/systemd/system/user-1000.slice.d"
+	desktopSlicePath  = "/etc/systemd/system/user-1000.slice.d/50-memory-protect.conf"
+	workloadSlicePath = "/etc/systemd/system/workload.slice"
+	dockerDaemonJSON  = "/etc/docker/daemon.json"
+
+	procMeminfo = "/proc/meminfo"
+)
+
+// display managers and GUI processes checked for desktop detection
+var (
+	displayManagers = []string{"gdm3", "gdm", "lightdm", "sddm", "xdm", "xrdp"}
+	guiProcesses    = []string{"Xorg", "Xwayland", "gnome-shell", "kde", "xfce"}
+)
+
+// memoryAllocation holds computed thresholds derived from system RAM.
+type memoryAllocation struct {
+	systemMB       int
+	desktopMinMB   int
+	desktopLowMB   int
+	workloadHighMB int
+	workloadMaxMB  int
+	targetSwapGB   int
+}
+
 type handler struct {
 	manifest hostreqkit.SafeguardManifest
 }
@@ -29,6 +70,8 @@ func NewHandler(manifest hostreqkit.SafeguardManifest) hostreqkit.Handler {
 
 func (h handler) Name() string           { return h.manifest.Name }
 func (h handler) Kind() hostreqspec.Kind { return hostreqspec.KindSafeguard }
+
+// ── Inspect ──────────────────────────────────────────────────────────────────
 
 func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedRequirement) hostreqkit.ItemStatus {
 	status := hostreqkit.BaseStatus(requirement)
@@ -51,7 +94,29 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		return status
 	}
 
-	pending := make([]string, 0, 3)
+	pending := inspectStaticFiles(host)
+	desktopPending := inspectDesktopProtection(host)
+	pending = append(pending, desktopPending...)
+
+	if len(pending) == 0 {
+		status.Applied = true
+		status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
+		status.Notes = append(status.Notes, "all remote session protection files are present and match the managed Vrooli configuration")
+		return status
+	}
+
+	if host.SupportsSysctl {
+		status.Notes = append(status.Notes, "will manage Linux memory-pressure defaults via "+sysctlPath)
+	}
+	if host.SupportsSystemd {
+		status.Notes = append(status.Notes, "will protect user sessions with managed systemd overrides")
+	}
+	status.Notes = append(status.Notes, "pending managed files: "+strings.Join(pending, ", "))
+	return status
+}
+
+func inspectStaticFiles(host hostreqkit.Host) []string {
+	var pending []string
 	if host.SupportsSysctl {
 		if !hostreqkit.FileContentMatches(sysctlPath, sysctlContent) {
 			pending = append(pending, sysctlPath)
@@ -65,22 +130,52 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 			pending = append(pending, logindPath)
 		}
 	}
-	if len(pending) == 0 {
-		status.Applied = true
-		status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
-		status.Notes = append(status.Notes, "remote session protection files are present and match the managed Vrooli configuration")
-		return status
+	return pending
+}
+
+func inspectDesktopProtection(host hostreqkit.Host) []string {
+	if !host.SupportsSystemd {
+		return nil
+	}
+	if !isDesktopInstalled() {
+		return nil
 	}
 
-	if host.SupportsSysctl {
-		status.Notes = append(status.Notes, "will manage Linux memory-pressure defaults via "+sysctlPath)
+	alloc, err := calculateMemory()
+	if err != nil {
+		return []string{"(unable to read " + procMeminfo + ")"}
 	}
-	if host.SupportsSystemd {
-		status.Notes = append(status.Notes, "will protect user sessions with managed systemd overrides")
+
+	var pending []string
+
+	// Desktop slice
+	want := desktopSliceContent(alloc)
+	if !hostreqkit.FileContentMatches(desktopSlicePath, want) {
+		pending = append(pending, desktopSlicePath)
 	}
-	status.Notes = append(status.Notes, "pending managed files: "+strings.Join(pending, ", "))
-	return status
+
+	// Workload slice
+	if !hostreqkit.FileContentMatches(workloadSlicePath, workloadSliceContent()) {
+		pending = append(pending, workloadSlicePath)
+	}
+
+	// Swap sufficiency
+	currentSwapGB := readCurrentSwapGB()
+	if currentSwapGB < alloc.targetSwapGB {
+		pending = append(pending, swapFile)
+	}
+
+	// Docker config (only when Docker is installed)
+	if hostreqkit.CommandAvailable("docker") {
+		if !dockerConfigApplied() {
+			pending = append(pending, dockerDaemonJSON)
+		}
+	}
+
+	return pending
 }
+
+// ── Apply ────────────────────────────────────────────────────────────────────
 
 func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts hostreqkit.EnsureOptions) (hostreqkit.ItemStatus, error) {
 	switch status.SupportClass {
@@ -105,48 +200,18 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		return status, nil
 	}
 
-	if host.SupportsSysctl {
-		if err := hostreqkit.EnsureManagedDir(filepath.Dir(sysctlPath), opts.SudoMode, opts); err != nil {
-			status.ExecutionState = hostreqkit.ExecutionFailed
-			status.Notes = append(status.Notes, err.Error())
-			return status, nil
-		}
-		if err := hostreqkit.InstallManagedContent(sysctlPath, sysctlContent, opts.SudoMode, opts); err != nil {
-			status.ExecutionState = hostreqkit.ExecutionFailed
-			status.Notes = append(status.Notes, err.Error())
-			return status, nil
-		}
-		if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "sysctl", []string{"-p", sysctlPath}, opts); err != nil {
-			status.ExecutionState = hostreqkit.ExecutionFailed
-			status.Notes = append(status.Notes, err.Error())
-			return status, nil
-		}
+	// Phase 1: static sysctl + systemd files (always)
+	if err := applyStaticFiles(host, opts); err != nil {
+		status.ExecutionState = hostreqkit.ExecutionFailed
+		status.Notes = append(status.Notes, err.Error())
+		return status, nil
 	}
-	if host.SupportsSystemd {
-		for _, dir := range []string{systemdDir, logindDir} {
-			if err := hostreqkit.EnsureManagedDir(dir, opts.SudoMode, opts); err != nil {
-				status.ExecutionState = hostreqkit.ExecutionFailed
-				status.Notes = append(status.Notes, err.Error())
-				return status, nil
-			}
-		}
-		for _, file := range []struct {
-			path    string
-			content string
-		}{
-			{path: systemdPath, content: unitContent},
-			{path: logindPath, content: logindContent},
-		} {
-			if err := hostreqkit.InstallManagedContent(file.path, file.content, opts.SudoMode, opts); err != nil {
-				status.ExecutionState = hostreqkit.ExecutionFailed
-				status.Notes = append(status.Notes, err.Error())
-				return status, nil
-			}
-		}
-		if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "systemctl", []string{"daemon-reload"}, opts); err != nil {
-			status.ExecutionState = hostreqkit.ExecutionFailed
-			status.Notes = append(status.Notes, err.Error())
-			return status, nil
+
+	// Phase 2: desktop-aware memory protection (when GUI detected)
+	if host.SupportsSystemd && isDesktopInstalled() {
+		if err := applyDesktopProtection(host, opts); err != nil {
+			// Desktop protection is best-effort; don't fail the entire safeguard
+			status.Notes = append(status.Notes, "desktop protection partially applied: "+err.Error())
 		}
 	}
 
@@ -155,4 +220,321 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 	status.Notes = append(status.Notes, "applied managed sysctl and systemd safeguards for remote Linux sessions")
 	status.Notes = append(status.Notes, "existing login sessions may need to reconnect before all systemd protections take effect")
 	return status, nil
+}
+
+func applyStaticFiles(host hostreqkit.Host, opts hostreqkit.EnsureOptions) error {
+	if host.SupportsSysctl {
+		if err := hostreqkit.EnsureManagedDir(filepath.Dir(sysctlPath), opts.SudoMode, opts); err != nil {
+			return fmt.Errorf("create sysctl dir: %w", err)
+		}
+		if err := hostreqkit.InstallManagedContent(sysctlPath, sysctlContent, opts.SudoMode, opts); err != nil {
+			return fmt.Errorf("install sysctl config: %w", err)
+		}
+		if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "sysctl", []string{"-p", sysctlPath}, opts); err != nil {
+			return fmt.Errorf("apply sysctl: %w", err)
+		}
+	}
+	if host.SupportsSystemd {
+		for _, dir := range []string{systemdDir, logindDir} {
+			if err := hostreqkit.EnsureManagedDir(dir, opts.SudoMode, opts); err != nil {
+				return fmt.Errorf("create dir %s: %w", dir, err)
+			}
+		}
+		for _, file := range []struct {
+			path    string
+			content string
+		}{
+			{systemdPath, unitContent},
+			{logindPath, logindContent},
+		} {
+			if err := hostreqkit.InstallManagedContent(file.path, file.content, opts.SudoMode, opts); err != nil {
+				return fmt.Errorf("install %s: %w", file.path, err)
+			}
+		}
+		if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "systemctl", []string{"daemon-reload"}, opts); err != nil {
+			return fmt.Errorf("systemctl daemon-reload: %w", err)
+		}
+	}
+	return nil
+}
+
+func applyDesktopProtection(host hostreqkit.Host, opts hostreqkit.EnsureOptions) error {
+	alloc, err := calculateMemory()
+	if err != nil {
+		return fmt.Errorf("calculate memory: %w", err)
+	}
+
+	// 1. Swap
+	if err := ensureSwap(alloc, opts); err != nil {
+		return fmt.Errorf("configure swap: %w", err)
+	}
+
+	// 2. Desktop slice
+	if err := hostreqkit.EnsureManagedDir(desktopSliceDir, opts.SudoMode, opts); err != nil {
+		return fmt.Errorf("create desktop slice dir: %w", err)
+	}
+	if err := hostreqkit.InstallManagedContent(desktopSlicePath, desktopSliceContent(alloc), opts.SudoMode, opts); err != nil {
+		return fmt.Errorf("install desktop slice config: %w", err)
+	}
+
+	// Apply to running cgroup v2 if available (best-effort)
+	cgroupPath := fmt.Sprintf("/sys/fs/cgroup/user.slice/user-%d.slice", desktopUID)
+	minBytes := strconv.Itoa(alloc.desktopMinMB * 1024 * 1024)
+	lowBytes := strconv.Itoa(alloc.desktopLowMB * 1024 * 1024)
+	// Ignore errors — cgroup may not exist yet
+	_ = hostreqkit.InstallManagedContent(cgroupPath+"/memory.min", minBytes+"\n", opts.SudoMode, opts)
+	_ = hostreqkit.InstallManagedContent(cgroupPath+"/memory.low", lowBytes+"\n", opts.SudoMode, opts)
+
+	// 3. Workload slice
+	if err := hostreqkit.InstallManagedContent(workloadSlicePath, workloadSliceContent(), opts.SudoMode, opts); err != nil {
+		return fmt.Errorf("install workload slice: %w", err)
+	}
+
+	// 4. Docker daemon.json (only if Docker is installed)
+	if hostreqkit.CommandAvailable("docker") {
+		if err := applyDockerConfig(opts); err != nil {
+			// Docker config is best-effort — don't fail desktop protection
+			return nil
+		}
+	}
+
+	// Final daemon-reload to pick up new slices
+	_ = hostreqkit.RunPrivilegedCommand(opts.SudoMode, "systemctl", []string{"daemon-reload"}, opts)
+
+	return nil
+}
+
+// ── Desktop detection ────────────────────────────────────────────────────────
+
+func isDesktopInstalled() bool {
+	// Check for display manager systemd units
+	out, err := hostreqkit.CombinedOutputFn("systemctl", "list-unit-files", "--no-pager", "--no-legend")
+	if err == nil {
+		units := string(out)
+		for _, dm := range displayManagers {
+			if strings.Contains(units, dm+".service") {
+				return true
+			}
+		}
+	}
+
+	// Check for running GUI processes
+	for _, proc := range guiProcesses {
+		if _, err := hostreqkit.CombinedOutputFn("pgrep", "-x", proc); err == nil {
+			return true
+		}
+	}
+
+	return false
+}
+
+// ── Memory calculation ───────────────────────────────────────────────────────
+
+func calculateMemory() (memoryAllocation, error) {
+	data, err := hostreqkit.ReadFileFn(procMeminfo)
+	if err != nil {
+		return memoryAllocation{}, fmt.Errorf("read %s: %w", procMeminfo, err)
+	}
+	memKB := parseMeminfoField(string(data), "MemTotal")
+	if memKB == 0 {
+		return memoryAllocation{}, fmt.Errorf("could not parse MemTotal from %s", procMeminfo)
+	}
+
+	memMB := memKB / 1024
+
+	dMin := memMB * desktopMinPercent / 100
+	if dMin < desktopMinMB {
+		dMin = desktopMinMB
+	}
+	dLow := dMin + desktopBufferMB
+
+	wHigh := memMB * workloadHighPercent / 100
+	wMax := memMB * workloadMaxPercent / 100
+
+	swapGB := memMB / 1024
+	if swapGB > maxSwapGB {
+		swapGB = maxSwapGB
+	}
+
+	return memoryAllocation{
+		systemMB:       memMB,
+		desktopMinMB:   dMin,
+		desktopLowMB:   dLow,
+		workloadHighMB: wHigh,
+		workloadMaxMB:  wMax,
+		targetSwapGB:   swapGB,
+	}, nil
+}
+
+func parseMeminfoField(content, field string) int {
+	for _, line := range strings.Split(content, "\n") {
+		if !strings.HasPrefix(line, field+":") {
+			continue
+		}
+		parts := strings.Fields(line)
+		if len(parts) < 2 {
+			continue
+		}
+		val, err := strconv.Atoi(parts[1])
+		if err != nil {
+			continue
+		}
+		return val
+	}
+	return 0
+}
+
+func readCurrentSwapGB() int {
+	data, err := hostreqkit.ReadFileFn(procMeminfo)
+	if err != nil {
+		return 0
+	}
+	swapKB := parseMeminfoField(string(data), "SwapTotal")
+	return swapKB / 1024 / 1024
+}
+
+// ── Content generators ───────────────────────────────────────────────────────
+
+func desktopSliceContent(alloc memoryAllocation) string {
+	return fmt.Sprintf(`[Slice]
+# Vrooli Remote Session Protection
+# Hard reservation: cannot be reclaimed under memory pressure
+MemoryMin=%dM
+# Soft preference: try to keep at least this much
+MemoryLow=%dM
+# Don't kill desktop processes first
+ManagedOOMPreference=omit
+`, alloc.desktopMinMB, alloc.desktopLowMB)
+}
+
+func workloadSliceContent() string {
+	return fmt.Sprintf(`[Unit]
+Description=Slice for batch jobs and AI workloads
+Documentation=https://github.com/Vrooli/Vrooli
+
+[Slice]
+# Start throttling at high watermark
+MemoryHigh=%d%%
+# Hard cap at maximum
+MemoryMax=%d%%
+# Prefer killing workload processes under pressure
+ManagedOOMMemoryPressure=kill
+ManagedOOMMemoryPressureLimit=60%%
+# Lower OOM score preference (kill these first)
+ManagedOOMPreference=avoid
+`, workloadHighPercent, workloadMaxPercent)
+}
+
+// ── Swap management ──────────────────────────────────────────────────────────
+
+func ensureSwap(alloc memoryAllocation, opts hostreqkit.EnsureOptions) error {
+	currentGB := readCurrentSwapGB()
+	if currentGB >= alloc.targetSwapGB {
+		return nil
+	}
+
+	target := strconv.Itoa(alloc.targetSwapGB)
+
+	// Disable existing swap file if present
+	_ = hostreqkit.RunPrivilegedCommand(opts.SudoMode, "swapoff", []string{swapFile}, opts)
+
+	// Try fallocate first, fall back to dd
+	err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "fallocate", []string{"-l", target + "G", swapFile}, opts)
+	if err != nil {
+		err = hostreqkit.RunPrivilegedCommand(opts.SudoMode, "dd", []string{
+			"if=/dev/zero", "of=" + swapFile, "bs=1G", "count=" + target, "status=none",
+		}, opts)
+		if err != nil {
+			return fmt.Errorf("create swap file: %w", err)
+		}
+	}
+
+	if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "chmod", []string{"600", swapFile}, opts); err != nil {
+		return fmt.Errorf("chmod swap file: %w", err)
+	}
+	if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "mkswap", []string{swapFile}, opts); err != nil {
+		return fmt.Errorf("mkswap: %w", err)
+	}
+
+	// Add to fstab if not already there
+	fstab, _ := hostreqkit.ReadFileFn("/etc/fstab")
+	if !strings.Contains(string(fstab), swapFile) {
+		fstabLine := swapFile + " none swap sw 0 0\n"
+		if err := hostreqkit.InstallManagedContent("/etc/fstab.vrooli-swap", fstabLine, opts.SudoMode, opts); err == nil {
+			// Append via shell to preserve existing fstab
+			_ = hostreqkit.RunPrivilegedCommand(opts.SudoMode, "sh", []string{
+				"-c", "cat /etc/fstab.vrooli-swap >> /etc/fstab && rm -f /etc/fstab.vrooli-swap",
+			}, opts)
+		}
+	}
+
+	_ = hostreqkit.RunPrivilegedCommand(opts.SudoMode, "swapon", []string{swapFile}, opts)
+	return nil
+}
+
+// ── Docker daemon.json ───────────────────────────────────────────────────────
+
+func dockerConfigApplied() bool {
+	data, err := hostreqkit.ReadFileFn(dockerDaemonJSON)
+	if err != nil {
+		return false
+	}
+	var cfg map[string]interface{}
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return false
+	}
+	parent, _ := cfg["default-cgroup-parent"].(string)
+	if parent != "workload.slice" {
+		return false
+	}
+	execOpts, ok := cfg["exec-opts"].([]interface{})
+	if !ok {
+		return false
+	}
+	for _, opt := range execOpts {
+		if s, ok := opt.(string); ok && s == "native.cgroupdriver=systemd" {
+			return true
+		}
+	}
+	return false
+}
+
+func applyDockerConfig(opts hostreqkit.EnsureOptions) error {
+	cfg := make(map[string]interface{})
+	data, err := hostreqkit.ReadFileFn(dockerDaemonJSON)
+	if err == nil {
+		_ = json.Unmarshal(data, &cfg)
+	}
+
+	// Merge exec-opts
+	execOpts := []string{}
+	if existing, ok := cfg["exec-opts"].([]interface{}); ok {
+		for _, v := range existing {
+			if s, ok := v.(string); ok && s != "native.cgroupdriver=systemd" {
+				execOpts = append(execOpts, s)
+			}
+		}
+	}
+	execOpts = append(execOpts, "native.cgroupdriver=systemd")
+	cfg["exec-opts"] = execOpts
+	cfg["default-cgroup-parent"] = "workload.slice"
+
+	output, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal docker config: %w", err)
+	}
+
+	if err := hostreqkit.EnsureManagedDir(filepath.Dir(dockerDaemonJSON), opts.SudoMode, opts); err != nil {
+		return fmt.Errorf("create docker config dir: %w", err)
+	}
+	if err := hostreqkit.InstallManagedContent(dockerDaemonJSON, string(output)+"\n", opts.SudoMode, opts); err != nil {
+		return fmt.Errorf("install docker daemon.json: %w", err)
+	}
+
+	// Restart Docker if running
+	if _, err := hostreqkit.CombinedOutputFn("systemctl", "is-active", "docker"); err == nil {
+		_ = hostreqkit.RunPrivilegedCommand(opts.SudoMode, "systemctl", []string{"restart", "docker"}, opts)
+	}
+
+	return nil
 }

@@ -45,6 +45,16 @@ type Config struct {
 	VrooliCmdPath       string
 }
 
+type scenarioStatusResponse struct {
+	Success  bool `json:"success"`
+	Scenario struct {
+		Ports map[string]int `json:"ports"`
+	} `json:"scenario"`
+	Runtime struct {
+		Ports map[string]int `json:"ports"`
+	} `json:"runtime"`
+}
+
 // TickResponse represents the API response from /tick
 type TickResponse struct {
 	Success bool   `json:"success"`
@@ -63,6 +73,7 @@ func main() {
 	apiURL := flag.String("api-url", "", "API base URL (auto-detected if not specified)")
 	maxFailures := flag.Int("max-failures", 3, "Max consecutive failures before restart")
 	noManageAPI := flag.Bool("no-manage-api", false, "Disable API lifecycle management")
+	vrooliBin := flag.String("vrooli-bin", "", "Path to the vrooli CLI to use for lifecycle operations")
 	flag.Parse()
 
 	config := &Config{
@@ -82,7 +93,7 @@ func main() {
 	}
 
 	// Find vrooli command
-	config.VrooliCmdPath = findVrooliCommand(config)
+	config.VrooliCmdPath = findVrooliCommand(config, strings.TrimSpace(*vrooliBin))
 
 	log.Printf("Vrooli Autoheal Loop starting...")
 	log.Printf("  VROOLI_ROOT: %s", config.VrooliRoot)
@@ -231,7 +242,19 @@ func resolveVrooliRoot() string {
 }
 
 // findVrooliCommand locates the vrooli CLI
-func findVrooliCommand(config *Config) string {
+func findVrooliCommand(config *Config, explicitPath string) string {
+	if explicitPath != "" {
+		if _, err := os.Stat(explicitPath); err == nil {
+			return explicitPath
+		}
+		log.Printf("Configured vrooli binary not found: %s", explicitPath)
+	}
+	if envPath := strings.TrimSpace(os.Getenv("VROOLI_BIN")); envPath != "" {
+		if _, err := os.Stat(envPath); err == nil {
+			return envPath
+		}
+		log.Printf("VROOLI_BIN points to a missing file: %s", envPath)
+	}
 	switch runtime.GOOS {
 	case "windows":
 		for _, candidate := range []string{
@@ -301,8 +324,10 @@ func detectAPIPort(config *Config) string {
 
 	// Strategy 3: Try to get port from vrooli CLI
 	if config.VrooliCmdPath != "" {
-		port := getPortFromVrooliCLI(config)
-		if port != "" {
+		if port := getPortFromScenarioStatus(config); port != "" {
+			return port
+		}
+		if port := getPortFromVrooliCLI(config); port != "" {
 			return port
 		}
 	}
@@ -386,6 +411,54 @@ func getPortFromVrooliCLI(config *Config) string {
 		return port
 	}
 
+	return ""
+}
+
+func getPortFromScenarioStatus(config *Config) string {
+	var cmd *exec.Cmd
+
+	switch runtime.GOOS {
+	case "windows":
+		if strings.HasSuffix(config.VrooliCmdPath, ".bat") {
+			cmd = exec.Command(config.VrooliCmdPath, "scenario", "status", config.ScenarioName, "--json")
+		} else {
+			cmd = exec.Command("powershell", "-Command",
+				fmt.Sprintf("& '%s' scenario status %s --json", config.VrooliCmdPath, config.ScenarioName))
+		}
+	default:
+		cmd = exec.Command(config.VrooliCmdPath, "scenario", "status", config.ScenarioName, "--json")
+	}
+
+	cmd.Env = append(os.Environ(), fmt.Sprintf("VROOLI_ROOT=%s", config.VrooliRoot))
+
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+
+	var status scenarioStatusResponse
+	if err := json.Unmarshal(output, &status); err != nil {
+		return ""
+	}
+	if !status.Success {
+		return ""
+	}
+
+	for _, ports := range []map[string]int{status.Runtime.Ports, status.Scenario.Ports} {
+		if port := apiPortFromMap(ports); port != "" {
+			return port
+		}
+	}
+
+	return ""
+}
+
+func apiPortFromMap(ports map[string]int) string {
+	for _, key := range []string{"API_PORT", "api", "api_port"} {
+		if port, ok := ports[key]; ok && port > 0 {
+			return strconv.Itoa(port)
+		}
+	}
 	return ""
 }
 

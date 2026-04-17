@@ -31,13 +31,18 @@ type CheckResult struct {
 }
 
 type StatusResponse struct {
-	Status        string        `json:"status"`
-	Platform      PlatformInfo  `json:"platform"`
-	TickRunning   bool          `json:"tickRunning"`
-	TickStartedAt *time.Time    `json:"tickStartedAt"`
-	Summary       Summary       `json:"summary"`
-	Checks        []CheckResult `json:"checks"`
-	Timestamp     time.Time     `json:"timestamp"`
+	Status                          string        `json:"status"`
+	Platform                        PlatformInfo  `json:"platform"`
+	TickRunning                     bool          `json:"tickRunning"`
+	TickStartedAt                   *time.Time    `json:"tickStartedAt"`
+	LastCompletedTickAt             *time.Time    `json:"lastCompletedTickAt"`
+	StatusFresh                     bool          `json:"statusFresh"`
+	StatusAgeSeconds                int64         `json:"statusAgeSeconds"`
+	StatusFreshnessThresholdSeconds int64         `json:"statusFreshnessThresholdSeconds"`
+	StatusStaleReason               string        `json:"statusStaleReason"`
+	Summary                         Summary       `json:"summary"`
+	Checks                          []CheckResult `json:"checks"`
+	Timestamp                       time.Time     `json:"timestamp"`
 }
 
 type TickResponse struct {

@@ -3,7 +3,9 @@ package strategies
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
+
 	"vrooli-autoheal/internal/checks"
 )
 
@@ -16,24 +18,35 @@ type mockExecutor struct {
 	runErr               error
 	lastCommand          string
 	lastArgs             []string
+	callLog              []string
 }
 
 func (m *mockExecutor) Output(ctx context.Context, name string, args ...string) ([]byte, error) {
 	m.lastCommand = name
 	m.lastArgs = args
+	m.callLog = append(m.callLog, name+" "+joinArgs(args))
 	return m.outputResult, m.outputErr
 }
 
 func (m *mockExecutor) CombinedOutput(ctx context.Context, name string, args ...string) ([]byte, error) {
 	m.lastCommand = name
 	m.lastArgs = args
+	m.callLog = append(m.callLog, name+" "+joinArgs(args))
 	return m.combinedOutputResult, m.combinedOutputErr
 }
 
 func (m *mockExecutor) Run(ctx context.Context, name string, args ...string) error {
 	m.lastCommand = name
 	m.lastArgs = args
+	m.callLog = append(m.callLog, name+" "+joinArgs(args))
 	return m.runErr
+}
+
+func joinArgs(args []string) string {
+	if len(args) == 0 {
+		return ""
+	}
+	return strings.Join(args, " ")
 }
 
 func TestNewSystemdStrategy(t *testing.T) {

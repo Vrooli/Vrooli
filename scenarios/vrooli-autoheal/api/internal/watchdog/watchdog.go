@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+
 	"vrooli-autoheal/internal/platform"
 	"vrooli-autoheal/internal/reporoot"
 )
@@ -488,6 +489,7 @@ func (d *Detector) getSystemdTemplateForService(systemService bool) string {
 
 	// Use the Go loop binary for cross-platform consistency
 	loopBinaryPath := filepath.Join(vrooliRoot, "scenarios/vrooli-autoheal/cli/vrooli-autoheal-loop")
+	vrooliBinaryPath := d.resolveVrooliBinary()
 	workDir := filepath.Join(vrooliRoot, "scenarios/vrooli-autoheal")
 	homeDir, _ := d.probe.userHomeDir()
 	userDirective := ""
@@ -518,6 +520,7 @@ RestartSec=15
 %sEnvironment=VROOLI_LIFECYCLE_MANAGED=true
 Environment=HOME=%s
 Environment=VROOLI_ROOT=%s
+Environment=VROOLI_BIN=%s
 Environment=PATH=/usr/local/bin:/usr/bin:/bin:%s/.local/bin:%s/.vrooli/bin
 WorkingDirectory=%s
 # Graceful shutdown timeout
@@ -525,7 +528,7 @@ TimeoutStopSec=30
 
 [Install]
 WantedBy=%s
-`, loopBinaryPath, userDirective, homeDir, vrooliRoot, homeDir, homeDir, workDir, wantedBy)
+`, loopBinaryPath, userDirective, homeDir, vrooliRoot, vrooliBinaryPath, homeDir, homeDir, workDir, wantedBy)
 }
 
 func (d *Detector) getLaunchdTemplate() string {

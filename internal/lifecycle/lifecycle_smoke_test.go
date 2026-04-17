@@ -30,7 +30,7 @@ func TestRunnerStartStopRestart(t *testing.T) {
 
 	var logs bytes.Buffer
 	originalDefault := slog.Default()
-	logger, _ := logx.New(logx.Options{Component: "vrooli", Writer: &logs, JSON: true})
+	logger, _ := logx.New(logx.Options{Component: "vrooli", Writer: &logs, Format: logx.FormatJSON})
 	slog.SetDefault(logger)
 	t.Cleanup(func() { slog.SetDefault(originalDefault) })
 	runner, err := NewRunner(root, home, io.Discard, io.Discard, logger)

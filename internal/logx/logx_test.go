@@ -108,7 +108,7 @@ func TestNewIncludesComponentAndSupportsJSON(t *testing.T) {
 	logger, diagnostics := New(Options{
 		Component: "vrooli-api",
 		Writer:    &buffer,
-		JSON:      true,
+		Format:    FormatJSON,
 	})
 	if len(diagnostics.Warnings) != 0 {
 		t.Fatalf("expected no warnings, got %v", diagnostics.Warnings)
@@ -152,7 +152,7 @@ func TestNewVerboseOverridesConfiguredInfoLevel(t *testing.T) {
 	logger, diagnostics := New(Options{
 		Component: "vrooli",
 		Writer:    &buffer,
-		JSON:      true,
+		Format:    FormatJSON,
 		Verbose:   true,
 	})
 	if got := diagnostics.Level; got != slog.LevelDebug {
@@ -236,25 +236,6 @@ func TestNewUsesFormatFromEnv(t *testing.T) {
 	record := decodeSingleJSONRecord(t, buffer.Bytes())
 	if got := record["msg"]; got != "env driven" {
 		t.Fatalf("msg = %#v, want %q", got, "env driven")
-	}
-}
-
-func TestNewOptionFormatOverridesJSONCompatibilityFlag(t *testing.T) {
-	t.Parallel()
-
-	var buffer bytes.Buffer
-	logger, diagnostics := New(Options{
-		Writer: &buffer,
-		Format: FormatText,
-		JSON:   true,
-	})
-	if diagnostics.Format != FormatText {
-		t.Fatalf("format = %v, want text", diagnostics.Format)
-	}
-
-	logger.Info("text wins")
-	if strings.Contains(buffer.String(), `"msg":"text wins"`) {
-		t.Fatalf("expected text output when Format is explicit, got %q", buffer.String())
 	}
 }
 
@@ -344,7 +325,7 @@ func TestNewPropagatesReplaceAttr(t *testing.T) {
 	var buffer bytes.Buffer
 	logger, _ := New(Options{
 		Writer: &buffer,
-		JSON:   true,
+		Format: FormatJSON,
 		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
 			if a.Key == slog.MessageKey {
 				return slog.String("message_text", a.Value.String())
@@ -370,7 +351,7 @@ func TestInstallReturnsDiagnosticsWithoutSelfLogging(t *testing.T) {
 	logger, diagnostics, restore := Install(Options{
 		Component:      "vrooli",
 		Writer:         &buffer,
-		JSON:           true,
+		Format:         FormatJSON,
 		SetDefault:     true,
 		RedirectStdlib: true,
 	})
@@ -524,7 +505,7 @@ func TestRedirectStandardLibrary(t *testing.T) {
 	logger, diagnostics := New(Options{
 		Component: "test",
 		Writer:    &buffer,
-		JSON:      true,
+		Format:    FormatJSON,
 	})
 
 	restore := RedirectStandardLibrary(logger, diagnostics.Level)
@@ -541,7 +522,7 @@ func TestRedirectStandardLibraryDefaultsToInfoSeverity(t *testing.T) {
 	var buffer bytes.Buffer
 	logger, _ := New(Options{
 		Writer: &buffer,
-		JSON:   true,
+		Format: FormatJSON,
 	})
 
 	restore := RedirectStandardLibrary(logger, nil)
@@ -575,11 +556,11 @@ func TestRedirectStandardLibraryNilLoggerNoOp(t *testing.T) {
 
 func TestRedirectStandardLibraryNestedRestoreOrder(t *testing.T) {
 	var first bytes.Buffer
-	loggerA, diagnosticsA := New(Options{Writer: &first, JSON: true})
+	loggerA, diagnosticsA := New(Options{Writer: &first, Format: FormatJSON})
 	restoreA := RedirectStandardLibrary(loggerA, diagnosticsA.Level)
 
 	var second bytes.Buffer
-	loggerB, diagnosticsB := New(Options{Writer: &second, JSON: true})
+	loggerB, diagnosticsB := New(Options{Writer: &second, Format: FormatJSON})
 	restoreB := RedirectStandardLibrary(loggerB, diagnosticsB.Level)
 
 	log.Printf("second")
@@ -601,7 +582,7 @@ func TestWithSubsystemAddsSubsystemAttribute(t *testing.T) {
 	t.Parallel()
 
 	var buffer bytes.Buffer
-	logger, _ := New(Options{Component: "vrooli", Writer: &buffer, JSON: true})
+	logger, _ := New(Options{Component: "vrooli", Writer: &buffer, Format: FormatJSON})
 	WithSubsystem(logger, "lifecycle").Info("hello")
 
 	record := decodeSingleJSONRecord(t, buffer.Bytes())
@@ -655,7 +636,7 @@ func TestErrorAttrStructuredFields(t *testing.T) {
 	t.Parallel()
 
 	var buffer bytes.Buffer
-	logger, _ := New(Options{Writer: &buffer, JSON: true})
+	logger, _ := New(Options{Writer: &buffer, Format: FormatJSON})
 	logger.Error("failed", ErrorArgs(os.ErrNotExist)...)
 
 	record := decodeSingleJSONRecord(t, buffer.Bytes())
@@ -698,7 +679,7 @@ func TestErrorAttrCapturesTimeoutAndRetryable(t *testing.T) {
 	t.Parallel()
 
 	var buffer bytes.Buffer
-	logger, _ := New(Options{Writer: &buffer, JSON: true})
+	logger, _ := New(Options{Writer: &buffer, Format: FormatJSON})
 	logger.Error("failed", ErrorArgs(timeoutTemporaryError{err: context.DeadlineExceeded})...)
 
 	record := decodeSingleJSONRecord(t, buffer.Bytes())

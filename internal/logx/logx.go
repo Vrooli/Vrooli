@@ -91,9 +91,6 @@ type Options struct {
 	// Format selects the log encoding. When empty, the package resolves the
 	// encoder from LogFormatEnvVar and finally falls back to text.
 	Format Format
-	// JSON selects slog's JSON handler instead of the text handler.
-	// Deprecated: prefer Format.
-	JSON bool
 	// Verbose forces debug logging when the configured level is less verbose.
 	Verbose bool
 	// Quiet raises the logging level to warn unless a more verbose level is
@@ -153,7 +150,6 @@ const (
 	ConfigSourceDefault         ConfigSource = "default"
 	ConfigSourceEnv             ConfigSource = "env"
 	ConfigSourceOptions         ConfigSource = "options"
-	ConfigSourceJSONCompat      ConfigSource = "json_compat"
 	ConfigSourceVerboseOverride ConfigSource = "verbose_override"
 )
 
@@ -453,8 +449,6 @@ func resolveFormat(opts Options) (Format, ConfigSource, []Warning) {
 			}}
 		}
 		return format, ConfigSourceOptions, nil
-	case opts.JSON:
-		return FormatJSON, ConfigSourceJSONCompat, nil
 	}
 
 	rawValue := strings.TrimSpace(os.Getenv(LogFormatEnvVar))

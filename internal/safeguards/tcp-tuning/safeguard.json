@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "tcp_tuning",
+  "description": "Optimize TCP stack parameters for reliable connectivity (PMTU probing, ECN, base MSS)",
+  "handler": "tcp_tuning",
+  "platforms": ["linux"],
+  "healthCheck": {
+    "files": ["/etc/sysctl.d/99-vrooli-tcp.conf"]
+  }
+}

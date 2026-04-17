@@ -94,6 +94,64 @@ func TestWriteLifecycleItemsHumanIncludesURLs(t *testing.T) {
 	}
 }
 
+func TestWriteLifecycleItemsHumanStartsWithBlankLine(t *testing.T) {
+	// Leading blank line separates the summary from the preceding
+	// progress pings / slog stream. Compact/JSON modes have their own
+	// coverage; this test guards the normal-mode visual spacing.
+	var stdout bytes.Buffer
+	err := WriteLifecycleItems(&stdout, cliout.FormatHuman, []LifecycleItemOutput{{
+		Name:   "alpha",
+		Status: "restarted",
+	}})
+	if err != nil {
+		t.Fatalf("WriteLifecycleItems: %v", err)
+	}
+	if !strings.HasPrefix(stdout.String(), "\n") {
+		t.Fatalf("expected leading blank line, got %q", stdout.String())
+	}
+}
+
+func TestWriteLifecycleItemsHumanIncludesLogsFooter(t *testing.T) {
+	// The summary must always point users at the log tail command so
+	// they know how to drill deeper on any status — started, restarted,
+	// stopped, or degraded.
+	cases := []string{"started", "restarted", "stopped", "already_running"}
+	for _, status := range cases {
+		status := status
+		t.Run(status, func(t *testing.T) {
+			var stdout bytes.Buffer
+			err := WriteLifecycleItems(&stdout, cliout.FormatHuman, []LifecycleItemOutput{{
+				Name:   "alpha",
+				Status: status,
+			}})
+			if err != nil {
+				t.Fatalf("WriteLifecycleItems: %v", err)
+			}
+			if !strings.Contains(stdout.String(), "Logs: vrooli scenario logs alpha") {
+				t.Fatalf("%s: missing Logs footer in %q", status, stdout.String())
+			}
+		})
+	}
+}
+
+func TestWriteLifecycleItemsCompactOmitsLogsFooter(t *testing.T) {
+	// Compact single-line mode is for scripts that want the minimum
+	// possible signal per scenario; the Logs footer would break the
+	// one-line-per-scenario contract documented on writeLifecycleItemsCompact.
+	t.Setenv("VROOLI_OUTPUT", "quiet")
+	var stdout bytes.Buffer
+	err := WriteLifecycleItems(&stdout, cliout.FormatHuman, []LifecycleItemOutput{{
+		Name:   "alpha",
+		Status: "started",
+	}})
+	if err != nil {
+		t.Fatalf("WriteLifecycleItems: %v", err)
+	}
+	if strings.Contains(stdout.String(), "Logs:") {
+		t.Fatalf("compact mode must not include Logs footer, got %q", stdout.String())
+	}
+}
+
 func TestWriteLifecycleItemsHumanUsesRestartVerb(t *testing.T) {
 	var stdout bytes.Buffer
 	err := WriteLifecycleItems(&stdout, cliout.FormatHuman, []LifecycleItemOutput{{

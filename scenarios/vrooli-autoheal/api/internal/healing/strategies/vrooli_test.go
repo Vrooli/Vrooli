@@ -216,7 +216,7 @@ func TestVrooliStrategy_GetPorts(t *testing.T) {
 }
 
 func TestVrooliStrategy_CleanupPorts(t *testing.T) {
-	t.Run("no ports to cleanup", func(t *testing.T) {
+	t.Run("runs core cleanup even without ports", func(t *testing.T) {
 		exec := &mockExecutor{
 			combinedOutputResult: []byte("no ports configured"),
 		}
@@ -227,8 +227,17 @@ func TestVrooliStrategy_CleanupPorts(t *testing.T) {
 		if !result.Success {
 			t.Errorf("expected success, got error: %s", result.Error)
 		}
-		if result.Message != "No ports found to cleanup for scenario test" {
+		if result.Message != "Core cleanup completed for scenario test" {
 			t.Errorf("unexpected message: %s", result.Message)
+		}
+		if len(exec.callLog) < 3 {
+			t.Fatalf("expected cleanup sequence, got %v", exec.callLog)
+		}
+		if exec.callLog[1] != "vrooli cleanup locks" {
+			t.Fatalf("expected second command to clean locks, got %q", exec.callLog[1])
+		}
+		if exec.callLog[2] != "vrooli cleanup orphans" {
+			t.Fatalf("expected third command to clean orphans, got %q", exec.callLog[2])
 		}
 	})
 
@@ -294,6 +303,18 @@ func TestVrooliStrategy_CleanRestart(t *testing.T) {
 		}
 		if !containsSubstr(result.Output, "Starting") {
 			t.Error("expected output to contain 'Starting'")
+		}
+		if len(exec.callLog) < 4 {
+			t.Fatalf("expected stop, cleanup, and start commands; got %v", exec.callLog)
+		}
+		if exec.callLog[1] != "vrooli scenario port test" {
+			t.Fatalf("expected cleanup to query scenario ports, got %q", exec.callLog[1])
+		}
+		if exec.callLog[2] != "vrooli cleanup locks" {
+			t.Fatalf("expected cleanup locks command, got %q", exec.callLog[2])
+		}
+		if exec.callLog[3] != "vrooli cleanup orphans" {
+			t.Fatalf("expected cleanup orphans command, got %q", exec.callLog[3])
 		}
 	})
 }

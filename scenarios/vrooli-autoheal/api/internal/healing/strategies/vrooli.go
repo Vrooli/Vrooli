@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
 	"vrooli-autoheal/internal/checks"
 
 	"golang.org/x/text/cases"
@@ -208,7 +209,7 @@ func (v *VrooliStrategy) CleanupPorts(ctx context.Context, checkID string) check
 
 	var outputBuilder strings.Builder
 
-	// Step 1: Get entity ports
+	// Step 1: Get entity ports so cleanup can emit targeted diagnostics.
 	outputBuilder.WriteString("=== Getting ports ===\n")
 	portOutput, err := v.executor.CombinedOutput(ctx, "vrooli", string(v.entityType), "port", v.entityName)
 	outputBuilder.Write(portOutput)
@@ -225,51 +226,44 @@ func (v *VrooliStrategy) CleanupPorts(ctx context.Context, checkID string) check
 
 	// Step 2: Parse ports
 	ports := ExtractPorts(string(portOutput))
-	if len(ports) == 0 {
-		result.Output = outputBuilder.String()
-		result.Duration = time.Since(start)
-		result.Success = true
-		result.Message = fmt.Sprintf("No ports found to cleanup for %s %s", v.entityType, v.entityName)
-		return result
-	}
-
-	outputBuilder.WriteString(fmt.Sprintf("Found ports: %v\n\n", ports))
-
-	// Step 3: Kill processes on each port
-	killedCount := 0
 	for _, port := range ports {
-		outputBuilder.WriteString(fmt.Sprintf("=== Cleaning port %d ===\n", port))
-
-		// Find process on port using lsof
-		pidOutput, err := v.executor.Output(ctx, "lsof", "-ti", fmt.Sprintf(":%d", port))
-
-		if err != nil || len(strings.TrimSpace(string(pidOutput))) == 0 {
-			outputBuilder.WriteString("No process found on port\n")
-			continue
-		}
-
-		// Kill each PID
-		pids := strings.Fields(strings.TrimSpace(string(pidOutput)))
-		for _, pidStr := range pids {
-			outputBuilder.WriteString(fmt.Sprintf("Killing PID %s... ", pidStr))
-
-			// First try SIGTERM
-			if err := v.executor.Run(ctx, "kill", pidStr); err != nil {
-				// If SIGTERM fails, try SIGKILL
-				if err := v.executor.Run(ctx, "kill", "-9", pidStr); err != nil {
-					outputBuilder.WriteString(fmt.Sprintf("FAILED: %v\n", err))
-					continue
-				}
-			}
-			outputBuilder.WriteString("OK\n")
-			killedCount++
+		outputBuilder.WriteString(fmt.Sprintf("=== Diagnosing port %d ===\n", port))
+		diagnoseOutput, diagnoseErr := v.executor.CombinedOutput(ctx, "vrooli", "diagnose-port", fmt.Sprintf("%d", port), v.entityName, "--json")
+		outputBuilder.Write(diagnoseOutput)
+		outputBuilder.WriteString("\n")
+		if diagnoseErr != nil {
+			outputBuilder.WriteString(fmt.Sprintf("diagnose-port error: %v\n", diagnoseErr))
 		}
 	}
+
+	outputBuilder.WriteString("=== Cleaning stale locks ===\n")
+	lockOutput, lockErr := v.executor.CombinedOutput(ctx, "vrooli", "cleanup", "locks")
+	outputBuilder.Write(lockOutput)
+	outputBuilder.WriteString("\n")
+
+	outputBuilder.WriteString("=== Cleaning orphaned Vrooli processes ===\n")
+	orphanOutput, orphanErr := v.executor.CombinedOutput(ctx, "vrooli", "cleanup", "orphans")
+	outputBuilder.Write(orphanOutput)
+	outputBuilder.WriteString("\n")
 
 	result.Output = outputBuilder.String()
 	result.Duration = time.Since(start)
+	if lockErr != nil || orphanErr != nil {
+		result.Success = false
+		errParts := make([]string, 0, 2)
+		if lockErr != nil {
+			errParts = append(errParts, "lock cleanup: "+lockErr.Error())
+		}
+		if orphanErr != nil {
+			errParts = append(errParts, "orphan cleanup: "+orphanErr.Error())
+		}
+		result.Error = strings.Join(errParts, "; ")
+		result.Message = fmt.Sprintf("Core cleanup failed for %s %s", v.entityType, v.entityName)
+		return result
+	}
+
 	result.Success = true
-	result.Message = fmt.Sprintf("Port cleanup complete: killed %d processes on %d ports", killedCount, len(ports))
+	result.Message = fmt.Sprintf("Core cleanup completed for %s %s", v.entityType, v.entityName)
 	return result
 }
 
@@ -328,11 +322,20 @@ func (v *VrooliStrategy) CleanRestart(ctx context.Context, checkID string) check
 	outputBuilder.Write(stopOutput)
 	outputBuilder.WriteString("\n")
 
-	// Step 2: Cleanup ports
-	outputBuilder.WriteString("=== Cleaning up ports ===\n")
+	// Step 2: Cleanup stale locks and orphaned Vrooli processes via core maintenance.
+	outputBuilder.WriteString("=== Running core cleanup ===\n")
 	portResult := v.CleanupPorts(ctx, checkID)
 	outputBuilder.WriteString(portResult.Output)
 	outputBuilder.WriteString("\n")
+
+	if !portResult.Success {
+		result.Output = outputBuilder.String()
+		result.Duration = time.Since(start)
+		result.Success = false
+		result.Error = portResult.Error
+		result.Message = fmt.Sprintf("Clean restart failed during cleanup for %s %s", v.entityType, v.entityName)
+		return result
+	}
 
 	// Step 3: Start
 	outputBuilder.WriteString(fmt.Sprintf("=== Starting %s ===\n", v.entityType))

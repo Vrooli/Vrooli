@@ -270,6 +270,10 @@ func WriteLifecycleItems(w io.Writer, format cliout.Format, items []LifecycleIte
 	}
 
 	for _, item := range items {
+		// Leading blank line visually separates the summary block from
+		// the preceding progress pings and slog stream, which otherwise
+		// run flush against the first "Started …"/"Restarted …" line.
+		_, _ = fmt.Fprintln(w)
 		switch item.Status {
 		case "already_running":
 			_, _ = fmt.Fprintf(w, "Scenario '%s' is already running", item.Name)
@@ -298,6 +302,13 @@ func WriteLifecycleItems(w io.Writer, format cliout.Format, items []LifecycleIte
 		}
 		if len(item.FailedResources) > 0 {
 			_, _ = fmt.Fprintf(w, "  Failed resources: %s\n", strings.Join(item.FailedResources, ", "))
+		}
+		// Log pointer: give the user a ready-to-run command for the
+		// scenario-wide lifecycle log. Stopped scenarios get it too —
+		// the log still exists and often explains why something was
+		// stopped unexpectedly.
+		if strings.TrimSpace(item.Name) != "" {
+			_, _ = fmt.Fprintf(w, "  Logs: vrooli scenario logs %s\n", item.Name)
 		}
 	}
 	return nil

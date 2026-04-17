@@ -6,6 +6,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+
 	"vrooli-autoheal/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -95,6 +96,15 @@ func runStatus(core *cliapp.ScenarioApp, args []string) error {
 	}
 	if resp.TickRunning {
 		status = append(status, "A tick is currently running.")
+	}
+	if !resp.StatusFresh {
+		staleReason := strings.TrimSpace(resp.StatusStaleReason)
+		if staleReason == "" {
+			staleReason = "tick data is stale"
+		}
+		status = append(status, fmt.Sprintf("Freshness: STALE (%s)", staleReason))
+	} else if resp.LastCompletedTickAt != nil {
+		status = append(status, fmt.Sprintf("Freshness: current (%ds since last completed tick)", resp.StatusAgeSeconds))
 	}
 
 	triage := []cliapp.TriageGroup{
