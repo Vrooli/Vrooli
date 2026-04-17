@@ -13,9 +13,12 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/safeguards"
 	"github.com/vrooli/vrooli/internal/safeguards/clock"
+	dnsresolution "github.com/vrooli/vrooli/internal/safeguards/dns-resolution"
 	dockerhostfirewall "github.com/vrooli/vrooli/internal/safeguards/docker-host-firewall"
 	kernelconfig "github.com/vrooli/vrooli/internal/safeguards/kernel-config"
+	natprotection "github.com/vrooli/vrooli/internal/safeguards/nat-protection"
 	remotesessionprotection "github.com/vrooli/vrooli/internal/safeguards/remote-session-protection"
+	tcptuning "github.com/vrooli/vrooli/internal/safeguards/tcp-tuning"
 	"github.com/vrooli/vrooli/internal/tools"
 	"github.com/vrooli/vrooli/internal/tools/cloudflared"
 	"github.com/vrooli/vrooli/internal/tools/stripe"
@@ -36,9 +39,12 @@ var customToolHandlers = map[string]func(hostreqkit.ToolManifest) hostreqkit.Han
 // TestSafeguardManifestsReferenceRegisteredHandlers.
 var customSafeguardHandlers = map[string]func(hostreqkit.SafeguardManifest) hostreqkit.Handler{
 	"clock":                     clock.NewHandler,
+	"dns_resolution":            dnsresolution.NewHandler,
 	"docker_host_firewall":      dockerhostfirewall.NewHandler,
 	"kernel_config":             kernelconfig.NewHandler,
+	"nat_protection":            natprotection.NewHandler,
 	"remote_session_protection": remotesessionprotection.NewHandler,
+	"tcp_tuning":                tcptuning.NewHandler,
 }
 
 type registry struct {

@@ -486,7 +486,8 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 
 	safeguardNames := reg.names(hostreq.KindSafeguard)
 	expectedSafeguards := []string{
-		"clock", "docker_host_firewall", "kernel_config", "remote_session_protection",
+		"clock", "dns_resolution", "docker_host_firewall", "kernel_config",
+		"nat_protection", "remote_session_protection", "tcp_tuning",
 	}
 	if len(safeguardNames) != len(expectedSafeguards) {
 		t.Fatalf("safeguard count = %d, want %d; got %v", len(safeguardNames), len(expectedSafeguards), safeguardNames)
