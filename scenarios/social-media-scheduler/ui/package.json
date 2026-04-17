@@ -21,7 +21,7 @@
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.14.1",
     "react-scripts": "5.0.1",
-    "axios": "^1.4.0",
+    "axios": "^1.15.0",
     "date-fns": "^2.30.0",
     "react-big-calendar": "^1.8.1",
     "react-dnd": "^16.0.1",
