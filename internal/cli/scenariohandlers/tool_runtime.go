@@ -59,10 +59,26 @@ func CompletenessHandler[C any](deps HandlerDeps[C]) func(C, []string) error {
 	}
 }
 
+// BuildScenarioCompletenessArgs forwards the user args to the scenario's
+// cli-core-based CLI, re-emitting the global flags that vrooli consumed at its
+// own arg layer. cli-core requires ANSI/color globals (`--no-color`,
+// `--color`) to appear BEFORE the subcommand name; subcommand-level flags
+// (`--json`, `--verbose`) are appended after the user args.
 func BuildScenarioCompletenessArgs(globals rootcli.GlobalOptions, args []string) []string {
-	commandArgs := append([]string{}, args...)
+	prefix := make([]string, 0, 2)
+	if globals.NoColor && !rootcli.ContainsArg(args, "--no-color") {
+		prefix = append(prefix, "--no-color")
+	}
+
+	commandArgs := make([]string, 0, len(prefix)+len(args)+2)
+	commandArgs = append(commandArgs, prefix...)
+	commandArgs = append(commandArgs, args...)
+
 	if globals.JSON && !rootcli.ContainsArg(commandArgs, "--json") && !rootcli.ContainsArg(commandArgs, "--format") {
 		commandArgs = append(commandArgs, "--json")
+	}
+	if globals.Verbose && !rootcli.ContainsArg(commandArgs, "--verbose") && !rootcli.ContainsArg(commandArgs, "-v") {
+		commandArgs = append(commandArgs, "--verbose")
 	}
 	return commandArgs
 }

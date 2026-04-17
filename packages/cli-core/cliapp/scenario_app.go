@@ -27,6 +27,21 @@ var (
 	}
 )
 
+func defaultIfEmpty(value, fallback string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return fallback
+	}
+	return value
+}
+
+func defaultStringSlice(value, fallback []string) []string {
+	if len(value) == 0 {
+		return append([]string(nil), fallback...)
+	}
+	return append([]string(nil), value...)
+}
+
 // ScenarioOptions bundles common wiring for scenario CLIs so individual
 // scenarios don't have to repeat config loading, API client setup, stale
 // checking, and configure command plumbing.
@@ -86,6 +101,8 @@ type StandardScenarioOptions struct {
 	BuildFingerprint        string
 	BuildTimestamp          string
 	BuildSourceRoot         string
+	ManifestSourcePath      string
+	FreshnessInputs         []string
 	HTTPClientOptions       cliutil.HTTPClientOptions
 	DefaultHTTPTimeout      time.Duration
 	AllowAnonymous          bool
@@ -213,8 +230,8 @@ func NewStandardScenarioApp(opts StandardScenarioOptions) (*ScenarioApp, error) 
 		BuildTimestamp:     opts.BuildTimestamp,
 		BuildSourceRoot:    opts.BuildSourceRoot,
 		SourceContextPath:  "..",
-		ManifestSourcePath: ".vrooli/service.json",
-		FreshnessInputs:    []string{"cli/**", ".vrooli/service.json"},
+		ManifestSourcePath: defaultIfEmpty(opts.ManifestSourcePath, ".vrooli/service.json"),
+		FreshnessInputs:    defaultStringSlice(opts.FreshnessInputs, []string{"cli/**", ".vrooli/service.json"}),
 		HTTPClientOptions:  opts.HTTPClientOptions,
 		HTTPTimeoutEnvVars: env.HTTPTimeoutEnvVars,
 		DefaultHTTPTimeout: opts.DefaultHTTPTimeout,

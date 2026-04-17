@@ -37,6 +37,49 @@ func TestBuildScenarioCompletenessArgsPreservesExplicitFormat(t *testing.T) {
 	}
 }
 
+func TestBuildScenarioCompletenessArgsPrependsNoColor(t *testing.T) {
+	args := BuildScenarioCompletenessArgs(rootcli.GlobalOptions{NoColor: true}, []string{"score", "get", "alpha"})
+	if len(args) == 0 || args[0] != "--no-color" {
+		t.Fatalf("expected --no-color first, got %#v", args)
+	}
+	// Existing flags must not be duplicated.
+	again := BuildScenarioCompletenessArgs(rootcli.GlobalOptions{NoColor: true}, []string{"--no-color", "score", "get", "alpha"})
+	count := 0
+	for _, arg := range again {
+		if arg == "--no-color" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Fatalf("expected single --no-color, got %#v", again)
+	}
+}
+
+func TestBuildScenarioCompletenessArgsAppendsVerbose(t *testing.T) {
+	args := BuildScenarioCompletenessArgs(rootcli.GlobalOptions{Verbose: true}, []string{"score", "get", "alpha"})
+	if len(args) == 0 || args[len(args)-1] != "--verbose" {
+		t.Fatalf("expected --verbose last, got %#v", args)
+	}
+	// Don't add twice if user already passed --verbose.
+	again := BuildScenarioCompletenessArgs(rootcli.GlobalOptions{Verbose: true}, []string{"score", "get", "alpha", "--verbose"})
+	count := 0
+	for _, arg := range again {
+		if arg == "--verbose" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Fatalf("expected single --verbose, got %#v", again)
+	}
+	// Also respect the short form -v.
+	short := BuildScenarioCompletenessArgs(rootcli.GlobalOptions{Verbose: true}, []string{"score", "get", "alpha", "-v"})
+	for _, arg := range short {
+		if arg == "--verbose" {
+			t.Fatalf("should not add --verbose when -v already present: %#v", short)
+		}
+	}
+}
+
 func TestFormatTemplateRequiredFlagsReturnsNonEmptySummary(t *testing.T) {
 	got := FormatTemplateRequiredFlags(scenariocli.TemplateManifest{
 		RequiredVars: map[string]scenariocli.TemplateVar{

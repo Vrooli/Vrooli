@@ -11,11 +11,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/healing/strategies"
-	integration "vrooli-autoheal/internal/integrations/vrooli"
 	"vrooli-autoheal/internal/platform"
+
+	integration "vrooli-autoheal/internal/integrations/vrooli"
 )
 
 // ScenarioCheck monitors a Vrooli scenario via CLI.

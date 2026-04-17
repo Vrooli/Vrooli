@@ -320,8 +320,8 @@ func TestIsStaleChecksCurrentFingerprint(t *testing.T) {
 	}
 
 	Fingerprint = "unknown"
-	if IsStale() {
-		t.Fatalf("expected unknown fingerprint to skip stale detection")
+	if !IsStale() {
+		t.Fatalf("expected unknown fingerprint to be stale")
 	}
 }
 
@@ -359,6 +359,46 @@ func TestCheckStalenessReportsMetadata(t *testing.T) {
 	}
 	if status.CurrentFingerprint != current || status.EmbeddedFingerprint != current {
 		t.Fatalf("status fingerprints = %+v, want %q", status, current)
+	}
+}
+
+func TestCheckStalenessTreatsUnknownFingerprintAsStale(t *testing.T) {
+	originalFingerprint := Fingerprint
+	t.Cleanup(func() {
+		Fingerprint = originalFingerprint
+	})
+
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.com/test\n\ngo 1.21\n")
+	writeTestFile(t, root, "cmd/vrooli/main.go", "package main\n")
+	writeTestFile(t, root, "internal/logx/logx.go", "package logx\n")
+
+	t.Setenv(SourceRootEnvVar, root)
+	t.Setenv(FingerprintPathsEnvVar, "cmd/vrooli,internal")
+	current, err := CurrentFingerprint()
+	if err != nil {
+		t.Fatalf("CurrentFingerprint: %v", err)
+	}
+
+	Fingerprint = "unknown"
+	status, err := CheckStaleness()
+	if err != nil {
+		t.Fatalf("CheckStaleness: %v", err)
+	}
+	if !status.Stale {
+		t.Fatalf("expected unknown fingerprint to be stale")
+	}
+	if status.Root != root {
+		t.Fatalf("root = %q, want %q", status.Root, root)
+	}
+	if got, want := strings.Join(status.Targets, ","), "cmd/vrooli,internal"; got != want {
+		t.Fatalf("targets = %q, want %q", got, want)
+	}
+	if status.CurrentFingerprint != current {
+		t.Fatalf("current fingerprint = %q, want %q", status.CurrentFingerprint, current)
+	}
+	if status.EmbeddedFingerprint != "unknown" {
+		t.Fatalf("embedded fingerprint = %q, want unknown", status.EmbeddedFingerprint)
 	}
 }
 

@@ -308,9 +308,6 @@ func CheckStaleness() (StaleCheck, error) {
 	status := StaleCheck{
 		EmbeddedFingerprint: strings.TrimSpace(Fingerprint),
 	}
-	if status.EmbeddedFingerprint == "" || status.EmbeddedFingerprint == "unknown" {
-		return status, nil
-	}
 
 	report, err := CurrentFingerprintReport()
 	if err != nil {
@@ -319,7 +316,9 @@ func CheckStaleness() (StaleCheck, error) {
 	status.Root = report.Root
 	status.Targets = append([]string(nil), report.Targets...)
 	status.CurrentFingerprint = report.Fingerprint
-	status.Stale = status.CurrentFingerprint != status.EmbeddedFingerprint
+	status.Stale = status.EmbeddedFingerprint == "" ||
+		status.EmbeddedFingerprint == "unknown" ||
+		status.CurrentFingerprint != status.EmbeddedFingerprint
 	return status, nil
 }
 

@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"sync"
 	"time"
-
 	"vrooli-autoheal/internal/checks"
 	"vrooli-autoheal/internal/persistence"
 	"vrooli-autoheal/internal/platform"

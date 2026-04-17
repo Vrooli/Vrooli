@@ -120,7 +120,14 @@ if [[ -z "${CONTEXT_ROOT}" && "$(basename "${MODULE_ABS}")" == "cli" ]]; then
 fi
 
 if [[ ${#FRESHNESS_INPUTS[@]} -eq 0 && -n "${MANIFEST_ABS}" && -n "${CONTEXT_ROOT}" ]]; then
-    if [[ "${MANIFEST_ABS}" == "${CONTEXT_ROOT}/.vrooli/service.json" ]]; then
+    if command -v jq >/dev/null 2>&1; then
+        while IFS= read -r input; do
+            if [[ -n "${input}" ]]; then
+                FRESHNESS_INPUTS+=("${input}")
+            fi
+        done < <(jq -r '.cli.freshness.inputs[]? // empty' "${MANIFEST_ABS}")
+    fi
+    if [[ ${#FRESHNESS_INPUTS[@]} -eq 0 && "${MANIFEST_ABS}" == "${CONTEXT_ROOT}/.vrooli/service.json" ]]; then
         FRESHNESS_INPUTS=("cli/**" ".vrooli/service.json")
     fi
 fi

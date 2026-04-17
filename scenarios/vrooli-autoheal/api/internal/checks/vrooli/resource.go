@@ -6,10 +6,10 @@ import (
 	"context"
 	"fmt"
 	"time"
-
 	"vrooli-autoheal/internal/checks"
-	integration "vrooli-autoheal/internal/integrations/vrooli"
 	"vrooli-autoheal/internal/platform"
+
+	integration "vrooli-autoheal/internal/integrations/vrooli"
 )
 
 // ResourceCheck monitors a Vrooli resource via CLI.

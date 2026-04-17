@@ -44,6 +44,7 @@ func NewApp() (*App, error) {
 		BuildFingerprint:     buildFingerprint,
 		BuildTimestamp:       buildTimestamp,
 		BuildSourceRoot:      buildSourceRoot,
+		FreshnessInputs:      []string{"api/**", "cli/**", ".vrooli/service.json", ".vrooli/testing.json"},
 		AllowAnonymous:       true,
 		IncludeStatusCommand: boolPtr(true),
 		CommandGroups: func(core *cliapp.ScenarioApp) []cliapp.CommandGroup {

@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
 	"vrooli-autoheal/internal/checks"
-	integration "vrooli-autoheal/internal/integrations/vrooli"
 	"vrooli-autoheal/internal/platform"
+
+	integration "vrooli-autoheal/internal/integrations/vrooli"
 )
 
 // StaleLockCheck summarizes core-maintained port lock state.

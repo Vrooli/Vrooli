@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
 	"vrooli-autoheal/internal/checks"
-	integration "vrooli-autoheal/internal/integrations/vrooli"
 	"vrooli-autoheal/internal/platform"
+
+	integration "vrooli-autoheal/internal/integrations/vrooli"
 )
 
 // OrphanCheck summarizes core-maintained orphan process state.
