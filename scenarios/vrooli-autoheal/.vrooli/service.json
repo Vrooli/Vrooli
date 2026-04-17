@@ -145,7 +145,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && node server.js",
+          "run": "cd ui && pnpm run start",
           "background": true,
           "description": "Serve production UI bundle",
           "condition": {
@@ -159,7 +159,7 @@
       "steps": [
         {
           "name": "run-tests",
-          "run": "test-genie execute vrooli-autoheal --preset comprehensive",
+          "run": "test-genie execute vrooli-autoheal --preset comprehensive --ui-url http://localhost:${UI_PORT}",
           "description": "Run structure/unit/integration/business/performance phases"
         }
       ]

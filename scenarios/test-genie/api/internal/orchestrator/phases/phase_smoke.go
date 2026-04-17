@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/smoke"
 	"test-genie/internal/smoke/smokeconfig"
 )
+
+var smokeRunForPhase = smoke.RunForPhase
 
 // runSmokePhase executes the UI smoke test as its own validation phase.
 // This validates that a scenario's UI loads correctly, establishes communication
@@ -31,7 +34,7 @@ func runSmokePhase(ctx context.Context, env workspace.Environment, logWriter io.
 	logPhaseStep(logWriter, "running UI smoke test for %s", env.ScenarioName)
 
 	// Run the smoke test
-	phaseResult, err := smoke.RunForPhase(ctx, env.ScenarioName, env.ScenarioDir, logWriter)
+	phaseResult, err := smokeRunForPhase(ctx, env.ScenarioName, env.ScenarioDir, env.UIURL, logWriter)
 	if err != nil {
 		return RunReport{
 			Err:                   err,

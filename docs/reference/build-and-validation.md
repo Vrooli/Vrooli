@@ -65,6 +65,16 @@ Use:
 vrooli build --help
 ```
 
+## CLI Freshness Versus Runtime Freshness
+
+Installed scenario CLI freshness and scenario runtime freshness are intentionally separate.
+
+- Installed scenario CLIs are owned by `internal/cliinstall`.
+- `vrooli scenario ...` command entrypoints ensure the scenario CLI is installed and current before use.
+- Lifecycle runtime setup checks (`lifecycle.setup.condition.checks`) should only describe artifacts that affect the running scenario itself, such as API binaries, UI bundles, data directories, or required files.
+
+`type: "cli"` is therefore not treated as a runtime setup input during lifecycle start/restart decisions. That boundary prevents dependency restart loops where lifecycle marks a dependency stale because its installed CLI changed, but the dependency setup phase only rebuilds API/UI artifacts and never refreshes the CLI.
+
 ## Build Versus Deployment
 
 Do not conflate project builds with deployment portability.

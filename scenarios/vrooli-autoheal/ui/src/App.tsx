@@ -1,7 +1,7 @@
 // Vrooli Autoheal Dashboard
 // [REQ:UI-HEALTH-001] [REQ:UI-HEALTH-002] [REQ:UI-EVENTS-001] [REQ:UI-REFRESH-001] [REQ:UI-RESPONSIVE-001]
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
 import { AlertCircle, CheckCircle2, BookOpen, LayoutDashboard, Loader2, Play, RefreshCw, Settings, Shield, TrendingUp } from "lucide-react";
 import { Badge, Button, Card } from "./shared/ui/primitives";
 import { TabTrigger } from "./shared/ui/composites";
@@ -10,8 +10,9 @@ import type { CheckInfo } from "./lib/api";
 import { selectors } from "./consts/selectors";
 import { CheckDetailModal, ErrorDisplay, ReactErrorBoundary, SettingsDialog } from "./shared/components";
 import { DashboardSurface, type CollapsedGroups, type EnrichedCheck } from "./surfaces/dashboard";
-import { TrendsSurface } from "./surfaces/trends";
-import { DocsSurface } from "./surfaces/docs";
+
+const TrendsSurface = lazy(async () => import("./surfaces/trends").then((module) => ({ default: module.TrendsSurface })));
+const DocsSurface = lazy(async () => import("./surfaces/docs").then((module) => ({ default: module.DocsSurface })));
 
 const AUTO_REFRESH_INTERVAL = 30000;
 
@@ -203,6 +204,14 @@ export default function App() {
   const sortedEnrichedChecks = useMemo(() => sortChecksForDisplay(enrichedChecks), [enrichedChecks]);
   const groupedChecks = useMemo(() => groupChecksByStatus(sortedEnrichedChecks), [sortedEnrichedChecks]);
   const isTickRunning = tickMutation.isPending || Boolean(data?.tickRunning);
+  const tabLoadingFallback = (
+    <Card className="flex min-h-[16rem] items-center justify-center p-6">
+      <div className="text-center">
+        <Loader2 className="mx-auto mb-3 h-5 w-5 animate-spin text-accent-primary" />
+        <p className="text-sm text-text-muted">Loading tab content...</p>
+      </div>
+    </Card>
+  );
 
   useEffect(() => {
     if (data) {
@@ -374,11 +383,15 @@ export default function App() {
           </ReactErrorBoundary>
         ) : activeTab === "trends" ? (
           <ReactErrorBoundary sectionName="Trends">
-            <TrendsSurface />
+            <Suspense fallback={tabLoadingFallback}>
+              <TrendsSurface />
+            </Suspense>
           </ReactErrorBoundary>
         ) : (
           <ReactErrorBoundary sectionName="Docs">
-            <DocsSurface />
+            <Suspense fallback={tabLoadingFallback}>
+              <DocsSurface />
+            </Suspense>
           </ReactErrorBoundary>
         )}
       </main>
