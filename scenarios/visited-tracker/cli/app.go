@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"strings"
-
 	"visited-tracker/cli/domains"
 	"visited-tracker/cli/internal/support"
 

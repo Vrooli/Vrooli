@@ -8,12 +8,21 @@ import (
 	"time"
 )
 
+var (
+	lookPathFn           = exec.LookPath
+	execCommandContextFn = exec.CommandContext
+)
+
 // DetectPortFromVrooli returns a detector that asks vrooli for the port of a scenario.
 func DetectPortFromVrooli(scenarioName, portVar string) func() string {
 	return func() string {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		cmd := exec.CommandContext(ctx, "vrooli", "scenario", "port", scenarioName, portVar)
+		argv0 := "vrooli"
+		if resolved, err := lookPathFn("vrooli"); err == nil && strings.TrimSpace(resolved) != "" {
+			argv0 = resolved
+		}
+		cmd := execCommandContextFn(ctx, argv0, "--no-stale-check", "scenario", "port", scenarioName, portVar)
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			return ""

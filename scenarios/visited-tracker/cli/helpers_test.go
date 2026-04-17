@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-
 	"visited-tracker/cli/internal/support"
 )
 

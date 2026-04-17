@@ -1,10 +1,9 @@
 package ssh
 
 import (
+	"scenario-to-cloud/domain"
 	"strings"
 	"time"
-
-	"scenario-to-cloud/domain"
 )
 
 // Config holds SSH connection parameters.
@@ -22,7 +21,7 @@ const (
 )
 
 // NewConfig creates a Config with defaults applied for missing values.
-func NewConfig(host string, port int, user string, keyPath string) Config {
+func NewConfig(host string, port int, user, keyPath string) Config {
 	if port == 0 {
 		port = DefaultPort
 	}

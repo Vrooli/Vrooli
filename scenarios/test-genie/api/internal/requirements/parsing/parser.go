@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"path/filepath"
-
 	"test-genie/internal/requirements/discovery"
 	"test-genie/internal/requirements/types"
 )

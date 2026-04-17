@@ -3,11 +3,10 @@ package stats
 import (
 	"net/http"
 	"strings"
-
-	"github.com/gorilla/mux"
-
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
+
+	"github.com/gorilla/mux"
 )
 
 // Handler provides the HTTP endpoint for stats.

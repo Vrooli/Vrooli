@@ -3,9 +3,8 @@ package skills
 import (
 	"context"
 	"errors"
-	"testing"
-
 	"prompt-manager/store"
+	"testing"
 )
 
 // MockSkillStore implements store.SkillStore for testing StoreAdapter.

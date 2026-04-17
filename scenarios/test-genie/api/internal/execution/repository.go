@@ -6,12 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"test-genie/internal/orchestrator"
+	"test-genie/internal/storage/sqliteutil"
 	"time"
 
 	"github.com/google/uuid"
-
-	"test-genie/internal/orchestrator"
-	"test-genie/internal/storage/sqliteutil"
 )
 
 // SuiteExecutionRepository persists execution records in Test Genie's embedded

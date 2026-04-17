@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"scenario-to-cloud/domain"
 	"sort"
 	"strings"
 	"time"
 
 	repocontract "github.com/vrooli/repo-contract-go"
-	"scenario-to-cloud/domain"
 )
 
 // GetLocalBundlesDir returns the path to the local bundles directory.

@@ -63,7 +63,7 @@ export function QuickCaptureInput({ onOpenForm }: QuickCaptureInputProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const addCapture = useCaptureStore((s) => s.addCapture);
-  const lastSubmitRef = useRef<number>(0);
+  const lastSubmitRef = useRef(0);
   const { attachments, addFile, removeFile, clearAll, getFiles } = useCaptureAttachments();
 
   // Auto-resize textarea based on content.

@@ -155,7 +155,6 @@ func main() {
 		DB:             db.RawDB(),
 		Logger:         log,
 		EntitlementSvc: entitlementSvc,
-		Dialect:        string(db.Dialect()),
 		// LPBS integration for centralized usage reporting
 		LPBSURL:    cfg.Entitlement.ServiceURL,
 		LPBSSecret: cfg.Entitlement.ServiceSecret,
@@ -190,7 +189,7 @@ func main() {
 	}).Info("✅ AI provider chain initialized")
 
 	// Initialize UX metrics repository (used by both handler wiring and API endpoints)
-	uxRepo := uxrepository.NewPostgresRepository(db.DB)
+	uxRepo := uxrepository.NewRepository(db.DB)
 
 	// Initialize navigator registry for vision navigation
 	navigatorRegistry := vision.NewNavigatorRegistry()

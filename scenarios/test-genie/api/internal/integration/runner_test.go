@@ -4,13 +4,12 @@ import (
 	"context"
 	"errors"
 	"io"
-	"testing"
-
 	"test-genie/internal/integration/api"
 	"test-genie/internal/integration/bats"
 	"test-genie/internal/integration/cli"
 	"test-genie/internal/integration/websocket"
 	"test-genie/internal/structure/types"
+	"testing"
 )
 
 // Mock validators for testing the runner orchestration logic in isolation

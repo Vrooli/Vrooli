@@ -2,14 +2,13 @@ package httpserver
 
 import (
 	"encoding/json"
+	"io"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
-
-	"io"
-	"net/http"
-	"net/http/httptest"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 )

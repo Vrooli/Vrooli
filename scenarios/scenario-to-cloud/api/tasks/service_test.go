@@ -2,9 +2,8 @@ package tasks
 
 import (
 	"context"
-	"testing"
-
 	"scenario-to-cloud/domain"
+	"testing"
 )
 
 func TestNewService_RegistersDefaultHandlers(t *testing.T) {

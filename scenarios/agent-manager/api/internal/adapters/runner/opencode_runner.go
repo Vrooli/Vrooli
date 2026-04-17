@@ -5,6 +5,7 @@
 package runner
 
 import (
+	"agent-manager/internal/domain"
 	"bufio"
 	"context"
 	"encoding/json"
@@ -18,8 +19,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
 	repocontract "github.com/vrooli/repo-contract-go"

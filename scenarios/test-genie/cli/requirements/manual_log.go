@@ -7,12 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"test-genie/internal/requirements/evidence"
+	"test-genie/internal/requirements/types"
 	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
-
-	"test-genie/internal/requirements/evidence"
-	"test-genie/internal/requirements/types"
 )
 
 func runManualLog(args []string) error {

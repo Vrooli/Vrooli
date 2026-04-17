@@ -11,18 +11,17 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"test-genie/internal/execution"
+	"test-genie/internal/orchestrator"
+	"test-genie/internal/queue"
+	"test-genie/internal/scenarios"
+	"test-genie/internal/shared"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-
-	"test-genie/internal/execution"
-	"test-genie/internal/orchestrator"
-	"test-genie/internal/queue"
-	"test-genie/internal/scenarios"
-	"test-genie/internal/shared"
 )
 
 func TestServer_handleGetSuiteRequestSuccess(t *testing.T) {

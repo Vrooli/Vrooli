@@ -5,6 +5,8 @@
 package orchestration
 
 import (
+	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/domain"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -13,8 +15,6 @@ import (
 	"strings"
 	"time"
 
-	"agent-manager/internal/adapters/event"
-	"agent-manager/internal/domain"
 	"github.com/google/uuid"
 )
 

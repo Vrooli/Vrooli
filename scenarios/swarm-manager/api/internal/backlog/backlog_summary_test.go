@@ -4,9 +4,8 @@ import (
 	"encoding/json"
 	"net/http/httptest"
 	"path/filepath"
-	"testing"
-
 	"swarm-manager/internal/testutil"
+	"testing"
 )
 
 func TestBacklogSummary_LegacyAnsweredRoundInfersPendingSynthesis(t *testing.T) {

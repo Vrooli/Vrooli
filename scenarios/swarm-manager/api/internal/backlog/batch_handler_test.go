@@ -9,10 +9,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"testing"
-
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/testutil"
+	"testing"
 )
 
 // mockInitiativeAssigner implements InitiativeAssigner for testing.

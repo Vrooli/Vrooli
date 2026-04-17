@@ -3,17 +3,17 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import {
+  mockCheckWineStatus,
+  createWrapper,
+  localStorageMock,
+} from "./usePipelineButton.testUtils";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import {
   usePlatformSelection,
   useWineCheck,
 } from "../usePipelineButton";
 import type { WineCheckResponse } from "../../lib/api";
-import {
-  mockCheckWineStatus,
-  createWrapper,
-  localStorageMock,
-} from "./usePipelineButton.testUtils";
 
 beforeEach(() => {
   vi.clearAllMocks();

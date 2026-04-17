@@ -3,10 +3,10 @@ package scenarios
 import (
 	"net/http"
 	"net/http/httptest"
+	"swarm-manager/internal/testutil"
 	"testing"
 
 	"github.com/gorilla/mux"
-	"swarm-manager/internal/testutil"
 )
 
 func TestHandler_LoadAllAndLoad(t *testing.T) {

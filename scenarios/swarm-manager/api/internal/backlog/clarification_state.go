@@ -12,15 +12,15 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"swarm-manager/internal/agentactivity"
+	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/httputil"
+	"swarm-manager/internal/workshop"
 	"time"
 
 	"github.com/gorilla/mux"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
-	"swarm-manager/internal/agentactivity"
-	"swarm-manager/internal/apierr"
-	"swarm-manager/internal/httputil"
-	"swarm-manager/internal/workshop"
 )
 
 // GetClarification returns an existing clarification thread, checking for

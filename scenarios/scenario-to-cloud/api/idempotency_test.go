@@ -2,14 +2,14 @@ package main
 
 import (
 	"context"
-	"strings"
-	"testing"
-
-	repocontract "github.com/vrooli/repo-contract-go"
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/secrets"
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/vps"
+	"strings"
+	"testing"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // TestCaddyConfigIdempotency verifies that Caddy configuration is only written
@@ -126,7 +126,7 @@ func TestSecretsWriterPreservesExisting(t *testing.T) {
 	ctx := context.Background()
 
 	// Fake SSH runner that returns existing secrets
-	remoteSecretsPath, err := repocontract.UserPlaintextSecretsPath("/root")
+	remoteSecretsPath, err := repocontract.UserPlaintextSecretsPath("$HOME")
 	if err != nil {
 		t.Fatalf("UserPlaintextSecretsPath: %v", err)
 	}

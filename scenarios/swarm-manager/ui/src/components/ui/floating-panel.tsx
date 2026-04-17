@@ -44,7 +44,7 @@ export function FloatingPanel({
   className,
   testId,
 }: FloatingPanelProps) {
-  const [position, setPosition] = useState<Position>(initialPosition)
+  const [position, setPosition] = useState(initialPosition)
   const [isDragging, setIsDragging] = useState(false)
   const dragOffset = useRef({ x: 0, y: 0 })
   const panelRef = useRef<HTMLDivElement>(null)

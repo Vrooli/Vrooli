@@ -30,7 +30,7 @@ function addAmplitudeVariation(audio: Float32Array, seed: number = 1): Float32Ar
   for (let i = 0; i < audio.length; i++) {
     // Slow amplitude envelope variation
     const env = 1 + 0.1 * Math.sin(2 * Math.PI * 3 * i / sampleRate + seed);
-    result[i] = audio[i] * env;
+    result[i] = (audio[i] ?? 0) * env;
   }
   return result;
 }
@@ -61,7 +61,7 @@ describe("applyCms", () => {
     const result = applyCms(input);
     // Mean of each column should be ~0
     for (let c = 0; c < 3; c++) {
-      const mean = result.reduce((sum, row) => sum + row[c], 0) / result.length;
+      const mean = result.reduce((sum, row) => sum + (row[c] ?? 0), 0) / result.length;
       expect(mean).toBeCloseTo(0, 10);
     }
   });
@@ -84,7 +84,7 @@ describe("MfccDtwEngine", () => {
       const features = engine.extractFeatures(audio, sampleRate);
       const data = features.data as number[][];
       expect(data.length).toBeGreaterThan(0);
-      expect(data[0].length).toBe(13);
+      expect(data[0]?.length).toBe(13);
     });
 
     it("produces empty data for empty audio", () => {

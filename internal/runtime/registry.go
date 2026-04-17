@@ -155,6 +155,3 @@ func HasHandler(kind hostreq.Kind, name string) bool {
 	return lookupHandler(kind, name) != nil
 }
 
-func RegisteredNames(kind hostreq.Kind) []string {
-	return runtimeRegistry.names(kind)
-}

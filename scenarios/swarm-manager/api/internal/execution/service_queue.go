@@ -7,14 +7,13 @@ import (
 	"log/slog"
 	"os"
 	"strings"
-	"time"
-
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/identity"
 	"swarm-manager/internal/idgen"
 	"swarm-manager/internal/promptcatalog"
+	"time"
 )
 
 // QueueBacklog creates an execution record and optionally starts it.

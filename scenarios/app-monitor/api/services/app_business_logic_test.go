@@ -1,6 +1,7 @@
 package services
 
 import (
+	"app-monitor-api/repository"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -10,8 +11,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"app-monitor-api/repository"
 )
 
 // =============================================================================
@@ -290,7 +289,6 @@ func TestHTTPErrorScenarios(t *testing.T) {
 		result, err := service.submitIssueToTracker(context.Background(), 8080, map[string]interface{}{
 			"title": "Test Issue",
 		})
-
 		if err != nil {
 			t.Errorf("Should not error when success=true, got: %v", err)
 		}
@@ -353,7 +351,6 @@ func TestIssueTrackerIntegration(t *testing.T) {
 			"description": "This is a test",
 			"app_id":      "test-app",
 		})
-
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
@@ -428,7 +425,6 @@ func TestIssueTrackerIntegration(t *testing.T) {
 				result, err := service.submitIssueToTracker(context.Background(), 8080, map[string]interface{}{
 					"title": "Test",
 				})
-
 				if err != nil {
 					t.Fatalf("Unexpected error: %v", err)
 				}

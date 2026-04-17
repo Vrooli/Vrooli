@@ -4,11 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"swarm-manager/internal/eventlog"
 	"testing"
 
 	_ "modernc.org/sqlite"
-
-	"swarm-manager/internal/eventlog"
 )
 
 func setupEmitter(t *testing.T) (*eventlog.Emitter, *eventlog.SQLiteRepository) {

@@ -5,9 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
-
 	"swarm-manager/internal/identity"
+	"time"
 )
 
 // ErrBacklogItemBusy is returned when a spawn is attempted for a backlog item

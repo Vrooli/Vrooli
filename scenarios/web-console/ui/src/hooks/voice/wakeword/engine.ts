@@ -13,23 +13,24 @@ import { distanceToScore, dtwDistance } from "./dtw";
  * effects and normalizing magnitude for more consistent DTW distances.
  */
 export function applyCms(mfccs: number[][]): number[][] {
-  if (mfccs.length === 0) return mfccs;
-  const numCoeffs = mfccs[0]!.length;
+  const first = mfccs[0];
+  if (!first) return mfccs;
+  const numCoeffs = first.length;
   const numFrames = mfccs.length;
 
   // Compute mean per coefficient
   const means = new Array<number>(numCoeffs).fill(0);
   for (const frame of mfccs) {
     for (let c = 0; c < numCoeffs; c++) {
-      means[c]! += frame[c]!;
+      means[c] = (means[c] ?? 0) + (frame[c] ?? 0);
     }
   }
   for (let c = 0; c < numCoeffs; c++) {
-    means[c]! /= numFrames;
+    means[c] = (means[c] ?? 0) / numFrames;
   }
 
   // Subtract mean
-  return mfccs.map(frame => frame.map((v, c) => v - means[c]!));
+  return mfccs.map(frame => frame.map((v, c) => v - (means[c] ?? 0)));
 }
 
 /**

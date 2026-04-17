@@ -4,10 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"test-genie/internal/requirementsimprove"
 
 	"github.com/gorilla/mux"
-
-	"test-genie/internal/requirementsimprove"
 )
 
 // =============================================================================
@@ -23,11 +22,11 @@ type spawnRequirementsImproveRequest struct {
 
 // spawnRequirementsImproveResponse is the response for a spawned requirements improve agent.
 type spawnRequirementsImproveResponse struct {
-	ImproveID string                      `json:"improveId"`
-	RunID     string                      `json:"runId,omitempty"`
-	Tag       string                      `json:"tag"`
-	Status    requirementsimprove.Status  `json:"status"`
-	Error     string                      `json:"error,omitempty"`
+	ImproveID string                     `json:"improveId"`
+	RunID     string                     `json:"runId,omitempty"`
+	Tag       string                     `json:"tag"`
+	Status    requirementsimprove.Status `json:"status"`
+	Error     string                     `json:"error,omitempty"`
 }
 
 // handleSpawnRequirementsImprove spawns a requirements improve agent for the specified scenario.

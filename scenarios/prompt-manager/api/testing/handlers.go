@@ -7,10 +7,9 @@ package testing
 import (
 	"encoding/json"
 	"net/http"
+	"prompt-manager/skills"
 	"strings"
 	"time"
-
-	"prompt-manager/skills"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"

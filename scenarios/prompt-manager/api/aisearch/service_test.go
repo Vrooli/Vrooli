@@ -5,13 +5,12 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"prompt-manager/search"
+	"prompt-manager/skills"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
-
-	"prompt-manager/search"
-	"prompt-manager/skills"
 )
 
 // --- NeedsReindex tests ---

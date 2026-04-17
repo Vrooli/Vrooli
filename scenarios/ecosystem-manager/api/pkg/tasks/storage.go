@@ -15,8 +15,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var activeTaskStatuses = []string{StatusPending, StatusInProgress}
-var queueStatuses = QueueStatuses
+var (
+	activeTaskStatuses = []string{StatusPending, StatusInProgress}
+	queueStatuses      = QueueStatuses
+)
 
 // IsValidStatus checks if a status string is a valid queue status
 func IsValidStatus(status string) bool {
@@ -265,7 +267,7 @@ func (s *Storage) saveQueueItemWithOptions(item TaskItem, status string, cleanup
 	}
 
 	// Use atomic write to prevent partial writes or corruption
-	if err := s.atomicWriteFile(filePath, data, 0644); err != nil {
+	if err := s.atomicWriteFile(filePath, data, 0o644); err != nil {
 		return err
 	}
 
@@ -553,7 +555,7 @@ func (s *Storage) MoveTaskTo(taskID, toStatus string) (*TaskItem, string, error)
 
 	systemlog.Debugf("MoveTaskTo start: task=%s from=%s to=%s", taskID, currentStatus, toStatus)
 
-	if err := os.MkdirAll(filepath.Dir(toPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(toPath), 0o755); err != nil {
 		return nil, "", fmt.Errorf("move task %s: ensure destination dir %s (path=%s): %w", taskID, toStatus, filepath.Dir(toPath), err)
 	}
 

@@ -8,9 +8,8 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"time"
-
 	"test-genie/internal/smoke/orchestrator"
+	"time"
 )
 
 // HealthThresholds defines thresholds for health checks.

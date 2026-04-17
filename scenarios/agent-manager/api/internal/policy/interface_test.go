@@ -1,10 +1,9 @@
 package policy_test
 
 import (
-	"testing"
-
 	"agent-manager/internal/domain"
 	"agent-manager/internal/policy"
+	"testing"
 
 	"github.com/google/uuid"
 )

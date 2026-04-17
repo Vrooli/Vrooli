@@ -4,12 +4,11 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"scenario-to-cloud/domain"
 	"strings"
 	"time"
 
 	mdns "github.com/miekg/dns"
-
-	"scenario-to-cloud/domain"
 )
 
 // LookupRecordSet returns common DNS records for a domain using system resolvers.

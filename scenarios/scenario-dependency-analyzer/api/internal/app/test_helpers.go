@@ -82,7 +82,7 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 
 	// Create test scenarios directory structure
 	scenariosDir := filepath.Join(tempDir, "scenarios")
-	if err := os.MkdirAll(scenariosDir, 0755); err != nil {
+	if err := os.MkdirAll(scenariosDir, 0o755); err != nil {
 		os.RemoveAll(tempDir)
 		t.Fatalf("Failed to create scenarios dir: %v", err)
 	}
@@ -159,13 +159,13 @@ type TestScenario struct {
 // createTestScenario creates a test scenario with service.json and optional files
 func createTestScenario(t *testing.T, env *TestEnvironment, name string, resources map[string]types.Resource) *TestScenario {
 	scenarioPath := filepath.Join(env.ScenariosDir, name)
-	if err := os.MkdirAll(scenarioPath, 0755); err != nil {
+	if err := os.MkdirAll(scenarioPath, 0o755); err != nil {
 		t.Fatalf("Failed to create scenario dir: %v", err)
 	}
 
 	// Create .vrooli directory
 	vrooliPath := filepath.Join(scenarioPath, ".vrooli")
-	if err := os.MkdirAll(vrooliPath, 0755); err != nil {
+	if err := os.MkdirAll(vrooliPath, 0o755); err != nil {
 		t.Fatalf("Failed to create .vrooli dir: %v", err)
 	}
 
@@ -195,7 +195,7 @@ func createTestScenario(t *testing.T, env *TestEnvironment, name string, resourc
 	}
 
 	serviceJSONPath := filepath.Join(vrooliPath, "service.json")
-	if err := ioutil.WriteFile(serviceJSONPath, serviceJSON, 0644); err != nil {
+	if err := ioutil.WriteFile(serviceJSONPath, serviceJSON, 0o644); err != nil {
 		t.Fatalf("Failed to write service.json: %v", err)
 	}
 
@@ -241,7 +241,7 @@ func createTestResourceDirs(t *testing.T, env *TestEnvironment, names ...string)
 	base := filepath.Join(filepath.Dir(env.ScenariosDir), "resources")
 	for _, name := range names {
 		path := filepath.Join(base, name)
-		if err := os.MkdirAll(path, 0755); err != nil {
+		if err := os.MkdirAll(path, 0o755); err != nil {
 			t.Fatalf("Failed to create resource dir %s: %v", name, err)
 		}
 	}
@@ -379,7 +379,6 @@ func insertTestDependency(t *testing.T, testDB *sql.DB, dep types.ScenarioDepend
 		dep.ID, dep.ScenarioName, dep.DependencyType, dep.DependencyName,
 		dep.Required, dep.Purpose, dep.AccessMethod, string(configJSON),
 	)
-
 	if err != nil {
 		t.Fatalf("Failed to insert test dependency: %v", err)
 	}

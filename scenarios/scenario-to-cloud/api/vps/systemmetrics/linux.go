@@ -2,10 +2,9 @@ package systemmetrics
 
 import (
 	"math"
+	"scenario-to-cloud/domain"
 	"strconv"
 	"strings"
-
-	"scenario-to-cloud/domain"
 )
 
 type linuxCollector struct{}

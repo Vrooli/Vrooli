@@ -43,8 +43,12 @@ export function fft(real: Float64Array, imag: Float64Array): void {
     }
     j ^= bit;
     if (i < j) {
-      [real[i], real[j]] = [real[j]!, real[i]!];
-      [imag[i], imag[j]] = [imag[j]!, imag[i]!];
+      const tr = real[i] ?? 0;
+      real[i] = real[j] ?? 0;
+      real[j] = tr;
+      const ti = imag[i] ?? 0;
+      imag[i] = imag[j] ?? 0;
+      imag[j] = ti;
     }
   }
   // Butterfly passes
@@ -57,12 +61,18 @@ export function fft(real: Float64Array, imag: Float64Array): void {
       let curReal = 1;
       let curImag = 0;
       for (let j = 0; j < halfLen; j++) {
-        const tReal = curReal * real[i + j + halfLen]! - curImag * imag[i + j + halfLen]!;
-        const tImag = curReal * imag[i + j + halfLen]! + curImag * real[i + j + halfLen]!;
-        real[i + j + halfLen] = real[i + j]! - tReal;
-        imag[i + j + halfLen] = imag[i + j]! - tImag;
-        real[i + j]! += tReal;
-        imag[i + j]! += tImag;
+        const idxHi = i + j + halfLen;
+        const idxLo = i + j;
+        const realHi = real[idxHi] ?? 0;
+        const imagHi = imag[idxHi] ?? 0;
+        const realLo = real[idxLo] ?? 0;
+        const imagLo = imag[idxLo] ?? 0;
+        const tReal = curReal * realHi - curImag * imagHi;
+        const tImag = curReal * imagHi + curImag * realHi;
+        real[idxHi] = realLo - tReal;
+        imag[idxHi] = imagLo - tImag;
+        real[idxLo] = realLo + tReal;
+        imag[idxLo] = imagLo + tImag;
         const nextReal = curReal * wReal - curImag * wImag;
         curImag = curReal * wImag + curImag * wReal;
         curReal = nextReal;
@@ -109,15 +119,15 @@ export function buildMelFilterbank(
   // Convert to FFT bin indices
   const binIndices = new Float64Array(melPoints.length);
   for (let i = 0; i < melPoints.length; i++) {
-    binIndices[i] = Math.floor(((fftSize + 1) * melToHz(melPoints[i]!)) / sampleRate);
+    binIndices[i] = Math.floor(((fftSize + 1) * melToHz(melPoints[i] ?? 0)) / sampleRate);
   }
 
   const filters: Float64Array[] = [];
   for (let m = 0; m < numFilters; m++) {
     const filter = new Float64Array(numBins);
-    const left = binIndices[m]!;
-    const center = binIndices[m + 1]!;
-    const right = binIndices[m + 2]!;
+    const left = binIndices[m] ?? 0;
+    const center = binIndices[m + 1] ?? 0;
+    const right = binIndices[m + 2] ?? 0;
 
     for (let k = 0; k < numBins; k++) {
       if (k >= left && k <= center && center > left) {
@@ -145,7 +155,7 @@ export function dctII(input: Float64Array, numCoeffs: number): Float64Array {
   for (let k = 0; k < numCoeffs; k++) {
     let sum = 0;
     for (let i = 0; i < n; i++) {
-      sum += input[i]! * Math.cos((Math.PI * k * (2 * i + 1)) / (2 * n));
+      sum += (input[i] ?? 0) * Math.cos((Math.PI * k * (2 * i + 1)) / (2 * n));
     }
     output[k] = sum * scale;
   }
@@ -194,9 +204,9 @@ export function extractMfcc(audio: Float32Array, sampleRate: number): number[][]
 
   // Pre-emphasis (coefficient 0.97)
   const emphasized = new Float32Array(audio.length);
-  emphasized[0] = audio[0]!;
+  emphasized[0] = audio[0] ?? 0;
   for (let i = 1; i < audio.length; i++) {
-    emphasized[i] = audio[i]! - 0.97 * audio[i - 1]!;
+    emphasized[i] = (audio[i] ?? 0) - 0.97 * (audio[i - 1] ?? 0);
   }
 
   // Get or build mel filterbank
@@ -224,7 +234,7 @@ export function extractMfcc(audio: Float32Array, sampleRate: number): number[][]
     real.fill(0);
     imag.fill(0);
     for (let i = 0; i < frameLenSamples; i++) {
-      real[i] = emphasized[offset + i]! * hammingWin[i]!;
+      real[i] = (emphasized[offset + i] ?? 0) * (hammingWin[i] ?? 0);
     }
 
     // FFT
@@ -232,15 +242,18 @@ export function extractMfcc(audio: Float32Array, sampleRate: number): number[][]
 
     // Power spectrum (|X(k)|^2 / N)
     for (let k = 0; k < numBins; k++) {
-      powerSpectrum[k] = (real[k]! * real[k]! + imag[k]! * imag[k]!) / fftSize;
+      const re = real[k] ?? 0;
+      const im = imag[k] ?? 0;
+      powerSpectrum[k] = (re * re + im * im) / fftSize;
     }
 
     // Apply mel filterbank
     for (let m = 0; m < MEL_FILTER_COUNT; m++) {
       let energy = 0;
-      const filter = filterbank[m]!;
+      const filter = filterbank[m];
+      if (!filter) continue;
       for (let k = 0; k < numBins; k++) {
-        energy += powerSpectrum[k]! * filter[k]!;
+        energy += (powerSpectrum[k] ?? 0) * (filter[k] ?? 0);
       }
       // Log with floor to avoid log(0)
       melEnergies[m] = Math.log(Math.max(energy, 1e-22));

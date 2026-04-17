@@ -12,7 +12,7 @@ import { useGraphUIStore } from "../stores/graph-ui-store";
 import type { GraphEdge, GraphNode } from "../types";
 
 export interface UseGraphAutoFitOptions {
-  flowRef: React.RefObject<ReactFlowInstance<GraphNode, GraphEdge> | null>;
+  flowRef: React.RefObject<ReactFlowInstance<GraphNode> | null>;
   lens: string;
   layoutMode: string;
   layoutDirection: string;

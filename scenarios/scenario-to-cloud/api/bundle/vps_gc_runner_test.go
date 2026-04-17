@@ -3,13 +3,12 @@ package bundle
 import (
 	"context"
 	"fmt"
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/ssh"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
-
-	"scenario-to-cloud/domain"
-	"scenario-to-cloud/ssh"
 )
 
 type fakeRemoteBundles struct {

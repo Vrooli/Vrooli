@@ -22,7 +22,7 @@ import { resolvePostRunExecution } from "../../lib/finalization";
 import { defaultQueryOptions, canFollowUpExecution } from "../../lib";
 import { settingsService } from "../../services/settings-service";
 import { selectors } from "../../consts/selectors";
-import type { ExecutionRecord, ExecutionStatus } from "../../types";
+import type { ExecutionRecord } from "../../types";
 import type { Settings } from "../../types/settings";
 import type { ReviewRound } from "../../services/review-service";
 
@@ -64,7 +64,7 @@ export function ReviewFlow({
     openLaunchSheet,
     closeLaunchSheet,
   } = useReviewActions(execution?.executionId, backlogKind, backlogName);
-  const { data: settings } = useQuery<Settings, Error>({
+  const { data: settings } = useQuery<Settings>({
     queryKey: ["settings"],
     queryFn: () => settingsService.get(),
     ...defaultQueryOptions,
@@ -82,7 +82,7 @@ export function ReviewFlow({
   const reviewedCount = allEvidence.filter((e) => e.verified).length;
   const allReviewed = totalCount > 0 && reviewedCount === totalCount;
   const hasNeedsWork = resolved?.finalization?.aggregateClassification === "needs_work";
-  const isTerminal = execution ? canFollowUpExecution(execution.status as ExecutionStatus) : false;
+  const isTerminal = execution ? canFollowUpExecution(execution.status) : false;
   const showFooter = execution && !isActive && isTerminal && onArchive;
 
   const handleArchiveClick = () => {

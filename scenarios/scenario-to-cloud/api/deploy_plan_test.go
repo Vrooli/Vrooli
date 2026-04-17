@@ -1,11 +1,10 @@
 package main
 
 import (
-	"strings"
-	"testing"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/vps"
+	"strings"
+	"testing"
 )
 
 func TestBuildDeployPlanIncludesCaddyAndScenarioStart(t *testing.T) {

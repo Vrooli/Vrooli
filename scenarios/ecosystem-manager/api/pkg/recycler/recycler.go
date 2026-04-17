@@ -4,9 +4,8 @@ import (
 	"log"
 	"strings"
 	"sync"
-	"time"
-
 	"sync/atomic"
+	"time"
 
 	"github.com/ecosystem-manager/api/pkg/settings"
 	"github.com/ecosystem-manager/api/pkg/tasks"
@@ -479,7 +478,6 @@ func (r *Recycler) resetFailures(taskID string) {
 	delete(r.failureAttempts, taskID)
 	r.mu.Unlock()
 }
-
 
 func (r *Recycler) scheduleAfterCooldown(taskID string, delay time.Duration) {
 	if delay <= 0 {

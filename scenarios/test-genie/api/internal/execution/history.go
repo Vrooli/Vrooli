@@ -3,10 +3,9 @@ package execution
 import (
 	"context"
 	"database/sql"
+	"test-genie/internal/orchestrator"
 
 	"github.com/google/uuid"
-
-	"test-genie/internal/orchestrator"
 )
 
 // ExecutionHistory exposes read-only execution data without leaking repository details to callers.

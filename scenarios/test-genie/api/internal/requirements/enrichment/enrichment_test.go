@@ -2,11 +2,10 @@ package enrichment
 
 import (
 	"context"
-	"testing"
-	"time"
-
 	"test-genie/internal/requirements/parsing"
 	"test-genie/internal/requirements/types"
+	"testing"
+	"time"
 )
 
 func mustAddModule(t *testing.T, index *parsing.ModuleIndex, module *types.RequirementModule) {

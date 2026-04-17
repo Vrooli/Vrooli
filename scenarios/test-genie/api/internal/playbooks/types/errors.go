@@ -369,7 +369,6 @@ func ActionTypeToString(at basactions.ActionType) string {
 	}
 }
 
-
 // StepStatusToString converts a proto StepStatus enum to its string representation.
 func StepStatusToString(ss basbase.StepStatus) string {
 	switch ss {

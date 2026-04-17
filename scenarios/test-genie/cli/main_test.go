@@ -8,11 +8,11 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"test-genie/cli/execute"
+	"test-genie/cli/generate"
 	"testing"
 
 	"github.com/vrooli/cli-core/cliutil"
-	"test-genie/cli/execute"
-	"test-genie/cli/generate"
 )
 
 func TestExecuteAcceptsPositionalPhases(t *testing.T) {

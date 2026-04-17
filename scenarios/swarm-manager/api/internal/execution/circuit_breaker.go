@@ -4,11 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"sync"
-	"time"
-
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/storage"
+	"sync"
+	"time"
 )
 
 // CircuitBreakerState tracks per-item failure counts and cooldown state.

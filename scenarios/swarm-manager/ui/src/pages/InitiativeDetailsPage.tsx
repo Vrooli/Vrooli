@@ -280,7 +280,7 @@ export function InitiativeDetailsPage() {
         kind: parsed.kind as BacklogKind,
         name: parsed.name,
         title: found?.title ?? `${parsed.kind}/${parsed.name}`,
-        status: (found?.status ?? "completed") as BacklogStatus,
+        status: (found?.status ?? "completed"),
         dependsOn: found?.dependsOn ?? [],
       };
     });
@@ -299,7 +299,7 @@ export function InitiativeDetailsPage() {
     const map = new Map<string, { parentCount: number; childCount: number }>();
     for (const item of resolvedItems) {
       const relations = computeDependencyRelations(
-        { kind: item.kind as BacklogKind, name: item.name, dependsOn: item.dependsOn },
+        { kind: item.kind, name: item.name, dependsOn: item.dependsOn },
         backlogItems,
       );
       map.set(`${item.kind}/${item.name}`, {

@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -81,7 +80,7 @@ func TestLeastVisitedHandler(t *testing.T) {
 	defer cleanup()
 
 	// Create a temporary directory for testing
-	tempDir, err := ioutil.TempDir("", "visited-tracker-least-visited-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-least-visited-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -251,7 +250,7 @@ func TestMostStaleHandler(t *testing.T) {
 	defer cleanup()
 
 	// Create a temporary directory for testing
-	tempDir, err := ioutil.TempDir("", "visited-tracker-most-stale-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-most-stale-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}

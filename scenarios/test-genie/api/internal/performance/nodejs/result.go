@@ -1,9 +1,8 @@
 package nodejs
 
 import (
-	"time"
-
 	"test-genie/internal/structure/types"
+	"time"
 )
 
 // Re-export shared types for convenience within this package.

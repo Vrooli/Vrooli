@@ -176,42 +176,36 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 }));
 
-// Set up desktop auth change listener
-if (typeof window !== 'undefined') {
-  // Wait for window.desktop to be available
-  const setupAuthListener = () => {
-    const desktopAuth = getDesktopAuth();
-    if (desktopAuth) {
-      desktopAuth.onAuthChanged((event: AuthChangeEvent) => {
-        const store = useAuthStore.getState();
+export const setupAuthListener = (): void => {
+  const desktopAuth = getDesktopAuth();
+  if (desktopAuth) {
+    desktopAuth.onAuthChanged((event: AuthChangeEvent) => {
+      const store = useAuthStore.getState();
 
-        switch (event) {
-          case 'tokens-received':
-          case 'tokens-refreshed':
-            // Fetch user info and update state
-            desktopAuth.getUser().then((user) => {
-              store._setAuthenticated(user as AuthUser | null);
-              store._setLoading(false);
-            });
-            break;
-
-          case 'session-expired':
-          case 'signed-out':
-            store._setAuthenticated(null);
+      switch (event) {
+        case 'tokens-received':
+        case 'tokens-refreshed':
+          desktopAuth.getUser().then((user) => {
+            store._setAuthenticated(user as AuthUser | null);
             store._setLoading(false);
-            break;
-        }
-      });
+          });
+          break;
 
-      // Check initial auth state
-      useAuthStore.getState().checkAuth();
-    } else {
-      // Not in desktop environment, mark as not loading
-      useAuthStore.getState()._setLoading(false);
-    }
-  };
+        case 'session-expired':
+        case 'signed-out':
+          store._setAuthenticated(null);
+          store._setLoading(false);
+          break;
+      }
+    });
 
-  // Try to set up listener immediately, or wait for DOMContentLoaded
+    useAuthStore.getState().checkAuth();
+  } else {
+    useAuthStore.getState()._setLoading(false);
+  }
+};
+
+if (typeof window !== 'undefined') {
   if (document.readyState === 'complete') {
     setupAuthListener();
   } else {

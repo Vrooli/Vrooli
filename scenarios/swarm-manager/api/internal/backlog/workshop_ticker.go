@@ -12,10 +12,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"swarm-manager/internal/agentactivity"
 	"sync"
 	"time"
-
-	"swarm-manager/internal/agentactivity"
 )
 
 const workshopTickerInterval = 2 * time.Second

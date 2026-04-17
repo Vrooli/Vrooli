@@ -7,7 +7,8 @@
   "defaultPackage": "python3",
   "packages": {
     "brew": "python",
-    "winget": "Python.Python.3.12"
+    "winget": "Python.Python.3.12",
+    "pacman": "python"
   },
   "installHint": "Install Python 3.10+",
   "platforms": ["linux", "macos", "windows"]

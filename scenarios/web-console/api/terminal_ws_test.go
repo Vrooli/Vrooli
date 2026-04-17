@@ -643,6 +643,12 @@ func TestHandleTerminalWS_HistoryOffset_InvalidResume(t *testing.T) {
 // WebSocket ping frames to keep the connection alive through reverse proxies
 // (e.g. Cloudflare tunnel's ~100s idle timeout).
 func TestHandleTerminalWS_ServerPingKeepalive(t *testing.T) {
+	// Shorten the keepalive interval so the test runs quickly. The behavior
+	// being verified (server sends a ping on schedule) is identical.
+	prevPingPeriod := wsPingPeriod
+	wsPingPeriod = 100 * time.Millisecond
+	t.Cleanup(func() { wsPingPeriod = prevPingPeriod })
+
 	ts, sessID, _ := setupWSServerWithPTY(t)
 
 	dialer := websocket.Dialer{}
@@ -676,12 +682,11 @@ func TestHandleTerminalWS_ServerPingKeepalive(t *testing.T) {
 		}
 	}()
 
-	// The server sends pings every 30s. Wait up to 35s for one.
 	select {
 	case <-pingReceived:
 		// Server-initiated ping received — keepalive is working
-	case <-time.After(35 * time.Second):
-		t.Fatal("no server-initiated ping received within 35s (expected every 30s)")
+	case <-time.After(2 * time.Second):
+		t.Fatal("no server-initiated ping received within 2s (override interval was 100ms)")
 	}
 }
 

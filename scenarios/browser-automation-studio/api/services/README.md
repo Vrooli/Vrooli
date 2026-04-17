@@ -19,7 +19,7 @@ flowchart LR
     end
 
     subgraph IO["IO & Clients"]
-        DB[(Postgres Repo)]
+        DB[(SQLite Repo)]
         WS["Websocket Hub"]
         MINIO["MinIO / storage"]
         BROW["Browserless"]

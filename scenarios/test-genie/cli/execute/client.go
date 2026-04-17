@@ -9,11 +9,11 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"test-genie/cli/internal/apijson"
 	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
 
-	"test-genie/cli/internal/apijson"
 	execTypes "test-genie/cli/internal/execute"
 )
 

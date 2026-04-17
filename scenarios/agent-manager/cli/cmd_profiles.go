@@ -414,7 +414,7 @@ func (a *App) profileDelete(args []string) error {
 	if !*force {
 		fmt.Printf("Delete profile %s? [y/N]: ", id)
 		var confirm string
-		fmt.Scanln(&confirm)
+		_, _ = fmt.Scanln(&confirm)
 		if strings.ToLower(confirm) != "y" && strings.ToLower(confirm) != "yes" {
 			fmt.Println("Cancelled")
 			return nil

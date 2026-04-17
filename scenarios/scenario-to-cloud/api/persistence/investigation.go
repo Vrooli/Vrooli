@@ -5,9 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"time"
-
 	"scenario-to-cloud/domain"
+	"time"
 )
 
 // CreateInvestigation inserts a new investigation record.

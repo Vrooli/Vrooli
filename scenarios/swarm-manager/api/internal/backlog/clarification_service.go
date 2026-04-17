@@ -16,14 +16,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/google/uuid"
-
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/promptcatalog"
 	"swarm-manager/internal/workshop"
+
+	"github.com/google/uuid"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
 )
 
 // clarificationAllowedImageTypes lists Content-Types accepted for clarification attachments.

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-
 	"test-genie/internal/performance/golang"
 	"test-genie/internal/performance/lighthouse"
 	"test-genie/internal/performance/lighthouse/artifacts"

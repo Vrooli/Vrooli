@@ -6,13 +6,12 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
-
-	"github.com/google/uuid"
-
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/queue"
 	"test-genie/internal/storage/sqliteutil"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 // ScenarioSummary aggregates queue + execution telemetry for a single scenario.

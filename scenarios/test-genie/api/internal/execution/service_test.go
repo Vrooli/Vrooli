@@ -4,14 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"test-genie/internal/orchestrator"
+	"test-genie/internal/queue"
+	"test-genie/internal/shared"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
-
-	"test-genie/internal/orchestrator"
-	"test-genie/internal/queue"
-	"test-genie/internal/shared"
 )
 
 func TestSuiteExecutionService_ExecuteWithoutLinkedRequest(t *testing.T) {

@@ -2,9 +2,8 @@ package teams
 
 import (
 	"context"
-	"slices"
-
 	"prompt-manager/store"
+	"slices"
 )
 
 // PermissionConfig configures permission checking behavior.

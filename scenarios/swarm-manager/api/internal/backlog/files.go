@@ -5,12 +5,12 @@ package backlog
 import (
 	"net/http"
 	"os"
-
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/fileops"
 	"swarm-manager/internal/fileserve"
 	"swarm-manager/internal/httputil"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
 
 // ListFiles returns the file tree for a backlog item.

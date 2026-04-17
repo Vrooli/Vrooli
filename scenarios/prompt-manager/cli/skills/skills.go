@@ -11,14 +11,13 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"prompt-manager/cli/internal/appctx"
+	"prompt-manager/cli/internal/clipboard"
 	"strconv"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
-
-	"prompt-manager/cli/internal/appctx"
-	"prompt-manager/cli/internal/clipboard"
 )
 
 // SkillResponse matches the API response for skills

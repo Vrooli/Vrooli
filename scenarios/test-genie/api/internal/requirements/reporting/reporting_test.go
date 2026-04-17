@@ -5,11 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
-	"testing"
-
 	"test-genie/internal/requirements/enrichment"
 	"test-genie/internal/requirements/parsing"
 	"test-genie/internal/requirements/types"
+	"testing"
 )
 
 func mustAddModule(t *testing.T, index *parsing.ModuleIndex, module *types.RequirementModule) {

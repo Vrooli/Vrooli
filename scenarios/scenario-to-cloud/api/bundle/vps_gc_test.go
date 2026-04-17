@@ -1,9 +1,8 @@
 package bundle
 
 import (
-	"testing"
-
 	"scenario-to-cloud/domain"
+	"testing"
 )
 
 func TestPlanVPSBundleGC_DefaultKeepAndProtect(t *testing.T) {
@@ -70,4 +69,3 @@ func TestIsSafeBundleFilename(t *testing.T) {
 		}
 	}
 }
-

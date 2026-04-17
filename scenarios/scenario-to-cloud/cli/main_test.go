@@ -99,7 +99,7 @@ func TestUnknownCommand(t *testing.T) {
 func TestStatusCallsHealthEndpoint(t *testing.T) {
 	app := newTestApp(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/health" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
@@ -125,7 +125,7 @@ func TestManifestValidatePostsToValidateEndpoint(t *testing.T) {
 	app := newTestApp(t)
 	manifestPath := writeTestManifest(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -152,7 +152,7 @@ func TestManifestValidatePostsToValidateEndpoint(t *testing.T) {
 func TestManifestSchemaGetsSchemaEndpoint(t *testing.T) {
 	app := newTestApp(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -179,7 +179,7 @@ func TestManifestSchemaGetsSchemaEndpoint(t *testing.T) {
 func TestManifestInitPostsToInitEndpoint(t *testing.T) {
 	app := newTestApp(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -206,7 +206,7 @@ func TestManifestInitPostsToInitEndpoint(t *testing.T) {
 func TestScenarioDepsPrintsResourcesFromCurrentAPIShape(t *testing.T) {
 	app := newTestApp(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -243,7 +243,7 @@ func TestScenarioDepsPrintsResourcesFromCurrentAPIShape(t *testing.T) {
 func TestScenarioDepsImpactShowsSummaryAndPerDependencyRows(t *testing.T) {
 	app := newTestApp(t)
 
-	apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	apiServer := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -262,7 +262,7 @@ func TestScenarioDepsImpactShowsSummaryAndPerDependencyRows(t *testing.T) {
 	}))
 	defer apiServer.Close()
 
-	analyzerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	analyzerServer := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -334,7 +334,7 @@ func TestPlanPostsToPlanEndpoint(t *testing.T) {
 	app := newTestApp(t)
 	manifestPath := writeTestManifest(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -364,7 +364,7 @@ func TestBundleBuildPostsToBundleBuildEndpoint(t *testing.T) {
 	app := newTestApp(t)
 	manifestPath := writeTestManifest(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -393,7 +393,7 @@ func TestPreflightPostsToPreflightEndpoint(t *testing.T) {
 	app := newTestApp(t)
 	manifestPath := writeTestManifest(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -422,7 +422,7 @@ func TestVPSInspectPlanPostsToInspectPlanEndpoint(t *testing.T) {
 	app := newTestApp(t)
 	manifestPath := writeTestManifest(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -449,7 +449,7 @@ func TestVPSInspectPlanPostsToInspectPlanEndpoint(t *testing.T) {
 func TestDeploymentHealthAcceptsJSONFlagBeforeOrAfterID(t *testing.T) {
 	app := newTestApp(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -496,7 +496,7 @@ func TestDeploymentHealthPrintsFreshnessNotes(t *testing.T) {
 	app := newTestApp(t)
 	note := "Scenario version not detected from service.json or ui/package.json; falling back to bundle SHA comparison"
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v1/deployments/dep-456/health" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
@@ -538,7 +538,7 @@ func TestDeploymentHealthPrintsFreshnessNotes(t *testing.T) {
 func TestDeploymentHealthPrintsFreshnessNextStepCommand(t *testing.T) {
 	app := newTestApp(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v1/deployments/dep-789/health" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
@@ -580,7 +580,7 @@ func TestDeploymentHealthPrintsFreshnessNextStepCommand(t *testing.T) {
 func TestDeploymentResolveByHostSelector(t *testing.T) {
 	app := newTestApp(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v1/deployments" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
@@ -632,7 +632,7 @@ func TestDeploymentResolveByHostSelector(t *testing.T) {
 func TestDeploymentResolveByDomainSelectorWithoutHost(t *testing.T) {
 	app := newTestApp(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v1/deployments" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
@@ -671,7 +671,7 @@ func TestDeploymentResolveByDomainSelectorWithoutHost(t *testing.T) {
 func TestDeploymentResolveByTargetPrefersDomainMatchBeforeHost(t *testing.T) {
 	app := newTestApp(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v1/deployments" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
@@ -720,7 +720,7 @@ func TestDeploymentResolveByTargetPrefersDomainMatchBeforeHost(t *testing.T) {
 func TestDeploymentHealthResolvesByHostAndScenario(t *testing.T) {
 	app := newTestApp(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/v1/deployments":
 			if got := r.URL.Query().Get("scenario_id"); got != "landing-page-business-suite" {
@@ -777,7 +777,7 @@ func TestDeploymentHealthResolvesByHostAndScenario(t *testing.T) {
 func TestDeploymentHealthResolvesByTargetDomain(t *testing.T) {
 	app := newTestApp(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/v1/deployments":
 			w.Header().Set("Content-Type", "application/json")
@@ -832,7 +832,7 @@ func TestDeploymentCreateAcceptsJSONFlagAfterManifestPath(t *testing.T) {
 	app := newTestApp(t)
 	manifestPath := writeTestManifest(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -873,7 +873,7 @@ func TestRedeployAcceptsJSONFlagAfterManifestPath(t *testing.T) {
 	manifestPath := writeTestManifest(t)
 
 	call := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		call++
 		w.Header().Set("Content-Type", "application/json")
 		switch call {
@@ -929,7 +929,7 @@ func TestRedeploySelectorModeIfNeededExecutesExistingDeployment(t *testing.T) {
 	app := newTestApp(t)
 
 	call := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		call++
 		w.Header().Set("Content-Type", "application/json")
 		switch {
@@ -1009,7 +1009,7 @@ func TestRedeploySelectorModeIfNeededWaitJSONOutputsStructuredResult(t *testing.
 	app := newTestApp(t)
 
 	getCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/deployments":
@@ -1118,7 +1118,7 @@ func TestRedeploySelectorModeIfNeededWaitJSONOutputsStructuredResult(t *testing.
 func TestRedeploySelectorModeRequiresIfNeeded(t *testing.T) {
 	app := newTestApp(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/health":
 			w.Header().Set("Content-Type", "application/json")
@@ -1146,7 +1146,7 @@ func TestRedeploySelectorModeRequiresIfNeeded(t *testing.T) {
 func TestRedeploySelectorModeMissingDeploymentReturnsManifestGuidance(t *testing.T) {
 	app := newTestApp(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/deployments" {
 			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.String())
 		}
@@ -1179,7 +1179,7 @@ func TestVPSInspectApplyPostsToInspectApplyEndpoint(t *testing.T) {
 	app := newTestApp(t)
 	manifestPath := writeTestManifest(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -1206,7 +1206,7 @@ func TestVPSInspectApplyPostsToInspectApplyEndpoint(t *testing.T) {
 func TestInspectMetricsGetsMetricsDebugEndpoint(t *testing.T) {
 	app := newTestApp(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -1255,7 +1255,7 @@ func TestVPSSetupPlanPostsToSetupPlanEndpoint(t *testing.T) {
 	manifestPath := writeTestManifest(t)
 	bundlePath := writeTempFile(t, "mini-vrooli.tar.gz", "not-a-real-tarball")
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -1295,7 +1295,7 @@ func TestVPSSetupApplyPostsToSetupApplyEndpoint(t *testing.T) {
 	manifestPath := writeTestManifest(t)
 	bundlePath := writeTempFile(t, "mini-vrooli.tar.gz", "not-a-real-tarball")
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -1331,7 +1331,7 @@ func TestVPSDeployPlanPostsToDeployPlanEndpoint(t *testing.T) {
 	app := newTestApp(t)
 	manifestPath := writeTestManifest(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -1367,7 +1367,7 @@ func TestVPSDeployApplyPostsToDeployApplyEndpoint(t *testing.T) {
 	app := newTestApp(t)
 	manifestPath := writeTestManifest(t)
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(withHealth(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("unexpected method: %s", r.Method)
 		}
@@ -1408,6 +1408,20 @@ func newTestApp(t *testing.T) *App {
 		t.Fatalf("new app: %v", err)
 	}
 	return app
+}
+
+// withHealth wraps a test handler so that GET /health responds with a
+// healthy payload. The CLI probes /health before every API command, so
+// every fake server must answer that probe in addition to its own routes.
+func withHealth(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" && r.Method == http.MethodGet {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"status":"healthy","readiness":true}`)
+			return
+		}
+		next(w, r)
+	}
 }
 
 func writeTempFile(t *testing.T, name, contents string) string {

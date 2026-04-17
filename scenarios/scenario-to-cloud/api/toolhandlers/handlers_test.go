@@ -5,9 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"testing"
-
 	"scenario-to-cloud/toolregistry"
+	"testing"
 
 	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 	"google.golang.org/protobuf/encoding/protojson"

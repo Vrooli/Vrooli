@@ -1,14 +1,13 @@
 package providers
 
 import (
+	"agent-manager/internal/pricing"
 	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
-
-	"agent-manager/internal/pricing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

@@ -9,14 +9,13 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"scenario-to-cloud/cli/deployment"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
-
-	"scenario-to-cloud/cli/deployment"
 )
 
 func Run(client *Client, deploymentClient *deployment.Client, args []string) error {

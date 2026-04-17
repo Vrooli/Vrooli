@@ -2,13 +2,12 @@ package fix
 
 import (
 	"fmt"
-	"strings"
-
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/tasks/shared"
+	"strings"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // BuildPromptAndContext generates the fix prompt and context attachments for one iteration.

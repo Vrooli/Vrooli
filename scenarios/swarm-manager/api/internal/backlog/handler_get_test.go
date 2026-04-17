@@ -4,10 +4,10 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"swarm-manager/internal/testutil"
 	"testing"
 
 	"github.com/gorilla/mux"
-	"swarm-manager/internal/testutil"
 )
 
 func TestList_Empty(t *testing.T) {

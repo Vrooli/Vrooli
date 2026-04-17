@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"sort"
 	"strings"
-
 	"test-genie/internal/structure/types"
 )
 

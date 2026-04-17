@@ -9,11 +9,10 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-
-	"github.com/vrooli/cli-core/cliutil"
-
 	"test-genie/internal/requirements/discovery"
 	"test-genie/internal/requirements/parsing"
+
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 type prdLintResult struct {

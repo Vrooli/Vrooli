@@ -3,12 +3,11 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/tasks"
 	"strings"
 
 	"github.com/gorilla/mux"
-
-	"scenario-to-cloud/domain"
-	"scenario-to-cloud/tasks"
 )
 
 // handleCreateTask triggers a new task (investigate or fix) for a deployment.

@@ -4,12 +4,11 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"testing"
-	"time"
-
 	"test-genie/internal/smoke/browser"
 	"test-genie/internal/smoke/orchestrator"
 	"test-genie/internal/smoke/smokeconfig"
+	"testing"
+	"time"
 )
 
 func TestNewRunner(t *testing.T) {

@@ -6,9 +6,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"testing"
-
 	"swarm-manager/internal/testutil"
+	"testing"
 )
 
 func TestHandler_UpdatePersistError(t *testing.T) {

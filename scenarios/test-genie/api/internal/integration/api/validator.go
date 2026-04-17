@@ -6,9 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
-
 	"test-genie/internal/structure/types"
+	"time"
 )
 
 // Validator validates API health endpoints.

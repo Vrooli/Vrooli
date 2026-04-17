@@ -1,14 +1,13 @@
 package vps
 
 import (
-	"strings"
-	"testing"
-	"time"
-
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/sshidentity"
 	"scenario-to-cloud/tlsinfo"
+	"strings"
+	"testing"
+	"time"
 )
 
 func newTestDeployment(status domain.DeploymentStatus) *domain.Deployment {
@@ -121,7 +120,7 @@ func newHealthyTLSSnapshot() *tlsinfo.Snapshot {
 	}
 }
 
-func findCheck(resp domain.HealthResponse, category string, id string) *domain.HealthCheck {
+func findCheck(resp domain.HealthResponse, category, id string) *domain.HealthCheck {
 	for _, sec := range resp.Sections {
 		if sec.Category != category {
 			continue

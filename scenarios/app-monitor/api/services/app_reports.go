@@ -1,6 +1,7 @@
 package services
 
 import (
+	"app-monitor-api/logger"
 	"bytes"
 	"context"
 	"encoding/base64"
@@ -15,8 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"app-monitor-api/logger"
 
 	"github.com/vrooli/api-core/discovery"
 )

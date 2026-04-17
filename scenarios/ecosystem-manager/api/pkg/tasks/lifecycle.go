@@ -332,7 +332,6 @@ func finalizeRule(toStatus string) func(lc *Lifecycle, task *TaskItem, fromStatu
 	}
 }
 
-
 // Complete marks a task as completed using canonical rules.
 func (lc *Lifecycle) Complete(taskID string, ctx TransitionContext) (*TaskItem, string, error) {
 	outcome, err := lc.ApplyTransition(TransitionRequest{
@@ -397,4 +396,3 @@ func (lc *Lifecycle) Recycle(taskID string, ctx TransitionContext) (*TaskItem, s
 	}
 	return outcome.Task, outcome.From, nil
 }
-

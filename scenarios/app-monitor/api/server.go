@@ -1,6 +1,13 @@
 package main
 
 import (
+	"app-monitor-api/config"
+	"app-monitor-api/handlers"
+	"app-monitor-api/middleware"
+	"app-monitor-api/repository"
+	"app-monitor-api/services"
+	"app-monitor-api/toolexecution"
+	"app-monitor-api/toolregistry"
 	"context"
 	"database/sql"
 	"fmt"
@@ -9,14 +16,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-
-	"app-monitor-api/config"
-	"app-monitor-api/handlers"
-	"app-monitor-api/middleware"
-	"app-monitor-api/repository"
-	"app-monitor-api/services"
-	"app-monitor-api/toolexecution"
-	"app-monitor-api/toolregistry"
 
 	"github.com/gin-gonic/gin"
 	"github.com/vrooli/api-core/health"

@@ -1,8 +1,6 @@
 package local
 
 import (
-	"github.com/vrooli/cli-core/cliapp"
-
 	"test-genie/cli/internal/deps"
 	"test-genie/cli/playbooksseed"
 	"test-genie/cli/registry"
@@ -10,6 +8,8 @@ import (
 	"test-genie/cli/runlocal"
 	"test-genie/cli/storage"
 	"test-genie/cli/uismoke"
+
+	"github.com/vrooli/cli-core/cliapp"
 )
 
 // Register returns the local-operations command group.

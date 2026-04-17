@@ -3,11 +3,10 @@ package interop
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
-
 	"prompt-manager/store"
 	"prompt-manager/teamconfig"
 	"prompt-manager/validation"
+	"strings"
 )
 
 // CCTeamConfig mirrors the structure of ~/.claude/teams/{name}/config.json.

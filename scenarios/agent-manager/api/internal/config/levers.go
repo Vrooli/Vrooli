@@ -13,10 +13,9 @@
 package config
 
 import (
+	"agent-manager/internal/domain"
 	"fmt"
 	"time"
-
-	"agent-manager/internal/domain"
 )
 
 // =============================================================================

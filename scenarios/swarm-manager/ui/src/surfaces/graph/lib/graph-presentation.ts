@@ -44,7 +44,7 @@ export function filterGraphNodes(nodes: GraphNode[], settings: GraphLensSettings
   return nodes.filter((node) => {
     const data = getGraphNodeData(node);
     const entityType = data.entityType;
-    if (entityType && settings.entityFilters[entityType] === false) {
+    if (entityType && !settings.entityFilters[entityType]) {
       return false;
     }
 

@@ -4,10 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strconv"
-	"strings"
-	"time"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
 	"scenario-to-cloud/internal/shellutil"
@@ -15,6 +11,9 @@ import (
 	"scenario-to-cloud/sshidentity"
 	"scenario-to-cloud/tlsinfo"
 	"scenario-to-cloud/vps"
+	"strconv"
+	"strings"
+	"time"
 )
 
 // Re-export types from vps package for backward compatibility with tests.

@@ -49,7 +49,7 @@ func TestLinter_HasPythonFiles(t *testing.T) {
 	}
 
 	// Create a Python file
-	if err := os.WriteFile(filepath.Join(tmpDir, "test.py"), []byte("print('hello')"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "test.py"), []byte("print('hello')"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -67,10 +67,10 @@ func TestLinter_HasPythonFiles_SkipsDirectories(t *testing.T) {
 
 	// Create .venv directory with Python file
 	venvDir := filepath.Join(tmpDir, ".venv")
-	if err := os.MkdirAll(venvDir, 0755); err != nil {
+	if err := os.MkdirAll(venvDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(venvDir, "test.py"), []byte("print('hello')"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(venvDir, "test.py"), []byte("print('hello')"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -99,7 +99,7 @@ func TestLinter_HasMypyConfig(t *testing.T) {
 	}
 
 	// Create mypy.ini
-	if err := os.WriteFile(filepath.Join(tmpDir, "mypy.ini"), []byte("[mypy]"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "mypy.ini"), []byte("[mypy]"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -125,7 +125,7 @@ name = "test"
 [tool.mypy]
 strict = true
 `
-	if err := os.WriteFile(filepath.Join(tmpDir, "pyproject.toml"), []byte(pyprojectContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "pyproject.toml"), []byte(pyprojectContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -286,7 +286,7 @@ func TestLinter_Lint_NoToolsAvailable(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Create a Python file
-	if err := os.WriteFile(filepath.Join(tmpDir, "test.py"), []byte("print('hello')"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "test.py"), []byte("print('hello')"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

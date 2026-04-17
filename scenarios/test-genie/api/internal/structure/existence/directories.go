@@ -50,12 +50,3 @@ func logError(w io.Writer, format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
 	fmt.Fprintf(w, "[ERROR] ❌ %s\n", msg)
 }
-
-// logWarn writes a warning message.
-func logWarn(w io.Writer, format string, args ...interface{}) {
-	if w == nil {
-		return
-	}
-	msg := fmt.Sprintf(format, args...)
-	fmt.Fprintf(w, "[WARNING] ⚠️ %s\n", msg)
-}

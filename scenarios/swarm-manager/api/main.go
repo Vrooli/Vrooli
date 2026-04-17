@@ -19,15 +19,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
-
-	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
-	"github.com/vrooli/api-core/health"
-	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
-	_ "modernc.org/sqlite"
-
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/backlog"
@@ -46,6 +37,14 @@ import (
 	"swarm-manager/internal/scenarios"
 	"swarm-manager/internal/settings"
 	"swarm-manager/internal/stats"
+	"time"
+
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
+	_ "modernc.org/sqlite"
 )
 
 type Server struct {

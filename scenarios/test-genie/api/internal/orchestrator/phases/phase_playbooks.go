@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"time"
-
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/playbooks"
 	"test-genie/internal/playbooks/config"
 	"test-genie/internal/playbooks/isolation"
-	playbookregistry "test-genie/internal/playbooks/registry"
 	"test-genie/internal/shared"
+	"time"
+
+	playbookregistry "test-genie/internal/playbooks/registry"
 )
 
 // isolationProvider lets tests stub isolation without requiring Docker.

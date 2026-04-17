@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
-
 	"swarm-manager/internal/backlog"
+	"time"
 )
 
 // backlogItemCreatorAdapter bridges backlog.Store to BacklogItemCreator.

@@ -215,64 +215,62 @@ export default function TerminalLauncher({
           </div>
 
           {/* Session Options */}
-          {(showBackendSelector || true) && (
-            <div className="space-y-2">
-              <button
-                data-testid="launcher-options-toggle"
-                className="flex items-center gap-1 px-1 text-xs font-medium uppercase tracking-wider text-wc-text-faint hover:text-wc-text-muted"
-                onClick={() => setOptionsOpen(!optionsOpen)}
-              >
-                {optionsOpen ? (
-                  <ChevronDown className="h-3 w-3" />
-                ) : (
-                  <ChevronRight className="h-3 w-3" />
-                )}
-                Session Options
-              </button>
-              {optionsOpen && (
-                <div className="space-y-2 rounded-md border border-wc-default bg-wc-surface-base/50 p-3">
-                  {showBackendSelector && (
-                    <div className="flex items-center gap-2">
-                      <label className="text-xs text-wc-text-secondary">Backend:</label>
-                      <select
-                        data-testid="launcher-backend-select"
-                        className="h-7 rounded-lg border border-wc-default bg-wc-surface-input px-2 text-xs text-wc-text-secondary focus:border-wc-accent focus:outline-none"
-                        value={selectedBackend}
-                        onChange={(e) => setSelectedBackend(e.target.value as BackendID)}
-                      >
-                        {backends.map((b) => (
-                          <option key={b.id} value={b.id}>
-                            {b.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
+          <div className="space-y-2">
+            <button
+              data-testid="launcher-options-toggle"
+              className="flex items-center gap-1 px-1 text-xs font-medium uppercase tracking-wider text-wc-text-faint hover:text-wc-text-muted"
+              onClick={() => setOptionsOpen(!optionsOpen)}
+            >
+              {optionsOpen ? (
+                <ChevronDown className="h-3 w-3" />
+              ) : (
+                <ChevronRight className="h-3 w-3" />
+              )}
+              Session Options
+            </button>
+            {optionsOpen && (
+              <div className="space-y-2 rounded-md border border-wc-default bg-wc-surface-base/50 p-3">
+                {showBackendSelector && (
                   <div className="flex items-center gap-2">
-                    <label className="text-xs text-wc-text-secondary">Timeout:</label>
+                    <label className="text-xs text-wc-text-secondary">Backend:</label>
                     <select
-                      data-testid="launcher-timeout-select"
+                      data-testid="launcher-backend-select"
                       className="h-7 rounded-lg border border-wc-default bg-wc-surface-input px-2 text-xs text-wc-text-secondary focus:border-wc-accent focus:outline-none"
-                      value={selectedPolicyKey}
-                      onChange={(e) => setSelectedPolicyKey(e.target.value)}
+                      value={selectedBackend}
+                      onChange={(e) => setSelectedBackend(e.target.value as BackendID)}
                     >
-                      {POLICY_OPTIONS.map((opt) => (
-                        <option key={policyKey(opt.mode, opt.duration)} value={policyKey(opt.mode, opt.duration)}>
-                          {opt.label}
+                      {backends.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.label}
                         </option>
                       ))}
                     </select>
                   </div>
-                  {selectedBackend === "persistent" && (
-                    <div className="flex items-start gap-1.5 text-[11px] text-wc-text-faint">
-                      <Info className="mt-0.5 h-3 w-3 shrink-0" />
-                      <span>Persistent sessions survive web console restarts using tmux.</span>
-                    </div>
-                  )}
+                )}
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-wc-text-secondary">Timeout:</label>
+                  <select
+                    data-testid="launcher-timeout-select"
+                    className="h-7 rounded-lg border border-wc-default bg-wc-surface-input px-2 text-xs text-wc-text-secondary focus:border-wc-accent focus:outline-none"
+                    value={selectedPolicyKey}
+                    onChange={(e) => setSelectedPolicyKey(e.target.value)}
+                  >
+                    {POLICY_OPTIONS.map((opt) => (
+                      <option key={policyKey(opt.mode, opt.duration)} value={policyKey(opt.mode, opt.duration)}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              )}
-            </div>
-          )}
+                {selectedBackend === "persistent" && (
+                  <div className="flex items-start gap-1.5 text-[11px] text-wc-text-faint">
+                    <Info className="mt-0.5 h-3 w-3 shrink-0" />
+                    <span>Persistent sessions survive web console restarts using tmux.</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {isCreating && (

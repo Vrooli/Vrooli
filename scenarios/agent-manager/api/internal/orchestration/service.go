@@ -12,6 +12,18 @@
 package orchestration
 
 import (
+	"agent-manager/internal/adapters/artifact"
+	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/adapters/recommendation"
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/sandbox"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/identity"
+	"agent-manager/internal/modelregistry"
+	"agent-manager/internal/policy"
+	"agent-manager/internal/promptmanager"
+	"agent-manager/internal/repository"
+	"agent-manager/internal/storage"
 	"context"
 	"fmt"
 	"log"
@@ -22,19 +34,8 @@ import (
 	"strings"
 	"time"
 
-	"agent-manager/internal/adapters/artifact"
-	"agent-manager/internal/adapters/event"
-	"agent-manager/internal/adapters/recommendation"
-	"agent-manager/internal/adapters/runner"
-	"agent-manager/internal/adapters/sandbox"
 	agentconfig "agent-manager/internal/config"
-	"agent-manager/internal/domain"
-	"agent-manager/internal/identity"
-	"agent-manager/internal/modelregistry"
-	"agent-manager/internal/policy"
-	"agent-manager/internal/promptmanager"
-	"agent-manager/internal/repository"
-	"agent-manager/internal/storage"
+
 	"github.com/google/uuid"
 )
 

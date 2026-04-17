@@ -5,11 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"io/fs"
-	"time"
-
 	"test-genie/internal/requirements/enrichment"
 	"test-genie/internal/requirements/parsing"
 	"test-genie/internal/requirements/types"
+	"time"
 )
 
 // Builder builds requirement snapshots.
@@ -247,5 +246,5 @@ func (w *jsonFileWriter) WriteJSON(path string, v any) error {
 		return err
 	}
 	data = append(data, '\n')
-	return w.writer.WriteFile(path, data, 0644)
+	return w.writer.WriteFile(path, data, 0o644)
 }

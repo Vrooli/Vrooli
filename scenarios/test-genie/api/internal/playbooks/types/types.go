@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"test-genie/internal/shared"
 	"time"
 
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
-	"test-genie/internal/shared"
 )
 
 const (

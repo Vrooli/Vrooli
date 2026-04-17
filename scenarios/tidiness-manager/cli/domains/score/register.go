@@ -3,7 +3,6 @@ package score
 import (
 	"fmt"
 	"os"
-
 	"tidiness-manager/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"

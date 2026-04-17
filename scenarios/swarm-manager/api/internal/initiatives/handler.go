@@ -4,12 +4,11 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/httputil"
 	"time"
 
 	"github.com/gorilla/mux"
-
-	"swarm-manager/internal/apierr"
-	"swarm-manager/internal/httputil"
 )
 
 // Handler provides HTTP handlers for initiative operations.

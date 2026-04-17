@@ -3,12 +3,12 @@ package agentactivity
 import (
 	"net/http"
 	"net/http/httptest"
+	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/testutil"
 	"testing"
 
 	"github.com/gorilla/mux"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
-	"swarm-manager/internal/agentmanager"
-	"swarm-manager/internal/testutil"
 )
 
 func setupHandlerTest(t *testing.T, records []Record, raw *stubAgentService) (*mux.Router, *Service) {

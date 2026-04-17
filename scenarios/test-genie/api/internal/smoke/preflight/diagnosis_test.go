@@ -4,9 +4,8 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"testing"
-
 	"test-genie/internal/smoke/orchestrator"
+	"testing"
 )
 
 func TestDefaultHealthThresholds(t *testing.T) {

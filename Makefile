@@ -1,4 +1,4 @@
-.PHONY: help setup dev develop build install status stop fmt lint type test check clean
+.PHONY: help setup dev develop build install status stop fmt lint type test check fmt-packages lint-packages type-packages test-packages check-packages clean
 
 .DEFAULT_GOAL := help
 
@@ -7,6 +7,7 @@ INSTALL_DIR := $(HOME)/.vrooli/bin
 VROOLI := go run ./cmd/vrooli --no-stale-check
 SETUP_ARGS ?=
 DEVELOP_ARGS ?=
+PACKAGE_DIRS := packages/api-core packages/cli-core packages/repo-contract-go
 
 help: ## Show the supported repo-level entrypoints
 	@printf "Vrooli project entrypoints\n\n"
@@ -20,7 +21,12 @@ help: ## Show the supported repo-level entrypoints
 	@printf "  make lint                       Lint project-level Go code\n"
 	@printf "  make type                       Compile-check project-level Go packages\n"
 	@printf "  make test                       Run project-level Go tests\n"
-	@printf "  make check                      Run lint, type, and test quality gates\n"
+	@printf "  make check                      Run lint, type, and test quality gates (core + packages)\n"
+	@printf "  make fmt-packages               Format Go code in packages/*\n"
+	@printf "  make lint-packages              Lint Go code in packages/*\n"
+	@printf "  make type-packages              Compile-check Go packages in packages/*\n"
+	@printf "  make test-packages              Run Go tests in packages/*\n"
+	@printf "  make check-packages             Run quality gates across packages/*\n"
 	@printf "  make clean                      Clean build artifacts via the CLI\n"
 
 setup: ## Bootstrap and run project setup
@@ -73,7 +79,37 @@ test: ## Run project-level Go tests
 	@go test ./cmd/vrooli
 	@go test -tags testing ./cmd/vrooli-api
 
-check: lint type test ## Run lint, type, and test quality gates
+check: lint type test check-packages ## Run lint, type, and test quality gates (core + packages)
+
+fmt-packages: ## Format Go code in packages/*
+	@for dir in $(PACKAGE_DIRS); do \
+		printf "==> fmt %s\n" "$$dir"; \
+		$(MAKE) -C "$$dir" fmt || exit $$?; \
+	done
+
+lint-packages: ## Lint Go code in packages/*
+	@for dir in $(PACKAGE_DIRS); do \
+		printf "==> lint %s\n" "$$dir"; \
+		$(MAKE) -C "$$dir" lint || exit $$?; \
+	done
+
+type-packages: ## Compile-check Go packages in packages/*
+	@for dir in $(PACKAGE_DIRS); do \
+		printf "==> type %s\n" "$$dir"; \
+		$(MAKE) -C "$$dir" type || exit $$?; \
+	done
+
+test-packages: ## Run Go tests in packages/*
+	@for dir in $(PACKAGE_DIRS); do \
+		printf "==> test %s\n" "$$dir"; \
+		$(MAKE) -C "$$dir" test || exit $$?; \
+	done
+
+check-packages: ## Run quality gates across packages/*
+	@for dir in $(PACKAGE_DIRS); do \
+		printf "==> check %s\n" "$$dir"; \
+		$(MAKE) -C "$$dir" check || exit $$?; \
+	done
 
 clean: ## Clean build artifacts via the CLI
 	@$(VROOLI) clean

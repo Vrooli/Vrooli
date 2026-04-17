@@ -33,6 +33,10 @@ export const WORKSHOP_FILE_PATHS = {
   workshopDir: "workshop/",
 } as const;
 
+function readString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
 // ---------------------------------------------------------------------------
 // Truncation recovery (ported from idea-agent-files.ts)
 // ---------------------------------------------------------------------------
@@ -134,45 +138,45 @@ function normalizeDecisionOption(raw: unknown): import("../types/domain").Decisi
   if (raw && typeof raw === "object" && !Array.isArray(raw)) {
     const obj = raw as Record<string, unknown>;
     return {
-      key: String(obj.key ?? ""),
-      label: String(obj.label ?? ""),
-      rationale: String(obj.rationale ?? ""),
+      key: readString(obj.key),
+      label: readString(obj.label),
+      rationale: readString(obj.rationale),
       ...(obj.recommended === true && { recommended: true }),
     };
   }
   // Fallback for legacy string options
-  const str = String(raw ?? "");
+  const str = readString(raw);
   return { key: str, label: str, rationale: "" };
 }
 
 function normalizeWorkshopItem(raw: Record<string, unknown>): WorkshopItem {
-  const type = String(raw.type ?? "info");
+  const type = readString(raw.type, "info");
   const item: WorkshopItem = {
-    id: String(raw.id ?? ""),
+    id: readString(raw.id),
     type: type as WorkshopItem["type"],
   };
 
-  if (raw.topic) item.topic = String(raw.topic);
-  if (raw.text) item.text = String(raw.text);
-  if (raw.context) item.context = String(raw.context);
+  if (typeof raw.topic === "string") item.topic = raw.topic;
+  if (typeof raw.text === "string") item.text = raw.text;
+  if (typeof raw.context === "string") item.context = raw.context;
 
   if (Array.isArray(raw.options)) {
     item.options = raw.options.map(normalizeDecisionOption);
   }
 
-  if (raw.context_note) item.context_note = String(raw.context_note);
-  if (raw.clarification_id) item.clarification_id = String(raw.clarification_id);
+  if (typeof raw.context_note === "string") item.context_note = raw.context_note;
+  if (typeof raw.clarification_id === "string") item.clarification_id = raw.clarification_id;
 
   if (type === "decision") {
     item.selected = raw.selected === null || raw.selected === undefined
       ? null
-      : String(raw.selected);
+      : readString(raw.selected);
     item.freeform = raw.freeform === null || raw.freeform === undefined
       ? null
-      : String(raw.freeform);
+      : readString(raw.freeform);
     item.notes = raw.notes === null || raw.notes === undefined
       ? null
-      : String(raw.notes);
+      : readString(raw.notes);
   }
 
   return item;

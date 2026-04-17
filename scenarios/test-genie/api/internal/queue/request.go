@@ -7,11 +7,10 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"test-genie/internal/shared"
 	"time"
 
 	"github.com/google/uuid"
-
-	"test-genie/internal/shared"
 )
 
 // Status constants for suite request lifecycle.

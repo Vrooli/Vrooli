@@ -12,26 +12,19 @@ import type {
   ScenarioState,
 } from "../../lib/api";
 
-// Mock the API module
-vi.mock("../../lib/api", () => ({
+const mocks = vi.hoisted(() => ({
   fetchScenarioState: vi.fn(),
   saveScenarioState: vi.fn(),
   deleteScenarioState: vi.fn(),
   checkStateStaleness: vi.fn(),
 }));
 
-// Import mocks after setting up vi.mock
-import {
-  fetchScenarioState,
-  saveScenarioState,
-  deleteScenarioState,
-  checkStateStaleness,
-} from "../../lib/api";
+vi.mock("../../lib/api", () => mocks);
 
-export const mockFetchScenarioState = fetchScenarioState as ReturnType<typeof vi.fn>;
-export const mockSaveScenarioState = saveScenarioState as ReturnType<typeof vi.fn>;
-export const mockDeleteScenarioState = deleteScenarioState as ReturnType<typeof vi.fn>;
-export const mockCheckStateStaleness = checkStateStaleness as ReturnType<typeof vi.fn>;
+export const mockFetchScenarioState = mocks.fetchScenarioState;
+export const mockSaveScenarioState = mocks.saveScenarioState;
+export const mockDeleteScenarioState = mocks.deleteScenarioState;
+export const mockCheckStateStaleness = mocks.checkStateStaleness;
 
 // Create a wrapper with QueryClientProvider
 export function createWrapper() {

@@ -1,11 +1,11 @@
 package domains
 
 import (
-	"github.com/vrooli/cli-core/cliapp"
-
 	"test-genie/cli/domains/local"
 	"test-genie/cli/domains/suites"
 	"test-genie/cli/internal/deps"
+
+	"github.com/vrooli/cli-core/cliapp"
 )
 
 // CommandGroups aggregates the scenario's domain registrations. The root

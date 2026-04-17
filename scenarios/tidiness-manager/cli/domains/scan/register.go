@@ -5,7 +5,6 @@ import (
 	"os"
 	"sort"
 	"strings"
-
 	"tidiness-manager/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -161,7 +160,7 @@ func runSmart(core *cliapp.ScenarioApp, target string, files []string, forceResc
 	return cliapp.RenderOperationalReport(os.Stdout, report)
 }
 
-func runTypeSafety(core *cliapp.ScenarioApp, target string, includePatterns bool, fix bool, jsonOutput bool) error {
+func runTypeSafety(core *cliapp.ScenarioApp, target string, includePatterns, fix, jsonOutput bool) error {
 	scenario := support.ScenarioName(target)
 	if strings.TrimSpace(scenario) == "" {
 		return fmt.Errorf("scenario name is required for type-safety scans")

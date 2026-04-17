@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-
 	"test-genie/internal/structure/types"
 )
 

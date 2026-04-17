@@ -156,7 +156,8 @@ func (s *HandlerTestSuite) TestEdgeCases(cases map[string]struct {
 	Body           interface{}
 	ExpectedStatus int
 	Description    string
-}) {
+},
+) {
 	for name, tc := range cases {
 		s.T.Run(name, func(t *testing.T) {
 			recorder := makeHTTPRequest(t, s.Router, tc.Method, tc.Path, tc.Body)

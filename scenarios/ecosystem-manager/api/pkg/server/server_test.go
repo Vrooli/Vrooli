@@ -28,6 +28,7 @@ func (s stubProfileService) ListProfiles(tags []string) ([]*autosteer.AutoSteerP
 func (s stubProfileService) GetProfile(id string) (*autosteer.AutoSteerProfile, error) {
 	return nil, nil
 }
+
 func (s stubProfileService) UpdateProfile(id string, updates *autosteer.AutoSteerProfile) error {
 	return nil
 }

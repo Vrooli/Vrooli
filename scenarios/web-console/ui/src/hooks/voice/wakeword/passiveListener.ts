@@ -168,7 +168,8 @@ export class PassiveListener {
     this.analyser.getFloatTimeDomainData(this.timeDomainData);
     let sum = 0;
     for (let i = 0; i < this.timeDomainData.length; i++) {
-      sum += this.timeDomainData[i]! * this.timeDomainData[i]!;
+      const v = this.timeDomainData[i] ?? 0;
+      sum += v * v;
     }
     const rms = Math.sqrt(sum / this.timeDomainData.length);
 
@@ -243,7 +244,9 @@ export class PassiveListener {
         this.rafId = 0;
       }
       this.cleanupAudioNodes();
-      this.onWakeWordDetected(this.stream!);
+      if (this.stream) {
+        this.onWakeWordDetected(this.stream);
+      }
     } else {
       // No match — record the time for debounce
       this.lastFailedMatchTime = performance.now();

@@ -336,13 +336,14 @@ func (c *Commands) Gate(args []string) error {
 		return nil
 	}
 
-	if resp.CurrentState == "gate_blocked" {
+	switch {
+	case resp.CurrentState == "gate_blocked":
 		fmt.Printf("Gate: BLOCKED (stage=%s)\n", resp.CurrentStage)
 		fmt.Printf("Status: %s\n", resp.ProgressMsg)
 		fmt.Println("Approve the release in deployment-manager to proceed.")
-	} else if resp.Status == "running" {
+	case resp.Status == "running":
 		fmt.Printf("Gate: not blocked (state=%s, stage=%s)\n", resp.CurrentState, resp.CurrentStage)
-	} else {
+	default:
 		fmt.Printf("Pipeline %s: %s\n", resp.Status, resp.ProgressMsg)
 	}
 	return nil

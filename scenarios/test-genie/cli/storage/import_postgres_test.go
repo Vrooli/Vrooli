@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"test-genie/internal/storage/sqlitedb"
 	"testing"
 	"time"
 
@@ -11,7 +12,6 @@ import (
 	_ "modernc.org/sqlite"
 
 	runtimepkg "test-genie/internal/app/runtime"
-	"test-genie/internal/storage/sqlitedb"
 )
 
 func TestImporterRun_MigratesLegacyPostgresRows(t *testing.T) {

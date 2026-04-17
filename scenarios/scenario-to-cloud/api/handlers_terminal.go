@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/manifest"
 	"strings"
 	"sync"
 	"time"
@@ -18,8 +20,6 @@ import (
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 
-	"scenario-to-cloud/domain"
-	"scenario-to-cloud/manifest"
 	stcssh "scenario-to-cloud/ssh"
 )
 

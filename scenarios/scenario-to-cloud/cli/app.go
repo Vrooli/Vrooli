@@ -1,9 +1,8 @@
 package main
 
 import (
-	"time"
-
 	"scenario-to-cloud/cli/domains"
+	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

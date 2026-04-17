@@ -6,11 +6,10 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"test-genie/internal/orchestrator"
 	"testing"
 
 	"github.com/gorilla/mux"
-
-	"test-genie/internal/orchestrator"
 )
 
 func TestHandleListPhases(t *testing.T) {

@@ -282,8 +282,8 @@ export class ExecutionEventsClient {
               fallbackTimestamp: streamMessageTimestampToIso(envelope),
               fallbackProgress: parsedEvent.progress,
             });
+            return;
           }
-          return;
         }
 
         if (payload && typeof payload === 'object') {
@@ -303,8 +303,8 @@ export class ExecutionEventsClient {
                 fallbackTimestamp: streamMessageTimestampToIso(nestedEnvelope),
                 fallbackProgress: parsedEvent.progress,
               });
+              return;
             }
-            return;
           }
         }
 

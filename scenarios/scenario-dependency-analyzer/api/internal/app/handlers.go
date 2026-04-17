@@ -5,13 +5,13 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"scenario-dependency-analyzer/internal/app/services"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
-	"scenario-dependency-analyzer/internal/app/services"
 	types "scenario-dependency-analyzer/internal/types"
 )
 

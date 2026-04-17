@@ -12,12 +12,11 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"test-genie/internal/orchestrator/workspace"
+	"test-genie/internal/shared"
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
-
-	"test-genie/internal/orchestrator/workspace"
-	"test-genie/internal/shared"
 )
 
 const (
@@ -84,6 +83,15 @@ func runStandardsPhase(ctx context.Context, env workspace.Environment, logWriter
 	}
 
 	cleanLog := wrapLogSansANSI(logWriter)
+
+	if os.Getenv("TEST_GENIE_SKIP_STANDARDS") == "1" {
+		shared.LogWarn(cleanLog, "standards phase disabled via TEST_GENIE_SKIP_STANDARDS")
+		return RunReport{
+			Observations: []Observation{
+				NewSkipObservation("standards phase disabled via TEST_GENIE_SKIP_STANDARDS"),
+			},
+		}
+	}
 
 	failOn := normalizeSeverity(os.Getenv("TEST_GENIE_STANDARDS_FAIL_ON"))
 	if failOn == "" {

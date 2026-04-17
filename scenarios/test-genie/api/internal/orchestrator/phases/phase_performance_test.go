@@ -5,11 +5,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"testing"
-
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/performance"
 	"test-genie/internal/shared"
+	"testing"
 )
 
 func TestRunPerformancePhaseValidatesBuilds(t *testing.T) {

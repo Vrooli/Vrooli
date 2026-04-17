@@ -81,7 +81,7 @@ describe("useBacklogHandlers", () => {
 
     expect((opts.data as unknown as MockData)._mutations.update.mutate).toHaveBeenCalledWith(
       { title: "T", description: "D", status: "ready", priority: 1, tags: [] },
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+       
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
   });

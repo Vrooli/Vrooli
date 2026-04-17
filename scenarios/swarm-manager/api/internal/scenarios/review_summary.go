@@ -1,9 +1,8 @@
 package scenarios
 
 import (
-	"time"
-
 	"swarm-manager/internal/execution"
+	"time"
 )
 
 // ScenarioReviewSummary holds the last review classification and timestamp for a scenario.

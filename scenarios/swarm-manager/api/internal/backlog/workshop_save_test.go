@@ -8,13 +8,13 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"testing"
-
-	"github.com/gorilla/mux"
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/testutil"
 	"swarm-manager/internal/workshop"
+	"testing"
+
+	"github.com/gorilla/mux"
 )
 
 // workshopSaveResponse mirrors the JSON shape of WorkshopSaveResponse.

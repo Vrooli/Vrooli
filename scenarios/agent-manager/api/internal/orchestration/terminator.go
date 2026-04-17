@@ -18,6 +18,9 @@
 package orchestration
 
 import (
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/repository"
 	"context"
 	"fmt"
 	"os"
@@ -26,10 +29,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
-	"agent-manager/internal/adapters/runner"
-	"agent-manager/internal/domain"
-	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
 )

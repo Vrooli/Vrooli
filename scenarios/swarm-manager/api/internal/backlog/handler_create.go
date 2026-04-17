@@ -6,14 +6,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
-
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/identity"
 	"swarm-manager/internal/settings"
 	"swarm-manager/internal/workshop"
+	"time"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
 
 func validateCreateBacklogItemRequest(req *apipb.CreateBacklogItemRequest) string {

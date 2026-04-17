@@ -2,13 +2,12 @@
 package protoconv
 
 import (
+	"agent-manager/internal/domain"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
-
-	"agent-manager/internal/domain"
 
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )

@@ -8,6 +8,7 @@
 package protoconv
 
 import (
+	"agent-manager/internal/domain"
 	"time"
 
 	"github.com/google/uuid"
@@ -15,8 +16,6 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-
-	"agent-manager/internal/domain"
 
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )

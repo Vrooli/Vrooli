@@ -1,11 +1,10 @@
 package main
 
 import (
-	"strings"
-	"testing"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/manifest"
+	"strings"
+	"testing"
 )
 
 func TestManifestValidationErrorsAreActionable(t *testing.T) {

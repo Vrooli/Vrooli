@@ -55,7 +55,7 @@ flowchart TB
     end
 
     subgraph Data["Data Layer"]
-        POSTGRES["PostgreSQL\n• Workflows & projects\n• Executions & steps\n• Artifacts & timeline\n• Users & auth"]
+        SQLITE["SQLite (embedded)\n• Workflows & projects index\n• Executions & schedules\n• Credit usage & operation log\n• UX metrics traces"]
 
         MINIO["MinIO (S3)\n• Screenshots\n• Videos/traces\n• HAR files\n• Export bundles"]
 
@@ -110,12 +110,12 @@ flowchart TB
     EVENTS -->|Broadcast| WS_HUB
 
     %% Data persistence
-    RECORDER --> POSTGRES
+    RECORDER --> SQLITE
     RECORDER --> MINIO
-    WF_SVC --> POSTGRES
-    REC_SVC --> POSTGRES
+    WF_SVC --> SQLITE
+    REC_SVC --> SQLITE
     REC_SVC --> FILESYSTEM
-    REPLAY_SVC --> POSTGRES
+    REPLAY_SVC --> SQLITE
     REPLAY_SVC --> MINIO
 
     %% Validation
@@ -140,7 +140,7 @@ flowchart TB
     class ROUTER,WF_HANDLER,EXEC_HANDLER,AI_HANDLER,REC_HANDLER,EXPORT_HANDLER api
     class WF_SVC,REPLAY_SVC,REC_SVC,EXPORT_SVC service
     class CONTRACTS,COMPILER,EXECUTOR,ENGINE,RECORDER,EVENTS automation
-    class POSTGRES,MINIO,FILESYSTEM data
+    class SQLITE,MINIO,FILESYSTEM data
     class PW_DRIVER,CHROMIUM external
 ```
 

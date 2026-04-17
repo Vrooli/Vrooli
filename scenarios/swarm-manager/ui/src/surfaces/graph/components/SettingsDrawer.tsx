@@ -135,7 +135,7 @@ function GraphControlsContent() {
   }, [nodes]);
 
   const hasCustomStatusFilters = Object.values(settings.statusFilters).some(
-    (group) => Object.values(group).some((v) => v === false),
+    (group) => Object.values(group).some((v) => !v),
   );
 
   const resetCurrentLens = () => {
@@ -216,7 +216,7 @@ function GraphControlsContent() {
             {statusGroups.map((group) => {
               const entityGroup = settings.statusFilters[group.entityType] ?? {};
               const allVisible = group.statuses.every((s) => entityGroup[s] !== false);
-              const entityHidden = settings.entityFilters[group.entityType] === false;
+              const entityHidden = !settings.entityFilters[group.entityType];
               return (
                 <StatusGroupAccordion
                   key={group.entityType}

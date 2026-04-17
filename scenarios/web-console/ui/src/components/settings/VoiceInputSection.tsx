@@ -82,7 +82,7 @@ export default function VoiceInputSection() {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   // Wake word state
   const [wakeWordConfig, setWakeWordConfig] = useState<WakeWordConfig | null>(null);
-  const [wakeWordLoading, setWakeWordLoading] = useState(false);
+  const [, setWakeWordLoading] = useState(false);
   const [wakeWordError, setWakeWordError] = useState<string | null>(null);
   const [wwRecordingIdx, setWwRecordingIdx] = useState<number | null>(null);
   const [wwRecordingSeconds, setWwRecordingSeconds] = useState(0);
@@ -422,8 +422,10 @@ export default function VoiceInputSection() {
     let matches = 0;
     let total = 0;
     for (let i = 0; i < samples.length; i++) {
+      const target = samples[i];
+      if (!target) continue;
       const others = samples.filter((_, j) => j !== i);
-      const result = wwEngineRef.current.compareBest(samples[i]!, others, threshold);
+      const result = wwEngineRef.current.compareBest(target, others, threshold);
       total++;
       if (result.isMatch) matches++;
     }
@@ -744,7 +746,8 @@ export default function VoiceInputSection() {
 
                     <div className="space-y-1.5">
                       {Array.from({ length: MAX_ENROLLMENT_SAMPLES }, (_, i) => {
-                        const hasSample = wwSamplesRef.current[i] != null;
+                        const sample = wwSamplesRef.current[i] ?? null;
+                        const hasSample = sample != null;
                         const hasBlob = wwAudioBlobsRef.current[i] != null;
                         const isRecording = wwRecordingIdx === i;
                         const isPlaying = wwPlayingIdx === i;
@@ -754,11 +757,11 @@ export default function VoiceInputSection() {
                               Sample {i + 1}
                               {i < MIN_ENROLLMENT_SAMPLES ? "" : " (opt)"}
                             </span>
-                            {hasSample ? (
+                            {hasSample && sample ? (
                               <>
                                 <CheckCircle className="h-3.5 w-3.5 text-green-400 shrink-0" />
                                 <span className="text-[10px] text-green-400">
-                                  {wwSamplesRef.current[i]!.durationSec.toFixed(1)}s
+                                  {sample.durationSec.toFixed(1)}s
                                 </span>
                                 {hasBlob && (
                                   <Button

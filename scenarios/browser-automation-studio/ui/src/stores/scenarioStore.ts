@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { getConfig } from '../config';
 import { logger } from '../utils/logger';
-import { safeParse, parseArrayFiltered } from '../shared/api/safeParse';
-import { ListScenariosResponseSchema, ScenarioSchema } from '../shared/api/schemas';
+import { safeParse } from '../shared/api/safeParse';
+import { ListScenariosResponseSchema } from '../shared/api/schemas';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
@@ -60,18 +60,28 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       const rawData: unknown = await response.json();
       const rawRecord = isRecord(rawData) ? rawData : {};
 
-      // Validate with safeParse, filtering out invalid items
+      const normalize = (item: Record<string, unknown>): Scenario | null => {
+        const name = typeof item.name === 'string' ? item.name : '';
+        if (!name) return null;
+        return {
+          name,
+          description: typeof item.description === 'string' ? item.description : '',
+          status: typeof item.status === 'string' ? item.status : '',
+        };
+      };
+
+      // Validate with safeParse first; on failure, fall back to permissive normalization.
       const result = safeParse(ListScenariosResponseSchema, rawData, 'ListScenarios');
       let mapped: Scenario[];
 
       if (result.success) {
-        // Filter out scenarios without names
         mapped = result.data.scenarios.filter((scenario) => Boolean(scenario.name));
       } else {
-        // Fall back to filtered array parsing for partial data recovery
         const items = Array.isArray(rawRecord.scenarios) ? rawRecord.scenarios : [];
-        mapped = parseArrayFiltered(ScenarioSchema, items, 'Scenario')
-          .filter((scenario) => Boolean(scenario.name));
+        mapped = items
+          .filter(isRecord)
+          .map(normalize)
+          .filter((s): s is Scenario => s !== null);
       }
 
       set({

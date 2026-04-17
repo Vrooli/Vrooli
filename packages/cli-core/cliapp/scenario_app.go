@@ -2,6 +2,7 @@ package cliapp
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -618,7 +619,7 @@ func (a *ScenarioApp) apiRecoveryError(commandName string, ctx apiRecoveryContex
 	if err != nil {
 		return fmt.Errorf("render API recovery report: %w", err)
 	}
-	return fmt.Errorf(strings.TrimRight(rendered, "\n"))
+	return errors.New(strings.TrimRight(rendered, "\n"))
 }
 
 // tryAutoStart attempts to start the scenario via vrooli and waits for the API to become available.

@@ -7,12 +7,11 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"test-genie/internal/orchestrator/workspace"
 	"testing"
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
-
-	"test-genie/internal/orchestrator/workspace"
 )
 
 func TestParseAuditorStandardsSummaryParsesValidJSON(t *testing.T) {

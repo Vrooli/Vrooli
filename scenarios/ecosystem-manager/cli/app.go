@@ -1,10 +1,10 @@
 package main
 
 import (
-	"github.com/vrooli/cli-core/cliapp"
-
 	"ecosystem-manager/cli/domains"
 	"ecosystem-manager/cli/internal/appctx"
+
+	"github.com/vrooli/cli-core/cliapp"
 )
 
 const (

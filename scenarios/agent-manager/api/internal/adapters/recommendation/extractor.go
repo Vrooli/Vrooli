@@ -3,9 +3,8 @@
 package recommendation
 
 import (
-	"context"
-
 	"agent-manager/internal/domain"
+	"context"
 )
 
 // Extractor extracts structured recommendations from investigation text.

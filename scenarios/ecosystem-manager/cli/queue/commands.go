@@ -2,15 +2,14 @@
 package queue
 
 import (
+	"ecosystem-manager/cli/internal/appctx"
+	"ecosystem-manager/cli/internal/format"
 	"flag"
 	"fmt"
 	"os"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
-
-	"ecosystem-manager/cli/internal/appctx"
-	"ecosystem-manager/cli/internal/format"
 )
 
 // QueueStatusResponse represents the queue status.

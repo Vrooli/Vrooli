@@ -10,13 +10,13 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"time"
-
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/httputil"
+	"time"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
 
 // isQueueableItem checks if an item can be queued from its current state.

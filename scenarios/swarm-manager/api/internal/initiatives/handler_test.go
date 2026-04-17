@@ -6,11 +6,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"swarm-manager/internal/backlog"
 	"testing"
 
 	"github.com/gorilla/mux"
-
-	"swarm-manager/internal/backlog"
 )
 
 func setupTestHandler(t *testing.T) *Handler {

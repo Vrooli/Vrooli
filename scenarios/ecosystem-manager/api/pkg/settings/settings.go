@@ -28,10 +28,10 @@ type Settings struct {
 	CondensedMode bool   `json:"condensed_mode"`
 
 	// Queue processor settings
-	Slots          int  `json:"slots"`
+	Slots           int  `json:"slots"`
 	CooldownSeconds int  `json:"cooldown_seconds"`
-	ExecutionLimit int  `json:"execution_limit"` // Auto-stop after this many task completions (0 = unlimited)
-	Active         bool `json:"active"`
+	ExecutionLimit  int  `json:"execution_limit"` // Auto-stop after this many task completions (0 = unlimited)
+	Active          bool `json:"active"`
 
 	// Agent settings
 	MaxTurns        int    `json:"max_turns"`
@@ -54,9 +54,9 @@ func newDefaultSettings() Settings {
 	return Settings{
 		Theme:           "light",
 		CondensedMode:   DefaultCondensedMode,
-		Slots:          DefaultSlots,
+		Slots:           DefaultSlots,
 		CooldownSeconds: DefaultCooldownSeconds,
-		ExecutionLimit: DefaultExecutionLimit,
+		ExecutionLimit:  DefaultExecutionLimit,
 		Active:          DefaultActive, // ALWAYS start/reset inactive for safety
 		MaxTurns:        DefaultMaxTurns,
 		AllowedTools:    DefaultAllowedTools,

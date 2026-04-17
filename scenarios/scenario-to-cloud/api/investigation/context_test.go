@@ -2,12 +2,11 @@ package investigation
 
 import (
 	"encoding/json"
+	"scenario-to-cloud/domain"
 	"strings"
 	"testing"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-
-	"scenario-to-cloud/domain"
 )
 
 func TestBuildPromptAndContext_DefaultsAndNote(t *testing.T) {

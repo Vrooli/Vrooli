@@ -2,7 +2,6 @@ package graph
 
 import (
 	"context"
-
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/execution"

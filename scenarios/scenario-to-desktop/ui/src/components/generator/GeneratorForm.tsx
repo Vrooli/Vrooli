@@ -1,4 +1,3 @@
-import type { FormEvent } from "react";
 import type { DeploymentManagerBundleHelperHandle, BundleResult } from "../runtime/DeploymentManagerBundleHelper";
 import { DeploymentSummarySection } from "./DeploymentSummarySection";
 import { PlatformSelector } from "./PlatformSelector";

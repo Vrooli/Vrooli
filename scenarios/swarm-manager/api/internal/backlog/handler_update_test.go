@@ -8,10 +8,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"swarm-manager/internal/testutil"
 	"testing"
 
 	"github.com/gorilla/mux"
-	"swarm-manager/internal/testutil"
 )
 
 // doUpdate sends a PATCH request to the Update handler and returns the recorder.

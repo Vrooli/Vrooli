@@ -4,9 +4,8 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"sync"
-
 	"prompt-manager/store"
+	"sync"
 )
 
 // DiscoverFilterConfig controls which skills are excluded from discovery results.

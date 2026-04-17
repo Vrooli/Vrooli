@@ -3,13 +3,14 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"log"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+
+	"github.com/vrooli/api-core/preflight"
 
 	"github.com/ecosystem-manager/api/pkg/server"
 )

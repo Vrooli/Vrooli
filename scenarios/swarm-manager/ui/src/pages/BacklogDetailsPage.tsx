@@ -233,7 +233,7 @@ export function BacklogDetailsPage() {
   }, [backlogKind, name, setActiveTab, uiStore]);
 
   const fileService = useMemo(
-    () => backlogKind && name ? createBacklogFileServiceAdapter(backlogKind as BacklogKind, name) : null,
+    () => backlogKind && name ? createBacklogFileServiceAdapter(backlogKind, name) : null,
     [backlogKind, name],
   );
 
@@ -251,7 +251,7 @@ export function BacklogDetailsPage() {
 
   // --- Context value ---
   const contextValue = {
-    backlogKind: backlogKind as BacklogKind,
+    backlogKind: backlogKind,
     name: name ?? "",
     item,
     itemActions,
@@ -472,7 +472,7 @@ export function BacklogDetailsPage() {
                   </div>
                 )}
                 {activeTab === "prompt" && (
-                  <PlanPanel backlogKind={backlogKind as BacklogKind} backlogName={name} className="flex-1 overflow-y-auto" />
+                  <PlanPanel backlogKind={backlogKind} backlogName={name} className="flex-1 overflow-y-auto" />
                 )}
                 {activeTab === "files" && fileWorkspaceElement}
                 {activeTab === "output" && (
@@ -551,7 +551,7 @@ export function BacklogDetailsPage() {
                     </div>
                   )}
                   {activeTab === "prompt" && (
-                    <PlanPanel backlogKind={backlogKind as BacklogKind} backlogName={name} className="mt-3 min-h-[500px] rounded-lg border border-slate-800 bg-slate-900/50" />
+                    <PlanPanel backlogKind={backlogKind} backlogName={name} className="mt-3 min-h-[500px] rounded-lg border border-slate-800 bg-slate-900/50" />
                   )}
                   {activeTab === "files" && fileWorkspaceElement}
                   {activeTab === "output" && (

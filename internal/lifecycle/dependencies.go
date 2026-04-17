@@ -177,7 +177,7 @@ func (r *Runner) ensureResourceDependencies(item scenario.Scenario, opts StartOp
 			return nil, fmt.Errorf("start resource dependency %s: %w", resourceName, err)
 		}
 
-		status, err = r.waitForResourceDependencyReady(resourceName)
+		_, err = r.waitForResourceDependencyReady(resourceName)
 		if err == nil {
 			continue
 		}

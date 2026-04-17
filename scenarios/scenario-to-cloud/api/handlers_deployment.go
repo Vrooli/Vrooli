@@ -6,11 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
-	"time"
-
-	"github.com/google/uuid"
-	"github.com/gorilla/mux"
-
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/deployment"
 	"scenario-to-cloud/domain"
@@ -19,6 +14,10 @@ import (
 	"scenario-to-cloud/manifest"
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/vps"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 )
 
 // handleListDeployments returns all deployment records.

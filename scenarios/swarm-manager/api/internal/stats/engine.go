@@ -4,10 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"swarm-manager/internal/eventlog"
 	"sync"
 	"time"
-
-	"swarm-manager/internal/eventlog"
 )
 
 const refreshBatchSize = 5000

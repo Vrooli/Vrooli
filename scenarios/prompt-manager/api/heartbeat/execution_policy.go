@@ -3,7 +3,6 @@ package heartbeat
 import (
 	"errors"
 	"fmt"
-
 	"prompt-manager/store"
 	"prompt-manager/teamconfig"
 )
@@ -38,10 +37,10 @@ func validateTeamEnabled(team *store.Team) error {
 // ProfileMismatchError indicates a profile's runner type is incompatible with
 // the team's runtime mode.
 type ProfileMismatchError struct {
-	TeamID     string
+	TeamID      string
 	RuntimeMode string
-	ProfileKey string
-	RunnerType string
+	ProfileKey  string
+	RunnerType  string
 }
 
 func (e *ProfileMismatchError) Error() string {
@@ -63,10 +62,10 @@ func IsProfileMismatch(err error) bool {
 func validateProfileCompatibility(team *store.Team, profile *AgentProfile) error {
 	if team.Runtime.Mode == teamconfig.RuntimeModeSingleProcess && profile.RunnerType != "RUNNER_TYPE_CLAUDE_CODE" {
 		return &ProfileMismatchError{
-			TeamID:     team.ID,
+			TeamID:      team.ID,
 			RuntimeMode: team.Runtime.Mode,
-			ProfileKey: profile.ProfileKey,
-			RunnerType: profile.RunnerType,
+			ProfileKey:  profile.ProfileKey,
+			RunnerType:  profile.RunnerType,
 		}
 	}
 	return nil

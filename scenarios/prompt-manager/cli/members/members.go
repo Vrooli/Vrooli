@@ -9,12 +9,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"prompt-manager/cli/internal/appctx"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
-
-	"prompt-manager/cli/internal/appctx"
 )
 
 // Member represents a member from the API

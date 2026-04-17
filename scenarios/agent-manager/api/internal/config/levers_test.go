@@ -1,10 +1,9 @@
 package config_test
 
 import (
+	"agent-manager/internal/config"
 	"testing"
 	"time"
-
-	"agent-manager/internal/config"
 )
 
 // Tests for configuration lever validation

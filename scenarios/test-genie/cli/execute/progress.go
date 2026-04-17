@@ -5,11 +5,10 @@ import (
 	"io"
 	"os"
 	"strings"
+	"test-genie/cli/internal/phases"
 	"time"
 
 	"golang.org/x/term"
-
-	"test-genie/cli/internal/phases"
 )
 
 // Spinner characters for animated progress indicator (Braille Unicode characters).

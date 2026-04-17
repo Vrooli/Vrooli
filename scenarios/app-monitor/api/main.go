@@ -1,11 +1,11 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
+	"app-monitor-api/config"
 	"log"
 	"os"
 
-	"app-monitor-api/config"
+	"github.com/vrooli/api-core/preflight"
 )
 
 const (

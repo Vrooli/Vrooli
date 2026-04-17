@@ -29,6 +29,9 @@ export function useBacklogMutations({
   const queryClient = useQueryClient();
   const upsertItem = useBacklogStore((state) => state.upsertItem);
   const removeItem = useBacklogStore((state) => state.removeItem);
+  const invalidate = (queryKey: readonly unknown[]) => {
+    void queryClient.invalidateQueries({ queryKey });
+  };
 
   const archiveTargetsQueryKey = ["backlog", backlogKind, name, "archive-targets"];
 
@@ -51,7 +54,7 @@ export function useBacklogMutations({
     },
     onSuccess: (updatedItem) => {
       if (!backlogKind || !name) return;
-      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name] });
+      invalidate(["backlog", backlogKind, name]);
       upsertItem(updatedItem);
     },
   });
@@ -63,7 +66,7 @@ export function useBacklogMutations({
     },
     onSuccess: (updatedItem) => {
       if (!backlogKind || !name) return;
-      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name] });
+      invalidate(["backlog", backlogKind, name]);
       upsertItem(updatedItem);
     },
   });
@@ -73,8 +76,8 @@ export function useBacklogMutations({
       backlogService.update(kind as BacklogKind, depName, { status: newStatus }),
     onSuccess: () => {
       if (!backlogKind || !name) return;
-      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name] });
-      queryClient.invalidateQueries({ queryKey: ["backlog-list"] });
+      invalidate(["backlog", backlogKind, name]);
+      invalidate(["backlog-list"]);
     },
   });
 
@@ -88,7 +91,7 @@ export function useBacklogMutations({
     },
     onSuccess: (updatedItem) => {
       if (!backlogKind || !name) return;
-      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name] });
+      invalidate(["backlog", backlogKind, name]);
       upsertItem(updatedItem);
     },
   });
@@ -100,8 +103,8 @@ export function useBacklogMutations({
     },
     onSuccess: (updatedItem) => {
       if (!backlogKind || !name) return;
-      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name] });
-      queryClient.invalidateQueries({ queryKey: ["backlog-list"] });
+      invalidate(["backlog", backlogKind, name]);
+      invalidate(["backlog-list"]);
       upsertItem(updatedItem);
     },
   });
@@ -113,8 +116,8 @@ export function useBacklogMutations({
     },
     onSuccess: (updatedItem) => {
       if (!backlogKind || !name) return;
-      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name] });
-      queryClient.invalidateQueries({ queryKey: ["backlog-list"] });
+      invalidate(["backlog", backlogKind, name]);
+      invalidate(["backlog-list"]);
       upsertItem(updatedItem);
     },
   });
@@ -166,10 +169,10 @@ export function useBacklogMutations({
     },
     onSuccess: () => {
       if (!backlogKind || !name) return;
-      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "files"] });
-      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "workshop-rounds"] });
-      queryClient.invalidateQueries({ queryKey: ["backlog-maturity-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["backlog-summary"] });
+      invalidate(["backlog", backlogKind, name, "files"]);
+      invalidate(["backlog", backlogKind, name, "workshop-rounds"]);
+      invalidate(["backlog-maturity-summary"]);
+      invalidate(["backlog-summary"]);
       void refetchFiles();
       void refetchWorkshopRounds();
     },
@@ -180,7 +183,7 @@ export function useBacklogMutations({
       if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
       return backlogService.updateModuleRequirements(backlogKind, name, moduleId, requirements);
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: archiveTargetsQueryKey }); },
+    onSuccess: () => { invalidate(archiveTargetsQueryKey); },
   });
 
   const createModuleMutation = useMutation({
@@ -188,7 +191,7 @@ export function useBacklogMutations({
       if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
       return backlogService.createModule(backlogKind, name, payload);
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: archiveTargetsQueryKey }); },
+    onSuccess: () => { invalidate(archiveTargetsQueryKey); },
   });
 
   const updateModuleMetaMutation = useMutation({
@@ -196,7 +199,7 @@ export function useBacklogMutations({
       if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
       return backlogService.updateModuleMeta(backlogKind, name, moduleId, payload);
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: archiveTargetsQueryKey }); },
+    onSuccess: () => { invalidate(archiveTargetsQueryKey); },
   });
 
   const deleteModuleMutation = useMutation({
@@ -204,7 +207,7 @@ export function useBacklogMutations({
       if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
       return backlogService.deleteModule(backlogKind, name, moduleId);
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: archiveTargetsQueryKey }); },
+    onSuccess: () => { invalidate(archiveTargetsQueryKey); },
   });
 
   const createTargetMutation = useMutation({
@@ -212,7 +215,7 @@ export function useBacklogMutations({
       if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
       return backlogService.createArchiveTarget(backlogKind, name, target);
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: archiveTargetsQueryKey }); },
+    onSuccess: () => { invalidate(archiveTargetsQueryKey); },
   });
 
   const updateTargetMutation = useMutation({
@@ -220,7 +223,7 @@ export function useBacklogMutations({
       if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
       return backlogService.updateArchiveTarget(backlogKind, name, targetId, target);
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: archiveTargetsQueryKey }); },
+    onSuccess: () => { invalidate(archiveTargetsQueryKey); },
   });
 
   const deleteTargetMutation = useMutation({
@@ -228,7 +231,7 @@ export function useBacklogMutations({
       if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
       return backlogService.deleteArchiveTarget(backlogKind, name, targetId);
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: archiveTargetsQueryKey }); },
+    onSuccess: () => { invalidate(archiveTargetsQueryKey); },
   });
 
   const batchReviewMutation = useMutation({
@@ -237,7 +240,7 @@ export function useBacklogMutations({
       return backlogService.batchReview(backlogKind, name, items);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: archiveTargetsQueryKey });
+      invalidate(archiveTargetsQueryKey);
     },
   });
 
@@ -248,10 +251,10 @@ export function useBacklogMutations({
     },
     onSuccess: () => {
       if (!backlogKind || !name) return;
-      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "files"] });
-      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "workshop-rounds"] });
-      queryClient.invalidateQueries({ queryKey: ["backlog-maturity-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["backlog-summary"] });
+      invalidate(["backlog", backlogKind, name, "files"]);
+      invalidate(["backlog", backlogKind, name, "workshop-rounds"]);
+      invalidate(["backlog-maturity-summary"]);
+      invalidate(["backlog-summary"]);
       void refetchFiles();
       void refetchWorkshopRounds();
     },
@@ -264,11 +267,11 @@ export function useBacklogMutations({
     },
     onSuccess: () => {
       if (!backlogKind || !name) return;
-      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name] });
-      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "files"] });
-      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "workshop-rounds"] });
-      queryClient.invalidateQueries({ queryKey: ["backlog-maturity-summary"] });
-      queryClient.invalidateQueries({ queryKey: ["backlog-summary"] });
+      invalidate(["backlog", backlogKind, name]);
+      invalidate(["backlog", backlogKind, name, "files"]);
+      invalidate(["backlog", backlogKind, name, "workshop-rounds"]);
+      invalidate(["backlog-maturity-summary"]);
+      invalidate(["backlog-summary"]);
       void refetchFiles();
       void refetchWorkshopRounds();
     },
@@ -293,7 +296,7 @@ export function useBacklogMutations({
     },
     onSuccess: () => {
       if (!backlogKind || !name) return;
-      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "files"] });
+      invalidate(["backlog", backlogKind, name, "files"]);
     },
   });
 
@@ -340,11 +343,11 @@ export function useBacklogMutations({
 
     invalidateFiles: () => {
       if (!backlogKind || !name) return;
-      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name, "files"] });
+      invalidate(["backlog", backlogKind, name, "files"]);
     },
     invalidateItem: () => {
       if (!backlogKind || !name) return;
-      queryClient.invalidateQueries({ queryKey: ["backlog", backlogKind, name] });
+      invalidate(["backlog", backlogKind, name]);
     },
   };
 }

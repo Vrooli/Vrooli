@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/vrooli/cli-core/cliapp"
-
 	"test-genie/cli/domains"
 	"test-genie/cli/execute"
 	"test-genie/cli/generate"
@@ -11,6 +9,8 @@ import (
 	"test-genie/cli/runlocal"
 	"test-genie/cli/status"
 	"test-genie/cli/uismoke"
+
+	"github.com/vrooli/cli-core/cliapp"
 )
 
 const (
@@ -45,7 +45,7 @@ func NewApp() (*App, error) {
 		BuildTimestamp:       buildTimestamp,
 		BuildSourceRoot:      buildSourceRoot,
 		AllowAnonymous:       true,
-		IncludeStatusCommand: boolPtr(false),
+		IncludeStatusCommand: boolPtr(true),
 		CommandGroups: func(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 			app.core = core
 			return domains.CommandGroups(deps.Runtime{

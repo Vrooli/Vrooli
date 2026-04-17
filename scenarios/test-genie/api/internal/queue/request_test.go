@@ -3,13 +3,12 @@ package queue
 import (
 	"context"
 	"slices"
+	"test-genie/internal/storage/sqliteutil"
+	"test-genie/internal/testsqlite"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
-
-	"test-genie/internal/storage/sqliteutil"
-	"test-genie/internal/testsqlite"
 )
 
 func TestBuildSuiteRequestDefaults(t *testing.T) {

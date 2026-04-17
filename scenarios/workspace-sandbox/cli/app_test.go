@@ -26,11 +26,8 @@ func TestNewApp(t *testing.T) {
 
 func TestWorkspaceSandboxCLIUsesDomainArchitecture(t *testing.T) {
 	app := &App{}
-	if groups := app.commandGroups(); len(groups) != 1 {
-		t.Fatalf("commandGroups len = %d, want 1", len(groups))
-	}
-	if got := app.commandGroups()[0].Title; got != "Health" {
-		t.Fatalf("commandGroups[0].Title = %q, want Health", got)
+	if groups := app.commandGroups(); len(groups) != 0 {
+		t.Fatalf("commandGroups len = %d, want 0 (status served by cli-core)", len(groups))
 	}
 
 	subcommands := map[string]bool{}

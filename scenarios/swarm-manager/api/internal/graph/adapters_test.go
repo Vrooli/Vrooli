@@ -4,9 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"testing"
-
 	"swarm-manager/internal/initiatives"
+	"testing"
 )
 
 // --- captureAdapter tests ---

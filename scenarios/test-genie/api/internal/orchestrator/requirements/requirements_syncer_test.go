@@ -7,9 +7,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"testing"
-
 	"test-genie/internal/orchestrator/phases"
+	"testing"
 )
 
 func TestBuildPhaseStatusPayload(t *testing.T) {

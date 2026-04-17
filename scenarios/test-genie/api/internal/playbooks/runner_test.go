@@ -29,7 +29,7 @@ func createTestWorkflow(t *testing.T, dir, filename string) {
 	t.Helper()
 	workflowJSON := `{"nodes": [], "edges": []}`
 	path := filepath.Join(dir, filename)
-	if err := os.WriteFile(path, []byte(workflowJSON), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(workflowJSON), 0o644); err != nil {
 		t.Fatalf("failed to create workflow file %s: %v", path, err)
 	}
 }
@@ -806,7 +806,7 @@ func TestRunnerEnsureBASStarterFailsEarly(t *testing.T) {
 		t.Fatalf("failed to create ui dir: %v", err)
 	}
 	workflowJSON := `{"nodes": [], "edges": []}`
-	if err := os.WriteFile(filepath.Join(tempDir, "test.json"), []byte(workflowJSON), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tempDir, "test.json"), []byte(workflowJSON), 0o644); err != nil {
 		t.Fatalf("failed to create workflow file: %v", err)
 	}
 
@@ -866,7 +866,7 @@ func BenchmarkRunnerRunSingleWorkflow(b *testing.B) {
 	tempDir := b.TempDir()
 	os.MkdirAll(filepath.Join(tempDir, "ui"), 0o755)
 	workflowJSON := `{"nodes": [], "edges": []}`
-	os.WriteFile(filepath.Join(tempDir, "test.json"), []byte(workflowJSON), 0644)
+	os.WriteFile(filepath.Join(tempDir, "test.json"), []byte(workflowJSON), 0o644)
 
 	runner := New(Config{ScenarioDir: tempDir, ScenarioName: "bench"},
 		WithRegistryLoader(&mockRegistryLoader{

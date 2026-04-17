@@ -14,7 +14,7 @@ func TestSchemaValidator_Validate_AllValid(t *testing.T) {
 
 	// Create .vrooli directory
 	vrooliDir := filepath.Join(scenarioDir, ".vrooli")
-	if err := os.Mkdir(vrooliDir, 0755); err != nil {
+	if err := os.Mkdir(vrooliDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -25,7 +25,7 @@ func TestSchemaValidator_Validate_AllValid(t *testing.T) {
 			"name": "test-scenario"
 		}
 	}`
-	if err := os.WriteFile(filepath.Join(vrooliDir, "service.json"), []byte(serviceJSON), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(vrooliDir, "service.json"), []byte(serviceJSON), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -44,7 +44,7 @@ func TestSchemaValidator_Validate_AllValid(t *testing.T) {
 			}
 		}
 	}`
-	if err := os.WriteFile(filepath.Join(schemasDir, "service.schema.json"), []byte(serviceSchema), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(schemasDir, "service.schema.json"), []byte(serviceSchema), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -69,7 +69,7 @@ func TestSchemaValidator_Validate_InvalidSchema(t *testing.T) {
 	schemasDir := t.TempDir()
 
 	vrooliDir := filepath.Join(scenarioDir, ".vrooli")
-	if err := os.Mkdir(vrooliDir, 0755); err != nil {
+	if err := os.Mkdir(vrooliDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -80,7 +80,7 @@ func TestSchemaValidator_Validate_InvalidSchema(t *testing.T) {
 			"name": "test-scenario"
 		}
 	}`
-	if err := os.WriteFile(filepath.Join(vrooliDir, "service.json"), []byte(serviceJSON), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(vrooliDir, "service.json"), []byte(serviceJSON), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -93,7 +93,7 @@ func TestSchemaValidator_Validate_InvalidSchema(t *testing.T) {
 			"version": {"type": "string"}
 		}
 	}`
-	if err := os.WriteFile(filepath.Join(schemasDir, "service.schema.json"), []byte(serviceSchema), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(schemasDir, "service.schema.json"), []byte(serviceSchema), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -117,7 +117,7 @@ func TestSchemaValidator_Validate_OptionalFileMissing(t *testing.T) {
 	schemasDir := t.TempDir()
 
 	vrooliDir := filepath.Join(scenarioDir, ".vrooli")
-	if err := os.Mkdir(vrooliDir, 0755); err != nil {
+	if err := os.Mkdir(vrooliDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -126,7 +126,7 @@ func TestSchemaValidator_Validate_OptionalFileMissing(t *testing.T) {
 		"$schema": "http://json-schema.org/draft-07/schema#",
 		"type": "object"
 	}`
-	if err := os.WriteFile(filepath.Join(schemasDir, "testing.schema.json"), []byte(testingSchema), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(schemasDir, "testing.schema.json"), []byte(testingSchema), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -148,7 +148,7 @@ func TestSchemaValidator_Validate_RequiredFileMissing(t *testing.T) {
 	schemasDir := t.TempDir()
 
 	vrooliDir := filepath.Join(scenarioDir, ".vrooli")
-	if err := os.Mkdir(vrooliDir, 0755); err != nil {
+	if err := os.Mkdir(vrooliDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -157,7 +157,7 @@ func TestSchemaValidator_Validate_RequiredFileMissing(t *testing.T) {
 		"$schema": "http://json-schema.org/draft-07/schema#",
 		"type": "object"
 	}`
-	if err := os.WriteFile(filepath.Join(schemasDir, "service.schema.json"), []byte(serviceSchema), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(schemasDir, "service.schema.json"), []byte(serviceSchema), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -179,13 +179,13 @@ func TestSchemaValidator_Validate_InvalidJSON(t *testing.T) {
 	schemasDir := t.TempDir()
 
 	vrooliDir := filepath.Join(scenarioDir, ".vrooli")
-	if err := os.Mkdir(vrooliDir, 0755); err != nil {
+	if err := os.Mkdir(vrooliDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create invalid JSON
 	invalidJSON := `{ invalid json }`
-	if err := os.WriteFile(filepath.Join(vrooliDir, "service.json"), []byte(invalidJSON), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(vrooliDir, "service.json"), []byte(invalidJSON), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -193,7 +193,7 @@ func TestSchemaValidator_Validate_InvalidJSON(t *testing.T) {
 		"$schema": "http://json-schema.org/draft-07/schema#",
 		"type": "object"
 	}`
-	if err := os.WriteFile(filepath.Join(schemasDir, "service.schema.json"), []byte(serviceSchema), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(schemasDir, "service.schema.json"), []byte(serviceSchema), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -214,12 +214,12 @@ func TestSchemaValidator_Validate_MissingSchema(t *testing.T) {
 	schemasDir := t.TempDir()
 
 	vrooliDir := filepath.Join(scenarioDir, ".vrooli")
-	if err := os.Mkdir(vrooliDir, 0755); err != nil {
+	if err := os.Mkdir(vrooliDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	serviceJSON := `{"version": "1.0.0"}`
-	if err := os.WriteFile(filepath.Join(vrooliDir, "service.json"), []byte(serviceJSON), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(vrooliDir, "service.json"), []byte(serviceJSON), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -332,13 +332,13 @@ func TestSchemaValidator_ValidateDetailed(t *testing.T) {
 	schemasDir := t.TempDir()
 
 	vrooliDir := filepath.Join(scenarioDir, ".vrooli")
-	if err := os.Mkdir(vrooliDir, 0755); err != nil {
+	if err := os.Mkdir(vrooliDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create valid service.json
 	serviceJSON := `{"version": "1.0.0"}`
-	if err := os.WriteFile(filepath.Join(vrooliDir, "service.json"), []byte(serviceJSON), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(vrooliDir, "service.json"), []byte(serviceJSON), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -350,7 +350,7 @@ func TestSchemaValidator_ValidateDetailed(t *testing.T) {
 			"version": {"type": "string"}
 		}
 	}`
-	if err := os.WriteFile(filepath.Join(schemasDir, "service.schema.json"), []byte(serviceSchema), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(schemasDir, "service.schema.json"), []byte(serviceSchema), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -362,7 +362,7 @@ func TestSchemaValidator_ValidateDetailed(t *testing.T) {
 
 	// Create testing schema for the optional file
 	testingSchema := `{"$schema": "http://json-schema.org/draft-07/schema#", "type": "object"}`
-	if err := os.WriteFile(filepath.Join(schemasDir, "testing.schema.json"), []byte(testingSchema), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(schemasDir, "testing.schema.json"), []byte(testingSchema), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

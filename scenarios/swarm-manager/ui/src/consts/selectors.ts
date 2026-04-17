@@ -575,7 +575,7 @@ const flattenLiteralSelectors = (
       };
       continue;
     }
-    flattenLiteralSelectors(value as LiteralSelectorTree, nextPath, target);
+    flattenLiteralSelectors(value, nextPath, target);
   }
   return target;
 };
@@ -601,7 +601,7 @@ const flattenDynamicSelectors = (
     const nextPath = [...prefix, key];
     if (isDynamicDefinition(value)) {
       const manifestKey = nextPath.join(".");
-      const paramEntries = Object.entries(value.params ?? {}) as Array<[string, ParamDefinition]>;
+      const paramEntries = Object.entries(value.params ?? {});
       target[manifestKey] = {
         description: value.description,
         selectorPattern:
@@ -615,7 +615,7 @@ const flattenDynamicSelectors = (
       };
       continue;
     }
-    flattenDynamicSelectors(value as DynamicSelectorBranch, nextPath, target);
+    flattenDynamicSelectors(value, nextPath, target);
   }
   return target;
 };

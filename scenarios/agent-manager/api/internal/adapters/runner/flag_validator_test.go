@@ -1,11 +1,10 @@
 package runner_test
 
 import (
-	"context"
-	"testing"
-
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
+	"context"
+	"testing"
 )
 
 // =============================================================================

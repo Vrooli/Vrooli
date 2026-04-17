@@ -1,10 +1,9 @@
 package interop
 
 import (
+	"prompt-manager/store"
 	"strings"
 	"testing"
-
-	"prompt-manager/store"
 )
 
 func makeSnapshot(members []PMTeamMember) *PMTeamSnapshot {

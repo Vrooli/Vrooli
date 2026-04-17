@@ -5,9 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
-
 	"swarm-manager/internal/execution"
+	"time"
 )
 
 const defaultHealthCheckTimeout = 20 * time.Second

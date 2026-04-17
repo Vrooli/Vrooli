@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-
 	"test-genie/internal/unit/types"
 )
 
@@ -19,19 +18,19 @@ var nonShellMagicBytes = []struct {
 	magic  []byte
 	offset int
 }{
-	{"ELF", []byte{0x7f, 'E', 'L', 'F'}, 0},                   // Linux/Unix executables
-	{"MachO-32", []byte{0xfe, 0xed, 0xfa, 0xce}, 0},           // macOS 32-bit
-	{"MachO-64", []byte{0xfe, 0xed, 0xfa, 0xcf}, 0},           // macOS 64-bit
-	{"MachO-Fat", []byte{0xca, 0xfe, 0xba, 0xbe}, 0},          // macOS fat binary
-	{"PE", []byte{'M', 'Z'}, 0},                               // Windows PE
-	{"Java", []byte{0xca, 0xfe, 0xba, 0xbe}, 0},               // Java class (same as MachO fat, but context matters)
-	{"WebAssembly", []byte{0x00, 'a', 's', 'm'}, 0},           // WASM
-	{"Gzip", []byte{0x1f, 0x8b}, 0},                           // Gzip compressed
-	{"Bzip2", []byte{'B', 'Z', 'h'}, 0},                       // Bzip2 compressed
-	{"XZ", []byte{0xfd, '7', 'z', 'X', 'Z', 0x00}, 0},         // XZ compressed
-	{"Zip", []byte{'P', 'K', 0x03, 0x04}, 0},                  // ZIP archive
-	{"PDF", []byte{'%', 'P', 'D', 'F'}, 0},                    // PDF document
-	{"SQLite", []byte{'S', 'Q', 'L', 'i', 't', 'e'}, 0},       // SQLite database
+	{"ELF", []byte{0x7f, 'E', 'L', 'F'}, 0},             // Linux/Unix executables
+	{"MachO-32", []byte{0xfe, 0xed, 0xfa, 0xce}, 0},     // macOS 32-bit
+	{"MachO-64", []byte{0xfe, 0xed, 0xfa, 0xcf}, 0},     // macOS 64-bit
+	{"MachO-Fat", []byte{0xca, 0xfe, 0xba, 0xbe}, 0},    // macOS fat binary
+	{"PE", []byte{'M', 'Z'}, 0},                         // Windows PE
+	{"Java", []byte{0xca, 0xfe, 0xba, 0xbe}, 0},         // Java class (same as MachO fat, but context matters)
+	{"WebAssembly", []byte{0x00, 'a', 's', 'm'}, 0},     // WASM
+	{"Gzip", []byte{0x1f, 0x8b}, 0},                     // Gzip compressed
+	{"Bzip2", []byte{'B', 'Z', 'h'}, 0},                 // Bzip2 compressed
+	{"XZ", []byte{0xfd, '7', 'z', 'X', 'Z', 0x00}, 0},   // XZ compressed
+	{"Zip", []byte{'P', 'K', 0x03, 0x04}, 0},            // ZIP archive
+	{"PDF", []byte{'%', 'P', 'D', 'F'}, 0},              // PDF document
+	{"SQLite", []byte{'S', 'Q', 'L', 'i', 't', 'e'}, 0}, // SQLite database
 }
 
 // Linter validates shell script syntax.
@@ -334,7 +333,7 @@ func isShellScript(path string) (bool, string) {
 	// (files without shebang but clearly shell scripts)
 	headerStr := string(header)
 	shellPatterns := []string{
-		"#!/",      // shebang
+		"#!/", // shebang
 		"# shellcheck",
 		"set -e",
 		"set -o",

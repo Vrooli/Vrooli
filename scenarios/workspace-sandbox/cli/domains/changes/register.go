@@ -255,24 +255,15 @@ func runConflicts(deps support.Dependencies, args []string) error {
 			support.CLIName + " change approve " + sandboxID + " --force",
 		},
 	}
-	conflictingItems := make([]string, 0, len(resp.ConflictingFiles))
-	for _, path := range resp.ConflictingFiles {
-		conflictingItems = append(conflictingItems, path)
-	}
+	conflictingItems := append([]string{}, resp.ConflictingFiles...)
 	if len(conflictingItems) > 0 {
 		report.Triage = append(report.Triage, cliapp.TriageGroup{Heading: "Conflicting Files", Items: conflictingItems})
 	}
-	repoItems := make([]string, 0, len(resp.RepoChangedFiles))
-	for _, path := range resp.RepoChangedFiles {
-		repoItems = append(repoItems, path)
-	}
+	repoItems := append([]string{}, resp.RepoChangedFiles...)
 	if len(repoItems) > 0 {
 		report.Triage = append(report.Triage, cliapp.TriageGroup{Heading: "Repo Changed Files", Items: repoItems})
 	}
-	sandboxItems := make([]string, 0, len(resp.SandboxChangedFiles))
-	for _, path := range resp.SandboxChangedFiles {
-		sandboxItems = append(sandboxItems, path)
-	}
+	sandboxItems := append([]string{}, resp.SandboxChangedFiles...)
 	if len(sandboxItems) > 0 {
 		report.Triage = append(report.Triage, cliapp.TriageGroup{Heading: "Sandbox Changed Files", Items: sandboxItems})
 	}

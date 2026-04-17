@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	apiVersion = "3.0.0"
-	serviceName = "visited-tracker"
+	apiVersion      = "3.0.0"
+	serviceName     = "visited-tracker"
 	defaultMaxFiles = 200
 )
 
@@ -69,11 +69,12 @@ func listCampaignsHandler(w http.ResponseWriter, r *http.Request) {
 	})
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"campaigns": campaigns,
 		"count":     len(campaigns),
 	})
 }
+
 func createCampaignHandler(w http.ResponseWriter, r *http.Request) {
 	var req CreateCampaignRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -185,8 +186,9 @@ func createCampaignHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(campaign)
+	_ = json.NewEncoder(w).Encode(campaign)
 }
+
 func getCampaignHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	campaignID, err := uuid.Parse(vars["id"])
@@ -223,8 +225,9 @@ func getCampaignHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(campaign)
+	_ = json.NewEncoder(w).Encode(campaign)
 }
+
 func deleteCampaignHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	campaignID, err := uuid.Parse(vars["id"])
@@ -256,11 +259,12 @@ func deleteCampaignHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"deleted": true,
 		"id":      campaignID,
 	})
 }
+
 func findOrCreateCampaignHandler(w http.ResponseWriter, r *http.Request) {
 	var req CreateCampaignRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -278,7 +282,7 @@ func findOrCreateCampaignHandler(w http.ResponseWriter, r *http.Request) {
 					// Found existing campaign with matching location+tag
 					logger.Printf("🔍 Found existing campaign for location=%s, tag=%s: %s", *req.Location, *req.Tag, campaign.Name)
 					w.Header().Set("Content-Type", "application/json")
-					json.NewEncoder(w).Encode(map[string]interface{}{
+					_ = json.NewEncoder(w).Encode(map[string]interface{}{
 						"created":  false,
 						"campaign": campaign,
 					})
@@ -359,7 +363,7 @@ func findOrCreateCampaignHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"created":  true,
 		"campaign": campaign,
 	})
@@ -400,7 +404,7 @@ func updateCampaignHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(campaign)
+	_ = json.NewEncoder(w).Encode(campaign)
 }
 
 func resetCampaignHandler(w http.ResponseWriter, r *http.Request) {
@@ -446,7 +450,7 @@ func resetCampaignHandler(w http.ResponseWriter, r *http.Request) {
 	campaign.CoveragePercent = 0.0
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"message":  "Campaign reset successfully",
 		"campaign": campaign,
 	})

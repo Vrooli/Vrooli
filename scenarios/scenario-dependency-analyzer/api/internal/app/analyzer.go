@@ -3,12 +3,13 @@ package app
 import (
 	"database/sql"
 	"fmt"
-
 	"scenario-dependency-analyzer/internal/app/services"
-	appconfig "scenario-dependency-analyzer/internal/config"
 	"scenario-dependency-analyzer/internal/detection"
 	"scenario-dependency-analyzer/internal/seams"
 	"scenario-dependency-analyzer/internal/store"
+
+	appconfig "scenario-dependency-analyzer/internal/config"
+
 	types "scenario-dependency-analyzer/internal/types"
 )
 

@@ -242,7 +242,7 @@ func TestMetricsCollector_ParseOperationalTargets(t *testing.T) {
 
 	// Create test scenario structure
 	scenarioDir := filepath.Join(tmpDir, "scenarios", "test-scenario", "requirements")
-	if err := os.MkdirAll(scenarioDir, 0755); err != nil {
+	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
 		t.Fatalf("Failed to create scenario dir: %v", err)
 	}
 
@@ -269,7 +269,7 @@ func TestMetricsCollector_ParseOperationalTargets(t *testing.T) {
 		}`
 
 		requirementsPath := filepath.Join(scenarioDir, "index.json")
-		if err := os.WriteFile(requirementsPath, []byte(requirementsJSON), 0644); err != nil {
+		if err := os.WriteFile(requirementsPath, []byte(requirementsJSON), 0o644); err != nil {
 			t.Fatalf("Failed to write requirements file: %v", err)
 		}
 
@@ -298,7 +298,7 @@ func TestMetricsCollector_ParseOperationalTargets(t *testing.T) {
 		}`
 
 		requirementsPath := filepath.Join(scenarioDir, "index.json")
-		if err := os.WriteFile(requirementsPath, []byte(requirementsJSON), 0644); err != nil {
+		if err := os.WriteFile(requirementsPath, []byte(requirementsJSON), 0o644); err != nil {
 			t.Fatalf("Failed to write requirements file: %v", err)
 		}
 
@@ -326,7 +326,7 @@ func TestMetricsCollector_ParseOperationalTargets(t *testing.T) {
 
 	t.Run("error on invalid JSON", func(t *testing.T) {
 		requirementsPath := filepath.Join(scenarioDir, "index.json")
-		if err := os.WriteFile(requirementsPath, []byte("invalid json"), 0644); err != nil {
+		if err := os.WriteFile(requirementsPath, []byte("invalid json"), 0o644); err != nil {
 			t.Fatalf("Failed to write invalid file: %v", err)
 		}
 
@@ -349,7 +349,7 @@ func TestMetricsCollector_CollectMetrics(t *testing.T) {
 	// Create test scenario with requirements
 	scenarioDir := filepath.Join(tmpDir, "scenarios", "test-scenario")
 	requirementsDir := filepath.Join(scenarioDir, "requirements")
-	if err := os.MkdirAll(requirementsDir, 0755); err != nil {
+	if err := os.MkdirAll(requirementsDir, 0o755); err != nil {
 		t.Fatalf("Failed to create scenario dir: %v", err)
 	}
 
@@ -366,7 +366,7 @@ func TestMetricsCollector_CollectMetrics(t *testing.T) {
 	}`
 
 	requirementsPath := filepath.Join(requirementsDir, "index.json")
-	if err := os.WriteFile(requirementsPath, []byte(requirementsJSON), 0644); err != nil {
+	if err := os.WriteFile(requirementsPath, []byte(requirementsJSON), 0o644); err != nil {
 		t.Fatalf("Failed to write requirements file: %v", err)
 	}
 
@@ -422,7 +422,7 @@ func TestMetricsCollector_CollectUniversalMetrics(t *testing.T) {
 	// Create test scenario with requirements
 	scenarioDir := filepath.Join(tmpDir, "scenarios", "test-scenario")
 	requirementsDir := filepath.Join(scenarioDir, "requirements")
-	if err := os.MkdirAll(requirementsDir, 0755); err != nil {
+	if err := os.MkdirAll(requirementsDir, 0o755); err != nil {
 		t.Fatalf("Failed to create scenario dir: %v", err)
 	}
 
@@ -441,7 +441,7 @@ func TestMetricsCollector_CollectUniversalMetrics(t *testing.T) {
 	}`
 
 	requirementsPath := filepath.Join(requirementsDir, "index.json")
-	if err := os.WriteFile(requirementsPath, []byte(requirementsJSON), 0644); err != nil {
+	if err := os.WriteFile(requirementsPath, []byte(requirementsJSON), 0o644); err != nil {
 		t.Fatalf("Failed to write requirements file: %v", err)
 	}
 
@@ -471,7 +471,7 @@ func TestMetricsCollector_CollectUniversalMetrics(t *testing.T) {
 
 	t.Run("handle zero targets", func(t *testing.T) {
 		emptyJSON := `{"modules": [{"id": "module-1", "operationalTargets": []}]}`
-		if err := os.WriteFile(requirementsPath, []byte(emptyJSON), 0644); err != nil {
+		if err := os.WriteFile(requirementsPath, []byte(emptyJSON), 0o644); err != nil {
 			t.Fatalf("Failed to write requirements file: %v", err)
 		}
 

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"app-monitor-api/repository"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -9,8 +10,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"app-monitor-api/repository"
 )
 
 func TestSubmitIssueToTrackerReturnsIssueID(t *testing.T) {

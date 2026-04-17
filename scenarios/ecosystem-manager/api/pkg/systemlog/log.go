@@ -56,12 +56,12 @@ func Init() {
 func InitWithBaseDir(baseDir string) {
 	initOnce.Do(func() {
 		logDir = resolveLogDir(baseDir)
-		if err := os.MkdirAll(logDir, 0755); err != nil {
+		if err := os.MkdirAll(logDir, 0o755); err != nil {
 			fmt.Fprintf(os.Stderr, "failed to create log dir: %v\n", err)
 			return
 		}
 		filePath := filepath.Join(logDir, time.Now().Format("2006-01-02_150405")+".log")
-		f, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
+		f, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0o644)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "failed to open log file: %v\n", err)
 			return

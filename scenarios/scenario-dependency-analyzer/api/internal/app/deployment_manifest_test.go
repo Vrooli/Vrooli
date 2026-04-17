@@ -4,29 +4,18 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"scenario-dependency-analyzer/internal/deployment"
 	"testing"
 	"time"
 
-	"scenario-dependency-analyzer/internal/deployment"
 	types "scenario-dependency-analyzer/internal/types"
 )
 
 func TestBuildBundleManifestSkeletonValidatesAgainstSchema(t *testing.T) {
 	scenarioDir := t.TempDir()
 
-	if err := os.MkdirAll(filepath.Join(scenarioDir, "ui", "dist"), 0o755); err != nil {
-		t.Fatalf("failed to create ui dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(scenarioDir, "ui", "dist", "index.html"), []byte("<html></html>"), 0o644); err != nil {
-		t.Fatalf("failed to write ui entry: %v", err)
-	}
-
-	if err := os.MkdirAll(filepath.Join(scenarioDir, "api"), 0o755); err != nil {
-		t.Fatalf("failed to create api dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(scenarioDir, "api", "test-scenario-api"), []byte("#!/bin/bash\necho ok\n"), 0o755); err != nil {
-		t.Fatalf("failed to write api binary placeholder: %v", err)
-	}
+	writeBuildableUIFolder(t, scenarioDir)
+	writeBuildableAPIFolder(t, scenarioDir, "test-scenario-api")
 
 	cfg := &types.ServiceConfig{}
 	cfg.Service.Name = "test-scenario"
@@ -85,13 +74,7 @@ func TestBuildBundleManifestSkeletonValidatesAgainstSchema(t *testing.T) {
 func TestBuildBundleManifestWithoutUI(t *testing.T) {
 	scenarioDir := t.TempDir()
 
-	// Only create API binary, no UI
-	if err := os.MkdirAll(filepath.Join(scenarioDir, "api"), 0o755); err != nil {
-		t.Fatalf("failed to create api dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(scenarioDir, "api", "test-scenario-api"), []byte("#!/bin/bash\necho ok\n"), 0o755); err != nil {
-		t.Fatalf("failed to write api binary placeholder: %v", err)
-	}
+	writeBuildableAPIFolder(t, scenarioDir, "test-scenario-api")
 
 	cfg := &types.ServiceConfig{}
 	cfg.Service.Name = "test-scenario"
@@ -247,7 +230,6 @@ func TestBuildBundleManifestSwapsGeneration(t *testing.T) {
 func TestBuildBundleManifestFilesDiscovery(t *testing.T) {
 	scenarioDir := t.TempDir()
 
-	// Create various files
 	if err := os.MkdirAll(filepath.Join(scenarioDir, ".vrooli"), 0o755); err != nil {
 		t.Fatalf("failed to create .vrooli dir: %v", err)
 	}
@@ -255,19 +237,8 @@ func TestBuildBundleManifestFilesDiscovery(t *testing.T) {
 		t.Fatalf("failed to write service.json: %v", err)
 	}
 
-	if err := os.MkdirAll(filepath.Join(scenarioDir, "api"), 0o755); err != nil {
-		t.Fatalf("failed to create api dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(scenarioDir, "api", "test-scenario-api"), []byte("binary"), 0o755); err != nil {
-		t.Fatalf("failed to write api binary: %v", err)
-	}
-
-	if err := os.MkdirAll(filepath.Join(scenarioDir, "ui", "dist"), 0o755); err != nil {
-		t.Fatalf("failed to create ui dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(scenarioDir, "ui", "dist", "index.html"), []byte("<html></html>"), 0o644); err != nil {
-		t.Fatalf("failed to write ui entry: %v", err)
-	}
+	writeBuildableAPIFolder(t, scenarioDir, "test-scenario-api")
+	writeBuildableUIFolder(t, scenarioDir)
 
 	cfg := &types.ServiceConfig{}
 	cfg.Service.Name = "test-scenario"
@@ -543,5 +514,43 @@ func TestBuildBundleManifestAppNameFallbacks(t *testing.T) {
 				t.Errorf("expected app name %q, got %q", tt.expectedName, manifest.Skeleton.App.Name)
 			}
 		})
+	}
+}
+
+// writeBuildableAPIFolder creates an api/ folder with Go markers so the folder
+// scanner detects it as a Go API component.
+func writeBuildableAPIFolder(t *testing.T, scenarioDir, binaryName string) {
+	t.Helper()
+	apiDir := filepath.Join(scenarioDir, "api")
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
+		t.Fatalf("failed to create api dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(apiDir, "go.mod"), []byte("module test-scenario-api\n\ngo 1.23\n"), 0o644); err != nil {
+		t.Fatalf("failed to write api go.mod: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte("package main\n\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatalf("failed to write api main.go: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(apiDir, binaryName), []byte("#!/bin/bash\necho ok\n"), 0o755); err != nil {
+		t.Fatalf("failed to write api binary placeholder: %v", err)
+	}
+}
+
+// writeBuildableUIFolder creates a ui/ folder with package.json and a built
+// dist/index.html so the scanner classifies it as a UI component.
+func writeBuildableUIFolder(t *testing.T, scenarioDir string) {
+	t.Helper()
+	uiDir := filepath.Join(scenarioDir, "ui")
+	if err := os.MkdirAll(filepath.Join(uiDir, "dist"), 0o755); err != nil {
+		t.Fatalf("failed to create ui dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(uiDir, "package.json"), []byte(`{"name":"ui"}`), 0o644); err != nil {
+		t.Fatalf("failed to write ui package.json: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(uiDir, "index.html"), []byte("<html></html>"), 0o644); err != nil {
+		t.Fatalf("failed to write ui index.html: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(uiDir, "dist", "index.html"), []byte("<html></html>"), 0o644); err != nil {
+		t.Fatalf("failed to write ui dist entry: %v", err)
 	}
 }

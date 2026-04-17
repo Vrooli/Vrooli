@@ -116,8 +116,9 @@ func TestDeployStage_Execute_NilConfig(t *testing.T) {
 }
 
 func TestDeployStage_Execute_MissingServiceToken(t *testing.T) {
-	// Ensure env var is unset
+	// Ensure env var is unset and secrets file lookup cannot find a value.
 	t.Setenv("LPBS_SERVICE_SECRET", "")
+	t.Setenv("HOME", t.TempDir())
 	t.Setenv("VROOLI_ROOT", t.TempDir())
 	origWD, err := os.Getwd()
 	if err != nil {

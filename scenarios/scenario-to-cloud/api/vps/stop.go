@@ -3,11 +3,10 @@ package vps
 import (
 	"context"
 	"fmt"
-	"strings"
-
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/vps/portparse"
+	"strings"
 )
 
 // StopScenarioResult represents the result of stopping a scenario

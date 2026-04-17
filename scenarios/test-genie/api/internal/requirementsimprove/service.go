@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"test-genie/agentmanager"
 	"time"
 
 	"github.com/google/uuid"
 	repocontract "github.com/vrooli/repo-contract-go"
-
-	"test-genie/agentmanager"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )

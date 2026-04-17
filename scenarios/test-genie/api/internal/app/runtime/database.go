@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	goruntime "runtime"
+	"test-genie/internal/storage/sqlfiles"
 
 	repocontract "github.com/vrooli/repo-contract-go"
-	"test-genie/internal/storage/sqlfiles"
 )
 
 const initializationDialectDir = "sqlite"

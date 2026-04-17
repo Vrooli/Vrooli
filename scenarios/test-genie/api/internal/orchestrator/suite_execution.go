@@ -13,14 +13,15 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"test-genie/internal/orchestrator/phases"
+	"test-genie/internal/orchestrator/requirements"
+	"test-genie/internal/shared"
 	"time"
 
 	"github.com/google/uuid"
 
-	"test-genie/internal/orchestrator/phases"
-	"test-genie/internal/orchestrator/requirements"
 	workspacepkg "test-genie/internal/orchestrator/workspace"
-	"test-genie/internal/shared"
+
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 

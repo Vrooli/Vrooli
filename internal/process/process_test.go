@@ -81,7 +81,7 @@ func TestReadAndSummarizeScenarioRecords(t *testing.T) {
 func TestHomeDirFallsBackToUserHomeWhenHOMEUnset(t *testing.T) {
 	t.Setenv("HOME", "")
 
-	got, err := HomeDir()
+	got, _ := HomeDir()
 	want, err := os.UserHomeDir()
 	if err != nil {
 		if got != "" {

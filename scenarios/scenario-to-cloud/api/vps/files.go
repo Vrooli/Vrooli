@@ -1,10 +1,9 @@
 package vps
 
 import (
+	"scenario-to-cloud/domain"
 	"strconv"
 	"strings"
-
-	"scenario-to-cloud/domain"
 )
 
 // ParseLsOutput parses the output of `ls -la` into FileEntry structs.

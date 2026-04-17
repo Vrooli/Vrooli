@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { act } from '@testing-library/react';
-import { useAuthStore, type AuthUser } from './authStore';
+import { useAuthStore, setupAuthListener, type AuthUser } from './authStore';
 
 // Mock the desktop API
 const mockDesktopAuth = {
@@ -346,11 +346,15 @@ describe('authStore [REQ:BAS-AUTH]', () => {
       mockDesktopAuth.onAuthChanged.mockImplementation((cb: (event: string) => void) => {
         authChangedCallback = cb;
       });
+      mockDesktopAuth.isAuthenticated.mockResolvedValue(false);
       mockDesktopAuth.getUser.mockResolvedValue({
         id: 'user-123',
         email: 'newuser@example.com',
         emailVerified: true,
       });
+
+      // Trigger listener setup now that desktop mock is in place
+      setupAuthListener();
 
       // Simulate the event
       if (!authChangedCallback) {

@@ -1,17 +1,16 @@
 package orchestration
 
 import (
-	"context"
-	"sync"
-	"testing"
-	"time"
-
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/recommendation"
 	"agent-manager/internal/database"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/testutil"
+	"context"
+	"sync"
+	"testing"
+	"time"
 
 	"github.com/google/uuid"
 )

@@ -5,13 +5,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
-	"testing"
-
-	"github.com/gorilla/mux"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/promptcatalog"
 	"swarm-manager/internal/testutil"
 	"swarm-manager/internal/workshop"
+	"testing"
+
+	"github.com/gorilla/mux"
 )
 
 func TestResearch_InitializeMode_SpawnsAgent(t *testing.T) {

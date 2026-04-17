@@ -160,7 +160,7 @@ export function downsample(buffer: Float32Array<ArrayBufferLike>, fromRate: numb
     const srcFloor = Math.floor(srcIndex);
     const srcCeil = Math.min(srcFloor + 1, buffer.length - 1);
     const frac = srcIndex - srcFloor;
-    output[i] = buffer[srcFloor]! * (1 - frac) + buffer[srcCeil]! * frac;
+    output[i] = (buffer[srcFloor] ?? 0) * (1 - frac) + (buffer[srcCeil] ?? 0) * frac;
   }
 
   return output;

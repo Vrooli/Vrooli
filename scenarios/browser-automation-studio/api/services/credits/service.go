@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 )
@@ -39,7 +38,6 @@ type LPBSReporter interface {
 // The Service has several intentional seams for testability:
 //   - EntitlementProvider: Interface for entitlement lookups (mock in tests)
 //   - LPBSReporter: Interface for usage reporting (mock in tests)
-//   - Database: Supports both PostgreSQL and SQLite via dialect flag
 //
 // See SEAMS.md for full documentation of testing boundaries.
 type Service struct {
@@ -48,7 +46,6 @@ type Service struct {
 	entitlementSvc      *entitlement.Service // Legacy: concrete service for backward compat
 	entitlementProvider EntitlementProvider  // Preferred: injectable interface for testing
 	costs               OperationCosts
-	dialect             string // "postgres" or "sqlite"
 
 	// LPBS integration for centralized usage reporting
 	lpbsURL        string       // LPBS service URL for usage reporting
@@ -78,14 +75,12 @@ type usageCache struct {
 // For unit testing credit logic without real dependencies:
 //   - Use EntitlementProvider with MockEntitlementProvider (preferred for new tests)
 //   - Use LPBSReporter with a mock to capture/verify usage reports
-//   - Use Dialect="sqlite" with an in-memory database
 //
 // # Example Test Setup
 //
 //	svc := credits.NewService(credits.ServiceOptions{
 //	    DB:      sqliteDB,
 //	    Logger:  logrus.New(),
-//	    Dialect: "sqlite",
 //	    EntitlementProvider: &credits.MockEntitlementProvider{
 //	        Entitlement: &entitlement.Entitlement{Tier: entitlement.TierPro},
 //	        AICreditsLimit: 500,
@@ -97,7 +92,6 @@ type ServiceOptions struct {
 	DB             *sql.DB
 	Logger         *logrus.Logger
 	EntitlementSvc *entitlement.Service // Legacy: concrete entitlement service
-	Dialect        string               // "postgres" or "sqlite" - defaults to "postgres"
 	// Note: Operation costs are intentionally NOT configurable here.
 	// They are hard-coded in DefaultOperationCosts() to prevent bypassing charges.
 
@@ -123,11 +117,6 @@ type ServiceOptions struct {
 // EntitlementSvc (legacy). If EntitlementProvider is set, it takes precedence.
 // If neither is set, all operations are treated as unlimited (useful for desktop apps).
 func NewService(opts ServiceOptions) *Service {
-	dialect := opts.Dialect
-	if dialect == "" {
-		dialect = "postgres" // Default for backward compatibility
-	}
-
 	appBundleKey := opts.AppBundleKey
 	if appBundleKey == "" {
 		appBundleKey = "browser-automation-studio"
@@ -152,7 +141,6 @@ func NewService(opts ServiceOptions) *Service {
 		entitlementSvc:      opts.EntitlementSvc, // Keep for backward compat
 		entitlementProvider: entProvider,
 		costs:               DefaultOperationCosts(),
-		dialect:             dialect,
 		lpbsURL:             opts.LPBSURL,
 		lpbsSecret:          opts.LPBSSecret,
 		lpbsHTTPClient:      lpbsHTTPClient,
@@ -160,11 +148,6 @@ func NewService(opts ServiceOptions) *Service {
 		appBundleKey:        appBundleKey,
 		cache:               make(map[string]*usageCache),
 	}
-}
-
-// isSQLite returns true if the database dialect is SQLite.
-func (s *Service) isSQLite() bool {
-	return s.dialect == "sqlite"
 }
 
 // getEntitlement retrieves the entitlement for a user, checking context first
@@ -445,34 +428,19 @@ func (s *Service) GetUsageHistory(ctx context.Context, userIdentity string, mont
 	}
 
 	// Query database for these months - aggregate across all user_identities for single-user desktop app
-	var rows *sql.Rows
-	var err error
-
-	if s.isSQLite() {
-		// SQLite: Use IN clause with placeholders
-		placeholders := make([]string, len(queryMonths))
-		args := make([]interface{}, len(queryMonths))
-		for i, m := range queryMonths {
-			placeholders[i] = "?"
-			args[i] = m
-		}
-		query := fmt.Sprintf(`
-			SELECT billing_month, total_credits_used, total_operations, credits_by_operation, operations_by_type
-			FROM credit_usage
-			WHERE billing_month IN (%s)
-			ORDER BY billing_month DESC
-		`, strings.Join(placeholders, ","))
-		rows, err = s.db.QueryContext(ctx, query, args...)
-	} else {
-		// PostgreSQL: Use ANY with array
-		query := `
-			SELECT billing_month, total_credits_used, total_operations, credits_by_operation, operations_by_type
-			FROM credit_usage
-			WHERE billing_month = ANY($1)
-			ORDER BY billing_month DESC
-		`
-		rows, err = s.db.QueryContext(ctx, query, pq.Array(queryMonths))
+	placeholders := make([]string, len(queryMonths))
+	args := make([]interface{}, len(queryMonths))
+	for i, m := range queryMonths {
+		placeholders[i] = "?"
+		args[i] = m
 	}
+	query := fmt.Sprintf(`
+		SELECT billing_month, total_credits_used, total_operations, credits_by_operation, operations_by_type
+		FROM credit_usage
+		WHERE billing_month IN (%s)
+		ORDER BY billing_month DESC
+	`, strings.Join(placeholders, ","))
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, false, fmt.Errorf("query usage history: %w", err)
 	}
@@ -624,37 +592,19 @@ func (s *Service) GetOperationLog(ctx context.Context, userIdentity, month, cate
 		}
 	}
 
-	// Use dialect-appropriate placeholders
-	var countQuery, query string
-	if s.isSQLite() {
-		countQuery = fmt.Sprintf(`
-			SELECT COUNT(*)
-			FROM operation_log
-			WHERE created_at >= ? AND created_at <= ?%s
-		`, categoryFilter)
+	countQuery := fmt.Sprintf(`
+		SELECT COUNT(*)
+		FROM operation_log
+		WHERE created_at >= ? AND created_at <= ?%s
+	`, categoryFilter)
 
-		query = fmt.Sprintf(`
-			SELECT id, operation_type, credits_charged, success, created_at, metadata, error_message
-			FROM operation_log
-			WHERE created_at >= ? AND created_at <= ?%s
-			ORDER BY created_at DESC
-			LIMIT ? OFFSET ?
-		`, categoryFilter)
-	} else {
-		countQuery = fmt.Sprintf(`
-			SELECT COUNT(*)
-			FROM operation_log
-			WHERE created_at >= $1 AND created_at <= $2%s
-		`, categoryFilter)
-
-		query = fmt.Sprintf(`
-			SELECT id, operation_type, credits_charged, success, created_at, metadata, error_message
-			FROM operation_log
-			WHERE created_at >= $1 AND created_at <= $2%s
-			ORDER BY created_at DESC
-			LIMIT $3 OFFSET $4
-		`, categoryFilter)
-	}
+	query := fmt.Sprintf(`
+		SELECT id, operation_type, credits_charged, success, created_at, metadata, error_message
+		FROM operation_log
+		WHERE created_at >= ? AND created_at <= ?%s
+		ORDER BY created_at DESC
+		LIMIT ? OFFSET ?
+	`, categoryFilter)
 
 	var total int
 	if err := s.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
@@ -760,22 +710,13 @@ func (s *Service) getRemainingCredits(ctx context.Context, userIdentity string) 
 func (s *Service) getUsageFromDB(ctx context.Context, userIdentity string) (*usageCache, error) {
 	currentMonth := s.getBillingMonth(ctx, userIdentity)
 
-	// Use dialect-appropriate placeholder
-	var placeholder string
-	if s.isSQLite() {
-		placeholder = "?"
-	} else {
-		placeholder = "$1"
-	}
-
-	// Simpler aggregation query that works on both PostgreSQL and SQLite
-	query := fmt.Sprintf(`
+	query := `
 		SELECT
 			COALESCE(SUM(total_credits_used), 0) as total_credits,
 			COALESCE(SUM(total_operations), 0) as total_ops
 		FROM credit_usage
-		WHERE billing_month = %s
-	`, placeholder)
+		WHERE billing_month = ?
+	`
 
 	var totalCreditsUsed, totalOperations int
 
@@ -788,11 +729,11 @@ func (s *Service) getUsageFromDB(ctx context.Context, userIdentity string) (*usa
 	}
 
 	// Get detailed breakdown with a separate query
-	breakdownQuery := fmt.Sprintf(`
+	breakdownQuery := `
 		SELECT credits_by_operation, operations_by_type
 		FROM credit_usage
-		WHERE billing_month = %s
-	`, placeholder)
+		WHERE billing_month = ?
+	`
 
 	rows, err := s.db.QueryContext(ctx, breakdownQuery, currentMonth)
 	if err != nil {
@@ -838,49 +779,10 @@ func (s *Service) getUsageFromDB(ctx context.Context, userIdentity string) (*usa
 	}, nil
 }
 
-// upsertUsage increments credit usage in the database.
-func (s *Service) upsertUsage(ctx context.Context, userIdentity, month string, op OperationType, credits int) error {
-	if s.isSQLite() {
-		return s.upsertUsageSQLite(ctx, userIdentity, month, op, credits)
-	}
-	return s.upsertUsagePostgres(ctx, userIdentity, month, op, credits)
-}
-
-// upsertUsagePostgres uses PostgreSQL JSONB functions for atomic upsert.
-func (s *Service) upsertUsagePostgres(ctx context.Context, userIdentity, month string, op OperationType, credits int) error {
-	query := `
-		INSERT INTO credit_usage (
-			user_identity, billing_month, total_credits_used, total_operations,
-			credits_by_operation, operations_by_type, last_operation_at, updated_at
-		)
-		VALUES (
-			$1, $2, $3, 1,
-			jsonb_build_object($4::text, $3),
-			jsonb_build_object($4::text, 1),
-			NOW(), NOW()
-		)
-		ON CONFLICT (user_identity, billing_month)
-		DO UPDATE SET
-			total_credits_used = credit_usage.total_credits_used + $3,
-			total_operations = credit_usage.total_operations + 1,
-			credits_by_operation = credit_usage.credits_by_operation ||
-				jsonb_build_object($4::text, COALESCE((credit_usage.credits_by_operation->>$4::text)::int, 0) + $3),
-			operations_by_type = credit_usage.operations_by_type ||
-				jsonb_build_object($4::text, COALESCE((credit_usage.operations_by_type->>$4::text)::int, 0) + 1),
-			last_operation_at = NOW(),
-			updated_at = NOW()
-	`
-
-	_, err := s.db.ExecContext(ctx, query, userIdentity, month, credits, string(op))
-	if err != nil {
-		return fmt.Errorf("upsert credit usage: %w", err)
-	}
-
-	return nil
-}
-
-// upsertUsageSQLite uses read-modify-write pattern since SQLite has no JSONB functions.
-func (s *Service) upsertUsageSQLite(ctx context.Context, userIdentity, month string, op OperationType, credits int) (err error) {
+// upsertUsage increments credit usage in the database using a read-modify-write
+// transaction. SQLite has no JSONB merge operators, so the per-operation breakdown
+// JSON is rehydrated, mutated, and re-serialized in Go.
+func (s *Service) upsertUsage(ctx context.Context, userIdentity, month string, op OperationType, credits int) (err error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
@@ -972,53 +874,28 @@ func (s *Service) logOperation(ctx context.Context, userIdentity string, op Oper
 
 	metadataJSON, _ := json.Marshal(metadata)
 
-	var query string
-	var successVal interface{}
+	// SQLite uses INTEGER for boolean (0/1).
+	successVal := 0
+	if success {
+		successVal = 1
+	}
 
-	if s.isSQLite() {
-		query = `
-			INSERT INTO operation_log (
-				id, user_identity, operation_type, credits_charged, success, metadata, error_message, duration_ms
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-		`
-		// SQLite uses INTEGER for boolean (0/1)
-		if success {
-			successVal = 1
-		} else {
-			successVal = 0
-		}
-		newID := uuid.New().String()
-		_, err := s.db.ExecContext(ctx, query,
-			newID,
-			userIdentity,
-			string(op),
-			credits,
-			successVal,
-			string(metadataJSON),
-			errMsg,
-			metadata.DurationMs,
-		)
-		if err != nil {
-			return fmt.Errorf("insert operation log: %w", err)
-		}
-	} else {
-		query = `
-			INSERT INTO operation_log (
-				user_identity, operation_type, credits_charged, success, metadata, error_message, duration_ms
-			) VALUES ($1, $2, $3, $4, $5, $6, $7)
-		`
-		_, err := s.db.ExecContext(ctx, query,
-			userIdentity,
-			string(op),
-			credits,
-			success,
-			metadataJSON,
-			errMsg,
-			metadata.DurationMs,
-		)
-		if err != nil {
-			return fmt.Errorf("insert operation log: %w", err)
-		}
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO operation_log (
+			id, user_identity, operation_type, credits_charged, success, metadata, error_message, duration_ms
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`,
+		uuid.New().String(),
+		userIdentity,
+		string(op),
+		credits,
+		successVal,
+		string(metadataJSON),
+		errMsg,
+		metadata.DurationMs,
+	)
+	if err != nil {
+		return fmt.Errorf("insert operation log: %w", err)
 	}
 
 	return nil

@@ -12,21 +12,21 @@ function wrapper(initialEntries: string[] = ["/"]) {
 
 describe("useUrlState", () => {
   it("returns default value when param is absent", () => {
-    const { result } = renderHook(() => useUrlState<string>("tab", "all"), {
+    const { result } = renderHook(() => useUrlState("tab", "all"), {
       wrapper: wrapper(),
     });
     expect(result.current[0]).toBe("all");
   });
 
   it("reads initial value from URL", () => {
-    const { result } = renderHook(() => useUrlState<string>("tab", "all"), {
+    const { result } = renderHook(() => useUrlState<"all" | "fix">("tab", "all"), {
       wrapper: wrapper(["/?tab=fix"]),
     });
     expect(result.current[0]).toBe("fix");
   });
 
   it("updates URL when setter is called", () => {
-    const { result } = renderHook(() => useUrlState<string>("tab", "all"), {
+    const { result } = renderHook(() => useUrlState<"all" | "fix">("tab", "all"), {
       wrapper: wrapper(),
     });
     act(() => {
@@ -36,7 +36,7 @@ describe("useUrlState", () => {
   });
 
   it("removes param from URL when set to default", () => {
-    const { result } = renderHook(() => useUrlState<string>("tab", "all"), {
+    const { result } = renderHook(() => useUrlState<"all" | "fix">("tab", "all"), {
       wrapper: wrapper(["/?tab=fix"]),
     });
     expect(result.current[0]).toBe("fix");
@@ -67,8 +67,8 @@ describe("useUrlState", () => {
   it("multiple instances do not clobber each other", () => {
     const { result } = renderHook(
       () => ({
-        tab: useUrlState<string>("tab", "all"),
-        sort: useUrlState<string>("sort", "priority"),
+        tab: useUrlState("tab", "all"),
+        sort: useUrlState("sort", "priority"),
       }),
       { wrapper: wrapper(["/?tab=fix&sort=updated"]) },
     );

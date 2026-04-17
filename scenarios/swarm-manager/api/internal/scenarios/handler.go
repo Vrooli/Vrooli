@@ -20,16 +20,16 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/dispatch"
+	"swarm-manager/internal/execution"
+	"swarm-manager/internal/httputil"
 	"time"
 
 	"github.com/gorilla/mux"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
-	"swarm-manager/internal/apierr"
-	"swarm-manager/internal/dispatch"
-	"swarm-manager/internal/execution"
-	"swarm-manager/internal/httputil"
 )
 
 // ScenarioStatus represents the runtime state of a scenario.

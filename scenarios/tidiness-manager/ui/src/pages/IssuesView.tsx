@@ -1,8 +1,8 @@
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Filter, AlertCircle, CheckCircle2, FolderOpen, X, XCircle, Ban, Info, Terminal, Download, Copy } from "lucide-react";
-import { fetchAllIssues, updateIssueStatus, type Issue } from "../lib/api";
+import { Filter, AlertCircle, CheckCircle2, FolderOpen, X, Ban, Info, Terminal, Download, Copy } from "lucide-react";
+import { fetchAllIssues, updateIssueStatus } from "../lib/api";
 import { useToast } from "../components/ui/toast";
 import { PageHeader } from "../components/layout/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";

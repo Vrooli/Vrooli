@@ -144,9 +144,3 @@ func extractMessage(body []byte) string {
 	return strings.TrimSpace(string(body))
 }
 
-func fallback(value, fallback string) string {
-	if strings.TrimSpace(value) == "" {
-		return fallback
-	}
-	return value
-}

@@ -3,11 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"sync"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/secrets"
 	"scenario-to-cloud/ssh"
+	"sync"
 )
 
 // =============================================================================

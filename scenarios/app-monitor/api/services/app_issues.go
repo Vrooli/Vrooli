@@ -1,6 +1,7 @@
 package services
 
 import (
+	"app-monitor-api/logger"
 	"context"
 	"encoding/json"
 	"errors"
@@ -11,8 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"app-monitor-api/logger"
 
 	"github.com/vrooli/api-core/discovery"
 )
@@ -302,4 +301,3 @@ func (s *AppService) locateScenarioAuditorAPIPort(ctx context.Context) (int, err
 
 	return 0, fmt.Errorf("scenario-auditor is not running or API port not found (checked %d scenarios)", len(apps))
 }
-

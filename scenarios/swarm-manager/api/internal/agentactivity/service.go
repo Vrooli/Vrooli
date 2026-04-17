@@ -7,11 +7,10 @@ import (
 	"log/slog"
 	"sort"
 	"strings"
-	"sync"
-
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/dispatch"
 	"swarm-manager/internal/idgen"
+	"sync"
 )
 
 var errNotFound = errors.New("agent activity not found")

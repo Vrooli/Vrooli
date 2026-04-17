@@ -93,9 +93,6 @@ func ReadVersion(command string, args []string) string {
 
 func FirstLine(value string) string {
 	lines := strings.Split(strings.TrimSpace(value), "\n")
-	if len(lines) == 0 {
-		return ""
-	}
 	return strings.TrimSpace(lines[0])
 }
 

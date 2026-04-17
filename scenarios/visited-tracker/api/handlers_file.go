@@ -64,7 +64,7 @@ func updateFileNotesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"message": "File notes updated successfully",
 	})
 }
@@ -123,7 +123,7 @@ func updateFilePriorityHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"message": "File priority updated successfully",
 	})
 }
@@ -180,7 +180,7 @@ func toggleFileExclusionHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"message": "File exclusion updated successfully",
 	})
 }
@@ -221,7 +221,7 @@ func getFileByPathHandler(w http.ResponseWriter, r *http.Request) {
 	for _, file := range campaign.TrackedFiles {
 		if file.FilePath == filePath || file.AbsolutePath == absPath || file.FilePath == absPath {
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(file)
+			_ = json.NewEncoder(w).Encode(file)
 			return
 		}
 	}
@@ -320,7 +320,7 @@ func bulkExcludeFilesHandler(w http.ResponseWriter, r *http.Request) {
 	if len(resolution.Unmatched) > 0 {
 		response["unmatched_patterns"] = resolution.Unmatched
 	}
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // resetCampaignHandler - POST /api/v1/campaigns/{id}/reset

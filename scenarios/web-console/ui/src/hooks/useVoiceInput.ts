@@ -78,6 +78,9 @@ export interface UseVoiceInputCallbacks {
 export function useVoiceInput(onTranscript: (text: string) => void) {
   const voiceEnabled = useWorkspaceStore((s) => s.voiceEnabled);
   const voiceLanguage = useWorkspaceStore((s) => s.voiceLanguage);
+  // Ref mirror so effects can read the latest language without re-running on every change.
+  const voiceLanguageRef = useRef(voiceLanguage);
+  voiceLanguageRef.current = voiceLanguage;
   const vadSilenceTimeoutMs = useWorkspaceStore((s) => s.vadSilenceTimeoutMs);
   const persistentMode = useWorkspaceStore((s) => s.persistentMode);
   const wakeWordEnabled = useWorkspaceStore((s) => s.wakeWordEnabled);
@@ -510,7 +513,8 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
               providerRef.current = new VoiceStreamProvider();
             }
             if (providerRef.current instanceof VoiceStreamProvider) {
-              const lang = voiceLanguage === "auto" ? "" : (voiceLanguage.split("-")[0] ?? "en");
+              const currentLanguage = voiceLanguageRef.current;
+              const lang = currentLanguage === "auto" ? "" : (currentLanguage.split("-")[0] ?? "en");
               providerRef.current.preConnect(lang);
             }
           }
@@ -1048,7 +1052,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       engine: wakeWordEngineRef.current,
       template: wakeWordTemplateRef.current,
       audioContext: audioCtxRef.current ?? undefined,
-      onWakeWordDetected: (stream: MediaStream) => {
+      onWakeWordDetected: (_stream: MediaStream) => {
         console.info("[voice] Wake word detected — activating mic");
         // Transition from passive to active recording.
         // The PassiveListener has stopped its loop but kept the stream alive.

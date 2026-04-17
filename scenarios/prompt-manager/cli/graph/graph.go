@@ -7,13 +7,12 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"prompt-manager/cli/internal/appctx"
 	"sort"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
-
-	"prompt-manager/cli/internal/appctx"
 )
 
 // --- API response types (mirroring api/graph/models.go) ---

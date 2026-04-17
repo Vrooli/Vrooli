@@ -63,12 +63,12 @@ func TestLoadNoFile(t *testing.T) {
 func TestLoadNoPlaybooksSection(t *testing.T) {
 	tmpDir := t.TempDir()
 	vrooliDir := filepath.Join(tmpDir, ".vrooli")
-	if err := os.MkdirAll(vrooliDir, 0755); err != nil {
+	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	testingJSON := `{"version": "1.0.0", "unit": {"languages": {"go": {}}}}`
-	if err := os.WriteFile(filepath.Join(vrooliDir, "testing.json"), []byte(testingJSON), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(vrooliDir, "testing.json"), []byte(testingJSON), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -85,7 +85,7 @@ func TestLoadNoPlaybooksSection(t *testing.T) {
 func TestLoadWithPlaybooksSection(t *testing.T) {
 	tmpDir := t.TempDir()
 	vrooliDir := filepath.Join(tmpDir, ".vrooli")
-	if err := os.MkdirAll(vrooliDir, 0755); err != nil {
+	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -99,7 +99,7 @@ func TestLoadWithPlaybooksSection(t *testing.T) {
 			}
 		}
 	}`
-	if err := os.WriteFile(filepath.Join(vrooliDir, "testing.json"), []byte(testingJSON), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(vrooliDir, "testing.json"), []byte(testingJSON), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -123,7 +123,7 @@ func TestLoadWithPlaybooksSection(t *testing.T) {
 func TestLoadPlaybooksDoesNotDisableDefaultsWhenUnset(t *testing.T) {
 	tmpDir := t.TempDir()
 	vrooliDir := filepath.Join(tmpDir, ".vrooli")
-	if err := os.MkdirAll(vrooliDir, 0755); err != nil {
+	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -137,7 +137,7 @@ func TestLoadPlaybooksDoesNotDisableDefaultsWhenUnset(t *testing.T) {
 			}
 		}
 	}`
-	if err := os.WriteFile(filepath.Join(vrooliDir, "testing.json"), []byte(testingJSON), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(vrooliDir, "testing.json"), []byte(testingJSON), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -163,11 +163,11 @@ func TestLoadPlaybooksDoesNotDisableDefaultsWhenUnset(t *testing.T) {
 func TestLoadInvalidJSON(t *testing.T) {
 	tmpDir := t.TempDir()
 	vrooliDir := filepath.Join(tmpDir, ".vrooli")
-	if err := os.MkdirAll(vrooliDir, 0755); err != nil {
+	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile(filepath.Join(vrooliDir, "testing.json"), []byte("not json"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(vrooliDir, "testing.json"), []byte("not json"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

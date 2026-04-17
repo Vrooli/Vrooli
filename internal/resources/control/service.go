@@ -310,9 +310,10 @@ func (s *Service) StatusForResource(item catalog.Resource, fast bool) (Status, e
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	cmd = exec.CommandContext(ctx, cmd.Path, cmd.Args[1:]...)
-	cmd.Dir = cmd.Dir
-	cmd.Env = cmd.Env
+	origCmd := cmd
+	cmd = exec.CommandContext(ctx, origCmd.Path, origCmd.Args[1:]...)
+	cmd.Dir = origCmd.Dir
+	cmd.Env = origCmd.Env
 
 	result := s.RunCommandFn(ctx, cmd)
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(result.Err, context.DeadlineExceeded) {

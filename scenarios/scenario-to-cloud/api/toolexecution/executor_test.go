@@ -4,10 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"scenario-to-cloud/domain"
 	"testing"
 	"time"
-
-	"scenario-to-cloud/domain"
 )
 
 // -----------------------------------------------------------------------------

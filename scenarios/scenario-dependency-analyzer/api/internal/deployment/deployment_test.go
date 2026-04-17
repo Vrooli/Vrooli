@@ -128,7 +128,7 @@ func TestBuildReport(t *testing.T) {
 		scenariosDir := filepath.Dir(scenarioDir)
 		scenarioName := filepath.Base(scenarioDir)
 
-		if err := os.MkdirAll(filepath.Join(scenarioDir, ".vrooli"), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Join(scenarioDir, ".vrooli"), 0o755); err != nil {
 			t.Fatalf("mkdir .vrooli: %v", err)
 		}
 
@@ -147,7 +147,7 @@ func TestBuildReport(t *testing.T) {
 		if err != nil {
 			t.Fatalf("marshal config: %v", err)
 		}
-		if err := os.WriteFile(filepath.Join(scenarioDir, ".vrooli", "service.json"), raw, 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(scenarioDir, ".vrooli", "service.json"), raw, 0o644); err != nil {
 			t.Fatalf("write service.json: %v", err)
 		}
 
@@ -311,8 +311,8 @@ func TestLoadReport(t *testing.T) {
 	t.Run("InvalidJSON", func(t *testing.T) {
 		scenarioDir := t.TempDir()
 		reportDir := filepath.Dir(mustReportPath(t, scenarioDir))
-		os.MkdirAll(reportDir, 0755)
-		os.WriteFile(filepath.Join(reportDir, "deployment-report.json"), []byte("invalid json"), 0644)
+		os.MkdirAll(reportDir, 0o755)
+		os.WriteFile(filepath.Join(reportDir, "deployment-report.json"), []byte("invalid json"), 0o644)
 
 		_, err := LoadReport(scenarioDir)
 		if err == nil {
@@ -794,8 +794,8 @@ func TestBundleManifestIntegration(t *testing.T) {
 	scenarioDir := t.TempDir()
 
 	// Create minimal directory structure
-	os.MkdirAll(filepath.Join(scenarioDir, "api"), 0755)
-	os.MkdirAll(filepath.Join(scenarioDir, ".vrooli"), 0755)
+	os.MkdirAll(filepath.Join(scenarioDir, "api"), 0o755)
+	os.MkdirAll(filepath.Join(scenarioDir, ".vrooli"), 0o755)
 
 	cfg := &types.ServiceConfig{}
 	cfg.Service.Name = "integration-test"

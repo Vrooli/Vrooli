@@ -222,8 +222,8 @@ export function applyDagreLayout<NodeType extends Node, EdgeType extends Edge>(
   for (const node of connectedNodes) {
     const entityType = getNodeEntityType(node);
     const shapeDims = entityType ? getShapeDimensions(entityType) : null;
-    const width = (node.measured?.width ?? node.width ?? shapeDims?.width ?? DEFAULT_NODE_WIDTH) as number;
-    const height = (node.measured?.height ?? node.height ?? shapeDims?.height ?? DEFAULT_NODE_HEIGHT) as number;
+    const width = (node.measured?.width ?? node.width ?? shapeDims?.width ?? DEFAULT_NODE_WIDTH);
+    const height = (node.measured?.height ?? node.height ?? shapeDims?.height ?? DEFAULT_NODE_HEIGHT);
     g.setNode(node.id, { width, height });
   }
 
@@ -239,8 +239,8 @@ export function applyDagreLayout<NodeType extends Node, EdgeType extends Edge>(
     const pos = g.node(node.id) as { x: number; y: number } | undefined;
     const entityType = getNodeEntityType(node);
     const shapeDims = entityType ? getShapeDimensions(entityType) : null;
-    const width = (node.measured?.width ?? node.width ?? shapeDims?.width ?? DEFAULT_NODE_WIDTH) as number;
-    const height = (node.measured?.height ?? node.height ?? shapeDims?.height ?? DEFAULT_NODE_HEIGHT) as number;
+    const width = (node.measured?.width ?? node.width ?? shapeDims?.width ?? DEFAULT_NODE_WIDTH);
+    const height = (node.measured?.height ?? node.height ?? shapeDims?.height ?? DEFAULT_NODE_HEIGHT);
     if (!pos) {
       return { ...node, position: { x: 0, y: 0 } };
     }
@@ -258,7 +258,7 @@ export function applyDagreLayout<NodeType extends Node, EdgeType extends Edge>(
     let maxY = -Infinity;
     let minX = Infinity;
     for (const node of positioned) {
-      const height = (node.measured?.height ?? node.height ?? DEFAULT_NODE_HEIGHT) as number;
+      const height = (node.measured?.height ?? node.height ?? DEFAULT_NODE_HEIGHT);
       maxY = Math.max(maxY, node.position.y + height);
       minX = Math.min(minX, node.position.x);
     }
@@ -287,8 +287,8 @@ function arrangeGrid<NodeType extends Node>(
   return nodes.map((node, i) => {
     const col = i % cols;
     const row = Math.floor(i / cols);
-    const width = (node.measured?.width ?? node.width ?? DEFAULT_NODE_WIDTH) as number;
-    const height = (node.measured?.height ?? node.height ?? DEFAULT_NODE_HEIGHT) as number;
+    const width = (node.measured?.width ?? node.width ?? DEFAULT_NODE_WIDTH);
+    const height = (node.measured?.height ?? node.height ?? DEFAULT_NODE_HEIGHT);
     return {
       ...node,
       position: {

@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
-
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/domain"
+	"strings"
 )
 
 const (

@@ -5,11 +5,10 @@ import (
 	"context"
 	"errors"
 	"io"
-	"testing"
-
 	"test-genie/internal/structure/content"
 	"test-genie/internal/structure/existence"
 	"test-genie/internal/structure/types"
+	"testing"
 )
 
 // Mock validators for testing the runner orchestration logic in isolation

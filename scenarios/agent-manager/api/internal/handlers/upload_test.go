@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"agent-manager/internal/storage"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -9,8 +10,6 @@ import (
 	"net/http/httptest"
 	"net/textproto"
 	"testing"
-
-	"agent-manager/internal/storage"
 
 	"github.com/gorilla/mux"
 )

@@ -6,13 +6,12 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"test-genie/internal/orchestrator"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-
-	"test-genie/internal/orchestrator"
 )
 
 func TestServer_handleListExecutions(t *testing.T) {

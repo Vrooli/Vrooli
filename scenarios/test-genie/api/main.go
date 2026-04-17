@@ -2,10 +2,9 @@ package main
 
 import (
 	"log"
+	"test-genie/internal/app"
 
 	"github.com/vrooli/api-core/preflight"
-
-	"test-genie/internal/app"
 )
 
 func main() {

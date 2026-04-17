@@ -9,7 +9,6 @@ import {
   extractCacheableFloor,
   loadNoiseFloorCache,
   saveNoiseFloorCache,
-  VAD_FLOOR_CACHE_MAX_AGE_MS,
   VAD_FLOOR_DRIFT_FACTOR,
   VAD_CALIBRATION_MS,
   VAD_SLIDING_WINDOW_SIZE,
@@ -472,8 +471,8 @@ describe("noise floor cache", () => {
 
     const loaded = loadNoiseFloorCache();
     expect(loaded).not.toBeNull();
-    expect(loaded!.silenceThreshold).toBe(floor.silenceThreshold);
-    expect(loaded!.speechThreshold).toBe(floor.speechThreshold);
-    expect(loaded!.timestamp).toBe(floor.timestamp);
+    expect(loaded?.silenceThreshold).toBe(floor.silenceThreshold);
+    expect(loaded?.speechThreshold).toBe(floor.speechThreshold);
+    expect(loaded?.timestamp).toBe(floor.timestamp);
   });
 });

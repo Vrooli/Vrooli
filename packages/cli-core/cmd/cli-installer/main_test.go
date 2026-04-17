@@ -99,3 +99,35 @@ func TestBuildFreshnessSpecUsesDeclaredContextAndInputs(t *testing.T) {
 		t.Fatalf("SkipFiles = %v", spec.SkipFiles)
 	}
 }
+
+func TestBuildFreshnessSpecCanonicalizesRelativePaths(t *testing.T) {
+	root := t.TempDir()
+	modulePath := filepath.Join(root, "scenario", "cli")
+	contextRoot := filepath.Join(root, "scenario")
+
+	if err := os.MkdirAll(modulePath, 0o755); err != nil {
+		t.Fatalf("mkdir module path: %v", err)
+	}
+
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(root); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+
+	spec, err := buildFreshnessSpec(filepath.Join("scenario", "cli"), "scenario", []string{"cli/**"}, "demo")
+	if err != nil {
+		t.Fatalf("buildFreshnessSpec: %v", err)
+	}
+	if spec.SourceRoot != modulePath {
+		t.Fatalf("SourceRoot = %q, want %q", spec.SourceRoot, modulePath)
+	}
+	if spec.ContextRoot != contextRoot {
+		t.Fatalf("ContextRoot = %q, want %q", spec.ContextRoot, contextRoot)
+	}
+}

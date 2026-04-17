@@ -5,14 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"strconv"
-	"strings"
-	"time"
-
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/tlsinfo"
+	"strconv"
+	"strings"
+	"time"
 )
 
 // RunOptions configures optional behavior for VPS preflight.
@@ -363,22 +362,22 @@ func Run(
 		for k, v := range requirementData {
 			detailsData[k] = v
 		}
-			if kb > 0 && kb < diskRequiredKB {
-				fail(
-					domain.PreflightDiskFreeID,
-					"Disk free space",
-					fmt.Sprintf("Low free disk space: %s", formatBytes(kb)),
-					fmt.Sprintf(
-						"At least %s free space is required for this deployment. "+
-							"First try: sudo apt-get clean && sudo journalctl --vacuum-size=100M. "+
-							"If you have many redeploys, bundle cache may be the culprit; try: scenario-to-cloud bundle vps-gc --host %s --scenario %s --keep 2",
-						formatBytes(diskRequiredKB), cfg.Host, manifest.Scenario.ID,
-					),
-					detailsData,
-				)
-			} else {
-				pass(domain.PreflightDiskFreeID, "Disk free space", fmt.Sprintf("Free space: %s", formatBytes(kb)), detailsData)
-			}
+		if kb > 0 && kb < diskRequiredKB {
+			fail(
+				domain.PreflightDiskFreeID,
+				"Disk free space",
+				fmt.Sprintf("Low free disk space: %s", formatBytes(kb)),
+				fmt.Sprintf(
+					"At least %s free space is required for this deployment. "+
+						"First try: sudo apt-get clean && sudo journalctl --vacuum-size=100M. "+
+						"If you have many redeploys, bundle cache may be the culprit; try: scenario-to-cloud bundle vps-gc --host %s --scenario %s --keep 2",
+					formatBytes(diskRequiredKB), cfg.Host, manifest.Scenario.ID,
+				),
+				detailsData,
+			)
+		} else {
+			pass(domain.PreflightDiskFreeID, "Disk free space", fmt.Sprintf("Free space: %s", formatBytes(kb)), detailsData)
+		}
 	}
 
 	ramRes, ramErr := sshRunner.Run(ctx, cfg, `awk '/MemTotal/ {print $2}' /proc/meminfo`, ssh.DefaultRunOptions())

@@ -78,11 +78,10 @@ BadExample:
 package interop
 
 import (
+	"app-monitor-api/rules"
 	"encoding/json"
 	"os"
 	"path/filepath"
-
-	"app-monitor-api/rules"
 )
 
 func init() {

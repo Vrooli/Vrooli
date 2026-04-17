@@ -1,9 +1,8 @@
 package interop
 
 import (
-	"embed"
-
 	"app-monitor-api/rules"
+	"embed"
 )
 
 //go:embed *.go

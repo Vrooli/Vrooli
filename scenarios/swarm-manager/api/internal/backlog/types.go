@@ -7,10 +7,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"swarm-manager/internal/identity"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
-	"swarm-manager/internal/identity"
 )
 
 // BacklogStatus represents the lifecycle state of a backlog item.

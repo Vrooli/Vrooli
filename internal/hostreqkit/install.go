@@ -10,7 +10,7 @@ func InstallCommand(host Host, packageName, sudoMode string) (string, []string, 
 	case "linux":
 		return LinuxInstallCommand(host, packageName, sudoMode)
 	case "darwin":
-		if host.PackageManager != "brew" {
+		if strings.TrimSpace(host.PackageManager) != "brew" {
 			return "", nil, fmt.Errorf("automatic install is unavailable without Homebrew")
 		}
 		return "brew", []string{"install", packageName}, nil

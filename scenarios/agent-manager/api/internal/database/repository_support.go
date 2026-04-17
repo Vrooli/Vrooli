@@ -1,14 +1,14 @@
 package database
 
 import (
+	"agent-manager/internal/domain"
+	"agent-manager/internal/repository"
 	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"time"
 
-	"agent-manager/internal/domain"
-	"agent-manager/internal/repository"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )

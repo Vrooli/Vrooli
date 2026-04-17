@@ -1,6 +1,7 @@
 package repocontractcheck
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -315,7 +316,7 @@ func checkResourceSchemaArtifacts(contract *repocontract.Contract, root string, 
 		parts = append(parts, fmt.Sprintf("%s references missing resource %s", item.Scenario, item.Resource))
 	}
 	sort.Strings(parts)
-	return fmt.Errorf(strings.Join(parts, "; "))
+	return errors.New(strings.Join(parts, "; "))
 }
 
 func checkProfileRootsWithinCanonicalLayout(contract *repocontract.Contract, root string, raw string) error {

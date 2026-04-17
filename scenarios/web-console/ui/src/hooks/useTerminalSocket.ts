@@ -473,6 +473,7 @@ export function useTerminalSocket({
     // Matched sequences (all are CSI with optional private-mode prefix):
     //   \e[?…c   Primary DA response          \e[>…c   Secondary DA response
     //   \e[…n    Device Status Report          \e[…R    Cursor Position Report
+    // eslint-disable-next-line no-control-regex -- intentionally matches CSI ESC byte
     const RE_TERMINAL_RESPONSE = /\x1b\[[\x30-\x3f]*[\x20-\x2f]*[cnR]/g;
     const stripTerminalResponses = (s: string): string => {
       // Fast path: most input is plain keystrokes with no ESC at all.

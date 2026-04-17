@@ -30,7 +30,7 @@ OPENCODE_VERSION_FILE="${OPENCODE_DATA_DIR}/VERSION"
 # Config paths (we pin them via env vars before invoking the CLI)
 OPENCODE_CONFIG_DIR="${RESOURCE_CONFIG_DIR:-${opencode_xdg_config_home}/vrooli/resources/opencode}"
 OPENCODE_CONFIG_FILE="${OPENCODE_CONFIG_DIR}/opencode.json"
-OPENCODE_XDG_CONFIG_HOME="${OPENCODE_DATA_DIR}/xdg-config"
+OPENCODE_XDG_CONFIG_HOME="${OPENCODE_CONFIG_DIR}/xdg-config"
 OPENCODE_XDG_DATA_HOME="${OPENCODE_DATA_DIR}/xdg-data"
 
 # Secrets loading cache flag

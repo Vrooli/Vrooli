@@ -5,11 +5,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"test-genie/internal/storage/sqlitedb"
 
 	apistorage "github.com/vrooli/api-core/storage"
 	repocontract "github.com/vrooli/repo-contract-go"
-
-	"test-genie/internal/storage/sqlitedb"
 )
 
 // Config captures runtime parameters that should not be hard-coded inside HTTP handlers.

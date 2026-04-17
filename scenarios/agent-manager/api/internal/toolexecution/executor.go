@@ -1,16 +1,15 @@
 package toolexecution
 
 import (
+	"agent-manager/internal/adapters/sandbox"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration"
 	"context"
 	"errors"
 	"fmt"
 	"os"
 	"strings"
 	"time"
-
-	"agent-manager/internal/adapters/sandbox"
-	"agent-manager/internal/domain"
-	"agent-manager/internal/orchestration"
 
 	"github.com/google/uuid"
 	repocontract "github.com/vrooli/repo-contract-go"

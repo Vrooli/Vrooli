@@ -3,10 +3,9 @@ package graph
 
 import (
 	"context"
+	"prompt-manager/store"
 	"regexp"
 	"strings"
-
-	"prompt-manager/store"
 )
 
 // Regex patterns for reference extraction (ported from xrefs/scanner.go).

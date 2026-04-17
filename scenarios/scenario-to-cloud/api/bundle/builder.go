@@ -12,13 +12,13 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/stringutil"
 	"sort"
 	"strings"
 	"time"
 
 	repocontract "github.com/vrooli/repo-contract-go"
-	"scenario-to-cloud/domain"
-	"scenario-to-cloud/internal/stringutil"
 )
 
 // MiniBundleSpec describes what to include in a mini-Vrooli bundle.
@@ -203,7 +203,7 @@ func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniB
 	}, nil
 }
 
-func existingProfileRoots(repoRoot string, required []string, optional []string) []string {
+func existingProfileRoots(repoRoot string, required, optional []string) []string {
 	var roots []string
 	addIfExists := func(rel string) {
 		rel = filepath.ToSlash(filepath.Clean(rel))
@@ -225,7 +225,7 @@ func existingProfileRoots(repoRoot string, required []string, optional []string)
 	return roots
 }
 
-func buildMiniGoWork(repoRoot string, includeRoots []string, excludes []string) (string, error) {
+func buildMiniGoWork(repoRoot string, includeRoots, excludes []string) (string, error) {
 	version := "1.24.0"
 	if b, err := os.ReadFile(filepath.Join(repoRoot, "go.work")); err == nil {
 		if v := parseGoWorkVersion(string(b)); v != "" {
@@ -263,7 +263,7 @@ func parseGoWorkVersion(contents string) string {
 	return ""
 }
 
-func discoverGoModDirs(repoRoot string, includeRoots []string, excludes []string) ([]string, error) {
+func discoverGoModDirs(repoRoot string, includeRoots, excludes []string) ([]string, error) {
 	found := map[string]struct{}{}
 	add := func(rel string) {
 		rel = filepath.ToSlash(filepath.Clean(rel))
@@ -596,15 +596,6 @@ func buildGeneratedMiniServiceJSON(version string, manifest domain.CloudManifest
 	return json.MarshalIndent(doc, "", "  ")
 }
 
-// toStringSet converts a slice to a map[string]struct{} for efficient lookup.
-func toStringSet(slice []string) map[string]struct{} {
-	set := make(map[string]struct{}, len(slice))
-	for _, s := range slice {
-		set[s] = struct{}{}
-	}
-	return set
-}
-
 // getOrCreateMapField returns a map field from doc, creating it if needed.
 func getOrCreateMapField(doc map[string]interface{}, key string) map[string]interface{} {
 	if v, ok := doc[key]; ok {
@@ -613,39 +604,6 @@ func getOrCreateMapField(doc map[string]interface{}, key string) map[string]inte
 		}
 	}
 	return make(map[string]interface{})
-}
-
-// mergeRequiredEntries merges required IDs with existing config, returning a new map.
-// If setEnabled is true, entries in requiredIDs get "enabled": true, and entries in
-// existing but not in requiredIDs get "enabled": false.
-func mergeRequiredEntries(parent map[string]interface{}, key string, requiredIDs map[string]struct{}, setEnabled bool) map[string]interface{} {
-	existing := getOrCreateMapField(parent, key)
-	merged := make(map[string]interface{}, len(existing)+len(requiredIDs))
-
-	// First, process all existing entries - set enabled: false for non-required ones
-	for id, entry := range existing {
-		_, isRequired := requiredIDs[id]
-		if m, ok := entry.(map[string]interface{}); ok && setEnabled {
-			// Clone the map to avoid mutating the original
-			cloned := make(map[string]interface{}, len(m))
-			for k, v := range m {
-				cloned[k] = v
-			}
-			cloned["enabled"] = isRequired
-			merged[id] = cloned
-		} else {
-			merged[id] = entry
-		}
-	}
-
-	// Then add any required entries that weren't in existing
-	for id := range requiredIDs {
-		if _, ok := existing[id]; !ok {
-			merged[id] = map[string]interface{}{"enabled": true}
-		}
-	}
-
-	return merged
 }
 
 // buildScenarioServiceJSONWithFixedPorts reads the target scenario's service.json

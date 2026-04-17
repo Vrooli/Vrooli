@@ -4,9 +4,8 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
-	"testing"
-
 	"swarm-manager/internal/agentmanager"
+	"testing"
 )
 
 type stubAgentService struct {

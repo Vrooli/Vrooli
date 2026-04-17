@@ -19,11 +19,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"time"
-
-	"github.com/gorilla/mux"
-
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/dispatch"
@@ -33,6 +28,11 @@ import (
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/settings"
 	"swarm-manager/internal/workshop"
+	"time"
+
+	"github.com/gorilla/mux"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
 
 type AgentSpawner interface {

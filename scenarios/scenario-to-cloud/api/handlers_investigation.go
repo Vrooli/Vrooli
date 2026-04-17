@@ -3,13 +3,12 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/investigation"
 	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
-
-	"scenario-to-cloud/domain"
-	"scenario-to-cloud/investigation"
 )
 
 // handleInvestigateDeployment triggers a new investigation for a failed deployment.

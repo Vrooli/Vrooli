@@ -10,9 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"testing"
-
 	"swarm-manager/internal/testutil"
+	"testing"
 )
 
 // createQuestions writes clarify/questions.json for a backlog item.

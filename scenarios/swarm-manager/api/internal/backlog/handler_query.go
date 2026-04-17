@@ -7,13 +7,13 @@ import (
 	"net/http"
 	"sort"
 	"strings"
-
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/depgraph"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/pathutil"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
 )
 
 // List returns all backlog items.

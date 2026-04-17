@@ -6,11 +6,10 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-
-	"github.com/gorilla/mux"
-
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
+
+	"github.com/gorilla/mux"
 )
 
 // Handler provides HTTP endpoints for review evidence management.

@@ -11,9 +11,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
-
 	"test-genie/internal/smoke/orchestrator"
+	"time"
 )
 
 // CommandExecutor abstracts command execution for testing.

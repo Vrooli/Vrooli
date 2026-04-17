@@ -7,10 +7,9 @@ package toolregistry
 import (
 	"context"
 	"fmt"
+	"scenario-to-cloud/domain"
 
 	"github.com/google/uuid"
-
-	"scenario-to-cloud/domain"
 )
 
 // DeploymentResolver resolves deployment identifiers (name or UUID) to UUIDs.

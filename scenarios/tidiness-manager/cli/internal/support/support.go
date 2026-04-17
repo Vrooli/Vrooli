@@ -62,7 +62,7 @@ func Decode(body []byte, dest interface{}) error {
 	return nil
 }
 
-func StatusLine(ok bool, label string, detail string) string {
+func StatusLine(ok bool, label, detail string) string {
 	prefix := "FAIL"
 	if ok {
 		prefix = "OK"
@@ -119,7 +119,7 @@ func SeverityRank(severity string) int {
 	}
 }
 
-func ResolveCampaignID(campaigns []Campaign, scenario string, preferredStatus string) (int, error) {
+func ResolveCampaignID(campaigns []Campaign, scenario, preferredStatus string) (int, error) {
 	scenario = strings.TrimSpace(scenario)
 	preferredStatus = strings.TrimSpace(preferredStatus)
 	for _, campaign := range campaigns {
@@ -135,7 +135,7 @@ func ResolveCampaignID(campaigns []Campaign, scenario string, preferredStatus st
 	return 0, fmt.Errorf("no matching campaign found for scenario %s", scenario)
 }
 
-func ParseIntArg(value string, flagName string) (int, error) {
+func ParseIntArg(value, flagName string) (int, error) {
 	parsed, err := strconv.Atoi(strings.TrimSpace(value))
 	if err != nil {
 		return 0, fmt.Errorf("%s must be an integer", flagName)

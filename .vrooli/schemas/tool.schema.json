@@ -3,7 +3,12 @@
   "title": "Tool Manifest",
   "description": "Declares a host tool that can be auto-installed by the Vrooli runtime",
   "type": "object",
-  "required": ["name", "description", "commands", "versionArgs"],
+  "required": [
+    "name",
+    "description",
+    "commands",
+    "versionArgs"
+  ],
   "additionalProperties": false,
   "properties": {
     "$schema": {
@@ -19,13 +24,17 @@
     },
     "commands": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "minItems": 1,
       "description": "Command names to check on PATH (first match wins)"
     },
     "versionArgs": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "Arguments passed to the resolved command to extract version output"
     },
     "defaultPackage": {
@@ -34,7 +43,9 @@
     },
     "packages": {
       "type": "object",
-      "additionalProperties": { "type": "string" },
+      "additionalProperties": {
+        "type": "string"
+      },
       "description": "Per-package-manager package name overrides (e.g. apt, brew, winget, dnf, pacman, apk)"
     },
     "installHint": {
@@ -45,7 +56,11 @@
       "type": "array",
       "items": {
         "type": "string",
-        "enum": ["linux", "macos", "windows"]
+        "enum": [
+          "linux",
+          "macos",
+          "windows"
+        ]
       },
       "description": "Platforms this tool applies to. Omit for all platforms."
     },
@@ -77,7 +92,9 @@
         },
         "args": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Arguments for the health check command"
         },
         "expectExitCode": {
@@ -86,7 +103,9 @@
         },
         "files": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Files that must exist for the check to pass"
         }
       }

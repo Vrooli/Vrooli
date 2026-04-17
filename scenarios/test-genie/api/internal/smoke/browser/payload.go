@@ -4,9 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
-
 	"test-genie/internal/smoke/orchestrator"
+	"time"
 )
 
 // PayloadGenerator generates JavaScript payloads for Browserless execution.

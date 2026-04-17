@@ -1,6 +1,7 @@
 package services
 
 import (
+	"app-monitor-api/repository"
 	"bufio"
 	"bytes"
 	"context"
@@ -17,8 +18,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"app-monitor-api/repository"
 )
 
 // =============================================================================
@@ -742,7 +741,6 @@ func (s *AppService) CheckLocalhostUsage(ctx context.Context, appID string) (*Lo
 
 			return nil
 		})
-
 		if err != nil {
 			return nil, err
 		}

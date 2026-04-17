@@ -9,9 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
-
 	"swarm-manager/internal/workshop"
+	"time"
 )
 
 const (

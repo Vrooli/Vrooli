@@ -2,12 +2,11 @@ package heartbeat
 
 import (
 	"context"
+	"prompt-manager/store"
+	"prompt-manager/teamconfig"
 	"strings"
 	"testing"
 	"time"
-
-	"prompt-manager/store"
-	"prompt-manager/teamconfig"
 )
 
 func TestPromptBuilderAgentOnly(t *testing.T) {

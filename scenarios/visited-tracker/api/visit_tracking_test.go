@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -23,7 +22,7 @@ func TestVisitHandler(t *testing.T) {
 	defer cleanup()
 
 	// Create a temporary directory for testing
-	tempDir, err := ioutil.TempDir("", "visited-tracker-visit-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-visit-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -146,7 +145,7 @@ func TestVisitHandlerFileNotesWithGlobs(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir, err := ioutil.TempDir("", "visited-tracker-visit-glob-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-visit-glob-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -166,10 +165,10 @@ func TestVisitHandlerFileNotesWithGlobs(t *testing.T) {
 		t.Fatalf("Failed to create work directory: %v", err)
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(workDir, "alpha.go"), []byte("package main"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(workDir, "alpha.go"), []byte("package main"), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(workDir, "beta.go"), []byte("package main"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(workDir, "beta.go"), []byte("package main"), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -239,7 +238,7 @@ func TestAdjustVisitHandler(t *testing.T) {
 	defer cleanup()
 
 	// Create a temporary directory for testing
-	tempDir, err := ioutil.TempDir("", "visited-tracker-adjust-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-adjust-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -363,7 +362,7 @@ func TestVisitHandlerErrorPaths(t *testing.T) {
 	defer cleanup()
 
 	// Setup test environment
-	tempDir, err := ioutil.TempDir("", "visited-tracker-visit-error-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-visit-error-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -436,7 +435,7 @@ func TestAdjustVisitHandlerErrorPaths(t *testing.T) {
 	defer cleanup()
 
 	// Setup test environment
-	tempDir, err := ioutil.TempDir("", "visited-tracker-adjust-visit-error-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-adjust-visit-error-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}

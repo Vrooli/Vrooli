@@ -5,17 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/sshidentity"
 	"scenario-to-cloud/vps/portparse"
 	"scenario-to-cloud/vps/systemmetrics"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
 )
 
 // LiveStateRequest is the input for the live state endpoint.

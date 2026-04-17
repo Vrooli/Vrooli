@@ -10,9 +10,8 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"strings"
-
 	"prompt-manager/store"
+	"strings"
 )
 
 // StoreAdapter adapts store.SkillStore (pack-based) to skills.SkillStore (folder-based).

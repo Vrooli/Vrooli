@@ -5,9 +5,8 @@
 package config
 
 import (
-	"fmt"
-
 	"agent-manager/internal/domain"
+	"fmt"
 )
 
 // =============================================================================

@@ -6,13 +6,12 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"swarm-manager/internal/eventlog"
+	"swarm-manager/internal/stats"
 	"testing"
 
 	"github.com/gorilla/mux"
 	_ "modernc.org/sqlite"
-
-	"swarm-manager/internal/eventlog"
-	"swarm-manager/internal/stats"
 )
 
 func TestGetStatsEmpty(t *testing.T) {

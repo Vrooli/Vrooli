@@ -1,6 +1,8 @@
 package services
 
 import (
+	"app-monitor-api/logger"
+	"app-monitor-api/repository"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,9 +12,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"app-monitor-api/logger"
-	"app-monitor-api/repository"
 )
 
 // =============================================================================

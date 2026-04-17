@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"sort"
 	"strings"
-
 	"swarm-manager/internal/pathutil"
 )
 

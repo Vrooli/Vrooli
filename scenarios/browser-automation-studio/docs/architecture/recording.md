@@ -501,7 +501,7 @@ the same recording pipeline, ensuring consistency.
 
 ### Database Schema
 
-**File**: [CODE: initialization/postgres/schema_sqlite.sql]
+**File**: [CODE: initialization/storage/sqlite/schema.sql]
 
 ```sql
 -- Recording sessions (aggregate root)

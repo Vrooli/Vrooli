@@ -5,13 +5,13 @@ import (
 	"database/sql"
 	"path/filepath"
 	goruntime "runtime"
+	"test-genie/internal/storage/sqlfiles"
+	"test-genie/internal/storage/sqlitedb"
 	"testing"
 
 	"github.com/vrooli/api-core/database"
+	// Register modernc.org/sqlite as the pure-Go "sqlite" driver.
 	_ "modernc.org/sqlite"
-
-	"test-genie/internal/storage/sqlfiles"
-	"test-genie/internal/storage/sqlitedb"
 )
 
 // Open returns a temporary SQLite database initialized with Test Genie's schema.

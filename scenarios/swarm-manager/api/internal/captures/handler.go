@@ -17,14 +17,13 @@ import (
 	"os"
 	"sort"
 	"strings"
-
-	"github.com/gorilla/mux"
-
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/dispatch"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/promptmanager"
+
+	"github.com/gorilla/mux"
 )
 
 type AgentSpawner interface {

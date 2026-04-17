@@ -3,9 +3,8 @@ package sync
 import (
 	"context"
 	"encoding/json"
-	"time"
-
 	"test-genie/internal/requirements/types"
+	"time"
 )
 
 // FileWriter writes requirement files.
@@ -50,7 +49,7 @@ func (w *FileWriter) WriteJSON(path string, v any) error {
 	// Add trailing newline
 	data = append(data, '\n')
 
-	return w.writer.WriteFile(path, data, 0644)
+	return w.writer.WriteFile(path, data, 0o644)
 }
 
 // serializableModule is the output format for requirement files.
@@ -202,7 +201,7 @@ func (w *FileWriter) WriteJSONL(path string, records []any) error {
 		data = append(data, '\n')
 	}
 
-	return w.writer.WriteFile(path, data, 0644)
+	return w.writer.WriteFile(path, data, 0o644)
 }
 
 // WriteSyncSnapshot writes a snapshot of the current sync state.

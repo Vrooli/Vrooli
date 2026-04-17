@@ -283,7 +283,7 @@ describe("PlanPanel", () => {
     fireEvent.click(screen.getByText("Discard"));
 
     await waitFor(() => {
-      expect((screen.getByTestId("mock-editor") as HTMLTextAreaElement).value).toBe(mockPlanContent);
+      expect(screen.getByTestId("mock-editor")).toHaveValue(mockPlanContent);
     });
   });
 

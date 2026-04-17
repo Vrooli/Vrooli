@@ -5,6 +5,7 @@
 package runner
 
 import (
+	"agent-manager/internal/domain"
 	"bufio"
 	"context"
 	"encoding/json"
@@ -17,8 +18,6 @@ import (
 	"sync"
 	"syscall"
 	"time"
-
-	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
 )

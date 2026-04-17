@@ -5,10 +5,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"os"
+	"test-genie/internal/smoke/orchestrator"
 	"testing"
 
 	sharedartifacts "test-genie/internal/shared/artifacts"
-	"test-genie/internal/smoke/orchestrator"
 )
 
 // mockFileSystem records filesystem operations for testing.

@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"test-genie/internal/smoke/orchestrator"
 	"time"
 
 	sharedartifacts "test-genie/internal/shared/artifacts"
-	"test-genie/internal/smoke/orchestrator"
 )
 
 // Writer persists test artifacts to the filesystem.

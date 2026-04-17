@@ -3,9 +3,8 @@ package teams
 import (
 	"flag"
 	"io"
-	"testing"
-
 	"prompt-manager/teamconfig"
+	"testing"
 )
 
 func parseTeamFlagsForTest(t *testing.T, includeDefaults bool, args ...string) teamConfigFlagSet {

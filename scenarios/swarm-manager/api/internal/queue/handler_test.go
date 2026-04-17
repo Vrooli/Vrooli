@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"swarm-manager/internal/testutil"
 	"testing"
 
 	"github.com/gorilla/mux"
-	"swarm-manager/internal/testutil"
 )
 
 type listResponse struct {

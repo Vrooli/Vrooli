@@ -12,10 +12,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
-	"time"
-
 	"prompt-manager/agents"
 	"prompt-manager/aisearch"
 	"prompt-manager/graph"
@@ -32,6 +28,9 @@ import (
 	"prompt-manager/topics"
 	"prompt-manager/worldscale"
 	"prompt-manager/worldseats"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"

@@ -269,7 +269,7 @@ export function detectLikelyRootMismatch(
   const hasMissingArtifacts = Boolean(
     validationValid === false && (missingAssetsCount > 0 || missingBinariesCount > 0)
   );
-  const normalizedPath = bundleManifestPath.replaceAll("\\", "/");
+  const normalizedPath = bundleManifestPath.split("\\").join("/");
   return Boolean(
     hasMissingArtifacts &&
     bundleManifestPath.trim() &&

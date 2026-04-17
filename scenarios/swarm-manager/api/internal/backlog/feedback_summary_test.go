@@ -4,9 +4,8 @@ import (
 	"encoding/json"
 	"net/http/httptest"
 	"path/filepath"
-	"testing"
-
 	"swarm-manager/internal/testutil"
+	"testing"
 )
 
 func doFeedbackSummary(t *testing.T, h *Handler) *httptest.ResponseRecorder {

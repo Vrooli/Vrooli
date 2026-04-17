@@ -2,7 +2,6 @@ package dns
 
 import (
 	"context"
-
 	"scenario-to-cloud/domain"
 )
 

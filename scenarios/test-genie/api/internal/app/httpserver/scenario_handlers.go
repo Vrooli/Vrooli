@@ -8,11 +8,10 @@ import (
 	"net/http"
 	"os"
 	"strings"
-
-	"github.com/gorilla/mux"
-
 	"test-genie/internal/scenarios"
 	"test-genie/internal/shared"
+
+	"github.com/gorilla/mux"
 )
 
 func (s *Server) handleListScenarios(w http.ResponseWriter, r *http.Request) {

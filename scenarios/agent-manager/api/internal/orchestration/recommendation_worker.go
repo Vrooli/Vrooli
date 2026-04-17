@@ -18,16 +18,15 @@
 package orchestration
 
 import (
+	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/adapters/recommendation"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/repository"
 	"context"
 	"log"
 	"strings"
 	"sync"
 	"time"
-
-	"agent-manager/internal/adapters/event"
-	"agent-manager/internal/adapters/recommendation"
-	"agent-manager/internal/domain"
-	"agent-manager/internal/repository"
 )
 
 // AllowlistProvider provides access to the investigation tag allowlist.

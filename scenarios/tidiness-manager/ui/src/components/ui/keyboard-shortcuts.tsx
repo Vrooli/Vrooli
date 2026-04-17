@@ -26,7 +26,7 @@ export function KeyboardShortcuts({ onNavigate }: KeyboardShortcutsProps) {
   const [pressedKeys, setPressedKeys] = useState<string[]>([]);
 
   useEffect(() => {
-    let timeout: NodeJS.Timeout;
+    let timeout: ReturnType<typeof setTimeout>;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger shortcuts when typing in inputs

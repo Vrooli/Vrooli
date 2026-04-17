@@ -13,6 +13,9 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// wsPingPeriod is the keepalive ping interval; tests may override it.
+var wsPingPeriod = 30 * time.Second
+
 // DOC: docs/concepts/ARCHITECTURE.md#terminal-io
 // DOC: docs/internal/ERROR-SEMANTICS.md#websocket-error-protocol
 // WebSocket message types for terminal I/O.
@@ -174,7 +177,7 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 		// Server-side WebSocket keepalive: send a ping every 30s to prevent
 		// reverse proxies (Cloudflare tunnel default idle timeout ~100s) from
 		// killing the connection during periods without PTY output.
-		pingTicker := time.NewTicker(30 * time.Second)
+		pingTicker := time.NewTicker(wsPingPeriod)
 		defer pingTicker.Stop()
 
 		for {

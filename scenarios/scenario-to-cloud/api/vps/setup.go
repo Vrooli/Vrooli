@@ -9,13 +9,12 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"sort"
-	"strings"
-	"time"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
+	"sort"
+	"strings"
+	"time"
 )
 
 // bootstrapCommand installs system prerequisites on a fresh VPS.

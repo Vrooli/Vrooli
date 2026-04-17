@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"test-genie/cli/internal/phases"
+	"test-genie/cli/internal/repo"
 	"time"
 
 	execTypes "test-genie/cli/internal/execute"
-	"test-genie/cli/internal/phases"
-	"test-genie/cli/internal/repo"
 )
 
 // Separator line used for phase boundaries (matches legacy output).

@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"scenario-dependency-analyzer/internal/config"
 	"sort"
 	"strings"
 	"time"
 
-	"scenario-dependency-analyzer/internal/config"
 	types "scenario-dependency-analyzer/internal/types"
 )
 

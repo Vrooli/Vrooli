@@ -8,12 +8,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/httputil"
 	"time"
 
 	"github.com/gorilla/mux"
-
-	"swarm-manager/internal/apierr"
-	"swarm-manager/internal/httputil"
 )
 
 // GetArchiveTargets returns operational targets and requirements parsed from a backlog item's archive.

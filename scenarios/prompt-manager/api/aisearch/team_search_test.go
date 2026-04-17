@@ -5,11 +5,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
-	"testing"
-
 	"prompt-manager/search"
 	"prompt-manager/store"
+	"strings"
+	"testing"
 )
 
 // --- Mock team stores for AI search tests ---

@@ -1,15 +1,14 @@
 package event_test
 
 import (
+	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/domain"
 	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
-
-	"agent-manager/internal/adapters/event"
-	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"

@@ -69,10 +69,9 @@ BadExample:
 package interop
 
 import (
+	"app-monitor-api/rules"
 	"regexp"
 	"strings"
-
-	"app-monitor-api/rules"
 )
 
 var iframeGuardPattern = regexp.MustCompile(

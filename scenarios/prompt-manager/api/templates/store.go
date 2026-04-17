@@ -4,10 +4,9 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"prompt-manager/store"
 	"sort"
 	"strings"
-
-	"prompt-manager/store"
 )
 
 // Store loads agent file templates from the prompt-manager store directory.

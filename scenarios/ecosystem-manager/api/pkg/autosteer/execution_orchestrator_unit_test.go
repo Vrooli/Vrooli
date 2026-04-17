@@ -39,7 +39,6 @@ func TestStartExecution_Success(t *testing.T) {
 
 	// Execute
 	state, err := orch.StartExecution("task-1", "test-profile", "test-scenario")
-
 	// Verify
 	if err != nil {
 		t.Fatalf("StartExecution failed: %v", err)
@@ -150,7 +149,6 @@ func TestGetExecutionState_Success(t *testing.T) {
 	)
 
 	result, err := orch.GetExecutionState("task-1")
-
 	if err != nil {
 		t.Fatalf("GetExecutionState failed: %v", err)
 	}
@@ -187,7 +185,6 @@ func TestEvaluateIteration_DelegatesToEvaluator(t *testing.T) {
 	)
 
 	result, err := orch.EvaluateIteration("task-1", "test-scenario")
-
 	if err != nil {
 		t.Fatalf("EvaluateIteration failed: %v", err)
 	}
@@ -245,7 +242,6 @@ func TestAdvancePhase_Success(t *testing.T) {
 	)
 
 	result, err := orch.AdvancePhase("task-1", "test-scenario")
-
 	if err != nil {
 		t.Fatalf("AdvancePhase failed: %v", err)
 	}
@@ -296,7 +292,6 @@ func TestAdvancePhase_CompleteExecution(t *testing.T) {
 	)
 
 	result, err := orch.AdvancePhase("task-1", "test-scenario")
-
 	if err != nil {
 		t.Fatalf("AdvancePhase failed: %v", err)
 	}
@@ -347,7 +342,6 @@ func TestGetEnhancedPrompt_Success(t *testing.T) {
 	)
 
 	result, err := orch.GetEnhancedPrompt("task-1")
-
 	if err != nil {
 		t.Fatalf("GetEnhancedPrompt failed: %v", err)
 	}
@@ -412,7 +406,6 @@ func TestDeleteExecutionState_Success(t *testing.T) {
 	)
 
 	err := orch.DeleteExecutionState("task-1")
-
 	if err != nil {
 		t.Fatalf("DeleteExecutionState failed: %v", err)
 	}
@@ -447,7 +440,6 @@ func TestIsAutoSteerActive_True(t *testing.T) {
 	)
 
 	active, err := orch.IsAutoSteerActive("task-1")
-
 	if err != nil {
 		t.Fatalf("IsAutoSteerActive failed: %v", err)
 	}
@@ -475,7 +467,6 @@ func TestIsAutoSteerActive_False(t *testing.T) {
 	)
 
 	active, err := orch.IsAutoSteerActive("non-existent-task")
-
 	if err != nil {
 		t.Fatalf("IsAutoSteerActive failed: %v", err)
 	}

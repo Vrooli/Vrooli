@@ -8,8 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
-
 	"test-genie/internal/playbooks/artifacts"
 	"test-genie/internal/playbooks/config"
 	"test-genie/internal/playbooks/execution"
@@ -18,6 +16,8 @@ import (
 	"test-genie/internal/playbooks/types"
 	"test-genie/internal/playbooks/workflow"
 	"test-genie/internal/shared"
+	"time"
+
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 

@@ -11,13 +11,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"test-genie/internal/storage/sqlitedb"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
-
-	"test-genie/internal/storage/sqlitedb"
 )
 
 // Config controls how isolation resources are provisioned for Playbooks.
@@ -387,7 +386,7 @@ func (m *Manager) startPostgresFallback(ctx context.Context, runID string, rootE
 	}
 
 	dbName := buildDBName(m.cfg.ScenarioName, runID)
-	createCmd := execCommandContext(m.cfg.LogWriter, ctx, "psql", parsed.withDatabase("postgres"), "-v", "ON_ERROR_STOP=1", "-c", fmt.Sprintf("CREATE DATABASE %q TEMPLATE template0", dbName))
+	createCmd := execCommandContext(ctx, m.cfg.LogWriter, "psql", parsed.withDatabase("postgres"), "-v", "ON_ERROR_STOP=1", "-c", fmt.Sprintf("CREATE DATABASE %q TEMPLATE template0", dbName))
 	if createCmd != nil {
 		if err := createCmd(); err != nil {
 			return nil, nil, fmt.Errorf("create temp database via psql: %w", err)
@@ -424,7 +423,7 @@ func (m *Manager) startPostgresFallback(ctx context.Context, runID string, rootE
 		if m.cfg.Retain {
 			return nil
 		}
-		dropCmd := execCommandContext(m.cfg.LogWriter, c, "psql", parsed.withDatabase("postgres"), "-v", "ON_ERROR_STOP=1", "-c", fmt.Sprintf("DROP DATABASE IF EXISTS %q", dbName))
+		dropCmd := execCommandContext(c, m.cfg.LogWriter, "psql", parsed.withDatabase("postgres"), "-v", "ON_ERROR_STOP=1", "-c", fmt.Sprintf("DROP DATABASE IF EXISTS %q", dbName))
 		if dropCmd != nil {
 			return dropCmd()
 		}
@@ -467,7 +466,7 @@ func (m *Manager) startRedisFallback(ctx context.Context, runID string, rootErr 
 		if m.cfg.Retain {
 			return nil
 		}
-		return runRedisCLI(m.cfg.LogWriter, c, redisURL, "FLUSHDB")
+		return runRedisCLI(c, m.cfg.LogWriter, redisURL, "FLUSHDB")
 	}
 
 	return &startResult{env: env, info: info}, cleanup, nil
@@ -546,7 +545,7 @@ func parseRedisHostPort(raw string) (string, string) {
 
 // execCommandContext returns a closure that runs the command with env preserved
 // rather than importing extra dependencies.
-func execCommandContext(logWriter io.Writer, ctx context.Context, binary string, databaseURL string, args ...string) func() error {
+func execCommandContext(ctx context.Context, logWriter io.Writer, binary string, databaseURL string, args ...string) func() error {
 	allArgs := append([]string{"-d", databaseURL}, args...)
 	return func() error {
 		cmd := exec.CommandContext(ctx, binary, allArgs...)
@@ -556,7 +555,7 @@ func execCommandContext(logWriter io.Writer, ctx context.Context, binary string,
 	}
 }
 
-func runRedisCLI(logWriter io.Writer, ctx context.Context, url string, cmd string) error {
+func runRedisCLI(ctx context.Context, logWriter io.Writer, url string, cmd string) error {
 	c := exec.CommandContext(ctx, "redis-cli", "-u", url, cmd)
 	c.Stdout = logWriter
 	c.Stderr = logWriter

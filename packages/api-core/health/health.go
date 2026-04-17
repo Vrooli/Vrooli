@@ -255,7 +255,7 @@ func (b *Builder) Handler() http.HandlerFunc {
 		if resp.Status == StatusUnhealthy {
 			w.WriteHeader(http.StatusServiceUnavailable)
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}
 }
 

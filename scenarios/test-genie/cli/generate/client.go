@@ -2,10 +2,9 @@ package generate
 
 import (
 	"net/http"
+	"test-genie/cli/internal/apijson"
 
 	"github.com/vrooli/cli-core/cliutil"
-
-	"test-genie/cli/internal/apijson"
 )
 
 // Client provides API access to suite generation endpoints.

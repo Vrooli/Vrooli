@@ -2,11 +2,10 @@
 package database
 
 import (
+	"agent-manager/internal/domain"
 	"database/sql"
 	"errors"
 	"strings"
-
-	"agent-manager/internal/domain"
 )
 
 func wrapDBError(operation, entityType, entityID string, err error) error {

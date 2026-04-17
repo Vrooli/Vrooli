@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"app-monitor-api/services"
 	"context"
 	"encoding/json"
 	"errors"
@@ -13,8 +14,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"app-monitor-api/services"
 
 	"github.com/gin-gonic/gin"
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -328,6 +327,7 @@ func (h *SystemHandler) fetchResourceStatus(ctx context.Context, name string) (m
 
 	return nil, fmt.Errorf("resource %s not found", name)
 }
+
 func (h *SystemHandler) fetchResourceDetail(ctx context.Context, name string) (map[string]interface{}, map[string]interface{}, error) {
 	cmd := exec.CommandContext(ctx, "vrooli", "resource", "status", name, "--json")
 	output, err := cmd.Output()

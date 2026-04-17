@@ -17,9 +17,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
-
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
@@ -28,6 +25,9 @@ import (
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/settings"
 	"swarm-manager/internal/workshop"
+	"time"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
 
 // WorkshopSave saves a workshop round's responses and optionally auto-triggers

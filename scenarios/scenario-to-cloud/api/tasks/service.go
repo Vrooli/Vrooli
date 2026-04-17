@@ -5,12 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"strings"
-	"time"
-
-	"github.com/google/uuid"
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-
 	"scenario-to-cloud/agentmanager"
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/domain"
@@ -18,6 +12,11 @@ import (
 	"scenario-to-cloud/tasks/fix"
 	"scenario-to-cloud/tasks/investigate"
 	"scenario-to-cloud/tasks/shared"
+	"strings"
+	"time"
+
+	"github.com/google/uuid"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // Service orchestrates task execution for both investigation and fix workflows.

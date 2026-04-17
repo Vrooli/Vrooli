@@ -2,12 +2,12 @@
 package database
 
 import (
+	"agent-manager/internal/domain"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
 	"time"
 
-	"agent-manager/internal/domain"
 	"github.com/google/uuid"
 )
 

@@ -7,15 +7,14 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"time"
-
-	"github.com/gorilla/mux"
-
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/promptcatalog"
+	"time"
+
+	"github.com/gorilla/mux"
 )
 
 // classifyFailureReason maps a spawn error to a user-facing failure category.

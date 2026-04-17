@@ -6,11 +6,10 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
-	"time"
-
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/experiment"
 	"swarm-manager/internal/promptmanager"
+	"time"
 )
 
 func (s *Service) processFinalization(ctx context.Context, executionID string) error {

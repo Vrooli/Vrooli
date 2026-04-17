@@ -4,6 +4,7 @@
     "jsx": "react-jsx",
     "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"],
     "baseUrl": ".",
+    "preserveSymlinks": true,
     "paths": {
       "@/*": ["./src/*"]
     }

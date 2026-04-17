@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -22,7 +21,7 @@ func TestCoverageHandler(t *testing.T) {
 	defer cleanup()
 
 	// Create a temporary directory for testing
-	tempDir, err := ioutil.TempDir("", "visited-tracker-coverage-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-coverage-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -125,7 +124,7 @@ func TestExportHandler(t *testing.T) {
 	defer cleanup()
 
 	// Create a temporary directory for testing
-	tempDir, err := ioutil.TempDir("", "visited-tracker-export-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-export-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -193,7 +192,7 @@ func TestExportHandlerComprehensive(t *testing.T) {
 	defer cleanup()
 
 	// Setup test environment
-	tempDir, err := ioutil.TempDir("", "visited-tracker-export-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-export-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -359,7 +358,7 @@ func TestCoverageHandlerErrorPaths(t *testing.T) {
 	defer cleanup()
 
 	// Setup test environment
-	tempDir, err := ioutil.TempDir("", "visited-tracker-coverage-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-coverage-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}

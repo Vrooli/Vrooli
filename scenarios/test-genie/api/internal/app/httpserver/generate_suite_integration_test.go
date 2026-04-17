@@ -9,14 +9,13 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"test-genie/internal/queue"
+	"test-genie/internal/storage/sqliteutil"
+	"test-genie/internal/testsqlite"
 	"testing"
 	"time"
 
 	"github.com/gorilla/mux"
-
-	"test-genie/internal/queue"
-	"test-genie/internal/storage/sqliteutil"
-	"test-genie/internal/testsqlite"
 )
 
 func newTestServer(t *testing.T, db *sql.DB) *Server {

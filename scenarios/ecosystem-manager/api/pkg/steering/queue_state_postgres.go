@@ -75,7 +75,6 @@ func (r *PostgresQueueStateRepository) Save(state *QueueState) error {
 		state.CreatedAt,
 		state.UpdatedAt,
 	)
-
 	if err != nil {
 		return fmt.Errorf("failed to save queue state: %w", err)
 	}

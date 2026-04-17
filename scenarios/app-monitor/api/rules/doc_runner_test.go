@@ -1,6 +1,7 @@
 package rules_test
 
 import (
+	"app-monitor-api/rules"
 	"fmt"
 	"io/fs"
 	"os"
@@ -10,7 +11,6 @@ import (
 	"strings"
 	"testing"
 
-	"app-monitor-api/rules"
 	_ "app-monitor-api/rules/interop" // trigger init() registrations
 )
 

@@ -7,13 +7,13 @@ import (
 	"io"
 	"os"
 	"strings"
+	"test-genie/cli/execute/report"
+	"test-genie/cli/internal/phases"
 	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
 
-	"test-genie/cli/execute/report"
 	execTypes "test-genie/cli/internal/execute"
-	"test-genie/cli/internal/phases"
 )
 
 const UsageLine = "test-genie execute <scenario> [phases...] [--preset quick] [--skip performance] [--ui-url URL] [--browserless-url URL] [--fail-fast] [--json]"

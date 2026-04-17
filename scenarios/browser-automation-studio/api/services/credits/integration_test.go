@@ -12,7 +12,8 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
+
 	"github.com/sirupsen/logrus"
 )
 
@@ -149,7 +150,6 @@ func createTestServiceWithLPBSURL(t *testing.T, lpbsURL, lpbsSecret string) (*Se
 	svc := NewService(ServiceOptions{
 		DB:           db,
 		Logger:       log,
-		Dialect:      "sqlite",
 		LPBSURL:      lpbsURL,
 		LPBSSecret:   lpbsSecret,
 		AppBundleKey: "browser-automation-studio",
@@ -503,9 +503,8 @@ func TestIntegration_LPBSUsageReport_NoURLConfigured(t *testing.T) {
 	log.SetLevel(logrus.ErrorLevel)
 
 	svc := NewService(ServiceOptions{
-		DB:      db,
-		Logger:  log,
-		Dialect: "sqlite",
+		DB:     db,
+		Logger: log,
 		// No LPBSURL configured
 	})
 

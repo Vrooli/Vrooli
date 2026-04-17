@@ -3,12 +3,11 @@ package execution
 import (
 	"context"
 	"database/sql"
+	"test-genie/internal/orchestrator/phases"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
-
-	"test-genie/internal/orchestrator/phases"
 )
 
 func TestExecutionHistoryService_List(t *testing.T) {

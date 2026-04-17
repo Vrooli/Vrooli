@@ -172,7 +172,7 @@ export interface GraphEdgeData {
 }
 
 export type GraphNode = FlowNode<GraphNodeData>;
-export type GraphEdge = FlowEdge<GraphEdgeData>;
+export type GraphEdge = FlowEdge;
 
 export function getGraphNodeData(node: { data?: unknown }): GraphNodeData {
   return node.data as GraphNodeData;

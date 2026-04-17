@@ -18,6 +18,7 @@ func TestMain(m *testing.M) {
 	gin.SetMode(gin.TestMode)
 	os.Setenv("VROOLI_LIFECYCLE_MANAGED", "true")
 	os.Setenv("API_PORT", "8080")
+	os.Setenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000")
 
 	// Run tests
 	code := m.Run()
@@ -116,6 +117,7 @@ func TestSetupRouter(t *testing.T) {
 		defer cleanup()
 
 		req := httptest.NewRequest("GET", "/health", nil)
+		req.Header.Set("Origin", "http://localhost:3000")
 		w := httptest.NewRecorder()
 		server.router.ServeHTTP(w, req)
 

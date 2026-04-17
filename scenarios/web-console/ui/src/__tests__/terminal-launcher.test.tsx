@@ -51,12 +51,12 @@ describe("TerminalLauncher", () => {
     expect(screen.getByText("Empty Shell")).toBeTruthy();
   });
 
-  it("calls onLaunch with launch options when empty shell is clicked", () => {
+  it("calls onLaunch with undefined backend when default is unchanged so the server applies its configured default", () => {
     render(
       <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />,
     );
     fireEvent.click(screen.getByTestId("launcher-empty-shell"));
-    expect(onLaunch).toHaveBeenCalledWith(expect.objectContaining({ backend: "standard" }));
+    expect(onLaunch).toHaveBeenCalledWith(expect.objectContaining({ backend: undefined }));
   });
 
   it("renders shortcut entries from props", () => {

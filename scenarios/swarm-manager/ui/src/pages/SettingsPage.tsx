@@ -82,7 +82,7 @@ export function SettingsPage() {
     isFetching,
     error,
     refetch,
-  } = useQuery<Settings, Error>({
+  } = useQuery<Settings>({
     queryKey: ["settings"],
     queryFn: () => settingsService.get(),
     ...defaultQueryOptions,
@@ -247,7 +247,7 @@ export function SettingsPage() {
 
       {updateMutation.isError && (
         <ErrorState
-          error={updateMutation.error as Error}
+          error={updateMutation.error}
           title="Failed to save settings"
         />
       )}

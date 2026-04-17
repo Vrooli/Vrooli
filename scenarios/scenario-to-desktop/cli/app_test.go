@@ -24,13 +24,13 @@ func TestNewApp_AllCommandGroupsRegistered(t *testing.T) {
 	}
 
 	groups := app.registerCommands()
-	// Domain groups exclude the standard configure command, which is added by cli-core.
-	if len(groups) != 5 {
-		t.Errorf("registerCommands() returned %d groups, want 5", len(groups))
+	// Domain groups exclude the standard status and configure commands, which are
+	// handled by cli-core directly (status is disabled via IncludeStatusCommand).
+	if len(groups) != 4 {
+		t.Errorf("registerCommands() returned %d groups, want 4", len(groups))
 	}
 
 	expectedTitles := map[string]bool{
-		"Health & Status": false,
 		"Templates":       false,
 		"Desktop Records": false,
 		"Download":        false,

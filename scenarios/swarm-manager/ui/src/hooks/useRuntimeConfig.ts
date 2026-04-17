@@ -22,7 +22,7 @@ export interface RuntimeConfig {
 }
 
 export function useRuntimeConfig(): RuntimeConfig {
-  const { data: settings } = useQuery<Settings, Error>({
+  const { data: settings } = useQuery<Settings>({
     queryKey: ["settings"],
     queryFn: () => settingsService.get(),
     ...defaultQueryOptions,

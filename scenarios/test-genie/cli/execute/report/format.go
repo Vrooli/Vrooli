@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"test-genie/cli/internal/repo"
 	"time"
 
 	execTypes "test-genie/cli/internal/execute"
-	"test-genie/cli/internal/repo"
 )
 
 // StatusIcon returns an icon for the given phase status.

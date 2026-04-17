@@ -161,21 +161,18 @@ type Repository interface {
 
 ---
 
-### 6. Database Backend Dialect Seam (Good)
+### 6. Database Storage Seam (Good)
 
-**Location:** `api/database/connection.go`, `api/database/dialect.go`, `api/automation/executor/integration_test.go`
+**Location:** `api/database/connection.go`, `api/database/repository_test.go`
 
 **Controls:**
-- `BAS_DB_BACKEND` selects runtime backend (`postgres` default, `sqlite` opt-in)
-- `BAS_TEST_BACKEND` toggles test backend (Postgres testcontainer vs SQLite temp file)
-- `database.Dialect` and `DialectProvider` drive placeholder rebinding and value encoding
+- `BAS_SQLITE_PATH` overrides the resolved SQLite file path
+- `DATABASE_URL=file:/abs/path.db` is honored as a fallback override
 
 **Status:** Good
-- `NewConnection` provisions Postgres or SQLite and sets the dialect provider for value types
-- Executor and repository tests resolve the backend from `BAS_TEST_BACKEND` (preferred) or `BAS_DB_BACKEND`, so a sqlite runtime config no longer spins up a Postgres container by surprise
-- Dialect-aware truncate/reset logic keeps integration tests portable instead of relying on Postgres-only TRUNCATE/`$1` SQL
-- SQLite paths mirror resource defaults via `sqliteDSN`; Postgres path sticks to the container DSN
-- Test harness forces `BAS_DB_BACKEND` to the resolved backend and restores BAS/POSTGRES/SQLITE envs after each run to avoid leakage between suites
+- `NewConnection` opens a single SQLite file (driver: `modernc.org/sqlite`, pure Go) and applies the canonical schema from `initialization/storage/sqlite/schema.sql` idempotently
+- The SQLite file path is resolved through `api-core/storage` (`ProfileAuto`), keeping mutable runtime data outside the deploy tree on every OS
+- `setupTestDB` in `repository_test.go` opens a temp SQLite file and runs the same schema bootstrap — production and test paths share schema
 
 ---
 
@@ -1110,7 +1107,7 @@ interface RetryService {
 | Recorder | Yes | Yes | Yes | - |
 | EventSink | Yes | Yes | Yes | - |
 | Repository | Yes | Yes | Yes | Medium |
-| Database Backend | Env flags `BAS_DB_BACKEND`/`BAS_TEST_BACKEND` + `database.Dialect` (tests default to `BAS_TEST_BACKEND` else `BAS_DB_BACKEND`) | Postgres testcontainer handle, SQLite temp DB in tests | N/A | Medium |
+| Database Storage | `BAS_SQLITE_PATH` / `DATABASE_URL=file:…` overrides; `api-core/storage` resolves the canonical SQLite file | Temp-file SQLite via `setupTestDB` (and in-memory `sql.Open("sqlite", ":memory:")` for credits tests) | N/A | Medium |
 | Storage | Yes | Yes (MemoryStorage) | Yes | - |
 | WebSocket Hub | Yes | Yes (MockHub) | Yes | - |
 | WorkflowService | Yes (CatalogService, ExecutionService) | Yes | Yes | - |
@@ -1238,8 +1235,7 @@ When adding new dependencies:
 | 2025-12-09 | Claude | Boundary of Responsibility Enforcement pass #2: Removed unused BaseHandler.buildOutcome (consolidated in domain/outcome-builder.ts); replaced any types with Page in assertion handler; replaced console.log with injected logger in assertNotExists |
 | 2025-12-09 | Claude | Boundary of Responsibility Enforcement: Added Router (#16), OutcomeBuilder (#17), MetricsServer (#18) seams; extracted domain/outcome-builder.ts, utils/metrics-server.ts, routes/router.ts; updated responsibility boundaries |
 | 2025-12-09 | Claude | Added RecordingBuffer seam (#14), Playwright-Driver Responsibility Boundaries section; moved action buffer state from routes to recording/buffer.ts |
-| 2025-12-09 | Assistant | Hardened test backend resolution (BAS_TEST_BACKEND -> BAS_DB_BACKEND fallback) and env reset to keep Postgres/SQLite toggles aligned |
-| 2025-12-09 | Assistant | Documented DB backend seam and executor test harness for Postgres/SQLite |
+| 2026-04-16 | Assistant | Removed Postgres backend; SQLite-only via `modernc.org/sqlite`. Database Backend seam collapsed to single-driver Database Storage seam |
 | 2025-11-29 | Claude | Initial seam discovery and documentation |
 | 2025-11-29 | Claude | Added Responsibility Boundaries section, apierror package |
 

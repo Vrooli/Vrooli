@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/preflight"
 	"log"
-
 	"scenario-dependency-analyzer/internal/app"
+
+	"github.com/vrooli/api-core/preflight"
+
 	appconfig "scenario-dependency-analyzer/internal/config"
 )
 

@@ -10,16 +10,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func TestSQLiteBackendSmoke(t *testing.T) {
+func TestBackendSmoke(t *testing.T) {
 	tmpDir := t.TempDir()
 	sqlitePath := filepath.Join(tmpDir, "bas-smoke.db")
 
-	// Allow CI toggle to skip sqlite smoke when not desired.
-	if skip := os.Getenv("BAS_SKIP_SQLITE_TESTS"); strings.EqualFold(skip, "true") {
-		t.Skip("BAS_SKIP_SQLITE_TESTS is set; skipping sqlite smoke test")
-	}
-
-	t.Setenv("BAS_DB_BACKEND", "sqlite")
 	t.Setenv("BAS_SQLITE_PATH", sqlitePath)
 	t.Setenv("BAS_SKIP_DEMO_SEED", "true")
 

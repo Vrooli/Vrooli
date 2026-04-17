@@ -4,10 +4,9 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"testing"
-
 	"test-genie/internal/requirements/discovery"
 	"test-genie/internal/requirements/types"
+	"testing"
 )
 
 // memReader implements Reader for testing.

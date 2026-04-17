@@ -170,7 +170,6 @@ func TestContractExecuteAndWait(t *testing.T) {
 		t.Logf("Progress update %d: status=%s, elapsed=%s", progressCount, status.GetStatus(), elapsed)
 		return nil
 	})
-
 	if err != nil {
 		t.Errorf("WaitForCompletionWithProgress() error = %v", err)
 	}

@@ -7,9 +7,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"testing"
-
 	"scenario-to-cloud/manifest"
+	"testing"
 )
 
 func validManifestPayload() map[string]interface{} {

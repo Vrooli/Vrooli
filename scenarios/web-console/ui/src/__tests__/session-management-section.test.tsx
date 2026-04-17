@@ -47,6 +47,8 @@ const makeSession = (id: string): SessionInfo => ({
   created_at: "2026-01-15T14:30:00Z",
   cols: 80,
   rows: 24,
+  backend: "standard",
+  survives_restart: false,
   policy: { mode: "never" },
   busy: false,
 });

@@ -2,7 +2,6 @@ package sshidentity
 
 import (
 	"encoding/json"
-
 	"scenario-to-cloud/domain"
 )
 

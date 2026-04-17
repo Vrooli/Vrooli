@@ -181,35 +181,6 @@ func TestInMemorySessionStore_UpdatePolicy(t *testing.T) {
 // These verify that persistent sessions attempt re-attach when the
 // PTY read loop encounters an error.
 
-// reattachableFakePTY simulates a tmux PTY that fails on first read
-// then succeeds after "re-attach" (swapping the underlying reader).
-type reattachableFakePTY struct {
-	mu         sync.Mutex
-	readCount  int
-	firstRead  io.Reader // returns error on read
-	secondRead io.Reader // succeeds after re-attach
-	closed     bool
-	exitCode   int
-}
-
-func (p *reattachableFakePTY) Read(buf []byte) (int, error) {
-	p.mu.Lock()
-	p.readCount++
-	count := p.readCount
-	p.mu.Unlock()
-	if count <= 1 {
-		return p.firstRead.Read(buf)
-	}
-	return p.secondRead.Read(buf)
-}
-
-func (p *reattachableFakePTY) Write(buf []byte) (int, error)   { return len(buf), nil }
-func (p *reattachableFakePTY) SetSize(cols, rows uint16) error { return nil }
-func (p *reattachableFakePTY) Close() error                    { return nil }
-func (p *reattachableFakePTY) Kill() error                     { return nil }
-func (p *reattachableFakePTY) ExitCode() int                   { return p.exitCode }
-func (p *reattachableFakePTY) HasChildProcess() bool           { return false }
-
 func TestSession_ReadLoop_ExitsOnStandardBackend(t *testing.T) {
 	// Standard backend sessions should NOT attempt re-attach.
 	r, w := io.Pipe()

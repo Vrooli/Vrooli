@@ -120,12 +120,11 @@ BadExample:
 package interop
 
 import (
+	"app-monitor-api/rules"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
-
-	"app-monitor-api/rules"
 )
 
 func init() {

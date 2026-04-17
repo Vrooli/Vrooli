@@ -151,17 +151,12 @@ func parseSSEStream(reader io.Reader, handler ProgressHandler) error {
 			continue
 		}
 
-		// Parse SSE field
+		// Parse SSE field. Comment lines (":..."), "id:", and "retry:" fields
+		// are part of the spec but we have no use for them, so they fall through.
 		if strings.HasPrefix(line, "event:") {
 			eventType = strings.TrimSpace(strings.TrimPrefix(line, "event:"))
 		} else if strings.HasPrefix(line, "data:") {
 			dataLines = append(dataLines, strings.TrimPrefix(line, "data:"))
-		} else if strings.HasPrefix(line, ":") {
-			// Comment line, ignore
-		} else if strings.HasPrefix(line, "id:") {
-			// Event ID, ignore for now
-		} else if strings.HasPrefix(line, "retry:") {
-			// Retry interval, ignore for now
 		}
 	}
 

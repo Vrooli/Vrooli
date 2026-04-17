@@ -1,14 +1,14 @@
 package deps
 
 import (
-	"github.com/vrooli/cli-core/cliutil"
-
 	"test-genie/cli/execute"
 	"test-genie/cli/generate"
 	"test-genie/cli/playbooksseed"
 	"test-genie/cli/runlocal"
 	"test-genie/cli/status"
 	"test-genie/cli/uismoke"
+
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 // Runtime contains the concrete clients needed by the CLI domains.

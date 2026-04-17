@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"scenario-to-cloud/cli/internal/streaming"
 	"strings"
 	"syscall"
 	"text/tabwriter"
@@ -15,7 +16,6 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 
 	internalmanifest "scenario-to-cloud/cli/internal/manifest"
-	"scenario-to-cloud/cli/internal/streaming"
 )
 
 // Run executes deployment subcommands.

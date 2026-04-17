@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"test-genie/cli/internal/repo"
 
 	execTypes "test-genie/cli/internal/execute"
-	"test-genie/cli/internal/repo"
 )
 
 // CollectArtifactRoots gathers unique artifact directories from phase logs.

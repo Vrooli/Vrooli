@@ -2,12 +2,11 @@ package vps
 
 import (
 	"encoding/json"
-	"testing"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/sshidentity"
 	"scenario-to-cloud/vps/systemmetrics"
+	"testing"
 )
 
 func TestValidRawJSON(t *testing.T) {

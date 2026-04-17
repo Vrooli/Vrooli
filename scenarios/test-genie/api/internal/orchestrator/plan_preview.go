@@ -2,9 +2,9 @@ package orchestrator
 
 import (
 	"strings"
+	"test-genie/internal/shared"
 
 	workspacepkg "test-genie/internal/orchestrator/workspace"
-	"test-genie/internal/shared"
 )
 
 // PlannedPhase describes a selected phase before execution starts.

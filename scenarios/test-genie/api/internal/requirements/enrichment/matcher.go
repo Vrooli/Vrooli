@@ -3,7 +3,6 @@ package enrichment
 import (
 	"path/filepath"
 	"strings"
-
 	"test-genie/internal/requirements/types"
 )
 

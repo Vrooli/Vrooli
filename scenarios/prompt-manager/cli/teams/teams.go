@@ -10,15 +10,14 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"prompt-manager/cli/internal/appctx"
+	"prompt-manager/teamconfig"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
-
-	"prompt-manager/cli/internal/appctx"
-	"prompt-manager/teamconfig"
 )
 
 // Team represents a team from the API (brief response)
@@ -104,10 +103,12 @@ type SendTeamMessageRequest struct {
 	Content     string `json:"content"`
 }
 
-type Runtime = teamconfig.Runtime
-type CoordinationCapabilities = teamconfig.Capabilities
-type Coordination = teamconfig.Coordination
-type Execution = teamconfig.Execution
+type (
+	Runtime                  = teamconfig.Runtime
+	CoordinationCapabilities = teamconfig.Capabilities
+	Coordination             = teamconfig.Coordination
+	Execution                = teamconfig.Execution
+)
 
 // HandoffResponse represents a handoff API response.
 type HandoffResponse struct {

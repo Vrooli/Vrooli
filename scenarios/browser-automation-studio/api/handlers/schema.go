@@ -50,7 +50,9 @@ func (h *SchemaHandler) GetWorkflowSchema(w http.ResponseWriter, r *http.Request
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write(schema)
+	if _, err := w.Write(schema); err != nil {
+		h.log.WithError(err).Debug("failed to write schema response")
+	}
 }
 
 // GetAvailableNodeTypes handles GET /api/v1/schema/workflow/node-types

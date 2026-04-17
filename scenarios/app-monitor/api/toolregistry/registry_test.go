@@ -17,6 +17,7 @@ func (p *testProvider) Name() string { return p.name }
 func (p *testProvider) Tools(context.Context) []*toolspb.ToolDefinition {
 	return p.tools
 }
+
 func (p *testProvider) Categories(context.Context) []*toolspb.ToolCategory {
 	return p.categories
 }

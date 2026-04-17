@@ -1,9 +1,8 @@
 package docs
 
 import (
-	"time"
-
 	"test-genie/internal/shared"
+	"time"
 )
 
 // DOC: docs/phases/docs/README.md#configuration

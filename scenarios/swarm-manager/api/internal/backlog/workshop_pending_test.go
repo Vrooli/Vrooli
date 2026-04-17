@@ -5,13 +5,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/testutil"
+	"swarm-manager/internal/workshop"
 	"testing"
 	"time"
 
 	"github.com/gorilla/mux"
-	"swarm-manager/internal/agentmanager"
-	"swarm-manager/internal/testutil"
-	"swarm-manager/internal/workshop"
 )
 
 func TestWritePendingAdvance_CreatesFile(t *testing.T) {

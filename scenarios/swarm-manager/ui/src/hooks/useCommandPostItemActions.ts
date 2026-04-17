@@ -236,7 +236,7 @@ export function useCommandPostItemActions(
 
   const handleStepperCompleted = useCallback((itemKey: string, _item: BacklogItem, result: StepperCompletionResult) => {
     setCompletedSteppers((prev) => {
-      const next = new Set(prev);
+      const next = new Set<string>(prev);
       next.add(itemKey);
       return next;
     });
@@ -249,13 +249,13 @@ export function useCommandPostItemActions(
       return;
     }
     setTransitionItems((prev) => {
-      const next = new Map(prev);
+      const next = new Map<string, StepperCompletionResult>(prev);
       next.set(itemKey, result);
       return next;
     });
     setTimeout(() => {
       setTransitionItems((prev) => {
-        const next = new Map(prev);
+        const next = new Map<string, StepperCompletionResult>(prev);
         next.delete(itemKey);
         return next;
       });
@@ -280,10 +280,10 @@ export function useCommandPostItemActions(
 
     return {
       onRun: () => {
-        options.onRunItem?.(item.kind as BacklogKind, item.name, item.title);
+        options.onRunItem?.(item.kind, item.name, item.title);
       },
       onArchive: () => {
-        archiveMutation.mutate({ kind: item.kind as BacklogKind, name: item.name });
+        archiveMutation.mutate({ kind: item.kind, name: item.name });
       },
       onFollowUp: () => {
         options.onSelectBacklog?.(item.kind, item.name);
@@ -292,7 +292,7 @@ export function useCommandPostItemActions(
         const info = blockingMap[itemKey];
         if (info?.blocked) {
           setWorkshopBlockingConfirm({
-            kind: item.kind as BacklogKind,
+            kind: item.kind,
             name: item.name,
             mode: "finalize",
             blockingDepKeys: info.blockingDepKeys,
@@ -300,7 +300,7 @@ export function useCommandPostItemActions(
           return;
         }
         workshopMutation.mutate({
-          kind: item.kind as BacklogKind,
+          kind: item.kind,
           name: item.name,
           mode: "finalize",
           prompt: "Finalize the latest workshop answers into the primary deliverable for this backlog item.",
@@ -311,7 +311,7 @@ export function useCommandPostItemActions(
         const info = blockingMap[itemKey];
         if (info?.blocked) {
           setWorkshopBlockingConfirm({
-            kind: item.kind as BacklogKind,
+            kind: item.kind,
             name: item.name,
             mode: "workshop",
             blockingDepKeys: info.blockingDepKeys,
@@ -319,7 +319,7 @@ export function useCommandPostItemActions(
           return;
         }
         workshopMutation.mutate({
-          kind: item.kind as BacklogKind,
+          kind: item.kind,
           name: item.name,
           mode: "workshop",
           prompt: "Run the next workshop round for this backlog item.",
@@ -340,7 +340,7 @@ export function useCommandPostItemActions(
       workshopLabel: (readiness?.roundsCompleted ?? 0) > 0 ? "Next Round" : "Workshop",
       runningLabel: activeRunLabels.get(itemKey),
       onStatusChange: (newStatus: BacklogStatus) => {
-        statusMutation.mutate({ kind: item.kind as BacklogKind, name: item.name, newStatus });
+        statusMutation.mutate({ kind: item.kind, name: item.name, newStatus });
       },
       statusChangePending:
         statusMutation.isPending &&

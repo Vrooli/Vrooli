@@ -4,9 +4,6 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { renderHook, act, waitFor } from "@testing-library/react";
-import { useScenarioState } from "../useScenarioState";
-import type { FormState, SaveStateOptions } from "../../lib/api";
 import {
   mockFetchScenarioState,
   mockSaveScenarioState,
@@ -16,6 +13,9 @@ import {
   createSaveStateResponse,
   defaultOptions,
 } from "./useScenarioState.testUtils";
+import { renderHook, act, waitFor } from "@testing-library/react";
+import { useScenarioState } from "../useScenarioState";
+import type { FormState, SaveStateOptions } from "../../lib/api";
 
 beforeEach(() => {
   vi.clearAllMocks();

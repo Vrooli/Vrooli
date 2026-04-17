@@ -10,7 +10,6 @@ package tasks
 
 import (
 	"context"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/tasks/shared"
 )

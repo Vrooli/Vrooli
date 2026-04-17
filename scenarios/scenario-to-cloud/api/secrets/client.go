@@ -8,13 +8,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"scenario-to-cloud/domain"
 	"strings"
 	"time"
 	"unicode"
 
 	"github.com/vrooli/api-core/discovery"
-
-	"scenario-to-cloud/domain"
 )
 
 const (

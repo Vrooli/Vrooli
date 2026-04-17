@@ -7,16 +7,16 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
-	"sync/atomic"
-	"testing"
-	"time"
-
-	"github.com/gorilla/mux"
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/testutil"
 	"swarm-manager/internal/workshop"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/gorilla/mux"
 )
 
 // countingAgentService counts spawn calls for concurrency assertions.

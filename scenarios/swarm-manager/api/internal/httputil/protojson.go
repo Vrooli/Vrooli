@@ -8,13 +8,12 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"swarm-manager/internal/apierr"
 	"sync"
 
 	"buf.build/go/protovalidate"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-
-	"swarm-manager/internal/apierr"
 )
 
 var (

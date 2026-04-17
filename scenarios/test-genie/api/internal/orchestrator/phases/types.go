@@ -4,9 +4,8 @@ import (
 	"context"
 	"io"
 	"strings"
-	"time"
-
 	"test-genie/internal/orchestrator/workspace"
+	"time"
 )
 
 // Name identifies a single orchestrator phase.

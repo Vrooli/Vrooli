@@ -7,13 +7,12 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-
-	"github.com/google/uuid"
-	"github.com/gorilla/mux"
-
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/shared"
+
+	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 )
 
 type suiteExecutionPayload struct {

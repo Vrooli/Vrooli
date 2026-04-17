@@ -6,11 +6,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"prompt-manager/teamconfig"
 	"sort"
 	"strings"
 	"time"
-
-	"prompt-manager/teamconfig"
 )
 
 // FileTeamStore implements TeamStore using the file system

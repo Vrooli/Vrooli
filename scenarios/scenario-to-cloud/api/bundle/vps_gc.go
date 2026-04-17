@@ -3,13 +3,12 @@ package bundle
 import (
 	"context"
 	"fmt"
-	"sort"
-	"strings"
-	"time"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
+	"sort"
+	"strings"
+	"time"
 )
 
 const (
@@ -34,7 +33,7 @@ func PlanVPSBundleGC(
 	scenarioID string,
 	keepLatest int,
 	protectSHA256 []string,
-) (kept []domain.VPSBundleInfo, deleted []domain.VPSBundleInfo, deletedBytes int64) {
+) (kept, deleted []domain.VPSBundleInfo, deletedBytes int64) {
 	if keepLatest <= 0 {
 		keepLatest = DefaultVPSBundleKeepLatest
 	}
@@ -128,15 +127,15 @@ func GCVPSBundles(
 	kept, toDelete, deletedBytes := PlanVPSBundleGC(beforeBundles, req.ScenarioID, req.KeepLatest, req.ProtectSHA256)
 
 	resp := domain.VPSBundleGCResponse{
-		OK:              true,
-		DryRun:          req.DryRun,
-		BundlesBefore:   beforeBundles,
-		Deleted:         toDelete,
-		Kept:            kept,
-		DeletedCount:    len(toDelete),
-		DeletedBytes:    deletedBytes,
+		OK:               true,
+		DryRun:           req.DryRun,
+		BundlesBefore:    beforeBundles,
+		Deleted:          toDelete,
+		Kept:             kept,
+		DeletedCount:     len(toDelete),
+		DeletedBytes:     deletedBytes,
 		TotalBeforeBytes: beforeTotal,
-		Timestamp:       now,
+		Timestamp:        now,
 	}
 
 	if req.DryRun || len(toDelete) == 0 {

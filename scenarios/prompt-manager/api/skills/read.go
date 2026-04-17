@@ -6,9 +6,8 @@ import (
 	"math/rand"
 	"net/http"
 	"path/filepath"
-	"strings"
-
 	"prompt-manager/store"
+	"strings"
 )
 
 type indexedSkill struct {

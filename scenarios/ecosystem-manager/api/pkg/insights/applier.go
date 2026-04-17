@@ -52,7 +52,7 @@ func (sa *SuggestionApplier) ApplySuggestion(suggestion Suggestion, dryRun bool)
 	if !dryRun {
 		timestamp := time.Now().Format("20060102-150405")
 		backupPath := filepath.Join(sa.backupDir, fmt.Sprintf("%s-%s", suggestion.ID, timestamp))
-		if err := os.MkdirAll(backupPath, 0755); err != nil {
+		if err := os.MkdirAll(backupPath, 0o755); err != nil {
 			return nil, fmt.Errorf("create backup directory: %w", err)
 		}
 		result.BackupPath = backupPath
@@ -130,7 +130,7 @@ func (sa *SuggestionApplier) applyFileEdit(filePath string, change ProposedChang
 
 	// Write updated content
 	if !dryRun {
-		if err := os.WriteFile(filePath, []byte(newContent), 0644); err != nil {
+		if err := os.WriteFile(filePath, []byte(newContent), 0o644); err != nil {
 			return fmt.Errorf("write file: %w", err)
 		}
 	}
@@ -150,14 +150,14 @@ func (sa *SuggestionApplier) createFile(filePath string, change ProposedChange, 
 	// Create parent directories
 	parentDir := filepath.Dir(filePath)
 	if !dryRun {
-		if err := os.MkdirAll(parentDir, 0755); err != nil {
+		if err := os.MkdirAll(parentDir, 0o755); err != nil {
 			return fmt.Errorf("create parent directory: %w", err)
 		}
 	}
 
 	// Write file
 	if !dryRun {
-		if err := os.WriteFile(filePath, []byte(change.Content), 0644); err != nil {
+		if err := os.WriteFile(filePath, []byte(change.Content), 0o644); err != nil {
 			return fmt.Errorf("write file: %w", err)
 		}
 	}
@@ -209,7 +209,7 @@ func (sa *SuggestionApplier) applyConfigUpdate(filePath string, change ProposedC
 
 	// Write updated config
 	if !dryRun {
-		if err := os.WriteFile(filePath, updatedContent, 0644); err != nil {
+		if err := os.WriteFile(filePath, updatedContent, 0o644); err != nil {
 			return fmt.Errorf("write config file: %w", err)
 		}
 	}
@@ -239,11 +239,11 @@ func (sa *SuggestionApplier) createBackup(filePath, backupPath string) error {
 	backupFile := filepath.Join(backupPath, relPath)
 	backupDir := filepath.Dir(backupFile)
 
-	if err := os.MkdirAll(backupDir, 0755); err != nil {
+	if err := os.MkdirAll(backupDir, 0o755); err != nil {
 		return fmt.Errorf("create backup directory: %w", err)
 	}
 
-	if err := os.WriteFile(backupFile, content, 0644); err != nil {
+	if err := os.WriteFile(backupFile, content, 0o644); err != nil {
 		return fmt.Errorf("write backup file: %w", err)
 	}
 

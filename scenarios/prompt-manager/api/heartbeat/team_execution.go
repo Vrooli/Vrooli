@@ -7,10 +7,9 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"prompt-manager/teamconfig"
 	"sort"
 	"sync"
-
-	"prompt-manager/teamconfig"
 )
 
 // TeamExecutionManager defines the interface for team-level execution coordination.
@@ -177,11 +176,11 @@ func (c *TeamExecutionContext) Status() TeamExecutionStatus {
 }
 
 type persistedTeamQueue struct {
-	TeamID            string                     `json:"teamId"`
-	QueuePolicy       string                     `json:"queuePolicy"`
-	MaxConcurrentRuns int                        `json:"maxConcurrentRuns"`
-	Running           []queuedExecution          `json:"running"`
-	Queue             []queuedExecution          `json:"queue"`
+	TeamID            string            `json:"teamId"`
+	QueuePolicy       string            `json:"queuePolicy"`
+	MaxConcurrentRuns int               `json:"maxConcurrentRuns"`
+	Running           []queuedExecution `json:"running"`
+	Queue             []queuedExecution `json:"queue"`
 }
 
 func (c *TeamExecutionContext) dispatchAvailableLocked() []queuedExecution {

@@ -3,9 +3,8 @@ package agentactivity
 import (
 	"context"
 	"strings"
-	"time"
-
 	"swarm-manager/internal/agentmanager"
+	"time"
 )
 
 func (s *Service) refreshActiveLocked(ctx context.Context) error {

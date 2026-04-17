@@ -1,11 +1,11 @@
 package suites
 
 import (
-	"github.com/vrooli/cli-core/cliapp"
-
 	"test-genie/cli/execute"
 	"test-genie/cli/generate"
 	"test-genie/cli/internal/deps"
+
+	"github.com/vrooli/cli-core/cliapp"
 )
 
 // Register returns the suite-oriented command group.

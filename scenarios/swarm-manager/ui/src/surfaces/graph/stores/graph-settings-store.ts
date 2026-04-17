@@ -185,7 +185,7 @@ export function loadPersistedSettings(): Record<GraphLens, GraphLensSettings> {
           for (const [status, value] of Object.entries(rawStatuses)) {
             if (typeof value !== "boolean") continue;
             for (const [et, knownStatuses] of Object.entries(ENTITY_STATUS_REGISTRY)) {
-              if (knownStatuses && (knownStatuses as readonly string[]).includes(status)) {
+              if (knownStatuses && (knownStatuses).includes(status)) {
                 statusFilters[et] = statusFilters[et] || {};
                 statusFilters[et][status] = value;
               }

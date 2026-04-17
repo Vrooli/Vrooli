@@ -1,11 +1,10 @@
 package deployment
 
 import (
-	"sync"
-	"time"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/vps"
+	"sync"
+	"time"
 )
 
 // Event represents a single progress update sent via SSE.

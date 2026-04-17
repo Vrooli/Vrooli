@@ -77,11 +77,23 @@
       "OPENCODE_PATH": "opencode"
     },
     "derived": {
+      "OPENCODE_CONFIG_DIR": {
+        "template": "${RESOURCE_CONFIG_DIR}"
+      },
       "OPENCODE_DATA_DIR": {
-        "template": "${VROOLI_DATA}/opencode"
+        "template": "${RESOURCE_DATA_DIR}"
+      },
+      "OPENCODE_CACHE_DIR": {
+        "template": "${RESOURCE_CACHE_DIR}"
+      },
+      "OPENCODE_LOG_DIR": {
+        "template": "${RESOURCE_LOGS_DIR}"
+      },
+      "OPENCODE_STATE_DIR": {
+        "template": "${RESOURCE_STATE_DIR}"
       },
       "OPENCODE_XDG_CONFIG_HOME": {
-        "template": "${OPENCODE_DATA_DIR}/xdg-config"
+        "template": "${OPENCODE_CONFIG_DIR}/xdg-config"
       },
       "OPENCODE_XDG_DATA_HOME": {
         "template": "${OPENCODE_DATA_DIR}/xdg-data"

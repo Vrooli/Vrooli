@@ -1,21 +1,10 @@
 package main
 
 import (
-	"context"
-	"database/sql"
-	"encoding/json"
-	"fmt"
-	"log"
-	"net/http"
-	"os"
-	"strings"
-	"time"
-
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/recommendation"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
-	agentconfig "agent-manager/internal/config"
 	"agent-manager/internal/database"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/handlers"
@@ -30,6 +19,17 @@ import (
 	"agent-manager/internal/storage"
 	"agent-manager/internal/toolexecution"
 	"agent-manager/internal/toolregistry"
+	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"strings"
+	"time"
+
+	agentconfig "agent-manager/internal/config"
 
 	gorillaHandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"

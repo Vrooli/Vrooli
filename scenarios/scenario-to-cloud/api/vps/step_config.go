@@ -5,9 +5,8 @@ import (
 	"context"
 	"errors"
 	"log"
-	"time"
-
 	"scenario-to-cloud/ssh"
+	"time"
 )
 
 // StepConfig holds per-step execution parameters.

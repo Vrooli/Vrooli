@@ -5,16 +5,16 @@ package topics
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"net/url"
 	"os"
+	"prompt-manager/cli/internal/appctx"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
-
-	"prompt-manager/cli/internal/appctx"
 )
 
 // Topic represents a topic from the API.
@@ -356,7 +356,7 @@ func cmdSearch(ctx appctx.Context, args []string) error {
 		return err
 	}
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: topic search \"term1\" \"term2\" ...")
+		return errors.New(`usage: topic search "term1" "term2" [...]`)
 	}
 
 	// Each positional arg is a separate search query

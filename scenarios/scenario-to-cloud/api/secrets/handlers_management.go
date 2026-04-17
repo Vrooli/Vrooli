@@ -6,16 +6,15 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/httputil"
+	"scenario-to-cloud/internal/shellutil"
+	"scenario-to-cloud/ssh"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
-
-	"scenario-to-cloud/domain"
-	"scenario-to-cloud/internal/httputil"
-	"scenario-to-cloud/internal/shellutil"
-	"scenario-to-cloud/ssh"
 )
 
 // DeploymentRepository provides access to deployment data.

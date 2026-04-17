@@ -9,13 +9,12 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"prompt-manager/cli/internal/appctx"
 	"strings"
 	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
-
-	"prompt-manager/cli/internal/appctx"
 )
 
 // SearchResult represents a search result item (text search)

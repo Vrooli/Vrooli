@@ -3,12 +3,11 @@ package heartbeat
 import (
 	"context"
 	"fmt"
-	"sort"
-	"strings"
-
 	"prompt-manager/interop"
 	"prompt-manager/store"
 	"prompt-manager/teamconfig"
+	"sort"
+	"strings"
 )
 
 // PromptBuildRequest defines the inputs for assembling a heartbeat prompt.

@@ -16,11 +16,12 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"scenario-dependency-analyzer/internal/config"
 	"sort"
 	"time"
 
 	"github.com/vrooli/api-core/storage"
-	"scenario-dependency-analyzer/internal/config"
+
 	types "scenario-dependency-analyzer/internal/types"
 )
 
@@ -131,7 +132,7 @@ func PersistReport(scenarioPath string, report *types.DeploymentAnalysisReport) 
 		return err
 	}
 	reportDir := filepath.Dir(reportPath)
-	if err := os.MkdirAll(reportDir, 0755); err != nil {
+	if err := os.MkdirAll(reportDir, 0o755); err != nil {
 		return err
 	}
 	if existing, err := LoadReport(scenarioPath); err == nil && existing != nil {
@@ -149,7 +150,7 @@ func PersistReport(scenarioPath string, report *types.DeploymentAnalysisReport) 
 		return nil
 	}
 	tmpPath := reportPath + ".tmp"
-	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
+	if err := os.WriteFile(tmpPath, data, 0o644); err != nil {
 		return err
 	}
 	return os.Rename(tmpPath, reportPath)

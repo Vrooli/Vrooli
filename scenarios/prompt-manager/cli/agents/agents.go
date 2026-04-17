@@ -10,12 +10,11 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"prompt-manager/cli/internal/appctx"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
-
-	"prompt-manager/cli/internal/appctx"
 )
 
 // Agent represents an agent from the API

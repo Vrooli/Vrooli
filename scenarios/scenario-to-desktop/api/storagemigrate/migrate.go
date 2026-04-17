@@ -40,89 +40,92 @@ type moveSpec struct {
 // Run relocates scenario-to-desktop runtime data from legacy repo/home paths into
 // classed runtime storage roots. Runtime code must read only the new locations.
 func Run(opts Options) (*Result, error) {
-	repoRoot := strings.TrimSpace(opts.RepoRoot)
-	if repoRoot == "" {
-		repoRoot = sharedpath.DetectVrooliRoot()
-	}
-	if repoRoot == "" {
-		return nil, fmt.Errorf("detect repo root: not found")
-	}
-
-	homeDir := strings.TrimSpace(opts.HomeDir)
-	if homeDir == "" {
-		var err error
-		homeDir, err = os.UserHomeDir()
-		if err != nil {
-			return nil, fmt.Errorf("resolve home dir: %w", err)
-		}
-	}
-
-	locator := opts.Locator
-	if locator == nil {
-		var err error
-		locator, err = storagepaths.NewLocator()
-		if err != nil {
-			return nil, fmt.Errorf("create storage locator: %w", err)
-		}
+	repoRoot, homeDir, locator, err := resolveRunInputs(opts)
+	if err != nil {
+		return nil, err
 	}
 	if _, err := locator.EnsureAll(); err != nil {
 		return nil, fmt.Errorf("prepare storage roots: %w", err)
 	}
 
-	dataRoot, err := locator.DataRoot()
+	specs, err := buildMoveSpecs(repoRoot, homeDir, locator)
 	if err != nil {
-		return nil, fmt.Errorf("resolve data root: %w", err)
-	}
-	deployTargetsPath, err := locator.DeployTargetsPath()
-	if err != nil {
-		return nil, fmt.Errorf("resolve deploy targets path: %w", err)
-	}
-	telemetryDir, err := locator.TelemetryDir()
-	if err != nil {
-		return nil, fmt.Errorf("resolve telemetry dir: %w", err)
-	}
-	recordsPath, err := locator.RecordsPath()
-	if err != nil {
-		return nil, fmt.Errorf("resolve records path: %w", err)
-	}
-	smokeTestsPath, err := locator.SmokeTestsPath()
-	if err != nil {
-		return nil, fmt.Errorf("resolve smoke test path: %w", err)
-	}
-	pipelineDir, err := locator.PipelineStateDir()
-	if err != nil {
-		return nil, fmt.Errorf("resolve pipeline dir: %w", err)
-	}
-	indexDir, err := locator.PipelineIndexDir()
-	if err != nil {
-		return nil, fmt.Errorf("resolve index dir: %w", err)
-	}
-	investigationsDir, err := locator.InvestigationsDir()
-	if err != nil {
-		return nil, fmt.Errorf("resolve investigations dir: %w", err)
-	}
-	stateDir, err := locator.ScenarioStateDir()
-	if err != nil {
-		return nil, fmt.Errorf("resolve scenario state dir: %w", err)
-	}
-	liveDesktopDir, err := locator.LiveDesktopDir()
-	if err != nil {
-		return nil, fmt.Errorf("resolve live desktop dir: %w", err)
+		return nil, err
 	}
 
-	specs := []moveSpec{
-		{kind: "file", src: filepath.Join(repoRoot, ".vrooli", "deploy-targets.json"), dst: deployTargetsPath},
-		{kind: "dir", src: filepath.Join(repoRoot, ".vrooli", "deployment", "telemetry"), dst: telemetryDir},
-		{kind: "file", src: filepath.Join(repoRoot, "scenarios", "scenario-to-desktop", "data", "desktop_records_v2.json"), dst: recordsPath},
-		{kind: "file", src: filepath.Join(repoRoot, "scenarios", "scenario-to-desktop", "data", "smoke_tests_v2.json"), dst: smokeTestsPath},
-		{kind: "file", src: filepath.Join(repoRoot, "scenarios", "scenario-to-desktop", "data", "smoke_tests.json"), dst: filepath.Join(dataRoot, "smoke_tests.json")},
-		{kind: "dir", src: filepath.Join(repoRoot, "scenarios", "scenario-to-desktop", "data", "pipelines"), dst: pipelineDir},
-		{kind: "dir", src: filepath.Join(repoRoot, "scenarios", "scenario-to-desktop", "data", "indexes"), dst: indexDir},
-		{kind: "dir", src: filepath.Join(repoRoot, "scenarios", "scenario-to-desktop", "data", "investigations"), dst: investigationsDir},
-		{kind: "dir", src: filepath.Join(repoRoot, "scenarios", "scenario-to-desktop", "data", "livedesktop"), dst: liveDesktopDir},
-		{kind: "dir", src: filepath.Join(homeDir, ".vrooli", "scenario-to-desktop", "state"), dst: stateDir},
+	return applyMoveSpecs(specs)
+}
+
+func resolveRunInputs(opts Options) (string, string, *storagepaths.Locator, error) {
+	repoRoot := strings.TrimSpace(opts.RepoRoot)
+	if repoRoot == "" {
+		repoRoot = sharedpath.DetectVrooliRoot()
+	}
+	if repoRoot == "" {
+		return "", "", nil, fmt.Errorf("detect repo root: not found")
 	}
 
+	homeDir := strings.TrimSpace(opts.HomeDir)
+	if homeDir == "" {
+		resolved, err := os.UserHomeDir()
+		if err != nil {
+			return "", "", nil, fmt.Errorf("resolve home dir: %w", err)
+		}
+		homeDir = resolved
+	}
+
+	locator := opts.Locator
+	if locator == nil {
+		created, err := storagepaths.NewLocator()
+		if err != nil {
+			return "", "", nil, fmt.Errorf("create storage locator: %w", err)
+		}
+		locator = created
+	}
+	return repoRoot, homeDir, locator, nil
+}
+
+func buildMoveSpecs(repoRoot, homeDir string, locator *storagepaths.Locator) ([]moveSpec, error) {
+	resolvers := []struct {
+		label string
+		fn    func() (string, error)
+	}{
+		{"data root", locator.DataRoot},
+		{"deploy targets path", locator.DeployTargetsPath},
+		{"telemetry dir", locator.TelemetryDir},
+		{"records path", locator.RecordsPath},
+		{"smoke test path", locator.SmokeTestsPath},
+		{"pipeline dir", locator.PipelineStateDir},
+		{"index dir", locator.PipelineIndexDir},
+		{"investigations dir", locator.InvestigationsDir},
+		{"scenario state dir", locator.ScenarioStateDir},
+		{"live desktop dir", locator.LiveDesktopDir},
+	}
+	resolved := make(map[string]string, len(resolvers))
+	for _, r := range resolvers {
+		value, err := r.fn()
+		if err != nil {
+			return nil, fmt.Errorf("resolve %s: %w", r.label, err)
+		}
+		resolved[r.label] = value
+	}
+
+	scenarioData := filepath.Join(repoRoot, "scenarios", "scenario-to-desktop", "data")
+	return []moveSpec{
+		{kind: "file", src: filepath.Join(repoRoot, ".vrooli", "deploy-targets.json"), dst: resolved["deploy targets path"]},
+		{kind: "dir", src: filepath.Join(repoRoot, ".vrooli", "deployment", "telemetry"), dst: resolved["telemetry dir"]},
+		{kind: "file", src: filepath.Join(scenarioData, "desktop_records_v2.json"), dst: resolved["records path"]},
+		{kind: "file", src: filepath.Join(scenarioData, "smoke_tests_v2.json"), dst: resolved["smoke test path"]},
+		{kind: "file", src: filepath.Join(scenarioData, "smoke_tests.json"), dst: filepath.Join(resolved["data root"], "smoke_tests.json")},
+		{kind: "dir", src: filepath.Join(scenarioData, "pipelines"), dst: resolved["pipeline dir"]},
+		{kind: "dir", src: filepath.Join(scenarioData, "indexes"), dst: resolved["index dir"]},
+		{kind: "dir", src: filepath.Join(scenarioData, "investigations"), dst: resolved["investigations dir"]},
+		{kind: "dir", src: filepath.Join(scenarioData, "livedesktop"), dst: resolved["live desktop dir"]},
+		{kind: "dir", src: filepath.Join(homeDir, ".vrooli", "scenario-to-desktop", "state"), dst: resolved["scenario state dir"]},
+	}, nil
+}
+
+func applyMoveSpecs(specs []moveSpec) (*Result, error) {
 	result := &Result{}
 	for _, spec := range specs {
 		exists, err := pathExists(spec.src)
@@ -134,23 +137,23 @@ func Run(opts Options) (*Result, error) {
 			result.Skipped = append(result.Skipped, entry)
 			continue
 		}
-
-		switch spec.kind {
-		case "file":
-			if err := moveFile(spec.src, spec.dst); err != nil {
-				return nil, err
-			}
-		case "dir":
-			if err := moveDir(spec.src, spec.dst); err != nil {
-				return nil, err
-			}
-		default:
-			return nil, fmt.Errorf("unsupported move kind %q", spec.kind)
+		if err := applyMove(spec); err != nil {
+			return nil, err
 		}
 		result.Moved = append(result.Moved, entry)
 	}
-
 	return result, nil
+}
+
+func applyMove(spec moveSpec) error {
+	switch spec.kind {
+	case "file":
+		return moveFile(spec.src, spec.dst)
+	case "dir":
+		return moveDir(spec.src, spec.dst)
+	default:
+		return fmt.Errorf("unsupported move kind %q", spec.kind)
+	}
 }
 
 func pathExists(path string) (bool, error) {

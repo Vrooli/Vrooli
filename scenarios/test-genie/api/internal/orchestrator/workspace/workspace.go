@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-
 	"test-genie/internal/shared"
+
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 
@@ -22,7 +22,7 @@ type Environment struct {
 	// scenarios to include a top-level test/ directory; this now defaults to
 	// coverage/ to keep all test-related artifacts and optional configs together.
 	TestDir string
-	AppRoot      string
+	AppRoot string
 
 	// Runtime URLs for phases that need to connect to running services.
 	// These are optional and may be empty if the scenario isn't running.
@@ -39,7 +39,7 @@ type ScenarioWorkspace struct {
 	// TestDir is the legacy "testing workspace" root (now coverage/ by default).
 	TestDir  string
 	PhaseDir string
-	AppRoot     string
+	AppRoot  string
 
 	artifactDir string
 

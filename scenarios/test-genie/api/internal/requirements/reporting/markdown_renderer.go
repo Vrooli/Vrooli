@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"strings"
-
 	"test-genie/internal/requirements/enrichment"
 	"test-genie/internal/requirements/parsing"
 	"test-genie/internal/requirements/types"

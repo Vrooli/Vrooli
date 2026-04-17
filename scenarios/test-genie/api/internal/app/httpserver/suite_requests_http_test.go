@@ -7,14 +7,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"test-genie/internal/queue"
+	"test-genie/internal/storage/sqliteutil"
+	"test-genie/internal/testsqlite"
 	"testing"
 	"time"
 
 	"github.com/gorilla/mux"
-
-	"test-genie/internal/queue"
-	"test-genie/internal/storage/sqliteutil"
-	"test-genie/internal/testsqlite"
 )
 
 func TestServer_handleCreateSuiteRequest_InvalidPayload(t *testing.T) {

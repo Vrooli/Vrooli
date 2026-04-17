@@ -27,12 +27,10 @@ const (
 	WorkflowExecutionTimeout = 3 * time.Minute
 )
 
-var (
-	protoJSONUnmarshal = protojson.UnmarshalOptions{
-		// Reject unknown fields to catch contract drift with BAS responses.
-		DiscardUnknown: false,
-	}
-)
+var protoJSONUnmarshal = protojson.UnmarshalOptions{
+	// Reject unknown fields to catch contract drift with BAS responses.
+	DiscardUnknown: false,
+}
 
 // ProgressCallback is called periodically during workflow execution with status updates.
 // It receives the current status and elapsed time. Return an error to abort waiting.

@@ -3,10 +3,9 @@ package vps
 import (
 	"context"
 	"errors"
+	"scenario-to-cloud/ssh"
 	"testing"
 	"time"
-
-	"scenario-to-cloud/ssh"
 )
 
 func TestRunOptionsForStep_KnownStep(t *testing.T) {

@@ -1,8 +1,6 @@
 package domains
 
 import (
-	"github.com/vrooli/cli-core/cliapp"
-
 	"prompt-manager/cli/agents"
 	"prompt-manager/cli/discover"
 	"prompt-manager/cli/experiments"
@@ -16,6 +14,8 @@ import (
 	"prompt-manager/cli/teams"
 	"prompt-manager/cli/testing"
 	"prompt-manager/cli/topics"
+
+	"github.com/vrooli/cli-core/cliapp"
 )
 
 // CommandGroups aggregates prompt-manager's domain registrations behind one

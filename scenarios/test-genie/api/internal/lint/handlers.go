@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
 	"test-genie/internal/lint/golang"
 	"test-genie/internal/lint/nodejs"
 	"test-genie/internal/lint/python"

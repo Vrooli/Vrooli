@@ -1,6 +1,7 @@
 package database
 
 import (
+	"agent-manager/internal/domain"
 	"context"
 	"fmt"
 	"os"
@@ -9,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"agent-manager/internal/domain"
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/storage"

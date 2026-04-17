@@ -4,9 +4,8 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"testing"
-
 	"prompt-manager/teamconfig"
+	"testing"
 )
 
 func setupStateTestStore(t *testing.T) *FileTeamStore {

@@ -200,6 +200,7 @@ func (m *mockProvider) GetCurrentSet(task *tasks.TaskItem) ([]string, error) { r
 func (m *mockProvider) EnhancePrompt(task *tasks.TaskItem) (*PromptEnhancement, error) {
 	return nil, nil
 }
+
 func (m *mockProvider) AfterExecution(task *tasks.TaskItem, scenarioName string) (*SteeringDecision, error) {
 	return nil, nil
 }

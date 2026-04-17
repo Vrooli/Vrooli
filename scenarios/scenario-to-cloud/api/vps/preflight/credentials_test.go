@@ -2,11 +2,10 @@ package preflight
 
 import (
 	"context"
-	"strings"
-	"testing"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/ssh"
+	"strings"
+	"testing"
 )
 
 type fakeCredentialRunner struct {

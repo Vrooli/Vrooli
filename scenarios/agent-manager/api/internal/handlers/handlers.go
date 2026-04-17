@@ -22,6 +22,12 @@
 package handlers
 
 import (
+	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/modelregistry"
+	"agent-manager/internal/orchestration"
+	"agent-manager/internal/protoconv"
+	"agent-manager/internal/storage"
 	"context"
 	"encoding/json"
 	"errors"
@@ -32,13 +38,7 @@ import (
 	"strconv"
 	"strings"
 
-	"agent-manager/internal/adapters/event"
 	agentconfig "agent-manager/internal/config"
-	"agent-manager/internal/domain"
-	"agent-manager/internal/modelregistry"
-	"agent-manager/internal/orchestration"
-	"agent-manager/internal/protoconv"
-	"agent-manager/internal/storage"
 
 	"buf.build/go/protovalidate"
 	"github.com/google/uuid"

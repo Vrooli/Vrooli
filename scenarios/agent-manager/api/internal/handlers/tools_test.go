@@ -1,14 +1,13 @@
 package handlers
 
 import (
+	"agent-manager/internal/domain"
+	"agent-manager/internal/toolregistry"
 	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"agent-manager/internal/domain"
-	"agent-manager/internal/toolregistry"
 
 	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 	"google.golang.org/protobuf/encoding/protojson"

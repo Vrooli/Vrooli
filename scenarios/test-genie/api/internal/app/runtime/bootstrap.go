@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
-
 	"test-genie/agentmanager"
 	"test-genie/internal/execution"
 	"test-genie/internal/fix"
@@ -19,8 +17,10 @@ import (
 	"test-genie/internal/scenarios"
 	"test-genie/internal/toolexecution"
 	"test-genie/internal/toolregistry"
+	"time"
 
 	"github.com/vrooli/api-core/database"
+	// Register modernc.org/sqlite as the pure-Go "sqlite" driver.
 	_ "modernc.org/sqlite"
 )
 

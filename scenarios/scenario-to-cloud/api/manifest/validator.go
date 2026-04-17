@@ -3,11 +3,10 @@ package manifest
 import (
 	"fmt"
 	"path"
-	"sort"
-	"strings"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/vps"
+	"sort"
+	"strings"
 )
 
 // HasBlockingIssues returns true if any issue has error severity.

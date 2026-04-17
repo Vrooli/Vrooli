@@ -5,9 +5,8 @@ import (
 	"encoding/base64"
 	"fmt"
 	"regexp"
-	"strings"
-
 	"scenario-to-cloud/domain"
+	"strings"
 )
 
 // GeneratedSecret holds a generated secret with metadata.

@@ -6,9 +6,9 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"test-genie/internal/requirements/types"
 	"time"
 
-	"test-genie/internal/requirements/types"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 

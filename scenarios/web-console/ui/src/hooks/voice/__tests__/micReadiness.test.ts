@@ -113,12 +113,13 @@ describe("micReadiness", () => {
     // The module registers an "ended" listener on each track.
     // Simulate the track ending by invoking the registered callback.
     const addEventCall = mockStreamFactory.track.addEventListener.mock.calls.find(
-      ([evt]: [string]) => evt === "ended",
+      (call: unknown[]) => call[0] === "ended",
     );
     expect(addEventCall).toBeDefined();
+    if (!addEventCall) throw new Error("ended listener not registered");
 
     // Invoke the handler
-    const endedHandler = addEventCall![1] as () => void;
+    const endedHandler = addEventCall[1] as () => void;
     mockStreamFactory.track.readyState = "ended";
     endedHandler();
 

@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"testing"
-
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/initiatives"
+	"testing"
 )
 
 func TestHandlerGetOverview_EmptyBacklog(t *testing.T) {

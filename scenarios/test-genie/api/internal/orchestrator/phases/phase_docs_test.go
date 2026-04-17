@@ -5,9 +5,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"testing"
-
 	"test-genie/internal/orchestrator/workspace"
+	"testing"
 )
 
 func TestRunDocsPhase_NoMarkdown(t *testing.T) {

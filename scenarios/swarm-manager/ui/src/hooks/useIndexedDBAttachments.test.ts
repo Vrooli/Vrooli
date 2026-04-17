@@ -14,7 +14,7 @@ function createFakeIndexedDB() {
   function getStore(dbName: string, storeName: string): Map<string, unknown> {
     const key = `${dbName}/${storeName}`;
     if (!stores.has(key)) stores.set(key, new Map());
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- guaranteed by the line above
+     
     return stores.get(key)!;
   }
 

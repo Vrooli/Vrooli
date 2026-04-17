@@ -1,7 +1,9 @@
 package hostreqkit
 
 import (
+	"errors"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/hostreqspec"
@@ -295,6 +297,244 @@ func TestRunPrivilegedCommandAppliesSudo(t *testing.T) {
 	}
 	if len(gotArgs) < 2 || gotArgs[0] != "sysctl" {
 		t.Fatalf("args = %v", gotArgs)
+	}
+}
+
+func TestRunPrivilegedCommandWithSudoError(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+
+	LookPathFn = func(name string) (string, error) {
+		if name == "sudo" {
+			return "/usr/bin/sudo", nil
+		}
+		return "", os.ErrNotExist
+	}
+
+	RunCommandFn = func(string, []string, EnsureOptions) error { return nil }
+
+	err := RunPrivilegedCommand("skip", "sysctl", []string{"-p"}, EnsureOptions{})
+	if err == nil || !strings.Contains(err.Error(), "skip") {
+		t.Fatalf("expected skip error, got %v", err)
+	}
+}
+
+func TestEnsureManagedDirDryRunSkips(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+
+	var called bool
+	RunCommandFn = func(string, []string, EnsureOptions) error {
+		called = true
+		return nil
+	}
+
+	err := EnsureManagedDir("/etc/test.d", "ask", EnsureOptions{DryRun: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if called {
+		t.Fatal("RunCommandFn should not be called during dry-run")
+	}
+}
+
+func TestEnsureManagedDirRunsMkdir(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+
+	LookPathFn = func(name string) (string, error) {
+		if name == "sudo" {
+			return "/usr/bin/sudo", nil
+		}
+		return "", os.ErrNotExist
+	}
+
+	var gotName string
+	var gotArgs []string
+	RunCommandFn = func(name string, args []string, opts EnsureOptions) error {
+		gotName = name
+		gotArgs = args
+		return nil
+	}
+
+	err := EnsureManagedDir("/etc/sysctl.d", "ask", EnsureOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotName != "sudo" {
+		t.Fatalf("command = %q, want sudo", gotName)
+	}
+	joined := strings.Join(gotArgs, " ")
+	if !strings.Contains(joined, "mkdir -p /etc/sysctl.d") {
+		t.Fatalf("args = %q, want mkdir -p /etc/sysctl.d", joined)
+	}
+}
+
+func TestEnsureManagedDirMkdirFailure(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+
+	LookPathFn = func(string) (string, error) { return "", os.ErrNotExist }
+	RunCommandFn = func(string, []string, EnsureOptions) error {
+		return os.ErrPermission
+	}
+
+	err := EnsureManagedDir("/etc/test.d", "ask", EnsureOptions{})
+	if err == nil {
+		t.Fatal("expected error from mkdir failure")
+	}
+}
+
+func TestInstallManagedContentDryRunSkips(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+
+	var called bool
+	RunCommandFn = func(string, []string, EnsureOptions) error {
+		called = true
+		return nil
+	}
+
+	err := InstallManagedContent("/etc/test.conf", "content", "ask", EnsureOptions{DryRun: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if called {
+		t.Fatal("RunCommandFn should not be called during dry-run")
+	}
+}
+
+func TestInstallManagedContentWritesAndInstalls(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+
+	LookPathFn = func(name string) (string, error) {
+		if name == "sudo" {
+			return "/usr/bin/sudo", nil
+		}
+		return "", os.ErrNotExist
+	}
+
+	var gotArgs []string
+	RunCommandFn = func(name string, args []string, opts EnsureOptions) error {
+		gotArgs = args
+		return nil
+	}
+
+	err := InstallManagedContent("/etc/test.conf", "hello world", "ask", EnsureOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	joined := strings.Join(gotArgs, " ")
+	if !strings.Contains(joined, "install -m 0644") {
+		t.Fatalf("args = %q, want install -m 0644", joined)
+	}
+	if !strings.Contains(joined, "/etc/test.conf") {
+		t.Fatalf("args = %q, want target path /etc/test.conf", joined)
+	}
+}
+
+func TestInstallManagedContentCommandFailure(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+
+	LookPathFn = func(string) (string, error) { return "", os.ErrNotExist }
+	RunCommandFn = func(string, []string, EnsureOptions) error {
+		return os.ErrPermission
+	}
+
+	err := InstallManagedContent("/etc/test.conf", "content", "ask", EnsureOptions{})
+	if err == nil {
+		t.Fatal("expected error from install failure")
+	}
+}
+
+func TestValidateSetupSupported(t *testing.T) {
+	h := Host{OS: "linux", SupportsSetup: true}
+	if err := h.ValidateSetup(); err != nil {
+		t.Fatalf("expected nil, got %v", err)
+	}
+}
+
+func TestValidateSetupUnsupported(t *testing.T) {
+	h := Host{OS: "darwin", SupportsSetup: false}
+	err := h.ValidateSetup()
+	if err == nil {
+		t.Fatal("expected error for unsupported setup")
+	}
+	if !strings.Contains(err.Error(), "setup") {
+		t.Fatalf("error should mention setup: %v", err)
+	}
+	if !strings.Contains(err.Error(), "darwin") {
+		t.Fatalf("error should mention OS: %v", err)
+	}
+}
+
+func TestValidateSetupUnsupportedWithNotes(t *testing.T) {
+	h := Host{OS: "darwin", SupportsSetup: false, Notes: []string{"macOS support is experimental", "use Homebrew"}}
+	err := h.ValidateSetup()
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "macOS support is experimental") {
+		t.Fatalf("error should include notes: %v", err)
+	}
+	if !strings.Contains(err.Error(), "use Homebrew") {
+		t.Fatalf("error should include all notes: %v", err)
+	}
+}
+
+func TestValidateSetupUnsupportedEmptyOS(t *testing.T) {
+	h := Host{SupportsSetup: false}
+	err := h.ValidateSetup()
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "this platform") {
+		t.Fatalf("empty OS should say 'this platform': %v", err)
+	}
+}
+
+func TestValidateDevelopSupported(t *testing.T) {
+	h := Host{OS: "linux", SupportsDevelop: true}
+	if err := h.ValidateDevelop(); err != nil {
+		t.Fatalf("expected nil, got %v", err)
+	}
+}
+
+func TestValidateDevelopUnsupported(t *testing.T) {
+	h := Host{OS: "windows", SupportsDevelop: false}
+	err := h.ValidateDevelop()
+	if err == nil {
+		t.Fatal("expected error for unsupported develop")
+	}
+	if !strings.Contains(err.Error(), "develop") {
+		t.Fatalf("error should mention develop: %v", err)
+	}
+	if !strings.Contains(err.Error(), "windows") {
+		t.Fatalf("error should mention OS: %v", err)
+	}
+}
+
+func TestValidateDevelopUnsupportedWithNotes(t *testing.T) {
+	h := Host{OS: "other", SupportsDevelop: false, Notes: []string{"unknown platform detected"}}
+	err := h.ValidateDevelop()
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "unknown platform detected") {
+		t.Fatalf("error should include notes: %v", err)
+	}
+}
+
+func TestUnsupportedErrorWrapsErrUnsupportedPlatform(t *testing.T) {
+	h := Host{OS: "freebsd", SupportsSetup: false}
+	err := h.ValidateSetup()
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, ErrUnsupportedPlatform) {
+		t.Fatalf("error should wrap ErrUnsupportedPlatform: %v", err)
 	}
 }
 

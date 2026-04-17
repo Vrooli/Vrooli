@@ -2,7 +2,6 @@ package lint
 
 import (
 	"fmt"
-
 	"test-genie/internal/lint/execution"
 	"test-genie/internal/shared"
 )

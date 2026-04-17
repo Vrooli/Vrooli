@@ -69,7 +69,7 @@ export function useDecisionStreamLogic({
   const [contextExpanded, setContextExpanded] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const prevParentRef = useRef<string>("");
+  const prevParentRef = useRef("");
 
   const backlogItems = useBacklogStore((s) => s.items);
 
@@ -88,7 +88,7 @@ export function useDecisionStreamLogic({
     : undefined;
 
   const [fetchedItems, setFetchedItems] = useState<Map<string, BacklogItem>>(() => new Map());
-  const fetchingRef = useRef<Set<string>>(new Set());
+  const fetchingRef = useRef(new Set());
 
   const parentItemKey = current ? `${current.parentKind}/${current.parentName}` : "";
   const parentItem = storeItem ?? fetchedItems.get(parentItemKey);
@@ -302,7 +302,7 @@ export function useDecisionStreamLogic({
       setCurrentIndex(safeIndex + 1);
     }
     if (isAllDone()) {
-      handleCompletion();
+      void handleCompletion();
     }
   }, [current, safeIndex, total, localAnswers, saveAnswer, isAllDone, handleCompletion]);
 
@@ -332,7 +332,9 @@ export function useDecisionStreamLogic({
       }
       return a.reviewStatus === "approved" || a.reviewStatus === "flagged";
     });
-    if (allDone) handleCompletion();
+    if (allDone) {
+      void handleCompletion();
+    }
   }, [current, safeIndex, total, skippedIds, activeQuestions, localAnswers, handleCompletion]);
 
   const snoozeParent = useCallback(() => {
@@ -400,7 +402,7 @@ export function useDecisionStreamLogic({
       switch (e.key) {
         case "ArrowRight":
           e.preventDefault();
-          advance();
+          void advance();
           break;
         case "ArrowLeft":
           e.preventDefault();
@@ -408,7 +410,7 @@ export function useDecisionStreamLogic({
           break;
         case "Enter":
           e.preventDefault();
-          advance();
+          void advance();
           break;
         case "g":
         case "G":

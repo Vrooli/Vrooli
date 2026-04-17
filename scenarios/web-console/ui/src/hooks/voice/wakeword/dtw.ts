@@ -51,12 +51,18 @@ export function dtwDistance(
   let prev = new Float64Array(m).fill(INF);
   let curr = new Float64Array(m).fill(INF);
 
+  const seq1Zero = seq1[0];
+  const seq2Zero = seq2[0];
+  if (!seq1Zero || !seq2Zero) return Infinity;
+
   // Initialize (0,0)
-  prev[0] = euclidean(seq1[0]!, seq2[0]!);
+  prev[0] = euclidean(seq1Zero, seq2Zero);
 
   // Fill first row within band
   for (let j = 1; j < m && j <= bandWidth; j++) {
-    prev[j] = (prev[j - 1] ?? INF) + euclidean(seq1[0]!, seq2[j]!);
+    const seq2j = seq2[j];
+    if (!seq2j) continue;
+    prev[j] = (prev[j - 1] ?? INF) + euclidean(seq1Zero, seq2j);
   }
 
   // Fill remaining rows
@@ -64,9 +70,13 @@ export function dtwDistance(
     curr.fill(INF);
     const jMin = Math.max(0, i - bandWidth);
     const jMax = Math.min(m - 1, i + bandWidth);
+    const seq1i = seq1[i];
+    if (!seq1i) continue;
 
     for (let j = jMin; j <= jMax; j++) {
-      const cost = euclidean(seq1[i]!, seq2[j]!);
+      const seq2j = seq2[j];
+      if (!seq2j) continue;
+      const cost = euclidean(seq1i, seq2j);
       let minPrev = prev[j] ?? INF; // match (diagonal)
       if (j > 0) {
         minPrev = Math.min(minPrev, curr[j - 1] ?? INF); // insertion

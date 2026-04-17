@@ -163,7 +163,7 @@ export function SummaryView({
 
   const handleBulkAction = useCallback(
     (group: ActionGroup) => {
-      switch (group.id as ActionGroupId) {
+      switch (group.id) {
         case "needs-workshop":
         case "ready-to-run": {
           const targets: RunBacklogTarget[] = group.items

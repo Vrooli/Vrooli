@@ -3,6 +3,12 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import {
+  mockRunPipeline,
+  mockGetPipelineStatus,
+  createWrapper,
+  localStorageMock,
+} from "./usePipelineButton.testUtils";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import {
   usePipelineMutation,
@@ -13,12 +19,6 @@ import type {
   PipelineConfig,
   PipelineStatus,
 } from "../../lib/api";
-import {
-  mockRunPipeline,
-  mockGetPipelineStatus,
-  createWrapper,
-  localStorageMock,
-} from "./usePipelineButton.testUtils";
 
 beforeEach(() => {
   vi.clearAllMocks();

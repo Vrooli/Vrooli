@@ -1,14 +1,13 @@
 package fix
 
 import (
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/tasks/shared"
 	"strings"
 	"testing"
 	"time"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-
-	"scenario-to-cloud/domain"
-	"scenario-to-cloud/tasks/shared"
 )
 
 func TestBuildPromptAndContext_Validation(t *testing.T) {

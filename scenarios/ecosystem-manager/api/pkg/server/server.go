@@ -21,7 +21,7 @@ import (
 
 	gorillaHandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
+	_ "github.com/lib/pq" // postgres driver registration
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 

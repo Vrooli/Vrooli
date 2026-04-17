@@ -16,10 +16,10 @@ import (
 )
 
 const (
-	appID         = "vrooli"
-	scenarioID    = "visited-tracker"
-	campaignsDir  = "campaigns"
-	dataDir       = campaignsDir
+	appID        = "vrooli"
+	scenarioID   = "visited-tracker"
+	campaignsDir = "campaigns"
+	dataDir      = campaignsDir
 )
 
 var (

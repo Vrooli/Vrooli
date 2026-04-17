@@ -5,10 +5,9 @@ import (
 	"io/fs"
 	"os"
 	"strings"
-	"testing"
-
 	"test-genie/internal/requirements/parsing"
 	"test-genie/internal/requirements/types"
+	"testing"
 )
 
 // memReader implements Reader for testing.

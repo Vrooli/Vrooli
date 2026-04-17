@@ -7,18 +7,17 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"scenario-to-cloud/bundle"
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/httputil"
+	"scenario-to-cloud/manifest"
+	"scenario-to-cloud/ssh"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/discovery"
-
-	"scenario-to-cloud/bundle"
-	"scenario-to-cloud/domain"
-	"scenario-to-cloud/internal/httputil"
-	"scenario-to-cloud/manifest"
-	"scenario-to-cloud/ssh"
 )
 
 // ScenarioInfo represents a scenario with its configuration

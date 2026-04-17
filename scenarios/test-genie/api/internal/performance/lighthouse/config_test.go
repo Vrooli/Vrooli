@@ -23,7 +23,7 @@ func TestLoadConfig_FileNotExists(t *testing.T) {
 func TestLoadConfig_ValidConfig(t *testing.T) {
 	dir := t.TempDir()
 	vrooliDir := filepath.Join(dir, ".vrooli")
-	if err := os.MkdirAll(vrooliDir, 0755); err != nil {
+	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -40,7 +40,7 @@ func TestLoadConfig_ValidConfig(t *testing.T) {
 		]
 	}`
 
-	if err := os.WriteFile(filepath.Join(vrooliDir, "lighthouse.json"), []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(vrooliDir, "lighthouse.json"), []byte(configContent), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -74,11 +74,11 @@ func TestLoadConfig_ValidConfig(t *testing.T) {
 func TestLoadConfig_InvalidJSON(t *testing.T) {
 	dir := t.TempDir()
 	vrooliDir := filepath.Join(dir, ".vrooli")
-	if err := os.MkdirAll(vrooliDir, 0755); err != nil {
+	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile(filepath.Join(vrooliDir, "lighthouse.json"), []byte("invalid json"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(vrooliDir, "lighthouse.json"), []byte("invalid json"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

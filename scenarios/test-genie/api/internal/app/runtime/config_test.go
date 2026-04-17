@@ -73,7 +73,7 @@ func TestResolveDatabaseConfigFallsBackToScenarioDataDir(t *testing.T) {
 	}
 }
 
-func TestResolveDatabaseConfigFallsBackToScenarioLocalDataDir(t *testing.T) {
+func TestResolveDatabaseConfigFallsBackToStorageResolver(t *testing.T) {
 	t.Setenv("TEST_GENIE_SQLITE_PATH", "")
 	t.Setenv("SQLITE_PATH", "")
 	t.Setenv("SQLITE_DB", "")
@@ -86,13 +86,11 @@ func TestResolveDatabaseConfigFallsBackToScenarioLocalDataDir(t *testing.T) {
 		t.Fatalf("resolveDatabaseConfig() error: %v", err)
 	}
 
-	root, err := scenarioRoot()
-	if err != nil {
-		t.Fatalf("scenarioRoot() error: %v", err)
+	if !strings.HasSuffix(cfg.Path, "test-genie.db") {
+		t.Fatalf("expected fallback path to end with test-genie.db, got %s", cfg.Path)
 	}
-	expectedPath := filepath.Join(root, "data", "test-genie.db")
-	if cfg.Path != expectedPath {
-		t.Fatalf("expected fallback path %s, got %s", expectedPath, cfg.Path)
+	if !filepath.IsAbs(cfg.Path) {
+		t.Fatalf("expected fallback path to be absolute, got %s", cfg.Path)
 	}
 }
 

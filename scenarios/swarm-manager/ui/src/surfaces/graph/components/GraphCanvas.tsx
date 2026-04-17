@@ -88,7 +88,7 @@ export const GraphCanvas = memo(function GraphCanvas() {
   const selectedNodeId = useGraphUIStore((s) => s.selectedNodeId);
   const focusNodeId = useGraphDataStore((s) => s.focusNodeId);
 
-  const flowRef = useRef<ReactFlowInstance<GraphNode, GraphEdge> | null>(null);
+  const flowRef = useRef<ReactFlowInstance<GraphNode> | null>(null);
 
   const { processedNodes, processedEdges, visibleEdgeTypes } = useMemo(() => {
     return buildGraphPresentation({
@@ -322,7 +322,7 @@ export const GraphCanvas = memo(function GraphCanvas() {
   const setFlowInstance = useGraphUIStore((s) => s.setFlowInstance);
 
   const handleInit = useCallback(
-    (instance: ReactFlowInstance<GraphNode, GraphEdge>) => {
+    (instance: ReactFlowInstance<GraphNode>) => {
       flowRef.current = instance;
       setFlowInstance(instance);
     },

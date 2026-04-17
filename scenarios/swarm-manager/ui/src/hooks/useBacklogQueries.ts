@@ -7,7 +7,7 @@ import type { ReadinessIndicatorData } from "../lib/maturity";
 import { backlogService, executionService } from "../services";
 import { reviewService } from "../services/review-service";
 import type { ReviewRound } from "../services/review-service";
-import type { BacklogKind, ExecutionRecord } from "../types";
+import type { BacklogKind } from "../types";
 import type { MaturityItemSummary, WorkshopRound } from "../types/domain";
 import { useBacklogStore } from "../stores";
 
@@ -74,11 +74,11 @@ export function useBacklogQueries({
     queryKey: ["executions", backlogKind, name],
     queryFn: () => {
       if (!backlogKind || !name) throw new Error("Backlog kind and name are required");
-      return executionService.list({ backlogKind: backlogKind as BacklogKind, backlogName: name });
+      return executionService.list({ backlogKind: backlogKind, backlogName: name });
     },
     enabled: !!backlogKind && !!name,
     refetchInterval: (query) => {
-      const records = query.state.data as ExecutionRecord[] | undefined;
+      const records = query.state.data;
       const latest = records?.[0];
       // Poll faster during active finalization for responsive progress updates
       return latest?.status === "validating" ? 3_000 : 10_000;
@@ -169,7 +169,7 @@ export function useBacklogQueries({
   return {
     item,
     isLoadingItem,
-    itemError: itemError as Error | null,
+    itemError: itemError,
     refetchItem,
 
     spawnedItems,

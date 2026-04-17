@@ -3,9 +3,8 @@ package teams
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
-
 	"prompt-manager/store"
+	"strings"
 
 	"github.com/gorilla/mux"
 )

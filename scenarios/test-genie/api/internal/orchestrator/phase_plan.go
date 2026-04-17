@@ -2,10 +2,10 @@ package orchestrator
 
 import (
 	"fmt"
-
 	"test-genie/internal/orchestrator/phases"
-	workspacepkg "test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/shared"
+
+	workspacepkg "test-genie/internal/orchestrator/workspace"
 )
 
 type phasePlan struct {

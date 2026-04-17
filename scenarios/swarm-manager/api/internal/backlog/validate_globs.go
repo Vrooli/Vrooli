@@ -2,10 +2,12 @@ package backlog
 
 import (
 	"net/http"
-
-	repocontract "github.com/vrooli/repo-contract-go"
+	"os"
+	"path/filepath"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // validateGlobsRequest is the JSON body for POST /backlog/validate-globs.
@@ -36,7 +38,7 @@ func (h *Handler) ValidateGlobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	projectRoot, err := repocontract.FindRepoRootFromPath(h.rootDir)
+	projectRoot, err := resolveRepoRoot(h.rootDir)
 	if err != nil {
 		apierr.MapError(w, "[backlog] validate-globs", apierr.Internal("failed to resolve repo root"))
 		return
@@ -72,4 +74,24 @@ func (h *Handler) ValidateGlobs(w http.ResponseWriter, r *http.Request) {
 	if err := httputil.JSON(w, validateGlobsResponse{Results: results}); err != nil {
 		apierr.MapError(w, "[backlog] validate-globs", apierr.Internal("failed to encode response"))
 	}
+}
+
+func resolveRepoRoot(rootDir string) (string, error) {
+	if projectRoot, err := repocontract.FindRepoRootFromPath(rootDir); err == nil {
+		return projectRoot, nil
+	}
+
+	current := rootDir
+	for {
+		if _, err := os.Stat(filepath.Join(current, ".vrooli", "repo-contract.json")); err == nil {
+			return current, nil
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+		current = parent
+	}
+
+	return "", os.ErrNotExist
 }

@@ -392,7 +392,9 @@ func TestFileRepository_SaveSetsDefaultTimestamps(t *testing.T) {
 	// Read it back
 	data, _ := mockFS.GetFile("/data/timestamps.json")
 	var saved SessionProfile
-	json.Unmarshal(data, &saved)
+	if err := json.Unmarshal(data, &saved); err != nil {
+		t.Fatalf("Unmarshal failed: %v", err)
+	}
 
 	// CreatedAt and LastUsedAt should be set from UpdatedAt
 	if saved.CreatedAt.IsZero() {
@@ -447,7 +449,9 @@ func TestMockFileSystem_Stat(t *testing.T) {
 	}
 
 	// Test directory stat
-	mockFS.MkdirAll("/data/mydir", 0755)
+	if err := mockFS.MkdirAll("/data/mydir", 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
 	info, err = mockFS.Stat("/data/mydir")
 	if err != nil {
 		t.Fatalf("Stat failed: %v", err)

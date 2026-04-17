@@ -5,9 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"testing"
-
 	"swarm-manager/internal/testutil"
+	"testing"
 )
 
 // setupTestStore creates a FileStore with a temp root and all kind directories.

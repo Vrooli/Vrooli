@@ -5,11 +5,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"test-genie/internal/orchestrator"
+	"test-genie/internal/queue"
 	"time"
 
 	repocontract "github.com/vrooli/repo-contract-go"
-	"test-genie/internal/orchestrator"
-	"test-genie/internal/queue"
 )
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {

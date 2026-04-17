@@ -220,7 +220,6 @@ func (h *PromptsHandlers) listPromptFiles() ([]PromptFileInfo, error) {
 		})
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}

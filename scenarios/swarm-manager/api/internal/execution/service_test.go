@@ -7,11 +7,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"testing"
-
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/handoff"
 	"swarm-manager/internal/promptmanager"
+	"testing"
 )
 
 // stubPolicyProvider implements PolicyProvider for tests.

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"test-genie/internal/performance/lighthouse"
 	"time"
 
-	"test-genie/internal/performance/lighthouse"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 

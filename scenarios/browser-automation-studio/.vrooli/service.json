@@ -17,7 +17,7 @@
       "real-time-execution",
       "go-api",
       "react-ui",
-      "postgres-storage"
+      "sqlite-storage"
     ],
     "parent": "vrooli",
     "type": "scenario",
@@ -133,8 +133,8 @@
             ]
           },
           {
-            "type": "directory",
-            "path": "initialization/storage/postgres"
+            "type": "directories",
+            "targets": ["initialization/storage/sqlite"]
           }
         ]
       },
@@ -168,11 +168,6 @@
           "name": "build-playwright-driver",
           "run": "cd playwright-driver && pnpm run build",
           "description": "Build Playwright driver for production"
-        },
-        {
-          "name": "setup-database",
-          "run": "echo 'Database schema will be initialized on first API startup'",
-          "description": "Prepare database schema"
         }
       ]
     },
@@ -237,13 +232,6 @@
   },
   "dependencies": {
     "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "description": "Workflow definitions and execution history storage",
-        "schema": "browser_automation_studio"
-      },
       "minio": {
         "type": "minio",
         "enabled": true,
@@ -301,13 +289,8 @@
           "source": "estimated",
           "confidence": "medium"
         },
-        "notes": "Runs today via Tier 1 local stack. Access is through app-monitor + Cloudflare tunnel.",
+        "notes": "Runs today via Tier 1 local stack. Access is through app-monitor + Cloudflare tunnel. Persistent storage is local SQLite via api-core/storage.",
         "secrets": [
-          {
-            "secret_id": "browser-automation-studio/postgres-url",
-            "classification": "service",
-            "notes": "Regenerate per deployment"
-          },
           {
             "secret_id": "browserless/api-key",
             "classification": "infrastructure",
@@ -330,9 +313,9 @@
       },
       "tier-2-desktop": {
         "status": "limited",
-        "fitness_score": 0.35,
+        "fitness_score": 0.5,
         "constraints": [
-          "Browserless + Postgres footprint too heavy for bundled runtimes",
+          "Browserless requires bundled Playwright runner",
           "MinIO requires background server and credentials",
           "Secrets must be provisioned at install time"
         ],
@@ -347,13 +330,6 @@
         },
         "adaptations": [
           {
-            "dependency": "postgres",
-            "swap": "sqlite",
-            "impact": "Would enable single-process storage but removes advanced query features",
-            "effort_days": 4,
-            "notes": "Needs schema + migration tooling"
-          },
-          {
             "dependency": "browserless",
             "swap": "playwright-packaged",
             "impact": "Compile Playwright into the Electron app to avoid remote dependency",
@@ -367,7 +343,7 @@
             "effort_days": 2
           }
         ],
-        "notes": "scenario-to-desktop currently ships a thin client only; full bundling blocked until swaps are executed.",
+        "notes": "Storage runs as embedded SQLite via api-core/storage. scenario-to-desktop currently ships a thin client only; full bundling blocked until browserless and minio swaps are executed.",
         "artifacts": [
           {
             "type": "electron-app",
@@ -416,47 +392,6 @@
     },
     "dependencies": {
       "resources": {
-        "postgres": {
-          "resource_type": "database",
-          "footprint": {
-            "ram_mb": 768,
-            "disk_mb": 4096,
-            "cpu_cores": 1,
-            "network": "required",
-            "source": "estimated",
-            "confidence": "medium"
-          },
-          "platform_support": {
-            "tier-1-local": {
-              "supported": true,
-              "fitness_score": 0.9,
-              "notes": "Uses shared postgres resource"
-            },
-            "tier-2-desktop": {
-              "supported": false,
-              "fitness_score": 0.2,
-              "reason": "Desktop install would need embedded database service",
-              "alternatives": [
-                "sqlite"
-              ]
-            },
-            "tier-4-saas": {
-              "supported": true,
-              "fitness_score": 0.7,
-              "notes": "Needs managed PaaS provisioning"
-            }
-          },
-          "swappable_with": [
-            {
-              "id": "sqlite",
-              "relationship": "migration",
-              "notes": "Only viable for single-user bundles"
-            }
-          ],
-          "packaging_hints": [
-            "Requires initialization/storage/postgres/schema.sql"
-          ]
-        },
         "browserless": {
           "resource_type": "browser-automation",
           "footprint": {

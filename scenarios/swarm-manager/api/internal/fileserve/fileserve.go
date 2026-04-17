@@ -12,14 +12,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/fileops"
+	"swarm-manager/internal/httputil"
 
 	"github.com/gorilla/mux"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
-	"swarm-manager/internal/apierr"
-	"swarm-manager/internal/fileops"
-	"swarm-manager/internal/httputil"
 )
 
 // FileNodesToProto converts a slice of fileops.FileNode to proto BacklogFile.

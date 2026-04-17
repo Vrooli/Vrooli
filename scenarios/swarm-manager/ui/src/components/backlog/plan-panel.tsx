@@ -161,7 +161,7 @@ export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProp
 
   const headings = extractHeadings(draftContent);
 
-  const is404 = error && (error as Error).message?.includes("not found");
+  const is404 = error && (error).message?.includes("not found");
 
   if (isLoading) {
     return (
@@ -187,7 +187,7 @@ export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProp
   if (error) {
     return (
       <div className={cn("px-4 py-8", className)}>
-        <ErrorState error={error as Error} onRetry={() => refetch()} />
+        <ErrorState error={error} onRetry={() => refetch()} />
       </div>
     );
   }
@@ -321,7 +321,7 @@ export function PlanPanel({ backlogKind, backlogName, className }: PlanPanelProp
       )}
       {saveMutation.isError && (
         <div className="border-b border-red-500/20 bg-red-500/10 px-4 py-1.5 text-xs text-red-400">
-          Failed to save: {(saveMutation.error as Error).message}
+          Failed to save: {(saveMutation.error).message}
         </div>
       )}
 

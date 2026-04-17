@@ -2,7 +2,6 @@ package execution
 
 import (
 	"context"
-
 	"swarm-manager/internal/agentmanager"
 )
 

@@ -7,9 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"testing"
-
 	"test-genie/internal/orchestrator/workspace"
+	"testing"
 )
 
 func TestRunStructurePhaseValidScenario(t *testing.T) {

@@ -2,9 +2,8 @@ package settings
 
 import (
 	"path/filepath"
-	"testing"
-
 	"swarm-manager/internal/pathutil"
+	"testing"
 )
 
 func TestNewStore_DefaultPath(t *testing.T) {

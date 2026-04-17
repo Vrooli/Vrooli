@@ -7,9 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"testing"
-
 	"test-genie/internal/structure/types"
+	"testing"
 )
 
 func TestRunner_Success(t *testing.T) {

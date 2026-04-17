@@ -4,11 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"io/fs"
-	"testing"
-
 	"test-genie/internal/requirements/enrichment"
 	"test-genie/internal/requirements/parsing"
 	"test-genie/internal/requirements/types"
+	"testing"
 )
 
 // memWriter implements Writer for testing.

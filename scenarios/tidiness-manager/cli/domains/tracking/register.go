@@ -3,7 +3,6 @@ package tracking
 import (
 	"fmt"
 	"strings"
-
 	"tidiness-manager/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"

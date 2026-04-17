@@ -159,7 +159,7 @@ func visitHandler(w http.ResponseWriter, r *http.Request) {
 	if len(resolution.Unmatched) > 0 {
 		response["unmatched_patterns"] = resolution.Unmatched
 	}
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 func adjustVisitHandler(w http.ResponseWriter, r *http.Request) {
@@ -256,7 +256,7 @@ func adjustVisitHandler(w http.ResponseWriter, r *http.Request) {
 	logger.Printf("%s %sed visit count for file %s in campaign: %s", actionSymbol, req.Action, trackedFile.FilePath, campaign.Name)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"file_id":     fileID,
 		"visit_count": trackedFile.VisitCount,
 		"action":      req.Action,
@@ -315,5 +315,5 @@ func structureSyncHandler(w http.ResponseWriter, r *http.Request) {
 	logger.Printf("🔄 Synced %d files for campaign: %s", syncResult.Added, campaign.Name)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(syncResult)
+	_ = json.NewEncoder(w).Encode(syncResult)
 }

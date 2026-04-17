@@ -6,13 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-
-	"github.com/google/uuid"
-
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/queue"
 	"test-genie/internal/shared"
+
+	"github.com/google/uuid"
 )
 
 // ErrSuiteRequestNotFound indicates the linked suite request does not exist.

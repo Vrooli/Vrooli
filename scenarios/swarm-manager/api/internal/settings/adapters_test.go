@@ -2,9 +2,8 @@ package settings
 
 import (
 	"path/filepath"
-	"testing"
-
 	"swarm-manager/internal/execution"
+	"testing"
 )
 
 func testStore(t *testing.T) *Store {

@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
 	"test-genie/internal/dependencies/commands"
 )
 
@@ -112,11 +111,7 @@ func (d *detector) hasGo() bool {
 		}
 	}
 
-	if d.hasGoModuleCLI() {
-		return true
-	}
-
-	return false
+	return d.hasGoModuleCLI()
 }
 
 type serviceManifest struct {

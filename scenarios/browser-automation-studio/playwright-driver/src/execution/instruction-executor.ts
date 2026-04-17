@@ -262,7 +262,7 @@ export async function executeInstruction(
     outcome,
     telemetry.screenshot,
     telemetry.domSnapshot,
-    handlerResult.extracted_data as Record<string, unknown> | undefined
+    handlerResult.extracted_data
   );
 
   return {

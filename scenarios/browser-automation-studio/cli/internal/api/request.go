@@ -22,7 +22,7 @@ func Do(ctx *appctx.Context, method, path string, query url.Values, body []byte,
 	}
 
 	endpoint := base + ctx.Core.APIPath(path)
-	if query != nil && len(query) > 0 {
+	if len(query) > 0 {
 		endpoint += "?" + query.Encode()
 	}
 

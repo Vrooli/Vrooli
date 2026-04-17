@@ -1,9 +1,8 @@
 package artifact_test
 
 import (
-	"testing"
-
 	"agent-manager/internal/adapters/artifact"
+	"testing"
 
 	"github.com/google/uuid"
 )

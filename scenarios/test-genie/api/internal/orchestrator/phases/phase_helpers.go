@@ -8,12 +8,10 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"runtime"
 	"strings"
-	"unicode/utf8"
-
 	"test-genie/internal/lint/execution"
 	"test-genie/internal/shared"
+	"unicode/utf8"
 )
 
 var (
@@ -51,24 +49,6 @@ func ParseJSON(data string, v interface{}) error {
 func EnsureCommandAvailable(name string) error {
 	if _, err := commandLookup(name); err != nil {
 		return fmt.Errorf("required command '%s' is not available: %w", name, err)
-	}
-	return nil
-}
-
-func ensureExecutable(path string) error {
-	info, err := os.Stat(path)
-	if err != nil {
-		return fmt.Errorf("required executable missing: %s: %w", path, err)
-	}
-	if info.IsDir() {
-		return fmt.Errorf("expected executable but found directory: %s", path)
-	}
-	if runtime.GOOS == "windows" {
-		// Windows does not expose POSIX execute bits, so existence is enough.
-		return nil
-	}
-	if info.Mode()&0o111 == 0 {
-		return fmt.Errorf("file is not executable: %s", path)
 	}
 	return nil
 }

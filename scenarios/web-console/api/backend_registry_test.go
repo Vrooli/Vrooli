@@ -47,9 +47,8 @@ func TestBackendRegistry_Factory(t *testing.T) {
 		t.Error("factory was not called")
 	}
 
-	_, ok = reg.Factory("missing")
-	if !ok {
-		// Factory returns false for missing backends
+	if _, ok := reg.Factory("missing"); ok {
+		t.Error("expected false for missing backend factory")
 	}
 }
 

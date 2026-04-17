@@ -1,12 +1,12 @@
 package database
 
 import (
+	"agent-manager/internal/pricing"
 	"context"
 	"database/sql"
 	"errors"
 	"time"
 
-	"agent-manager/internal/pricing"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )

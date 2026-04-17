@@ -8,13 +8,12 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"prompt-manager/cli/internal/appctx"
 	"strings"
 	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
-
-	"prompt-manager/cli/internal/appctx"
 )
 
 // TestRequest is the request body for testing a skill

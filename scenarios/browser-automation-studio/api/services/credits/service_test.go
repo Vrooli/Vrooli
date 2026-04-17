@@ -8,7 +8,8 @@ import (
 	"sync"
 	"testing"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
+
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 )
@@ -17,7 +18,7 @@ import (
 func createTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 
-	db, err := sql.Open("sqlite3", ":memory:")
+	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("Failed to open test database: %v", err)
 	}
@@ -68,9 +69,8 @@ func createTestService(t *testing.T) (*Service, *sql.DB) {
 	log.SetLevel(logrus.ErrorLevel)
 
 	svc := NewService(ServiceOptions{
-		DB:      db,
-		Logger:  log,
-		Dialect: "sqlite",
+		DB:     db,
+		Logger: log,
 	})
 
 	return svc, db
@@ -397,7 +397,6 @@ func createTestServiceWithLPBS(t *testing.T, reporter LPBSReporter) (*Service, *
 	svc := NewService(ServiceOptions{
 		DB:           db,
 		Logger:       log,
-		Dialect:      "sqlite",
 		AppBundleKey: "browser-automation-studio",
 		LPBSReporter: reporter,
 	})
@@ -732,7 +731,6 @@ func TestSendLPBSReport_RetriesOnFailure(t *testing.T) {
 	svc := NewService(ServiceOptions{
 		DB:           db,
 		Logger:       log,
-		Dialect:      "sqlite",
 		AppBundleKey: "browser-automation-studio",
 		LPBSReporter: reporter,
 	})
@@ -773,7 +771,6 @@ func TestSendLPBSReport_MaxRetriesExhausted(t *testing.T) {
 	svc := NewService(ServiceOptions{
 		DB:           db,
 		Logger:       log,
-		Dialect:      "sqlite",
 		AppBundleKey: "browser-automation-studio",
 		LPBSReporter: reporter,
 	})
@@ -820,7 +817,6 @@ func createTestServiceWithEntitlementProvider(t *testing.T, provider *MockEntitl
 	svc := NewService(ServiceOptions{
 		DB:                  db,
 		Logger:              log,
-		Dialect:             "sqlite",
 		EntitlementProvider: provider,
 	})
 

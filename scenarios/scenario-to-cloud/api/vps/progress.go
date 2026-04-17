@@ -2,9 +2,8 @@ package vps
 
 import (
 	"context"
-	"time"
-
 	"scenario-to-cloud/domain"
+	"time"
 )
 
 // ProgressEvent represents a single progress update sent via SSE.

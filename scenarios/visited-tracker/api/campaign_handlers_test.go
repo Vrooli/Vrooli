@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -21,7 +20,7 @@ func TestListCampaignsHandler(t *testing.T) {
 	defer cleanup()
 
 	// Create a temporary directory for testing
-	tempDir, err := ioutil.TempDir("", "visited-tracker-list-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-list-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -137,7 +136,7 @@ func TestCreateCampaignHandler(t *testing.T) {
 	defer cleanup()
 
 	// Create a temporary directory for testing
-	tempDir, err := ioutil.TempDir("", "visited-tracker-create-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-create-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -253,7 +252,7 @@ func TestGetCampaignHandler(t *testing.T) {
 	defer cleanup()
 
 	// Create a temporary directory for testing
-	tempDir, err := ioutil.TempDir("", "visited-tracker-get-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-get-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -342,7 +341,7 @@ func TestDeleteCampaignHandler(t *testing.T) {
 	defer cleanup()
 
 	// Create a temporary directory for testing
-	tempDir, err := ioutil.TempDir("", "visited-tracker-delete-handler-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-delete-handler-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -527,7 +526,7 @@ func TestDeleteCampaignHandlerErrorPaths(t *testing.T) {
 	defer cleanup()
 
 	// Setup test environment
-	tempDir, err := ioutil.TempDir("", "visited-tracker-delete-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-delete-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -579,7 +578,7 @@ func TestGetCampaignHandlerWithDeletedFiles(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir, err := ioutil.TempDir("", "visited-tracker-deleted-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-deleted-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -663,7 +662,7 @@ func TestCreateCampaignHandlerMetadataInitialization(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir, err := ioutil.TempDir("", "visited-tracker-metadata-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-metadata-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -709,7 +708,7 @@ func TestCreateCampaignHandlerAutoSyncTracking(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir, err := ioutil.TempDir("", "visited-tracker-autosync-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-autosync-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -755,7 +754,7 @@ func TestDeleteCampaignHandlerIdempotent(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir, err := ioutil.TempDir("", "visited-tracker-delete-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-delete-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -817,7 +816,7 @@ func TestFindOrCreateCampaignHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir, err := ioutil.TempDir("", "visited-tracker-find-or-create-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-find-or-create-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -962,7 +961,7 @@ func TestUpdateCampaignHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir, err := ioutil.TempDir("", "visited-tracker-update-campaign-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-update-campaign-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}

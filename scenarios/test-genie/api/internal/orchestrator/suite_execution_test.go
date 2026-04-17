@@ -55,7 +55,7 @@ func createScenarioLayout(t *testing.T, root, name string) string {
 	if err := os.WriteFile(goMod, []byte("module "+name+"\n\ngo 1.21\n"), 0o644); err != nil {
 		t.Fatalf("failed to seed api/go.mod: %v", err)
 	}
-	manifest := fmt.Sprintf(`{"service":{"name":"%s"},"lifecycle":{"health":{"checks":[{"name":"api"}]}}}`, name)
+	manifest := fmt.Sprintf(`{"service":{"name":"%s"},"cli":{"enabled":true,"command":"%s","adapter":{"kind":"shell_script","script_path":"cli/%s","install_script":"cli/install.sh"},"invoke":{"kind":"installed_command","command":"%s"},"install":[{"kind":"command","run":"bash cli/install.sh"}]},"lifecycle":{"health":{"checks":[{"name":"api"}]}}}`, name, name, name, name)
 	manifestPath := filepath.Join(scenarioDir, ".vrooli", "service.json")
 	if err := os.WriteFile(manifestPath, []byte(manifest), 0o644); err != nil {
 		t.Fatalf("failed to write manifest: %v", err)
@@ -144,9 +144,15 @@ func skipPlaybooksForTests(t *testing.T) {
 	t.Setenv("TEST_GENIE_SKIP_PLAYBOOKS", "1")
 }
 
+func skipStandardsForTests(t *testing.T) {
+	t.Helper()
+	t.Setenv("TEST_GENIE_SKIP_STANDARDS", "1")
+}
+
 func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] orchestrator runs go-native phases", func(t *testing.T) {
 		skipPlaybooksForTests(t)
+		skipStandardsForTests(t)
 		root := t.TempDir()
 		createScenarioLayout(t, root, "demo")
 		stubCommandLookup(t, func(name string) (string, error) {
@@ -309,6 +315,7 @@ func TestSuiteOrchestratorExecuteCapturesSelectionMetadata(t *testing.T) {
 func TestSuiteOrchestratorSyncsRequirementsAfterFullRun(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] full suites trigger requirement sync", func(t *testing.T) {
 		skipPlaybooksForTests(t)
+		skipStandardsForTests(t)
 		root := t.TempDir()
 		createScenarioLayout(t, root, "demo")
 		stubCommandLookup(t, func(name string) (string, error) {

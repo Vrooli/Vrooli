@@ -6,10 +6,10 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"swarm-manager/internal/testutil"
 	"testing"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
-	"swarm-manager/internal/testutil"
 )
 
 func TestStore_SaveInvalidTheme(t *testing.T) {

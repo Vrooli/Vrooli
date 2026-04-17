@@ -190,7 +190,7 @@ func (a *App) settingsInvestigationReset(args []string) error {
 	if !*force {
 		fmt.Print("Reset investigation settings to defaults? [y/N]: ")
 		var confirm string
-		fmt.Scanln(&confirm)
+		_, _ = fmt.Scanln(&confirm)
 		if confirm != "y" && confirm != "Y" && confirm != "yes" {
 			fmt.Println("Cancelled")
 			return nil

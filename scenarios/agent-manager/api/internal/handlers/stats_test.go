@@ -3,15 +3,14 @@
 package handlers
 
 import (
+	"agent-manager/internal/orchestration"
+	"agent-manager/internal/repository"
 	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
-
-	"agent-manager/internal/orchestration"
-	"agent-manager/internal/repository"
 
 	"github.com/gorilla/mux"
 )

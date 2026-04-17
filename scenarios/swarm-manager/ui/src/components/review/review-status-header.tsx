@@ -16,7 +16,7 @@ import { cn, formatRelativeTime, canRunPostRunChecks } from "../../lib";
 import { resolvePostRunExecution } from "../../lib/finalization";
 import { EXECUTION_STATUS_COLORS, formatExecutionStatus } from "../../types";
 import { selectors } from "../../consts/selectors";
-import type { ExecutionRecord, ExecutionStatus } from "../../types";
+import type { ExecutionRecord } from "../../types";
 
 export interface ReviewStatusHeaderProps {
   execution: ExecutionRecord | undefined;
@@ -70,7 +70,7 @@ export function ReviewStatusHeader({
   if (!execution) return null;
   if (isActive) return null; // Active run display is handled by LatestExecutionSummary
 
-  const statusColor = EXECUTION_STATUS_COLORS[execution.status as ExecutionStatus] ?? "bg-slate-500";
+  const statusColor = EXECUTION_STATUS_COLORS[execution.status] ?? "bg-slate-500";
   const action = resolvePrimaryAction(execution, isActive, isTriggering, isTriggeringEvidence);
 
   return (
@@ -78,7 +78,7 @@ export function ReviewStatusHeader({
       <div className="flex items-center gap-2">
         <span className={cn("inline-block h-2 w-2 shrink-0 rounded-full", statusColor)} />
         <span className="text-xs font-medium capitalize text-slate-200">
-          {formatExecutionStatus(execution.status as ExecutionStatus)}
+          {formatExecutionStatus(execution.status)}
         </span>
         {execution.operation && (
           <span className="rounded bg-slate-700/60 px-1.5 py-0.5 text-[11px] font-medium text-slate-300">

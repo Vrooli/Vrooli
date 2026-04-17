@@ -2,7 +2,6 @@ package scenariocli
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,9 +9,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 
+	"github.com/vrooli/cli-core/cliutil"
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
@@ -243,11 +242,22 @@ func installScenarioCLI(ctx context.Context, root, home string, item scenarioCLI
 		if err != nil {
 			return err
 		}
-		cmd := exec.CommandContext(ctx, "go", "run", "./cmd/cli-installer",
+		spec, err := scenarioFreshnessSpec(item)
+		if err != nil {
+			return err
+		}
+		args := []string{"run", "./cmd/cli-installer",
 			"--module", item.modulePath,
 			"--name", item.binaryName,
 			"--install-dir", installDir,
-		)
+		}
+		if strings.TrimSpace(spec.ContextRoot) != "" && filepath.Clean(spec.ContextRoot) != filepath.Clean(item.modulePath) {
+			args = append(args, "--context-root", spec.ContextRoot)
+		}
+		for _, input := range spec.Inputs {
+			args = append(args, "--freshness-input", input)
+		}
+		cmd := exec.CommandContext(ctx, "go", args...)
 		cmd.Dir = installerDir
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
@@ -276,6 +286,28 @@ func installScenarioCLI(ctx context.Context, root, home string, item scenarioCLI
 		BinaryName:  item.binaryName,
 		Fingerprint: fingerprint,
 	})
+}
+
+// scenarioFreshnessSpec returns the canonical freshness contract used by both
+// cli-installer (at install time) and cli-core's runtime StaleChecker. Both
+// must evaluate the same spec to avoid perpetual reinstall loops.
+func scenarioFreshnessSpec(item scenarioCLI) (cliutil.FreshnessSpec, error) {
+	var customInputs []string
+	if item.config != nil && item.config.Freshness != nil {
+		customInputs = item.config.Freshness.Inputs
+	}
+	switch item.config.Adapter.Kind {
+	case "go_module":
+		return cliutil.CanonicalScenarioGoModuleFreshnessSpec(item.scenarioPath, item.modulePath, item.binaryName, customInputs), nil
+	case "shell_script":
+		manifestRel, err := filepath.Rel(item.scenarioPath, item.servicePath)
+		if err != nil {
+			return cliutil.FreshnessSpec{}, err
+		}
+		return cliutil.CanonicalShellScriptFreshnessSpec(item.scenarioPath, item.config.Adapter.ScriptPath, item.config.Adapter.InstallScript, manifestRel, item.binaryName, customInputs), nil
+	default:
+		return cliutil.FreshnessSpec{}, fmt.Errorf("unsupported scenario CLI adapter kind %q", item.config.Adapter.Kind)
+	}
 }
 
 func cliInstallerDir(root, modulePath string) (string, error) {
@@ -345,202 +377,11 @@ func writeInstallMetadata(home string, item scenarioCLI, meta installMetadata) e
 }
 
 func computeScenarioCLIFingerprint(item scenarioCLI) (string, error) {
-	switch item.config.Adapter.Kind {
-	case "go_module":
-		return computeFingerprint(item.modulePath, item.binaryName)
-	case "shell_script":
-		if item.config.Freshness != nil && len(item.config.Freshness.Inputs) > 0 {
-			return computeFingerprintFromScenarioInputs(item.scenarioPath, item.config.Freshness.Inputs, item.binaryName)
-		}
-		serviceRel, err := filepath.Rel(item.scenarioPath, item.servicePath)
-		if err != nil {
-			return "", err
-		}
-		return computeFingerprintFromScenarioInputs(item.scenarioPath, []string{
-			item.config.Adapter.ScriptPath,
-			item.config.Adapter.InstallScript,
-			filepath.ToSlash(serviceRel),
-		}, item.binaryName)
-	default:
-		return "", fmt.Errorf("unsupported scenario CLI adapter kind %q", item.config.Adapter.Kind)
-	}
-}
-
-type fileEntry struct {
-	rel  string
-	size int64
-	hash [32]byte
-}
-
-var skipDirs = []string{
-	".git",
-	".vscode",
-	".idea",
-	"coverage",
-	"dist",
-	"build",
-	"tmp",
-	"data",
-	"node_modules",
-}
-
-var skipFiles = []string{
-	"build.meta",
-}
-
-func computeFingerprint(root string, extraSkipFiles ...string) (string, error) {
-	var entries []fileEntry
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		rel, relErr := filepath.Rel(root, path)
-		if relErr != nil {
-			return relErr
-		}
-		rel = filepath.ToSlash(rel)
-		if rel == "." {
-			return nil
-		}
-		if shouldSkipDir(rel) && d.IsDir() {
-			return filepath.SkipDir
-		}
-		if d.IsDir() || shouldSkipFile(rel, extraSkipFiles) {
-			return nil
-		}
-		content, readErr := fs.ReadFile(os.DirFS(root), rel)
-		if readErr != nil {
-			return fmt.Errorf("read %s: %w", rel, readErr)
-		}
-		info, infoErr := d.Info()
-		if infoErr != nil {
-			return infoErr
-		}
-		entries = append(entries, fileEntry{rel: rel, size: info.Size(), hash: sha256.Sum256(content)})
-		return nil
-	})
+	spec, err := scenarioFreshnessSpec(item)
 	if err != nil {
 		return "", err
 	}
-	sort.Slice(entries, func(i, j int) bool { return entries[i].rel < entries[j].rel })
-	hasher := sha256.New()
-	for _, entry := range entries {
-		fmt.Fprintf(hasher, "%s|%d|%x\n", entry.rel, entry.size, entry.hash)
-	}
-	return fmt.Sprintf("%x", hasher.Sum(nil)), nil
-}
-
-func computeFingerprintFromScenarioInputs(scenarioRoot string, inputs []string, extraSkipFiles ...string) (string, error) {
-	entries := make(map[string]fileEntry)
-	for _, input := range inputs {
-		input = strings.TrimSpace(input)
-		if input == "" {
-			continue
-		}
-		matches, err := expandScenarioInputPaths(scenarioRoot, input)
-		if err != nil {
-			return "", err
-		}
-		for _, match := range matches {
-			info, err := os.Stat(match)
-			if err != nil {
-				if os.IsNotExist(err) {
-					continue
-				}
-				return "", err
-			}
-			if info.IsDir() {
-				if err := filepath.WalkDir(match, func(path string, d fs.DirEntry, err error) error {
-					if err != nil {
-						return err
-					}
-					rel, relErr := filepath.Rel(scenarioRoot, path)
-					if relErr != nil {
-						return relErr
-					}
-					rel = filepath.ToSlash(rel)
-					if rel == "." {
-						return nil
-					}
-					if shouldSkipDir(rel) && d.IsDir() {
-						return filepath.SkipDir
-					}
-					if d.IsDir() || shouldSkipFile(rel, extraSkipFiles) {
-						return nil
-					}
-					content, readErr := os.ReadFile(path)
-					if readErr != nil {
-						return readErr
-					}
-					fileInfo, infoErr := d.Info()
-					if infoErr != nil {
-						return infoErr
-					}
-					entries[rel] = fileEntry{rel: rel, size: fileInfo.Size(), hash: sha256.Sum256(content)}
-					return nil
-				}); err != nil {
-					return "", err
-				}
-				continue
-			}
-			rel, err := filepath.Rel(scenarioRoot, match)
-			if err != nil {
-				return "", err
-			}
-			rel = filepath.ToSlash(rel)
-			if shouldSkipFile(rel, extraSkipFiles) {
-				continue
-			}
-			content, err := os.ReadFile(match)
-			if err != nil {
-				return "", err
-			}
-			entries[rel] = fileEntry{rel: rel, size: info.Size(), hash: sha256.Sum256(content)}
-		}
-	}
-	list := make([]fileEntry, 0, len(entries))
-	for _, entry := range entries {
-		list = append(list, entry)
-	}
-	sort.Slice(list, func(i, j int) bool { return list[i].rel < list[j].rel })
-	hasher := sha256.New()
-	for _, entry := range list {
-		fmt.Fprintf(hasher, "%s|%d|%x\n", entry.rel, entry.size, entry.hash)
-	}
-	return fmt.Sprintf("%x", hasher.Sum(nil)), nil
-}
-
-func expandScenarioInputPaths(scenarioRoot, input string) ([]string, error) {
-	if strings.ContainsAny(input, "*?[") {
-		return filepath.Glob(filepath.Join(scenarioRoot, filepath.FromSlash(input)))
-	}
-	return []string{filepath.Join(scenarioRoot, filepath.FromSlash(input))}, nil
-}
-
-func shouldSkipDir(path string) bool {
-	path = filepath.ToSlash(path)
-	for _, skip := range skipDirs {
-		if path == skip || strings.HasPrefix(path, skip+"/") {
-			return true
-		}
-	}
-	return false
-}
-
-func shouldSkipFile(path string, extra []string) bool {
-	path = filepath.ToSlash(path)
-	for _, skip := range skipFiles {
-		if path == skip || strings.HasPrefix(path, skip+"/") {
-			return true
-		}
-	}
-	for _, skip := range extra {
-		skip = filepath.ToSlash(skip)
-		if path == skip || strings.HasPrefix(path, skip+"/") {
-			return true
-		}
-	}
-	return false
+	return cliutil.ComputeFreshnessFingerprint(spec)
 }
 
 func requireFile(path string) error {

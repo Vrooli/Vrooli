@@ -4,12 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"swarm-manager/internal/eventlog"
 	"testing"
 	"time"
 
 	_ "modernc.org/sqlite"
-
-	"swarm-manager/internal/eventlog"
 )
 
 func setupEngine(t *testing.T) (*Engine, *eventlog.SQLiteRepository) {

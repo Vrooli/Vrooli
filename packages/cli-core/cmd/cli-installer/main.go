@@ -157,12 +157,20 @@ func buildFreshnessSpec(modulePath, contextRoot string, inputs []string, binaryN
 	if modulePath == "" {
 		return cliutil.FreshnessSpec{}, errors.New("module path must not be empty")
 	}
-	modulePath = filepath.Clean(modulePath)
+	absModulePath, err := filepath.Abs(filepath.Clean(modulePath))
+	if err != nil {
+		return cliutil.FreshnessSpec{}, fmt.Errorf("resolve module path: %w", err)
+	}
+	modulePath = absModulePath
 
 	if strings.TrimSpace(contextRoot) == "" {
 		contextRoot = modulePath
 	} else {
-		contextRoot = filepath.Clean(strings.TrimSpace(contextRoot))
+		absContextRoot, err := filepath.Abs(filepath.Clean(strings.TrimSpace(contextRoot)))
+		if err != nil {
+			return cliutil.FreshnessSpec{}, fmt.Errorf("resolve context root: %w", err)
+		}
+		contextRoot = absContextRoot
 	}
 
 	return cliutil.FreshnessSpec{

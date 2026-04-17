@@ -2,7 +2,6 @@ package integration
 
 import (
 	"fmt"
-
 	"test-genie/internal/shared"
 )
 

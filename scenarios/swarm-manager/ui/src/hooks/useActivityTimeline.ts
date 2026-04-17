@@ -155,6 +155,6 @@ export function useActivityTimeline({
   return {
     entries,
     isLoading: (execLoading || actLoading) && enabled,
-    error: (execError ?? actError) as Error | null,
+    error: (execError ?? actError),
   };
 }

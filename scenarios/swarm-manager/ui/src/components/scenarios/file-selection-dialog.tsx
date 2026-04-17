@@ -160,7 +160,7 @@ export function FileSelectionDialog({
   onClose,
   onConfirm,
   scenarioName,
-  files = [],
+  files,
   isLoading = false,
   initialSelection,
 }: FileSelectionDialogProps) {
@@ -178,7 +178,7 @@ export function FileSelectionDialog({
       if (preset) {
         setSelectedPaths(getPathsForPreset(files, preset));
       } else {
-        setSelectedPaths(new Set(initialSelection?.paths ?? []));
+        setSelectedPaths(new Set<string>(initialSelection?.paths ?? []));
       }
     }
   }, [isOpen, initialSelection, files]);
@@ -195,7 +195,7 @@ export function FileSelectionDialog({
     setSelectedPreset(value);
     if (!value) {
       // Clear selection when switching to custom
-      setSelectedPaths(new Set());
+      setSelectedPaths(new Set<string>());
     }
   };
 
@@ -207,12 +207,12 @@ export function FileSelectionDialog({
 
   const handleSelectAll = () => {
     setSelectedPreset("");
-    setSelectedPaths(new Set(allFilePaths));
+    setSelectedPaths(new Set<string>(allFilePaths));
   };
 
   const handleClearAll = () => {
     setSelectedPreset("");
-    setSelectedPaths(new Set());
+    setSelectedPaths(new Set<string>());
   };
 
   const handleConfirm = () => {

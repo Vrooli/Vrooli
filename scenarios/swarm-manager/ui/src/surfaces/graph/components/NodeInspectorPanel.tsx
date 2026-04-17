@@ -45,11 +45,6 @@ import {
   type GraphNodeData,
   type BacklogGraphNodeData,
   type InitiativeGraphNodeData,
-  type ExecutionGraphNodeData,
-  type CaptureGraphNodeData,
-  type AgentActivityGraphNodeData,
-  type RunGraphNodeData,
-  type ScenarioGraphNodeData,
 } from "../types";
 import type { GraphLens } from "../stores/graph-data-store";
 
@@ -105,7 +100,7 @@ function EntityMeta({ data }: { data: GraphNodeData }) {
       );
     }
     case "execution": {
-      const d = data as ExecutionGraphNodeData;
+      const d = data;
       return (
         <div className="flex items-center gap-2 text-xs text-slate-400">
           <span className="rounded bg-slate-800 px-1.5 py-0.5 font-medium capitalize">{d.mode}</span>
@@ -114,7 +109,7 @@ function EntityMeta({ data }: { data: GraphNodeData }) {
       );
     }
     case "scenario": {
-      const d = data as ScenarioGraphNodeData;
+      const d = data;
       return (
         <div className="text-xs text-slate-400">
           <span className="capitalize">{d.name}</span>
@@ -122,13 +117,13 @@ function EntityMeta({ data }: { data: GraphNodeData }) {
       );
     }
     case "capture": {
-      const d = data as CaptureGraphNodeData;
+      const d = data;
       return (
         <p className="line-clamp-2 text-xs text-slate-400">{d.text}</p>
       );
     }
     case "agent-activity": {
-      const d = data as AgentActivityGraphNodeData;
+      const d = data;
       return (
         <div className="flex items-center gap-2 text-xs text-slate-400">
           <span className="capitalize">{d.purpose}</span>
@@ -137,7 +132,7 @@ function EntityMeta({ data }: { data: GraphNodeData }) {
       );
     }
     case "agent-run": {
-      const d = data as RunGraphNodeData;
+      const d = data;
       return (
         <div className="text-xs text-slate-400 font-mono">
           {d.runId}
@@ -305,7 +300,7 @@ export function NodeInspectorPanel() {
               <button
                 type="button"
                 onClick={() => {
-                  const d = nodeData as BacklogGraphNodeData;
+                  const d = nodeData;
                   queueMutation.mutate({ kind: d.kind, name: d.name });
                 }}
                 disabled={queueMutation.isPending}

@@ -2,14 +2,13 @@ package main
 
 import (
 	"errors"
-	"time"
-
-	"github.com/gorilla/mux"
-
 	"scenario-to-cloud/deployment"
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/secrets"
 	"scenario-to-cloud/tlsinfo"
+	"time"
+
+	"github.com/gorilla/mux"
 )
 
 func newTestServer() *Server {

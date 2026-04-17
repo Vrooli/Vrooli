@@ -6,11 +6,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"test-genie/internal/requirements/discovery"
+	"test-genie/internal/requirements/types"
 	"testing"
 
-	"test-genie/internal/requirements/discovery"
 	reqparsing "test-genie/internal/requirements/parsing"
-	"test-genie/internal/requirements/types"
 )
 
 // mockParser implements reqparsing.Parser for testing.

@@ -1,9 +1,8 @@
 package orchestration
 
 import (
-	"testing"
-
 	"agent-manager/internal/domain"
+	"testing"
 )
 
 func TestNormalizeSandboxConfig_AutoApproveDefaultsDeleteOn(t *testing.T) {

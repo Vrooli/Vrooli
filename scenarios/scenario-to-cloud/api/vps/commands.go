@@ -2,7 +2,6 @@ package vps
 
 import (
 	"fmt"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/shellutil"
 )

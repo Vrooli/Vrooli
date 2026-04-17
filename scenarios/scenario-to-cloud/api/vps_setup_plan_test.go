@@ -3,12 +3,11 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"strings"
-	"testing"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/vps"
+	"strings"
+	"testing"
 )
 
 func TestBuildSetupPlanIncludesUploadAndSetup(t *testing.T) {

@@ -1,10 +1,10 @@
 package main
 
 import (
-	"github.com/vrooli/cli-core/cliapp"
-
 	"prompt-manager/cli/domains"
 	"prompt-manager/cli/internal/appctx"
+
+	"github.com/vrooli/cli-core/cliapp"
 )
 
 const (

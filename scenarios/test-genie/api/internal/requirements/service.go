@@ -8,7 +8,6 @@ import (
 	"io/fs"
 	"log"
 	"path/filepath"
-
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/requirements/discovery"
 	"test-genie/internal/requirements/enrichment"
@@ -16,9 +15,10 @@ import (
 	"test-genie/internal/requirements/parsing"
 	"test-genie/internal/requirements/reporting"
 	"test-genie/internal/requirements/snapshot"
-	syncpkg "test-genie/internal/requirements/sync"
 	"test-genie/internal/requirements/types"
 	"test-genie/internal/requirements/validation"
+
+	syncpkg "test-genie/internal/requirements/sync"
 )
 
 // Service orchestrates requirement operations.

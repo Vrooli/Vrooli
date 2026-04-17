@@ -3,8 +3,6 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
-import { useScenarioState, type UseScenarioStateOptions } from "../useScenarioState";
 import {
   mockFetchScenarioState,
   createWrapper,
@@ -12,6 +10,8 @@ import {
   createLoadStateResponse,
   defaultOptions,
 } from "./useScenarioState.testUtils";
+import { renderHook, waitFor } from "@testing-library/react";
+import { useScenarioState, type UseScenarioStateOptions } from "../useScenarioState";
 
 beforeEach(() => {
   vi.clearAllMocks();

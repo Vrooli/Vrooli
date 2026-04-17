@@ -3,9 +3,8 @@ package phases
 import (
 	"os"
 	"path/filepath"
-	"testing"
-
 	"test-genie/internal/orchestrator/workspace"
+	"testing"
 )
 
 func TestDetectResourceNeedsSupportsSQLite(t *testing.T) {

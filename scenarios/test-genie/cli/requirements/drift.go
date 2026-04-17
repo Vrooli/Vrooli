@@ -7,12 +7,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"test-genie/internal/requirements/evidence"
+	"test-genie/internal/requirements/snapshot"
 	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
-
-	"test-genie/internal/requirements/evidence"
-	"test-genie/internal/requirements/snapshot"
 )
 
 type driftResult struct {
@@ -158,7 +157,7 @@ func newestArtifact(dir string) (time.Time, error) {
 			continue
 		}
 		if info.IsDir() {
-			filepath.Walk(path, func(p string, fi os.FileInfo, err error) error {
+			_ = filepath.Walk(path, func(_ string, fi os.FileInfo, err error) error {
 				if err != nil {
 					return nil
 				}

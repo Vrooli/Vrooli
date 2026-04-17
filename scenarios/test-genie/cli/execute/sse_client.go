@@ -10,9 +10,8 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"time"
-
 	"test-genie/cli/execute/report"
+	"time"
 )
 
 // SSE event types (must match server)
@@ -136,9 +135,7 @@ func (c *Client) processSSEStream(r io.Reader, printer *report.Printer, phaseNam
 				if err := json.Unmarshal([]byte(data), &event); err == nil {
 					elapsed := time.Since(startTime).Truncate(time.Second)
 					// Print phase start marker
-					fmt.Fprintf(os.Stdout, "%s\n", color.Cyan(fmt.Sprintf(
-						"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-					)))
+					fmt.Fprintf(os.Stdout, "%s\n", color.Cyan("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"))
 					fmt.Fprintf(os.Stdout, "%s Running phase %s [%d/%d] • elapsed %s\n",
 						color.Yellow("⟳"),
 						color.Bold(event.Phase),

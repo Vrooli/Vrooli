@@ -2,9 +2,8 @@ package performance
 
 import (
 	"fmt"
-	"time"
-
 	"test-genie/internal/shared"
+	"time"
 )
 
 // Re-export shared types for convenience.

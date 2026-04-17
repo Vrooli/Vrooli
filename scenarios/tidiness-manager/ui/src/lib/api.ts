@@ -156,14 +156,15 @@ export interface ScanResult {
 export interface Issue {
   id?: number;
   scenario: string;
-  file: string;
+  file?: string;
+  file_path?: string;
   line: number;
   column: number;
   message: string;
-  rule?: string;
+  rule?: string | null;
   severity: "error" | "warning";
   tool: string;
-  category: "lint" | "type" | "ai";
+  category: string;
   status?: "open" | "resolved" | "ignored";
   resolved_at?: string;
   resolved_by?: string;
@@ -197,8 +198,8 @@ export interface ScenarioStats {
   long_files: number;
   visit_percent: number;
   campaign_status: "none" | "active" | "paused" | "completed" | "error";
-  total_files: number;
-  total_lines: number;
+  total_files?: number;
+  total_lines?: number;
   last_scan?: string;
 }
 
@@ -211,7 +212,7 @@ export interface FileStats {
   visit_count: number;
   is_long_file: boolean;
   last_visited?: string;
-  extension: string;
+  extension?: string;
 }
 
 // ============================================================================

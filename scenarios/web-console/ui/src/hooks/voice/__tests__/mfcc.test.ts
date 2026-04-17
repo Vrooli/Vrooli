@@ -33,7 +33,9 @@ describe("fft", () => {
     }
     fft(real, imag);
     // Magnitude at bin 3 and n-3 should be ~n/2
-    const mag3 = Math.sqrt(real[3] ** 2 + imag[3] ** 2);
+    const real3 = real[3] ?? 0;
+    const imag3 = imag[3] ?? 0;
+    const mag3 = Math.sqrt(real3 ** 2 + imag3 ** 2);
     expect(mag3).toBeCloseTo(n / 2, 1);
   });
 });
@@ -88,7 +90,7 @@ describe("dctII", () => {
     const n = 8;
     const input = new Float64Array(n).fill(1);
     const result = dctII(input, 4);
-    expect(Math.abs(result[0])).toBeGreaterThan(0);
+    expect(Math.abs(result[0] ?? 0)).toBeGreaterThan(0);
   });
 });
 
@@ -120,7 +122,7 @@ describe("extractMfcc", () => {
 
     const mfccs = extractMfcc(audio, sampleRate);
     expect(mfccs.length).toBeGreaterThan(150); // ~198 frames for 2s
-    expect(mfccs[0].length).toBe(NUM_MFCC_COEFFICIENTS);
+    expect(mfccs[0]?.length).toBe(NUM_MFCC_COEFFICIENTS);
   });
 
   it("produces deterministic output for identical input", () => {
@@ -132,8 +134,11 @@ describe("extractMfcc", () => {
 
     expect(result1.length).toBe(result2.length);
     for (let f = 0; f < result1.length; f++) {
+      const row1 = result1[f];
+      const row2 = result2[f];
+      if (!row1 || !row2) throw new Error("missing frame");
       for (let c = 0; c < NUM_MFCC_COEFFICIENTS; c++) {
-        expect(result1[f][c]).toBeCloseTo(result2[f][c], 10);
+        expect(row1[c] ?? 0).toBeCloseTo(row2[c] ?? 0, 10);
       }
     }
   });
@@ -163,8 +168,11 @@ describe("extractMfcc", () => {
     let totalDiff = 0;
     const minLen = Math.min(mfcc1.length, mfcc2.length);
     for (let f = 0; f < minLen; f++) {
+      const row1 = mfcc1[f];
+      const row2 = mfcc2[f];
+      if (!row1 || !row2) continue;
       for (let c = 0; c < NUM_MFCC_COEFFICIENTS; c++) {
-        totalDiff += Math.abs(mfcc1[f][c] - mfcc2[f][c]);
+        totalDiff += Math.abs((row1[c] ?? 0) - (row2[c] ?? 0));
       }
     }
     expect(totalDiff).toBeGreaterThan(0);

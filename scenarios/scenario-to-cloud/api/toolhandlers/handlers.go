@@ -14,9 +14,8 @@ package toolhandlers
 
 import (
 	"net/http"
-	"strings"
-
 	"scenario-to-cloud/toolregistry"
+	"strings"
 
 	"google.golang.org/protobuf/encoding/protojson"
 )

@@ -20,10 +20,10 @@ _Last reviewed: 2025-11-08_
 WorkflowService.ExecuteWorkflow ---> Workflow Graph Compiler ---> Execution Plan
            |                                                      |
            v                                                      v
-   ExecutionRegistry (Postgres) <---- Session Manager ----> Playwright Driver API
+   ExecutionRegistry (SQLite) <---- Session Manager ----> Playwright Driver API
            |                                                      |
            v                                                      v
- WebSocket Hub <---- Telemetry Streamer ---- per-step events ----> Artifact Store (Postgres + MinIO)
+ WebSocket Hub <---- Telemetry Streamer ---- per-step events ----> Artifact Store (SQLite + MinIO)
 ```
 
 ## Component Breakdown

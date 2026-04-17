@@ -129,7 +129,7 @@ export function GraphWorkspaceHUD({
             activities={agentActivities}
             onViewActivity={onViewActivity}
             onViewBacklog={onViewBacklog}
-            onStopRun={(runId) => void onStopRun(runId)}
+            onStopRun={(runId) => onStopRun(runId)}
             maxConcurrent={maxConcurrent}
             variant="button"
             className={sidebarCollapsed ? "" : "md:hidden"}

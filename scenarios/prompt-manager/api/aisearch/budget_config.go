@@ -4,9 +4,8 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"sync"
-
 	"prompt-manager/store"
+	"sync"
 )
 
 // BudgetConfig maps complexity tiers to character budgets for skill discovery.

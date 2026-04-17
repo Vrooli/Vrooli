@@ -4,12 +4,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"swarm-manager/internal/testutil"
 	"testing"
 
 	"github.com/gorilla/mux"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
-	"swarm-manager/internal/testutil"
 )
 
 func TestHandler_GetViaRouter(t *testing.T) {

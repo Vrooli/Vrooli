@@ -7,11 +7,10 @@ import (
 	"math"
 	"os"
 	"os/exec"
-	"strings"
-	"time"
-
 	"scenario-dependency-analyzer/internal/integrations/ollama"
 	"scenario-dependency-analyzer/internal/integrations/qdrant"
+	"strings"
+	"time"
 )
 
 // normalizeName lowercases and trims whitespace for consistent name comparisons.

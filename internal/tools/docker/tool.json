@@ -7,7 +7,10 @@
   "defaultPackage": "docker.io",
   "packages": {
     "brew": "docker",
-    "winget": "Docker.DockerDesktop"
+    "winget": "Docker.DockerDesktop",
+    "dnf": "docker",
+    "pacman": "docker",
+    "apk": "docker"
   },
   "installHint": "Install Docker Engine or Docker Desktop",
   "platforms": ["linux", "macos", "windows"],

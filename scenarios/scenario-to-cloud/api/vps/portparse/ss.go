@@ -2,10 +2,9 @@ package portparse
 
 import (
 	"regexp"
+	"scenario-to-cloud/domain"
 	"strconv"
 	"strings"
-
-	"scenario-to-cloud/domain"
 )
 
 // ParseSSOutput parses the output of `ss -tlnp`.

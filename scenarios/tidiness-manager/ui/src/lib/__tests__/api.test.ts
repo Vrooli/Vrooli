@@ -4,7 +4,7 @@ import * as api from '../api';
 // Mock @vrooli/api-base
 vi.mock('@vrooli/api-base', () => ({
   resolveWithConfig: vi.fn(),
-  buildApiUrl: vi.fn((base, path) => `${base}${path}`),
+  buildApiUrl: vi.fn((path: string, options?: { baseUrl?: string }) => `${options?.baseUrl ?? ''}${path}`),
 }));
 
 describe('API Module', () => {
@@ -14,7 +14,7 @@ describe('API Module', () => {
     vi.clearAllMocks();
 
     // Mock fetch globally
-    global.fetch = vi.fn();
+    globalThis.fetch = vi.fn();
   });
 
   afterEach(() => {
@@ -92,7 +92,7 @@ describe('API Module', () => {
         },
       };
 
-      (global.fetch as any).mockResolvedValue({
+      (globalThis.fetch as any).mockResolvedValue({
         ok: true,
         json: () => Promise.resolve(mockHealthResponse),
       });
@@ -102,7 +102,7 @@ describe('API Module', () => {
       expect(health.status).toBe('healthy');
       expect(health.readiness).toBe(true);
       expect(health.service).toBe('tidiness-manager');
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(globalThis.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/health'),
         expect.objectContaining({
           headers: { 'Content-Type': 'application/json' },
@@ -115,7 +115,7 @@ describe('API Module', () => {
       const { resolveWithConfig } = await import('@vrooli/api-base');
       (resolveWithConfig as any).mockResolvedValue('http://localhost:8080/');
 
-      (global.fetch as any).mockResolvedValue({
+      (globalThis.fetch as any).mockResolvedValue({
         ok: false,
         status: 503,
       });
@@ -127,7 +127,7 @@ describe('API Module', () => {
       const { resolveWithConfig } = await import('@vrooli/api-base');
       (resolveWithConfig as any).mockResolvedValue('http://localhost:8080/');
 
-      (global.fetch as any).mockRejectedValue(new Error('Network error'));
+      (globalThis.fetch as any).mockRejectedValue(new Error('Network error'));
 
       await expect(api.fetchHealth()).rejects.toThrow('Network error');
     });
@@ -150,7 +150,7 @@ describe('API Module', () => {
         has_makefile: true,
       };
 
-      (global.fetch as any).mockResolvedValue({
+      (globalThis.fetch as any).mockResolvedValue({
         ok: true,
         json: () => Promise.resolve(mockScanResult),
       });
@@ -159,7 +159,7 @@ describe('API Module', () => {
 
       expect(result.scenario).toBe('test-scenario');
       expect(result.total_files).toBe(10);
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(globalThis.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/scan/light'),
         expect.objectContaining({
           method: 'POST',
@@ -172,7 +172,7 @@ describe('API Module', () => {
       const { resolveWithConfig } = await import('@vrooli/api-base');
       (resolveWithConfig as any).mockResolvedValue('http://localhost:8080/');
 
-      (global.fetch as any).mockResolvedValue({
+      (globalThis.fetch as any).mockResolvedValue({
         ok: false,
         status: 400,
         json: () => Promise.resolve({ error: 'Invalid scenario path' }),
@@ -185,7 +185,7 @@ describe('API Module', () => {
       const { resolveWithConfig } = await import('@vrooli/api-base');
       (resolveWithConfig as any).mockResolvedValue('http://localhost:8080/');
 
-      (global.fetch as any).mockResolvedValue({
+      (globalThis.fetch as any).mockResolvedValue({
         ok: false,
         status: 500,
         json: () => Promise.reject(new Error('Invalid JSON')),
@@ -217,7 +217,7 @@ describe('API Module', () => {
         count: 1,
       };
 
-      (global.fetch as any).mockResolvedValue({
+      (globalThis.fetch as any).mockResolvedValue({
         ok: true,
         json: () => Promise.resolve(mockResponse),
       });
@@ -227,7 +227,7 @@ describe('API Module', () => {
       expect(result.count).toBe(1);
       expect(result.issues).toHaveLength(1);
       expect(result.issues[0].message).toBe('Unused variable');
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(globalThis.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/scan/light/parse-lint'),
         expect.objectContaining({
           method: 'POST',
@@ -240,7 +240,7 @@ describe('API Module', () => {
       const { resolveWithConfig } = await import('@vrooli/api-base');
       (resolveWithConfig as any).mockResolvedValue('http://localhost:8080/');
 
-      (global.fetch as any).mockResolvedValue({
+      (globalThis.fetch as any).mockResolvedValue({
         ok: false,
         status: 400,
         json: () => Promise.resolve({ error: 'Invalid output format' }),
@@ -271,7 +271,7 @@ describe('API Module', () => {
         count: 1,
       };
 
-      (global.fetch as any).mockResolvedValue({
+      (globalThis.fetch as any).mockResolvedValue({
         ok: true,
         json: () => Promise.resolve(mockResponse),
       });
@@ -297,7 +297,7 @@ describe('API Module', () => {
         count: 2,
       };
 
-      (global.fetch as any).mockResolvedValue({
+      (globalThis.fetch as any).mockResolvedValue({
         ok: true,
         json: () => Promise.resolve(mockApiResponse),
       });
@@ -315,7 +315,7 @@ describe('API Module', () => {
       const { resolveWithConfig } = await import('@vrooli/api-base');
       (resolveWithConfig as any).mockResolvedValue('http://localhost:8080/');
 
-      (global.fetch as any).mockResolvedValue({
+      (globalThis.fetch as any).mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({ scenarios: [], count: 0 }),
       });
@@ -346,7 +346,7 @@ describe('API Module', () => {
         },
       ];
 
-      (global.fetch as any).mockResolvedValue({
+      (globalThis.fetch as any).mockResolvedValue({
         ok: true,
         json: () => Promise.resolve(mockIssues),
       });
@@ -360,7 +360,7 @@ describe('API Module', () => {
       expect(issues).toHaveLength(1);
       expect(issues[0].file).toBe('test.ts');
       expect(issues[0].line).toBe(10);
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(globalThis.fetch).toHaveBeenCalledWith(
         expect.stringMatching(/scenario=test-scenario.*status=open.*category=lint.*severity=warning/),
         expect.any(Object)
       );
@@ -370,7 +370,7 @@ describe('API Module', () => {
       const { resolveWithConfig } = await import('@vrooli/api-base');
       (resolveWithConfig as any).mockResolvedValue('http://localhost:8080/');
 
-      (global.fetch as any).mockResolvedValue({
+      (globalThis.fetch as any).mockResolvedValue({
         ok: true,
         json: () => Promise.resolve([]),
       });
@@ -382,7 +382,7 @@ describe('API Module', () => {
       });
 
       // Verify that "all" filters are not included in the query string
-      const [[url]] = (global.fetch as any).mock.calls;
+      const [[url]] = (globalThis.fetch as any).mock.calls;
       expect(url).toContain('scenario=test-scenario');
       expect(url).not.toContain('status=all');
       expect(url).not.toContain('category=all');
@@ -401,7 +401,7 @@ describe('API Module', () => {
         updated_at: '2024-01-01T00:00:00Z',
       };
 
-      (global.fetch as any).mockResolvedValue({
+      (globalThis.fetch as any).mockResolvedValue({
         ok: true,
         json: () => Promise.resolve(mockResponse),
       });
@@ -410,7 +410,7 @@ describe('API Module', () => {
 
       expect(result.id).toBe(1);
       expect(result.status).toBe('resolved');
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(globalThis.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/agent/issues/1'),
         expect.objectContaining({
           method: 'PATCH',
@@ -423,7 +423,7 @@ describe('API Module', () => {
       const { resolveWithConfig } = await import('@vrooli/api-base');
       (resolveWithConfig as any).mockResolvedValue('http://localhost:8080/');
 
-      (global.fetch as any).mockResolvedValue({
+      (globalThis.fetch as any).mockResolvedValue({
         ok: false,
         status: 404,
         json: () => Promise.resolve({ error: 'Issue not found' }),
@@ -455,19 +455,17 @@ describe('API Module', () => {
     it('should build correct API URLs', async () => {
       const { buildApiUrl } = await import('@vrooli/api-base');
 
-      const base = 'http://localhost:8080';
       const path = '/api/health';
 
-      expect(buildApiUrl(base, path)).toBe('http://localhost:8080/api/health');
+      expect(buildApiUrl(path, { baseUrl: 'http://localhost:8080' })).toBe('http://localhost:8080/api/health');
     });
 
     it('should handle trailing slashes correctly', async () => {
       const { buildApiUrl } = await import('@vrooli/api-base');
 
-      const base = 'http://localhost:8080/';
       const path = '/api/health';
 
-      const url = buildApiUrl(base, path);
+      const url = buildApiUrl(path, { baseUrl: 'http://localhost:8080/' });
       // The mocked buildApiUrl just concatenates, so this test verifies the mock behavior
       // In a real implementation, buildApiUrl would handle double slashes
       expect(url).toContain('/api/health');
@@ -554,13 +552,13 @@ describe('API Module', () => {
 
   describe('Edge cases', () => {
     it('should handle empty string responses', async () => {
-      (global.fetch as any).mockResolvedValue({
+      (globalThis.fetch as any).mockResolvedValue({
         ok: true,
         text: () => Promise.resolve(''),
       });
 
       // Should handle empty responses
-      expect(global.fetch).toBeDefined();
+      expect(globalThis.fetch).toBeDefined();
     });
 
     it('should handle very large responses', async () => {
@@ -568,13 +566,13 @@ describe('API Module', () => {
         files: Array(10000).fill({ path: 'test.ts', lines: 100, extension: '.ts' }),
       });
 
-      (global.fetch as any).mockResolvedValue({
+      (globalThis.fetch as any).mockResolvedValue({
         ok: true,
         json: () => Promise.resolve(JSON.parse(largeData)),
       });
 
       // Should handle large datasets
-      expect(global.fetch).toBeDefined();
+      expect(globalThis.fetch).toBeDefined();
     });
 
     it('should handle special characters in paths', () => {
@@ -605,7 +603,7 @@ describe('API Module', () => {
       (resolveWithConfig as any).mockResolvedValue('http://localhost:8080/');
 
       const timeoutError = new Error('Request timeout');
-      (global.fetch as any).mockRejectedValue(timeoutError);
+      (globalThis.fetch as any).mockRejectedValue(timeoutError);
 
       // Should handle timeouts gracefully
       expect(timeoutError.message).toBe('Request timeout');
@@ -614,36 +612,36 @@ describe('API Module', () => {
 
   describe('HTTP status codes', () => {
     it('should handle 404 Not Found', async () => {
-      (global.fetch as any).mockResolvedValue({
+      (globalThis.fetch as any).mockResolvedValue({
         ok: false,
         status: 404,
         statusText: 'Not Found',
       });
 
       // Should handle 404 appropriately
-      const response = await (global.fetch as any)();
+      const response = await (globalThis.fetch as any)();
       expect(response.status).toBe(404);
     });
 
     it('should handle 500 Internal Server Error', async () => {
-      (global.fetch as any).mockResolvedValue({
+      (globalThis.fetch as any).mockResolvedValue({
         ok: false,
         status: 500,
         statusText: 'Internal Server Error',
       });
 
-      const response = await (global.fetch as any)();
+      const response = await (globalThis.fetch as any)();
       expect(response.status).toBe(500);
     });
 
     it('should handle 401 Unauthorized', async () => {
-      (global.fetch as any).mockResolvedValue({
+      (globalThis.fetch as any).mockResolvedValue({
         ok: false,
         status: 401,
         statusText: 'Unauthorized',
       });
 
-      const response = await (global.fetch as any)();
+      const response = await (globalThis.fetch as any)();
       expect(response.status).toBe(401);
     });
   });

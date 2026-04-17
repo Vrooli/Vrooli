@@ -6,7 +6,9 @@
   "versionArgs": ["-version"],
   "defaultPackage": "xvfb",
   "packages": {
-    "apt-get": "xvfb"
+    "apt-get": "xvfb",
+    "dnf": "xorg-x11-server-Xvfb",
+    "pacman": "xorg-server-xvfb"
   },
   "installHint": "Install Xvfb to provide a virtual Linux display for desktop smoke tests",
   "platforms": ["linux"]

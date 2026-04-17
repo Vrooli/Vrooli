@@ -201,13 +201,12 @@ func TestRouterPerformance(t *testing.T) {
 	server, srvCleanup := setupTestServer(t)
 	defer srvCleanup()
 
+	// Only use lightweight routes (health endpoints) to measure pure
+	// router+middleware dispatch speed. Heavier routes shell out to the
+	// vrooli CLI, which is handler-level cost, not dispatch cost.
 	routes := []string{
 		"/health",
 		"/api/health",
-		"/api/v1/apps/summary",
-		"/api/v1/apps",
-		"/api/v1/system/metrics",
-		"/api/v1/resources",
 	}
 
 	t.Run("RouteDispatchSpeed", func(t *testing.T) {

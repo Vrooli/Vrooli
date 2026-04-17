@@ -2,13 +2,12 @@ package main
 
 import (
 	"context"
-	"testing"
-	"time"
-
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/vps/preflight"
+	"testing"
+	"time"
 )
 
 func TestVPSPreflightProxyModeRequiresDNS01(t *testing.T) {
@@ -45,7 +44,7 @@ func TestVPSPreflightProxyModeRequiresDNS01(t *testing.T) {
 		&FakeSSHRunner{Responses: basePreflightResponses()},
 		preflight.RunOptions{
 			PortProbe: func(_ context.Context, _ string, _ int, _ time.Duration) error { return nil },
-			TLSALPNProbe: func(_ context.Context, _ string, _ string, _ int, _ time.Duration) (string, error) {
+			TLSALPNProbe: func(_ context.Context, _, _ string, _ int, _ time.Duration) (string, error) {
 				return "acme-tls/1", nil
 			},
 		},
@@ -103,7 +102,7 @@ func TestVPSPreflightProxyModeWarnPolicy(t *testing.T) {
 		&FakeSSHRunner{Responses: basePreflightResponses()},
 		preflight.RunOptions{
 			PortProbe: func(_ context.Context, _ string, _ int, _ time.Duration) error { return nil },
-			TLSALPNProbe: func(_ context.Context, _ string, _ string, _ int, _ time.Duration) (string, error) {
+			TLSALPNProbe: func(_ context.Context, _, _ string, _ int, _ time.Duration) (string, error) {
 				return "acme-tls/1", nil
 			},
 		},
@@ -161,7 +160,7 @@ func TestVPSPreflightALPNWarnOnWrongProtocol(t *testing.T) {
 		&FakeSSHRunner{Responses: basePreflightResponses()},
 		preflight.RunOptions{
 			PortProbe:    func(_ context.Context, _ string, _ int, _ time.Duration) error { return nil },
-			TLSALPNProbe: func(_ context.Context, _ string, _ string, _ int, _ time.Duration) (string, error) { return "h2", nil },
+			TLSALPNProbe: func(_ context.Context, _, _ string, _ int, _ time.Duration) (string, error) { return "h2", nil },
 		},
 	)
 

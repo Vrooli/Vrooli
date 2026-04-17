@@ -98,11 +98,10 @@ BadExample:
 package interop
 
 import (
+	"app-monitor-api/rules"
 	"os"
 	"path/filepath"
 	"regexp"
-
-	"app-monitor-api/rules"
 )
 
 var noCustomServerPattern = regexp.MustCompile(`(?i)(express\(\)|createServer|http\.listen|\.listen\(\d)`)

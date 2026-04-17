@@ -7,9 +7,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
-
 	"test-genie/internal/playbooks/types"
+	"time"
 )
 
 // Builder creates playbook registry files by scanning scenario directories.

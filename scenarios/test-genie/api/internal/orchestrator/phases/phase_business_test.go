@@ -6,9 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"testing"
-
 	"test-genie/internal/orchestrator/workspace"
+	"testing"
 )
 
 func TestRunBusinessPhaseValidatesModules(t *testing.T) {

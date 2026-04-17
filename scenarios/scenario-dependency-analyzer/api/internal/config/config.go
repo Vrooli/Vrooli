@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
-	_ "github.com/lib/pq"
+	_ "github.com/lib/pq" // Registers the PostgreSQL driver with database/sql.
 	"github.com/vrooli/api-core/database"
 )
 
@@ -22,7 +22,7 @@ type Config struct {
 
 // Load reads environment variables (and .env files) to build the Config.
 func Load() Config {
-	godotenv.Load()
+	_ = godotenv.Load()
 
 	port := os.Getenv("API_PORT")
 	if port == "" {

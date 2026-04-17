@@ -5,10 +5,12 @@ package teams
 
 import "prompt-manager/teamconfig"
 
-type RuntimeDTO = teamconfig.Runtime
-type CoordinationCapabilitiesDTO = teamconfig.Capabilities
-type CoordinationDTO = teamconfig.Coordination
-type ExecutionDTO = teamconfig.Execution
+type (
+	RuntimeDTO                  = teamconfig.Runtime
+	CoordinationCapabilitiesDTO = teamconfig.Capabilities
+	CoordinationDTO             = teamconfig.Coordination
+	ExecutionDTO                = teamconfig.Execution
+)
 
 // Response is the API response for a team.
 type Response struct {

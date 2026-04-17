@@ -5,13 +5,14 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"scenario-dependency-analyzer/internal/deployment"
 	"testing"
 	"time"
 
 	"github.com/vrooli/api-core/storage"
 	appoptimization "scenario-dependency-analyzer/internal/app/optimization"
 	appconfig "scenario-dependency-analyzer/internal/config"
-	"scenario-dependency-analyzer/internal/deployment"
+
 	types "scenario-dependency-analyzer/internal/types"
 )
 
@@ -39,8 +40,8 @@ func TestHealthHandler(t *testing.T) {
 			t.Errorf("Expected status 'healthy' or 'degraded', got %v", status)
 		}
 
-		if response["service"] != "scenario-dependency-analyzer" {
-			t.Errorf("Expected service name, got %v", response["service"])
+		if response["service"] != "scenario-dependency-analyzer-api" {
+			t.Errorf("Expected service 'scenario-dependency-analyzer-api', got %v", response["service"])
 		}
 	})
 }
@@ -564,7 +565,7 @@ func canonicalDeploymentReportPath(scenario string) (string, error) {
 func writeTestServiceConfig(t *testing.T, scenariosDir, name string, cfg *types.ServiceConfig) string {
 	t.Helper()
 	scenarioPath := filepath.Join(scenariosDir, name)
-	if err := os.MkdirAll(filepath.Join(scenarioPath, ".vrooli"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(scenarioPath, ".vrooli"), 0o755); err != nil {
 		t.Fatalf("failed to create scenario dirs: %v", err)
 	}
 	data, err := json.MarshalIndent(cfg, "", "  ")
@@ -572,7 +573,7 @@ func writeTestServiceConfig(t *testing.T, scenariosDir, name string, cfg *types.
 		t.Fatalf("failed to marshal service config: %v", err)
 	}
 	servicePath := filepath.Join(scenarioPath, ".vrooli", "service.json")
-	if err := os.WriteFile(servicePath, data, 0644); err != nil {
+	if err := os.WriteFile(servicePath, data, 0o644); err != nil {
 		t.Fatalf("failed to write service config: %v", err)
 	}
 	return scenarioPath
@@ -634,7 +635,7 @@ func setupTempScenarios(t *testing.T) tempScenarioEnv {
 	t.Helper()
 	root := t.TempDir()
 	scenariosDir := filepath.Join(root, "scenarios")
-	if err := os.MkdirAll(scenariosDir, 0755); err != nil {
+	if err := os.MkdirAll(scenariosDir, 0o755); err != nil {
 		t.Fatalf("failed to create temp scenarios dir: %v", err)
 	}
 	return tempScenarioEnv{ScenariosDir: scenariosDir}

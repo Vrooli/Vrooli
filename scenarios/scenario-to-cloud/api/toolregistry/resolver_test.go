@@ -3,9 +3,8 @@ package toolregistry
 import (
 	"context"
 	"errors"
-	"testing"
-
 	"scenario-to-cloud/domain"
+	"testing"
 )
 
 // mockDeploymentRepository is a test double for DeploymentRepository.

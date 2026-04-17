@@ -97,7 +97,6 @@ func (s *HistoryService) GetHistory(filters HistoryFilters) ([]ProfilePerformanc
 			&userFeedbackAt,
 			&perf.ExecutedAt,
 		)
-
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan history row: %w", err)
 		}

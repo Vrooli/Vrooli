@@ -156,10 +156,12 @@ func TestGenerateRecommendations(t *testing.T) {
 					"desktop": {BlockingDependencies: []string{"postgres"}},
 				},
 				Dependencies: []types.DeploymentDependencyNode{
-					{Name: "postgres", Type: "resource", Alternatives: []string{"sqlite"},
+					{
+						Name: "postgres", Type: "resource", Alternatives: []string{"sqlite"},
 						TierSupport: map[string]types.TierSupportSummary{
 							"desktop": {Supported: boolPtr(false), FitnessScore: &fitness},
-						}},
+						},
+					},
 				},
 			},
 		}
@@ -218,12 +220,18 @@ func TestBuildSummary(t *testing.T) {
 
 	t.Run("WithRecommendations", func(t *testing.T) {
 		recs := []types.OptimizationRecommendation{
-			{RecommendationType: "dependency_reduction", Priority: "medium",
-				RecommendedState: map[string]interface{}{"action": "remove_resource"}},
-			{RecommendationType: "dependency_reduction", Priority: "high",
-				RecommendedState: map[string]interface{}{"action": "remove_resource"}},
-			{RecommendationType: "resource_swap", Priority: "critical",
-				RecommendedState: map[string]interface{}{"action": "swap_dependency"}},
+			{
+				RecommendationType: "dependency_reduction", Priority: "medium",
+				RecommendedState: map[string]interface{}{"action": "remove_resource"},
+			},
+			{
+				RecommendationType: "dependency_reduction", Priority: "high",
+				RecommendedState: map[string]interface{}{"action": "remove_resource"},
+			},
+			{
+				RecommendationType: "resource_swap", Priority: "critical",
+				RecommendedState: map[string]interface{}{"action": "swap_dependency"},
+			},
 		}
 
 		summary := BuildSummary(recs)

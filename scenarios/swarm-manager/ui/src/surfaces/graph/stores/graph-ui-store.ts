@@ -8,7 +8,7 @@
 import { create } from "zustand";
 import type { ReactFlowInstance, Viewport } from "@xyflow/react";
 import type { GraphLens } from "./graph-data-store";
-import type { GraphNode, GraphEdge } from "../types";
+import type { GraphNode } from "../types";
 
 export type LayoutMode = "hierarchical" | "compact" | "grouped";
 export type LayoutDirection = "TB" | "LR";
@@ -178,7 +178,7 @@ export interface GraphUIState {
   sidebarWasOpenBeforeDetail: boolean;
   /** Runtime-only ref to the React Flow instance. NOT persisted to localStorage.
    *  Set by GraphCanvas on init; consumed by GraphNavControls for viewport manipulation. */
-  flowInstance: ReactFlowInstance<GraphNode, GraphEdge> | null;
+  flowInstance: ReactFlowInstance<GraphNode> | null;
   selectNode: (nodeId: string | null) => void;
   setHighlightState: (state: NodeHighlightState) => void;
   setLayoutMode: (mode: LayoutMode) => void;
@@ -197,7 +197,7 @@ export interface GraphUIState {
   setFocusNodeLabel: (label: string | null) => void;
   saveSidebarStateBeforeDetail: () => void;
   restoreSidebarStateAfterDetail: () => void;
-  setFlowInstance: (instance: ReactFlowInstance<GraphNode, GraphEdge> | null) => void;
+  setFlowInstance: (instance: ReactFlowInstance<GraphNode> | null) => void;
 }
 
 const initialPrefs = typeof window !== "undefined" ? loadLayoutPreferences() : {};
@@ -218,7 +218,7 @@ export const graphUIInitialState = {
   sidebarWasOpenBeforeDetail: initialSidebarWasOpen,
   expandedTopologyClusters: new Set<string>(),
   focusNodeLabel: null as string | null,
-  flowInstance: null as ReactFlowInstance<GraphNode, GraphEdge> | null,
+  flowInstance: null as ReactFlowInstance<GraphNode> | null,
 };
 
 export const useGraphUIStore = create<GraphUIState>((set, get) => ({

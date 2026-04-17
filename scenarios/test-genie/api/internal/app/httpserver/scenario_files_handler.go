@@ -4,10 +4,9 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"test-genie/internal/scenarios"
 
 	"github.com/gorilla/mux"
-
-	"test-genie/internal/scenarios"
 )
 
 func (s *Server) handleListScenarioFiles(w http.ResponseWriter, r *http.Request) {

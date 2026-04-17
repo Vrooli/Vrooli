@@ -3,11 +3,10 @@ package queue
 import (
 	"context"
 	"database/sql"
+	"test-genie/internal/storage/sqliteutil"
 	"time"
 
 	"github.com/google/uuid"
-
-	"test-genie/internal/storage/sqliteutil"
 )
 
 // SQLiteSuiteRequestRepository persists suite requests in Test Genie's embedded

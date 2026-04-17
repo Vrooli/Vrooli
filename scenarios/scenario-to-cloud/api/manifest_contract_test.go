@@ -1,10 +1,9 @@
 package main
 
 import (
-	"testing"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/manifest"
+	"testing"
 )
 
 // testManifestBase creates a valid base manifest for testing.

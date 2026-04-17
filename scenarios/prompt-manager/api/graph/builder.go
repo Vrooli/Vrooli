@@ -3,9 +3,8 @@ package graph
 
 import (
 	"context"
-	"strings"
-
 	"prompt-manager/store"
+	"strings"
 )
 
 // agentNodeSource provides agent listing for graph node construction.
@@ -162,7 +161,7 @@ func (b *Builder) collectNodeMetrics(ctx context.Context, g Graph, skills []stor
 		if _, ok := metrics[e.From]; !ok {
 			metrics[e.From] = NodeMetricSet{}
 		}
-		metrics[e.From][metricTeamMemberCount] += 1
+		metrics[e.From][metricTeamMemberCount]++
 	}
 
 	// Skill content tokens from SKILL.md.

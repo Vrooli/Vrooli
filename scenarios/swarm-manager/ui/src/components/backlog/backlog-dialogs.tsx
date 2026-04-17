@@ -22,7 +22,7 @@ import { useRuntimeConfig } from "../../hooks/useRuntimeConfig";
 import { useBacklogDetailUIStore } from "../../stores";
 import type { useBacklogDetailData } from "../../hooks/useBacklogDetailData";
 import type { useBacklogHandlers } from "../../hooks/useBacklogHandlers";
-import type { BacklogFile, BacklogKind, ItemBlockingInfo } from "../../types";
+import type { BacklogFile, ItemBlockingInfo } from "../../types";
 import type { BacklogItem } from "../../types/domain";
 import type { ReadinessIndicatorData } from "../../lib/maturity";
 
@@ -137,7 +137,7 @@ export function BacklogDialogs({
       <BacklogAgentDialog
         isOpen={ui.showAgentDialog}
         isSubmitting={data.isRunningAgent}
-        backlogKind={backlogKind as BacklogKind}
+        backlogKind={backlogKind}
         backlogTitle={item?.title ?? name ?? ""}
         itemStatus={item?.status}
         errorMessage={data.agentError}

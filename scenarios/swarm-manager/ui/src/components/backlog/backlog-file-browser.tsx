@@ -254,7 +254,7 @@ export function BacklogFileBrowser({
               title="Unable to load files"
               message="Try again to reload the file tree."
               onRetry={() => {
-                void onRefetchFiles();
+                onRefetchFiles();
               }}
             />
           ) : fileSearch.trim().length > 0 ? (

@@ -1,10 +1,9 @@
 package vps
 
 import (
+	"scenario-to-cloud/domain"
 	"strings"
 	"testing"
-
-	"scenario-to-cloud/domain"
 )
 
 func TestBuildStopAllCommand(t *testing.T) {

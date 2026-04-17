@@ -12,7 +12,7 @@ import { Archive, ArrowRight, CheckSquare, Clock, Loader2, Lock, MessageSquare, 
 import { Button } from "../ui/button";
 import { TagList } from "../ui/tag-list";
 import { formatRelativeTime } from "../../lib";
-import { BACKLOG_KIND_ICONS, BACKLOG_STATUS_COLORS, formatBacklogStatus, type BacklogKind } from "../../types";
+import { BACKLOG_KIND_ICONS, BACKLOG_STATUS_COLORS, formatBacklogStatus } from "../../types";
 import type { BacklogItem, BacklogStatus, PendingQuestion } from "../../types";
 import { StatusChipPopover } from "./status-chip-popover";
 import type { ItemActions } from "../../lib/backlog-queue-utils";
@@ -102,7 +102,7 @@ export function BacklogCard({
   const hasActiveStepper = itemActions.showDecisionStepper && (pendingQuestions?.length ?? 0) > 0 && !isStepperCompleted;
   const showBatchCheckbox = batchMode && (itemActions.canRun || itemActions.runDisabled || itemActions.canWorkshop || itemActions.workshopDisabled) && !itemActions.blocked;
   const deliverableLabel = item.kind === "research" ? "conclusion" : "plan";
-  const KindIcon = BACKLOG_KIND_ICONS[item.kind as BacklogKind];
+  const KindIcon = BACKLOG_KIND_ICONS[item.kind];
   const hasPrimaryActionRow = (
     (itemActions.canFinalize || itemActions.finalizeDisabled || itemActions.canRun || itemActions.runDisabled || itemActions.canWorkshop || itemActions.workshopDisabled)
     && !itemActions.blocked
@@ -153,8 +153,8 @@ export function BacklogCard({
             </>
           )}
           <ScenarioBadge acceptanceAllow={item.acceptanceAllow} />
-          <AgentRunningBadge backlogKind={item.kind as BacklogKind} backlogName={item.name} />
-          <CircuitBrokenBadge backlogKind={item.kind as BacklogKind} backlogName={item.name} />
+          <AgentRunningBadge backlogKind={item.kind} backlogName={item.name} />
+          <CircuitBrokenBadge backlogKind={item.kind} backlogName={item.name} />
           <ValidationBadge validationJson={item.planValidationJson} />
           <NoteIndicator note={item.note} />
         </div>
@@ -171,7 +171,7 @@ export function BacklogCard({
       {hasActiveStepper ? (
         <InlineQuestionStepper
           questions={pendingQuestions as PendingQuestion[]}
-          backlogKind={item.kind as BacklogKind}
+          backlogKind={item.kind}
           backlogName={item.name}
           onAllAnswered={onStepperCompleted}
         />
@@ -181,8 +181,8 @@ export function BacklogCard({
             <AutoAdvanceCountdown
               advanceAt={transitionResult.autoAdvance.advanceAt}
               delaySeconds={transitionResult.autoAdvance.delaySeconds ?? 10}
-              nextMode={(transitionResult.autoAdvance.nextMode ?? "workshop") as "workshop" | "finalize"}
-              kind={item.kind as BacklogKind}
+              nextMode={(transitionResult.autoAdvance.nextMode ?? "workshop")}
+              kind={item.kind}
               name={item.name}
               onCancelled={onStepperCompleted.bind(null, {})}
               onExpired={() => {/* timer expired — server ticker will spawn; UI shows spinner */}}

@@ -11,13 +11,6 @@ import (
 	"strings"
 	"sync"
 	"syscall"
-	"time"
-
-	"github.com/google/uuid"
-	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
-	"google.golang.org/protobuf/encoding/protojson"
-
 	"test-genie/agentmanager"
 	"test-genie/internal/execution"
 	"test-genie/internal/fix"
@@ -28,6 +21,12 @@ import (
 	"test-genie/internal/scenarios"
 	"test-genie/internal/toolexecution"
 	"test-genie/internal/toolregistry"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // Config controls the HTTP transport settings.

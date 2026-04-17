@@ -1,13 +1,12 @@
 package handlers
 
 import (
+	"agent-manager/internal/domain"
+	"agent-manager/internal/protoconv"
 	"encoding/json"
 	"sync"
 	"testing"
 	"time"
-
-	"agent-manager/internal/domain"
-	"agent-manager/internal/protoconv"
 
 	"github.com/google/uuid"
 

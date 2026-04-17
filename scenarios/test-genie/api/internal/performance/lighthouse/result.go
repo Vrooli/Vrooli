@@ -3,7 +3,6 @@ package lighthouse
 import (
 	"fmt"
 	"strings"
-
 	"test-genie/internal/structure/types"
 )
 

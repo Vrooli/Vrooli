@@ -30,7 +30,6 @@ const sampleFeatures: AudioFeatures = {
 // Controllable clock for performance.now()
 // ---------------------------------------------------------------------------
 let nowMs = 1000;
-function setNow(ms: number) { nowMs = ms; }
 function advanceNow(ms: number) { nowMs += ms; }
 
 // ---------------------------------------------------------------------------
@@ -181,9 +180,10 @@ describe("useWakeWordTest", () => {
     await act(async () => { await flushMicrotasks(); });
 
     expect(result.current.state.status).toBe("result");
-    expect(result.current.state.currentResult).not.toBeNull();
-    expect(result.current.state.currentResult!.score).toBe(0.8);
-    expect(result.current.state.currentResult!.isMatch).toBe(true);
+    const matchResult = result.current.state.currentResult;
+    expect(matchResult).not.toBeNull();
+    expect(matchResult?.score).toBe(0.8);
+    expect(matchResult?.isMatch).toBe(true);
   });
 
   it("shows error for too-short recordings", async () => {
@@ -282,9 +282,10 @@ describe("useWakeWordTest", () => {
     await act(async () => { result.current.stopRecording(); });
     await act(async () => { await flushMicrotasks(); });
 
-    expect(result.current.state.currentResult).not.toBeNull();
-    expect(result.current.state.currentResult!.isMatch).toBe(false);
-    expect(result.current.state.currentResult!.score).toBe(0.3);
+    const noMatch = result.current.state.currentResult;
+    expect(noMatch).not.toBeNull();
+    expect(noMatch?.isMatch).toBe(false);
+    expect(noMatch?.score).toBe(0.3);
   });
 
   it("sets error when getUserMedia fails", async () => {

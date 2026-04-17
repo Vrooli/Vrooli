@@ -1,6 +1,7 @@
 package config
 
 import (
+	"app-monitor-api/logger"
 	"context"
 	"database/sql"
 	"fmt"
@@ -8,11 +9,9 @@ import (
 	"strconv"
 	"time"
 
-	"app-monitor-api/logger"
-
 	"github.com/docker/docker/client"
 	"github.com/go-redis/redis/v8"
-	_ "github.com/lib/pq"
+	_ "github.com/lib/pq" // register postgres driver with database/sql
 	"github.com/vrooli/api-core/database"
 )
 

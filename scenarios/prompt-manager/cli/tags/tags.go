@@ -8,11 +8,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"prompt-manager/cli/internal/appctx"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
-
-	"prompt-manager/cli/internal/appctx"
 )
 
 // Tag represents a tag from the API

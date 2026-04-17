@@ -2,6 +2,8 @@
 package tasks
 
 import (
+	"ecosystem-manager/cli/internal/appctx"
+	"ecosystem-manager/cli/internal/format"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -12,9 +14,6 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
-
-	"ecosystem-manager/cli/internal/appctx"
-	"ecosystem-manager/cli/internal/format"
 )
 
 // TaskCreateRequest represents the request body for creating a task.

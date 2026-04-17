@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"scenario-to-cloud/domain"
 	"testing"
 
 	repocontract "github.com/vrooli/repo-contract-go"
-	"scenario-to-cloud/domain"
 )
 
 func TestReadLocalSecretsMapIgnoresMetadataAndInvalidData(t *testing.T) {

@@ -1,13 +1,13 @@
 package domains
 
 import (
-	"github.com/vrooli/cli-core/cliapp"
-
 	"ecosystem-manager/cli/internal/appctx"
 	"ecosystem-manager/cli/logs"
 	"ecosystem-manager/cli/queue"
 	"ecosystem-manager/cli/steer"
 	"ecosystem-manager/cli/tasks"
+
+	"github.com/vrooli/cli-core/cliapp"
 )
 
 // CommandGroups aggregates the scenario's domain command groups.

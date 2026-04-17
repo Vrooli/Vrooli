@@ -48,7 +48,7 @@ func TestIntegration_RealBrowserless(t *testing.T) {
 		// Create minimal scenario structure
 		uiDir := filepath.Join(tmpDir, "ui")
 		distDir := filepath.Join(uiDir, "dist")
-		if err := os.MkdirAll(distDir, 0755); err != nil {
+		if err := os.MkdirAll(distDir, 0o755); err != nil {
 			t.Fatalf("Failed to create ui/dist directory: %v", err)
 		}
 
@@ -65,7 +65,7 @@ window.__vrooliBridgeChildInstalled = true;
 </script>
 </body>
 </html>`
-		if err := os.WriteFile(filepath.Join(distDir, "index.html"), []byte(indexHTML), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(distDir, "index.html"), []byte(indexHTML), 0o644); err != nil {
 			t.Fatalf("Failed to write index.html: %v", err)
 		}
 
@@ -76,13 +76,13 @@ window.__vrooliBridgeChildInstalled = true;
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge"
   }
 }`
-		if err := os.WriteFile(filepath.Join(uiDir, "package.json"), []byte(packageJSON), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(uiDir, "package.json"), []byte(packageJSON), 0o644); err != nil {
 			t.Fatalf("Failed to write package.json: %v", err)
 		}
 
 		// Create .vrooli directory with service.json (no UI port defined - should skip)
 		vrooliDir := filepath.Join(tmpDir, ".vrooli")
-		if err := os.MkdirAll(vrooliDir, 0755); err != nil {
+		if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
 			t.Fatalf("Failed to create .vrooli directory: %v", err)
 		}
 
@@ -91,7 +91,7 @@ window.__vrooliBridgeChildInstalled = true;
     "name": "test-scenario"
   }
 }`
-		if err := os.WriteFile(filepath.Join(vrooliDir, "service.json"), []byte(serviceJSON), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(vrooliDir, "service.json"), []byte(serviceJSON), 0o644); err != nil {
 			t.Fatalf("Failed to write service.json: %v", err)
 		}
 
@@ -129,7 +129,7 @@ window.__vrooliBridgeChildInstalled = true;
 
 		// Create UI directory but no dist
 		uiDir := filepath.Join(tmpDir, "ui")
-		if err := os.MkdirAll(uiDir, 0755); err != nil {
+		if err := os.MkdirAll(uiDir, 0o755); err != nil {
 			t.Fatalf("Failed to create ui directory: %v", err)
 		}
 
@@ -152,12 +152,12 @@ window.__vrooliBridgeChildInstalled = true;
 
 		// Create package.json with iframe-bridge
 		uiDir := filepath.Join(tmpDir, "ui")
-		if err := os.MkdirAll(uiDir, 0755); err != nil {
+		if err := os.MkdirAll(uiDir, 0o755); err != nil {
 			t.Fatalf("Failed to create ui directory: %v", err)
 		}
 
 		packageJSON := `{"dependencies": {"@vrooli/iframe-bridge": "1.0.0"}}`
-		if err := os.WriteFile(filepath.Join(uiDir, "package.json"), []byte(packageJSON), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(uiDir, "package.json"), []byte(packageJSON), 0o644); err != nil {
 			t.Fatalf("Failed to write package.json: %v", err)
 		}
 
@@ -183,12 +183,12 @@ window.__vrooliBridgeChildInstalled = true;
 
 		// Create package.json without iframe-bridge
 		uiDir := filepath.Join(tmpDir, "ui")
-		if err := os.MkdirAll(uiDir, 0755); err != nil {
+		if err := os.MkdirAll(uiDir, 0o755); err != nil {
 			t.Fatalf("Failed to create ui directory: %v", err)
 		}
 
 		packageJSON := `{"dependencies": {"react": "18.0.0"}}`
-		if err := os.WriteFile(filepath.Join(uiDir, "package.json"), []byte(packageJSON), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(uiDir, "package.json"), []byte(packageJSON), 0o644); err != nil {
 			t.Fatalf("Failed to write package.json: %v", err)
 		}
 

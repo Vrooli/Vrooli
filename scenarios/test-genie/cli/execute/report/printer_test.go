@@ -5,11 +5,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"test-genie/cli/internal/repo"
 	"testing"
 	"time"
 
 	execTypes "test-genie/cli/internal/execute"
-	"test-genie/cli/internal/repo"
 )
 
 func TestPrinterIncludesGuidesAndInsights(t *testing.T) {

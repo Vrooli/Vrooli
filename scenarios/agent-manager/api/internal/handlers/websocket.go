@@ -1,14 +1,13 @@
 package handlers
 
 import (
+	"agent-manager/internal/domain"
+	"agent-manager/internal/protoconv"
 	"encoding/json"
 	"log"
 	"net/http"
 	"sync"
 	"time"
-
-	"agent-manager/internal/domain"
-	"agent-manager/internal/protoconv"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"

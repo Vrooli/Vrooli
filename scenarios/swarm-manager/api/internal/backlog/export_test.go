@@ -9,9 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"testing"
-
 	"swarm-manager/internal/testutil"
+	"testing"
 )
 
 // createWorkshopRound writes workshop/round-001.json for a backlog item.

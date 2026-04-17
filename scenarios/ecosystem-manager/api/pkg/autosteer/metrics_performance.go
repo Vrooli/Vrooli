@@ -70,7 +70,6 @@ func (c *PerformanceMetricsCollector) getBundleSize(scenarioName string) float64
 		}
 		return nil
 	})
-
 	if err != nil {
 		return -1
 	}
@@ -141,7 +140,6 @@ func (c *PerformanceMetricsCollector) parseLighthouseResults(resultsDir string) 
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}

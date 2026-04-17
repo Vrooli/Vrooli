@@ -51,7 +51,7 @@ describe("GraphNode — actionable badge", () => {
     (status) => {
       useGraphDataStore.setState({ lens: "topology" });
       const node = makeBacklogNode("backlog/execute/test", { status });
-      renderGraphNode(node.data as GraphNodeData);
+      renderGraphNode(node.data);
       expect(screen.getByTestId("actionable-badge")).toBeInTheDocument();
     },
   );
@@ -61,7 +61,7 @@ describe("GraphNode — actionable badge", () => {
     (status) => {
       useGraphDataStore.setState({ lens: "topology" });
       const node = makeBacklogNode("backlog/execute/test", { status });
-      renderGraphNode(node.data as GraphNodeData);
+      renderGraphNode(node.data);
       expect(screen.queryByTestId("actionable-badge")).not.toBeInTheDocument();
     },
   );
@@ -69,14 +69,14 @@ describe("GraphNode — actionable badge", () => {
   it("does NOT show actionable-badge in operations lens", () => {
     useGraphDataStore.setState({ lens: "operations" });
     const node = makeBacklogNode("backlog/execute/test", { status: "backlog" as BacklogStatus });
-    renderGraphNode(node.data as GraphNodeData);
+    renderGraphNode(node.data);
     expect(screen.queryByTestId("actionable-badge")).not.toBeInTheDocument();
   });
 
   it("does NOT show actionable-badge for non-backlog entity types", () => {
     useGraphDataStore.setState({ lens: "topology" });
     const node = makeScenarioNode("scenario/test", { status: "running" });
-    renderGraphNode(node.data as GraphNodeData);
+    renderGraphNode(node.data);
     expect(screen.queryByTestId("actionable-badge")).not.toBeInTheDocument();
   });
 
@@ -86,7 +86,7 @@ describe("GraphNode — actionable badge", () => {
       status: "in_progress" as BacklogStatus,
       activeExecutionStatus: "running",
     });
-    renderGraphNode(node.data as GraphNodeData);
+    renderGraphNode(node.data);
     expect(screen.getByTestId("status-badge")).toBeInTheDocument();
     expect(screen.getByTestId("actionable-badge")).toBeInTheDocument();
   });

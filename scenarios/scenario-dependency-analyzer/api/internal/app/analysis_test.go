@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"scenario-dependency-analyzer/internal/seams"
 	"testing"
 
 	appconfig "scenario-dependency-analyzer/internal/config"
-	"scenario-dependency-analyzer/internal/seams"
+
 	types "scenario-dependency-analyzer/internal/types"
 )
 
@@ -85,7 +86,7 @@ func TestScanForScenarioDependencies(t *testing.T) {
 	scenarioPath := filepath.Join(env.ScenariosDir, scenarioName)
 
 	t.Run("WithScenarioReferences", func(t *testing.T) {
-		os.MkdirAll(scenarioPath, 0755)
+		os.MkdirAll(scenarioPath, 0o755)
 		defer os.RemoveAll(scenarioPath)
 
 		// Create a file with scenario references
@@ -94,7 +95,7 @@ func TestScanForScenarioDependencies(t *testing.T) {
 vrooli scenario run other-scenario
 vrooli scenario test another-scenario
 `
-		os.WriteFile(testFile, []byte(content), 0644)
+		os.WriteFile(testFile, []byte(content), 0o644)
 
 		deps, err := scanForScenarioDependencies(scenarioPath, scenarioName)
 		if err != nil {
@@ -115,7 +116,7 @@ vrooli scenario test another-scenario
 
 	t.Run("EmptyDirectory", func(t *testing.T) {
 		emptyPath := filepath.Join(env.ScenariosDir, "empty-scenario")
-		os.MkdirAll(emptyPath, 0755)
+		os.MkdirAll(emptyPath, 0o755)
 		defer os.RemoveAll(emptyPath)
 
 		deps, err := scanForScenarioDependencies(emptyPath, "empty-scenario")
@@ -130,7 +131,7 @@ vrooli scenario test another-scenario
 
 	t.Run("WithCLIReferences", func(t *testing.T) {
 		cliPath := filepath.Join(env.ScenariosDir, "cli-test")
-		os.MkdirAll(cliPath, 0755)
+		os.MkdirAll(cliPath, 0o755)
 		defer os.RemoveAll(cliPath)
 
 		// Create file with CLI references
@@ -138,7 +139,7 @@ vrooli scenario test another-scenario
 		content := `#!/bin/bash
 data-tools-cli.sh process input.csv
 `
-		os.WriteFile(scriptFile, []byte(content), 0644)
+		os.WriteFile(scriptFile, []byte(content), 0o644)
 
 		deps, err := scanForScenarioDependencies(cliPath, "cli-test")
 		if err != nil {
@@ -167,7 +168,7 @@ func TestScanForScenarioDependenciesFiltersNoise(t *testing.T) {
 	refreshDependencyCatalogs()
 
 	subjectPath := filepath.Join(env.ScenariosDir, "subject")
-	os.MkdirAll(subjectPath, 0755)
+	os.MkdirAll(subjectPath, 0o755)
 	defer os.RemoveAll(subjectPath)
 
 	mainFile := filepath.Join(subjectPath, "script.sh")
@@ -175,14 +176,14 @@ func TestScanForScenarioDependenciesFiltersNoise(t *testing.T) {
 vrooli scenario run other-scenario
 vrooli scenario run totally-fake
 `
-	os.WriteFile(mainFile, []byte(content), 0644)
+	os.WriteFile(mainFile, []byte(content), 0o644)
 
 	cliFile := filepath.Join(subjectPath, "cli.sh")
-	os.WriteFile(cliFile, []byte("browser-automation-studio-cli analyze"), 0644)
+	os.WriteFile(cliFile, []byte("browser-automation-studio-cli analyze"), 0o644)
 
 	nodeModules := filepath.Join(subjectPath, "node_modules", "pkg")
-	os.MkdirAll(nodeModules, 0755)
-	os.WriteFile(filepath.Join(nodeModules, "index.js"), []byte("vrooli scenario run ignored-scenario"), 0644)
+	os.MkdirAll(nodeModules, 0o755)
+	os.WriteFile(filepath.Join(nodeModules, "index.js"), []byte("vrooli scenario run ignored-scenario"), 0o644)
 
 	deps, err := scanForScenarioDependencies(subjectPath, "subject")
 	if err != nil {
@@ -222,7 +223,7 @@ const issueTrackerScenarioID = "app-issue-tracker"
 func use(ctx context.Context) {
     resolveScenarioPortViaCLI(ctx, issueTrackerScenarioID, "API_PORT")
 }`
-	if err := os.WriteFile(sourcePath, []byte(source), 0644); err != nil {
+	if err := os.WriteFile(sourcePath, []byte(source), 0o644); err != nil {
 		t.Fatalf("Failed to write source: %v", err)
 	}
 
@@ -406,10 +407,16 @@ func TestLoadServiceConfigIncludesDependencies(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	setEnvAndCleanup(t, "VROOLI_SCENARIOS_DIR", repoScenarioPath())
-	cfg, err := appconfig.LoadServiceConfig(repoScenarioPath("brand-manager"))
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	scenarioName := "fixture-with-deps"
+	scenarioPath := writeFixtureWithResources(t, env.ScenariosDir, scenarioName)
+
+	setEnvAndCleanup(t, "VROOLI_SCENARIOS_DIR", env.ScenariosDir)
+	cfg, err := appconfig.LoadServiceConfig(scenarioPath)
 	if err != nil {
-		t.Fatalf("failed to load brand-manager config: %v", err)
+		t.Fatalf("failed to load fixture config: %v", err)
 	}
 	if len(cfg.Dependencies.Resources) == 0 {
 		t.Fatalf("expected dependencies.resources to contain entries")
@@ -420,7 +427,12 @@ func TestRawServiceConfigMapHasDependencies(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	raw, err := loadRawServiceConfigMap(repoScenarioPath("brand-manager"))
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+
+	scenarioPath := writeFixtureWithResources(t, env.ScenariosDir, "fixture-raw-deps")
+
+	raw, err := loadRawServiceConfigMap(scenarioPath)
 	if err != nil {
 		t.Fatalf("failed to load raw config: %v", err)
 	}
@@ -434,6 +446,43 @@ func TestRawServiceConfigMapHasDependencies(t *testing.T) {
 	}
 }
 
+func writeFixtureWithResources(t *testing.T, scenariosDir, name string) string {
+	t.Helper()
+	scenarioPath := filepath.Join(scenariosDir, name)
+	if err := os.MkdirAll(filepath.Join(scenarioPath, ".vrooli"), 0o755); err != nil {
+		t.Fatalf("failed to create fixture dirs: %v", err)
+	}
+	serviceConfig := map[string]interface{}{
+		"$schema": "../../../.vrooli/schemas/service.schema.json",
+		"version": "1.0.0",
+		"service": map[string]interface{}{
+			"name":        name,
+			"displayName": name,
+			"description": "fixture",
+			"version":     "1.0.0",
+		},
+		"dependencies": map[string]interface{}{
+			"resources": map[string]interface{}{
+				"sqlite": map[string]interface{}{
+					"type":        "sqlite",
+					"enabled":     true,
+					"required":    true,
+					"description": "embedded SQLite",
+				},
+			},
+			"scenarios": map[string]interface{}{},
+		},
+	}
+	data, err := json.MarshalIndent(serviceConfig, "", "  ")
+	if err != nil {
+		t.Fatalf("failed to marshal fixture config: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(scenarioPath, ".vrooli", "service.json"), data, 0o644); err != nil {
+		t.Fatalf("failed to write fixture config: %v", err)
+	}
+	return scenarioPath
+}
+
 func TestScanForResourceUsageFiltersUnknown(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -445,7 +494,7 @@ func TestScanForResourceUsageFiltersUnknown(t *testing.T) {
 	createTestResourceDirs(t, env, "postgres")
 
 	subjectPath := filepath.Join(env.ScenariosDir, "resource-subject")
-	os.MkdirAll(subjectPath, 0755)
+	os.MkdirAll(subjectPath, 0o755)
 	defer os.RemoveAll(subjectPath)
 
 	script := `#!/bin/bash
@@ -453,11 +502,11 @@ resource-postgres connect
 PGHOST=localhost
 resource-fake something
 `
-	os.WriteFile(filepath.Join(subjectPath, "main.sh"), []byte(script), 0644)
+	os.WriteFile(filepath.Join(subjectPath, "main.sh"), []byte(script), 0o644)
 
 	nodeModules := filepath.Join(subjectPath, "node_modules", "pkg")
-	os.MkdirAll(nodeModules, 0755)
-	os.WriteFile(filepath.Join(nodeModules, "index.js"), []byte("resource-redis start"), 0644)
+	os.MkdirAll(nodeModules, 0o755)
+	os.WriteFile(filepath.Join(nodeModules, "index.js"), []byte("resource-redis start"), 0o644)
 
 	deps, err := scanForResourceUsage(subjectPath, "resource-subject")
 	if err != nil {
@@ -483,14 +532,14 @@ func TestResourceHeuristicIgnoresPlainN8NMentions(t *testing.T) {
 	createTestResourceDirs(t, env, "n8n")
 
 	subjectPath := filepath.Join(env.ScenariosDir, "heuristic-noise")
-	os.MkdirAll(subjectPath, 0755)
+	os.MkdirAll(subjectPath, 0o755)
 	defer os.RemoveAll(subjectPath)
 
 	content := `package main
 
 var resourceTypes = []string{"postgres", "redis", "n8n"}
 `
-	os.WriteFile(filepath.Join(subjectPath, "main.go"), []byte(content), 0644)
+	os.WriteFile(filepath.Join(subjectPath, "main.go"), []byte(content), 0o644)
 
 	deps, err := scanForResourceUsage(subjectPath, "heuristic-noise")
 	if err != nil {
@@ -515,7 +564,7 @@ func TestResourceHeuristicDetectsN8NEnvUsage(t *testing.T) {
 	createTestResourceDirs(t, env, "n8n")
 
 	subjectPath := filepath.Join(env.ScenariosDir, "heuristic-hit")
-	os.MkdirAll(subjectPath, 0755)
+	os.MkdirAll(subjectPath, 0o755)
 	defer os.RemoveAll(subjectPath)
 
 	content := `package main
@@ -526,7 +575,7 @@ func useN8N() string {
 	return os.Getenv("N8N_URL")
 }
 `
-	os.WriteFile(filepath.Join(subjectPath, "main.go"), []byte(content), 0644)
+	os.WriteFile(filepath.Join(subjectPath, "main.go"), []byte(content), 0o644)
 
 	deps, err := scanForResourceUsage(subjectPath, "heuristic-hit")
 	if err != nil {
@@ -637,12 +686,12 @@ func TestScanForSharedWorkflows(t *testing.T) {
 	scenarioPath := filepath.Join(env.ScenariosDir, scenarioName)
 
 	t.Run("WithN8nWorkflows", func(t *testing.T) {
-		os.MkdirAll(scenarioPath, 0755)
+		os.MkdirAll(scenarioPath, 0o755)
 		defer os.RemoveAll(scenarioPath)
 
 		// Create n8n workflows directory
 		workflowsDir := filepath.Join(scenarioPath, "workflows", "n8n")
-		os.MkdirAll(workflowsDir, 0755)
+		os.MkdirAll(workflowsDir, 0o755)
 
 		// Create a sample workflow file
 		workflowFile := filepath.Join(workflowsDir, "test-workflow.json")
@@ -651,7 +700,7 @@ func TestScanForSharedWorkflows(t *testing.T) {
 			"nodes": []interface{}{},
 		}
 		workflowJSON, _ := json.Marshal(workflow)
-		os.WriteFile(workflowFile, workflowJSON, 0644)
+		os.WriteFile(workflowFile, workflowJSON, 0o644)
 
 		deps, err := scanForSharedWorkflows(scenarioPath, scenarioName)
 		if err != nil {
@@ -664,7 +713,7 @@ func TestScanForSharedWorkflows(t *testing.T) {
 
 	t.Run("NoWorkflows", func(t *testing.T) {
 		emptyPath := filepath.Join(env.ScenariosDir, "no-workflows")
-		os.MkdirAll(emptyPath, 0755)
+		os.MkdirAll(emptyPath, 0o755)
 		defer os.RemoveAll(emptyPath)
 
 		deps, err := scanForSharedWorkflows(emptyPath, "no-workflows")
@@ -763,7 +812,6 @@ func TestAnalyzeProposedScenario(t *testing.T) {
 		}
 
 		result, err := analyzeProposedScenario(req)
-
 		// May fail if resources not available, that's OK
 		if err != nil {
 			t.Logf("Analysis failed (expected if resources unavailable): %v", err)
@@ -789,7 +837,6 @@ func TestAnalyzeProposedScenario(t *testing.T) {
 		}
 
 		result, err := analyzeProposedScenario(req)
-
 		// Should still work, just with low confidence
 		if err != nil {
 			t.Logf("Analysis failed: %v", err)

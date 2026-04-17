@@ -1,13 +1,12 @@
 package main
 
 import (
+	"agent-manager/cli/domains"
+	"agent-manager/cli/internal/support"
 	"fmt"
 	"os"
 	"strings"
 	"time"
-
-	"agent-manager/cli/domains"
-	"agent-manager/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -87,10 +86,7 @@ func formatEnumValue(value fmt.Stringer, prefix, separator string) string {
 	if value == nil {
 		return ""
 	}
-	name := value.String()
-	if strings.HasPrefix(name, prefix) {
-		name = strings.TrimPrefix(name, prefix)
-	}
+	name := strings.TrimPrefix(value.String(), prefix)
 	name = strings.ToLower(name)
 	if separator != "_" {
 		name = strings.ReplaceAll(name, "_", separator)

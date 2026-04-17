@@ -22,7 +22,6 @@ import {
   type AgentActivity,
   type AgentActivityPurpose,
   type ExecutionRecord,
-  type ExecutionStatus,
 } from "../../types";
 import type { TimelineEntry } from "../../hooks/useActivityTimeline";
 import type { AgentActivityRecord } from "../../stores/agent-activities-store";
@@ -190,7 +189,7 @@ export function ActivityTimeline({
     }
     if (newExecIds.length > 0) {
       setExpandedIds((prev) => {
-        const next = new Set(prev);
+        const next = new Set<string>(prev);
         for (const id of newExecIds) next.add(id);
         return next;
       });
@@ -199,7 +198,7 @@ export function ActivityTimeline({
 
   const toggleExpand = useCallback((id: string) => {
     setExpandedIds((prev) => {
-      const next = new Set(prev);
+      const next = new Set<string>(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
@@ -295,7 +294,7 @@ function ExecutionTimelineItem({
 }) {
   const exec = entry.execution;
   if (!exec) return null;
-  const statusColor = EXECUTION_STATUS_COLORS[exec.status as ExecutionStatus] ?? "bg-slate-500";
+  const statusColor = EXECUTION_STATUS_COLORS[exec.status] ?? "bg-slate-500";
   const isActiveExecRun = !!(
     exec.runId &&
     latestAgentActivity &&
@@ -322,7 +321,7 @@ function ExecutionTimelineItem({
         )}
         <span className={cn("inline-block h-2 w-2 shrink-0 rounded-full", statusColor)} />
         <span className="text-xs font-medium text-slate-200">
-          {formatExecutionStatus(exec.status as ExecutionStatus)}
+          {formatExecutionStatus(exec.status)}
         </span>
         {exec.operation && (
           <span className="rounded bg-slate-700/60 px-1 py-0.5 text-[10px] text-slate-400">
@@ -401,7 +400,7 @@ function ExecutionTimelineItem({
                 {latestAgentActivity?.isStopping ? "Stopping…" : "Stop"}
               </Button>
             )}
-            {canFollowUpExecution(exec.status as ExecutionStatus) && (
+            {canFollowUpExecution(exec.status) && (
               <Button
                 variant="outline"
                 size="sm"

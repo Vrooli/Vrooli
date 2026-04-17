@@ -2,7 +2,6 @@ package main
 
 import (
 	"strings"
-
 	"tidiness-manager/cli/domains"
 
 	"github.com/vrooli/cli-core/cliapp"

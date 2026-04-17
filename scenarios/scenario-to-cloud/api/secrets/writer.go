@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"scenario-to-cloud/internal/shellutil"
+	"scenario-to-cloud/ssh"
 	"strings"
 	"time"
 
 	repocontract "github.com/vrooli/repo-contract-go"
-	"scenario-to-cloud/internal/shellutil"
-	"scenario-to-cloud/ssh"
 )
 
 // Metadata contains metadata about the secrets.json file.

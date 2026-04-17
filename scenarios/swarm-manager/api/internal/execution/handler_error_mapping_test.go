@@ -5,9 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"testing"
-
 	"swarm-manager/internal/apierr"
+	"testing"
 )
 
 // These tests verify that the execution service returns properly typed

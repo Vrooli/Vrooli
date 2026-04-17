@@ -8,14 +8,13 @@ import (
 	"net/http"
 	"sort"
 	"strings"
-
-	"github.com/gorilla/mux"
-
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/promptcatalog"
 	"swarm-manager/internal/promptmanager"
+
+	"github.com/gorilla/mux"
 )
 
 type Handler struct {

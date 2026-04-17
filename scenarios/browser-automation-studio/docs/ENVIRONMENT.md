@@ -7,8 +7,6 @@ One canonical reference for configuring the browser-automation-studio scenario (
 - `API_PORT` – API server port (20000-24999)
 - `UI_PORT` – UI server port (40000-44999)
 - `WS_PORT` – WebSocket port (25000-29999)
-- `DATABASE_URL` – PostgreSQL connection string (or SQLite file URL)
-- `BAS_DB_BACKEND` – `postgres` (default) or `sqlite`
 - `MINIO_PORT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET_NAME`
 - `BROWSERLESS_PORT`
 - `VROOLI_LIFECYCLE_MANAGED` – must be `true`
@@ -22,18 +20,16 @@ One canonical reference for configuring the browser-automation-studio scenario (
 
 ## Database Configuration
 
+Storage is embedded SQLite via `modernc.org/sqlite` (pure Go, no CGO). The schema in `initialization/storage/sqlite/schema.sql` is applied idempotently at startup.
+
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `BAS_DB_BACKEND` | Backend selector (`postgres` or `sqlite`) | `postgres` |
-| `DATABASE_URL` | Full connection URL (Postgres or SQLite) | — |
-| `POSTGRES_HOST` / `POSTGRES_PORT` / `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Postgres parts | `browser_automation_studio` (DB name) |
-| `BAS_SQLITE_PATH` | Absolute SQLite path (desktop/electron) | `~/.local/share/vrooli/browser-automation-studio/browser-automation-studio.db` |
-| `BAS_DB_MAX_OPEN_CONNS` | Max open connections | `25` |
-| `BAS_DB_MAX_IDLE_CONNS` | Max idle connections | `5` |
-| `BAS_DB_CONN_MAX_LIFETIME_MS` | Conn lifetime | `300000` |
+| `BAS_SQLITE_PATH` | Absolute SQLite file path | resolved via `api-core/storage` |
+| `DATABASE_URL` | Override path with `file:/abs/path.db` form | — |
+| `BAS_DB_CONN_MAX_LIFETIME_MS` | Connection lifetime | `300000` |
 | `BAS_DB_MAX_RETRIES` / `BAS_DB_BASE_RETRY_DELAY_MS` / `BAS_DB_MAX_RETRY_DELAY_MS` / `BAS_DB_RETRY_JITTER_FACTOR` | Retry tuning | `10` / `1000` / `30000` / `0.25` |
 
-SQLite defaults to `~/.local/share/vrooli/browser-automation-studio/browser-automation-studio.db` with WAL mode and tuned pragmas.
+SQLite defaults to `~/.local/share/vrooli/browser-automation-studio/browser-automation-studio.db` (Linux; `ProfileAuto` picks the OS-appropriate data dir on macOS/Windows) with WAL mode and tuned pragmas. The connection pool is fixed at 1 open connection because SQLite supports a single writer.
 
 ## Timeout Hierarchy
 
@@ -166,7 +162,6 @@ Set automatically by Vrooli lifecycle:
 export API_PORT=20100
 export UI_PORT=40100
 export WS_PORT=25100
-export DATABASE_URL="postgresql://user:pass@localhost:5432/browser_automation"
 export MINIO_PORT=9000
 export MINIO_ACCESS_KEY="minioadmin"
 export MINIO_SECRET_KEY="minioadmin"
@@ -174,9 +169,11 @@ export MINIO_BUCKET_NAME="browser-automation-screenshots"
 export BROWSERLESS_PORT=3000
 export VROOLI_LIFECYCLE_MANAGED=true
 
+# Optional: override the SQLite file location (defaults via api-core/storage)
+export BAS_SQLITE_PATH=/var/lib/browser-automation-studio/db.sqlite
+
 # Optional tuning
 export BAS_TIMEOUT_AI_REQUEST_MS=90000
-export BAS_DB_MAX_OPEN_CONNS=50
 export CORS_ALLOWED_ORIGINS="https://app.example.com,https://dashboard.example.com"
 ```
 

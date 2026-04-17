@@ -7,15 +7,14 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"testing"
-	"time"
-
-	"github.com/gorilla/mux"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/tlsinfo"
 	"scenario-to-cloud/vps"
+	"testing"
+	"time"
+
+	"github.com/gorilla/mux"
 )
 
 type fakeTLSService struct {

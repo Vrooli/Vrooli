@@ -252,111 +252,21 @@ func NewServer(port int) *Server {
 	systemBuildStore := &systemBuildStoreAdapter{store: buildStore}
 	systemHandler := system.NewHandler(wineService, systemBuildStore, templateDir)
 
-	// Pipeline orchestrator - wire up all stages with their dependencies
-	// Create scenario analyzer for generation stage
-	scenarioAnalyzer := generation.NewAnalyzer(vrooliRoot)
-
-	// Create manifest generator for on-demand bundle manifest creation
-	manifestGenerator := pipeline.NewDeploymentManagerGenerator(
-		pipeline.WithGeneratorLogger(&pipeline.SlogLogger{Logger: logger}),
-	)
-
-	// Deploy target management
-	deployTargetsPath, err := storePaths.DeployTargetsPath()
-	if err != nil {
-		logger.Warn("deploy targets path unavailable", "error", err)
+	pipelineDeps := pipelineInitDeps{
+		scenarioRoot:          scenarioRoot,
+		vrooliRoot:            vrooliRoot,
+		logger:                logger,
+		storePaths:            storePaths,
+		preflightService:      preflightService,
+		bundlePackager:        bundlePackager,
+		generationService:     generationService,
+		generationBuildStore:  generationBuildStore,
+		buildService:          buildService,
+		buildStore:            buildStore,
+		smokeTestService:      smokeTestService,
+		smokeTestStore:        smokeTestStore,
 	}
-	deployTargetRepo := deploy.NewTargetRepository(deployTargetsPath)
-
-	// Create pipeline stages with their service dependencies
-	// Stage order: bundle → preflight → generate → build → smoketest → deploy
-	// (smoketest before deploy: verify the build works before publishing)
-	pipelineStages := []pipeline.Stage{
-		pipeline.NewBundleStage(
-			pipeline.WithScenarioRoot(scenarioRoot),
-			pipeline.WithBundlePackager(bundlePackager),
-			pipeline.WithManifestGenerator(manifestGenerator),
-		),
-		pipeline.NewPreflightStage(
-			pipeline.WithPreflightService(preflightService),
-			pipeline.WithBundleabilityChecker(scenarioAnalyzer),
-		),
-		pipeline.NewGenerateStage(
-			pipeline.WithGenerateScenarioRoot(scenarioRoot),
-			pipeline.WithGenerateService(generationService),
-			pipeline.WithScenarioAnalyzer(scenarioAnalyzer),
-			pipeline.WithGenerateBuildStore(generationBuildStore),
-		),
-		pipeline.NewBuildStage(
-			pipeline.WithBuildService(buildService),
-			pipeline.WithBuildStore(buildStore),
-		),
-		pipeline.NewSmokeTestStage(
-			pipeline.WithSmokeTestService(smokeTestService),
-			pipeline.WithSmokeTestStore(smokeTestStore),
-		),
-		pipeline.NewDeployStage(
-			pipeline.WithDeployTargetRepo(deployTargetRepo),
-		),
-	}
-
-	// Create file-backed pipeline store for persistence across restarts
-	pipelineDataDir, err := storePaths.EnsurePipelineStateDir()
-	if err != nil {
-		logger.Warn("pipeline storage directory unavailable", "error", err)
-	}
-	pipelineStore, err := pipeline.NewFileStore(pipelineDataDir,
-		pipeline.WithFileStoreLogger(&pipeline.SlogLogger{Logger: logger}),
-	)
-	if err != nil {
-		logger.Warn("pipeline file store unavailable, using in-memory", "error", err)
-		pipelineStore = nil
-	}
-
-	// Create scenario index store for scenario-to-pipeline mapping
-	indexDataDir, err := storePaths.EnsurePipelineIndexDir()
-	if err != nil {
-		logger.Warn("pipeline index directory unavailable", "error", err)
-	}
-	indexStore, err := pipeline.NewScenarioIndexStore(indexDataDir,
-		pipeline.WithIndexStoreLogger(&pipeline.SlogLogger{Logger: logger}),
-	)
-	if err != nil {
-		logger.Warn("scenario index store unavailable", "error", err)
-		indexStore = nil
-	}
-
-	// Create orchestrator with optional file store
-	orchestratorOpts := []pipeline.OrchestratorOption{
-		pipeline.WithOrchestratorScenarioRoot(scenarioRoot),
-		pipeline.WithLogger(&pipeline.SlogLogger{Logger: logger}),
-		pipeline.WithStages(pipelineStages...),
-	}
-	if pipelineStore != nil {
-		orchestratorOpts = append(orchestratorOpts, pipeline.WithStore(pipelineStore))
-	}
-	pipelineOrchestrator := pipeline.NewOrchestrator(orchestratorOpts...)
-
-	// Create pipeline manager for scenario-based pipeline operations
-	pipelineManager := pipeline.NewManager(
-		pipeline.WithManagerOrchestrator(pipelineOrchestrator),
-		pipeline.WithManagerIndexStore(indexStore),
-		pipeline.WithManagerLogger(&pipeline.SlogLogger{Logger: logger}),
-	)
-
-	// Recover pipelines stuck in "running" state from previous server sessions.
-	// This handles unclean shutdowns where goroutines were lost but persisted state
-	// still shows "running". Must run before handlers are registered.
-	if n := pipelineManager.RecoverStalePipelines(); n > 0 {
-		logger.Info("recovered stale pipelines at startup", "count", n)
-	}
-
-	pipelineHandler := pipeline.NewHandler(
-		pipeline.WithOrchestrator(pipelineOrchestrator),
-		pipeline.WithManager(pipelineManager),
-	)
-
-	deployHandler := deploy.NewHandler(deployTargetRepo)
+	pipelineOrchestrator, pipelineHandler, deployHandler := initPipelineStack(pipelineDeps)
 
 	// ===== Tool Discovery and Execution Protocol =====
 
@@ -436,6 +346,127 @@ func NewServer(port int) *Server {
 	}
 	srv.registerDomainHandlers()
 	return srv
+}
+
+// pipelineInitDeps bundles the services required to build the pipeline stack.
+type pipelineInitDeps struct {
+	scenarioRoot         string
+	vrooliRoot           string
+	logger               *slog.Logger
+	storePaths           *storagepaths.Locator
+	preflightService     preflightdomain.Service
+	bundlePackager       bundle.Packager
+	generationService    generation.Service
+	generationBuildStore generation.BuildStore
+	buildService         build.Service
+	buildStore           build.Store
+	smokeTestService     smoketest.Service
+	smokeTestStore       smoketest.Store
+}
+
+// initPipelineStack wires up the pipeline orchestrator, manager, handler, and the
+// deploy handler that shares the deploy-target repository.
+func initPipelineStack(deps pipelineInitDeps) (*pipeline.DefaultOrchestrator, *pipeline.Handler, *deploy.Handler) {
+	logger := deps.logger
+	storePaths := deps.storePaths
+
+	scenarioAnalyzer := generation.NewAnalyzer(deps.vrooliRoot)
+	manifestGenerator := pipeline.NewDeploymentManagerGenerator(
+		pipeline.WithGeneratorLogger(&pipeline.SlogLogger{Logger: logger}),
+	)
+
+	deployTargetsPath, err := storePaths.DeployTargetsPath()
+	if err != nil {
+		logger.Warn("deploy targets path unavailable", "error", err)
+	}
+	deployTargetRepo := deploy.NewTargetRepository(deployTargetsPath)
+
+	stages := []pipeline.Stage{
+		pipeline.NewBundleStage(
+			pipeline.WithScenarioRoot(deps.scenarioRoot),
+			pipeline.WithBundlePackager(deps.bundlePackager),
+			pipeline.WithManifestGenerator(manifestGenerator),
+		),
+		pipeline.NewPreflightStage(
+			pipeline.WithPreflightService(deps.preflightService),
+			pipeline.WithBundleabilityChecker(scenarioAnalyzer),
+		),
+		pipeline.NewGenerateStage(
+			pipeline.WithGenerateScenarioRoot(deps.scenarioRoot),
+			pipeline.WithGenerateService(deps.generationService),
+			pipeline.WithScenarioAnalyzer(scenarioAnalyzer),
+			pipeline.WithGenerateBuildStore(deps.generationBuildStore),
+		),
+		pipeline.NewBuildStage(
+			pipeline.WithBuildService(deps.buildService),
+			pipeline.WithBuildStore(deps.buildStore),
+		),
+		pipeline.NewSmokeTestStage(
+			pipeline.WithSmokeTestService(deps.smokeTestService),
+			pipeline.WithSmokeTestStore(deps.smokeTestStore),
+		),
+		pipeline.NewDeployStage(
+			pipeline.WithDeployTargetRepo(deployTargetRepo),
+		),
+	}
+
+	pipelineStore := newPipelineFileStore(storePaths, logger)
+	indexStore := newPipelineIndexStore(storePaths, logger)
+
+	orchestratorOpts := []pipeline.OrchestratorOption{
+		pipeline.WithOrchestratorScenarioRoot(deps.scenarioRoot),
+		pipeline.WithLogger(&pipeline.SlogLogger{Logger: logger}),
+		pipeline.WithStages(stages...),
+	}
+	if pipelineStore != nil {
+		orchestratorOpts = append(orchestratorOpts, pipeline.WithStore(pipelineStore))
+	}
+	orchestrator := pipeline.NewOrchestrator(orchestratorOpts...)
+
+	manager := pipeline.NewManager(
+		pipeline.WithManagerOrchestrator(orchestrator),
+		pipeline.WithManagerIndexStore(indexStore),
+		pipeline.WithManagerLogger(&pipeline.SlogLogger{Logger: logger}),
+	)
+	if n := manager.RecoverStalePipelines(); n > 0 {
+		logger.Info("recovered stale pipelines at startup", "count", n)
+	}
+
+	handler := pipeline.NewHandler(
+		pipeline.WithOrchestrator(orchestrator),
+		pipeline.WithManager(manager),
+	)
+	return orchestrator, handler, deploy.NewHandler(deployTargetRepo)
+}
+
+func newPipelineFileStore(storePaths *storagepaths.Locator, logger *slog.Logger) *pipeline.FileStore {
+	dataDir, err := storePaths.EnsurePipelineStateDir()
+	if err != nil {
+		logger.Warn("pipeline storage directory unavailable", "error", err)
+	}
+	store, err := pipeline.NewFileStore(dataDir,
+		pipeline.WithFileStoreLogger(&pipeline.SlogLogger{Logger: logger}),
+	)
+	if err != nil {
+		logger.Warn("pipeline file store unavailable, using in-memory", "error", err)
+		return nil
+	}
+	return store
+}
+
+func newPipelineIndexStore(storePaths *storagepaths.Locator, logger *slog.Logger) *pipeline.ScenarioIndexStore {
+	dataDir, err := storePaths.EnsurePipelineIndexDir()
+	if err != nil {
+		logger.Warn("pipeline index directory unavailable", "error", err)
+	}
+	store, err := pipeline.NewScenarioIndexStore(dataDir,
+		pipeline.WithIndexStoreLogger(&pipeline.SlogLogger{Logger: logger}),
+	)
+	if err != nil {
+		logger.Warn("scenario index store unavailable", "error", err)
+		return nil
+	}
+	return store
 }
 
 // initCapturesDomain sets up the captures service and handler.

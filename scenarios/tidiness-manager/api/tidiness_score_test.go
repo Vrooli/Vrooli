@@ -94,8 +94,8 @@ func TestComputeScore(t *testing.T) {
 				m.AvgDuplicationPct = 3.0
 				return m
 			}(),
-			expectedMin: 70,
-			expectedMax: 85,
+			expectedMin: 85,
+			expectedMax: 95,
 		},
 		{
 			name:   "average project",

@@ -3,7 +3,6 @@ package heartbeat
 import (
 	"encoding/json"
 	"net/http"
-
 	"prompt-manager/store"
 )
 

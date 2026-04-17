@@ -3,11 +3,10 @@ package app
 import (
 	"database/sql"
 	"errors"
-	"testing"
-
 	"test-genie/agentmanager"
 	"test-genie/internal/app/httpserver"
 	"test-genie/internal/app/runtime"
+	"testing"
 )
 
 func TestNewServerPropagatesLoadConfigError(t *testing.T) {

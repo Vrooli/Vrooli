@@ -16,17 +16,17 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"swarm-manager/internal/agentactivity"
+	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/httputil"
+	"swarm-manager/internal/workshop"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
-	"swarm-manager/internal/agentactivity"
-	"swarm-manager/internal/agentmanager"
-	"swarm-manager/internal/apierr"
-	"swarm-manager/internal/httputil"
-	"swarm-manager/internal/workshop"
 )
 
 // CreateClarification starts a new clarification thread for a workshop decision.

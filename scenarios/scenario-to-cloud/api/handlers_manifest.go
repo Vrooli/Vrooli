@@ -5,13 +5,12 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
-	"strings"
-	"time"
-
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
 	"scenario-to-cloud/manifest"
+	"strings"
+	"time"
 )
 
 // ManifestInitRequest describes API input for creating a starter cloud manifest.

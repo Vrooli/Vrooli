@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/storage"
 )

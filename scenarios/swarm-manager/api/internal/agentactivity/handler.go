@@ -5,12 +5,12 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/httputil"
 
 	"github.com/gorilla/mux"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
-	"swarm-manager/internal/apierr"
-	"swarm-manager/internal/httputil"
 )
 
 type Handler struct {

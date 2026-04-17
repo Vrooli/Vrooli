@@ -1,12 +1,11 @@
 package execution
 
 import (
+	"test-genie/internal/orchestrator"
+	"test-genie/internal/orchestrator/phases"
 	"time"
 
 	"github.com/google/uuid"
-
-	"test-genie/internal/orchestrator"
-	"test-genie/internal/orchestrator/phases"
 )
 
 // SuiteExecutionRecord captures a persisted execution outcome.

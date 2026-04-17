@@ -120,6 +120,8 @@ describe("Policy types", () => {
       created_at: "2026-01-01T00:00:00Z",
       cols: 80,
       rows: 24,
+      backend: "standard",
+      survives_restart: false,
       policy: { mode: "never" },
       busy: false,
     };

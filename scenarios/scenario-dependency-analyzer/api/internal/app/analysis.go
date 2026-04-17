@@ -5,11 +5,12 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"scenario-dependency-analyzer/internal/deployment"
+	"scenario-dependency-analyzer/internal/seams"
 	"sort"
 
 	appconfig "scenario-dependency-analyzer/internal/config"
-	"scenario-dependency-analyzer/internal/deployment"
-	"scenario-dependency-analyzer/internal/seams"
+
 	types "scenario-dependency-analyzer/internal/types"
 )
 

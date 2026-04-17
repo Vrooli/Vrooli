@@ -2,9 +2,8 @@ package backlog
 
 import (
 	"path/filepath"
-	"testing"
-
 	"swarm-manager/internal/testutil"
+	"testing"
 )
 
 // ---------------------------------------------------------------------------

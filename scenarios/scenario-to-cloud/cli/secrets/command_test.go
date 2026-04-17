@@ -3,12 +3,11 @@ package secrets
 import (
 	"net/http"
 	"net/http/httptest"
+	"scenario-to-cloud/cli/deployment"
 	"strings"
 	"testing"
 
 	"github.com/vrooli/cli-core/cliutil"
-
-	"scenario-to-cloud/cli/deployment"
 )
 
 func secretsTestClient(baseURL string) *Client {

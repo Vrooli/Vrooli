@@ -6,11 +6,11 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"scenario-to-cloud/internal/shellutil"
 	"strings"
 	"time"
 
 	gossh "golang.org/x/crypto/ssh"
-	"scenario-to-cloud/internal/shellutil"
 )
 
 // KeyCopier copies an SSH public key to a remote server.

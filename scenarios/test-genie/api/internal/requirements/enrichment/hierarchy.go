@@ -2,7 +2,6 @@ package enrichment
 
 import (
 	"context"
-
 	"test-genie/internal/requirements/parsing"
 	"test-genie/internal/requirements/types"
 )

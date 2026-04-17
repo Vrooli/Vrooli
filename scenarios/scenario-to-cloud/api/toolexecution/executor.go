@@ -5,10 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
-
-	"github.com/google/uuid"
-
 	"scenario-to-cloud/deployment"
 	"scenario-to-cloud/dns"
 	"scenario-to-cloud/domain"
@@ -19,6 +15,9 @@ import (
 	"scenario-to-cloud/toolregistry"
 	"scenario-to-cloud/vps"
 	"scenario-to-cloud/vps/preflight"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 // ToolExecutor executes tools from the Tool Execution Protocol.

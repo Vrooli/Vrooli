@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-	"time"
-
 	"test-genie/internal/playbooks/execution"
 	"test-genie/internal/playbooks/types"
+	"time"
+
 	sharedartifacts "test-genie/internal/shared/artifacts"
 
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"

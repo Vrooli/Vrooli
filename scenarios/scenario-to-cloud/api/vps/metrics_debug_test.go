@@ -2,10 +2,9 @@ package vps
 
 import (
 	"context"
-	"testing"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/ssh"
+	"testing"
 )
 
 func TestRunSystemMetricsDebug_ParsesLinuxMetrics(t *testing.T) {

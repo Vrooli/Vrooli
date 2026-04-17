@@ -6,12 +6,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"swarm-manager/internal/promptcatalog"
+	"swarm-manager/internal/promptmanager"
 	"testing"
 
 	"github.com/gorilla/mux"
-
-	"swarm-manager/internal/promptcatalog"
-	"swarm-manager/internal/promptmanager"
 )
 
 type mockClient struct {

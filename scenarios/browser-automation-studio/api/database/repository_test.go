@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -14,24 +13,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func testBackend() string {
-	backend := strings.ToLower(strings.TrimSpace(os.Getenv("BAS_TEST_BACKEND")))
-	if backend == "" {
-		backend = strings.ToLower(strings.TrimSpace(os.Getenv("BAS_DB_BACKEND")))
-	}
-	if backend == "" {
-		backend = "sqlite"
-	}
-	return backend
-}
-
 func setupTestDB(t *testing.T) (*DB, func()) {
 	t.Helper()
-
-	backend := testBackend()
-	if backend != "sqlite" {
-		t.Skipf("unsupported test backend %q (set BAS_TEST_BACKEND=sqlite)", backend)
-	}
 
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "bas-test.db")
@@ -50,9 +33,8 @@ func setupTestDB(t *testing.T) (*DB, func()) {
 	log.SetLevel(logrus.PanicLevel)
 
 	wrapped := &DB{
-		DB:      sqlDB,
-		log:     log,
-		dialect: DialectSQLite,
+		DB:  sqlDB,
+		log: log,
 	}
 	if err := wrapped.initSchema(); err != nil {
 		_ = sqlDB.Close()

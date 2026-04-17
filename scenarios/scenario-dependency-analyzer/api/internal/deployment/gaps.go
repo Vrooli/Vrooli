@@ -3,9 +3,9 @@ package deployment
 import (
 	"fmt"
 	"path/filepath"
+	"scenario-dependency-analyzer/internal/config"
 	"sort"
 
-	"scenario-dependency-analyzer/internal/config"
 	types "scenario-dependency-analyzer/internal/types"
 )
 

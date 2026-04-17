@@ -3,10 +3,9 @@ package execution
 import (
 	"context"
 	"path/filepath"
+	"swarm-manager/internal/agentmanager"
 	"testing"
 	"time"
-
-	"swarm-manager/internal/agentmanager"
 )
 
 func TestMapRunStatus_AllKnown(t *testing.T) {

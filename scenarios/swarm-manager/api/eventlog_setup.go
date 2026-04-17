@@ -5,12 +5,11 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"swarm-manager/internal/eventlog"
+	"swarm-manager/internal/runtimepaths"
+	"swarm-manager/internal/stats"
 
 	"github.com/vrooli/api-core/database"
-	"swarm-manager/internal/runtimepaths"
-
-	"swarm-manager/internal/eventlog"
-	"swarm-manager/internal/stats"
 )
 
 // resolveEventDBPath returns the SQLite DSN for the event log database.

@@ -21,9 +21,9 @@ describe('page event routes', () => {
   beforeEach(() => {
     global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 200, statusText: 'OK' }) as typeof fetch;
     if (!global.crypto) {
-      (global as typeof globalThis).crypto = { randomUUID: jest.fn().mockReturnValue('page-1') } as Crypto;
+      (global as { crypto?: Crypto }).crypto = { randomUUID: jest.fn().mockReturnValue('page-1') } as unknown as Crypto;
     } else if (!('randomUUID' in global.crypto)) {
-      global.crypto.randomUUID = jest.fn().mockReturnValue('page-1');
+      (global.crypto as { randomUUID: () => string }).randomUUID = jest.fn().mockReturnValue('page-1');
     }
   });
 
@@ -101,15 +101,15 @@ describe('page event routes', () => {
 
     expect(session.pages).toHaveLength(1);
     const createdPayload = (global.fetch as jest.Mock).mock.calls[0]?.[1]?.body as string;
-    expect(createdPayload).toContain('\"eventType\":\"created\"');
+    expect(createdPayload).toContain('"eventType":"created"');
 
     await pageHandlers.framenavigated?.(mainFrame);
     const navigatedPayload = (global.fetch as jest.Mock).mock.calls[1]?.[1]?.body as string;
-    expect(navigatedPayload).toContain('\"eventType\":\"navigated\"');
+    expect(navigatedPayload).toContain('"eventType":"navigated"');
 
     await pageHandlers.close?.();
     const closedPayload = (global.fetch as jest.Mock).mock.calls[2]?.[1]?.body as string;
-    expect(closedPayload).toContain('\"eventType\":\"closed\"');
+    expect(closedPayload).toContain('"eventType":"closed"');
 
     cleanup();
     expect(session.context.off).toHaveBeenCalled();

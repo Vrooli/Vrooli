@@ -1,6 +1,7 @@
 package services
 
 import (
+	"app-monitor-api/logger"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -8,8 +9,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"app-monitor-api/logger"
 )
 
 // BrowserlessConsoleLog represents a console log entry captured by browserless
@@ -263,8 +262,8 @@ func (s *BrowserlessService) analyzeHTMLForErrors(html string, status *Browserle
 		if log.Level == "error" {
 			logLower := strings.ToLower(log.Message)
 			if strings.Contains(logLower, "failed to load module") ||
-			   strings.Contains(logLower, "mime type") ||
-			   strings.Contains(logLower, "unexpected token") && strings.Contains(logLower, "import") {
+				strings.Contains(logLower, "mime type") ||
+				strings.Contains(logLower, "unexpected token") && strings.Contains(logLower, "import") {
 				hasModuleError = true
 				if status.ModuleError == "" {
 					status.ModuleError = log.Message
@@ -282,8 +281,8 @@ func (s *BrowserlessService) analyzeHTMLForErrors(html string, status *Browserle
 		if log.Level == "error" {
 			logLower := strings.ToLower(log.Message)
 			if strings.Contains(logLower, "failed to fetch") ||
-			   strings.Contains(logLower, "net::err") ||
-			   strings.Contains(logLower, "connection refused") {
+				strings.Contains(logLower, "net::err") ||
+				strings.Contains(logLower, "connection refused") {
 				hasLoadError = true
 				if status.LoadError == "" {
 					status.LoadError = log.Message
@@ -368,4 +367,3 @@ func extractJSONFromOutput(output []byte) []byte {
 
 	return nil
 }
-

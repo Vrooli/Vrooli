@@ -7,11 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"test-genie/internal/requirements/reporting"
 
 	"github.com/vrooli/cli-core/cliutil"
 
 	reqservice "test-genie/internal/requirements"
-	"test-genie/internal/requirements/reporting"
 )
 
 func runReport(args []string) error {

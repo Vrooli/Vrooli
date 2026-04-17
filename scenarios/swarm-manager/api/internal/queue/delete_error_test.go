@@ -6,10 +6,10 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"swarm-manager/internal/testutil"
 	"testing"
 
 	"github.com/gorilla/mux"
-	"swarm-manager/internal/testutil"
 )
 
 func TestDelete_LoadError(t *testing.T) {

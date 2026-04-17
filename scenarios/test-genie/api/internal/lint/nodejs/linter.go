@@ -11,7 +11,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-
 	"test-genie/internal/lint/execution"
 	"test-genie/internal/shared"
 )

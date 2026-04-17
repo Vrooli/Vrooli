@@ -9,12 +9,11 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
-	"testing"
-
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/playbooks"
 	"test-genie/internal/playbooks/isolation"
 	"test-genie/internal/shared"
+	"testing"
 )
 
 // playbooksTestHarness provides a consistent test setup for playbooks phase tests.

@@ -6,14 +6,15 @@ import (
 	"flag"
 	"fmt"
 	"strings"
+	"test-genie/internal/storage/sqlitedb"
+	"test-genie/internal/storage/sqliteutil"
 	"time"
 
 	pq "github.com/lib/pq"
+	// Register modernc.org/sqlite as the pure-Go "sqlite" driver.
 	_ "modernc.org/sqlite"
 
 	runtimepkg "test-genie/internal/app/runtime"
-	"test-genie/internal/storage/sqlitedb"
-	"test-genie/internal/storage/sqliteutil"
 )
 
 type dbOpener func(driver, dsn string) (*sql.DB, error)

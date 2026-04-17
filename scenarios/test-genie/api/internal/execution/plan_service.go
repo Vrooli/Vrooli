@@ -5,14 +5,13 @@ import (
 	"math"
 	"sort"
 	"strings"
-	"time"
-
 	"test-genie/internal/orchestrator"
+	"time"
 )
 
 const (
-	planHistoryWindow         = 90 * 24 * time.Hour
-	maxHistoryRows            = 2000
+	planHistoryWindow          = 90 * 24 * time.Hour
+	maxHistoryRows             = 2000
 	maxScenarioSamplesPerPhase = 20
 	maxGlobalSamplesPerPhase   = 50
 	primaryScenarioSamples     = 5

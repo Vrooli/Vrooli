@@ -5,13 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
-
-	"github.com/gorilla/mux"
-
 	"scenario-to-cloud/deployment"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
+	"time"
+
+	"github.com/gorilla/mux"
 )
 
 // handleDeploymentProgress streams deployment progress events via SSE.

@@ -11,7 +11,6 @@ func TestLoadExpectations_DefaultsWhenNoFile(t *testing.T) {
 	scenarioDir := t.TempDir()
 
 	exp, err := LoadExpectations(scenarioDir)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -49,7 +48,6 @@ func TestLoadExpectations_LoadsFromFile(t *testing.T) {
 	}
 
 	exp, err := LoadExpectations(scenarioDir)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -85,7 +83,6 @@ func TestLoadExpectations_PartialOverrides(t *testing.T) {
 	}
 
 	exp, err := LoadExpectations(scenarioDir)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -130,7 +127,6 @@ func TestLoadExpectations_EmptyPerformanceSection(t *testing.T) {
 	}
 
 	exp, err := LoadExpectations(scenarioDir)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

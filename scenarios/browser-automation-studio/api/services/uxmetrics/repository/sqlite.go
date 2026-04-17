@@ -1,4 +1,4 @@
-// Package repository implements UX metrics persistence using PostgreSQL.
+// Package repository implements UX metrics persistence using SQLite.
 package repository
 
 import (
@@ -13,23 +13,23 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/uxmetrics/contracts"
 )
 
-// PostgresRepository implements uxmetrics.Repository using PostgreSQL.
-type PostgresRepository struct {
+// Repository implements uxmetrics.Repository using SQLite.
+type Repository struct {
 	db *sqlx.DB
 }
 
-// NewPostgresRepository creates a new PostgreSQL-backed repository.
-func NewPostgresRepository(db *sqlx.DB) *PostgresRepository {
-	return &PostgresRepository{db: db}
+// NewRepository creates a new SQLite-backed repository.
+func NewRepository(db *sqlx.DB) *Repository {
+	return &Repository{db: db}
 }
 
 // SaveInteractionTrace persists a single interaction trace.
-func (r *PostgresRepository) SaveInteractionTrace(ctx context.Context, trace *contracts.InteractionTrace) error {
+func (r *Repository) SaveInteractionTrace(ctx context.Context, trace *contracts.InteractionTrace) error {
 	query := `
 		INSERT INTO ux_interaction_traces
 		(id, execution_id, step_index, action_type, element_id, selector,
 		 position_x, position_y, timestamp, duration_ms, success, metadata)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	var posX, posY *float64
@@ -51,12 +51,12 @@ func (r *PostgresRepository) SaveInteractionTrace(ctx context.Context, trace *co
 }
 
 // SaveCursorPath persists a cursor path for a step.
-func (r *PostgresRepository) SaveCursorPath(ctx context.Context, executionID uuid.UUID, path *contracts.CursorPath) error {
+func (r *Repository) SaveCursorPath(ctx context.Context, executionID uuid.UUID, path *contracts.CursorPath) error {
 	query := `
 		INSERT INTO ux_cursor_paths
 		(execution_id, step_index, points, total_distance_px, direct_distance_px,
 		 duration_ms, directness, zigzag_score, average_speed, max_speed, hesitation_count)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (execution_id, step_index)
 		DO UPDATE SET points = EXCLUDED.points,
 					  total_distance_px = EXCLUDED.total_distance_px,
@@ -82,14 +82,14 @@ func (r *PostgresRepository) SaveCursorPath(ctx context.Context, executionID uui
 }
 
 // SaveExecutionMetrics persists computed execution metrics.
-func (r *PostgresRepository) SaveExecutionMetrics(ctx context.Context, metrics *contracts.ExecutionMetrics) error {
+func (r *Repository) SaveExecutionMetrics(ctx context.Context, metrics *contracts.ExecutionMetrics) error {
 	query := `
 		INSERT INTO ux_execution_metrics
 		(execution_id, workflow_id, computed_at, total_duration_ms, step_count,
 		 successful_steps, failed_steps, total_retries, avg_step_duration_ms,
 		 total_cursor_distance, overall_friction_score, friction_signals,
 		 step_metrics, summary)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (execution_id) DO UPDATE SET
 			computed_at = EXCLUDED.computed_at,
 			total_duration_ms = EXCLUDED.total_duration_ms,
@@ -120,14 +120,14 @@ func (r *PostgresRepository) SaveExecutionMetrics(ctx context.Context, metrics *
 }
 
 // GetExecutionMetrics retrieves computed metrics for an execution.
-func (r *PostgresRepository) GetExecutionMetrics(ctx context.Context, executionID uuid.UUID) (*contracts.ExecutionMetrics, error) {
+func (r *Repository) GetExecutionMetrics(ctx context.Context, executionID uuid.UUID) (*contracts.ExecutionMetrics, error) {
 	query := `
 		SELECT execution_id, workflow_id, computed_at, total_duration_ms,
 			   step_count, successful_steps, failed_steps, total_retries,
 			   avg_step_duration_ms, total_cursor_distance, overall_friction_score,
 			   friction_signals, step_metrics, summary
 		FROM ux_execution_metrics
-		WHERE execution_id = $1
+		WHERE execution_id = ?
 	`
 
 	var m contracts.ExecutionMetrics
@@ -154,7 +154,7 @@ func (r *PostgresRepository) GetExecutionMetrics(ctx context.Context, executionI
 }
 
 // GetStepMetrics retrieves metrics for a specific step.
-func (r *PostgresRepository) GetStepMetrics(ctx context.Context, executionID uuid.UUID, stepIndex int) (*contracts.StepMetrics, error) {
+func (r *Repository) GetStepMetrics(ctx context.Context, executionID uuid.UUID, stepIndex int) (*contracts.StepMetrics, error) {
 	metrics, err := r.GetExecutionMetrics(ctx, executionID)
 	if err != nil || metrics == nil {
 		return nil, err
@@ -169,12 +169,12 @@ func (r *PostgresRepository) GetStepMetrics(ctx context.Context, executionID uui
 }
 
 // ListInteractionTraces retrieves all interaction traces for an execution.
-func (r *PostgresRepository) ListInteractionTraces(ctx context.Context, executionID uuid.UUID) ([]contracts.InteractionTrace, error) {
+func (r *Repository) ListInteractionTraces(ctx context.Context, executionID uuid.UUID) ([]contracts.InteractionTrace, error) {
 	query := `
 		SELECT id, execution_id, step_index, action_type, element_id, selector,
 			   position_x, position_y, timestamp, duration_ms, success, metadata
 		FROM ux_interaction_traces
-		WHERE execution_id = $1
+		WHERE execution_id = ?
 		ORDER BY timestamp ASC
 	`
 
@@ -211,12 +211,12 @@ func (r *PostgresRepository) ListInteractionTraces(ctx context.Context, executio
 }
 
 // GetCursorPath retrieves the cursor path for a specific step.
-func (r *PostgresRepository) GetCursorPath(ctx context.Context, executionID uuid.UUID, stepIndex int) (*contracts.CursorPath, error) {
+func (r *Repository) GetCursorPath(ctx context.Context, executionID uuid.UUID, stepIndex int) (*contracts.CursorPath, error) {
 	query := `
 		SELECT step_index, points, total_distance_px, direct_distance_px,
 			   duration_ms, directness, zigzag_score, average_speed, max_speed, hesitation_count
 		FROM ux_cursor_paths
-		WHERE execution_id = $1 AND step_index = $2
+		WHERE execution_id = ? AND step_index = ?
 	`
 
 	var path contracts.CursorPath
@@ -239,7 +239,7 @@ func (r *PostgresRepository) GetCursorPath(ctx context.Context, executionID uuid
 }
 
 // GetWorkflowMetricsAggregate computes aggregate metrics across executions.
-func (r *PostgresRepository) GetWorkflowMetricsAggregate(ctx context.Context, workflowID uuid.UUID, limit int) (*contracts.WorkflowMetricsAggregate, error) {
+func (r *Repository) GetWorkflowMetricsAggregate(ctx context.Context, workflowID uuid.UUID, limit int) (*contracts.WorkflowMetricsAggregate, error) {
 	query := `
 		SELECT
 			COUNT(*) as execution_count,
@@ -248,9 +248,9 @@ func (r *PostgresRepository) GetWorkflowMetricsAggregate(ctx context.Context, wo
 		FROM (
 			SELECT overall_friction_score, total_duration_ms
 			FROM ux_execution_metrics
-			WHERE workflow_id = $1
+			WHERE workflow_id = ?
 			ORDER BY computed_at DESC
-			LIMIT $2
+			LIMIT ?
 		) recent
 	`
 
@@ -274,13 +274,13 @@ func (r *PostgresRepository) GetWorkflowMetricsAggregate(ctx context.Context, wo
 	return &agg, nil
 }
 
-func (r *PostgresRepository) computeTrendDirection(ctx context.Context, workflowID uuid.UUID, limit int) string {
+func (r *Repository) computeTrendDirection(ctx context.Context, workflowID uuid.UUID, limit int) string {
 	query := `
 		SELECT overall_friction_score
 		FROM ux_execution_metrics
-		WHERE workflow_id = $1
+		WHERE workflow_id = ?
 		ORDER BY computed_at DESC
-		LIMIT $2
+		LIMIT ?
 	`
 
 	rows, err := r.db.QueryContext(ctx, query, workflowID, limit)
@@ -315,13 +315,13 @@ func (r *PostgresRepository) computeTrendDirection(ctx context.Context, workflow
 	return "stable"
 }
 
-func (r *PostgresRepository) computeHighFrictionStepFreq(ctx context.Context, workflowID uuid.UUID, limit int, agg *contracts.WorkflowMetricsAggregate) {
+func (r *Repository) computeHighFrictionStepFreq(ctx context.Context, workflowID uuid.UUID, limit int, agg *contracts.WorkflowMetricsAggregate) {
 	query := `
 		SELECT step_metrics
 		FROM ux_execution_metrics
-		WHERE workflow_id = $1
+		WHERE workflow_id = ?
 		ORDER BY computed_at DESC
-		LIMIT $2
+		LIMIT ?
 	`
 
 	rows, err := r.db.QueryContext(ctx, query, workflowID, limit)
@@ -361,4 +361,4 @@ func avg(values []float64) float64 {
 }
 
 // Compile-time interface check
-var _ uxmetrics.Repository = (*PostgresRepository)(nil)
+var _ uxmetrics.Repository = (*Repository)(nil)

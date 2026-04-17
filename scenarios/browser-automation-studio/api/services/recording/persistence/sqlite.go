@@ -224,7 +224,7 @@ func (r *SQLiteRepository) SaveTimelineEntries(ctx context.Context, entries []*U
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	stmt, err := tx.PrepareContext(ctx, `
 		INSERT INTO timeline_entries (id, type, timestamp, session_id, page_id, sequence, action_json, page_event_json)
@@ -486,7 +486,7 @@ func (r *SQLiteRepository) PruneOldSessions(ctx context.Context, olderThan time.
 	if err != nil {
 		return 0, fmt.Errorf("begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	for _, id := range sessionIDs {
 		if _, err := tx.ExecContext(ctx, `DELETE FROM timeline_entries WHERE session_id = $1`, id); err != nil {

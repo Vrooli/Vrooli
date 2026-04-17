@@ -5,10 +5,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"test-genie/internal/smoke/orchestrator"
 	"testing"
 	"time"
-
-	"test-genie/internal/smoke/orchestrator"
 )
 
 func TestNewClient(t *testing.T) {

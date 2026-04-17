@@ -3,13 +3,12 @@ package scenarios
 import (
 	"context"
 	"database/sql"
+	"test-genie/internal/storage/sqliteutil"
+	"test-genie/internal/testsqlite"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
-
-	"test-genie/internal/storage/sqliteutil"
-	"test-genie/internal/testsqlite"
 )
 
 func TestScenarioDirectoryRepositoryList(t *testing.T) {

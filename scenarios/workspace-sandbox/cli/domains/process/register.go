@@ -190,7 +190,7 @@ func runKill(deps support.Dependencies, args []string) error {
 	for _, arg := range args {
 		switch {
 		case strings.HasPrefix(arg, "--pid="):
-			fmt.Sscanf(strings.TrimPrefix(arg, "--pid="), "%d", &pid)
+			_, _ = fmt.Sscanf(strings.TrimPrefix(arg, "--pid="), "%d", &pid)
 		case arg == "--all":
 			killAll = true
 		case arg == "--json":
@@ -254,9 +254,9 @@ func runLogs(deps support.Dependencies, args []string) error {
 	for _, arg := range args {
 		switch {
 		case strings.HasPrefix(arg, "--pid="):
-			fmt.Sscanf(strings.TrimPrefix(arg, "--pid="), "%d", &pid)
+			_, _ = fmt.Sscanf(strings.TrimPrefix(arg, "--pid="), "%d", &pid)
 		case strings.HasPrefix(arg, "--tail="):
-			fmt.Sscanf(strings.TrimPrefix(arg, "--tail="), "%d", &tail)
+			_, _ = fmt.Sscanf(strings.TrimPrefix(arg, "--tail="), "%d", &tail)
 		case arg == "--follow" || arg == "-f":
 			follow = true
 		case arg == "--json":
@@ -327,7 +327,7 @@ func runShell(deps support.Dependencies, args []string) error {
 	for _, arg := range args {
 		switch {
 		case strings.HasPrefix(arg, "--memory="):
-			fmt.Sscanf(strings.TrimPrefix(arg, "--memory="), "%d", &memoryMB)
+			_, _ = fmt.Sscanf(strings.TrimPrefix(arg, "--memory="), "%d", &memoryMB)
 		case arg == "--vrooli-aware":
 			vrooliAware = true
 		case arg == "--network":
@@ -372,7 +372,7 @@ func runAttach(deps support.Dependencies, args []string) error {
 	for _, arg := range flagArgs {
 		switch {
 		case strings.HasPrefix(arg, "--memory="):
-			fmt.Sscanf(strings.TrimPrefix(arg, "--memory="), "%d", &memoryMB)
+			_, _ = fmt.Sscanf(strings.TrimPrefix(arg, "--memory="), "%d", &memoryMB)
 		case arg == "--vrooli-aware":
 			vrooliAware = true
 		case arg == "--network":
@@ -434,15 +434,15 @@ func parseProcessCommandArgs(args []string, includeTimeout bool) (string, string
 	for _, arg := range flagArgs {
 		switch {
 		case strings.HasPrefix(arg, "--memory="):
-			fmt.Sscanf(strings.TrimPrefix(arg, "--memory="), "%d", &opts.memoryMB)
+			_, _ = fmt.Sscanf(strings.TrimPrefix(arg, "--memory="), "%d", &opts.memoryMB)
 		case strings.HasPrefix(arg, "--cpu-time="):
-			fmt.Sscanf(strings.TrimPrefix(arg, "--cpu-time="), "%d", &opts.cpuTime)
+			_, _ = fmt.Sscanf(strings.TrimPrefix(arg, "--cpu-time="), "%d", &opts.cpuTime)
 		case includeTimeout && strings.HasPrefix(arg, "--timeout="):
-			fmt.Sscanf(strings.TrimPrefix(arg, "--timeout="), "%d", &opts.timeout)
+			_, _ = fmt.Sscanf(strings.TrimPrefix(arg, "--timeout="), "%d", &opts.timeout)
 		case strings.HasPrefix(arg, "--max-procs="):
-			fmt.Sscanf(strings.TrimPrefix(arg, "--max-procs="), "%d", &opts.maxProcs)
+			_, _ = fmt.Sscanf(strings.TrimPrefix(arg, "--max-procs="), "%d", &opts.maxProcs)
 		case strings.HasPrefix(arg, "--max-files="):
-			fmt.Sscanf(strings.TrimPrefix(arg, "--max-files="), "%d", &opts.maxFiles)
+			_, _ = fmt.Sscanf(strings.TrimPrefix(arg, "--max-files="), "%d", &opts.maxFiles)
 		case arg == "--vrooli-aware":
 			opts.vrooliAware = true
 		case arg == "--network":
@@ -636,7 +636,7 @@ func runInteractiveSession(deps support.Dependencies, sandboxID, command string,
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: could not set terminal to raw mode: %v\n", err)
 	} else {
-		defer term.Restore(int(os.Stdin.Fd()), oldState)
+		defer func() { _ = term.Restore(int(os.Stdin.Fd()), oldState) }()
 	}
 
 	done := make(chan struct{})
@@ -712,7 +712,7 @@ func getTerminalSize() (cols, rows int) {
 	cmd.Stdin = os.Stdin
 	output, err := cmd.Output()
 	if err == nil {
-		fmt.Sscanf(string(output), "%d %d", &rows, &cols)
+		_, _ = fmt.Sscanf(string(output), "%d %d", &rows, &cols)
 	}
 	return
 }

@@ -4,12 +4,10 @@
   "description": "YAML processor for shell workflows and configuration parsing",
   "commands": ["yq"],
   "versionArgs": ["--version"],
-  "defaultPackage": "yq",
   "packages": {
-    "apt-get": "yq",
     "brew": "yq",
     "winget": "MikeF.yq"
   },
-  "installHint": "Install yq for YAML-aware shell workflows",
+  "installHint": "apt's yq is a different tool. Install mikefarah/yq via: snap install yq — or download from https://github.com/mikefarah/yq/releases",
   "platforms": ["linux", "macos", "windows"]
 }

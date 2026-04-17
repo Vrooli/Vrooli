@@ -1,6 +1,7 @@
 package services
 
 import (
+	"app-monitor-api/repository"
 	"bytes"
 	"context"
 	"errors"
@@ -12,8 +13,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-
-	"app-monitor-api/repository"
 )
 
 // =============================================================================
@@ -423,7 +422,7 @@ func TestCheckLocalhostUsage_RealDirectory(t *testing.T) {
 	tempDir := t.TempDir()
 
 	apiDir := filepath.Join(tempDir, "api")
-	if err := os.MkdirAll(apiDir, 0755); err != nil {
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
 		t.Fatalf("Failed to create api dir: %v", err)
 	}
 
@@ -435,7 +434,7 @@ func main() {
 	url := "http://localhost:8080/api"
 }
 `
-	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte(content), 0o644); err != nil {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
 

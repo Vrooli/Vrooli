@@ -59,7 +59,7 @@ export function PromptsPage() {
   const workspaceRef = useRef<HTMLDivElement | null>(null);
 
   const [activeTab, setActiveTab] = useState<PromptTab>("catalog");
-  const [selectedSkillId, setSelectedSkillId] = useState<string>("");
+  const [selectedSkillId, setSelectedSkillId] = useState("");
   const [content, setContent] = useState("");
   const [comparisonVersion, setComparisonVersion] = useState<PromptSkillVersion | null>(null);
   const [markdownView, setMarkdownView] = useState<"raw" | "rendered">("raw");
@@ -71,10 +71,10 @@ export function PromptsPage() {
     adjacentMinSize: MIN_EDITOR_WIDTH,
     handleWidth: RESIZE_HANDLE_WIDTH,
   });
-  const [selectedExperimentId, setSelectedExperimentId] = useState<string>("");
+  const [selectedExperimentId, setSelectedExperimentId] = useState("");
   const [showSimulationModal, setShowSimulationModal] = useState(false);
   const [showMobileSkills, setShowMobileSkills] = useState(false);
-  const [simulationPayload, setSimulationPayload] = useState<SimulationPayload>(defaultSimulationPayload());
+  const [simulationPayload, setSimulationPayload] = useState(defaultSimulationPayload());
   const [lastSimulationPayload, setLastSimulationPayload] = useState<SimulationPayload | null>(null);
 
   // --- Queries ---
@@ -122,18 +122,18 @@ export function PromptsPage() {
     mutationFn: ({ draft, nextContent }: { draft: boolean; nextContent: string }) =>
       promptService.updateSkill(selectedSkillId, { content: nextContent, draft }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["prompts", "skills"] });
-      queryClient.invalidateQueries({ queryKey: ["prompts", "skill", selectedSkillId] });
-      queryClient.invalidateQueries({ queryKey: ["prompts", "versions", selectedSkillId] });
+      void queryClient.invalidateQueries({ queryKey: ["prompts", "skills"] });
+      void queryClient.invalidateQueries({ queryKey: ["prompts", "skill", selectedSkillId] });
+      void queryClient.invalidateQueries({ queryKey: ["prompts", "versions", selectedSkillId] });
     },
   });
 
   const revertMutation = useMutation({
     mutationFn: (version: number) => promptService.revertSkillVersion(selectedSkillId, version),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["prompts", "skills"] });
-      queryClient.invalidateQueries({ queryKey: ["prompts", "skill", selectedSkillId] });
-      queryClient.invalidateQueries({ queryKey: ["prompts", "versions", selectedSkillId] });
+      void queryClient.invalidateQueries({ queryKey: ["prompts", "skills"] });
+      void queryClient.invalidateQueries({ queryKey: ["prompts", "skill", selectedSkillId] });
+      void queryClient.invalidateQueries({ queryKey: ["prompts", "versions", selectedSkillId] });
       setComparisonVersion(null);
     },
   });

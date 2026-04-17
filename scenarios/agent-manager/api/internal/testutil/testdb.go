@@ -1,18 +1,17 @@
 package testutil
 
 import (
+	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/database"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 
-	"agent-manager/internal/adapters/event"
-	"agent-manager/internal/database"
-
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
-	_ "modernc.org/sqlite"
+	_ "modernc.org/sqlite" // pure-Go SQLite driver registration for test DB
 )
 
 // SetupTestDB creates a temporary SQLite database with the full schema applied.

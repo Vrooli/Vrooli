@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"testing"
-
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/testutil"
+	"testing"
 )
 
 // mockExecutionQueuer implements ExecutionQueuer for testing the confirm:true path.

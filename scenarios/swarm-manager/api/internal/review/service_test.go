@@ -6,10 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"testing"
-
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/promptmanager"
+	"testing"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )

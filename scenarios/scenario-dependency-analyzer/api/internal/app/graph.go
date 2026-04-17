@@ -2,8 +2,8 @@ package app
 
 import (
 	"fmt"
-
 	"scenario-dependency-analyzer/internal/seams"
+
 	types "scenario-dependency-analyzer/internal/types"
 )
 

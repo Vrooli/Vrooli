@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -20,7 +19,7 @@ func TestImportHandler(t *testing.T) {
 	defer cleanup()
 
 	// Create a temporary directory for testing
-	tempDir, err := ioutil.TempDir("", "visited-tracker-import-test")
+	tempDir, err := os.MkdirTemp("", "visited-tracker-import-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}

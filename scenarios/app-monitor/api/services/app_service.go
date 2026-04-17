@@ -1,6 +1,8 @@
 package services
 
 import (
+	"app-monitor-api/logger"
+	"app-monitor-api/repository"
 	"bytes"
 	"context"
 	"errors"
@@ -10,9 +12,6 @@ import (
 	"os/exec"
 	"strings"
 	"time"
-
-	"app-monitor-api/logger"
-	"app-monitor-api/repository"
 )
 
 // NewAppService creates a new service instance with default dependencies

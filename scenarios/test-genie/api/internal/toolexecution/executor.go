@@ -7,15 +7,14 @@ package toolexecution
 import (
 	"context"
 	"fmt"
-
-	"github.com/google/uuid"
-
 	"test-genie/internal/execution"
 	"test-genie/internal/fix"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/requirementsimprove"
 	"test-genie/internal/scenarios"
+
+	"github.com/google/uuid"
 )
 
 // ExecutionHistory provides access to execution history.

@@ -2,9 +2,8 @@ package teams
 
 import (
 	"context"
-	"testing"
-
 	"prompt-manager/store"
+	"testing"
 )
 
 // Test helper to set up permission checker with mock relation store

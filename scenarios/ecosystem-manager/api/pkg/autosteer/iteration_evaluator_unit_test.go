@@ -15,7 +15,6 @@ func TestIterationEvaluator_Evaluate_NoState(t *testing.T) {
 	eval := NewIterationEvaluator(stateRepo, phaseCoord, metricsProvider, profileRepo)
 
 	result, err := eval.Evaluate("non-existent-task", "test-scenario")
-
 	if err != nil {
 		t.Fatalf("Evaluate failed: %v", err)
 	}
@@ -59,7 +58,6 @@ func TestIterationEvaluator_Evaluate_Success(t *testing.T) {
 	eval := NewIterationEvaluator(stateRepo, phaseCoord, metricsProvider, profileRepo)
 
 	result, err := eval.Evaluate("task-1", "test-scenario")
-
 	if err != nil {
 		t.Fatalf("Evaluate failed: %v", err)
 	}
@@ -118,7 +116,6 @@ func TestIterationEvaluator_Evaluate_ShouldStop(t *testing.T) {
 	eval := NewIterationEvaluator(stateRepo, phaseCoord, metricsProvider, profileRepo)
 
 	result, err := eval.Evaluate("task-1", "test-scenario")
-
 	if err != nil {
 		t.Fatalf("Evaluate failed: %v", err)
 	}
@@ -158,7 +155,6 @@ func TestIterationEvaluator_Evaluate_AllPhasesCompleted(t *testing.T) {
 	eval := NewIterationEvaluator(stateRepo, phaseCoord, metricsProvider, profileRepo)
 
 	result, err := eval.Evaluate("task-1", "test-scenario")
-
 	if err != nil {
 		t.Fatalf("Evaluate failed: %v", err)
 	}
@@ -259,7 +255,6 @@ func TestIterationEvaluator_EvaluateWithoutMetrics_Success(t *testing.T) {
 	eval := NewIterationEvaluator(stateRepo, phaseCoord, metricsProvider, profileRepo)
 
 	result, err := eval.EvaluateWithoutMetricsCollection("task-1")
-
 	if err != nil {
 		t.Fatalf("EvaluateWithoutMetricsCollection failed: %v", err)
 	}
@@ -291,7 +286,6 @@ func TestIterationEvaluator_EvaluateWithoutMetrics_NoState(t *testing.T) {
 	eval := NewIterationEvaluator(stateRepo, phaseCoord, metricsProvider, profileRepo)
 
 	result, err := eval.EvaluateWithoutMetricsCollection("non-existent-task")
-
 	if err != nil {
 		t.Fatalf("EvaluateWithoutMetricsCollection failed: %v", err)
 	}

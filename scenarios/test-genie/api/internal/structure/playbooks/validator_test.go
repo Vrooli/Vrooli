@@ -335,4 +335,3 @@ func writeFile(t *testing.T, path, content string) {
 		t.Fatalf("failed to write file %s: %v", path, err)
 	}
 }
-

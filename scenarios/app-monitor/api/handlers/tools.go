@@ -4,9 +4,8 @@
 package handlers
 
 import (
-	"net/http"
-
 	"app-monitor-api/toolregistry"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/protobuf/encoding/protojson"

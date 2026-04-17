@@ -67,7 +67,7 @@ export function BacklogAgentDialog({
   onSubmit,
 }: BacklogAgentDialogProps) {
   const [prompt, setPrompt] = useState("");
-  const [mode, setMode] = useState<string>("workshop");
+  const [mode, setMode] = useState("workshop");
   const [selectedFilePaths, setSelectedFilePaths] = useState<Set<string>>(new Set());
   const [selectedTargetIds, setSelectedTargetIds] = useState<Set<string>>(new Set());
   const [selectedRequirementIds, setSelectedRequirementIds] = useState<Set<string>>(new Set());
@@ -265,7 +265,7 @@ export function BacklogAgentDialog({
                               checked={selectedTargetIds.has(target.id)}
                               onChange={() => {
                                 setSelectedTargetIds((prev) => {
-                                  const next = new Set(prev);
+                                  const next = new Set<string>(prev);
                                   if (next.has(target.id)) next.delete(target.id);
                                   else next.add(target.id);
                                   return next;
@@ -303,7 +303,7 @@ export function BacklogAgentDialog({
                           selectedIds={selectedRequirementIds}
                           onToggle={(id) => {
                             setSelectedRequirementIds((prev) => {
-                              const next = new Set(prev);
+                              const next = new Set<string>(prev);
                               if (next.has(id)) next.delete(id);
                               else next.add(id);
                               return next;

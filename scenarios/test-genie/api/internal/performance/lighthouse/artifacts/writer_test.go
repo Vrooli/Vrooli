@@ -3,9 +3,9 @@ package artifacts
 import (
 	"encoding/json"
 	"os"
+	"test-genie/internal/performance/lighthouse"
 	"testing"
 
-	"test-genie/internal/performance/lighthouse"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 
@@ -59,7 +59,6 @@ func TestFileWriter_WritePageReport(t *testing.T) {
 
 	rawResponse := []byte(`{"categories": {"performance": {"score": 0.85}}}`)
 	path, err := w.WritePageReport("home", rawResponse)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -90,7 +89,6 @@ func TestFileWriter_WritePageReport_EmptyResponse(t *testing.T) {
 	w := NewWriter("/scenario/dir", "test-scenario", sharedartifacts.WithFileSystem(fs))
 
 	path, err := w.WritePageReport("home", nil)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -105,7 +103,6 @@ func TestFileWriter_WritePageReport_SanitizesFilename(t *testing.T) {
 
 	rawResponse := []byte(`{}`)
 	path, err := w.WritePageReport("home/with spaces & special!", rawResponse)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

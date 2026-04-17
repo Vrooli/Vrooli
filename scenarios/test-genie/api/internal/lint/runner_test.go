@@ -7,10 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"testing"
-
 	"test-genie/internal/lint/execution"
 	"test-genie/internal/shared"
+	"testing"
 )
 
 type stubCommandRunner struct {
@@ -171,9 +170,9 @@ func TestRunner_Run_MixedComponentsRootOverridesIgnoreAndPolicy(t *testing.T) {
 		},
 		CommandRunner: stubCommandRunner{
 			byName: map[string]execution.Result{
-				"ruff":           {Stdout: []byte(`[]`), ExitCode: 0},
-				"golangci-lint":  {Stdout: []byte(`{"Issues":[]}`), ExitCode: 0},
-				"eslint":         {Stdout: []byte(`[]`), ExitCode: 0},
+				"ruff":          {Stdout: []byte(`[]`), ExitCode: 0},
+				"golangci-lint": {Stdout: []byte(`{"Issues":[]}`), ExitCode: 0},
+				"eslint":        {Stdout: []byte(`[]`), ExitCode: 0},
 			},
 		},
 		Settings: settings,

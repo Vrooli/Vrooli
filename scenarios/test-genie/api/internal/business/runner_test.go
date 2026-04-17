@@ -4,14 +4,15 @@ import (
 	"context"
 	"errors"
 	"io"
-	"testing"
-
 	"test-genie/internal/business/discovery"
 	"test-genie/internal/business/existence"
 	"test-genie/internal/business/parsing"
 	"test-genie/internal/business/validation"
-	reqparsing "test-genie/internal/requirements/parsing"
 	"test-genie/internal/requirements/types"
+	"testing"
+
+	reqparsing "test-genie/internal/requirements/parsing"
+
 	structtypes "test-genie/internal/structure/types"
 )
 

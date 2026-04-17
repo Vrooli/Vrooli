@@ -9,11 +9,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"testing"
-
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/requirements/reporting"
 	"test-genie/internal/requirements/types"
+	"testing"
 )
 
 // testFixture holds all the test data for a single test scenario.
@@ -99,7 +98,6 @@ func TestService_Sync_NoRequirementsDir(t *testing.T) {
 		ScenarioName: "demo",
 		ScenarioDir:  "/test/scenarios/demo",
 	})
-
 	if err != nil {
 		t.Errorf("expected nil error for missing requirements dir, got: %v", err)
 	}
@@ -116,7 +114,6 @@ func TestService_Sync_EmptyRequirementsDir(t *testing.T) {
 		ScenarioName: "demo",
 		ScenarioDir:  fixture.scenarioDir,
 	})
-
 	if err != nil {
 		t.Errorf("expected nil error for empty requirements, got: %v", err)
 	}
@@ -164,7 +161,6 @@ func TestService_Sync_BasicRequirement(t *testing.T) {
 		},
 		CommandHistory: []string{"suite demo"},
 	})
-
 	if err != nil {
 		t.Errorf("sync failed: %v", err)
 	}
@@ -206,7 +202,6 @@ func TestService_Sync_WithPhaseResults(t *testing.T) {
 		},
 		CommandHistory: []string{"suite demo"},
 	})
-
 	if err != nil {
 		t.Errorf("sync with phase results failed: %v", err)
 	}
@@ -218,7 +213,6 @@ func TestService_Validate_NoRequirementsDir(t *testing.T) {
 	service := NewServiceWithDeps(reader, writer)
 
 	result, err := service.Validate(context.Background(), "/test/scenarios/demo")
-
 	if err != nil {
 		t.Errorf("expected nil error, got: %v", err)
 	}
@@ -249,7 +243,6 @@ func TestService_Validate_WithRequirements(t *testing.T) {
 	})
 
 	result, err := service.Validate(context.Background(), fixture.scenarioDir)
-
 	if err != nil {
 		t.Errorf("validate failed: %v", err)
 	}
@@ -265,7 +258,6 @@ func TestService_GetSummary_EmptyRequirements(t *testing.T) {
 	fixture.addIndexFile(t, []string{})
 
 	summary, err := service.GetSummary(context.Background(), fixture.scenarioDir)
-
 	if err != nil {
 		t.Errorf("get summary failed: %v", err)
 	}
@@ -281,13 +273,13 @@ func TestService_GetSummary_WithRequirements(t *testing.T) {
 	requirementsDir := filepath.Join(scenarioDir, "requirements")
 	moduleDir := filepath.Join(requirementsDir, "01-core")
 
-	if err := os.MkdirAll(moduleDir, 0755); err != nil {
+	if err := os.MkdirAll(moduleDir, 0o755); err != nil {
 		t.Fatalf("create module dir: %v", err)
 	}
 
 	// Imports must be full file paths like "01-core/module.json"
 	indexData := []byte(`{"imports": ["01-core/module.json"]}`)
-	if err := os.WriteFile(filepath.Join(requirementsDir, "index.json"), indexData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(requirementsDir, "index.json"), indexData, 0o644); err != nil {
 		t.Fatalf("write index: %v", err)
 	}
 
@@ -299,13 +291,12 @@ func TestService_GetSummary_WithRequirements(t *testing.T) {
 			{"id": "REQ-003", "title": "Requirement 3", "status": "in_progress"}
 		]
 	}`)
-	if err := os.WriteFile(filepath.Join(moduleDir, "module.json"), moduleData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(moduleDir, "module.json"), moduleData, 0o644); err != nil {
 		t.Fatalf("write module: %v", err)
 	}
 
 	service := NewService()
 	summary, err := service.GetSummary(context.Background(), scenarioDir)
-
 	if err != nil {
 		t.Errorf("get summary failed: %v", err)
 	}
@@ -346,7 +337,6 @@ func TestService_Report_JSON(t *testing.T) {
 
 	var buf bytes.Buffer
 	err := service.Report(context.Background(), fixture.scenarioDir, reportingOptionsJSON(), &buf)
-
 	if err != nil {
 		t.Errorf("report failed: %v", err)
 	}
@@ -454,13 +444,13 @@ func TestService_Sync_Integration(t *testing.T) {
 	requirementsDir := filepath.Join(scenarioDir, "requirements")
 	moduleDir := filepath.Join(requirementsDir, "01-core")
 
-	if err := os.MkdirAll(moduleDir, 0755); err != nil {
+	if err := os.MkdirAll(moduleDir, 0o755); err != nil {
 		t.Fatalf("create module dir: %v", err)
 	}
 
 	// Write index.json
 	indexData := []byte(`{"imports": ["01-core"]}`)
-	if err := os.WriteFile(filepath.Join(requirementsDir, "index.json"), indexData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(requirementsDir, "index.json"), indexData, 0o644); err != nil {
 		t.Fatalf("write index: %v", err)
 	}
 
@@ -478,7 +468,7 @@ func TestService_Sync_Integration(t *testing.T) {
 			}
 		]
 	}`)
-	if err := os.WriteFile(filepath.Join(moduleDir, "module.json"), moduleData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(moduleDir, "module.json"), moduleData, 0o644); err != nil {
 		t.Fatalf("write module: %v", err)
 	}
 
@@ -495,7 +485,6 @@ func TestService_Sync_Integration(t *testing.T) {
 		},
 		CommandHistory: []string{"suite demo"},
 	})
-
 	if err != nil {
 		t.Errorf("integration sync failed: %v", err)
 	}
@@ -521,12 +510,12 @@ func TestService_Report_Integration(t *testing.T) {
 	requirementsDir := filepath.Join(scenarioDir, "requirements")
 	moduleDir := filepath.Join(requirementsDir, "01-core")
 
-	if err := os.MkdirAll(moduleDir, 0755); err != nil {
+	if err := os.MkdirAll(moduleDir, 0o755); err != nil {
 		t.Fatalf("create module dir: %v", err)
 	}
 
 	indexData := []byte(`{"imports": ["01-core"]}`)
-	if err := os.WriteFile(filepath.Join(requirementsDir, "index.json"), indexData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(requirementsDir, "index.json"), indexData, 0o644); err != nil {
 		t.Fatalf("write index: %v", err)
 	}
 
@@ -537,14 +526,13 @@ func TestService_Report_Integration(t *testing.T) {
 			{"id": "REQ-002", "title": "Test 2", "status": "pending", "criticality": "P1"}
 		]
 	}`)
-	if err := os.WriteFile(filepath.Join(moduleDir, "module.json"), moduleData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(moduleDir, "module.json"), moduleData, 0o644); err != nil {
 		t.Fatalf("write module: %v", err)
 	}
 
 	service := NewService()
 	var buf bytes.Buffer
 	err := service.Report(context.Background(), scenarioDir, reportingOptionsJSON(), &buf)
-
 	if err != nil {
 		t.Errorf("integration report failed: %v", err)
 	}
@@ -574,7 +562,7 @@ func TestService_FullPipeline_Integration(t *testing.T) {
 	featureDir := filepath.Join(requirementsDir, "02-features")
 
 	for _, dir := range []string{moduleDir, featureDir, coverageDir} {
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatalf("create dir %s: %v", dir, err)
 		}
 	}
@@ -586,7 +574,7 @@ func TestService_FullPipeline_Integration(t *testing.T) {
 			"02-features/module.json"
 		]
 	}`)
-	if err := os.WriteFile(filepath.Join(requirementsDir, "index.json"), indexData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(requirementsDir, "index.json"), indexData, 0o644); err != nil {
 		t.Fatalf("write index: %v", err)
 	}
 
@@ -624,7 +612,7 @@ func TestService_FullPipeline_Integration(t *testing.T) {
 			}
 		]
 	}`)
-	if err := os.WriteFile(filepath.Join(moduleDir, "module.json"), foundationData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(moduleDir, "module.json"), foundationData, 0o644); err != nil {
 		t.Fatalf("write foundation: %v", err)
 	}
 
@@ -647,7 +635,7 @@ func TestService_FullPipeline_Integration(t *testing.T) {
 			}
 		]
 	}`)
-	if err := os.WriteFile(filepath.Join(featureDir, "module.json"), featuresData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(featureDir, "module.json"), featuresData, 0o644); err != nil {
 		t.Fatalf("write features: %v", err)
 	}
 

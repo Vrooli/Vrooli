@@ -3,11 +3,10 @@ package main
 import (
 	"context"
 	"net/http"
-	"time"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
 	"scenario-to-cloud/vps"
+	"time"
 )
 
 // Type aliases for backward compatibility with API documentation and request parsing.

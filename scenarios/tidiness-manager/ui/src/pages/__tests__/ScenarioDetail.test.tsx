@@ -452,7 +452,7 @@ describe('ScenarioDetail', () => {
           ai_issues: 0,
           long_files: 0,
           visit_percent: 0,
-          campaign_status: 'inactive' as const,
+          campaign_status: 'none' as const,
         },
         files: [
           {

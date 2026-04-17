@@ -5,12 +5,11 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"test-genie/internal/storage/sqlfiles"
+	"test-genie/internal/storage/sqlitedb"
 	"testing"
 
 	_ "modernc.org/sqlite"
-
-	"test-genie/internal/storage/sqlfiles"
-	"test-genie/internal/storage/sqlitedb"
 )
 
 func TestResolveInitializationFileSuccess(t *testing.T) {

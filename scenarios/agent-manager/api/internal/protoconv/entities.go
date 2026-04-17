@@ -1,14 +1,13 @@
 package protoconv
 
 import (
+	"agent-manager/internal/domain"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-
-	"agent-manager/internal/domain"
 
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )

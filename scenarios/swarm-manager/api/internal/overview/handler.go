@@ -2,11 +2,10 @@ package overview
 
 import (
 	"net/http"
-
-	"github.com/gorilla/mux"
-
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
+
+	"github.com/gorilla/mux"
 )
 
 // Handler provides the HTTP endpoint for the overview aggregation.

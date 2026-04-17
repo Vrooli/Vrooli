@@ -216,12 +216,13 @@ func TestScenarioDirectoryServiceRunScenarioTestsValidation(t *testing.T) {
 }
 
 func TestScenarioDirectoryServiceRunScenarioTestsRunnerFailure(t *testing.T) {
+	t.Setenv("TEST_GENIE_DISABLE", "1")
 	root := t.TempDir()
 	scenarioDir := filepath.Join(root, "demo")
-	if err := os.MkdirAll(filepath.Join(scenarioDir, "test"), 0o755); err != nil {
-		t.Fatalf("mkdir test dir: %v", err)
+	if err := os.MkdirAll(filepath.Join(scenarioDir, "coverage"), 0o755); err != nil {
+		t.Fatalf("mkdir coverage dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(scenarioDir, "test", "run-tests.sh"), []byte("#!/usr/bin/env bash"), 0o755); err != nil {
+	if err := os.WriteFile(filepath.Join(scenarioDir, "coverage", "run-tests.sh"), []byte("#!/usr/bin/env bash"), 0o755); err != nil {
 		t.Fatalf("write run-tests: %v", err)
 	}
 	svc := NewScenarioDirectoryService(&fakeScenarioRepo{}, nil, root)

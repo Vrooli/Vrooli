@@ -6,12 +6,11 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"test-genie/internal/queue"
+	"test-genie/internal/shared"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-
-	"test-genie/internal/queue"
-	"test-genie/internal/shared"
 )
 
 func (s *Server) handleCreateSuiteRequest(w http.ResponseWriter, r *http.Request) {

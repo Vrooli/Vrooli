@@ -3,12 +3,6 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { renderHook, act, waitFor } from "@testing-library/react";
-import { usePipelineInvestigation } from "../useInvestigation";
-import type {
-  Investigation,
-  CreateTaskRequest,
-} from "../../types/investigation";
 import {
   mockGetAgentManagerStatus,
   mockCreateTask,
@@ -19,6 +13,12 @@ import {
   createMockInvestigation,
   createMockInvestigationSummary,
 } from "./useInvestigation.testUtils";
+import { renderHook, act, waitFor } from "@testing-library/react";
+import { usePipelineInvestigation } from "../useInvestigation";
+import type {
+  Investigation,
+  CreateTaskRequest,
+} from "../../types/investigation";
 
 beforeEach(() => {
   vi.clearAllMocks();

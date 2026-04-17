@@ -448,7 +448,7 @@ func writeRawServiceConfigMap(scenarioPath string, cfg *orderedmap.OrderedMap) e
 	payload = bytes.ReplaceAll(payload, []byte(`\u003c`), []byte("<"))
 	payload = bytes.ReplaceAll(payload, []byte(`\u003e`), []byte(">"))
 	payload = bytes.ReplaceAll(payload, []byte(`\u0026`), []byte("&"))
-	return os.WriteFile(serviceConfigPath, payload, 0644)
+	return os.WriteFile(serviceConfigPath, payload, 0o644)
 }
 
 func logTrace(format string, args ...interface{}) {

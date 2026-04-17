@@ -6,7 +6,8 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
+
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 )
@@ -65,7 +66,6 @@ func createTestServiceWithBillingCycle(t *testing.T, billingCycleStart int) (*Se
 	svc := NewService(ServiceOptions{
 		DB:                  db,
 		Logger:              log,
-		Dialect:             "sqlite",
 		EntitlementProvider: provider,
 	})
 

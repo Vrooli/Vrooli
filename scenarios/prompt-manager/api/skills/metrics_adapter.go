@@ -2,9 +2,8 @@
 package skills
 
 import (
-	"time"
-
 	"prompt-manager/metrics"
+	"time"
 )
 
 // MetricsAdapter adapts metrics.Repository to the MetricsService interface.

@@ -6,14 +6,14 @@ import (
 	"net/http"
 	"os"
 	"strings"
-
-	"github.com/gorilla/mux"
-
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/fileops"
 	"swarm-manager/internal/fileserve"
 	"swarm-manager/internal/httputil"
+
+	"github.com/gorilla/mux"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
 
 // protectedInitiativeFile is the metadata file that cannot be modified

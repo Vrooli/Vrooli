@@ -13,14 +13,14 @@ Scenario-level control surface for browser-automation-studio across the Go API, 
 | Recording quality & archive bounds | `BAS_RECORDING_DEFAULT_*`, `BAS_RECORDING_MAX_ARCHIVE_BYTES`, `BAS_RECORDING_MAX_FRAMES`, driver recording toggles | 1280x720, 6 FPS, JPEG 55; 200MB archive; 400 frames; 90s idle timeout | Raise quality/FPS for demos; lower for CI to reduce bandwidth and processing. Trim archive/frame caps when running many parallel recordings. |
 | Replay/export workload | `BAS_REPLAY_CAPTURE_INTERVAL_MS`, `BAS_REPLAY_MAX_CAPTURE_FRAMES`, `BAS_REPLAY_RENDER_TIMEOUT_MS`, `BAS_EXPORT_FRAME_INTERVAL_MS`, `FFMPEG_BIN` | 40ms interval, 720 frames, 16m render timeout | Tighten for CI to avoid long ffmpeg runs; loosen for customer-ready exports. |
 | DOM/AI extraction limits | `BAS_AI_DOM_*`, `BAS_AI_PREVIEW_*` | Depth 6, nodes 800, text 120 chars, waits 750/1200ms; preview 1920x1080 | Raise for complex SPAs; lower to keep payloads lean and control inference cost. |
-| Database resilience | `BAS_DB_BACKEND`, `DATABASE_URL`, `BAS_DB_MAX_OPEN_CONNS`, `BAS_DB_MAX_IDLE_CONNS`, retry envs | Postgres; 25 open / 5 idle; retries 10 with 1s base and jitter 0.25 | Raise pool for high concurrency; trim for laptops. Increase retry delay/jitter for noisy networks. |
+| Database resilience | `BAS_SQLITE_PATH`, `DATABASE_URL=file:…`, retry envs | SQLite single-connection (busy_timeout=10s, WAL); retries 10 with 1s base and jitter 0.25 | Override the file path for non-default deployments. Increase retry delay/jitter for noisy filesystems. |
 | Entitlement & gating | `BAS_ENTITLEMENT_*` | Disabled; cache 5m; offline grace 24h; default tier `free` | Enable in staged/prod to enforce tier limits and watermarks; align cache TTL with billing cadence. |
 | Observability & perf diagnostics | `LOG_LEVEL`, `LOG_FORMAT`, driver `METRICS_ENABLED`; API `BAS_PERF_*`; health timeouts `BAS_TIMEOUT_*` | `info` / `json`; perf disabled; metrics on | Bump to `debug` when diagnosing dragDrop/selector issues or stream stalls. Enable perf buffers temporarily when profiling frame streaming. |
 
 ## Profiles (swap quickly)
 
 - **Fast local iteration:** `BAS_TIMEOUT_DEFAULT_REQUEST_MS=2500`, `BAS_EXECUTION_PER_STEP_TIMEOUT_MS=6000`, `BAS_EXECUTION_HEARTBEAT_INTERVAL_MS=1000`, `SCREENSHOT_ENABLED=false`, `DOM_ENABLED=false`, `BAS_EVENTS_PER_EXECUTION_BUFFER=120`, `BAS_EVENTS_PER_ATTEMPT_BUFFER=30`.
-- **Flaky/slow CI:** `EXECUTION_NAVIGATION_TIMEOUT_MS=90000`, `EXECUTION_WAIT_TIMEOUT_MS=60000`, `BAS_EXECUTION_PER_STEP_SUBFLOW_TIMEOUT_MS=25000`, `BAS_DB_MAX_OPEN_CONNS=40`, `BAS_WS_CLIENT_BINARY_BUFFER_SIZE=256`, `BAS_EVENTS_PER_EXECUTION_BUFFER=400`; keep HAR/video off.
+- **Flaky/slow CI:** `EXECUTION_NAVIGATION_TIMEOUT_MS=90000`, `EXECUTION_WAIT_TIMEOUT_MS=60000`, `BAS_EXECUTION_PER_STEP_SUBFLOW_TIMEOUT_MS=25000`, `BAS_WS_CLIENT_BINARY_BUFFER_SIZE=256`, `BAS_EVENTS_PER_EXECUTION_BUFFER=400`; keep HAR/video off.
 - **High-fidelity demos/exports:** `BAS_RECORDING_DEFAULT_STREAM_QUALITY=75`, `BAS_RECORDING_DEFAULT_STREAM_FPS=12`, `SCREENSHOT_FULL_PAGE=true`, `BAS_AI_PREVIEW_WAIT_MS=1800`, `BAS_REPLAY_CAPTURE_INTERVAL_MS=25`, `BAS_REPLAY_PRESENTATION_WIDTH=1920`, `BAS_REPLAY_PRESENTATION_HEIGHT=1080`.
 
 ## Hierarchy & bounds to respect

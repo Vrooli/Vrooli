@@ -2,9 +2,8 @@ package secrets
 
 import (
 	"regexp"
-	"testing"
-
 	"scenario-to-cloud/domain"
+	"testing"
 )
 
 func TestGeneratorInterface(t *testing.T) {

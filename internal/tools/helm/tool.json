@@ -4,11 +4,11 @@
   "description": "Kubernetes package manager",
   "commands": ["helm"],
   "versionArgs": ["version", "--short"],
-  "defaultPackage": "helm",
   "packages": {
+    "brew": "helm",
     "winget": "Helm.Helm"
   },
-  "installHint": "Install Helm for Kubernetes packaging flows",
+  "installHint": "Helm is not in standard apt repos. Install via: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash — or use snap install helm --classic",
   "platforms": ["linux", "macos", "windows"],
   "notes": "Not yet declared by any scenario — kept for upcoming scenario-to-cloud integration"
 }

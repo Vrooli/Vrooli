@@ -10,13 +10,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/httputil"
 	"time"
 
 	"github.com/gorilla/mux"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
-	"swarm-manager/internal/apierr"
-	"swarm-manager/internal/httputil"
 )
 
 var (

@@ -51,7 +51,9 @@ func runVersionsList(ctx *appctx.Context, args []string) error {
 			if i+1 >= len(args) {
 				return fmt.Errorf("--limit requires a value")
 			}
-			fmt.Sscanf(args[i+1], "%d", &limit)
+			if _, err := fmt.Sscanf(args[i+1], "%d", &limit); err != nil {
+				return fmt.Errorf("--limit value %q is not an integer: %w", args[i+1], err)
+			}
 			i++
 		case "--json":
 			jsonOutput = true

@@ -11,18 +11,18 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"sort"
-	"strings"
-	"time"
-
-	apisecrets "github.com/vrooli/api-core/secrets"
-	repocontract "github.com/vrooli/repo-contract-go"
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/internal/stringutil"
 	"scenario-to-cloud/secrets"
 	"scenario-to-cloud/ssh"
+	"sort"
+	"strings"
+	"time"
+
+	apisecrets "github.com/vrooli/api-core/secrets"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // DeployRequest is the request body for VPS deployment.
@@ -1064,7 +1064,7 @@ func resolveHostIP(ctx context.Context, host string) (string, error) {
 }
 
 // BuildWaitForPortScript returns a shell script that waits for a TCP port to be listening.
-func BuildWaitForPortScript(host string, port int, timeoutSecs int, serviceName string) string {
+func BuildWaitForPortScript(host string, port, timeoutSecs int, serviceName string) string {
 	return fmt.Sprintf(`
 set -e
 HOST=%s

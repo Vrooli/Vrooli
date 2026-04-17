@@ -55,9 +55,8 @@ BadExample:
 package interop
 
 import (
-	"strings"
-
 	"app-monitor-api/rules"
+	"strings"
 )
 
 func init() {

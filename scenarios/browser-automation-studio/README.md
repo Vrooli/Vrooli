@@ -11,10 +11,11 @@ Vrooli Ascension transforms browser automation from code-based scripts to visual
 - Playwright: set `ENGINE=playwright` (or `ENGINE_OVERRIDE=playwright`). If `PLAYWRIGHT_DRIVER_URL` is unset, the lifecycle starts the local Playwright driver from `resources/playwright` and exports `PLAYWRIGHT_DRIVER_URL=http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT:-39400}` automatically. Stop hooks clean it up.
 - Desktop/Electron: bundle `resources/playwright/driver/server.js`, spawn it from Electron main (allowing `PORT=0` for a free port), capture the port, and launch the bundled API with `ENGINE=playwright` and `PLAYWRIGHT_DRIVER_URL=<captured>`. To avoid bundling another Chromium (~80–120 MB), align Playwright with the Electron Chromium version and set `PLAYWRIGHT_CHROMIUM_PATH` to that binary.
 
-### Database backend (Postgres vs SQLite)
-- Default backend is Postgres (`BAS_DB_BACKEND` unset or `postgres`), using `DATABASE_URL` or the `POSTGRES_*` envs.
-- SQLite is available for desktop/Electron or lightweight runs: set `BAS_DB_BACKEND=sqlite` and optionally `BAS_SQLITE_PATH` (or `DATABASE_URL=file:/abs/path.db`). If unset, the path defaults to the scenario's `api-core/storage` data path with WAL/busy-timeout/cache pragmas applied in-process.
-- SQLite runs as embedded local storage inside the scenario; no standalone SQLite resource dependency is required. Set `BAS_SKIP_SQLITE_TESTS=true` to skip sqlite smoke tests in CI.
+### Database storage (SQLite)
+- Storage is embedded SQLite via `modernc.org/sqlite` (pure Go, no CGO). The DB file is resolved through `api-core/storage` with `ProfileAuto` — typically `~/.local/share/vrooli/browser-automation-studio/browser-automation-studio.db` on Linux.
+- Override the path with `BAS_SQLITE_PATH=/abs/path.db` or `DATABASE_URL=file:/abs/path.db`. WAL, busy-timeout, and cache pragmas are applied in-process.
+- Schema lives in `initialization/storage/sqlite/schema.sql` and is applied idempotently on first startup.
+- **Migrating from a previous postgres-backed install**: persistent data is not retained — start fresh. The postgres backend has been removed and there is no migration tool.
 
 ### Screenshot storage
 - Default: local filesystem (`BAS_SCREENSHOT_STORAGE=local` or unset) rooted at `scenarios/browser-automation-studio/data/recordings`.
@@ -57,7 +58,7 @@ Vrooli Ascension transforms browser automation from code-based scripts to visual
 
 Status legend: ✅ scaffolding exists • 🚧 active development • 🌀 planned polish
 
-- ✅ **Visual Workflow Builder**: React Flow UI stores node/edge JSON and project folders in Postgres.
+- ✅ **Visual Workflow Builder**: React Flow UI stores node/edge JSON in workflow files on disk; SQLite indexes the file metadata for fast project/workflow lookups.
 - ✅ **API/CLI Scaffolding**: REST handlers and CLI commands exist for workflows/executions; the API executes sequential Browserless steps with per-step telemetry while the CLI opens a live WebSocket stream (when Node.js is available) and prints execution timeline summaries after runs.
 - ✅ **Execution History Viewer**: Full-featured execution history viewer in the UI (Project Detail → Executions tab) with filtering by status (all/completed/failed/running), execution details, timeline replay, and refresh functionality. CLI provides `execution list` command for programmatic access.
 - ✅ **Execution Timeline API**: `/api/v1/executions/{id}/timeline` now assembles per-step `timeline_frame` artifacts with screenshot metadata, highlights, masks, and console/network references for replay consumers.
@@ -75,7 +76,6 @@ Status legend: ✅ scaffolding exists • 🚧 active development • 🌀 plann
 ```bash
 # Ensure required resources are running
 vrooli resource browserless start
-vrooli resource postgres start
 vrooli resource minio start
 ```
 
@@ -88,9 +88,7 @@ cd cli
 ./install.sh
 source ~/.bashrc
 
-# Setup database
-cd ../api
-go run cmd/migrate/main.go up
+# Database schema is created on first API startup (no migration step needed).
 
 # Install UI dependencies
 cd ../ui

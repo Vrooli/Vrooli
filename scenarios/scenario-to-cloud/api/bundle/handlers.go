@@ -4,13 +4,12 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strings"
-	"time"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/httputil"
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
+	"strings"
+	"time"
 )
 
 // HandleListBundles returns a handler that lists all stored bundles.
@@ -390,7 +389,7 @@ func CleanupVPSBundles(ctx context.Context, sshRunner ssh.Runner, req domain.Bun
 		}
 	}
 
-		return deletedCount, freedBytes, nil
+	return deletedCount, freedBytes, nil
 }
 
 // FormatBytes formats a byte count (in KB) as a human-readable string.

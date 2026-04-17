@@ -101,10 +101,10 @@ func TestCatalogManager(t *testing.T) {
 // TestShouldSkipDirectoryEntry tests directory filtering.
 func TestShouldSkipDirectoryEntry(t *testing.T) {
 	tests := []struct {
-		name     string
-		dirName  string
-		isDir    bool
-		want     bool
+		name    string
+		dirName string
+		isDir   bool
+		want    bool
 	}{
 		{"NodeModules", "node_modules", true, true},
 		{"Dist", "dist", true, true},
@@ -199,9 +199,9 @@ func TestDetectorIntegration(t *testing.T) {
 	resourcesDir := filepath.Join(tempDir, "resources")
 
 	// Create directories
-	os.MkdirAll(filepath.Join(scenariosDir, "test-scenario"), 0755)
-	os.MkdirAll(filepath.Join(resourcesDir, "postgres"), 0755)
-	os.MkdirAll(filepath.Join(resourcesDir, "redis"), 0755)
+	os.MkdirAll(filepath.Join(scenariosDir, "test-scenario"), 0o755)
+	os.MkdirAll(filepath.Join(resourcesDir, "postgres"), 0o755)
+	os.MkdirAll(filepath.Join(resourcesDir, "redis"), 0o755)
 
 	cfg := appconfig.Config{
 		ScenariosDir: scenariosDir,
@@ -243,15 +243,15 @@ func TestScanResources(t *testing.T) {
 
 	// Create test scenario with resource references
 	scenarioPath := filepath.Join(scenariosDir, "test-scenario")
-	os.MkdirAll(filepath.Join(scenarioPath, "api"), 0755)
-	os.MkdirAll(resourcesDir, 0755)
+	os.MkdirAll(filepath.Join(scenarioPath, "api"), 0o755)
+	os.MkdirAll(resourcesDir, 0o755)
 
 	// Create a script with resource CLI reference
 	scriptContent := `#!/bin/bash
 resource-postgres connect
 PGHOST=localhost
 `
-	os.WriteFile(filepath.Join(scenarioPath, "api", "setup.sh"), []byte(scriptContent), 0644)
+	os.WriteFile(filepath.Join(scenarioPath, "api", "setup.sh"), []byte(scriptContent), 0o644)
 
 	cfg := appconfig.Config{
 		ScenariosDir: scenariosDir,
@@ -277,14 +277,14 @@ func TestScanScenarioDependencies(t *testing.T) {
 	// Create test scenarios
 	testScenario := filepath.Join(scenariosDir, "test-scenario")
 	dependencyScenario := filepath.Join(scenariosDir, "dependency-scenario")
-	os.MkdirAll(filepath.Join(testScenario, "api"), 0755)
-	os.MkdirAll(filepath.Join(dependencyScenario, ".vrooli"), 0755)
+	os.MkdirAll(filepath.Join(testScenario, "api"), 0o755)
+	os.MkdirAll(filepath.Join(dependencyScenario, ".vrooli"), 0o755)
 
 	// Create script with scenario reference
 	scriptContent := `#!/bin/bash
 vrooli scenario run dependency-scenario
 `
-	os.WriteFile(filepath.Join(testScenario, "api", "start.sh"), []byte(scriptContent), 0644)
+	os.WriteFile(filepath.Join(testScenario, "api", "start.sh"), []byte(scriptContent), 0o644)
 
 	cfg := appconfig.Config{
 		ScenariosDir: scenariosDir,
@@ -330,7 +330,7 @@ func TestScanSharedWorkflows(t *testing.T) {
 
 	t.Run("WithWorkflowDir", func(t *testing.T) {
 		workflowDir := filepath.Join(tempDir, "initialization", "automation", "n8n")
-		os.MkdirAll(workflowDir, 0755)
+		os.MkdirAll(workflowDir, 0o755)
 
 		cfg := appconfig.Config{}
 		detector := New(cfg)

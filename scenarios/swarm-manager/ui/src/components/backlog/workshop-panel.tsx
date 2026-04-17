@@ -112,7 +112,7 @@ export function WorkshopPanel({
 
   const toggleRound = useCallback((roundNum: number) => {
     setExpandedRounds((prev) => {
-      const next = new Set(prev);
+      const next = new Set<number>(prev);
       if (next.has(roundNum)) {
         next.delete(roundNum);
       } else {
@@ -181,8 +181,8 @@ export function WorkshopPanel({
   const prevIsSaving = useRef(isSaving);
   useEffect(() => {
     if (prevIsSaving.current && !isSaving) {
-      setLocalUpdates(new Map());
-      setDeletedItems(new Set());
+      setLocalUpdates(new Map<string, WorkshopItem>());
+      setDeletedItems(new Set<string>());
     }
     prevIsSaving.current = isSaving;
   }, [isSaving]);

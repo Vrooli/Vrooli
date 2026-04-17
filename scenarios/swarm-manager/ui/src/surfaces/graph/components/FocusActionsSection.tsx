@@ -283,10 +283,10 @@ export function FocusActionsSection({ nodeData, nodeId }: FocusActionsSectionPro
         <BacklogActions nodeData={nodeData as BacklogGraphNodeData} nodeId={nodeId} />
       )}
       {nodeData.entityType === "execution" && (
-        <ExecutionActions nodeData={nodeData as ExecutionGraphNodeData} />
+        <ExecutionActions nodeData={nodeData} />
       )}
       {nodeData.entityType === "capture" && (
-        <CaptureActions nodeData={nodeData as CaptureGraphNodeData} />
+        <CaptureActions nodeData={nodeData} />
       )}
     </div>
   );

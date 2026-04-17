@@ -3,11 +3,10 @@ package dns
 import (
 	"context"
 	"fmt"
+	"scenario-to-cloud/domain"
 	"strings"
 
 	"golang.org/x/net/publicsuffix"
-
-	"scenario-to-cloud/domain"
 )
 
 // PreflightChecks evaluates DNS validation checks for a deployment preflight.

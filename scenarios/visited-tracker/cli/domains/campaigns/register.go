@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"strings"
-
 	"visited-tracker/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"

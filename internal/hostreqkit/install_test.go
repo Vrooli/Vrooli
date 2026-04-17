@@ -72,6 +72,16 @@ func TestInstallCommandDarwinNoBrew(t *testing.T) {
 	}
 }
 
+func TestInstallCommandDarwinBrewWithWhitespace(t *testing.T) {
+	cmd, args, err := InstallCommand(Host{OS: "darwin", PackageManager: " brew "}, "jq", "ask")
+	if err != nil {
+		t.Fatalf("InstallCommand: %v (whitespace around 'brew' should be trimmed)", err)
+	}
+	if cmd != "brew" || strings.Join(args, " ") != "install jq" {
+		t.Fatalf("got %s %v", cmd, args)
+	}
+}
+
 func TestInstallCommandWindowsWinget(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()
@@ -231,6 +241,43 @@ func TestWithSudoUnavailableFallsThrough(t *testing.T) {
 	}
 	if strings.Join(args, " ") != "install -y jq" {
 		t.Fatalf("args = %v", args)
+	}
+}
+
+func TestWithSudoUnavailableErrorModeFallsThrough(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+
+	// When sudo is not available, all modes fall through to running without
+	// privilege escalation. This includes "error" mode — the error semantics
+	// only apply when sudo IS available (meaning: "don't use sudo even though
+	// it exists"). When sudo doesn't exist, there's nothing to refuse.
+	LookPathFn = func(string) (string, error) { return "", os.ErrNotExist }
+
+	cmd, args, err := WithSudo("error", "apt-get", []string{"install", "-y", "jq"})
+	if err != nil {
+		t.Fatalf("expected no error when sudo unavailable, got %v", err)
+	}
+	if cmd != "apt-get" {
+		t.Fatalf("command = %q, want apt-get", cmd)
+	}
+	if strings.Join(args, " ") != "install -y jq" {
+		t.Fatalf("args = %v", args)
+	}
+}
+
+func TestWithSudoUnavailableSkipModeFallsThrough(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+
+	LookPathFn = func(string) (string, error) { return "", os.ErrNotExist }
+
+	cmd, _, err := WithSudo("skip", "apt-get", []string{"install"})
+	if err != nil {
+		t.Fatalf("expected no error when sudo unavailable, got %v", err)
+	}
+	if cmd != "apt-get" {
+		t.Fatalf("command = %q, want apt-get", cmd)
 	}
 }
 

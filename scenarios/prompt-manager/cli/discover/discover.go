@@ -8,12 +8,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"prompt-manager/cli/internal/appctx"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
-
-	"prompt-manager/cli/internal/appctx"
 )
 
 // DiscoverRequest is the request body for the discover endpoint.

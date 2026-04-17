@@ -173,7 +173,6 @@ type Lifecycle struct {
 	Test       Phase         `json:"test,omitempty"`
 	Backup     Phase         `json:"backup,omitempty"`
 	Restore    Phase         `json:"restore,omitempty"`
-	VersionCmd Phase         `json:"version,omitempty"`
 	Production Phase         `json:"production,omitempty"`
 	Stop       Phase         `json:"stop,omitempty"`
 }
@@ -729,7 +728,6 @@ func (manifest ServiceManifest) PhaseSummaries() []PhaseSummary {
 		{name: "test", phase: manifest.Lifecycle.Test},
 		{name: "backup", phase: manifest.Lifecycle.Backup},
 		{name: "restore", phase: manifest.Lifecycle.Restore},
-		{name: "version", phase: manifest.Lifecycle.VersionCmd},
 		{name: "production", phase: manifest.Lifecycle.Production},
 		{name: "stop", phase: manifest.Lifecycle.Stop},
 	}

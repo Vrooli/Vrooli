@@ -10,8 +10,7 @@ import type {
   InvestigationSummary,
 } from "../../types/investigation";
 
-// Mock the API module
-vi.mock("../../lib/api", () => ({
+const mocks = vi.hoisted(() => ({
   getAgentManagerStatus: vi.fn(),
   createTask: vi.fn(),
   listTasks: vi.fn(),
@@ -19,20 +18,13 @@ vi.mock("../../lib/api", () => ({
   stopTask: vi.fn(),
 }));
 
-// Import mocks after setting up vi.mock
-import {
-  getAgentManagerStatus,
-  createTask,
-  listTasks,
-  getTask,
-  stopTask,
-} from "../../lib/api";
+vi.mock("../../lib/api", () => mocks);
 
-export const mockGetAgentManagerStatus = getAgentManagerStatus as ReturnType<typeof vi.fn>;
-export const mockCreateTask = createTask as ReturnType<typeof vi.fn>;
-export const mockListTasks = listTasks as ReturnType<typeof vi.fn>;
-export const mockGetTask = getTask as ReturnType<typeof vi.fn>;
-export const mockStopTask = stopTask as ReturnType<typeof vi.fn>;
+export const mockGetAgentManagerStatus = mocks.getAgentManagerStatus;
+export const mockCreateTask = mocks.createTask;
+export const mockListTasks = mocks.listTasks;
+export const mockGetTask = mocks.getTask;
+export const mockStopTask = mocks.stopTask;
 
 // Create a wrapper with QueryClientProvider
 export function createWrapper() {

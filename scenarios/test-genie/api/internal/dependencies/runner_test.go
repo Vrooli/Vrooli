@@ -4,13 +4,12 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"testing"
-
 	"test-genie/internal/dependencies/commands"
 	"test-genie/internal/dependencies/packages"
 	"test-genie/internal/dependencies/resources"
 	"test-genie/internal/dependencies/runtime"
 	"test-genie/internal/structure/types"
+	"testing"
 )
 
 // mockCommandChecker implements commands.Checker for testing.

@@ -4,10 +4,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"swarm-manager/internal/testutil"
 	"testing"
 
 	"github.com/gorilla/mux"
-	"swarm-manager/internal/testutil"
 )
 
 func TestScenarioLifecycle_Start(t *testing.T) {

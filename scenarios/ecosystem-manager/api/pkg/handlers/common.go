@@ -19,7 +19,7 @@ func isDryRun(r *http.Request) bool {
 }
 
 // maxBodyBytes is kept mutable for tests; production uses defaultMaxBodyBytes.
-var maxBodyBytes int64 = defaultMaxBodyBytes
+var maxBodyBytes = defaultMaxBodyBytes
 
 // writeJSON writes a JSON response with proper headers and error handling.
 // This helper ensures consistent Content-Type headers and proper error handling

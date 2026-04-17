@@ -1,6 +1,7 @@
 package services
 
 import (
+	"app-monitor-api/logger"
 	"context"
 	"fmt"
 	"os/exec"
@@ -8,8 +9,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"app-monitor-api/logger"
 )
 
 // SystemMetrics represents system-wide metrics

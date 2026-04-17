@@ -7,9 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"testing"
-
 	"test-genie/internal/unit/types"
+	"testing"
 )
 
 // mockExecutor is a test double for CommandExecutor.

@@ -8,18 +8,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
-	"time"
-
-	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/discovery"
-	"github.com/vrooli/api-core/health"
-	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
-
 	"scenario-to-cloud/agentmanager"
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/deployment"
@@ -35,6 +23,18 @@ import (
 	"scenario-to-cloud/toolhandlers"
 	"scenario-to-cloud/toolregistry"
 	"scenario-to-cloud/vps"
+	"strings"
+	"time"
+
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
+	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
+
 	vpspreflight "scenario-to-cloud/vps/preflight"
 )
 

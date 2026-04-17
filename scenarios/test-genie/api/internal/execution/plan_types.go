@@ -35,9 +35,9 @@ type PlannedPhase struct {
 
 // ExecutionPlanSummary captures total timing guidance for a plan.
 type ExecutionPlanSummary struct {
-	PhaseCount                int `json:"phaseCount"`
-	EstimatedDurationSeconds  int `json:"estimatedDurationSeconds"`
-	TimeoutSeconds            int `json:"timeoutSeconds"`
+	PhaseCount               int `json:"phaseCount"`
+	EstimatedDurationSeconds int `json:"estimatedDurationSeconds"`
+	TimeoutSeconds           int `json:"timeoutSeconds"`
 }
 
 // ExecutionPlanPreview is the scenario-aware preflight response for CLI/UI surfaces.
@@ -51,9 +51,9 @@ type ExecutionPlanPreview struct {
 
 // PhaseDurationSample is a flattened historical duration observation for one phase.
 type PhaseDurationSample struct {
-	ScenarioName     string
-	PhaseName        string
-	Status           string
-	DurationSeconds  int
-	CompletedAt      time.Time
+	ScenarioName    string
+	PhaseName       string
+	Status          string
+	DurationSeconds int
+	CompletedAt     time.Time
 }

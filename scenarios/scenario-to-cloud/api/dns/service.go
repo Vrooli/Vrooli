@@ -5,11 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"scenario-to-cloud/domain"
 	"sort"
 	"strings"
 	"time"
-
-	"scenario-to-cloud/domain"
 )
 
 // Service centralizes DNS lookups and comparisons for scenario-to-cloud.

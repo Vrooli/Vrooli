@@ -1,6 +1,7 @@
 package services
 
 import (
+	"app-monitor-api/rules"
 	"context"
 	"fmt"
 	"os"
@@ -8,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"app-monitor-api/rules"
 	_ "app-monitor-api/rules/interop" // trigger rule registrations
 )
 

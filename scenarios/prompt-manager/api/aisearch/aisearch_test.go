@@ -6,12 +6,11 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"prompt-manager/search"
+	"prompt-manager/skills"
 	"strings"
 	"testing"
 	"time"
-
-	"prompt-manager/search"
-	"prompt-manager/skills"
 )
 
 // --- Mock implementations ---

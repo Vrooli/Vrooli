@@ -36,7 +36,7 @@ func (r *Runner) WaitForHealth(item scenario.Scenario, env map[string]string) (s
 		}
 	}
 
-	lastStatus := "unhealthy"
+	var lastStatus string
 	for {
 		lastStatus = scenario.EvaluateHealth(health, ports)
 		if lastStatus == "healthy" {

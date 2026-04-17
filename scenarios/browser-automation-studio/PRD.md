@@ -19,7 +19,7 @@ This capability transforms browser automation from code-based scripts to visual,
 - **Accessibility Auditor**: Automatically test scenarios for WCAG compliance with visual proof
 
 ## ⚠️ Implementation Status (2025-11-14)
-- **Executor**: The refactored automation stack (`api/automation/{executor,engine,recorder,events}`) drives Browserless through `BrowserlessEngine`, normalizes outcomes, and persists artifacts/telemetry via `DBRecorder` + `WSHubSink`. It executes `navigate`, `wait`, `click`, `type`, `extract`, and `screenshot` (plus loop/branching) nodes with console/network logs, bounding boxes, click coordinates, cursor trails, extracted payloads, and focus/highlight/mask/zoom metadata stored in Postgres/MinIO (`execution_steps`/`execution_artifacts`). Success/failure/else branching and per-node retry/backoff record attempt history alongside screenshots and telemetry.
+- **Executor**: The refactored automation stack (`api/automation/{executor,engine,recorder,events}`) drives Browserless through `BrowserlessEngine`, normalizes outcomes, and persists artifacts/telemetry via `DBRecorder` + `WSHubSink`. It executes `navigate`, `wait`, `click`, `type`, `extract`, and `screenshot` (plus loop/branching) nodes with console/network logs, bounding boxes, click coordinates, cursor trails, extracted payloads, and focus/highlight/mask/zoom metadata stored in SQLite/MinIO (`execution_steps`/`execution_artifacts`). Success/failure/else branching and per-node retry/backoff record attempt history alongside screenshots and telemetry.
 - **Assertions**: `assert` nodes validate selector existence/text/attribute conditions in Browserless, emit dedicated assertion artifacts, and broadcast assertion summaries through WebSocket/CLI/UI logs so failures short-circuit executions with actionable messaging.
 - **Telemetry**: The gorilla hub emitter broadcasts structured `execution.*` and `step.*` events, including mid-step `step.heartbeat` payloads. The UI surfaces live heartbeat timing alongside console/network telemetry, and the CLI attaches to the WebSocket stream (when Node.js is available) to print heartbeats and step events while retaining HTTP polling fallbacks.
 - **Execution History**: The UI provides a full-featured execution history viewer in the Project Detail → Executions tab with filtering by status (all/completed/failed/running), timeline replay integration, execution details, and refresh functionality. The API exposes `/api/v1/executions?workflow_id={id}` for programmatic access, and the CLI provides `execution list` commands.
@@ -44,10 +44,10 @@ This capability transforms browser automation from code-based scripts to visual,
 
 ### Functional Requirements
 - **Must Have (P0)**
-  - [x] Visual workflow builder using React Flow with drag-and-drop nodes _(UI fully functional with React Flow integration, workflow persistence via Postgres, organized folder structure - verified 2025-10-28)_
+  - [x] Visual workflow builder using React Flow with drag-and-drop nodes _(UI fully functional with React Flow integration, workflow persistence via embedded SQLite, organized folder structure - verified 2025-10-28)_
   - [x] Real-time screenshot display during workflow execution _(UI renders perfectly with dark-themed interface; executor emits telemetry events; replay renders highlight/mask/zoom metadata - UI verified functional 2025-10-28)_
   - [x] Integration with resource-browserless CLI for browser control _(executor talks directly to Browserless `/chrome/function` with sequential navigation, clicks, typing, screenshots, assertions - validated via API tests 2025-10-28)_
-  - [x] Save/load workflows in organized folder structure _(persistence works via Postgres with project/folder/workflow hierarchy - validated via API `/api/v1/workflows` endpoint 2025-10-28)_
+  - [x] Save/load workflows in organized folder structure _(persistence works via embedded SQLite with project/folder/workflow hierarchy - validated via API `/api/v1/workflows` endpoint 2025-10-28)_
   - [x] Execute workflows via API and CLI _(API executes sequential navigate/wait/click/type/extract/screenshot/assert steps with telemetry; CLI provides `workflow execute --wait` and `execution watch` commands - 2025-10-28)_
   - [x] AI workflow generation from natural language descriptions _(OpenRouter integration functional via resource-openrouter CLI; generates workflow JSON from prompts; validation and error handling can be enhanced as P1 work - tested 2025-10-28)_
   
@@ -97,11 +97,6 @@ required:
     integration_pattern: CLI commands via resource-browserless
     access_method: resource-browserless [command]
     
-  - resource_name: postgres
-    purpose: Workflow definitions and execution history storage
-    integration_pattern: Direct database connection
-    access_method: Database client library
-    
   - resource_name: minio
     purpose: Screenshot and artifact storage
     integration_pattern: S3-compatible API
@@ -142,13 +137,13 @@ integration_priorities:
 # Core data structures that define the capability
 primary_entities:
   - name: Workflow
-    storage: postgres
+    storage: sqlite
     schema: |
       {
         id: UUID
         name: string
         folder_path: string
-        flow_definition: JSONB (React Flow nodes/edges)
+        flow_definition: TEXT (JSON, lives in workflow files on disk) (React Flow nodes/edges)
         created_by: string
         created_at: timestamp
         updated_at: timestamp
@@ -158,7 +153,7 @@ primary_entities:
     relationships: Has many Executions, belongs to Folder
     
   - name: Execution
-    storage: postgres
+    storage: sqlite
     schema: |
       {
         id: UUID
@@ -174,7 +169,7 @@ primary_entities:
     relationships: Belongs to Workflow, has many Screenshots
     
   - name: WorkflowFolder
-    storage: postgres
+    storage: sqlite
     schema: |
       {
         id: UUID
@@ -365,7 +360,7 @@ custom_commands:
 ### Upstream Dependencies
 **What capabilities must exist before this can function?**
 - **resource-browserless**: Provides core browser automation engine
-- **resource-postgres**: Stores workflow definitions and history
+- **embedded SQLite** (via `modernc.org/sqlite`): Stores workflow index and execution history
 - **resource-minio**: Stores screenshots and artifacts
 - **ollama.json workflow**: AI capabilities for workflow generation
 
@@ -482,15 +477,15 @@ style_references:
 direct_execution:
   supported: true
   structure_compliance:
-    - service.json with browserless, postgres, minio resources
+    - service.json with browserless and minio resources (storage is embedded SQLite)
     - React-based UI with Vite build
     - Go API with workflow engine
     - CLI wrapper for all API functions
     
   deployment_targets:
-    - local: Docker Compose with resource dependencies
-    - kubernetes: StatefulSet for workflow engine
-    - cloud: AWS ECS with Aurora Postgres
+    - local: Docker Compose with resource dependencies (SQLite file lives in api-core/storage)
+    - kubernetes: StatefulSet for workflow engine with a PVC for the SQLite file
+    - cloud: AWS ECS with EFS-backed persistent volume for the SQLite file
     
   revenue_model:
     - type: subscription
@@ -521,7 +516,7 @@ discovery:
   metadata:
     description: Visual browser automation with AI-powered debugging
     keywords: [browser, automation, testing, scraping, workflow, visual]
-    dependencies: [browserless, postgres, minio]
+    dependencies: [browserless, minio]
     enhances: [all UI scenarios]
 ```
 

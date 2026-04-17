@@ -415,8 +415,6 @@ func lookupPhase(manifest scenario.ServiceManifest, phaseName string) (scenario.
 		return manifest.Lifecycle.Backup, true
 	case "restore":
 		return manifest.Lifecycle.Restore, true
-	case "version":
-		return manifest.Lifecycle.VersionCmd, true
 	case "production":
 		return manifest.Lifecycle.Production, true
 	case "stop":

@@ -158,7 +158,7 @@ export function CaptureTriage({ capture, onEditItem, onCaptureResolved }: Captur
       });
       upsertBacklogItem(created);
 
-      const next = new Set(acceptedIndices);
+      const next = new Set<number>(acceptedIndices);
       next.add(index);
       setAcceptedIndices(next);
 
@@ -181,7 +181,7 @@ export function CaptureTriage({ capture, onEditItem, onCaptureResolved }: Captur
   };
 
   const handleDismissItem = (index: number) => {
-    const next = new Set(dismissedIndices);
+    const next = new Set<number>(dismissedIndices);
     next.add(index);
     setDismissedIndices(next);
 
@@ -190,7 +190,7 @@ export function CaptureTriage({ capture, onEditItem, onCaptureResolved }: Captur
 
   const handleEditItem = (item: CaptureClassificationItem, index: number) => {
     if (onEditItem) {
-      const next = new Set(dismissedIndices);
+      const next = new Set<number>(dismissedIndices);
       next.add(index);
       setDismissedIndices(next);
       onEditItem({

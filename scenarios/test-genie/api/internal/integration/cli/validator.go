@@ -10,9 +10,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"time"
-
 	"test-genie/internal/structure/types"
+	"time"
 )
 
 // Default argument patterns for help and version commands.

@@ -8,14 +8,14 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
-
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/pathutil"
+	"time"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
 
 // Scoring weights for composite review queue priority.

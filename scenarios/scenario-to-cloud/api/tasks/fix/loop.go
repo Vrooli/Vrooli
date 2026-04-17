@@ -5,10 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
-
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/tasks/shared"
+	"time"
 )
 
 // LoopConfig configures the iterative fix loop.

@@ -32,6 +32,7 @@ type stubExecutionEngine struct {
 func (s *stubExecutionEngine) StartExecution(taskID, profileID, scenarioName string) (*ProfileExecutionState, error) {
 	return nil, nil
 }
+
 func (s *stubExecutionEngine) EvaluateIteration(taskID, scenarioName string) (*IterationEvaluation, error) {
 	return nil, nil
 }
@@ -39,12 +40,15 @@ func (s *stubExecutionEngine) DeleteExecutionState(taskID string) error { return
 func (s *stubExecutionEngine) SeekExecution(taskID, profileID, scenarioName string, phaseIndex, phaseIteration int) (*ProfileExecutionState, error) {
 	return nil, nil
 }
+
 func (s *stubExecutionEngine) AdvancePhase(taskID, scenarioName string) (*PhaseAdvanceResult, error) {
 	return nil, nil
 }
+
 func (s *stubExecutionEngine) GetExecutionState(taskID string) (*ProfileExecutionState, error) {
 	return s.state, s.stateErr
 }
+
 func (s *stubExecutionEngine) GetCurrentSet(taskID string) ([]string, error) {
 	return []string{string(ModeProgress)}, nil
 }
@@ -54,12 +58,15 @@ type stubHistoryService struct{}
 func (s *stubHistoryService) GetHistory(filters HistoryFilters) ([]ProfilePerformance, error) {
 	return nil, nil
 }
+
 func (s *stubHistoryService) GetExecution(executionID string) (*ProfilePerformance, error) {
 	return nil, nil
 }
+
 func (s *stubHistoryService) SubmitFeedback(executionID string, rating int, comments string) error {
 	return nil
 }
+
 func (s *stubHistoryService) SubmitFeedbackEntry(executionID string, req ExecutionFeedbackRequest) (*ExecutionFeedbackEntry, error) {
 	return &ExecutionFeedbackEntry{
 		ID:              executionID,
@@ -71,6 +78,7 @@ func (s *stubHistoryService) SubmitFeedbackEntry(executionID string, req Executi
 		CreatedAt:       time.Now().UTC(),
 	}, nil
 }
+
 func (s *stubHistoryService) GetProfileAnalytics(profileID string) (*ProfileAnalytics, error) {
 	return nil, nil
 }

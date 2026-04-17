@@ -21,6 +21,7 @@ import {
 import { cn } from "../lib/classnames";
 import { Button } from "./ui/button";
 import { getSession, uploadFile, summarizeEvent, fetchCapabilities, getSessionDefaults, type BackendOption, type BackendID, type ExpirationPolicy } from "../lib/api";
+import type { LaunchOptions } from "./TerminalLauncher";
 import ErrorBanner from "./ErrorBanner";
 import ErrorBoundary from "./ErrorBoundary";
 import TerminalPane from "./TerminalPane";
@@ -247,7 +248,7 @@ export default function Workspace() {
   const closeLauncher = useCallback(() => setLauncherOpen(false), []);
 
   const handleLaunch = useCallback(
-    async (opts?: { command?: string; backend?: string; policy?: { mode: string; duration?: string } }) => {
+    async (opts?: LaunchOptions) => {
       const session = await launchSession(opts);
       if (session) {
         setLauncherOpen(false);

@@ -1,6 +1,8 @@
 package database
 
 import (
+	"agent-manager/internal/domain"
+	"agent-manager/internal/repository"
 	"context"
 	"fmt"
 	"os"
@@ -8,9 +10,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"agent-manager/internal/domain"
-	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"

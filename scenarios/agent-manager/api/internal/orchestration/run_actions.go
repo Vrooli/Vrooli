@@ -1,9 +1,8 @@
 package orchestration
 
 import (
-	"context"
-
 	"agent-manager/internal/domain"
+	"context"
 )
 
 func (o *Orchestrator) runActionContext(ctx context.Context) domain.RunActionContext {

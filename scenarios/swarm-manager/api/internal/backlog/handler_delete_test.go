@@ -3,10 +3,10 @@ package backlog
 import (
 	"net/http"
 	"net/http/httptest"
+	"swarm-manager/internal/testutil"
 	"testing"
 
 	"github.com/gorilla/mux"
-	"swarm-manager/internal/testutil"
 )
 
 func TestDelete_Idempotent(t *testing.T) {

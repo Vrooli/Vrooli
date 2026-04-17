@@ -73,18 +73,18 @@ type SystemInsightsResponse struct {
 		Days  int       `json:"days"`
 	} `json:"time_window"`
 	Summary struct {
-		TotalReports       int            `json:"total_reports"`
-		UniqueTasks        int            `json:"unique_tasks"`
-		TotalExecutions    int            `json:"total_executions"`
-		PatternsByType     map[string]int `json:"patterns_by_type"`
-		SuggestionsByType  map[string]int `json:"suggestions_by_type"`
+		TotalReports      int            `json:"total_reports"`
+		UniqueTasks       int            `json:"unique_tasks"`
+		TotalExecutions   int            `json:"total_executions"`
+		PatternsByType    map[string]int `json:"patterns_by_type"`
+		SuggestionsByType map[string]int `json:"suggestions_by_type"`
 	} `json:"summary"`
 	Reports []insights.InsightReport `json:"reports"`
 }
 
 // SystemInsightReportResponse wraps a system insight report.
 type SystemInsightReportResponse struct {
-	Message  string                      `json:"message"`
-	ReportID string                      `json:"report_id"`
+	Message  string                       `json:"message"`
+	ReportID string                       `json:"report_id"`
 	Report   insights.SystemInsightReport `json:"report"`
 }

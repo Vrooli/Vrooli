@@ -10,13 +10,12 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
-	"strings"
-	"testing"
-
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/manifest"
+	"sort"
+	"strings"
+	"testing"
 )
 
 func TestMiniVrooliBundleSpec_IncludesAutohealAndPackagesAndFiltersScenariosResources(t *testing.T) {

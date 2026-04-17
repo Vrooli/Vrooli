@@ -326,7 +326,7 @@ export function useTimeline({
 
       setTotalEntries((prev) => prev + 1);
     }
-  }, [lastMessage, sessionId]);
+  }, [lastMessage, sessionId, isValidated]);
 
   // Filter entries by page if filter is set
   const filteredEntries = useMemo(() => {

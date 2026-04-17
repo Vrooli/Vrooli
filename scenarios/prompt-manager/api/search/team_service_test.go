@@ -3,9 +3,8 @@ package search
 import (
 	"context"
 	"errors"
-	"testing"
-
 	"prompt-manager/store"
+	"testing"
 )
 
 type mockTeamStore struct {

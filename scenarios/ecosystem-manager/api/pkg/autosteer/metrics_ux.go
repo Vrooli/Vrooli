@@ -375,7 +375,6 @@ func (c *UXMetricsCollector) RunAxeAccessibility(url string) (float64, error) {
 	// Run axe-core accessibility audit
 	cmd := exec.Command("axe", url, "--stdout")
 	output, err := cmd.CombinedOutput()
-
 	if err != nil {
 		log.Printf("Warning: axe accessibility scan returned error: %v", err)
 	}

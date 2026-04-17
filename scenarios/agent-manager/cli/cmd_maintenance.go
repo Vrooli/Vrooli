@@ -90,7 +90,7 @@ func (a *App) maintenancePurge(args []string) error {
 	if !*dryRun && !*force {
 		fmt.Printf("Purge items matching pattern '%s' from %s? [y/N]: ", *pattern, *targetsStr)
 		var confirm string
-		fmt.Scanln(&confirm)
+		_, _ = fmt.Scanln(&confirm)
 		if strings.ToLower(confirm) != "y" && strings.ToLower(confirm) != "yes" {
 			fmt.Println("Cancelled")
 			return nil

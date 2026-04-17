@@ -9,18 +9,19 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
-
-	"github.com/vrooli/api-core/database"
-	_ "modernc.org/sqlite"
-
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/playbooks/config"
 	"test-genie/internal/playbooks/isolation"
 	"test-genie/internal/playbooks/seeds"
 	"test-genie/internal/shared"
-	sharedartifacts "test-genie/internal/shared/artifacts"
 	"test-genie/internal/storage/sqlfiles"
+	"time"
+
+	"github.com/vrooli/api-core/database"
+	// Register modernc.org/sqlite as the pure-Go "sqlite" driver.
+	_ "modernc.org/sqlite"
+
+	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 
 // PlaybooksSeedSession holds state for a seed lifecycle run.

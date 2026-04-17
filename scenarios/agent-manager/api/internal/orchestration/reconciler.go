@@ -16,6 +16,10 @@
 package orchestration
 
 import (
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/sandbox"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/repository"
 	"context"
 	"fmt"
 	"log"
@@ -25,11 +29,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"agent-manager/internal/adapters/runner"
-	"agent-manager/internal/adapters/sandbox"
-	"agent-manager/internal/domain"
-	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
 )
