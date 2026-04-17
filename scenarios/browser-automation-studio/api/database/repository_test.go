@@ -247,6 +247,77 @@ func TestExecutionCRUD(t *testing.T) {
 	}
 }
 
+func TestCreateExecutionSupportsLegacyTriggerTypeSchema(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "bas-legacy.db")
+	dsn := fmt.Sprintf(
+		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)",
+		dbPath,
+	)
+
+	sqlDB, err := sqlx.Connect("sqlite", dsn)
+	if err != nil {
+		t.Fatalf("connect sqlite: %v", err)
+	}
+	defer sqlDB.Close()
+
+	log := logrus.New()
+	log.SetOutput(os.Stdout)
+	log.SetLevel(logrus.PanicLevel)
+
+	wrapped := &DB{
+		DB:  sqlDB,
+		log: log,
+	}
+
+	ctx := context.Background()
+	if _, err := wrapped.ExecContext(ctx, `
+		CREATE TABLE workflows (
+			id TEXT PRIMARY KEY
+		);
+		CREATE TABLE executions (
+			id TEXT PRIMARY KEY,
+			workflow_id TEXT REFERENCES workflows(id) ON DELETE CASCADE,
+			status TEXT NOT NULL,
+			trigger_type TEXT NOT NULL,
+			started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			completed_at TIMESTAMP,
+			error_message TEXT,
+			result_path TEXT,
+			resumed_from_id TEXT,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);
+	`); err != nil {
+		t.Fatalf("create legacy schema: %v", err)
+	}
+
+	workflowID := uuid.New()
+	if _, err := wrapped.ExecContext(ctx, `INSERT INTO workflows (id) VALUES (?)`, workflowID.String()); err != nil {
+		t.Fatalf("seed workflow: %v", err)
+	}
+
+	repo := NewRepository(wrapped, logrus.New())
+	exec := &ExecutionIndex{
+		ID:          uuid.New(),
+		WorkflowID:  workflowID,
+		Status:      ExecutionStatusPending,
+		TriggerType: "api",
+		StartedAt:   time.Now().UTC(),
+	}
+	if err := repo.CreateExecution(ctx, exec); err != nil {
+		t.Fatalf("CreateExecution: %v", err)
+	}
+
+	var triggerType string
+	if err := wrapped.GetContext(ctx, &triggerType, `SELECT trigger_type FROM executions WHERE id = ?`, exec.ID.String()); err != nil {
+		t.Fatalf("query trigger_type: %v", err)
+	}
+	if triggerType != "api" {
+		t.Fatalf("expected trigger_type %q, got %q", "api", triggerType)
+	}
+}
+
 func TestExecutionStatusUpdatePreservesResultPath(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()

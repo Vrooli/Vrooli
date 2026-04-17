@@ -1378,13 +1378,13 @@ func TestStepConditionsMetRejectsDisabledResourceAndInvalidJSON(t *testing.T) {
 	}
 }
 
-func TestCLINeedsSetupDetectsMissingAndStaleBinary(t *testing.T) {
-	appRoot := "/app"
-	probe := newFakeHostProbe()
-	probe.addDir(appRoot, time.Unix(10, 0))
+func TestSetupNeededIgnoresCLIChecksForRuntimeFreshness(t *testing.T) {
+	root := t.TempDir()
+	runner := &Runner{}
+
 	item := scenario.Scenario{
 		Slug: "alpha",
-		Path: appRoot,
+		Path: filepath.Join(root, "scenarios", "alpha"),
 		Manifest: scenario.ServiceManifest{
 			Service: scenario.ServiceMetadata{Name: "alpha"},
 			CLI: &scenario.CLIConfig{
@@ -1395,155 +1395,27 @@ func TestCLINeedsSetupDetectsMissingAndStaleBinary(t *testing.T) {
 					ModuleDir: "cli",
 				},
 			},
-		},
-	}
-
-	needed, reason, err := cliNeedsSetupWithDeps(item, scenario.ConditionCheck{Command: "fixture-cli"}, probe.deps())
-	if err != nil {
-		t.Fatalf("cliNeedsSetup missing binary: %v", err)
-	}
-	if !needed || reason != "CLI missing: fixture-cli" {
-		t.Fatalf("missing binary => needed=%v reason=%q", needed, reason)
-	}
-
-	cliSourceDir := filepath.Join(appRoot, "cli")
-	sourcePath := filepath.Join(cliSourceDir, "main.go")
-	cliPath := "/bin/fixture-cli"
-	old := time.Unix(100, 0)
-	now := time.Unix(200, 0)
-	future := time.Unix(300, 0)
-	probe.addDir(cliSourceDir, old)
-	probe.addFile(sourcePath, old, 0o644, []byte("package main\n"))
-	probe.addFile(cliPath, now, 0o755, []byte("#!/usr/bin/env bash\nexit 0\n"))
-	probe.lookPath["fixture-cli"] = cliPath
-
-	needed, reason, err = cliNeedsSetupWithDeps(item, scenario.ConditionCheck{Command: "fixture-cli"}, probe.deps())
-	if err != nil {
-		t.Fatalf("cliNeedsSetup fresh binary: %v", err)
-	}
-	if needed {
-		t.Fatalf("expected fresh CLI binary to satisfy setup, reason=%q", reason)
-	}
-
-	probe.addFile(sourcePath, future, 0o644, []byte("package main\n"))
-
-	needed, reason, err = cliNeedsSetupWithDeps(item, scenario.ConditionCheck{Command: "fixture-cli"}, probe.deps())
-	if err != nil {
-		t.Fatalf("cliNeedsSetup stale binary: %v", err)
-	}
-	if !needed || reason != "CLI outdated: fixture-cli (module source newer than installed binary)" {
-		t.Fatalf("stale binary => needed=%v reason=%q", needed, reason)
-	}
-}
-
-func TestCLINeedsSetupUsesDeclaredGoModuleDir(t *testing.T) {
-	appRoot := "/app"
-	probe := newFakeHostProbe()
-	probe.addDir(appRoot, time.Unix(10, 0))
-	item := scenario.Scenario{
-		Slug: "alpha",
-		Path: appRoot,
-		Manifest: scenario.ServiceManifest{
-			Service: scenario.ServiceMetadata{Name: "alpha"},
-			CLI: &scenario.CLIConfig{
-				Enabled: true,
-				Command: "fixture-cli",
-				Adapter: scenario.CLIAdapterConfig{
-					Kind:      "go_module",
-					ModuleDir: "tools/cli",
+			Lifecycle: scenario.Lifecycle{
+				Setup: scenario.Phase{
+					Condition: &scenario.Condition{
+						Checks: []scenario.ConditionCheck{
+							{Type: "cli", Command: "fixture-cli"},
+						},
+					},
 				},
 			},
 		},
 	}
 
-	moduleDir := filepath.Join(appRoot, "tools", "cli")
-	cliPath := "/bin/fixture-cli"
-	old := time.Unix(100, 0)
-	now := time.Unix(200, 0)
-	future := time.Unix(300, 0)
-	probe.addDir(filepath.Join(appRoot, "tools"), old)
-	probe.addDir(moduleDir, old)
-	probe.addFile(filepath.Join(moduleDir, "main.go"), old, 0o644, []byte("package main\n"))
-	probe.addFile(cliPath, now, 0o755, []byte("#!/usr/bin/env bash\nexit 0\n"))
-	probe.lookPath["fixture-cli"] = cliPath
-
-	needed, reason, err := cliNeedsSetupWithDeps(item, scenario.ConditionCheck{}, probe.deps())
+	needed, reasons, err := runner.SetupNeeded(item, false)
 	if err != nil {
-		t.Fatalf("cliNeedsSetup fresh binary: %v", err)
+		t.Fatalf("SetupNeeded: %v", err)
 	}
 	if needed {
-		t.Fatalf("expected fresh CLI binary to satisfy setup, reason=%q", reason)
+		t.Fatalf("expected runtime setup to ignore CLI freshness, reasons=%v", reasons)
 	}
-
-	probe.addFile(filepath.Join(moduleDir, "main.go"), future, 0o644, []byte("package main\n"))
-	needed, reason, err = cliNeedsSetupWithDeps(item, scenario.ConditionCheck{}, probe.deps())
-	if err != nil {
-		t.Fatalf("cliNeedsSetup stale binary: %v", err)
-	}
-	if !needed || reason != "CLI outdated: fixture-cli (module source newer than installed binary)" {
-		t.Fatalf("stale binary => needed=%v reason=%q", needed, reason)
-	}
-}
-
-func TestCLINeedsSetupUsesShellScriptFreshnessInputs(t *testing.T) {
-	appRoot := "/app"
-	probe := newFakeHostProbe()
-	probe.addDir(appRoot, time.Unix(10, 0))
-	item := scenario.Scenario{
-		Slug: "alpha",
-		Path: appRoot,
-		Manifest: scenario.ServiceManifest{
-			Service: scenario.ServiceMetadata{Name: "alpha"},
-			CLI: &scenario.CLIConfig{
-				Enabled: true,
-				Command: "fixture-cli",
-				Adapter: scenario.CLIAdapterConfig{
-					Kind:          "shell_script",
-					ScriptPath:    "tools/fixture-cli",
-					InstallScript: "tools/install.sh",
-				},
-				Freshness: &scenario.CLIFreshnessCheck{
-					Inputs: []string{"tools/manifest.json"},
-				},
-			},
-		},
-	}
-
-	cliPath := "/bin/fixture-cli"
-	old := time.Unix(100, 0)
-	now := time.Unix(200, 0)
-	future := time.Unix(300, 0)
-	probe.addDir(filepath.Join(appRoot, "tools"), old)
-	probe.addFile(filepath.Join(appRoot, "tools", "fixture-cli"), old, 0o755, []byte("#!/usr/bin/env bash\nexit 0\n"))
-	probe.addFile(filepath.Join(appRoot, "tools", "install.sh"), old, 0o755, []byte("#!/usr/bin/env bash\nexit 0\n"))
-	probe.addFile(filepath.Join(appRoot, "tools", "manifest.json"), old, 0o644, []byte("{\"version\":1}\n"))
-	probe.addFile(cliPath, now, 0o755, []byte("#!/usr/bin/env bash\nexit 0\n"))
-	probe.lookPath["fixture-cli"] = cliPath
-
-	needed, reason, err := cliNeedsSetupWithDeps(item, scenario.ConditionCheck{}, probe.deps())
-	if err != nil {
-		t.Fatalf("cliNeedsSetup fresh shell CLI: %v", err)
-	}
-	if needed {
-		t.Fatalf("expected fresh shell CLI to satisfy setup, reason=%q", reason)
-	}
-
-	probe.addFile(filepath.Join(appRoot, "tools", "fixture-cli"), future, 0o755, []byte("#!/usr/bin/env bash\necho changed\n"))
-	needed, reason, err = cliNeedsSetupWithDeps(item, scenario.ConditionCheck{}, probe.deps())
-	if err != nil {
-		t.Fatalf("cliNeedsSetup ignored script freshness input: %v", err)
-	}
-	if needed {
-		t.Fatalf("expected non-declared shell script change to be ignored, reason=%q", reason)
-	}
-
-	probe.addFile(filepath.Join(appRoot, "tools", "manifest.json"), future, 0o644, []byte("{\"version\":2}\n"))
-	needed, reason, err = cliNeedsSetupWithDeps(item, scenario.ConditionCheck{}, probe.deps())
-	if err != nil {
-		t.Fatalf("cliNeedsSetup stale shell CLI: %v", err)
-	}
-	if !needed || reason != "CLI outdated: fixture-cli (freshness inputs newer than installed binary)" {
-		t.Fatalf("stale shell CLI => needed=%v reason=%q", needed, reason)
+	if len(reasons) != 0 {
+		t.Fatalf("expected no setup reasons, got %v", reasons)
 	}
 }
 

@@ -187,6 +187,83 @@ func TestRunnerStartStartsRequiredDependencies(t *testing.T) {
 	}
 }
 
+func TestRunnerStartReusesHealthyDependencyWhenOnlyCLICheckWouldBeStale(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("lifecycle process management currently targets linux")
+	}
+
+	root := t.TempDir()
+	home := t.TempDir()
+
+	beta := lifecycleFixtureManifest("beta")
+	beta.CLI = &scenario.CLIConfig{
+		Enabled: true,
+		Command: "beta",
+		Adapter: scenario.CLIAdapterConfig{
+			Kind:      "go_module",
+			ModuleDir: "cli",
+		},
+	}
+	beta.Lifecycle.Setup.Condition.Checks = append(beta.Lifecycle.Setup.Condition.Checks,
+		scenario.ConditionCheck{Type: "cli", Command: "beta"},
+	)
+	writeLifecycleFixtureManifest(t, root, beta)
+
+	alpha := lifecycleFixtureManifest("alpha")
+	alpha.Dependencies.Scenarios = map[string]scenario.Dependency{
+		"beta": {Required: true},
+	}
+	writeLifecycleFixtureManifest(t, root, alpha)
+
+	runner, err := NewRunner(root, home, io.Discard, io.Discard)
+	if err != nil {
+		t.Fatalf("NewRunner: %v", err)
+	}
+
+	t.Cleanup(func() {
+		_ = runner.Stop("alpha", StopOptions{})
+		_ = runner.Stop("beta", StopOptions{})
+	})
+
+	startedBeta, err := runner.Start("beta", StartOptions{})
+	if err != nil {
+		t.Fatalf("Start(beta): %v", err)
+	}
+	if startedBeta.Health != "healthy" {
+		t.Fatalf("beta health = %q, want healthy", startedBeta.Health)
+	}
+
+	betaRecords, err := process.ReadScenarioRecords(home, "beta")
+	if err != nil {
+		t.Fatalf("ReadScenarioRecords(beta): %v", err)
+	}
+	betaLive := process.LiveRecords(betaRecords)
+	if len(betaLive) != 1 {
+		t.Fatalf("expected beta to have one live process, got %#v", betaLive)
+	}
+	originalBetaPID := betaLive[0].PID
+
+	startedAlpha, err := runner.Start("alpha", StartOptions{})
+	if err != nil {
+		t.Fatalf("Start(alpha): %v", err)
+	}
+	if startedAlpha.Health != "healthy" {
+		t.Fatalf("alpha health = %q, want healthy", startedAlpha.Health)
+	}
+
+	betaRecords, err = process.ReadScenarioRecords(home, "beta")
+	if err != nil {
+		t.Fatalf("ReadScenarioRecords(beta) after alpha start: %v", err)
+	}
+	betaLive = process.LiveRecords(betaRecords)
+	if len(betaLive) != 1 {
+		t.Fatalf("expected beta to keep one live process, got %#v", betaLive)
+	}
+	if betaLive[0].PID != originalBetaPID {
+		t.Fatalf("expected beta dependency to be reused, pid changed from %d to %d", originalBetaPID, betaLive[0].PID)
+	}
+}
+
 func TestListeningPIDsDetectsLiveListener(t *testing.T) {
 	if _, err := exec.LookPath("lsof"); err != nil {
 		t.Skip("lsof is not installed")

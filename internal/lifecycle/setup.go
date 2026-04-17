@@ -48,7 +48,14 @@ func (r *Runner) evaluateSetupCheck(item scenario.Scenario, check scenario.Condi
 	case "", "binaries":
 		return binariesNeedSetup(item.Path, check)
 	case "cli":
-		return cliNeedsSetup(item, check)
+		// Runtime lifecycle freshness intentionally ignores installed CLI state.
+		//
+		// Scenario CLI freshness is owned by internal/cliinstall and enforced at
+		// command boundaries (for example `vrooli scenario ...`), where the CLI
+		// can be refreshed before execution. Treating stale installed CLIs as a
+		// runtime setup input caused dependency restart loops because scenario
+		// setup phases generally build API/UI artifacts, not scenario CLIs.
+		return false, "", nil
 	case "ui-bundle":
 		return uiBundleNeedsSetup(item.Path, check)
 	case "resources":

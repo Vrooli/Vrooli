@@ -138,12 +138,13 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 	finalBrowserProfile := sessionprofilepersistence.MergeBrowserProfiles(baseBrowserProfile, execBrowserProfile)
 
 	execIndex := &database.ExecutionIndex{
-		ID:         executionID,
-		WorkflowID: workflowID,
-		Status:     database.ExecutionStatusPending,
-		StartedAt:  now,
-		CreatedAt:  now,
-		UpdatedAt:  now,
+		ID:          executionID,
+		WorkflowID:  workflowID,
+		Status:      database.ExecutionStatusPending,
+		TriggerType: "api",
+		StartedAt:   now,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 	if err := s.repo.CreateExecution(ctx, execIndex); err != nil {
 		return nil, fmt.Errorf("create execution: %w", err)

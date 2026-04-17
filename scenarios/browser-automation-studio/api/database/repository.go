@@ -375,9 +375,18 @@ func (r *repository) CreateExecution(ctx context.Context, execution *ExecutionIn
 	if execution.ID == uuid.Nil {
 		execution.ID = uuid.New()
 	}
+	if execution.TriggerType == "" {
+		execution.TriggerType = "manual"
+	}
 
 	query := `INSERT INTO executions (id, workflow_id, status, started_at, error_message, result_path, resumed_from_id)
 	          VALUES (:id, :workflow_id, :status, :started_at, :error_message, :result_path, :resumed_from_id)`
+	if hasTriggerType, err := r.db.columnExists(ctx, "executions", "trigger_type"); err != nil {
+		return fmt.Errorf("check executions.trigger_type column: %w", err)
+	} else if hasTriggerType {
+		query = `INSERT INTO executions (id, workflow_id, status, trigger_type, started_at, error_message, result_path, resumed_from_id)
+		          VALUES (:id, :workflow_id, :status, :trigger_type, :started_at, :error_message, :result_path, :resumed_from_id)`
+	}
 	_, err := r.db.NamedExecContext(ctx, query, execution)
 	if err != nil {
 		r.log.WithError(err).Error("Failed to create execution")

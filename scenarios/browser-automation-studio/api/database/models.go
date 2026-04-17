@@ -70,6 +70,7 @@ type ExecutionIndex struct {
 	ID            uuid.UUID  `json:"id" db:"id"`
 	WorkflowID    uuid.UUID  `json:"workflow_id" db:"workflow_id"`
 	Status        string     `json:"status" db:"status"`
+	TriggerType   string     `json:"trigger_type,omitempty" db:"trigger_type"`
 	StartedAt     time.Time  `json:"started_at" db:"started_at"`
 	CompletedAt   *time.Time `json:"completed_at,omitempty" db:"completed_at"`
 	ErrorMessage  string     `json:"error_message,omitempty" db:"error_message"`

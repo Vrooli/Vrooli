@@ -83,6 +83,7 @@ func (s *WorkflowService) ResumeExecution(ctx context.Context, executionID uuid.
 		ID:            uuid.New(),
 		WorkflowID:    originalExec.WorkflowID,
 		Status:        database.ExecutionStatusPending,
+		TriggerType:   "resume",
 		StartedAt:     now,
 		ResumedFromID: &executionID,
 		CreatedAt:     now,

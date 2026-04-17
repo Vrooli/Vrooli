@@ -44,12 +44,13 @@ func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, workflowID uuid.U
 
 	now := time.Now().UTC()
 	exec := &database.ExecutionIndex{
-		ID:         uuid.New(),
-		WorkflowID: workflowID,
-		Status:     database.ExecutionStatusPending,
-		StartedAt:  now,
-		CreatedAt:  now,
-		UpdatedAt:  now,
+		ID:          uuid.New(),
+		WorkflowID:  workflowID,
+		Status:      database.ExecutionStatusPending,
+		TriggerType: "manual",
+		StartedAt:   now,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 
 	if err := s.repo.CreateExecution(ctx, exec); err != nil {
@@ -149,12 +150,13 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 
 	now := time.Now().UTC()
 	exec := &database.ExecutionIndex{
-		ID:         uuid.New(),
-		WorkflowID: workflowID,
-		Status:     database.ExecutionStatusPending,
-		StartedAt:  now,
-		CreatedAt:  now,
-		UpdatedAt:  now,
+		ID:          uuid.New(),
+		WorkflowID:  workflowID,
+		Status:      database.ExecutionStatusPending,
+		TriggerType: "api",
+		StartedAt:   now,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 	if err := s.repo.CreateExecution(ctx, exec); err != nil {
 		return nil, err
