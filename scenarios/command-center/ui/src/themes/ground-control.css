@@ -26,6 +26,12 @@
 
 [data-theme="ground-control"] .cc-layout header.cc-header h1 {
   text-shadow: 0 0 18px var(--cc-accent-glow);
-  letter-spacing: 0.12em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+@media (min-width: 768px) {
+  [data-theme="ground-control"] .cc-layout header.cc-header h1 {
+    letter-spacing: 0.12em;
+  }
 }

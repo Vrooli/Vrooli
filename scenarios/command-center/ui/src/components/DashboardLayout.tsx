@@ -29,7 +29,14 @@ export function DashboardLayout({
         </header>
         <div className={bodyClass}>
           <main>{children}</main>
-          {aside ? <aside>{aside}</aside> : null}
+          {aside ? (
+            <aside className="cc-aside">
+              <details className="cc-aside-drawer" open data-testid="metrics-drawer">
+                <summary className="cc-aside-summary">Metrics</summary>
+                <div className="cc-aside-body">{aside}</div>
+              </details>
+            </aside>
+          ) : null}
         </div>
       </div>
     </ThemeProvider>

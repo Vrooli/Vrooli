@@ -42,4 +42,27 @@ describe("DashboardLayout", () => {
     );
     expect(container.querySelector("aside")).not.toBeNull();
   });
+
+  it("wraps the aside in an open metrics drawer for mobile collapse", () => {
+    const { getByTestId, getByText } = render(
+      <DashboardLayout themeKey="vault" title="Ledger" aside={<span>aside-node</span>}>
+        <p>body</p>
+      </DashboardLayout>,
+    );
+    const drawer = getByTestId("metrics-drawer") as HTMLDetailsElement;
+    expect(drawer.tagName).toBe("DETAILS");
+    expect(drawer.open).toBe(true);
+    expect(getByText("Metrics")).toBeInTheDocument();
+    expect(getByText("aside-node")).toBeInTheDocument();
+  });
+
+  it("omits the metrics drawer when no aside is provided", () => {
+    const { queryByTestId, container } = render(
+      <DashboardLayout themeKey="cosmos" title="Panorama">
+        <p>body</p>
+      </DashboardLayout>,
+    );
+    expect(queryByTestId("metrics-drawer")).toBeNull();
+    expect(container.querySelector("aside")).toBeNull();
+  });
 });

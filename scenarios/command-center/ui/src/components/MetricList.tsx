@@ -19,11 +19,7 @@ export function MetricList({ metrics }: MetricListProps) {
   }
 
   return (
-    <ul
-      className="cc-surface"
-      data-testid="metric-list"
-      style={{ listStyle: "none", margin: 0, padding: "0.5rem 0.75rem" }}
-    >
+    <ul className="cc-surface cc-metric-list" data-testid="metric-list">
       {metrics.map((metric) => (
         <li key={metric.id} className="cc-metric" data-metric-id={metric.id}>
           <div className="cc-metric-label">
