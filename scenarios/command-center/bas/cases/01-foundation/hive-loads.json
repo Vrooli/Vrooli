@@ -1,0 +1,95 @@
+{
+  "metadata": {
+    "name": "hive-loads",
+    "description": "Navigates to /hive and verifies the ThemeProvider applies data-theme='bioluminescent' with no console errors.",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"CC-FOUNDATION-HIVE-LOADS\"]"
+    },
+    "version": "1",
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-hive",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "command-center",
+          "scenario_path": "/hive",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to /hive"
+        }
+      }
+    },
+    {
+      "id": "wait-theme-applied",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-theme='bioluminescent']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for data-theme='bioluminescent'"
+        }
+      }
+    },
+    {
+      "id": "assert-theme-attribute",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-theme='bioluminescent']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Expected [data-theme='bioluminescent'] to be attached by ThemeProvider on /hive"
+        },
+        "metadata": {
+          "label": "Assert data-theme='bioluminescent' present"
+        }
+      }
+    },
+    {
+      "id": "assert-no-console-errors",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(window.__consoleErrors && window.__consoleErrors.length) || 0",
+          "store_result": "consoleErrorCount",
+          "expected_value": 0
+        },
+        "metadata": {
+          "label": "Assert console.errors.length === 0"
+        }
+      }
+    },
+    {
+      "id": "capture-hive",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture /hive"
+        }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-hive", "target": "wait-theme-applied", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-theme-applied", "target": "assert-theme-attribute", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "assert-theme-attribute", "target": "assert-no-console-errors", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "assert-no-console-errors", "target": "capture-hive", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

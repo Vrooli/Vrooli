@@ -1,0 +1,19 @@
+/* Vault theme — Ledger. Gold/ivory heritage palette.
+ * Stub: palette-only.
+ */
+[data-theme="vault"] {
+  --cc-bg: #0e0a04;
+  --cc-surface: rgba(30, 24, 12, 0.92);
+  --cc-fg: #f7ead1;
+  --cc-fg-muted: #c4aa70;
+  --cc-accent: #d4af37;
+  --cc-accent-glow: rgba(212, 175, 55, 0.38);
+  --cc-border: rgba(212, 175, 55, 0.25);
+
+  --cc-font-display: "Inter", system-ui, sans-serif;
+  --cc-font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  color-scheme: dark;
+  background: var(--cc-bg);
+  color: var(--cc-fg);
+}

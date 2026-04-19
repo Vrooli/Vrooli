@@ -1,0 +1,111 @@
+{
+  "metadata": {
+    "name": "mission-control-gap-badges-render",
+    "description": "End-to-end vertical slice: navigates to /mission-control, waits for at least one [data-testid='gap-badge'] to render (e.g. revenue_mrr, revenue_today), and confirms the R3F scene canvas is present.",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"CC-FOUNDATION-GAP-BADGES-RENDER\"]"
+    },
+    "version": "1",
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-mission-control",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "command-center",
+          "scenario_path": "/mission-control",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to /mission-control"
+        }
+      }
+    },
+    {
+      "id": "wait-theme-applied",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-theme='ground-control']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for data-theme='ground-control'"
+        }
+      }
+    },
+    {
+      "id": "wait-gap-badge",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='gap-badge']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for gap-badge to render (GAP or PARTIAL)"
+        }
+      }
+    },
+    {
+      "id": "assert-gap-badge-exists",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='gap-badge']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "At least one [data-testid='gap-badge'] should render on /mission-control (e.g. revenue_mrr or revenue_today)"
+        },
+        "metadata": {
+          "label": "Assert at least one gap-badge exists"
+        }
+      }
+    },
+    {
+      "id": "assert-scene-canvas",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "canvas",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Mission Control R3F scene canvas should be present in the DOM"
+        },
+        "metadata": {
+          "label": "Assert R3F scene canvas present"
+        }
+      }
+    },
+    {
+      "id": "capture-mission-control-gap",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture /mission-control with gap badges"
+        }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-mission-control", "target": "wait-theme-applied", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-theme-applied", "target": "wait-gap-badge", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "wait-gap-badge", "target": "assert-gap-badge-exists", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "assert-gap-badge-exists", "target": "assert-scene-canvas", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "assert-scene-canvas", "target": "capture-mission-control-gap", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

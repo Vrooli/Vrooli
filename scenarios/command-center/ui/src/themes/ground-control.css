@@ -1,0 +1,31 @@
+/* Ground Control theme — Mission Control dashboard.
+ * Electric-blue palette, monospace typography, dark space background.
+ */
+[data-theme="ground-control"] {
+  --cc-bg: #05070e;
+  --cc-surface: rgba(12, 20, 38, 0.85);
+  --cc-fg: #e8f1ff;
+  --cc-fg-muted: #7d93b8;
+  --cc-accent: #00d4ff;
+  --cc-accent-glow: rgba(0, 212, 255, 0.45);
+  --cc-border: rgba(0, 212, 255, 0.22);
+
+  --cc-font-display: "JetBrains Mono", "IBM Plex Mono", ui-monospace, "SFMono-Regular",
+    Menlo, Consolas, monospace;
+  --cc-font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  color-scheme: dark;
+  background: var(--cc-bg);
+  color: var(--cc-fg);
+}
+
+[data-theme="ground-control"] body,
+[data-theme="ground-control"] .cc-layout {
+  font-family: var(--cc-font-display);
+}
+
+[data-theme="ground-control"] .cc-layout header.cc-header h1 {
+  text-shadow: 0 0 18px var(--cc-accent-glow);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}

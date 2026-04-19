@@ -1,0 +1,19 @@
+/* Cosmos theme — Panorama. Deep purple aurora palette.
+ * Stub: palette-only.
+ */
+[data-theme="cosmos"] {
+  --cc-bg: #06051a;
+  --cc-surface: rgba(20, 14, 48, 0.92);
+  --cc-fg: #ece6ff;
+  --cc-fg-muted: #9a90c4;
+  --cc-accent: #9b5cff;
+  --cc-accent-glow: rgba(155, 92, 255, 0.45);
+  --cc-border: rgba(155, 92, 255, 0.25);
+
+  --cc-font-display: "Inter", system-ui, sans-serif;
+  --cc-font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  color-scheme: dark;
+  background: var(--cc-bg);
+  color: var(--cc-fg);
+}

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://vrooli.com/schemas/testing.schema.json",
+  "_metadata": {
+    "description": "Testing configuration for command-center scenario",
+    "last_updated": "2026-04-18T00:00:00Z"
+  },
+  "version": "1.0.0",
+  "structure": {
+    "additional_dirs": [
+      "ui",
+      "bas"
+    ]
+  },
+  "unit": {
+    "languages": {
+      "go": {
+        "coverage": {
+          "warn_threshold": 50,
+          "error_threshold": 37
+        }
+      },
+      "node": {}
+    }
+  },
+  "playbooks": {
+    "enabled": true
+  },
+  "business": {
+    "checks": {
+      "endpoints": {
+        "enabled": true
+      },
+      "cli_commands": {
+        "enabled": false
+      },
+      "websockets": {
+        "enabled": false
+      }
+    }
+  }
+}

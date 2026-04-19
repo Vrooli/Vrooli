@@ -1,0 +1,106 @@
+{
+  "module_id": "ui-shell",
+  "title": "UI shell and route scaffold",
+  "priority": "P1",
+  "description": "React + Vite shell with 6 routes, shared DashboardLayout + ThemeProvider + SceneCanvas, adapted useWakeLock and useFullscreen hooks (not auto-invoked).",
+  "requirements": [
+    {
+      "id": "CC-UI-001",
+      "title": "Six navigable dashboard routes with correct data-theme",
+      "description": "Router renders /mission-control, /hive, /forge, /ledger, /broadcast, /panorama; each has the correct data-theme attribute on its layout wrapper.",
+      "validation": [
+        {
+          "type": "automation",
+          "phase": "e2e",
+          "status": "implemented",
+          "ref": "bas/cases/01-foundation/mission-control-loads.json"
+        },
+        {
+          "type": "automation",
+          "phase": "e2e",
+          "status": "implemented",
+          "ref": "bas/cases/01-foundation/hive-loads.json"
+        },
+        {
+          "type": "automation",
+          "phase": "e2e",
+          "status": "implemented",
+          "ref": "bas/cases/01-foundation/forge-loads.json"
+        },
+        {
+          "type": "automation",
+          "phase": "e2e",
+          "status": "implemented",
+          "ref": "bas/cases/01-foundation/ledger-loads.json"
+        },
+        {
+          "type": "automation",
+          "phase": "e2e",
+          "status": "implemented",
+          "ref": "bas/cases/01-foundation/broadcast-loads.json"
+        },
+        {
+          "type": "automation",
+          "phase": "e2e",
+          "status": "implemented",
+          "ref": "bas/cases/01-foundation/panorama-loads.json"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "CC-UI-002",
+      "title": "GapBadge + StaleBadge primitives",
+      "description": "Gap and stale badge components surface availability status via data-testid markers for downstream automation.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/components/GapBadge.test.tsx"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/components/StaleBadge.test.tsx"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "CC-UI-003",
+      "title": "Lazy SceneCanvas with Suspense fallback",
+      "description": "SceneCanvas wraps R3F <Canvas> with a Suspense fallback so each route's scene module is code-split. Trivial cube is the shared placeholder for the 5 non-Mission-Control routes.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/components/SceneCanvas.test.tsx"
+        }
+      ],
+      "status": "complete"
+    },
+    {
+      "id": "CC-UI-004",
+      "title": "Adapted kiosk hooks, not auto-invoked",
+      "description": "useWakeLock and useFullscreen live in ui/src/hooks but are not auto-invoked; kiosk-ux owns the policy layer.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/hooks/useWakeLock.test.ts"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "ref": "ui/src/hooks/useFullscreen.test.ts"
+        }
+      ],
+      "status": "complete"
+    }
+  ]
+}

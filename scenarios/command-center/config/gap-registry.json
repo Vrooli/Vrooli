@@ -1,0 +1,298 @@
+{
+  "version": "1.0.0",
+  "dashboards": {
+    "mission-control": [
+      {
+        "id": "active_scenarios",
+        "label": "Active scenarios",
+        "dataSource": "live",
+        "upstreamSource": "vrooli",
+        "description": "Count of scenarios currently running with green health checks."
+      },
+      {
+        "id": "scenario_health",
+        "label": "Scenario health summary",
+        "dataSource": "live",
+        "upstreamSource": "vrooli",
+        "description": "Rollup of scenario health states across the local Vrooli instance."
+      },
+      {
+        "id": "swarm_throughput",
+        "label": "Swarm throughput (last 24h)",
+        "dataSource": "live",
+        "upstreamSource": "swarm",
+        "description": "Completed backlog items produced by the swarm in the trailing day."
+      },
+      {
+        "id": "swarm_active_agents",
+        "label": "Active agents",
+        "dataSource": "live",
+        "upstreamSource": "swarm",
+        "description": "Number of agents with at least one run executed in the last hour."
+      },
+      {
+        "id": "system_uptime",
+        "label": "System uptime",
+        "dataSource": "live",
+        "upstreamSource": "vrooli",
+        "description": "Wall-clock uptime for the local Vrooli host."
+      },
+      {
+        "id": "revenue_mrr",
+        "label": "Monthly recurring revenue",
+        "dataSource": "gap",
+        "upstreamSource": "lpbs",
+        "description": "Rolling MRR computed from Stripe subscriptions.",
+        "whatIsNeeded": "LPBS /api/v1/admin/dashboard/revenue endpoint must be implemented by the lpbs-command-center-dashboard-endpoints execute item."
+      },
+      {
+        "id": "revenue_today",
+        "label": "Revenue today",
+        "dataSource": "gap",
+        "upstreamSource": "lpbs",
+        "description": "Sum of successful checkout_sessions in the current day.",
+        "whatIsNeeded": "LPBS /api/v1/admin/dashboard/revenue endpoint with a daily-rollup query."
+      }
+    ],
+    "hive": [
+      {
+        "id": "total_scenarios",
+        "label": "Total scenarios",
+        "dataSource": "live",
+        "upstreamSource": "vrooli",
+        "description": "Count of scenarios registered with the Vrooli scenario registry."
+      },
+      {
+        "id": "scenario_completeness",
+        "label": "Completeness score distribution",
+        "dataSource": "live",
+        "upstreamSource": "vrooli",
+        "description": "Distribution of 0-100 completeness scores bucketed by classification."
+      },
+      {
+        "id": "scenario_health_detail",
+        "label": "Per-scenario health",
+        "dataSource": "live",
+        "upstreamSource": "vrooli",
+        "description": "Per-scenario health badges (green/yellow/red) derived from lifecycle checks."
+      },
+      {
+        "id": "scenario_ports",
+        "label": "Allocated ports",
+        "dataSource": "live",
+        "upstreamSource": "vrooli",
+        "description": "Current port allocations per scenario, reported by the lifecycle manager."
+      },
+      {
+        "id": "scenario_usage_frequency",
+        "label": "Usage frequency (last 7 days)",
+        "dataSource": "gap",
+        "upstreamSource": "none",
+        "description": "How often each scenario is opened or invoked.",
+        "whatIsNeeded": "Usage tracking is not yet collected anywhere. Needs either client instrumentation posting to an analytics endpoint or lifecycle-manager invocation counters."
+      }
+    ],
+    "forge": [
+      {
+        "id": "throughput_stats",
+        "label": "Backlog throughput",
+        "dataSource": "live",
+        "upstreamSource": "swarm",
+        "description": "Items completed per hour, day, week; Swarm Manager stats engine."
+      },
+      {
+        "id": "timing_stats",
+        "label": "Timing statistics",
+        "dataSource": "live",
+        "upstreamSource": "swarm",
+        "description": "Median, p90, p99 run durations across phases (research, workshop, execute)."
+      },
+      {
+        "id": "scope_stats",
+        "label": "Scope footprint",
+        "dataSource": "live",
+        "upstreamSource": "swarm",
+        "description": "Scope-path breadth across concurrent runs; contention hotspots."
+      },
+      {
+        "id": "blocking_stats",
+        "label": "Blocking items",
+        "dataSource": "live",
+        "upstreamSource": "swarm",
+        "description": "Items currently blocked on review, dependency, or scope lock."
+      },
+      {
+        "id": "agent_stats",
+        "label": "Per-agent utilisation",
+        "dataSource": "live",
+        "upstreamSource": "swarm",
+        "description": "Runs per agent profile and success-rate rollup."
+      },
+      {
+        "id": "dashboard_stats",
+        "label": "Dashboard & initiative rollups",
+        "dataSource": "live",
+        "upstreamSource": "swarm",
+        "description": "Initiative-level rollup derived from /api/v1/overview."
+      },
+      {
+        "id": "review_stats",
+        "label": "Review queue",
+        "dataSource": "live",
+        "upstreamSource": "swarm",
+        "description": "Awaiting-approval runs and mean time to human review."
+      }
+    ],
+    "ledger": [
+      {
+        "id": "subscriber_counts",
+        "label": "Subscribers by tier",
+        "dataSource": "gap",
+        "upstreamSource": "lpbs",
+        "description": "Count of active subscriptions bucketed by plan_tier (free/solo/pro/studio/business).",
+        "whatIsNeeded": "LPBS /api/v1/admin/dashboard/subscriptions endpoint with plan_tier grouping."
+      },
+      {
+        "id": "revenue_rollup",
+        "label": "Revenue rollup",
+        "dataSource": "gap",
+        "upstreamSource": "lpbs",
+        "description": "Daily/weekly/monthly revenue from successful checkout_sessions.",
+        "whatIsNeeded": "LPBS /api/v1/admin/dashboard/revenue endpoint with configurable window."
+      },
+      {
+        "id": "churn",
+        "label": "Churn (last 30 days)",
+        "dataSource": "gap",
+        "upstreamSource": "lpbs",
+        "description": "Count of subscriptions with canceled_at inside the 30-day window.",
+        "whatIsNeeded": "LPBS /api/v1/admin/dashboard/churn endpoint filtering canceled_at."
+      },
+      {
+        "id": "credit_balances",
+        "label": "Credit balances",
+        "dataSource": "partial",
+        "upstreamSource": "lpbs",
+        "description": "Distribution of credit_wallets balances across users.",
+        "whatIsNeeded": "Histogram aggregation endpoint; raw credit_wallets rows available but not aggregated yet."
+      },
+      {
+        "id": "credit_consumption",
+        "label": "Credit consumption rate",
+        "dataSource": "partial",
+        "upstreamSource": "lpbs",
+        "description": "Credits burned per day derived from credit_transactions.",
+        "whatIsNeeded": "Pre-aggregated daily-burn endpoint; underlying table is available."
+      },
+      {
+        "id": "usage_records",
+        "label": "Per-limit-key usage",
+        "dataSource": "partial",
+        "upstreamSource": "lpbs",
+        "description": "usage_records summarised per limit_key per billing period.",
+        "whatIsNeeded": "Aggregation endpoint; raw usage_records exist but need grouping."
+      }
+    ],
+    "broadcast": [
+      {
+        "id": "visitors",
+        "label": "Visitors (7/30/90d)",
+        "dataSource": "live",
+        "upstreamSource": "lpbs",
+        "description": "Unique visitors from LPBS metrics_events."
+      },
+      {
+        "id": "conversions",
+        "label": "Landing-page conversions",
+        "dataSource": "live",
+        "upstreamSource": "lpbs",
+        "description": "Conversion count derived from metrics_events."
+      },
+      {
+        "id": "cta_clicks",
+        "label": "CTA click-through",
+        "dataSource": "live",
+        "upstreamSource": "lpbs",
+        "description": "CTA clicks summarised from metrics_events variant traffic."
+      },
+      {
+        "id": "scroll_depth",
+        "label": "Scroll depth",
+        "dataSource": "live",
+        "upstreamSource": "lpbs",
+        "description": "Scroll-depth percentiles from metrics_events."
+      },
+      {
+        "id": "variant_ab",
+        "label": "A/B variant lift",
+        "dataSource": "live",
+        "upstreamSource": "lpbs",
+        "description": "Per-variant comparison rolled up from metrics_events."
+      },
+      {
+        "id": "social_reach",
+        "label": "Social reach",
+        "dataSource": "gap",
+        "upstreamSource": "none",
+        "description": "Cross-platform follower and engagement counts.",
+        "whatIsNeeded": "Social-platform API integrations (Twitter/X, LinkedIn, YouTube) are not wired in yet."
+      },
+      {
+        "id": "seo_rankings",
+        "label": "SEO rankings",
+        "dataSource": "gap",
+        "upstreamSource": "none",
+        "description": "Keyword position tracking.",
+        "whatIsNeeded": "SEO-data integration (e.g. Ahrefs, GSC export) not yet built."
+      },
+      {
+        "id": "campaign_metrics",
+        "label": "Campaign performance",
+        "dataSource": "gap",
+        "upstreamSource": "none",
+        "description": "Paid and email-campaign metrics (spend, CTR, cost per conversion).",
+        "whatIsNeeded": "Campaign-platform ingestion (Ads, Mailchimp, etc.) is not yet in place."
+      }
+    ],
+    "panorama": [
+      {
+        "id": "composite_system_health",
+        "label": "Composite system health",
+        "dataSource": "partial",
+        "upstreamSource": "vrooli",
+        "description": "System-wide health summary composed from Mission Control + The Hive.",
+        "whatIsNeeded": "Panorama depends on downstream dashboards — partial until all inputs are live (notably revenue on Mission Control)."
+      },
+      {
+        "id": "composite_throughput",
+        "label": "Composite throughput",
+        "dataSource": "live",
+        "upstreamSource": "swarm",
+        "description": "Cross-dashboard throughput view sourced from The Forge."
+      },
+      {
+        "id": "composite_revenue",
+        "label": "Composite revenue",
+        "dataSource": "gap",
+        "upstreamSource": "lpbs",
+        "description": "Top-line revenue indicator rolled up from Ledger.",
+        "whatIsNeeded": "Depends on LPBS admin-dashboard endpoints (revenue, subscriptions, churn)."
+      },
+      {
+        "id": "composite_reach",
+        "label": "Composite reach",
+        "dataSource": "partial",
+        "upstreamSource": "lpbs",
+        "description": "Cross-channel audience view composed from Broadcast.",
+        "whatIsNeeded": "Broadcast partial coverage (social/SEO/campaign gaps) keeps this partial."
+      },
+      {
+        "id": "composite_portfolio",
+        "label": "Composite portfolio",
+        "dataSource": "live",
+        "upstreamSource": "vrooli",
+        "description": "Scenario portfolio view rolled up from The Hive."
+      }
+    ]
+  }
+}

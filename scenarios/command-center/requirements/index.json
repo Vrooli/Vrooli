@@ -1,0 +1,24 @@
+{
+  "_metadata": {
+    "description": "Operational requirements registry for command-center",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": true
+  },
+  "meta": {
+    "scenario": "command-center",
+    "version": "2026.04",
+    "generated": "2026-04-18",
+    "owners": [
+      {
+        "team": "Vrooli Platform",
+        "contact": "platform@vrooli.dev"
+      }
+    ]
+  },
+  "imports": [
+    "01-dashboard-aggregation/module.json",
+    "02-mission-control-slice/module.json",
+    "03-ui-shell/module.json"
+  ],
+  "requirements": []
+}
