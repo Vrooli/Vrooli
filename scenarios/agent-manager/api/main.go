@@ -58,6 +58,7 @@ type Server struct {
 	wsHub                *handlers.WebSocketHub
 	reconciler           *orchestration.Reconciler
 	recommendationWorker *orchestration.RecommendationWorker
+	modelHealthProbe     *modelregistry.HealthProbe
 	toolRegistry         *toolregistry.Registry
 	storage              storage.Service
 }
@@ -112,6 +113,7 @@ func NewServer() (*Server, error) {
 		statsService:         deps.statsService,
 		statsRepo:            deps.statsRepo,
 		pricingService:       deps.pricingService,
+		modelHealthProbe:     deps.modelHealthProbe,
 		wsHub:                wsHub,
 		reconciler:           deps.reconciler,
 		recommendationWorker: deps.recommendationWorker,
@@ -133,6 +135,11 @@ func NewServer() (*Server, error) {
 		}
 	}
 
+	// Start the model health probe (startup sweep + periodic refresh).
+	if srv.modelHealthProbe != nil {
+		srv.modelHealthProbe.Start(context.Background())
+	}
+
 	srv.setupRoutes()
 	return srv, nil
 }
@@ -145,6 +152,7 @@ type orchestratorDeps struct {
 	pricingService       pricing.Service
 	reconciler           *orchestration.Reconciler
 	recommendationWorker *orchestration.RecommendationWorker
+	modelHealthProbe     *modelregistry.HealthProbe
 }
 
 // createOrchestrator creates the orchestration service with all dependencies
@@ -287,6 +295,17 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		log.Printf("Warning: Failed to load model registry from %s: %v", modelRegistryPath, err)
 	}
 
+	modelHealth := modelregistry.NewHealthStore()
+	if modelRegistryStore != nil {
+		if reg := modelRegistryStore.Get(); reg != nil {
+			runners := make([]string, 0, len(reg.Runners))
+			for key := range reg.Runners {
+				runners = append(runners, key)
+			}
+			modelHealth.RegisterRunners(runners)
+		}
+	}
+
 	orchConfig := orchestration.DefaultConfig()
 	baseConfig := agentconfig.Load()
 	if baseConfig != nil {
@@ -348,6 +367,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		orchestration.WithTerminator(terminator),
 		orchestration.WithStorageLabel(storageLabel),
 		orchestration.WithModelRegistry(modelRegistryStore),
+		orchestration.WithModelHealth(modelHealth),
 		orchestration.WithRecommendationExtractor(recommendationExtractor),
 		orchestration.WithInvestigationSettings(investigationSettingsRepo),
 		orchestration.WithPromptClient(promptClient),
@@ -410,6 +430,30 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 	pricingProviders := []pricing.Provider{openRouterProvider}
 	pricingSvc := pricing.NewService(pricingRepo, pricingProviders, logger)
 
+	// Model health probe: periodically re-checks each registered model. The probe is
+	// intentionally cheap (no live inference) — the authoritative signal comes from
+	// runtime classification in the executor. The probe ensures a fresh snapshot
+	// after restart and surfaces hard binary-missing states.
+	modelResolver := func(runnerType string) modelregistry.ModelProber {
+		if runnerRegistry == nil {
+			return nil
+		}
+		r, err := runnerRegistry.Get(domain.RunnerType(runnerType))
+		if err != nil {
+			return nil
+		}
+		return r
+	}
+	probeCfg := modelregistry.DefaultProbeConfig()
+	if raw := strings.TrimSpace(envOrEmpty("AGENT_MANAGER_MODEL_HEALTH_INTERVAL")); raw != "" {
+		if parsed, err := time.ParseDuration(raw); err == nil {
+			probeCfg.Interval = parsed
+		} else {
+			log.Printf("Warning: invalid AGENT_MANAGER_MODEL_HEALTH_INTERVAL %q: %v", raw, err)
+		}
+	}
+	modelHealthProbe := modelregistry.NewHealthProbe(modelRegistryStore, modelHealth, modelResolver, probeCfg)
+
 	log.Printf("Orchestrator initialized (storage: %s, sandbox: %s)", storageLabel, sandboxURL)
 	return orchestratorDeps{
 		orchestrator:         orch,
@@ -418,7 +462,13 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		pricingService:       pricingSvc,
 		reconciler:           reconciler,
 		recommendationWorker: recommendationWorker,
+		modelHealthProbe:     modelHealthProbe,
 	}
+}
+
+func envOrEmpty(key string) string {
+	v := os.Getenv(key)
+	return v
 }
 
 func (s *Server) setupRoutes() {

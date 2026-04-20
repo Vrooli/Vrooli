@@ -229,6 +229,8 @@ func RunToProto(r *domain.Run) *pb.Run {
 		ChangedFiles:    int32(r.ChangedFiles),
 		TotalSizeBytes:  r.TotalSizeBytes,
 		PromptPreview:   r.PromptPreview,
+		RequestedModel:  r.RequestedModel,
+		ActualModel:     r.ActualModel,
 		CreatedAt:       TimestampToProto(r.CreatedAt),
 		UpdatedAt:       TimestampToProto(r.UpdatedAt),
 	}
@@ -293,6 +295,8 @@ func RunToProto(r *domain.Run) *pb.Run {
 			CanReview:                    r.Actions.CanReview,
 			CanExtractRecommendations:    r.Actions.CanExtractRecommendations,
 			CanRegenerateRecommendations: r.Actions.CanRegenerateRecommendations,
+			CanResumeFromFailure:         r.Actions.CanResumeFromFailure,
+			CanResumeFromFailureReason:   r.Actions.CanResumeFromFailureReason,
 		}
 	}
 
@@ -383,6 +387,8 @@ func RunFromProto(r *pb.Run) *domain.Run {
 			CanReview:                    r.Actions.CanReview,
 			CanExtractRecommendations:    r.Actions.CanExtractRecommendations,
 			CanRegenerateRecommendations: r.Actions.CanRegenerateRecommendations,
+			CanResumeFromFailure:         r.Actions.CanResumeFromFailure,
+			CanResumeFromFailureReason:   r.Actions.CanResumeFromFailureReason,
 		}
 	}
 

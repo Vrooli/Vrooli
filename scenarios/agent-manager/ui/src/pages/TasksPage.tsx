@@ -27,6 +27,7 @@ import { ModelConfigSelector } from "../components/ModelConfigSelector";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Textarea } from "../components/ui/textarea";
 import { runnerTypeLabel, runnerTypeToSlug } from "../lib/utils";
+import { presetPrimaryMap } from "../lib/modelRegistry";
 import type { AgentProfile, ModelRegistry, ProfileFormData, Run, RunFormData, RunnerStatus, RunnerType, Task, TaskFormData } from "../types";
 import { ModelPreset, RunMode, RunnerType as RunnerTypeEnum, TaskStatus } from "../types";
 import { formatStandardRelativeTime } from "../lib/dateTime";
@@ -132,7 +133,7 @@ export function TasksPage({
   };
 
   const getPresetMapForRunner = (runnerType: RunnerType) => {
-    return getRegistryForRunner(runnerType)?.presets ?? {};
+    return presetPrimaryMap(getRegistryForRunner(runnerType)?.presets);
   };
 
   // Selection state

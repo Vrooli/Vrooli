@@ -299,6 +299,26 @@ func (db *DB) ensureRunsTableCompatibility(ctx context.Context) error {
 		}
 	}
 
+	if !hasColumn["requested_model"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN requested_model TEXT DEFAULT ''"); err != nil {
+			return &domain.DatabaseError{
+				Operation:  "schema_preflight",
+				EntityType: "Schema",
+				Cause:      err,
+			}
+		}
+	}
+
+	if !hasColumn["actual_model"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN actual_model TEXT DEFAULT ''"); err != nil {
+			return &domain.DatabaseError{
+				Operation:  "schema_preflight",
+				EntityType: "Schema",
+				Cause:      err,
+			}
+		}
+	}
+
 	return nil
 }
 

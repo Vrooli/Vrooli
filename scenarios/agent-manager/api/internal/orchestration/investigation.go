@@ -202,6 +202,22 @@ func (o *Orchestrator) CreateInvestigationRun(
 	investigationCtx := buildInvestigationContextAttachment(projectRoot, req.ScopePaths, req.RunIDs)
 	attachments = append([]domain.ContextAttachment{investigationCtx}, attachments...)
 
+	// Append user-uploaded image attachments. The CreateRun pipeline resolves
+	// these to file paths and hands them to the runner (see orchestration/service.go
+	// image-resolution block); we just need to record the references on the task.
+	for _, id := range req.AttachmentIDs {
+		if strings.TrimSpace(id) == "" {
+			continue
+		}
+		attachments = append(attachments, domain.ContextAttachment{
+			Type:         "image",
+			AttachmentID: id,
+			Label:        "Uploaded image",
+			Key:          "investigation-image-" + id,
+			Tags:         []string{"image", "investigation"},
+		})
+	}
+
 	// Read prompt from prompt-manager skill, fall back to settings/hardcoded default
 	prompt, err := o.readInvestigationSkill(ctx, "agent-manager-process-investigation")
 	if err != nil {
@@ -229,7 +245,7 @@ func (o *Orchestrator) CreateInvestigationRun(
 		ctx,
 		task.ID,
 		investigationTag,
-		investigationProfileRef(),
+		investigationProfileRefWithOverrides(req.RunnerType, req.ModelPreset),
 		req.RunIDs,
 		nil,
 	)
@@ -242,9 +258,11 @@ func (o *Orchestrator) CreateInvestigationRun(
 // CreateInvestigationApplyRun creates a new run that applies investigation recommendations.
 func (o *Orchestrator) CreateInvestigationApplyRun(
 	ctx context.Context,
-	investigationRunID uuid.UUID,
-	customContext string,
+	req CreateInvestigationApplyRequest,
 ) (*domain.Run, error) {
+	investigationRunID := req.InvestigationRunID
+	customContext := req.CustomContext
+
 	run, err := o.GetRun(ctx, investigationRunID)
 	if err != nil {
 		return nil, err
@@ -275,6 +293,23 @@ func (o *Orchestrator) CreateInvestigationApplyRun(
 		return nil, err
 	}
 
+	// Append user-uploaded image attachments for this apply step (on top of any
+	// images that were already attached to the investigation task and copied in
+	// via buildApplyAttachments). The CreateRun pipeline resolves these to file
+	// paths for the runner.
+	for _, id := range req.AttachmentIDs {
+		if strings.TrimSpace(id) == "" {
+			continue
+		}
+		attachments = append(attachments, domain.ContextAttachment{
+			Type:         "image",
+			AttachmentID: id,
+			Label:        "Uploaded image",
+			Key:          "apply-image-" + id,
+			Tags:         []string{"image", "investigation-apply"},
+		})
+	}
+
 	applyTemplate, err := o.readInvestigationSkill(ctx, "agent-manager-process-investigation-apply")
 	if err != nil {
 		applyTemplate = settings.ApplyPromptTemplate
@@ -294,12 +329,13 @@ func (o *Orchestrator) CreateInvestigationApplyRun(
 		return nil, err
 	}
 
-	// Apply runs use a different profile with write capabilities
+	// Apply runs use a different profile with write capabilities. Caller-supplied
+	// runner/preset overrides are honored; nil preserves the default apply profile.
 	applyRun, err := o.createInvestigationRunWithProfile(
 		ctx,
 		applyTask.ID,
 		investigationApplyTag,
-		applyInvestigationProfileRef(),
+		applyInvestigationProfileRefWithOverrides(req.RunnerType, req.ModelPreset),
 		nil,
 		&investigationRunID,
 	)
@@ -1222,10 +1258,46 @@ func investigationProfileRef() *ProfileRef {
 	}
 }
 
+// investigationProfileRefWithOverrides applies caller-provided runner/preset overrides
+// on top of the default investigation profile. Nil overrides preserve the defaults.
+func investigationProfileRefWithOverrides(runnerType *domain.RunnerType, preset *domain.ModelPreset) *ProfileRef {
+	defaults := defaultInvestigationProfile()
+	applyInvestigationOverrides(defaults, runnerType, preset)
+	return &ProfileRef{
+		ProfileKey: investigationProfileKey,
+		Defaults:   defaults,
+	}
+}
+
 func applyInvestigationProfileRef() *ProfileRef {
 	return &ProfileRef{
 		ProfileKey: investigationApplyProfileKey,
 		Defaults:   defaultApplyInvestigationProfile(),
+	}
+}
+
+// applyInvestigationProfileRefWithOverrides mirrors investigationProfileRefWithOverrides
+// for the apply flow.
+func applyInvestigationProfileRefWithOverrides(runnerType *domain.RunnerType, preset *domain.ModelPreset) *ProfileRef {
+	defaults := defaultApplyInvestigationProfile()
+	applyInvestigationOverrides(defaults, runnerType, preset)
+	return &ProfileRef{
+		ProfileKey: investigationApplyProfileKey,
+		Defaults:   defaults,
+	}
+}
+
+// applyInvestigationOverrides mutates the profile with caller-provided runner/preset.
+// Invalid values are ignored (callers may still catch these at the handler layer).
+func applyInvestigationOverrides(profile *domain.AgentProfile, runnerType *domain.RunnerType, preset *domain.ModelPreset) {
+	if profile == nil {
+		return
+	}
+	if runnerType != nil && runnerType.IsValid() {
+		profile.RunnerType = *runnerType
+	}
+	if preset != nil && preset.IsValid() {
+		profile.ModelPreset = *preset
 	}
 }
 

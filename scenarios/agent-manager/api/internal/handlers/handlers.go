@@ -125,6 +125,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs", h.CreateRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/investigate", h.CreateInvestigationRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/investigation-apply", h.CreateInvestigationApplyRun).Methods("POST")
+	r.HandleFunc("/api/v1/runs/resume-from-failed", h.ResumeFromFailedRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs", h.ListRuns).Methods("GET")
 	r.HandleFunc("/api/v1/runs/stop-all", h.StopAllRuns).Methods("POST") // Must be before /{id}
 	r.HandleFunc("/api/v1/runs/tag/{tag}", h.GetRunByTag).Methods("GET")
@@ -148,6 +149,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runners/{runner_type}/probe", h.ProbeRunner).Methods("POST")
 	r.HandleFunc("/api/v1/runner-models", h.GetRunnerModels).Methods("GET")
 	r.HandleFunc("/api/v1/runner-models", h.UpdateRunnerModels).Methods("PUT")
+	r.HandleFunc("/api/v1/runner-models/health", h.GetRunnerModelHealth).Methods("GET")
 
 	// Path validation (proxied to workspace-sandbox)
 	r.HandleFunc("/api/v1/validate-path", h.ValidatePath).Methods("GET")
@@ -1424,6 +1426,9 @@ func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request)
 		Depth         string   `json:"depth,omitempty"` // quick, standard, or deep
 		ProjectRoot   string   `json:"projectRoot,omitempty"`
 		ScopePaths    []string `json:"scopePaths,omitempty"`
+		AttachmentIDs []string `json:"attachmentIds,omitempty"`
+		RunnerType    string   `json:"runnerType,omitempty"`
+		ModelPreset   string   `json:"modelPreset,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeSimpleError(w, r, "body", "invalid JSON")
@@ -1447,12 +1452,89 @@ func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	runnerType, err := parseOptionalRunnerType(req.RunnerType)
+	if err != nil {
+		writeSimpleError(w, r, "runnerType", err.Error())
+		return
+	}
+	preset, err := parseOptionalModelPreset(req.ModelPreset)
+	if err != nil {
+		writeSimpleError(w, r, "modelPreset", err.Error())
+		return
+	}
+
 	run, err := h.svc.CreateInvestigationRun(r.Context(), orchestration.CreateInvestigationRequest{
 		RunIDs:        runIDs,
 		CustomContext: req.CustomContext,
 		Depth:         depth,
 		ProjectRoot:   req.ProjectRoot,
 		ScopePaths:    req.ScopePaths,
+		AttachmentIDs: req.AttachmentIDs,
+		RunnerType:    runnerType,
+		ModelPreset:   preset,
+	})
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeProtoJSON(w, http.StatusCreated, &apipb.CreateRunResponse{
+		Run: protoconv.RunToProto(run),
+	})
+}
+
+// parseOptionalRunnerType validates an optional runner-type override from an HTTP request.
+// Empty string returns (nil, nil) meaning "no override".
+func parseOptionalRunnerType(raw string) (*domain.RunnerType, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return nil, nil
+	}
+	rt := domain.RunnerType(trimmed)
+	if !rt.IsValid() {
+		return nil, fmt.Errorf("unknown runner type %q", trimmed)
+	}
+	return &rt, nil
+}
+
+// parseOptionalModelPreset validates an optional preset override from an HTTP request.
+// Empty string returns (nil, nil) meaning "no override".
+func parseOptionalModelPreset(raw string) (*domain.ModelPreset, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return nil, nil
+	}
+	preset := domain.ModelPreset(strings.ToUpper(trimmed))
+	if !preset.IsValid() || preset == domain.ModelPresetUnspecified {
+		return nil, fmt.Errorf("unknown model preset %q", trimmed)
+	}
+	return &preset, nil
+}
+
+// ResumeFromFailedRun creates a new run that resumes the work of a failed
+// or cancelled run, inheriting its task + profile and seeding the prior
+// attempt's transcript and diff so the agent can complete the remaining work.
+func (h *Handler) ResumeFromFailedRun(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		RunID         string   `json:"runId"`
+		CustomContext string   `json:"customContext,omitempty"`
+		AttachmentIDs []string `json:"attachmentIds,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON")
+		return
+	}
+
+	runID, err := uuid.Parse(req.RunID)
+	if err != nil {
+		writeSimpleError(w, r, "runId", "invalid UUID format")
+		return
+	}
+
+	run, err := h.svc.ResumeFromFailedRun(r.Context(), orchestration.ResumeFromFailedRunRequest{
+		RunID:         runID,
+		CustomContext: req.CustomContext,
+		AttachmentIDs: req.AttachmentIDs,
 	})
 	if err != nil {
 		writeError(w, r, err)
@@ -1467,8 +1549,11 @@ func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request)
 // CreateInvestigationApplyRun creates a new run to apply investigation recommendations.
 func (h *Handler) CreateInvestigationApplyRun(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		InvestigationRunID string `json:"investigationRunId"`
-		CustomContext      string `json:"customContext,omitempty"`
+		InvestigationRunID string   `json:"investigationRunId"`
+		CustomContext      string   `json:"customContext,omitempty"`
+		AttachmentIDs      []string `json:"attachmentIds,omitempty"`
+		RunnerType         string   `json:"runnerType,omitempty"`
+		ModelPreset        string   `json:"modelPreset,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeSimpleError(w, r, "body", "invalid JSON")
@@ -1481,7 +1566,24 @@ func (h *Handler) CreateInvestigationApplyRun(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	run, err := h.svc.CreateInvestigationApplyRun(r.Context(), runID, req.CustomContext)
+	runnerType, err := parseOptionalRunnerType(req.RunnerType)
+	if err != nil {
+		writeSimpleError(w, r, "runnerType", err.Error())
+		return
+	}
+	preset, err := parseOptionalModelPreset(req.ModelPreset)
+	if err != nil {
+		writeSimpleError(w, r, "modelPreset", err.Error())
+		return
+	}
+
+	run, err := h.svc.CreateInvestigationApplyRun(r.Context(), orchestration.CreateInvestigationApplyRequest{
+		InvestigationRunID: runID,
+		CustomContext:      req.CustomContext,
+		AttachmentIDs:      req.AttachmentIDs,
+		RunnerType:         runnerType,
+		ModelPreset:        preset,
+	})
 	if err != nil {
 		writeError(w, r, err)
 		return
@@ -2366,6 +2468,17 @@ func (h *Handler) GetRunnerModels(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, registry)
 }
 
+// GetRunnerModelHealth returns the current health snapshot for every registered model.
+// Response shape: {"runners": {"<runner>": {"<modelId>": {"status", "lastChecked", "message"}}}}
+func (h *Handler) GetRunnerModelHealth(w http.ResponseWriter, r *http.Request) {
+	snapshot, err := h.svc.GetModelRegistryHealth(r.Context())
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, snapshot)
+}
+
 // UpdateRunnerModels replaces the model registry with the provided payload.
 func (h *Handler) UpdateRunnerModels(w http.ResponseWriter, r *http.Request) {
 	var registry modelregistry.Registry
@@ -2447,8 +2560,10 @@ func (h *Handler) resolveProfileModels(ctx context.Context, profile *domain.Agen
 	})
 
 	var presets map[string]string
-	for key, modelID := range runnerRegistry.Presets {
-		modelID = strings.TrimSpace(modelID)
+	for key, chain := range runnerRegistry.Presets {
+		// Expose the primary concrete model for each preset; the runner-default sentinel
+		// (empty string) is not a user-facing choice here.
+		modelID := strings.TrimSpace(chain.Primary())
 		if modelID == "" {
 			continue
 		}

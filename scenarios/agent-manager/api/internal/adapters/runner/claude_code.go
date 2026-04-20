@@ -661,6 +661,18 @@ func (r *ClaudeCodeRunner) InstallHint() string {
 	return r.installHint
 }
 
+// ProbeModel is intentionally lenient for Claude Code: the canonical presets are
+// vendor aliases (opus/sonnet/haiku) that resolve server-side to whatever build is
+// current, so there is no meaningful local check to run. Pinned version IDs are
+// also accepted; if they have been retired, the runtime classifier surfaces the
+// failure on the first real invocation.
+func (r *ClaudeCodeRunner) ProbeModel(ctx context.Context, modelID string) error {
+	if available, msg := r.IsAvailable(ctx); !available {
+		return fmt.Errorf("claude-code unavailable: %s", msg)
+	}
+	return nil
+}
+
 // buildArgs constructs command-line arguments for direct claude CLI invocation.
 func (r *ClaudeCodeRunner) buildArgs(req ExecuteRequest) []string {
 	args := []string{

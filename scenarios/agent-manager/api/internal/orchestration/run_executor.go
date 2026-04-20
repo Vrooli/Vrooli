@@ -32,6 +32,7 @@ import (
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/identity"
+	"agent-manager/internal/modelregistry"
 	"agent-manager/internal/repository"
 	"context"
 	"errors"
@@ -85,14 +86,31 @@ func DefaultExecutorConfig() ExecutorConfig {
 // - Timeout handling: Enforces maximum execution time
 // - Cancellation: Responds to context cancellation
 // - Resumption: Can resume from last checkpoint after interruption
+// ModelChainResolver returns the ordered preset chain for a runner+preset pair.
+// Implemented by modelregistry.Store. Injected into RunExecutor so model-level fallback
+// can walk the chain at execution time without persisting derived state on the run.
+type ModelChainResolver interface {
+	ResolvePreset(runner string, preset string) (modelregistry.PresetChain, bool)
+}
+
+// ModelHealthReporter receives runtime classifications of model availability.
+// Implemented in this package by the health-store adapter so the executor does
+// not import modelregistry's HealthStore type directly (keeps the executor seam small).
+type ModelHealthReporter interface {
+	MarkModelHealthy(runnerType, modelID string)
+	MarkModelUnavailable(runnerType, modelID, message string)
+}
+
 type RunExecutor struct {
 	// Dependencies
-	runs        repository.RunRepository
-	runners     runner.Registry
-	sandbox     sandbox.Provider
-	events      event.Store
-	checkpoints repository.CheckpointRepository // optional: for checkpoint persistence
-	broadcaster EventBroadcaster                // optional: for real-time WebSocket updates
+	runs         repository.RunRepository
+	runners      runner.Registry
+	sandbox      sandbox.Provider
+	events       event.Store
+	checkpoints  repository.CheckpointRepository // optional: for checkpoint persistence
+	broadcaster  EventBroadcaster                // optional: for real-time WebSocket updates
+	modelChains  ModelChainResolver              // optional: for model-level fallback
+	modelHealth  ModelHealthReporter             // optional: surfaces runtime model verdicts to the health store
 
 	// Configuration
 	config ExecutorConfig
@@ -181,6 +199,20 @@ func (e *RunExecutor) WithConfig(config ExecutorConfig) *RunExecutor {
 // WithCheckpointRepository enables checkpoint persistence.
 func (e *RunExecutor) WithCheckpointRepository(repo repository.CheckpointRepository) *RunExecutor {
 	e.checkpoints = repo
+	return e
+}
+
+// WithModelChainResolver wires the preset chain resolver used by model-level fallback.
+// When unset, the executor behaves as before — no model-level retry.
+func (e *RunExecutor) WithModelChainResolver(resolver ModelChainResolver) *RunExecutor {
+	e.modelChains = resolver
+	return e
+}
+
+// WithModelHealthReporter wires a reporter that receives runtime model-availability
+// verdicts. Optional — when unset, classifications are logged but not aggregated.
+func (e *RunExecutor) WithModelHealthReporter(reporter ModelHealthReporter) *RunExecutor {
+	e.modelHealth = reporter
 	return e
 }
 
@@ -356,9 +388,9 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 	// Step 3.5: Generate identity token (before execution so it's available in env)
 	e.generateIdentityToken(execCtx)
 
-	// Step 4: Execute agent
+	// Step 4: Execute agent, walking the preset chain on model-unavailable errors.
 	e.advancePhase(execCtx, domain.RunPhaseExecuting)
-	e.executeAgent(execCtx, agentRunner)
+	e.executeAgentWithModelFallback(execCtx, agentRunner)
 
 	// Check for timeout or cancellation
 	if err := execCtx.Err(); err != nil {
@@ -870,6 +902,165 @@ func (e *RunExecutor) applyRunnerFallback(ctx context.Context, from, to domain.R
 // =============================================================================
 // STEP 4: Execute Agent
 // =============================================================================
+
+// executeAgentWithModelFallback runs the agent, and when the runner rejects the
+// current model with a classified "unavailable" error, advances to the next entry in
+// the preset chain and retries inside the same Run. The loop is capped at the chain
+// length to guarantee termination even if the classifier is overly permissive. On any
+// non-model failure (or on success) it returns immediately. The first outcome that is
+// not a model-unavailable error determines `Run.ActualModel`.
+func (e *RunExecutor) executeAgentWithModelFallback(ctx context.Context, r runner.Runner) {
+	chain := e.resolveModelFallbackChain()
+	if len(chain) == 0 {
+		// No preset chain — keep existing single-shot behavior. Record whatever model
+		// the resolved config currently carries as the actual model.
+		e.executeAgent(ctx, r)
+		e.recordActualModel(e.currentModel())
+		return
+	}
+
+	for attempt := 0; attempt < len(chain); attempt++ {
+		model := chain[attempt]
+		e.applyModelForAttempt(ctx, model, attempt, chain)
+		e.executeAgent(ctx, r)
+
+		kind := e.classifyExecutionOutcome(r)
+		e.reportHealth(model, kind)
+		if kind != runner.ModelErrorUnavailable {
+			e.recordActualModel(model)
+			return
+		}
+
+		if attempt == len(chain)-1 {
+			// Chain exhausted — leave outcome in place. ActualModel reflects the final
+			// attempt so the UI can render "ran on X, degraded through chain".
+			e.recordActualModel(model)
+			e.emitSystemEvent(ctx, "warn", "model fallback exhausted — all entries in preset chain were rejected")
+			return
+		}
+
+		next := chain[attempt+1]
+		e.emitSystemEvent(ctx, "warn", fmt.Sprintf(
+			"model fallback: %s -> %s (runner rejected model)",
+			describeModel(model), describeModel(next),
+		))
+	}
+}
+
+// reportHealth forwards the outcome of a single model attempt to the health reporter.
+// Only concrete model IDs feed the reporter; the runner-default sentinel (empty string)
+// is not a user-addressable entry and is skipped. Non-model failures leave health
+// untouched — the failure was not about the model.
+func (e *RunExecutor) reportHealth(modelID string, kind runner.ModelErrorKind) {
+	if e.modelHealth == nil || modelID == "" {
+		return
+	}
+	runnerType := ""
+	if e.run != nil && e.run.ResolvedConfig != nil {
+		runnerType = string(e.run.ResolvedConfig.RunnerType)
+	}
+	if runnerType == "" {
+		return
+	}
+	switch kind {
+	case runner.ModelErrorUnavailable:
+		message := "runtime classification: model unavailable"
+		if e.result != nil && e.result.ErrorMessage != "" {
+			message = e.result.ErrorMessage
+		}
+		e.modelHealth.MarkModelUnavailable(runnerType, modelID, message)
+	case runner.ModelErrorNone:
+		if e.result != nil && e.result.Success {
+			e.modelHealth.MarkModelHealthy(runnerType, modelID)
+		}
+	}
+}
+
+// resolveModelFallbackChain returns the ordered chain the executor will walk.
+// Returns an empty slice when the run has no preset (i.e. an explicit model was
+// picked) or when no resolver is configured — callers treat that as "single attempt".
+func (e *RunExecutor) resolveModelFallbackChain() modelregistry.PresetChain {
+	if e.modelChains == nil || e.run == nil || e.run.ResolvedConfig == nil {
+		return nil
+	}
+	cfg := e.run.ResolvedConfig
+	if cfg.ModelPreset == domain.ModelPresetUnspecified {
+		return nil
+	}
+	chain, ok := e.modelChains.ResolvePreset(string(cfg.RunnerType), string(cfg.ModelPreset))
+	if !ok || len(chain) == 0 {
+		return nil
+	}
+	return chain
+}
+
+// applyModelForAttempt mutates the resolved config so the next Execute call uses
+// the chosen model. An empty string means "omit the model flag" — runner adapters
+// already skip injection when cfg.Model is empty.
+func (e *RunExecutor) applyModelForAttempt(ctx context.Context, model string, attempt int, chain modelregistry.PresetChain) {
+	if e.run == nil || e.run.ResolvedConfig == nil {
+		return
+	}
+	if e.run.ResolvedConfig.Model == model {
+		return
+	}
+	e.run.ResolvedConfig.Model = model
+	if attempt > 0 {
+		e.emitSystemEvent(ctx, "info", fmt.Sprintf(
+			"model attempt %d/%d: %s",
+			attempt+1, len(chain), describeModel(model),
+		))
+	}
+}
+
+// classifyExecutionOutcome inspects the post-Execute state and decides whether
+// the failure (if any) was caused by the runner rejecting the model.
+func (e *RunExecutor) classifyExecutionOutcome(r runner.Runner) runner.ModelErrorKind {
+	if e.result != nil && e.result.Success {
+		return runner.ModelErrorNone
+	}
+	// Prefer the runner's structured error message; fall back to execErr text.
+	stderr := ""
+	exitCode := 0
+	if e.result != nil {
+		stderr = e.result.ErrorMessage
+		exitCode = e.result.ExitCode
+	}
+	if stderr == "" && e.execErr != nil {
+		stderr = e.execErr.Error()
+	}
+	runnerType := domain.RunnerTypeClaudeCode
+	if e.run != nil && e.run.ResolvedConfig != nil {
+		runnerType = e.run.ResolvedConfig.RunnerType
+	}
+	return runner.ClassifyModelError(runnerType, stderr, exitCode)
+}
+
+// recordActualModel persists the model identifier the CLI actually executed with.
+// Empty string signals the runner-default sentinel (no --model flag was passed).
+func (e *RunExecutor) recordActualModel(model string) {
+	if e.run == nil {
+		return
+	}
+	e.run.ActualModel = model
+}
+
+// currentModel returns the resolved config's current model, or empty when no run.
+func (e *RunExecutor) currentModel() string {
+	if e.run == nil || e.run.ResolvedConfig == nil {
+		return ""
+	}
+	return e.run.ResolvedConfig.Model
+}
+
+// describeModel returns a human-readable label for a chain entry. The empty string
+// (runner-default sentinel) is rendered as "<runner default>" so log lines are clear.
+func describeModel(model string) string {
+	if model == "" {
+		return "<runner default>"
+	}
+	return model
+}
 
 func (e *RunExecutor) executeAgent(ctx context.Context, r runner.Runner) {
 	// Update status to running

@@ -101,6 +101,7 @@ type MockRunner struct {
 	ExecuteFunc  func(ctx context.Context, req ExecuteRequest) (*ExecuteResult, error)
 	ContinueFunc func(ctx context.Context, req ContinueRequest) (*ExecuteResult, error)
 	StopFunc     func(ctx context.Context, runID uuid.UUID) error
+	ProbeFunc    func(ctx context.Context, modelID string) error
 }
 
 // NewMockRunner creates a new mock runner.
@@ -154,6 +155,15 @@ func (m *MockRunner) Execute(ctx context.Context, req ExecuteRequest) (*ExecuteR
 func (m *MockRunner) Stop(ctx context.Context, runID uuid.UUID) error {
 	if m.StopFunc != nil {
 		return m.StopFunc(ctx, runID)
+	}
+	return nil
+}
+
+// ProbeModel delegates to ProbeFunc when set; otherwise reports healthy.
+// Tests can inject failures via ProbeFunc to drive health-store behavior.
+func (m *MockRunner) ProbeModel(ctx context.Context, modelID string) error {
+	if m.ProbeFunc != nil {
+		return m.ProbeFunc(ctx, modelID)
 	}
 	return nil
 }
@@ -276,6 +286,11 @@ func (s *StubRunner) Stop(ctx context.Context, runID uuid.UUID) error {
 
 func (s *StubRunner) IsAvailable(ctx context.Context) (bool, string) {
 	return false, s.message
+}
+
+// ProbeModel reports the stub's unavailability reason so health probes can capture it.
+func (s *StubRunner) ProbeModel(ctx context.Context, modelID string) error {
+	return errors.New(s.message)
 }
 
 // Continue is not supported for stub runners.

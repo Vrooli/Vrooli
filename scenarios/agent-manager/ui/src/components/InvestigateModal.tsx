@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
   ChevronDown,
+  Paperclip,
   Search,
   Zap,
   Settings,
@@ -21,12 +22,14 @@ import {
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { ScopePathsManager } from "./ScopePathsManager";
+import { AttachmentPreview } from "./AttachmentPreview";
 import type {
   InvestigationContextFlags,
   InvestigationDepth,
 } from "../types";
 import { DEFAULT_INVESTIGATION_CONTEXT } from "../types";
 import { useInvestigationSettings } from "../hooks/useApi";
+import { useAttachments } from "../hooks/useAttachments";
 
 interface InvestigateModalProps {
   open: boolean;
@@ -45,11 +48,27 @@ interface InvestigateModalProps {
     depth: InvestigationDepth,
     context?: InvestigationContextFlags,
     projectRoot?: string,
-    scopePaths?: string[]
+    scopePaths?: string[],
+    attachmentIds?: string[],
+    overrides?: { runnerType?: string; modelPreset?: string }
   ) => Promise<void>;
   loading?: boolean;
   error?: string | null;
 }
+
+const runnerOverrideOptions: { value: string; label: string }[] = [
+  { value: "", label: "Default (profile)" },
+  { value: "claude-code", label: "Claude Code" },
+  { value: "codex", label: "Codex" },
+  { value: "opencode", label: "OpenCode" },
+];
+
+const presetOverrideOptions: { value: string; label: string }[] = [
+  { value: "", label: "Default (profile)" },
+  { value: "CHEAP", label: "Cheap" },
+  { value: "FAST", label: "Fast" },
+  { value: "SMART", label: "Smart" },
+];
 
 const depthOptions: {
   value: InvestigationDepth;
@@ -140,6 +159,22 @@ export function InvestigateModal({
   const [projectRoot, setProjectRoot] = useState(defaultProjectRoot);
   const [scopePaths, setScopePaths] = useState<string[]>(defaultScopePaths);
 
+  // Runner + preset overrides (optional). Empty string = "use the investigation
+  // profile's default" so the backend keeps auto-healing through its preset chain.
+  const [runnerOverride, setRunnerOverride] = useState<string>("");
+  const [presetOverride, setPresetOverride] = useState<string>("");
+
+  // Image attachments — uploaded eagerly via the shared attachments hook.
+  const {
+    attachments,
+    addAttachment,
+    removeAttachment,
+    clearAttachments,
+    getUploadedIds,
+    isUploading,
+  } = useAttachments();
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
   // Get default settings
   const { data: settings } = useInvestigationSettings();
 
@@ -150,8 +185,11 @@ export function InvestigateModal({
       setShowContext(false);
       setProjectRoot(defaultProjectRoot);
       setScopePaths(defaultScopePaths);
+      setRunnerOverride("");
+      setPresetOverride("");
+      clearAttachments();
     }
-  }, [open, defaultProjectRoot, defaultScopePaths]);
+  }, [open, defaultProjectRoot, defaultScopePaths, clearAttachments]);
 
   // Apply defaults from settings when they load or modal opens
   useEffect(() => {
@@ -192,13 +230,31 @@ export function InvestigateModal({
     });
   };
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      addAttachment(file);
+      e.target.value = "";
+    }
+  };
+
   const handleSubmit = async () => {
+    const attachmentIds = getUploadedIds();
+    const overrides =
+      runnerOverride || presetOverride
+        ? {
+            runnerType: runnerOverride || undefined,
+            modelPreset: presetOverride || undefined,
+          }
+        : undefined;
     await onSubmit(
       customContext.trim(),
       depth,
       contextFlags,
       projectRoot.trim() || undefined,
-      scopePaths.length > 0 ? scopePaths : undefined
+      scopePaths.length > 0 ? scopePaths : undefined,
+      attachmentIds.length > 0 ? attachmentIds : undefined,
+      overrides
     );
   };
 
@@ -268,6 +324,43 @@ export function InvestigateModal({
                   </div>
                 </div>
               )}
+
+              {/* Agent overrides: optional runner + preset picker. The default profile
+                  already walks a model fallback chain, so leaving these on "Default"
+                  is usually correct. Switch them when you want to deliberately run
+                  the investigation on a different runner or preset. */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="investigate-runner-override">Runner</Label>
+                  <select
+                    id="investigate-runner-override"
+                    value={runnerOverride}
+                    onChange={(event) => setRunnerOverride(event.target.value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    {runnerOverrideOptions.map((option) => (
+                      <option key={option.value || "default"} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="investigate-preset-override">Preset</Label>
+                  <select
+                    id="investigate-preset-override"
+                    value={presetOverride}
+                    onChange={(event) => setPresetOverride(event.target.value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    {presetOverrideOptions.map((option) => (
+                      <option key={option.value || "default"} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
               {/* Context Selection (collapsible) */}
               <div className="space-y-2">
@@ -347,6 +440,37 @@ Examples:
                 </p>
               </div>
 
+              {/* Image Attachments */}
+              <div className="space-y-2">
+                <Label>Image Attachments</Label>
+                {attachments.length > 0 && (
+                  <AttachmentPreview
+                    attachments={attachments}
+                    onRemove={removeAttachment}
+                    isUploading={isUploading}
+                  />
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => imageInputRef.current?.click()}
+                >
+                  <Paperclip className="h-4 w-4 mr-2" />
+                  Attach Image
+                </Button>
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Screenshots of errors, UI states, or diagrams to aid the investigation.
+                </p>
+              </div>
+
               {/* Quick Focus Suggestion Cards */}
               {!hideDepthSelector && (
                 <div className="space-y-2">
@@ -387,9 +511,15 @@ Examples:
           >
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={loading} className="gap-2">
+          <Button
+            onClick={handleSubmit}
+            disabled={loading || isUploading}
+            className="gap-2"
+          >
             {loading ? (
               "Starting..."
+            ) : isUploading ? (
+              "Uploading..."
             ) : (
               <>
                 <Search className="h-4 w-4" />

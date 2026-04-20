@@ -66,8 +66,11 @@ type runRow struct {
 	// Identity token fields
 	IdentityTokenHash      sql.NullString `db:"identity_token_hash"`
 	IdentityTokenRevokedAt NullableTime   `db:"identity_token_revoked_at"`
-	CreatedAt              SQLiteTime     `db:"created_at"`
-	UpdatedAt              SQLiteTime     `db:"updated_at"`
+	// Model provenance
+	RequestedModel sql.NullString `db:"requested_model"`
+	ActualModel    sql.NullString `db:"actual_model"`
+	CreatedAt      SQLiteTime     `db:"created_at"`
+	UpdatedAt      SQLiteTime     `db:"updated_at"`
 }
 
 func (row *runRow) toDomain() *domain.Run {
@@ -110,8 +113,11 @@ func (row *runRow) toDomain() *domain.Run {
 		// Identity token fields
 		IdentityTokenHash:      row.IdentityTokenHash.String,
 		IdentityTokenRevokedAt: row.IdentityTokenRevokedAt.ToPtr(),
-		CreatedAt:              row.CreatedAt.Time(),
-		UpdatedAt:              row.UpdatedAt.Time(),
+		// Model provenance
+		RequestedModel: row.RequestedModel.String,
+		ActualModel:    row.ActualModel.String,
+		CreatedAt:      row.CreatedAt.Time(),
+		UpdatedAt:      row.UpdatedAt.Time(),
 	}
 	if row.ExitCode.Valid {
 		exitCode := int(row.ExitCode.Int32)
@@ -160,8 +166,11 @@ func runFromDomain(r *domain.Run) *runRow {
 		// Identity token fields
 		IdentityTokenHash:      sql.NullString{String: r.IdentityTokenHash, Valid: r.IdentityTokenHash != ""},
 		IdentityTokenRevokedAt: NewNullableTime(r.IdentityTokenRevokedAt),
-		CreatedAt:              SQLiteTime(r.CreatedAt),
-		UpdatedAt:              SQLiteTime(r.UpdatedAt),
+		// Model provenance
+		RequestedModel: sql.NullString{String: r.RequestedModel, Valid: r.RequestedModel != ""},
+		ActualModel:    sql.NullString{String: r.ActualModel, Valid: r.ActualModel != ""},
+		CreatedAt:      SQLiteTime(r.CreatedAt),
+		UpdatedAt:      SQLiteTime(r.UpdatedAt),
 	}
 	if r.ExitCode != nil {
 		row.ExitCode = sql.NullInt32{Int32: int32(*r.ExitCode), Valid: true}
@@ -210,6 +219,7 @@ const runColumns = `id, task_id, agent_profile_id, tag, sandbox_id, run_mode, st
 	source_run_ids, source_investigation_run_id,
 	recommendation_status, recommendation_result, recommendation_attempts, recommendation_error, recommendation_queued_at,
 	identity_token_hash, identity_token_revoked_at,
+	requested_model, actual_model,
 	created_at, updated_at`
 
 // listRunColumns contains the pruned column set for List() queries.
@@ -225,6 +235,7 @@ const listRunColumns = `id, task_id, agent_profile_id, tag, run_mode, status,
 	changed_files, total_size_bytes, session_id,
 	source_run_ids, source_investigation_run_id,
 	recommendation_status, recommendation_attempts,
+	requested_model, actual_model,
 	created_at, updated_at`
 
 // listRunLiteRow is the database row representation for the pruned list query.
@@ -250,6 +261,8 @@ type listRunLiteRow struct {
 	SourceInvestigationRunID NullableUUID   `db:"source_investigation_run_id"`
 	RecommendationStatus     sql.NullString `db:"recommendation_status"`
 	RecommendationAttempts   int            `db:"recommendation_attempts"`
+	RequestedModel           sql.NullString `db:"requested_model"`
+	ActualModel              sql.NullString `db:"actual_model"`
 	CreatedAt                SQLiteTime     `db:"created_at"`
 	UpdatedAt                SQLiteTime     `db:"updated_at"`
 	// Computed field from JOIN
@@ -279,6 +292,8 @@ func (row *listRunLiteRow) toDomain() *domain.Run {
 		SourceInvestigationRunID: row.SourceInvestigationRunID.ToPtr(),
 		RecommendationStatus:     domain.RecommendationStatus(row.RecommendationStatus.String),
 		RecommendationAttempts:   row.RecommendationAttempts,
+		RequestedModel:           row.RequestedModel.String,
+		ActualModel:              row.ActualModel.String,
 		PromptPreview:            row.PromptPreview.String,
 		CreatedAt:                row.CreatedAt.Time(),
 		UpdatedAt:                row.UpdatedAt.Time(),
@@ -306,6 +321,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			source_run_ids, source_investigation_run_id,
 			recommendation_status, recommendation_result, recommendation_attempts, recommendation_error, recommendation_queued_at,
 			identity_token_hash, identity_token_revoked_at,
+			requested_model, actual_model,
 			created_at, updated_at)
 			VALUES (:id, :task_id, :agent_profile_id, :tag, :sandbox_id, :run_mode, :status,
 			:started_at, :ended_at, :phase, :last_checkpoint_id, :last_heartbeat, :progress_percent,
@@ -314,6 +330,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			:source_run_ids, :source_investigation_run_id,
 			:recommendation_status, :recommendation_result, :recommendation_attempts, :recommendation_error, :recommendation_queued_at,
 			:identity_token_hash, :identity_token_revoked_at,
+			:requested_model, :actual_model,
 			:created_at, :updated_at)`
 
 	_, err := r.db.NamedExecContext(ctx, query, row)
@@ -429,6 +446,7 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 		recommendation_attempts = :recommendation_attempts, recommendation_error = :recommendation_error,
 		recommendation_queued_at = :recommendation_queued_at,
 		identity_token_hash = :identity_token_hash, identity_token_revoked_at = :identity_token_revoked_at,
+		requested_model = :requested_model, actual_model = :actual_model,
 		updated_at = :updated_at
 		WHERE id = :id`
 

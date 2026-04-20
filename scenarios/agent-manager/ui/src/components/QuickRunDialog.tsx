@@ -32,6 +32,7 @@ import { Textarea } from "./ui/textarea";
 import { useAttachments, type PersistedAttachment } from "../hooks/useAttachments";
 import { usePersistedFormState } from "../hooks/usePersistedFormState";
 import { cn, networkAccessLabel, runnerTypeLabel, runnerTypeToSlug } from "../lib/utils";
+import { presetPrimaryMap } from "../lib/modelRegistry";
 import type {
   AgentProfile,
   ModelRegistry,
@@ -186,7 +187,7 @@ export function QuickRunDialog({
   };
 
   const getPresetMapForRunner = (runnerType: RunnerType) => {
-    return getRegistryForRunner(runnerType)?.presets ?? {};
+    return presetPrimaryMap(getRegistryForRunner(runnerType)?.presets);
   };
 
   const getSelectedProfile = (): AgentProfile | undefined => {

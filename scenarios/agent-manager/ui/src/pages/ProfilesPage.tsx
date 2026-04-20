@@ -28,6 +28,7 @@ import { runnerTypeLabel } from "../lib/utils";
 import type { AgentProfile, ModelRegistry, ProfileFormData, RunnerStatus, RunnerType } from "../types";
 import { ModelPreset, NetworkAccess, RunnerType as RunnerTypeEnum } from "../types";
 import { runnerTypeToSlug } from "../lib/utils";
+import { presetPrimaryMap } from "../lib/modelRegistry";
 import { ProfileDetail } from "../components/ProfileDetail";
 import { useViewportSize } from "../hooks/useViewportSize";
 import { formatStandardDateTime } from "../lib/dateTime";
@@ -116,7 +117,7 @@ export function ProfilesPage({
   };
 
   const getPresetMapForRunner = (runnerType: RunnerType) => {
-    return getRegistryForRunner(runnerType)?.presets ?? {};
+    return presetPrimaryMap(getRegistryForRunner(runnerType)?.presets);
   };
 
   // Selection state

@@ -20,7 +20,7 @@ import { MaintenanceTab } from "./MaintenanceTab";
 import { ModelPricingTab } from "./ModelPricingTab";
 import { ModelRegistryTab } from "./ModelRegistryTab";
 import { useModelRegistryEditor } from "../../../hooks/useModelRegistryEditor";
-import { useInvestigationSettings, useMaintenance, useModelRegistry, useRunners } from "../../../hooks/useApi";
+import { useInvestigationSettings, useMaintenance, useModelRegistry, useModelRegistryHealth, useRunners } from "../../../hooks/useApi";
 import { useOrchestrationSettings } from "../../../hooks/useOrchestrationSettings";
 import { PurgeTarget } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
 
@@ -47,6 +47,7 @@ export function SettingsDialog({
 
   // API hooks
   const modelRegistry = useModelRegistry();
+  const modelRegistryHealth = useModelRegistryHealth({ enabled: open });
   const runners = useRunners();
   const maintenance = useMaintenance();
   const investigationSettings = useInvestigationSettings();
@@ -146,6 +147,7 @@ export function SettingsDialog({
                   newRunnerKey={editor.newRunnerKey}
                   onNewRunnerKeyChange={editor.setNewRunnerKey}
                   knownRunners={runners.data ?? undefined}
+                  health={modelRegistryHealth.data ?? null}
                   onAddRunner={editor.addRunner}
                   onRemoveRunner={editor.removeRunner}
                   onAddFallbackRunner={editor.addFallbackRunner}
@@ -154,7 +156,10 @@ export function SettingsDialog({
                   onAddModel={editor.addModel}
                   onRemoveModel={editor.removeModel}
                   onUpdateModel={editor.updateModel}
-                  onUpdatePreset={editor.updatePreset}
+                  onSetPresetEntry={editor.setPresetEntry}
+                  onAddPresetEntry={editor.addPresetEntry}
+                  onRemovePresetEntry={editor.removePresetEntry}
+                  onToggleRunnerDefault={editor.toggleRunnerDefault}
                 />
               </TabsContent>
               <TabsContent value="pricing" className="mt-0">

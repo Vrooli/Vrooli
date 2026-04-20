@@ -16,6 +16,7 @@ import {
   Info,
   Link2,
   MoreVertical,
+  PlayCircle,
   RotateCcw,
   Search,
   Square,
@@ -70,6 +71,7 @@ interface RunDetailProps {
   onReject: (req: RejectFormData) => Promise<void>;
   onPartialApprove?: (fileIds: string[], actor?: string, commitMsg?: string) => Promise<unknown>;
   onRetry: (run: Run) => Promise<Run>;
+  onResumeFromFailure: (run: Run) => void;
   onInvestigate: (runId: string) => void;
   onApplyInvestigation: (runId: string) => void;
   onStop: (run: Run) => Promise<void>;
@@ -95,6 +97,7 @@ export function RunDetail({
   onReject,
   onPartialApprove,
   onRetry,
+  onResumeFromFailure,
   onInvestigate,
   onApplyInvestigation,
   onStop,
@@ -287,6 +290,7 @@ export function RunDetail({
         canApplyFixes={canApplyFixes}
         onApplyInvestigation={() => onApplyInvestigation(run.id)}
         onRetry={() => onRetry(run)}
+        onResumeFromFailure={() => onResumeFromFailure(run)}
         onReview={() => setShowReviewModal(true)}
         canDeleteRun={canDeleteRun}
         onDelete={() => onDelete(run)}
@@ -295,7 +299,7 @@ export function RunDetail({
     );
 
     return () => onMobileHeaderRight(null);
-  }, [isDesktop, run, actions, actionsMenuOpen, onMobileHeaderRight, onStop, onDelete, onInvestigate, onApplyInvestigation, onRetry, canApplyFixes, canDeleteRun, deleteLoading]);
+  }, [isDesktop, run, actions, actionsMenuOpen, onMobileHeaderRight, onStop, onDelete, onInvestigate, onApplyInvestigation, onRetry, onResumeFromFailure, canApplyFixes, canDeleteRun, deleteLoading]);
   return (
     <div className="h-full flex flex-col" ref={containerRef}>
       {/* Details Section (collapsible) - hidden on mobile, shown via info dialog instead */}
@@ -329,6 +333,10 @@ export function RunDetail({
             >
               {runStatusLabel(run.status, run.approvalState).replace("_", " ")}
             </Badge>
+            <RunModelBadge
+              requested={run.requestedModel ?? ""}
+              actual={run.actualModel ?? ""}
+            />
             <button
               type="button"
               className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -390,10 +398,22 @@ export function RunDetail({
                     size="sm"
                     onClick={() => onRetry(run)}
                     className="gap-1 h-7 px-2"
-                    title="Re-run"
+                    title="Re-run from scratch (fresh attempt, no prior context)"
                   >
                     <RotateCcw className="h-3 w-3" />
                     <span className="hidden lg:inline">Re-run</span>
+                  </Button>
+                )}
+                {actions?.canResumeFromFailure && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onResumeFromFailure(run)}
+                    className="gap-1 h-7 px-2"
+                    title="Resume: continue this task with the prior transcript + diff as context"
+                  >
+                    <PlayCircle className="h-3 w-3" />
+                    <span className="hidden lg:inline">Resume</span>
                   </Button>
                 )}
                 {(actions?.canReview || actions?.canApprove || actions?.canReject) && (
@@ -456,9 +476,20 @@ export function RunDetail({
                       <button
                         type="button"
                         className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
+                        title="Fresh attempt, no prior context"
                         onClick={() => { onRetry(run); setActionsMenuOpen(false); }}
                       >
                         <RotateCcw className="h-3.5 w-3.5" /> Re-run
+                      </button>
+                    )}
+                    {actions?.canResumeFromFailure && (
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
+                        title="Continue this task with the prior transcript + diff as context"
+                        onClick={() => { onResumeFromFailure(run); setActionsMenuOpen(false); }}
+                      >
+                        <PlayCircle className="h-3.5 w-3.5" /> Resume
                       </button>
                     )}
                     {(actions?.canReview || actions?.canApprove || actions?.canReject) && (
@@ -887,6 +918,34 @@ export function RunDetail({
         onOpenSandbox={run.sandboxId && sandboxUrl ? openSandboxReview : undefined}
       />
     </div>
+  );
+}
+
+// RunModelBadge renders the model the executor actually ran with. When the actual
+// model differs from the originally requested one, a warning variant is shown to
+// flag that the run degraded through the preset fallback chain. Both fields are
+// optional — older runs persisted before provenance tracking appear unlabelled.
+function RunModelBadge({ requested, actual }: { requested: string; actual: string }) {
+  if (!requested && !actual) {
+    return null;
+  }
+  const display = actual || requested;
+  const degraded = Boolean(requested && actual && requested !== actual);
+  const label = display === "" ? "runner default" : display;
+  if (degraded) {
+    return (
+      <Badge
+        variant="destructive"
+        title={`Ran on fallback model "${actual || "runner default"}" after the requested "${requested}" failed. Review the registry to pick a fresh primary entry.`}
+      >
+        model: {label} (fallback)
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="secondary" title={`Model executed: ${label}`}>
+      model: {label}
+    </Badge>
   );
 }
 
@@ -1338,6 +1397,7 @@ interface MobileHeaderActionsProps {
   canApplyFixes: boolean;
   onApplyInvestigation: () => void;
   onRetry: () => void;
+  onResumeFromFailure: () => void;
   onReview: () => void;
   canDeleteRun: boolean;
   onDelete: () => void;
@@ -1355,6 +1415,7 @@ function MobileHeaderActions({
   canApplyFixes,
   onApplyInvestigation,
   onRetry,
+  onResumeFromFailure,
   onReview,
   canDeleteRun,
   onDelete,
@@ -1416,9 +1477,20 @@ function MobileHeaderActions({
               <button
                 type="button"
                 className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
+                title="Fresh attempt, no prior context"
                 onClick={() => { onRetry(); setActionsMenuOpen(() => false); }}
               >
                 <RotateCcw className="h-3.5 w-3.5" /> Re-run
+              </button>
+            )}
+            {actions?.canResumeFromFailure && (
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
+                title="Continue this task with the prior transcript + diff as context"
+                onClick={() => { onResumeFromFailure(); setActionsMenuOpen(() => false); }}
+              >
+                <PlayCircle className="h-3.5 w-3.5" /> Resume
               </button>
             )}
             {(actions?.canReview || actions?.canApprove || actions?.canReject) && (

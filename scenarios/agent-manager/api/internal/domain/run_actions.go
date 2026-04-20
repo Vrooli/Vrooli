@@ -21,6 +21,8 @@ type RunActions struct {
 	CanReview                    bool   `json:"canReview"`
 	CanExtractRecommendations    bool   `json:"canExtractRecommendations"`
 	CanRegenerateRecommendations bool   `json:"canRegenerateRecommendations"`
+	CanResumeFromFailure         bool   `json:"canResumeFromFailure"`
+	CanResumeFromFailureReason   string `json:"canResumeFromFailureReason,omitempty"`
 }
 
 // RunActionsFor computes the action flags for a run using the provided context.
@@ -42,6 +44,7 @@ func RunActionsFor(run *Run, ctx RunActionContext) RunActions {
 	canReview, _ := CanReviewRun(run)
 	canExtract, _ := CanExtractRecommendations(run, allowlist)
 	canRegenerate, _ := CanRegenerateRecommendations(run, allowlist)
+	canResume, canResumeReason := CanResumeFromFailureRun(run)
 
 	return RunActions{
 		CanInvestigate:               canInvestigate,
@@ -56,6 +59,8 @@ func RunActionsFor(run *Run, ctx RunActionContext) RunActions {
 		CanReview:                    canReview,
 		CanExtractRecommendations:    canExtract,
 		CanRegenerateRecommendations: canRegenerate,
+		CanResumeFromFailure:         canResume,
+		CanResumeFromFailureReason:   canResumeReason,
 	}
 }
 
@@ -159,6 +164,23 @@ func CanContinueRun(run *Run) (bool, string) {
 		return false, "cannot continue a run that is still in progress"
 	default:
 		return true, ""
+	}
+}
+
+// CanResumeFromFailureRun returns whether a run can be resumed-from-failure:
+// a brand-new run that inherits the original task + profile and is seeded with
+// the failed attempt's transcript and diff so the agent can complete the
+// remaining work instead of starting over (Retry) or replaying a Codex
+// session (Continue). Allowed for terminal-but-incomplete states only.
+func CanResumeFromFailureRun(run *Run) (bool, string) {
+	if run == nil {
+		return false, "run not found"
+	}
+	switch run.Status {
+	case RunStatusFailed, RunStatusCancelled:
+		return true, ""
+	default:
+		return false, "resume is only available for failed or cancelled runs"
 	}
 }
 

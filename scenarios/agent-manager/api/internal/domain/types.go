@@ -375,6 +375,12 @@ type Run struct {
 	// For OpenCode: sessionID from stream events
 	SessionID string `json:"sessionId,omitempty" db:"session_id"`
 
+	// Model provenance — requested is the first concrete entry the preset chain expanded to
+	// when the run was created; actual is the model the CLI actually executed with once
+	// model-fallback (if any) converged. When they differ the run degraded through the chain.
+	RequestedModel string `json:"requestedModel,omitempty" db:"requested_model"`
+	ActualModel    string `json:"actualModel,omitempty" db:"actual_model"`
+
 	// Investigation lineage fields
 	// SourceRunIDs links investigation runs back to the run(s) being investigated.
 	SourceRunIDs []uuid.UUID `json:"sourceRunIds,omitempty" db:"source_run_ids"`

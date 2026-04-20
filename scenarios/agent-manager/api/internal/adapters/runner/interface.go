@@ -58,6 +58,17 @@ type Runner interface {
 	// IsAvailable checks if this runner is currently available.
 	// Returns false with a reason if the runner cannot be used.
 	IsAvailable(ctx context.Context) (bool, string)
+
+	// ProbeModel performs a lightweight check that the given model ID is
+	// usable by this runner. Implementations should avoid full inference —
+	// the goal is to surface obviously-broken configurations at startup, not
+	// to validate every possible failure mode. The empty string represents
+	// the runner-default sentinel; probes should treat it as "accept".
+	//
+	// Returns nil when the model appears usable (or when the runner cannot
+	// cheaply tell). Authoritative "this model is dead" signal comes from
+	// runtime classification via ClassifyModelError.
+	ProbeModel(ctx context.Context, modelID string) error
 }
 
 // Capabilities describes what features a runner supports.

@@ -65,7 +65,8 @@ type Service interface {
 	// --- Run Operations ---
 	CreateRun(ctx context.Context, req CreateRunRequest) (*domain.Run, error)
 	CreateInvestigationRun(ctx context.Context, req CreateInvestigationRequest) (*domain.Run, error)
-	CreateInvestigationApplyRun(ctx context.Context, investigationRunID uuid.UUID, customContext string) (*domain.Run, error)
+	CreateInvestigationApplyRun(ctx context.Context, req CreateInvestigationApplyRequest) (*domain.Run, error)
+	ResumeFromFailedRun(ctx context.Context, req ResumeFromFailedRunRequest) (*domain.Run, error)
 	GetRun(ctx context.Context, id uuid.UUID) (*domain.Run, error)
 	GetRunByTag(ctx context.Context, tag string) (*domain.Run, error)
 	ListRuns(ctx context.Context, opts RunListOptions) ([]*domain.Run, error)
@@ -97,6 +98,7 @@ type Service interface {
 	// --- Model Registry Operations ---
 	GetModelRegistry(ctx context.Context) (*modelregistry.Registry, error)
 	UpdateModelRegistry(ctx context.Context, registry *modelregistry.Registry) (*modelregistry.Registry, error)
+	GetModelRegistryHealth(ctx context.Context) (modelregistry.HealthSnapshot, error)
 
 	// --- Status Operations ---
 	GetHealth(ctx context.Context) (*HealthStatus, error)
@@ -293,6 +295,16 @@ type ContinueRunRequest struct {
 	AttachmentIDs []string  `json:"attachmentIds,omitempty"`
 }
 
+// ResumeFromFailedRunRequest contains parameters for creating a new run that
+// inherits the original task + profile of a failed/cancelled run and is
+// seeded with that run's transcript and diff so the agent can complete the
+// remaining work instead of starting over.
+type ResumeFromFailedRunRequest struct {
+	RunID         uuid.UUID `json:"runId"`
+	CustomContext string    `json:"customContext,omitempty"`
+	AttachmentIDs []string  `json:"attachmentIds,omitempty"`
+}
+
 // CreateInvestigationRequest contains parameters for creating an investigation run.
 type CreateInvestigationRequest struct {
 	RunIDs        []uuid.UUID               `json:"runIds"`
@@ -300,6 +312,22 @@ type CreateInvestigationRequest struct {
 	Depth         domain.InvestigationDepth `json:"depth,omitempty"`       // Defaults to "standard"
 	ProjectRoot   string                    `json:"projectRoot,omitempty"` // Root directory for investigation (explicit, no guessing)
 	ScopePaths    []string                  `json:"scopePaths,omitempty"`  // Paths where agent can make changes
+	AttachmentIDs []string                  `json:"attachmentIds,omitempty"`
+	// Runner + preset overrides for the investigation agent. When nil, the default
+	// investigation profile's values apply. Callers use this to pick a runner or
+	// preset whose model chain currently works, without editing the registry.
+	RunnerType  *domain.RunnerType  `json:"runnerType,omitempty"`
+	ModelPreset *domain.ModelPreset `json:"modelPreset,omitempty"`
+}
+
+// CreateInvestigationApplyRequest contains parameters for creating an apply run.
+type CreateInvestigationApplyRequest struct {
+	InvestigationRunID uuid.UUID `json:"investigationRunId"`
+	CustomContext      string    `json:"customContext,omitempty"`
+	AttachmentIDs      []string  `json:"attachmentIds,omitempty"`
+	// Runner + preset overrides for the apply agent; same semantics as investigation.
+	RunnerType  *domain.RunnerType  `json:"runnerType,omitempty"`
+	ModelPreset *domain.ModelPreset `json:"modelPreset,omitempty"`
 }
 
 // ApproveRequest contains parameters for approving a run.
@@ -436,6 +464,9 @@ type Orchestrator struct {
 	// Model registry for runner model catalogs and presets.
 	modelRegistry *modelregistry.Store
 
+	// Model health map (in-memory, populated by runtime classification + startup probe).
+	modelHealth *modelregistry.HealthStore
+
 	// Recommendation extractor for investigation outputs.
 	recommendationExtractor recommendation.Extractor
 
@@ -565,6 +596,14 @@ func WithStorageLabel(label string) Option {
 func WithModelRegistry(store *modelregistry.Store) Option {
 	return func(o *Orchestrator) {
 		o.modelRegistry = store
+	}
+}
+
+// WithModelHealth sets the model health store used by the executor to flag runtime
+// model-unavailable errors. The same store is exposed via GetModelRegistryHealth.
+func WithModelHealth(store *modelregistry.HealthStore) Option {
+	return func(o *Orchestrator) {
+		o.modelHealth = store
 	}
 }
 
@@ -1097,8 +1136,11 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		ApprovalState:            domain.ApprovalStateNone,
 		ResolvedConfig:           resolvedConfig,
 		SandboxConfig:            sandboxConfig,
-		CreatedAt:                time.Now(),
-		UpdatedAt:                time.Now(),
+		// Provenance: requested is the primary model the preset expanded to at creation.
+		// Actual is blank until the executor records the model that actually ran.
+		RequestedModel: resolvedConfig.Model,
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
 	}
 	// Populate PromptPreview so WebSocket broadcasts include display text.
 	// This is normally a computed field from the List query JOIN, but we need it
@@ -1378,11 +1420,13 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 		if o.modelRegistry == nil {
 			return nil, nil, domain.NewValidationError("modelPreset", "model registry not configured")
 		}
-		resolved, ok := o.modelRegistry.ResolvePreset(string(cfg.RunnerType), string(cfg.ModelPreset))
+		chain, ok := o.modelRegistry.ResolvePreset(string(cfg.RunnerType), string(cfg.ModelPreset))
 		if !ok {
 			return nil, nil, domain.NewValidationError("modelPreset", "preset not mapped for runner")
 		}
-		cfg.Model = resolved
+		// cfg.Model carries the primary (first concrete) entry. The full chain is attached
+		// to the run by the caller so the executor can walk fallbacks at runtime.
+		cfg.Model = chain.Primary()
 	}
 
 	// Validate extra flags against runner allowlists (delegate to seam)
@@ -2095,6 +2139,14 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 	if o.checkpoints != nil {
 		executor.WithCheckpointRepository(o.checkpoints)
 	}
+	// Model-level fallback: hand the executor a resolver so it can walk the preset chain
+	// at execution time when the runner rejects a model.
+	if o.modelRegistry != nil {
+		executor.WithModelChainResolver(o.modelRegistry)
+	}
+	if o.modelHealth != nil {
+		executor.WithModelHealthReporter(newHealthMarkerAdapter(o.modelHealth))
+	}
 	if run.SandboxID != nil {
 		workDir := existingSandboxWorkDir
 		if workDir == "" && o.sandbox != nil {
@@ -2341,6 +2393,15 @@ func (o *Orchestrator) UpdateModelRegistry(ctx context.Context, registry *modelr
 		return nil, domain.NewStateError("ModelRegistry", "unconfigured", "update", "model registry not configured")
 	}
 	return o.modelRegistry.Update(registry)
+}
+
+func (o *Orchestrator) GetModelRegistryHealth(ctx context.Context) (modelregistry.HealthSnapshot, error) {
+	if o.modelHealth == nil {
+		// No health store wired: return an empty snapshot rather than erroring so
+		// consumers can render the UI before probes have run.
+		return modelregistry.HealthSnapshot{Runners: map[string]map[string]modelregistry.ModelHealth{}}, nil
+	}
+	return o.modelHealth.Snapshot(), nil
 }
 
 // -----------------------------------------------------------------------------

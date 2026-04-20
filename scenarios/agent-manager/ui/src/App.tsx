@@ -298,6 +298,7 @@ export default function App() {
                       onPartialApproveRun={runs.partialApproveRun}
                       onInvestigateRuns={runs.investigateRuns}
                       onApplyInvestigation={runs.applyInvestigation}
+                      onResumeFromFailedRun={runs.resumeFromFailedRun}
                       onContinueRun={runs.continueRun}
                       onDeleteRunMessage={runs.deleteRunMessage}
                       onRefresh={runs.refetch}

@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertCircle,
   ChevronDown,
   ChevronRight,
   Info,
+  Paperclip,
   Plus,
   RefreshCw,
   Search,
@@ -23,7 +24,9 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { RecommendationItem } from "./RecommendationItem";
+import { AttachmentPreview } from "./AttachmentPreview";
 import { extractRecommendations, regenerateRecommendations } from "../hooks/useApi";
+import { useAttachments } from "../hooks/useAttachments";
 import type {
   ExtractionResult,
   Recommendation,
@@ -41,7 +44,7 @@ interface ApplyInvestigationModalProps {
   onOpenChange: (open: boolean) => void;
   /** The full investigation run object with cached recommendation data */
   investigationRun: InvestigationRun | null;
-  onSubmit: (customContext: string) => Promise<void>;
+  onSubmit: (customContext: string, attachmentIds?: string[]) => Promise<void>;
   loading?: boolean;
   error?: string | null;
 }
@@ -97,6 +100,25 @@ export function ApplyInvestigationModal({
   const [newCategoryName, setNewCategoryName] = useState("");
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+
+  // Image attachments — uploaded eagerly via the shared attachments hook.
+  const {
+    attachments,
+    addAttachment,
+    removeAttachment,
+    clearAttachments,
+    getUploadedIds,
+    isUploading,
+  } = useAttachments();
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      addAttachment(file);
+      e.target.value = "";
+    }
+  };
 
   // Helper to apply extraction result to state
   const applyExtractionResult = useCallback((result: ExtractionResult) => {
@@ -212,8 +234,9 @@ export function ApplyInvestigationModal({
       setShowRawOutput(false);
       setShowAddCategory(false);
       setNewCategoryName("");
+      clearAttachments();
     }
-  }, [open]);
+  }, [open, clearAttachments]);
 
   const toggleCategory = (id: string) => {
     setExpandedCategories((prev) => {
@@ -324,11 +347,13 @@ export function ApplyInvestigationModal({
   }, []);
 
   const handleSubmit = async () => {
+    const uploadedIds = getUploadedIds();
+    const attachmentIds = uploadedIds.length > 0 ? uploadedIds : undefined;
     if (state === "success") {
       const serialized = serializeRecommendations(categories);
-      await onSubmit(serialized);
+      await onSubmit(serialized, attachmentIds);
     } else {
-      await onSubmit(fallbackText.trim());
+      await onSubmit(fallbackText.trim(), attachmentIds);
     }
   };
 
@@ -622,6 +647,40 @@ export function ApplyInvestigationModal({
             </div>
           )}
 
+          {/* Image Attachments — available in both success and fallback states.
+              Hidden during loading since there's nothing to review yet. */}
+          {state !== "loading" && (
+            <div className="space-y-2 pt-2 border-t">
+              <Label>Image Attachments (optional)</Label>
+              {attachments.length > 0 && (
+                <AttachmentPreview
+                  attachments={attachments}
+                  onRemove={removeAttachment}
+                  isUploading={isUploading}
+                />
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => imageInputRef.current?.click()}
+              >
+                <Paperclip className="h-4 w-4 mr-2" />
+                Attach Image
+              </Button>
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                onChange={handleImageSelect}
+                className="hidden"
+              />
+              <p className="text-xs text-muted-foreground">
+                Screenshots or diagrams to guide the apply agent.
+              </p>
+            </div>
+          )}
+
           {error && (
             <div className="flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -642,6 +701,7 @@ export function ApplyInvestigationModal({
             onClick={handleSubmit}
             disabled={
               loading ||
+              isUploading ||
               state === "loading" ||
               (state === "success" && selectedCount === 0)
             }
@@ -649,6 +709,8 @@ export function ApplyInvestigationModal({
           >
             {loading ? (
               "Applying..."
+            ) : isUploading ? (
+              "Uploading..."
             ) : state === "success" ? (
               <>
                 <Search className="h-4 w-4" />

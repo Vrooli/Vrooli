@@ -111,6 +111,18 @@ func TestInitSchema_WithLegacyRunsTable_AddsInvestigationColumns(t *testing.T) {
 	if hasSourceInvestigationRunID != 1 {
 		t.Fatalf("expected source_investigation_run_id column to exist, got count %d", hasSourceInvestigationRunID)
 	}
+
+	for _, col := range []string{"requested_model", "actual_model"} {
+		var count int
+		if err := sqlDB.Get(&count, `
+			SELECT COUNT(*) FROM pragma_table_info('runs') WHERE name = ?
+		`, col); err != nil {
+			t.Fatalf("check %s column: %v", col, err)
+		}
+		if count != 1 {
+			t.Fatalf("expected %s column to exist after migration, got count %d", col, count)
+		}
+	}
 }
 
 func TestDataDirPrefersCanonicalStorageOverLegacyFallbackEnv(t *testing.T) {

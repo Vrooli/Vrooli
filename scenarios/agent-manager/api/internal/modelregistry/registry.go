@@ -1,13 +1,15 @@
 package modelregistry
 
 import (
-	"agent-manager/internal/domain"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"agent-manager/internal/domain"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 )
@@ -59,10 +61,80 @@ func (m ModelOption) MarshalJSON() ([]byte, error) {
 	})
 }
 
+// PresetChain is the ordered list of model IDs that a preset expands into.
+// The first non-empty entry is the primary choice. Subsequent entries are fallbacks
+// tried in order when the runner rejects a model at execution time. A single empty-string
+// entry at the final position signals "invoke the runner without a model flag, letting
+// the CLI use its built-in default."
+type PresetChain []string
+
+// Primary returns the first non-empty model ID in the chain, or the empty string if
+// the chain contains only the runner-default sentinel.
+func (c PresetChain) Primary() string {
+	for _, entry := range c {
+		if strings.TrimSpace(entry) != "" {
+			return entry
+		}
+	}
+	return ""
+}
+
+// At returns the model ID at the given position and whether it is within bounds.
+// An empty return value with ok=true is the runner-default sentinel.
+func (c PresetChain) At(index int) (string, bool) {
+	if index < 0 || index >= len(c) {
+		return "", false
+	}
+	return c[index], true
+}
+
+// AllowRunnerDefault reports whether the final entry is the empty-string sentinel.
+func (c PresetChain) AllowRunnerDefault() bool {
+	if len(c) == 0 {
+		return false
+	}
+	return c[len(c)-1] == ""
+}
+
+// ConcreteModels returns only the non-empty entries in order.
+func (c PresetChain) ConcreteModels() []string {
+	out := make([]string, 0, len(c))
+	for _, entry := range c {
+		if strings.TrimSpace(entry) != "" {
+			out = append(out, entry)
+		}
+	}
+	return out
+}
+
+// UnmarshalJSON accepts only an array of strings. Rejects the legacy scalar-string
+// shape with an actionable error message.
+func (c *PresetChain) UnmarshalJSON(data []byte) error {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 {
+		return domain.NewValidationErrorWithCode("modelRegistry.presets", "preset value is empty", domain.ErrCodeValidationRequired)
+	}
+	if trimmed[0] == '"' {
+		return domain.NewValidationError(
+			"modelRegistry.presets",
+			"preset values must be arrays of model IDs (e.g. [\"gpt-5.2-codex\", \"gpt-5.1-codex-max\"]); the legacy scalar-string shape is no longer supported",
+		)
+	}
+	if trimmed[0] != '[' {
+		return domain.NewValidationError("modelRegistry.presets", "preset value must be a JSON array of strings")
+	}
+	var list []string
+	if err := json.Unmarshal(data, &list); err != nil {
+		return domain.NewValidationErrorWithCode("modelRegistry.presets", "invalid preset chain payload", domain.ErrCodeValidationFormat)
+	}
+	*c = list
+	return nil
+}
+
 // RunnerModelRegistry holds model choices and preset mappings for a runner.
 type RunnerModelRegistry struct {
-	Models  []ModelOption     `json:"models"`
-	Presets map[string]string `json:"presets,omitempty"`
+	Models  []ModelOption          `json:"models"`
+	Presets map[string]PresetChain `json:"presets,omitempty"`
 }
 
 // Registry contains model catalog data for all runners.
@@ -86,9 +158,9 @@ func (r *Registry) Clone() *Registry {
 	for key, runner := range r.Runners {
 		models := make([]ModelOption, len(runner.Models))
 		copy(models, runner.Models)
-		presets := make(map[string]string, len(runner.Presets))
-		for presetKey, modelID := range runner.Presets {
-			presets[presetKey] = modelID
+		presets := make(map[string]PresetChain, len(runner.Presets))
+		for presetKey, chain := range runner.Presets {
+			presets[presetKey] = append(PresetChain(nil), chain...)
 		}
 		clone.Runners[key] = RunnerModelRegistry{
 			Models:  models,
@@ -118,36 +190,92 @@ func (r *Registry) Validate() error {
 			return domain.NewValidationError("modelRegistry.runners", "runner key cannot be empty")
 		}
 
-		seen := make(map[string]struct{}, len(runner.Models))
+		known := make(map[string]struct{}, len(runner.Models))
 		for _, model := range runner.Models {
 			id := strings.TrimSpace(model.ID)
 			if id == "" {
 				return domain.NewValidationError("modelRegistry.runners."+runnerKey+".models", "model id cannot be empty")
 			}
-			if _, exists := seen[id]; exists {
+			if _, exists := known[id]; exists {
 				return domain.NewValidationError("modelRegistry.runners."+runnerKey+".models", fmt.Sprintf("duplicate model id %s", id))
 			}
-			seen[id] = struct{}{}
+			known[id] = struct{}{}
 		}
 
-		for presetKey, modelID := range runner.Presets {
-			key := strings.ToUpper(strings.TrimSpace(presetKey))
-			if key == "" {
-				return domain.NewValidationError("modelRegistry.runners."+runnerKey+".presets", "preset key cannot be empty")
-			}
-			if !isKnownPreset(key) {
-				return domain.NewValidationError("modelRegistry.runners."+runnerKey+".presets", fmt.Sprintf("invalid preset key %s", key))
-			}
-			modelID = strings.TrimSpace(modelID)
-			if modelID == "" {
-				return domain.NewValidationError("modelRegistry.runners."+runnerKey+".presets", "preset model id cannot be empty")
-			}
-			if _, exists := seen[modelID]; !exists {
-				return domain.NewValidationError("modelRegistry.runners."+runnerKey+".presets", fmt.Sprintf("unknown model id %s", modelID))
+		for presetKey, chain := range runner.Presets {
+			if err := validatePresetChain(runnerKey, presetKey, chain, known); err != nil {
+				return err
 			}
 		}
 	}
 
+	return nil
+}
+
+// validatePresetChain enforces the preset-chain contract documented on PresetChain.
+func validatePresetChain(runnerKey, presetKey string, chain PresetChain, knownModels map[string]struct{}) error {
+	fieldPrefix := "modelRegistry.runners." + runnerKey + ".presets"
+	normalizedPreset := strings.ToUpper(strings.TrimSpace(presetKey))
+	if normalizedPreset == "" {
+		return domain.NewValidationError(fieldPrefix, "preset key cannot be empty")
+	}
+	if !isKnownPreset(normalizedPreset) {
+		return domain.NewValidationError(fieldPrefix, fmt.Sprintf("invalid preset key %s", normalizedPreset))
+	}
+
+	if len(chain) == 0 {
+		return domain.NewValidationError(fieldPrefix+"."+normalizedPreset, "preset chain must contain at least one entry")
+	}
+
+	seen := make(map[string]struct{}, len(chain))
+	hasConcrete := false
+	for index, entry := range chain {
+		if entry == "" {
+			// Empty-string sentinel: runner-default parachute.
+			if index != len(chain)-1 {
+				return domain.NewValidationError(
+					fieldPrefix+"."+normalizedPreset,
+					"the runner-default sentinel (empty string) may only appear as the final entry",
+				)
+			}
+			if normalizedPreset == presetKeyCheap {
+				return domain.NewValidationError(
+					fieldPrefix+"."+normalizedPreset,
+					"the CHEAP preset cannot fall back to the runner default (typically the flagship model, which would silently invert cost expectations); pick an explicit low-cost model for every entry",
+				)
+			}
+			continue
+		}
+
+		trimmed := strings.TrimSpace(entry)
+		if trimmed != entry {
+			return domain.NewValidationError(
+				fieldPrefix+"."+normalizedPreset,
+				fmt.Sprintf("entry %q has leading or trailing whitespace", entry),
+			)
+		}
+		if _, exists := seen[trimmed]; exists {
+			return domain.NewValidationError(
+				fieldPrefix+"."+normalizedPreset,
+				fmt.Sprintf("duplicate entry %s", trimmed),
+			)
+		}
+		seen[trimmed] = struct{}{}
+		if _, exists := knownModels[trimmed]; !exists {
+			return domain.NewValidationError(
+				fieldPrefix+"."+normalizedPreset,
+				fmt.Sprintf("unknown model id %s", trimmed),
+			)
+		}
+		hasConcrete = true
+	}
+
+	if !hasConcrete {
+		return domain.NewValidationError(
+			fieldPrefix+"."+normalizedPreset,
+			"preset chain must contain at least one concrete model id",
+		)
+	}
 	return nil
 }
 
@@ -172,9 +300,15 @@ func validateFallbackRunnerTypes(values []string) error {
 	return nil
 }
 
+const (
+	presetKeyFast  = "FAST"
+	presetKeyCheap = "CHEAP"
+	presetKeySmart = "SMART"
+)
+
 func isKnownPreset(preset string) bool {
 	switch preset {
-	case "FAST", "CHEAP", "SMART":
+	case presetKeyFast, presetKeyCheap, presetKeySmart:
 		return true
 	default:
 		return false
@@ -218,19 +352,26 @@ func (s *Store) Update(registry *Registry) (*Registry, error) {
 	return s.Get(), nil
 }
 
-func (s *Store) ResolvePreset(runner string, preset string) (string, bool) {
+// ResolvePreset returns the ordered chain of model IDs for a preset on a runner.
+// The caller walks the chain in order, treating an empty entry as "invoke the runner
+// without a model flag." A nil or empty chain is reported via ok=false.
+func (s *Store) ResolvePreset(runner string, preset string) (PresetChain, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	if s.registry == nil {
-		return "", false
+		return nil, false
 	}
 	runnerConfig, ok := s.registry.Runners[runner]
 	if !ok {
-		return "", false
+		return nil, false
 	}
-	modelID, ok := runnerConfig.Presets[strings.ToUpper(preset)]
-	return modelID, ok
+	chain, ok := runnerConfig.Presets[strings.ToUpper(preset)]
+	if !ok || len(chain) == 0 {
+		return nil, false
+	}
+	// Defensive copy so callers cannot mutate registry state.
+	return append(PresetChain(nil), chain...), true
 }
 
 // Load reads the model registry from disk.

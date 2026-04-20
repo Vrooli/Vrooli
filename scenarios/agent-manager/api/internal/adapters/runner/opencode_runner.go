@@ -552,6 +552,15 @@ func (r *OpenCodeRunner) InstallHint() string {
 	return r.installHint
 }
 
+// ProbeModel validates that the OpenCode binary is reachable. A deep model check
+// is intentionally skipped — see CodexRunner.ProbeModel for rationale.
+func (r *OpenCodeRunner) ProbeModel(ctx context.Context, modelID string) error {
+	if available, msg := r.IsAvailable(ctx); !available {
+		return fmt.Errorf("opencode unavailable: %s", msg)
+	}
+	return nil
+}
+
 // trackSessionID stores the session ID for a run.
 func (r *OpenCodeRunner) trackSessionID(runID uuid.UUID, sessionID string) {
 	if sessionID == "" {

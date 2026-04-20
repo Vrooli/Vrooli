@@ -10,6 +10,7 @@ import {
   CheckSquare,
   Clock,
   Eye,
+  PlayCircle,
   RefreshCw,
   Search,
   Square,
@@ -42,6 +43,7 @@ import { ApprovalState, RunStatus } from "../types";
 import type { MessageHandler, WebSocketMessage } from "../hooks/useWebSocket";
 import { ApplyInvestigationModal } from "../components/ApplyInvestigationModal";
 import { InvestigateModal } from "../components/InvestigateModal";
+import { ResumeFromFailureModal } from "../components/ResumeFromFailureModal";
 import { RunDetail } from "../components/RunDetail";
 import { useViewportSize } from "../hooks/useViewportSize";
 import { useRunsPageState } from "../hooks/useRunsPageState";
@@ -66,8 +68,22 @@ interface RunsPageProps {
   onApproveRun: (id: string, req: ApproveFormData) => Promise<ApproveResult>;
   onRejectRun: (id: string, req: RejectFormData) => Promise<void>;
   onPartialApproveRun: (id: string, fileIds: string[], actor?: string, commitMsg?: string) => Promise<ApproveResult>;
-  onInvestigateRuns: (runIds: string[], customContext?: string, depth?: "quick" | "standard" | "deep", projectRoot?: string, scopePaths?: string[]) => Promise<Run>;
-  onApplyInvestigation: (investigationRunId: string, customContext?: string) => Promise<Run>;
+  onInvestigateRuns: (
+    runIds: string[],
+    customContext?: string,
+    depth?: "quick" | "standard" | "deep",
+    projectRoot?: string,
+    scopePaths?: string[],
+    attachmentIds?: string[],
+    overrides?: { runnerType?: string; modelPreset?: string }
+  ) => Promise<Run>;
+  onApplyInvestigation: (
+    investigationRunId: string,
+    customContext?: string,
+    attachmentIds?: string[],
+    overrides?: { runnerType?: string; modelPreset?: string }
+  ) => Promise<Run>;
+  onResumeFromFailedRun: (runId: string, customContext?: string, attachmentIds?: string[]) => Promise<Run>;
   onContinueRun: (id: string, message: string, attachmentIds?: string[]) => Promise<Run>;
   onDeleteRunMessage: (runId: string, eventId: string) => Promise<void>;
   onRefresh: () => void;
@@ -112,6 +128,7 @@ export function RunsPage({
   onPartialApproveRun,
   onInvestigateRuns,
   onApplyInvestigation,
+  onResumeFromFailedRun,
   onContinueRun,
   onDeleteRunMessage,
   onRefresh,
@@ -164,6 +181,11 @@ export function RunsPage({
   const [applyInvestigationRun, setApplyInvestigationRun] = useState<Run | null>(null);
   const [applyLoading, setApplyLoading] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
+
+  const [resumeModalOpen, setResumeModalOpen] = useState(false);
+  const [resumeTargetRun, setResumeTargetRun] = useState<Run | null>(null);
+  const [resumeLoading, setResumeLoading] = useState(false);
+  const [resumeError, setResumeError] = useState<string | null>(null);
 
   const getTaskById = useCallback(
     (taskId: string) => extraTasks[taskId] ?? tasks.find((t) => t.id === taskId) ?? null,
@@ -484,7 +506,9 @@ export function RunsPage({
     depth: "quick" | "standard" | "deep",
     _context?: unknown, // ignored - context flags handled server-side
     projectRoot?: string,
-    scopePaths?: string[]
+    scopePaths?: string[],
+    attachmentIds?: string[],
+    overrides?: { runnerType?: string; modelPreset?: string }
   ) => {
     setInvestigateLoading(true);
     setInvestigateError(null);
@@ -494,7 +518,9 @@ export function RunsPage({
         customContext || undefined,
         depth,
         projectRoot,
-        scopePaths
+        scopePaths,
+        attachmentIds,
+        overrides
       );
       setInvestigateModalOpen(false);
       clearSelection();
@@ -521,12 +547,16 @@ export function RunsPage({
     }
   };
 
-  const handleApplyInvestigation = async (customContext: string) => {
+  const handleApplyInvestigation = async (customContext: string, attachmentIds?: string[]) => {
     if (!applyInvestigationRun) return;
     setApplyLoading(true);
     setApplyError(null);
     try {
-      const created = await onApplyInvestigation(applyInvestigationRun.id, customContext || undefined);
+      const created = await onApplyInvestigation(
+        applyInvestigationRun.id,
+        customContext || undefined,
+        attachmentIds
+      );
       setApplyModalOpen(false);
       setApplyInvestigationRun(null);
       navigate(`/runs/${created.id}`);
@@ -534,6 +564,33 @@ export function RunsPage({
       setApplyError((err as Error).message);
     } finally {
       setApplyLoading(false);
+    }
+  };
+
+  const handleResumeRequest = (run: Run) => {
+    setResumeError(null);
+    setResumeTargetRun(run);
+    setResumeModalOpen(true);
+  };
+
+  const handleResumeFromFailure = async (customContext: string, attachmentIds?: string[]) => {
+    if (!resumeTargetRun) return;
+    setResumeLoading(true);
+    setResumeError(null);
+    try {
+      const created = await onResumeFromFailedRun(
+        resumeTargetRun.id,
+        customContext || undefined,
+        attachmentIds
+      );
+      setResumeModalOpen(false);
+      setResumeTargetRun(null);
+      onRefresh();
+      navigate(`/runs/${created.id}`);
+    } catch (err) {
+      setResumeError((err as Error).message);
+    } finally {
+      setResumeLoading(false);
     }
   };
 
@@ -700,6 +757,21 @@ export function RunsPage({
                   <Square className="h-3.5 w-3.5" />
                 </Button>
               )}
+              {run.actions?.canResumeFromFailure && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  aria-label={`Resume run ${getTaskTitle(run.taskId)} from failure`}
+                  title="Resume: continue this task with the prior transcript + diff as context"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleResumeRequest(run);
+                  }}
+                >
+                  <PlayCircle className="h-3.5 w-3.5" />
+                </Button>
+              )}
               {run.actions?.canDelete && (
                 <Button
                   variant="ghost"
@@ -762,6 +834,7 @@ export function RunsPage({
             onReject={(req) => handleReject(selectedRun.id, req)}
             onPartialApprove={(fileIds, actor, commitMsg) => handlePartialApprove(selectedRun.id, fileIds, actor, commitMsg)}
             onRetry={handleRetry}
+            onResumeFromFailure={handleResumeRequest}
             onInvestigate={handleInvestigateFromDetail}
             onApplyInvestigation={handleApplyInvestigationFromDetail}
             onStop={async (r) => handleStop(r.id)}
@@ -864,6 +937,21 @@ export function RunsPage({
         onSubmit={handleApplyInvestigation}
         loading={applyLoading}
         error={applyError}
+      />
+
+      <ResumeFromFailureModal
+        open={resumeModalOpen}
+        onOpenChange={(open) => {
+          setResumeModalOpen(open);
+          if (!open) {
+            setResumeTargetRun(null);
+            setResumeError(null);
+          }
+        }}
+        failedRun={resumeTargetRun}
+        onSubmit={handleResumeFromFailure}
+        loading={resumeLoading}
+        error={resumeError}
       />
 
       {/* Delete Confirmation Dialog */}

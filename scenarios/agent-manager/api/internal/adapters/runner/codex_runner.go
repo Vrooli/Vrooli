@@ -692,6 +692,17 @@ func (r *CodexRunner) InstallHint() string {
 	return r.installHint
 }
 
+// ProbeModel checks that the Codex binary is available. A deep check (validating
+// the model ID via a live request) is intentionally avoided — each probe would
+// cost vendor quota. Authoritative "model is gone" signal comes from runtime
+// classification. Empty modelID is the runner-default sentinel and always accepted.
+func (r *CodexRunner) ProbeModel(ctx context.Context, modelID string) error {
+	if available, msg := r.IsAvailable(ctx); !available {
+		return fmt.Errorf("codex unavailable: %s", msg)
+	}
+	return nil
+}
+
 // buildEnv constructs environment variables for resource-codex run.
 func (r *CodexRunner) buildEnv(req ExecuteRequest) []string {
 	env := sanitizedBaseEnv()

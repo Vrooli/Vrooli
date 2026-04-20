@@ -63,15 +63,36 @@ export { HealthStatus } from "@vrooli/proto-types/common/v1/types_pb";
 
 export type ModelOption = string | { id: string; description?: string };
 
+/**
+ * PresetChain is an ordered list of model IDs a preset expands into. The first
+ * non-empty entry is the primary model; subsequent entries are runtime fallbacks
+ * the executor walks when the runner rejects the current model. A single empty
+ * string at the final position signals "let the runner use its own default
+ * model" (no --model flag passed). Forbidden for the CHEAP preset.
+ */
+export type PresetChain = string[];
+
 export interface RunnerModelRegistry {
   models: ModelOption[];
-  presets: Record<string, string>;
+  presets: Record<string, PresetChain>;
 }
 
 export interface ModelRegistry {
   version: number;
   fallbackRunnerTypes?: string[];
   runners: Record<string, RunnerModelRegistry>;
+}
+
+export type ModelHealthStatus = "ok" | "failed" | "unknown";
+
+export interface ModelHealthEntry {
+  status: ModelHealthStatus;
+  lastChecked: string;
+  message?: string;
+}
+
+export interface ModelHealthSnapshot {
+  runners: Record<string, Record<string, ModelHealthEntry>>;
 }
 
 export interface ProfileFormData {

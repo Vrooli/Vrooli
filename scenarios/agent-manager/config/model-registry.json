@@ -9,15 +9,15 @@
       "models": [
         {
           "id": "sonnet",
-          "description": "Balanced default for Claude Code."
+          "description": "Balanced default for Claude Code. Vendor alias — auto-tracks current Sonnet build."
         },
         {
           "id": "opus",
-          "description": "Highest reasoning capability."
+          "description": "Highest reasoning capability. Vendor alias — auto-tracks current Opus build."
         },
         {
           "id": "haiku",
-          "description": "Fast, low-cost option."
+          "description": "Fast, low-cost option. Vendor alias — auto-tracks current Haiku build."
         },
         {
           "id": "claude-sonnet-4-5-20250929",
@@ -33,9 +33,9 @@
         }
       ],
       "presets": {
-        "CHEAP": "haiku",
-        "FAST": "sonnet",
-        "SMART": "opus"
+        "CHEAP": ["haiku", "claude-haiku-4-5-20251001"],
+        "FAST": ["sonnet", "claude-sonnet-4-5-20250929", ""],
+        "SMART": ["opus", "claude-opus-4-5-20251101", ""]
       }
     },
     "codex": {
@@ -58,9 +58,9 @@
         }
       ],
       "presets": {
-        "CHEAP": "gpt-5.1-codex-mini",
-        "FAST": "gpt-5.1-codex-mini",
-        "SMART": "gpt-5.2-codex"
+        "CHEAP": ["gpt-5.1-codex-mini"],
+        "FAST": ["gpt-5.1-codex-mini", "gpt-5.2", ""],
+        "SMART": ["gpt-5.2-codex", "gpt-5.1-codex-max", "gpt-5.2", ""]
       }
     },
     "opencode": {
@@ -79,9 +79,9 @@
         }
       ],
       "presets": {
-        "CHEAP": "anthropic/claude-haiku-4-5",
-        "FAST": "anthropic/claude-sonnet-4-5",
-        "SMART": "anthropic/claude-opus-4-5"
+        "CHEAP": ["anthropic/claude-haiku-4-5"],
+        "FAST": ["anthropic/claude-sonnet-4-5", ""],
+        "SMART": ["anthropic/claude-opus-4-5", ""]
       }
     }
   }

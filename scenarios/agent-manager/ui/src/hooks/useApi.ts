@@ -12,6 +12,7 @@ import type {
   InvestigationDepth,
   InvestigationSettings,
   InvestigationTagRule,
+  ModelHealthSnapshot,
   ModelRegistry,
   ProfileFormData,
   ProbeResult,
@@ -711,11 +712,22 @@ export function useRuns() {
       customContext?: string,
       depth?: "quick" | "standard" | "deep",
       projectRoot?: string,
-      scopePaths?: string[]
+      scopePaths?: string[],
+      attachmentIds?: string[],
+      overrides?: { runnerType?: string; modelPreset?: string }
     ): Promise<Run> => {
       const created = await apiRequest<unknown>("/runs/investigate", {
         method: "POST",
-        body: JSON.stringify({ runIds, customContext, depth, projectRoot, scopePaths }),
+        body: JSON.stringify({
+          runIds,
+          customContext,
+          depth,
+          projectRoot,
+          scopePaths,
+          attachmentIds,
+          runnerType: overrides?.runnerType,
+          modelPreset: overrides?.modelPreset,
+        }),
       });
       const message = parseProto(CreateRunResponseSchema, created);
       const mapped = message.run as Run;
@@ -726,10 +738,39 @@ export function useRuns() {
   );
 
   const applyInvestigation = useCallback(
-    async (investigationRunId: string, customContext?: string): Promise<Run> => {
+    async (
+      investigationRunId: string,
+      customContext?: string,
+      attachmentIds?: string[],
+      overrides?: { runnerType?: string; modelPreset?: string }
+    ): Promise<Run> => {
       const created = await apiRequest<unknown>("/runs/investigation-apply", {
         method: "POST",
-        body: JSON.stringify({ investigationRunId, customContext }),
+        body: JSON.stringify({
+          investigationRunId,
+          customContext,
+          attachmentIds,
+          runnerType: overrides?.runnerType,
+          modelPreset: overrides?.modelPreset,
+        }),
+      });
+      const message = parseProto(CreateRunResponseSchema, created);
+      const mapped = message.run as Run;
+      await fetchRuns();
+      return mapped;
+    },
+    [fetchRuns]
+  );
+
+  const resumeFromFailedRun = useCallback(
+    async (
+      runId: string,
+      customContext?: string,
+      attachmentIds?: string[]
+    ): Promise<Run> => {
+      const created = await apiRequest<unknown>("/runs/resume-from-failed", {
+        method: "POST",
+        body: JSON.stringify({ runId, customContext, attachmentIds }),
       });
       const message = parseProto(CreateRunResponseSchema, created);
       const mapped = message.run as Run;
@@ -874,6 +915,7 @@ export function useRuns() {
     retryRun,
     investigateRuns,
     applyInvestigation,
+    resumeFromFailedRun,
     getRun,
     stopRun,
     deleteRun,
@@ -956,6 +998,34 @@ export function useModelRegistry() {
   }, [fetchRegistry]);
 
   return { data, loading, error, refetch: fetchRegistry, updateRegistry };
+}
+
+// Model registry health hook. Pulls the current per-model health snapshot from the
+// /runner-models/health endpoint. The hook refetches each time `enabled` toggles true
+// and exposes an explicit refetch for callers that want an on-demand refresh.
+export function useModelRegistryHealth(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true;
+  const { data, loading, error, setData, setLoading, setError } = useApiState<ModelHealthSnapshot | null>(null);
+
+  const fetchHealth = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const snapshot = await apiRequest<ModelHealthSnapshot>("/runner-models/health");
+      setData(snapshot);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, [setData, setLoading, setError]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    fetchHealth();
+  }, [enabled, fetchHealth]);
+
+  return { data, loading, error, refetch: fetchHealth };
 }
 
 // Probe runner function (standalone for use in components)

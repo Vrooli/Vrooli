@@ -1,7 +1,9 @@
-// Hook for managing model registry editing state and operations
+// Hook for managing model registry editing state and operations.
+// Preset values are ordered chains (string[]): primary first, optional runner-default
+// sentinel (empty string) at the end. See types.ts#PresetChain.
 
 import { useCallback, useEffect, useState } from "react";
-import type { ModelRegistry } from "../types";
+import type { ModelRegistry, PresetChain } from "../types";
 import { normalizeModelOptions, sanitizeModelRegistry } from "../lib/modelRegistry";
 
 interface UseModelRegistryEditorOptions {
@@ -11,6 +13,12 @@ interface UseModelRegistryEditorOptions {
   isActive: boolean;
   /** Function to update the registry via API */
   updateRegistry: (registry: ModelRegistry) => Promise<ModelRegistry>;
+}
+
+const RUNNER_DEFAULT_SENTINEL = "";
+
+function cloneChain(chain: PresetChain | undefined): PresetChain {
+  return chain ? [...chain] : [];
 }
 
 export function useModelRegistryEditor({
@@ -192,30 +200,139 @@ export function useModelRegistryEditor({
     [updateDraft]
   );
 
-  const updatePreset = useCallback(
-    (runnerKey: string, presetKey: string, value: string) => {
+  // --- Preset chain editors ---
+
+  const writeChain = useCallback(
+    (runnerKey: string, presetKey: string, chain: PresetChain) => {
       updateDraft((d) => {
         const runner = d.runners[runnerKey];
         if (!runner) return d;
-        const nextPresets = { ...(runner.presets ?? {}) };
-        if (value) {
-          nextPresets[presetKey] = value;
+        const presets = { ...(runner.presets ?? {}) };
+        if (chain.length === 0) {
+          delete presets[presetKey];
         } else {
-          delete nextPresets[presetKey];
+          presets[presetKey] = chain;
         }
         return {
           ...d,
           runners: {
             ...d.runners,
-            [runnerKey]: {
-              ...runner,
-              presets: nextPresets,
-            },
+            [runnerKey]: { ...runner, presets },
           },
         };
       });
     },
     [updateDraft]
+  );
+
+  const setPresetEntry = useCallback(
+    (runnerKey: string, presetKey: string, index: number, modelID: string) => {
+      setDraft((prev) => {
+        if (!prev) return prev;
+        const runner = prev.runners[runnerKey];
+        if (!runner) return prev;
+        const existing = cloneChain(runner.presets?.[presetKey]);
+        while (existing.length <= index) existing.push("");
+        existing[index] = modelID;
+        return {
+          ...prev,
+          runners: {
+            ...prev.runners,
+            [runnerKey]: {
+              ...runner,
+              presets: { ...(runner.presets ?? {}), [presetKey]: existing },
+            },
+          },
+        };
+      });
+    },
+    []
+  );
+
+  const addPresetEntry = useCallback(
+    (runnerKey: string, presetKey: string) => {
+      setDraft((prev) => {
+        if (!prev) return prev;
+        const runner = prev.runners[runnerKey];
+        if (!runner) return prev;
+        const existing = cloneChain(runner.presets?.[presetKey]);
+        // Insert a new blank entry *before* the runner-default sentinel so it
+        // stays at the tail.
+        if (existing.length > 0 && existing[existing.length - 1] === RUNNER_DEFAULT_SENTINEL) {
+          existing.splice(existing.length - 1, 0, "");
+        } else {
+          existing.push("");
+        }
+        return {
+          ...prev,
+          runners: {
+            ...prev.runners,
+            [runnerKey]: {
+              ...runner,
+              presets: { ...(runner.presets ?? {}), [presetKey]: existing },
+            },
+          },
+        };
+      });
+    },
+    []
+  );
+
+  const removePresetEntry = useCallback(
+    (runnerKey: string, presetKey: string, index: number) => {
+      setDraft((prev) => {
+        if (!prev) return prev;
+        const runner = prev.runners[runnerKey];
+        if (!runner) return prev;
+        const existing = cloneChain(runner.presets?.[presetKey]);
+        existing.splice(index, 1);
+        const presets = { ...(runner.presets ?? {}) };
+        if (existing.length === 0) {
+          delete presets[presetKey];
+        } else {
+          presets[presetKey] = existing;
+        }
+        return {
+          ...prev,
+          runners: {
+            ...prev.runners,
+            [runnerKey]: { ...runner, presets },
+          },
+        };
+      });
+    },
+    []
+  );
+
+  const toggleRunnerDefault = useCallback(
+    (runnerKey: string, presetKey: string, enabled: boolean) => {
+      setDraft((prev) => {
+        if (!prev) return prev;
+        const runner = prev.runners[runnerKey];
+        if (!runner) return prev;
+        const existing = cloneChain(runner.presets?.[presetKey]);
+        const hasSentinel =
+          existing.length > 0 && existing[existing.length - 1] === RUNNER_DEFAULT_SENTINEL;
+        if (enabled && !hasSentinel) {
+          existing.push(RUNNER_DEFAULT_SENTINEL);
+        } else if (!enabled && hasSentinel) {
+          existing.pop();
+        } else {
+          return prev;
+        }
+        return {
+          ...prev,
+          runners: {
+            ...prev.runners,
+            [runnerKey]: {
+              ...runner,
+              presets: { ...(runner.presets ?? {}), [presetKey]: existing },
+            },
+          },
+        };
+      });
+    },
+    []
   );
 
   return {
@@ -235,6 +352,11 @@ export function useModelRegistryEditor({
     addModel,
     removeModel,
     updateModel,
-    updatePreset,
+    // Preset-chain API (replaces legacy updatePreset).
+    setPresetEntry,
+    addPresetEntry,
+    removePresetEntry,
+    toggleRunnerDefault,
+    writeChain,
   };
 }
