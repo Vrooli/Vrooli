@@ -213,62 +213,37 @@ export function SkillEditorPanel({
           className="flex-shrink-0 px-4 py-3 border-b border-border space-y-2"
           data-testid={selectors.editor.header}
         >
-          {/* Row 1: Close, Icon, Name, Draft toggle, Unsaved indicator, Actions */}
+          {/* Row 1: Sidebar/close, icon, title — nothing else so the title gets all remaining space. */}
           <div className="flex items-center gap-2 min-w-0">
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              {/* Close button */}
-              <button
-                type="button"
-                onClick={handleClose}
-                className="h-9 w-9 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-                aria-label={isMobileSidebarToggle ? 'Open sidebar' : 'Close editor and return to world'}
-                title={isMobileSidebarToggle ? 'Open sidebar' : 'Close (Esc)'}
-              >
-                {isMobileSidebarToggle ? <Menu className="h-5 w-5" /> : <X className="h-5 w-5" />}
-              </button>
+            <button
+              type="button"
+              onClick={handleClose}
+              className="h-9 w-9 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+              aria-label={isMobileSidebarToggle ? 'Open sidebar' : 'Close editor and return to world'}
+              title={isMobileSidebarToggle ? 'Open sidebar' : 'Close (Esc)'}
+            >
+              {isMobileSidebarToggle ? <Menu className="h-5 w-5" /> : <X className="h-5 w-5" />}
+            </button>
 
-              {/* Icon selector */}
-              <IconSelector
-                value={formState.icon}
-                onChange={(v) => onFieldChange('icon', v)}
+            <IconSelector
+              value={formState.icon}
+              onChange={(v) => onFieldChange('icon', v)}
+              isLoading={isLoadingContent}
+              className="flex-shrink-0"
+            />
+
+            <div className="flex-1 min-w-0">
+              <InlineEditableText
+                value={formState.name}
+                onChange={(v) => onFieldChange('name', v)}
+                placeholder="Untitled Skill"
+                error={validation.errors.name}
+                as="h2"
                 isLoading={isLoadingContent}
-                className="flex-shrink-0"
+                className="text-foreground"
+                displayTestId={selectors.editor.nameDisplay}
+                inputTestId={selectors.editor.nameInput}
               />
-
-              {/* Editable name */}
-              <div className="flex-1 min-w-0">
-                <InlineEditableText
-                  value={formState.name}
-                  onChange={(v) => onFieldChange('name', v)}
-                  placeholder="Untitled Skill"
-                  error={validation.errors.name}
-                  as="h2"
-                  isLoading={isLoadingContent}
-                  className="text-foreground"
-                  displayTestId={selectors.editor.nameDisplay}
-                  inputTestId={selectors.editor.nameInput}
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 flex-shrink-0">
-              {/* Draft/published status chip */}
-              <DraftStatusChip
-                isDraft={formState.draft}
-                onChange={(v) => onFieldChange('draft', v)}
-                isLoading={isLoadingContent}
-                className="flex-shrink-0"
-              />
-
-              {/* Unsaved indicator */}
-              {isDirty && (
-                <div
-                  className="flex items-center gap-1.5 px-2 h-7 bg-amber-500/20 text-amber-300 rounded-md text-xs font-medium flex-shrink-0"
-                  data-testid={selectors.editor.unsavedIndicator}
-                >
-                  Unsaved
-                </div>
-              )}
             </div>
           </div>
 
@@ -311,6 +286,14 @@ export function SkillEditorPanel({
               placeholder="Add tags..."
               isLoading={isLoadingContent}
               className="flex-1 min-w-0"
+            />
+
+            {/* Draft/published status chip */}
+            <DraftStatusChip
+              isDraft={formState.draft}
+              onChange={(v) => onFieldChange('draft', v)}
+              isLoading={isLoadingContent}
+              className="flex-shrink-0"
             />
 
             {/* Default scope selector - only show for steer skills */}

@@ -110,6 +110,10 @@ type Run struct {
 	// First ~120 characters of the associated task description.
 	// Populated on list/get responses for display purposes.
 	PromptPreview string `protobuf:"bytes,30,opt,name=prompt_preview,json=promptPreview,proto3" json:"prompt_preview,omitempty"`
+	// Model requested when the run was created (may differ from actual).
+	RequestedModel string `protobuf:"bytes,31,opt,name=requested_model,json=requestedModel,proto3" json:"requested_model,omitempty"`
+	// Model actually used for execution (populated at dispatch).
+	ActualModel   string `protobuf:"bytes,32,opt,name=actual_model,json=actualModel,proto3" json:"actual_model,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -354,6 +358,20 @@ func (x *Run) GetPromptPreview() string {
 	return ""
 }
 
+func (x *Run) GetRequestedModel() string {
+	if x != nil {
+		return x.RequestedModel
+	}
+	return ""
+}
+
+func (x *Run) GetActualModel() string {
+	if x != nil {
+		return x.ActualModel
+	}
+	return ""
+}
+
 // RunActions captures which operations are currently allowed for a run.
 //
 // @usage Run.actions
@@ -373,8 +391,13 @@ type RunActions struct {
 	// Human-readable reason why continuation is unavailable.
 	// Empty when can_continue is true.
 	CanContinueReason string `protobuf:"bytes,12,opt,name=can_continue_reason,json=canContinueReason,proto3" json:"can_continue_reason,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Whether the run can be resumed from a prior failure.
+	CanResumeFromFailure bool `protobuf:"varint,13,opt,name=can_resume_from_failure,json=canResumeFromFailure,proto3" json:"can_resume_from_failure,omitempty"`
+	// Human-readable reason why resume-from-failure is unavailable.
+	// Empty when can_resume_from_failure is true.
+	CanResumeFromFailureReason string `protobuf:"bytes,14,opt,name=can_resume_from_failure_reason,json=canResumeFromFailureReason,proto3" json:"can_resume_from_failure_reason,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *RunActions) Reset() {
@@ -487,6 +510,20 @@ func (x *RunActions) GetCanRegenerateRecommendations() bool {
 func (x *RunActions) GetCanContinueReason() string {
 	if x != nil {
 		return x.CanContinueReason
+	}
+	return ""
+}
+
+func (x *RunActions) GetCanResumeFromFailure() bool {
+	if x != nil {
+		return x.CanResumeFromFailure
+	}
+	return false
+}
+
+func (x *RunActions) GetCanResumeFromFailureReason() string {
+	if x != nil {
+		return x.CanResumeFromFailureReason
 	}
 	return ""
 }
@@ -1986,7 +2023,7 @@ var File_agent_manager_v1_domain_run_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\n" +
-	"!agent-manager/v1/domain/run.proto\x12\x10agent_manager.v1\x1a%agent-manager/v1/domain/profile.proto\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa5\f\n" +
+	"!agent-manager/v1/domain/run.proto\x12\x10agent_manager.v1\x1a%agent-manager/v1/domain/profile.proto\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf1\f\n" +
 	"\x03Run\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\atask_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06taskId\x12-\n" +
@@ -2025,7 +2062,9 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\x1b \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x126\n" +
 	"\aactions\x18\x1d \x01(\v2\x1c.agent_manager.v1.RunActionsR\aactions\x12%\n" +
-	"\x0eprompt_preview\x18\x1e \x01(\tR\rpromptPreviewB\x13\n" +
+	"\x0eprompt_preview\x18\x1e \x01(\tR\rpromptPreview\x12'\n" +
+	"\x0frequested_model\x18\x1f \x01(\tR\x0erequestedModel\x12!\n" +
+	"\factual_model\x18  \x01(\tR\vactualModelB\x13\n" +
 	"\x11_agent_profile_idB\r\n" +
 	"\v_sandbox_idB\r\n" +
 	"\v_started_atB\v\n" +
@@ -2037,7 +2076,7 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\n" +
 	"_exit_codeB\x0e\n" +
 	"\f_approved_atB\x12\n" +
-	"\x10_resolved_config\"\xfc\x03\n" +
+	"\x10_resolved_config\"\xf7\x04\n" +
 	"\n" +
 	"RunActions\x12'\n" +
 	"\x0fcan_investigate\x18\x01 \x01(\bR\x0ecanInvestigate\x126\n" +
@@ -2056,7 +2095,9 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\x1bcan_extract_recommendations\x18\n" +
 	" \x01(\bR\x19canExtractRecommendations\x12D\n" +
 	"\x1ecan_regenerate_recommendations\x18\v \x01(\bR\x1ccanRegenerateRecommendations\x12.\n" +
-	"\x13can_continue_reason\x18\f \x01(\tR\x11canContinueReason\"\xab\x02\n" +
+	"\x13can_continue_reason\x18\f \x01(\tR\x11canContinueReason\x125\n" +
+	"\x17can_resume_from_failure\x18\r \x01(\bR\x14canResumeFromFailure\x12B\n" +
+	"\x1ecan_resume_from_failure_reason\x18\x0e \x01(\tR\x1acanResumeFromFailureReason\"\xab\x02\n" +
 	"\n" +
 	"RunSummary\x12 \n" +
 	"\vdescription\x18\x01 \x01(\tR\vdescription\x12%\n" +

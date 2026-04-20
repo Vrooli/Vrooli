@@ -214,7 +214,7 @@ export function EditorActionButtons({
           onClick={onSave}
           disabled={!canSaveBtn}
           className={cn(
-            'h-8 w-8 flex items-center justify-center rounded-md transition-colors',
+            'relative h-8 w-8 flex items-center justify-center rounded-md transition-colors',
             canSaveBtn
               ? 'bg-primary text-primary-foreground hover:bg-primary/90'
               : variant === 'dark'
@@ -222,10 +222,17 @@ export function EditorActionButtons({
                 : 'bg-muted text-muted-foreground cursor-not-allowed'
           )}
           title={isDirty ? 'Save changes (Ctrl+S)' : 'No changes to save'}
-          aria-label="Save"
+          aria-label={isDirty ? 'Save (unsaved changes)' : 'Save'}
           data-testid={selectors.editor.saveButton}
         >
           <Save className="h-4 w-4" />
+          {isDirty && (
+            <span
+              aria-hidden="true"
+              data-testid={selectors.editor.unsavedIndicator}
+              className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-amber-400 ring-2 ring-background"
+            />
+          )}
         </button>
       )}
       {canShowDiff && (

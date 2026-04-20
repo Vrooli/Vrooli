@@ -146,6 +146,12 @@ message Run {
   // First ~120 characters of the associated task description.
   // Populated on list/get responses for display purposes.
   string prompt_preview = 30;
+
+  // Model requested when the run was created (may differ from actual).
+  string requested_model = 31;
+
+  // Model actually used for execution (populated at dispatch).
+  string actual_model = 32;
 }
 
 // RunActions captures which operations are currently allowed for a run.
@@ -167,6 +173,13 @@ message RunActions {
   // Human-readable reason why continuation is unavailable.
   // Empty when can_continue is true.
   string can_continue_reason = 12;
+
+  // Whether the run can be resumed from a prior failure.
+  bool can_resume_from_failure = 13;
+
+  // Human-readable reason why resume-from-failure is unavailable.
+  // Empty when can_resume_from_failure is true.
+  string can_resume_from_failure_reason = 14;
 }
 
 // =============================================================================

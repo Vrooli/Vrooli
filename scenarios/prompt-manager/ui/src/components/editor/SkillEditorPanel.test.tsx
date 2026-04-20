@@ -204,7 +204,7 @@ describe('SkillEditorPanel', () => {
   })
 
   describe('dirty state indicator', () => {
-    it('should show unsaved changes indicator when dirty', () => {
+    it('shows an unsaved dot on the save button when dirty', () => {
       const skill = createTestSkill()
 
       render(
@@ -215,10 +215,11 @@ describe('SkillEditorPanel', () => {
         />
       )
 
-      expect(screen.getByText('Unsaved')).toBeInTheDocument()
+      expect(screen.getByTestId('skill-editor-unsaved-indicator')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Save \(unsaved changes\)/ })).toBeInTheDocument()
     })
 
-    it('should not show unsaved changes indicator when not dirty', () => {
+    it('does not render the unsaved dot when not dirty', () => {
       const skill = createTestSkill()
 
       render(
@@ -229,7 +230,7 @@ describe('SkillEditorPanel', () => {
         />
       )
 
-      expect(screen.queryByText('Unsaved')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('skill-editor-unsaved-indicator')).not.toBeInTheDocument()
     })
   })
 
