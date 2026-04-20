@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file google/type/interval.proto.
  */
 export const file_google_type_interval: GenFile = /*@__PURE__*/
-  fileDesc("Chpnb29nbGUvdHlwZS9pbnRlcnZhbC5wcm90bxILZ29vZ2xlLnR5cGUiaAoISW50ZXJ2YWwSLgoKc3RhcnRfdGltZRgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLAoIZW5kX3RpbWUYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQmkKD2NvbS5nb29nbGUudHlwZUINSW50ZXJ2YWxQcm90b1ABWjxnb29nbGUuZ29sYW5nLm9yZy9nZW5wcm90by9nb29nbGVhcGlzL3R5cGUvaW50ZXJ2YWw7aW50ZXJ2YWz4AQGiAgNHVFBiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("Chpnb29nbGUvdHlwZS9pbnRlcnZhbC5wcm90bxILZ29vZ2xlLnR5cGUiaAoISW50ZXJ2YWwSLgoKc3RhcnRfdGltZRgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLAoIZW5kX3RpbWUYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQmYKD2NvbS5nb29nbGUudHlwZUINSW50ZXJ2YWxQcm90b1ABWjxnb29nbGUuZ29sYW5nLm9yZy9nZW5wcm90by9nb29nbGVhcGlzL3R5cGUvaW50ZXJ2YWw7aW50ZXJ2YWyiAgNHVFBiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * Represents a time interval, encoded as a Timestamp start (inclusive) and a

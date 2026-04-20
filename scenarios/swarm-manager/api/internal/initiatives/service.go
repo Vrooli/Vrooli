@@ -91,6 +91,14 @@ func (s *Service) Create(req CreateRequest) (*Initiative, error) {
 		return nil, fmt.Errorf("invalid status %q: must be active, completed, or archived", req.Status)
 	}
 
+	if !ValidatePriority(req.Priority) {
+		return nil, fmt.Errorf("invalid priority %d: must be 0 (unset) or 1-10", req.Priority)
+	}
+	dependsOn := normalizeDependsOn(req.DependsOn)
+	if err := s.validateDependsOn(name, dependsOn); err != nil {
+		return nil, err
+	}
+
 	items := req.Items
 	if items == nil {
 		items = []string{}
@@ -101,6 +109,8 @@ func (s *Service) Create(req CreateRequest) (*Initiative, error) {
 		Title:       title,
 		Description: strings.TrimSpace(req.Description),
 		Status:      status,
+		Priority:    req.Priority,
+		DependsOn:   dependsOn,
 		Items:       items,
 		Created:     now,
 		Updated:     now,
@@ -184,6 +194,19 @@ func (s *Service) Update(name string, req UpdateRequest) (*Initiative, error) {
 		}
 		init.Status = status
 	}
+	if req.Priority != nil {
+		if !ValidatePriority(*req.Priority) {
+			return nil, fmt.Errorf("invalid priority %d: must be 0 (unset) or 1-10", *req.Priority)
+		}
+		init.Priority = *req.Priority
+	}
+	if req.DependsOn != nil {
+		deps := normalizeDependsOn(*req.DependsOn)
+		if err := s.validateDependsOn(init.Name, deps); err != nil {
+			return nil, err
+		}
+		init.DependsOn = deps
+	}
 	if req.Items != nil {
 		init.Items = *req.Items
 	}
@@ -228,10 +251,17 @@ func (s *Service) Replace(init Initiative) error {
 	if !ValidateStatus(strings.TrimSpace(init.Status)) {
 		return fmt.Errorf("invalid status %q: must be active, completed, or archived", init.Status)
 	}
+	if !ValidatePriority(init.Priority) {
+		return fmt.Errorf("invalid priority %d: must be 0 (unset) or 1-10", init.Priority)
+	}
 	init.Name = strings.TrimSpace(init.Name)
 	init.Title = strings.TrimSpace(init.Title)
 	init.Description = strings.TrimSpace(init.Description)
 	init.Status = strings.TrimSpace(init.Status)
+	init.DependsOn = normalizeDependsOn(init.DependsOn)
+	if err := s.validateDependsOn(init.Name, init.DependsOn); err != nil {
+		return err
+	}
 	init.Updated = time.Now().UTC().Format(time.RFC3339)
 	if err := s.store.Save(&init); err != nil {
 		return err

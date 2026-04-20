@@ -11,5 +11,9 @@
     "research/ecosystem-auto-remediation-loop"
   ],
   "created": "2026-03-26T20:54:35Z",
-  "updated": "2026-03-26T20:54:35Z"
+  "updated": "2026-03-26T20:54:35Z",
+  "priority": 5,
+  "depends_on": [
+    "git-control-tower-ai-provenance"
+  ]
 }

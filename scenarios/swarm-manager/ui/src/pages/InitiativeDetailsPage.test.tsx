@@ -67,6 +67,8 @@ describe("InitiativeDetailsPage", () => {
       title: "Test Initiative",
       description: "A test initiative for unit testing",
       status: "active",
+      priority: 0,
+      dependsOn: [],
       items: ["execute/item-1", "research/item-2"],
       created: "2026-03-27T00:00:00Z",
       updated: "2026-03-28T00:00:00Z",

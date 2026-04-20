@@ -24,14 +24,14 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x16google/type/date.proto\x12\x0bgoogle.type\"B\n\x04\x44\x61te\x12\x12\n\x04year\x18\x01 \x01(\x05R\x04year\x12\x14\n\x05month\x18\x02 \x01(\x05R\x05month\x12\x10\n\x03\x64\x61y\x18\x03 \x01(\x05R\x03\x64\x61yB]\n\x0f\x63om.google.typeB\tDateProtoP\x01Z4google.golang.org/genproto/googleapis/type/date;date\xf8\x01\x01\xa2\x02\x03GTPb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x16google/type/date.proto\x12\x0bgoogle.type\"B\n\x04\x44\x61te\x12\x12\n\x04year\x18\x01 \x01(\x05R\x04year\x12\x14\n\x05month\x18\x02 \x01(\x05R\x05month\x12\x10\n\x03\x64\x61y\x18\x03 \x01(\x05R\x03\x64\x61yBZ\n\x0f\x63om.google.typeB\tDateProtoP\x01Z4google.golang.org/genproto/googleapis/type/date;date\xa2\x02\x03GTPb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'google.type.date_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
-  _globals['DESCRIPTOR']._serialized_options = b'\n\017com.google.typeB\tDateProtoP\001Z4google.golang.org/genproto/googleapis/type/date;date\370\001\001\242\002\003GTP'
+  _globals['DESCRIPTOR']._serialized_options = b'\n\017com.google.typeB\tDateProtoP\001Z4google.golang.org/genproto/googleapis/type/date;date\242\002\003GTP'
   _globals['_DATE']._serialized_start=39
   _globals['_DATE']._serialized_end=105
 # @@protoc_insertion_point(module_scope)

@@ -132,7 +132,7 @@ class Decl(_message.Message):
         doc: str
         def __init__(self, type: _Optional[_Union[Type, _Mapping]] = ..., value: _Optional[_Union[_syntax_pb2.Constant, _Mapping]] = ..., doc: _Optional[str] = ...) -> None: ...
     class FunctionDecl(_message.Message):
-        __slots__ = ("overloads",)
+        __slots__ = ("overloads", "doc")
         class Overload(_message.Message):
             __slots__ = ("overload_id", "params", "type_params", "result_type", "is_instance_function", "doc")
             OVERLOAD_ID_FIELD_NUMBER: _ClassVar[int]
@@ -149,8 +149,10 @@ class Decl(_message.Message):
             doc: str
             def __init__(self, overload_id: _Optional[str] = ..., params: _Optional[_Iterable[_Union[Type, _Mapping]]] = ..., type_params: _Optional[_Iterable[str]] = ..., result_type: _Optional[_Union[Type, _Mapping]] = ..., is_instance_function: _Optional[bool] = ..., doc: _Optional[str] = ...) -> None: ...
         OVERLOADS_FIELD_NUMBER: _ClassVar[int]
+        DOC_FIELD_NUMBER: _ClassVar[int]
         overloads: _containers.RepeatedCompositeFieldContainer[Decl.FunctionDecl.Overload]
-        def __init__(self, overloads: _Optional[_Iterable[_Union[Decl.FunctionDecl.Overload, _Mapping]]] = ...) -> None: ...
+        doc: str
+        def __init__(self, overloads: _Optional[_Iterable[_Union[Decl.FunctionDecl.Overload, _Mapping]]] = ..., doc: _Optional[str] = ...) -> None: ...
     NAME_FIELD_NUMBER: _ClassVar[int]
     IDENT_FIELD_NUMBER: _ClassVar[int]
     FUNCTION_FIELD_NUMBER: _ClassVar[int]

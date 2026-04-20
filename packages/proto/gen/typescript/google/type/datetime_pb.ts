@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file google/type/datetime.proto.
  */
 export const file_google_type_datetime: GenFile = /*@__PURE__*/
-  fileDesc("Chpnb29nbGUvdHlwZS9kYXRldGltZS5wcm90bxILZ29vZ2xlLnR5cGUi4AEKCERhdGVUaW1lEgwKBHllYXIYASABKAUSDQoFbW9udGgYAiABKAUSCwoDZGF5GAMgASgFEg0KBWhvdXJzGAQgASgFEg8KB21pbnV0ZXMYBSABKAUSDwoHc2Vjb25kcxgGIAEoBRINCgVuYW5vcxgHIAEoBRIvCgp1dGNfb2Zmc2V0GAggASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uSAASKgoJdGltZV96b25lGAkgASgLMhUuZ29vZ2xlLnR5cGUuVGltZVpvbmVIAEINCgt0aW1lX29mZnNldCInCghUaW1lWm9uZRIKCgJpZBgBIAEoCRIPCgd2ZXJzaW9uGAIgASgJQmkKD2NvbS5nb29nbGUudHlwZUINRGF0ZVRpbWVQcm90b1ABWjxnb29nbGUuZ29sYW5nLm9yZy9nZW5wcm90by9nb29nbGVhcGlzL3R5cGUvZGF0ZXRpbWU7ZGF0ZXRpbWX4AQGiAgNHVFBiBnByb3RvMw", [file_google_protobuf_duration]);
+  fileDesc("Chpnb29nbGUvdHlwZS9kYXRldGltZS5wcm90bxILZ29vZ2xlLnR5cGUi4AEKCERhdGVUaW1lEgwKBHllYXIYASABKAUSDQoFbW9udGgYAiABKAUSCwoDZGF5GAMgASgFEg0KBWhvdXJzGAQgASgFEg8KB21pbnV0ZXMYBSABKAUSDwoHc2Vjb25kcxgGIAEoBRINCgVuYW5vcxgHIAEoBRIvCgp1dGNfb2Zmc2V0GAggASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uSAASKgoJdGltZV96b25lGAkgASgLMhUuZ29vZ2xlLnR5cGUuVGltZVpvbmVIAEINCgt0aW1lX29mZnNldCInCghUaW1lWm9uZRIKCgJpZBgBIAEoCRIPCgd2ZXJzaW9uGAIgASgJQmYKD2NvbS5nb29nbGUudHlwZUINRGF0ZVRpbWVQcm90b1ABWjxnb29nbGUuZ29sYW5nLm9yZy9nZW5wcm90by9nb29nbGVhcGlzL3R5cGUvZGF0ZXRpbWU7ZGF0ZXRpbWWiAgNHVFBiBnByb3RvMw", [file_google_protobuf_duration]);
 
 /**
  * Represents civil time (or occasionally physical time).
@@ -42,8 +42,8 @@ export const file_google_type_datetime: GenFile = /*@__PURE__*/
  *
  * The date is relative to the Proleptic Gregorian Calendar.
  *
- * If year is 0, the DateTime is considered not to have a specific year. month
- * and day must have valid, non-zero values.
+ * If year, month, or day are 0, the DateTime is considered not to have a
+ * specific year, month, or day respectively.
  *
  * This type may also be used to represent a physical time if all the date and
  * time fields are set and either case of the `time_offset` oneof is set.
@@ -66,47 +66,48 @@ export type DateTime = Message<"google.type.DateTime"> & {
   year: number;
 
   /**
-   * Required. Month of year. Must be from 1 to 12.
+   * Optional. Month of year. Must be from 1 to 12, or 0 if specifying a
+   * datetime without a month.
    *
    * @generated from field: int32 month = 2;
    */
   month: number;
 
   /**
-   * Required. Day of month. Must be from 1 to 31 and valid for the year and
-   * month.
+   * Optional. Day of month. Must be from 1 to 31 and valid for the year and
+   * month, or 0 if specifying a datetime without a day.
    *
    * @generated from field: int32 day = 3;
    */
   day: number;
 
   /**
-   * Required. Hours of day in 24 hour format. Should be from 0 to 23. An API
-   * may choose to allow the value "24:00:00" for scenarios like business
-   * closing time.
+   * Optional. Hours of day in 24 hour format. Should be from 0 to 23, defaults
+   * to 0 (midnight). An API may choose to allow the value "24:00:00" for
+   * scenarios like business closing time.
    *
    * @generated from field: int32 hours = 4;
    */
   hours: number;
 
   /**
-   * Required. Minutes of hour of day. Must be from 0 to 59.
+   * Optional. Minutes of hour of day. Must be from 0 to 59, defaults to 0.
    *
    * @generated from field: int32 minutes = 5;
    */
   minutes: number;
 
   /**
-   * Required. Seconds of minutes of the time. Must normally be from 0 to 59. An
-   * API may allow the value 60 if it allows leap-seconds.
+   * Optional. Seconds of minutes of the time. Must normally be from 0 to 59,
+   * defaults to 0. An API may allow the value 60 if it allows leap-seconds.
    *
    * @generated from field: int32 seconds = 6;
    */
   seconds: number;
 
   /**
-   * Required. Fractions of seconds in nanoseconds. Must be from 0 to
-   * 999,999,999.
+   * Optional. Fractions of seconds in nanoseconds. Must be from 0 to
+   * 999,999,999, defaults to 0.
    *
    * @generated from field: int32 nanos = 7;
    */
@@ -157,14 +158,14 @@ export const DateTimeSchema: GenMessage<DateTime> = /*@__PURE__*/
  */
 export type TimeZone = Message<"google.type.TimeZone"> & {
   /**
-   * IANA Time Zone Database time zone, e.g. "America/New_York".
+   * IANA Time Zone Database time zone. For example "America/New_York".
    *
    * @generated from field: string id = 1;
    */
   id: string;
 
   /**
-   * Optional. IANA Time Zone Database version number, e.g. "2019a".
+   * Optional. IANA Time Zone Database version number. For example "2019a".
    *
    * @generated from field: string version = 2;
    */

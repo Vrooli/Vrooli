@@ -8,5 +8,9 @@
     "execute/run-level-undo-and-revert"
   ],
   "created": "2026-04-09T17:33:13Z",
-  "updated": "2026-04-09T17:33:13Z"
+  "updated": "2026-04-09T17:33:13Z",
+  "priority": 5,
+  "depends_on": [
+    "agent-sandbox-audit-foundation"
+  ]
 }

@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,9 +24,11 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file google/type/quaternion.proto.
  */
 export const file_google_type_quaternion: GenFile = /*@__PURE__*/
-  fileDesc("Chxnb29nbGUvdHlwZS9xdWF0ZXJuaW9uLnByb3RvEgtnb29nbGUudHlwZSI4CgpRdWF0ZXJuaW9uEgkKAXgYASABKAESCQoBeRgCIAEoARIJCgF6GAMgASgBEgkKAXcYBCABKAFCbwoPY29tLmdvb2dsZS50eXBlQg9RdWF0ZXJuaW9uUHJvdG9QAVpAZ29vZ2xlLmdvbGFuZy5vcmcvZ2VucHJvdG8vZ29vZ2xlYXBpcy90eXBlL3F1YXRlcm5pb247cXVhdGVybmlvbvgBAaICA0dUUGIGcHJvdG8z");
+  fileDesc("Chxnb29nbGUvdHlwZS9xdWF0ZXJuaW9uLnByb3RvEgtnb29nbGUudHlwZSI4CgpRdWF0ZXJuaW9uEgkKAXgYASABKAESCQoBeRgCIAEoARIJCgF6GAMgASgBEgkKAXcYBCABKAFCbAoPY29tLmdvb2dsZS50eXBlQg9RdWF0ZXJuaW9uUHJvdG9QAVpAZ29vZ2xlLmdvbGFuZy5vcmcvZ2VucHJvdG8vZ29vZ2xlYXBpcy90eXBlL3F1YXRlcm5pb247cXVhdGVybmlvbqICA0dUUGIGcHJvdG8z");
 
 /**
+ * A quaternion, represented by four 64-bit floating point values.
+ *
  * A quaternion is defined as the quotient of two directed lines in a
  * three-dimensional space or equivalently as the quotient of two Euclidean
  * vectors (https://en.wikipedia.org/wiki/Quaternion).
@@ -44,7 +46,7 @@ export const file_google_type_quaternion: GenFile = /*@__PURE__*/
  * where x, y, z, and w are real numbers, and i, j, and k are three imaginary
  * numbers.
  *
- * Our naming choice `(x, y, z, w)` comes from the desire to avoid confusion for
+ * The naming choice `(x, y, z, w)` comes from the desire to avoid confusion for
  * those interested in the geometric properties of the quaternion in the 3D
  * Cartesian space. Other texts often use alternative names or subscripts, such
  * as `(a, b, c, d)`, `(1, i, j, k)`, or `(0, 1, 2, 3)`, which are perhaps
@@ -82,7 +84,6 @@ export const file_google_type_quaternion: GenFile = /*@__PURE__*/
  * it would produce a unique representation. It is thus recommended that `w` be
  * kept positive, which can be achieved by changing all the signs when `w` is
  * negative.
- *
  *
  * @generated from message google.type.Quaternion
  */

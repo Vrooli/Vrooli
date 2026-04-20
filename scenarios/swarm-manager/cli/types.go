@@ -411,6 +411,8 @@ type Initiative struct {
 	Title       string   `json:"title"`
 	Description string   `json:"description,omitempty"`
 	Status      string   `json:"status"`
+	Priority    int      `json:"priority,omitempty"`
+	DependsOn   []string `json:"depends_on,omitempty"`
 	Items       []string `json:"items"`
 	Created     string   `json:"created"`
 	Updated     string   `json:"updated"`
@@ -441,6 +443,8 @@ type InitiativeCreateRequest struct {
 	Title       string   `json:"title"`
 	Description string   `json:"description,omitempty"`
 	Status      string   `json:"status,omitempty"`
+	Priority    int      `json:"priority,omitempty"`
+	DependsOn   []string `json:"depends_on,omitempty"`
 	Items       []string `json:"items,omitempty"`
 }
 
@@ -448,11 +452,14 @@ type InitiativeUpdateRequest struct {
 	Title       *string   `json:"title,omitempty"`
 	Description *string   `json:"description,omitempty"`
 	Status      *string   `json:"status,omitempty"`
+	Priority    *int      `json:"priority,omitempty"`
+	DependsOn   *[]string `json:"depends_on,omitempty"`
 	Items       *[]string `json:"items,omitempty"`
 }
 
 func (r InitiativeUpdateRequest) HasChanges() bool {
-	return r.Title != nil || r.Description != nil || r.Status != nil || r.Items != nil
+	return r.Title != nil || r.Description != nil || r.Status != nil ||
+		r.Priority != nil || r.DependsOn != nil || r.Items != nil
 }
 
 // Capture represents a quick-capture entry.

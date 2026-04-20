@@ -12,5 +12,10 @@
     "execute/command-center-panorama-page"
   ],
   "created": "2026-04-08T03:51:30Z",
-  "updated": "2026-04-08T03:51:30Z"
+  "updated": "2026-04-08T03:51:30Z",
+  "priority": 4,
+  "depends_on": [
+    "command-center-foundation",
+    "command-center-data-layer"
+  ]
 }

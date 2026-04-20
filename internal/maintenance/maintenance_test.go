@@ -472,6 +472,105 @@ func TestListOrphansIgnoresSessionOneMatch(t *testing.T) {
 	}
 }
 
+// TestKillOrphansPrunesStaleRecords verifies that KillOrphans also sweeps
+// scenario process records whose PID no longer resolves to a live process.
+// Stale records accumulate whenever a scenario exits outside the normal stop
+// path (crash, external kill, host reboot) and should be cleaned up alongside
+// the orphan sweep.
+func TestKillOrphansPrunesStaleRecords(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+
+	if err := os.MkdirAll(process.ScenarioProcessDir(home, "alpha"), 0o755); err != nil {
+		t.Fatalf("mkdir process dir: %v", err)
+	}
+	// Record points at a PID that's definitely not running.
+	if err := process.WriteScenarioRecord(home, "alpha", "start-api", process.Record{PID: 123456789}); err != nil {
+		t.Fatalf("write scenario record: %v", err)
+	}
+
+	originalListProcessTable := listProcessTableFn
+	t.Cleanup(func() { listProcessTableFn = originalListProcessTable })
+	listProcessTableFn = func() (map[int]processTableEntry, error) {
+		return map[int]processTableEntry{}, nil
+	}
+
+	controller := NewController(root, home)
+	if _, err := controller.KillOrphans(); err != nil {
+		t.Fatalf("KillOrphans: %v", err)
+	}
+
+	recordPath := filepath.Join(process.ScenarioProcessDir(home, "alpha"), "start-api.json")
+	if _, err := os.Stat(recordPath); !os.IsNotExist(err) {
+		t.Fatalf("stale record should have been pruned; stat err=%v", err)
+	}
+}
+
+// TestCleanStaleRecordsIsBestEffort exercises the dedicated entrypoint that
+// surfaces record pruning as its own StopReport.
+func TestCleanStaleRecordsIsBestEffort(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+
+	if err := os.MkdirAll(process.ScenarioProcessDir(home, "alpha"), 0o755); err != nil {
+		t.Fatalf("mkdir process dir: %v", err)
+	}
+	if err := process.WriteScenarioRecord(home, "alpha", "start-api", process.Record{PID: 123456789}); err != nil {
+		t.Fatalf("write scenario record: %v", err)
+	}
+
+	controller := NewController(root, home)
+	report, err := controller.CleanStaleRecords()
+	if err != nil {
+		t.Fatalf("CleanStaleRecords: %v", err)
+	}
+	if len(report.Stopped) != 1 {
+		t.Fatalf("expected 1 pruned record, got %d: %#v", len(report.Stopped), report.Stopped)
+	}
+
+	// A second pass should prune nothing.
+	report, err = controller.CleanStaleRecords()
+	if err != nil {
+		t.Fatalf("CleanStaleRecords (second pass): %v", err)
+	}
+	if len(report.Stopped) != 0 {
+		t.Fatalf("second pass should be a no-op, got %#v", report.Stopped)
+	}
+}
+
+// TestListOrphansExcludesVrooliCLIInvocation guards against classifying a
+// transient user-initiated `vrooli` CLI command (and its build subtree) as
+// orphans. Without this, `vrooli cleanup orphans` would SIGTERM a concurrent
+// `vrooli scenario restart <name>` invocation in progress.
+func TestListOrphansExcludesVrooliCLIInvocation(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+
+	if err := os.MkdirAll(process.ScenarioProcessDir(home, "alpha"), 0o755); err != nil {
+		t.Fatalf("mkdir process dir: %v", err)
+	}
+
+	originalListProcessTable := listProcessTableFn
+	t.Cleanup(func() { listProcessTableFn = originalListProcessTable })
+	listProcessTableFn = func() (map[int]processTableEntry, error) {
+		return map[int]processTableEntry{
+			// Sibling vrooli CLI invocation from a user shell (not tracked).
+			6000: {PID: 6000, PPID: 5999, PGID: 6000, SID: 6000, Executable: filepath.Join(home, ".vrooli", "bin", "vrooli"), Command: "vrooli scenario restart beta"},
+			// Genuine unrelated orphan must still be surfaced.
+			5200: {PID: 5200, PPID: 1, PGID: 5200, SID: 5200, Executable: filepath.Join(root, "scenarios", "beta", "api", "server")},
+		}, nil
+	}
+
+	controller := NewController(root, home)
+	orphans, err := controller.ListOrphans()
+	if err != nil {
+		t.Fatalf("ListOrphans: %v", err)
+	}
+	if len(orphans) != 1 || orphans[0].PID != 5200 {
+		t.Fatalf("vrooli CLI invocation must not be listed as orphan; got %#v", orphans)
+	}
+}
+
 // TestParseProcessTableLineParsesSIDColumn covers the new ps -o sid= parse.
 func TestParseProcessTableLineParsesSIDColumn(t *testing.T) {
 	entry, ok := parseProcessTableLine("  4100  1  4100  4100  S  /usr/bin/node server.js")

@@ -122,11 +122,74 @@ func (c *Controller) KillOrphans() (control.StopReport, error) {
 		stopped = append(stopped, control.Stopped(strconv.Itoa(item.PID), item.Command))
 	}
 
+	// Opportunistically prune scenario process records pointing at dead PIDs.
+	// These accumulate whenever a scenario process exits outside the normal
+	// stop path (crash, external kill, host reboot). Failures here are
+	// swallowed so record hygiene never blocks the orphan sweep.
+	if staleStopped, _ := c.cleanStaleScenarioRecords(); len(staleStopped) > 0 {
+		stopped = append(stopped, staleStopped...)
+	}
+
 	return control.StopReport{
 		Stopped: stopped,
 		Failed:  failed,
 		Message: control.StopSummary(len(stopped), len(failed)),
 	}, nil
+}
+
+// CleanStaleRecords removes scenario process records whose PID no longer
+// resolves to a live process. Returns a StopReport describing each record
+// that was pruned; intended for use by maintenance commands that want to
+// surface hygiene cleanup alongside their primary action.
+func (c *Controller) CleanStaleRecords() (control.StopReport, error) {
+	stopped, err := c.cleanStaleScenarioRecords()
+	if err != nil {
+		return control.StopReport{}, err
+	}
+	return control.StopReport{
+		Stopped: stopped,
+		Message: control.StopSummary(len(stopped), 0),
+	}, nil
+}
+
+// cleanStaleScenarioRecords walks $HOME/.vrooli/processes/scenarios/<name>/
+// and removes every record whose PID is not running. It returns the set of
+// pruned records as StopReport result items. The sweep is best-effort: an
+// unreadable scenario directory is skipped, not reported as an error.
+func (c *Controller) cleanStaleScenarioRecords() ([]control.ResultItem, error) {
+	root := filepath.Join(c.Home, ".vrooli", "processes", "scenarios")
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	pruned := make([]control.ResultItem, 0)
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		scenario := entry.Name()
+		records, err := process.ReadScenarioRecords(c.Home, scenario)
+		if err != nil {
+			continue
+		}
+		for _, record := range records {
+			if record.PID > 0 && process.IsPIDRunning(record.PID) {
+				continue
+			}
+			step := record.Step
+			if step == "" {
+				continue
+			}
+			if err := process.RemoveScenarioRecord(c.Home, scenario, step); err != nil {
+				continue
+			}
+			pruned = append(pruned, control.Stopped(scenario+"/"+step, "Removed stale process record (pid "+strconv.Itoa(record.PID)+")"))
+		}
+	}
+	return pruned, nil
 }
 
 // stillVrooliOrphan performs a fresh /proc read for the given PID and returns
@@ -246,6 +309,21 @@ var interpreterExeBasenames = map[string]struct{}{
 var protectedVrooliExecutableBasenames = map[string]struct{}{
 	"vrooli-autoheal-loop":     {},
 	"vrooli-autoheal-loop.exe": {},
+}
+
+// vrooliCLIExecutableBasenames are the `vrooli` CLI entrypoint basenames.
+// These are transient user-initiated commands (e.g. `vrooli scenario restart`)
+// that don't register a process record, so orphan detection must not
+// classify them — otherwise `vrooli cleanup orphans` could SIGTERM a
+// concurrent sibling invocation.
+var vrooliCLIExecutableBasenames = map[string]struct{}{
+	"vrooli":     {},
+	"vrooli.exe": {},
+}
+
+func isVrooliCLIExecutable(exe string) bool {
+	_, ok := vrooliCLIExecutableBasenames[processPathBase(exe)]
+	return ok
 }
 
 func looksLikeVrooliProcess(root, home string, entry processTableEntry) bool {

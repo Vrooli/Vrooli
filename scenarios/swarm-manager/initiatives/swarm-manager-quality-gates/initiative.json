@@ -9,5 +9,10 @@
     "research/initiative-level-oversight-design"
   ],
   "created": "2026-04-06T01:02:51Z",
-  "updated": "2026-04-06T01:02:51Z"
+  "updated": "2026-04-06T01:02:51Z",
+  "priority": 4,
+  "depends_on": [
+    "swarm-manager-graph-workspace",
+    "swarm-manager-feature-parity"
+  ]
 }

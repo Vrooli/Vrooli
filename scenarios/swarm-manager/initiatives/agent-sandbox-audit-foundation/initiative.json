@@ -11,5 +11,10 @@
     "execute/agent-manager-default-sandboxing-rollout"
   ],
   "created": "2026-04-09T17:33:13Z",
-  "updated": "2026-04-09T17:33:13Z"
+  "updated": "2026-04-09T17:33:13Z",
+  "priority": 3,
+  "depends_on": [
+    "protected-agent-sandboxing",
+    "git-control-tower-ai-provenance"
+  ]
 }

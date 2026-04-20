@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
  * Describes the file google/type/decimal.proto.
  */
 export const file_google_type_decimal = /*@__PURE__*/
-  fileDesc("Chlnb29nbGUvdHlwZS9kZWNpbWFsLnByb3RvEgtnb29nbGUudHlwZSIYCgdEZWNpbWFsEg0KBXZhbHVlGAEgASgJQmYKD2NvbS5nb29nbGUudHlwZUIMRGVjaW1hbFByb3RvUAFaOmdvb2dsZS5nb2xhbmcub3JnL2dlbnByb3RvL2dvb2dsZWFwaXMvdHlwZS9kZWNpbWFsO2RlY2ltYWz4AQGiAgNHVFBiBnByb3RvMw");
+  fileDesc("Chlnb29nbGUvdHlwZS9kZWNpbWFsLnByb3RvEgtnb29nbGUudHlwZSIYCgdEZWNpbWFsEg0KBXZhbHVlGAEgASgJQmMKD2NvbS5nb29nbGUudHlwZUIMRGVjaW1hbFByb3RvUAFaOmdvb2dsZS5nb2xhbmcub3JnL2dlbnByb3RvL2dvb2dsZWFwaXMvdHlwZS9kZWNpbWFsO2RlY2ltYWyiAgNHVFBiBnByb3RvMw");
 
 /**
  * Describes the message google.type.Decimal.

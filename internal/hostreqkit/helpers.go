@@ -28,6 +28,26 @@ var (
 			Stdin:  os.Stdin,
 		})
 	}
+
+	// WriteTempFileFn writes content to a temporary file and returns
+	// the path. The caller is responsible for removing the file.
+	WriteTempFileFn = func(content string) (string, error) {
+		file, err := os.CreateTemp("", "vrooli-managed-*")
+		if err != nil {
+			return "", err
+		}
+		path := file.Name()
+		if _, err := file.WriteString(content); err != nil {
+			file.Close()
+			os.Remove(path)
+			return "", err
+		}
+		if err := file.Close(); err != nil {
+			os.Remove(path)
+			return "", err
+		}
+		return path, nil
+	}
 )
 
 func BaseStatus(requirement hostreqspec.ResolvedRequirement) ItemStatus {
@@ -134,18 +154,34 @@ func InstallManagedContent(path, content, sudoMode string, opts EnsureOptions) e
 	if opts.DryRun {
 		return nil
 	}
-	file, err := os.CreateTemp("", "vrooli-managed-*")
+	tempPath, err := WriteTempFileFn(content)
 	if err != nil {
-		return fmt.Errorf("create temp file for %s: %w", path, err)
+		return fmt.Errorf("prepare managed content for %s: %w", path, err)
 	}
-	tempPath := file.Name()
 	defer os.Remove(tempPath)
-	if _, err := file.WriteString(content); err != nil {
-		file.Close()
-		return fmt.Errorf("write temp file for %s: %w", path, err)
-	}
-	if err := file.Close(); err != nil {
-		return fmt.Errorf("close temp file for %s: %w", path, err)
-	}
 	return RunPrivilegedCommand(sudoMode, "install", []string{"-m", "0644", tempPath, path}, opts)
+}
+
+// RunHealthCheck runs the health check defined in a manifest and returns
+// whether it passed plus a human-readable detail string on failure.
+func RunHealthCheck(hc *HealthCheck) (bool, string) {
+	if hc == nil {
+		return true, ""
+	}
+	for _, path := range hc.Files {
+		if _, err := ReadFileFn(path); err != nil {
+			return false, fmt.Sprintf("health check: required file missing: %s", path)
+		}
+	}
+	if hc.Command != "" {
+		output, err := CombinedOutputFn(hc.Command, hc.Args...)
+		if err != nil {
+			detail := FirstLine(strings.TrimSpace(string(output)))
+			if detail == "" {
+				detail = err.Error()
+			}
+			return false, fmt.Sprintf("health check failed: %s: %s", hc.Command, detail)
+		}
+	}
+	return true, ""
 }

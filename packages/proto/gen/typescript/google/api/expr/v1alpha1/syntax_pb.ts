@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file google/api/expr/v1alpha1/syntax.proto.
  */
 export const file_google_api_expr_v1alpha1_syntax: GenFile = /*@__PURE__*/
-  fileDesc("CiVnb29nbGUvYXBpL2V4cHIvdjFhbHBoYTEvc3ludGF4LnByb3RvEhhnb29nbGUuYXBpLmV4cHIudjFhbHBoYTEidQoKUGFyc2VkRXhwchIsCgRleHByGAIgASgLMh4uZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExLkV4cHISOQoLc291cmNlX2luZm8YAyABKAsyJC5nb29nbGUuYXBpLmV4cHIudjFhbHBoYTEuU291cmNlSW5mbyKKCwoERXhwchIKCgJpZBgCIAEoAxI4Cgpjb25zdF9leHByGAMgASgLMiIuZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExLkNvbnN0YW50SAASOgoKaWRlbnRfZXhwchgEIAEoCzIkLmdvb2dsZS5hcGkuZXhwci52MWFscGhhMS5FeHByLklkZW50SAASPAoLc2VsZWN0X2V4cHIYBSABKAsyJS5nb29nbGUuYXBpLmV4cHIudjFhbHBoYTEuRXhwci5TZWxlY3RIABI4CgljYWxsX2V4cHIYBiABKAsyIy5nb29nbGUuYXBpLmV4cHIudjFhbHBoYTEuRXhwci5DYWxsSAASPgoJbGlzdF9leHByGAcgASgLMikuZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExLkV4cHIuQ3JlYXRlTGlzdEgAEkIKC3N0cnVjdF9leHByGAggASgLMisuZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExLkV4cHIuQ3JlYXRlU3RydWN0SAASSgoSY29tcHJlaGVuc2lvbl9leHByGAkgASgLMiwuZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExLkV4cHIuQ29tcHJlaGVuc2lvbkgAGhUKBUlkZW50EgwKBG5hbWUYASABKAkaWwoGU2VsZWN0Ei8KB29wZXJhbmQYASABKAsyHi5nb29nbGUuYXBpLmV4cHIudjFhbHBoYTEuRXhwchINCgVmaWVsZBgCIAEoCRIRCgl0ZXN0X29ubHkYAyABKAgadgoEQ2FsbBIuCgZ0YXJnZXQYASABKAsyHi5nb29nbGUuYXBpLmV4cHIudjFhbHBoYTEuRXhwchIQCghmdW5jdGlvbhgCIAEoCRIsCgRhcmdzGAMgAygLMh4uZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExLkV4cHIaWAoKQ3JlYXRlTGlzdBIwCghlbGVtZW50cxgBIAMoCzIeLmdvb2dsZS5hcGkuZXhwci52MWFscGhhMS5FeHByEhgKEG9wdGlvbmFsX2luZGljZXMYAiADKAUamQIKDENyZWF0ZVN0cnVjdBIUCgxtZXNzYWdlX25hbWUYASABKAkSQgoHZW50cmllcxgCIAMoCzIxLmdvb2dsZS5hcGkuZXhwci52MWFscGhhMS5FeHByLkNyZWF0ZVN0cnVjdC5FbnRyeRquAQoFRW50cnkSCgoCaWQYASABKAMSEwoJZmllbGRfa2V5GAIgASgJSAASMQoHbWFwX2tleRgDIAEoCzIeLmdvb2dsZS5hcGkuZXhwci52MWFscGhhMS5FeHBySAASLQoFdmFsdWUYBCABKAsyHi5nb29nbGUuYXBpLmV4cHIudjFhbHBoYTEuRXhwchIWCg5vcHRpb25hbF9lbnRyeRgFIAEoCEIKCghrZXlfa2luZBrIAgoNQ29tcHJlaGVuc2lvbhIQCghpdGVyX3ZhchgBIAEoCRIRCglpdGVyX3ZhcjIYCCABKAkSMgoKaXRlcl9yYW5nZRgCIAEoCzIeLmdvb2dsZS5hcGkuZXhwci52MWFscGhhMS5FeHByEhAKCGFjY3VfdmFyGAMgASgJEjEKCWFjY3VfaW5pdBgEIAEoCzIeLmdvb2dsZS5hcGkuZXhwci52MWFscGhhMS5FeHByEjYKDmxvb3BfY29uZGl0aW9uGAUgASgLMh4uZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExLkV4cHISMQoJbG9vcF9zdGVwGAYgASgLMh4uZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExLkV4cHISLgoGcmVzdWx0GAcgASgLMh4uZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExLkV4cHJCCwoJZXhwcl9raW5kIs0CCghDb25zdGFudBIwCgpudWxsX3ZhbHVlGAEgASgOMhouZ29vZ2xlLnByb3RvYnVmLk51bGxWYWx1ZUgAEhQKCmJvb2xfdmFsdWUYAiABKAhIABIVCgtpbnQ2NF92YWx1ZRgDIAEoA0gAEhYKDHVpbnQ2NF92YWx1ZRgEIAEoBEgAEhYKDGRvdWJsZV92YWx1ZRgFIAEoAUgAEhYKDHN0cmluZ192YWx1ZRgGIAEoCUgAEhUKC2J5dGVzX3ZhbHVlGAcgASgMSAASNwoOZHVyYXRpb25fdmFsdWUYCCABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb25CAhgBSAASOQoPdGltZXN0YW1wX3ZhbHVlGAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEICGAFIAEIPCg1jb25zdGFudF9raW5kIvwFCgpTb3VyY2VJbmZvEhYKDnN5bnRheF92ZXJzaW9uGAEgASgJEhAKCGxvY2F0aW9uGAIgASgJEhQKDGxpbmVfb2Zmc2V0cxgDIAMoBRJGCglwb3NpdGlvbnMYBCADKAsyMy5nb29nbGUuYXBpLmV4cHIudjFhbHBoYTEuU291cmNlSW5mby5Qb3NpdGlvbnNFbnRyeRJJCgttYWNyb19jYWxscxgFIAMoCzI0Lmdvb2dsZS5hcGkuZXhwci52MWFscGhhMS5Tb3VyY2VJbmZvLk1hY3JvQ2FsbHNFbnRyeRJCCgpleHRlbnNpb25zGAYgAygLMi4uZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExLlNvdXJjZUluZm8uRXh0ZW5zaW9uGtECCglFeHRlbnNpb24SCgoCaWQYASABKAkSVQoTYWZmZWN0ZWRfY29tcG9uZW50cxgCIAMoDjI4Lmdvb2dsZS5hcGkuZXhwci52MWFscGhhMS5Tb3VyY2VJbmZvLkV4dGVuc2lvbi5Db21wb25lbnQSRwoHdmVyc2lvbhgDIAEoCzI2Lmdvb2dsZS5hcGkuZXhwci52MWFscGhhMS5Tb3VyY2VJbmZvLkV4dGVuc2lvbi5WZXJzaW9uGicKB1ZlcnNpb24SDQoFbWFqb3IYASABKAMSDQoFbWlub3IYAiABKAMibwoJQ29tcG9uZW50EhkKFUNPTVBPTkVOVF9VTlNQRUNJRklFRBAAEhQKEENPTVBPTkVOVF9QQVJTRVIQARIaChZDT01QT05FTlRfVFlQRV9DSEVDS0VSEAISFQoRQ09NUE9ORU5UX1JVTlRJTUUQAxowCg5Qb3NpdGlvbnNFbnRyeRILCgNrZXkYASABKAMSDQoFdmFsdWUYAiABKAU6AjgBGlEKD01hY3JvQ2FsbHNFbnRyeRILCgNrZXkYASABKAMSLQoFdmFsdWUYAiABKAsyHi5nb29nbGUuYXBpLmV4cHIudjFhbHBoYTEuRXhwcjoCOAEiUAoOU291cmNlUG9zaXRpb24SEAoIbG9jYXRpb24YASABKAkSDgoGb2Zmc2V0GAIgASgFEgwKBGxpbmUYAyABKAUSDgoGY29sdW1uGAQgASgFQm4KHGNvbS5nb29nbGUuYXBpLmV4cHIudjFhbHBoYTFCC1N5bnRheFByb3RvUAFaPGdvb2dsZS5nb2xhbmcub3JnL2dlbnByb3RvL2dvb2dsZWFwaXMvYXBpL2V4cHIvdjFhbHBoYTE7ZXhwcvgBAWIGcHJvdG8z", [file_google_protobuf_duration, file_google_protobuf_struct, file_google_protobuf_timestamp]);
+  fileDesc("CiVnb29nbGUvYXBpL2V4cHIvdjFhbHBoYTEvc3ludGF4LnByb3RvEhhnb29nbGUuYXBpLmV4cHIudjFhbHBoYTEidQoKUGFyc2VkRXhwchIsCgRleHByGAIgASgLMh4uZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExLkV4cHISOQoLc291cmNlX2luZm8YAyABKAsyJC5nb29nbGUuYXBpLmV4cHIudjFhbHBoYTEuU291cmNlSW5mbyKKCwoERXhwchIKCgJpZBgCIAEoAxI4Cgpjb25zdF9leHByGAMgASgLMiIuZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExLkNvbnN0YW50SAASOgoKaWRlbnRfZXhwchgEIAEoCzIkLmdvb2dsZS5hcGkuZXhwci52MWFscGhhMS5FeHByLklkZW50SAASPAoLc2VsZWN0X2V4cHIYBSABKAsyJS5nb29nbGUuYXBpLmV4cHIudjFhbHBoYTEuRXhwci5TZWxlY3RIABI4CgljYWxsX2V4cHIYBiABKAsyIy5nb29nbGUuYXBpLmV4cHIudjFhbHBoYTEuRXhwci5DYWxsSAASPgoJbGlzdF9leHByGAcgASgLMikuZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExLkV4cHIuQ3JlYXRlTGlzdEgAEkIKC3N0cnVjdF9leHByGAggASgLMisuZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExLkV4cHIuQ3JlYXRlU3RydWN0SAASSgoSY29tcHJlaGVuc2lvbl9leHByGAkgASgLMiwuZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExLkV4cHIuQ29tcHJlaGVuc2lvbkgAGhUKBUlkZW50EgwKBG5hbWUYASABKAkaWwoGU2VsZWN0Ei8KB29wZXJhbmQYASABKAsyHi5nb29nbGUuYXBpLmV4cHIudjFhbHBoYTEuRXhwchINCgVmaWVsZBgCIAEoCRIRCgl0ZXN0X29ubHkYAyABKAgadgoEQ2FsbBIuCgZ0YXJnZXQYASABKAsyHi5nb29nbGUuYXBpLmV4cHIudjFhbHBoYTEuRXhwchIQCghmdW5jdGlvbhgCIAEoCRIsCgRhcmdzGAMgAygLMh4uZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExLkV4cHIaWAoKQ3JlYXRlTGlzdBIwCghlbGVtZW50cxgBIAMoCzIeLmdvb2dsZS5hcGkuZXhwci52MWFscGhhMS5FeHByEhgKEG9wdGlvbmFsX2luZGljZXMYAiADKAUamQIKDENyZWF0ZVN0cnVjdBIUCgxtZXNzYWdlX25hbWUYASABKAkSQgoHZW50cmllcxgCIAMoCzIxLmdvb2dsZS5hcGkuZXhwci52MWFscGhhMS5FeHByLkNyZWF0ZVN0cnVjdC5FbnRyeRquAQoFRW50cnkSCgoCaWQYASABKAMSEwoJZmllbGRfa2V5GAIgASgJSAASMQoHbWFwX2tleRgDIAEoCzIeLmdvb2dsZS5hcGkuZXhwci52MWFscGhhMS5FeHBySAASLQoFdmFsdWUYBCABKAsyHi5nb29nbGUuYXBpLmV4cHIudjFhbHBoYTEuRXhwchIWCg5vcHRpb25hbF9lbnRyeRgFIAEoCEIKCghrZXlfa2luZBrIAgoNQ29tcHJlaGVuc2lvbhIQCghpdGVyX3ZhchgBIAEoCRIRCglpdGVyX3ZhcjIYCCABKAkSMgoKaXRlcl9yYW5nZRgCIAEoCzIeLmdvb2dsZS5hcGkuZXhwci52MWFscGhhMS5FeHByEhAKCGFjY3VfdmFyGAMgASgJEjEKCWFjY3VfaW5pdBgEIAEoCzIeLmdvb2dsZS5hcGkuZXhwci52MWFscGhhMS5FeHByEjYKDmxvb3BfY29uZGl0aW9uGAUgASgLMh4uZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExLkV4cHISMQoJbG9vcF9zdGVwGAYgASgLMh4uZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExLkV4cHISLgoGcmVzdWx0GAcgASgLMh4uZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExLkV4cHJCCwoJZXhwcl9raW5kIs0CCghDb25zdGFudBIwCgpudWxsX3ZhbHVlGAEgASgOMhouZ29vZ2xlLnByb3RvYnVmLk51bGxWYWx1ZUgAEhQKCmJvb2xfdmFsdWUYAiABKAhIABIVCgtpbnQ2NF92YWx1ZRgDIAEoA0gAEhYKDHVpbnQ2NF92YWx1ZRgEIAEoBEgAEhYKDGRvdWJsZV92YWx1ZRgFIAEoAUgAEhYKDHN0cmluZ192YWx1ZRgGIAEoCUgAEhUKC2J5dGVzX3ZhbHVlGAcgASgMSAASNwoOZHVyYXRpb25fdmFsdWUYCCABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb25CAhgBSAASOQoPdGltZXN0YW1wX3ZhbHVlGAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEICGAFIAEIPCg1jb25zdGFudF9raW5kIvwFCgpTb3VyY2VJbmZvEhYKDnN5bnRheF92ZXJzaW9uGAEgASgJEhAKCGxvY2F0aW9uGAIgASgJEhQKDGxpbmVfb2Zmc2V0cxgDIAMoBRJGCglwb3NpdGlvbnMYBCADKAsyMy5nb29nbGUuYXBpLmV4cHIudjFhbHBoYTEuU291cmNlSW5mby5Qb3NpdGlvbnNFbnRyeRJJCgttYWNyb19jYWxscxgFIAMoCzI0Lmdvb2dsZS5hcGkuZXhwci52MWFscGhhMS5Tb3VyY2VJbmZvLk1hY3JvQ2FsbHNFbnRyeRJCCgpleHRlbnNpb25zGAYgAygLMi4uZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExLlNvdXJjZUluZm8uRXh0ZW5zaW9uGtECCglFeHRlbnNpb24SCgoCaWQYASABKAkSVQoTYWZmZWN0ZWRfY29tcG9uZW50cxgCIAMoDjI4Lmdvb2dsZS5hcGkuZXhwci52MWFscGhhMS5Tb3VyY2VJbmZvLkV4dGVuc2lvbi5Db21wb25lbnQSRwoHdmVyc2lvbhgDIAEoCzI2Lmdvb2dsZS5hcGkuZXhwci52MWFscGhhMS5Tb3VyY2VJbmZvLkV4dGVuc2lvbi5WZXJzaW9uGicKB1ZlcnNpb24SDQoFbWFqb3IYASABKAMSDQoFbWlub3IYAiABKAMibwoJQ29tcG9uZW50EhkKFUNPTVBPTkVOVF9VTlNQRUNJRklFRBAAEhQKEENPTVBPTkVOVF9QQVJTRVIQARIaChZDT01QT05FTlRfVFlQRV9DSEVDS0VSEAISFQoRQ09NUE9ORU5UX1JVTlRJTUUQAxowCg5Qb3NpdGlvbnNFbnRyeRILCgNrZXkYASABKAMSDQoFdmFsdWUYAiABKAU6AjgBGlEKD01hY3JvQ2FsbHNFbnRyeRILCgNrZXkYASABKAMSLQoFdmFsdWUYAiABKAsyHi5nb29nbGUuYXBpLmV4cHIudjFhbHBoYTEuRXhwcjoCOAEiUAoOU291cmNlUG9zaXRpb24SEAoIbG9jYXRpb24YASABKAkSDgoGb2Zmc2V0GAIgASgFEgwKBGxpbmUYAyABKAUSDgoGY29sdW1uGAQgASgFQmsKHGNvbS5nb29nbGUuYXBpLmV4cHIudjFhbHBoYTFCC1N5bnRheFByb3RvUAFaPGdvb2dsZS5nb2xhbmcub3JnL2dlbnByb3RvL2dvb2dsZWFwaXMvYXBpL2V4cHIvdjFhbHBoYTE7ZXhwcmIGcHJvdG8z", [file_google_protobuf_duration, file_google_protobuf_struct, file_google_protobuf_timestamp]);
 
 /**
  * An expression together with source information as returned by the parser.
@@ -62,12 +62,12 @@ export const ParsedExprSchema: GenMessage<ParsedExpr> = /*@__PURE__*/
  * Expressions are abstractly represented as a collection of identifiers,
  * select statements, function calls, literals, and comprehensions. All
  * operators with the exception of the '.' operator are modelled as function
- * calls. This makes it easy to represent new operators into the existing AST.
+ * calls. This makes it easy to represent new operators in the existing AST.
  *
  * All references within expressions must resolve to a
  * [Decl][google.api.expr.v1alpha1.Decl] provided at type-check for an
  * expression to be valid. A reference may either be a bare identifier `name` or
- * a qualified identifier `google.api.name`. References may either refer to a
+ * a qualified identifier `google.api.name`. References may refer to either a
  * value or a function declaration.
  *
  * For example, the expression `google.api.name.startsWith('expr')` references
@@ -81,7 +81,7 @@ export type Expr = Message<"google.api.expr.v1alpha1.Expr"> & {
   /**
    * Required. An id assigned to this node by the parser which is unique in a
    * given expression tree. This is used to associate type information and other
-   * attributes to a node in the parse tree.
+   * attributes with a node in the parse tree.
    *
    * @generated from field: int64 id = 2;
    */
@@ -235,7 +235,7 @@ export const Expr_SelectSchema: GenMessage<Expr_Select> = /*@__PURE__*/
  */
 export type Expr_Call = Message<"google.api.expr.v1alpha1.Expr.Call"> & {
   /**
-   * The target of an method call-style expression. For example, `x` in
+   * The target of a method call-style expression. For example, `x` in
    * `x.f()`.
    *
    * @generated from field: google.api.expr.v1alpha1.Expr target = 1;
@@ -267,7 +267,7 @@ export const Expr_CallSchema: GenMessage<Expr_Call> = /*@__PURE__*/
 /**
  * A list creation expression.
  *
- * Lists may either be homogenous, e.g. `[1, 2, 3]`, or heterogeneous, e.g.
+ * Lists may either be homogeneous, e.g. `[1, 2, 3]`, or heterogeneous, e.g.
  * `dyn([1, 'hello', 2.0])`
  *
  * @generated from message google.api.expr.v1alpha1.Expr.CreateList
@@ -311,7 +311,7 @@ export const Expr_CreateListSchema: GenMessage<Expr_CreateList> = /*@__PURE__*/
  */
 export type Expr_CreateStruct = Message<"google.api.expr.v1alpha1.Expr.CreateStruct"> & {
   /**
-   * The type name of the message to be created, empty when creating map
+   * The type name of the message to be created; empty when creating map
    * literals.
    *
    * @generated from field: string message_name = 1;
@@ -342,7 +342,7 @@ export type Expr_CreateStruct_Entry = Message<"google.api.expr.v1alpha1.Expr.Cre
   /**
    * Required. An id assigned to this node by the parser which is unique
    * in a given expression tree. This is used to associate type
-   * information and other attributes to the node.
+   * information and other attributes with the node.
    *
    * @generated from field: int64 id = 1;
    */
@@ -421,7 +421,7 @@ export const Expr_CreateStruct_EntrySchema: GenMessage<Expr_CreateStruct_Entry> 
  *
  * The `has(m.x)` macro tests whether the property `x` is present in struct
  * `m`. The semantics of this macro depend on the type of `m`. For proto2
- * messages `has(m.x)` is defined as 'defined, but not set`. For proto3, the
+ * messages `has(m.x)` is defined as 'defined, but not set'. For proto3, the
  * macro tests whether the property is set to its default. For map and struct
  * types, the macro tests whether the property `x` is defined on `m`.
  *
@@ -441,7 +441,7 @@ export const Expr_CreateStruct_EntrySchema: GenMessage<Expr_CreateStruct_Entry> 
  *
  * Comprehensions for the optional V2 macros which support map-to-map
  * translation differ slightly from the standard environment macros in that
- * they expose both the key or index in addition to the value for each list
+ * they expose the key or index in addition to the value for each list
  * or map entry:
  *
  * ```
@@ -460,17 +460,16 @@ export const Expr_CreateStruct_EntrySchema: GenMessage<Expr_CreateStruct_Entry> 
 export type Expr_Comprehension = Message<"google.api.expr.v1alpha1.Expr.Comprehension"> & {
   /**
    * The name of the first iteration variable.
-   * When the iter_range is a list, this variable is the list element.
-   * When the iter_range is a map, this variable is the map entry key.
+   * For the single iteration variable macros, when iter_range is a list, this
+   * variable is the list element and when the iter_range is a map, this
+   * variable is the map key.
    *
    * @generated from field: string iter_var = 1;
    */
   iterVar: string;
 
   /**
-   * The name of the second iteration variable, empty if not set.
-   * When the iter_range is a list, this variable is the integer index.
-   * When the iter_range is a map, this variable is the map entry value.
+   * The name of the second iteration variable; empty if not set.
    * This field is only set for comprehension v2 macros.
    *
    * @generated from field: string iter_var2 = 8;
@@ -539,7 +538,7 @@ export const Expr_ComprehensionSchema: GenMessage<Expr_Comprehension> = /*@__PUR
  *
  * Named 'Constant' here for backwards compatibility.
  *
- * This is similar as the primitives supported in the well-known type
+ * This is similar to the primitives supported in the well-known type
  * `google.protobuf.Value`, but richer so it can represent CEL's full range of
  * primitives.
  *
@@ -618,7 +617,7 @@ export type Constant = Message<"google.api.expr.v1alpha1.Constant"> & {
     /**
      * protobuf.Duration value.
      *
-     * Deprecated: duration is no longer considered a builtin cel type.
+     * Deprecated: duration is no longer considered a builtin CEL type.
      *
      * @generated from field: google.protobuf.Duration duration_value = 8 [deprecated = true];
      * @deprecated
@@ -629,7 +628,7 @@ export type Constant = Message<"google.api.expr.v1alpha1.Constant"> & {
     /**
      * protobuf.Timestamp value.
      *
-     * Deprecated: timestamp is no longer considered a builtin cel type.
+     * Deprecated: timestamp is no longer considered a builtin CEL type.
      *
      * @generated from field: google.protobuf.Timestamp timestamp_value = 9 [deprecated = true];
      * @deprecated
@@ -676,7 +675,7 @@ export type SourceInfo = Message<"google.api.expr.v1alpha1.SourceInfo"> & {
    *
    * The line number of a given position is the index `i` where for a given
    * `id` the `line_offsets[i] < id_positions[id] < line_offsets[i+1]`. The
-   * column may be derivd from `id_positions[id] - line_offsets[i]`.
+   * column may be derived from `id_positions[id] - line_offsets[i]`.
    *
    * @generated from field: repeated int32 line_offsets = 3;
    */
@@ -742,7 +741,7 @@ export type SourceInfo_Extension = Message<"google.api.expr.v1alpha1.SourceInfo.
    * If set, the listed components must understand the extension for the
    * expression to evaluate correctly.
    *
-   * This field has set semantics, repeated values should be deduplicated.
+   * This field has set semantics; repeated values should be deduplicated.
    *
    * @generated from field: repeated google.api.expr.v1alpha1.SourceInfo.Extension.Component affected_components = 2;
    */
@@ -844,7 +843,7 @@ export const SourceInfo_Extension_ComponentSchema: GenEnum<SourceInfo_Extension_
  */
 export type SourcePosition = Message<"google.api.expr.v1alpha1.SourcePosition"> & {
   /**
-   * The soucre location name (e.g. file name).
+   * The source location name (e.g. file name).
    *
    * @generated from field: string location = 1;
    */

@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file google/type/localized_text.proto.
  */
 export const file_google_type_localized_text: GenFile = /*@__PURE__*/
-  fileDesc("CiBnb29nbGUvdHlwZS9sb2NhbGl6ZWRfdGV4dC5wcm90bxILZ29vZ2xlLnR5cGUiNAoNTG9jYWxpemVkVGV4dBIMCgR0ZXh0GAEgASgJEhUKDWxhbmd1YWdlX2NvZGUYAiABKAlCegoPY29tLmdvb2dsZS50eXBlQhJMb2NhbGl6ZWRUZXh0UHJvdG9QAVpIZ29vZ2xlLmdvbGFuZy5vcmcvZ2VucHJvdG8vZ29vZ2xlYXBpcy90eXBlL2xvY2FsaXplZF90ZXh0O2xvY2FsaXplZF90ZXh0+AEBogIDR1RQYgZwcm90bzM");
+  fileDesc("CiBnb29nbGUvdHlwZS9sb2NhbGl6ZWRfdGV4dC5wcm90bxILZ29vZ2xlLnR5cGUiNAoNTG9jYWxpemVkVGV4dBIMCgR0ZXh0GAEgASgJEhUKDWxhbmd1YWdlX2NvZGUYAiABKAlCdwoPY29tLmdvb2dsZS50eXBlQhJMb2NhbGl6ZWRUZXh0UHJvdG9QAVpIZ29vZ2xlLmdvbGFuZy5vcmcvZ2VucHJvdG8vZ29vZ2xlYXBpcy90eXBlL2xvY2FsaXplZF90ZXh0O2xvY2FsaXplZF90ZXh0ogIDR1RQYgZwcm90bzM");
 
 /**
  * Localized variant of a text in a particular language.
@@ -33,7 +33,8 @@ export const file_google_type_localized_text: GenFile = /*@__PURE__*/
  */
 export type LocalizedText = Message<"google.type.LocalizedText"> & {
   /**
-   * Localized string in the language corresponding to `language_code' below.
+   * Localized string in the language corresponding to
+   * [language_code][google.type.LocalizedText.language_code] below.
    *
    * @generated from field: string text = 1;
    */

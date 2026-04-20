@@ -41,6 +41,13 @@
   "template": "compose-service",
   "driver": "compose-service",
   "compose_file": "docker/docker-compose.yml",
+  "gpu": {
+    "probe": "nvidia",
+    "compose_overlay": "docker/docker-compose.gpu.yml",
+    "env_overrides": {
+      "KOKORO_IMAGE": "ghcr.io/remsky/kokoro-fastapi-gpu:latest"
+    }
+  },
   "portability_tier": "partial",
   "category": "ai",
   "platforms": {

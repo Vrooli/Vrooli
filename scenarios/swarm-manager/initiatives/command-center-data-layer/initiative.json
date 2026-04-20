@@ -9,5 +9,9 @@
     "execute/command-center-gap-tracking-system"
   ],
   "created": "2026-04-08T03:51:30Z",
-  "updated": "2026-04-08T03:51:30Z"
+  "updated": "2026-04-08T03:51:30Z",
+  "priority": 3,
+  "depends_on": [
+    "command-center-foundation"
+  ]
 }

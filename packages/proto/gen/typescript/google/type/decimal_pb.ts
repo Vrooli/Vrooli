@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,16 +24,14 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file google/type/decimal.proto.
  */
 export const file_google_type_decimal: GenFile = /*@__PURE__*/
-  fileDesc("Chlnb29nbGUvdHlwZS9kZWNpbWFsLnByb3RvEgtnb29nbGUudHlwZSIYCgdEZWNpbWFsEg0KBXZhbHVlGAEgASgJQmYKD2NvbS5nb29nbGUudHlwZUIMRGVjaW1hbFByb3RvUAFaOmdvb2dsZS5nb2xhbmcub3JnL2dlbnByb3RvL2dvb2dsZWFwaXMvdHlwZS9kZWNpbWFsO2RlY2ltYWz4AQGiAgNHVFBiBnByb3RvMw");
+  fileDesc("Chlnb29nbGUvdHlwZS9kZWNpbWFsLnByb3RvEgtnb29nbGUudHlwZSIYCgdEZWNpbWFsEg0KBXZhbHVlGAEgASgJQmMKD2NvbS5nb29nbGUudHlwZUIMRGVjaW1hbFByb3RvUAFaOmdvb2dsZS5nb2xhbmcub3JnL2dlbnByb3RvL2dvb2dsZWFwaXMvdHlwZS9kZWNpbWFsO2RlY2ltYWyiAgNHVFBiBnByb3RvMw");
 
 /**
  * A representation of a decimal value, such as 2.5. Clients may convert values
- * into language-native decimal formats, such as Java's [BigDecimal][] or
- * Python's [decimal.Decimal][].
- *
- * [BigDecimal]:
- * https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/math/BigDecimal.html
- * [decimal.Decimal]: https://docs.python.org/3/library/decimal.html
+ * into language-native decimal formats, such as Java's
+ * [BigDecimal](https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/math/BigDecimal.html)
+ * or Python's
+ * [decimal.Decimal](https://docs.python.org/3/library/decimal.html).
  *
  * @generated from message google.type.Decimal
  */
@@ -44,7 +42,7 @@ export type Decimal = Message<"google.type.Decimal"> & {
    * The string representation consists of an optional sign, `+` (`U+002B`)
    * or `-` (`U+002D`), followed by a sequence of zero or more decimal digits
    * ("the integer"), optionally followed by a fraction, optionally followed
-   * by an exponent.
+   * by an exponent. An empty string **should** be interpreted as `0`.
    *
    * The fraction consists of a decimal point followed by zero or more decimal
    * digits. The string must contain at least one digit in either the integer
@@ -58,12 +56,13 @@ export type Decimal = Message<"google.type.Decimal"> & {
    *
    *   - Removing an explicitly-provided `+` sign (`+2.5` -> `2.5`).
    *   - Replacing a zero-length integer value with `0` (`.5` -> `0.5`).
-   *   - Coercing the exponent character to lower-case (`2.5E8` -> `2.5e8`).
-   *   - Removing an explicitly-provided zero exponent (`2.5e0` -> `2.5`).
+   *   - Coercing the exponent character to upper-case, with explicit sign
+   *     (`2.5e8` -> `2.5E+8`).
+   *   - Removing an explicitly-provided zero exponent (`2.5E0` -> `2.5`).
    *
    * Services **may** perform additional normalization based on its own needs
    * and the internal decimal implementation selected, such as shifting the
-   * decimal point and exponent value together (example: `2.5e-1` <-> `0.25`).
+   * decimal point and exponent value together (example: `2.5E-1` <-> `0.25`).
    * Additionally, services **may** preserve trailing zeroes in the fraction
    * to indicate increased precision, but are not required to do so.
    *
@@ -75,7 +74,7 @@ export type Decimal = Message<"google.type.Decimal"> & {
    * The ENBF grammar is:
    *
    *     DecimalString =
-   *       [Sign] Significand [Exponent];
+   *       '' | [Sign] Significand [Exponent];
    *
    *     Sign = '+' | '-';
    *

@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file google/type/date.proto.
  */
 export const file_google_type_date: GenFile = /*@__PURE__*/
-  fileDesc("ChZnb29nbGUvdHlwZS9kYXRlLnByb3RvEgtnb29nbGUudHlwZSIwCgREYXRlEgwKBHllYXIYASABKAUSDQoFbW9udGgYAiABKAUSCwoDZGF5GAMgASgFQl0KD2NvbS5nb29nbGUudHlwZUIJRGF0ZVByb3RvUAFaNGdvb2dsZS5nb2xhbmcub3JnL2dlbnByb3RvL2dvb2dsZWFwaXMvdHlwZS9kYXRlO2RhdGX4AQGiAgNHVFBiBnByb3RvMw");
+  fileDesc("ChZnb29nbGUvdHlwZS9kYXRlLnByb3RvEgtnb29nbGUudHlwZSIwCgREYXRlEgwKBHllYXIYASABKAUSDQoFbW9udGgYAiABKAUSCwoDZGF5GAMgASgFQloKD2NvbS5nb29nbGUudHlwZUIJRGF0ZVByb3RvUAFaNGdvb2dsZS5nb2xhbmcub3JnL2dlbnByb3RvL2dvb2dsZWFwaXMvdHlwZS9kYXRlO2RhdGWiAgNHVFBiBnByb3RvMw");
 
 /**
  * Represents a whole or partial calendar date, such as a birthday. The time of
@@ -32,14 +32,17 @@ export const file_google_type_date: GenFile = /*@__PURE__*/
  * date is relative to the Gregorian Calendar. This can represent one of the
  * following:
  *
- * * A full date, with non-zero year, month, and day values
- * * A month and day value, with a zero year, such as an anniversary
- * * A year on its own, with zero month and day values
- * * A year and month value, with a zero day, such as a credit card expiration
- * date
+ * * A full date, with non-zero year, month, and day values.
+ * * A month and day, with a zero year (for example, an anniversary).
+ * * A year on its own, with a zero month and a zero day.
+ * * A year and month, with a zero day (for example, a credit card expiration
+ *   date).
  *
- * Related types are [google.type.TimeOfDay][google.type.TimeOfDay] and
- * `google.protobuf.Timestamp`.
+ * Related types:
+ *
+ * * [google.type.TimeOfDay][google.type.TimeOfDay]
+ * * [google.type.DateTime][google.type.DateTime]
+ * * [google.protobuf.Timestamp][google.protobuf.Timestamp]
  *
  * @generated from message google.type.Date
  */

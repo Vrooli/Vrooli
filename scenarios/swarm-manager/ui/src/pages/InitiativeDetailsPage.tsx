@@ -45,6 +45,7 @@ import { RollupProgressBar, rollupTotal as computeRollupTotal } from "../compone
 import { BACKLOG_STATUS_CHIP_COLORS } from "../types";
 import type { BacklogFile, BacklogKind, BacklogStatus } from "../types";
 import { useBacklogStore, useDetailSelectionStore } from "../stores";
+import { useInitiativeStore } from "../stores/initiative-store";
 import type { FileActionType } from "../components/backlog/backlog-file-browser";
 
 type InitiativeTab = "info" | "files";
@@ -85,6 +86,25 @@ export function InitiativeDetailsPage() {
   const initiative = data?.initiative;
   const rollup = data?.rollup;
 
+  // Pull all initiatives for upstream/downstream chip rendering.
+  const allInitiatives = useInitiativeStore((s) => s.items);
+  const fetchInitiatives = useInitiativeStore((s) => s.fetchInitiatives);
+  useEffect(() => {
+    if (allInitiatives.length === 0) {
+      void fetchInitiatives();
+    }
+  }, [allInitiatives.length, fetchInitiatives]);
+
+  const downstream = useMemo(() => {
+    if (!initiative) return [];
+    return allInitiatives
+      .filter((other) => {
+        const deps = (other.initiative as { dependsOn?: string[] }).dependsOn ?? [];
+        return deps.includes(initiative.name);
+      })
+      .map((other) => other.initiative.name);
+  }, [allInitiatives, initiative]);
+
   const queryClient = useQueryClient();
   const archiveMutation = useMutation({
     mutationFn: async () => {
@@ -108,7 +128,8 @@ export function InitiativeDetailsPage() {
     },
   });
 
-  const { closeDetail } = useDetailNavigation();
+  const detailNav = useDetailNavigation();
+  const { closeDetail } = detailNav;
   const { getDeleteConfirmLevel } = useRuntimeConfig();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
@@ -475,6 +496,59 @@ export function InitiativeDetailsPage() {
                 <RollupProgressBar rollup={rollup} showLabels />
               </DetailSection>
             )}
+
+            {/* Initiative-level dependency ordering */}
+            {(() => {
+              const priority = (initiative as { priority?: number }).priority ?? 0;
+              const upstream = (initiative as { dependsOn?: string[] }).dependsOn ?? [];
+              if (priority === 0 && upstream.length === 0 && downstream.length === 0) return null;
+              return (
+                <DetailSection title="Ordering">
+                  <div className="flex flex-col gap-2 text-xs">
+                    {priority > 0 && (
+                      <div>
+                        <span className="uppercase tracking-wider text-slate-500">Priority</span>{" "}
+                        <span className="text-slate-200">{priority}</span>
+                      </div>
+                    )}
+                    {upstream.length > 0 && (
+                      <div>
+                        <div className="uppercase tracking-wider text-slate-500 mb-1">Depends on</div>
+                        <div className="flex flex-wrap gap-1">
+                          {upstream.map((dep) => (
+                            <button
+                              key={dep}
+                              type="button"
+                              className="rounded border border-slate-700 bg-slate-800/50 px-2 py-0.5 text-[11px] text-slate-200 hover:border-slate-600 hover:bg-slate-700/50"
+                              onClick={() => detailNav.openDetail({ entityType: "initiative", name: dep })}
+                            >
+                              {dep}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {downstream.length > 0 && (
+                      <div>
+                        <div className="uppercase tracking-wider text-slate-500 mb-1">Unlocks</div>
+                        <div className="flex flex-wrap gap-1">
+                          {downstream.map((dep) => (
+                            <button
+                              key={dep}
+                              type="button"
+                              className="rounded border border-slate-700 bg-slate-800/50 px-2 py-0.5 text-[11px] text-slate-200 hover:border-slate-600 hover:bg-slate-700/50"
+                              onClick={() => detailNav.openDetail({ entityType: "initiative", name: dep })}
+                            >
+                              {dep}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </DetailSection>
+              );
+            })()}
 
             {/* Member Items */}
             {resolvedItems.length > 0 && (

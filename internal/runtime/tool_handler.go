@@ -50,6 +50,9 @@ func (h toolHandler) Inspect(host hostreqkit.Host, requirement hostreqspec.Resol
 	if version != "" {
 		status.Version = version
 	}
+	if passed, detail := hostreqkit.RunHealthCheck(h.manifest.HealthCheck); !passed {
+		status.Notes = append(status.Notes, detail)
+	}
 	return status
 }
 
@@ -102,6 +105,9 @@ func (h toolHandler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, o
 	if installed {
 		status.ExecutionState = hostreqkit.ExecutionInstalled
 		status.Version = hostreqkit.ReadVersion(commandName, h.manifest.VersionArgs)
+		if passed, detail := hostreqkit.RunHealthCheck(h.manifest.HealthCheck); !passed {
+			status.Notes = append(status.Notes, detail)
+		}
 		return status, nil
 	}
 	status.ExecutionState = hostreqkit.ExecutionFailed

@@ -249,6 +249,26 @@ func TestContainsArgDoesNotMatchAbsentFlag(t *testing.T) {
 	}
 }
 
+func TestContainsFlagMatchesBothForms(t *testing.T) {
+	cases := []struct {
+		args   []string
+		target string
+		want   bool
+	}{
+		{[]string{"--format", "json"}, "--format", true},
+		{[]string{"--format=yaml"}, "--format", true},
+		{[]string{"--format=json"}, "--json", false},
+		{[]string{"--json"}, "--json", true},
+		{[]string{"--jsonish"}, "--json", false},
+		{[]string{}, "--json", false},
+	}
+	for _, c := range cases {
+		if got := ContainsFlag(c.args, c.target); got != c.want {
+			t.Errorf("ContainsFlag(%v, %q) = %v, want %v", c.args, c.target, got, c.want)
+		}
+	}
+}
+
 type runnerCtx struct {
 	root string
 }

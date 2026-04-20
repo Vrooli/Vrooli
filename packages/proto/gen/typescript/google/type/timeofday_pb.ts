@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file google/type/timeofday.proto.
  */
 export const file_google_type_timeofday: GenFile = /*@__PURE__*/
-  fileDesc("Chtnb29nbGUvdHlwZS90aW1lb2ZkYXkucHJvdG8SC2dvb2dsZS50eXBlIksKCVRpbWVPZkRheRINCgVob3VycxgBIAEoBRIPCgdtaW51dGVzGAIgASgFEg8KB3NlY29uZHMYAyABKAUSDQoFbmFub3MYBCABKAVCbAoPY29tLmdvb2dsZS50eXBlQg5UaW1lT2ZEYXlQcm90b1ABWj5nb29nbGUuZ29sYW5nLm9yZy9nZW5wcm90by9nb29nbGVhcGlzL3R5cGUvdGltZW9mZGF5O3RpbWVvZmRhefgBAaICA0dUUGIGcHJvdG8z");
+  fileDesc("Chtnb29nbGUvdHlwZS90aW1lb2ZkYXkucHJvdG8SC2dvb2dsZS50eXBlIksKCVRpbWVPZkRheRINCgVob3VycxgBIAEoBRIPCgdtaW51dGVzGAIgASgFEg8KB3NlY29uZHMYAyABKAUSDQoFbmFub3MYBCABKAVCaQoPY29tLmdvb2dsZS50eXBlQg5UaW1lT2ZEYXlQcm90b1ABWj5nb29nbGUuZ29sYW5nLm9yZy9nZW5wcm90by9nb29nbGVhcGlzL3R5cGUvdGltZW9mZGF5O3RpbWVvZmRheaICA0dUUGIGcHJvdG8z");
 
 /**
  * Represents a time of day. The date and time zone are either not significant
@@ -36,30 +36,34 @@ export const file_google_type_timeofday: GenFile = /*@__PURE__*/
  */
 export type TimeOfDay = Message<"google.type.TimeOfDay"> & {
   /**
-   * Hours of day in 24 hour format. Should be from 0 to 23. An API may choose
-   * to allow the value "24:00:00" for scenarios like business closing time.
+   * Hours of a day in 24 hour format. Must be greater than or equal to 0 and
+   * typically must be less than or equal to 23. An API may choose to allow the
+   * value "24:00:00" for scenarios like business closing time.
    *
    * @generated from field: int32 hours = 1;
    */
   hours: number;
 
   /**
-   * Minutes of hour of day. Must be from 0 to 59.
+   * Minutes of an hour. Must be greater than or equal to 0 and less than or
+   * equal to 59.
    *
    * @generated from field: int32 minutes = 2;
    */
   minutes: number;
 
   /**
-   * Seconds of minutes of the time. Must normally be from 0 to 59. An API may
-   * allow the value 60 if it allows leap-seconds.
+   * Seconds of a minute. Must be greater than or equal to 0 and typically must
+   * be less than or equal to 59. An API may allow the value 60 if it allows
+   * leap-seconds.
    *
    * @generated from field: int32 seconds = 3;
    */
   seconds: number;
 
   /**
-   * Fractions of seconds in nanoseconds. Must be from 0 to 999,999,999.
+   * Fractions of seconds, in nanoseconds. Must be greater than or equal to 0
+   * and less than or equal to 999,999,999.
    *
    * @generated from field: int32 nanos = 4;
    */

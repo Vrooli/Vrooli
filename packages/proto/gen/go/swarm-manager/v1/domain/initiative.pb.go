@@ -47,7 +47,13 @@ type Initiative struct {
 	// RFC3339 timestamp when the initiative was archived. Null/unset means not archived.
 	// Archiving is orthogonal to status — initiatives retain their status when archived.
 	// @format rfc3339
-	ArchivedAt    *string `protobuf:"bytes,9,opt,name=archived_at,json=archivedAt,proto3,oneof" json:"archived_at,omitempty"`
+	ArchivedAt *string `protobuf:"bytes,9,opt,name=archived_at,json=archivedAt,proto3,oneof" json:"archived_at,omitempty"`
+	// Manual priority (1-10, lower = higher priority). 0 or unset = unprioritized.
+	// Combined with unblocking-score to produce effective priority for sorting.
+	Priority int32 `protobuf:"varint,10,opt,name=priority,proto3" json:"priority,omitempty"`
+	// Upstream initiative names this initiative depends on. Creates a directed
+	// edge in the initiative DAG; dependents cannot start until upstreams complete.
+	DependsOn     []string `protobuf:"bytes,11,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -145,6 +151,20 @@ func (x *Initiative) GetArchivedAt() string {
 	return ""
 }
 
+func (x *Initiative) GetPriority() int32 {
+	if x != nil {
+		return x.Priority
+	}
+	return 0
+}
+
+func (x *Initiative) GetDependsOn() []string {
+	if x != nil {
+		return x.DependsOn
+	}
+	return nil
+}
+
 // InitiativeRollup provides aggregated status counts for initiative items.
 type InitiativeRollup struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -240,7 +260,7 @@ var File_swarm_manager_v1_domain_initiative_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_initiative_proto_rawDesc = "" +
 	"\n" +
-	"(swarm-manager/v1/domain/initiative.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xbe\x02\n" +
+	"(swarm-manager/v1/domain/initiative.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xf9\x02\n" +
 	"\n" +
 	"Initiative\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
@@ -252,7 +272,11 @@ const file_swarm_manager_v1_domain_initiative_proto_rawDesc = "" +
 	"\aupdated\x18\a \x01(\tR\aupdated\x12\x17\n" +
 	"\x04note\x18\b \x01(\tH\x00R\x04note\x88\x01\x01\x12$\n" +
 	"\varchived_at\x18\t \x01(\tH\x01R\n" +
-	"archivedAt\x88\x01\x01B\a\n" +
+	"archivedAt\x88\x01\x01\x12\x1a\n" +
+	"\bpriority\x18\n" +
+	" \x01(\x05R\bpriority\x12\x1d\n" +
+	"\n" +
+	"depends_on\x18\v \x03(\tR\tdependsOnB\a\n" +
 	"\x05_noteB\x0e\n" +
 	"\f_archived_at\"\xb5\x01\n" +
 	"\x10InitiativeRollup\x12\x14\n" +

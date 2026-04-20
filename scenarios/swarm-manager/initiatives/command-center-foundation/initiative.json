@@ -10,5 +10,7 @@
     "execute/command-center-kiosk-ux"
   ],
   "created": "2026-04-08T03:51:30Z",
-  "updated": "2026-04-08T03:51:30Z"
+  "updated": "2026-04-08T03:51:30Z",
+  "priority": 2,
+  "depends_on": []
 }

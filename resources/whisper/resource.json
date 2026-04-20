@@ -41,6 +41,13 @@
   "template": "compose-service",
   "driver": "compose-service",
   "compose_file": "docker/docker-compose.yml",
+  "gpu": {
+    "probe": "nvidia",
+    "compose_overlay": "docker/docker-compose.gpu.yml",
+    "env_overrides": {
+      "WHISPER_IMAGE": "onerahmet/openai-whisper-asr-webservice:latest-gpu"
+    }
+  },
   "portability_tier": "partial",
   "category": "ai",
   "platforms": {

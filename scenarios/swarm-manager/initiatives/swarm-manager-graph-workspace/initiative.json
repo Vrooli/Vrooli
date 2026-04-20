@@ -13,5 +13,7 @@
     "chore/swarm-manager-remove-legacy-tabbed-surfaces"
   ],
   "created": "2026-03-27T18:40:16Z",
-  "updated": "2026-03-27T22:00:00Z"
+  "updated": "2026-03-27T22:00:00Z",
+  "priority": 2,
+  "depends_on": []
 }

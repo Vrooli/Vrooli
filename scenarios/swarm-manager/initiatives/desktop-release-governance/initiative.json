@@ -20,5 +20,9 @@
     "fix/deployment-manager-release-retry-ergonomics"
   ],
   "created": "2026-03-26T16:35:48Z",
-  "updated": "2026-04-20T14:11:21Z"
+  "updated": "2026-04-20T14:11:21Z",
+  "priority": 3,
+  "depends_on": [
+    "desktop-runtime-interop"
+  ]
 }

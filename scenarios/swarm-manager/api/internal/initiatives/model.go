@@ -8,8 +8,10 @@ type Initiative struct {
 	Name        string   `json:"name"`
 	Title       string   `json:"title"`
 	Description string   `json:"description,omitempty"`
-	Status      string   `json:"status"` // active, completed
-	Items       []string `json:"items"`  // "kind/name" references
+	Status      string   `json:"status"`               // active, completed
+	Priority    int      `json:"priority,omitempty"`   // 1-10, optional (0 = unprioritized)
+	DependsOn   []string `json:"depends_on,omitempty"` // initiative name refs
+	Items       []string `json:"items"`                // "kind/name" references
 	Created     string   `json:"created"`
 	Updated     string   `json:"updated"`
 	Note        string   `json:"note,omitempty"`
@@ -38,6 +40,8 @@ type CreateRequest struct {
 	Title       string   `json:"title"`
 	Description string   `json:"description,omitempty"`
 	Status      string   `json:"status,omitempty"`
+	Priority    int      `json:"priority,omitempty"`
+	DependsOn   []string `json:"depends_on,omitempty"`
 	Items       []string `json:"items,omitempty"`
 }
 
@@ -46,13 +50,16 @@ type UpdateRequest struct {
 	Title       *string   `json:"title,omitempty"`
 	Description *string   `json:"description,omitempty"`
 	Status      *string   `json:"status,omitempty"`
+	Priority    *int      `json:"priority,omitempty"`
+	DependsOn   *[]string `json:"depends_on,omitempty"`
 	Items       *[]string `json:"items,omitempty"`
 	Note        *string   `json:"note,omitempty"`
 }
 
 // HasChanges reports whether the update request contains at least one field.
 func (r UpdateRequest) HasChanges() bool {
-	return r.Title != nil || r.Description != nil || r.Status != nil || r.Items != nil || r.Note != nil
+	return r.Title != nil || r.Description != nil || r.Status != nil ||
+		r.Priority != nil || r.DependsOn != nil || r.Items != nil || r.Note != nil
 }
 
 // ValidateStatus returns true if the status string is valid.
@@ -63,4 +70,10 @@ func ValidateStatus(status string) bool {
 	default:
 		return false
 	}
+}
+
+// ValidatePriority returns true if the priority is zero (unprioritized) or
+// falls within the allowed 1-10 range.
+func ValidatePriority(p int) bool {
+	return p == 0 || (p >= 1 && p <= 10)
 }

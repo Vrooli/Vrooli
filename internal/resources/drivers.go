@@ -586,14 +586,41 @@ func dockerCommand(ctx context.Context, controller *Controller, stdout, stderr i
 	return waitErr
 }
 
-func composeOutput(ctx context.Context, controller *Controller, manifest ResourceManifest, args ...string) ([]byte, error) {
+// composeInvocationArgs builds the docker-compose argument list and process
+// environment for a resource, applying any GPU overlay and env overrides when
+// the manifest declares a gpu block and the probe (or override) says to use
+// it. Keeping this in one place ensures composeOutput and composeCommand stay
+// in sync.
+func composeInvocationArgs(ctx context.Context, controller *Controller, manifest ResourceManifest) ([]string, []string) {
 	cmdArgs := []string{"compose", "-f", composeFilePath(controller, manifest), "--project-name", composeProjectName(manifest)}
+	env := resourceEnvForResource(controller.Root, controller.Home, manifest.Name)
+
+	if manifest.GPU != nil && shouldUseGPU(ctx, manifest.GPU.Probe) {
+		if overlay := strings.TrimSpace(manifest.GPU.ComposeOverlay); overlay != "" {
+			cmdArgs = append(cmdArgs, "-f", composeOverlayPath(controller, manifest, overlay))
+		}
+		for k, v := range manifest.GPU.EnvOverrides {
+			env = append(env, k+"="+v)
+		}
+	}
+	return cmdArgs, env
+}
+
+func composeOverlayPath(controller *Controller, manifest ResourceManifest, overlay string) string {
+	if filepath.IsAbs(overlay) {
+		return overlay
+	}
+	return filepath.Join(controller.Root, "resources", manifest.Name, filepath.FromSlash(overlay))
+}
+
+func composeOutput(ctx context.Context, controller *Controller, manifest ResourceManifest, args ...string) ([]byte, error) {
+	cmdArgs, env := composeInvocationArgs(ctx, controller, manifest)
 	cmdArgs = append(cmdArgs, args...)
 	cmd := shell.Command(shell.Spec{
 		Name: "docker",
 		Args: cmdArgs,
 		Dir:  controller.Root,
-		Env:  resourceEnvForResource(controller.Root, controller.Home, manifest.Name),
+		Env:  env,
 	})
 	result := runCommandResource(ctx, cmd)
 	if result.err != nil {
@@ -603,13 +630,13 @@ func composeOutput(ctx context.Context, controller *Controller, manifest Resourc
 }
 
 func composeCommand(ctx context.Context, controller *Controller, manifest ResourceManifest, stdout, stderr io.Writer, args ...string) error {
-	cmdArgs := []string{"compose", "-f", composeFilePath(controller, manifest), "--project-name", composeProjectName(manifest)}
+	cmdArgs, env := composeInvocationArgs(ctx, controller, manifest)
 	cmdArgs = append(cmdArgs, args...)
 	cmd := shell.Command(shell.Spec{
 		Name:   "docker",
 		Args:   cmdArgs,
 		Dir:    controller.Root,
-		Env:    resourceEnvForResource(controller.Root, controller.Home, manifest.Name),
+		Env:    env,
 		Stdout: stdout,
 		Stderr: stderr,
 	})

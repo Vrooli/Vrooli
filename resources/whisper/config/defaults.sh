@@ -45,7 +45,7 @@ defaults::export_config() {
 
     # Model configuration (only set if not already defined)
     if [[ -z "${WHISPER_DEFAULT_MODEL:-}" ]]; then
-        readonly WHISPER_DEFAULT_MODEL="${WHISPER_DEFAULT_MODEL:-medium}"
+        readonly WHISPER_DEFAULT_MODEL="${WHISPER_DEFAULT_MODEL:-small}"
     fi
     if [[ -z "${WHISPER_MODEL_SIZES:-}" ]]; then
         readonly WHISPER_MODEL_SIZES=("tiny" "base" "small" "medium" "large" "large-v2" "large-v3")

@@ -132,3 +132,35 @@ func firstPositionalArg(args []string) string {
 	}
 	return ""
 }
+
+// extractUISmokeScenario returns the scenario name from a `ui-smoke` argument
+// list, accounting for the value-taking flags test-genie's ui-smoke subcommand
+// recognises (--url, --browserless, --timeout). Without this, a usage like
+// `vrooli scenario ui-smoke --url http://x test-genie` would wrongly return
+// "http://x" as the scenario name and silently skip the stale check.
+//
+//nolint:unused // reached only via generic scenariohandlers; unused linter can't trace through instantiations.
+func extractUISmokeScenario(args []string) string {
+	valuedFlags := map[string]struct{}{
+		"--url":         {},
+		"--browserless": {},
+		"--timeout":     {},
+	}
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "" {
+			continue
+		}
+		if strings.HasPrefix(arg, "-") {
+			if eq := strings.Index(arg, "="); eq > 0 {
+				continue
+			}
+			if _, ok := valuedFlags[arg]; ok {
+				i++
+			}
+			continue
+		}
+		return strings.TrimSpace(arg)
+	}
+	return ""
+}

@@ -8,7 +8,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Initiative(_message.Message):
-    __slots__ = ("name", "title", "description", "status", "items", "created", "updated", "note", "archived_at")
+    __slots__ = ("name", "title", "description", "status", "items", "created", "updated", "note", "archived_at", "priority", "depends_on")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -18,6 +18,8 @@ class Initiative(_message.Message):
     UPDATED_FIELD_NUMBER: _ClassVar[int]
     NOTE_FIELD_NUMBER: _ClassVar[int]
     ARCHIVED_AT_FIELD_NUMBER: _ClassVar[int]
+    PRIORITY_FIELD_NUMBER: _ClassVar[int]
+    DEPENDS_ON_FIELD_NUMBER: _ClassVar[int]
     name: str
     title: str
     description: str
@@ -27,7 +29,9 @@ class Initiative(_message.Message):
     updated: str
     note: str
     archived_at: str
-    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., items: _Optional[_Iterable[str]] = ..., created: _Optional[str] = ..., updated: _Optional[str] = ..., note: _Optional[str] = ..., archived_at: _Optional[str] = ...) -> None: ...
+    priority: int
+    depends_on: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., items: _Optional[_Iterable[str]] = ..., created: _Optional[str] = ..., updated: _Optional[str] = ..., note: _Optional[str] = ..., archived_at: _Optional[str] = ..., priority: _Optional[int] = ..., depends_on: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class InitiativeRollup(_message.Message):
     __slots__ = ("total", "completed", "in_progress", "failed", "pending", "archived")

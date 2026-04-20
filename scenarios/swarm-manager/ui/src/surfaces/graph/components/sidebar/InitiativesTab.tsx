@@ -12,6 +12,32 @@ import type { InitiativeWithRollup } from "../../../../types";
 import type { InitiativeFilters, SortConfig } from "./types";
 import { NoteIndicator } from "../../../../components/ui/note-indicator";
 import { RollupProgressBar, rollupTotal } from "../../../../components/ui/rollup-progress-bar";
+import {
+  computeEffectivePriority,
+  computeUnblockingMap,
+  dependencyAwareSort,
+  type DepthItem,
+} from "../../../../lib/dependency-sort";
+
+// Constant namespace so initiative keys never collide with backlog keys
+// in shared dependency-sort computations.
+const INITIATIVE_KIND = "initiative";
+
+function toDepthItem(iwr: InitiativeWithRollup): DepthItem {
+  const init = iwr.initiative as InitiativeWithRollup["initiative"] & {
+    priority?: number;
+    dependsOn?: string[];
+  };
+  // Deps on disk are bare names; prefix with our synthetic kind for sort keys.
+  const deps = (init.dependsOn ?? []).map((n) => `${INITIATIVE_KIND}/${n}`);
+  return {
+    kind: INITIATIVE_KIND,
+    name: init.name,
+    status: init.status,
+    dependsOn: deps,
+    archivedAt: init.archivedAt ?? null,
+  };
+}
 
 interface InitiativesTabProps {
   searchQuery: string;
@@ -35,10 +61,39 @@ function applyFilters(items: InitiativeWithRollup[], filters: InitiativeFilters)
   });
 }
 
-function applySort(items: InitiativeWithRollup[], sort: SortConfig): InitiativeWithRollup[] {
-  const sorted = [...items];
+function applySort(
+  items: InitiativeWithRollup[],
+  sort: SortConfig,
+  allItems: InitiativeWithRollup[],
+): InitiativeWithRollup[] {
   const dir = sort.direction === "asc" ? 1 : -1;
 
+  if (sort.field === "priority") {
+    const allDepth = allItems.map(toDepthItem);
+    const unblocking = computeUnblockingMap(allDepth);
+    const compare = (a: InitiativeWithRollup, b: InitiativeWithRollup): number => {
+      const ap = (a.initiative as { priority?: number }).priority ?? 0;
+      const bp = (b.initiative as { priority?: number }).priority ?? 0;
+      const effA = computeEffectivePriority(ap === 0 ? 99 : ap, unblocking.get(`${INITIATIVE_KIND}/${a.initiative.name}`) ?? 0);
+      const effB = computeEffectivePriority(bp === 0 ? 99 : bp, unblocking.get(`${INITIATIVE_KIND}/${b.initiative.name}`) ?? 0);
+      return (effA - effB) * dir;
+    };
+    // dependencyAwareSort respects topological depth then falls back to compare.
+    const wrapped = items.map((iwr) => ({
+      iwr,
+      kind: INITIATIVE_KIND,
+      name: iwr.initiative.name,
+      dependsOn: toDepthItem(iwr).dependsOn,
+    }));
+    const sortedWrap = dependencyAwareSort(
+      wrapped,
+      (a, b) => compare(a.iwr, b.iwr),
+      allDepth,
+    );
+    return sortedWrap.map((w) => w.iwr);
+  }
+
+  const sorted = [...items];
   sorted.sort((a, b) => {
     switch (sort.field) {
       case "recency":
@@ -91,7 +146,7 @@ export function InitiativesTab({ searchQuery, filters, sort, onItemClick }: Init
       matchesSearch(searchQuery, iwr.initiative.title, iwr.initiative.name, iwr.initiative.description),
     );
   }
-  const sorted = applySort(filtered, sort);
+  const sorted = applySort(filtered, sort, items);
 
   if (sorted.length === 0) {
     return (

@@ -55,6 +55,8 @@ export type CommonLanguageSettings = Message<"google.api.CommonLanguageSettings"
   /**
    * Configuration for which RPCs should be generated in the GAPIC client.
    *
+   * Note: This field should not be used in most cases.
+   *
    * @generated from field: google.api.SelectiveGapicGeneration selective_gapic_generation = 3;
    */
   selectiveGapicGeneration?: SelectiveGapicGeneration;
@@ -745,6 +747,8 @@ export const MethodSettings_LongRunningSchema: GenMessage<MethodSettings_LongRun
 /**
  * This message is used to configure the generation of a subset of the RPCs in
  * a service for client libraries.
+ *
+ * Note: This feature should not be used in most cases.
  *
  * @generated from message google.api.SelectiveGapicGeneration
  */

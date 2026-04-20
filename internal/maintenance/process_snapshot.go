@@ -214,6 +214,14 @@ func collectOrphans(root, home string, processTable map[int]processTableEntry, t
 		if !looksLikeVrooliProcessFn(root, home, entry) {
 			continue
 		}
+		// Never classify transient `vrooli` CLI invocations as orphans: they
+		// are legitimate short-lived user commands (e.g. `vrooli scenario
+		// restart <name>`) that don't register a process record, and
+		// SIGTERM'ing a sibling vrooli invocation during `cleanup orphans`
+		// would disrupt in-flight user work.
+		if isVrooliCLIExecutable(entry.Executable) {
+			continue
+		}
 		if isTrackedOrAncestorTracked(pid, tracked, trackedSIDs, processTable, memo, visiting) {
 			continue
 		}

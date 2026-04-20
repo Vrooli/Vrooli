@@ -10,5 +10,9 @@
     "execute/desktop-release-regression-suite"
   ],
   "created": "2026-03-26T16:35:59Z",
-  "updated": "2026-03-26T16:36:27Z"
+  "updated": "2026-03-26T16:36:27Z",
+  "priority": 6,
+  "depends_on": [
+    "desktop-runtime-interop"
+  ]
 }

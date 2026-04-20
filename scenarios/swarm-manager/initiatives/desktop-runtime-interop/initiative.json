@@ -9,5 +9,7 @@
     "execute/desktop-ecosystem-interop-regression-coverage"
   ],
   "created": "2026-03-26T18:33:10Z",
-  "updated": "2026-03-26T18:33:10Z"
+  "updated": "2026-03-26T18:33:10Z",
+  "priority": 2,
+  "depends_on": []
 }

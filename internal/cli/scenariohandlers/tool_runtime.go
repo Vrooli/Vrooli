@@ -21,7 +21,7 @@ func UISmokeHandler[C any](deps HandlerDeps[C]) func(C, []string) error {
 		if err != nil {
 			return err
 		}
-		emitScenarioStaleWarning(deps.Stderr(ctx), deps.Root(ctx), firstPositionalArg(args), deps.Globals(ctx))
+		emitScenarioStaleWarning(deps.Stderr(ctx), deps.Root(ctx), extractUISmokeScenario(args), deps.Globals(ctx))
 		commandArgs := BuildUISmokeArgs(deps.Globals(ctx), args)
 		return deps.RunSubprocess(ctx, scenarioexec.SubprocessSpec{
 			Name:   cliPath,
@@ -74,10 +74,10 @@ func BuildScenarioCompletenessArgs(globals rootcli.GlobalOptions, args []string)
 	commandArgs = append(commandArgs, prefix...)
 	commandArgs = append(commandArgs, args...)
 
-	if globals.JSON && !rootcli.ContainsArg(commandArgs, "--json") && !rootcli.ContainsArg(commandArgs, "--format") {
+	if globals.JSON && !rootcli.ContainsFlag(commandArgs, "--json") && !rootcli.ContainsFlag(commandArgs, "--format") {
 		commandArgs = append(commandArgs, "--json")
 	}
-	if globals.Verbose && !rootcli.ContainsArg(commandArgs, "--verbose") && !rootcli.ContainsArg(commandArgs, "-v") {
+	if globals.Verbose && !rootcli.ContainsFlag(commandArgs, "--verbose") && !rootcli.ContainsArg(commandArgs, "-v") {
 		commandArgs = append(commandArgs, "--verbose")
 	}
 	return commandArgs

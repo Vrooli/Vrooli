@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/execution"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/testutil"
 	"testing"
@@ -90,7 +91,9 @@ func setupTestHandler(t *testing.T) (*Handler, string) {
 		testutil.MakeDir(t, filepath.Join(rootDir, dir))
 	}
 	disableAutoWorkshopSettings(t, rootDir)
-	return NewHandler(rootDir), rootDir
+	h := NewHandler(rootDir)
+	scopeExecutionQueuerForTest(t, h, rootDir, nil)
+	return h, rootDir
 }
 
 func setupTestHandlerWithAgent(t *testing.T, agent agentmanager.Service) (*Handler, string) {
@@ -100,7 +103,26 @@ func setupTestHandlerWithAgent(t *testing.T, agent agentmanager.Service) (*Handl
 		testutil.MakeDir(t, filepath.Join(rootDir, dir))
 	}
 	disableAutoWorkshopSettings(t, rootDir)
-	return NewHandlerWithClients(rootDir, agent, &promptmanager.MockClient{Result: "test prompt"}), rootDir
+	h := NewHandlerWithClients(rootDir, agent, &promptmanager.MockClient{Result: "test prompt"})
+	scopeExecutionQueuerForTest(t, h, rootDir, agent)
+	return h, rootDir
+}
+
+// scopeExecutionQueuerForTest wires the handler's secondary execution service
+// to a tempdir-scoped StorePath. Without this, queue_ops.go falls back to the
+// user-wide runtimepaths.StatePath("execution-runs.json"), so tests pick up
+// whatever is in the developer's real queue and hit unrelated depth-limit or
+// circuit-breaker errors.
+func scopeExecutionQueuerForTest(t *testing.T, h *Handler, rootDir string, agent agentmanager.Service) {
+	t.Helper()
+	storePath := filepath.Join(rootDir, ".vrooli", "execution-runs.json")
+	cfg := execution.ServiceConfig{
+		RootDir:      rootDir,
+		StorePath:    storePath,
+		AgentService: agent,
+		PromptClient: &promptmanager.MockClient{Result: "test prompt"},
+	}
+	h.SetExecutionQueuer(execution.NewService(cfg))
 }
 
 // createTestItem creates a test backlog item in the specified kind directory.

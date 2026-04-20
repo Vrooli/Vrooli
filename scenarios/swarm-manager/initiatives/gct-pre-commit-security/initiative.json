@@ -11,5 +11,9 @@
     "execute/gct-commit-level-agent"
   ],
   "created": "2026-04-06T18:43:38Z",
-  "updated": "2026-04-06T18:43:38Z"
+  "updated": "2026-04-06T18:43:38Z",
+  "priority": 4,
+  "depends_on": [
+    "git-control-tower-ai-provenance"
+  ]
 }

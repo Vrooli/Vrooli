@@ -37,6 +37,15 @@ func TestBuildScenarioCompletenessArgsPreservesExplicitFormat(t *testing.T) {
 	}
 }
 
+func TestBuildScenarioCompletenessArgsPreservesFormatEquals(t *testing.T) {
+	args := BuildScenarioCompletenessArgs(rootcli.GlobalOptions{JSON: true}, []string{"alpha", "--format=yaml"})
+	for _, arg := range args {
+		if arg == "--json" {
+			t.Fatalf("--format=yaml should suppress auto-appended --json; args=%#v", args)
+		}
+	}
+}
+
 func TestBuildScenarioCompletenessArgsPrependsNoColor(t *testing.T) {
 	args := BuildScenarioCompletenessArgs(rootcli.GlobalOptions{NoColor: true}, []string{"score", "get", "alpha"})
 	if len(args) == 0 || args[0] != "--no-color" {

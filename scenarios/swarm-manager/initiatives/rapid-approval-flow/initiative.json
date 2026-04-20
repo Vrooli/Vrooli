@@ -9,5 +9,9 @@
     "execute/prompt-manager-batch-approval-flow"
   ],
   "created": "2026-03-26T20:54:35Z",
-  "updated": "2026-03-26T20:54:35Z"
+  "updated": "2026-03-26T20:54:35Z",
+  "priority": 6,
+  "depends_on": [
+    "swarm-manager-graph-workspace"
+  ]
 }

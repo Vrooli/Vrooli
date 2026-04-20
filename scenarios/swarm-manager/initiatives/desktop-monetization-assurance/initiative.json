@@ -8,5 +8,9 @@
     "research/lpbs-payment-guardrails-and-reconciliation-plan"
   ],
   "created": "2026-03-26T18:33:10Z",
-  "updated": "2026-03-26T18:33:10Z"
+  "updated": "2026-03-26T18:33:10Z",
+  "priority": 5,
+  "depends_on": [
+    "desktop-release-governance"
+  ]
 }

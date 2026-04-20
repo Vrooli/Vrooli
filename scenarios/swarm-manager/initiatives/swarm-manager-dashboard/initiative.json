@@ -11,5 +11,9 @@
   "name": "swarm-manager-dashboard",
   "status": "active",
   "title": "Swarm Manager Dashboard",
-  "updated": "2026-03-27T18:40:24Z"
+  "updated": "2026-03-27T18:40:24Z",
+  "priority": 4,
+  "depends_on": [
+    "swarm-manager-graph-workspace"
+  ]
 }

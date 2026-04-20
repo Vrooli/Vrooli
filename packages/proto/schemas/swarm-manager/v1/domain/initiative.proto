@@ -57,6 +57,14 @@ message Initiative {
   // Archiving is orthogonal to status — initiatives retain their status when archived.
   // @format rfc3339
   optional string archived_at = 9;
+
+  // Manual priority (1-10, lower = higher priority). 0 or unset = unprioritized.
+  // Combined with unblocking-score to produce effective priority for sorting.
+  int32 priority = 10;
+
+  // Upstream initiative names this initiative depends on. Creates a directed
+  // edge in the initiative DAG; dependents cannot start until upstreams complete.
+  repeated string depends_on = 11;
 }
 
 // InitiativeRollup provides aggregated status counts for initiative items.

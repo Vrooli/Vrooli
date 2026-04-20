@@ -535,11 +535,13 @@ func stubRuntimeLookups(t *testing.T) func() {
 	originalReadFileFn := hostreqkit.ReadFileFn
 	originalCombinedOutputFn := hostreqkit.CombinedOutputFn
 	originalRunCommandFn := hostreqkit.RunCommandFn
+	originalWriteTempFileFn := hostreqkit.WriteTempFileFn
 	return func() {
 		hostreqkit.LookPathFn = originalLookPathFn
 		hostreqkit.ReadFileFn = originalReadFileFn
 		hostreqkit.CombinedOutputFn = originalCombinedOutputFn
 		hostreqkit.RunCommandFn = originalRunCommandFn
+		hostreqkit.WriteTempFileFn = originalWriteTempFileFn
 	}
 }
 

@@ -7,5 +7,11 @@
     "execute/director-swarm-gap-monitoring"
   ],
   "created": "2026-04-08T03:51:30Z",
-  "updated": "2026-04-08T03:51:30Z"
+  "updated": "2026-04-08T03:51:30Z",
+  "priority": 5,
+  "depends_on": [
+    "command-center-foundation",
+    "command-center-data-layer",
+    "command-center-dashboards"
+  ]
 }

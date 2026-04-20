@@ -10,5 +10,7 @@
     "execute/brand-manager-rule-detail-ux"
   ],
   "created": "2026-03-26T22:02:39Z",
-  "updated": "2026-03-26T22:02:39Z"
+  "updated": "2026-03-26T22:02:39Z",
+  "priority": 7,
+  "depends_on": []
 }

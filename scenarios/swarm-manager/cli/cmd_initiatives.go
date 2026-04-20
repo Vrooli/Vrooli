@@ -64,6 +64,12 @@ func (a *App) cmdInitiativesList(args []string) error {
 		if init.Description != "" {
 			fmt.Printf("    Description: %s\n", init.Description)
 		}
+		if init.Priority > 0 {
+			fmt.Printf("    Priority: %d\n", init.Priority)
+		}
+		if len(init.DependsOn) > 0 {
+			fmt.Printf("    Depends on: %s\n", strings.Join(init.DependsOn, ", "))
+		}
 		fmt.Printf("    Items: %d total, %d completed, %d in-progress, %d failed, %d pending\n",
 			rollup.Total, rollup.Completed, rollup.InProgress, rollup.Failed, rollup.Pending)
 		if len(init.Items) > 0 {
@@ -113,6 +119,12 @@ func (a *App) cmdInitiativesGet(args []string) error {
 		fmt.Printf("  Description: %s\n", init.Description)
 	}
 	fmt.Printf("  Status: %s\n", init.Status)
+	if init.Priority > 0 {
+		fmt.Printf("  Priority: %d\n", init.Priority)
+	}
+	if len(init.DependsOn) > 0 {
+		fmt.Printf("  Depends on: %s\n", strings.Join(init.DependsOn, ", "))
+	}
 	fmt.Printf("  Created: %s\n", init.Created)
 	fmt.Printf("  Updated: %s\n", init.Updated)
 

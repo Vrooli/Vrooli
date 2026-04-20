@@ -51,6 +51,28 @@
     "compose_file": {
       "type": "string"
     },
+    "gpu": {
+      "type": "object",
+      "description": "Optional GPU probe; when probe succeeds, overlay compose file and env overrides are applied.",
+      "properties": {
+        "probe": {
+          "type": "string",
+          "enum": ["nvidia"]
+        },
+        "compose_overlay": {
+          "type": "string",
+          "description": "Path to an overlay compose file relative to the resource root (or absolute)."
+        },
+        "env_overrides": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": ["probe"],
+      "additionalProperties": false
+    },
     "binary": {
       "type": "string"
     },

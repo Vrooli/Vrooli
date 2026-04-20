@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,12 +28,12 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file google/api/expr/v1alpha1/eval.proto.
  */
 export const file_google_api_expr_v1alpha1_eval: GenFile = /*@__PURE__*/
-  fileDesc("CiNnb29nbGUvYXBpL2V4cHIvdjFhbHBoYTEvZXZhbC5wcm90bxIYZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExIqQBCglFdmFsU3RhdGUSMwoGdmFsdWVzGAEgAygLMiMuZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExLkV4cHJWYWx1ZRI7CgdyZXN1bHRzGAMgAygLMiouZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExLkV2YWxTdGF0ZS5SZXN1bHQaJQoGUmVzdWx0EgwKBGV4cHIYASABKAMSDQoFdmFsdWUYAiABKAMiswEKCUV4cHJWYWx1ZRIwCgV2YWx1ZRgBIAEoCzIfLmdvb2dsZS5hcGkuZXhwci52MWFscGhhMS5WYWx1ZUgAEjMKBWVycm9yGAIgASgLMiIuZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExLkVycm9yU2V0SAASNwoHdW5rbm93bhgDIAEoCzIkLmdvb2dsZS5hcGkuZXhwci52MWFscGhhMS5Vbmtub3duU2V0SABCBgoEa2luZCIuCghFcnJvclNldBIiCgZlcnJvcnMYASADKAsyEi5nb29nbGUucnBjLlN0YXR1cyIbCgpVbmtub3duU2V0Eg0KBWV4cHJzGAEgAygDQmwKHGNvbS5nb29nbGUuYXBpLmV4cHIudjFhbHBoYTFCCUV2YWxQcm90b1ABWjxnb29nbGUuZ29sYW5nLm9yZy9nZW5wcm90by9nb29nbGVhcGlzL2FwaS9leHByL3YxYWxwaGExO2V4cHL4AQFiBnByb3RvMw", [file_google_api_expr_v1alpha1_value, file_google_rpc_status]);
+  fileDesc("CiNnb29nbGUvYXBpL2V4cHIvdjFhbHBoYTEvZXZhbC5wcm90bxIYZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExIqQBCglFdmFsU3RhdGUSMwoGdmFsdWVzGAEgAygLMiMuZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExLkV4cHJWYWx1ZRI7CgdyZXN1bHRzGAMgAygLMiouZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExLkV2YWxTdGF0ZS5SZXN1bHQaJQoGUmVzdWx0EgwKBGV4cHIYASABKAMSDQoFdmFsdWUYAiABKAMiswEKCUV4cHJWYWx1ZRIwCgV2YWx1ZRgBIAEoCzIfLmdvb2dsZS5hcGkuZXhwci52MWFscGhhMS5WYWx1ZUgAEjMKBWVycm9yGAIgASgLMiIuZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExLkVycm9yU2V0SAASNwoHdW5rbm93bhgDIAEoCzIkLmdvb2dsZS5hcGkuZXhwci52MWFscGhhMS5Vbmtub3duU2V0SABCBgoEa2luZCIuCghFcnJvclNldBIiCgZlcnJvcnMYASADKAsyEi5nb29nbGUucnBjLlN0YXR1cyIbCgpVbmtub3duU2V0Eg0KBWV4cHJzGAEgAygDQmkKHGNvbS5nb29nbGUuYXBpLmV4cHIudjFhbHBoYTFCCUV2YWxQcm90b1ABWjxnb29nbGUuZ29sYW5nLm9yZy9nZW5wcm90by9nb29nbGVhcGlzL2FwaS9leHByL3YxYWxwaGExO2V4cHJiBnByb3RvMw", [file_google_api_expr_v1alpha1_value, file_google_rpc_status]);
 
 /**
  * The state of an evaluation.
  *
- * Can represent an inital, partial, or completed state of evaluation.
+ * Can represent an initial, partial, or completed state of evaluation.
  *
  * @generated from message google.api.expr.v1alpha1.EvalState
  */
@@ -64,13 +64,13 @@ export const EvalStateSchema: GenMessage<EvalState> = /*@__PURE__*/
   messageDesc(file_google_api_expr_v1alpha1_eval, 0);
 
 /**
- * A single evalution result.
+ * A single evaluation result.
  *
  * @generated from message google.api.expr.v1alpha1.EvalState.Result
  */
 export type EvalState_Result = Message<"google.api.expr.v1alpha1.EvalState.Result"> & {
   /**
-   * The id of the expression this result if for.
+   * The id of the expression this result is for.
    *
    * @generated from field: int64 expr = 1;
    */
@@ -112,14 +112,14 @@ export type ExprValue = Message<"google.api.expr.v1alpha1.ExprValue"> & {
     case: "value";
   } | {
     /**
-     * The set of errors in the critical path of evalution.
+     * The set of errors in the critical path of evaluation.
      *
      * Only errors in the critical path are included. For example,
      * `(<error1> || true) && <error2>` will only result in `<error2>`,
      * while `<error1> || <error2>` will result in both `<error1>` and
      * `<error2>`.
      *
-     * Errors cause by the presence of other errors are not included in the
+     * Errors caused by the presence of other errors are not included in the
      * set. For example `<error1>.foo`, `foo(<error1>)`, and `<error1> + 1` will
      * only result in `<error1>`.
      *
@@ -149,13 +149,13 @@ export type ExprValue = Message<"google.api.expr.v1alpha1.ExprValue"> & {
      *     foo(<unknown[1]>) -> <unknown[1]>
      *     <unknown[1]> + <unknown[2]> -> <unknown[1]> or <unknown[2[>
      *
-     * Unknown takes precidence over Error in cases where a `Value` can short
+     * Unknown takes precedence over Error in cases where a `Value` can short
      * circuit the result:
      *
      *     <error> || <unknown> -> <unknown>
      *     <error> && <unknown> -> <unknown>
      *
-     * Errors take precidence in all other cases:
+     * Errors take precedence in all other cases:
      *
      *     <unknown> + <error> -> <error>
      *     foo(<unknown>, <error>) -> <error>

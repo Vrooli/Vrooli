@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import { file_google_api_expr_v1alpha1_value } from "./value_pb.js";
  * Describes the file google/api/expr/v1alpha1/explain.proto.
  */
 export const file_google_api_expr_v1alpha1_explain = /*@__PURE__*/
-  fileDesc("CiZnb29nbGUvYXBpL2V4cHIvdjFhbHBoYTEvZXhwbGFpbi5wcm90bxIYZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExIqsBCgdFeHBsYWluEi8KBnZhbHVlcxgBIAMoCzIfLmdvb2dsZS5hcGkuZXhwci52MWFscGhhMS5WYWx1ZRI+CgpleHByX3N0ZXBzGAIgAygLMiouZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExLkV4cGxhaW4uRXhwclN0ZXAaKwoIRXhwclN0ZXASCgoCaWQYASABKAMSEwoLdmFsdWVfaW5kZXgYAiABKAU6AhgBQm8KHGNvbS5nb29nbGUuYXBpLmV4cHIudjFhbHBoYTFCDEV4cGxhaW5Qcm90b1ABWjxnb29nbGUuZ29sYW5nLm9yZy9nZW5wcm90by9nb29nbGVhcGlzL2FwaS9leHByL3YxYWxwaGExO2V4cHL4AQFiBnByb3RvMw", [file_google_api_expr_v1alpha1_value]);
+  fileDesc("CiZnb29nbGUvYXBpL2V4cHIvdjFhbHBoYTEvZXhwbGFpbi5wcm90bxIYZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExIqsBCgdFeHBsYWluEi8KBnZhbHVlcxgBIAMoCzIfLmdvb2dsZS5hcGkuZXhwci52MWFscGhhMS5WYWx1ZRI+CgpleHByX3N0ZXBzGAIgAygLMiouZ29vZ2xlLmFwaS5leHByLnYxYWxwaGExLkV4cGxhaW4uRXhwclN0ZXAaKwoIRXhwclN0ZXASCgoCaWQYASABKAMSEwoLdmFsdWVfaW5kZXgYAiABKAU6AhgBQmwKHGNvbS5nb29nbGUuYXBpLmV4cHIudjFhbHBoYTFCDEV4cGxhaW5Qcm90b1ABWjxnb29nbGUuZ29sYW5nLm9yZy9nZW5wcm90by9nb29nbGVhcGlzL2FwaS9leHByL3YxYWxwaGExO2V4cHJiBnByb3RvMw", [file_google_api_expr_v1alpha1_value]);
 
 /**
  * Describes the message google.api.expr.v1alpha1.Explain.

@@ -17,8 +17,6 @@ kept only as implementation reference for capabilities not yet ported.
 | File | Purpose | Notes |
 |---|---|---|
 | `common_deps.sh` | Install common OS packages (build-essential, pkg-config, etc.) | UNPORTED. Design decision pending: one safeguard vs many individual tools |
-| `domain_check.sh` | DNS/domain reachability diagnostic | UNPORTED. Zero live callers — standalone diagnostic that was never wired |
-| `firewall_ufw.sh` | Configure UFW with Vrooli port allowances | UNPORTED. Linux UFW config not covered by `docker_host_firewall` safeguard |
 | `ssh_authorize_key.sh` | Add public key to `authorized_keys` | UNPORTED. Manual bootstrap — may belong as `vrooli bootstrap ssh-*` CLI command |
 | `ssh_enable.sh` | Enable sshd, configure auth | UNPORTED. Manual bootstrap |
 | `ssh_keyless.sh` | Passwordless SSH between nodes | UNPORTED. Manual bootstrap |

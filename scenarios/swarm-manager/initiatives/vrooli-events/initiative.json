@@ -10,5 +10,7 @@
     "execute/vrooli-events-analytics-ui"
   ],
   "created": "2026-04-04T22:36:30Z",
-  "updated": "2026-04-04T22:36:30Z"
+  "updated": "2026-04-04T22:36:30Z",
+  "priority": 1,
+  "depends_on": []
 }

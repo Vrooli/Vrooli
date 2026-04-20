@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import { file_google_protobuf_wrappers } from "@bufbuild/protobuf/wkt";
  * Describes the file google/type/color.proto.
  */
 export const file_google_type_color = /*@__PURE__*/
-  fileDesc("Chdnb29nbGUvdHlwZS9jb2xvci5wcm90bxILZ29vZ2xlLnR5cGUiXQoFQ29sb3ISCwoDcmVkGAEgASgCEg0KBWdyZWVuGAIgASgCEgwKBGJsdWUYAyABKAISKgoFYWxwaGEYBCABKAsyGy5nb29nbGUucHJvdG9idWYuRmxvYXRWYWx1ZUJgCg9jb20uZ29vZ2xlLnR5cGVCCkNvbG9yUHJvdG9QAVo2Z29vZ2xlLmdvbGFuZy5vcmcvZ2VucHJvdG8vZ29vZ2xlYXBpcy90eXBlL2NvbG9yO2NvbG9y+AEBogIDR1RQYgZwcm90bzM", [file_google_protobuf_wrappers]);
+  fileDesc("Chdnb29nbGUvdHlwZS9jb2xvci5wcm90bxILZ29vZ2xlLnR5cGUiXQoFQ29sb3ISCwoDcmVkGAEgASgCEg0KBWdyZWVuGAIgASgCEgwKBGJsdWUYAyABKAISKgoFYWxwaGEYBCABKAsyGy5nb29nbGUucHJvdG9idWYuRmxvYXRWYWx1ZUJdCg9jb20uZ29vZ2xlLnR5cGVCCkNvbG9yUHJvdG9QAVo2Z29vZ2xlLmdvbGFuZy5vcmcvZ2VucHJvdG8vZ29vZ2xlYXBpcy90eXBlL2NvbG9yO2NvbG9yogIDR1RQYgZwcm90bzM", [file_google_protobuf_wrappers]);
 
 /**
  * Describes the message google.type.Color.

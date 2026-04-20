@@ -29,6 +29,9 @@ interface RawRollup {
 interface RawInitiative {
   archived_at?: string;
   archivedAt?: string;
+  depends_on?: string[];
+  dependsOn?: string[];
+  priority?: number;
   [key: string]: unknown;
 }
 
@@ -36,12 +39,16 @@ interface RawInitiative {
 function normalizeItem(raw: { initiative?: RawInitiative; rollup?: RawRollup }): InitiativeWithRollup {
   const rollup = raw.rollup ?? {};
   const initiative = raw.initiative ?? {};
-  // Normalize archived_at (snake_case from API) to archivedAt (camelCase)
+  // Normalize snake_case fields from API to camelCase expected by TS types.
   const archivedAt = initiative.archivedAt ?? initiative.archived_at;
+  const dependsOn = initiative.dependsOn ?? initiative.depends_on ?? [];
+  const priority = initiative.priority ?? 0;
   return {
     ...raw,
     initiative: {
       ...initiative,
+      priority,
+      dependsOn,
       ...(archivedAt ? { archivedAt } : {}),
     },
     rollup: {

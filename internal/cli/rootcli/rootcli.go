@@ -184,6 +184,19 @@ func ContainsArg(args []string, target string) bool {
 	return false
 }
 
+// ContainsFlag reports whether `target` appears as a flag — either as its own
+// token (`--format`) or in the `--format=value` long-form. Use this when you
+// need to decide whether the user has already supplied a flag in either form.
+func ContainsFlag(args []string, target string) bool {
+	prefix := target + "="
+	for _, arg := range args {
+		if arg == target || strings.HasPrefix(arg, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 func PassthroughFlags(globals GlobalOptions, existing []string) []string {
 	flags := make([]string, 0, 4)
 	if globals.JSON && !ContainsArg(existing, "--json") {

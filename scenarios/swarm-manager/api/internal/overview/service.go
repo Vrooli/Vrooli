@@ -54,6 +54,7 @@ type OverviewResponse struct {
 	Initiatives     []initiatives.InitiativeWithRollup  `json:"initiatives"`
 	DependencyGraph DependencyGraph                     `json:"dependency_graph"`
 	Summary         OverviewSummary                     `json:"summary"`
+	Consistency     ConsistencyReport                   `json:"consistency"`
 	Governance      *execution.GovernanceStatusResponse `json:"governance,omitempty"`
 }
 
@@ -93,11 +94,16 @@ func (s *Service) GetOverview() (*OverviewResponse, error) {
 	// Build summary statistics.
 	summary := buildSummary(items, inits)
 
+	consistency := ConsistencyReport{
+		InitiativeEdgeSuggestions: computeInitiativeEdgeSuggestions(items, inits),
+	}
+
 	resp := &OverviewResponse{
 		Items:           items,
 		Initiatives:     inits,
 		DependencyGraph: depGraph,
 		Summary:         summary,
+		Consistency:     consistency,
 	}
 
 	if s.governance != nil {

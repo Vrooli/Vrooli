@@ -15,11 +15,13 @@ func stubLookups(t *testing.T) func() {
 	origReadFile := ReadFileFn
 	origCombinedOutput := CombinedOutputFn
 	origRunCommand := RunCommandFn
+	origWriteTemp := WriteTempFileFn
 	return func() {
 		LookPathFn = origLookPath
 		ReadFileFn = origReadFile
 		CombinedOutputFn = origCombinedOutput
 		RunCommandFn = origRunCommand
+		WriteTempFileFn = origWriteTemp
 	}
 }
 
@@ -546,5 +548,185 @@ func TestWriterOrDiscard(t *testing.T) {
 	w = writerOrDiscard(os.Stdout)
 	if w != os.Stdout {
 		t.Fatal("should return the provided writer")
+	}
+}
+
+func TestInstallManagedContentTempFileFailure(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+
+	WriteTempFileFn = func(string) (string, error) {
+		return "", errors.New("disk full")
+	}
+
+	err := InstallManagedContent("/etc/test.conf", "content", "ask", EnsureOptions{})
+	if err == nil || !strings.Contains(err.Error(), "disk full") {
+		t.Fatalf("expected disk full error, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "/etc/test.conf") {
+		t.Fatalf("error should mention target path: %v", err)
+	}
+}
+
+func TestRunHealthCheckNil(t *testing.T) {
+	passed, detail := RunHealthCheck(nil)
+	if !passed {
+		t.Fatal("nil health check should pass")
+	}
+	if detail != "" {
+		t.Fatalf("detail = %q, want empty", detail)
+	}
+}
+
+func TestRunHealthCheckFilesPass(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+
+	ReadFileFn = func(path string) ([]byte, error) {
+		return []byte("content"), nil
+	}
+
+	hc := &HealthCheck{
+		Files: []string{"/etc/sysctl.d/99-test.conf", "/etc/systemd/test.conf"},
+	}
+	passed, detail := RunHealthCheck(hc)
+	if !passed {
+		t.Fatalf("expected pass, got detail: %s", detail)
+	}
+}
+
+func TestRunHealthCheckFilesMissing(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+
+	ReadFileFn = func(path string) ([]byte, error) {
+		if path == "/etc/exists.conf" {
+			return []byte("ok"), nil
+		}
+		return nil, os.ErrNotExist
+	}
+
+	hc := &HealthCheck{
+		Files: []string{"/etc/exists.conf", "/etc/missing.conf"},
+	}
+	passed, detail := RunHealthCheck(hc)
+	if passed {
+		t.Fatal("expected failure for missing file")
+	}
+	if !strings.Contains(detail, "/etc/missing.conf") {
+		t.Fatalf("detail = %q, want mention of missing file", detail)
+	}
+}
+
+func TestRunHealthCheckCommandPass(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+
+	CombinedOutputFn = func(name string, args ...string) ([]byte, error) {
+		return []byte("ok\n"), nil
+	}
+
+	hc := &HealthCheck{
+		Command: "docker",
+		Args:    []string{"info"},
+	}
+	passed, detail := RunHealthCheck(hc)
+	if !passed {
+		t.Fatalf("expected pass, got detail: %s", detail)
+	}
+	if detail != "" {
+		t.Fatalf("detail = %q, want empty", detail)
+	}
+}
+
+func TestRunHealthCheckCommandFail(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+
+	CombinedOutputFn = func(name string, args ...string) ([]byte, error) {
+		return []byte("Cannot connect to the Docker daemon\n"), errors.New("exit status 1")
+	}
+
+	hc := &HealthCheck{
+		Command: "docker",
+		Args:    []string{"info"},
+	}
+	passed, detail := RunHealthCheck(hc)
+	if passed {
+		t.Fatal("expected failure")
+	}
+	if !strings.Contains(detail, "docker") {
+		t.Fatalf("detail = %q, want mention of docker", detail)
+	}
+	if !strings.Contains(detail, "Cannot connect") {
+		t.Fatalf("detail = %q, want command output", detail)
+	}
+}
+
+func TestRunHealthCheckCommandFailNoOutput(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+
+	CombinedOutputFn = func(name string, args ...string) ([]byte, error) {
+		return nil, errors.New("command not found")
+	}
+
+	hc := &HealthCheck{
+		Command: "missing-tool",
+	}
+	passed, detail := RunHealthCheck(hc)
+	if passed {
+		t.Fatal("expected failure")
+	}
+	if !strings.Contains(detail, "command not found") {
+		t.Fatalf("detail = %q, want error message", detail)
+	}
+}
+
+func TestRunHealthCheckFilesAndCommand(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+
+	ReadFileFn = func(string) ([]byte, error) {
+		return []byte("ok"), nil
+	}
+	CombinedOutputFn = func(string, ...string) ([]byte, error) {
+		return []byte("healthy\n"), nil
+	}
+
+	hc := &HealthCheck{
+		Files:   []string{"/etc/test.conf"},
+		Command: "check",
+		Args:    []string{"--status"},
+	}
+	passed, detail := RunHealthCheck(hc)
+	if !passed {
+		t.Fatalf("expected pass, got: %s", detail)
+	}
+}
+
+func TestRunHealthCheckFilesFailShortCircuitsCommand(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+
+	ReadFileFn = func(string) ([]byte, error) {
+		return nil, os.ErrNotExist
+	}
+	var commandCalled bool
+	CombinedOutputFn = func(string, ...string) ([]byte, error) {
+		commandCalled = true
+		return nil, nil
+	}
+
+	hc := &HealthCheck{
+		Files:   []string{"/etc/missing.conf"},
+		Command: "check",
+	}
+	passed, _ := RunHealthCheck(hc)
+	if passed {
+		t.Fatal("expected failure")
+	}
+	if commandCalled {
+		t.Fatal("command should not run when file check fails")
 	}
 }

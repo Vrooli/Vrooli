@@ -11,5 +11,9 @@
     "chore/archive-legacy-notification-hub"
   ],
   "created": "2026-04-04T22:36:30Z",
-  "updated": "2026-04-04T22:36:30Z"
+  "updated": "2026-04-04T22:36:30Z",
+  "priority": 3,
+  "depends_on": [
+    "vrooli-events"
+  ]
 }

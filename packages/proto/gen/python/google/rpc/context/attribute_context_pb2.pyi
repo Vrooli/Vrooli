@@ -59,7 +59,7 @@ class AttributeContext(_message.Message):
         access_levels: _containers.RepeatedScalarFieldContainer[str]
         def __init__(self, principal: _Optional[str] = ..., audiences: _Optional[_Iterable[str]] = ..., presenter: _Optional[str] = ..., claims: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., access_levels: _Optional[_Iterable[str]] = ...) -> None: ...
     class Request(_message.Message):
-        __slots__ = ("id", "method", "headers", "path", "host", "scheme", "query", "time", "size", "protocol", "reason", "auth")
+        __slots__ = ("id", "method", "headers", "path", "host", "scheme", "query", "time", "size", "protocol", "reason", "auth", "origin")
         class HeadersEntry(_message.Message):
             __slots__ = ("key", "value")
             KEY_FIELD_NUMBER: _ClassVar[int]
@@ -79,6 +79,7 @@ class AttributeContext(_message.Message):
         PROTOCOL_FIELD_NUMBER: _ClassVar[int]
         REASON_FIELD_NUMBER: _ClassVar[int]
         AUTH_FIELD_NUMBER: _ClassVar[int]
+        ORIGIN_FIELD_NUMBER: _ClassVar[int]
         id: str
         method: str
         headers: _containers.ScalarMap[str, str]
@@ -91,7 +92,8 @@ class AttributeContext(_message.Message):
         protocol: str
         reason: str
         auth: AttributeContext.Auth
-        def __init__(self, id: _Optional[str] = ..., method: _Optional[str] = ..., headers: _Optional[_Mapping[str, str]] = ..., path: _Optional[str] = ..., host: _Optional[str] = ..., scheme: _Optional[str] = ..., query: _Optional[str] = ..., time: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., size: _Optional[int] = ..., protocol: _Optional[str] = ..., reason: _Optional[str] = ..., auth: _Optional[_Union[AttributeContext.Auth, _Mapping]] = ...) -> None: ...
+        origin: str
+        def __init__(self, id: _Optional[str] = ..., method: _Optional[str] = ..., headers: _Optional[_Mapping[str, str]] = ..., path: _Optional[str] = ..., host: _Optional[str] = ..., scheme: _Optional[str] = ..., query: _Optional[str] = ..., time: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., size: _Optional[int] = ..., protocol: _Optional[str] = ..., reason: _Optional[str] = ..., auth: _Optional[_Union[AttributeContext.Auth, _Mapping]] = ..., origin: _Optional[str] = ...) -> None: ...
     class Response(_message.Message):
         __slots__ = ("code", "size", "headers", "time", "backend_latency")
         class HeadersEntry(_message.Message):

@@ -8,5 +8,7 @@
     "execute/gct-committed-ai-provenance-history"
   ],
   "created": "2026-04-09T17:33:13Z",
-  "updated": "2026-04-09T17:33:13Z"
+  "updated": "2026-04-09T17:33:13Z",
+  "priority": 2,
+  "depends_on": []
 }

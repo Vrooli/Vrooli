@@ -16,7 +16,23 @@ type OverviewResponse struct {
 	Initiatives     []OverviewInitiative `json:"initiatives"`
 	DependencyGraph OverviewDepGraph     `json:"dependency_graph"`
 	Summary         OverviewSummary      `json:"summary"`
+	Consistency     OverviewConsistency  `json:"consistency"`
 	Governance      *GovernanceStatus    `json:"governance,omitempty"`
+}
+
+// OverviewConsistency surfaces drift signals the Portfolio Manager should raise
+// but never auto-apply.
+type OverviewConsistency struct {
+	InitiativeEdgeSuggestions []InitiativeEdgeSuggestion `json:"initiative_edge_suggestions"`
+}
+
+// InitiativeEdgeSuggestion is a probable missing or stale initiative edge.
+type InitiativeEdgeSuggestion struct {
+	From              string   `json:"from"`
+	To                string   `json:"to"`
+	Direction         string   `json:"direction"`
+	InferredFromItems []string `json:"inferred_from_items"`
+	Reason            string   `json:"reason"`
 }
 
 // GovernanceStatus mirrors the API governance status.
@@ -161,6 +177,20 @@ func printOverviewMarkdown(resp OverviewResponse) {
 		printSection("Dependency Graph")
 		for _, edge := range resp.DependencyGraph.Edges {
 			fmt.Printf("  %s -> %s\n", edge[0], edge[1])
+		}
+		fmt.Println()
+	}
+
+	// Initiative edge consistency suggestions.
+	if len(resp.Consistency.InitiativeEdgeSuggestions) > 0 {
+		printSection("Initiative Edge Suggestions")
+		fmt.Println("  Drift between explicit initiative deps and edges implied by child items.")
+		fmt.Println("  Review before accepting — never auto-applied.")
+		for _, s := range resp.Consistency.InitiativeEdgeSuggestions {
+			fmt.Printf("  - [%s] %s -> %s: %s\n", s.Direction, s.From, s.To, s.Reason)
+			if len(s.InferredFromItems) > 0 {
+				fmt.Printf("      via: %s\n", strings.Join(s.InferredFromItems, ", "))
+			}
 		}
 		fmt.Println()
 	}

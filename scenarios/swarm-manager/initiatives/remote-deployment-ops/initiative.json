@@ -8,5 +8,9 @@
     "execute/mobile-operable-deployment-surfaces"
   ],
   "created": "2026-03-26T16:35:54Z",
-  "updated": "2026-03-26T16:36:26Z"
+  "updated": "2026-03-26T16:36:26Z",
+  "priority": 6,
+  "depends_on": [
+    "desktop-release-governance"
+  ]
 }

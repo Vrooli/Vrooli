@@ -28,6 +28,7 @@ var AllowedDrivers = []string{
 var (
 	AllowedPortabilityTiers      = []string{"full", "partial", "platform-specific"}
 	AllowedPlatformSupportStates = []string{"supported", "partial", "unsupported"}
+	AllowedGPUProbes             = []string{"nvidia"}
 )
 
 type ResourceManifest struct {
@@ -60,6 +61,13 @@ type ResourceManifest struct {
 	TemplateVersion       string                       `json:"template_version,omitempty"`
 	HostTools             []hostreqspec.Declaration    `json:"hostTools,omitempty"`
 	HostSafeguards        []hostreqspec.Declaration    `json:"hostSafeguards,omitempty"`
+	GPU                   *ResourceGPU                 `json:"gpu,omitempty"`
+}
+
+type ResourceGPU struct {
+	Probe          string            `json:"probe"`
+	ComposeOverlay string            `json:"compose_overlay,omitempty"`
+	EnvOverrides   map[string]string `json:"env_overrides,omitempty"`
 }
 
 type ResourcePlatforms struct {
@@ -213,6 +221,9 @@ func Validate(manifest ResourceManifest) error {
 		return err
 	}
 	if err := hostreqspec.ValidateDeclarations(hostreqspec.KindSafeguard, manifest.HostSafeguards); err != nil {
+		return err
+	}
+	if err := validateGPU(manifest.GPU); err != nil {
 		return err
 	}
 	switch manifest.Driver {
@@ -391,6 +402,23 @@ func validatePlatforms(platforms ResourcePlatforms) error {
 		if !slices.Contains(AllowedPlatformSupportStates, value) {
 			return fmt.Errorf("platform support value %q is invalid", value)
 		}
+	}
+	return nil
+}
+
+func validateGPU(gpu *ResourceGPU) error {
+	if gpu == nil {
+		return nil
+	}
+	probe := strings.TrimSpace(gpu.Probe)
+	if probe == "" {
+		return fmt.Errorf("gpu.probe is required when gpu block is present")
+	}
+	if !slices.Contains(AllowedGPUProbes, probe) {
+		return fmt.Errorf("gpu.probe %q is invalid (allowed: %v)", probe, AllowedGPUProbes)
+	}
+	if strings.TrimSpace(gpu.ComposeOverlay) == "" && len(gpu.EnvOverrides) == 0 {
+		return fmt.Errorf("gpu block must set compose_overlay or env_overrides")
 	}
 	return nil
 }
