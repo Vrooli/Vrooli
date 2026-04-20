@@ -34,7 +34,7 @@ Generate authentic marketing content that communicates Vrooli progress, vision, 
 - **Swarm Manager fix items** — Interesting debugging stories.
 - **Swarm Manager execute items** — Major code quality improvements.
 - **Director Swarm** — Strategic messaging and priorities.
-- **Revenue Research** — Market positioning insights.
+- **Monetization Team** — For positioning work, read `docs/monetization/CATALOG.md` (bundles + add-ons) and `docs/monetization/STRATEGY.md` (principles). Key framing discipline: the subscription buys convenience + integrated API access; the OSS self-host path is deliberate brand credibility, not a revenue leak. Do not frame the subscription as paywalling core features.
 
 ## Available Skills
 Team members should read the relevant skill before starting a task. Each skill contains usage instructions, prerequisites, and current capabilities.

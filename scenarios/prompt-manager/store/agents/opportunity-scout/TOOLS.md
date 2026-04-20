@@ -4,15 +4,25 @@
 `prompt-manager skill read <skill-id>`
 
 ## Primary Skills
-- **explore** — Creative exploration of ideas and connections.
-- **interoperability-steer** — Understanding how scenarios compose.
+- **systematic-exploration** — broad scan of capability × market combinations
+- **documentation-health** — durable, grep-able candidate entries
+- **interoperability-steer** — how scenarios compose into bundle value
 
-## Discovery Approaches
-- Review the Vrooli scenarios list: `ls scenarios/`
-- Read scenario PRDs and docs for capability understanding.
-- Research what similar tools charge for comparable features.
+## Primary Surfaces
+- `docs/monetization/CATALOG.md`
+- `docs/monetization/catalog/addons/*`
+- `docs/monetization/STRATEGY.md`
+- `shared/opportunities.jsonl`
+- `prompt-manager team knowledge-list director-swarm --topic=vision-walk/*`
+- `prompt-manager team knowledge-list monetization`
+- `ls scenarios/` + per-scenario PRDs for capability-arrival detection
+- External browser scans for market/competitor signal (manual)
 
 ## Usage Rules
-- Generate breadth first, then filter for quality.
-- Always connect ideas to existing Vrooli capabilities.
-- Use the structured opportunity brief template.
+- Breadth first, quality filtering second.
+- Every candidate attaches to a plausible Vrooli capability — no pure daydreams.
+- Every candidate has a concrete revisit trigger. No triggers = no entry.
+- Every candidate has both acquisition AND retention hypotheses.
+- Honesty: if TAM or demand is self-generated speculation, mark it so. Cite external sources when available.
+- Cap promotion proposals at 3 per heartbeat.
+- Do not propose Tier 4 / hardware work — that's north-star only.

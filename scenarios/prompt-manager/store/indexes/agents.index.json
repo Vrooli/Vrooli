@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-09T20:12:13Z",
+  "generatedAt": "2026-04-20T18:00:00Z",
   "items": [
     {
       "id": "agent-22",
@@ -9,6 +9,11 @@
     {
       "id": "agent-optimizer",
       "displayName": "Agent Optimizer",
+      "status": "active"
+    },
+    {
+      "id": "catalog-strategist",
+      "displayName": "Catalog Strategist",
       "status": "active"
     },
     {
@@ -24,11 +29,6 @@
     {
       "id": "contrarian",
       "displayName": "Contrarian",
-      "status": "active"
-    },
-    {
-      "id": "feasibility-analyst",
-      "displayName": "Feasibility Analyst",
       "status": "active"
     },
     {
@@ -49,6 +49,11 @@
     {
       "id": "feature-reviewer",
       "displayName": "Feature Reviewer",
+      "status": "active"
+    },
+    {
+      "id": "financial-tracker",
+      "displayName": "Financial Tracker",
       "status": "active"
     },
     {
@@ -94,11 +99,6 @@
     {
       "id": "quality-auditor",
       "displayName": "Quality Auditor",
-      "status": "active"
-    },
-    {
-      "id": "research-lead",
-      "displayName": "Research Lead",
       "status": "active"
     },
     {

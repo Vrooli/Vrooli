@@ -4,14 +4,24 @@
 `prompt-manager skill read <skill-id>`
 
 ## Primary Skills
-- **explore** — Market research exploration.
+- **systematic-exploration** — broad competitor / category scans
+- **documentation-health** — durable benchmark entries
+- **scientific-debugging** — when captured benchmark conflicts with an assumption
 
-## Research Approaches
-- Web search for competitor pricing and features.
-- Developer community analysis (GitHub stars, discussions, surveys).
-- Industry reports and market sizing data.
+## Primary Surfaces
+- `docs/monetization/BENCHMARKS.md`
+- `docs/monetization/PRICING.md`
+- `docs/monetization/FINANCIAL_MODEL.md`
+- `docs/monetization/FUNNEL.md`
+- `shared/market-scans.jsonl`
+- Competitor pricing pages (browser fetch)
+- Public SaaS benchmark reports (Bessemer State of the Cloud, OpenView PLG benchmarks, SaaS Capital, etc.)
+- **REPLACES-MANUAL:** an automated competitor-pricing watcher if one ever exists — see `TELEMETRY_ROADMAP.md` Gap 8
 
 ## Usage Rules
-- Always cite sources for market claims.
-- Distinguish addressable market from total market.
-- Provide competitive context for every validation.
+- Every captured value has a **source** and a **date**.
+- **Applicability** flag is honest: how directly does this comp to Vrooli (high / medium / low)?
+- Conflicting data reported as conflicting, not averaged.
+- Deep research scoped to active tier × bundle. Everything else is a one-liner.
+- Cap decisions at 2 per heartbeat.
+- Do not build feature-by-feature comparison sheets unless specifically requested.

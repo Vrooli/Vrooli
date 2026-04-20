@@ -21,4 +21,4 @@
 ## Coordination
 - Receive research briefs from marketing-lead.
 - Deliver findings to marketing-lead.
-- Share relevant market intelligence with revenue-research team.
+- Share relevant market intelligence with the monetization team — especially benchmark-adjacent observations useful to its `market-validator`.

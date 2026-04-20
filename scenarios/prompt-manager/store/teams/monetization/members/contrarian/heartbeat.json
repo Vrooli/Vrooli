@@ -1,0 +1,11 @@
+{
+  "kind": "heartbeat-config",
+  "schemaVersion": 1,
+  "teamId": "monetization",
+  "agentId": "contrarian",
+  "enabled": false,
+  "schedule": "30 17 * * *",
+  "revision": 1,
+  "createdAt": "2026-04-20T00:00:00Z",
+  "updatedAt": "2026-04-20T00:00:00Z"
+}

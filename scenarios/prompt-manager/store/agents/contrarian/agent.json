@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "contrarian",
   "displayName": "Contrarian",
-  "description": "Challenges assumptions, identifies failure modes, and prevents groupthink in research.",
+  "description": "Cross-cutting skeptic for the monetization team. Evaluates every pending decision against seven named failure modes (catalog sprawl, premature tier activation, services trap, retention-blind acquisition, hallucinated metrics, positioning drift, marketing-default) and attaches concrete challenge notes.",
   "status": "active",
   "appearance": {
     "body": "#042F2E",
@@ -11,17 +11,17 @@
     "accent": "#99F6E4"
   },
   "tags": [
-    "research",
+    "monetization",
     "critical-thinking",
-    "risk",
-    "assumptions"
+    "failure-modes",
+    "risk"
   ],
   "fileOrder": [
     "SOUL.md",
     "AGENTS.md",
     "TOOLS.md"
   ],
-  "revision": 1,
+  "revision": 2,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-02-09T12:00:00Z"
+  "updatedAt": "2026-04-20T00:00:00Z"
 }

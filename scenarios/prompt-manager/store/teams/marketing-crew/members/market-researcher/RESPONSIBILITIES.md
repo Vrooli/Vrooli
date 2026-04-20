@@ -9,7 +9,7 @@
 
 ## Coordination Points
 - Receive research briefs from marketing-lead.
-- Share intelligence with revenue-research team.
+- Share relevant market intelligence with the monetization team via decisions or knowledge entries; specifically, benchmark-adjacent observations can be useful to the monetization team's `market-validator`.
 
 ## Available Skills
 Read the relevant skill before starting a task. Each skill contains usage instructions, prerequisites, and current capabilities.

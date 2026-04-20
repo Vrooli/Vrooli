@@ -1,0 +1,32 @@
+{
+  "kind": "team-roles",
+  "schemaVersion": 1,
+  "teamId": "monetization",
+  "roles": [
+    {
+      "id": "catalog-strategist",
+      "name": "Catalog Strategist",
+      "description": "Owns the SKU and tier graph. Tracks readiness of scenarios against catalog roles; proposes promotions (scenario → headliner, candidate SKU → active, candidate tier → active) when triggers fire."
+    },
+    {
+      "id": "opportunity-scout",
+      "name": "Opportunity Scout",
+      "description": "Generates and classifies candidate SKUs, add-ons, and services lines. Produces a persistent idea pool with explicit revisit triggers, not a running strategy narrative."
+    },
+    {
+      "id": "financial-tracker",
+      "name": "Financial Tracker",
+      "description": "Maintains the ledger of costs, revenue, time allocation, runway, and default-alive gap. Flags material deltas and services-trap warning signals."
+    },
+    {
+      "id": "market-validator",
+      "name": "Market Validator",
+      "description": "Grounds pricing, retention, and competitive assumptions in external benchmarks for the active tier. Keeps BENCHMARKS.md current. Triages narrowly — does not deep-dive on dormant candidates."
+    },
+    {
+      "id": "contrarian",
+      "name": "Contrarian",
+      "description": "Mandatory skeptic across all other members' outputs and pending decisions. Defends against catalog sprawl, premature upscaling, the services trap, and acquisition proposals that ignore retention."
+    }
+  ]
+}

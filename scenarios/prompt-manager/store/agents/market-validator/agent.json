@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "market-validator",
   "displayName": "Market Validator",
-  "description": "Grounds ideas in external market data: pricing, demand, competition, and market size.",
+  "description": "Grounds Vrooli's pricing, retention, and competitive assumptions in external benchmarks for the active tier × bundle. Maintains BENCHMARKS.md; validates FINANCIAL_MODEL.md assumptions against public data.",
   "status": "active",
   "appearance": {
     "body": "#134E4A",
@@ -11,8 +11,8 @@
     "accent": "#5EEAD4"
   },
   "tags": [
-    "research",
-    "market-analysis",
+    "monetization",
+    "benchmarks",
     "pricing",
     "validation"
   ],
@@ -21,7 +21,7 @@
     "AGENTS.md",
     "TOOLS.md"
   ],
-  "revision": 1,
+  "revision": 2,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-02-09T12:00:00Z"
+  "updatedAt": "2026-04-20T00:00:00Z"
 }

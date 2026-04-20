@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-09T20:25:28Z",
+  "generatedAt": "2026-04-20T00:00:00Z",
   "items": [
     {
       "id": "director-swarm",
@@ -17,8 +17,8 @@
       "memberCount": 4
     },
     {
-      "id": "revenue-research",
-      "displayName": "Revenue Research Team",
+      "id": "monetization",
+      "displayName": "Monetization Team",
       "memberCount": 5
     },
     {

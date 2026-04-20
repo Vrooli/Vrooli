@@ -12,7 +12,7 @@
   - Retrospective (past 24h completions and notable changes)
   - Portfolio decisions (pending, max 3)
   - Strategist decisions (pending, max 3, or note if disabled)
-  - Monetization decisions (pending, or note if team under development)
+  - Monetization decisions (top 3 pending from the `monetization` team, across catalog / services / runway / pricing / funnel contexts). Also includes the latest ledger snapshot and any active runway / services-trap flags.
   - Life audit prompts (previous chore discussions, suggested capability gaps)
   - Big picture context (tech tree status, bundle roadmap, stalled initiatives)
 

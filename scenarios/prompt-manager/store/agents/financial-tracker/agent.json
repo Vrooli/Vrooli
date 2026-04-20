@@ -1,0 +1,27 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "financial-tracker",
+  "displayName": "Financial Tracker",
+  "description": "Maintains Vrooli's monetization ledger: cost categories, per-tier/per-bundle revenue, time allocation, runway, default-alive gap. Flags material deltas and services-trap warning signals.",
+  "status": "active",
+  "appearance": {
+    "body": "#047857",
+    "head": "#10B981",
+    "accent": "#A7F3D0"
+  },
+  "tags": [
+    "monetization",
+    "finance",
+    "runway",
+    "ledger"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-04-20T00:00:00Z",
+  "updatedAt": "2026-04-20T00:00:00Z"
+}

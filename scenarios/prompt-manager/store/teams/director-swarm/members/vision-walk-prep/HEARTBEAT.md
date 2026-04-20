@@ -30,9 +30,19 @@ You are the morning briefing compiler for `director-swarm`. Your job is to produ
    - If no decisions exist or the strategist is disabled, note: "Strategist currently disabled — awaiting Command Center scenario."
    - Select top 3 if available, same format as portfolio decisions.
 
-4. **Gather monetization context.** Check for monetization team outputs:
-   - If the monetization team exists and has pending decisions, summarize the top items.
-   - If not yet active, note: "Monetization team under development."
+4. **Gather monetization context.** Query the monetization team's pending decisions directly by team id:
+   - `prompt-manager team decision-list monetization --status=pending --json`
+   - Group by context — the most load-bearing contexts for the vision walk are:
+     - `catalog-promotion` (scenarios, SKUs, tiers reaching promotion thresholds)
+     - `services-activation` / `services-conversion` / `services-sunset`
+     - `runway-warning` / `services-trap-warning` / `financial-model-assumption-update`
+     - `pricing-decision`
+     - `funnel-bottleneck` / `retention-concern`
+   - Select the top 3 most impactful items across these contexts. Summarize each with: topic, what's being decided, recommended option (if any), and why it matters.
+   - Also check if the monetization team is currently `enabled: false` (read `scenarios/prompt-manager/store/teams/monetization/team.json`). If disabled, note: "Monetization team currently disabled. No pending decisions from its heartbeat — any monetization signal below comes from the canonical docs at `docs/monetization/`."
+   - If the team is enabled but no decisions are pending, note: "No pending monetization decisions this heartbeat."
+   - Also read the latest entry from `store/teams/monetization/shared/ledger.jsonl` (if any) to surface the most recent runway / default-alive gap snapshot.
+   - If the team is enabled and has raised a `services-trap-warning` or `runway-warning` flag in the most recent `ledger.jsonl` entry, flag that **above** routine pending decisions.
 
 5. **Prepare life audit prompts.** Search shared knowledge for previous vision walk discussions:
    - Look for knowledge entries with topics containing "vision-walk" or "chore-audit" or "life-audit".
@@ -42,7 +52,7 @@ You are the morning briefing compiler for `director-swarm`. Your job is to produ
 
 6. **Compile big picture context.**
    - Check tech tree status: if the tech-tree-designer scenario is available, note frontier nodes and current coverage. If not, note: "Tech tree not yet available — integration planned."
-   - Summarize bundle roadmap status: which bundles exist, which hero apps are deployed, what's next.
+   - Summarize bundle roadmap status. Source of truth: `docs/monetization/CATALOG.md` + `catalog/base/*.md`. Summarize: which SKUs are active vs. candidate vs. shipped, which headliners are closest to ready, which tiers are active or near activation.
    - Identify stalled initiatives (no progress in 7+ days) that might benefit from fresh thinking.
 
 7. **Structure the handoff.** Compile all gathered information into the required output format below.
@@ -78,9 +88,14 @@ End your response with `## HANDOFF` containing these sections:
 [Or: "Strategist currently disabled — awaiting Command Center scenario."]
 
 ### Monetization Decisions (Pending)
-[Monetization team questions if available]
+[Up to 3 decisions, same format as portfolio, selected across the monetization team's decision contexts.]
 
-[Or: "Monetization team under development."]
+[If team is disabled: "Monetization team currently disabled — canonical state lives in docs/monetization/. No live decisions this heartbeat."]
+[If team is enabled but quiet: "No pending monetization decisions this heartbeat."]
+
+**Latest runway snapshot (from ledger.jsonl if available):** [cash / burn / revenue / runway / default-alive gap, with honesty flags preserved]
+
+**Active monetization flags (from latest ledger entry):** [any services-trap-warning / runway-warning / assumption-drift flags to surface]
 
 ### Life Audit Prompts
 **Previous discussions:**
@@ -91,7 +106,7 @@ End your response with `## HANDOFF` containing these sections:
 
 ### Big Picture Context
 **Tech tree:** [status and frontier if available]
-**Bundle roadmap:** [current state — which bundles, which hero apps deployed]
+**Bundle roadmap:** [summary derived from `docs/monetization/CATALOG.md` — which bundles are active/candidate/shipped, headliner readiness, nearest promotion]
 **Stalled initiatives:** [any with no progress in 7+ days]
 **Opportunities:** [any cross-cutting themes or patterns noticed across the data]
 ```

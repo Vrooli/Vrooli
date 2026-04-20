@@ -33,7 +33,7 @@ A feature is done when:
 - **QA Team** validates feature quality post-implementation.
 - Bugs found during feature work become `fix` backlog items in swarm-manager.
 - **Marketing Crew** gets notified of completed features for content.
-- **Revenue Research** may originate feature ideas based on market analysis.
+- **Monetization Team** may originate feature ideas through its catalog and opportunity-scout. Before scoping features, read `docs/monetization/CATALOG.md` and `docs/monetization/scenario-sku-map.json` so the work maps to bundle/tier impact. Features for scenarios in the active bundle's headliner or depth layer should note which SKU they serve.
 
 ## Key Skills
 - `prompt-manager skill read implementation-plan-authoring`
