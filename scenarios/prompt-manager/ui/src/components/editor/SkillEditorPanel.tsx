@@ -18,8 +18,8 @@
  * - Empty state with 3D world visualization
  */
 
-import { useState } from 'react'
-import { ChevronDown, ChevronUp, MoreHorizontal, RotateCcw, Trash2, Menu, X, ToggleLeft, ToggleRight, MessageSquare, History, GitBranch, FlaskConical } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { ChevronDown, ChevronUp, MoreHorizontal, RotateCcw, Trash2, Menu, X, MessageSquare, GitBranch, FolderOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSelectionStore } from '@/stores/selectionStore'
 import type { NormalizedFormState, ValidationResult } from '@/types/editorStore'
@@ -40,17 +40,14 @@ import { GraphQueryPanel } from '@/components/graph/GraphQueryPanel'
 import { ViewOverlay } from '../shared/ViewOverlay'
 import { IconSelector } from '../shared/IconSelector'
 import { InlineEditableText } from '../shared/InlineEditableText'
-import { DraftToggle } from '../shared/DraftToggle'
+import { DraftStatusChip } from '../shared/DraftStatusChip'
 import { ExpandableDescription } from '../shared/ExpandableDescription'
 import { TagChipsEditor } from '../shared/TagChipsEditor'
 import { CrossReferencePanel } from './CrossReferencePanel'
 import { StartChatDialog } from '../chat/StartChatDialog'
-import { VersionHistoryTab } from './tabs/VersionHistoryTab'
-import { VariantPanel } from './VariantPanel'
-import { ExperimentPanel } from './ExperimentPanel'
+import { LineagePanel, type LineageTab } from './LineagePanel'
 import { PanelErrorBoundary } from '../PanelErrorBoundary'
 import { selectors } from '@/constants/selectors'
-import { useIsCompactHeader } from '@/hooks/useMediaQuery'
 
 interface SkillEditorPanelProps {
   // Current state
@@ -147,12 +144,10 @@ export function SkillEditorPanel({
 }: SkillEditorPanelProps) {
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false)
   const [showChatDialog, setShowChatDialog] = useState(false)
-  const [rightPanel, setRightPanel] = useState<'history' | 'variants' | 'experiments' | null>(null)
-
-  const togglePanel = (panel: 'history' | 'variants' | 'experiments') => {
-    setRightPanel((prev) => (prev === panel ? null : panel))
-  }
-  const isCompactHeader = useIsCompactHeader()
+  const [lineageOpen, setLineageOpen] = useState(false)
+  const [lineageTab, setLineageTab] = useState<LineageTab>('history')
+  const [filePathOpen, setFilePathOpen] = useState(false)
+  const moreButtonAnchorRef = useRef<HTMLSpanElement>(null)
   const isMobileSidebarToggle = Boolean(onOpenSidebar)
 
   // Access the selection store for closing the editor
@@ -257,54 +252,23 @@ export function SkillEditorPanel({
             </div>
 
             <div className="flex items-center gap-2 flex-shrink-0">
-              {/* Draft toggle */}
-              <DraftToggle
+              {/* Draft/published status chip */}
+              <DraftStatusChip
                 isDraft={formState.draft}
                 onChange={(v) => onFieldChange('draft', v)}
                 isLoading={isLoadingContent}
-                className="flex-shrink-0 max-[389px]:hidden"
+                className="flex-shrink-0"
               />
 
               {/* Unsaved indicator */}
               {isDirty && (
                 <div
-                  className="hidden min-[390px]:flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/20 text-amber-300 rounded-md text-xs font-medium flex-shrink-0"
+                  className="flex items-center gap-1.5 px-2 h-7 bg-amber-500/20 text-amber-300 rounded-md text-xs font-medium flex-shrink-0"
                   data-testid={selectors.editor.unsavedIndicator}
                 >
                   Unsaved
                 </div>
               )}
-
-              {/* Actions menu */}
-              <ToolbarDropdown
-                icon={<MoreHorizontal className="h-4 w-4" />}
-                label="Skill actions"
-                showChevron={false}
-                align="right"
-                className="h-9 w-9 p-0 rounded-lg"
-                testId={selectors.editor.actionsMenu}
-              >
-                {isCompactHeader && (
-                  <DropdownItem
-                    onClick={() => onFieldChange('draft', !formState.draft)}
-                    icon={formState.draft ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
-                    label={formState.draft ? 'Set published' : 'Set draft'}
-                  />
-                )}
-                <DropdownItem
-                  onClick={onDiscard}
-                  disabled={!canDiscard}
-                  icon={<RotateCcw className="h-4 w-4" />}
-                  label="Discard changes"
-                  testId={selectors.editor.discardAction}
-                />
-                <DropdownItem
-                  onClick={onDelete}
-                  disabled={!canDelete}
-                  icon={<Trash2 className="h-4 w-4 text-destructive" />}
-                  label={isDeleting ? 'Deleting...' : 'Delete skill'}
-                />
-              </ToolbarDropdown>
             </div>
           </div>
 
@@ -377,69 +341,78 @@ export function SkillEditorPanel({
               <MessageSquare className="h-4 w-4" />
             </button>
 
-            {/* Panel toggle group: History, Variants, Experiments */}
-            <div className="flex items-center border border-border/50 rounded-lg overflow-hidden flex-shrink-0">
-              <button
-                type="button"
-                onClick={() => togglePanel('history')}
-                className={cn(
-                  'h-8 w-8 flex items-center justify-center transition-colors',
-                  rightPanel === 'history'
-                    ? 'bg-primary/20 text-primary'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                )}
-                aria-label="Toggle version history"
-                title="Version history"
-              >
-                <History className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => togglePanel('variants')}
-                className={cn(
-                  'h-8 w-8 flex items-center justify-center border-x border-border/50 transition-colors',
-                  rightPanel === 'variants'
-                    ? 'bg-primary/20 text-primary'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                )}
-                aria-label="Toggle variants"
-                title="Variants"
-              >
-                <GitBranch className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => togglePanel('experiments')}
-                className={cn(
-                  'h-8 w-8 flex items-center justify-center transition-colors',
-                  rightPanel === 'experiments'
-                    ? 'bg-primary/20 text-primary'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                )}
-                aria-label="Toggle experiments"
-                title="Experiments"
-              >
-                <FlaskConical className="h-4 w-4" />
-              </button>
-            </div>
+            {/* Lineage button: opens tabbed panel with history, variants, experiments */}
+            <button
+              type="button"
+              onClick={() => setLineageOpen((v) => !v)}
+              className={cn(
+                'h-8 px-2.5 flex items-center gap-1.5 rounded-lg border border-border/50 text-sm transition-colors flex-shrink-0',
+                lineageOpen
+                  ? 'bg-primary/20 text-primary'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              )}
+              aria-label={lineageOpen ? 'Close lineage panel' : 'Open lineage panel'}
+              aria-expanded={lineageOpen}
+              title="Lineage (history, variants, experiments)"
+              data-testid="lineage-toggle"
+            >
+              <GitBranch className="h-4 w-4" />
+              <span className="hidden sm:inline">Lineage</span>
+            </button>
 
-            {/* File path menu with filename, breadcrumb, copy actions, and storage toggle */}
-            <FilePathMenu
-              file={formState.file}
-              modes={formState.modes}
-              folder={formState.folder}
-              onFileChange={(v) => onFieldChange('file', v)}
-              onFolderChange={(v) => onFieldChange('folder', v)}
-              skillDir={currentSkill.skillDir ?? undefined}
-              contentPath={currentSkill.contentPath ?? undefined}
-              className="flex-shrink-0"
-            />
+            {/* More overflow menu: file path, discard, delete */}
+            <span className="relative flex-shrink-0">
+              <span ref={moreButtonAnchorRef} className="block">
+                <ToolbarDropdown
+                  icon={<MoreHorizontal className="h-4 w-4" />}
+                  label="More actions"
+                  showChevron={false}
+                  align="right"
+                  className="h-8 w-8 p-0 rounded-lg"
+                  testId="skill-more-menu"
+                >
+                  <DropdownItem
+                    onClick={() => setFilePathOpen(true)}
+                    icon={<FolderOpen className="h-4 w-4" />}
+                    label="File path…"
+                    testId="skill-more-file-path"
+                  />
+                  <DropdownItem
+                    onClick={onDiscard}
+                    disabled={!canDiscard}
+                    icon={<RotateCcw className="h-4 w-4" />}
+                    label="Discard changes"
+                    testId={selectors.editor.discardAction}
+                  />
+                  <DropdownItem
+                    onClick={onDelete}
+                    disabled={!canDelete}
+                    icon={<Trash2 className="h-4 w-4 text-destructive" />}
+                    label={isDeleting ? 'Deleting…' : 'Delete skill'}
+                  />
+                </ToolbarDropdown>
+              </span>
+              {/* Controlled file-path popover anchored to the More button */}
+              <FilePathMenu
+                file={formState.file}
+                modes={formState.modes}
+                folder={formState.folder}
+                onFileChange={(v) => onFieldChange('file', v)}
+                onFolderChange={(v) => onFieldChange('folder', v)}
+                skillDir={currentSkill.skillDir ?? undefined}
+                contentPath={currentSkill.contentPath ?? undefined}
+                open={filePathOpen}
+                onOpenChange={setFilePathOpen}
+                hideTrigger
+                anchorRef={moreButtonAnchorRef}
+              />
+            </span>
           </div>
         </div>
 
         {/* Content area with optional right sidebar */}
         <div className="flex-1 overflow-hidden flex">
-          <div className={cn('flex-1 overflow-hidden', rightPanel && 'min-w-0')}>
+          <div className={cn('flex-1 overflow-hidden', lineageOpen && 'min-w-0')}>
             <SkillContentEditor
               value={formState.content}
               originalValue={originalContent ?? undefined}
@@ -463,22 +436,17 @@ export function SkillEditorPanel({
             />
           </div>
 
-          {/* Right sidebar panel */}
-          {rightPanel && (
-            <div className="w-72 flex-shrink-0 border-l border-border overflow-y-auto">
-              <PanelErrorBoundary panelName={`${rightPanel} panel`}>
-                {rightPanel === 'history' && (
-                  <VersionHistoryTab skillId={currentSkill.id} />
-                )}
-                {rightPanel === 'variants' && (
-                  <VariantPanel
-                    skillId={currentSkill.id}
-                    currentContent={formState.content}
-                  />
-                )}
-                {rightPanel === 'experiments' && (
-                  <ExperimentPanel skillId={currentSkill.id} />
-                )}
+          {/* Right sidebar: lineage panel with tabs */}
+          {lineageOpen && (
+            <div className="w-72 flex-shrink-0 border-l border-border overflow-hidden flex flex-col">
+              <PanelErrorBoundary panelName="Lineage panel">
+                <LineagePanel
+                  skillId={currentSkill.id}
+                  currentContent={formState.content}
+                  activeTab={lineageTab}
+                  onActiveTabChange={setLineageTab}
+                  className="h-full"
+                />
               </PanelErrorBoundary>
             </div>
           )}

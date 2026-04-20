@@ -1,51 +1,41 @@
-/**
- * DraftToggle - Clickable badge for toggling draft status.
- *
- * When draft: amber "Draft" badge
- * When published: subtle or hidden
- * Click to toggle
- */
-
+import { Circle, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 
-interface DraftToggleProps {
+interface DraftStatusChipProps {
   isDraft: boolean
-  onChange: (isDraft: boolean) => void
+  onChange: (next: boolean) => void
   disabled?: boolean
   isLoading?: boolean
   className?: string
-  showWhenPublished?: boolean
 }
 
-/**
- * Draft toggle badge component.
- */
-export function DraftToggle({
+export function DraftStatusChip({
   isDraft,
   onChange,
   disabled,
   isLoading,
   className,
-  showWhenPublished = false,
-}: DraftToggleProps) {
+}: DraftStatusChipProps) {
   if (isLoading) {
-    return <Skeleton className={cn('h-5 w-12 rounded', className)} />
+    return <Skeleton className={cn('h-7 w-20 rounded-md', className)} />
   }
 
-  // Hide when published unless explicitly shown
-  if (!isDraft && !showWhenPublished) {
-    return null
-  }
+  const label = isDraft ? 'Draft' : 'Published'
+  const Icon = isDraft ? Circle : CheckCircle2
+  const toggleTitle = isDraft ? 'Click to publish' : 'Click to mark as draft'
 
   return (
     <button
       type="button"
       onClick={() => !disabled && onChange(!isDraft)}
       disabled={disabled}
-      title={isDraft ? 'Click to publish' : 'Click to mark as draft'}
+      aria-pressed={!isDraft}
+      aria-label={`Status: ${label}. ${toggleTitle}.`}
+      title={toggleTitle}
+      data-testid="draft-status-chip"
       className={cn(
-        'px-2 py-0.5 rounded text-xs font-medium transition-colors',
+        'h-7 px-2 flex items-center gap-1.5 rounded-md text-xs font-medium transition-colors',
         'focus:outline-none focus:ring-2 focus:ring-offset-1',
         isDraft
           ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 focus:ring-amber-500/50'
@@ -54,7 +44,8 @@ export function DraftToggle({
         className
       )}
     >
-      {isDraft ? 'Draft' : 'Published'}
+      <Icon className={cn('h-3 w-3', isDraft && 'fill-current')} />
+      <span>{label}</span>
     </button>
   )
 }

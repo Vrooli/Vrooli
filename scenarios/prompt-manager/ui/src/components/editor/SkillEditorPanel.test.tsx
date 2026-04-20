@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { SkillEditorPanel } from './SkillEditorPanel'
 import type { Skill } from '@/types'
 import type { NormalizedFormState, ValidationResult } from '@/types/editorStore'
@@ -71,6 +71,20 @@ vi.mock('@/components/graph/GraphLegend', () => ({
 }))
 vi.mock('@/components/graph/GraphQueryPanel', () => ({
   GraphQueryPanel: () => <div />,
+}))
+
+// Mock lineage child panels to avoid their hook/network dependencies.
+vi.mock('./tabs/VersionHistoryTab', () => ({
+  VersionHistoryTab: () => <div data-testid="mock-history">history</div>,
+}))
+vi.mock('./VariantPanel', () => ({
+  VariantPanel: () => <div data-testid="mock-variants">variants</div>,
+}))
+vi.mock('./ExperimentPanel', () => ({
+  ExperimentPanel: () => <div data-testid="mock-experiments">experiments</div>,
+}))
+vi.mock('./CrossReferencePanel', () => ({
+  CrossReferencePanel: () => <div data-testid="mock-xref" />,
 }))
 
 // Helper to create test skill
@@ -244,6 +258,148 @@ describe('SkillEditorPanel', () => {
       )
 
       expect(container.firstChild).toHaveClass('custom-class')
+    })
+  })
+
+  describe('header cleanup', () => {
+    it('renders the draft status chip on all viewport widths', () => {
+      const skill = createTestSkill()
+      render(<SkillEditorPanel {...defaultProps} currentSkill={skill} />)
+      expect(screen.getByTestId('draft-status-chip')).toBeInTheDocument()
+    })
+
+    it('does not render the legacy row-1 Skill actions ellipsis', () => {
+      const skill = createTestSkill()
+      render(<SkillEditorPanel {...defaultProps} currentSkill={skill} />)
+      expect(screen.queryByRole('button', { name: 'Skill actions' })).not.toBeInTheDocument()
+    })
+
+    it('does not render legacy per-panel toggle buttons', () => {
+      const skill = createTestSkill()
+      render(<SkillEditorPanel {...defaultProps} currentSkill={skill} />)
+      expect(screen.queryByRole('button', { name: /Toggle version history/ })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /Toggle variants/ })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /Toggle experiments/ })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('lineage panel', () => {
+    it('is closed by default', () => {
+      const skill = createTestSkill()
+      render(<SkillEditorPanel {...defaultProps} currentSkill={skill} />)
+      const toggle = screen.getByTestId('lineage-toggle')
+      expect(toggle).toHaveAttribute('aria-expanded', 'false')
+      expect(screen.queryByTestId('lineage-tab-history')).not.toBeInTheDocument()
+    })
+
+    it('opens on click and shows three tabs', () => {
+      const skill = createTestSkill()
+      render(<SkillEditorPanel {...defaultProps} currentSkill={skill} />)
+      fireEvent.click(screen.getByTestId('lineage-toggle'))
+      expect(screen.getByTestId('lineage-toggle')).toHaveAttribute('aria-expanded', 'true')
+      expect(screen.getByTestId('lineage-tab-history')).toBeInTheDocument()
+      expect(screen.getByTestId('lineage-tab-variants')).toBeInTheDocument()
+      expect(screen.getByTestId('lineage-tab-experiments')).toBeInTheDocument()
+    })
+
+    it('remembers last-selected tab across open/close within the session', () => {
+      const skill = createTestSkill()
+      render(<SkillEditorPanel {...defaultProps} currentSkill={skill} />)
+      fireEvent.click(screen.getByTestId('lineage-toggle'))
+      fireEvent.mouseDown(screen.getByTestId('lineage-tab-variants'))
+      expect(screen.getByTestId('lineage-tab-variants')).toHaveAttribute('data-state', 'active')
+      // close
+      fireEvent.click(screen.getByTestId('lineage-toggle'))
+      expect(screen.queryByTestId('lineage-tab-variants')).not.toBeInTheDocument()
+      // reopen — variants should still be active
+      fireEvent.click(screen.getByTestId('lineage-toggle'))
+      expect(screen.getByTestId('lineage-tab-variants')).toHaveAttribute('data-state', 'active')
+    })
+  })
+
+  describe('More overflow menu', () => {
+    it('exposes File path, Discard changes, and Delete skill items', () => {
+      const skill = createTestSkill()
+      render(
+        <SkillEditorPanel
+          {...defaultProps}
+          currentSkill={skill}
+          isDirty={true}
+        />
+      )
+      fireEvent.click(screen.getByTestId('skill-more-menu'))
+      expect(screen.getByTestId('skill-more-file-path')).toBeInTheDocument()
+      expect(screen.getByText('Discard changes')).toBeInTheDocument()
+      expect(screen.getByText('Delete skill')).toBeInTheDocument()
+    })
+
+    it('invokes onDiscard when Discard changes is clicked and enabled', () => {
+      const onDiscard = vi.fn()
+      const skill = createTestSkill()
+      render(
+        <SkillEditorPanel
+          {...defaultProps}
+          currentSkill={skill}
+          isDirty={true}
+          onDiscard={onDiscard}
+        />
+      )
+      fireEvent.click(screen.getByTestId('skill-more-menu'))
+      fireEvent.click(screen.getByText('Discard changes'))
+      expect(onDiscard).toHaveBeenCalled()
+    })
+
+    it('disables Discard changes when not dirty', () => {
+      const onDiscard = vi.fn()
+      const skill = createTestSkill()
+      render(
+        <SkillEditorPanel
+          {...defaultProps}
+          currentSkill={skill}
+          isDirty={false}
+          onDiscard={onDiscard}
+        />
+      )
+      fireEvent.click(screen.getByTestId('skill-more-menu'))
+      const item = screen.getByText('Discard changes').closest('button')
+      expect(item).toBeDisabled()
+    })
+
+    it('invokes onDelete when Delete skill is clicked', () => {
+      const onDelete = vi.fn()
+      const skill = createTestSkill()
+      render(
+        <SkillEditorPanel
+          {...defaultProps}
+          currentSkill={skill}
+          onDelete={onDelete}
+        />
+      )
+      fireEvent.click(screen.getByTestId('skill-more-menu'))
+      fireEvent.click(screen.getByText('Delete skill'))
+      expect(onDelete).toHaveBeenCalled()
+    })
+
+    it('shows Deleting… while delete is in flight', () => {
+      const skill = createTestSkill()
+      render(
+        <SkillEditorPanel
+          {...defaultProps}
+          currentSkill={skill}
+          isDeleting={true}
+        />
+      )
+      fireEvent.click(screen.getByTestId('skill-more-menu'))
+      expect(screen.getByText(/Deleting/)).toBeInTheDocument()
+    })
+
+    it('opens the file path popover when File path item is clicked', () => {
+      const skill = createTestSkill()
+      render(<SkillEditorPanel {...defaultProps} currentSkill={skill} />)
+      fireEvent.click(screen.getByTestId('skill-more-menu'))
+      fireEvent.click(screen.getByTestId('skill-more-file-path'))
+      // The FilePathMenu popover contains a Filename label
+      expect(screen.getByText('Filename')).toBeInTheDocument()
     })
   })
 })
