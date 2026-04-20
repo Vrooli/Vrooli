@@ -42,6 +42,7 @@ func (ctx *Context) HandleListScores(w http.ResponseWriter, r *http.Request) {
 		log.Printf("config_load_warning | error=%v | using defaults", err)
 	}
 	scoringOpts := configToScoringOptions(cfg) // configToScoringOptions handles nil safely
+	penaltyEnabled := configToPenaltyEnabled(cfg)
 
 	// Discover scenarios by listing directories
 	entries, err := os.ReadDir(scenariosDir)
@@ -62,8 +63,14 @@ func (ctx *Context) HandleListScores(w http.ResponseWriter, r *http.Request) {
 		if !entry.IsDir() {
 			continue
 		}
-		// Skip hidden directories
+		// Skip hidden directories and pseudo-scenarios whose names would be
+		// rejected by HandleGetScore anyway (e.g. `_artifacts/`). Keeping them
+		// in the list would show phantom zero-score rows that users then can't
+		// fetch individually.
 		if strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
+		if ValidateScenarioName(entry.Name()) != "" {
 			continue
 		}
 
@@ -84,7 +91,23 @@ func (ctx *Context) HandleListScores(w http.ResponseWriter, r *http.Request) {
 
 		metrics := result.Metrics
 		thresholds := scoring.GetThresholds(metrics.Category)
-		breakdown := scoring.CalculateCompletenessScoreWithOptions(*metrics, thresholds, 0, scoringOpts)
+		// Compute the validation penalty so the list row matches what
+		// `score get <name>` reports. Previously this handler hardcoded a
+		// penalty of 0, which made list rows display the unpenalised base
+		// score while `score get` displayed the final (base - penalty).
+		scenarioRoot := ctx.Collector.GetScenarioRoot(scenarioName)
+		requirements := ctx.Collector.LoadRequirements(scenarioName)
+		validationAnalysis := validators.AnalyzeValidationQualityWithConfig(
+			validators.ValidationInputCounts{
+				RequirementsTotal: metrics.Requirements.Total,
+				TestsTotal:        metrics.Tests.Total,
+			},
+			requirements,
+			nil,
+			scenarioRoot,
+			penaltyEnabled,
+		)
+		breakdown := scoring.CalculateCompletenessScoreWithOptions(*metrics, thresholds, validationAnalysis.TotalPenalty, scoringOpts)
 
 		scenarioData := map[string]interface{}{
 			"scenario":       scenarioName,

@@ -1,0 +1,29 @@
+{
+  "acceptance_allow": [
+    "scenarios/deployment-manager/api/releases/handlers.go",
+    "scenarios/deployment-manager/api/releases/handlers_test.go",
+    "scenarios/deployment-manager/api/releases/types.go",
+    "scenarios/deployment-manager/api/server/routes.go",
+    "scenarios/deployment-manager/cli/releases/commands.go",
+    "scenarios/deployment-manager/cli/releases/commands_test.go"
+  ],
+  "created": "2026-04-20T14:11:21Z",
+  "depends_on": [
+    "execute/deployment-manager-release-typed-remediation-errors"
+  ],
+  "description": "Operators today can only discover release prerequisites by calling `releases start` and reading the failure. That wastes the advisory lock, allocates a failed `releases` row (which then collides with retries), and gives no opportunity to fix prerequisites before committing to a release.\n\nAdd a read-only preflight endpoint that runs every prerequisite check WITHOUT allocating a release or acquiring the advisory lock, and returns a structured gap report keyed by the typed error codes introduced in `deployment-manager-release-typed-remediation-errors`. The skill can call preflight, walk the operator through fixes, and only call `start` once everything is green.\n\nScope of work:\n- New handler `POST /api/v1/profiles/{id}/releases/preflight` in releases/handlers.go. Request body mirrors StartRequest (commit, version, channel, platforms optional). Response: {ready: bool, gates: [{name, code, ready, message, remediation_hint, remediation_command}]}.\n- Runs: LPBS config present check, required-platforms match request, approval gate for commit, cloud-health probe, LPBS /deploy-readiness call.\n- Does NOT: acquire advisory lock, insert releases rows, call scenario-to-desktop, call /verify.\n- Register route in server/routes.go alongside existing release routes.\n- New CLI verb `deployment-manager releases preflight \u003cprofile-id\u003e --commit \u003csha\u003e --version \u003cver\u003e [--channel \u003cch\u003e] [--platforms \u003ccsv\u003e]` in cli/releases/commands.go. `--json` supported. Default human rendering shows a checklist with pass/fail + remediation per gate.\n- Test matrix: every gate exercised (missing config, un-gated commit, S2C unreachable, readiness storage/app/profile failures, all-green).\n\nOut of scope:\n- Skill rewrite to call preflight (separate item).\n- Interactive remediation UI.\n- Preflight as part of `releases start` itself (kept separate so start can still be called directly when operator knows prereqs are met).",
+  "effort": "S",
+  "initiative": "desktop-release-governance",
+  "kind": "execute",
+  "name": "deployment-manager-release-preflight-endpoint",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [
+    "deployment-manager",
+    "release-orchestration",
+    "preflight",
+    "operator-experience"
+  ],
+  "title": "Add releases preflight Endpoint And CLI",
+  "updated": "2026-04-20T14:11:21Z"
+}

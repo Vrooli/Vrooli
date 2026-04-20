@@ -1,0 +1,30 @@
+{
+  "acceptance_allow": [
+    "scenarios/deployment-manager/api/deployments/cloud_client.go",
+    "scenarios/deployment-manager/api/deployments/orchestrator_release.go",
+    "scenarios/deployment-manager/api/deployments/orchestrator_release_test.go",
+    "scenarios/deployment-manager/api/deployments/cloud_client_test.go",
+    "scenarios/deployment-manager/api/releases/repo.go",
+    "scenarios/deployment-manager/api/releases/types.go",
+    "scenarios/deployment-manager/api/migrations/**"
+  ],
+  "created": "2026-04-20T13:51:25Z",
+  "depends_on": [
+    "execute/deployment-manager-lpbs-desktop-release-orchestration"
+  ],
+  "description": "Deployment-manager's cloud-health step in deployCheckCloudHealth currently treats any HTTP 200 from scenario-to-cloud's deployment health endpoint as healthy. The response already carries a freshness block (`freshness.status`, `freshness.version_status`, `freshness.fingerprint_status` with values current|outdated|unknown), but cloud_client.go parses only the top-level status and discards freshness.\n\nResult: when LPBS cloud reports healthy:true but fingerprint_status:outdated (the local source has drifted from deployed bundle), DM accepts it and proceeds to publish. The newly published desktop artifact is advertised against an LPBS runtime that is out of sync with current source, and the verify endpoint may reflect the stale runtime.\n\nScope of work:\n- Extend CloudHealthResult in scenarios/deployment-manager/api/deployments/cloud_client.go to parse the freshness block from the S2C response.\n- Update deployCheckCloudHealth in scenarios/deployment-manager/api/deployments/orchestrator_release.go to fail the step when healthy=true but fingerprint_status=outdated (status policy to be decided in workshop: hard-fail vs. auto-trigger one S2C convergence attempt).\n- Persist the freshness observation alongside the existing cloud-health step message, and include it in the release record's verification_evidence or a new cloud_health_evidence field so operators can see why a release was blocked.\n- Unit tests covering: freshness=current passes, freshness=outdated fails the step and marks the release failed, freshness=unknown degrades to existing healthy-only behavior with a warning.\n\nOut of scope:\n- Actually triggering scenario-to-cloud redeploy automatically (leave that decision to the workshop round).\n- Re-designing the orchestrator's cloud-health step ordering.",
+  "effort": "S",
+  "initiative": "desktop-release-governance",
+  "kind": "execute",
+  "name": "deployment-manager-cloud-freshness-gate",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [
+    "deployment-manager",
+    "scenario-to-cloud",
+    "release-orchestration",
+    "freshness"
+  ],
+  "title": "Gate Desktop Releases On LPBS Cloud Freshness",
+  "updated": "2026-04-20T13:51:25Z"
+}

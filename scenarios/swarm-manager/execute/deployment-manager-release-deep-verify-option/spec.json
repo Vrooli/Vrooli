@@ -1,0 +1,29 @@
+{
+  "acceptance_allow": [
+    "scenarios/deployment-manager/api/releases/types.go",
+    "scenarios/deployment-manager/api/releases/handlers.go",
+    "scenarios/deployment-manager/api/releases/handlers_test.go",
+    "scenarios/deployment-manager/api/deployments/orchestrator_release.go",
+    "scenarios/deployment-manager/api/deployments/orchestrator_release_test.go",
+    "scenarios/deployment-manager/cli/releases/commands.go",
+    "scenarios/deployment-manager/cli/releases/commands_test.go"
+  ],
+  "created": "2026-04-20T13:51:25Z",
+  "depends_on": [
+    "execute/deployment-manager-lpbs-desktop-release-orchestration"
+  ],
+  "description": "Deployment-manager's release orchestrator always calls LPBS /verify in lightweight mode (version and sha512 match). The deep mode (S3 object HEAD plus presign-generation check) is only reachable post-hoc via `deployment-manager releases verify --deep`. For critical releases, operators should be able to request exhaustive verification in a single `releases start` call instead of a two-step flow.\n\nScope of work:\n- Add a `Deep bool` field to releases.StartRequest in scenarios/deployment-manager/api/releases/types.go.\n- Thread it through deployments.DeployRequest and deployState to deployVerifyUpdateEndpoints, which already receives the LPBSVerifyRequest with a Deep field but currently hardcodes false.\n- Add `--deep` flag to the CLI `releases start` command in scenarios/deployment-manager/cli/releases/commands.go, matching the existing `--deep` on `releases verify`.\n- Extend handler + orchestrator tests to cover: default (Deep=false) uses lightweight, --deep=true propagates through to the LPBSVerifyRequest per platform.\n\nOut of scope:\n- Changing the default verification mode for all releases.\n- Changing the LPBS verify endpoint contract.",
+  "effort": "XS",
+  "initiative": "desktop-release-governance",
+  "kind": "execute",
+  "name": "deployment-manager-release-deep-verify-option",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [
+    "deployment-manager",
+    "release-orchestration",
+    "verification"
+  ],
+  "title": "Add --deep Option To releases start For Exhaustive Post-Publish Verify",
+  "updated": "2026-04-20T13:51:25Z"
+}

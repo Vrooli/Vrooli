@@ -1,0 +1,31 @@
+{
+  "acceptance_allow": [
+    "scenarios/deployment-manager/api/deployments/**",
+    "scenarios/deployment-manager/api/releases/**",
+    "scenarios/deployment-manager/api/shared/**",
+    "scenarios/deployment-manager/cli/releases/**",
+    "scenarios/deployment-manager/cli/cmdutil/**",
+    "scenarios/landing-page-business-suite/api/deploy_readiness_handler.go",
+    "scenarios/landing-page-business-suite/api/deploy_readiness_handler_test.go"
+  ],
+  "created": "2026-04-20T14:11:21Z",
+  "depends_on": [
+    "execute/deployment-manager-lpbs-desktop-release-orchestration"
+  ],
+  "description": "Deployment-manager's release pipeline currently returns free-text error messages for every failure mode (missing LPBS config, un-gated commit, cloud unhealthy, readiness gates, build failure, publish failure, verify mismatch). An agent calling `releases start` gets a human-readable string but no structured code, and no hint of what command to run next. Operators who don't deeply know the system can't self-serve recovery.\n\nThis is the foundation for the preflight endpoint and skill-guided remediation follow-ups. Without typed errors, the skill can't reliably detect a failure mode and propose the right fix.\n\nScope of work:\n- Introduce a typed error shape used across every orchestrator step and LPBS readiness gate:\n  {code, message, remediation_hint, remediation_command}\n- Enumerate the error code set. Minimum: missing_lpbs_config, approvals_blocked, cloud_unhealthy, cloud_unreachable, readiness_storage_unconfigured, readiness_app_missing, readiness_remote_profile_missing, build_failed, publish_failed, verify_mismatch, release_in_flight. Workshop decides final naming + whether to split build_failed per-reason.\n- Orchestrator steps (deployLoadProfile, deployCheckCloudHealth, deployCheckLPBSReadiness, deployValidateAndSign, deployBuildBinaries, deployPackageAndInstall, publishToLPBS, deployVerifyUpdateEndpoints) emit typed errors.\n- LPBS `/deploy-readiness` response gains per-gate `remediation_command` template so DM can surface it unchanged.\n- OrchestrationStep gains a structured Error field (currently `error string`) OR a parallel Code field — workshop decides.\n- releases/handlers.go `Start` and orchestrator response include the typed error code for each failed step.\n- CLI `releases get`, `releases verify`, and `releases start` render remediation hints below the step trace in human mode.\n- Full test coverage: every error code exercised via orchestrator test or handler test.\n\nOut of scope:\n- The preflight endpoint (separate item).\n- Skill rewrite to consume these codes (separate item).\n- Auto-fixing errors on behalf of the operator.",
+  "effort": "M",
+  "initiative": "desktop-release-governance",
+  "kind": "execute",
+  "name": "deployment-manager-release-typed-remediation-errors",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "deployment-manager",
+    "landing-page-business-suite",
+    "release-orchestration",
+    "error-handling",
+    "remediation"
+  ],
+  "title": "Typed Remediation Errors Across Release Orchestrator",
+  "updated": "2026-04-20T14:11:21Z"
+}

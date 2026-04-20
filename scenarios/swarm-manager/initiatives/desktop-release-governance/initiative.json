@@ -11,8 +11,14 @@
     "research/release-record-contract-and-history-model",
     "execute/lpbs-desktop-release-contract-hardening",
     "execute/deployment-manager-lpbs-desktop-release-orchestration",
-    "execute/scenario-to-desktop-canonical-update-policy"
+    "execute/scenario-to-desktop-canonical-update-policy",
+    "execute/deployment-manager-cloud-freshness-gate",
+    "execute/deployment-manager-release-deep-verify-option",
+    "execute/deployment-manager-release-typed-remediation-errors",
+    "execute/deployment-manager-release-preflight-endpoint",
+    "execute/landing-page-desktop-upload-guided-remediation-rewrite",
+    "fix/deployment-manager-release-retry-ergonomics"
   ],
   "created": "2026-03-26T16:35:48Z",
-  "updated": "2026-03-26T18:33:10Z"
+  "updated": "2026-04-20T14:11:21Z"
 }

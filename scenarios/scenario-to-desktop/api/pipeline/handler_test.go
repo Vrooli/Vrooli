@@ -144,7 +144,8 @@ func TestRegisterRoutes(t *testing.T) {
 
 func TestHandleBundleClean_RemovesBundleDir(t *testing.T) {
 	root := newPipelineContractFixtureRepo(t)
-	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_SOURCE_ROOT", root)
+	t.Setenv("VROOLI_ROOT", "")
 
 	scenario := "test-scenario"
 	bundleDir := filepath.Join(root, "scenarios", scenario, "platforms", "electron", "bundle")

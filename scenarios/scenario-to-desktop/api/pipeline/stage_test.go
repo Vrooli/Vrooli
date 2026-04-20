@@ -135,7 +135,8 @@ func TestGenerateStage(t *testing.T) {
 		if err := os.MkdirAll(nested, 0o755); err != nil {
 			t.Fatalf("mkdir nested: %v", err)
 		}
-		t.Setenv("VROOLI_ROOT", nested)
+		t.Setenv("VROOLI_SOURCE_ROOT", nested)
+		t.Setenv("VROOLI_ROOT", "")
 
 		stage := NewGenerateStage()
 		want := filepath.Join(root, "scenarios")
@@ -203,7 +204,8 @@ func TestBundleStage_DefaultScenarioRootUsesContract(t *testing.T) {
 	if err := os.MkdirAll(nested, 0o755); err != nil {
 		t.Fatalf("mkdir nested: %v", err)
 	}
-	t.Setenv("VROOLI_ROOT", nested)
+	t.Setenv("VROOLI_SOURCE_ROOT", nested)
+	t.Setenv("VROOLI_ROOT", "")
 
 	stage := NewBundleStage()
 	want := filepath.Join(root, "scenarios")
@@ -218,7 +220,8 @@ func TestOrchestrator_DefaultScenarioRootUsesContract(t *testing.T) {
 	if err := os.MkdirAll(nested, 0o755); err != nil {
 		t.Fatalf("mkdir nested: %v", err)
 	}
-	t.Setenv("VROOLI_ROOT", nested)
+	t.Setenv("VROOLI_SOURCE_ROOT", nested)
+	t.Setenv("VROOLI_ROOT", "")
 
 	orchestrator := NewOrchestrator(WithStages(&mockStage{name: "test"}))
 	want := filepath.Join(root, "scenarios")

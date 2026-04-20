@@ -73,6 +73,36 @@ func setupTestContext(t *testing.T) (*Context, string) {
 	return ctx, tmpDir
 }
 
+// TestHandleListScoresSkipsPseudoScenarios ensures that directories whose
+// names would be rejected by ValidateScenarioName (e.g. `_artifacts/`) do not
+// show up as phantom zero-score rows in the list. Previously such entries
+// leaked into the response and users couldn't fetch them individually.
+func TestHandleListScoresSkipsPseudoScenarios(t *testing.T) {
+	ctx, tmpDir := setupTestContext(t)
+
+	// Sibling pseudo-directory under scenarios/ that must NOT be listed.
+	os.MkdirAll(filepath.Join(tmpDir, "scenarios", "_artifacts"), 0755)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/scores", nil)
+	ctx.HandleListScores(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	scenarios, _ := payload["scenarios"].([]interface{})
+	for _, item := range scenarios {
+		entry, _ := item.(map[string]interface{})
+		if name, _ := entry["scenario"].(string); name == "_artifacts" {
+			t.Fatalf("_artifacts pseudo-scenario should be filtered from list; payload=%s", rec.Body.String())
+		}
+	}
+}
+
 // TestHandleUpdateConfigInvalidJSON tests that invalid JSON returns structured error
 // [REQ:SCS-CORE-003] Structured error responses
 func TestHandleUpdateConfigInvalidJSON(t *testing.T) {
