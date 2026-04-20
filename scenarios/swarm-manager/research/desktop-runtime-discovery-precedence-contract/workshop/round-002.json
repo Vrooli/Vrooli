@@ -1,0 +1,151 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-17T16:15:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 2,
+    "risk_awareness": 2,
+    "scope_defined": 2,
+    "testable": 1
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Where downloaded apps register their running scenarios",
+      "context": "Investigation (round 2) found that `vrooli scenario port` already reads process records from `~/.vrooli/processes/scenarios/\u003cname\u003e/\u003cstep\u003e.json` via `internal/app/scenario/service.go::Port()` (lines 223-273) and `internal/scenario/runtime_state.go::RuntimePortBindings()`. Records are written by `internal/lifecycle/phases.go::startTrackedProcess` (lines 350-375) and removed by `lifecycle.Stop()` (lines 515-540). This is the natural leverage point for your suggested direction — bundles register on start/stop, the existing CLI resolver sees them, no new discovery code path is needed. The question is whether bundles should write into the same directory as the host swarm or a sibling directory.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Reuse the existing `~/.vrooli/processes/scenarios/\u003cname\u003e/` directory; bundles write records with the same schema plus a new `source: \"bundle\"` field",
+          "rationale": "Single source of truth. The existing CLI resolver reads this path already, so zero new read logic is needed — only a `Source` field on the `Record` struct and a tiebreaker in `Port()` (see D2). Identical shape means `vrooli scenario list`, `vrooli scenario logs` etc. also surface downloaded apps for free. Risk: a downloaded app and the host swarm running the same scenario could interleave records — but that's exactly the scenario precedence (D2) is designed to resolve.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Parallel directory `~/.vrooli/desktop-apps/\u003cname\u003e/` for bundle records; CLI resolver reads both paths and merges",
+          "rationale": "Physical isolation between swarm-written and bundle-written state. Prevents accidental lifecycle tooling from operating on bundle records. Costs: a second read path in the CLI, duplicate cleanup logic, divergence risk between the two schemas over time."
+        },
+        {
+          "key": "C",
+          "label": "Other — user-specified",
+          "rationale": "Provide your own direction."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Where to enforce the 'downloaded wins over local swarm' precedence rule",
+      "context": "Your round 1 freeform was 'either in discovery or in the vrooli cli itself.' The investigation shows the CLI does the actual record reading and port resolution; the discovery package is a thin shell-out. Putting the rule in the CLI means every consumer of `packages/api-core/discovery` inherits the correct precedence automatically, and no desktop-specific concepts leak into api-core.",
+      "options": [
+        {
+          "key": "A",
+          "label": "In the CLI: `internal/app/scenario/service.go::Port()` — after `BuildListPorts`, prefer records where `Source == \"bundle\"` over `Source == \"swarm\"` for the same scenario/port",
+          "rationale": "Precedence is a property of resolution, not a property of the caller. All discovery-package consumers benefit without changes. Tests can hit the CLI directly with a synthetic record dir. No api-core coupling to desktop concepts.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "In the resolver: `packages/api-core/discovery/resolve.go` reads the record directory itself and short-circuits before shelling out",
+          "rationale": "Avoids a subprocess for the common case (fast). But couples api-core to desktop registry shape, duplicates logic the CLI already has, and any future schema change breaks two places."
+        },
+        {
+          "key": "C",
+          "label": "Both layers — defense in depth (resolver checks registry, CLI also enforces precedence)",
+          "rationale": "Most defensive. Also the most places to maintain and the most places to diverge."
+        },
+        {
+          "key": "D",
+          "label": "Other — user-specified",
+          "rationale": "Provide your own direction."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Staleness handling for records left by crashed bundles",
+      "context": "If a downloaded app crashes without the chance to deregister, its record remains on disk with a stale PID and (possibly) a port that nobody is listening on. The resolver would return a dead endpoint. The host swarm lifecycle currently relies on graceful stop + port locks for cleanup; bundles need an equivalent. The contract must specify the strategy so the regression suite (`execute/desktop-ecosystem-interop-regression-coverage`) can verify it.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Reader-side liveness check: when `Port()` reads a record, verify the PID is alive (kill -0 / Windows equivalent) before returning its port; skip dead records, ideally removing them",
+          "rationale": "Cheapest, no background goroutine inside bundles, cross-platform via existing Go process APIs, self-healing (dead records get garbage-collected on the next read). Risk: PID reuse — a long-stale record whose PID was recycled could accidentally look alive. Mitigation: also compare `StartedAt` against process start time when available.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "TTL heartbeat: bundles touch their record file every N seconds; readers treat records older than 2*N as stale",
+          "rationale": "Simple and cross-platform, but requires a background ticker in every bundle that can reliably run even under heavy load, and readers have to do time-based comparisons (clock skew considerations). Extra writes on SSD/disk budgets."
+        },
+        {
+          "key": "C",
+          "label": "Lock-file / flock approach: register with an OS-held lock so the kernel cleans it up when the bundle exits (for any reason)",
+          "rationale": "Automatic cleanup on crash is the main appeal. But cross-platform lock semantics are inconsistent (Windows exclusive opens vs Unix advisory flock), and the record file itself cannot be the lock because readers need to read it freely."
+        },
+        {
+          "key": "D",
+          "label": "Other — user-specified",
+          "rationale": "Provide your own direction."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "How the bundle shim resolves peers (other downloaded apps or the host swarm)",
+      "context": "Today the bundle shim in `scenarios/scenario-to-desktop/api/bundle/staging.go` only resolves services inside its own `bundle.json`. For peer-downloaded-app or downloaded-app → local-swarm calls to work, the shim must consult the shared registry from D1. Two clean paths exist: the shim reads the registry itself, or the shim falls through to a host `vrooli` binary (if one is on PATH) which reads the registry. Round 1 settled that Windows gets a compiled `vrooli.exe` helper (D3=A).",
+      "options": [
+        {
+          "key": "A",
+          "label": "Shim reads the shared registry directly for unknown scenario names (bash shim adds a small registry-read path on Unix; Windows compiled helper handles it natively)",
+          "rationale": "No dependency on a host Vrooli install being present — works uniformly on hosts that have never seen the Vrooli CLI. Matches the 'one coherent ecosystem' goal on any desktop. Cost: the Unix bash shim's python3 dependency grows a bit (still reading JSON, same pattern as today).",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Shim shells to the host `vrooli` binary on PATH (after the shim itself) for unknown names; fails gracefully if no host vrooli exists",
+          "rationale": "Reuses the CLI's resolution entirely, zero duplication. But makes inter-bundle discovery depend on a host Vrooli install, which contradicts the coherent-ecosystem goal on clean desktops."
+        },
+        {
+          "key": "C",
+          "label": "Hybrid: shim reads registry for a live record; falls back to host `vrooli` if no record and a host binary exists",
+          "rationale": "Maximum robustness. But the most code paths to maintain and test, and the two branches can drift in subtle ways."
+        },
+        {
+          "key": "D",
+          "label": "Other — user-specified",
+          "rationale": "Provide your own direction."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Major reframing: `vrooli scenario port` ALREADY reads a file-based process registry at `~/.vrooli/processes/scenarios/\u003cname\u003e/*.json` (see `internal/app/scenario/service.go:223-273` and `internal/scenario/runtime_state.go:109-147`). No new registry layer is required — downloaded apps can participate by writing the same record shape on start and removing it on stop. This is the core leverage point of the emerging contract."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Process record schema at `internal/process/process.go:17-30` already contains PID, PGID, Port, Scenario, Step, StartedAt, Status. Adding one optional `Source` field (values `\"swarm\"` | `\"bundle\"`) would let the resolver distinguish origins without breaking existing readers. Registration on bundle start maps 1:1 to `process.WriteScenarioRecord`; deregistration maps to `process.RemoveScenarioRecord`."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "`~/.vrooli/` is hardcoded throughout `internal/config/config.go` — there is no XDG_STATE_HOME support today, and the same path is used on Windows (via `os.UserHomeDir()`). The registry reader in bundles should use the same `HomeDir()` resolver the CLI uses so the bundle and the host always look at the same location. Moving to XDG-native paths can be a follow-up, not a blocker."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "The host swarm lifecycle already handles crash-time cleanup for its own records via port locks (`internal/lifecycle/lifecycle.go:515-540`). Bundle-written records will sit outside that lifecycle unless they reuse the same cleanup primitives or the resolver applies a liveness check (D3=A). Without a strategy, stale bundle records will accumulate and the regression suite will see flaky 'dead endpoint' results."
+    }
+  ],
+  "plan_updates": "Conclusion updated: added Finding 3 (major reframing — `vrooli scenario port` already reads the file-based process registry, so the contract becomes 'bundles self-register with a Source tag' rather than 'invent a new registry'); added Finding 5 (cross-platform state-dir divergence as a tractable risk); added Finding 6 (sibling item requirements); populated Summary with the emerging direction pending D1–D4; refined Limitations to reflect what round 2 resolved and what remains open."
+}

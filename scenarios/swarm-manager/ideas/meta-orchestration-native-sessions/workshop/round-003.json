@@ -1,0 +1,171 @@
+{
+  "round": 3,
+  "generated_at": "2026-04-17T17:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 3,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Scope split for agent-manager endpoint work",
+      "context": "Round 2 decided to add a new GetConversation endpoint to agent-manager. The question is whether this work ships as part of this same XL item (single cross-scenario PR) or gets split into a separate dependent item in agent-manager's scenario. Investigation confirmed the endpoint is trivial to implement — agent-manager already stores every user/assistant message as a RunEvent in SQLite, so GetConversation is a thin filtered view over existing GetRunEvents logic with ~50-100 lines of new code plus tests.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Include in this item — single cross-scenario PR",
+          "rationale": "The endpoint is small and tightly coupled to orchestration's needs. Shipping them together avoids dependency coordination, ensures the endpoint's shape is driven by its actual consumer, and the item's acceptance_allow already expands cleanly to include scenarios/agent-manager/api/**. Recommended because the scope is small, the coupling is real, and splitting would create a cross-scenario dependency for ~100 lines of code.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Split into a dependent fix/execute item in agent-manager",
+          "rationale": "Keeps each scenario's PRs scoped to its own codebase. But creates an artificial dependency order and review lag for work that's both small and well-specified upfront."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own scope approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Message source of truth and caching model",
+      "context": "Agent-manager's SQLite event store has the full conversation for any run. Over a session's lifetime, a single session may span multiple runs (ContinueRun fallback spawns a new run). We need to decide how swarm-manager relates to agent-manager for message data. Options differ in local storage, cross-run assembly, and resilience to agent-manager downtime.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Cache locally in session.json, sync from agent-manager on read",
+          "rationale": "Session.json holds the canonical conversation, with LastSyncedSequence per run_id tracking what's been synced. On every GET, the handler calls agent-manager's GetConversation(run_id, since_sequence) for the current run and appends new messages. Multi-run history naturally lives in session.json across run_ids[]. Survives agent-manager restarts. Enables fork via simple file copy. Recommended because it matches swarm-manager's file-first storage model and handles the multi-run case cleanly.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Query-through: never cache locally, always hit agent-manager",
+          "rationale": "Session.json stores metadata only; messages are fetched per-run from agent-manager on every request. Less storage in swarm-manager, but multi-run assembly requires N round-trips, and fork requires materializing messages into the target agent's prompt anyway. Breaks if agent-manager is down or an old run is GC'd."
+        },
+        {
+          "key": "C",
+          "label": "One-way snapshot: copy messages once when run ends, never re-sync",
+          "rationale": "Session.json captures messages only when the run finishes. Simplest consistency model but forces users to wait for run end to see messages, and breaks the live-conversation UX entirely."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own storage approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Conversation polling cadence",
+      "context": "When a user has a session detail page open, the UI needs to poll for new agent messages. Swarm-manager's API GET endpoint syncs from agent-manager on every call. The question is the polling rhythm from the UI — higher cadence = snappier UX but more load; lower cadence = sluggish agent-reply feel. The existing clarification flow uses 3s polling with 90s staleness warning.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Match clarification: 3s poll, 90s staleness warning",
+          "rationale": "Proven pattern in the codebase with existing hook (useClarificationThread) and store polling infrastructure (useStorePolling). UX parity across chat-like surfaces. Recommended because it avoids introducing a second polling cadence, reuses existing hooks, and the load from one user viewing one session is trivial.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Adaptive: 2s while run is active, 10s while run is idle, stop when archived",
+          "rationale": "Lower load for long-lived sessions sitting idle. But adds complexity (need to track run status in the UI store) for modest benefit when only one session is open at a time."
+        },
+        {
+          "key": "C",
+          "label": "On-demand only: no background polling, refresh button for new messages",
+          "rationale": "Zero background load. But breaks the live-reply feel that makes planning conversations useful."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own polling approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Behavior of archived sessions",
+      "context": "Round 2 decided archival is a timestamp (archived_at) rather than a status enum. The question is what archived means operationally: is it purely a UI filter, or does it prevent further interaction?",
+      "options": [
+        {
+          "key": "A",
+          "label": "Soft hide, still fully resumable",
+          "rationale": "Archived sessions are excluded from the default list view but appear under 'Show archived'. All operations (send message, fork, edit title) still work — users may archive a finished planning session then unarchive to revisit a decision. Unarchiving is a simple PATCH. Matches how archive works in other entity types in the codebase (pure soft-hide). Recommended because archive is a UX filter, not a lifecycle gate.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Soft hide + read-only: archived sessions cannot receive new messages",
+          "rationale": "Prevents accidental modifications to 'done' sessions. But users must explicitly unarchive to resume, adding friction when that's often what they want."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own archive semantics"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d5",
+      "type": "decision",
+      "topic": "Created Entities tab detail level",
+      "context": "The detail page has a Created Entities tab listing initiatives and backlog items produced by this session (queried by meta_orchestration_id). The question is how much metadata to show inline vs deferring to each entity's own detail page.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Compact list: title, kind, status badge, priority, click to detail page",
+          "rationale": "Each row shows enough to scan the session's output at a glance. Status badge signals execution progress. Click navigates to the backlog/initiative detail page for full context. Recommended because it gives fast situational awareness without duplicating the full backlog page's filtering/sorting complexity.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Minimal list: title and kind only; everything else on detail page",
+          "rationale": "Visually clean, quick to scan. But forces a click to check whether items are stuck, in progress, or complete."
+        },
+        {
+          "key": "C",
+          "label": "Rich embedded: full backlog-page-style filter/sort/actions embedded",
+          "rationale": "Most power but duplicates significant UI code and bloats the detail page for the common case of \u003c10 created items per session."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own entities-tab approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Agent-manager already stores every user and assistant message as a RunEvent in SQLite (EventType: \"message\") — confirmed in internal/orchestration/service.go:1778-1810 for ContinueRun emission and parseStreamEvents() for Claude Code assistant output parsing. The existing GET /api/v1/runs/{id}/events already supports event_type and sequence filters. The new GetConversation endpoint is therefore a thin filtered view over existing data (~50-100 lines) — no new capture or storage logic required in agent-manager."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "acceptance_allow has been expanded to include scenarios/agent-manager/api/** for the new GetConversation endpoint. If decision d1 selects B (split work into a separate item), this entry should be removed and a new dependent item added to this initiative or as a depends_on for this item."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "The user noted in round 2 that the existing clarification flow should eventually adopt the new GetConversation endpoint. This is captured as explicit follow-up work in the plan (Section 5 Out of Scope + Section 12 low-risk entry). The new endpoint is designed to support both use cases: clarification messages are also RunEvents with EventType=\"message\", so the same endpoint serves both consumers. A follow-up item should be created after this one ships."
+    }
+  ],
+  "plan_updates": "Major revision. Incorporated all round 2 settled decisions: (1) added Phase 1 for agent-manager GetConversation endpoint, (2) restructured data model to remove status enum and add archived_at + run_ids[] + last_synced_sequence for multi-run continuity, (3) replaced dedicated Planning page with sidebar Orchestration tab + detail page with Conversation/Created Entities tabs, (4) fork is deep-copy, (5) query-by-ID for created entities via new filter query params on backlog/initiatives endpoints. Added round 3 info about agent-manager already having all conversation data in SQLite. Expanded Required Reading to include interoperability-steer (cross-scenario work). Expanded Testing Plan with specific test cases per phase. Expanded Risk matrix with cross-scenario deployment, fork storage, and Created Entities query-perf entries. acceptance_allow updated to include scenarios/agent-manager/api/**."
+}

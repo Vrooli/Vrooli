@@ -1,0 +1,180 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-18T12:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 2,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Layout shape for the standalone UI",
+      "context": "The source UI (scenario-to-desktop) used a right-side Drawer that was opened from other contexts (records, smoke tests). In the standalone emulator UI there is no host drawer to anchor to — the surface is a top-level page. Research Finding 4 inventories the components but does not prescribe a layout. The choice drives whether we pull in react-router-dom and shapes the 'master-detail' interaction.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Master-detail: session list on the left, selected session viewer on the right (no router)",
+          "rationale": "Single-page, no router, matches how operators actually use a session manager (pick from a list, work on one). Minimal new deps. 'Session list' view is concretely useful the moment a second session can be created."
+        },
+        {
+          "key": "B",
+          "label": "Router-based: /sessions (list) and /sessions/:id (detail) via react-router-dom",
+          "rationale": "Deep-linkable. Plays better with the future /embedded/emulator/external-url endpoint when it passes a session_id. Adds a dep and requires the vrooli-ui-interop slot [E] proxy-aware basename work.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Single active-session page, list pushed into a collapsible left rail",
+          "rationale": "Preserves the scenario-to-desktop drawer-like feel (big VNC canvas, chrome minimized). No router. Slightly weaker discoverability of historical sessions."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own layout direction if none above fits."
+        }
+      ],
+      "selected": "B",
+      "notes": "Recommendation is B because the next item in the chain (external-url endpoint) explicitly supports a session_id deep-link query param (conclusion Finding 9). Paying the router tax once in this item avoids a rewrite when the embed endpoint ships."
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Captures integration in the migrated UI",
+      "context": "Research Finding 8 says capture *creation* is an emulator responsibility but capture *persistence* belongs to consumers. The existing liveDesktopStore depends on scenario-to-desktop's useCapturesStore to persist screenshots/recordings. When this UI moves to the emulator, that coupling is dead weight — there is no emulator-native captures store, and building one duplicates persistence responsibility.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Drop the captures store entirely; display capture results inline (e.g., last screenshot as a thumbnail) and let the user download the returned URL/path",
+          "rationale": "Matches Finding 8's resolved design. Zero new persistence code in the emulator UI. The user still sees screenshots immediately after taking them.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Build a thin session-scoped captures list (in-memory only) so the user can flip through all captures from the current session",
+          "rationale": "Slightly better UX for multi-capture debugging workflows, but adds a store with no persistence contract. Risk: operators expect persistence and are surprised when a refresh loses the list."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Propose an alternative captures model."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Rename the Desktop* type prefix",
+      "context": "The migrated types are currently named DesktopSession, DesktopSessionConfig, DesktopControlsMenu, LiveDesktopDrawer, etc. In the new home (vrooli-emulator), 'desktop' is no longer the organizing concept — the scenario is generic session/display management with an eventual headless-session path. The existing names still read coherently; renaming has a real cost (all imports, all tests).",
+      "options": [
+        {
+          "key": "A",
+          "label": "Rename aggressively: DesktopSession → Session, LiveDesktopDrawer → SessionViewer, DesktopControlsMenu → SessionControlsMenu, etc.",
+          "rationale": "Matches the new scenario name and the /api/v1/sessions/ route. Cleaner for future readers who don't carry the scenario-to-desktop history.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Keep Desktop* naming for components, rename only the types (DesktopSession → Session) to match the API",
+          "rationale": "Minimum-change approach. Preserves file names so git-blame still maps. Lower risk."
+        },
+        {
+          "key": "C",
+          "label": "Keep all names exactly as they are",
+          "rationale": "Zero churn. But leaves a naming mismatch with the /sessions/ API path forever — every future reader pays a small cognitive tax."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Propose a different naming convention."
+        }
+      ],
+      "selected": "A",
+      "notes": "Make sure not to leave around old names for compatibility. Should be hard cutover"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "iframe-bridge event surface for this round",
+      "context": "The item description calls out 'Integrate @vrooli/iframe-bridge as the child side.' The concrete question is which events to wire now vs defer to the phase-2 iframe-embed item. A smaller surface here means less rework when the actual consumer (scenario-to-desktop's future iframe embed) defines what it actually needs. A larger surface here means the consumer can drop in without a round-trip.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Minimal: init iframe-bridge with appId only. No custom events. Rely on built-in shortcut relay.",
+          "rationale": "Lowest risk of event-schema drift against an unbuilt consumer. Defers the event contract to the phase-2 item that actually knows what the host needs."
+        },
+        {
+          "key": "B",
+          "label": "Outbound lifecycle events only: session.created, session.state_changed, session.error, session.destroyed posted to the host on transitions",
+          "rationale": "Gives the future host something useful (session awareness for routing/UI sync) without taking an opinion on host→child command semantics. Schema is easy to document.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Full bidirectional: outbound lifecycle events + inbound host commands (session.control.launch_app, session.control.screenshot, ...)",
+          "rationale": "Most complete. But commits to a control protocol before the host (scenario-to-desktop's embed) has articulated what it needs. High risk of rework."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Propose a different event surface."
+        }
+      ],
+      "selected": "B",
+      "notes": "Whichever option is picked, the contract must be documented in scenarios/vrooli-emulator/docs/embed-protocol.md (the chore/vrooli-emulator-documentation item will pick it up). Recommendation B keeps the contract small and auditable."
+    },
+    {
+      "id": "d5",
+      "type": "decision",
+      "topic": "Zustand store vs React Query for session state",
+      "context": "The source liveDesktopStore.ts is a 192-line Zustand store that mixes local UI state (isOpen, error), server state (activeSession from GET /sessions/:id, metrics polling), and side-effect orchestration (heartbeat interval, VNC disconnect handling). react-coherence's state decision table is explicit: server state belongs in React Query; local UI state belongs in useState or a small Zustand slice. The migration is a natural time to split these.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Keep Zustand for everything (copy liveDesktopStore, rename, strip captures coupling)",
+          "rationale": "Minimum migration risk. Known-good code path. But preserves the server-state-in-Zustand anti-pattern flagged by react-coherence."
+        },
+        {
+          "key": "B",
+          "label": "Hybrid: React Query for the session list and session read, Zustand for local UI state (isOpen, connection status, error) and side-effect timers (heartbeat, metrics polling)",
+          "rationale": "Aligns with react-coherence. React Query handles caching/invalidation for reads; Zustand handles the stuff it's actually good at. Medium migration cost.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "React Query + plain useState/useReducer (no Zustand at all)",
+          "rationale": "Lightest dep footprint. But the side-effect orchestration (heartbeat timers) is awkward without a store; would need a dedicated hook."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Propose a different state split."
+        }
+      ],
+      "selected": "A",
+      "notes": "Can split up zustand store if desirable"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The emulator UI's main.tsx already satisfies vrooli-ui-interop slots [D] (iframe-bridge init) and [F]-partial (resolveApiBase in lib/api.ts). Migration work only needs to extend these, not introduce them."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "vite.config.ts in the emulator UI correctly sets base: './' (slot [B]). No changes required to vite config for tunnel/proxy compatibility."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "The emulator API's RegisterRoutes (api/livedesktop/handler.go:25-33) uses the exact /api/v1/sessions/ paths, so the rewritten API client becomes a mechanical find-and-replace on path literals in the migrated livedesktop.ts."
+    }
+  ],
+  "plan_updates": "Created the initial plan.md scaffold. Sections filled from existing context: Required Reading (skills + research), Problem Statement, Goal, Acceptance Criteria, Non-Goals, Technical Context (full file inventory and line counts), Approach (5 phases), Testability \u0026 Test Plan, Risks, Dependencies, Verification. The Approach references open decisions d1/d3/d4/d5 where the concrete step depends on workshop outcomes. Nothing is marked TBD — every section has actionable content, and gaps are scoped to the listed decisions rather than missing content."
+}

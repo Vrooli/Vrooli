@@ -1,0 +1,206 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-19T02:35:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Where LPBS release coordinates live on a profile",
+      "context": "The deploy-desktop orchestrator must know app_key, remote_profile, channel, domain, and update_url to call S2D and LPBS. Today none of this is on the profile; the skill supplies it at call time. We need a canonical place.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Add columns to the profiles table",
+          "rationale": "Simplest. Profile is already the unit of deployment. One-to-one fit. Small migration. Downside: couples profile schema to LPBS specifics, may need similar for future targets."
+        },
+        {
+          "key": "B",
+          "label": "New 1:1 child table profile_lpbs_release_config",
+          "rationale": "Keeps the profiles table clean, allows future per-target tables (e.g., steam_release_config), and cleanly handles profiles that never publish to LPBS. Slightly more boilerplate.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Pass all LPBS coords at release time in the API request",
+          "rationale": "No schema change. Operator supplies config each release. But this reproduces today's failure mode — config lives in the caller, not the system — which is exactly what this item is trying to fix."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Describe an alternative storage/layering strategy."
+        }
+      ],
+      "selected": "B"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "How deployment-manager checks LPBS upload readiness",
+      "context": "The skill runs `landing-page-business-suite deploy-readiness --profile-tag ... --app-key ...` which is CLI-only today (backed by 7 gates A–G in landing-page-deploy-setup). DM needs the same signal. Shelling out from an orchestrator to a CLI in a sibling scenario violates the seam-of-responsibility boundary (cli-steer / api-steer).",
+      "options": [
+        {
+          "key": "A",
+          "label": "Add POST /api/v1/deploy-readiness to LPBS; DM calls it via a new lpbs_client.go",
+          "rationale": "Correct seam per api-steer: LPBS exposes its readiness through an HTTP contract; DM consumes it with a typed client and can be unit-tested against an httptest fake. Small LPBS change; the logic already exists in the CLI.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Port the readiness logic into DM (DM calls LPBS admin/remote-profile endpoints directly)",
+          "rationale": "DM owns the gate check outright, no LPBS change. Downside: duplicates logic that LPBS already encapsulates; DM would need remote profile sessions, storage config checks, and app-key checks — pulling LPBS concerns into DM."
+        },
+        {
+          "key": "C",
+          "label": "DM shells out to `landing-page-business-suite deploy-readiness`",
+          "rationale": "Zero new HTTP contract. Fast to implement. But it bakes a binary dependency into DM, makes testing flakier, and violates the seams this initiative is trying to crystallize."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Describe an alternative readiness mechanism."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "What happens when post-release verification fails",
+      "context": "After publish, DM calls LPBS `/updates/{app_key}/verify?...` per platform. If `match=false` (or the endpoint errors), DM has two reasonable postures.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Hard fail the release: set release_records.status = 'verify_failed', return HTTP 502 from deploy-desktop",
+          "rationale": "Treats an un-verifiable release as unshipped. Forces operator to reconcile. Highest safety: a green deploy-desktop means the update endpoint actually serves the new version.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Record a warning step but return 200 with status = 'published_unverified'",
+          "rationale": "Matches today's behavior (publishToLPBS errors are non-fatal). Operator sees the warning and can re-verify. Lower friction but weakens the commercial guarantee we just hardened."
+        },
+        {
+          "key": "C",
+          "label": "Retry verification up to N times with backoff, then hard fail",
+          "rationale": "Accounts for S3 propagation delay. Hard fail remains the terminal state. Adds orchestration complexity and a timeout knob."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Describe an alternative verification policy."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Release entry point on the DM API surface",
+      "context": "Two reasonable ways to expose the orchestration: extend the existing `POST /api/v1/deploy-desktop`, or introduce `POST /api/v1/profiles/{id}/releases/start`. This affects CLI + UI wiring and future evolution.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Extend /deploy-desktop with release-oriented fields (channel, release_id auto-gen)",
+          "rationale": "One entrypoint, no API surface growth. `deploy-desktop` already orchestrates all the build phases; adding release coordinates is a natural extension. CLI stays as `deployment-manager deploy-desktop`."
+        },
+        {
+          "key": "B",
+          "label": "Add new /profiles/{id}/releases/start and keep /deploy-desktop as a lower-level build-and-bundle API",
+          "rationale": "Separates 'release' (operator intent: ship to customers) from 'deploy-desktop' (mechanical: produce installers). Reads better in the UI and CLI. But duplicates wiring and risks drift between the two handlers.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Single entrypoint with a `mode` field: `deploy-desktop` accepts `mode: 'build' | 'release'`",
+          "rationale": "One handler, explicit intent. Slightly awkward API ergonomics; mode flags often accrue special cases."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Describe an alternative entry-point shape."
+        }
+      ],
+      "selected": "B"
+    },
+    {
+      "id": "d5",
+      "type": "decision",
+      "topic": "UI surface for release status",
+      "context": "Operators need to see 'is this release live, and for which platforms'. We can layer this into existing pages or create a dedicated one.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Dedicated /releases page listing all releases across profiles + detail view",
+          "rationale": "Best for multi-profile orgs; single glance at fleet release state. Adds a new nav item, new tests, and more UI surface to maintain."
+        },
+        {
+          "key": "B",
+          "label": "Embed release summary on ProfileDetail only; no global page",
+          "rationale": "Smallest scope. Each profile shows its latest release and recent history. Matches today's UI info architecture (profile-centric). Operators with many profiles may miss a cross-profile view.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Both: ProfileDetail detail view + a filter on the existing Deployments page for release-kind entries",
+          "rationale": "Reuses Deployments list instead of adding a new page. Requires release records to be queryable from the deployments endpoint or a new backend filter. More integration work."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Describe an alternative UI layout."
+        }
+      ],
+      "selected": "B"
+    },
+    {
+      "id": "d6",
+      "type": "decision",
+      "topic": "What happens to the landing-page-desktop-upload skill",
+      "context": "Today this skill encodes the 6-stage CLI relay. Once DM owns orchestration, the skill's role shrinks dramatically.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Skill becomes a thin DM wrapper: one CLI call + polling + result render",
+          "rationale": "Preserves the skill as an automation client for agents, keeps existing callers working after a flag swap, and erases skill drift risk. The 6-stage CLI relay is removed from the skill body.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Delete the skill entirely; agents call DM CLI directly",
+          "rationale": "Maximum simplicity. But agents lose a named, documented entry point; forces every caller to relearn the DM CLI for a common task."
+        },
+        {
+          "key": "C",
+          "label": "Keep both: new DM-first primary path + existing multi-stage CLI relay as documented fallback",
+          "rationale": "Safest transitional state. Downside: two maintained paths, drift risk, exactly what this item set out to remove."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Describe an alternative skill disposition."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "scenario-to-desktop already plumbs ReleaseID (lpbs_client.go:84, 321-322) and variant_key (lpbs_client.go:354) through to LPBS. stage_deploy.go:220-230 forwards ReleaseID from DeployConfig. So DM → S2D → LPBS only needs the DM side to populate PublishDeployConfig with AppKey/RemoteProfile/UpdateURL/Channel and to add ReleaseID + Channel to PublishPipelineRequest. No LPBS schema changes are required for traceability; the contract-hardening item already delivered download_artifacts.release_id."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "The orchestrator has a clean step-insertion pattern (startStep / successStep / failStep, visible in orchestrator.go:646 `Visual validation` and :664 `Publish to LPBS`). New steps for cloud-health, LPBS-readiness, release-id allocation, and verify can slot in with \u003c50 lines of handler code each; the heavier work is the new repos, clients, and tests — not orchestration rewiring."
+    }
+  ],
+  "plan_updates": "Created round-1 scaffold of plan.md. Populated sections 1–13 with the current code surface (paths and line numbers), the four identified gaps, a 7-phase implementation strategy, settled contracts from the research dependencies, and explicit risks. Left six architectural decisions (D1–D6) as TBD placeholders resolved through this round's workshop items; sections 7 and 8 reference those decisions directly."
+}

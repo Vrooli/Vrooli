@@ -1,0 +1,104 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-17T16:40:00Z",
+  "execution_id": "41a3f73973869e9f",
+  "status": "complete",
+  "run_id": "8a37490a-3231-4df1-a979-5b019e8a71fc",
+  "agent_assessment": "Research conclusion is well-grounded: all factual codebase claims (livedesktop package contents, procmetrics location, iframe-bridge package, deployment-manager external-url pattern, smoketest xvfb-run usage) were verified against the working tree. All 9 follow-up backlog items described in the conclusion's Actions section were created with correct kinds, priorities, efforts, dependencies, acceptance_allow scopes, and initiative assignment. Dependency graph is internally consistent and matches the phased hard-cut strategy in Finding 15. Three pre-existing overlapping items (vrooli-emulator-linux-first, adopt-vrooli-emulator-in-deployment-flows, vrooli-emulator-remote-node-backend) were intentionally not duplicated; notes.md flags these for human reconciliation. One inconsistency worth noting: the research spec.json status field is 'failed' despite the conclusion and notes.md describing a successful completion — likely an artifact of an unsatisfied upstream dependency marker rather than a content issue.",
+  "classification": "ready_with_notes",
+  "notes": [
+    "Research item spec.json has status='failed' but the conclusion.md is complete, notes.md documents successful follow-up batch-create, and all 9 actions landed as described. Likely caused by unsatisfied depends_on markers (qa-scenario-to-desktop-code-quality-20260407, qa-prompt-manager-* items) rather than research failure — worth verifying during archive decision.",
+    "Conclusion Finding 9 describes deployment-manager's embed pattern as 'GET /embedded/{name}/external-url' (parameterized). Actual usage in deployment-manager/ui/src/pages/Analyze.tsx:47 hits '/embedded/scenario-dependency-analyzer/external-url' — a concrete path, not a template. Close enough for planning purposes; phase 2 implementers should confirm the exact backend contract before copying the pattern.",
+    "Pre-existing items execute/vrooli-emulator-linux-first (XL umbrella), execute/adopt-vrooli-emulator-in-deployment-flows, and execute/vrooli-emulator-remote-node-backend overlap in scope with the newly-created items. notes.md explicitly defers reconciliation to a human; archive decision should factor in whether to close/retarget these before the emulator-platform initiative starts executing.",
+    "acceptance_allow for execute/smoketest-delegate-display-to-emulator spans TWO scenarios (scenario-to-desktop + vrooli-emulator). Cross-scenario acceptance scopes are unusual in this backlog but matches the conclusion's intent: smoketest changes on the consumer side and emulator client code on the provider side must land together.",
+    "execute/scaffold-vrooli-emulator-scenario is effort=L with a broad description (API scaffold + livedesktop move + procmetrics move + route prefix change + headless flag + CLI surface + drop GET artifact). Workshopping should consider splitting scaffolding from the internal-package migrations to reduce single-change blast radius — but that's a planning concern for the execute item, not a blocker for archiving the research."
+  ],
+  "evidence": [
+    {
+      "id": "e1",
+      "type": "custom",
+      "title": "All 9 follow-up backlog items exist under scenarios/swarm-manager/",
+      "description": "Verified via directory listing and spec.json reads that the 9 items specified in conclusion.md's Actions section were created: 6 execute/, 2 chore/, 1 research/. Each has a well-formed spec.json with initiative='emulator-platform'.",
+      "verified": false,
+      "test_results": [
+        {"name": "execute/scaffold-vrooli-emulator-scenario exists with kind=execute, priority=2, effort=L, depends_on=[research/emulator-extraction-and-service-plan]", "passed": true, "output_summary": "Matches Action 1 (priority high→2, effort large→L, depends on research item)"},
+        {"name": "execute/emulator-acceptance-tests-phase-1 exists with kind=execute, priority=2, effort=M, depends_on=[execute/scaffold-vrooli-emulator-scenario]", "passed": true, "output_summary": "Matches Action 2"},
+        {"name": "chore/scenario-to-desktop-remove-livedesktop exists with kind=chore, priority=2, effort=S, depends_on=[execute/scaffold-vrooli-emulator-scenario, execute/emulator-acceptance-tests-phase-1]", "passed": true, "output_summary": "Matches Action 3 (the hard-cut step)"},
+        {"name": "execute/vrooli-emulator-standalone-ui exists with kind=execute, priority=2, effort=L, depends_on=[execute/scaffold-vrooli-emulator-scenario]", "passed": true, "output_summary": "Matches Action 4"},
+        {"name": "execute/vrooli-emulator-external-url-endpoint exists with kind=execute, priority=2, effort=S, depends_on=[execute/vrooli-emulator-standalone-ui]", "passed": true, "output_summary": "Matches Action 5"},
+        {"name": "execute/scenario-to-desktop-emulator-iframe-embed exists with kind=execute, priority=2, effort=M, depends_on=[execute/vrooli-emulator-external-url-endpoint, chore/scenario-to-desktop-remove-livedesktop]", "passed": true, "output_summary": "Matches Action 6; dependency correctly gates phase 2 on both the external-url endpoint and the hard-cut removal"},
+        {"name": "execute/smoketest-delegate-display-to-emulator exists with kind=execute, priority=3, effort=M, depends_on=[execute/scaffold-vrooli-emulator-scenario, execute/emulator-acceptance-tests-phase-1]", "passed": true, "output_summary": "Matches Action 7 (priority medium→3)"},
+        {"name": "chore/vrooli-emulator-documentation exists with kind=chore, priority=3, effort=S, depends_on=[execute/scaffold-vrooli-emulator-scenario, execute/vrooli-emulator-standalone-ui]", "passed": true, "output_summary": "Matches Action 8 (priority medium→3)"},
+        {"name": "research/vrooli-emulator-remote-backend-spike exists with kind=research, priority=5, effort=M, no depends_on", "passed": true, "output_summary": "Matches Action 9 (priority low→5)"}
+      ]
+    },
+    {
+      "id": "e2",
+      "type": "custom",
+      "title": "All 9 items assigned to emulator-platform initiative",
+      "description": "Verified initiative.json at scenarios/swarm-manager/initiatives/emulator-platform/initiative.json lists all 9 new items plus the 3 pre-existing items mentioned in notes.md. Initiative metadata is unchanged (status='active', original title/description preserved).",
+      "verified": false,
+      "test_results": [
+        {"name": "initiative.json.items contains all 9 new item paths", "passed": true, "output_summary": "Confirmed: scaffold, acceptance-tests-phase-1, remove-livedesktop, standalone-ui, external-url-endpoint, iframe-embed, smoketest, documentation, remote-backend-spike all present"},
+        {"name": "Pre-existing items preserved (no accidental removal)", "passed": true, "output_summary": "vrooli-emulator-linux-first, adopt-vrooli-emulator-in-deployment-flows, desktop-release-regression-suite still listed"}
+      ]
+    },
+    {
+      "id": "e3",
+      "type": "custom",
+      "title": "acceptance_allow scopes match Actions",
+      "description": "Verified each item's acceptance_allow matches the scope declared in the conclusion's corresponding Action.",
+      "verified": false,
+      "test_results": [
+        {"name": "Items targeting new emulator scope allow scenarios/vrooli-emulator/**", "passed": true, "output_summary": "scaffold, acceptance-tests, standalone-ui, external-url-endpoint ✓"},
+        {"name": "remove-livedesktop allows scenarios/scenario-to-desktop/**", "passed": true, "output_summary": "Matches Action 3 scope"},
+        {"name": "iframe-embed allows scenarios/scenario-to-desktop/ui/**", "passed": true, "output_summary": "UI-only scope matches Action 6"},
+        {"name": "smoketest-delegate allows both scenarios/scenario-to-desktop/api/smoketest/** and scenarios/vrooli-emulator/**", "passed": true, "output_summary": "Cross-scenario scope matches Action 7 (consumer + provider edits)"},
+        {"name": "documentation allows scenarios/vrooli-emulator/docs/** and README.md", "passed": true, "output_summary": "Matches Action 8 scope"}
+      ]
+    },
+    {
+      "id": "e4",
+      "type": "custom",
+      "title": "Codebase claims in conclusion are accurate",
+      "description": "Static verification of factual claims in conclusion.md Findings 1, 6, 9, 10, 12, 14.",
+      "verified": false,
+      "test_results": [
+        {"name": "Finding 1: scenarios/scenario-to-desktop/api/livedesktop/ contains handler.go, service.go, store.go, platform.go, platform_linux.go, proxy.go, janitor.go, action*.go, types.go", "passed": true, "output_summary": "Directory listing confirms all claimed files present"},
+        {"name": "Finding 1: main.go registers livedesktop routes and imports scenario-to-desktop-api/livedesktop", "passed": true, "output_summary": "main.go:31 imports livedesktop; main.go:205-218 wires up linuxBackend, store, service, handler with WithDataDir/WithRecorder/WithCaptures"},
+        {"name": "Finding 12: procmetrics package exists at scenarios/scenario-to-desktop/api/procmetrics/", "passed": true, "output_summary": "Contains factory.go, interfaces.go, monitor.go, proc_reader.go, window_detector.go and tests"},
+        {"name": "Finding 6/10: smoketest references xvfb-run / RequiresHeadlessWrapper", "passed": true, "output_summary": "Grep hits in platform_resolver.go, interfaces.go, platform_resolver_test.go"},
+        {"name": "Finding 9: deployment-manager uses /embedded/{scenario}/external-url pattern", "passed": true, "output_summary": "deployment-manager/ui/src/pages/Analyze.tsx:47 — actual path is concrete '/embedded/scenario-dependency-analyzer/external-url', not parameterized. Pattern is valid but conclusion's wording slightly generalizes."},
+        {"name": "Finding 14: @vrooli/iframe-bridge packaged at packages/iframe-bridge/", "passed": true, "output_summary": "Directory exists with README.md, src/, dist/, package.json — consumable as a library"}
+      ]
+    },
+    {
+      "id": "e5",
+      "type": "custom",
+      "title": "Research spec status is 'failed' despite successful completion",
+      "description": "spec.json at research/emulator-extraction-and-service-plan/spec.json reports status='failed' (line 19). However conclusion.md is complete, notes.md documents successful 9-item batch-create, and all 9 follow-up items exist with the correct dependency link back to this research item. The 'failed' status is likely a stale marker from unsatisfied upstream dependencies (depends_on includes two qa-prompt-manager-* items and qa-scenario-to-desktop-code-quality-* that show as deleted in git status) rather than actual research failure. Reviewer should confirm whether the final status should be flipped before archive.",
+      "verified": false
+    }
+  ],
+  "request_threads": [],
+  "improvement_suggestions": [
+    {
+      "category": "other",
+      "description": "Add an automated consistency check in swarm-manager backlog tooling that compares a research item's conclusion.md 'Actions' count against the number of depends_on→research links pointing back from child items. Would catch cases where a conclusion declares N actions but fewer than N follow-up items were created (or items exist but don't link back).",
+      "evidence_id": "e1",
+      "priority": "low"
+    },
+    {
+      "category": "other",
+      "description": "Research-item review rounds currently have to manually grep the codebase to verify that Findings quote real files/paths. Consider a lightweight 'finding-citation' check: if a conclusion.md mentions a concrete file path (e.g. 'api/livedesktop/service.go:289'), the review tool could auto-verify existence and flag broken references.",
+      "evidence_id": "e4",
+      "priority": "low"
+    },
+    {
+      "category": "other",
+      "description": "spec.json status='failed' on a research item whose conclusion.md and notes.md both indicate success suggests the depends_on resolution check is run at item creation time but not re-evaluated when upstream dependencies are completed or removed. A periodic reconciliation (or an event hook when depends_on items change state) would keep the status field truthful.",
+      "evidence_id": "e5",
+      "priority": "medium"
+    }
+  ]
+}

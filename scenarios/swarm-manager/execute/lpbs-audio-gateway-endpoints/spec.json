@@ -1,0 +1,25 @@
+{
+  "acceptance_allow": [
+    "scenarios/landing-page-business-suite/api/**"
+  ],
+  "created": "2026-04-19T02:29:31Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "## Context\n\nThe audio-tools scenario (see `research/audio-provider-routing-contract`) needs an LPBS tier in its per-capability provider chains (BYOK → Vrooli/LPBS → Local). LPBS currently only supports text chat via `/api/v1/ai/chat` and `/api/v1/ai/stream`. Audio STT and TTS need their own endpoints with audio-duration pricing.\n\n## Scope\n\nExtend the LPBS AI gateway (`scenarios/landing-page-business-suite/api/`) with two new endpoints and one new pricing unit.\n\n### New endpoints\n\n- **`POST /api/v1/ai/transcribe`** — accepts multipart audio upload, proxies to a cloud STT provider, returns `{text, language, duration_sec}`. Charges credits by audio duration in seconds.\n- **`POST /api/v1/ai/synthesize`** — accepts JSON `{text, voice, speed, response_format}`, proxies to a cloud TTS provider, returns raw audio bytes with appropriate `Content-Type`. Charges credits by output audio duration in seconds.\n\nSummarization reuses the existing `/api/v1/ai/chat` endpoint with `Operation: audio.summarize` metadata — no new endpoint required.\n\n### Pricing model\n\n- Add new pricing unit `audio_duration_sec` alongside existing `tokens`.\n- Internal credit unit (1/1,000,000 of a cent) is flexible enough — no schema change to the credits ledger itself.\n- Reuse the existing ReserveCredits → Execute → FinalizeReservation flow with 10-minute auto-expiry.\n- Reuse idempotent usage reporting via `OperationID` (UUID).\n\n### Operation types in usage metadata\n\n- STT: `{Operation: \"audio.stt_transcribe\", AudioDurationSec: N, Model: \"\u003cprovider-model\u003e\"}`\n- TTS: `{Operation: \"audio.tts_synthesize\", OutputDurationSec: N, Voice: \"\u003cvoice-id\u003e\", Model: \"\u003cprovider-model\u003e\"}`\n- Summarize: `{Operation: \"audio.summarize\", PromptTokens: N, Model: \"\u003cprovider-model\u003e\"}` (no LPBS change needed here)\n\n## Acceptance criteria\n\n- `curl -F audio=@sample.wav \u003clpbs\u003e/api/v1/ai/transcribe` returns the transcribed text and writes a usage row with non-zero `audio_duration_sec` and `Operation: audio.stt_transcribe`.\n- `curl -d '{\"text\":\"hello world\",\"voice\":\"...\"}' \u003clpbs\u003e/api/v1/ai/synthesize` returns audio bytes and writes a usage row with non-zero `audio_duration_sec` and `Operation: audio.tts_synthesize`.\n- `SELECT * FROM lpbs_usage WHERE operation LIKE 'audio.%'` returns rows matching the above operations after test runs.\n- Insufficient credits short-circuit before the upstream provider is called (returns 402-class error, no upstream spend).\n- Idempotent `OperationID` prevents double-charging under retry.\n\n## Out of scope\n\n- Streaming STT/TTS through LPBS (Round 2 D2 keeps streaming local-only).\n- Audio format conversion (the audio-tools caller standardizes formats).\n- Choice of specific upstream provider — start with one reasonable default (e.g., OpenAI Whisper for STT, OpenAI TTS for TTS); expansion is a follow-up.\n\n## References\n\n- Research: `research/audio-provider-routing-contract` (Finding 4, Finding 6)\n- Existing LPBS AI gateway: `scenarios/landing-page-business-suite/api/` (text chat endpoints for pattern to follow)",
+  "effort": "M",
+  "initiative": "continuous-audio-platform",
+  "kind": "execute",
+  "name": "lpbs-audio-gateway-endpoints",
+  "priority": 2,
+  "spawned_from": "research/audio-provider-routing-contract",
+  "status": "backlog",
+  "tags": [
+    "lpbs",
+    "audio-tools",
+    "provider-routing",
+    "continuous-audio-platform"
+  ],
+  "title": "Add LPBS audio gateway endpoints with per-second duration pricing",
+  "updated": "2026-04-19T02:29:31Z"
+}

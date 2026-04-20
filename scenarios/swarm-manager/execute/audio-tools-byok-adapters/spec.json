@@ -1,0 +1,28 @@
+{
+  "acceptance_allow": [
+    "scenarios/audio-tools/api/services/ai/byok/**"
+  ],
+  "created": "2026-04-19T02:32:13Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "depends_on": [
+    "execute/audio-tools-greenfield-scenario"
+  ],
+  "description": "## Context\n\nThe audio-tools scenario (see `research/audio-provider-routing-contract` and `execute/audio-tools-greenfield-scenario`) routes BYOK-tier requests to one adapter per external API, selected by the `X-Audio-BYOK-Provider` HTTP header. This execute item ships the starter adapter set.\n\n## Scope\n\nImplement one adapter per external API. Each adapter lives under `scenarios/audio-tools/api/services/ai/byok/\u003cprovider-id\u003e/` and implements the appropriate capability interface from the plan (`STTProvider`, `TTSProvider`, or `SummarizeProvider`).\n\n### Starter adapter set\n\n| Provider ID       | Capability  | Auth / Request notes                                                  |\n|-------------------|-------------|----------------------------------------------------------------------|\n| `openai-whisper`  | STT         | POST multipart, `Authorization: Bearer \u003ckey\u003e`                         |\n| `deepgram`        | STT         | POST raw audio, `Authorization: Token \u003ckey\u003e`                          |\n| `openai-tts`      | TTS         | POST JSON, `Authorization: Bearer \u003ckey\u003e`, returns audio bytes         |\n| `elevenlabs`      | TTS         | POST JSON, `xi-api-key: \u003ckey\u003e`, returns audio stream                  |\n| `openrouter`      | Summarize   | Reuses BAS's OpenRouter integration pattern                           |\n\n### Registry and header routing\n\n- Each adapter registers under its provider id in the per-capability registry owned by the chain.\n- The per-request client resolves `X-Audio-BYOK-Provider` → adapter; `X-Audio-BYOK-Key` supplies the credential for that adapter.\n- Unknown provider id → `ErrUnknownBYOKProvider` (400-class, NO fallback to Vrooli/Local).\n- Missing `X-Audio-BYOK-Provider` when `X-Audio-BYOK-Key` is present → `ErrMissingBYOKProvider` (400-class).\n- Any runtime error from an adapter (other than `ErrInsufficientCredits`) falls through to the next chain tier per standard BAS fallback semantics.\n\n### Canonical voice mapping (TTS adapters only)\n\nEach TTS adapter MUST declare a mapping from the canonical voice catalog (`voice.feminine.warm`, `voice.feminine.neutral`, `voice.masculine.warm`, `voice.masculine.neutral`, `voice.neutral.default`) to its concrete voice ids. The registry validates mapping completeness at startup.\n\nStarter examples:\n- `openai-tts`: `voice.feminine.warm → nova`, `voice.masculine.neutral → onyx`, etc.\n- `elevenlabs`: `voice.feminine.warm → Rachel`, `voice.masculine.warm → Adam`, etc.\n\nCallers may override per-adapter via `voice_overrides: {\"byok:elevenlabs\": \"Rachel\"}` on the TTS request; the override wins over the canonical mapping.\n\n## Acceptance criteria\n\n- Adapter-level contract tests pass for each external API using recorded fixtures (or live sandbox keys where available).\n- Registry lookup test: a request with `X-Audio-BYOK-Provider: deepgram` routes to the Deepgram adapter, not any other.\n- Unknown-provider test: `X-Audio-BYOK-Provider: not-a-real-thing` returns `ErrUnknownBYOKProvider` without cascading to Vrooli/Local.\n- Missing-provider test: `X-Audio-BYOK-Key` set without `X-Audio-BYOK-Provider` returns `ErrMissingBYOKProvider`.\n- Voice override test per TTS adapter: `voice_overrides[\"byok:elevenlabs\"] = \"Rachel\"` wins; missing canonical mapping falls back to the adapter default and emits a structured log warning.\n- Credentials never appear in any log output (credential-redacting logger).\n\n## Out of scope\n\n- Adding more adapters beyond the starter set (follow-up items).\n- Region-specific endpoints for adapters (each adapter uses its default endpoint for v1).\n- Streaming audio output adapters (see `research/audio-provider-routing-contract` Limitations).\n\n## Dependencies\n\n- `execute/audio-tools-greenfield-scenario` — provides the chain, interfaces, registry skeleton, and canonical voice catalog this item plugs into.\n\n## References\n\n- Research: `research/audio-provider-routing-contract` (Finding 8, Finding 9, Round 3 D1, Round 3 D2).\n- Plan: `execute/audio-tools-greenfield-scenario` plan.md sections 8.3, 8.5.\n- Pattern reference: `scenarios/browser-automation-studio/api/services/ai/` (OpenRouter adapter in particular).",
+  "effort": "M",
+  "initiative": "continuous-audio-platform",
+  "kind": "execute",
+  "name": "audio-tools-byok-adapters",
+  "priority": 3,
+  "spawned_from": "research/audio-provider-routing-contract",
+  "status": "backlog",
+  "tags": [
+    "audio-tools",
+    "byok",
+    "provider-routing",
+    "continuous-audio-platform"
+  ],
+  "title": "Implement audio-tools BYOK adapters (OpenAI Whisper, Deepgram, OpenAI TTS, ElevenLabs, OpenRouter)",
+  "updated": "2026-04-19T02:32:13Z"
+}

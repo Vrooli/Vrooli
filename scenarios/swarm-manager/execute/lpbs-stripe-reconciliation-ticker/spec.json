@@ -1,0 +1,20 @@
+{
+  "acceptance_allow": [
+    "scenarios/landing-page-business-suite/api/**"
+  ],
+  "created": "2026-04-17T19:59:02Z",
+  "depends_on": [
+    "fix/lpbs-checkout-webhook-atomicity",
+    "research/lpbs-payment-guardrails-and-reconciliation-plan"
+  ],
+  "description": "On API boot, start a background goroutine that periodically (configurable interval, default 5 min) queries the Stripe API for recently-paid checkout sessions and cross-checks against local `checkout_sessions` + `subscriptions`. For any paid session without a matching local subscription, write a `payment_anomaly_log` row (type `checkout_subscription_missing`) and attempt re-materialization via the existing `insertOrUpdateSubscription()` path.\n\nBelt-and-suspenders counterpart to fix/lpbs-checkout-webhook-atomicity: catches any failure mode not covered by transactional atomicity (e.g., pre-fix data, deliberately deleted webhook deliveries, missed events while API was down). See Findings 1, 3 and round-2 d1=A decision (in-process goroutine ticker; no external scheduler) of the research conclusion.",
+  "effort": "M",
+  "initiative": "desktop-monetization-assurance",
+  "kind": "execute",
+  "name": "lpbs-stripe-reconciliation-ticker",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [],
+  "title": "Add goroutine ticker that reconciles Stripe paid sessions against local subscriptions",
+  "updated": "2026-04-17T19:59:02Z"
+}

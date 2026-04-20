@@ -1,0 +1,24 @@
+{
+  "acceptance_allow": [
+    "scenarios/vrooli-emulator/**"
+  ],
+  "created": "2026-04-17T16:10:54Z",
+  "depends_on": [
+    "research/emulator-extraction-and-service-plan"
+  ],
+  "description": "Create `scenarios/vrooli-emulator/` with api/, ui/, cli/, service.json, and Makefile. Move livedesktop and procmetrics packages from scenario-to-desktop into the new scenario as internal packages (not a shared library). Update module paths. Adjust route prefix to `/api/v1/sessions/` (dropping the livedesktop-branded prefix). Add `headless: true` flag to session creation that skips VNC/websockify and just allocates an Xvfb display. Drop the `GET artifact` endpoint in favor of caller-owned artifact resolution — `app_path` is a required field on launch. Also ship the minimal operator CLI surface: `session list`, `session create`, `session destroy`, `session exec`, and `session logs`/`metrics tail`. Sources: research/emulator-extraction-and-service-plan conclusion Findings 1, 7, 11, 12, 13.",
+  "effort": "L",
+  "initiative": "emulator-platform",
+  "kind": "execute",
+  "name": "scaffold-vrooli-emulator-scenario",
+  "priority": 2,
+  "status": "completed",
+  "tags": [
+    "emulator",
+    "scenario-to-desktop",
+    "extraction",
+    "phase-1"
+  ],
+  "title": "Scaffold vrooli-emulator scenario (API + headless sessions + VNC proxy)",
+  "updated": "2026-04-18T14:00:20Z"
+}

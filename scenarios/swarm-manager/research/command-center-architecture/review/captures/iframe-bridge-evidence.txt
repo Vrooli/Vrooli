@@ -1,0 +1,38 @@
+Finding 16 @vrooli/iframe-bridge Evidence
+==========================================
+
+Claim: @vrooli/iframe-bridge depended on by react-vite template (package.json line 20)
+Result: VERIFIED
+---------------------------------------------------------------------------------------
+File: templates/scenarios/react-vite/ui/package.json
+
+Line 20:  "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+
+
+Claim: Template ships three ready-to-use hooks (useGamepad, useSpatialNav, SpatialGroup)
+Result: VERIFIED
+----------------------------------------------------------------------------------------
+$ find templates/scenarios/react-vite/ui -name "useGamepad*" -o -name "useSpatialNav*" -o -name "SpatialGroup*"
+  templates/scenarios/react-vite/ui/src/hooks/SpatialGroup.tsx
+  templates/scenarios/react-vite/ui/src/hooks/useSpatialNav.ts
+  templates/scenarios/react-vite/ui/src/hooks/useGamepad.ts
+
+
+Claim: Underlying engine files present in packages/iframe-bridge/src/
+Result: VERIFIED
+---------------------------------------------------------------------
+$ ls packages/iframe-bridge/src/
+  __tests__/
+  activationOverlay.ts
+  gamepadInput.ts        <- raw gamepad input (W3C Standard Gamepad mapping)
+  iframeBridgeChild.ts
+  index.ts
+  spatialNav.ts          <- SpatialNavManager, focus engine
+  spatialNavBridge.ts    <- bridges gamepad -> spatial nav
+  spatialNavStyles.ts
+
+
+Implication confirmed: Command-center kiosk-ux does NOT need to write any Gamepad API
+plumbing. Consumption is: call useSpatialNav() at app root, wrap nav sections in
+<SpatialGroup>. Same story for Xbox Edge, smart-TV remotes with gamepad profiles, and
+desktop keyboards (spatial nav falls back to arrow keys).

@@ -1,0 +1,36 @@
+{
+  "item": {
+    "name": "adopt-vrooli-emulator-in-deployment-flows",
+    "title": "Adopt The Emulator Service In Deployment Flows",
+    "description": "Adopt the dedicated emulator service in scenario-to-desktop and deployment-manager so those scenarios stop directly owning the shared live-desktop validation stack wherever reasonable.\n\nThe goal is to preserve human-gated sanity checks while consolidating emulator behavior into one shared service that can later grow beyond Linux.",
+    "status": "backlog",
+    "priority": 3,
+    "tags": [
+      "emulator",
+      "deployment-manager",
+      "scenario-to-desktop",
+      "integration"
+    ],
+    "created": "2026-03-26T16:35:59Z",
+    "updated": "2026-04-18T14:47:30Z",
+    "kind": "execute",
+    "depends_on": [
+      "execute/mobile-operable-deployment-surfaces",
+      "execute/qa-deployment-manager-code-quality-20260407",
+      "execute/qa-scenario-to-desktop-code-quality-20260407",
+      "fix/qa-deployment-manager-tests-20260407",
+      "execute/emulator-acceptance-tests-phase-1",
+      "execute/vrooli-emulator-external-url-endpoint",
+      "execute/scenario-to-desktop-emulator-iframe-embed",
+      "chore/scenario-to-desktop-remove-livedesktop",
+      "chore/vrooli-emulator-documentation"
+    ],
+    "initiative": "emulator-platform",
+    "effort": "L",
+    "acceptance_allow": [
+      "scenarios/vrooli-emulator/**",
+      "scenarios/scenario-to-desktop/**",
+      "scenarios/deployment-manager/**"
+    ]
+  }
+}

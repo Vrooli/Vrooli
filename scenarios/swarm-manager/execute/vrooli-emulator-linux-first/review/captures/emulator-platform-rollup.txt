@@ -1,0 +1,31 @@
+Initiative:
+  Name: emulator-platform
+  Title: Dedicated Emulator Platform
+  Description: Extract shared validation and live-desktop capabilities into a reusable emulator scenario and wire it into deployment flows.
+  Status: active
+  Created: 2026-03-26T16:35:59Z
+  Updated: 2026-04-17T16:10:54Z
+Rollup:
+  Total: 13
+  Completed: 3
+  In Progress: 0
+  Failed: 0
+  Pending: 10
+Items:
+  - research/emulator-extraction-and-service-plan
+  - execute/vrooli-emulator-linux-first
+  - execute/adopt-vrooli-emulator-in-deployment-flows
+  - execute/desktop-release-regression-suite
+  - execute/scaffold-vrooli-emulator-scenario
+  - execute/emulator-acceptance-tests-phase-1
+  - chore/scenario-to-desktop-remove-livedesktop
+  - execute/vrooli-emulator-standalone-ui
+  - execute/vrooli-emulator-external-url-endpoint
+  - execute/scenario-to-desktop-emulator-iframe-embed
+  - execute/smoketest-delegate-display-to-emulator
+  - chore/vrooli-emulator-documentation
+  - research/vrooli-emulator-remote-backend-spike
+
+Next Steps:
+  swarm-manager initiatives update --name emulator-platform --data '{"title":"..."}'
+  swarm-manager initiatives delete --name emulator-platform

@@ -1,0 +1,33 @@
+Action 1 — execute/lpbs-audio-gateway-endpoints
+  spec.json present (3798 bytes)
+  kind=execute, priority=2, effort=M
+  initiative=continuous-audio-platform
+  spawned_from=research/audio-provider-routing-contract
+  acceptance_allow=["scenarios/landing-page-business-suite/api/**"]
+  status=backlog
+  Title: "Add LPBS audio gateway endpoints with per-second duration pricing"
+  MATCHES conclusion Action 1 (Finding 4 + Finding 6 references preserved)
+
+Action 2 — execute/audio-tools-greenfield-scenario/plan.md
+  plan.md present (17,533 bytes)
+  Section 8 (Provider Routing Architecture — FINAL) populated:
+    §8.1 Per-capability typed provider chains (Round 1 D1)
+    §8.2 Provider precedence (Round 3 D3)
+    §8.3 BYOK adapter registry (Round 3 D1)
+    §8.4 LPBS/Vrooli tier contract
+    §8.5 Canonical voices with per-provider overrides (Round 3 D2)
+    §8.6 Operation type constants (Finding 6)
+    §8.7 Configuration schema (Finding 7)
+    §8.8 BAS pattern replication details (Finding 1)
+  Other sections §3, §5, §6, §7 marked <!-- TBD --> (consistent with notes.md rationale)
+  MATCHES conclusion Action 2 (with declared deviation: created, not amended)
+
+Action 3 — execute/audio-tools-byok-adapters
+  spec.json present (5004 bytes)
+  kind=execute, priority=3, effort=M
+  depends_on=["execute/audio-tools-greenfield-scenario"]  (matches conclusion)
+  initiative=continuous-audio-platform
+  acceptance_allow=["scenarios/audio-tools/api/services/ai/byok/**"]
+  status=backlog
+  Starter adapter set in description: openai-whisper, deepgram, openai-tts, elevenlabs, openrouter
+  MATCHES conclusion Action 3 (Finding 8 + Finding 9 references preserved)

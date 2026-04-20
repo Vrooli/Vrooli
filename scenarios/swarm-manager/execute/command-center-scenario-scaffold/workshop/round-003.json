@@ -1,0 +1,46 @@
+{
+  "round": 3,
+  "generated_at": "2026-04-18T16:10:00Z",
+  "mode": "finalize",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 3,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Round-2 resolutions incorporated into plan.md. d1->B: Mission Control scene is now locked as 'instanced-points starfield + 3-5 rotating satellite-node meshes' (Sections 4, 5, 7.Phase 4, 8 'Mission Control scene contract', 12). No live-metric visualization in the slice - explicitly called out as theming-engine scope."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "d2->B: BAS scope is 1 action (navigate-to-route) + 1 flow (navigate-all-routes) + 7 cases under bas/cases/01-foundation/ (6 route-loads + 1 Mission Control gap-badge). Reflected in Sections 4, 5 (Key files to author), 7.Phase 5, 8 BAS taxonomy, 9 (testing table), 10 (rollout checklist), 13 (DoD)."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "d3->other ('use standard template ranges'): all hardcoded 15200/36243 references removed. service.json now declares API 15000-19999 and UI 35000-39999 as ranges only, inherited verbatim from templates/scenarios/react-vite/.vrooli/service.json. The lifecycle manager auto-allocates at start time via API_PORT / UI_PORT env vars. Contract explicit in Section 5 (Port allocation), Section 7 Phase 1 step 2, Section 8 'Port allocation (contract with the lifecycle manager)', and Section 13 DoD. Collision-related risk in Section 11 rewritten for range-based allocation."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "d4->A: hand-written validation pass removed. Registry loader now uses json.Decoder with DisallowUnknownFields() only - malformed JSON and unknown keys exit non-zero, but no enum-range checks, no duplicate-ID scans, no external JSON-schema library. Reflected in Sections 5 (registry.go description), 7.Phase 3 step 2, 8 (Validation strategy paragraph), 9 (testing table - decode-error test kept, semantic validation explicitly deferred), 10 (rollout checklist simplified), 11 (registry risk reframed as accepted trade-off), 12 (prohibited patterns list), 13 (DoD)."
+    },
+    {
+      "id": "i5",
+      "type": "info",
+      "text": "Validation warning fixed: Phase 6 now includes a mandatory final step - 'vrooli scenario restart command-center' - that exercises the canonical stop+start cycle against the finished scaffold. Restart also appears in Section 6 (Target End State commands), Section 10 (rollout checklist), Section 13 (DoD), and the scaffold-conformance row of Section 9. Note: Claude Code is running in agent-manager, so restarting command-center does not conflict with the 'no restart active scenario' feedback."
+    },
+    {
+      "id": "i6",
+      "type": "info",
+      "text": "All 13 mandatory plan sections remain present and are now internally consistent with the round-1 + round-2 answers. No new decisions introduced. Remaining gap risks are documented as accepted trade-offs (e.g., registry drift under trust-the-decoder; range-based port collisions handled by the lifecycle manager with concrete-port pinning as a follow-up option if flakes emerge)."
+    }
+  ],
+  "plan_updates": "Finalize pass: replaced hardcoded port picks (15200 API / 36243 UI) with the template's range-based allocation across Sections 4, 5, 7.Phase 1, 8, 10, 11, 13. Removed the hand-written registry validation pass in favor of DisallowUnknownFields-only decoding across Sections 5, 7.Phase 3, 8, 9, 10, 11, 12, 13. Tightened Mission Control slice scope to starfield + satellite nodes (Sections 4, 7.Phase 4, 8, 12). Added the mandatory 'vrooli scenario restart command-center' final cleanup step in Phase 6, plus matching entries in Target End State, rollout checklist, DoD, and the scaffold-conformance testing row. No new decision items; all round-2 answers are now binding."
+}

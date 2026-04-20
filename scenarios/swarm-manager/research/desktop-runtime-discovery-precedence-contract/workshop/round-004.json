@@ -1,0 +1,41 @@
+{
+  "round": 4,
+  "generated_at": "2026-04-18T00:00:00Z",
+  "mode": "finalize",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 3,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Round 3 answers incorporated into conclusion.md. d1=C: Actions now produce two documents — an authoritative internal spec at `docs/internal/desktop-runtime-discovery-contract.md` plus a short deployment-focused explainer at `docs/deployment/desktop-runtime-discovery.md` that links to the internal spec as the normative source. The deployment explainer intentionally does not restate the contract body to minimize drift."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "d2=A applied: the Regression Matrix is now split into mandatory cases (1–9) and nice-to-have / future hardening (10). Case 10 (concurrent-start race) is explicitly non-blocking for initial contract proof and is called out in both the matrix and the Limitations section. Cases 1–7 are core semantics; 8–9 are Windows parity; all nine are launch-gating."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "d3=A applied: the contract now explicitly documents that an empty `source` on a legacy record is treated as `\"swarm\"` for precedence purposes. This is stated in Finding 5, in the 'Default precedence' and 'Schema change' subsections of Contract Summary (Final Form), and in Finding 6 (precedence patch). No swarm-lifecycle backfill is required — empty `source` remains valid forever and precedence is a pure `bundle > swarm|empty` comparison."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "Readiness re-scored against the finalized conclusion: all five dimensions at 3. Previously testable was at 2 pending the regression-matrix scoping decision (d2); with d2=A now reflected in the matrix, testable moves to 3. No remaining gaps block the downstream execute items. Both `execute/cross-platform-bundled-discovery-parity` and `execute/desktop-ecosystem-interop-regression-coverage` can proceed using the conclusion as-is."
+    },
+    {
+      "id": "i5",
+      "type": "info",
+      "text": "Residual risks (enumerated in Limitations): tiebreaker for multiple bundle records, PID-reuse hardening, multi-install-of-same-app, XDG migration, no network layer, concurrent-start race, and dual-publication drift. All are bounded, explicitly out-of-scope for this contract, and have named follow-up paths. None are latent unknowns."
+    }
+  ],
+  "plan_updates": "Finalized conclusion.md by incorporating the three round-3 answers. Actions restructured from a single deployment-doc target into Action 1 (internal spec at docs/internal/desktop-runtime-discovery-contract.md, normative), Action 2 (deployment explainer at docs/deployment/desktop-runtime-discovery.md, links to internal spec), Action 3 (architecture-docs index pointer), plus Actions 4–6 (hand-offs). Regression Matrix now has a Class column splitting mandatory (1–9) from nice-to-have (10), with a scope-rule paragraph above the table. 'Default precedence', 'Schema change', Finding 5, and Finding 6 now explicitly state that empty `source` is treated as `swarm`. Added a dual-publication drift note and a concurrent-start deferral note to Limitations. Readiness is 3/3/3/3/3."
+}

@@ -1,0 +1,149 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-18T00:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 3,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "d7",
+      "type": "decision",
+      "topic": "Release record schema shape",
+      "context": "The release-record research (Finding 7) proposes two tables — `releases` (one row per release event) plus `release_platforms` (one row per platform per release). Round 1's plan sketch used a single `release_records` table with JSON-ish platforms. The two shapes are not equivalent for query patterns (per-platform status updates, partial failures, joining to approvals) and should be settled before Phase 1 is coded.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Adopt the research's two-table schema verbatim (`releases` + `release_platforms`)",
+          "rationale": "Normalized: per-platform status updates, direct FK to `deployment_approvals`, clean indexes on status. Matches the research we already ran and the migration numbering (004). Supports future promotion via `promoted_from_release_id` without schema changes.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Single `releases` table with JSONB `platforms` column",
+          "rationale": "One table to maintain. Good for read-heavy views. Weaker for partial updates (must rewrite the JSONB blob per-platform state change) and loses relational integrity with `deployment_approvals`. Adds friction for the re-verify endpoint that needs per-platform writes."
+        },
+        {
+          "key": "C",
+          "label": "Extend existing `published_versions` table instead of adding new ones",
+          "rationale": "Reuses an existing table. But `published_versions` is deployment-scoped, not release-event-scoped. Bending it to carry release-event semantics mixes concerns and breaks the research's conceptual separation (release event vs. deployed artifact row)."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Describe an alternative schema shape."
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d8",
+      "type": "decision",
+      "topic": "Authentication on LPBS's new POST /api/v1/deploy-readiness endpoint",
+      "context": "D2=A in round 1 added a new HTTP endpoint in LPBS. LPBS has three established auth models: `requireAdmin` (set-current), `requireAdminOrService` (presign/commit/apply — shared service secret), and per-app `X-Update-Key` (public update manifests). Each has different blast radius and operator ergonomics. DM is a trusted sibling service, so per-app keys are over-scoped; public keys are under-scoped.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Admin-only (`requireAdmin`) — DM uses admin bearer token",
+          "rationale": "Safest. Matches set-current's level of trust. But forces DM to hold an admin secret for LPBS, which is broader privilege than strictly needed for a readiness check."
+        },
+        {
+          "key": "B",
+          "label": "Admin-or-Service (`requireAdminOrService`) — DM uses LPBS_SERVICE_SECRET",
+          "rationale": "Matches the pattern S2D already uses for presign/commit/apply. DM becomes a peer service, no new secret. Readiness check is read-only and has the same trust level as publish — if a service can publish, it can certainly ask 'am I ready to publish'.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Per-app `X-Update-Key` (the same header used for public manifests)",
+          "rationale": "Reuses existing per-app keys. But those keys are read-mostly and meant for update clients, not for a trusted service readiness check. Semantically wrong layer."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Describe an alternative auth model (e.g., mTLS, new DM-specific service token)."
+        }
+      ],
+      "selected": "B",
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d9",
+      "type": "decision",
+      "topic": "Channel promotion scope for this item",
+      "context": "Research Finding 6 specifies a formal channel model: nightly → beta → stable, with promote semantics (a new release row pointing at `promoted_from_release_id`, inheriting commit + artifacts but targeting a higher channel). This item is already L-effort; adding a promote API+CLI+UI would push it toward XL and duplicate the skill-retargeting work.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Defer all promotion work; support only the `stable` channel end-to-end in this item",
+          "rationale": "Matches today's real-world flow (we don't currently ship nightly/beta). Keeps this item L. Schema still includes `channel` and `promoted_from_release_id` so the follow-up is pure handler/CLI/UI work."
+        },
+        {
+          "key": "B",
+          "label": "Defer promote API+CLI+UI to a follow-up, but ensure the schema and orchestrator handle arbitrary channel values",
+          "rationale": "Pragmatic middle ground. An operator can release to any channel by passing `--channel beta`. Promote flow (creating a promoted copy) is a follow-up item. This validates the channel model without the extra UI/CLI work.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Fully in scope: implement promote endpoint, CLI verb (`releases promote <id> --to <channel>`), and UI action in this item",
+          "rationale": "Highest completeness. But inflates the item significantly and delays the orchestration win. The research already maps out what promote needs; doing it later is low-risk."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Describe an alternative scope for channel promotion."
+        }
+      ],
+      "selected": "B",
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d10",
+      "type": "decision",
+      "topic": "Concurrency guard for simultaneous release-starts on the same profile",
+      "context": "Two `POST /profiles/{id}/releases/start` calls could hit DM at the same time for the same profile. The research schema adds `UNIQUE(profile_id, git_commit_hash, channel)` which prevents duplicate records for the SAME commit+channel, but doesn't prevent two in-flight releases on different commits from stomping on each other mid-orchestration (both calling into LPBS, both trying to set `set-current`, etc.). We need an explicit concurrency story.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Rely only on the UNIQUE constraint (`profile_id, git_commit_hash, channel`); let 409 Conflict surface on duplicate",
+          "rationale": "Simplest. Zero new code. Catches the most common misuse (double-submit of the same release). But does NOT serialize concurrent releases for different commits to the same profile — two operators racing different commits could both reach the LPBS publish step."
+        },
+        {
+          "key": "B",
+          "label": "Postgres advisory lock at profile scope via `pg_try_advisory_xact_lock(hashtext('release:' || profile_id))` for the duration of orchestration; 409 on lock contention",
+          "rationale": "Serializes releases per profile. Second caller gets a fast 409 with a clear message. Advisory locks are lightweight (no table lock) and release automatically on transaction end or connection drop. Matches how DB-backed job queues handle this.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Application-level mutex (in-memory lock per profile_id, held by the orchestrator goroutine)",
+          "rationale": "Works in single-node DM. Breaks if DM is ever scaled horizontally. Not worth the tradeoff given the Postgres advisory lock is equally simple and multi-node-safe."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Describe an alternative concurrency strategy (queue-based serialization, optimistic status transition, etc.)."
+        }
+      ],
+      "selected": "B",
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The release-record research (Finding 9) confirms the S2D pipeline already carries Config.Version → ReleaseVersion and Provenance.GitCommitHash through to LPBS upload. Phase 5 in the plan only needs to add ReleaseID and Channel to the plumbing — the rest is existing code. This shrinks the S2D-side change from 'new data pipeline' to 'two new fields threaded through existing structs' and should keep Phase 5 under a day of work."
+    }
+  ],
+  "plan_updates": "Incorporated all six round-1 decisions into the plan: (1) Section 6 Target End State rewritten with specific table names (profile_lpbs_release_config, releases, release_platforms), the new operator-intent endpoint POST /profiles/{id}/releases/start, ProfileDetail-only UI scope, and thin-wrapper skill disposition; (2) Section 7 Phase 1 pinned to migration 004_add_releases.sql with the exact research-derived schema; (3) Phase 2 specifies the new DM cloud_client.go and lpbs_client.go, the dry-run/skip-packaging exclusion for release-record creation, and hard-fail verification semantics; (4) Phase 3 lists the four concrete release routes; (5) Phase 4 names the ProfileDetail sections and hooks; (6) Phase 6 details the skill-body transformations. Section 8 Contract Decisions moved D1-D6 to Settled and added D7-D10 as the new TBDs. Section 9 Testing Plan added dry-run exclusion, concurrency, verification hard-fail, and LPBS deploy-readiness integration tests. Section 11 Risks added concurrency, orphan-record, auth, and promotion-forward-compat entries. Section 12 Non-goals explicitly excludes promote API/UI, dedicated /releases page, and published_unverified status."
+}

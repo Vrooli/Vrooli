@@ -1,0 +1,24 @@
+Verification of Finding 3 — web-console audio endpoints
+Source: scenarios/web-console/api/main.go
+
+  Line 425: POST /api/v1/voice/transcribe       → s.handleVoiceTranscribe      ✓
+  Line 426: GET  /api/v1/voice/stream           → s.handleVoiceStreamWS        ✓
+  Line 456: POST /api/v1/tts/synthesize         → s.handleTTSSynthesize        ✓
+  Line 457: GET  /api/v1/tts/cache/{eventId}    → s.handleGetTTSCache          ✓
+  Line 458: GET  /api/v1/tts/voices             → s.handleTTSVoices            ✓
+
+All five endpoints listed in Finding 3 are present at the claimed paths.
+
+Verification of Finding 4 — LPBS gateway current endpoints
+Source: scenarios/landing-page-business-suite/api/ai_gateway_handlers.go
+
+  Line  56: POST /api/v1/ai/chat           (existing)       ✓
+  Line 123: POST /api/v1/ai/stream         (existing)       ✓
+  Line 285: GET  /api/v1/ai/health         (existing)       ✓
+
+  POST /api/v1/ai/transcribe  — NOT present (confirmed absent)  ✓ — matches
+  POST /api/v1/ai/synthesize  — NOT present (confirmed absent)  ✓ — matches
+  These are the endpoints to be added by Action 1
+  (execute/lpbs-audio-gateway-endpoints).
+
+Finding 3 and Finding 4 claims verified against current source.

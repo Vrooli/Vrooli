@@ -1,0 +1,133 @@
+{
+  "round": 3,
+  "generated_at": "2026-04-17T12:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 3,
+    "problem_clarity": 3,
+    "risk_awareness": 3,
+    "scope_defined": 3,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Investigation of LPBS routing contradicts the round 2 assumption about a new '/api/v1/service/*' prefix — no such prefix exists today. The established inter-scenario pattern is to add handlers under '/api/v1/admin/*' protected by the existing requireAdminOrService middleware (auth.go:356-371, validated via usageService.ValidateServiceToken at usage_service.go:447-454). Existing examples include /api/v1/admin/remote-profiles and /api/v1/admin/download-artifacts/* (routes.go:96-125). Conclusion Finding 4 has been refined accordingly — LPBS endpoints will live under /api/v1/admin/dashboard/* rather than establishing a new convention."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Production-ready Wake Lock and Fullscreen hooks already exist in sibling scenarios: scenarios/web-console/ui/src/hooks/useWakeLock.ts (exponential backoff, iOS hidden-video fallback, 30s heartbeat), scenarios/landing-manager/ui/src/hooks/useFullscreenMode.ts, and scenarios/tech-tree-designer/ui/src/hooks/useFullscreenManager.ts (cross-browser vendor-prefix handling, CSS-class fallback). These can be lifted into command-center/ui/src/hooks/ and adapted from opt-in to auto-on-load posture. Gamepad API, however, is not used anywhere in Vrooli — TV/remote input is genuinely new work."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Prompt-manager's R3F setup (WorldCanvas.tsx, 592 lines) uses synchronous imports for all scene layers with no React.lazy() or dynamic imports. For the command-center's 6 distinct scenes on Xbox's ~2GB memory budget, following this monolithic pattern would load all scene geometry/shaders upfront even though only one is active at a time. Code-splitting per dashboard page is a meaningful improvement over the precedent — this is the subject of d2 below."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "Verification paths have been added to the conclusion (Finding 14): scaffold conformance via vrooli scenario completeness; data aggregation via httptest doubles + response-envelope contract tests; gap registry via JSON schema + /api/v1/gaps enumeration tests; theme isolation via Playwright computed-style assertions; kiosk mode via Playwright with --start-fullscreen; R3F perf via a /api/v1/debug/r3f-stats telemetry endpoint + manual Xbox device tests; LPBS endpoints via contract tests mirroring existing remote-profiles tests."
+    },
+    {
+      "id": "i5",
+      "type": "info",
+      "text": "With all three round-2 decisions resolved (per-page Canvas, LPBS REST endpoints, fade-through-black transitions) and round-3 clarifications below, readiness is now 3/3/3/2/3. The only sub-3 dimension is testable — verification paths are identified but not yet translated into concrete test matrices in execute-item plans. This research appears ready for conclusion after round 3 decisions settle. Consider reviewing and processing."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Bundle code-splitting strategy for R3F scenes",
+      "context": "Prompt-manager loads its entire R3F pipeline synchronously — appropriate when there is one persistent world. Command-center has 6 distinct scenes (Ground Control, Bioluminescent, Foundry, Vault, Signal Tower, Cosmos) with no shared geometry/materials and runs on Xbox's ~2GB memory budget. A monolithic bundle would load all scene assets upfront even though only one Canvas is mounted at a time. Code-splitting per dashboard page (React.lazy + dynamic import of each scene module) would cut initial bundle and memory, at the cost of a short (~100-300ms) load on navigation. The fade-through-black transition (settled round 2) already masks that window.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Code-split per dashboard page (React.lazy each R3F scene)",
+          "rationale": "Minimum initial bundle and memory footprint — only the active dashboard's R3F scene is loaded. Load time during navigation is hidden by the fade-through-black transition. Best match for Xbox memory constraints.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Single bundle with all R3F scenes eagerly loaded",
+          "rationale": "Matches prompt-manager's precedent. Zero transition latency once loaded. But loads ~6x the scene assets upfront — potentially 3-5MB of geometry/shaders that may push Xbox memory into yellow zone before the user sees anything."
+        },
+        {
+          "key": "C",
+          "label": "Code-split with adjacent-page prefetch during idle",
+          "rationale": "Compromise: load current scene on demand, prefetch the next scene in the auto-cycle rotation during idle. Best-of-both on latency and memory, but adds complexity around prefetch timing and invalidation when the rotation order changes."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A",
+      "notes": ""
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Input handling strategy for TV/Xbox controllers",
+      "context": "No Vrooli scenario currently uses the Gamepad API. The command-center's interaction surface is minimal (exit kiosk mode, manually advance page, pin a page, return to auto-cycle), so input handling can be light. Xbox Edge exposes D-pad and A/B/X/Y buttons through two paths: (1) the browser's built-in mapping where D-pad acts as arrow keys and A acts as Enter, and (2) the explicit navigator.getGamepads() polling API for full controller state. Going keyboard-only means one code path for TV, remote, and desktop. Going Gamepad-native adds Xbox-specific richness (hold-to-skip, analog stick cursor) but requires a polling loop and gamepad connect/disconnect events.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Keyboard-only (rely on Xbox Edge's built-in D-pad → arrow-key mapping)",
+          "rationale": "Simplest possible surface — one input code path covers TV, Xbox controller, smart-TV remotes, and desktop keyboards. Assumes Xbox Edge's default mapping is reliable (documented but not device-verified). Accept that some Xbox-specific flourishes (analog stick, rumble) are unavailable.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Gamepad API explicit polling with keyboard fallback",
+          "rationale": "Full Xbox controller capability: analog stick cursor, hold-to-accelerate on auto-cycle, chord shortcuts. Requires a requestAnimationFrame polling loop, gamepadconnected/disconnected listeners, and dual code paths. Adds meaningful complexity for interactions the command-center may never need."
+        },
+        {
+          "key": "C",
+          "label": "Start keyboard-only, add Gamepad API later only if device testing reveals gaps",
+          "rationale": "Ship simpler first; escalate based on evidence. Avoids speculative complexity. A ship-a-kiosk-item backlog entry would be created only if Xbox testing during scaffold/kiosk-ux execution shows the keyboard mapping is insufficient."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "__other__",
+      "freeform": "iframe-bridge already has gamepad support with spatial navigation. There is no work needed to add gamepad support - it is built into our react-vite template ui"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Error/offline UX when an upstream source is unavailable",
+      "context": "The aggregator depends on three upstream sources (Swarm Manager, Vrooli Core, LPBS). Any of them can be down. The cache layer already serves last-known data with a staleness timestamp (round-1 settled), but we need to decide what the UI does with that signal. Options range from 'invisible unless you look' (best for always-on TV aesthetics, worst for detecting real outages) to 'full takeover warning' (best for debugging, worst for a showcase display).",
+      "options": [
+        {
+          "key": "A",
+          "label": "Subtle per-widget staleness: show last-cached value with a small timestamp/badge; no global alert",
+          "rationale": "Preserves the beauty-first aesthetic of an always-on display. Outages are discoverable by looking, but don't disrupt the TV-mode vibe. Widgets with no cache yet fall back to gap-mode rendering. Aligns with the 'showcase piece' framing in the spec.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Widget dims to gap-mode styling whenever the upstream hasn't answered within its TTL",
+          "rationale": "Treats any staleness as equivalent to 'not yet live'. Simple model — one visual state for 'not trustworthy right now'. But removes the distinction between 'we've never had this data' and 'we had it 10 minutes ago'."
+        },
+        {
+          "key": "C",
+          "label": "Global banner at top of screen when any source is down, subtle staleness per widget otherwise",
+          "rationale": "Hybrid: a thin banner says 'Swarm Manager unreachable for 4m' so the operator notices outages, while the widgets keep showing useful cached data. More informative but slightly disrupts the clean theme aesthetic."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    }
+  ],
+  "plan_updates": "Updated conclusion.md: (1) integrated round-2 settled decisions (per-page Canvas, REST endpoints, fade-through-black) as Findings 9-11; (2) refined the LPBS routing plan (Finding 4 + Finding 10) after discovering no /api/v1/service/ prefix exists — the established pattern is /api/v1/admin/* with requireAdminOrService; (3) added Finding 12 documenting reusable Wake Lock and Fullscreen hooks from web-console/landing-manager/tech-tree-designer; (4) added Finding 13 on prompt-manager's non-code-split R3F bundle and its implications; (5) added Finding 14 with concrete verification paths for every major deliverable; (6) expanded Limitations (bundle budget, gamepad mapping assumption); (7) expanded Actions with a new LPBS endpoint execute-item stub, verification-matrix note for the scaffold plan, and notes on lifting existing hooks + gamepad being new work."
+}

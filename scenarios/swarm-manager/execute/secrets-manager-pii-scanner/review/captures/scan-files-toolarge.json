@@ -1,0 +1,1 @@
+{"scan_id":"33121690-5eb5-4a7d-9718-0da5f2c235f8","status":"complete","watchlist_available":false,"findings":[{"file":"/tmp/big_pii.txt","line":0,"type":"scan_skip","severity":"info","pattern":"","snippet":"skipped: too_large"}],"metrics":{"files_scanned":0,"files_skipped":0,"findings_count":1,"duration_ms":2}}

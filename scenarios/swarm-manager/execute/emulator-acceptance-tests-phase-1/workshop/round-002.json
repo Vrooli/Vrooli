@@ -1,0 +1,176 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-18T15:35:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 3,
+    "problem_clarity": 3,
+    "risk_awareness": 3,
+    "scope_defined": 3,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Captures wiring strategy in integration tests",
+      "context": "api/main.go does NOT call WithCaptures() today, so production responses to POST /sessions/{id}/control screenshot use the degraded path (response envelope only, no persistent file). The integration suite can either (A) wire WithCaptures() with a t.TempDir()-backed store and assert file persistence — strongest signal but diverges from production wiring, (B) match production by leaving captures unwired and assert only on the response envelope — closest to operator reality but doesn't exercise the captures persistence seam, or (C) cover both paths in two tests. Phase 2 (UI iframe embed) will eventually need persisted captures to render thumbnails, so the persistence path will be exercised somewhere — the question is whether here or there.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Wire WithCaptures() with t.TempDir() store in setupIntegrationServer; assert file written to disk + metadata recorded in captures store",
+          "rationale": "Strongest signal — catches regressions in both the screenshot action and the captures store seam in one test. The captures package already has unit tests; this exercises the integration. r2-i1 (info item below) tracks the parallel concern of wiring WithCaptures() in api/main.go for production parity.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Don't wire captures (match api/main.go); assert HTTP 200 + non-empty response envelope only",
+          "rationale": "Tests reflect operator reality verbatim. Downside: leaves the captures persistence seam untested at the integration level until Phase 2 needs it; misses any regression that only manifests when captures is wired."
+        },
+        {
+          "key": "C",
+          "label": "Cover both — one test wires captures and asserts persistence, another leaves it unwired and asserts the degraded path",
+          "rationale": "Maximum coverage. Downside: doubles screenshot test count for marginal benefit; the degraded-path assertion is essentially 'service did not panic' which is low-value."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "WebSocket endpoint coverage in Phase 1",
+      "context": "The /api/v1/sessions/{id}/ws endpoint exists and proxy.go handles upgrades to ws://localhost:{WSPort}. The Phase 1 spec lists HTTP REST + CLI tests but does not mention WebSocket. Phase 2 (execute/scenario-to-desktop-emulator-iframe-embed) is the natural consumer of the WS path since the iframe needs the upgrade to render VNC frames. Adding WS coverage here improves contract confidence early; deferring keeps Phase 1 scope tight. For headless sessions the WS path fails by design (WSPort=0 → dial fails) so any WS test must use a VNC session.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Defer WS testing entirely; Phase 2's iframe embed item owns first WS coverage",
+          "rationale": "Honors the Phase 1 spec exactly. Avoids scope creep and keeps the integration suite focused on the explicitly enumerated assertions. Phase 2 has stronger motivation (rendering frames) and natural test fixtures (a real headless browser).",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Add a minimal handshake test — gorilla/websocket Dial against /api/v1/sessions/{id}/ws on a VNC session, verify upgrade succeeds, close immediately",
+          "rationale": "Catches upgrade-time regressions (router wiring, session lookup, upgrader config) without needing a real VNC frame stream. ~30 lines of test code."
+        },
+        {
+          "key": "C",
+          "label": "Full proxy frame test — upgrade, send a noVNC handshake byte sequence, verify proxy forwards to the local websockify, close",
+          "rationale": "Proves the proxy actually pumps frames. Downside: requires understanding the noVNC handshake protocol, makes the test brittle to websockify version changes, and significantly raises maintenance cost for a Phase 1 deliverable."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Stray-process detection method post-teardown",
+      "context": "Risk row 1 calls for a post-teardown assertion that no Xvfb/x11vnc/websockify processes belonging to the test runs remain. The dev host runs the user's actual desktop, so unfiltered process counts will always include unrelated Xvfb/x11vnc instances. We need a way to identify test-owned processes specifically.",
+      "options": [
+        {
+          "key": "A",
+          "label": "pgrep -af pattern then string-match the test scenario name (e.g. 'test-phase1-') in each process's argv; assert no matches post-teardown",
+          "rationale": "LinuxBackend passes scenario name into Xvfb/x11vnc/websockify args (e.g. as part of the display name or websockify args), so the test scenario name appears in argv and uniquely identifies test-owned processes. Reliable on a shared dev host. Implementable via os/exec calling pgrep -af and parsing.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Capture pre-test process counts for these binaries; assert post-test count == pre-test count",
+          "rationale": "Doesn't require argv inspection. Downside: flakes if anything else on the host launches/exits an X11 process during the test run; doesn't tell you WHICH process leaked when it fails."
+        },
+        {
+          "key": "C",
+          "label": "Expose backend PIDs in the SessionView; capture them before destroy; verify each PID is gone via syscall.Kill(pid, 0)",
+          "rationale": "Most precise — directly verifies the specific PIDs the backend launched. Downside: requires API surface change (add PIDs to SessionView), couples test to backend internals, and PID reuse is a real (though rare) hazard."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Metrics assertion strictness when MetricsView may be nil",
+      "context": "service.go:208 sets a Monitor on every successfully-started session via s.backend.NewMonitorFactory(), so MetricsView SHOULD be populated by the time GET /metrics is called. But there's a brief window where SetMonitor races with the first /metrics request, and on hosts where xdotool/procmetrics behaves differently the Report() may return nil. The test needs to choose a strictness level.",
+      "options": [
+        {
+          "key": "A",
+          "label": "require.Eventually (5s timeout, 200ms tick) until MetricsView is non-nil; then assert schema fields (CPUPercent, MemoryRSS, WindowDetected etc. are present)",
+          "rationale": "Strongest signal — catches both the populated-state convergence and the MetricsView schema. The 5s timeout is generous given the Monitor is set synchronously in StartSession. Catches regressions where a backend change causes MetricsView to drop fields.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Assert HTTP 200 + body is valid JSON (may be null or a MetricsView object); skip schema assertions",
+          "rationale": "Permissive — catches only catastrophic regressions (handler panics, route mis-wired). Downside: schema regressions slip through; metrics breakage in Phase 3 (smoketest) only surfaces at consume-time."
+        },
+        {
+          "key": "C",
+          "label": "Skip metrics test entirely until a separate item exposes a CLI metrics subcommand worth smoking",
+          "rationale": "Sidesteps the question. Downside: violates spec which explicitly enumerates 'tail metrics' as a Phase 1 assertion; leaves a documented gap."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d5",
+      "type": "decision",
+      "topic": "CLI sessionView mirror update for display_id",
+      "context": "cli/domains/sessions/sessions.go defines its own local sessionView struct that mirrors the API's SessionView for JSON unmarshaling and human-output rendering via summarize(). With d3=A adding display_id to the API SessionView, the CLI mirror becomes a question: do we update it in this item, defer to a follow-up, or leave it as-is (Go's json.Unmarshal tolerates extra fields)?",
+      "options": [
+        {
+          "key": "A",
+          "label": "Update CLI sessionView struct AND show display_id in summarize() output for headless sessions only",
+          "rationale": "Full parity with API. The display_id is most useful to operators when running headless sessions (where it's the bridge to launching X commands externally). Surfacing it in human output unlocks the operator workflow research Finding 10 envisioned. ~5 lines of change.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Update sessionView struct only (parity), don't touch summarize() — keeps existing CLI smoke-test stdout assertions stable",
+          "rationale": "Minimal CLI change; future CLI features can opt into showing the field. Downside: ships a partially-wired field that isn't user-visible — operators who want it have to use the raw API."
+        },
+        {
+          "key": "C",
+          "label": "Don't touch the CLI mirror — JSON unmarshal silently ignores unknown fields, no breakage",
+          "rationale": "Zero CLI risk. Downside: CLI mirror drifts further from API contract; future contributors discover the mismatch as a bug rather than seeing it as an intentional choice."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Production gap surfaced during planning: api/main.go never calls service.WithCaptures(), so screenshot persistence is unwired in the running binary today. d1 above resolves whether the integration tests wire it themselves, but it does NOT fix the production gap. Recommend filing a follow-up execute item ('execute/wire-captures-in-vrooli-emulator-main') so Phase 2's iframe-embed consumer doesn't trip over an empty captures store. This item's acceptance_deny explicitly excludes api/main.go to keep that fix out of scope here."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Acceptance fields auto-set this round: acceptance_deny populated with [api/main.go, cli/install.sh, cli/install.ps1, Makefile] to preserve current wiring and prevent inadvertent edits during Phase A's display_id refactor. acceptance_allow already covered scenarios/vrooli-emulator/** from spec — no change needed."
+    }
+  ],
+  "plan_updates": "Round 2 update: locked round 1's d1=A through d6=A as Settled commitments throughout the plan. Replaced all 'per d1/d2/...' conditional language with concrete file paths, build tags, helper signatures, and command invocations. Added round 2 open decisions r2-d1 through r2-d5 to §9 Open and to relevant section commitments (§7 assertions 4 and 5, §8 Phase B steps 7/11/13, §11 checklist, §12 Risks). §6 Current Technical Context expanded with verified facts: main.go does NOT wire WithCaptures (r2-d1 driver), MetricsView is auto-populated via NewMonitorFactory (r2-d4 driver), CLI sessionView is a separate struct (r2-d5 driver), WS endpoint dials websockify which fails for headless (r2-d2 driver). §13 Scenario Restart updated to declare restart REQUIRED (because d3=A adds a field). §14 Non-goals expanded with acceptance_deny enforcement. §15 Definition of Done expanded to 15 items including the explicit 'no edits to acceptance_deny paths' verification."
+}

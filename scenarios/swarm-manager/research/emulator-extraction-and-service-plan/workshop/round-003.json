@@ -1,0 +1,131 @@
+{
+  "round": 3,
+  "generated_at": "2026-04-17T16:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 3,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "procmetrics packaging after extraction",
+      "context": "procmetrics is currently imported by BOTH livedesktop (platform_linux.go) AND smoketest (service.go, service_run.go). Since the round 1 decision commits to smoketest migrating to the emulator, both consumers end up emulator-owned. The question is whether procmetrics becomes an internal emulator package, is hoisted to a Vrooli-wide shared library, or stays in scenario-to-desktop with the emulator re-exporting what it needs. Note: scenario-to-desktop would have zero remaining consumers after phase 3.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Move procmetrics wholesale into vrooli-emulator as an internal package",
+          "rationale": "Simplest. No cross-scenario coupling. If another scenario ever needs process monitoring, it calls the emulator's /sessions/{id}/metrics endpoint rather than linking the library. Matches the 'emulator owns the capability' framing from rounds 1-2.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Promote procmetrics to a shared Vrooli library (e.g., packages/procmetrics or a shared Go module)",
+          "rationale": "Allows other scenarios to reuse process-monitoring primitives without API roundtrips. But adds release/versioning overhead, and there is no known consumer demand today."
+        },
+        {
+          "key": "C",
+          "label": "Leave procmetrics in scenario-to-desktop; emulator imports from there",
+          "rationale": "Minimal initial movement, but leaves a backwards coupling where the emulator depends on scenario-to-desktop — violating the extraction's architectural goal."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own packaging approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "CLI surface scope for vrooli-emulator",
+      "context": "scenario-to-desktop has no existing CLI for livedesktop today — the emulator CLI is net-new surface. The question is how broad to make it. A minimal operator CLI covers day-to-day needs (list/create/destroy sessions, tail metrics); a full mirror of the HTTP API provides parity but duplicates work; API-only (no CLI) is also viable because UI + HTTP cover most use cases.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Minimal operator CLI: session list, session create, session destroy, session exec, session logs/metrics tail",
+          "rationale": "Matches real operator workflows (debugging, cleanup, CI integration). Scoped to what has concrete demand. Leaves room to grow based on user feedback.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Full CLI mirror of the HTTP API (all 11 endpoints + 13 control actions as subcommands)",
+          "rationale": "Complete parity. Useful for scripting. But doubles the surface area to maintain and most operators will not exercise control-action parity."
+        },
+        {
+          "key": "C",
+          "label": "API-only, no CLI — UI and HTTP cover use cases",
+          "rationale": "Minimizes surface. But CLI is the natural interface for automation/CI (smoketest integration, deployment-manager scripts) and skipping it pushes every integration to raw HTTP."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own CLI scope"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Migration compatibility strategy during phase 1",
+      "context": "Phase 1 stands up the emulator's API but phase 2 (UI iframe-embed) is later. scenario-to-desktop's UI currently imports livedesktop components directly. During the gap, there are three strategies: (1) hard cut — remove livedesktop from scenario-to-desktop when the emulator stands up, UI breaks temporarily until phase 2; (2) dual-run — keep livedesktop running in scenario-to-desktop until phase 2 completes, delete it then; (3) proxy shim — scenario-to-desktop forwards livedesktop API calls to the emulator so the UI keeps working without code changes.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Dual-run — keep scenario-to-desktop's livedesktop package alive until phase 2 completes, then delete",
+          "rationale": "Zero user-visible disruption. Accepts temporary code duplication for a short window. Matches 'avoids destabilizing the existing desktop flow' in the item description. Simplest rollback.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Hard cut — remove livedesktop from scenario-to-desktop when emulator stands up, accept UI downtime",
+          "rationale": "Forces phases to stay tight. Cleaner git history. But the UI outage window is operationally awkward and conflicts with the 'avoids destabilizing' goal."
+        },
+        {
+          "key": "C",
+          "label": "Proxy shim — scenario-to-desktop exposes the old routes, forwards to the emulator",
+          "rationale": "No UI changes during phase 1 because routes stay stable. But introduces a throwaway component that must be built, tested, and removed — overhead for a short-lived shim."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own compatibility strategy"
+        }
+      ],
+      "selected": "B"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Confirmed that procmetrics is imported from two places: api/livedesktop/platform_linux.go AND api/smoketest/service.go + service_run.go. Since both consumers become emulator-owned under the committed migration plan, scenario-to-desktop retains zero consumers of procmetrics after phase 3. This eliminates the 'shared library vs. internal package' ambiguity — there is currently no cross-scenario demand that would justify library overhead."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "scenario-to-desktop's CLI currently exposes only the domains bundle, deploytarget, pipeline, signing, system, and telemetry — there is NO existing CLI surface for livedesktop or session management. The emulator CLI design therefore starts from zero rather than migrating existing commands, which simplifies decision d2 (it is purely a greenfield decision about what operators and automation callers need)."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "The @vrooli/iframe-bridge package already exists at packages/iframe-bridge/ and is published as vrooli-iframe-bridge-0.1.0.tgz. It exports iframeBridgeChild, activationOverlay, gamepadInput, and spatial navigation helpers. The emulator UI can depend on this package directly — there is no prerequisite 'extract or build iframe-bridge' step blocking phase 2."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "deployment-manager already uses the /embedded/{name}/external-url pattern in production — confirmed in deployment-manager/ui/src/pages/Analyze.tsx. This is a proven pattern, not speculative. The emulator's /embedded/emulator/external-url endpoint can follow this reference directly."
+    },
+    {
+      "id": "i5",
+      "type": "info",
+      "text": "The Actions section of the conclusion now contains a concrete, phase-structured list of follow-up swarm-manager items. After the three round 3 decisions are resolved, these can be created as real backlog items (execute/chore/research) with the kind and acceptance paths already spelled out."
+    }
+  ],
+  "plan_updates": "Updated conclusion.md: rewrote Summary to reflect all resolved round 1-2 decisions as established design; added Finding 12 (procmetrics shared between livedesktop and smoketest), Finding 13 (emulator CLI is net-new, scenario-to-desktop has no session CLI today), Finding 14 (@vrooli/iframe-bridge already packaged); expanded Methodology with CLI/package surveys; added two Limitations entries (port/resource operational definition, UI compat window between phases); filled in the Actions section with concrete phase-structured follow-up items."
+}

@@ -1,0 +1,158 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-17T15:45:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 1,
+    "problem_clarity": 2,
+    "risk_awareness": 1,
+    "scope_defined": 1,
+    "testable": 1
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Inter-bundle discovery mechanism",
+      "context": "The bundle-local vrooli shim in scenarios/scenario-to-desktop/api/bundle/staging.go only resolves services inside its own bundle.json. There is no supported path today for downloaded app A to look up downloaded app B's ports. Some shared, loopback-only registry layer is required for 'downloaded + downloaded' topologies to work via the standard discovery package. Which shape should the contract mandate?",
+      "options": [
+        {
+          "key": "A",
+          "label": "Shared registry file at a well-known path (e.g., $XDG_STATE_HOME/vrooli/running/\u003cscenario\u003e.json)",
+          "rationale": "Each bundle writes its live scenario-\u003eport mapping on start and removes on stop; the shim reads the file when the name is not in its own manifest. Simple, filesystem-native, trivially inspectable, and cross-platform (Windows equivalent: %LOCALAPPDATA%\\Vrooli\\running\\).",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Shim falls through to a host-system vrooli CLI when a name is not in its own manifest",
+          "rationale": "Reuses existing orchestration: the host vrooli (if installed) already knows about the local swarm and can answer for peer bundles only if those bundles also register with it. Requires every downloaded app to have a host vrooli install to discover peers, which contradicts the 'one coherent ecosystem' goal on hosts without a swarm."
+        },
+        {
+          "key": "C",
+          "label": "mDNS / loopback-scoped service advertisement (e.g., _vrooli-scenario._tcp)",
+          "rationale": "No filesystem coupling, peer-discovered at query time, naturally survives crashed bundles. Higher implementation cost, platform-dependent behavior for loopback-only mDNS, and unusual for a single-host discovery problem."
+        },
+        {
+          "key": "D",
+          "label": "Other — user-specified",
+          "rationale": "Provide your own direction; current thinking in option A can be refined or replaced."
+        }
+      ],
+      "selected": "__other__",
+      "freeform": "Ideally should be able to use the discovery package still, so that this desktop-first behavior works everywhere (since all scenarios use the discovery package). I believe that package uses the vrooli cli. So if we set it up correctly, perhaps we could update the vrooli internal/ logic so that it handles the desktop-first logic, and we just make sure that the desktop apps are doing something proper to set this up on their start/stop. Not sure what that would look like exactly"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Where precedence ('downloaded wins over local swarm') is enforced",
+      "context": "'Downloaded apps win over same-scenario local swarm instances' can be realized at several layers. The choice decides where the invariant lives and therefore where regressions must be guarded.",
+      "options": [
+        {
+          "key": "A",
+          "label": "In the shim: bundled vrooli shim always consults the cross-bundle registry (D1) before any host vrooli",
+          "rationale": "Precedence is a property of the shim, not the caller. Any subprocess of a downloaded app that has the shim on PATH inherits correct precedence for free. Requires PATH prepending at bundle launch.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "In the resolver: packages/api-core/discovery/resolve.go gains a precedence check (registry -\u003e CLI) ahead of the current CLI call",
+          "rationale": "Works even when the caller's PATH does not have the bundled shim; couples api-core to the desktop registry concept. Would push a desktop-specific concern into a general-purpose package."
+        },
+        {
+          "key": "C",
+          "label": "At launch time via env var: bundle launcher sets VROOLI_DISCOVERY_PREFER=bundled, resolver honors it",
+          "rationale": "Explicit and inspectable; also doubles as the future override seam. Requires resolver changes and env-var plumbing on every spawn."
+        },
+        {
+          "key": "D",
+          "label": "Other — user-specified",
+          "rationale": "Provide your own direction."
+        }
+      ],
+      "selected": "__other__",
+      "freeform": "Either in discovery or in the vrooli cli itself. Not sure what’s best"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Windows shim implementation form",
+      "context": "staging.go explicitly skips shim creation when platform starts with 'win'. Windows parity is the headline deliverable of execute/cross-platform-bundled-discovery-parity, so the contract must name a form Windows bundles can implement. The bash shim relies on bash + python3, both of which are not standard on Windows.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Compiled vrooli.exe helper (Go), cross-compiled alongside runtimectl",
+          "rationale": "Consistent with runtimectl, no runtime dependencies, single signed binary, same behavior surface on every OS. Makes Windows the cleanest platform rather than the weakest. Slightly larger bundle footprint than a script.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "vrooli.bat batch script that mirrors the bash shim",
+          "rationale": "Mechanically cheapest. But batch has poor JSON handling (no python3 assumed) and error-prone quoting; the bash shim already relies on python3 which pushes in a secondary dependency for Windows."
+        },
+        {
+          "key": "C",
+          "label": "Replace both bash and batch shims with a single cross-platform compiled vrooli helper and delete the bash shim",
+          "rationale": "Uniform behavior and codepath on every OS at the cost of replacing already-working macOS/Linux behavior. Highest consistency, highest blast radius on this research item's deliverables."
+        },
+        {
+          "key": "D",
+          "label": "Other — user-specified",
+          "rationale": "Provide your own direction."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Future override seam shape",
+      "context": "The description requires leaving room for explicit override/configuration without blocking default behavior now. The contract should name the seam so downstream execute items know what NOT to paint into a corner, even if the seam is not implemented yet.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Per-scenario env var read by the resolver: VROOLI_SCENARIO_\u003cNAME\u003e_URL short-circuits to a fixed URL; otherwise fall through",
+          "rationale": "Minimal addition to packages/api-core/discovery/resolve.go; matches the ergonomics of 12-factor config and is usable per-process. The resolver gains exactly one new lookup.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Config file at ~/.vrooli/discovery.json with precedence rules and per-scenario overrides",
+          "rationale": "More expressive (supports priority tiers, not just pins) but non-trivial to specify and validate. Likely what we'd graduate to later, but premature to ship first."
+        },
+        {
+          "key": "C",
+          "label": "CLI flag on the bundle launcher (e.g., --discovery=prefer-local-swarm) that sets env vars at launch",
+          "rationale": "Good for operator overrides but not for per-process overrides in tests or scripts."
+        },
+        {
+          "key": "D",
+          "label": "Other — user-specified",
+          "rationale": "Provide your own direction."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The bundle-local shim already exists and handles `vrooli scenario port \u003cname\u003e API_PORT|UI_PORT` by delegating to the bundle's runtimectl IPC (scenarios/scenario-to-desktop/api/bundle/staging.go:49-132). It skips Windows platforms entirely, and it only resolves services present in its own bundle.json — peer downloaded apps are not visible to it today."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "packages/api-core/discovery/resolve.go has no environment-override path today: every call shells to the configured VrooliPath (default 'vrooli'). Whichever vrooli is first in PATH wins, which makes PATH ordering the only tool we currently have to enforce 'downloaded app wins over local swarm'."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "No cross-bundle discovery registry was found in the tree (no ~/.vrooli/running*.json, no well-known socket, no mDNS code). This is the central hole the contract must close — two downloaded apps have no supported way to resolve each other's ports today via the standard discovery package."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "The shim's reliance on python3 for JSON parsing (staging.go:61-76, 107-119) is already a latent portability concern for Linux distros without python3 and is a blocker on stock Windows. Whichever Windows form is chosen (D3) should probably also inform whether the macOS/Linux shim is eventually replaced by a compiled helper for consistency."
+    }
+  ],
+  "plan_updates": "Created conclusion.md scaffold: Research Question, Methodology, Findings 1-5 (CLI-mediated discovery with no override seam; existing non-Windows shim with own-bundle-only scope; no cross-bundle registry; precedence currently PATH-implicit; sibling items define downstream requirements), Limitations (single round, Windows packaging not yet read, runtimectl Windows status unverified), and placeholder Summary + Actions sections to be filled as direction decisions settle."
+}

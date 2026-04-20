@@ -1,0 +1,116 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-17T20:15:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 3,
+    "problem_clarity": 3,
+    "risk_awareness": 3,
+    "scope_defined": 3,
+    "testable": 3
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Post-scaffold lifecycle verification when sandbox blocks host access",
+      "context": "Feedback memory requires plans to restart the target scenario as a verification step, and CLAUDE.md endorses `vrooli scenario restart \u003cname\u003e`. vrooli-emulator is new and not the scenario the agent is running inside, so restarting it is permitted. However, sandboxed execute-agents often cannot reach host-level lifecycle commands. We need to pick the fallback when `vrooli scenario restart` isn't reachable.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Agent attempts `vrooli scenario restart vrooli-emulator`; if sandbox blocks it, emit a structured skip note, rely on build/test passes, and flag to reviewer",
+          "rationale": "Satisfies the restart-is-required feedback where feasible, still captures a verifiable signal when the sandbox permits, and degrades cleanly with an explicit handoff. Reviewer gets a clear checklist item rather than a silent skip.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Never attempt scenario lifecycle from the executing agent — always defer to reviewer",
+          "rationale": "Zero risk of damaging host state, but loses a concrete lifecycle signal when the sandbox would have permitted it."
+        },
+        {
+          "key": "C",
+          "label": "Require the agent to run `vrooli scenario restart vrooli-emulator` unconditionally and fail the item if it can't",
+          "rationale": "Strongest verification, but will fail a wide class of sandboxed runs where the command is genuinely unreachable — blocks progress for environment reasons unrelated to the code."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "CLI implementation — port livedesktop commands or write fresh session/metrics subcommands",
+      "context": "scenarios/scenario-to-desktop/cli/ currently has domain commands for livedesktop (`livedesktop session ...`). We can either port those commands over and rename to `session`, or write fresh thin HTTP-client subcommands matching the target CLI surface exactly. The operator-facing commands are the same (list/create/destroy/exec/logs, plus metrics tail).",
+      "options": [
+        {
+          "key": "A",
+          "label": "Port scenario-to-desktop's livedesktop CLI commands, rename `livedesktop` → `session`, drop obsolete flags (e.g., auto-artifact), preserve tested flag parsing and output formatting",
+          "rationale": "Minimizes rewrite and preserves operator muscle memory. Existing CLI tests migrate with the code. Saves ~1-2h.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Write fresh thin HTTP-client subcommands from scratch using the `cli-steer` pattern",
+          "rationale": "Cleanest greenfield implementation, aligns exactly with the skill's current guidance, but duplicates already-working output formatting logic."
+        },
+        {
+          "key": "C",
+          "label": "Hybrid — port `session list`/`create`/`destroy` (well-tested) and write fresh commands for `exec`/`logs`/`metrics tail` (operator surface not yet present)",
+          "rationale": "Balances reuse with cleanup, but adds plan complexity and two parallel conventions in the same CLI."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Test helper exposure for the acceptance-tests sibling item",
+      "context": "`execute/emulator-acceptance-tests-phase-1` will need a way to spin up the API with a fake PlatformBackend for end-to-end request/response assertions. We can either export a testserver helper from `api/livedesktop/` now (so the sibling imports it), or keep helpers internal and let the sibling stand up its own harness.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Expose an exported `NewTestServer(t *testing.T) *httptest.Server` helper in `api/livedesktop/testserver.go` with a default fake PlatformBackend",
+          "rationale": "Sibling item gets a ready-made harness, promoting shared verification infrastructure. Minor cost now; large dividend later (and for smoketest migration). Lives next to the code it tests so drift is visible."
+        },
+        {
+          "key": "B",
+          "label": "Keep all test helpers as unexported, non-test-file code; sibling constructs its own harness from scratch",
+          "rationale": "Keeps this item tightly scoped. Sibling has more freedom to shape its harness.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Expose helpers now AND document the contract in the acceptance-tests sibling's handoff",
+          "rationale": "Maximum clarity, but couples two items and makes this one's DoD depend on a spec doc the sibling owns."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "B"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Template inspection confirmed: `templates/scenarios/react-vite/` generates `api/` (Go, with main.go + go.mod), `ui/` (React+Vite), `cli/` (Go + install.sh), plus `.vrooli/service.json`, `Makefile`, `PRD.md`, `README.md`. Default port ranges: API 15000-19999, UI 35000-39999, WS 25000-29999 — the plan now uses these template defaults directly. This invalidates Round 1's Phase A risk about the template not emitting api/ (removed from §12)."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "All five readiness dimensions are at 3 after this round. Once the three pending decisions (d1-d3) are resolved and applied, this plan should be ready to queue for execution via `swarm-manager backlog queue --kind execute --name scaffold-vrooli-emulator-scenario`."
+    }
+  ],
+  "plan_updates": "Round 2 updates: (1) promoted 'Non-goals / Prohibited Patterns' from a subsection to top-level §5 (fixes validator warning); (2) applied user's d1 decision — removed 'standalone-ui' framing throughout, clarified sibling UI work lives inside `scenarios/vrooli-emulator/ui/`; (3) applied d3 — set ports to template defaults (API 15000-19999 / UI 35000-39999 / WS 25000-29999); (4) simplified Phase A based on template inspection (api/ IS generated — no hand-scaffolding needed); (5) refined Phase D/test plan with concrete fake-backend + `t.Setenv` strategy so tests do NOT require Xvfb/x11vnc/xdotool on CI; (6) added §13 Definition of Done entry for `vrooli scenario restart vrooli-emulator` lifecycle verification with sandbox fallback; (7) replaced stale 'template doesn't emit api/' risk with 'CI lacks X11 binaries' risk (mitigated by fakes) and 'template stub main.go' risk; (8) clarified go.mod replace directive safety (same path depth); (9) added port conflict + lifecycle risk entries."
+}

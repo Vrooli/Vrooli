@@ -1,0 +1,131 @@
+{
+  "round": 3,
+  "generated_at": "2026-04-17T00:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 3,
+    "problem_clarity": 3,
+    "risk_awareness": 3,
+    "scope_defined": 3,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Round 2 decisions have been synthesized into conclusion.md. The configuration schema (per-instance env vars + per-request caller credentials) is now fully specified in Finding 7, audio-duration pricing is reflected in the LPBS extension requirements (Finding 4) and operation metadata (Finding 6), and streaming STT is explicitly scoped out of the provider chain (Limitations)."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Added a Verification Paths table mapping each finding to a concrete test approach (unit tests mirroring BAS tests, integration tests with fake providers, live-provider adapter contract tests, LPBS usage row SQL checks). This boosts the testable dimension by making every finding independently verifiable without additional investigation."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Added a Risk Matrix with 8 risks (impact/likelihood/mitigation) covering LPBS timing, adapter proliferation, voice mapping accuracy, audio format mismatches, hallucination filter drift, and credential leakage. Most risks have pre-existing mitigations either in the BAS pattern being replicated or in decisions already made (e.g., streaming-out-of-scope eliminates streaming reconciliation risk entirely)."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "External API adapter heterogeneity analysis (Finding 8): each BYOK API has different auth headers, request formats (multipart vs. JSON vs. raw bytes), and response shapes (direct vs. polling flows). A single generic BYOK provider would become an internal dispatcher, which is the adapter pattern under another name — better to surface adapters explicitly."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "BYOK adapter granularity",
+      "context": "Each external STT/TTS/summarize API has significantly different auth, request format, and response shape (Finding 8). The chain needs to support multiple external APIs per capability (e.g., STT via OpenAI Whisper OR Deepgram). The question is whether to surface each external API as its own provider, or wrap them behind one generic BYOK provider per capability.",
+      "options": [
+        {
+          "key": "A",
+          "label": "One adapter per external API, selected via X-Audio-BYOK-Provider header",
+          "rationale": "Each external API (OpenAIWhisperSTT, DeepgramSTT, ElevenLabsTTS, etc.) implements the provider interface directly. Caller includes 'X-Audio-BYOK-Provider: deepgram' alongside their API key. Adapters live in a registry, making it easy to add new providers without touching the chain. Cleanest types, no internal dispatch logic.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "One generic BYOK provider per capability with internal dispatch",
+          "rationale": "A single 'byokSTTProvider' dispatches internally based on a provider identifier in the BYOK key (e.g., key prefix or separate header). Fewer types but dispatch logic lives inside the provider — effectively reinventing the adapter pattern privately. Harder to unit-test individual external API integrations."
+        },
+        {
+          "key": "C",
+          "label": "Infer provider from API key format",
+          "rationale": "No explicit provider selection — detect which external API based on key prefix or structure (OpenAI keys start with sk-, Deepgram keys have a known format, etc.). Zero config overhead for callers but fragile (keys can look similar) and ambiguous when a key could belong to multiple providers."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own adapter strategy."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Voice mapping strategy for TTS across providers",
+      "context": "Kokoro voices (e.g., 'af_heart') don't exist in OpenAI TTS, ElevenLabs, or Google Cloud TTS catalogs (Finding 9). When a caller requests TTS and the chain lands on a non-local provider, the requested voice may not be valid. Three approaches have different UX/complexity tradeoffs.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Canonical voice IDs with per-provider mapping",
+          "rationale": "audio-tools defines a canonical voice set ('voice.feminine.warm', 'voice.masculine.neutral', etc.) and each provider adapter maps to the nearest equivalent. Provider-agnostic caller UX. But mapping is inherently lossy — a user's favorite Kokoro voice may not have a true equivalent in ElevenLabs."
+        },
+        {
+          "key": "B",
+          "label": "Provider-specific voice IDs (passthrough only)",
+          "rationale": "Caller supplies the exact voice ID for their target provider. No mapping layer. Works perfectly when the caller knows which provider they'll hit. Fails silently or loudly when the chain falls through to a different provider. Simplest to implement, requires caller awareness."
+        },
+        {
+          "key": "C",
+          "label": "Canonical IDs with explicit per-provider overrides",
+          "rationale": "Default to canonical mapping but allow caller to pass an override map: voice_overrides: {'byok:elevenlabs': 'Rachel', 'byok:openai': 'alloy'}. Best of both worlds but most complex API surface. Recommended when caller wants fine-grained control without losing portability.",
+          "recommended": true
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own voice mapping approach."
+        }
+      ],
+      "selected": "C"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Provider precedence when multiple credentials are present",
+      "context": "Round 2 D3 settled that callers pass credentials per-request (BYOK key, LPBS token). If a caller supplies BOTH a BYOK key AND an LPBS token, the chain needs a deterministic precedence order. BAS uses BYOK → Vrooli → Dev — but that's a default, not a formal decision.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Always BYOK → Vrooli/LPBS → Local (match BAS default)",
+          "rationale": "BYOK wins because the user explicitly provided their own key (honor user intent, no credit charge). LPBS is second (metered but reliable). Local is last (free but may be unavailable). Matches BAS exactly — users who understand BAS get consistent behavior across scenarios.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Caller-specified preference via X-Audio-Prefer header",
+          "rationale": "Caller sends 'X-Audio-Prefer: lpbs' or 'X-Audio-Prefer: local' to override the default order. Most flexible. But adds a config surface that callers must understand, and the fallback-on-unavailable semantics get tricky (if preferred tier fails, does the chain skip to the next, or back to the top?)."
+        },
+        {
+          "key": "C",
+          "label": "Local → BYOK → LPBS (prefer free over paid)",
+          "rationale": "Flip the order to minimize cost: if local is available, use it; else BYOK; else LPBS. Optimizes for cost but surprising to users who configured BYOK specifically to avoid the local model."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own precedence rule."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i5",
+      "type": "info",
+      "text": "After Round 3 decisions are resolved, this research appears ready for conclusion. Remaining limitations (streaming TTS, audio format conversion, cross-region BYOK latency) are minor and can be left as follow-up considerations in the downstream execute items rather than blocking research closure. Consider processing after the user answers D1-D3."
+    }
+  ],
+  "plan_updates": "Synthesized Round 2 decisions into conclusion.md: added a Round 2 section under Settled Decisions, expanded Finding 4 with audio-duration pricing specifics, added Finding 7 (full configuration schema), added Finding 8 (BYOK adapter heterogeneity analysis), added Finding 9 (voice mapping options). Added two new sections: Verification Paths (table mapping each finding to a concrete test approach) and Risk Matrix (8 risks with mitigations). Updated Actions with three concrete create-item actions plus the D1-D3 resolution action. Updated Confidence Assessment with new rows for the now-settled pricing/streaming/config items."
+}

@@ -1,0 +1,51 @@
+{
+  "round": 3,
+  "generated_at": "2026-04-18T15:50:00Z",
+  "mode": "finalize",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 3,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Round 2 answers (r2-d1=A through r2-d5=A) incorporated into plan as Settled. Conditional 'per r2-dN' language replaced throughout §5 Scope, §6 Current Technical Context, §7 Target End State, §8 Implementation Strategy (Phase A step 4 expanded for r2-d5; Phase B steps 7/8/10/11 made concrete), §9 Settled (5 new entries), §11 Checklist (no more 'resolved' qualifiers), §12 Risks (WS row recharacterized; new pgrep false-positive row; new metrics-poll-timeout row), §14 Non-goals (added WS deferral, captures-in-main prohibition, VNC display_id non-goal), §15 Definition of Done (renumbered to 16 items, every item now concrete)."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Captures wiring (r2-d1=A) is harness-only by design: integration tests wire WithCaptures() with a t.TempDir() store, but production api/main.go remains unchanged because it is in acceptance_deny. The production gap (api/main.go never calls WithCaptures()) is preserved in §6, §9 Settled, §12 Risks, and §14 Non-goals. Recommended follow-up: file execute/wire-captures-in-vrooli-emulator-main before Phase 2 (execute/scenario-to-desktop-emulator-iframe-embed) needs persisted thumbnails — that separate item can edit api/main.go without an acceptance_deny conflict."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Stray-process detection (r2-d3=A) requires per-test scenario names with a high-entropy suffix. §8 step 10 mandates the test-phase1-<random> prefix; §11 checklist enforces it; §12 Risks documents the (very low) false-positive risk if another process happens to share the substring. No SessionView API change needed — pgrep -af reads existing argv that LinuxBackend already populates with the scenario name."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "Metrics assertion (r2-d4=A) uses require.Eventually with a 5s budget and 200ms tick. Schema fields asserted: CPUPercent, MemoryRSS, WindowDetected. If MetricsView fails to populate, the failure points to a Monitor regression in service.go's StartSession path rather than a test flake — service.go:208 sets Monitor synchronously before returning."
+    },
+    {
+      "id": "i5",
+      "type": "info",
+      "text": "WebSocket deferral (r2-d2=A) is explicitly handed off to Phase 2 (execute/scenario-to-desktop-emulator-iframe-embed). When that item lands, its tests should cover (at minimum) the upgrade handshake on a VNC session and frame proxying through to websockify. §12 Risks acknowledges the gap window; §14 Non-goals makes the deferral explicit so executing agents do not opportunistically add WS coverage here."
+    },
+    {
+      "id": "i6",
+      "type": "info",
+      "text": "CLI display_id surfacing (r2-d5=A) is constrained to headless sessions only. §8 Phase A step 4 spells out the conditional in summarize(); §11 checklist includes the assertion; §14 Non-goals explicitly forbids surfacing it for VNC sessions (where VNC/WS ports are the access path). CLI smoke test in §8 step 14 asserts the 'Display: :<digits>' line on the headless create subtest only."
+    },
+    {
+      "id": "i7",
+      "type": "info",
+      "text": "Readiness 5/5 across all dimensions. The plan is ready for execute. Remaining work is implementation, not planning — every assertion has a concrete shape, every helper a defined signature, every test file a chosen location, every cleanup a defined verification method."
+    }
+  ],
+  "plan_updates": "Finalized round 2 answers (all A) into plan.md. Five r2-dN decisions moved from §9 Open to §9 Settled with verbatim implementation contracts. Implementation strategy made fully concrete: §8 Phase A step 4 details the CLI mirror update + summarize() conditional; §8 Phase B step 7 commits to t.TempDir()-backed FilesystemStore for captures; step 8 lists each Test_* with its assertion shape; step 10 mandates the test-phase1-<random> scenario-name convention enabling the pgrep -af filter; step 11 explicitly forbids WS test code. §6 Current Technical Context expanded with three new facts the round-2 answers depend on (LinuxBackend's argv-scenario-name pattern, Monitor synchronous-set in StartSession, CLI's separate sessionView struct). §9 Open emptied. §11 checklist rewritten with no 'resolved' qualifiers. §12 Risks updated: WS row recharacterized for the deferral path; added pgrep false-positive row and metrics-Eventually-timeout row. §14 Non-goals expanded with three new prohibitions (no WS, no captures-in-main from this item, no display_id surfacing for VNC). §15 Definition of Done renumbered to 16 items, every item concrete and verifiable."
+}

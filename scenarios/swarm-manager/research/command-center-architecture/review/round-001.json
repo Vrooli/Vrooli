@@ -1,0 +1,122 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-18T14:15:00Z",
+  "execution_id": "2956ae04dd21ddc2",
+  "run_id": "b7e75a32-3f03-4d2f-9102-bbc68f5d608b",
+  "status": "complete",
+  "classification": "ready_with_notes",
+  "agent_assessment": "Research deliverable is substantive and well-grounded. conclusion.md (138 lines, 17 findings) answers all 9 questions in spec.json, surfacing settled decisions across 4 workshop rounds. All 6 actions from the conclusion were addressed per notes.md, and spot-check of every checkable claim in the conclusion passes: LPBS code citations (auth.go:356-371, usage_service.go:447-454, routes.go:96-125) are accurate line-for-line; referenced source files in Findings 12, 13, and 16 all exist; Finding 13's claim that WorldCanvas.tsx is not code-split is verified (zero lazy/dynamic-import matches); the @vrooli/iframe-bridge dependency is at package.json line 20 of the react-vite template as stated, and the named hooks (useSpatialNav, useGamepad, SpatialGroup) plus engine files (gamepadInput.ts, spatialNav.ts, spatialNavBridge.ts) all exist. The follow-up backlog item execute/lpbs-command-center-dashboard-endpoints was created with correct metadata (acceptance_allow, depends_on, initiative, effort). Three research-notes.md files were placed in target execute items as described. Two notes worth flagging: (1) spec.json reports status='failed' despite apparent successful completion of all actions — likely a finalization-status bug rather than an execution failure, but the reviewer should decide whether to correct it; (2) Action 1's effort field ('M') was inferred rather than specified in the conclusion — honestly disclosed in notes.md Deviations, and a reasonable inference.",
+  "notes": [
+    "spec.json status='failed' contradicts the apparent successful completion documented in notes.md. All six actions produced the expected artifacts. Consider whether finalization needs to re-run or whether the status should be corrected manually.",
+    "Action 3 was deferred because execute/command-center-scenario-scaffold/plan.md does not yet exist. The verification path matrix content was preserved in that item's research-notes.md so the workshop agent will fold it in when plan.md is first authored — a reasonable substitute, but the reviewer should confirm the workshop agent actually does this when the scaffold item is worked.",
+    "Actions 4-6 produced research-notes.md files rather than editing target item descriptions. This is a judgment call that preserves existing workshop state — explicitly disclosed in notes.md. The downstream items' depends_on edges point back to this research item, so readers will reach the conclusion, but the inline research-notes.md surfaces the specific guidance closer to the work."
+  ],
+  "evidence": [
+    {
+      "id": "e1",
+      "type": "custom",
+      "title": "conclusion.md is a complete, well-structured research document",
+      "description": "Primary deliverable is 138 lines covering Research Question, Summary, Methodology (11 steps), 17 Findings (each labeled as 'Settled in round N' where applicable), Limitations, and 6 Actions. Question:answer mapping covers all 9 questions raised in spec.json description.",
+      "verified": false
+    },
+    {
+      "id": "e2",
+      "type": "custom",
+      "title": "Action 1: Follow-up backlog item created with complete metadata",
+      "description": "execute/lpbs-command-center-dashboard-endpoints/spec.json exists with kind='execute', priority=2, effort='M', initiative='command-center-foundation', acceptance_allow=['scenarios/landing-page-business-suite/api/**'], depends_on=['research/command-center-data-aggregation-design'], status='backlog'. Description preserves the routing precedent (auth.go:356-371) and scope. No plan.md yet — expected, as workshop has not run.",
+      "capture_path": "captures/lpbs-endpoints-spec.json",
+      "verified": false
+    },
+    {
+      "id": "e3",
+      "type": "custom",
+      "title": "Actions 4-6: Three research-notes.md files exist in target execute items",
+      "description": "All three target folders contain a research-notes.md file: scaffold (37 lines), kiosk-ux (40 lines), theming-engine (52 lines). Scaffold file header cites conclusion.md and references specific Finding numbers (4, 5, 6, 7, 9, 10, 11, 12, 14, 15, 16); content includes the verification path matrix, stack decisions, and hook-lift guidance as claimed in notes.md.",
+      "capture_path": "captures/research-notes-listing.txt",
+      "verified": false
+    },
+    {
+      "id": "e4",
+      "type": "custom",
+      "title": "Finding 4: LPBS code citations verified at claimed line numbers",
+      "description": "requireAdminOrService is defined at auth.go:358 (comment on 356), ends at 371 — matches claim auth.go:356-371. ValidateServiceToken is defined at usage_service.go:447, ends at 454 — matches claim. routes.go:96-125 contains the exact /api/v1/admin/remote-profiles, /remote-profiles/{id}/test, /remote-profiles/{id}/proxy, /download-artifacts/presign-upload, /download-artifacts/commit, and /download-assets/apply routes cited as precedent.",
+      "capture_path": "captures/lpbs-auth-citations.txt",
+      "test_results": [
+        {"name": "auth.go:356-371 contains requireAdminOrService", "passed": true, "output_summary": "Function defined line 358, closes line 371"},
+        {"name": "usage_service.go:447-454 contains ValidateServiceToken", "passed": true, "output_summary": "Function defined line 447, closes line 454, uses subtle.ConstantTimeCompare"},
+        {"name": "routes.go:96-125 contains cited /api/v1/admin/* precedent routes", "passed": true, "output_summary": "remote-profiles, download-artifacts, download-assets routes all present using requireAdminOrService"}
+      ],
+      "verified": false
+    },
+    {
+      "id": "e5",
+      "type": "custom",
+      "title": "Finding 12: Named hook files exist in sibling scenarios",
+      "description": "All three hook files cited for lift-and-adapt exist: scenarios/web-console/ui/src/hooks/useWakeLock.ts, scenarios/landing-manager/ui/src/hooks/useFullscreenMode.ts, scenarios/tech-tree-designer/ui/src/hooks/useFullscreenManager.ts. useWakeLock.ts uses navigator.wakeLock.request('screen') at line 137 as described.",
+      "test_results": [
+        {"name": "useWakeLock.ts exists and uses navigator.wakeLock", "passed": true, "output_summary": "Found at line 137: navigator.wakeLock.request('screen')"},
+        {"name": "useFullscreenMode.ts (landing-manager) exists", "passed": true, "output_summary": "File present"},
+        {"name": "useFullscreenManager.ts (tech-tree-designer) exists", "passed": true, "output_summary": "File present"}
+      ],
+      "verified": false
+    },
+    {
+      "id": "e6",
+      "type": "custom",
+      "title": "Finding 13: WorldCanvas.tsx is NOT code-split (supports code-splitting recommendation)",
+      "description": "Finding 13 claims prompt-manager's WorldCanvas.tsx uses only synchronous imports with no React.lazy() or dynamic imports. Grep for /React\\.lazy|lazy\\(|dynamic import|import\\(/ against the file returned zero matches, confirming the claim. This justifies Finding 15's per-dashboard code-splitting improvement over the prompt-manager precedent.",
+      "test_results": [
+        {"name": "No React.lazy or dynamic imports in WorldCanvas.tsx", "passed": true, "output_summary": "0 matches for lazy/dynamic-import patterns"}
+      ],
+      "verified": false
+    },
+    {
+      "id": "e7",
+      "type": "custom",
+      "title": "Finding 16: @vrooli/iframe-bridge dependency and hooks verified in react-vite template",
+      "description": "templates/scenarios/react-vite/ui/package.json line 20 contains '@vrooli/iframe-bridge': 'file:../../../packages/iframe-bridge' as claimed. All three named hooks exist in the template: src/hooks/useGamepad.ts, useSpatialNav.ts, SpatialGroup.tsx. The underlying engine files exist in the package source: packages/iframe-bridge/src/gamepadInput.ts, spatialNav.ts, spatialNavBridge.ts. The 'controller input is a consumption task only' conclusion holds: no new gamepad plumbing needed for command-center.",
+      "capture_path": "captures/iframe-bridge-evidence.txt",
+      "test_results": [
+        {"name": "@vrooli/iframe-bridge present in react-vite template package.json", "passed": true, "output_summary": "Line 20 of package.json"},
+        {"name": "useGamepad, useSpatialNav, SpatialGroup hooks present in template", "passed": true, "output_summary": "All three files in src/hooks/"},
+        {"name": "iframe-bridge engine files present in package source", "passed": true, "output_summary": "gamepadInput.ts, spatialNav.ts, spatialNavBridge.ts in packages/iframe-bridge/src/"}
+      ],
+      "verified": false
+    },
+    {
+      "id": "e8",
+      "type": "custom",
+      "title": "Workshop history shows 4 rounds of refinement",
+      "description": "workshop/round-001.json through round-004.json exist. Findings are tagged with which round settled them (e.g., 'Settled in round 2', 'Settled in round 3 (d1/d2/d3)'), providing traceability from decisions back to workshop rounds.",
+      "verified": false
+    },
+    {
+      "id": "e9",
+      "type": "custom",
+      "title": "Concern: spec.json reports status='failed' despite successful deliverables",
+      "description": "scenarios/swarm-manager/research/command-center-architecture/spec.json shows status='failed' (line 12) with updated='2026-04-18T14:04:22Z', yet conclusion.md, notes.md, all six actions' artifacts, and the review round-001.json were all produced. No error artifact or explanation of failure is present. Most likely a finalization-status bug — the work itself appears complete — but the reviewer should decide whether to correct the status before archiving.",
+      "verified": false
+    }
+  ],
+  "request_threads": [],
+  "improvement_suggestions": [
+    {
+      "category": "other",
+      "description": "Investigate why spec.json status was set to 'failed' despite successful completion of all deliverables. If this is a finalization-status bug in the research execution agent, patch it so future research items don't need manual status correction at review time.",
+      "evidence_id": "e9",
+      "priority": "medium"
+    },
+    {
+      "category": "ci_workflow",
+      "description": "Research reviews heavily depend on verifying file-existence and line-range claims in the conclusion. Consider a lightweight GCT dimension (or a review pre-flight step) that parses Markdown citations of the form 'path/to/file.ext:line-range' from conclusion.md/plan.md and auto-reports which ones resolve vs. which are stale. Would save manual grep/read work on every research review.",
+      "evidence_id": "e4",
+      "priority": "low"
+    },
+    {
+      "category": "other",
+      "description": "When an action in a research conclusion is 'deferred' because a downstream artifact doesn't exist yet (Action 3 here), the notes.md should create a follow-up task or checklist entry so the deferred work isn't lost if the downstream workshop agent doesn't happen to read research-notes.md. Currently relies on the workshop agent noticing the file.",
+      "evidence_id": "e3",
+      "priority": "low"
+    }
+  ]
+}

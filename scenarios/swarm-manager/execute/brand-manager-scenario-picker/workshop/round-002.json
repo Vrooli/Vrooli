@@ -1,0 +1,149 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-18T00:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 2,
+    "testable": 3,
+    "risk_awareness": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Dialog primitive implementation",
+      "context": "Round 1 chose 'always a modal dialog' for the ScenarioPicker (d2=B), but components/ui/ has only button, input, section, and error-alert — no dialog primitive. Something must be added. package.json already depends on @radix-ui/react-slot, so @radix-ui/react-dialog is a natural fit. We can also build a minimal custom dialog or adapt an existing pattern.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Add @radix-ui/react-dialog and wrap it in components/ui/dialog.tsx",
+          "rationale": "Lowest risk and strongest a11y — handles focus trap, Esc to close, scroll lock, portal rendering, and ARIA roles out of the box. Consistent with @radix-ui/react-slot already in tree. Small bundle cost (~10 KB gz).",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Build a minimal custom Dialog with a div, portal, and backdrop",
+          "rationale": "No new dependency and full control over styling. Risk of missing accessibility features (focus trap, aria-modal, keyboard handling) that would need to be added manually. Higher long-term maintenance burden."
+        },
+        {
+          "key": "C",
+          "label": "Use @headlessui/react Dialog",
+          "rationale": "Also accessible and well-maintained. Adds a new vendor line alongside the existing Radix dependency, slightly increasing dependency sprawl."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Default elements for auto-created assignment on brand creation",
+      "context": "When a user creates a brand with a scenario selected (round-1 d3=A two-call flow), the follow-up POST /api/v1/assignments must specify an 'elements' array (colors, typography, identity, voice, etc.). The user hasn't told us which elements to apply by default for a freshly created brand.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Apply all available elements by default (colors, typography, identity, voice)",
+          "rationale": "Matches user intent: selecting a scenario at creation means 'make this brand apply to that scenario.' Maximizes value out of the box. User can unassign later if undesired.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Apply only 'colors' by default",
+          "rationale": "Safest element — always defined on a new brand, never conflicts with scenario content. Lower risk of surprising output. But requires extra clicks to apply the rest."
+        },
+        {
+          "key": "C",
+          "label": "Show an element checklist in the picker before assigning",
+          "rationale": "User explicitly chooses what to apply. Most precise but adds another step to the creation flow that most users will skip past."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "How BrandDetailPage fetches the brand's current scenario assignment",
+      "context": "Repository.AssignmentRepository.ListByBrandID exists but is not exposed over HTTP. BrandDetailPage needs to display the assigned scenario (if any). We need to decide the API surface.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Add GET /api/v1/brands/{id}/assignments → []Assignment",
+          "rationale": "Directly exposes the existing repository method. Consistent with sibling routes like /brands/{id}/versions and /brands/{id}/assets. Simple to implement and test.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Embed current assignment in GET /api/v1/brands/{id} response",
+          "rationale": "One fewer request on the detail page. But mutates the brand response shape — risk of breaking existing callers (CLI, tests, any external consumers). Violates the round-1 d3=A 'no contract changes' spirit."
+        },
+        {
+          "key": "C",
+          "label": "Have the UI iterate /api/v1/scenarios and filter by brand_id",
+          "rationale": "Reuses the new endpoint. Works today but is O(n) in scenarios per detail-page load and couples the detail page to the full scenario catalog."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Reassignment confirmation UX when picking an already-assigned scenario",
+      "context": "Round-1 d4=A allows selecting a scenario that already has a brand assigned, but requires confirmation. We need to decide what that confirmation looks like and what actually happens on the backend — the assignments table has UNIQUE(scenario_name).",
+      "options": [
+        {
+          "key": "A",
+          "label": "In-dialog confirmation step; on confirm, DELETE the existing assignment then POST the new one",
+          "rationale": "Keeps the two-call flow simple and explicit: delete-then-create. User sees the prior brand name in the confirmation message. Very small race window between delete and create (acceptable for a single-user admin UI).",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "In-dialog confirmation, then call a new PATCH /api/v1/assignments/{id} that swaps brand_id atomically",
+          "rationale": "Atomic from the server's perspective. Requires a new API contract and handler. Higher implementation cost for a low-traffic admin action."
+        },
+        {
+          "key": "C",
+          "label": "Block reassignment entirely; user must first unassign from the owning brand's detail page",
+          "rationale": "Safest and most explicit. But contradicts round-1 d4=A (user wants reassignment in-flow) and adds friction."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "ApplyPreview (ui/src/components/apply-preview.tsx) currently uses a free-text Input for scenarioName. The plan refactors it to use the new ScenarioPicker — the free-text input is removed, not preserved as a fallback, per the greenfield constraint now pinned at the top of plan.md. Flagging so this refactor isn't missed during implementation."
+    }
+  ],
+  "plan_updates": "Incorporated all four round-1 decisions into §9 Contract Decisions. Added §3 Greenfield Constraint as a hard-rule section (required by planning guidelines; also removes the 'no greenfield declaration' validator warning). Expanded §6 Current Technical Context with the missing dialog primitive, ApplyPreview's free-text input, and the unexposed ListByBrandID repository method. Added the new GET /api/v1/brands/{id}/assignments endpoint to scope, targets, phases, tests, and risks. Added phase 5 (ApplyPreview refactor). Rewrote §10 Testing Plan around automated Go + Vitest tests (no manual checklist). Added vrooli scenario restart brand-manager to §11 Rollout (removes the 'no restart step' validator warning)."
+}

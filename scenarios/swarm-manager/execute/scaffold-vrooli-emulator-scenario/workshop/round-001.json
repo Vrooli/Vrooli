@@ -1,0 +1,173 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-17T17:30:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "UI scope at Phase 1 scaffold",
+      "context": "A sibling item (execute/vrooli-emulator-standalone-ui) owns the full session-management UI (drawer, VNC canvas, controls). This item just has to satisfy the 'every scenario must include a UI' rule without stepping on Action 4. The react-vite template already emits a default UI; the question is whether to add any surface-specific content.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Zero UI — skip ui/ entirely, defer to the standalone-ui sibling",
+          "rationale": "Smallest diff. Conflicts with the project memory rule that every scenario must include a UI and always use the react-vite template."
+        },
+        {
+          "key": "B",
+          "label": "Minimal placeholder — react-vite default + /health page + stub 'Sessions' list (no API wiring)",
+          "rationale": "Satisfies the 'scenarios always have UI' rule, gives the sibling UI item a clean surface to expand into, and keeps this item focused on the backend + CLI. No duplicate work since the sibling will replace the stub.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Ship the full migrated UI now — merge sibling execute/vrooli-emulator-standalone-ui into this item",
+          "rationale": "Fewer items, but conflates two large pieces of work and violates the initiative's explicit phase split."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "__other__",
+      "freeform": "UI should be done as a separate backlog item, but should be in vrooli-emulator. There should NOT be a vrooli-emulator-standalone-ui app"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Scaffolding method",
+      "context": "Two ways to create the scenario directory: use the existing template tool, or hand-scaffold by copying scenario-to-desktop's layout. The react-vite template is the official path (per project memory) but may not emit a Go api/ dir.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Run `vrooli scenario generate react-vite --id vrooli-emulator` and hand-add api/ + adjust cli/ as needed",
+          "rationale": "Uses sanctioned tooling, gets conformant UI scaffold, service.json, Makefile, and CLI shell. Lets the template evolve without this item going stale. The Go api/ is added manually since the template may not produce one.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Hand-scaffold the entire scenario by mirroring scenario-to-desktop's layout",
+          "rationale": "Full control; but duplicates logic the template already handles and diverges from project convention."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Port range allocation for vrooli-emulator",
+      "context": "Every scenario declares an API/UI port range in .vrooli/service.json. scenario-to-desktop uses API 15000-19999 and UI 35000-39999. The emulator needs its own slice so that both scenarios can run concurrently during the hard-cut migration window.",
+      "options": [
+        {
+          "key": "A",
+          "label": "API 16000-16999 / UI 36000-36999",
+          "rationale": "Inside scenario-to-desktop's broader blocks but narrow; likely free. Fast to allocate, reserves room for future subdomains.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "API 17000-17999 / UI 37000-37999",
+          "rationale": "Further from scenario-to-desktop's starting port; slightly lower chance of first-come conflict but still inside its declared range."
+        },
+        {
+          "key": "C",
+          "label": "API 20000-20999 / UI 40000-40999",
+          "rationale": "Fully outside scenario-to-desktop's ranges; no overlap risk but jumps to a new decade-block."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "__other__",
+      "freeform": "Whatever the default range is in the scenario templates"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "procmetrics window detection on headless sessions",
+      "context": "procmetrics uses xdotool to enumerate visible X11 windows. Headless sessions allocate Xvfb but no x11vnc/websockify — xdotool still works against the display. However, if DISPLAY is unset or xdotool fails for any reason, the monitor currently errors. This was flagged in the research limitations. The resolution needs to preserve PID-based CPU/memory metrics even when window detection can't run.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Graceful degrade — window_detector returns empty window list (no error) when display is unavailable; PID-based metrics keep flowing",
+          "rationale": "Minimal change, preserves as much signal as possible, matches the tested-for 'partial data is better than no data' pattern already used elsewhere in procmetrics.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Disable the monitor entirely on headless sessions — no metrics at all",
+          "rationale": "Simpler code path but loses CPU/memory telemetry that headless consumers (smoketest) likely want."
+        },
+        {
+          "key": "C",
+          "label": "Stub display detector that reports 'headless' status and returns fabricated zero-window data",
+          "rationale": "More explicit about state but fabricates data; callers have to know to ignore window counts anyway."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d5",
+      "type": "decision",
+      "topic": "Test migration treatment",
+      "context": "livedesktop and procmetrics have existing unit tests (handler_test.go, service_test.go, store_test.go, janitor_test.go, action_test.go, monitor_test.go, etc.). Some test functions assert behavior that is being removed in this item (findArtifact, GET /artifact, vrooliRoot wiring).",
+      "options": [
+        {
+          "key": "A",
+          "label": "Move all tests with updated import paths; delete only the tests that cover removed behavior (findArtifact, /artifact endpoint, vrooliRoot)",
+          "rationale": "Preserves verification coverage of the moved code. Deleting only tests whose subject is deleted keeps the suite green with minimal surgery.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Move tests, but mark findArtifact/artifact tests as Skip/TODO instead of deleting",
+          "rationale": "Retains history but leaves dead test code pointing at deleted APIs — fails greenfield principle."
+        },
+        {
+          "key": "C",
+          "label": "Don't move tests; rely entirely on execute/emulator-acceptance-tests-phase-1 (Action 2) for coverage",
+          "rationale": "Cleaner split but loses 100% of existing unit coverage while Action 2 is still in flight — risky during hard-cut."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "This item intentionally does NOT modify scenarios/scenario-to-desktop/. The deletion of api/livedesktop/ and api/procmetrics/ from the source scenario is handled by the sibling chore/scenario-to-desktop-remove-livedesktop. Phase 1 hard-cut requires both items to land in the same release window (plus execute/emulator-acceptance-tests-phase-1). acceptance_allow = scenarios/vrooli-emulator/** already enforces this at the gate."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Go module naming: API module is `vrooli-emulator-api` (mirrors `scenario-to-desktop-api`). The go.mod requires replace directives for `github.com/vrooli/api-core`, `github.com/vrooli/repo-contract-go`, and `github.com/vrooli/vrooli/packages/proto`, pointing at ../../../packages/\u003cname\u003e. Copy the exact pattern from scenarios/scenario-to-desktop/api/go.mod."
+    }
+  ],
+  "plan_updates": "Created initial plan.md with 12 sections (Purpose, Required Reading, Problem Statement, Scope, Current Technical Context, Target End State, Implementation Strategy with 9 phases A-I, Contract Decisions, Testing Plan, Rollout Checklist, Risks with mitigations, Definition of Done). Captured all resolved research findings (route prefix, dropped /artifact endpoint, required app_path, headless flag semantics, procmetrics as internal package, hard-cut migration boundaries). Flagged out-of-scope items as sibling-item responsibilities with explicit cross-links. Included file-level source references (line numbers for LaunchApp auto-discovery branch, findArtifact, handler routes). Enforced user feedback constraints: no restart of active scenario, CLI human-readable default output, automated tests over manual checklists, greenfield with no compat shims, scenario must include UI, no lib/ folder."
+}

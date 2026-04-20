@@ -1,0 +1,136 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-18T00:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 2,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Database migration delivery strategy",
+      "context": "The secrets-manager already uses a numbered migrations folder (scenarios/secrets-manager/initialization/storage/postgres/migrations/002_scenario_overrides.sql) with BEGIN;/COMMIT; wrappers. The plan currently just says 'Add two new tables to schema.sql' but does not commit to a delivery vehicle. Inline schema.sql edits affect only fresh installs; existing installs need a migration file to pick up new tables. Note: the migrations folder is outside the current acceptance_allow (scenarios/secrets-manager/api/**, scenarios/secrets-manager/ui/**) and will need to be added if we go with a migration file.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Create 003_pii_watchlist_allowlist.sql migration file and mirror DDL in schema.sql",
+          "rationale": "Follows the existing 002_scenario_overrides.sql pattern. BEGIN;/COMMIT;-wrapped migration file for existing installs, plus CREATE TABLE IF NOT EXISTS in schema.sql for fresh installs. Requires expanding acceptance_allow to include scenarios/secrets-manager/initialization/storage/postgres/migrations/**.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Add only to schema.sql with CREATE TABLE IF NOT EXISTS + ALTER TABLE ADD COLUMN IF NOT EXISTS",
+          "rationale": "Relies on schema.sql's idempotent DDL being re-run on startup. Simpler (one file to edit) but assumes schema.sql is actually executed on startup for existing installs. Follows the pattern used for resource_secrets legacy columns but does not match how scenario_secret_strategy_overrides was delivered."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Per-file scan timeout and failure semantics",
+      "context": "Round 1 landed on a 10s whole-scan timeout with partial/poll fallback, but did not cap any individual file. A single pathological file (huge minified bundle, binary misclassified as text, regex backtracking trap) could consume the entire 10s budget and block every subsequent file. The scan_allowlist_rules table does not have a size-based exclusion, so file-size limits must be enforced in code.",
+      "options": [
+        {
+          "key": "A",
+          "label": "2s per-file timeout + skip oversized files above existing fileLimits cap, mark as 'skipped' in findings",
+          "rationale": "Reuses the existing file_limits.go size cap. Each file gets its own context.WithTimeout(2s); on timeout, record a per-file 'skipped: timeout' entry in the findings array (type=scan_skip, severity=info) so GCT can surface it. Bounds worst-case latency to 2s regardless of file content while keeping the 10s overall budget as the outer guard.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "No per-file timeout; rely solely on the 10s overall timeout and file-size cap",
+          "rationale": "Simpler code. Assumes the file-size cap (file_limits.go) prevents pathological files from consuming much time. Acceptable for MVP but a single 9MB minified JS under the cap could still stall scanning."
+        },
+        {
+          "key": "C",
+          "label": "Hard-cap every file at 1MB for scan-files endpoint specifically",
+          "rationale": "Lower cap than the directory scanner. Almost all pre-commit files are under 1MB. Files over 1MB get skipped with a 'skipped: too_large' finding. Simpler than per-file timeouts and more predictable, but more aggressive — occasionally rejects legitimate large text files (SQL dumps, large fixtures)."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "UI integration approach for watchlist and allowlist management",
+      "context": "ui/src/sections/ already contains SecurityTables.tsx (vulnerability display) and ComplianceOverview.tsx. The UI uses a sections-based architecture (not react-router journeys for most pages). The plan says 'UI pages for watchlist management and allowlist configuration' without specifying where they live. Phase 6 of the implementation strategy needs concrete placement to be actionable.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Two new sections: PIIWatchlistManager.tsx + AllowlistRulesManager.tsx, reachable from a new tab in SecurityTables",
+          "rationale": "Minimal new architecture. Extends the existing security dashboard with two peer sections. Users find them where they already manage security concerns. Navigation: SecurityTables grows tabs (Vulnerabilities | Watchlist | Allowlist) or a gear icon links to sub-pages.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Dedicated 'PII Protection' journey under ui/src/features/journeys/",
+          "rationale": "Heavier weight but lets watchlist/allowlist have multi-step flows (e.g., bulk import from .env, preview mode). Better if PII management grows into a first-class area. More scaffolding for MVP."
+        },
+        {
+          "key": "C",
+          "label": "Inline modals inside SecurityTables — no new pages",
+          "rationale": "Add 'Manage watchlist' and 'Manage allowlist' buttons to SecurityTables that open modals for CRUD. Fastest to ship, but modals are cramped for list management with 10+ entries."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Context-aware filter scope for PII false-positive mitigation",
+      "context": "Round 1 d1 selected 'context-aware line filtering' but did not pin down which contexts. Being too aggressive suppresses real findings; being too conservative floods GCT with noise. The filter must execute after regex match but before emitting a finding. This list is also what the tests need to cover.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Skip: go import blocks, build tags, go.mod/go.sum lines, package-lock.json/yarn.lock lines, URLs in comments, version strings (N.N.N.N in recognized version contexts)",
+          "rationale": "Covers the highest-frequency false-positive sources in this codebase (Go-heavy, with UI yarn lockfile) without being so broad it misses real PII. Each skip context is a named predicate in the filter, easy to test in isolation.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Minimal set: only go import blocks + lockfiles",
+          "rationale": "Smaller scope, faster to implement. Accepts more false positives on version strings and URLs. Easier to extend later as specific false-positive reports come in."
+        },
+        {
+          "key": "C",
+          "label": "Maximal set: A plus string literals in test files, code inside /* */ block comments, and base64/hex-looking noise",
+          "rationale": "Lowest noise floor but risks hiding real PII in test fixtures and comments. Also more complex: requires at least line-level lexing (detecting which lines are inside multi-line comments)."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Two codebase findings relevant to planning: (1) ui/src/sections/SecurityTables.tsx already exists and owns the vulnerability UI — the new watchlist/allowlist UI should extend from there, not re-invent navigation. (2) The existing migration 002_scenario_overrides.sql uses BEGIN;/COMMIT; wrappers and CREATE TABLE IF NOT EXISTS; the new migration should match that style exactly for consistency. (3) The validator flagged plan.md as missing the 'Rollout/Validation Checklist' section — this round's plan update adds it."
+    }
+  ],
+  "plan_updates": "Incorporated all four settled round-1 decisions into the plan: (a) context-aware filter now a first-class step in Phase 2 rather than a risk mitigation, (b) Phase 3 now specifies the optional-env-var behavior (watchlist endpoints return 503 when SECRETS_MANAGER_WATCHLIST_KEY is unset, scan-files ignores the watchlist option and surfaces watchlist_available:false), (c) Phase 4 now lists the seed allowlist rules (*_test.go, testdata/**, **/fixtures/**, **/vendor/**, go.sum, package-lock.json), (d) Phase 5 specifies case-insensitive substring matching via strings.EqualFold-equivalent lowercasing. Added the mandatory Rollout/Validation Checklist section called out by the validator. Pinned concrete PII regex pattern strings in Phase 2. Expanded the testing plan with specific test cases per phase. Added risks for regex backtracking and encryption key loss."
+}

@@ -1,0 +1,24 @@
+{
+  "acceptance_allow": [
+    "scenarios/vrooli-emulator/**"
+  ],
+  "created": "2026-04-17T16:10:54Z",
+  "depends_on": [
+    "execute/scaffold-vrooli-emulator-scenario"
+  ],
+  "description": "Move `ui/src/components/livedesktop/` and `lib/api/livedesktop.ts` from scenario-to-desktop into the emulator UI. Build a standalone session management page (session list, viewer, controls). Integrate `@vrooli/iframe-bridge` as the child side. See research/emulator-extraction-and-service-plan conclusion Findings 4 and 14.",
+  "effort": "L",
+  "initiative": "emulator-platform",
+  "kind": "execute",
+  "name": "vrooli-emulator-standalone-ui",
+  "priority": 2,
+  "status": "completed",
+  "tags": [
+    "emulator",
+    "ui",
+    "iframe-bridge",
+    "phase-2"
+  ],
+  "title": "vrooli-emulator standalone management UI",
+  "updated": "2026-04-19T13:48:01Z"
+}

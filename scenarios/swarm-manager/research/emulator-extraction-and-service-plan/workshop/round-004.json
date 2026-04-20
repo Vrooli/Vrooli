@@ -1,0 +1,41 @@
+{
+  "round": 4,
+  "generated_at": "2026-04-17T16:30:00Z",
+  "mode": "finalize",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 2,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Round 3 decisions are now incorporated into conclusion.md. Procmetrics moves wholesale into vrooli-emulator as an internal package (d1=A). The CLI is a minimal greenfield operator surface — list/create/destroy/exec/logs/metrics tail (d2=A). Migration uses the hard-cut strategy (d3=B): scenario-to-desktop's livedesktop package is removed at phase 1 cutover, the desktop-viewer UI is intentionally broken until phase 2 ships the iframe embed."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "The d3=B selection overrides the recommended option (A, dual-run). The conclusion now reflects this explicit trade-off in Finding 15 and in the Limitations section: the temporary UI outage is an accepted cost in exchange for avoiding throwaway compatibility infrastructure. Phases 1 and 2 should be scheduled close together to minimize the visible gap; if phase 2 risk increases the team should reconsider sequencing rather than re-introducing dual-run after the fact."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Actions section is now concrete and executable: 9 follow-up backlog items spanning 3 phases plus cross-cutting work, each with kind, title, description, initiative, priority, effort, dependencies, and acceptance_allow patterns. Phase 1 is bundled (scaffold + acceptance tests + scenario-to-desktop removal) because hard-cut requires them to land together."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "Remaining limitations are honestly scoped: no runtime validation of the extraction (static analysis only), unmeasured binary-size impact, undefined operational limits (port ranges, max concurrent sessions), iframe-bridge protocol specifics deferred to implementation, hard-cut UI-downtime duration depends on phase 2 not slipping, and phase 1 acceptance test fixtures/assertions deferred to the phase 1 execute item. None of these block executing the plan; they are tracked as known gaps to address during implementation."
+    },
+    {
+      "id": "i5",
+      "type": "info",
+      "text": "Testability is scored 2 rather than 3: the conclusion identifies test cases (create session, launch app, screenshot, metrics tail, destroy, plus CLI smoke) but specific assertions, fixtures, and isolation guarantees are deferred to execute/emulator-acceptance-tests-phase-1 (Action 2). This is the appropriate split — research conclusions identify the test plan; execute items own the test implementation."
+    }
+  ],
+  "plan_updates": "Synthesized round 3 decisions into conclusion.md. Summary updated to mark all design decisions as resolved (no more 'remaining open items'). Added explicit bullets for procmetrics packaging, CLI minimum scope, and hard-cut migration. Replaced the prior 'compatibility window must be planned for' Limitation entry with a hard-cut-specific risk note explaining that the UI outage is intentional and what would trigger reconsideration. Promoted procmetrics-into-emulator and CLI-minimum-scope to first-class Resolved statements in Findings 12 and 13. Added Finding 15 documenting the hard-cut decision, alternatives rejected, and the operational expectation that phases 1 and 2 ship close together. Rewrote the Actions section into 9 concrete follow-up items with kinds, dependencies, and acceptance_allow patterns; phase 1 bundles scaffold + acceptance tests + scenario-to-desktop removal because hard-cut requires them to land together."
+}

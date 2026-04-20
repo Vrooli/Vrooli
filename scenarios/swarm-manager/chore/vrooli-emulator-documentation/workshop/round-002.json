@@ -1,0 +1,149 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-19T00:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 2,
+    "testable": 2,
+    "risk_awareness": 2
+  },
+  "items": [
+    {
+      "id": "d5",
+      "type": "decision",
+      "topic": "API reference filename",
+      "context": "d1=B chose docs/reference/{api.md,cli.md} as the standard layout. However, existing source-code annotations already point at a different filename: api/livedesktop/types.go:87 and api/procmetrics/types.go:1 both contain `// DOC: docs/reference/live-desktop-api.md#process-metrics`. The chore is scoped as docs-only (no code changes per §13), so renaming the existing annotations is technically out of scope. Pick a filename and the question of code-annotation drift is settled.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Use docs/reference/live-desktop-api.md (honor the existing // DOC: annotations)",
+          "rationale": "Recommended. Zero code changes, no drift between source annotations and on-disk filename, and the name accurately describes what the API is (live-desktop sessions, not a generic emulator API). Matches the documentation-health pattern of binding source code to docs by exact path.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Use docs/reference/api.md and update the two existing // DOC: annotations in this chore",
+          "rationale": "Cleaner generic name, but requires two source-code edits inside a chore that §13 explicitly forbids code changes in. Either re-scope this chore to allow those edits or open a new follow-up just to rename the annotations."
+        },
+        {
+          "key": "C",
+          "label": "Split into docs/reference/sessions-api.md + docs/reference/embed-api.md (one per surface)",
+          "rationale": "Most navigable for large surfaces, but the embed surface is small (one external-url endpoint) and overlaps with docs/concepts/embed-protocol.md from d1=B. Likely premature splitting."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own filename"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d6",
+      "type": "decision",
+      "topic": "Per-route documentation format",
+      "context": "The API reference must cover 10 routes and 14 control actions. The depth of per-route documentation determines whether integrators can implement against the docs alone (§10 manual check) or have to fall back to reading source. Three reasonable depths exist on the verbose↔terse spectrum.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Verbose markdown: per-route section with method+path heading, request body schema (table form), response body schema (table form), error responses table, and a working curl example",
+          "rationale": "Recommended. Best for human integrators — they can copy a curl, see all fields with types and required/optional, and understand error semantics without grep. Adds ~3-4 lines per route over option B but is the only depth that satisfies the §10 manual check 'reader unfamiliar with the codebase can write a minimal client without reading source'.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Terse markdown table: one row per route with columns Method, Path, Request, Response, Notes — schemas linked to SessionConfig/SessionView definitions defined once at the top",
+          "rationale": "Compact (the entire API in ~30 lines), easy to scan, but forces readers to cross-reference type definitions and lacks worked examples. Marginal time saving for the writer."
+        },
+        {
+          "key": "C",
+          "label": "OpenAPI YAML (docs/reference/openapi.yaml) plus thin markdown narrative pointing into it",
+          "rationale": "Most machine-checkable and would enable client codegen, but the API is small enough that an OpenAPI file is overhead, and we have no existing tooling that consumes it (no Swagger UI, no codegen, no contract tests). Adds maintenance burden without payoff at current scale."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own format"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d7",
+      "type": "decision",
+      "topic": "PRD Operational Targets content",
+      "context": "d4=A committed to a full PRD pass including OT-P0/P1/P2. The OT framing materially shapes how future agents prioritize emulator work. Three reasonable framings exist; each P0 set drives a different P1/P2 cascade. The chosen set will be written verbatim into PRD.md §Operational Targets in Phase B; only the chosen framing is filled — the others are discarded.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Capability-focused (the platform must deliver these capabilities): P0 = headless screenshot API, Linux-first session lifecycle ≥99% success, iframe SESSION-channel embed, process-metrics on launched apps. P1 = operator CLI parity, external-url + session_id, idle session reaping. P2 = macOS support, multi-tenant resource caps.",
+          "rationale": "Recommended. Most directly maps to what the scenario IS (a live-desktop emulator) and to surfaces that are already implemented or in flight via sibling backlog items. Each P0 is verifiable against existing code without committing to numerical SLOs the team hasn't measured.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Adoption-focused (cross-scenario integration drives priority): P0 = deployment-manager visual validation switched to emulator, scenario-to-desktop iframe embed live, operator CLI documented. P1 = ≥2 scenarios consuming the API, smoketest display delegation, external-url + session_id. P2 = third-party integration, remote-backend support.",
+          "rationale": "Tightly aligned to the initiative goal of 'wire it into deployment flows', but couples this scenario's PRD outcomes to other scenarios' delivery dates. Useful framing but creates cross-scenario PRD coupling."
+        },
+        {
+          "key": "C",
+          "label": "SLO-focused (operational quality drives priority): P0 = 99% session-create success, p95 launch-to-ready under 5s, no orphaned processes after destroy, 100% metrics coverage on launched apps. P1 = janitor reaps within 30s of TTL, 100 concurrent creates without 5xx. P2 = per-session resource caps enforced, cross-platform parity.",
+          "rationale": "Most rigorous if we had baseline measurements, but commits the team to numerical targets that have never been measured against real workloads. Risk of either fabricating numbers or missing them in production."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own OT framing or a blended set"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d8",
+      "type": "decision",
+      "topic": "Follow-up backlog items to file (d3=B fallout)",
+      "context": "d3=B settled to 'document current defaults AND open follow-up backlog items for the missing limits'. Five candidate gaps were identified in §6 Current Technical Context: (1) max-session cap (uncapped today), (2) per-session CPU/memory/disk ceilings (none today), (3) explicit Xvfb display range (delegated to screenrecording.DisplayManager with no documented bounds), (4) source-code // DOC: annotations binding handler/types/action files to the new doc anchors per §12 Risks (currently only types.go and procmetrics/types.go have annotations), (5) session_id query-param deep-link on /embedded/emulator/external-url (already covered by execute/vrooli-emulator-external-url-endpoint — should not be re-filed).",
+      "options": [
+        {
+          "key": "A",
+          "label": "File 4 follow-ups: max-session cap (chore/research), per-session resource ceilings (chore), explicit Xvfb display range (chore), broader // DOC: source annotations (chore). Skip session_id (already owned by execute/vrooli-emulator-external-url-endpoint).",
+          "rationale": "Recommended. Files every gap that surfaces from the docs pass without re-filing the one already owned. Each item is small (S effort) and tagged `emulator` so the initiative owner sees them in the rollup. Ensures gaps don't become permanent.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "File 2 follow-ups only: per-session resource ceilings + max-session cap. Skip Xvfb range (low impact) and // DOC: annotations (cosmetic).",
+          "rationale": "Minimal addition to the backlog, focuses on the operationally risky gaps (OOM/CPU starvation, runaway session count). Trades coverage of the smaller gaps for backlog hygiene."
+        },
+        {
+          "key": "C",
+          "label": "File 1 umbrella research/emulator-operational-limits item that scopes all gaps in one investigation, then spawns specific items from its conclusion",
+          "rationale": "Cleanest single entry point but defers concrete remediation by one round trip. The retired umbrella in this initiative argues against this pattern — the team prefers concrete items over umbrellas."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own follow-up plan"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Existing // DOC: annotations already exist at api/livedesktop/types.go:87 and api/procmetrics/types.go:1 — both reference docs/reference/live-desktop-api.md#process-metrics. This directly informs d5: option A (use that filename) requires zero code changes while option B requires editing those two annotations, which §13 Non-goals currently forbids. The annotations also confirm the documentation-health source-coupling pattern is already in partial use in this scenario."
+    }
+  ],
+  "plan_updates": "Synthesized round-1 settled decisions (d1=B, d2=A, d3=B, d4=A) into the plan: §6 now names the d1=B layout files concretely (with filename TBD pending d5); §8 Phase B steps now reference the chosen layout and the three settled choices explicitly; §9 Contract Decisions populated for d1-d4 with TBD for d5-d8; §10 Testing Plan now lists the concrete grep commands per route/action/subcommand/event; §11 Rollout Checklist tightened around the settled choices; §12 Risks adds a new row for the API-doc-filename mismatch (mitigated by d5=A). Sections still TBD pending round-2 d5-d8."
+}

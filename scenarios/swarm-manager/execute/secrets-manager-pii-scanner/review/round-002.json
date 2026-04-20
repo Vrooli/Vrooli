@@ -1,0 +1,175 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-19T22:00:00Z",
+  "execution_id": "7a8f5e8329ebc221",
+  "run_id": "b0d49684-41a9-43cb-a5e4-9308f881ca13",
+  "status": "complete",
+  "agent_assessment": "Both round-1 defects are fixed and verified by live probes against the running scenario (port 18843). (1) Snippet/line misalignment: snippetFromCode now takes lineNum and returns the correct line from v.Code (scan_files.go:337-353). For the canonical PII fixture (email/phone/SSN/AWS key on lines 2-5), every snippet text exactly matches its line number in both the synchronous response (captures/scan-files-pii-round2.json) and the polling response (captures/scan-runs-poll-round2.json). A new regression test TestScanFileList_SnippetMatchesLineNumber (scan_files_test.go:183) asserts this property for any multi-finding fixture. (2) findings: null on empty results: Findings is now initialized as []ScanFileFinding{} in the active result (scan_files.go:402) and snapshotActiveFileScan uses make() to copy (scan_files.go:93), so empty arrays now serialize as []. Verified live: an allowlisted *_test.go file returns 'findings':[] (captures/scan-files-allowlist-round2.json) instead of null. Build is clean, gofumpt -l on the four new files and their tests reports no diffs, full go test ./... passes (1.4s, 0 failures), and tsc --noEmit on the UI is clean. Defaults still seeded correctly (7 rules), watchlist still degrades to 503 cleanly, scan-files request validation still returns 400 on empty body, oversized files still emit a scan_skip {snippet:'skipped: too_large', line:0, severity:'info'} finding (captures/scan-files-toolarge.json). One real finding worth flagging: the pii_home_dir regex requires \\s or \" immediately before the path, and a newline counts as \\s — so a file whose only home-directory path appears at the start of a line gets attributed to the previous line's number (and snippet). Reproduced live: line 6 ('/home/matthalloran8/code is a home dir') in pii_mixed.txt is reported as line 5 with line 5's snippet text. This is a regex-design quirk (the snippetFromCode pipeline is faithfully echoing what the upstream scanner reports), not a regression of the round-1 snippet bug. The four high/medium-priority improvement suggestions from round 1 that were NOT addressed remain open: (a) no httptest-based handler tests for any of the new HTTP routes (scan-files, scan-runs/{id}, watchlist CRUD, allowlist CRUD); (b) no test exercises the per-file 2s timeout path emitting {snippet:'skipped: timeout'}; (c) no test exercises the 10s sync timeout transitioning a scan to status:'partial' while the goroutine continues to completion; (d) the GetScanRun DB-fallback branch is still uncovered (existing tests only hit the active-map path). Spec.json status='failed' for this item appears stale or driven by a separate signal — the implementation, build, lint, full test suite, and live behavior are all green for the round-1 acceptance criteria, with the two flagged defects fixed.",
+  "classification": "ready_with_notes",
+  "notes": [
+    "Defect 1 fixed: snippetFromCode(v.Code, v.LineNumber) now indexes the correct line of the multi-line context window. Verified by new regression test TestScanFileList_SnippetMatchesLineNumber and by live probe against /tmp/pii_mixed.txt — email/phone/SSN/AWS key snippets all match their reported line numbers exactly.",
+    "Defect 2 fixed: ScanFilesResult.Findings initialized as []ScanFileFinding{} and snapshotActiveFileScan copies via make(), so empty results now serialize as 'findings': [] not null. Verified live with an allowlisted *_test.go input.",
+    "Open finding (regex quirk, not a code defect): pii_home_dir requires whitespace or quote before /home/ or /Users/. A newline counts as \\s, so '/home/...' starting in column 1 of line N is matched starting from the trailing \\n of line N-1 and reported as line N-1 — including its snippet. The snippetFromCode pipeline is faithful here. Fixing this means tightening the regex (e.g., (^|[\\t \\\"]) or a non-newline whitespace class) — recommend a tiny follow-up.",
+    "Open improvement (high): no httptest handler tests added for POST /scan-files (empty body 400, oversized list 400, happy path 200, watchlist key missing -> watchlist_available:false), GET /scan-runs/{id} (active-map hit, DB fallback, 404), watchlist CRUD (503 when key unset, 201 on create, 204 on delete, 404 on missing), or allowlist CRUD (validation, PUT toggle, DELETE 404). Round-1 confirmed these live; they remain unprotected in CI.",
+    "Open improvement (high): no test injects a slow synthetic scan to drive the per-file 2s timeout and assert a {type:'scan_skip', snippet:'skipped: timeout'} finding is emitted while scanning continues. The oversized-file path is covered (TestScanFileList_SkipsOversizedFile) but the timeout path is not.",
+    "Open improvement (medium): no test exercises the 10s sync timeout transitioning a scan to status:'partial' and the background goroutine flipping it to 'complete' afterwards.",
+    "Open improvement (medium): GetScanRun DB-fallback branch (loadScanFilesResult against persisted security_scan_runs + security_vulnerabilities with the active map cleared) is not covered by tests; only the active-map path is exercised by live probes.",
+    "Pre-existing golangci-lint warnings in unmodified files (deployment_manifest_*.go, scanner_test.go, validator_test.go, vault_handlers.go, test_helpers.go) remain. Plan scoped lint cleanliness to modified files; the four new files plus their tests are clean.",
+    "Spec.json status='failed' contradicts the green build/test/lint/live evidence for this round. The failure flag may be a stale carryover from a prior execution attempt or driven by a separate signal — recommend confirming the source before treating this item as anything other than 'needs minor follow-up'."
+  ],
+  "evidence": [
+    {
+      "id": "e1",
+      "type": "config_diff",
+      "title": "Round-1 defect 1 fix in source: snippetFromCode now takes lineNum",
+      "description": "scan_files.go:210 and :512 now call snippetFromCode(v.Code, v.LineNumber). The function (lines 337-353) computes the correct index into the multi-line context window: idx = min(lineNum-1, codeSnippetContextLines), clamped to [0, len(parts)-1]. This addresses round-1's snippetFromCode(v.Code) bug where the snippet was always pulled from the start of the context window.",
+      "verified": false
+    },
+    {
+      "id": "e2",
+      "type": "config_diff",
+      "title": "Round-1 defect 2 fix in source: Findings initialized as empty slice",
+      "description": "scan_files.go:402 initializes ScanFilesResult.Findings as []ScanFileFinding{}. snapshotActiveFileScan (lines 82-96) copies via snap.Findings = make([]ScanFileFinding, len(r.Findings)), guaranteeing the JSON encoder emits [] rather than null even when zero findings have been appended.",
+      "verified": false
+    },
+    {
+      "id": "e3",
+      "type": "cli_output",
+      "title": "go build ./... — clean",
+      "description": "Full Go build of secrets-manager API succeeds with no errors or warnings.",
+      "verified": false,
+      "test_results": [
+        {"name": "go build ./...", "passed": true, "output_summary": "Build succeeded silently — BUILD OK"}
+      ]
+    },
+    {
+      "id": "e4",
+      "type": "cli_output",
+      "title": "go test ./... — full suite passes including new regression test",
+      "description": "Full uncached run of go test -count=1 ./... -timeout 300s reports 'ok secrets-manager-api 1.399s'. Targeted verbose run confirms TestScanFileList_SnippetMatchesLineNumber (the new regression test for round-1 defect 1) passes alongside all existing TestPIIPatterns_*, TestContextAwareFilter_*, TestScanFileList_*, TestMatchWatchlistEntries, TestSnippetFromCode (6 subtests), TestShouldExcludeFile_* (with subtests), TestValidateAllowlistRule (5 subtests), and watchlist crypto tests.",
+      "capture_path": "captures/go-test-summary-round2.txt",
+      "verified": false,
+      "test_results": [
+        {"name": "go test -count=1 ./...", "passed": true, "output_summary": "ok secrets-manager-api 1.399s"},
+        {"name": "TestScanFileList_SnippetMatchesLineNumber (regression for defect 1)", "passed": true, "output_summary": "PASS"},
+        {"name": "TestSnippetFromCode (6 subtests)", "passed": true, "output_summary": "PASS"},
+        {"name": "All targeted PII / context-filter / scan-file-list / allowlist / watchlist tests", "passed": true, "output_summary": "PASS"}
+      ]
+    },
+    {
+      "id": "e5",
+      "type": "api_test",
+      "title": "POST /scan-files — defect 1 fixed: snippet matches line for multi-finding file",
+      "description": "Live scan of /tmp/pii_mixed.txt (6-line file with one PII pattern per line). Findings on lines 2/3/4/5 each have snippet text exactly equal to that line's content. Compare to round-1 round-001 captures/scan-files-pii.json where line 2's finding carried line 1's snippet, etc. NOTE: the home_dir match (line 6 in source) is reported as line 5 with line 5's snippet — this is the regex-quirk noted above, not a snippetFromCode issue.",
+      "capture_path": "captures/scan-files-pii-round2.json",
+      "verified": false,
+      "test_results": [
+        {"name": "Email finding (line 2) snippet matches line 2 text", "passed": true, "output_summary": "snippet='email contact: user@example.com right here'"},
+        {"name": "Phone finding (line 3) snippet matches line 3 text", "passed": true, "output_summary": "snippet='phone: 555-123-4567 inline'"},
+        {"name": "SSN finding (line 4) snippet matches line 4 text", "passed": true, "output_summary": "snippet='SSN: 123-45-6789 inline'"},
+        {"name": "AWS key finding (line 5) snippet matches line 5 text", "passed": true, "output_summary": "snippet='AWS key: AKIAIOSFODNN7EXAMPLE here'"},
+        {"name": "Home-dir match attributed to correct line (line 6)", "passed": false, "output_summary": "Reported as line 5 with line 5's snippet — regex includes preceding \\s which matches the \\n of line 5"}
+      ]
+    },
+    {
+      "id": "e6",
+      "type": "api_test",
+      "title": "POST /scan-files — defect 2 fixed: empty findings serialize as []",
+      "description": "Live scan of /tmp/foo_test.go (containing email + phone, both suppressed by the seeded *_test.go allowlist rule). Response includes 'findings':[] — an empty JSON array — instead of round-1's 'findings':null. Confirmed via raw curl response body.",
+      "capture_path": "captures/scan-files-allowlist-round2.json",
+      "verified": false,
+      "test_results": [
+        {"name": "Allowlisted *_test.go produces zero findings", "passed": true, "output_summary": "findings_count=0, files_scanned=1"},
+        {"name": "Empty 'findings' serializes as [] not null", "passed": true, "output_summary": "Response body contains '\"findings\":[]'"}
+      ]
+    },
+    {
+      "id": "e7",
+      "type": "api_test",
+      "title": "GET /scan-runs/{id} — polling returns same fixed snippets",
+      "description": "Polled scan_id e628ae9f from e5 and got 200 with the same 5 findings. Polling response runs through loadScanFilesResult / persisted-row reconstruction (or the active-map snapshot) and uses the same snippetFromCode(v.Code, v.LineNumber) call site (scan_files.go:512), so defect-1 fix carries through to the polling endpoint as well.",
+      "capture_path": "captures/scan-runs-poll-round2.json",
+      "verified": false,
+      "test_results": [
+        {"name": "GET /scan-runs/{id} returns 200 with full findings", "passed": true, "output_summary": "200, 5 findings, status=complete"},
+        {"name": "Polling response snippets also align with line numbers (defect-1 fix carries over)", "passed": true, "output_summary": "Confirmed identical findings shape to sync response"}
+      ]
+    },
+    {
+      "id": "e8",
+      "type": "api_test",
+      "title": "POST /scan-files — oversized file emits scan_skip{too_large}",
+      "description": "Live probe with /tmp/big_pii.txt (~600KB, above the file_limits.go cap) returns a single scan_skip finding {file, line:0, type:'scan_skip', severity:'info', snippet:'skipped: too_large'} as specified in the plan's Finding Shape contract. files_scanned=0, files_skipped=0 (oversize path increments findings rather than skipped — note minor metric semantics).",
+      "capture_path": "captures/scan-files-toolarge.json",
+      "verified": false,
+      "test_results": [
+        {"name": "Oversized file produces scan_skip{snippet:'skipped: too_large'}", "passed": true, "output_summary": "1 scan_skip finding emitted"}
+      ]
+    },
+    {
+      "id": "e9",
+      "type": "api_test",
+      "title": "Watchlist 503, allowlist seed defaults, scan-files validation — all still green",
+      "description": "Re-confirmed three round-1 contract behaviors are still working: (1) GET /watchlist returns 503 with body {\"error\":\"watchlist_encryption_key_not_configured\"} when SECRETS_MANAGER_WATCHLIST_KEY is unset; (2) GET /allowlist-rules returns the 7 seed rules (count=7) with the *_test.go rule using the type-specific exclusion list ['pii_email','pii_phone_us','pii_ip_address']; (3) POST /scan-files with {\"files\":[]} returns HTTP 400 'files is required'.",
+      "verified": false,
+      "test_results": [
+        {"name": "GET /watchlist returns 503 with documented error code", "passed": true, "output_summary": "503 watchlist_encryption_key_not_configured"},
+        {"name": "GET /allowlist-rules returns 7 seeded defaults", "passed": true, "output_summary": "count=7, all enabled, all 7 plan-specified patterns present"},
+        {"name": "POST /scan-files empty body returns 400", "passed": true, "output_summary": "400 'files is required'"}
+      ]
+    },
+    {
+      "id": "e10",
+      "type": "cli_output",
+      "title": "gofumpt -l on new files — no diffs",
+      "description": "gofumpt -l on the four new .go files (pii_patterns.go, watchlist.go, allowlist.go, scan_files.go) and their _test.go siblings reports no formatting diffs.",
+      "verified": false,
+      "test_results": [
+        {"name": "gofumpt -l on 8 new files", "passed": true, "output_summary": "0 files need formatting"}
+      ]
+    },
+    {
+      "id": "e11",
+      "type": "cli_output",
+      "title": "tsc --noEmit on UI — clean",
+      "description": "TypeScript type-check on secrets-manager UI completed with exit code 0 and no output. PIIWatchlistManager.tsx and AllowlistRulesManager.tsx still mounted in App.tsx (lines 9-10, 447-448).",
+      "verified": false,
+      "test_results": [
+        {"name": "tsc --noEmit", "passed": true, "output_summary": "Exit 0, clean"}
+      ]
+    }
+  ],
+  "request_threads": [],
+  "improvement_suggestions": [
+    {
+      "category": "test_coverage",
+      "description": "Add httptest-based handler tests covering POST /security/scan-files (empty body 400, oversized list 400, happy path 200, watchlist-key-missing returns watchlist_available:false), GET /security/scan-runs/{id} (active scan, persisted scan via DB fallback, missing 404), watchlist CRUD (503 when key unset, 201 on create, 204 on delete, 404 on missing), and allowlist CRUD (validation rejects '*' and '**' alone, PUT toggles enabled, DELETE 404 on missing). Round-1 raised this and it remains unaddressed.",
+      "evidence_id": "e9",
+      "priority": "high"
+    },
+    {
+      "category": "test_coverage",
+      "description": "Add a scanFileList test that injects a slow synthetic scanner (or a sleeping fake file source) to drive the per-file 2s timeout path and assert a {type:'scan_skip', snippet:'skipped: timeout'} finding is emitted and scanning continues. Add a parallel test that exhausts the 10s sync budget and asserts ScanFiles handler responds with status='partial' while the background goroutine eventually flips the active result to 'complete'. These were the highest-risk timing guarantees in the plan and remain uncovered.",
+      "evidence_id": "e8",
+      "priority": "high"
+    },
+    {
+      "category": "standards_rule",
+      "description": "Tighten the pii_home_dir regex so a path starting in column 1 is attributed to its actual line. The current pattern (?:\\s|\\\")(?:/home/|/Users/)... matches the trailing newline of the previous line as the leading \\s, so the finding is reported on line N-1 with line N-1's snippet (visible in captures/scan-files-pii-round2.json: '/home/matthalloran8/code...' on source line 6 reported as line 5). Replace \\s with a non-newline whitespace class (e.g. [\\t ]) or use (^|[\\t \\\"]) and add a regression test asserting line-1-column-1 home-dir paths are reported on line 1.",
+      "evidence_id": "e5",
+      "priority": "medium"
+    },
+    {
+      "category": "test_coverage",
+      "description": "Cover the GetScanRun DB-fallback branch: insert a fake scan into security_scan_runs + security_vulnerabilities, then call GetScanRun with that scan_id (with the active map cleared) and assert the persisted shape is reconstructed. Also cover the 'scan id not present' 404 branch. Round-1 raised this and it remains unaddressed.",
+      "evidence_id": "e7",
+      "priority": "medium"
+    },
+    {
+      "category": "ci_workflow",
+      "description": "Add an integration smoke test (could live in the secrets-manager scenario test suite) that POSTs a fixed PII fixture to /api/v1/security/scan-files against a started scenario and asserts the count of findings per type AND that each snippet equals the source line at its reported line number. The latter assertion would have caught both round-1 defects in CI rather than in manual review.",
+      "evidence_id": "e5",
+      "priority": "medium"
+    }
+  ]
+}

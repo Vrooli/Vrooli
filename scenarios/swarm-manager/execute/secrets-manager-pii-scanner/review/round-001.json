@@ -1,0 +1,183 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-19T18:10:00Z",
+  "execution_id": "b623c17b12d69bae",
+  "run_id": "c94bb7d7-6b15-4670-8d9e-2a8c4e25b0ca",
+  "status": "complete",
+  "agent_assessment": "All planned surfaces are present and live: pii_patterns.go (7 PII regex types + context-aware filter), watchlist.go (AES-256-GCM with optional-key 503 degradation), allowlist.go (CRUD + doublestar globbing), scan_files.go (POST /scan-files + GET /scan-runs/{id} with per-file 2s and overall 10s timeouts), migration 003_pii_watchlist_allowlist.sql with 7 seeded rules (idempotent via UNIQUE + ON CONFLICT), schema.sql mirrors the new tables, server.go registers all three handler sets under /api/v1/security, and UI sections PIIWatchlistManager + AllowlistRulesManager are mounted in App.tsx. go build is clean, the targeted unit tests for PII patterns, context filter, allowlist, watchlist crypto, and scanFileList all pass, gofumpt -l reports no diffs in any file modified or added by this work, and tsc --noEmit on the UI is clean. End-to-end live probes against the running scenario (port 18843) confirm: GET /allowlist-rules returns the 7 seeded defaults, GET /watchlist returns the documented 503 with watchlist_encryption_key_not_configured, POST /scan-files with empty body returns 400 'files is required', a real PII sample file produces 5 findings of the expected types and severities, an *_test.go file with email+phone is filtered to zero findings by the seeded allowlist rule, and GET /scan-runs/{id} returns the persisted result with full findings. Two real defects worth flagging before archive: (1) snippet/line misalignment — for a multi-finding file the per-finding snippet text does not match the per-finding line number (line 2's finding shows line 1's snippet, line 3's finding shows line 1's snippet, line 4's shows line 2's, line 5's shows line 3's). Line numbers are correct; only the snippet rendering is off. Likely root cause is snippetFromCode(v.Code) using v.Code which carries a context window beginning at an earlier line. This degrades GCT's ability to surface the actual offending text. (2) On a clean (allowlisted) file the response returns 'findings': null instead of the empty slice that ScanFilesResult initializes — minor JSON shape inconsistency that consumers expecting an array will trip on. Test coverage gaps: no HTTP handler tests (httptest) for the watchlist/allowlist/scan-files routes, no test exercising the per-file 2s timeout path (TestScanFileList_SkipsOversizedFile only covers size cap), no test for the 10s overall sync timeout transitioning a scan to status 'partial', no test for GetScanRun's DB fallback path. Pre-existing golangci-lint warnings in unmodified files (deployment_manifest_*.go, scanner_test.go, validator_test.go, vault_handlers.go, test_helpers.go) — the plan limits lint scope to modified files and modified files are clean. The scenario was not restarted and the user is expected to do so manually per CLAUDE.md guidance.",
+  "classification": "ready_with_notes",
+  "notes": [
+    "Snippet/line misalignment in scan-files response: line numbers are correct but snippet text is offset (typically shows the line N-2 or N-1 content). Reproduced live against /tmp/pii_test_sample.txt — see captures/scan-files-pii.json. Likely a snippetFromCode(v.Code) issue where v.Code contains a multi-line context window starting earlier than the matched line.",
+    "When a file produces zero findings (e.g. fully allowlisted), the response field 'findings' serializes as null rather than []. ScanFilesResult initializes Findings to an empty slice, so the nil likely comes from a copy/reset path. Minor but worth a one-line fix for consumer ergonomics.",
+    "Allowlist filtering verified live: foo_test.go containing email + phone is suppressed to zero findings by the seeded '*_test.go' rule with excluded_types ['pii_email','pii_phone_us','pii_ip_address']. Defaults seeded by migration are working as designed.",
+    "Watchlist optional-key behavior verified live: with SECRETS_MANAGER_WATCHLIST_KEY unset, GET /watchlist returns 503 with the documented error code, scan-files still runs PII detection and returns watchlist_available: false. Graceful degradation matches the plan's contract decisions.",
+    "No HTTP handler tests (httptest) were added for the new endpoints — only function-level tests of scanFileList, encrypt/decrypt, allowlist validation, and glob matching. Endpoint behavior was confirmed live in this review but not in CI.",
+    "No test exercises the per-file 2s timeout path or the 10s overall sync timeout / partial-status transition. These were the most security-relevant timing guarantees in the plan; they will only be caught by manual probing today.",
+    "Pre-existing golangci-lint warnings in deployment_manifest_*.go, scanner_test.go, validator_test.go, vault_handlers.go, and test_helpers.go remain. The plan scoped lint cleanliness to modified files and the four new files (pii_patterns.go, watchlist.go, allowlist.go, scan_files.go) plus their tests are clean.",
+    "Scenario was not restarted by the executor (correct per project rules). User should run `vrooli scenario restart secrets-manager` if they want a fresh process — the live evidence above was captured against the already-running process whose binary already has the new endpoints loaded."
+  ],
+  "evidence": [
+    {
+      "id": "e1",
+      "type": "config_diff",
+      "title": "Implementation files present and routed",
+      "description": "Verified the four new Go files (pii_patterns.go, watchlist.go, allowlist.go, scan_files.go), migration 003_pii_watchlist_allowlist.sql, schema.sql additions (lines 173/182/192/322/323/337/338), and route registration in server.go (lines 27-29, 61-63, 93-95). UI: PIIWatchlistManager.tsx and AllowlistRulesManager.tsx exist in ui/src/sections and are imported and rendered in App.tsx (lines 9-10, 447-448).",
+      "verified": false
+    },
+    {
+      "id": "e2",
+      "type": "cli_output",
+      "title": "go build ./... — clean",
+      "description": "Full Go build of the secrets-manager API package succeeded with no errors or warnings.",
+      "verified": false,
+      "test_results": [
+        {"name": "go build ./...", "passed": true, "output_summary": "Build succeeded silently — no errors."}
+      ]
+    },
+    {
+      "id": "e3",
+      "type": "cli_output",
+      "title": "go test ./... — all targeted tests pass",
+      "description": "Targeted run of TestPIIPatterns_TruePositives/TrueNegatives, TestContextAwareFilter_{ImportBlock,BuildTags,Lockfiles,URLInComment,VersionPragmaLine}, TestPIITypeSet, TestScanFileList_{FindsPII,SkipsOversizedFile,EmptyFindingsForCleanFile}, TestMatchWatchlistEntries, TestValidateAllowlistRule (5 subtests), TestShouldExcludeFile_GlobAndType (6 subtests), TestShouldExcludeFile_AbsolutePathWithGlob, TestMatchesAnyAllowlistAllType, TestWatchlistKey_{Unset,InvalidHex,WrongLength}, TestWatchlistEncryptDecrypt_RoundTrip, TestWatchlistDecrypt_WrongKey, TestWatchlistEncrypt_NoncesDiffer all PASS. Full suite (go test ./...) also reports ok with no failures.",
+      "capture_path": "captures/go-test-summary.txt",
+      "verified": false,
+      "test_results": [
+        {"name": "PII pattern unit tests (positives + negatives)", "passed": true, "output_summary": "PASS"},
+        {"name": "Context-aware filter unit tests (5 contexts)", "passed": true, "output_summary": "PASS"},
+        {"name": "scanFileList unit tests (PII detection, oversize skip, clean file)", "passed": true, "output_summary": "PASS"},
+        {"name": "Allowlist validation + glob matching tests", "passed": true, "output_summary": "PASS"},
+        {"name": "Watchlist crypto round-trip + wrong-key + nonce uniqueness", "passed": true, "output_summary": "PASS"},
+        {"name": "Watchlist key error handling (unset, invalid hex, wrong length)", "passed": true, "output_summary": "PASS"},
+        {"name": "Full go test ./... (entire api package)", "passed": true, "output_summary": "ok secrets-manager-api"}
+      ]
+    },
+    {
+      "id": "e4",
+      "type": "api_test",
+      "title": "GET /api/v1/security/allowlist-rules — 7 seeded defaults",
+      "description": "Live probe against the running scenario on port 18843 returns 200 with all 7 seed rules from migration 003: '**/fixtures/**', '**/vendor/**', '*_test.go' (with type-specific exclusion list), 'go.sum', 'package-lock.json', 'testdata/**', 'yarn.lock'. All enabled=true, all created_at identical (single migration insert), confirming seeding ran exactly once.",
+      "verified": false,
+      "test_results": [
+        {"name": "GET returns 200", "passed": true, "output_summary": "200 OK with count=7"},
+        {"name": "All 7 plan-specified default rules present", "passed": true, "output_summary": "All path_patterns from Phase 4 present"},
+        {"name": "*_test.go rule has type-specific exclusion (not '*')", "passed": true, "output_summary": "excluded_types=['pii_email','pii_phone_us','pii_ip_address']"}
+      ]
+    },
+    {
+      "id": "e5",
+      "type": "api_test",
+      "title": "GET /api/v1/security/watchlist — 503 when key unset",
+      "description": "Live probe returns HTTP 503 with body {\"error\":\"watchlist_encryption_key_not_configured\"} — matches the plan's optional-key contract decision exactly.",
+      "verified": false,
+      "test_results": [
+        {"name": "Returns 503", "passed": true, "output_summary": "503 Service Unavailable"},
+        {"name": "Returns documented error code", "passed": true, "output_summary": "watchlist_encryption_key_not_configured"}
+      ]
+    },
+    {
+      "id": "e6",
+      "type": "api_test",
+      "title": "POST /api/v1/security/scan-files — request validation",
+      "description": "Live probe with empty {\"files\":[]} body returns 400 'files is required'. Matches plan's validation contract (reject empty list with 400).",
+      "verified": false,
+      "test_results": [
+        {"name": "Empty files array returns 400", "passed": true, "output_summary": "400 Bad Request, body 'files is required'"}
+      ]
+    },
+    {
+      "id": "e7",
+      "type": "api_test",
+      "title": "POST /api/v1/security/scan-files — end-to-end PII detection",
+      "description": "Live scan of /tmp/pii_test_sample.txt containing one occurrence each of email, phone, SSN, IPv4, and home-dir path returned 5 findings with the correct types (pii_email, pii_phone_us, pii_ssn, pii_ip_address, pii_home_dir) and severities (high, high, critical, medium, medium). status='complete', watchlist_available=false (key unset, as expected). DEFECT: snippet field text does NOT match line field — line 2's finding carries line 1's snippet text, etc. Line numbers are correct, only the snippet rendering is off. See captures/scan-files-pii.json.",
+      "capture_path": "captures/scan-files-pii.json",
+      "verified": false,
+      "test_results": [
+        {"name": "All 5 PII pattern types fire on canonical samples", "passed": true, "output_summary": "5 findings of types pii_email, pii_phone_us, pii_ssn, pii_ip_address, pii_home_dir"},
+        {"name": "Severities match plan (SSN=critical, email/phone=high, ip/home=medium)", "passed": true, "output_summary": "Severities match plan's tier table"},
+        {"name": "Per-finding snippet text matches per-finding line number", "passed": false, "output_summary": "FAIL — snippet shows wrong line content for findings on lines 2-5; line numbers themselves are correct"}
+      ]
+    },
+    {
+      "id": "e8",
+      "type": "api_test",
+      "title": "POST /api/v1/security/scan-files — allowlist filters *_test.go",
+      "description": "Live scan of /tmp/foo_test.go containing email + phone (which would otherwise produce 2 findings) returned status='complete' with findings_count=0. The seeded '*_test.go' rule successfully suppressed the email and phone findings as designed. NOTE: response returned 'findings': null instead of []; minor JSON-shape inconsistency. See captures/scan-files-allowlist.json.",
+      "capture_path": "captures/scan-files-allowlist.json",
+      "verified": false,
+      "test_results": [
+        {"name": "Allowlisted *_test.go produces zero findings", "passed": true, "output_summary": "findings_count=0, files_scanned=1"},
+        {"name": "Response 'findings' is an array (not null) when empty", "passed": false, "output_summary": "Returned null instead of [] — schema contract minor"}
+      ]
+    },
+    {
+      "id": "e9",
+      "type": "api_test",
+      "title": "GET /api/v1/security/scan-runs/{id} — polling endpoint",
+      "description": "Polled the scan_id from e7 and got a 200 with the same 5 findings, status='complete', and matching metrics. Confirms the synchronous path persists results and the polling endpoint can retrieve them. (Polling against the active in-memory map; DB-fallback path was not exercised because the scan was still in the active map.)",
+      "capture_path": "captures/scan-runs-poll.json",
+      "verified": false,
+      "test_results": [
+        {"name": "GET /scan-runs/{id} returns 200 with full findings", "passed": true, "output_summary": "200, 5 findings, status complete"}
+      ]
+    },
+    {
+      "id": "e10",
+      "type": "cli_output",
+      "title": "gofumpt -l . — no diffs in modified/new files",
+      "description": "gofumpt -l reported 8 files needing formatting; all 8 (admin_override_handlers.go, main.go, performance_test.go, scanner.go, scanner_test.go, scenario_override_queries_test.go, security_scanner_test.go, types.go) are pre-existing files NOT modified by this work. The four new files (pii_patterns.go, watchlist.go, allowlist.go, scan_files.go) and their tests are properly formatted.",
+      "verified": false,
+      "test_results": [
+        {"name": "New/modified files clean", "passed": true, "output_summary": "0 of 4 new files in gofumpt -l output"}
+      ]
+    },
+    {
+      "id": "e11",
+      "type": "cli_output",
+      "title": "tsc --noEmit on UI — clean",
+      "description": "TypeScript type-check on the UI completed without output (clean). Confirms the new sections PIIWatchlistManager.tsx and AllowlistRulesManager.tsx and any api.ts additions type-check cleanly.",
+      "verified": false,
+      "test_results": [
+        {"name": "tsc --noEmit", "passed": true, "output_summary": "Clean — no type errors"}
+      ]
+    }
+  ],
+  "request_threads": [],
+  "improvement_suggestions": [
+    {
+      "category": "test_coverage",
+      "description": "Add httptest-based handler tests covering POST /security/scan-files (empty body 400, oversized list 400, happy path 200, watchlist-key-missing returns watchlist_available:false), GET /security/scan-runs/{id} (active scan, persisted scan via DB fallback, missing 404), watchlist CRUD (503 when key unset, 201 on create, 204 on delete, 404 on missing), and allowlist CRUD (validation rejects '*' and '**' alone, PUT toggles enabled, DELETE 404 on missing). These would prevent regressions in the contract decisions documented in the plan.",
+      "evidence_id": "e7",
+      "priority": "high"
+    },
+    {
+      "category": "test_coverage",
+      "description": "Add a scanFileList test that injects a slow synthetic scanner (or a sleeping fake file source) to drive the per-file 2s timeout path and assert a {type:'scan_skip', snippet:'skipped: timeout'} finding is emitted and scanning continues. Add a parallel test that exhausts the 10s sync budget and asserts ScanFiles handler responds with status='partial' while the goroutine eventually flips it to 'complete'. These were the highest-risk timing guarantees in the plan and currently have zero test coverage.",
+      "evidence_id": "e3",
+      "priority": "high"
+    },
+    {
+      "category": "standards_rule",
+      "description": "Fix snippet/line misalignment in scan-files response: when scanFileForVulnerabilitiesOpts returns a SecurityVulnerability whose Code field is a multi-line context window, snippetFromCode(v.Code) may return text from a line earlier than v.LineNumber. Either change snippetFromCode to read the file's v.LineNumber directly, or change the upstream extraction to put the matched line first in v.Code. Add a unit test asserting the returned snippet text contains the regex match (or equals the source line at v.LineNumber) for a multi-finding fixture.",
+      "evidence_id": "e7",
+      "priority": "high"
+    },
+    {
+      "category": "standards_rule",
+      "description": "Normalize ScanFilesResult.Findings to always serialize as [] rather than null when no findings are produced (e.g. ensure the field stays initialized as an empty slice when persisted/copied through snapshotActiveFileScan, and add `if r.Findings == nil { r.Findings = []ScanFileFinding{} }` before serializing in handlers). Consumers like GCT iterating over the array shouldn't have to handle both shapes.",
+      "evidence_id": "e8",
+      "priority": "medium"
+    },
+    {
+      "category": "ci_workflow",
+      "description": "Add an integration smoke test (could live in the secrets-manager scenario test suite) that POSTs a fixed PII fixture to /api/v1/security/scan-files against a started scenario and asserts the count of findings per type. This would have caught the snippet bug in CI rather than in manual review.",
+      "evidence_id": "e7",
+      "priority": "medium"
+    },
+    {
+      "category": "test_coverage",
+      "description": "Cover the GetScanRun DB-fallback branch: insert a fake scan into security_scan_runs + security_vulnerabilities, then call GetScanRun with that scan_id (with the active map cleared) and assert the persisted shape is reconstructed. Also cover the 'scan id not present' 404 branch.",
+      "evidence_id": "e9",
+      "priority": "medium"
+    }
+  ]
+}

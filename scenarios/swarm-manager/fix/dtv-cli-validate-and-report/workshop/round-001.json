@@ -1,0 +1,141 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-18T00:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 2,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Missing validation HTTP handler — how do we unblock the `validate` command?",
+      "context": "The item declares a dependency on `fix/dtv-validation-api`, but that backlog item returns 404 — it's gone. The validation domain (`api/domain/validation/`) has models, checkers, and an executor, but `api/main.go:80-104` wires only reference/skill/expectation/report handlers. No `POST /api/v1/references/{id}/validate` route exists. Without resolving this, `validate \u003creference\u003e` has nothing to call.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Expand this item's scope to add the validation HTTP handler + route registration (keep CLI and API handler in one PR).",
+          "rationale": "The domain layer (services, models, checkers) is already done; only `api/handlers/validation.go` + one line in `main.go` is missing. Expanding scope here is the smallest path to a working `validate` command and avoids re-creating a lost backlog item. Acceptance_allow would widen to `scenarios/development-toolchain-validator/{cli,api}/**`.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Recreate `fix/dtv-validation-api` as a blocker item and defer the `validate` CLI command until that item completes.",
+          "rationale": "Keeps this item's scope narrow (CLI only) and preserves the original dependency model. Ships `report` and `expectation` commands now; `validate` lands in a follow-up PR. Costs another round-trip through backlog/workshop for a trivial handler."
+        },
+        {
+          "key": "C",
+          "label": "Drop the `validate` command from this item entirely; ship only `report` and `expectation`. Let the meta-optimization team live without CLI `validate`.",
+          "rationale": "Fastest to close this item, but leaves `dtv-meta-optimization-contract` with a known gap and contradicts the item's title."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Describe an alternative resolution path."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "`report` command shape — flag-style or subcommand-style?",
+      "context": "The item description writes the reports as `report --conflicts`, `report --drift`, etc. The existing CLI uses subcommand style everywhere else (`reference list`, `connection drift`). Picking one now avoids churn later.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Subcommand-style: `report conflicts`, `report drift`, `report maturity`, `report tool-baselines`. Filters via `--reference \u003cid\u003e` / `--skill \u003cid\u003e`.",
+          "rationale": "Matches the existing `reference` / `connection` subcommand pattern, reads naturally in help output, and makes each report independently tab-completable. `cli-steer` recommends treating each API endpoint as its own command.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Flag-style: `report --conflicts`, `report --drift`, `report --maturity`, `report --tool-baselines`, exactly as the description specifies.",
+          "rationale": "Matches the item description verbatim. Slightly terser. Awkward because the flags are mutually exclusive and `report` alone would need to error or default to something."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Describe an alternative shape (e.g., `report --type conflicts`)."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "`expectation` command shape — nested groups, flat groups, or type flag?",
+      "context": "Structural expectations and CLI assertions are separate API resources (`/api/v1/expectations/structural` vs `/api/v1/expectations/cli`) with different field sets (`Pattern`/`Required` vs `Command`/`JSONPath`/`Operator`). We need to decide how the CLI exposes them.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Nested groups: `expectation structural {list|create|get|delete}` and `expectation cli {list|create|get|delete}`.",
+          "rationale": "Matches the item description exactly. Keeps the two resource types visibly distinct, so `--help` output stays clean. Lets each group validate its own flag set without conditional logic.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Flat groups: `expectation-structural {list|…}` and `expectation-cli {list|…}`.",
+          "rationale": "Simpler routing (one level), but hyphenated top-level commands are unusual in this CLI and make top-level `--help` noisier."
+        },
+        {
+          "key": "C",
+          "label": "Type-flag: `expectation list --type structural|cli` with shared subcommands and a required `--type`.",
+          "rationale": "Most compact, but hides the different field contracts behind one set of flags and forces every subcommand to branch on `--type`. Harder to document and test."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Describe an alternative structure."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Scope of the `validate` command — synchronous only, or include history/async?",
+      "context": "`docs/reference/api-endpoints.md` plans both `POST /api/v1/references/{id}/validate` (sync run + report) and `GET /api/v1/references/{id}/validate/history?limit=10`. The item description only mentions the sync path. This decision controls how much we build in v1.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Synchronous v1 only: `validate \u003creference\u003e` runs the validation and prints the report. No history, no async.",
+          "rationale": "Matches the item description, ships the critical-path capability first, and keeps the surface small. The meta-optimization prompts only need the sync path. History can land later if a user asks for it.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Sync + history: also add `validate history \u003creference\u003e [--limit N]` that hits `GET /api/v1/references/{id}/validate/history`.",
+          "rationale": "Small additional cost if the history endpoint ships with the validation handler. Useful for debugging flaky validations. Depends on D1 — history only helps if the handler exists."
+        },
+        {
+          "key": "C",
+          "label": "Full async: return a job ID, add `validate status \u003cjob-id\u003e` and a `--wait` flag.",
+          "rationale": "Overkill for P2 today. Adds significant surface and has no caller. Defer unless validation runs become long-running."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Describe an alternative scope."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Validation HTTP handler is not registered in `scenarios/development-toolchain-validator/api/main.go` (lines 80–104 wire only reference/skill/expectation/report). The domain package `api/domain/validation/` contains models, structural/CLI checkers, and an executor, so writing the handler is a thin adapter rather than a green-field implementation. This is the single biggest unknown in the plan and is the subject of D1."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Every other API endpoint the CLI needs is already implemented: `GET /api/v1/reports/conflicts`, `POST /api/v1/reports/drift` (body: `{current_hashes: {…}}`), `GET /api/v1/reports/maturity`, `GET /api/v1/reports/tool-baselines`, and full CRUD at `/api/v1/expectations/{structural,cli}`. The expectation endpoints also accept `X-Dry-Run: true` (see `api/handlers/expectation.go:86`), so `--dry-run` support on mutating commands is essentially free."
+    }
+  ],
+  "plan_updates": "Created plan.md scaffold with all 13 mandatory sections. Filled Purpose, Required Reading, Problem Statement, Scope (acceptance_allow auto-set to `scenarios/development-toolchain-validator/cli/**`), Current Technical Context, Target End State, phased Implementation Strategy, and Risks with the validation-API blocker called out. Contract Decisions section lists the four pending workshop decisions with recommended defaults. Testing Plan, Rollout, Non-goals, and Definition of Done are populated but will tighten once D1–D4 land."
+}

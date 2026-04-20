@@ -1,0 +1,26 @@
+# Gate results
+
+## type-check (pnpm --filter vrooli-emulator-ui run type-check)
+
+> vrooli-emulator-ui@1.0.0 type-check /home/matthalloran8/Vrooli/scenarios/vrooli-emulator/ui
+> tsc --noEmit
+
+
+## test (pnpm --filter vrooli-emulator-ui run test) — summary line
+ Test Files  6 passed (6)
+      Tests  39 passed (39)
+
+## build (pnpm --filter vrooli-emulator-ui run build) — summary
+✓ 1796 modules transformed.
+dist/index.html                   0.41 kB │ gzip:   0.27 kB
+dist/assets/index-Boo_XiN5.css   17.71 kB │ gzip:   4.14 kB
+dist/assets/index-Cbw7sSXq.js   623.17 kB │ gzip: 181.70 kB
+(!) Some chunks are larger than 500 kB after minification. Consider:
+✓ built in 2.00s
+
+## lint (pnpm --filter vrooli-emulator-ui run lint) — exit=1
+
+✖ 25 problems (10 errors, 15 warnings)
+  4 errors and 0 warnings potentially fixable with the `--fix` option.
+
+ ELIFECYCLE  Command failed with exit code 1.

@@ -1,0 +1,111 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-18T16:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 3,
+    "risk_awareness": 3,
+    "scope_defined": 3,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "iframe-bridge event payload schema",
+      "context": "Round-1 d4 settled on outbound lifecycle events only: session.created, session.state_changed, session.error, session.destroyed. The exact payload shape is now the contract the phase-2 iframe-embed consumer (scenario-to-desktop) will consume from docs/embed-protocol.md. A payload that is too thin forces the consumer to re-query the API on every event; too fat leaks internal session representation and fossilizes it into the protocol. The question is how much of the Session object to include in each event.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Minimal identifiers only: { sessionId, status?, error? } — consumer re-queries for details",
+          "rationale": "Smallest, least likely to drift. Consumer controls its own data freshness via React Query. Downside: every state change that wants display data triggers a GET /sessions/:id fetch on the host side."
+        },
+        {
+          "key": "B",
+          "label": "Identifier + summary fields: { sessionId, status, createdAt, backend, resolution, error? } — no live metrics",
+          "rationale": "Enough for the host to render a 'session card' without re-querying. Excludes high-frequency fields (metrics) and internal URLs to keep the protocol stable. This matches what a typical 'session picker' host UI would display.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Full Session object: the same shape returned by GET /sessions/:id",
+          "rationale": "Zero ambiguity — consumers get the full record. Downside: the internal Session type is now part of the iframe protocol; every API change to Session is a protocol break."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Propose a different payload shape (e.g., an envelope with a versioned schema tag)."
+        }
+      ],
+      "selected": "B"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "API mocking approach in component tests",
+      "context": "The Testing Plan adds four new test files (session list, session detail, session store, bridge) plus the ported controls-menu test. All of them need a way to fake the /sessions API. The emulator UI's devDependencies already include vitest and @testing-library/react; MSW is not yet present. The mocking approach affects: test readability, coverage of the API-client layer itself (e.g., do we also cover buildUrl() behavior?), and setup cost. Per the utils-unification and seam-discovery skills, the rule of thumb is: isolate the network boundary, don't overmock.",
+      "options": [
+        {
+          "key": "A",
+          "label": "MSW (msw + msw/browser) — intercept fetch at the network layer, define per-test handlers",
+          "rationale": "Highest fidelity: covers the full fetch path including buildUrl() and throwIfNotOk() from lib/api/http.ts. Tests read like real scenarios. Cost: adds msw as a devDependency and a setup file for the test environment."
+        },
+        {
+          "key": "B",
+          "label": "vi.mock('@/lib/api/sessions', () =\u003e ({ getSession: vi.fn(), ... })) in each test",
+          "rationale": "Zero new dependencies. Tests stay fast and isolated. Downside: the API-client layer is mocked away entirely, so buildUrl()/throwIfNotOk() need their own dedicated tests.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Dependency injection: sessions.ts accepts a `fetch` fn, tests inject a stub",
+          "rationale": "Clean seam with no devDependency cost. Downside: forces a signature change on every exported API function and a context/provider for passing the fetch fn through components."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Propose a different mocking strategy (e.g., a mixed approach — MSW for bridge.test.ts and vi.mock for page tests)."
+        }
+      ],
+      "selected": "B"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "LiveDesktopDrawer in a router-based layout",
+      "context": "The source component LiveDesktopDrawer.tsx (148 lines) wraps the VNC canvas, toolbar, and metrics in a right-side Drawer that opens over a host page. In the new emulator UI the management page IS the host — there's no outer page to drawer-over. Round-1 d1 chose a router-based layout (/sessions list, /sessions/:id detail). The drawer's chrome (backdrop, slide-in animation, dismiss-on-escape) has a real cost: it's extra UI that exists to feel 'inside another app.' Keeping it in the standalone UI is either a visual quirk or (more charitably) preparation for iframe-embed where the drawer again overlays a host.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Keep the drawer as SessionViewer.tsx: /sessions/:id renders a full-page drawer-style layout that still has the slide-in + backdrop",
+          "rationale": "Preserves scenario-to-desktop's look/feel. Pays off later when iframe-embed wants a drawer overlay on scenario-to-desktop pages — the shared component already exists."
+        },
+        {
+          "key": "B",
+          "label": "Factor the drawer body into SessionDetailPage.tsx: /sessions/:id renders a plain page with the VNC canvas, toolbar, and metrics stacked directly (no backdrop, no slide-in)",
+          "rationale": "Matches what the standalone UI actually is — a full-page management surface. Less code. Cleaner UX for the standalone case. Downside: the phase-2 iframe-embed may want to reintroduce a drawer wrapper, which would be a new component.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Ship both: SessionDetailPage for standalone route, and retain SessionViewer (the drawer) as an exported component for the phase-2 iframe-embed item to reuse",
+          "rationale": "Hedges the iframe-embed future. Downside: two layouts for the same content that must be kept in sync, and a component exported before its caller exists (YAGNI violation)."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Propose a different resolution (e.g., make the drawer wrapper a single-prop flag inside SessionDetailPage)."
+        }
+      ],
+      "selected": "B"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The round-1 validation report flagged 8 missing canonical sections (Purpose, Current Technical Context, Target End State, Implementation Strategy, Contract Decisions, Testing Plan, Rollout/Validation Checklist, Definition of Done) and a missing greenfield declaration. This round's plan.md rewrite restructures to the full 13-section implementation-plan-authoring format, adds the greenfield constraint at the top, and bakes every round-1 resolved decision (d1 router, d2 drop captures, d3 hard-cutover rename, d4 outbound lifecycle events, d5 Zustand-default with optional React Query split) into the relevant sections as settled facts — they are no longer open."
+    }
+  ],
+  "plan_updates": "Full restructure of plan.md to the canonical 13-section implementation-plan-authoring format. Added Greenfield Constraint section at top (per round-1 d3 'hard cutover' user note). Split existing content into: Purpose, Required Reading, Problem Statement, Scope (in/out), Current Technical Context (kept the migration inventory table; added emulator-UI baseline shape and coupling points), Target End State (new — objective criteria for 'done shape'), Implementation Strategy (expanded from 5 to 6 phases: phase 6 is the mandatory cleanup \u0026 health verification step from plan-skill-discovery §3b), Contract Decisions (new — formalizes API paths, routing, captures, naming, iframe-bridge events, state management as explicit contracts), Testing Plan (new named section replacing the old Testability section), Rollout/Validation Checklist (renamed from Verification; expanded with every grep-backed invariant from the plan), Risks + Mitigations (restructured as a table with mitigations explicit), Non-goals/Prohibited Patterns (renamed; merged Non-Goals + Out-of-scope Cleanup + new prohibited patterns around resolveApiBase duplication and hand-built URLs), Definition of Done (new — 7 objective conditions). All five round-1 decisions baked in as settled facts with their selected options cited. Three new round-2 decisions raised for the contract gaps Phase 2 surfaced (payload schema, API mocking, drawer vs page layout). Readiness: problem_clarity and scope_defined now 3 (both acceptance fields set and plan aligns with them); approach_solid and testable held at 2 pending d1-d3 resolution; risk_awareness raised to 3 (risk table with mitigations for every identified risk)."
+}

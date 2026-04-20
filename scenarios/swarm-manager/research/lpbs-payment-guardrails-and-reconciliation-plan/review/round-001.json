@@ -1,0 +1,94 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-17T20:30:00Z",
+  "execution_id": "c4e045d7ebadcc4c",
+  "run_id": "e8d204dc-4f3a-4719-8e63-531d65c753e9",
+  "status": "complete",
+  "agent_assessment": "Research-type deliverable. Verified all 8 findings in conclusion.md against the LPBS API source tree; each claim is supported with matching file:line references. The critical atomicity gap (Finding 6) is directly reproducible at stripe_webhook_service.go:191-195 and :226 — checkout_sessions status update and subscription insert run in separate connections with no shared transaction. Workshop decisions (round-001: d1=A breadth, d2=A ticker, d3=A in-app alerting) line up with the six actions the conclusion proposes. All six action items have been materialized as follow-on backlog items with matching dependency graph. Three minor inaccuracies noted (off-by-one on credit-wallet FOR UPDATE line, function name insertOrUpdateSubscription vs. actual handleSubscriptionCompletion, and Authorize() described as returning a presigned URL when it returns a DownloadAsset); none change the recommendations. Research question is answered and ready to drive execution.",
+  "classification": "ready_with_notes",
+  "notes": [
+    "Finding 1: credit wallet FOR UPDATE is at stripe_credit_service.go:66, not :65 (off-by-one in conclusion).",
+    "Finding 3: the actual function is handleSubscriptionCompletion (stripe_webhook_service.go:230+), not insertOrUpdateSubscription — execute-item plans that depend on the symbol name should correct this reference.",
+    "Finding 4: DownloadAuthorizer.Authorize() returns *DownloadAsset and performs entitlement checks; presigned URL generation happens elsewhere in the download pipeline. The core claim (no delivery-completion tracking) is still correct, but Action 4's implementation plan needs to locate the actual URL-signing seam.",
+    "Finding 7: intro_anomaly_log is defined at main.go:1009-1020, not :1007-1018 (two-line drift).",
+    "All six action items were created as follow-up backlog items (fix/lpbs-checkout-webhook-atomicity, execute/lpbs-stripe-reconciliation-ticker, execute/lpbs-payment-anomaly-log-and-alerts, execute/lpbs-download-delivery-confirmation, execute/lpbs-admin-payment-ops, execute/lpbs-monetization-dashboard), so the research has successfully flowed through to the backlog.",
+    "spec.json shows status='failed' despite conclusion.md being present and substantive — reviewer should decide whether to correct status to 'completed' at archive time."
+  ],
+  "evidence": [
+    {
+      "id": "e1",
+      "type": "custom",
+      "title": "Code-level verification of all 8 findings",
+      "description": "Ran grep/read across scenarios/landing-page-business-suite/api/ to verify every factual claim in conclusion.md. Each finding is annotated with the file:line reference supporting (or adjusting) it. Critical Finding 6 (webhook atomicity gap) is directly reproducible at stripe_webhook_service.go:191-195 (status update via s.db.Exec) followed by :226 call to handleSubscriptionCompletion which opens its own connection at :245 — no shared transaction.",
+      "capture_path": "captures/code-verification.md",
+      "verified": false
+    },
+    {
+      "id": "e2",
+      "type": "custom",
+      "title": "Finding 6 atomicity gap — source excerpt",
+      "description": "The highest-risk finding is exactly as described. In stripe_webhook_service.go:handleCheckoutCompleted, the checkout_sessions.status update (lines 191-195) uses s.db.Exec directly (no transaction), and the subsequent call to handleSubscriptionCompletion (line 226) executes INSERT INTO subscriptions ... ON CONFLICT DO UPDATE (line 245-249) on a separate connection. A failure after the status update commits leaves checkout_sessions marked 'complete' with no subscription row. This is the silent partial-failure mode Action 1 addresses.",
+      "verified": false,
+      "test_results": [
+        {
+          "name": "checkout_sessions status update is outside a transaction",
+          "passed": true,
+          "output_summary": "stripe_webhook_service.go:191-195 uses s.db.Exec() directly; no BEGIN/COMMIT wrapper."
+        },
+        {
+          "name": "subscription insert runs in a different execution context",
+          "passed": true,
+          "output_summary": "stripe_webhook_service.go:226 calls handleSubscriptionCompletion which runs its own INSERT/ON CONFLICT at :245-249; no shared tx handle."
+        },
+        {
+          "name": "Silent partial-failure scenario is reachable",
+          "passed": true,
+          "output_summary": "If the second call errors, status='complete' is already committed. No detection mechanism exists in-tree; intro_anomaly_log does not cover this case."
+        }
+      ]
+    },
+    {
+      "id": "e3",
+      "type": "custom",
+      "title": "Follow-up backlog items materialized",
+      "description": "All six actions listed in conclusion.md have corresponding backlog items in scenarios/swarm-manager/. The dependency graph between them matches the 'Depends on' declarations in the conclusion (Action 2 depends on Action 1; Actions 4/5 depend on Action 3; Action 6 depends on Action 5 and 3).",
+      "verified": false,
+      "test_results": [
+        {"name": "Action 1 → fix/lpbs-checkout-webhook-atomicity exists", "passed": true, "output_summary": "Present in scenarios/swarm-manager/fix/"},
+        {"name": "Action 2 → execute/lpbs-stripe-reconciliation-ticker exists", "passed": true, "output_summary": "Present in scenarios/swarm-manager/execute/"},
+        {"name": "Action 3 → execute/lpbs-payment-anomaly-log-and-alerts exists", "passed": true, "output_summary": "Present in scenarios/swarm-manager/execute/"},
+        {"name": "Action 4 → execute/lpbs-download-delivery-confirmation exists", "passed": true, "output_summary": "Present in scenarios/swarm-manager/execute/"},
+        {"name": "Action 5 → execute/lpbs-admin-payment-ops exists", "passed": true, "output_summary": "Present in scenarios/swarm-manager/execute/"},
+        {"name": "Action 6 → execute/lpbs-monetization-dashboard exists", "passed": true, "output_summary": "Present in scenarios/swarm-manager/execute/"}
+      ]
+    },
+    {
+      "id": "e4",
+      "type": "custom",
+      "title": "Workshop decisions align with the conclusion",
+      "description": "workshop/round-001.json records d1=A (full breadth across all 5 guardrail areas), d2=A (periodic reconciliation job), d3=A (in-app alerting). These selections match the conclusion's six-action breadth, the in-process ticker design for Action 2, and the webhook-dispatcher design for Action 3. The round-2 decisions referenced in conclusion.md (d1=A scheduler choice, d2=B webhook alert delivery, d3=A research completeness) should be cross-checked in workshop/round-002.json and round-003.json before archival but were not re-verified here.",
+      "verified": false
+    }
+  ],
+  "request_threads": [],
+  "improvement_suggestions": [
+    {
+      "category": "other",
+      "description": "Correct spec.json status from 'failed' to 'completed' (or 'archived') before archival — conclusion.md is substantive and the deliverable is complete. Status='failed' will misclassify this item in overview/stats dashboards.",
+      "evidence_id": "e1",
+      "priority": "medium"
+    },
+    {
+      "category": "standards_rule",
+      "description": "Research conclusions that reference specific symbol names and line numbers should be validated by a lint step (or a pre-archive hook) that resolves each file:line/symbol reference against the repo. This would have caught the insertOrUpdateSubscription naming drift and the line-number off-by-ones automatically rather than relying on manual review.",
+      "evidence_id": "e1",
+      "priority": "low"
+    },
+    {
+      "category": "test_coverage",
+      "description": "Action 1's execute item should include a regression test that simulates subscription-insert failure after the checkout_sessions status update and asserts the status update is rolled back (transactional atomicity). Without this test, future refactors could silently reintroduce the gap.",
+      "evidence_id": "e2",
+      "priority": "high"
+    }
+  ]
+}
