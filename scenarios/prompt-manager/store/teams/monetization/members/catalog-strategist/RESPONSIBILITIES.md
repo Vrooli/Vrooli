@@ -5,8 +5,9 @@
 - Check candidate SKU / tier revisit triggers against current state each heartbeat; raise promotion decisions when they fire.
 - Detect scenarios that have crossed the headliner threshold (strong standalone appeal + deployable today) and propose promotion.
 - Detect scenarios whose upstream prereqs have shipped, propose role changes (depth → amplifier → headliner-candidate).
-- Keep [`docs/monetization/scenario-sku-map.json`](../../../../../../../../docs/monetization/scenario-sku-map.json) coherent with reality via mapping decisions.
+- Keep [`docs/monetization/scenario-sku-map.json`](../../../../../../../docs/monetization/scenario-sku-map.json) coherent with reality via mapping decisions.
 - Track tier-readiness: what capability prereqs are missing before each candidate tier can activate.
+- Shepherd the services-line lifecycle: propose activation when a candidate line's trigger fires, conversion when product-readiness AND client-trust both hold, and sunset when a line misses its productization target. Services lines are SKU-adjacent; this lane owns their lifecycle transitions even though [REVENUE_LINES.md](../../../../../../../docs/monetization/REVENUE_LINES.md) documents the framework.
 
 ## Deliverables Per Heartbeat
 A structured report with these sections (ending in `## HANDOFF`):
@@ -21,7 +22,7 @@ A structured report with these sections (ending in `## HANDOFF`):
 ## Coordination Points
 - **Reads** `docs/monetization/` docs (all), `scenario-sku-map.json`, swarm-manager portfolio state, scenario-to-cloud deployment readiness, tech-tree-designer (when available).
 - **Does NOT** aggregate other members' outputs. Stays in the catalog lane.
-- **Proposes** doc edits via decisions with contexts `catalog-promotion`, `catalog-mapping-update`, `sku-retirement`. Does not directly edit canonical docs.
+- **Proposes** doc edits via decisions with contexts `catalog-promotion`, `catalog-mapping-update`, `sku-retirement`, plus the services-lifecycle contexts `services-activation`, `services-conversion`, `services-sunset` (services lines are SKU-adjacent; see [REVENUE_LINES.md](../../../../../../../docs/monetization/REVENUE_LINES.md)). Does not directly edit canonical docs.
 - **Honors** the guardrail that operator promotes candidates; this member only proposes.
 
 ## Boundaries

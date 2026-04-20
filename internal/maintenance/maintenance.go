@@ -1,6 +1,7 @@
 package maintenance
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/network"
+	"github.com/vrooli/vrooli/internal/portspec"
 	"github.com/vrooli/vrooli/internal/process"
 )
 
@@ -38,6 +40,22 @@ type PortDiagnostic struct {
 	Lock               *LockInfo                  `json:"lock,omitempty"`
 	HostOrphanCount    int                        `json:"host_orphan_count"`
 	Recommendations    []string                   `json:"recommendations,omitempty"`
+
+	// PortPolicy surfaces the ephemeral-range policy check so operators can
+	// tell at a glance whether the conflict is a real orphan listener or a
+	// kernel source-port steal. Populated on every diagnose call.
+	PortPolicy PortPolicyReport `json:"port_policy"`
+}
+
+// PortPolicyReport captures whether the port sits inside the OS's live
+// ephemeral window and which canonical Vrooli band (if any) it belongs to.
+type PortPolicyReport struct {
+	EphemeralMin         int    `json:"ephemeral_min"`
+	EphemeralMax         int    `json:"ephemeral_max"`
+	EphemeralSource      string `json:"ephemeral_source"`
+	InsideEphemeralRange bool   `json:"inside_ephemeral_range"`
+	CanonicalBand        string `json:"canonical_band"` // "api", "ui", "ws", "headroom", "" if outside
+	AboveCanonicalMax    bool   `json:"above_canonical_max"`
 }
 
 var (
@@ -233,13 +251,44 @@ func (c *Controller) DiagnosePort(port int, scenarioName string) (PortDiagnostic
 		ListenerInspection: inspection.Inspection,
 		Lock:               lock,
 		HostOrphanCount:    snapshot.OrphanProcesses,
+		PortPolicy:         describePortPolicy(port),
 	}
 	diagnostic.Recommendations = buildRecommendations(port, diagnostic)
 	return diagnostic, nil
 }
 
+// describePortPolicy classifies a port against the live OS ephemeral window
+// and the canonical Vrooli bands. It always returns a populated report so
+// JSON consumers can rely on the field existing.
+func describePortPolicy(port int) PortPolicyReport {
+	eph := portspec.OSEphemeralRange(context.Background())
+	band := ""
+	if role, ok := portspec.CanonicalBand(port); ok {
+		band = string(role)
+	}
+	return PortPolicyReport{
+		EphemeralMin:         eph.Min,
+		EphemeralMax:         eph.Max,
+		EphemeralSource:      eph.Source,
+		InsideEphemeralRange: eph.Contains(port),
+		CanonicalBand:        band,
+		AboveCanonicalMax:    portspec.IsAboveCanonicalMax(port),
+	}
+}
+
 func buildRecommendations(port int, diagnostic PortDiagnostic) []string {
-	recommendations := make([]string, 0, 4)
+	recommendations := make([]string, 0, 5)
+	if diagnostic.PortPolicy.InsideEphemeralRange {
+		recommendations = append(recommendations, fmt.Sprintf(
+			"Port %d sits inside the OS ephemeral range %d-%d (source=%s); see docs/reference/port-allocation.md and run `go run ./cmd/vrooli-ports-migrate` to move it into a canonical band.",
+			port, diagnostic.PortPolicy.EphemeralMin, diagnostic.PortPolicy.EphemeralMax, diagnostic.PortPolicy.EphemeralSource,
+		))
+	} else if diagnostic.PortPolicy.AboveCanonicalMax && !diagnostic.PortPolicy.InsideEphemeralRange {
+		recommendations = append(recommendations, fmt.Sprintf(
+			"Port %d is above the canonical safe zone (<=%d); consider moving it to keep parity with other OSes.",
+			port, portspec.CanonicalMax,
+		))
+	}
 	if diagnostic.Lock != nil && diagnostic.Lock.Stale {
 		recommendations = append(recommendations, fmt.Sprintf("Clean stale lock file %s", diagnostic.Lock.Path))
 	}

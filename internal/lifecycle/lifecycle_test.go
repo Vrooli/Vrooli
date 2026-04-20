@@ -20,6 +20,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/hostreqrun"
 	"github.com/vrooli/vrooli/internal/network"
+	"github.com/vrooli/vrooli/internal/ports"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/projectstate"
 	"github.com/vrooli/vrooli/internal/resources"
@@ -1845,8 +1846,10 @@ func TestKillOrphansOnPortsUsesInjectedListenerAndSignalSeams(t *testing.T) {
 	}
 }
 
-func TestCleanupFixedPortOrphansKillsOnlyManagedSameScenarioListeners(t *testing.T) {
-	item := scenario.Scenario{
+// orphanScenarioItem builds a fixture with two fixed ports and the three
+// shared listener PIDs used by the start-time cleanup tests below.
+func orphanScenarioItem() scenario.Scenario {
+	return scenario.Scenario{
 		Slug: "alpha",
 		Manifest: scenario.ServiceManifest{
 			Ports: map[string]scenario.Port{
@@ -1855,55 +1858,94 @@ func TestCleanupFixedPortOrphansKillsOnlyManagedSameScenarioListeners(t *testing
 			},
 		},
 	}
+}
 
-	var signaled []string
-	runner := &Runner{
-		deps: lifecycleDeps{
-			inspectPort: func(port int) (network.PortInspection, error) {
-				switch port {
-				case 36235:
-					return network.PortInspection{
-						Inspection: network.ListenerInspection{Available: true, Tool: "stub"},
-						Listeners: []network.PortListener{
-							{PID: 101},
-							{PID: 202},
-						},
-					}, nil
-				case 18800:
-					return network.PortInspection{
-						Inspection: network.ListenerInspection{Available: true, Tool: "stub"},
-						Listeners:  []network.PortListener{{PID: 303}},
-					}, nil
-				default:
-					return network.PortInspection{}, nil
-				}
-			},
-			readProcessEnv: func(pid int) (map[string]string, error) {
-				switch pid {
-				case 101:
-					return map[string]string{
-						"VROOLI_LIFECYCLE_MANAGED": "true",
-						"VROOLI_SCENARIO":          "alpha",
-					}, nil
-				case 202:
-					return map[string]string{
-						"VROOLI_LIFECYCLE_MANAGED": "true",
-						"VROOLI_SCENARIO":          "beta",
-					}, nil
-				case 303:
-					return map[string]string{}, nil
-				default:
-					return map[string]string{}, nil
-				}
-			},
-			signalPID: func(pid int, force bool) error {
-				signaled = append(signaled, fmt.Sprintf("%d:%t", pid, force))
-				return nil
-			},
-			isPIDRunning: func(pid int) bool { return pid == 101 },
-			sleep:        func(time.Duration) {},
+func orphanLifecycleDeps(signaled *[]string) lifecycleDeps {
+	return lifecycleDeps{
+		inspectPort: func(port int) (network.PortInspection, error) {
+			switch port {
+			case 36235:
+				return network.PortInspection{
+					Inspection: network.ListenerInspection{Available: true, Tool: "stub"},
+					Listeners: []network.PortListener{
+						{PID: 101},
+						{PID: 202},
+					},
+				}, nil
+			case 18800:
+				return network.PortInspection{
+					Inspection: network.ListenerInspection{Available: true, Tool: "stub"},
+					Listeners:  []network.PortListener{{PID: 303}},
+				}, nil
+			default:
+				return network.PortInspection{}, nil
+			}
 		},
+		readProcessEnv: func(pid int) (map[string]string, error) {
+			switch pid {
+			case 101:
+				return map[string]string{
+					"VROOLI_LIFECYCLE_MANAGED": "true",
+					"VROOLI_SCENARIO":          "alpha",
+				}, nil
+			case 202:
+				return map[string]string{
+					"VROOLI_LIFECYCLE_MANAGED": "true",
+					"VROOLI_SCENARIO":          "beta",
+				}, nil
+			case 303:
+				return map[string]string{}, nil
+			default:
+				return map[string]string{}, nil
+			}
+		},
+		signalPID: func(pid int, force bool) error {
+			*signaled = append(*signaled, fmt.Sprintf("%d:%t", pid, force))
+			return nil
+		},
+		isPIDRunning: func(pid int) bool { return pid == 101 || pid == 303 },
+		sleep:        func(time.Duration) {},
 	}
+}
+
+// TestCleanupFixedPortOrphans_Aggressive covers the default behavior: kill
+// same-scenario env-matched listeners AND env-less orphans on canonical
+// ports, but never listeners owned by a different scenario.
+func TestCleanupFixedPortOrphans_Aggressive(t *testing.T) {
+	item := orphanScenarioItem()
+	var signaled []string
+	runner := &Runner{deps: orphanLifecycleDeps(&signaled)}
+
+	if err := runner.cleanupFixedPortOrphans(item, nil); err != nil {
+		t.Fatalf("cleanupFixedPortOrphans: %v", err)
+	}
+
+	// PID 101 (alpha-owned) AND PID 303 (env-less orphan) both killed.
+	// PID 202 (beta-owned) is left alone to preserve cross-scenario safety.
+	signaledSet := map[string]bool{}
+	for _, s := range signaled {
+		signaledSet[s] = true
+	}
+	if !signaledSet["101:false"] || !signaledSet["101:true"] {
+		t.Errorf("env-matched PID 101 not signaled (SIGTERM+SIGKILL): %v", signaled)
+	}
+	if !signaledSet["303:false"] || !signaledSet["303:true"] {
+		t.Errorf("env-less orphan PID 303 should be killed via aggressive fallback: %v", signaled)
+	}
+	if signaledSet["202:false"] || signaledSet["202:true"] {
+		t.Errorf("beta-scenario PID 202 must not be killed: %v", signaled)
+	}
+}
+
+// TestCleanupFixedPortOrphans_StrictPreservesOldBehavior proves that
+// VROOLI_PORT_ORPHAN_STRICT=true reverts to the conservative "kill only
+// env-matched listeners" behavior for debugging or manual inspection.
+func TestCleanupFixedPortOrphans_StrictPreservesOldBehavior(t *testing.T) {
+	t.Setenv("VROOLI_PORT_ORPHAN_STRICT", "true")
+
+	item := orphanScenarioItem()
+	var signaled []string
+	runner := &Runner{deps: orphanLifecycleDeps(&signaled)}
 
 	if err := runner.cleanupFixedPortOrphans(item, nil); err != nil {
 		t.Fatalf("cleanupFixedPortOrphans: %v", err)
@@ -1941,6 +1983,120 @@ func TestCleanupFixedPortOrphansSkipsTrackedRuntimeOwner(t *testing.T) {
 
 	if err := runner.cleanupFixedPortOrphans(item, []process.Record{{PID: os.Getpid(), Port: 36235}}); err != nil {
 		t.Fatalf("cleanupFixedPortOrphans: %v", err)
+	}
+}
+
+func TestVerifyPortsReleased_HappyPath(t *testing.T) {
+	calls := 0
+	runner := &Runner{
+		deps: lifecycleDeps{
+			listeningPIDs: func(port int) ([]int, error) {
+				calls++
+				return nil, nil
+			},
+			sleep: func(time.Duration) {},
+		},
+	}
+	if err := runner.verifyPortsReleased("alpha", map[int]struct{}{21234: {}}); err != nil {
+		t.Fatalf("verifyPortsReleased: %v", err)
+	}
+	if calls != 1 {
+		t.Errorf("listeningPIDs called %d times, want 1 (single poll, empty result)", calls)
+	}
+}
+
+func TestVerifyPortsReleased_StillBoundFails(t *testing.T) {
+	runner := &Runner{
+		deps: lifecycleDeps{
+			listeningPIDs: func(port int) ([]int, error) {
+				return []int{99}, nil
+			},
+			sleep: func(time.Duration) {},
+		},
+	}
+	err := runner.verifyPortsReleased("alpha", map[int]struct{}{21234: {}})
+	if err == nil {
+		t.Fatal("expected error when port stays bound")
+	}
+	if !strings.Contains(err.Error(), "still bound") {
+		t.Errorf("error missing 'still bound': %v", err)
+	}
+}
+
+func TestVerifyPortsReleased_EventuallyFreesSucceeds(t *testing.T) {
+	polls := 0
+	runner := &Runner{
+		deps: lifecycleDeps{
+			listeningPIDs: func(port int) ([]int, error) {
+				polls++
+				if polls < 3 {
+					return []int{99}, nil
+				}
+				return nil, nil
+			},
+			sleep: func(time.Duration) {},
+		},
+	}
+	if err := runner.verifyPortsReleased("alpha", map[int]struct{}{21234: {}}); err != nil {
+		t.Fatalf("verifyPortsReleased: %v", err)
+	}
+	if polls < 3 {
+		t.Errorf("expected at least 3 polls, got %d", polls)
+	}
+}
+
+func TestVerifyPortsReleased_EmptyPortSetSkips(t *testing.T) {
+	runner := &Runner{deps: lifecycleDeps{}}
+	if err := runner.verifyPortsReleased("alpha", nil); err != nil {
+		t.Errorf("empty portsToCheck should be no-op: %v", err)
+	}
+}
+
+func TestConfirmFixedPortLocks_UpdatesLockToRealPID(t *testing.T) {
+	root := t.TempDir()
+	testresource.WritePortRegistry(t, root, nil)
+	home := t.TempDir()
+	manager, err := ports.NewManager(root, home)
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	// Seed a lock with the lifecycle runner's PID (simulating what
+	// allocatePortDefinition currently does).
+	if err := manager.WriteLock(21234, "swarm-manager", os.Getpid()); err != nil {
+		t.Fatalf("WriteLock: %v", err)
+	}
+
+	item := scenario.Scenario{
+		Slug: "swarm-manager",
+		Manifest: scenario.ServiceManifest{
+			Ports: map[string]scenario.Port{
+				"ui": {EnvVar: "UI_PORT", Port: intPtr(21234)},
+			},
+		},
+	}
+
+	runner := &Runner{
+		Ports: manager,
+		deps: lifecycleDeps{
+			inspectPort: func(port int) (network.PortInspection, error) {
+				if port != 21234 {
+					return network.PortInspection{}, nil
+				}
+				return network.PortInspection{
+					Inspection: network.ListenerInspection{Available: true, Tool: "stub"},
+					Listeners:  []network.PortListener{{PID: 4242}},
+				}, nil
+			},
+		},
+	}
+	runner.confirmFixedPortLocks(item)
+
+	lock, exists, err := manager.ReadLock(21234)
+	if err != nil || !exists {
+		t.Fatalf("lock missing: %v exists=%v", err, exists)
+	}
+	if lock.PID != 4242 {
+		t.Errorf("lock PID = %d, want 4242 (real listener)", lock.PID)
 	}
 }
 

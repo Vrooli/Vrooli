@@ -1251,13 +1251,6 @@ func buildApplyPrompt(template string, investigationRunID uuid.UUID, customConte
 	return sb.String()
 }
 
-func investigationProfileRef() *ProfileRef {
-	return &ProfileRef{
-		ProfileKey: investigationProfileKey,
-		Defaults:   defaultInvestigationProfile(),
-	}
-}
-
 // investigationProfileRefWithOverrides applies caller-provided runner/preset overrides
 // on top of the default investigation profile. Nil overrides preserve the defaults.
 func investigationProfileRefWithOverrides(runnerType *domain.RunnerType, preset *domain.ModelPreset) *ProfileRef {
@@ -1266,13 +1259,6 @@ func investigationProfileRefWithOverrides(runnerType *domain.RunnerType, preset 
 	return &ProfileRef{
 		ProfileKey: investigationProfileKey,
 		Defaults:   defaults,
-	}
-}
-
-func applyInvestigationProfileRef() *ProfileRef {
-	return &ProfileRef{
-		ProfileKey: investigationApplyProfileKey,
-		Defaults:   defaultApplyInvestigationProfile(),
 	}
 }
 

@@ -21,11 +21,11 @@ Each member has an AGENTS.md, SOUL.md, TOOLS.md under `store/agents/<member>/` a
 
 1. **Default focus is `active` SKUs and the active tier.** Candidate SKUs and candidate tiers are read only to check their revisit triggers. Do not re-evaluate dormant candidates every heartbeat.
 2. **No candidate without an explicit revisit trigger.** When opportunity-scout captures a candidate or catalog-strategist promotes an idea to candidate, a concrete trigger condition must be attached. Vibes are not triggers.
-3. **Agents propose doc edits via decisions. The operator curates canonical docs.** No member writes directly to the files in `docs/monetization/`. Doc changes happen through decisions with contexts listed below.
+3. **Agents propose doc edits via decisions. The operator curates canonical docs.** No member writes directly to the files in `docs/monetization/`. Doc changes happen through decisions with contexts listed below. **Carve-out:** [`shared/operator-inputs.json`](operator-inputs.json) is operator *state*, not team-curated canon. The operator edits it directly (not via decisions); `financial-tracker` reads it to source cash, burn categories, time allocation, and services data. Gathering guidance lives in [`docs/monetization/HOW_TO_GATHER_INPUTS.md`](../../../../../../docs/monetization/HOW_TO_GATHER_INPUTS.md).
 4. **Honesty flags are mandatory on every number.** Every metric emitted is labeled `fixed`, `estimate`, `aspirational`, `measured`, or `pending-telemetry`. Unlabeled numbers are guardrail violations.
 5. **Open-source self-host is strategic positioning.** Frame the subscription as convenience + integrated gateway. Do NOT frame it as paywalling core features. If an output reads as "users who go free are leaking revenue," the framing is broken.
 6. **Agents are the expansion engine.** When proposing acquisition, activation, upsell, or retention mechanisms, default to agent-driven surfaces. Fall back to marketing/email/pop-ups only when agents cannot reach the relevant moment.
-7. **Services are a bridge, not a business.** Every active services revenue line must have a hypothesis, a fixed-duration pilot, a productization target, and a sunset/convert clause. Services revenue is tracked separately from subscription revenue.
+7. **Services are a deliberate lever, not a business.** Scenarios are double-revenue assets — sold as products AND operated by us for paying clients (the same shovels we sell are the shovels we use to dig for gold). Services are expected to activate in the post-bundle / pre-default-alive window and produce meaningful revenue, but every active line must have a hypothesis, a fixed-duration pilot, a productization target, and a sunset/convert clause. Services revenue is tracked separately from subscription revenue. The discipline exists because we intend to lean into this lever — not to suppress it.
 8. **Tier 4 (hardware) is north-star.** Do not plan work against it without explicit operator initiation.
 9. **Every scenario proposal articulates both acquisition AND retention impact.** Scenarios evaluated only on acquisition appeal will starve the retention side of the funnel.
 10. **Activation work is retention work.** Most churn is failed activation. When the team proposes retention investments, check whether the real issue is activation first.
@@ -51,8 +51,59 @@ Members surface decisions with these contexts. The operator reviews them at the 
 - `benchmark-update` — new or refreshed market benchmark
 - `funnel-bottleneck` — a funnel stage is identified as the current bottleneck
 - `retention-concern` — a retention metric materially worse than target
+- `decision-rejection-proposed` — contrarian formally recommends rejecting or revising a pending proposal after it fails multiple failure modes
+- `framework-update` — contrarian identifies a real flaw not covered by the existing seven failure modes and proposes updating the framework
 
 Keep decision descriptions short, concrete, and tied to a specific action the operator can take or defer.
+
+## Decision Queue Discipline
+
+The monetization team produces decisions into a single queue the operator reviews at the morning vision walk. The following rules keep the queue sized to the operator's actual review rate, not the agents' emission rate.
+
+### Supersession over stacking (mandatory)
+
+Before any member creates a new pending decision, it **must** check existing pending decisions in its owned context list. If a pending decision is obsolete or redundant with a fresher take, the member:
+
+1. Marks the prior decision `superseded`
+2. Creates the new decision with a `supersedes: <prior-decision-id>` reference
+3. Does **not** stack a second decision on the same underlying question
+
+Stacking (creating a new decision alongside a superseded-in-spirit prior one) is a guardrail violation. This matches the director-swarm pattern visible in its handoff-history (`"Supersedes dec-..."`).
+
+### Per-member context enumeration
+
+Each member's stop-early thresholds are computed against an explicit context list, not a fuzzy "my contexts" reference:
+
+- **catalog-strategist:** `catalog-promotion`, `catalog-mapping-update`, `sku-retirement`, `services-activation`, `services-conversion`, `services-sunset`
+- **opportunity-scout:** `catalog-promotion` (only via direct promotion; opportunity-pool entries in `opportunities.jsonl` are not decisions)
+- **financial-tracker:** `runway-warning`, `services-trap-warning`, `pricing-decision`, `financial-model-assumption-update`, `funnel-bottleneck`, `retention-concern`
+- **market-validator:** `benchmark-update`, `pricing-decision`, `financial-model-assumption-update`
+- **contrarian:** `decision-rejection-proposed`, `framework-update`
+
+Overlaps (e.g., `pricing-decision` is owned by both financial-tracker and market-validator) are expected. Each member only counts its owned contexts when evaluating its own stop-early threshold.
+
+Services-* contexts live with `catalog-strategist` because services activation / conversion / sunset are SKU-adjacent lifecycle transitions (catalog-strategist already owns SKU lifecycle). Opportunity-scout surfaces services-line candidates in `opportunities.jsonl`; catalog-strategist promotes them. Financial-tracker owns funnel-bottleneck and retention-concern because both surface from the same metric-delta analysis the tracker already performs — and they ride the same `pending-telemetry` flags while funnel data is unmeasured.
+
+### Team-level ceiling
+
+**If total pending monetization decisions exceed 12, all members shift to read-only mode.** Every member's heartbeat, before doing anything else, queries `prompt-manager team decision-list monetization --status=pending --json` and counts the result. If the count is ≥12, the member:
+
+- Skips new-decision creation entirely this heartbeat
+- Still writes its knowledge snapshot (ledger entry, catalog snapshot, scout scan, market scan, etc.)
+- Still performs supersession if it can collapse any existing pending decisions (supersession shrinks the queue; it's the only decision-write allowed in read-only mode)
+- Reports in its handoff: *"Team queue at capacity ([count] pending). Read-only mode this heartbeat."*
+
+12 is a starting number tuned for a ~3/day operator review rate. Revisit after observing real flow.
+
+### Aging policy
+
+A pending decision older than **14 heartbeats** (≈14 days at daily cadence) is considered stale. The `contrarian`'s loop includes a dedicated scan for aged decisions each heartbeat. For each stale pending decision, the contrarian:
+
+- Proposes supersession if a fresher equivalent exists in the recent history
+- Proposes rejection (via `decision-rejection-proposed`) if it's no longer actionable
+- Writes a one-line challenge note explaining why it's still relevant if it should stay pending
+
+This prevents the queue from ossifying with decisions the operator will never address but won't explicitly close.
 
 ## Shared State
 Under `store/teams/monetization/shared/`:
@@ -64,14 +115,34 @@ Under `store/teams/monetization/shared/`:
 - `ledger.jsonl` — financial-tracker's heartbeat snapshots (cost, MRR, time allocation, runway, default-alive gap, deltas, flags)
 - `opportunities.jsonl` — opportunity-scout's idea pool with SKU classification and proposed revisit triggers
 - `market-scans.jsonl` — market-validator's benchmark captures, competitive observations, assumption validations
+- `operator-inputs.json` — operator-provided financial state (cash, burn categories, time allocation, services data). Operator edits directly per the carve-out in operating rule 3. Gathering guidance: [`docs/monetization/HOW_TO_GATHER_INPUTS.md`](../../../../../../docs/monetization/HOW_TO_GATHER_INPUTS.md).
 
 Durable canonical docs live at project level in `docs/monetization/` — read-only for the team during heartbeats, editable only by the operator via accepted decisions.
+
+### Knowledge supersession policy
+
+Members emit snapshot-style knowledge entries every heartbeat. To prevent `knowledge.jsonl` from bloating with daily near-duplicates, snapshot entries **must** reference the prior same-type entry via the `"supersedes"` field, matching the director-swarm pattern.
+
+Topic families that supersede:
+
+- `catalog-snapshot-YYYY-MM-DD` (catalog-strategist) — supersedes the most recent `catalog-snapshot-*`
+- `ledger-snapshot-YYYY-MM-DD` (financial-tracker) — supersedes the most recent `ledger-snapshot-*`
+- `scout-scan-YYYY-MM-DD` (opportunity-scout) — supersedes the most recent `scout-scan-*`
+- `market-scan-YYYY-MM-DD` (market-validator) — supersedes the most recent `market-scan-*`
+
+Topic families that do **not** supersede (append-only historical record):
+
+- `challenge-note/<decision-id>` (contrarian) — one per challenged decision, kept forever
+- `decision-application/<decision-id>` — one per applied decision, kept forever
+- Any operator-authored knowledge entry — kept forever
+
+Operational exhaust in `.jsonl` files outside `knowledge.jsonl` (ledger.jsonl, opportunities.jsonl, market-scans.jsonl, handoff-history.jsonl, decisions.jsonl) is append-only time-series and never supersedes. Supersession applies only to snapshot-style entries in `knowledge.jsonl`.
 
 ## Source-of-truth Docs (canonical)
 These are under `docs/monetization/` at the repo root. Paths below are relative to the repo root; members' HEARTBEAT.md files reference them via the `DOCS_ROOT` pointer below.
 
 Relative to repo root:
-- [`docs/monetization/STRATEGY.md`](../../../../../../docs/monetization/STRATEGY.md) — narrative + principles + north-stars
+- [`docs/monetization/STRATEGY.md`](../../../../../../docs/monetization/STRATEGY.md) — narrative + principles + long-term directions
 - [`docs/monetization/CATALOG.md`](../../../../../../docs/monetization/CATALOG.md) — SKU index + lifecycle + guardrails
 - [`docs/monetization/catalog/base/business.md`](../../../../../../docs/monetization/catalog/base/business.md) — business bundle detail
 - [`docs/monetization/catalog/base/lifestyle.md`](../../../../../../docs/monetization/catalog/base/lifestyle.md) — lifestyle bundle detail
@@ -83,6 +154,7 @@ Relative to repo root:
 - [`docs/monetization/REVENUE_LINES.md`](../../../../../../docs/monetization/REVENUE_LINES.md) — subscription + services lines with discipline rules
 - [`docs/monetization/TELEMETRY_ROADMAP.md`](../../../../../../docs/monetization/TELEMETRY_ROADMAP.md) — metric-to-capability gap map
 - [`docs/monetization/BENCHMARKS.md`](../../../../../../docs/monetization/BENCHMARKS.md) — market-validator's curated benchmarks
+- [`docs/monetization/HOW_TO_GATHER_INPUTS.md`](../../../../../../docs/monetization/HOW_TO_GATHER_INPUTS.md) — per-field guidance for `shared/operator-inputs.json`
 - [`docs/monetization/scenario-sku-map.json`](../../../../../../docs/monetization/scenario-sku-map.json) — scenario-to-SKU many-to-many mapping
 
 **DOCS_ROOT:** `docs/monetization/` (from repo root). Member HEARTBEAT.md files reference this path.
@@ -90,7 +162,7 @@ Relative to repo root:
 ## Cross-Team Coordination
 The monetization team is the **canonical source** for monetization state. Other teams consume its outputs:
 
-- **director-swarm** reads `CATALOG.md` for the revenue critical path rather than deriving it ad-hoc each heartbeat.
+- **director-swarm** reads `CATALOG.md` for the revenue critical path rather than deriving it ad-hoc. Specifically wired today: `portfolio-manager` (reads CATALOG + business.md + scenario-sku-map.json each heartbeat to weight Now/Near/Far) and `vision-walk-prep` (reads CATALOG for the bundle-roadmap section of the morning briefing). `outcome-strategist` will consume monetization signals once it is re-enabled alongside Command Center — not wired today because the member itself is disabled.
 - **scenario-feature** reads `CATALOG.md` and `scenario-sku-map.json` before scoping new work, so features map to bundle impact.
 - **marketing-crew** reads `CATALOG.md` + `STRATEGY.md` for positioning.
 - **scenario-qa** has no direct dependency; indirectly their quality work affects depth-layer readiness.

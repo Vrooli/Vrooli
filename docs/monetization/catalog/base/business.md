@@ -18,7 +18,7 @@ Scenarios that are compelling on their own AND deployable with today's capabilit
 | `web-console` | Standalone appeal: lets a solo operator manage their own infrastructure without learning cloud-provider UIs. Compelling pitch on its own. | Deployable |
 | `git-control-tower` | Standalone appeal: a powerful Git workflow surface. Can operate without its optional dependencies (agent-manager, etc.). Strong acquisition draw for developers. | Deployable |
 
-A third headliner candidate is under evaluation — likely whichever mature scenario is closest to headliner-eligible next. Catalog-strategist proposes promotions.
+Additional headliners are not pre-nominated. Depth-layer scenarios promote into the headliner set only when their prereqs ship and they cross the standalone-appeal + deployable-today bar. Catalog-strategist proposes each promotion via a `catalog-promotion` decision when it detects a crossing; the operator decides.
 
 ## Depth layer
 

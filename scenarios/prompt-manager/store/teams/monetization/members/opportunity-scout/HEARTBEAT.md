@@ -40,16 +40,18 @@ Read own state:
 
 ## Required Loop
 
-1. Read your last handoff and the last ~7 days of `opportunities.jsonl` entries.
-2. Read recent vision-walk knowledge entries from director-swarm (operator's latest thinking).
-3. Read recent scenario changes / new PRDs to detect new capability surfaces.
-4. Generate **3-10 candidate ideas** based on signal. Quality over volume — if the signal is thin, generate fewer rather than inventing.
-5. For each idea, classify + compose acquisition + retention hypotheses + revisit trigger.
-6. Dedupe against existing `opportunities.jsonl` entries — if an idea already exists, update its entry with new signal rather than re-adding.
-7. Append new entries to `shared/opportunities.jsonl` in the entry schema below.
-8. If any candidate deserves a dedicated doc file (high signal, strong fit, operator should decide now), raise at most 3 `catalog-promotion` decisions.
-9. Write one knowledge entry with topic `scout-scan-YYYY-MM-DD` summarizing what was scanned and what the strongest new ideas were.
-10. End with `## HANDOFF`.
+1. **Team-ceiling check.** Query `prompt-manager team decision-list monetization --status=pending --json` and count results. If ≥12, shift to read-only: skip direct-promotion decision creation (step 9) but continue scanning, writing to `opportunities.jsonl`, and supersession. Appending to `opportunities.jsonl` is allowed in read-only mode — the pool is operational exhaust, not a decision stream.
+2. Read your last handoff and the last ~7 days of `opportunities.jsonl` entries.
+3. Read recent vision-walk knowledge entries from director-swarm (operator's latest thinking).
+4. Read recent scenario changes / new PRDs to detect new capability surfaces.
+5. Read pending decisions in your owned context (`catalog-promotion`) to understand what direct-promotion proposals are already in flight.
+6. Generate **3-10 candidate ideas** based on signal. Quality over volume — if the signal is thin, generate fewer rather than inventing.
+7. For each idea, classify + compose acquisition + retention hypotheses + revisit trigger. Dedupe against existing `opportunities.jsonl` entries — if an idea already exists, update its entry with new signal rather than re-adding.
+8. Append new entries to `shared/opportunities.jsonl` in the entry schema below.
+9. **Supersession check (runs even in read-only mode).** For each pending `catalog-promotion` decision you raised previously, check whether the latest opportunity data supersedes it (e.g., the candidate's trigger has now fired more precisely, or a related idea has overtaken it). If yes, mark the prior decision `superseded` and include `supersedes: <prior-decision-id>` when creating the replacement.
+10. If any candidate deserves a dedicated doc file (high signal, strong fit, operator should decide now), raise at most 3 `catalog-promotion` decisions. Skip entirely if in read-only mode.
+11. Write one knowledge entry with topic `scout-scan-YYYY-MM-DD` summarizing what was scanned and what the strongest new ideas were. **Must include a `"supersedes"` field pointing at the prior `scout-scan-*` knowledge entry's id** (per the supersession policy in TEAM.md). Opportunities.jsonl entries themselves are append-only and do not supersede.
+12. End with `## HANDOFF`.
 
 ## Entry Schema for opportunities.jsonl
 
@@ -107,5 +109,6 @@ Read own state:
 ```
 
 ## Stop Conditions
-- If the pool has >3 pending `catalog-promotion` decisions already, do not raise more — the operator is behind.
-- If external signal is genuinely thin, generate fewer ideas rather than fabricating. It is valid to emit 0-2 ideas in a quiet heartbeat.
+- **Team-ceiling.** If total pending monetization decisions ≥12, shift to read-only: do not raise new `catalog-promotion` decisions. Supersession of existing ones is still allowed.
+- **Own-context cap.** If 3 or more `catalog-promotion` decisions are already pending, do not raise additional new ones — but still perform supersession on obsolete ones.
+- **Quiet signal.** If external signal is genuinely thin, generate fewer ideas rather than fabricating. It is valid to emit 0-2 ideas in a quiet heartbeat.

@@ -295,6 +295,12 @@ func (r *Runner) startWithState(name string, opts StartOptions, ready map[string
 	if err != nil {
 		return Result{}, err
 	}
+	// Port policy is enforced here rather than inside scenario.ReadService so
+	// that Stop, Status, List, and other observation-only paths can still
+	// operate on manifests whose ports pre-date the canonical bands.
+	if err := scenario.ValidateManifestPorts(item.ServicePath, item.Manifest.Ports); err != nil {
+		return Result{}, err
+	}
 	return r.startScenario(item, opts, ready, stack)
 }
 
@@ -402,6 +408,13 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 	if err != nil {
 		return Result{}, err
 	}
+
+	// Upgrade each fixed-port lock to record the real listener PID now that
+	// the health check confirmed the binary bound. ensurePortClaimed wrote
+	// the lock with the lifecycle runner's PID, so without this upgrade the
+	// next ensurePortClaimed call would incorrectly trust the runner's PID
+	// as proof the listener is alive.
+	r.confirmFixedPortLocks(item)
 
 	if len(failedDeps) > 0 {
 		r.logWarn("Scenario started in degraded mode",
@@ -536,6 +549,10 @@ func (r *Runner) cleanupScenarioRuntime(name, customPath string, includeManifest
 		return err
 	}
 
+	if err := r.verifyPortsReleased(name, portsToCheck); err != nil {
+		return err
+	}
+
 	if err := r.Ports.RemoveScenarioLocks(name); err != nil {
 		return err
 	}
@@ -639,6 +656,86 @@ func (r *Runner) logError(msg string, err error, args ...any) {
 	logx.Error(r.logger(), msg, err, args...)
 }
 
+// confirmFixedPortLocks upgrades every fixed-port lock to point at the real
+// listener PID observed via inspectPort. Errors are logged and swallowed;
+// lock-confirmation is advisory and must never fail a healthy start.
+func (r *Runner) confirmFixedPortLocks(item scenario.Scenario) {
+	deps := r.runtimeDeps()
+	for _, portSummary := range item.Manifest.SortedPorts() {
+		if portSummary.FixedPort == nil {
+			continue
+		}
+		port := *portSummary.FixedPort
+		inspection, err := deps.inspectPort(port)
+		if err != nil || !inspection.Inspection.Available {
+			continue
+		}
+		if len(inspection.Listeners) == 0 {
+			continue
+		}
+		realPID := inspection.Listeners[0].PID
+		if realPID <= 0 {
+			continue
+		}
+		if err := r.Ports.ConfirmLock(port, item.Slug, realPID); err != nil {
+			r.logWarn("ConfirmLock failed",
+				logx.AttrScenario, item.Slug,
+				"port", port,
+				"pid", realPID,
+				"err", err.Error())
+		}
+	}
+}
+
+// verifyPortsReleased polls each port for up to ~2 s after the kill loop and
+// returns a loud error if any are still held. Surfacing this at stop time
+// lets Restart fail fast with a diagnostic rather than silently racing into
+// a Start that will itself fail with the generic "port already in use".
+func (r *Runner) verifyPortsReleased(scenarioName string, portsToCheck map[int]struct{}) error {
+	if len(portsToCheck) == 0 {
+		return nil
+	}
+	deps := r.runtimeDeps()
+	const (
+		maxAttempts = 20
+		interval    = 100 * time.Millisecond
+	)
+	stillBound := make(map[int][]int)
+	for port := range portsToCheck {
+		var pids []int
+		for attempt := 0; attempt < maxAttempts; attempt++ {
+			got, err := deps.listeningPIDs(port)
+			if err != nil {
+				// listeningPIDs swallows exec errors to nil; any real error
+				// means we cannot verify, so surface it.
+				return fmt.Errorf("verify port %d released: %w", port, err)
+			}
+			pids = got
+			if len(pids) == 0 {
+				break
+			}
+			deps.sleep(interval)
+		}
+		if len(pids) > 0 {
+			stillBound[port] = pids
+		}
+	}
+	if len(stillBound) == 0 {
+		return nil
+	}
+	// Emit one error-level line per stuck port and a single aggregated
+	// error back up through Stop. We deliberately continue to the lock
+	// cleanup on the caller's side so a partial stop still tears down
+	// everything it can.
+	for port, pids := range stillBound {
+		r.logError("Port still bound after stop", nil,
+			logx.AttrScenario, scenarioName,
+			"port", port,
+			"pids", pids)
+	}
+	return fmt.Errorf("stop %s: port(s) still bound after kill: %v", scenarioName, stillBound)
+}
+
 func (r *Runner) killOrphansOnPorts(portsToCheck map[int]struct{}) error {
 	deps := r.runtimeDeps()
 	for port := range portsToCheck {
@@ -682,9 +779,18 @@ func (r *Runner) cleanupFixedPortOrphans(item scenario.Scenario, records []proce
 	return r.killManagedScenarioListeners(portsToCheck, item.Slug)
 }
 
+// envPortOrphanStrict disables the aggressive start-time fallback. When set
+// to "true" the start path only kills listeners whose env vars positively
+// identify them as this scenario's children; any other listener causes the
+// usual "port already in use" error to surface so the operator can diagnose
+// it. Leave unset in production — orphan children that lost env inheritance
+// (node grandchildren under vite, for example) are the common real cause.
+const envPortOrphanStrict = "VROOLI_PORT_ORPHAN_STRICT"
+
 func (r *Runner) killManagedScenarioListeners(portsToCheck map[int]struct{}, scenarioName string) error {
 	deps := r.runtimeDeps()
 	targets := make(map[int]struct{})
+	fallbackPorts := make(map[int][]int) // port -> pids seen without env match
 	for port := range portsToCheck {
 		inspection, err := deps.inspectPort(port)
 		if err != nil {
@@ -696,17 +802,40 @@ func (r *Runner) killManagedScenarioListeners(portsToCheck map[int]struct{}, sce
 		for _, listener := range inspection.Listeners {
 			env, err := deps.readProcessEnv(listener.PID)
 			if err != nil {
+				fallbackPorts[port] = append(fallbackPorts[port], listener.PID)
 				continue
 			}
 			if !strings.EqualFold(strings.TrimSpace(env["VROOLI_LIFECYCLE_MANAGED"]), "true") {
+				fallbackPorts[port] = append(fallbackPorts[port], listener.PID)
 				continue
 			}
 			if strings.TrimSpace(env["VROOLI_SCENARIO"]) != scenarioName {
+				// Different scenario owns the port — leave it. Orphan
+				// fallback must not reach across scenario boundaries.
 				continue
 			}
 			targets[listener.PID] = struct{}{}
 		}
 	}
+
+	// Aggressive-fallback path: any listeners that could not be env-matched
+	// are killed unless strict mode is enabled. Fixed ports are all in the
+	// canonical band below 32768, so by policy no unrelated long-lived
+	// process should hold them.
+	if strings.EqualFold(strings.TrimSpace(os.Getenv(envPortOrphanStrict)), "true") {
+		fallbackPorts = nil
+	}
+	for port, pids := range fallbackPorts {
+		r.logWarn("Aggressive orphan kill fallback on fixed port",
+			"port", port,
+			"scenario", scenarioName,
+			"pids", pids,
+			"reason", "listener present but no VROOLI_SCENARIO env match")
+		for _, pid := range pids {
+			targets[pid] = struct{}{}
+		}
+	}
+
 	if len(targets) == 0 {
 		return nil
 	}

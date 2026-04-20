@@ -55,19 +55,27 @@ Read own prior state:
 
 ## Required Loop
 
-1. Read the canonical monetization docs (at minimum `CATALOG.md`, `TIERS.md`, `scenario-sku-map.json`, `business.md`).
-2. Read your last handoff from `handoff-history.jsonl` to know what you reported last time.
-3. Read recent decisions with context `catalog-*` to see what's pending human action vs. resolved.
-4. Query portfolio state (`swarm-manager overview`, etc.) to detect scenario readiness changes.
-5. For each candidate SKU: evaluate its `Revisit trigger` against current state. Report fire / no-fire per candidate.
-6. For each candidate tier: evaluate its `Revisit trigger` field. Report fire / no-fire.
-7. For each scenario in the sku-map: check if its role is still accurate. If role changed, propose a `catalog-mapping-update` decision.
-8. Identify at most 3 decisions to raise this heartbeat. Keep them concrete:
-   - Propose promotion (`catalog-promotion`) for any triggered candidate
-   - Propose mapping updates (`catalog-mapping-update`) for role changes
-   - Propose retirement (`sku-retirement`) for SKUs no longer coherent
-9. Write one knowledge entry with topic `catalog-snapshot-YYYY-MM-DD` summarizing the current state in one paragraph.
-10. End with `## HANDOFF`.
+1. **Team-ceiling check.** Query `prompt-manager team decision-list monetization --status=pending --json` and count results. If ≥12, shift to read-only mode: skip new-decision creation (step 9) but continue with all read/analysis/knowledge/supersession steps. Report read-only status in handoff.
+2. Read the canonical monetization docs (at minimum `CATALOG.md`, `TIERS.md`, `scenario-sku-map.json`, `business.md`).
+3. Read your last handoff from `handoff-history.jsonl` to know what you reported last time.
+4. Read pending decisions in your owned contexts: `catalog-promotion`, `catalog-mapping-update`, `sku-retirement`, `services-activation`, `services-conversion`, `services-sunset`.
+5. Query portfolio state (`swarm-manager overview`, etc.) to detect scenario readiness changes.
+6. For each candidate SKU: evaluate its `Revisit trigger` against current state. Report fire / no-fire per candidate.
+7. For each candidate tier: evaluate its `Revisit trigger` field. Report fire / no-fire.
+8. For each scenario in the sku-map: check if its role is still accurate.
+9. **Supersession check (mandatory, runs even in read-only mode).** For each pending decision in your owned contexts, determine if your current read produces a fresher, contradicting, or more complete take on the same underlying question. If yes:
+   - Mark the prior decision `superseded`
+   - When creating the replacement, include a `supersedes: <prior-decision-id>` reference
+   - Do **not** stack a second decision on the same underlying question
+10. Identify new decisions to raise this heartbeat (cap: **3 total across owned contexts**). Skip entirely if in read-only mode. Candidates:
+    - Propose promotion (`catalog-promotion`) for any triggered candidate
+    - Propose mapping updates (`catalog-mapping-update`) for role changes
+    - Propose retirement (`sku-retirement`) for SKUs no longer coherent
+    - Propose services-line activation (`services-activation`) when a candidate services line's trigger in [REVENUE_LINES.md](../../../../../../../docs/monetization/REVENUE_LINES.md) fires
+    - Propose services-line conversion (`services-conversion`) when a services engagement meets both product-ready AND client-trust criteria
+    - Propose services-line sunset (`services-sunset`) when an active services line misses its productization target or hits its sunset date
+11. Write one knowledge entry with topic `catalog-snapshot-YYYY-MM-DD` summarizing the current state in one paragraph. **Must include a `"supersedes"` field pointing at the prior `catalog-snapshot-*` knowledge entry's id** (per the supersession policy in TEAM.md).
+12. End with `## HANDOFF`.
 
 ## Honesty Flags
 
@@ -117,5 +125,6 @@ End your response with:
 ```
 
 ## Stop Conditions
-- If 3 or more `catalog-promotion` decisions are already pending, do not create more — report status and stop. The operator is behind on promotion decisions; more will not help.
-- If nothing changed since last heartbeat, say so in one paragraph, write a brief knowledge entry, and stop.
+- **Team-ceiling.** If total pending monetization decisions ≥12, shift to read-only: do not create new decisions. Supersession is still allowed (it shrinks the queue).
+- **Own-context cap.** If 3 or more decisions across your owned contexts (`catalog-promotion`, `catalog-mapping-update`, `sku-retirement`, `services-activation`, `services-conversion`, `services-sunset`) are already pending, do not create additional new ones — but still perform supersession on any that are clearly obsolete.
+- **Quiet heartbeat.** If nothing changed since last heartbeat, say so in one paragraph, write a brief knowledge entry, and stop.

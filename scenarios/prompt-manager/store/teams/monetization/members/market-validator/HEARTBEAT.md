@@ -42,17 +42,18 @@ Read own state:
 
 ## Required Loop
 
-1. Read `BENCHMARKS.md` current state + `PRICING.md` current brackets.
-2. Scan last 10 entries of `market-scans.jsonl` to avoid repeating work.
-3. Pick the one or two highest-leverage items from the framework above.
-4. For each: gather external data, capture in `market-scans.jsonl` per entry schema.
-5. Decide if any update is material enough to raise a decision:
+1. **Team-ceiling check.** Query `prompt-manager team decision-list monetization --status=pending --json` and count results. If ≥12, shift to read-only: skip new-decision creation (step 7) but continue scanning, appending to `market-scans.jsonl`, and supersession.
+2. Read `BENCHMARKS.md` current state + `PRICING.md` current brackets.
+3. Read pending decisions in your owned contexts: `benchmark-update`, `pricing-decision`, `financial-model-assumption-update`.
+4. Scan last 10 entries of `market-scans.jsonl` to avoid repeating work.
+5. Pick the one or two highest-leverage items from the framework above. For each: gather external data, capture in `market-scans.jsonl` per entry schema.
+6. **Supersession check (runs even in read-only mode).** For each pending decision in your owned contexts, determine if your latest scan produces a fresher take on the same underlying question (e.g., a prior `pricing-decision` proposal was based on stale comps now refreshed). If yes: mark the prior `superseded` and include `supersedes: <prior-decision-id>` on the replacement.
+7. Decide if any new update is material enough to raise a decision (cap: **2 new per heartbeat**). Skip entirely if in read-only mode. Candidates:
    - New comp suggests current pricing is wrong? → `pricing-decision`
    - Competitor move changes positioning assumptions? → `financial-model-assumption-update`
    - New benchmark should be added to `BENCHMARKS.md`? → `benchmark-update`
-6. Raise at most 2 decisions.
-7. Write a knowledge entry with topic `market-scan-YYYY-MM-DD`.
-8. End with `## HANDOFF`.
+8. Write a knowledge entry with topic `market-scan-YYYY-MM-DD`. **Must include a `"supersedes"` field pointing at the prior `market-scan-*` knowledge entry's id** (per the supersession policy in TEAM.md). Market-scans.jsonl entries themselves are append-only and do not supersede.
+9. End with `## HANDOFF`.
 
 ## Entry Schema for market-scans.jsonl
 
@@ -116,5 +117,6 @@ Read own state:
 ```
 
 ## Stop Conditions
-- If no external data has changed since last heartbeat and all recent scans are <30 days old and relevant, write a brief "no scan needed" entry and stop.
-- If 3+ pending decisions with validator contexts exist, do not create more.
+- **Team-ceiling.** If total pending monetization decisions ≥12, shift to read-only: do not create new decisions. Market-scans.jsonl append and supersession still run.
+- **Own-context cap.** If 3 or more decisions across your owned contexts (`benchmark-update`, `pricing-decision`, `financial-model-assumption-update`) are already pending, do not create additional new ones — but still perform supersession on obsolete ones.
+- **Quiet scan.** If no external data has changed since last heartbeat and all recent scans are <30 days old and relevant, write a brief "no scan needed" entry and stop.

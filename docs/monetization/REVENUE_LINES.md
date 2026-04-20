@@ -15,9 +15,25 @@ A company with only subscriptions has one revenue line. Vrooli has multiple — 
 | `sunset` | Winding down — either productized into a SKU or being abandoned. |
 | `retired` | Wound down. Kept in the doc for history and future lessons. |
 
+## Strategic role: services as a deliberate lever
+
+Each Vrooli scenario is a **double-revenue asset** — the same capability can be sold as a product AND operated by us to deliver paid work for clients. See [STRATEGY.md §3](STRATEGY.md#3-services-are-a-deliberate-lever-not-a-business) for the full framing. The catalog and the services pipeline are not separate programs; they draw from the same well of capabilities.
+
+The strategic value of services is the **timing asymmetry**: they generate cash in chunks, upfront, while subscription revenue compounds slowly. During the window between core bundles shipping and subscriptions crossing default-alive, services are expected to be a primary revenue lever, not a sidebar.
+
+**Phase posture:**
+
+- **Pre-bundle (current state):** all services lines remain `candidate`. Each revisit trigger is tied to a specific capability being deployable as a thin tool. Don't activate out of turn.
+- **Post-bundle, pre-default-alive:** services are expected to actively produce revenue. This is the window where the `active` count should be non-zero and conversion rates matter most.
+- **Post-default-alive:** services wind down or productize. Success means subscriptions have made them unnecessary; a services line that persists past this phase without converting is a signal that the corresponding SKU hasn't matured.
+
+**Converting is also a capacity decision.** Conversion isn't only about trust and product readiness — it's how we free operator time to take on the next services client. An active line with no clients converting isn't just a productization stall; it's a capacity stall that blocks the next engagement. Conversely, converting before the product is ready transfers manual work from a paid-services client to an unpaid-support burden on the product team. Both failure modes are tracked.
+
+The discipline below exists **because we intend to lean into this lever, not to avoid it.** The guardrails are there to keep services from reorienting the company into a consultancy — not to suppress services activity itself.
+
 ## Standing discipline (applies to all services-based lines)
 
-Services lines (anything that's not pure subscription sales) carry a **fundamental risk: the services trap.** Services generate cash immediately in chunks; subscriptions compound slowly. Without discipline, the organization gravitates toward services — higher immediate revenue, faster deals, customer-driven roadmap — and the subscription product starves.
+Services lines (anything that's not pure subscription sales) carry a **fundamental risk: the services trap.** Without discipline, the same timing asymmetry that makes services strategically valuable also pulls the organization toward them — higher immediate revenue, faster deals, customer-driven roadmap — and the subscription product starves.
 
 Every active services line must have all four of these, or it is a guardrail violation:
 

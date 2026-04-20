@@ -26,6 +26,8 @@ make start
 
 See [QUICKSTART.md](docs/QUICKSTART.md) for detailed first-time setup.
 
+Port bands declared in `.vrooli/service.json` follow the platform policy: `API_PORT` in `15000-19999`, `UI_PORT` in `20000-24999`, `WS_PORT` in `25000-29999`. All sit below Linux's ephemeral floor (32768). See [docs/reference/port-allocation.md](../../../docs/reference/port-allocation.md) before changing.
+
 ## CLI
 
 - `.vrooli/service.json` is the source of truth for the CLI command, adapter kind, install strategies, and invocation contract.

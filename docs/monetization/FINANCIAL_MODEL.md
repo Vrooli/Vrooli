@@ -18,12 +18,13 @@ If a number in this file lacks a label, it is broken — flag it.
 
 Cost-of-goods-sold differs dramatically across tiers. Mixing them obscures unit economics and leads to wrong pricing decisions.
 
-### Tier 1 (Bundle apps) — near-zero variable cost
+### Tier 1 (Bundle apps) — gateway-driven variable cost
 
-- Build/distribute cost is fixed (app store fees, signing certs, CDN).
-- No per-user infrastructure.
-- API gateway token costs apply **only when the subscription includes integrated API access** — at that point, the user's usage drives cost.
-- **Unit economics:** very high gross margin when gateway isn't heavily used; still healthy when it is, if pricing covers token pass-through with markup.
+- Build/distribute cost is fixed (app store fees, signing certs, CDN). Amortized across subscribers.
+- No per-user hosting infrastructure (the apps run on the user's device).
+- **Gateway token cost is the dominant variable per-user line.** Paid Tier 1 subscriptions include the integrated API gateway (LLMs, STT/TTS, embeddings, coding agents) with a credit allowance — that IS the core reason to pay rather than running the OSS apps with bring-your-own keys. Every paid Tier 1 subscriber drives gateway usage at wholesale-to-retail pass-through margin.
+- **Unit economics:** margin = subscription price − (wholesale-token-cost × user's consumption up to allowance) − (overage-cost at markup beyond allowance). `estimate`: the mainstream Tier 1 user consumes a small fraction of what the heaviest 5% use; credit allowances + metered overage cap the negative-margin tail.
+- **Distinction from Tier 2:** Tier 2 adds a full local runtime (cross-scenario context sharing, agent coordination, deeper customization) on top of the same gateway. Same variable-cost shape; higher value to the user; higher price.
 
 ### Tier 2 (Self-hosted) — gateway-driven variable cost
 
@@ -77,13 +78,13 @@ Burn is categorized so changes are attributable:
 
 | Category | Description | Current status |
 |---|---|---|
-| AI/API | Model tokens, gateway pass-through at wholesale, STT/TTS, embeddings | `pending-telemetry` |
-| Infrastructure | VPS, storage, CDN, DNS, backups | `pending-telemetry` (operator estimates monthly manually for now) |
-| Third-party SaaS | Stripe fees, email/transactional, analytics | `pending-telemetry` |
-| Tooling | Dev tools, CI runners, monitoring | `pending-telemetry` |
-| Personnel | Operator's time, contractors if any | Operator tracks separately |
+| AI/API | Model tokens, gateway pass-through at wholesale, STT/TTS, embeddings | Operator populates via `operator-inputs.json::monthlyBurn.aiApi` until the API gateway (Tier 2 prereq) aggregates automatically |
+| Infrastructure | VPS, storage, CDN, DNS, backups | Operator populates via `operator-inputs.json::monthlyBurn.infrastructure` until `scenario-to-cloud` cost API lands |
+| Third-party SaaS | Stripe fees, email/transactional, analytics | Operator populates via `operator-inputs.json::monthlyBurn.saas` |
+| Tooling | Dev tools, CI runners, monitoring | Operator populates via `operator-inputs.json::monthlyBurn.tooling` |
+| Personnel | Operator's time, contractors if any | Operator tracks separately (see `timeAllocation` in `operator-inputs.json`) |
 
-`financial-tracker` populates these from `scenario-to-cloud` + LPBS + manual operator inputs until category-specific telemetry exists.
+`financial-tracker` reads all of the above from `shared/operator-inputs.json` on each heartbeat. Gathering guidance per category lives in [HOW_TO_GATHER_INPUTS.md](HOW_TO_GATHER_INPUTS.md). Fields with `pending-operator` status surface in the tracker's HANDOFF as inputs needed; fields with `current` status flow through to the snapshot with flag `estimate` or `measured` as recorded.
 
 ## Revenue shape
 
@@ -136,7 +137,7 @@ These are the load-bearing assumptions in the model. Market-validator and contra
 1. `estimate`: Majority of paying subscribers will choose Tier 2 (self-hosted) over Tier 1 (bundle apps) within 12 months of offering Tier 2, because the integrated runtime experience is materially better.
 2. `estimate`: Tier 3 (hosted) attach rate among non-technical users will be high — they cannot realistically self-host.
 3. `aspirational`: Net revenue retention ≥ 110% within 18 months, driven by tier upgrades + add-on attach.
-4. `estimate`: Services lines convert to subscription at ≥ 40% when productization is done well. The "done well" part is operational discipline, not assumption.
+4. `estimate`: Services lines convert to subscription at ≥ 40% when **both** conditions hold: (a) the product replaces the manual work without new support burden (productization is actually done), AND (b) the client has built enough trust in the tool to stay subscribed without our hands on it. Converting before (a) produces churn from disappointment plus new support load; converting long after (a) keeps the operator doing manual work that blocks the next services client. Both factors are operational discipline, not assumption — the 40% is the forecast when discipline holds.
 5. `estimate`: Services engagements longer than ~3 months without productization handoff are approaching the services trap.
 
 When any assumption changes materially, the financial-tracker raises a knowledge entry with topic `financial-model-assumption-update`.
@@ -146,7 +147,7 @@ When any assumption changes materially, the financial-tracker raises a knowledge
 The `financial-tracker` member's deliverable is a ledger snapshot. Each snapshot entry contains:
 
 - Timestamp
-- Cash on hand (operator-provided or from a future treasury integration)
+- Cash on hand (sourced from `operator-inputs.json::cash`; operator-maintained)
 - MRR per tier, per bundle (`pending-telemetry` where LPBS hasn't surfaced Stripe data)
 - Costs per category (AI/API, Infra, SaaS, Tooling)
 - Time allocation (product / services / ops)

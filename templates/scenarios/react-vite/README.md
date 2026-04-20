@@ -58,16 +58,18 @@ Run tests with `make test` or `test-genie execute --scenario <your-scenario>`.
 ## Required Environment Variables
 The lifecycle exports everything automatically when you run `vrooli scenario run`. If you start pieces manually, set these yourself (there are no fallbacks):
 
-| Variable | Purpose |
-|----------|---------|
-| `API_PORT` | Port assigned to the Go API server |
-| `UI_PORT` | Port assigned to the Vite dev server / production UI |
-| `WS_PORT` | WebSocket channel for live updates |
+| Variable | Canonical range | Purpose |
+|----------|-----------------|---------|
+| `API_PORT` | `15000-19999` | Port assigned to the Go API server |
+| `UI_PORT`  | `20000-24999` | Port assigned to the Vite dev server / production UI |
+| `WS_PORT`  | `25000-29999` | WebSocket channel for live updates |
 | `DATABASE_URL` *or* `POSTGRES_HOST/PORT/USER/PASSWORD/DB` | PostgreSQL connection details |
 | `N8N_BASE_URL` | Base URL for workflow automation calls |
 | `UI_BASE_URL` | Base URL for the Vrooli UI shell / iframe bridge |
 | `API_TOKEN` | Shared secret the CLI/API uses for authentication |
-| `VITE_API_BASE_URL` | UI → API bridge (set to `http://localhost:${API_PORT}/api/v1`) |
+| `VITE_API_BASE_URL` | — | UI → API bridge (set to `http://localhost:${API_PORT}/api/v1`) |
+
+> All canonical bands sit below 32768 so Linux never hands the ports out as outbound source ports. See [docs/reference/port-allocation.md](../../../docs/reference/port-allocation.md) for the full policy and OS-specific ephemeral-range details.
 
 > Tip: when running outside the lifecycle, fetch ports with `vrooli scenario port <name> API_PORT` (or `UI_PORT`) and then export `VITE_API_BASE_URL` accordingly:
 

@@ -240,6 +240,16 @@ func RenderPortDiagnostic(w io.Writer, format cliout.Format, diagnostic maintena
 	} else {
 		_, _ = fmt.Fprintln(w, "Lock: none")
 	}
+	if diagnostic.PortPolicy.EphemeralMin > 0 {
+		band := diagnostic.PortPolicy.CanonicalBand
+		if band == "" {
+			band = "outside canonical bands"
+		}
+		_, _ = fmt.Fprintf(w, "OS ephemeral range: %d-%d (source=%s)\n",
+			diagnostic.PortPolicy.EphemeralMin, diagnostic.PortPolicy.EphemeralMax, diagnostic.PortPolicy.EphemeralSource)
+		_, _ = fmt.Fprintf(w, "Inside ephemeral range: %t\n", diagnostic.PortPolicy.InsideEphemeralRange)
+		_, _ = fmt.Fprintf(w, "Canonical band: %s\n", band)
+	}
 	_, _ = fmt.Fprintf(w, "Host orphan Vrooli processes: %d (run `vrooli orphans` to list)\n", diagnostic.HostOrphanCount)
 	_, _ = fmt.Fprintln(w, "Recommended actions:")
 	for _, recommendation := range diagnostic.Recommendations {

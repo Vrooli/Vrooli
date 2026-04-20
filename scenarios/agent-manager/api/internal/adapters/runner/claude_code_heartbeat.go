@@ -16,15 +16,15 @@ import (
 // must be called before the scanner loop and stop() after it exits. The
 // goroutine exits cleanly on stop() via the done channel.
 type heartbeat struct {
-	runID         uuid.UUID
-	sink          EventSink
-	lastEventNs   atomic.Int64  // unix nano of most recent event
-	lastSummary   atomic.Value  // string — short description of most recent event
-	reportedIdle  atomic.Bool   // true while we've already emitted a warning for the current gap
-	done          chan struct{} // closed by stop() to signal the goroutine to exit
-	thresholdMs   int64
-	tickMs        int64
-	stopOnce      atomic.Bool
+	runID        uuid.UUID
+	sink         EventSink
+	lastEventNs  atomic.Int64  // unix nano of most recent event
+	lastSummary  atomic.Value  // string — short description of most recent event
+	reportedIdle atomic.Bool   // true while we've already emitted a warning for the current gap
+	done         chan struct{} // closed by stop() to signal the goroutine to exit
+	thresholdMs  int64
+	tickMs       int64
+	stopOnce     atomic.Bool
 }
 
 func newHeartbeat(runID uuid.UUID, sink EventSink) *heartbeat {
@@ -101,30 +101,5 @@ func (h *heartbeat) loop() {
 				fmt.Sprintf("stream idle for %s (last event: %s)", elapsed.Truncate(time.Second), last),
 			))
 		}
-	}
-}
-
-// eventSummary renders a one-liner describing an event so heartbeat messages
-// can point investigators at the last thing the stream did. Intentionally
-// short — this is for an idle-log line, not structured data.
-func eventSummary(event *domain.RunEvent) string {
-	if event == nil {
-		return ""
-	}
-	switch d := event.Data.(type) {
-	case *domain.LogEventData:
-		return "log:" + d.Message
-	case *domain.MessageEventData:
-		return "message:" + d.Role
-	case *domain.ToolCallEventData:
-		return "tool_call:" + d.ToolName
-	case *domain.ToolResultEventData:
-		return "tool_result"
-	case *domain.StatusEventData:
-		return "status:" + d.NewStatus
-	case *domain.ErrorEventData:
-		return "error:" + d.Code
-	default:
-		return string(event.EventType)
 	}
 }

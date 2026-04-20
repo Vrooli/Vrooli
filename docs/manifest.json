@@ -92,6 +92,11 @@
           "description": "Current project-level environment and secrets posture"
         },
         {
+          "path": "reference/port-allocation.md",
+          "title": "Port Allocation",
+          "description": "Canonical scenario port bands and the OS ephemeral-range hazard"
+        },
+        {
           "path": "repo-contract.md",
           "title": "Repo Contract",
           "description": "Repo-aware structure rules"

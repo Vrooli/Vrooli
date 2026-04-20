@@ -8,7 +8,7 @@ Three commercial surfaces, orthogonal to each other:
 
 1. **Bundles of scenarios** (the catalog) — themed collections that solve real problems. Today: business bundle (developer + solopreneur tools); next: lifestyle bundle (personal + household).
 2. **Delivery tiers** (how the bundles reach the user) — individual desktop/mobile apps, self-hosted full Vrooli runtime, hosted cloud Vrooli, and eventually a hardware appliance. Each tier has its own cost structure and price point.
-3. **Services** (bridge revenue) — done-for-you engagements (lead generation, standalone app development, consulting) that generate immediate cash, validate capability, and seed subscribers. Services are explicitly a bridge, not a business line.
+3. **Services** (deliberate lever) — done-for-you engagements (lead generation, standalone app development, consulting) that generate immediate cash, validate capability, and seed subscribers. We operate our own scenarios on behalf of clients; the same shovels we sell are the shovels we use to dig for gold. Services are a lever we intend to pull at the right phase, not a business line we're building toward.
 
 ## Core principles
 
@@ -32,18 +32,28 @@ Most SaaS companies spend heavily on lifecycle marketing — email drips, in-app
 
 This makes in-bundle expansion (the drive toward breadth-of-adoption, which is the strongest retention signal) a native capability, not a marketing function. When designing acquisition, activation, and upsell tactics, **default to agent-driven mechanisms over marketing-driven ones.** Only fall back to marketing when an agent surface cannot reach the relevant moment.
 
-### 3. Services are a bridge, not a business
+### 3. Services are a deliberate lever, not a business
 
-Services generate cash immediately in chunks; subscriptions compound slowly. Without discipline, this gravity pull can quietly reorient the company into a consultancy. Every services engagement carries four mandatory attributes:
+**Scenarios are double-revenue assets.** Every capability we build can be sold to customers (the shovel) AND used by us to deliver paid work on customers' behalf (using the shovel to dig gold). A property-services scenario is the same tooling we'd operate to generate leads for a roofer and sell them per-lead. A standalone-app scenario is the same capability we'd use to deliver custom builds for clients who don't want to operate agents themselves. The catalog and the services pipeline draw from the same well.
+
+**Services generate cash upfront in chunks; subscriptions compound slowly.** This timing asymmetry is the point. Once core bundle capabilities are production-grade but before subscription revenue crosses default-alive, services are a deliberate revenue lever — not a distraction. The discipline below exists *because* we intend to lean in, not because we want to stay away.
+
+**Phase-gating** keeps the posture honest:
+
+- **Pre-bundle (current state):** services lines remain `candidate`. Each has an explicit revisit trigger tied to a specific capability being deployable as a thin tool. No services line activates until its underlying scenario can stand on its own.
+- **Post-bundle, pre-default-alive:** services lines activate in deliberate order and are expected to produce meaningful revenue while subscriptions scale.
+- **Post-default-alive:** services wind down or productize. Success means subscriptions have made them unnecessary.
+
+**Every active services line carries four mandatory attributes** (guardrail violation if any is missing):
 
 - A **validation hypothesis** (which capability are we proving?)
 - A **fixed-duration pilot**
 - A **productization target** (which SKU does this feed?)
 - A **sunset or convert clause** (by date X, productize and hand off to subscription, or stop)
 
-The success metric for a services line is the **service-client → subscriber conversion rate**, not services revenue itself. Conversion happens when (a) the product replaces the manual work without new support burden, AND (b) the client has built trust in it. Both are required.
+**Success metric is service-client → subscriber conversion rate**, not services revenue. Conversion happens when (a) the product replaces the manual work without new support burden, AND (b) the client has built trust in it. Both are required. Converting too early means churn from disappointment and a new support burden on the product team; converting too late means we keep doing manual work we don't need to — and block capacity we'd rather spend on the next services client.
 
-See [REVENUE_LINES.md](REVENUE_LINES.md) for the operational discipline.
+See [REVENUE_LINES.md](REVENUE_LINES.md) for operational discipline (time-capacity caps, legal surface checks, separate tracking).
 
 ### 4. Candidates have revisit triggers, never vibes
 
@@ -67,23 +77,25 @@ Most churn is failed activation. A user who never wires Vrooli into their workfl
 
 Most SaaS companies cannot afford to build niche vertical add-ons because marginal production cost is too high. Vrooli can, because every core capability is reused. This is the structural advantage that justifies the add-on model — but only when reuse is actually high. An add-on that requires building mostly-new capability is not a real add-on; it's a new bundle with lower margin. The `contrarian` member's job is to keep this honest.
 
-## North stars
+## Long-term directions
 
-These describe where Vrooli is going, not what it's doing. Nothing here should be planned against without explicit initiation from the operator.
+Where Vrooli is going beyond the near-term catalog. Two sub-categories — kept apart because they behave differently in the team's lifecycle vocabulary.
 
-### North star 1: full-runtime hosted offering (Tier 3)
+### Long-term candidates
 
-Users who want Vrooli without managing infrastructure get a hosted instance we run for them. Same runtime as self-hosted, but on our infrastructure. This is the largest revenue surface long-term because it captures users who would otherwise churn on setup friction.
+Real directions the team is moving toward with concrete activation triggers. These are **not** `north-star` in the [TIERS.md](TIERS.md) lifecycle sense; they are `candidate` and can be planned against once their triggers fire.
 
-### North star 2: hardware appliance (Tier 4)
+**Tier 3 — full-runtime hosted offering.** Users who want Vrooli without managing infrastructure get a hosted instance we run for them. Same runtime as self-hosted, on our infrastructure. Probably the largest long-term revenue surface because it captures users who would otherwise churn on setup friction. See [TIERS.md §"Tier 3"](TIERS.md) for activation trigger and capability prereqs.
 
-A dedicated Vrooli machine — either a purchase or a subscription-included appliance — sold to households and small businesses. Runs the full Vrooli stack locally, preserves privacy, maximizes hardware utilization.
+**Default-alive.** Monthly revenue meets or exceeds monthly burn, consistently, independent of funding. Every monetization-team decision should weigh its impact on the default-alive date. See [FINANCIAL_MODEL.md](FINANCIAL_MODEL.md) for the math and target.
 
-**This is a different business.** Hardware means inventory, BOM, RMA, certifications, fulfillment, physical support SLAs — a skill set almost unrelated to everything else. Tier 4 exists as a directional marker so we don't accidentally wander in the wrong direction. It is explicitly **not** to be planned against without a deliberate decision from the operator to enter the hardware business.
+### North-star markers
 
-### North star 3: default-alive
+These use the strict `north-star` lifecycle status from [TIERS.md](TIERS.md). **Must not be planned against without explicit operator initiation** — a deliberate strategic decision, not a downstream consequence of other work.
 
-The financial goal is that Vrooli reaches a state where monthly revenue minus monthly cost is positive and trending correctly, independent of funding. See [FINANCIAL_MODEL.md](FINANCIAL_MODEL.md) for the math.
+**Tier 4 — hardware appliance.** A dedicated Vrooli machine — either a purchase or a subscription-included appliance — sold to households and small businesses. Runs the full Vrooli stack locally, preserves privacy, maximizes hardware utilization.
+
+**This is a different business.** Hardware means inventory, BOM, RMA, certifications, fulfillment, physical support SLAs — a skill set almost unrelated to everything else. Tier 4 exists as a directional marker so we don't accidentally wander in the wrong direction. Promoting it out of `north-star` requires the operator deliberately choosing to enter the hardware business.
 
 ## Bundle ordering principle
 

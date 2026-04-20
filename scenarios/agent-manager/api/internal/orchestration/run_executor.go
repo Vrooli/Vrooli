@@ -103,14 +103,14 @@ type ModelHealthReporter interface {
 
 type RunExecutor struct {
 	// Dependencies
-	runs         repository.RunRepository
-	runners      runner.Registry
-	sandbox      sandbox.Provider
-	events       event.Store
-	checkpoints  repository.CheckpointRepository // optional: for checkpoint persistence
-	broadcaster  EventBroadcaster                // optional: for real-time WebSocket updates
-	modelChains  ModelChainResolver              // optional: for model-level fallback
-	modelHealth  ModelHealthReporter             // optional: surfaces runtime model verdicts to the health store
+	runs        repository.RunRepository
+	runners     runner.Registry
+	sandbox     sandbox.Provider
+	events      event.Store
+	checkpoints repository.CheckpointRepository // optional: for checkpoint persistence
+	broadcaster EventBroadcaster                // optional: for real-time WebSocket updates
+	modelChains ModelChainResolver              // optional: for model-level fallback
+	modelHealth ModelHealthReporter             // optional: surfaces runtime model verdicts to the health store
 
 	// Configuration
 	config ExecutorConfig

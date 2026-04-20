@@ -8,13 +8,15 @@
 
 ## Deliverables Per Heartbeat
 - One ledger entry appended to `shared/ledger.jsonl` (schema below).
-- At most 2 decisions raised when math changes materially — contexts `runway-warning`, `services-trap-warning`, `pricing-decision`, `financial-model-assumption-update`.
+- At most 2 decisions raised when math changes materially — contexts `runway-warning`, `services-trap-warning`, `pricing-decision`, `financial-model-assumption-update`, `funnel-bottleneck`, `retention-concern`. The last two are raised once funnel / retention telemetry exists; pre-launch they remain dormant with `pending-telemetry` flags in the handoff.
 - Brief narrative summary in the handoff pointing at what changed, what it means for default-alive, and what decision (if any) is overdue.
 
 ## Coordination Points
-- **Reads** `docs/monetization/FINANCIAL_MODEL.md` (the framework), `docs/monetization/PRICING.md` (for current matrix), `docs/monetization/REVENUE_LINES.md` (for line-specific instrumentation), `docs/monetization/TELEMETRY_ROADMAP.md` (to know which numbers are `pending-telemetry`).
-- **Reads data** (as capabilities allow): landing-page-business-suite for Stripe / subscription events; scenario-to-cloud for infrastructure costs; manual operator inputs for anything not yet telemetry-backed.
+- **Reads** `docs/monetization/FINANCIAL_MODEL.md` (the framework), `docs/monetization/PRICING.md` (for current matrix), `docs/monetization/REVENUE_LINES.md` (for line-specific instrumentation), `docs/monetization/TELEMETRY_ROADMAP.md` (to know which numbers are `pending-telemetry`), `docs/monetization/HOW_TO_GATHER_INPUTS.md` (the per-field guidance paired with `operator-inputs.json`).
+- **Reads operator state** from `shared/operator-inputs.json` — the canonical source for cash, burn categories, time allocation, services revenue, and services time. Each heartbeat classifies every field as `current` / `stale` / `pending-operator` / `not-applicable-pre-launch` and surfaces the first two categories in the HANDOFF for operator action.
+- **Reads data** (as capabilities allow): landing-page-business-suite for Stripe / subscription events; scenario-to-cloud for infrastructure costs.
 - **Does NOT** compute things that require telemetry that doesn't exist yet — flag as `pending-telemetry` and move on. Do not invent numbers.
+- **Does NOT** edit `operator-inputs.json`. That file is operator state (see TEAM.md operating rule 3 carve-out); the tracker reads it only.
 - **Does NOT** set prices. Proposes pricing decisions when math says to; operator decides.
 
 ## Boundaries
@@ -35,12 +37,14 @@ When services time exceeds the 30% guardrail in `FINANCIAL_MODEL.md`, raise a `s
 ## Pre-launch reality
 At launch, most inputs are operator-provided estimates or qualitative. That's fine — label them and keep going. The tracker's job is not to pretend precision; it's to maintain the *shape* of the model so that when telemetry lands, substitution is clean.
 
+**The first heartbeat's useful output is a list.** Before any number can be computed, `operator-inputs.json` has to be populated. The tracker's first run typically produces mostly `pending-operator` output — and that's the point: the "Inputs needed from operator" section of the HANDOFF *is* the team's first actionable deliverable. The operator fills the file, the second heartbeat computes real numbers.
+
 The first real data arrives when:
 - Subscriptions ship → Stripe / LPBS emits lifecycle events → MRR becomes `measured`
 - scenario-to-cloud exposes cost query → infra costs become `measured`
 - Services line activates → per-engagement time and revenue become `measured`
 
-Until then, most fields carry `estimate` or `pending-telemetry` labels.
+Until then, most fields carry `estimate` (from operator-inputs) or `pending-telemetry` labels.
 
 ## Available Skills
 

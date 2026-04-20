@@ -31,9 +31,14 @@ You are the active worker in `director-swarm`. Your job is to keep the Swarm Man
    - `swarm-manager initiatives list`
    - `swarm-manager initiatives get --name <initiative>` for the most important or ambiguous initiatives
    - `swarm-manager stats summary`
-7. Build a `Now / Near / Far` view, identify the next unblocked work, and call out under-specified or mis-sequenced items.
-8. Create at most 3 new pending decisions if approval is needed. Keep them small, concrete, and directly tied to portfolio flow.
-9. End your response with `## HANDOFF` as the final section.
+7. Read the canonical monetization catalog as the source of truth for the revenue critical path (do not re-derive it ad-hoc):
+   - `docs/monetization/CATALOG.md` — active SKUs, candidate SKUs, headliner vs depth roles
+   - `docs/monetization/catalog/base/business.md` — the active base bundle's headliners, depth layer, and dependency DAG
+   - `docs/monetization/scenario-sku-map.json` — which initiatives/scenarios belong to the active bundle and in what role
+   Use these to weight initiatives: items backing headliners or amplifiers for the active bundle are revenue-critical; items with no catalog mapping are *not* part of the revenue path and should be labeled as such in Now/Near/Far.
+8. Build a `Now / Near / Far` view, identify the next unblocked work, and call out under-specified or mis-sequenced items. In `Now`, explicitly flag which items are on the revenue critical path per the catalog read above.
+9. Create at most 3 new pending decisions if approval is needed. Keep them small, concrete, and directly tied to portfolio flow.
+10. End your response with `## HANDOFF` as the final section.
 
 ## Supported Actions Today
 - backlog-item priority or dependency cleanup when an accepted decision explicitly authorizes it

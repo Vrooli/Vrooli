@@ -17,7 +17,7 @@ Pricing is the intersection of WHAT × HOW. The [financial model](FINANCIAL_MODE
 
 | File | Purpose |
 |---|---|
-| [STRATEGY.md](STRATEGY.md) | Narrative framing, principles, north-stars, operator's intent |
+| [STRATEGY.md](STRATEGY.md) | Narrative framing, principles, long-term directions, operator's intent |
 | [CATALOG.md](CATALOG.md) | SKU index — bundles + add-ons with lifecycle state |
 | [catalog/base/business.md](catalog/base/business.md) | Business bundle: headliners, depth, DAG, rationale |
 | [catalog/base/lifestyle.md](catalog/base/lifestyle.md) | Lifestyle bundle: status, scope, pending definition |
@@ -29,6 +29,7 @@ Pricing is the intersection of WHAT × HOW. The [financial model](FINANCIAL_MODE
 | [REVENUE_LINES.md](REVENUE_LINES.md) | Subscription + services + other revenue lines with discipline rules |
 | [TELEMETRY_ROADMAP.md](TELEMETRY_ROADMAP.md) | What metrics need what data capabilities; replaces-manual migration list |
 | [BENCHMARKS.md](BENCHMARKS.md) | Curated market benchmarks (populated by monetization team) |
+| [HOW_TO_GATHER_INPUTS.md](HOW_TO_GATHER_INPUTS.md) | Per-field guidance for the operator-edited `operator-inputs.json` |
 | [scenario-sku-map.json](scenario-sku-map.json) | Many-to-many: which scenarios belong to which SKUs |
 
 ## Ownership and editing discipline

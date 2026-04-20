@@ -683,6 +683,83 @@ func TestDiagnosePortBuildsRecommendations(t *testing.T) {
 	}
 }
 
+func TestDiagnosePortReportsEphemeralOverlap(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+
+	originalInspection := inspectPortListenersFn
+	originalListProcessTable := listProcessTableFn
+	t.Cleanup(func() {
+		inspectPortListenersFn = originalInspection
+		listProcessTableFn = originalListProcessTable
+	})
+	inspectPortListenersFn = func(port int) (network.PortInspection, error) {
+		return network.PortInspection{
+			Inspection: network.ListenerInspection{Available: true, Tool: "stub"},
+		}, nil
+	}
+	listProcessTableFn = func() (map[int]processTableEntry, error) {
+		return map[int]processTableEntry{}, nil
+	}
+
+	controller := NewController(root, home)
+	// 36234 is inside the Linux default ephemeral range. Whatever OS the
+	// test runs on, describePortPolicy reports the live range — so we
+	// assert that either the InsideEphemeralRange flag fires or the port
+	// is at least classified as outside canonical bands.
+	diagnostic, err := controller.DiagnosePort(36234, "")
+	if err != nil {
+		t.Fatalf("DiagnosePort: %v", err)
+	}
+	if diagnostic.PortPolicy.CanonicalBand != "" {
+		t.Errorf("36234 should be outside canonical bands, got %q", diagnostic.PortPolicy.CanonicalBand)
+	}
+	// On Linux the probe returns 32768-60999 by default and the port falls
+	// inside, so the ephemeral recommendation should be the first one. On
+	// other hosts (macOS/Windows fallback = 49152-65535) the port is below
+	// ephemeral but above canonical max; either way the policy report is
+	// populated and one of the two findings shows up in recommendations.
+	if diagnostic.PortPolicy.EphemeralMin <= 0 {
+		t.Errorf("port policy ephemeral min should be populated, got %+v", diagnostic.PortPolicy)
+	}
+	haveFlag := diagnostic.PortPolicy.InsideEphemeralRange || diagnostic.PortPolicy.AboveCanonicalMax
+	if !haveFlag {
+		t.Errorf("expected port 36234 to be flagged as ephemeral or above canonical max, got %+v", diagnostic.PortPolicy)
+	}
+}
+
+func TestDiagnosePortCanonicalBandForSafePort(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+
+	originalInspection := inspectPortListenersFn
+	originalListProcessTable := listProcessTableFn
+	t.Cleanup(func() {
+		inspectPortListenersFn = originalInspection
+		listProcessTableFn = originalListProcessTable
+	})
+	inspectPortListenersFn = func(port int) (network.PortInspection, error) {
+		return network.PortInspection{
+			Inspection: network.ListenerInspection{Available: true, Tool: "stub"},
+		}, nil
+	}
+	listProcessTableFn = func() (map[int]processTableEntry, error) {
+		return map[int]processTableEntry{}, nil
+	}
+
+	controller := NewController(root, home)
+	diagnostic, err := controller.DiagnosePort(21234, "")
+	if err != nil {
+		t.Fatalf("DiagnosePort: %v", err)
+	}
+	if diagnostic.PortPolicy.CanonicalBand != "ui" {
+		t.Errorf("canonical band = %q, want ui", diagnostic.PortPolicy.CanonicalBand)
+	}
+	if diagnostic.PortPolicy.InsideEphemeralRange {
+		t.Errorf("21234 should never be inside ephemeral range, got %+v", diagnostic.PortPolicy)
+	}
+}
+
 func TestDiagnosePortReportsUnavailableListenerInspection(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()

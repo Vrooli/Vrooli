@@ -337,11 +337,23 @@ func TestResumeTag_AppendsSuffixOnce(t *testing.T) {
 		t.Fatalf("first resume tag = %q, want -resume suffix", first.Tag)
 	}
 
-	// Mark the resumed run as failed too so we can resume it again.
-	first.Status = domain.RunStatusFailed
-	if err := repos.Runs.Update(ctx, first); err != nil {
+	// Wait for the first resumed run to reach a terminal state so our
+	// subsequent Update(Failed) does not race with the orchestrator
+	// finalising the run in the background.
+	if _, err := waitForRunCompletion(t, ctx, svc, first.ID, 5*time.Second); err != nil {
+		t.Fatalf("wait for first resume terminal: %v", err)
+	}
+
+	// Re-fetch and mark the resumed run as failed so we can resume it again.
+	firstFetched, err := svc.GetRun(ctx, first.ID)
+	if err != nil {
+		t.Fatalf("get first: %v", err)
+	}
+	firstFetched.Status = domain.RunStatusFailed
+	if err := repos.Runs.Update(ctx, firstFetched); err != nil {
 		t.Fatalf("update first to failed: %v", err)
 	}
+	first = firstFetched
 
 	second, err := svc.ResumeFromFailedRun(ctx, orchestration.ResumeFromFailedRunRequest{RunID: first.ID})
 	if err != nil {

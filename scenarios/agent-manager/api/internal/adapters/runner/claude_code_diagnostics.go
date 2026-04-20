@@ -10,11 +10,6 @@ import (
 // Diagnostic helpers used by the Claude Code runner to enrich
 // execution_error events and surface stream-stall information.
 
-// maxStderrTailBytes bounds the amount of stderr we attach to an error event.
-// Keeps payload sizes predictable without silently dropping the most recent
-// (usually most informative) output from the child process.
-const maxStderrTailBytes = 2048
-
 // streamIdleHeartbeatThreshold is the stream-stall duration at which the
 // heartbeat goroutine starts emitting debug log events. Kept strictly less
 // than DefaultStreamIdleTimeout (which is 0 — disabled — by default, but

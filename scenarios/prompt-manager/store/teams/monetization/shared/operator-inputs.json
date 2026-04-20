@@ -1,0 +1,123 @@
+{
+  "kind": "operator-inputs",
+  "schemaVersion": 1,
+  "teamId": "monetization",
+  "readBy": ["financial-tracker"],
+  "editedBy": "operator",
+  "notes": "Operator-provided financial state. Edited directly by the operator (NOT via decisions). Field gathering guidance lives in docs/monetization/HOW_TO_GATHER_INPUTS.md. Per-field status vocabulary: 'pending-operator' (operator can provide, hasn't yet), 'current' (fresh value), 'stale' (value exists but updatedAt >30 days old), 'not-applicable-pre-launch' (genuinely not available at this phase). The financial-tracker treats 'pending-operator' fields as the team's first-call-to-action and surfaces them in its HANDOFF. It does not nag on 'not-applicable-*' fields.",
+  "lastUpdatedAt": null,
+
+  "cash": {
+    "value": null,
+    "currency": "USD",
+    "flag": null,
+    "updatedAt": null,
+    "source": null,
+    "status": "pending-operator",
+    "howToGather": "docs/monetization/HOW_TO_GATHER_INPUTS.md#cash-on-hand"
+  },
+
+  "monthlyBurn": {
+    "aiApi": {
+      "value": null,
+      "flag": null,
+      "updatedAt": null,
+      "source": null,
+      "status": "pending-operator",
+      "howToGather": "docs/monetization/HOW_TO_GATHER_INPUTS.md#monthly-ai--api-cost"
+    },
+    "infrastructure": {
+      "value": null,
+      "flag": null,
+      "updatedAt": null,
+      "source": null,
+      "status": "pending-operator",
+      "howToGather": "docs/monetization/HOW_TO_GATHER_INPUTS.md#monthly-infrastructure-cost"
+    },
+    "saas": {
+      "value": null,
+      "flag": null,
+      "updatedAt": null,
+      "source": null,
+      "status": "pending-operator",
+      "howToGather": "docs/monetization/HOW_TO_GATHER_INPUTS.md#monthly-third-party-saas-cost"
+    },
+    "tooling": {
+      "value": null,
+      "flag": null,
+      "updatedAt": null,
+      "source": null,
+      "status": "pending-operator",
+      "howToGather": "docs/monetization/HOW_TO_GATHER_INPUTS.md#monthly-tooling-cost"
+    }
+  },
+
+  "timeAllocation": {
+    "windowDays": 7,
+    "product": {
+      "value": null,
+      "flag": null,
+      "updatedAt": null,
+      "status": "pending-operator",
+      "howToGather": "docs/monetization/HOW_TO_GATHER_INPUTS.md#time-allocation"
+    },
+    "services": {
+      "value": null,
+      "flag": null,
+      "updatedAt": null,
+      "status": "not-applicable-pre-launch",
+      "howToGather": "docs/monetization/HOW_TO_GATHER_INPUTS.md#time-allocation"
+    },
+    "ops": {
+      "value": null,
+      "flag": null,
+      "updatedAt": null,
+      "status": "pending-operator",
+      "howToGather": "docs/monetization/HOW_TO_GATHER_INPUTS.md#time-allocation"
+    }
+  },
+
+  "servicesRevenue": {
+    "leadGen": {
+      "value": null,
+      "status": "not-applicable-pre-launch",
+      "howToGather": "docs/monetization/HOW_TO_GATHER_INPUTS.md#services-revenue"
+    },
+    "doneForYou": {
+      "value": null,
+      "status": "not-applicable-pre-launch",
+      "howToGather": "docs/monetization/HOW_TO_GATHER_INPUTS.md#services-revenue"
+    },
+    "consulting": {
+      "value": null,
+      "status": "not-applicable-pre-launch",
+      "howToGather": "docs/monetization/HOW_TO_GATHER_INPUTS.md#services-revenue"
+    }
+  },
+
+  "servicesTime": {
+    "activeLineCount": 0,
+    "hoursThisWindow": {
+      "value": null,
+      "status": "not-applicable-pre-launch",
+      "howToGather": "docs/monetization/HOW_TO_GATHER_INPUTS.md#services-time"
+    }
+  },
+
+  "subscriptions": {
+    "mrr": {
+      "value": null,
+      "status": "not-applicable-pre-launch",
+      "notes": "Auto-populated by financial-tracker from LPBS/Stripe events once Tier 1 ships. Operator does NOT fill this manually. See TELEMETRY_ROADMAP.md Gap 2."
+    }
+  },
+
+  "stalenessPolicy": {
+    "cash": 30,
+    "monthlyBurn.*": 30,
+    "timeAllocation.*": 7,
+    "servicesRevenue.*": 30,
+    "servicesTime.*": 14,
+    "notes": "Integer = days. If (now - updatedAt) > threshold, status becomes 'stale' and financial-tracker flags it in the HANDOFF."
+  }
+}

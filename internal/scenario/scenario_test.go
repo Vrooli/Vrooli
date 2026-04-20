@@ -779,8 +779,8 @@ func TestManifestHelpers(t *testing.T) {
 	}
 
 	phases := manifest.PhaseSummaries()
-	if len(phases) != 11 {
-		t.Fatalf("phase count = %d, want 11", len(phases))
+	if len(phases) != 10 {
+		t.Fatalf("phase count = %d, want 10", len(phases))
 	}
 	if !phases[0].Defined || phases[0].Name != "setup" || phases[0].Steps != 1 {
 		t.Fatalf("setup summary = %#v", phases[0])

@@ -86,6 +86,8 @@ Use `vrooli diagnose-port <port>` when the conflict is still unresolved, especia
 - a non-Vrooli process already bound to the port
 - a live listener whose ownership is unclear from the startup error alone
 
+> If the port is in `32768-60999` on Linux, the conflict may not be a listener at all — the kernel reserves that range for outbound source ports. See [../reference/port-allocation.md](../reference/port-allocation.md) for the canonical scenario bands and how to migrate off ephemeral ports.
+
 ## Guidance
 
 - Prefer current CLI diagnostics over older script debugging recipes.

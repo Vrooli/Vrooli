@@ -1342,7 +1342,23 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 		return events, nil
 
 	case "system":
-		// System context/prompt - log for debugging but don't emit as user-visible event
+		// Detect automatic compaction signals; Claude Code surfaces these
+		// via `subtype: "auto-compacting"` or via text in `result`.
+		var sysResult string
+		if streamEvent.Result != nil {
+			_ = json.Unmarshal(streamEvent.Result, &sysResult)
+		}
+		if strings.Contains(strings.ToLower(streamEvent.Subtype), "auto-compact") || isAutoCompactMarker(sysResult) {
+			return []*domain.RunEvent{domain.NewCompactionEvent(
+				runID,
+				strings.TrimSpace(sysResult),
+				"auto",
+				"",
+				0, 0, 0,
+				"",
+			)}, nil
+		}
+		// Otherwise, log for debugging but don't emit as user-visible event.
 		return []*domain.RunEvent{domain.NewLogEvent(
 			runID,
 			"debug",
@@ -1457,13 +1473,12 @@ func (r *ClaudeCodeRunner) parseResultEvent(runID uuid.UUID, event *ClaudeStream
 
 	// Check for non-rate-limit errors in result
 	if event.IsError {
-		// Generic error
-		return domain.NewErrorEvent(
-			runID,
-			"execution_error",
-			resultStr,
-			false,
-		), nil
+		msg := formatErrorMessage(event.Subtype, event.NumTurns, event.DurationMs, resultStr)
+		errEvent := domain.NewErrorEvent(runID, "execution_error", msg, false)
+		if data, ok := errEvent.Data.(*domain.ErrorEventData); ok {
+			data.Details = buildErrorDetails(event.Subtype, event.NumTurns, event.DurationMs, event.SessionID, resultStr, "")
+		}
+		return errEvent, nil
 	}
 
 	// Successful result - emit cost event if we have usage data

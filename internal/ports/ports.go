@@ -141,6 +141,50 @@ func (m *Manager) RemoveLock(port int) error {
 	})
 }
 
+// ConfirmLock updates the lock file for port so it records the real listener
+// PID observed after the scenario bound. Callers invoke it from the
+// health-check transition, once a live listener is visible via inspectPort.
+// No-op if the lock does not belong to scenarioName.
+func (m *Manager) ConfirmLock(port int, scenarioName string, pid int) error {
+	return m.withMutationLock(port, func() error {
+		lock, exists, err := m.ReadLock(port)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			return nil
+		}
+		if lock.Scenario != scenarioName {
+			return nil
+		}
+		if lock.PID == pid {
+			return nil
+		}
+		return m.writeLockUnlocked(port, scenarioName, pid)
+	})
+}
+
+// AbandonLock removes a lock file that was claimed for scenarioName but
+// whose scenario never successfully bound the port. Differs from RemoveLock
+// in that it only acts when the current lock matches the scenario; a lock
+// owned by a different scenario is left untouched so one scenario's crash
+// never cleans up another's state.
+func (m *Manager) AbandonLock(port int, scenarioName string) error {
+	return m.withMutationLock(port, func() error {
+		lock, exists, err := m.ReadLock(port)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			return nil
+		}
+		if lock.Scenario != scenarioName {
+			return nil
+		}
+		return m.removeLockUnlocked(port)
+	})
+}
+
 func (m *Manager) RemoveScenarioLocks(scenarioName string) error {
 	locks, err := m.LocksForScenario(scenarioName)
 	if err != nil {

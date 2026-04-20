@@ -24,15 +24,15 @@ Individual desktop/iOS/Android apps wrapped from a Vrooli scenario. A subscriber
 **Pros for the user:** lightweight, familiar, no infrastructure, works on existing devices.
 **Cons for the user:** each app is its own process (memory/storage overhead); apps can't share as much context as a full Vrooli instance would; limited to what individual apps expose.
 
-**Cost-of-goods to Vrooli:** near-zero variable cost per user. Build + distribute once; run nothing per-user except the API gateway when relevant.
+**Cost-of-goods to Vrooli:** gateway token cost is the dominant variable per-user line. Paid Tier 1 subscriptions include the integrated API gateway (LLMs, STT/TTS, embeddings, coding agents) with a credit allowance — that's the core reason to pay over running the OSS apps with bring-your-own keys. Every subscriber drives gateway usage with wholesale-to-retail margin. Fixed costs (app store fees, signing certs, CDN) are one-time or amortized. No hosting per user. Detailed unit economics in [FINANCIAL_MODEL.md §Tier 1](FINANCIAL_MODEL.md).
 
 **Current state:** in-progress. `web-console` and `git-control-tower` being packaged for Tier 1 delivery as the business bundle's initial headliners.
 
 ### Tier 2 — Self-hosted full Vrooli runtime (`candidate`)
 
-The user downloads and runs the full Vrooli project on their own hardware. The subscription unlocks paywalled features (integrated API access, routing through Vrooli's gateway, bundle-gated scenarios). The free/OSS path remains open — a user who brings their own API keys and skips paid features runs it at no cost.
+The user downloads and runs the full Vrooli project on their own hardware. The subscription provides the convenience layer (integrated API access, gateway routing) and confirms bundle membership for the scenarios the subscriber owns. The free/OSS path remains open — a user who brings their own API keys runs the same runtime at no cost, just without the integrated gateway.
 
-**Revisit trigger:** *"Revisit when all three are true: (a) the business bundle has paying subscribers, (b) the onboarding flow supports account sign-in for subscription-gated features, (c) a license/entitlement gateway exists (either a new resource or extension of an existing one)."*
+**Revisit trigger:** *"Revisit when all three are true: (a) the business bundle has paying subscribers, (b) the onboarding flow supports account sign-in to activate the convenience layer, (c) a license/entitlement gateway exists (either a new resource or extension of an existing one)."*
 
 **Pros for the user:** full ecosystem power, context sharing across all scenarios, agent-driven discovery of bundle capabilities, deep customization. Developers especially value this.
 **Cons for the user:** requires a capable machine (ideally dedicated); requires setup time; takes responsibility for updates and crash recovery.

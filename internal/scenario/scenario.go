@@ -374,7 +374,23 @@ func ReadService(path string) (ServiceManifest, error) {
 	if err := manifest.Dependencies.Validate(); err != nil {
 		return ServiceManifest{}, fmt.Errorf("validate dependencies in %s: %w", path, err)
 	}
+	// Note: port policy validation (ephemeral-range overlap, canonical-band
+	// membership) is intentionally NOT run here. It is enforced by the
+	// lifecycle on Start (see ValidateManifestPorts). Stop, Status, List,
+	// and inventory paths must remain tolerant of manifests that pre-date
+	// the canonical bands so operators can always tear down and inspect
+	// scenarios regardless of their port configuration.
 	return manifest, nil
+}
+
+// ValidateManifestPorts checks whether the manifest's declared ports sit
+// inside the canonical bands and outside the host OS's live ephemeral range.
+// Intended to be called from code paths that are about to allocate a port
+// (Start), not from observation paths (Stop, List, Status).
+//
+// The check honors the VROOLI_PORT_VALIDATION=off env var escape hatch.
+func ValidateManifestPorts(servicePath string, ports map[string]Port) error {
+	return validateManifestPorts(servicePath, ports)
 }
 
 func (manifest ServiceManifest) CLIEnabled() bool {
