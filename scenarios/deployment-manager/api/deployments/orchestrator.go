@@ -14,6 +14,7 @@ import (
 	"deployment-manager/build"
 	"deployment-manager/bundles"
 	"deployment-manager/profiles"
+	"deployment-manager/releases"
 	"deployment-manager/shared"
 	repocontract "github.com/vrooli/repo-contract-go"
 )
@@ -49,6 +50,15 @@ type DeployDesktopRequest struct {
 	// When provided, the release gate is checked: all required platforms must be
 	// approved for this exact commit before deployment proceeds.
 	GitCommitHash string `json:"git_commit_hash,omitempty"`
+	// ReleaseID, when set, wires this deployment into an existing release
+	// record allocated by POST /api/v1/profiles/{id}/releases/start.
+	ReleaseID string `json:"release_id,omitempty"`
+	// Channel is the release channel (stable, beta, ...) forwarded to S2D
+	// and mapped to LPBS variant_key on apply.
+	Channel string `json:"channel,omitempty"`
+	// ReleaseVersion mirrors scenario-to-desktop's Config.Version and flows
+	// to LPBS so the verify endpoint has an expected version to match.
+	ReleaseVersion string `json:"release_version,omitempty"`
 }
 
 // DeployDesktopResponse is the response from orchestrated deployment.
@@ -82,6 +92,10 @@ type Orchestrator struct {
 	profileRepo           profiles.Repository
 	approvalsRepo         ApprovalsRepository
 	publishedVersionsRepo PublishedVersionsRepository
+	releasesRepo          releases.Repository
+	lpbsConfigRepo        profiles.LPBSReleaseConfigRepository
+	cloudClient           CloudHealthClient
+	lpbsClient            LPBSReleaseClient
 	vrooli                string
 	log                   func(string, map[string]interface{})
 }
@@ -93,16 +107,29 @@ func NewOrchestrator(profileRepo profiles.Repository, log func(string, map[strin
 
 // NewOrchestratorWithApprovals creates a new deployment orchestrator with approval gating.
 func NewOrchestratorWithApprovals(profileRepo profiles.Repository, approvalsRepo ApprovalsRepository, log func(string, map[string]interface{})) *Orchestrator {
-	return NewOrchestratorFull(profileRepo, approvalsRepo, nil, log)
+	return NewOrchestratorFull(profileRepo, approvalsRepo, nil, nil, nil, nil, nil, log)
 }
 
 // NewOrchestratorFull creates a new deployment orchestrator with all optional repositories.
-func NewOrchestratorFull(profileRepo profiles.Repository, approvalsRepo ApprovalsRepository, publishedVersionsRepo PublishedVersionsRepository, log func(string, map[string]interface{})) *Orchestrator {
+func NewOrchestratorFull(
+	profileRepo profiles.Repository,
+	approvalsRepo ApprovalsRepository,
+	publishedVersionsRepo PublishedVersionsRepository,
+	releasesRepo releases.Repository,
+	lpbsConfigRepo profiles.LPBSReleaseConfigRepository,
+	cloudClient CloudHealthClient,
+	lpbsClient LPBSReleaseClient,
+	log func(string, map[string]interface{}),
+) *Orchestrator {
 	vrooli := resolveRepoRoot()
 	return &Orchestrator{
 		profileRepo:           profileRepo,
 		approvalsRepo:         approvalsRepo,
 		publishedVersionsRepo: publishedVersionsRepo,
+		releasesRepo:          releasesRepo,
+		lpbsConfigRepo:        lpbsConfigRepo,
+		cloudClient:           cloudClient,
+		lpbsClient:            lpbsClient,
 		vrooli:                vrooli,
 		log:                   log,
 	}
