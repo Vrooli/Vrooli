@@ -21,6 +21,7 @@ import (
 	"deployment-manager/fitness"
 	"deployment-manager/health"
 	"deployment-manager/profiles"
+	"deployment-manager/releases"
 	"deployment-manager/secrets"
 	"deployment-manager/swaps"
 	"deployment-manager/telemetry"
@@ -53,11 +54,15 @@ type Server struct {
 	ValidationHandler        *visualvalidation.Handler
 	ApprovalsHandler         *deployments.ApprovalsHandler
 	PublishedVersionsHandler *deployments.PublishedVersionsHandler
+	LPBSConfigHandler        *profiles.LPBSConfigHandler
+	ReleasesHandler          *releases.Handler
 	Orchestrator             *deployments.Orchestrator
 
 	// Repositories
-	ProfilesRepo profiles.Repository
-	SigningRepo  codesigning.Repository // Interface to allow SQL or Proxy implementation
+	ProfilesRepo   profiles.Repository
+	SigningRepo    codesigning.Repository // Interface to allow SQL or Proxy implementation
+	LPBSConfigRepo profiles.LPBSReleaseConfigRepository
+	ReleasesRepo   releases.Repository
 }
 
 // New initializes configuration, database, and routes.
@@ -118,6 +123,33 @@ func New() (*Server, error) {
 		LogStructured("warning: failed to ensure published versions schema", map[string]interface{}{"error": err.Error()})
 	}
 
+	// LPBS release-config repository (1:1 child of profiles).
+	lpbsConfigRepo := profiles.NewSQLLPBSReleaseConfigRepository(db)
+	if err := lpbsConfigRepo.EnsureSchema(context.Background()); err != nil {
+		LogStructured("warning: failed to ensure lpbs config schema", map[string]interface{}{"error": err.Error()})
+	}
+
+	// Releases repository (canonical release records + per-platform rows).
+	releasesRepo := releases.NewSQLRepository(db)
+	if err := releasesRepo.EnsureSchema(context.Background()); err != nil {
+		LogStructured("warning: failed to ensure releases schema", map[string]interface{}{"error": err.Error()})
+	}
+
+	// Best-effort inter-scenario clients; the orchestrator skips the matching
+	// step if a client is nil, and logs a warning on construction failure.
+	var cloudClient deployments.CloudHealthClient
+	if c, err := deployments.NewHTTPCloudHealthClient(logFn); err == nil {
+		cloudClient = c
+	} else {
+		LogStructured("cloud health client unavailable", map[string]interface{}{"error": err.Error()})
+	}
+	var lpbsClient deployments.LPBSReleaseClient
+	if c, err := deployments.NewHTTPLPBSReleaseClient(deployments.LPBSClientConfig{Log: logFn}); err == nil {
+		lpbsClient = c
+	} else {
+		LogStructured("lpbs release client unavailable", map[string]interface{}{"error": err.Error()})
+	}
+
 	srv := &Server{
 		Config:                   cfg,
 		DB:                       db,
@@ -138,8 +170,17 @@ func New() (*Server, error) {
 		ValidationHandler:        visualvalidation.NewHandler(visualvalidation.NewSQLRepository(db), approvalsRepo, db, validationVideoDir(), logFn),
 		ApprovalsHandler:         deployments.NewApprovalsHandler(approvalsRepo, logFn),
 		PublishedVersionsHandler: deployments.NewPublishedVersionsHandler(publishedVersionsRepo, logFn),
-		Orchestrator:             deployments.NewOrchestratorFull(profilesRepo, approvalsRepo, publishedVersionsRepo, logFn),
+		LPBSConfigHandler:        profiles.NewLPBSConfigHandler(profilesRepo, lpbsConfigRepo, logFn),
+		LPBSConfigRepo:           lpbsConfigRepo,
+		ReleasesRepo:             releasesRepo,
+		Orchestrator: deployments.NewOrchestratorFull(
+			profilesRepo, approvalsRepo, publishedVersionsRepo,
+			releasesRepo, lpbsConfigRepo, cloudClient, lpbsClient, logFn,
+		),
 	}
+	srv.ReleasesHandler = releases.NewHandler(
+		releasesRepo, lpbsConfigRepo, releasesVerifierAdapter{inner: lpbsClient}, srv.Orchestrator, logFn,
+	)
 
 	srv.setupRoutes()
 	return srv, nil

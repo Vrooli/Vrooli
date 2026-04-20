@@ -357,3 +357,102 @@ export function setRequiredPlatforms(profileId: string, platforms: string[]): Pr
 export function getRequiredPlatforms(profileId: string): Promise<RequiredPlatformsResponse> {
   return apiFetch(`/profiles/${profileId}/required-platforms`, { errorPrefix: "Failed to get required platforms" });
 }
+
+// ============================================================================
+// LPBS Release Config + Releases API Client
+// ============================================================================
+
+export interface LPBSReleaseConfig {
+  profile_id: string;
+  lpbs_domain: string;
+  lpbs_remote_profile: string;
+  lpbs_app_key: string;
+  default_channel: string;
+  update_url: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface VerificationItem {
+  platform: string;
+  channel: string;
+  expected_version: string;
+  observed_version?: string;
+  sha512_match: boolean;
+  match: boolean;
+  error?: string;
+  checked_at: string;
+}
+
+export interface ReleasePlatform {
+  release_id: string;
+  platform: string;
+  status: "pending" | "uploading" | "published" | "failed" | "verify_failed";
+  approval_id?: string;
+  lpbs_artifact_id?: number;
+  published_at?: string;
+  verified_at?: string;
+  error?: string;
+}
+
+export interface Release {
+  id: string;
+  profile_id: string;
+  deployment_id?: string;
+  profile_version?: number;
+  git_commit_hash: string;
+  release_version: string;
+  channel: string;
+  status: "pending" | "publishing" | "published" | "failed" | "superseded" | "verify_failed";
+  release_notes?: string;
+  released_by?: string;
+  promoted_from_release_id?: string;
+  verification_evidence?: VerificationItem[];
+  platforms?: ReleasePlatform[];
+  created_at: string;
+  published_at?: string;
+  updated_at: string;
+}
+
+export interface ReleaseListResponse {
+  releases: Release[];
+}
+
+export interface StartReleaseRequest {
+  channel?: string;
+  git_commit_hash: string;
+  release_version: string;
+  release_notes?: string;
+  released_by?: string;
+  platforms?: string[];
+}
+
+export interface StartReleaseResponse {
+  release: Release;
+  steps?: Array<{ name: string; status: string; message?: string; error?: string }>;
+}
+
+export function getProfileLPBSConfig(profileId: string): Promise<LPBSReleaseConfig> {
+  return apiFetch(`/profiles/${profileId}/lpbs-config`, { errorPrefix: "Failed to load LPBS config" });
+}
+
+export function saveProfileLPBSConfig(profileId: string, cfg: Partial<LPBSReleaseConfig>): Promise<LPBSReleaseConfig> {
+  return apiFetch(`/profiles/${profileId}/lpbs-config`, { method: "PUT", body: cfg, errorPrefix: "Failed to save LPBS config" });
+}
+
+export function listProfileReleases(profileId: string, limit = 10): Promise<ReleaseListResponse> {
+  return apiFetch(`/profiles/${profileId}/releases?limit=${limit}`, { errorPrefix: "Failed to list releases" });
+}
+
+export function getRelease(releaseId: string): Promise<Release> {
+  return apiFetch(`/releases/${releaseId}`, { errorPrefix: "Failed to get release" });
+}
+
+export function reverifyRelease(releaseId: string, deep = false): Promise<Release> {
+  const q = deep ? "?deep=true" : "";
+  return apiFetch(`/releases/${releaseId}/verify${q}`, { method: "POST", errorPrefix: "Failed to re-verify release" });
+}
+
+export function startRelease(profileId: string, req: StartReleaseRequest): Promise<StartReleaseResponse> {
+  return apiFetch(`/profiles/${profileId}/releases/start`, { method: "POST", body: req, errorPrefix: "Failed to start release" });
+}

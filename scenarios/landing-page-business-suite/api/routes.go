@@ -27,6 +27,14 @@ func (s *Server) setupRoutes() {
 	registerDocsRoutes(s)
 	registerAdminUserRoutes(s)
 	registerUpdateRoutes(s)
+	registerDeployReadinessRoute(s)
+}
+
+func registerDeployReadinessRoute(s *Server) {
+	s.router.HandleFunc(
+		"/api/v1/deploy-readiness",
+		s.requireAdminOrService(handleDeployReadiness(s.downloadHosting, s.downloadService, s.remoteProfileService, s.planService)),
+	).Methods("POST")
 }
 
 func registerHealthRoutes(s *Server) {

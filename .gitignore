@@ -444,3 +444,4 @@ vrooli
 
 # Per-clone scenario stale-check sidecar (see internal/scenariostale).
 scenarios/*/.build-fingerprint.json
+.claude/scheduled_tasks.lock

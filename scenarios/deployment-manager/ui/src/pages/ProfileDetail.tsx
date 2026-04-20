@@ -8,6 +8,8 @@ import { Badge } from "../components/ui/badge";
 import { getProfile, deployProfile, checkReleaseGate, getRequiredPlatforms, setRequiredPlatforms } from "../lib/api";
 import type { ReleaseGateStatus } from "../lib/api";
 import { getErrorMessage } from "../lib/utils";
+import { LPBSReleaseConfigCard } from "../components/LPBSReleaseConfigCard";
+import { ReleasesPanel } from "../components/ReleasesPanel";
 
 const TIER_NAMES: Record<number, string> = {
   1: "Local/Dev",
@@ -329,6 +331,14 @@ export function ProfileDetail() {
           )}
         </CardContent>
       </Card>
+
+      {/* LPBS Release Config + Releases */}
+      {id && (
+        <>
+          <LPBSReleaseConfigCard profileId={id} />
+          <ReleasesPanel profileId={id} />
+        </>
+      )}
 
       {/* Swaps */}
       {profile.swaps && Object.keys(profile.swaps).length > 0 && (

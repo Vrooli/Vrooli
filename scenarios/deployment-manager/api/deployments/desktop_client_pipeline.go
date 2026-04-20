@@ -181,6 +181,11 @@ type PublishPipelineRequest struct {
 	ResumeFromStage string               `json:"resume_from_stage,omitempty"`
 	StopAfterStage  string               `json:"stop_after_stage,omitempty"`
 	Publish         bool                 `json:"publish,omitempty"`
+	// ReleaseID is the DM-owned release UUID forwarded to S2D so the LPBS
+	// commit payload carries it on download_artifacts.release_id.
+	ReleaseID string `json:"release_id,omitempty"`
+	// Channel is the release channel; S2D maps it to LPBS variant_key on apply.
+	Channel string `json:"channel,omitempty"`
 }
 
 // PublishDeployConfig mirrors scenario-to-desktop's DeployConfig for LPBS deployment.
@@ -190,6 +195,10 @@ type PublishDeployConfig struct {
 	RemoteProfile string `json:"remote_profile,omitempty"`
 	AppKey        string `json:"app_key"`
 	UpdateURL     string `json:"update_url,omitempty"`
+	// ReleaseID + Channel ride on the deploy config so S2D's pipeline Config
+	// decoder forwards them to lpbs_client.go.
+	ReleaseID string `json:"release_id,omitempty"`
+	Channel   string `json:"channel,omitempty"`
 }
 
 // PublishPipelineResponse is the response from triggering a pipeline run.

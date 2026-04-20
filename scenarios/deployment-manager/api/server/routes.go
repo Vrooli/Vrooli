@@ -83,6 +83,21 @@ func (s *Server) setupRoutes() {
 		s.Router.HandleFunc("/api/v1/profiles/{id}/published-versions", s.PublishedVersionsHandler.GetPublishedVersions).Methods("GET")
 	}
 
+	// LPBS release config (per-profile) endpoints.
+	if s.LPBSConfigHandler != nil {
+		s.Router.HandleFunc("/api/v1/profiles/{id}/lpbs-config", s.LPBSConfigHandler.Get).Methods("GET")
+		s.Router.HandleFunc("/api/v1/profiles/{id}/lpbs-config", s.LPBSConfigHandler.Upsert).Methods("PUT")
+		s.Router.HandleFunc("/api/v1/profiles/{id}/lpbs-config", s.LPBSConfigHandler.Delete).Methods("DELETE")
+	}
+
+	// Release lifecycle endpoints (operator-intent surface).
+	if s.ReleasesHandler != nil {
+		s.Router.HandleFunc("/api/v1/profiles/{id}/releases", s.ReleasesHandler.ListByProfile).Methods("GET")
+		s.Router.HandleFunc("/api/v1/profiles/{id}/releases/start", s.ReleasesHandler.Start).Methods("POST")
+		s.Router.HandleFunc("/api/v1/releases/{release_id}", s.ReleasesHandler.Get).Methods("GET")
+		s.Router.HandleFunc("/api/v1/releases/{release_id}/verify", s.ReleasesHandler.Verify).Methods("POST")
+	}
+
 	// Visual validation endpoints
 	if s.ValidationHandler != nil {
 		s.Router.HandleFunc("/api/v1/validations", s.ValidationHandler.Create).Methods("POST")

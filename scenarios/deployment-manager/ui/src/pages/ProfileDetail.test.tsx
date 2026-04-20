@@ -40,10 +40,25 @@ const mockProfile: api.DeploymentProfile = {
   created_at: '2026-01-01T00:00:00Z',
 };
 
+// Default mocks for the LPBS config + releases queries embedded on ProfileDetail.
+// Individual tests can override.
+const defaultLPBSMocks = () => {
+  vi.mocked(api.getProfileLPBSConfig).mockResolvedValue({
+    profile_id: 'prof-1',
+    lpbs_domain: '',
+    lpbs_remote_profile: '',
+    lpbs_app_key: '',
+    default_channel: 'stable',
+    update_url: '',
+  });
+  vi.mocked(api.listProfileReleases).mockResolvedValue({ releases: [] });
+};
+
 describe('ProfileDetail - Release Gate', () => {
   it('renders release gate card', async () => {
     vi.mocked(api.getProfile).mockResolvedValue(mockProfile);
     vi.mocked(api.getRequiredPlatforms).mockResolvedValue({ profile_id: 'prof-1', platforms: [] });
+    defaultLPBSMocks();
 
     render(<ProfileDetail />, { wrapper: createWrapper() });
 
@@ -76,6 +91,7 @@ describe('ProfileDetail - Release Gate', () => {
   it('shows Blocked badge with platform breakdown when not ready', async () => {
     vi.mocked(api.getProfile).mockResolvedValue(mockProfile);
     vi.mocked(api.getRequiredPlatforms).mockResolvedValue({ profile_id: 'prof-1', platforms: ['linux', 'windows'] });
+    defaultLPBSMocks();
     vi.mocked(api.checkReleaseGate).mockResolvedValue({
       profile_id: 'prof-1',
       git_commit_hash: 'abc123def456789',
@@ -106,6 +122,7 @@ describe('ProfileDetail - Required Platforms', () => {
   it('renders required platforms checkboxes', async () => {
     vi.mocked(api.getProfile).mockResolvedValue(mockProfile);
     vi.mocked(api.getRequiredPlatforms).mockResolvedValue({ profile_id: 'prof-1', platforms: ['linux'] });
+    defaultLPBSMocks();
 
     render(<ProfileDetail />, { wrapper: createWrapper() });
 
@@ -118,6 +135,7 @@ describe('ProfileDetail - Required Platforms', () => {
   it('shows save button after changing selection', async () => {
     vi.mocked(api.getProfile).mockResolvedValue(mockProfile);
     vi.mocked(api.getRequiredPlatforms).mockResolvedValue({ profile_id: 'prof-1', platforms: ['linux'] });
+    defaultLPBSMocks();
 
     render(<ProfileDetail />, { wrapper: createWrapper() });
 
@@ -136,6 +154,7 @@ describe('ProfileDetail - Required Platforms', () => {
     vi.mocked(api.getProfile).mockResolvedValue(mockProfile);
     vi.mocked(api.getRequiredPlatforms).mockResolvedValue({ profile_id: 'prof-1', platforms: [] });
     vi.mocked(api.setRequiredPlatforms).mockResolvedValue({ profile_id: 'prof-1', platforms: ['windows'] });
+    defaultLPBSMocks();
 
     render(<ProfileDetail />, { wrapper: createWrapper() });
 

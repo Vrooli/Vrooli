@@ -17,7 +17,7 @@ func TestNewOrchestratorFullCanonicalizesContractDescendant(t *testing.T) {
 	t.Setenv("VROOLI_SOURCE_ROOT", nested)
 	t.Setenv("VROOLI_ROOT", "")
 
-	orchestrator := NewOrchestratorFull(nil, nil, nil, nil)
+	orchestrator := NewOrchestratorFull(nil, nil, nil, nil, nil, nil, nil, nil)
 	if orchestrator.vrooli != root {
 		t.Fatalf("orchestrator.vrooli = %q, want %q", orchestrator.vrooli, root)
 	}
