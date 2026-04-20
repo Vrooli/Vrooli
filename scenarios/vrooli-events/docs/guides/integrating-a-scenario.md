@@ -2,6 +2,9 @@
 
 How to connect your scenario to vrooli-events for automatic event emission and policy enforcement.
 
+Implementation (scenario-side SDK — currently `scenarios/vrooli-events/internal/*`; see [DOC: internal/SEAMS.md#architecture-alignment] for the planned promotion to `packages/api-core/eventbus-sdk/`):
+EmittingResolver: [CODE: internal/resolver/resolver.go#EmittingResolver] | Event emitter: [CODE: internal/emitter/emitter.go] | Receiver middleware: [CODE: internal/middleware/policy.go] | Graceful fallback: [CODE: internal/fallback/fallback.go] | Source header: [CODE: internal/headers/headers.go]
+
 ## Automatic Integration (via Discovery Package)
 
 Once the discovery package is updated with `EmittingResolver`, **all existing scenarios get event emission for free**. No code changes needed — every call through `discovery.ResolveScenarioURL()` automatically emits an event.

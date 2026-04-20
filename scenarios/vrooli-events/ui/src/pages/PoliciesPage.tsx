@@ -1,4 +1,6 @@
 // REQ-UI-006: Policy management — rule list
+// DOC: docs/reference/api-endpoints.md#policies
+// DOC: docs/guides/managing-policies.md
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Shield, Plus, Trash2, RefreshCw } from "lucide-react";

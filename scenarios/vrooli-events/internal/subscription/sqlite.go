@@ -1,3 +1,5 @@
+// DOC: docs/guides/creating-subscriptions.md
+// DOC: docs/internal/INVARIANTS.md
 package subscription
 
 import (

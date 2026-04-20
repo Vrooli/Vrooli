@@ -2,6 +2,8 @@
 
 Policy rules govern inter-scenario communication: who can call whom, how often, and what happens when things fail.
 
+Implementation: [CODE: internal/policy/evaluator.go#Evaluate] | [CODE: internal/policy/sqlite.go] | [CODE: internal/policy/broadcaster.go] | Sender enforcement: [CODE: internal/resolver/resolver.go#EmittingResolver] | Receiver enforcement: [CODE: internal/middleware/policy.go], [CODE: internal/middleware/policy_access.go], [CODE: internal/middleware/policy_ratelimit.go], [CODE: internal/middleware/policy_circuit.go] | CRUD API: [CODE: api/handlers_policy.go] | UI: [CODE: ui/src/pages/PoliciesPage.tsx], [CODE: ui/src/pages/PolicyEditorPage.tsx], [CODE: ui/src/pages/CircuitBreakerPage.tsx]
+
 ## Policy Types
 
 ### Access Control

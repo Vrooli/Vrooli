@@ -1,5 +1,8 @@
 // Package policy implements the policy enforcement engine for vrooli-events:
 // access control rules, rate limiting, circuit breakers, and violation logging.
+//
+// DOC: docs/guides/managing-policies.md
+// DOC: docs/concepts/ARCHITECTURE.md#policy-engine
 package policy
 
 import (

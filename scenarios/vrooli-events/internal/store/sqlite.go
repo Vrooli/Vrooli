@@ -52,6 +52,9 @@ type SQLiteConfig struct {
 	MaxSizeBytes  int64         // max total payload size (default 2GB)
 	QueryLimit    int           // default query limit when not specified (default 100)
 	QueryLimitMax int           // maximum allowed query limit (default 1000)
+	// Now is the time source used by time-dependent operations (e.g. Prune
+	// cutoff). Injectable for deterministic tests — defaults to time.Now.
+	Now func() time.Time
 }
 
 // SQLiteStore implements Store using SQLite.
@@ -73,6 +76,9 @@ func NewSQLiteStore(ctx context.Context, cfg SQLiteConfig) (*SQLiteStore, error)
 	}
 	if cfg.QueryLimitMax <= 0 {
 		cfg.QueryLimitMax = 1000
+	}
+	if cfg.Now == nil {
+		cfg.Now = time.Now
 	}
 
 	dsn := cfg.DBPath
@@ -259,7 +265,7 @@ func (s *SQLiteStore) Prune(ctx context.Context) (PruneResult, error) {
 
 // pruneByTime deletes events older than MaxAge and adjusts the payload byte counter.
 func (s *SQLiteStore) pruneByTime(ctx context.Context) (int64, error) {
-	cutoff := time.Now().UTC().Add(-s.config.MaxAge).Format(sqlutil.TimestampFormat)
+	cutoff := s.config.Now().UTC().Add(-s.config.MaxAge).Format(sqlutil.TimestampFormat)
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {

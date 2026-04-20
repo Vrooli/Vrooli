@@ -1,6 +1,8 @@
 // Package subscription implements persistent subscription management for
 // event-driven consumers. Subscriptions define which events to forward and
 // how (SSE or webhook).
+//
+// DOC: docs/guides/creating-subscriptions.md
 package subscription
 
 import (

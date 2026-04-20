@@ -47,12 +47,13 @@ vrooli-events does NOT own:
 - **Test strategy**: Mock HTTP server receiving webhooks; verify signature, retry, and circuit-breaking behavior
 - **Consumer**: notification-hub webhook endpoint
 
-### Seam 5: Discovery Package ↔ vrooli-events API
+### Seam 5: Scenario-Side SDK ↔ vrooli-events API
 
-- **Interface**: EmittingResolver wrapping Resolver; PolicyMiddleware wrapping http.Handler
-- **Contract**: EmittingResolver adds zero latency; PolicyMiddleware reads X-Source-Scenario header
-- **Test strategy**: Unit tests with mock events client; integration tests with real vrooli-events
-- **Location**: `packages/api-core/discovery/`
+- **Interface**: `EmittingResolver` wrapping a discovery `Resolver`; `PolicyMiddleware` wrapping `http.Handler`
+- **Contract**: `EmittingResolver` adds zero latency (policy check in-memory, emit via background goroutine); `PolicyMiddleware` reads `X-Source-Scenario` header (see `internal/headers/`)
+- **Test strategy**: Unit tests with mock events client (`internal/resolver/resolver_emit_test.go`, `internal/middleware/policy_test.go`); integration tests with real vrooli-events
+- **Location**: `scenarios/vrooli-events/internal/resolver/`, `scenarios/vrooli-events/internal/middleware/`, `scenarios/vrooli-events/internal/emitter/`, `scenarios/vrooli-events/internal/fallback/`, `scenarios/vrooli-events/internal/headers/` (SDK layer — pending promotion to a shared module so external scenarios can import it)
+- **Shared discovery primitive**: `packages/api-core/discovery/resolve.go` provides the underlying `Resolver` that `EmittingResolver` decorates
 
 ## Code-Level Seams (Internal)
 
@@ -88,14 +89,87 @@ The `EventBroker` interface (Subscribe, Publish, SubscriberCount, DroppedCount, 
 
 Bidirectional conversion (EnvelopeToEvent / EventToEnvelope) separates the HTTP/proto layer from internal storage representation.
 
+### UI HTTP Seam (`globalThis.fetch`)
+
+**Seam quality: Good** (formalized Phase 3 iter1, 2026-04-20)
+
+`ui/src/lib/api.ts` has always relied on `globalThis.fetch` as its one network
+boundary, but there was no reusable way for tests to program responses or
+inspect requests — every would-be behavioral test had to hand-roll
+`vi.spyOn(globalThis, "fetch")` plumbing. That friction is why 270 lines of
+`ui/src/lib/api.test.ts` covered only type shapes, not actual call behavior.
+
+- **Seam**: the WHATWG `fetch` global; `api.ts` never captures a fetch reference at
+  import time, so swapping the global *after* module load works cleanly.
+- **Test helper**: `src/test-utils/mockFetch.ts` — `mockFetch()` replaces
+  `globalThis.fetch` with a programmable `vi.fn()`, exposes `.respondTo(match, response)`,
+  `.rejectWith(match, error)`, and `.calls[]` for assertions, and provides `.restore()` for
+  teardown. Unmatched calls return a 500 with a diagnostic body so they fail loudly.
+- **Mock**: matchers accept a URL substring or RegExp and an optional method filter;
+  the first matching program wins (insertion order).
+- **Reference tests**: `src/test-utils/mockFetch.test.ts` (9 cases covering the helper
+  contract) and `src/lib/api.behavior.test.ts` (fetchHealth / fetchEvents through the
+  seam).
+- **Why it matters**: enables behavioral coverage of request construction
+  (query-string encoding, method, headers, body shape) and of error paths (non-ok
+  status, thrown network errors) without a running API, without vi.mock churn, and
+  without changing a single line of `api.ts`.
+
+### UI SSE Seam (`globalThis.EventSource`)
+
+**Seam quality: Good** (formalized Phase 3 iter1, 2026-04-20)
+
+`subscribeSSE` in `ui/src/lib/api.ts` constructs an `EventSource` per subscription.
+Previously the test bootstrap (`src/test-utils/setup.ts`) replaced `EventSource` with
+a constructor that produced an instance whose `addEventListener`/`close` were `vi.fn()` —
+enough to prevent jsdom errors, not enough to drive messages. Behavioral tests for
+SSE consumers (the subscribe loop, reconnection, named-event handling) were therefore
+impossible to write cleanly.
+
+- **Seam**: the DOM `EventSource` global; `api.ts` constructs via `new EventSource(url)`
+  and attaches listeners immediately, so a swapped constructor can capture both URL and
+  listeners.
+- **Test helper**: `src/test-utils/mockEventSource.ts` — `mockEventSource()` replaces
+  the constructor, records each instance (URL + listener map + close/addEventListener
+  mocks), and exposes `.emitMessage(data)`, `.emitNamed(name, data)`, `.emitError()` so
+  tests can drive the consumer deterministically. Static enum constants
+  (`CONNECTING`/`OPEN`/`CLOSED`) are preserved on the constructor.
+- **Reference tests**: `src/test-utils/mockEventSource.test.ts` (10 cases covering the
+  helper contract) and `src/lib/api.behavior.test.ts` (subscribeSSE URL building,
+  message parsing, error forwarding, malformed-JSON resilience).
+- **Discovery from the seam**: writing the first behavioral test revealed that
+  `subscribeSSE` wires the same handler to both `addEventListener("message", ...)` and
+  `es.onmessage`, so unnamed SSE messages fire the consumer twice. That behavior is now
+  locked in by test and documented in `docs/internal/PROBLEMS.md` for a dedicated fix
+  phase.
+
+### Clock Seam (`store.SQLiteConfig.Now`)
+
+**Seam quality: Good** (new in Phase 20 iter2)
+
+`SQLiteConfig.Now` is an injectable `func() time.Time` used by `pruneByTime()` to compute the
+retention cutoff. Tests inject a fake clock instead of sleeping through `MaxAge`.
+
+- **Default**: `time.Now` (applied in `NewSQLiteStore` if `Now == nil`)
+- **Used by**: `SQLiteStore.pruneByTime`
+- **Test usage**: `TestPruneByTime`, `TestPruneByTime_WithinRetention`, `TestPruneIdempotent`,
+  `TestMetaConsistencyThroughPruneCycle` — all inject `fakeNow := func() time.Time { return time.Now().Add(10 * time.Second) }`
+- **Why it matters**: Eliminated three `time.Sleep(2*time.Second)` calls; store package test time
+  dropped from ~6.5s to ~0.5s. Prune behavior is now deterministic and fast, enabling finer-grained
+  edge-case coverage without real-time penalties.
+
+Note: SQLite still uses its own `strftime('now')` for the `created_at` column, so the seam shifts
+*cutoff* time only, not inserted-row timestamps. This is intentional — the pruning decision is the
+behavior we need to test, and tests don't need to freeze individual row timestamps to verify it.
+
 ### Weak/Missing Seams
 
 | Location | Issue | Mitigation |
 |----------|-------|------------|
 | `api/main.go` main() | Directly constructs SQLiteStore, Broker, Pruner | Acceptable for entry point; all constructors accept interface deps |
 | `api/handlers.go` protoMarshaler/protoUnmarshaler | Package-level globals | Low risk; stateless, thread-safe config objects |
-| `ui/src/lib/api.ts` API_BASE | Module-level singleton resolved at import time | Cannot override per-test; future improvement: accept base URL param |
-| `ui/src/lib/router.ts` | Directly reads/writes window.location.hash | Must test with real DOM; future: abstract location object |
+| `ui/src/lib/api.ts` API_BASE | Module-level singleton resolved at import time | ✅ Mitigated (Phase 3, 2026-04-20): behavioral tests swap the real seam — `globalThis.fetch` — via the new `mockFetch` helper in `src/test-utils/`. Per-test base-URL override is still not supported, but no test has needed it; assertions against the observed request URL cover the same ground. |
+| `store/sqlite.go` `strftime('now')` | Row-level timestamps still use SQLite's wall clock | Acceptable — cutoff seam is enough to make prune tests deterministic |
 
 ## Observability Surface
 
@@ -148,6 +222,8 @@ Bidirectional conversion (EnvelopeToEvent / EventToEnvelope) separates the HTTP/
 | EmittingResolver | Mock events client, mock resolver | Real vrooli-events instance |
 | PolicyMiddleware | Mock policy cache | Real SSE-fed cache |
 | CLI | Mock API client | Real running scenario |
+| UI api.ts fetchers | `mockFetch()` (swap `globalThis.fetch`) | Real UI smoke via browserless |
+| UI subscribeSSE | `mockEventSource()` (swap `globalThis.EventSource`) | Real UI smoke via browserless |
 
 ## Change Axes
 
@@ -204,6 +280,75 @@ Key decision points in the codebase and where they are made:
 - **Routing/matching**: `matches()`, `Match()`, `Glob()` — layered pure functions
 - **Resource protection**: channel backpressure, query limit clamping, body size limit — distributed but consistent pattern
 - **Health/status**: `handleHealth`, heartbeat content — runtime observability decisions
+
+## Architecture Alignment
+
+Captures drift between the documented mental model and the actual physical
+structure, and the alignment moves recorded in each phase.
+
+### Logical vs Physical Structure
+
+Two concerns currently share the flat `internal/` tree:
+
+| Logical layer | Physical packages | Imported by `api/`? |
+|---------------|-------------------|---------------------|
+| **Server core** — runs inside the API binary | `store`, `broker`, `policy`, `subscription`, `convert`, `match`, `config`, `sqlutil` | Yes |
+| **Scenario-side SDK** — meant for *other* scenarios to compose | `emitter`, `resolver`, `middleware`, `fallback`, `headers` | No |
+| **Test fixtures** (server-side only) | `testutil` | Yes (tests only) |
+
+### Drift Findings
+
+1. **SDK layer is structurally orphaned.** `internal/emitter`, `internal/fallback`,
+   `internal/headers`, `internal/resolver`, `internal/middleware` are imported by
+   zero packages outside the SDK cluster itself — and Go's `internal/` rules
+   prevent external scenarios from importing them at all. They are canonical
+   reference implementations that cannot yet fulfill their declared role.
+2. **Doc drift (fixed 2026-04-20):** `ARCHITECTURE.md` and `SEAMS.md`
+   previously located the SDK at `packages/api-core/discovery/` and marked
+   OT-P1-004 through OT-P1-014 as "Not implemented" despite their
+   implementations landing earlier. Both now point to the real scenario-local
+   paths and mark the P1 targets as Done.
+3. **Server-core ↔ SDK shared seam:** `internal/match` is consumed by the
+   broker (server) and by the resolver/middleware (SDK). It stays pure + stateless
+   so this cross-layer dependency is safe.
+
+### Alignment Moves Made
+
+- Updated `ARCHITECTURE.md` with a "Package Layout — Server Core vs Scenario-Side
+  SDK" section that names every `internal/*` package and its layer.
+- Updated `ARCHITECTURE.md` P1 target table so the stated status matches the
+  scoring engine (234/234 targets passing) and points at the real code
+  locations.
+- Rewrote Seam 5 in this file to reflect the SDK's real `internal/*` home
+  and the `api-core/discovery.Resolver` primitive it decorates.
+
+### Recommended Next-Iteration Refactor (High-Risk)
+
+Promote the SDK cluster to a shared module so scenarios can actually import it:
+
+```
+packages/api-core/eventbus-sdk/
+├── emitter/         (← scenarios/vrooli-events/internal/emitter)
+├── resolver/        (← scenarios/vrooli-events/internal/resolver)
+├── middleware/      (← scenarios/vrooli-events/internal/middleware)
+├── fallback/        (← scenarios/vrooli-events/internal/fallback)
+└── headers/         (← scenarios/vrooli-events/internal/headers)
+```
+
+Constraints for the move:
+- `match` stays under the scenario (pure function, zero dependencies) and the
+  SDK imports it from the shared location — or it also moves to api-core.
+- `policy` stays server-only; the SDK currently imports it for evaluator
+  logic — that evaluator subset must come along (split the package) or the
+  SDK must depend on a shared evaluator contract.
+- Test factories in `internal/testutil` remain server-only; the SDK needs
+  its own test fixtures so consumers can plug in mock events clients without
+  pulling in `MockStore`/`MockBroker`.
+
+Estimated scope: 5 packages moved, ~60 import-path rewrites, re-run all
+tests, add Go module boundary tests to prevent server packages from
+leaking into the SDK. Deliberately deferred — documenting this here so the
+next agent picks up with full context.
 
 ## Responsibility Zones
 

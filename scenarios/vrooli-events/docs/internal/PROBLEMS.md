@@ -38,6 +38,20 @@ This is explicitly deferred as a non-goal for the current phase.
 
 ## Tech Debt
 
+### P2 — subscribeSSE double-dispatches unnamed messages (discovered via new SSE seam, 2026-04-20)
+`ui/src/lib/api.ts#subscribeSSE` attaches the same `handleSSEData` callback both as
+`addEventListener("message", ...)` and as `es.onmessage`. In a real EventSource both
+listeners fire for the same default (unnamed) server event, so `opts.onEvent` runs twice
+per message. The new `api.behavior.test.ts > parses incoming message data` test locks in
+the current behavior (`toHaveBeenCalledTimes(2)`) and the new `mockEventSource` seam made
+this visible for the first time.
+Fix direction: either (a) register only `addEventListener("message", ...)` and delete
+the `es.onmessage = handleSSEData` line (the `addEventListener` path already handles both
+unnamed SSE messages and the jsdom-style fallback we care about), or (b) wrap the handler
+in a once-per-event de-duplicator keyed on `e.data + e.lastEventId`. Option (a) is
+simpler and matches EventSource semantics. Deferred to a dedicated UI-behavior phase so we
+can also add named-event support (`event: policy_update`) via `addEventListener(name, …)`.
+
 ### PRD emoji formatting (blocks standards phase)
 The scenario-auditor requires PRD subsections to use emoji prefixes (🔴 P0, 🟠 P1, 🟢 P2) but the PRD uses plain text. PRD is read-only per task instructions. This is the sole remaining HIGH violation (3 violations) blocking the standards test phase.
 

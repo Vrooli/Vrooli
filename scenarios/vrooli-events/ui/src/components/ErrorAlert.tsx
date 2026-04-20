@@ -1,3 +1,5 @@
+// DOC: docs/internal/ERROR-SEMANTICS.md
+// DOC: docs/internal/COHERENCE-NOTES.md
 import { AlertCircle, RefreshCw, WifiOff } from "lucide-react";
 import { Button } from "./ui/button";
 import { categorizeError } from "../lib/errors";

@@ -1,3 +1,4 @@
+// DOC: docs/internal/ERROR-SEMANTICS.md
 /**
  * Error categorization for user-facing display.
  *

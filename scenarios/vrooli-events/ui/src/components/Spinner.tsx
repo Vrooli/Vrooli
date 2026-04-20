@@ -1,3 +1,4 @@
+// DOC: docs/internal/COHERENCE-NOTES.md
 interface SpinnerProps {
   label?: string;
 }

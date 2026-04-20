@@ -2,6 +2,8 @@
 
 Persistent subscriptions let you react to events from other scenarios without modifying the source. This is how notification-hub enables "get notified when a backlog item completes" without changing swarm-manager.
 
+Implementation: [CODE: internal/subscription/subscription.go] | Store: [CODE: internal/subscription/sqlite.go] | Webhook delivery: [CODE: internal/subscription/webhook.go] | CRUD API: [CODE: api/handlers_subscription.go] | UI: [CODE: ui/src/pages/SubscriptionsPage.tsx], [CODE: ui/src/pages/SubscriptionHealthPage.tsx]
+
 ## Subscription Types
 
 | Type | Use Case | Delivery |

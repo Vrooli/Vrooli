@@ -71,6 +71,12 @@ func TestIngestAndQueryCommands(t *testing.T) {
 	var receivedBody map[string]any
 	var receivedQuery string
 	mux := http.NewServeMux()
+	// NeedsAPI commands preflight-probe /health via ensureAPIReachable; without this
+	// the ingest/query handlers never run and the test sees a 404 recovery report.
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"status": "healthy"})
+	})
 	mux.HandleFunc("/api/v1/events", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPost:

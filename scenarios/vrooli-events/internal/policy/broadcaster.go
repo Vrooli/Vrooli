@@ -1,3 +1,5 @@
+// DOC: docs/internal/TEMPORAL-FLOWS.md
+// DOC: docs/guides/managing-policies.md
 package policy
 
 import "sync"

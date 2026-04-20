@@ -1,3 +1,5 @@
+// DOC: docs/internal/COHERENCE-NOTES.md
+// DOC: docs/internal/EXPERIENCE-AUDIT.md
 import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 
