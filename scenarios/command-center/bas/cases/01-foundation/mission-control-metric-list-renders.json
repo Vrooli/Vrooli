@@ -1,0 +1,96 @@
+{
+  "metadata": {
+    "name": "mission-control-metric-list-renders",
+    "description": "Navigates to /mission-control and asserts the MetricList wrapper renders with at least one [data-metric-id] entry.",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"CC-UI-002\"]"
+    },
+    "version": "1",
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-mission-control",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "command-center",
+          "scenario_path": "/mission-control",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to /mission-control"
+        }
+      }
+    },
+    {
+      "id": "wait-metric-list",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='metric-list']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for metric-list wrapper"
+        }
+      }
+    },
+    {
+      "id": "assert-metric-list-wrapper",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='metric-list']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Expected [data-testid='metric-list'] wrapper on /mission-control"
+        },
+        "metadata": {
+          "label": "Assert metric-list wrapper present"
+        }
+      }
+    },
+    {
+      "id": "assert-metric-entry",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='metric-list'] [data-metric-id]",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Expected at least one [data-metric-id] entry inside metric-list on /mission-control"
+        },
+        "metadata": {
+          "label": "Assert at least one metric entry"
+        }
+      }
+    },
+    {
+      "id": "capture-mission-control-metrics",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture /mission-control metric list"
+        }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-mission-control", "target": "wait-metric-list", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-metric-list", "target": "assert-metric-list-wrapper", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "assert-metric-list-wrapper", "target": "assert-metric-entry", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "assert-metric-entry", "target": "capture-mission-control-metrics", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

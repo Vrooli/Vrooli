@@ -1,0 +1,95 @@
+{
+  "metadata": {
+    "name": "ledger-gap-badges-render",
+    "description": "Navigates to /ledger and asserts at least one [data-testid='gap-badge'] renders (e.g. subscriber_counts, revenue_rollup).",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"CC-UI-002\"]"
+    },
+    "version": "1",
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1440,
+    "viewport_height": 900
+  },
+  "nodes": [
+    {
+      "id": "navigate-ledger",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "command-center",
+          "scenario_path": "/ledger",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to /ledger"
+        }
+      }
+    },
+    {
+      "id": "wait-theme-applied",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-theme='vault']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for data-theme='vault'"
+        }
+      }
+    },
+    {
+      "id": "wait-gap-badge",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='gap-badge']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for gap-badge to render"
+        }
+      }
+    },
+    {
+      "id": "assert-gap-badge-exists",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='gap-badge']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Expected at least one [data-testid='gap-badge'] to render on /ledger (e.g. subscriber_counts)"
+        },
+        "metadata": {
+          "label": "Assert at least one gap-badge exists"
+        }
+      }
+    },
+    {
+      "id": "capture-ledger-gap",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture /ledger with gap badges"
+        }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-ledger", "target": "wait-theme-applied", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-theme-applied", "target": "wait-gap-badge", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "wait-gap-badge", "target": "assert-gap-badge-exists", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "assert-gap-badge-exists", "target": "capture-ledger-gap", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}
