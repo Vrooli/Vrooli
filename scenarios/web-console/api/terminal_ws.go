@@ -16,6 +16,13 @@ import (
 // wsPingPeriod is the keepalive ping interval; tests may override it.
 var wsPingPeriod = 30 * time.Second
 
+// probeReadyTimeout bounds how long the input loop waits for the PTY's
+// attach handshake (tmux-backed sessions) to complete before giving up
+// and closing the WS with a typed error. Matches the client-side 2 s ack
+// budget with a 1 s safety margin so a borderline-slow tmux server surfaces
+// as a ready-fail rather than a per-message ack timeout.
+var probeReadyTimeout = 3 * time.Second
+
 // DOC: docs/concepts/ARCHITECTURE.md#terminal-io
 // DOC: docs/internal/ERROR-SEMANTICS.md#websocket-error-protocol
 // WebSocket message types for terminal I/O.
@@ -43,6 +50,14 @@ const (
 	// MsgTypeConversationEventUpdate delivers async updates (e.g. summarization)
 	// for an already-delivered conversation event.
 	MsgTypeConversationEventUpdate = "conversation_event_update"
+	// MsgTypeSessionReady is emitted exactly once per WS connection after the
+	// PTY is confirmed to accept writes (ProbeReady). Until the client sees
+	// this, stdin must stay in the pending queue.
+	MsgTypeSessionReady = "session_ready"
+	// MsgTypeStdinAck is echoed for every stdin message the server processes.
+	// Seq matches the client-assigned sequence; Ok reports whether sess.Write
+	// succeeded.
+	MsgTypeStdinAck = "stdin_ack"
 )
 
 // TerminalMessage is the WebSocket JSON message format.
@@ -69,6 +84,12 @@ type TerminalMessage struct {
 	SpeechParagraphs         []string `json:"speechParagraphs,omitempty"`
 	OriginalSpeechParagraphs []string `json:"originalSpeechParagraphs,omitempty"`
 	Summarized               bool     `json:"summarized,omitempty"`
+	// Seq is the client-assigned sequence number for stdin messages; the
+	// server echoes it in the matching stdin_ack. Opaque to the server.
+	Seq int64 `json:"seq,omitempty"`
+	// Ok reports whether a server-acknowledged action succeeded (used by
+	// stdin_ack).
+	Ok bool `json:"ok,omitempty"`
 }
 
 // handleTerminalWS upgrades to WebSocket and bridges bidirectional I/O between
@@ -255,6 +276,33 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
+	// Confirm the PTY pipeline is actually accepting writes before telling
+	// the client it's safe to send stdin. For the standard backend this
+	// returns immediately; for persistent (tmux) sessions this waits for
+	// the attach-session handshake to complete. Without this gate, writes
+	// issued during the 50–500 ms tmux attach window are silently dropped.
+	probeCtx, probeCancel := context.WithTimeout(ctx, probeReadyTimeout)
+	probeErr := sess.ProbeReady(probeCtx)
+	probeCancel()
+	if probeErr != nil {
+		log.Printf("ws[%s]: ProbeReady failed (backend=%s): %v", sessionID, sess.Backend, probeErr)
+		sendError("session_not_ready")
+		return
+	}
+
+	// sessionReady gates stdin-loss diagnostics: any stdin received before
+	// this flips true means the client skipped waiting for session_ready,
+	// which should be impossible in the current protocol.
+	sessionReady := false
+	writeMu.Lock()
+	if err := conn.WriteJSON(TerminalMessage{Type: MsgTypeSessionReady}); err != nil {
+		writeMu.Unlock()
+		log.Printf("ws[%s]: failed to send session_ready: %v", sessionID, err)
+		return
+	}
+	writeMu.Unlock()
+	sessionReady = true
+
 	// Input loop: WebSocket client → PTY stdin / resize / ping-pong.
 	// When this returns, defer cancel() signals the output forwarder to exit.
 	for {
@@ -274,8 +322,23 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 
 		switch msg.Type {
 		case MsgTypeStdin:
-			if _, err := sess.Write([]byte(msg.Data)); err != nil {
-				log.Printf("ws[%s]: PTY write failed: %v", sessionID, err)
+			if !sessionReady {
+				// Should never happen — the client is required to wait for
+				// session_ready before sending stdin. Log and count so a
+				// future regression is immediately visible on /metrics.
+				s.metrics.StdinBeforeReadyTotal.Add(1)
+				log.Printf("ws[%s] stdin before session_ready — backend=%s", sessionID, sess.Backend)
+			}
+			_, writeErr := sess.Write([]byte(msg.Data))
+			ackMsg := TerminalMessage{Type: MsgTypeStdinAck, Seq: msg.Seq, Ok: writeErr == nil}
+			if writeErr != nil {
+				ackMsg.Data = writeErr.Error()
+			}
+			writeMu.Lock()
+			_ = conn.WriteJSON(ackMsg)
+			writeMu.Unlock()
+			if writeErr != nil {
+				log.Printf("ws[%s]: PTY write failed: %v", sessionID, writeErr)
 				sendError("Terminal process is not accepting input")
 				return
 			}

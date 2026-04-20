@@ -248,19 +248,27 @@
     "resources": {
       "kokoro": {
         "type": "kokoro",
-        "enabled": false,
+        "enabled": true,
         "required": false,
-        "startup_policy": "ignore",
+        "startup_policy": "try_start",
         "description": "Text-to-speech synthesis for voice output",
         "degraded_behavior": "Voice output is unavailable"
       },
       "whisper": {
         "type": "whisper",
-        "enabled": false,
+        "enabled": true,
         "required": false,
-        "startup_policy": "ignore",
+        "startup_policy": "try_start",
         "description": "Speech-to-text transcription for voice input",
         "degraded_behavior": "Voice input is unavailable"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Local LLM provider for AI command generation (primary; falls back to OpenRouter)",
+        "degraded_behavior": "AI generation falls back to OpenRouter when Ollama is unavailable"
       }
     }
   },

@@ -159,6 +159,9 @@ vi.mock("../components/TerminalPane", () => ({
       setTtsPlaybackRate: vi.fn(),
       setTtsVolume: vi.fn(),
       getTtsState: vi.fn().mockReturnValue(null),
+      subscribeInputSettled: vi.fn(() => () => {}),
+      subscribePendingInput: vi.fn(() => () => {}),
+      getPendingInputSnapshot: vi.fn(() => []),
     }));
     return <div data-testid={`mock-terminal-${sessionId}`}>Terminal {sessionId}</div>;
   }),

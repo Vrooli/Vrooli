@@ -66,6 +66,42 @@ func (p *tmuxPTY) Write(buf []byte) (int, error) {
 	return p.ptmx.Write(buf)
 }
 
+// tmuxProbeReadyPollInterval is how often ProbeReady re-queries tmux for
+// attached clients. Kept short because the typical handshake completes in
+// 50–500 ms — we want to return quickly once tmux is ready.
+var tmuxProbeReadyPollInterval = 25 * time.Millisecond
+
+// ProbeReady waits until `tmux list-clients -t <session>` reports at least
+// one attached client (our attach-session process), which guarantees that
+// subsequent writes to the PTY master will be relayed into the tmux pane
+// rather than silently buffered in the unattached attach process.
+//
+// Returns context.DeadlineExceeded if the handshake does not complete
+// within the caller's deadline; returns errPTYClosed if Close races with
+// the probe.
+func (p *tmuxPTY) ProbeReady(ctx context.Context) error {
+	for {
+		p.mu.Lock()
+		closed := p.closed
+		sessionName := p.sessionName
+		p.mu.Unlock()
+		if closed {
+			return errPTYClosed
+		}
+
+		out, err := tmuxCmdContext(ctx, "list-clients", "-t", sessionName, "-F", "#{client_tty}").Output()
+		if err == nil && len(bytes.TrimSpace(out)) > 0 {
+			return nil
+		}
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(tmuxProbeReadyPollInterval):
+		}
+	}
+}
+
 func (p *tmuxPTY) SetSize(cols, rows uint16) error {
 	p.mu.Lock()
 	if p.closed {

@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -308,6 +310,25 @@ func (f *fakePTY) HasChildProcess() bool {
 	return false
 }
 
+// ProbeReady on the fake PTY is a no-op — tests that need to simulate an
+// async attach handshake use a dedicated fake (see fakePTYWithProbe).
+func (f *fakePTY) ProbeReady(_ context.Context) error { return nil }
+
+// TestRealPTY_ProbeReady_Synchronous exercises the standard PTY's
+// ProbeReady, which must return immediately so the WebSocket input loop
+// can emit session_ready without an extra round-trip.
+func TestRealPTY_ProbeReady_Synchronous(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("PTY tests unsupported on Windows")
+	}
+	p := &realPTY{}
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	if err := p.ProbeReady(ctx); err != nil {
+		t.Fatalf("standard PTY ProbeReady must be a no-op: %v", err)
+	}
+}
+
 func (f *fakePTY) SetExitCode(code int) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -323,7 +344,17 @@ type fakePTYWithOutput struct {
 
 func newFakePTYWithOutput() *fakePTYWithOutput {
 	stdoutR, stdoutW := io.Pipe()
-	_, stdinW := io.Pipe()
+	stdinR, stdinW := io.Pipe()
+	// Drain the stdin pipe so fakePTY.Write never blocks; tests that need
+	// to inspect written stdin should wire in their own reader instead.
+	go func() {
+		buf := make([]byte, 4096)
+		for {
+			if _, err := stdinR.Read(buf); err != nil {
+				return
+			}
+		}
+	}()
 	return &fakePTYWithOutput{
 		fakePTY: fakePTY{
 			stdoutReader: stdoutR,

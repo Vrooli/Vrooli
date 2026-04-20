@@ -117,6 +117,18 @@ export interface TerminalPaneHandle {
   setTtsVolume: (level: number) => void;
   /** Return a snapshot of the current TTS playback state, or null. */
   getTtsState: () => TTSPlaybackState | null;
+  /**
+   * Subscribe to per-send settlement results. The callback fires with
+   * `(seq, ok)` once the server's stdin_ack arrives (ok=true) or the
+   * client's 2 s timeout elapses (ok=false). Unsubscribes via the returned
+   * cleanup function. Used by MobileToolbar to delay clearing the draft
+   * until the send is actually confirmed.
+   */
+  subscribeInputSettled: (cb: (seq: number, ok: boolean) => void) => () => void;
+  /** Subscribe to queue-changed notifications for the pending-input pill. */
+  subscribePendingInput: (cb: () => void) => () => void;
+  /** Snapshot of currently queued (unsent) input payloads. */
+  getPendingInputSnapshot: () => readonly { data: string; addedAt: number }[];
 }
 
 // [REQ:P0-002d] xterm.js Terminal Rendering
@@ -310,7 +322,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     }, [activePane, autoTtsEnabled, backend, conversationCursor.lastListenedSequence, conversationEvents, onSpeakingEventChange, persistCursor, sessionId, speakParagraphs, ttsSpeaking, ttsStop, ttsSupported]);
 
     // Delegate all WebSocket protocol handling to the socket hook
-    const { sendInput, sendResize, totalBytesRef } = useTerminalSocket({
+    const { sendInput, sendResize, totalBytesRef, subscribeInputSettled, subscribePendingInput, getPendingInputSnapshot } = useTerminalSocket({
       sessionId,
       terminal,
       onExit,
@@ -371,7 +383,10 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       setTtsPlaybackRate: ttsSetPlaybackRate,
       setTtsVolume: ttsSetVolume,
       getTtsState: ttsGetPlaybackState,
-    }), [sendInput, terminal, ttsStop, speakParagraphs, ttsPause, ttsResume, ttsSeek, ttsSetPlaybackRate, ttsSetVolume, ttsGetPlaybackState, persistCursor, onSpeakingEventChange]);
+      subscribeInputSettled,
+      subscribePendingInput,
+      getPendingInputSnapshot,
+    }), [sendInput, terminal, ttsStop, speakParagraphs, ttsPause, ttsResume, ttsSeek, ttsSetPlaybackRate, ttsSetVolume, ttsGetPlaybackState, persistCursor, onSpeakingEventChange, subscribeInputSettled, subscribePendingInput, getPendingInputSnapshot]);
 
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 

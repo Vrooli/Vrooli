@@ -54,8 +54,17 @@ export class FakeWebSocket {
 
   sent: string[] = [];
   closed = false;
+  /** Mirrors WebSocket.bufferedAmount; tests can set this directly to simulate back-pressure. */
+  bufferedAmount = 0;
+  /** When non-null, the next send() call will throw this error (tests set it explicitly). */
+  sendError: Error | null = null;
 
   send(data: string) {
+    if (this.sendError) {
+      const err = this.sendError;
+      this.sendError = null;
+      throw err;
+    }
     this.sent.push(data);
   }
 

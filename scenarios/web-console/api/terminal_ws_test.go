@@ -97,18 +97,33 @@ func TestHandleTerminalWS_ExitedSession(t *testing.T) {
 	}
 }
 
-// skipHistoryEnd reads and discards the initial history_end message that
-// the server sends on every fresh connection. Tests that care about
-// subsequent messages should call this first.
+// skipHistoryEnd reads and discards the initial server-to-client handshake
+// messages — history_end and session_ready — that every fresh connection
+// produces. Early stdout from the shell (prompt render) may arrive between
+// these and is transparently dropped so downstream reads can focus on the
+// messages under test.
 func skipHistoryEnd(t *testing.T, conn *websocket.Conn) {
 	t.Helper()
-	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-	var msg TerminalMessage
-	if err := conn.ReadJSON(&msg); err != nil {
-		t.Fatalf("skipHistoryEnd: read failed: %v", err)
-	}
-	if msg.Type != MsgTypeHistoryEnd {
-		t.Fatalf("skipHistoryEnd: expected history_end, got %s", msg.Type)
+	sawHistoryEnd := false
+	sawSessionReady := false
+	deadline := time.Now().Add(3 * time.Second)
+	for !(sawHistoryEnd && sawSessionReady) {
+		_ = conn.SetReadDeadline(deadline)
+		var msg TerminalMessage
+		if err := conn.ReadJSON(&msg); err != nil {
+			t.Fatalf("skipHistoryEnd: read failed: %v", err)
+		}
+		switch msg.Type {
+		case MsgTypeHistoryEnd:
+			sawHistoryEnd = true
+		case MsgTypeSessionReady:
+			sawSessionReady = true
+		case MsgTypeStdout, MsgTypeResizeInfo, MsgTypeSyncWarning:
+			// Non-handshake traffic that may arrive before the handshake
+			// completes (e.g. the shell's initial prompt). Ignore.
+		default:
+			t.Fatalf("skipHistoryEnd: unexpected message type=%s before handshake complete", msg.Type)
+		}
 	}
 }
 
@@ -229,6 +244,86 @@ func TestHandleTerminalWS_InvalidJSON(t *testing.T) {
 	}
 	if resp.Type != MsgTypeError {
 		t.Errorf("expected error message, got type=%s", resp.Type)
+	}
+}
+
+// Every stdin message must receive a matching stdin_ack carrying the
+// client-assigned seq number with ok=true when the PTY write succeeds.
+func TestHandleTerminalWS_StdinAck_Success(t *testing.T) {
+	ts, _ := setupWSServer(t)
+	sessID := createTestSession(t, ts)
+
+	conn, _, err := (&websocket.Dialer{}).Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+	skipHistoryEnd(t, conn)
+
+	for _, seq := range []int64{1, 2, 3} {
+		if err := conn.WriteJSON(TerminalMessage{Type: MsgTypeStdin, Data: "x", Seq: seq}); err != nil {
+			t.Fatalf("write stdin seq=%d: %v", seq, err)
+		}
+		_ = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+		var gotAck bool
+		for !gotAck {
+			var resp TerminalMessage
+			if err := conn.ReadJSON(&resp); err != nil {
+				t.Fatalf("read ack seq=%d: %v", seq, err)
+			}
+			switch resp.Type {
+			case MsgTypeStdinAck:
+				if resp.Seq != seq {
+					t.Errorf("seq=%d: ack echoed seq=%d", seq, resp.Seq)
+				}
+				if !resp.Ok {
+					t.Errorf("seq=%d: expected ok=true", seq)
+				}
+				gotAck = true
+			case MsgTypeStdout, MsgTypeResizeInfo, MsgTypeSyncWarning:
+				// Shell prompt echo or similar — keep reading until ack.
+			default:
+				t.Fatalf("seq=%d: unexpected message type=%s", seq, resp.Type)
+			}
+		}
+	}
+}
+
+// session_ready is emitted exactly once per connection before the first
+// stdin_ack, matching the client's gating contract.
+func TestHandleTerminalWS_SessionReady_EmittedOnce(t *testing.T) {
+	ts, _ := setupWSServer(t)
+	sessID := createTestSession(t, ts)
+
+	conn, _, err := (&websocket.Dialer{}).Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)
+	if err != nil {
+		t.Fatalf("ws dial: %v", err)
+	}
+	defer conn.Close()
+
+	sawSessionReady := 0
+	sawHistoryEnd := 0
+	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	for i := 0; i < 5; i++ {
+		var msg TerminalMessage
+		if err := conn.ReadJSON(&msg); err != nil {
+			break
+		}
+		switch msg.Type {
+		case MsgTypeSessionReady:
+			sawSessionReady++
+		case MsgTypeHistoryEnd:
+			sawHistoryEnd++
+		}
+		if sawSessionReady > 0 && sawHistoryEnd > 0 {
+			break
+		}
+	}
+	if sawSessionReady != 1 {
+		t.Errorf("expected session_ready to be emitted exactly once, got %d", sawSessionReady)
+	}
+	if sawHistoryEnd != 1 {
+		t.Errorf("expected history_end to be emitted exactly once, got %d", sawHistoryEnd)
 	}
 }
 
@@ -431,10 +526,24 @@ func TestHandleTerminalWS_HistoryEnd_NoHistory(t *testing.T) {
 	}
 	defer conn.Close()
 
-	// The very first server message should be history_end (no history to send).
-	msg := readTerminalMessage(t, conn)
-	if msg.Type != MsgTypeHistoryEnd {
-		t.Errorf("expected first message type=%q, got %q (data=%q)", MsgTypeHistoryEnd, msg.Type, msg.Data)
+	// history_end must appear within the handshake prefix (alongside
+	// session_ready), without any intervening stdout frames.
+	sawHistoryEnd := false
+	for i := 0; i < 4 && !sawHistoryEnd; i++ {
+		msg := readTerminalMessage(t, conn)
+		switch msg.Type {
+		case MsgTypeHistoryEnd:
+			sawHistoryEnd = true
+		case MsgTypeSessionReady:
+			// Handshake sibling — allowed.
+		case MsgTypeStdout:
+			t.Errorf("stdout arrived before history_end: %q", msg.Data)
+		default:
+			t.Errorf("unexpected message type before history_end: %q", msg.Type)
+		}
+	}
+	if !sawHistoryEnd {
+		t.Error("history_end never arrived")
 	}
 }
 

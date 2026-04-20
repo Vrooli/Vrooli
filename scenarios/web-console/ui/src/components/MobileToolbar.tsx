@@ -23,7 +23,13 @@ const LINE_HEIGHT_PX = 20;
 /** Max textarea height: MAX_VISIBLE_LINES * line-height + padding. */
 const MAX_TEXTAREA_HEIGHT = MAX_VISIBLE_LINES * LINE_HEIGHT_PX + 12;
 
-type SendStatus = "sent" | "queued" | "idle";
+type SendStatus = "sent" | "queued" | "sending" | "failed" | "idle";
+
+/** Snapshot of a single unsent payload used by the pending-input pill. */
+export interface PendingInputSnapshot {
+  data: string;
+  addedAt: number;
+}
 
 export interface MobileToolbarHandle {
   /** Append text to the command input (used by voice transcription on mobile). */
@@ -38,6 +44,17 @@ export interface MobileToolbarHandle {
 interface MobileToolbarProps {
   /** Callback to inject input into the active terminal. Returns true if sent immediately. */
   onInput: (data: string) => boolean;
+  /**
+   * Subscribe to per-send settlement callbacks from the active terminal
+   * socket. The draft is preserved during "sending" state and only cleared
+   * after `ok === true` arrives; on `ok === false` the toolbar surfaces
+   * "Send failed — retry" and restores the draft for editing.
+   */
+  subscribeInputSettled?: (cb: (seq: number, ok: boolean) => void) => () => void;
+  /** Subscribe to pending-queue-changed notifications for the unsent pill. */
+  subscribePendingInput?: (cb: () => void) => () => void;
+  /** Snapshot the active terminal's pending (unsent) input queue. */
+  getPendingInputSnapshot?: () => readonly PendingInputSnapshot[];
   /** Move focus to the active terminal (e.g. after submitting a command). */
   onFocusTerminal?: () => void;
   /** Active session ID for per-tab draft persistence. */
@@ -85,6 +102,9 @@ interface MobileToolbarProps {
 
 export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function MobileToolbar({
   onInput,
+  subscribeInputSettled,
+  subscribePendingInput,
+  getPendingInputSnapshot,
   onFocusTerminal,
   activeSessionId,
   visible = true,
@@ -131,6 +151,12 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [sendStatus, setSendStatus] = useState<SendStatus>("idle");
+  /** Draft snapshot taken at submit time; restored on ack failure. */
+  const pendingSendRef = useRef<{ draft: string } | null>(null);
+  /** Unsubscribe for the current in-flight settlement subscription. */
+  const settlementUnsubRef = useRef<(() => void) | null>(null);
+  const [pendingInputEntries, setPendingInputEntries] = useState<readonly PendingInputSnapshot[]>([]);
+  const [pillOpen, setPillOpen] = useState(false);
   const toolbarLayout = useWorkspaceStore((s) => s.toolbarLayout);
   const modifiers = useWorkspaceStore((s) => s.modifiers);
   const toggleModifier = useWorkspaceStore((s) => s.toggleModifier);
@@ -141,8 +167,24 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   useEffect(() => {
     return () => {
       if (statusTimerRef.current !== null) clearTimeout(statusTimerRef.current);
+      settlementUnsubRef.current?.();
+      settlementUnsubRef.current = null;
     };
   }, []);
+
+  // Keep the pending-input pill in sync with the active terminal's queue.
+  useEffect(() => {
+    if (!subscribePendingInput || !getPendingInputSnapshot) {
+      setPendingInputEntries([]);
+      return;
+    }
+    const sync = () => setPendingInputEntries(getPendingInputSnapshot());
+    sync();
+    const unsub = subscribePendingInput(sync);
+    return () => {
+      unsub();
+    };
+  }, [subscribePendingInput, getPendingInputSnapshot]);
 
   // Auto-resize textarea height
   useEffect(() => {
@@ -183,6 +225,25 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     [onInput, clearModifiers, onFocusTerminal],
   );
 
+  /**
+   * Subscribe to the next single settlement event from the terminal socket.
+   * The subscription auto-unsubscribes after it fires once — subsequent
+   * acks from other senders (e.g. xterm direct keystrokes) are ignored.
+   */
+  const awaitNextSettlement = useCallback(
+    (onSettle: (ok: boolean) => void) => {
+      if (!subscribeInputSettled) return;
+      settlementUnsubRef.current?.();
+      const unsub = subscribeInputSettled((_seq, ok) => {
+        settlementUnsubRef.current?.();
+        settlementUnsubRef.current = null;
+        onSettle(ok);
+      });
+      settlementUnsubRef.current = unsub;
+    },
+    [subscribeInputSettled],
+  );
+
   const submitCommand = useCallback(() => {
     // When the text box is exactly empty (length 0, NOT whitespace-only),
     // act as an Enter key press. This lets mobile users tap Send twice to
@@ -216,19 +277,57 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
       dataToSend = inputValue;
     }
 
+    // Snapshot the draft so we can restore it on ack failure. The draft
+    // is kept visible during "sending" state; the ack resolution path
+    // (below) decides whether to clear it.
+    pendingSendRef.current = { draft: inputValue };
+
     const sent = onInput(dataToSend);
-    if (sent) {
+
+    if (!sent) {
+      // ws not open or session_ready not yet received — payload is queued.
+      // Preserve the draft (user sees pill + can edit).
+      showStatus("queued");
+      onFocusTerminal?.();
+      return;
+    }
+
+    // Frame was handed to the WS stack. Wait for stdin_ack before clearing.
+    setSendStatus("sending");
+    if (statusTimerRef.current !== null) {
+      clearTimeout(statusTimerRef.current);
+      statusTimerRef.current = null;
+    }
+
+    const finalizeSuccess = () => {
+      pendingSendRef.current = null;
       clearDraft();
       showStatus("sent");
-      // Auto-switch to terminal so the user can see and confirm their command
       if (viewMode === "messages") onSwitchToTerminal?.();
+    };
+
+    const finalizeFailure = () => {
+      pendingSendRef.current = null;
+      // Draft is still in the textarea (we never cleared it); just surface
+      // the failure so the user can retry by pressing Send again.
+      showStatus("failed");
+    };
+
+    if (subscribeInputSettled) {
+      awaitNextSettlement((ok) => {
+        if (ok) finalizeSuccess();
+        else finalizeFailure();
+      });
     } else {
-      showStatus("queued");
+      // No settlement seam available (legacy caller wiring) — fall back
+      // to the optimistic behavior so we don't strand the draft.
+      finalizeSuccess();
     }
+
     // After submitting a command, focus the terminal so the user can
     // immediately see and interact with the output.
     onFocusTerminal?.();
-  }, [inputValue, onInput, clearDraft, showStatus, onFocusTerminal, clearModifiers, viewMode, onSwitchToTerminal]);
+  }, [inputValue, onInput, clearDraft, showStatus, onFocusTerminal, clearModifiers, viewMode, onSwitchToTerminal, subscribeInputSettled, awaitNextSettlement]);
 
   if (!visible) return null;
 
@@ -241,6 +340,51 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
       // keyboard is open since the keyboard covers the bottom edge.
       className="flex shrink-0 flex-col border-t border-wc-default bg-wc-surface-raised md:hidden touch-manipulation pb-[var(--wc-safe-bottom)]"
     >
+      {/* Pending-input pill — visible whenever the terminal's stdin queue is non-empty.
+          Clicking it toggles a disclosure listing truncated payloads and oldest age. */}
+      {pendingInputEntries.length > 0 && (
+        <div
+          data-testid="pending-input-pill"
+          className="flex flex-col border-b border-wc-default bg-wc-surface-raised/80 px-2 py-1 text-[11px] text-yellow-300"
+        >
+          <button
+            type="button"
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={() => setPillOpen((v) => !v)}
+            className="flex items-center justify-between gap-2 text-left"
+            title="Show unsent input details"
+          >
+            <span>
+              ⏳ {pendingInputEntries.length} unsent
+              {(() => {
+                const oldest = pendingInputEntries.reduce(
+                  (min, e) => (min === null || e.addedAt < min ? e.addedAt : min),
+                  null as number | null,
+                );
+                if (oldest === null) return null;
+                const ageSec = Math.max(0, Math.floor((Date.now() - oldest) / 1000));
+                return <span className="ml-1 text-wc-text-muted">(oldest {ageSec}s)</span>;
+              })()}
+            </span>
+            <span className="text-wc-text-muted">{pillOpen ? "▾" : "▸"}</span>
+          </button>
+          {pillOpen && (
+            <div data-testid="pending-input-disclosure" className="mt-1 flex flex-col gap-1">
+              <ul className="max-h-24 overflow-y-auto font-mono text-[10px] text-wc-text-secondary">
+                {pendingInputEntries.map((entry, idx) => {
+                  const truncated = entry.data.length > 60 ? entry.data.slice(0, 60) + "…" : entry.data;
+                  const ageSec = Math.max(0, Math.floor((Date.now() - entry.addedAt) / 1000));
+                  return (
+                    <li key={idx} className="truncate">
+                      <span className="text-wc-text-muted">[{ageSec}s]</span> {truncated.replace(/\n/g, "⏎")}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
       {/* Voice command suggestion bar */}
       {voiceCommandSuggestion && onVoiceCommandConfirm && onVoiceCommandDismiss && (
         <VoiceCommandSuggestion
@@ -278,6 +422,16 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
           {sendStatus === "queued" && (
             <span data-testid="send-status-queued" className="px-1 text-[10px] text-yellow-400">
               Queued — connection lost. Input preserved.
+            </span>
+          )}
+          {sendStatus === "sending" && (
+            <span data-testid="send-status-sending" className="px-1 text-[10px] text-wc-text-muted">
+              Sending…
+            </span>
+          )}
+          {sendStatus === "failed" && (
+            <span data-testid="send-status-failed" className="px-1 text-[10px] text-red-400">
+              Send failed — retry
             </span>
           )}
         </div>

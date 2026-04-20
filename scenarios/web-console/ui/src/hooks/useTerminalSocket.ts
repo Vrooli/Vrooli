@@ -13,12 +13,12 @@ import { useWorkspaceStore } from "../stores/useWorkspaceStore";
  *
  * Message directions:
  *   Client → Server: stdin, resize, ping
- *   Server → Client: stdout, exit, error, pong
+ *   Server → Client: stdout, exit, error, pong, session_ready, stdin_ack
  *
  * [REQ:P0-002b] WebSocket I/O Streaming
  */
 export interface TerminalMessage {
-  type: "stdin" | "stdout" | "resize" | "resize_info" | "exit" | "error" | "ping" | "pong" | "sync_warning" | "history_end" | "conversation_event" | "conversation_event_ack" | "conversation_event_update";
+  type: "stdin" | "stdout" | "resize" | "resize_info" | "exit" | "error" | "ping" | "pong" | "sync_warning" | "history_end" | "conversation_event" | "conversation_event_ack" | "conversation_event_update" | "session_ready" | "stdin_ack";
   /** Terminal I/O payload (stdin input or stdout output). */
   data?: string;
   /** New terminal width for resize messages. */
@@ -43,6 +43,10 @@ export interface TerminalMessage {
   speechParagraphs?: string[];
   originalSpeechParagraphs?: string[];
   summarized?: boolean;
+  /** Client-assigned sequence number for stdin messages; echoed in stdin_ack. */
+  seq?: number;
+  /** Per-message success flag (used by stdin_ack). */
+  ok?: boolean;
 }
 
 export interface ConversationEventMessage {
@@ -66,6 +70,7 @@ const defaultSocketFactory: SocketFactory = (url) => new WebSocket(url);
 const WS_ERROR_RECOVERY: Record<string, string> = {
   "Invalid message format": "A malformed message was sent. This is usually harmless.",
   "Terminal process is not accepting input": "The terminal process has stopped. Close this pane and open a new terminal.",
+  session_not_ready: "The terminal session did not confirm readiness in time. Reconnect or reopen this pane.",
 };
 
 const MAX_RECONNECT_ATTEMPTS = 5;
@@ -73,6 +78,27 @@ const RECONNECT_BASE_DELAY_MS = 400;
 const RECONNECT_MAX_DELAY_MS = 5000;
 const MAX_OUTPUT_PROBE_CHARS = 12000;
 const MAX_PENDING_INPUT_MESSAGES = 64;
+
+/**
+ * Ack timeout for stdin messages. If the server does not echo stdin_ack
+ * within this window, the client treats the send as failed, re-enqueues
+ * the payload, and fires inputSettled(false). 2 s gives ~4× headroom
+ * over observed tmux attach p99 (~500 ms). Override via build env.
+ */
+const ACK_TIMEOUT_MS = (() => {
+  const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
+  const raw = env?.VITE_WC_ACK_TIMEOUT_MS;
+  const n = raw ? Number(raw) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : 2000;
+})();
+
+/**
+ * bufferedAmount high-water mark above which we stop issuing ws.send and
+ * queue instead. Browsers are more likely to silently drop bytes once the
+ * WS send buffer grows past ~1 MiB; refusing the send preserves the
+ * preserve-on-failure invariant.
+ */
+const WS_SEND_HIGH_WATER = 1 * 1024 * 1024;
 
 /**
  * Safety timeout for history replay. If the server never sends a
@@ -104,6 +130,22 @@ export function isCleanWsClose(code: number): boolean {
   return code === 1000 || code === 1001;
 }
 
+/** Snapshot entry for a queued stdin payload awaiting flush. */
+export interface PendingInputEntry {
+  data: string;
+  /** ms epoch when the payload was first queued. */
+  addedAt: number;
+}
+
+interface PendingAckEntry {
+  data: string;
+  addedAt: number;
+  timer: ReturnType<typeof setTimeout>;
+}
+
+/** Callback signature for input-settlement subscribers. */
+export type InputSettledListener = (seq: number, ok: boolean) => void;
+
 interface UseTerminalSocketOptions {
   sessionId: string;
   terminal: Terminal | null;
@@ -125,6 +167,16 @@ interface UseTerminalSocketOptions {
  * Manages the WebSocket connection for a terminal session.
  * Handles bidirectional I/O (stdin/stdout), resize messages, and lifecycle events.
  *
+ * Send contract:
+ *   - sendInput(data) attempts an immediate ws.send gated on session_ready.
+ *     Returns true if the frame was handed to the browser's WS stack AND a
+ *     pending-ack timer is armed. Returns false when session_ready has not
+ *     arrived, ws is not open, send throws, or bufferedAmount exceeds the
+ *     high-water mark — in all of those cases the payload is queued and
+ *     will be flushed after the next session_ready.
+ *   - Draft-clearing callers must wait for an inputSettled(seq, ok) callback
+ *     rather than treating the synchronous boolean as confirmation.
+ *
  * [REQ:P0-002b] WebSocket I/O Streaming
  * [REQ:P0-004b] api-base WebSocket Integration
  */
@@ -141,8 +193,15 @@ export function useTerminalSocket({
 }: UseTerminalSocketOptions) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingInputRef = useRef<string[]>([]);
+  const pendingInputRef = useRef<PendingInputEntry[]>([]);
   const totalBytesRef = useRef<number>(0);
+
+  // Per-connection state for the stdin-ack protocol.
+  const sessionReadyRef = useRef(false);
+  const nextSeqRef = useRef(1);
+  const pendingAcksRef = useRef<Map<number, PendingAckEntry>>(new Map());
+  const inputSettledSubsRef = useRef<Set<InputSettledListener>>(new Set());
+  const pendingInputSubsRef = useRef<Set<() => void>>(new Set());
 
   // Store event-handler callbacks and options in refs so they can be updated
   // without tearing down the WebSocket connection. These are "fire-and-forget"
@@ -158,45 +217,119 @@ export function useTerminalSocket({
   onConversationEventUpdateRef.current = onConversationEventUpdate;
   hasCachedStateRef.current = hasCachedState ?? false;
 
+  const notifyPendingChanged = useCallback(() => {
+    for (const cb of pendingInputSubsRef.current) {
+      try {
+        cb();
+      } catch (err) {
+        console.warn("useTerminalSocket: pendingInput subscriber threw", err);
+      }
+    }
+  }, []);
+
+  const notifyInputSettled = useCallback((seq: number, ok: boolean) => {
+    for (const cb of inputSettledSubsRef.current) {
+      try {
+        cb(seq, ok);
+      } catch (err) {
+        console.warn("useTerminalSocket: inputSettled subscriber threw", err);
+      }
+    }
+  }, []);
+
   const enqueueInput = useCallback((data: string) => {
     if (!data) return;
-    pendingInputRef.current.push(data);
+    pendingInputRef.current.push({ data, addedAt: Date.now() });
     if (pendingInputRef.current.length > MAX_PENDING_INPUT_MESSAGES) {
       pendingInputRef.current.splice(
         0,
         pendingInputRef.current.length - MAX_PENDING_INPUT_MESSAGES,
       );
     }
+    notifyPendingChanged();
+  }, [notifyPendingChanged]);
+
+  // Raw send wrapper with try/catch + bufferedAmount high-water guard.
+  // Returns true iff the bytes were accepted by the browser's WS stack.
+  const safeSend = useCallback((payload: string): boolean => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+    if (ws.bufferedAmount > WS_SEND_HIGH_WATER) return false;
+    try {
+      ws.send(payload);
+      return true;
+    } catch (err) {
+      console.warn("useTerminalSocket: ws.send threw", err);
+      return false;
+    }
   }, []);
 
-  const sendMessage = useCallback((msg: TerminalMessage) => {
+  const registerAckTimer = useCallback((seq: number, data: string) => {
+    const timer = setTimeout(() => {
+      const entry = pendingAcksRef.current.get(seq);
+      if (!entry) return;
+      pendingAcksRef.current.delete(seq);
+      console.warn(`useTerminalSocket: input_ack_timeout seq=${seq} len=${data.length}`);
+      enqueueInput(entry.data);
+      notifyInputSettled(seq, false);
+    }, ACK_TIMEOUT_MS);
+    pendingAcksRef.current.set(seq, { data, addedAt: Date.now(), timer });
+  }, [enqueueInput, notifyInputSettled]);
+
+  const trySendStdin = useCallback((data: string): { sent: true; seq: number } | { sent: false } => {
     const ws = wsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(msg));
-      return true;
+    if (!sessionReadyRef.current || !ws || ws.readyState !== WebSocket.OPEN) {
+      return { sent: false };
     }
-    return false;
-  }, []);
+    const seq = nextSeqRef.current;
+    if (!safeSend(JSON.stringify({ type: "stdin", data, seq } satisfies TerminalMessage))) {
+      return { sent: false };
+    }
+    nextSeqRef.current = seq + 1;
+    registerAckTimer(seq, data);
+    return { sent: true, seq };
+  }, [registerAckTimer, safeSend]);
 
   const sendInput = useCallback(
     (data: string): boolean => {
-      if (sendMessage({ type: "stdin", data })) {
-        return true;
-      }
-      // Inputs can be triggered before socket open (launcher shortcuts,
-      // restored-session command replay). Queue and flush on connect.
+      if (!data) return false;
+      const res = trySendStdin(data);
+      if (res.sent) return true;
       enqueueInput(data);
       return false;
     },
-    [enqueueInput, sendMessage],
+    [enqueueInput, trySendStdin],
   );
 
   const sendResize = useCallback(
     (cols: number, rows: number) => {
-      sendMessage({ type: "resize", cols, rows });
+      // Resize is a connection-level message — it does not participate in
+      // the session_ready gating (resize is safe to drop on the floor; the
+      // next real resize will supersede it).
+      safeSend(JSON.stringify({ type: "resize", cols, rows } satisfies TerminalMessage));
     },
-    [sendMessage],
+    [safeSend],
   );
+
+  const subscribeInputSettled = useCallback((cb: InputSettledListener): (() => void) => {
+    inputSettledSubsRef.current.add(cb);
+    return () => {
+      inputSettledSubsRef.current.delete(cb);
+    };
+  }, []);
+
+  const subscribePendingInput = useCallback((cb: () => void): (() => void) => {
+    pendingInputSubsRef.current.add(cb);
+    return () => {
+      pendingInputSubsRef.current.delete(cb);
+    };
+  }, []);
+
+  const getPendingInputSnapshot = useCallback((): readonly PendingInputEntry[] => {
+    // Returned array is a shallow copy so subscribers can safely compare
+    // identity between snapshots. Entries themselves are immutable-by-convention.
+    return pendingInputRef.current.slice();
+  }, []);
 
   useEffect(() => {
     if (!terminal) return;
@@ -214,14 +347,43 @@ export function useTerminalSocket({
     let reconnectAttempts = 0;
     let connectedAtLeastOnce = false;
 
+    // Clears every pending-ack timer for the current connection and, when
+    // requested, re-enqueues the unacked payloads so they survive the
+    // reconnect — a dropped ack must not become a silent lost message.
+    const clearPendingAcks = (reenqueue: boolean) => {
+      const entries = Array.from(pendingAcksRef.current.entries());
+      pendingAcksRef.current.clear();
+      for (const [seq, entry] of entries) {
+        clearTimeout(entry.timer);
+        if (reenqueue) {
+          // Preserve original addedAt so the pill shows the real age.
+          pendingInputRef.current.push({ data: entry.data, addedAt: entry.addedAt });
+        }
+        notifyInputSettled(seq, false);
+      }
+      if (reenqueue && entries.length > 0) {
+        notifyPendingChanged();
+      }
+    };
+
     const flushPendingInput = () => {
       const ws = wsRef.current;
       if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      if (!sessionReadyRef.current) return;
+      let changed = false;
       while (pendingInputRef.current.length > 0) {
-        const next = pendingInputRef.current.shift();
-        if (!next) continue;
-        ws.send(JSON.stringify({ type: "stdin", data: next } satisfies TerminalMessage));
+        const next = pendingInputRef.current[0];
+        if (!next) {
+          pendingInputRef.current.shift();
+          changed = true;
+          continue;
+        }
+        const res = trySendStdin(next.data);
+        if (!res.sent) break;
+        pendingInputRef.current.shift();
+        changed = true;
       }
+      if (changed) notifyPendingChanged();
     };
 
     // --- History replay buffering ---
@@ -255,8 +417,7 @@ export function useTerminalSocket({
       wsRef.current = ws;
       const sendConversationAck = (event: ConversationEventMessage, stage: string, message?: string, backend?: string) => {
         if (!event.id || !event.source) return;
-        if (ws.readyState !== WebSocket.OPEN) return;
-        ws.send(JSON.stringify({
+        safeSend(JSON.stringify({
           type: "conversation_event_ack",
           eventId: event.id,
           source: event.source,
@@ -271,7 +432,13 @@ export function useTerminalSocket({
         connectedAtLeastOnce = true;
         reconnectAttempts = 0;
         localEcho.reset();
-        flushPendingInput();
+
+        // New connection: old sequence numbers are meaningless. Reset the
+        // ack gate, drop any in-flight ack timers (they'll be re-enqueued
+        // and re-sent with fresh seqs after session_ready lands).
+        sessionReadyRef.current = false;
+        nextSeqRef.current = 1;
+        clearPendingAcks(true);
 
         // Reset history replay state for this connection.
         replayingHistory = true;
@@ -302,6 +469,26 @@ export function useTerminalSocket({
           return;
         }
         switch (msg.type) {
+          case "session_ready":
+            sessionReadyRef.current = true;
+            // Flush anything that was queued pre-ready (including payloads
+            // re-enqueued from the previous connection's cleared acks).
+            flushPendingInput();
+            break;
+          case "stdin_ack": {
+            const seq = msg.seq ?? 0;
+            const entry = pendingAcksRef.current.get(seq);
+            if (!entry) {
+              // Unknown seq — either a duplicate ack, an ack for a payload
+              // whose timer already fired, or a stray echo from a prior
+              // connection generation. Safe to ignore.
+              break;
+            }
+            clearTimeout(entry.timer);
+            pendingAcksRef.current.delete(seq);
+            notifyInputSettled(seq, msg.ok === true);
+            break;
+          }
           case "stdout":
             if (msg.data) {
               if (replayingHistory) {
@@ -404,6 +591,10 @@ export function useTerminalSocket({
         if (wsRef.current === ws) {
           wsRef.current = null;
         }
+        // Connection is gone — drop pending-ack timers and re-enqueue their
+        // payloads so nothing is silently lost.
+        sessionReadyRef.current = false;
+        clearPendingAcks(true);
         if (disposed) {
           return;
         }
@@ -493,12 +684,12 @@ export function useTerminalSocket({
       }
       const echo = localEcho.handleInput(data);
       if (echo) terminal.write(echo);
-      const ws = wsRef.current;
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: "stdin", data } satisfies TerminalMessage));
-      } else {
-        enqueueInput(data);
-      }
+      // Route xterm keystrokes through the same seq/ack pipeline so they
+      // are covered by the hardened send + re-enqueue path. Direct xterm
+      // input has no UI to surface an ack failure (out of scope per plan
+      // §13), but observability still records timeouts.
+      const res = trySendStdin(data);
+      if (!res.sent) enqueueInput(data);
     });
 
     return () => {
@@ -516,10 +707,31 @@ export function useTerminalSocket({
         visibilityListenerRef = null;
       }
       inputDisposable.dispose();
+      // Drop any outstanding ack timers on unmount; listeners are fired so
+      // they can clean up UI state (e.g. MobileToolbar's sending indicator).
+      clearPendingAcks(false);
       wsRef.current?.close();
       wsRef.current = null;
     };
-  }, [sessionId, terminal, sendResize, createSocket, enqueueInput, historyOffset]);
+  }, [
+    sessionId,
+    terminal,
+    sendResize,
+    createSocket,
+    enqueueInput,
+    historyOffset,
+    notifyInputSettled,
+    notifyPendingChanged,
+    safeSend,
+    trySendStdin,
+  ]);
 
-  return { sendInput, sendResize, totalBytesRef };
+  return {
+    sendInput,
+    sendResize,
+    totalBytesRef,
+    subscribeInputSettled,
+    subscribePendingInput,
+    getPendingInputSnapshot,
+  };
 }

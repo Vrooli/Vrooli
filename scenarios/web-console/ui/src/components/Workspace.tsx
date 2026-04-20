@@ -77,6 +77,9 @@ export default function Workspace() {
     removePane: removeSessionPane,
     handleExit: sessionHandleExit,
     sendToActiveTerminal,
+    subscribeActiveInputSettled,
+    subscribeActivePendingInput,
+    getActivePendingInputSnapshot,
     focusActiveTerminal,
     registerTerminalRef,
     stopActiveTts,
@@ -320,6 +323,23 @@ export default function Workspace() {
       return sendToActiveTerminal(data, store.activePane ?? undefined);
     },
     [sendToActiveTerminal, store.activePane],
+  );
+
+  const handleSubscribeInputSettled = useCallback(
+    (cb: (seq: number, ok: boolean) => void) =>
+      subscribeActiveInputSettled(store.activePane ?? undefined, cb),
+    [subscribeActiveInputSettled, store.activePane],
+  );
+
+  const handleSubscribePendingInput = useCallback(
+    (cb: () => void) =>
+      subscribeActivePendingInput(store.activePane ?? undefined, cb),
+    [subscribeActivePendingInput, store.activePane],
+  );
+
+  const handleGetPendingInputSnapshot = useCallback(
+    () => getActivePendingInputSnapshot(store.activePane ?? undefined),
+    [getActivePendingInputSnapshot, store.activePane],
   );
 
   const handleFocusTerminal = useCallback(() => {
@@ -1213,6 +1233,9 @@ export default function Workspace() {
         <MobileToolbar
           ref={mobileToolbarRef}
           onInput={handleSendToTerminal}
+          subscribeInputSettled={handleSubscribeInputSettled}
+          subscribePendingInput={handleSubscribePendingInput}
+          getPendingInputSnapshot={handleGetPendingInputSnapshot}
           onFocusTerminal={handleFocusTerminal}
           activeSessionId={store.activePane}
           voiceSupported={voiceInput.supported}

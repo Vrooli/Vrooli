@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -29,6 +30,11 @@ type PTY interface {
 	// HasChildProcess reports whether the shell process has any child
 	// processes running (e.g. a script, interactive program, etc.).
 	HasChildProcess() bool
+	// ProbeReady blocks until the PTY pipeline is confirmed to be accepting
+	// writes that will reach the underlying process. For synchronous
+	// backends (realPTY) this is a no-op; for async backends (tmuxPTY)
+	// this waits for the attach-session handshake to complete.
+	ProbeReady(ctx context.Context) error
 }
 
 // SessionLaunchSpec contains the environment and execution parameters for a
@@ -75,6 +81,11 @@ func (p *realPTY) ExitCode() int {
 	}
 	return 0
 }
+
+// ProbeReady is a no-op for the standard PTY: pty.StartWithSize has already
+// opened the master/slave pair synchronously, so the next Write will reach
+// the shell without any additional handshake.
+func (p *realPTY) ProbeReady(_ context.Context) error { return nil }
 
 func (p *realPTY) HasChildProcess() bool {
 	if p.cmd.Process == nil {

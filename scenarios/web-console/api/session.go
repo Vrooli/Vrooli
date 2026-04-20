@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -156,6 +157,17 @@ func (s *Session) Write(data []byte) (int, error) {
 	p := s.pty
 	s.mu.Unlock()
 	return p.Write(data)
+}
+
+// ProbeReady blocks until the PTY pipeline for this session is confirmed to
+// be accepting writes. For persistent (tmux) sessions this waits for the
+// attach-session handshake; for synchronous PTYs it returns immediately.
+// Thread-safe against tmux re-attach (the PTY pointer is snapshotted).
+func (s *Session) ProbeReady(ctx context.Context) error {
+	s.mu.Lock()
+	p := s.pty
+	s.mu.Unlock()
+	return p.ProbeReady(ctx)
 }
 
 // historyStart returns the byte offset of the first byte in the current

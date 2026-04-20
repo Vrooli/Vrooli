@@ -45,6 +45,11 @@ type Metrics struct {
 	// AI suggestion counter
 	AISuggestions atomic.Int64
 
+	// StdinBeforeReadyTotal counts stdin messages arriving before the server
+	// has emitted session_ready for the connection. Expected to be 0 in
+	// steady state; any increment indicates a sequencing regression.
+	StdinBeforeReadyTotal atomic.Int64
+
 	// StartTime records when the server started for uptime calculation.
 	StartTime time.Time
 }
@@ -58,14 +63,15 @@ func NewMetrics() *Metrics {
 
 // MetricsResponse is the JSON shape returned by the /api/v1/metrics endpoint.
 type MetricsResponse struct {
-	Sessions      SessionMetrics    `json:"sessions"`
-	Connections   ConnectionMetrics `json:"connections"`
-	Messages      MessageMetrics    `json:"messages"`
-	Reattach      ReattachMetrics   `json:"reattach"`
-	Recovery      RecoveryMetrics   `json:"recovery"`
-	AIGenerations int64             `json:"ai_generations"`
-	AISuggestions int64             `json:"ai_suggestions"`
-	Uptime        string            `json:"uptime"`
+	Sessions              SessionMetrics    `json:"sessions"`
+	Connections           ConnectionMetrics `json:"connections"`
+	Messages              MessageMetrics    `json:"messages"`
+	Reattach              ReattachMetrics   `json:"reattach"`
+	Recovery              RecoveryMetrics   `json:"recovery"`
+	AIGenerations         int64             `json:"ai_generations"`
+	AISuggestions         int64             `json:"ai_suggestions"`
+	StdinBeforeReadyTotal int64             `json:"stdin_before_ready_total"`
+	Uptime                string            `json:"uptime"`
 }
 
 // SessionMetrics tracks session lifecycle counts.
@@ -133,9 +139,10 @@ func (m *Metrics) Snapshot() MetricsResponse {
 			AttachRetries:   m.RecoveryAttachRetries.Load(),
 			PreservedForNow: m.RecoveryPreservedForNow.Load(),
 		},
-		AIGenerations: m.AIGenerations.Load(),
-		AISuggestions: m.AISuggestions.Load(),
-		Uptime:        time.Since(m.StartTime).Truncate(time.Second).String(),
+		AIGenerations:         m.AIGenerations.Load(),
+		AISuggestions:         m.AISuggestions.Load(),
+		StdinBeforeReadyTotal: m.StdinBeforeReadyTotal.Load(),
+		Uptime:                time.Since(m.StartTime).Truncate(time.Second).String(),
 	}
 }
 

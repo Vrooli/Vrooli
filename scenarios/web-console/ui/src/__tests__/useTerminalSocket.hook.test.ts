@@ -282,6 +282,7 @@ describe("useTerminalSocket hook", () => {
     );
 
     act(() => fakeWs.triggerOpen());
+    act(() => fakeWs.triggerMessage({ type: "session_ready" }));
     fakeWs.sent = []; // clear the resize-on-open message
 
     // Simulate user typing
@@ -289,7 +290,7 @@ describe("useTerminalSocket hook", () => {
 
     expect(fakeWs.sent).toHaveLength(1);
     const msg = JSON.parse(fakeWs.sent[0] ?? "{}") as TerminalMessage;
-    expect(msg).toEqual({ type: "stdin", data: "ls -la\r" });
+    expect(msg).toEqual({ type: "stdin", data: "ls -la\r", seq: 1 });
   });
 
   it("strips DA/DSR/CPR terminal responses from input before forwarding", () => {
@@ -302,6 +303,7 @@ describe("useTerminalSocket hook", () => {
     );
 
     act(() => fakeWs.triggerOpen());
+    act(() => fakeWs.triggerMessage({ type: "session_ready" }));
     fakeWs.sent = [];
 
     // Pure DA1 response — should be dropped entirely (no stdin sent)
@@ -311,7 +313,7 @@ describe("useTerminalSocket hook", () => {
     // DA response mixed with real keystrokes — only keystrokes forwarded
     act(() => terminal.simulateInput("\x1b[?1;2cls\r"));
     expect(fakeWs.sent).toHaveLength(1);
-    expect(JSON.parse(fakeWs.sent[0] ?? "{}")).toEqual({ type: "stdin", data: "ls\r" });
+    expect(JSON.parse(fakeWs.sent[0] ?? "{}")).toEqual({ type: "stdin", data: "ls\r", seq: 1 });
 
     fakeWs.sent = [];
 
@@ -382,12 +384,13 @@ describe("useTerminalSocket hook", () => {
     );
 
     act(() => fakeWs.triggerOpen());
+    act(() => fakeWs.triggerMessage({ type: "session_ready" }));
     fakeWs.sent = [];
 
     act(() => result.current.sendInput("echo hello"));
 
     expect(fakeWs.sent).toHaveLength(1);
-    expect(JSON.parse(fakeWs.sent[0] ?? "{}")).toEqual({ type: "stdin", data: "echo hello" });
+    expect(JSON.parse(fakeWs.sent[0] ?? "{}")).toEqual({ type: "stdin", data: "echo hello", seq: 1 });
 
     fakeWs.sent = [];
 
@@ -410,14 +413,22 @@ describe("useTerminalSocket hook", () => {
     expect(fakeWs.sent).toHaveLength(0);
 
     act(() => fakeWs.triggerOpen());
+    // Queued input must stay queued until session_ready arrives.
+    const beforeReady = fakeWs.sent.find((raw) => {
+      const m = JSON.parse(raw) as TerminalMessage;
+      return m.type === "stdin";
+    });
+    expect(beforeReady).toBeUndefined();
 
-    // On open: flushed stdin + resize message
+    act(() => fakeWs.triggerMessage({ type: "session_ready" }));
+
+    // After session_ready: flushed stdin carries a seq.
     const stdinMsg = fakeWs.sent.find((raw) => {
       const m = JSON.parse(raw) as TerminalMessage;
       return m.type === "stdin";
     });
     expect(stdinMsg).toBeDefined();
-    expect(JSON.parse(stdinMsg ?? "{}")).toEqual({ type: "stdin", data: "echo queued" });
+    expect(JSON.parse(stdinMsg ?? "{}")).toEqual({ type: "stdin", data: "echo queued", seq: 1 });
   });
 
   it("shows sync_warning with drop count in yellow", () => {
@@ -634,6 +645,238 @@ describe("useTerminalSocket hook", () => {
       writable: true,
       configurable: true,
     });
+  });
+
+  // --- session_ready / stdin_ack protocol tests ---
+
+  it("sendInput returns false and enqueues until session_ready arrives", () => {
+    const { result } = renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket,
+      }),
+    );
+
+    act(() => fakeWs.triggerOpen());
+    fakeWs.sent = []; // drop the open-time resize
+
+    let immediate = true;
+    act(() => {
+      immediate = result.current.sendInput("hello");
+    });
+    expect(immediate).toBe(false);
+    // Nothing on the wire yet.
+    expect(fakeWs.sent.find((r) => (JSON.parse(r) as TerminalMessage).type === "stdin")).toBeUndefined();
+
+    // Queue is visible via the snapshot seam.
+    const snap = result.current.getPendingInputSnapshot();
+    expect(snap).toHaveLength(1);
+    expect(snap[0]?.data).toBe("hello");
+
+    // Arrival of session_ready flushes the queue with a fresh seq.
+    act(() => fakeWs.triggerMessage({ type: "session_ready" }));
+    const flushed = fakeWs.sent.find((r) => (JSON.parse(r) as TerminalMessage).type === "stdin");
+    expect(flushed).toBeDefined();
+    const parsed = JSON.parse(flushed ?? "{}") as TerminalMessage;
+    expect(parsed.data).toBe("hello");
+    expect(parsed.seq).toBe(1);
+  });
+
+  it("sendInput assigns increasing seqs and fires inputSettled(true) on ack", () => {
+    const { result } = renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket,
+      }),
+    );
+
+    act(() => fakeWs.triggerOpen());
+    act(() => fakeWs.triggerMessage({ type: "session_ready" }));
+    fakeWs.sent = [];
+
+    const settled: Array<[number, boolean]> = [];
+    const unsub = result.current.subscribeInputSettled((seq, ok) => {
+      settled.push([seq, ok]);
+    });
+
+    act(() => {
+      result.current.sendInput("a");
+    });
+    act(() => {
+      result.current.sendInput("b");
+    });
+    const seqs = fakeWs.sent
+      .map((raw) => JSON.parse(raw) as TerminalMessage)
+      .filter((m) => m.type === "stdin")
+      .map((m) => m.seq);
+    expect(seqs).toEqual([1, 2]);
+
+    act(() => fakeWs.triggerMessage({ type: "stdin_ack", seq: 1, ok: true }));
+    act(() => fakeWs.triggerMessage({ type: "stdin_ack", seq: 2, ok: true }));
+    expect(settled).toEqual([[1, true], [2, true]]);
+
+    unsub();
+  });
+
+  it("ack timeout re-enqueues payload and fires inputSettled(false)", () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket,
+      }),
+    );
+
+    act(() => fakeWs.triggerOpen());
+    act(() => fakeWs.triggerMessage({ type: "session_ready" }));
+    fakeWs.sent = [];
+
+    const settled: Array<[number, boolean]> = [];
+    result.current.subscribeInputSettled((seq, ok) => settled.push([seq, ok]));
+
+    act(() => {
+      result.current.sendInput("slow-payload");
+    });
+    // Advance past the 2s ack timeout.
+    act(() => {
+      vi.advanceTimersByTime(2100);
+    });
+    expect(settled).toEqual([[1, false]]);
+    // Payload is requeued, visible on the pending snapshot.
+    const snap = result.current.getPendingInputSnapshot();
+    expect(snap.find((e) => e.data === "slow-payload")).toBeDefined();
+  });
+
+  it("ws.send throw returns false and queues without registering ack", () => {
+    const { result } = renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket,
+      }),
+    );
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    act(() => fakeWs.triggerOpen());
+    act(() => fakeWs.triggerMessage({ type: "session_ready" }));
+    fakeWs.sent = [];
+    fakeWs.sendError = new Error("send failed");
+
+    let sent = true;
+    act(() => {
+      sent = result.current.sendInput("x");
+    });
+    expect(sent).toBe(false);
+    expect(result.current.getPendingInputSnapshot()[0]?.data).toBe("x");
+    // No ack-wait was registered: a spurious stdin_ack does not fire settled.
+    const settled: Array<[number, boolean]> = [];
+    result.current.subscribeInputSettled((s, ok) => settled.push([s, ok]));
+    act(() => fakeWs.triggerMessage({ type: "stdin_ack", seq: 1, ok: true }));
+    expect(settled).toHaveLength(0);
+    warn.mockRestore();
+  });
+
+  it("bufferedAmount above high-water queues and returns false", () => {
+    const { result } = renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket,
+      }),
+    );
+    act(() => fakeWs.triggerOpen());
+    act(() => fakeWs.triggerMessage({ type: "session_ready" }));
+    fakeWs.sent = [];
+    fakeWs.bufferedAmount = 2 * 1024 * 1024; // above 1 MiB threshold
+
+    let sent = true;
+    act(() => {
+      sent = result.current.sendInput("big");
+    });
+    expect(sent).toBe(false);
+    expect(fakeWs.sent.find((r) => (JSON.parse(r) as TerminalMessage).type === "stdin")).toBeUndefined();
+    expect(result.current.getPendingInputSnapshot()[0]?.data).toBe("big");
+  });
+
+  it("pending queue flushes on session_ready with per-item ack-waits", () => {
+    const { result } = renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket,
+      }),
+    );
+    act(() => fakeWs.triggerOpen());
+    fakeWs.sent = [];
+
+    // Queue three before session_ready.
+    act(() => {
+      result.current.sendInput("one");
+      result.current.sendInput("two");
+      result.current.sendInput("three");
+    });
+    expect(fakeWs.sent.find((r) => (JSON.parse(r) as TerminalMessage).type === "stdin")).toBeUndefined();
+
+    const settled: Array<[number, boolean]> = [];
+    result.current.subscribeInputSettled((s, ok) => settled.push([s, ok]));
+
+    act(() => fakeWs.triggerMessage({ type: "session_ready" }));
+    const stdinMsgs = fakeWs.sent
+      .map((r) => JSON.parse(r) as TerminalMessage)
+      .filter((m) => m.type === "stdin");
+    expect(stdinMsgs.map((m) => m.data)).toEqual(["one", "two", "three"]);
+    expect(stdinMsgs.map((m) => m.seq)).toEqual([1, 2, 3]);
+
+    act(() => fakeWs.triggerMessage({ type: "stdin_ack", seq: 1, ok: true }));
+    act(() => fakeWs.triggerMessage({ type: "stdin_ack", seq: 2, ok: false }));
+    act(() => fakeWs.triggerMessage({ type: "stdin_ack", seq: 3, ok: true }));
+    expect(settled).toEqual([[1, true], [2, false], [3, true]]);
+  });
+
+  it("reconnect re-enqueues in-flight payloads until new session_ready", () => {
+    vi.useFakeTimers();
+    const sockets: FakeWebSocket[] = [];
+    const multiFactory = vi.fn(() => {
+      const ws = new FakeWebSocket();
+      sockets.push(ws);
+      return ws as unknown as WebSocket;
+    });
+    const { result } = renderHook(() =>
+      useTerminalSocket({
+        sessionId: "sess-1",
+        terminal: terminal as never,
+        createSocket: multiFactory,
+      }),
+    );
+
+    const first = sockets[0] as FakeWebSocket;
+    act(() => first.triggerOpen());
+    act(() => first.triggerMessage({ type: "session_ready" }));
+    act(() => {
+      result.current.sendInput("survive-reconnect");
+    });
+    // First connection carries the payload.
+    expect(
+      first.sent.map((r) => JSON.parse(r) as TerminalMessage).some((m) => m.type === "stdin"),
+    ).toBe(true);
+
+    // Unclean close before ack arrives — the payload must survive.
+    act(() => first.triggerClose(1006));
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+    const second = sockets[1] as FakeWebSocket;
+    act(() => second.triggerOpen());
+    // Before session_ready, the new connection has nothing stdin on the wire.
+    expect(second.sent.find((r) => (JSON.parse(r) as TerminalMessage).type === "stdin")).toBeUndefined();
+    act(() => second.triggerMessage({ type: "session_ready" }));
+    const replayed = second.sent
+      .map((r) => JSON.parse(r) as TerminalMessage)
+      .filter((m) => m.type === "stdin")
+      .map((m) => m.data);
+    expect(replayed).toContain("survive-reconnect");
   });
 
   it("cleans up visibility listener on unmount", () => {

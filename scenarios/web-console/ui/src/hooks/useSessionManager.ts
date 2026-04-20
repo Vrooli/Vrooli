@@ -259,6 +259,38 @@ export function useSessionManager() {
     [panes],
   );
 
+  const subscribeActiveInputSettled = useCallback(
+    (targetId: string | undefined, cb: (seq: number, ok: boolean) => void): () => void => {
+      const target = targetId ?? panes[panes.length - 1]?.session.id;
+      if (!target) return () => {};
+      const handle = terminalRefs.current.get(target);
+      if (!handle) return () => {};
+      return handle.subscribeInputSettled(cb);
+    },
+    [panes],
+  );
+
+  const subscribeActivePendingInput = useCallback(
+    (targetId: string | undefined, cb: () => void): () => void => {
+      const target = targetId ?? panes[panes.length - 1]?.session.id;
+      if (!target) return () => {};
+      const handle = terminalRefs.current.get(target);
+      if (!handle) return () => {};
+      return handle.subscribePendingInput(cb);
+    },
+    [panes],
+  );
+
+  const getActivePendingInputSnapshot = useCallback(
+    (targetId?: string): readonly { data: string; addedAt: number }[] => {
+      const target = targetId ?? panes[panes.length - 1]?.session.id;
+      if (!target) return [];
+      const handle = terminalRefs.current.get(target);
+      return handle?.getPendingInputSnapshot() ?? [];
+    },
+    [panes],
+  );
+
   const focusActiveTerminal = useCallback(
     (targetId?: string) => {
       const target = targetId ?? panes[panes.length - 1]?.session.id;
@@ -360,6 +392,9 @@ export function useSessionManager() {
     removePane,
     handleExit,
     sendToActiveTerminal,
+    subscribeActiveInputSettled,
+    subscribeActivePendingInput,
+    getActivePendingInputSnapshot,
     focusActiveTerminal,
     registerTerminalRef,
     stopActiveTts,

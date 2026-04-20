@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 )
 
 // TestTmuxPTYFactory_EnablesMouseMode verifies that tmuxPTYFactory enables
@@ -115,5 +117,60 @@ func TestTmuxPTYFactory_UsesResolvedWorkingDir(t *testing.T) {
 	got := strings.TrimSpace(string(out))
 	if got != workingDir {
 		t.Errorf("expected tmux pane path %q, got %q", workingDir, got)
+	}
+}
+
+// ProbeReady must return nil within the caller's timeout on a freshly
+// attached tmux session — the attach process is already wired through,
+// so list-clients reports our attach as present.
+func TestTmuxPTY_ProbeReady_HappyPath(t *testing.T) {
+	if _, err := exec.LookPath("tmux"); err != nil {
+		t.Skip("tmux not installed")
+	}
+
+	spec := SessionLaunchSpec{
+		SessionID: "test-probe-ready",
+		Shell:     "/bin/sh",
+		Cols:      80,
+		Rows:      24,
+	}
+	p, err := tmuxPTYFactory(spec)
+	if err != nil {
+		t.Fatalf("tmuxPTYFactory failed: %v", err)
+	}
+	defer func() { _ = p.Kill() }()
+	defer p.Close()
+	sessionName := tmuxSessionPrefix + spec.SessionID
+	defer func() { _ = tmuxCmd("kill-session", "-t", sessionName).Run() }()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if err := p.ProbeReady(ctx); err != nil {
+		t.Fatalf("ProbeReady on healthy tmux session failed: %v", err)
+	}
+}
+
+// When the context deadline expires before an attach pipeline completes,
+// ProbeReady must surface ctx.Err() so the WS handler can emit
+// session_not_ready rather than hanging the connection forever.
+func TestTmuxPTY_ProbeReady_TimeoutSurfacesCtxErr(t *testing.T) {
+	if _, err := exec.LookPath("tmux"); err != nil {
+		t.Skip("tmux not installed")
+	}
+
+	// Construct a tmuxPTY referencing a session name that does not exist —
+	// list-clients will always return empty output, so ProbeReady must loop
+	// until ctx expires.
+	p := &tmuxPTY{sessionName: "wc-does-not-exist-" + t.Name()}
+	// poll interval is package-level; we don't reduce it — a short context
+	// deadline (~100 ms) means the test still runs fast.
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	err := p.ProbeReady(ctx)
+	if err == nil {
+		t.Fatal("ProbeReady on unreachable session must not succeed")
+	}
+	if err != context.DeadlineExceeded && !strings.Contains(err.Error(), "deadline") {
+		t.Errorf("expected deadline-exceeded-class error, got %v", err)
 	}
 }
