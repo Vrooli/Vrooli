@@ -3,7 +3,7 @@
   "condensed_mode": false,
   "slots": 3,
   "cooldown_seconds": 300,
-  "execution_limit": 20,
+  "execution_limit": 10,
   "active": false,
   "max_turns": 100,
   "allowed_tools": "Read,Write,Edit,Bash,LS,Glob,Grep",
