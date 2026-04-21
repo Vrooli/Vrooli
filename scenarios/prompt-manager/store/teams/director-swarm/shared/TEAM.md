@@ -57,6 +57,16 @@ If there is no accepted `initiative-portfolio` decision, `portfolio-manager` may
 - When preparing a backlog proposal, include a multi-paragraph description plus acceptance criteria, allow/deny constraints, and effort sizing so downstream workshopping starts from something usable.
 - If approval is missing, produce bounded options and rationale instead of acting.
 
+## Plan-of-Record (shared docs)
+
+Director-swarm owns a small set of canonical docs at `docs/director-swarm/`. These are plan-of-record (approval-gated): agents read them every heartbeat to anchor their proposals; they do not edit them directly.
+
+- [`docs/director-swarm/PORTFOLIO_PHILOSOPHY.md`](../../../../../../docs/director-swarm/PORTFOLIO_PHILOSOPHY.md) — ranking criteria (revenue → safety/quality → meta-optimization), concurrency stance (no cap), initiative-vs-backlog-item threshold.
+- [`docs/director-swarm/ROADMAP.md`](../../../../../../docs/director-swarm/ROADMAP.md) — initiatives grouped by theme (Revenue & Desktop Delivery, Bundle Scenarios, Platform Safety/Auditability/Quality, Vrooli Self-Improvement & Outcomes). Swarm Manager remains authoritative for per-initiative status and ordering.
+- [`docs/director-swarm/OUTCOMES_CHARTER.md`](../../../../../../docs/director-swarm/OUTCOMES_CHARTER.md) — outcome categories mapped to Command Center dashboard pages; `pending-command-center` placeholders are deliberately visible until the corresponding pages ship.
+
+Changes flow through approved decisions with contexts `initiative-portfolio`, `initiative-proposal`, `outcome-direction`, or `outcome-gap` as appropriate. Other teams (monetization, meta-optimization) may read these docs; they must not edit them.
+
 ## Key Skills
 - `prompt-manager skill read swarm-manager-backlog-tools`
 - `prompt-manager skill read swarm-manager-recommendations`

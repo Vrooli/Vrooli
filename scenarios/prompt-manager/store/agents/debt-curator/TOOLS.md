@@ -7,6 +7,7 @@
 - **capability-extraction** — distilling reusable patterns from doc entries
 - **scientific-debugging** — tracing recurring friction to root cause
 - **documentation-health** — durable scan snapshots
+- **team-shared-docs-design** — reference for promotion-path decisions (notebook → plan-of-record vs notebook → permanent structure)
 
 ## Primary Surfaces
 - `docs/meta-optimization/README.md`, `CONVERSION_PLAYBOOK.md`, `DEPRECATION_POLICY.md`, `REFERENCE_SCENARIOS.md` (+ any future files)

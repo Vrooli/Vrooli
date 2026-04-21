@@ -8,19 +8,45 @@
 - **documentation-health** — Keep briefings concrete and readable.
 
 ## Primary Surfaces
+
+### Phase 2 — Retrospective
 - `swarm-manager overview`
 - `swarm-manager stats summary`
 - `swarm-manager initiatives list`
+
+### Phase 3 — Portfolio Decisions
 - `prompt-manager team decision-list director-swarm --status=pending --context=initiative-portfolio --json`
 - `prompt-manager team decision-list director-swarm --status=pending --context=initiative-supplement --json`
 - `prompt-manager team decision-list director-swarm --status=pending --context=initiative-proposal --json`
 - `prompt-manager team decision-list director-swarm --status=pending --context=initiative-readiness --json`
+- `prompt-manager team decision-list meta-optimization --status=pending --context=capability-gap --json` — raised by run-introspector / toolchain-validator but consumed by director-swarm, so group with portfolio items
+
+### Phase 4 — Strategist Decisions
 - `prompt-manager team decision-list director-swarm --status=pending --context=outcome-gap --json`
 - `prompt-manager team decision-list director-swarm --status=pending --context=outcome-direction --json`
+
+### Phase 5.5 — Meta-Optimization Self-Improvement Decisions
+- `prompt-manager team decision-list meta-optimization --status=pending --context=meta-self-improvement --json`
+- `prompt-manager team decision-list meta-optimization --status=pending --context=run-lesson --json`
+- `prompt-manager team decision-list meta-optimization --status=pending --context=skill-conversion-candidate --json`
+- `prompt-manager team decision-list meta-optimization --status=pending --context=skill-improvement --json`
+- `prompt-manager team decision-list meta-optimization --status=pending --context=skill-deprecation --json`
+- `prompt-manager team decision-list meta-optimization --status=pending --context=agent-improvement --json`
+- `prompt-manager team decision-list meta-optimization --status=pending --context=agent-deprecation --json`
+- `prompt-manager team decision-list meta-optimization --status=pending --context=team-structure-change --json`
+- `prompt-manager team decision-list meta-optimization --status=pending --context=team-deprecation --json`
+- `prompt-manager team decision-list meta-optimization --status=pending --context=toolchain-violation --json`
+- `prompt-manager team decision-list meta-optimization --status=pending --context=decision-rejection-proposed --json`
+- `prompt-manager team decision-list meta-optimization --status=pending --context=framework-update --json`
+- `prompt-manager team knowledge-list meta-optimization --topic=challenge-note` — contrarian skepticism attached to pending meta-optimization decisions; match by decision id and surface inline
+
+### Continuity
 - `prompt-manager team knowledge-list director-swarm --topic=vision-walk`
 
 ## Usage Rules
 - Read-only. Do not create decisions, modify backlog items, or trigger any side effects.
 - Do not attempt to answer the questions you surface.
-- Do not create more than 3 pending decisions summaries per section.
-- Always note when a data source is unavailable (strategist disabled, monetization team not active, tech tree not available).
+- Cap summaries at 3 decisions *per phase* (Phases 3, 4, 5, 5.5 each capped independently).
+- For Phase 5.5, group decisions by category before selecting top 3 — aim for category diversity across debt / run-lessons / skills / agents-and-teams / toolchain / framework-meta, not 3 from one bucket.
+- Attach matching `challenge-note/<decision-id>` knowledge entries inline to their target meta-optimization decisions (Phase 3 capability-gap items and all Phase 5.5 items) so the operator sees proposal + skepticism together. Contrarian only scans the meta-optimization team, so director-swarm decisions do not receive these notes.
+- Always note when a data source is unavailable (strategist disabled, monetization team not active, meta-optimization team disabled, tech tree not available).

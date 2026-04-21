@@ -36,6 +36,8 @@ This skill exists because of a core insight about Vrooli:
 3. **Applying the "everything outside Vrooli is an error" frame** — every tool or service the human uses outside this project represents a capability gap and a potential new scenario. Daily chores and manual tasks are nucleation points for brainstorming new capabilities.
 4. **Connecting ideas to the bigger picture** — every idea can potentially fit into a bundle (dev tools via LPBS, personal/household via Life OS) and onto the tech tree of all possible software.
 
+**Meta-optimization context:** The meta-optimization team produces decisions about how Vrooli improves itself — skill conversions (prose → programmatic), agent/team structure changes, toolchain violations, run-derived lessons, debt promotion, and framework challenges. These are second-order but compounding — they make every future agent run cheaper and sharper. Phase 5.5 gives them dedicated air time so they aren't crowded out by first-order product decisions. `capability-gap` decisions raised by this team are an exception: they surface in Phase 3 alongside portfolio decisions because director-swarm consumes them.
+
 **Monetization context:** Vrooli's full monetization plan is canonical at `docs/monetization/` — see `STRATEGY.md` for principles, `CATALOG.md` for the SKU index, `TIERS.md` for delivery tiers, `REVENUE_LINES.md` for subscription-vs-services discipline. In brief: the business bundle (developer + solopreneur tools, including LPBS, Git Control Tower, and Web Console) is the first active bundle; the lifestyle bundle (personal + household) is the next candidate. Delivery tiers ladder from individual apps → self-hosted → hosted cloud → hardware (north-star only). Each new scenario brainstormed during this walk should be assessed for bundle fit (does it serve the business or lifestyle bundle?), role (headliner or depth?), and compound value within the ecosystem. The `monetization` team surfaces the concrete decisions that come out of tracking this plan.
 
 **The long-term vision:** This morning walk should eventually be the *only* thing the human needs to do to steer the project. Everything else — execution, monitoring, deployment, testing — happens autonomously. The walk is where human judgment, creativity, and strategic thinking enter the system.
@@ -69,14 +71,20 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 │  └───────────┘   └──────────────┘   └───────────┘   └──────┬───────┘     │
 │                                                              │             │
 │  ┌───────────┐   ┌──────────────┐   ┌───────────┐          │             │
-│  │ 5. MONE-  │◀──┤              │   │           │◀─────────┘             │
-│  │   TIZE    │──▶│ 6. CHORE    │──▶│ 7. BIG    │                        │
-│  └───────────┘   │    AUDIT     │   │   PICTURE │                        │
-│                  └──────────────┘   └─────┬─────┘                        │
-│                                           │                               │
-│                  ┌──────────────┐   ┌─────▼─────┐                        │
-│                  │ 9. WRAP-UP   │◀──┤ 8. ACTIONS│                        │
-│                  └──────────────┘   └───────────┘                        │
+│  │ 5.5 META- │◀──┤ 5. MONE-     │◀──┤           │◀─────────┘             │
+│  │ OPTIMIZE  │   │   TIZE       │   │           │                        │
+│  └─────┬─────┘   └──────────────┘   └───────────┘                        │
+│        │                                                                   │
+│        ▼                                                                   │
+│  ┌───────────┐   ┌──────────────┐                                         │
+│  │ 6. CHORE  │──▶│ 7. BIG       │                                         │
+│  │   AUDIT   │   │   PICTURE    │                                         │
+│  └───────────┘   └──────┬───────┘                                         │
+│                         │                                                  │
+│                  ┌──────▼───────┐   ┌───────────┐                         │
+│                  │ 8. ACTIONS   │──▶│ 9. WRAP-  │                         │
+│                  │              │   │    UP     │                         │
+│                  └──────────────┘   └───────────┘                         │
 │                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -120,11 +128,14 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 **Entry criteria:** Retrospective complete.
 
 **Actions:**
-1. Present pending portfolio decisions from the prep deliverable (max 3).
-2. For each decision: state what's being decided, the recommended option, and why it matters — in conversational language, not formal decision-doc prose.
-3. If the user makes a choice, execute it immediately:
+1. Present pending portfolio decisions from the prep deliverable (max 3). Portfolio decisions here include `capability-gap` items raised by the meta-optimization team (run-introspector or toolchain-validator) — those live on the meta-optimization queue but are portfolio decisions by design, so they're grouped here, not in Phase 5.5.
+2. For each decision: state what's being decided, the recommended option, and why it matters — in conversational language, not formal decision-doc prose. If the decision has an attached contrarian challenge note (meta-optimization `capability-gap` items may), present the skepticism alongside the recommendation so the operator sees both.
+3. If the user makes a choice, execute it immediately on the correct team:
    ```bash
+   # Director-swarm portfolio decisions
    prompt-manager team decision-accept director-swarm <decision-id> --selected <option-key> --notes "<user's reasoning>"
+   # capability-gap decisions live on meta-optimization
+   prompt-manager team decision-accept meta-optimization <decision-id> --selected <option-key> --notes "<user's reasoning>"
    ```
 4. If the user wants to defer, note it and move on.
 5. If there are no pending decisions, say so briefly and move on.
@@ -165,7 +176,43 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 **Exit criteria:**
 - [ ] Monetization questions addressed, or section noted as not yet active
 
+---
+
+### **Phase 5.5: Meta-Optimization Decisions**
+
+**Entry criteria:** Monetization decisions complete.
+
+**Actions:**
+1. Present pending meta-optimization self-improvement decisions from the prep deliverable (max 3, category-diversified across debt / run-lessons / skills / agents-and-teams / toolchain / framework-meta).
+2. For each decision: state what's being decided, the proposing member (skill-optimizer / team-agent-optimizer / run-introspector / toolchain-validator / debt-curator / contrarian), the recommendation, and **any attached contrarian challenge notes**. The contrarian's skepticism is a first-class signal here — present it, don't bury it.
+3. For `decision-rejection-proposed` context, frame conversationally as: "Contrarian is recommending we reject or supersede [original decision X] because [failure mode tripped]. Agree, override, or defer?"
+4. Execute the user's choice immediately:
+   ```bash
+   prompt-manager team decision-accept meta-optimization <decision-id> --selected <option-key> --notes "<user's reasoning>"
+   ```
+5. If the user wants to defer, note it and move on.
+6. If there are no pending decisions, say so briefly and move on.
+
+**Category orientation (first walk after the team is enabled — one-time explanation):**
+
+| Category | What it means |
+|---|---|
+| Skill conversions | Prose-heavy skills being rewritten as thin wrappers over scenario CLIs (lower tokens, reproducible, testable) |
+| Agent / team structure | Changes to agent prompts, team coordination patterns, role additions/removals, deprecations |
+| Run lessons | Durable lessons from specific agent-manager runs that warrant a skill/agent change |
+| Toolchain violations | Issues the dev toolchain surfaced against the gold-star reference scenario |
+| Debt promotions | Workarounds in `docs/meta-optimization/` mature enough to become permanent structure (a skill, team-config change, or scenario feature) |
+| Framework meta | Contrarian-identified failure modes not covered by the existing seven, or proposals to reject pending decisions |
+
+**Guardrail:** Max 3 decisions in this phase. The prep agent has already diversified across categories; do not go hunting for more.
+
+**Disabled-team branch:** If `teams/meta-optimization/team.json` has `"enabled": false`, skip with: "Meta-optimization team is not currently enabled. Once running, this phase will surface skill/agent/team/toolchain evolution proposals, run-derived lessons, and debt promotions."
+
 **Transition:** At this point, the decision-triage portion of the walk is complete. Signal the gear shift: "That covers the decisions waiting on you. Let's shift to the creative side — what's been happening outside Vrooli?"
+
+**Exit criteria:**
+- [ ] All presented meta-optimization decisions addressed (accepted, rejected, or deferred)
+- [ ] Or section noted as disabled
 
 ---
 
@@ -339,14 +386,14 @@ This skill covers the **daily strategic sync ritual** — from triage through br
 When running a Morning Vision Walk, you **must**:
 
 1. Read the prep deliverable before starting (or note it's unavailable)
-2. Cover all 9 phases in order (skipping is fine if a section is empty, but acknowledge it)
+2. Cover all 10 phases in order — 1, 2, 3, 4, 5, 5.5, 6, 7, 8, 9 (skipping is fine if a section is empty, but acknowledge it)
 3. Execute decisions the user approves via CLI commands
 4. Create backlog items for actionable ideas via swarm-manager CLI
 5. Write knowledge entries for chore audit topics discussed (for next walk's continuity)
 6. Summarize the session at wrap-up
 
 You **should** also:
-- Keep the overall session under 30-45 minutes of conversation
+- Keep the overall session under 35-50 minutes of conversation
 - Ensure brainstorming (Phases 6-7) gets at least 10 minutes even on heavy decision days
 - Maintain a warm, collaborative tone — this is a daily ritual, not a performance review
-- Note when sections are "not yet active" (strategist, monetization) so the user knows what's coming
+- Note when sections are "not yet active" (strategist, monetization, meta-optimization) so the user knows what's coming

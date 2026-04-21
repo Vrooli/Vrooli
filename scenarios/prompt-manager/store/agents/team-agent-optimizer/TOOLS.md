@@ -7,6 +7,7 @@
 - **skill-authoring-tools** — reference for agent TOOLS.md proposals
 - **capability-extraction** — distilling methodologies from agent files
 - **team-tool-mapping** — when team structure changes touch scenario tool wiring
+- **team-shared-docs-design** — choosing plan-of-record vs working-notebook patterns when proposing doc-architecture changes
 - **visited-tracker-tools** — rotation pattern
 - **documentation-health** — durable snapshots
 

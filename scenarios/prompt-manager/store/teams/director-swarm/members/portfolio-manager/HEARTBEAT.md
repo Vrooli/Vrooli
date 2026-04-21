@@ -10,7 +10,9 @@ You are the active worker in `director-swarm`. Your job is to keep the Swarm Man
 - Do not attempt initiative-level priority or dependency writes yet; that support does not exist.
 
 ## Required Loop
-1. Review your last handoff and the most recent shared portfolio knowledge.
+1. Review your last handoff, the most recent shared portfolio knowledge, and the director-swarm plan-of-record:
+   - `docs/director-swarm/PORTFOLIO_PHILOSOPHY.md` — the ranking criteria (revenue → safety/quality → meta-optimization) your proposals must anchor against.
+   - `docs/director-swarm/ROADMAP.md` — the thematic grouping each active initiative belongs to. When proposing a new initiative, its theme must be identifiable.
 2. Query relevant accepted decisions first:
    - `prompt-manager team decision-list director-swarm --status=accepted --context=initiative-portfolio --json`
    - `prompt-manager team decision-list director-swarm --status=accepted --context=initiative-supplement --json`

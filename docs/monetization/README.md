@@ -26,7 +26,8 @@ Pricing is the intersection of WHAT × HOW. The [financial model](FINANCIAL_MODE
 | [PRICING.md](PRICING.md) | Tier × bundle pricing matrix (mostly TBD pre-launch) |
 | [FINANCIAL_MODEL.md](FINANCIAL_MODEL.md) | Cost structure, runway math, default-alive target |
 | [FUNNEL.md](FUNNEL.md) | Acquisition → retention stages, metrics, telemetry gaps |
-| [REVENUE_LINES.md](REVENUE_LINES.md) | Subscription + services + other revenue lines with discipline rules |
+| [REVENUE_LINES.md](REVENUE_LINES.md) | Revenue-line index + standing discipline (services trap, activation procedure) |
+| [revenue-lines/](revenue-lines/) | One file per revenue line (subscription, lead-gen, app-dev, consulting) |
 | [TELEMETRY_ROADMAP.md](TELEMETRY_ROADMAP.md) | What metrics need what data capabilities; replaces-manual migration list |
 | [BENCHMARKS.md](BENCHMARKS.md) | Curated market benchmarks (populated by monetization team) |
 | [HOW_TO_GATHER_INPUTS.md](HOW_TO_GATHER_INPUTS.md) | Per-field guidance for the operator-edited `operator-inputs.json` |
