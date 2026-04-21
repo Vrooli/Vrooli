@@ -1,6 +1,8 @@
 package lifecycle
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -202,6 +204,13 @@ func (r *Runner) ensureResourceDependencies(item scenario.Scenario, opts StartOp
 		if resourceDependencyReady(status) {
 			r.progressf("%s: resource dependency %s already running; reusing existing service", item.Slug, resourceName)
 			r.logDebug("Resource dependency already running and healthy", logx.AttrScenario, item.Slug, logx.AttrDependency, resourceName)
+			if err := r.ensureResourceConfig(item.Slug, resourceName, dependency.Config, decision); err != nil {
+				if decision.continueOnFailure {
+					failed = append(failed, resourceName)
+					continue
+				}
+				return nil, err
+			}
 			continue
 		}
 
@@ -243,6 +252,13 @@ func (r *Runner) ensureResourceDependencies(item scenario.Scenario, opts StartOp
 
 		_, err = r.waitForResourceDependencyReady(resourceName)
 		if err == nil {
+			if ensureErr := r.ensureResourceConfig(item.Slug, resourceName, dependency.Config, decision); ensureErr != nil {
+				if decision.continueOnFailure {
+					failed = append(failed, resourceName)
+					continue
+				}
+				return nil, ensureErr
+			}
 			continue
 		}
 		if decision.continueOnFailure {
@@ -258,6 +274,55 @@ func (r *Runner) ensureResourceDependencies(item scenario.Scenario, opts StartOp
 	}
 
 	return failed, nil
+}
+
+// ensureResourceConfig calls the resource CLI's `ensure` verb with the raw
+// dependency config blob, if the dependency declared extra keys AND the
+// resource's manifest advertises `supports_ensure`. Errors are wrapped with
+// context and returned to the caller, which applies the dependency's
+// continueOnFailure policy.
+func (r *Runner) ensureResourceConfig(scenarioSlug, resourceName string, cfg json.RawMessage, decision dependencyDecision) error {
+	if len(cfg) == 0 {
+		return nil
+	}
+	deps := r.runtimeDeps()
+	manifest, err := deps.resourceManifest(resourceName)
+	if err != nil {
+		if decision.continueOnFailure {
+			r.logWarn("Resource manifest load failed; skipping ensure",
+				logx.AttrScenario, scenarioSlug,
+				logx.AttrDependency, resourceName,
+				logx.AttrOperation, "load_resource_manifest",
+			)
+			return nil
+		}
+		return fmt.Errorf("load resource manifest %s: %w", resourceName, err)
+	}
+	if !manifest.Capabilities.SupportsEnsure {
+		r.logDebug("Resource does not advertise supports_ensure; skipping ensure",
+			logx.AttrScenario, scenarioSlug, logx.AttrDependency, resourceName)
+		return nil
+	}
+
+	encoded := base64.StdEncoding.EncodeToString(cfg)
+	args := []string{"ensure", "--config-base64", encoded}
+	r.progressf("%s: ensuring %s dependency config", scenarioSlug, resourceName)
+	r.logInfo("Running resource ensure",
+		logx.AttrScenario, scenarioSlug,
+		logx.AttrDependency, resourceName,
+		logx.AttrOperation, "ensure_resource_config",
+		"config_bytes", len(cfg),
+	)
+	if err := deps.runResourceCLI(resourceName, args, r.consoleOut(), r.consoleErr()); err != nil {
+		r.logWarn("Resource ensure failed",
+			logx.AttrScenario, scenarioSlug,
+			logx.AttrDependency, resourceName,
+			logx.AttrOperation, "ensure_resource_config",
+			"error", err.Error(),
+		)
+		return fmt.Errorf("ensure resource dependency %s: %w", resourceName, err)
+	}
+	return nil
 }
 
 func (r *Runner) waitForResourceDependencyReady(resourceName string) (resourcecontrol.Status, error) {

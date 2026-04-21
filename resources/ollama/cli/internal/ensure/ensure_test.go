@@ -1,0 +1,253 @@
+package ensure
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"time"
+)
+
+type fakeOllama struct {
+	installed   map[string]bool
+	pullScripts map[string][]string
+	failPull    map[string]string
+	pullCalls   int32
+	tagCalls    int32
+}
+
+func (f *fakeOllama) handler(t *testing.T) http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/tags", func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&f.tagCalls, 1)
+		if r.Method != http.MethodGet {
+			t.Errorf("tags: unexpected method %s", r.Method)
+		}
+		type model struct {
+			Name string `json:"name"`
+		}
+		out := struct {
+			Models []model `json:"models"`
+		}{}
+		for name, ok := range f.installed {
+			if ok {
+				out.Models = append(out.Models, model{Name: name})
+			}
+		}
+		_ = json.NewEncoder(w).Encode(out)
+	})
+	mux.HandleFunc("/api/pull", func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&f.pullCalls, 1)
+		if r.Method != http.MethodPost {
+			t.Errorf("pull: unexpected method %s", r.Method)
+		}
+		var body struct {
+			Name   string `json:"name"`
+			Stream bool   `json:"stream"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("pull: decode body: %v", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if msg, shouldFail := f.failPull[body.Name]; shouldFail {
+			_, _ = w.Write([]byte(`{"status":"pulling","error":"` + msg + `"}` + "\n"))
+			return
+		}
+		script := f.pullScripts[body.Name]
+		if len(script) == 0 {
+			script = []string{`{"status":"pulling"}`, `{"status":"success"}`}
+		}
+		flusher, _ := w.(http.Flusher)
+		for _, line := range script {
+			_, _ = w.Write([]byte(line + "\n"))
+			if flusher != nil {
+				flusher.Flush()
+			}
+		}
+		if _, hasSuccess := f.pullScripts[body.Name]; !hasSuccess {
+			// After running a custom script we still mark this pull as applied
+			// so subsequent /api/tags lookups (if any) see it.
+			if f.installed == nil {
+				f.installed = map[string]bool{}
+			}
+			f.installed[body.Name] = true
+		}
+	})
+	return mux
+}
+
+func newTestClient(t *testing.T, fake *fakeOllama) (*Client, *httptest.Server) {
+	t.Helper()
+	srv := httptest.NewServer(fake.handler(t))
+	return &Client{BaseURL: srv.URL, HTTP: http.DefaultClient}, srv
+}
+
+func TestRun_NoModelsIsNoop(t *testing.T) {
+	fake := &fakeOllama{installed: map[string]bool{}}
+	client, srv := newTestClient(t, fake)
+	defer srv.Close()
+
+	var buf bytes.Buffer
+	if err := Run(context.Background(), Config{}, client, &buf); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if !strings.Contains(buf.String(), "nothing to do") {
+		t.Errorf("expected no-op log, got %q", buf.String())
+	}
+	if fake.tagCalls != 0 {
+		t.Errorf("tags should not be queried when no models requested, got %d", fake.tagCalls)
+	}
+}
+
+func TestRun_AllModelsAlreadyInstalled(t *testing.T) {
+	fake := &fakeOllama{installed: map[string]bool{"qwen3:4b": true, "nomic-embed-text:latest": true}}
+	client, srv := newTestClient(t, fake)
+	defer srv.Close()
+
+	cfg := Config{Models: []ModelSpec{{Name: "qwen3:4b"}, {Name: "nomic-embed-text"}}}
+	var buf bytes.Buffer
+	if err := Run(context.Background(), cfg, client, &buf); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if fake.pullCalls != 0 {
+		t.Errorf("should not have pulled anything, got %d pulls", fake.pullCalls)
+	}
+	if !strings.Contains(buf.String(), "already installed") {
+		t.Errorf("expected already-installed log, got %q", buf.String())
+	}
+}
+
+func TestRun_PullsOnlyMissing(t *testing.T) {
+	fake := &fakeOllama{
+		installed: map[string]bool{"qwen3:4b": true},
+		pullScripts: map[string][]string{
+			"nomic-embed-text:latest": {`{"status":"pulling manifest"}`, `{"status":"success"}`},
+		},
+	}
+	client, srv := newTestClient(t, fake)
+	defer srv.Close()
+
+	cfg := Config{Models: []ModelSpec{{Name: "qwen3:4b"}, {Name: "nomic-embed-text:latest"}}}
+	var buf bytes.Buffer
+	if err := Run(context.Background(), cfg, client, &buf); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if fake.pullCalls != 1 {
+		t.Errorf("expected exactly one pull, got %d", fake.pullCalls)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "pull nomic-embed-text:latest OK") {
+		t.Errorf("expected success log for missing model, got %q", out)
+	}
+	if strings.Contains(out, "qwen3:4b: ") && strings.Contains(out, "pulling") {
+		t.Errorf("should not have streamed progress for already-installed qwen3:4b: %q", out)
+	}
+}
+
+func TestRun_PullFailureIsReported(t *testing.T) {
+	fake := &fakeOllama{
+		installed: map[string]bool{},
+		failPull:  map[string]string{"broken:1.0": "manifest not found"},
+	}
+	client, srv := newTestClient(t, fake)
+	defer srv.Close()
+
+	cfg := Config{Models: []ModelSpec{{Name: "broken:1.0"}}}
+	var buf bytes.Buffer
+	err := Run(context.Background(), cfg, client, &buf)
+	if err == nil {
+		t.Fatal("expected error from failed pull")
+	}
+	if !strings.Contains(err.Error(), "1 model pull(s) failed") {
+		t.Errorf("error missing aggregate count: %v", err)
+	}
+	if !strings.Contains(buf.String(), "FAILED") {
+		t.Errorf("expected FAILED log, got %q", buf.String())
+	}
+}
+
+func TestRun_ContextCancelAbortsPull(t *testing.T) {
+	// Pull handler writes slowly so ctx cancel triggers mid-stream.
+	fake := &fakeOllama{installed: map[string]bool{}}
+	slowMux := http.NewServeMux()
+	slowMux.HandleFunc("/api/tags", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(struct {
+			Models []struct {
+				Name string `json:"name"`
+			} `json:"models"`
+		}{})
+	})
+	slowMux.HandleFunc("/api/pull", func(w http.ResponseWriter, r *http.Request) {
+		flusher, _ := w.(http.Flusher)
+		for i := 0; i < 10; i++ {
+			_, err := fmt.Fprintf(w, `{"status":"pulling"}`+"\n")
+			if err != nil {
+				return
+			}
+			if flusher != nil {
+				flusher.Flush()
+			}
+			select {
+			case <-r.Context().Done():
+				return
+			case <-time.After(100 * time.Millisecond):
+			}
+		}
+	})
+	srv := httptest.NewServer(slowMux)
+	defer srv.Close()
+	client := &Client{BaseURL: srv.URL, HTTP: http.DefaultClient}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+	defer cancel()
+	err := Run(ctx, Config{Models: []ModelSpec{{Name: "slow"}}}, client, &bytes.Buffer{})
+	if err == nil {
+		t.Fatal("expected error when ctx is cancelled")
+	}
+	_ = fake
+}
+
+func TestParseConfig_AcceptsStringsAndObjects(t *testing.T) {
+	raw := []byte(`{"models": ["qwen3:4b", {"name":"nomic-embed-text","tag":"latest"}]}`)
+	cfg, err := ParseConfig(raw)
+	if err != nil {
+		t.Fatalf("ParseConfig: %v", err)
+	}
+	if len(cfg.Models) != 2 {
+		t.Fatalf("expected 2 models, got %d", len(cfg.Models))
+	}
+	if got := cfg.Models[0].Ref(); got != "qwen3:4b" {
+		t.Errorf("model[0] ref = %q, want qwen3:4b", got)
+	}
+	if got := cfg.Models[1].Ref(); got != "nomic-embed-text:latest" {
+		t.Errorf("model[1] ref = %q, want nomic-embed-text:latest", got)
+	}
+}
+
+func TestResolveBaseURL_Defaults(t *testing.T) {
+	t.Setenv("OLLAMA_BASE_URL", "")
+	t.Setenv("OLLAMA_HOST", "")
+	t.Setenv("OLLAMA_PORT", "")
+	if got := resolveBaseURL(); got != "http://127.0.0.1:11434" {
+		t.Errorf("default base URL = %q", got)
+	}
+	t.Setenv("OLLAMA_HOST", "box")
+	t.Setenv("OLLAMA_PORT", "9000")
+	if got := resolveBaseURL(); got != "http://box:9000" {
+		t.Errorf("host+port base URL = %q", got)
+	}
+	t.Setenv("OLLAMA_HOST", "box:8080")
+	if got := resolveBaseURL(); got != "http://box:8080" {
+		t.Errorf("host-with-port base URL = %q", got)
+	}
+	t.Setenv("OLLAMA_BASE_URL", "http://override:11/")
+	if got := resolveBaseURL(); got != "http://override:11" {
+		t.Errorf("override base URL = %q", got)
+	}
+}

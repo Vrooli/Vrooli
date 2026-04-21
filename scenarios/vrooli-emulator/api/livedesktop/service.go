@@ -7,11 +7,10 @@ import (
 	"log/slog"
 	"strings"
 	"time"
-
-	"github.com/google/uuid"
-
 	"vrooli-emulator-api/captures"
 	"vrooli-emulator-api/screenrecording"
+
+	"github.com/google/uuid"
 )
 
 // Service orchestrates session lifecycle on a virtual display.

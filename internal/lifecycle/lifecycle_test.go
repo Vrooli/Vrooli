@@ -2,6 +2,7 @@ package lifecycle
 
 import (
 	"bytes"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -25,6 +26,7 @@ import (
 	"github.com/vrooli/vrooli/internal/projectstate"
 	"github.com/vrooli/vrooli/internal/resources"
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
+	resourcemanifest "github.com/vrooli/vrooli/internal/resources/manifest"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/scenario"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
@@ -546,6 +548,242 @@ func TestEnsureResourceDependenciesIgnoreSkipsOptionalResource(t *testing.T) {
 	}
 	if len(failed) != 0 {
 		t.Fatalf("failed resources = %#v, want none", failed)
+	}
+}
+
+func TestEnsureResourceDependenciesCallsEnsureWhenCapAndConfigPresent(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixtureManifest(t, root, testscenario.ScenarioServiceManifest(
+		"alpha",
+		testscenario.WithDependencies(scenario.Dependencies{
+			Resources: map[string]scenario.Dependency{
+				"ollama": {
+					Enabled:       true,
+					Required:      true,
+					StartupPolicy: scenario.DependencyStartupPolicyMustStart,
+					Config:        []byte(`{"models":["qwen3:4b"]}`),
+				},
+			},
+		}),
+	))
+
+	var ranArgs []string
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.resourceStatus = func(name string, _ bool) (resourcecontrol.Status, error) {
+			healthy := true
+			return resourcecontrol.Status{
+				Resource: resources.Resource{Name: name},
+				Running:  true,
+				Healthy:  &healthy,
+			}, nil
+		}
+		deps.resourceManifest = func(_ string) (resourcemanifest.ResourceManifest, error) {
+			return resourcemanifest.ResourceManifest{
+				Capabilities: resourcemanifest.ResourceManifestCapabilities{SupportsEnsure: true},
+			}, nil
+		}
+		deps.runResourceCLI = func(_ string, args []string, _, _ io.Writer) error {
+			ranArgs = append([]string(nil), args...)
+			return nil
+		}
+	})
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load(alpha): %v", err)
+	}
+	if _, err := runner.ensureResourceDependencies(item, StartOptions{}); err != nil {
+		t.Fatalf("ensureResourceDependencies: %v", err)
+	}
+
+	if len(ranArgs) != 3 || ranArgs[0] != "ensure" || ranArgs[1] != "--config-base64" {
+		t.Fatalf("ensure argv = %#v, want [ensure --config-base64 <b64>]", ranArgs)
+	}
+	decoded, err := base64.StdEncoding.DecodeString(ranArgs[2])
+	if err != nil {
+		t.Fatalf("decode config-base64: %v", err)
+	}
+	if !strings.Contains(string(decoded), `"qwen3:4b"`) {
+		t.Errorf("decoded config missing model: %s", decoded)
+	}
+}
+
+func TestEnsureResourceDependenciesSkipsEnsureWhenCapabilityOff(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixtureManifest(t, root, testscenario.ScenarioServiceManifest(
+		"alpha",
+		testscenario.WithDependencies(scenario.Dependencies{
+			Resources: map[string]scenario.Dependency{
+				"postgres": {
+					Enabled:       true,
+					Required:      true,
+					StartupPolicy: scenario.DependencyStartupPolicyMustStart,
+					Config:        []byte(`{"whatever":true}`),
+				},
+			},
+		}),
+	))
+
+	var ensureCalled bool
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.resourceStatus = func(name string, _ bool) (resourcecontrol.Status, error) {
+			healthy := true
+			return resourcecontrol.Status{Resource: resources.Resource{Name: name}, Running: true, Healthy: &healthy}, nil
+		}
+		deps.resourceManifest = func(_ string) (resourcemanifest.ResourceManifest, error) {
+			return resourcemanifest.ResourceManifest{}, nil // SupportsEnsure=false
+		}
+		deps.runResourceCLI = func(_ string, _ []string, _, _ io.Writer) error {
+			ensureCalled = true
+			return nil
+		}
+	})
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load(alpha): %v", err)
+	}
+	if _, err := runner.ensureResourceDependencies(item, StartOptions{}); err != nil {
+		t.Fatalf("ensureResourceDependencies: %v", err)
+	}
+	if ensureCalled {
+		t.Error("ensure must not be invoked when SupportsEnsure=false")
+	}
+}
+
+func TestEnsureResourceDependenciesSkipsEnsureWhenConfigEmpty(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixtureManifest(t, root, testscenario.ScenarioServiceManifest(
+		"alpha",
+		testscenario.WithDependencies(scenario.Dependencies{
+			Resources: map[string]scenario.Dependency{
+				"ollama": {
+					Enabled:       true,
+					Required:      true,
+					StartupPolicy: scenario.DependencyStartupPolicyMustStart,
+					// no Config → no ensure should run
+				},
+			},
+		}),
+	))
+
+	var manifestCalled bool
+	var ensureCalled bool
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.resourceStatus = func(name string, _ bool) (resourcecontrol.Status, error) {
+			healthy := true
+			return resourcecontrol.Status{Resource: resources.Resource{Name: name}, Running: true, Healthy: &healthy}, nil
+		}
+		deps.resourceManifest = func(_ string) (resourcemanifest.ResourceManifest, error) {
+			manifestCalled = true
+			return resourcemanifest.ResourceManifest{
+				Capabilities: resourcemanifest.ResourceManifestCapabilities{SupportsEnsure: true},
+			}, nil
+		}
+		deps.runResourceCLI = func(_ string, _ []string, _, _ io.Writer) error {
+			ensureCalled = true
+			return nil
+		}
+	})
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load(alpha): %v", err)
+	}
+	if _, err := runner.ensureResourceDependencies(item, StartOptions{}); err != nil {
+		t.Fatalf("ensureResourceDependencies: %v", err)
+	}
+	if manifestCalled {
+		t.Error("resourceManifest should not be loaded when Config is empty (short-circuit)")
+	}
+	if ensureCalled {
+		t.Error("ensure must not be invoked when Config is empty")
+	}
+}
+
+func TestEnsureResourceDependenciesFailsRequiredDependencyWhenEnsureFails(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixtureManifest(t, root, testscenario.ScenarioServiceManifest(
+		"alpha",
+		testscenario.WithDependencies(scenario.Dependencies{
+			Resources: map[string]scenario.Dependency{
+				"ollama": {
+					Enabled:       true,
+					Required:      true,
+					StartupPolicy: scenario.DependencyStartupPolicyMustStart,
+					Config:        []byte(`{"models":["qwen3:4b"]}`),
+				},
+			},
+		}),
+	))
+
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.resourceStatus = func(name string, _ bool) (resourcecontrol.Status, error) {
+			healthy := true
+			return resourcecontrol.Status{Resource: resources.Resource{Name: name}, Running: true, Healthy: &healthy}, nil
+		}
+		deps.resourceManifest = func(_ string) (resourcemanifest.ResourceManifest, error) {
+			return resourcemanifest.ResourceManifest{
+				Capabilities: resourcemanifest.ResourceManifestCapabilities{SupportsEnsure: true},
+			}, nil
+		}
+		deps.runResourceCLI = func(_ string, _ []string, _, _ io.Writer) error {
+			return errors.New("pull failed")
+		}
+	})
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load(alpha): %v", err)
+	}
+	_, err = runner.ensureResourceDependencies(item, StartOptions{})
+	if err == nil || !strings.Contains(err.Error(), "ensure resource dependency ollama") {
+		t.Fatalf("expected ensure failure to surface on required dep, got %v", err)
+	}
+}
+
+func TestEnsureResourceDependenciesContinuesOnEnsureFailureWhenBestEffort(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixtureManifest(t, root, testscenario.ScenarioServiceManifest(
+		"alpha",
+		testscenario.WithDependencies(scenario.Dependencies{
+			Resources: map[string]scenario.Dependency{
+				"ollama": {
+					Enabled:          true,
+					Required:         true,
+					StartupPolicy:    scenario.DependencyStartupPolicyTryStart,
+					DegradedBehavior: "fallback to cloud",
+					Config:           []byte(`{"models":["qwen3:4b"]}`),
+				},
+			},
+		}),
+	))
+
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.resourceStatus = func(name string, _ bool) (resourcecontrol.Status, error) {
+			healthy := true
+			return resourcecontrol.Status{Resource: resources.Resource{Name: name}, Running: true, Healthy: &healthy}, nil
+		}
+		deps.resourceManifest = func(_ string) (resourcemanifest.ResourceManifest, error) {
+			return resourcemanifest.ResourceManifest{
+				Capabilities: resourcemanifest.ResourceManifestCapabilities{SupportsEnsure: true},
+			}, nil
+		}
+		deps.runResourceCLI = func(_ string, _ []string, _, _ io.Writer) error {
+			return errors.New("transient pull failure")
+		}
+	})
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load(alpha): %v", err)
+	}
+	failed, err := runner.ensureResourceDependencies(item, StartOptions{})
+	if err != nil {
+		t.Fatalf("try_start ensure failure should be best-effort, got %v", err)
+	}
+	if len(failed) != 1 || failed[0] != "ollama" {
+		t.Fatalf("failed resources = %#v, want [ollama]", failed)
 	}
 }
 

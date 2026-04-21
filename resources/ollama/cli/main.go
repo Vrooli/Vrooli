@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"resource-ollama/cli/internal/ensure"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -45,6 +46,6 @@ func newApp() (*cliapp.ResourceApp, error) {
 	if err != nil {
 		return nil, err
 	}
-	app.SetCommands(app.StandardLifecycleCommands())
+	app.SetCommands(append(app.StandardLifecycleCommands(), ensure.CommandGroup()))
 	return app, nil
 }

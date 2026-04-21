@@ -37,7 +37,7 @@ func TestBuildEnvironmentHonorsRealTestGenieContract(t *testing.T) {
 			PID:      os.Getpid(),
 			Scenario: item.Slug,
 			Step:     "start-ui",
-			Port:     36223,
+			Port:     21223,
 		},
 	}
 
@@ -45,8 +45,8 @@ func TestBuildEnvironmentHonorsRealTestGenieContract(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BuildEnvironment: %v", err)
 	}
-	if env.AllocatedPorts["ui"] != 36223 {
-		t.Fatalf("fixed UI port = %d, want 36223", env.AllocatedPorts["ui"])
+	if env.AllocatedPorts["ui"] != 21223 {
+		t.Fatalf("fixed UI port = %d, want 21223", env.AllocatedPorts["ui"])
 	}
 	if env.AllocatedPorts["api"] < 15000 || env.AllocatedPorts["api"] > 19999 {
 		t.Fatalf("API port = %d outside expected range", env.AllocatedPorts["api"])

@@ -43,7 +43,7 @@ export default function App() {
               <p>Timestamp: {new Date(data.timestamp).toLocaleString()}</p>
             </div>
           )}
-          <Button className="mt-4" onClick={() => refetch()}>
+          <Button className="mt-4" onClick={() => { void refetch(); }}>
             Refresh
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>

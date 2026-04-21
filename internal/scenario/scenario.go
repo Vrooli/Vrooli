@@ -142,6 +142,12 @@ type Dependency struct {
 	Purpose          string `json:"purpose,omitempty"`
 	Description      string `json:"description,omitempty"`
 	Database         string `json:"database,omitempty"`
+
+	// Config holds resource-specific keys that aren't modeled as typed fields
+	// (e.g. ollama's `models`, qdrant's `collections`). The scenario loader
+	// preserves them verbatim; the consuming resource owns the schema. Always
+	// a JSON object when non-empty.
+	Config json.RawMessage `json:"-"`
 }
 
 const (
@@ -558,27 +564,142 @@ func decodeDependencyCollection(data json.RawMessage, defaultType string) (map[s
 }
 
 func (dependency *Dependency) UnmarshalJSON(data []byte) error {
-	type rawDependency Dependency
-	aux := struct {
-		rawDependency
-		Enabled *bool `json:"enabled"`
-	}{}
-	if err := json.Unmarshal(data, &aux); err != nil {
+	raw := map[string]json.RawMessage{}
+	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	*dependency = Dependency(aux.rawDependency)
-	if aux.Enabled == nil {
-		dependency.Enabled = true
-	} else {
-		dependency.Enabled = *aux.Enabled
+
+	*dependency = Dependency{}
+
+	takeString := func(key string, dest *string) error {
+		v, ok := raw[key]
+		if !ok {
+			return nil
+		}
+		if err := json.Unmarshal(v, dest); err != nil {
+			return fmt.Errorf("%s: %w", key, err)
+		}
+		delete(raw, key)
+		return nil
 	}
+	takeBool := func(key string, dest *bool) (present bool, err error) {
+		v, ok := raw[key]
+		if !ok {
+			return false, nil
+		}
+		if err := json.Unmarshal(v, dest); err != nil {
+			return true, fmt.Errorf("%s: %w", key, err)
+		}
+		delete(raw, key)
+		return true, nil
+	}
+
+	if err := takeString("type", &dependency.Type); err != nil {
+		return err
+	}
+	enabledPresent, err := takeBool("enabled", &dependency.Enabled)
+	if err != nil {
+		return err
+	}
+	if !enabledPresent {
+		dependency.Enabled = true
+	}
+	if _, err := takeBool("required", &dependency.Required); err != nil {
+		return err
+	}
+	if err := takeString("startup_policy", &dependency.StartupPolicy); err != nil {
+		return err
+	}
+	if err := takeString("degraded_behavior", &dependency.DegradedBehavior); err != nil {
+		return err
+	}
+	if err := takeString("purpose", &dependency.Purpose); err != nil {
+		return err
+	}
+	if err := takeString("description", &dependency.Description); err != nil {
+		return err
+	}
+	if err := takeString("database", &dependency.Database); err != nil {
+		return err
+	}
+
 	dependency.Type = strings.TrimSpace(dependency.Type)
 	dependency.StartupPolicy = strings.TrimSpace(dependency.StartupPolicy)
 	dependency.DegradedBehavior = strings.TrimSpace(dependency.DegradedBehavior)
 	dependency.Purpose = strings.TrimSpace(dependency.Purpose)
 	dependency.Description = strings.TrimSpace(dependency.Description)
 	dependency.Database = strings.TrimSpace(dependency.Database)
+
+	if len(raw) > 0 {
+		cfg, err := json.Marshal(raw)
+		if err != nil {
+			return fmt.Errorf("dependency config: %w", err)
+		}
+		dependency.Config = cfg
+	}
 	return nil
+}
+
+// MarshalJSON emits the typed fields alongside any extra keys stored in
+// Config, so declarations round-trip losslessly through json.Marshal. The
+// `enabled` key is always emitted (default is true when absent on input).
+func (dependency Dependency) MarshalJSON() ([]byte, error) {
+	out := map[string]json.RawMessage{}
+	if len(dependency.Config) > 0 {
+		if err := json.Unmarshal(dependency.Config, &out); err != nil {
+			return nil, fmt.Errorf("dependency config: %w", err)
+		}
+	}
+
+	emit := func(key string, v any) error {
+		b, err := json.Marshal(v)
+		if err != nil {
+			return fmt.Errorf("%s: %w", key, err)
+		}
+		out[key] = b
+		return nil
+	}
+	emitIfNonEmpty := func(key string, s string) error {
+		if s == "" {
+			return nil
+		}
+		return emit(key, s)
+	}
+	emitIfTrue := func(key string, b bool) error {
+		if !b {
+			return nil
+		}
+		return emit(key, b)
+	}
+
+	if err := emitIfNonEmpty("type", dependency.Type); err != nil {
+		return nil, err
+	}
+	// Matches legacy `omitempty` behavior: false drops; the reader defaults
+	// a missing key back to true.
+	if err := emitIfTrue("enabled", dependency.Enabled); err != nil {
+		return nil, err
+	}
+	if err := emitIfTrue("required", dependency.Required); err != nil {
+		return nil, err
+	}
+	if err := emitIfNonEmpty("startup_policy", dependency.StartupPolicy); err != nil {
+		return nil, err
+	}
+	if err := emitIfNonEmpty("degraded_behavior", dependency.DegradedBehavior); err != nil {
+		return nil, err
+	}
+	if err := emitIfNonEmpty("purpose", dependency.Purpose); err != nil {
+		return nil, err
+	}
+	if err := emitIfNonEmpty("description", dependency.Description); err != nil {
+		return nil, err
+	}
+	if err := emitIfNonEmpty("database", dependency.Database); err != nil {
+		return nil, err
+	}
+
+	return json.Marshal(out)
 }
 
 func (dependency Dependency) NormalizedStartupPolicy() string {

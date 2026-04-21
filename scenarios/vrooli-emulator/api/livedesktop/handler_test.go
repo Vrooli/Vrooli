@@ -9,12 +9,11 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+	"vrooli-emulator-api/procmetrics"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"vrooli-emulator-api/procmetrics"
 )
 
 func newTestHandler() (*Handler, *Service) {

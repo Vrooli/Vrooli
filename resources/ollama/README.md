@@ -38,6 +38,7 @@ Current internal package boundaries:
 - `cli/internal/status`: richer Ollama status interpretation
 - `cli/internal/health`: Ollama-specific probe helpers
 - `cli/internal/env`: environment export and derived-config helpers
+- `cli/internal/ensure`: model auto-provisioning triggered by scenario dependencies
 
 ## Usage
 
@@ -51,6 +52,42 @@ resource-ollama status
 # Default API endpoint
 curl http://localhost:11434/api/tags
 ```
+
+## Model provisioning
+
+Scenarios declare the Ollama models they need in their `.vrooli/service.json`
+under the `ollama` dependency block:
+
+```json
+"ollama": {
+  "type": "ollama",
+  "enabled": true,
+  "required": false,
+  "startup_policy": "try_start",
+  "models": ["qwen3:4b", {"name": "nomic-embed-text", "tag": "latest"}]
+}
+```
+
+On `vrooli scenario start`, the orchestrator sees the extra `models` key,
+confirms this resource advertises `supports_ensure` in `resource.json`, and
+calls `resource-ollama ensure --config-base64 <base64-json>`. The ensure verb:
+
+1. Lists installed tags via `GET /api/tags` (fast, ~10ms).
+2. Computes the missing set.
+3. Streams `POST /api/pull` for each missing model, relaying progress to the
+   lifecycle console.
+4. Exits 0 once every requested model is present (or reports which pulls
+   failed while keeping the scenario start best-effort via the usual
+   `startup_policy` semantics).
+
+Direct invocation (e.g. while debugging):
+
+```bash
+resource-ollama ensure --config-base64 $(echo -n '{"models":["qwen3:4b"]}' | base64)
+```
+
+All log lines from the ensure path are prefixed with `ollama-ensure:` so
+`grep` over `vrooli logs` surfaces the auto-provisioning flow cleanly.
 
 ## Notes
 

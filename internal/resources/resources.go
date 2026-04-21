@@ -136,6 +136,18 @@ func (c *Controller) runResourceCommand(name, operation string, args []string, s
 	return nil
 }
 
+// RunResourceCLI invokes the resource's installed CLI binary directly,
+// bypassing the driver action whitelist. Use this for resource-local verbs
+// (e.g. `ensure`) that aren't part of the shared lifecycle surface.
+// args[0] is treated as the operation name for error attribution; pass the
+// full argv including subcommand flags.
+func (c *Controller) RunResourceCLI(name string, args []string, stdout, stderr io.Writer) error {
+	if len(args) == 0 {
+		return fmt.Errorf("run resource CLI %s: args must include the operation name", name)
+	}
+	return c.runResourceCommand(name, args[0], args[1:], stdout, stderr)
+}
+
 func (c *Controller) SetEnabled(name string, enabled bool) error {
 	configPath := filepath.Join(c.Root, filepath.FromSlash(resourceConfigPath))
 	data, err := os.ReadFile(configPath)

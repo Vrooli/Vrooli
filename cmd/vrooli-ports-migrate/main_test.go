@@ -291,6 +291,69 @@ func TestScenarioSlugFromPath(t *testing.T) {
 	}
 }
 
+// Regression: a service.json that has a "ui" string value inside
+// lifecycle.health.endpoints (or any other sibling of the ports block) must
+// not confuse the rewriter into replacing the port outside the ports block.
+func TestProcessManifest_IgnoresUIInHealthEndpoints(t *testing.T) {
+	root := setupRepo(t)
+	manifest := filepath.Join(root, "scenarios", "demo", ".vrooli", "service.json")
+	writeFile(t, manifest, `{
+  "lifecycle": {
+    "health": {
+      "endpoints": {
+        "ui": "/health"
+      }
+    }
+  },
+  "ports": {
+    "ui": {
+      "env_var": "UI_PORT",
+      "port": 36400,
+      "range": "35000-39999"
+    }
+  }
+}
+`)
+	if _, err := processManifest(root, manifest, true); err != nil {
+		t.Fatalf("processManifest: %v", err)
+	}
+	got := readFile(t, manifest)
+	if !strings.Contains(got, `"port": 21400`) {
+		t.Errorf("port not rewritten:\n%s", got)
+	}
+	if !strings.Contains(got, `"range": "20000-24999"`) {
+		t.Errorf("range not rewritten:\n%s", got)
+	}
+	if strings.Contains(got, `"port": 36400`) {
+		t.Errorf("old port still present:\n%s", got)
+	}
+	// The health endpoint string should survive untouched.
+	if !strings.Contains(got, `"ui": "/health"`) {
+		t.Errorf("health endpoint key was corrupted:\n%s", got)
+	}
+}
+
+func TestFindPortsBlock_SkipsShallowMatches(t *testing.T) {
+	in := `{
+  "note": "\"ports\" mentioned here does not count",
+  "lifecycle": { "health": { "endpoints": { "ui": "/h" } } },
+  "ports": {
+    "ui": { "port": 36400 }
+  }
+}`
+	start, end, ok := findPortsBlock(in)
+	if !ok {
+		t.Fatal("expected to find ports block")
+	}
+	if in[start] != '{' || in[end] != '}' {
+		t.Errorf("block bounds not on braces: [%d..%d] %q..%q", start, end, string(in[start]), string(in[end]))
+	}
+	// The block must contain our "ui" inner object, not the health one.
+	if !strings.Contains(in[start:end+1], `"port": 36400`) {
+		t.Errorf("ports block didn't capture the right object: %s", in[start:end+1])
+	}
+}
+
 func TestFindMatchingBrace(t *testing.T) {
 	in := `{"a": {"b": 1}, "c": 2}`
 	got := findMatchingBrace(in, 0)

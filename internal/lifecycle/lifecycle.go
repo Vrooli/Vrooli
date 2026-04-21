@@ -25,6 +25,7 @@ import (
 	"github.com/vrooli/vrooli/internal/projectstate"
 	"github.com/vrooli/vrooli/internal/resources"
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
+	resourcemanifest "github.com/vrooli/vrooli/internal/resources/manifest"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
@@ -125,7 +126,9 @@ type lifecycleDeps struct {
 	readScenarioRecords     func(string, string) ([]process.Record, error)
 	isPIDRunning            func(int) bool
 	resourceStatus          func(string, bool) (resourcecontrol.Status, error)
+	resourceManifest        func(string) (resourcemanifest.ResourceManifest, error)
 	runResource             func(string, []string, io.Writer, io.Writer) error
+	runResourceCLI          func(string, []string, io.Writer, io.Writer) error
 	inspectPort             func(int) (network.PortInspection, error)
 	readProcessEnv          func(int) (map[string]string, error)
 	enforceHostRequirements func(hostreqrun.Options) (vrooliruntime.Report, error)
@@ -253,6 +256,16 @@ func (r *Runner) runtimeDeps() lifecycleDeps {
 	if deps.runResource == nil {
 		deps.runResource = func(name string, args []string, stdout, stderr io.Writer) error {
 			return resources.NewController(r.Root, r.Home).Run(name, args, stdout, stderr)
+		}
+	}
+	if deps.resourceManifest == nil {
+		deps.resourceManifest = func(name string) (resourcemanifest.ResourceManifest, error) {
+			return resources.NewController(r.Root, r.Home).ResourceManifest(name)
+		}
+	}
+	if deps.runResourceCLI == nil {
+		deps.runResourceCLI = func(name string, args []string, stdout, stderr io.Writer) error {
+			return resources.NewController(r.Root, r.Home).RunResourceCLI(name, args, stdout, stderr)
 		}
 	}
 	if deps.inspectPort == nil {

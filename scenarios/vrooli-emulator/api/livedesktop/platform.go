@@ -2,7 +2,6 @@ package livedesktop
 
 import (
 	"context"
-
 	"vrooli-emulator-api/procmetrics"
 )
 

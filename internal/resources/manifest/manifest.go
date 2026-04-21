@@ -151,6 +151,14 @@ type ResourceLifecycle struct {
 type ResourceManifestCapabilities struct {
 	SupportsLogs       bool `json:"supports_logs,omitempty"`
 	SupportsContentOps bool `json:"supports_content_ops,omitempty"`
+
+	// SupportsEnsure advertises that the resource CLI exposes an `ensure`
+	// subcommand which accepts a scenario's resource-specific config (via
+	// `--config-base64 <b64>`) and brings the resource into compliance
+	// (e.g. pulling required models). The orchestrator calls this after
+	// health check on any healthy resource whose declared dependency
+	// includes extra config keys.
+	SupportsEnsure bool `json:"supports_ensure,omitempty"`
 }
 
 func DefaultPath(root, name string) string {

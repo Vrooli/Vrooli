@@ -9,11 +9,10 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"vrooli-emulator-api/procmetrics"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"vrooli-emulator-api/procmetrics"
 )
 
 // --- Mock PlatformBackend ---

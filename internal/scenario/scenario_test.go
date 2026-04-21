@@ -1,6 +1,7 @@
 package scenario
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -519,6 +520,88 @@ func TestReadServiceLoadsCanonicalDependencyMaps(t *testing.T) {
 	}
 	if testGenie.Type != "scenario" {
 		t.Fatalf("test-genie type = %q", testGenie.Type)
+	}
+}
+
+func TestDependencyPreservesExtraConfigKeysRoundTrip(t *testing.T) {
+	input := []byte(`{
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Local LLM",
+        "models": ["qwen3:4b", {"name": "nomic-embed-text"}],
+        "fallback": "openrouter"
+    }`)
+
+	var got Dependency
+	if err := json.Unmarshal(input, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	if got.Type != "ollama" || got.StartupPolicy != "try_start" || got.Description != "Local LLM" {
+		t.Fatalf("typed fields corrupted: %+v", got)
+	}
+	if !got.Enabled || got.Required {
+		t.Fatalf("enabled/required wrong: %+v", got)
+	}
+	if len(got.Config) == 0 {
+		t.Fatalf("expected Config to capture extra keys, got empty")
+	}
+	var cfg map[string]any
+	if err := json.Unmarshal(got.Config, &cfg); err != nil {
+		t.Fatalf("Config is not a JSON object: %v", err)
+	}
+	if _, ok := cfg["models"]; !ok {
+		t.Errorf("Config missing 'models': %s", got.Config)
+	}
+	if cfg["fallback"] != "openrouter" {
+		t.Errorf("Config missing 'fallback': %s", got.Config)
+	}
+	for _, reserved := range []string{"type", "enabled", "required", "startup_policy", "description"} {
+		if _, present := cfg[reserved]; present {
+			t.Errorf("Config must not shadow typed key %q", reserved)
+		}
+	}
+
+	// Round-trip: marshal, unmarshal, confirm extra keys survive.
+	out, err := json.Marshal(got)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var again Dependency
+	if err := json.Unmarshal(out, &again); err != nil {
+		t.Fatalf("unmarshal round-trip: %v", err)
+	}
+	if again.Type != got.Type || again.StartupPolicy != got.StartupPolicy || again.Description != got.Description {
+		t.Fatalf("typed fields drifted on round-trip: %+v vs %+v", again, got)
+	}
+	if len(again.Config) == 0 {
+		t.Fatalf("Config dropped on round-trip")
+	}
+	var cfgAgain map[string]any
+	if err := json.Unmarshal(again.Config, &cfgAgain); err != nil {
+		t.Fatalf("Config round-trip not JSON: %v", err)
+	}
+	if _, ok := cfgAgain["models"]; !ok {
+		t.Errorf("'models' lost on round-trip: %s", again.Config)
+	}
+	if cfgAgain["fallback"] != "openrouter" {
+		t.Errorf("'fallback' lost on round-trip: %s", again.Config)
+	}
+}
+
+func TestDependencyUnmarshalNoExtraKeysLeavesConfigEmpty(t *testing.T) {
+	input := []byte(`{"type":"postgres","enabled":true,"required":true,"database":"alpha_db"}`)
+	var got Dependency
+	if err := json.Unmarshal(input, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(got.Config) != 0 {
+		t.Fatalf("Config should be empty when only typed keys are present, got %s", got.Config)
+	}
+	if got.Database != "alpha_db" {
+		t.Fatalf("database: %q", got.Database)
 	}
 }
 

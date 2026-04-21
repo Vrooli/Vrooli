@@ -352,25 +352,31 @@ func applyChanges(original []byte, changes []change) []byte {
 
 // rewriteOne finds the block belonging to ch.PortKey and, within that block,
 // replaces the relevant field's value. This avoids mis-matching a number or
-// range that happens to appear elsewhere (e.g. in a comment or in another
-// port entry that coincidentally shares the same number).
+// range that happens to appear elsewhere (e.g. a health endpoint key named
+// "ui" on an unrelated line, or another port entry that coincidentally
+// shares the same literal).
 func rewriteOne(content string, ch change) string {
+	portsStart, portsEnd, ok := findPortsBlock(content)
+	if !ok {
+		return content
+	}
+	portsBlock := content[portsStart : portsEnd+1]
+
 	keyQuoted := `"` + ch.PortKey + `"`
-	keyIdx := strings.Index(content, keyQuoted)
+	keyIdx := strings.Index(portsBlock, keyQuoted)
 	if keyIdx < 0 {
 		return content
 	}
-	// Find the opening brace of the object associated with this key.
-	braceIdx := strings.Index(content[keyIdx:], "{")
+	braceIdx := strings.Index(portsBlock[keyIdx:], "{")
 	if braceIdx < 0 {
 		return content
 	}
 	braceIdx += keyIdx
-	blockEnd := findMatchingBrace(content, braceIdx)
+	blockEnd := findMatchingBrace(portsBlock, braceIdx)
 	if blockEnd < 0 {
 		return content
 	}
-	block := content[braceIdx : blockEnd+1]
+	block := portsBlock[braceIdx : blockEnd+1]
 	var updated string
 	if ch.Field == "port" {
 		updated = replacePortField(block, ch.OldValue, ch.NewValue)
@@ -380,7 +386,39 @@ func rewriteOne(content string, ch change) string {
 	if updated == block {
 		return content
 	}
-	return content[:braceIdx] + updated + content[blockEnd+1:]
+	newPortsBlock := portsBlock[:braceIdx] + updated + portsBlock[blockEnd+1:]
+	return content[:portsStart] + newPortsBlock + content[portsEnd+1:]
+}
+
+// findPortsBlock returns the byte offsets of the outermost top-level
+// "ports" object value in the service.json. Scans for `"ports"` keys at any
+// depth but returns the first one whose value is an object.
+func findPortsBlock(content string) (int, int, bool) {
+	key := `"ports"`
+	idx := 0
+	for {
+		rel := strings.Index(content[idx:], key)
+		if rel < 0 {
+			return 0, 0, false
+		}
+		keyPos := idx + rel
+		// Walk forward past whitespace and the colon, then look for the
+		// opening brace. If we find anything else (e.g. a string value),
+		// this wasn't the right "ports" key; advance and keep searching.
+		scan := keyPos + len(key)
+		for scan < len(content) && (content[scan] == ' ' || content[scan] == '\t' || content[scan] == '\n' || content[scan] == '\r' || content[scan] == ':') {
+			scan++
+		}
+		if scan >= len(content) || content[scan] != '{' {
+			idx = keyPos + len(key)
+			continue
+		}
+		end := findMatchingBrace(content, scan)
+		if end < 0 {
+			return 0, 0, false
+		}
+		return scan, end, true
+	}
 }
 
 // findMatchingBrace returns the index of the `}` that closes the `{` at

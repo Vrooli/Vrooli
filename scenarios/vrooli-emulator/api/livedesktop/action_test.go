@@ -10,14 +10,12 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"vrooli-emulator-api/captures"
+	"vrooli-emulator-api/screenrecording"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"vrooli-emulator-api/captures"
-	"vrooli-emulator-api/screenrecording"
-
 	"github.com/vrooli/api-core/storage"
 )
 

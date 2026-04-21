@@ -51,8 +51,10 @@ interface DynamicSelectorDefinition<P extends ParamSchema | undefined = undefine
   readonly selectorPattern?: string;
 }
 
+type AnyDynamicSelectorDefinition = DynamicSelectorDefinition<ParamSchema | undefined>;
+
 type DynamicSelectorBranch = {
-  readonly [key: string]: DynamicSelectorBranch | DynamicSelectorDefinition<any>;
+  readonly [key: string]: DynamicSelectorBranch | AnyDynamicSelectorDefinition;
 };
 
 type DynamicSelectorTree = DynamicSelectorBranch;
@@ -79,12 +81,12 @@ type SelectorTreeResult<
         Extract<L[K], LiteralSelectorTree>,
         K extends keyof D ? Extract<D[K], DynamicSelectorTree> : DynamicSelectorTree
       >;
-} & (D extends DynamicSelectorTree ? DynamicBranchResult<D> : {});
+} & (D extends DynamicSelectorTree ? DynamicBranchResult<D> : Record<string, never>);
 
 const TEMPLATE_TOKEN = /\$\{([^}]+)\}/g;
 
 const formatTemplate = (template: string, values: Record<string, string | number>, keyPath: string) =>
-  template.replace(TEMPLATE_TOKEN, (_match, token) => {
+  template.replace(TEMPLATE_TOKEN, (_match: string, token: string) => {
     if (!(token in values)) {
       throw new Error(`Missing parameter '${token}' for selector '${keyPath}'`);
     }
@@ -93,11 +95,16 @@ const formatTemplate = (template: string, values: Record<string, string | number
 
 const toDataTestIdSelector = (testId: string) => `[data-testid="${testId}"]`;
 
-const isDynamicDefinition = (value: unknown): value is DynamicSelectorDefinition<any> =>
-  Boolean(value && typeof value === "object" && (value as DynamicSelectorDefinition).kind === "dynamic-selector");
+const isDynamicDefinition = (value: unknown): value is AnyDynamicSelectorDefinition => {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const kind = (value as { kind?: unknown }).kind;
+  return kind === "dynamic-selector";
+};
 
 const normalizeParams = (
-  definition: DynamicSelectorDefinition<any>,
+  definition: AnyDynamicSelectorDefinition,
   raw: Record<string, string | number>,
   path: string,
 ) => {
@@ -174,7 +181,7 @@ const flattenDynamicSelectors = (
     const nextPath = [...prefix, key];
     if (isDynamicDefinition(value)) {
       const manifestKey = nextPath.join(".");
-      const paramEntries = Object.entries(value.params ?? {}) as Array<[string, ParamDefinition]>;
+      const paramEntries = Object.entries(value.params ?? {});
       target[manifestKey] = {
         description: value.description,
         selectorPattern:
@@ -215,11 +222,8 @@ const mergeLiteralAndDynamicNodes = (
     }
 
     if (literalValue && typeof literalValue === "object") {
-      merged[key] = mergeLiteralAndDynamicNodes(
-        literalValue as LiteralSelectorTree,
-        isDynamicDefinition(dynamicValue) ? undefined : (dynamicValue as DynamicSelectorTree | undefined),
-        nextPath,
-      );
+      const dynamicBranch = isDynamicDefinition(dynamicValue) ? undefined : dynamicValue;
+      merged[key] = mergeLiteralAndDynamicNodes(literalValue, dynamicBranch, nextPath);
       return;
     }
 
@@ -228,7 +232,7 @@ const mergeLiteralAndDynamicNodes = (
         merged[key] = createDynamicSelectorFn(dynamicValue, nextPath.join("."));
         return;
       }
-      merged[key] = mergeLiteralAndDynamicNodes(undefined, dynamicValue as DynamicSelectorTree, nextPath);
+      merged[key] = mergeLiteralAndDynamicNodes(undefined, dynamicValue, nextPath);
     }
   });
 
@@ -236,7 +240,7 @@ const mergeLiteralAndDynamicNodes = (
 };
 
 const createDynamicSelectorFn = (
-  definition: DynamicSelectorDefinition<any>,
+  definition: AnyDynamicSelectorDefinition,
   path: string,
 ) => {
   return (params?: Record<string, string | number>) => {

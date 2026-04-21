@@ -11,7 +11,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
 	"vrooli-emulator-api/procmetrics"
 	"vrooli-emulator-api/screenrecording"
 )

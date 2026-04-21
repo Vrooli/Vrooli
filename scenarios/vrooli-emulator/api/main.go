@@ -9,17 +9,15 @@ import (
 	"os"
 	"os/exec"
 	"time"
-
-	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
-
-	"github.com/vrooli/api-core/health"
-	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
-
 	"vrooli-emulator-api/livedesktop"
 	"vrooli-emulator-api/procmetrics"
 	"vrooli-emulator-api/screenrecording"
+
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/server"
 )
 
 // shellExec runs a command and returns stdout. Used by procmetrics' window detector.
