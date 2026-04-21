@@ -1,0 +1,27 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "meta-contrarian",
+  "displayName": "Meta Contrarian",
+  "description": "Skeptic for meta-optimization. Scores every pending proposal against seven failure modes (polishing, sprawl, premature conversion, churn-without-benefit, too-fast deprecation, scope creep, conversion-without-measurement). Owns the aging scan.",
+  "status": "active",
+  "appearance": {
+    "body": "#374151",
+    "head": "#6B7280",
+    "accent": "#E5E7EB"
+  },
+  "tags": [
+    "meta",
+    "contrarian",
+    "skepticism",
+    "aging-scan"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-04-21T00:00:00Z",
+  "updatedAt": "2026-04-21T00:00:00Z"
+}

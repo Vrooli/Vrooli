@@ -43,7 +43,6 @@ Pricing is the intersection of WHAT × HOW. The [financial model](FINANCIAL_MODE
 Other teams and scenarios read these docs as the source of truth for monetization state:
 
 - **director-swarm** reads `CATALOG.md` for the revenue critical path instead of deriving it ad-hoc.
-- **scenario-feature** reads `CATALOG.md` before scoping work so features map to bundle impact.
 - **marketing-crew** reads `CATALOG.md` + `STRATEGY.md` for positioning.
 - **landing-page-business-suite** reads `CATALOG.md` + `PRICING.md` to generate pricing pages and entitlements.
 - **scenario-to-cloud** reads `TIERS.md` to understand which deployment modes the monetization plan requires.

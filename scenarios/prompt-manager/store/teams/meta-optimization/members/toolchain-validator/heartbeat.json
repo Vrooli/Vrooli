@@ -2,9 +2,9 @@
   "kind": "heartbeat-config",
   "schemaVersion": 1,
   "teamId": "meta-optimization",
-  "agentId": "skill-optimizer",
+  "agentId": "toolchain-validator",
   "enabled": false,
-  "schedule": "15 18 * * *",
+  "schedule": "0 18 * * *",
   "revision": 1,
   "createdAt": "2026-04-21T00:00:00Z",
   "updatedAt": "2026-04-21T00:00:00Z"

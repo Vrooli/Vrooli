@@ -1,38 +1,32 @@
 # TOOLS
 
 ## Tool Access
-
 `prompt-manager skill read <skill-id>`
 
-## Skill Management Commands
+## Primary Skills
+- **skill-authoring-tools** — standards for thin-wrapper skills
+- **skill-validation** — post-edit validation
+- **skill-principles** — universal quality criteria
+- **visited-tracker-tools** — rotation pattern
+- **documentation-health** — durable snapshots
 
-- `prompt-manager skill list` — List all skills.
-- `prompt-manager skill show <id>` — View skill details.
-- `prompt-manager skill update <id>` — Update a skill.
-- `prompt-manager skill add <name>` — Create a new skill.
-- `prompt-manager skill rate <id>` — Rate effectiveness.
-- `prompt-manager skill versions <id>` — View version history.
-- `prompt-manager skill revert <id> <version>` — Revert if needed.
-
-## Graph Analysis Commands
-
-- `prompt-manager graph health --type skill` — Skill health scores (sorted, lowest = most attention needed).
-- `prompt-manager graph orphaned-skills [--limit N]` — Unreferenced skills.
-- `prompt-manager graph cliless-skills [--limit N]` — Skills without CLI promotion.
-- `prompt-manager graph popular --type skill [--limit N]` — Most-referenced skills.
-- `prompt-manager graph node <id> [--json]` — Inspect a skill's connections and health breakdown.
-
-## Development Toolchain Validation
-
-*Available when development-toolchain-validator ships.*
-
-- `development-toolchain-validator report --conflicts` — Cross-skill contradictions.
-- `development-toolchain-validator report --maturity` — Skill configurability and maturity scores.
-- `development-toolchain-validator report --drift [--skill <id>]` — Skills changed since last validation.
+## Primary Surfaces
+- `prompt-manager graph health --type skill`
+- `prompt-manager graph popular --type skill`
+- `prompt-manager graph orphaned-skills`
+- `prompt-manager graph cliless-skills`
+- `prompt-manager graph circular-refs`
+- `prompt-manager graph node <skill-id>`
+- `prompt-manager skill read <skill-id>`
+- `prompt-manager skill update <skill-id>` (for direct edits via decisions)
+- `vrooli help` and `scenarios/<name>/cli/` for conversion targets
+- `shared/SKILL_AUDIT.md`, `PROGRAMMATIC_CONVERSION_QUEUE.md`, `DEPRECATION_QUEUE.md`
+- `shared/RUN_LESSONS.md` (usage signals from run-introspector)
+- `prompt-manager team decision-list meta-optimization --status=pending --context=skill-*`
+- `prompt-manager team knowledge-list meta-optimization --topic-prefix=skill-visited/`
 
 ## Usage Rules
-
-- Follow the appropriate authoring guide for each skill type.
-- Validate every change against skill-validation criteria.
-- Resolve cross-skill conflicts before optimizing individual skill quality.
-- Track health scores before and after changes.
+- Every proposal includes a baseline + expected delta + measurement plan. No exceptions.
+- Conversion > polishing > pruning choice is in that order *only when* usage justifies it. If usage is zero, pruning jumps to the front.
+- Do not edit agent files, team configs, or scenario code. Cross-lane proposals are rejected by the contrarian (failure mode 6).
+- Cap decisions at 2 per heartbeat.

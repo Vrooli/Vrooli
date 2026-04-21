@@ -1,0 +1,28 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "team-agent-optimizer",
+  "displayName": "Team & Agent Optimizer",
+  "description": "Audits teams and agents together — they co-evolve. Agent work is the default lane; team work is situational. Proposes structural and prompt-level changes, plus deprecation of long-dormant agents and empty teams.",
+  "status": "active",
+  "appearance": {
+    "body": "#9A3412",
+    "head": "#F97316",
+    "accent": "#FED7AA"
+  },
+  "tags": [
+    "meta",
+    "agents",
+    "teams",
+    "optimization",
+    "structure"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-04-21T00:00:00Z",
+  "updatedAt": "2026-04-21T00:00:00Z"
+}

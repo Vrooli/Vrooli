@@ -2,9 +2,9 @@
   "kind": "team-member",
   "schemaVersion": 1,
   "teamId": "meta-optimization",
-  "agentId": "skill-optimizer",
+  "agentId": "meta-contrarian",
   "roles": [
-    "skill-optimizer"
+    "contrarian"
   ],
   "status": "active"
 }

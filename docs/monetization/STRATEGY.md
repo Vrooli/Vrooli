@@ -125,9 +125,9 @@ Add-ons layer on top of both base bundles as domains mature. Add-ons are **held 
 The monetization team is the curator of this strategy; it does not execute every step. Execution responsibilities:
 
 - **Acquisition** — marketing-crew + landing-page-business-suite
-- **Activation** — scenario-feature (onboarding UX is a product concern)
-- **In-bundle expansion** — scenario-feature (product-led, agent-driven)
-- **Cross-SKU upsell** — monetization + marketing + feature, collaborative
+- **Activation** — no dedicated owner. Onboarding/first-run UX emerges as a byproduct of scenario work surfaced by director-swarm (gap analysis) and monetization (catalog readiness).
+- **In-bundle expansion** — no dedicated owner. Agent-driven expansion is a structural property of scenarios themselves; specific surfaces emerge as byproducts of monetization catalog work.
+- **Cross-SKU upsell** — monetization (strategy) + marketing-crew (lifecycle messaging where agent surfaces can't reach). In-product surfaces emerge as byproducts of scenario work.
 - **Retention** — nobody yet; requires telemetry that doesn't exist (see [TELEMETRY_ROADMAP.md](TELEMETRY_ROADMAP.md))
 - **Advocacy** — OSS strategy (this doc) + community operations when they emerge
 

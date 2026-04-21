@@ -1,14 +1,9 @@
 {
-  "generatedAt": "2026-04-20T18:00:00Z",
+  "generatedAt": "2026-04-21T00:00:00Z",
   "items": [
     {
       "id": "agent-22",
       "displayName": "Agent 22",
-      "status": "active"
-    },
-    {
-      "id": "agent-optimizer",
-      "displayName": "Agent Optimizer",
       "status": "active"
     },
     {
@@ -32,6 +27,11 @@
       "status": "active"
     },
     {
+      "id": "debt-curator",
+      "displayName": "Debt Curator",
+      "status": "active"
+    },
+    {
       "id": "financial-tracker",
       "displayName": "Financial Tracker",
       "status": "active"
@@ -52,8 +52,8 @@
       "status": "active"
     },
     {
-      "id": "meta-lead",
-      "displayName": "Meta Lead",
+      "id": "meta-contrarian",
+      "displayName": "Meta Contrarian",
       "status": "active"
     },
     {
@@ -82,13 +82,23 @@
       "status": "active"
     },
     {
+      "id": "run-introspector",
+      "displayName": "Run Introspector",
+      "status": "active"
+    },
+    {
       "id": "skill-optimizer",
       "displayName": "Skill Optimizer",
       "status": "active"
     },
     {
-      "id": "team-optimizer",
-      "displayName": "Team Optimizer",
+      "id": "team-agent-optimizer",
+      "displayName": "Team & Agent Optimizer",
+      "status": "active"
+    },
+    {
+      "id": "toolchain-validator",
+      "displayName": "Toolchain Validator",
       "status": "active"
     }
   ]

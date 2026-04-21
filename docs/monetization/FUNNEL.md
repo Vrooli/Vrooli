@@ -22,7 +22,7 @@ A prospect learns Vrooli exists.
 
 A signed-up user successfully uses at least one headliner and gets a "win."
 
-- **Owner:** `scenario-feature` (first-run UX, onboarding).
+- **Owner:** no dedicated owner. First-run UX and onboarding emerge as byproducts of scenario work — surfaced by `director-swarm` gap analysis when activation data shows a miss, or by `monetization` when catalog readiness depends on it.
 - **Primary mechanism:** onboarding that walks a new subscriber through setting up API keys or signing in, then directly into a headliner scenario's core workflow.
 - **Leading metric:** % of signups who use a headliner ≥3 times in their first 30 days.
 - **Current state:** `pending-telemetry` — no activation events defined yet.
@@ -33,7 +33,7 @@ A signed-up user successfully uses at least one headliner and gets a "win."
 
 An activated user starts using additional scenarios from the bundle they already own.
 
-- **Owner:** `scenario-feature` (product-led discovery).
+- **Owner:** no dedicated owner. Agent-driven cross-scenario discovery is a structural property of the platform; specific surfaces emerge as byproducts of scenario work driven by `monetization` (catalog) and `director-swarm` (gap analysis).
 - **Primary mechanism:** **agents suggesting other apps from the bundle** when relevant. Do not build email-drip lifecycle campaigns for expansion — agents have better context. This is a structural advantage Vrooli should exploit.
 - **Leading metric:** average number of distinct scenarios used per subscriber at M1 and M3.
 - **Current state:** `pending-telemetry` — requires per-scenario usage events.
@@ -72,7 +72,7 @@ A user who stops paying but continues using the OSS self-host path is **not chur
 
 A subscriber upgrades — to a higher tier, to a bundle they didn't have, or to an add-on.
 
-- **Owner:** collaborative — `monetization` (strategy), `scenario-feature` (in-product surfaces), `marketing-crew` (lifecycle messaging when agent surface can't reach).
+- **Owner:** collaborative — `monetization` (strategy) and `marketing-crew` (lifecycle messaging when agent surface can't reach). In-product upsell surfaces emerge as byproducts of scenario work, not from a dedicated feature team.
 - **Primary mechanism:** again, agents where possible — "you're heavy on X workflow, the property-services add-on has tools for Y." Marketing-driven surfaces only where agents don't have context.
 - **Leading metric:** per-SKU attach rate; tier-upgrade rate.
 - **Current state:** `pending-telemetry`.

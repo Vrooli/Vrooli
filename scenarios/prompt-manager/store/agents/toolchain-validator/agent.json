@@ -1,0 +1,27 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "toolchain-validator",
+  "displayName": "Toolchain Validator",
+  "description": "Runs the development toolchain against a gold-star reference scenario each heartbeat and surfaces violations. Uses development-toolchain-validator when available; manual fallback (scenario-auditor + test-genie + tidiness-manager) until it ships.",
+  "status": "active",
+  "appearance": {
+    "body": "#065F46",
+    "head": "#10B981",
+    "accent": "#A7F3D0"
+  },
+  "tags": [
+    "meta",
+    "toolchain",
+    "validation",
+    "reference-scenario"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-04-21T00:00:00Z",
+  "updatedAt": "2026-04-21T00:00:00Z"
+}

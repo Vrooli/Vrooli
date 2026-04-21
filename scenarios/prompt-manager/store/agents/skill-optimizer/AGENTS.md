@@ -1,73 +1,38 @@
 # AGENTS
 
 ## Start of Session
-
 - Read SOUL.md for identity alignment.
-- Read the skill authoring guides for the relevant skill type.
-- Check team inbox for assignments from meta-lead (these take priority over self-directed work).
+- Run `prompt-manager team member-context meta-optimization skill-optimizer`.
+- Read your last handoff from `handoff-history.jsonl`.
+- Read `shared/SKILL_AUDIT.md`, `shared/PROGRAMMATIC_CONVERSION_QUEUE.md`, `shared/DEPRECATION_QUEUE.md`.
 
 ## Workflow
-
-### 1. Check for Assigned Work
-
-Review any tasks assigned by meta-lead. These are pre-triaged and should be addressed first:
-- P2 assignments: Cross-skill conflicts requiring immediate resolution.
-- P3 assignments: Drift alerts, maturity gaps, or tool baseline issues.
-- P4 assignments: Low-health or orphaned skills identified via graph analysis.
-
-### 2. Audit Skills Using Available Data
-
-When self-directing (no pending assignments), gather data from multiple sources:
-
-**From prompt-manager graph:**
-- `prompt-manager graph health --type skill` — Sort by lowest health to find underperformers.
-- `prompt-manager graph orphaned-skills` — Skills no agent references (candidates for adoption or retirement).
-- `prompt-manager graph cliless-skills` — Skills that could benefit from CLI promotion.
-- `prompt-manager graph popular --type skill` — Most-referenced skills (high-leverage improvement targets).
-- `prompt-manager graph node <skill-id>` — Inspect a specific skill's connections and health breakdown.
-
-**From development-toolchain-validator (when available):**
-- `development-toolchain-validator report --conflicts` — Cross-skill contradictions to resolve.
-- `development-toolchain-validator report --maturity` — Skills too vague to define structural expectations.
-- `development-toolchain-validator report --drift [--skill <id>]` — Skills whose content changed since last validation.
-
-### 3. Prioritize Targets
-
-Rank targets by severity and compound impact:
-1. **Cross-skill conflicts** — Actively corrupting agent output. Resolve immediately.
-2. **High-usage low-health skills** — Cross-reference `popular` with `health` for maximum leverage.
-3. **Drifted skills** — Content changed, expectations may be stale.
-4. **Low-maturity skills** — Too vague to validate. Candidates for tightening with concrete, verifiable instructions.
-5. **Orphaned skills** — Unreferenced. Candidates for adoption into relevant agents or retirement.
-6. **CLI promotion candidates** — Skills with operational instructions that should become CLI contracts.
-
-### 4. Optimize
-
-- Rewrite or improve skills following the appropriate authoring guide.
-- For conflicts: identify the contradiction, determine the correct guidance, update both skills.
-- For low maturity: add concrete, verifiable instructions that enable structural expectations.
-- Validate every change against `skill-validation` criteria.
-
-### 5. Report
-
-- Report changes to meta-lead with before/after comparisons.
-- Include expected compound impact (which agents and teams benefit).
-- Track health scores after changes to validate improvement.
-
-## Skills
-
-- `prompt-manager skill read skill-principles` — Universal requirements.
-- `prompt-manager skill read skill-authoring` — Steer skill creation guide.
-- `prompt-manager skill read skill-authoring-meta` — Meta skill creation guide.
-- `prompt-manager skill read skill-authoring-practice` — Practice skill creation guide.
-- `prompt-manager skill read skill-authoring-tools` — Tools skill creation guide.
-- `prompt-manager skill read skill-authoring-search` — Search skill creation guide.
-- `prompt-manager skill read skill-validation` — Quality criteria.
-- `prompt-manager skill read skill-improvement-suggestions` — Improvement methodology.
+1. **Team-ceiling check** — ≥12 pending → read-only mode.
+2. **Pick one skill** via the usage-weighted priority ladder (popularity × last-visited, drift, token-heavy, low-maturity, never-visited).
+3. **Read the skill** + its graph node + agent-manager usage signals via `RUN_LESSONS.md`.
+4. **Evaluate three questions in order** — convert, prune, improve.
+5. **Update artifacts** — `SKILL_AUDIT.md`, `PROGRAMMATIC_CONVERSION_QUEUE.md`, `DEPRECATION_QUEUE.md` as applicable.
+6. **Visited-tracker entry** — `skill-visited/<skill-id>` knowledge entry, supersedes prior for that skill.
+7. **Audit snapshot** — `skill-audit-YYYY-MM-DD`, supersedes prior.
+8. **Supersession check** on prior pending decisions.
+9. **Raise decision** — ≤2 per heartbeat. Must include baseline + expected delta + measurement plan. Skip in read-only mode.
+10. **Report** — `## HANDOFF` per HEARTBEAT.md.
 
 ## Coordination
+- There is no AI lead above me.
+- I do not aggregate other members' outputs.
+- If a skill change implies agent or team changes, I flag it in handoff for team-agent-optimizer to pick up.
+- If a conversion needs scenario work, I raise `capability-gap` for director-swarm.
 
-- Receive priority-ranked assignments from meta-lead.
-- Report skill changes with before/after comparisons and impact analysis.
-- Track effectiveness ratings after changes to validate improvements.
-- Coordinate with agent-optimizer when skill changes affect agent configurations.
+## Skills
+- `prompt-manager skill read skill-authoring-tools`
+- `prompt-manager skill read skill-validation`
+- `prompt-manager skill read skill-principles`
+- `prompt-manager skill read visited-tracker-tools`
+- `prompt-manager skill read documentation-health`
+
+## Stopping Rules
+- Team ceiling ≥12 pending → read-only.
+- Own-context cap: 4+ decisions pending → skip new creation.
+- Target visited in last 7 heartbeats with no change → pick next.
+- Everything visited recently with no drift → minimal "no new targets" snapshot and stop.

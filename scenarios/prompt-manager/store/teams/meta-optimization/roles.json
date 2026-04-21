@@ -4,24 +4,34 @@
   "teamId": "meta-optimization",
   "roles": [
     {
-      "id": "lead",
-      "name": "Lead",
-      "description": "Triages development health across the full capability chain (P1-P5), escalates critical issues, and orchestrates optimization cycles for highest-leverage improvements."
+      "id": "toolchain-validator",
+      "name": "Toolchain Validator",
+      "description": "Runs development-toolchain-validator (or manual fallback: scenario-auditor + test-genie + tidiness-manager) against a gold-star reference scenario each heartbeat; investigates violations the tool returns. No visited tracker needed — the tool surfaces current issues."
     },
     {
-      "id": "skill-specialist",
-      "name": "Skill Specialist",
-      "description": "Resolves cross-skill conflicts, audits and improves the skill library, and increases skill maturity."
+      "id": "skill-optimizer",
+      "name": "Skill Optimizer",
+      "description": "Identifies high-usage skills and pushes them toward programmatic conversion (prose skill → thin wrapper over scenario CLI). Also audits skill drift and proposes deprecation of unused skills."
     },
     {
-      "id": "agent-specialist",
-      "name": "Agent Specialist",
-      "description": "Audits and improves agent configurations for clarity, effectiveness, and appropriate skill references."
+      "id": "team-agent-optimizer",
+      "name": "Team & Agent Optimizer",
+      "description": "Audits team structures and agent files together (they co-evolve). Maintains team-audit and agent-audit artifacts, proposes structural/prompt changes, and proposes deprecation of unused agents or empty teams."
     },
     {
-      "id": "team-specialist",
-      "name": "Team Specialist",
-      "description": "Audits and improves team structures, role definitions, and cross-team coordination."
+      "id": "run-introspector",
+      "name": "Run Introspector",
+      "description": "Inspects recent agent-manager runs since last heartbeat (errored → retried → slow → random-success triage). Captures lessons and proposes skill/agent/prompt changes grounded in what actually happened in execution, not what's documented."
+    },
+    {
+      "id": "contrarian",
+      "name": "Contrarian",
+      "description": "Mandatory skeptic across all other members' proposals. Defends against polishing, sprawl, premature conversion, churn-without-benefit, too-fast deprecation, scope creep, and conversion-without-measurement. Owns the aging scan for the decision queue."
+    },
+    {
+      "id": "debt-curator",
+      "name": "Debt Curator",
+      "description": "Applies the team's own evolutionary-pressure principles to itself. Scans docs/meta-optimization/ for prose workarounds that have stabilized into promotable patterns; proposes promotion into permanent structure (skills, scenario features, team-config changes) or retirement when already obsoleted. Proposes only — never implements."
     }
   ]
 }

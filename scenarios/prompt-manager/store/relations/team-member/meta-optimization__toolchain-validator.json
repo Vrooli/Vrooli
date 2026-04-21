@@ -2,9 +2,9 @@
   "kind": "team-member",
   "schemaVersion": 1,
   "teamId": "meta-optimization",
-  "agentId": "skill-optimizer",
+  "agentId": "toolchain-validator",
   "roles": [
-    "skill-optimizer"
+    "toolchain-validator"
   ],
   "status": "active"
 }
