@@ -54,7 +54,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "Secure document processing UI port",
-      "range": "35000-39999"
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
@@ -206,12 +206,7 @@
       "ollama": {
         "type": "ollama",
         "enabled": true,
-        "required": true,
-        "models": [
-          "llama3.2",
-          "mistral",
-          "nomic-embed-text"
-        ]
+        "required": true
       },
       "unstructured-io": {
         "type": "unstructured-io",

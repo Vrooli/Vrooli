@@ -50,7 +50,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "Algorithm library web interface",
-      "range": "35000-39999"
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
@@ -240,8 +240,7 @@
         "required": false,
         "purpose": "Generate algorithm explanations and suggest solutions for problems",
         "models": [
-          "codellama",
-          "mistral"
+          "llama3.2"
         ]
       }
     },

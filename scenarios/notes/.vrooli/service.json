@@ -56,7 +56,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "SmartNotes UI port",
-      "range": "35000-39999"
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
@@ -236,7 +236,10 @@
         "type": "ollama",
         "enabled": true,
         "required": true,
-        "purpose": "AI-powered note suggestions and summarization"
+        "purpose": "AI-powered note suggestions and summarization",
+        "models": [
+          "nomic-embed-text"
+        ]
       }
     }
   },

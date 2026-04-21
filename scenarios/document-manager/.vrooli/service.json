@@ -55,7 +55,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "Document manager web interface port",
-      "range": "35000-39999"
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
@@ -257,9 +257,7 @@
         "required": true,
         "startup_policy": "must_start",
         "models": [
-          "llama3.2",
-          "nomic-embed-text",
-          "codellama"
+          "nomic-embed-text"
         ]
       },
       "unstructured-io": {

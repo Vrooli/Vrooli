@@ -48,8 +48,8 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "React UI",
-      "port": 36238,
-      "range": "35000-39999"
+      "port": 21238,
+      "range": "20000-24999"
     },
     "websocket": {
       "env_var": "WS_PORT",
@@ -201,7 +201,10 @@
         "type": "ollama",
         "enabled": true,
         "required": false,
-        "description": "Local LLM for recommendation extraction from investigation outputs"
+        "description": "Local LLM for recommendation extraction from investigation outputs",
+        "models": [
+          "qwen2.5-coder:14b"
+        ]
       }
     },
     "scenarios": {

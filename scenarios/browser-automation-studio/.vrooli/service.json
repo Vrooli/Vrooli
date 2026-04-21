@@ -50,7 +50,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "Visual workflow builder UI port",
-      "range": "35000-39999"
+      "range": "20000-24999"
     },
     "websocket": {
       "env_var": "WS_PORT",
@@ -60,7 +60,7 @@
     "playwright_driver": {
       "env_var": "PLAYWRIGHT_DRIVER_PORT",
       "description": "Playwright driver HTTP server port",
-      "range": "39400-39499"
+      "range": "24400-24499"
     }
   },
   "hostTools": [
@@ -242,7 +242,11 @@
         "type": "ollama",
         "enabled": true,
         "required": false,
-        "description": "AI workflow generation and debugging assistance"
+        "description": "AI workflow generation and debugging assistance",
+        "models": [
+          "llama3.2",
+          "llama3.2:3b"
+        ]
       },
       "openrouter": {
         "type": "openrouter",

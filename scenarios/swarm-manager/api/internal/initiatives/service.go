@@ -50,6 +50,12 @@ func (s *Service) SetEventLogger(l EventLogger) {
 	s.eventLogger = l
 }
 
+// SetAIIndexer wires an optional AI search indexer that receives fire-and-forget
+// notifications from the underlying Store after every Save/Delete.
+func (s *Service) SetAIIndexer(indexer AIIndexer) {
+	s.store.SetAIIndexer(indexer)
+}
+
 // RecordView emits a view event for analytics.
 func (s *Service) RecordView(name string) {
 	if s.eventLogger != nil {

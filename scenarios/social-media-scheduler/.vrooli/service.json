@@ -54,7 +54,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "Social media scheduler UI port",
-      "range": "35000-39999"
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
@@ -263,9 +263,7 @@
         "required": true,
         "purpose": "AI-powered content optimization and platform-specific adaptation",
         "models": [
-          "llama3.2",
-          "mistral",
-          "nomic-embed-text"
+          "llama3.2"
         ]
       }
     }

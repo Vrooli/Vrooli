@@ -169,7 +169,10 @@
         "type": "ollama",
         "enabled": true,
         "required": true,
-        "description": "Auto-detected via analyzer (heuristic)"
+        "description": "Auto-detected via analyzer (heuristic)",
+        "models": [
+          "llama3.2:latest"
+        ]
       }
     },
     "scenarios": {}

@@ -167,7 +167,7 @@
     "ui": {
       "description": "Accessibility compliance hub UI port",
       "env_var": "UI_PORT",
-      "range": "35000-39999"
+      "range": "20000-24999"
     }
   },
   "service": {

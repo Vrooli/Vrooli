@@ -45,7 +45,7 @@
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 36110,
+      "port": 21110,
       "description": "Ecosystem Manager UI port"
     }
   },
@@ -258,7 +258,11 @@
         "type": "ollama",
         "enabled": true,
         "required": true,
-        "description": "Auto-detected via analyzer (heuristic)"
+        "description": "Auto-detected via analyzer (heuristic)",
+        "models": [
+          "llama3.1:8b",
+          "llama3.2:3b"
+        ]
       },
       "minio": {
         "type": "minio",

@@ -51,7 +51,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "Dependency graph visualization UI port",
-      "range": "35000-39999"
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
@@ -233,7 +233,10 @@
         "type": "ollama",
         "enabled": true,
         "required": true,
-        "purpose": "Generate embeddings for semantic similarity matching against Qdrant"
+        "purpose": "Generate embeddings for semantic similarity matching against Qdrant",
+        "models": [
+          "nomic-embed-text"
+        ]
       },
       "qdrant": {
         "type": "qdrant",

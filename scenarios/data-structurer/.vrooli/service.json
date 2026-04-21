@@ -208,9 +208,7 @@
         "required": true,
         "purpose": "AI interpretation for content analysis and schema mapping",
         "models": [
-          "llama3.2",
-          "mistral",
-          "nomic-embed-text"
+          "llama3.2"
         ]
       },
       "unstructured-io": {

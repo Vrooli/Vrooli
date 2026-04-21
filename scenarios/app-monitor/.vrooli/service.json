@@ -52,7 +52,7 @@
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 35000,
+      "port": 20000,
       "description": "Ecosystem Manager UI port"
     },
     "vite": {
@@ -228,10 +228,6 @@
         "type": "ollama",
         "enabled": true,
         "required": false,
-        "models": [
-          "phi3.5:3.8b",
-          "llama3.2"
-        ],
         "purpose": "AI-powered analysis for unhealthy apps and performance optimization recommendations"
       },
       "browserless": {

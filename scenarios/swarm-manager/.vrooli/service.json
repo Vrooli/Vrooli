@@ -43,7 +43,7 @@
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 36234,
+      "port": 21234,
       "description": "React UI"
     },
     "websocket": {
@@ -172,7 +172,20 @@
     }
   },
   "dependencies": {
-    "resources": {},
+    "resources": {
+      "ollama": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Local embedding model (nomic-embed-text) for AI search"
+      },
+      "qdrant": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Vector store for AI search over backlog items and initiatives"
+      }
+    },
     "scenarios": {
       "agent-manager": {
         "enabled": true,
