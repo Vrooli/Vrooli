@@ -12,7 +12,7 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
-import { Target, Archive, ArchiveRestore, List, Network, CircleHelp, Files, Trash2 } from "lucide-react";
+import { Target, Archive, ArchiveRestore, List, Network, CircleHelp, Files, Trash2, Link2, ArrowRight, CheckCircle2, Layers3, AlertTriangle } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
@@ -24,7 +24,6 @@ import { INITIATIVE_LENSES } from "../components/detail/lens-options";
 import { selectionToNodeId } from "../stores/detail-selection-store";
 import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
-import { EntityLink } from "../components/ui/entity-link";
 import { NoteEditor } from "../components/ui/note-editor";
 import { BacklogFileWorkspace } from "../components/backlog/backlog-file-workspace";
 import { InitiativeDependencyGraph } from "../components/initiative/InitiativeDependencyGraph";
@@ -42,13 +41,38 @@ import { API_ENDPOINTS } from "../lib/api-endpoints";
 import { initiativeService } from "../services";
 import { selectors } from "../consts/selectors";
 import { RollupProgressBar, rollupTotal as computeRollupTotal } from "../components/ui/rollup-progress-bar";
-import { BACKLOG_STATUS_CHIP_COLORS } from "../types";
-import type { BacklogFile, BacklogKind, BacklogStatus } from "../types";
+import type { BacklogFile, BacklogKind, BacklogStatus, InitiativeWithRollup } from "../types";
 import { useBacklogStore, useDetailSelectionStore } from "../stores";
 import { useInitiativeStore } from "../stores/initiative-store";
 import type { FileActionType } from "../components/backlog/backlog-file-browser";
+import { cn } from "../lib/utils";
+import { formatDisplayText } from "../lib/format-utils";
+import { getStatusColorClasses } from "../surfaces/graph/lib/status-colors";
 
 type InitiativeTab = "info" | "files";
+type ItemsView = "list" | "graph";
+
+interface ResolvedInitiativeItem {
+  ref: string;
+  kind: BacklogKind;
+  name: string;
+  title: string;
+  status: BacklogStatus;
+  dependsOn: string[];
+  priority: number;
+  archivedAt?: string;
+  missing: boolean;
+}
+
+interface InitiativeDependencyCardData {
+  name: string;
+  title: string;
+  status: string;
+  priority: number;
+  rollup: InitiativeWithRollup["rollup"];
+  archivedAt?: string;
+  exists: boolean;
+}
 
 /** Parse "kind/name" item ref into parts. */
 function parseItemRef(ref: string): { kind: string; name: string } | null {
@@ -57,8 +81,135 @@ function parseItemRef(ref: string): { kind: string; name: string } | null {
   return { kind: ref.slice(0, slashIdx), name: ref.slice(slashIdx + 1) };
 }
 
+function completionPercent(rollup: InitiativeWithRollup["rollup"] | undefined): number {
+  if (!rollup) return 0;
+  const total = computeRollupTotal(rollup);
+  if (total === 0) return 0;
+  return Math.round((rollup.completed / total) * 100);
+}
+
+function buildDependencyCardData(
+  names: string[],
+  allInitiatives: InitiativeWithRollup[],
+): InitiativeDependencyCardData[] {
+  return names.map((initiativeName) => {
+    const match = allInitiatives.find((item) => item.initiative.name === initiativeName);
+    if (match) {
+      return {
+        name: match.initiative.name,
+        title: match.initiative.title || match.initiative.name,
+        status: match.initiative.status,
+        priority: (match.initiative as { priority?: number }).priority ?? 0,
+        rollup: match.rollup,
+        archivedAt: match.initiative.archivedAt,
+        exists: true,
+      };
+    }
+    return {
+      name: initiativeName,
+      title: initiativeName,
+      status: "unknown",
+      priority: 0,
+      rollup: {
+        total: 0,
+        completed: 0,
+        inProgress: 0,
+        failed: 0,
+        pending: 0,
+        archived: 0,
+      },
+      exists: false,
+    };
+  });
+}
+
+function DependencyGroup({
+  title,
+  caption,
+  items,
+  onOpen,
+}: {
+  title: string;
+  caption: string;
+  items: InitiativeDependencyCardData[];
+  onOpen: (name: string) => void;
+}) {
+  if (items.length === 0) return null;
+
+  return (
+    <div className="min-w-0 space-y-3">
+      <div className="flex items-baseline justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-100">{title}</h3>
+          <p className="text-xs text-slate-500">{caption}</p>
+        </div>
+        <span className="rounded-full border border-slate-700/80 bg-slate-900/70 px-2 py-0.5 text-[11px] text-slate-400">
+          {items.length}
+        </span>
+      </div>
+      <div className="grid min-w-0 gap-2">
+        {items.map((item) => {
+          const statusColors = getStatusColorClasses(item.status);
+          const total = computeRollupTotal(item.rollup);
+          const complete = completionPercent(item.rollup);
+          return (
+            <button
+              key={item.name}
+              type="button"
+              onClick={() => onOpen(item.name)}
+              className="min-w-0 overflow-hidden rounded-2xl border border-slate-800/80 bg-slate-900/55 p-3 text-left transition-colors hover:border-slate-700 hover:bg-slate-800/60"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="break-words text-sm font-semibold leading-snug text-slate-100">{item.title}</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className={cn("max-w-full rounded-full border px-2 py-0.5 text-[10px] font-medium", statusColors.background, statusColors.border, statusColors.text)}>
+                      {formatDisplayText(item.status)}
+                    </span>
+                    {item.priority > 0 && (
+                      <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-medium text-slate-300">
+                        P{item.priority}
+                      </span>
+                    )}
+                    {item.archivedAt && (
+                      <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+                        Archived
+                      </span>
+                    )}
+                    {!item.exists && (
+                      <span className="rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[10px] font-medium text-red-300">
+                        Missing
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 truncate text-[11px] text-slate-500">{item.name}</p>
+                </div>
+                <span className="shrink-0 text-[11px] text-slate-500">{complete}%</span>
+              </div>
+              {total > 0 ? (
+                <>
+                  <RollupProgressBar rollup={item.rollup} barHeight="h-1.5" className="mt-3" />
+                  <div className="mt-2 flex flex-wrap gap-3 text-[11px]">
+                    <span className="text-emerald-400">{item.rollup.completed} done</span>
+                    <span className="text-purple-400">{item.rollup.inProgress} active</span>
+                    {item.rollup.failed > 0 && <span className="text-red-400">{item.rollup.failed} failed</span>}
+                    <span className="text-slate-500">{item.rollup.pending} pending</span>
+                  </div>
+                </>
+              ) : (
+                <p className="mt-3 text-[11px] text-slate-500">No item rollup available yet.</p>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function InitiativeDetailsPage() {
   const selection = useDetailSelectionStore((s) => s.selection);
+  const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
 
   const name = selection?.name;
   const nodeId = selectionToNodeId(selection);
@@ -95,7 +246,7 @@ export function InitiativeDetailsPage() {
     }
   }, [allInitiatives.length, fetchInitiatives]);
 
-  const downstream = useMemo(() => {
+  const downstreamNames = useMemo(() => {
     if (!initiative) return [];
     return allInitiatives
       .filter((other) => {
@@ -104,6 +255,16 @@ export function InitiativeDetailsPage() {
       })
       .map((other) => other.initiative.name);
   }, [allInitiatives, initiative]);
+
+  const upstreamDependencyCards = useMemo(() => {
+    const upstream = (initiative as { dependsOn?: string[] } | undefined)?.dependsOn ?? [];
+    return buildDependencyCardData(upstream, allInitiatives);
+  }, [allInitiatives, initiative]);
+
+  const downstreamDependencyCards = useMemo(
+    () => buildDependencyCardData(downstreamNames, allInitiatives),
+    [allInitiatives, downstreamNames],
+  );
 
   const queryClient = useQueryClient();
   const archiveMutation = useMutation({
@@ -290,19 +451,31 @@ export function InitiativeDetailsPage() {
   ) : undefined;
 
   // Resolve member items against the backlog store
-  const resolvedItems = useMemo(() => {
+  const resolvedItems = useMemo<ResolvedInitiativeItem[]>(() => {
     if (!initiative?.items) return [];
     return initiative.items.map((ref) => {
       const parsed = parseItemRef(ref);
-      if (!parsed) return { ref, kind: "" as BacklogKind, name: ref, title: ref, status: "backlog" as BacklogStatus, dependsOn: [] as string[] };
+      if (!parsed) return {
+        ref,
+        kind: "" as BacklogKind,
+        name: ref,
+        title: ref,
+        status: "backlog" as BacklogStatus,
+        dependsOn: [],
+        priority: 0,
+        missing: true,
+      };
       const found = backlogItems.find((bi) => bi.kind === parsed.kind && bi.name === parsed.name);
       return {
         ref,
         kind: parsed.kind as BacklogKind,
         name: parsed.name,
         title: found?.title ?? `${parsed.kind}/${parsed.name}`,
-        status: (found?.status ?? "completed"),
+        status: (found?.status ?? "backlog"),
         dependsOn: found?.dependsOn ?? [],
+        priority: found?.priority ?? 0,
+        archivedAt: found?.archivedAt,
+        missing: found == null,
       };
     });
   }, [initiative?.items, backlogItems]);
@@ -332,7 +505,9 @@ export function InitiativeDetailsPage() {
   }, [resolvedItems, backlogItems]);
 
   // Items view mode toggle
-  const [itemsView, setItemsView] = useState<"list" | "graph">("list");
+  const [itemsView, setItemsView] = useUrlState<ItemsView>("items", "graph", {
+    validate: (v): v is ItemsView => ["list", "graph"].includes(v),
+  });
 
   // Collapsible description
   const [descExpanded, setDescExpanded] = useState(false);
@@ -347,6 +522,11 @@ export function InitiativeDetailsPage() {
 
   // Rollup total for progress bar
   const rollupTotalCount = rollup ? computeRollupTotal(rollup) : 0;
+  const completion = rollup ? completionPercent(rollup) : 0;
+  const priority = (initiative as { priority?: number } | undefined)?.priority ?? 0;
+  const dependencyCount = upstreamDependencyCards.length + downstreamDependencyCards.length;
+  const missingItemCount = resolvedItems.filter((item) => item.missing).length;
+  const archivedItemCount = resolvedItems.filter((item) => item.archivedAt != null).length;
 
   if (isLoading) {
     return <PageLoadingState label="Loading initiative..." />;
@@ -441,14 +621,58 @@ export function InitiativeDetailsPage() {
               title="Overview"
               icon={Target}
               hideDivider
-              action={
-                <StatusBadge
-                  status={initiative.status}
-                  data-testid={selectors.initiativeDetails.status}
-                />
-              }
             >
-              <div className="space-y-3">
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-2xl border border-slate-800/80 bg-slate-900/55 p-3">
+                    <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-500">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Progress
+                    </div>
+                    <div className="mt-2 flex items-end gap-2">
+                      <span className="text-xl font-semibold text-slate-100 sm:text-2xl">{completion}%</span>
+                      <StatusBadge
+                        status={initiative.status}
+                        className="translate-y-[-1px]"
+                        data-testid={selectors.initiativeDetails.status}
+                      />
+                    </div>
+                    <p className="mt-1 text-[11px] text-slate-500 sm:text-xs">
+                      {rollupTotalCount > 0 ? `${rollup?.completed ?? 0} of ${rollupTotalCount} items complete` : "No tracked items yet"}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-800/80 bg-slate-900/55 p-3">
+                    <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-500">
+                      <Layers3 className="h-3.5 w-3.5" />
+                      Scope
+                    </div>
+                    <div className="mt-2 text-xl font-semibold text-slate-100 sm:text-2xl">{resolvedItems.length}</div>
+                    <p className="mt-1 text-[11px] text-slate-500 sm:text-xs">
+                      backlog {resolvedItems.length === 1 ? "item" : "items"}
+                      {archivedItemCount > 0 ? ` • ${archivedItemCount} archived` : ""}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-800/80 bg-slate-900/55 p-3">
+                    <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-500">
+                      <Link2 className="h-3.5 w-3.5" />
+                      Dependencies
+                    </div>
+                    <div className="mt-2 text-xl font-semibold text-slate-100 sm:text-2xl">{dependencyCount}</div>
+                    <p className="mt-1 text-[11px] text-slate-500 sm:text-xs">
+                      {upstreamDependencyCards.length} upstream • {downstreamDependencyCards.length} downstream
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-800/80 bg-slate-900/55 p-3">
+                    <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-500">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      Priority
+                    </div>
+                    <div className="mt-2 text-xl font-semibold text-slate-100 sm:text-2xl">{priority > 0 ? `P${priority}` : "Unset"}</div>
+                    <p className="mt-1 text-[11px] text-slate-500 sm:text-xs">
+                      {missingItemCount > 0 ? `${missingItemCount} unresolved item ${missingItemCount === 1 ? "ref" : "refs"}` : "All item refs resolved"}
+                    </p>
+                  </div>
+                </div>
                 {initiative.description && (
                   <div data-testid={selectors.initiativeDetails.description}>
                     <p
@@ -499,52 +723,37 @@ export function InitiativeDetailsPage() {
 
             {/* Initiative-level dependency ordering */}
             {(() => {
-              const priority = (initiative as { priority?: number }).priority ?? 0;
-              const upstream = (initiative as { dependsOn?: string[] }).dependsOn ?? [];
-              if (priority === 0 && upstream.length === 0 && downstream.length === 0) return null;
+              if (priority === 0 && upstreamDependencyCards.length === 0 && downstreamDependencyCards.length === 0) return null;
               return (
-                <DetailSection title="Ordering">
-                  <div className="flex flex-col gap-2 text-xs">
-                    {priority > 0 && (
-                      <div>
-                        <span className="uppercase tracking-wider text-slate-500">Priority</span>{" "}
-                        <span className="text-slate-200">{priority}</span>
-                      </div>
-                    )}
-                    {upstream.length > 0 && (
-                      <div>
-                        <div className="uppercase tracking-wider text-slate-500 mb-1">Depends on</div>
-                        <div className="flex flex-wrap gap-1">
-                          {upstream.map((dep) => (
-                            <button
-                              key={dep}
-                              type="button"
-                              className="rounded border border-slate-700 bg-slate-800/50 px-2 py-0.5 text-[11px] text-slate-200 hover:border-slate-600 hover:bg-slate-700/50"
-                              onClick={() => detailNav.openDetail({ entityType: "initiative", name: dep })}
-                            >
-                              {dep}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {downstream.length > 0 && (
-                      <div>
-                        <div className="uppercase tracking-wider text-slate-500 mb-1">Unlocks</div>
-                        <div className="flex flex-wrap gap-1">
-                          {downstream.map((dep) => (
-                            <button
-                              key={dep}
-                              type="button"
-                              className="rounded border border-slate-700 bg-slate-800/50 px-2 py-0.5 text-[11px] text-slate-200 hover:border-slate-600 hover:bg-slate-700/50"
-                              onClick={() => detailNav.openDetail({ entityType: "initiative", name: dep })}
-                            >
-                              {dep}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                <DetailSection title="Dependencies" icon={Link2}>
+                  <div className="space-y-5">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                      {priority > 0 && (
+                        <span className="rounded-full border border-slate-700/80 bg-slate-900/80 px-2.5 py-1 text-slate-300">
+                          Priority P{priority}
+                        </span>
+                      )}
+                      <span className="rounded-full border border-slate-700/80 bg-slate-900/80 px-2.5 py-1">
+                        {upstreamDependencyCards.length} blocked-by
+                      </span>
+                      <span className="rounded-full border border-slate-700/80 bg-slate-900/80 px-2.5 py-1">
+                        {downstreamDependencyCards.length} unlocked
+                      </span>
+                    </div>
+                    <div className="grid min-w-0 gap-5 xl:grid-cols-2">
+                      <DependencyGroup
+                        title="Blocked By"
+                        caption="Upstream initiatives that should land first."
+                        items={upstreamDependencyCards}
+                        onOpen={(dep) => detailNav.openDetail({ entityType: "initiative", name: dep })}
+                      />
+                      <DependencyGroup
+                        title="Unblocks"
+                        caption="Downstream initiatives waiting on this one."
+                        items={downstreamDependencyCards}
+                        onOpen={(dep) => detailNav.openDetail({ entityType: "initiative", name: dep })}
+                      />
+                    </div>
                   </div>
                 </DetailSection>
               );
@@ -562,6 +771,7 @@ export function InitiativeDetailsPage() {
                       onClick={() => setItemsView("list")}
                       className={`rounded p-1 transition-colors ${itemsView === "list" ? "text-slate-200 bg-slate-700/50" : "text-slate-500 hover:text-slate-300"}`}
                       title="List view"
+                      aria-pressed={itemsView === "list"}
                     >
                       <List className="h-4 w-4" />
                     </button>
@@ -570,6 +780,7 @@ export function InitiativeDetailsPage() {
                       onClick={() => setItemsView("graph")}
                       className={`rounded p-1 transition-colors ${itemsView === "graph" ? "text-slate-200 bg-slate-700/50" : "text-slate-500 hover:text-slate-300"}`}
                       title="Dependency graph"
+                      aria-pressed={itemsView === "graph"}
                     >
                       <Network className="h-4 w-4" />
                     </button>
@@ -577,40 +788,84 @@ export function InitiativeDetailsPage() {
                 }
               >
                 {itemsView === "list" ? (
-                  <div className="flex flex-col gap-1.5" data-testid={selectors.initiativeDetails.itemsListView}>
+                  <div className="flex flex-col gap-2" data-testid={selectors.initiativeDetails.itemsListView}>
                     {sortedItems.map((item) => {
                       const key = `${item.kind}/${item.name}`;
-                      const chipColors = BACKLOG_STATUS_CHIP_COLORS[item.status] ?? "bg-slate-600/20 text-slate-300";
                       const depth = depthMap.get(key) ?? 0;
                       const relations = depRelationsMap.get(key);
+                      const stateLabel = formatDisplayText(item.status);
+                      const statusColors = getStatusColorClasses(item.status);
                       return (
-                        <div key={item.ref} className="flex items-center gap-2">
-                          {depth > 0 && (
-                            <span className="shrink-0 text-[10px] font-mono text-slate-500 w-4 text-right">L{depth}</span>
-                          )}
-                          <EntityLink
-                            entityType="backlog"
-                            kind={item.kind}
-                            name={item.name}
-                            label={item.title}
-                            className={`hover:brightness-125 ${chipColors}`}
-                          />
-                          {relations && relations.parentCount > 0 && (
-                            <span className="shrink-0 text-[10px] text-amber-500/70">
-                              &larr; blocked by {relations.parentCount}
-                            </span>
-                          )}
-                          {relations && relations.childCount > 0 && (
-                            <span className="shrink-0 text-[10px] text-slate-500">
-                              &rarr; unblocks {relations.childCount}
-                            </span>
-                          )}
+                        <div
+                          key={item.ref}
+                          className="rounded-2xl border border-slate-800/80 bg-slate-900/55 p-3"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 space-y-2">
+                              <div className="flex items-start justify-between gap-3">
+                                <button
+                                  type="button"
+                                  onClick={() => selectBacklog(item.kind, item.name)}
+                                  className="min-w-0 text-left text-base font-semibold leading-snug text-slate-100 transition-colors hover:text-cyan-300"
+                                >
+                                  {item.title}
+                                </button>
+                                <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-slate-600" />
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-medium", statusColors.background, statusColors.border, statusColors.text)}>
+                                  {stateLabel}
+                                </span>
+                                {item.priority > 0 && (
+                                  <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-medium text-slate-300">
+                                    P{item.priority}
+                                  </span>
+                                )}
+                                {depth > 0 && (
+                                  <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-medium text-slate-400">
+                                    Layer {depth}
+                                  </span>
+                                )}
+                                {item.archivedAt && (
+                                  <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+                                    Archived
+                                  </span>
+                                )}
+                                {item.missing && (
+                                  <span className="rounded-full border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-[10px] font-medium text-red-300">
+                                    Missing from backlog
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap gap-3 text-[11px] text-slate-500">
+                                <span>{item.kind}/{item.name}</span>
+                                {relations && relations.parentCount > 0 && (
+                                  <span className="text-amber-400/80">blocked by {relations.parentCount}</span>
+                                )}
+                                {relations && relations.childCount > 0 && (
+                                  <span>unblocks {relations.childCount}</span>
+                                )}
+                                {relations && relations.parentCount === 0 && relations.childCount === 0 && (
+                                  <span>no in-initiative dependencies</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       );
                     })}
                   </div>
                 ) : (
-                  <div data-testid={selectors.initiativeDetails.itemsGraphView}>
+                  <div className="space-y-3" data-testid={selectors.initiativeDetails.itemsGraphView}>
+                    <div className="rounded-2xl border border-slate-800/80 bg-slate-900/55 p-3">
+                      <div className="flex flex-wrap items-center gap-3 text-[11px]">
+                        <span className="text-slate-400">Default view: dependency graph for faster sequencing and blocker scans.</span>
+                        <span className="text-emerald-400">Done</span>
+                        <span className="text-purple-400">Active</span>
+                        <span className="text-red-400">Failed</span>
+                        <span className="text-slate-500">Pending</span>
+                      </div>
+                    </div>
                     <InitiativeDependencyGraph items={resolvedItems} />
                   </div>
                 )}

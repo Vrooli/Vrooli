@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { InitiativeDetailsPage } from "./InitiativeDetailsPage";
 import { useBacklogStore, useDetailSelectionStore } from "../stores";
+import { useInitiativeStore } from "../stores/initiative-store";
 
 // jsdom doesn't provide matchMedia (needed by useIsMobile in DetailPageLayout).
 beforeAll(() => {
@@ -20,6 +21,21 @@ beforeAll(() => {
       removeEventListener: vi.fn(),
       dispatchEvent: vi.fn(),
     })),
+  });
+
+  class ResizeObserverMock {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+
+  Object.defineProperty(window, "ResizeObserver", {
+    writable: true,
+    value: ResizeObserverMock,
+  });
+  Object.defineProperty(globalThis, "ResizeObserver", {
+    writable: true,
+    value: ResizeObserverMock,
   });
 });
 
@@ -83,6 +99,51 @@ describe("InitiativeDetailsPage", () => {
     },
   };
 
+  const relatedInitiatives = [
+    {
+      initiative: {
+        name: "protected-agent-sandboxing",
+        title: "Protected Agent Sandboxing",
+        description: "Upstream dependency",
+        status: "completed" as const,
+        priority: 1,
+        dependsOn: [],
+        items: [],
+        created: "2026-03-20T00:00:00Z",
+        updated: "2026-03-21T00:00:00Z",
+      },
+      rollup: {
+        total: 4,
+        completed: 4,
+        inProgress: 0,
+        failed: 0,
+        pending: 0,
+        archived: 0,
+      },
+    },
+    {
+      initiative: {
+        name: "run-level-undo-and-revert",
+        title: "Run-Level Undo and Revert",
+        description: "Downstream initiative",
+        status: "active" as const,
+        priority: 4,
+        dependsOn: ["test-initiative"],
+        items: [],
+        created: "2026-03-22T00:00:00Z",
+        updated: "2026-03-23T00:00:00Z",
+      },
+      rollup: {
+        total: 3,
+        completed: 1,
+        inProgress: 1,
+        failed: 0,
+        pending: 1,
+        archived: 0,
+      },
+    },
+  ];
+
   beforeEach(() => {
     queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
@@ -117,13 +178,31 @@ describe("InitiativeDetailsPage", () => {
         priority: 2,
         tags: [],
         suggestedSkills: [],
-        dependsOn: [],
+        dependsOn: ["execute/item-1"],
         acceptanceAllow: [],
         acceptanceDeny: [],
         created: "2026-03-27T00:00:00Z",
         updated: "2026-03-28T00:00:00Z",
       },
     ]);
+
+    useInitiativeStore.setState({
+      items: [
+        {
+          ...mockInitiativeData,
+          initiative: {
+            ...mockInitiativeData.initiative,
+            dependsOn: ["protected-agent-sandboxing"],
+            priority: 3,
+          },
+        },
+        ...relatedInitiatives,
+      ],
+      status: "success",
+      error: null,
+      isRefreshing: false,
+      lastFetchedAt: Date.now(),
+    });
   });
 
   const renderPage = () => {
@@ -172,7 +251,7 @@ describe("InitiativeDetailsPage", () => {
     expect(screen.getByText("2 total")).toBeInTheDocument();
   });
 
-  it("renders member item chips as clickable buttons", async () => {
+  it("defaults to dependency graph view for member items", async () => {
     vi.mocked(initiativeService.get).mockResolvedValue(mockInitiativeData);
     renderPage();
 
@@ -180,14 +259,14 @@ describe("InitiativeDetailsPage", () => {
       expect(screen.getByTestId("initiative-details-items-list")).toBeInTheDocument();
     });
 
-    const item1Button = screen.getByText("Execute Item 1");
-    expect(item1Button.tagName).toBe("BUTTON");
-
-    const item2Button = screen.getByText("Research Item 2");
-    expect(item2Button.tagName).toBe("BUTTON");
+    expect(screen.getByTestId("initiative-items-graph-view")).toBeInTheDocument();
+    expect(screen.queryByTestId("initiative-items-list-view")).not.toBeInTheDocument();
+    expect(screen.getByText("Default view: dependency graph for faster sequencing and blocker scans.")).toBeInTheDocument();
+    expect(screen.getByText("P2")).toBeInTheDocument();
+    expect(screen.getByText("research/item-2")).toBeInTheDocument();
   });
 
-  it("clicking member item chip selects that backlog item", async () => {
+  it("supports switching to the polished list view and selecting a backlog item", async () => {
     vi.mocked(initiativeService.get).mockResolvedValue(mockInitiativeData);
     renderPage();
 
@@ -196,6 +275,12 @@ describe("InitiativeDetailsPage", () => {
     });
 
     const user = userEvent.setup();
+    await user.click(screen.getByTitle("List view"));
+    await waitFor(() => {
+      expect(screen.getByTestId("initiative-items-list-view")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Completed")).toBeInTheDocument();
     await user.click(screen.getByText("Execute Item 1"));
 
     const selection = useDetailSelectionStore.getState().selection;
@@ -239,7 +324,31 @@ describe("InitiativeDetailsPage", () => {
     expect(useDetailSelectionStore.getState().selection).toBeNull();
   });
 
-  it("falls back to kind/name when item not in backlog store", async () => {
+  it("shows dependency cards with rollup context for upstream and downstream initiatives", async () => {
+    vi.mocked(initiativeService.get).mockResolvedValue({
+      ...mockInitiativeData,
+      initiative: {
+        ...mockInitiativeData.initiative,
+        priority: 3,
+        dependsOn: ["protected-agent-sandboxing"],
+      },
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Dependencies").length).toBeGreaterThan(0);
+    });
+
+    expect(screen.getByText("Blocked By")).toBeInTheDocument();
+    expect(screen.getByText("Unblocks")).toBeInTheDocument();
+    expect(screen.getByText("Protected Agent Sandboxing")).toBeInTheDocument();
+    expect(screen.getByText("Run-Level Undo and Revert")).toBeInTheDocument();
+    expect(screen.getByText("4 done")).toBeInTheDocument();
+    expect(screen.getByText("1 active")).toBeInTheDocument();
+    expect(screen.getByText("Priority P3")).toBeInTheDocument();
+  });
+
+  it("falls back to kind/name and marks unresolved items in list view", async () => {
     useBacklogStore.getState().setItems([]); // clear store
     vi.mocked(initiativeService.get).mockResolvedValue(mockInitiativeData);
     renderPage();
@@ -247,7 +356,13 @@ describe("InitiativeDetailsPage", () => {
     await waitFor(() => {
       expect(screen.getByTestId("initiative-details-items-list")).toBeInTheDocument();
     });
-    expect(screen.getByText("execute/item-1")).toBeInTheDocument();
-    expect(screen.getByText("research/item-2")).toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.click(screen.getByTitle("List view"));
+    await waitFor(() => {
+      expect(screen.getByTestId("initiative-items-list-view")).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: "execute/item-1" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "research/item-2" })).toBeInTheDocument();
+    expect(screen.getAllByText("Missing from backlog")).toHaveLength(2);
   });
 });
