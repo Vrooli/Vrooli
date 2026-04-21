@@ -309,6 +309,24 @@ func (s *ConversationStore) UpdateSpeechParagraphs(sessionID, eventID string, pa
 	}
 }
 
+// GetEvent returns a copy of a single event by ID. The bool is false when the
+// session or event is unknown.
+func (s *ConversationStore) GetEvent(sessionID, eventID string) (ConversationEvent, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	session, ok := s.sessions[sessionID]
+	if !ok {
+		return ConversationEvent{}, false
+	}
+	for i := range session.events {
+		if session.events[i].ID == eventID {
+			return session.events[i], true
+		}
+	}
+	return ConversationEvent{}, false
+}
+
 func (s *ConversationStore) ListSession(sessionID string) ConversationSessionState {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

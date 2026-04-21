@@ -53,8 +53,8 @@ func TestTTSSummarizeConfig_DefaultsWhenMissing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error for missing file, got: %v", err)
 	}
-	if cfg.Enabled {
-		t.Error("expected disabled by default")
+	if !cfg.Enabled {
+		t.Error("expected enabled by default (summarization is the happy path)")
 	}
 	if cfg.CharThreshold != 500 {
 		t.Errorf("expected default charThreshold 500, got %d", cfg.CharThreshold)

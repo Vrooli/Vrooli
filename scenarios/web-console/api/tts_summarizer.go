@@ -25,10 +25,40 @@ func NewTTSSummarizer(baseURL string) *TTSSummarizer {
 }
 
 // summarizeSystemPrompts maps summarization levels to system prompts.
+// Prompts use explicit word/sentence budgets plus anti-preamble guards because
+// small instruction-tuned models (qwen3 family) routinely ignore soft
+// percentage targets. The hard cap still comes from options.num_predict below.
 var summarizeSystemPrompts = map[string]string{
-	"light":    "Condense the following text for text-to-speech. Preserve all key points and technical details. Remove filler and redundancy. Stay under 60% of original length.",
-	"moderate": "Summarize the following text for text-to-speech. Extract main conclusions and important details. Skip verbose explanations and examples. Stay under 40% of original length.",
-	"heavy":    "Provide a brief spoken summary in 2-3 sentences. Focus on the actionable takeaway.",
+	"light":    "Tighten the following text for text-to-speech. Budget: at most 55% of the source word count. Remove filler, examples, and redundant phrasing. Keep technical details verbatim. End on a complete sentence. No preamble, no greeting, no restating the request — output only the tightened text.",
+	"moderate": "Rewrite the following text as a spoken summary. Budget: at most 35% of the source word count. Keep only the single most important conclusion and the facts required to act on it. No lists unless the source is itself a list. End on a complete sentence. No preamble, no greeting, no restating the request — output only the summary.",
+	"heavy":    "Write a brief spoken summary of the following text. Budget: at most 2 sentences and 40 words total. Focus on the single actionable takeaway. No preamble, no greeting, no restating the request — output only the summary.",
+}
+
+// summarizeTokenBudget returns the hard max-output-tokens (Ollama num_predict)
+// for a given summarization level, sized against the input text. Token count is
+// estimated as len(text)/4 characters per token, which matches the rough
+// heuristic used by the qwen3 and llama tokenizers.
+func summarizeTokenBudget(level string, inputChars int) int {
+	inputTokens := inputChars / 4
+	if inputTokens < 1 {
+		inputTokens = 1
+	}
+	switch level {
+	case "heavy":
+		return 120
+	case "light":
+		budget := inputTokens * 55 / 100
+		if budget < 90 {
+			return 90
+		}
+		return budget
+	default: // moderate and unknown
+		budget := inputTokens * 35 / 100
+		if budget < 60 {
+			return 60
+		}
+		return budget
+	}
 }
 
 // Summarize sends text to Ollama with a level-appropriate system prompt
@@ -46,6 +76,10 @@ func (s *TTSSummarizer) Summarize(ctx context.Context, text, model, level string
 			{"role": "user", "content": text},
 		},
 		"stream": false,
+		"options": map[string]any{
+			"num_predict": summarizeTokenBudget(level, len(text)),
+			"temperature": 0.2,
+		},
 	}
 	jsonBody, err := json.Marshal(body)
 	if err != nil {

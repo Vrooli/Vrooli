@@ -492,7 +492,7 @@ The `TTSProvider` interface enables swapping between synthesis backends:
 6. `TerminalPane` ↔ xterm.js buffer: rendered terminal text is the source of truth for correlation
 7. `useTextToSpeech` ↔ `TTSProvider`: injectable Kokoro/Browser implementations
 
-**Testing**: `tts_hook_handler_test.go` covers Claude session mapping. `tts_router_test.go` covers candidate routing/dedup. `codex_tailer_test.go` includes an E2E test from rollout file → owning terminal candidate.
+**Testing**: `tts_hook_handler_test.go` covers Claude session mapping. `tts_router_test.go` covers candidate routing/dedup. `codex_tailer_test.go` includes an E2E test from rollout file → owning terminal candidate. `mid_session_conversation_test.go` locks in that attribution holds for sessions started as plain shells (no shortcut) and that unattributed payloads cannot bleed into other sessions. User-facing contract: [guides/CONVERSATION_TRACKING.md](../guides/CONVERSATION_TRACKING.md).
 
 ### Two Independent TTS Trigger Paths
 

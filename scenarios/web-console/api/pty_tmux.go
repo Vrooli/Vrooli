@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -191,6 +192,32 @@ func (p *tmuxPTY) HasChildProcess() bool {
 	return len(bytes.TrimSpace(data)) > 0
 }
 
+// buildTmuxNewSessionArgs constructs the argv suffix (everything after
+// `tmux -L <socket>`) for creating a detached tmux session. spec.Env keys
+// are passed as `-e KEY=VAL` so they scope to this specific tmux session;
+// shells spawned later inside the session inherit them. This is the only
+// reliable way to get per-session env on a long-lived tmux server — the
+// server's own environment is frozen at first-session creation time.
+func buildTmuxNewSessionArgs(sessionName, workingDir string, spec SessionLaunchSpec) []string {
+	args := []string{
+		"new-session", "-d",
+		"-s", sessionName,
+		"-c", workingDir,
+		"-x", strconv.Itoa(int(spec.Cols)),
+		"-y", strconv.Itoa(int(spec.Rows)),
+	}
+	keys := make([]string, 0, len(spec.Env))
+	for k := range spec.Env {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		args = append(args, "-e", k+"="+spec.Env[k])
+	}
+	args = append(args, spec.Shell)
+	return args
+}
+
 // buildSessionEnv constructs the filtered environment for a new session.
 // Used by both defaultPTYFactory and tmuxPTYFactory.
 func buildSessionEnv(spec SessionLaunchSpec) []string {
@@ -236,18 +263,18 @@ func tmuxPTYFactory(spec SessionLaunchSpec) (PTY, error) {
 	//
 	// Setpgid isolates the child from the API's process group so that
 	// lifecycle SIGTERM (kill -TERM -$pgid) doesn't kill tmux processes.
-	tmuxArgs := []string{
-		"-L", tmuxSocket, "new-session", "-d",
-		"-s", sessionName,
-		"-c", workingDir,
-		"-x", strconv.Itoa(int(spec.Cols)),
-		"-y", strconv.Itoa(int(spec.Rows)),
-		spec.Shell,
-	}
+	//
+	// Session-scoped env vars are injected via `tmux new-session -e KEY=VAL`
+	// so panes opened inside THIS session (even when the tmux server was
+	// created by a previous session and thus has frozen server env) see the
+	// correct WC_WEB_CONSOLE_SESSION_ID / CODEX_HOME. Without this, the
+	// second and later sessions on the same tmux server would inherit the
+	// first session's attribution vars, breaking conversation tracking.
+	sessionArgs := buildTmuxNewSessionArgs(sessionName, workingDir, spec)
 	createCmd := exec.Command("systemd-run", append([]string{
 		"--user", "--scope", "--unit=" + tmuxScopeName,
-		"tmux",
-	}, tmuxArgs...)...)
+		"tmux", "-L", tmuxSocket,
+	}, sessionArgs...)...)
 	createCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	createCmd.Env = buildSessionEnv(spec)
 	if err := createCmd.Run(); err != nil {
@@ -255,13 +282,7 @@ func tmuxPTYFactory(spec SessionLaunchSpec) (PTY, error) {
 		// create directly. The server will inherit the parent cgroup, but
 		// that's better than failing entirely.
 		log.Printf("tmux: systemd-run scope creation failed, falling back to direct: %v", err)
-		fallbackCmd := tmuxCmd("new-session", "-d",
-			"-s", sessionName,
-			"-c", workingDir,
-			"-x", strconv.Itoa(int(spec.Cols)),
-			"-y", strconv.Itoa(int(spec.Rows)),
-			spec.Shell,
-		)
+		fallbackCmd := tmuxCmd(sessionArgs...)
 		fallbackCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 		fallbackCmd.Env = buildSessionEnv(spec)
 		if err := fallbackCmd.Run(); err != nil {

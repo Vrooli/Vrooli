@@ -157,6 +157,16 @@ func (c *TTSCache) removeFromOrder(hash string) {
 	}
 }
 
+// invalidateTTSCacheForEvent removes every cached audio variant (voice, speed,
+// version) for a given event. Used after summarization replaces an event's
+// speech paragraphs, so the next playback regenerates audio from the new text.
+func (s *Server) invalidateTTSCacheForEvent(eventID string) {
+	if s.ttsCache == nil || eventID == "" {
+		return
+	}
+	s.ttsCache.Evict(eventID)
+}
+
 // preSynthesizeTTS asynchronously synthesizes TTS audio for an assistant event
 // and stores it in the cache for instant playback on tab switch.
 func (s *Server) preSynthesizeTTS(event ConversationEvent, sessionID string) {

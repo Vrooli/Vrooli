@@ -60,6 +60,11 @@
           "path": "guides/TTS_TROUBLESHOOTING.md",
           "title": "TTS Troubleshooting",
           "description": "Diagnosing auto-TTS issues: Kokoro status, hook registration, text correlation, browser audio policy"
+        },
+        {
+          "path": "guides/CONVERSATION_TRACKING.md",
+          "title": "Conversation Tracking",
+          "description": "How claude/codex sessions get parsed into the messages feed, which launch paths work, and how attribution stays scoped"
         }
       ]
     },

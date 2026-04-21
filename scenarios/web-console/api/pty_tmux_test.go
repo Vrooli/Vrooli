@@ -3,10 +3,118 @@ package main
 import (
 	"context"
 	"os/exec"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
 )
+
+// TestBuildTmuxNewSessionArgs_InjectsSessionEnv locks in the invariant
+// that attribution env vars from SessionLaunchSpec.Env are rendered as
+// `-e KEY=VAL` flags on `tmux new-session`. Without this, panes in
+// later sessions on a long-lived tmux server inherit the server's
+// frozen env (first session's WC_WEB_CONSOLE_SESSION_ID) and mid-session
+// `claude`/`codex` invocations get mis-attributed.
+func TestBuildTmuxNewSessionArgs_InjectsSessionEnv(t *testing.T) {
+	spec := SessionLaunchSpec{
+		SessionID: "sess-b",
+		Shell:     "/bin/sh",
+		Cols:      120,
+		Rows:      40,
+		Env: map[string]string{
+			"WC_WEB_CONSOLE_SESSION_ID": "sess-b",
+			"CODEX_HOME":                "/tmp/codex-b",
+			"WC_CODEX_SESSIONS_DIR":     "/tmp/codex-b/sessions",
+		},
+	}
+	got := buildTmuxNewSessionArgs("wc-sess-b", "/workdir", spec)
+	want := []string{
+		"new-session", "-d",
+		"-s", "wc-sess-b",
+		"-c", "/workdir",
+		"-x", "120",
+		"-y", "40",
+		"-e", "CODEX_HOME=/tmp/codex-b",
+		"-e", "WC_CODEX_SESSIONS_DIR=/tmp/codex-b/sessions",
+		"-e", "WC_WEB_CONSOLE_SESSION_ID=sess-b",
+		"/bin/sh",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("args mismatch\n got: %v\nwant: %v", got, want)
+	}
+}
+
+func TestBuildTmuxNewSessionArgs_NoEnvIsUnchanged(t *testing.T) {
+	spec := SessionLaunchSpec{
+		SessionID: "sess-empty",
+		Shell:     "/bin/sh",
+		Cols:      80,
+		Rows:      24,
+	}
+	got := buildTmuxNewSessionArgs("wc-sess-empty", "/workdir", spec)
+	want := []string{
+		"new-session", "-d",
+		"-s", "wc-sess-empty",
+		"-c", "/workdir",
+		"-x", "80",
+		"-y", "24",
+		"/bin/sh",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("args mismatch\n got: %v\nwant: %v", got, want)
+	}
+}
+
+// TestTmuxPTYFactory_PropagatesSessionEnvIntoPane is the end-to-end
+// guarantee for mid-session attribution inside tmux: a pane running in
+// this session must see WC_WEB_CONSOLE_SESSION_ID set to THIS session's
+// id, even when the tmux server was created by a different session
+// beforehand (which is the common case — the server is long-lived and
+// shared). This catches regressions if someone drops `-e` from the
+// new-session args.
+func TestTmuxPTYFactory_PropagatesSessionEnvIntoPane(t *testing.T) {
+	if _, err := exec.LookPath("tmux"); err != nil {
+		t.Skip("tmux not installed")
+	}
+
+	spec := SessionLaunchSpec{
+		SessionID: "test-env-propagation",
+		Shell:     "/bin/sh",
+		Cols:      80,
+		Rows:      24,
+		Env: map[string]string{
+			"WC_WEB_CONSOLE_SESSION_ID": "test-env-propagation",
+			"CODEX_HOME":                "/tmp/codex-test-env-propagation",
+			"WC_CODEX_SESSIONS_DIR":     "/tmp/codex-test-env-propagation/sessions",
+		},
+	}
+
+	p, err := tmuxPTYFactory(spec)
+	if err != nil {
+		t.Fatalf("tmuxPTYFactory failed: %v", err)
+	}
+	defer func() { _ = p.Kill() }()
+	defer p.Close()
+
+	sessionName := tmuxSessionPrefix + spec.SessionID
+	defer func() { _ = tmuxCmd("kill-session", "-t", sessionName).Run() }()
+
+	for _, want := range []string{
+		"WC_WEB_CONSOLE_SESSION_ID=test-env-propagation",
+		"CODEX_HOME=/tmp/codex-test-env-propagation",
+		"WC_CODEX_SESSIONS_DIR=/tmp/codex-test-env-propagation/sessions",
+	} {
+		key := strings.SplitN(want, "=", 2)[0]
+		out, err := tmuxCmd("show-environment", "-t", sessionName, key).Output()
+		if err != nil {
+			t.Fatalf("tmux show-environment %s: %v", key, err)
+		}
+		got := strings.TrimSpace(string(out))
+		if got != want {
+			t.Errorf("session env %s: got %q, want %q", key, got, want)
+		}
+	}
+}
 
 // TestTmuxPTYFactory_EnablesMouseMode verifies that tmuxPTYFactory enables
 // the tmux "mouse" option so that mouse wheel scrolling works in xterm.js.

@@ -39,6 +39,9 @@ if [[ -z "$prompt" ]]; then
 fi
 
 session_id="${WC_WEB_CONSOLE_SESSION_ID:-}"
+if [[ -z "$session_id" && "${WC_HOOK_WARN_UNATTRIBUTED:-}" == "1" ]]; then
+    echo "web-console: prompt-submit-hook firing without WC_WEB_CONSOLE_SESSION_ID — event will be dropped" >&2
+fi
 
 body="$(jq -nc --arg p "$prompt" --arg sid "$session_id" '{userPrompt: $p, webConsoleSessionId: $sid}')"
 

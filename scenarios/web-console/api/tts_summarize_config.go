@@ -13,10 +13,10 @@ import (
 
 // TTSSummarizeConfig holds configuration for TTS summarization of long responses.
 type TTSSummarizeConfig struct {
-	Enabled        bool   `json:"enabled"`        // default: false
+	Enabled        bool   `json:"enabled"`        // default: true
 	CharThreshold  int    `json:"charThreshold"`  // default: 500
 	Level          string `json:"level"`          // "light" | "moderate" | "heavy"
-	Model          string `json:"model"`          // default: env WC_TTS_SUMMARIZE_MODEL or "qwen3:1.7b"
+	Model          string `json:"model"`          // default: env WC_TTS_SUMMARIZE_MODEL or "qwen3:4b"
 	TimeoutSeconds int    `json:"timeoutSeconds"` // default: 120
 }
 
@@ -24,10 +24,13 @@ type TTSSummarizeConfig struct {
 func DefaultTTSSummarizeConfig() TTSSummarizeConfig {
 	model := os.Getenv("WC_TTS_SUMMARIZE_MODEL")
 	if model == "" {
-		model = "qwen3:1.7b"
+		// qwen3:4b follows length/budget instructions much more reliably than
+		// qwen3:1.7b. Users on memory-constrained boxes can set
+		// WC_TTS_SUMMARIZE_MODEL to downshift.
+		model = "qwen3:4b"
 	}
 	return TTSSummarizeConfig{
-		Enabled:        false,
+		Enabled:        true,
 		CharThreshold:  500,
 		Level:          "moderate",
 		Model:          model,

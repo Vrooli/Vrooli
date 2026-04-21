@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -81,12 +80,11 @@ func (s *Server) handleSummarizeEvent(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), timeout)
 	defer cancel()
 
-	log.Printf("tts-summarize-on-demand: event=%s session=%s chars=%d model=%s level=%s",
-		eventID, sessionID, len(normalized), cfg.Model, cfg.Level)
-
+	started := time.Now()
 	summary, err := s.ttsSummarizer.Summarize(ctx, normalized, cfg.Model, cfg.Level)
+	elapsedMs := time.Since(started).Milliseconds()
 	if err != nil {
-		log.Printf("tts-summarize-on-demand: failed for event=%s: %v", eventID, err)
+		logSummarizeResult("on-demand", cfg, eventID, len(normalized), 0, elapsedMs, err)
 		writeJSON(w, http.StatusOK, summarizeEventResponse{
 			Error: "Summarization failed: " + err.Error(),
 		})
@@ -95,21 +93,30 @@ func (s *Server) handleSummarizeEvent(w http.ResponseWriter, r *http.Request) {
 
 	summary = strings.TrimSpace(summary)
 	if summary == "" {
+		logSummarizeResult("on-demand", cfg, eventID, len(normalized), 0, elapsedMs,
+			emptySummaryErr)
 		writeJSON(w, http.StatusOK, summarizeEventResponse{
 			Error: "Summarizer returned empty result",
 		})
 		return
 	}
 
-	log.Printf("tts-summarize-on-demand: success event=%s reduced %d→%d chars (%.0f%%)",
-		eventID, len(normalized), len(summary),
-		float64(len(normalized)-len(summary))/float64(len(normalized))*100)
+	logSummarizeResult("on-demand", cfg, eventID, len(normalized), len(summary), elapsedMs, nil)
 
 	newParagraphs := SplitIntoSpeechParagraphs(summary)
 	s.conversations.UpdateSpeechParagraphs(sessionID, eventID, newParagraphs)
+	s.invalidateTTSCacheForEvent(eventID)
 
 	writeJSON(w, http.StatusOK, summarizeEventResponse{
 		Summarized:       true,
 		SpeechParagraphs: newParagraphs,
 	})
 }
+
+// emptySummaryErr is a sentinel used by the on-demand handler so the unified
+// log line has a grep-friendly error token for the empty-output case.
+var emptySummaryErr = summarizeError("empty summary returned")
+
+type summarizeError string
+
+func (e summarizeError) Error() string { return string(e) }

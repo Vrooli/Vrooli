@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -47,11 +48,29 @@ func (s *Server) appendConversationEvent(responseText, targetSessionID, source s
 
 	event, result := s.conversations.AppendAssistantEvent(targetSessionID, source, responseText)
 	if result.Appended && !result.Duplicate {
-		// Send event to clients immediately (unsummarized) so there's no delay.
-		go s.preSynthesizeTTS(event, targetSessionID)
+		// Send event to clients immediately so the text lands in the UI with
+		// no delay — audio is handled separately below.
 		sess.SendConversation(event)
-		// Summarize asynchronously — if successful, push an update event to clients.
-		go s.asyncSummarizeAndNotify(event, targetSessionID, sess)
+
+		cfg := s.getTTSSummarizeConfig()
+		shouldSummarize := s.ttsSummarizer != nil && cfg.Enabled && len(event.Text) >= cfg.CharThreshold
+		if shouldSummarize {
+			// Summarize-first path: wait for summarization to finish before
+			// pre-synthesizing audio, so the cached audio matches whatever
+			// paragraphs end up on the event (summary on success, original on
+			// failure). This closes the pre-cache race where audio was
+			// synthesized from the raw response and never invalidated.
+			go func(ev ConversationEvent) {
+				s.asyncSummarizeAndNotify(ev, targetSessionID, sess)
+				updated, ok := s.conversations.GetEvent(targetSessionID, ev.ID)
+				if !ok {
+					updated = ev
+				}
+				s.preSynthesizeTTS(updated, targetSessionID)
+			}(event)
+		} else {
+			go s.preSynthesizeTTS(event, targetSessionID)
+		}
 	}
 	s.recordLastTTSRouting(result)
 	return result
@@ -78,7 +97,9 @@ func (s *Server) appendUserConversationEvent(promptText, targetSessionID, source
 
 // asyncSummarizeAndNotify runs summarization in a goroutine and, on success,
 // sends a conversation_event_update to all subscribed clients so the frontend
-// can display the summarized version without a page refresh.
+// can display the summarized version without a page refresh. On success it
+// also evicts any cached TTS audio for this event so playback regenerates
+// from the summary rather than the original text.
 func (s *Server) asyncSummarizeAndNotify(event ConversationEvent, sessionID string, sess *Session) {
 	if s.ttsSummarizer == nil {
 		return
@@ -90,13 +111,14 @@ func (s *Server) asyncSummarizeAndNotify(event ConversationEvent, sessionID stri
 	}
 
 	if len(event.Text) < cfg.CharThreshold {
-		log.Printf("tts-summarize: skipped (text length %d < threshold %d)", len(event.Text), cfg.CharThreshold)
+		logSummarizeSkipped("auto", cfg, event.ID, len(event.Text),
+			fmt.Sprintf("text length %d < threshold %d", len(event.Text), cfg.CharThreshold))
 		return
 	}
 
 	normalized := NormalizeTextForSpeech(event.Text)
 	if strings.TrimSpace(normalized) == "" {
-		log.Printf("tts-summarize: skipped (normalized text is empty)")
+		logSummarizeSkipped("auto", cfg, event.ID, len(event.Text), "normalized text is empty")
 		return
 	}
 
@@ -107,26 +129,25 @@ func (s *Server) asyncSummarizeAndNotify(event ConversationEvent, sessionID stri
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	log.Printf("tts-summarize: summarizing %d chars with model=%s level=%s timeout=%s",
-		len(normalized), cfg.Model, cfg.Level, timeout)
-
+	started := time.Now()
 	summary, err := s.ttsSummarizer.Summarize(ctx, normalized, cfg.Model, cfg.Level)
+	elapsedMs := time.Since(started).Milliseconds()
 	if err != nil {
-		log.Printf("tts-summarize: failed (error: %v)", err)
+		logSummarizeResult("auto", cfg, event.ID, len(normalized), 0, elapsedMs, err)
 		return
 	}
 
 	summary = strings.TrimSpace(summary)
 	if summary == "" {
-		log.Printf("tts-summarize: failed (empty summary returned)")
+		logSummarizeResult("auto", cfg, event.ID, len(normalized), 0, elapsedMs, fmt.Errorf("empty summary returned"))
 		return
 	}
 
-	log.Printf("tts-summarize: success — reduced %d chars to %d chars (%.0f%% reduction)",
-		len(normalized), len(summary), float64(len(normalized)-len(summary))/float64(len(normalized))*100)
+	logSummarizeResult("auto", cfg, event.ID, len(normalized), len(summary), elapsedMs, nil)
 
 	newParagraphs := SplitIntoSpeechParagraphs(summary)
 	s.conversations.UpdateSpeechParagraphs(sessionID, event.ID, newParagraphs)
+	s.invalidateTTSCacheForEvent(event.ID)
 
 	// Send update event so connected clients can display the summary.
 	event.OriginalSpeechParagraphs = event.SpeechParagraphs
@@ -134,4 +155,26 @@ func (s *Server) asyncSummarizeAndNotify(event ConversationEvent, sessionID stri
 	event.Summarized = true
 	event.IsUpdate = true
 	sess.SendConversation(event)
+}
+
+// logSummarizeResult emits the unified tts-summarize log line. It is shared by
+// the auto (append) and on-demand code paths so a single grep surfaces both.
+func logSummarizeResult(path string, cfg TTSSummarizeConfig, eventID string, inChars, outChars int, elapsedMs int64, err error) {
+	ratio := 0.0
+	if inChars > 0 {
+		ratio = float64(outChars) / float64(inChars)
+	}
+	if err != nil {
+		log.Printf("tts-summarize: path=%s event=%s model=%s level=%s in=%d out=%d ratio=%.2f ms=%d error=%v",
+			path, eventID, cfg.Model, cfg.Level, inChars, outChars, ratio, elapsedMs, err)
+		return
+	}
+	log.Printf("tts-summarize: path=%s event=%s model=%s level=%s in=%d out=%d ratio=%.2f ms=%d",
+		path, eventID, cfg.Model, cfg.Level, inChars, outChars, ratio, elapsedMs)
+}
+
+// logSummarizeSkipped records the no-op reason in the same grep-friendly shape.
+func logSummarizeSkipped(path string, cfg TTSSummarizeConfig, eventID string, inChars int, reason string) {
+	log.Printf("tts-summarize: path=%s event=%s model=%s level=%s in=%d out=0 ratio=0.00 ms=0 skipped=%q",
+		path, eventID, cfg.Model, cfg.Level, inChars, reason)
 }

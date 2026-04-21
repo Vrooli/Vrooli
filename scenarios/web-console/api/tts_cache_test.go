@@ -366,6 +366,55 @@ func TestEndToEnd_PreCacheFlow(t *testing.T) {
 	}
 }
 
+// --- Invalidation tests ---
+
+func TestInvalidateTTSCacheForEvent_ClearsAllVariants(t *testing.T) {
+	srv := newFakeTestServer()
+	srv.ttsCache = NewTTSCache(1024 * 1024)
+
+	variants := []TTSCacheKey{
+		{EventID: "evt1", Voice: "af_heart", Speed: 1.0, Version: "active"},
+		{EventID: "evt1", Voice: "af_heart", Speed: 1.0, Version: "original"},
+		{EventID: "evt1", Voice: "am_adam", Speed: 1.25, Version: "active"},
+	}
+	for _, k := range variants {
+		srv.ttsCache.Put(k, []byte("audio-"+k.Voice+"-"+k.Version), "audio/mpeg")
+	}
+	otherKey := TTSCacheKey{EventID: "evt-other", Voice: "af_heart", Speed: 1.0, Version: "active"}
+	srv.ttsCache.Put(otherKey, []byte("other"), "audio/mpeg")
+
+	srv.invalidateTTSCacheForEvent("evt1")
+
+	for _, k := range variants {
+		if _, ok := srv.ttsCache.Get(k); ok {
+			t.Errorf("variant %+v should have been evicted", k)
+		}
+	}
+	if _, ok := srv.ttsCache.Get(otherKey); !ok {
+		t.Error("unrelated event should not be evicted")
+	}
+}
+
+func TestInvalidateTTSCacheForEvent_NilCacheIsSafe(t *testing.T) {
+	srv := newFakeTestServer()
+	srv.ttsCache = nil
+	// Must not panic.
+	srv.invalidateTTSCacheForEvent("evt1")
+}
+
+func TestInvalidateTTSCacheForEvent_EmptyIDIsNoop(t *testing.T) {
+	srv := newFakeTestServer()
+	srv.ttsCache = NewTTSCache(1024 * 1024)
+	key := TTSCacheKey{EventID: "evt1", Voice: "v", Speed: 1.0, Version: "active"}
+	srv.ttsCache.Put(key, []byte("x"), "audio/mpeg")
+
+	srv.invalidateTTSCacheForEvent("")
+
+	if _, ok := srv.ttsCache.Get(key); !ok {
+		t.Error("empty eventID should not evict anything")
+	}
+}
+
 func TestEndToEnd_CacheMissFallback(t *testing.T) {
 	srv := newCacheTestServer()
 
