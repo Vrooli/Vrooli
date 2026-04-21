@@ -8,6 +8,8 @@ Execute the actions defined in a research item's `conclusion.md`. Read the concl
 
 **Required reading:** `prompt-manager skill read swarm-manager-processing-guidance` — shared processing workflow, decision hierarchy, and completion evidence patterns.
 
+**Required reading:** `prompt-manager skill read swarm-manager-initiative-context` — load the initiative's members and related initiatives before executing actions; the reuse-before-create heuristic applies at execution time too if the conclusion left the choice open.
+
 ## Scope
 
 **In scope:**
@@ -52,7 +54,7 @@ You are processing a completed research backlog item. The research workshop has 
 
 3. **Execute each action**
 
-   Process actions in order. For each action, identify its type and execute accordingly:
+   Process actions in order. For each action, identify its type and execute accordingly. The action vocabulary is not additive-only: if the conclusion says delete, delete; if it says update, update.
 
    #### `Create backlog item`
 
@@ -73,14 +75,44 @@ You are processing a completed research backlog item. The research workshop has 
    For multiple items, use batch create:
    ```bash
    swarm-manager backlog batch-create --stdin <<'EOF'
-   [
-     {"kind": "...", "name": "...", "title": "...", "description": "...", ...},
-     {"kind": "...", "name": "...", "title": "...", "description": "...", ...}
-   ]
+   {"items": [
+     {"kind": "...", "name": "...", "title": "...", "description": "...", "initiative": "..."},
+     {"kind": "...", "name": "...", "title": "...", "description": "...", "initiative": "..."}
+   ]}
    EOF
    ```
 
-   **Important:** Preserve initiative references from the research item. If the research item belongs to an initiative, follow-up items should reference the same initiative unless the conclusion explicitly states otherwise.
+   Preserve initiative references from the research item. If the research item belongs to an initiative, follow-up items should reference the same initiative unless the conclusion explicitly states otherwise. When you set `initiative`, the server attaches the item to that initiative's `items[]` automatically — no follow-up `initiatives add-items` call is needed.
+
+   #### `Update backlog item`
+
+   Patch metadata on an existing item. Supply only the fields the conclusion changed:
+
+   ```bash
+   swarm-manager backlog update --kind {kind} --name {name} --data '{"priority": 2, "depends_on": ["fix/new-blocker"]}'
+   ```
+
+   Valid patchable fields: `title`, `description`, `priority`, `depends_on`, `initiative`, `tags`, `effort`. Changing `initiative` automatically syncs membership on both the old and new initiatives — do not emit follow-up `initiatives` calls.
+
+   #### `Delete backlog item`
+
+   Delete the item entirely:
+
+   ```bash
+   swarm-manager backlog delete --kind {kind} --name {name}
+   ```
+
+   The server cascades referential integrity automatically: the ref is removed from every other item's `depends_on` and from the enclosing initiative's `items[]` in one atomic operation. Do not run manual cleanup.
+
+   #### `Update initiative`
+
+   Patch initiative metadata:
+
+   ```bash
+   swarm-manager initiatives update --name {name} --data '{"priority": 3, "depends_on": ["other-initiative"]}'
+   ```
+
+   Valid patchable fields: `title`, `description`, `priority`, `depends_on`, `status` (`active` | `completed`).
 
    #### `Update document`
 
@@ -143,7 +175,9 @@ If an action cannot be completed:
 - **Don't** modify `conclusion.md` — it is the authoritative research output
 - **Don't** implement code changes directly — create backlog items for implementation work
 - **Don't** skip actions — execute every action in the Actions section
+- **Don't** treat the action list as additive-only. If the conclusion says delete or update, execute that action; do not silently downgrade it to a creation.
 - **Don't** create backlog items with vague descriptions — copy the detail from the conclusion
 - **Don't** forget to preserve initiative references on follow-up items
 - **Don't** write files directly to disk — always use the backlog CLI for item folder files
 - **Don't** silently fail — always document what happened in notes.md
+- **Don't** chase cascade bookkeeping. Deletes and initiative moves keep both sides in sync on the server. Agent-side "also update the initiative" or "also clean up dependents" calls are redundant.

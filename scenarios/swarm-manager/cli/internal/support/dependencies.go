@@ -68,6 +68,7 @@ type Dependencies struct {
 	PromptsExperiment    CommandFunc
 	InitiativesList      CommandFunc
 	InitiativesGet       CommandFunc
+	InitiativesContext   CommandFunc
 	InitiativesCreate    CommandFunc
 	InitiativesUpdate    CommandFunc
 	InitiativesDelete    CommandFunc

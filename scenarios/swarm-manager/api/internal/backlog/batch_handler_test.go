@@ -16,14 +16,17 @@ import (
 
 // mockInitiativeAssigner implements InitiativeAssigner for testing.
 type mockInitiativeAssigner struct {
-	snapshots  map[string]InitiativeSnapshot
-	addedItems map[string][]string
-	getErr     error
-	createErr  error
-	updateErr  error
-	replaceErr error
-	deleteErr  error
-	addErr     error
+	snapshots   map[string]InitiativeSnapshot
+	addedItems  map[string][]string
+	createOrder []string
+	updateOrder []string
+	replaceLog  []InitiativeSnapshot
+	getErr      error
+	createErr   error
+	updateErr   error
+	replaceErr  error
+	deleteErr   error
+	addErr      error
 }
 
 func newMockInitiativeAssigner() *mockInitiativeAssigner {
@@ -43,6 +46,7 @@ func (m *mockInitiativeAssigner) Get(name string) (*InitiativeSnapshot, error) {
 	}
 	copied := snapshot
 	copied.Items = append([]string(nil), snapshot.Items...)
+	copied.DependsOn = append([]string(nil), snapshot.DependsOn...)
 	return &copied, nil
 }
 
@@ -50,11 +54,14 @@ func (m *mockInitiativeAssigner) Create(spec InitiativeSpec) error {
 	if m.createErr != nil {
 		return m.createErr
 	}
+	m.createOrder = append(m.createOrder, spec.Name)
 	m.snapshots[spec.Name] = InitiativeSnapshot{
 		Name:        spec.Name,
 		Title:       spec.Title,
 		Description: spec.Description,
 		Status:      spec.Status,
+		Priority:    spec.Priority,
+		DependsOn:   append([]string(nil), spec.DependsOn...),
 		Items:       nil,
 	}
 	return nil
@@ -68,9 +75,12 @@ func (m *mockInitiativeAssigner) Update(spec InitiativeSpec) error {
 	if !ok {
 		return fmt.Errorf("initiative %q not found", spec.Name)
 	}
+	m.updateOrder = append(m.updateOrder, spec.Name)
 	snapshot.Title = spec.Title
 	snapshot.Description = spec.Description
 	snapshot.Status = spec.Status
+	snapshot.Priority = spec.Priority
+	snapshot.DependsOn = append([]string(nil), spec.DependsOn...)
 	m.snapshots[spec.Name] = snapshot
 	return nil
 }
@@ -81,6 +91,8 @@ func (m *mockInitiativeAssigner) Replace(snapshot InitiativeSnapshot) error {
 	}
 	copied := snapshot
 	copied.Items = append([]string(nil), snapshot.Items...)
+	copied.DependsOn = append([]string(nil), snapshot.DependsOn...)
+	m.replaceLog = append(m.replaceLog, copied)
 	m.snapshots[snapshot.Name] = copied
 	return nil
 }
@@ -103,6 +115,42 @@ func (m *mockInitiativeAssigner) AddItems(name string, items []string) error {
 		return fmt.Errorf("initiative %q not found", name)
 	}
 	snapshot.Items = append(snapshot.Items, items...)
+	m.snapshots[name] = snapshot
+	return nil
+}
+
+func (m *mockInitiativeAssigner) RememberItem(name, ref string) error {
+	if m.addErr != nil {
+		return m.addErr
+	}
+	snapshot, ok := m.snapshots[name]
+	if !ok {
+		return fmt.Errorf("initiative %q not found", name)
+	}
+	for _, existing := range snapshot.Items {
+		if existing == ref {
+			return nil
+		}
+	}
+	snapshot.Items = append(snapshot.Items, ref)
+	m.snapshots[name] = snapshot
+	m.addedItems[name] = append(m.addedItems[name], ref)
+	return nil
+}
+
+func (m *mockInitiativeAssigner) ForgetItem(name, ref string) error {
+	snapshot, ok := m.snapshots[name]
+	if !ok {
+		return nil
+	}
+	filtered := make([]string, 0, len(snapshot.Items))
+	for _, existing := range snapshot.Items {
+		if existing == ref {
+			continue
+		}
+		filtered = append(filtered, existing)
+	}
+	snapshot.Items = filtered
 	m.snapshots[name] = snapshot
 	return nil
 }

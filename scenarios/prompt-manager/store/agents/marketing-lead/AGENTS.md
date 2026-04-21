@@ -20,7 +20,6 @@
 - `prompt-manager skill read progress` — What has been accomplished recently.
 
 ## Coordination
-- Receive completed feature notifications from scenario-feature team.
 - Review completed `fix` backlog items in swarm-manager for debugging stories.
 - Request current state from director-swarm for strategic messaging.
 - Share content calendar with director-swarm for alignment.

@@ -8,9 +8,19 @@ import (
 	"time"
 )
 
-// BacklogLoader loads individual backlog items for rollup computation.
+// BacklogLoader loads individual backlog items for rollup computation and
+// performs cascade writes on an item's initiative field when initiative
+// membership changes through the AddItems/RemoveItems paths or initiative
+// deletion.
 type BacklogLoader interface {
 	LoadItem(kind backlog.BacklogKind, name string) (backlog.BacklogItem, error)
+	// SetItemInitiative sets the item's initiative field, returning the
+	// previous value. Errors if the item does not exist.
+	SetItemInitiative(kind backlog.BacklogKind, name, initiative string) (string, error)
+	// ClearItemInitiative clears the item's initiative field only if it
+	// currently equals expected. Returns (prevValue, changed, error). If the
+	// item does not exist or the field does not match, changed=false and err=nil.
+	ClearItemInitiative(kind backlog.BacklogKind, name, expected string) (string, bool, error)
 }
 
 // EventLogger records initiative state-change events for analytics.
@@ -94,7 +104,7 @@ func (s *Service) Create(req CreateRequest) (*Initiative, error) {
 		status = "active"
 	}
 	if !ValidateStatus(status) {
-		return nil, fmt.Errorf("invalid status %q: must be active, completed, or archived", req.Status)
+		return nil, fmt.Errorf("invalid status %q: must be active or completed", req.Status)
 	}
 
 	if !ValidatePriority(req.Priority) {
@@ -132,6 +142,83 @@ func (s *Service) Create(req CreateRequest) (*Initiative, error) {
 	}
 	s.invalidateTopologyGraph()
 	return init, nil
+}
+
+// GetContext loads an initiative together with its immediate neighborhood:
+// member items (compact view), direct upstream initiatives (targets of its
+// depends_on), and direct downstream initiatives (those that depend_on it).
+// Member items that reference missing files are skipped silently.
+func (s *Service) GetContext(name string) (*InitiativeContext, error) {
+	init, err := s.store.Load(name)
+	if err != nil {
+		return nil, err
+	}
+	rollup, err := s.ComputeRollup(init)
+	if err != nil {
+		return nil, fmt.Errorf("compute rollup for %q: %w", name, err)
+	}
+
+	items := make([]ContextItem, 0, len(init.Items))
+	if s.backlogLoader != nil {
+		for _, raw := range init.Items {
+			parts := strings.SplitN(raw, "/", 2)
+			if len(parts) != 2 {
+				continue
+			}
+			kind, err := backlog.ParseBacklogKind(parts[0])
+			if err != nil {
+				continue
+			}
+			item, err := s.backlogLoader.LoadItem(kind, parts[1])
+			if err != nil {
+				continue
+			}
+			items = append(items, ContextItem{
+				Kind:       string(item.Kind),
+				Name:       item.Name,
+				Title:      item.Title,
+				Status:     string(item.Status),
+				Priority:   item.Priority,
+				DependsOn:  append([]string(nil), item.DependsOn...),
+				Initiative: item.Initiative,
+				ArchivedAt: item.ArchivedAt,
+			})
+		}
+	}
+
+	all, err := s.store.LoadAll()
+	if err != nil {
+		return nil, fmt.Errorf("load initiatives for context: %w", err)
+	}
+	byName := make(map[string]Initiative, len(all))
+	for _, other := range all {
+		byName[other.Name] = other
+	}
+
+	upstream := make([]Initiative, 0, len(init.DependsOn))
+	for _, dep := range init.DependsOn {
+		if other, ok := byName[dep]; ok {
+			upstream = append(upstream, other)
+		}
+	}
+
+	downstream := make([]Initiative, 0)
+	for _, other := range all {
+		if other.Name == name {
+			continue
+		}
+		if stringSliceContains(other.DependsOn, name) {
+			downstream = append(downstream, other)
+		}
+	}
+
+	return &InitiativeContext{
+		Initiative:            *init,
+		Rollup:                *rollup,
+		Items:                 items,
+		UpstreamInitiatives:   upstream,
+		DownstreamInitiatives: downstream,
+	}, nil
 }
 
 // Get loads an initiative with its computed rollup status.
@@ -196,7 +283,7 @@ func (s *Service) Update(name string, req UpdateRequest) (*Initiative, error) {
 	if req.Status != nil {
 		status := strings.TrimSpace(*req.Status)
 		if !ValidateStatus(status) {
-			return nil, fmt.Errorf("invalid status %q: must be active, completed, or archived", *req.Status)
+			return nil, fmt.Errorf("invalid status %q: must be active or completed", *req.Status)
 		}
 		init.Status = status
 	}
@@ -231,19 +318,136 @@ func (s *Service) Update(name string, req UpdateRequest) (*Initiative, error) {
 	return init, nil
 }
 
-// Delete removes an initiative.
+// Delete removes an initiative and cascades referential integrity:
+//   - Every member item has its `initiative` field cleared (orphaned, not deleted).
+//   - Every other initiative that referenced this one via `depends_on` has the
+//     reference removed.
+//
+// The cascade is best-effort atomic: side effects are captured up front so a
+// failure mid-cascade can be rolled back. If the final store.Delete fails,
+// prior cascades are reverted.
 func (s *Service) Delete(name string) error {
 	if !s.store.Exists(name) {
 		return nil // idempotent
 	}
+	init, err := s.store.Load(name)
+	if err != nil {
+		return fmt.Errorf("load initiative before delete: %w", err)
+	}
+
+	type itemRef struct {
+		kind      backlog.BacklogKind
+		localName string
+		ref       string
+	}
+	refs := make([]itemRef, 0, len(init.Items))
+	for _, raw := range init.Items {
+		parts := strings.SplitN(raw, "/", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		kind, err := backlog.ParseBacklogKind(parts[0])
+		if err != nil {
+			continue
+		}
+		refs = append(refs, itemRef{kind: kind, localName: parts[1], ref: raw})
+	}
+
+	cleared := make([]itemRef, 0, len(refs))
+	if s.backlogLoader != nil {
+		for _, r := range refs {
+			_, changed, err := s.backlogLoader.ClearItemInitiative(r.kind, r.localName, name)
+			if err != nil {
+				for _, done := range cleared {
+					if _, setErr := s.backlogLoader.SetItemInitiative(done.kind, done.localName, name); setErr != nil {
+						// Log via slog through service's nil-safe logger; keep rollback best-effort.
+						_ = setErr
+					}
+				}
+				return fmt.Errorf("cascade: clear initiative on %s: %w", r.ref, err)
+			}
+			if changed {
+				cleared = append(cleared, r)
+			}
+		}
+	}
+
+	all, err := s.store.LoadAll()
+	if err != nil {
+		for _, done := range cleared {
+			if _, setErr := s.backlogLoader.SetItemInitiative(done.kind, done.localName, name); setErr != nil {
+				_ = setErr
+			}
+		}
+		return fmt.Errorf("cascade: load initiatives for depends_on scrub: %w", err)
+	}
+	type depScrub struct {
+		initName string
+		oldDeps  []string
+	}
+	scrubbed := make([]depScrub, 0)
+	for i := range all {
+		other := &all[i]
+		if other.Name == name {
+			continue
+		}
+		if !stringSliceContains(other.DependsOn, name) {
+			continue
+		}
+		oldDeps := append([]string(nil), other.DependsOn...)
+		filtered := make([]string, 0, len(other.DependsOn))
+		for _, d := range other.DependsOn {
+			if d != name {
+				filtered = append(filtered, d)
+			}
+		}
+		other.DependsOn = filtered
+		other.Updated = time.Now().UTC().Format(time.RFC3339)
+		if saveErr := s.store.Save(other); saveErr != nil {
+			for _, sc := range scrubbed {
+				if rolled, rErr := s.store.Load(sc.initName); rErr == nil {
+					rolled.DependsOn = sc.oldDeps
+					_ = s.store.Save(rolled)
+				}
+			}
+			for _, done := range cleared {
+				if _, setErr := s.backlogLoader.SetItemInitiative(done.kind, done.localName, name); setErr != nil {
+					_ = setErr
+				}
+			}
+			return fmt.Errorf("cascade: scrub depends_on from %q: %w", other.Name, saveErr)
+		}
+		scrubbed = append(scrubbed, depScrub{initName: other.Name, oldDeps: oldDeps})
+	}
+
 	if err := s.store.Delete(name); err != nil {
+		for _, sc := range scrubbed {
+			if rolled, rErr := s.store.Load(sc.initName); rErr == nil {
+				rolled.DependsOn = sc.oldDeps
+				_ = s.store.Save(rolled)
+			}
+		}
+		for _, done := range cleared {
+			if _, setErr := s.backlogLoader.SetItemInitiative(done.kind, done.localName, name); setErr != nil {
+				_ = setErr
+			}
+		}
 		return err
 	}
 	if s.eventLogger != nil {
-		s.eventLogger.EmitInitiativeArchived(name, "", "")
+		s.eventLogger.EmitInitiativeArchived(name, init.Status, "")
 	}
 	s.invalidateTopologyGraph()
 	return nil
+}
+
+func stringSliceContains(xs []string, target string) bool {
+	for _, x := range xs {
+		if x == target {
+			return true
+		}
+	}
+	return false
 }
 
 // Replace writes a full initiative snapshot, used for internal rollback flows.
@@ -255,7 +459,7 @@ func (s *Service) Replace(init Initiative) error {
 		return fmt.Errorf("title is required")
 	}
 	if !ValidateStatus(strings.TrimSpace(init.Status)) {
-		return fmt.Errorf("invalid status %q: must be active, completed, or archived", init.Status)
+		return fmt.Errorf("invalid status %q: must be active or completed", init.Status)
 	}
 	if !ValidatePriority(init.Priority) {
 		return fmt.Errorf("invalid priority %d: must be 0 (unset) or 1-10", init.Priority)
@@ -316,14 +520,42 @@ func (s *Service) ComputeRollup(init *Initiative) (*RollupStatus, error) {
 }
 
 // AddItems appends items to an initiative, deduplicating. Each item must be
-// in "kind/name" format (e.g., "idea/my-feature").
+// in "kind/name" format (e.g., "idea/my-feature"). Maintains symmetry with
+// the item side: items already attached to a different initiative are
+// rejected; orphan items (with an empty initiative field) have their
+// initiative field set to this name so the two references stay in sync.
 func (s *Service) AddItems(name string, items []string) error {
+	type parsedItem struct {
+		kind      backlog.BacklogKind
+		localName string
+		ref       string
+	}
+	parsed := make([]parsedItem, 0, len(items))
 	for _, item := range items {
 		parts := strings.SplitN(item, "/", 2)
 		if len(parts) != 2 || strings.TrimSpace(parts[0]) == "" || strings.TrimSpace(parts[1]) == "" {
 			return fmt.Errorf("invalid item reference %q: expected format kind/name", item)
 		}
+		kind, err := backlog.ParseBacklogKind(parts[0])
+		if err != nil {
+			return fmt.Errorf("invalid item reference %q: %w", item, err)
+		}
+		parsed = append(parsed, parsedItem{kind: kind, localName: parts[1], ref: item})
 	}
+
+	if s.backlogLoader != nil {
+		for _, p := range parsed {
+			item, err := s.backlogLoader.LoadItem(p.kind, p.localName)
+			if err != nil {
+				continue
+			}
+			current := strings.TrimSpace(item.Initiative)
+			if current != "" && current != name {
+				return fmt.Errorf("item %q already belongs to initiative %q; use PATCH on the item to move it", p.ref, current)
+			}
+		}
+	}
+
 	init, err := s.store.Load(name)
 	if err != nil {
 		return err
@@ -332,36 +564,70 @@ func (s *Service) AddItems(name string, items []string) error {
 	for _, item := range init.Items {
 		existing[item] = true
 	}
-	var added []string
-	for _, item := range items {
-		if !existing[item] {
-			init.Items = append(init.Items, item)
-			existing[item] = true
-			added = append(added, item)
+	added := make([]parsedItem, 0, len(parsed))
+	for _, p := range parsed {
+		if existing[p.ref] {
+			continue
 		}
+		init.Items = append(init.Items, p.ref)
+		existing[p.ref] = true
+		added = append(added, p)
 	}
 	init.Updated = time.Now().UTC().Format(time.RFC3339)
 	if err := s.store.Save(init); err != nil {
 		return err
 	}
+
+	if s.backlogLoader != nil {
+		for _, p := range added {
+			if _, err := s.backlogLoader.SetItemInitiative(p.kind, p.localName, name); err != nil {
+				// Item may not exist yet (e.g., batch create writes items
+				// separately); not-found is not an error here.
+				continue
+			}
+		}
+	}
+
 	if s.eventLogger != nil {
-		for _, item := range added {
-			s.eventLogger.EmitInitiativeItemAdded(name, item)
+		for _, p := range added {
+			s.eventLogger.EmitInitiativeItemAdded(name, p.ref)
 		}
 	}
 	s.invalidateTopologyGraph()
 	return nil
 }
 
-// RemoveItems removes items from an initiative.
+// RemoveItems removes items from an initiative and clears the item's
+// initiative field if it currently equals this initiative, maintaining
+// two-way referential integrity.
 func (s *Service) RemoveItems(name string, items []string) error {
+	type parsedItem struct {
+		kind      backlog.BacklogKind
+		localName string
+		ref       string
+	}
+	parsed := make([]parsedItem, 0, len(items))
+	for _, item := range items {
+		parts := strings.SplitN(item, "/", 2)
+		if len(parts) != 2 {
+			parsed = append(parsed, parsedItem{ref: item})
+			continue
+		}
+		kind, err := backlog.ParseBacklogKind(parts[0])
+		if err != nil {
+			parsed = append(parsed, parsedItem{ref: item})
+			continue
+		}
+		parsed = append(parsed, parsedItem{kind: kind, localName: parts[1], ref: item})
+	}
+
 	init, err := s.store.Load(name)
 	if err != nil {
 		return err
 	}
-	remove := make(map[string]bool, len(items))
-	for _, item := range items {
-		remove[item] = true
+	remove := make(map[string]bool, len(parsed))
+	for _, p := range parsed {
+		remove[p.ref] = true
 	}
 	filtered := make([]string, 0, len(init.Items))
 	for _, item := range init.Items {
@@ -374,12 +640,86 @@ func (s *Service) RemoveItems(name string, items []string) error {
 	if err := s.store.Save(init); err != nil {
 		return err
 	}
-	if s.eventLogger != nil {
-		for _, item := range items {
-			if remove[item] {
-				s.eventLogger.EmitInitiativeItemRemoved(name, item)
+
+	if s.backlogLoader != nil {
+		for _, p := range parsed {
+			if p.localName == "" || p.kind == "" {
+				continue
+			}
+			if _, _, err := s.backlogLoader.ClearItemInitiative(p.kind, p.localName, name); err != nil {
+				continue
 			}
 		}
+	}
+
+	if s.eventLogger != nil {
+		for _, p := range parsed {
+			if remove[p.ref] {
+				s.eventLogger.EmitInitiativeItemRemoved(name, p.ref)
+			}
+		}
+	}
+	s.invalidateTopologyGraph()
+	return nil
+}
+
+// RememberItem appends a single ref to the initiative's items[] list if not
+// already present. This is a one-way helper: it does not modify the item's
+// initiative field. Used by single-item create/patch cascade, which writes
+// the item's initiative field itself via SaveItem.
+func (s *Service) RememberItem(initiativeName, ref string) error {
+	init, err := s.store.Load(initiativeName)
+	if err != nil {
+		return err
+	}
+	for _, existing := range init.Items {
+		if existing == ref {
+			return nil
+		}
+	}
+	init.Items = append(init.Items, ref)
+	init.Updated = time.Now().UTC().Format(time.RFC3339)
+	if err := s.store.Save(init); err != nil {
+		return err
+	}
+	if s.eventLogger != nil {
+		s.eventLogger.EmitInitiativeItemAdded(initiativeName, ref)
+	}
+	s.invalidateTopologyGraph()
+	return nil
+}
+
+// ForgetItem removes a single ref from the initiative's items[] list. This
+// is a one-way helper: it does not modify the item's initiative field. Used
+// by single-item delete/patch cascade, where the item file is already gone
+// or its initiative field is written separately.
+func (s *Service) ForgetItem(initiativeName, ref string) error {
+	if !s.store.Exists(initiativeName) {
+		return nil
+	}
+	init, err := s.store.Load(initiativeName)
+	if err != nil {
+		return err
+	}
+	filtered := make([]string, 0, len(init.Items))
+	removed := false
+	for _, existing := range init.Items {
+		if existing == ref {
+			removed = true
+			continue
+		}
+		filtered = append(filtered, existing)
+	}
+	if !removed {
+		return nil
+	}
+	init.Items = filtered
+	init.Updated = time.Now().UTC().Format(time.RFC3339)
+	if err := s.store.Save(init); err != nil {
+		return err
+	}
+	if s.eventLogger != nil {
+		s.eventLogger.EmitInitiativeItemRemoved(initiativeName, ref)
 	}
 	s.invalidateTopologyGraph()
 	return nil

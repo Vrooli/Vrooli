@@ -10,7 +10,7 @@ Assess whether a scenario's uncommitted changes are ready to commit by querying 
 |----------|----------------|
 | Assessing if a scenario's changes are ready for commit | You need to actually commit changes (human responsibility) |
 | Producing a readiness briefing for the director | Debugging a specific bug (use scientific-debugging) |
-| Reviewing quality of recent agent work on a scenario | Building new features (use scenario-feature team) |
+| Reviewing quality of recent agent work on a scenario | Building new features (features emerge as byproducts of director-swarm gap analysis and monetization work — no dedicated feature team) |
 | Auditing what agent runs contributed to current changes | Managing deployments (use scenario-to-cloud) |
 | Checking scenario health before making priority decisions | Running tests directly (use test-genie) |
 

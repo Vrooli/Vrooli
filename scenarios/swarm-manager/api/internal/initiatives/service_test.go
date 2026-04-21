@@ -15,9 +15,24 @@ func slicePtr(values []string) *[]string {
 	return &values
 }
 
-// mockBacklogLoader is a test double implementing BacklogLoader.
+// mockBacklogLoader is a test double implementing BacklogLoader. It tracks
+// cascade writes so tests can assert that initiative service operations
+// correctly propagate item-initiative changes to the backlog side.
 type mockBacklogLoader struct {
-	items map[string]backlog.BacklogItem // key: "kind/name"
+	items      map[string]backlog.BacklogItem // key: "kind/name"
+	setCalls   []mockBacklogCall
+	clearCalls []mockBacklogCall
+	setErr     error
+	clearErr   error
+}
+
+// mockBacklogCall records a call to SetItemInitiative or ClearItemInitiative.
+type mockBacklogCall struct {
+	Kind      backlog.BacklogKind
+	Name      string
+	Value     string // new value for Set; expected value for Clear
+	PrevValue string
+	Changed   bool
 }
 
 func (m *mockBacklogLoader) LoadItem(kind backlog.BacklogKind, name string) (backlog.BacklogItem, error) {
@@ -27,6 +42,43 @@ func (m *mockBacklogLoader) LoadItem(kind backlog.BacklogKind, name string) (bac
 		return backlog.BacklogItem{}, fmt.Errorf("item %q not found", key)
 	}
 	return item, nil
+}
+
+func (m *mockBacklogLoader) SetItemInitiative(kind backlog.BacklogKind, name, initiative string) (string, error) {
+	if m.setErr != nil {
+		return "", m.setErr
+	}
+	key := string(kind) + "/" + name
+	item, ok := m.items[key]
+	if !ok {
+		return "", fmt.Errorf("item %q not found", key)
+	}
+	prev := item.Initiative
+	item.Initiative = initiative
+	m.items[key] = item
+	m.setCalls = append(m.setCalls, mockBacklogCall{Kind: kind, Name: name, Value: initiative, PrevValue: prev})
+	return prev, nil
+}
+
+func (m *mockBacklogLoader) ClearItemInitiative(kind backlog.BacklogKind, name, expected string) (string, bool, error) {
+	if m.clearErr != nil {
+		return "", false, m.clearErr
+	}
+	key := string(kind) + "/" + name
+	item, ok := m.items[key]
+	if !ok {
+		m.clearCalls = append(m.clearCalls, mockBacklogCall{Kind: kind, Name: name, Value: expected, PrevValue: "", Changed: false})
+		return "", false, nil
+	}
+	prev := item.Initiative
+	if prev != expected {
+		m.clearCalls = append(m.clearCalls, mockBacklogCall{Kind: kind, Name: name, Value: expected, PrevValue: prev, Changed: false})
+		return prev, false, nil
+	}
+	item.Initiative = ""
+	m.items[key] = item
+	m.clearCalls = append(m.clearCalls, mockBacklogCall{Kind: kind, Name: name, Value: expected, PrevValue: prev, Changed: true})
+	return prev, true, nil
 }
 
 func newTestService(t *testing.T, items map[string]backlog.BacklogItem) *Service {

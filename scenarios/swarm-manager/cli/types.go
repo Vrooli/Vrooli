@@ -462,6 +462,29 @@ func (r InitiativeUpdateRequest) HasChanges() bool {
 		r.Priority != nil || r.DependsOn != nil || r.Items != nil
 }
 
+// InitiativeContextItem is the compact member-item view returned inside the
+// initiative context payload.
+type InitiativeContextItem struct {
+	Kind       string   `json:"kind"`
+	Name       string   `json:"name"`
+	Title      string   `json:"title"`
+	Status     string   `json:"status"`
+	Priority   int      `json:"priority"`
+	DependsOn  []string `json:"depends_on,omitempty"`
+	Initiative string   `json:"initiative,omitempty"`
+	ArchivedAt *string  `json:"archived_at,omitempty"`
+}
+
+// InitiativeContextResponse pairs an initiative with its immediate
+// neighborhood for single-call loading by agents and the CLI.
+type InitiativeContextResponse struct {
+	Initiative            Initiative              `json:"initiative"`
+	Rollup                InitiativeRollup        `json:"rollup"`
+	Items                 []InitiativeContextItem `json:"items"`
+	UpstreamInitiatives   []Initiative            `json:"upstream_initiatives"`
+	DownstreamInitiatives []Initiative            `json:"downstream_initiatives"`
+}
+
 // Capture represents a quick-capture entry.
 type Capture struct {
 	ID             string          `json:"id"`

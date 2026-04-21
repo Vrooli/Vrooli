@@ -321,10 +321,33 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	ref := string(kind) + "/" + name
+	initiativeChanged := fields.Has(updateFieldInitiative) && oldInitiative != existing.Initiative
+	if initiativeChanged && h.initiativeAssigner != nil && oldInitiative != "" {
+		if err := h.initiativeAssigner.ForgetItem(oldInitiative, ref); err != nil {
+			slog.Error("failed to detach item from old initiative", "ref", ref, "initiative", oldInitiative, "err", err)
+			apierr.MapError(w, "[backlog] update", apierr.Internal("failed to update old initiative membership"))
+			return
+		}
+	}
+
 	if err := h.store.SaveItem(existing); err != nil {
+		if initiativeChanged && h.initiativeAssigner != nil && oldInitiative != "" {
+			if rErr := h.initiativeAssigner.RememberItem(oldInitiative, ref); rErr != nil {
+				slog.Error("failed to re-attach to old initiative after save failure", "ref", ref, "err", rErr)
+			}
+		}
 		slog.Error("failed to save item", "name", name, "err", err)
 		apierr.MapError(w, "[backlog] update", apierr.Internal("failed to save backlog item"))
 		return
+	}
+
+	if initiativeChanged && h.initiativeAssigner != nil && existing.Initiative != "" {
+		if err := h.initiativeAssigner.RememberItem(existing.Initiative, ref); err != nil {
+			slog.Error("failed to attach item to new initiative", "ref", ref, "initiative", existing.Initiative, "err", err)
+			apierr.MapError(w, "[backlog] update", apierr.Internal("failed to update new initiative membership"))
+			return
+		}
 	}
 
 	h.logAndEmitUpdate(kind, name, oldStatus, existing.Status, oldPriority, existing.Priority, oldEffort, existing.Effort, oldInitiative, existing.Initiative, oldDependsOn, existing.DependsOn)
@@ -390,27 +413,51 @@ func (h *Handler) maybeCascadeWorkshop(oldStatus BacklogStatus, item BacklogItem
 	}
 }
 
-// Delete deletes a backlog item by name.
+// Delete deletes a backlog item and cascades referential integrity:
+//   - Removes the item's "kind/name" ref from every other item's depends_on.
+//   - Removes the ref from its enclosing initiative's items[] list.
+//
+// Cascade runs before the item file is deleted so that a partial failure
+// leaves a consistent "item still exists, references intact" state. After
+// the item file is removed, the depends_on sweep is run as a best-effort
+// cleanup of refs that now point at a non-existent item.
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	kind, name, ok := h.parseKindAndName(w, r, "delete")
 	if !ok {
 		return
 	}
 
-	// Idempotent delete: if the item doesn't exist, return 204 immediately.
-	if _, err := h.store.LoadItem(kind, name); errors.Is(err, ErrNotFound) {
+	existing, err := h.store.LoadItem(kind, name)
+	if errors.Is(err, ErrNotFound) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
+	if err != nil {
+		slog.Error("failed to load item for delete", "name", name, "err", err)
+		apierr.MapError(w, "[backlog] delete", apierr.Internal("failed to load backlog item"))
+		return
+	}
+
+	ref := string(kind) + "/" + name
+	if strings.TrimSpace(existing.Initiative) != "" && h.initiativeAssigner != nil {
+		if err := h.initiativeAssigner.ForgetItem(existing.Initiative, ref); err != nil {
+			slog.Error("failed to forget item from initiative", "ref", ref, "initiative", existing.Initiative, "err", err)
+			apierr.MapError(w, "[backlog] delete", apierr.Internal("failed to update initiative membership"))
+			return
+		}
+	}
 
 	if err := h.store.DeleteItem(kind, name); err != nil {
+		if existing.Initiative != "" && h.initiativeAssigner != nil {
+			if rollbackErr := h.initiativeAssigner.RememberItem(existing.Initiative, ref); rollbackErr != nil {
+				slog.Error("failed to roll back initiative membership after delete failure", "ref", ref, "err", rollbackErr)
+			}
+		}
 		slog.Error("failed to delete item", "name", name, "err", err)
 		apierr.MapError(w, "[backlog] delete", apierr.Internal("failed to delete backlog item"))
 		return
 	}
 
-	// Remove this item from the depends_on list of any items that reference it.
-	ref := string(kind) + "/" + name
 	if n, err := h.store.RemoveDependencyRef(ref); err != nil {
 		slog.Error("failed to clean up dependency references", "ref", ref, "err", err)
 	} else if n > 0 {
@@ -419,7 +466,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("item deleted", "name", name, "kind", kind)
 	if h.eventLogger != nil {
-		h.eventLogger.EmitBacklogDeleted(string(kind) + "/" + name)
+		h.eventLogger.EmitBacklogDeleted(ref)
 	}
 	h.invalidateAllGraphLenses()
 	w.WriteHeader(http.StatusNoContent)

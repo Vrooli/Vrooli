@@ -25,6 +25,8 @@ func (a *backlogAssignerAdapter) Get(name string) (*backlog.InitiativeSnapshot, 
 		Title:       result.Initiative.Title,
 		Description: result.Initiative.Description,
 		Status:      result.Initiative.Status,
+		Priority:    result.Initiative.Priority,
+		DependsOn:   append([]string(nil), result.Initiative.DependsOn...),
 		Items:       append([]string(nil), result.Initiative.Items...),
 	}, nil
 }
@@ -35,6 +37,8 @@ func (a *backlogAssignerAdapter) Create(spec backlog.InitiativeSpec) error {
 		Title:       spec.Title,
 		Description: spec.Description,
 		Status:      spec.Status,
+		Priority:    spec.Priority,
+		DependsOn:   append([]string(nil), spec.DependsOn...),
 	})
 	return err
 }
@@ -43,10 +47,14 @@ func (a *backlogAssignerAdapter) Update(spec backlog.InitiativeSpec) error {
 	title := spec.Title
 	description := spec.Description
 	status := spec.Status
+	priority := spec.Priority
+	deps := append([]string(nil), spec.DependsOn...)
 	_, err := a.service.Update(spec.Name, UpdateRequest{
 		Title:       &title,
 		Description: &description,
 		Status:      &status,
+		Priority:    &priority,
+		DependsOn:   &deps,
 	})
 	return err
 }
@@ -57,6 +65,8 @@ func (a *backlogAssignerAdapter) Replace(snapshot backlog.InitiativeSnapshot) er
 		Title:       snapshot.Title,
 		Description: snapshot.Description,
 		Status:      snapshot.Status,
+		Priority:    snapshot.Priority,
+		DependsOn:   append([]string(nil), snapshot.DependsOn...),
 		Items:       append([]string(nil), snapshot.Items...),
 	})
 }
@@ -67,4 +77,12 @@ func (a *backlogAssignerAdapter) Delete(name string) error {
 
 func (a *backlogAssignerAdapter) AddItems(name string, items []string) error {
 	return a.service.AddItems(name, items)
+}
+
+func (a *backlogAssignerAdapter) RememberItem(initiativeName, ref string) error {
+	return a.service.RememberItem(initiativeName, ref)
+}
+
+func (a *backlogAssignerAdapter) ForgetItem(initiativeName, ref string) error {
+	return a.service.ForgetItem(initiativeName, ref)
 }

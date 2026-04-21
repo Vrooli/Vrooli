@@ -8,7 +8,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/creack/pty/v2"
 )
@@ -85,7 +87,24 @@ func (p *realPTY) ExitCode() int {
 // ProbeReady is a no-op for the standard PTY: pty.StartWithSize has already
 // opened the master/slave pair synchronously, so the next Write will reach
 // the shell without any additional handshake.
-func (p *realPTY) ProbeReady(_ context.Context) error { return nil }
+//
+// DIAG (temporary, H1 experiment): setting WC_STANDARD_PROBE_DELAY_MS adds an
+// artificial pre-`session_ready` delay, mimicking the tmux attach handshake.
+// Used to test whether shortcut hangs (e.g., `claude`) in standard mode are a
+// startup-race artifact of stdin arriving before the shell settles its TTY
+// state. Remove once the hypothesis is decided.
+func (p *realPTY) ProbeReady(ctx context.Context) error {
+	if raw := os.Getenv("WC_STANDARD_PROBE_DELAY_MS"); raw != "" {
+		if ms, err := strconv.Atoi(raw); err == nil && ms > 0 {
+			select {
+			case <-time.After(time.Duration(ms) * time.Millisecond):
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+	}
+	return nil
+}
 
 func (p *realPTY) HasChildProcess() bool {
 	if p.cmd.Process == nil {

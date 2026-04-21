@@ -154,6 +154,7 @@ func (a *App) dependencies() support.Dependencies {
 		PromptsExperiment:    a.cmdPromptsExperimentResults,
 		InitiativesList:      a.cmdInitiativesList,
 		InitiativesGet:       a.cmdInitiativesGet,
+		InitiativesContext:   a.cmdInitiativesContext,
 		InitiativesCreate:    a.cmdInitiativesCreate,
 		InitiativesUpdate:    a.cmdInitiativesUpdate,
 		InitiativesDelete:    a.cmdInitiativesDelete,

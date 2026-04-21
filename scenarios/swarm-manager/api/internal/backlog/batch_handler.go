@@ -26,10 +26,24 @@ type InitiativeAssigner interface {
 	Update(spec InitiativeSpec) error
 	// Replace restores an initiative snapshot, including item membership.
 	Replace(snapshot InitiativeSnapshot) error
-	// Delete removes an initiative entirely.
+	// Delete removes an initiative entirely. Implementations are expected to
+	// cascade: clear the initiative field on every member item and remove the
+	// deleted name from other initiatives' depends_on arrays.
 	Delete(name string) error
 	// AddItems appends item references ("kind/name") to the named initiative.
+	// Implementations maintain symmetry with the item side: items already
+	// attached to a different initiative are rejected; orphan items have their
+	// initiative field set to this name.
 	AddItems(name string, items []string) error
+	// RememberItem appends a single ref to the initiative's items[] list
+	// without touching the item side. Used by cascade paths (single-item
+	// create/patch) where the item's initiative field is already correct.
+	RememberItem(initiativeName, ref string) error
+	// ForgetItem removes a single ref from the initiative's items[] list
+	// without touching the item side. Used by cascade paths (single-item
+	// delete/patch) where the item file has already been deleted or its
+	// initiative field is handled elsewhere.
+	ForgetItem(initiativeName, ref string) error
 }
 
 // InitiativeSpec describes the canonical metadata for an initiative.
@@ -38,6 +52,8 @@ type InitiativeSpec struct {
 	Title       string
 	Description string
 	Status      string
+	Priority    int
+	DependsOn   []string
 }
 
 // InitiativeSnapshot captures the full persisted state of an initiative.
@@ -46,6 +62,8 @@ type InitiativeSnapshot struct {
 	Title       string
 	Description string
 	Status      string
+	Priority    int
+	DependsOn   []string
 	Items       []string
 }
 
@@ -79,20 +97,24 @@ type batchCreateItem struct {
 
 // batchCreateInitiative describes initiative metadata supplied with a batch import.
 type batchCreateInitiative struct {
-	Name        string  `json:"name"`
-	Title       string  `json:"title"`
-	Description *string `json:"description,omitempty"`
-	Status      *string `json:"status,omitempty"`
+	Name        string    `json:"name"`
+	Title       string    `json:"title"`
+	Description *string   `json:"description,omitempty"`
+	Status      *string   `json:"status,omitempty"`
+	Priority    *int      `json:"priority,omitempty"`
+	DependsOn   *[]string `json:"depends_on,omitempty"`
 }
 
 // batchCreateInitiativeResult reports what the batch import will do or did for
 // initiative metadata.
 type batchCreateInitiativeResult struct {
-	Name        string `json:"name"`
-	Title       string `json:"title"`
-	Description string `json:"description,omitempty"`
-	Status      string `json:"status"`
-	Action      string `json:"action"`
+	Name        string   `json:"name"`
+	Title       string   `json:"title"`
+	Description string   `json:"description,omitempty"`
+	Status      string   `json:"status"`
+	Priority    int      `json:"priority,omitempty"`
+	DependsOn   []string `json:"depends_on,omitempty"`
+	Action      string   `json:"action"`
 }
 
 type resolvedInitiativePlan struct {
@@ -232,8 +254,21 @@ func (h *Handler) validateBatchInitiatives(raw []batchCreateInitiative) (map[str
 		if init.Status != nil {
 			status := strings.TrimSpace(*init.Status)
 			if !isValidInitiativeStatus(status) {
-				return nil, fmt.Errorf("initiatives[%d]: status must be active, completed, or archived", i)
+				return nil, fmt.Errorf("initiatives[%d]: status must be active or completed", i)
 			}
+		}
+		if init.Priority != nil {
+			p := *init.Priority
+			if p < 0 || p > 10 {
+				return nil, fmt.Errorf("initiatives[%d]: priority must be 0 (unset) or 1-10", i)
+			}
+		}
+		if init.DependsOn != nil {
+			normalized, err := normalizeInitiativeDeps(*init.DependsOn, name)
+			if err != nil {
+				return nil, fmt.Errorf("initiatives[%d]: %s", i, err.Error())
+			}
+			init.DependsOn = &normalized
 		}
 		if _, exists := result[name]; exists {
 			return nil, fmt.Errorf("initiatives[%d]: duplicate initiative %q", i, name)
@@ -249,6 +284,9 @@ func (h *Handler) validateBatchInitiatives(raw []batchCreateInitiative) (map[str
 			init.Status = &s
 		}
 		result[name] = init
+	}
+	if err := h.validateInitiativeDepRefs(result); err != nil {
+		return nil, err
 	}
 	return result, nil
 }
@@ -441,10 +479,16 @@ func (h *Handler) checkBatchDependencyCycles(validated []validatedItem) error {
 }
 
 // applyInitiativeChanges creates or updates initiatives as planned. Returns
-// the list of applied plans for rollback tracking.
+// the list of applied plans for rollback tracking. Plans are applied in
+// dependency order so cross-initiative depends_on references are always
+// satisfied before the dependent is persisted.
 func (h *Handler) applyInitiativeChanges(plans map[string]resolvedInitiativePlan) ([]resolvedInitiativePlan, error) {
 	applied := make([]resolvedInitiativePlan, 0, len(plans))
-	for _, name := range orderedInitiativeNames(plans) {
+	order, err := orderedInitiativePlans(plans)
+	if err != nil {
+		return nil, apierr.BadRequest("%s", err.Error())
+	}
+	for _, name := range order {
 		plan := plans[name]
 		switch plan.action {
 		case "create":

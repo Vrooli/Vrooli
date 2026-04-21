@@ -356,7 +356,16 @@ cat > /tmp/batch-items.json <<'EOF'
       "name": "release-control",
       "title": "Release Control",
       "description": "Shared release-governance improvements",
-      "status": "active"
+      "status": "active",
+      "priority": 1
+    },
+    {
+      "name": "release-telemetry",
+      "title": "Release Telemetry",
+      "description": "Post-release signal (unblocks after release-control lands)",
+      "status": "active",
+      "priority": 2,
+      "depends_on": ["release-control"]
     }
   ]
 }
@@ -371,6 +380,7 @@ Notes:
 - `--preview` validates item payloads, dependency refs, and initiative actions without writing anything.
 - Unknown fields are rejected. Do not send legacy `scope`.
 - Initiative assignment is per item (`"initiative": "..."`), not a top-level CLI flag.
+- Initiative `priority` (1-10, 0 = unset) and `depends_on` (bare initiative names, not `kind/name`) are optional. The batch applies initiatives in topological order, so you may declare a dependent initiative before its dependency.
 
 ### Batch queue items
 ```bash
@@ -398,12 +408,33 @@ Initiatives are stored as folders at `.vrooli/initiatives/{name}/` containing an
 ```bash
 swarm-manager initiatives list                                    # List all initiatives with rollup status
 swarm-manager initiatives get --name <name>                       # Get initiative details and member items
-swarm-manager initiatives create --data '{"name":"my-init","title":"My Initiative","description":"...","status":"active"}'
-swarm-manager initiatives update --name <name> --data '{"title":"Updated Title"}' # Partial update
+swarm-manager initiatives context --name <name>                   # Initiative + members + upstream + downstream in one call
+swarm-manager initiatives create --data '{"name":"my-init","title":"My Initiative","description":"...","status":"active","priority":5,"depends_on":["other-initiative"]}'
+swarm-manager initiatives update --name <name> --data '{"title":"Updated Title","priority":2,"depends_on":["dep-a","dep-b"]}' # Partial update (supply only fields that should change)
 swarm-manager initiatives delete --name <name>                    # Delete an initiative
 swarm-manager initiatives add-items --name <name> --items kind/name,kind/name   # Add items to initiative
 swarm-manager initiatives remove-items --name <name> --items kind/name,kind/name # Remove items from initiative
 ```
+
+Use `initiatives context` as the single-call loader before proposing backlog changes — it returns the initiative, its member items (compact view with kind/name/title/status/priority/depends_on), direct upstream initiatives (what this blocks on), and direct downstream initiatives (what this unblocks). This is the right tool for the reuse-before-create heuristic (see `swarm-manager-initiative-context`), not the global `overview` command.
+
+Initiative field notes:
+- `priority`: integer 1-10 (0 = unprioritized, same scale as item priority). Defaults to 0.
+- `depends_on`: array of **bare initiative names**, not `kind/name`. Self-references and cycles are rejected. Supplying an empty array clears deps; omitting the field leaves them unchanged on update.
+- `status`: `active` or `completed`. (`archived` is not a status — archiving is handled via `initiatives delete`.)
+
+### Referential integrity (server-maintained)
+
+You do **not** need to track cross-reference bookkeeping after mutations. The API keeps the two sides (items ↔ initiative membership; items ↔ other items' `depends_on`) in sync automatically:
+
+- `backlog delete --kind K --name N` — removes `"K/N"` from every other item's `depends_on` **and** removes it from its enclosing initiative's `items[]`. Atomic.
+- `backlog update --data '{"initiative":"newInit"}'` — detaches the item from its old initiative's `items[]` and attaches to the new one. Rejects if the target does not exist.
+- `backlog create --initiative <name>` — validates the initiative exists and adds the ref to its `items[]`. Rejects unknown initiatives.
+- `initiatives delete --name N` — orphans every member item (clears their `initiative` field; the items themselves survive) and scrubs `N` from every other initiative's `depends_on`.
+- `initiatives add-items` — rejects items that already belong to a different initiative. Moves must go through `backlog update`, not `add-items`.
+- `initiatives remove-items` — clears the item's `initiative` field if it matches.
+
+Consequence: describe the mutation you want, not the bookkeeping. Never emit cleanup follow-ups like "after deleting X, also update Y.depends_on" — that happens for free.
 
 ### Initiative file commands
 

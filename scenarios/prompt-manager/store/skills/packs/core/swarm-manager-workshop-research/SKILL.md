@@ -12,6 +12,8 @@ Research items are fundamentally different from other kinds (idea, fix, execute,
 
 **Required reading:** `prompt-manager skill read research-conclusion-authoring` — canonical conclusion structure, mandatory sections, quality gates, and guardrails for `conclusion.md`.
 
+**Required reading:** `prompt-manager skill read swarm-manager-initiative-context` — how to load the initiative's members, upstream, and downstream in one call, and the reuse-before-create heuristic that your conclusion's Actions section must honor.
+
 ## Scope
 
 **In scope:**
@@ -156,12 +158,17 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager **research**
    - `spec.json` — original item description and metadata
    - `archive/` — user-provided materials
    - Any user-uploaded files
-   - **Initiative context** — If this item belongs to initiative `{{ITEM_INITIATIVE}}`, check for strategic context:
+   - **Initiative context** — If this item belongs to initiative `{{ITEM_INITIATIVE}}`, load the full neighborhood in one call:
      ```bash
-     swarm-manager initiatives get --name {{ITEM_INITIATIVE}}
+     swarm-manager initiatives context --name {{ITEM_INITIATIVE}}
      swarm-manager initiatives files --name {{ITEM_INITIATIVE}}
      ```
-     Read any files present (orchestration summaries, decision logs, strategy docs). Use initiative context to align decisions with the broader initiative goals and understand how this item relates to sibling items.
+     The `context` command returns the initiative + its member items (with current status and depends_on) + upstream initiatives (what this blocks on) + downstream initiatives (what this unblocks). Use this to:
+     - understand which sibling items already cover parts of the research question
+     - identify sibling items that may be invalidated, reprioritized, or moved by findings
+     - detect cross-initiative sequencing implications (e.g., your findings reveal this initiative no longer depends on an upstream)
+     
+     Read initiative files (orchestration summaries, decision logs, strategy docs) for additional strategic context.
 
 2. **Analyze prior rounds** (if ROUND_NUMBER > 1)
 
@@ -209,6 +216,13 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager **research**
    | 2-4 | 2-5 | Investigation direction, scope clarification, methodology, key findings |
 
    Research rounds typically have MORE info items than other kinds because the findings themselves are valuable outputs. Decisions guide the direction of further investigation.
+
+   **Initiative-impact decisions to consider** (any round, when findings surface implications):
+   - "Does any finding supersede a sibling item in this initiative? If so, should it be deleted, retitled, or reprioritized?"
+   - "Do findings change this initiative's `depends_on`? (e.g., an upstream is no longer a blocker; a new dependency surfaces.)"
+   - "Does any finding affect an item in an upstream or downstream initiative that the orchestrator should know about?"
+
+   Answered decisions of this form become the driver of `Update backlog item`, `Delete backlog item`, or `Update initiative` actions in the final `conclusion.md`.
 
    **Decision examples for research:**
    - "Which subsystem should I investigate next?"

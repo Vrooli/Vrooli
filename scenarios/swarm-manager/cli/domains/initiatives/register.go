@@ -13,6 +13,7 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 		Subcommands: []cliapp.Command{
 			support.APICommand("list", "List initiatives [--json]", deps.InitiativesList),
 			support.APICommand("get", "Get initiative details (--name NAME) [--json]", deps.InitiativesGet),
+			support.APICommand("context", "Get an initiative with its member items + related initiatives (--name NAME) [--json]", deps.InitiativesContext),
 			support.APICommand("create", "Create initiative (--data JSON) [--json]", deps.InitiativesCreate),
 			support.APICommand("update", "Update initiative (--name NAME --data JSON) [--json]", deps.InitiativesUpdate),
 			support.APICommand("delete", "Delete initiative (--name NAME)", deps.InitiativesDelete),

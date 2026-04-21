@@ -163,7 +163,6 @@ Relative to repo root:
 The monetization team is the **canonical source** for monetization state. Other teams consume its outputs:
 
 - **director-swarm** reads `CATALOG.md` for the revenue critical path rather than deriving it ad-hoc. Specifically wired today: `portfolio-manager` (reads CATALOG + business.md + scenario-sku-map.json each heartbeat to weight Now/Near/Far) and `vision-walk-prep` (reads CATALOG for the bundle-roadmap section of the morning briefing). `outcome-strategist` will consume monetization signals once it is re-enabled alongside Command Center — not wired today because the member itself is disabled.
-- **scenario-feature** reads `CATALOG.md` and `scenario-sku-map.json` before scoping new work, so features map to bundle impact.
 - **marketing-crew** reads `CATALOG.md` + `STRATEGY.md` for positioning.
 - **scenario-qa** has no direct dependency; indirectly their quality work affects depth-layer readiness.
 - **landing-page-business-suite** (scenario) reads `CATALOG.md` + `PRICING.md` + `TIERS.md` to generate pricing pages and entitlements.

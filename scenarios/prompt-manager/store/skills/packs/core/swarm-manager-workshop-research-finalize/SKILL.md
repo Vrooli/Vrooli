@@ -12,6 +12,8 @@ This pass exists to ensure the conclusion reflects the final answered round befo
 
 **Required reading:** `prompt-manager skill read research-conclusion-authoring` — canonical conclusion structure, mandatory sections, quality gates, and guardrails for `conclusion.md`.
 
+**Required reading:** `prompt-manager skill read swarm-manager-initiative-context` — load the initiative's members, upstream, and downstream before finalizing. Before signing off, verify the conclusion's Actions section reflects initiative-scope implications (delete obsolete siblings, reprioritize, update initiative `depends_on`) rather than silently accumulating additive `Create` actions.
+
 ## Scope
 
 **In scope:**
@@ -95,12 +97,15 @@ You are running finalize round {{ROUND_NUMBER}} for a swarm-manager research bac
    - `spec.json`
    - archive materials
    - user-provided files
-   - **Initiative context** — If this item belongs to initiative `{{ITEM_INITIATIVE}}`, check for strategic context:
+   - **Initiative context** — If this item belongs to initiative `{{ITEM_INITIATIVE}}`, load the full neighborhood:
      ```bash
-     swarm-manager initiatives get --name {{ITEM_INITIATIVE}}
+     swarm-manager initiatives context --name {{ITEM_INITIATIVE}}
      swarm-manager initiatives files --name {{ITEM_INITIATIVE}}
      ```
-     Read any files present (orchestration summaries, decision logs, strategy docs). Use initiative context to align decisions with the broader initiative goals and understand how this item relates to sibling items.
+     The `context` command returns members, upstream, and downstream in one call. Before signing off the Actions section, cross-check:
+     - Does every `Create backlog item` action justify why it cannot be an `Update backlog item` on an existing member?
+     - Are sibling items that research has invalidated covered by explicit `Delete backlog item` or `Update backlog item` actions, not silently left in place?
+     - Do findings imply an `Update initiative` on this initiative's `depends_on` or `priority`?
 
 2. Find the latest answered workshop round.
    - Treat selected options, freeform text, and notes as authoritative user direction.

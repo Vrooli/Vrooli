@@ -200,6 +200,16 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if strings.TrimSpace(item.Initiative) != "" && h.initiativeAssigner != nil {
+		ref := string(kind) + "/" + item.Name
+		if err := h.initiativeAssigner.RememberItem(item.Initiative, ref); err != nil {
+			_ = os.RemoveAll(itemDir)
+			slog.Error("failed to attach new item to initiative", "ref", ref, "initiative", item.Initiative, "err", err)
+			apierr.MapError(w, "[backlog] create", apierr.Internal("failed to update initiative membership"))
+			return
+		}
+	}
+
 	// Auto-initialize workshop for new items (unless disabled in settings or blocked by deps).
 	h.maybeAutoWorkshop(item, false)
 

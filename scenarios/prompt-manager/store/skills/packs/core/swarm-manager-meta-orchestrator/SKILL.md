@@ -9,6 +9,16 @@ This skill supports long, iterative planning before creation. If the user wants 
 **Required reading:**
 - `prompt-manager skill read swarm-manager-backlog-tools`
 
+## Related Skills
+
+- `swarm-manager-initiative-context` — how to load an initiative's members, upstream, and downstream in one call. Required reading for any sub-step that needs to understand what's already in an initiative or adjust it post-research.
+
+## Post-Planning Reorganization
+
+The meta-orchestrator's job is the **initial shape** of the backlog — clustering a vision into initiatives and items, declaring dependencies, and kicking off workshops. **Research-driven reorganization** (deleting obsolete items, reprioritizing siblings, updating initiative `depends_on`) happens *after* research items conclude, not here. The research-conclusion-authoring and swarm-manager-process-research skills own that flow.
+
+If you are revisiting a backlog that already exists (rather than building a new one from a vision), read `swarm-manager-initiative-context` for the current state of each initiative before proposing changes.
+
 ## Canonical Contract
 
 When shaping backlog items, use the real Swarm Manager contract:
@@ -27,7 +37,18 @@ When shaping backlog items, use the real Swarm Manager contract:
 
 Do not use `scope`. It is not part of the backlog contract.
 
-Initiative metadata is supplied separately in the batch-create request's top-level `initiatives` array.
+### Initiative metadata
+
+Initiative metadata is supplied separately in the batch-create request's top-level `initiatives` array. Each entry accepts:
+
+- `name`: kebab-case initiative id (referenced by items' `initiative` field)
+- `title`
+- `description` (optional)
+- `status`: `active | completed` (default `active`)
+- `priority`: `1-10` (optional; `0` means unprioritized — same scale as items)
+- `depends_on`: `["<initiative-name>", ...]` (optional)
+
+`depends_on` on an initiative takes **bare initiative names**, not `kind/name` (that form is for item-level deps). Every entry must resolve to another initiative in the same batch or an already-existing initiative on disk. Batch apply is topologically ordered, so it is safe to declare a dependent initiative before its dependency in the `initiatives` array.
 
 ## Scope
 
@@ -81,9 +102,13 @@ Ask clarifying questions in small batches:
 Good planning outputs:
 - major sub-initiatives
 - provisional backlog items
-- dependency chain
+- **initiative priorities** (1-10) where sequencing matters
+- **cross-initiative dependency chain** (which initiative unblocks which)
+- item-level dependency chain within each initiative
 - implementation-order hypothesis
 - what should be left for workshop agents to discover later
+
+When two initiatives have a clear sequencing relationship, prefer `depends_on` on the later initiative over flattening the order into item-level deps. Item-level `depends_on` expresses "this item needs that item done first"; initiative-level `depends_on` expresses "this whole work stream needs that whole work stream landed first." Conflating them buries the structural story.
 
 ### Phase 3: Inspect Existing Code Before Finalizing Items
 
@@ -161,7 +186,16 @@ cat > /tmp/meta-orch-items.json <<'EOF'
       "name": "desktop-release-governance",
       "title": "Desktop Release Governance",
       "description": "Shared release-control, traceability, and LPBS-delivery work for desktop monetization.",
-      "status": "active"
+      "status": "active",
+      "priority": 1
+    },
+    {
+      "name": "desktop-release-telemetry",
+      "title": "Desktop Release Telemetry",
+      "description": "Ship post-release signal so governance decisions have evidence.",
+      "status": "active",
+      "priority": 2,
+      "depends_on": ["desktop-release-governance"]
     }
   ]
 }
@@ -256,20 +290,31 @@ Use a concise review structure like:
 ```text
 Planned backlog import:
 
-Initiative: desktop-release-governance
+Initiative: desktop-release-governance (priority 1)
 - research/desktop-release-control-plane-audit
 - execute/deployment-manager-approval-gate-surfaces
 - execute/deployment-manager-visual-validation-approval-flow
 
-Initiative: emulator-platform
+Initiative: desktop-release-telemetry (priority 2, depends_on: desktop-release-governance)
+- research/telemetry-signal-audit
+- execute/wire-release-telemetry-dashboard
+
+Initiative: emulator-platform (priority 5)
 - research/emulator-extraction-plan
 - execute/build-vrooli-emulator-linux-first
 
-Critical path:
+Initiative order:
+1. desktop-release-governance
+2. desktop-release-telemetry (unblocks only after governance lands)
+3. emulator-platform (independent)
+
+Item order within desktop-release-governance:
 - research/desktop-release-control-plane-audit
 - execute/deployment-manager-approval-gate-surfaces
 - execute/deployment-manager-visual-validation-approval-flow
 ```
+
+Show per-initiative priority and depends_on when set. Keep the two layers separate: the "Initiative order" reflects `depends_on` on the initiatives themselves; "Item order within X" reflects item-level `depends_on` inside a single initiative.
 
 ## Anti-Patterns
 
@@ -280,6 +325,8 @@ Critical path:
 - do not manually trigger workshop round 1
 - do not ask one tiny question at a time for long planning sessions
 - do not preserve a legacy scenario by inertia when the actual need is a greenfield replacement
+- do not flatten initiative sequencing into item-level `depends_on` when cross-initiative ordering is what's actually being expressed — use initiative `depends_on` instead
+- do not put `kind/name` values in an initiative's `depends_on`; that form is only valid on items
 
 ## Troubleshooting
 

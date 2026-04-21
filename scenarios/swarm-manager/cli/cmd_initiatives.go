@@ -149,6 +149,92 @@ func (a *App) cmdInitiativesGet(args []string) error {
 	return nil
 }
 
+func (a *App) cmdInitiativesContext(args []string) error {
+	fs := flag.NewFlagSet("initiatives context", flag.ContinueOnError)
+	nameFlag := fs.String("name", "", "Initiative name")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if err := requireFlag("name", *nameFlag); err != nil {
+		return fmt.Errorf("usage: initiatives context --name NAME [--json]\n\n%s", err)
+	}
+	name := strings.TrimSpace(*nameFlag)
+
+	body, err := a.core.Get("/initiatives/"+name+"/context", nil)
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+
+	response, err := decodeResponse[InitiativeContextResponse](body)
+	if err != nil {
+		return err
+	}
+	init := response.Initiative
+	rollup := response.Rollup
+
+	printSection("Initiative")
+	fmt.Printf("  Name: %s\n", init.Name)
+	fmt.Printf("  Title: %s\n", init.Title)
+	if init.Description != "" {
+		fmt.Printf("  Description: %s\n", init.Description)
+	}
+	fmt.Printf("  Status: %s\n", init.Status)
+	if init.Priority > 0 {
+		fmt.Printf("  Priority: %d\n", init.Priority)
+	}
+	if len(init.DependsOn) > 0 {
+		fmt.Printf("  Depends on: %s\n", strings.Join(init.DependsOn, ", "))
+	}
+
+	printSection("Rollup")
+	fmt.Printf("  Total: %d | Completed: %d | In Progress: %d | Failed: %d | Pending: %d\n",
+		rollup.Total, rollup.Completed, rollup.InProgress, rollup.Failed, rollup.Pending)
+
+	printSection(fmt.Sprintf("Members (%d)", len(response.Items)))
+	if len(response.Items) == 0 {
+		fmt.Println("  (none)")
+	} else {
+		for _, item := range response.Items {
+			archived := ""
+			if item.ArchivedAt != nil {
+				archived = " [archived]"
+			}
+			fmt.Printf("  - %s/%s — %s (status=%s, priority=%d)%s\n",
+				item.Kind, item.Name, item.Title, item.Status, item.Priority, archived)
+			if len(item.DependsOn) > 0 {
+				fmt.Printf("      depends on: %s\n", strings.Join(item.DependsOn, ", "))
+			}
+		}
+	}
+
+	printSection(fmt.Sprintf("Upstream initiatives (%d)", len(response.UpstreamInitiatives)))
+	if len(response.UpstreamInitiatives) == 0 {
+		fmt.Println("  (none)")
+	} else {
+		for _, up := range response.UpstreamInitiatives {
+			fmt.Printf("  - %s — %s (status=%s)\n", up.Name, up.Title, up.Status)
+		}
+	}
+
+	printSection(fmt.Sprintf("Downstream initiatives (%d)", len(response.DownstreamInitiatives)))
+	if len(response.DownstreamInitiatives) == 0 {
+		fmt.Println("  (none)")
+	} else {
+		for _, down := range response.DownstreamInitiatives {
+			fmt.Printf("  - %s — %s (status=%s)\n", down.Name, down.Title, down.Status)
+		}
+	}
+
+	printCommandListSection("Next Steps", []string{
+		cliCommand("initiatives", "get", "--name", init.Name),
+	})
+	return nil
+}
+
 func (a *App) cmdInitiativesCreate(args []string) error {
 	fs := flag.NewFlagSet("initiatives create", flag.ContinueOnError)
 	data := fs.String("data", "", "JSON payload (inline or @file)")

@@ -281,6 +281,7 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 	// returns immediately; for persistent (tmux) sessions this waits for
 	// the attach-session handshake to complete. Without this gate, writes
 	// issued during the 50–500 ms tmux attach window are silently dropped.
+	probeStart := time.Now()
 	probeCtx, probeCancel := context.WithTimeout(ctx, probeReadyTimeout)
 	probeErr := sess.ProbeReady(probeCtx)
 	probeCancel()
@@ -289,6 +290,7 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 		sendError("session_not_ready")
 		return
 	}
+	log.Printf("ws[%s] DIAG backend=%s probe_ready dt=%s", sessionID, sess.Backend, time.Since(probeStart))
 
 	// sessionReady gates stdin-loss diagnostics: any stdin received before
 	// this flips true means the client skipped waiting for session_ready,
@@ -329,6 +331,8 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 				s.metrics.StdinBeforeReadyTotal.Add(1)
 				log.Printf("ws[%s] stdin before session_ready — backend=%s", sessionID, sess.Backend)
 			}
+			log.Printf("ws[%s] DIAG stdin backend=%s len=%d dt_since_ready=%s preview=%q",
+				sessionID, sess.Backend, len(msg.Data), time.Since(probeStart), previewForLog(msg.Data))
 			_, writeErr := sess.Write([]byte(msg.Data))
 			ackMsg := TerminalMessage{Type: MsgTypeStdinAck, Seq: msg.Seq, Ok: writeErr == nil}
 			if writeErr != nil {
@@ -344,6 +348,8 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 			}
 		case MsgTypeResize:
 			if msg.Cols > 0 && msg.Rows > 0 {
+				log.Printf("ws[%s] DIAG resize backend=%s cols=%d rows=%d dt_since_ready=%s",
+					sessionID, sess.Backend, msg.Cols, msg.Rows, time.Since(probeStart))
 				sess.Resize(uint16(msg.Cols), uint16(msg.Rows))
 				writeMu.Lock()
 				_ = conn.WriteJSON(TerminalMessage{
@@ -378,4 +384,12 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 	}
+}
+
+func previewForLog(s string) string {
+	const max = 120
+	if len(s) > max {
+		s = s[:max]
+	}
+	return s
 }

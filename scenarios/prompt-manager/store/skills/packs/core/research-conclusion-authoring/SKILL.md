@@ -2,6 +2,9 @@
 
 Create a durable research conclusion file that captures the research question, methodology, findings, and actionable next steps. This skill standardizes how research results are documented so any future agent can understand what was investigated, what was found, and what to do next.
 
+Required reading:
+- `prompt-manager skill read swarm-manager-initiative-context`
+
 ---
 
 ### 1. When to Use This Skill
@@ -87,6 +90,10 @@ Concrete instructions for what happens next. Each action is an explicit imperati
 
 Actions tell the execution agent exactly what to do. Each action MUST specify its type.
 
+**The action vocabulary is not additive-only.** Research findings often demand that existing backlog items be updated, deleted, or moved. Treat the six types below as equally valid.
+
+> **Before proposing `Create backlog item`, load initiative context and check for existing items you could update instead.** The `swarm-manager-initiative-context` skill describes the reuse-before-create heuristic. A research conclusion that reflexively adds new items — rather than reshaping the existing ones — is usually incomplete.
+
 #### `Create backlog item`
 Create a new backlog item via the swarm-manager CLI. Specify all required fields:
 - **kind**: idea, fix, execute, research, or chore
@@ -106,6 +113,55 @@ Example:
 - **Initiative**: performance-improvements
 - **Priority**: high
 - **Effort**: medium
+- **Reason for creating (vs updating an existing sibling)**: No member item in `performance-improvements` covered response caching; the closest (`idea/query-plan-audit`) is scoped to SQL-level optimization.
+```
+
+#### `Update backlog item`
+Modify an existing item's metadata. Use when a finding changes the priority, title, dependencies, or initiative membership of an item that already exists. Specify:
+- **Kind** and **Name**: The item reference
+- **Changes**: Which fields to modify and their new values (priority, title, description, depends_on, initiative)
+- **Reason**: Which finding drove the change
+
+Example:
+```markdown
+### Action 2: Update backlog item — Raise auth-oauth-integration priority
+- **Kind**: execute
+- **Name**: auth-oauth-integration
+- **Changes**:
+  - Priority: 6 → 3
+  - Depends on: remove `fix/legacy-cookie-cleanup` (Finding 3 shows it is no longer on the critical path)
+- **Reason**: Finding 3 shows this item unblocks three downstream initiatives and is no longer gated by the cookie cleanup work; sequencing needs to reflect that.
+```
+
+#### `Delete backlog item`
+Remove an obsolete item. Use when a finding has superseded or invalidated the item. Specify:
+- **Kind** and **Name**: The item reference
+- **Reason**: Why the item is no longer needed
+
+The server automatically handles cascade: the item is removed from its initiative's `items[]` and every other item's `depends_on` in one atomic operation. You do not need to specify follow-up cleanup actions.
+
+Example:
+```markdown
+### Action 3: Delete backlog item — Remove obsolete cache architecture audit
+- **Kind**: research
+- **Name**: cache-architecture-audit
+- **Reason**: Finding 1 proves SQLite suffices for the workload; the planned Redis cache is unnecessary, so the preparatory audit is obsolete.
+```
+
+#### `Update initiative`
+Modify the enclosing initiative (or a related one) when a finding has initiative-scope implications. Rare, but supported. Specify:
+- **Name**: The initiative name
+- **Changes**: title, description, priority, depends_on
+- **Reason**: Which finding drove the change
+
+Example:
+```markdown
+### Action 4: Update initiative — Reorder initiative dependencies
+- **Name**: notification-hub
+- **Changes**:
+  - depends_on: remove `mobile-release-governance` (Finding 4 shows this gate does not apply)
+  - priority: 5 → 3
+- **Reason**: Finding 4 removes a cross-initiative blocker, which brings notification-hub onto the critical path.
 ```
 
 #### `Update document`
@@ -115,7 +171,7 @@ Make specific changes to an existing file. Specify:
 
 Example:
 ```markdown
-### Action 2: Update document — Add research findings to architecture docs
+### Action 5: Update document — Add research findings to architecture docs
 - **File**: scenarios/my-scenario/docs/ARCHITECTURE.md
 - **Change**: Add a "Caching Strategy" section under "Performance" documenting the Redis caching pattern identified in Finding 2.
 ```
@@ -150,6 +206,9 @@ Before finalizing a conclusion, verify:
 - Do not omit the Limitations section — every investigation has boundaries.
 - Do not mix action types — each action gets its own section with a clear type label.
 - Do not include implementation details in findings — findings describe what IS, actions describe what to DO.
+- Do not treat the action list as additive-only. If a finding supersedes a sibling item, the correct action is `Delete backlog item` or `Update backlog item`, not a parallel `Create` that leaves the obsolete one in place.
+- Do not specify cascade cleanup actions (e.g., "also remove from initiative's items[]", "update dependent items' depends_on"). The server maintains referential integrity automatically.
+- Do not propose `Create backlog item` without first enumerating the initiative's existing members via `swarm-manager initiatives context --name <initiative>`. If an existing member can absorb the intent, propose `Update backlog item` on it instead and document the choice in the `Reason` block of the create action.
 
 ---
 

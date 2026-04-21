@@ -35,6 +35,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/initiatives/{name}/files/{filepath:.*}", h.GetInitiativeFileContent).Methods("GET")
 
 	// Entity routes.
+	r.HandleFunc("/api/v1/initiatives/{name}/context", h.GetContext).Methods("GET")
 	r.HandleFunc("/api/v1/initiatives/{name}", h.Get).Methods("GET")
 	r.HandleFunc("/api/v1/initiatives/{name}", h.Update).Methods("PUT")
 	r.HandleFunc("/api/v1/initiatives/{name}", h.Delete).Methods("DELETE")
@@ -125,6 +126,31 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		apierr.MapError(w, "[initiatives] get", apierr.Internal("failed to encode response"))
 	}
 	h.service.RecordView(name)
+}
+
+// GetContext returns an initiative with its immediate neighborhood:
+// members, upstream initiatives, downstream initiatives.
+func (h *Handler) GetContext(w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+	if strings.TrimSpace(name) == "" {
+		apierr.MapError(w, "[initiatives] context", apierr.BadRequest("name is required"))
+		return
+	}
+
+	ctx, err := h.service.GetContext(name)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			apierr.MapError(w, "[initiatives] context", apierr.NotFound("initiative not found"))
+			return
+		}
+		slog.Error("failed to load initiative context", "error", err)
+		apierr.MapError(w, "[initiatives] context", apierr.Internal("failed to load initiative context"))
+		return
+	}
+
+	if err := httputil.JSON(w, ctx); err != nil {
+		apierr.MapError(w, "[initiatives] context", apierr.Internal("failed to encode response"))
+	}
 }
 
 // Update modifies an existing initiative.

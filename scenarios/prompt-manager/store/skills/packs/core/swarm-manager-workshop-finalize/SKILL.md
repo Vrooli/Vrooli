@@ -14,6 +14,8 @@ This skill exists specifically to avoid the stale-plan gap after the user answer
 
 **Required reading:** `prompt-manager skill read plan-skill-discovery` — use the existing required reading already embedded in the plan when synthesizing the final draft.
 
+**Required reading:** `prompt-manager skill read swarm-manager-initiative-context` — load the initiative's members and related initiatives before finalizing, and surface any sibling-item or cross-initiative implications that the final `plan.md` should flag for the orchestrator.
+
 ## Scope
 
 **In scope:**
@@ -98,12 +100,12 @@ You are running finalize round {{ROUND_NUMBER}} for a swarm-manager backlog item
    - `spec.json`
    - `research/summary.md` if present
    - user-provided files
-   - **Initiative context** — If this item belongs to initiative `{{ITEM_INITIATIVE}}`, check for strategic context:
+   - **Initiative context** — If this item belongs to initiative `{{ITEM_INITIATIVE}}`, load the full neighborhood:
      ```bash
-     swarm-manager initiatives get --name {{ITEM_INITIATIVE}}
+     swarm-manager initiatives context --name {{ITEM_INITIATIVE}}
      swarm-manager initiatives files --name {{ITEM_INITIATIVE}}
      ```
-     Read any files present (orchestration summaries, decision logs, strategy docs). Use initiative context to align decisions with the broader initiative goals and understand how this item relates to sibling items.
+     The `context` command returns members, upstream, and downstream in one call. Before signing off `plan.md`, verify that overlaps with sibling items are acknowledged and that any cross-initiative sequencing implications surfaced during workshopping are captured in the plan for the orchestrator to act on.
 
 2. Find the latest answered workshop round.
    - Treat selected options, freeform text, and notes as authoritative user intent.

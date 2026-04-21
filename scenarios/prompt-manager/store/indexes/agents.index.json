@@ -32,26 +32,6 @@
       "status": "active"
     },
     {
-      "id": "feature-architect",
-      "displayName": "Feature Architect",
-      "status": "active"
-    },
-    {
-      "id": "feature-implementer",
-      "displayName": "Feature Implementer",
-      "status": "active"
-    },
-    {
-      "id": "feature-lead",
-      "displayName": "Feature Lead",
-      "status": "active"
-    },
-    {
-      "id": "feature-reviewer",
-      "displayName": "Feature Reviewer",
-      "status": "active"
-    },
-    {
       "id": "financial-tracker",
       "displayName": "Financial Tracker",
       "status": "active"

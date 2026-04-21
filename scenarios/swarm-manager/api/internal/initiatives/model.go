@@ -77,3 +77,28 @@ func ValidateStatus(status string) bool {
 func ValidatePriority(p int) bool {
 	return p == 0 || (p >= 1 && p <= 10)
 }
+
+// ContextItem is the compact view of a member item inside an initiative
+// context response. Full item bodies are excluded to bound payload size.
+type ContextItem struct {
+	Kind       string   `json:"kind"`
+	Name       string   `json:"name"`
+	Title      string   `json:"title"`
+	Status     string   `json:"status"`
+	Priority   int      `json:"priority"`
+	DependsOn  []string `json:"depends_on,omitempty"`
+	Initiative string   `json:"initiative,omitempty"`
+	ArchivedAt *string  `json:"archived_at,omitempty"`
+}
+
+// InitiativeContext aggregates an initiative with the immediately relevant
+// neighborhood: its member items, its direct upstream initiatives (targets
+// of depends_on), and direct downstream initiatives (ones that depend_on it).
+// Transitive neighbors are deliberately excluded to keep the payload bounded.
+type InitiativeContext struct {
+	Initiative            Initiative    `json:"initiative"`
+	Rollup                RollupStatus  `json:"rollup"`
+	Items                 []ContextItem `json:"items"`
+	UpstreamInitiatives   []Initiative  `json:"upstream_initiatives"`
+	DownstreamInitiatives []Initiative  `json:"downstream_initiatives"`
+}

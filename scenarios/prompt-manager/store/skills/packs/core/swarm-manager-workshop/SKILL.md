@@ -12,6 +12,8 @@ Run one workshop round for a backlog item of any kind. Analyze gaps in the curre
 
 **Required reading:** `prompt-manager skill read plan-skill-discovery` — methodology for discovering and embedding relevant skills into the plan
 
+**Required reading:** `prompt-manager skill read swarm-manager-initiative-context` — how to load the initiative's members and related initiatives in one call; use the neighborhood view to spot sibling items that overlap this plan and to surface cross-initiative implications in `plan.md` for the orchestrator to address.
+
 ## Scope
 
 **In scope:**
@@ -154,12 +156,12 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
    - `research/summary.md` — deep research findings (if exists)
    - `archive/` — user-provided materials
    - Any user-uploaded files
-   - **Initiative context** — If this item belongs to initiative `{{ITEM_INITIATIVE}}`, check for strategic context:
+   - **Initiative context** — If this item belongs to initiative `{{ITEM_INITIATIVE}}`, load the full neighborhood:
      ```bash
-     swarm-manager initiatives get --name {{ITEM_INITIATIVE}}
+     swarm-manager initiatives context --name {{ITEM_INITIATIVE}}
      swarm-manager initiatives files --name {{ITEM_INITIATIVE}}
      ```
-     Read any files present (orchestration summaries, decision logs, strategy docs). Use initiative context to align decisions with the broader initiative goals and understand how this item relates to sibling items.
+     The `context` command returns the initiative + its members (kind, name, title, status, priority, depends_on) + upstream + downstream initiatives in one call. Use it to align this plan with sibling items (avoid covering the same ground they cover; surface overlaps in `plan.md`) and to flag cross-initiative implications the orchestrator should address — non-research workshops do not mutate the backlog themselves, but they should name the intent clearly so a follow-up step can act on it.
 
 2. **Analyze prior rounds** (if ROUND_NUMBER > 1)
 

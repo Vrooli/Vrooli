@@ -1,0 +1,14 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "swarm-manager-initiative-context",
+  "name": "Swarm Manager Initiative Context",
+  "description": "Shared reference for loading the neighborhood of an initiative (its members, upstream, and downstream) before proposing backlog mutations. Read in by research and non-research workshop skills so every flow makes reuse-vs-create and reorg decisions with the same information.",
+  "modes": ["tools", "conversation"],
+  "tags": ["swarm-manager", "backlog", "initiative", "context"],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-04-21T00:00:00Z",
+  "updatedAt": "2026-04-21T00:00:00Z"
+}

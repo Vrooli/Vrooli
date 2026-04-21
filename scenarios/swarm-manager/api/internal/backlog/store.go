@@ -7,6 +7,7 @@ package backlog
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -30,6 +31,13 @@ type Store interface {
 	ValidateDependencies(dependsOn []string) error
 	CheckDependencies(dependsOn []string) ([]string, error)
 	RemoveDependencyRef(ref string) (int, error)
+	// SetItemInitiative writes the initiative field on the item and returns
+	// the previous value. ErrNotFound if the item does not exist.
+	SetItemInitiative(kind BacklogKind, name, initiative string) (string, error)
+	// ClearItemInitiative clears the item's initiative field only if it
+	// currently equals expected. Returns (prevValue, changed, error).
+	// If the item does not exist or the field does not match, changed=false.
+	ClearItemInitiative(kind BacklogKind, name, expected string) (string, bool, error)
 }
 
 // AIIndexer is the fire-and-forget indexing hook the FileStore invokes after
@@ -372,6 +380,47 @@ func (s *FileStore) CheckDependencies(dependsOn []string) ([]string, error) {
 		}
 	}
 	return unmet, nil
+}
+
+// SetItemInitiative writes the initiative field on the item at the given
+// kind/name, returning the previous value. Returns ErrNotFound if the item
+// does not exist.
+func (s *FileStore) SetItemInitiative(kind BacklogKind, name, initiative string) (string, error) {
+	item, err := s.LoadItem(kind, name)
+	if err != nil {
+		return "", err
+	}
+	prev := item.Initiative
+	item.Initiative = strings.TrimSpace(initiative)
+	item.Updated = time.Now().UTC().Format(time.RFC3339)
+	if err := s.SaveItem(item); err != nil {
+		return prev, fmt.Errorf("set initiative for %s/%s: %w", kind, name, err)
+	}
+	return prev, nil
+}
+
+// ClearItemInitiative clears the initiative field on the item only if it
+// currently equals expected. Returns (prevValue, changed, error). If the
+// item does not exist or the field does not match expected, changed=false
+// and no error is returned.
+func (s *FileStore) ClearItemInitiative(kind BacklogKind, name, expected string) (string, bool, error) {
+	item, err := s.LoadItem(kind, name)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return "", false, nil
+		}
+		return "", false, err
+	}
+	prev := item.Initiative
+	if prev != expected {
+		return prev, false, nil
+	}
+	item.Initiative = ""
+	item.Updated = time.Now().UTC().Format(time.RFC3339)
+	if err := s.SaveItem(item); err != nil {
+		return prev, false, fmt.Errorf("clear initiative for %s/%s: %w", kind, name, err)
+	}
+	return prev, true, nil
 }
 
 // RemoveDependencyRef removes the given "kind/name" reference from the
