@@ -22,6 +22,7 @@ const (
 // assistant responses back to the owning web-console session.
 type CodexTailer struct {
 	server       *Server
+	checkpoints  CodexCheckpointStore
 	staleTimeout time.Duration
 	mu           sync.Mutex
 	watchers     map[string]string // rollout path -> session id
@@ -31,9 +32,10 @@ type CodexTailer struct {
 
 func NewCodexTailer(server *Server) *CodexTailer {
 	return &CodexTailer{
-		server:   server,
-		watchers: make(map[string]string),
-		stopCh:   make(chan struct{}),
+		server:      server,
+		checkpoints: server.codexCheckpointStore,
+		watchers:    make(map[string]string),
+		stopCh:      make(chan struct{}),
 	}
 }
 
@@ -108,12 +110,24 @@ func (ct *CodexTailer) tailFile(path, sessionID string) {
 	}
 	defer f.Close()
 
-	if _, err := f.Seek(0, io.SeekEnd); err != nil {
+	startOffset := int64(0)
+	if ct.checkpoints != nil {
+		if checkpoint, ok, err := ct.checkpoints.Get(path); err != nil {
+			log.Printf("codex-tailer: checkpoint load failed for %s: %v", path, err)
+		} else if ok {
+			startOffset = checkpoint.Offset
+		}
+	}
+	if stat, err := f.Stat(); err == nil && startOffset > stat.Size() {
+		startOffset = 0
+	}
+	if _, err := f.Seek(startOffset, io.SeekStart); err != nil {
 		log.Printf("codex-tailer: seek failed for %s: %v", path, err)
 		return
 	}
 
 	reader := bufio.NewReader(f)
+	currentOffset := startOffset
 	ticker := time.NewTicker(codexTailInterval)
 	defer ticker.Stop()
 
@@ -124,6 +138,29 @@ func (ct *CodexTailer) tailFile(path, sessionID string) {
 	staleTimer := time.NewTimer(timeout)
 	defer staleTimer.Stop()
 
+	processAvailable := func() {
+		for {
+			line, err := reader.ReadBytes('\n')
+			if err != nil {
+				return
+			}
+			currentOffset += int64(len(line))
+			line = bytes.TrimSpace(line)
+			if len(line) == 0 {
+				ct.saveCheckpoint(path, sessionID, currentOffset)
+				continue
+			}
+			if text := ExtractAssistantText(line); text != "" {
+				ct.server.appendConversationEvent(text, sessionID, "codex_tailer")
+			} else if text := ExtractUserText(line); text != "" {
+				ct.server.appendUserConversationEvent(text, sessionID, "codex_tailer")
+			}
+			ct.saveCheckpoint(path, sessionID, currentOffset)
+		}
+	}
+
+	processAvailable()
+
 	for {
 		select {
 		case <-ct.stopCh:
@@ -132,21 +169,21 @@ func (ct *CodexTailer) tailFile(path, sessionID string) {
 			log.Printf("codex-tailer: stopping stale watcher for %s", path)
 			return
 		case <-ticker.C:
-			for {
-				line, err := reader.ReadBytes('\n')
-				if err != nil {
-					break
-				}
-				line = bytes.TrimSpace(line)
-				if len(line) == 0 {
-					continue
-				}
-				if text := ExtractAssistantText(line); text != "" {
-					ct.server.appendConversationEvent(text, sessionID, "codex_tailer")
-				} else if text := ExtractUserText(line); text != "" {
-					ct.server.appendUserConversationEvent(text, sessionID, "codex_tailer")
-				}
-			}
+			processAvailable()
 		}
+	}
+}
+
+func (ct *CodexTailer) saveCheckpoint(path, sessionID string, offset int64) {
+	if ct.checkpoints == nil {
+		return
+	}
+	if err := ct.checkpoints.Save(CodexRolloutCheckpoint{
+		Path:      path,
+		SessionID: sessionID,
+		Offset:    offset,
+		UpdatedAt: time.Now().UTC(),
+	}); err != nil {
+		log.Printf("codex-tailer: checkpoint save failed for %s: %v", path, err)
 	}
 }

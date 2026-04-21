@@ -236,6 +236,12 @@ func (s *Server) handleGetSession(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	if err := s.sessions.Delete(id); err == nil {
+		if s.conversations != nil {
+			s.conversations.DeleteSession(id)
+		}
+		if s.codexCheckpointStore != nil {
+			_ = s.codexCheckpointStore.DeleteSession(id)
+		}
 		// [REQ:P1-004a] Emit session lifecycle event — only on actual deletion
 		s.events.Emit(EventSessionDeleted, id, nil)
 		s.metrics.SessionsDeleted.Add(1)

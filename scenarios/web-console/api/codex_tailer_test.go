@@ -167,3 +167,109 @@ func TestCodexTailer_E2E_RoutesToOwningSession(t *testing.T) {
 
 	ct.Stop()
 }
+
+func TestCodexTailer_BackfillsExistingRolloutContentWithoutCheckpoint(t *testing.T) {
+	srv, sess := newCodexTailerTestServer(t)
+
+	now := time.Now()
+	dateDir := filepath.Join(sessionCodexSessionsDir(sess.ID), now.Format("2006"), now.Format("01"), now.Format("02"))
+	if err := os.MkdirAll(dateDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	rolloutPath := filepath.Join(dateDir, "rollout-backfill.jsonl")
+	f, err := os.Create(rolloutPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeRolloutLine(t, f, "response_item", ResponsePayload{
+		Role:    "assistant",
+		Content: []ContentItem{{Type: "output_text", Text: "Backfilled assistant message"}},
+	})
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	ct := NewCodexTailer(srv)
+	ct.staleTimeout = 2 * time.Second
+	ct.scanForNewFiles()
+	t.Cleanup(ct.Stop)
+
+	event := waitForFirstEvent(t, srv.conversations, sess.ID, 3*time.Second)
+	if event.Text != "Backfilled assistant message" {
+		t.Fatalf("expected backfilled text, got %q", event.Text)
+	}
+}
+
+func TestCodexTailer_ResumesFromCheckpointOffset(t *testing.T) {
+	srv, sess := newCodexTailerTestServer(t)
+	checkpoints := NewInMemoryCodexCheckpointStore()
+	srv.codexCheckpointStore = checkpoints
+
+	now := time.Now()
+	dateDir := filepath.Join(sessionCodexSessionsDir(sess.ID), now.Format("2006"), now.Format("01"), now.Format("02"))
+	if err := os.MkdirAll(dateDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	rolloutPath := filepath.Join(dateDir, "rollout-resume.jsonl")
+	f, err := os.Create(rolloutPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	writeRolloutLine(t, f, "response_item", ResponsePayload{
+		Role:    "assistant",
+		Content: []ContentItem{{Type: "output_text", Text: "Old assistant message"}},
+	})
+	if err := f.Sync(); err != nil {
+		t.Fatal(err)
+	}
+	stat, err := f.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := checkpoints.Save(CodexRolloutCheckpoint{
+		Path:      rolloutPath,
+		SessionID: sess.ID,
+		Offset:    stat.Size(),
+		UpdatedAt: time.Now().UTC(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	ct := NewCodexTailer(srv)
+	ct.staleTimeout = 2 * time.Second
+	ct.scanForNewFiles()
+	t.Cleanup(ct.Stop)
+
+	time.Sleep(200 * time.Millisecond)
+
+	writeRolloutLine(t, f, "response_item", ResponsePayload{
+		Role:    "assistant",
+		Content: []ContentItem{{Type: "output_text", Text: "New assistant message"}},
+	})
+	if err := f.Sync(); err != nil {
+		t.Fatal(err)
+	}
+
+	event := waitForFirstEvent(t, srv.conversations, sess.ID, 3*time.Second)
+	if event.Text != "New assistant message" {
+		t.Fatalf("expected resumed tailer to skip old backlog and read new text, got %q", event.Text)
+	}
+
+	state := srv.conversations.ListSession(sess.ID)
+	if len(state.Events) != 1 {
+		t.Fatalf("expected exactly one resumed event, got %d", len(state.Events))
+	}
+
+	checkpoint, ok, err := checkpoints.Get(rolloutPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("expected checkpoint to be saved after reading new rollout content")
+	}
+	if checkpoint.Offset <= stat.Size() {
+		t.Fatalf("expected checkpoint offset to advance beyond %d, got %d", stat.Size(), checkpoint.Offset)
+	}
+}

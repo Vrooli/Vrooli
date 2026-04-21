@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -438,6 +437,7 @@ func TestPrepareCodexSessionHome_SharesAuthAndConfig(t *testing.T) {
 func TestSessionManagerCreate_UsesSharedAuthAndSessionOwnedRoutingDirs(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	stateRoot := useIsolatedSessionState(t)
 	if err := os.MkdirAll(filepath.Join(home, ".codex"), 0o755); err != nil {
 		t.Fatalf("mkdir shared codex dir: %v", err)
 	}
@@ -466,6 +466,10 @@ func TestSessionManagerCreate_UsesSharedAuthAndSessionOwnedRoutingDirs(t *testin
 	if !strings.Contains(codexHome, sess.ID) {
 		t.Fatalf("expected session CODEX_HOME to contain %q, got %q", sess.ID, codexHome)
 	}
+	wantPrefix := filepath.Join(stateRoot, "codex", sess.ID)
+	if codexHome != wantPrefix {
+		t.Fatalf("expected session CODEX_HOME %q, got %q", wantPrefix, codexHome)
+	}
 	info, err := os.Lstat(filepath.Join(codexHome, "auth.json"))
 	if err != nil {
 		t.Fatalf("expected shared codex auth symlink: %v", err)
@@ -479,10 +483,7 @@ func TestSessionManagerCreate_UsesSharedAuthAndSessionOwnedRoutingDirs(t *testin
 // on the attach command, preventing "terminal does not support clear" failures
 // when the server process has TERM=dumb (common for non-interactive lifecycle).
 func TestTmuxAttach_SetsTermEnv(t *testing.T) {
-	// Skip when tmux is not installed
-	if _, err := exec.LookPath("tmux"); err != nil {
-		t.Skip("tmux not installed")
-	}
+	requireIsolatedTmux(t)
 
 	sessionName := tmuxSessionPrefix + "test-term-env"
 	// Create a detached tmux session on the dedicated wc socket

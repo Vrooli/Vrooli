@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"os/exec"
 	"sync"
 	"testing"
 	"time"
@@ -13,6 +14,9 @@ import (
 // persistent tmux sessions that survived a restart.
 
 func TestRecover_NoDetachedSessions(t *testing.T) {
+	useIsolatedSessionState(t)
+	useIsolatedTmuxSocket(t)
+
 	store := NewInMemorySessionStore()
 	reg := NewBackendRegistry()
 	sm := NewSessionManagerWithFactory(func(spec SessionLaunchSpec) (PTY, error) {
@@ -28,6 +32,9 @@ func TestRecover_NoDetachedSessions(t *testing.T) {
 }
 
 func TestRecover_OrphanedMetadata_NoTmuxSession(t *testing.T) {
+	useIsolatedSessionState(t)
+	useIsolatedTmuxSocket(t)
+
 	// Metadata exists in the store but the tmux session is gone.
 	// Recovery should clean up the stale metadata.
 	store := NewInMemorySessionStore()
@@ -61,6 +68,9 @@ func TestRecover_OrphanedMetadata_NoTmuxSession(t *testing.T) {
 }
 
 func TestRecover_StandardSessionsIgnored(t *testing.T) {
+	useIsolatedSessionState(t)
+	useIsolatedTmuxSocket(t)
+
 	// Standard (non-detached) sessions should not appear in ListDetached
 	store := NewInMemorySessionStore()
 	_ = store.Save(SessionMetadata{
@@ -82,6 +92,42 @@ func TestRecover_StandardSessionsIgnored(t *testing.T) {
 	if report.Recovered != 0 || report.OrphanedMetadata != 0 {
 		t.Errorf("expected no activity for standard sessions, got recovered=%d orphaned=%d",
 			report.Recovered, report.OrphanedMetadata)
+	}
+}
+
+func TestRecover_UsesConfiguredTmuxSocketIsolation(t *testing.T) {
+	if _, err := exec.LookPath("tmux"); err != nil {
+		t.Skip("tmux not installed")
+	}
+
+	useIsolatedSessionState(t)
+	testSocket := useIsolatedTmuxSocket(t)
+	liveSocket := "wc-live-" + sanitizeTestIdentifier(t.TempDir())
+	liveSessionName := tmuxSessionPrefix + "live-simulated"
+	testSessionName := tmuxSessionPrefix + "test-simulated"
+
+	if err := tmuxCmdForSocket(liveSocket, "new-session", "-d", "-s", liveSessionName, "/bin/sh").Run(); err != nil {
+		t.Fatalf("create live-simulated tmux session: %v", err)
+	}
+	t.Cleanup(func() { _ = tmuxCmdForSocket(liveSocket, "kill-session", "-t", liveSessionName).Run() })
+
+	if err := tmuxCmdForSocket(testSocket, "new-session", "-d", "-s", testSessionName, "/bin/sh").Run(); err != nil {
+		t.Fatalf("create isolated test tmux session: %v", err)
+	}
+
+	sm := NewSessionManagerWithFactory(nil)
+	report := sm.Recover(NewInMemorySessionStore(), NewBackendRegistry())
+
+	if report.OrphanedTmux != 1 {
+		t.Fatalf("expected only the isolated test socket session to be treated as orphaned, got %d", report.OrphanedTmux)
+	}
+
+	if err := tmuxCmdForSocket(liveSocket, "has-session", "-t", liveSessionName).Run(); err != nil {
+		t.Fatalf("recovery touched a different tmux socket and killed a live-simulated session: %v", err)
+	}
+
+	if err := tmuxCmdForSocket(testSocket, "has-session", "-t", testSessionName).Run(); err == nil {
+		t.Fatal("expected isolated test-socket session to be cleaned up as an orphan")
 	}
 }
 

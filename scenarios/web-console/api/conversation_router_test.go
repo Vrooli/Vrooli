@@ -53,6 +53,7 @@ func newSummarizeTestServer(t *testing.T, ollama *httptest.Server) (*Server, *Se
 	srv.conversations = NewConversationStore()
 	srv.ttsCache = NewTTSCache(1024 * 1024)
 	srv.ttsSummarizer = NewTTSSummarizer(ollama.URL)
+	srv.ttsSummarization = NewTTSSummarizationService(srv.ttsSummarizer, srv.getTTSSummarizeConfig)
 	srv.ttsSummarizeConfig = TTSSummarizeConfig{
 		Enabled:        true,
 		CharThreshold:  20,

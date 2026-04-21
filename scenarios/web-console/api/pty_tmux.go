@@ -25,16 +25,16 @@ var errPTYClosed = errors.New("pty is closed")
 // tmuxSessionPrefix distinguishes web console sessions from user tmux sessions.
 const tmuxSessionPrefix = "wc-"
 
-// tmuxSocket is the dedicated tmux socket name for web-console sessions.
+// defaultTmuxSocket is the dedicated tmux socket name for web-console sessions.
 // Using a separate socket ensures the tmux server is distinct from the user's
 // default tmux server, giving us full lifecycle control.
-const tmuxSocket = "wc"
+const defaultTmuxSocket = "wc"
 
 // tmuxScopeName is the systemd scope unit name used to isolate the tmux server
 // from the parent service's cgroup. Without this, the tmux server inherits
 // the API's cgroup (e.g., vrooli-autoheal.service), and gets killed when that
 // service restarts.
-const tmuxScopeName = "wc-tmux-server"
+const defaultTmuxScopeName = "wc-tmux-server"
 
 // tmuxPTY implements the PTY interface using a tmux session as the backing process.
 // The shell runs inside a detached tmux session; I/O is streamed via
@@ -231,17 +231,37 @@ func buildSessionEnv(spec SessionLaunchSpec) []string {
 	)
 }
 
+// resolveTmuxSocket returns the tmux socket name used for web-console
+// persistent sessions. Tests override this to isolate themselves from the live
+// app's persistent-session server; production keeps the stable default.
+func resolveTmuxSocket() string {
+	if socket := strings.TrimSpace(os.Getenv("WC_TMUX_SOCKET")); socket != "" {
+		return socket
+	}
+	return defaultTmuxSocket
+}
+
+// resolveTmuxScopeName returns the systemd scope name used when booting the
+// tmux server. Tests may override this to avoid colliding with the live app's
+// scope unit while still exercising the real tmux path.
+func resolveTmuxScopeName() string {
+	if scope := strings.TrimSpace(os.Getenv("WC_TMUX_SCOPE_NAME")); scope != "" {
+		return scope
+	}
+	return defaultTmuxScopeName
+}
+
 // tmuxCmd builds a tmux command that uses the dedicated web-console socket.
 // All tmux operations MUST go through this helper to ensure they target the
-// correct server (isolated from the parent service's cgroup).
+// correct server (isolated from the parent service's cgroup and test sockets).
 func tmuxCmd(args ...string) *exec.Cmd {
-	fullArgs := append([]string{"-L", tmuxSocket}, args...)
+	fullArgs := append([]string{"-L", resolveTmuxSocket()}, args...)
 	return exec.Command("tmux", fullArgs...)
 }
 
 // tmuxCmdContext is like tmuxCmd but accepts a context for timeout/cancellation.
 func tmuxCmdContext(ctx context.Context, args ...string) *exec.Cmd {
-	fullArgs := append([]string{"-L", tmuxSocket}, args...)
+	fullArgs := append([]string{"-L", resolveTmuxSocket()}, args...)
 	return exec.CommandContext(ctx, "tmux", fullArgs...)
 }
 
@@ -271,9 +291,10 @@ func tmuxPTYFactory(spec SessionLaunchSpec) (PTY, error) {
 	// second and later sessions on the same tmux server would inherit the
 	// first session's attribution vars, breaking conversation tracking.
 	sessionArgs := buildTmuxNewSessionArgs(sessionName, workingDir, spec)
+	socketName := resolveTmuxSocket()
 	createCmd := exec.Command("systemd-run", append([]string{
-		"--user", "--scope", "--unit=" + tmuxScopeName,
-		"tmux", "-L", tmuxSocket,
+		"--user", "--scope", "--unit=" + resolveTmuxScopeName(),
+		"tmux", "-L", socketName,
 	}, sessionArgs...)...)
 	createCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	createCmd.Env = buildSessionEnv(spec)

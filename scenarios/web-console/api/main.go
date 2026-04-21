@@ -107,8 +107,10 @@ type Server struct {
 	ttsSummarizeMu                sync.RWMutex
 	ttsSummarizeConfig            TTSSummarizeConfig
 	ttsSummarizePath              string
+	ttsSummarization              *TTSSummarizationService
 	hookAuthToken                 string
 	codexTailer                   *CodexTailer
+	codexCheckpointStore          CodexCheckpointStore
 	ttsCache                      *TTSCache
 	ttsSynthesizer                TTSSynthesizer
 	ttsVoiceLister                TTSVoiceLister
@@ -257,7 +259,8 @@ func NewServer(db *sql.DB) *Server {
 		ttsSummarizePath:              ttsSummarizePath,
 		hookAuthToken:                 hookToken,
 		ttsCache:                      NewTTSCache(100 * 1024 * 1024), // 100MB
-		conversations:                 NewConversationStore(),
+		codexCheckpointStore:          NewSQLCodexCheckpointStore(db),
+		conversations:                 NewConversationStoreWithRepository(NewSQLConversationRepository(db)),
 		lastTTSBySource:               make(map[string]conversationAppendSnapshot),
 		lastTTSAckBySrc:               make(map[string]ttsAckSnapshot),
 		whisperURL:                    resolveWhisperURL(),
@@ -275,6 +278,7 @@ func NewServer(db *sql.DB) *Server {
 	openrouterKey := os.Getenv("OPENROUTER_API_KEY")
 
 	srv.ttsSummarizer = NewTTSSummarizer(ollamaURL)
+	srv.ttsSummarization = NewTTSSummarizationService(srv.ttsSummarizer, srv.getTTSSummarizeConfig)
 	srv.speakerVerification = &SpeakerVerificationResourceClient{
 		BaseURL: speakerVerificationURL,
 		Client:  &http.Client{Timeout: 5 * time.Second},

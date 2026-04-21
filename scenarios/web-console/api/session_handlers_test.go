@@ -16,7 +16,7 @@ import (
 // newTestServer creates a Server with real PTY processes — use for
 // integration-style tests that need actual shell I/O.
 func newTestServer() *Server {
-	return &Server{
+	srv := &Server{
 		router:      mux.NewRouter(),
 		sessions:    NewSessionManager(),
 		events:      NewEventLogger(100),
@@ -27,12 +27,16 @@ func newTestServer() *Server {
 		idempotency: newIdempotencyCache(),
 		workspace:   NewMemWorkspaceStore(),
 	}
+	srv.conversations = NewConversationStore()
+	srv.codexCheckpointStore = NewInMemoryCodexCheckpointStore()
+	srv.ttsSummarization = NewTTSSummarizationService(srv.ttsSummarizer, srv.getTTSSummarizeConfig)
+	return srv
 }
 
 // newFakeTestServer creates a Server with pipe-backed fake PTYs — use for
 // fast, deterministic handler tests that don't need a real shell.
 func newFakeTestServer() *Server {
-	return &Server{
+	srv := &Server{
 		router:      mux.NewRouter(),
 		sessions:    NewSessionManagerWithFactory(newFakePTYFactory()),
 		events:      NewEventLogger(100),
@@ -43,6 +47,10 @@ func newFakeTestServer() *Server {
 		idempotency: newIdempotencyCache(),
 		workspace:   NewMemWorkspaceStore(),
 	}
+	srv.conversations = NewConversationStore()
+	srv.codexCheckpointStore = NewInMemoryCodexCheckpointStore()
+	srv.ttsSummarization = NewTTSSummarizationService(srv.ttsSummarizer, srv.getTTSSummarizeConfig)
+	return srv
 }
 
 // [REQ:P0-002a] PTY Session Backend - create endpoint

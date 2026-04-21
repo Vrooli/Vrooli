@@ -1,8 +1,6 @@
 package main
 
 import (
-	"crypto/sha1"
-	"encoding/hex"
 	"strings"
 	"sync"
 	"time"
@@ -75,6 +73,12 @@ type ConversationSessionState struct {
 	Cursor    ConversationCursor  `json:"cursor"`
 }
 
+type conversationSession struct {
+	nextSequence int64
+	events       []ConversationEvent
+	cursor       ConversationCursor
+}
+
 type ConversationAppendResult struct {
 	Appended  bool   `json:"appended"`
 	Code      string `json:"code"`
@@ -91,23 +95,22 @@ type conversationCursorPatch struct {
 	listenedSequence *int64
 }
 
-type conversationSession struct {
-	nextSequence int64
-	events       []ConversationEvent
-	cursor       ConversationCursor
-}
-
 type conversationDedup struct {
 	mu   sync.Mutex
-	seen map[string]time.Time
+	seen map[string]conversationDedupEntry
 	ttl  time.Duration
 }
 
-func newConversationDedup() *conversationDedup {
-	return &conversationDedup{seen: make(map[string]time.Time)}
+type conversationDedupEntry struct {
+	at      time.Time
+	eventID string
 }
 
-func (d *conversationDedup) seenRecently(key string) bool {
+func newConversationDedup() *conversationDedup {
+	return &conversationDedup{seen: make(map[string]conversationDedupEntry)}
+}
+
+func (d *conversationDedup) seenRecently(key string) (string, bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -116,28 +119,53 @@ func (d *conversationDedup) seenRecently(key string) bool {
 		ttl = conversationDedupTTL
 	}
 	now := time.Now()
-	for k, ts := range d.seen {
-		if now.Sub(ts) > ttl {
+	for k, entry := range d.seen {
+		if now.Sub(entry.at) > ttl {
 			delete(d.seen, k)
 		}
 	}
-	if _, ok := d.seen[key]; ok {
-		return true
+	if entry, ok := d.seen[key]; ok {
+		return entry.eventID, true
 	}
-	d.seen[key] = now
-	return false
+	return "", false
+}
+
+func (d *conversationDedup) remember(key, eventID string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	ttl := d.ttl
+	if ttl == 0 {
+		ttl = conversationDedupTTL
+	}
+	now := time.Now()
+	for k, entry := range d.seen {
+		if now.Sub(entry.at) > ttl {
+			delete(d.seen, k)
+		}
+	}
+	d.seen[key] = conversationDedupEntry{
+		at:      now,
+		eventID: eventID,
+	}
 }
 
 type ConversationStore struct {
-	mu       sync.RWMutex
-	sessions map[string]*conversationSession
-	dedup    *conversationDedup
+	repository ConversationRepository
+	dedup      *conversationDedup
 }
 
 func NewConversationStore() *ConversationStore {
+	return NewConversationStoreWithRepository(NewInMemoryConversationRepository())
+}
+
+func NewConversationStoreWithRepository(repository ConversationRepository) *ConversationStore {
+	if repository == nil {
+		repository = NewInMemoryConversationRepository()
+	}
 	return &ConversationStore{
-		sessions: make(map[string]*conversationSession),
-		dedup:    newConversationDedup(),
+		repository: repository,
+		dedup:      newConversationDedup(),
 	}
 }
 
@@ -145,19 +173,8 @@ func normalizeConversationText(text string) string {
 	return strings.TrimSpace(string(stripANSI([]byte(text))))
 }
 
-func newConversationEventID(source, sessionID, text string) string {
-	sum := sha1.Sum([]byte(source + "\n" + sessionID + "\n" + text))
-	return hex.EncodeToString(sum[:])
-}
-
-func (s *ConversationStore) ensureSessionLocked(sessionID string) *conversationSession {
-	session, ok := s.sessions[sessionID]
-	if ok {
-		return session
-	}
-	session = &conversationSession{}
-	s.sessions[sessionID] = session
-	return session
+func conversationDedupKey(source, sessionID string, role ConversationRole, text string) string {
+	return strings.Join([]string{source, sessionID, string(role), text}, "\n")
 }
 
 func (s *ConversationStore) AppendAssistantEvent(sessionID, source, text string) (ConversationEvent, ConversationAppendResult) {
@@ -180,8 +197,8 @@ func (s *ConversationStore) AppendAssistantEvent(sessionID, source, text string)
 		}
 	}
 
-	eventID := newConversationEventID(source, sessionID, cleanText)
-	if s.dedup.seenRecently(eventID) {
+	dedupKey := conversationDedupKey(source, sessionID, ConversationRoleAssistant, cleanText)
+	if eventID, ok := s.dedup.seenRecently(dedupKey); ok {
 		return ConversationEvent{}, ConversationAppendResult{
 			Appended:  true,
 			Code:      "conversation_duplicate",
@@ -193,34 +210,38 @@ func (s *ConversationStore) AppendAssistantEvent(sessionID, source, text string)
 		}
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	session := s.ensureSessionLocked(sessionID)
-	session.nextSequence++
 	event := ConversationEvent{
-		ID:               eventID,
+		ID:               newConversationEventID(),
 		SessionID:        sessionID,
 		Source:           source,
 		Role:             ConversationRoleAssistant,
 		Text:             cleanText,
 		SpeechParagraphs: SplitIntoSpeechParagraphs(cleanText),
 		CreatedAt:        time.Now().UTC(),
-		Sequence:         session.nextSequence,
 		DeliveryState:    ConversationDeliveryPending,
 		TTSState:         ConversationTTSIdle,
 		ConsumptionState: ConversationConsumptionUnseen,
 	}
-	session.events = append(session.events, event)
+	persisted, err := s.repository.AppendEvent(event)
+	if err != nil {
+		return ConversationEvent{}, ConversationAppendResult{
+			Appended:  false,
+			Code:      "conversation_store_failed",
+			Reason:    "Conversation event could not be persisted",
+			Source:    source,
+			SessionID: sessionID,
+		}
+	}
+	s.dedup.remember(dedupKey, persisted.ID)
 
-	return event, ConversationAppendResult{
+	return persisted, ConversationAppendResult{
 		Appended:  true,
 		Code:      "conversation_event_appended",
 		Reason:    "Conversation event was appended to the owning terminal session",
 		Source:    source,
 		SessionID: sessionID,
-		EventID:   event.ID,
-		Sequence:  event.Sequence,
+		EventID:   persisted.ID,
+		Sequence:  persisted.Sequence,
 	}
 }
 
@@ -244,8 +265,8 @@ func (s *ConversationStore) AppendUserEvent(sessionID, source, text string) (Con
 		}
 	}
 
-	eventID := newConversationEventID(source, sessionID, cleanText)
-	if s.dedup.seenRecently(eventID) {
+	dedupKey := conversationDedupKey(source, sessionID, ConversationRoleUser, cleanText)
+	if eventID, ok := s.dedup.seenRecently(dedupKey); ok {
 		return ConversationEvent{}, ConversationAppendResult{
 			Appended:  true,
 			Code:      "conversation_duplicate",
@@ -257,34 +278,38 @@ func (s *ConversationStore) AppendUserEvent(sessionID, source, text string) (Con
 		}
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	session := s.ensureSessionLocked(sessionID)
-	session.nextSequence++
 	event := ConversationEvent{
-		ID:               eventID,
+		ID:               newConversationEventID(),
 		SessionID:        sessionID,
 		Source:           source,
 		Role:             ConversationRoleUser,
 		Text:             cleanText,
 		SpeechParagraphs: nil,
 		CreatedAt:        time.Now().UTC(),
-		Sequence:         session.nextSequence,
 		DeliveryState:    ConversationDeliveryPending,
 		TTSState:         ConversationTTSIdle,
 		ConsumptionState: ConversationConsumptionUnseen,
 	}
-	session.events = append(session.events, event)
+	persisted, err := s.repository.AppendEvent(event)
+	if err != nil {
+		return ConversationEvent{}, ConversationAppendResult{
+			Appended:  false,
+			Code:      "conversation_store_failed",
+			Reason:    "Conversation event could not be persisted",
+			Source:    source,
+			SessionID: sessionID,
+		}
+	}
+	s.dedup.remember(dedupKey, persisted.ID)
 
-	return event, ConversationAppendResult{
+	return persisted, ConversationAppendResult{
 		Appended:  true,
 		Code:      "conversation_event_appended",
 		Reason:    "User conversation event was appended to the owning terminal session",
 		Source:    source,
 		SessionID: sessionID,
-		EventID:   event.ID,
-		Sequence:  event.Sequence,
+		EventID:   persisted.ID,
+		Sequence:  persisted.Sequence,
 	}
 }
 
@@ -292,140 +317,42 @@ func (s *ConversationStore) AppendUserEvent(sessionID, source, text string) (Con
 // with a summarized version. The original paragraphs are preserved so the
 // frontend can toggle between summarized and original playback.
 func (s *ConversationStore) UpdateSpeechParagraphs(sessionID, eventID string, paragraphs []string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	session, ok := s.sessions[sessionID]
-	if !ok {
-		return
-	}
-	for i := range session.events {
-		if session.events[i].ID == eventID {
-			session.events[i].OriginalSpeechParagraphs = session.events[i].SpeechParagraphs
-			session.events[i].SpeechParagraphs = paragraphs
-			session.events[i].Summarized = true
-			return
-		}
-	}
+	_ = s.repository.UpdateSpeechParagraphs(sessionID, eventID, paragraphs)
 }
 
 // GetEvent returns a copy of a single event by ID. The bool is false when the
 // session or event is unknown.
 func (s *ConversationStore) GetEvent(sessionID, eventID string) (ConversationEvent, bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	session, ok := s.sessions[sessionID]
-	if !ok {
+	event, ok, err := s.repository.GetEvent(sessionID, eventID)
+	if err != nil {
 		return ConversationEvent{}, false
 	}
-	for i := range session.events {
-		if session.events[i].ID == eventID {
-			return session.events[i], true
-		}
-	}
-	return ConversationEvent{}, false
+	return event, ok
 }
 
 func (s *ConversationStore) ListSession(sessionID string) ConversationSessionState {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	session, ok := s.sessions[sessionID]
-	if !ok {
+	state, err := s.repository.ListSession(sessionID)
+	if err != nil {
 		return ConversationSessionState{
 			SessionID: sessionID,
 			Events:    []ConversationEvent{},
 		}
 	}
-
-	events := make([]ConversationEvent, len(session.events))
-	copy(events, session.events)
-	return ConversationSessionState{
-		SessionID: sessionID,
-		Events:    events,
-		Cursor:    session.cursor,
-	}
+	return state
 }
 
 func (s *ConversationStore) UpdateCursor(sessionID string, patch conversationCursorPatch) ConversationCursor {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	session := s.ensureSessionLocked(sessionID)
-	if patch.seenSequence != nil && *patch.seenSequence > session.cursor.LastSeenSequence {
-		session.cursor.LastSeenSequence = *patch.seenSequence
+	cursor, err := s.repository.UpdateCursor(sessionID, patch)
+	if err != nil {
+		return ConversationCursor{}
 	}
-	if patch.listenedSequence != nil && *patch.listenedSequence > session.cursor.LastListenedSequence {
-		session.cursor.LastListenedSequence = *patch.listenedSequence
-	}
-
-	for i := range session.events {
-		event := &session.events[i]
-		if event.Sequence <= session.cursor.LastListenedSequence {
-			event.DeliveryState = ConversationDeliverySeen
-			event.ConsumptionState = ConversationConsumptionListened
-			if event.TTSState == ConversationTTSIdle || event.TTSState == ConversationTTSPlaying {
-				event.TTSState = ConversationTTSPlayed
-			}
-			continue
-		}
-		if event.Sequence <= session.cursor.LastSeenSequence {
-			if event.DeliveryState == ConversationDeliveryPending || event.DeliveryState == ConversationDeliveryReceived {
-				event.DeliveryState = ConversationDeliverySeen
-			}
-			if event.ConsumptionState == ConversationConsumptionUnseen {
-				event.ConsumptionState = ConversationConsumptionSeen
-			}
-		}
-	}
-
-	return session.cursor
+	return cursor
 }
 
 func (s *ConversationStore) RecordPlaybackStage(sessionID, eventID, stage string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	_ = s.repository.RecordPlaybackStage(sessionID, eventID, stage)
+}
 
-	session, ok := s.sessions[sessionID]
-	if !ok {
-		return
-	}
-	for i := range session.events {
-		event := &session.events[i]
-		if event.ID != eventID {
-			continue
-		}
-		switch stage {
-		case "received":
-			if event.DeliveryState == ConversationDeliveryPending {
-				event.DeliveryState = ConversationDeliveryReceived
-			}
-		case "seen", "correlated":
-			if event.DeliveryState != ConversationDeliverySeen {
-				event.DeliveryState = ConversationDeliverySeen
-			}
-			if event.ConsumptionState == ConversationConsumptionUnseen {
-				event.ConsumptionState = ConversationConsumptionSeen
-			}
-		case "playback_started":
-			event.TTSState = ConversationTTSPlaying
-			event.ConsumptionState = ConversationConsumptionListening
-		case "playback_succeeded":
-			event.TTSState = ConversationTTSPlayed
-			event.DeliveryState = ConversationDeliverySeen
-			event.ConsumptionState = ConversationConsumptionListened
-			if event.Sequence > session.cursor.LastSeenSequence {
-				session.cursor.LastSeenSequence = event.Sequence
-			}
-			if event.Sequence > session.cursor.LastListenedSequence {
-				session.cursor.LastListenedSequence = event.Sequence
-			}
-		case "rejected":
-			event.TTSState = ConversationTTSRejected
-		case "playback_failed":
-			event.TTSState = ConversationTTSFailed
-		}
-		return
-	}
+func (s *ConversationStore) DeleteSession(sessionID string) {
+	_ = s.repository.DeleteSession(sessionID)
 }

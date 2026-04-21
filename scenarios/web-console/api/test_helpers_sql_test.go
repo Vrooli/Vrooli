@@ -3,7 +3,9 @@ package main
 import (
 	"database/sql"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	_ "modernc.org/sqlite"
@@ -69,4 +71,56 @@ func findRepoRoot(t *testing.T) string {
 		}
 		dir = parent
 	}
+}
+
+func useIsolatedSessionState(t *testing.T) string {
+	t.Helper()
+	root := filepath.Join(t.TempDir(), "session-state")
+	t.Setenv("WC_SESSION_STATE_ROOT", root)
+	return root
+}
+
+func useIsolatedTmuxSocket(t *testing.T) string {
+	t.Helper()
+	socket := "wc-test-" + sanitizeTestIdentifier(t.Name()+"-"+filepath.Base(t.TempDir()))
+	t.Setenv("WC_TMUX_SOCKET", socket)
+	t.Setenv("WC_TMUX_SCOPE_NAME", socket+"-scope")
+	return socket
+}
+
+func sanitizeTestIdentifier(name string) string {
+	var b strings.Builder
+	for _, r := range name {
+		switch {
+		case r >= 'a' && r <= 'z':
+			b.WriteRune(r)
+		case r >= 'A' && r <= 'Z':
+			b.WriteRune(r + ('a' - 'A'))
+		case r >= '0' && r <= '9':
+			b.WriteRune(r)
+		default:
+			b.WriteByte('-')
+		}
+	}
+	s := strings.Trim(b.String(), "-")
+	if s == "" {
+		return "test"
+	}
+	if len(s) > 48 {
+		s = s[:48]
+	}
+	return s
+}
+
+func tmuxCmdForSocket(socket string, args ...string) *exec.Cmd {
+	fullArgs := append([]string{"-L", socket}, args...)
+	return exec.Command("tmux", fullArgs...)
+}
+
+func requireIsolatedTmux(t *testing.T) string {
+	t.Helper()
+	if _, err := exec.LookPath("tmux"); err != nil {
+		t.Skip("tmux not installed")
+	}
+	return useIsolatedTmuxSocket(t)
 }

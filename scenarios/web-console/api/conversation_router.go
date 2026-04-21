@@ -101,7 +101,7 @@ func (s *Server) appendUserConversationEvent(promptText, targetSessionID, source
 // also evicts any cached TTS audio for this event so playback regenerates
 // from the summary rather than the original text.
 func (s *Server) asyncSummarizeAndNotify(event ConversationEvent, sessionID string, sess *Session) {
-	if s.ttsSummarizer == nil {
+	if s.ttsSummarization == nil {
 		return
 	}
 
@@ -124,28 +124,27 @@ func (s *Server) asyncSummarizeAndNotify(event ConversationEvent, sessionID stri
 
 	timeout := time.Duration(cfg.TimeoutSeconds) * time.Second
 	if timeout <= 0 {
-		timeout = 30 * time.Second
+		timeout = 120 * time.Second
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	started := time.Now()
-	summary, err := s.ttsSummarizer.Summarize(ctx, normalized, cfg.Model, cfg.Level)
-	elapsedMs := time.Since(started).Milliseconds()
+	result, err := s.ttsSummarization.Summarize(ctx, TTSSummarizeRequest{
+		EventID: event.ID,
+		Path:    "auto",
+		Text:    normalized,
+	})
 	if err != nil {
-		logSummarizeResult("auto", cfg, event.ID, len(normalized), 0, elapsedMs, err)
+		if err == errTTSSummarizeCoolingDown {
+			logSummarizeSkipped("auto", cfg, event.ID, len(normalized), err.Error())
+			return
+		}
+		logSummarizeResult("auto", cfg, event.ID, len(normalized), 0, result.ElapsedMs, err)
 		return
 	}
+	logSummarizeResult("auto", cfg, event.ID, len(normalized), len(result.Summary), result.ElapsedMs, nil)
 
-	summary = strings.TrimSpace(summary)
-	if summary == "" {
-		logSummarizeResult("auto", cfg, event.ID, len(normalized), 0, elapsedMs, fmt.Errorf("empty summary returned"))
-		return
-	}
-
-	logSummarizeResult("auto", cfg, event.ID, len(normalized), len(summary), elapsedMs, nil)
-
-	newParagraphs := SplitIntoSpeechParagraphs(summary)
+	newParagraphs := result.Paragraphs
 	s.conversations.UpdateSpeechParagraphs(sessionID, event.ID, newParagraphs)
 	s.invalidateTTSCacheForEvent(event.ID)
 

@@ -17,6 +17,51 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 CREATE INDEX IF NOT EXISTS idx_sessions_created ON sessions(created_at DESC);
 
+-- Conversation tracking state. This is the semantic message history used by
+-- the messages pane, unread counters, and TTS cursor tracking.
+CREATE TABLE IF NOT EXISTS conversation_sessions (
+    session_id TEXT PRIMARY KEY,
+    last_sequence INTEGER NOT NULL DEFAULT 0,
+    last_seen_sequence INTEGER NOT NULL DEFAULT 0,
+    last_listened_sequence INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE TABLE IF NOT EXISTS conversation_events (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    source TEXT NOT NULL,
+    role TEXT NOT NULL CHECK(role IN ('assistant', 'user')),
+    text TEXT NOT NULL,
+    speech_paragraphs TEXT NOT NULL DEFAULT '[]',
+    original_speech_paragraphs TEXT,
+    summarized INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL,
+    sequence INTEGER NOT NULL,
+    delivery_state TEXT NOT NULL,
+    tts_state TEXT NOT NULL,
+    consumption_state TEXT NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES conversation_sessions(session_id) ON DELETE CASCADE,
+    UNIQUE(session_id, sequence)
+);
+
+CREATE INDEX IF NOT EXISTS idx_conversation_events_session_sequence
+    ON conversation_events(session_id, sequence);
+
+-- Per-rollout-file byte checkpoints for Codex ingestion. These let the server
+-- backfill messages written while the UI was closed and resume after restart
+-- without re-reading old lines.
+CREATE TABLE IF NOT EXISTS codex_rollout_checkpoints (
+    path TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    offset_bytes INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_codex_rollout_checkpoints_session
+    ON codex_rollout_checkpoints(session_id);
+
 -- Shortcut profiles with scope hierarchy
 CREATE TABLE IF NOT EXISTS shortcut_profiles (
     id TEXT PRIMARY KEY,

@@ -2,7 +2,6 @@ package main
 
 import (
 	"io"
-	"os/exec"
 	"testing"
 )
 
@@ -11,9 +10,7 @@ import (
 // instead of panicking on a closed file descriptor.
 
 func TestTmuxPTY_ReadAfterClose(t *testing.T) {
-	if _, err := exec.LookPath("tmux"); err != nil {
-		t.Skip("tmux not installed")
-	}
+	requireIsolatedTmux(t)
 
 	spec := SessionLaunchSpec{
 		SessionID: "test-read-after-close",
@@ -43,9 +40,7 @@ func TestTmuxPTY_ReadAfterClose(t *testing.T) {
 }
 
 func TestTmuxPTY_WriteAfterClose(t *testing.T) {
-	if _, err := exec.LookPath("tmux"); err != nil {
-		t.Skip("tmux not installed")
-	}
+	requireIsolatedTmux(t)
 
 	spec := SessionLaunchSpec{
 		SessionID: "test-write-after-close",
@@ -73,9 +68,7 @@ func TestTmuxPTY_WriteAfterClose(t *testing.T) {
 }
 
 func TestTmuxPTY_SetSizeAfterClose(t *testing.T) {
-	if _, err := exec.LookPath("tmux"); err != nil {
-		t.Skip("tmux not installed")
-	}
+	requireIsolatedTmux(t)
 
 	spec := SessionLaunchSpec{
 		SessionID: "test-setsize-after-close",
@@ -103,9 +96,7 @@ func TestTmuxPTY_SetSizeAfterClose(t *testing.T) {
 }
 
 func TestTmuxPTY_CloseIdempotent(t *testing.T) {
-	if _, err := exec.LookPath("tmux"); err != nil {
-		t.Skip("tmux not installed")
-	}
+	requireIsolatedTmux(t)
 
 	spec := SessionLaunchSpec{
 		SessionID: "test-close-idempotent",
@@ -131,9 +122,7 @@ func TestTmuxPTY_CloseIdempotent(t *testing.T) {
 }
 
 func TestTmuxAttach_FailsForNonexistentSession(t *testing.T) {
-	if _, err := exec.LookPath("tmux"); err != nil {
-		t.Skip("tmux not installed")
-	}
+	requireIsolatedTmux(t)
 
 	_, err := tmuxAttach("wc-nonexistent-session-12345")
 	if err == nil {
@@ -142,9 +131,7 @@ func TestTmuxAttach_FailsForNonexistentSession(t *testing.T) {
 }
 
 func TestApplyTmuxOptions_NonexistentSession(t *testing.T) {
-	if _, err := exec.LookPath("tmux"); err != nil {
-		t.Skip("tmux not installed")
-	}
+	requireIsolatedTmux(t)
 
 	// Should not panic, just log errors
 	applyTmuxOptions("wc-nonexistent-session-12345")
