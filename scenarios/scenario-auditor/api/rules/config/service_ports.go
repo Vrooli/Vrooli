@@ -11,7 +11,7 @@ import (
 /*
 Rule: Ports Configuration
 Description: Ensure service.json defines reusable API/UI ports with approved ranges
-Reason: Consistent port allocation prevents collisions between scenarios and enables lifecycle orchestration
+Reason: Consistent port allocation prevents collisions between scenarios and keeps every listener below the Linux ephemeral floor (32768), which otherwise causes intermittent "port already in use" races on restart.
 Category: config
 Severity: high
 Standard: configuration-v1
@@ -73,7 +73,7 @@ Targets: service_json
     },
     "ui": {
       "env_var": "PORT",
-      "range": "35000-39999"
+      "range": "20000-24999"
     }
   }
 }
@@ -83,7 +83,7 @@ Targets: service_json
 </test-case>
 
 <test-case id="valid-config" should-fail="false" path=".vrooli/service.json">
-  <description>Valid ports configuration with api and ui ranges</description>
+  <description>Valid ports configuration with canonical api and ui ranges</description>
   <input language="json"><![CDATA[
 {
   "ports": {
@@ -94,7 +94,7 @@ Targets: service_json
     },
     "ui": {
       "env_var": "UI_PORT",
-      "range": "35000-39999",
+      "range": "20000-24999",
       "description": "Optional UI"
     }
   }
@@ -116,7 +116,7 @@ Targets: service_json
   "ports": {
     "ui": {
       "env_var": "UI_PORT",
-      "range": "35000-39999"
+      "range": "20000-24999"
     }
   }
 }
@@ -161,7 +161,7 @@ Targets: service_json
 </test-case>
 
 <test-case id="ui-port-fixed-valid" should-fail="false" path=".vrooli/service.json">
-  <description>UI port uses fixed assignment with port field in valid range</description>
+  <description>UI port uses fixed assignment with port field in the canonical UI band</description>
   <input language="json"><![CDATA[
 {
   "ports": {
@@ -171,11 +171,31 @@ Targets: service_json
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 38000
+      "port": 21234
     }
   }
 }
   ]]></input>
+</test-case>
+
+<test-case id="ui-port-fixed-ephemeral" should-fail="true" path=".vrooli/service.json">
+  <description>UI port pinned inside the Linux ephemeral range</description>
+  <input language="json"><![CDATA[
+{
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "port": 36234
+    }
+  }
+}
+  ]]></input>
+  <expected-violations>1</expected-violations>
+  <expected-message>ephemeral range</expected-message>
 </test-case>
 
 <test-case id="ui-port-fixed-reserved" should-fail="true" path=".vrooli/service.json">
@@ -246,6 +266,26 @@ Targets: service_json
   <expected-message>reserved range</expected-message>
 </test-case>
 
+<test-case id="ui-range-overlaps-ephemeral" should-fail="true" path=".vrooli/service.json">
+  <description>UI range overlaps with the Linux ephemeral window (32768-60999)</description>
+  <input language="json"><![CDATA[
+{
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "35000-39999"
+    }
+  }
+}
+  ]]></input>
+  <expected-violations>1</expected-violations>
+  <expected-message>ephemeral range</expected-message>
+</test-case>
+
 <test-case id="ports-api-not-object" should-fail="true" path=".vrooli/service.json">
   <description>api entry is not an object</description>
   <input language="json"><![CDATA[
@@ -273,6 +313,24 @@ Targets: service_json
   ]]></input>
 </test-case>
 */
+
+// Canonical scenario port bands. Kept in sync with
+// github.com/vrooli/vrooli/internal/portspec (duplicated here because the
+// scenario-auditor is a separate Go module and internal/ packages are not
+// importable across modules; per project convention we duplicate before
+// extracting).
+const (
+	canonicalAPIRange = "15000-19999"
+	canonicalUIRange  = "20000-24999"
+	canonicalWSRange  = "25000-29999"
+	canonicalMax      = 32767
+)
+
+// staticEphemeralRange is the Linux default ephemeral window
+// (/proc/sys/net/ipv4/ip_local_port_range). We use it as a static reference
+// inside the auditor rather than probing the running OS so audit results are
+// reproducible across CI hosts and developer machines.
+var staticEphemeralRange = [2]int{32768, 60999}
 
 // CheckServicePortConfiguration validates that service.json declares expected port entries.
 func CheckServicePortConfiguration(content []byte, filePath string) []Violation {
@@ -340,32 +398,29 @@ func validateAPIPort(entry map[string]any, source, filePath string, violations *
 	rangeLine := findPortsJSONLine(source, "\"api\"", "\"range\"")
 	rangeVal, hasRange := entry["range"]
 	if !hasRange {
-		*violations = append(*violations, newPortsViolation(filePath, rangeLine, "ports.api.range must be \"15000-19999\""))
+		*violations = append(*violations, newPortsViolation(filePath, rangeLine, "ports.api.range must be \""+canonicalAPIRange+"\""))
 		return
 	}
 
 	rangeStr, ok := rangeVal.(string)
 	if !ok || strings.TrimSpace(rangeStr) == "" {
-		*violations = append(*violations, newPortsViolation(filePath, rangeLine, "ports.api.range must be \"15000-19999\""))
+		*violations = append(*violations, newPortsViolation(filePath, rangeLine, "ports.api.range must be \""+canonicalAPIRange+"\""))
 		return
 	}
 
-	// Parse and validate range format
 	start, end, err := parsePortRange(rangeStr)
 	if err != nil {
 		*violations = append(*violations, newPortsViolation(filePath, rangeLine, fmt.Sprintf("ports.api.range has %s", err.Error())))
 		return
 	}
 
-	// Check for overlap with reserved ranges FIRST (more specific error)
 	if overlaps, reservedName := checkReservedRangeOverlap(start, end); overlaps {
 		*violations = append(*violations, newPortsViolation(filePath, rangeLine, fmt.Sprintf("ports.api.range overlaps with reserved range: %s", reservedName)))
 		return
 	}
 
-	// Check if range is the approved one
-	if rangeStr != "15000-19999" {
-		*violations = append(*violations, newPortsViolation(filePath, rangeLine, "ports.api.range must be \"15000-19999\""))
+	if rangeStr != canonicalAPIRange {
+		*violations = append(*violations, newPortsViolation(filePath, rangeLine, "ports.api.range must be \""+canonicalAPIRange+"\""))
 	}
 }
 
@@ -376,39 +431,38 @@ func validateUIPort(entry map[string]any, source, filePath string, violations *[
 		*violations = append(*violations, newPortsViolation(filePath, envVarLine, "ports.ui.env_var must be \"UI_PORT\" when the ui port is defined"))
 	}
 
-	// Check for range field
 	if rangeVal, hasRange := entry["range"]; hasRange {
 		rangeLine := findPortsJSONLine(source, "\"ui\"", "\"range\"")
 		rangeStr, ok := rangeVal.(string)
 		if !ok || strings.TrimSpace(rangeStr) == "" {
-			*violations = append(*violations, newPortsViolation(filePath, rangeLine, "ports.ui.range must be \"35000-39999\" when a range is specified"))
+			*violations = append(*violations, newPortsViolation(filePath, rangeLine, "ports.ui.range must be \""+canonicalUIRange+"\" when a range is specified"))
 			return
 		}
 
-		// Parse and validate range format
 		start, end, err := parsePortRange(rangeStr)
 		if err != nil {
 			*violations = append(*violations, newPortsViolation(filePath, rangeLine, fmt.Sprintf("ports.ui.range has %s", err.Error())))
 			return
 		}
 
-		// Check if range is the approved one
-		if rangeStr != "35000-39999" {
-			*violations = append(*violations, newPortsViolation(filePath, rangeLine, "ports.ui.range must be \"35000-39999\" when a range is specified"))
+		if rangeOverlapsEphemeral(start, end) {
+			*violations = append(*violations, newPortsViolation(filePath, rangeLine, fmt.Sprintf("ports.ui.range %s overlaps the Linux ephemeral range %d-%d", rangeStr, staticEphemeralRange[0], staticEphemeralRange[1])))
 			return
 		}
 
-		// Check for overlap with reserved ranges
+		if rangeStr != canonicalUIRange {
+			*violations = append(*violations, newPortsViolation(filePath, rangeLine, "ports.ui.range must be \""+canonicalUIRange+"\" when a range is specified"))
+			return
+		}
+
 		if overlaps, reservedName := checkReservedRangeOverlap(start, end); overlaps {
 			*violations = append(*violations, newPortsViolation(filePath, rangeLine, fmt.Sprintf("ports.ui.range overlaps with reserved range: %s", reservedName)))
 		}
 	}
 
-	// Check for fixed port field
 	if portVal, hasPort := entry["port"]; hasPort {
 		portLine := findPortsJSONLine(source, "\"ui\"", "\"port\"")
 
-		// Port can be either a number or a string (with env var substitution like "${PORT:-3500}")
 		var port int
 		switch v := portVal.(type) {
 		case float64:
@@ -416,12 +470,9 @@ func validateUIPort(entry map[string]any, source, filePath string, violations *[
 		case int:
 			port = v
 		case string:
-			// If it's a string with env var substitution like "${PORT:-3500}", extract the default
 			if strings.Contains(v, "${") {
-				// Skip validation for env var strings - they're validated at runtime
 				return
 			}
-			// Try to parse as number
 			parsed, err := strconv.Atoi(strings.TrimSpace(v))
 			if err != nil {
 				*violations = append(*violations, newPortsViolation(filePath, portLine, "ports.ui.port must be a valid port number"))
@@ -433,21 +484,23 @@ func validateUIPort(entry map[string]any, source, filePath string, violations *[
 			return
 		}
 
-		// Validate port is in valid range
 		if port < 1 || port > 65535 {
 			*violations = append(*violations, newPortsViolation(filePath, portLine, "ports.ui.port must be between 1 and 65535"))
 			return
 		}
 
-		// Check if fixed port is in a reserved range FIRST (more specific error)
 		if inReserved, reservedName := checkFixedPortInReserved(port); inReserved {
 			*violations = append(*violations, newPortsViolation(filePath, portLine, fmt.Sprintf("ports.ui.port %d is in reserved range: %s", port, reservedName)))
 			return
 		}
 
-		// Verify fixed port is in the UI range (35000-39999)
-		if port < 35000 || port > 39999 {
-			*violations = append(*violations, newPortsViolation(filePath, portLine, fmt.Sprintf("ports.ui.port %d should be in range 35000-39999", port)))
+		if fixedPortInEphemeral(port) {
+			*violations = append(*violations, newPortsViolation(filePath, portLine, fmt.Sprintf("ports.ui.port %d sits inside the Linux ephemeral range %d-%d; move it below %d", port, staticEphemeralRange[0], staticEphemeralRange[1], canonicalMax+1)))
+			return
+		}
+
+		if port < 20000 || port > 24999 {
+			*violations = append(*violations, newPortsViolation(filePath, portLine, fmt.Sprintf("ports.ui.port %d should be in range %s", port, canonicalUIRange)))
 		}
 	}
 }
@@ -463,7 +516,7 @@ func newPortsViolation(filePath string, line int, message string) Violation {
 		Description:    message,
 		FilePath:       filePath,
 		LineNumber:     line,
-		Recommendation: "Define API_PORT (range 15000-19999) and UI_PORT (range 35000-39999 when used) in .vrooli/service.json",
+		Recommendation: "Define API_PORT (range " + canonicalAPIRange + ") and UI_PORT (range " + canonicalUIRange + " when used) in .vrooli/service.json. See docs/reference/port-allocation.md.",
 		Standard:       "configuration-v1",
 	}
 }
@@ -551,10 +604,8 @@ func parsePortRange(rangeStr string) (int, int, error) {
 	return start, end, nil
 }
 
-// checkReservedRangeOverlap checks if a port range overlaps with any reserved ranges
 func checkReservedRangeOverlap(start, end int) (bool, string) {
 	for name, reserved := range reservedRanges {
-		// Check for overlap: range overlaps if start <= reserved_end && end >= reserved_start
 		if start <= reserved[1] && end >= reserved[0] {
 			return true, fmt.Sprintf("%s (%d-%d)", name, reserved[0], reserved[1])
 		}
@@ -562,7 +613,6 @@ func checkReservedRangeOverlap(start, end int) (bool, string) {
 	return false, ""
 }
 
-// checkFixedPortInReserved checks if a fixed port is in a reserved range
 func checkFixedPortInReserved(port int) (bool, string) {
 	for name, reserved := range reservedRanges {
 		if port >= reserved[0] && port <= reserved[1] {
@@ -570,4 +620,12 @@ func checkFixedPortInReserved(port int) (bool, string) {
 		}
 	}
 	return false, ""
+}
+
+func rangeOverlapsEphemeral(start, end int) bool {
+	return start <= staticEphemeralRange[1] && end >= staticEphemeralRange[0]
+}
+
+func fixedPortInEphemeral(port int) bool {
+	return port >= staticEphemeralRange[0] && port <= staticEphemeralRange[1]
 }

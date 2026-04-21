@@ -1,14 +1,15 @@
 package main
 
 import (
-	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/preflight"
 	"context"
 	"database/sql"
 	"log"
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/preflight"
 
 	"github.com/gorilla/handlers"
 )

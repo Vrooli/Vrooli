@@ -230,7 +230,6 @@ func (s *SecretScanner) findResourceFiles(targetResources []string, config ScanC
 		files = append(files, path)
 		return nil
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to walk resources directory: %w", err)
 	}
@@ -425,7 +424,7 @@ func (s *SecretScanner) GetScanHistory(limit int) ([]SecretScan, error) {
 			continue
 		}
 
-		json.Unmarshal(resourcesJSON, &scan.ResourcesScanned)
+		_ = json.Unmarshal(resourcesJSON, &scan.ResourcesScanned)
 		scans = append(scans, scan)
 	}
 

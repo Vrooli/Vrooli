@@ -17,7 +17,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/lib/pq"
@@ -109,7 +108,6 @@ func (s *PostgresSecretStore) FetchSecrets(ctx context.Context, scenario, tier s
 	if len(resources) > 0 {
 		filters = append(filters, fmt.Sprintf("rs.resource_name = ANY($%d)", argPos))
 		args = append(args, pq.Array(resources))
-		argPos++
 	}
 	if !includeOptional {
 		filters = append(filters, "rs.required = TRUE")
@@ -235,15 +233,7 @@ func (s *PostgresSecretStore) PersistManifest(ctx context.Context, scenario, tie
 
 // HTTPAnalyzerClient implements AnalyzerClient using HTTP calls to the analyzer service.
 type HTTPAnalyzerClient struct {
-	logger      *Logger
-	reportCache map[string]*analyzerReportCacheEntry
-	cacheMu     sync.RWMutex
-}
-
-// analyzerReportCacheEntry caches analyzer reports with freshness tracking.
-type analyzerReportCacheEntry struct {
-	report    *analyzerDeploymentReport
-	fetchedAt time.Time
+	logger *Logger
 }
 
 // reportStalenessThreshold defines when cached reports should be refreshed.
@@ -252,8 +242,7 @@ const reportStalenessThreshold = 24 * time.Hour
 // NewHTTPAnalyzerClient creates a production AnalyzerClient using HTTP.
 func NewHTTPAnalyzerClient(logger *Logger) *HTTPAnalyzerClient {
 	return &HTTPAnalyzerClient{
-		logger:      logger,
-		reportCache: make(map[string]*analyzerReportCacheEntry),
+		logger: logger,
 	}
 }
 

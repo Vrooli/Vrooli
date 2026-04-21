@@ -89,13 +89,13 @@ Configuration requires API_KEY
 	t.Run("BinaryFiles", func(t *testing.T) {
 		// Create a resource with binary files
 		resourceDir := filepath.Join(env.TempDir, "resources", "binary-resource")
-		if err := os.MkdirAll(resourceDir, 0755); err != nil {
+		if err := os.MkdirAll(resourceDir, 0o755); err != nil {
 			t.Fatal(err)
 		}
 
 		// Create a binary file
 		binaryFile := filepath.Join(resourceDir, "binary.dat")
-		if err := os.WriteFile(binaryFile, []byte{0xFF, 0xFE, 0x00, 0x01}, 0644); err != nil {
+		if err := os.WriteFile(binaryFile, []byte{0xFF, 0xFE, 0x00, 0x01}, 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -114,18 +114,18 @@ Configuration requires API_KEY
 		// Create nested directory structure
 		resourceDir := filepath.Join(env.TempDir, "resources", "nested-resource")
 		subDir := filepath.Join(resourceDir, "config", "production")
-		if err := os.MkdirAll(subDir, 0755); err != nil {
+		if err := os.MkdirAll(subDir, 0o755); err != nil {
 			t.Fatal(err)
 		}
 
 		// Create files in nested directories
 		rootConfig := filepath.Join(resourceDir, ".env")
-		if err := os.WriteFile(rootConfig, []byte("ROOT_API_KEY=test\n"), 0644); err != nil {
+		if err := os.WriteFile(rootConfig, []byte("ROOT_API_KEY=test\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
 		nestedConfig := filepath.Join(subDir, "secrets.env")
-		if err := os.WriteFile(nestedConfig, []byte("NESTED_SECRET=value\n"), 0644); err != nil {
+		if err := os.WriteFile(nestedConfig, []byte("NESTED_SECRET=value\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -259,9 +259,9 @@ Scan complete: 4 resources
 		output := "Invalid scan output format"
 		resources := parseVaultScanOutput(output)
 
-		// Should handle gracefully
-		if resources == nil {
-			resources = []string{}
+		// Should handle gracefully — either nil or an empty slice is acceptable.
+		if len(resources) != 0 {
+			t.Errorf("expected zero resources for malformed input, got %v", resources)
 		}
 	})
 }
@@ -435,21 +435,21 @@ func TestScannerEdgeCases(t *testing.T) {
 	t.Run("PermissionDenied", func(t *testing.T) {
 		// Create a directory with no read permissions
 		restrictedDir := filepath.Join(env.TempDir, "resources", "restricted")
-		if err := os.MkdirAll(restrictedDir, 0755); err != nil {
+		if err := os.MkdirAll(restrictedDir, 0o755); err != nil {
 			t.Fatal(err)
 		}
 
 		// Create a file
 		testFile := filepath.Join(restrictedDir, "secret.env")
-		if err := os.WriteFile(testFile, []byte("SECRET=test\n"), 0644); err != nil {
+		if err := os.WriteFile(testFile, []byte("SECRET=test\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
 		// Remove read permissions
-		if err := os.Chmod(restrictedDir, 0000); err != nil {
+		if err := os.Chmod(restrictedDir, 0o000); err != nil {
 			t.Skip("Cannot modify permissions on this system")
 		}
-		defer os.Chmod(restrictedDir, 0755) // Restore for cleanup
+		defer os.Chmod(restrictedDir, 0o755) // Restore for cleanup
 
 		// Scan should handle permission errors gracefully
 		secrets, err := scanResourceDirectory("restricted", restrictedDir)
@@ -464,7 +464,7 @@ func TestScannerEdgeCases(t *testing.T) {
 	t.Run("LargeFiles", func(t *testing.T) {
 		// Create a large file
 		resourceDir := filepath.Join(env.TempDir, "resources", "large-resource")
-		if err := os.MkdirAll(resourceDir, 0755); err != nil {
+		if err := os.MkdirAll(resourceDir, 0o755); err != nil {
 			t.Fatal(err)
 		}
 
@@ -473,7 +473,7 @@ func TestScannerEdgeCases(t *testing.T) {
 		for i := range content {
 			content[i] = 'a'
 		}
-		if err := os.WriteFile(largeFile, content, 0644); err != nil {
+		if err := os.WriteFile(largeFile, content, 0o644); err != nil {
 			t.Skip("Cannot create large file")
 		}
 
@@ -508,7 +508,7 @@ func TestScannerEdgeCases(t *testing.T) {
 func TestNewSecretScanner(t *testing.T) {
 	scanner := NewSecretScanner(nil)
 	if scanner == nil {
-		t.Error("NewSecretScanner() returned nil")
+		t.Fatal("NewSecretScanner() returned nil")
 	}
 	if scanner.db != nil {
 		t.Error("Expected nil database, got non-nil")
@@ -597,7 +597,7 @@ func TestScanResources(t *testing.T) {
 	t.Run("Success_QuickScan", func(t *testing.T) {
 		// Create test resource files
 		resourceDir := filepath.Join(root, "resources", "test-resource")
-		if err := os.MkdirAll(resourceDir, 0755); err != nil {
+		if err := os.MkdirAll(resourceDir, 0o755); err != nil {
 			t.Fatal(err)
 		}
 
@@ -607,7 +607,7 @@ func TestScanResources(t *testing.T) {
 DATABASE_URL=postgresql://localhost:5432/testdb
 SECRET_TOKEN=secret-abc
 PORT=8080`
-		if err := os.WriteFile(configFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(configFile, []byte(content), 0o644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -669,7 +669,7 @@ func TestFindResourceFiles(t *testing.T) {
 	t.Run("Success_FindConfigFiles", func(t *testing.T) {
 		// Create test resources
 		resourceDir := filepath.Join(root, "resources", "postgres")
-		if err := os.MkdirAll(resourceDir, 0755); err != nil {
+		if err := os.MkdirAll(resourceDir, 0o755); err != nil {
 			t.Fatal(err)
 		}
 
@@ -683,7 +683,7 @@ func TestFindResourceFiles(t *testing.T) {
 
 		for filename, content := range testFiles {
 			path := filepath.Join(resourceDir, filename)
-			if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 				t.Fatal(err)
 			}
 		}

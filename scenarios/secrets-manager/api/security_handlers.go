@@ -59,7 +59,7 @@ func (h *SecurityHandlers) SecurityScan(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	_ = json.NewEncoder(w).Encode(result)
 }
 
 // Compliance dashboard handler
@@ -210,5 +210,5 @@ func (h *SecurityHandlers) VulnerabilityStatus(w http.ResponseWriter, r *http.Re
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"id": updatedID, "status": status})
+	_ = json.NewEncoder(w).Encode(map[string]string{"id": updatedID, "status": status})
 }

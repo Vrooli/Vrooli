@@ -256,13 +256,7 @@ func convertAnalyzerDependencies(report *analyzerDeploymentReport) []DependencyI
 		if len(dep.TierSupport) > 0 {
 			insight.TierSupport = make(map[string]DependencyTierSupportView, len(dep.TierSupport))
 			for tier, support := range dep.TierSupport {
-				insight.TierSupport[tier] = DependencyTierSupportView{
-					Supported:    support.Supported,
-					FitnessScore: support.FitnessScore,
-					Notes:        support.Notes,
-					Reason:       support.Reason,
-					Alternatives: support.Alternatives,
-				}
+				insight.TierSupport[tier] = DependencyTierSupportView(support)
 			}
 		}
 

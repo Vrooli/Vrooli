@@ -90,6 +90,13 @@ type Dependencies struct {
 	StatsBlocking        CommandFunc
 	StatsInitiatives     CommandFunc
 	StatsAgent           CommandFunc
+	AISearchStatus       CommandFunc
+	AISearchQuery        CommandFunc
+	AISearchReindex      CommandFunc
+	AISearchReindexStat  CommandFunc
+	AISearchReindexCan   CommandFunc
+	BacklogSearchAI      CommandFunc
+	InitiativesSearchAI  CommandFunc
 }
 
 func APICommand(name, description string, run CommandFunc) cliapp.Command {

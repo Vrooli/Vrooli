@@ -53,7 +53,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "AI Model Orchestra Controller UI port",
-      "range": "35000-39999"
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
@@ -190,7 +190,6 @@
         "models": [
           "llama3.2:1b",
           "llama3.2:3b",
-          "llama3.2:8b",
           "codellama:7b",
           "nomic-embed-text"
         ]

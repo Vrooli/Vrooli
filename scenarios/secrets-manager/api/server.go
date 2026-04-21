@@ -14,16 +14,16 @@ type APIServer struct {
 }
 
 type handlerSet struct {
-	health           *HealthHandlers
-	vault            *VaultHandlers
-	security         *SecurityHandlers
-	resources        *ResourceHandlers
-	deployment       *DeploymentHandlers
-	scenarios        *ScenarioHandlers
-	orientation      *OrientationHandlers
-	campaigns        *CampaignHandlers
-	overrides        *ScenarioOverrideHandlers
-	adminOverrides   *AdminOverrideHandlers
+	health         *HealthHandlers
+	vault          *VaultHandlers
+	security       *SecurityHandlers
+	resources      *ResourceHandlers
+	deployment     *DeploymentHandlers
+	scenarios      *ScenarioHandlers
+	orientation    *OrientationHandlers
+	campaigns      *CampaignHandlers
+	overrides      *ScenarioOverrideHandlers
+	adminOverrides *AdminOverrideHandlers
 }
 
 func newAPIServer(db *sql.DB, logger *Logger) *APIServer {

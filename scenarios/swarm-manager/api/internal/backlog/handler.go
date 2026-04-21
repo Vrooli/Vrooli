@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
 	"strings"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
@@ -144,6 +143,15 @@ func (h *Handler) SetEventDispatcher(d dispatch.Invalidator) {
 // SetEventLogger injects an optional event logger for analytics tracking.
 func (h *Handler) SetEventLogger(l EventLogger) {
 	h.eventLogger = l
+}
+
+// SetAIIndexer wires an optional AI search indexer that receives fire-and-forget
+// notifications from the underlying FileStore after every SaveItem/DeleteItem.
+// Silently no-ops if the backing store is not a FileStore.
+func (h *Handler) SetAIIndexer(indexer AIIndexer) {
+	if fs, ok := h.store.(*FileStore); ok {
+		fs.SetAIIndexer(indexer)
+	}
 }
 
 // StartWorkshopTicker starts the background ticker that fires deferred
@@ -390,13 +398,12 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Idempotent delete: if the item doesn't exist, return 204 immediately.
-	itemDir := h.store.ItemDir(kind, name)
 	if _, err := h.store.LoadItem(kind, name); errors.Is(err, ErrNotFound) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
-	if err := os.RemoveAll(itemDir); err != nil {
+	if err := h.store.DeleteItem(kind, name); err != nil {
 		slog.Error("failed to delete item", "name", name, "err", err)
 		apierr.MapError(w, "[backlog] delete", apierr.Internal("failed to delete backlog item"))
 		return

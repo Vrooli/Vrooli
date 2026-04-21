@@ -348,14 +348,14 @@ type envUsage struct {
 }
 
 type envAcc struct {
-	first         int
-	validated     bool
-	logged        bool
-	loggedLine    int
-	hasDefault    bool
-	defaultLine   int
-	defaultValue  string
-	category      VarCategory
+	first        int
+	validated    bool
+	logged       bool
+	loggedLine   int
+	hasDefault   bool
+	defaultLine  int
+	defaultValue string
+	category     VarCategory
 }
 
 var (
@@ -1123,8 +1123,8 @@ func isCriticalURLVar(name string) bool {
 
 	// Must end with _URL, _DSN, or _CONNECTION
 	if !strings.HasSuffix(upper, "_URL") &&
-	   !strings.HasSuffix(upper, "_DSN") &&
-	   !strings.HasSuffix(upper, "_CONNECTION") {
+		!strings.HasSuffix(upper, "_DSN") &&
+		!strings.HasSuffix(upper, "_CONNECTION") {
 		return false
 	}
 
@@ -1334,7 +1334,7 @@ func bashHasDefault(line string, envVar string) (bool, string) {
 	lower := strings.ToLower(envVar)
 
 	// Check for ${VAR:-default}, ${VAR-default}, ${VAR:=default}
-	patterns := []struct{
+	patterns := []struct {
 		prefix string
 		suffix string
 	}{

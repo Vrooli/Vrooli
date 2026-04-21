@@ -9,7 +9,7 @@ import (
 func TestNewSecretValidator(t *testing.T) {
 	validator := NewSecretValidator(nil)
 	if validator == nil {
-		t.Error("NewSecretValidator() returned nil")
+		t.Fatal("NewSecretValidator() returned nil")
 	}
 	if validator.db != nil {
 		t.Error("Expected nil database, got non-nil")
@@ -616,7 +616,7 @@ func TestValidationResponseStructure(t *testing.T) {
 			t.Error("Empty response should have 0 total secrets")
 		}
 
-		if response.HealthSummary != nil && len(response.HealthSummary) > 0 {
+		if len(response.HealthSummary) > 0 {
 			t.Error("Empty response should have no health summaries")
 		}
 	})

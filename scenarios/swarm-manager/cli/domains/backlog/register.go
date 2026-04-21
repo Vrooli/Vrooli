@@ -32,6 +32,7 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			support.APICommand("clarify-get", "Get a clarification thread (--kind KIND --name NAME --thread ID)", deps.BacklogClarifyGet),
 			support.APICommand("clarify-continue", "Continue a clarification thread (--kind KIND --name NAME --thread ID --message MSG)", deps.BacklogClarifyNext),
 			support.APICommand("clarify-action", "Apply post-clarification action (--kind KIND --name NAME --thread ID --action ACTION)", deps.BacklogClarifyAction),
+			support.APICommand("search-ai", "Semantic search over backlog items (<query> [--limit N] [--kind K,...] [--status S,...] [--initiative N] [--include-archived] [--json])", deps.BacklogSearchAI),
 		},
 	}
 }

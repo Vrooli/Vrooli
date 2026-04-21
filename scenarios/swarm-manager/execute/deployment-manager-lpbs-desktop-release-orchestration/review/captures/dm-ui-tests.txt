@@ -1,0 +1,12 @@
+
+ RUN  v2.1.9 /home/matthalloran8/Vrooli/scenarios/deployment-manager/ui
+
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+ ✓ src/components/LPBSReleaseConfigCard.test.tsx (4 tests) 74ms
+ ✓ src/components/ReleasesPanel.test.tsx (4 tests) 111ms
+
+ Test Files  2 passed (2)
+      Tests  8 passed (8)
+   Start at  00:10:36
+   Duration  874ms (transform 89ms, setup 74ms, collect 309ms, tests 185ms, environment 567ms, prepare 312ms)
+

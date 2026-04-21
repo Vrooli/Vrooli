@@ -26,7 +26,7 @@
   "kind": "execute",
   "name": "deployment-manager-lpbs-desktop-release-orchestration",
   "priority": 2,
-  "status": "backlog",
+  "status": "completed",
   "tags": [
     "deployment-manager",
     "landing-page-business-suite",
@@ -35,5 +35,5 @@
     "automation"
   ],
   "title": "Make Deployment Manager Own LPBS Desktop Release Orchestration",
-  "updated": "2026-04-09T13:14:04Z"
+  "updated": "2026-04-21T12:43:43Z"
 }

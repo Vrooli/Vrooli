@@ -22,6 +22,7 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			support.APICommand("file-get", "Get a file from an initiative (--name NAME --path PATH) [--out FILE] [--json]", deps.InitiativesFileGet),
 			support.APICommand("file-upload", "Upload a file to an initiative (--name NAME --path PATH) (--stdin|--file|--content)", deps.InitiativesFileUp),
 			support.APICommand("file-op", "File operation on initiative (--name NAME --op OP --source PATH) [--dest PATH] [--json]", deps.InitiativesFileOp),
+			support.APICommand("search-ai", "Semantic search over initiatives (<query> [--limit N] [--status S,...] [--include-archived] [--json])", deps.InitiativesSearchAI),
 		},
 	}
 }

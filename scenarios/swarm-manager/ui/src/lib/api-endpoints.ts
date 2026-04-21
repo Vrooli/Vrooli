@@ -102,6 +102,12 @@ export const API_ENDPOINTS = {
   // Embedded service endpoints (served at origin root, not under /api/v1)
   embeddedExternalUrl: (serviceName: string) =>
     `/embedded/${encodeURIComponent(serviceName)}/external-url`,
+  // AI search
+  searchAI: "/search/ai",
+  searchAIStatus: "/search/ai/status",
+  searchAIReindex: "/search/ai/reindex",
+  searchAIReindexStatus: "/search/ai/reindex/status",
+  searchAIReindexCancel: "/search/ai/reindex/cancel",
 } as const;
 
 /**

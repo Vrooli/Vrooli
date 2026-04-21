@@ -183,7 +183,7 @@ func (b *BundlePlanBuilder) derivePrompt(entry DeploymentSecretEntry) *PromptMet
 // deriveGenerator creates a generator template for per_install_generated secrets.
 // Uses the entry's generator template if available, otherwise provides defaults.
 func (b *BundlePlanBuilder) deriveGenerator(entry DeploymentSecretEntry) map[string]interface{} {
-	if entry.GeneratorTemplate != nil && len(entry.GeneratorTemplate) > 0 {
+	if len(entry.GeneratorTemplate) > 0 {
 		return entry.GeneratorTemplate
 	}
 

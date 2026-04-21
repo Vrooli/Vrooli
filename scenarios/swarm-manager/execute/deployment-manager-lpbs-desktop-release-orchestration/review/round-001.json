@@ -1,0 +1,160 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-21T04:20:00Z",
+  "execution_id": "d1f125d9310c89b0",
+  "run_id": "2e1cbebd-1e67-4856-8779-5e13151be79d",
+  "status": "complete",
+  "agent_assessment": "All 7 phases of the plan have landing code in the working tree. The diff-summary reports 0 changed files because the execution agent ran without sandbox mode; changes were applied directly, so I verified by reading files and running targeted builds/tests. DM api + cli + ui + S2D + LPBS all build clean; focused tests (deployment-manager/deployments, /releases, /profiles, /cli/releases, landing-page-business-suite deploy-readiness, scenario-to-desktop pipeline/deploy, DM UI components) all pass. Schema, routes, handlers, CLI subcommands, UI cards, and skill rewrite match the plan's target end state. Two deviations worth noting: (1) the advisory lock uses pg_try_advisory_lock + hashtextextended() + explicit unlock instead of the plan's pg_try_advisory_xact_lock + hashtext() design (semantically equivalent because the handler defer-calls release(), but different from D10=B), and (2) no scenario-to-desktop tests explicitly assert passthrough of ReleaseID/Channel/variant_key through PublishPipelineRequest to lpbs_client.go, which Phase 5 of the plan required. Concurrency-lock test uses a mock repo returning false rather than a real Postgres race; functional coverage is adequate but the live-Postgres concurrency guarantee is not exercised in CI. Overall this is a solid, broad implementation that matches the plan's intent.",
+  "classification": "ready_with_notes",
+  "notes": [
+    "Migration numbered 005_add_releases.sql, not 004 as plan text said. Justified: 004_add_validation_commit_hash.sql is already taken. No impact.",
+    "Advisory lock implementation deviates from plan D10=B: uses non-xact pg_try_advisory_lock + hashtextextended() with explicit release on defer. Still profile-scoped and serialized, but does not auto-release on transaction abort (the explicit release() path covers this — confirmed in api/releases/repo.go:256-283).",
+    "Phase 5 test gap: plan required scenario-to-desktop tests asserting ReleaseID/Channel/variant_key passthrough; none exist under scenarios/scenario-to-desktop/api/**_test.go (grep for release_id/variant_key returns zero matches in test files).",
+    "DM→S2D integration with fake S2D httptest server asserting all five LPBS coords on PublishPipelineRequest is not present; coverage is indirect via orchestrator_release_test fakes.",
+    "LPBS /deploy-readiness returns HTTP 409 (not 400) for unready gates — handler test file confirms this shape. Plan text ambiguously referenced 400/409; 409 is a reasonable choice."
+  ],
+  "evidence": [
+    {
+      "id": "e1",
+      "type": "config_diff",
+      "title": "DM migration 005 + profile_lpbs_release_config + releases + release_platforms schema",
+      "description": "Schema is present exactly as specified: profile_lpbs_release_config 1:1 child of profiles, releases with UNIQUE(profile_id, git_commit_hash, channel) and promoted_from_release_id self-FK, release_platforms PRIMARY KEY(release_id, platform), plus all five required indexes. verification_evidence stored as JSONB on releases. published_versions gets release_id correlation column. File: scenarios/deployment-manager/api/migrations/005_add_releases.sql:1-66. Repo code at scenarios/deployment-manager/api/releases/repo.go:22-65 mirrors the schema for in-process EnsureSchema calls.",
+      "verified": false,
+      "test_results": [
+        {"name": "profile_lpbs_release_config table created with 1:1 FK to profiles", "passed": true, "output_summary": "migration 005 lines 10-19"},
+        {"name": "releases table has UNIQUE(profile_id, git_commit_hash, channel) per research Finding 7", "passed": true, "output_summary": "migration 005 line 37"},
+        {"name": "channel is free-text TEXT with no CHECK constraint (D9=B)", "passed": true, "output_summary": "migration 005 line 28: channel TEXT NOT NULL DEFAULT 'stable'"},
+        {"name": "promoted_from_release_id reserved for future promote", "passed": true, "output_summary": "migration 005 line 32"},
+        {"name": "All 5 indexes present: profile_channel, status, commit, deployment, platforms_status", "passed": true, "output_summary": "migration 005 lines 52-62"},
+        {"name": "published_versions.release_id correlation column added", "passed": true, "output_summary": "migration 005 lines 64-65"}
+      ]
+    },
+    {
+      "id": "e2",
+      "type": "api_test",
+      "title": "DM releases API + CLI + orchestrator — 16 tests pass",
+      "description": "Handler, CLI, orchestrator step, and profile tests all pass. Handler tests cover lock contention → 409 release_in_flight, verify-mismatch → verify_failed, missing app_key → 412, happy-path, explicit channel, missing required fields → 400. Orchestrator tests cover cloud-health healthy vs unhealthy paths, readiness skip-when-no-config, readiness not-ready fails, verify-all-match → published, verify-mismatch → verify_failed, effective-channel precedence. Captures: review/captures/dm-api-focused-tests.txt, dm-cli-release-tests.txt.",
+      "verified": false,
+      "test_results": [
+        {"name": "deployment-manager/deployments", "passed": true, "output_summary": "ok (0.007s)"},
+        {"name": "deployment-manager/releases", "passed": true, "output_summary": "ok (0.006s)"},
+        {"name": "deployment-manager/profiles", "passed": true, "output_summary": "ok (0.004s)"},
+        {"name": "deployment-manager/cli/releases", "passed": true, "output_summary": "ok (0.005s)"},
+        {"name": "TestStartLockContentionReturns409", "passed": true, "output_summary": "handlers_test.go:235 — asserts 409 body {error: release_in_flight, profile_id}"},
+        {"name": "TestVerifyMarksFailedOnMismatch", "passed": true, "output_summary": "handlers_test.go:278 — hard-fail path"},
+        {"name": "TestVerifyReturns412WithoutAppKey", "passed": true, "output_summary": "handlers_test.go:334 — precondition gate"},
+        {"name": "TestDeployCheckCloudHealth_UnhealthyMarksFailedRelease", "passed": true, "output_summary": "orchestrator_release_test.go:163 — cloud-health gate"},
+        {"name": "TestDeployCheckLPBSReadiness_NotReadyFails", "passed": true, "output_summary": "orchestrator_release_test.go:194 — readiness gate fails release"},
+        {"name": "TestDeployVerifyUpdateEndpoints_MismatchMarksVerifyFailed", "passed": true, "output_summary": "orchestrator_release_test.go:241 — verify hard-fail per D3=A"}
+      ],
+      "capture_path": "captures/dm-api-focused-tests.txt"
+    },
+    {
+      "id": "e3",
+      "type": "api_test",
+      "title": "LPBS POST /api/v1/deploy-readiness — 3 handler tests pass",
+      "description": "Endpoint exists at scenarios/landing-page-business-suite/api/deploy_readiness_handler.go:37, routed via requireAdminOrService at api/routes.go:35-36 (matches D8=B). Three handler tests cover: storage not configured → 409 with gate details, app missing → 409, storage+app OK → 200. Response shape: {ready, gates[{name, ready, message}], error}. Capture: captures/lpbs-deploy-readiness-tests.txt.",
+      "verified": false,
+      "test_results": [
+        {"name": "TestDeployReadiness_StorageNotConfigured", "passed": true, "output_summary": "gates include storage=false, returns 409"},
+        {"name": "TestDeployReadiness_AppMissing", "passed": true, "output_summary": "app gate ready=false"},
+        {"name": "TestDeployReadiness_StorageAndAppOK", "passed": true, "output_summary": "ready=true, HTTP 200"},
+        {"name": "Route uses requireAdminOrService (D8=B)", "passed": true, "output_summary": "routes.go:35-36"}
+      ],
+      "capture_path": "captures/lpbs-deploy-readiness-tests.txt"
+    },
+    {
+      "id": "e4",
+      "type": "api_test",
+      "title": "DM UI — LPBSReleaseConfigCard + ReleasesPanel — 8 tests pass",
+      "description": "Both components exist and are rendered on ProfileDetail.tsx:338-339. Test suite exercises render/edit/save/error for the config card and loading/empty/populated/verify states for the panel. No dedicated /releases page (per D5=B, surface embedded on ProfileDetail only).",
+      "verified": false,
+      "test_results": [
+        {"name": "LPBSReleaseConfigCard.test.tsx (4 tests)", "passed": true, "output_summary": "vitest: 4 passed"},
+        {"name": "ReleasesPanel.test.tsx (4 tests)", "passed": true, "output_summary": "vitest: 4 passed"},
+        {"name": "ProfileDetail renders both components", "passed": true, "output_summary": "ProfileDetail.tsx:338 LPBSReleaseConfigCard, :339 ReleasesPanel"}
+      ],
+      "capture_path": "captures/dm-ui-tests.txt"
+    },
+    {
+      "id": "e5",
+      "type": "api_test",
+      "title": "scenario-to-desktop plumbing: ReleaseID + Channel reach lpbs_client.go",
+      "description": "Pipeline types.go:248-254 adds ReleaseID and Channel to PublishPipelineRequest. DeployConfig in the same file exposes both. stage_deploy.go:223-224 forwards them into lpbs_client. deploy/lpbs_client.go:84,321-322,350-354 uses them: commit payload gets release_id; apply payload gets variant_key derived from Channel (stable → default). Build is clean, all pipeline/deploy tests pass — BUT no test specifically asserts the passthrough of these fields from request → lpbs_client invocation. Grepping **/*_test.go under scenario-to-desktop/api for release_id|ReleaseID|variant_key returns zero matches. Static code path is correct; test coverage gap flagged.",
+      "verified": false,
+      "test_results": [
+        {"name": "pipeline types carry ReleaseID + Channel", "passed": true, "output_summary": "types.go:248-254"},
+        {"name": "stage_deploy forwards ReleaseID + Channel to lpbs_client", "passed": true, "output_summary": "stage_deploy.go:223-224"},
+        {"name": "lpbs_client writes release_id into commit payload", "passed": true, "output_summary": "lpbs_client.go:321-322"},
+        {"name": "Channel mapped to variant_key (stable→default)", "passed": true, "output_summary": "lpbs_client.go:350-354"},
+        {"name": "scenario-to-desktop-api/pipeline tests", "passed": true, "output_summary": "ok (5.677s)"},
+        {"name": "scenario-to-desktop-api/deploy tests", "passed": true, "output_summary": "ok (0.016s)"},
+        {"name": "Dedicated release_id/Channel passthrough test", "passed": false, "output_summary": "No test file under scenario-to-desktop/api references release_id or variant_key — Phase 5 plan requirement not satisfied"}
+      ],
+      "capture_path": "captures/s2d-pipeline-deploy-tests.txt"
+    },
+    {
+      "id": "e6",
+      "type": "cli_output",
+      "title": "landing-page-desktop-upload skill retargeted to DM wrapper (D6=A)",
+      "description": "Skill body at scenarios/prompt-manager/store/skills/packs/core/landing-page-desktop-upload/SKILL.md is now a thin operator wrapper around 'deployment-manager releases start'. Setup-time gates delegated to landing-page-deploy-setup. Release-time flow reduced to: (1) DM status check + approval gate, (2) 'releases start' invocation, (3) result surfacing. Informational aside describes DM internals (lock → cloud-health → readiness → release_id allocation → s2d publish → verify). No direct s2d/LPBS relay remains in the skill body.",
+      "verified": false,
+      "capture_path": "captures/skill-landing-page-desktop-upload-head.txt"
+    },
+    {
+      "id": "e7",
+      "type": "cli_output",
+      "title": "Build clean across all 4 scenarios",
+      "description": "go build ./... succeeds in deployment-manager/api, deployment-manager/cli, scenario-to-desktop/api, and landing-page-business-suite/api. No build errors or warnings. UI vitest runs clean (8 passed).",
+      "verified": false,
+      "test_results": [
+        {"name": "deployment-manager/api build", "passed": true, "output_summary": "EXIT=0"},
+        {"name": "deployment-manager/cli build", "passed": true, "output_summary": "EXIT=0"},
+        {"name": "scenario-to-desktop/api build", "passed": true, "output_summary": "EXIT=0"},
+        {"name": "landing-page-business-suite/api build", "passed": true, "output_summary": "EXIT=0"},
+        {"name": "deployment-manager/ui component vitest", "passed": true, "output_summary": "8/8 passed"}
+      ],
+      "capture_path": "captures/dm-api-build.txt"
+    },
+    {
+      "id": "e8",
+      "type": "custom",
+      "title": "Advisory lock deviates from plan D10=B but still profile-scoped",
+      "description": "Plan D10=B specified pg_try_advisory_xact_lock(hashtext('release:' || profile_id)). Implementation at api/releases/repo.go:256-283 uses pg_try_advisory_lock(hashtextextended('release:' || profile_id, 0)) on a dedicated connection, with explicit pg_advisory_unlock + conn.Close in the returned release() func. Handler at releases/handlers.go:262 uses defer release() so the lock is released on every return path. Semantic difference: xact_lock would auto-release on transaction rollback, whereas non-xact needs the defer to fire. Handler does not wrap the orchestration in an explicit tx, so the xact semantics would not have applied anyway. Functionally safe; plan intent (profile-scoped serialization surviving multi-node deploys) is preserved.",
+      "verified": false
+    }
+  ],
+  "request_threads": [],
+  "improvement_suggestions": [
+    {
+      "category": "test_coverage",
+      "description": "Add a table-driven test under scenarios/scenario-to-desktop/api/deploy/lpbs_client_test.go (or pipeline/stage_deploy_test.go) that constructs a PublishRequest with ReleaseID='rel-test' and Channel='beta', invokes the LPBS client against an httptest fake, and asserts the outbound commit payload has release_id='rel-test' and the apply payload has variant_key='beta'. This satisfies Phase 5's explicit test requirement and would fail fast if someone drops the plumbing. Also add the inverse case for Channel='stable' → variant_key='default'.",
+      "evidence_id": "e5",
+      "priority": "medium"
+    },
+    {
+      "category": "test_coverage",
+      "description": "Add a real-Postgres integration test (guarded by testcontainers, in the same package as orchestrator_release_test.go) that opens two DB connections, has one acquire the profile advisory lock via AcquireProfileLock, then attempts a second AcquireProfileLock on the same profile ID and asserts it returns acquired=false. Release and retry to assert the lock drops cleanly. The current mock-based coverage does not exercise the pg_try_advisory_lock call path.",
+      "evidence_id": "e2",
+      "priority": "medium"
+    },
+    {
+      "category": "test_coverage",
+      "description": "Add a DM→S2D integration test using httptest.NewServer as a fake scenario-to-desktop and set DESKTOP_PACKAGER_URL to point at it. Drive a release via the orchestrator with a populated LPBS release config and assert the inbound PublishPipelineRequest JSON carries all five coords: AppKey, RemoteProfile, Channel, ReleaseID, UpdateURL. Closes the last end-to-end contract gap between DM and S2D.",
+      "evidence_id": "e2",
+      "priority": "medium"
+    },
+    {
+      "category": "visual_capture",
+      "description": "Add the DM admin ProfileDetail route to browser-automation-studio capture config so GCT's visual dimension covers LPBSReleaseConfigCard and ReleasesPanel automatically on future reviews. The UI now renders meaningful state (config form, release table with per-platform badges) that benefits from screenshot regression tracking.",
+      "evidence_id": "e4",
+      "priority": "low"
+    },
+    {
+      "category": "ci_workflow",
+      "description": "Consider wiring 'deployment-manager releases list --format json' into the DM scenario's smoke test so the CLI binary is exercised as part of CI. Currently CLI correctness is covered only by unit tests against a fake API client.",
+      "evidence_id": "e2",
+      "priority": "low"
+    }
+  ]
+}

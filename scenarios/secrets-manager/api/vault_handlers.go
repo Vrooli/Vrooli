@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -53,7 +54,7 @@ func (h *VaultHandlers) Status(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(status)
+	_ = json.NewEncoder(w).Encode(status)
 }
 
 // Vault provision handler
@@ -85,7 +86,7 @@ func (h *VaultHandlers) Provision(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	_ = json.NewEncoder(w).Encode(result)
 }
 
 func (h *VaultHandlers) normalizeProvisionSecrets(raw map[string]string) map[string]string {
@@ -230,7 +231,7 @@ func (h *VaultHandlers) provisionSecretsToVault(ctx context.Context, resourceNam
 		results = append(results, result)
 	}
 	if len(errs) > 0 {
-		return results, fmt.Errorf(strings.Join(errs, "; "))
+		return results, errors.New(strings.Join(errs, "; "))
 	}
 	return results, nil
 }
@@ -274,7 +275,7 @@ func (h *VaultHandlers) Validate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 func (h *VaultHandlers) LegacyProvision(w http.ResponseWriter, r *http.Request) {
@@ -307,5 +308,5 @@ func (h *VaultHandlers) LegacyProvision(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	_ = json.NewEncoder(w).Encode(result)
 }

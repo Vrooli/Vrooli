@@ -1093,7 +1093,7 @@ func TestLoadLocalSecretsFile(t *testing.T) {
 		t.Logf("loadLocalSecretsFile returned error (acceptable): %v", err)
 	}
 	// Accept nil or empty secrets map
-	if secrets != nil && len(secrets) > 0 {
+	if len(secrets) > 0 {
 		t.Logf("Found %d secrets in local file", len(secrets))
 	}
 }

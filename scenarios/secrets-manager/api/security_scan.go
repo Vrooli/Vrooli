@@ -202,99 +202,7 @@ var (
 	securityScanCacheMu   sync.Mutex
 	scanRefreshInFlight   = map[string]bool{}
 	scanRefreshInFlightMu sync.Mutex
-
-	activeScansMutex sync.RWMutex
-	activeScans      = make(map[string]*ProgressiveScanResult)
 )
-
-// Progressive security scanner - returns immediate results and continues in background
-func startProgressiveScan(componentFilter, componentTypeFilter, severityFilter string) (*ProgressiveScanResult, error) {
-	scanID := uuid.New().String()
-	startTime := time.Now()
-
-	// Initialize progressive scan
-	progressiveScan := &ProgressiveScanResult{
-		ScanID:          scanID,
-		Status:          "running",
-		StartTime:       startTime,
-		LastUpdate:      startTime,
-		ComponentFilter: componentFilter,
-		ComponentType:   componentTypeFilter,
-		Vulnerabilities: []SecurityVulnerability{},
-		ScanMetrics: ScanMetrics{
-			ScanErrors:       []string{},
-			ScanComplete:     false,
-			BatchesProcessed: 0,
-			LastBatchTime:    startTime.Format(time.RFC3339),
-		},
-		EstimatedProgress: 0.0,
-	}
-
-	// Store in active scans
-	activeScansMutex.Lock()
-	activeScans[scanID] = progressiveScan
-	activeScansMutex.Unlock()
-
-	// Start background scanning
-	go performProgressiveScan(progressiveScan, componentFilter, componentTypeFilter, severityFilter)
-
-	// Return immediate partial results (empty initially)
-	return progressiveScan, nil
-}
-
-// Background progressive scanning with batching
-func performProgressiveScan(scan *ProgressiveScanResult, componentFilter, componentTypeFilter, severityFilter string) {
-	defer func() {
-		// Mark scan as complete
-		activeScansMutex.Lock()
-		scan.Status = "completed"
-		scan.ScanMetrics.ScanComplete = true
-		scan.LastUpdate = time.Now()
-		scan.EstimatedProgress = 1.0
-		activeScansMutex.Unlock()
-
-		logger.Info("Progressive scan %s completed: %d vulnerabilities found", scan.ScanID, len(scan.Vulnerabilities))
-	}()
-
-	paths, err := getVrooliPaths()
-	if err != nil {
-		scan.Status = "failed"
-		scan.ScanMetrics.ScanErrors = append(scan.ScanMetrics.ScanErrors, err.Error())
-		return
-	}
-
-	// Estimate total files for progress tracking
-	estimatedFiles := estimateFileCount(paths.scenarios, paths.resources, componentTypeFilter)
-	scan.ScanMetrics.EstimatedTotalFiles = estimatedFiles
-
-	var allVulnerabilities []SecurityVulnerability
-	var resourcesScanned, scenariosScanned int
-
-	// TODO: Progressive scanning implementation - for now use existing method
-	result, err := scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, severityFilter)
-	if err != nil {
-		scan.Status = "failed"
-		scan.ScanMetrics.ScanErrors = append(scan.ScanMetrics.ScanErrors, fmt.Sprintf("Scan failed: %v", err))
-		return
-	}
-
-	allVulnerabilities = result.Vulnerabilities
-	resourcesScanned = result.ComponentsSummary.ResourcesScanned
-	scenariosScanned = result.ComponentsSummary.ScenariosScanned
-
-	// Final update
-	activeScansMutex.Lock()
-	scan.Vulnerabilities = allVulnerabilities
-	scan.RiskScore = calculateRiskScore(allVulnerabilities)
-	scan.Recommendations = generateRemediationSuggestions(allVulnerabilities)
-	scan.ComponentsSummary = ComponentScanSummary{
-		ResourcesScanned: resourcesScanned,
-		ScenariosScanned: scenariosScanned,
-		TotalComponents:  resourcesScanned + scenariosScanned,
-	}
-	scan.ScanMetrics.TotalScanTimeMs = int(time.Since(scan.StartTime).Milliseconds())
-	activeScansMutex.Unlock()
-}
 
 // Original function modified to work with the new progressive system
 func scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, severityFilter string) (*SecurityScanResult, error) {
@@ -569,7 +477,7 @@ func estimateFileCount(scenariosPath, resourcesPath, componentTypeFilter string)
 	count := 0
 
 	if componentTypeFilter == "" || componentTypeFilter == "scenario" {
-		filepath.WalkDir(scenariosPath, func(path string, d os.DirEntry, err error) error {
+		_ = filepath.WalkDir(scenariosPath, func(path string, d os.DirEntry, err error) error {
 			if err != nil || d.IsDir() {
 				return nil
 			}
@@ -582,7 +490,7 @@ func estimateFileCount(scenariosPath, resourcesPath, componentTypeFilter string)
 	}
 
 	if componentTypeFilter == "" || componentTypeFilter == "resource" {
-		filepath.WalkDir(resourcesPath, func(path string, d os.DirEntry, err error) error {
+		_ = filepath.WalkDir(resourcesPath, func(path string, d os.DirEntry, err error) error {
 			if err != nil || d.IsDir() {
 				return nil
 			}

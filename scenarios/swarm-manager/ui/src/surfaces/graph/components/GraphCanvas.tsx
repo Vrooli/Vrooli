@@ -82,7 +82,7 @@ export const GraphCanvas = memo(function GraphCanvas() {
   const expandedTopologyClusters = useGraphUIStore((s) => s.expandedTopologyClusters);
   const selectNode = useGraphUIStore((s) => s.selectNode);
   const setHighlightState = useGraphUIStore((s) => s.setHighlightState);
-  const setViewportForLens = useGraphUIStore((s) => s.setViewportForLens);
+  const setViewportIntentForLens = useGraphUIStore((s) => s.setViewportIntentForLens);
   const toggleTopologyCluster = useGraphUIStore((s) => s.toggleTopologyCluster);
 
   const selectedNodeId = useGraphUIStore((s) => s.selectedNodeId);
@@ -312,12 +312,26 @@ export const GraphCanvas = memo(function GraphCanvas() {
     setHighlightState(cleared.highlightState);
   }, [selectNode, setHighlightState]);
 
+  // Intent = "the user was looking at node X at zoom Z." Persisted per lens so
+  // that a refresh restores what the user was looking at, not the raw pixel
+  // coords (which are only valid for the exact container size, layout, and
+  // node set that produced them).
   const handleMoveEnd = useCallback(
     (_event: MouseEvent | TouchEvent | null, viewport: Viewport) => {
-      setViewportForLens(lens, viewport);
+      setViewportIntentForLens(lens, { nodeId: selectedNodeId, zoom: viewport.zoom });
     },
-    [lens, setViewportForLens],
+    [lens, selectedNodeId, setViewportIntentForLens],
   );
+
+  // Track selection changes separately — the user can change selection without
+  // panning/zooming (e.g., clicking a node in the sidebar). Read the current
+  // zoom from the React Flow instance so we don't lose it.
+  useEffect(() => {
+    const instance = flowRef.current;
+    if (!instance) return;
+    const currentZoom = instance.getViewport().zoom;
+    setViewportIntentForLens(lens, { nodeId: selectedNodeId, zoom: currentZoom });
+  }, [lens, selectedNodeId, setViewportIntentForLens]);
 
   const setFlowInstance = useGraphUIStore((s) => s.setFlowInstance);
 
@@ -329,14 +343,6 @@ export const GraphCanvas = memo(function GraphCanvas() {
     [setFlowInstance],
   );
 
-  // PERF: Read the initial viewport once at mount time, not reactively.
-  // The storedViewport changes on every pan/zoom (via setViewportForLens),
-  // but defaultViewport is only used by React Flow on initial mount.
-  // Using a reactive selector would cause the entire component to re-render
-  // on every viewport change even though React Flow ignores the prop after mount.
-  const initialViewportRef = useRef(useGraphUIStore.getState().viewportByLens[lens]);
-  const defaultViewport: Viewport = initialViewportRef.current ?? { x: 0, y: 0, zoom: 1 };
-  const hasStoredViewport = initialViewportRef.current !== null;
   const showMiniMap = settings.showMiniMap;
   const showFilterSuggestion = processedEdges.length > FILTER_SUGGESTION_THRESHOLD;
 
@@ -361,8 +367,7 @@ export const GraphCanvas = memo(function GraphCanvas() {
         onPaneClick={handlePaneClick}
         onMoveEnd={handleMoveEnd}
         onInit={handleInit}
-        defaultViewport={defaultViewport}
-        fitView={!hasStoredViewport}
+        fitView
         fitViewOptions={{ padding: 0.2, maxZoom: 1.2 }}
         proOptions={{ hideAttribution: true }}
         minZoom={0.1}

@@ -4,7 +4,7 @@
 What structured data should move from freeform TEAM.md into team.json v2 fields (objectives, kpis, consumers, contributions), what should remain as narrative, how should dependencies be computed, and what does the migration path look like?
 
 ## Summary
-All 6 existing teams (of 8 listed) have been audited. The v2 schema should add 4 new array fields: `objectives`, `kpis`, `consumers`, and `contributions`. Dependencies should be computed (not stored) via a new CLI/API command that derives them from HEARTBEAT.md skill references, CLI tool usage, and cross-team coordination sections. TEAM.md retains operating procedures, workflows, methodology, brand voice, quality rubrics, and skill references — all inherently freeform "how we work" content. Migration is straightforward: add new fields with empty-array defaults, bump `schemaVersion` to 2, and have the prompt builder render v2 fields as natural language in heartbeat prompts.
+All 6 existing teams (of 8 listed) have been audited. The v2 schema should add 5 new array fields: `objectives`, `kpis`, `consumers`, `contributions`, and `decisionContexts`. The first four were identified in the original audit; `decisionContexts` was added based on monetization-team review (see Finding 8). Two optional cross-reference fields link `contributions` and `decisionContexts` without merging them. Dependencies should be computed (not stored) via a new CLI/API command that derives them from HEARTBEAT.md skill references, CLI tool usage, and cross-team coordination sections. TEAM.md retains operating procedures, workflows, methodology, brand voice, quality rubrics, and skill references — all inherently freeform "how we work" content. Migration is straightforward: add new fields with empty-array defaults, bump `schemaVersion` to 2, and have the prompt builder render v2 fields as natural language in heartbeat prompts.
 
 ## Methodology
 - Read all team.json, TEAM.md, HEARTBEAT.md, RESPONSIBILITIES.md, org.json, and roles.json for each of the 6 existing teams
@@ -79,6 +79,7 @@ The `Team` struct currently has: `ID`, `DisplayName`, `Mission`, `Enabled`, `Spa
 - KPIs (currently implicit in TEAM.md or not stated)
 - Consumer relationships (currently described in "Cross-Team Coordination" sections)
 - Contribution types (currently implied by "Deliverables" sections in RESPONSIBILITIES.md)
+- Decision-context vocabulary and per-member ownership (currently restated in TEAM.md prose, which drifts — see Finding 8)
 
 **Stays in TEAM.md (freeform narrative):**
 - Operating procedures and loops (e.g., director-swarm's "Operating Loop" section)
@@ -110,6 +111,76 @@ A `prompt-manager graph team-dependencies` command (or similar) could derive thi
 
 Backward compatibility is straightforward because Go's JSON unmarshaling ignores missing fields (they get zero values). No breaking changes for v1 readers.
 
+### Finding 8: decisionContexts — Internal Decision Routing Vocabulary
+
+**Added based on monetization-team review, 2026-04-20.** The same drift-prevention motivation behind `contributions` applies to a second enumerable team vocabulary the original audit did not cover: the set of **decision-context tags** a team uses on its decision stream, and their **ownership across members**.
+
+**Why it's needed.** In the monetization-team build-out, TEAM.md enumerated 15 decision contexts in one prose section and per-member ownership in another. Five contexts ended up unowned because the two prose lists drifted — no owner was assigned for `services-activation`, `services-conversion`, `services-sunset`, `funnel-bottleneck`, or `retention-concern`. A structured field in team.json with a simple schema check would have caught the gap on write. The problem is generic: every team that raises decisions has contexts + ownership, and each currently restates them as prose.
+
+**Shape:**
+
+```
+decisionContexts: [
+  {
+    id: "catalog-promotion",
+    description: "Scenario gains headliner status; candidate SKU or tier's trigger fired; proposed promotion",
+    ownerMemberIds: ["catalog-strategist"],
+    feedsContribution: "catalog-lifecycle-change"
+  },
+  { id: "runway-warning", description: "...", ownerMemberIds: ["financial-tracker"] },
+  { id: "pricing-decision", description: "...", ownerMemberIds: ["financial-tracker", "market-validator"] }
+]
+```
+
+`ownerMemberIds` is **plural** to allow expected overlaps (e.g., `pricing-decision` is owned by both financial-tracker and market-validator in the monetization team). Each member counts only its owned contexts against its own stop-early thresholds.
+
+`feedsContribution` is **optional**. Many contexts are operational (`runway-warning`, `services-trap-warning`, `framework-update`) — they trigger operator action without producing durable wiki-facing output. Only contexts whose accepted decisions flow into a contribution name one.
+
+### Finding 8b: Contributions ↔ decisionContexts — separate, but linkable
+
+The two fields operate at different levels and should not be consolidated:
+
+| | `contributions` | `decisionContexts` |
+|---|---|---|
+| Audience | External (wiki maintainer, other teams) | Internal (member stop-conditions, contrarian aging scan) |
+| Lifecycle | Stable — durable team role | Operational — taxonomy evolves |
+| Ownership | Team-collective output | Per-member ownership |
+| Channel | Spans decisions, knowledge, docs, shared state | Single: `decisions.jsonl` |
+| Granularity | Output class | Routing tag |
+
+A single contribution can be backed by zero, one, or multiple decision contexts — plus knowledge topics or shared-state files. Conversely, many decision contexts never produce a durable wiki entry. Consolidating would force either every contribution to have a member owner (breaks its external-facing nature) or every decision context to have a wiki mapping (adds noise from operational flags).
+
+**Linkage without consolidation — two optional cross-reference fields:**
+
+```
+contributions: [
+  {
+    type: "catalog-lifecycle-change",
+    section: "monetization/catalog",
+    description: "...",
+    sources: {
+      decisionContexts: ["catalog-promotion", "sku-retirement", "services-activation"],
+      knowledgeTopics: ["catalog-snapshot-*"]
+    }
+  }
+]
+
+decisionContexts: [
+  { id: "catalog-promotion", ..., feedsContribution: "catalog-lifecycle-change" }
+]
+```
+
+Both `contributions[].sources` and `decisionContexts[].feedsContribution` are optional. Together they let the wiki-maintenance agent traverse the graph ("for this contribution, what inputs do I watch?") without forcing one shape onto both concepts. `contributions` stays stable for external consumers; `decisionContexts` evolves internally without rattling downstream.
+
+### Finding 8c: Migration approach for decisionContexts
+
+Unlike `contributions`, per-team draft values for `decisionContexts` are **not yet audited** across the 6 teams. Two options:
+
+1. **Partial backfill.** The monetization team's 15 contexts + ownership are already fully structured in its TEAM.md and can seed its v2 field directly. Other teams start with `decisionContexts: []`; a follow-up chore populates them as members raise decisions, with the operator assigning ownership when contexts stabilize.
+2. **Full audit + backfill.** Extend the execute item to audit each team's `decisions.jsonl` history and TEAM.md, enumerate contexts in use, assign ownership. Complete initial state, slower migration.
+
+**Recommendation: Option 1.** Monetization is the only team with a rich named-context vocabulary today; others use decisions more loosely and a formal audit would be premature. Organic backfill matches existing maturity.
+
 ## Limitations
 - **2 missing teams**: scenario-debug and scenario-refactor don't exist on disk. Their v2 values can't be audited — they'll need to be drafted when created.
 - **Draft values need validation**: The objectives, KPIs, consumers, and contributions drafted in Finding 4 are based on TEAM.md analysis. The user should review and adjust them.
@@ -121,7 +192,7 @@ Backward compatibility is straightforward because Go's JSON unmarshaling ignores
 ### Action 1: Create backlog item — Add v2 fields to Team Go struct and team.json files
 - **Kind**: execute
 - **Title**: Implement team.json schema v2 with objectives, KPIs, consumers, and contributions
-- **Description**: Add 4 new fields to the Team struct in models.go (Objectives []string, KPIs []KPI, Consumers []string, Contributions []Contribution). Define KPI and Contribution sub-structs. Handle v1 backward compatibility (missing fields = empty arrays). Populate all 6 existing team.json files with the drafted values from this research. Bump schema version. Update prompt_builder.go to render v2 fields as natural language in heartbeat prompts.
+- **Description**: Add 5 new fields to the Team struct in models.go (Objectives []string, KPIs []KPI, Consumers []string, Contributions []Contribution, DecisionContexts []DecisionContext). Define KPI, Contribution, and DecisionContext sub-structs — Contribution includes an optional Sources field and DecisionContext includes an optional FeedsContribution field, per Finding 8b. Handle v1 backward compatibility (missing fields = empty arrays). Populate all 6 existing team.json files with the drafted values from this research; for `decisionContexts`, follow the partial-backfill approach in Finding 8c (seed monetization from its TEAM.md; leave others as empty arrays for organic backfill). Bump schema version. Update prompt_builder.go to render v2 fields as natural language in heartbeat prompts.
 - **Initiative**: governance-and-tooling (or as appropriate)
 - **Priority**: 2
 - **Effort**: M

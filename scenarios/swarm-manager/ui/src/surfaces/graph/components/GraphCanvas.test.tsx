@@ -8,6 +8,11 @@ vi.mock("react-router-dom", () => ({
   useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }));
 
+// Module-scoped spies so tests can assert on React Flow interactions.
+const mockFitView = vi.fn();
+const mockSetCenter = vi.fn();
+const mockGetViewport = vi.fn(() => ({ x: 0, y: 0, zoom: 1 }));
+
 vi.mock("@xyflow/react", async () => {
   const ReactModule = await import("react");
   interface MockGraphNode {
@@ -22,21 +27,23 @@ vi.mock("@xyflow/react", async () => {
     nodes: MockGraphNode[];
     edges: MockGraphEdge[];
     children?: React.ReactNode;
-    onInit?: (instance: { fitView: ReturnType<typeof vi.fn> }) => void;
+    onInit?: (instance: {
+      fitView: typeof mockFitView;
+      setCenter: typeof mockSetCenter;
+      getViewport: typeof mockGetViewport;
+    }) => void;
     fitView?: boolean;
-    defaultViewport?: { x: number; y: number; zoom: number };
   }
 
   return {
-    ReactFlow: ({ nodes, edges, children, onInit, fitView, defaultViewport }: MockReactFlowProps) => {
+    ReactFlow: ({ nodes, edges, children, onInit, fitView }: MockReactFlowProps) => {
       ReactModule.useEffect(() => {
-        onInit?.({ fitView: vi.fn() });
+        onInit?.({ fitView: mockFitView, setCenter: mockSetCenter, getViewport: mockGetViewport });
       }, [onInit]);
 
       return (
         <div data-testid="mock-react-flow">
           <div data-testid="fit-view-flag">{String(fitView)}</div>
-          <div data-testid="default-viewport">{JSON.stringify(defaultViewport ?? null)}</div>
           <div data-testid="rendered-node-ids">{nodes.map((node) => node.id).join(",")}</div>
           <div data-testid="rendered-edge-ids">{edges.map((edge) => edge.id).join(",")}</div>
           <div data-testid="node-opacities">{JSON.stringify(
@@ -94,6 +101,10 @@ function resetStores() {
 describe("GraphCanvas", () => {
   beforeEach(() => {
     resetStores();
+    mockFitView.mockClear();
+    mockSetCenter.mockClear();
+    mockGetViewport.mockClear();
+    mockGetViewport.mockReturnValue({ x: 0, y: 0, zoom: 1 });
     vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
       cb(0);
       return 1;
@@ -255,12 +266,12 @@ describe("GraphCanvas", () => {
     expect(screen.getByTestId("rendered-edge-ids").textContent).toBe("");
   });
 
-  it("does not reuse another lens viewport when the active lens has no saved camera", async () => {
+  it("does not reuse another lens intent when the active lens has no saved intent", async () => {
     useGraphUIStore.setState((state) => ({
       ...state,
-      viewportByLens: {
-        ...state.viewportByLens,
-        topology: { x: 120, y: 80, zoom: 0.9 },
+      viewportIntentByLens: {
+        ...state.viewportIntentByLens,
+        topology: { nodeId: "scenario/swarm-manager", zoom: 0.9 },
       },
     }));
 
@@ -282,10 +293,71 @@ describe("GraphCanvas", () => {
       expect(screen.getByTestId("rendered-node-ids").textContent).toContain("execution-record/exec-1");
     });
 
-    expect(screen.getByTestId("fit-view-flag").textContent).toBe("true");
-    expect(screen.getByTestId("default-viewport").textContent).toBe(
-      JSON.stringify({ x: 0, y: 0, zoom: 1 }),
-    );
+    // No intent for `operations` lens → should fit-view, not set-center.
+    expect(mockFitView).toHaveBeenCalled();
+    expect(mockSetCenter).not.toHaveBeenCalled();
+  });
+
+  it("restores viewport intent when the node still exists", async () => {
+    useGraphUIStore.setState((state) => ({
+      ...state,
+      viewportIntentByLens: {
+        ...state.viewportIntentByLens,
+        operations: { nodeId: "execution-record/exec-1", zoom: 1.4 },
+      },
+    }));
+
+    useGraphDataStore.setState((state) => ({
+      ...state,
+      lens: "operations",
+      nodes: [
+        makeExecutionNode("execution-record/exec-1", {
+          label: "Execution 1",
+          status: "running",
+        }),
+      ],
+      edges: [],
+    }));
+
+    render(<GraphCanvas />);
+
+    await waitFor(() => {
+      expect(mockSetCenter).toHaveBeenCalled();
+    });
+
+    const [, , options] = mockSetCenter.mock.calls[0] ?? [];
+    expect(options).toMatchObject({ zoom: 1.4, duration: 0 });
+  });
+
+  it("falls back to fitView when intent's node is no longer present", async () => {
+    useGraphUIStore.setState((state) => ({
+      ...state,
+      viewportIntentByLens: {
+        ...state.viewportIntentByLens,
+        operations: { nodeId: "execution-record/exec-does-not-exist", zoom: 1.4 },
+      },
+    }));
+
+    useGraphDataStore.setState((state) => ({
+      ...state,
+      lens: "operations",
+      nodes: [
+        makeExecutionNode("execution-record/exec-1", {
+          label: "Execution 1",
+          status: "running",
+        }),
+      ],
+      edges: [],
+    }));
+
+    render(<GraphCanvas />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("rendered-node-ids").textContent).toContain("execution-record/exec-1");
+    });
+
+    expect(mockSetCenter).not.toHaveBeenCalled();
+    expect(mockFitView).toHaveBeenCalled();
   });
 
   it("dims non-highlighted nodes and edges when a node is selected", async () => {

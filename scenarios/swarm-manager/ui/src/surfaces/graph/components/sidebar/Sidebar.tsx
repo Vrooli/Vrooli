@@ -7,12 +7,15 @@
 
 import { cn } from "../../../../lib/utils";
 import { SearchBar } from "../../../../components/ui/search-bar";
+import { useAISearchStatus } from "../../../../lib/ai-search";
 import { useGraphUIStore } from "../../stores/graph-ui-store";
 import { useSidebarState } from "./useSidebarState";
 import { useDebouncedValue } from "./useSidebarSearch";
 import { useRestoreFromUrl, useSyncToUrl } from "./useSidebarUrlSync";
 import { SidebarHeader } from "./SidebarHeader";
 import { SidebarTabs } from "./SidebarTabs";
+import { SearchModeToggle } from "./SearchModeToggle";
+import { AISearchResults } from "./AISearchResults";
 import { FilterBar } from "./FilterBar";
 import { ActivityTab } from "./ActivityTab";
 import { BacklogTab } from "./BacklogTab";
@@ -36,6 +39,9 @@ export function Sidebar({ feed, onItemClick, onSettingsOpen, onViewActivity, onV
 
   const [state, dispatch] = useSidebarState();
   const debouncedSearch = useDebouncedValue(state.searchQuery);
+  const aiSearchStatus = useAISearchStatus();
+  const aiAvailable = aiSearchStatus.status?.available ?? false;
+  const aiMode = state.searchMode === "ai" && aiAvailable;
 
   useRestoreFromUrl(dispatch);
   useSyncToUrl(state);
@@ -74,70 +80,86 @@ export function Sidebar({ feed, onItemClick, onSettingsOpen, onViewActivity, onV
         />
 
         {/* Search */}
-        <div className="flex shrink-0 items-center border-b border-slate-200/20 px-3 py-2">
+        <div className="flex shrink-0 flex-col gap-2 border-b border-slate-200/20 px-3 py-2">
           <SearchBar
-            placeholder="Search..."
+            placeholder={aiMode ? "Semantic search..." : "Search..."}
             value={state.searchQuery}
             onChange={(e) => dispatch({ type: "SET_SEARCH", query: e.target.value })}
             widthClass="w-full"
             className="h-8 text-[16px] md:text-sm"
             data-testid="sidebar-search"
           />
+          <SearchModeToggle
+            mode={state.searchMode}
+            onChange={(mode) => dispatch({ type: "SET_SEARCH_MODE", mode })}
+            aiAvailable={aiAvailable}
+            unavailableReason={aiSearchStatus.status?.message ?? aiSearchStatus.error ?? undefined}
+          />
         </div>
 
-        {/* Tabs */}
-        <SidebarTabs
-          activeTab={activeTab}
-          onTabChange={(tab) => dispatch({ type: "SET_TAB", tab })}
-        />
+        {/* Tabs — hidden in AI mode since AI search spans all entities */}
+        {!aiMode && (
+          <SidebarTabs
+            activeTab={activeTab}
+            onTabChange={(tab) => dispatch({ type: "SET_TAB", tab })}
+          />
+        )}
 
-        {/* Filters */}
-        <FilterBar
-          activeTab={activeTab}
-          backlogFilters={state.filters.backlog}
-          captureFilters={state.filters.captures}
-          initiativeFilters={state.filters.initiatives}
-          executionFilters={state.filters.executions}
-          sort={state.sorts[activeTab]}
-          dispatch={dispatch}
-        />
+        {/* Filters — hidden in AI mode */}
+        {!aiMode && (
+          <FilterBar
+            activeTab={activeTab}
+            backlogFilters={state.filters.backlog}
+            captureFilters={state.filters.captures}
+            initiativeFilters={state.filters.initiatives}
+            executionFilters={state.filters.executions}
+            sort={state.sorts[activeTab]}
+            dispatch={dispatch}
+          />
+        )}
 
-        {/* Tab Content */}
+        {/* Content */}
         <div className="flex-1 overflow-y-auto p-2.5">
-          {activeTab === "activity" && (
-            <ActivityTab feed={feed} searchQuery={debouncedSearch} onItemClick={onItemClick} />
-          )}
-          {activeTab === "backlog" && (
-            <BacklogTab
-              searchQuery={debouncedSearch}
-              filters={state.filters.backlog}
-              sort={state.sorts.backlog}
-              onItemClick={onItemClick}
-            />
-          )}
-          {activeTab === "captures" && (
-            <CapturesTab
-              searchQuery={debouncedSearch}
-              filters={state.filters.captures}
-              sort={state.sorts.captures}
-              onItemClick={onItemClick}
-            />
-          )}
-          {activeTab === "initiatives" && (
-            <InitiativesTab
-              searchQuery={debouncedSearch}
-              filters={state.filters.initiatives}
-              sort={state.sorts.initiatives}
-              onItemClick={onItemClick}
-            />
-          )}
-          {activeTab === "executions" && (
-            <ExecutionsTab
-              searchQuery={debouncedSearch}
-              filters={state.filters.executions}
-              sort={state.sorts.executions}
-              onItemClick={onItemClick}
-            />
+          {aiMode ? (
+            <AISearchResults query={debouncedSearch} onItemClick={onItemClick} />
+          ) : (
+            <>
+              {activeTab === "activity" && (
+                <ActivityTab feed={feed} searchQuery={debouncedSearch} onItemClick={onItemClick} />
+              )}
+              {activeTab === "backlog" && (
+                <BacklogTab
+                  searchQuery={debouncedSearch}
+                  filters={state.filters.backlog}
+                  sort={state.sorts.backlog}
+                  onItemClick={onItemClick}
+                />
+              )}
+              {activeTab === "captures" && (
+                <CapturesTab
+                  searchQuery={debouncedSearch}
+                  filters={state.filters.captures}
+                  sort={state.sorts.captures}
+                  onItemClick={onItemClick}
+                />
+              )}
+              {activeTab === "initiatives" && (
+                <InitiativesTab
+                  searchQuery={debouncedSearch}
+                  filters={state.filters.initiatives}
+                  sort={state.sorts.initiatives}
+                  onItemClick={onItemClick}
+                />
+              )}
+              {activeTab === "executions" && (
+                <ExecutionsTab
+                  searchQuery={debouncedSearch}
+                  filters={state.filters.executions}
+                  sort={state.sorts.executions}
+                  onItemClick={onItemClick}
+                />
+              )}
+            </>
           )}
         </div>
       </aside>

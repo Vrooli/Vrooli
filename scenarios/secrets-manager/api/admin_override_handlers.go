@@ -75,11 +75,11 @@ func (h *AdminOverrideHandlers) CleanupOrphans(w http.ResponseWriter, r *http.Re
 	if len(orphans) == 0 {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"success":     true,
-			"dry_run":     req.DryRun,
-			"deleted":     0,
-			"orphan_ids":  []string{},
-			"message":     "no orphan overrides found",
+			"success":    true,
+			"dry_run":    req.DryRun,
+			"deleted":    0,
+			"orphan_ids": []string{},
+			"message":    "no orphan overrides found",
 		})
 		return
 	}
@@ -101,12 +101,12 @@ func (h *AdminOverrideHandlers) CleanupOrphans(w http.ResponseWriter, r *http.Re
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"success":     true,
-		"dry_run":     req.DryRun,
-		"deleted":     deleted,
+		"success":      true,
+		"dry_run":      req.DryRun,
+		"deleted":      deleted,
 		"would_delete": len(orphans),
-		"orphan_ids":  orphanIDs,
-		"orphans":     orphans,
+		"orphan_ids":   orphanIDs,
+		"orphans":      orphans,
 	})
 }
 

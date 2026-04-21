@@ -68,40 +68,64 @@ describe("graphUIStore", () => {
     });
   });
 
-  describe("fit view and viewport", () => {
+  describe("fit view and viewport intent", () => {
     it("increments the fit-view nonce on request", () => {
       expect(useGraphUIStore.getState().fitViewNonce).toBe(0);
       useGraphUIStore.getState().requestFitView();
       expect(useGraphUIStore.getState().fitViewNonce).toBe(1);
     });
 
-    it("persists viewport changes per lens", () => {
-      const viewport = { x: 100, y: 200, zoom: 1.2 };
-      useGraphUIStore.getState().setViewportForLens("operations", viewport);
+    it("persists viewport intent per lens", () => {
+      const intent = { nodeId: "backlog-item/execute/task-a", zoom: 1.2 };
+      useGraphUIStore.getState().setViewportIntentForLens("operations", intent);
 
       // Store state is updated synchronously.
-      expect(useGraphUIStore.getState().viewportByLens.operations).toEqual(viewport);
+      expect(useGraphUIStore.getState().viewportIntentByLens.operations).toEqual(intent);
 
       // localStorage write is debounced — flush the timer.
       vi.advanceTimersByTime(600);
-      expect(window.localStorage.getItem("swarm-manager.graph.viewport.v2")).toBe(
+      expect(window.localStorage.getItem("swarm-manager.graph.viewport-intent.v1")).toBe(
         JSON.stringify({
           focus: null,
           topology: null,
-          operations: viewport,
+          operations: intent,
         }),
       );
     });
 
-    it("keeps lens viewports isolated from each other", () => {
-      const topologyViewport = { x: 100, y: 200, zoom: 1.2 };
-      const operationsViewport = { x: -50, y: 80, zoom: 0.75 };
+    it("keeps lens intents isolated from each other", () => {
+      const topologyIntent = { nodeId: "scenario/swarm-manager", zoom: 1.2 };
+      const operationsIntent = { nodeId: "execution-record/exec-1", zoom: 0.75 };
 
-      useGraphUIStore.getState().setViewportForLens("topology", topologyViewport);
-      useGraphUIStore.getState().setViewportForLens("operations", operationsViewport);
+      useGraphUIStore.getState().setViewportIntentForLens("topology", topologyIntent);
+      useGraphUIStore.getState().setViewportIntentForLens("operations", operationsIntent);
 
-      expect(useGraphUIStore.getState().viewportByLens.topology).toEqual(topologyViewport);
-      expect(useGraphUIStore.getState().viewportByLens.operations).toEqual(operationsViewport);
+      expect(useGraphUIStore.getState().viewportIntentByLens.topology).toEqual(topologyIntent);
+      expect(useGraphUIStore.getState().viewportIntentByLens.operations).toEqual(operationsIntent);
+    });
+
+    it("accepts intent with null nodeId (pan/zoom without selection)", () => {
+      const intent = { nodeId: null, zoom: 0.9 };
+      useGraphUIStore.getState().setViewportIntentForLens("focus", intent);
+      expect(useGraphUIStore.getState().viewportIntentByLens.focus).toEqual(intent);
+    });
+
+    it("can clear a stored intent by passing null", () => {
+      useGraphUIStore.getState().setViewportIntentForLens("focus", { nodeId: "x", zoom: 1 });
+      useGraphUIStore.getState().setViewportIntentForLens("focus", null);
+      expect(useGraphUIStore.getState().viewportIntentByLens.focus).toBeNull();
+    });
+
+    it("skips writes when intent has not meaningfully changed", () => {
+      const setSpy = vi.spyOn(window.localStorage, "setItem");
+      useGraphUIStore.getState().setViewportIntentForLens("focus", { nodeId: "x", zoom: 1.0 });
+      vi.advanceTimersByTime(600);
+      const writesAfterFirst = setSpy.mock.calls.length;
+
+      // Same nodeId, zoom within 0.001 → no-op.
+      useGraphUIStore.getState().setViewportIntentForLens("focus", { nodeId: "x", zoom: 1.00005 });
+      vi.advanceTimersByTime(600);
+      expect(setSpy.mock.calls.length).toBe(writesAfterFirst);
     });
   });
 

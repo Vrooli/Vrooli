@@ -35,7 +35,7 @@ func (h *ResourceHandlers) ResourceDetail(w http.ResponseWriter, r *http.Request
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(detail)
+	_ = json.NewEncoder(w).Encode(detail)
 }
 
 type resourceSecretUpdateRequest struct {
@@ -119,7 +119,7 @@ func (h *ResourceHandlers) ResourceSecretUpdate(w http.ResponseWriter, r *http.R
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(secret)
+	_ = json.NewEncoder(w).Encode(secret)
 }
 
 type secretStrategyRequest struct {
@@ -201,7 +201,7 @@ func (h *ResourceHandlers) SecretStrategy(w http.ResponseWriter, r *http.Request
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(secret)
+	_ = json.NewEncoder(w).Encode(secret)
 }
 
 // NOTE: storeDiscoveredSecret has been moved to resource_queries.go

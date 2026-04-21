@@ -377,7 +377,7 @@ func parseVaultValidationOutput(output string) VaultValidationSummary {
 			parts := strings.Fields(line)
 			if len(parts) >= 3 {
 				if count := parts[2]; count != "" {
-					fmt.Sscanf(count, "%d", &configuredCount)
+					_, _ = fmt.Sscanf(count, "%d", &configuredCount)
 				}
 			}
 		}
@@ -413,19 +413,19 @@ func parseVaultResourceCheck(resourceName, output string) VaultResourceStatus {
 		if strings.Contains(line, "Found:") {
 			parts := strings.Fields(line)
 			if len(parts) >= 2 {
-				fmt.Sscanf(parts[1], "%d", &status.SecretsFound)
+				_, _ = fmt.Sscanf(parts[1], "%d", &status.SecretsFound)
 			}
 		}
 		if strings.Contains(line, "Missing (required):") {
 			parts := strings.Fields(line)
 			if len(parts) >= 3 {
-				fmt.Sscanf(parts[2], "%d", &status.SecretsMissing)
+				_, _ = fmt.Sscanf(parts[2], "%d", &status.SecretsMissing)
 			}
 		}
 		if strings.Contains(line, "Not set (optional):") {
 			parts := strings.Fields(line)
 			if len(parts) >= 4 {
-				fmt.Sscanf(parts[3], "%d", &status.SecretsOptional)
+				_, _ = fmt.Sscanf(parts[3], "%d", &status.SecretsOptional)
 			}
 		}
 	}

@@ -21,6 +21,7 @@ import (
 	"strings"
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/aisearch"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/captures"
 	"swarm-manager/internal/eventlog"
@@ -69,6 +70,8 @@ type Server struct {
 	eventDB           *sql.DB
 	emitter           *eventlog.Emitter
 	statsEngine       *stats.Engine
+	aiSearchSvc       *aisearch.Service
+	aiSearchStopChan  chan struct{}
 }
 
 // NewServer initializes routes using the default scenario root resolved from
@@ -93,6 +96,7 @@ func NewServerWithRoot(scenarioRoot string) *Server {
 		agentSvc:          agentSvc,
 		executionStopChan: make(chan struct{}),
 		reviewStopChan:    make(chan struct{}),
+		aiSearchStopChan:  make(chan struct{}),
 		scenarioRoot:      scenarioRoot,
 	}
 	srv.setupRoutes()
@@ -135,6 +139,39 @@ func (s *Server) setupRoutes() {
 	s.registerGraphRoutes(scenarioRoot)
 	s.registerPromptRoutes(scenarioRoot)
 	s.registerAgentManagerRoutes()
+
+	// --- AI search (must come last so readers see fully-wired stores) ---
+	s.registerAISearchRoutes(backlogHandler, initService)
+}
+
+// registerAISearchRoutes constructs the aisearch service from environment
+// configuration, wires index-on-write hooks into the backlog and initiative
+// stores, and registers HTTP routes under /api/v1/search/ai. If required
+// resources (Ollama, Qdrant) are not configured, the service is still created
+// so /status can explain why AI search is unavailable; write hooks are still
+// attached so index operations queue correctly once resources come online.
+func (s *Server) registerAISearchRoutes(backlogHandler *backlog.Handler, initService *initiatives.Service) {
+	cfg := aisearch.LoadConfigFromEnv()
+
+	embedder := aisearch.NewEmbedder(cfg.OllamaURL, cfg.EmbeddingModel)
+	backlogVS := aisearch.NewVectorStore(cfg.QdrantURL, cfg.QdrantAPIKey, cfg.BacklogCollection, cfg.VectorDimensions)
+	initVS := aisearch.NewVectorStore(cfg.QdrantURL, cfg.QdrantAPIKey, cfg.InitiativeCollection, cfg.VectorDimensions)
+
+	backlogReader := aisearch.NewBacklogStoreAdapter(backlogHandler.Store())
+	initReader := aisearch.NewInitiativeStoreAdapter(s.initStore)
+
+	svc := aisearch.NewService(embedder, backlogVS, initVS, backlogReader, initReader, cfg.Threshold)
+
+	// Only attach indexer hooks if both subsystems are configured; otherwise
+	// write-path goroutines would bang on unreachable URLs on every mutation.
+	if cfg.OllamaURL != "" && cfg.QdrantURL != "" {
+		backlogHandler.SetAIIndexer(svc)
+		initService.SetAIIndexer(svc)
+	}
+
+	handler := aisearch.NewHandler(svc)
+	handler.RegisterRoutes(s.router)
+	s.aiSearchSvc = svc
 }
 
 func (s *Server) registerHealthRoutes() {
@@ -291,6 +328,8 @@ func main() {
 		cancel()
 	}
 
+	srv.startAISearchBackground()
+
 	if err := server.Run(server.Config{
 		Handler: srv.Handler(),
 	}); err != nil {
@@ -298,6 +337,38 @@ func main() {
 	}
 	close(srv.executionStopChan)
 	close(srv.reviewStopChan)
+	close(srv.aiSearchStopChan)
+}
+
+// startAISearchBackground kicks off two background tasks for aisearch:
+// a one-shot startup backfill (if index and on-disk counts diverge) and a
+// periodic drift-reconciliation loop (every 5 minutes). Both are no-ops when
+// Ollama or Qdrant is unreachable — the goroutines log and move on.
+func (s *Server) startAISearchBackground() {
+	if s.aiSearchSvc == nil {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		needs, indexed, disk, err := s.aiSearchSvc.NeedsReindex(ctx)
+		if err != nil {
+			slog.Info("aisearch startup backfill skipped", "reason", err.Error())
+			return
+		}
+		if needs {
+			slog.Info("aisearch startup backfill: index drift detected, reindexing",
+				"indexed", indexed, "on_disk", disk)
+			s.aiSearchSvc.StartReindex()
+		}
+	}()
+
+	syncCtx, cancel := context.WithCancel(context.Background())
+	s.aiSearchSvc.StartPeriodicSync(syncCtx, 5*time.Minute)
+	go func() {
+		<-s.aiSearchStopChan
+		cancel()
+	}()
 }
 
 func getEnvDefault(key, fallback string) string {

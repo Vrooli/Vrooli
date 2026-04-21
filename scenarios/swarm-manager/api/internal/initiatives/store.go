@@ -1,6 +1,7 @@
 package initiatives
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -8,16 +9,26 @@ import (
 	"sort"
 	"strings"
 	"swarm-manager/internal/storage"
+	"time"
 )
 
 // initiativeFileName is the metadata file inside each initiative folder.
 const initiativeFileName = "initiative.json"
 
+// AIIndexer is the fire-and-forget indexing hook the Store invokes after every
+// successful mutation. Callers must not block the store on network I/O; the
+// store always dispatches in a new goroutine. Nil indexer disables indexing.
+type AIIndexer interface {
+	IndexInitiative(ctx context.Context, init Initiative) error
+	DeleteInitiative(ctx context.Context, name string) error
+}
+
 // Store manages initiative persistence on the local filesystem.
 // Each initiative is stored as a folder at {baseDir}/initiatives/{name}/
 // containing an initiative.json metadata file and any additional context files.
 type Store struct {
-	dir string // absolute path to the initiatives directory
+	dir       string // absolute path to the initiatives directory
+	aiIndexer AIIndexer
 }
 
 // NewStore creates a Store. baseDir is the scenario root; initiatives are
@@ -26,6 +37,12 @@ func NewStore(baseDir string) *Store {
 	return &Store{
 		dir: filepath.Join(baseDir, "initiatives"),
 	}
+}
+
+// SetAIIndexer wires an optional AI search indexer that receives fire-and-forget
+// notifications after every successful Save/Delete.
+func (s *Store) SetAIIndexer(indexer AIIndexer) {
+	s.aiIndexer = indexer
 }
 
 // InitDir returns the absolute path for an initiative's folder.
@@ -98,7 +115,11 @@ func (s *Store) Save(init *Initiative) error {
 		return fmt.Errorf("initiative name is required")
 	}
 	// WriteJSONAtomic handles MkdirAll for the parent directory.
-	return storage.WriteJSONAtomic(s.filePath(init.Name), init)
+	if err := storage.WriteJSONAtomic(s.filePath(init.Name), init); err != nil {
+		return err
+	}
+	s.notifyIndexUpsert(*init)
+	return nil
 }
 
 // Delete removes an initiative and all its files from disk.
@@ -109,7 +130,38 @@ func (s *Store) Delete(name string) error {
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("delete initiative %q: %w", name, err)
 	}
+	s.notifyIndexDelete(name)
 	return nil
+}
+
+// notifyIndexUpsert dispatches index upsert in a goroutine if configured.
+func (s *Store) notifyIndexUpsert(init Initiative) {
+	indexer := s.aiIndexer
+	if indexer == nil {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := indexer.IndexInitiative(ctx, init); err != nil {
+			slog.Debug("ai index initiative upsert failed", "name", init.Name, "err", err)
+		}
+	}()
+}
+
+// notifyIndexDelete dispatches index delete in a goroutine if configured.
+func (s *Store) notifyIndexDelete(name string) {
+	indexer := s.aiIndexer
+	if indexer == nil {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := indexer.DeleteInitiative(ctx, name); err != nil {
+			slog.Debug("ai index initiative delete failed", "name", name, "err", err)
+		}
+	}()
 }
 
 // Migrate moves old-style flat {name}.json files into {name}/initiative.json

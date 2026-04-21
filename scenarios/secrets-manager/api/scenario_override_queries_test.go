@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"testing"
 	"time"
 
@@ -52,7 +51,6 @@ func TestUpsertOverrideCreatesNew(t *testing.T) {
 		HandlingStrategy: &handling,
 		OverrideReason:   &reason,
 	})
-
 	if err != nil {
 		t.Fatalf("UpsertOverride failed: %v", err)
 	}
@@ -413,37 +411,11 @@ func setupTestResourceSecretWithKey(t *testing.T, db *sql.DB, secretKey string) 
 		VALUES ($1, $2, 'credential', 'infrastructure', true)
 		RETURNING id
 	`, resourceName, key).Scan(&id)
-
 	if err != nil {
 		t.Fatalf("failed to setup test resource secret: %v", err)
 	}
 
 	return id, resourceName, key
-}
-
-func setupTestResourceSecretWithStrategy(t *testing.T, db *sql.DB, handling, promptLabel string) (id, resourceName, secretKey string) {
-	t.Helper()
-
-	resourceName = "test-resource"
-	secretKey = "TEST_SECRET_WITH_STRATEGY"
-
-	// Clean up any existing data
-	_, _ = db.Exec("DELETE FROM resource_secrets WHERE resource_name = $1 AND secret_key = $2", resourceName, secretKey)
-
-	tierStrategies := map[string]string{"tier-2-desktop": handling}
-	strategiesJSON, _ := json.Marshal(tierStrategies)
-
-	err := db.QueryRow(`
-		INSERT INTO resource_secrets (resource_name, secret_key, secret_type, classification, required, tier_strategies)
-		VALUES ($1, $2, 'credential', 'infrastructure', true, $3)
-		RETURNING id
-	`, resourceName, secretKey, strategiesJSON).Scan(&id)
-
-	if err != nil {
-		t.Fatalf("failed to setup test resource secret with strategy: %v", err)
-	}
-
-	return id, resourceName, secretKey
 }
 
 func cleanupTestData(t *testing.T, db *sql.DB, resourceSecretID, overrideID string) {

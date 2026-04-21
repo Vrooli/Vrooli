@@ -160,7 +160,7 @@ func TestExtractLineFromFile(t *testing.T) {
 	tmpFile := filepath.Join(tmpDir, "test.txt")
 
 	content := "line1\nline2\nline3\nline4\nline5"
-	if err := os.WriteFile(tmpFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(tmpFile, []byte(content), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -341,7 +341,7 @@ func test() {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			tmpFile := filepath.Join(tmpDir, tc.name+".go")
-			if err := os.WriteFile(tmpFile, []byte(tc.content), 0644); err != nil {
+			if err := os.WriteFile(tmpFile, []byte(tc.content), 0o644); err != nil {
 				t.Fatalf("Failed to create test file: %v", err)
 			}
 
@@ -430,7 +430,7 @@ this is not valid go code
 		t.Run(tc.name, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			tmpFile := filepath.Join(tmpDir, "test.go")
-			if err := os.WriteFile(tmpFile, []byte(tc.content), 0644); err != nil {
+			if err := os.WriteFile(tmpFile, []byte(tc.content), 0o644); err != nil {
 				t.Fatalf("Failed to create test file: %v", err)
 			}
 
@@ -476,13 +476,12 @@ var normalVar = "just a string"
 `
 
 	tmpFile := filepath.Join(tmpDir, "test.go")
-	if err := os.WriteFile(tmpFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(tmpFile, []byte(content), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
 	fset := token.NewFileSet()
 	vulns, err := scanFileWithAST(tmpFile, "scenario", "test-scenario", content)
-
 	if err != nil {
 		t.Errorf("AST scan failed: %v", err)
 	}
@@ -792,7 +791,7 @@ func TestExtractLineFromFileEdgeCases(t *testing.T) {
 
 	// Test empty file
 	emptyFile := filepath.Join(tmpDir, "empty.txt")
-	if err := os.WriteFile(emptyFile, []byte(""), 0644); err != nil {
+	if err := os.WriteFile(emptyFile, []byte(""), 0o644); err != nil {
 		t.Fatalf("Failed to create empty file: %v", err)
 	}
 
@@ -803,7 +802,7 @@ func TestExtractLineFromFileEdgeCases(t *testing.T) {
 
 	// Test line number 0
 	contentFile := filepath.Join(tmpDir, "content.txt")
-	if err := os.WriteFile(contentFile, []byte("line1\nline2"), 0644); err != nil {
+	if err := os.WriteFile(contentFile, []byte("line1\nline2"), 0o644); err != nil {
 		t.Fatalf("Failed to create content file: %v", err)
 	}
 

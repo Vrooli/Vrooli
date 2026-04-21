@@ -5,6 +5,7 @@
 package backlog
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -25,20 +26,38 @@ type Store interface {
 	LoadItem(kind BacklogKind, name string) (BacklogItem, error)
 	LoadItemFromPath(kind BacklogKind, specPath string) (BacklogItem, error)
 	SaveItem(item BacklogItem) error
+	DeleteItem(kind BacklogKind, name string) error
 	ValidateDependencies(dependsOn []string) error
 	CheckDependencies(dependsOn []string) ([]string, error)
 	RemoveDependencyRef(ref string) (int, error)
 }
 
+// AIIndexer is the fire-and-forget indexing hook the FileStore invokes after
+// every successful mutation. Implementations must not block the calling
+// goroutine on network I/O; the store always calls them in a new goroutine.
+// Nil indexer disables indexing entirely.
+type AIIndexer interface {
+	IndexBacklogItem(ctx context.Context, item BacklogItem) error
+	DeleteBacklogItem(ctx context.Context, kind BacklogKind, name string) error
+}
+
 // FileStore is the filesystem-backed Store implementation. It reads and writes
 // backlog items as spec.json files in kind-specific directories.
 type FileStore struct {
-	rootDir string
+	rootDir   string
+	aiIndexer AIIndexer
 }
 
 // NewFileStore creates a FileStore rooted at the given directory.
 func NewFileStore(rootDir string) *FileStore {
 	return &FileStore{rootDir: rootDir}
+}
+
+// SetAIIndexer wires an optional AI search indexer that receives fire-and-forget
+// notifications after every successful SaveItem/DeleteItem. Safe to call after
+// construction; pass nil to detach.
+func (s *FileStore) SetAIIndexer(indexer AIIndexer) {
+	s.aiIndexer = indexer
 }
 
 // KindDir returns the absolute path for a given backlog kind directory.
@@ -241,7 +260,61 @@ func (s *FileStore) SaveItem(item BacklogItem) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(specPath, data, 0o644)
+	if err := os.WriteFile(specPath, data, 0o644); err != nil {
+		return err
+	}
+
+	s.notifyIndexUpsert(item)
+	return nil
+}
+
+// DeleteItem removes a backlog item's on-disk folder and notifies the AI
+// indexer. Returns nil if the item does not exist (idempotent).
+func (s *FileStore) DeleteItem(kind BacklogKind, name string) error {
+	itemDir := s.ItemDir(kind, name)
+	if _, err := os.Stat(itemDir); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	if err := os.RemoveAll(itemDir); err != nil {
+		return err
+	}
+	s.notifyIndexDelete(kind, name)
+	return nil
+}
+
+// notifyIndexUpsert dispatches an index upsert in a goroutine if an indexer is
+// configured. Errors are logged; index failures never propagate to callers.
+func (s *FileStore) notifyIndexUpsert(item BacklogItem) {
+	indexer := s.aiIndexer
+	if indexer == nil {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := indexer.IndexBacklogItem(ctx, item); err != nil {
+			slog.Debug("ai index upsert failed", "kind", item.Kind, "name", item.Name, "err", err)
+		}
+	}()
+}
+
+// notifyIndexDelete dispatches an index delete in a goroutine if an indexer is
+// configured.
+func (s *FileStore) notifyIndexDelete(kind BacklogKind, name string) {
+	indexer := s.aiIndexer
+	if indexer == nil {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := indexer.DeleteBacklogItem(ctx, kind, name); err != nil {
+			slog.Debug("ai index delete failed", "kind", kind, "name", name, "err", err)
+		}
+	}()
 }
 
 // parseDependencyRef splits a "kind/name" dependency reference into its

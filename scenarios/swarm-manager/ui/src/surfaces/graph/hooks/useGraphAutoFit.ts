@@ -1,19 +1,22 @@
 /**
  * useGraphAutoFit — Viewport auto-fitting, fingerprint tracking, and
- * debounced layout for the graph canvas.
+ * intent-based viewport restore for the graph canvas.
  *
- * Extracted from GraphCanvas.tsx.
+ * On first data arrival per lens, restores the user's saved viewport *intent*
+ * (center on a specific node at a specific zoom). Falls back to fitView if
+ * the intent is missing or the node no longer exists. Subsequent changes
+ * trigger fitView when autoFitOnChange is enabled.
  */
 
 import { useEffect, useMemo, useRef } from "react";
 import type { ReactFlowInstance } from "@xyflow/react";
-import { useGraphDataStore } from "../stores/graph-data-store";
+import type { GraphLens } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
 import type { GraphEdge, GraphNode } from "../types";
 
 export interface UseGraphAutoFitOptions {
   flowRef: React.RefObject<ReactFlowInstance<GraphNode> | null>;
-  lens: string;
+  lens: GraphLens;
   layoutMode: string;
   layoutDirection: string;
   groupingMode: string;
@@ -27,8 +30,8 @@ export interface UseGraphAutoFitOptions {
 /**
  * Manages auto-fit-on-change behavior and manual fitView nonce triggers.
  *
- * Suppresses fitView on the first data arrival when a stored viewport exists,
- * so the user's last viewport is preserved on page refresh.
+ * On the first data arrival per lens, attempts to restore the saved viewport
+ * intent before falling back to fitView.
  */
 export function useGraphAutoFit({
   flowRef,
@@ -66,19 +69,38 @@ export function useGraphAutoFit({
   const autoFitFingerprint = `${lens}|${layoutMode}|${layoutDirection}|${groupingMode}|${showSecondaryEdges}|${nodeFingerprint}|${edgeFingerprint}`;
 
   useEffect(() => {
-    if (!autoFitOnChange || !flowRef.current || styledNodesLength === 0) {
+    if (!flowRef.current || styledNodesLength === 0) {
       return;
     }
 
-    // On the first data arrival after mount or lens switch, skip fitView if
-    // a stored viewport exists.
+    // Restore-from-intent on first data arrival for this lens. Intent is a
+    // semantic pointer ({nodeId, zoom}) — durable across container-size,
+    // layout-mode, and data-set changes in a way that raw {x, y, zoom} isn't.
     if (!initialLoadCompleteRef.current) {
       initialLoadCompleteRef.current = true;
-      const currentLens = useGraphDataStore.getState().lens;
-      const savedViewport = useGraphUIStore.getState().viewportByLens[currentLens];
-      if (savedViewport) {
-        return;
+
+      const intent = useGraphUIStore.getState().viewportIntentByLens[lens];
+
+      if (intent?.nodeId) {
+        // Look up the node in the just-processed data. If it's still there,
+        // center on it at the saved zoom. If not (deleted, filtered out, or
+        // collapsed inside a cluster), fall through to fitView.
+        const target = processedNodes.find((n) => n.id === intent.nodeId);
+        if (target) {
+          const raf = window.requestAnimationFrame(() => {
+            flowRef.current?.setCenter(target.position.x, target.position.y, {
+              zoom: intent.zoom,
+              duration: 0,
+            });
+          });
+          return () => window.cancelAnimationFrame(raf);
+        }
       }
+
+      // No restorable intent — fall through to fitView below.
+    } else if (!autoFitOnChange) {
+      // Post-initial-load changes only re-fit if the user has enabled it.
+      return;
     }
 
     const raf = window.requestAnimationFrame(() => {
@@ -86,7 +108,7 @@ export function useGraphAutoFit({
     });
 
     return () => window.cancelAnimationFrame(raf);
-  }, [autoFitFingerprint, autoFitOnChange, styledNodesLength, flowRef]);
+  }, [autoFitFingerprint, autoFitOnChange, styledNodesLength, flowRef, lens, processedNodes]);
 
   useEffect(() => {
     if (!flowRef.current || fitViewNonce === 0 || styledNodesLength === 0) {

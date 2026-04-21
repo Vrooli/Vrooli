@@ -86,6 +86,13 @@ func (a *App) dependencies() support.Dependencies {
 	return support.Dependencies{
 		Overview:             a.cmdOverview,
 		MigrateWorkshop:      a.cmdMigrateWorkshop,
+		AISearchStatus:       a.cmdAISearchStatus,
+		AISearchQuery:        a.cmdAISearchSearch(""),
+		AISearchReindex:      a.cmdAISearchReindex,
+		AISearchReindexStat:  a.cmdAISearchReindexStatus,
+		AISearchReindexCan:   a.cmdAISearchReindexCancel,
+		BacklogSearchAI:      a.cmdAISearchSearch("backlog"),
+		InitiativesSearchAI:  a.cmdAISearchSearch("initiative"),
 		BacklogList:          a.cmdBacklogList,
 		BacklogGet:           a.cmdBacklogGet,
 		BacklogCreate:        a.cmdBacklogCreate,

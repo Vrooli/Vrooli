@@ -22,9 +22,12 @@ import {
 // State
 // ============================================================================
 
+export type SearchMode = "plain" | "ai";
+
 export interface SidebarState {
   activeTab: SidebarTab;
   searchQuery: string;
+  searchMode: SearchMode;
   filters: TabFilters;
   sorts: Record<SidebarTab, SortConfig>;
 }
@@ -33,6 +36,7 @@ export function createInitialState(tab: SidebarTab = "activity"): SidebarState {
   return {
     activeTab: tab,
     searchQuery: "",
+    searchMode: "plain",
     filters: { ...DEFAULT_FILTERS },
     sorts: { ...DEFAULT_SORT },
   };
@@ -45,6 +49,7 @@ export function createInitialState(tab: SidebarTab = "activity"): SidebarState {
 type SidebarAction =
   | { type: "SET_TAB"; tab: SidebarTab }
   | { type: "SET_SEARCH"; query: string }
+  | { type: "SET_SEARCH_MODE"; mode: SearchMode }
   | { type: "SET_BACKLOG_FILTERS"; filters: Partial<BacklogFilters> }
   | { type: "SET_CAPTURE_FILTERS"; filters: Partial<CaptureFilters> }
   | { type: "SET_INITIATIVE_FILTERS"; filters: Partial<InitiativeFilters> }
@@ -66,6 +71,9 @@ export function sidebarReducer(state: SidebarState, action: SidebarAction): Side
 
     case "SET_SEARCH":
       return { ...state, searchQuery: action.query };
+
+    case "SET_SEARCH_MODE":
+      return { ...state, searchMode: action.mode };
 
     case "SET_BACKLOG_FILTERS":
       return {

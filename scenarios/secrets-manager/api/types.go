@@ -90,8 +90,8 @@ type ScenarioSecretOverride struct {
 	ID                string          `json:"id"`
 	ScenarioName      string          `json:"scenario_name"`
 	ResourceSecretID  string          `json:"resource_secret_id"`
-	ResourceName      string          `json:"resource_name"`       // Joined from resource_secrets
-	SecretKey         string          `json:"secret_key"`          // Joined from resource_secrets
+	ResourceName      string          `json:"resource_name"` // Joined from resource_secrets
+	SecretKey         string          `json:"secret_key"`    // Joined from resource_secrets
 	Tier              string          `json:"tier"`
 	HandlingStrategy  *string         `json:"handling_strategy,omitempty"`
 	FallbackStrategy  *string         `json:"fallback_strategy,omitempty"`

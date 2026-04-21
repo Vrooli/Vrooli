@@ -1,0 +1,2 @@
+ok  	scenario-to-desktop-api/pipeline	0.004s [no tests to run]
+ok  	scenario-to-desktop-api/deploy	0.003s [no tests to run]
