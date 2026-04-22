@@ -1,24 +1,14 @@
 {
-  "generatedAt": "2026-04-21T00:00:00Z",
+  "generatedAt": "2026-04-22T02:52:55Z",
   "items": [
     {
-      "id": "agent-22",
-      "displayName": "Agent 22",
+      "id": "brand-manager",
+      "displayName": "Brand Manager",
       "status": "active"
     },
     {
       "id": "catalog-strategist",
       "displayName": "Catalog Strategist",
-      "status": "active"
-    },
-    {
-      "id": "content-creator",
-      "displayName": "Content Creator",
-      "status": "active"
-    },
-    {
-      "id": "content-editor",
-      "displayName": "Content Editor",
       "status": "active"
     },
     {
@@ -37,18 +27,13 @@
       "status": "active"
     },
     {
-      "id": "market-researcher",
-      "displayName": "Market Researcher",
-      "status": "active"
-    },
-    {
       "id": "market-validator",
       "displayName": "Market Validator",
       "status": "active"
     },
     {
-      "id": "marketing-lead",
-      "displayName": "Marketing Lead",
+      "id": "marketing-contrarian",
+      "displayName": "Marketing Contrarian",
       "status": "active"
     },
     {
@@ -59,6 +44,11 @@
     {
       "id": "opportunity-scout",
       "displayName": "Opportunity Scout",
+      "status": "active"
+    },
+    {
+      "id": "oss-advertiser",
+      "displayName": "OSS Advertiser",
       "status": "active"
     },
     {
@@ -77,8 +67,18 @@
       "status": "active"
     },
     {
+      "id": "publisher",
+      "displayName": "Publisher",
+      "status": "active"
+    },
+    {
       "id": "quality-auditor",
       "displayName": "Quality Auditor",
+      "status": "active"
+    },
+    {
+      "id": "researcher",
+      "displayName": "Researcher",
       "status": "active"
     },
     {
@@ -92,13 +92,23 @@
       "status": "active"
     },
     {
+      "id": "subscription-advertiser",
+      "displayName": "Subscription Advertiser",
+      "status": "active"
+    },
+    {
       "id": "team-agent-optimizer",
-      "displayName": "Team & Agent Optimizer",
+      "displayName": "Team \u0026 Agent Optimizer",
       "status": "active"
     },
     {
       "id": "toolchain-validator",
       "displayName": "Toolchain Validator",
+      "status": "active"
+    },
+    {
+      "id": "vision-walk-prep",
+      "displayName": "Vision Walk Prep",
       "status": "active"
     }
   ]

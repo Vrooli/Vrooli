@@ -1,0 +1,28 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "publisher",
+  "displayName": "Publisher",
+  "description": "Marketing-crew pipeline operator. Polishes approved drafts, produces per-platform variants, schedules releases, and maintains per-SKU coverage state under shared/coverage/. Owns channel-update and publishes under content-publish-proposal (platform-variant pack). Records every released artifact to shared/publish-log.jsonl.",
+  "status": "active",
+  "appearance": {
+    "body": "#4C1D95",
+    "head": "#7C3AED",
+    "accent": "#DDD6FE"
+  },
+  "tags": [
+    "marketing",
+    "publisher",
+    "pipeline",
+    "scheduler",
+    "coverage"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-04-21T00:00:00Z",
+  "updatedAt": "2026-04-21T00:00:00Z"
+}

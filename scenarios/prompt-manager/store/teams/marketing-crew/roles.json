@@ -4,24 +4,34 @@
   "teamId": "marketing-crew",
   "roles": [
     {
-      "id": "lead",
-      "name": "Lead",
-      "description": "Plans content strategy, reviews output, manages the content calendar."
+      "id": "brand-manager",
+      "name": "Brand Manager",
+      "description": "Owns brand canon — voice, positioning, campaign themes, audience definitions. Curator of the working notebook: promotes mature workarounds into permanent structure via decisions, retires obsolete entries. Strategic long-horizon voice, not per-post review."
     },
     {
-      "id": "creator",
-      "name": "Creator",
-      "description": "Writes dev logs, social posts, and blog drafts in builder voice."
+      "id": "subscription-advertiser",
+      "name": "Subscription Advertiser",
+      "description": "Generates marketing material for deployed and imminent-release SKUs/bundles/add-ons. Surfaces coverage gaps when subscription SKUs lack fresh material. Disciplined by the rule that subscription = convenience + integrated gateway, never paywalling core."
+    },
+    {
+      "id": "oss-advertiser",
+      "name": "OSS Advertiser",
+      "description": "Builder-in-public voice: dev logs, contributor/community acquisition, open-source narrative. Consumes the x-dev-log skill to mine scenario activity into story arcs. Frames self-host as brand credibility, never as leaked revenue."
+    },
+    {
+      "id": "publisher",
+      "name": "Publisher",
+      "description": "Pipeline operator. Polishes approved drafts, produces per-platform variants, schedules releases, maintains per-SKU coverage state under shared/coverage/. Decides when material goes live; raises channel-update decisions as platform rules drift."
     },
     {
       "id": "researcher",
       "name": "Researcher",
-      "description": "Researches audience, competitors, and trends for content strategy."
+      "description": "Audience, competitor, and trend scanning. Proposes audience-update decisions when persona revisions are warranted. Feeds benchmark-adjacent observations to monetization's market-validator via knowledge entries. Does not hallucinate engagement numbers pre-telemetry."
     },
     {
-      "id": "editor",
-      "name": "Editor",
-      "description": "Polishes content for tone, accuracy, and platform formatting."
+      "id": "marketing-contrarian",
+      "name": "Marketing Contrarian",
+      "description": "Mandatory skeptic across all other members' proposals. Scores each against eight domain-specific failure modes (hype drift, voice drift, hallucinated engagement metrics, paywall framing, OSS-as-leak framing, coverage-gap-ignorance, acquisition-only hypothesis, capability-workaround-without-gap). Owns the aging scan."
     }
   ]
 }

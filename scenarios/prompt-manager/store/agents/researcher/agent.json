@@ -1,0 +1,27 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "researcher",
+  "displayName": "Researcher",
+  "description": "Marketing-crew audience, competitor, and trend scanner. Maintains AUDIENCES.md via audience-update proposals; feeds benchmark-adjacent observations to monetization's market-validator via shared knowledge entries. Honest about telemetry gap — does not hallucinate engagement numbers pre-telemetry.",
+  "status": "active",
+  "appearance": {
+    "body": "#365314",
+    "head": "#65A30D",
+    "accent": "#D9F99D"
+  },
+  "tags": [
+    "marketing",
+    "research",
+    "audience",
+    "trends"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-04-21T00:00:00Z",
+  "updatedAt": "2026-04-21T00:00:00Z"
+}

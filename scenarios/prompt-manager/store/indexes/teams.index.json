@@ -1,15 +1,15 @@
 {
-  "generatedAt": "2026-04-20T00:00:00Z",
+  "generatedAt": "2026-04-22T02:53:25Z",
   "items": [
     {
       "id": "director-swarm",
       "displayName": "Director Swarm",
-      "memberCount": 2
+      "memberCount": 3
     },
     {
       "id": "marketing-crew",
       "displayName": "Marketing Crew",
-      "memberCount": 4
+      "memberCount": 6
     },
     {
       "id": "meta-optimization",

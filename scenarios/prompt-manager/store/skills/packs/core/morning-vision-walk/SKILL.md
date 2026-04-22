@@ -38,6 +38,8 @@ This skill exists because of a core insight about Vrooli:
 
 **Meta-optimization context:** The meta-optimization team produces decisions about how Vrooli improves itself — skill conversions (prose → programmatic), agent/team structure changes, toolchain violations, run-derived lessons, debt promotion, and framework challenges. These are second-order but compounding — they make every future agent run cheaper and sharper. Phase 5.5 gives them dedicated air time so they aren't crowded out by first-order product decisions. `capability-gap` decisions raised by this team are an exception: they surface in Phase 3 alongside portfolio decisions because director-swarm consumes them.
 
+**Marketing-crew context:** The marketing-crew team produces decisions about Vrooli's external voice — what gets published (content-publish-proposal), what campaigns launch (campaign-launch-proposal), when brand canon evolves (brand-guideline-update, audience-update, channel-update), where coverage on deployed SKUs is stale (coverage-gap), and when working-notebook entries mature into permanent structure (notebook-promotion / notebook-retirement). Phase 5.3 handles these; `capability-gap` items raised by marketing-crew members are folded into Phase 3 alongside meta-optimization's (both have director-swarm as consumer).
+
 **Monetization context:** Vrooli's full monetization plan is canonical at `docs/monetization/` — see `STRATEGY.md` for principles, `CATALOG.md` for the SKU index, `TIERS.md` for delivery tiers, `REVENUE_LINES.md` for subscription-vs-services discipline. In brief: the business bundle (developer + solopreneur tools, including LPBS, Git Control Tower, and Web Console) is the first active bundle; the lifestyle bundle (personal + household) is the next candidate. Delivery tiers ladder from individual apps → self-hosted → hosted cloud → hardware (north-star only). Each new scenario brainstormed during this walk should be assessed for bundle fit (does it serve the business or lifestyle bundle?), role (headliner or depth?), and compound value within the ecosystem. The `monetization` team surfaces the concrete decisions that come out of tracking this plan.
 
 **The long-term vision:** This morning walk should eventually be the *only* thing the human needs to do to steer the project. Everything else — execution, monitoring, deployment, testing — happens autonomously. The walk is where human judgment, creativity, and strategic thinking enter the system.
@@ -178,9 +180,42 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 
 ---
 
-### **Phase 5.5: Meta-Optimization Decisions**
+### **Phase 5.3: Marketing Decisions**
 
 **Entry criteria:** Monetization decisions complete.
+
+**Actions:**
+1. Present pending marketing-crew decisions from the prep deliverable (max 3, diversified across contexts — not 3 publish-proposals in a row if other contexts have items).
+2. For each decision: state what's being decided, the proposing member (brand-manager / subscription-advertiser / oss-advertiser / publisher / researcher / marketing-contrarian), the recommendation, and **any attached challenge notes from marketing-contrarian**. The contrarian's skepticism is first-class — present it, don't bury it.
+3. Context-specific framings:
+   - `content-publish-proposal` — "Member X drafted <artifact> for <audience / SKU>. Publish, hold for revision, or reject?" The linked draft is in `shared/campaign-drafts.jsonl`; read it before deciding if the summary isn't enough.
+   - `campaign-launch-proposal` — "Brand-manager proposes a campaign: <theme> targeting <audience> with launch window <date>. Approve (operator updates `docs/marketing/CAMPAIGNS.md`), defer, or reject?"
+   - `brand-guideline-update` / `audience-update` / `channel-update` — "Proposed edit to plan-of-record: <brief>. Approve (operator edits `docs/marketing/<file>.md`) or reject?"
+   - `coverage-gap` — "Deployed SKU <sku> has stale / missing marketing coverage. Direct the advertiser to prioritize refresh, or acknowledge and defer?"
+   - `notebook-promotion` — "Brand-manager proposes promoting <notebook-entry> into <target-surface>. Approve (operator executes file moves / creates skill / edits plan-of-record) or reject?"
+   - `notebook-retirement` — "Brand-manager proposes retiring <notebook-entry> (scenario X shipped). Approve (operator deletes entry) or reject?"
+   - `decision-rejection-proposed` — "Marketing-contrarian recommends rejecting or superseding <original-decision> for <failure-mode>. Agree, override, or defer?"
+4. Execute the user's choice:
+   ```bash
+   prompt-manager team decision-accept marketing-crew <decision-id> --selected <option-key> --notes "<user's reasoning>"
+   ```
+5. For approved `notebook-promotion` / `notebook-retirement` / plan-of-record edits, the operator (or you, on the operator's direction) executes the actual file edits. Cite the decision id in the commit message.
+6. If the user wants to defer, note it and move on.
+7. If there are no pending decisions, say so briefly and move on.
+
+**Disabled-team branch:** If `teams/marketing-crew/team.json` has `"enabled": false`, skip with: "Marketing-crew is not currently enabled. Once running, this phase will surface publish proposals, campaign launches, brand-canon edits, coverage gaps, and notebook-curation decisions."
+
+**Guardrail:** Max 3 decisions. Prep agent has already prioritized.
+
+**Exit criteria:**
+- [ ] All presented marketing-crew decisions addressed (accepted, rejected, or deferred)
+- [ ] Or section noted as disabled
+
+---
+
+### **Phase 5.5: Meta-Optimization Decisions**
+
+**Entry criteria:** Marketing decisions complete.
 
 **Actions:**
 1. Present pending meta-optimization self-improvement decisions from the prep deliverable (max 3, category-diversified across debt / run-lessons / skills / agents-and-teams / toolchain / framework-meta).
@@ -386,7 +421,7 @@ This skill covers the **daily strategic sync ritual** — from triage through br
 When running a Morning Vision Walk, you **must**:
 
 1. Read the prep deliverable before starting (or note it's unavailable)
-2. Cover all 10 phases in order — 1, 2, 3, 4, 5, 5.5, 6, 7, 8, 9 (skipping is fine if a section is empty, but acknowledge it)
+2. Cover all 11 phases in order — 1, 2, 3, 4, 5, 5.3, 5.5, 6, 7, 8, 9 (skipping is fine if a section is empty, but acknowledge it)
 3. Execute decisions the user approves via CLI commands
 4. Create backlog items for actionable ideas via swarm-manager CLI
 5. Write knowledge entries for chore audit topics discussed (for next walk's continuity)
@@ -396,4 +431,4 @@ You **should** also:
 - Keep the overall session under 35-50 minutes of conversation
 - Ensure brainstorming (Phases 6-7) gets at least 10 minutes even on heavy decision days
 - Maintain a warm, collaborative tone — this is a daily ritual, not a performance review
-- Note when sections are "not yet active" (strategist, monetization, meta-optimization) so the user knows what's coming
+- Note when sections are "not yet active" (strategist, monetization, marketing-crew, meta-optimization) so the user knows what's coming

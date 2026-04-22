@@ -52,7 +52,7 @@ Members surface decisions with these contexts. The operator reviews them at the 
 - `team-deprecation` — team-agent-optimizer proposes archiving an empty or long-dormant team
 - `toolchain-violation` — toolchain-validator raises a violation from DTV (or manual fallback) that needs operator attention
 - `run-lesson` — run-introspector captures a durable lesson from a specific run or pattern of runs that warrants a skill/agent change
-- `capability-gap` — run-introspector or toolchain-validator flags a capability the system should have but doesn't (director-swarm consumes)
+- `capability-gap` — a capability the system should have but doesn't (director-swarm consumes). Authorized raisers: `run-introspector`, `toolchain-validator` (meta-optimization owns the context definition); and marketing-crew members (`brand-manager`, `subscription-advertiser`, `oss-advertiser`, `publisher`, `researcher`) per the `capability-gap` footnote in their TEAM.md. Marketing-crew raises it when missing scenario capability blocks publishing or campaign work.
 - `decision-rejection-proposed` — contrarian formally recommends rejecting or revising a pending proposal after it fails multiple failure modes
 - `framework-update` — contrarian identifies a real failure mode not covered by the existing seven and proposes updating the framework
 - `meta-self-improvement` — debt-curator proposes promoting a doc-level workaround into permanent structure (a new/updated skill via skill-optimizer, a team-structure change via team-agent-optimizer, a scenario feature via `capability-gap`) or retiring a doc entry that's been obsoleted
@@ -79,7 +79,7 @@ Stacking (creating a new decision alongside a superseded-in-spirit prior one) is
 - **contrarian:** `decision-rejection-proposed`, `framework-update`
 - **debt-curator:** `meta-self-improvement`
 
-Overlaps (`capability-gap` is owned by both toolchain-validator and run-introspector) are expected. Each member only counts its owned contexts when evaluating its own stop-early threshold.
+Overlaps (`capability-gap` is owned by both toolchain-validator and run-introspector) are expected. Each member only counts its owned contexts when evaluating its own stop-early threshold. Note: marketing-crew members are also authorized to raise `capability-gap` (see `capability-gap` context description above) — meta-optimization owns the context definition; marketing raises from the outside when blocked. Those raises do not count against meta-optimization's own stop-early thresholds.
 
 ### Per-member caps
 Each member caps new decisions per heartbeat:

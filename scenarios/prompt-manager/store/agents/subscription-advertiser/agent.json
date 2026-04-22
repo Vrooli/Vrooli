@@ -1,0 +1,27 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "subscription-advertiser",
+  "displayName": "Subscription Advertiser",
+  "description": "Generates marketing material for Vrooli subscription SKUs, bundles, and add-ons — both deployed and imminent-release. Produces drafts into shared/campaign-drafts.jsonl and raises content-publish-proposal, coverage-gap, and capability-gap decisions. Disciplined by the rule that subscription = convenience + integrated gateway, never paywalling core.",
+  "status": "active",
+  "appearance": {
+    "body": "#7C2D12",
+    "head": "#EA580C",
+    "accent": "#FED7AA"
+  },
+  "tags": [
+    "marketing",
+    "subscription",
+    "advertiser",
+    "content-generation"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-04-21T00:00:00Z",
+  "updatedAt": "2026-04-21T00:00:00Z"
+}

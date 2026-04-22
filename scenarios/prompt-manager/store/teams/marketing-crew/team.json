@@ -3,36 +3,35 @@
   "schemaVersion": 1,
   "id": "marketing-crew",
   "displayName": "Marketing Crew",
-  "mission": "Generate authentic marketing content that communicates Vrooli progress, vision, and capabilities.",
+  "mission": "Own Vrooli's external voice — subscription marketing, open-source / community marketing, brand canon, and publishing pipeline — and surface the publishing, campaign, and positioning decisions the operator reviews each heartbeat.",
   "enabled": false,
   "runtime": {
-    "mode": "single-process"
+    "mode": "multi-process"
   },
   "coordination": {
-    "pattern": "leader-led",
-    "leadAgentId": "marketing-lead",
-    "reportingMode": "leader",
-    "messagingMode": "in-session",
+    "pattern": "independent",
+    "reportingMode": "none",
+    "messagingMode": "disabled",
     "capabilities": {
-      "showOrgContext": true,
+      "showOrgContext": false,
       "injectInbox": false,
       "allowPeerTriggers": false,
-      "showTaskBoardGuidance": true,
+      "showTaskBoardGuidance": false,
       "showDecisionLogGuidance": true,
       "showKnowledgeLogGuidance": true,
       "requireHandoff": true
     }
   },
   "execution": {
-    "queuePolicy": "serialized",
-    "maxConcurrentRuns": 1
+    "queuePolicy": "bounded-parallel",
+    "maxConcurrentRuns": 3
   },
-  "decisionMode": "yolo",
+  "decisionMode": "approval",
   "shared": {
     "path": "shared/",
     "mountHint": "readWrite"
   },
-  "revision": 3,
+  "revision": 5,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-02-15T23:11:37Z"
+  "updatedAt": "2026-04-22T02:53:25Z"
 }

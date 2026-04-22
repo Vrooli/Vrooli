@@ -1,0 +1,28 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "oss-advertiser",
+  "displayName": "OSS Advertiser",
+  "description": "Generates builder-in-public marketing material for Vrooli's open-source and contributor audience. Primary consumer of the x-dev-log skill. Drafts dev-log threads, contributor-invitation content, and OSS-narrative blog posts; raises content-publish-proposal, coverage-gap (OSS narrative), and capability-gap decisions. Frames self-host as brand credibility, never revenue leak.",
+  "status": "active",
+  "appearance": {
+    "body": "#064E3B",
+    "head": "#059669",
+    "accent": "#A7F3D0"
+  },
+  "tags": [
+    "marketing",
+    "oss",
+    "advertiser",
+    "dev-log",
+    "community"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-04-21T00:00:00Z",
+  "updatedAt": "2026-04-21T00:00:00Z"
+}

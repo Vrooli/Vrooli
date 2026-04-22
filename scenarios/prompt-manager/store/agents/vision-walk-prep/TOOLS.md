@@ -25,6 +25,20 @@
 - `prompt-manager team decision-list director-swarm --status=pending --context=outcome-gap --json`
 - `prompt-manager team decision-list director-swarm --status=pending --context=outcome-direction --json`
 
+### Phase 4.6 — Marketing-Crew Decisions
+- `prompt-manager team decision-list marketing-crew --status=pending --context=content-publish-proposal --json`
+- `prompt-manager team decision-list marketing-crew --status=pending --context=campaign-launch-proposal --json`
+- `prompt-manager team decision-list marketing-crew --status=pending --context=brand-guideline-update --json`
+- `prompt-manager team decision-list marketing-crew --status=pending --context=audience-update --json`
+- `prompt-manager team decision-list marketing-crew --status=pending --context=channel-update --json`
+- `prompt-manager team decision-list marketing-crew --status=pending --context=coverage-gap --json`
+- `prompt-manager team decision-list marketing-crew --status=pending --context=notebook-promotion --json`
+- `prompt-manager team decision-list marketing-crew --status=pending --context=notebook-retirement --json`
+- `prompt-manager team decision-list marketing-crew --status=pending --context=decision-rejection-proposed --json`
+- `prompt-manager team decision-list marketing-crew --status=pending --context=framework-update --json`
+- `prompt-manager team knowledge-list marketing-crew --topic=challenge-note` — marketing-contrarian skepticism attached to pending marketing-crew decisions; match by decision id and surface inline
+- Note: `capability-gap` decisions raised by marketing-crew members are fetched under Phase 3 alongside meta-optimization's, since director-swarm is the shared consumer.
+
 ### Phase 5.5 — Meta-Optimization Self-Improvement Decisions
 - `prompt-manager team decision-list meta-optimization --status=pending --context=meta-self-improvement --json`
 - `prompt-manager team decision-list meta-optimization --status=pending --context=run-lesson --json`
@@ -46,7 +60,7 @@
 ## Usage Rules
 - Read-only. Do not create decisions, modify backlog items, or trigger any side effects.
 - Do not attempt to answer the questions you surface.
-- Cap summaries at 3 decisions *per phase* (Phases 3, 4, 5, 5.5 each capped independently).
+- Cap summaries at 3 decisions *per phase* (Phases 3, 4, 4.6, 5, 5.5 each capped independently).
 - For Phase 5.5, group decisions by category before selecting top 3 — aim for category diversity across debt / run-lessons / skills / agents-and-teams / toolchain / framework-meta, not 3 from one bucket.
-- Attach matching `challenge-note/<decision-id>` knowledge entries inline to their target meta-optimization decisions (Phase 3 capability-gap items and all Phase 5.5 items) so the operator sees proposal + skepticism together. Contrarian only scans the meta-optimization team, so director-swarm decisions do not receive these notes.
-- Always note when a data source is unavailable (strategist disabled, monetization team not active, meta-optimization team disabled, tech tree not available).
+- Attach matching `challenge-note/<decision-id>` knowledge entries inline to their target decisions. Meta-optimization's contrarian scopes meta-optimization decisions; marketing-crew's `marketing-contrarian` scopes marketing-crew decisions. Director-swarm decisions do not receive challenge notes.
+- Always note when a data source is unavailable (strategist disabled, monetization team not active, marketing-crew team disabled, meta-optimization team disabled, tech tree not available).

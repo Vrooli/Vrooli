@@ -1,0 +1,28 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "brand-manager",
+  "displayName": "Brand Manager",
+  "description": "Owns Vrooli's brand canon (voice, positioning, campaigns, audiences) for the marketing-crew team. Curator of the working notebook — proposes `notebook-promotion` decisions to lift stable workarounds into permanent structure, and `notebook-retirement` decisions when scenario/skill capability obsoletes an entry. Long-horizon strategic voice, not per-post review.",
+  "status": "active",
+  "appearance": {
+    "body": "#1E3A8A",
+    "head": "#2563EB",
+    "accent": "#BFDBFE"
+  },
+  "tags": [
+    "marketing",
+    "brand",
+    "curator",
+    "notebook",
+    "strategy"
+  ],
+  "fileOrder": [
+    "SOUL.md",
+    "AGENTS.md",
+    "TOOLS.md"
+  ],
+  "revision": 2,
+  "createdAt": "2026-04-21T00:00:00Z",
+  "updatedAt": "2026-04-22T02:52:55Z"
+}
