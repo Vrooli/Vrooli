@@ -34,7 +34,7 @@ func DefaultTTSSummarizeConfig() TTSSummarizeConfig {
 		CharThreshold:  500,
 		Level:          "moderate",
 		Model:          model,
-		TimeoutSeconds: 120,
+		TimeoutSeconds: defaultSummarizeTimeoutSeconds,
 	}
 }
 
@@ -90,11 +90,23 @@ func loadTTSSummarizeConfig(path string) (TTSSummarizeConfig, error) {
 	if cfg.Model == "" {
 		cfg.Model = DefaultTTSSummarizeConfig().Model
 	}
-	if cfg.TimeoutSeconds <= 0 {
-		cfg.TimeoutSeconds = 120
+	// Clamp to a realistic floor. Reasoning models (qwen3 family) emit
+	// hundreds of <think>…</think> tokens before their actual answer, so
+	// anything under ~15 s is a near-guaranteed timeout on CPU inference for
+	// non-trivial inputs. We clamp silently on load so stale configs don't
+	// silently break the feature after a model change or the user picking a
+	// reasoning-capable default.
+	if cfg.TimeoutSeconds < minSummarizeTimeoutSeconds {
+		cfg.TimeoutSeconds = defaultSummarizeTimeoutSeconds
 	}
 	return cfg, nil
 }
+
+const (
+	minSummarizeTimeoutSeconds     = 15
+	defaultSummarizeTimeoutSeconds = 120
+	maxSummarizeTimeoutSeconds     = 300
+)
 
 // saveTTSSummarizeConfig writes config to JSON file atomically.
 func saveTTSSummarizeConfig(path string, cfg TTSSummarizeConfig) error {
@@ -163,8 +175,8 @@ func (s *Server) handleUpdateTTSSummarizeConfig(w http.ResponseWriter, r *http.R
 		writeCatalogError(w, "invalid_body", "charThreshold must be non-negative")
 		return
 	}
-	if updated.TimeoutSeconds < 1 || updated.TimeoutSeconds > 300 {
-		writeCatalogError(w, "invalid_body", "timeoutSeconds must be between 1 and 300")
+	if updated.TimeoutSeconds < minSummarizeTimeoutSeconds || updated.TimeoutSeconds > maxSummarizeTimeoutSeconds {
+		writeCatalogError(w, "invalid_body", fmt.Sprintf("timeoutSeconds must be between %d and %d", minSummarizeTimeoutSeconds, maxSummarizeTimeoutSeconds))
 		return
 	}
 	if updated.Model == "" {

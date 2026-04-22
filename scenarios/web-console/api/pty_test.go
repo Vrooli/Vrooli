@@ -228,6 +228,35 @@ func TestFilterServiceEnv_HandlesEmptyEnv(t *testing.T) {
 	}
 }
 
+func TestFilterServiceEnv_RemovesHostTerminalVars(t *testing.T) {
+	// REGRESSION: web-console-api typically runs inside the user's own
+	// terminal (often tmux). Without this filter, every standard-backend
+	// shell inherits TMUX/TMUX_PANE/TERM_PROGRAM pointing at a tmux session
+	// that the shell is *not* actually inside. Programs like Claude Code
+	// then think they're in tmux, emit tmux DCS passthrough escapes, and
+	// hang silently before rendering any UI.
+	env := []string{
+		"HOME=/home/user",
+		"TMUX=/tmp/tmux-1000/wc,1564421,0",
+		"TMUX_PANE=%0",
+		"TERM_PROGRAM=tmux",
+		"TERM_PROGRAM_VERSION=3.4",
+		"PATH=/usr/bin",
+	}
+	got := filterServiceEnv(env)
+
+	for _, v := range got {
+		name, _, _ := strings.Cut(v, "=")
+		switch name {
+		case "TMUX", "TMUX_PANE", "TERM_PROGRAM", "TERM_PROGRAM_VERSION":
+			t.Errorf("host-terminal var should be filtered out: %s", v)
+		}
+	}
+	if len(got) != 2 {
+		t.Errorf("expected 2 env vars (HOME, PATH), got %d: %v", len(got), got)
+	}
+}
+
 func TestFilterServiceEnv_RemovesLifecycleVars(t *testing.T) {
 	// REGRESSION: The tmux server inherited VROOLI_LIFECYCLE_MANAGED from the
 	// API process. The autoheal orphan checker then detected the tmux server as

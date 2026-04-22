@@ -294,6 +294,14 @@ describe("useTerminalSocket hook", () => {
   });
 
   it("strips DA/DSR/CPR terminal responses from input before forwarding", () => {
+    // Queries replayed from the session history buffer on reconnect can
+    // cause xterm.js to emit DA/DSR/CPR replies that the original querying
+    // program is no longer there to consume. If forwarded to the PTY they
+    // spam the current shell's prompt with `1;2c0;276;0c` garbage.
+    //
+    // TUI programs (Claude Code, vim, etc.) that legitimately need these
+    // replies get them from the server-side ANSI responder in
+    // session.readLoop, not from xterm.js. See ansi_responder.go.
     renderHook(() =>
       useTerminalSocket({
         sessionId: "sess-1",
@@ -306,7 +314,7 @@ describe("useTerminalSocket hook", () => {
     act(() => fakeWs.triggerMessage({ type: "session_ready" }));
     fakeWs.sent = [];
 
-    // Pure DA1 response — should be dropped entirely (no stdin sent)
+    // Pure DA1 response — dropped entirely (no stdin sent)
     act(() => terminal.simulateInput("\x1b[?1;2c"));
     expect(fakeWs.sent).toHaveLength(0);
 
@@ -317,12 +325,16 @@ describe("useTerminalSocket hook", () => {
 
     fakeWs.sent = [];
 
-    // Cursor Position Report (\e[row;colR)
+    // Cursor Position Report
     act(() => terminal.simulateInput("\x1b[24;80R"));
     expect(fakeWs.sent).toHaveLength(0);
 
-    // Device Status Report (\e[0n)
+    // Device Status Report
     act(() => terminal.simulateInput("\x1b[0n"));
+    expect(fakeWs.sent).toHaveLength(0);
+
+    // DECRPM (response to DECRQM) — also stripped
+    act(() => terminal.simulateInput("\x1b[?2026;1$y"));
     expect(fakeWs.sent).toHaveLength(0);
   });
 

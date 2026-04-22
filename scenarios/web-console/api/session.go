@@ -451,6 +451,15 @@ func looksLikeMidSequence(buf []byte) bool {
 // instead of being dropped. The WebSocket output forwarder calls FlushPending
 // after each successful write to drain coalesced data back into the channel.
 func (s *Session) broadcast(data []byte) {
+	// Strip escape sequences the browser xterm.js emulator mishandles
+	// (DECSET/DECRST/DECRQM for mode 2026 — see sanitizeForClient for the
+	// full rationale) before the data hits the history buffer or any WS
+	// client. Without this, a single Claude Code startup burst kills the
+	// xterm parser and the entire terminal goes blank.
+	data = sanitizeForClient(data)
+	if len(data) == 0 {
+		return
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.appendHistory(data)
@@ -593,6 +602,20 @@ func (s *Session) readLoop() {
 		n, err := p.Read(buf)
 		if n > 0 {
 			data := buf[:n]
+			// Answer terminal capability queries server-side (DA1/DA3/DECRQM)
+			// so TUI programs like Claude Code don't stall waiting for a
+			// response xterm.js will not send. Write the reply straight to
+			// the PTY master — it arrives at the foreground process as
+			// stdin, just as a real terminal emulator's reply would. Only
+			// the standard backend needs this: tmux answers queries for its
+			// own panes.
+			if s.Backend != BackendPersistent {
+				if reply := generateAnsiResponses(data); len(reply) > 0 {
+					if _, werr := p.Write(reply); werr != nil {
+						log.Printf("session %s: ansi-responder write failed: %v", s.ID, werr)
+					}
+				}
+			}
 			// Prepend any incomplete UTF-8 bytes from the previous read.
 			if len(s.utf8Buf) > 0 {
 				data = append(s.utf8Buf, data...)

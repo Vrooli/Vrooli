@@ -19,7 +19,7 @@ func TestTTSSummarizeConfig_LoadSaveRoundTrip(t *testing.T) {
 		CharThreshold:  300,
 		Level:          "heavy",
 		Model:          "test-model",
-		TimeoutSeconds: 10,
+		TimeoutSeconds: 45,
 	}
 
 	if err := saveTTSSummarizeConfig(path, cfg); err != nil {
@@ -45,6 +45,26 @@ func TestTTSSummarizeConfig_LoadSaveRoundTrip(t *testing.T) {
 	}
 	if loaded.TimeoutSeconds != cfg.TimeoutSeconds {
 		t.Errorf("timeoutSeconds: got %d, want %d", loaded.TimeoutSeconds, cfg.TimeoutSeconds)
+	}
+}
+
+func TestTTSSummarizeConfig_ClampsUndersizedTimeout(t *testing.T) {
+	// REGRESSION: a stale config with timeoutSeconds=5 (from before we
+	// switched to reasoning models that emit 300+ <think> tokens) caused
+	// every real-sized summary request to time out before Ollama returned.
+	// The loader now clamps anything below the minimum up to the default.
+	dir := t.TempDir()
+	path := filepath.Join(dir, "tts-summarize-config.json")
+	if err := os.WriteFile(path, []byte(`{"enabled":true,"charThreshold":500,"level":"moderate","model":"qwen3:1.7b","timeoutSeconds":5}`), 0o644); err != nil {
+		t.Fatalf("seed config: %v", err)
+	}
+
+	cfg, err := loadTTSSummarizeConfig(path)
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	if cfg.TimeoutSeconds < minSummarizeTimeoutSeconds {
+		t.Errorf("timeoutSeconds=%d, want clamped to >= %d", cfg.TimeoutSeconds, minSummarizeTimeoutSeconds)
 	}
 }
 

@@ -491,14 +491,23 @@ export function useTerminalSocket({
           }
           case "stdout":
             if (msg.data) {
+              // Belt-and-suspenders strip of DEC mode-2026 toggles AND
+              // the DECRQM query for mode 2026. The server already strips
+              // these in `sanitizeForClient` (see api/ansi_responder.go),
+              // but we repeat the strip here so a stale server build or
+              // an out-of-order broadcast path can't reintroduce the
+              // xterm.js v6 `ReferenceError: r is not defined` crash that
+              // silently breaks every subsequent render. See project
+              // memory `project_web_console_claude_hang_fix` for the full
+              // root-cause write-up.
+              // eslint-disable-next-line no-control-regex -- intentional CSI
+              const stripped = msg.data.replace(/\x1b\[\?2026(?:[hl]|\$p)/g, "");
               if (replayingHistory) {
-                // Buffer history chunks until "history_end" arrives, then
-                // write everything in a single terminal.write() call.
-                historyBuffer.push(msg.data);
+                historyBuffer.push(stripped);
               } else {
-                const processed = localEcho.processOutput(msg.data);
+                const processed = localEcho.processOutput(stripped);
                 if (processed) terminal.write(processed);
-                appendOutputProbe(sessionId, msg.data);
+                appendOutputProbe(sessionId, stripped);
               }
             }
             break;
@@ -655,19 +664,26 @@ export function useTerminalSocket({
     // When mobile toolbar modifier toggles are active, apply them to the input
     // before sending. Reading from the store directly (not via subscription)
     // ensures we always see the latest modifier state.
-    // Strip terminal-generated responses (DA, DSR, CPR) from input before
-    // forwarding to the PTY.  xterm.js emits these in reply to queries from
-    // tmux (e.g. after a resize with `mouse on`).  They are host-to-terminal
-    // responses and must never reach the shell, where readline would echo the
-    // unrecognised parameter bytes as visible garbage.
     //
-    // Matched sequences (all are CSI with optional private-mode prefix):
-    //   \e[?…c   Primary DA response          \e[>…c   Secondary DA response
-    //   \e[…n    Device Status Report          \e[…R    Cursor Position Report
+    // Strip terminal-generated responses (DA1/DA2/DA3, DSR, CPR) from input
+    // before forwarding to the PTY. xterm.js emits these in reply to
+    // queries that appear in PTY output — including queries replayed from
+    // the session history buffer on reconnect, where the original querying
+    // program is long gone. Leaving them in the input stream spams the
+    // current shell with `1;2c0;276;0c…` garbage at the prompt.
+    //
+    // DA queries that TUI programs (Claude Code, vim, etc.) legitimately
+    // need answered are handled server-side in session.readLoop instead —
+    // that path synthesizes responses and writes them directly to the PTY
+    // master, bypassing xterm.js entirely. See `ansi_responder.go`.
+    //
+    // Matched CSI forms:
+    //   \e[?…c   DA1 response             \e[>…c   DA2/DA3 response
+    //   \e[…n    Device Status Report      \e[…R    Cursor Position Report
+    //   \e[?…$y  DECRPM (DECRQM reply)
     // eslint-disable-next-line no-control-regex -- intentionally matches CSI ESC byte
-    const RE_TERMINAL_RESPONSE = /\x1b\[[\x30-\x3f]*[\x20-\x2f]*[cnR]/g;
+    const RE_TERMINAL_RESPONSE = /\x1b\[[\x30-\x3f]*[\x20-\x2f]*[cnRy]/g;
     const stripTerminalResponses = (s: string): string => {
-      // Fast path: most input is plain keystrokes with no ESC at all.
       if (s.indexOf("\x1b") === -1) return s;
       return s.replace(RE_TERMINAL_RESPONSE, "");
     };
@@ -676,7 +692,7 @@ export function useTerminalSocket({
       const mods = useWorkspaceStore.getState().modifiers;
       const hasModifier = mods.ctrl || mods.alt || mods.shift;
       let data = stripTerminalResponses(rawData);
-      if (data.length === 0) return; // Entire input was terminal responses
+      if (data.length === 0) return;
       if (hasModifier) {
         const { data: modified } = applyModifiers(data, mods);
         data = modified;
