@@ -33,18 +33,22 @@ type BatchCreateItem struct {
 }
 
 type BatchCreateInitiative struct {
-	Name        string  `json:"name"`
-	Title       string  `json:"title"`
-	Description *string `json:"description,omitempty"`
-	Status      *string `json:"status,omitempty"`
+	Name        string    `json:"name"`
+	Title       string    `json:"title"`
+	Description *string   `json:"description,omitempty"`
+	Status      *string   `json:"status,omitempty"`
+	Priority    *int      `json:"priority,omitempty"`
+	DependsOn   *[]string `json:"depends_on,omitempty"`
 }
 
 type BatchCreateInitiativeResult struct {
-	Name        string `json:"name"`
-	Title       string `json:"title"`
-	Description string `json:"description,omitempty"`
-	Status      string `json:"status"`
-	Action      string `json:"action"`
+	Name        string   `json:"name"`
+	Title       string   `json:"title"`
+	Description string   `json:"description,omitempty"`
+	Status      string   `json:"status"`
+	Priority    int      `json:"priority,omitempty"`
+	DependsOn   []string `json:"depends_on,omitempty"`
+	Action      string   `json:"action"`
 }
 
 // BatchCreateResponse is the response from the batch create endpoint.
@@ -161,6 +165,12 @@ func (a *App) cmdBacklogBatchCreate(args []string) error {
 			fmt.Printf("    Title: %s\n", initiative.Title)
 			if initiative.Description != "" {
 				fmt.Printf("    Description: %s\n", initiative.Description)
+			}
+			if initiative.Priority > 0 {
+				fmt.Printf("    Priority: %d\n", initiative.Priority)
+			}
+			if len(initiative.DependsOn) > 0 {
+				fmt.Printf("    Depends on: %s\n", strings.Join(initiative.DependsOn, ", "))
 			}
 		}
 	}

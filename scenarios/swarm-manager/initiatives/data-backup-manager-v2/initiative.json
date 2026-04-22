@@ -1,0 +1,19 @@
+{
+  "name": "data-backup-manager-v2",
+  "title": "Data Backup Manager V2",
+  "description": "Build a manifest-driven backup and restore system for self-hosted Vrooli deployments with local and object-storage targets, using canonical storage defaults and declarative exceptions.",
+  "status": "active",
+  "priority": 3,
+  "depends_on": [
+    "persistence-inventory-and-contracts",
+    "storage-convergence-rollout"
+  ],
+  "items": [
+    "research/data-backup-manager-v2-architecture",
+    "execute/data-backup-manager-manifest-driven-discovery",
+    "execute/data-backup-manager-resource-adapters-and-targets",
+    "execute/data-backup-manager-restore-catalog-and-operator-surfaces"
+  ],
+  "created": "2026-04-22T03:16:42Z",
+  "updated": "2026-04-22T03:16:42Z"
+}

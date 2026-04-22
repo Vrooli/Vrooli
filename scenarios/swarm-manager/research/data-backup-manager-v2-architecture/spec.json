@@ -1,0 +1,24 @@
+{
+  "acceptance_allow": [
+    "scenarios/data-backup-manager/**",
+    "docs/**",
+    "resources/**",
+    "scenarios/**"
+  ],
+  "created": "2026-04-22T03:16:42Z",
+  "depends_on": [
+    "research/backup-contract-defaults-and-exceptions-design",
+    "execute/high-risk-scenario-storage-migration-wave",
+    "execute/resource-storage-exception-normalization-wave"
+  ],
+  "description": "Redesign data-backup-manager around the new storage and backup contract. The architecture should describe discovery of scenario storage classes, discovery of resource runtime roots, adapter boundaries for infrastructure resources, output target support for local archives and S3-compatible storage, restore catalog structure, restore ordering, and operator-facing safety constraints. It must assume browser-only UI storage is out of scope.",
+  "effort": "L",
+  "initiative": "data-backup-manager-v2",
+  "kind": "research",
+  "name": "data-backup-manager-v2-architecture",
+  "priority": 1,
+  "status": "backlog",
+  "tags": [],
+  "title": "Design the manifest-driven Data Backup Manager v2",
+  "updated": "2026-04-22T03:16:42Z"
+}

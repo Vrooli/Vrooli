@@ -1,0 +1,25 @@
+{
+  "acceptance_allow": [
+    "docs/scenarios/storage.md",
+    "docs/resources/storage.md",
+    "docs/plans/storage-standardization-implementation-plan.md",
+    "scenarios/**",
+    "resources/**",
+    "packages/api-core/storage/**",
+    "internal/resources/runtime/storage/**"
+  ],
+  "acceptance_deny": [
+    "scenarios/*/ui/**/node_modules/**"
+  ],
+  "created": "2026-04-22T03:16:42Z",
+  "description": "Inventory all non-Git persisted data across scenarios and resources. Classify each surface as canonical, legacy, exempt, or disposable; identify which data is already discoverable from api-core/storage or RESOURCE_*_DIR; and produce an exact migration list for the holdouts. Explicitly exclude browser-only storage such as localStorage, sessionStorage, and IndexedDB from the backup target set.",
+  "effort": "L",
+  "initiative": "persistence-inventory-and-contracts",
+  "kind": "research",
+  "name": "platform-persistence-surface-audit",
+  "priority": 1,
+  "status": "backlog",
+  "tags": [],
+  "title": "Audit the platform persistence surface across scenarios and resources",
+  "updated": "2026-04-22T03:16:42Z"
+}

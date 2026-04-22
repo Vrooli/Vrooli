@@ -1,0 +1,27 @@
+{
+  "acceptance_allow": [
+    "scenarios/**",
+    "packages/api-core/storage/**",
+    "docs/scenarios/storage.md"
+  ],
+  "acceptance_deny": [
+    "resources/**"
+  ],
+  "created": "2026-04-22T03:16:42Z",
+  "depends_on": [
+    "research/platform-persistence-surface-audit",
+    "research/backup-contract-defaults-and-exceptions-design",
+    "execute/scenario-auditor-persistence-contract-enforcement",
+    "execute/storage-docs-and-template-contract-alignment"
+  ],
+  "description": "Execute the first migration wave for scenarios that still store durable runtime state outside api-core/storage or rely on ad hoc persistence patterns. Focus on high-risk scenarios first: the ones with important operator data, SQLite files, file-based stores, or deployment-critical state. Add or update STORAGE_AUDIT docs where the persistence layout materially matters.",
+  "effort": "XL",
+  "initiative": "storage-convergence-rollout",
+  "kind": "execute",
+  "name": "high-risk-scenario-storage-migration-wave",
+  "priority": 1,
+  "status": "backlog",
+  "tags": [],
+  "title": "Migrate high-risk scenarios onto canonical runtime storage",
+  "updated": "2026-04-22T03:16:42Z"
+}

@@ -1,0 +1,23 @@
+{
+  "acceptance_allow": [
+    "docs/**",
+    "scenarios/prompt-manager/store/skills/packs/core/storage-steer/**",
+    "scenarios/prompt-manager/store/skills/packs/core/cross-platform-readiness/**",
+    "internal/resources/**",
+    "packages/api-core/docs/**"
+  ],
+  "created": "2026-04-22T03:16:42Z",
+  "depends_on": [
+    "research/backup-contract-defaults-and-exceptions-design"
+  ],
+  "description": "Update the canonical docs, prompt-manager skills, and any scenario/resource template guidance so new work naturally produces backup-compatible persistence. The goal is that default storage behavior just works, while exceptions are rare, declarative, and documented consistently.",
+  "effort": "M",
+  "initiative": "persistence-inventory-and-contracts",
+  "kind": "execute",
+  "name": "storage-docs-and-template-contract-alignment",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [],
+  "title": "Align docs, skills, and templates with the backup contract",
+  "updated": "2026-04-22T03:16:42Z"
+}

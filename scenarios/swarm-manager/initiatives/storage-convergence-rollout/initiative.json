@@ -1,0 +1,17 @@
+{
+  "name": "storage-convergence-rollout",
+  "title": "Storage Convergence Rollout",
+  "description": "Migrate high-risk scenarios and resources onto the canonical storage seams so backup behavior can be inferred from structure instead of special-case code.",
+  "status": "active",
+  "priority": 2,
+  "depends_on": [
+    "persistence-inventory-and-contracts"
+  ],
+  "items": [
+    "execute/high-risk-scenario-storage-migration-wave",
+    "chore/declare-legacy-resource-storage-exceptions",
+    "execute/resource-storage-exception-normalization-wave"
+  ],
+  "created": "2026-04-22T03:16:42Z",
+  "updated": "2026-04-22T03:16:42Z"
+}
