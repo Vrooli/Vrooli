@@ -127,6 +127,11 @@ type Server struct {
 	systemContext                 *SystemContext
 	whisperURL                    string
 	transcodeAudio                func(context.Context, []byte) ([]byte, error)
+	// nextWSGen is a monotonically increasing generation counter; each
+	// new terminal WebSocket connection gets a fresh Gen that is echoed
+	// to the client in session_ready. Clients use it as the wsGen write
+	// barrier on pending-ack re-enqueue (see useStdinAck).
+	nextWSGen atomic.Int64
 }
 
 type conversationAppendSnapshot struct {

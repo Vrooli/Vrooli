@@ -5,7 +5,8 @@
  * providing a single source of truth for test infrastructure.
  */
 import { vi } from "vitest";
-import type { TerminalMessage, SocketFactory } from "../hooks/useTerminalSocket";
+import type { TerminalMessage } from "../types/terminal";
+import type { SocketFactory } from "../hooks/terminal/useTerminalTransport";
 
 // ---------------------------------------------------------------------------
 // @vrooli/api-base mock factory
@@ -40,7 +41,7 @@ export function apiBaseMock() {
 
 /**
  * Minimal fake WebSocket that mirrors the subset of the real API
- * used by useTerminalSocket. The test controls the lifecycle via
+ * used by useTerminalTransport. The test controls the lifecycle via
  * triggerOpen / triggerMessage / triggerClose.
  */
 export class FakeWebSocket {

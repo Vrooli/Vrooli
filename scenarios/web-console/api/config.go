@@ -67,6 +67,15 @@ type Config struct {
 	// Env: WC_COALESCE_NOTIFY_THRESHOLD | Default: 5 | Range: 1–1000
 	CoalesceNotifyThreshold int
 
+	// SIGWINCHCooldownMs is the minimum interval in milliseconds between
+	// SIGWINCH-based coalesce-trim recoveries per session. A cooldown
+	// prevents rapid trim events from storming the TUI with SIGWINCH
+	// while it is redrawing. The recovery path is also suppressed entirely
+	// while the PTY is in the alternate screen buffer; the cooldown only
+	// applies outside alt-buffer mode.
+	// Env: WC_SIGWINCH_COOLDOWN_MS | Default: 1000 | Range: 0–30000
+	SIGWINCHCooldownMs int
+
 	// DefaultCWD is the working directory used for newly spawned shell sessions.
 	// Fallback chain:
 	//   WC_DEFAULT_CWD -> PROJECT_ROOT -> SCENARIO_DIR -> inferred scenario dir -> current process cwd
@@ -103,6 +112,7 @@ func DefaultConfig() Config {
 		MaxSessions:             0,
 		ClientChannelBuffer:     256,
 		CoalesceNotifyThreshold: 5,
+		SIGWINCHCooldownMs:      1000,
 		DefaultCWD:              resolveWorkingDir(),
 		DefaultBackend:          "auto",
 		DefaultPolicyMode:       "never",
@@ -123,6 +133,7 @@ func LoadConfig() Config {
 	cfg.MaxSessions = envInt("WC_MAX_SESSIONS", cfg.MaxSessions, 0, 1000)
 	cfg.ClientChannelBuffer = envInt("WC_CLIENT_CHANNEL_BUFFER", cfg.ClientChannelBuffer, 8, 1024)
 	cfg.CoalesceNotifyThreshold = envInt("WC_COALESCE_NOTIFY_THRESHOLD", cfg.CoalesceNotifyThreshold, 1, 1000)
+	cfg.SIGWINCHCooldownMs = envInt("WC_SIGWINCH_COOLDOWN_MS", cfg.SIGWINCHCooldownMs, 0, 30000)
 
 	cfg.DefaultShell = resolveShell()
 	cfg.DefaultCWD = resolveWorkingDir()

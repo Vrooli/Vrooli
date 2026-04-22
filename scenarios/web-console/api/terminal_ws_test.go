@@ -98,16 +98,18 @@ func TestHandleTerminalWS_ExitedSession(t *testing.T) {
 }
 
 // skipHistoryEnd reads and discards the initial server-to-client handshake
-// messages — history_end and session_ready — that every fresh connection
-// produces. Early stdout from the shell (prompt render) may arrive between
-// these and is transparently dropped so downstream reads can focus on the
-// messages under test.
+// messages — history_end, pty_state (initial alt-buffer view), and
+// session_ready — that every fresh connection produces. Early stdout
+// from the shell (prompt render) may arrive between these and is
+// transparently dropped so downstream reads can focus on the messages
+// under test.
 func skipHistoryEnd(t *testing.T, conn *websocket.Conn) {
 	t.Helper()
 	sawHistoryEnd := false
 	sawSessionReady := false
+	sawPTYState := false
 	deadline := time.Now().Add(3 * time.Second)
-	for !(sawHistoryEnd && sawSessionReady) {
+	for !(sawHistoryEnd && sawSessionReady && sawPTYState) {
 		_ = conn.SetReadDeadline(deadline)
 		var msg TerminalMessage
 		if err := conn.ReadJSON(&msg); err != nil {
@@ -118,9 +120,11 @@ func skipHistoryEnd(t *testing.T, conn *websocket.Conn) {
 			sawHistoryEnd = true
 		case MsgTypeSessionReady:
 			sawSessionReady = true
+		case MsgTypePTYState:
+			sawPTYState = true
 		case MsgTypeStdout, MsgTypeResizeInfo, MsgTypeSyncWarning:
 			// Non-handshake traffic that may arrive before the handshake
-			// completes (e.g. the shell's initial prompt). Ignore.
+			// completes (e.g. the shell's initial prompt).
 		default:
 			t.Fatalf("skipHistoryEnd: unexpected message type=%s before handshake complete", msg.Type)
 		}

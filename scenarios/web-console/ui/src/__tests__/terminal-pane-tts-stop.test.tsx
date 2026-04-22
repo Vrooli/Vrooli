@@ -52,12 +52,29 @@ vi.mock("../hooks/useTextToSpeech", () => ({
 let capturedHandler:
   | ((event: { id: string; source: string; role: "assistant" | "user"; text: string; speechParagraphs?: string[]; sequence: number; createdAt?: string }, sendAck: (stage: string, message?: string, backend?: string) => void) => void | Promise<void>)
   | undefined;
-vi.mock("../hooks/useTerminalSocket", () => ({
-  useTerminalSocket: (opts: { onConversationEvent?: typeof capturedHandler }) => {
-    capturedHandler = opts.onConversationEvent;
-    return { sendInput: vi.fn().mockReturnValue(true), sendResize: vi.fn(), totalBytesRef: { current: 0 } };
-  },
-}));
+vi.mock("../hooks/terminal/useTerminalSession", () => {
+  const totalBytesRef = { current: 0 };
+  const gate = { submit: vi.fn(() => ({ status: "sent" as const, seq: 1 })), dispose: vi.fn(), canAcceptPaste: () => true };
+  const submitInput = vi.fn(() => ({ status: "sent" as const, seq: 1 }));
+  const sendResize = vi.fn();
+  const subscribeInputSettled = vi.fn(() => () => {});
+  const subscribePendingInput = vi.fn(() => () => {});
+  const getPendingInputSnapshot = vi.fn(() => []);
+  return {
+    useTerminalSession: (opts: { onConversationEvent?: typeof capturedHandler }) => {
+      capturedHandler = opts.onConversationEvent;
+      return {
+        submitInput,
+        gate,
+        sendResize,
+        totalBytesRef,
+        subscribeInputSettled,
+        subscribePendingInput,
+        getPendingInputSnapshot,
+      };
+    },
+  };
+});
 
 vi.mock("../hooks/useTerminalTouch", () => ({
   useTerminalTouch: () => ({ hasSelection: false, copySelection: vi.fn(), clearSelection: vi.fn() }),

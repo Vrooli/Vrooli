@@ -6,7 +6,8 @@ import { FitAddon } from "@xterm/addon-fit";
 import { SerializeAddon } from "@xterm/addon-serialize";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
-import { useTerminalSocket } from "../hooks/useTerminalSocket";
+import { useTerminalSession } from "../hooks/terminal/useTerminalSession";
+import type { GateResult, InputSource } from "./terminal/inputGate";
 import { loadTerminalCache, saveTerminalCache } from "../lib/terminalCache";
 import { useTerminalTouch } from "../hooks/useTerminalTouch";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
@@ -95,8 +96,14 @@ interface TerminalPaneProps {
 
 // [REQ:P0-007b] Terminal Key/Chord Mapping - expose input injection
 export interface TerminalPaneHandle {
-  /** Send data to the terminal. Returns true if sent immediately, false if queued. */
-  sendInput: (data: string) => boolean;
+  /**
+   * Submit data to the terminal via the single input gate. Returns a
+   * typed GateResult: `sent` (with seq), `queued` (with reason),
+   * or `rejected`. Callers wishing to display status (MobileToolbar)
+   * inspect the result's status/reason; callers that don't care
+   * (Workspace's simple forwarders) can ignore it.
+   */
+  submitInput: (data: string, source: InputSource) => GateResult;
   /** Focus the xterm.js terminal element. */
   focus: () => void;
   /** Stop TTS playback for this pane. */
@@ -321,8 +328,8 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       };
     }, [activePane, autoTtsEnabled, backend, conversationCursor.lastListenedSequence, conversationEvents, onSpeakingEventChange, persistCursor, sessionId, speakParagraphs, ttsSpeaking, ttsStop, ttsSupported]);
 
-    // Delegate all WebSocket protocol handling to the socket hook
-    const { sendInput, sendResize, totalBytesRef, subscribeInputSettled, subscribePendingInput, getPendingInputSnapshot } = useTerminalSocket({
+    // Delegate all WebSocket protocol handling to the session hook
+    const { submitInput, sendResize, totalBytesRef, subscribeInputSettled, subscribePendingInput, getPendingInputSnapshot } = useTerminalSession({
       sessionId,
       terminal,
       onExit,
@@ -345,9 +352,9 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       onConversationEventUpdate: handleConversationEventUpdate,
     });
 
-    // Expose sendInput + focus for parent components (mobile toolbar, launcher shortcuts)
+    // Expose submitInput + focus for parent components (mobile toolbar, launcher shortcuts)
     useImperativeHandle(ref, () => ({
-      sendInput,
+      submitInput,
       focus: () => terminal?.focus(),
       stopTts: () => {
         ttsStop();
@@ -386,14 +393,14 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       subscribeInputSettled,
       subscribePendingInput,
       getPendingInputSnapshot,
-    }), [sendInput, terminal, ttsStop, speakParagraphs, ttsPause, ttsResume, ttsSeek, ttsSetPlaybackRate, ttsSetVolume, ttsGetPlaybackState, persistCursor, onSpeakingEventChange, subscribeInputSettled, subscribePendingInput, getPendingInputSnapshot]);
+    }), [submitInput, terminal, ttsStop, speakParagraphs, ttsPause, ttsResume, ttsSeek, ttsSetPlaybackRate, ttsSetVolume, ttsGetPlaybackState, persistCursor, onSpeakingEventChange, subscribeInputSettled, subscribePendingInput, getPendingInputSnapshot]);
 
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
     const { hasSelection, copySelection, clearSelection } = useTerminalTouch({
       terminal,
       containerRef,
-      sendInput,
+      submitInput,
       onContextMenu: useCallback((x: number, y: number) => {
         setContextMenu({ x, y });
       }, []),
@@ -416,10 +423,10 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     }, [copySelection, clearSelection]);
 
     const handleCtxPaste = useCallback((text: string) => {
-      sendInput(text);
+      submitInput(text, "paste");
       setContextMenu(null);
       terminal?.focus();
-    }, [sendInput, terminal]);
+    }, [submitInput, terminal]);
 
     const handleCtxSelectAll = useCallback(() => {
       terminal?.selectAll();
@@ -438,7 +445,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     }, [terminal, speakParagraphs]);
 
     // Image upload support
-    const { uploadAndInject, uploading, error: uploadError } = useImageUpload(sessionId, sendInput);
+    const { uploadAndInject, uploading, error: uploadError } = useImageUpload(sessionId, submitInput);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [dragOver, setDragOver] = useState(false);
 
@@ -515,7 +522,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       fitAddon.fit();
 
       // Restore cached terminal state for instant visual display on refresh.
-      // The cache entry includes the byte offset so useTerminalSocket can
+      // The cache entry includes the byte offset so useTerminalSession can
       // request only delta output from the server.
       // DOC: docs/concepts/ARCHITECTURE.md#terminal-history-caching
       const cached = loadTerminalCache(sessionId);

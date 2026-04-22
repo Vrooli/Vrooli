@@ -9,6 +9,7 @@ import {
   TOUCH_SCROLL_DECEL,
   TOUCH_SCROLL_MIN_VELOCITY,
 } from "../consts/config";
+import type { GateResult, InputSource } from "../components/terminal/inputGate";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -20,8 +21,12 @@ export interface UseTerminalTouchOptions {
   enabled?: boolean;
   /** Fired on right-click (desktop) or long-press-release without drag (mobile). */
   onContextMenu?: (x: number, y: number) => void;
-  /** Send raw input to the terminal backend (used for mouse wheel in app mouse mode). */
-  sendInput?: (data: string) => void;
+  /**
+   * Submit data via the single input gate. Used for mouse wheel
+   * forwarding in app mouse mode; the gate's GateResult is ignored
+   * (mouse wheel bytes are best-effort).
+   */
+  submitInput?: (data: string, source: InputSource) => GateResult;
 }
 
 export interface UseTerminalTouchReturn {
@@ -177,7 +182,7 @@ export function useTerminalTouch({
   containerRef,
   enabled = true,
   onContextMenu,
-  sendInput,
+  submitInput,
 }: UseTerminalTouchOptions): UseTerminalTouchReturn {
   const [hasSelection, setHasSelection] = useState(false);
   const gestureRef = useRef<GestureState>({ type: "idle" });
@@ -185,8 +190,8 @@ export function useTerminalTouch({
   const momentumRafRef = useRef<number | null>(null);
   const onContextMenuRef = useRef(onContextMenu);
   onContextMenuRef.current = onContextMenu;
-  const sendInputRef = useRef(sendInput);
-  sendInputRef.current = sendInput;
+  const submitInputRef = useRef(submitInput);
+  submitInputRef.current = submitInput;
 
   // ---- Clipboard helpers ----
 
@@ -247,7 +252,7 @@ export function useTerminalTouch({
     // xterm.js's own buffer as before.
     function scrollTerminal(lines: number) {
       if (lines === 0) return;
-      if (isAppMouseMode(term) && sendInputRef.current) {
+      if (isAppMouseMode(term) && submitInputRef.current) {
         // Send one wheel event per line, at screen center. tmux treats
         // each event as a single scroll-line regardless of position.
         const col = Math.floor(term.cols / 2);
@@ -256,7 +261,7 @@ export function useTerminalTouch({
         const count = Math.abs(lines);
         const seq = sgrWheelSequence(up, col, row);
         for (let i = 0; i < count; i++) {
-          sendInputRef.current(seq);
+          submitInputRef.current(seq, "xterm");
         }
       } else {
         term.scrollLines(lines);

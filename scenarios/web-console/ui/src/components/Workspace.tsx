@@ -20,6 +20,7 @@ import {
 } from "../lib/gridLayout";
 import { cn } from "../lib/classnames";
 import { Button } from "./ui/button";
+import type { GateResult, InputSource } from "./terminal/inputGate";
 import { getSession, uploadFile, summarizeEvent, fetchCapabilities, getSessionDefaults, type BackendOption, type BackendID, type ExpirationPolicy } from "../lib/api";
 import type { LaunchOptions } from "./TerminalLauncher";
 import ErrorBanner from "./ErrorBanner";
@@ -76,7 +77,7 @@ export default function Workspace() {
     handleTerminalReady,
     removePane: removeSessionPane,
     handleExit: sessionHandleExit,
-    sendToActiveTerminal,
+    submitToActiveTerminal,
     subscribeActiveInputSettled,
     subscribeActivePendingInput,
     getActivePendingInputSnapshot,
@@ -319,10 +320,10 @@ export default function Workspace() {
   }, [sessionHandleExit]);
 
   const handleSendToTerminal = useCallback(
-    (data: string): boolean => {
-      return sendToActiveTerminal(data, store.activePane ?? undefined);
+    (data: string, source: InputSource): GateResult => {
+      return submitToActiveTerminal(data, source, store.activePane ?? undefined);
     },
-    [sendToActiveTerminal, store.activePane],
+    [submitToActiveTerminal, store.activePane],
   );
 
   const handleSubscribeInputSettled = useCallback(
@@ -406,7 +407,7 @@ export default function Workspace() {
       // On mobile, inject into the toolbar text box for review before sending
       mobileToolbarRef.current?.appendText(text);
     } else {
-      handleSendToTerminal(text);
+      handleSendToTerminal(text, "voice");
     }
   }, [isMobile, handleSendToTerminal]);
 
@@ -447,7 +448,7 @@ export default function Workspace() {
           const active = store.activePane;
           if (active) doRemovePane(active);
         },
-        sendToTerminal: (data: string) => handleSendToTerminal(data),
+        sendToTerminal: (data: string) => { handleSendToTerminal(data, "voice"); },
         exitVoiceMode: () => voiceInput.stopRecording(),
       }, suggestion.args);
     });
@@ -637,11 +638,11 @@ export default function Workspace() {
     if (!file || !store.activePane) return;
     try {
       const path = await uploadFile(store.activePane, file);
-      sendToActiveTerminal(path + "\n", store.activePane);
+      submitToActiveTerminal(path + "\n", "upload", store.activePane);
     } catch {
       // Upload errors are transient — user can retry
     }
-  }, [store.activePane, sendToActiveTerminal]);
+  }, [store.activePane, submitToActiveTerminal]);
 
   // --- Resize logic ---
   const startResize = useCallback(
@@ -1222,7 +1223,7 @@ export default function Workspace() {
           <AiSuggestBar
             inputText={mobileInputText}
             onExecute={(cmd) => {
-              handleSendToTerminal(cmd);
+              handleSendToTerminal(cmd, "toolbar-submit");
               mobileToolbarRef.current?.clearInput();
               store.setAiSuggestActive(false);
             }}
@@ -1292,7 +1293,7 @@ export default function Workspace() {
       <AppearanceModal />
 
       {/* AI Modal */}
-      <AiInput onExecute={handleSendToTerminal} />
+      <AiInput onExecute={(cmd) => { handleSendToTerminal(cmd, "toolbar-submit"); }} />
 
       {/* Close confirmation dialog */}
       <ConfirmCloseDialog

@@ -3,6 +3,7 @@ import { createSession, deleteSession, listSessions, getWorkspaceLayout, updateW
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { DEFAULT_COLS, DEFAULT_ROWS, ERROR_AUTO_DISMISS_MS } from "../consts/config";
 import type { TerminalPaneHandle } from "../components/TerminalPane";
+import type { GateResult, InputSource } from "../components/terminal/inputGate";
 
 // DOC: docs/concepts/ARCHITECTURE.md#session-creation
 // DOC: docs/internal/SEAMS.md#1b-session-orchestration
@@ -47,7 +48,7 @@ export function useSessionManager() {
     const handle = terminalRefs.current.get(sessionId);
     if (!handle) return;
     pendingCommands.current.delete(sessionId);
-    handle.sendInput(command + "\n");
+    handle.submitInput(command + "\n", "toolbar-submit");
   }, []);
 
   // Hydrate workspace panes from existing sessions so reload reconnects to
@@ -245,16 +246,16 @@ export function useSessionManager() {
     console.log(`Session ${sessionId} exited`);
   }, []);
 
-  const sendToActiveTerminal = useCallback(
-    (data: string, targetId?: string): boolean => {
+  const submitToActiveTerminal = useCallback(
+    (data: string, source: InputSource, targetId?: string): GateResult => {
       const target = targetId ?? panes[panes.length - 1]?.session.id;
       if (target) {
         const handle = terminalRefs.current.get(target);
         if (handle) {
-          return handle.sendInput(data);
+          return handle.submitInput(data, source);
         }
       }
-      return false;
+      return { status: "rejected", reason: "disposed" };
     },
     [panes],
   );
@@ -391,7 +392,7 @@ export function useSessionManager() {
     handleTerminalReady,
     removePane,
     handleExit,
-    sendToActiveTerminal,
+    submitToActiveTerminal,
     subscribeActiveInputSettled,
     subscribeActivePendingInput,
     getActivePendingInputSnapshot,

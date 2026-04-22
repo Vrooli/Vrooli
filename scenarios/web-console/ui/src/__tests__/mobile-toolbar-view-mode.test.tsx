@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import MobileToolbar from "../components/MobileToolbar";
 
 const baseProps = {
-  onInput: vi.fn(() => true),
+  onInput: vi.fn(() => ({ status: "sent" as const, seq: 1 })),
   onFocusTerminal: vi.fn(),
   activeSessionId: "sess-1",
   voiceSupported: true,
@@ -73,7 +73,7 @@ describe("MobileToolbar viewMode", () => {
     fireEvent.change(input, { target: { value: "hello" } });
     fireEvent.click(screen.getByTestId("mobile-command-submit"));
 
-    expect(baseProps.onInput).toHaveBeenCalledWith("hello");
+    expect(baseProps.onInput).toHaveBeenCalledWith("hello", "toolbar-submit");
     expect(baseProps.onSwitchToTerminal).toHaveBeenCalledTimes(1);
   });
 

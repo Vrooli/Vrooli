@@ -148,7 +148,7 @@ vi.mock("../components/TerminalPane", () => ({
     captured.onSpeakingEventChange = onSpeakingEventChange;
     captured.onTtsSpeakingChange = onTtsSpeakingChange;
     useImperativeHandle(ref, () => ({
-      sendInput: vi.fn().mockReturnValue(true),
+      submitInput: vi.fn().mockReturnValue({ status: "sent", seq: 1 }),
       focus: vi.fn(),
       stopTts: vi.fn(),
       speakText: vi.fn(),

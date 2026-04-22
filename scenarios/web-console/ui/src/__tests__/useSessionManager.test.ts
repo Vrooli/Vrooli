@@ -206,11 +206,11 @@ describe("useSessionManager", () => {
       result.current.handleTerminalReady("sess-1");
     });
 
-    const handle = { sendInput: vi.fn(), focus: vi.fn(), stopTts: vi.fn(), speakText: vi.fn(), speakSequence: vi.fn(), pauseTts: vi.fn(), resumeTts: vi.fn(), seekTts: vi.fn(), setTtsPlaybackRate: vi.fn(), setTtsVolume: vi.fn(), getTtsState: vi.fn(), subscribeInputSettled: vi.fn(() => () => {}), subscribePendingInput: vi.fn(() => () => {}), getPendingInputSnapshot: vi.fn(() => []) };
+    const handle = { submitInput: vi.fn(() => ({ status: "sent" as const, seq: 1 })), focus: vi.fn(), stopTts: vi.fn(), speakText: vi.fn(), speakSequence: vi.fn(), pauseTts: vi.fn(), resumeTts: vi.fn(), seekTts: vi.fn(), setTtsPlaybackRate: vi.fn(), setTtsVolume: vi.fn(), getTtsState: vi.fn(), subscribeInputSettled: vi.fn(() => () => {}), subscribePendingInput: vi.fn(() => () => {}), getPendingInputSnapshot: vi.fn(() => []) };
     act(() => {
       result.current.registerTerminalRef("sess-1", handle);
     });
 
-    expect(handle.sendInput).toHaveBeenCalledWith("echo from-queued-command\n");
+    expect(handle.submitInput).toHaveBeenCalledWith("echo from-queued-command\n", "toolbar-submit");
   });
 });

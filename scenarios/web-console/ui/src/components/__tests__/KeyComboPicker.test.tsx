@@ -12,7 +12,7 @@ beforeEach(() => {
 
 describe("KeyComboPicker", () => {
   const defaultProps = {
-    onInput: vi.fn(() => true),
+    onInput: vi.fn(() => ({ status: "sent" as const, seq: 1 })),
     onFocusTerminal: vi.fn(),
   };
 
@@ -53,7 +53,7 @@ describe("KeyComboPicker", () => {
   });
 
   it("tapping a combo calls onInput and closes sheet", async () => {
-    const onInput = vi.fn(() => true);
+    const onInput = vi.fn(() => ({ status: "sent" as const, seq: 1 }));
     render(<KeyComboPicker onInput={onInput} onFocusTerminal={vi.fn()} />);
     fireEvent.click(screen.getByTestId("combo-picker-trigger"));
     fireEvent.click(screen.getByTestId("combo-item-ctrl-c"));
@@ -61,9 +61,10 @@ describe("KeyComboPicker", () => {
     // Sheet should close
     expect(screen.queryByTestId("combo-picker-panel")).not.toBeInTheDocument();
 
-    // onInput should have been called with Ctrl+C data
+    // onInput should have been called with Ctrl+C data and the
+    // toolbar-key source tag.
     await waitFor(() => {
-      expect(onInput).toHaveBeenCalledWith("\x03");
+      expect(onInput).toHaveBeenCalledWith("\x03", "toolbar-key");
     });
   });
 
@@ -90,7 +91,7 @@ describe("KeyComboPicker", () => {
 
   it("calls onFocusTerminal after selecting a combo", async () => {
     const onFocusTerminal = vi.fn();
-    render(<KeyComboPicker onInput={vi.fn(() => true)} onFocusTerminal={onFocusTerminal} />);
+    render(<KeyComboPicker onInput={vi.fn(() => ({ status: "sent" as const, seq: 1 }))} onFocusTerminal={onFocusTerminal} />);
     fireEvent.click(screen.getByTestId("combo-picker-trigger"));
     fireEvent.click(screen.getByTestId("combo-item-ctrl-c"));
 

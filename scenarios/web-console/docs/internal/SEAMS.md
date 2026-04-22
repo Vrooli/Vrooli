@@ -28,10 +28,22 @@ Last updated: 2026-03-17
 - Key invariant: conversation features consume `ConversationEvent`s, never raw PTY output history.
 
 ### 2. Transport / Protocol
-**Owner**: [CODE: ui/src/hooks/useTerminalSocket.ts] (client), [CODE: api/terminal_ws.go] (server)
-- `useTerminalSocket` — Manages WebSocket connection, bidirectional I/O (stdin/stdout), conversation event delivery, conversation event acknowledgments, resize messages, keepalive, and lifecycle events (exit, error, disconnect). Signals readiness via `onReady` callback. Accepts optional `createSocket` factory for test injection.
-- `terminal_ws.go` — Server-side WebSocket upgrade, message framing, PTY I/O bridging, ping/pong
-- Key invariant: terminal transport carries both raw PTY frames and semantic `conversation_event` side-channel messages, but only the conversation side-channel drives unread/messages/TTS logic.
+**Owner**: [CODE: ui/src/hooks/terminal/useTerminalSession.ts] (client), [CODE: api/terminal_ws.go] (server)
+- `useTerminalSession` — Composes three focused hooks and exposes a single surface:
+  - [CODE: ui/src/hooks/terminal/useTerminalTransport.ts] owns the WebSocket lifecycle (connect, reconnect backoff, visibility-aware defer) and a monotonic `wsGen` counter.
+  - [CODE: ui/src/hooks/terminal/useStdinAck.ts] owns the seq/ack protocol, pending-input queue, and the **wsGen write barrier** that tags each in-flight payload with the generation it was sent on.
+  - The session hook wires session_ready gating, history_end replay, and `pty_state` → local-echo enable/disable into a shared `TerminalInputGate`.
+- `terminal_ws.go` — Server-side WebSocket upgrade, message framing, PTY I/O bridging, ping/pong. Emits `session_ready{gen}`, `history_end{total_bytes, resumed}`, and `pty_state{altBuffer}` in addition to stdout/sync_warning/stdin_ack.
+- Key invariant: every stdin path (xterm.onData, mobile toolbar, paste, voice, upload) flows through the same gate (§2c), so a single state-aware decision point governs whether a byte goes to the PTY or is held.
+
+### 2c. Single-path Input Gate
+**Owner**: [CODE: ui/src/components/terminal/inputGate.ts]
+- `TerminalInputGate.submit(data, source: InputSource)` returns a typed `GateResult`:
+  - `{status: "sent", seq}` — handed to the WebSocket stack.
+  - `{status: "queued", reason}` — pending; flushes on next session_ready. Reasons: `"not-ready"`, `"ws-closed"`, `"paused"`.
+  - `{status: "rejected", reason}` — refused. Reasons: `"empty"`, `"disposed"`.
+- Paste source is held (`queued:paused`) while xterm is in a mouse-tracking mode so pasted bytes do not feed a mouse-consuming TUI as fake events.
+- Every consumer imports the gate result type; there is no `boolean`-returning shortcut. See `greenfield-assertions.test.ts` for the enforcing tests.
 
 ### 2b. Conversation Ingestion
 **Owner**: [CODE: api/conversation_router.go], [CODE: api/tts_hook_handler.go], [CODE: api/codex_tailer.go]
@@ -98,7 +110,7 @@ Last updated: 2026-03-17
 **Benefits**: Tests run without spawning shell processes (faster, no OS dependencies for core logic), resize delegates to the `PTY` interface (testable without ioctl), kill/close behavior is verifiable via the fake's state.
 
 ### WebSocket Factory Seam (UI)
-**File**: `ui/src/hooks/useTerminalSocket.ts`
+**File**: `ui/src/hooks/terminal/useTerminalSession.ts`
 **Purpose**: Decouple WebSocket transport from terminal protocol handling for testable hook behavior.
 
 | Component | Production | Test |
@@ -126,7 +138,7 @@ Last updated: 2026-03-17
 
 | Double | What It Replaces | Used By |
 |--------|-----------------|---------|
-| `FakeWebSocket` | Real `WebSocket` via `SocketFactory` seam | `useTerminalSocket.hook.test.ts` |
+| `FakeWebSocket` | Real `WebSocket` via `SocketFactory` seam | `terminal-session hook tests` |
 | `createMockTerminal()` | xterm.js `Terminal` instance | WebSocket hook tests |
 | `findWriteCall()` | Inline assertion search across terminal writes | WebSocket hook tests |
 | `makeSessions()` | Inline session data construction | Component tests (SessionDrawer, etc.) |
@@ -386,7 +398,7 @@ Verification disabled           → no gating at all (current behavior)
 
 **Benefits**: Enables instant visual restore on page refresh. Server sends only delta output. Tests verify cache lifecycle without browser dependencies.
 
-**Boundary**: `terminalCache.ts` ↔ `TerminalPane.tsx` (serialize/restore) ↔ `useTerminalSocket.ts` (offset negotiation)
+**Boundary**: `terminalCache.ts` ↔ `TerminalPane.tsx` (serialize/restore) ↔ `useTerminalSession.ts` (offset negotiation)
 
 ### Combo Sequence Delay Seam (UI)
 **File**: `ui/src/lib/comboSequence.ts`
@@ -481,14 +493,14 @@ The `TTSProvider` interface enables swapping between synthesis backends:
 
 ### Hook Delivery Chain
 
-**Path**: `tts-hooks.sh` → `claude-code` resource hook reconciliation → Claude Code Stop hook in repo-root `.claude/settings.json` → `handleHookStop` / `CodexTailer` → `routeTTSCandidate` → `SendTTS` → WebSocket `tts_candidate` side-channel → UI `useTerminalSocket` `onTTSCandidate` → terminal-visible correlation → `useTextToSpeech.speakParagraphs` → WebSocket `tts_ack`
+**Path**: `tts-hooks.sh` → `claude-code` resource hook reconciliation → Claude Code Stop hook in repo-root `.claude/settings.json` → `handleHookStop` / `CodexTailer` → `routeTTSCandidate` → `SendTTS` → WebSocket `tts_candidate` side-channel → UI `useTerminalSession` `onTTSCandidate` → terminal-visible correlation → `useTextToSpeech.speakParagraphs` → WebSocket `tts_ack`
 
 **Seam points**:
 1. `tts-hooks.sh` ↔ `claude-code` resource: scenario declares desired hook; resource owns settings-path resolution, JSON merge, and idempotent healing
 2. Claude Stop hook ↔ API: HTTP POST with `X-Hook-Token` auth header
 3. `routeTTSCandidate` ↔ source adapters: backend routing only accepts explicit terminal ownership; it does not infer from PTY output
 4. `SendTTS` ↔ WebSocket: buffered candidate fan-out (non-blocking, drops on full)
-5. `useTerminalSocket` ↔ `TerminalPane`: client receives `tts_candidate` and emits `tts_ack`
+5. `useTerminalSession` ↔ `TerminalPane`: client receives `tts_candidate` and emits `tts_ack`
 6. `TerminalPane` ↔ xterm.js buffer: rendered terminal text is the source of truth for correlation
 7. `useTextToSpeech` ↔ `TTSProvider`: injectable Kokoro/Browser implementations
 
@@ -512,10 +524,10 @@ Both paths converge at `routeTTSCandidate()` which gates on: `autoEnabled`, expl
 ### Phase 2 (2026-02-19) — Responsibility Boundaries
 | Violation | Before | After |
 |-----------|--------|-------|
-| WebSocket protocol in TerminalPane | TerminalPane mixed xterm.js rendering with WS protocol | Extracted to `useTerminalSocket` hook |
+| WebSocket protocol in TerminalPane | TerminalPane mixed xterm.js rendering with WS protocol | Extracted to `useTerminalSession` hook |
 | Data formatting in SessionDrawer JSX | Inline `split("/").pop()`, `toLocaleTimeString()` | Extracted to `lib/format.ts` utilities |
 | setTimeout shortcut injection | `setTimeout(500)` timing assumption in Workspace | Event-driven `onReady` callback from TerminalPane |
-| ANSI escape codes scattered | Hardcoded `\x1b[90m` in TerminalPane | Centralized `ANSI` constants in useTerminalSocket |
+| ANSI escape codes scattered | Hardcoded `\x1b[90m` in TerminalPane | Centralized `ANSI` constants in useTerminalSession |
 | Implicit onExit callback | `readLoop(onExit func(string))` mutated SessionManager | `exitCh` channel; SessionManager listens on `Done()` |
 | Silent JSON decode errors | `_ = json.Decode()` in handler | Logged with `log.Printf` for debugging |
 
@@ -552,7 +564,7 @@ Both paths converge at `routeTTSCandidate()` which gates on: `autoEnabled`, expl
 ## Remaining Ownership Issues
 
 1. ~~**Shortcut defaults hardcoded** in `TerminalLauncher.tsx`~~ — **Resolved Phase 8**: Extracted to `consts/shortcuts.ts`
-2. ~~**No reconnect logic**~~ — **Resolved**: `useTerminalSocket` now auto-reconnects with exponential backoff (max 5 attempts) and defers reconnection when the tab is backgrounded via `visibilitychange` listener
+2. ~~**No reconnect logic**~~ — **Resolved**: `useTerminalSession` now auto-reconnects with exponential backoff (max 5 attempts) and defers reconnection when the tab is backgrounded via `visibilitychange` listener
 3. ~~**No session persistence**~~ — **Resolved**: Workspace pane metadata persisted in SQLite `workspace_panes` table with cross-device sync via `WorkspaceStore` interface
 4. **No structured logging** — Simple `log.Printf` across API; should use structured logger at integration boundaries
 5. ~~**API client hardcoded in Workspace**~~ — **Resolved Phase 8**: Session lifecycle extracted to `useSessionManager` hook
@@ -578,7 +590,7 @@ Primary axes of change identified in Phase 8, with current cost assessment and s
 ### Axis 3: Error Codes & Recovery (API + UI)
 **What changes**: Adding new error types, adjusting recovery hints, new categories
 **Cost**: Low — API: add entry to `errorCatalog` map in `session_handlers.go`; UI: `ErrorBanner.tsx` renders any `ErrorInfo` shape
-**Files to touch**: `session_handlers.go` (catalog entry), optionally `useTerminalSocket.ts` (WS recovery)
+**Files to touch**: `session_handlers.go` (catalog entry), optionally `useTerminalSession.ts` (WS recovery)
 **Test coverage**: `TestErrorCatalog_StructuralInvariants` validates all entries have valid category, message, recovery, status. `TestWriteJSONError_UnknownCode_Fallback` verifies graceful degradation for new codes.
 **Invariant**: Unknown codes fall back to `internal` category with generic recovery hint.
 
@@ -590,8 +602,8 @@ Primary axes of change identified in Phase 8, with current cost assessment and s
 
 ### Axis 5: WebSocket Protocol (P0-002b)
 **What changes**: Adding message types, changing framing, adjusting handshake
-**Cost**: High (inherently coupled) — requires coordinated changes in `terminal_ws.go` and `useTerminalSocket.ts`
-**Files to touch**: `terminal_ws.go` (server), `useTerminalSocket.ts` (client), both message type definitions
+**Cost**: High (inherently coupled) — requires coordinated changes in `terminal_ws.go` and `useTerminalSession.ts`
+**Files to touch**: `terminal_ws.go` (server), `useTerminalSession.ts` (client), both message type definitions
 **Mitigation**: Message types are string constants on both sides; `TerminalMessage` interface/struct serves as the protocol contract. Adding new types is additive and backward-compatible.
 
 ### Axis 6: Terminal Appearance
@@ -613,7 +625,7 @@ Primary axes of change identified in Phase 8, with current cost assessment and s
 | `pty.go` / PTY interface | **Stable core** | Abstraction boundary — changes only if PTY API changes |
 | `terminal_ws.go` / WS protocol | **Stable core** | Message framing — additive changes only |
 | `main.go` / server wiring | **Stable core** | Router + middleware — rarely touched |
-| `useTerminalSocket.ts` | **Stable core** | WS lifecycle hook — additive message types only |
+| `useTerminalSession.ts` | **Stable core** | WS lifecycle hook — additive message types only |
 | `useSessionManager.ts` | **Stable core** | Session orchestration — change when API contract changes |
 | `TerminalPane.tsx` | **Stable core** | xterm.js rendering — change only for terminal feature additions |
 | `consts/shortcuts.ts` | **Volatile edge** | Shortcut definitions — expected to change with profiles (P1-010) |
@@ -646,7 +658,7 @@ Phase 14 extracted the following decision points into named, testable helpers. E
 
 | Helper | File | Decision | Inputs |
 |--------|------|----------|--------|
-| `isCleanWsClose(code)` | `useTerminalSocket.ts` | Whether a WebSocket close is intentional (1000/1001) vs. unexpected | Close code |
+| `isCleanWsClose(code)` | `useTerminalSession.ts` | Whether a WebSocket close is intentional (1000/1001) vs. unexpected | Close code |
 
 ### Decision Groupings by Domain
 
@@ -657,7 +669,7 @@ Phase 14 extracted the following decision points into named, testable helpers. E
 | **Error classification** | `session_handlers.go` | `classifyCreateError`, `writeJSONError`, `errorCatalog` |
 | **AI command extraction** | `ai_generate.go` | `extractCommand`, `knownCodeFences`, `checkProviderResponse` |
 | **Configuration** | `config.go` | `resolveShell`, `envInt`, `LoadConfig` |
-| **WebSocket transport** | `terminal_ws.go` (server), `useTerminalSocket.ts` (client) | `isCleanWsClose`, WS message dispatch |
+| **WebSocket transport** | `terminal_ws.go` (server), `useTerminalSession.ts` (client) | `isCleanWsClose`, WS message dispatch |
 
 ### Well-Extracted vs. Still-Scattered
 
@@ -810,5 +822,5 @@ The API uses a hybrid organization:
 1. **No event stream endpoint** — Events are polled via `GET /api/v1/events`. An SSE or WebSocket-based real-time event stream would enable live dashboards without polling. Low priority for single-user.
 2. **No structured logging** — API uses `log.Printf` (text). A structured logger (slog) would enable machine-parseable log aggregation. Documented in PROBLEMS.md, deferred.
 3. **No Prometheus/OpenTelemetry** — Metrics are JSON-only poll. External observability integration is a future concern.
-4. ~~**WebSocket reconnect**~~ — **Resolved**: Auto-reconnect with exponential backoff + visibility-aware deferral in `useTerminalSocket`.
+4. ~~**WebSocket reconnect**~~ — **Resolved**: Auto-reconnect with exponential backoff + visibility-aware deferral in `useTerminalSession`.
 5. **Session delete from UI** — No confirmation feedback beyond the session disappearing from the list. Low priority.

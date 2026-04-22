@@ -86,13 +86,15 @@ describe("LocalEchoController", () => {
       expect(echo.pendingCount).toBe(0);
     });
 
-    it("erases predictions on mismatch and returns full server data", () => {
+    it("drops predictions on mismatch and returns full server data", () => {
       echo.handleInput("a");
       echo.handleInput("b");
-      // Server sends something completely different (e.g., tab completion)
+      // Server sends something completely different (e.g., tab completion).
       const result = echo.processOutput("xyz");
-      // Should erase 2 predictions (\b \b\b \b) then show server data
-      expect(result).toBe("\b \b\b \bxyz");
+      // Predictions are dropped silently; server bytes pass through
+      // unchanged. No backspace erasure is written — xterm will repaint
+      // from the server-authoritative stream.
+      expect(result).toBe("xyz");
       expect(echo.pendingCount).toBe(0);
     });
 
@@ -100,10 +102,11 @@ describe("LocalEchoController", () => {
       echo.handleInput("a");
       echo.handleInput("b");
       echo.handleInput("c");
-      // Server echoes "a" then diverges with "XY"
+      // Server echoes "a" then diverges with "XY".
       const result = echo.processOutput("aXY");
-      // "a" matches and is consumed, then "X" mismatches "b" — erase "b" and "c"
-      expect(result).toBe("\b \b\b \bXY");
+      // "a" matches and is consumed; on mismatch "b" and "c" are dropped
+      // and the unmatched server tail passes through verbatim.
+      expect(result).toBe("XY");
       expect(echo.pendingCount).toBe(0);
     });
 

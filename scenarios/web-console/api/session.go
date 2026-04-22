@@ -59,10 +59,11 @@ var (
 // The WebSocket output forwarder calls FlushPending after each successful
 // write to drain coalesced data back into the channel.
 type ClientInfo struct {
-	pending         []byte   // coalesced data awaiting consumer drain
-	pendingTrimmed  bool     // set when pending buffer was trimmed; triggers SIGWINCH after drain
-	CoalescedFrames int      // count of coalesced frames (observability)
-	NotifyCh        chan int // receives cumulative coalesced count when threshold crossed
+	pending         []byte    // coalesced data awaiting consumer drain
+	pendingTrimmed  bool      // set when pending buffer was trimmed; triggers SIGWINCH after drain
+	CoalescedFrames int       // count of coalesced frames (observability)
+	NotifyCh        chan int  // receives cumulative coalesced count when threshold crossed
+	StateCh         chan bool // receives alt-buffer state on each transition (true=enter, false=exit)
 }
 
 // SubscribeResult holds the channels and metadata returned by Subscribe.
@@ -73,6 +74,10 @@ type SubscribeResult struct {
 	OutputCh chan []byte
 	// NotifyCh fires when coalesced frames exceed the configured threshold.
 	NotifyCh chan int
+	// StateCh receives alt-buffer state transitions (true=enter, false=exit)
+	// observed on the PTY output stream. Never closed; reader must select
+	// with a non-blocking default.
+	StateCh chan bool
 	// HadData is true when buffered history was replayed into OutputCh.
 	HadData bool
 	// Resumed is true when the client's resume offset was valid and only
@@ -81,6 +86,10 @@ type SubscribeResult struct {
 	// TotalBytes is the server's monotonic output byte count at subscribe
 	// time. Clients store this to resume from the same offset on reconnect.
 	TotalBytes int64
+	// InitialAltBuffer is the tracker's alt-buffer view at subscription
+	// time. Clients report this once so their state is synchronized without
+	// replaying history through their own ANSI parser.
+	InitialAltBuffer bool
 }
 
 // DOC: docs/concepts/ARCHITECTURE.md#data-flow
@@ -124,6 +133,15 @@ type Session struct {
 	ptyReadBuffer           int
 	clientChannelBuffer     int
 	coalesceNotifyThreshold int
+	sigwinchCooldown        time.Duration
+
+	// ptyState tracks PTY terminal modes the server needs to know about
+	// (alt-buffer today). Protected by s.mu.
+	ptyState PTYStateTracker
+
+	// lastSIGWINCHRecovery is the wall time of the most recent SIGWINCH
+	// emitted by FlushPending's recovery path. Protected by s.mu.
+	lastSIGWINCHRecovery time.Time
 
 	// exitCh is closed when the PTY process exits, signaling the session owner.
 	exitCh chan struct{}
@@ -197,6 +215,7 @@ func (s *Session) historyStart() int64 {
 // DOC: docs/concepts/ARCHITECTURE.md#terminal-history-caching
 func (s *Session) Subscribe(resumeOffset int64) SubscribeResult {
 	notifyCh := make(chan int, 1)
+	stateCh := make(chan bool, 4)
 	s.mu.Lock()
 
 	totalBytes := s.totalOutputBytes
@@ -258,15 +277,18 @@ func (s *Session) Subscribe(resumeOffset int64) SubscribeResult {
 		ch <- nil // sentinel: history replay complete
 	}
 
-	s.clients[ch] = &ClientInfo{NotifyCh: notifyCh}
+	s.clients[ch] = &ClientInfo{NotifyCh: notifyCh, StateCh: stateCh}
+	initialAlt := s.ptyState.IsAltBuffer()
 	s.mu.Unlock()
 
 	return SubscribeResult{
-		OutputCh:   ch,
-		NotifyCh:   notifyCh,
-		HadData:    hadData,
-		Resumed:    resumed,
-		TotalBytes: totalBytes,
+		OutputCh:         ch,
+		NotifyCh:         notifyCh,
+		StateCh:          stateCh,
+		HadData:          hadData,
+		Resumed:          resumed,
+		TotalBytes:       totalBytes,
+		InitialAltBuffer: initialAlt,
 	}
 }
 
@@ -462,6 +484,11 @@ func (s *Session) broadcast(data []byte) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	// Update alt-buffer awareness before deciding whether to SIGWINCH-
+	// recover after coalesce trims. Tracker runs on the sanitized stream;
+	// the alt-buffer toggles (1049/1047/47) are outside the 2026 set that
+	// sanitizeForClient strips.
+	altTransitioned := s.ptyState.Observe(data)
 	s.appendHistory(data)
 	if len(s.clients) == 0 {
 		return
@@ -469,8 +496,19 @@ func (s *Session) broadcast(data []byte) {
 	// Copy to avoid data races since buf is reused by readLoop.
 	cp := make([]byte, len(data))
 	copy(cp, data)
+	newState := s.ptyState.IsAltBuffer()
 	for ch, info := range s.clients {
 		s.deliver(ch, info, cp)
+		if altTransitioned {
+			select {
+			case info.StateCh <- newState:
+			default:
+				// Channel is full; forwarder is behind on state drains.
+				// The forwarder drains with non-blocking reads, so a
+				// dropped notification is recoverable: it will converge
+				// on the current value on the next transition.
+			}
+		}
 	}
 }
 
@@ -552,12 +590,33 @@ func (s *Session) FlushPending(ch chan []byte) {
 	info.CoalescedFrames = 0
 	if info.pendingTrimmed {
 		info.pendingTrimmed = false
-		// Trigger SIGWINCH so the shell redraws its screen, recovering
-		// structural state (cursor position, scroll region, alternate
-		// screen buffer) that was lost when the coalesced buffer was trimmed.
-		// DOC: docs/concepts/ARCHITECTURE.md#terminal-io
-		_ = s.pty.SetSize(s.Cols, s.Rows)
+		s.maybeSIGWINCHRecovery()
 	}
+}
+
+// maybeSIGWINCHRecovery decides whether to fire a SIGWINCH to the PTY
+// after a coalesce trim. The signal causes well-behaved shells and TUIs
+// to redraw, recovering from the trim. But when the foreground process
+// is in the alternate screen buffer (Claude Code, vim, tmux TUI, etc.),
+// a mid-render SIGWINCH races the TUI's own redraw and interleaves paint
+// output with the scrollback, visible to the user as duplicated status
+// lines (see terminal-session-rework-implementation-plan.md §4.2).
+//
+// This path is only safe when:
+//  1. We are NOT currently in an alternate screen buffer; AND
+//  2. It has been at least sigwinchCooldown since the last recovery.
+//
+// Must be called with s.mu held.
+func (s *Session) maybeSIGWINCHRecovery() {
+	if s.ptyState.IsAltBuffer() {
+		return
+	}
+	now := time.Now()
+	if s.sigwinchCooldown > 0 && now.Sub(s.lastSIGWINCHRecovery) < s.sigwinchCooldown {
+		return
+	}
+	s.lastSIGWINCHRecovery = now
+	_ = s.pty.SetSize(s.Cols, s.Rows)
 }
 
 // readLoop continuously reads PTY output and broadcasts to subscribers.
@@ -993,6 +1052,7 @@ func (sm *SessionManager) Create(shell string, cols, rows uint16, backend Backen
 		ptyReadBuffer:           sm.cfg.PTYReadBuffer,
 		clientChannelBuffer:     sm.cfg.ClientChannelBuffer,
 		coalesceNotifyThreshold: sm.cfg.CoalesceNotifyThreshold,
+		sigwinchCooldown:        time.Duration(sm.cfg.SIGWINCHCooldownMs) * time.Millisecond,
 		conversationClients:     make(map[chan ConversationEvent]struct{}),
 		reattachFunc:            sm.tmuxAttachFunc,
 		metrics:                 sm.metrics,
@@ -1221,6 +1281,7 @@ func (sm *SessionManager) Recover(store SessionMetadataStore, registry *BackendR
 			ptyReadBuffer:           sm.cfg.PTYReadBuffer,
 			clientChannelBuffer:     sm.cfg.ClientChannelBuffer,
 			coalesceNotifyThreshold: sm.cfg.CoalesceNotifyThreshold,
+			sigwinchCooldown:        time.Duration(sm.cfg.SIGWINCHCooldownMs) * time.Millisecond,
 			conversationClients:     make(map[chan ConversationEvent]struct{}),
 			recovered:               true,
 			reattachFunc:            sm.tmuxAttachFunc,
@@ -1375,6 +1436,7 @@ func (sm *SessionManager) reattachOrphanedSessions() {
 			ptyReadBuffer:           sm.cfg.PTYReadBuffer,
 			clientChannelBuffer:     sm.cfg.ClientChannelBuffer,
 			coalesceNotifyThreshold: sm.cfg.CoalesceNotifyThreshold,
+			sigwinchCooldown:        time.Duration(sm.cfg.SIGWINCHCooldownMs) * time.Millisecond,
 			conversationClients:     make(map[chan ConversationEvent]struct{}),
 			recovered:               true,
 			reattachFunc:            sm.tmuxAttachFunc,

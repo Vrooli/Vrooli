@@ -58,6 +58,11 @@ const (
 	// Seq matches the client-assigned sequence; Ok reports whether sess.Write
 	// succeeded.
 	MsgTypeStdinAck = "stdin_ack"
+	// MsgTypePTYState reports a terminal-mode transition the server has
+	// observed on the PTY output stream. Today it carries only the alt-
+	// buffer flag (AltBuffer). Emitted once after history_end so a fresh
+	// client knows the current state, and again on every transition.
+	MsgTypePTYState = "pty_state"
 )
 
 // TerminalMessage is the WebSocket JSON message format.
@@ -90,6 +95,14 @@ type TerminalMessage struct {
 	// Ok reports whether a server-acknowledged action succeeded (used by
 	// stdin_ack).
 	Ok bool `json:"ok,omitempty"`
+	// AltBuffer carries the alternate-screen-buffer flag in pty_state
+	// messages. Absent for all other message types.
+	AltBuffer bool `json:"altBuffer,omitempty"`
+	// Gen is the per-connection generation counter. The server echoes it
+	// in session_ready; clients use it to decide whether a re-enqueued
+	// payload belongs to the current connection (see wsGen write barrier
+	// in terminal-session-rework-implementation-plan.md §8 Phase 5).
+	Gen int64 `json:"gen,omitempty"`
 }
 
 // handleTerminalWS upgrades to WebSocket and bridges bidirectional I/O between
@@ -147,6 +160,10 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 	sub := sess.Subscribe(resumeOffset)
 	defer sess.Unsubscribe(sub.OutputCh)
 
+	// Assign this connection a fresh generation so clients can detect
+	// reconnect boundaries on their stdin-ack write barrier.
+	wsGen := s.nextWSGen.Add(1)
+
 	// Subscribe to conversation side-channel for semantic assistant events.
 	conversationCh := sess.SubscribeConversation()
 	defer sess.UnsubscribeConversation(conversationCh)
@@ -192,6 +209,7 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 		if !sub.HadData {
 			writeMu.Lock()
 			_ = conn.WriteJSON(historyEndMsg)
+			_ = conn.WriteJSON(TerminalMessage{Type: MsgTypePTYState, AltBuffer: sub.InitialAltBuffer})
 			writeMu.Unlock()
 		}
 
@@ -220,9 +238,12 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 				}
 				if data == nil {
 					// Nil sentinel from Subscribe: all history chunks have
-					// been forwarded. Signal the client to flush its buffer.
+					// been forwarded. Signal the client to flush its buffer
+					// and deliver the initial pty_state so local-echo and
+					// paste-gating decisions can react.
 					writeMu.Lock()
 					_ = conn.WriteJSON(historyEndMsg)
+					_ = conn.WriteJSON(TerminalMessage{Type: MsgTypePTYState, AltBuffer: sub.InitialAltBuffer})
 					writeMu.Unlock()
 					continue
 				}
@@ -244,6 +265,14 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 				_ = conn.WriteJSON(TerminalMessage{
 					Type:            MsgTypeSyncWarning,
 					CoalescedFrames: coalesced,
+				})
+				writeMu.Unlock()
+				s.metrics.WSMessagesSent.Add(1)
+			case altBuffer := <-sub.StateCh:
+				writeMu.Lock()
+				_ = conn.WriteJSON(TerminalMessage{
+					Type:      MsgTypePTYState,
+					AltBuffer: altBuffer,
 				})
 				writeMu.Unlock()
 				s.metrics.WSMessagesSent.Add(1)
@@ -295,7 +324,7 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 	// which should be impossible in the current protocol.
 	sessionReady := false
 	writeMu.Lock()
-	if err := conn.WriteJSON(TerminalMessage{Type: MsgTypeSessionReady}); err != nil {
+	if err := conn.WriteJSON(TerminalMessage{Type: MsgTypeSessionReady, Gen: wsGen}); err != nil {
 		writeMu.Unlock()
 		log.Printf("ws[%s]: failed to send session_ready: %v", sessionID, err)
 		return

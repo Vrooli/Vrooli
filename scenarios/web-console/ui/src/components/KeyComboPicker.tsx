@@ -4,10 +4,14 @@ import { Search, SquareSlash } from "lucide-react";
 import { KEY_COMBOS, CATEGORY_ORDER, filterCombos, type KeyCombo } from "../consts/key-combos";
 import { sendComboSequence } from "../lib/comboSequence";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
+import type { GateResult, InputSource } from "./terminal/inputGate";
 
 interface KeyComboPickerProps {
-  /** Callback to inject input into the active terminal. */
-  onInput: (data: string) => boolean;
+  /**
+   * Callback to inject input into the active terminal via the input
+   * gate. KeyComboPicker always submits as "toolbar-key".
+   */
+  onInput: (data: string, source: InputSource) => GateResult;
   /** Move focus to the active terminal after sending a combo. */
   onFocusTerminal?: () => void;
 }

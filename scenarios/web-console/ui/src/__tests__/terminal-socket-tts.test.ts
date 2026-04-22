@@ -1,14 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { useTerminalSocket } from "../hooks/useTerminalSocket";
+import { useTerminalSession } from "../hooks/terminal/useTerminalSession";
 import { FakeWebSocket, createFakeSocketPair, createMockTerminal } from "../test-utils";
 import type { MockTerminal } from "../test-utils";
+import type { ConversationEventMessage } from "../types/terminal";
 
 vi.mock("../lib/api", () => ({
   buildSessionWsUrl: vi.fn((id: string) => `ws://test/sessions/${id}/ws`),
 }));
 
-describe("useTerminalSocket — conversation event handling", () => {
+describe("useTerminalSession — conversation event handling", () => {
   let fakeWs: FakeWebSocket;
   let createSocket: ReturnType<typeof createFakeSocketPair>["createSocket"];
   let terminal: MockTerminal;
@@ -29,7 +30,7 @@ describe("useTerminalSocket — conversation event handling", () => {
     const mockOnConversationEvent = vi.fn();
 
     renderHook(() =>
-      useTerminalSocket({
+      useTerminalSession({
         sessionId: "sess-tts",
         terminal: terminal as never,
         createSocket,
@@ -51,7 +52,7 @@ describe("useTerminalSocket — conversation event handling", () => {
     const mockOnConversationEvent = vi.fn();
 
     renderHook(() =>
-      useTerminalSocket({
+      useTerminalSession({
         sessionId: "sess-tts",
         terminal: terminal as never,
         createSocket,
@@ -67,7 +68,7 @@ describe("useTerminalSocket — conversation event handling", () => {
 
   it("does not crash when no onConversationEvent callback is provided", () => {
     renderHook(() =>
-      useTerminalSocket({
+      useTerminalSession({
         sessionId: "sess-tts",
         terminal: terminal as never,
         createSocket,
@@ -85,7 +86,7 @@ describe("useTerminalSocket — conversation event handling", () => {
     const mockOnConversationEvent = vi.fn();
 
     renderHook(() =>
-      useTerminalSocket({
+      useTerminalSession({
         sessionId: "sess-tts",
         terminal: terminal as never,
         createSocket,
@@ -113,7 +114,7 @@ describe("useTerminalSocket — conversation event handling", () => {
     const mockOnConversationEvent = vi.fn();
 
     renderHook(() =>
-      useTerminalSocket({
+      useTerminalSession({
         sessionId: "sess-tts",
         terminal: terminal as never,
         createSocket,
@@ -136,7 +137,7 @@ describe("useTerminalSocket — conversation event handling", () => {
 
     const { rerender } = renderHook(
       ({ onConversationEvent }) =>
-        useTerminalSocket({
+        useTerminalSession({
           sessionId: "sess-tts",
           terminal: terminal as never,
           createSocket,
@@ -163,11 +164,11 @@ describe("useTerminalSocket — conversation event handling", () => {
     let ackFn: ((stage: string, message?: string, backend?: string) => void) | undefined;
 
     renderHook(() =>
-      useTerminalSocket({
+      useTerminalSession({
         sessionId: "sess-tts",
         terminal: terminal as never,
         createSocket,
-        onConversationEvent: (_event, sendAck) => { ackFn = sendAck; },
+        onConversationEvent: (_event: ConversationEventMessage, sendAck: (stage: string, message?: string, backend?: string) => void) => { ackFn = sendAck; },
       }),
     );
 

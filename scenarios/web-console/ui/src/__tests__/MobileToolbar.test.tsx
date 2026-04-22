@@ -4,7 +4,7 @@ import MobileToolbar from "../components/MobileToolbar";
 
 // Draft persistence wants a stable sessionId — pass a fixed one through props.
 function renderToolbar(overrides: Partial<Parameters<typeof MobileToolbar>[0]> = {}) {
-  const onInput = overrides.onInput ?? vi.fn(() => true);
+  const onInput = overrides.onInput ?? vi.fn(() => ({ status: "sent" as const, seq: 1 }));
   const settledSubs = new Set<(seq: number, ok: boolean) => void>();
   const fireSettled = (seq: number, ok: boolean) => {
     for (const cb of settledSubs) cb(seq, ok);
@@ -57,14 +57,14 @@ describe("MobileToolbar — send/ack flow", () => {
   });
 
   it("preserves draft during sending and clears on ok=true", () => {
-    const { onInput, fireSettled } = renderToolbar({ onInput: vi.fn(() => true) });
+    const { onInput, fireSettled } = renderToolbar({ onInput: vi.fn(() => ({ status: "sent" as const, seq: 1 })) });
 
     const textarea = screen.getByTestId("mobile-command-input") as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: "echo hi" } });
     expect(textarea.value).toBe("echo hi");
 
     fireEvent.click(screen.getByTestId("mobile-command-submit"));
-    expect(onInput).toHaveBeenCalledWith("echo hi");
+    expect(onInput).toHaveBeenCalledWith("echo hi", "toolbar-submit");
     // Draft is kept visible during sending.
     expect(textarea.value).toBe("echo hi");
     expect(screen.getByTestId("send-status-sending")).toBeTruthy();
@@ -75,7 +75,7 @@ describe("MobileToolbar — send/ack flow", () => {
   });
 
   it("restores editable draft and shows Send failed on ok=false", () => {
-    const { fireSettled } = renderToolbar({ onInput: vi.fn(() => true) });
+    const { fireSettled } = renderToolbar({ onInput: vi.fn(() => ({ status: "sent" as const, seq: 1 })) });
 
     const textarea = screen.getByTestId("mobile-command-input") as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: "long payload" } });
@@ -88,8 +88,8 @@ describe("MobileToolbar — send/ack flow", () => {
     expect(screen.getByTestId("send-status-failed")).toBeTruthy();
   });
 
-  it("keeps queued status when onInput returns false", () => {
-    renderToolbar({ onInput: vi.fn(() => false) });
+  it("keeps queued status when onInput returns queued", () => {
+    renderToolbar({ onInput: vi.fn(() => ({ status: "queued" as const, reason: "not-ready" as const })) });
 
     const textarea = screen.getByTestId("mobile-command-input") as HTMLTextAreaElement;
     fireEvent.change(textarea, { target: { value: "queued-cmd" } });
@@ -100,7 +100,7 @@ describe("MobileToolbar — send/ack flow", () => {
   });
 
   it("renders N unsent pill when queue non-empty and hides when drained", () => {
-    const { setSnapshot } = renderToolbar({ onInput: vi.fn(() => true) });
+    const { setSnapshot } = renderToolbar({ onInput: vi.fn(() => ({ status: "sent" as const, seq: 1 })) });
 
     expect(screen.queryByTestId("pending-input-pill")).toBeNull();
 

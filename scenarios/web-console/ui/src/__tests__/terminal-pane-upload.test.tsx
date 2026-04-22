@@ -42,12 +42,28 @@ vi.mock("@xterm/addon-web-links", () => ({
     dispose: vi.fn(),
   })),
 }));
-vi.mock("../hooks/useTerminalSocket", () => ({
-  useTerminalSocket: () => ({
-    sendInput: vi.fn().mockReturnValue(true),
-    sendResize: vi.fn(),
-  }),
-}));
+vi.mock("../hooks/terminal/useTerminalSession", () => {
+  // Stable references so dep arrays in TerminalPane do not re-run
+  // effects every render and trigger the unmount-save path.
+  const totalBytesRef = { current: 0 };
+  const gate = { submit: vi.fn(() => ({ status: "sent" as const, seq: 1 })), dispose: vi.fn(), canAcceptPaste: () => true };
+  const submitInput = vi.fn(() => ({ status: "sent" as const, seq: 1 }));
+  const sendResize = vi.fn();
+  const subscribeInputSettled = vi.fn(() => () => {});
+  const subscribePendingInput = vi.fn(() => () => {});
+  const getPendingInputSnapshot = vi.fn(() => []);
+  return {
+    useTerminalSession: () => ({
+      submitInput,
+      gate,
+      sendResize,
+      totalBytesRef,
+      subscribeInputSettled,
+      subscribePendingInput,
+      getPendingInputSnapshot,
+    }),
+  };
+});
 vi.mock("../hooks/useTerminalTouch", () => ({
   useTerminalTouch: () => ({
     hasSelection: false,

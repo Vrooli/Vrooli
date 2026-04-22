@@ -57,12 +57,26 @@ vi.mock("@xterm/addon-web-links", () => ({
   })),
 }));
 
-vi.mock("../hooks/useTerminalSocket", () => ({
-  useTerminalSocket: () => ({
-    sendInput: vi.fn(),
-    sendResize: vi.fn(),
-  }),
-}));
+vi.mock("../hooks/terminal/useTerminalSession", () => {
+  const totalBytesRef = { current: 0 };
+  const gate = { submit: vi.fn(() => ({ status: "sent" as const, seq: 1 })), dispose: vi.fn(), canAcceptPaste: () => true };
+  const submitInput = vi.fn(() => ({ status: "sent" as const, seq: 1 }));
+  const sendResize = vi.fn();
+  const subscribeInputSettled = vi.fn(() => () => {});
+  const subscribePendingInput = vi.fn(() => () => {});
+  const getPendingInputSnapshot = vi.fn(() => []);
+  return {
+    useTerminalSession: () => ({
+      submitInput,
+      gate,
+      sendResize,
+      totalBytesRef,
+      subscribeInputSettled,
+      subscribePendingInput,
+      getPendingInputSnapshot,
+    }),
+  };
+});
 
 vi.mock("../stores/useWorkspaceStore", () => ({
   useWorkspaceStore: (selector: (s: Record<string, unknown>) => unknown) =>

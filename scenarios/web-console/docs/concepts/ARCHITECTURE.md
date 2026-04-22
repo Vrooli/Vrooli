@@ -71,12 +71,14 @@ It now has two distinct data planes:
 1. UI opens WebSocket to `/api/v1/sessions/{id}/ws`
 2. Server upgrades connection in [CODE: api/terminal_ws.go#handleTerminalWS]
 3. Two concurrent loops bridge browser ↔ PTY:
-   - **Output forwarder**: PTY → `Session.broadcast()` → WebSocket client (also forwards `sync_warning` when frame coalescing crosses the configured threshold)
+   - **Output forwarder**: PTY → `Session.broadcast()` → WebSocket client (also forwards `sync_warning` on coalesce thresholds and `pty_state` on alt-buffer transitions)
    - **Input loop**: WebSocket → `Session.Write()` → PTY stdin
-4. Client-side hook [CODE: ui/src/hooks/useTerminalSocket.ts#useTerminalSocket] handles message dispatch
+4. Client-side session hook [CODE: ui/src/hooks/terminal/useTerminalSession.ts#useTerminalSession] composes three focused hooks: `useTerminalTransport` (WebSocket lifecycle + `wsGen` counter), `useStdinAck` (seq/ack protocol + pending queue with wsGen write barrier), and a shared `TerminalInputGate` ([CODE: ui/src/components/terminal/inputGate.ts]) that is the single path every input source (xterm.onData, MobileToolbar, paste, voice, upload) flows through
 5. `readLoop` splits PTY output at UTF-8 codepoint boundaries so that partial multi-byte sequences are buffered across reads, preventing JSON encoding corruption
-6. When a client's output channel is full, frames are **coalesced** (merged into a pending buffer) rather than dropped. The pending buffer is capped at `OfflineBufferMax` and trimmed at ANSI-clean boundaries when exceeded, with an SGR reset prefix to clear dangling color state. The forwarder calls `FlushPending` after each successful WebSocket write to drain coalesced data in 64 KB chunks (matching `Subscribe`'s chunking) to prevent browser UI freezes. After a trimmed buffer is fully flushed, `FlushPending` triggers SIGWINCH (via `pty.SetSize`) so the shell redraws its screen, recovering structural state (cursor position, scroll region, alternate screen) lost during the trim
-7. Goroutine lifecycle uses `context.WithCancel`: the input loop's exit cancels the context, which the output forwarder selects on — no goroutine leaks on WebSocket disconnect
+6. When a client's output channel is full, frames are **coalesced** (merged into a pending buffer) rather than dropped. The pending buffer is capped at `OfflineBufferMax` and trimmed at ANSI-clean boundaries when exceeded, with an SGR reset prefix to clear dangling color state. The forwarder calls `FlushPending` after each successful WebSocket write to drain coalesced data in 64 KB chunks (matching `Subscribe`'s chunking) to prevent browser UI freezes
+7. After a trimmed buffer is fully flushed, the session considers a SIGWINCH-based screen recovery. Recovery is **gated** by [CODE: api/session.go#maybeSIGWINCHRecovery]: it is suppressed while the PTY is in the alternate screen buffer (tracked by [CODE: api/pty_state.go#PTYStateTracker] parsing `\x1b[?1049h`/`1047`/`47` sequences) and rate-limited to at most one SIGWINCH per `SIGWINCHCooldownMs` (default 1000ms). This prevents the tmux status-bar interleaving that occurred under earlier unconditional recovery
+8. Alt-buffer state is broadcast to clients as `pty_state` messages. The session hook disables the `LocalEchoController` while in alt-buffer so predictive echo does not flicker under TUI redraws
+9. Goroutine lifecycle uses `context.WithCancel`: the input loop's exit cancels the context, which the output forwarder selects on — no goroutine leaks on WebSocket disconnect
 
 ### Resize Strategy
 
@@ -115,7 +117,7 @@ Page Load → Check sessionStorage
 
 **Cache lifecycle**: Saved on `visibilitychange` (tab hidden) and `beforeunload`. 30-minute TTL. 2 MB max size. Uses `sessionStorage` (per-tab, cleared on tab close).
 
-**Key files**: `ui/src/lib/terminalCache.ts` (save/load/clear), `ui/src/hooks/useTerminalSocket.ts` (historyOffset negotiation), `ui/src/components/TerminalPane.tsx` (SerializeAddon integration), `api/session.go` (totalOutputBytes, Subscribe), `api/terminal_ws.go` (history_offset query param).
+**Key files**: `ui/src/lib/terminalCache.ts` (save/load/clear), `ui/src/hooks/terminal/useTerminalSession.ts` (historyOffset negotiation, per-connection cache-validity flag), `ui/src/components/TerminalPane.tsx` (SerializeAddon integration), `api/session.go` (totalOutputBytes, Subscribe), `api/terminal_ws.go` (history_offset query param).
 
 ### Voice Input
 

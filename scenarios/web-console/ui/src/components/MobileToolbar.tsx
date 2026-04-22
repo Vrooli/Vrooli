@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import { Image, Maximize2, Minimize2, SendHorizontal, Sparkles } from "lucide-react";
 import { TOOLBAR_KEYS, ESC_KEY, TAB_KEY, ENTER_KEY, ARROW_UP, ARROW_DOWN, ARROW_LEFT, ARROW_RIGHT, type ToolbarKey, applyModifiers } from "../consts/toolbar-keys";
+import type { GateResult, InputSource } from "./terminal/inputGate";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { cn } from "../lib/classnames";
 import KeyComboPicker from "./KeyComboPicker";
@@ -42,8 +43,14 @@ export interface MobileToolbarHandle {
 }
 
 interface MobileToolbarProps {
-  /** Callback to inject input into the active terminal. Returns true if sent immediately. */
-  onInput: (data: string) => boolean;
+  /**
+   * Callback to inject input into the active terminal via the input
+   * gate. Returns a typed GateResult: `sent` (queued stdin_ack),
+   * `queued` (session not ready, ws closed, or paused by xterm mode),
+   * or `rejected` (empty or disposed). The toolbar uses the result
+   * to surface queued/paused states as distinct pill variants.
+   */
+  onInput: (data: string, source: InputSource) => GateResult;
   /**
    * Subscribe to per-send settlement callbacks from the active terminal
    * socket. The draft is preserved during "sending" state and only cleared
@@ -212,7 +219,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     (key: ToolbarKey) => {
       const mods = useWorkspaceStore.getState().modifiers;
       const { data, consumed } = applyModifiers(key.input, mods);
-      onInput(data);
+      onInput(data, "toolbar-key");
       if (consumed) clearModifiers();
       // Re-focus the terminal after sending the key. On mobile, rapid taps can
       // cause the browser to blur the terminal (moving activeElement to body),
@@ -252,7 +259,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     // input is intentionally NOT treated as empty so it can still be
     // submitted verbatim (some programs interpret whitespace input).
     if (inputValue.length === 0) {
-      onInput(ENTER_KEY.input);
+      onInput(ENTER_KEY.input, "toolbar-key");
       // Auto-switch to terminal so the user sees the result of pressing Enter
       if (viewMode === "messages") onSwitchToTerminal?.();
       onFocusTerminal?.();
@@ -282,11 +289,22 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     // (below) decides whether to clear it.
     pendingSendRef.current = { draft: inputValue };
 
-    const sent = onInput(dataToSend);
+    const result = onInput(dataToSend, "toolbar-submit");
 
-    if (!sent) {
-      // ws not open or session_ready not yet received — payload is queued.
-      // Preserve the draft (user sees pill + can edit).
+    if (result.status === "rejected") {
+      // "empty" cannot occur here (inputValue.length > 0 checked above);
+      // "disposed" means the pane has torn down. In either case the
+      // draft should stay visible and no status change is needed.
+      pendingSendRef.current = null;
+      return;
+    }
+
+    if (result.status === "queued") {
+      // The input was not sent immediately. Reason tells us why:
+      //   - "not-ready"  — session_ready hasn't arrived; flushes later.
+      //   - "ws-closed"  — socket is reconnecting; flushes on next open.
+      //   - "paused"     — gate held it back (mouse-tracking mode etc.).
+      // Preserve the draft (user sees the pending-input pill).
       showStatus("queued");
       onFocusTerminal?.();
       return;

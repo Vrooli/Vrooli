@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { uploadFile } from "../lib/api";
+import type { GateResult, InputSource } from "../components/terminal/inputGate";
 
 interface UseImageUploadResult {
   uploadAndInject: (file: File | Blob) => Promise<void>;
@@ -9,7 +10,7 @@ interface UseImageUploadResult {
 
 export function useImageUpload(
   sessionId: string,
-  sendInput: (data: string) => boolean,
+  submitInput: (data: string, source: InputSource) => GateResult,
 ): UseImageUploadResult {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +21,7 @@ export function useImageUpload(
       setError(null);
       try {
         const path = await uploadFile(sessionId, file);
-        sendInput(path + "\n");
+        submitInput(path + "\n", "upload");
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Upload failed";
         setError(msg);
@@ -28,7 +29,7 @@ export function useImageUpload(
         setUploading(false);
       }
     },
-    [sessionId, sendInput],
+    [sessionId, submitInput],
   );
 
   return { uploadAndInject, uploading, error };

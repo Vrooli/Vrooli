@@ -11,9 +11,18 @@ const MAX_PENDING_PREDICTIONS = 32;
  * completes, then reconciles when the server response arrives. This
  * eliminates perceived keystroke latency, especially on mobile.
  *
- * Predictions auto-reset if they sit unmatched longer than
- * MAX_PREDICTION_AGE_MS or exceed MAX_PENDING_PREDICTIONS, preventing
- * stale predictions from suppressing legitimate server output.
+ * Reconciliation behaviour on mismatch: predictions are dropped and
+ * the server output is passed through unchanged. The previous
+ * implementation wrote \b \b sequences to "undo" predictions; that
+ * produced visible flicker on high-latency links and on shells that
+ * emit cursor motion in their echo (readline, zsh ZLE). The current
+ * implementation trusts xterm.js to repaint from scrollback when the
+ * server-authoritative bytes arrive.
+ *
+ * The controller can be disabled externally (useTerminalSession
+ * disables it whenever the PTY is in the alternate screen buffer;
+ * alt-buffer TUIs do their own rendering and predictions are always
+ * wrong).
  */
 export class LocalEchoController {
   private predicted: string[] = [];
@@ -39,25 +48,24 @@ export class LocalEchoController {
   }
 
   /**
-   * Decides whether to locally echo `data` before sending to the server.
-   * Returns the character to write to the terminal, or null if it should
-   * not be locally echoed (control chars, multi-char paste, disabled, etc.).
+   * Decides whether to locally echo `data` before sending to the
+   * server. Returns the character to write to the terminal, or null
+   * if it should not be locally echoed (control chars, multi-char
+   * paste, disabled, etc.).
    */
   handleInput(data: string): string | null {
     if (!this._enabled) return null;
-    // Multi-char input (paste, surrogate pairs) — skip local echo
     if (data.length !== 1) return null;
     const code = data.charCodeAt(0);
-    // Only echo printable ASCII (space through tilde)
     if (code < 0x20 || code === 0x7f) return null;
 
-    // Auto-reset stale predictions that were never matched
-    if (this.predicted.length > 0 &&
-        this.clock() - this.lastPredictionTime > MAX_PREDICTION_AGE_MS) {
+    if (
+      this.predicted.length > 0 &&
+      this.clock() - this.lastPredictionTime > MAX_PREDICTION_AGE_MS
+    ) {
       this.predicted = [];
     }
 
-    // Cap pending predictions to avoid unbounded growth
     if (this.predicted.length >= MAX_PENDING_PREDICTIONS) {
       this.predicted = [];
       return null;
@@ -71,49 +79,45 @@ export class LocalEchoController {
   /**
    * Reconciles server output against pending predictions.
    *
-   * - No predictions → return data unchanged
-   * - Stale predictions → discard and return data unchanged
-   * - Matching chars → consume predictions, suppress echoed chars
-   * - Mismatch → erase remaining predictions with backspace sequences,
-   *   then return the full server data
+   *  - No predictions → return data unchanged.
+   *  - Stale predictions → discard; return data unchanged.
+   *  - Server output starts with ESC → discard predictions; return
+   *    data unchanged. ANSI sequences cannot be matched
+   *    character-by-character against single-char predictions, and
+   *    readline often moves the cursor before echoing.
+   *  - Matching prefix → consume predictions and suppress the echoed
+   *    prefix. Any trailing unmatched server bytes pass through.
+   *  - Mismatch → drop all remaining predictions and return the
+   *    unmatched server data unchanged. No \b \b is written; xterm
+   *    repaints from the server-authoritative bytes.
    */
   processOutput(data: string): string {
     if (this.predicted.length === 0) return data;
 
-    // Discard stale predictions — they are too old to trust
     if (this.clock() - this.lastPredictionTime > MAX_PREDICTION_AGE_MS) {
       this.predicted = [];
       return data;
     }
 
-    // If server output starts with an ANSI escape sequence, skip
-    // reconciliation. Colored prompts and readline sequences make
-    // character-by-character matching unreliable — clear predictions
-    // and pass through unchanged to avoid visual flicker.
     if (data.charCodeAt(0) === 0x1b) {
       this.predicted = [];
       return data;
     }
 
     let i = 0;
-    // Walk through server data, consuming matching predictions
     while (i < data.length && this.predicted.length > 0) {
       if (data[i] === this.predicted[0]) {
         this.predicted.shift();
         i++;
       } else {
-        // Mismatch — erase all remaining predictions and return unmatched server data
-        const eraseCount = this.predicted.length;
+        // Mismatch: drop all remaining predictions. Return the
+        // unmatched server bytes verbatim — no backspace erasure.
         this.predicted = [];
-        const erase = "\b \b".repeat(eraseCount);
-        return erase + data.slice(i);
+        return data.slice(i);
       }
     }
 
-    // All data chars matched predictions — they were already echoed
     if (i === data.length) return "";
-
-    // Matched some predictions but server sent extra data beyond them
     return data.slice(i);
   }
 
