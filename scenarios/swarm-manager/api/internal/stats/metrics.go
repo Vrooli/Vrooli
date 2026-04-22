@@ -5,11 +5,17 @@ import (
 	"time"
 )
 
+// MinSampleMeaningful is the threshold below which a metric renders as
+// insufficient-data rather than a value. Five is the smallest sample size at
+// which summary statistics carry any signal across a short-horizon workflow.
+const MinSampleMeaningful = 5
+
 func (s *aggregateState) buildResponse() StatsResponse {
 	now := s.now()
 	return StatsResponse{
 		GeneratedAt: now,
 		EventCount:  s.totalEvents,
+		History:     s.buildHistory(now),
 		Throughput:  s.buildThroughput(now),
 		Timing:      s.buildTiming(),
 		Scope:       s.buildScope(),
@@ -17,6 +23,22 @@ func (s *aggregateState) buildResponse() StatsResponse {
 		Agent:       s.buildAgent(),
 		Dashboard:   s.buildDashboard(now),
 		Review:      s.buildReview(),
+	}
+}
+
+func (s *aggregateState) buildHistory(now time.Time) HistoryWindow {
+	if !s.earliestEventRecorded {
+		return HistoryWindow{MinSampleMeaningful: MinSampleMeaningful}
+	}
+	days := now.Sub(s.earliestEventAt).Hours() / 24.0
+	if days < 0 {
+		days = 0
+	}
+	return HistoryWindow{
+		EarliestEventAt:     s.earliestEventAt,
+		HistoryDays:         days,
+		HasHistory:          true,
+		MinSampleMeaningful: MinSampleMeaningful,
 	}
 }
 
@@ -84,11 +106,12 @@ func (s *aggregateState) buildThroughput(now time.Time) ThroughputStats {
 
 func (s *aggregateState) buildTiming() TimingStats {
 	return TimingStats{
-		AvgCycleTimeHours:    avgFloat(s.cycleTimesH),
-		AvgLeadTimeHours:     avgFloat(s.leadTimesH),
-		AvgQueueWaitHours:    avgFloat(s.queueWaitH),
-		MedianCycleTimeHours: medianFloat(s.cycleTimesH),
-		MedianLeadTimeHours:  medianFloat(s.leadTimesH),
+		AvgLeadTimeHours:         avgFloat(s.leadTimesH),
+		MedianLeadTimeHours:      medianFloat(s.leadTimesH),
+		LeadTimeSampleSize:       len(s.leadTimesH),
+		AvgExecutionMinutes:      avgFloat(s.execDurations),
+		MedianExecutionMinutes:   medianFloat(s.execDurations),
+		ExecutionDurationSamples: len(s.execDurations),
 	}
 }
 
@@ -151,11 +174,14 @@ func (s *aggregateState) buildBlocking() BlockingStats {
 }
 
 func (s *aggregateState) buildAgent() AgentStats {
-	var successRate, failureRate float64
-	finished := s.execCompleted + s.execFailed
+	completed, failed, manuallyAccepted := s.countExecOutcomes()
+
+	var successRate, failureRate, manualAcceptRate float64
+	finished := completed + failed
 	if finished > 0 {
-		successRate = float64(s.execCompleted) / float64(finished)
-		failureRate = float64(s.execFailed) / float64(finished)
+		successRate = float64(completed) / float64(finished)
+		failureRate = float64(failed) / float64(finished)
+		manualAcceptRate = float64(manuallyAccepted) / float64(finished)
 	}
 
 	var followUpRate float64
@@ -165,8 +191,8 @@ func (s *aggregateState) buildAgent() AgentStats {
 			fixupCount++
 		}
 	}
-	if s.execCompleted > 0 {
-		followUpRate = float64(fixupCount) / float64(s.execCompleted)
+	if completed > 0 {
+		followUpRate = float64(fixupCount) / float64(completed)
 	}
 
 	var avgRounds float64
@@ -179,12 +205,19 @@ func (s *aggregateState) buildAgent() AgentStats {
 	}
 
 	return AgentStats{
-		TotalExecutions:     s.execTotal,
-		SuccessRate:         successRate,
-		FailureRate:         failureRate,
-		FollowUpRate:        followUpRate,
-		AvgExecutionMinutes: avgFloat(s.execDurations),
-		AvgWorkshopRounds:   avgRounds,
+		TotalExecutions:          s.execTotal,
+		CompletedCount:           completed,
+		FailedCount:              failed,
+		ManuallyAcceptedCount:    manuallyAccepted,
+		SuccessRate:              successRate,
+		FailureRate:              failureRate,
+		ManualAcceptRate:         manualAcceptRate,
+		FollowUpRate:             followUpRate,
+		AvgExecutionMinutes:      avgFloat(s.execDurations),
+		AvgWorkshopRounds:        avgRounds,
+		SuccessRateSampleSize:    finished,
+		ExecutionDurationSamples: len(s.execDurations),
+		WorkshopRoundsSampleSize: len(s.workshopRounds),
 	}
 }
 
@@ -225,11 +258,22 @@ func (s *aggregateState) buildDashboard(now time.Time) DashboardStats {
 		weeksRemaining = float64(len(s.currentBacklog)) / avgVelocity
 	}
 
+	// weeksCovered counts the number of *non-zero* trend weeks. The Dashboard
+	// uses this to decide whether the "Est. Remaining" pill has enough history
+	// to be trustworthy.
+	weeksCovered := 0
+	for _, p := range trend {
+		if p.Completed > 0 {
+			weeksCovered++
+		}
+	}
+
 	return DashboardStats{
 		TotalBacklogSize:        len(s.currentBacklog),
 		TotalCompletedAllTime:   s.completedAllTime,
 		VelocityTrend:           trend,
 		EstimatedWeeksRemaining: weeksRemaining,
+		VelocityWeeksCovered:    weeksCovered,
 	}
 }
 

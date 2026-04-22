@@ -12,10 +12,11 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
+
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/storage"
-	"time"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )

@@ -112,6 +112,14 @@ func (e *Emitter) EmitExecutionCanceled(execID, reason string) {
 	e.emit(EntityExecution, execID, EventExecutionCanceled, ExecutionCanceledPayload{Reason: reason})
 }
 
+func (e *Emitter) EmitExecutionManuallyAccepted(execID, acceptedBy, reason, previousStatus string) {
+	e.emit(EntityExecution, execID, EventExecutionManuallyAccepted, ExecutionManuallyAcceptedPayload{
+		AcceptedBy:         acceptedBy,
+		Reason:             reason,
+		PreviousExecStatus: previousStatus,
+	})
+}
+
 // --- Initiative events ---
 
 func (e *Emitter) EmitInitiativeCreated(name string) {
@@ -158,6 +166,19 @@ func (e *Emitter) EmitDequeued(backlogKind, backlogName, reason string) {
 		BacklogKind: backlogKind,
 		BacklogName: backlogName,
 		Reason:      reason,
+	})
+}
+
+// --- System/migration events ---
+
+// EmitMigrationApplied records that a one-time migration has finished. Callers
+// should check for an existing sentinel (via Repository.All or similar) before
+// running the migration body to avoid re-applying.
+func (e *Emitter) EmitMigrationApplied(name, description string, affectedIDs int) {
+	e.emit(EntitySystem, name, EventSystemMigrationApplied, MigrationAppliedPayload{
+		Name:        name,
+		Description: description,
+		AffectedIDs: affectedIDs,
 	})
 }
 

@@ -1,0 +1,19 @@
+{
+  "acceptance_allow": [
+    "scenarios/agent-inbox/**"
+  ],
+  "created": "2026-04-22T17:27:36Z",
+  "depends_on": [
+    "execute/cli-core-introspect-command"
+  ],
+  "description": "## Goal\n\nThe agent-inbox-side consumer of `cli introspect` output. Runs at scenario-startup to discover CLI commands from every running scenario, produces conversational descriptors consumable by the unified retrieval index, and handles invocation via shell-exec.\n\n## Expected Work\n\n- Discovery: on scenario-startup (or on a refresh trigger), call `\u003ccli\u003e introspect` for every registered scenario.\n- Descriptor conversion: translate the command tree into the descriptor shape used by the unified retrieval index (shared with proto tools and widgets — coordinate with `agent-inbox-unified-retrieval`).\n- Invocation: synchronous-by-default shell-exec with structured argument binding, sandbox-aware paths per research, captured stdout/stderr stream back into chat.\n- Conflict resolution: when a proto tool and a CLI command cover the same thing, proto wins per research.\n\n## Acceptance\n\n- Every cli-core-based scenario shows up with its CLI commands available as conversational surfaces.\n- Invocation works end-to-end from a chat turn.\n- Proto-vs-CLI conflict resolution matches research spec.\n\n## Coordination\n\nDescriptor shape is shared with `agent-inbox-unified-retrieval`. Workshop should reconcile if both items are shaping the descriptor simultaneously.",
+  "effort": "M",
+  "initiative": "cli-conversational-surface",
+  "kind": "execute",
+  "name": "cli-conversational-agent-inbox-client",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [],
+  "title": "Build agent-inbox client that discovers, indexes, and invokes CLI commands",
+  "updated": "2026-04-22T17:27:36Z"
+}

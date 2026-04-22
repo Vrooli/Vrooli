@@ -9,6 +9,9 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
+	"time"
+
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/backlog"
@@ -16,8 +19,6 @@ import (
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/workshop"
-	"sync"
-	"time"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )

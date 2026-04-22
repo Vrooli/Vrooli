@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
-	"swarm-manager/internal/eventlog"
 	"sync"
 	"time"
+
+	"swarm-manager/internal/eventlog"
 )
 
 const refreshBatchSize = 5000
@@ -112,11 +113,17 @@ type aggregateState struct {
 	itemStatus        map[string]string          // entity_id → current status
 
 	// Execution tracking.
-	execTotal     int
-	execCompleted int
-	execFailed    int
-	execDurations []float64       // in minutes
-	execHasFixup  map[string]bool // exec_id → had fixups
+	//
+	// execOutcome captures the *current* terminal outcome for each execution
+	// id, overwritten if the execution later transitions (e.g. failed →
+	// manually_accepted). Counters like "completed" and "failed" are derived
+	// from this map at read time so manual overrides do not double-count.
+	execTotal             int
+	execOutcome           map[string]string // exec_id → "completed" | "failed" | "canceled" | "manually_accepted"
+	execDurations         []float64         // in minutes, captured at each terminal transition
+	execHasFixup          map[string]bool   // exec_id → had fixups
+	earliestEventAt       time.Time         // timestamp of the earliest observed event
+	earliestEventRecorded bool
 
 	// Workshop tracking.
 	workshopRounds map[string]int // entity_id → max round number
@@ -144,11 +151,34 @@ func newAggregateState() *aggregateState {
 		itemStatus:        make(map[string]string),
 		execHasFixup:      make(map[string]bool),
 		workshopRounds:    make(map[string]int),
+		execOutcome:       make(map[string]string),
 	}
+}
+
+// countExecOutcomes returns (completed, failed, manuallyAccepted) from
+// execOutcome. Canceled and non-terminal outcomes are excluded from both
+// numerator and denominator of success-rate math.
+func (s *aggregateState) countExecOutcomes() (completed, failed, manuallyAccepted int) {
+	for _, outcome := range s.execOutcome {
+		switch outcome {
+		case "completed":
+			completed++
+		case "manually_accepted":
+			completed++
+			manuallyAccepted++
+		case "failed":
+			failed++
+		}
+	}
+	return
 }
 
 func (s *aggregateState) processEvent(e *eventlog.Event) {
 	s.totalEvents++
+	if !s.earliestEventRecorded || e.Timestamp.Before(s.earliestEventAt) {
+		s.earliestEventAt = e.Timestamp
+		s.earliestEventRecorded = true
+	}
 
 	switch e.EventType {
 	// --- Backlog ---
@@ -286,7 +316,12 @@ func (s *aggregateState) processEvent(e *eventlog.Event) {
 		_ = unmarshalMeta(e.Metadata, &p)
 
 	case eventlog.EventExecutionCompleted:
-		s.execCompleted++
+		// Preserve a manually_accepted marker so a failed-then-accepted run
+		// stays categorized as a manual acceptance rather than being
+		// demoted back to plain completed.
+		if s.execOutcome[e.EntityID] != "manually_accepted" {
+			s.execOutcome[e.EntityID] = "completed"
+		}
 		var p eventlog.ExecutionCompletedPayload
 		if unmarshalMeta(e.Metadata, &p) {
 			s.execDurations = append(s.execDurations, p.DurationSeconds/60.0)
@@ -294,14 +329,22 @@ func (s *aggregateState) processEvent(e *eventlog.Event) {
 		}
 
 	case eventlog.EventExecutionFailed:
-		s.execFailed++
+		s.execOutcome[e.EntityID] = "failed"
 		var p eventlog.ExecutionFailedPayload
 		if unmarshalMeta(e.Metadata, &p) {
 			s.execDurations = append(s.execDurations, p.DurationSeconds/60.0)
 		}
 
 	case eventlog.EventExecutionCanceled:
-		// Cancellations don't count toward success or failure rate.
+		s.execOutcome[e.EntityID] = "canceled"
+
+	case eventlog.EventExecutionManuallyAccepted:
+		// Manual acceptance is emitted in addition to execution.completed, so
+		// the completion itself will also be recorded. Marking the outcome
+		// here (and preserving it under EventExecutionCompleted) guarantees
+		// a manually-accepted run overrides any earlier "failed" outcome,
+		// without double-counting.
+		s.execOutcome[e.EntityID] = "manually_accepted"
 
 	// --- Workshop ---
 	case eventlog.EventWorkshopRoundCompleted:

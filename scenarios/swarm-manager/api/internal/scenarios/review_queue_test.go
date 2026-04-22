@@ -6,11 +6,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"testing"
+	"time"
+
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/testutil"
-	"testing"
-	"time"
 
 	"github.com/gorilla/mux"
 )

@@ -2,9 +2,10 @@ package aisearch
 
 import (
 	"strings"
+	"testing"
+
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/initiatives"
-	"testing"
 )
 
 func TestComposeBacklogText_Full(t *testing.T) {

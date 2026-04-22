@@ -19,6 +19,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
+
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/aisearch"
@@ -38,7 +40,6 @@ import (
 	"swarm-manager/internal/scenarios"
 	"swarm-manager/internal/settings"
 	"swarm-manager/internal/stats"
-	"time"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -304,6 +305,7 @@ func main() {
 	srv := NewServer()
 	srv.initEventLog()
 	srv.wireEventLoggers()
+	srv.runMigrationsOnce()
 
 	// Register stats endpoint (requires event log).
 	if srv.statsEngine != nil {

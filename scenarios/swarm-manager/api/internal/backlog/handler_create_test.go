@@ -7,10 +7,11 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
-	"swarm-manager/internal/agentmanager"
-	"swarm-manager/internal/testutil"
 	"testing"
 	"time"
+
+	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/testutil"
 )
 
 func TestCreate_Success(t *testing.T) {

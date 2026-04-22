@@ -18,6 +18,8 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
+
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/dispatch"
@@ -27,7 +29,6 @@ import (
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/settings"
 	"swarm-manager/internal/workshop"
-	"time"
 
 	"github.com/gorilla/mux"
 
@@ -351,6 +352,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.logAndEmitUpdate(kind, name, oldStatus, existing.Status, oldPriority, existing.Priority, oldEffort, existing.Effort, oldInitiative, existing.Initiative, oldDependsOn, existing.DependsOn)
+	h.maybeManuallyAcceptExecution(r.Context(), kind, name, oldStatus, existing.Status)
 	h.maybeCascadeWorkshop(oldStatus, existing)
 
 	resp := &apipb.BacklogItemResponse{Item: backlogToProto(existing)}
@@ -392,6 +394,33 @@ func (h *Handler) logAndEmitUpdate(
 		h.eventLogger.EmitBacklogInitiativeChanged(entityID, oldInitiative, newInitiative)
 	}
 	h.emitDependencyChanges(entityID, oldDeps, newDeps)
+}
+
+// maybeManuallyAcceptExecution recognizes a user-initiated override of the
+// agent's verdict: the user changed the backlog item from failed to completed
+// without re-running it. Flip the latest failed/needs_fixup execution to
+// Completed with ManuallyAccepted=true so Agent-tab stats count the run as a
+// success and surface the human override separately.
+func (h *Handler) maybeManuallyAcceptExecution(
+	ctx context.Context,
+	kind BacklogKind, name string,
+	oldStatus, newStatus BacklogStatus,
+) {
+	if oldStatus != StatusFailed || newStatus != StatusCompleted {
+		return
+	}
+	if h.executionQueuer == nil {
+		return
+	}
+	ref := string(kind) + "/" + name
+	execID, accepted, err := h.executionQueuer.ManuallyAcceptLatestForBacklog(ctx, string(kind), name, "user", "user accepted failed run via backlog status change")
+	if err != nil {
+		slog.Error("manual-accept failed", "ref", ref, "err", err)
+		return
+	}
+	if accepted {
+		slog.Info("execution manually accepted", "ref", ref, "execution_id", execID)
+	}
 }
 
 // maybeCascadeWorkshop triggers workshops for dependents when a status

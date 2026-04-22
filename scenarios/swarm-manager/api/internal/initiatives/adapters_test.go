@@ -1,8 +1,9 @@
 package initiatives
 
 import (
-	"swarm-manager/internal/backlog"
 	"testing"
+
+	"swarm-manager/internal/backlog"
 )
 
 func TestBacklogAssignerAdapter_Get(t *testing.T) {

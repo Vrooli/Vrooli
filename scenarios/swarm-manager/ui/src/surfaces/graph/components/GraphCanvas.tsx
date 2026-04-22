@@ -5,7 +5,7 @@
  * Dagre layout before rendering.
  */
 
-import { memo, useCallback, useEffect, useMemo, useRef } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useGraphAutoFit } from "../hooks/useGraphAutoFit";
 import {
   Background,
@@ -344,7 +344,18 @@ export const GraphCanvas = memo(function GraphCanvas() {
   );
 
   const showMiniMap = settings.showMiniMap;
-  const showFilterSuggestion = processedEdges.length > FILTER_SUGGESTION_THRESHOLD;
+  const overFilterThreshold = processedEdges.length > FILTER_SUGGESTION_THRESHOLD;
+  const [filterSuggestionDismissed, setFilterSuggestionDismissed] = useState(false);
+
+  // Reset dismissal when edge count drops back below threshold, so the banner
+  // can reappear if edge count spikes again later.
+  useEffect(() => {
+    if (!overFilterThreshold && filterSuggestionDismissed) {
+      setFilterSuggestionDismissed(false);
+    }
+  }, [overFilterThreshold, filterSuggestionDismissed]);
+
+  const showFilterSuggestion = overFilterThreshold && !filterSuggestionDismissed;
 
   // PERF: Stable callback reference so MiniMap doesn't re-render on every
   // GraphCanvas render. Without this, the inline arrow function creates a
@@ -372,8 +383,6 @@ export const GraphCanvas = memo(function GraphCanvas() {
         proOptions={{ hideAttribution: true }}
         minZoom={0.1}
         maxZoom={2}
-        /* Performance: only render nodes/edges in viewport */
-        onlyRenderVisibleElements
         /* Touch: prevent nodes from capturing pinch-to-zoom gestures.
            nodeDragThreshold requires a 5px move before drag starts,
            letting the browser recognize pinch/zoom first. */
@@ -446,10 +455,21 @@ export const GraphCanvas = memo(function GraphCanvas() {
 
       {showFilterSuggestion && (
         <div
-          className="absolute left-1/2 top-24 z-20 -translate-x-1/2 rounded-lg border border-amber-500/40 bg-amber-950/90 px-4 py-2 text-xs text-amber-200 shadow-lg"
+          className="absolute left-1/2 top-24 z-20 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-amber-500/40 bg-amber-950/90 px-4 py-2 text-xs text-amber-200 shadow-lg"
           data-testid="filter-suggestion"
         >
-          High edge count ({processedEdges.length}). Use graph controls to filter entity types, statuses, or secondary edges.
+          <span>
+            High edge count ({processedEdges.length}). Use graph controls to filter entity types, statuses, or secondary edges.
+          </span>
+          <button
+            type="button"
+            onClick={() => setFilterSuggestionDismissed(true)}
+            aria-label="Dismiss high edge count notice"
+            className="-mr-1 rounded px-1.5 py-0.5 text-amber-300 transition hover:bg-amber-500/20 hover:text-amber-100"
+            data-testid="filter-suggestion-dismiss"
+          >
+            ×
+          </button>
         </div>
       )}
     </div>

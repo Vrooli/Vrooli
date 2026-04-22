@@ -11,6 +11,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
+
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
@@ -18,7 +20,6 @@ import (
 	"swarm-manager/internal/promptcatalog"
 	"swarm-manager/internal/prompttrace"
 	"swarm-manager/internal/workshop"
-	"time"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )

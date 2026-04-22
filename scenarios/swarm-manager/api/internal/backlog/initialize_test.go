@@ -5,11 +5,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"testing"
+
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/promptcatalog"
 	"swarm-manager/internal/testutil"
 	"swarm-manager/internal/workshop"
-	"testing"
 
 	"github.com/gorilla/mux"
 )

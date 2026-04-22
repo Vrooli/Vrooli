@@ -6,11 +6,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"swarm-manager/internal/backlog"
-	"swarm-manager/internal/initiatives"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"swarm-manager/internal/backlog"
+	"swarm-manager/internal/initiatives"
 )
 
 // --- Test doubles ---

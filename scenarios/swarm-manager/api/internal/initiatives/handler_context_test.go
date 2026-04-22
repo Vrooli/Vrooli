@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"swarm-manager/internal/backlog"
 	"testing"
+
+	"swarm-manager/internal/backlog"
 
 	"github.com/gorilla/mux"
 )

@@ -3,6 +3,7 @@ package aisearch
 import (
 	"log/slog"
 	"net/http"
+
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 

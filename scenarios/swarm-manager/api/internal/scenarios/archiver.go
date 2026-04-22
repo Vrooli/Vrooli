@@ -4,6 +4,7 @@ package scenarios
 
 import (
 	"context"
+
 	"swarm-manager/internal/execution"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"

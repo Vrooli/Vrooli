@@ -6,8 +6,9 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"swarm-manager/internal/testutil"
 	"testing"
+
+	"swarm-manager/internal/testutil"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )

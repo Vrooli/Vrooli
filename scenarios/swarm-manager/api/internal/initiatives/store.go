@@ -8,8 +8,9 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"swarm-manager/internal/storage"
 	"time"
+
+	"swarm-manager/internal/storage"
 )
 
 // initiativeFileName is the metadata file inside each initiative folder.

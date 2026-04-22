@@ -4,6 +4,7 @@ package scenarios
 
 import (
 	"context"
+
 	"swarm-manager/internal/execution"
 )
 

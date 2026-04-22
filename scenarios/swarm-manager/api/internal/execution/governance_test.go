@@ -5,8 +5,9 @@ import (
 	"errors"
 	"path/filepath"
 	"strings"
-	"swarm-manager/internal/promptmanager"
 	"testing"
+
+	"swarm-manager/internal/promptmanager"
 )
 
 // stubGovernanceProvider implements GovernanceProvider for tests.

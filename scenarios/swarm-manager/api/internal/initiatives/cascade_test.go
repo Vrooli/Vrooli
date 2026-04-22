@@ -2,8 +2,9 @@ package initiatives
 
 import (
 	"strings"
-	"swarm-manager/internal/backlog"
 	"testing"
+
+	"swarm-manager/internal/backlog"
 )
 
 // TestDelete_CascadesToMemberItemsAndDeps verifies initiative deletion

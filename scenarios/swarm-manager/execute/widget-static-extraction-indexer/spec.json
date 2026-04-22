@@ -1,0 +1,19 @@
+{
+  "acceptance_allow": [
+    "packages/**"
+  ],
+  "created": "2026-04-22T17:27:36Z",
+  "depends_on": [
+    "execute/widget-authoring-ui-package"
+  ],
+  "description": "## Goal\n\nStatic build-time / scan-time tool that walks a scenario UI's source AST, finds each `data-widget` boundary, and extracts text content underneath to build the embedding corpus for retrieval.\n\n## Expected Work\n\n- AST walker per the research algorithm.\n- Collects JSX text children, hardcoded labels, form field names, section headings.\n- Combines with declared description + tags to produce an embedding-ready document per widget.\n- Outputs a structured index file that `agent-inbox-unified-retrieval` can consume.\n- Handle widgets.ts parsing for declared metadata.\n\n## Acceptance\n\n- Given a scenario UI with declared + tagged widgets, the extractor produces one embedding doc per widget with the expected content.\n- Missing `data-widget` usages and orphaned declarations are reported (for auditor rule reuse).",
+  "effort": "M",
+  "initiative": "widget-standard",
+  "kind": "execute",
+  "name": "widget-static-extraction-indexer",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [],
+  "title": "Build the static AST-walking widget content extractor",
+  "updated": "2026-04-22T17:27:36Z"
+}

@@ -17,6 +17,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
+
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
@@ -25,7 +27,6 @@ import (
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/settings"
 	"swarm-manager/internal/workshop"
-	"time"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
@@ -85,6 +86,10 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 		slog.Error("failed to write round file", "path", roundPath, "err", err)
 		apierr.MapError(w, "[backlog] workshop-save", apierr.Internal("failed to save round file"))
 		return
+	}
+
+	if h.eventLogger != nil {
+		h.eventLogger.EmitWorkshopRoundCompleted(string(kind)+"/"+name, int(req.RoundNumber))
 	}
 
 	info, _ := os.Stat(roundPath)

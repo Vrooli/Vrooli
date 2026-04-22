@@ -1,0 +1,19 @@
+{
+  "acceptance_allow": [
+    "scenarios/scenario-auditor/**"
+  ],
+  "created": "2026-04-22T17:27:36Z",
+  "depends_on": [
+    "execute/cli-core-introspect-command"
+  ],
+  "description": "## Goal\n\nScenario-auditor rule that verifies every scenario's CLI implements `introspect` and returns a schema-valid command tree. Since cli-core enforces this centrally, the rule should pass for free for any scenario on the current cli-core version.\n\n## Expected Work\n\n- Rule in `scenarios/scenario-auditor/api/rules/` that invokes `\u003cscenario-cli\u003e introspect` and validates the output.\n- Informative failure messages when a scenario is on an outdated cli-core version.\n\n## Acceptance\n\n- Rule passes for every scenario once cli-core ships introspect.\n- Produces actionable failure for any scenario still on a pre-introspect cli-core.",
+  "effort": "S",
+  "initiative": "cli-conversational-surface",
+  "kind": "execute",
+  "name": "cli-conversational-auditor-rule",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [],
+  "title": "Add scenario-auditor rule that every CLI responds to `introspect`",
+  "updated": "2026-04-22T17:27:36Z"
+}

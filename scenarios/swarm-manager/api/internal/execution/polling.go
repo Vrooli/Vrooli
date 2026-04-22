@@ -6,8 +6,9 @@ import (
 	"log/slog"
 	"sort"
 	"strings"
-	"swarm-manager/internal/pathutil"
 	"time"
+
+	"swarm-manager/internal/pathutil"
 )
 
 // ProcessActiveExecutions advances agent-manager-backed executions, drains

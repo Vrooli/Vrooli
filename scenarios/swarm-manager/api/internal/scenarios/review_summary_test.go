@@ -1,9 +1,10 @@
 package scenarios
 
 import (
-	"swarm-manager/internal/execution"
 	"testing"
 	"time"
+
+	"swarm-manager/internal/execution"
 )
 
 func makeReviewRecord(scenarioName, classification, reviewedAt string) execution.Record {

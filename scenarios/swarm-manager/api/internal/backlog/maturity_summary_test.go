@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"net/http/httptest"
 	"path/filepath"
-	"swarm-manager/internal/testutil"
 	"testing"
+
+	"swarm-manager/internal/testutil"
 )
 
 func doMaturitySummary(t *testing.T, h *Handler) *httptest.ResponseRecorder {

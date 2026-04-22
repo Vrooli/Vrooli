@@ -9,8 +9,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"swarm-manager/internal/storage"
 	"time"
+
+	"swarm-manager/internal/storage"
 )
 
 // Trace captures the prompt selected and rendered for a specific run.

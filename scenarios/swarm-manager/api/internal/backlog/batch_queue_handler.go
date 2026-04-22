@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/depgraph"
 	"swarm-manager/internal/execution"
@@ -21,6 +22,10 @@ import (
 type ExecutionQueuer interface {
 	ProcessPreflight(ctx context.Context, backlogKind, backlogName string) (execution.ProcessPreflight, error)
 	QueueBacklog(ctx context.Context, req execution.CreateRequest) (execution.Record, error)
+	// ManuallyAcceptLatestForBacklog flips the most recent failed/needs_fixup
+	// execution for the given backlog item to Completed and marks it manually
+	// accepted. Returns (executionID, true) on success.
+	ManuallyAcceptLatestForBacklog(ctx context.Context, backlogKind, backlogName, acceptor, reason string) (string, bool, error)
 }
 
 // SetExecutionQueuer injects a custom execution queuer for batch queue operations.

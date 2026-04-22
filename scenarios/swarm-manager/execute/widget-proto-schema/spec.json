@@ -1,0 +1,19 @@
+{
+  "acceptance_allow": [
+    "packages/**"
+  ],
+  "created": "2026-04-22T17:27:36Z",
+  "depends_on": [
+    "research/widget-authoring-pattern-design"
+  ],
+  "description": "## Goal\n\nNew `widget.proto` alongside `tool.proto` in `packages/proto/schemas/agent-inbox/v1/domain/`. Defines `WidgetDefinition` and `WidgetManifest` per the research spec.\n\n## Expected Work\n\n- Author `widget.proto` with fields for id, name, description, category, tags, render contract (e.g., iframe-bridge path/selector), and any multi-instance prop shape.\n- Generate Go + TS bindings via the existing proto tooling.\n- Unit tests on a sample manifest.\n\n## Acceptance\n\n- Proto validates.\n- Generated Go and TS types compile and are importable.",
+  "effort": "S",
+  "initiative": "widget-standard",
+  "kind": "execute",
+  "name": "widget-proto-schema",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [],
+  "title": "Add widget.proto to the shared proto schemas",
+  "updated": "2026-04-22T17:27:36Z"
+}

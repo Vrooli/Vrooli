@@ -4,9 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"swarm-manager/internal/eventlog"
 	"testing"
 	"time"
+
+	"swarm-manager/internal/eventlog"
 
 	_ "modernc.org/sqlite"
 )
@@ -129,13 +130,12 @@ func TestCycleAndLeadTime(t *testing.T) {
 	}
 	stats := engine.GetStats()
 
-	// Cycle time: 16h - 10h = 6h.
-	if stats.Timing.AvgCycleTimeHours != 6.0 {
-		t.Errorf("cycle time: got %.1f, want 6.0", stats.Timing.AvgCycleTimeHours)
-	}
 	// Lead time: 16h - 0h = 16h.
 	if stats.Timing.AvgLeadTimeHours != 16.0 {
 		t.Errorf("lead time: got %.1f, want 16.0", stats.Timing.AvgLeadTimeHours)
+	}
+	if stats.Timing.LeadTimeSampleSize != 1 {
+		t.Errorf("lead time sample size: got %d, want 1", stats.Timing.LeadTimeSampleSize)
 	}
 }
 

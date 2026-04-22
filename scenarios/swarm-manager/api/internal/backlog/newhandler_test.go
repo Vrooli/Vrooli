@@ -1,8 +1,9 @@
 package backlog
 
 import (
-	"swarm-manager/internal/pathutil"
 	"testing"
+
+	"swarm-manager/internal/pathutil"
 )
 
 func TestNewHandler_DefaultRoot(t *testing.T) {

@@ -1,8 +1,9 @@
 package queue
 
 import (
-	"swarm-manager/internal/runtimepaths"
 	"testing"
+
+	"swarm-manager/internal/runtimepaths"
 )
 
 func TestNewStore_DefaultPath(t *testing.T) {

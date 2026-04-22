@@ -4,8 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"swarm-manager/internal/eventlog"
 	"testing"
+
+	"swarm-manager/internal/eventlog"
 
 	_ "modernc.org/sqlite"
 )

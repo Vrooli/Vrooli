@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
+	"time"
+
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
@@ -13,8 +16,6 @@ import (
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/runtimepaths"
-	"sync"
-	"time"
 )
 
 var (
@@ -295,6 +296,15 @@ func (s *Service) RecordView(execID string) {
 	}
 }
 
+// dispatchStatusAndLog is the canonical "after you mutate record.Status" helper.
+// Every site that transitions an execution's status must call this (not just
+// dispatchStatusUpdate) so the event log captures the transition. See
+// docs/plans/stats-feature-repair-plan.md Phase 1 for the incident this prevents.
+func (s *Service) dispatchStatusAndLog(record Record, prevStatus Status) {
+	s.logExecutionEvent(record, prevStatus)
+	s.dispatchStatusUpdate(record)
+}
+
 // dispatchStatusUpdate emits a node-update event for an execution record status change.
 func (s *Service) dispatchStatusUpdate(record Record) {
 	if s.eventDispatcher == nil {
@@ -329,6 +339,14 @@ func (s *Service) logExecutionEvent(record Record, prevStatus Status) {
 	switch record.Status {
 	case StatusCompleted:
 		dur := executionDuration(record)
+		if record.ManuallyAccepted {
+			s.eventLogger.EmitExecutionManuallyAccepted(
+				record.ExecutionID,
+				record.AcceptedBy,
+				record.AcceptedReason,
+				string(record.AcceptedPreviousStatus),
+			)
+		}
 		s.eventLogger.EmitExecutionCompleted(record.ExecutionID, dur, record.FixupAttempt > 0)
 	case StatusFailed:
 		dur := executionDuration(record)
@@ -336,6 +354,62 @@ func (s *Service) logExecutionEvent(record Record, prevStatus Status) {
 	case StatusCanceled:
 		s.eventLogger.EmitExecutionCanceled(record.ExecutionID, "user canceled")
 	}
+}
+
+// ManuallyAcceptLatestForBacklog finds the most recent non-cancelled execution
+// for the given backlog item and flips it to StatusCompleted with
+// ManuallyAccepted=true. Intended to be called when the user manually
+// transitions a backlog item from failed → completed, overriding the agent's
+// own verdict. Returns (accepted execution ID, true) when a record was
+// flipped, or ("", false) if no eligible execution was found.
+func (s *Service) ManuallyAcceptLatestForBacklog(ctx context.Context, backlogKind, backlogName, acceptor, reason string) (string, bool, error) {
+	_ = s.ProcessActiveExecutions(ctx)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	records, err := s.store.Load()
+	if err != nil {
+		return "", false, err
+	}
+
+	idx := -1
+	for i := range records {
+		r := &records[i]
+		if r.BacklogKind != backlogKind || r.BacklogName != backlogName {
+			continue
+		}
+		switch r.Status {
+		case StatusFailed, StatusNeedsFixup:
+			// eligible
+		default:
+			continue
+		}
+		if idx == -1 || r.CreatedAt > records[idx].CreatedAt {
+			idx = i
+		}
+	}
+	if idx == -1 {
+		return "", false, nil
+	}
+
+	record := &records[idx]
+	prev := record.Status
+	now := nowRFC3339()
+	record.AcceptedPreviousStatus = prev
+	record.Status = StatusCompleted
+	record.ManuallyAccepted = true
+	record.AcceptedBy = strings.TrimSpace(acceptor)
+	record.AcceptedReason = strings.TrimSpace(reason)
+	record.FailureReason = ""
+	if record.FinishedAt == "" {
+		record.FinishedAt = now
+	}
+	record.UpdatedAt = now
+	if err := s.store.Save(records); err != nil {
+		return "", false, err
+	}
+	s.dispatchStatusAndLog(*record, prev)
+	return record.ExecutionID, true, nil
 }
 
 func executionDuration(r Record) float64 {

@@ -14,6 +14,7 @@ func (s *Service) completeFinalizationSkipped(executionID string, reason string)
 		return err
 	}
 	record := &records[idx]
+	prevStatus := record.Status
 	finalization := ensureFinalization(record)
 	finalization.Status = FinalizationStatusSkipped
 	finalization.Phase = FinalizationPhaseSkipped
@@ -32,7 +33,7 @@ func (s *Service) completeFinalizationSkipped(executionID string, reason string)
 	if err := s.store.Save(records); err != nil {
 		return err
 	}
-	s.dispatchStatusUpdate(*record)
+	s.dispatchStatusAndLog(*record, prevStatus)
 	return nil
 }
 
@@ -45,6 +46,7 @@ func (s *Service) failFinalization(executionID, scenarioName, message string) er
 		return err
 	}
 	record := &records[idx]
+	prevStatus := record.Status
 	finalization := ensureFinalization(record)
 	finalization.Status = FinalizationStatusFailed
 	finalization.Phase = FinalizationPhaseFailed
@@ -70,7 +72,7 @@ func (s *Service) failFinalization(executionID, scenarioName, message string) er
 	if err := s.store.Save(records); err != nil {
 		return err
 	}
-	s.dispatchStatusUpdate(*record)
+	s.dispatchStatusAndLog(*record, prevStatus)
 	return nil
 }
 
@@ -146,6 +148,7 @@ func (s *Service) markFinalizationPhase(executionID, phase string) error {
 		return fmt.Errorf("execution %s was canceled", executionID)
 	}
 
+	prevStatus := record.Status
 	finalization := ensureFinalization(record)
 	finalization.Status = FinalizationStatusRunning
 	finalization.Phase = strings.TrimSpace(phase)
@@ -155,7 +158,7 @@ func (s *Service) markFinalizationPhase(executionID, phase string) error {
 	if err := s.store.Save(records); err != nil {
 		return err
 	}
-	s.dispatchStatusUpdate(*record)
+	s.dispatchStatusAndLog(*record, prevStatus)
 	return nil
 }
 

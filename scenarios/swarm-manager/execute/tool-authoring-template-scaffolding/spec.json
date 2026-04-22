@@ -1,0 +1,21 @@
+{
+  "acceptance_allow": [
+    "packages/**",
+    "scenarios/swarm-manager/execute/tool-authoring-template-scaffolding/**"
+  ],
+  "created": "2026-04-22T17:27:36Z",
+  "depends_on": [
+    "execute/tool-authoring-go-toolkit",
+    "execute/tool-authoring-prompt-manager-skills"
+  ],
+  "description": "## Goal\n\nNew scenarios created from the template start with a working example tool and a pointer to the authoring skill, so agents copying the template see the pattern immediately.\n\n## Expected Work\n\n- Add `api/tools/example.go` (or equivalent) to the template that declares a trivial tool via the shared toolkit.\n- Update the template README / scaffold docs to point at `tool-authoring` skill.\n- Ensure `/api/v1/tools` works out of the box on a fresh scaffold.\n\n## Acceptance\n\n- A fresh scenario scaffolded from the template passes the scenario-auditor tool rule and exposes the example tool at runtime.",
+  "effort": "S",
+  "initiative": "tool-authoring-standard",
+  "kind": "execute",
+  "name": "tool-authoring-template-scaffolding",
+  "priority": 5,
+  "status": "backlog",
+  "tags": [],
+  "title": "Add tool scaffolding to the react-vite + go-api scenario template",
+  "updated": "2026-04-22T17:27:36Z"
+}

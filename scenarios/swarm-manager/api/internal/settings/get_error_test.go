@@ -5,8 +5,9 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"swarm-manager/internal/testutil"
 	"testing"
+
+	"swarm-manager/internal/testutil"
 )
 
 func TestHandler_GetLoadError(t *testing.T) {

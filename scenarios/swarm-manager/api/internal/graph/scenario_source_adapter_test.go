@@ -3,8 +3,9 @@ package graph
 import (
 	"context"
 	"errors"
-	"swarm-manager/internal/scenarios"
 	"testing"
+
+	"swarm-manager/internal/scenarios"
 )
 
 type stubScenarioInventorySource struct {

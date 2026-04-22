@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
-	"swarm-manager/internal/promptmanager"
 	"testing"
+
+	"swarm-manager/internal/promptmanager"
 )
 
 // stubContinuer implements the RunContinuer interface for testing follow-up continuation.

@@ -2,10 +2,11 @@ package graph
 
 import (
 	"context"
+	"testing"
+
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/execution"
-	"testing"
 )
 
 func ptrStr(s string) *string { return &s }

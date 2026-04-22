@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
 	"swarm-manager/internal/workshop"
 )
 

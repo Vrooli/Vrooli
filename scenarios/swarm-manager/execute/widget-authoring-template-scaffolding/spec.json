@@ -1,0 +1,21 @@
+{
+  "acceptance_allow": [
+    "packages/**",
+    "scenarios/swarm-manager/execute/widget-authoring-template-scaffolding/**"
+  ],
+  "created": "2026-04-22T17:27:36Z",
+  "depends_on": [
+    "execute/widget-authoring-ui-package",
+    "execute/widget-authoring-prompt-manager-skill"
+  ],
+  "description": "## Goal\n\nThe react-vite template ships with a `ui/src/widgets.ts` and one example widget applied in a React component, so new scenarios start with the pattern and agents copying the template see it immediately.\n\n## Expected Work\n\n- Add `widgets.ts` with one example declaration.\n- Add a matching React component using the typed `data-widget` attribute.\n- README pointer at the `widget-authoring` skill.\n\n## Acceptance\n\n- A fresh scenario from the template passes the widget auditor rule out of the box.",
+  "effort": "S",
+  "initiative": "widget-standard",
+  "kind": "execute",
+  "name": "widget-authoring-template-scaffolding",
+  "priority": 5,
+  "status": "backlog",
+  "tags": [],
+  "title": "Add widget scaffolding to the react-vite scenario template",
+  "updated": "2026-04-22T17:27:36Z"
+}

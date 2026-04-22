@@ -2,9 +2,10 @@ package overview
 
 import (
 	"fmt"
+	"testing"
+
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/initiatives"
-	"testing"
 )
 
 // mockBacklogLister implements BacklogLister for testing.

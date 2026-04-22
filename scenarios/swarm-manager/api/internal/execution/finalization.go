@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
+
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/experiment"
 	"swarm-manager/internal/promptmanager"
-	"time"
 )
 
 func (s *Service) processFinalization(ctx context.Context, executionID string) error {
@@ -198,6 +199,7 @@ func (s *Service) finishFinalization(executionID string) error {
 		return err
 	}
 	record := &records[idx]
+	prevStatus := record.Status
 	finalization := ensureFinalization(record)
 
 	finalization.Status = FinalizationStatusCompleted
@@ -240,7 +242,7 @@ func (s *Service) finishFinalization(executionID string) error {
 		return err
 	}
 	s.mu.Unlock()
-	s.dispatchStatusUpdate(*record)
+	s.dispatchStatusAndLog(*record, prevStatus)
 
 	// Fire-and-forget: record experiment outcome if this execution was part of an experiment.
 	s.recordExperimentOutcome(record)

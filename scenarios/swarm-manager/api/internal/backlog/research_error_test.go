@@ -6,9 +6,10 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"testing"
+
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/testutil"
-	"testing"
 
 	"github.com/gorilla/mux"
 )

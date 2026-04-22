@@ -9,12 +9,21 @@
 export interface StatsResponse {
   generated_at: string;
   event_count: number;
+  history: HistoryWindow;
   throughput: ThroughputStats;
   timing: TimingStats;
   scope: ScopeStats;
   blocking: BlockingStats;
   agent: AgentStats;
   dashboard: DashboardStats;
+}
+
+/** Span of event-log history observed by the engine. */
+export interface HistoryWindow {
+  earliest_event_at: string;
+  history_days: number;
+  has_history: boolean;
+  min_sample_meaningful: number;
 }
 
 /** Item creation and completion rates over rolling windows. */
@@ -29,11 +38,12 @@ export interface ThroughputStats {
 
 /** How long work takes across lifecycle stages. */
 export interface TimingStats {
-  avg_cycle_time_hours: number;
   avg_lead_time_hours: number;
-  avg_queue_wait_hours: number;
-  median_cycle_time_hours: number;
   median_lead_time_hours: number;
+  lead_time_sample_size: number;
+  avg_execution_minutes: number;
+  median_execution_minutes: number;
+  execution_duration_samples: number;
 }
 
 /** Initiative health and scope changes. */
@@ -69,11 +79,18 @@ export interface ReasonCount {
 /** Agent execution efficiency metrics. */
 export interface AgentStats {
   total_executions: number;
+  completed_count: number;
+  failed_count: number;
+  manually_accepted_count: number;
   success_rate: number;
   failure_rate: number;
+  manual_accept_rate: number;
   follow_up_rate: number;
   avg_execution_minutes: number;
   avg_workshop_rounds: number;
+  success_rate_sample_size: number;
+  execution_duration_samples: number;
+  workshop_rounds_sample_size: number;
 }
 
 /** Top-level summary numbers for the dashboard view. */
@@ -82,6 +99,7 @@ export interface DashboardStats {
   total_completed_all_time: number;
   velocity_trend: VelocityPoint[];
   estimated_weeks_remaining: number;
+  velocity_weeks_covered: number;
 }
 
 /** Completions in a calendar week. */

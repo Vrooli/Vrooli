@@ -7,8 +7,9 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
-	"swarm-manager/internal/agentmanager"
 	"testing"
+
+	"swarm-manager/internal/agentmanager"
 )
 
 type handlerCreateStubAgentService struct {

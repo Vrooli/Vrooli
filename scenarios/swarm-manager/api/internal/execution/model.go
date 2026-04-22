@@ -72,6 +72,14 @@ type Record struct {
 	ParentExecutionID string          `json:"parent_execution_id,omitempty"`
 	FixupAttempt      int             `json:"fixup_attempt,omitempty"`
 	Finalization      *Finalization   `json:"finalization,omitempty"`
+	// ManuallyAccepted is set when the user overrode a failed/canceled/
+	// needs_fixup execution by manually marking the backlog item completed.
+	// Stats treat manually-accepted runs as successful so the Agent tab
+	// reflects end-to-end success, not the agent's own verdict.
+	ManuallyAccepted       bool   `json:"manually_accepted,omitempty"`
+	AcceptedBy             string `json:"accepted_by,omitempty"`
+	AcceptedReason         string `json:"accepted_reason,omitempty"`
+	AcceptedPreviousStatus Status `json:"accepted_previous_status,omitempty"`
 	// Deprecated: migration-only fields preserved so legacy execution history can
 	// be converted into the unified finalization model on read.
 	LegacyReviewResult     *ReviewResult `json:"review_result,omitempty"`

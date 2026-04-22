@@ -39,6 +39,12 @@ import { StatsPanel } from "./StatsPanel";
 const MOCK_STATS: StatsResponse = {
   generated_at: "2026-03-31T10:00:00Z",
   event_count: 1234,
+  history: {
+    earliest_event_at: "2026-02-15T10:00:00Z",
+    history_days: 45,
+    has_history: true,
+    min_sample_meaningful: 5,
+  },
   throughput: {
     completed_last_7_days: 5,
     completed_last_30_days: 18,
@@ -48,11 +54,12 @@ const MOCK_STATS: StatsResponse = {
     net_delta_30_days: 17,
   },
   timing: {
-    avg_cycle_time_hours: 2.5,
     avg_lead_time_hours: 12.0,
-    avg_queue_wait_hours: 0.5,
-    median_cycle_time_hours: 2.0,
     median_lead_time_hours: 10.0,
+    lead_time_sample_size: 12,
+    avg_execution_minutes: 4.2,
+    median_execution_minutes: 3.8,
+    execution_duration_samples: 80,
   },
   scope: {
     initiatives: [
@@ -71,11 +78,18 @@ const MOCK_STATS: StatsResponse = {
   },
   agent: {
     total_executions: 87,
+    completed_count: 79,
+    failed_count: 8,
+    manually_accepted_count: 5,
     success_rate: 0.912,
     failure_rate: 0.088,
+    manual_accept_rate: 0.057,
     follow_up_rate: 0.143,
     avg_execution_minutes: 4.2,
     avg_workshop_rounds: 1.8,
+    success_rate_sample_size: 87,
+    execution_duration_samples: 80,
+    workshop_rounds_sample_size: 22,
   },
   dashboard: {
     total_backlog_size: 47,
@@ -83,8 +97,11 @@ const MOCK_STATS: StatsResponse = {
     velocity_trend: [
       { week_start: "2026-03-17", completed: 3 },
       { week_start: "2026-03-24", completed: 5 },
+      { week_start: "2026-03-31", completed: 4 },
+      { week_start: "2026-04-07", completed: 6 },
     ],
     estimated_weeks_remaining: 8.6,
+    velocity_weeks_covered: 4,
   },
 };
 
@@ -226,6 +243,64 @@ describe("StatsPanel", () => {
       fireEvent.click(screen.getByTestId("stats-tab-blocking"));
 
       expect(screen.getByText("No blocking reasons recorded")).toBeInTheDocument();
+    });
+  });
+
+  describe("History banner", () => {
+    it("renders when history is shorter than 30 days", async () => {
+      mockGetStats.mockResolvedValue({
+        ...MOCK_STATS,
+        history: { ...MOCK_STATS.history, history_days: 7 },
+      });
+      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+      await waitFor(() => expect(screen.getByTestId("stats-history-banner")).toBeInTheDocument());
+    });
+
+    it("hides when history is ≥ 30 days", async () => {
+      mockGetStats.mockResolvedValue(MOCK_STATS); // history_days: 45
+      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+      await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
+      expect(screen.queryByTestId("stats-history-banner")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Agent tab with manual-accept", () => {
+    it("shows a manually-accepted row when count > 0", async () => {
+      mockGetStats.mockResolvedValue(MOCK_STATS);
+      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+      await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
+
+      fireEvent.click(screen.getByTestId("stats-tab-agent"));
+      expect(screen.getByText("Manually accepted")).toBeInTheDocument();
+      expect(screen.getByText(/5 of 87/)).toBeInTheDocument();
+    });
+
+    it("renders InsufficientDataCard for rates when sample is below threshold", async () => {
+      mockGetStats.mockResolvedValue({
+        ...MOCK_STATS,
+        agent: {
+          ...MOCK_STATS.agent,
+          success_rate_sample_size: 2, // below min_sample_meaningful=5
+        },
+      });
+      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+      await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
+
+      fireEvent.click(screen.getByTestId("stats-tab-agent"));
+      expect(screen.getAllByText(/Not enough data yet/).length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("Timing tab", () => {
+    it("shows execution duration samples (not cycle/queue time)", async () => {
+      mockGetStats.mockResolvedValue(MOCK_STATS);
+      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+      await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
+
+      fireEvent.click(screen.getByTestId("stats-tab-timing"));
+      expect(screen.getByText(/Execution Duration/)).toBeInTheDocument();
+      expect(screen.queryByText(/Cycle Time/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Queue Wait/)).not.toBeInTheDocument();
     });
   });
 

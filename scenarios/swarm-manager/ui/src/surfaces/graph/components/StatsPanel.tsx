@@ -10,6 +10,9 @@ import { AlertCircle, Loader2 } from "lucide-react";
 import { FloatingPanel } from "../../../components/ui/floating-panel";
 import { cn } from "../../../lib/utils";
 import { useStats } from "../../../hooks/useStats";
+import { HistoryBanner } from "../../../components/stats/history-banner";
+import { InsufficientDataCard } from "../../../components/stats/insufficient-data-card";
+import { StatsMetricCard } from "../../../components/stats/stats-metric-card";
 import {
   formatDelta,
   formatHours,
@@ -21,6 +24,7 @@ import type {
   AgentStats,
   BlockingStats,
   DashboardStats,
+  HistoryWindow,
   ScopeStats,
   StatsCategory,
   StatsResponse,
@@ -40,6 +44,17 @@ const STATS_TABS: { id: StatsCategory; label: string }[] = [
   { id: "blocking", label: "Blocking" },
   { id: "scope", label: "Scope" },
 ];
+
+// Default min sample threshold used when the response does not include one.
+// The Go engine exports this via stats.MinSampleMeaningful; the response
+// echoes it so UI and backend stay aligned.
+const DEFAULT_MIN_SAMPLE = 5;
+
+function minSample(history: HistoryWindow | undefined): number {
+  return history?.min_sample_meaningful && history.min_sample_meaningful > 0
+    ? history.min_sample_meaningful
+    : DEFAULT_MIN_SAMPLE;
+}
 
 // ---------------------------------------------------------------------------
 // Props
@@ -104,7 +119,12 @@ export function StatsPanel({ isOpen, onClose }: StatsPanelProps) {
         </div>
       )}
 
-      {data && <TabContent tab={activeTab} data={data} />}
+      {data && (
+        <>
+          <HistoryBanner history={data.history} testId="stats-history-banner" />
+          <TabContent tab={activeTab} data={data} />
+        </>
+      )}
     </FloatingPanel>
   );
 }
@@ -116,13 +136,13 @@ export function StatsPanel({ isOpen, onClose }: StatsPanelProps) {
 function TabContent({ tab, data }: { tab: StatsCategory; data: StatsResponse }) {
   switch (tab) {
     case "dashboard":
-      return <DashboardTab data={data.dashboard} eventCount={data.event_count} />;
+      return <DashboardTab data={data.dashboard} eventCount={data.event_count} history={data.history} />;
     case "throughput":
       return <ThroughputTab data={data.throughput} />;
     case "agent":
-      return <AgentTab data={data.agent} />;
+      return <AgentTab data={data.agent} history={data.history} />;
     case "timing":
-      return <TimingTab data={data.timing} />;
+      return <TimingTab data={data.timing} history={data.history} />;
     case "blocking":
       return <BlockingTab data={data.blocking} />;
     case "scope":
@@ -161,17 +181,32 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 // Dashboard tab
 // ---------------------------------------------------------------------------
 
-function DashboardTab({ data, eventCount }: { data: DashboardStats; eventCount: number }) {
+function DashboardTab({ data, eventCount, history }: { data: DashboardStats; eventCount: number; history: HistoryWindow }) {
   const maxCompleted = data.velocity_trend.length > 0
     ? Math.max(...data.velocity_trend.map((p) => p.completed), 1)
     : 1;
+
+  // The estimated-remaining pill is based on the last 4 full weeks of
+  // velocity; if we have <4 non-zero weeks of history the estimate is
+  // very noisy, so render an insufficient-data card instead.
+  const velocityReady = data.velocity_weeks_covered >= 4;
 
   return (
     <div className="space-y-4" data-testid="stats-content-dashboard">
       <div className="grid grid-cols-3 gap-3">
         <StatCard label="Backlog" value={String(data.total_backlog_size)} testId="stat-backlog-size" />
         <StatCard label="Completed" value={String(data.total_completed_all_time)} subtext="all time" testId="stat-completed-all-time" />
-        <StatCard label="Est. Remaining" value={formatWeeksRemaining(data.estimated_weeks_remaining)} testId="stat-weeks-remaining" />
+        {velocityReady ? (
+          <StatCard label="Est. Remaining" value={formatWeeksRemaining(data.estimated_weeks_remaining)} testId="stat-weeks-remaining" />
+        ) : (
+          <InsufficientDataCard
+            label="Est. Remaining"
+            reason="Need at least 4 weeks of completed work."
+            have={data.velocity_weeks_covered}
+            required={4}
+            testId="stat-weeks-remaining"
+          />
+        )}
       </div>
 
       <div>
@@ -197,7 +232,12 @@ function DashboardTab({ data, eventCount }: { data: DashboardStats; eventCount: 
         )}
       </div>
 
-      <p className="text-xs text-slate-500">{eventCount.toLocaleString()} events processed</p>
+      <p className="text-xs text-slate-500">
+        {eventCount.toLocaleString()} events processed
+        {history.has_history && (
+          <> · {Math.max(1, Math.round(history.history_days))}d of history</>
+        )}
+      </p>
     </div>
   );
 }
@@ -247,39 +287,93 @@ function ThroughputTab({ data }: { data: ThroughputStats }) {
 // Agent tab
 // ---------------------------------------------------------------------------
 
-function AgentTab({ data }: { data: AgentStats }) {
+function AgentTab({ data, history }: { data: AgentStats; history: HistoryWindow }) {
+  const threshold = minSample(history);
+  const rateSample = data.success_rate_sample_size;
+  const rateReady = rateSample >= Math.max(1, threshold);
+  const durationReady = data.execution_duration_samples >= Math.max(1, threshold);
+  const workshopReady = data.workshop_rounds_sample_size >= Math.max(1, threshold);
+
   return (
     <div className="space-y-4" data-testid="stats-content-agent">
       <div className="grid grid-cols-2 gap-3">
-        <StatCard label="Total Executions" value={String(data.total_executions)} />
-        <StatCard label="Avg Duration" value={`${data.avg_execution_minutes.toFixed(1)} min`} />
+        <StatCard
+          label="Total Executions"
+          value={String(data.total_executions)}
+          subtext={`${data.completed_count} completed · ${data.failed_count} failed`}
+        />
+        <StatsMetricCard
+          label="Avg Duration"
+          value={`${data.avg_execution_minutes.toFixed(1)} min`}
+          sampleSize={data.execution_duration_samples}
+          minSample={threshold}
+          sampleNoun="completed runs"
+          insufficientReason={`Need at least ${threshold} finished runs.`}
+        />
       </div>
 
-      <div className="space-y-3">
-        <div>
-          <div className="mb-1 flex justify-between text-xs">
-            <span className="text-slate-400">Success rate</span>
-            <span className="text-emerald-400">{formatRate(data.success_rate)}</span>
+      {rateReady ? (
+        <div className="space-y-3">
+          <div>
+            <div className="mb-1 flex justify-between text-xs">
+              <span className="text-slate-400">Success rate</span>
+              <span className="text-emerald-400">{formatRate(data.success_rate)} <span className="text-slate-500">({data.completed_count} of {rateSample})</span></span>
+            </div>
+            <ProgressBar value={data.success_rate} max={1} color="bg-emerald-500" />
           </div>
-          <ProgressBar value={data.success_rate} max={1} color="bg-emerald-500" />
-        </div>
-        <div>
-          <div className="mb-1 flex justify-between text-xs">
-            <span className="text-slate-400">Failure rate</span>
-            <span className="text-red-400">{formatRate(data.failure_rate)}</span>
+          <div>
+            <div className="mb-1 flex justify-between text-xs">
+              <span className="text-slate-400">Failure rate</span>
+              <span className="text-red-400">{formatRate(data.failure_rate)} <span className="text-slate-500">({data.failed_count} of {rateSample})</span></span>
+            </div>
+            <ProgressBar value={data.failure_rate} max={1} color="bg-red-500" />
           </div>
-          <ProgressBar value={data.failure_rate} max={1} color="bg-red-500" />
-        </div>
-        <div>
-          <div className="mb-1 flex justify-between text-xs">
-            <span className="text-slate-400">Follow-up rate</span>
-            <span className="text-amber-400">{formatRate(data.follow_up_rate)}</span>
+          {data.manually_accepted_count > 0 && (
+            <div>
+              <div className="mb-1 flex justify-between text-xs">
+                <span className="text-slate-400">Manually accepted</span>
+                <span className="text-cyan-300">{formatRate(data.manual_accept_rate)} <span className="text-slate-500">({data.manually_accepted_count} of {rateSample})</span></span>
+              </div>
+              <ProgressBar value={data.manual_accept_rate} max={1} color="bg-cyan-500" />
+              <p className="mt-1 text-[11px] text-slate-500">
+                Runs the agent flagged as failed but you accepted as good enough.
+              </p>
+            </div>
+          )}
+          <div>
+            <div className="mb-1 flex justify-between text-xs">
+              <span className="text-slate-400">Follow-up rate</span>
+              <span className="text-amber-400">{formatRate(data.follow_up_rate)}</span>
+            </div>
+            <ProgressBar value={data.follow_up_rate} max={1} color="bg-amber-500" />
           </div>
-          <ProgressBar value={data.follow_up_rate} max={1} color="bg-amber-500" />
         </div>
-      </div>
+      ) : (
+        <InsufficientDataCard
+          label="Success / failure rate"
+          reason={`Need at least ${threshold} finished runs before rates are meaningful.`}
+          have={rateSample}
+          required={threshold}
+        />
+      )}
 
-      <StatCard label="Avg Workshop Rounds" value={data.avg_workshop_rounds.toFixed(1)} />
+      {workshopReady || durationReady ? (
+        <StatsMetricCard
+          label="Avg Workshop Rounds"
+          value={data.avg_workshop_rounds.toFixed(1)}
+          sampleSize={data.workshop_rounds_sample_size}
+          minSample={threshold}
+          sampleNoun="workshop runs"
+          insufficientReason={`Need at least ${threshold} items with workshop rounds.`}
+        />
+      ) : (
+        <InsufficientDataCard
+          label="Avg Workshop Rounds"
+          reason="No workshop rounds recorded yet."
+          have={data.workshop_rounds_sample_size}
+          required={threshold}
+        />
+      )}
     </div>
   );
 }
@@ -288,23 +382,49 @@ function AgentTab({ data }: { data: AgentStats }) {
 // Timing tab
 // ---------------------------------------------------------------------------
 
-function TimingTab({ data }: { data: TimingStats }) {
+function TimingTab({ data, history }: { data: TimingStats; history: HistoryWindow }) {
+  const threshold = minSample(history);
   return (
     <div className="space-y-3" data-testid="stats-content-timing">
-      <SectionLabel>Cycle Time (in progress → complete)</SectionLabel>
-      <div className="grid grid-cols-2 gap-3">
-        <StatCard label="Average" value={formatHours(data.avg_cycle_time_hours)} />
-        <StatCard label="Median" value={formatHours(data.median_cycle_time_hours)} />
-      </div>
-
       <SectionLabel>Lead Time (created → complete)</SectionLabel>
       <div className="grid grid-cols-2 gap-3">
-        <StatCard label="Average" value={formatHours(data.avg_lead_time_hours)} />
-        <StatCard label="Median" value={formatHours(data.median_lead_time_hours)} />
+        <StatsMetricCard
+          label="Average"
+          value={formatHours(data.avg_lead_time_hours)}
+          sampleSize={data.lead_time_sample_size}
+          minSample={threshold}
+          sampleNoun="items"
+          insufficientReason={`Need at least ${threshold} items tracked from creation to completion.`}
+        />
+        <StatsMetricCard
+          label="Median"
+          value={formatHours(data.median_lead_time_hours)}
+          sampleSize={data.lead_time_sample_size}
+          minSample={threshold}
+          sampleNoun="items"
+          insufficientReason={`Need at least ${threshold} items tracked from creation to completion.`}
+        />
       </div>
 
-      <SectionLabel>Queue Wait</SectionLabel>
-      <StatCard label="Avg queue wait" value={formatHours(data.avg_queue_wait_hours)} />
+      <SectionLabel>Execution Duration (running → complete)</SectionLabel>
+      <div className="grid grid-cols-2 gap-3">
+        <StatsMetricCard
+          label="Average"
+          value={`${data.avg_execution_minutes.toFixed(1)} min`}
+          sampleSize={data.execution_duration_samples}
+          minSample={threshold}
+          sampleNoun="finished runs"
+          insufficientReason={`Need at least ${threshold} finished executions.`}
+        />
+        <StatsMetricCard
+          label="Median"
+          value={`${data.median_execution_minutes.toFixed(1)} min`}
+          sampleSize={data.execution_duration_samples}
+          minSample={threshold}
+          sampleNoun="finished runs"
+          insufficientReason={`Need at least ${threshold} finished executions.`}
+        />
+      </div>
     </div>
   );
 }

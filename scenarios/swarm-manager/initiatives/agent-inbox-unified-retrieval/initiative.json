@@ -1,0 +1,22 @@
+{
+  "name": "agent-inbox-unified-retrieval",
+  "title": "Agent Inbox Unified Retrieval",
+  "description": "Replace agent-inbox's current `all enabled tools stuffed into every turn's context` model with a Qdrant-backed semantic index over three surfaces: proto tools (from tool-authoring-standard), CLI commands (from cli-conversational-surface), and widgets (from widget-standard). Two retrieval tracks run simultaneously in auto-mode (the new default): (1) agent-led — every chat has a small set of always-available meta-tools (search_tools, search_commands, search_widgets) so the agent can pull surfaces on demand at negligible token cost; (2) passive — every user message is embedded and matched against the index, surfacing tools/commands as one-click-enable suggestions and auto-rendering high-confidence widgets inline. Manual enable/pin remains as an escape hatch. Benchmarks: recall@K on a routing eval set, tokens saved per turn, first-token latency budget \u003c200ms. This is the UX payoff that makes phone-agent and non-technical users viable — `just talk and the system finds the right surface.`",
+  "status": "active",
+  "priority": 7,
+  "depends_on": [
+    "tool-authoring-standard",
+    "cli-conversational-surface",
+    "widget-standard"
+  ],
+  "items": [
+    "research/unified-retrieval-index-design",
+    "execute/agent-inbox-qdrant-retrieval-index",
+    "execute/agent-inbox-agent-led-search-tools",
+    "execute/agent-inbox-passive-suggestion-surface",
+    "execute/agent-inbox-auto-mode-default",
+    "execute/agent-inbox-retrieval-eval-harness"
+  ],
+  "created": "2026-04-22T18:13:00Z",
+  "updated": "2026-04-22T17:27:36Z"
+}

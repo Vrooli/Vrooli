@@ -7,9 +7,10 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"testing"
+
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/testutil"
-	"testing"
 )
 
 func doBatchQueue(t *testing.T, h *Handler, payload any) *httptest.ResponseRecorder {

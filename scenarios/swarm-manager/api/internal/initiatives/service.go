@@ -3,9 +3,10 @@ package initiatives
 import (
 	"fmt"
 	"strings"
+	"time"
+
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/dispatch"
-	"time"
 )
 
 // BacklogLoader loads individual backlog items for rollup computation and

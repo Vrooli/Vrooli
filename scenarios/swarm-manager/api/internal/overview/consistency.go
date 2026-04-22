@@ -3,6 +3,7 @@ package overview
 import (
 	"fmt"
 	"sort"
+
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/initiatives"
 )

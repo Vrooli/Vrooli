@@ -1,0 +1,20 @@
+{
+  "acceptance_allow": [
+    "scenarios/agent-inbox/**"
+  ],
+  "created": "2026-04-22T17:27:36Z",
+  "depends_on": [
+    "execute/agent-inbox-qdrant-retrieval-index",
+    "execute/iframe-bridge-widget-handshake"
+  ],
+  "description": "## Goal\n\nThe user-side UX half of dual-track retrieval. Every user message is embedded (no LLM call) and matched against the index. Matches surface as: one-click-enable suggestions for tools/CLI commands (row above or alongside input); auto-render of high-confidence widgets inline in chat; dismissible `show this?` cards for borderline widgets.\n\n## Expected Work\n\n- Client-side embedding + query per research latency budget.\n- UI affordance: suggestion row for tools/commands (keyboard + click to enable for the turn).\n- UI affordance: inline widget render via the iframe-bridge scoped-render directive.\n- Confidence-threshold gating per research spec.\n- Telemetry for suggestion conversion rate (enabled vs ignored, helpful vs dismissed).\n\n## Acceptance\n\n- User types `change the audio settings for dictation` → the audio-settings widget renders inline (when a qualifying widget exists and confidence is high).\n- User types a conversational message that maps to a tool → a suggestion row appears; one click enables for the turn.",
+  "effort": "M",
+  "initiative": "agent-inbox-unified-retrieval",
+  "kind": "execute",
+  "name": "agent-inbox-passive-suggestion-surface",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [],
+  "title": "Build the passive-track UI: tool/command suggestions + widget auto-render",
+  "updated": "2026-04-22T17:27:36Z"
+}

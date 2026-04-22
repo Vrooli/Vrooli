@@ -16,12 +16,13 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
+
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/workshop"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"

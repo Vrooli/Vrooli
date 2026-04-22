@@ -10,11 +10,12 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
+
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/httputil"
-	"time"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )

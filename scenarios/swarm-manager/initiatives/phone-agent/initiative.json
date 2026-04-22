@@ -1,0 +1,21 @@
+{
+  "name": "phone-agent",
+  "title": "Phone Agent",
+  "description": "Phone- and browser-accessible agent assistant. Bridges a single voice call (browser mic or Twilio phone number) to per-turn agent-manager runs. Routine registry schedules and dispatches recurring calls (first routine: morning vision walk). Transport-pluggable from day one so the browser UI works without phone infrastructure; Twilio adds the phone channel as an incremental transport.",
+  "status": "active",
+  "priority": 8,
+  "depends_on": [
+    "continuous-audio-platform",
+    "agent-inbox-unified-retrieval",
+    "widget-standard"
+  ],
+  "items": [
+    "research/phone-agent-routine-and-runner-model",
+    "execute/resource-twilio-voice-surface",
+    "execute/audio-tools-twilio-media-stream-transport",
+    "execute/phone-agent-greenfield-scenario",
+    "execute/phone-agent-morning-vision-walk-routine"
+  ],
+  "created": "2026-04-22T13:31:30Z",
+  "updated": "2026-04-22T18:14:00Z"
+}

@@ -5,8 +5,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
-	"swarm-manager/internal/testutil"
 	"testing"
+
+	"swarm-manager/internal/testutil"
 )
 
 func TestHandler_UpdateInvalidJSON(t *testing.T) {

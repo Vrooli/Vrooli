@@ -9,8 +9,9 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"swarm-manager/internal/backlog"
 	"testing"
+
+	"swarm-manager/internal/backlog"
 
 	"github.com/gorilla/mux"
 )

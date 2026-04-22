@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"swarm-manager/internal/backlog"
 	"testing"
+
+	"swarm-manager/internal/backlog"
 )
 
 func TestBacklogItemCreatorAdapter_ItemDir(t *testing.T) {

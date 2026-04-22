@@ -3,8 +3,9 @@ package queue
 import (
 	"net/http"
 	"net/http/httptest"
-	"swarm-manager/internal/testutil"
 	"testing"
+
+	"swarm-manager/internal/testutil"
 )
 
 func TestList_JSONEncodeError(t *testing.T) {

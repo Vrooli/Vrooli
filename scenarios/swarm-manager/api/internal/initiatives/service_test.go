@@ -3,8 +3,9 @@ package initiatives
 import (
 	"fmt"
 	"strings"
-	"swarm-manager/internal/backlog"
 	"testing"
+
+	"swarm-manager/internal/backlog"
 )
 
 func strPtr(value string) *string {

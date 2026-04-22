@@ -3,8 +3,9 @@ package graph
 import (
 	"net/http"
 	"net/http/httptest"
-	"swarm-manager/internal/backlog"
 	"testing"
+
+	"swarm-manager/internal/backlog"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"google.golang.org/protobuf/encoding/protojson"

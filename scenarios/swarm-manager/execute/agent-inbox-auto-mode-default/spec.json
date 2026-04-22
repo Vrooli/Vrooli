@@ -1,0 +1,20 @@
+{
+  "acceptance_allow": [
+    "scenarios/agent-inbox/**"
+  ],
+  "created": "2026-04-22T17:27:36Z",
+  "depends_on": [
+    "execute/agent-inbox-agent-led-search-tools",
+    "execute/agent-inbox-passive-suggestion-surface"
+  ],
+  "description": "## Goal\n\nAuto-mode (dual-track retrieval, no global tool-enable list stuffed into context) becomes the default chat mode. Existing manual enable/pin UX remains as an escape hatch for users who want explicit control.\n\n## Expected Work\n\n- Flip the default behavior for new chats.\n- Migration path for existing chats (opt-in or silent upgrade — decide during workshop).\n- Documentation update: how auto mode works, when to use manual, how to pin a specific tool if desired.\n- Settings UI: toggle between auto and manual.\n\n## Acceptance\n\n- A new chat in a fresh install uses auto-mode end-to-end without the user configuring tools.\n- Manual mode still works for users who flip the toggle.",
+  "effort": "S",
+  "initiative": "agent-inbox-unified-retrieval",
+  "kind": "execute",
+  "name": "agent-inbox-auto-mode-default",
+  "priority": 5,
+  "status": "backlog",
+  "tags": [],
+  "title": "Flip auto-mode to default and document the manual escape hatch",
+  "updated": "2026-04-22T17:27:36Z"
+}

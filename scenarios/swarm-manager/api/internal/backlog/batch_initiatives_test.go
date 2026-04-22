@@ -6,8 +6,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"swarm-manager/internal/testutil"
 	"testing"
+
+	"swarm-manager/internal/testutil"
 )
 
 func intPtr(v int) *int { return &v }

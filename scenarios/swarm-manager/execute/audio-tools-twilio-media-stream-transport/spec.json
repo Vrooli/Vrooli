@@ -1,0 +1,20 @@
+{
+  "acceptance_allow": [
+    "scenarios/audio-tools/**"
+  ],
+  "created": "2026-04-22T13:31:30Z",
+  "depends_on": [
+    "execute/audio-tools-greenfield-scenario",
+    "execute/resource-twilio-voice-surface"
+  ],
+  "description": "## Goal\n\nImplement the twilio-voice concrete transport against audio-tools voice-session interface (defined in research/audio-tools-shared-scenario-contract and built in execute/audio-tools-greenfield-scenario).\n\n## Scope\n\n### Transport\n- Twilio Media Streams WebSocket handler (mounted at the endpoint resource-twilio TwiML app points at)\n- Per-call session lifecycle: connect, bind to a voice-session, stream until disconnect\n- Disconnect/reconnect handling with session resume so a brief drop does not kill the call\n\n### Audio\n- Inbound mu-law 8kHz from Twilio resampled to 16kHz PCM for whisper\n- Outbound TTS resampled to 8kHz mu-law for Twilio\n- Resampler utilities live in the shared audio-tools package, not transport-specific\n\n### Event stream\n- Same pub/sub events as browser-voice (transcript deltas, assistant deltas, VAD signals, tool events, barge-in cancels)\n- Consumers should not need to know which transport is active\n\n## Constraints\n\n- Transport must implement the abstract voice-session interface — no leaking Twilio-specific shapes into consumers\n- One active transport per voice-session (browser observers attached to the same session are read-only)",
+  "effort": "L",
+  "initiative": "phone-agent",
+  "kind": "execute",
+  "name": "audio-tools-twilio-media-stream-transport",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [],
+  "title": "Implement twilio-voice transport in audio-tools",
+  "updated": "2026-04-22T13:31:30Z"
+}

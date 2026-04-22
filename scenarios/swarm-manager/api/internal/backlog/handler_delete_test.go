@@ -3,8 +3,9 @@ package backlog
 import (
 	"net/http"
 	"net/http/httptest"
-	"swarm-manager/internal/testutil"
 	"testing"
+
+	"swarm-manager/internal/testutil"
 
 	"github.com/gorilla/mux"
 )

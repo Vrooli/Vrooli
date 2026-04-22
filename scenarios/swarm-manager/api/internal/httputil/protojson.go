@@ -8,8 +8,9 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"swarm-manager/internal/apierr"
 	"sync"
+
+	"swarm-manager/internal/apierr"
 
 	"buf.build/go/protovalidate"
 	"google.golang.org/protobuf/encoding/protojson"

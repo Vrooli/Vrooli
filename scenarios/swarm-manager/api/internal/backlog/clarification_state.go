@@ -12,11 +12,12 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
+
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/workshop"
-	"time"
 
 	"github.com/gorilla/mux"
 

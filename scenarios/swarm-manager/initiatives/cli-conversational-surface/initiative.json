@@ -1,0 +1,15 @@
+{
+  "name": "cli-conversational-surface",
+  "title": "CLI as Conversational Surface",
+  "description": "Make every scenario's CLI a first-class conversational surface alongside proto tools. Adds a structured `introspect` command to the shared cli-core package so every scenario CLI automatically emits a machine-readable command tree (names, flags, descriptions, examples) while preserving the default human output contract. Agent-inbox discovers and indexes CLI commands at startup, invokes them via shell with captured human output, and treats them as synchronous by default. Scenarios can later `upgrade` a CLI command to a proto tool when richer metadata (async, approval, idempotency) is warranted. Auditor rule enforces that every scenario CLI responds to `introspect`. This is what makes every scenario conversationally usable from day one without requiring each to implement proto tools.",
+  "status": "active",
+  "priority": 6,
+  "items": [
+    "research/cli-introspect-contract-design",
+    "execute/cli-core-introspect-command",
+    "execute/cli-conversational-auditor-rule",
+    "execute/cli-conversational-agent-inbox-client"
+  ],
+  "created": "2026-04-22T18:11:00Z",
+  "updated": "2026-04-22T17:27:36Z"
+}

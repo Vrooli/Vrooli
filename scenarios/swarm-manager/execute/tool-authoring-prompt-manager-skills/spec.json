@@ -1,0 +1,19 @@
+{
+  "acceptance_allow": [
+    "scenarios/prompt-manager/store/skills/**"
+  ],
+  "created": "2026-04-22T17:27:36Z",
+  "depends_on": [
+    "execute/tool-authoring-go-toolkit"
+  ],
+  "description": "## Goal\n\nTwo skills in prompt-manager that make adding a tool cheap and fleet adoption visible.\n\n## Expected Work\n\n- `tool-authoring` skill: step-by-step guide for adding a new tool to a scenario using the shared toolkit. Includes the canonical file layout, how to wire registration, how to test.\n- `tool-adoption-audit` skill: fleet scan producing a report of which scenarios expose tools, how many per scenario, and any drift flagged by the scenario-auditor rule.\n\n## Acceptance\n\n- Both skills land in `scenarios/prompt-manager/store/skills/packs/core/` with proper SKILL.md formatting.\n- Authoring skill is concrete enough that an agent following it can add a working tool end-to-end.",
+  "effort": "S",
+  "initiative": "tool-authoring-standard",
+  "kind": "execute",
+  "name": "tool-authoring-prompt-manager-skills",
+  "priority": 5,
+  "status": "backlog",
+  "tags": [],
+  "title": "Author `tool-authoring` and `tool-adoption-audit` prompt-manager skills",
+  "updated": "2026-04-22T17:27:36Z"
+}

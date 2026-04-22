@@ -1,0 +1,19 @@
+{
+  "acceptance_allow": [
+    "packages/**"
+  ],
+  "created": "2026-04-22T17:27:36Z",
+  "depends_on": [
+    "execute/widget-proto-schema"
+  ],
+  "description": "## Goal\n\nShared UI helpers that scenarios import to declare widgets type-safely and apply `data-widget` attributes.\n\n## Expected Work\n\n- Typed TS helpers for declaring a widget entry (id, description, category, tags).\n- Helper that produces the `data-widget` attribute value type-safely so drift between declaration and usage is a compile error.\n- Live in the existing shared UI package (iframe-bridge-adjacent, per the `fewer packages` decision).\n- Documentation / example snippet.\n\n## Acceptance\n\n- A sample scenario UI can declare a widget in `ui/src/widgets.ts`, apply the typed data attribute in a React component, and have iframe-bridge advertise it via the new handshake.",
+  "effort": "M",
+  "initiative": "widget-standard",
+  "kind": "execute",
+  "name": "widget-authoring-ui-package",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [],
+  "title": "Ship UI helpers for declaring widgets (widgets.ts + typed data attributes)",
+  "updated": "2026-04-22T17:27:36Z"
+}

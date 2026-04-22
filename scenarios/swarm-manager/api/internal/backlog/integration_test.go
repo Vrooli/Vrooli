@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"testing"
+
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/testutil"
-	"testing"
 )
 
 // mockExecutionQueuer implements ExecutionQueuer for testing the confirm:true path.
@@ -18,9 +19,19 @@ type mockExecutionQueuer struct {
 	queueResult     execution.Record
 	queueErr        error
 
+	// Manual-accept controls.
+	manuallyAcceptedCalls []manuallyAcceptedCall
+	manuallyAcceptedID    string
+	manuallyAcceptedOK    bool
+	manuallyAcceptedErr   error
+
 	// Track calls for assertion.
 	preflightCalls []string // "kind/name" of each ProcessPreflight call
 	queueCalls     []execution.CreateRequest
+}
+
+type manuallyAcceptedCall struct {
+	Kind, Name, Acceptor, Reason string
 }
 
 func (m *mockExecutionQueuer) ProcessPreflight(_ context.Context, backlogKind, backlogName string) (execution.ProcessPreflight, error) {
@@ -42,6 +53,13 @@ func (m *mockExecutionQueuer) QueueBacklog(_ context.Context, req execution.Crea
 	result.BacklogKind = req.BacklogKind
 	result.BacklogName = req.BacklogName
 	return result, nil
+}
+
+func (m *mockExecutionQueuer) ManuallyAcceptLatestForBacklog(_ context.Context, backlogKind, backlogName, acceptor, reason string) (string, bool, error) {
+	m.manuallyAcceptedCalls = append(m.manuallyAcceptedCalls, manuallyAcceptedCall{
+		Kind: backlogKind, Name: backlogName, Acceptor: acceptor, Reason: reason,
+	})
+	return m.manuallyAcceptedID, m.manuallyAcceptedOK, m.manuallyAcceptedErr
 }
 
 // TestGoldenPath_BatchCreateInitiativeQueue exercises the full pipeline:

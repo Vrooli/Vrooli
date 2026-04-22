@@ -11,9 +11,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"time"
+
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
-	"time"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )

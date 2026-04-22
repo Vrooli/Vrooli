@@ -6,11 +6,12 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"swarm-manager/internal/backlog"
-	"swarm-manager/internal/initiatives"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"swarm-manager/internal/backlog"
+	"swarm-manager/internal/initiatives"
 )
 
 // waitFor polls predicate every 10ms until it returns true or timeout expires.

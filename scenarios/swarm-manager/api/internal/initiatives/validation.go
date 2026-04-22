@@ -3,6 +3,7 @@ package initiatives
 import (
 	"fmt"
 	"strings"
+
 	"swarm-manager/internal/depgraph"
 )
 

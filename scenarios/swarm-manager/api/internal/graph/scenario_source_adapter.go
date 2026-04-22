@@ -3,6 +3,7 @@ package graph
 import (
 	"context"
 	"strings"
+
 	"swarm-manager/internal/scenarios"
 )
 

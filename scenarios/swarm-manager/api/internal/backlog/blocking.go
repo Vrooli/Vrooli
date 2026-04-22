@@ -6,6 +6,7 @@ package backlog
 import (
 	"fmt"
 	"strings"
+
 	"swarm-manager/internal/depgraph"
 )
 

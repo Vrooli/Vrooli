@@ -3,6 +3,7 @@ package prompts
 import (
 	"net/http"
 	"strings"
+
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/experiment"
 	"swarm-manager/internal/httputil"

@@ -2,6 +2,7 @@ package execution
 
 import (
 	"context"
+
 	"swarm-manager/internal/agentmanager"
 )
 
@@ -60,5 +61,6 @@ type EventLogger interface {
 	EmitExecutionCompleted(execID string, durationSecs float64, hadFixups bool)
 	EmitExecutionFailed(execID, reason string, durationSecs float64)
 	EmitExecutionCanceled(execID, reason string)
+	EmitExecutionManuallyAccepted(execID, acceptedBy, reason, previousStatus string)
 	EmitExecutionViewed(execID string)
 }

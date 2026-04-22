@@ -1,0 +1,19 @@
+{
+  "name": "widget-standard",
+  "title": "Widget Standard",
+  "description": "Define a proto-backed standard for scenario UIs to expose coarse-grained, inline-renderable sections (settings panels, CRUD forms, entity detail pages, dashboard sections) as `widgets` that agent-inbox can surface inside a chat. Extends iframe-bridge with a widget-manifest handshake and a scoped-render directive so a scenario UI can render widget X in isolation. Authoring pattern: a single `ui/src/widgets.ts` source-of-truth file declares each widget (id, description, category, tags); React code imports from it and applies `data-widget` attributes to the corresponding DOM boundaries. Static build-time extraction walks the AST inside each data-widget boundary to produce the embedding corpus for retrieval. Scenario-auditor rule compares declared widgets, source usages, and runtime iframe-bridge manifest — any drift fails. Prompt-manager skill `widget-authoring` + template stub make adoption cheap. Reuses / extends the BAS e2e selector pattern where feasible.",
+  "status": "active",
+  "priority": 5,
+  "items": [
+    "research/widget-authoring-pattern-design",
+    "execute/widget-proto-schema",
+    "execute/iframe-bridge-widget-handshake",
+    "execute/widget-authoring-ui-package",
+    "execute/widget-static-extraction-indexer",
+    "execute/widget-authoring-auditor-rule",
+    "execute/widget-authoring-prompt-manager-skill",
+    "execute/widget-authoring-template-scaffolding"
+  ],
+  "created": "2026-04-22T18:12:00Z",
+  "updated": "2026-04-22T17:27:36Z"
+}

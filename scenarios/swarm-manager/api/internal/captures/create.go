@@ -9,10 +9,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
+
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/idgen"
-	"time"
 )
 
 // allowedImageTypes lists Content-Types accepted for capture attachments.

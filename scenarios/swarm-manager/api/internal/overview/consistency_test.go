@@ -1,9 +1,10 @@
 package overview
 
 import (
+	"testing"
+
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/initiatives"
-	"testing"
 )
 
 func mkItem(kind backlog.BacklogKind, name string, deps ...string) backlog.BacklogItem {

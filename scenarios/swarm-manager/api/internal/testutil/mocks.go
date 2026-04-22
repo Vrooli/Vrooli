@@ -3,6 +3,7 @@ package testutil
 import (
 	"errors"
 	"net/http"
+
 	"swarm-manager/internal/dispatch"
 )
 

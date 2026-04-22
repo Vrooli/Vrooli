@@ -52,11 +52,12 @@ const (
 
 // Execution events.
 const (
-	EventExecutionCreated       EventType = "execution.created"
-	EventExecutionStatusChanged EventType = "execution.status_changed"
-	EventExecutionCompleted     EventType = "execution.completed"
-	EventExecutionFailed        EventType = "execution.failed"
-	EventExecutionCanceled      EventType = "execution.canceled"
+	EventExecutionCreated          EventType = "execution.created"
+	EventExecutionStatusChanged    EventType = "execution.status_changed"
+	EventExecutionCompleted        EventType = "execution.completed"
+	EventExecutionFailed           EventType = "execution.failed"
+	EventExecutionCanceled         EventType = "execution.canceled"
+	EventExecutionManuallyAccepted EventType = "execution.manually_accepted"
 )
 
 // Queue events.
@@ -95,6 +96,14 @@ const (
 	EventInitiativeViewed EventType = "initiative.viewed"
 	EventCaptureViewed    EventType = "capture.viewed"
 )
+
+// System events for one-time migrations.
+const (
+	EventSystemMigrationApplied EventType = "system.migration_applied"
+)
+
+// EntitySystem is used for events that are not tied to a domain entity.
+const EntitySystem EntityType = "system"
 
 // Event represents a single state change recorded in the event log.
 type Event struct {
@@ -175,6 +184,16 @@ type ExecutionFailedPayload struct {
 // ExecutionCanceledPayload records execution cancellation details.
 type ExecutionCanceledPayload struct {
 	Reason string `json:"reason"`
+}
+
+// ExecutionManuallyAcceptedPayload records a manual-accept event where the
+// user overrode the agent's failure verdict and judged the execution
+// acceptable. Emitted in addition to a regular execution.completed event so
+// stats can distinguish agent-finished from human-finished work.
+type ExecutionManuallyAcceptedPayload struct {
+	AcceptedBy         string `json:"accepted_by"`
+	Reason             string `json:"reason,omitempty"`
+	PreviousExecStatus string `json:"previous_exec_status"`
 }
 
 // QueuePayload records queue position info.
@@ -274,4 +293,12 @@ type UnarchivePayload struct {
 // ViewPayload records a view event. Intentionally minimal.
 type ViewPayload struct {
 	Kind string `json:"kind,omitempty"`
+}
+
+// MigrationAppliedPayload records that a one-time migration has completed.
+// The Name field is the sentinel key used to gate re-runs.
+type MigrationAppliedPayload struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	AffectedIDs int    `json:"affected_ids,omitempty"`
 }

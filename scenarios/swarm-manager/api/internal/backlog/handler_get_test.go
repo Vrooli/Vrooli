@@ -4,8 +4,9 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
-	"swarm-manager/internal/testutil"
 	"testing"
+
+	"swarm-manager/internal/testutil"
 
 	"github.com/gorilla/mux"
 )

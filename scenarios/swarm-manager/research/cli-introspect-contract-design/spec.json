@@ -1,0 +1,16 @@
+{
+  "acceptance_allow": [
+    "scenarios/swarm-manager/research/cli-introspect-contract-design/**"
+  ],
+  "created": "2026-04-22T17:27:36Z",
+  "description": "## Context\n\nEvery scenario ships a CLI built on the shared cli-core package with a standardized human output contract. If cli-core also emits a structured machine-readable command tree via an `introspect` subcommand, agent-inbox can index every scenario's CLI as a conversational surface automatically — no per-scenario adoption required beyond using cli-core (which is already the norm).\n\n## Research Goals\n\n1. **Introspect JSON schema**: commands, subcommands, flags (name, type, default, description, required/optional), argument descriptions, usage examples, short + long descriptions, output-shape hints (if practical).\n2. **Auto-generation from existing CLI framework**: how cli-core (wrapping cobra or similar) produces the tree automatically via reflection. Goal is zero per-scenario work.\n3. **Output-shape hints**: can we describe expected output patterns (tables, key/value, counts) in enough detail to help the retrieval layer rank relevance? Or is that over-engineering for v1?\n4. **Sandbox-aware invocation path**: agent-inbox will shell out to these CLIs. See `project_sandbox_aware_cli_tools.md` — the invocation path must respect sandbox path conventions.\n5. **Conflict with proto tools**: if a scenario has both a CLI command and a proto tool with the same semantic meaning, proto tools take precedence. Formalize how the agent-inbox client disambiguates.\n\n## Deliverables\n\n- Introspect JSON schema (with an example from a representative scenario)\n- Auto-generation implementation sketch\n- Output-shape hints decision (v1 scope)\n- Sandbox-aware invocation conventions\n- Conflict-resolution rule with proto tools",
+  "effort": "M",
+  "initiative": "cli-conversational-surface",
+  "kind": "research",
+  "name": "cli-introspect-contract-design",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [],
+  "title": "Design the `introspect` contract for cli-core",
+  "updated": "2026-04-22T17:27:36Z"
+}

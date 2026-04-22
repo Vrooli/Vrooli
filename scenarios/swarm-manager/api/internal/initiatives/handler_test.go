@@ -6,8 +6,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"swarm-manager/internal/backlog"
 	"testing"
+
+	"swarm-manager/internal/backlog"
 
 	"github.com/gorilla/mux"
 )
