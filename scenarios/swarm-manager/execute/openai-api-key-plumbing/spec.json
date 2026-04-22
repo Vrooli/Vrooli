@@ -1,0 +1,22 @@
+{
+  "acceptance_allow": [
+    "scenarios/swarm-manager/api/internal/settings/**",
+    "scenarios/swarm-manager/api/internal/agentmanager/**",
+    "scenarios/swarm-manager/ui/src/**",
+    "internal/secrets/**"
+  ],
+  "created": "2026-04-22T04:29:54Z",
+  "depends_on": [
+    "research/openai-image-gen-validation"
+  ],
+  "description": "Add first-class OpenAI API key handling to Swarm Manager so workshop agents can call gpt-image-2. Store the key via the existing internal/secrets encrypted store (VROOLI_SECRETS_KEY pattern). Extend Swarm Manager Settings with a write-only field for configuring the key (never read back to UI as plaintext). Plumb the key into the agent-manager spawn request so sandboxed workshop agents receive it as OPENAI_API_KEY in their environment. Default behavior when unset: image generation helper short-circuits with a clear error. No implicit provider fallback.",
+  "effort": "M",
+  "initiative": "ai-image-generation-foundation",
+  "kind": "execute",
+  "name": "openai-api-key-plumbing",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [],
+  "title": "Plumb OpenAI API key into Swarm Manager and agent sandboxes",
+  "updated": "2026-04-22T04:29:54Z"
+}

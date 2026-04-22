@@ -3,16 +3,18 @@
 ## Primary Duties
 - Synthesize a structured daily briefing consumed by the morning vision walk skill.
 - Read across all director-swarm member outputs, swarm-manager state, and team decision logs to compile the most impactful questions and context for the human's daily strategic sync.
-- Surface pending decisions from all lanes (portfolio, strategy, monetization) in a pre-digested format.
+- Surface pending decisions from all lanes (portfolio, strategy, monetization, marketing, meta-optimization) in a pre-digested format.
 - Generate life-audit prompts based on previous vision walk knowledge entries and identified capability gaps.
 - Highlight what changed in the past 24 hours, not just current state.
 
 ## Deliverables
 - A structured `## HANDOFF` containing all sections needed by the morning vision walk skill:
   - Retrospective (past 24h completions and notable changes)
-  - Portfolio decisions (pending, max 3)
+  - Portfolio decisions (pending, max 3 — includes `capability-gap` items raised by marketing-crew and meta-optimization, which are portfolio decisions by design)
   - Strategist decisions (pending, max 3, or note if disabled)
   - Monetization decisions (top 3 pending from the `monetization` team, across catalog / services / runway / pricing / funnel contexts). Also includes the latest ledger snapshot and any active runway / services-trap flags.
+  - Marketing decisions (top 3 pending from the `marketing-crew` team, diversified across publish / campaign / brand-canon / coverage / notebook-curation contexts, excluding `capability-gap` which surfaces in Portfolio)
+  - Meta-optimization decisions (top 3 pending from the `meta-optimization` team, diversified across skills / agents-and-teams / run-lessons / toolchain / debt / framework-meta categories, excluding `capability-gap` which surfaces in Portfolio)
   - Life audit prompts (previous chore discussions, suggested capability gaps)
   - Big picture context (tech tree status, bundle roadmap, stalled initiatives)
 

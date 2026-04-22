@@ -4,7 +4,7 @@
   "id": "monetization",
   "displayName": "Monetization Team",
   "mission": "Own the canonical monetization plan for Vrooli — catalog, tiers, funnel, revenue lines, and financial model — and surface the decisions the operator must make each heartbeat to stay on a path to default-alive.",
-  "enabled": false,
+  "enabled": true,
   "runtime": {
     "mode": "multi-process"
   },
@@ -31,7 +31,7 @@
     "path": "shared/",
     "mountHint": "readWrite"
   },
-  "revision": 1,
+  "revision": 2,
   "createdAt": "2026-04-20T00:00:00Z",
-  "updatedAt": "2026-04-20T00:00:00Z"
+  "updatedAt": "2026-04-22T11:17:33Z"
 }

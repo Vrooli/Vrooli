@@ -1,0 +1,13 @@
+{
+  "created": "2026-04-22T04:29:54Z",
+  "description": "Validate gpt-image-2 as the image generation backend for Swarm Manager decision-question mockups. Confirm API access from the target environment, measure real per-image cost at the quality we'd ship with (mockup-grade), verify image-as-input with input_fidelity='high' produces style-consistent outputs, and test 3-5 real-world decision scenarios end-to-end (pure text-to-mockup only — screenshot grounding is handled in the grounding-propagation initiative). Compare against the openai/gpt-5.4-image-2 composite on OpenRouter so we can justify going OpenAI-direct on cost. Deliverable: conclusion.md with recommended vendor, cost model per decision, prompt-template sketch derived from the OpenAI cookbook UI-mockup guidance, and a go/no-go call for the downstream execute items.",
+  "effort": "M",
+  "initiative": "ai-image-generation-foundation",
+  "kind": "research",
+  "name": "openai-image-gen-validation",
+  "priority": 1,
+  "status": "backlog",
+  "tags": [],
+  "title": "Validate OpenAI gpt-image-2 for UI mockup generation",
+  "updated": "2026-04-22T04:29:54Z"
+}

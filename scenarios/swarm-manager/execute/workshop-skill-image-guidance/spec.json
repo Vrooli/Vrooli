@@ -1,0 +1,21 @@
+{
+  "acceptance_allow": [
+    "scenarios/prompt-manager/store/skills/**"
+  ],
+  "created": "2026-04-22T04:29:54Z",
+  "depends_on": [
+    "execute/workshop-option-image-schema",
+    "execute/image-generation-toggle-setting",
+    "execute/ui-mockup-generation-skill"
+  ],
+  "description": "Update the workshop/initialization skills (the skills that drive agents producing workshop round JSON) to consult the ui-mockup-generation skill and invoke the image CLI helper per-option when: (a) EnableImageGeneration setting is true AND (b) the 'would seeing this change the user's answer?' gate fires. The gate logic lives in the ui-mockup-generation skill; this item wires the invocation into the actual workshop flow. Automated test using a recorded fixture: workshop skill produces round JSON with image_url populated exactly on the gated options, and no images when the toggle is off.",
+  "effort": "M",
+  "initiative": "decision-question-visuals",
+  "kind": "execute",
+  "name": "workshop-skill-image-guidance",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [],
+  "title": "Integrate ui-mockup-generation gate into workshop-driving skills",
+  "updated": "2026-04-22T04:29:54Z"
+}

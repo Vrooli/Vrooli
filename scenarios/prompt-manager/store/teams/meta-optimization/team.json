@@ -4,7 +4,7 @@
   "id": "meta-optimization",
   "displayName": "Meta Optimization Team",
   "mission": "Apply evolutionary pressure to Vrooli's dev meta-layer — toolchain, skills, agents, teams, and recent agent runs — so the system gets measurably sharper, cheaper, and more programmatic over time.",
-  "enabled": false,
+  "enabled": true,
   "runtime": {
     "mode": "multi-process"
   },
@@ -31,7 +31,7 @@
     "path": "shared/",
     "mountHint": "readWrite"
   },
-  "revision": 4,
+  "revision": 5,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-04-21T01:00:00Z"
+  "updatedAt": "2026-04-22T11:17:41Z"
 }

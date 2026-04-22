@@ -17,12 +17,14 @@ You are the morning briefing compiler for `director-swarm`. Your job is to produ
    - Check recent handoffs from shared `handoff-history.jsonl` for what other agents accomplished.
    - Identify items completed, items that changed status, and anything notable (new blockers, completed initiatives, etc.).
 
-2. **Gather pending portfolio decisions.** Query the portfolio manager's pending decisions:
+2. **Gather pending portfolio decisions.** Query the portfolio manager's pending decisions, plus `capability-gap` decisions raised on the marketing-crew and meta-optimization queues (the skill treats those as portfolio decisions by design because director-swarm is their consumer):
    - `prompt-manager team decision-list director-swarm --status=pending --context=initiative-portfolio --json`
    - `prompt-manager team decision-list director-swarm --status=pending --context=initiative-supplement --json`
    - `prompt-manager team decision-list director-swarm --status=pending --context=initiative-proposal --json`
    - `prompt-manager team decision-list director-swarm --status=pending --context=initiative-readiness --json`
-   - Select the top 3 most impactful pending decisions. Summarize each with: topic, what's being decided, recommended option, and why it matters.
+   - `prompt-manager team decision-list marketing-crew --status=pending --context=capability-gap --json`
+   - `prompt-manager team decision-list meta-optimization --status=pending --context=capability-gap --json`
+   - Select the top 3 most impactful pending decisions across all sources. Summarize each with: topic, source team, what's being decided, recommended option, and why it matters. If a `capability-gap` item has an attached contrarian challenge note, preserve the skepticism in the summary — the walk presents it alongside the recommendation.
 
 3. **Gather pending strategist decisions.** Query the outcome strategist's pending decisions:
    - `prompt-manager team decision-list director-swarm --status=pending --context=outcome-gap --json`
@@ -44,18 +46,46 @@ You are the morning briefing compiler for `director-swarm`. Your job is to produ
    - Also read the latest entry from `store/teams/monetization/shared/ledger.jsonl` (if any) to surface the most recent runway / default-alive gap snapshot.
    - If the team is enabled and has raised a `services-trap-warning` or `runway-warning` flag in the most recent `ledger.jsonl` entry, flag that **above** routine pending decisions.
 
-5. **Prepare life audit prompts.** Search shared knowledge for previous vision walk discussions:
+5. **Gather pending marketing-crew decisions.** Query the marketing-crew team's pending decisions directly by team id (exclude `capability-gap` — that already surfaced in step 2):
+   - `prompt-manager team decision-list marketing-crew --status=pending --json`
+   - Filter out `capability-gap` rows.
+   - Group by context. The load-bearing contexts for the walk are:
+     - `content-publish-proposal` (drafts ready for publish decision; linked artifact in `store/teams/marketing-crew/shared/campaign-drafts.jsonl`)
+     - `campaign-launch-proposal` (brand-manager proposing a new campaign)
+     - `brand-guideline-update` / `audience-update` / `channel-update` (plan-of-record edits in `docs/marketing/`)
+     - `coverage-gap` (deployed SKUs with stale/missing marketing coverage)
+     - `notebook-promotion` / `notebook-retirement` (working-notebook maturation or deprecation)
+     - `decision-rejection-proposed` (marketing-contrarian recommending we reject/supersede a prior decision)
+   - Select the top 3 most impactful items, diversified across contexts (don't return 3 publish-proposals in a row if other contexts have items). Summarize each with: topic, proposing member, what's being decided, recommendation, and any attached marketing-contrarian challenge note. The contrarian's skepticism is first-class — preserve it, don't bury it.
+   - If the team is `enabled: false` (read `scenarios/prompt-manager/store/teams/marketing-crew/team.json`), note: "Marketing-crew currently disabled — once running, this phase will surface publish proposals, campaign launches, brand-canon edits, coverage gaps, and notebook-curation decisions."
+   - If the team is enabled but no decisions are pending, note: "No pending marketing decisions this heartbeat."
+
+6. **Gather pending meta-optimization decisions.** Query the meta-optimization team's pending decisions directly by team id (exclude `capability-gap` — that already surfaced in step 2):
+   - `prompt-manager team decision-list meta-optimization --status=pending --json`
+   - Filter out `capability-gap` rows.
+   - Group by category. The load-bearing categories for the walk are:
+     - Skill conversions / improvements (`skill-conversion-candidate`, `skill-improvement`) — prose skills becoming thin CLI wrappers; skill prompt updates
+     - Agent/team structure (`agent-improvement`, `agent-audit`, `team-audit`) — agent prompt edits, team coordination changes, role changes
+     - Run lessons (`run-lesson`) — durable lessons from specific agent-manager runs
+     - Toolchain violations (toolchain-validator output) — dev-toolchain issues against the gold-star reference scenario
+     - Debt promotions (debt-curator output) — workarounds in `docs/meta-optimization/` mature enough to become permanent structure
+     - Framework meta (`framework-update`, `decision-rejection-proposed`) — meta-contrarian-identified failure modes or proposals to reject pending decisions
+   - Select the top 3 most impactful items, diversified across categories. Summarize each with: topic, proposing member, what's being decided, recommendation, and any attached meta-contrarian challenge note. The contrarian's skepticism is first-class — preserve it, don't bury it.
+   - If the team is `enabled: false` (read `scenarios/prompt-manager/store/teams/meta-optimization/team.json`), note: "Meta-optimization currently disabled — once running, this phase will surface skill/agent/team/toolchain evolution proposals, run-derived lessons, and debt promotions."
+   - If the team is enabled but no decisions are pending, note: "No pending meta-optimization decisions this heartbeat."
+
+7. **Prepare life audit prompts.** Search shared knowledge for previous vision walk discussions:
    - Look for knowledge entries with topics containing "vision-walk" or "chore-audit" or "life-audit".
    - Summarize what was discussed previously so the human has continuity.
    - Identify capability gaps from current scenario inventory — domains of daily life not yet covered by any scenario.
    - Generate 2-3 suggested prompts like: "Yesterday you mentioned using [external tool] for [task]. Could a scenario handle this?"
 
-6. **Compile big picture context.**
+8. **Compile big picture context.**
    - Check tech tree status: if the tech-tree-designer scenario is available, note frontier nodes and current coverage. If not, note: "Tech tree not yet available — integration planned."
    - Summarize bundle roadmap status. Source of truth: `docs/monetization/CATALOG.md` + `catalog/base/*.md`. Summarize: which SKUs are active vs. candidate vs. shipped, which headliners are closest to ready, which tiers are active or near activation.
    - Identify stalled initiatives (no progress in 7+ days) that might benefit from fresh thinking.
 
-7. **Structure the handoff.** Compile all gathered information into the required output format below.
+9. **Structure the handoff.** Compile all gathered information into the required output format below.
 
 ## Required Output
 
@@ -96,6 +126,30 @@ End your response with `## HANDOFF` containing these sections:
 **Latest runway snapshot (from ledger.jsonl if available):** [cash / burn / revenue / runway / default-alive gap, with honesty flags preserved]
 
 **Active monetization flags (from latest ledger entry):** [any services-trap-warning / runway-warning / assumption-drift flags to surface]
+
+### Marketing Decisions (Pending)
+[Up to 3 decisions, diversified across contexts. Each entry:]
+- **[Topic]** (decision-id: dec-xxx, context: [content-publish-proposal | campaign-launch-proposal | brand-guideline-update | audience-update | channel-update | coverage-gap | notebook-promotion | notebook-retirement | decision-rejection-proposed])
+  - Proposed by: [brand-manager | subscription-advertiser | oss-advertiser | publisher | researcher | marketing-contrarian]
+  - What: [what's being decided]
+  - Recommended: [option key and label]
+  - Contrarian note: [any attached marketing-contrarian challenge, or "none"]
+  - Why it matters: [1 sentence]
+
+[If team is disabled: "Marketing-crew currently disabled — once running, this phase will surface publish proposals, campaign launches, brand-canon edits, coverage gaps, and notebook-curation decisions."]
+[If team is enabled but quiet: "No pending marketing decisions this heartbeat."]
+
+### Meta-Optimization Decisions (Pending)
+[Up to 3 decisions, diversified across categories. Each entry:]
+- **[Topic]** (decision-id: dec-xxx, category: [skill-conversion | agent/team | run-lesson | toolchain | debt | framework-meta])
+  - Proposed by: [skill-optimizer | team-agent-optimizer | run-introspector | toolchain-validator | debt-curator | meta-contrarian]
+  - What: [what's being decided]
+  - Recommended: [option key and label]
+  - Contrarian note: [any attached meta-contrarian challenge, or "none"]
+  - Why it matters: [1 sentence]
+
+[If team is disabled: "Meta-optimization currently disabled — once running, this phase will surface skill/agent/team/toolchain evolution proposals, run-derived lessons, and debt promotions."]
+[If team is enabled but quiet: "No pending meta-optimization decisions this heartbeat."]
 
 ### Life Audit Prompts
 **Previous discussions:**

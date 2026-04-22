@@ -1,0 +1,17 @@
+{
+  "acceptance_allow": [
+    "scenarios/swarm-manager/api/internal/settings/**",
+    "scenarios/swarm-manager/ui/src/**"
+  ],
+  "created": "2026-04-22T04:29:54Z",
+  "description": "Add `EnableImageGeneration` (bool, default false) to the Swarm Manager Settings struct, settings HTTP handler patch surface, and the settings page in the UI. The swarm-manager image generate CLI helper reads this setting and short-circuits when false — this is the single load-bearing enforcement point for the toggle. When false, skills see a fast, non-erroring no-op and produce text-only options. Automated tests: default state, patch to true and back, and verify CLI helper respects the current value.",
+  "effort": "S",
+  "initiative": "decision-question-visuals",
+  "kind": "execute",
+  "name": "image-generation-toggle-setting",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [],
+  "title": "Add EnableImageGeneration toggle to Swarm Manager settings",
+  "updated": "2026-04-22T04:29:54Z"
+}

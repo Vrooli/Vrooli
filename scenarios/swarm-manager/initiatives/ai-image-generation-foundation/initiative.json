@@ -1,0 +1,15 @@
+{
+  "name": "ai-image-generation-foundation",
+  "title": "AI Image Generation Foundation",
+  "description": "API access, encrypted key storage, a single-entry CLI helper that enforces the toggle, and the ui-mockup-generation skill. Prerequisite plumbing for decision-question mockups and any future image-gen use cases.",
+  "status": "active",
+  "priority": 1,
+  "items": [
+    "research/openai-image-gen-validation",
+    "execute/openai-api-key-plumbing",
+    "execute/swarm-manager-image-cli-helper",
+    "execute/ui-mockup-generation-skill"
+  ],
+  "created": "2026-04-22T04:29:54Z",
+  "updated": "2026-04-22T04:29:54Z"
+}
