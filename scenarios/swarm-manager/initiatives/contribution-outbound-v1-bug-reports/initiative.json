@@ -1,0 +1,16 @@
+{
+  "name": "contribution-outbound-v1-bug-reports",
+  "title": "Community Contribution Loop — Outbound V1 (Bug Reports)",
+  "description": "Customer-side bug-report submission pipeline: upstream-divergence classifier, secrets/PII scrubber, submitter, and agent integration. Bug-reports-only MVP. PR-fix and scenario-proposal artifacts are deferred to contribution-outbound-extensions.",
+  "status": "active",
+  "priority": 1,
+  "items": [
+    "research/upstream-divergence-classifier",
+    "research/contribution-submitter-architecture",
+    "execute/contribution-scrubber",
+    "execute/contribution-submitter-bug-report",
+    "execute/agent-bug-report-emission"
+  ],
+  "created": "2026-04-22T18:33:52Z",
+  "updated": "2026-04-22T18:33:52Z"
+}

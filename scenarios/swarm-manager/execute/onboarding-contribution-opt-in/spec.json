@@ -1,0 +1,16 @@
+{
+  "acceptance_allow": [
+    "scenarios/vrooli-onboarding/**"
+  ],
+  "created": "2026-04-22T18:33:52Z",
+  "description": "Surface a simple yes/no question during vrooli-onboarding: 'Contribute anonymized bug reports back to the Vrooli project?' with a 'customize' link that opens the full settings surface. Default to opt-out on private forks (auto-detected), opt-in prompt otherwise. Persist the user's choice in the standard settings store so the outbound pipeline can read it.",
+  "effort": "S",
+  "initiative": "contribution-settings",
+  "kind": "execute",
+  "name": "onboarding-contribution-opt-in",
+  "priority": 1,
+  "status": "backlog",
+  "tags": [],
+  "title": "Add contribution opt-in prompt to vrooli-onboarding",
+  "updated": "2026-04-22T18:33:52Z"
+}

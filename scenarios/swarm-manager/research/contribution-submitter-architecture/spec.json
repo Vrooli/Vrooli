@@ -1,0 +1,13 @@
+{
+  "created": "2026-04-22T18:33:52Z",
+  "description": "End-to-end design for the bug-report submission pipeline. Covers: where agents emit a candidate report, the queue/staging location, the approval UX (auto vs manual per user config), the channel choice (issue vs discussion — not PR for v1), the GitHub API path, rate limiting, retry/backoff, attribution injection, and how submitted items are tracked locally so users can see status.\n\nMust integrate with: classifier (above) as the gating step, scrubber as the last step before send, and the settings surface for user preferences.\n\nDeliverable: conclusion.md with the submitter contract, sequence diagram for the happy path, and an explicit decision on default channel for v1.",
+  "effort": "M",
+  "initiative": "contribution-outbound-v1-bug-reports",
+  "kind": "research",
+  "name": "contribution-submitter-architecture",
+  "priority": 1,
+  "status": "backlog",
+  "tags": [],
+  "title": "Design contribution-submitter architecture for bug reports",
+  "updated": "2026-04-22T18:33:52Z"
+}

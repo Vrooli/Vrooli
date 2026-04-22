@@ -1,0 +1,13 @@
+{
+  "created": "2026-04-22T18:33:52Z",
+  "description": "Design how a user-built scenario gets packaged and proposed upstream. Covers: what files are in scope (full scenario directory), what scenarios are even eligible (general-purpose vs personal/private), licensing and attribution, where proposals land (a separate scenario-proposals repo? a labeled issue? a discussion?), and the review path on your side (likely goes through contribution-triage + isolated verification).\n\nDeliverable: conclusion.md with the scenario-proposal artifact contract.",
+  "effort": "M",
+  "initiative": "contribution-outbound-extensions",
+  "kind": "research",
+  "name": "scenario-proposal-artifact-design",
+  "priority": 1,
+  "status": "backlog",
+  "tags": [],
+  "title": "Design scenario-proposal artifact type for outbound submissions",
+  "updated": "2026-04-22T18:33:52Z"
+}

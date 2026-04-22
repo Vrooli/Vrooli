@@ -15,6 +15,7 @@ import {
   type GraphLensSnapshot,
 } from "../lib/snapshot-utils";
 import { useSnoozeStore } from "../../../stores/snooze-store";
+import { reconcileEdges, reconcileNodes } from "../lib/structural-sharing";
 import {
   getGraphNodeData,
   type GraphEdge,
@@ -73,29 +74,9 @@ const graphInFlightRequests = new Map<GraphLens, Promise<void>>();
 // Snapshot helpers
 // ---------------------------------------------------------------------------
 
-function mergeRuntimeNodeState(currentNodes: GraphNode[], nextNodes: GraphNode[]): GraphNode[] {
-  const pulsingById = new Map<string, boolean>();
-  for (const node of currentNodes) {
-    const pulsing = getGraphNodeData(node).pulsing;
-    if (typeof pulsing === "boolean") {
-      pulsingById.set(node.id, pulsing);
-    }
-  }
-
-  return nextNodes.map((node) => {
-    const pulsing = pulsingById.get(node.id);
-    if (pulsing === undefined) {
-      return node;
-    }
-    return {
-      ...node,
-      data: {
-        ...getGraphNodeData(node),
-        pulsing,
-      },
-    };
-  });
-}
+// Structural-sharing reconciliation now lives in lib/structural-sharing.ts so
+// unchanged nodes and edges keep their refs across polls. That lets downstream
+// useMemo chains in the canvas skip work when the backend reports no-op data.
 
 function syncActiveLensSnapshot(
   lens: GraphLens,
@@ -185,7 +166,7 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
     set((state) =>
       updateLensSnapshot(state, state.lens, (snapshot) => ({
         ...snapshot,
-        nodes: mergeRuntimeNodeState(snapshot.nodes, nodes),
+        nodes: reconcileNodes(snapshot.nodes, nodes),
       })),
     ),
 
@@ -193,7 +174,7 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
     set((state) =>
       updateLensSnapshot(state, state.lens, (snapshot) => ({
         ...snapshot,
-        edges,
+        edges: reconcileEdges(snapshot.edges, edges),
       })),
     ),
 
@@ -201,8 +182,8 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
     set((state) =>
       updateLensSnapshot(state, state.lens, (snapshot) => ({
         ...snapshot,
-        nodes: mergeRuntimeNodeState(snapshot.nodes, nodes),
-        edges,
+        nodes: reconcileNodes(snapshot.nodes, nodes),
+        edges: reconcileEdges(snapshot.edges, edges),
         meta,
         error: null,
       })),
@@ -307,9 +288,9 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
       );
 
       set((state) =>
-        updateLensSnapshot(state, "focus", () => ({
-          nodes: filteredNodes,
-          edges: filteredEdges,
+        updateLensSnapshot(state, "focus", (current) => ({
+          nodes: reconcileNodes(current.nodes, filteredNodes),
+          edges: reconcileEdges(current.edges, filteredEdges),
           meta: freshTopo.meta,
           loading: false,
           error: null,
@@ -360,8 +341,8 @@ export const useGraphDataStore = create<GraphDataState>((set, get) => ({
         set((state) =>
           updateLensSnapshot(state, lens, (current) => ({
             ...current,
-            nodes: mergeRuntimeNodeState(current.nodes, graph.nodes),
-            edges: graph.edges,
+            nodes: reconcileNodes(current.nodes, graph.nodes),
+            edges: reconcileEdges(current.edges, graph.edges),
             meta: graph.meta,
             loading: false,
             error: null,

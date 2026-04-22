@@ -1,0 +1,20 @@
+{
+  "acceptance_allow": [
+    "scenarios/prompt-manager/store/teams/contribution-triage/**",
+    "scenarios/prompt-manager/store/teams/director-swarm/**"
+  ],
+  "created": "2026-04-22T18:33:52Z",
+  "depends_on": [
+    "research/contribution-triage-team-design"
+  ],
+  "description": "Materialize the team designed in research/contribution-triage-team-design. Create scenarios/prompt-manager/store/teams/contribution-triage/ with team.json, TEAM.md, HEARTBEAT.md, RESPONSIBILITIES.md, and any team-specific skills. Wire it into director-swarm if appropriate. Team starts disabled — enabled once agents and plan-of-record doc exist.",
+  "effort": "M",
+  "initiative": "contribution-inbound-triage",
+  "kind": "execute",
+  "name": "contribution-triage-team",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [],
+  "title": "Create inbound triage team in prompt-manager",
+  "updated": "2026-04-22T18:33:52Z"
+}

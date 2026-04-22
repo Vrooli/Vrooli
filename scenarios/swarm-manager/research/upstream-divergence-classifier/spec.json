@@ -1,0 +1,13 @@
+{
+  "created": "2026-04-22T18:33:52Z",
+  "description": "Design the mechanical classifier that decides whether a proposed change is upstreamable or fork-local. Primary signal: git diff against the upstream main commit the user installed from. Files untouched vs. upstream = upstreamable surface; files diverged = fork-local.\n\nMust handle:\n- Public forks (normal case)\n- Private forks (auto-detect and default off; user can enable explicitly)\n- Detached installs (no upstream remote)\n- Stale upstream refs (user hasn't pulled in a while)\n- Partial overlap (change touches both diverged and pristine files — split or reject?)\n\nDeliverable: conclusion.md with the classifier contract, edge-case disposition table, and a go/no-go on whether git-diff alone is sufficient or whether file-level fingerprinting is also required.",
+  "effort": "M",
+  "initiative": "contribution-outbound-v1-bug-reports",
+  "kind": "research",
+  "name": "upstream-divergence-classifier",
+  "priority": 1,
+  "status": "backlog",
+  "tags": [],
+  "title": "Design upstream-divergence classifier for contribution eligibility",
+  "updated": "2026-04-22T18:33:52Z"
+}

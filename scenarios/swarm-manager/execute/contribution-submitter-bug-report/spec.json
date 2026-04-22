@@ -1,0 +1,19 @@
+{
+  "created": "2026-04-22T18:33:52Z",
+  "depends_on": [
+    "research/upstream-divergence-classifier",
+    "research/contribution-submitter-architecture",
+    "execute/contribution-scrubber",
+    "execute/contribution-settings-surface"
+  ],
+  "description": "Implementation of the bug-report submission client: reads a candidate report, runs it through the classifier, runs it through the scrubber, applies attribution from settings, handles approval UX (auto or prompt per category config), files the submission to GitHub via the API, and records status locally.\n\nMust produce high-quality bug reports: reproduction steps, evidence (redacted logs/diffs), environment context, and linked agent-run IDs when available.",
+  "effort": "L",
+  "initiative": "contribution-outbound-v1-bug-reports",
+  "kind": "execute",
+  "name": "contribution-submitter-bug-report",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [],
+  "title": "Build contribution submitter (bug-report artifact)",
+  "updated": "2026-04-22T18:33:52Z"
+}

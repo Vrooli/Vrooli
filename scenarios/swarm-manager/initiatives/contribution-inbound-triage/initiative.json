@@ -1,0 +1,17 @@
+{
+  "name": "contribution-inbound-triage",
+  "title": "Community Contribution Loop — Inbound Triage Team",
+  "description": "New prompt-manager team that watches incoming submissions, decides disposition, and runs the rejection → working-notebook → plan-of-record learning loop that updates customer-side guidelines on next project update.",
+  "status": "active",
+  "priority": 2,
+  "depends_on": [
+    "contribution-outbound-v1-bug-reports"
+  ],
+  "items": [
+    "research/contribution-triage-team-design",
+    "execute/contribution-triage-team",
+    "execute/submission-guidelines-plan-of-record"
+  ],
+  "created": "2026-04-22T18:33:52Z",
+  "updated": "2026-04-22T18:33:52Z"
+}

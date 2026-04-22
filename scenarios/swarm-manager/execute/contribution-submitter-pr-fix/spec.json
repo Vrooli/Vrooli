@@ -1,0 +1,16 @@
+{
+  "created": "2026-04-22T18:33:52Z",
+  "depends_on": [
+    "research/pr-fix-artifact-design"
+  ],
+  "description": "Implement the PR-fix submission path per research/pr-fix-artifact-design. Reuses classifier, scrubber, attribution, and settings from V1 bug-reports pipeline; adds patch generation, branch-and-push, and PR body templating.",
+  "effort": "L",
+  "initiative": "contribution-outbound-extensions",
+  "kind": "execute",
+  "name": "contribution-submitter-pr-fix",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [],
+  "title": "Extend submitter with PR-fix artifact",
+  "updated": "2026-04-22T18:33:52Z"
+}
