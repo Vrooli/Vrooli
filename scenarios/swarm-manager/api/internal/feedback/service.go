@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -14,24 +15,14 @@ import (
 )
 
 // AgentSpawner is the injected interface the service uses to start or
-// continue an agent-manager run for the feedback round. Concrete wiring
-// (agentmanager.Service + a SpawnInitiative sibling to SpawnBacklog) lives
-// outside this package so feedback stays a leaf.
+// continue an agent-manager run for the feedback round.
 type AgentSpawner interface {
-	// SpawnInitiativeFeedback starts a fresh agent run for a feedback round.
-	// Returns the agent-manager RunID, which the service persists on the
-	// round so ContinueRun can reuse it.
 	SpawnInitiativeFeedback(ctx context.Context, req SpawnRequest) (string, error)
-
-	// ContinueRun appends the user's message to an existing run, reusing
-	// the thread/context the agent already has. Mirrors the pattern used
-	// by clarification multi-turn.
-	ContinueRun(ctx context.Context, runID, message string, attachmentIDs []string) error
+	ContinueRun(ctx context.Context, req ContinueRequest) error
 }
 
 // SpawnRequest carries everything the spawner needs to start a feedback
-// agent run. Fields are a superset of what any one round actually uses —
-// the adapter picks the subset relevant to the skill it's invoking.
+// agent run.
 type SpawnRequest struct {
 	InitiativeName string
 	RoundNumber    int
@@ -41,10 +32,39 @@ type SpawnRequest struct {
 	AttachmentIDs  []string
 }
 
+// ContinueRequest carries the same identifying context the spawner used
+// at start so the continuation can be tagged into the activity log under
+// the same initiative + round.
+type ContinueRequest struct {
+	InitiativeName string
+	RoundNumber    int
+	RoundSlug      string
+	RunID          string
+	Message        string
+	AttachmentIDs  []string
+}
+
+// AgentRunPoller resolves run lifecycle so the feedback service can pull
+// agent output without an inbound webhook. Mirrors the clarification pull
+// pattern: when round.Status==agent_thinking, the service asks the poller
+// for the run state and, if terminal, records the agent turn.
+type AgentRunPoller interface {
+	IsEnabled() bool
+	GetRunState(ctx context.Context, runID string) (RunState, error)
+}
+
+// RunState is the subset of agent-manager run state the feedback service
+// needs to drive the pull-based agent-turn flow.
+type RunState struct {
+	Status   string
+	Summary  string
+	ErrorMsg string
+}
+
 // ItemActivityChecker reports whether any of the initiative's items has an
-// active agent run. Used by StartRound to surface blocking state to the
-// override dialog. Nil checker degrades the check to "nothing active",
-// which is safe for tests.
+// active agent run. The service consults this before acquiring the
+// initiative lock so callers can surface blocking state to the override
+// dialog instead of failing opaquely.
 type ItemActivityChecker interface {
 	ActiveRunsForInitiative(initiativeName string) ([]ItemActivity, error)
 }
@@ -57,17 +77,31 @@ type ItemActivity struct {
 	Purpose string
 }
 
+// ErrInitiativeBusy is returned by StartRound when one or more items in the
+// initiative have a live agent run and the caller did not pass Override.
+// The error wraps the list of blockers so handlers can render them.
+var ErrInitiativeBusy = errors.New("initiative has active item-level agent runs")
+
+// BusyError carries the list of blocking item activities for the override
+// warning dialog. Caller can errors.As to it to extract the details.
+type BusyError struct {
+	Activities []ItemActivity
+}
+
+func (e *BusyError) Error() string {
+	return ErrInitiativeBusy.Error()
+}
+
+func (e *BusyError) Unwrap() error { return ErrInitiativeBusy }
+
 // Service orchestrates feedback round lifecycle.
 type Service struct {
-	store    *Store
-	lock     *Lock
-	spawner  AgentSpawner
-	activity ItemActivityChecker
-	apply    *proposals.Applier
-	// StateBuilder turns an initiative name into a proposals.CurrentState.
-	// Injected so the service doesn't depend on the graph materializer
-	// directly — the wiring in main.go closes over the materializer to
-	// provide a fresh snapshot per call.
+	store        *Store
+	lock         *Lock
+	spawner      AgentSpawner
+	activity     ItemActivityChecker
+	poller       AgentRunPoller
+	apply        *proposals.Applier
 	StateBuilder func(initiativeName string) (proposals.CurrentState, error)
 	clock        func() time.Time
 }
@@ -78,6 +112,7 @@ type Config struct {
 	Lock         *Lock
 	Spawner      AgentSpawner
 	Activity     ItemActivityChecker
+	Poller       AgentRunPoller
 	Apply        *proposals.Applier
 	StateBuilder func(initiativeName string) (proposals.CurrentState, error)
 	Clock        func() time.Time
@@ -106,6 +141,7 @@ func NewService(cfg Config) (*Service, error) {
 		lock:         cfg.Lock,
 		spawner:      cfg.Spawner,
 		activity:     cfg.Activity,
+		poller:       cfg.Poller,
 		apply:        cfg.Apply,
 		StateBuilder: cfg.StateBuilder,
 		clock:        clk,
@@ -121,6 +157,16 @@ type StartRoundRequest struct {
 	SlugHint       string // optional; derived from Text if empty
 	Override       bool   // preempt active lock if present
 	DecidedBy      string // user identifier for audit
+
+	// AttachmentLoader, when set, runs inside StartRound after the round
+	// directory has been reserved (atomic) but before the round is
+	// persisted. It must populate `roundDir` with attachment files and
+	// return their relative IDs. Set by handlers serving multipart
+	// uploads so attachments land in the dir the service actually
+	// claimed — fixes the race where two concurrent submits would
+	// otherwise compute the same predicted number and clobber each
+	// other's attachments.
+	AttachmentLoader func(roundDir string) ([]string, error)
 }
 
 // StartRound creates a new round, acquires the lock, and (for active round
@@ -144,11 +190,25 @@ func (s *Service) StartRound(ctx context.Context, req StartRoundRequest) (Round,
 		return Round{}, errors.New("text is required")
 	}
 
-	number, err := s.store.NextRoundNumber(req.InitiativeName)
-	if err != nil {
-		return Round{}, fmt.Errorf("assign round number: %w", err)
-	}
 	slug := ComputeSlug(req.SlugHint, req.Text)
+	number, roundDir, err := s.store.ReserveRound(req.InitiativeName, slug)
+	if err != nil {
+		return Round{}, fmt.Errorf("reserve round: %w", err)
+	}
+
+	// Run the attachment loader against the reserved dir so multipart
+	// callers can drop files in the slot the service actually claimed.
+	attachmentIDs := append([]string(nil), req.AttachmentIDs...)
+	if req.AttachmentLoader != nil {
+		ids, loadErr := req.AttachmentLoader(roundDir)
+		if loadErr != nil {
+			// Best-effort cleanup: remove the reserved dir so the
+			// number we claimed gets reused on the next attempt.
+			_ = os.RemoveAll(roundDir)
+			return Round{}, fmt.Errorf("load attachments: %w", loadErr)
+		}
+		attachmentIDs = append(attachmentIDs, ids...)
+	}
 
 	now := s.clock().UTC().Format(time.RFC3339)
 	round := Round{
@@ -159,7 +219,7 @@ func (s *Service) StartRound(ctx context.Context, req StartRoundRequest) (Round,
 		Status:         RoundStatusSubmitting,
 		Submission: Submission{
 			Text:          strings.TrimSpace(req.Text),
-			AttachmentIDs: append([]string(nil), req.AttachmentIDs...),
+			AttachmentIDs: attachmentIDs,
 			CreatedAt:     now,
 		},
 		CreatedAt: now,
@@ -190,20 +250,34 @@ func (s *Service) StartRound(ctx context.Context, req StartRoundRequest) (Round,
 		return round, nil
 	}
 
+	// Pre-flight: surface item-level activity so the override dialog can
+	// list specific blockers rather than failing opaquely. Override skips
+	// the check (the user already saw the warning).
+	if !req.Override && s.activity != nil {
+		busy, actErr := s.activity.ActiveRunsForInitiative(req.InitiativeName)
+		if actErr != nil {
+			slog.Warn("feedback: item activity check failed", "err", actErr, "initiative", req.InitiativeName)
+		} else if len(busy) > 0 {
+			return Round{}, &BusyError{Activities: busy}
+		}
+	}
+
 	// Feedback rounds acquire the lock before any agent side-effect runs
-	// so concurrent submissions can't race us into two spawns.
+	// so concurrent submissions can't race us into two spawns. The
+	// provisional RunID is swapped for the agent-manager RunID once the
+	// spawn succeeds; on spawn failure, Release uses the provisional to
+	// clear the lock rather than leaving it wedged.
 	holder := Holder{
 		Purpose:     "feedback",
 		RoundNumber: number,
 		AcquiredBy:  req.DecidedBy,
 	}
 	if s.spawner != nil {
-		// RunID assigned post-spawn; acquire with a provisional id so
-		// Inspect still returns something meaningful.
 		holder.RunID = fmt.Sprintf("provisional-%d-%d", number, time.Now().UnixNano())
 	} else {
 		holder.RunID = fmt.Sprintf("no-spawner-%d", number)
 	}
+	provisionalRunID := holder.RunID
 	if req.Override {
 		if err := s.lock.AcquireOverride(req.InitiativeName, holder); err != nil {
 			return Round{}, fmt.Errorf("override lock: %w", err)
@@ -224,7 +298,7 @@ func (s *Service) StartRound(ctx context.Context, req StartRoundRequest) (Round,
 		CreatedAt:     now,
 	}}
 	if err := s.store.SaveRound(round); err != nil {
-		_ = s.lock.Release(req.InitiativeName, holder.RunID)
+		_ = s.lock.Release(req.InitiativeName, provisionalRunID)
 		return Round{}, fmt.Errorf("save round: %w", err)
 	}
 
@@ -236,7 +310,7 @@ func (s *Service) StartRound(ctx context.Context, req StartRoundRequest) (Round,
 		if err := s.store.SaveRound(round); err != nil {
 			return Round{}, err
 		}
-		_ = s.lock.Release(req.InitiativeName, holder.RunID)
+		_ = s.lock.Release(req.InitiativeName, provisionalRunID)
 		return round, nil
 	}
 
@@ -249,7 +323,7 @@ func (s *Service) StartRound(ctx context.Context, req StartRoundRequest) (Round,
 		AttachmentIDs:  round.Submission.AttachmentIDs,
 	})
 	if err != nil {
-		_ = s.lock.Release(req.InitiativeName, holder.RunID)
+		_ = s.lock.Release(req.InitiativeName, provisionalRunID)
 		round.Status = RoundStatusAwaitingUser
 		round.UpdatedAt = s.clock().UTC().Format(time.RFC3339)
 		round.Thread = append(round.Thread, Message{
@@ -265,10 +339,22 @@ func (s *Service) StartRound(ctx context.Context, req StartRoundRequest) (Round,
 	if err := s.store.SaveRound(round); err != nil {
 		slog.Warn("feedback: persist run id after spawn failed", "err", err, "run_id", runID)
 	}
-	// Swap the provisional holder for the real one so Inspect shows the
-	// actual agent-manager run ID to the UI.
+	// Swap the provisional holder for the real run id so Inspect surfaces
+	// the actual agent-manager run to the UI. If the swap fails — rare,
+	// since AcquireOverride is a pure file write — fall back to releasing
+	// the provisional so the initiative isn't wedged. We lose the lock
+	// guarantee for the duration of this run, but that's a strictly
+	// better failure mode than a stuck lock.
 	holder.RunID = runID
-	_ = s.lock.AcquireOverride(req.InitiativeName, holder)
+	if swapErr := s.lock.AcquireOverride(req.InitiativeName, holder); swapErr != nil {
+		slog.Warn("feedback: lock run-id swap failed; releasing provisional",
+			"err", swapErr,
+			"initiative", req.InitiativeName,
+			"provisional", provisionalRunID,
+			"run_id", runID,
+		)
+		_ = s.lock.Release(req.InitiativeName, provisionalRunID)
+	}
 	return round, nil
 }
 
@@ -306,6 +392,12 @@ func (s *Service) ContinueRound(ctx context.Context, req ContinueRoundRequest) (
 		CreatedAt:     now,
 	})
 	round.Status = RoundStatusAgentThinking
+	// User asking for a revision clears the structured parse-error signal;
+	// the next agent turn either produces a valid proposal (success) or
+	// lands back in NeedsRevision (failure), but the current signal is
+	// now stale.
+	round.NeedsRevision = false
+	round.LastParseWarnings = nil
 	round.UpdatedAt = now
 	if err := s.store.SaveRound(round); err != nil {
 		return Round{}, fmt.Errorf("save round: %w", err)
@@ -326,7 +418,15 @@ func (s *Service) ContinueRound(ctx context.Context, req ContinueRoundRequest) (
 	}
 
 	if s.spawner != nil && round.RunID != "" {
-		if err := s.spawner.ContinueRun(ctx, round.RunID, strings.TrimSpace(req.Text), req.AttachmentIDs); err != nil {
+		contReq := ContinueRequest{
+			InitiativeName: req.InitiativeName,
+			RoundNumber:    round.Number,
+			RoundSlug:      round.Slug,
+			RunID:          round.RunID,
+			Message:        strings.TrimSpace(req.Text),
+			AttachmentIDs:  req.AttachmentIDs,
+		}
+		if err := s.spawner.ContinueRun(ctx, contReq); err != nil {
 			_ = s.lock.Release(req.InitiativeName, holder.RunID)
 			round.Status = RoundStatusAwaitingUser
 			round.UpdatedAt = s.clock().UTC().Format(time.RFC3339)
@@ -347,6 +447,69 @@ func (s *Service) ContinueRound(ctx context.Context, req ContinueRoundRequest) (
 		_ = s.lock.Release(req.InitiativeName, holder.RunID)
 	}
 	return round, nil
+}
+
+// EnsurePolledTurn checks the agent run state for a round in
+// RoundStatusAgentThinking and, if the run has reached a terminal state,
+// records the agent's output as a turn. Mirrors the clarification pull
+// pattern (clarification_state.go:GetClarification) so the UI can advance
+// rounds by polling rather than depending on an inbound webhook from the
+// agent-manager.
+//
+// Returns the (possibly updated) round. Callers — typically Handler.Get —
+// should invoke this whenever they hand a round to the user. Idempotent
+// and safe under poll storms: rounds not in agent_thinking, runs without a
+// RunID, missing pollers, and non-terminal run states are no-ops.
+func (s *Service) EnsurePolledTurn(ctx context.Context, round Round) (Round, error) {
+	if round.Status != RoundStatusAgentThinking {
+		return round, nil
+	}
+	if s.poller == nil || !s.poller.IsEnabled() || strings.TrimSpace(round.RunID) == "" {
+		return round, nil
+	}
+	state, err := s.poller.GetRunState(ctx, round.RunID)
+	if err != nil {
+		// Polling failures aren't fatal — the round stays in
+		// agent_thinking and the next poll will retry. Log so operators
+		// can spot wedged runs.
+		slog.Warn("feedback: poll run state failed",
+			"err", err, "initiative", round.InitiativeName, "round", round.Number, "run_id", round.RunID)
+		return round, nil
+	}
+	if !isTerminalRunStatus(state.Status) {
+		return round, nil
+	}
+
+	body := strings.TrimSpace(state.Summary)
+	if isFailureRunStatus(state.Status) {
+		msg := strings.TrimSpace(state.ErrorMsg)
+		if msg == "" {
+			msg = "agent run failed without an error message"
+		}
+		body = "agent run failed: " + msg
+	}
+	if body == "" {
+		body = "agent run completed without producing output"
+	}
+	return s.RecordAgentTurn(round.InitiativeName, round.Number, body)
+}
+
+// isTerminalRunStatus matches the clarification_service.isTerminalStatus
+// list. Kept private to feedback so the package doesn't import backlog.
+func isTerminalRunStatus(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "complete", "completed", "success", "failed", "error", "cancelled", "canceled":
+		return true
+	}
+	return false
+}
+
+func isFailureRunStatus(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "failed", "error", "cancelled", "canceled":
+		return true
+	}
+	return false
 }
 
 // RecordAgentTurn persists an agent-generated message into the round's
@@ -374,6 +537,7 @@ func (s *Service) RecordAgentTurn(initiativeName string, roundNumber int, body s
 	}
 
 	extracted, warnings := extractProposal(body)
+	msg.ParseWarnings = append([]string(nil), warnings...)
 	if extracted != nil {
 		revision := ProposalRevision{
 			ID:            fmt.Sprintf("p%d", len(round.Proposals)+1),
@@ -385,8 +549,18 @@ func (s *Service) RecordAgentTurn(initiativeName string, roundNumber int, body s
 		revision.MessageIndex = round.AppendThreadMessage(msg)
 		round.Proposals = append(round.Proposals, revision)
 		round.CurrentProposalID = revision.ID
+		round.NeedsRevision = false
+		round.LastParseWarnings = nil
 	} else {
 		round.AppendThreadMessage(msg)
+		// No extractable proposal: the round returns to the user with a
+		// structured "revision needed" signal. The UI reads NeedsRevision
+		// to render the ask-for-revision CTA; warnings surface why.
+		round.NeedsRevision = true
+		round.LastParseWarnings = append([]string(nil), warnings...)
+		if len(round.LastParseWarnings) == 0 {
+			round.LastParseWarnings = []string{"agent output did not contain a parseable proposal JSON block"}
+		}
 	}
 	round.Status = RoundStatusAwaitingUser
 	round.UpdatedAt = now
@@ -502,34 +676,126 @@ func isValidRoundType(t RoundType) bool {
 	return false
 }
 
-// proposalBlockRE finds the first ```json ... ``` code block that parses as
-// a Proposal envelope. Lenient enough to tolerate leading prose, strict on
-// the parsed JSON shape.
-var proposalBlockRE = regexp.MustCompile("(?s)```json\\s*(.*?)\\s*```")
+// fencedProposalBlockRE finds a fenced code block whose info string is
+// case-insensitively "json" (with optional surrounding whitespace). Used
+// as the first-pass extractor before falling back to looser strategies.
+var fencedProposalBlockRE = regexp.MustCompile("(?si)```\\s*json\\b[^\\n]*\\n(.*?)```")
 
-// extractProposal pulls a JSON proposal block out of an agent message, if
-// present. Returns nil + warnings when the block is missing or doesn't
-// parse — the round still records the turn so the user can ask for a
-// revision, which is the documented failure mode.
+// genericFencedBlockRE finds any fenced block, including ones with no
+// language tag or a non-json language. Used after the json-fenced pass
+// fails so prose like ```\n{...}\n``` or ```yaml-like-but-actually-json
+// still parses.
+var genericFencedBlockRE = regexp.MustCompile("(?s)```[^\\n]*\\n(.*?)```")
+
+// proposalSentinelRE matches `PROPOSAL:` (case-insensitive) followed by an
+// optional fence then a JSON object. Lets agents use the explicit
+// sentinel pattern documented in the skill prompt.
+var proposalSentinelRE = regexp.MustCompile(`(?si)PROPOSAL\s*:[^\{]*?(\{.*\})`)
+
+// extractProposal pulls a JSON proposal envelope out of an agent message
+// using a lenient-then-strict strategy:
+//  1. ```json fenced blocks (case-insensitive on the language tag)
+//  2. any fenced block whose contents start with `{`
+//  3. a `PROPOSAL:` sentinel followed by a JSON object
+//  4. the first balanced `{...}` substring in the message
+//
+// All four strategies feed the same parser, so a single message can be
+// noisy as long as one extraction succeeds. Returns nil + warnings when
+// no extraction parses — the round still records the turn so the user
+// can ask for a revision, which is the documented failure mode.
 func extractProposal(body string) (*proposals.Proposal, []string) {
-	matches := proposalBlockRE.FindAllStringSubmatch(body, -1)
-	if len(matches) == 0 {
+	if strings.TrimSpace(body) == "" {
 		return nil, nil
 	}
 	var warnings []string
-	for _, m := range matches {
-		raw := strings.TrimSpace(m[1])
+
+	tryParse := func(raw string) (*proposals.Proposal, bool) {
+		raw = strings.TrimSpace(raw)
 		if !strings.HasPrefix(raw, "{") {
-			continue
+			return nil, false
 		}
 		var p proposals.Proposal
 		if err := json.Unmarshal([]byte(raw), &p); err != nil {
 			warnings = append(warnings, fmt.Sprintf("parse proposal block: %s", err.Error()))
+			return nil, false
+		}
+		return &p, true
+	}
+
+	// Strategy 1: ```json fenced blocks.
+	for _, m := range fencedProposalBlockRE.FindAllStringSubmatch(body, -1) {
+		if p, ok := tryParse(m[1]); ok {
+			return p, warnings
+		}
+	}
+
+	// Strategy 2: any fenced block.
+	for _, m := range genericFencedBlockRE.FindAllStringSubmatch(body, -1) {
+		if p, ok := tryParse(m[1]); ok {
+			return p, warnings
+		}
+	}
+
+	// Strategy 3: PROPOSAL: sentinel.
+	if m := proposalSentinelRE.FindStringSubmatch(body); len(m) == 2 {
+		if balanced := extractFirstBalancedJSON(m[1]); balanced != "" {
+			if p, ok := tryParse(balanced); ok {
+				return p, warnings
+			}
+		}
+	}
+
+	// Strategy 4: any balanced JSON object in the body — last resort,
+	// useful when the agent emits raw JSON with no markdown wrapping.
+	if balanced := extractFirstBalancedJSON(body); balanced != "" {
+		if p, ok := tryParse(balanced); ok {
+			return p, warnings
+		}
+	}
+
+	return nil, warnings
+}
+
+// extractFirstBalancedJSON returns the substring starting at the first '{'
+// up to (and including) the matching closing '}'. Counts balanced braces
+// honoring strings and escapes. Returns "" when no balanced object is
+// found. Tolerates leading prose, attribute lists, etc.
+func extractFirstBalancedJSON(s string) string {
+	start := strings.IndexByte(s, '{')
+	if start < 0 {
+		return ""
+	}
+	depth := 0
+	inString := false
+	escape := false
+	for i := start; i < len(s); i++ {
+		c := s[i]
+		if escape {
+			escape = false
 			continue
 		}
-		return &p, warnings
+		if c == '\\' && inString {
+			escape = true
+			continue
+		}
+		if c == '"' {
+			inString = !inString
+			continue
+		}
+		if inString {
+			continue
+		}
+		switch c {
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return s[start : i+1]
+			}
+		}
 	}
-	return nil, warnings
+	return ""
 }
 
 // deriveSlugFromText produces a slug from a free-form submission. Falls

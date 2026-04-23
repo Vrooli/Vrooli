@@ -60,10 +60,12 @@ const (
 	// decision point before an agent races with live work.
 	OpInterruptInProgress Op = "interrupt_in_progress"
 
-	// OpSplitItem creates N new items from the fields of the source item
-	// and archives the source. Dependents of the source are repointed at
-	// the first new item; additional repointing requires follow-up
-	// OpAddEdge / OpRemoveEdge mutations.
+	// OpSplitItem creates N new items from Into and archives the source
+	// atomically — if any child creation or the source archive fails,
+	// already-created children are archived to restore pre-split state.
+	// Dependents of the source are NOT automatically retargeted;
+	// callers that need to repoint edges must emit OpRemoveEdge /
+	// OpAddEdge mutations in the same proposal.
 	OpSplitItem Op = "split_item"
 )
 
@@ -192,11 +194,17 @@ type GraphEdge struct {
 }
 
 // Source carries attribution metadata for every apply. Feedback rounds
-// (W4) populate FeedbackRoundID + InitiativeName; review rounds (W5)
-// populate ReviewRoundID. At least InitiativeName is required.
+// (W4) populate FeedbackRoundID + InitiativeName + RoundNumber/RoundSlug;
+// review rounds (W5) populate ReviewRoundID. At least InitiativeName is
+// required. Entrypoint identifies the originating surface so downstream
+// telemetry (event log, agentactivity) can group by code path
+// ("initiative.feedback", "initiative.review", etc.).
 type Source struct {
 	InitiativeName   string
 	FeedbackRoundID  string
+	RoundNumber      int
+	RoundSlug        string
+	Entrypoint       string
 	ReviewRoundID    string
 	DecidedBy        string
 	DecidedAtRFC3339 string

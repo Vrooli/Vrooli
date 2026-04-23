@@ -86,19 +86,69 @@ func Sanitize(raw string) string {
 }
 
 // NextRoundNumber returns one more than the highest existing round number
-// for the initiative. Returns 1 when no rounds exist yet.
+// for the initiative. Counts every `round-NNN(-slug)` directory on disk,
+// including reserved-but-not-yet-persisted ones — otherwise ReserveRound
+// would deadlock retrying the same number after creating the dir but
+// before SaveRound finishes.
 func (s *Store) NextRoundNumber(initiativeName string) (int, error) {
-	rounds, err := s.ListRounds(initiativeName)
+	dir := s.FeedbackDir(initiativeName)
+	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return 0, err
+		if os.IsNotExist(err) {
+			return 1, nil
+		}
+		return 0, fmt.Errorf("read feedback dir: %w", err)
 	}
 	max := 0
-	for _, r := range rounds {
-		if r.Number > max {
-			max = r.Number
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		m := roundDirRE.FindStringSubmatch(entry.Name())
+		if m == nil {
+			continue
+		}
+		var n int
+		fmt.Sscanf(m[1], "%d", &n)
+		if n > max {
+			max = n
 		}
 	}
 	return max + 1, nil
+}
+
+// ReserveRound atomically claims the next available round number by
+// retrying NextRoundNumber + os.Mkdir until Mkdir succeeds — `os.Mkdir`
+// (unlike MkdirAll) fails when the target already exists, which gives us
+// a filesystem-level CAS. The returned dir is empty but exists, so the
+// caller can immediately drop attachments into it knowing no concurrent
+// submission will reuse the same number.
+//
+// `attempts` caps the retry loop so a runaway listing failure can't
+// spin forever — a healthy contention burst settles in <10 attempts.
+func (s *Store) ReserveRound(initiativeName, slug string) (number int, dir string, err error) {
+	feedbackDir := s.FeedbackDir(initiativeName)
+	if err := os.MkdirAll(feedbackDir, 0o755); err != nil {
+		return 0, "", fmt.Errorf("create feedback dir: %w", err)
+	}
+	const maxAttempts = 50
+	for i := 0; i < maxAttempts; i++ {
+		n, err := s.NextRoundNumber(initiativeName)
+		if err != nil {
+			return 0, "", err
+		}
+		candidate := s.RoundDir(initiativeName, n, slug)
+		switch mkErr := os.Mkdir(candidate, 0o755); {
+		case mkErr == nil:
+			return n, candidate, nil
+		case os.IsExist(mkErr):
+			// Concurrent reservation already took this slot; bump and retry.
+			continue
+		default:
+			return 0, "", fmt.Errorf("reserve round dir: %w", mkErr)
+		}
+	}
+	return 0, "", fmt.Errorf("could not reserve round number after %d attempts", maxAttempts)
 }
 
 // ListRounds scans the feedback folder and returns every round in ascending

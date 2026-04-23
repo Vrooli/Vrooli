@@ -22,25 +22,29 @@ const pendingSpawnTTL = 5 * time.Minute
 type OwnerType string
 
 const (
-	OwnerBacklog  OwnerType = "backlog"
-	OwnerCapture  OwnerType = "capture"
-	OwnerScenario OwnerType = "scenario"
+	OwnerBacklog    OwnerType = "backlog"
+	OwnerCapture    OwnerType = "capture"
+	OwnerScenario   OwnerType = "scenario"
+	OwnerInitiative OwnerType = "initiative"
 )
 
 type Purpose string
 
 const (
-	PurposeInitialize Purpose = "initialize"
-	PurposeWorkshop   Purpose = "workshop"
-	PurposeFinalize   Purpose = "finalize"
-	PurposeResearch   Purpose = "research"
-	PurposeProcess    Purpose = "process"
-	PurposeFixup      Purpose = "fixup"
-	PurposeFollowUp   Purpose = "followup"
-	PurposeSpecSync   Purpose = "spec_sync"
-	PurposeClassify   Purpose = "classify"
-	PurposeClarify    Purpose = "clarify"
-	PurposeReview     Purpose = "review"
+	PurposeInitialize       Purpose = "initialize"
+	PurposeWorkshop         Purpose = "workshop"
+	PurposeFinalize         Purpose = "finalize"
+	PurposeResearch         Purpose = "research"
+	PurposeProcess          Purpose = "process"
+	PurposeFixup            Purpose = "fixup"
+	PurposeFollowUp         Purpose = "followup"
+	PurposeSpecSync         Purpose = "spec_sync"
+	PurposeClassify         Purpose = "classify"
+	PurposeClarify          Purpose = "clarify"
+	PurposeReview           Purpose = "review"
+	PurposeFeedback         Purpose = "feedback"
+	PurposeFeedbackContinue Purpose = "feedback_continue"
+	PurposeInitiativeReview Purpose = "initiative_review"
 )
 
 type InteractionType string
@@ -119,14 +123,15 @@ func (s Spec) normalized() (Spec, error) {
 	}
 
 	switch s.OwnerType {
-	case OwnerBacklog, OwnerCapture, OwnerScenario:
+	case OwnerBacklog, OwnerCapture, OwnerScenario, OwnerInitiative:
 	default:
-		return Spec{}, fmt.Errorf("owner_type must be backlog, capture, or scenario")
+		return Spec{}, fmt.Errorf("owner_type must be backlog, capture, scenario, or initiative")
 	}
 
 	switch s.Purpose {
 	case PurposeInitialize, PurposeWorkshop, PurposeFinalize, PurposeResearch, PurposeProcess,
-		PurposeFixup, PurposeFollowUp, PurposeSpecSync, PurposeClassify, PurposeClarify, PurposeReview:
+		PurposeFixup, PurposeFollowUp, PurposeSpecSync, PurposeClassify, PurposeClarify, PurposeReview,
+		PurposeFeedback, PurposeFeedbackContinue, PurposeInitiativeReview:
 	default:
 		return Spec{}, fmt.Errorf("purpose is required")
 	}

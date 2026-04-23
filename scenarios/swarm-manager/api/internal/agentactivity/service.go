@@ -26,6 +26,14 @@ type rawAgentService interface {
 	StopRun(ctx context.Context, runID string) error
 }
 
+// initiativeSpawner is satisfied by agentmanager.AgentService and any test
+// double that wants to participate in tracked initiative spawns. Kept
+// separate from rawAgentService so existing stubs (capture, backlog) need
+// no churn when agentactivity is extended.
+type initiativeSpawner interface {
+	SpawnInitiative(ctx context.Context, req agentmanager.InitiativeSpawnRequest) (agentmanager.RunResult, error)
+}
+
 type runContinuer interface {
 	ContinueRun(ctx context.Context, runID string, message string) error
 }
@@ -43,12 +51,13 @@ type ServiceConfig struct {
 // All backlog/capture/scenario work spawns and continuations must flow through
 // this service so durable activity records remain complete.
 type Service struct {
-	store           Store
-	agentService    rawAgentService
-	continuer       runContinuer
-	differ          runDiffer
-	eventDispatcher dispatch.NodeDispatcher
-	mu              sync.Mutex
+	store             Store
+	agentService      rawAgentService
+	continuer         runContinuer
+	differ            runDiffer
+	initiativeSpawner initiativeSpawner
+	eventDispatcher   dispatch.NodeDispatcher
+	mu                sync.Mutex
 }
 
 func NewService(cfg ServiceConfig) *Service {
@@ -61,6 +70,9 @@ func NewService(cfg ServiceConfig) *Service {
 	}
 	if differ, ok := cfg.AgentService.(runDiffer); ok {
 		svc.differ = differ
+	}
+	if spawner, ok := cfg.AgentService.(initiativeSpawner); ok {
+		svc.initiativeSpawner = spawner
 	}
 	return svc
 }
@@ -100,6 +112,20 @@ func (s *Service) SpawnBacklog(ctx context.Context, req agentmanager.BacklogSpaw
 		return agentmanager.RunResult{}, err
 	}
 	return s.spawnTracked(ctx, spec, req)
+}
+
+// SpawnInitiative tracks an initiative-scoped agent run (feedback rounds,
+// initiative reviews) so the activity log carries the same provenance as
+// backlog work. The Spec on the context must use OwnerInitiative.
+func (s *Service) SpawnInitiative(ctx context.Context, req agentmanager.InitiativeSpawnRequest) (agentmanager.RunResult, error) {
+	spec, err := specFromContext(ctx)
+	if err != nil {
+		return agentmanager.RunResult{}, err
+	}
+	if spec.OwnerType != OwnerInitiative {
+		return agentmanager.RunResult{}, fmt.Errorf("SpawnInitiative requires owner_type=initiative")
+	}
+	return s.spawnInitiativeTracked(ctx, spec, req)
 }
 
 func (s *Service) ContinueRun(ctx context.Context, runID string, message string) error {
@@ -329,6 +355,92 @@ func (s *Service) spawnTracked(
 	s.mu.Unlock()
 
 	runResult, spawnErr := s.agentService.SpawnBacklog(ctx, req)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	records, err = s.store.Load()
+	if err != nil {
+		return agentmanager.RunResult{}, err
+	}
+	idx := indexByID(records, record.ActivityID)
+	if idx < 0 {
+		return agentmanager.RunResult{}, fmt.Errorf("agent activity disappeared during spawn")
+	}
+
+	updated := records[idx]
+	updated.UpdatedAt = nowRFC3339()
+	if spawnErr != nil {
+		updated.Status = StatusFailed
+		updated.FailureReason = spawnErr.Error()
+		updated.FinishedAt = updated.UpdatedAt
+		records[idx] = updated
+		if err := s.store.Save(records); err != nil {
+			return agentmanager.RunResult{}, err
+		}
+		s.dispatchStatusUpdate(updated)
+		return agentmanager.RunResult{}, spawnErr
+	}
+
+	updated.TaskID = strings.TrimSpace(runResult.TaskID)
+	updated.RunID = strings.TrimSpace(runResult.RunID)
+	updated.Status = StatusStarting
+	updated.StartedAt = updated.UpdatedAt
+	records[idx] = updated
+	if err := s.store.Save(records); err != nil {
+		return agentmanager.RunResult{}, err
+	}
+	s.dispatchStatusUpdate(updated)
+	return runResult, nil
+}
+
+// spawnInitiativeTracked is the initiative analogue of spawnTracked. There
+// is no per-owner exclusivity guard — feedback rounds gate themselves via
+// the on-disk feedback lock, which is checked before this is called.
+func (s *Service) spawnInitiativeTracked(
+	ctx context.Context,
+	spec Spec,
+	req agentmanager.InitiativeSpawnRequest,
+) (agentmanager.RunResult, error) {
+	if s.initiativeSpawner == nil {
+		return agentmanager.RunResult{}, agentmanager.ErrNotAvailable
+	}
+	if s.agentService == nil || !s.agentService.IsEnabled() {
+		return agentmanager.RunResult{}, agentmanager.ErrNotAvailable
+	}
+
+	s.mu.Lock()
+	records, err := s.store.Load()
+	if err != nil {
+		s.mu.Unlock()
+		return agentmanager.RunResult{}, err
+	}
+
+	now := nowRFC3339()
+	record := Record{
+		ActivityID:      idgen.Generate(),
+		OwnerType:       spec.OwnerType,
+		OwnerKind:       spec.OwnerKind,
+		OwnerName:       spec.OwnerName,
+		OwnerTitle:      spec.OwnerTitle,
+		ExecutionID:     spec.ExecutionID,
+		Purpose:         spec.Purpose,
+		InteractionType: InteractionSpawn,
+		Status:          StatusPending,
+		RequestedAt:     now,
+		RequestedBy:     spec.RequestedBy,
+		Metadata:        spec.Metadata,
+		UpdatedAt:       now,
+	}
+	records = append(records, record)
+	if err := s.store.Save(records); err != nil {
+		s.mu.Unlock()
+		return agentmanager.RunResult{}, err
+	}
+	s.dispatchStatusUpdate(record)
+	s.mu.Unlock()
+
+	runResult, spawnErr := s.initiativeSpawner.SpawnInitiative(ctx, req)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()

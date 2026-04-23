@@ -89,6 +89,12 @@ type Message struct {
 	AttachmentIDs []string `json:"attachment_ids,omitempty"`
 	ProposalID    string   `json:"proposal_id,omitempty"` // set on agent messages that carried a proposal
 	RunID         string   `json:"run_id,omitempty"`      // agent-manager run ID, for audit
+	// ParseWarnings records the proposal extractor's complaints when an
+	// agent turn either produced no extractable proposal or produced one
+	// only after falling back. Attached to the message (not the round)
+	// so the UI can render per-turn "the agent's JSON was malformed" hints
+	// without losing history across subsequent turns.
+	ParseWarnings []string `json:"parse_warnings,omitempty"`
 	CreatedAt     string   `json:"created_at"`
 }
 
@@ -129,8 +135,19 @@ type Round struct {
 	CurrentProposalID string             `json:"current_proposal_id,omitempty"`
 	Decision          *Decision          `json:"decision,omitempty"`
 	RunID             string             `json:"run_id,omitempty"` // active agent-manager run (cleared on terminal)
-	CreatedAt         string             `json:"created_at"`
-	UpdatedAt         string             `json:"updated_at"`
+	// NeedsRevision is set true when the most recent agent turn produced
+	// no extractable proposal. The UI reads this to render the
+	// "ask the agent for a revision" CTA instead of a blank proposal
+	// panel — a structured replacement for the plan's "parse error" flag.
+	// Cleared automatically on the next successful agent turn or when
+	// the user continues/decides the round.
+	NeedsRevision bool `json:"needs_revision,omitempty"`
+	// LastParseWarnings mirrors the ParseWarnings on the most recent
+	// agent turn. Surfaced at the round level so the UI's revision CTA
+	// can show the reason without scanning the thread.
+	LastParseWarnings []string `json:"last_parse_warnings,omitempty"`
+	CreatedAt         string   `json:"created_at"`
+	UpdatedAt         string   `json:"updated_at"`
 }
 
 // CurrentProposal returns the ProposalRevision matching CurrentProposalID,

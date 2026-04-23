@@ -184,8 +184,8 @@ func validateUpdateItem(m Mutation, state CurrentState, newItems map[string]int)
 		return fmt.Errorf("op %s patch must set at least one field", m.Op)
 	}
 	if m.Patch.Priority != nil {
-		if *m.Patch.Priority < 1 || *m.Patch.Priority > 10 {
-			return fmt.Errorf("patch.priority must be between 1 and 10")
+		if *m.Patch.Priority < MinItemPriority || *m.Patch.Priority > MaxItemPriority {
+			return fmt.Errorf("patch.priority must be between %d and %d", MinItemPriority, MaxItemPriority)
 		}
 	}
 	if m.Patch.Effort != nil {
@@ -235,8 +235,8 @@ func validateChangePriority(m Mutation, state CurrentState, newItems map[string]
 	if m.Priority == nil {
 		return fmt.Errorf("op %s requires priority", m.Op)
 	}
-	if *m.Priority < 1 || *m.Priority > 10 {
-		return fmt.Errorf("priority must be between 1 and 10")
+	if *m.Priority < MinItemPriority || *m.Priority > MaxItemPriority {
+		return fmt.Errorf("priority must be between %d and %d", MinItemPriority, MaxItemPriority)
 	}
 	return nil
 }
@@ -355,8 +355,8 @@ func validateItemSpec(spec ItemSpec) error {
 	if strings.TrimSpace(spec.Title) == "" {
 		return fmt.Errorf("item.title is required")
 	}
-	if spec.Priority != 0 && (spec.Priority < 1 || spec.Priority > 10) {
-		return fmt.Errorf("item.priority must be between 1 and 10")
+	if spec.Priority != 0 && (spec.Priority < MinItemPriority || spec.Priority > MaxItemPriority) {
+		return fmt.Errorf("item.priority must be between %d and %d", MinItemPriority, MaxItemPriority)
 	}
 	if spec.Effort != "" {
 		if err := validateEffortValue(spec.Effort); err != nil {

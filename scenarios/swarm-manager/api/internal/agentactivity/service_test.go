@@ -10,14 +10,18 @@ import (
 )
 
 type stubAgentService struct {
-	enabled      bool
-	spawnResult  agentmanager.RunResult
-	spawnErr     error
-	runStates    map[string]agentmanager.RunState
-	stopErr      error
-	continueErr  error
-	continueRuns []string
-	stopRuns     []string
+	enabled              bool
+	spawnResult          agentmanager.RunResult
+	spawnErr             error
+	initiativeSpawnReq   agentmanager.InitiativeSpawnRequest
+	initiativeSpawnCalls int
+	initiativeSpawnRes   agentmanager.RunResult
+	initiativeSpawnErr   error
+	runStates            map[string]agentmanager.RunState
+	stopErr              error
+	continueErr          error
+	continueRuns         []string
+	stopRuns             []string
 }
 
 func (s *stubAgentService) IsEnabled() bool {
@@ -44,6 +48,15 @@ func (s *stubAgentService) SpawnBacklog(_ context.Context, _ agentmanager.Backlo
 		return agentmanager.RunResult{}, s.spawnErr
 	}
 	return s.spawnResult, nil
+}
+
+func (s *stubAgentService) SpawnInitiative(_ context.Context, req agentmanager.InitiativeSpawnRequest) (agentmanager.RunResult, error) {
+	s.initiativeSpawnCalls++
+	s.initiativeSpawnReq = req
+	if s.initiativeSpawnErr != nil {
+		return agentmanager.RunResult{}, s.initiativeSpawnErr
+	}
+	return s.initiativeSpawnRes, nil
 }
 
 func (s *stubAgentService) GetRunState(_ context.Context, runID string) (agentmanager.RunState, error) {
@@ -505,6 +518,153 @@ func TestHasActiveAgent_ReturnsTrueWhenActive(t *testing.T) {
 
 	if !svc.HasActiveAgent(context.Background(), "idea", "item-a") {
 		t.Error("expected HasActiveAgent to return true for active item")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Initiative-owned spawn flow
+// ---------------------------------------------------------------------------
+
+func TestSpawnInitiative_TracksRecordWithInitiativeOwner(t *testing.T) {
+	t.Parallel()
+	raw := &stubAgentService{
+		enabled:            true,
+		initiativeSpawnRes: agentmanager.RunResult{TaskID: "init-task-1", RunID: "init-run-1"},
+	}
+	svc := newTestService(t, raw)
+
+	ctx := WithSpec(context.Background(), Spec{
+		OwnerType: OwnerInitiative,
+		OwnerName: "command-center-foundation",
+		Purpose:   PurposeFeedback,
+		Metadata: map[string]string{
+			"round_number": "3",
+			"round_slug":   "ui-rewrite",
+			"entrypoint":   "initiative.feedback",
+		},
+	})
+	res, err := svc.SpawnInitiative(ctx, agentmanager.InitiativeSpawnRequest{
+		Name:        "command-center-foundation",
+		Purpose:     "feedback",
+		RoundNumber: 3,
+		RoundSlug:   "ui-rewrite",
+	})
+	if err != nil {
+		t.Fatalf("SpawnInitiative: %v", err)
+	}
+	if res.RunID != "init-run-1" {
+		t.Fatalf("unexpected run id: %q", res.RunID)
+	}
+	if raw.initiativeSpawnCalls != 1 {
+		t.Fatalf("expected 1 spawn call, got %d", raw.initiativeSpawnCalls)
+	}
+
+	records, _ := svc.store.Load()
+	if len(records) != 1 {
+		t.Fatalf("expected 1 record, got %d", len(records))
+	}
+	rec := records[0]
+	if rec.OwnerType != OwnerInitiative {
+		t.Fatalf("expected OwnerInitiative, got %q", rec.OwnerType)
+	}
+	if rec.OwnerName != "command-center-foundation" {
+		t.Fatalf("unexpected owner name: %q", rec.OwnerName)
+	}
+	if rec.Purpose != PurposeFeedback {
+		t.Fatalf("expected PurposeFeedback, got %q", rec.Purpose)
+	}
+	if rec.Status != StatusStarting {
+		t.Fatalf("expected starting status, got %q", rec.Status)
+	}
+	if rec.RunID != "init-run-1" {
+		t.Fatalf("unexpected run id on record: %q", rec.RunID)
+	}
+	if rec.Metadata["round_number"] != "3" || rec.Metadata["round_slug"] != "ui-rewrite" || rec.Metadata["entrypoint"] != "initiative.feedback" {
+		t.Fatalf("metadata not preserved: %+v", rec.Metadata)
+	}
+}
+
+func TestSpawnInitiative_RejectsBacklogOwner(t *testing.T) {
+	t.Parallel()
+	raw := &stubAgentService{enabled: true}
+	svc := newTestService(t, raw)
+
+	ctx := WithSpec(context.Background(), Spec{
+		OwnerType: OwnerBacklog,
+		OwnerKind: "execute",
+		OwnerName: "x",
+		Purpose:   PurposeFeedback,
+	})
+	if _, err := svc.SpawnInitiative(ctx, agentmanager.InitiativeSpawnRequest{Name: "x"}); err == nil {
+		t.Fatal("expected error when context spec is OwnerBacklog")
+	}
+	if raw.initiativeSpawnCalls != 0 {
+		t.Fatalf("expected no spawn call, got %d", raw.initiativeSpawnCalls)
+	}
+}
+
+func TestSpawnInitiative_FailureMarksRecordFailed(t *testing.T) {
+	t.Parallel()
+	raw := &stubAgentService{
+		enabled:            true,
+		initiativeSpawnErr: errors.New("agent-manager exploded"),
+	}
+	svc := newTestService(t, raw)
+
+	ctx := WithSpec(context.Background(), Spec{
+		OwnerType: OwnerInitiative,
+		OwnerName: "init-x",
+		Purpose:   PurposeFeedback,
+	})
+	if _, err := svc.SpawnInitiative(ctx, agentmanager.InitiativeSpawnRequest{Name: "init-x"}); err == nil {
+		t.Fatal("expected spawn error")
+	}
+
+	records, _ := svc.store.Load()
+	if len(records) != 1 {
+		t.Fatalf("expected 1 record, got %d", len(records))
+	}
+	rec := records[0]
+	if rec.Status != StatusFailed {
+		t.Fatalf("expected failed status, got %q", rec.Status)
+	}
+	if rec.FailureReason == "" {
+		t.Fatal("expected failure reason to be populated")
+	}
+}
+
+func TestContinueRun_AcceptsInitiativeOwner(t *testing.T) {
+	t.Parallel()
+	raw := &stubAgentService{enabled: true}
+	svc := newTestService(t, raw)
+
+	ctx := WithSpec(context.Background(), Spec{
+		OwnerType: OwnerInitiative,
+		OwnerName: "init-x",
+		Purpose:   PurposeFeedbackContinue,
+		Metadata:  map[string]string{"round_number": "1"},
+	})
+	if err := svc.ContinueRun(ctx, "run-1", "more please"); err != nil {
+		t.Fatalf("ContinueRun: %v", err)
+	}
+
+	records, _ := svc.store.Load()
+	if len(records) != 1 {
+		t.Fatalf("expected 1 record, got %d", len(records))
+	}
+	if records[0].OwnerType != OwnerInitiative {
+		t.Fatalf("expected OwnerInitiative, got %q", records[0].OwnerType)
+	}
+	if records[0].Purpose != PurposeFeedbackContinue {
+		t.Fatalf("expected PurposeFeedbackContinue, got %q", records[0].Purpose)
+	}
+}
+
+func TestSpec_RejectsUnknownOwnerType(t *testing.T) {
+	t.Parallel()
+	_, err := Spec{OwnerType: OwnerType("zoot"), OwnerName: "x", Purpose: PurposeFeedback}.normalized()
+	if err == nil {
+		t.Fatal("expected error for unknown owner type")
 	}
 }
 

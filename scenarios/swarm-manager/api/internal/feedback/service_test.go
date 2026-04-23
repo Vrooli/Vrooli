@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -19,7 +20,7 @@ import (
 // persistent RunID per round.
 type fakeSpawner struct {
 	spawnCalls    []SpawnRequest
-	continueCalls []string
+	continueCalls []ContinueRequest
 	returnRunID   string
 	spawnErr      error
 }
@@ -35,8 +36,8 @@ func (f *fakeSpawner) SpawnInitiativeFeedback(_ context.Context, req SpawnReques
 	return f.returnRunID, nil
 }
 
-func (f *fakeSpawner) ContinueRun(_ context.Context, runID, message string, _ []string) error {
-	f.continueCalls = append(f.continueCalls, runID+":"+message)
+func (f *fakeSpawner) ContinueRun(_ context.Context, req ContinueRequest) error {
+	f.continueCalls = append(f.continueCalls, req)
 	return nil
 }
 
@@ -175,6 +176,12 @@ func TestService_StartRound_Note_SkipsAgent(t *testing.T) {
 	}
 	if round.Decision == nil || round.Decision.Kind != DecisionDismiss {
 		t.Fatalf("expected dismiss decision, got %+v", round.Decision)
+	}
+	// Auto-populated rationale distinguishes a note from a user-driven
+	// dismiss on a live feedback round — the meta-optimizer reader needs
+	// this to filter out notes without inspecting Type.
+	if round.Decision.Rationale != "note" {
+		t.Fatalf("expected auto rationale=note, got %q", round.Decision.Rationale)
 	}
 	holder, _ := env.lock.Inspect("ui-rewrite")
 	if holder != nil {
@@ -335,6 +342,104 @@ func TestService_Decide_AcceptAppliesProposal(t *testing.T) {
 	}
 }
 
+// captureEvents records Source/Mutation pairs from proposals.Applier so the
+// feedback service test can assert that round metadata reaches the
+// attribution surface (proposals.Source fields).
+type captureEvents struct {
+	sources   []proposals.Source
+	mutations []proposals.Mutation
+}
+
+func (c *captureEvents) EmitProposalMutationApplied(s proposals.Source, m proposals.Mutation) {
+	c.sources = append(c.sources, s)
+	c.mutations = append(c.mutations, m)
+}
+
+func TestService_Decide_PopulatesProposalSourceWithRoundMetadata(t *testing.T) {
+	t.Parallel()
+	env := newServiceEnv(t)
+
+	// Rebuild applier + service with a capturing emitter.
+	cap := &captureEvents{}
+	applier, err := proposals.NewApplier(proposals.Config{
+		Store:    env.bStore,
+		Assigner: env.iSvc,
+		Events:   cap,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stateBuilder := func(name string) (proposals.CurrentState, error) {
+		return proposals.CurrentState{
+			InitiativeName: name,
+			Nodes: map[string]proposals.GraphNode{
+				"execute/foo": {ID: "execute/foo", Kind: "execute", Name: "foo", Title: "Foo", Priority: 5},
+			},
+			KnownInitiatives: map[string]struct{}{"ui-rewrite": {}},
+		}, nil
+	}
+	svc, err := NewService(Config{
+		Store:        env.store,
+		Lock:         env.lock,
+		Spawner:      env.spawner,
+		Apply:        applier,
+		StateBuilder: stateBuilder,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	round, err := svc.StartRound(context.Background(), StartRoundRequest{
+		InitiativeName: "ui-rewrite",
+		Type:           RoundTypeFeedback,
+		Text:           "investigate priority",
+		SlugHint:       "boost-foo",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	round, err = svc.RecordAgentTurn("ui-rewrite", round.Number,
+		"```json\n"+
+			`{"form":"mutation_list","mutations":[{"id":"m1","op":"change_priority","target":"execute/foo","priority":9}]}`+
+			"\n```",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := svc.Decide(context.Background(), DecideRequest{
+		InitiativeName:      "ui-rewrite",
+		RoundNumber:         round.Number,
+		Kind:                DecisionAccept,
+		AcceptedMutationIDs: []string{"m1"},
+		DecidedBy:           "matthalloran8",
+	}); err != nil {
+		t.Fatalf("Decide: %v", err)
+	}
+
+	if len(cap.sources) != 1 {
+		t.Fatalf("expected 1 captured source, got %d", len(cap.sources))
+	}
+	src := cap.sources[0]
+	if src.InitiativeName != "ui-rewrite" {
+		t.Errorf("InitiativeName: got %q", src.InitiativeName)
+	}
+	if src.RoundNumber != round.Number {
+		t.Errorf("RoundNumber: got %d, want %d", src.RoundNumber, round.Number)
+	}
+	if src.RoundSlug != round.Slug {
+		t.Errorf("RoundSlug: got %q, want %q", src.RoundSlug, round.Slug)
+	}
+	if src.Entrypoint != "initiative.feedback" {
+		t.Errorf("Entrypoint: got %q, want %q", src.Entrypoint, "initiative.feedback")
+	}
+	if src.DecidedBy != "matthalloran8" {
+		t.Errorf("DecidedBy: got %q", src.DecidedBy)
+	}
+	if src.FeedbackRoundID == "" {
+		t.Error("FeedbackRoundID empty")
+	}
+}
+
 func TestService_Decide_RejectDoesNotApply(t *testing.T) {
 	env := newServiceEnv(t)
 	round, err := env.svc.StartRound(context.Background(), StartRoundRequest{
@@ -399,8 +504,187 @@ func TestService_ContinueRound_AppendsAndFlips(t *testing.T) {
 	if len(env.spawner.continueCalls) != 1 {
 		t.Fatalf("expected 1 continue call, got %d", len(env.spawner.continueCalls))
 	}
-	if !strings.Contains(env.spawner.continueCalls[0], "revise please") {
-		t.Fatalf("expected continue call to carry message, got %q", env.spawner.continueCalls[0])
+	got := env.spawner.continueCalls[0]
+	if !strings.Contains(got.Message, "revise please") {
+		t.Fatalf("expected continue call to carry message, got %q", got.Message)
+	}
+	if got.InitiativeName != "ui-rewrite" {
+		t.Fatalf("expected InitiativeName=ui-rewrite, got %q", got.InitiativeName)
+	}
+	if got.RoundNumber != round.Number {
+		t.Fatalf("expected RoundNumber=%d, got %d", round.Number, got.RoundNumber)
+	}
+	if got.RunID == "" {
+		t.Fatal("expected non-empty RunID in continue request")
+	}
+}
+
+func TestService_StartRound_SpawnFailureRecordsErrorAndReleasesLock(t *testing.T) {
+	env := newServiceEnv(t)
+	env.spawner.spawnErr = errors.New("agent-manager unreachable")
+
+	round, err := env.svc.StartRound(context.Background(), StartRoundRequest{
+		InitiativeName: "ui-rewrite",
+		Type:           RoundTypeFeedback,
+		Text:           "kick off",
+	})
+	if err == nil {
+		t.Fatalf("expected spawn error to surface")
+	}
+	if round.Status != RoundStatusAwaitingUser {
+		t.Fatalf("expected round to land in awaiting_user after spawn fail, got %s", round.Status)
+	}
+	// Last thread message should describe the spawn failure so the user
+	// knows why the round flipped to awaiting_user without a proposal.
+	if len(round.Thread) < 2 {
+		t.Fatalf("expected user + agent-error messages in thread, got %+v", round.Thread)
+	}
+	last := round.Thread[len(round.Thread)-1]
+	if last.Role != "agent" || !strings.Contains(last.Content, "agent spawn failed") {
+		t.Fatalf("expected trailing agent error message, got %+v", last)
+	}
+	// Lock must be released — otherwise the next submit gets a stale
+	// 409 even though the agent never actually started.
+	if holder, _ := env.lock.Inspect("ui-rewrite"); holder != nil {
+		t.Fatalf("expected lock released after spawn failure, got %+v", holder)
+	}
+	// Round was persisted so a subsequent GET surfaces the error to UI.
+	persisted, loadErr := env.store.LoadRound("ui-rewrite", round.Number)
+	if loadErr != nil {
+		t.Fatalf("load round after spawn fail: %v", loadErr)
+	}
+	if persisted.Status != RoundStatusAwaitingUser {
+		t.Fatalf("persisted status = %s, want awaiting_user", persisted.Status)
+	}
+}
+
+// stubActivityChecker lets service_test assert that BusyError carries
+// multi-item blocker details, which the UI uses to render the override
+// dialog with a per-item explanation.
+type stubActivityChecker struct {
+	activities []ItemActivity
+	err        error
+}
+
+func (s *stubActivityChecker) ActiveRunsForInitiative(_ string) ([]ItemActivity, error) {
+	return s.activities, s.err
+}
+
+func TestService_StartRound_BusyError_CarriesAllBlockers(t *testing.T) {
+	env := newServiceEnv(t)
+	activity := &stubActivityChecker{
+		activities: []ItemActivity{
+			{Ref: "execute/foo", RunID: "run-foo", Purpose: "execute"},
+			{Ref: "execute/bar", RunID: "run-bar", Purpose: "workshop"},
+			{Ref: "research/baz", RunID: "run-baz", Purpose: "research"},
+		},
+	}
+	svc, err := NewService(Config{
+		Store:    env.store,
+		Lock:     env.lock,
+		Spawner:  env.spawner,
+		Apply:    env.applier,
+		Activity: activity,
+		StateBuilder: func(string) (proposals.CurrentState, error) {
+			return proposals.CurrentState{InitiativeName: "ui-rewrite"}, nil
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = svc.StartRound(context.Background(), StartRoundRequest{
+		InitiativeName: "ui-rewrite",
+		Type:           RoundTypeFeedback,
+		Text:           "kick off",
+	})
+	if err == nil {
+		t.Fatal("expected BusyError, got nil")
+	}
+	if !errors.Is(err, ErrInitiativeBusy) {
+		t.Fatalf("expected ErrInitiativeBusy wrap, got %v", err)
+	}
+	var busy *BusyError
+	if !errors.As(err, &busy) {
+		t.Fatalf("expected *BusyError, got %T", err)
+	}
+	if len(busy.Activities) != 3 {
+		t.Fatalf("expected 3 blockers surfaced, got %d (%+v)", len(busy.Activities), busy.Activities)
+	}
+	// Order-preserving: the UI renders blockers in the order the
+	// activity checker returned them, so the override dialog stays
+	// deterministic across refreshes.
+	wantRefs := []string{"execute/foo", "execute/bar", "research/baz"}
+	for i, want := range wantRefs {
+		if busy.Activities[i].Ref != want {
+			t.Errorf("blocker[%d].Ref: got %q, want %q", i, busy.Activities[i].Ref, want)
+		}
+	}
+}
+
+func TestService_StartRound_BusyError_OverrideBypassesCheck(t *testing.T) {
+	env := newServiceEnv(t)
+	activity := &stubActivityChecker{
+		activities: []ItemActivity{{Ref: "execute/foo", RunID: "run-foo", Purpose: "execute"}},
+	}
+	svc, err := NewService(Config{
+		Store:    env.store,
+		Lock:     env.lock,
+		Spawner:  env.spawner,
+		Apply:    env.applier,
+		Activity: activity,
+		StateBuilder: func(string) (proposals.CurrentState, error) {
+			return proposals.CurrentState{InitiativeName: "ui-rewrite"}, nil
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	round, err := svc.StartRound(context.Background(), StartRoundRequest{
+		InitiativeName: "ui-rewrite",
+		Type:           RoundTypeFeedback,
+		Text:           "preempt",
+		Override:       true,
+	})
+	if err != nil {
+		t.Fatalf("expected override to bypass busy check: %v", err)
+	}
+	if round.Status != RoundStatusAgentThinking {
+		t.Fatalf("expected agent_thinking, got %s", round.Status)
+	}
+}
+
+func TestService_RecordAgentTurn_ParseWarningsSurfaceOnSuccessfulExtract(t *testing.T) {
+	env := newServiceEnv(t)
+	round, err := env.svc.StartRound(context.Background(), StartRoundRequest{
+		InitiativeName: "ui-rewrite",
+		Type:           RoundTypeFeedback,
+		Text:           "start",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Two fenced blocks: the first is malformed JSON, the second is
+	// valid. The lenient extractor tries the first, records the parse
+	// error as a warning, then succeeds on the second. The revision
+	// must surface the recorded warning so the UI/meta-optimizer can
+	// see the agent produced noise before landing on a valid proposal.
+	body := "Attempt one:\n```json\n{not json}\n```\n\nBetter:\n```json\n" +
+		`{"form":"mutation_list","mutations":[{"id":"m1","op":"change_priority","target":"execute/foo","priority":8}]}` +
+		"\n```\n"
+	round, err = env.svc.RecordAgentTurn("ui-rewrite", round.Number, body)
+	if err != nil {
+		t.Fatalf("RecordAgentTurn: %v", err)
+	}
+	if len(round.Proposals) != 1 {
+		t.Fatalf("expected 1 proposal attached, got %d", len(round.Proposals))
+	}
+	warnings := round.Proposals[0].ParseWarnings
+	if len(warnings) == 0 {
+		t.Fatal("expected ParseWarnings populated by the failed first extraction")
+	}
+	joined := strings.Join(warnings, "|")
+	if !strings.Contains(joined, "parse proposal block") {
+		t.Fatalf("expected parse-warning message, got %v", warnings)
 	}
 }
 
@@ -418,5 +702,187 @@ func TestService_NextRoundNumber_Increments(t *testing.T) {
 		if round.Number != i {
 			t.Fatalf("expected round %d, got %d", i, round.Number)
 		}
+	}
+}
+
+// TestService_ContinueRound_PreservesRunID asserts the clarification-style
+// multi-turn contract: a follow-up ContinueRound reuses the same agent-manager
+// RunID assigned at StartRound, so downstream activity tracking and event
+// attribution can group turns under the same run.
+func TestService_ContinueRound_PreservesRunID(t *testing.T) {
+	env := newServiceEnv(t)
+	round, err := env.svc.StartRound(context.Background(), StartRoundRequest{
+		InitiativeName: "ui-rewrite",
+		Type:           RoundTypeFeedback,
+		Text:           "start",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	initialRunID := round.RunID
+	if initialRunID == "" {
+		t.Fatal("expected RunID after StartRound")
+	}
+
+	round, err = env.svc.RecordAgentTurn("ui-rewrite", round.Number, "no proposal")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	continued, err := env.svc.ContinueRound(context.Background(), ContinueRoundRequest{
+		InitiativeName: "ui-rewrite",
+		RoundNumber:    round.Number,
+		Text:           "revise please",
+	})
+	if err != nil {
+		t.Fatalf("ContinueRound: %v", err)
+	}
+	if continued.RunID != initialRunID {
+		t.Fatalf("expected ContinueRound to preserve RunID %q, got %q", initialRunID, continued.RunID)
+	}
+	if len(env.spawner.continueCalls) != 1 {
+		t.Fatalf("expected 1 continue call, got %d", len(env.spawner.continueCalls))
+	}
+	if env.spawner.continueCalls[0].RunID != initialRunID {
+		t.Fatalf("expected ContinueRun to use RunID %q, got %q",
+			initialRunID, env.spawner.continueCalls[0].RunID)
+	}
+}
+
+// TestService_Decide_PartialAccept_RecordsRejectedMutations asserts that
+// when a user accepts a subset of mutation IDs, the decision on disk
+// records the rejected IDs so auditors can later see what was dropped.
+func TestService_Decide_PartialAccept_RecordsRejectedMutations(t *testing.T) {
+	env := newServiceEnv(t)
+	round, err := env.svc.StartRound(context.Background(), StartRoundRequest{
+		InitiativeName: "ui-rewrite",
+		Type:           RoundTypeFeedback,
+		Text:           "start",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Agent emits a proposal with three mutations; user accepts only the first.
+	body := "Plan:\n```json\n" + `{
+  "form": "mutation_list",
+  "mutations": [
+    {"id":"m1","op":"change_priority","target":"execute/foo","priority":7},
+    {"id":"m2","op":"change_priority","target":"execute/foo","priority":8},
+    {"id":"m3","op":"change_priority","target":"execute/foo","priority":9}
+  ]
+}` + "\n```"
+	round, err = env.svc.RecordAgentTurn("ui-rewrite", round.Number, body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	decided, _, err := env.svc.Decide(context.Background(), DecideRequest{
+		InitiativeName:      "ui-rewrite",
+		RoundNumber:         round.Number,
+		Kind:                DecisionPartialAccept,
+		AcceptedMutationIDs: []string{"m1"},
+	})
+	if err != nil {
+		t.Fatalf("Decide: %v", err)
+	}
+	if decided.Decision == nil {
+		t.Fatal("expected decision recorded")
+	}
+	got := append([]string(nil), decided.Decision.RejectedMutationIDs...)
+	if len(got) != 2 {
+		t.Fatalf("expected 2 rejected IDs, got %v", got)
+	}
+	sort.Strings(got)
+	if got[0] != "m2" || got[1] != "m3" {
+		t.Fatalf("expected rejected [m2 m3], got %v", got)
+	}
+
+	// Re-load from disk to confirm persistence.
+	reloaded, err := env.store.LoadRound("ui-rewrite", round.Number)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reloaded.Decision == nil || len(reloaded.Decision.RejectedMutationIDs) != 2 {
+		t.Fatalf("rejected ids not persisted: %+v", reloaded.Decision)
+	}
+}
+
+// TestService_RecordAgentTurn_UnparsableFlagsNeedsRevision asserts the
+// structured parse-error signal: when the agent's output lacks a
+// parseable proposal, the round lands in awaiting_user with
+// NeedsRevision=true so the UI can render "ask for revision" without
+// scanning the thread for warnings.
+func TestService_RecordAgentTurn_UnparsableFlagsNeedsRevision(t *testing.T) {
+	env := newServiceEnv(t)
+	round, err := env.svc.StartRound(context.Background(), StartRoundRequest{
+		InitiativeName: "ui-rewrite",
+		Type:           RoundTypeFeedback,
+		Text:           "start",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body := "Here's some prose.\n```json\n{broken json}\n```"
+	round, err = env.svc.RecordAgentTurn("ui-rewrite", round.Number, body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !round.NeedsRevision {
+		t.Fatal("expected NeedsRevision=true after unparsable turn")
+	}
+	if len(round.LastParseWarnings) == 0 {
+		t.Fatal("expected LastParseWarnings populated")
+	}
+	if round.CurrentProposalID != "" {
+		t.Fatalf("expected no current proposal, got %q", round.CurrentProposalID)
+	}
+
+	// ContinueRound clears the signal so the next turn starts clean.
+	continued, err := env.svc.ContinueRound(context.Background(), ContinueRoundRequest{
+		InitiativeName: "ui-rewrite",
+		RoundNumber:    round.Number,
+		Text:           "try again",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if continued.NeedsRevision {
+		t.Fatal("ContinueRound should clear NeedsRevision")
+	}
+	if len(continued.LastParseWarnings) != 0 {
+		t.Fatalf("ContinueRound should clear LastParseWarnings, got %v", continued.LastParseWarnings)
+	}
+}
+
+// TestService_StartRound_SpawnFailure_ReleasesProvisionalLock covers the
+// lock run-id swap fix: on spawn error the provisional holder is released
+// so a follow-up StartRound succeeds without waiting for the stale-lock
+// sweep.
+func TestService_StartRound_SpawnFailure_ReleasesProvisionalLock(t *testing.T) {
+	env := newServiceEnv(t)
+	env.spawner.spawnErr = errors.New("agent-manager unreachable")
+
+	_, err := env.svc.StartRound(context.Background(), StartRoundRequest{
+		InitiativeName: "ui-rewrite",
+		Type:           RoundTypeFeedback,
+		Text:           "attempt",
+	})
+	if err == nil {
+		t.Fatal("expected spawn error")
+	}
+	// Lock should be released — a fresh StartRound succeeds.
+	env.spawner.spawnErr = nil
+	round, err := env.svc.StartRound(context.Background(), StartRoundRequest{
+		InitiativeName: "ui-rewrite",
+		Type:           RoundTypeFeedback,
+		Text:           "retry",
+	})
+	if err != nil {
+		t.Fatalf("expected retry to succeed, got %v", err)
+	}
+	if round.RunID == "" {
+		t.Fatal("expected retry to carry RunID")
 	}
 }

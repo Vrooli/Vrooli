@@ -1,6 +1,6 @@
 {
   "initiative": "git-control-tower-ai-provenance",
-  "generated_at": "2026-04-23T17:43:41Z",
+  "generated_at": "2026-04-23T20:19:14Z",
   "nodes": [
     {
       "id": "execute/gct-pending-ai-provenance-hardening",

@@ -136,6 +136,119 @@ describe("ProposalReview", () => {
     expect(screen.getByText(/cycle/)).toBeInTheDocument();
   });
 
+  it("distinguishes skipped mutations from applied and failed via outcome badge + card tint", () => {
+    render(
+      <ProposalReview
+        revision={makeRevision()}
+        onAccept={vi.fn()}
+        onReject={vi.fn()}
+        onDismiss={vi.fn()}
+        readOnly
+        applyResult={{
+          applied: 1,
+          failed: 1,
+          skipped: 1,
+          outcomes: [
+            { mutation_id: "m1", op: "archive_item", applied: true },
+            { mutation_id: "m2", op: "change_status", applied: false, skipped: true },
+            { mutation_id: "m3", op: "add_edge", applied: false, error: "cycle" },
+          ],
+        }}
+      />,
+    );
+    // Outcome data attribute pins the classification so future tint/
+    // color changes don't silently regress the skipped-vs-failed
+    // distinction the user relies on to understand partial applies.
+    const cards = screen.getAllByTestId(selectors.feedback.proposalMutation);
+    expect(cards[0]).toHaveAttribute("data-outcome", "applied");
+    expect(cards[1]).toHaveAttribute("data-outcome", "skipped");
+    expect(cards[2]).toHaveAttribute("data-outcome", "failed");
+    // Each outcome renders its own badge text.
+    expect(within(cards[0]!).getByText(/^Applied$/)).toBeInTheDocument();
+    expect(within(cards[1]!).getByText(/^Skipped$/)).toBeInTheDocument();
+    expect(within(cards[2]!).getByText(/^Failed$/)).toBeInTheDocument();
+    // Skipped card must NOT carry the error-red styling that failures have —
+    // guard rail against the old "applied=false means failed" conflation.
+    expect(cards[1]!.className).not.toMatch(/border-red-500/);
+  });
+
+  it("summary banner surfaces failure with red styling when any mutation failed", () => {
+    render(
+      <ProposalReview
+        revision={makeRevision()}
+        onAccept={vi.fn()}
+        onReject={vi.fn()}
+        onDismiss={vi.fn()}
+        readOnly
+        applyResult={{
+          applied: 2,
+          failed: 1,
+          skipped: 0,
+          outcomes: [
+            { mutation_id: "m1", op: "archive_item", applied: true },
+            { mutation_id: "m2", op: "change_status", applied: true },
+            { mutation_id: "m3", op: "add_edge", applied: false, error: "cycle" },
+          ],
+        }}
+      />,
+    );
+    const banner = screen.getByTestId(selectors.feedback.proposalApplySummary);
+    // Red border/background must be present when failed>0 so the user
+    // does not read a green banner next to "Failed: 1" and assume success.
+    expect(banner.className).toMatch(/border-red-500/);
+    expect(banner.className).not.toMatch(/border-emerald-500/);
+  });
+
+  it("summary banner uses amber when only skipped are present (no failures)", () => {
+    render(
+      <ProposalReview
+        revision={makeRevision()}
+        onAccept={vi.fn()}
+        onReject={vi.fn()}
+        onDismiss={vi.fn()}
+        readOnly
+        applyResult={{
+          applied: 2,
+          failed: 0,
+          skipped: 1,
+          outcomes: [
+            { mutation_id: "m1", op: "archive_item", applied: true },
+            { mutation_id: "m2", op: "change_status", applied: false, skipped: true },
+            { mutation_id: "m3", op: "add_edge", applied: true },
+          ],
+        }}
+      />,
+    );
+    const banner = screen.getByTestId(selectors.feedback.proposalApplySummary);
+    expect(banner.className).toMatch(/border-amber-500/);
+    expect(banner.className).not.toMatch(/border-red-500/);
+    expect(banner.className).not.toMatch(/border-emerald-500/);
+  });
+
+  it("summary banner stays green when everything applied cleanly", () => {
+    render(
+      <ProposalReview
+        revision={makeRevision()}
+        onAccept={vi.fn()}
+        onReject={vi.fn()}
+        onDismiss={vi.fn()}
+        readOnly
+        applyResult={{
+          applied: 3,
+          failed: 0,
+          skipped: 0,
+          outcomes: [
+            { mutation_id: "m1", op: "archive_item", applied: true },
+            { mutation_id: "m2", op: "change_status", applied: true },
+            { mutation_id: "m3", op: "add_edge", applied: true },
+          ],
+        }}
+      />,
+    );
+    const banner = screen.getByTestId(selectors.feedback.proposalApplySummary);
+    expect(banner.className).toMatch(/border-emerald-500/);
+  });
+
   it("refuses to render accept flow for full_graph proposals", () => {
     const fg: ProposalRevision = {
       id: "p1",

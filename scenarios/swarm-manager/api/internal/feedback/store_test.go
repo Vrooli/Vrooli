@@ -105,6 +105,62 @@ func TestStore_ListRounds_SortsAscending(t *testing.T) {
 	}
 }
 
+func TestStore_ReserveRound_AllocatesDistinctSlots(t *testing.T) {
+	store, _ := newStoreInTempDir(t)
+
+	// Reserve sequentially; each call should bump the number AND create
+	// the dir on disk.
+	got := make(map[int]string, 3)
+	for i := 0; i < 3; i++ {
+		n, dir, err := store.ReserveRound("ui-rewrite", "ui-feedback")
+		if err != nil {
+			t.Fatalf("reserve %d: %v", i, err)
+		}
+		if _, dup := got[n]; dup {
+			t.Fatalf("duplicate round number %d returned", n)
+		}
+		got[n] = dir
+	}
+	if len(got) != 3 {
+		t.Fatalf("expected 3 unique numbers, got %v", got)
+	}
+}
+
+func TestStore_ReserveRound_IsRaceSafe(t *testing.T) {
+	store, _ := newStoreInTempDir(t)
+	const concurrency = 8
+
+	type result struct {
+		number int
+		err    error
+	}
+	resCh := make(chan result, concurrency)
+	start := make(chan struct{})
+	for i := 0; i < concurrency; i++ {
+		go func() {
+			<-start
+			n, _, err := store.ReserveRound("ui-rewrite", "ui-feedback")
+			resCh <- result{number: n, err: err}
+		}()
+	}
+	close(start)
+
+	seen := make(map[int]struct{}, concurrency)
+	for i := 0; i < concurrency; i++ {
+		r := <-resCh
+		if r.err != nil {
+			t.Fatalf("reserve err: %v", r.err)
+		}
+		if _, dup := seen[r.number]; dup {
+			t.Fatalf("two reservations returned same number %d", r.number)
+		}
+		seen[r.number] = struct{}{}
+	}
+	if len(seen) != concurrency {
+		t.Fatalf("expected %d unique numbers, got %d (%v)", concurrency, len(seen), seen)
+	}
+}
+
 func TestStore_DeleteRound_Idempotent(t *testing.T) {
 	store, _ := newStoreInTempDir(t)
 	if err := store.DeleteRound("i", 99); err != nil {

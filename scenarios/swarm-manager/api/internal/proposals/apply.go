@@ -5,12 +5,27 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 	"time"
 
 	"swarm-manager/internal/backlog"
 )
+
+// Priority bounds shared across Validate and Apply — proposals reject
+// anything outside [MinItemPriority, MaxItemPriority] and Apply clamps
+// unset priorities to DefaultItemPriority (mid-band). Keeping the three
+// constants adjacent makes the intent obvious: new fields that reuse
+// this scale should anchor on these constants rather than 1/5/10
+// literals.
+const (
+	MinItemPriority     = 1
+	MaxItemPriority     = 10
+	DefaultItemPriority = 5
+)
+
+// DefaultApplierOwner is the fallback Source.DecidedBy / attribution
+// owner recorded when a proposal is applied without an explicit owner.
+const DefaultApplierOwner = "proposal"
 
 // BacklogStore is the minimal backlog persistence surface the Applier uses.
 // Satisfied by backlog.FileStore (via the exported Store interface).
@@ -92,7 +107,7 @@ func NewApplier(cfg Config) (*Applier, error) {
 	}
 	owner := cfg.DefaultOwner
 	if owner == "" {
-		owner = "proposal"
+		owner = DefaultApplierOwner
 	}
 	return &Applier{
 		store:        cfg.Store,
@@ -106,11 +121,18 @@ func NewApplier(cfg Config) (*Applier, error) {
 }
 
 // Outcome reports the result of applying a single mutation.
+//
+// Exactly one of Applied, Skipped, or an Error-bearing failure is true.
+// Skipped means the user did not select this mutation (expected partial
+// accept) and is distinct from a failure — renderers should surface the
+// two differently so users don't confuse "chose not to apply" with
+// "tried to apply and something broke."
 type Outcome struct {
 	MutationID string `json:"mutation_id"`
 	Op         Op     `json:"op"`
 	Target     string `json:"target,omitempty"`
 	Applied    bool   `json:"applied"`
+	Skipped    bool   `json:"skipped,omitempty"`
 	Error      string `json:"error,omitempty"`
 }
 
@@ -154,10 +176,21 @@ func (a *Applier) Apply(ctx context.Context, proposal Proposal, current CurrentS
 			if _, ok := accepted[m.ID]; !ok {
 				result.Skipped++
 				outcome.Applied = false
+				outcome.Skipped = true
 				outcome.Error = ""
 				result.Outcomes = append(result.Outcomes, outcome)
 				continue
 			}
+		}
+		// Per-mutation cancellation check. Callers that abort mid-batch
+		// (shutdown, request timeout) see the remaining mutations
+		// surface as ctx.Err() rather than silently completing slow I/O.
+		if err := ctx.Err(); err != nil {
+			outcome.Applied = false
+			outcome.Error = err.Error()
+			result.Failed++
+			result.Outcomes = append(result.Outcomes, outcome)
+			continue
 		}
 		if err := a.applyOne(ctx, m, source); err != nil {
 			outcome.Applied = false
@@ -172,6 +205,14 @@ func (a *Applier) Apply(ctx context.Context, proposal Proposal, current CurrentS
 		} else {
 			outcome.Applied = true
 			result.Applied++
+			slog.Info("proposals: mutation applied",
+				"initiative", source.InitiativeName,
+				"feedback_round", source.FeedbackRoundID,
+				"mutation", m.ID,
+				"op", m.Op,
+				"target", outcome.Target,
+				"entrypoint", source.Entrypoint,
+			)
 			if a.events != nil {
 				a.events.EmitProposalMutationApplied(source, m)
 			}
@@ -212,30 +253,40 @@ func acceptSet(ids []string) map[string]struct{} {
 func (a *Applier) applyOne(ctx context.Context, m Mutation, source Source) error {
 	switch m.Op {
 	case OpAddItem:
-		return a.applyAddItem(*m.Item, source)
+		return a.applyAddItem(ctx, *m.Item, source)
 	case OpUpdateItem:
-		return a.applyUpdateItem(m.Target, m.Patch)
+		return a.applyUpdateItem(ctx, m.Target, m.Patch)
 	case OpChangeStatus:
-		return a.applyChangeStatus(m.Target, m.Status)
+		return a.applyChangeStatus(ctx, m.Target, m.Status)
 	case OpChangePriority:
-		return a.applyChangePriority(m.Target, *m.Priority)
+		return a.applyChangePriority(ctx, m.Target, *m.Priority)
 	case OpAddEdge:
-		return a.applyAddEdge(m.From, m.To)
+		return a.applyAddEdge(ctx, m.From, m.To)
 	case OpRemoveEdge:
-		return a.applyRemoveEdge(m.From, m.To)
+		return a.applyRemoveEdge(ctx, m.From, m.To)
 	case OpMoveInitiative:
-		return a.applyMoveInitiative(m.Target, source.InitiativeName, m.Initiative)
+		return a.applyMoveInitiative(ctx, m.Target, source.InitiativeName, m.Initiative)
 	case OpArchiveItem:
-		return a.applyArchive(m.Target)
+		return a.applyArchive(ctx, m.Target)
 	case OpInterruptInProgress:
 		return a.applyInterrupt(ctx, m.Target)
 	case OpSplitItem:
-		return a.applySplit(m.Target, m.Into, source)
+		return a.applySplit(ctx, m.Target, m.Into, source)
+	default:
+		// Defence against a new op added to types.go without a
+		// handler here: every recognized op in AllOps must map to a
+		// case above. Unknown ops are already caught by Validate, so
+		// reaching the default means the op is known but unhandled —
+		// a programmer error surfaced loudly rather than silently
+		// swallowed as a skipped mutation.
+		return fmt.Errorf("%w: %s", ErrUnknownOp, m.Op)
 	}
-	return fmt.Errorf("%w: %s", ErrUnknownOp, m.Op)
 }
 
-func (a *Applier) applyAddItem(spec ItemSpec, source Source) error {
+func (a *Applier) applyAddItem(ctx context.Context, spec ItemSpec, source Source) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	kind, err := backlog.ParseBacklogKind(spec.Kind)
 	if err != nil {
 		return err
@@ -269,22 +320,15 @@ func (a *Applier) applyAddItem(spec ItemSpec, source Source) error {
 		Updated:         now,
 	}
 	if item.Priority == 0 {
-		item.Priority = 5
+		item.Priority = DefaultItemPriority
 	}
-
-	if err := os.MkdirAll(a.store.ItemDir(kind, spec.Name), 0o755); err != nil {
-		return fmt.Errorf("create item dir: %w", err)
-	}
-	if err := a.store.SaveItem(item); err != nil {
-		return fmt.Errorf("save item: %w", err)
-	}
-	if err := a.assigner.RememberItem(source.InitiativeName, string(item.Kind)+"/"+item.Name); err != nil {
-		return fmt.Errorf("attach to initiative: %w", err)
-	}
-	return nil
+	return backlog.CreateItem(a.store, a.assigner, item, source.InitiativeName)
 }
 
-func (a *Applier) applyUpdateItem(ref string, patch *ItemPatch) error {
+func (a *Applier) applyUpdateItem(ctx context.Context, ref string, patch *ItemPatch) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	kind, name, err := splitRef(ref)
 	if err != nil {
 		return err
@@ -293,44 +337,58 @@ func (a *Applier) applyUpdateItem(ref string, patch *ItemPatch) error {
 	if err != nil {
 		return err
 	}
-	if patch.Title != nil {
-		item.Title = strings.TrimSpace(*patch.Title)
-	}
-	if patch.Description != nil {
-		item.Description = *patch.Description
-	}
-	if patch.Priority != nil {
-		item.Priority = *patch.Priority
-	}
-	if patch.Tags != nil {
-		item.Tags = append([]string(nil), *patch.Tags...)
-	}
-	if patch.DependsOn != nil {
-		deps := append([]string(nil), *patch.DependsOn...)
-		if len(deps) > 0 {
-			if err := a.store.ValidateDependencies(deps); err != nil {
-				return fmt.Errorf("depends_on: %w", err)
-			}
+	// Dependency cycles are a business-level concern the applier enforces
+	// before delegating to the shared patch helper — ApplyItemPatch is
+	// intentionally semantics-free about validity.
+	if patch.DependsOn != nil && len(*patch.DependsOn) > 0 {
+		if err := a.store.ValidateDependencies(*patch.DependsOn); err != nil {
+			return fmt.Errorf("depends_on: %w", err)
 		}
-		item.DependsOn = deps
 	}
-	if patch.Effort != nil {
-		item.Effort = strings.ToUpper(strings.TrimSpace(*patch.Effort))
-	}
-	if patch.AcceptanceAllow != nil {
-		item.AcceptanceAllow = append([]string(nil), *patch.AcceptanceAllow...)
-	}
-	if patch.AcceptanceDeny != nil {
-		item.AcceptanceDeny = append([]string(nil), *patch.AcceptanceDeny...)
-	}
-	if patch.Note != nil {
-		item.Note = strings.TrimSpace(*patch.Note)
-	}
+	backlog.ApplyItemPatch(&item, toBacklogPatch(patch))
 	item.Updated = a.clock().UTC().Format(time.RFC3339)
 	return a.store.SaveItem(item)
 }
 
-func (a *Applier) applyChangeStatus(ref, status string) error {
+// toBacklogPatch converts proposals' ItemPatch (the wire shape an agent
+// produces) into backlog.ItemPatch (the shared mutation primitive). Ops
+// that touch status/initiative/spawned_from are excluded here — those
+// have dedicated mutations so misuse surfaces as an unknown op instead
+// of a silent field smuggle.
+func toBacklogPatch(p *ItemPatch) backlog.ItemPatch {
+	if p == nil {
+		return backlog.ItemPatch{}
+	}
+	out := backlog.ItemPatch{
+		Title:       p.Title,
+		Description: p.Description,
+		Priority:    p.Priority,
+		Effort:      p.Effort,
+		Note:        p.Note,
+	}
+	if p.Tags != nil {
+		cp := append([]string(nil), *p.Tags...)
+		out.Tags = &cp
+	}
+	if p.DependsOn != nil {
+		cp := append([]string(nil), *p.DependsOn...)
+		out.DependsOn = &cp
+	}
+	if p.AcceptanceAllow != nil {
+		cp := append([]string(nil), *p.AcceptanceAllow...)
+		out.AcceptanceAllow = &cp
+	}
+	if p.AcceptanceDeny != nil {
+		cp := append([]string(nil), *p.AcceptanceDeny...)
+		out.AcceptanceDeny = &cp
+	}
+	return out
+}
+
+func (a *Applier) applyChangeStatus(ctx context.Context, ref, status string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	kind, name, err := splitRef(ref)
 	if err != nil {
 		return err
@@ -348,7 +406,10 @@ func (a *Applier) applyChangeStatus(ref, status string) error {
 	return a.store.SaveItem(item)
 }
 
-func (a *Applier) applyChangePriority(ref string, priority int) error {
+func (a *Applier) applyChangePriority(ctx context.Context, ref string, priority int) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	kind, name, err := splitRef(ref)
 	if err != nil {
 		return err
@@ -362,7 +423,10 @@ func (a *Applier) applyChangePriority(ref string, priority int) error {
 	return a.store.SaveItem(item)
 }
 
-func (a *Applier) applyAddEdge(from, to string) error {
+func (a *Applier) applyAddEdge(ctx context.Context, from, to string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	kind, name, err := splitRef(from)
 	if err != nil {
 		return err
@@ -385,7 +449,10 @@ func (a *Applier) applyAddEdge(from, to string) error {
 	return a.store.SaveItem(item)
 }
 
-func (a *Applier) applyRemoveEdge(from, to string) error {
+func (a *Applier) applyRemoveEdge(ctx context.Context, from, to string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	kind, name, err := splitRef(from)
 	if err != nil {
 		return err
@@ -394,7 +461,7 @@ func (a *Applier) applyRemoveEdge(from, to string) error {
 	if err != nil {
 		return err
 	}
-	filtered := item.DependsOn[:0]
+	filtered := make([]string, 0, len(item.DependsOn))
 	removed := false
 	for _, dep := range item.DependsOn {
 		if dep == to {
@@ -406,12 +473,15 @@ func (a *Applier) applyRemoveEdge(from, to string) error {
 	if !removed {
 		return fmt.Errorf("edge does not exist: %s -> %s", from, to)
 	}
-	item.DependsOn = append([]string(nil), filtered...)
+	item.DependsOn = filtered
 	item.Updated = a.clock().UTC().Format(time.RFC3339)
 	return a.store.SaveItem(item)
 }
 
-func (a *Applier) applyMoveInitiative(ref, currentInit, destination string) error {
+func (a *Applier) applyMoveInitiative(ctx context.Context, ref, currentInit, destination string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	kind, name, err := splitRef(ref)
 	if err != nil {
 		return err
@@ -444,6 +514,20 @@ func (a *Applier) applyMoveInitiative(ref, currentInit, destination string) erro
 		return fmt.Errorf("set initiative field: %w", err)
 	}
 	if err := a.assigner.RememberItem(dest, ref); err != nil {
+		// Full rollback: the item now claims `dest` on disk but neither
+		// initiative lists it. Restore the item field and re-attach to
+		// the original initiative so the user sees pre-mutation state.
+		if _, _, clearErr := a.store.ClearItemInitiative(kind, name, dest); clearErr != nil {
+			return fmt.Errorf("attach to %s: %w; rollback clear failed: %v", dest, err, clearErr)
+		}
+		if currentInit != "" {
+			if _, restoreErr := a.store.SetItemInitiative(kind, name, currentInit); restoreErr != nil {
+				return fmt.Errorf("attach to %s: %w; rollback restore failed: %v", dest, err, restoreErr)
+			}
+			if remErr := a.assigner.RememberItem(currentInit, ref); remErr != nil {
+				return fmt.Errorf("attach to %s: %w; rollback remember failed: %v", dest, err, remErr)
+			}
+		}
 		return fmt.Errorf("attach to %s: %w", dest, err)
 	}
 	item, loadErr := a.store.LoadItem(kind, name)
@@ -454,7 +538,10 @@ func (a *Applier) applyMoveInitiative(ref, currentInit, destination string) erro
 	return nil
 }
 
-func (a *Applier) applyArchive(ref string) error {
+func (a *Applier) applyArchive(ctx context.Context, ref string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	kind, name, err := splitRef(ref)
 	if err != nil {
 		return err
@@ -483,7 +570,10 @@ func (a *Applier) applyInterrupt(ctx context.Context, ref string) error {
 	return a.cancel.CancelForBacklog(ctx, string(kind), name)
 }
 
-func (a *Applier) applySplit(ref string, into []ItemSpec, source Source) error {
+func (a *Applier) applySplit(ctx context.Context, ref string, into []ItemSpec, source Source) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	kind, name, err := splitRef(ref)
 	if err != nil {
 		return err
@@ -494,20 +584,34 @@ func (a *Applier) applySplit(ref string, into []ItemSpec, source Source) error {
 	}
 
 	created := make([]string, 0, len(into))
-	for _, spec := range into {
-		if err := a.applyAddItem(spec, source); err != nil {
-			// Best-effort rollback: archive any items already created so the
-			// split is all-or-nothing from the user's perspective.
-			for _, r := range created {
-				_ = a.applyArchive(r)
+	rollback := func(reason error) {
+		for _, r := range created {
+			if rbErr := a.applyArchive(ctx, r); rbErr != nil {
+				slog.Warn("proposals: split rollback failed",
+					"source", ref,
+					"child", r,
+					"reason", reason,
+					"err", rbErr,
+				)
 			}
+		}
+	}
+	for _, spec := range into {
+		if err := a.applyAddItem(ctx, spec, source); err != nil {
+			rollback(err)
 			return fmt.Errorf("create split child %s: %w", spec.Ref(), err)
 		}
 		created = append(created, spec.Ref())
 	}
 
-	if err := a.applyArchive(ref); err != nil {
-		// Leave children created; the source archive failure is surfaced.
+	// True atomicity: if archiving the source fails after all children
+	// land, roll back the children too so the user sees pre-split state
+	// instead of a half-split orphan graph. Dependents of the source
+	// stay pointed at the original ref and must be retargeted by
+	// subsequent OpAddEdge / OpRemoveEdge mutations — split does not
+	// retarget dependents implicitly (see types.go OpSplitItem).
+	if err := a.applyArchive(ctx, ref); err != nil {
+		rollback(err)
 		return fmt.Errorf("archive source item: %w", err)
 	}
 	return nil

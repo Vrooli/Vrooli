@@ -27,8 +27,6 @@ func baseState(t *testing.T) CurrentState {
 
 func intPtr(i int) *int { return &i }
 
-func strPtr(s string) *string { return &s }
-
 func TestValidate_RequiresMutationListForm(t *testing.T) {
 	p := Proposal{Form: FormFullGraph}
 	err := Validate(p, baseState(t))
@@ -358,8 +356,4 @@ func TestValidate_AccumulatesAllProblems(t *testing.T) {
 	if !strings.Contains(msg, "duplicate id") {
 		t.Fatalf("missing duplicate-id error: %v", err)
 	}
-}
-
-func TestValidate_StrPtrHelper(_ *testing.T) {
-	_ = strPtr("unused") // silence unused-helper warning until a later test needs it
 }

@@ -26,19 +26,20 @@ type Lock struct {
 	Dir func(initiativeName string) string
 	// Clock is an optional time source; defaults to time.Now.
 	Clock func() time.Time
-	// MaxAge is the staleness threshold; defaults to 2h to match the
-	// agent-manager max run duration.
+	// MaxAge is the staleness threshold; defaults to DefaultLockMaxAge
+	// when zero. Tests set a short MaxAge to exercise the stale-lock
+	// sweep deterministically.
 	MaxAge time.Duration
 }
 
 // Holder describes the run currently holding the lock.
 type Holder struct {
-	RunID        string `json:"run_id"`
-	Purpose      string `json:"purpose"` // feedback | review | feedback_continue
-	RoundNumber  int    `json:"round_number,omitempty"`
-	AcquiredAt   string `json:"acquired_at"`
-	AcquiredBy   string `json:"acquired_by,omitempty"`
-	InitiativeID string `json:"initiative_id"`
+	RunID          string `json:"run_id"`
+	Purpose        string `json:"purpose"` // feedback | review | feedback_continue
+	RoundNumber    int    `json:"round_number,omitempty"`
+	AcquiredAt     string `json:"acquired_at"`
+	AcquiredBy     string `json:"acquired_by,omitempty"`
+	InitiativeName string `json:"initiative_name"`
 }
 
 // ErrLocked signals that Acquire found a live (non-stale) lock and the
@@ -61,7 +62,15 @@ func (c *LockConflict) Error() string {
 
 func (c *LockConflict) Unwrap() error { return ErrLocked }
 
-const lockFileName = ".feedback-lock"
+const (
+	lockFileName = ".feedback-lock"
+
+	// DefaultLockMaxAge is the staleness threshold used when
+	// Lock.MaxAge is unset. Chosen to match agent-manager's max run
+	// duration so a crash-stranded lock is swept by the next boot
+	// sweep within roughly one run's worth of time.
+	DefaultLockMaxAge = 2 * time.Hour
+)
 
 func (l *Lock) path(initiativeName string) string {
 	return filepath.Join(l.Dir(initiativeName), lockFileName)
@@ -78,7 +87,7 @@ func (l *Lock) maxAge() time.Duration {
 	if l.MaxAge > 0 {
 		return l.MaxAge
 	}
-	return 2 * time.Hour
+	return DefaultLockMaxAge
 }
 
 // Acquire takes the lock for `holder`. Returns *LockConflict if a live lock
@@ -103,7 +112,7 @@ func (l *Lock) acquire(initiativeName string, holder Holder, override bool) erro
 	if holder.Purpose == "" {
 		return fmt.Errorf("holder.Purpose is required")
 	}
-	holder.InitiativeID = initiativeName
+	holder.InitiativeName = initiativeName
 	holder.AcquiredAt = l.now().Format(time.RFC3339)
 
 	if !override {

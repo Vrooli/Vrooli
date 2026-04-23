@@ -22,6 +22,21 @@ type Handler struct {
 	svc *Service
 }
 
+// JSON body size ceilings. Defense-in-depth against oversized or
+// malformed bodies — not business rules. User-facing bodies are small
+// (text prompts, a handful of mutation IDs), so 256 KiB is generous.
+// AgentTurn receives agent output (proposal JSON, full-graph dumps), so
+// its ceiling is looser.
+const (
+	maxUserFeedbackBodyBytes int64 = 1 << 18 // 256 KiB
+	maxAgentTurnBodyBytes    int64 = 1 << 22 // 4 MiB
+
+	// maxMultipartFormBytes caps multipart/form-data parsing on Start
+	// and Continue. Sized for ~1 attachment at MaxAttachmentSize plus
+	// form overhead; larger requests are rejected at ParseMultipartForm.
+	maxMultipartFormBytes int64 = 32 << 20 // 32 MiB
+)
+
 // NewHandler constructs the handler around an already-configured service.
 // The service owns all domain logic; the handler is transport-only.
 func NewHandler(svc *Service) *Handler {
@@ -63,23 +78,13 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 	}
 	req.InitiativeName = name
 
-	// Multipart flow: files land on disk before spawn so we know the
-	// attachment IDs. The folder name must match what the service will
-	// pick later — use NextRoundNumber + ComputeSlug so both sides agree.
-	// JSON flow: no files, AttachmentIDs may be empty.
+	// Multipart flow: defer attachment writes to a loader the service
+	// runs against the round dir it actually reserves. Avoids the race
+	// where two concurrent submits both predict the same round number.
 	if r.MultipartForm != nil {
-		n, err := h.svc.store.NextRoundNumber(name)
-		if err != nil {
-			apierr.MapError(w, "[feedback] start", apierr.Internal("assign round number: %s", err.Error()))
-			return
+		req.AttachmentLoader = func(roundDir string) ([]string, error) {
+			return h.svc.store.SaveAttachmentsToDir(roundDir, r)
 		}
-		slug := ComputeSlug(req.SlugHint, req.Text)
-		ids, err := h.svc.store.SaveAttachments(name, n, slug, r)
-		if err != nil {
-			apierr.MapError(w, "[feedback] start", apierr.BadRequest("%s", err.Error()))
-			return
-		}
-		req.AttachmentIDs = ids
 	}
 
 	round, err := h.svc.StartRound(r.Context(), req)
@@ -92,9 +97,10 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// writeStartError maps feedback-specific errors to HTTP status codes.
-// Lock conflicts surface the current holder so the UI can render the
-// override-warning dialog without a separate GET.
+// writeStartError maps feedback-specific errors to HTTP status codes. Lock
+// conflicts and item-busy errors surface the blocker details in the 409
+// payload so the UI can render the override-warning dialog without a
+// follow-up GET.
 func (h *Handler) writeStartError(w http.ResponseWriter, err error) {
 	var conflict *LockConflict
 	if errors.As(err, &conflict) {
@@ -109,27 +115,22 @@ func (h *Handler) writeStartError(w http.ResponseWriter, err error) {
 		_ = httputil.JSONWithStatus(w, http.StatusConflict, map[string]any{"error": err.Error()})
 		return
 	}
+	var busy *BusyError
+	if errors.As(err, &busy) {
+		payload := map[string]any{
+			"error":      busy.Error(),
+			"activities": busy.Activities,
+		}
+		_ = httputil.JSONWithStatus(w, http.StatusConflict, payload)
+		return
+	}
 	apierr.MapError(w, "[feedback] start", apierr.BadRequest("%s", err.Error()))
-}
-
-// startFormRequest is the parsed multipart/JSON payload. Extracted into a
-// helper so the two encodings share a single code path for the service
-// call. Field names match the JSON form; the multipart form reuses the
-// same names as form-data keys.
-type startFormRequest struct {
-	InitiativeName string
-	Type           RoundType
-	Text           string
-	AttachmentIDs  []string
-	SlugHint       string
-	Override       bool
-	DecidedBy      string
 }
 
 func parseStartRequest(r *http.Request) (StartRoundRequest, error) {
 	ct := r.Header.Get("Content-Type")
 	if strings.HasPrefix(ct, "multipart/form-data") {
-		if err := r.ParseMultipartForm(32 << 20); err != nil {
+		if err := r.ParseMultipartForm(maxMultipartFormBytes); err != nil {
 			return StartRoundRequest{}, fmt.Errorf("parse multipart: %w", err)
 		}
 		return StartRoundRequest{
@@ -149,7 +150,7 @@ func parseStartRequest(r *http.Request) (StartRoundRequest, error) {
 		DecidedBy     string    `json:"decided_by,omitempty"`
 		AttachmentIDs []string  `json:"attachment_ids,omitempty"`
 	}
-	if err := httputil.DecodeJSONStrict(r, &body); err != nil {
+	if err := httputil.DecodeJSONStrictBounded(r, &body, maxUserFeedbackBodyBytes); err != nil {
 		return StartRoundRequest{}, err
 	}
 	return StartRoundRequest{
@@ -195,6 +196,12 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		apierr.MapError(w, "[feedback] get", apierr.Internal("%s", err.Error()))
 		return
 	}
+	// Pull-pattern advance: if the round is waiting on the agent, ask the
+	// poller whether the run finished and record the turn if so. Mirrors
+	// backlog clarification's GetClarification.
+	if advanced, advErr := h.svc.EnsurePolledTurn(r.Context(), round); advErr == nil {
+		round = advanced
+	}
 	if err := httputil.JSON(w, round); err != nil {
 		apierr.MapError(w, "[feedback] get", apierr.Internal("encode response"))
 	}
@@ -210,7 +217,7 @@ func (h *Handler) Continue(w http.ResponseWriter, r *http.Request) {
 
 	req := ContinueRoundRequest{InitiativeName: name, RoundNumber: roundNum}
 	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
-		if err := r.ParseMultipartForm(32 << 20); err != nil {
+		if err := r.ParseMultipartForm(maxMultipartFormBytes); err != nil {
 			apierr.MapError(w, "[feedback] continue", apierr.BadRequest("parse multipart: %s", err.Error()))
 			return
 		}
@@ -225,7 +232,7 @@ func (h *Handler) Continue(w http.ResponseWriter, r *http.Request) {
 			apierr.MapError(w, "[feedback] continue", apierr.Internal("%s", err.Error()))
 			return
 		}
-		ids, err := h.svc.store.SaveAttachments(name, existing.Number, existing.Slug, r)
+		ids, err := h.svc.store.SaveAttachmentsToDir(h.svc.store.RoundDir(name, existing.Number, existing.Slug), r)
 		if err != nil {
 			apierr.MapError(w, "[feedback] continue", apierr.BadRequest("%s", err.Error()))
 			return
@@ -239,7 +246,7 @@ func (h *Handler) Continue(w http.ResponseWriter, r *http.Request) {
 			AttachmentIDs []string `json:"attachment_ids,omitempty"`
 			DecidedBy     string   `json:"decided_by,omitempty"`
 		}
-		if err := httputil.DecodeJSONStrict(r, &body); err != nil {
+		if err := httputil.DecodeJSONStrictBounded(r, &body, maxUserFeedbackBodyBytes); err != nil {
 			apierr.MapError(w, "[feedback] continue", apierr.BadRequest("%s", err.Error()))
 			return
 		}
@@ -273,7 +280,7 @@ func (h *Handler) Decide(w http.ResponseWriter, r *http.Request) {
 		Rationale           string       `json:"rationale,omitempty"`
 		DecidedBy           string       `json:"decided_by,omitempty"`
 	}
-	if err := httputil.DecodeJSONStrict(r, &body); err != nil {
+	if err := httputil.DecodeJSONStrictBounded(r, &body, maxUserFeedbackBodyBytes); err != nil {
 		apierr.MapError(w, "[feedback] decide", apierr.BadRequest("%s", err.Error()))
 		return
 	}
@@ -290,7 +297,16 @@ func (h *Handler) Decide(w http.ResponseWriter, r *http.Request) {
 			apierr.MapError(w, "[feedback] decide", apierr.NotFound("feedback round not found"))
 			return
 		}
-		apierr.MapError(w, "[feedback] decide", apierr.BadRequest("%s", err.Error()))
+		// Distinguish user-fixable errors (wrong status, missing
+		// proposal, unknown decision kind) from infra failures (apply
+		// errors, save errors). The user-fixable set is small and
+		// caught by string sniff; everything else is 500 so the UI
+		// reports an actual server problem rather than mislabeling it.
+		if isUserDecideError(err) {
+			apierr.MapError(w, "[feedback] decide", apierr.BadRequest("%s", err.Error()))
+			return
+		}
+		apierr.MapError(w, "[feedback] decide", apierr.Internal("%s", err.Error()))
 		return
 	}
 	payload := map[string]any{"round": round}
@@ -314,7 +330,7 @@ func (h *Handler) Dismiss(w http.ResponseWriter, r *http.Request) {
 		DecidedBy string `json:"decided_by,omitempty"`
 	}
 	if r.ContentLength > 0 {
-		if err := httputil.DecodeJSONStrict(r, &body); err != nil {
+		if err := httputil.DecodeJSONStrictBounded(r, &body, maxUserFeedbackBodyBytes); err != nil {
 			apierr.MapError(w, "[feedback] dismiss", apierr.BadRequest("%s", err.Error()))
 			return
 		}
@@ -353,7 +369,9 @@ func (h *Handler) AgentTurn(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Body string `json:"body"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	bounded := http.MaxBytesReader(w, r.Body, maxAgentTurnBodyBytes)
+	defer bounded.Close()
+	if err := json.NewDecoder(bounded).Decode(&body); err != nil {
 		apierr.MapError(w, "[feedback] agent-turn", apierr.BadRequest("%s", err.Error()))
 		return
 	}
@@ -425,6 +443,23 @@ func (h *Handler) LockStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 // --- helpers -----------------------------------------------------------
+
+// isUserDecideError reports whether a Decide error is something the user
+// can recover from by changing their request — vs an internal failure
+// like a disk write or proposal apply error. The first set surfaces as
+// 400, the rest as 500.
+func isUserDecideError(err error) bool {
+	msg := err.Error()
+	switch {
+	case strings.Contains(msg, "decision kind is required"),
+		strings.Contains(msg, "unknown decision kind"),
+		strings.Contains(msg, "use ContinueRound"),
+		strings.Contains(msg, "no current proposal"),
+		strings.Contains(msg, "decide requires"):
+		return true
+	}
+	return false
+}
 
 func (h *Handler) parseNameAndRound(w http.ResponseWriter, r *http.Request, action string) (string, int, bool) {
 	vars := mux.Vars(r)

@@ -34,8 +34,19 @@ func (s *Service) applyCurrentProposal(ctx context.Context, round Round, accepte
 	source := proposals.Source{
 		InitiativeName:   round.InitiativeName,
 		FeedbackRoundID:  fmt.Sprintf("%s/round-%03d", round.InitiativeName, round.Number),
+		RoundNumber:      round.Number,
+		RoundSlug:        round.Slug,
+		Entrypoint:       "initiative.feedback",
 		DecidedBy:        decidedBy,
 		DecidedAtRFC3339: decidedAt,
 	}
-	return s.apply.Apply(ctx, current.Proposal, state, acceptedIDs, source)
+	// Normalize before Apply so agent-produced whitespace/casing quirks
+	// (e.g. "  ready  ", "EXECUTE/Foo") are canonicalized. Apply's
+	// contract expects pre-normalized input; without this the defensive
+	// Validate inside Apply rejects values the agent intended correctly.
+	normalized, err := proposals.Normalize(current.Proposal, state)
+	if err != nil {
+		return nil, fmt.Errorf("normalize proposal: %w", err)
+	}
+	return s.apply.Apply(ctx, normalized, state, acceptedIDs, source)
 }

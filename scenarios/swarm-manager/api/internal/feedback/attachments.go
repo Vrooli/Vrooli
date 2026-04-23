@@ -27,16 +27,16 @@ var AllowedAttachmentTypes = map[string]bool{
 // which bounds the combined form size via http.Request.ParseMultipartForm.
 const MaxAttachmentSize = 20 * 1024 * 1024 // 20 MiB
 
-// SaveAttachments reads the multipart "files" field from an HTTP request,
-// stores each upload under the round's attachments folder, and returns
-// the relative IDs to persist on the round.
+// SaveAttachmentsToDir reads the multipart "files" field from an HTTP
+// request and stores each upload under `{roundDir}/attachments/`. Returns
+// the relative IDs ("attachments/{uuid}{ext}") to persist on the round.
 //
-// ID format: "attachments/{uuid}{ext}" — relative to the round directory.
-// The same format is consumed by ResolveAttachment to serve the file back.
-//
-// Returns (nil, nil) when no files are present so callers can call this
-// unconditionally from multipart handlers.
-func (s *Store) SaveAttachments(initiativeName string, number int, slug string, r *http.Request) ([]string, error) {
+// Caller is responsible for ensuring `roundDir` already exists — typically
+// the round was just claimed via Store.ReserveRound. Decoupling from
+// (initiativeName, number, slug) lets the service hand the dir back to a
+// callback so attachments land in the dir the service actually reserved
+// (no race with a concurrent submit choosing the same predicted number).
+func (s *Store) SaveAttachmentsToDir(roundDir string, r *http.Request) ([]string, error) {
 	if r.MultipartForm == nil {
 		return nil, nil
 	}
@@ -45,7 +45,6 @@ func (s *Store) SaveAttachments(initiativeName string, number int, slug string, 
 		return nil, nil
 	}
 
-	roundDir := s.RoundDir(initiativeName, number, slug)
 	attDir := filepath.Join(roundDir, "attachments")
 	if err := os.MkdirAll(attDir, 0o755); err != nil {
 		return nil, fmt.Errorf("create attachments dir: %w", err)

@@ -298,3 +298,82 @@ func textprotoPNGHeader(filename string) map[string][]string {
 		"Content-Type":        {"image/png"},
 	}
 }
+
+// TestHandler_Continue_Multipart_AcceptsAttachments covers the multipart
+// branch of the continue endpoint. The initial start + agent turn land
+// the round in awaiting_user; the continue turn must persist the new
+// image attachment onto the user message and re-spawn the agent.
+func TestHandler_Continue_Multipart_AcceptsAttachments(t *testing.T) {
+	env := newHandlerEnv(t)
+
+	// Start the round (JSON path).
+	start := env.do("POST", "/api/v1/initiatives/ui-rewrite/feedback",
+		strings.NewReader(`{"type":"feedback","text":"start"}`), "application/json")
+	if start.Code != http.StatusCreated {
+		t.Fatalf("start: %d body=%s", start.Code, start.Body.String())
+	}
+
+	// Agent turn with no proposal so the round flips to awaiting_user,
+	// which is what continue requires.
+	_ = env.do("POST", "/api/v1/initiatives/ui-rewrite/feedback/1/agent-turn",
+		strings.NewReader(`{"body":"no proposal, please revise"}`), "application/json")
+
+	// Build a multipart continue request with a PNG attachment.
+	var body bytes.Buffer
+	w := multipart.NewWriter(&body)
+	_ = w.WriteField("text", "here is a screenshot")
+	filePart, err := w.CreatePart(textprotoPNGHeader("revised.png"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = filePart.Write([]byte("\x89PNG\r\n\x1a\nrevised"))
+	_ = w.Close()
+
+	req := httptest.NewRequest("POST", "/api/v1/initiatives/ui-rewrite/feedback/1/continue", &body)
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	rec := httptest.NewRecorder()
+	env.router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("continue multipart: %d body=%s", rec.Code, rec.Body.String())
+	}
+	round := env.decodeRound(t, rec)
+	if round.Status != RoundStatusAgentThinking {
+		t.Fatalf("expected agent_thinking after continue, got %s", round.Status)
+	}
+
+	// The new user message must carry the attachment id (multipart upload
+	// landed on disk and was attached to the thread message, not dropped).
+	var lastUserMsg *Message
+	for i := range round.Thread {
+		if round.Thread[i].Role == "user" {
+			lastUserMsg = &round.Thread[i]
+		}
+	}
+	if lastUserMsg == nil {
+		t.Fatal("no user message recorded after continue")
+	}
+	if len(lastUserMsg.AttachmentIDs) != 1 {
+		t.Fatalf("expected 1 attachment on revised user msg, got %+v", lastUserMsg.AttachmentIDs)
+	}
+
+	// The spawner should have received exactly one ContinueRun call
+	// with the same run id as the original spawn — feedback multi-turn
+	// piggybacks on the existing agent run.
+	if len(env.spawner.continueCalls) != 1 {
+		t.Fatalf("expected 1 continue call, got %d", len(env.spawner.continueCalls))
+	}
+	if env.spawner.continueCalls[0].RunID != "run-42" {
+		t.Fatalf("continue call RunID: got %q, want run-42", env.spawner.continueCalls[0].RunID)
+	}
+
+	// Attachment is retrievable via GET.
+	id := lastUserMsg.AttachmentIDs[0]
+	leaf := strings.TrimPrefix(id, "attachments/")
+	fetch := env.do("GET", "/api/v1/initiatives/ui-rewrite/feedback/1/attachments/"+leaf, nil, "")
+	if fetch.Code != http.StatusOK {
+		t.Fatalf("fetch attachment: %d", fetch.Code)
+	}
+	if !strings.HasPrefix(fetch.Body.String(), "\x89PNG") {
+		t.Fatalf("expected PNG bytes, got %q", fetch.Body.String()[:8])
+	}
+}

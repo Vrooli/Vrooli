@@ -227,43 +227,67 @@ func validateUpdateBacklogItemRequest(req *apipb.UpdateBacklogItemRequest, field
 	return ""
 }
 
+// applyUpdateBacklogPatch adapts a proto-shaped PATCH request into the
+// struct-based ItemPatch, then delegates the actual mutation to the
+// shared ApplyItemPatch helper. The handler path retains its proto wire
+// format; the field-assignment semantics are defined once.
+//
+// The proto request does not natively distinguish "unset" from "empty",
+// which is why fields+getters combine to reconstruct presence. Callers
+// must have already normalized the request (normalizeUpdateBacklogPatch)
+// so trim/case rules don't apply twice when ApplyItemPatch re-normalizes
+// on the struct side.
 func applyUpdateBacklogPatch(item *BacklogItem, req *apipb.UpdateBacklogItemRequest, fields backlogUpdateFieldSet) {
+	patch := ItemPatch{}
 	if fields.Has(updateFieldTitle) {
-		item.Title = req.GetTitle()
+		v := req.GetTitle()
+		patch.Title = &v
 	}
 	if fields.Has(updateFieldDescription) {
-		item.Description = req.GetDescription()
+		v := req.GetDescription()
+		patch.Description = &v
 	}
 	if fields.Has(updateFieldStatus) {
-		item.Status = BacklogStatus(req.GetStatus())
+		v := req.GetStatus()
+		patch.Status = &v
 	}
 	if fields.Has(updateFieldPriority) {
-		item.Priority = int(req.GetPriority())
+		v := int(req.GetPriority())
+		patch.Priority = &v
 	}
 	if fields.Has(updateFieldTags) {
-		item.Tags = cloneStringsOrEmpty(req.Tags)
+		v := cloneStringsOrEmpty(req.Tags)
+		patch.Tags = &v
 	}
 	if fields.Has(updateFieldDependsOn) {
-		item.DependsOn = cloneStrings(req.DependsOn)
+		v := cloneStrings(req.DependsOn)
+		patch.DependsOn = &v
 	}
 	if fields.Has(updateFieldInitiative) {
-		item.Initiative = strings.TrimSpace(req.GetInitiative())
+		v := req.GetInitiative()
+		patch.Initiative = &v
 	}
 	if fields.Has(updateFieldEffort) {
-		item.Effort = req.GetEffort()
+		v := req.GetEffort()
+		patch.Effort = &v
 	}
 	if fields.Has(updateFieldAcceptanceAllow) {
-		item.AcceptanceAllow = cloneStrings(req.AcceptanceAllow)
+		v := cloneStrings(req.AcceptanceAllow)
+		patch.AcceptanceAllow = &v
 	}
 	if fields.Has(updateFieldAcceptanceDeny) {
-		item.AcceptanceDeny = cloneStrings(req.AcceptanceDeny)
+		v := cloneStrings(req.AcceptanceDeny)
+		patch.AcceptanceDeny = &v
 	}
 	if fields.Has(updateFieldSpawnedFrom) {
-		item.SpawnedFrom = strings.TrimSpace(req.GetSpawnedFrom())
+		v := req.GetSpawnedFrom()
+		patch.SpawnedFrom = &v
 	}
 	if fields.Has(updateFieldNote) {
-		item.Note = strings.TrimSpace(req.GetNote())
+		v := req.GetNote()
+		patch.Note = &v
 	}
+	ApplyItemPatch(item, patch)
 }
 
 func cloneStrings(values []string) []string {

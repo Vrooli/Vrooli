@@ -194,7 +194,17 @@ export const ProposalReview = memo(function ProposalReview({
       )}
 
       {applyResult && (
-        <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-2 text-[11px] text-emerald-200">
+        <div
+          className={cn(
+            "rounded-md border p-2 text-[11px]",
+            applyResult.failed > 0
+              ? "border-red-500/40 bg-red-500/10 text-red-200"
+              : applyResult.skipped > 0
+                ? "border-amber-500/30 bg-amber-500/10 text-amber-200"
+                : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200",
+          )}
+          data-testid={selectors.feedback.proposalApplySummary}
+        >
           <strong>Applied:</strong> {applyResult.applied} ·{" "}
           <strong>Failed:</strong> {applyResult.failed} ·{" "}
           <strong>Skipped:</strong> {applyResult.skipped}
@@ -267,7 +277,7 @@ interface MutationCardProps {
   checked: boolean;
   disabled?: boolean;
   onToggle: () => void;
-  applyOutcome: { applied: boolean; error?: string } | null;
+  applyOutcome: { applied: boolean; skipped?: boolean; error?: string } | null;
 }
 
 const OP_ICONS: Record<ProposalOp, typeof Plus> = {
@@ -301,21 +311,35 @@ function MutationCard({ mutation, checked, disabled, onToggle, applyOutcome }: M
   const label = OP_LABELS[mutation.op] ?? mutation.op;
   const destructive = mutation.op === "archive_item" || mutation.op === "interrupt_in_progress";
 
+  // Outcome classification — applied | skipped | failed. Kept explicit
+  // rather than deriving from `applied`/`error` at render time so the
+  // badge and the card tint stay in sync.
+  const outcomeKind = applyOutcome
+    ? applyOutcome.applied
+      ? "applied"
+      : applyOutcome.skipped
+        ? "skipped"
+        : "failed"
+    : null;
+
   return (
     <li
       className={cn(
         "rounded-lg border p-3 transition-colors",
-        applyOutcome?.applied
+        outcomeKind === "applied"
           ? "border-emerald-500/40 bg-emerald-500/10"
-          : applyOutcome && !applyOutcome.applied
+          : outcomeKind === "failed"
             ? "border-red-500/40 bg-red-500/10"
-            : destructive
-              ? "border-amber-500/30 bg-amber-500/5"
-              : "border-slate-700/60 bg-slate-950/50",
+            : outcomeKind === "skipped"
+              ? "border-amber-500/30 bg-amber-500/10 opacity-75"
+              : destructive
+                ? "border-amber-500/30 bg-amber-500/5"
+                : "border-slate-700/60 bg-slate-950/50",
       )}
       data-testid={selectors.feedback.proposalMutation}
       data-mutation-id={mutation.id}
       data-mutation-op={mutation.op}
+      data-outcome={outcomeKind ?? undefined}
     >
       <label className="flex cursor-pointer items-start gap-3">
         <input
@@ -335,16 +359,18 @@ function MutationCard({ mutation, checked, disabled, onToggle, applyOutcome }: M
                 {mutation.target}
               </code>
             )}
-            {applyOutcome && (
+            {outcomeKind && (
               <span
                 className={cn(
                   "rounded-full px-2 py-0.5 text-[10px] font-medium",
-                  applyOutcome.applied
-                    ? "bg-emerald-500/20 text-emerald-200"
-                    : "bg-red-500/20 text-red-200",
+                  outcomeKind === "applied" && "bg-emerald-500/20 text-emerald-200",
+                  outcomeKind === "failed" && "bg-red-500/20 text-red-200",
+                  outcomeKind === "skipped" && "bg-amber-500/20 text-amber-200",
                 )}
               >
-                {applyOutcome.applied ? "Applied" : "Failed"}
+                {outcomeKind === "applied" && "Applied"}
+                {outcomeKind === "failed" && "Failed"}
+                {outcomeKind === "skipped" && "Skipped"}
               </span>
             )}
           </div>

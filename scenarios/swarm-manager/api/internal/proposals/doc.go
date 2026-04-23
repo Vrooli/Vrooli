@@ -30,6 +30,23 @@
 //     UI even under failure.
 //   - Attribution: every Apply call carries a Source that tags events and
 //     log lines so audits can follow a mutation back to the feedback round
-//     it came from. This is carried through but unused until W4 wires the
-//     feedback package on top.
+//     it came from. Source carries InitiativeName, FeedbackRoundID,
+//     RoundNumber, RoundSlug, and Entrypoint so downstream consumers
+//     (event log, agentactivity) can group mutations by the originating
+//     surface.
+//
+// Op set:
+//
+// The supported ops are add_item, update_item, split_item, add_edge,
+// remove_edge, change_status, change_priority, move_initiative,
+// archive_item, and interrupt_in_progress.
+//
+// archive_item is the canonical removal path: the original plan
+// intentionally excludes a remove_item op in favor of archiving (so the
+// historical record stays intact and downstream consumers can still
+// resolve archived references). archive_item is included as a first-class
+// op here — rather than buried behind a separate "archive via existing
+// endpoint" call — so a single proposal can mix archives with other
+// mutations atomically and the UI can render archives in the same
+// per-mutation accept/reject list as everything else.
 package proposals

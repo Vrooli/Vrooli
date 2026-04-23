@@ -207,12 +207,19 @@ export interface FeedbackRound {
 // Apply result (decide response)
 // ---------------------------------------------------------------------------
 
-/** Per-mutation result returned by the decide endpoint. */
+/**
+ * Per-mutation result returned by the decide endpoint. Exactly one of
+ * `applied`, `skipped`, or failure (`applied=false` with `error` set) is
+ * true. `skipped` means the user deselected the mutation before apply —
+ * renderers must distinguish it from failure so users don't confuse a
+ * deliberate deselection with a broken apply.
+ */
 export interface ApplyOutcome {
   mutation_id: string;
   op: ProposalOp;
   target?: string;
   applied: boolean;
+  skipped?: boolean;
   error?: string;
 }
 

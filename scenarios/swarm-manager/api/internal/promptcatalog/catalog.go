@@ -12,11 +12,12 @@ import (
 type Group string
 
 const (
-	GroupCapture   Group = "capture"
-	GroupBacklog   Group = "backlog"
-	GroupExecution Group = "execution"
-	GroupArchive   Group = "archive"
-	GroupSupport   Group = "support"
+	GroupCapture    Group = "capture"
+	GroupBacklog    Group = "backlog"
+	GroupExecution  Group = "execution"
+	GroupArchive    Group = "archive"
+	GroupSupport    Group = "support"
+	GroupInitiative Group = "initiative"
 )
 
 type UsageType string
@@ -291,6 +292,46 @@ var entries = []Entry{
 		SkillID:    "plan-skill-discovery",
 		Purpose:    "Guidance for discovering and embedding relevant skills into a plan.",
 	},
+	{
+		ID:         "initiative-feedback",
+		Title:      "Initiative Feedback Agent",
+		Group:      GroupInitiative,
+		UsageType:  UsageDirectRuntime,
+		SourceType: SourceSkill,
+		Trigger:    "User submits feedback on an initiative; runs once per round and again on each user-driven revision",
+		SkillID:    "swarm-manager-initiative-feedback",
+		Purpose:    "Translate user feedback + initiative context into a structured proposal of mutations against the item graph.",
+		VariableKeys: []string{
+			"INITIATIVE_NAME", "INITIATIVE_TITLE", "INITIATIVE_DESCRIPTION",
+			"CURRENT_GRAPH", "ITEM_SUMMARIES", "PRIOR_FEEDBACK", "PRIOR_HANDOFFS",
+			"ITEM_FOLDER_INDEX", "THIS_FEEDBACK", "ATTACHMENT_IMAGES",
+		},
+		ReferenceSkillIDs: []string{
+			"swarm-manager-backlog-tools",
+			"swarm-manager-initiative-context",
+			"implementation-plan-authoring",
+		},
+	},
+	{
+		ID:         "initiative-review",
+		Title:      "Initiative Review Agent",
+		Group:      GroupInitiative,
+		UsageType:  UsageDirectRuntime,
+		SourceType: SourceSkill,
+		Trigger:    "All items in an initiative reach a terminal state; runs once per initiative review cycle",
+		SkillID:    "swarm-manager-initiative-review",
+		Purpose:    "Assess whether the initiative delivered its goal and propose follow-up mutations if needed.",
+	},
+	{
+		ID:         "support-initiative-context",
+		Title:      "Initiative Context Reference",
+		Group:      GroupSupport,
+		UsageType:  UsageSupportReference,
+		SourceType: SourceSkill,
+		Trigger:    "Referenced by initiative-scoped prompt skills (feedback, review)",
+		SkillID:    "swarm-manager-initiative-context",
+		Purpose:    "Initiative folder layout, graph.json schema, and read-only CLI surface for context loading.",
+	},
 }
 
 func Entries() []Entry {
@@ -344,6 +385,20 @@ func ResolveBacklogSkill(mode, kind string) (Entry, bool) {
 
 func ResolveCaptureSkill() (Entry, bool) {
 	return Lookup("capture-classify")
+}
+
+// ResolveInitiativeSkill picks the catalog entry for an initiative-scoped
+// agent run keyed by purpose ("feedback" | "review"). Returns the entry
+// and true on hit, or zero+false when no matching skill is registered —
+// the caller can fall back to the hard-coded skill ID for resilience.
+func ResolveInitiativeSkill(purpose string) (Entry, bool) {
+	switch strings.ToLower(strings.TrimSpace(purpose)) {
+	case "feedback", "feedback_continue":
+		return Lookup("initiative-feedback")
+	case "review":
+		return Lookup("initiative-review")
+	}
+	return Entry{}, false
 }
 
 func ResolveSpecSyncSkill() (Entry, bool) {

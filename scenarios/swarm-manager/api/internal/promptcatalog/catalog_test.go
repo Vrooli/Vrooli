@@ -51,14 +51,35 @@ func TestSkillUsageSummary(t *testing.T) {
 	if got := SkillUsageCount("swarm-manager-workshop"); got != 1 {
 		t.Fatalf("workshop direct usage count = %d, want 1", got)
 	}
-	if got := SkillUsageCount("swarm-manager-backlog-tools"); got != 6 {
-		t.Fatalf("backlog-tools reference count = %d, want 6", got)
+	if got := SkillUsageCount("swarm-manager-backlog-tools"); got != 7 {
+		t.Fatalf("backlog-tools reference count = %d, want 7", got)
 	}
-	if got := SkillImpactSummary("swarm-manager-backlog-tools"); got != "Referenced by 6 runtime prompt paths." {
+	if got := SkillImpactSummary("swarm-manager-backlog-tools"); got != "Referenced by 7 runtime prompt paths." {
 		t.Fatalf("unexpected backlog-tools summary: %q", got)
 	}
 	if got := SkillImpactSummary("spec-sync"); got != "Used directly by 1 runtime prompt path." {
 		t.Fatalf("unexpected spec-sync summary: %q", got)
+	}
+}
+
+func TestResolveInitiativeSkill(t *testing.T) {
+	feedback, ok := ResolveInitiativeSkill("feedback")
+	if !ok {
+		t.Fatal("expected feedback resolver hit")
+	}
+	if feedback.SkillID != "swarm-manager-initiative-feedback" {
+		t.Fatalf("feedback skill = %q", feedback.SkillID)
+	}
+	cont, ok := ResolveInitiativeSkill("feedback_continue")
+	if !ok || cont.SkillID != "swarm-manager-initiative-feedback" {
+		t.Fatalf("feedback_continue should map to feedback skill, got ok=%v skill=%q", ok, cont.SkillID)
+	}
+	review, ok := ResolveInitiativeSkill("review")
+	if !ok || review.SkillID != "swarm-manager-initiative-review" {
+		t.Fatalf("review skill = %q (ok=%v)", review.SkillID, ok)
+	}
+	if _, ok := ResolveInitiativeSkill("unknown"); ok {
+		t.Fatal("expected unknown purpose to miss")
 	}
 }
 

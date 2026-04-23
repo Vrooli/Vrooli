@@ -2,6 +2,7 @@ package proposals
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -215,7 +216,7 @@ func diffNodeMetadata(cur, target GraphNode) (*ItemPatch, *int) {
 		patch.Effort = &e
 		changed = true
 	}
-	if !stringSlicesEqual(target.Tags, cur.Tags) {
+	if !slices.Equal(target.Tags, cur.Tags) {
 		tags := append([]string(nil), target.Tags...)
 		patch.Tags = &tags
 		changed = true
@@ -231,18 +232,6 @@ func diffNodeMetadata(cur, target GraphNode) (*ItemPatch, *int) {
 		patch = nil
 	}
 	return patch, priorityChange
-}
-
-func stringSlicesEqual(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }
 
 func sortedRefDiff(a, b map[string]GraphNode) []string {
