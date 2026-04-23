@@ -808,7 +808,11 @@ func TestClaudeCodeRunner_DetectRateLimit_NoLimit(t *testing.T) {
 	}
 }
 
-func TestClaudeCodeRunner_ParseResultEvent_NonErrorRateLimitMessage(t *testing.T) {
+// Regression test: a successful result (is_error=false) whose assistant text
+// happens to contain rate-limit keywords must NOT be classified as a rate
+// limit. Before this guard, an agent writing about rate-limit detection in
+// its own final message was misclassified as ExitCode 429.
+func TestClaudeCodeRunner_ParseResultEvent_SuccessWithKeywordNotRateLimit(t *testing.T) {
 	runner := &ClaudeCodeRunner{}
 	runID := uuid.New()
 	event := &ClaudeStreamEvent{
@@ -824,11 +828,125 @@ func TestClaudeCodeRunner_ParseResultEvent_NonErrorRateLimitMessage(t *testing.T
 	if parsed == nil {
 		t.Fatal("expected event, got nil")
 	}
-	if parsed.EventType != domain.EventTypeError {
-		t.Fatalf("expected EventTypeError, got %s", parsed.EventType)
+	if _, ok := parsed.Data.(*domain.RateLimitEventData); ok {
+		t.Fatalf("expected successful result path, got RateLimitEventData")
 	}
-	if _, ok := parsed.Data.(*domain.RateLimitEventData); !ok {
+}
+
+// Regression test: a long agent report discussing rate limits must not trip
+// classification. This is the exact failure mode the investigation agent hit.
+func TestClaudeCodeRunner_ParseResultEvent_LongReportNotRateLimit(t *testing.T) {
+	runner := &ClaudeCodeRunner{}
+	runID := uuid.New()
+	longReport := `# Investigation Report\n## Categorization Summary\n- Primary category: Environment/Tooling\n- Confidence: High - Severity: Critical\nThe agent completed its review task successfully — uploaded round-001.json and three capture files, all 22 targeted tests passed, build was clean. The runner misclassified the completed run as failed with ExitCode 429 due to a false-positive in the rate-limit detector that scans the agent's final assistant message for keywords like "rate limit" and "usage limit reached".\n## Timeline\nClaude CLI emits rate_limit_event stream event, logged as "Unhandled event type".`
+	payload, _ := json.Marshal(longReport)
+	event := &ClaudeStreamEvent{
+		Type:    "result",
+		IsError: false,
+		Result:  payload,
+	}
+
+	parsed, err := runner.parseResultEvent(runID, event)
+	if err != nil {
+		t.Fatalf("parseResultEvent returned error: %v", err)
+	}
+	if parsed == nil {
+		t.Fatal("expected event, got nil")
+	}
+	if _, ok := parsed.Data.(*domain.RateLimitEventData); ok {
+		t.Fatalf("long report with rate-limit keywords must not classify as rate limit")
+	}
+}
+
+// Regression test: a true terminal rate-limit payload (is_error=true) must be
+// classified as a rate limit with the reset timestamp parsed.
+func TestClaudeCodeRunner_ParseResultEvent_ErrorRateLimitDetected(t *testing.T) {
+	runner := &ClaudeCodeRunner{}
+	runID := uuid.New()
+	event := &ClaudeStreamEvent{
+		Type:    "result",
+		IsError: true,
+		Result:  json.RawMessage(`"Claude AI usage limit reached|1755806400"`),
+	}
+
+	parsed, err := runner.parseResultEvent(runID, event)
+	if err != nil {
+		t.Fatalf("parseResultEvent returned error: %v", err)
+	}
+	if parsed == nil {
+		t.Fatal("expected event, got nil")
+	}
+	data, ok := parsed.Data.(*domain.RateLimitEventData)
+	if !ok {
 		t.Fatalf("expected RateLimitEventData, got %T", parsed.Data)
+	}
+	if data.ResetTime == nil {
+		t.Error("expected ResetTime to be populated from timestamp")
+	}
+}
+
+// Each documented rate-limit phrase must be detected when is_error=true.
+func TestClaudeCodeRunner_DetectRateLimit_DocumentedPhrases(t *testing.T) {
+	runner := &ClaudeCodeRunner{}
+	phrases := []string{
+		"Claude AI usage limit reached|1755806400",
+		"You've hit your session limit · resets 3:45pm",
+		"You've hit your weekly limit · resets Mon 12:00am",
+		"You've hit your Opus limit · resets 3:45pm",
+		"API Error: Request rejected (429) · this may be a temporary capacity issue",
+		"API Error: Server is temporarily limiting requests (not your usage limit)",
+		"Daily rate limit exceeded",
+	}
+	for _, phrase := range phrases {
+		info := runner.detectRateLimit(phrase)
+		if !info.Detected {
+			t.Errorf("expected rate limit detection for %q", phrase)
+		}
+	}
+}
+
+// Length cap: a message longer than maxRateLimitMessageLen must not match
+// even when it contains trigger phrases.
+func TestClaudeCodeRunner_DetectRateLimit_LengthCap(t *testing.T) {
+	runner := &ClaudeCodeRunner{}
+	long := "Claude AI usage limit reached "
+	for len(long) <= maxRateLimitMessageLen {
+		long += "padding padding padding "
+	}
+	info := runner.detectRateLimit(long)
+	if info.Detected {
+		t.Errorf("expected length cap to prevent detection for %d-char message", len(long))
+	}
+}
+
+// Bare "rate limit" in prose must not be classified; tightened keyword set
+// should require anchored phrases like "rate limit reached" or "rate limit exceeded".
+func TestClaudeCodeRunner_DetectRateLimit_BareRateLimitIgnored(t *testing.T) {
+	runner := &ClaudeCodeRunner{}
+	info := runner.detectRateLimit("The rate limit detector scans messages for keywords.")
+	if info.Detected {
+		t.Error("bare 'rate limit' substring must not trigger detection")
+	}
+}
+
+// system/api_retry events must be logged, not classified as a rate-limit failure.
+// The terminal `result` event is the only signal that sets run outcome.
+func TestClaudeCodeRunner_ParseStreamEvents_ApiRetryIsLogNotRateLimit(t *testing.T) {
+	runner := &ClaudeCodeRunner{}
+	runID := uuid.New()
+	line := `{"type":"system","subtype":"api_retry","attempt":1,"max_retries":5,"retry_delay_ms":2000,"error_status":429,"error":"rate_limit","uuid":"abc","session_id":"sess"}`
+
+	events, err := runner.parseStreamEvents(runID, line)
+	if err != nil {
+		t.Fatalf("parseStreamEvents returned error: %v", err)
+	}
+	if len(events) == 0 {
+		t.Fatal("expected at least one event")
+	}
+	for _, ev := range events {
+		if _, ok := ev.Data.(*domain.RateLimitEventData); ok {
+			t.Fatalf("api_retry must not produce RateLimitEventData; got %T", ev.Data)
+		}
 	}
 }
 

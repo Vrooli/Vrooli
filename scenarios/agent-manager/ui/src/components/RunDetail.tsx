@@ -1,6 +1,6 @@
 import type React from "react";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { timestampMs } from "@bufbuild/protobuf/wkt";
+import { durationMs as protoDurationMs, timestampMs } from "@bufbuild/protobuf/wkt";
 import {
   Activity,
   AlertCircle,
@@ -46,7 +46,20 @@ import type {
   RunEvent,
   Task,
 } from "../types";
-import { ApprovalState, RunMode, RunPhase, RunStatus, TaskStatus } from "../types";
+import { ApprovalState, ModelPreset, RunMode, RunPhase, RunStatus, TaskStatus } from "../types";
+
+const modelPresetLabel = (preset?: ModelPreset) => {
+  switch (preset) {
+    case ModelPreset.FAST:
+      return "Fast";
+    case ModelPreset.CHEAP:
+      return "Cheap";
+    case ModelPreset.SMART:
+      return "Smart";
+    default:
+      return "";
+  }
+};
 
 import { MarkdownRenderer } from "./markdown";
 import { ModelCostComparison } from "./ModelCostComparison";
@@ -1261,6 +1274,33 @@ function RunDetailsContent({ run, taskTitle, profileName, durationMs, costTotals
               {run.resolvedConfig.fallbackRunnerTypes
                 .map((runnerType) => runnerTypeLabel(runnerType))
                 .join(", ")}
+            </div>
+          ) : null}
+          {run.resolvedConfig?.modelPreset !== undefined &&
+          run.resolvedConfig.modelPreset !== ModelPreset.UNSPECIFIED ? (
+            <div>
+              <span className="text-muted-foreground">Model preset: </span>
+              {modelPresetLabel(run.resolvedConfig.modelPreset)}
+            </div>
+          ) : null}
+          {run.actualModel || run.resolvedConfig?.model ? (
+            <div>
+              <span className="text-muted-foreground">Model: </span>
+              <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                {run.actualModel || run.resolvedConfig?.model}
+              </code>
+            </div>
+          ) : null}
+          {run.resolvedConfig?.maxTurns ? (
+            <div>
+              <span className="text-muted-foreground">Max turns: </span>
+              {run.resolvedConfig.maxTurns}
+            </div>
+          ) : null}
+          {run.resolvedConfig?.timeout ? (
+            <div>
+              <span className="text-muted-foreground">Timeout: </span>
+              {formatDuration(Number(protoDurationMs(run.resolvedConfig.timeout)))}
             </div>
           ) : null}
           {run.resolvedConfig?.features?.enableBrowser && (

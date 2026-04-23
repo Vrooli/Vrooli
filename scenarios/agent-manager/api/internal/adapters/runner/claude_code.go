@@ -252,6 +252,10 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 			}
 			// Update metrics based on event
 			r.updateMetrics(event, &metrics, &lastAssistantMessage)
+			// Invariant: RateLimitEventData is only produced by parseResultEvent
+			// when the terminal `result` event has is_error=true. Mid-stream
+			// system/api_retry events emit a log, not a RateLimitEvent, so they
+			// will not flip the run outcome here.
 			if data, ok := event.Data.(*domain.RateLimitEventData); ok {
 				rateLimitEvent = data
 			}
@@ -739,7 +743,7 @@ func (r *ClaudeCodeRunner) buildEnv(req ExecuteRequest) []string {
 // ClaudeStreamEvent represents a single event from Claude Code's stream-json output.
 type ClaudeStreamEvent struct {
 	Type         string              `json:"type"`
-	Subtype      string              `json:"subtype,omitempty"` // e.g., "success", "error"
+	Subtype      string              `json:"subtype,omitempty"` // e.g., "success", "error", "api_retry"
 	Message      *ClaudeMessage      `json:"message,omitempty"`
 	Usage        *ClaudeUsage        `json:"usage,omitempty"`
 	ToolUse      *ClaudeToolUse      `json:"tool_use,omitempty"`
@@ -754,6 +758,20 @@ type ClaudeStreamEvent struct {
 	ServiceTier  string              `json:"service_tier,omitempty"` // e.g., "standard"
 	ContentBlock *ClaudeContentBlock `json:"content_block,omitempty"`
 	Delta        *ClaudeDelta        `json:"delta,omitempty"`
+
+	// Fields emitted by system/api_retry events. See:
+	// https://code.claude.com/docs/en/errors and
+	// https://backgroundclaude.com/blog/stream-json
+	//
+	// Note: the api_retry event also carries an "error" field holding a short
+	// string like "rate_limit", but we cannot add a second Go field with the
+	// "error" JSON tag without colliding with the existing *ClaudeError object
+	// decoded from type:"error" events. ErrorStatus (the HTTP status) is
+	// sufficient to describe the retry for logging purposes.
+	ErrorStatus  int `json:"error_status,omitempty"` // e.g., 429
+	Attempt      int `json:"attempt,omitempty"`      // retry attempt number
+	MaxRetries   int `json:"max_retries,omitempty"`  // configured retry cap
+	RetryDelayMs int `json:"retry_delay_ms,omitempty"`
 }
 
 type claudeStreamState struct {
@@ -886,10 +904,37 @@ type ClaudeToolUse struct {
 	Input json.RawMessage `json:"input"`
 }
 
-// ClaudeError represents an error in the stream.
+// ClaudeError represents an error in the stream. The Claude Code CLI uses
+// the "error" JSON field with two different shapes: an object
+// {"code": ..., "message": ...} for type:"error" events, and a bare string
+// like "rate_limit" for system/api_retry events. UnmarshalJSON accepts both
+// so a single struct field can decode either form without collision.
 type ClaudeError struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
+}
+
+// UnmarshalJSON accepts either an object or a bare string. A bare string is
+// stored in Code and Message is left empty.
+func (e *ClaudeError) UnmarshalJSON(data []byte) error {
+	if len(data) == 0 {
+		return nil
+	}
+	if data[0] == '"' {
+		var s string
+		if err := json.Unmarshal(data, &s); err != nil {
+			return err
+		}
+		e.Code = s
+		return nil
+	}
+	type alias ClaudeError
+	var a alias
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+	*e = ClaudeError(a)
+	return nil
 }
 
 // ClaudeContentBlock represents a content block in streaming.
@@ -1358,6 +1403,20 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 				"",
 			)}, nil
 		}
+		// api_retry means the CLI hit a transient failure (often 429) and is
+		// retrying automatically. This is informational — it is NOT a terminal
+		// failure and must not produce a RateLimitEvent. Only the final `result`
+		// event with `is_error: true` determines run outcome.
+		if streamEvent.Subtype == "api_retry" {
+			return []*domain.RunEvent{domain.NewLogEvent(
+				runID,
+				"warn",
+				fmt.Sprintf("Claude CLI auto-retry: HTTP %d, attempt %d/%d, next in %dms",
+					streamEvent.ErrorStatus,
+					streamEvent.Attempt, streamEvent.MaxRetries,
+					streamEvent.RetryDelayMs),
+			)}, nil
+		}
 		// Otherwise, log for debugging but don't emit as user-visible event.
 		return []*domain.RunEvent{domain.NewLogEvent(
 			runID,
@@ -1459,20 +1518,23 @@ func (r *ClaudeCodeRunner) parseResultEvent(runID uuid.UUID, event *ClaudeStream
 		_ = json.Unmarshal(event.Result, &resultStr)
 	}
 
-	// Rate limit messages can appear in result payload even when is_error=false.
-	rateLimitInfo := r.detectRateLimit(resultStr)
-	if rateLimitInfo.Detected {
-		return domain.NewRateLimitEvent(
-			runID,
-			rateLimitInfo.LimitType,
-			rateLimitInfo.Message,
-			rateLimitInfo.ResetTime,
-			rateLimitInfo.RetryAfter,
-		), nil
-	}
-
-	// Check for non-rate-limit errors in result
+	// Rate-limit classification is gated on the CLI's own `is_error` flag. The
+	// `result` field of a successful run contains the agent's final assistant
+	// message, which can legitimately mention rate limits (e.g., an agent
+	// writing about rate-limit detection). Scanning it would produce false
+	// positives that misclassify successful runs as 429 failures. Only treat
+	// the result as a rate limit when the CLI itself flagged the run as
+	// errored — this is the only authoritative signal.
 	if event.IsError {
+		if rl := r.detectRateLimit(resultStr); rl.Detected {
+			return domain.NewRateLimitEvent(
+				runID,
+				rl.LimitType,
+				rl.Message,
+				rl.ResetTime,
+				rl.RetryAfter,
+			), nil
+		}
 		msg := formatErrorMessage(event.Subtype, event.NumTurns, event.DurationMs, resultStr)
 		errEvent := domain.NewErrorEvent(runID, "execution_error", msg, false)
 		if data, ok := errEvent.Data.(*domain.ErrorEventData); ok {
@@ -1515,44 +1577,68 @@ func (r *ClaudeCodeRunner) parseResultEvent(runID uuid.UUID, event *ClaudeStream
 	), nil
 }
 
-// detectRateLimit parses rate limit information from error messages.
+// maxRateLimitMessageLen caps the size of messages eligible for rate-limit
+// classification. All documented Claude Code rate-limit banners fit in under
+// ~100 chars (see https://code.claude.com/docs/en/errors). A much longer
+// payload is almost certainly something else (e.g., an error dump or tool
+// output that happens to include a trigger word), so we refuse to classify
+// it as a rate limit even if it contains a matching phrase.
+const maxRateLimitMessageLen = 512
+
+// detectRateLimit parses rate limit information from error messages. Callers
+// MUST gate this on the CLI's `is_error` flag — feeding successful-run output
+// into this function will produce false positives when the agent's own text
+// mentions rate limits.
 func (r *ClaudeCodeRunner) detectRateLimit(resultStr string) RateLimitInfo {
 	info := RateLimitInfo{
 		Detected: false,
 		Message:  resultStr,
 	}
 
+	if len(resultStr) > maxRateLimitMessageLen {
+		return info
+	}
+
 	lowerMsg := strings.ToLower(resultStr)
 
-	// Pattern 1: "Claude AI usage limit reached|timestamp"
-	if strings.Contains(lowerMsg, "usage limit reached") ||
-		strings.Contains(lowerMsg, "rate limit") ||
-		strings.Contains(lowerMsg, "hit your limit") ||
-		strings.Contains(lowerMsg, "reached your limit") {
-		info.Detected = true
-		info.LimitType = "5_hour" // Most common limit type
+	// Anchored phrases documented by Anthropic in
+	// https://code.claude.com/docs/en/errors. Bare "rate limit" is NOT matched
+	// because it appears in ordinary prose that discusses rate limiting.
+	matched := strings.Contains(lowerMsg, "usage limit reached") ||
+		strings.Contains(lowerMsg, "rate limit reached") ||
+		strings.Contains(lowerMsg, "rate limit exceeded") ||
+		strings.Contains(lowerMsg, "request rejected (429)") ||
+		strings.Contains(lowerMsg, "server is temporarily limiting requests") ||
+		(strings.Contains(lowerMsg, "hit your") && strings.Contains(lowerMsg, "limit")) ||
+		(strings.Contains(lowerMsg, "reached your") && strings.Contains(lowerMsg, "limit"))
 
-		// Try to parse reset timestamp from "limit reached|1755806400" format
-		parts := strings.Split(resultStr, "|")
-		if len(parts) >= 2 {
-			if timestamp, err := strconv.ParseInt(strings.TrimSpace(parts[len(parts)-1]), 10, 64); err == nil {
-				resetTime := time.Unix(timestamp, 0)
-				info.ResetTime = &resetTime
-				info.RetryAfter = int(time.Until(resetTime).Seconds())
-				if info.RetryAfter < 0 {
-					info.RetryAfter = 0
-				}
+	if !matched {
+		return info
+	}
+
+	info.Detected = true
+	info.LimitType = "5_hour" // Most common limit type
+
+	// Try to parse reset timestamp from "limit reached|1755806400" format
+	parts := strings.Split(resultStr, "|")
+	if len(parts) >= 2 {
+		if timestamp, err := strconv.ParseInt(strings.TrimSpace(parts[len(parts)-1]), 10, 64); err == nil {
+			resetTime := time.Unix(timestamp, 0)
+			info.ResetTime = &resetTime
+			info.RetryAfter = int(time.Until(resetTime).Seconds())
+			if info.RetryAfter < 0 {
+				info.RetryAfter = 0
 			}
 		}
+	}
 
-		// Determine limit type from message content
-		if strings.Contains(lowerMsg, "daily") {
-			info.LimitType = "daily"
-		} else if strings.Contains(lowerMsg, "weekly") {
-			info.LimitType = "weekly"
-		} else if strings.Contains(lowerMsg, "token") {
-			info.LimitType = "token"
-		}
+	// Determine limit type from message content
+	if strings.Contains(lowerMsg, "daily") {
+		info.LimitType = "daily"
+	} else if strings.Contains(lowerMsg, "weekly") {
+		info.LimitType = "weekly"
+	} else if strings.Contains(lowerMsg, "token") {
+		info.LimitType = "token"
 	}
 
 	return info
