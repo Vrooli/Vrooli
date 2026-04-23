@@ -152,7 +152,8 @@ func DefaultSettings() Settings {
 		AutoAdvanceWorkshop:     true,
 		AutoCascadeWorkshop:     true,
 		AutoAdvanceDelaySeconds: 10,
-		AgentMaxTurns:           60,
+		// Keep in sync with agentmanager.DefaultAgentMaxTurns (600).
+		AgentMaxTurns:           600,
 		AgentTimeoutSeconds:     3600,
 		AgentRequiresApproval:   true,
 		SearchDebounceMs:        300,
@@ -268,7 +269,7 @@ func normalizeSettings(settings Settings) Settings {
 	settings.AutoAdvanceDelaySeconds = clampInt(settings.AutoAdvanceDelaySeconds, 0, 120)
 
 	// Agent behavior.
-	settings.AgentMaxTurns = clampInt(settings.AgentMaxTurns, 5, 200)
+	settings.AgentMaxTurns = clampInt(settings.AgentMaxTurns, 5, 1000)
 	settings.AgentTimeoutSeconds = clampInt(settings.AgentTimeoutSeconds, 60, 3600)
 
 	// UI preferences.

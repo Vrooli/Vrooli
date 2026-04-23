@@ -84,7 +84,7 @@ func TestConcurrencyGate_StartLocked(t *testing.T) {
 			MaxQueueDepth:                 50,
 			CircuitBreakerThreshold:       3,
 			CircuitBreakerCooldownMinutes: 60,
-			AgentMaxTurns:                 60,
+			AgentMaxTurns:                 600,
 		}},
 	})
 
@@ -114,13 +114,18 @@ func TestQueueDepthEnforcement(t *testing.T) {
 		"tags":        []string{},
 	})
 	mustWriteDeliverableFile(t, root, "idea", "new-item")
+	// The queue depth test seeds two pending records. They must reference
+	// real backlog items on disk or pruneOrphanedPendingRecords would drop
+	// them before the depth check, defeating the test.
+	mustWriteBacklogItem(t, root, "idea", "seed-a", map[string]any{"name": "seed-a", "status": "queued", "priority": 3, "tags": []string{}})
+	mustWriteBacklogItem(t, root, "idea", "seed-b", map[string]any{"name": "seed-b", "status": "queued", "priority": 3, "tags": []string{}})
 
 	storePath := filepath.Join(root, ".vrooli", "execution-runs.json")
 
 	// Pre-populate with 2 pending records (maxQueueDepth=2).
 	preExisting := []Record{
-		{ExecutionID: "pending-1", Status: StatusPending, BacklogKind: "idea", BacklogName: "a", Mode: ModeManual, CreatedAt: nowRFC3339(), UpdatedAt: nowRFC3339()},
-		{ExecutionID: "pending-2", Status: StatusPending, BacklogKind: "idea", BacklogName: "b", Mode: ModeManual, CreatedAt: nowRFC3339(), UpdatedAt: nowRFC3339()},
+		{ExecutionID: "pending-1", Status: StatusPending, BacklogKind: "idea", BacklogName: "seed-a", Mode: ModeManual, CreatedAt: nowRFC3339(), UpdatedAt: nowRFC3339()},
+		{ExecutionID: "pending-2", Status: StatusPending, BacklogKind: "idea", BacklogName: "seed-b", Mode: ModeManual, CreatedAt: nowRFC3339(), UpdatedAt: nowRFC3339()},
 	}
 	store := NewStore(storePath)
 	if err := store.Save(preExisting); err != nil {
@@ -137,7 +142,7 @@ func TestQueueDepthEnforcement(t *testing.T) {
 			MaxQueueDepth:                 2,
 			CircuitBreakerThreshold:       3,
 			CircuitBreakerCooldownMinutes: 60,
-			AgentMaxTurns:                 60,
+			AgentMaxTurns:                 600,
 		}},
 	})
 
@@ -178,7 +183,7 @@ func TestCostCapEnforcement(t *testing.T) {
 			CircuitBreakerCooldownMinutes: 60,
 			ExecutionCostCapPerRun:        2.0,
 			CostPerTurnEstimate:           0.10,
-			AgentMaxTurns:                 60,
+			AgentMaxTurns:                 600,
 		}},
 	})
 
@@ -243,7 +248,7 @@ func TestYoloAtCapacity_LeavesPending(t *testing.T) {
 			MaxQueueDepth:                 50,
 			CircuitBreakerThreshold:       3,
 			CircuitBreakerCooldownMinutes: 60,
-			AgentMaxTurns:                 60,
+			AgentMaxTurns:                 600,
 		}},
 	})
 
@@ -290,7 +295,7 @@ func TestCircuitBreakerBlocksQueue(t *testing.T) {
 			MaxQueueDepth:                 50,
 			CircuitBreakerThreshold:       3,
 			CircuitBreakerCooldownMinutes: 60,
-			AgentMaxTurns:                 60,
+			AgentMaxTurns:                 600,
 		}},
 	})
 
@@ -329,7 +334,7 @@ func TestGovernanceStatus(t *testing.T) {
 			CircuitBreakerThreshold:       3,
 			CircuitBreakerCooldownMinutes: 60,
 			CostPerTurnEstimate:           0.10,
-			AgentMaxTurns:                 60,
+			AgentMaxTurns:                 600,
 		}},
 	})
 

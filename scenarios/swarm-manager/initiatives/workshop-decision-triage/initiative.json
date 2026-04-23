@@ -1,0 +1,16 @@
+{
+  "name": "workshop-decision-triage",
+  "title": "Workshop Decision Triage Sync",
+  "description": "Conversational, agent-led flow for answering swarm-manager workshop decisions in ad-hoc 5-minute sessions throughout the day. Eagerly-staged prep specialist + hash-based freshness + async clarification escape hatch. Complements morning-vision-walk; no coupling.",
+  "status": "active",
+  "priority": 2,
+  "items": [
+    "execute/swarm-manager-pending-questions-priority-sort",
+    "execute/workshop-decision-prep-agent",
+    "execute/workshop-decision-sync-skill",
+    "chore/workshop-decision-sync-tests",
+    "idea/workshop-question-level-answer-endpoint"
+  ],
+  "created": "2026-04-22T20:27:45Z",
+  "updated": "2026-04-22T20:27:45Z"
+}

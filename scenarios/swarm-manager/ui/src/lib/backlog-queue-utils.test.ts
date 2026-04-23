@@ -559,4 +559,68 @@ describe("computeDependencyRelations", () => {
     const result = computeDependencyRelations(item, [parent, item]);
     expect(result.parents[0]?.title).toBe("notitle");
   });
+
+  describe("enrichment", () => {
+    it("attaches activity when activityByKey contains the key", () => {
+      const parent = makeItem({ name: "p1", kind: "fix", status: "ready" });
+      const item = makeItem({ name: "child", kind: "idea", dependsOn: ["fix/p1"] });
+      const result = computeDependencyRelations(item, [parent, item], {
+        activityByKey: new Map([
+          ["fix/p1", { purpose: "workshop", status: "running" }],
+        ]),
+      });
+      expect(result.parents[0]?.activity).toEqual({ purpose: "workshop", status: "running" });
+    });
+
+    it("leaves activity undefined when no entry in activityByKey", () => {
+      const parent = makeItem({ name: "p1", kind: "fix", status: "ready" });
+      const item = makeItem({ name: "child", kind: "idea", dependsOn: ["fix/p1"] });
+      const result = computeDependencyRelations(item, [parent, item], {
+        activityByKey: new Map(),
+      });
+      expect(result.parents[0]?.activity).toBeUndefined();
+    });
+
+    it("attaches attentionReasons from feedback/maturity maps", () => {
+      const parent = makeItem({ name: "p1", kind: "fix", status: "ready" });
+      const item = makeItem({ name: "child", kind: "idea", dependsOn: ["fix/p1"] });
+      const result = computeDependencyRelations(item, [parent, item], {
+        feedbackMap: new Map([
+          ["fix/p1", { kind: "fix", name: "p1", pendingDecisions: 3 }],
+        ]),
+        maturityMap: new Map(),
+      });
+      expect(result.parents[0]?.attentionReasons).toEqual([
+        { kind: "pending-decisions", count: 3 },
+      ]);
+    });
+
+    it("omits attentionReasons for dangling refs (no full item to inspect)", () => {
+      const item = makeItem({ name: "child", kind: "idea", dependsOn: ["fix/gone"] });
+      const result = computeDependencyRelations(item, [item], {
+        feedbackMap: new Map(),
+        maturityMap: new Map(),
+      });
+      expect(result.parents[0]?.attentionReasons).toBeUndefined();
+    });
+
+    it("enriches children in the reverse lookup too", () => {
+      const parent = makeItem({ name: "parent", kind: "fix", status: "ready" });
+      const child = makeItem({
+        name: "c1",
+        kind: "idea",
+        status: "researching",
+        dependsOn: ["fix/parent"],
+      });
+      const result = computeDependencyRelations(parent, [parent, child], {
+        activityByKey: new Map([
+          ["idea/c1", { purpose: "review", status: "needs_review" }],
+        ]),
+      });
+      expect(result.children[0]?.activity).toEqual({
+        purpose: "review",
+        status: "needs_review",
+      });
+    });
+  });
 });

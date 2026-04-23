@@ -1,0 +1,101 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-22T04:45:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 2,
+    "scope_defined": 2,
+    "approach_solid": 1,
+    "testable": 1,
+    "risk_awareness": 1
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Source of test prompts for the 3-5 real-world decision scenarios",
+      "context": "The deliverable requires validating gpt-image-2 on 3-5 real decision scenarios end-to-end. The prompts we pick materially affect the signal: synthetic prompts test the happy path, historical Swarm Manager decisions test real distribution, a hybrid gives both. There is no existing curated set.",
+      "options": [
+        {"key": "A", "label": "Pull 3-5 UI-shaped decisions from recent Swarm Manager workshop rounds and convert each to an image-prompt", "rationale": "Highest realism — matches the actual distribution the skill will see in production. Slightly more setup (need to find decisions with image-pickable options).", "recommended": true},
+        {"key": "B", "label": "Author 3-5 synthetic decision prompts spanning the expected UI dimensions (layout, palette, density, element choice)", "rationale": "Fast, covers the design space deliberately. Lower realism — may miss idiosyncrasies of how workshop agents actually phrase options."},
+        {"key": "C", "label": "Hybrid — 2 historical + 3 synthetic (or similar split)", "rationale": "Balances realism and design-space coverage at the cost of slightly more work."},
+        {"key": "D", "label": "Other", "rationale": "Provide your own source or curation rule."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Default quality tier to validate as the shipping target",
+      "context": "gpt-image-2 exposes quality tiers with a ~4-6x cost delta (initiative doc cites ~$0.03-0.05 medium vs ~$0.13-0.20 high). 'The quality we'd ship with' is currently under-specified. Whichever tier we validate becomes the primary basis for the cost model in the conclusion.",
+      "options": [
+        {"key": "A", "label": "Medium quality as default; validate high as an opt-in escape hatch", "rationale": "Cheapest per-decision cost. Aligns with 'mockup-grade' framing in the spec — decisions don't need pixel-perfect art. Risks: may look too rough to change a user's answer.", "recommended": true},
+        {"key": "B", "label": "High quality as default; medium as a cost-saver setting", "rationale": "Maximizes the chance that mockups actually shift decisions (the whole point of the feature). Costs 4-6x more per decision; harder to justify at scale."},
+        {"key": "C", "label": "Adaptive — medium for initial option render, high for user-approved / final mockup", "rationale": "Nuanced but introduces lifecycle state we don't have yet. Probably premature for this research."},
+        {"key": "D", "label": "Other", "rationale": "Provide your own tier rule."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "How rigorously to compare against OpenRouter's openai/gpt-5.4-image-2 composite",
+      "context": "The initiative doc says OpenAI-direct wins on cost because the OpenRouter composite bundles GPT-5.4 reasoning tokens — but flags that this is a working assumption the research must still verify. The spec asks us to 'justify going OpenAI-direct on cost,' which requires at least some real A/B data. Options trade rigor for research time.",
+      "options": [
+        {"key": "A", "label": "Minimal spot-check — run the same 1-2 prompts through each vendor at matching quality, compare $/image and qualitative output", "rationale": "Enough to confirm/overturn the working assumption with limited time. Misses edge cases but probably sufficient for a go/no-go.", "recommended": true},
+        {"key": "B", "label": "Full matrix — all 3-5 test prompts through both vendors at both quality tiers", "rationale": "Strongest basis for the cost model, but ~2x the API spend and effort for what is likely a clear-cut answer."},
+        {"key": "C", "label": "Skip — accept the initiative's working assumption as-is and record it in the conclusion", "rationale": "Fastest. Leaves the cost-justification claim unverified, which the spec explicitly asks us to address."},
+        {"key": "D", "label": "Other", "rationale": "Provide your own comparison protocol."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Reference image source for the input_fidelity='high' style-consistency test",
+      "context": "The style-consistency check requires a reference image to pass as input. Since screenshot-grounding is explicitly deferred to the downstream grounding-propagation initiative, this test is about whether reference images carry *visual style* (palette, type, density) consistently across multiple outputs — not layout faithfulness. The reference-image choice sets what 'style consistency' means here.",
+      "options": [
+        {"key": "A", "label": "Use a single existing Vrooli UI screenshot as the style anchor across all test prompts", "rationale": "Closest to real production use (skill will anchor on Vrooli's own look). Requires picking a representative screenshot.", "recommended": true},
+        {"key": "B", "label": "Use a generic design-system reference (e.g. a Material or shadcn example) not tied to Vrooli", "rationale": "Tests the fidelity mechanic in isolation from Vrooli specifics. Less directly applicable to the shipping use case."},
+        {"key": "C", "label": "Run without a reference image and rely on prompt-only style instructions", "rationale": "Tests the text-only path but doesn't exercise input_fidelity='high' at all — arguably out of scope for this decision since the research spec explicitly calls for verifying input_fidelity='high'."},
+        {"key": "D", "label": "Other", "rationale": "Provide your own reference-image strategy."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Scope confirmation: this research is text-to-mockup only plus a style-consistency check of input_fidelity='high'. Screenshot/layout grounding is owned by research/bas-grounded-mockup-flow in the downstream decision-visual-grounding-propagation initiative. Keeping the boundary crisp avoids rework there."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Initiative working assumption (from ai-image-generation-foundation/orchestration-summary.md): OpenAI-direct pricing is $8 input / $30 output per 1M tokens, ~$0.03-0.05 per medium-quality image, ~$0.13-0.20 per high-quality. OpenRouter's composite bundles GPT-5.4 reasoning tokens, which is why the working assumption is it loses on cost. d3 decides how hard we verify this."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Test-harness constraint: the EnableImageGeneration toggle lives inside the planned 'swarm-manager image generate' CLI helper (execute/swarm-manager-image-cli-helper), which does not exist yet — it is a downstream execute item gated by this research. The validation harness will therefore call the OpenAI API directly (or via a throwaway wrapper) and must not assume the helper or its toggle semantics."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "Sibling-item implications to watch: a no-go outcome would cascade into execute/openai-api-key-plumbing and execute/ui-mockup-generation-skill (both list this research as a dependency), and into the downstream decision-question-visuals initiative which depends on this foundation. A 'go-with-caveats' outcome (e.g. style consistency fails at medium quality) may narrow the skill's scope rather than kill the initiative."
+    },
+    {
+      "id": "i5",
+      "type": "info",
+      "text": "Open gap flagged for later rounds: once d1–d4 are answered we still need to verify the exact OpenAI Images API endpoint, parameter names (quality tiers, input_fidelity), and model ID string for gpt-image-2 against current docs. The initiative doc uses the name gpt-image-2 but does not cite the endpoint schema. Later rounds will confirm this before running any real calls."
+    }
+  ],
+  "plan_updates": "Created initial conclusion.md scaffold with Research Question, Methodology (planned), Findings 1-3 capturing initiative-derived context, Limitations, and Actions placeholder. Findings 1 and 2 make the OpenAI-direct assumption and the text-to-mockup-only scope explicit so later rounds cannot quietly over-scope. Summary and Actions left as TBD until comparison data exists."
+}

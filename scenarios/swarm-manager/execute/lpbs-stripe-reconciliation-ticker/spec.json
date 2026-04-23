@@ -1,6 +1,7 @@
 {
   "acceptance_allow": [
-    "scenarios/landing-page-business-suite/api/**"
+    "scenarios/landing-page-business-suite/api/**",
+    "scenarios/landing-page-business-suite/docs/**"
   ],
   "created": "2026-04-17T19:59:02Z",
   "depends_on": [
@@ -16,5 +17,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Add goroutine ticker that reconciles Stripe paid sessions against local subscriptions",
-  "updated": "2026-04-17T19:59:02Z"
+  "updated": "2026-04-23T03:28:37Z"
 }

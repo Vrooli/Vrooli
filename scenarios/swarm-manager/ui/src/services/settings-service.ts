@@ -40,7 +40,7 @@ export const DEFAULT_SETTINGS: Settings = {
   autoCascadeWorkshop: true,
   maxAutoRounds: 10,
   autoAdvanceDelaySeconds: 10,
-  agentMaxTurns: 60,
+  agentMaxTurns: 600,
   agentTimeoutSeconds: 900,
   agentRequiresApproval: true,
   searchDebounceMs: 300,

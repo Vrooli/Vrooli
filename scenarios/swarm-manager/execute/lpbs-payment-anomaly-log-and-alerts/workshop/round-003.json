@@ -1,0 +1,41 @@
+{
+  "round": 3,
+  "generated_at": "2026-04-22T00:00:00Z",
+  "mode": "finalize",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 3,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Round 2 decisions incorporated into plan.md. d1=A: boot-time transactional migration is inline in main.go's existing stmts slice (§7 Phase 1 step 3, §8g) — idempotent via information_schema guard. d2=A: PaymentAnomalyService.WaitForDispatch(ctx, rowID) polls dispatch_status; lives in production code (admin tooling can use it), not a test-only branch (§4 In Scope, §7 Phase 2 step 1, new §8h, every async test row in §9). d3=A: unbounded goroutines tied to shutdownCtx; HTTP requests built with shutdown ctx so shutdown cancels in-flight POSTs; rate limiter + 3×5s retry cap bounds worst-case concurrent goroutines to ~burst × type_count (§7 Phase 2 step 3, new §8i). d4: user deferred with 'whatever you think is best long' — pinned option A (push-on-PATCH with atomic.Pointer[anomalyConfig]) because it matches the existing stripeService.RefreshConfig pattern, has the lowest hot-path overhead (one atomic load per dispatch, zero DB round-trips), and gives operators predictable UX (saves take effect on next dispatch). Documented in §7 Phase 4 step 4, §8f, §8i, and §9 TestUpdate_RefreshesAnomalyConfig."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Readiness elevated from 2→3 on approach_solid, testable, and risk_awareness. Approach is now fully specified (migration timing, goroutine lifecycle, config refresh, test sync all nailed down); testable has a concrete deterministic primitive (WaitForDispatch) instead of sleep-based polling; risk_awareness has explicit mitigations for the two new risks surfaced by d3/d4 (unbounded goroutine pressure, stale-config-at-dispatch-boundary). Problem clarity and scope were already 3."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Validation report warning 'No vrooli scenario restart final cleanup step found' is an acknowledged false positive under standing user policy feedback_no_restart_active_scenario.md: Claude does not restart a scenario it is running inside the same Vrooli workspace as. Phase 7 step 5 and Definition of Done item 13 explicitly name the command `vrooli scenario restart landing-page-business-suite` as a user-executed step after review, so operators see the command but Claude does not invoke it. Plan was updated to include the literal command string in §7 Phase 7, §10 checklist, §12 non-goals, and §13 DoD — both honoring the standing policy and making the linter's expected token present."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "Initiative context check: initiative desktop-monetization-assurance rollup currently lists only 2 members (the completed research + the completed assurance suite) and does not show this execute item. The spec.json's `initiative` field is set correctly to desktop-monetization-assurance, so this is a swarm-manager rollup sync gap, not a content gap in this item. No plan change needed. Sibling-item overlap surfaced during workshopping (execute/lpbs-stripe-reconciliation-ticker, execute/lpbs-download-delivery-confirmation, execute/lpbs-admin-payment-ops) is already called out in §1 Purpose and §6 Target End State item 7 so downstream orchestration knows this item is the substrate they write into."
+    },
+    {
+      "id": "i5",
+      "type": "info",
+      "text": "No remaining gaps. Plan is execution-ready: greenfield constraint explicit, all 13 mandatory sections present, 18 automated tests defined with specific file/function names, migration has both fresh-DB and upgrade-path fixtures, cleanup phase fixes pre-existing issues per planning guidelines, and the no-restart-by-Claude policy is honored. Next step in the swarm-manager pipeline is to mark status=ready and queue for execution."
+    }
+  ],
+  "plan_updates": "Incorporated all round-2 answers. Added §8h (WaitForDispatch contract) and §8i (dispatcher lifecycle + config refresh). Updated §4 Scope to include WaitForDispatch and push-on-PATCH; added a new Out-of-Scope bullet explicitly deferring the bounded worker pool. Updated §7 Phase 1 step 3 to pin inline-in-stmts-slice migration timing; §7 Phase 2 steps 1-3 to add WaitForDispatch method, shutdownCtx threading, and explicit unbounded-goroutine lifecycle; §7 Phase 4 step 4 to pin push-on-PATCH refresh with atomic.Pointer. Updated §7 Phase 7 step 5 and §13 DoD item 13 to include the literal `vrooli scenario restart landing-page-business-suite` command as a user-executed step (not Claude-executed). Added 2 new test rows to §9 (TestWaitForDispatch_Timeout, renamed/clarified TestUpdate_RefreshesAnomalyConfig to assert atomic.Pointer propagation). Added 2 new risks to §11 (unbounded goroutine count under detection-bug flood, stale config at dispatch boundary, WaitForDispatch CPU cost) with mitigations. Updated §12 with three new prohibited patterns matching the committed decisions (no bounded pool, no SyncDispatch test branch, no pull-per-dispatch or TTL refresh). Updated §10 Rollout Checklist to reference the new tests and the manual user-run restart command. §13 DoD grew from 11 to 13 items to cover WaitForDispatch and push-on-PATCH."
+}

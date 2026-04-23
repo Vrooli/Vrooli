@@ -1,0 +1,159 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-22T20:40:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 2,
+    "testable": 3,
+    "risk_awareness": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Where does the ported Go ranker live?",
+      "context": "The TS ranker (computeDepthMap, computeUnblockingMap, computeEffectivePriority) has no Go equivalent. The orchestration summary says 'reuse existing ranker, do NOT duplicate' — but across languages, that means establishing a canonical Go implementation. Placement affects acceptance_allow and future reuse.",
+      "options": [
+        {
+          "key": "A",
+          "label": "New standalone package api/internal/backlogrank",
+          "rationale": "Greenfield, zero import-cycle risk, clean home for future consumers (overview, stats). Requires adding the path to acceptance_allow before phase 1.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Extend api/internal/depgraph with depth + unblocking + effective-priority helpers",
+          "rationale": "depgraph already owns dependency primitives, so the domain fits. Downside: depgraph is generic (just strings); adding RankItem interface or concrete BacklogItem awareness pollutes it. Also requires expanding acceptance_allow."
+        },
+        {
+          "key": "C",
+          "label": "Place inside api/internal/backlog/ranking.go (no new package)",
+          "rationale": "Zero changes to acceptance_allow. Works for the pending-questions handler today. Downside: if overview or stats want it later, they'd import backlog, which creates cycle risk (execution/backlog_bridge.go already struggles with this)."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Propose a different location or justify inlining."
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "When source=all, what is the order of items that emit both workshop and review questions?",
+      "context": "The existing handler groups per item: one PendingQuestionsItem with Questions = [workshop decisions..., review items...]. After sorting items[] by priority/unblocking, an item may hold questions from both sources. The MVP prep specialist only uses source=workshop, but --source=all is still exposed and the UI command post consumes it.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Keep current grouping: one item entry holds both workshop and review questions, concatenated in that fixed order",
+          "rationale": "Preserves existing response shape exactly. UI already handles this. Simplest and matches how the structure was designed. Recommended because source=all is not the target of this ticket — don't change it beyond applying the same item-level sort.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Split workshop and review into separate item entries under the same (kind, name)",
+          "rationale": "Gives callers explicit per-source grouping. Downside: changes response shape (duplicated item entries), breaks existing UI assumptions and tests."
+        },
+        {
+          "key": "C",
+          "label": "Interleave workshop + review inside Questions[] by some rule (e.g., criticality)",
+          "rationale": "Most flexible for consumers. Downside: requires defining a cross-type ranking rule out of scope for this ticket."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Propose a different shape."
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "How do we guard against the Go port diverging from the TS algorithm?",
+      "context": "Risk matrix flags this as medium-likelihood, high-impact. Two consumers (UI's command post, CLI) will silently disagree on 'top K' if the algorithms drift.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Port TS test cases verbatim into Go + add a UI regression test asserting the server's order survives a re-sort",
+          "rationale": "Two-sided pinning: Go tests lock the algorithm, UI test locks the no-op. Low cost, catches drift on either side.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Only port TS tests to Go; skip the UI-side regression",
+          "rationale": "Less code. Downside: if someone later edits dependency-sort.ts thinking the server order doesn't matter, UI will silently disagree."
+        },
+        {
+          "key": "C",
+          "label": "Add a golden-file integration test that loads a shared JSON fixture and asserts matching order in both Go and TS",
+          "rationale": "Strongest guarantee. Downside: significant harness work (shared fixture, cross-language runners) — oversized for an S-effort item."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Propose an alternative."
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Should the JSON response include rank diagnostics (effective_priority, depth, transitive_dependents)?",
+      "context": "Adding these fields would help future debugging (why does item X sort before Y?) and let consumers apply their own secondary sorts. Downside: response-shape change; other consumers (UI) would need to tolerate new fields.",
+      "options": [
+        {
+          "key": "A",
+          "label": "No diagnostic fields — preserve existing PendingQuestionsItem shape exactly",
+          "rationale": "Minimal change, zero risk to UI decoders, easy to reason about. Debugging can be served by a future --debug flag on the CLI if needed. Recommended — non-goal in the plan is explicit about preserving shape.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Add optional fields (effective_priority float, depth int, transitive_dependents int) on PendingQuestionsItem",
+          "rationale": "Better debuggability. Extra fields are forward-compatible in JSON decoders. Downside: enlarges the payload and invites callers to depend on internals."
+        },
+        {
+          "key": "C",
+          "label": "Add fields but only when ?debug=1 is set",
+          "rationale": "Opt-in diagnostic. Downside: extra code path to maintain with almost zero current demand."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Propose an alternative."
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The TS ranker (ui/src/lib/dependency-sort.ts + backlog-sort.ts) is currently used by both the BacklogTab sidebar and the command post. After this ticket, the UI can simplify the command post path to rely on server order, but that simplification is deferred to post-landing follow-ups (it's a separate code change and we want one release cycle of parity before collapsing)."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Constants to carry forward to Go exactly: UNBLOCK_WEIGHT=0.5, UNBLOCK_CAP=3, SORT_RESOLVED_STATUSES={'completed'} (archived detected via archivedAt != ''). Effective priority is manual - min(deps * 0.5, 3); lower value sorts first."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "acceptance_allow is currently [scenarios/swarm-manager/cli/**, scenarios/swarm-manager/api/internal/backlog/**]. If D1 resolves to option A (backlogrank) or B (depgraph), the glob list must be widened before phase 1 starts — flagging so the orchestrator does not catch it late."
+    }
+  ],
+  "plan_updates": "Created plan.md scaffold (Problem Statement through Post-Landing Follow-Ups — 13 mandatory sections). Four decisions (D1–D4) block only narrow paths: D1 (package location), D2 (source=all shape), D3 (divergence guard), D4 (rank diagnostics). Approach, phased plan, and testing strategy are fully specified modulo D1's placeholder {{RANKER_PKG}}."
+}

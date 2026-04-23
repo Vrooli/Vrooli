@@ -73,6 +73,15 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 		return Record{}, err
 	}
 
+	// Drop pending records whose backlog item has disappeared — they can
+	// never be started and otherwise consume the queue-depth budget.
+	if filtered, pruned := pruneOrphanedPendingRecords(records, s.itemDir); pruned > 0 {
+		if saveErr := s.store.Save(filtered); saveErr != nil {
+			return Record{}, saveErr
+		}
+		records = filtered
+	}
+
 	// Queue depth enforcement.
 	if gov.MaxQueueDepth > 0 {
 		queued := countQueuedExecutions(records)
@@ -85,7 +94,7 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 	if gov.ExecutionCostCapPerRun > 0 && gov.CostPerTurnEstimate > 0 {
 		agentMaxTurns := gov.AgentMaxTurns
 		if agentMaxTurns <= 0 {
-			agentMaxTurns = 60
+			agentMaxTurns = 600
 		}
 		estimatedCost := gov.CostPerTurnEstimate * float64(agentMaxTurns)
 		if estimatedCost > gov.ExecutionCostCapPerRun && !req.Force {

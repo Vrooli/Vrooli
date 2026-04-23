@@ -1,0 +1,17 @@
+{
+  "acceptance_allow": [
+    "scenarios/swarm-manager/cli/**",
+    "scenarios/swarm-manager/api/internal/backlog/**"
+  ],
+  "created": "2026-04-22T20:27:45Z",
+  "description": "The existing GET /api/v1/backlog/pending-questions (scenarios/swarm-manager/api/internal/backlog/pending_questions.go) iterates store.LoadAll(nil) in unspecified order. Extend it to sort items (and therefore the questions produced per item) by the same priority ranking the UI uses — factors in priority, blocked/unblocked status, and downstream unlock count. Find and reuse the existing ranker rather than duplicating logic (grep for 'rank', 'priority', 'unblock' under scenarios/swarm-manager/api to locate before implementing).\n\nAlso add a CLI wrapper: `swarm-manager backlog pending-questions [--json] [--source workshop|review|all] [--limit N] [--initiative NAME]` — mirror the shape of backlog list/get in scenarios/swarm-manager/cli/cmd_backlog.go. Default --source is workshop (what the new sync flow needs); review source is surfaced but unused by the MVP prep specialist.\n\nNo schema changes. No client-side ranking. Existing UI continues to work (server now returns pre-sorted; UI's own sort can be verified as a no-op post-change).",
+  "effort": "S",
+  "initiative": "workshop-decision-triage",
+  "kind": "execute",
+  "name": "swarm-manager-pending-questions-priority-sort",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [],
+  "title": "Priority-sort pending-questions endpoint and add CLI wrapper",
+  "updated": "2026-04-22T20:27:45Z"
+}

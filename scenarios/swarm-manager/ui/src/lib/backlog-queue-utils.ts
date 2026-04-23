@@ -8,7 +8,16 @@
  * DOC: docs/concepts/ARCHITECTURE.md#backlog-action-funnel
  */
 
-import type { BacklogItem, BacklogKind, BacklogStatus, ItemBlockingInfo } from "../types";
+import type {
+  AgentActivityPurpose,
+  AgentActivityStatus,
+  BacklogItem,
+  BacklogKind,
+  BacklogStatus,
+  ItemBlockingInfo,
+} from "../types";
+import type { AttentionReason, FeedbackItem, MaturityItem } from "./feed";
+import { getAttentionReasons } from "./feed";
 
 // ---------------------------------------------------------------------------
 // Status constants
@@ -57,18 +66,39 @@ export const getBacklogNotQueueableReason = (item: QueueableBacklogItem & { arch
 // Dependency relations (parent/children resolution)
 // ---------------------------------------------------------------------------
 
+/** Agent activity summary attached to a resolved dependency. */
+export interface ResolvedDependencyActivity {
+  purpose: AgentActivityPurpose;
+  status: AgentActivityStatus;
+}
+
 /** A dependency reference resolved to its display fields. */
 export interface ResolvedDependency {
   kind: string;
   name: string;
   title: string;
   status: BacklogStatus;
+  /** Active agent activity on this dependency, if any. Present only when an
+   *  activityByKey map is supplied to `computeDependencyRelations`. */
+  activity?: ResolvedDependencyActivity;
+  /** Pending-input reasons (pending decisions, plan ready, review ready).
+   *  Present only when feedback/maturity maps are supplied to
+   *  `computeDependencyRelations`. */
+  attentionReasons?: AttentionReason[];
 }
 
 /** Parent (upstream) and children (downstream) dependencies for an item. */
 export interface DependencyRelations {
   parents: ResolvedDependency[];
   children: ResolvedDependency[];
+}
+
+/** Optional extra signals to enrich each resolved dependency with. */
+export interface DependencyEnrichmentMaps {
+  /** Map from `${kind}/${name}` → active AgentActivity summary. */
+  activityByKey?: Map<string, ResolvedDependencyActivity>;
+  feedbackMap?: Map<string, FeedbackItem>;
+  maturityMap?: Map<string, MaturityItem>;
 }
 
 /**
@@ -79,13 +109,38 @@ export interface DependencyRelations {
  *
  * Dangling refs (items listed in `dependsOn` but not found in `allItems`) are
  * returned with `"completed"` status so the chip still renders visually.
+ *
+ * When `enrichment` maps are provided, each resolved dependency also carries
+ * an `activity` (if an agent is active on it) and `attentionReasons` (pending
+ * decisions / plan ready / review ready). Without maps, those fields are left
+ * undefined and consumers fall back to lifecycle status only.
  */
 export function computeDependencyRelations(
   item: Pick<BacklogItem, "kind" | "name" | "dependsOn">,
   allItems: BacklogItem[],
+  enrichment?: DependencyEnrichmentMaps,
 ): DependencyRelations {
   const itemsByKey = new Map(allItems.map((i) => [`${i.kind}/${i.name}`, i]));
   const selfKey = `${item.kind}/${item.name}`;
+
+  const attachEnrichment = (
+    dep: ResolvedDependency,
+    fullItem: BacklogItem | null,
+  ): ResolvedDependency => {
+    if (!enrichment) return dep;
+    const key = `${dep.kind}/${dep.name}`;
+    const activity = enrichment.activityByKey?.get(key);
+    if (activity) dep.activity = activity;
+    if (fullItem && (enrichment.feedbackMap || enrichment.maturityMap)) {
+      const reasons = getAttentionReasons(
+        fullItem,
+        enrichment.feedbackMap ?? new Map<string, FeedbackItem>(),
+        enrichment.maturityMap ?? new Map<string, MaturityItem>(),
+      );
+      dep.attentionReasons = reasons;
+    }
+    return dep;
+  };
 
   const parents: ResolvedDependency[] = [];
   for (const dep of item.dependsOn ?? []) {
@@ -93,10 +148,20 @@ export function computeDependencyRelations(
     if (!dep.includes("/")) continue;
     const found = itemsByKey.get(dep);
     if (found) {
-      parents.push({ kind: found.kind, name: found.name, title: found.title || found.name, status: found.status });
+      parents.push(
+        attachEnrichment(
+          { kind: found.kind, name: found.name, title: found.title || found.name, status: found.status },
+          found,
+        ),
+      );
     } else {
       const [kind = "", ...rest] = dep.split("/");
-      parents.push({ kind, name: rest.join("/"), title: dep, status: "completed" as BacklogStatus });
+      parents.push(
+        attachEnrichment(
+          { kind, name: rest.join("/"), title: dep, status: "completed" as BacklogStatus },
+          null,
+        ),
+      );
     }
   }
 
@@ -105,7 +170,12 @@ export function computeDependencyRelations(
     const otherKey = `${other.kind}/${other.name}`;
     if (otherKey === selfKey) continue;
     if (other.dependsOn?.includes(selfKey)) {
-      children.push({ kind: other.kind, name: other.name, title: other.title || other.name, status: other.status });
+      children.push(
+        attachEnrichment(
+          { kind: other.kind, name: other.name, title: other.title || other.name, status: other.status },
+          other,
+        ),
+      );
     }
   }
 

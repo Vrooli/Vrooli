@@ -73,7 +73,7 @@ func disableAutoWorkshopSettings(t *testing.T, rootDir string) {
 		"auto_initialize_workshop": false,
 		"auto_advance_workshop":    false,
 		"auto_cascade_workshop":    false,
-		"agent_max_turns":          60,
+		"agent_max_turns":          600,
 		"agent_timeout_seconds":    900,
 		"agent_requires_approval":  true,
 		"search_debounce_ms":       300,

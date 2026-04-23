@@ -9,6 +9,12 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
+// DefaultAgentMaxTurns is the canonical per-run turn budget for swarm-manager
+// agents. Settings defaults, governance fallbacks, and the configuration UI
+// should all mirror this value so that deleting and recreating a profile does
+// not silently drop the cap back to a smaller number.
+const DefaultAgentMaxTurns int32 = 600
+
 // ProfileConfig contains agent profile configuration.
 type ProfileConfig struct {
 	RunnerType       domainpb.RunnerType
@@ -48,7 +54,7 @@ func DefaultProfileConfig() *ProfileConfig {
 	return &ProfileConfig{
 		RunnerType:  domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
 		ModelPreset: domainpb.ModelPreset_MODEL_PRESET_SMART,
-		MaxTurns:    60,
+		MaxTurns:    DefaultAgentMaxTurns,
 		// 60 minute timeout for research and implementation prep.
 		TimeoutSeconds: 3600,
 		AllowedTools: []string{

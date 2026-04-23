@@ -180,14 +180,14 @@ export function ExecutionTab({ form, patch }: ExecutionTabProps) {
         <div className="mt-4 space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-300">Max Turns</label>
-            <p className="mt-1 text-xs text-slate-400">Maximum conversation turns per agent run (5-200).</p>
+            <p className="mt-1 text-xs text-slate-400">Maximum conversation turns per agent run (5-1000).</p>
             <Input
               type="number"
               min={5}
-              max={200}
+              max={1000}
               className="mt-1"
               value={form.agentMaxTurns}
-              onChange={(e) => patch({ agentMaxTurns: Math.max(5, Math.min(200, Number(e.target.value || 5))) })}
+              onChange={(e) => patch({ agentMaxTurns: Math.max(5, Math.min(1000, Number(e.target.value || 5))) })}
             />
           </div>
           <div>

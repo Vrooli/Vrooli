@@ -56,7 +56,7 @@ func (s *Service) GovernanceStatus() (*GovernanceStatusResponse, error) {
 
 	agentMaxTurns := gov.AgentMaxTurns
 	if agentMaxTurns <= 0 {
-		agentMaxTurns = 60
+		agentMaxTurns = 600
 	}
 	estimatedQueuedCost := float64(queued) * gov.CostPerTurnEstimate * float64(agentMaxTurns)
 

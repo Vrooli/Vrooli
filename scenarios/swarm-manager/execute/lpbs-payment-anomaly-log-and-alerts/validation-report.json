@@ -15,9 +15,7 @@
     "Definition of Done"
   ],
   "sections_missing": null,
-  "warnings": [
-    "No `vrooli scenario restart` final cleanup step found"
-  ],
+  "warnings": null,
   "passed": true,
-  "validated_at": "2026-04-18T14:52:39Z"
+  "validated_at": "2026-04-23T03:32:25Z"
 }

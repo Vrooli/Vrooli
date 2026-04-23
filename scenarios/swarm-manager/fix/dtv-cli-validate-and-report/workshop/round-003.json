@@ -1,0 +1,36 @@
+{
+  "round": 3,
+  "generated_at": "2026-04-23T03:47:56Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 3,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Audit fix: `acceptance_allow` was documented in plan.md §4 and claimed persisted in round 002, but spec.json did not actually carry the patterns. Round 003 ran `swarm-manager backlog update` to persist `[\\"scenarios/development-toolchain-validator/cli/**\\", \\"scenarios/development-toolchain-validator/api/**\\"]`. Verified via `backlog get`. Plan.md §4 note updated to reflect the actual persistence."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Orchestrator action required before queuing: `spec.json.depends_on` still contains `fix/dtv-validation-api`, but that backlog item does not exist in the `dtv-meta-optimization-readiness` initiative (verified via `initiatives context` — members are sqlite-migration, report-generation, this item, and meta-optimization-contract only). Round 001 D1 absorbed that work into this item's scope, and the sibling was never recreated. Left as-is, `batch-queue` will fail dependency resolution. The remaining dependency `fix/dtv-report-generation` is `completed`, so it is safe to drop `fix/dtv-validation-api` from `depends_on` without loss. Added to plan.md §11 as a High-likelihood pre-queue risk. This workshop does not mutate backlog depends_on autonomously; the orchestrator should run: `swarm-manager backlog update --kind fix --name dtv-cli-validate-and-report --data '{\\"depends_on\\":[\\"fix/dtv-report-generation\\"]}'`."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Initiative neighborhood check: downstream consumer `fix/dtv-meta-optimization-contract` depends on this item and is blocked until it lands. No sibling item overlaps this scope (sqlite-migration and report-generation are both complete; meta-optimization-contract only rewrites prompts). The plan does not need to cede any ground to a sibling; cross-initiative implications are limited to unblocking the downstream prompt-alignment work."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "This plan is ready for execution. All five readiness dimensions remain at 3. All four contract decisions (D1–D4) are resolved and folded into the plan. The only action item before `queue` is the `depends_on` cleanup in i2. Suggested next step: orchestrator drops the stale dependency, then queues the item."
+    }
+  ],
+  "plan_updates": "Minor: corrected §4 Acceptance allow line to reflect that acceptance_allow was actually persisted to spec.json in round 003 (not round 002 as previously claimed). Added a High-likelihood pre-queue risk row to §11 flagging the stale `fix/dtv-validation-api` entry in `depends_on` — D1 absorbed that scope here and the sibling item does not exist, so the orchestrator must remove it before batch-queue. No scope, approach, or test-plan changes."
+}

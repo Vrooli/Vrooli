@@ -1,0 +1,25 @@
+=== SEAMS.md anomaly section ===
+72:- **Payment anomaly dispatch seam** (`payment_anomaly_service.go`, `anomaly_alert_dispatcher.go`)
+73-  - `PaymentAnomalyService.Log(ctx, anomaly)` is the sole entrypoint for recording payment-pipeline anomalies into `payment_anomaly_log`. Callers outside this file should prefer the package-level helper `LogPaymentAnomaly(ctx, srv, anomaly)`.
+74-  - `PaymentAnomalyService.WaitForDispatch(ctx, rowID)` polls the row's `dispatch_status` column at 25 ms intervals until it transitions out of `pending` or ctx cancels. Used by integration tests for deterministic async synchronization and available to admin tooling for manual-insert confirmation (no test-only code path).
+
+=== docs/reference/api/payments.md anomaly coverage ===
+325:  "anomaly_webhook_url_set": true,
+326:  "anomaly_webhook_enabled": true,
+327:  "anomaly_rate_limits": "{\"checkout_subscription_missing\":{\"burst\":3,\"refill_seconds\":300}}"
+331:The `anomaly_webhook_url` itself is never returned in the GET response (it is treated as a secret). Use `GET /admin/settings/stripe/reveal?field=anomaly_webhook_url` to retrieve the unredacted value.
+348:  "anomaly_webhook_url": "https://hooks.slack.com/services/T0/B0/XYZ",
+349:  "anomaly_webhook_enabled": true,
+350:  "anomaly_rate_limits": {
+358:- `anomaly_webhook_url` — HTTPS endpoint that receives POSTed anomaly payloads. Validated as a URL and rejected unless `https://`. Treated as a secret; redacted on GET.
+359:- `anomaly_webhook_enabled` — master switch. When `true`, an `anomaly_webhook_url` must also be set (either in this request or already persisted), otherwise the request is rejected with `400`.
+360:- `anomaly_rate_limits` — per-`anomaly_type` token-bucket overrides. Shape: `{ "<type>": { "burst": N, "refill_seconds": M } }`. Defaults when unset are `burst=5`, `refill_seconds=60`.
+362:On successful save, the server refreshes its in-memory anomaly-dispatch config so subsequent dispatches use the new values without a restart.
+
+=== docs/reference/STRIPE_WEBHOOKS.md anomaly mentions (plan required an 'Anomaly alerts' subsection) ===
+0
+0
+
+=== docs/reference/api/admin.md anomaly mentions ===
+0
+0

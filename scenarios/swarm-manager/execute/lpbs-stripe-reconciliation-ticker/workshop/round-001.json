@@ -1,0 +1,176 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-22T00:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 1,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "The payment_anomaly_log substrate is already shipped: execute/lpbs-payment-anomaly-log-and-alerts is completed, which means PaymentAnomalyService.Log and the package-level LogPaymentAnomaly(...) helper already exist, the per-type webhook alert dispatcher and rate limiter are in place, and the push-on-PATCH config refresh pattern is established. The ticker will reuse all of this and never write to payment_anomaly_log directly."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "The parent atomicity fix (fix/lpbs-checkout-webhook-atomicity) is completed. The ticker's remaining job is belt-and-suspenders for three specific failure modes: (a) pre-fix historical rows already in the 'complete without subscription' state, (b) webhook retries exhausted while the API was down longer than Stripe's ~3-day retry window, and (c) operator-deleted or replayed events. These are surfaced explicitly in plan.md section 3 so future readers understand why the ticker still matters after atomicity landed."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Research code-verification (round 1, review/captures/code-verification.md of the research item) confirmed the real re-materialization symbol is handleSubscriptionCompletion, not insertOrUpdateSubscription as the item description names it. Plan.md references the real symbol."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "Auto-extended acceptance_allow from [scenarios/landing-page-business-suite/api/**] to include scenarios/landing-page-business-suite/docs/** so the planned SEAMS.md and STRIPE_WEBHOOKS.md edits fall inside the acceptance patterns. This mirrors the precedent set by the sibling execute/lpbs-payment-anomaly-log-and-alerts item."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Stripe API query strategy for enumerating recently-paid sessions",
+      "context": "Every tick must ask Stripe 'what checkout sessions were paid since cursor?'. The Stripe SDK offers two natural endpoints. CheckoutSessions.List() supports a created[gte] filter and returns the session objects directly (with payment_status, subscription id, customer, etc.) — we would filter payment_status='paid' client-side. Events.List() can filter by type=checkout.session.completed and is the audit-log view, returning events whose data.object is the session — closer to webhook semantics but with extra SDK wrapping. CheckoutSessions.List is more direct and pairs naturally with d4=A (direct helper call); Events.List pairs naturally with d4=B (event replay).",
+      "options": [
+        {
+          "key": "A",
+          "label": "CheckoutSessions.List with created[gte] cursor, filter payment_status='paid' client-side",
+          "rationale": "Fewest SDK layers, returns the session object directly, pagination is well-understood. One extra client-side filter per page is cheap. Pairs naturally with d4=A (direct helper call) since the session object is ready to pass in.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Events.List filtering type='checkout.session.completed' since last event id",
+          "rationale": "Closer to webhook semantics — the cursor is a Stripe event id, not a local timestamp, which eliminates clock-skew concerns. Pairs naturally with d4=B (event replay) since the Event is the input handleWebhookEvent already consumes. More SDK indirection per session."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Specify an alternative (e.g., Stripe Sigma query, BalanceTransactions list, dual-source consistency check)"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Cursor advancement and lookback overlap",
+      "context": "To avoid re-scanning all-time history every tick, we persist a cursor. Two strategies: (A) a simple sliding window with a fixed overlap — cursor advances to max(session.created) on success and the next tick queries created[gte] = cursor - overlap, relying on ON CONFLICT idempotency to make the overlap cheap; or (B) a cursor that's a monotonic Stripe event id (requires d1=B). Overlap exists so a transient per-tick failure cannot create a gap. Tradeoff: larger overlap = more Stripe API cost + more idempotent work per tick; smaller overlap = tighter risk envelope around tick failures.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Timestamp cursor + 10-minute overlap (default)",
+          "rationale": "Simple, configurable, pairs with d1=A. 10-minute overlap is 2x the default 5-minute interval — absorbs one failed tick without a gap. Overhead is bounded and the idempotency of ON CONFLICT makes re-scans cheap.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Event-id cursor (requires d1=B)",
+          "rationale": "Monotonic event ids avoid clock-skew issues entirely; overlap becomes 'start N events earlier' which is more natural for the Events API."
+        },
+        {
+          "key": "C",
+          "label": "Fixed 30-minute lookback, no cursor",
+          "rationale": "Simplest — every tick re-scans the last 30 minutes. No cursor state to maintain. Risk: a 30-minute API outage silently drops sessions older than 30 minutes."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Specify an alternative overlap size or cursor semantics"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Configuration source for interval, enable flag, and overlap",
+      "context": "Three plausible config surfaces. (A) Env var + server-constant — simplest, no DB schema churn, no admin UI, but requires restart to change. (B) payment_settings row with push-on-PATCH refresh — matches the pattern paymentAnomalyService already uses (atomic.Pointer[cfg] + RefreshConfig called from handleUpdateStripeSettings) so operators can tune interval/enablement without a restart. (C) Hardcoded 5-minute interval with no config at all — smallest surface, zero operator knobs, requires a code change to tune. The anomaly-log item deliberately chose (B) for its config; this item has a strong precedent reason to do the same, but env-var is defensible for a single-knob service.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Env var (LPBS_STRIPE_RECONCILE_INTERVAL_SECONDS / _ENABLED / _OVERLAP_SECONDS), read once at server construction",
+          "rationale": "Zero DB schema churn, no admin UI, no hot-reload plumbing. Restart to change. Appropriate if operator tuning is rare."
+        },
+        {
+          "key": "B",
+          "label": "payment_settings columns with push-on-PATCH refresh (mirrors the anomaly dispatcher pattern)",
+          "rationale": "Consistent with the already-shipped pattern for Stripe + anomaly config. Operators can flip enable, change interval, and widen overlap without a restart. Hot-reload uses atomic.Pointer[reconcileConfig] so there's no lock contention in the tick hot path. Only marginal plumbing cost since the refresh hook is already called from handleUpdateStripeSettings.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Hardcoded interval (300s), env var for enable only",
+          "rationale": "Smallest possible surface. Interval is not operator-tunable. Appropriate if 5-minute cadence is never expected to change."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Specify an alternative configuration mechanism"
+        }
+      ],
+      "selected": "B"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Re-materialization mechanism for a paid session with no local subscription",
+      "context": "The item description says 'attempt re-materialization via the existing insertOrUpdateSubscription path'. The real symbol is handleSubscriptionCompletion. Two ways to reuse it. (A) Direct helper call: extract a small subscribeFromSession(ctx, tx, parsedSession) function that both the webhook path and the ticker path invoke inside WithTransaction. One shared helper; the ticker passes a stripe.CheckoutSession fetched by the list call. (B) Event replay: fetch the checkout.session.completed Event from Stripe by session id and dispatch it through handleWebhookEvent as if it were a fresh delivery. No refactor needed; the webhook path is reused end-to-end. Tradeoff: A is a cleaner call shape and avoids a second Stripe round-trip per anomaly; B avoids touching the webhook helpers at all and guarantees the exact same code path executes.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Extract subscribeFromSession helper, call directly from both webhook and ticker",
+          "rationale": "One shared helper, one code path, no extra Stripe round-trip. Tests already prove handleSubscriptionCompletion's semantics; the extracted helper keeps that guarantee. Pairs naturally with d1=A.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Fetch the corresponding Event from Stripe and replay through handleWebhookEvent",
+          "rationale": "Zero refactor of existing webhook helpers. The ticker is a thin 'find gap → fetch event → replay' loop. Cost: one extra Stripe API call per anomaly; subtle coupling to the Event JSON schema. Pairs naturally with d1=B."
+        },
+        {
+          "key": "C",
+          "label": "Log anomaly only, do not attempt re-materialization",
+          "rationale": "Simplest; re-materialization becomes an operator task through admin tooling. Diverges from the item description, which explicitly says attempt re-materialization."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Specify an alternative mechanism"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d5",
+      "type": "decision",
+      "topic": "Concurrency guard against an in-flight webhook materializing the same session",
+      "context": "A webhook delivery and a reconciliation tick could both try to materialize the same session in the same few seconds. The subscriptions table already has ON CONFLICT (subscription_id) DO UPDATE, so a double-insert is a harmless upsert. After the atomicity fix, the subscription branch wraps checkout_sessions UPDATE + subscriptions INSERT in a single tx with read-committed isolation. If both paths run concurrently, both tx's serialize on the conflicting UPDATE of checkout_sessions and one blocks until the other commits — the second then sees the committed state and the ON CONFLICT clauses make its writes no-ops. A postgres advisory lock keyed by session_id would turn this into explicit mutual exclusion; not strictly needed, but cheap and documents the contract.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Rely on ON CONFLICT idempotency + read-committed row locking",
+          "rationale": "No new primitive. The atomicity fix + ON CONFLICT semantics already make concurrent attempts safe — the loser of the serialization race sees a completed state and upserts no-op. Simplest and proven in the atomicity fix's test suite.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Add pg_try_advisory_xact_lock(hashtext(session_id)) at the start of re-materialization, skip if not acquired",
+          "rationale": "Explicit mutual exclusion; if a webhook delivery holds the lock, the tick skips that session (a subsequent tick retries via the overlap window). Documents the concurrency contract clearly and removes any tail-risk of an unknown serialization bug."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Specify an alternative concurrency guard"
+        }
+      ],
+      "selected": "A"
+    }
+  ],
+  "plan_updates": "Created plan.md from scratch: filled every section from Purpose through Definition of Done. Section 8 (Contract Decisions) references the five pending decisions d1-d5; once resolved, that section will be rewritten to record selections. Seam interfaces (sessionLister, subscriptionRematerializer) are named and scoped; Phase 5 enumerates nine target integration tests by name. Required Reading embeds the implementation-plan-authoring mandated set (cli-steer, api-steer, utils-unification, seam-discovery-and-enforcement) plus idempotency-replay-safety-hardening as the most directly relevant discovered skill for a reconciliation loop. Also extended acceptance_allow to include scenarios/landing-page-business-suite/docs/** since the plan covers SEAMS.md and STRIPE_WEBHOOKS.md edits, mirroring the sibling anomaly-log item's pattern."
+}

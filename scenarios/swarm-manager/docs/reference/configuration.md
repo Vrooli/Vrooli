@@ -63,7 +63,7 @@ These settings control auto-execution triggers for the workshop refinement syste
 
 | Lever | Default | Range | Impact |
 |-------|---------|-------|--------|
-| `agent_max_turns` | 60 | 5-200 | Maximum conversation turns per agent run |
+| `agent_max_turns` | 600 | 5-1000 | Maximum conversation turns per agent run |
 | `agent_timeout_seconds` | 900 | 60-3600 | Agent run timeout |
 | `agent_requires_approval` | true | boolean | Pause agent runs for human approval |
 

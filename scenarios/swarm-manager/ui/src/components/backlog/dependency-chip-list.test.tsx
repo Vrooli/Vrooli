@@ -42,7 +42,7 @@ describe("DependencyChipList", () => {
     expect(screen.getByText("Depends on")).toBeInTheDocument();
   });
 
-  it("renders correct number of chips", () => {
+  it("renders correct number of rows with titles", () => {
     const items = [
       makeDep({ name: "a", title: "Alpha" }),
       makeDep({ name: "b", title: "Beta" }),
@@ -54,36 +54,43 @@ describe("DependencyChipList", () => {
     expect(screen.getByText("Gamma")).toBeInTheDocument();
   });
 
-  it("navigates to backlog detail when chip is clicked", () => {
+  it("navigates to backlog detail when title is clicked", () => {
     renderChips([makeDep({ kind: "fix", name: "broken-thing", title: "Broken" })]);
     fireEvent.click(screen.getByText("Broken"));
     const selection = useDetailSelectionStore.getState().selection;
     expect(selection).toMatchObject({ entityType: "backlog", kind: "fix", name: "broken-thing" });
   });
 
-  it("applies status-based color classes", () => {
+  it("renders a labeled status chip with formatted status text", () => {
     renderChips([makeDep({ status: "completed" as BacklogStatus, title: "Done" })]);
-    const chip = screen.getByText("Done");
+    const chip = screen.getByTestId("dep-status-chip-idea-dep-item");
+    expect(chip).toHaveTextContent("Completed");
+  });
+
+  it("applies status-based color classes on the status chip", () => {
+    renderChips([makeDep({ status: "completed" as BacklogStatus, title: "Done" })]);
+    const chip = screen.getByTestId("dep-status-chip-idea-dep-item");
     expect(chip.className).toContain("bg-emerald");
   });
 
-  it("shows status in title tooltip", () => {
+  it("uses formatted status as the chip tooltip", () => {
     renderChips([makeDep({ status: "in_progress" as BacklogStatus, title: "Working" })]);
-    const chip = screen.getByText("Working");
+    const chip = screen.getByTestId("dep-status-chip-idea-dep-item");
     expect(chip).toHaveAttribute("title", "In progress");
   });
 
-  it("does not render status dots when onStatusChange is not provided", () => {
+  it("renders a static status chip (no popover trigger) when onStatusChange is not provided", () => {
     renderChips([makeDep()]);
     expect(screen.queryByTestId("dep-status-dot-idea-dep-item")).not.toBeInTheDocument();
+    expect(screen.getByTestId("dep-status-chip-idea-dep-item")).toBeInTheDocument();
   });
 
-  it("renders status dots when onStatusChange is provided", () => {
+  it("renders a clickable status chip trigger when onStatusChange is provided", () => {
     renderChips([makeDep()], "Depends on", vi.fn());
     expect(screen.getByTestId("dep-status-dot-idea-dep-item")).toBeInTheDocument();
   });
 
-  it("opens popover on status dot click and calls onStatusChange", async () => {
+  it("opens popover on status chip click and calls onStatusChange", async () => {
     const user = userEvent.setup();
     const onStatusChange = vi.fn();
     const dep = makeDep({ status: "ready" as BacklogStatus });
@@ -94,5 +101,86 @@ describe("DependencyChipList", () => {
 
     await user.click(screen.getByTestId("dep-status-option-backlog"));
     expect(onStatusChange).toHaveBeenCalledWith(dep, "backlog");
+  });
+
+  describe("activity chip", () => {
+    it("shows a purpose-specific chip with pulse when an agent is running", () => {
+      const dep = makeDep({
+        status: "ready" as BacklogStatus,
+        activity: { purpose: "workshop", status: "running" },
+      });
+      renderChips([dep]);
+      const chip = screen.getByTestId("dep-activity-chip-idea-dep-item");
+      expect(chip).toHaveTextContent("Workshopping");
+      expect(chip.querySelector(".animate-ping")).toBeTruthy();
+    });
+
+    it("shows a 'needs review' chip without pulse and in cyan tone", () => {
+      const dep = makeDep({
+        status: "researching" as BacklogStatus,
+        activity: { purpose: "review", status: "needs_review" },
+      });
+      renderChips([dep]);
+      const chip = screen.getByTestId("dep-activity-chip-idea-dep-item");
+      expect(chip).toHaveTextContent("Reviewing");
+      expect(chip.className).toContain("text-cyan");
+      expect(chip.querySelector(".animate-ping")).toBeNull();
+    });
+
+    it("suppresses the activity chip when status=in_progress and purpose=process (redundant)", () => {
+      const dep = makeDep({
+        status: "in_progress" as BacklogStatus,
+        activity: { purpose: "process", status: "running" },
+      });
+      renderChips([dep]);
+      expect(screen.queryByTestId("dep-activity-chip-idea-dep-item")).not.toBeInTheDocument();
+    });
+
+    it("still shows the activity chip when status=in_progress but purpose differs (e.g., fixup)", () => {
+      const dep = makeDep({
+        status: "in_progress" as BacklogStatus,
+        activity: { purpose: "fixup", status: "running" },
+      });
+      renderChips([dep]);
+      expect(screen.getByTestId("dep-activity-chip-idea-dep-item")).toHaveTextContent("Fixing up");
+    });
+  });
+
+  describe("attention badge", () => {
+    it("shows pending-decisions badge when no agent is active", () => {
+      const dep = makeDep({
+        status: "researching" as BacklogStatus,
+        attentionReasons: [{ kind: "pending-decisions", count: 3 }],
+      });
+      renderChips([dep]);
+      expect(screen.getByText("3 decisions")).toBeInTheDocument();
+    });
+
+    it("suppresses the attention badge when an activity chip is rendered", () => {
+      const dep = makeDep({
+        status: "researching" as BacklogStatus,
+        activity: { purpose: "workshop", status: "running" },
+        attentionReasons: [{ kind: "pending-decisions", count: 3 }],
+      });
+      renderChips([dep]);
+      expect(screen.queryByText("3 decisions")).not.toBeInTheDocument();
+      expect(screen.getByTestId("dep-activity-chip-idea-dep-item")).toBeInTheDocument();
+    });
+
+    it("renders plan-ready and review-ready badges when applicable", () => {
+      const dep1 = makeDep({
+        name: "p",
+        status: "ready" as BacklogStatus,
+        attentionReasons: [{ kind: "plan-ready" }],
+      });
+      const dep2 = makeDep({
+        name: "r",
+        status: "researching" as BacklogStatus,
+        attentionReasons: [{ kind: "research-complete" }],
+      });
+      renderChips([dep1, dep2]);
+      expect(screen.getByText("Plan ready")).toBeInTheDocument();
+      expect(screen.getByText("Review ready")).toBeInTheDocument();
+    });
   });
 });

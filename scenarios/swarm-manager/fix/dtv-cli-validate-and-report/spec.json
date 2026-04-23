@@ -1,4 +1,8 @@
 {
+  "acceptance_allow": [
+    "scenarios/development-toolchain-validator/cli/**",
+    "scenarios/development-toolchain-validator/api/**"
+  ],
   "created": "2026-03-24T22:24:18Z",
   "depends_on": [
     "fix/dtv-validation-api",
@@ -16,5 +20,5 @@
     "meta-optimization"
   ],
   "title": "CLI Commands: validate, report, expectation",
-  "updated": "2026-03-24T22:24:18Z"
+  "updated": "2026-04-23T03:46:53Z"
 }

@@ -1,0 +1,13 @@
+{
+  "created": "2026-04-22T20:27:45Z",
+  "description": "Deferred decision. workshop/save currently takes a full round JSON. The sync skill does fetch-patch-save per answer, which is fine but adds a round-trip and is theoretically racy if multiple sessions hit the same round simultaneously.\n\nIf the pattern feels clunky during sync-skill implementation, land a dedicated POST /api/v1/backlog/{kind}/{name}/workshop/rounds/{N}/items/{id}/answer endpoint that patches a single Selected/Freeform value server-side.\n\nNo action unless implementation of the sync skill (execute/workshop-decision-sync-skill) surfaces a concrete problem — this item tracks the deferred decision, not committed work.",
+  "effort": "S",
+  "initiative": "workshop-decision-triage",
+  "kind": "idea",
+  "name": "workshop-question-level-answer-endpoint",
+  "priority": 5,
+  "status": "backlog",
+  "tags": [],
+  "title": "Optional: question-level workshop answer endpoint",
+  "updated": "2026-04-22T20:27:45Z"
+}

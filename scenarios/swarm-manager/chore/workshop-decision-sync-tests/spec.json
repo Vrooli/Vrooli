@@ -1,0 +1,22 @@
+{
+  "acceptance_allow": [
+    "scenarios/swarm-manager/api/internal/backlog/**",
+    "scenarios/swarm-manager/cli/**",
+    "scenarios/prompt-manager/store/teams/director-swarm/members/workshop-decision-prep/**",
+    "scenarios/prompt-manager/store/skills/packs/core/workshop-decision-sync/**"
+  ],
+  "created": "2026-04-22T20:27:45Z",
+  "depends_on": [
+    "execute/workshop-decision-sync-skill"
+  ],
+  "description": "End-to-end automated coverage.\n\n1. Go test (scenarios/swarm-manager/api/internal/backlog): pending-questions endpoint returns workshop questions sorted by priority ranking under multi-item fixtures; cover blocked-vs-unblocked ordering and --initiative filter.\n2. Go test (scenarios/swarm-manager/cli): CLI wrapper forwards flags, filters by --source and --initiative, emits stable JSON for skill consumption.\n3. Scenario test (test-genie or manual harness): seed swarm-manager with 3 backlog items across 2 initiatives, each with 2 open workshop decisions; run the workshop-decision-prep heartbeat; assert last-handoff.md shape, per-brief hash presence, early-return when cap is already met; mutate one decision's options and re-run, assert only that one brief is refreshed; call workshop/save for one decision directly (simulating UI answer) and re-run the skill's freshness step, assert the now-answered decision is dropped.\n4. Skill smoke test: documented manual test plan invoking the skill with a fully staged handoff, confirming narrative grouping, focus-stack behavior under a mid-decision clarifying question, and async clarification spawn.",
+  "effort": "M",
+  "initiative": "workshop-decision-triage",
+  "kind": "chore",
+  "name": "workshop-decision-sync-tests",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [],
+  "title": "Automated tests for pending-questions sort + prep specialist + sync skill",
+  "updated": "2026-04-22T20:27:45Z"
+}

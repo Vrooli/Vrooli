@@ -17,8 +17,8 @@ func TestDefaultProfileConfig(t *testing.T) {
 	if cfg.ModelPreset != domainpb.ModelPreset_MODEL_PRESET_SMART {
 		t.Fatalf("expected default model preset SMART, got %v", cfg.ModelPreset)
 	}
-	if cfg.MaxTurns != 60 {
-		t.Fatalf("expected default max turns 60, got %d", cfg.MaxTurns)
+	if cfg.MaxTurns != DefaultAgentMaxTurns {
+		t.Fatalf("expected default max turns %d, got %d", DefaultAgentMaxTurns, cfg.MaxTurns)
 	}
 	if cfg.TimeoutSeconds != 3600 {
 		t.Fatalf("expected default timeout 3600, got %d", cfg.TimeoutSeconds)

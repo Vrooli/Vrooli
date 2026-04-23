@@ -1,0 +1,19 @@
+{
+  "acceptance_allow": [
+    "scenarios/prompt-manager/store/skills/packs/core/workshop-decision-sync/**"
+  ],
+  "created": "2026-04-22T20:27:45Z",
+  "depends_on": [
+    "execute/workshop-decision-prep-agent"
+  ],
+  "description": "New core skill for 5-minute ad-hoc workshop-decision triage sessions, complementing morning-vision-walk.\n\nFiles to create under scenarios/prompt-manager/store/skills/packs/core/workshop-decision-sync/:\n- skill.json: metadata mirroring morning-vision-walk/skill.json (kind=skill, modes=['practice'], status=active, entry=SKILL.md; suggested icon 'check-square')\n- SKILL.md: full conversational instructions\n\nSKILL.md behavior:\n1. Read workshop-decision-prep's last-handoff.md.\n2. Recompute SHA-256 content hash for each cached brief against a fresh `backlog pending-questions --source workshop --json` call. Drop any brief whose hash drifted OR whose Selected is now non-nil (answered via UI or another session).\n3. If handoff empty OR all briefs stale after filtering: run inline prep with a smaller cap (5–8 briefs), explicitly messaged as 'lazy prep, ~60s' so the user knows why there's a delay. User is never fully blocked.\n4. Walk user through briefs grouped by initiative → backlog item → decisions, ONE decision at a time. Maintain a 'current focus' stack so clarifying questions do NOT pivot the topic — explicit instruction in SKILL.md.\n5. Support skip-item, skip-initiative, answer-and-continue.\n6. On answer: fetch round JSON via existing backlog API, patch the Selected field for the target item ID, POST to /api/v1/backlog/{kind}/{name}/workshop/save with the full round.\n7. On an unanticipated question the brief didn't pre-answer: offer async clarification spawn. If user accepts, call `swarm-manager backlog clarify --kind K --name N --round R --item I --message \u003cuser question\u003e`, mark that brief as clarification-pending, MOVE ON without waiting. Next prep run will pick up the resolved thread's LatestImpact.ContextNote and feed it forward for the next session.\n\nSKILL.md must explicitly prohibit: auto-answering on the user's behalf, creating/modifying backlog items, modifying initiative metadata, running anything outside the answer / skip / clarify-spawn surface.",
+  "effort": "M",
+  "initiative": "workshop-decision-triage",
+  "kind": "execute",
+  "name": "workshop-decision-sync-skill",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [],
+  "title": "Create workshop-decision-sync skill",
+  "updated": "2026-04-22T20:27:45Z"
+}

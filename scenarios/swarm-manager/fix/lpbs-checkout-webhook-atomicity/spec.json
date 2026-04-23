@@ -12,8 +12,8 @@
   "kind": "fix",
   "name": "lpbs-checkout-webhook-atomicity",
   "priority": 2,
-  "status": "backlog",
+  "status": "completed",
   "tags": [],
   "title": "Wrap checkout_sessions status update and subscription insert in a single transaction",
-  "updated": "2026-04-17T19:59:02Z"
+  "updated": "2026-04-23T00:12:02Z"
 }

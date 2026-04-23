@@ -177,7 +177,7 @@ func DefaultGovernanceSettings() GovernanceSettings {
 		CircuitBreakerCooldownMinutes: 60,
 		ExecutionCostCapPerRun:        0,
 		CostPerTurnEstimate:           0.10,
-		AgentMaxTurns:                 60,
+		AgentMaxTurns:                 600,
 	}
 }
 

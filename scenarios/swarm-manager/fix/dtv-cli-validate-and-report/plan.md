@@ -58,7 +58,7 @@ Everything else in the DTV initiative (`dtv-meta-optimization-contract`) assumes
 - Validate history endpoint (`GET /api/v1/references/{id}/validate/history`) — deferred per D4.
 - Async validation jobs / `--wait` flag — deferred per D4.
 
-**Acceptance allow:** `scenarios/development-toolchain-validator/{cli,api}/**` (widened from CLI-only per D1).
+**Acceptance allow:** `scenarios/development-toolchain-validator/{cli,api}/**` (widened from CLI-only per D1; persisted to `spec.json` in round 003).
 
 ## 5. Current Technical Context
 
@@ -186,6 +186,7 @@ Automated only — the `feedback_testing_over_manual.md` memory says plans shoul
 | Users pass slugs where IDs are required (or vice versa) on `validate`. | Medium | Errors mid-pipeline. | Reuse the ID-or-slug fallback pattern from `references/register.go:136` in both the new validation handler and the CLI command. |
 | Output format divergence between `report`/`validate` and existing commands. | Low | Inconsistent UX. | Stick to `cliapp.ListReport` / `OperationalReport` — no bespoke renderers. |
 | Validation handler accidentally introduces business logic instead of being a thin adapter. | Low | Domain logic in the wrong layer. | Code review check: handler may resolve the reference, call `executor.Run`, and serialize the result — nothing else. |
+| Stale `depends_on: fix/dtv-validation-api` entry points at a non-existent backlog item; leaving it in place will block `batch-queue` dependency resolution. | High (pre-queue) | Queue refuses the item. | Orchestrator step: remove `fix/dtv-validation-api` from this item's `depends_on` before queueing. D1 folded that work into this PR; the sibling item was never recreated. Flagged in round 003. |
 
 ## 12. Non-goals / Prohibited Patterns
 

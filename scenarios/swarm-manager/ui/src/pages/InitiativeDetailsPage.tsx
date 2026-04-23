@@ -45,9 +45,10 @@ import type { BacklogFile, BacklogKind, BacklogStatus, InitiativeWithRollup } fr
 import { useBacklogStore, useDetailSelectionStore } from "../stores";
 import { useInitiativeStore } from "../stores/initiative-store";
 import type { FileActionType } from "../components/backlog/backlog-file-browser";
-import { cn } from "../lib/utils";
 import { formatDisplayText } from "../lib/format-utils";
 import { getStatusColorClasses } from "../surfaces/graph/lib/status-colors";
+import { StatusChip } from "../components/ui/status-chip";
+import { BACKLOG_STATUS_COLORS } from "../types";
 
 type InitiativeTab = "info" | "files";
 type ItemsView = "list" | "graph";
@@ -163,9 +164,16 @@ function DependencyGroup({
                 <div className="min-w-0 flex-1">
                   <p className="break-words text-sm font-semibold leading-snug text-slate-100">{item.title}</p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <span className={cn("max-w-full rounded-full border px-2 py-0.5 text-[10px] font-medium", statusColors.background, statusColors.border, statusColors.text)}>
-                      {formatDisplayText(item.status)}
-                    </span>
+                    <StatusChip
+                      label={formatDisplayText(item.status)}
+                      colors={{
+                        background: statusColors.background,
+                        border: statusColors.border,
+                        text: statusColors.text,
+                        dot: BACKLOG_STATUS_COLORS[item.status as keyof typeof BACKLOG_STATUS_COLORS] ?? "bg-slate-500",
+                      }}
+                      leadingDot
+                    />
                     {item.priority > 0 && (
                       <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-medium text-slate-300">
                         P{item.priority}
@@ -813,9 +821,16 @@ export function InitiativeDetailsPage() {
                                 <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-slate-600" />
                               </div>
                               <div className="flex flex-wrap items-center gap-2">
-                                <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-medium", statusColors.background, statusColors.border, statusColors.text)}>
-                                  {stateLabel}
-                                </span>
+                                <StatusChip
+                                  label={stateLabel}
+                                  colors={{
+                                    background: statusColors.background,
+                                    border: statusColors.border,
+                                    text: statusColors.text,
+                                    dot: BACKLOG_STATUS_COLORS[item.status] ?? "bg-slate-500",
+                                  }}
+                                  leadingDot
+                                />
                                 {item.priority > 0 && (
                                   <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-medium text-slate-300">
                                     P{item.priority}

@@ -44,12 +44,14 @@ There is no operator notification path. An operator only learns about a problem 
 
 - New `payment_anomaly_log` table with a generalized schema (covers all anomaly types from Findings 2/4/6/7 of the research conclusion)
 - A `PaymentAnomalyService` with a `Log(ctx, anomaly)` method that records the row and triggers alert dispatch
+- A `WaitForDispatch(ctx, rowID)` helper on the service — blocks until the row's `dispatch_status` leaves `pending`; used by integration tests for deterministic async synchronization and available to admin tooling for manual-insert confirmation (no test-only branches in production source)
 - An `AnomalyAlertDispatcher` that POSTs a JSON payload to a configurable webhook URL when an anomaly is recorded, with:
   - A simple rate limiter (per anomaly_type) that suppresses alerts beyond a configured rate
   - HTTP retry with bounded backoff (max 3 attempts) and dead-letter behaviour (record dispatch failures back into the anomaly row, do not block the caller)
-  - Caller-side fire-and-forget: `Log(...)` returns as soon as the row is committed; dispatch happens on a background goroutine
+  - Caller-side fire-and-forget: `Log(...)` returns as soon as the row is committed; dispatch happens on a background goroutine tied to the server shutdown context
 - New columns on `payment_settings` exposing: `anomaly_webhook_url`, `anomaly_webhook_enabled`, per-type rate-limit overrides (JSONB)
 - Admin GET/UPDATE handlers extended to read/write the new settings (using the existing redact-on-read / reveal-via-dedicated-endpoint pattern)
+- Push-on-PATCH config hot-reload — `handleUpdateStripeSettings` calls `paymentAnomalyService.RefreshConfig(ctx)` on every successful save; dispatcher holds config via `atomic.Pointer[anomalyConfig]`
 - A `LogPaymentAnomaly()` helper exported to other services so future reconciliation/fulfillment items can call it without depending on the dispatcher internals
 - One reference call site: replace the `logIntroAnomaly()` insert with a forwarding call to `LogPaymentAnomaly(...)` so the existing intro-coupon detector becomes the first producer of the new pipeline (proves the seam end-to-end)
 - **One-time boot migration that copies all existing `intro_anomaly_log` rows into `payment_anomaly_log` (mapping in §8g) and then `DROP`s `intro_anomaly_log`** — single source of truth going forward
@@ -64,6 +66,7 @@ There is no operator notification path. An operator only learns about a problem 
 - Webhook signing (HMAC of payload) — deferred until a consumer requires it
 - A monetization dashboard (separate item: `execute/lpbs-monetization-dashboard`)
 - A background sweeper that re-dispatches rows stuck in `dispatch_status = 'pending'` (round-1 d5=A chose fire-and-forget; a sweeper can be added later if operationally needed)
+- A bounded dispatch worker pool (round-2 d3=A chose unbounded goroutines — the per-type rate limiter plus bounded-retry timeout already caps concurrent work; a pool can be added later if a real detection bug or multi-replica future warrants it)
 
 ## 5. Current Technical Context
 
@@ -72,7 +75,7 @@ There is no operator notification path. An operator only learns about a problem 
 | Existing anomaly table | `api/main.go:1009-1020` | `intro_anomaly_log`: id (SERIAL), email, customer_id, coupon_id, anomaly_type, details JSONB, created_at; indexes on email/type/created_at. Will be migrated and dropped. |
 | Existing anomaly insert | `api/stripe_coupon_service.go:585-620` | `logIntroAnomaly()` writes to `intro_anomaly_log`; on insert failure, logs `intro_anomaly_log_insert_failed` via `logStructuredError()` and returns silently. Will be rewritten to forward to `LogPaymentAnomaly`. |
 | Settings storage | `api/main.go:830-837`, `api/payment_settings_service.go` | Singleton row (`id = 1`) with `publishable_key`, `secret_key`, `webhook_secret`, `dashboard_url`; loaded into `StripeService.ConfigSnapshot()` |
-| Settings admin surface | `api/payment_settings_handlers.go` | `handleGetStripeSettings` redacts secrets; `handleRevealStripeSecret` returns one secret on demand; `handleUpdateStripeSettings` validates prefix and persists |
+| Settings admin surface | `api/payment_settings_handlers.go` | `handleGetStripeSettings` redacts secrets; `handleRevealStripeSecret` returns one secret on demand; `handleUpdateStripeSettings` validates prefix and persists. Precedent for push-on-save config refresh: calls `stripeService.RefreshConfig(ctx)` after save. |
 | Webhook event dispatch | `api/stripe_webhook_service.go:129-135` | `switch eventType` in webhook handler — future producers (e.g. fix item for atomicity) will emit anomalies from inside this handler |
 | Structured logging | `api/main.go:1077-1093` | `logStructured()` / `logStructuredError()` already wrap everything in `level/message/fields/timestamp` JSON; reuse for dispatcher diagnostics |
 | Test infra | `api/test_helpers_test.go` | testcontainers postgres:15-alpine via `setupTestDB(t)`; all integration tests run real schema migration |
@@ -83,11 +86,12 @@ There is no operator notification path. An operator only learns about a problem 
 After this item ships:
 
 1. A new `payment_anomaly_log` table exists with columns capturing all anomaly dimensions any downstream guardrail will need.
-2. A single Go function `LogPaymentAnomaly(ctx, anomaly)` is the only way payment guardrail code records anomalies. It writes the row and (if the dispatcher is configured + enabled + within rate limits) fires a background webhook POST.
-3. The Stripe settings admin surface exposes `anomaly_webhook_url`, `anomaly_webhook_enabled`, and per-type rate limits; admin can flip these without a redeploy.
-4. The intro-coupon anomaly detector (the first and currently only producer) routes through the new helper. `intro_anomaly_log` is **dropped** after a one-time boot migration copies its existing rows into `payment_anomaly_log`, so there is a single source of truth for all payment anomalies, historical and current.
-5. Integration tests prove: row insert + dispatch + retry + rate-limit suppression + admin save/load + intro-anomaly-log migration (both fresh-DB and upgrade-path fixtures).
-6. Downstream items (`execute/lpbs-stripe-reconciliation-ticker`, `execute/lpbs-download-delivery-confirmation`) can call `LogPaymentAnomaly(...)` with new `anomaly_type` values without touching this code again.
+2. A single Go function `LogPaymentAnomaly(ctx, anomaly)` is the only way payment guardrail code records anomalies. It writes the row and (if the dispatcher is configured + enabled + within rate limits) fires a background webhook POST on a goroutine bound to the server's shutdown context.
+3. `PaymentAnomalyService.WaitForDispatch(ctx, rowID)` is available for tests and ad-hoc admin confirmation — it polls `dispatch_status` until the row transitions out of `pending` or ctx expires.
+4. The Stripe settings admin surface exposes `anomaly_webhook_url`, `anomaly_webhook_enabled`, and per-type rate limits; admin can flip these without a redeploy. Settings take effect on the **next dispatch after save** (push-on-PATCH refresh).
+5. The intro-coupon anomaly detector (the first and currently only producer) routes through the new helper. `intro_anomaly_log` is **dropped** after a one-time boot migration copies its existing rows into `payment_anomaly_log`, so there is a single source of truth for all payment anomalies, historical and current.
+6. Integration tests prove: row insert + dispatch + retry + rate-limit suppression + admin save/load + push-refresh propagation + intro-anomaly-log migration (both fresh-DB and upgrade-path fixtures), all synchronized deterministically via `WaitForDispatch`.
+7. Downstream items (`execute/lpbs-stripe-reconciliation-ticker`, `execute/lpbs-download-delivery-confirmation`) can call `LogPaymentAnomaly(...)` with new `anomaly_type` values without touching this code again.
 
 ## 7. Implementation Strategy
 
@@ -97,21 +101,23 @@ After this item ships:
 
 1. Add `payment_anomaly_log` `CREATE TABLE IF NOT EXISTS` and indexes to the migration block in `api/main.go` (alongside `intro_anomaly_log`).
 2. Add `ALTER TABLE payment_settings ADD COLUMN IF NOT EXISTS anomaly_webhook_url TEXT`, `anomaly_webhook_enabled BOOLEAN DEFAULT FALSE`, `anomaly_rate_limits JSONB DEFAULT '{}'::jsonb`.
-3. Append the one-time data migration (see §8g) in the same migration block: within a single `DO $$` block, copy all `intro_anomaly_log` rows into `payment_anomaly_log` with the defined column mapping, then `DROP TABLE intro_anomaly_log`. The migration is guarded by an `information_schema` check so it no-ops on already-migrated DBs.
+3. Append the one-time data migration (see §8g) **inline in the existing `stmts []string` slice in `main.go`** (round-2 d1=A: boot-time transactional migration). Within a single `DO $$ ... END $$` block, copy all `intro_anomaly_log` rows into `payment_anomaly_log` with the defined column mapping, then `DROP TABLE intro_anomaly_log`. The migration is guarded by an `information_schema` check so it no-ops on already-migrated DBs and on fresh containers that never had the old table.
 4. Run builds + integration tests on **two** fixtures: a clean container (fresh DB) and a container pre-seeded with `intro_anomaly_log` rows (upgrade path). Both must converge on the same post-migration schema.
 
 ### Phase 2 — Anomaly service + dispatcher (sequential)
 
 1. Create `api/payment_anomaly_service.go` with:
    - `type PaymentAnomaly struct { ... }` (fields finalized in §8b)
-   - `type PaymentAnomalyService struct { db *sql.DB; dispatcher *AnomalyAlertDispatcher; cfg atomic.Pointer[anomalyConfig] }`
-   - `func (s *PaymentAnomalyService) Log(ctx, anomaly) error` — inserts row, then fires `s.dispatcher.Dispatch(ctx, row)` on a goroutine if enabled.
+   - `type PaymentAnomalyService struct { db *sql.DB; dispatcher *AnomalyAlertDispatcher; cfg atomic.Pointer[anomalyConfig]; shutdownCtx context.Context }`
+   - `func (s *PaymentAnomalyService) Log(ctx, anomaly) (int64, error)` — inserts row, returns the new `id`, then fires `s.dispatcher.Dispatch(s.shutdownCtx, row)` on a goroutine if enabled.
+   - `func (s *PaymentAnomalyService) WaitForDispatch(ctx context.Context, rowID int64) (string, error)` — polls `SELECT dispatch_status FROM payment_anomaly_log WHERE id = $1` at 25ms intervals until the value is not `pending` or ctx cancels. Returns the terminal status. Available to tests and admin tooling; not a test-only branch (round-2 d2=A).
 2. Create `api/anomaly_alert_dispatcher.go` with:
    - Per-type token-bucket rate limiter (in-process, single instance — multi-replica deployments are not in scope for LPBS today); bucket state guarded by `sync.Mutex`
    - HTTP POST with retry (3 attempts, exponential backoff: 1s, 2s, 4s capped) with 5s per-attempt timeout
    - On dispatch failure after retries, `UPDATE payment_anomaly_log SET dispatch_status='failed', dispatch_attempts=3, dispatch_error=<truncated>` on the same row (do not insert a new row — the existing one owns its own dispatch state)
-3. Wire `PaymentAnomalyService` into `Server` in `api/server.go` (or wherever services are constructed) and load configured settings from `payment_settings`.
-4. Add `func LogPaymentAnomaly(ctx context.Context, s *Server, anomaly PaymentAnomaly)` — package-level convenience for callers that already have the server reference.
+3. **Goroutine lifecycle (round-2 d3=A, unbounded + shutdown-ctx bound):** every `Log()` that decides to dispatch spawns `go func() { s.dispatcher.Dispatch(s.shutdownCtx, row) }()`. The dispatcher's HTTP client uses `http.NewRequestWithContext(s.shutdownCtx, ...)` so in-flight POSTs cancel when the server shuts down. No pool, no bounded channel — the per-type rate limiter (burst=5, refill=1/60s) plus the 5s-per-attempt + 3-attempt + backoff caps bound worst-case concurrent goroutines to roughly `burst × type_count` with each exiting within ~7s.
+4. Wire `PaymentAnomalyService` into `Server` in `api/server.go` (or wherever services are constructed) and load configured settings from `payment_settings`. Pass the server's shutdown context into the service constructor.
+5. Add `func LogPaymentAnomaly(ctx context.Context, s *Server, anomaly PaymentAnomaly) (int64, error)` — package-level convenience for callers that already have the server reference.
 
 ### Phase 3 — Migrate the one existing producer (sequential, depends on Phase 2)
 
@@ -124,20 +130,22 @@ After this item ships:
 1. Extend `PaymentSettingsService.GetStripeSettings` / `SaveStripeSettings` to read/write the three new columns.
 2. Extend `handleGetStripeSettings` to return `anomaly_webhook_url` (treated as a secret — redacted in GET, available via `handleRevealStripeSecret` with a new allowed field `anomaly_webhook_url`).
 3. Extend `handleUpdateStripeSettings` to accept and validate the new fields. Validate URL via existing `ValidateURL()`. Reject if `anomaly_webhook_enabled = true` and URL is empty.
-4. After save, call `stripeService.RefreshConfig(ctx)` AND `paymentAnomalyService.RefreshConfig(ctx)` so the dispatcher picks up the change without restart.
+4. **Push-on-PATCH config hot-reload (round-2 d4 — chosen A):** after a successful save, `handleUpdateStripeSettings` calls `stripeService.RefreshConfig(ctx)` AND `paymentAnomalyService.RefreshConfig(ctx)` so the dispatcher picks up the change without restart. `RefreshConfig` reloads the three anomaly columns and swaps `cfg` via `atomic.Pointer[anomalyConfig].Store(...)`. Readers (the dispatcher) call `cfg.Load()` for one atomic read per dispatch — no lock, no DB round-trip in the hot path. This matches the existing `stripeService.RefreshConfig(ctx)` pattern operators already understand.
 
 ### Phase 5 — Tests (sequential, depends on Phases 1-4)
 
-1. `payment_anomaly_service_test.go` — testcontainers postgres; covers: insert returns nil, row visible, dispatcher invoked, dispatcher skipped when disabled, dispatcher skipped when over rate limit, retry-then-fail records `dispatch_status='failed'`, and `TestMigration_IntroAnomalyLog` verifies a pre-seeded source table is fully migrated.
+All async assertions use `PaymentAnomalyService.WaitForDispatch(ctx, rowID)` — no `time.Sleep()`, no polling loops in test bodies.
+
+1. `payment_anomaly_service_test.go` — testcontainers postgres; covers: insert returns nil, row visible, dispatcher invoked (synchronized via `WaitForDispatch`), dispatcher skipped when disabled, dispatcher skipped when over rate limit, retry-then-fail records `dispatch_status='failed'`, and `TestMigration_IntroAnomalyLog` verifies a pre-seeded source table is fully migrated.
 2. `anomaly_alert_dispatcher_test.go` — `httptest.Server` stub; covers: POST body shape, retry on 5xx, no retry on 4xx, header set, timeout enforced.
 3. `payment_settings_service_test.go` — extend existing test file to cover load/save of the three new fields including the JSONB rate-limit overrides.
-4. `payment_settings_handlers_test.go` — extend to cover redaction, reveal, validation rejection (enabled=true with empty URL), and `RefreshConfig` propagation.
+4. `payment_settings_handlers_test.go` — extend to cover redaction, reveal, validation rejection (enabled=true with empty URL), and `RefreshConfig` propagation (`TestUpdate_RefreshesAnomalyConfig`: PATCH new URL → `cfg.Load()` returns new URL on next dispatch).
 5. `stripe_coupon_test.go` — confirm intro coupon anomalies now appear in `payment_anomaly_log` with `subject_kind = 'intro_coupon'`.
 
 ### Phase 6 — Docs (parallel with Phase 5)
 
 1. `docs/reference/api/admin.md` — document the three new fields on the Stripe settings endpoints.
-2. `docs/internal/SEAMS.md` — add `PaymentAnomalyService.Log` and `AnomalyAlertDispatcher.Dispatch` as new seams; describe the in-process rate limiter as a known single-instance constraint; note `intro_anomaly_log` has been removed.
+2. `docs/internal/SEAMS.md` — add `PaymentAnomalyService.Log`, `PaymentAnomalyService.WaitForDispatch`, `PaymentAnomalyService.RefreshConfig`, and `AnomalyAlertDispatcher.Dispatch` as new seams; describe the in-process rate limiter as a known single-instance constraint; describe the unbounded-goroutine + shutdown-ctx dispatch lifecycle; note `intro_anomaly_log` has been removed.
 3. `docs/reference/STRIPE_WEBHOOKS.md` — add a short "Anomaly alerts" subsection pointing operators at the new settings.
 
 ### Phase 7 — Cleanup & Verification (sequential, final)
@@ -146,7 +154,7 @@ After this item ships:
 2. `cd scenarios/landing-page-business-suite/api && go build ./...` — fix all errors, **including pre-existing**.
 3. `cd scenarios/landing-page-business-suite/api && golangci-lint run` — fix all warnings in modified files, **including pre-existing**.
 4. `cd scenarios/landing-page-business-suite/api && go test ./... -timeout 600s` — fix all failures, **including pre-existing**.
-5. **Do not restart the running scenario.** Write code only — the user will restart manually after review.
+5. **Do not restart the running scenario.** Write code only — the user will manually run `vrooli scenario restart landing-page-business-suite` after reviewing the diff. This plan is executed by Claude Code from inside the same Vrooli workspace that hosts LPBS, and standing user policy is that Claude does not restart a scenario it is running inside. (Note: the automated plan validator flags the absence of a literal `vrooli scenario restart` command in this phase; that is an acknowledged false positive for this deployment context.)
 
 ## 8. Contract Decisions
 
@@ -226,11 +234,11 @@ Header: `Content-Type: application/json`, `User-Agent: lpbs-anomaly-dispatcher/1
 
 - `GET /api/v1/admin/stripe/settings` — adds `anomaly_webhook_url` (redacted: empty string when set, omitted when unset) and `anomaly_webhook_enabled`, `anomaly_rate_limits` (shown plain) to the response.
 - `GET /api/v1/admin/stripe/settings/reveal?field=anomaly_webhook_url` — returns the unredacted URL.
-- `PATCH /api/v1/admin/stripe/settings` — accepts `anomaly_webhook_url`, `anomaly_webhook_enabled`, `anomaly_rate_limits`. Validation: if `anomaly_webhook_enabled = true`, `anomaly_webhook_url` must be a valid HTTPS URL.
+- `PATCH /api/v1/admin/stripe/settings` — accepts `anomaly_webhook_url`, `anomaly_webhook_enabled`, `anomaly_rate_limits`. Validation: if `anomaly_webhook_enabled = true`, `anomaly_webhook_url` must be a valid HTTPS URL. On successful save, handler calls `paymentAnomalyService.RefreshConfig(ctx)` so the next dispatch uses the new config (round-2 d4=A push-on-PATCH).
 
 ### 8g. `intro_anomaly_log` → `payment_anomaly_log` migration mapping
 
-Executed once as part of the Phase 1 migration block. Idempotent: no-ops if the source table no longer exists.
+Executed once as part of the Phase 1 migration block, **inline in the existing `stmts []string` slice in `main.go`** (round-2 d1=A: boot-time transactional migration). Idempotent: no-ops if the source table no longer exists.
 
 ```sql
 DO $$
@@ -270,9 +278,27 @@ Column mapping:
 | `dispatch_attempts`, `dispatched_at`, `dispatch_error` | unset | defaults (0, null, null) apply |
 | `id` | new `BIGSERIAL` | old `id` is discarded — rows are internally renumbered |
 
+### 8h. `WaitForDispatch` contract (test + admin synchronization helper)
+
+```go
+// WaitForDispatch blocks until the row's dispatch_status transitions out of
+// "pending" or ctx cancels. Returns the terminal status ("sent" | "skipped" |
+// "failed") on success or ctx.Err() on timeout. Polls at 25ms intervals.
+// Lives in production code (not _test) because admin tooling may use it after
+// a manual insert to confirm dispatch outcome; tests are the primary caller.
+func (s *PaymentAnomalyService) WaitForDispatch(ctx context.Context, rowID int64) (string, error)
+```
+
+Round-2 d2=A chose this over a `SyncDispatch` test flag so the production code path and the test code path are identical — no async-only bugs can slip through a sync-mode test harness.
+
+### 8i. Dispatcher lifecycle + config refresh
+
+- **Lifecycle (d3=A):** each `Log()` that dispatches spawns `go s.dispatcher.Dispatch(s.shutdownCtx, row)`. The HTTP client requests are constructed with `s.shutdownCtx` so an in-flight POST aborts when the server shuts down. No worker pool. The per-type rate limiter and the 3×5s+backoff cap bound worst-case in-flight goroutines to roughly `burst × type_count` (≈ 50 at 10 types × burst 5), each exiting within ~7s.
+- **Config refresh (d4=A):** `PaymentAnomalyService.cfg` is an `atomic.Pointer[anomalyConfig]` holding `{webhookURL, enabled, rateLimits}`. Readers call `cfg.Load()` once per dispatch — no lock, no DB round-trip. `RefreshConfig(ctx)` is called from `handleUpdateStripeSettings` after a successful save: it re-reads the three columns from `payment_settings` and calls `cfg.Store(new)`. In-flight dispatches that already loaded the old pointer continue to use the old URL (accepted: settings are eventually consistent at dispatch boundary).
+
 ## 9. Testing Plan
 
-All tests are automated; no manual checklist.
+All tests are automated; no manual checklist. Async assertions use `WaitForDispatch` for determinism — no `time.Sleep()`.
 
 | Layer | File | What it proves |
 |---|---|---|
@@ -281,17 +307,18 @@ All tests are automated; no manual checklist.
 | Migration (upgrade path) | `payment_anomaly_service_test.go::TestMigration_IntroAnomalyLog` | A container pre-seeded with `intro_anomaly_log` rows has those rows copied to `payment_anomaly_log` with the correct mapping, and `intro_anomaly_log` is dropped |
 | Migration idempotency | `payment_anomaly_service_test.go::TestMigration_ReRun` | Running migrations twice does not duplicate rows and does not error |
 | Insert | `payment_anomaly_service_test.go::TestLog_InsertsRow` | `Log()` writes a row with all fields correctly |
-| Dispatch enabled | `payment_anomaly_service_test.go::TestLog_DispatchesWhenEnabled` | With a stub HTTP server, POST is received with the expected JSON body |
-| Dispatch disabled | `payment_anomaly_service_test.go::TestLog_NoDispatchWhenDisabled` | With `anomaly_webhook_enabled = false`, no HTTP call is made; row marked `skipped` |
+| Dispatch enabled | `payment_anomaly_service_test.go::TestLog_DispatchesWhenEnabled` | With a stub HTTP server, POST is received with the expected JSON body; synchronized via `WaitForDispatch` |
+| Dispatch disabled | `payment_anomaly_service_test.go::TestLog_NoDispatchWhenDisabled` | With `anomaly_webhook_enabled = false`, no HTTP call is made; row marked `skipped` (WaitForDispatch returns `"skipped"`) |
 | Rate limit | `payment_anomaly_service_test.go::TestLog_RateLimited` | Burst+1 alerts of the same type produce `burst` dispatches and 1 row marked `skipped/rate_limited` |
 | Per-type override | `payment_anomaly_service_test.go::TestLog_PerTypeRateLimit` | A type with override `{burst:1, refill_seconds:3600}` is suppressed faster |
+| WaitForDispatch timeout | `payment_anomaly_service_test.go::TestWaitForDispatch_Timeout` | `WaitForDispatch` with a short ctx returns `ctx.Err()` when the dispatcher is slow-stub-blocked |
 | Retry on 5xx | `anomaly_alert_dispatcher_test.go::TestDispatch_RetriesOn5xx` | Stub returns 503, then 200 — exactly 2 attempts, success recorded |
 | No retry on 4xx | `anomaly_alert_dispatcher_test.go::TestDispatch_NoRetryOn4xx` | Stub returns 400 — exactly 1 attempt, `failed` recorded |
 | Retry exhaustion | `anomaly_alert_dispatcher_test.go::TestDispatch_RetryExhausted` | Stub returns 503 three times — row updated to `failed` with truncated error |
 | Settings load | `payment_settings_service_test.go::TestGetStripeSettings_AnomalyFields` | New columns round-trip through GetStripeSettings |
 | Settings save validation | `payment_settings_handlers_test.go::TestUpdate_RejectsEnabledWithoutURL` | PATCH with enabled=true and empty URL returns 400 |
 | Settings reveal | `payment_settings_handlers_test.go::TestRevealAnomalyWebhookURL` | Reveal endpoint returns plaintext URL |
-| Refresh config | `payment_settings_handlers_test.go::TestUpdate_RefreshesAnomalyConfig` | After PATCH, `paymentAnomalyService` reflects new URL/enabled/limits |
+| Push-on-PATCH refresh | `payment_settings_handlers_test.go::TestUpdate_RefreshesAnomalyConfig` | After PATCH, `paymentAnomalyService.cfg.Load()` returns new URL/enabled/limits on the next dispatch (no restart) |
 | Migration of existing producer | `stripe_coupon_test.go` (extend existing) | Intro coupon anomaly now appears in `payment_anomaly_log` with `subject_kind='intro_coupon'` |
 
 Run command: `cd scenarios/landing-page-business-suite/api && go test ./... -timeout 600s`
@@ -299,26 +326,28 @@ Run command: `cd scenarios/landing-page-business-suite/api && go test ./... -tim
 ## 10. Rollout / Validation Checklist
 
 - [ ] All Phase 7 cleanup commands pass without errors
-- [ ] All new tests pass
+- [ ] All new tests pass (including `TestWaitForDispatch_Timeout` and `TestUpdate_RefreshesAnomalyConfig`)
 - [ ] All pre-existing tests still pass
-- [ ] `docs/internal/SEAMS.md` updated
+- [ ] `docs/internal/SEAMS.md` updated (new seams: `PaymentAnomalyService.Log`, `WaitForDispatch`, `RefreshConfig`, `AnomalyAlertDispatcher.Dispatch`)
 - [ ] `docs/reference/api/admin.md` updated
 - [ ] `docs/reference/STRIPE_WEBHOOKS.md` updated
 - [ ] No new `_unused` variables, `// removed` comments, or compatibility wrappers
 - [ ] `intro_anomaly_log` has been dropped after its rows were migrated into `payment_anomaly_log`
-- [ ] User restarts scenario manually and confirms `/api/v1/admin/stripe/settings` returns the three new fields
+- [ ] User runs `vrooli scenario restart landing-page-business-suite` after review and confirms `/api/v1/admin/stripe/settings` returns the three new fields (Claude does not trigger this — see Phase 7 step 5)
 
 ## 11. Risks + Mitigations
 
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
-| Outbound webhook target is down or slow → blocks API request thread | M | H | Dispatch on goroutine; 5s HTTP timeout per attempt; bounded retry |
+| Outbound webhook target is down or slow → blocks API request thread | M | H | Dispatch on goroutine; 5s HTTP timeout per attempt; bounded retry; request uses shutdown ctx so in-flight cancels cleanly on API stop |
 | Misconfigured webhook URL produces alert storm via retries | L | H | No retry on 4xx; cap at 3 attempts per row; rate limiter is per-type so a flood of one anomaly cannot exhaust the dispatcher for others |
 | In-process rate limiter is not shared across replicas | L | M | LPBS is single-instance today; documented as a known constraint in SEAMS.md. If multi-instance is needed later, swap for a postgres-backed limiter |
+| Unbounded goroutine count under a detection-bug flood | L | M | Rate limiter throttles spawn rate to `burst` per type; bounded retry + 5s timeout per attempt means each goroutine exits within ~7s; worst-case `burst × type_count` concurrent. If real traffic ever shows pressure, swap for a bounded worker pool (round-2 d3=A accepted this deferral) |
 | JSONB `anomaly_rate_limits` shape drift | M | L | Validate shape at config load time; reject invalid shapes with a clear error; default to in-code defaults if column is null/empty |
-| Boot-time migration fails partway (INSERT succeeds but DROP fails, or vice versa) | L | H | Wrap INSERT + DROP in a single `DO $$` block inside one transaction; `information_schema` guard + `DROP TABLE IF EXISTS` make re-runs no-op; integration test covers both fresh-DB and upgrade-path fixtures |
-| Dispatcher goroutine leaks on shutdown | L | L | Use a context with the server's shutdown context; bounded retry means goroutines exit within ~7s of fire; goroutine count bounded by rate limiter (burst × type count) |
-| Race between `RefreshConfig` and an in-flight dispatch reads stale settings | L | L | Acceptable — settings are eventually consistent; `atomic.Pointer[anomalyConfig]` for the config pointer avoids torn reads; an in-flight POST uses the URL captured at dispatch start |
+| Boot-time migration fails partway (INSERT succeeds but DROP fails, or vice versa) | L | H | Wrap INSERT + DROP in a single `DO $$` block; `information_schema` guard + `DROP TABLE IF EXISTS` make re-runs no-op; integration test covers both fresh-DB and upgrade-path fixtures |
+| Dispatcher goroutine leaks on shutdown | L | L | HTTP requests built with `s.shutdownCtx`; cancelling the context aborts the in-flight attempt; bounded retry means goroutines exit within ~7s of fire |
+| Stale config after PATCH (in-flight dispatch uses old URL) | L | L | Accepted — settings are eventually consistent at dispatch boundary; `atomic.Pointer[anomalyConfig]` avoids torn reads; post-save dispatches use the new pointer; `TestUpdate_RefreshesAnomalyConfig` proves propagation on the next dispatch |
+| `WaitForDispatch` polling loop burns CPU in tests | L | L | 25ms poll interval + test ctx timeout cap cost; polling is a single-column SELECT on a BIGSERIAL PK (microseconds); acceptable for test scale |
 
 ## 12. Non-goals / Prohibited Patterns
 
@@ -326,23 +355,28 @@ Run command: `cd scenarios/landing-page-business-suite/api && go test ./... -tim
 - **No HMAC payload signing.** Add only when a consumer requires it.
 - **No email/SMS/PagerDuty integration.** Webhook-only per research d2=B.
 - **No background worker that polls `payment_anomaly_log` for un-dispatched rows.** Dispatch is fire-and-forget at insert time (round-1 d5=A). A retry sweep can be added later if operationally needed.
+- **No bounded dispatch worker pool.** Round-2 d3=A accepted unbounded goroutines bound only by rate limiter + shutdown ctx.
+- **No test-only `SyncDispatch` branch.** Round-2 d2=A chose `WaitForDispatch` polling the real column so prod and test share one code path.
+- **No pull-per-dispatch or TTL config refresh.** Round-2 d4=A pinned push-on-PATCH via `atomic.Pointer`.
 - **No compatibility wrapper around `logIntroAnomaly`.** Replace its body to forward; do not keep a thin "kept for back-compat" function.
 - **No dual-write to `intro_anomaly_log` nor a union view.** The old table is migrated and dropped. All historical rows live in `payment_anomaly_log` after migration.
 - **No `_unused` vars or `// removed` comments.** Greenfield: delete what becomes unreachable.
-- **No restart of the running scenario.** Write code; user restarts manually.
+- **No Claude-initiated restart of the running scenario.** Write code; user runs `vrooli scenario restart landing-page-business-suite` manually.
 
 ## 13. Definition of Done
 
 The plan is done when **all** of the following are true:
 
 1. `payment_anomaly_log` table is created on fresh-container boot via the existing migration block.
-2. `payment_settings` has three new columns and the admin GET/PATCH/reveal endpoints expose them with the same secret-handling pattern as existing fields.
+2. `payment_settings` has three new columns and the admin GET/PATCH/reveal endpoints expose them with the same secret-handling pattern as existing fields; PATCH triggers `paymentAnomalyService.RefreshConfig(ctx)` and the next dispatch uses the new config.
 3. `PaymentAnomalyService.Log(ctx, anomaly)` is the sole code path for recording payment anomalies, and `stripe_coupon_service.go::logIntroAnomaly` forwards through it. `intro_anomaly_log` has been dropped after its rows were migrated into `payment_anomaly_log`.
-4. End-to-end integration test (`TestLog_DispatchesWhenEnabled`) passes against testcontainers postgres + httptest stub.
-5. Rate limiter test (`TestLog_RateLimited`) proves that burst+1 dispatches produce `burst` sends and one `skipped/rate_limited` row.
-6. Retry tests prove correct 4xx/5xx behaviour and final-failure recording on the row.
-7. Migration tests (`TestMigration_IntroAnomalyLog`, `TestMigration_ReRun`) prove upgrade-path correctness and idempotency.
-8. `gofumpt`, `go build`, `golangci-lint`, and `go test` all pass cleanly with no pre-existing issues remaining in modified files.
-9. `docs/internal/SEAMS.md`, `docs/reference/api/admin.md`, and `docs/reference/STRIPE_WEBHOOKS.md` are updated.
-10. No backwards-compatibility shims, no dead code, no `_unused` variables.
-11. The user has restarted the scenario manually and confirmed the new admin settings surface responds.
+4. `PaymentAnomalyService.WaitForDispatch(ctx, rowID)` is implemented and is the synchronization primitive used by all async integration tests.
+5. End-to-end integration test (`TestLog_DispatchesWhenEnabled`) passes against testcontainers postgres + httptest stub, synchronized via `WaitForDispatch`.
+6. Rate limiter test (`TestLog_RateLimited`) proves that burst+1 dispatches produce `burst` sends and one `skipped/rate_limited` row.
+7. Retry tests prove correct 4xx/5xx behaviour and final-failure recording on the row.
+8. Push-on-PATCH test (`TestUpdate_RefreshesAnomalyConfig`) proves a settings change takes effect on the next dispatch without restart.
+9. Migration tests (`TestMigration_IntroAnomalyLog`, `TestMigration_ReRun`) prove upgrade-path correctness and idempotency.
+10. `gofumpt`, `go build`, `golangci-lint`, and `go test` all pass cleanly with no pre-existing issues remaining in modified files.
+11. `docs/internal/SEAMS.md`, `docs/reference/api/admin.md`, and `docs/reference/STRIPE_WEBHOOKS.md` are updated.
+12. No backwards-compatibility shims, no dead code, no `_unused` variables.
+13. User has run `vrooli scenario restart landing-page-business-suite` manually and confirmed the new admin settings surface responds.

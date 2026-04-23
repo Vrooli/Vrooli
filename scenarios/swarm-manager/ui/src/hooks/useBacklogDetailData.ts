@@ -10,12 +10,15 @@
  */
 
 import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   getItemActions,
   scenariosFromGlobs,
 } from "../lib";
-import type { ItemActions } from "../lib/backlog-queue-utils";
+import type { ItemActions, ResolvedDependencyActivity } from "../lib/backlog-queue-utils";
 import { computeDependencyRelations } from "../lib/backlog-queue-utils";
+import type { FeedbackItem, MaturityItem } from "../lib/feed";
+import { isAgentActivityActive } from "../lib/agent-activity-utils";
 import type {
   ArchiveRequirementRecord,
   ArchiveTargetFormValues,
@@ -26,7 +29,8 @@ import type {
   ReviewUpdate,
 } from "../types";
 import type { ReviewRound } from "../services/review-service";
-import { useBacklogStore } from "../stores";
+import { backlogService } from "../services";
+import { useAgentActivitiesStore, useBacklogStore } from "../stores";
 import { useBacklogQueries } from "./useBacklogQueries";
 import { useBacklogMutations } from "./useBacklogMutations";
 import type { FileActionType } from "./useBacklogMutations";
@@ -123,9 +127,64 @@ export function useBacklogDetailData({
   // Computed values
   // -----------------------------------------------------------------------
 
+  // Backlog summary cache (shared with useCommandPostBadgeCount / useNodeActionContext).
+  // Powers the attentionReasons overlay on dependency chips.
+  const summaryQuery = useQuery({
+    queryKey: ["backlog-summary"],
+    queryFn: () => backlogService.getBacklogSummary(),
+    staleTime: 60_000,
+  });
+
+  const feedbackMap = useMemo(() => {
+    const map = new Map<string, FeedbackItem>();
+    for (const entry of summaryQuery.data?.feedback?.items ?? []) {
+      map.set(`${entry.kind}/${entry.name}`, {
+        kind: entry.kind,
+        name: entry.name,
+        pendingDecisions: entry.pending_decisions ?? 0,
+      });
+    }
+    return map;
+  }, [summaryQuery.data?.feedback]);
+
+  const maturityMap = useMemo(() => {
+    const map = new Map<string, MaturityItem>();
+    for (const entry of summaryQuery.data?.maturity?.items ?? []) {
+      map.set(`${entry.kind}/${entry.name}`, {
+        kind: entry.kind,
+        name: entry.name,
+        ready: entry.ready ?? false,
+        pendingItems: entry.pending_items ?? 0,
+      });
+    }
+    return map;
+  }, [summaryQuery.data?.maturity]);
+
+  const activities = useAgentActivitiesStore((s) => s.activities);
+  const activityByKey = useMemo(() => {
+    const map = new Map<string, ResolvedDependencyActivity>();
+    for (const activity of activities) {
+      if (activity.ownerType !== "backlog") continue;
+      if (!isAgentActivityActive(activity.status)) continue;
+      const key = `${activity.ownerKind}/${activity.ownerName}`;
+      // Activities are sorted newest-first; keep the first (latest) per key.
+      if (!map.has(key)) {
+        map.set(key, { purpose: activity.purpose, status: activity.status });
+      }
+    }
+    return map;
+  }, [activities]);
+
   const depRelations = useMemo(
-    () => item ? computeDependencyRelations(item, allBacklogItems) : { parents: [], children: [] },
-    [item, allBacklogItems],
+    () =>
+      item
+        ? computeDependencyRelations(item, allBacklogItems, {
+            activityByKey,
+            feedbackMap,
+            maturityMap,
+          })
+        : { parents: [], children: [] },
+    [item, allBacklogItems, activityByKey, feedbackMap, maturityMap],
   );
 
   const deliverableLabel = backlogKind === "research" ? "Conclusion" : "Plan";

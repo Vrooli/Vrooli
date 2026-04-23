@@ -16,8 +16,8 @@
   "kind": "execute",
   "name": "command-center-scenario-scaffold",
   "priority": 2,
-  "status": "backlog",
+  "status": "completed",
   "tags": [],
   "title": "Create command-center scenario with React UI shell and Go API",
-  "updated": "2026-04-09T03:36:07Z"
+  "updated": "2026-04-23T04:08:34Z"
 }

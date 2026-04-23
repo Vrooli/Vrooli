@@ -23,6 +23,16 @@ func (s *Server) runMigrationsOnce() {
 	}
 	ctx := context.Background()
 
+	// Always-run cleanup: drop pending records whose backlog item has been
+	// removed (or whose record leaked in from a stray test run). This is
+	// unconditional — fast, idempotent, and keeps the queue-depth budget
+	// from being permanently consumed by orphaned entries.
+	if pruned, err := s.executionSvc.PruneOrphanedPending(); err != nil {
+		slog.Error("migrations: prune orphaned pending executions failed", "err", err)
+	} else if pruned > 0 {
+		slog.Info("migrations: pruned orphaned pending executions", "count", pruned)
+	}
+
 	// Fetch existing events once so migrations can check sentinels and the
 	// per-execution emit history without issuing extra queries per migration.
 	repo := eventlog.NewSQLiteRepository(s.eventDB)
