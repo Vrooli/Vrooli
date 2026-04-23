@@ -5,7 +5,14 @@
   "agentId": "skill-optimizer",
   "enabled": true,
   "schedule": "15 18 * * *",
-  "revision": 2,
+  "lastExecution": {
+    "startedAt": "2026-04-23T22:15:00Z",
+    "endedAt": "2026-04-23T22:17:30Z",
+    "status": "completed",
+    "runId": "ac90f267-69a9-4bec-bd7a-5e05e88891d9",
+    "logPath": "../store/teams/meta-optimization/members/skill-optimizer/logs/2026-04-23T22-15-00Z.log"
+  },
+  "revision": 5,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-04-23T16:16:55Z"
+  "updatedAt": "2026-04-23T22:17:30Z"
 }

@@ -1,0 +1,33 @@
+{
+  "initiative": "initiative-proposal-advanced-diff-ux",
+  "generated_at": "2026-04-23T21:55:58Z",
+  "nodes": [
+    {
+      "id": "idea/advanced-diff-ux-spec",
+      "kind": "idea",
+      "name": "advanced-diff-ux-spec",
+      "title": "Spec advanced diff UX for initiative proposals",
+      "status": "backlog",
+      "priority": 6,
+      "effort": "S",
+      "archived": false
+    },
+    {
+      "id": "execute/advanced-diff-ux-implementation",
+      "kind": "execute",
+      "name": "advanced-diff-ux-implementation",
+      "title": "Implement advanced diff UX",
+      "status": "backlog",
+      "priority": 6,
+      "effort": "M",
+      "archived": false
+    }
+  ],
+  "edges": [
+    {
+      "from": "execute/advanced-diff-ux-implementation",
+      "to": "idea/advanced-diff-ux-spec",
+      "kind": "depends_on"
+    }
+  ]
+}

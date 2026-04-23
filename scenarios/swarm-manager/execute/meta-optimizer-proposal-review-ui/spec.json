@@ -1,0 +1,16 @@
+{
+  "created": "2026-04-23T21:55:57Z",
+  "depends_on": [
+    "execute/meta-optimizer-team-implementation"
+  ],
+  "description": "Surface the optimizer's proposals in prompt-manager (or a dedicated page) with accept/reject + rationale. Must inherit from the initiative proposal review primitives shipped in the foundation — no bespoke mutation UI.",
+  "effort": "M",
+  "initiative": "swarm-manager-meta-optimizer",
+  "kind": "execute",
+  "name": "meta-optimizer-proposal-review-ui",
+  "priority": 5,
+  "status": "backlog",
+  "tags": [],
+  "title": "UI for reviewing meta-optimizer proposals",
+  "updated": "2026-04-23T21:55:57Z"
+}

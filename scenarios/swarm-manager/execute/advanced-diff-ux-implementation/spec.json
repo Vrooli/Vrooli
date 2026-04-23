@@ -1,0 +1,16 @@
+{
+  "created": "2026-04-23T21:55:57Z",
+  "depends_on": [
+    "idea/advanced-diff-ux-spec"
+  ],
+  "description": "Ship the spec. Extend the existing proposal-review component rather than forking a parallel one; all new affordances must cooperate with the base mutation-list shape so they remain reviewable from the CLI too.",
+  "effort": "M",
+  "initiative": "initiative-proposal-advanced-diff-ux",
+  "kind": "execute",
+  "name": "advanced-diff-ux-implementation",
+  "priority": 6,
+  "status": "backlog",
+  "tags": [],
+  "title": "Implement advanced diff UX",
+  "updated": "2026-04-23T21:55:57Z"
+}

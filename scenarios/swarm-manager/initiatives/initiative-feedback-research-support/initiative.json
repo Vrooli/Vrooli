@@ -1,0 +1,13 @@
+{
+  "name": "initiative-feedback-research-support",
+  "title": "Initiative Feedback: Research Entry Point",
+  "description": "Wire the currently disabled 'Research' chip in the initiative feedback dialog to a real agent flow that produces mutation-list proposals against the initiative graph. Second consumer of the proposals/apply primitive shipped in the agentic-initiatives foundation — validates that the abstraction is reusable beyond pure feedback-driven mutation.",
+  "status": "active",
+  "priority": 3,
+  "items": [
+    "research/feedback-research-flow-design",
+    "execute/initiative-research-entry-point"
+  ],
+  "created": "2026-04-23T21:55:57Z",
+  "updated": "2026-04-23T21:55:57Z"
+}

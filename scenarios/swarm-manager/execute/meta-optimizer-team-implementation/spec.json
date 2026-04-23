@@ -1,0 +1,16 @@
+{
+  "created": "2026-04-23T21:55:57Z",
+  "depends_on": [
+    "idea/meta-optimizer-team-spec"
+  ],
+  "description": "Build the team member from the approved spec. Includes the core skill, any supporting tools, and the offline pipeline that mines completed-initiative data into proposal candidates.",
+  "effort": "L",
+  "initiative": "swarm-manager-meta-optimizer",
+  "kind": "execute",
+  "name": "meta-optimizer-team-implementation",
+  "priority": 5,
+  "status": "backlog",
+  "tags": [],
+  "title": "Implement meta-optimizer team member",
+  "updated": "2026-04-23T21:55:57Z"
+}
