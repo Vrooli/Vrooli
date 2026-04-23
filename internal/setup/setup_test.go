@@ -860,6 +860,50 @@ func TestMaybeOpenOnboardingRespectsPersistentAutoOpenOptOut(t *testing.T) {
 	}
 }
 
+func TestMaybeOpenOnboardingIgnoresLegacyConfigLocation(t *testing.T) {
+	svc := stubSetupDeps(t)
+
+	root := t.TempDir()
+	home := t.TempDir()
+	writeOnboardingScenarioFixture(t, root)
+
+	autoOpen := false
+	legacyConfigPath := filepath.Join(home, ".vrooli", "config.json")
+	doc, err := json.Marshal(map[string]any{
+		"onboarding": onboardingPreferences{AutoOpen: &autoOpen},
+	})
+	if err != nil {
+		t.Fatalf("marshal config: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(legacyConfigPath), 0o755); err != nil {
+		t.Fatalf("mkdir legacy config dir: %v", err)
+	}
+	if err := os.WriteFile(legacyConfigPath, doc, 0o644); err != nil {
+		t.Fatalf("write legacy config: %v", err)
+	}
+
+	svc.deps.osExecutable = func() (string, error) { return "/bin/true", nil }
+	svc.deps.onboardingPortCommandRunner = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		return []byte("38123\n"), nil
+	}
+
+	opened := ""
+	svc.deps.openOnboardingURL = func(url string) error {
+		opened = url
+		return nil
+	}
+
+	if err := svc.maybeOpenOnboarding(root, home, io.Discard, io.Discard); err != nil {
+		t.Fatalf("maybeOpenOnboarding: %v", err)
+	}
+	if opened != "http://127.0.0.1:38123" {
+		t.Fatalf("opened URL = %q", opened)
+	}
+	if _, err := os.Stat(legacyConfigPath); err != nil {
+		t.Fatalf("legacy config should remain untouched: %v", err)
+	}
+}
+
 type resourceRunnerFunc func(name string, args []string, stdout, stderr io.Writer) error
 
 func (fn resourceRunnerFunc) Run(name string, args []string, stdout, stderr io.Writer) error {

@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file landing-page-react-vite/v1/settings.proto.
  */
 export const file_landing_page_react_vite_v1_settings: GenFile = /*@__PURE__*/
-  fileDesc("CilsYW5kaW5nLXBhZ2UtcmVhY3Qtdml0ZS92MS9zZXR0aW5ncy5wcm90bxIabGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEiwgEKFFN0cmlwZUNvbmZpZ1NuYXBzaG90Eh8KF3B1Ymxpc2hhYmxlX2tleV9wcmV2aWV3GAEgASgJEhsKE3B1Ymxpc2hhYmxlX2tleV9zZXQYAiABKAgSFgoOc2VjcmV0X2tleV9zZXQYAyABKAgSGgoSd2ViaG9va19zZWNyZXRfc2V0GAQgASgIEjgKBnNvdXJjZRgFIAEoDjIoLmxhbmRpbmdfcGFnZV9yZWFjdF92aXRlLnYxLkNvbmZpZ1NvdXJjZSKzAQoOU3RyaXBlU2V0dGluZ3MSFwoPcHVibGlzaGFibGVfa2V5GAEgASgJEhIKCnNlY3JldF9rZXkYAiABKAkSFgoOd2ViaG9va19zZWNyZXQYAyABKAkSGgoNZGFzaGJvYXJkX3VybBgEIAEoCUgAiAEBEi4KCnVwZGF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQhAKDl9kYXNoYm9hcmRfdXJsIhoKGEdldFN0cmlwZVNldHRpbmdzUmVxdWVzdCKdAQoZR2V0U3RyaXBlU2V0dGluZ3NSZXNwb25zZRI8CghzZXR0aW5ncxgBIAEoCzIqLmxhbmRpbmdfcGFnZV9yZWFjdF92aXRlLnYxLlN0cmlwZVNldHRpbmdzEkIKCHNuYXBzaG90GAIgASgLMjAubGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEuU3RyaXBlQ29uZmlnU25hcHNob3Qi1QEKG1VwZGF0ZVN0cmlwZVNldHRpbmdzUmVxdWVzdBIcCg9wdWJsaXNoYWJsZV9rZXkYASABKAlIAIgBARIXCgpzZWNyZXRfa2V5GAIgASgJSAGIAQESGwoOd2ViaG9va19zZWNyZXQYAyABKAlIAogBARIaCg1kYXNoYm9hcmRfdXJsGAQgASgJSAOIAQFCEgoQX3B1Ymxpc2hhYmxlX2tleUINCgtfc2VjcmV0X2tleUIRCg9fd2ViaG9va19zZWNyZXRCEAoOX2Rhc2hib2FyZF91cmwioAEKHFVwZGF0ZVN0cmlwZVNldHRpbmdzUmVzcG9uc2USPAoIc2V0dGluZ3MYASABKAsyKi5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5TdHJpcGVTZXR0aW5ncxJCCghzbmFwc2hvdBgCIAEoCzIwLmxhbmRpbmdfcGFnZV9yZWFjdF92aXRlLnYxLlN0cmlwZUNvbmZpZ1NuYXBzaG90KmAKDENvbmZpZ1NvdXJjZRIdChlDT05GSUdfU09VUkNFX1VOU1BFQ0lGSUVEEAASFQoRQ09ORklHX1NPVVJDRV9FTlYQARIaChZDT05GSUdfU09VUkNFX0RBVEFCQVNFEAJCZlpkZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9sYW5kaW5nLXBhZ2UtcmVhY3Qtdml0ZS92MTtsYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZV92MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("CilsYW5kaW5nLXBhZ2UtcmVhY3Qtdml0ZS92MS9zZXR0aW5ncy5wcm90bxIabGFuZGluZ19wYWdlX3JlYWN0X3ZpdGUudjEiwgEKFFN0cmlwZUNvbmZpZ1NuYXBzaG90Eh8KF3B1Ymxpc2hhYmxlX2tleV9wcmV2aWV3GAEgASgJEhsKE3B1Ymxpc2hhYmxlX2tleV9zZXQYAiABKAgSFgoOc2VjcmV0X2tleV9zZXQYAyABKAgSGgoSd2ViaG9va19zZWNyZXRfc2V0GAQgASgIEjgKBnNvdXJjZRgFIAEoDjIoLmxhbmRpbmdfcGFnZV9yZWFjdF92aXRlLnYxLkNvbmZpZ1NvdXJjZSKvAgoOU3RyaXBlU2V0dGluZ3MSFwoPcHVibGlzaGFibGVfa2V5GAEgASgJEhIKCnNlY3JldF9rZXkYAiABKAkSFgoOd2ViaG9va19zZWNyZXQYAyABKAkSGgoNZGFzaGJvYXJkX3VybBgEIAEoCUgAiAEBEi4KCnVwZGF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhsKE2Fub21hbHlfd2ViaG9va191cmwYBiABKAkSHwoXYW5vbWFseV93ZWJob29rX2VuYWJsZWQYByABKAgSGwoTYW5vbWFseV9yYXRlX2xpbWl0cxgIIAEoCRIfChdhbm9tYWx5X3dlYmhvb2tfdXJsX3NldBgJIAEoCEIQCg5fZGFzaGJvYXJkX3VybCIaChhHZXRTdHJpcGVTZXR0aW5nc1JlcXVlc3QinQEKGUdldFN0cmlwZVNldHRpbmdzUmVzcG9uc2USPAoIc2V0dGluZ3MYASABKAsyKi5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5TdHJpcGVTZXR0aW5ncxJCCghzbmFwc2hvdBgCIAEoCzIwLmxhbmRpbmdfcGFnZV9yZWFjdF92aXRlLnYxLlN0cmlwZUNvbmZpZ1NuYXBzaG90IosDChtVcGRhdGVTdHJpcGVTZXR0aW5nc1JlcXVlc3QSHAoPcHVibGlzaGFibGVfa2V5GAEgASgJSACIAQESFwoKc2VjcmV0X2tleRgCIAEoCUgBiAEBEhsKDndlYmhvb2tfc2VjcmV0GAMgASgJSAKIAQESGgoNZGFzaGJvYXJkX3VybBgEIAEoCUgDiAEBEiAKE2Fub21hbHlfd2ViaG9va191cmwYBSABKAlIBIgBARIkChdhbm9tYWx5X3dlYmhvb2tfZW5hYmxlZBgGIAEoCEgFiAEBEiAKE2Fub21hbHlfcmF0ZV9saW1pdHMYByABKAlIBogBAUISChBfcHVibGlzaGFibGVfa2V5Qg0KC19zZWNyZXRfa2V5QhEKD193ZWJob29rX3NlY3JldEIQCg5fZGFzaGJvYXJkX3VybEIWChRfYW5vbWFseV93ZWJob29rX3VybEIaChhfYW5vbWFseV93ZWJob29rX2VuYWJsZWRCFgoUX2Fub21hbHlfcmF0ZV9saW1pdHMioAEKHFVwZGF0ZVN0cmlwZVNldHRpbmdzUmVzcG9uc2USPAoIc2V0dGluZ3MYASABKAsyKi5sYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZS52MS5TdHJpcGVTZXR0aW5ncxJCCghzbmFwc2hvdBgCIAEoCzIwLmxhbmRpbmdfcGFnZV9yZWFjdF92aXRlLnYxLlN0cmlwZUNvbmZpZ1NuYXBzaG90KmAKDENvbmZpZ1NvdXJjZRIdChlDT05GSUdfU09VUkNFX1VOU1BFQ0lGSUVEEAASFQoRQ09ORklHX1NPVVJDRV9FTlYQARIaChZDT05GSUdfU09VUkNFX0RBVEFCQVNFEAJCZlpkZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9sYW5kaW5nLXBhZ2UtcmVhY3Qtdml0ZS92MTtsYW5kaW5nX3BhZ2VfcmVhY3Rfdml0ZV92MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * StripeConfigSnapshot exposes a redacted view of runtime Stripe credentials.
@@ -121,6 +121,38 @@ export type StripeSettings = Message<"landing_page_react_vite.v1.StripeSettings"
    * @generated from field: google.protobuf.Timestamp updated_at = 5;
    */
   updatedAt?: Timestamp;
+
+  /**
+   * Outbound webhook URL that receives payment anomaly alerts.
+   * SENSITIVE: Never expose to frontend or log; redacted in GET responses.
+   * @format url
+   *
+   * @generated from field: string anomaly_webhook_url = 6;
+   */
+  anomalyWebhookUrl: string;
+
+  /**
+   * True when anomaly webhook dispatch is enabled.
+   *
+   * @generated from field: bool anomaly_webhook_enabled = 7;
+   */
+  anomalyWebhookEnabled: boolean;
+
+  /**
+   * Per-anomaly-type rate limit overrides, encoded as JSON object:
+   *   {"<anomaly_type>": {"burst": N, "refill_seconds": M}}
+   * Empty string falls back to built-in defaults (burst=5, refill=60s).
+   *
+   * @generated from field: string anomaly_rate_limits = 8;
+   */
+  anomalyRateLimits: string;
+
+  /**
+   * True when anomaly_webhook_url is configured (redaction indicator).
+   *
+   * @generated from field: bool anomaly_webhook_url_set = 9;
+   */
+  anomalyWebhookUrlSet: boolean;
 };
 
 /**
@@ -219,6 +251,30 @@ export type UpdateStripeSettingsRequest = Message<"landing_page_react_vite.v1.Up
    * @generated from field: optional string dashboard_url = 4;
    */
   dashboardUrl?: string;
+
+  /**
+   * Anomaly webhook URL to set. If unset, current value is retained.
+   * @format url
+   *
+   * @generated from field: optional string anomaly_webhook_url = 5;
+   */
+  anomalyWebhookUrl?: string;
+
+  /**
+   * Enable or disable anomaly webhook dispatch. If unset, current value is retained.
+   *
+   * @generated from field: optional bool anomaly_webhook_enabled = 6;
+   */
+  anomalyWebhookEnabled?: boolean;
+
+  /**
+   * Per-type rate limit overrides as JSON object:
+   *   {"<anomaly_type>": {"burst": N, "refill_seconds": M}}
+   * If unset, current value is retained.
+   *
+   * @generated from field: optional string anomaly_rate_limits = 7;
+   */
+  anomalyRateLimits?: string;
 };
 
 /**

@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n)landing-page-react-vite/v1/settings.proto\x12\x1alanding_page_react_vite.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x94\x02\n\x14StripeConfigSnapshot\x12\x36\n\x17publishable_key_preview\x18\x01 \x01(\tR\x15publishableKeyPreview\x12.\n\x13publishable_key_set\x18\x02 \x01(\x08R\x11publishableKeySet\x12$\n\x0esecret_key_set\x18\x03 \x01(\x08R\x0csecretKeySet\x12,\n\x12webhook_secret_set\x18\x04 \x01(\x08R\x10webhookSecretSet\x12@\n\x06source\x18\x05 \x01(\x0e\x32(.landing_page_react_vite.v1.ConfigSourceR\x06source\"\xf6\x01\n\x0eStripeSettings\x12\'\n\x0fpublishable_key\x18\x01 \x01(\tR\x0epublishableKey\x12\x1d\n\nsecret_key\x18\x02 \x01(\tR\tsecretKey\x12%\n\x0ewebhook_secret\x18\x03 \x01(\tR\rwebhookSecret\x12(\n\rdashboard_url\x18\x04 \x01(\tH\x00R\x0c\x64\x61shboardUrl\x88\x01\x01\x12\x39\n\nupdated_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tupdatedAtB\x10\n\x0e_dashboard_url\"\x1a\n\x18GetStripeSettingsRequest\"\xb1\x01\n\x19GetStripeSettingsResponse\x12\x46\n\x08settings\x18\x01 \x01(\x0b\x32*.landing_page_react_vite.v1.StripeSettingsR\x08settings\x12L\n\x08snapshot\x18\x02 \x01(\x0b\x32\x30.landing_page_react_vite.v1.StripeConfigSnapshotR\x08snapshot\"\x8d\x02\n\x1bUpdateStripeSettingsRequest\x12,\n\x0fpublishable_key\x18\x01 \x01(\tH\x00R\x0epublishableKey\x88\x01\x01\x12\"\n\nsecret_key\x18\x02 \x01(\tH\x01R\tsecretKey\x88\x01\x01\x12*\n\x0ewebhook_secret\x18\x03 \x01(\tH\x02R\rwebhookSecret\x88\x01\x01\x12(\n\rdashboard_url\x18\x04 \x01(\tH\x03R\x0c\x64\x61shboardUrl\x88\x01\x01\x42\x12\n\x10_publishable_keyB\r\n\x0b_secret_keyB\x11\n\x0f_webhook_secretB\x10\n\x0e_dashboard_url\"\xb4\x01\n\x1cUpdateStripeSettingsResponse\x12\x46\n\x08settings\x18\x01 \x01(\x0b\x32*.landing_page_react_vite.v1.StripeSettingsR\x08settings\x12L\n\x08snapshot\x18\x02 \x01(\x0b\x32\x30.landing_page_react_vite.v1.StripeConfigSnapshotR\x08snapshot*`\n\x0c\x43onfigSource\x12\x1d\n\x19\x43ONFIG_SOURCE_UNSPECIFIED\x10\x00\x12\x15\n\x11\x43ONFIG_SOURCE_ENV\x10\x01\x12\x1a\n\x16\x43ONFIG_SOURCE_DATABASE\x10\x02\x42\x66Zdgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1;landing_page_react_vite_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n)landing-page-react-vite/v1/settings.proto\x12\x1alanding_page_react_vite.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x94\x02\n\x14StripeConfigSnapshot\x12\x36\n\x17publishable_key_preview\x18\x01 \x01(\tR\x15publishableKeyPreview\x12.\n\x13publishable_key_set\x18\x02 \x01(\x08R\x11publishableKeySet\x12$\n\x0esecret_key_set\x18\x03 \x01(\x08R\x0csecretKeySet\x12,\n\x12webhook_secret_set\x18\x04 \x01(\x08R\x10webhookSecretSet\x12@\n\x06source\x18\x05 \x01(\x0e\x32(.landing_page_react_vite.v1.ConfigSourceR\x06source\"\xc5\x03\n\x0eStripeSettings\x12\'\n\x0fpublishable_key\x18\x01 \x01(\tR\x0epublishableKey\x12\x1d\n\nsecret_key\x18\x02 \x01(\tR\tsecretKey\x12%\n\x0ewebhook_secret\x18\x03 \x01(\tR\rwebhookSecret\x12(\n\rdashboard_url\x18\x04 \x01(\tH\x00R\x0c\x64\x61shboardUrl\x88\x01\x01\x12\x39\n\nupdated_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tupdatedAt\x12.\n\x13\x61nomaly_webhook_url\x18\x06 \x01(\tR\x11\x61nomalyWebhookUrl\x12\x36\n\x17\x61nomaly_webhook_enabled\x18\x07 \x01(\x08R\x15\x61nomalyWebhookEnabled\x12.\n\x13\x61nomaly_rate_limits\x18\x08 \x01(\tR\x11\x61nomalyRateLimits\x12\x35\n\x17\x61nomaly_webhook_url_set\x18\t \x01(\x08R\x14\x61nomalyWebhookUrlSetB\x10\n\x0e_dashboard_url\"\x1a\n\x18GetStripeSettingsRequest\"\xb1\x01\n\x19GetStripeSettingsResponse\x12\x46\n\x08settings\x18\x01 \x01(\x0b\x32*.landing_page_react_vite.v1.StripeSettingsR\x08settings\x12L\n\x08snapshot\x18\x02 \x01(\x0b\x32\x30.landing_page_react_vite.v1.StripeConfigSnapshotR\x08snapshot\"\x80\x04\n\x1bUpdateStripeSettingsRequest\x12,\n\x0fpublishable_key\x18\x01 \x01(\tH\x00R\x0epublishableKey\x88\x01\x01\x12\"\n\nsecret_key\x18\x02 \x01(\tH\x01R\tsecretKey\x88\x01\x01\x12*\n\x0ewebhook_secret\x18\x03 \x01(\tH\x02R\rwebhookSecret\x88\x01\x01\x12(\n\rdashboard_url\x18\x04 \x01(\tH\x03R\x0c\x64\x61shboardUrl\x88\x01\x01\x12\x33\n\x13\x61nomaly_webhook_url\x18\x05 \x01(\tH\x04R\x11\x61nomalyWebhookUrl\x88\x01\x01\x12;\n\x17\x61nomaly_webhook_enabled\x18\x06 \x01(\x08H\x05R\x15\x61nomalyWebhookEnabled\x88\x01\x01\x12\x33\n\x13\x61nomaly_rate_limits\x18\x07 \x01(\tH\x06R\x11\x61nomalyRateLimits\x88\x01\x01\x42\x12\n\x10_publishable_keyB\r\n\x0b_secret_keyB\x11\n\x0f_webhook_secretB\x10\n\x0e_dashboard_urlB\x16\n\x14_anomaly_webhook_urlB\x1a\n\x18_anomaly_webhook_enabledB\x16\n\x14_anomaly_rate_limits\"\xb4\x01\n\x1cUpdateStripeSettingsResponse\x12\x46\n\x08settings\x18\x01 \x01(\x0b\x32*.landing_page_react_vite.v1.StripeSettingsR\x08settings\x12L\n\x08snapshot\x18\x02 \x01(\x0b\x32\x30.landing_page_react_vite.v1.StripeConfigSnapshotR\x08snapshot*`\n\x0c\x43onfigSource\x12\x1d\n\x19\x43ONFIG_SOURCE_UNSPECIFIED\x10\x00\x12\x15\n\x11\x43ONFIG_SOURCE_ENV\x10\x01\x12\x1a\n\x16\x43ONFIG_SOURCE_DATABASE\x10\x02\x42\x66Zdgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1;landing_page_react_vite_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,18 +33,18 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'landing_page_react_vite.v1.
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'Zdgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1;landing_page_react_vite_v1'
-  _globals['_CONFIGSOURCE']._serialized_start=1297
-  _globals['_CONFIGSOURCE']._serialized_end=1393
+  _globals['_CONFIGSOURCE']._serialized_start=1747
+  _globals['_CONFIGSOURCE']._serialized_end=1843
   _globals['_STRIPECONFIGSNAPSHOT']._serialized_start=107
   _globals['_STRIPECONFIGSNAPSHOT']._serialized_end=383
   _globals['_STRIPESETTINGS']._serialized_start=386
-  _globals['_STRIPESETTINGS']._serialized_end=632
-  _globals['_GETSTRIPESETTINGSREQUEST']._serialized_start=634
-  _globals['_GETSTRIPESETTINGSREQUEST']._serialized_end=660
-  _globals['_GETSTRIPESETTINGSRESPONSE']._serialized_start=663
-  _globals['_GETSTRIPESETTINGSRESPONSE']._serialized_end=840
-  _globals['_UPDATESTRIPESETTINGSREQUEST']._serialized_start=843
-  _globals['_UPDATESTRIPESETTINGSREQUEST']._serialized_end=1112
-  _globals['_UPDATESTRIPESETTINGSRESPONSE']._serialized_start=1115
-  _globals['_UPDATESTRIPESETTINGSRESPONSE']._serialized_end=1295
+  _globals['_STRIPESETTINGS']._serialized_end=839
+  _globals['_GETSTRIPESETTINGSREQUEST']._serialized_start=841
+  _globals['_GETSTRIPESETTINGSREQUEST']._serialized_end=867
+  _globals['_GETSTRIPESETTINGSRESPONSE']._serialized_start=870
+  _globals['_GETSTRIPESETTINGSRESPONSE']._serialized_end=1047
+  _globals['_UPDATESTRIPESETTINGSREQUEST']._serialized_start=1050
+  _globals['_UPDATESTRIPESETTINGSREQUEST']._serialized_end=1562
+  _globals['_UPDATESTRIPESETTINGSRESPONSE']._serialized_start=1565
+  _globals['_UPDATESTRIPESETTINGSRESPONSE']._serialized_end=1745
 # @@protoc_insertion_point(module_scope)

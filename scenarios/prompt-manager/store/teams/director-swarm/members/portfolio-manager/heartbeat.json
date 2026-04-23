@@ -5,7 +5,14 @@
   "agentId": "portfolio-manager",
   "enabled": true,
   "schedule": "16 18 * * *",
-  "revision": 2,
+  "lastExecution": {
+    "startedAt": "2026-04-22T22:16:00Z",
+    "endedAt": "2026-04-22T22:18:50Z",
+    "status": "completed",
+    "runId": "074dd814-4c9b-409f-a1fd-8b98d1066f84",
+    "logPath": "../store/teams/director-swarm/members/portfolio-manager/logs/2026-04-22T22-16-00Z.log"
+  },
+  "revision": 5,
   "createdAt": "2026-04-09T19:58:09Z",
-  "updatedAt": "2026-04-09T19:58:09Z"
+  "updatedAt": "2026-04-22T22:18:50Z"
 }
