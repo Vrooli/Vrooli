@@ -76,7 +76,7 @@ func TestValidateUpdateBacklogItemRequest(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := validateUpdateBacklogItemRequest(tc.req, tc.fields, tc.kind)
+			got := validateUpdateBacklogItemRequest(tc.req, tc.fields, tc.kind, StatusBacklog)
 			if got != tc.wantErr {
 				t.Fatalf("expected %q, got %q", tc.wantErr, got)
 			}

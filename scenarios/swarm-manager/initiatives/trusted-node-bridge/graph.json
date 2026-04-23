@@ -1,0 +1,98 @@
+{
+  "initiative": "trusted-node-bridge",
+  "generated_at": "2026-04-23T17:43:41Z",
+  "nodes": [
+    {
+      "id": "research/legacy-vrooli-bridge-signal-extraction",
+      "kind": "research",
+      "name": "legacy-vrooli-bridge-signal-extraction",
+      "title": "Extract Reusable Signal From The Legacy Bridge",
+      "status": "backlog",
+      "priority": 4,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "chore/archive-and-remove-legacy-vrooli-bridge",
+      "kind": "chore",
+      "name": "archive-and-remove-legacy-vrooli-bridge",
+      "title": "Archive And Remove The Legacy Bridge Scenario",
+      "status": "backlog",
+      "priority": 4,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "idea/greenfield-vrooli-bridge-foundation-spec",
+      "kind": "idea",
+      "name": "greenfield-vrooli-bridge-foundation-spec",
+      "title": "Define The Greenfield Bridge From First Principles",
+      "status": "backlog",
+      "priority": 4,
+      "effort": "L",
+      "archived": false
+    },
+    {
+      "id": "execute/greenfield-vrooli-bridge-core-runtime",
+      "kind": "execute",
+      "name": "greenfield-vrooli-bridge-core-runtime",
+      "title": "Implement The Greenfield Bridge Core Runtime",
+      "status": "backlog",
+      "priority": 5,
+      "effort": "XL",
+      "archived": false
+    },
+    {
+      "id": "execute/vrooli-emulator-remote-node-backend",
+      "kind": "execute",
+      "name": "vrooli-emulator-remote-node-backend",
+      "title": "Add The Emulator Remote Node Backend Over Bridge",
+      "status": "backlog",
+      "priority": 5,
+      "effort": "L",
+      "archived": false
+    },
+    {
+      "id": "execute/macos-real-device-validation-over-bridge",
+      "kind": "execute",
+      "name": "macos-real-device-validation-over-bridge",
+      "title": "Add MacOS Real Device Validation Over Bridge",
+      "status": "backlog",
+      "priority": 5,
+      "effort": "L",
+      "archived": false
+    }
+  ],
+  "edges": [
+    {
+      "from": "chore/archive-and-remove-legacy-vrooli-bridge",
+      "to": "research/legacy-vrooli-bridge-signal-extraction",
+      "kind": "depends_on"
+    },
+    {
+      "from": "idea/greenfield-vrooli-bridge-foundation-spec",
+      "to": "chore/archive-and-remove-legacy-vrooli-bridge",
+      "kind": "depends_on"
+    },
+    {
+      "from": "idea/greenfield-vrooli-bridge-foundation-spec",
+      "to": "research/legacy-vrooli-bridge-signal-extraction",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/greenfield-vrooli-bridge-core-runtime",
+      "to": "idea/greenfield-vrooli-bridge-foundation-spec",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/vrooli-emulator-remote-node-backend",
+      "to": "execute/greenfield-vrooli-bridge-core-runtime",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/macos-real-device-validation-over-bridge",
+      "to": "execute/vrooli-emulator-remote-node-backend",
+      "kind": "depends_on"
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "initiative": "swarm-manager-dashboard",
+  "generated_at": "2026-04-23T17:43:41Z",
+  "nodes": [
+    {
+      "id": "research/swarm-manager-dashboard-ux",
+      "kind": "research",
+      "name": "swarm-manager-dashboard-ux",
+      "title": "Finalize Swarm-Manager Dashboard Layout and Initiative Card Design",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "S",
+      "archived": true
+    },
+    {
+      "id": "execute/swarm-manager-initiative-enhancements",
+      "kind": "execute",
+      "name": "swarm-manager-initiative-enhancements",
+      "title": "Add Priority Field to Initiatives and Expand Rollup/Aggregation APIs",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "M",
+      "archived": true
+    },
+    {
+      "id": "execute/swarm-manager-dashboard-page",
+      "kind": "execute",
+      "name": "swarm-manager-dashboard-page",
+      "title": "Build the Dashboard Page with Initiative Cards, Stats Bar, and Needs Attention Feed",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "L",
+      "archived": true
+    },
+    {
+      "id": "execute/swarm-manager-initiative-management-ui",
+      "kind": "execute",
+      "name": "swarm-manager-initiative-management-ui",
+      "title": "Build Initiative Detail View with Edit, Item Management, and Create Flow",
+      "status": "backlog",
+      "priority": 3,
+      "effort": "M",
+      "archived": true
+    }
+  ],
+  "edges": [
+    {
+      "from": "execute/swarm-manager-initiative-enhancements",
+      "to": "research/swarm-manager-dashboard-ux",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/swarm-manager-dashboard-page",
+      "to": "execute/swarm-manager-initiative-enhancements",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/swarm-manager-initiative-management-ui",
+      "to": "execute/swarm-manager-dashboard-page",
+      "kind": "depends_on"
+    }
+  ]
+}

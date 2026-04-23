@@ -62,14 +62,51 @@ func (r UpdateRequest) HasChanges() bool {
 		r.Priority != nil || r.DependsOn != nil || r.Items != nil || r.Note != nil
 }
 
+// Initiative status constants. The lifecycle mirrors backlog items:
+//
+//	active → in_review → review_pending → completed | failed | needs_followup
+const (
+	InitiativeStatusActive        = "active"
+	InitiativeStatusInReview      = "in_review"
+	InitiativeStatusReviewPending = "review_pending"
+	InitiativeStatusCompleted     = "completed"
+	InitiativeStatusFailed        = "failed"
+	InitiativeStatusNeedsFollowup = "needs_followup"
+)
+
 // ValidateStatus returns true if the status string is valid.
 func ValidateStatus(status string) bool {
 	switch status {
-	case "active", "completed":
+	case InitiativeStatusActive,
+		InitiativeStatusInReview,
+		InitiativeStatusReviewPending,
+		InitiativeStatusCompleted,
+		InitiativeStatusFailed,
+		InitiativeStatusNeedsFollowup:
 		return true
 	default:
 		return false
 	}
+}
+
+// IsTerminalInitiativeStatus reports whether the status is a user-decided
+// terminal state (set only through the initiative review-decide endpoint).
+func IsTerminalInitiativeStatus(s string) bool {
+	switch s {
+	case InitiativeStatusCompleted, InitiativeStatusFailed, InitiativeStatusNeedsFollowup:
+		return true
+	}
+	return false
+}
+
+// IsReviewInitiativeStatus reports whether the initiative is in an active
+// review phase.
+func IsReviewInitiativeStatus(s string) bool {
+	switch s {
+	case InitiativeStatusInReview, InitiativeStatusReviewPending:
+		return true
+	}
+	return false
 }
 
 // ValidatePriority returns true if the priority is zero (unprioritized) or

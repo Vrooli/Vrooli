@@ -113,6 +113,7 @@ function StatusChipWithPopover({
         label={formatBacklogStatus(dep.status)}
         colors={statusChipColors(dep.status)}
         leadingDot
+        pulse={dep.status === "in_review"}
         onClick={handleOpen}
         title={`Change status (${formatBacklogStatus(dep.status)})`}
         data-testid={`dep-status-dot-${dep.kind}-${dep.name}`}
@@ -195,6 +196,7 @@ function DependencyRow({
             label={formatBacklogStatus(dep.status)}
             colors={statusChipColors(dep.status)}
             leadingDot
+            pulse={dep.status === "in_review"}
             title={formatBacklogStatus(dep.status)}
             data-testid={`dep-status-chip-${dep.kind}-${dep.name}`}
           />

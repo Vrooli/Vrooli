@@ -1,0 +1,98 @@
+{
+  "initiative": "tool-authoring-standard",
+  "generated_at": "2026-04-23T17:43:41Z",
+  "nodes": [
+    {
+      "id": "research/tool-authoring-toolkit-design",
+      "kind": "research",
+      "name": "tool-authoring-toolkit-design",
+      "title": "Design the shared Go toolkit for proto-tool authoring",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/tool-authoring-go-toolkit",
+      "kind": "execute",
+      "name": "tool-authoring-go-toolkit",
+      "title": "Implement the shared Go toolkit for proto-tool authoring",
+      "status": "backlog",
+      "priority": 3,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/tool-authoring-migrate-existing",
+      "kind": "execute",
+      "name": "tool-authoring-migrate-existing",
+      "title": "Migrate agent-manager and scenario-to-cloud tools to the new toolkit",
+      "status": "backlog",
+      "priority": 4,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/tool-authoring-auditor-rule",
+      "kind": "execute",
+      "name": "tool-authoring-auditor-rule",
+      "title": "Add scenario-auditor rule for tool declaration vs. runtime drift",
+      "status": "backlog",
+      "priority": 4,
+      "effort": "S",
+      "archived": false
+    },
+    {
+      "id": "execute/tool-authoring-prompt-manager-skills",
+      "kind": "execute",
+      "name": "tool-authoring-prompt-manager-skills",
+      "title": "Author `tool-authoring` and `tool-adoption-audit` prompt-manager skills",
+      "status": "backlog",
+      "priority": 5,
+      "effort": "S",
+      "archived": false
+    },
+    {
+      "id": "execute/tool-authoring-template-scaffolding",
+      "kind": "execute",
+      "name": "tool-authoring-template-scaffolding",
+      "title": "Add tool scaffolding to the react-vite + go-api scenario template",
+      "status": "backlog",
+      "priority": 5,
+      "effort": "S",
+      "archived": false
+    }
+  ],
+  "edges": [
+    {
+      "from": "execute/tool-authoring-go-toolkit",
+      "to": "research/tool-authoring-toolkit-design",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/tool-authoring-migrate-existing",
+      "to": "execute/tool-authoring-go-toolkit",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/tool-authoring-auditor-rule",
+      "to": "execute/tool-authoring-migrate-existing",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/tool-authoring-prompt-manager-skills",
+      "to": "execute/tool-authoring-go-toolkit",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/tool-authoring-template-scaffolding",
+      "to": "execute/tool-authoring-go-toolkit",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/tool-authoring-template-scaffolding",
+      "to": "execute/tool-authoring-prompt-manager-skills",
+      "kind": "depends_on"
+    }
+  ]
+}

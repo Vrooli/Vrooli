@@ -604,3 +604,41 @@ func TestMatchesAcceptancePattern(t *testing.T) {
 		}
 	}
 }
+
+// TestComputeInitiativeRollup_NewStatuses asserts that in_review and
+// review_pending items count as InProgress (they are still in flight from the
+// initiative's perspective), while needs_followup counts as Failed (it is a
+// terminal state that needs more work).
+func TestComputeInitiativeRollup_NewStatuses(t *testing.T) {
+	items := []string{
+		"execute/a",
+		"execute/b",
+		"execute/c",
+		"execute/d",
+		"execute/e",
+	}
+	itemByKey := map[string]backlog.BacklogItem{
+		"execute/a": {Name: "a", Status: backlog.StatusInReview},
+		"execute/b": {Name: "b", Status: backlog.StatusReviewPending},
+		"execute/c": {Name: "c", Status: backlog.StatusNeedsFollowup},
+		"execute/d": {Name: "d", Status: backlog.StatusCompleted},
+		"execute/e": {Name: "e", Status: backlog.StatusInProgress},
+	}
+	got := computeInitiativeRollup(items, itemByKey)
+
+	if got.Total != 5 {
+		t.Errorf("Total = %d, want 5", got.Total)
+	}
+	if got.Completed != 1 {
+		t.Errorf("Completed = %d, want 1 (only the terminal-completed item)", got.Completed)
+	}
+	if got.Failed != 1 {
+		t.Errorf("Failed = %d, want 1 (needs_followup counts as Failed)", got.Failed)
+	}
+	if got.InProgress != 3 {
+		t.Errorf("InProgress = %d, want 3 (in_review + review_pending + in_progress)", got.InProgress)
+	}
+	if got.Pending != 0 {
+		t.Errorf("Pending = %d, want 0", got.Pending)
+	}
+}

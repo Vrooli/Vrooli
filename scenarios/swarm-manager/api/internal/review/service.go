@@ -59,6 +59,15 @@ type ExecutionContext struct {
 	GCTResultsJSON         string
 }
 
+// RoundTerminalHandler is invoked when a review round transitions to a
+// terminal status (complete or failed). Implementations typically flip the
+// backlog item's status from `in_review` to `review_pending` so the user can
+// assess the review output and decide a terminal state via review-decide.
+//
+// Called synchronously after the round file is saved. Errors are logged but
+// do not block review processing.
+type RoundTerminalHandler func(ctx context.Context, kind, name string, round Round)
+
 // ServiceConfig configures the review service dependencies.
 type ServiceConfig struct {
 	RootDir              string
@@ -67,10 +76,15 @@ type ServiceConfig struct {
 	ItemDirFn            func(kind, name string) string
 	LoadItemTitle        func(kind, name string) (string, error)
 	LoadExecutionContext func(ctx context.Context, executionID string) (*ExecutionContext, error)
+	// OnRoundTerminal fires when a review round transitions to complete/failed.
+	// Used to flip the backlog item's status to review_pending.
+	OnRoundTerminal RoundTerminalHandler
 }
 
 // activeRound tracks a gathering round so the poller knows which runs to check.
 type activeRound struct {
+	Kind     string
+	Name     string
 	ItemDir  string
 	RoundNum int
 	RunID    string
@@ -86,6 +100,7 @@ type Service struct {
 	itemDirFn            func(kind, name string) string
 	loadItemTitle        func(kind, name string) (string, error)
 	loadExecutionContext func(ctx context.Context, executionID string) (*ExecutionContext, error)
+	onRoundTerminal      RoundTerminalHandler
 
 	mu           sync.Mutex
 	activeRounds map[string]activeRound // keyed by RunID
@@ -104,6 +119,7 @@ func NewService(cfg ServiceConfig) *Service {
 		itemDirFn:            cfg.ItemDirFn,
 		loadItemTitle:        cfg.LoadItemTitle,
 		loadExecutionContext: cfg.LoadExecutionContext,
+		onRoundTerminal:      cfg.OnRoundTerminal,
 		activeRounds:         make(map[string]activeRound),
 	}
 	// Type-assert for RunInspector capability (matches execution pattern).
@@ -226,7 +242,7 @@ func (s *Service) startReview(ctx context.Context, params startReviewParams) err
 	}
 
 	// Track the gathering round for polling.
-	s.trackActiveRound(runResult.RunID, params.ItemDir, roundNum)
+	s.trackActiveRound(runResult.RunID, params.BacklogKind, params.BacklogName, params.ItemDir, roundNum)
 
 	if s.eventLogger != nil {
 		s.eventLogger.EmitReviewStarted(params.ExecutionID, roundNum)
@@ -568,10 +584,12 @@ func buildReviewAttachments(deliverableContent string, changedPaths, affectedSce
 // Active round tracking & polling
 // -----------------------------------------------------------------------------
 
-func (s *Service) trackActiveRound(runID, itemDir string, roundNum int) {
+func (s *Service) trackActiveRound(runID, kind, name, itemDir string, roundNum int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.activeRounds[runID] = activeRound{
+		Kind:     kind,
+		Name:     name,
 		ItemDir:  itemDir,
 		RoundNum: roundNum,
 		RunID:    runID,
@@ -634,6 +652,14 @@ func (s *Service) RefreshGatheringRounds(ctx context.Context) {
 			} else if round.Status == RoundStatusFailed {
 				s.eventLogger.EmitReviewFailed(round.ExecutionID, round.FailureReason, 0)
 			}
+		}
+
+		// Notify the backlog layer so the item can transition from
+		// in_review to review_pending. The handler decides what to do for
+		// complete vs failed outcomes; both paths surface the review to the
+		// user for a terminal decision.
+		if s.onRoundTerminal != nil && ar.Kind != "" && ar.Name != "" {
+			s.onRoundTerminal(ctx, ar.Kind, ar.Name, *round)
 		}
 
 		s.mu.Lock()

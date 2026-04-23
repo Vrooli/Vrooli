@@ -1,0 +1,98 @@
+{
+  "initiative": "agent-sandbox-audit-foundation",
+  "generated_at": "2026-04-23T17:43:41Z",
+  "nodes": [
+    {
+      "id": "research/agent-sandbox-auditability-contract",
+      "kind": "research",
+      "name": "agent-sandbox-auditability-contract",
+      "title": "Define the canonical sandbox auditability contract for agent-manager",
+      "status": "backlog",
+      "priority": 1,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "fix/workspace-sandbox-lock-and-acceptance-semantics",
+      "kind": "fix",
+      "name": "workspace-sandbox-lock-and-acceptance-semantics",
+      "title": "Decouple workspace-sandbox locking from acceptance filtering",
+      "status": "backlog",
+      "priority": 1,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/agent-manager-sandbox-auto-apply-defaults",
+      "kind": "execute",
+      "name": "agent-manager-sandbox-auto-apply-defaults",
+      "title": "Make sandboxed agent-manager runs auto-apply accepted changes by default",
+      "status": "backlog",
+      "priority": 1,
+      "effort": "L",
+      "archived": false
+    },
+    {
+      "id": "execute/sandbox-runtime-e2e-verification",
+      "kind": "execute",
+      "name": "sandbox-runtime-e2e-verification",
+      "title": "Add end-to-end verification for seamless sandbox execution and restart flows",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "L",
+      "archived": false
+    },
+    {
+      "id": "execute/agent-manager-default-sandboxing-rollout",
+      "kind": "execute",
+      "name": "agent-manager-default-sandboxing-rollout",
+      "title": "Roll out sandboxing as the default path in major agent-manager spawn surfaces",
+      "status": "backlog",
+      "priority": 3,
+      "effort": "M",
+      "archived": false
+    }
+  ],
+  "edges": [
+    {
+      "from": "fix/workspace-sandbox-lock-and-acceptance-semantics",
+      "to": "research/agent-sandbox-auditability-contract",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/agent-manager-sandbox-auto-apply-defaults",
+      "to": "research/agent-sandbox-auditability-contract",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/agent-manager-sandbox-auto-apply-defaults",
+      "to": "fix/workspace-sandbox-lock-and-acceptance-semantics",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/sandbox-runtime-e2e-verification",
+      "to": "research/agent-sandbox-auditability-contract",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/sandbox-runtime-e2e-verification",
+      "to": "fix/workspace-sandbox-lock-and-acceptance-semantics",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/sandbox-runtime-e2e-verification",
+      "to": "execute/agent-manager-sandbox-auto-apply-defaults",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/agent-manager-default-sandboxing-rollout",
+      "to": "execute/agent-manager-sandbox-auto-apply-defaults",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/agent-manager-default-sandboxing-rollout",
+      "to": "execute/sandbox-runtime-e2e-verification",
+      "kind": "depends_on"
+    }
+  ]
+}

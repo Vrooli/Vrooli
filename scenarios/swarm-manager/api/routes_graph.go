@@ -1,13 +1,21 @@
 package main
 
 import (
+	"context"
+	"log/slog"
+
 	"swarm-manager/internal/graph"
 	"swarm-manager/internal/scenarios"
 )
 
-func (s *Server) registerGraphRoutes(scenarioRoot string) {
+// registerGraphRoutes constructs the projection service, WebSocket broker,
+// and per-initiative Materializer, then wires invalidation dispatch across
+// mutating services. Returns the Materializer so downstream callers
+// (feedback routes) can share the same instance instead of constructing
+// a second one that wouldn't be connected to the invalidation hook.
+func (s *Server) registerGraphRoutes(scenarioRoot string) *graph.Materializer {
 	if s.backlogHandler == nil {
-		return
+		return nil
 	}
 
 	projCfg := graph.ProjectionConfig{
@@ -40,8 +48,37 @@ func (s *Server) registerGraphRoutes(scenarioRoot string) {
 	streamHandler := graph.NewStreamHandler(s.graphBroker)
 	streamHandler.RegisterRoutes(s.router)
 
-	// Wire graph invalidation into mutating services and handlers.
+	// Wire graph invalidation into mutating services and handlers. The
+	// dispatcher is also stashed on the server so execution polling and
+	// tests can reach it without constructing a parallel instance.
 	dispatch := graph.NewDispatch(s.graphBroker, projectionCache)
+	s.graphDispatch = dispatch
+
+	// Per-initiative graph.json materialization. The materializer writes
+	// a canonical projection of each initiative's item graph that agents
+	// and UI components read instead of inferring from raw depends_on.
+	// Boot-time: seed graph.json for every existing initiative. Ongoing:
+	// rebuild on any topology or backlog invalidation (coalesced).
+	var materializer *graph.Materializer
+	if s.initStore != nil && s.backlogHandler != nil {
+		materializer = graph.NewMaterializer(
+			graph.NewInitiativeAdapter(s.initStore),
+			s.backlogHandler.Store(),
+			s.initStore.InitDir,
+		)
+		if err := materializer.MaterializeAll(context.Background()); err != nil {
+			slog.Warn("boot-time graph.json materialization failed", "err", err)
+		}
+		dispatch.AddInvalidateHook(func(lenses []graph.Lens) {
+			for _, lens := range lenses {
+				if lens == graph.LensTopology {
+					materializer.ScheduleAll()
+					return
+				}
+			}
+		})
+	}
+
 	if s.backlogHandler != nil {
 		s.backlogHandler.SetEventDispatcher(dispatch)
 	}
@@ -60,4 +97,5 @@ func (s *Server) registerGraphRoutes(scenarioRoot string) {
 	if s.scenariosHandler != nil {
 		s.scenariosHandler.SetEventDispatcher(dispatch)
 	}
+	return materializer
 }

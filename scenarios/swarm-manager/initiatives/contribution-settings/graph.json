@@ -1,0 +1,33 @@
+{
+  "initiative": "contribution-settings",
+  "generated_at": "2026-04-23T17:43:41Z",
+  "nodes": [
+    {
+      "id": "execute/onboarding-contribution-opt-in",
+      "kind": "execute",
+      "name": "onboarding-contribution-opt-in",
+      "title": "Add contribution opt-in prompt to vrooli-onboarding",
+      "status": "backlog",
+      "priority": 1,
+      "effort": "S",
+      "archived": false
+    },
+    {
+      "id": "execute/contribution-settings-surface",
+      "kind": "execute",
+      "name": "contribution-settings-surface",
+      "title": "Build contribution settings surface",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "M",
+      "archived": false
+    }
+  ],
+  "edges": [
+    {
+      "from": "execute/contribution-settings-surface",
+      "to": "execute/onboarding-contribution-opt-in",
+      "kind": "depends_on"
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "initiative": "cli-conversational-surface",
+  "generated_at": "2026-04-23T17:43:41Z",
+  "nodes": [
+    {
+      "id": "research/cli-introspect-contract-design",
+      "kind": "research",
+      "name": "cli-introspect-contract-design",
+      "title": "Design the `introspect` contract for cli-core",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/cli-core-introspect-command",
+      "kind": "execute",
+      "name": "cli-core-introspect-command",
+      "title": "Implement the `introspect` command in cli-core",
+      "status": "backlog",
+      "priority": 3,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/cli-conversational-auditor-rule",
+      "kind": "execute",
+      "name": "cli-conversational-auditor-rule",
+      "title": "Add scenario-auditor rule that every CLI responds to `introspect`",
+      "status": "backlog",
+      "priority": 4,
+      "effort": "S",
+      "archived": false
+    },
+    {
+      "id": "execute/cli-conversational-agent-inbox-client",
+      "kind": "execute",
+      "name": "cli-conversational-agent-inbox-client",
+      "title": "Build agent-inbox client that discovers, indexes, and invokes CLI commands",
+      "status": "backlog",
+      "priority": 4,
+      "effort": "M",
+      "archived": false
+    }
+  ],
+  "edges": [
+    {
+      "from": "execute/cli-core-introspect-command",
+      "to": "research/cli-introspect-contract-design",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/cli-conversational-auditor-rule",
+      "to": "execute/cli-core-introspect-command",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/cli-conversational-agent-inbox-client",
+      "to": "execute/cli-core-introspect-command",
+      "kind": "depends_on"
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "initiative": "phone-agent",
+  "generated_at": "2026-04-23T17:43:41Z",
+  "nodes": [
+    {
+      "id": "research/phone-agent-routine-and-runner-model",
+      "kind": "research",
+      "name": "phone-agent-routine-and-runner-model",
+      "title": "Define the routine model and agent-manager runner contract",
+      "status": "backlog",
+      "priority": 3,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/resource-twilio-voice-surface",
+      "kind": "execute",
+      "name": "resource-twilio-voice-surface",
+      "title": "Add voice surface to resource-twilio (TwiML, Media Streams, outbound, numbers)",
+      "status": "backlog",
+      "priority": 4,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/audio-tools-twilio-media-stream-transport",
+      "kind": "execute",
+      "name": "audio-tools-twilio-media-stream-transport",
+      "title": "Implement twilio-voice transport in audio-tools",
+      "status": "backlog",
+      "priority": 4,
+      "effort": "L",
+      "archived": false
+    },
+    {
+      "id": "execute/phone-agent-greenfield-scenario",
+      "kind": "execute",
+      "name": "phone-agent-greenfield-scenario",
+      "title": "Build the phone-agent greenfield scenario",
+      "status": "backlog",
+      "priority": 3,
+      "effort": "XL",
+      "archived": false
+    },
+    {
+      "id": "execute/phone-agent-morning-vision-walk-routine",
+      "kind": "execute",
+      "name": "phone-agent-morning-vision-walk-routine",
+      "title": "Register morning-vision-walk as the first phone-agent routine",
+      "status": "backlog",
+      "priority": 5,
+      "effort": "M",
+      "archived": false
+    }
+  ],
+  "edges": [
+    {
+      "from": "execute/audio-tools-twilio-media-stream-transport",
+      "to": "execute/resource-twilio-voice-surface",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/phone-agent-greenfield-scenario",
+      "to": "research/phone-agent-routine-and-runner-model",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/phone-agent-morning-vision-walk-routine",
+      "to": "execute/phone-agent-greenfield-scenario",
+      "kind": "depends_on"
+    }
+  ]
+}

@@ -6,8 +6,9 @@ import (
 
 // Dispatch implements EventDispatcher by forwarding events to a Broadcaster.
 type Dispatch struct {
-	broadcaster Broadcaster
-	invalidator CacheInvalidator
+	broadcaster     Broadcaster
+	invalidator     CacheInvalidator
+	invalidateHooks []func(lenses []Lens)
 }
 
 // NewDispatch creates a Dispatch that forwards events to the given Broadcaster.
@@ -16,6 +17,20 @@ func NewDispatch(b Broadcaster, invalidator CacheInvalidator) *Dispatch {
 		broadcaster: b,
 		invalidator: invalidator,
 	}
+}
+
+// AddInvalidateHook registers a function called after every DispatchInvalidate
+// with the normalized lens set. Hooks are invoked synchronously in registration
+// order. Used to trigger side effects (e.g., per-initiative graph.json
+// materialization) in response to topology/backlog mutations.
+//
+// The hook must not panic and should be non-blocking — long-running work
+// should be dispatched to a goroutine inside the hook.
+func (d *Dispatch) AddInvalidateHook(fn func(lenses []Lens)) {
+	if fn == nil {
+		return
+	}
+	d.invalidateHooks = append(d.invalidateHooks, fn)
 }
 
 // DispatchNodeUpdate emits a node-update event.
@@ -55,6 +70,9 @@ func (d *Dispatch) DispatchInvalidate(lenses ...string) {
 
 	if d.invalidator != nil {
 		d.invalidator.Invalidate(normalized...)
+	}
+	for _, hook := range d.invalidateHooks {
+		hook(normalized)
 	}
 	if d.broadcaster == nil {
 		return

@@ -1,0 +1,63 @@
+{
+  "initiative": "decision-question-visuals",
+  "generated_at": "2026-04-23T17:43:41Z",
+  "nodes": [
+    {
+      "id": "execute/workshop-option-image-schema",
+      "kind": "execute",
+      "name": "workshop-option-image-schema",
+      "title": "Extend workshop decision Option with image_url",
+      "status": "backlog",
+      "priority": 1,
+      "effort": "S",
+      "archived": false
+    },
+    {
+      "id": "execute/workshop-option-image-rendering",
+      "kind": "execute",
+      "name": "workshop-option-image-rendering",
+      "title": "Render decision-option images in workshop UI",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "S",
+      "archived": false
+    },
+    {
+      "id": "execute/image-generation-toggle-setting",
+      "kind": "execute",
+      "name": "image-generation-toggle-setting",
+      "title": "Add EnableImageGeneration toggle to Swarm Manager settings",
+      "status": "backlog",
+      "priority": 3,
+      "effort": "S",
+      "archived": false
+    },
+    {
+      "id": "execute/workshop-skill-image-guidance",
+      "kind": "execute",
+      "name": "workshop-skill-image-guidance",
+      "title": "Integrate ui-mockup-generation gate into workshop-driving skills",
+      "status": "backlog",
+      "priority": 4,
+      "effort": "M",
+      "archived": false
+    }
+  ],
+  "edges": [
+    {
+      "from": "execute/workshop-option-image-rendering",
+      "to": "execute/workshop-option-image-schema",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/workshop-skill-image-guidance",
+      "to": "execute/workshop-option-image-schema",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/workshop-skill-image-guidance",
+      "to": "execute/image-generation-toggle-setting",
+      "kind": "depends_on"
+    }
+  ]
+}

@@ -640,10 +640,12 @@ func TestMigrateRecords_OrphanedRunning(t *testing.T) {
 	}
 }
 
-// TestRefreshRunning_FailedRunSetsBacklogFailed verifies that when an agent-manager
-// run transitions to "failed", the backlog item status is set to "failed" (not
-// silently reverted to its previous status).
-func TestRefreshRunning_FailedRunSetsBacklogFailed(t *testing.T) {
+// TestRefreshRunning_FailedRunSetsBacklogInReview verifies that when an
+// agent-manager run transitions to "failed", the backlog item lands in
+// in_review (not terminal) so the review agent can document the failure and
+// the user decides the terminal state via review-decide. The execution
+// record itself still records StatusFailed.
+func TestRefreshRunning_FailedRunSetsBacklogInReview(t *testing.T) {
 	root := t.TempDir()
 	storePath := filepath.Join(root, ".vrooli", "execution-runs.json")
 
@@ -700,10 +702,11 @@ func TestRefreshRunning_FailedRunSetsBacklogFailed(t *testing.T) {
 		t.Fatalf("expected execution status failed, got %s", records[0].Status)
 	}
 
-	// Verify the backlog item was set to "failed" (not reverted to "backlog").
+	// Verify the backlog item landed in "in_review" — terminal transitions
+	// are user-only (plan §W1); the review agent will document the failure.
 	storedItem := mustLoadBacklogItem(t, filepath.Join(root, "ideas", "fail-status", "spec.json"))
-	if storedItem["status"] != "failed" {
-		t.Fatalf("expected backlog status 'failed', got %#v", storedItem["status"])
+	if storedItem["status"] != "in_review" {
+		t.Fatalf("expected backlog status 'in_review', got %#v", storedItem["status"])
 	}
 }
 

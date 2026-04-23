@@ -1,0 +1,33 @@
+{
+  "initiative": "desktop-monetization-assurance",
+  "generated_at": "2026-04-23T17:43:41Z",
+  "nodes": [
+    {
+      "id": "execute/lpbs-stripe-monetization-assurance-suite",
+      "kind": "execute",
+      "name": "lpbs-stripe-monetization-assurance-suite",
+      "title": "Deepen LPBS Stripe Monetization Assurance",
+      "status": "completed",
+      "priority": 4,
+      "effort": "L",
+      "archived": false
+    },
+    {
+      "id": "research/lpbs-payment-guardrails-and-reconciliation-plan",
+      "kind": "research",
+      "name": "lpbs-payment-guardrails-and-reconciliation-plan",
+      "title": "Plan LPBS Payment Guardrails And Reconciliation",
+      "status": "completed",
+      "priority": 5,
+      "effort": "M",
+      "archived": false
+    }
+  ],
+  "edges": [
+    {
+      "from": "research/lpbs-payment-guardrails-and-reconciliation-plan",
+      "to": "execute/lpbs-stripe-monetization-assurance-suite",
+      "kind": "depends_on"
+    }
+  ]
+}

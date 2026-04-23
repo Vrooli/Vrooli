@@ -12,7 +12,7 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
-import { Target, Archive, ArchiveRestore, List, Network, CircleHelp, Files, Trash2, Link2, ArrowRight, CheckCircle2, Layers3, AlertTriangle } from "lucide-react";
+import { Target, Archive, ArchiveRestore, List, Network, CircleHelp, Files, Trash2, Link2, ArrowRight, CheckCircle2, Layers3, AlertTriangle, MessageCirclePlus, ClipboardCheck } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
@@ -27,6 +27,9 @@ import { PageLoadingState } from "../components/ui/loading-states";
 import { NoteEditor } from "../components/ui/note-editor";
 import { BacklogFileWorkspace } from "../components/backlog/backlog-file-workspace";
 import { InitiativeDependencyGraph } from "../components/initiative/InitiativeDependencyGraph";
+import { FeedbackPanel } from "../components/initiative/feedback-panel";
+import { FeedbackDialog } from "../components/initiative/feedback-dialog";
+import { InitiativeReviewPanel } from "../components/initiative/initiative-review-panel";
 import { FileServiceProvider } from "../contexts/FileServiceContext";
 import { createInitiativeFileServiceAdapter } from "../services/initiative-file-service-adapter";
 import { useUrlState } from "../hooks/use-url-state";
@@ -41,7 +44,7 @@ import { API_ENDPOINTS } from "../lib/api-endpoints";
 import { initiativeService } from "../services";
 import { selectors } from "../consts/selectors";
 import { RollupProgressBar, rollupTotal as computeRollupTotal } from "../components/ui/rollup-progress-bar";
-import type { BacklogFile, BacklogKind, BacklogStatus, InitiativeWithRollup } from "../types";
+import type { BacklogFile, BacklogKind, BacklogStatus, InitiativeStatus, InitiativeWithRollup } from "../types";
 import { useBacklogStore, useDetailSelectionStore } from "../stores";
 import { useInitiativeStore } from "../stores/initiative-store";
 import type { FileActionType } from "../components/backlog/backlog-file-browser";
@@ -50,7 +53,7 @@ import { getStatusColorClasses } from "../surfaces/graph/lib/status-colors";
 import { StatusChip } from "../components/ui/status-chip";
 import { BACKLOG_STATUS_COLORS } from "../types";
 
-type InitiativeTab = "info" | "files";
+type InitiativeTab = "info" | "feedback" | "review" | "files";
 type ItemsView = "list" | "graph";
 
 interface ResolvedInitiativeItem {
@@ -173,6 +176,7 @@ function DependencyGroup({
                         dot: BACKLOG_STATUS_COLORS[item.status as keyof typeof BACKLOG_STATUS_COLORS] ?? "bg-slate-500",
                       }}
                       leadingDot
+                      pulse={item.status === "in_review"}
                     />
                     {item.priority > 0 && (
                       <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-medium text-slate-300">
@@ -331,8 +335,11 @@ export function InitiativeDetailsPage() {
 
   // --- Tab state ---
   const [activeTab, setActiveTab] = useUrlState<InitiativeTab>("tab", "info", {
-    validate: (v): v is InitiativeTab => ["info", "files"].includes(v),
+    validate: (v): v is InitiativeTab => ["info", "feedback", "review", "files"].includes(v),
   });
+
+  // --- Feedback dialog (header button entry point) ---
+  const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
 
   // --- File service ---
   const fileService = useMemo(
@@ -425,6 +432,15 @@ export function InitiativeDetailsPage() {
 
   const mobileActions = initiative ? (
     <div className="flex flex-col gap-2 p-4">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setFeedbackDialogOpen(true)}
+        data-testid={selectors.initiativeDetails.addFeedbackButton}
+      >
+        <MessageCirclePlus className="mr-1.5 h-4 w-4" />
+        Add Feedback
+      </Button>
       {isArchived ? (
         <Button
           variant="outline"
@@ -573,6 +589,14 @@ export function InitiativeDetailsPage() {
             <CircleHelp className="h-4 w-4" />
             Info
           </TabsTrigger>
+          <TabsTrigger value="feedback" className="gap-2" data-testid={selectors.initiativeDetails.tabFeedback}>
+            <MessageCirclePlus className="h-4 w-4" />
+            Feedback
+          </TabsTrigger>
+          <TabsTrigger value="review" className="gap-2" data-testid={selectors.initiativeDetails.tabReview}>
+            <ClipboardCheck className="h-4 w-4" />
+            Review
+          </TabsTrigger>
           <TabsTrigger value="files" className="gap-2" data-testid={selectors.initiativeDetails.tabFiles}>
             <Files className="h-4 w-4" />
             Files
@@ -593,6 +617,17 @@ export function InitiativeDetailsPage() {
           nodeId={nodeId}
           lenses={INITIATIVE_LENSES}
           tabBar={tabBar}
+          actions={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setFeedbackDialogOpen(true)}
+              data-testid={selectors.initiativeDetails.addFeedbackButton}
+            >
+              <MessageCirclePlus className="mr-1.5 h-4 w-4" />
+              Add Feedback
+            </Button>
+          }
         />
       }
       mobileActions={mobileActions}
@@ -830,6 +865,7 @@ export function InitiativeDetailsPage() {
                                     dot: BACKLOG_STATUS_COLORS[item.status] ?? "bg-slate-500",
                                   }}
                                   leadingDot
+                                  pulse={item.status === "in_review"}
                                 />
                                 {item.priority > 0 && (
                                   <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-medium text-slate-300">
@@ -889,6 +925,30 @@ export function InitiativeDetailsPage() {
           </>
         )}
 
+        {activeTab === "feedback" && (
+          <FeedbackPanel
+            initiativeName={initiative.name}
+            previewItems={resolvedItems.map((item) => ({
+              kind: item.kind,
+              name: item.name,
+              title: item.title,
+              status: item.status,
+              dependsOn: item.dependsOn,
+              priority: item.priority,
+              archivedAt: item.archivedAt,
+              missing: item.missing,
+            }))}
+          />
+        )}
+
+        {activeTab === "review" && (
+          <InitiativeReviewPanel
+            initiativeName={initiative.name}
+            initiativeStatus={initiative.status as InitiativeStatus}
+            onDecided={() => void refetch()}
+          />
+        )}
+
         {activeTab === "files" && fileService && (
           <FileServiceProvider value={fileService}>
             <BacklogFileWorkspace
@@ -906,6 +966,16 @@ export function InitiativeDetailsPage() {
           </FileServiceProvider>
         )}
       </div>
+
+      <FeedbackDialog
+        initiativeName={initiative.name}
+        isOpen={feedbackDialogOpen}
+        onClose={() => setFeedbackDialogOpen(false)}
+        onSubmitted={() => {
+          setActiveTab("feedback");
+          void queryClient.invalidateQueries({ queryKey: ["initiative-feedback", initiative.name] });
+        }}
+      />
 
       {/* Delete confirmation dialog */}
       {(() => {

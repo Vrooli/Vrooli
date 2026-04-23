@@ -150,15 +150,14 @@ func (s *FileStore) LoadItemFromPath(kind BacklogKind, specPath string) (Backlog
 	if item.Tags == nil {
 		item.Tags = []string{}
 	}
-	// Normalize status to valid proto values. On-disk data may contain
-	// legacy values (e.g. "done") that are not in the proto enum.
+	// Reject unknown status values outright. We used to silently normalize
+	// legacy aliases (done/complete/finished → completed) and fall back to
+	// backlog for anything else — that shim hid corrupted spec.json files
+	// behind a "looks fine" default. Plan is greenfield: surface the bad
+	// value so the owner can fix it.
 	if !validateBacklogStatus(string(item.Status)) {
-		switch string(item.Status) {
-		case "done", "complete", "finished":
-			item.Status = StatusCompleted
-		default:
-			item.Status = StatusBacklog
-		}
+		return BacklogItem{}, fmt.Errorf("%w: %s/%s has status %q (see internal/backlogstatus for the canonical enum)",
+			ErrInvalidStatus, kind, item.Name, item.Status)
 	}
 	// Backfill missing created timestamp from updated or file mtime.
 	if strings.TrimSpace(item.Created) == "" {

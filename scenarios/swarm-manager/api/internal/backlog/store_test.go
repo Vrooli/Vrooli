@@ -2,6 +2,7 @@ package backlog
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -162,7 +163,10 @@ func TestStore_LoadItemFromPath(t *testing.T) {
 		}
 	})
 
-	t.Run("legacy status 'done' normalized to completed", func(t *testing.T) {
+	// Greenfield: unknown or legacy status values are a spec error, not
+	// something to paper over. LoadItemFromPath must surface them via
+	// ErrInvalidStatus so the owner fixes the file, not the loader.
+	t.Run("legacy status 'done' is rejected", func(t *testing.T) {
 		store, rootDir := setupTestStore(t)
 		writeSpecJSON(t, rootDir, KindIdea, "done-item", map[string]any{
 			"title":    "Done Item",
@@ -171,16 +175,13 @@ func TestStore_LoadItemFromPath(t *testing.T) {
 			"created":  "2025-01-01T00:00:00Z",
 		})
 		specPath := filepath.Join(rootDir, "ideas", "done-item", "spec.json")
-		item, err := store.LoadItemFromPath(KindIdea, specPath)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if item.Status != StatusCompleted {
-			t.Errorf("Status = %s, want %s", item.Status, StatusCompleted)
+		_, err := store.LoadItemFromPath(KindIdea, specPath)
+		if !errors.Is(err, ErrInvalidStatus) {
+			t.Fatalf("err = %v, want ErrInvalidStatus", err)
 		}
 	})
 
-	t.Run("legacy status 'complete' normalized to completed", func(t *testing.T) {
+	t.Run("legacy status 'complete' is rejected", func(t *testing.T) {
 		store, rootDir := setupTestStore(t)
 		writeSpecJSON(t, rootDir, KindIdea, "complete-item", map[string]any{
 			"title":    "Complete Item",
@@ -189,16 +190,13 @@ func TestStore_LoadItemFromPath(t *testing.T) {
 			"created":  "2025-01-01T00:00:00Z",
 		})
 		specPath := filepath.Join(rootDir, "ideas", "complete-item", "spec.json")
-		item, err := store.LoadItemFromPath(KindIdea, specPath)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if item.Status != StatusCompleted {
-			t.Errorf("Status = %s, want %s", item.Status, StatusCompleted)
+		_, err := store.LoadItemFromPath(KindIdea, specPath)
+		if !errors.Is(err, ErrInvalidStatus) {
+			t.Fatalf("err = %v, want ErrInvalidStatus", err)
 		}
 	})
 
-	t.Run("unknown status normalized to backlog", func(t *testing.T) {
+	t.Run("unknown status is rejected", func(t *testing.T) {
 		store, rootDir := setupTestStore(t)
 		writeSpecJSON(t, rootDir, KindIdea, "weird-status", map[string]any{
 			"title":    "Weird Status",
@@ -207,12 +205,9 @@ func TestStore_LoadItemFromPath(t *testing.T) {
 			"created":  "2025-01-01T00:00:00Z",
 		})
 		specPath := filepath.Join(rootDir, "ideas", "weird-status", "spec.json")
-		item, err := store.LoadItemFromPath(KindIdea, specPath)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if item.Status != StatusBacklog {
-			t.Errorf("Status = %s, want %s", item.Status, StatusBacklog)
+		_, err := store.LoadItemFromPath(KindIdea, specPath)
+		if !errors.Is(err, ErrInvalidStatus) {
+			t.Fatalf("err = %v, want ErrInvalidStatus", err)
 		}
 	})
 

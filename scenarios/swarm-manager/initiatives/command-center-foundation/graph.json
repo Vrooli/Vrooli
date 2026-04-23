@@ -1,0 +1,63 @@
+{
+  "initiative": "command-center-foundation",
+  "generated_at": "2026-04-23T17:43:41Z",
+  "nodes": [
+    {
+      "id": "research/command-center-architecture",
+      "kind": "research",
+      "name": "command-center-architecture",
+      "title": "Research command-center scenario architecture and technology choices",
+      "status": "completed",
+      "priority": 2,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/command-center-scenario-scaffold",
+      "kind": "execute",
+      "name": "command-center-scenario-scaffold",
+      "title": "Create command-center scenario with React UI shell and Go API",
+      "status": "completed",
+      "priority": 2,
+      "effort": "L",
+      "archived": false
+    },
+    {
+      "id": "execute/command-center-theming-engine",
+      "kind": "execute",
+      "name": "command-center-theming-engine",
+      "title": "Build per-dashboard independent theming system",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/command-center-kiosk-ux",
+      "kind": "execute",
+      "name": "command-center-kiosk-ux",
+      "title": "Implement kiosk mode, auto-cycle, and TV-optimized UX",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "M",
+      "archived": false
+    }
+  ],
+  "edges": [
+    {
+      "from": "execute/command-center-scenario-scaffold",
+      "to": "research/command-center-architecture",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/command-center-theming-engine",
+      "to": "execute/command-center-scenario-scaffold",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/command-center-kiosk-ux",
+      "to": "execute/command-center-scenario-scaffold",
+      "kind": "depends_on"
+    }
+  ]
+}

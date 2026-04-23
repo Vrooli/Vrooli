@@ -87,9 +87,10 @@ func computeInitiativeRollup(items []string, itemByKey map[string]backlog.Backlo
 		switch item.Status {
 		case backlog.StatusCompleted:
 			rollup.Completed++
-		case backlog.StatusFailed:
+		case backlog.StatusFailed, backlog.StatusNeedsFollowup:
 			rollup.Failed++
-		case backlog.StatusInProgress, backlog.StatusQueued, backlog.StatusResearching:
+		case backlog.StatusInProgress, backlog.StatusQueued, backlog.StatusResearching,
+			backlog.StatusInReview, backlog.StatusReviewPending:
 			rollup.InProgress++
 		default:
 			rollup.Pending++

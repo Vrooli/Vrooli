@@ -1,0 +1,43 @@
+{
+  "initiative": "decision-visual-grounding-propagation",
+  "generated_at": "2026-04-23T17:43:41Z",
+  "nodes": [
+    {
+      "id": "research/bas-grounded-mockup-flow",
+      "kind": "research",
+      "name": "bas-grounded-mockup-flow",
+      "title": "Validate BAS-grounded UI mockup pipeline",
+      "status": "backlog",
+      "priority": 1,
+      "effort": "S",
+      "archived": false
+    },
+    {
+      "id": "execute/bas-grounded-mockup-integration",
+      "kind": "execute",
+      "name": "bas-grounded-mockup-integration",
+      "title": "Wire BAS-grounded mockup flow into the skill",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/decision-image-handoff-propagation",
+      "kind": "execute",
+      "name": "decision-image-handoff-propagation",
+      "title": "Propagate decision-option images through ecosystem-manager handoff",
+      "status": "backlog",
+      "priority": 3,
+      "effort": "S",
+      "archived": false
+    }
+  ],
+  "edges": [
+    {
+      "from": "execute/bas-grounded-mockup-integration",
+      "to": "research/bas-grounded-mockup-flow",
+      "kind": "depends_on"
+    }
+  ]
+}

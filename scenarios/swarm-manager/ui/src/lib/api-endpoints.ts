@@ -81,6 +81,28 @@ export const API_ENDPOINTS = {
   initiativeFileOperations: (name: string) => `/initiatives/${name}/files`,
   initiativeFileContent: (name: string, filePath: string) =>
     `/initiatives/${name}/files/${filePath}`,
+  // Initiative feedback — user feedback rounds on an initiative.
+  // Multi-turn agent dialogue that produces structured mutation proposals
+  // the user can selectively accept, reject, revise, or dismiss.
+  initiativeFeedback: (name: string) => `/initiatives/${name}/feedback`,
+  initiativeFeedbackRound: (name: string, round: number) =>
+    `/initiatives/${name}/feedback/${round}`,
+  initiativeFeedbackContinue: (name: string, round: number) =>
+    `/initiatives/${name}/feedback/${round}/continue`,
+  initiativeFeedbackDecide: (name: string, round: number) =>
+    `/initiatives/${name}/feedback/${round}/decide`,
+  initiativeFeedbackDismiss: (name: string, round: number) =>
+    `/initiatives/${name}/feedback/${round}/dismiss`,
+  initiativeFeedbackAttachment: (name: string, round: number, attachmentId: string) =>
+    `/initiatives/${name}/feedback/${round}/attachments/${attachmentId}`,
+  initiativeFeedbackLock: (name: string) => `/initiatives/${name}/feedback/lock`,
+  // Initiative review — final verdict after all member items reach terminal.
+  initiativeReviewRounds: (name: string) => `/initiatives/${name}/review`,
+  initiativeReviewRound: (name: string, round: number) =>
+    `/initiatives/${name}/review/${round}`,
+  initiativeReviewTrigger: (name: string) => `/initiatives/${name}/review/trigger`,
+  initiativeReviewDecide: (name: string) => `/initiatives/${name}/review/decide`,
+  initiativeReviewDecisions: (name: string) => `/initiatives/${name}/review/decisions`,
   graph: "/graph",
   overview: "/overview",
   stats: "/stats",

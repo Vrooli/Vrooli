@@ -1,0 +1,68 @@
+{
+  "initiative": "ai-image-generation-foundation",
+  "generated_at": "2026-04-23T17:43:41Z",
+  "nodes": [
+    {
+      "id": "research/openai-image-gen-validation",
+      "kind": "research",
+      "name": "openai-image-gen-validation",
+      "title": "Validate OpenAI gpt-image-2 for UI mockup generation",
+      "status": "backlog",
+      "priority": 1,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/openai-api-key-plumbing",
+      "kind": "execute",
+      "name": "openai-api-key-plumbing",
+      "title": "Plumb OpenAI API key into Swarm Manager and agent sandboxes",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/swarm-manager-image-cli-helper",
+      "kind": "execute",
+      "name": "swarm-manager-image-cli-helper",
+      "title": "Add swarm-manager image generate CLI helper",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/ui-mockup-generation-skill",
+      "kind": "execute",
+      "name": "ui-mockup-generation-skill",
+      "title": "Create ui-mockup-generation skill in prompt-manager",
+      "status": "backlog",
+      "priority": 3,
+      "effort": "M",
+      "archived": false
+    }
+  ],
+  "edges": [
+    {
+      "from": "execute/openai-api-key-plumbing",
+      "to": "research/openai-image-gen-validation",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/swarm-manager-image-cli-helper",
+      "to": "execute/openai-api-key-plumbing",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/ui-mockup-generation-skill",
+      "to": "research/openai-image-gen-validation",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/ui-mockup-generation-skill",
+      "to": "execute/swarm-manager-image-cli-helper",
+      "kind": "depends_on"
+    }
+  ]
+}

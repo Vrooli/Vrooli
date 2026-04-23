@@ -226,11 +226,19 @@ func (s *Service) finishFinalization(executionID string) error {
 				record.Status = StatusNeedsFixup
 				record.FailureReason = ""
 			}
-			_ = s.updateBacklogStatus(item, backlogStatusFailed)
+			// Review agent will run and gather evidence; user decides terminal state.
+			if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
+				slog.Warn("failed to set backlog status to in_review after finalization",
+					"execution_id", executionID, "backlog_ref", item.Kind+"/"+item.Name, "err", err)
+			}
 		default:
 			record.Status = StatusCompleted
 			record.FailureReason = ""
-			_ = s.updateBacklogStatus(item, backlogStatusCompleted)
+			// Review agent will run and gather evidence; user decides terminal state.
+			if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
+				slog.Warn("failed to set backlog status to in_review after finalization",
+					"execution_id", executionID, "backlog_ref", item.Kind+"/"+item.Name, "err", err)
+			}
 		}
 	} else {
 		record.Status = StatusNeedsFixup

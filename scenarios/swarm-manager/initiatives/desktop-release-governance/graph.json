@@ -1,0 +1,238 @@
+{
+  "initiative": "desktop-release-governance",
+  "generated_at": "2026-04-23T17:43:41Z",
+  "nodes": [
+    {
+      "id": "research/desktop-release-control-plane-audit",
+      "kind": "research",
+      "name": "desktop-release-control-plane-audit",
+      "title": "Audit The Desktop Release Control Plane",
+      "status": "completed",
+      "priority": 1,
+      "effort": "M",
+      "archived": true
+    },
+    {
+      "id": "execute/deployment-manager-approval-gate-surfaces",
+      "kind": "execute",
+      "name": "deployment-manager-approval-gate-surfaces",
+      "title": "Expose Approval Gate Controls In Deployment Manager",
+      "status": "completed",
+      "priority": 1,
+      "effort": "M",
+      "archived": true
+    },
+    {
+      "id": "execute/deployment-manager-visual-validation-approval-flow",
+      "kind": "execute",
+      "name": "deployment-manager-visual-validation-approval-flow",
+      "title": "Turn Visual Validation Into A Real Approval Flow",
+      "status": "completed",
+      "priority": 1,
+      "effort": "L",
+      "archived": true
+    },
+    {
+      "id": "execute/scenario-to-desktop-approval-gate-integration",
+      "kind": "execute",
+      "name": "scenario-to-desktop-approval-gate-integration",
+      "title": "Integrate Scenario To Desktop With Canonical Approval Gates",
+      "status": "completed",
+      "priority": 2,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "research/release-record-contract-and-history-model",
+      "kind": "research",
+      "name": "release-record-contract-and-history-model",
+      "title": "Define The Release Record And History Model",
+      "status": "completed",
+      "priority": 2,
+      "effort": "M",
+      "archived": true
+    },
+    {
+      "id": "execute/lpbs-desktop-release-contract-hardening",
+      "kind": "execute",
+      "name": "lpbs-desktop-release-contract-hardening",
+      "title": "Harden The LPBS Desktop Release Contract",
+      "status": "completed",
+      "priority": 2,
+      "effort": "L",
+      "archived": false
+    },
+    {
+      "id": "execute/deployment-manager-lpbs-desktop-release-orchestration",
+      "kind": "execute",
+      "name": "deployment-manager-lpbs-desktop-release-orchestration",
+      "title": "Make Deployment Manager Own LPBS Desktop Release Orchestration",
+      "status": "completed",
+      "priority": 2,
+      "effort": "L",
+      "archived": false
+    },
+    {
+      "id": "execute/scenario-to-desktop-canonical-update-policy",
+      "kind": "execute",
+      "name": "scenario-to-desktop-canonical-update-policy",
+      "title": "Set The Canonical Desktop Update Policy And Overrides",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/deployment-manager-cloud-freshness-gate",
+      "kind": "execute",
+      "name": "deployment-manager-cloud-freshness-gate",
+      "title": "Gate Desktop Releases On LPBS Cloud Freshness",
+      "status": "backlog",
+      "priority": 3,
+      "effort": "S",
+      "archived": false
+    },
+    {
+      "id": "execute/deployment-manager-release-deep-verify-option",
+      "kind": "execute",
+      "name": "deployment-manager-release-deep-verify-option",
+      "title": "Add --deep Option To releases start For Exhaustive Post-Publish Verify",
+      "status": "backlog",
+      "priority": 4,
+      "effort": "XS",
+      "archived": false
+    },
+    {
+      "id": "execute/deployment-manager-release-typed-remediation-errors",
+      "kind": "execute",
+      "name": "deployment-manager-release-typed-remediation-errors",
+      "title": "Typed Remediation Errors Across Release Orchestrator",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/deployment-manager-release-preflight-endpoint",
+      "kind": "execute",
+      "name": "deployment-manager-release-preflight-endpoint",
+      "title": "Add releases preflight Endpoint And CLI",
+      "status": "backlog",
+      "priority": 3,
+      "effort": "S",
+      "archived": false
+    },
+    {
+      "id": "execute/landing-page-desktop-upload-guided-remediation-rewrite",
+      "kind": "execute",
+      "name": "landing-page-desktop-upload-guided-remediation-rewrite",
+      "title": "Rewrite landing-page-desktop-upload Skill For Guided Remediation",
+      "status": "backlog",
+      "priority": 3,
+      "effort": "S",
+      "archived": false
+    },
+    {
+      "id": "fix/deployment-manager-release-retry-ergonomics",
+      "kind": "fix",
+      "name": "deployment-manager-release-retry-ergonomics",
+      "title": "Make releases start Retryable After A Failed Attempt",
+      "status": "backlog",
+      "priority": 4,
+      "effort": "XS",
+      "archived": false
+    }
+  ],
+  "edges": [
+    {
+      "from": "execute/deployment-manager-approval-gate-surfaces",
+      "to": "research/desktop-release-control-plane-audit",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/deployment-manager-visual-validation-approval-flow",
+      "to": "research/desktop-release-control-plane-audit",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/scenario-to-desktop-approval-gate-integration",
+      "to": "execute/deployment-manager-approval-gate-surfaces",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/scenario-to-desktop-approval-gate-integration",
+      "to": "research/desktop-release-control-plane-audit",
+      "kind": "depends_on"
+    },
+    {
+      "from": "research/release-record-contract-and-history-model",
+      "to": "research/desktop-release-control-plane-audit",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/lpbs-desktop-release-contract-hardening",
+      "to": "research/release-record-contract-and-history-model",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/deployment-manager-lpbs-desktop-release-orchestration",
+      "to": "execute/deployment-manager-approval-gate-surfaces",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/deployment-manager-lpbs-desktop-release-orchestration",
+      "to": "execute/deployment-manager-visual-validation-approval-flow",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/deployment-manager-lpbs-desktop-release-orchestration",
+      "to": "execute/lpbs-desktop-release-contract-hardening",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/deployment-manager-lpbs-desktop-release-orchestration",
+      "to": "execute/scenario-to-desktop-approval-gate-integration",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/scenario-to-desktop-canonical-update-policy",
+      "to": "execute/lpbs-desktop-release-contract-hardening",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/deployment-manager-cloud-freshness-gate",
+      "to": "execute/deployment-manager-lpbs-desktop-release-orchestration",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/deployment-manager-release-deep-verify-option",
+      "to": "execute/deployment-manager-lpbs-desktop-release-orchestration",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/deployment-manager-release-typed-remediation-errors",
+      "to": "execute/deployment-manager-lpbs-desktop-release-orchestration",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/deployment-manager-release-preflight-endpoint",
+      "to": "execute/deployment-manager-release-typed-remediation-errors",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/landing-page-desktop-upload-guided-remediation-rewrite",
+      "to": "execute/deployment-manager-release-typed-remediation-errors",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/landing-page-desktop-upload-guided-remediation-rewrite",
+      "to": "execute/deployment-manager-release-preflight-endpoint",
+      "kind": "depends_on"
+    },
+    {
+      "from": "fix/deployment-manager-release-retry-ergonomics",
+      "to": "execute/deployment-manager-lpbs-desktop-release-orchestration",
+      "kind": "depends_on"
+    }
+  ]
+}

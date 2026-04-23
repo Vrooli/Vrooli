@@ -74,6 +74,20 @@ export type {
   RequestThread,
 } from "./review-service";
 
+// Feedback (initiative)
+export { feedbackService, createFeedbackService, FeedbackLockConflictError } from "./feedback-service";
+export type {
+  IFeedbackService,
+  StartFeedbackArgs,
+  ContinueFeedbackArgs,
+  DecideFeedbackArgs,
+  DismissFeedbackArgs,
+} from "./feedback-service";
+
+// Initiative Review
+export { initiativeReviewService, createInitiativeReviewService } from "./initiative-review-service";
+export type { IInitiativeReviewService, DecideInitiativeReviewArgs } from "./initiative-review-service";
+
 // Embedded Services
 export { embeddedService, createEmbeddedService } from "./embedded-service";
 export type { IEmbeddedService } from "./embedded-service";

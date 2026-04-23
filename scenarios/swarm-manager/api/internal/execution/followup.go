@@ -179,7 +179,23 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 	}
 }
 
-// FollowUp creates a follow-up execution from a completed/failed/needs_fixup execution.
+// FollowUp creates a new execution run from a completed/failed/needs_fixup
+// parent run. User-initiated only: invoked through
+// `POST /api/v1/execution/{id}/follow-up`.
+//
+// NOT to be confused with the backlog.StatusNeedsFollowup terminal status:
+//   - StatusNeedsFollowup (item level) is a signal from review-decide that
+//     the *item* needs more work. It does not auto-open any execution.
+//   - FollowUp (run level) spawns another *run* against the same item when
+//     the user asks for one, regardless of the item's status. It may be
+//     invoked against a `needs_followup` item, a `failed` item, or any
+//     other item whose last execution reached completed / failed /
+//     needs_fixup.
+//
+// There is no auto-FollowUp path — production code never calls this from
+// finalization or polling. If you add one, reconsider: the W1 plan routed
+// post-run state through `in_review` / `review_pending` specifically so
+// the user decides whether a follow-up is warranted.
 func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

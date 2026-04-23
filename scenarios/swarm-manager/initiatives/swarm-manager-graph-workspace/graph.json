@@ -1,0 +1,88 @@
+{
+  "initiative": "swarm-manager-graph-workspace",
+  "generated_at": "2026-04-23T17:43:41Z",
+  "nodes": [
+    {
+      "id": "research/swarm-manager-graph-workspace-contract",
+      "kind": "research",
+      "name": "swarm-manager-graph-workspace-contract",
+      "title": "Define the Swarm Manager Graph Workspace Contract",
+      "status": "completed",
+      "priority": 1,
+      "effort": "M",
+      "archived": true
+    },
+    {
+      "id": "execute/swarm-manager-graph-data-foundation",
+      "kind": "execute",
+      "name": "swarm-manager-graph-data-foundation",
+      "title": "Build Swarm Manager Graph Data Foundation",
+      "status": "completed",
+      "priority": 1,
+      "effort": "M",
+      "archived": true
+    },
+    {
+      "id": "execute/swarm-manager-graph-workspace-shell",
+      "kind": "execute",
+      "name": "swarm-manager-graph-workspace-shell",
+      "title": "Replace the Tabbed Shell with the Graph Workspace Shell",
+      "status": "completed",
+      "priority": 1,
+      "effort": "L",
+      "archived": true
+    },
+    {
+      "id": "execute/swarm-manager-topology-impact-views",
+      "kind": "execute",
+      "name": "swarm-manager-topology-impact-views",
+      "title": "Build Topology and Scenario Impact Views in the Graph Workspace",
+      "status": "completed",
+      "priority": 1,
+      "effort": "L",
+      "archived": true
+    },
+    {
+      "id": "execute/swarm-manager-flow-and-ops-views",
+      "kind": "execute",
+      "name": "swarm-manager-flow-and-ops-views",
+      "title": "Implement Flow and Operations Views in the Graph Workspace",
+      "status": "completed",
+      "priority": 2,
+      "effort": "L",
+      "archived": true
+    }
+  ],
+  "edges": [
+    {
+      "from": "execute/swarm-manager-graph-data-foundation",
+      "to": "research/swarm-manager-graph-workspace-contract",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/swarm-manager-graph-workspace-shell",
+      "to": "research/swarm-manager-graph-workspace-contract",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/swarm-manager-topology-impact-views",
+      "to": "execute/swarm-manager-graph-data-foundation",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/swarm-manager-topology-impact-views",
+      "to": "execute/swarm-manager-graph-workspace-shell",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/swarm-manager-flow-and-ops-views",
+      "to": "execute/swarm-manager-graph-data-foundation",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/swarm-manager-flow-and-ops-views",
+      "to": "execute/swarm-manager-graph-workspace-shell",
+      "kind": "depends_on"
+    }
+  ]
+}

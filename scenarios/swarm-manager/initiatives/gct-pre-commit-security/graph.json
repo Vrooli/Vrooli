@@ -1,0 +1,78 @@
+{
+  "initiative": "gct-pre-commit-security",
+  "generated_at": "2026-04-23T17:43:41Z",
+  "nodes": [
+    {
+      "id": "research/secrets-manager-pii-detection-design",
+      "kind": "research",
+      "name": "secrets-manager-pii-detection-design",
+      "title": "Design PII detection system for Secrets Manager",
+      "status": "completed",
+      "priority": 1,
+      "effort": "M",
+      "archived": true
+    },
+    {
+      "id": "execute/secrets-manager-pii-scanner",
+      "kind": "execute",
+      "name": "secrets-manager-pii-scanner",
+      "title": "Implement PII scanner, custom watchlist, and file-list scan endpoint",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "L",
+      "archived": false
+    },
+    {
+      "id": "execute/gct-security-review-tab",
+      "kind": "execute",
+      "name": "gct-security-review-tab",
+      "title": "Add Security tab to GCT review panel via Secrets Manager integration",
+      "status": "backlog",
+      "priority": 3,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/gct-commit-level-gating",
+      "kind": "execute",
+      "name": "gct-commit-level-gating",
+      "title": "Commit gating settings (required/advisory/disabled) with staged-file scanning",
+      "status": "backlog",
+      "priority": 4,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/gct-commit-level-agent",
+      "kind": "execute",
+      "name": "gct-commit-level-agent",
+      "title": "Commit-scope agent for fixing security/PII findings pre-commit",
+      "status": "backlog",
+      "priority": 5,
+      "effort": "M",
+      "archived": false
+    }
+  ],
+  "edges": [
+    {
+      "from": "execute/secrets-manager-pii-scanner",
+      "to": "research/secrets-manager-pii-detection-design",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/gct-security-review-tab",
+      "to": "execute/secrets-manager-pii-scanner",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/gct-commit-level-gating",
+      "to": "execute/gct-security-review-tab",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/gct-commit-level-agent",
+      "to": "execute/gct-commit-level-gating",
+      "kind": "depends_on"
+    }
+  ]
+}

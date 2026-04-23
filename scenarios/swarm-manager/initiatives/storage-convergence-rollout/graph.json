@@ -1,0 +1,43 @@
+{
+  "initiative": "storage-convergence-rollout",
+  "generated_at": "2026-04-23T17:43:41Z",
+  "nodes": [
+    {
+      "id": "execute/high-risk-scenario-storage-migration-wave",
+      "kind": "execute",
+      "name": "high-risk-scenario-storage-migration-wave",
+      "title": "Migrate high-risk scenarios onto canonical runtime storage",
+      "status": "backlog",
+      "priority": 1,
+      "effort": "XL",
+      "archived": false
+    },
+    {
+      "id": "chore/declare-legacy-resource-storage-exceptions",
+      "kind": "chore",
+      "name": "declare-legacy-resource-storage-exceptions",
+      "title": "Declare legacy resource storage exceptions explicitly",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/resource-storage-exception-normalization-wave",
+      "kind": "execute",
+      "name": "resource-storage-exception-normalization-wave",
+      "title": "Normalize resource storage exceptions onto the runtime storage layer",
+      "status": "backlog",
+      "priority": 3,
+      "effort": "XL",
+      "archived": false
+    }
+  ],
+  "edges": [
+    {
+      "from": "execute/resource-storage-exception-normalization-wave",
+      "to": "chore/declare-legacy-resource-storage-exceptions",
+      "kind": "depends_on"
+    }
+  ]
+}

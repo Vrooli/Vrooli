@@ -65,6 +65,22 @@ func (s *Server) registerReviewRoutes(scenarioRoot string, execSvc *execution.Se
 			}
 			return item.Title, nil
 		},
+		// When a review round finishes (complete or failed), flip the backlog
+		// item from in_review to review_pending so the user can assess and
+		// decide the terminal status via the review-decide endpoint.
+		OnRoundTerminal: func(ctx context.Context, kind, name string, round review.Round) {
+			item, err := backlogStore.LoadItem(backlog.BacklogKind(kind), name)
+			if err != nil {
+				return
+			}
+			// Only transition from in_review; any other state means the user
+			// (or another flow) has already taken over — don't overwrite.
+			if item.Status != backlog.StatusInReview {
+				return
+			}
+			item.Status = backlog.StatusReviewPending
+			_ = backlogStore.SaveItem(item)
+		},
 	}
 	if execSvc != nil {
 		cfg.LoadExecutionContext = func(ctx context.Context, executionID string) (*review.ExecutionContext, error) {

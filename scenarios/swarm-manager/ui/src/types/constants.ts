@@ -42,12 +42,21 @@ export const BACKLOG_STATUSES: BacklogStatus[] = [
   "ready",
   "queued",
   "in_progress",
+  "in_review",
+  "review_pending",
   "completed",
   "failed",
+  "needs_followup",
 ];
 
-/** Statuses a user can manually set. Excludes queued/in_progress (managed by execution system). */
-export const USER_SETTABLE_STATUSES: BacklogStatus[] = ["backlog", "researching", "ready", "failed", "completed"];
+/**
+ * Statuses a user can manually set via the generic status patch.
+ * Excludes:
+ *   - queued/in_progress (managed by execution system)
+ *   - in_review/review_pending (managed by execution + review systems)
+ *   - completed/failed/needs_followup (set via review-decide endpoint only)
+ */
+export const USER_SETTABLE_STATUSES: BacklogStatus[] = ["backlog", "researching", "ready"];
 
 /**
  * Maps backlog status to tailwind background color classes
@@ -58,8 +67,11 @@ export const BACKLOG_STATUS_COLORS: Record<BacklogStatus, string> = {
   ready: "bg-green-600",
   queued: "bg-yellow-600",
   in_progress: "bg-purple-600",
+  in_review: "bg-amber-600",
+  review_pending: "bg-cyan-600",
   completed: "bg-emerald-600",
   failed: "bg-red-600",
+  needs_followup: "bg-orange-600",
 };
 
 /**
@@ -72,8 +84,11 @@ export const BACKLOG_STATUS_CHIP_COLORS: Record<BacklogStatus, string> = {
   ready: "bg-green-600/20 text-green-400",
   queued: "bg-yellow-600/20 text-yellow-300",
   in_progress: "bg-purple-600/20 text-purple-400",
+  in_review: "bg-amber-500/20 text-amber-400",
+  review_pending: "bg-cyan-500/20 text-cyan-400",
   completed: "bg-emerald-600/20 text-emerald-400",
   failed: "bg-red-600/20 text-red-400",
+  needs_followup: "bg-orange-500/20 text-orange-400",
 };
 
 /**
@@ -183,14 +198,25 @@ export const REVIEW_CLASSIFICATION_COLORS: Record<string, string> = {
 // Initiative Status Display
 // ============================================================================
 
-export const INITIATIVE_STATUSES: InitiativeStatus[] = ["active", "completed"];
+export const INITIATIVE_STATUSES: InitiativeStatus[] = [
+  "active",
+  "in_review",
+  "review_pending",
+  "completed",
+  "failed",
+  "needs_followup",
+];
 
 /**
  * Maps initiative status to semi-transparent chip color classes (bg + text).
  */
 export const INITIATIVE_STATUS_CHIP_COLORS: Record<string, string> = {
   active: "bg-sky-500/15 text-sky-400",
+  in_review: "bg-amber-500/20 text-amber-400",
+  review_pending: "bg-cyan-500/20 text-cyan-400",
   completed: "bg-green-500/15 text-green-400",
+  failed: "bg-red-500/20 text-red-400",
+  needs_followup: "bg-orange-500/20 text-orange-400",
 };
 
 // ============================================================================

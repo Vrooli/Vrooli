@@ -63,9 +63,20 @@ export function StatusChipPopover({
         className="inline-flex items-center gap-2 rounded-md px-1.5 py-0.5 -mx-1.5 -my-0.5 transition-colors hover:bg-slate-800 cursor-pointer"
         data-testid="status-chip-trigger"
       >
-        <span
-          className={`inline-block h-2 w-2 rounded-full ${BACKLOG_STATUS_COLORS[currentStatus] ?? "bg-slate-500"}`}
-        />
+        {currentStatus === "in_review" ? (
+          <span className="relative flex h-2 w-2 shrink-0" aria-hidden>
+            <span
+              className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${BACKLOG_STATUS_COLORS[currentStatus] ?? "bg-slate-500"}`}
+            />
+            <span
+              className={`relative inline-flex h-2 w-2 rounded-full ${BACKLOG_STATUS_COLORS[currentStatus] ?? "bg-slate-500"}`}
+            />
+          </span>
+        ) : (
+          <span
+            className={`inline-block h-2 w-2 rounded-full ${BACKLOG_STATUS_COLORS[currentStatus] ?? "bg-slate-500"}`}
+          />
+        )}
         {pending ? (
           <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
         ) : null}

@@ -1,0 +1,48 @@
+{
+  "initiative": "protected-agent-sandboxing",
+  "generated_at": "2026-04-23T17:43:41Z",
+  "nodes": [
+    {
+      "id": "execute/protected-sandbox-agent-launch",
+      "kind": "execute",
+      "name": "protected-sandbox-agent-launch",
+      "title": "Launch coding agents through workspace-sandbox execution APIs in protected mode",
+      "status": "backlog",
+      "priority": 6,
+      "effort": "XL",
+      "archived": false
+    },
+    {
+      "id": "execute/protected-sandbox-git-and-network-guardrails",
+      "kind": "execute",
+      "name": "protected-sandbox-git-and-network-guardrails",
+      "title": "Add protected-mode git and network guardrails with human-readable denials",
+      "status": "backlog",
+      "priority": 7,
+      "effort": "L",
+      "archived": false
+    },
+    {
+      "id": "fix/protected-sandbox-policy-enforcement-surface",
+      "kind": "fix",
+      "name": "protected-sandbox-policy-enforcement-surface",
+      "title": "Make protected-mode policy controls real instead of advisory",
+      "status": "backlog",
+      "priority": 7,
+      "effort": "L",
+      "archived": false
+    }
+  ],
+  "edges": [
+    {
+      "from": "execute/protected-sandbox-git-and-network-guardrails",
+      "to": "execute/protected-sandbox-agent-launch",
+      "kind": "depends_on"
+    },
+    {
+      "from": "fix/protected-sandbox-policy-enforcement-surface",
+      "to": "execute/protected-sandbox-agent-launch",
+      "kind": "depends_on"
+    }
+  ]
+}

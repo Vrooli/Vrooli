@@ -1,0 +1,73 @@
+{
+  "initiative": "workshop-decision-triage",
+  "generated_at": "2026-04-23T17:43:41Z",
+  "nodes": [
+    {
+      "id": "execute/swarm-manager-pending-questions-priority-sort",
+      "kind": "execute",
+      "name": "swarm-manager-pending-questions-priority-sort",
+      "title": "Priority-sort pending-questions endpoint and add CLI wrapper",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "S",
+      "archived": false
+    },
+    {
+      "id": "execute/workshop-decision-prep-agent",
+      "kind": "execute",
+      "name": "workshop-decision-prep-agent",
+      "title": "Create workshop-decision-prep director-swarm member",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/workshop-decision-sync-skill",
+      "kind": "execute",
+      "name": "workshop-decision-sync-skill",
+      "title": "Create workshop-decision-sync skill",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "chore/workshop-decision-sync-tests",
+      "kind": "chore",
+      "name": "workshop-decision-sync-tests",
+      "title": "Automated tests for pending-questions sort + prep specialist + sync skill",
+      "status": "backlog",
+      "priority": 3,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "idea/workshop-question-level-answer-endpoint",
+      "kind": "idea",
+      "name": "workshop-question-level-answer-endpoint",
+      "title": "Optional: question-level workshop answer endpoint",
+      "status": "backlog",
+      "priority": 5,
+      "effort": "S",
+      "archived": false
+    }
+  ],
+  "edges": [
+    {
+      "from": "execute/workshop-decision-prep-agent",
+      "to": "execute/swarm-manager-pending-questions-priority-sort",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/workshop-decision-sync-skill",
+      "to": "execute/workshop-decision-prep-agent",
+      "kind": "depends_on"
+    },
+    {
+      "from": "chore/workshop-decision-sync-tests",
+      "to": "execute/workshop-decision-sync-skill",
+      "kind": "depends_on"
+    }
+  ]
+}

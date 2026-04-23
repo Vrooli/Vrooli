@@ -12,6 +12,7 @@ import (
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/backlogstatus"
 	"swarm-manager/internal/dispatch"
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/promptmanager"
@@ -24,15 +25,19 @@ var (
 	errAtCapacity     = apierr.ErrAtCapacity
 )
 
-// Backlog status values used by execution to update backlog items.
-// Defined locally to avoid a circular import with the backlog package.
+// Backlog status values referenced by execution when writing backlog items.
+// Aliased from the shared backlogstatus package (which has no dependencies
+// and is imported by both backlog and execution to break the cycle). Using
+// named locals rather than qualifying every call site keeps the hot paths
+// readable.
 const (
-	backlogStatusQueued      = "queued"
-	backlogStatusCompleted   = "completed"
-	backlogStatusFailed      = "failed"
-	backlogStatusBacklog     = "backlog"
-	backlogStatusResearching = "researching"
-	backlogStatusReady       = "ready"
+	backlogStatusQueued        = backlogstatus.Queued
+	backlogStatusInReview      = backlogstatus.InReview
+	backlogStatusReviewPending = backlogstatus.ReviewPending
+	backlogStatusFailed        = backlogstatus.Failed
+	backlogStatusBacklog       = backlogstatus.Backlog
+	backlogStatusResearching   = backlogstatus.Researching
+	backlogStatusReady         = backlogstatus.Ready
 )
 
 // DOC: docs/concepts/ARCHITECTURE.md#key-flows

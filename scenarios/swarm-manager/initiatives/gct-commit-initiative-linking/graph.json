@@ -1,0 +1,48 @@
+{
+  "initiative": "gct-commit-initiative-linking",
+  "generated_at": "2026-04-23T17:43:41Z",
+  "nodes": [
+    {
+      "id": "research/gct-trailer-system-design",
+      "kind": "research",
+      "name": "gct-trailer-system-design",
+      "title": "Design Vrooli-namespaced trailer convention and Swarm Manager linkage",
+      "status": "backlog",
+      "priority": 1,
+      "effort": "S",
+      "archived": false
+    },
+    {
+      "id": "execute/gct-trailer-support",
+      "kind": "execute",
+      "name": "gct-trailer-support",
+      "title": "Trailer editor in commit panel with auto-population from continue action",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/gct-swarm-manager-integration",
+      "kind": "execute",
+      "name": "gct-swarm-manager-integration",
+      "title": "Optional Swarm Manager client for initiative enrichment on trailer-linked commits",
+      "status": "backlog",
+      "priority": 3,
+      "effort": "M",
+      "archived": false
+    }
+  ],
+  "edges": [
+    {
+      "from": "execute/gct-trailer-support",
+      "to": "research/gct-trailer-system-design",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/gct-swarm-manager-integration",
+      "to": "execute/gct-trailer-support",
+      "kind": "depends_on"
+    }
+  ]
+}

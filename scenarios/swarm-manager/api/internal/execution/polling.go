@@ -118,7 +118,10 @@ func (s *Service) refreshRunningLocked(ctx context.Context) ([]string, error) {
 
 			// Max-age staleness check.
 			if time.Since(tracker.FirstSeen) > s.maxRunAge {
-				slog.Warn("run exceeded max age, marking failed", "run_id", record.RunID, "age", time.Since(tracker.FirstSeen))
+				slog.Warn("run exceeded max age, marking failed",
+					"execution_id", record.ExecutionID,
+					"run_id", record.RunID,
+					"age", time.Since(tracker.FirstSeen))
 				nextStatus := StatusFailed
 				reason := "run exceeded maximum age timeout"
 				prevStatus := record.Status
@@ -130,7 +133,13 @@ func (s *Service) refreshRunningLocked(ctx context.Context) ([]string, error) {
 				changedRecords[record.ExecutionID] = *record
 				s.logExecutionEvent(*record, prevStatus)
 				if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
-					_ = s.updateBacklogStatus(item, backlogStatusFailed)
+					// Land in in_review (not terminal) so the review agent can
+					// document the timeout and the user decides whether to mark
+					// failed, retry, or followup.
+					if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
+						slog.Warn("failed to set backlog status to in_review after max-age timeout",
+							"execution_id", record.ExecutionID, "backlog_ref", record.BacklogKind+"/"+record.BacklogName, "err", err)
+					}
 				}
 				s.deleteRunTracker(record.RunID)
 				continue
@@ -140,7 +149,10 @@ func (s *Service) refreshRunningLocked(ctx context.Context) ([]string, error) {
 			if err != nil {
 				tracker.ConsecutiveErrors++
 				if tracker.ConsecutiveErrors >= s.maxConsecutiveErrors {
-					slog.Warn("run hit max consecutive errors, marking failed", "run_id", record.RunID, "errors", tracker.ConsecutiveErrors)
+					slog.Warn("run hit max consecutive errors, marking failed",
+						"execution_id", record.ExecutionID,
+						"run_id", record.RunID,
+						"errors", tracker.ConsecutiveErrors)
 					prevStatus := record.Status
 					record.Status = StatusFailed
 					record.FailureReason = "lost contact with agent-manager run"
@@ -150,11 +162,19 @@ func (s *Service) refreshRunningLocked(ctx context.Context) ([]string, error) {
 					changedRecords[record.ExecutionID] = *record
 					s.logExecutionEvent(*record, prevStatus)
 					if item, loadErr := s.loadBacklogItem(record.BacklogKind, record.BacklogName); loadErr == nil {
-						_ = s.updateBacklogStatus(item, backlogStatusFailed)
+						// Land in in_review; user decides terminal via review-decide.
+						if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
+							slog.Warn("failed to set backlog status to in_review after consecutive-errors timeout",
+								"execution_id", record.ExecutionID, "backlog_ref", record.BacklogKind+"/"+record.BacklogName, "err", err)
+						}
 					}
 					s.deleteRunTracker(record.RunID)
 				} else {
-					slog.Warn("GetRunState error", "run_id", record.RunID, "err", err, "consecutive", tracker.ConsecutiveErrors)
+					slog.Warn("GetRunState error",
+						"execution_id", record.ExecutionID,
+						"run_id", record.RunID,
+						"err", err,
+						"consecutive", tracker.ConsecutiveErrors)
 				}
 				continue
 			}
@@ -213,19 +233,33 @@ func (s *Service) refreshRunningLocked(ctx context.Context) ([]string, error) {
 								AffectedScenarios:       []string{},
 								Scenarios:               []ScenarioFinalization{},
 							}
-							_ = s.updateBacklogStatus(item, backlogStatusCompleted)
+							// No review agent runs for non-eligible items; go
+							// straight to review_pending so the user decides
+							// the terminal state instead of auto-completing.
+							if err := s.updateBacklogStatus(item, backlogStatusReviewPending); err != nil {
+								slog.Warn("failed to set backlog status to review_pending for non-finalization item",
+									"execution_id", record.ExecutionID, "backlog_ref", record.BacklogKind+"/"+record.BacklogName, "err", err)
+							}
 						}
 						// Clear circuit breaker on success.
 						_ = s.circuitBreaker.RecordSuccess(record.BacklogKind + "/" + record.BacklogName)
 					} else if nextStatus == StatusFailed {
-						_ = s.updateBacklogStatus(item, backlogStatusFailed)
-						// Record failure in circuit breaker.
+						// Land in in_review so review agent documents the failure
+						// and user decides terminal via review-decide. Circuit-breaker
+						// accounting still fires — the run itself did fail.
+						if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
+							slog.Warn("failed to set backlog status to in_review after run failure",
+								"execution_id", record.ExecutionID, "backlog_ref", record.BacklogKind+"/"+record.BacklogName, "err", err)
+						}
 						cbKey := record.BacklogKind + "/" + record.BacklogName
 						if cbGov, cbGovErr := s.governanceProvider.LoadGovernance(); cbGovErr == nil {
 							_ = s.circuitBreaker.RecordFailure(cbKey, cbGov.CircuitBreakerThreshold)
 						}
 					} else if nextStatus == StatusCanceled {
-						_ = s.updateBacklogStatus(item, restoreBacklogStatus(*record))
+						if err := s.updateBacklogStatus(item, restoreBacklogStatus(*record)); err != nil {
+							slog.Warn("failed to restore backlog status after run cancellation",
+								"execution_id", record.ExecutionID, "backlog_ref", record.BacklogKind+"/"+record.BacklogName, "err", err)
+						}
 					}
 				}
 			}

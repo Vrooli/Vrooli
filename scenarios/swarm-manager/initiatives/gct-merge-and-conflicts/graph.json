@@ -1,0 +1,63 @@
+{
+  "initiative": "gct-merge-and-conflicts",
+  "generated_at": "2026-04-23T17:43:41Z",
+  "nodes": [
+    {
+      "id": "research/gct-merge-architecture",
+      "kind": "research",
+      "name": "gct-merge-architecture",
+      "title": "Design merge API, conflict model, and three-way merge UX",
+      "status": "backlog",
+      "priority": 1,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/gct-merge-api",
+      "kind": "execute",
+      "name": "gct-merge-api",
+      "title": "Merge, status, and abort endpoints with conflict reporting",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "L",
+      "archived": false
+    },
+    {
+      "id": "execute/gct-conflict-resolution-ui",
+      "kind": "execute",
+      "name": "gct-conflict-resolution-ui",
+      "title": "Three-way merge editor in DiffViewer with per-conflict actions",
+      "status": "backlog",
+      "priority": 3,
+      "effort": "L",
+      "archived": false
+    },
+    {
+      "id": "execute/gct-merge-time-checks",
+      "kind": "execute",
+      "name": "gct-merge-time-checks",
+      "title": "Branch protection settings and review readiness gating before merge",
+      "status": "backlog",
+      "priority": 4,
+      "effort": "M",
+      "archived": false
+    }
+  ],
+  "edges": [
+    {
+      "from": "execute/gct-merge-api",
+      "to": "research/gct-merge-architecture",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/gct-conflict-resolution-ui",
+      "to": "execute/gct-merge-api",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/gct-merge-time-checks",
+      "to": "execute/gct-conflict-resolution-ui",
+      "kind": "depends_on"
+    }
+  ]
+}

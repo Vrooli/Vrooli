@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 
+	"swarm-manager/internal/backlogstatus"
 	"swarm-manager/internal/identity"
 
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -15,17 +16,61 @@ import (
 )
 
 // BacklogStatus represents the lifecycle state of a backlog item.
+//
+// Two valid post-execution shapes land an item in the terminal gate:
+//
+//  1. Finalization-eligible items (normal execute runs):
+//     in_progress → in_review → review_pending → (user) → completed|failed|needs_followup
+//     The review agent gathers evidence during in_review; the user decides
+//     terminal via the review-decide endpoint.
+//
+//  2. Non-finalization items (execution types that skip post-run checks):
+//     in_progress → review_pending → (user) → completed|failed|needs_followup
+//     No review agent runs, so the item skips in_review and moves directly
+//     to awaiting the user's decision.
+//
+// Terminal status writes from the execution system are forbidden; only
+// review-decide should flip review_pending → terminal (see update_patch.go
+// for the validator that enforces this for user PATCH requests).
 type BacklogStatus string
 
 const (
-	StatusBacklog     BacklogStatus = "backlog"
-	StatusResearching BacklogStatus = "researching"
-	StatusReady       BacklogStatus = "ready"
-	StatusQueued      BacklogStatus = "queued"
-	StatusInProgress  BacklogStatus = "in_progress"
-	StatusCompleted   BacklogStatus = "completed"
-	StatusFailed      BacklogStatus = "failed"
+	StatusBacklog       BacklogStatus = backlogstatus.Backlog
+	StatusResearching   BacklogStatus = backlogstatus.Researching
+	StatusReady         BacklogStatus = backlogstatus.Ready
+	StatusQueued        BacklogStatus = backlogstatus.Queued
+	StatusInProgress    BacklogStatus = backlogstatus.InProgress
+	StatusInReview      BacklogStatus = backlogstatus.InReview
+	StatusReviewPending BacklogStatus = backlogstatus.ReviewPending
+	StatusCompleted     BacklogStatus = backlogstatus.Completed
+	StatusFailed        BacklogStatus = backlogstatus.Failed
+	// StatusNeedsFollowup is a user-decided terminal state set only by
+	// review-decide. It means "delivered, but more work is needed — the
+	// user should schedule it." Do NOT conflate with execution.StatusNeedsFixup,
+	// which is a run-level state the execution system sets to drive
+	// auto-fixup; the two exist on different enums for different reasons.
+	StatusNeedsFollowup BacklogStatus = backlogstatus.NeedsFollowup
 )
+
+// IsTerminalStatus reports whether the given status is a user-decided terminal
+// state. Only review-decide transitions should land in these.
+func IsTerminalStatus(s BacklogStatus) bool {
+	return backlogstatus.IsTerminal(string(s))
+}
+
+// IsReviewStatus reports whether the item is in an active review phase
+// (agent gathering evidence or waiting for user decision).
+func IsReviewStatus(s BacklogStatus) bool {
+	return backlogstatus.IsReview(string(s))
+}
+
+// IsValidTransition is a permissive safety net over the backlog state
+// machine: it rejects nonsensical transitions regardless of caller (e.g.,
+// Completed → Ready). Individual handlers stack tighter rules on top.
+// See backlogstatus.IsValidTransition for the full rule set.
+func IsValidTransition(from, to BacklogStatus) bool {
+	return backlogstatus.IsValidTransition(string(from), string(to))
+}
 
 // BacklogKind represents a category of backlog work.
 type BacklogKind string
@@ -115,12 +160,7 @@ func ParseBacklogKind(raw string) (BacklogKind, error) {
 // validateBacklogStatus returns true if the given status string is a known
 // backlog status value.
 func validateBacklogStatus(status string) bool {
-	switch status {
-	case "backlog", "researching", "ready", "queued", "in_progress", "completed", "failed":
-		return true
-	default:
-		return false
-	}
+	return backlogstatus.IsValid(status)
 }
 
 // validateEffort checks that an effort value is one of the valid t-shirt sizes.

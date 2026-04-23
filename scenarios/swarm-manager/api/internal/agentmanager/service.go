@@ -148,6 +148,28 @@ type ResearchSpawnRequest struct {
 	Mode        string
 }
 
+// InitiativeSpawnRequest describes a request to spawn an initiative-scoped
+// agent (feedback round, initiative review). Structurally identical to
+// BacklogSpawnRequest except that Name identifies an initiative rather
+// than a backlog item and Purpose distinguishes the round type
+// ("feedback" | "feedback_continue" | "review").
+type InitiativeSpawnRequest struct {
+	Name               string
+	Title              string
+	Description        string
+	Prompt             string
+	ScopePath          string
+	ProjectRoot        string
+	CreatedBy          string
+	Purpose            string
+	RoundNumber        int
+	RoundSlug          string
+	AcceptanceAllow    []string
+	AcceptanceDeny     []string
+	Environment        map[string]string
+	ContextAttachments []*domainpb.ContextAttachment
+}
+
 // BacklogSpawnRequest describes a request to spawn a backlog agent.
 type BacklogSpawnRequest struct {
 	Kind               string
@@ -354,6 +376,94 @@ func (s *AgentService) SpawnBacklog(ctx context.Context, req BacklogSpawnRequest
 	}, nil
 }
 
+// SpawnInitiative creates an initiative-scoped task/run in agent-manager.
+// Mirrors SpawnBacklog; the distinction is captured in the Tag and Title
+// so downstream tooling (agent-activity list filters, logs) can
+// distinguish feedback rounds from backlog executions.
+func (s *AgentService) SpawnInitiative(ctx context.Context, req InitiativeSpawnRequest) (RunResult, error) {
+	if !s.enabled {
+		return RunResult{}, ErrNotAvailable
+	}
+
+	title := strings.TrimSpace(req.Title)
+	if title == "" {
+		title = buildInitiativeTitle(req.Name, req.Purpose, req.RoundNumber)
+	}
+
+	scopePath := strings.TrimSpace(req.ScopePath)
+	if scopePath == "" {
+		scopePath = "."
+	}
+
+	projectRoot := strings.TrimSpace(req.ProjectRoot)
+	if projectRoot == "" {
+		projectRoot = "."
+	}
+
+	createdBy := strings.TrimSpace(req.CreatedBy)
+	if createdBy == "" {
+		createdBy = "swarm-manager"
+	}
+
+	task := &domainpb.Task{
+		Title:              title,
+		Description:        truncateDescription(strings.TrimSpace(req.Description)),
+		ScopePath:          scopePath,
+		ProjectRoot:        projectRoot,
+		CreatedBy:          createdBy,
+		ContextAttachments: req.ContextAttachments,
+	}
+
+	createdTask, err := s.client.CreateTask(ctx, task)
+	if err != nil {
+		return RunResult{}, err
+	}
+
+	tag := buildInitiativeTag(req.Name, req.Purpose, req.RoundNumber)
+	runReq := &apipb.CreateRunRequest{
+		TaskId:     createdTask.Id,
+		ProfileRef: s.defaultProfileRef(),
+		Tag:        &tag,
+		Force:      true,
+	}
+	if prompt := strings.TrimSpace(req.Prompt); prompt != "" {
+		runReq.Prompt = &prompt
+	}
+	if len(req.Environment) > 0 {
+		runReq.Environment = req.Environment
+	}
+	if len(req.AcceptanceAllow) > 0 || len(req.AcceptanceDeny) > 0 {
+		acceptance := &domainpb.SandboxAcceptanceConfig{
+			Mode: domainpb.SandboxAcceptanceMode_SANDBOX_ACCEPTANCE_MODE_ALLOWLIST,
+		}
+		if len(req.AcceptanceAllow) > 0 {
+			acceptance.Allow = &domainpb.SandboxFileCriteria{PathGlobs: req.AcceptanceAllow}
+		}
+		if len(req.AcceptanceDeny) > 0 {
+			acceptance.Deny = &domainpb.SandboxFileCriteria{PathGlobs: req.AcceptanceDeny}
+		}
+		runReq.InlineConfig = &domainpb.RunConfigOverrides{
+			SandboxConfig: &domainpb.SandboxConfig{
+				Acceptance: acceptance,
+			},
+		}
+	}
+
+	run, err := s.client.CreateRun(ctx, runReq)
+	if err != nil {
+		return RunResult{}, err
+	}
+
+	baseURL, _ := s.ResolveURL(ctx)
+
+	return RunResult{
+		TaskID:    createdTask.Id,
+		RunID:     run.Id,
+		BaseURL:   baseURL,
+		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+	}, nil
+}
+
 // GetRunState resolves run state from agent-manager.
 func (s *AgentService) GetRunState(ctx context.Context, runID string) (RunState, error) {
 	if !s.enabled {
@@ -461,6 +571,44 @@ func buildResearchTitle(mode, ideaName string) string {
 	default:
 		return "Research idea: " + label
 	}
+}
+
+func buildInitiativeTag(name, purpose string, round int) string {
+	name = strings.TrimSpace(name)
+	purpose = strings.TrimSpace(purpose)
+	if name == "" {
+		name = "initiative"
+	}
+	tag := fmt.Sprintf("swarm-manager:initiative:%s", name)
+	if purpose != "" {
+		tag = fmt.Sprintf("%s:%s", tag, purpose)
+	}
+	if round > 0 {
+		tag = fmt.Sprintf("%s:round-%03d", tag, round)
+	}
+	return tag
+}
+
+func buildInitiativeTitle(name, purpose string, round int) string {
+	label := strings.TrimSpace(name)
+	if label == "" {
+		label = "initiative"
+	}
+	switch strings.ToLower(strings.TrimSpace(purpose)) {
+	case "feedback":
+		if round > 0 {
+			return fmt.Sprintf("Feedback round %d: %s", round, label)
+		}
+		return "Feedback: " + label
+	case "feedback_continue":
+		if round > 0 {
+			return fmt.Sprintf("Feedback round %d (continue): %s", round, label)
+		}
+		return "Feedback continue: " + label
+	case "review":
+		return "Review: " + label
+	}
+	return "Initiative: " + label
 }
 
 func buildBacklogTag(kind, name, purpose string) string {

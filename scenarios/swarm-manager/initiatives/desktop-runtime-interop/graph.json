@@ -1,0 +1,48 @@
+{
+  "initiative": "desktop-runtime-interop",
+  "generated_at": "2026-04-23T17:43:41Z",
+  "nodes": [
+    {
+      "id": "research/desktop-runtime-discovery-precedence-contract",
+      "kind": "research",
+      "name": "desktop-runtime-discovery-precedence-contract",
+      "title": "Define The Desktop Runtime Discovery And Precedence Contract",
+      "status": "backlog",
+      "priority": 3,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/cross-platform-bundled-discovery-parity",
+      "kind": "execute",
+      "name": "cross-platform-bundled-discovery-parity",
+      "title": "Implement Cross Platform Bundled Discovery Parity",
+      "status": "backlog",
+      "priority": 4,
+      "effort": "L",
+      "archived": false
+    },
+    {
+      "id": "execute/desktop-ecosystem-interop-regression-coverage",
+      "kind": "execute",
+      "name": "desktop-ecosystem-interop-regression-coverage",
+      "title": "Build Desktop Ecosystem Interop Regression Coverage",
+      "status": "backlog",
+      "priority": 5,
+      "effort": "L",
+      "archived": false
+    }
+  ],
+  "edges": [
+    {
+      "from": "execute/cross-platform-bundled-discovery-parity",
+      "to": "research/desktop-runtime-discovery-precedence-contract",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/desktop-ecosystem-interop-regression-coverage",
+      "to": "execute/cross-platform-bundled-discovery-parity",
+      "kind": "depends_on"
+    }
+  ]
+}

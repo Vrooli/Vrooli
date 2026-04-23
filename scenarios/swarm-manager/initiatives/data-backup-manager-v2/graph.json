@@ -1,0 +1,63 @@
+{
+  "initiative": "data-backup-manager-v2",
+  "generated_at": "2026-04-23T17:43:41Z",
+  "nodes": [
+    {
+      "id": "research/data-backup-manager-v2-architecture",
+      "kind": "research",
+      "name": "data-backup-manager-v2-architecture",
+      "title": "Design the manifest-driven Data Backup Manager v2",
+      "status": "backlog",
+      "priority": 1,
+      "effort": "L",
+      "archived": false
+    },
+    {
+      "id": "execute/data-backup-manager-manifest-driven-discovery",
+      "kind": "execute",
+      "name": "data-backup-manager-manifest-driven-discovery",
+      "title": "Implement manifest-driven discovery in Data Backup Manager",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "L",
+      "archived": false
+    },
+    {
+      "id": "execute/data-backup-manager-resource-adapters-and-targets",
+      "kind": "execute",
+      "name": "data-backup-manager-resource-adapters-and-targets",
+      "title": "Implement resource adapters and backup targets in Data Backup Manager",
+      "status": "backlog",
+      "priority": 3,
+      "effort": "XL",
+      "archived": false
+    },
+    {
+      "id": "execute/data-backup-manager-restore-catalog-and-operator-surfaces",
+      "kind": "execute",
+      "name": "data-backup-manager-restore-catalog-and-operator-surfaces",
+      "title": "Build restore catalog and operator surfaces for Data Backup Manager",
+      "status": "backlog",
+      "priority": 4,
+      "effort": "XL",
+      "archived": false
+    }
+  ],
+  "edges": [
+    {
+      "from": "execute/data-backup-manager-manifest-driven-discovery",
+      "to": "research/data-backup-manager-v2-architecture",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/data-backup-manager-resource-adapters-and-targets",
+      "to": "execute/data-backup-manager-manifest-driven-discovery",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/data-backup-manager-restore-catalog-and-operator-surfaces",
+      "to": "execute/data-backup-manager-resource-adapters-and-targets",
+      "kind": "depends_on"
+    }
+  ]
+}

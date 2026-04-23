@@ -1,0 +1,103 @@
+{
+  "initiative": "agent-inbox-unified-retrieval",
+  "generated_at": "2026-04-23T17:43:41Z",
+  "nodes": [
+    {
+      "id": "research/unified-retrieval-index-design",
+      "kind": "research",
+      "name": "unified-retrieval-index-design",
+      "title": "Design the unified retrieval index and dual-track UX for agent-inbox",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "L",
+      "archived": false
+    },
+    {
+      "id": "execute/agent-inbox-qdrant-retrieval-index",
+      "kind": "execute",
+      "name": "agent-inbox-qdrant-retrieval-index",
+      "title": "Build the unified Qdrant retrieval index in agent-inbox",
+      "status": "backlog",
+      "priority": 3,
+      "effort": "L",
+      "archived": false
+    },
+    {
+      "id": "execute/agent-inbox-agent-led-search-tools",
+      "kind": "execute",
+      "name": "agent-inbox-agent-led-search-tools",
+      "title": "Ship `search_tools` / `search_commands` / `search_widgets` meta-tools",
+      "status": "backlog",
+      "priority": 4,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/agent-inbox-passive-suggestion-surface",
+      "kind": "execute",
+      "name": "agent-inbox-passive-suggestion-surface",
+      "title": "Build the passive-track UI: tool/command suggestions + widget auto-render",
+      "status": "backlog",
+      "priority": 4,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/agent-inbox-auto-mode-default",
+      "kind": "execute",
+      "name": "agent-inbox-auto-mode-default",
+      "title": "Flip auto-mode to default and document the manual escape hatch",
+      "status": "backlog",
+      "priority": 5,
+      "effort": "S",
+      "archived": false
+    },
+    {
+      "id": "execute/agent-inbox-retrieval-eval-harness",
+      "kind": "execute",
+      "name": "agent-inbox-retrieval-eval-harness",
+      "title": "Ship a retrieval routing-eval harness with CI regression gate",
+      "status": "backlog",
+      "priority": 5,
+      "effort": "M",
+      "archived": false
+    }
+  ],
+  "edges": [
+    {
+      "from": "execute/agent-inbox-qdrant-retrieval-index",
+      "to": "research/unified-retrieval-index-design",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/agent-inbox-agent-led-search-tools",
+      "to": "execute/agent-inbox-qdrant-retrieval-index",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/agent-inbox-passive-suggestion-surface",
+      "to": "execute/agent-inbox-qdrant-retrieval-index",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/agent-inbox-auto-mode-default",
+      "to": "execute/agent-inbox-agent-led-search-tools",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/agent-inbox-auto-mode-default",
+      "to": "execute/agent-inbox-passive-suggestion-surface",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/agent-inbox-retrieval-eval-harness",
+      "to": "research/unified-retrieval-index-design",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/agent-inbox-retrieval-eval-harness",
+      "to": "execute/agent-inbox-qdrant-retrieval-index",
+      "kind": "depends_on"
+    }
+  ]
+}

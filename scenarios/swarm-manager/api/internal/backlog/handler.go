@@ -49,20 +49,29 @@ type AgentActivityChecker interface {
 	HasActiveAgent(ctx context.Context, ownerKind, ownerName string) bool
 }
 
+// ItemTerminalHandler is invoked after the review-decide endpoint flips an
+// item to a terminal status (completed / failed / needs_followup). The
+// callback fires synchronously inside the HTTP handler so downstream effects
+// (initiative-level review trigger, future per-item telemetry) see the
+// decision before the response is sent, but implementations are expected to
+// be cheap or self-gate expensive work to a goroutine.
+type ItemTerminalHandler func(ctx context.Context, kind, name string, status BacklogStatus)
+
 // Handler provides HTTP handlers for backlog operations.
 type Handler struct {
-	rootDir            string
-	store              Store
-	agentService       AgentSpawner
-	activityChecker    AgentActivityChecker
-	promptClient       promptmanager.Client
-	initiativeAssigner InitiativeAssigner
-	executionQueuer    ExecutionQueuer
-	policyProvider     execution.PolicyProvider
-	governanceProvider execution.GovernanceProvider
-	eventDispatcher    dispatch.Invalidator
-	eventLogger        EventLogger
-	workshopTicker     *WorkshopTicker
+	rootDir             string
+	store               Store
+	agentService        AgentSpawner
+	activityChecker     AgentActivityChecker
+	promptClient        promptmanager.Client
+	initiativeAssigner  InitiativeAssigner
+	executionQueuer     ExecutionQueuer
+	policyProvider      execution.PolicyProvider
+	governanceProvider  execution.GovernanceProvider
+	eventDispatcher     dispatch.Invalidator
+	eventLogger         EventLogger
+	workshopTicker      *WorkshopTicker
+	itemTerminalHandler ItemTerminalHandler
 }
 
 // EventLogger records state-change events for analytics.
@@ -144,6 +153,14 @@ func (h *Handler) SetEventDispatcher(d dispatch.Invalidator) {
 // SetEventLogger injects an optional event logger for analytics tracking.
 func (h *Handler) SetEventLogger(l EventLogger) {
 	h.eventLogger = l
+}
+
+// SetItemTerminalHandler wires a callback invoked after the review-decide
+// endpoint flips an item to a terminal status. Passing nil clears the
+// handler. The callback runs inside the request goroutine, so long-running
+// work should self-dispatch.
+func (h *Handler) SetItemTerminalHandler(f ItemTerminalHandler) {
+	h.itemTerminalHandler = f
 }
 
 // SetAIIndexer wires an optional AI search indexer that receives fire-and-forget
@@ -236,6 +253,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive-item", h.Archive).Methods("PATCH")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive-item", h.Unarchive).Methods("DELETE")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/queue", h.Queue).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/review-decide", h.ReviewDecide).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/research", h.Research).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/save", h.WorkshopSave).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/round", h.WorkshopDeleteRound).Methods("DELETE")
@@ -281,7 +299,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		apierr.MapError(w, "[backlog] update", apierr.BadRequest("%s", err.Error()))
 		return
 	}
-	if validationErr := validateUpdateBacklogItemRequest(update, fields, existing.Kind); validationErr != "" {
+	if validationErr := validateUpdateBacklogItemRequest(update, fields, existing.Kind, existing.Status); validationErr != "" {
 		apierr.MapError(w, "[backlog] update", apierr.BadRequest("%s", validationErr))
 		return
 	}

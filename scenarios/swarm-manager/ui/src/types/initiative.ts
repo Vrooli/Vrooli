@@ -10,8 +10,22 @@ import type { ProtoMessage } from "./shared";
 
 /**
  * Valid lifecycle states for an initiative.
+ *
+ * Lifecycle:
+ *   active → in_review → review_pending → completed | failed | needs_followup
+ *
+ * - `in_review`: all member items reached terminal status; initiative review
+ *   agent is running.
+ * - `review_pending`: review complete; awaiting user decision via review-decide.
+ * - Terminal transitions (`completed`, `failed`, `needs_followup`) are user-only.
  */
-export type InitiativeStatus = "active" | "completed";
+export type InitiativeStatus =
+  | "active"
+  | "in_review"
+  | "review_pending"
+  | "completed"
+  | "failed"
+  | "needs_followup";
 
 /**
  * A named grouping of related backlog items.

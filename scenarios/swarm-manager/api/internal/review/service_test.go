@@ -46,6 +46,55 @@ func newTestService(spawner *capturingSpawner, promptResult string) *Service {
 	return svc
 }
 
+// TestRefreshGatheringRounds_InvokesOnRoundTerminal verifies that when a
+// gathering round transitions to a terminal status, the OnRoundTerminal
+// callback is fired with the item's kind, name, and final round state.
+// This is the hook the backlog layer uses to flip items from in_review to
+// review_pending.
+func TestRefreshGatheringRounds_InvokesOnRoundTerminal(t *testing.T) {
+	itemDir := t.TempDir()
+	writeRound(t, itemDir, Round{
+		RoundNum:    1,
+		GeneratedAt: "2026-04-02T00:00:00Z",
+		ExecutionID: "exec-callback",
+		Status:      RoundStatusGathering,
+		RunID:       "run-callback",
+		Evidence: []EvidenceItem{
+			{ID: "e1", Type: EvidenceTypeScreenshot, Title: "t", Description: "d", Verified: true},
+		},
+	})
+
+	spawner := &capturingSpawner{
+		enabled: true,
+		runState: agentmanager.RunState{
+			RunID:  "run-callback",
+			Status: "complete",
+		},
+	}
+	svc := newTestService(spawner, "")
+
+	var gotKind, gotName string
+	var gotStatus RoundStatus
+	svc.onRoundTerminal = func(_ context.Context, kind, name string, r Round) {
+		gotKind = kind
+		gotName = name
+		gotStatus = r.Status
+	}
+
+	svc.trackActiveRound("run-callback", "execute", "sample-item", itemDir, 1)
+	svc.RefreshGatheringRounds(context.Background())
+
+	if gotKind != "execute" {
+		t.Errorf("callback kind = %q, want %q", gotKind, "execute")
+	}
+	if gotName != "sample-item" {
+		t.Errorf("callback name = %q, want %q", gotName, "sample-item")
+	}
+	if gotStatus != RoundStatusComplete && gotStatus != RoundStatusFailed {
+		t.Errorf("callback round status = %q, want complete or failed", gotStatus)
+	}
+}
+
 // setupItemDir creates a temporary backlog item directory with the expected
 // deliverable for the given kind.
 func setupItemDir(t *testing.T, kind string) string {
@@ -351,7 +400,7 @@ func TestRefreshGatheringRounds_CompletesRound(t *testing.T) {
 		},
 	}
 	svc := newTestService(spawner, "")
-	svc.trackActiveRound("run-abc", itemDir, 1)
+	svc.trackActiveRound("run-abc", "execute", "sample-item", itemDir, 1)
 
 	svc.RefreshGatheringRounds(context.Background())
 
@@ -395,7 +444,7 @@ func TestRefreshGatheringRounds_FailedRound(t *testing.T) {
 		},
 	}
 	svc := newTestService(spawner, "")
-	svc.trackActiveRound("run-fail", itemDir, 1)
+	svc.trackActiveRound("run-fail", "execute", "sample-item", itemDir, 1)
 
 	svc.RefreshGatheringRounds(context.Background())
 
@@ -427,7 +476,7 @@ func TestRefreshGatheringRounds_StillRunning(t *testing.T) {
 		},
 	}
 	svc := newTestService(spawner, "")
-	svc.trackActiveRound("run-running", itemDir, 1)
+	svc.trackActiveRound("run-running", "execute", "sample-item", itemDir, 1)
 
 	svc.RefreshGatheringRounds(context.Background())
 
@@ -471,7 +520,7 @@ func TestRefreshGatheringRounds_AlreadyComplete(t *testing.T) {
 		},
 	}
 	svc := newTestService(spawner, "")
-	svc.trackActiveRound("run-done", itemDir, 1)
+	svc.trackActiveRound("run-done", "execute", "sample-item", itemDir, 1)
 
 	svc.RefreshGatheringRounds(context.Background())
 

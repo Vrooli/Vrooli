@@ -1,0 +1,78 @@
+{
+  "initiative": "notification-hub-greenfield",
+  "generated_at": "2026-04-23T17:43:41Z",
+  "nodes": [
+    {
+      "id": "research/notification-hub-signal-extraction",
+      "kind": "research",
+      "name": "notification-hub-signal-extraction",
+      "title": "Extract Reusable Domain Signal From Legacy Notification Hub",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "S",
+      "archived": false
+    },
+    {
+      "id": "execute/ntfy-vrooli-resource",
+      "kind": "execute",
+      "name": "ntfy-vrooli-resource",
+      "title": "Set Up ntfy As A Vrooli Resource",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "S",
+      "archived": false
+    },
+    {
+      "id": "execute/notification-hub-greenfield-core",
+      "kind": "execute",
+      "name": "notification-hub-greenfield-core",
+      "title": "Build The Greenfield Notification Hub Scenario",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "XL",
+      "archived": false
+    },
+    {
+      "id": "execute/notification-hub-event-subscriptions",
+      "kind": "execute",
+      "name": "notification-hub-event-subscriptions",
+      "title": "Wire Notification Hub To vrooli-events Subscriptions",
+      "status": "backlog",
+      "priority": 3,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "chore/archive-legacy-notification-hub",
+      "kind": "chore",
+      "name": "archive-legacy-notification-hub",
+      "title": "Archive And Remove Legacy Notification Hub Scenario",
+      "status": "backlog",
+      "priority": 4,
+      "effort": "S",
+      "archived": false
+    }
+  ],
+  "edges": [
+    {
+      "from": "execute/notification-hub-greenfield-core",
+      "to": "research/notification-hub-signal-extraction",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/notification-hub-greenfield-core",
+      "to": "execute/ntfy-vrooli-resource",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/notification-hub-event-subscriptions",
+      "to": "execute/notification-hub-greenfield-core",
+      "kind": "depends_on"
+    },
+    {
+      "from": "chore/archive-legacy-notification-hub",
+      "to": "research/notification-hub-signal-extraction",
+      "kind": "depends_on"
+    }
+  ]
+}

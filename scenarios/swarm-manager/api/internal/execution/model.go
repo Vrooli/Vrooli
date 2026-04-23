@@ -9,19 +9,44 @@ import (
 // DOC: docs/reference/operational-targets.md
 // DOC: docs/internal/INVARIANTS.md
 
-// Status represents an execution lifecycle state.
+// Status represents an execution lifecycle state. This is the *run* status —
+// distinct from (and often unrelated to) the backlog item's status. A single
+// backlog item may have many executions in any of these states over its
+// lifetime.
+//
+// IMPORTANT: StatusNeedsFixup (run-level, "the finalization validator thinks
+// this run has actionable issues — auto-fixup may retry") is NOT the same
+// concept as backlog.StatusNeedsFollowup (item-level terminal state the user
+// picks via review-decide). They share a "needs something more" vibe but:
+//
+//   - StatusNeedsFixup is set by the execution system from finalization,
+//     and may cause an automatic re-run (see followup.go:FollowUp and
+//     the AutoFixup governance policy).
+//   - backlog.StatusNeedsFollowup is only set by a user through the
+//     review-decide endpoint, and never by the execution system. It marks
+//     the item as delivered-but-needs-more-work so it surfaces in list
+//     views; any follow-up run is initiated by the user separately.
+//
+// Never translate one enum to the other without going through a deliberate
+// handler (review-decide, FollowUp). See TestBacklogStatus_NotConflatedWithExecutionStatus.
 type Status string
 
 const (
-	StatusPending     Status = "pending"
-	StatusStarting    Status = "starting"
-	StatusRunning     Status = "running"
+	StatusPending  Status = "pending"
+	StatusStarting Status = "starting"
+	StatusRunning  Status = "running"
+	// StatusNeedsReview is the run-level state "agent flagged this for a
+	// human before continuing." Different from the backlog `in_review` /
+	// `review_pending` statuses, which describe the item's lifecycle.
 	StatusNeedsReview Status = "needs_review"
 	StatusValidating  Status = "validating"
-	StatusNeedsFixup  Status = "needs_fixup"
-	StatusCompleted   Status = "completed"
-	StatusFailed      Status = "failed"
-	StatusCanceled    Status = "canceled"
+	// StatusNeedsFixup is the run-level state set by finalization when the
+	// post-run validator detects actionable failures. See the type-level
+	// comment for the distinction from backlog.StatusNeedsFollowup.
+	StatusNeedsFixup Status = "needs_fixup"
+	StatusCompleted  Status = "completed"
+	StatusFailed     Status = "failed"
+	StatusCanceled   Status = "canceled"
 )
 
 // Mode controls when an execution starts.

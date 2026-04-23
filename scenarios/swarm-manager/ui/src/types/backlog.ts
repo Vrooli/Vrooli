@@ -9,7 +9,14 @@ import type {
 import type { ProtoMessage } from "./shared";
 
 /**
- * Valid lifecycle states for a backlog item
+ * Valid lifecycle states for a backlog item.
+ *
+ * Lifecycle:
+ *   backlog/researching/ready → queued → in_progress → in_review → review_pending → completed | failed | needs_followup
+ *
+ * - `in_review`: execution completed; review agent is gathering evidence.
+ * - `review_pending`: review complete; awaiting user decision via review-decide.
+ * - Terminal transitions (`completed`, `failed`, `needs_followup`) are user-only.
  */
 export type BacklogStatus =
   | "backlog"
@@ -17,8 +24,11 @@ export type BacklogStatus =
   | "ready"
   | "queued"
   | "in_progress"
+  | "in_review"
+  | "review_pending"
   | "completed"
-  | "failed";
+  | "failed"
+  | "needs_followup";
 
 
 /**

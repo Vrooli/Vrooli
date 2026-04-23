@@ -28,7 +28,10 @@ func (s *Service) completeFinalizationSkipped(executionID string, reason string)
 	record.FailureReason = ""
 	record.UpdatedAt = nowRFC3339()
 	if item, loadErr := s.loadBacklogItemByRecord(record); loadErr == nil {
-		_ = s.updateBacklogStatus(item, backlogStatusCompleted)
+		// Finalization skipped because the item isn't eligible for post-run
+		// review (research/chore, etc.). No review agent runs, so go straight
+		// to review_pending where the user can decide the terminal status.
+		_ = s.updateBacklogStatus(item, backlogStatusReviewPending)
 	}
 	if err := s.store.Save(records); err != nil {
 		return err

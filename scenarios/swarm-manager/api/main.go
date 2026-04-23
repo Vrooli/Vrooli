@@ -30,6 +30,7 @@ import (
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/graph"
 	"swarm-manager/internal/identity"
+	"swarm-manager/internal/initiativereview"
 	"swarm-manager/internal/initiatives"
 	"swarm-manager/internal/overview"
 	"swarm-manager/internal/pathutil"
@@ -50,29 +51,32 @@ import (
 )
 
 type Server struct {
-	router            *mux.Router
-	agentSvc          *agentmanager.AgentService
-	agentActivitySvc  *agentactivity.Service
-	settingsStore     *settings.Store
-	backlogHandler    *backlog.Handler
-	capturesHandler   *captures.Handler
-	scenariosHandler  *scenarios.Handler
-	initStore         *initiatives.Store
-	initiativeService *initiatives.Service
-	executionSvc      *execution.Service
-	executionHandler  *execution.Handler
-	reviewSvc         *review.Service
-	reviewHandler     *review.Handler
-	executionStopChan chan struct{}
-	reviewStopChan    chan struct{}
-	graphBroker       *graph.Broker
-	queueHandler      *queue.Handler
-	scenarioRoot      string
-	eventDB           *sql.DB
-	emitter           *eventlog.Emitter
-	statsEngine       *stats.Engine
-	aiSearchSvc       *aisearch.Service
-	aiSearchStopChan  chan struct{}
+	router              *mux.Router
+	agentSvc            *agentmanager.AgentService
+	agentActivitySvc    *agentactivity.Service
+	settingsStore       *settings.Store
+	backlogHandler      *backlog.Handler
+	capturesHandler     *captures.Handler
+	scenariosHandler    *scenarios.Handler
+	initStore           *initiatives.Store
+	initiativeService   *initiatives.Service
+	executionSvc        *execution.Service
+	executionHandler    *execution.Handler
+	reviewSvc           *review.Service
+	reviewHandler       *review.Handler
+	initiativeReviewSvc *initiativereview.Service
+	executionStopChan   chan struct{}
+	reviewStopChan      chan struct{}
+	initReviewStopChan  chan struct{}
+	graphBroker         *graph.Broker
+	graphDispatch       *graph.Dispatch
+	queueHandler        *queue.Handler
+	scenarioRoot        string
+	eventDB             *sql.DB
+	emitter             *eventlog.Emitter
+	statsEngine         *stats.Engine
+	aiSearchSvc         *aisearch.Service
+	aiSearchStopChan    chan struct{}
 }
 
 // NewServer initializes routes using the default scenario root resolved from
@@ -93,12 +97,13 @@ func NewServerWithRoot(scenarioRoot string) *Server {
 	})
 
 	srv := &Server{
-		router:            mux.NewRouter(),
-		agentSvc:          agentSvc,
-		executionStopChan: make(chan struct{}),
-		reviewStopChan:    make(chan struct{}),
-		aiSearchStopChan:  make(chan struct{}),
-		scenarioRoot:      scenarioRoot,
+		router:             mux.NewRouter(),
+		agentSvc:           agentSvc,
+		executionStopChan:  make(chan struct{}),
+		reviewStopChan:     make(chan struct{}),
+		initReviewStopChan: make(chan struct{}),
+		aiSearchStopChan:   make(chan struct{}),
+		scenarioRoot:       scenarioRoot,
 	}
 	srv.setupRoutes()
 	return srv
@@ -137,7 +142,9 @@ func (s *Server) setupRoutes() {
 	if execSvc != nil {
 		overviewSvc.SetGovernanceProvider(execSvc)
 	}
-	s.registerGraphRoutes(scenarioRoot)
+	materializer := s.registerGraphRoutes(scenarioRoot)
+	s.registerFeedbackRoutes(materializer)
+	s.registerInitiativeReviewRoutes(materializer)
 	s.registerPromptRoutes(scenarioRoot)
 	s.registerAgentManagerRoutes()
 
@@ -322,6 +329,11 @@ func main() {
 		go srv.reviewSvc.StartBackgroundWorker(srv.reviewStopChan)
 	}
 
+	if srv.initiativeReviewSvc != nil {
+		srv.recoverInitiativeReviewRounds()
+		go srv.initiativeReviewSvc.StartBackgroundWorker(srv.initReviewStopChan)
+	}
+
 	if srv.agentSvc != nil && srv.agentSvc.IsEnabled() {
 		initCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		if err := srv.agentSvc.Initialize(initCtx, nil); err != nil {
@@ -339,6 +351,7 @@ func main() {
 	}
 	close(srv.executionStopChan)
 	close(srv.reviewStopChan)
+	close(srv.initReviewStopChan)
 	close(srv.aiSearchStopChan)
 }
 

@@ -30,9 +30,13 @@ func waitFor(t *testing.T, timeout time.Duration, predicate func() bool) bool {
 
 // saveBacklogItem mkdirs the item directory before calling SaveItem, matching
 // what production write-handlers do (see backlog/handler_create.go,
-// batch_handler.go, import.go — all MkdirAll before SaveItem).
+// batch_handler.go, import.go — all MkdirAll before SaveItem). Defaults
+// status to backlog when callers don't care — matches real handler intake.
 func saveBacklogItem(t *testing.T, store *backlog.FileStore, item backlog.BacklogItem) {
 	t.Helper()
+	if item.Status == "" {
+		item.Status = backlog.StatusBacklog
+	}
 	if err := os.MkdirAll(store.ItemDir(item.Kind, item.Name), 0o755); err != nil {
 		t.Fatalf("mkdir item dir: %v", err)
 	}
