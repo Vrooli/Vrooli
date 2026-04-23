@@ -217,7 +217,6 @@ func TestOpenRouterClient_ChatStream_Success(t *testing.T) {
 	}, func(content string) {
 		collected.WriteString(content)
 	})
-
 	if err != nil {
 		t.Fatalf("ChatStream() returned error: %v", err)
 	}
@@ -276,7 +275,6 @@ func TestOpenRouterClient_ChatStream_SSEParseError_LogsAndContinues(t *testing.T
 	}, func(content string) {
 		collected.WriteString(content)
 	})
-
 	if err != nil {
 		t.Fatalf("ChatStream() returned error: %v", err)
 	}
@@ -312,7 +310,6 @@ func TestOpenRouterClient_ChatStream_DoneHandling_EndsStream(t *testing.T) {
 	}, func(content string) {
 		collected.WriteString(content)
 	})
-
 	if err != nil {
 		t.Fatalf("ChatStream() returned error: %v", err)
 	}
@@ -335,7 +332,6 @@ func TestOpenRouterClient_ChatStream_EmptyStream_ReturnsZeroUsage(t *testing.T) 
 		Model:    "gpt-4",
 		Messages: []OpenRouterMessage{{Role: "user", Content: "Hi"}},
 	}, nil)
-
 	if err != nil {
 		t.Fatalf("ChatStream() returned error: %v", err)
 	}
@@ -372,7 +368,6 @@ func TestOpenRouterClient_ChatStream_TokenEstimation_WhenNotProvided(t *testing.
 	}, func(content string) {
 		collected.WriteString(content)
 	})
-
 	if err != nil {
 		t.Fatalf("ChatStream() returned error: %v", err)
 	}

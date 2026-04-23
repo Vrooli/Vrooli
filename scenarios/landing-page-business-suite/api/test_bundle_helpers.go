@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -225,8 +226,13 @@ func requireTestPlanService(t *testing.T) *PlanService {
 	return NewPlanServiceWithPlanStore(planStore)
 }
 
-// requireTestStripeService returns a StripeService wired to the test plan store.
+// requireTestStripeService returns a StripeService wired to the test plan store
+// and a PaymentAnomalyService so logIntroAnomaly forwards through the unified
+// payment_anomaly_log pipeline.
 func requireTestStripeService(t *testing.T, db *sql.DB) *StripeService {
 	t.Helper()
-	return NewStripeServiceWithSettings(db, requireTestPlanService(t), NewPaymentSettingsService(db))
+	svc := NewStripeServiceWithSettings(db, requireTestPlanService(t), NewPaymentSettingsService(db))
+	anomaly := NewPaymentAnomalyService(context.Background(), db, context.Background())
+	svc.SetPaymentAnomaly(anomaly)
+	return svc
 }

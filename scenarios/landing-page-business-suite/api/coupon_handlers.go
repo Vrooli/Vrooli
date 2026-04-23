@@ -8,7 +8,7 @@ import (
 
 // ListCouponsResponse contains the list of coupons and intro coupon mapping.
 type ListCouponsResponse struct {
-	Coupons       []StripeCoupon    `json:"coupons"`
+	Coupons        []StripeCoupon    `json:"coupons"`
 	IntroCouponMap map[string]string `json:"intro_coupon_map"`
 }
 

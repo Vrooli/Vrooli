@@ -191,10 +191,10 @@ var allowedModels = map[string]bool{
 
 // Token estimation constants with safety margin to reduce underestimation frequency.
 const (
-	charsPerToken               = 4     // Approximate characters per token
-	tokenEstimationSafetyMargin = 1.5   // 50% buffer to reduce underestimation
-	defaultCompletionTokens     = 1000  // Default expected completion length
-	messageFramingOverhead      = 10    // Overhead per message for role/framing
+	charsPerToken               = 4    // Approximate characters per token
+	tokenEstimationSafetyMargin = 1.5  // 50% buffer to reduce underestimation
+	defaultCompletionTokens     = 1000 // Default expected completion length
+	messageFramingOverhead      = 10   // Overhead per message for role/framing
 )
 
 // NewAIGatewayService creates a new AI gateway service.

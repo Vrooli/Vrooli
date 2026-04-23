@@ -20,10 +20,13 @@ type PaymentSettingsService struct {
 
 // StripeSettingsInput captures optional fields for upserts.
 type StripeSettingsInput struct {
-	PublishableKey *string
-	SecretKey      *string
-	WebhookSecret  *string
-	DashboardURL   *string
+	PublishableKey        *string
+	SecretKey             *string
+	WebhookSecret         *string
+	DashboardURL          *string
+	AnomalyWebhookURL     *string
+	AnomalyWebhookEnabled *bool
+	AnomalyRateLimits     *string
 }
 
 func NewPaymentSettingsService(db *sql.DB) *PaymentSettingsService {
@@ -33,15 +36,17 @@ func NewPaymentSettingsService(db *sql.DB) *PaymentSettingsService {
 // GetStripeSettings returns the latest persisted Stripe configuration.
 func (s *PaymentSettingsService) GetStripeSettings(ctx context.Context) (*landing_page_react_vite_v1.StripeSettings, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT publishable_key, secret_key, webhook_secret, dashboard_url, updated_at
+		SELECT publishable_key, secret_key, webhook_secret, dashboard_url,
+			anomaly_webhook_url, anomaly_webhook_enabled, anomaly_rate_limits, updated_at
 		FROM payment_settings
 		WHERE id = 1
 	`)
 
 	record := &landing_page_react_vite_v1.StripeSettings{}
-	var publishable, secret, webhook, dashboard sql.NullString
+	var publishable, secret, webhook, dashboard, anomalyURL, anomalyLimits sql.NullString
+	var anomalyEnabled sql.NullBool
 	var updatedAt time.Time
-	if err := row.Scan(&publishable, &secret, &webhook, &dashboard, &updatedAt); err != nil {
+	if err := row.Scan(&publishable, &secret, &webhook, &dashboard, &anomalyURL, &anomalyEnabled, &anomalyLimits, &updatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
@@ -59,6 +64,15 @@ func (s *PaymentSettingsService) GetStripeSettings(ctx context.Context) (*landin
 	}
 	if dashboard.Valid {
 		record.DashboardUrl = proto.String(dashboard.String)
+	}
+	if anomalyURL.Valid {
+		record.AnomalyWebhookUrl = anomalyURL.String
+	}
+	if anomalyEnabled.Valid {
+		record.AnomalyWebhookEnabled = anomalyEnabled.Bool
+	}
+	if anomalyLimits.Valid {
+		record.AnomalyRateLimits = anomalyLimits.String
 	}
 
 	if !updatedAt.IsZero() {
@@ -101,6 +115,8 @@ func (s *PaymentSettingsService) SaveStripeSettings(ctx context.Context, input S
 	sec := normalize(input.SecretKey)
 	webhook := normalize(input.WebhookSecret)
 	dashboard := normalize(input.DashboardURL)
+	anomalyURL := normalize(input.AnomalyWebhookURL)
+	anomalyLimits := normalize(input.AnomalyRateLimits)
 
 	if current == nil {
 		current = &landing_page_react_vite_v1.StripeSettings{}
@@ -110,26 +126,64 @@ func (s *PaymentSettingsService) SaveStripeSettings(ctx context.Context, input S
 	nextSecret := updateStringField(current.SecretKey, sec)
 	nextWebhook := updateStringField(current.WebhookSecret, webhook)
 	nextDashboard := updateOptionalField(current.DashboardUrl, dashboard)
+	nextAnomalyURL := updateStringField(current.AnomalyWebhookUrl, anomalyURL)
+	nextAnomalyEnabled := current.AnomalyWebhookEnabled
+	if input.AnomalyWebhookEnabled != nil {
+		nextAnomalyEnabled = *input.AnomalyWebhookEnabled
+	}
+	nextAnomalyLimits := updateStringField(current.AnomalyRateLimits, anomalyLimits)
 
 	row := s.db.QueryRowContext(ctx, `
-		INSERT INTO payment_settings (id, publishable_key, secret_key, webhook_secret, dashboard_url, updated_at)
-		VALUES (1, $1, $2, $3, $4, NOW())
+		INSERT INTO payment_settings (
+			id, publishable_key, secret_key, webhook_secret, dashboard_url,
+			anomaly_webhook_url, anomaly_webhook_enabled, anomaly_rate_limits, updated_at
+		)
+		VALUES (1, $1, $2, $3, $4, $5, $6, $7::jsonb, NOW())
 		ON CONFLICT (id) DO UPDATE SET
 			publishable_key = EXCLUDED.publishable_key,
 			secret_key = EXCLUDED.secret_key,
 			webhook_secret = EXCLUDED.webhook_secret,
 			dashboard_url = EXCLUDED.dashboard_url,
+			anomaly_webhook_url = EXCLUDED.anomaly_webhook_url,
+			anomaly_webhook_enabled = EXCLUDED.anomaly_webhook_enabled,
+			anomaly_rate_limits = EXCLUDED.anomaly_rate_limits,
 			updated_at = NOW()
-		RETURNING publishable_key, secret_key, webhook_secret, dashboard_url, updated_at
-	`, nextPublishable, nextSecret, nextWebhook, nextDashboard)
+		RETURNING publishable_key, secret_key, webhook_secret, dashboard_url,
+			anomaly_webhook_url, anomaly_webhook_enabled, anomaly_rate_limits, updated_at
+	`, nextPublishable, nextSecret, nextWebhook, nextDashboard,
+		nextAnomalyURL, nextAnomalyEnabled, jsonOrEmptyObject(nextAnomalyLimits))
 
 	record := &landing_page_react_vite_v1.StripeSettings{}
+	var anomalyURLOut, anomalyLimitsOut sql.NullString
+	var anomalyEnabledOut sql.NullBool
 	var updatedAt time.Time
-	if err := row.Scan(&record.PublishableKey, &record.SecretKey, &record.WebhookSecret, &record.DashboardUrl, &updatedAt); err != nil {
+	if err := row.Scan(
+		&record.PublishableKey, &record.SecretKey, &record.WebhookSecret, &record.DashboardUrl,
+		&anomalyURLOut, &anomalyEnabledOut, &anomalyLimitsOut, &updatedAt,
+	); err != nil {
 		return nil, fmt.Errorf("save stripe settings: %w", err)
 	}
 
+	if anomalyURLOut.Valid {
+		record.AnomalyWebhookUrl = anomalyURLOut.String
+	}
+	if anomalyEnabledOut.Valid {
+		record.AnomalyWebhookEnabled = anomalyEnabledOut.Bool
+	}
+	if anomalyLimitsOut.Valid {
+		record.AnomalyRateLimits = anomalyLimitsOut.String
+	}
 	record.UpdatedAt = timestamppb.New(updatedAt)
 
 	return record, nil
+}
+
+// jsonOrEmptyObject returns a valid JSON object string, falling back to "{}"
+// when the input is empty or whitespace. Used to coerce nullable text into
+// jsonb column input.
+func jsonOrEmptyObject(s string) string {
+	if strings.TrimSpace(s) == "" {
+		return "{}"
+	}
+	return s
 }

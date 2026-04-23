@@ -46,6 +46,7 @@ type Server struct {
 	accountService       *AccountService
 	landingConfigService *LandingConfigService
 	paymentSettings      *PaymentSettingsService
+	paymentAnomaly       *PaymentAnomalyService
 	assetsService        *AssetsService
 	seoService           *SEOService
 	feedbackService      *FeedbackService
@@ -97,7 +98,9 @@ func NewServer() (*Server, error) {
 	accountService := NewAccountService(db, planService)
 	downloadAuthorizer := NewDownloadAuthorizer(downloadService, accountService, planService.BundleKey())
 	paymentSettings := NewPaymentSettingsService(db)
+	paymentAnomaly := NewPaymentAnomalyService(context.Background(), db, context.Background())
 	stripeService := NewStripeServiceWithSettings(db, planService, paymentSettings)
+	stripeService.SetPaymentAnomaly(paymentAnomaly)
 	assetsService := NewAssetsService(db)
 	seoService := NewSEOServiceWithConfigStore(configStore)
 	feedbackService := NewFeedbackService(db)
@@ -149,6 +152,7 @@ func NewServer() (*Server, error) {
 		accountService:       accountService,
 		landingConfigService: NewLandingConfigServiceWithConfigStore(configStore, planService, downloadService, stripeService),
 		paymentSettings:      paymentSettings,
+		paymentAnomaly:       paymentAnomaly,
 		assetsService:        assetsService,
 		seoService:           seoService,
 		feedbackService:      feedbackService,
@@ -1005,19 +1009,53 @@ func ensureSchema(db *sql.DB) error {
 			created_at TIMESTAMP DEFAULT NOW()
 		);`,
 		`CREATE INDEX IF NOT EXISTS idx_intro_coupon_usage_email ON intro_coupon_usage(email);`,
-		// Intro anomaly log for fraud detection and admin review
-		`CREATE TABLE IF NOT EXISTS intro_anomaly_log (
-			id SERIAL PRIMARY KEY,
-			email VARCHAR(255) NOT NULL,
+		// Unified payment anomaly log — substrate for all guardrail detections.
+		// The legacy intro_anomaly_log table is migrated below and dropped; see §8g of the plan.
+		`CREATE TABLE IF NOT EXISTS payment_anomaly_log (
+			id BIGSERIAL PRIMARY KEY,
+			anomaly_type VARCHAR(64) NOT NULL,
+			severity VARCHAR(16) NOT NULL DEFAULT 'warn',
+			email VARCHAR(255),
 			customer_id VARCHAR(255),
-			coupon_id VARCHAR(255),
-			anomaly_type VARCHAR(50) NOT NULL,
-			details JSONB DEFAULT '{}'::jsonb,
-			created_at TIMESTAMP DEFAULT NOW()
+			subject_id VARCHAR(255),
+			subject_kind VARCHAR(64),
+			details JSONB NOT NULL DEFAULT '{}'::jsonb,
+			dispatch_status VARCHAR(16) NOT NULL DEFAULT 'pending',
+			dispatch_attempts INTEGER NOT NULL DEFAULT 0,
+			dispatched_at TIMESTAMP,
+			dispatch_error TEXT,
+			created_at TIMESTAMP NOT NULL DEFAULT NOW()
 		);`,
-		`CREATE INDEX IF NOT EXISTS idx_intro_anomaly_log_email ON intro_anomaly_log(email);`,
-		`CREATE INDEX IF NOT EXISTS idx_intro_anomaly_log_type ON intro_anomaly_log(anomaly_type);`,
-		`CREATE INDEX IF NOT EXISTS idx_intro_anomaly_log_created ON intro_anomaly_log(created_at);`,
+		`CREATE INDEX IF NOT EXISTS idx_payment_anomaly_log_type ON payment_anomaly_log(anomaly_type);`,
+		`CREATE INDEX IF NOT EXISTS idx_payment_anomaly_log_email ON payment_anomaly_log(email);`,
+		`CREATE INDEX IF NOT EXISTS idx_payment_anomaly_log_subject ON payment_anomaly_log(subject_kind, subject_id);`,
+		`CREATE INDEX IF NOT EXISTS idx_payment_anomaly_log_created ON payment_anomaly_log(created_at);`,
+		`CREATE INDEX IF NOT EXISTS idx_payment_anomaly_log_dispatch_pending ON payment_anomaly_log(created_at) WHERE dispatch_status = 'pending';`,
+		// Anomaly alerting settings live alongside Stripe credentials in payment_settings.
+		`ALTER TABLE payment_settings ADD COLUMN IF NOT EXISTS anomaly_webhook_url TEXT;`,
+		`ALTER TABLE payment_settings ADD COLUMN IF NOT EXISTS anomaly_webhook_enabled BOOLEAN NOT NULL DEFAULT FALSE;`,
+		`ALTER TABLE payment_settings ADD COLUMN IF NOT EXISTS anomaly_rate_limits JSONB NOT NULL DEFAULT '{}'::jsonb;`,
+		// One-time data migration: fold intro_anomaly_log rows into payment_anomaly_log, then drop the old table.
+		// Idempotent via information_schema guard — no-ops once the old table is gone.
+		`DO $$
+		BEGIN
+			IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'intro_anomaly_log') THEN
+				INSERT INTO payment_anomaly_log
+					(anomaly_type, severity, email, customer_id, subject_id, subject_kind, details, dispatch_status, created_at)
+				SELECT
+					anomaly_type,
+					'warn'          AS severity,
+					email,
+					customer_id,
+					coupon_id       AS subject_id,
+					'intro_coupon'  AS subject_kind,
+					COALESCE(details, '{}'::jsonb) AS details,
+					'skipped'       AS dispatch_status,
+					created_at
+				FROM intro_anomaly_log;
+				DROP TABLE intro_anomaly_log;
+			END IF;
+		END $$;`,
 	}
 
 	for _, stmt := range stmts {

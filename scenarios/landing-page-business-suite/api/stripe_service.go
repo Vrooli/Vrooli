@@ -21,6 +21,7 @@ type StripeService struct {
 	db                *sql.DB
 	planService       *PlanService
 	paymentSettings   *PaymentSettingsService
+	paymentAnomaly    *PaymentAnomalyService
 	checkoutCacheTTL  time.Duration
 	httpClient        *http.Client
 	apiBase           string
@@ -28,6 +29,13 @@ type StripeService struct {
 	runtimeConfig     stripeRuntimeConfig
 	configLoader      stripeConfigLoader
 	introCouponConfig IntroCouponConfig
+}
+
+// SetPaymentAnomaly wires the anomaly service after construction. Required
+// because PaymentAnomalyService is constructed alongside StripeService but the
+// two are wired in Server to avoid a circular dependency at boot.
+func (s *StripeService) SetPaymentAnomaly(a *PaymentAnomalyService) {
+	s.paymentAnomaly = a
 }
 
 type stripeRuntimeConfig struct {

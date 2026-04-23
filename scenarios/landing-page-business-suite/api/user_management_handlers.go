@@ -14,15 +14,15 @@ import (
 
 // UserAccountResponse represents a user account with enriched data.
 type UserAccountResponse struct {
-	ID               string             `json:"id"`
-	Email            string             `json:"email"`
-	EmailVerified    bool               `json:"email_verified"`
-	StripeCustomerID *string            `json:"stripe_customer_id,omitempty"`
-	CreatedAt        time.Time          `json:"created_at"`
-	LastLoginAt      *time.Time         `json:"last_login_at,omitempty"`
-	Subscription     *SubscriptionInfo  `json:"subscription,omitempty"`
-	Credits          *CreditInfo        `json:"credits,omitempty"`
-	SessionCount     int                `json:"session_count"`
+	ID               string            `json:"id"`
+	Email            string            `json:"email"`
+	EmailVerified    bool              `json:"email_verified"`
+	StripeCustomerID *string           `json:"stripe_customer_id,omitempty"`
+	CreatedAt        time.Time         `json:"created_at"`
+	LastLoginAt      *time.Time        `json:"last_login_at,omitempty"`
+	Subscription     *SubscriptionInfo `json:"subscription,omitempty"`
+	Credits          *CreditInfo       `json:"credits,omitempty"`
+	SessionCount     int               `json:"session_count"`
 }
 
 // SubscriptionInfo contains subscription details for a user.
@@ -39,13 +39,13 @@ type CreditInfo struct {
 
 // UserSessionResponse represents a user session.
 type UserSessionResponse struct {
-	ID          string     `json:"id"`
-	CreatedAt   time.Time  `json:"created_at"`
-	LastUsedAt  time.Time  `json:"last_used_at"`
-	ExpiresAt   time.Time  `json:"expires_at"`
-	IPAddress   *string    `json:"ip_address,omitempty"`
-	UserAgent   *string    `json:"user_agent,omitempty"`
-	Revoked     bool       `json:"revoked"`
+	ID         string    `json:"id"`
+	CreatedAt  time.Time `json:"created_at"`
+	LastUsedAt time.Time `json:"last_used_at"`
+	ExpiresAt  time.Time `json:"expires_at"`
+	IPAddress  *string   `json:"ip_address,omitempty"`
+	UserAgent  *string   `json:"user_agent,omitempty"`
+	Revoked    bool      `json:"revoked"`
 }
 
 // UsersListResponse is the paginated response for user listing.
@@ -364,8 +364,8 @@ func handleAdminRevokeAllUserSessions(db *sql.DB) http.HandlerFunc {
 		rowsAffected, _ := result.RowsAffected()
 
 		logStructured("admin_revoke_all_sessions", map[string]interface{}{
-			"level":           "info",
-			"user_id":         userID,
+			"level":            "info",
+			"user_id":          userID,
 			"sessions_revoked": rowsAffected,
 		})
 
@@ -409,7 +409,6 @@ func getUserCredits(ctx context.Context, db *sql.DB, email string) *CreditInfo {
 		FROM credit_wallets
 		WHERE customer_email = $1
 	`, strings.ToLower(email)).Scan(&balance, &bonus)
-
 	if err != nil {
 		return nil
 	}

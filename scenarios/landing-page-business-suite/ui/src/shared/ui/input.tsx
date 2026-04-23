@@ -13,8 +13,9 @@ export type InputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "size
   size?: InputSize;
 };
 
+// text-base on mobile (16px) prevents iOS Safari auto-zoom on focus; md:text-sm restores desktop density. Shared with textareaBaseClassName below.
 export const inputBaseClassName =
-  "w-full rounded-lg border border-white/10 bg-surface-primary/70 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-white/20 focus:outline-none focus:ring-1 focus:ring-white/20 disabled:cursor-not-allowed disabled:opacity-50";
+  "w-full rounded-lg border border-white/10 bg-surface-primary/70 px-3 py-2 text-base md:text-sm text-white placeholder:text-slate-500 focus:border-white/20 focus:outline-none focus:ring-1 focus:ring-white/20 disabled:cursor-not-allowed disabled:opacity-50";
 
 export const textareaBaseClassName = `${inputBaseClassName} resize-none`;
 

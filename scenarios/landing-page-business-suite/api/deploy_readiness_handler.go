@@ -135,4 +135,3 @@ func firstUnreadyMessage(gates []DeployReadinessGate) string {
 	}
 	return ""
 }
-

@@ -274,9 +274,9 @@ func (ps *PlanStore) LoadAll() error {
 	ps.couponMappings = couponMappings
 
 	logStructured("plans_loaded", map[string]interface{}{
-		"path":           ps.plansPath,
-		"plan_count":     len(ps.plans),
-		"bundle_key":     ps.bundle.BundleKey,
+		"path":                 ps.plansPath,
+		"plan_count":           len(ps.plans),
+		"bundle_key":           ps.bundle.BundleKey,
 		"coupon_mapping_count": len(ps.couponMappings),
 	})
 

@@ -880,4 +880,3 @@ func billingIntervalLabel(interval landing_page_react_vite_v1.BillingInterval) s
 		return "unspecified"
 	}
 }
-

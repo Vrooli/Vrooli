@@ -188,14 +188,6 @@ func (s *StripeService) handleCheckoutCompleted(obj map[string]interface{}, stri
 		return nil
 	}
 
-	if _, err := s.db.Exec(`
-		UPDATE checkout_sessions
-		SET status = $1, subscription_id = $2, customer_id = $3, customer_email = $4, updated_at = $5
-		WHERE session_id = $6
-	`, "complete", subscriptionID, customerID, customerEmail, time.Now(), sessionID); err != nil {
-		return err
-	}
-
 	var plan *PlanOption
 	if sessionRec.PriceID.Valid {
 		if p, planErr := s.planService.GetPlanByPriceID(sessionRec.PriceID.String); planErr == nil {
@@ -212,10 +204,24 @@ func (s *StripeService) handleCheckoutCompleted(obj map[string]interface{}, stri
 
 	switch {
 	case plan != nil && plan.Kind == landing_page_react_vite_v1.PlanKind_PLAN_KIND_CREDITS_TOPUP:
+		if _, err := s.db.Exec(`
+			UPDATE checkout_sessions
+			SET status = $1, subscription_id = $2, customer_id = $3, customer_email = $4, updated_at = $5
+			WHERE session_id = $6
+		`, "complete", subscriptionID, customerID, customerEmail, time.Now(), sessionID); err != nil {
+			return err
+		}
 		return s.handleCreditTopup(customerEmail, amountCents, plan, stripeEventID, map[string]interface{}{
 			"session_id": sessionID,
 		})
 	case plan != nil && plan.Kind == landing_page_react_vite_v1.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION:
+		if _, err := s.db.Exec(`
+			UPDATE checkout_sessions
+			SET status = $1, subscription_id = $2, customer_id = $3, customer_email = $4, updated_at = $5
+			WHERE session_id = $6
+		`, "complete", subscriptionID, customerID, customerEmail, time.Now(), sessionID); err != nil {
+			return err
+		}
 		logStructured("supporter contribution received", map[string]interface{}{
 			"session_id": sessionID,
 			"email":      customerEmail,
@@ -223,11 +229,20 @@ func (s *StripeService) handleCheckoutCompleted(obj map[string]interface{}, stri
 		})
 		return nil
 	default:
-		return s.handleSubscriptionCompletion(subscriptionID, customerID, customerEmail, plan, sessionRec, amountCents)
+		return WithTransaction(context.Background(), s.db, nil, func(tx *sql.Tx) error {
+			if _, err := tx.Exec(`
+				UPDATE checkout_sessions
+				SET status = $1, subscription_id = $2, customer_id = $3, customer_email = $4, updated_at = $5
+				WHERE session_id = $6
+			`, "complete", subscriptionID, customerID, customerEmail, time.Now(), sessionID); err != nil {
+				return err
+			}
+			return s.handleSubscriptionCompletion(tx, subscriptionID, customerID, customerEmail, plan, sessionRec, amountCents)
+		})
 	}
 }
 
-func (s *StripeService) handleSubscriptionCompletion(subscriptionID, customerID, customerEmail string, plan *PlanOption, session *checkoutSessionRecord, amountCents int64) error {
+func (s *StripeService) handleSubscriptionCompletion(tx *sql.Tx, subscriptionID, customerID, customerEmail string, plan *PlanOption, session *checkoutSessionRecord, amountCents int64) error {
 	if plan == nil {
 		// Without plan metadata we cannot create enriched entries
 		return nil
@@ -242,7 +257,7 @@ func (s *StripeService) handleSubscriptionCompletion(subscriptionID, customerID,
 	}
 
 	now := time.Now()
-	_, err := s.db.Exec(`
+	_, err := tx.Exec(`
 		INSERT INTO subscriptions (subscription_id, customer_id, customer_email, status, plan_tier, price_id, bundle_key, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		ON CONFLICT (subscription_id) DO UPDATE
@@ -253,12 +268,12 @@ func (s *StripeService) handleSubscriptionCompletion(subscriptionID, customerID,
 	}
 
 	if plan.IntroEnabled && plan.BillingInterval == landing_page_react_vite_v1.BillingInterval_BILLING_INTERVAL_MONTH {
-		scheduleID, err := s.createSubscriptionSchedule(subscriptionID, plan, amountCents)
+		scheduleID, err := s.createSubscriptionSchedule(tx, subscriptionID, plan, amountCents)
 		if err != nil {
 			return err
 		}
 		if scheduleID != "" && session != nil {
-			if _, err := s.db.Exec(`
+			if _, err := tx.Exec(`
 				UPDATE checkout_sessions
 				SET schedule_id = $1
 				WHERE session_id = $2
@@ -284,7 +299,7 @@ func (s *StripeService) handleSubscriptionCompletion(subscriptionID, customerID,
 	return nil
 }
 
-func (s *StripeService) createSubscriptionSchedule(subscriptionID string, plan *PlanOption, amountCents int64) (string, error) {
+func (s *StripeService) createSubscriptionSchedule(tx *sql.Tx, subscriptionID string, plan *PlanOption, amountCents int64) (string, error) {
 	if plan == nil || subscriptionID == "" {
 		return "", nil
 	}
@@ -305,7 +320,7 @@ func (s *StripeService) createSubscriptionSchedule(subscriptionID string, plan *
 	}
 	metaBytes, _ := json.Marshal(meta)
 
-	_, err := s.db.Exec(`
+	_, err := tx.Exec(`
 		INSERT INTO subscription_schedules (
 			schedule_id, subscription_id, price_id, billing_interval,
 			intro_enabled, intro_amount_cents, intro_periods, normal_amount_cents,

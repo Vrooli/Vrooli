@@ -7,12 +7,12 @@ import (
 
 func TestResolvePlanFromMetadata(t *testing.T) {
 	tests := []struct {
-		name           string
-		metadata       map[string]interface{}
-		defaultBundle  string
-		wantPlanTier   string
-		wantBundleKey  string
-		wantPriceID    string
+		name          string
+		metadata      map[string]interface{}
+		defaultBundle string
+		wantPlanTier  string
+		wantBundleKey string
+		wantPriceID   string
 	}{
 		{
 			name:          "empty metadata uses default bundle",
@@ -715,4 +715,3 @@ func TestChooseUserIdentityFromSubscription(t *testing.T) {
 		})
 	}
 }
-

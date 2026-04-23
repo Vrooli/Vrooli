@@ -64,7 +64,6 @@ func setupMonetizationHarness(t *testing.T, stripeServer *httptest.Server) *mone
 		DROP TABLE IF EXISTS download_assets CASCADE;
 		DROP TABLE IF EXISTS download_apps CASCADE;
 		DROP TABLE IF EXISTS intro_coupon_usage CASCADE;
-		DROP TABLE IF EXISTS intro_anomaly_log CASCADE;
 		DROP TABLE IF EXISTS credit_transactions CASCADE;
 		DROP TABLE IF EXISTS credit_wallets CASCADE;
 		DROP TABLE IF EXISTS subscription_schedules CASCADE;
@@ -153,15 +152,6 @@ func setupMonetizationHarness(t *testing.T, stripeServer *httptest.Server) *mone
 			plan_tier VARCHAR(50),
 			subscription_id VARCHAR(255),
 			used_at TIMESTAMP DEFAULT NOW()
-		);
-		CREATE TABLE intro_anomaly_log (
-			id SERIAL PRIMARY KEY,
-			email VARCHAR(255),
-			customer_id VARCHAR(255),
-			coupon_id VARCHAR(255),
-			anomaly_type VARCHAR(100),
-			details JSONB DEFAULT '{}'::jsonb,
-			created_at TIMESTAMP DEFAULT NOW()
 		);
 		CREATE TABLE download_apps (
 			id SERIAL PRIMARY KEY,

@@ -36,27 +36,27 @@ type SubscriptionRecord struct {
 
 // CheckoutSessionRecord represents a checkout session stored in the database.
 type CheckoutSessionRecord struct {
-	SessionID     string
-	CustomerEmail sql.NullString
-	CustomerID    sql.NullString
-	PriceID       sql.NullString
+	SessionID      string
+	CustomerEmail  sql.NullString
+	CustomerID     sql.NullString
+	PriceID        sql.NullString
 	SubscriptionID sql.NullString
-	Status        string
-	SessionType   string
-	AmountCents   sql.NullInt64
-	ScheduleID    sql.NullString
-	Metadata      map[string]interface{}
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	Status         string
+	SessionType    string
+	AmountCents    sql.NullInt64
+	ScheduleID     sql.NullString
+	Metadata       map[string]interface{}
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 // CreditWalletRecord represents a credit wallet in the database.
 type CreditWalletRecord struct {
-	ID            int64
-	CustomerEmail string
+	ID             int64
+	CustomerEmail  string
 	BalanceCredits int64
-	BonusCredits  int64
-	UpdatedAt     time.Time
+	BonusCredits   int64
+	UpdatedAt      time.Time
 }
 
 // CreditTransactionRecord represents a credit transaction in the database.

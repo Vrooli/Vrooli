@@ -127,7 +127,6 @@ func TestErrorPaths_GetUsage_NonexistentUser(t *testing.T) {
 
 	// Query for a user that doesn't exist
 	usage, err := usageSvc.GetUsage(ctx, "nonexistent@example.com", "ai_credits", nil)
-
 	// Should return 0 usage for non-existent user, not an error
 	if err != nil {
 		t.Errorf("Expected nil error for non-existent user, got: %v", err)
@@ -165,7 +164,6 @@ func TestErrorPaths_AccountService_NonexistentUser(t *testing.T) {
 
 	// Query for a user that doesn't exist
 	sub, err := svc.GetSubscription("nonexistent-999999@example.com")
-
 	// Should return nil subscription without error (or with specific error)
 	if err != nil {
 		t.Logf("Non-existent user returned error: %v", err)
@@ -184,7 +182,6 @@ func TestErrorPaths_AccountService_EmptyEmail(t *testing.T) {
 
 	// Test with empty email
 	sub, err := svc.GetSubscription("")
-
 	// Should handle gracefully
 	if err != nil {
 		t.Logf("Empty email returned error (acceptable): %v", err)

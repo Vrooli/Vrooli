@@ -94,8 +94,8 @@ func registerAdminCoreRoutes(s *Server) {
 	s.router.HandleFunc("/api/v1/admin/profile", s.requireAdmin(s.handleAdminProfile)).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/profile", s.requireAdmin(s.handleAdminProfileUpdate)).Methods("PUT")
 	s.router.HandleFunc("/api/v1/admin/settings/stripe", s.requireAdmin(handleGetStripeSettings(s.paymentSettings, s.stripeService))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/settings/stripe", s.requireAdmin(handleUpdateStripeSettings(s.paymentSettings, s.stripeService))).Methods("PUT")
-	s.router.HandleFunc("/api/v1/admin/settings/stripe/reveal", s.requireAdmin(handleRevealStripeSecret(s.stripeService))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/settings/stripe", s.requireAdmin(handleUpdateStripeSettings(s.paymentSettings, s.stripeService, s.paymentAnomaly))).Methods("PUT")
+	s.router.HandleFunc("/api/v1/admin/settings/stripe/reveal", s.requireAdmin(handleRevealStripeSecret(s.stripeService, s.paymentSettings))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/stripe/verify-price", s.requireAdmin(handleAdminVerifyStripePrice(s.stripeService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/reset-demo-data", s.requireAdmin(s.handleAdminResetDemoData)).Methods("POST")
 }

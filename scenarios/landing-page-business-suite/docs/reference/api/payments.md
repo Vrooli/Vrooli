@@ -321,9 +321,14 @@ Returns Stripe configuration status.
   "publishable_key": "pk_test_xxx...",
   "has_secret_key": true,
   "has_webhook_secret": true,
-  "dashboard_url": "https://dashboard.stripe.com/..."
+  "dashboard_url": "https://dashboard.stripe.com/...",
+  "anomaly_webhook_url_set": true,
+  "anomaly_webhook_enabled": true,
+  "anomaly_rate_limits": "{\"checkout_subscription_missing\":{\"burst\":3,\"refill_seconds\":300}}"
 }
 ```
+
+The `anomaly_webhook_url` itself is never returned in the GET response (it is treated as a secret). Use `GET /admin/settings/stripe/reveal?field=anomaly_webhook_url` to retrieve the unredacted value.
 
 ---
 
@@ -339,9 +344,22 @@ Updates Stripe configuration.
   "publishable_key": "pk_test_xxx",
   "secret_key": "sk_test_xxx",
   "webhook_secret": "whsec_xxx",
-  "dashboard_url": "https://dashboard.stripe.com/..."
+  "dashboard_url": "https://dashboard.stripe.com/...",
+  "anomaly_webhook_url": "https://hooks.slack.com/services/T0/B0/XYZ",
+  "anomaly_webhook_enabled": true,
+  "anomaly_rate_limits": {
+    "checkout_subscription_missing": { "burst": 3, "refill_seconds": 300 }
+  }
 }
 ```
+
+Anomaly fields:
+
+- `anomaly_webhook_url` — HTTPS endpoint that receives POSTed anomaly payloads. Validated as a URL and rejected unless `https://`. Treated as a secret; redacted on GET.
+- `anomaly_webhook_enabled` — master switch. When `true`, an `anomaly_webhook_url` must also be set (either in this request or already persisted), otherwise the request is rejected with `400`.
+- `anomaly_rate_limits` — per-`anomaly_type` token-bucket overrides. Shape: `{ "<type>": { "burst": N, "refill_seconds": M } }`. Defaults when unset are `burst=5`, `refill_seconds=60`.
+
+On successful save, the server refreshes its in-memory anomaly-dispatch config so subsequent dispatches use the new values without a restart.
 
 ---
 

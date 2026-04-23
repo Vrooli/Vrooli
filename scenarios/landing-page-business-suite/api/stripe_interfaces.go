@@ -119,12 +119,12 @@ type StripeServiceInterface interface {
 
 // Compile-time verification that StripeService implements all interfaces.
 var (
-	_ StripeCheckoutService      = (*StripeService)(nil)
-	_ StripeSubscriptionService  = (*StripeService)(nil)
-	_ StripeWebhookService       = (*StripeService)(nil)
-	_ StripeCouponService        = (*StripeService)(nil)
-	_ StripeAdminService         = (*StripeService)(nil)
-	_ StripeCreditService        = (*StripeService)(nil)
-	_ StripeAccountLinkService   = (*StripeService)(nil)
-	_ StripeServiceInterface     = (*StripeService)(nil)
+	_ StripeCheckoutService     = (*StripeService)(nil)
+	_ StripeSubscriptionService = (*StripeService)(nil)
+	_ StripeWebhookService      = (*StripeService)(nil)
+	_ StripeCouponService       = (*StripeService)(nil)
+	_ StripeAdminService        = (*StripeService)(nil)
+	_ StripeCreditService       = (*StripeService)(nil)
+	_ StripeAccountLinkService  = (*StripeService)(nil)
+	_ StripeServiceInterface    = (*StripeService)(nil)
 )

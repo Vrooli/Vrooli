@@ -341,9 +341,9 @@ func TestHandleCreateTierLimit_Success(t *testing.T) {
 	handler := handleCreateTierLimit(svc)
 
 	body := map[string]interface{}{
-		"tier_id":    "new_tier",
-		"limit_type": "cost_based",
-		"limit_key":  "ai_credits",
+		"tier_id":     "new_tier",
+		"limit_type":  "cost_based",
+		"limit_key":   "ai_credits",
 		"limit_value": 1000000,
 	}
 	jsonBody, _ := json.Marshal(body)

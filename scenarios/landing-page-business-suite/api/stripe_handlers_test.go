@@ -383,7 +383,7 @@ func TestStripeSettingsHandlers(t *testing.T) {
 	paymentService := NewPaymentSettingsService(db)
 	stripeService := NewStripeServiceWithSettings(db, NewPlanService(db), paymentService)
 
-	update := handleUpdateStripeSettings(paymentService, stripeService)
+	update := handleUpdateStripeSettings(paymentService, stripeService, nil)
 	body := bytes.NewBufferString(`{"publishable_key":"pk_live_handlers","secret_key":"sk_live_handlers","webhook_secret":"whsec_live_handlers","dashboard_url":"https://dashboard.stripe.com/test"}`)
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/settings/stripe", body)
 	rec := httptest.NewRecorder()

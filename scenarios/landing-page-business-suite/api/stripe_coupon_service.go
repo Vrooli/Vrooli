@@ -583,23 +583,32 @@ func (s *StripeService) checkIntroCouponMapping(couponID string) (bool, string) 
 }
 
 // logIntroAnomaly records an anomalous intro coupon usage for admin review.
-// This is used for fraud detection when a user appears ineligible at payment time
-// but had a coupon applied at checkout time.
+// This is used for fraud detection when a user appears ineligible at payment
+// time but had a coupon applied at checkout time. Forwards through the
+// unified payment anomaly pipeline (payment_anomaly_log + webhook dispatch).
 func (s *StripeService) logIntroAnomaly(email, customerID, couponID, anomalyType string, details map[string]interface{}) {
 	if email == "" {
 		return
 	}
-
-	detailsJSON, _ := json.Marshal(details)
-	if detailsJSON == nil {
-		detailsJSON = []byte("{}")
+	if s.paymentAnomaly == nil {
+		logStructuredError("intro_anomaly_log_insert_failed", map[string]interface{}{
+			"email":        email,
+			"customer_id":  customerID,
+			"coupon_id":    couponID,
+			"anomaly_type": anomalyType,
+			"error":        "payment_anomaly_service_unavailable",
+		})
+		return
 	}
-
-	_, err := s.db.Exec(`
-		INSERT INTO intro_anomaly_log (email, customer_id, coupon_id, anomaly_type, details)
-		VALUES ($1, $2, $3, $4, $5)
-	`, NormalizeEmail(email), customerID, couponID, anomalyType, string(detailsJSON))
-	if err != nil {
+	if _, err := s.paymentAnomaly.Log(context.Background(), PaymentAnomaly{
+		Type:        anomalyType,
+		Severity:    anomalySeverityWarn,
+		Email:       email,
+		CustomerID:  customerID,
+		SubjectID:   couponID,
+		SubjectKind: "intro_coupon",
+		Details:     details,
+	}); err != nil {
 		logStructuredError("intro_anomaly_log_insert_failed", map[string]interface{}{
 			"email":        email,
 			"customer_id":  customerID,
@@ -607,14 +616,5 @@ func (s *StripeService) logIntroAnomaly(email, customerID, couponID, anomalyType
 			"anomaly_type": anomalyType,
 			"error":        err.Error(),
 		})
-		return
 	}
-
-	logStructured("intro_anomaly_logged", map[string]interface{}{
-		"level":        "warn",
-		"email":        email,
-		"customer_id":  customerID,
-		"coupon_id":    couponID,
-		"anomaly_type": anomalyType,
-	})
 }

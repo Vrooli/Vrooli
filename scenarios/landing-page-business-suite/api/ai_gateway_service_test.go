@@ -761,7 +761,6 @@ func TestExecuteChat_Success(t *testing.T) {
 		Model:    "openai/gpt-4o-mini",
 		Messages: []AIMessage{{Role: "user", Content: "Hello"}},
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -844,7 +843,6 @@ func TestExecuteChat_CostUnderEstimate_Refunds(t *testing.T) {
 		Model:    "openai/gpt-4o-mini",
 		Messages: []AIMessage{{Role: "user", Content: "Hello"}},
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -892,7 +890,6 @@ func TestExecuteChat_CostOverEstimate_Charges(t *testing.T) {
 		Model:    "openai/gpt-4o-mini",
 		Messages: []AIMessage{{Role: "user", Content: "Hello"}},
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -925,7 +922,6 @@ func TestExecuteChat_TierLookupFails_DefaultsFree(t *testing.T) {
 		Model:    "openai/gpt-4o-mini",
 		Messages: []AIMessage{{Role: "user", Content: "Hello"}},
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -990,7 +986,6 @@ func TestExecuteChatStream_Success(t *testing.T) {
 		Model:    "openai/gpt-4o-mini",
 		Messages: []AIMessage{{Role: "user", Content: "Hello"}},
 	}, w)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1090,7 +1085,6 @@ func TestExecuteChatStream_FinalizeFails_FallbackRecords(t *testing.T) {
 		Model:    "openai/gpt-4o-mini",
 		Messages: []AIMessage{{Role: "user", Content: "Hello"}},
 	}, w)
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1171,7 +1165,6 @@ func TestGetUserTier_ValidSubscription(t *testing.T) {
 	}
 
 	result, err := svc.getUserTier(context.Background(), "user@test.com")
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1194,7 +1187,6 @@ func TestGetUserTier_NilSubscription_DefaultsFree(t *testing.T) {
 	}
 
 	result, err := svc.getUserTier(context.Background(), "user@test.com")
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1220,7 +1212,6 @@ func TestGetUserTier_ErrorLogsWarning(t *testing.T) {
 	}
 
 	result, err := svc.getUserTier(context.Background(), "user@test.com")
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1252,7 +1243,6 @@ func TestGetUserTier_NoAccountService(t *testing.T) {
 	}
 
 	result, err := svc.getUserTier(context.Background(), "user@test.com")
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1271,7 +1261,6 @@ func TestGetOpenRouterClient_Injected(t *testing.T) {
 	}
 
 	client, err := svc.getOpenRouterClient(context.Background())
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1295,7 +1284,6 @@ func TestGetOpenRouterClient_CreatesNew(t *testing.T) {
 	}
 
 	client, err := svc.getOpenRouterClient(context.Background())
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

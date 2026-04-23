@@ -279,4 +279,3 @@ func TestStripeAPI_InvalidResponse(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid character", "should indicate JSON parse error")
 }
-

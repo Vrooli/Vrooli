@@ -21,7 +21,7 @@ func TestSecurity_XFFSpoofing_UntrustedSourceIgnored(t *testing.T) {
 	// Attacker tries to spoof their IP via X-Forwarded-For
 	// but their connection is NOT from a trusted proxy
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
-	req.RemoteAddr = "203.0.113.50:12345" // Attacker's real IP (not in trusted range)
+	req.RemoteAddr = "203.0.113.50:12345"        // Attacker's real IP (not in trusted range)
 	req.Header.Set("X-Forwarded-For", "1.2.3.4") // Spoofed IP
 
 	ip := getClientIP(req)
@@ -187,9 +187,9 @@ func TestSecurity_EmailValidation_RejectsInvalidFormats(t *testing.T) {
 		"user@example.com; rm -rf /",
 		"user@example.com\x00evil",
 		"@example.com",          // Missing local part
-		"user@",                  // Missing domain
-		"user@@example.com",      // Double @
-		"user example@test.com",  // Space in local part
+		"user@",                 // Missing domain
+		"user@@example.com",     // Double @
+		"user example@test.com", // Space in local part
 	}
 
 	for _, input := range maliciousInputs {

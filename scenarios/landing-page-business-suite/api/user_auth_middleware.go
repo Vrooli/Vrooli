@@ -13,7 +13,7 @@ import (
 // trustedProxyCIDRs holds the parsed CIDR ranges for trusted proxies.
 // These are loaded once at startup from TRUSTED_PROXY_CIDRS environment variable.
 var (
-	trustedProxyCIDRs []*net.IPNet
+	trustedProxyCIDRs  []*net.IPNet
 	trustedProxiesOnce sync.Once
 )
 
@@ -246,11 +246,11 @@ func getClientIP(r *http.Request) string {
 			}
 			// Invalid IP format in X-Forwarded-For, log and fall through
 			logStructured("xff_invalid_ip_format", map[string]interface{}{
-				"level":           "warn",
-				"xff_header":      xff,
-				"extracted_ip":    clientIP,
-				"direct_ip":       directIP,
-				"security":        true,
+				"level":        "warn",
+				"xff_header":   xff,
+				"extracted_ip": clientIP,
+				"direct_ip":    directIP,
+				"security":     true,
 			})
 		}
 
@@ -262,30 +262,30 @@ func getClientIP(r *http.Request) string {
 			}
 			// Invalid IP format in X-Real-IP, log and fall through
 			logStructured("xrealip_invalid_ip_format", map[string]interface{}{
-				"level":       "warn",
-				"xrealip":     xri,
-				"direct_ip":   directIP,
-				"security":    true,
+				"level":     "warn",
+				"xrealip":   xri,
+				"direct_ip": directIP,
+				"security":  true,
 			})
 		}
 	} else {
 		// Direct connection is NOT from a trusted proxy - log if they're trying to spoof
 		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 			logStructured("xff_untrusted_proxy_ignored", map[string]interface{}{
-				"level":       "warn",
-				"xff_header":  xff,
-				"direct_ip":   directIP,
-				"message":     "X-Forwarded-For header ignored - connection not from trusted proxy",
-				"security":    true,
+				"level":      "warn",
+				"xff_header": xff,
+				"direct_ip":  directIP,
+				"message":    "X-Forwarded-For header ignored - connection not from trusted proxy",
+				"security":   true,
 			})
 		}
 		if xri := r.Header.Get("X-Real-IP"); xri != "" {
 			logStructured("xrealip_untrusted_proxy_ignored", map[string]interface{}{
-				"level":       "warn",
-				"xrealip":     xri,
-				"direct_ip":   directIP,
-				"message":     "X-Real-IP header ignored - connection not from trusted proxy",
-				"security":    true,
+				"level":     "warn",
+				"xrealip":   xri,
+				"direct_ip": directIP,
+				"message":   "X-Real-IP header ignored - connection not from trusted proxy",
+				"security":  true,
 			})
 		}
 	}

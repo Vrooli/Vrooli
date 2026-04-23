@@ -156,28 +156,28 @@ func TestIntroEligibility_CaseInsensitive(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
-		name            string
-		email           string
+		name             string
+		email            string
 		expectedEligible bool
 	}{
 		{
-			name:            "lowercase matches existing",
-			email:           "used@example.com",
+			name:             "lowercase matches existing",
+			email:            "used@example.com",
 			expectedEligible: false,
 		},
 		{
-			name:            "uppercase matches existing (case insensitive)",
-			email:           "USED@EXAMPLE.COM",
+			name:             "uppercase matches existing (case insensitive)",
+			email:            "USED@EXAMPLE.COM",
 			expectedEligible: false,
 		},
 		{
-			name:            "mixed case matches existing",
-			email:           "Used@Example.COM",
+			name:             "mixed case matches existing",
+			email:            "Used@Example.COM",
 			expectedEligible: false,
 		},
 		{
-			name:            "different user is eligible",
-			email:           "new@example.com",
+			name:             "different user is eligible",
+			email:            "new@example.com",
 			expectedEligible: true,
 		},
 	}
@@ -309,9 +309,9 @@ func TestVerifySubscription_MixedCaseMatch(t *testing.T) {
 	service.checkoutCacheTTL = 1 * time.Hour // Prevent refresh attempts
 
 	tests := []struct {
-		name          string
-		userIdentity  string
-		expectActive  bool
+		name         string
+		userIdentity string
+		expectActive bool
 	}{
 		{
 			name:         "lowercase email finds subscription",

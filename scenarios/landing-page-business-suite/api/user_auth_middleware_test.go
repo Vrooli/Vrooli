@@ -477,7 +477,7 @@ func TestGetClientIP_UntrustedProxyXFFIgnored(t *testing.T) {
 	defer os.Unsetenv("TRUSTED_PROXY_CIDRS")
 
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	req.RemoteAddr = "192.168.1.100:12345" // NOT from trusted proxy
+	req.RemoteAddr = "192.168.1.100:12345"       // NOT from trusted proxy
 	req.Header.Set("X-Forwarded-For", "5.6.7.8") // Spoofed header - should be ignored
 
 	ip := getClientIP(req)
