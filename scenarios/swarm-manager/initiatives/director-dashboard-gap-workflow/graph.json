@@ -1,6 +1,6 @@
 {
   "initiative": "director-dashboard-gap-workflow",
-  "generated_at": "2026-04-23T20:19:14Z",
+  "generated_at": "2026-04-23T21:37:55Z",
   "nodes": [
     {
       "id": "execute/director-swarm-gap-monitoring",

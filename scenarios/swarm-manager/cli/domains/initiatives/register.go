@@ -24,6 +24,24 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			support.APICommand("file-upload", "Upload a file to an initiative (--name NAME --path PATH) (--stdin|--file|--content)", deps.InitiativesFileUp),
 			support.APICommand("file-op", "File operation on initiative (--name NAME --op OP --source PATH) [--dest PATH] [--json]", deps.InitiativesFileOp),
 			support.APICommand("search-ai", "Semantic search over initiatives (<query> [--limit N] [--status S,...] [--include-archived] [--json])", deps.InitiativesSearchAI),
+
+			// Feedback rounds (user signal → proposed mutations → decision).
+			support.APICommand("feedback-list", "List feedback rounds on an initiative (--name NAME) [--json]", deps.InitiativesFeedbackList),
+			support.APICommand("feedback-get", "Get a feedback round (--name NAME --round N) [--json]", deps.InitiativesFeedbackGet),
+			support.APICommand("feedback-submit", "Start a feedback round (--name NAME --type feedback|note --text MSG [--file PATH ...] [--slug SLUG] [--override] [--decided-by WHO] [--json])", deps.InitiativesFeedbackSubmit),
+			support.APICommand("feedback-continue", "Continue a feedback round (--name NAME --round N --text MSG [--file PATH ...] [--decided-by WHO] [--json])", deps.InitiativesFeedbackContinue),
+			support.APICommand("feedback-decide", "Decide a feedback round (--name NAME --round N (--accept|--reject|--dismiss) [--mutations m1,m3] [--rationale MSG] [--decided-by WHO] [--json])", deps.InitiativesFeedbackDecide),
+			support.APICommand("feedback-lock", "Show feedback lock status (--name NAME) [--json]", deps.InitiativesFeedbackLock),
+
+			// Initiative review.
+			support.APICommand("review-list", "List initiative review rounds (--name NAME) [--json]", deps.InitiativesReviewList),
+			support.APICommand("review-get", "Get a review round (--name NAME --round N) [--json]", deps.InitiativesReviewGet),
+			support.APICommand("review-trigger", "Trigger a review round (--name NAME) [--json]", deps.InitiativesReviewTrigger),
+			support.APICommand("review-decide", "Decide an initiative review (--name NAME (--accept|--fail|--followup) [--rationale MSG] [--decided-by WHO] [--json])", deps.InitiativesReviewDecide),
+			support.APICommand("review-decisions", "List past review decisions (--name NAME) [--json]", deps.InitiativesReviewDecisions),
+
+			// Materialized item-graph projection.
+			support.APICommand("graph-show", "Show materialized graph.json for an initiative (--name NAME) [--json]", deps.InitiativesGraphShow),
 		},
 	}
 }

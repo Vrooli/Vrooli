@@ -1,0 +1,16 @@
+{
+  "initiative": "lifestyle-demand-validation",
+  "generated_at": "2026-04-23T21:37:55Z",
+  "nodes": [
+    {
+      "id": "research/lifestyle-physical-guide-test-design",
+      "kind": "research",
+      "name": "lifestyle-physical-guide-test-design",
+      "title": "Scope Lifestyle Physical-Guide Demand Test",
+      "status": "backlog",
+      "priority": 2,
+      "archived": false
+    }
+  ],
+  "edges": []
+}

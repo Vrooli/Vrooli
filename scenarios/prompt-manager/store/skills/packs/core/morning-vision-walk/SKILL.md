@@ -139,6 +139,7 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
    # capability-gap decisions live on meta-optimization
    prompt-manager team decision-accept meta-optimization <decision-id> --selected <option-key> --notes "<user's reasoning>"
    ```
+   Note: if `decision-accept` is not yet available in the CLI, that is a parity bug — file/surface it and escalate; do NOT work around it by calling the API directly from this skill.
 4. If the user wants to defer, note it and move on.
 5. If there are no pending decisions, say so briefly and move on.
 
@@ -203,7 +204,7 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 6. If the user wants to defer, note it and move on.
 7. If there are no pending decisions, say so briefly and move on.
 
-**Disabled-team branch:** If `teams/marketing-crew/team.json` has `"enabled": false`, skip with: "Marketing-crew is not currently enabled. Once running, this phase will surface publish proposals, campaign launches, brand-canon edits, coverage gaps, and notebook-curation decisions."
+**Disabled-team branch:** If `teams/marketing-crew/team.json` has `"enabled": false`, **or** the team is enabled but every member's heartbeat is disabled (check with `prompt-manager team heartbeat-list marketing-crew`), skip with: "Marketing-crew is not currently running. Once running, this phase will surface publish proposals, campaign launches, brand-canon edits, coverage gaps, and notebook-curation decisions." The prep deliverable must distinguish *dormant* (heartbeats disabled, no recent runs) from *quiet* (heartbeats active but nothing raised) — only the latter is genuinely quiet.
 
 **Guardrail:** Max 3 decisions. Prep agent has already prioritized.
 
@@ -241,7 +242,7 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 
 **Guardrail:** Max 3 decisions in this phase. The prep agent has already diversified across categories; do not go hunting for more.
 
-**Disabled-team branch:** If `teams/meta-optimization/team.json` has `"enabled": false`, skip with: "Meta-optimization team is not currently enabled. Once running, this phase will surface skill/agent/team/toolchain evolution proposals, run-derived lessons, and debt promotions."
+**Disabled-team branch:** If `teams/meta-optimization/team.json` has `"enabled": false`, **or** the team is enabled but every member's heartbeat is disabled (check with `prompt-manager team heartbeat-list meta-optimization`), skip with: "Meta-optimization team is not currently running. Once running, this phase will surface skill/agent/team/toolchain evolution proposals, run-derived lessons, and debt promotions." The prep deliverable must distinguish *dormant* (heartbeats disabled, no recent runs) from *quiet* (heartbeats active but nothing raised) — only the latter is genuinely quiet.
 
 **Transition:** At this point, the decision-triage portion of the walk is complete. Signal the gear shift: "That covers the decisions waiting on you. Let's shift to the creative side — what's been happening outside Vrooli?"
 

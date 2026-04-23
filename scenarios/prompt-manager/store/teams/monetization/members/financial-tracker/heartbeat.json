@@ -3,9 +3,16 @@
   "schemaVersion": 1,
   "teamId": "monetization",
   "agentId": "financial-tracker",
-  "enabled": false,
+  "enabled": true,
   "schedule": "0 14 * * *",
-  "revision": 1,
+  "lastExecution": {
+    "startedAt": "2026-04-23T18:00:00Z",
+    "endedAt": "2026-04-23T18:01:20Z",
+    "status": "completed",
+    "runId": "55ddab68-1e22-4e2c-a4fb-64c97cf1fbc2",
+    "logPath": "../store/teams/monetization/members/financial-tracker/logs/2026-04-23T18-00-00Z.log"
+  },
+  "revision": 5,
   "createdAt": "2026-04-20T00:00:00Z",
-  "updatedAt": "2026-04-20T00:00:00Z"
+  "updatedAt": "2026-04-23T18:01:20Z"
 }

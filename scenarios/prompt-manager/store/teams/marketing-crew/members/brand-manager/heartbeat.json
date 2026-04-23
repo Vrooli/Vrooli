@@ -3,9 +3,9 @@
   "schemaVersion": 1,
   "teamId": "marketing-crew",
   "agentId": "brand-manager",
-  "enabled": false,
-  "schedule": "0 */6 * * *",
-  "revision": 1,
+  "enabled": true,
+  "schedule": "0 15 * * *",
+  "revision": 3,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-04-21T00:00:00Z"
+  "updatedAt": "2026-04-23T21:23:07Z"
 }

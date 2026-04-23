@@ -57,6 +57,21 @@ These are held in `candidate` state and will not activate until this bundle itse
 - [elder-care](../addons/elder-care.md) — `candidate`
 - [family-with-kids](../addons/family-with-kids.md) — `candidate`
 
+## Consumer products tied to this bundle
+
+Consumer products (own-produced physical/digital SKUs — print-on-demand books, planners, whiteboards, kits, courses) and affiliate recommendations are expected to be a meaningful revenue contributor for the lifestyle bundle specifically. Users are outcome-oriented, many value physical artifacts, and household / family / personal contexts legitimately involve tangible goods. See the revenue-line definitions for the hard architectural and UX rules all such offerings must obey: [consumer-products](../../revenue-lines/consumer-products.md) and [affiliate-commerce](../../revenue-lines/affiliate-commerce.md).
+
+Gating: no scenario in this bundle activates consumer-product offers or affiliate links until (a) it has inventory-aware state to avoid offering things the user already owns, and (b) the recommendation-blindness post-processor exists in code. Both are non-negotiable.
+
+Pattern examples (not committed SKUs, not catalog entries — patterns that illustrate fit):
+
+- Printed cleaning / maintenance guides surfaced inside home-routines scenarios.
+- Wall calendars and planners tied to the calendar scenario.
+- Baby-proofing kits surfaced at the correct developmental moment, driven by inventory state (child age + current protection coverage).
+- Gift-purchase surface inside the contact-book scenario — legitimate purchase intent is a natural invitation to offer products, own-produced or affiliate.
+
+Specific SKUs get scoped and added to the catalog only when they have validated demand and meet the revenue-line's activation discipline. Until then, this section stays a list of patterns, not products.
+
 ## Open questions
 
 Captured for future work, not to be answered now:

@@ -1,0 +1,14 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "swarm-manager-initiative-feedback",
+  "name": "Swarm Manager Initiative Feedback",
+  "description": "Translate user feedback on an initiative into a structured mutation-list proposal against the initiative's item graph. Multi-turn — the agent handles both the initial submission and subsequent revision requests in the same run.",
+  "modes": ["tools"],
+  "tags": ["swarm-manager", "initiative", "feedback", "proposal"],
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-04-23T00:00:00Z",
+  "updatedAt": "2026-04-23T00:00:00Z"
+}

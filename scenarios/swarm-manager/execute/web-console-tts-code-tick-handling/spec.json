@@ -1,0 +1,19 @@
+{
+  "created": "2026-04-23T21:37:13Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "During the 2026-04-23 vision walk decision IDs like dec-1776896266693850072 were read aloud by the TTS as giant cardinal numbers (\"one quadrillion...\") which is unusable. The TTS preprocessor must not pronounce numbers inside code ticks (`...`), and should treat strings matching obvious ID patterns such as \\w+-\\d{10,} as character-by-character read or skip entirely. Fix scope: update the TTS preprocessor to (a) skip / character-read content inside backtick or code-block spans; (b) detect common ID patterns outside code ticks and apply the same rule; (c) include a test case for the literal dec-\u003ctimestamp\u003e pattern used across prompt-manager decisions.",
+  "kind": "execute",
+  "name": "web-console-tts-code-tick-handling",
+  "priority": 2,
+  "status": "backlog",
+  "tags": [
+    "web-console",
+    "tts",
+    "accessibility",
+    "platform-fix"
+  ],
+  "title": "Web Console TTS Must Not Pronounce Numbers Inside Code Ticks Or ID Patterns",
+  "updated": "2026-04-23T21:37:13Z"
+}

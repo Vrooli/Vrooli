@@ -1,0 +1,19 @@
+{
+  "created": "2026-04-23T21:36:03Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "Scaffold the routines-app scenario using the standard Vrooli react-vite template (API + UI + CLI + service.json). Acceptance: scenario can be started via vrooli scenario start routines-app, the UI loads, the CLI is callable, and the API exposes a minimum GET /routines endpoint returning an empty list. No real routine logic yet — this is the infra gate for the v0 curated content to land on.",
+  "initiative": "routines-app",
+  "kind": "execute",
+  "name": "routines-app-scenario-init",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [
+    "routines",
+    "scenario-init",
+    "lifestyle-bundle"
+  ],
+  "title": "Initialize Routines-App Scenario From React-Vite Template",
+  "updated": "2026-04-23T21:36:34Z"
+}

@@ -4,11 +4,20 @@ Narrative framing and durable principles for how Vrooli monetizes. This document
 
 ## What Vrooli sells
 
-Three commercial surfaces, orthogonal to each other:
+Three orthogonal axes — **what is packaged**, **how it reaches the user**, and **how money flows**:
 
-1. **Bundles of scenarios** (the catalog) — themed collections that solve real problems. Today: business bundle (developer + solopreneur tools); next: lifestyle bundle (personal + household).
-2. **Delivery tiers** (how the bundles reach the user) — individual desktop/mobile apps, self-hosted full Vrooli runtime, hosted cloud Vrooli, and eventually a hardware appliance. Each tier has its own cost structure and price point.
-3. **Services** (deliberate lever) — done-for-you engagements (lead generation, standalone app development, consulting) that generate immediate cash, validate capability, and seed subscribers. We operate our own scenarios on behalf of clients; the same shovels we sell are the shovels we use to dig for gold. Services are a lever we intend to pull at the right phase, not a business line we're building toward.
+1. **Bundles of scenarios** — *what* is packaged. Themed collections that solve real problems. Today: business bundle (developer + solopreneur tools); next: lifestyle bundle (personal + household).
+2. **Delivery tiers** — *how* the bundles reach the user. Individual desktop/mobile apps, self-hosted full Vrooli runtime, hosted cloud Vrooli, and eventually a hardware appliance. Each tier has its own cost structure and price point.
+3. **Revenue lines** — *how* money flows. Distinct from bundles/tiers and tracked independently because their cost structures, acquisition channels, unit economics, and operational disciplines differ. See [REVENUE_LINES.md](REVENUE_LINES.md) for the full index.
+
+The current revenue lines are:
+
+- **`subscription`** — the product, and the destination every other line aims toward.
+- **Services** — deliberate lever, not a business. Services lines (`lead-generation`, `app-development`, `consulting`) validate capability, generate near-term cash, and seed subscribers. We operate our own scenarios on behalf of clients — the same shovels we sell are the shovels we use to dig for gold. See principle 3 below for discipline.
+- **`consumer-products`** — own-produced physical and digital SKUs (books, planners, kits, courses) sold standalone and surfaced contextually inside scenarios. Concentrated in the lifestyle bundle. Gated on inventory maturity.
+- **`affiliate-commerce`** — commission on referred purchases through partners (Amazon Associates first). Also concentrated in the lifestyle bundle; gated on the recommendation-blindness architecture existing in code.
+
+Both `consumer-products` and `affiliate-commerce` carry a hard architectural rule: **the agent producing a recommendation must not know what we sell or earn commission on.** Offer insertion and link rewriting are strictly post-processing over recommendations that were already made. This protects the authority layer — the ground truth that lifestyle-bundle users pay for. See the two revenue-line files for the full constraint set.
 
 ## Core principles
 

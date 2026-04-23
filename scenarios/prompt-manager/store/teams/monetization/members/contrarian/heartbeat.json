@@ -3,9 +3,16 @@
   "schemaVersion": 1,
   "teamId": "monetization",
   "agentId": "contrarian",
-  "enabled": false,
+  "enabled": true,
   "schedule": "30 17 * * *",
-  "revision": 1,
+  "lastExecution": {
+    "startedAt": "2026-04-23T21:30:00Z",
+    "endedAt": "2026-04-23T21:31:30Z",
+    "status": "completed",
+    "runId": "aed3e846-2d68-4396-92ad-3c7360ec15e9",
+    "logPath": "../store/teams/monetization/members/contrarian/logs/2026-04-23T21-30-00Z.log"
+  },
+  "revision": 5,
   "createdAt": "2026-04-20T00:00:00Z",
-  "updatedAt": "2026-04-20T00:00:00Z"
+  "updatedAt": "2026-04-23T21:31:30Z"
 }

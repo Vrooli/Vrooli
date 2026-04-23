@@ -1,0 +1,13 @@
+{
+  "name": "contact-book-plus",
+  "title": "Contact Book Plus — Relationship Intelligence Substrate",
+  "description": "Revival and evolution of the archived contact-book scenario (scenarios/swarm-manager/ideas/contact-book-archived/). Not a CRUD contact list — a structured relationship-memory substrate storing people, facts, relationships, consent-bounded metadata. Substrate for gift-purchase surfaces (the cleanest consumer-product monetization moment in the lifestyle bundle), future wedding planning, event recommendations, and relationship-aware downstream scenarios. First research sub-item audits what is salvageable from the archived attempt. Full vision and non-goals documented in the uploaded orchestration-summary.md.",
+  "status": "active",
+  "priority": 3,
+  "items": [
+    "research/contact-book-archived-audit",
+    "execute/contact-book-plus-scenario-init"
+  ],
+  "created": "2026-04-23T21:35:08Z",
+  "updated": "2026-04-23T21:36:34Z"
+}

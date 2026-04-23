@@ -1,0 +1,19 @@
+{
+  "created": "2026-04-23T21:36:25Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "Scaffold the contact-book-plus scenario using the react-vite template, informed by the audit of the archived attempt. If the archived code is revivable, reuse the PostgreSQL schema and data model. If not, restart from the archived PRD's intent. Acceptance: scenario starts via vrooli scenario start, core contact CRUD works, facts are time-bounded, consent metadata is present by design. Depends on contact-book-archived-audit completing first.",
+  "initiative": "contact-book-plus",
+  "kind": "execute",
+  "name": "contact-book-plus-scenario-init",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [
+    "contact-book",
+    "scenario-init",
+    "lifestyle-bundle"
+  ],
+  "title": "Initialize Contact-Book-Plus Scenario (Post-Audit)",
+  "updated": "2026-04-23T21:36:34Z"
+}

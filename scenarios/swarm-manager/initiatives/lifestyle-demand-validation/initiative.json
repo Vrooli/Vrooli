@@ -1,0 +1,12 @@
+{
+  "name": "lifestyle-demand-validation",
+  "title": "Lifestyle Demand Validation — Physical-Guide Market Test",
+  "description": "Validation track that runs parallel to the routines-app engineering initiative. Tests whether the physical-guide market (cleaning / maintenance / inspection books, planners, whiteboards for Type-B users) is real — via landing-page tests, Amazon KDP print-on-demand, or short-form content — using the routines-app v0 curated routines as source material. Produces the signal that activates (or rejects) the lifestyle bundle's consumer-products revenue line. Full design and decision criteria documented in the uploaded orchestration-summary.md.",
+  "status": "active",
+  "priority": 3,
+  "items": [
+    "research/lifestyle-physical-guide-test-design"
+  ],
+  "created": "2026-04-23T21:35:11Z",
+  "updated": "2026-04-23T21:36:34Z"
+}

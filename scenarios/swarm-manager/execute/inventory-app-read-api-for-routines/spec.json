@@ -1,0 +1,19 @@
+{
+  "created": "2026-04-23T21:36:25Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "Expose a query surface on inventory-app that routines-app can hit to determine whether a given routine's required products / tools are available. Minimum: GET /items?query=\u003csemantic\u003e or GET /items/check?names=x,y,z returning per-item availability. Routines-app surfaces routines as blocked on missing inventory when the check fails. This is the inventory-maturity signal the monetization revenue-line gates depend on.",
+  "initiative": "inventory-app",
+  "kind": "execute",
+  "name": "inventory-app-read-api-for-routines",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [
+    "inventory",
+    "routines",
+    "integration"
+  ],
+  "title": "Inventory Read-API For Routines-App Gating",
+  "updated": "2026-04-23T21:36:34Z"
+}

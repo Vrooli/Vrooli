@@ -1,0 +1,19 @@
+{
+  "created": "2026-04-23T21:37:13Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "During the 2026-04-23 vision walk the operator discovered all monetization + meta-optimization + marketing-crew member heartbeats had silently been disabled despite the teams being enabled. The prompt-manager UI allows a misleading state because the team-enabled toggle and per-member heartbeat toggle are far apart: team toggle is in the header, member HB toggle is buried inside member \u003e Overview \u003e Schedule. Fix scope: (1) surface each member's HB-enabled state on the member chip / roster in the team dashboard (badge or icon); (2) add a prominent warning banner when team.enabled \u0026\u0026 activeHeartbeatCount === 0; (3) show active-heartbeat count next to the team toggle (e.g., \"Team On (2/5 active)\"). Related files per prior exploration: TeamDashboardTab.tsx lines 517-563 and 815-839; MemberScheduleSection.tsx lines 234-248; TeamEditorPanel.tsx lines 434-447.",
+  "kind": "execute",
+  "name": "prompt-manager-ui-heartbeat-affordance",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [
+    "prompt-manager",
+    "ui",
+    "affordance",
+    "platform-fix"
+  ],
+  "title": "Prompt-Manager UI Must Surface Member-Heartbeat State On Team Dashboard",
+  "updated": "2026-04-23T21:37:13Z"
+}

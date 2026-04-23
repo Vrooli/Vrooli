@@ -79,6 +79,21 @@ type Dependencies struct {
 	InitiativesFileGet   CommandFunc
 	InitiativesFileUp    CommandFunc
 	InitiativesFileOp    CommandFunc
+	// Initiative feedback round CLI (see cmd_initiatives_feedback.go).
+	InitiativesFeedbackList     CommandFunc
+	InitiativesFeedbackGet      CommandFunc
+	InitiativesFeedbackSubmit   CommandFunc
+	InitiativesFeedbackContinue CommandFunc
+	InitiativesFeedbackDecide   CommandFunc
+	InitiativesFeedbackLock     CommandFunc
+	// Initiative review CLI (see cmd_initiatives_review.go).
+	InitiativesReviewList      CommandFunc
+	InitiativesReviewGet       CommandFunc
+	InitiativesReviewTrigger   CommandFunc
+	InitiativesReviewDecide    CommandFunc
+	InitiativesReviewDecisions CommandFunc
+	// Graph projection view (see cmd_initiatives_graph.go).
+	InitiativesGraphShow CommandFunc
 	CapturesList         CommandFunc
 	CapturesCreate       CommandFunc
 	CapturesGet          CommandFunc

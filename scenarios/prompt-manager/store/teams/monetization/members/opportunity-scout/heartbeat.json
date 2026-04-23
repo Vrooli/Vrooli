@@ -3,9 +3,16 @@
   "schemaVersion": 1,
   "teamId": "monetization",
   "agentId": "opportunity-scout",
-  "enabled": false,
+  "enabled": true,
   "schedule": "0 15 * * 1,4",
-  "revision": 1,
+  "lastExecution": {
+    "startedAt": "2026-04-23T19:00:00Z",
+    "endedAt": "2026-04-23T19:04:30Z",
+    "status": "completed",
+    "runId": "6c25ef6f-c88c-4d0e-b2f7-6946b5f21461",
+    "logPath": "../store/teams/monetization/members/opportunity-scout/logs/2026-04-23T19-00-00Z.log"
+  },
+  "revision": 5,
   "createdAt": "2026-04-20T00:00:00Z",
-  "updatedAt": "2026-04-20T00:00:00Z"
+  "updatedAt": "2026-04-23T19:04:30Z"
 }

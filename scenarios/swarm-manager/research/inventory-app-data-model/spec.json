@@ -1,0 +1,19 @@
+{
+  "created": "2026-04-23T21:36:25Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "Define the v0 data model for inventory-app. Must support at minimum: consumables (cleaning products, groceries, parts — tracked with approximate quantity), tools (owned once, tracked by category and identifier), assets (larger items with metadata — appliances, vehicles, electronics — with purchase-date optionality). Design for partial coverage (user does not have to inventory everything). Design read API around query shapes partner scenarios need (routines-app asks does user have X?). Defer auto-depletion, OCR, warranty tracking to v1+. Deliverable: data-model.md under the inventory-app initiative folder.",
+  "initiative": "inventory-app",
+  "kind": "research",
+  "name": "inventory-app-data-model",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [
+    "inventory",
+    "data-model",
+    "lifestyle-bundle"
+  ],
+  "title": "Design Inventory-App Data Model",
+  "updated": "2026-04-23T21:36:34Z"
+}

@@ -95,3 +95,14 @@ Status values are kept current by catalog-strategist's heartbeat. Numbers marked
 ## Candidate add-ons parented to this bundle
 
 - [property-services](../addons/property-services.md) — `candidate`
+
+## Consumer products tied to this bundle
+
+Consumer products for the business bundle are narrow. Business-bundle users come for the tool to work, not for merch. The legitimate sub-cases where consumer products fit here are:
+
+- **Generated-asset output** — scenarios that produce printable artifacts as part of their normal workflow (business cards, branded stationery, printed marketing campaigns) can offer fulfillment via print-on-demand. The printed output is a natural completion of the user's task, not an advertising surface.
+- **Paid deep-dive content** — scenario-specific workflow guides, advanced-usage books, paid courses on bundle capabilities. Complement subscription rather than replace it.
+
+Affiliate links have narrow fit in this bundle — developer-adjacent goods (books, hardware accessories) only. Most business-bundle monetization remains subscription + services.
+
+See [consumer-products](../../revenue-lines/consumer-products.md) and [affiliate-commerce](../../revenue-lines/affiliate-commerce.md) for the architectural and UX rules all such offerings must obey. Same gating applies: no activation until inventory-aware state and recommendation-blindness post-processor exist.

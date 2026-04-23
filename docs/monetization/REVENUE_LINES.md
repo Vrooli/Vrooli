@@ -23,8 +23,18 @@ A company with only subscriptions has one revenue line. Vrooli has multiple — 
 | `lead-generation` | Lead generation for local service businesses | `candidate` | [revenue-lines/lead-generation.md](revenue-lines/lead-generation.md) |
 | `app-development` | Standalone app development (done-for-you) | `candidate` | [revenue-lines/app-development.md](revenue-lines/app-development.md) |
 | `consulting` | Consulting / strategy engagements | `candidate` (last resort) | [revenue-lines/consulting.md](revenue-lines/consulting.md) |
+| `consumer-products` | Consumer products (own-produced SKUs — books, planners, kits) | `candidate` | [revenue-lines/consumer-products.md](revenue-lines/consumer-products.md) |
+| `affiliate-commerce` | Affiliate / commerce (partner-produced, commission-based) | `candidate` | [revenue-lines/affiliate-commerce.md](revenue-lines/affiliate-commerce.md) |
 
 New candidates enter by adding a file to `revenue-lines/` via an approved decision. Retired lines stay in the folder with `Status: retired` — historical context matters for future decisions.
+
+## Cross-cutting architectural rule for recommendation-adjacent lines
+
+Both `consumer-products` and `affiliate-commerce` share a hard architectural constraint that applies to any scenario participating in them:
+
+> **The agent producing a recommendation must not know what Vrooli sells or earns commission on. Offer insertion and affiliate link rewriting are strictly post-processing steps over recommendations that were already made.**
+
+This rule protects the authority layer — the ground truth that lifestyle-bundle users pay for. Violating it once corrupts every recommendation downstream of that moment and is not fixable by apology. Each scenario that activates either line must implement the separation structurally (in code, in data flow, in review boundaries), not as a policy. See the individual files for the full constraint set and UX discipline.
 
 ## Strategic role: services as a deliberate lever
 

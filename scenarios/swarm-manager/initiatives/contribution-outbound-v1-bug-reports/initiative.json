@@ -4,6 +4,9 @@
   "description": "Customer-side bug-report submission pipeline: upstream-divergence classifier, secrets/PII scrubber, submitter, and agent integration. Bug-reports-only MVP. PR-fix and scenario-proposal artifacts are deferred to contribution-outbound-extensions.",
   "status": "active",
   "priority": 1,
+  "depends_on": [
+    "contribution-settings"
+  ],
   "items": [
     "research/upstream-divergence-classifier",
     "research/contribution-submitter-architecture",
@@ -12,5 +15,5 @@
     "execute/agent-bug-report-emission"
   ],
   "created": "2026-04-22T18:33:52Z",
-  "updated": "2026-04-22T18:33:52Z"
+  "updated": "2026-04-23T21:37:55Z"
 }

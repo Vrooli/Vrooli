@@ -1,0 +1,18 @@
+{
+  "name": "routines-app",
+  "title": "Routines App — Authority-Layer Content Scenario",
+  "description": "Build a Vrooli scenario that curates and executes step-by-step routines for cleaning, inspection, maintenance, and repair tasks (physical-domain). Closes the loop on the Morning Vision Walk chore-audit phase for physical chores the way new scenarios close the loop for digital chores. Targets Type-B users who want to be told what to do. v0 ships markdown-only routines with folder-per-routine layout, semantic search, and library + executor surfaces. Full vision, flexibility ladder, and explicit non-goals documented in the uploaded orchestration-summary.md.",
+  "status": "active",
+  "priority": 4,
+  "depends_on": [
+    "inventory-app"
+  ],
+  "items": [
+    "research/routines-app-principles-doc",
+    "execute/routines-app-scenario-init",
+    "research/routines-app-step-versioning-strategy",
+    "execute/routines-app-v0-curated-starter"
+  ],
+  "created": "2026-04-23T21:35:17Z",
+  "updated": "2026-04-23T21:36:34Z"
+}

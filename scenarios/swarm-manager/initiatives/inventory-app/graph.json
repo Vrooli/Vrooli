@@ -1,0 +1,34 @@
+{
+  "initiative": "inventory-app",
+  "generated_at": "2026-04-23T21:37:55Z",
+  "nodes": [
+    {
+      "id": "research/inventory-app-data-model",
+      "kind": "research",
+      "name": "inventory-app-data-model",
+      "title": "Design Inventory-App Data Model",
+      "status": "backlog",
+      "priority": 3,
+      "archived": false
+    },
+    {
+      "id": "execute/inventory-app-scenario-init",
+      "kind": "execute",
+      "name": "inventory-app-scenario-init",
+      "title": "Initialize Inventory-App Scenario From React-Vite Template",
+      "status": "backlog",
+      "priority": 4,
+      "archived": false
+    },
+    {
+      "id": "execute/inventory-app-read-api-for-routines",
+      "kind": "execute",
+      "name": "inventory-app-read-api-for-routines",
+      "title": "Inventory Read-API For Routines-App Gating",
+      "status": "backlog",
+      "priority": 3,
+      "archived": false
+    }
+  ],
+  "edges": []
+}

@@ -19,9 +19,13 @@ func newTestServer(t *testing.T) *Server {
 			t.Fatal(err)
 		}
 	}
-	// Disable auto-workshop to prevent goroutine leaks in tests.
-	vrooliDir := filepath.Join(root, ".vrooli")
-	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
+	// Disable auto-workshop flags so item creation doesn't fire background
+	// agent spawns under the test. The production settings handler reads
+	// from `<scenarioRoot>/config/settings.json` (see main.go:238), so the
+	// file must land there — writing to `.vrooli/settings.json` (an older
+	// location) is silently ignored.
+	configDir := filepath.Join(root, "config")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	settings := map[string]any{
@@ -30,10 +34,20 @@ func newTestServer(t *testing.T) *Server {
 		"auto_cascade_workshop":    false,
 	}
 	data, _ := json.MarshalIndent(settings, "", "  ")
-	if err := os.WriteFile(filepath.Join(vrooliDir, "settings.json"), data, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(configDir, "settings.json"), data, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("SCENARIO_ROOT", root)
+	// Isolate XDG state/data/cache roots so agent-activity and other
+	// runtimepaths consumers write into this test's tempdir instead of
+	// the user's real XDG dirs. Without this, stale state from prior
+	// tests (e.g., old agent-activity "initialize" records) leaks into
+	// new servers and breaks any test that asserts a clean slate.
+	xdg := filepath.Join(root, "xdg")
+	t.Setenv("XDG_STATE_HOME", filepath.Join(xdg, "state"))
+	t.Setenv("XDG_DATA_HOME", filepath.Join(xdg, "data"))
+	t.Setenv("XDG_CACHE_HOME", filepath.Join(xdg, "cache"))
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(xdg, "config"))
 	return NewServerWithRoot(root)
 }
 
