@@ -111,6 +111,7 @@ export interface UseTerminalSessionOptions {
       speechParagraphs?: string[];
       originalSpeechParagraphs?: string[];
       summarized?: boolean;
+      summarizeError?: string;
     },
   ) => void;
 }
@@ -451,6 +452,7 @@ export function useTerminalSession({
               speechParagraphs: msg.speechParagraphs,
               originalSpeechParagraphs: msg.originalSpeechParagraphs,
               summarized: msg.summarized,
+              summarizeError: msg.summarizeError,
             });
           }
           break;

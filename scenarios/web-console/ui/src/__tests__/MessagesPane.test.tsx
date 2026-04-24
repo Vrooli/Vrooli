@@ -47,6 +47,8 @@ const defaultProps = {
   onSpeakOne: vi.fn(),
   activeSpeakingEventId: null,
   isTtsSpeaking: false,
+  summarizeLevel: "moderate" as const,
+  onSummarizeLevelChanged: vi.fn(),
 };
 
 describe("MessagesPane", () => {
@@ -380,7 +382,7 @@ describe("MessagesPane", () => {
     expect(screen.getByTestId("msg-summarized-badge-e1").textContent).toBe("Summarized");
   });
 
-  it("audio popover shows summarization toggle for summarized events", () => {
+  it("mode control dropdown shows Original + level options for summarized events", () => {
     seedEvents([
       makeEvent({
         id: "e1",
@@ -392,12 +394,14 @@ describe("MessagesPane", () => {
     ]);
     render(<MessagesPane {...defaultProps} />);
 
-    fireEvent.click(screen.getByTestId("msg-audio-e1"));
-    expect(screen.getByTestId("msg-play-summarized-e1")).toBeInTheDocument();
-    expect(screen.getByTestId("msg-play-original-e1")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("msg-e1-mode-control"));
+    expect(screen.getByTestId("msg-e1-mode-option-original")).toBeInTheDocument();
+    expect(screen.getByTestId("msg-e1-mode-option-light")).toBeInTheDocument();
+    expect(screen.getByTestId("msg-e1-mode-option-moderate")).toBeInTheDocument();
+    expect(screen.getByTestId("msg-e1-mode-option-heavy")).toBeInTheDocument();
   });
 
-  it("shows error when on-demand summarize returns an error", async () => {
+  it("shows error when on-demand summarize (via level select) returns an error", async () => {
     mockSummarizeEvent.mockResolvedValue({
       summarized: false,
       error: "Summarization failed: ollama returned 404: model not found",
@@ -406,18 +410,19 @@ describe("MessagesPane", () => {
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "A long assistant response" })]);
     render(<MessagesPane {...defaultProps} />);
 
+    // Trigger summarize by selecting the current (moderate) level — skips config update, goes straight to summarize.
+    fireEvent.click(screen.getByTestId("msg-e1-mode-control"));
+    fireEvent.click(screen.getByTestId("msg-e1-mode-option-moderate"));
+
+    // Open the audio popover to see the error surface.
     fireEvent.click(screen.getByTestId("msg-audio-e1"));
-    expect(screen.getByTestId("audio-popover-e1")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByTestId("msg-request-summarize-e1"));
-
     await waitFor(() => {
       expect(screen.getByTestId("msg-summarize-error-e1")).toBeInTheDocument();
       expect(screen.getByTestId("msg-summarize-error-e1").textContent).toContain("model not found");
     });
   });
 
-  it("clears summarize error when retrying successfully", async () => {
+  it("clears summarize error when retrying successfully via level select", async () => {
     mockSummarizeEvent.mockResolvedValueOnce({
       summarized: false,
       error: "Summarization failed: connection refused",
@@ -430,14 +435,16 @@ describe("MessagesPane", () => {
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "A long assistant response" })]);
     render(<MessagesPane {...defaultProps} />);
 
-    fireEvent.click(screen.getByTestId("msg-audio-e1"));
-    fireEvent.click(screen.getByTestId("msg-request-summarize-e1"));
+    fireEvent.click(screen.getByTestId("msg-e1-mode-control"));
+    fireEvent.click(screen.getByTestId("msg-e1-mode-option-moderate"));
 
+    fireEvent.click(screen.getByTestId("msg-audio-e1"));
     await waitFor(() => {
       expect(screen.getByTestId("msg-summarize-error-e1")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByTestId("msg-request-summarize-e1"));
+    fireEvent.click(screen.getByTestId("msg-e1-mode-control"));
+    fireEvent.click(screen.getByTestId("msg-e1-mode-option-moderate"));
 
     await waitFor(() => {
       expect(screen.queryByTestId("msg-summarize-error-e1")).toBeNull();

@@ -54,17 +54,11 @@ func (s *Server) handleSummarizeEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// If already summarized, return existing summary
-	if event.Summarized {
-		writeJSON(w, http.StatusOK, summarizeEventResponse{
-			Summarized:       true,
-			SpeechParagraphs: event.SpeechParagraphs,
-		})
-		return
-	}
-
 	cfg := s.getTTSSummarizeConfig()
 
+	// On-demand calls always re-summarize. Unlike the auto path, the user has
+	// explicitly asked for a fresh summary (e.g. after changing level), so the
+	// cached-summary short-circuit is counterproductive.
 	normalized := NormalizeTextForSpeech(event.Text)
 	if strings.TrimSpace(normalized) == "" {
 		writeJSON(w, http.StatusOK, summarizeEventResponse{

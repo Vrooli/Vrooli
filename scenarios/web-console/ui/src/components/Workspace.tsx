@@ -21,7 +21,8 @@ import {
 import { cn } from "../lib/classnames";
 import { Button } from "./ui/button";
 import type { GateResult, InputSource } from "./terminal/inputGate";
-import { getSession, uploadFile, summarizeEvent, fetchCapabilities, getSessionDefaults, type BackendOption, type BackendID, type ExpirationPolicy } from "../lib/api";
+import { getSession, uploadFile, summarizeEvent, fetchCapabilities, getSessionDefaults, getTTSSummarizeConfig, updateTTSSummarizeConfig, type BackendOption, type BackendID, type ExpirationPolicy } from "../lib/api";
+import type { SummarizationLevel } from "./tts/PlaybackModeControl";
 import type { LaunchOptions } from "./TerminalLauncher";
 import ErrorBanner from "./ErrorBanner";
 import ErrorBoundary from "./ErrorBoundary";
@@ -42,6 +43,7 @@ import ConfirmCloseDialog from "./ConfirmCloseDialog";
 import TabBar from "./TabBar";
 import MessagesPane from "./MessagesPane";
 import AudioPlayerBar from "./AudioPlayerBar";
+import SummarizeErrorBanner, { type SummarizeErrorState } from "./SummarizeErrorBanner";
 import { useConversationStore } from "../stores/useConversationStore";
 import type { TTSPlaybackState } from "../hooks/tts/types";
 
@@ -573,6 +575,70 @@ export default function Workspace() {
   // --- Messages View TTS controls ---
   const [activeSpeakingEventId, setActiveSpeakingEventId] = useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
+  const [summarizeLevel, setSummarizeLevel] = useState<SummarizationLevel>("moderate");
+  const [summarizeError, setSummarizeError] = useState<SummarizeErrorState | null>(null);
+
+  const handleSummarizeFailed = useCallback((sessionId: string, eventId: string, message: string, source: "auto" | "on-demand") => {
+    setSummarizeError({ sessionId, eventId, message, source, status: "failed" });
+  }, []);
+
+  const handleDismissSummarizeError = useCallback(() => {
+    setSummarizeError(null);
+  }, []);
+
+  const handleRetrySummarize = useCallback(() => {
+    setSummarizeError((prev) => {
+      if (!prev) return prev;
+      const { sessionId, eventId } = prev;
+      // Fire-and-forget retry. The on-demand endpoint now always re-summarizes
+      // using the current level in TTSSummarizeConfig, so just hitting it again
+      // gives the user what they'd expect.
+      void summarizeEvent(sessionId, eventId).then((res) => {
+        if (res.summarized && res.speechParagraphs) {
+          const convState = useConversationStore.getState();
+          const session = convState.sessions[sessionId];
+          if (session) {
+            const updatedEvents = session.events.map((ev) =>
+              ev.id === eventId
+                ? {
+                    ...ev,
+                    summarized: true,
+                    originalSpeechParagraphs: ev.originalSpeechParagraphs ?? ev.speechParagraphs,
+                    speechParagraphs: res.speechParagraphs ?? ev.speechParagraphs,
+                  }
+                : ev,
+            );
+            useConversationStore.setState({
+              sessions: { ...convState.sessions, [sessionId]: { ...session, events: updatedEvents } },
+            });
+          }
+          setSummarizeError(null);
+        } else if (res.error) {
+          setSummarizeError((s) => s && s.sessionId === sessionId && s.eventId === eventId
+            ? { ...s, message: res.error ?? s.message, status: "failed" }
+            : s);
+        }
+      }).catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : "Summarization failed";
+        setSummarizeError((s) => s && s.sessionId === sessionId && s.eventId === eventId
+          ? { ...s, message, status: "failed" }
+          : s);
+      });
+      return { ...prev, status: "retrying" };
+    });
+  }, []);
+
+  // Load the global summarization level once on mount so the mode-control
+  // dropdown shows the correct active level and changes from the bar persist.
+  useEffect(() => {
+    let cancelled = false;
+    void getTTSSummarizeConfig().then((cfg) => {
+      if (!cancelled) setSummarizeLevel(cfg.level);
+    }).catch(() => {
+      // Silently keep the default — summarize config endpoint may be unavailable.
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   // Persistent last-played event for the replay bar.  Unlike
   // activeSpeakingEventId (which is cleared when TTS stops), these survive
@@ -909,6 +975,7 @@ export default function Workspace() {
                   if (eventId) { setLastTtsEventId(eventId); setLastTtsPaneId(paneMeta.sessionId); }
                 }
               }}
+              onSummarizeError={(eventId, message) => handleSummarizeFailed(paneMeta.sessionId, eventId, message, "auto")}
               ref={(handle) =>
                 registerTerminalRef(paneMeta.sessionId, handle)
               }
@@ -922,6 +989,9 @@ export default function Workspace() {
                         onSpeakOne={(eventId, text, paragraphs, opts) => handleSpeakOne(paneMeta.sessionId, eventId, text, paragraphs, opts)}
                         activeSpeakingEventId={store.activePane === paneMeta.sessionId ? activeSpeakingEventId : null}
                         isTtsSpeaking={isTtsSpeaking && store.activePane === paneMeta.sessionId}
+                        summarizeLevel={summarizeLevel}
+                        onSummarizeLevelChanged={setSummarizeLevel}
+                        onSummarizeFailed={(eventId, message) => handleSummarizeFailed(paneMeta.sessionId, eventId, message, "on-demand")}
                       />
             </div>
           )}
@@ -974,6 +1044,14 @@ export default function Workspace() {
           rejection={voiceInput.rejectedAudio}
           onRetry={voiceInput.retryWithoutFilter}
           onDismiss={voiceInput.dismissRejection}
+        />
+      )}
+
+      {summarizeError && (
+        <SummarizeErrorBanner
+          state={summarizeError}
+          onRetry={handleRetrySummarize}
+          onDismiss={handleDismissSummarizeError}
         />
       )}
 
@@ -1069,6 +1147,7 @@ export default function Workspace() {
                           if (eventId) { setLastTtsEventId(eventId); setLastTtsPaneId(paneMeta.sessionId); }
                         }
                       }}
+                      onSummarizeError={(eventId, message) => handleSummarizeFailed(paneMeta.sessionId, eventId, message, "auto")}
                       ref={(handle) =>
                         registerTerminalRef(paneMeta.sessionId, handle)
                       }
@@ -1082,6 +1161,9 @@ export default function Workspace() {
                         onSpeakOne={(eventId, text, paragraphs, opts) => handleSpeakOne(paneMeta.sessionId, eventId, text, paragraphs, opts)}
                         activeSpeakingEventId={store.activePane === paneMeta.sessionId ? activeSpeakingEventId : null}
                         isTtsSpeaking={isTtsSpeaking && store.activePane === paneMeta.sessionId}
+                        summarizeLevel={summarizeLevel}
+                        onSummarizeLevelChanged={setSummarizeLevel}
+                        onSummarizeFailed={(eventId, message) => handleSummarizeFailed(paneMeta.sessionId, eventId, message, "on-demand")}
                       />
                     </div>
                   )}
@@ -1154,7 +1236,7 @@ export default function Workspace() {
             : undefined;
           const hasOriginal = (activeEvent?.summarized ?? false) &&
             (activeEvent?.originalSpeechParagraphs?.length ?? 0) > 0;
-          const canRequestSummarize = !!(activeEvent && !activeEvent.summarized && activeEvent.role === "assistant");
+          const canRequestSummarize = !!(activeEvent && activeEvent.role === "assistant");
           return (
             <AudioPlayerBar
               isPaused={pb.isPaused}
@@ -1167,6 +1249,7 @@ export default function Workspace() {
               hasOriginalVersion={hasOriginal}
               canSummarize={canRequestSummarize}
               isSummarizing={isSummarizing}
+              currentLevel={summarizeLevel}
               onPause={handleTtsPause}
               onResume={isReplayMode ? () => {
                 // Replay the last TTS event
@@ -1193,29 +1276,45 @@ export default function Workspace() {
                   : (activeEvent.originalSpeechParagraphs ?? activeEvent.speechParagraphs);
                 speakTextOnPane(activePaneId, activeEvent.text, paragraphs, { eventId: activeEvent.id, version: useSummarized ? "active" : "original" });
               } : undefined}
-              onRequestSummarize={canRequestSummarize && activeEvent && store.activePane ? () => {
+              onChangeLevel={canRequestSummarize && activeEvent && store.activePane ? (level) => {
                 const sid = store.activePane;
                 if (!sid) return;
                 const eid = activeEvent.id;
+                const levelChanged = level !== summarizeLevel;
                 setIsSummarizing(true);
-                void summarizeEvent(sid, eid).then((res) => {
-                  if (res.summarized && res.speechParagraphs) {
-                    // Update the conversation store with the summary
+                const levelUpdate = levelChanged
+                  ? updateTTSSummarizeConfig({ level }).then((cfg) => {
+                      setSummarizeLevel(cfg.level);
+                    })
+                  : Promise.resolve();
+                void levelUpdate.then(() => summarizeEvent(sid, eid)).then((res) => {
+                  if (res && res.summarized && res.speechParagraphs) {
                     const convState = useConversationStore.getState();
                     const session = convState.sessions[sid];
                     if (session) {
                       const updatedEvents = session.events.map((ev) =>
                         ev.id === eid
-                          ? { ...ev, summarized: true, originalSpeechParagraphs: ev.speechParagraphs, speechParagraphs: res.speechParagraphs ?? ev.speechParagraphs }
+                          ? {
+                              ...ev,
+                              summarized: true,
+                              originalSpeechParagraphs: ev.originalSpeechParagraphs ?? ev.speechParagraphs,
+                              speechParagraphs: res.speechParagraphs ?? ev.speechParagraphs,
+                            }
                           : ev,
                       );
                       useConversationStore.setState({
                         sessions: { ...convState.sessions, [sid]: { ...session, events: updatedEvents } },
                       });
-                      // Replay with summarized version
                       speakTextOnPane(sid, activeEvent.text, res.speechParagraphs, { eventId: eid, version: "active" });
                     }
+                    // Successful summarize clears any lingering error for this event.
+                    setSummarizeError((prev) => prev && prev.eventId === eid ? null : prev);
+                  } else if (res && res.error) {
+                    handleSummarizeFailed(sid, eid, res.error, "on-demand");
                   }
+                }).catch((err: unknown) => {
+                  const message = err instanceof Error ? err.message : "Summarization failed";
+                  handleSummarizeFailed(sid, eid, message, "on-demand");
                 }).finally(() => setIsSummarizing(false));
               } : undefined}
             />

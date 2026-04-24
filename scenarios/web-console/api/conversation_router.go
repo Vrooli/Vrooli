@@ -140,6 +140,13 @@ func (s *Server) asyncSummarizeAndNotify(event ConversationEvent, sessionID stri
 			return
 		}
 		logSummarizeResult("auto", cfg, event.ID, len(normalized), 0, result.ElapsedMs, err)
+		// Notify connected clients so they can surface a persistent banner
+		// with a retry affordance. Reuse the event payload (paragraphs are
+		// unchanged) and mark it as an update carrying the error string.
+		errEvent := event
+		errEvent.IsUpdate = true
+		errEvent.SummarizeError = summarizeErrorMessage(err)
+		sess.SendConversation(errEvent)
 		return
 	}
 	logSummarizeResult("auto", cfg, event.ID, len(normalized), len(result.Summary), result.ElapsedMs, nil)

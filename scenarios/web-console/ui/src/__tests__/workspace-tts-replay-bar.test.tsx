@@ -215,6 +215,8 @@ vi.mock("../lib/api", () => ({
   summarizeEvent: vi.fn().mockResolvedValue({}),
   fetchCapabilities: vi.fn().mockResolvedValue({ capabilities: [], timestamp: "" }),
   getSessionDefaults: vi.fn().mockResolvedValue({ default_backend: "standard", default_policy: { mode: "never" } }),
+  getTTSSummarizeConfig: vi.fn().mockResolvedValue({ enabled: false, charThreshold: 500, level: "moderate", model: "qwen3:1.7b", timeoutSeconds: 30 }),
+  updateTTSSummarizeConfig: vi.fn().mockResolvedValue({ enabled: false, charThreshold: 500, level: "moderate", model: "qwen3:1.7b", timeoutSeconds: 30 }),
 }));
 
 // ── Test constants ──

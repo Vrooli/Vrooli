@@ -202,6 +202,98 @@ func TestHandleSummarizeEvent_EvictsCache(t *testing.T) {
 	}
 }
 
+func TestHandleSummarizeEvent_AlreadySummarized_ReSummarizes(t *testing.T) {
+	callCount := 0
+	ollama := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		callCount++
+		content := "First summary version."
+		if callCount > 1 {
+			content = "Second summary version."
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"message": map[string]string{"content": content},
+		})
+	}))
+	defer ollama.Close()
+
+	srv, sess, eventID, _ := newSummarizeTestServer(t, ollama)
+
+	// First on-demand call.
+	req1 := httptest.NewRequest("POST",
+		"/api/v1/sessions/"+sess.ID+"/conversation/"+eventID+"/summarize",
+		strings.NewReader(""))
+	req1 = mux.SetURLVars(req1, map[string]string{"id": sess.ID, "eventId": eventID})
+	rec1 := httptest.NewRecorder()
+	srv.handleSummarizeEvent(rec1, req1)
+	if rec1.Code != http.StatusOK {
+		t.Fatalf("first call: expected 200, got %d", rec1.Code)
+	}
+
+	event, _ := srv.conversations.GetEvent(sess.ID, eventID)
+	if !event.Summarized {
+		t.Fatal("event should be marked summarized after first call")
+	}
+
+	// Second on-demand call on the already-summarized event.
+	req2 := httptest.NewRequest("POST",
+		"/api/v1/sessions/"+sess.ID+"/conversation/"+eventID+"/summarize",
+		strings.NewReader(""))
+	req2 = mux.SetURLVars(req2, map[string]string{"id": sess.ID, "eventId": eventID})
+	rec2 := httptest.NewRecorder()
+	srv.handleSummarizeEvent(rec2, req2)
+	if rec2.Code != http.StatusOK {
+		t.Fatalf("second call: expected 200, got %d", rec2.Code)
+	}
+
+	if callCount != 2 {
+		t.Errorf("expected 2 calls to summarizer (fresh re-summarize each time), got %d", callCount)
+	}
+
+	var resp summarizeEventResponse
+	_ = json.Unmarshal(rec2.Body.Bytes(), &resp)
+	if !resp.Summarized {
+		t.Error("second call response should be summarized=true")
+	}
+	if len(resp.SpeechParagraphs) == 0 || resp.SpeechParagraphs[0] == "First summary version." {
+		t.Errorf("second call should return the fresh summary, got %v", resp.SpeechParagraphs)
+	}
+}
+
+func TestAsyncSummarizeAndNotify_EmitsErrorOnFailure(t *testing.T) {
+	ollama := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer ollama.Close()
+
+	srv, sess, eventID, _ := newSummarizeTestServer(t, ollama)
+
+	// Subscribe a client to observe the conversation_event_update on failure.
+	conversationCh := sess.SubscribeConversation()
+	defer sess.UnsubscribeConversation(conversationCh)
+
+	event, _ := srv.conversations.GetEvent(sess.ID, eventID)
+	// Drain any initial events (e.g., the append event) before the assertion.
+	for len(conversationCh) > 0 {
+		<-conversationCh
+	}
+	srv.asyncSummarizeAndNotify(event, sess.ID, sess)
+
+	select {
+	case emitted := <-conversationCh:
+		if emitted.ID != eventID {
+			t.Fatalf("expected error event for %s, got %s", eventID, emitted.ID)
+		}
+		if !emitted.IsUpdate {
+			t.Error("error notification should be flagged IsUpdate")
+		}
+		if emitted.SummarizeError == "" {
+			t.Error("error notification should carry a non-empty SummarizeError")
+		}
+	default:
+		t.Fatal("expected a conversation event update carrying SummarizeError, got none")
+	}
+}
+
 func TestHandleSummarizeEvent_FailurePreservesCache(t *testing.T) {
 	ollama := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)

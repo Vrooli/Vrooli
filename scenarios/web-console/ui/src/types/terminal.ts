@@ -53,6 +53,12 @@ export interface TerminalMessage {
   speechParagraphs?: string[];
   originalSpeechParagraphs?: string[];
   summarized?: boolean;
+  /**
+   * Auto-summarize failure message, sent on conversation_event_update when a
+   * backend-initiated summarization attempt fails. UI surfaces this as a
+   * persistent banner.
+   */
+  summarizeError?: string;
   /** Client-assigned sequence number for stdin messages; echoed in stdin_ack. */
   seq?: number;
   /** Per-message success flag (used by stdin_ack). */

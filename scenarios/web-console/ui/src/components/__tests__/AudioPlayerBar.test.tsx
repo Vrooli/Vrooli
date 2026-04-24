@@ -91,28 +91,19 @@ describe("AudioPlayerBar", () => {
     expect(screen.getByTestId("tts-time").textContent).toBe("0:00 / --:--");
   });
 
-  it("speed button cycles through presets on click", () => {
-    const props = makeProps({ playbackRate: 1 });
-    render(<AudioPlayerBar {...props} />);
-    const speedBtn = screen.getByTestId("tts-speed");
-    expect(speedBtn.textContent).toBe("1x");
-    fireEvent.click(speedBtn);
-    expect(props.onSetPlaybackRate).toHaveBeenCalledWith(1.25);
-  });
-
-  it("hides scrub bar when canSeek is false", () => {
+  it("scrub is always rendered but disabled when canSeek is false", () => {
     render(<AudioPlayerBar {...makeProps({ capabilities: limitedCapabilities })} />);
-    expect(screen.queryByTestId("tts-scrub")).toBeNull();
+    const scrub = screen.getByTestId("tts-scrub") as HTMLInputElement;
+    expect(scrub).toBeInTheDocument();
+    expect(scrub).toBeDisabled();
   });
 
-  it("hides scrub bar when duration is null", () => {
+  it("scrub is always rendered but disabled when duration is null (idle/replay)", () => {
     render(<AudioPlayerBar {...makeProps({ duration: null })} />);
-    expect(screen.queryByTestId("tts-scrub")).toBeNull();
-  });
-
-  it("hides speed button when canAdjustSpeed is false", () => {
-    render(<AudioPlayerBar {...makeProps({ capabilities: limitedCapabilities })} />);
-    expect(screen.queryByTestId("tts-speed")).toBeNull();
+    const scrub = screen.getByTestId("tts-scrub") as HTMLInputElement;
+    expect(scrub).toBeInTheDocument();
+    expect(scrub).toBeDisabled();
+    expect(scrub.value).toBe("0");
   });
 
   it("hides audio button when canAdjustVolume is false", () => {
@@ -120,11 +111,27 @@ describe("AudioPlayerBar", () => {
     expect(screen.queryByTestId("tts-audio-button")).toBeNull();
   });
 
-  it("clicking audio button opens volume popover", () => {
+  it("clicking audio button opens settings popover with volume slider", () => {
     render(<AudioPlayerBar {...makeProps()} />);
     fireEvent.click(screen.getByTestId("tts-audio-button"));
     expect(screen.getByTestId("audio-popover")).toBeInTheDocument();
     expect(screen.getByTestId("tts-volume-slider")).toBeInTheDocument();
+  });
+
+  it("settings popover includes speed presets when canAdjustSpeed is true", () => {
+    render(<AudioPlayerBar {...makeProps({ playbackRate: 1 })} />);
+    fireEvent.click(screen.getByTestId("tts-audio-button"));
+    expect(screen.getByTestId("tts-speed-preset-0.5")).toBeInTheDocument();
+    expect(screen.getByTestId("tts-speed-preset-1")).toBeInTheDocument();
+    expect(screen.getByTestId("tts-speed-preset-2")).toBeInTheDocument();
+  });
+
+  it("clicking a speed preset calls onSetPlaybackRate with that rate", () => {
+    const props = makeProps({ playbackRate: 1 });
+    render(<AudioPlayerBar {...props} />);
+    fireEvent.click(screen.getByTestId("tts-audio-button"));
+    fireEvent.click(screen.getByTestId("tts-speed-preset-1.5"));
+    expect(props.onSetPlaybackRate).toHaveBeenCalledWith(1.5);
   });
 
   it("volume slider changes call onSetVolume", () => {
@@ -142,20 +149,187 @@ describe("AudioPlayerBar", () => {
     expect(btn).toBeDisabled();
   });
 
-  it("shows summarized badge when isSummarized is true", () => {
-    render(<AudioPlayerBar {...makeProps({ isSummarized: true })} />);
-    expect(screen.getByTestId("tts-summarized-badge")).toBeInTheDocument();
+  // --- De-escalated summarized mode ---
+
+  it("does NOT render a standalone summarized badge", () => {
+    render(<AudioPlayerBar {...makeProps({ isSummarized: true, canSummarize: true })} />);
+    expect(screen.queryByTestId("tts-summarized-badge")).toBeNull();
   });
 
-  it("shows summarization toggle in popover when hasOriginalVersion is true", () => {
-    const props = makeProps({
+  it("does NOT apply an amber background to the bar in summarized mode", () => {
+    render(<AudioPlayerBar {...makeProps({ isSummarized: true, canSummarize: true })} />);
+    const bar = screen.getByTestId("audio-player-bar");
+    expect(bar.className).not.toMatch(/bg-amber/);
+  });
+
+  it("scrub retains amber accent in summarized mode (the sole remaining signal)", () => {
+    render(<AudioPlayerBar {...makeProps({ isSummarized: true, canSummarize: true })} />);
+    const scrub = screen.getByTestId("tts-scrub");
+    expect(scrub.className).toMatch(/accent-amber-400/);
+  });
+
+  // --- PlaybackModeControl integration ---
+
+  it("renders mode control as 'Summarized' when isSummarized=true", () => {
+    render(<AudioPlayerBar {...makeProps({
       isSummarized: true,
       hasOriginalVersion: true,
+      canSummarize: true,
       onToggleSummarized: vi.fn(),
-    });
-    render(<AudioPlayerBar {...props} />);
-    fireEvent.click(screen.getByTestId("tts-audio-button"));
-    expect(screen.getByTestId("tts-play-summarized")).toBeInTheDocument();
-    expect(screen.getByTestId("tts-play-original")).toBeInTheDocument();
+      onChangeLevel: vi.fn(),
+    })} />);
+    const ctrl = screen.getByTestId("tts-mode-control");
+    expect(ctrl.textContent).toMatch(/Summarized/);
+  });
+
+  it("renders mode control as 'Original' when not summarized but has original version", () => {
+    render(<AudioPlayerBar {...makeProps({
+      isSummarized: false,
+      hasOriginalVersion: true,
+      canSummarize: true,
+      onToggleSummarized: vi.fn(),
+      onChangeLevel: vi.fn(),
+    })} />);
+    const ctrl = screen.getByTestId("tts-mode-control");
+    expect(ctrl.textContent).toMatch(/Original/);
+  });
+
+  it("renders mode control as 'Summarize' when no summary exists but canSummarize", () => {
+    render(<AudioPlayerBar {...makeProps({
+      isSummarized: false,
+      hasOriginalVersion: false,
+      canSummarize: true,
+      onChangeLevel: vi.fn(),
+    })} />);
+    const ctrl = screen.getByTestId("tts-mode-control");
+    expect(ctrl.textContent).toMatch(/Summarize/);
+  });
+
+  it("hides mode control when !hasOriginal && !canSummarize", () => {
+    render(<AudioPlayerBar {...makeProps({
+      isSummarized: false,
+      hasOriginalVersion: false,
+      canSummarize: false,
+    })} />);
+    expect(screen.queryByTestId("tts-mode-control")).toBeNull();
+  });
+
+  it("clicking mode control opens dropdown with level options", () => {
+    render(<AudioPlayerBar {...makeProps({
+      isSummarized: true,
+      hasOriginalVersion: true,
+      canSummarize: true,
+      currentLevel: "moderate",
+      onToggleSummarized: vi.fn(),
+      onChangeLevel: vi.fn(),
+    })} />);
+    fireEvent.click(screen.getByTestId("tts-mode-control"));
+    expect(screen.getByTestId("tts-mode-menu")).toBeInTheDocument();
+    expect(screen.getByTestId("tts-mode-option-original")).toBeInTheDocument();
+    expect(screen.getByTestId("tts-mode-option-light")).toBeInTheDocument();
+    expect(screen.getByTestId("tts-mode-option-moderate")).toBeInTheDocument();
+    expect(screen.getByTestId("tts-mode-option-heavy")).toBeInTheDocument();
+  });
+
+  it("selecting 'Original' from dropdown calls onToggleSummarized(false)", () => {
+    const onToggleSummarized = vi.fn();
+    render(<AudioPlayerBar {...makeProps({
+      isSummarized: true,
+      hasOriginalVersion: true,
+      canSummarize: true,
+      currentLevel: "moderate",
+      onToggleSummarized,
+      onChangeLevel: vi.fn(),
+    })} />);
+    fireEvent.click(screen.getByTestId("tts-mode-control"));
+    fireEvent.click(screen.getByTestId("tts-mode-option-original"));
+    expect(onToggleSummarized).toHaveBeenCalledWith(false);
+  });
+
+  it("selecting a different level calls onChangeLevel with that level", () => {
+    const onChangeLevel = vi.fn();
+    render(<AudioPlayerBar {...makeProps({
+      isSummarized: true,
+      hasOriginalVersion: true,
+      canSummarize: true,
+      currentLevel: "moderate",
+      onChangeLevel,
+      onToggleSummarized: vi.fn(),
+    })} />);
+    fireEvent.click(screen.getByTestId("tts-mode-control"));
+    fireEvent.click(screen.getByTestId("tts-mode-option-heavy"));
+    expect(onChangeLevel).toHaveBeenCalledWith("heavy");
+  });
+
+  it("selecting the current level is a no-op", () => {
+    const onChangeLevel = vi.fn();
+    render(<AudioPlayerBar {...makeProps({
+      isSummarized: true,
+      hasOriginalVersion: true,
+      canSummarize: true,
+      currentLevel: "moderate",
+      onChangeLevel,
+      onToggleSummarized: vi.fn(),
+    })} />);
+    fireEvent.click(screen.getByTestId("tts-mode-control"));
+    fireEvent.click(screen.getByTestId("tts-mode-option-moderate"));
+    expect(onChangeLevel).not.toHaveBeenCalled();
+  });
+
+  it("disables mode control when isSummarizing", () => {
+    render(<AudioPlayerBar {...makeProps({
+      isSummarized: false,
+      canSummarize: true,
+      isSummarizing: true,
+      onChangeLevel: vi.fn(),
+    })} />);
+    const ctrl = screen.getByTestId("tts-mode-control");
+    expect(ctrl).toBeDisabled();
+  });
+
+  // --- Overflow regression: no layout-reserved elements that push buttons off-screen ---
+
+  it("scrub bar has min-w-0 so it can shrink (no overflow)", () => {
+    render(<AudioPlayerBar {...makeProps()} />);
+    const scrub = screen.getByTestId("tts-scrub");
+    expect(scrub.className).toMatch(/min-w-0/);
+  });
+
+  it("mode control is disabled in idle/replay state (duration=null)", () => {
+    render(<AudioPlayerBar {...makeProps({
+      duration: null,
+      isSummarized: true,
+      hasOriginalVersion: true,
+      canSummarize: true,
+      onToggleSummarized: vi.fn(),
+      onChangeLevel: vi.fn(),
+    })} />);
+    expect(screen.getByTestId("tts-mode-control")).toBeDisabled();
+  });
+
+  it("mode control stays enabled while audio is playing (duration set)", () => {
+    render(<AudioPlayerBar {...makeProps({
+      duration: 60,
+      isSummarized: true,
+      hasOriginalVersion: true,
+      canSummarize: true,
+      onToggleSummarized: vi.fn(),
+      onChangeLevel: vi.fn(),
+    })} />);
+    expect(screen.getByTestId("tts-mode-control")).not.toBeDisabled();
+  });
+
+  it("time display is visible at all widths and does not wrap", () => {
+    render(<AudioPlayerBar {...makeProps()} />);
+    const time = screen.getByTestId("tts-time");
+    expect(time.className).not.toMatch(/\bhidden\b/);
+    expect(time.className).toMatch(/whitespace-nowrap/);
+  });
+
+  it("does NOT render the old standalone speed button on the bar", () => {
+    render(<AudioPlayerBar {...makeProps()} />);
+    // The speed button used to sit on the bar itself; now it lives in the popover.
+    // The only tts-speed testids should be the presets inside the popover (once opened).
+    expect(screen.queryByTestId("tts-speed")).toBeNull();
   });
 });

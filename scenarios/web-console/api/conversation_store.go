@@ -60,6 +60,11 @@ type ConversationEvent struct {
 	// async update to a previously delivered event (e.g. summarization result).
 	// The WS forwarder uses this to send a conversation_event_update message.
 	IsUpdate bool `json:"-"`
+	// SummarizeError is a transient field (not persisted) that carries an
+	// auto-summarization failure message to connected clients. When set, the
+	// WS forwarder includes it in the conversation_event_update payload so the
+	// UI can surface a persistent banner with retry affordance.
+	SummarizeError string `json:"-"`
 }
 
 type ConversationCursor struct {

@@ -105,6 +105,10 @@ type TerminalMessage struct {
 	SpeechParagraphs         []string `json:"speechParagraphs,omitempty"`
 	OriginalSpeechParagraphs []string `json:"originalSpeechParagraphs,omitempty"`
 	Summarized               bool     `json:"summarized,omitempty"`
+	// SummarizeError carries an auto-summarization failure message when an
+	// async summarize attempt fails. Sent on conversation_event_update so the
+	// UI can surface a persistent banner with retry.
+	SummarizeError string `json:"summarizeError,omitempty"`
 	// Seq is the client-assigned sequence number for stdin messages; the
 	// server echoes it in the matching stdin_ack. Opaque to the server.
 	Seq int64 `json:"seq,omitempty"`
@@ -319,6 +323,7 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 					SpeechParagraphs:         event.SpeechParagraphs,
 					OriginalSpeechParagraphs: event.OriginalSpeechParagraphs,
 					Summarized:               event.Summarized,
+					SummarizeError:           event.SummarizeError,
 				})
 				writeMu.Unlock()
 			case <-ctx.Done():

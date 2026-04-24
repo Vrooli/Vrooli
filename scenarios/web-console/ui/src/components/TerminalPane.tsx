@@ -92,6 +92,12 @@ interface TerminalPaneProps {
   onTtsSpeakingChange?: (speaking: boolean) => void;
   /** Called when the currently-speaking conversation event changes (for summarize controls). */
   onSpeakingEventChange?: (eventId: string | null) => void;
+  /**
+   * Called when an auto-summarize attempt for an assistant event fails.
+   * Consumers use this to surface a persistent banner. The error message is
+   * produced by the backend; eventId identifies the affected event.
+   */
+  onSummarizeError?: (eventId: string, message: string) => void;
 }
 
 // [REQ:P0-007b] Terminal Key/Chord Mapping - expose input injection
@@ -140,7 +146,7 @@ export interface TerminalPaneHandle {
 
 // [REQ:P0-002d] xterm.js Terminal Rendering
 const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
-  function TerminalPane({ sessionId, onExit, onReady, onVoiceStart, onVoiceStop, onTtsSpeakingChange, onSpeakingEventChange }, ref) {
+  function TerminalPane({ sessionId, onExit, onReady, onVoiceStart, onVoiceStop, onTtsSpeakingChange, onSpeakingEventChange, onSummarizeError }, ref) {
     const containerRef = useRef<HTMLDivElement>(null);
     const fitRef = useRef<FitAddon | null>(null);
     const serializeRef = useRef<SerializeAddon | null>(null);
@@ -278,9 +284,18 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       }
     }, [activePane, appendConversationEvent, autoTtsEnabled, backend, onSpeakingEventChange, persistCursor, sessionId, speakParagraphs, ttsStop, ttsSupported]);
 
-    const handleConversationEventUpdate = useCallback((eventId: string, patch: { speechParagraphs?: string[]; originalSpeechParagraphs?: string[]; summarized?: boolean }) => {
-      updateEvent(sessionId, eventId, patch);
-    }, [sessionId, updateEvent]);
+    const handleConversationEventUpdate = useCallback((eventId: string, patch: { speechParagraphs?: string[]; originalSpeechParagraphs?: string[]; summarized?: boolean; summarizeError?: string }) => {
+      if (patch.summarizeError) {
+        onSummarizeError?.(eventId, patch.summarizeError);
+      }
+      const storePatch: { speechParagraphs?: string[]; originalSpeechParagraphs?: string[]; summarized?: boolean } = {};
+      if (patch.speechParagraphs !== undefined) storePatch.speechParagraphs = patch.speechParagraphs;
+      if (patch.originalSpeechParagraphs !== undefined) storePatch.originalSpeechParagraphs = patch.originalSpeechParagraphs;
+      if (patch.summarized !== undefined) storePatch.summarized = patch.summarized;
+      if (Object.keys(storePatch).length > 0) {
+        updateEvent(sessionId, eventId, storePatch);
+      }
+    }, [sessionId, updateEvent, onSummarizeError]);
 
     useEffect(() => {
       if (activePane !== sessionId) return;
