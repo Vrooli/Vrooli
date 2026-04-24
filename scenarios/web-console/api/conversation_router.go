@@ -139,7 +139,7 @@ func (s *Server) asyncSummarizeAndNotify(event ConversationEvent, sessionID stri
 			logSummarizeSkipped("auto", cfg, event.ID, len(normalized), err.Error())
 			return
 		}
-		logSummarizeResult("auto", cfg, event.ID, len(normalized), 0, result.ElapsedMs, err)
+		logSummarizeResult("auto", cfg, event.ID, len(normalized), result, err)
 		// Notify connected clients so they can surface a persistent banner
 		// with a retry affordance. Reuse the event payload (paragraphs are
 		// unchanged) and mark it as an update carrying the error string.
@@ -149,7 +149,7 @@ func (s *Server) asyncSummarizeAndNotify(event ConversationEvent, sessionID stri
 		sess.SendConversation(errEvent)
 		return
 	}
-	logSummarizeResult("auto", cfg, event.ID, len(normalized), len(result.Summary), result.ElapsedMs, nil)
+	logSummarizeResult("auto", cfg, event.ID, len(normalized), result, nil)
 
 	newParagraphs := result.Paragraphs
 	s.conversations.UpdateSpeechParagraphs(sessionID, event.ID, newParagraphs)
@@ -165,18 +165,34 @@ func (s *Server) asyncSummarizeAndNotify(event ConversationEvent, sessionID stri
 
 // logSummarizeResult emits the unified tts-summarize log line. It is shared by
 // the auto (append) and on-demand code paths so a single grep surfaces both.
-func logSummarizeResult(path string, cfg TTSSummarizeConfig, eventID string, inChars, outChars int, elapsedMs int64, err error) {
+// Diagnostic fields (done_reason / eval_count / raw length) are appended on
+// failure so budget-exhausted truncation is distinguishable from a real empty
+// response without re-running the request.
+func logSummarizeResult(path string, cfg TTSSummarizeConfig, eventID string, inChars int, result TTSSummarizeResult, err error) {
+	outChars := len(result.Summary)
 	ratio := 0.0
 	if inChars > 0 {
 		ratio = float64(outChars) / float64(inChars)
 	}
 	if err != nil {
-		log.Printf("tts-summarize: path=%s event=%s model=%s level=%s in=%d out=%d ratio=%.2f ms=%d error=%v",
-			path, eventID, cfg.Model, cfg.Level, inChars, outChars, ratio, elapsedMs, err)
+		log.Printf("tts-summarize: path=%s event=%s model=%s level=%s in=%d out=%d ratio=%.2f ms=%d done_reason=%s eval=%d raw=%d error=%v",
+			path, eventID, cfg.Model, cfg.Level, inChars, outChars, ratio, result.ElapsedMs,
+			safeDoneReason(result.DoneReason), result.EvalCount, result.RawLen, err)
 		return
 	}
-	log.Printf("tts-summarize: path=%s event=%s model=%s level=%s in=%d out=%d ratio=%.2f ms=%d",
-		path, eventID, cfg.Model, cfg.Level, inChars, outChars, ratio, elapsedMs)
+	log.Printf("tts-summarize: path=%s event=%s model=%s level=%s in=%d out=%d ratio=%.2f ms=%d done_reason=%s eval=%d",
+		path, eventID, cfg.Model, cfg.Level, inChars, outChars, ratio, result.ElapsedMs,
+		safeDoneReason(result.DoneReason), result.EvalCount)
+}
+
+// safeDoneReason returns "-" when Ollama didn't emit one (e.g. request
+// failed before the response was parsed) so the log line never has an empty
+// value that would confuse a grep.
+func safeDoneReason(r string) string {
+	if r == "" {
+		return "-"
+	}
+	return r
 }
 
 // logSummarizeSkipped records the no-op reason in the same grep-friendly shape.

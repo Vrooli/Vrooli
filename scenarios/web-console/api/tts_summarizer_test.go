@@ -35,8 +35,8 @@ func TestTTSSummarizer_Summarize(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if result != "summarized output" {
-		t.Errorf("expected %q, got %q", "summarized output", result)
+	if result.Content != "summarized output" {
+		t.Errorf("expected %q, got %q", "summarized output", result.Content)
 	}
 }
 
@@ -143,8 +143,8 @@ func TestTTSSummarizer_StripsThinkTags(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if result != "The quick summary." {
-		t.Errorf("expected think tags stripped, got %q", result)
+	if result.Content != "The quick summary." {
+		t.Errorf("expected think tags stripped, got %q", result.Content)
 	}
 }
 
@@ -222,6 +222,67 @@ func TestSummarizeTokenBudget_LevelShape(t *testing.T) {
 	// Unknown levels fall through to moderate.
 	if summarizeTokenBudget("unknown", inputChars) != summarizeTokenBudget("moderate", inputChars) {
 		t.Errorf("unknown level should default to moderate budget")
+	}
+}
+
+// TestTTSSummarizer_SendsThinkFalse is the regression test for the qwen3
+// empty-summary bug: we must set "think": false at the request top level so
+// reasoning models skip their <think> block and don't exhaust num_predict
+// before producing any answer tokens.
+func TestTTSSummarizer_SendsThinkFalse(t *testing.T) {
+	var captured map[string]any
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&captured)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"message": map[string]string{"content": "ok"},
+		})
+	}))
+	defer ts.Close()
+
+	s := NewTTSSummarizer(ts.URL)
+	if _, err := s.Summarize(context.Background(), "text", "qwen3:1.7b", "moderate"); err != nil {
+		t.Fatalf("summarize: %v", err)
+	}
+
+	think, present := captured["think"]
+	if !present {
+		t.Fatalf("expected think field in request body, got %#v", captured)
+	}
+	b, ok := think.(bool)
+	if !ok || b != false {
+		t.Errorf("expected think=false, got %#v", think)
+	}
+}
+
+// TestTTSSummarizer_ReturnsDiagnostics verifies the summarizer propagates
+// done_reason, eval_count, and pre-strip raw content from the Ollama response
+// so the upstream logger can categorize failures without re-running the call.
+func TestTTSSummarizer_ReturnsDiagnostics(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"message":     map[string]string{"content": "<think>\ndropped\n</think>\nkept"},
+			"done_reason": "stop",
+			"eval_count":  42,
+		})
+	}))
+	defer ts.Close()
+
+	s := NewTTSSummarizer(ts.URL)
+	result, err := s.Summarize(context.Background(), "text", "qwen3:1.7b", "moderate")
+	if err != nil {
+		t.Fatalf("summarize: %v", err)
+	}
+	if result.Content != "kept" {
+		t.Errorf("Content: got %q, want %q", result.Content, "kept")
+	}
+	if !strings.Contains(result.RawContent, "<think>") {
+		t.Errorf("RawContent should be pre-strip, got %q", result.RawContent)
+	}
+	if result.DoneReason != "stop" {
+		t.Errorf("DoneReason: got %q, want stop", result.DoneReason)
+	}
+	if result.EvalCount != 42 {
+		t.Errorf("EvalCount: got %d, want 42", result.EvalCount)
 	}
 }
 

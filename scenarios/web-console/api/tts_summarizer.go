@@ -61,9 +61,28 @@ func summarizeTokenBudget(level string, inputChars int) int {
 	}
 }
 
-// Summarize sends text to Ollama with a level-appropriate system prompt
-// and returns the summarized text.
-func (s *TTSSummarizer) Summarize(ctx context.Context, text, model, level string) (string, error) {
+// TTSSummarizerResponse carries the answer plus the diagnostic signals we need
+// to distinguish a real empty response from a truncated/stripped one.
+type TTSSummarizerResponse struct {
+	// Content is the final post-strip, trimmed summary. May be empty — callers
+	// must inspect RawContent/DoneReason to classify the failure.
+	Content string
+	// RawContent is the pre-strip, trimmed model output. Used for diagnostics
+	// (logging a short snippet, detecting think-tag truncation).
+	RawContent string
+	// DoneReason is Ollama's completion reason ("stop", "length", "load", ...).
+	DoneReason string
+	// EvalCount is the number of tokens Ollama generated.
+	EvalCount int
+}
+
+// Summarize sends text to Ollama with a level-appropriate system prompt and
+// returns the stripped summary plus diagnostic fields. We pass `think: false`
+// at the request top level so reasoning models (qwen3 family) skip their
+// <think> block entirely — otherwise the reasoning alone blows past our
+// num_predict budget, Ollama truncates mid-thought, and stripThinkTags wipes
+// the unclosed block leaving an empty summary.
+func (s *TTSSummarizer) Summarize(ctx context.Context, text, model, level string) (TTSSummarizerResponse, error) {
 	systemPrompt, ok := summarizeSystemPrompts[level]
 	if !ok {
 		systemPrompt = summarizeSystemPrompts["moderate"]
@@ -76,6 +95,7 @@ func (s *TTSSummarizer) Summarize(ctx context.Context, text, model, level string
 			{"role": "user", "content": text},
 		},
 		"stream": false,
+		"think":  false,
 		"options": map[string]any{
 			"num_predict": summarizeTokenBudget(level, len(text)),
 			"temperature": 0.2,
@@ -83,36 +103,44 @@ func (s *TTSSummarizer) Summarize(ctx context.Context, text, model, level string
 	}
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
-		return "", fmt.Errorf("marshal request: %w", err)
+		return TTSSummarizerResponse{}, fmt.Errorf("marshal request: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.BaseURL+"/api/chat", bytes.NewReader(jsonBody))
 	if err != nil {
-		return "", fmt.Errorf("create request: %w", err)
+		return TTSSummarizerResponse{}, fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := s.Client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("request failed: %w", err)
+		return TTSSummarizerResponse{}, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-		return "", fmt.Errorf("ollama returned %d: %s", resp.StatusCode, string(respBody))
+		return TTSSummarizerResponse{}, fmt.Errorf("ollama returned %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	var result struct {
 		Message struct {
 			Content string `json:"content"`
 		} `json:"message"`
+		DoneReason string `json:"done_reason"`
+		EvalCount  int    `json:"eval_count"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("decode response: %w", err)
+		return TTSSummarizerResponse{}, fmt.Errorf("decode response: %w", err)
 	}
 
-	return stripThinkTags(strings.TrimSpace(result.Message.Content)), nil
+	raw := strings.TrimSpace(result.Message.Content)
+	return TTSSummarizerResponse{
+		Content:    stripThinkTags(raw),
+		RawContent: raw,
+		DoneReason: result.DoneReason,
+		EvalCount:  result.EvalCount,
+	}, nil
 }
 
 // stripThinkTags removes <think>...</think> blocks that reasoning models

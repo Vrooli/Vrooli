@@ -80,13 +80,13 @@ func (s *Server) handleSummarizeEvent(w http.ResponseWriter, r *http.Request) {
 		Text:    normalized,
 	})
 	if err != nil {
-		logSummarizeResult("on-demand", cfg, eventID, len(normalized), 0, result.ElapsedMs, err)
+		logSummarizeResult("on-demand", cfg, eventID, len(normalized), result, err)
 		writeJSON(w, http.StatusOK, summarizeEventResponse{
 			Error: summarizeErrorMessage(err),
 		})
 		return
 	}
-	logSummarizeResult("on-demand", cfg, eventID, len(normalized), len(result.Summary), result.ElapsedMs, nil)
+	logSummarizeResult("on-demand", cfg, eventID, len(normalized), result, nil)
 
 	newParagraphs := result.Paragraphs
 	s.conversations.UpdateSpeechParagraphs(sessionID, eventID, newParagraphs)
@@ -98,9 +98,16 @@ func (s *Server) handleSummarizeEvent(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// emptySummaryErr is a sentinel used by the on-demand handler so the unified
-// log line has a grep-friendly error token for the empty-output case.
-var emptySummaryErr = summarizeError("empty summary returned")
+// errSummarizeBudgetInThink / errSummarizeTruncated / errSummarizeEmptyAfterStrip
+// / errSummarizeTrulyEmpty are the four categorized empty-result sentinels used
+// by the service and error-message helpers. Each names a distinct failure mode
+// so logs and user-facing banners can say something actionable.
+var (
+	errSummarizeBudgetInThink   = summarizeError("budget exhausted inside <think>")
+	errSummarizeTruncated       = summarizeError("response truncated (done_reason=length)")
+	errSummarizeEmptyAfterStrip = summarizeError("empty after stripping <think> block")
+	errSummarizeTrulyEmpty      = summarizeError("truly empty response from model")
+)
 
 type summarizeError string
 

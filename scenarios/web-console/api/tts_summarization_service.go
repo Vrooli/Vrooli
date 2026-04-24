@@ -27,6 +27,12 @@ type TTSSummarizeResult struct {
 	Paragraphs []string
 	Config     TTSSummarizeConfig
 	ElapsedMs  int64
+	// Diagnostics carried from the underlying TTSSummarizer response so the
+	// unified tts-summarize log line can distinguish real empty responses from
+	// token-budget-exhausted truncation.
+	DoneReason string
+	EvalCount  int
+	RawLen     int
 }
 
 type ttsSummarizeFuture struct {
@@ -125,29 +131,55 @@ func (s *TTSSummarizationService) run(ctx context.Context, req TTSSummarizeReque
 	defer cancel()
 
 	started := time.Now()
-	summary, err := s.summarizer.Summarize(runCtx, normalized, cfg.Model, cfg.Level)
+	resp, err := s.summarizer.Summarize(runCtx, normalized, cfg.Model, cfg.Level)
 	elapsedMs := time.Since(started).Milliseconds()
 	if err != nil {
 		return TTSSummarizeResult{
-			Config:    cfg,
-			ElapsedMs: elapsedMs,
+			Config:     cfg,
+			ElapsedMs:  elapsedMs,
+			DoneReason: resp.DoneReason,
+			EvalCount:  resp.EvalCount,
+			RawLen:     len(resp.RawContent),
 		}, err
 	}
 
-	summary = strings.TrimSpace(summary)
-	if summary == "" {
-		return TTSSummarizeResult{
-			Config:    cfg,
-			ElapsedMs: elapsedMs,
-		}, emptySummaryErr
-	}
-
-	return TTSSummarizeResult{
-		Summary:    summary,
-		Paragraphs: SplitIntoSpeechParagraphs(summary),
+	summary := strings.TrimSpace(resp.Content)
+	result := TTSSummarizeResult{
 		Config:     cfg,
 		ElapsedMs:  elapsedMs,
-	}, nil
+		DoneReason: resp.DoneReason,
+		EvalCount:  resp.EvalCount,
+		RawLen:     len(resp.RawContent),
+	}
+	if summary == "" {
+		return result, classifyEmptySummary(resp)
+	}
+
+	result.Summary = summary
+	result.Paragraphs = SplitIntoSpeechParagraphs(summary)
+	return result, nil
+}
+
+// classifyEmptySummary picks the most descriptive sentinel error for an empty
+// result so the unified error message and metrics can tell apart token-budget
+// starvation from an actually-empty model response.
+func classifyEmptySummary(resp TTSSummarizerResponse) error {
+	raw := resp.RawContent
+	startsInThink := strings.HasPrefix(raw, "<think>")
+	hadThinkBlock := strings.Contains(raw, "<think>")
+	truncated := resp.DoneReason == "length"
+
+	switch {
+	case truncated && startsInThink:
+		return errSummarizeBudgetInThink
+	case truncated:
+		return errSummarizeTruncated
+	case hadThinkBlock:
+		// Closed think block but no content after strip.
+		return errSummarizeEmptyAfterStrip
+	default:
+		return errSummarizeTrulyEmpty
+	}
 }
 
 func waitForTTSSummarizeFuture(ctx context.Context, future *ttsSummarizeFuture) (TTSSummarizeResult, error) {
@@ -170,8 +202,14 @@ func summarizeErrorMessage(err error) string {
 	switch {
 	case err == nil:
 		return ""
-	case errors.Is(err, emptySummaryErr):
-		return "Summarizer returned empty result"
+	case errors.Is(err, errSummarizeBudgetInThink):
+		return "Model spent its entire token budget on internal reasoning. Try a shorter input or a non-reasoning model."
+	case errors.Is(err, errSummarizeTruncated):
+		return "Model response was truncated before producing a summary. Increase the token budget or try a smaller level."
+	case errors.Is(err, errSummarizeEmptyAfterStrip):
+		return "Model produced only reasoning, no summary. Try a different model."
+	case errors.Is(err, errSummarizeTrulyEmpty):
+		return "Summarizer returned empty response."
 	case errors.Is(err, errTTSSummarizeCoolingDown):
 		return "Summarization is cooling down after a recent timeout"
 	case isDeadlineExceededError(err):
