@@ -3,9 +3,9 @@ import { render, screen, waitFor, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FeedbackDialog } from "./feedback-dialog";
-import { FeedbackLockConflictError } from "../../services/feedback-service";
+import { FeedbackBusyError, FeedbackLockConflictError } from "../../services/feedback-service";
 import { selectors } from "../../consts/selectors";
-import type { FeedbackRound } from "../../types";
+import type { FeedbackRound, LockStatusResponse } from "../../types";
 
 beforeAll(() => {
   Object.defineProperty(window, "matchMedia", {
@@ -31,6 +31,9 @@ vi.mock("../../services/feedback-service", async () => {
     ...actual,
     feedbackService: {
       start: vi.fn(),
+      // Default to "nothing is running" so existing tests don't have to
+      // opt in. Lock-preflight tests override this per-case.
+      lockStatus: vi.fn(async () => ({ locked: false }) as LockStatusResponse),
     },
   };
 });
@@ -50,6 +53,7 @@ vi.mock("../../hooks/useIndexedDBAttachments", () => ({
 
 const { feedbackService } = await import("../../services/feedback-service");
 const mockStart = vi.mocked(feedbackService.start);
+const mockLockStatus = vi.mocked(feedbackService.lockStatus);
 
 function renderDialog(props?: Partial<React.ComponentProps<typeof FeedbackDialog>>) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -84,6 +88,8 @@ function makeRound(overrides: Partial<FeedbackRound> = {}): FeedbackRound {
 
 beforeEach(() => {
   mockStart.mockReset();
+  mockLockStatus.mockReset();
+  mockLockStatus.mockResolvedValue({ locked: false });
   try {
     localStorage.clear();
   } catch {
@@ -178,5 +184,92 @@ describe("FeedbackDialog", () => {
     await waitFor(() => expect(mockStart).toHaveBeenCalledTimes(2));
     const secondCallArgs = mockStart.mock.calls[1]![1];
     expect(secondCallArgs.override).toBe(true);
+  });
+
+  // Proactive preflight: if the initiative is already locked when the
+  // dialog opens, the warning renders immediately and the textarea is
+  // disabled until the user ticks override. This is the "don't let me
+  // type during an active agent" behavior the plan promised — the old
+  // code only surfaced the warning after a 409 round-trip.
+  it("renders the warning immediately when preflight says the initiative is locked", async () => {
+    mockLockStatus.mockResolvedValue({
+      locked: true,
+      holder: { run_id: "active-run", purpose: "feedback", round_number: 3 },
+    });
+    renderDialog();
+
+    const notice = await screen.findByTestId(selectors.feedback.dialogBlockerNotice);
+    expect(notice).toBeInTheDocument();
+    expect(notice.textContent).toContain("active-run");
+
+    const textarea = screen.getByTestId(selectors.feedback.dialogText);
+    expect(textarea).toBeDisabled();
+    expect(screen.getByTestId(selectors.feedback.dialogSubmit)).toBeDisabled();
+  });
+
+  // When preflight reports busy backlog items, the dialog lists them by
+  // ref so the user sees exactly which agents will be preempted before
+  // committing to override. Distinguishable from a plain lock conflict:
+  // here the holder is absent and activities carries the detail.
+  it("renders a per-item busy notice when preflight returns item activities", async () => {
+    mockLockStatus.mockResolvedValue({
+      locked: false,
+      item_activities: [
+        { ref: "execute/foo", purpose: "execute", run_id: "run-foo" },
+        { ref: "research/bar", purpose: "workshop", run_id: "run-bar" },
+      ],
+    });
+    renderDialog();
+
+    const notice = await screen.findByTestId(selectors.feedback.dialogBlockerNotice);
+    expect(notice.textContent).toContain("execute/foo");
+    expect(notice.textContent).toContain("research/bar");
+    expect(screen.getByTestId(selectors.feedback.dialogText)).toBeDisabled();
+  });
+
+  // Note-type rounds don't spawn an agent, so the active-agent guard
+  // doesn't apply. Switching to note while something is running must
+  // unblock typing so the user can still log observations into the
+  // feedback history. (Meta-optimizer signal capture shouldn't be
+  // gated on whether an unrelated agent happens to be running.)
+  it("does not block the note type even when the initiative is locked", async () => {
+    mockLockStatus.mockResolvedValue({
+      locked: true,
+      holder: { run_id: "active", purpose: "feedback" },
+    });
+    renderDialog();
+
+    // Initial render: feedback type is selected, notice present, textarea disabled.
+    await screen.findByTestId(selectors.feedback.dialogBlockerNotice);
+    expect(screen.getByTestId(selectors.feedback.dialogText)).toBeDisabled();
+
+    // Switch to note — the notice goes away and typing is allowed.
+    await userEvent.click(screen.getByTestId(selectors.feedback.dialogTypeNote));
+
+    await waitFor(() =>
+      expect(screen.queryByTestId(selectors.feedback.dialogBlockerNotice)).toBeNull(),
+    );
+    expect(screen.getByTestId(selectors.feedback.dialogText)).toBeEnabled();
+  });
+
+  // A 409 with `activities` should land in FeedbackBusyError, not the
+  // generic lock-conflict path. The dialog renders the same per-item
+  // notice as the preflight busy case so the post-submit and pre-submit
+  // experiences stay consistent.
+  it("distinguishes a busy-error 409 from a lock-conflict 409", async () => {
+    mockStart.mockRejectedValueOnce(
+      new FeedbackBusyError("busy", [
+        { ref: "execute/foo", purpose: "execute", run_id: "run-foo" },
+      ]),
+    );
+    renderDialog();
+
+    await userEvent.type(screen.getByTestId(selectors.feedback.dialogText), "attempt");
+    await userEvent.click(screen.getByTestId(selectors.feedback.dialogSubmit));
+
+    const notice = await screen.findByTestId(selectors.feedback.dialogBlockerNotice);
+    expect(notice.textContent).toContain("execute/foo");
+    // No holder line — we're specifically in the busy-items path.
+    expect(notice.textContent).not.toContain("holds the lock");
   });
 });

@@ -379,6 +379,7 @@ export const literalSelectors = {
     dialogAttach: "feedback-dialog-attach",
     dialogSubmit: "feedback-dialog-submit",
     dialogOverrideConfirm: "feedback-dialog-override-confirm",
+    dialogBlockerNotice: "feedback-dialog-blocker-notice",
     panel: "feedback-panel",
     panelEmpty: "feedback-panel-empty",
     panelRoundCard: "feedback-panel-round-card",

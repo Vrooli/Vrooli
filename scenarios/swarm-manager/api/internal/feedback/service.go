@@ -54,6 +54,18 @@ type AgentRunPoller interface {
 	GetRunState(ctx context.Context, runID string) (RunState, error)
 }
 
+// RunCanceller stops an in-flight agent-manager run. Used by the override
+// path: when the user confirms preemption via the warning dialog, the
+// service calls StopRun on the current holder and on any blocking item
+// runs so "single agent per initiative" is actually enforced, instead of
+// just being a lock-file rename while two agents keep running in the
+// background. Nil is acceptable (e.g. tests) — the override still takes
+// the lock, we just skip the cancel call and rely on the caller to know
+// they've left a zombie.
+type RunCanceller interface {
+	StopRun(ctx context.Context, runID string) error
+}
+
 // RunState is the subset of agent-manager run state the feedback service
 // needs to drive the pull-based agent-turn flow.
 type RunState struct {
@@ -71,11 +83,12 @@ type ItemActivityChecker interface {
 }
 
 // ItemActivity describes a single in-flight agent run the override dialog
-// may surface to the user.
+// may surface to the user. Wire format is snake_case so the UI can render
+// it without a camel-case translation step.
 type ItemActivity struct {
-	Ref     string // "kind/name"
-	RunID   string
-	Purpose string
+	Ref     string `json:"ref"` // "kind/name"
+	RunID   string `json:"run_id,omitempty"`
+	Purpose string `json:"purpose,omitempty"`
 }
 
 // ErrInitiativeBusy is returned by StartRound when one or more items in the
@@ -102,6 +115,7 @@ type Service struct {
 	spawner      AgentSpawner
 	activity     ItemActivityChecker
 	poller       AgentRunPoller
+	canceller    RunCanceller
 	apply        *proposals.Applier
 	StateBuilder func(initiativeName string) (proposals.CurrentState, error)
 	clock        func() time.Time
@@ -114,6 +128,7 @@ type Config struct {
 	Spawner      AgentSpawner
 	Activity     ItemActivityChecker
 	Poller       AgentRunPoller
+	Canceller    RunCanceller
 	Apply        *proposals.Applier
 	StateBuilder func(initiativeName string) (proposals.CurrentState, error)
 	Clock        func() time.Time
@@ -143,6 +158,7 @@ func NewService(cfg Config) (*Service, error) {
 		spawner:      cfg.Spawner,
 		activity:     cfg.Activity,
 		poller:       cfg.Poller,
+		canceller:    cfg.Canceller,
 		apply:        cfg.Apply,
 		StateBuilder: cfg.StateBuilder,
 		clock:        clk,
@@ -252,13 +268,20 @@ func (s *Service) StartRound(ctx context.Context, req StartRoundRequest) (Round,
 	}
 
 	// Pre-flight: surface item-level activity so the override dialog can
-	// list specific blockers rather than failing opaquely. Override skips
-	// the check (the user already saw the warning).
-	if !req.Override && s.activity != nil {
-		busy, actErr := s.activity.ActiveRunsForInitiative(req.InitiativeName)
+	// list specific blockers rather than failing opaquely. When the caller
+	// has opted in to override we skip the early return (they already saw
+	// the warning), but we still collect the list so the preempt step
+	// below can cancel those runs — otherwise "override" would be a lie
+	// and a second agent would run behind the new one.
+	var busy []ItemActivity
+	if s.activity != nil {
+		items, actErr := s.activity.ActiveRunsForInitiative(req.InitiativeName)
 		if actErr != nil {
 			slog.Warn("feedback: item activity check failed", "err", actErr, "initiative", req.InitiativeName)
-		} else if len(busy) > 0 {
+		} else {
+			busy = items
+		}
+		if len(busy) > 0 && !req.Override {
 			return Round{}, &BusyError{Activities: busy}
 		}
 	}
@@ -280,6 +303,14 @@ func (s *Service) StartRound(ctx context.Context, req StartRoundRequest) (Round,
 	}
 	provisionalRunID := holder.RunID
 	if req.Override {
+		// Cancel the preempted run(s) before taking the lock so
+		// "override" actually enforces single-agent-per-initiative
+		// rather than just overwriting a lock file. Best-effort: a
+		// cancel failure is logged but doesn't block the new round —
+		// the user has explicitly chosen to preempt and the lock
+		// overwrite still happens.
+		s.preemptForOverride(ctx, req.InitiativeName, busy)
+
 		if err := s.lock.AcquireOverride(req.InitiativeName, holder); err != nil {
 			return Round{}, fmt.Errorf("override lock: %w", err)
 		}
@@ -357,6 +388,97 @@ func (s *Service) StartRound(ctx context.Context, req StartRoundRequest) (Round,
 		_ = s.lock.Release(req.InitiativeName, provisionalRunID)
 	}
 	return round, nil
+}
+
+// preemptForOverride cancels the agent runs that a subsequent AcquireOverride
+// will displace, so the "single agent per initiative" invariant survives
+// the override path. It runs best-effort: any failure is logged but does
+// not block the new round, because the user has already explicitly opted
+// in to preemption via the warning dialog.
+//
+// Targets:
+//  1. The RunID recorded in the current lock holder (another in-flight
+//     feedback round or initiative review).
+//  2. The RunIDs of any busy member items supplied by the caller.
+//
+// For (1), if the holder identifies an in-flight feedback round on the
+// same initiative (purpose "feedback" or "feedback_continue", matching
+// RunID, status agent_thinking), we mark that round dismissed with a
+// clear rationale so the feedback log carries an audit trail rather than
+// silently leaving a half-finished round behind.
+func (s *Service) preemptForOverride(ctx context.Context, initiativeName string, busyItems []ItemActivity) {
+	// Current holder, if any.
+	holder, inspectErr := s.lock.Inspect(initiativeName)
+	if inspectErr != nil {
+		slog.Warn("feedback: override preempt: inspect lock failed",
+			"err", inspectErr, "initiative", initiativeName)
+	}
+	if holder != nil && holder.RunID != "" && s.canceller != nil {
+		if err := s.canceller.StopRun(ctx, holder.RunID); err != nil {
+			slog.Warn("feedback: override preempt: stop holder run failed",
+				"err", err, "initiative", initiativeName, "run_id", holder.RunID)
+		}
+	}
+	if holder != nil && isFeedbackPurpose(holder.Purpose) {
+		s.markPreemptedFeedbackRound(initiativeName, holder.RunID, holder.RoundNumber)
+	}
+
+	// Item-level preemption: cancel any busy agents running against
+	// member items so they don't fight the new feedback agent for
+	// filesystem/state. The items' own backlog status transitions fall
+	// out of the normal polling / finalization path — we don't touch
+	// them here.
+	if s.canceller != nil {
+		for _, act := range busyItems {
+			if strings.TrimSpace(act.RunID) == "" {
+				continue
+			}
+			if err := s.canceller.StopRun(ctx, act.RunID); err != nil {
+				slog.Warn("feedback: override preempt: stop item run failed",
+					"err", err, "initiative", initiativeName,
+					"ref", act.Ref, "run_id", act.RunID)
+			}
+		}
+	}
+}
+
+// markPreemptedFeedbackRound finds the in-flight feedback round matching
+// the preempted lock holder and records a dismiss decision so the feedback
+// log makes the preemption explicit. Silent no-op when the round can't be
+// resolved (already terminal, different initiative, etc.) — the audit
+// trail is nice-to-have, not load-bearing.
+func (s *Service) markPreemptedFeedbackRound(initiativeName, runID string, roundNumber int) {
+	if roundNumber <= 0 {
+		return
+	}
+	round, err := s.store.LoadRound(initiativeName, roundNumber)
+	if err != nil || round.Status != RoundStatusAgentThinking || round.RunID != runID {
+		return
+	}
+	now := s.clock().UTC().Format(time.RFC3339)
+	round.Status = RoundStatusDismissed
+	round.UpdatedAt = now
+	round.Decision = &Decision{
+		Kind:      DecisionDismiss,
+		DecidedAt: now,
+		Rationale: "preempted: user started a new feedback round via override",
+	}
+	if err := s.store.SaveRound(round); err != nil {
+		slog.Warn("feedback: override preempt: save dismissed round failed",
+			"err", err, "initiative", initiativeName, "round", roundNumber)
+	}
+}
+
+// isFeedbackPurpose reports whether the given lock purpose identifies a
+// feedback-service-owned holder. Initiative review locks use "review" and
+// stay untouched by the round-preemption helper (the review round has its
+// own store).
+func isFeedbackPurpose(p string) bool {
+	switch strings.TrimSpace(p) {
+	case "feedback", "feedback_continue":
+		return true
+	}
+	return false
 }
 
 // ContinueRoundRequest carries a follow-up user message for an existing

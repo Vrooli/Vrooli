@@ -431,7 +431,7 @@ const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\x1aauto_advance_delay_seconds\x18  \x01(\x05B\t\xbaH\x06\x1a\x04\x18x(\x00R\x17autoAdvanceDelaySeconds\x122\n" +
 	"\x0fagent_max_turns\x18\n" +
 	" \x01(\x05B\n" +
-	"\xbaH\a\x1a\x05\x18\xc8\x01(\x05R\ragentMaxTurns\x12>\n" +
+	"\xbaH\a\x1a\x05\x18\xe8\a(\x05R\ragentMaxTurns\x12>\n" +
 	"\x15agent_timeout_seconds\x18\v \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\x90\x1c(<R\x13agentTimeoutSeconds\x126\n" +
 	"\x17agent_requires_approval\x18\f \x01(\bR\x15agentRequiresApproval\x128\n" +

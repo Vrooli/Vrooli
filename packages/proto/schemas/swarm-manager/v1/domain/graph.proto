@@ -104,7 +104,7 @@ message GraphExecutionNodeData {
 // GraphAgentActivityNodeData describes a tracked agent activity node.
 message GraphAgentActivityNodeData {
   string activity_id = 1 [(buf.validate.field).string.min_len = 1];
-  string owner_type = 2 [(buf.validate.field).string = { in: ["backlog", "capture", "scenario"] }];
+  string owner_type = 2 [(buf.validate.field).string = { in: ["backlog", "capture", "scenario", "initiative"] }];
   optional string owner_kind = 3;
   string owner_name = 4 [(buf.validate.field).string.min_len = 1];
   optional string owner_title = 5;
@@ -118,7 +118,11 @@ message GraphAgentActivityNodeData {
     "fixup",
     "followup",
     "spec_sync",
-    "classify"
+    "classify",
+    "clarify",
+    "feedback",
+    "feedback_continue",
+    "review"
   ] }];
   string interaction_type = 8 [(buf.validate.field).string = { in: ["spawn", "continue"] }];
   string status = 9 [(buf.validate.field).string = { in: [

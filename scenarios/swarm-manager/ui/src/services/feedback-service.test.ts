@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createFeedbackService, FeedbackLockConflictError, type IFeedbackService } from "./feedback-service";
+import {
+  createFeedbackService,
+  FeedbackBusyError,
+  FeedbackLockConflictError,
+  type IFeedbackService,
+} from "./feedback-service";
 import { ApiError, type IApiClient } from "../lib/api-client";
 import type { FeedbackRound } from "../types";
 
@@ -101,6 +106,34 @@ describe("Feedback Service", () => {
     ).rejects.toBeInstanceOf(FeedbackLockConflictError);
   });
 
+  // A 409 whose body carries `activities` instead of `holder` describes
+  // busy backlog items rather than a competing initiative-level round.
+  // The UI renders a different warning for each — so the service must
+  // preserve that distinction instead of collapsing both into a single
+  // "initiative is locked" error.
+  it("maps a 409 conflict with an activities body into FeedbackBusyError", async () => {
+    const busyError = new ApiError(
+      "http",
+      JSON.stringify({
+        error: "initiative has active item-level agent runs",
+        activities: [
+          { ref: "execute/foo", run_id: "run-foo", purpose: "execute" },
+          { ref: "research/bar", run_id: "run-bar", purpose: "workshop" },
+        ],
+      }),
+      { status: 409 },
+    );
+    vi.mocked(api.post).mockRejectedValue(busyError);
+    const err = await service
+      .start("i1", { type: "feedback", text: "hi" })
+      .catch((e) => e);
+    expect(err).toBeInstanceOf(FeedbackBusyError);
+    expect((err as FeedbackBusyError).activities.map((a) => a.ref)).toEqual([
+      "execute/foo",
+      "research/bar",
+    ]);
+  });
+
   it("lets non-409 errors bubble up unchanged", async () => {
     vi.mocked(api.post).mockRejectedValue(new Error("boom"));
     await expect(service.start("i1", { type: "feedback", text: "hi" })).rejects.toThrow("boom");
@@ -153,6 +186,17 @@ describe("Feedback Service", () => {
     expect(api.get).toHaveBeenCalledWith("/initiatives/i1/feedback/lock");
     expect(status.locked).toBe(true);
     expect(status.holder?.run_id).toBe("r");
+  });
+
+  it("surfaces item_activities on the lock status response", async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      locked: false,
+      item_activities: [
+        { ref: "execute/foo", run_id: "run-foo", purpose: "execute" },
+      ],
+    });
+    const status = await service.lockStatus("i1");
+    expect(status.item_activities?.[0]?.ref).toBe("execute/foo");
   });
 
   it("builds attachment URLs using the canonical endpoint shape", () => {

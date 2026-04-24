@@ -664,6 +664,176 @@ func TestService_StartRound_BusyError_OverrideBypassesCheck(t *testing.T) {
 	}
 }
 
+// recordingCanceller captures every StopRun call so override-path tests
+// can assert exactly which agent runs were preempted. "Single agent per
+// initiative" only holds if override actually cancels — otherwise the
+// lock file is overwritten but the previous agent keeps running in the
+// background.
+type recordingCanceller struct {
+	stopped []string
+	err     error
+}
+
+func (c *recordingCanceller) StopRun(_ context.Context, runID string) error {
+	c.stopped = append(c.stopped, runID)
+	return c.err
+}
+
+// Override must cancel the previous feedback round's agent-manager run
+// *and* mark the preempted round dismissed so the audit log explains why
+// it never completed. This is what turns "override" from a lock-file
+// overwrite into actual single-agent-per-initiative enforcement.
+func TestService_StartRound_Override_CancelsPriorFeedbackRun(t *testing.T) {
+	env := newServiceEnv(t)
+	canceller := &recordingCanceller{}
+	svc, err := NewService(Config{
+		Store:     env.store,
+		Lock:      env.lock,
+		Spawner:   env.spawner,
+		Apply:     env.applier,
+		Canceller: canceller,
+		StateBuilder: func(string) (proposals.CurrentState, error) {
+			return proposals.CurrentState{InitiativeName: "ui-rewrite"}, nil
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// First round — reaches agent_thinking and takes the lock with
+	// spawner's run-42.
+	first, err := svc.StartRound(context.Background(), StartRoundRequest{
+		InitiativeName: "ui-rewrite",
+		Type:           RoundTypeFeedback,
+		Text:           "first",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.RunID == "" || first.Status != RoundStatusAgentThinking {
+		t.Fatalf("setup: expected agent_thinking round with RunID, got %+v", first)
+	}
+
+	// Second round overrides the first. Spawner is shared but reuses
+	// returnRunID=run-42, so the preempted and new RunIDs differ only
+	// in sequence — what we really care about is that Cancel was called
+	// with the first round's RunID before the new lock was acquired.
+	env.spawner.returnRunID = "run-43"
+	second, err := svc.StartRound(context.Background(), StartRoundRequest{
+		InitiativeName: "ui-rewrite",
+		Type:           RoundTypeFeedback,
+		Text:           "second via override",
+		Override:       true,
+	})
+	if err != nil {
+		t.Fatalf("override start: %v", err)
+	}
+	if second.Number == first.Number {
+		t.Fatal("expected a distinct round number for the overriding round")
+	}
+
+	if len(canceller.stopped) != 1 || canceller.stopped[0] != first.RunID {
+		t.Fatalf("expected StopRun(%q), got %+v", first.RunID, canceller.stopped)
+	}
+
+	// Preempted round should now be dismissed with a clear rationale
+	// so the feedback log explains why round N stopped short.
+	preempted, err := env.store.LoadRound("ui-rewrite", first.Number)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if preempted.Status != RoundStatusDismissed {
+		t.Fatalf("expected preempted round dismissed, got %s", preempted.Status)
+	}
+	if preempted.Decision == nil || preempted.Decision.Kind != DecisionDismiss {
+		t.Fatalf("expected dismiss decision on preempted round, got %+v", preempted.Decision)
+	}
+	if !strings.Contains(preempted.Decision.Rationale, "preempted") {
+		t.Fatalf("expected preemption rationale, got %q", preempted.Decision.Rationale)
+	}
+}
+
+// Override paired with busy member items cancels each item run too — the
+// single-agent guarantee covers both initiative-level and item-level
+// agents. Without this the override dialog would be technically correct
+// (new lock acquired) but practically broken (the workshopping agent on
+// execute/foo would keep mutating state underneath the new feedback run).
+func TestService_StartRound_Override_CancelsBusyItemRuns(t *testing.T) {
+	env := newServiceEnv(t)
+	canceller := &recordingCanceller{}
+	activity := &stubActivityChecker{
+		activities: []ItemActivity{
+			{Ref: "execute/foo", RunID: "run-foo", Purpose: "execute"},
+			{Ref: "research/bar", RunID: "run-bar", Purpose: "workshop"},
+			{Ref: "idea/baz", Purpose: "classify"}, // no RunID — must skip
+		},
+	}
+	svc, err := NewService(Config{
+		Store:     env.store,
+		Lock:      env.lock,
+		Spawner:   env.spawner,
+		Apply:     env.applier,
+		Activity:  activity,
+		Canceller: canceller,
+		StateBuilder: func(string) (proposals.CurrentState, error) {
+			return proposals.CurrentState{InitiativeName: "ui-rewrite"}, nil
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = svc.StartRound(context.Background(), StartRoundRequest{
+		InitiativeName: "ui-rewrite",
+		Type:           RoundTypeFeedback,
+		Text:           "preempt everything",
+		Override:       true,
+	})
+	if err != nil {
+		t.Fatalf("override start: %v", err)
+	}
+	want := []string{"run-foo", "run-bar"}
+	if len(canceller.stopped) != len(want) {
+		t.Fatalf("expected %d StopRun calls, got %+v", len(want), canceller.stopped)
+	}
+	for i, runID := range want {
+		if canceller.stopped[i] != runID {
+			t.Errorf("StopRun[%d]: got %q, want %q", i, canceller.stopped[i], runID)
+		}
+	}
+}
+
+// When no canceller is wired (degraded mode), override must still succeed —
+// we don't want a misconfigured deployment to block feedback outright.
+// The zombie-run risk is documented on the interface; the service itself
+// is resilient.
+func TestService_StartRound_Override_NoCancellerStillStarts(t *testing.T) {
+	env := newServiceEnv(t)
+	// Pre-populate a round in agent_thinking so there's a holder to
+	// preempt. Then call StartRound with override=true but no canceller.
+	first, err := env.svc.StartRound(context.Background(), StartRoundRequest{
+		InitiativeName: "ui-rewrite",
+		Type:           RoundTypeFeedback,
+		Text:           "first",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.Status != RoundStatusAgentThinking {
+		t.Fatalf("setup: want agent_thinking, got %s", first.Status)
+	}
+	env.spawner.returnRunID = "run-43"
+	_, err = env.svc.StartRound(context.Background(), StartRoundRequest{
+		InitiativeName: "ui-rewrite",
+		Type:           RoundTypeFeedback,
+		Text:           "second",
+		Override:       true,
+	})
+	if err != nil {
+		t.Fatalf("override without canceller: %v", err)
+	}
+}
+
 func TestService_RecordAgentTurn_ParseWarningsSurfaceOnSuccessfulExtract(t *testing.T) {
 	env := newServiceEnv(t)
 	round, err := env.svc.StartRound(context.Background(), StartRoundRequest{

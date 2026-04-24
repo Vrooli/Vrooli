@@ -257,9 +257,23 @@ export interface LockHolder {
   round_number?: number;
 }
 
+/** One blocking in-flight agent run on a backlog item inside the initiative.
+ *  Separate from the initiative lock: items can be busy even when the
+ *  initiative isn't locked (e.g. a workshop agent is running on a specific
+ *  backlog item). */
+export interface ItemActivity {
+  ref: string;
+  run_id?: string;
+  purpose?: string;
+}
+
 export interface LockStatusResponse {
   locked: boolean;
   holder?: LockHolder;
+  /** Present when one or more member items currently have an agent run in
+   *  flight. Starting a new feedback round is blocked until they finish
+   *  (or the user overrides, which cancels them). */
+  item_activities?: ItemActivity[];
 }
 
 // ---------------------------------------------------------------------------

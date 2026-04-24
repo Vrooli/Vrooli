@@ -9,7 +9,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 // AgentActivity captures one tracked interaction with agent-manager.
 message AgentActivity {
   string activity_id = 1 [(buf.validate.field).string.min_len = 1];
-  string owner_type = 2 [(buf.validate.field).string = { in: ["backlog", "capture", "scenario"] }];
+  string owner_type = 2 [(buf.validate.field).string = { in: ["backlog", "capture", "scenario", "initiative"] }];
   optional string owner_kind = 3;
   string owner_name = 4 [(buf.validate.field).string.min_len = 1];
   optional string owner_title = 5;
@@ -24,7 +24,10 @@ message AgentActivity {
     "followup",
     "spec_sync",
     "classify",
-    "clarify"
+    "clarify",
+    "feedback",
+    "feedback_continue",
+    "review"
   ] }];
   string interaction_type = 8 [(buf.validate.field).string = { in: ["spawn", "continue"] }];
   optional string task_id = 9;

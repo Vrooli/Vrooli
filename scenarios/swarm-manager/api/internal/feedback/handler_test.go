@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"swarm-manager/internal/initiativelock"
+	"swarm-manager/internal/proposals"
 )
 
 // newHandlerEnv builds the full service+handler stack against temp-dir
@@ -29,6 +30,34 @@ func newHandlerEnv(t *testing.T) *handlerEnv {
 	t.Helper()
 	env := newServiceEnv(t)
 	handler := NewHandler(env.svc)
+	router := mux.NewRouter()
+	handler.RegisterRoutes(router)
+	return &handlerEnv{serviceEnv: env, handler: handler, router: router}
+}
+
+// newHandlerEnvWithActivity rebuilds the env wiring a real activity checker
+// so tests can exercise paths that branch on item-level busy state (lock
+// preflight, StartRound busy-error).
+func newHandlerEnvWithActivity(t *testing.T, activity ItemActivityChecker) *handlerEnv {
+	t.Helper()
+	env := newServiceEnv(t)
+	// Swap the service for one that knows about the activity checker; the
+	// original in newServiceEnv builds without one by default.
+	svc, err := NewService(Config{
+		Store:    env.store,
+		Lock:     env.lock,
+		Spawner:  env.spawner,
+		Activity: activity,
+		Apply:    env.applier,
+		StateBuilder: func(name string) (proposals.CurrentState, error) {
+			return proposals.CurrentState{InitiativeName: name}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("build service: %v", err)
+	}
+	env.svc = svc
+	handler := NewHandler(svc)
 	router := mux.NewRouter()
 	handler.RegisterRoutes(router)
 	return &handlerEnv{serviceEnv: env, handler: handler, router: router}
@@ -243,6 +272,56 @@ func TestHandler_LockStatus(t *testing.T) {
 	_ = json.NewDecoder(rec2.Body).Decode(&payload2)
 	if payload2["locked"] != true {
 		t.Fatalf("expected locked=true, got %+v", payload2)
+	}
+}
+
+// Item-level busy activities are returned alongside the lock state so the
+// UI's Add-Feedback preflight can render the full blocker picture in one
+// round trip. Without this the dialog would need a second fetch (or — the
+// old behavior — surprise the user with a 409 only after they hit Submit).
+func TestHandler_LockStatus_IncludesItemActivities(t *testing.T) {
+	activity := &stubActivityChecker{
+		activities: []ItemActivity{
+			{Ref: "execute/foo", RunID: "run-a", Purpose: "execute"},
+			{Ref: "research/bar", RunID: "run-b", Purpose: "research"},
+		},
+	}
+	env := newHandlerEnvWithActivity(t, activity)
+
+	rec := env.do("GET", "/api/v1/initiatives/ui-rewrite/feedback/lock", nil, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("lock status: %d", rec.Code)
+	}
+	var payload map[string]any
+	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if payload["locked"] != false {
+		t.Fatalf("expected locked=false (no holder), got %+v", payload)
+	}
+	acts, ok := payload["item_activities"].([]any)
+	if !ok {
+		t.Fatalf("expected item_activities array, got %+v (%T)", payload["item_activities"], payload["item_activities"])
+	}
+	if len(acts) != 2 {
+		t.Fatalf("expected 2 item activities, got %d", len(acts))
+	}
+	first, _ := acts[0].(map[string]any)
+	if first["ref"] != "execute/foo" || first["run_id"] != "run-a" {
+		t.Fatalf("unexpected first activity shape: %+v", first)
+	}
+}
+
+// When there are no busy items the key is omitted so the UI can key off
+// presence rather than having to distinguish [] from absent.
+func TestHandler_LockStatus_OmitsEmptyActivities(t *testing.T) {
+	env := newHandlerEnvWithActivity(t, &stubActivityChecker{})
+
+	rec := env.do("GET", "/api/v1/initiatives/ui-rewrite/feedback/lock", nil, "")
+	var payload map[string]any
+	_ = json.NewDecoder(rec.Body).Decode(&payload)
+	if _, present := payload["item_activities"]; present {
+		t.Fatalf("expected item_activities to be omitted, got %+v", payload)
 	}
 }
 

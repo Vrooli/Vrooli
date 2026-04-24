@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -424,9 +425,11 @@ func (h *Handler) GetAttachment(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, path)
 }
 
-// LockStatus returns the current holder if the lock is held. The UI calls
-// this before showing the "Add feedback" button so it can pre-populate
-// the override dialog.
+// LockStatus returns everything the UI needs to know before prompting for
+// a feedback round: whether the initiative lock is held, and which backlog
+// items currently have an in-flight agent run. The dialog queries this on
+// open so it can surface the override-warning path *before* the user
+// composes a message, rather than after a 409 round-trip.
 func (h *Handler) LockStatus(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 	holder, err := h.svc.lock.Inspect(name)
@@ -437,6 +440,19 @@ func (h *Handler) LockStatus(w http.ResponseWriter, r *http.Request) {
 	payload := map[string]any{"locked": holder != nil}
 	if holder != nil {
 		payload["holder"] = holder
+	}
+	// Item-level activity is part of the "can I start a round" picture —
+	// include it here so the UI doesn't need a second round-trip. Soft-fail
+	// (log + omit) so a misbehaving activity store doesn't wedge the lock
+	// preflight; the StartRound path will still enforce correctness.
+	if h.svc.activity != nil {
+		activities, actErr := h.svc.activity.ActiveRunsForInitiative(name)
+		if actErr != nil {
+			slog.Warn("feedback: lock preflight activity check failed",
+				"err", actErr, "initiative", name)
+		} else if len(activities) > 0 {
+			payload["item_activities"] = activities
+		}
 	}
 	if err := httputil.JSON(w, payload); err != nil {
 		apierr.MapError(w, "[feedback] lock", apierr.Internal("encode response"))

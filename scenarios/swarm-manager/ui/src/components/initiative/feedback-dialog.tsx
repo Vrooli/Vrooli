@@ -12,22 +12,38 @@
  *   - Research: scaffolded but disabled; the chip renders a "Coming soon"
  *     badge so users can see the shape without being able to trigger it.
  *
- * Lock conflicts (another round in flight, review running, item executing)
- * surface as a warning block inside the dialog — the user can override
- * explicitly rather than being silently blocked.
+ * Active-agent awareness is proactive: on open we fetch the initiative's
+ * lock status (a single call that returns the holder and any busy backlog
+ * items). If the initiative isn't free, the warning block renders
+ * immediately and the textarea is disabled until the user explicitly picks
+ * override. This is the rule the plan calls out as "should not be able to
+ * spawn another agent while one is running" — the UI enforces it up-front
+ * instead of letting the user type, submit, and get surprised by a 409.
+ *
+ * Note-type rounds bypass this guard because they don't spawn an agent and
+ * therefore can't violate single-agent-per-initiative.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Loader2, Paperclip, SendHorizontal, AlertTriangle } from "lucide-react";
 import { Dialog } from "../ui/dialog";
 import { Button } from "../ui/button";
 import { CaptureAttachmentPreview } from "../capture/capture-attachment-preview";
 import { useIndexedDBAttachments } from "../../hooks/useIndexedDBAttachments";
 import { useAutoResizeTextarea } from "../../hooks/useAutoResizeTextarea";
-import { feedbackService, FeedbackLockConflictError } from "../../services/feedback-service";
+import {
+  feedbackService,
+  FeedbackBusyError,
+  FeedbackLockConflictError,
+} from "../../services/feedback-service";
 import { selectors } from "../../consts/selectors";
-import type { FeedbackRound, FeedbackRoundType, LockHolder } from "../../types";
+import type {
+  FeedbackRound,
+  FeedbackRoundType,
+  ItemActivity,
+  LockHolder,
+} from "../../types";
 
 const DRAFT_KEY_PREFIX = "swarm-initiative-feedback-draft:";
 const MAX_VISIBLE_LINES = 8;
@@ -59,12 +75,23 @@ const TYPE_OPTIONS: TypeOption[] = [
   { value: "note", label: "Note", hint: "Logged without agent" },
 ];
 
+/** Combined "what's blocking a new round" state. Populated by either the
+ *  preflight lock query or a post-submit 409. */
+interface Blocker {
+  holder?: LockHolder;
+  activities?: ItemActivity[];
+}
+
+function blockerIsEmpty(b: Blocker | null): b is null {
+  return b == null || (!b.holder && (!b.activities || b.activities.length === 0));
+}
+
 export function FeedbackDialog({ initiativeName, isOpen, onClose, onSubmitted }: FeedbackDialogProps) {
   const draftKey = `${DRAFT_KEY_PREFIX}${initiativeName}`;
   const [text, setText] = useState(() => safeLoadDraft(draftKey));
   const [type, setType] = useState<FeedbackRoundType>("feedback");
   const [override, setOverride] = useState(false);
-  const [lockHolder, setLockHolder] = useState<LockHolder | undefined>(undefined);
+  const [blocker, setBlocker] = useState<Blocker | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -84,6 +111,45 @@ export function FeedbackDialog({ initiativeName, isOpen, onClose, onSubmitted }:
 
   useAutoResizeTextarea(textareaRef, text, { maxHeight: MAX_TEXTAREA_HEIGHT });
 
+  // Proactive preflight: ask the server whether the initiative is free to
+  // accept a new agent-spawning round. The query runs only while the dialog
+  // is open and the user has picked a type that actually spawns an agent
+  // (note-type rounds don't need the guard). Stale-while-revalidate with a
+  // short refetch so the moment another round completes, the warning
+  // clears without the user having to close and reopen.
+  const needsPreflight = isOpen && type !== "note";
+  const lockQuery = useQuery({
+    queryKey: ["initiative-feedback-lock", initiativeName],
+    queryFn: () => feedbackService.lockStatus(initiativeName),
+    enabled: needsPreflight,
+    refetchInterval: needsPreflight ? 5000 : false,
+    staleTime: 2000,
+  });
+
+  // Sync the preflight result into the blocker state. Preflight is the
+  // authoritative view of "what's running right now"; if it says the
+  // initiative is free, we clear any stale blocker (including one set by
+  // a prior 409) — the lock was released and the user can proceed. If a
+  // new submit races back with a 409, the mutation's onError will set
+  // the blocker again.
+  useEffect(() => {
+    if (!needsPreflight) {
+      setBlocker(null);
+      return;
+    }
+    if (!lockQuery.data) return;
+    const { locked, holder, item_activities } = lockQuery.data;
+    const hasBusy = (item_activities?.length ?? 0) > 0;
+    if (locked || hasBusy) {
+      setBlocker({
+        holder: locked ? holder : undefined,
+        activities: hasBusy ? item_activities : undefined,
+      });
+    } else {
+      setBlocker(null);
+    }
+  }, [lockQuery.data, needsPreflight]);
+
   // Persist draft debounced so switching initiatives doesn't lose work.
   useEffect(() => {
     if (!isOpen) return;
@@ -96,7 +162,7 @@ export function FeedbackDialog({ initiativeName, isOpen, onClose, onSubmitted }:
     if (isOpen) {
       setError(null);
       setOverride(false);
-      setLockHolder(undefined);
+      setBlocker(null);
       setText(safeLoadDraft(draftKey));
     }
   }, [draftKey, isOpen]);
@@ -116,20 +182,29 @@ export function FeedbackDialog({ initiativeName, isOpen, onClose, onSubmitted }:
       setText("");
       setError(null);
       setOverride(false);
+      setBlocker(null);
       onSubmitted?.(round);
       onClose();
     },
     onError: (err) => {
       if (err instanceof FeedbackLockConflictError) {
-        setLockHolder(err.holder);
-        setError("This initiative is already under an active agent. Use override to proceed.");
+        setBlocker({ holder: err.holder });
+        setError(null);
+        return;
+      }
+      if (err instanceof FeedbackBusyError) {
+        setBlocker({ activities: err.activities });
+        setError(null);
         return;
       }
       setError(err instanceof Error ? err.message : "Failed to submit feedback.");
     },
   });
 
-  const canSubmit = text.trim().length > 0 && !mutation.isPending;
+  const blocked = type !== "note" && !blockerIsEmpty(blocker);
+  const canSubmit =
+    text.trim().length > 0 && !mutation.isPending && (!blocked || override);
+  const textareaDisabled = mutation.isPending || (blocked && !override);
 
   const handleSubmit = useCallback(() => {
     if (!canSubmit) return;
@@ -150,6 +225,16 @@ export function FeedbackDialog({ initiativeName, isOpen, onClose, onSubmitted }:
     Array.from(files).forEach(addFile);
     e.target.value = "";
   };
+
+  const placeholder = useMemo(() => {
+    if (type === "note") {
+      return "A quick note about this initiative… (Ctrl+Enter to save)";
+    }
+    if (blocked && !override) {
+      return "Override the active agent before composing your message.";
+    }
+    return "What's off? What should change? (Ctrl+Enter to submit)";
+  }, [type, blocked, override]);
 
   return (
     <Dialog
@@ -199,6 +284,18 @@ export function FeedbackDialog({ initiativeName, isOpen, onClose, onSubmitted }:
           })}
         </div>
 
+        {/* Active-agent warning. Rendered above the textarea so the user
+            sees it before they start composing. When blocked and override
+            isn't checked the textarea is disabled; the user has to
+            consciously opt in to preempt whatever is running. */}
+        {blocked && blocker && (
+          <BlockerNotice
+            blocker={blocker}
+            override={override}
+            onOverrideChange={setOverride}
+          />
+        )}
+
         {/* Textarea */}
         <div className="rounded-xl border border-slate-700 bg-slate-800/50 p-3 focus-within:border-cyan-500/50">
           <textarea
@@ -206,12 +303,8 @@ export function FeedbackDialog({ initiativeName, isOpen, onClose, onSubmitted }:
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={
-              type === "note"
-                ? "A quick note about this initiative… (Ctrl+Enter to save)"
-                : "What's off? What should change? (Ctrl+Enter to submit)"
-            }
-            disabled={mutation.isPending}
+            placeholder={placeholder}
+            disabled={textareaDisabled}
             className="block w-full resize-none bg-transparent text-sm leading-relaxed text-slate-100 placeholder-slate-500 outline-none disabled:opacity-60"
             data-testid={selectors.feedback.dialogText}
             rows={4}
@@ -219,33 +312,8 @@ export function FeedbackDialog({ initiativeName, isOpen, onClose, onSubmitted }:
           <CaptureAttachmentPreview attachments={attachments} onRemove={removeFile} />
         </div>
 
-        {/* Lock conflict warning */}
-        {lockHolder && (
-          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200">
-            <div className="mb-1 flex items-center gap-2 font-medium">
-              <AlertTriangle className="h-4 w-4" />
-              Initiative is currently locked
-            </div>
-            <p className="text-amber-300/80">
-              Run <code className="text-amber-200">{lockHolder.run_id}</code>{" "}
-              ({lockHolder.purpose}
-              {lockHolder.round_number ? `, round ${lockHolder.round_number}` : ""}) holds the lock.
-            </p>
-            <label className="mt-2 flex cursor-pointer items-center gap-2">
-              <input
-                type="checkbox"
-                checked={override}
-                onChange={(e) => setOverride(e.target.checked)}
-                className="h-3.5 w-3.5 accent-amber-400"
-                data-testid={selectors.feedback.dialogOverrideConfirm}
-              />
-              <span>I understand — override the lock and continue.</span>
-            </label>
-          </div>
-        )}
-
-        {/* Non-lock errors */}
-        {error && !lockHolder && (
+        {/* Non-lock errors (anything that wasn't a known 409 shape). */}
+        {error && (
           <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
             {error}
           </p>
@@ -294,7 +362,7 @@ export function FeedbackDialog({ initiativeName, isOpen, onClose, onSubmitted }:
               type="button"
               size="sm"
               onClick={handleSubmit}
-              disabled={!canSubmit || (lockHolder != null && !override)}
+              disabled={!canSubmit}
               data-testid={selectors.feedback.dialogSubmit}
             >
               {mutation.isPending ? (
@@ -302,12 +370,83 @@ export function FeedbackDialog({ initiativeName, isOpen, onClose, onSubmitted }:
               ) : (
                 <SendHorizontal className="mr-1.5 h-3.5 w-3.5" />
               )}
-              {mutation.isPending ? "Submitting…" : "Submit"}
+              {mutation.isPending
+                ? "Submitting…"
+                : blocked && override
+                  ? "Override & submit"
+                  : "Submit"}
             </Button>
           </div>
         </div>
       </div>
     </Dialog>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Warning block
+// ---------------------------------------------------------------------------
+
+interface BlockerNoticeProps {
+  blocker: Blocker;
+  override: boolean;
+  onOverrideChange: (value: boolean) => void;
+}
+
+/** The amber panel that surfaces whatever is blocking a new round.
+ *  Renders both the initiative-level lock holder and any busy backlog
+ *  items — they can coexist (e.g. a feedback round holds the lock AND a
+ *  workshop agent is running on an item). */
+function BlockerNotice({ blocker, override, onOverrideChange }: BlockerNoticeProps) {
+  const { holder, activities } = blocker;
+  const heading =
+    holder && activities && activities.length > 0
+      ? "Initiative has an active agent and busy items"
+      : holder
+        ? "Initiative is currently locked"
+        : "Member items have active agent runs";
+
+  return (
+    <div
+      className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200"
+      data-testid={selectors.feedback.dialogBlockerNotice}
+    >
+      <div className="mb-1 flex items-center gap-2 font-medium">
+        <AlertTriangle className="h-4 w-4" />
+        {heading}
+      </div>
+
+      {holder && (
+        <p className="text-amber-300/80">
+          Run <code className="text-amber-200">{holder.run_id}</code>{" "}
+          ({holder.purpose}
+          {holder.round_number ? `, round ${holder.round_number}` : ""}) holds the lock.
+        </p>
+      )}
+
+      {activities && activities.length > 0 && (
+        <ul className="mt-1 space-y-0.5 text-amber-300/80">
+          {activities.map((a) => (
+            <li key={a.ref}>
+              <code className="text-amber-200">{a.ref}</code>
+              {a.purpose ? ` — ${a.purpose}` : ""}
+              {a.run_id ? ` (run ${a.run_id})` : ""}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <label className="mt-2 flex cursor-pointer items-center gap-2">
+        <input
+          type="checkbox"
+          checked={override}
+          onChange={(e) => onOverrideChange(e.target.checked)}
+          className="h-3.5 w-3.5 accent-amber-400"
+          data-testid={selectors.feedback.dialogOverrideConfirm}
+        />
+        <span>I understand — cancel the active run and start a new one.</span>
+      </label>
+    </div>
   );
 }
 

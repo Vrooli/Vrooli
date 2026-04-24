@@ -20,6 +20,7 @@ import type {
   FeedbackDecisionKind,
   FeedbackRound,
   FeedbackRoundType,
+  ItemActivity,
   LockHolder,
   LockStatusResponse,
 } from "../types";
@@ -64,8 +65,9 @@ export interface DismissFeedbackArgs {
 
 /**
  * Thrown when Start fails with 409 Conflict because another agent or round
- * holds the initiative lock. The `holder` field is the current lock state —
- * the UI renders this in the override warning dialog.
+ * holds the initiative lock (another feedback round, an initiative review).
+ * The `holder` field is the current lock state — the UI renders this in
+ * the override warning dialog.
  */
 export class FeedbackLockConflictError extends Error {
   readonly holder?: LockHolder;
@@ -74,6 +76,24 @@ export class FeedbackLockConflictError extends Error {
     super(message);
     this.name = "FeedbackLockConflictError";
     this.holder = holder;
+  }
+}
+
+/**
+ * Thrown when Start fails with 409 Conflict because one or more member
+ * backlog items currently have an in-flight agent run (workshop, execute,
+ * etc). Distinct from `FeedbackLockConflictError` because the user sees a
+ * per-item breakdown — "research/foo is workshopping" — rather than a
+ * generic "initiative is locked" message. Override path cancels the listed
+ * runs before starting the new feedback round.
+ */
+export class FeedbackBusyError extends Error {
+  readonly activities: ItemActivity[];
+
+  constructor(message: string, activities: ItemActivity[]) {
+    super(message);
+    this.name = "FeedbackBusyError";
+    this.activities = activities;
   }
 }
 
@@ -214,23 +234,45 @@ function buildContinueFormData(args: ContinueFeedbackArgs): FormData {
 }
 
 /**
- * If the error is a 409 with a JSON body containing `holder`, re-throw as
- * FeedbackLockConflictError so callers can branch on it. Otherwise pass
- * through unchanged.
+ * Map a 409 Conflict into the appropriate typed error so the UI can
+ * render the right warning without a second round-trip.
+ *
+ * Server 409 payloads come in two shapes, keyed by body:
+ *   - `{ error, holder }`      → another feedback round / review holds the
+ *                                initiative lock. Surface as
+ *                                FeedbackLockConflictError so the dialog
+ *                                shows the holder + override path.
+ *   - `{ error, activities }`  → one or more member backlog items have
+ *                                in-flight agent runs. Surface as
+ *                                FeedbackBusyError so the dialog lists
+ *                                specific blockers.
+ *
+ * A 409 with neither shape (or a non-JSON body) falls back to a generic
+ * FeedbackLockConflictError with no holder — the dialog still renders the
+ * override path, just without extra context. Non-409s pass through.
  */
 function mapLockConflict(err: unknown): unknown {
   if (!(err instanceof ApiError) || err.type !== "http" || err.status !== 409) {
     return err;
   }
-  // The API error message carries the raw response body (JSON text). Try to
-  // parse it for the holder shape; if parsing fails, fall back to a plain
-  // lock-conflict error so the UI still branches correctly.
   let holder: LockHolder | undefined;
+  let activities: ItemActivity[] | undefined;
   try {
-    const parsed = JSON.parse(err.message) as { holder?: LockHolder; error?: string };
+    const parsed = JSON.parse(err.message) as {
+      holder?: LockHolder;
+      activities?: ItemActivity[];
+      error?: string;
+    };
     holder = parsed.holder;
+    activities = parsed.activities;
   } catch {
-    /* tolerate non-JSON bodies */
+    /* tolerate non-JSON bodies — treat as generic lock conflict below. */
+  }
+  if (activities && activities.length > 0) {
+    return new FeedbackBusyError(
+      "initiative has active item-level agent runs",
+      activities,
+    );
   }
   return new FeedbackLockConflictError("initiative is locked", holder);
 }

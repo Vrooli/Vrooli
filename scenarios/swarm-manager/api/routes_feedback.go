@@ -89,6 +89,7 @@ func (s *Server) registerFeedbackRoutes(materializer *graph.Materializer) {
 	stateBuilder := newFeedbackStateBuilder(materializer, s.initStore, s.backlogHandler.Store())
 	activity := newFeedbackActivityChecker(s.agentActivitySvc, s.initStore)
 	poller := newFeedbackPoller(s.agentSvc)
+	canceller := newFeedbackCanceller(s.agentSvc)
 
 	svc, err := feedback.NewService(feedback.Config{
 		Store:        store,
@@ -96,6 +97,7 @@ func (s *Server) registerFeedbackRoutes(materializer *graph.Materializer) {
 		Spawner:      spawner,
 		Activity:     activity,
 		Poller:       poller,
+		Canceller:    canceller,
 		Apply:        applier,
 		StateBuilder: stateBuilder,
 	})
@@ -627,6 +629,35 @@ func (p *feedbackPoller) GetRunState(ctx context.Context, runID string) (feedbac
 		Summary:  state.Summary,
 		ErrorMsg: state.ErrorMsg,
 	}, nil
+}
+
+// feedbackCanceller adapts agentmanager.AgentService to feedback.RunCanceller.
+// Used by the override path to cancel the preempted holder (and any busy
+// item runs) before the new round takes the lock — turning "override" from
+// a lock-file rename into actual single-agent enforcement.
+//
+// Nil-safe: when the agent service is not wired in (tests, degraded mode),
+// we return nil so feedback.Service treats the canceller as absent and
+// falls back to the plain lock-overwrite behavior rather than panicking.
+type feedbackCanceller struct {
+	agent *agentmanager.AgentService
+}
+
+func newFeedbackCanceller(agent *agentmanager.AgentService) *feedbackCanceller {
+	if agent == nil {
+		return nil
+	}
+	return &feedbackCanceller{agent: agent}
+}
+
+func (c *feedbackCanceller) StopRun(ctx context.Context, runID string) error {
+	if c == nil || c.agent == nil {
+		return nil
+	}
+	if strings.TrimSpace(runID) == "" {
+		return nil
+	}
+	return c.agent.StopRun(ctx, runID)
 }
 
 // feedbackEventEmitter satisfies proposals.EventEmitter by appending a

@@ -1157,21 +1157,22 @@ const file_swarm_manager_v1_domain_graph_proto_rawDesc = "" +
 	"validatingR\vneeds_fixupR\tcompletedR\x06failedR\bcanceledR\x06status\x12'\n" +
 	"\x04mode\x18\x05 \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloR\x04mode\x12\x1a\n" +
 	"\x06run_id\x18\x06 \x01(\tH\x00R\x05runId\x88\x01\x01B\t\n" +
-	"\a_run_id\"\xff\x05\n" +
+	"\a_run_id\"\xbd\x06\n" +
 	"\x1aGraphAgentActivityNodeData\x12(\n" +
 	"\vactivity_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
-	"activityId\x12@\n" +
+	"activityId\x12L\n" +
 	"\n" +
-	"owner_type\x18\x02 \x01(\tB!\xbaH\x1er\x1cR\abacklogR\acaptureR\bscenarioR\townerType\x12\"\n" +
+	"owner_type\x18\x02 \x01(\tB-\xbaH*r(R\abacklogR\acaptureR\bscenarioR\n" +
+	"initiativeR\townerType\x12\"\n" +
 	"\n" +
 	"owner_kind\x18\x03 \x01(\tH\x00R\townerKind\x88\x01\x01\x12&\n" +
 	"\n" +
 	"owner_name\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\townerName\x12$\n" +
 	"\vowner_title\x18\x05 \x01(\tH\x01R\n" +
 	"ownerTitle\x88\x01\x01\x12&\n" +
-	"\fexecution_id\x18\x06 \x01(\tH\x02R\vexecutionId\x88\x01\x01\x12x\n" +
-	"\apurpose\x18\a \x01(\tB^\xbaH[rYR\n" +
-	"initializeR\bworkshopR\bfinalizeR\bresearchR\aprocessR\x05fixupR\bfollowupR\tspec_syncR\bclassifyR\apurpose\x12A\n" +
+	"\fexecution_id\x18\x06 \x01(\tH\x02R\vexecutionId\x88\x01\x01\x12\xa9\x01\n" +
+	"\apurpose\x18\a \x01(\tB\x8e\x01\xbaH\x8a\x01r\x87\x01R\n" +
+	"initializeR\bworkshopR\bfinalizeR\bresearchR\aprocessR\x05fixupR\bfollowupR\tspec_syncR\bclassifyR\aclarifyR\bfeedbackR\x11feedback_continueR\x06reviewR\apurpose\x12A\n" +
 	"\x10interaction_type\x18\b \x01(\tB\x16\xbaH\x13r\x11R\x05spawnR\bcontinueR\x0finteractionType\x12q\n" +
 	"\x06status\x18\t \x01(\tBY\xbaHVrTR\apendingR\bstartingR\arunningR\fneeds_reviewR\bcompleteR\x06failedR\tcancelledR\vunspecifiedR\x06status\x12\x1a\n" +
 	"\x06run_id\x18\n" +
