@@ -22,7 +22,18 @@ func NewEmitter(repo Repository) *Emitter {
 // --- Backlog events ---
 
 func (e *Emitter) EmitBacklogCreated(entityID, kind, status string, priority int, initiative, effort string) {
-	e.emit(EntityBacklogItem, entityID, EventBacklogCreated, BacklogCreatedPayload{
+	e.EmitBacklogCreatedFromSource(entityID, kind, status, priority, initiative, effort, "user", "")
+}
+
+// EmitBacklogCreatedFromSource records a creation with explicit actor
+// attribution. Use this from the unified backlog.Service so the actor
+// reflects the originating surface (HTTP user, batch, feedback round,
+// review round) instead of the default "user".
+func (e *Emitter) EmitBacklogCreatedFromSource(entityID, kind, status string, priority int, initiative, effort, actorType, actorID string) {
+	if actorType == "" {
+		actorType = "user"
+	}
+	e.emitWithActor(EntityBacklogItem, entityID, EventBacklogCreated, actorType, actorID, BacklogCreatedPayload{
 		Kind:       kind,
 		Status:     status,
 		Priority:   priority,
@@ -291,8 +302,37 @@ func (e *Emitter) EmitReviewFailed(executionID, reason string, durationSecs floa
 	})
 }
 
-// emit is the internal helper that marshals metadata and appends the event.
+// EmitBacklogProposalApplied records that a single proposal mutation
+// landed on a backlog item. Actor is set from the originating surface
+// (feedback round or initiative review) so consumers can group changes
+// by the round that caused them.
+func (e *Emitter) EmitBacklogProposalApplied(entityID string, payload ProposalAppliedPayload) {
+	actorType, actorID := proposalActor(payload)
+	e.emitWithActor(EntityBacklogItem, entityID, EventBacklogProposalApplied, actorType, actorID, payload)
+}
+
+// proposalActor picks the durable actor identity for a proposal mutation.
+// Review rounds take precedence when both IDs are present (review-applied
+// follow-ups are attributed to the review, not to any feedback that
+// preceded it).
+func proposalActor(p ProposalAppliedPayload) (actorType, actorID string) {
+	switch {
+	case p.ReviewRoundID != "":
+		return "initiative_review", p.ReviewRoundID
+	case p.FeedbackRoundID != "":
+		return "feedback_round", p.FeedbackRoundID
+	default:
+		return "proposal", p.InitiativeName
+	}
+}
+
+// emit is the internal helper that marshals metadata and appends the event
+// with the default "user" actor.
 func (e *Emitter) emit(entityType EntityType, entityID string, eventType EventType, payload any) {
+	e.emitWithActor(entityType, entityID, eventType, "user", "", payload)
+}
+
+func (e *Emitter) emitWithActor(entityType EntityType, entityID string, eventType EventType, actorType, actorID string, payload any) {
 	var metadata json.RawMessage
 	if payload != nil {
 		data, err := json.Marshal(payload)
@@ -308,7 +348,8 @@ func (e *Emitter) emit(entityType EntityType, entityID string, eventType EventTy
 		EntityType: entityType,
 		EntityID:   entityID,
 		EventType:  eventType,
-		ActorType:  "user",
+		ActorType:  actorType,
+		ActorID:    actorID,
 		Metadata:   metadata,
 	}
 

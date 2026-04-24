@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"swarm-manager/internal/initiativelock"
 	"swarm-manager/internal/proposals"
 )
 
@@ -97,7 +98,7 @@ func (e *BusyError) Unwrap() error { return ErrInitiativeBusy }
 // Service orchestrates feedback round lifecycle.
 type Service struct {
 	store        *Store
-	lock         *Lock
+	lock         *initiativelock.Lock
 	spawner      AgentSpawner
 	activity     ItemActivityChecker
 	poller       AgentRunPoller
@@ -109,7 +110,7 @@ type Service struct {
 // Config bundles Service dependencies.
 type Config struct {
 	Store        *Store
-	Lock         *Lock
+	Lock         *initiativelock.Lock
 	Spawner      AgentSpawner
 	Activity     ItemActivityChecker
 	Poller       AgentRunPoller
@@ -267,7 +268,7 @@ func (s *Service) StartRound(ctx context.Context, req StartRoundRequest) (Round,
 	// provisional RunID is swapped for the agent-manager RunID once the
 	// spawn succeeds; on spawn failure, Release uses the provisional to
 	// clear the lock rather than leaving it wedged.
-	holder := Holder{
+	holder := initiativelock.Holder{
 		Purpose:     "feedback",
 		RoundNumber: number,
 		AcquiredBy:  req.DecidedBy,
@@ -404,7 +405,7 @@ func (s *Service) ContinueRound(ctx context.Context, req ContinueRoundRequest) (
 	}
 
 	// Re-acquire lock (we released it on the last turn).
-	holder := Holder{
+	holder := initiativelock.Holder{
 		RunID:       round.RunID,
 		Purpose:     "feedback_continue",
 		RoundNumber: round.Number,

@@ -12,6 +12,7 @@ import (
 
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
+	"swarm-manager/internal/initiativelock"
 )
 
 // Handler exposes feedback-round HTTP endpoints. All routes are scoped to
@@ -102,7 +103,7 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 // payload so the UI can render the override-warning dialog without a
 // follow-up GET.
 func (h *Handler) writeStartError(w http.ResponseWriter, err error) {
-	var conflict *LockConflict
+	var conflict *initiativelock.Conflict
 	if errors.As(err, &conflict) {
 		payload := map[string]any{
 			"error":  "initiative is locked",
@@ -111,7 +112,7 @@ func (h *Handler) writeStartError(w http.ResponseWriter, err error) {
 		_ = httputil.JSONWithStatus(w, http.StatusConflict, payload)
 		return
 	}
-	if errors.Is(err, ErrLocked) {
+	if errors.Is(err, initiativelock.ErrLocked) {
 		_ = httputil.JSONWithStatus(w, http.StatusConflict, map[string]any{"error": err.Error()})
 		return
 	}

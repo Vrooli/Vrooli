@@ -66,6 +66,15 @@ type EventEmitter interface {
 	EmitProposalMutationApplied(source Source, mutation Mutation)
 }
 
+// ItemCreator is the chokepoint the Applier uses for OpAddItem. Satisfied
+// by *backlog.Service. Required: there is no fallback inline create path,
+// because the whole point of routing through Service is uniform side
+// effects (backlog.created event with attribution, graph invalidation
+// policy, optional workshop).
+type ItemCreator interface {
+	Create(item backlog.BacklogItem, cc backlog.CreationContext) error
+}
+
 // Applier executes accepted mutations against the underlying services.
 //
 // Correct use: normalize → validate → filter to accepted IDs → Apply. The
@@ -74,6 +83,7 @@ type EventEmitter interface {
 type Applier struct {
 	store        BacklogStore
 	assigner     InitiativeAssigner
+	creator      ItemCreator
 	cancel       ExecutionCanceller
 	invalidator  GraphInvalidator
 	events       EventEmitter
@@ -85,6 +95,7 @@ type Applier struct {
 type Config struct {
 	Store        BacklogStore
 	Assigner     InitiativeAssigner
+	Creator      ItemCreator
 	Canceller    ExecutionCanceller
 	Invalidator  GraphInvalidator
 	Events       EventEmitter
@@ -92,14 +103,17 @@ type Config struct {
 	DefaultOwner string           // falls back to "proposal" if empty
 }
 
-// NewApplier constructs an Applier. Store and Assigner are required; the
-// others may be nil for tests or degraded modes.
+// NewApplier constructs an Applier. Store, Assigner, and Creator are
+// required; the others may be nil for tests or degraded modes.
 func NewApplier(cfg Config) (*Applier, error) {
 	if cfg.Store == nil {
 		return nil, errors.New("proposals: Store is required")
 	}
 	if cfg.Assigner == nil {
 		return nil, errors.New("proposals: Assigner is required")
+	}
+	if cfg.Creator == nil {
+		return nil, errors.New("proposals: Creator is required (route OpAddItem through backlog.Service)")
 	}
 	clk := cfg.Clock
 	if clk == nil {
@@ -112,6 +126,7 @@ func NewApplier(cfg Config) (*Applier, error) {
 	return &Applier{
 		store:        cfg.Store,
 		assigner:     cfg.Assigner,
+		creator:      cfg.Creator,
 		cancel:       cfg.Canceller,
 		invalidator:  cfg.Invalidator,
 		events:       cfg.Events,
@@ -291,15 +306,6 @@ func (a *Applier) applyAddItem(ctx context.Context, spec ItemSpec, source Source
 	if err != nil {
 		return err
 	}
-	if _, loadErr := a.store.LoadItem(kind, spec.Name); loadErr == nil {
-		return fmt.Errorf("%w: %s", ErrDuplicateItem, spec.Ref())
-	}
-
-	if len(spec.DependsOn) > 0 {
-		if err := a.store.ValidateDependencies(spec.DependsOn); err != nil {
-			return fmt.Errorf("depends_on: %w", err)
-		}
-	}
 
 	now := a.clock().UTC().Format(time.RFC3339)
 	item := backlog.BacklogItem{
@@ -322,7 +328,33 @@ func (a *Applier) applyAddItem(ctx context.Context, spec ItemSpec, source Source
 	if item.Priority == 0 {
 		item.Priority = DefaultItemPriority
 	}
-	return backlog.CreateItem(a.store, a.assigner, item, source.InitiativeName)
+
+	cc := backlog.CreationContext{
+		Source:          backlog.SourceProposal,
+		DecidedBy:       source.DecidedBy,
+		FeedbackRoundID: source.FeedbackRoundID,
+		ReviewRoundID:   source.ReviewRoundID,
+		RoundNumber:     source.RoundNumber,
+		RoundSlug:       source.RoundSlug,
+		Entrypoint:      source.Entrypoint,
+		// Apply re-validates depends_on against ValidateDependencies via
+		// CurrentState; the per-item cycle check inside Service is
+		// redundant here (and would require a full LoadAll on a path
+		// that already paid the cost in Validate). Skip it.
+		SkipCycleCheck: true,
+		// The Applier batches graph invalidation across the whole
+		// mutation set in Apply (see ScheduleAll at the bottom of
+		// the loop) so individual add_item ops should not fire one
+		// re-projection each.
+		SkipGraphInvalidation: true,
+	}
+	if err := a.creator.Create(item, cc); err != nil {
+		if errors.Is(err, backlog.ErrItemExists) {
+			return fmt.Errorf("%w: %s", ErrDuplicateItem, spec.Ref())
+		}
+		return err
+	}
+	return nil
 }
 
 func (a *Applier) applyUpdateItem(ctx context.Context, ref string, patch *ItemPatch) error {

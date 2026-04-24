@@ -5,7 +5,14 @@
   "agentId": "run-introspector",
   "enabled": true,
   "schedule": "45 18 * * *",
-  "revision": 2,
+  "lastExecution": {
+    "startedAt": "2026-04-23T22:45:00Z",
+    "endedAt": "2026-04-23T22:47:45Z",
+    "status": "completed",
+    "runId": "ea1ecc86-03ad-48a7-954d-5f56bdbca439",
+    "logPath": "../store/teams/meta-optimization/members/run-introspector/logs/2026-04-23T22-45-00Z.log"
+  },
+  "revision": 5,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-04-23T16:16:55Z"
+  "updatedAt": "2026-04-23T22:47:45Z"
 }

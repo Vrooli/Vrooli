@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"swarm-manager/internal/backlog"
+	"swarm-manager/internal/initiativelock"
 	"swarm-manager/internal/initiatives"
 	"swarm-manager/internal/proposals"
 )
@@ -45,7 +46,7 @@ type serviceEnv struct {
 	t       *testing.T
 	root    string
 	store   *Store
-	lock    *Lock
+	lock    *initiativelock.Lock
 	applier *proposals.Applier
 	svc     *Service
 	bStore  *backlog.FileStore
@@ -76,16 +77,21 @@ func newServiceEnv(t *testing.T) *serviceEnv {
 		t.Fatal(err)
 	}
 
+	creator, err := backlog.NewService(backlog.ServiceConfig{Store: bStore, Assigner: iSvc})
+	if err != nil {
+		t.Fatal(err)
+	}
 	applier, err := proposals.NewApplier(proposals.Config{
 		Store:    bStore,
 		Assigner: iSvc,
+		Creator:  creator,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	store := NewStore(iSvc.InitDir)
-	lock := &Lock{Dir: iSvc.InitDir, MaxAge: time.Hour}
+	lock := &initiativelock.Lock{Dir: iSvc.InitDir, MaxAge: time.Hour}
 	spawner := &fakeSpawner{returnRunID: "run-42"}
 
 	stateBuilder := func(name string) (proposals.CurrentState, error) {
@@ -203,7 +209,7 @@ func TestService_StartRound_RejectsResearchType(t *testing.T) {
 
 func TestService_StartRound_RejectsIfLocked(t *testing.T) {
 	env := newServiceEnv(t)
-	if err := env.lock.Acquire("ui-rewrite", Holder{RunID: "prior", Purpose: "feedback"}); err != nil {
+	if err := env.lock.Acquire("ui-rewrite", initiativelock.Holder{RunID: "prior", Purpose: "feedback"}); err != nil {
 		t.Fatal(err)
 	}
 	_, err := env.svc.StartRound(context.Background(), StartRoundRequest{
@@ -211,14 +217,14 @@ func TestService_StartRound_RejectsIfLocked(t *testing.T) {
 		Type:           RoundTypeFeedback,
 		Text:           "hi",
 	})
-	if err == nil || !errors.Is(err, ErrLocked) {
+	if err == nil || !errors.Is(err, initiativelock.ErrLocked) {
 		t.Fatalf("expected ErrLocked, got %v", err)
 	}
 }
 
 func TestService_StartRound_OverridePreempts(t *testing.T) {
 	env := newServiceEnv(t)
-	if err := env.lock.Acquire("ui-rewrite", Holder{RunID: "prior", Purpose: "feedback"}); err != nil {
+	if err := env.lock.Acquire("ui-rewrite", initiativelock.Holder{RunID: "prior", Purpose: "feedback"}); err != nil {
 		t.Fatal(err)
 	}
 	round, err := env.svc.StartRound(context.Background(), StartRoundRequest{
@@ -361,9 +367,14 @@ func TestService_Decide_PopulatesProposalSourceWithRoundMetadata(t *testing.T) {
 
 	// Rebuild applier + service with a capturing emitter.
 	cap := &captureEvents{}
+	creator, err := backlog.NewService(backlog.ServiceConfig{Store: env.bStore, Assigner: env.iSvc})
+	if err != nil {
+		t.Fatal(err)
+	}
 	applier, err := proposals.NewApplier(proposals.Config{
 		Store:    env.bStore,
 		Assigner: env.iSvc,
+		Creator:  creator,
 		Events:   cap,
 	})
 	if err != nil {

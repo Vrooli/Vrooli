@@ -176,3 +176,180 @@ func seedSpec(t *testing.T, rootDir, kind, name string, spec map[string]any) {
 		t.Fatalf("seed spec %s/%s: %v", kind, name, err)
 	}
 }
+
+// TestInitiativeReviewTrigger_AllFailed_Triggers pins that "all terminal" is
+// the gate — not "all accepted." An initiative whose every member item ends
+// in `failed` should still enter review so the user can decide whether the
+// initiative as a whole is dead, partially salvageable, or worth a
+// needs_followup verdict.
+func TestInitiativeReviewTrigger_AllFailed_Triggers(t *testing.T) {
+	srv := newTestServer(t)
+	h := srv.Handler()
+	rootDir := srv.scenarioRoot
+
+	mustPost(t, h, "/api/v1/initiatives", map[string]any{
+		"name":     "rev-all-failed",
+		"title":    "All Failed",
+		"status":   "active",
+		"priority": 5,
+		"items":    []string{"execute/broke1", "execute/broke2"},
+	})
+
+	seedSpec(t, rootDir, "execute", "broke1", map[string]any{
+		"name": "broke1", "kind": "execute", "title": "Broke 1",
+		"status":   "failed",
+		"priority": 5, "initiative": "rev-all-failed", "tags": []string{},
+	})
+	seedSpec(t, rootDir, "execute", "broke2", map[string]any{
+		"name": "broke2", "kind": "execute", "title": "Broke 2",
+		"status":   "review_pending",
+		"priority": 5, "initiative": "rev-all-failed", "tags": []string{},
+	})
+
+	// Fail the last review-pending item — now every member is terminal.
+	mustPost(t, h, "/api/v1/backlog/execute/broke2/review-decide", map[string]any{
+		"decision":  "fail",
+		"rationale": "implementation regressed",
+	})
+
+	assertInitiativeStatusEventually(t, rootDir, "rev-all-failed", "in_review")
+}
+
+// TestInitiativeReviewTrigger_MixedTerminals_Triggers covers the common case
+// where a multi-item initiative lands with a mix of verdicts (completed,
+// failed, needs_followup, archived). All of those count as terminal for the
+// readiness gate, so review must still fire once the last one lands.
+func TestInitiativeReviewTrigger_MixedTerminals_Triggers(t *testing.T) {
+	srv := newTestServer(t)
+	h := srv.Handler()
+	rootDir := srv.scenarioRoot
+
+	mustPost(t, h, "/api/v1/initiatives", map[string]any{
+		"name":     "rev-mixed",
+		"title":    "Mixed Terminals",
+		"status":   "active",
+		"priority": 5,
+		"items":    []string{"execute/done", "execute/dead", "execute/half", "execute/ghost"},
+	})
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	seedSpec(t, rootDir, "execute", "done", map[string]any{
+		"name": "done", "kind": "execute", "title": "Done",
+		"status":   "completed",
+		"priority": 5, "initiative": "rev-mixed", "tags": []string{},
+	})
+	seedSpec(t, rootDir, "execute", "dead", map[string]any{
+		"name": "dead", "kind": "execute", "title": "Dead",
+		"status":   "failed",
+		"priority": 5, "initiative": "rev-mixed", "tags": []string{},
+	})
+	seedSpec(t, rootDir, "execute", "half", map[string]any{
+		"name": "half", "kind": "execute", "title": "Half",
+		"status":   "needs_followup",
+		"priority": 5, "initiative": "rev-mixed", "tags": []string{},
+	})
+	// Archived items count as terminal for rollup purposes (see
+	// initiativereview/service.go findNonTerminalItems).
+	seedSpec(t, rootDir, "execute", "ghost", map[string]any{
+		"name": "ghost", "kind": "execute", "title": "Ghost",
+		"status": "backlog", "archived_at": now,
+		"priority": 5, "initiative": "rev-mixed", "tags": []string{},
+	})
+
+	// Nothing to decide — trigger via the manual-trigger endpoint so the
+	// test doesn't depend on decide-driven transitions.
+	mustPost(t, h, "/api/v1/initiatives/rev-mixed/review/trigger", map[string]any{})
+
+	assertInitiativeStatusEventually(t, rootDir, "rev-mixed", "in_review")
+}
+
+// TestInitiativeReviewTrigger_FeedbackLockBlocks pins the coordination
+// documented in internal/initiativereview/doc.go: if a feedback round
+// currently holds the `.feedback-lock`, a subsequent review-start attempt
+// must fail cleanly and leave the initiative in `active`. The user must
+// finish or dismiss the feedback round before review will start — the
+// alternative (racing two concurrent agents against the same initiative)
+// is a real footgun.
+func TestInitiativeReviewTrigger_FeedbackLockBlocks(t *testing.T) {
+	srv := newTestServer(t)
+	h := srv.Handler()
+	rootDir := srv.scenarioRoot
+
+	mustPost(t, h, "/api/v1/initiatives", map[string]any{
+		"name":     "rev-locked",
+		"title":    "Locked",
+		"status":   "active",
+		"priority": 5,
+		"items":    []string{"execute/solo-locked"},
+	})
+
+	seedSpec(t, rootDir, "execute", "solo-locked", map[string]any{
+		"name": "solo-locked", "kind": "execute", "title": "Solo Locked",
+		"status":   "review_pending",
+		"priority": 5, "initiative": "rev-locked", "tags": []string{},
+	})
+
+	// Simulate an in-flight feedback round holding the lock.
+	initDir := filepath.Join(rootDir, "initiatives", "rev-locked")
+	if err := os.MkdirAll(initDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	holder := map[string]any{
+		"run_id":          "feedback-holder-1",
+		"purpose":         "feedback",
+		"round_number":    1,
+		"acquired_at":     time.Now().UTC().Format(time.RFC3339),
+		"acquired_by":     "swarm-manager:feedback-test",
+		"initiative_name": "rev-locked",
+	}
+	body, _ := json.Marshal(holder)
+	if err := os.WriteFile(filepath.Join(initDir, ".feedback-lock"), body, 0o644); err != nil {
+		t.Fatalf("seed feedback lock: %v", err)
+	}
+
+	// Decide the item — review trigger fires internally, hits the lock,
+	// and logs a warning. The HTTP call itself must still succeed (review
+	// is a downstream consequence, not a precondition for decide).
+	mustPost(t, h, "/api/v1/backlog/execute/solo-locked/review-decide", map[string]any{
+		"decision": "accept",
+	})
+
+	// Initiative must remain active — the lock blocked review start.
+	initFile := filepath.Join(initDir, "initiative.json")
+	// Give any async settling a tiny budget; the assertion is "did NOT
+	// flip," so we sample a few times to reduce flake risk.
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		raw, err := os.ReadFile(initFile)
+		if err == nil {
+			var meta map[string]any
+			if json.Unmarshal(raw, &meta) == nil {
+				if s, _ := meta["status"].(string); s != "active" {
+					t.Fatalf("initiative status = %q, want active (feedback lock must block review start)", s)
+				}
+			}
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+}
+
+func assertInitiativeStatusEventually(t *testing.T, rootDir, name, want string) {
+	t.Helper()
+	initFile := filepath.Join(rootDir, "initiatives", name, "initiative.json")
+	deadline := time.Now().Add(2 * time.Second)
+	var lastStatus string
+	for time.Now().Before(deadline) {
+		raw, err := os.ReadFile(initFile)
+		if err == nil {
+			var meta map[string]any
+			if json.Unmarshal(raw, &meta) == nil {
+				lastStatus, _ = meta["status"].(string)
+				if lastStatus == want {
+					return
+				}
+			}
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	t.Fatalf("initiative %q status = %q, want %q", name, lastStatus, want)
+}

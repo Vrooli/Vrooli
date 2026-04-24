@@ -1,4 +1,17 @@
-package feedback
+// Package initiativelock implements the on-disk single-agent-per-initiative
+// mutex that both the feedback and initiative-review services coordinate
+// through.
+//
+// Only one active agent run — feedback, feedback_continue, or review — may
+// hold the lock at a time per initiative. The lock is a JSON file
+// (`.feedback-lock`) in the initiative folder storing the holder's metadata
+// so UIs and CLI tools can surface *why* an initiative is locked rather than
+// a bare boolean.
+//
+// The file name is retained for backwards compatibility with on-disk state
+// and with callers that still reference the feedback vocabulary (the file
+// name matches the public HTTP endpoint shape).
+package initiativelock
 
 import (
 	"encoding/json"
@@ -10,11 +23,6 @@ import (
 )
 
 // Lock is the on-disk single-agent-per-initiative mutex.
-//
-// Only one active agent run — feedback or review — may hold the lock at a
-// time. The lock is a JSON file (`.feedback-lock`) in the initiative folder
-// storing the holder's metadata so UIs and CLI tools can surface "why is
-// this initiative locked" rather than a bare boolean.
 //
 // Acquire is best-effort under stale locks: if the existing lock is older
 // than MaxAge, it is considered abandoned and overwritten. Callers can
@@ -43,16 +51,16 @@ type Holder struct {
 }
 
 // ErrLocked signals that Acquire found a live (non-stale) lock and the
-// caller did not pass `override`. The returned error wraps LockConflict so
+// caller did not pass `override`. The returned error wraps Conflict so
 // callers can type-assert to render the current holder in UI.
 var ErrLocked = errors.New("initiative feedback is locked by another agent")
 
-// LockConflict carries the holder metadata for UI rendering.
-type LockConflict struct {
+// Conflict carries the holder metadata for UI rendering.
+type Conflict struct {
 	Holder Holder
 }
 
-func (c *LockConflict) Error() string {
+func (c *Conflict) Error() string {
 	if c.Holder.RunID == "" {
 		return ErrLocked.Error()
 	}
@@ -60,7 +68,7 @@ func (c *LockConflict) Error() string {
 		ErrLocked.Error(), c.Holder.Purpose, c.Holder.RunID, c.Holder.AcquiredAt)
 }
 
-func (c *LockConflict) Unwrap() error { return ErrLocked }
+func (c *Conflict) Unwrap() error { return ErrLocked }
 
 const (
 	lockFileName = ".feedback-lock"
@@ -90,8 +98,8 @@ func (l *Lock) maxAge() time.Duration {
 	return DefaultLockMaxAge
 }
 
-// Acquire takes the lock for `holder`. Returns *LockConflict if a live lock
-// is already held. Callers wanting to preempt a live holder should call
+// Acquire takes the lock for `holder`. Returns *Conflict if a live lock is
+// already held. Callers wanting to preempt a live holder should call
 // AcquireOverride instead.
 func (l *Lock) Acquire(initiativeName string, holder Holder) error {
 	return l.acquire(initiativeName, holder, false)
@@ -121,7 +129,7 @@ func (l *Lock) acquire(initiativeName string, holder Holder, override bool) erro
 			return err
 		}
 		if ok && !l.isStale(existing) {
-			return &LockConflict{Holder: existing}
+			return &Conflict{Holder: existing}
 		}
 	}
 	return l.write(initiativeName, holder)

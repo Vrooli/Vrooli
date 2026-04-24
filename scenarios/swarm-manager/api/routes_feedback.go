@@ -15,9 +15,11 @@ import (
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/backlog"
+	"swarm-manager/internal/eventlog"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/feedback"
 	"swarm-manager/internal/graph"
+	"swarm-manager/internal/initiativelock"
 	"swarm-manager/internal/initiatives"
 	"swarm-manager/internal/promptcatalog"
 	"swarm-manager/internal/promptmanager"
@@ -40,12 +42,28 @@ func (s *Server) registerFeedbackRoutes(materializer *graph.Materializer) {
 		return
 	}
 
+	creator, err := backlog.NewService(backlog.ServiceConfig{
+		Store:       s.backlogHandler.Store(),
+		Assigner:    s.initiativeService,
+		Events:      s.emitter,
+		Invalidator: materializer,
+		// Workshop and CycleChecker intentionally omitted: proposal-
+		// applied items skip auto-workshop (agent already chose the
+		// item) and cycle validation is performed by the Applier's
+		// Validate phase using CurrentState.
+	})
+	if err != nil {
+		slog.Warn("feedback: failed to build backlog.Service for proposals", "err", err)
+		return
+	}
+
 	applier, err := proposals.NewApplier(proposals.Config{
 		Store:       s.backlogHandler.Store(),
 		Assigner:    s.initiativeService,
+		Creator:     creator,
 		Canceller:   newExecutionCancellerAdapter(s.executionSvc),
 		Invalidator: materializer,
-		Events:      &feedbackEventEmitter{},
+		Events:      &feedbackEventEmitter{eventlog: s.emitter},
 	})
 	if err != nil {
 		slog.Warn("feedback: failed to build proposals.Applier", "err", err)
@@ -53,7 +71,7 @@ func (s *Server) registerFeedbackRoutes(materializer *graph.Materializer) {
 	}
 
 	store := feedback.NewStore(s.initiativeService.InitDir)
-	lock := &feedback.Lock{Dir: s.initiativeService.InitDir}
+	lock := &initiativelock.Lock{Dir: s.initiativeService.InitDir}
 	if s.initStore != nil {
 		sweepStaleFeedbackLocks(s.initStore, lock)
 	}
@@ -611,30 +629,61 @@ func (p *feedbackPoller) GetRunState(ctx context.Context, runID string) (feedbac
 	}, nil
 }
 
-// feedbackEventEmitter satisfies proposals.EventEmitter with a slog sink
-// so accepted-mutation attribution lands somewhere durable. The event log
-// can subscribe to this seam later without changing the proposals package.
-type feedbackEventEmitter struct{}
+// feedbackEventEmitter satisfies proposals.EventEmitter by appending a
+// EventBacklogProposalApplied to the durable event log so attribution
+// (feedback round / review round, decided-by, mutation id, op, target)
+// survives restarts and is queryable per affected backlog item. A nil
+// eventlog falls through to slog so test wiring still records the call.
+type feedbackEventEmitter struct {
+	eventlog *eventlog.Emitter
+}
 
 func (e *feedbackEventEmitter) EmitProposalMutationApplied(source proposals.Source, m proposals.Mutation) {
-	slog.Info("proposals: mutation applied",
+	target := proposalEventTarget(m)
+	payload := eventlog.ProposalAppliedPayload{
+		InitiativeName:  source.InitiativeName,
+		FeedbackRoundID: source.FeedbackRoundID,
+		ReviewRoundID:   source.ReviewRoundID,
+		RoundNumber:     source.RoundNumber,
+		RoundSlug:       source.RoundSlug,
+		Entrypoint:      source.Entrypoint,
+		DecidedBy:       source.DecidedBy,
+		MutationID:      m.ID,
+		Op:              string(m.Op),
+		Target:          target,
+	}
+	if e.eventlog != nil {
+		e.eventlog.EmitBacklogProposalApplied(target, payload)
+		return
+	}
+	slog.Info("proposals: mutation applied (no eventlog wired)",
 		"initiative", source.InitiativeName,
 		"feedback_round", source.FeedbackRoundID,
-		"round_number", source.RoundNumber,
-		"round_slug", source.RoundSlug,
-		"entrypoint", source.Entrypoint,
-		"review_round", source.ReviewRoundID,
-		"decided_by", source.DecidedBy,
 		"mutation_id", m.ID,
 		"op", m.Op,
-		"target", m.Target,
+		"target", target,
 	)
+}
+
+// proposalEventTarget picks the backlog ref to attach the event to:
+// add_item / split_item use the new item's ref; edge ops use From; all
+// others use Target. Empty when the op has no natural per-item entity.
+func proposalEventTarget(m proposals.Mutation) string {
+	switch m.Op {
+	case proposals.OpAddItem:
+		if m.Item != nil {
+			return m.Item.Ref()
+		}
+	case proposals.OpAddEdge, proposals.OpRemoveEdge:
+		return m.From
+	}
+	return m.Target
 }
 
 // sweepStaleFeedbackLocks releases lock files older than MaxAge for every
 // initiative on disk. Run on boot so a server crash doesn't strand the
 // initiative behind a dead lock.
-func sweepStaleFeedbackLocks(initStore *initiatives.Store, lock *feedback.Lock) {
+func sweepStaleFeedbackLocks(initStore *initiatives.Store, lock *initiativelock.Lock) {
 	all, err := initStore.LoadAll()
 	if err != nil {
 		slog.Warn("feedback: stale-lock sweep skipped", "err", err)

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"swarm-manager/internal/storage"
@@ -108,8 +109,10 @@ func (s *Store) NextRoundNumber(initiativeName string) (int, error) {
 		if m == nil {
 			continue
 		}
-		var n int
-		fmt.Sscanf(m[1], "%d", &n)
+		n, err := strconv.Atoi(m[1])
+		if err != nil {
+			continue
+		}
 		if n > max {
 			max = n
 		}
@@ -208,8 +211,10 @@ func (s *Store) LoadRound(initiativeName string, number int) (Round, error) {
 		if m == nil {
 			continue
 		}
-		var n int
-		fmt.Sscanf(m[1], "%d", &n)
+		n, err := strconv.Atoi(m[1])
+		if err != nil {
+			continue
+		}
 		if n != number {
 			continue
 		}
@@ -262,8 +267,10 @@ func (s *Store) DeleteRound(initiativeName string, number int) error {
 		if m == nil {
 			continue
 		}
-		var n int
-		fmt.Sscanf(m[1], "%d", &n)
+		n, err := strconv.Atoi(m[1])
+		if err != nil {
+			continue
+		}
 		if n != number {
 			continue
 		}

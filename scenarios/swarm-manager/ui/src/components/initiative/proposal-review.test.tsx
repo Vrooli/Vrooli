@@ -3,7 +3,19 @@ import { render, screen, cleanup, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ProposalReview } from "./proposal-review";
 import { selectors } from "../../consts/selectors";
-import type { ProposalRevision } from "../../types";
+import type { BacklogStatus, ProposalRevision } from "../../types";
+
+// Mock InitiativeDependencyGraph so overlay integration can be asserted
+// without spinning up ReactFlow + Dagre in jsdom. Each render writes the
+// received overlay payload to a data attribute the test reads back.
+vi.mock("./InitiativeDependencyGraph", () => ({
+  InitiativeDependencyGraph: (props: { overlay?: unknown }) => (
+    <div
+      data-testid="mock-initiative-graph"
+      data-overlay={JSON.stringify(props.overlay ?? null)}
+    />
+  ),
+}));
 
 beforeAll(() => {
   Object.defineProperty(window, "matchMedia", {
@@ -247,6 +259,76 @@ describe("ProposalReview", () => {
     );
     const banner = screen.getByTestId(selectors.feedback.proposalApplySummary);
     expect(banner.className).toMatch(/border-emerald-500/);
+  });
+
+  it("renders the parse-warnings banner when the revision carries warnings", () => {
+    const revision = makeRevision();
+    revision.parse_warnings = [
+      "unexpected token at offset 42",
+      "proposal block wrapped in extra markdown fences",
+    ];
+    render(
+      <ProposalReview
+        revision={revision}
+        onAccept={vi.fn()}
+        onReject={vi.fn()}
+        onDismiss={vi.fn()}
+      />,
+    );
+    // Banner header renders with the "Parse warnings" label.
+    expect(screen.getByText(/parse warnings/i)).toBeInTheDocument();
+    // Each warning becomes its own list item.
+    expect(screen.getByText(/unexpected token at offset 42/)).toBeInTheDocument();
+    expect(screen.getByText(/proposal block wrapped in extra markdown fences/)).toBeInTheDocument();
+  });
+
+  it("omits the parse-warnings banner when the warnings array is empty", () => {
+    const revision = makeRevision();
+    revision.parse_warnings = [];
+    render(
+      <ProposalReview
+        revision={revision}
+        onAccept={vi.fn()}
+        onReject={vi.fn()}
+        onDismiss={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText(/parse warnings/i)).toBeNull();
+  });
+
+  it("passes the overlay into InitiativeDependencyGraph when previewItems are provided", () => {
+    const revision = makeRevision();
+    const previewItems = [
+      { kind: "execute", name: "a", title: "A", status: "completed" as BacklogStatus, dependsOn: [] },
+      { kind: "execute", name: "b", title: "B", status: "backlog" as BacklogStatus, dependsOn: [] },
+      { kind: "execute", name: "c", title: "C", status: "backlog" as BacklogStatus, dependsOn: [] },
+    ];
+    render(
+      <ProposalReview
+        revision={revision}
+        previewItems={previewItems}
+        onAccept={vi.fn()}
+        onReject={vi.fn()}
+        onDismiss={vi.fn()}
+      />,
+    );
+    const graph = screen.getByTestId("mock-initiative-graph");
+    const overlayJSON = graph.getAttribute("data-overlay");
+    expect(overlayJSON).toBeTruthy();
+    const overlay = JSON.parse(overlayJSON!);
+    // The three mutations in makeRevision() seed the overlay — smoke-level
+    // check that the end-to-end wiring (ProposalReview → buildOverlay →
+    // InitiativeDependencyGraph.overlay) delivered a populated payload.
+    // Exact mutation-type split is covered by proposal-overlay's own tests.
+    expect(overlay).not.toBeNull();
+    const totalChanges =
+      (overlay.addedNodeIds?.length ?? 0) +
+      (overlay.archivedNodeIds?.length ?? 0) +
+      (overlay.movedOutNodeIds?.length ?? 0) +
+      (overlay.changedStatusIds?.length ?? 0) +
+      (overlay.addedEdges?.length ?? 0) +
+      (overlay.removedEdges?.length ?? 0);
+    expect(totalChanges).toBeGreaterThan(0);
   });
 
   it("refuses to render accept flow for full_graph proposals", () => {

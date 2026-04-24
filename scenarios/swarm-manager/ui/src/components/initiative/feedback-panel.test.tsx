@@ -159,6 +159,24 @@ describe("FeedbackPanel", () => {
     expect(mockContinue.mock.calls[0]![2]).toMatchObject({ text: "please drop m1" });
   });
 
+  it("routes dismiss through the decide endpoint with kind=dismiss", async () => {
+    mockList.mockResolvedValue([round()]);
+    mockDecide.mockResolvedValue({
+      round: round({ status: "dismissed", decision: { kind: "dismiss", decided_at: "2026-04-23T00:05:00Z" } }),
+      apply_result: { outcomes: [], applied: 0, failed: 0, skipped: 0 },
+    });
+    renderPanel();
+    await screen.findByTestId(selectors.feedback.panelRoundCard);
+    await userEvent.click(screen.getByTestId(selectors.feedback.panelRoundExpand));
+
+    await userEvent.click(screen.getByTestId(selectors.feedback.proposalDismiss));
+
+    await waitFor(() => expect(mockDecide).toHaveBeenCalled());
+    expect(mockDecide.mock.calls[0]![2]).toMatchObject({ kind: "dismiss" });
+    // Dismiss must never propose mutation IDs — nothing to apply.
+    expect(mockDecide.mock.calls[0]![2].acceptedMutationIds ?? []).toEqual([]);
+  });
+
   it("renders the decision block for terminal rounds", async () => {
     mockList.mockResolvedValue([
       round({

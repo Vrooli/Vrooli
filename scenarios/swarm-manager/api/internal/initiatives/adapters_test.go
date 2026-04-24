@@ -1,6 +1,7 @@
 package initiatives
 
 import (
+	"errors"
 	"testing"
 
 	"swarm-manager/internal/backlog"
@@ -129,7 +130,7 @@ func TestBacklogAssignerAdapter_Update(t *testing.T) {
 		Name:        "upd-init",
 		Title:       "Updated Title",
 		Description: "updated desc",
-		Status:      "completed",
+		Status:      InitiativeStatusActive,
 	})
 	if err != nil {
 		t.Fatalf("Update: %v", err)
@@ -145,8 +146,30 @@ func TestBacklogAssignerAdapter_Update(t *testing.T) {
 	if result.Initiative.Description != "updated desc" {
 		t.Errorf("expected description 'updated desc', got %q", result.Initiative.Description)
 	}
-	if result.Initiative.Status != "completed" {
-		t.Errorf("expected status completed, got %q", result.Initiative.Status)
+	if result.Initiative.Status != InitiativeStatusActive {
+		t.Errorf("expected status to remain active, got %q", result.Initiative.Status)
+	}
+}
+
+// TestBacklogAssignerAdapter_Update_TerminalBypass verifies the guard also
+// covers the batch-create path — a backlog InitiativeSpec cannot flip an
+// initiative into a review-owned status without going through review-decide.
+func TestBacklogAssignerAdapter_Update_TerminalBypass(t *testing.T) {
+	svc := newTestService(t, nil)
+	if _, err := svc.Create(CreateRequest{Name: "term-init", Title: "T"}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	adapter := NewBacklogAssignerAdapter(svc)
+	err := adapter.Update(backlog.InitiativeSpec{
+		Name:   "term-init",
+		Title:  "T",
+		Status: InitiativeStatusCompleted,
+	})
+	if err == nil {
+		t.Fatal("expected batch-adapter Update to terminal status to be rejected")
+	}
+	if !errors.Is(err, ErrValidation) {
+		t.Errorf("expected ErrValidation, got %v", err)
 	}
 }
 

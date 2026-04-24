@@ -1,6 +1,7 @@
 package initiatives
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -78,7 +79,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if status := strings.TrimSpace(req.Status); status != "" && !ValidateStatus(status) {
-		apierr.MapError(w, "[initiatives] create", apierr.BadRequest("status must be active or completed"))
+		apierr.MapError(w, "[initiatives] create", apierr.BadRequest("status must be %s", UserSettableInitiativeStatusList()))
 		return
 	}
 
@@ -86,6 +87,10 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if strings.Contains(err.Error(), "already exists") {
 			apierr.MapError(w, "[initiatives] create", apierr.Conflict("%s", err.Error()))
+			return
+		}
+		if errors.Is(err, ErrValidation) {
+			apierr.MapError(w, "[initiatives] create", apierr.BadRequest("%s", err.Error()))
 			return
 		}
 		slog.Error("failed to create initiative", "error", err)
@@ -177,7 +182,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Status != nil && !ValidateStatus(strings.TrimSpace(*req.Status)) {
-		apierr.MapError(w, "[initiatives] update", apierr.BadRequest("status must be active or completed"))
+		apierr.MapError(w, "[initiatives] update", apierr.BadRequest("status must be %s", UserSettableInitiativeStatusList()))
 		return
 	}
 
@@ -185,6 +190,10 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			apierr.MapError(w, "[initiatives] update", apierr.NotFound("initiative not found"))
+			return
+		}
+		if errors.Is(err, ErrValidation) {
+			apierr.MapError(w, "[initiatives] update", apierr.BadRequest("%s", err.Error()))
 			return
 		}
 		slog.Error("failed to update initiative", "error", err)

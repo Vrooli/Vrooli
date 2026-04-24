@@ -12,6 +12,8 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+
+	"swarm-manager/internal/initiativelock"
 )
 
 // newHandlerEnv builds the full service+handler stack against temp-dir
@@ -82,7 +84,7 @@ func TestHandler_Start_Note(t *testing.T) {
 
 func TestHandler_Start_LockConflictReturns409(t *testing.T) {
 	env := newHandlerEnv(t)
-	if err := env.lock.Acquire("ui-rewrite", Holder{RunID: "prior", Purpose: "feedback"}); err != nil {
+	if err := env.lock.Acquire("ui-rewrite", initiativelock.Holder{RunID: "prior", Purpose: "feedback"}); err != nil {
 		t.Fatal(err)
 	}
 	body := `{"type":"feedback","text":"preempt"}`
@@ -232,7 +234,7 @@ func TestHandler_LockStatus(t *testing.T) {
 		t.Fatalf("expected locked=false, got %+v", payload)
 	}
 
-	if err := env.lock.Acquire("ui-rewrite", Holder{RunID: "run-x", Purpose: "feedback"}); err != nil {
+	if err := env.lock.Acquire("ui-rewrite", initiativelock.Holder{RunID: "run-x", Purpose: "feedback"}); err != nil {
 		t.Fatal(err)
 	}
 

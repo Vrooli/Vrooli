@@ -1,6 +1,7 @@
 package initiatives
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -14,6 +15,10 @@ func strPtr(value string) *string {
 
 func slicePtr(values []string) *[]string {
 	return &values
+}
+
+func intPtr(value int) *int {
+	return &value
 }
 
 // mockBacklogLoader is a test double implementing BacklogLoader. It tracks
@@ -157,9 +162,11 @@ func TestService_Update(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
+	// Update user-settable fields. Status is explicitly re-asserted as
+	// "active" (a no-op transition) to prove active→active is allowed.
 	updated, err := svc.Update("upd", UpdateRequest{
 		Title:  strPtr("Updated"),
-		Status: strPtr("completed"),
+		Status: strPtr("active"),
 		Items:  slicePtr([]string{"fix/bar"}),
 	})
 	if err != nil {
@@ -168,8 +175,66 @@ func TestService_Update(t *testing.T) {
 	if updated.Title != "Updated" {
 		t.Errorf("expected title Updated, got %q", updated.Title)
 	}
-	if updated.Status != "completed" {
-		t.Errorf("expected status completed, got %q", updated.Status)
+	if updated.Status != InitiativeStatusActive {
+		t.Errorf("expected status to remain active, got %q", updated.Status)
+	}
+}
+
+// TestService_Update_RejectsTerminalStatus guards the invariant documented in
+// internal/initiativereview/doc.go: "Nothing else may write a terminal
+// initiative status." PATCH is the one place a user could otherwise bypass
+// review-decide.
+func TestService_Update_RejectsTerminalStatus(t *testing.T) {
+	svc := newTestService(t, nil)
+
+	if _, err := svc.Create(CreateRequest{Name: "term", Title: "Terminal Guard"}); err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	for _, status := range []string{
+		InitiativeStatusCompleted,
+		InitiativeStatusFailed,
+		InitiativeStatusNeedsFollowup,
+		InitiativeStatusInReview,
+		InitiativeStatusReviewPending,
+	} {
+		_, err := svc.Update("term", UpdateRequest{Status: strPtr(status)})
+		if err == nil {
+			t.Errorf("expected PATCH to %q to be rejected, got nil", status)
+			continue
+		}
+		if !errors.Is(err, ErrValidation) {
+			t.Errorf("PATCH to %q: expected ErrValidation, got %v", status, err)
+		}
+	}
+}
+
+// TestService_Update_RejectsPatchDuringReview ensures that once
+// initiativereview has flipped an initiative into a review-phase status,
+// PATCH cannot drag it back without going through review-decide.
+func TestService_Update_RejectsPatchDuringReview(t *testing.T) {
+	svc := newTestService(t, nil)
+
+	if _, err := svc.Create(CreateRequest{Name: "during", Title: "Mid-Review"}); err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+	// Simulate initiativereview writing the status directly via the store
+	// (its audit-trail bypass path).
+	init, err := svc.store.Load("during")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+	init.Status = InitiativeStatusReviewPending
+	if err := svc.store.Save(init); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
+
+	_, err = svc.Update("during", UpdateRequest{Status: strPtr(InitiativeStatusActive)})
+	if err == nil {
+		t.Fatal("expected PATCH during review to be rejected")
+	}
+	if !errors.Is(err, ErrValidation) {
+		t.Errorf("expected ErrValidation, got %v", err)
 	}
 }
 
@@ -204,18 +269,23 @@ func TestService_Update_Partial(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	updated, err := svc.Update("partial", UpdateRequest{Status: strPtr("completed")})
+	// Partial update on a single field (priority); all others must be
+	// preserved including description and status.
+	updated, err := svc.Update("partial", UpdateRequest{Priority: intPtr(5)})
 	if err != nil {
 		t.Fatalf("Update failed: %v", err)
 	}
 	if updated.Title != "Original" {
 		t.Errorf("expected title to remain Original, got %q", updated.Title)
 	}
-	if updated.Status != "completed" {
-		t.Errorf("expected status completed, got %q", updated.Status)
+	if updated.Status != InitiativeStatusActive {
+		t.Errorf("expected status to remain active, got %q", updated.Status)
 	}
 	if updated.Description != "keep me" {
 		t.Errorf("expected description to remain unchanged, got %q", updated.Description)
+	}
+	if updated.Priority != 5 {
+		t.Errorf("expected priority 5, got %d", updated.Priority)
 	}
 }
 

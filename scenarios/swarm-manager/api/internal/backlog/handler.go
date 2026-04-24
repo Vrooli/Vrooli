@@ -77,6 +77,7 @@ type Handler struct {
 // EventLogger records state-change events for analytics.
 type EventLogger interface {
 	EmitBacklogCreated(entityID, kind, status string, priority int, initiative, effort string)
+	EmitBacklogCreatedFromSource(entityID, kind, status string, priority int, initiative, effort, actorType, actorID string)
 	EmitBacklogStatusChanged(entityID, from, to string)
 	EmitBacklogPriorityChanged(entityID string, from, to int)
 	EmitBacklogEffortChanged(entityID, from, to string)

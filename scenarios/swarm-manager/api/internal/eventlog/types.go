@@ -38,6 +38,7 @@ const (
 	EventBacklogArchived          EventType = "backlog.archived"
 	EventBacklogUnarchived        EventType = "backlog.unarchived"
 	EventBacklogDeleted           EventType = "backlog.deleted"
+	EventBacklogProposalApplied   EventType = "backlog.proposal_applied"
 )
 
 // Initiative events.
@@ -293,6 +294,24 @@ type UnarchivePayload struct {
 // ViewPayload records a view event. Intentionally minimal.
 type ViewPayload struct {
 	Kind string `json:"kind,omitempty"`
+}
+
+// ProposalAppliedPayload records a single mutation applied through the
+// proposals layer (initiative feedback or review). EntityID on the parent
+// Event is the affected backlog ref so per-item history surfaces these
+// alongside other backlog events; the originating round lives in the
+// payload so consumers can group by feedback/review round.
+type ProposalAppliedPayload struct {
+	InitiativeName  string `json:"initiative_name"`
+	FeedbackRoundID string `json:"feedback_round_id,omitempty"`
+	ReviewRoundID   string `json:"review_round_id,omitempty"`
+	RoundNumber     int    `json:"round_number,omitempty"`
+	RoundSlug       string `json:"round_slug,omitempty"`
+	Entrypoint      string `json:"entrypoint,omitempty"`
+	DecidedBy       string `json:"decided_by,omitempty"`
+	MutationID      string `json:"mutation_id"`
+	Op              string `json:"op"`
+	Target          string `json:"target,omitempty"`
 }
 
 // MigrationAppliedPayload records that a one-time migration has completed.

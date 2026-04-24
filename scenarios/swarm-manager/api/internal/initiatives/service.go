@@ -1,6 +1,7 @@
 package initiatives
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -8,6 +9,15 @@ import (
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/dispatch"
 )
+
+// ErrValidation wraps user-correctable validation failures from Create/Update
+// so the HTTP handler can return 400 instead of 500. Store/cascade failures
+// do not wrap this sentinel and remain 500s.
+var ErrValidation = errors.New("initiative validation error")
+
+func validationErr(format string, args ...any) error {
+	return fmt.Errorf("%w: "+format, append([]any{ErrValidation}, args...)...)
+}
 
 // BacklogLoader loads individual backlog items for rollup computation and
 // performs cascade writes on an item's initiative field when initiative
@@ -102,10 +112,13 @@ func (s *Service) Create(req CreateRequest) (*Initiative, error) {
 	}
 	status := strings.TrimSpace(req.Status)
 	if status == "" {
-		status = "active"
+		status = InitiativeStatusActive
 	}
 	if !ValidateStatus(status) {
-		return nil, fmt.Errorf("invalid status %q: must be active or completed", req.Status)
+		return nil, validationErr("invalid status %q: must be %s", req.Status, UserSettableInitiativeStatusList())
+	}
+	if !IsUserSettableInitiativeStatus(status) {
+		return nil, validationErr("status %q is owned by the review pipeline; initiatives are created as %q and transition via the review-decide endpoint", status, InitiativeStatusActive)
 	}
 
 	if !ValidatePriority(req.Priority) {
@@ -284,7 +297,21 @@ func (s *Service) Update(name string, req UpdateRequest) (*Initiative, error) {
 	if req.Status != nil {
 		status := strings.TrimSpace(*req.Status)
 		if !ValidateStatus(status) {
-			return nil, fmt.Errorf("invalid status %q: must be active or completed", *req.Status)
+			return nil, validationErr("invalid status %q: must be %s", *req.Status, UserSettableInitiativeStatusList())
+		}
+		// Same-status no-ops are allowed so callers (e.g. the backlog
+		// batch adapter's full-field replace) don't fail when an
+		// existing initiative is already in a review/terminal status.
+		if status != init.Status {
+			if !IsUserSettableInitiativeStatus(status) {
+				return nil, validationErr("status %q is owned by the review pipeline; use the initiatives review-decide endpoint so the decision is audited", status)
+			}
+			if IsReviewInitiativeStatus(init.Status) {
+				return nil, validationErr("initiative is in status %q; use the review-decide endpoint to change status", init.Status)
+			}
+			if IsTerminalInitiativeStatus(init.Status) {
+				return nil, validationErr("initiative is in terminal status %q; cannot revert via PATCH", init.Status)
+			}
 		}
 		init.Status = status
 	}

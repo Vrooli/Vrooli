@@ -26,10 +26,20 @@ import (
 //     redoing work the per-item reviews already did — it synthesizes)
 //   - aggregate deliverable content for completed items (union of plan.md /
 //     conclusion.md) so the agent can spot cross-item regressions
+//   - the union of affected scenarios across all member items and a
+//     *fresh* GCT (git-control-tower) verdict per scenario run at review
+//     start — this is the "is the whole thing still working together?"
+//     integration signal the initiative review is specifically designed
+//     to assess. Uses the same attachment keys (affected-scenarios,
+//     gct-review-results) as backlog review so the skill sees a single
+//     vocabulary across owner types.
+//
+// affectedScenarios and freshGCT are gathered upstream in startReview so
+// the attachment writer stays purely about attachment shape.
 //
 // All attachments are "note" type, separated by key so BuildSplitPrompt on
 // the agent-manager side can route them appropriately.
-func (s *Service) buildContextAttachments(init *initiatives.Initiative) ([]*domainpb.ContextAttachment, error) {
+func (s *Service) buildContextAttachments(init *initiatives.Initiative, affectedScenarios []string, freshGCT map[string]*GCTResult) ([]*domainpb.ContextAttachment, error) {
 	var atts []*domainpb.ContextAttachment
 
 	atts = appendNote(atts, "initiative-summary", "Initiative Summary",
@@ -61,7 +71,51 @@ func (s *Service) buildContextAttachments(init *initiatives.Initiative) ([]*doma
 			trimmed, "markdown", "medium")
 	}
 
+	atts = appendFreshGCTAttachments(atts, affectedScenarios, freshGCT, len(init.Items))
+
 	return atts, nil
+}
+
+// appendFreshGCTAttachments adds affected-scenarios + gct-review-results
+// to the attachment slice. Key names intentionally match the backlog
+// review flow so the skill sees one vocabulary across owner types.
+// When no scenarios are in scope (executionLookup not wired, or no item
+// has a finalization), both keys are omitted — the review still runs,
+// just without integration evidence.
+func appendFreshGCTAttachments(atts []*domainpb.ContextAttachment, scenarios []string, freshGCT map[string]*GCTResult, itemCount int) []*domainpb.ContextAttachment {
+	if len(scenarios) == 0 {
+		return atts
+	}
+
+	atts = appendNote(atts, "affected-scenarios", "Affected Scenarios",
+		fmt.Sprintf("%d scenarios touched across %d items", len(scenarios), itemCount),
+		strings.Join(scenarios, "\n"), "text", "medium")
+
+	if len(freshGCT) == 0 {
+		return atts
+	}
+
+	// Stable ordering — agent output is sensitive to context churn, and a
+	// map marshal would otherwise re-order fields across review runs.
+	ordered := make([]*GCTResult, 0, len(freshGCT))
+	keys := make([]string, 0, len(freshGCT))
+	for k := range freshGCT {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		if res := freshGCT[k]; res != nil {
+			ordered = append(ordered, res)
+		}
+	}
+
+	if payload, err := json.MarshalIndent(ordered, "", "  "); err == nil {
+		atts = appendNote(atts, "gct-review-results", "GCT Review Results",
+			"Fresh GCT verdict per affected scenario, collected at review start",
+			string(payload), "json", "high")
+	}
+
+	return atts
 }
 
 // renderInitiativeSummary produces a compact Markdown block with the fields

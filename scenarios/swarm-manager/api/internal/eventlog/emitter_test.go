@@ -225,6 +225,67 @@ func TestEmitClarificationResolved(t *testing.T) {
 	}
 }
 
+func TestEmitBacklogProposalApplied_FeedbackRoundAttribution(t *testing.T) {
+	emitter, repo := setupEmitter(t)
+
+	payload := eventlog.ProposalAppliedPayload{
+		InitiativeName:  "ui-rewrite",
+		FeedbackRoundID: "ui-rewrite/round-001",
+		RoundNumber:     1,
+		RoundSlug:       "first-pass",
+		Entrypoint:      "initiative.feedback",
+		DecidedBy:       "matt",
+		MutationID:      "m1",
+		Op:              "add_item",
+		Target:          "execute/baz",
+	}
+	emitter.EmitBacklogProposalApplied("execute/baz", payload)
+
+	e := lastEvent(t, repo)
+	if e.EntityType != eventlog.EntityBacklogItem {
+		t.Errorf("entity_type: got %q", e.EntityType)
+	}
+	if e.EntityID != "execute/baz" {
+		t.Errorf("entity_id: got %q", e.EntityID)
+	}
+	if e.EventType != eventlog.EventBacklogProposalApplied {
+		t.Errorf("event_type: got %q", e.EventType)
+	}
+	if e.ActorType != "feedback_round" {
+		t.Errorf("actor_type: got %q", e.ActorType)
+	}
+	if e.ActorID != "ui-rewrite/round-001" {
+		t.Errorf("actor_id: got %q", e.ActorID)
+	}
+	var got eventlog.ProposalAppliedPayload
+	if err := json.Unmarshal(e.Metadata, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if got != payload {
+		t.Errorf("payload roundtrip: got %+v want %+v", got, payload)
+	}
+}
+
+func TestEmitBacklogProposalApplied_ReviewRoundTakesPrecedence(t *testing.T) {
+	emitter, repo := setupEmitter(t)
+
+	emitter.EmitBacklogProposalApplied("execute/foo", eventlog.ProposalAppliedPayload{
+		InitiativeName:  "ui-rewrite",
+		FeedbackRoundID: "ui-rewrite/round-001",
+		ReviewRoundID:   "ui-rewrite/review-002",
+		MutationID:      "m1",
+		Op:              "change_status",
+		Target:          "execute/foo",
+	})
+	e := lastEvent(t, repo)
+	if e.ActorType != "initiative_review" {
+		t.Errorf("review must dominate feedback: actor_type=%q", e.ActorType)
+	}
+	if e.ActorID != "ui-rewrite/review-002" {
+		t.Errorf("actor_id: got %q", e.ActorID)
+	}
+}
+
 func TestEmitClarificationAction(t *testing.T) {
 	emitter, repo := setupEmitter(t)
 

@@ -18,8 +18,12 @@ The server has attached everything you should need as `note` context attachments
 | `item-summaries` | Terse per-item block (kind, status, title, depends_on) |
 | `item-review-snapshots` | Latest per-item review round (classification + assessment) if any |
 | `item-deliverables` | Aggregated `plan.md` / `conclusion.md` for completed items |
+| `affected-scenarios` | Union of scenarios touched across all member items |
+| `gct-review-results` | **Fresh** GCT (git-control-tower) verdict per affected scenario, run at review start — this is the current integration signal, not a stale snapshot. Each entry carries `scenario_name`, `classification`, `summary`, and (when available) `raw_dimensions`. If a scenario failed to report (GCT unreachable, timeout), its entry carries an `error` field instead of a verdict — call those out explicitly rather than assuming healthy. |
 
 Read these. Do not re-fetch item files via CLI — the attachments are the authoritative reading set for this round. If the attachment is missing or short, say so in your assessment rather than guessing.
+
+The `gct-review-results` block is the "is the whole thing still working together" integration signal, collected fresh when this review started. When a scenario's entry shows `classification: "ready"` or `ready_with_notes`, that verdict reflects current state; when it shows an `error`, the review ran without evidence for that scenario and you should surface the gap so the user knows what to re-check.
 
 ## Your task
 

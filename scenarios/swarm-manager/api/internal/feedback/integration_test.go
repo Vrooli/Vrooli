@@ -13,18 +13,19 @@ import (
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/graph"
+	"swarm-manager/internal/initiativelock"
 	"swarm-manager/internal/initiatives"
 	"swarm-manager/internal/proposals"
 )
 
-// e2eEnv stitches together every collaborator the feedback service touches
+// integrationEnv stitches together every collaborator the feedback service touches
 // in production: backlog FileStore, initiatives.Service, graph.Materializer,
 // proposals.Applier, agentactivity.Service, lock, store, spawner.
 //
 // The point is to drive the *full* round lifecycle in one test so any
 // boundary regression (graph drift, attribution gaps, lock leaks, missing
 // activity records) surfaces here rather than from production telemetry.
-type e2eEnv struct {
+type integrationEnv struct {
 	t            *testing.T
 	root         string
 	backlogStore *backlog.FileStore
@@ -32,18 +33,18 @@ type e2eEnv struct {
 	initSvc      *initiatives.Service
 	materializer *graph.Materializer
 	activity     *agentactivity.Service
-	rawAgent     *e2eRawAgent
+	rawAgent     *integrationRawAgent
 	applier      *proposals.Applier
 	feedbackSvc  *Service
 	feedbackStor *Store
-	feedbackLock *Lock
-	spawner      *e2eSpawner
+	feedbackLock *initiativelock.Lock
+	spawner      *integrationSpawner
 	events       *capturingEmitter
 }
 
-// e2eRawAgent is a minimal stand-in for agentmanager.AgentService so the
+// integrationRawAgent is a minimal stand-in for agentmanager.AgentService so the
 // activity-tracked spawn path has a real spawner to delegate to.
-type e2eRawAgent struct {
+type integrationRawAgent struct {
 	enabled         bool
 	initSpawnReturn agentmanager.RunResult
 	initSpawnErr    error
@@ -52,15 +53,17 @@ type e2eRawAgent struct {
 	continueErr     error
 }
 
-func (a *e2eRawAgent) IsEnabled() bool                              { return a.enabled }
-func (a *e2eRawAgent) IsAvailable(_ context.Context) bool           { return a.enabled }
-func (a *e2eRawAgent) ResolveURL(_ context.Context) (string, error) { return "test://agent", nil }
-func (a *e2eRawAgent) GetProfileID() string                         { return "swarm-manager" }
-func (a *e2eRawAgent) SpawnBacklog(_ context.Context, _ agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error) {
+func (a *integrationRawAgent) IsEnabled() bool                    { return a.enabled }
+func (a *integrationRawAgent) IsAvailable(_ context.Context) bool { return a.enabled }
+func (a *integrationRawAgent) ResolveURL(_ context.Context) (string, error) {
+	return "test://agent", nil
+}
+func (a *integrationRawAgent) GetProfileID() string { return "swarm-manager" }
+func (a *integrationRawAgent) SpawnBacklog(_ context.Context, _ agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error) {
 	return agentmanager.RunResult{}, errors.New("not used in this test")
 }
 
-func (a *e2eRawAgent) SpawnInitiative(_ context.Context, req agentmanager.InitiativeSpawnRequest) (agentmanager.RunResult, error) {
+func (a *integrationRawAgent) SpawnInitiative(_ context.Context, req agentmanager.InitiativeSpawnRequest) (agentmanager.RunResult, error) {
 	a.initSpawnCalls = append(a.initSpawnCalls, req)
 	if a.initSpawnErr != nil {
 		return agentmanager.RunResult{}, a.initSpawnErr
@@ -68,25 +71,25 @@ func (a *e2eRawAgent) SpawnInitiative(_ context.Context, req agentmanager.Initia
 	return a.initSpawnReturn, nil
 }
 
-func (a *e2eRawAgent) GetRunState(_ context.Context, runID string) (agentmanager.RunState, error) {
+func (a *integrationRawAgent) GetRunState(_ context.Context, runID string) (agentmanager.RunState, error) {
 	return agentmanager.RunState{RunID: runID, Status: "running"}, nil
 }
-func (a *e2eRawAgent) StopRun(_ context.Context, _ string) error { return nil }
-func (a *e2eRawAgent) ContinueRun(_ context.Context, runID, message string) error {
+func (a *integrationRawAgent) StopRun(_ context.Context, _ string) error { return nil }
+func (a *integrationRawAgent) ContinueRun(_ context.Context, runID, message string) error {
 	a.continueCalls = append(a.continueCalls, runID+":"+message)
 	return a.continueErr
 }
 
-// e2eSpawner is the AgentSpawner injected into Service. It routes spawns
+// integrationSpawner is the AgentSpawner injected into Service. It routes spawns
 // through the agentactivity.Service so the test can prove that activity
 // records get the initiative metadata.
-type e2eSpawner struct {
+type integrationSpawner struct {
 	activity *agentactivity.Service
-	rawAgent *e2eRawAgent
+	rawAgent *integrationRawAgent
 	initSvc  *initiatives.Service
 }
 
-func (s *e2eSpawner) SpawnInitiativeFeedback(ctx context.Context, req SpawnRequest) (string, error) {
+func (s *integrationSpawner) SpawnInitiativeFeedback(ctx context.Context, req SpawnRequest) (string, error) {
 	title := ""
 	if init, err := s.initSvc.Get(req.InitiativeName); err == nil && init != nil {
 		title = init.Initiative.Title
@@ -107,7 +110,7 @@ func (s *e2eSpawner) SpawnInitiativeFeedback(ctx context.Context, req SpawnReque
 	res, err := s.activity.SpawnInitiative(ctx, agentmanager.InitiativeSpawnRequest{
 		Name:        req.InitiativeName,
 		Description: req.SubmissionText,
-		Prompt:      "synthetic prompt for e2e test",
+		Prompt:      "synthetic prompt for integration test",
 		Purpose:     req.Purpose,
 		RoundNumber: req.RoundNumber,
 		RoundSlug:   req.RoundSlug,
@@ -118,7 +121,7 @@ func (s *e2eSpawner) SpawnInitiativeFeedback(ctx context.Context, req SpawnReque
 	return res.RunID, nil
 }
 
-func (s *e2eSpawner) ContinueRun(ctx context.Context, req ContinueRequest) error {
+func (s *integrationSpawner) ContinueRun(ctx context.Context, req ContinueRequest) error {
 	spec := agentactivity.Spec{
 		OwnerType:   agentactivity.OwnerInitiative,
 		OwnerName:   req.InitiativeName,
@@ -191,7 +194,7 @@ func (a *initiativeListerAdapter) List() ([]graph.InitiativeEntry, error) {
 }
 
 // syncMaterializer wraps graph.Materializer so ScheduleAll() runs
-// MaterializeAll synchronously. This makes the e2e test deterministic
+// MaterializeAll synchronously. This makes the integration test deterministic
 // without sleeping for the background goroutine.
 type syncMaterializer struct {
 	inner *graph.Materializer
@@ -204,7 +207,7 @@ func (s *syncMaterializer) ScheduleAll() {
 	_ = s.inner.MaterializeAll(context.Background())
 }
 
-func newE2EEnv(t *testing.T) *e2eEnv {
+func newIntegrationEnv(t *testing.T) *integrationEnv {
 	t.Helper()
 	root := t.TempDir()
 
@@ -258,7 +261,7 @@ func newE2EEnv(t *testing.T) *e2eEnv {
 		t.Fatalf("seed materialize: %v", err)
 	}
 
-	rawAgent := &e2eRawAgent{
+	rawAgent := &integrationRawAgent{
 		enabled:         true,
 		initSpawnReturn: agentmanager.RunResult{TaskID: "task-1", RunID: "run-1"},
 	}
@@ -268,9 +271,18 @@ func newE2EEnv(t *testing.T) *e2eEnv {
 	})
 
 	events := &capturingEmitter{}
+	creator, err := backlog.NewService(backlog.ServiceConfig{
+		Store:       backlogStore,
+		Assigner:    initSvc,
+		Invalidator: &syncMaterializer{inner: materializer},
+	})
+	if err != nil {
+		t.Fatalf("backlog.NewService: %v", err)
+	}
 	applier, err := proposals.NewApplier(proposals.Config{
 		Store:       backlogStore,
 		Assigner:    initSvc,
+		Creator:     creator,
 		Invalidator: &syncMaterializer{inner: materializer},
 		Events:      events,
 	})
@@ -279,8 +291,8 @@ func newE2EEnv(t *testing.T) *e2eEnv {
 	}
 
 	feedbackStor := NewStore(initSvc.InitDir)
-	feedbackLock := &Lock{Dir: initSvc.InitDir, MaxAge: time.Hour}
-	spawner := &e2eSpawner{
+	feedbackLock := &initiativelock.Lock{Dir: initSvc.InitDir, MaxAge: time.Hour}
+	spawner := &integrationSpawner{
 		activity: activity,
 		rawAgent: rawAgent,
 		initSvc:  initSvc,
@@ -307,7 +319,7 @@ func newE2EEnv(t *testing.T) *e2eEnv {
 		t.Fatalf("NewService: %v", err)
 	}
 
-	return &e2eEnv{
+	return &integrationEnv{
 		t:            t,
 		root:         root,
 		backlogStore: backlogStore,
@@ -337,13 +349,14 @@ func loadInitiativeNames(svc *initiatives.Service) ([]string, error) {
 	return names, nil
 }
 
-// TestE2E_FeedbackRound_FullStoryStartsToAppliedMutations is the
-// integration-test-for-the-whole-story called out in the plan. It covers
-// the full lifecycle plus the note-type short-circuit and asserts every
-// downstream side-effect: backlog mutations, graph regeneration,
-// agentactivity records, and event attribution.
-func TestE2E_FeedbackRound_FullStoryStartsToAppliedMutations(t *testing.T) {
-	env := newE2EEnv(t)
+// TestIntegration_FeedbackRound_FullStoryStartsToAppliedMutations covers
+// the full feedback lifecycle: note-type short-circuit, agent-spawned
+// proposal, partial accept, downstream backlog mutations, graph
+// regeneration, agentactivity records, and event attribution. The agent
+// spawner and prompt-manager are stubbed; this is a subsystem
+// integration test, not an end-to-end run against real services.
+func TestIntegration_FeedbackRound_FullStoryStartsToAppliedMutations(t *testing.T) {
+	env := newIntegrationEnv(t)
 
 	// 1. A note-type round skips the agent and lands on disk for audit.
 	noteRound, err := env.feedbackSvc.StartRound(context.Background(), StartRoundRequest{
@@ -554,11 +567,11 @@ func TestE2E_FeedbackRound_FullStoryStartsToAppliedMutations(t *testing.T) {
 	}
 }
 
-// TestE2E_FeedbackRound_RejectLeavesGraphIntact mirrors the full-story
-// test but proves that a reject decision touches nothing — items stay,
-// graph stays, no events emitted.
-func TestE2E_FeedbackRound_RejectLeavesGraphIntact(t *testing.T) {
-	env := newE2EEnv(t)
+// TestIntegration_FeedbackRound_RejectLeavesGraphIntact mirrors the
+// full-story test but proves a reject decision touches nothing — items
+// stay, graph stays, no events emitted.
+func TestIntegration_FeedbackRound_RejectLeavesGraphIntact(t *testing.T) {
+	env := newIntegrationEnv(t)
 
 	round, err := env.feedbackSvc.StartRound(context.Background(), StartRoundRequest{
 		InitiativeName: "command-center",
@@ -606,7 +619,7 @@ func containsString(s []string, want string) bool {
 	return false
 }
 
-// Compile-time assertion: e2eRawAgent satisfies the same surface
+// Compile-time assertion: integrationRawAgent satisfies the same surface
 // agentactivity.Service expects from its raw spawner. If the agentactivity
 // rawAgentService interface drifts, this test breaks fast.
 var _ interface {
@@ -617,4 +630,4 @@ var _ interface {
 	SpawnBacklog(context.Context, agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error)
 	GetRunState(context.Context, string) (agentmanager.RunState, error)
 	StopRun(context.Context, string) error
-} = (*e2eRawAgent)(nil)
+} = (*integrationRawAgent)(nil)

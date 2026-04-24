@@ -29,6 +29,10 @@ type statusChangeEmit struct {
 }
 
 func (l *captureEventLogger) EmitBacklogCreated(_, _, _ string, _ int, _, _ string) {}
+func (l *captureEventLogger) EmitBacklogCreatedFromSource(_, _, _ string, _ int, _, _, _, _ string) {
+	// no-op
+}
+
 func (l *captureEventLogger) EmitBacklogStatusChanged(entityID, from, to string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()

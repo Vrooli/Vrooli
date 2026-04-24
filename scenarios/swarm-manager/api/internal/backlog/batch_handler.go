@@ -508,26 +508,35 @@ func (h *Handler) applyInitiativeChanges(plans map[string]resolvedInitiativePlan
 	return applied, nil
 }
 
-// createBatchItems creates all items on disk. On failure, rolls back all
-// created directories and initiative changes.
+// createBatchItems creates all items on disk via the unified
+// backlog.Service.Create chokepoint. SkipDuplicateCheck and
+// SkipCycleCheck are set because validateBatchItems / checkBatchDependencyCycles
+// already validated up front. SkipInitiativeAttach defers initiative
+// membership writes to assignItemsToInitiatives, which uses bulk
+// AddItems for one initiative.json write per initiative instead of N
+// from per-item RememberItem. SkipWorkshopTrigger and SkipGraphInvalidation
+// defer those side effects to the end of the batch where they fire once.
 func (h *Handler) createBatchItems(validated []validatedItem, appliedInitiatives []resolvedInitiativePlan) ([]BacklogItem, error) {
 	createdDirs := make([]string, 0, len(validated))
 	createdItems := make([]BacklogItem, 0, len(validated))
+	svc := h.creationService()
 
 	for _, v := range validated {
-		itemDir := h.store.ItemDir(v.kind, v.item.Name)
-		if mkErr := os.MkdirAll(itemDir, 0o755); mkErr != nil {
+		err := svc.Create(v.item, CreationContext{
+			Source:                SourceBatch,
+			Entrypoint:            "http.batch_create",
+			SkipDuplicateCheck:    true,
+			SkipCycleCheck:        true,
+			SkipInitiativeAttach:  true,
+			SkipWorkshopTrigger:   true,
+			SkipGraphInvalidation: true,
+		})
+		if err != nil {
 			rollbackBatchCreate(createdDirs, appliedInitiatives, h.initiativeAssigner)
-			slog.Error("failed to create directory", "item", v.item.Name, "err", mkErr)
-			return nil, apierr.Internal("failed to create item directory")
+			slog.Error("failed to create batch item", "item", v.item.Name, "err", err)
+			return nil, apierr.Internal("failed to create item: %s", httputil.TruncateErrorMessage(err, 240))
 		}
-		createdDirs = append(createdDirs, itemDir)
-
-		if saveErr := h.store.SaveItem(v.item); saveErr != nil {
-			rollbackBatchCreate(createdDirs, appliedInitiatives, h.initiativeAssigner)
-			slog.Error("failed to save item", "item", v.item.Name, "err", saveErr)
-			return nil, apierr.Internal("failed to save item")
-		}
+		createdDirs = append(createdDirs, h.store.ItemDir(v.kind, v.item.Name))
 		createdItems = append(createdItems, v.item)
 	}
 	return createdItems, nil

@@ -5,7 +5,14 @@
   "agentId": "debt-curator",
   "enabled": true,
   "schedule": "15 19 * * *",
-  "revision": 2,
+  "lastExecution": {
+    "startedAt": "2026-04-23T23:15:00Z",
+    "endedAt": "2026-04-23T23:16:10Z",
+    "status": "completed",
+    "runId": "be7b03f9-a54b-4dd1-b423-f7eab215339c",
+    "logPath": "../store/teams/meta-optimization/members/debt-curator/logs/2026-04-23T23-15-00Z.log"
+  },
+  "revision": 5,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-04-23T16:16:55Z"
+  "updatedAt": "2026-04-23T23:16:10Z"
 }

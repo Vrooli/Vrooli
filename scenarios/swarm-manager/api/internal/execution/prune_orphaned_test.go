@@ -3,8 +3,9 @@ package execution
 import (
 	"context"
 	"path/filepath"
-	"swarm-manager/internal/promptmanager"
 	"testing"
+
+	"swarm-manager/internal/promptmanager"
 )
 
 // TestPruneOrphanedPending_DropsRecordsForMissingBacklogItems verifies that a

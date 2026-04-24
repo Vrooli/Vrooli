@@ -89,6 +89,24 @@ func ValidateStatus(status string) bool {
 	}
 }
 
+// IsUserSettableInitiativeStatus reports whether a user may set this status
+// directly via Create or PATCH. Only `active` is user-settable — every other
+// status is owned by the review pipeline and must flow through
+// internal/initiativereview so the decision is audited.
+//
+// New statuses added to the enum default to NOT user-settable; a deliberate
+// choice must be made to include them here.
+func IsUserSettableInitiativeStatus(s string) bool {
+	return s == InitiativeStatusActive
+}
+
+// UserSettableInitiativeStatusList returns the human-readable list of
+// statuses a user may set via Create or PATCH. Kept in one place so error
+// messages stay in sync with the whitelist.
+func UserSettableInitiativeStatusList() string {
+	return InitiativeStatusActive
+}
+
 // IsTerminalInitiativeStatus reports whether the status is a user-decided
 // terminal state (set only through the initiative review-decide endpoint).
 func IsTerminalInitiativeStatus(s string) bool {

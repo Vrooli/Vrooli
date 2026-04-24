@@ -69,6 +69,11 @@ export function FeedbackDialog({ initiativeName, isOpen, onClose, onSubmitted }:
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Feedback attachments persist in IndexedDB per-initiative so a half-composed
+  // dialog survives a refresh — unlike the ephemeral `useAttachments` hook
+  // clarification-panel uses, which holds attachments in memory only.
+  // Feedback rounds can take real time to compose (screenshots, multi-step
+  // thoughts); losing that work on an accidental reload is user-hostile.
   const {
     attachments,
     addFile,

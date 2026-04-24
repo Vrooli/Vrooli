@@ -16,6 +16,7 @@ import (
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/graph"
+	"swarm-manager/internal/initiativelock"
 	"swarm-manager/internal/initiatives"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/review"
@@ -66,30 +67,88 @@ type GraphReader interface {
 	ReadGraph(initiativeName string) (*graph.MaterializedGraph, error)
 }
 
+// ItemFinalization is the finalization slice initiative review needs to
+// discover which scenarios a completed item touched. Only AffectedScenarios
+// is consumed today — initiative review runs a *fresh* GCT pass against
+// each affected scenario at review start rather than reusing the item's
+// historical verdict, so the snapshot reviews live on item-level review
+// rounds, not here.
+type ItemFinalization struct {
+	AffectedScenarios []string
+}
+
+// ExecutionLookup returns the latest completed execution's finalization
+// snapshot for a backlog item — initiative review consumes only the
+// `AffectedScenarios` field to discover which scenarios to run a fresh
+// GCT review against. Returns (nil, nil) when the item has no
+// finalization data (e.g. research items, or items that completed before
+// finalization was instrumented); callers treat the miss as "no scenarios
+// in scope for this item", not as an error.
+type ExecutionLookup interface {
+	LatestFinalizationFor(kind backlog.BacklogKind, name string) (*ItemFinalization, error)
+}
+
 // Config bundles the dependencies the service needs. Fields with defaults
-// (PromptClient, Clock) are optional; the rest are required and validated
-// in NewService.
+// (PromptClient, Clock, GCTPollInterval, GCTPollTimeout) are optional;
+// the rest are required and validated in NewService.
+//
+// Lock is the shared per-initiative mutex that also gates feedback rounds.
+// Passing a nil Lock is legal (for tests / degraded modes) but leaves the
+// initiative open to concurrent feedback+review spawns — production wiring
+// must always set it.
+//
+// ExecutionLookup is optional. When provided, the service unions the
+// affected-scenarios list across all member items at review start and
+// hands them to GCTClient for a *fresh* git-control-tower pass; the
+// verdicts land on the review agent as `affected-scenarios` +
+// `gct-review-results` attachments (same keys the backlog review flow
+// uses, so skill authors only learn one vocabulary).
+//
+// GCTClient is optional but strongly recommended in production — without
+// it, the review still runs, but the gct-review-results attachment is
+// omitted. The interface is narrow (scenario name → verdict) so that
+// wiring `execution.HTTPReviewClient` through an adapter is a one-liner
+// in main.go.
+//
+// GCTPollInterval / GCTPollTimeout bound the fresh-GCT polling loop
+// per scenario. Defaults: 3s interval, 5m timeout. Tests inject small
+// values to keep poll latency out of the test budget.
 type Config struct {
-	InitStore     InitiativeStore
-	BacklogLoader BacklogLoader
-	GraphReader   GraphReader
-	Spawner       AgentSpawner
-	PromptClient  promptmanager.Client
-	Clock         func() time.Time
+	InitStore       InitiativeStore
+	BacklogLoader   BacklogLoader
+	GraphReader     GraphReader
+	Spawner         AgentSpawner
+	Lock            *initiativelock.Lock
+	ExecutionLookup ExecutionLookup
+	GCTClient       GCTClient
+	GCTPollInterval time.Duration
+	GCTPollTimeout  time.Duration
+	PromptClient    promptmanager.Client
+	Clock           func() time.Time
 }
 
 // Service orchestrates initiative review rounds.
 type Service struct {
-	initStore     InitiativeStore
-	backlogLoader BacklogLoader
-	graphReader   GraphReader
-	spawner       AgentSpawner
-	inspector     RunInspector
-	promptClient  promptmanager.Client
-	clock         func() time.Time
+	initStore       InitiativeStore
+	backlogLoader   BacklogLoader
+	graphReader     GraphReader
+	spawner         AgentSpawner
+	inspector       RunInspector
+	lock            *initiativelock.Lock
+	executionLookup ExecutionLookup
+	gctClient       GCTClient
+	gctPollInterval time.Duration
+	gctPollTimeout  time.Duration
+	promptClient    promptmanager.Client
+	clock           func() time.Time
 
 	mu           sync.Mutex
 	activeRounds map[string]activeRound // keyed by RunID
+	// triggerGate serializes TriggerIfReady per initiative so two items
+	// reaching terminal in the same tick can't both spawn a review round.
+	// Without this, the acquire/save race would let both callers pass the
+	// "status == active" check before either flips the status to in_review.
+	triggerGate sync.Mutex
 }
 
 // activeRound tracks one gathering round for the background poller.
@@ -119,13 +178,18 @@ func NewService(cfg Config) (*Service, error) {
 		pc = promptmanager.NewHTTPClient()
 	}
 	svc := &Service{
-		initStore:     cfg.InitStore,
-		backlogLoader: cfg.BacklogLoader,
-		graphReader:   cfg.GraphReader,
-		spawner:       cfg.Spawner,
-		promptClient:  pc,
-		clock:         clk,
-		activeRounds:  make(map[string]activeRound),
+		initStore:       cfg.InitStore,
+		backlogLoader:   cfg.BacklogLoader,
+		graphReader:     cfg.GraphReader,
+		spawner:         cfg.Spawner,
+		lock:            cfg.Lock,
+		executionLookup: cfg.ExecutionLookup,
+		gctClient:       cfg.GCTClient,
+		gctPollInterval: cfg.GCTPollInterval,
+		gctPollTimeout:  cfg.GCTPollTimeout,
+		promptClient:    pc,
+		clock:           clk,
+		activeRounds:    make(map[string]activeRound),
 	}
 	// Type-assert for RunInspector capability (mirrors review.Service).
 	if inspector, ok := cfg.Spawner.(RunInspector); ok {
@@ -179,7 +243,14 @@ func (s *Service) GetRound(initiativeName string, roundNum int) (*review.Round, 
 // has outstanding non-terminal items, returns Started=false with a reason.
 // Idempotent: safe to call from multiple places (item transitions, manual
 // triggers, recovery).
+//
+// Serialized under triggerGate so two items reaching terminal in the
+// same tick both try TriggerForItem and only one wins the race to spawn
+// a round — the second sees the freshly-saved in_review status and
+// reports Started=false with reason "initiative status is \"in_review\"".
 func (s *Service) TriggerIfReady(ctx context.Context, initiativeName string) (TriggerResult, error) {
+	s.triggerGate.Lock()
+	defer s.triggerGate.Unlock()
 	init, err := s.initStore.Load(initiativeName)
 	if err != nil {
 		return TriggerResult{}, fmt.Errorf("load initiative: %w", err)
@@ -230,6 +301,15 @@ func (s *Service) TriggerForItem(ctx context.Context, kind, name string) {
 	}
 	result, err := s.TriggerIfReady(ctx, initiativeName)
 	if err != nil {
+		// Lock conflicts are expected when a feedback round is in flight;
+		// they're signal for the user, not an operator-facing alarm. Any
+		// other error is unexpected (load/save failure, etc.) and stays WARN.
+		var conflict *initiativelock.Conflict
+		if errors.As(err, &conflict) {
+			slog.Info("initiative review deferred: lock held",
+				"initiative", initiativeName, "holder_purpose", conflict.Holder.Purpose)
+			return
+		}
 		slog.Warn("initiative review trigger failed", "initiative", initiativeName, "kind", kind, "name", name, "err", err)
 		return
 	}
@@ -302,6 +382,15 @@ func (s *Service) Decide(ctx context.Context, initiativeName string, verdict Ver
 // startReview materializes a new round file in gathering state, flips the
 // initiative to in_review, and spawns the review agent. Split out from
 // TriggerIfReady so manual-trigger and auto-trigger share one code path.
+//
+// Lock contract: when a lock is wired, startReview acquires it with a
+// provisional RunID before the spawn, then overrides it with the agent-
+// manager RunID once SpawnInitiative succeeds. On spawn failure the
+// provisional release clears the lock so the initiative isn't wedged.
+// Release happens in handleTerminalRound (or on decide, if a future verdict
+// path lands while the round is still alive). Returns a *initiativelock.
+// Conflict error if feedback holds the lock; the caller can inspect the
+// holder to render a user-facing conflict dialog.
 func (s *Service) startReview(ctx context.Context, init *initiatives.Initiative) (TriggerResult, error) {
 	itemDir := s.initStore.InitDir(init.Name)
 	roundNum, err := review.NextRoundNumber(itemDir)
@@ -314,7 +403,18 @@ func (s *Service) startReview(ctx context.Context, init *initiatives.Initiative)
 		return TriggerResult{}, fmt.Errorf("render skill: %w", err)
 	}
 
-	attachments, err := s.buildContextAttachments(init)
+	// Run a fresh GCT pass over the union of affected scenarios before
+	// spawning the review agent. This is the "is the whole thing still
+	// working together" integration check the initiative review is
+	// designed around: per-item reviews landed earlier against earlier
+	// scenario states, and something may have drifted since. The call
+	// blocks (bounded by GCTPollTimeout per scenario) so results land
+	// in the review agent's context as fresh evidence rather than
+	// stale history.
+	affectedScenarios := s.collectAffectedScenarios(init)
+	freshGCT := s.runFreshGCT(ctx, affectedScenarios)
+
+	attachments, err := s.buildContextAttachments(init, affectedScenarios, freshGCT)
 	if err != nil {
 		return TriggerResult{}, fmt.Errorf("build attachments: %w", err)
 	}
@@ -341,6 +441,22 @@ func (s *Service) startReview(ctx context.Context, init *initiatives.Initiative)
 		return TriggerResult{Started: true, Round: roundNum}, nil
 	}
 
+	// Acquire the per-initiative lock before spawning. Feedback rounds use
+	// the same file (`.feedback-lock`), so a feedback holder here is a real
+	// conflict that the caller should surface rather than racing into a
+	// concurrent agent spawn.
+	provisionalRunID := fmt.Sprintf("review-provisional-%d-%d", roundNum, s.clock().UnixNano())
+	if s.lock != nil {
+		if err := s.lock.Acquire(init.Name, initiativelock.Holder{
+			RunID:       provisionalRunID,
+			Purpose:     "review",
+			RoundNumber: roundNum,
+			AcquiredBy:  "swarm-manager:initiative-review",
+		}); err != nil {
+			return TriggerResult{}, err
+		}
+	}
+
 	runResult, err := s.spawner.SpawnInitiative(ctx, agentmanager.InitiativeSpawnRequest{
 		Name:               init.Name,
 		Title:              "Review: " + fallbackInitiativeTitle(init),
@@ -358,7 +474,34 @@ func (s *Service) startReview(ctx context.Context, init *initiatives.Initiative)
 		},
 	})
 	if err != nil {
+		if s.lock != nil {
+			_ = s.lock.Release(init.Name, provisionalRunID)
+		}
 		return TriggerResult{}, fmt.Errorf("spawn agent: %w", err)
+	}
+
+	// Swap the provisional holder for the agent-manager RunID so a later
+	// Release(runResult.RunID) actually clears the lock. AcquireOverride is
+	// a pure file write; on the unlikely failure path we release the
+	// provisional to avoid a wedged lock.
+	//
+	// Safety: between the Acquire above and AcquireOverride here, triggerGate
+	// is still held (TriggerIfReady serializes all startReview calls for
+	// this initiative), so no other caller can observe or replace the
+	// provisional holder. AcquireOverride itself doesn't validate that the
+	// provisional is still present — it's an unconditional write — and that's
+	// fine under the single-writer invariant this path guarantees.
+	if s.lock != nil {
+		if swapErr := s.lock.AcquireOverride(init.Name, initiativelock.Holder{
+			RunID:       runResult.RunID,
+			Purpose:     "review",
+			RoundNumber: roundNum,
+			AcquiredBy:  "swarm-manager:initiative-review",
+		}); swapErr != nil {
+			slog.Warn("initiative review: lock run-id swap failed; releasing provisional",
+				"initiative", init.Name, "round", roundNum, "err", swapErr)
+			_ = s.lock.Release(init.Name, provisionalRunID)
+		}
 	}
 
 	round.RunID = runResult.RunID
@@ -421,12 +564,24 @@ func (s *Service) setInitiativeStatus(init *initiatives.Initiative, status, when
 }
 
 // handleTerminalRound flips the initiative from in_review to review_pending
-// when the review round reaches a terminal status. Called from both the
-// ListRounds inline-poll and the background worker.
+// when the review round reaches a terminal status and releases the per-
+// initiative lock so feedback submissions can proceed once the user is
+// looking at the review verdict. Called from both the ListRounds inline-
+// poll and the background worker.
 func (s *Service) handleTerminalRound(_ context.Context, initiativeName string, round review.Round) {
 	if round.Status != review.RoundStatusComplete && round.Status != review.RoundStatusFailed {
 		return
 	}
+
+	// Release the lock first — even if the status flip below fails, we'd
+	// rather leak the status machine (which the user can fix with decide)
+	// than leak a lock that blocks every subsequent feedback submission.
+	if s.lock != nil && round.RunID != "" {
+		if err := s.lock.Release(initiativeName, round.RunID); err != nil {
+			slog.Warn("initiative review: release lock", "initiative", initiativeName, "round", round.RoundNum, "err", err)
+		}
+	}
+
 	init, err := s.initStore.Load(initiativeName)
 	if err != nil {
 		slog.Warn("initiative review: load after terminal round", "initiative", initiativeName, "err", err)

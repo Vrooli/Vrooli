@@ -21,9 +21,22 @@ type applyEnv struct {
 	root       string
 	backlog    *backlog.FileStore
 	initSvc    *initiatives.Service
+	creator    *backlog.Service
 	applier    *Applier
 	cancelFake *fakeCanceller
 	schedFake  *fakeScheduler
+}
+
+// creatorWith builds a backlog.Service for a custom store/assigner combo
+// (used by the "flaky" tests that wrap inner dependencies). Tests that
+// don't customize use env.creator directly.
+func creatorWith(t *testing.T, store backlog.CreationStore, assigner backlog.ItemAttacher) *backlog.Service {
+	t.Helper()
+	svc, err := backlog.NewService(backlog.ServiceConfig{Store: store, Assigner: assigner})
+	if err != nil {
+		t.Fatalf("backlog.NewService: %v", err)
+	}
+	return svc
 }
 
 type fakeCanceller struct {
@@ -71,9 +84,21 @@ func newApplyEnv(t *testing.T) *applyEnv {
 
 	cancelFake := &fakeCanceller{}
 	schedFake := &fakeScheduler{}
+	creator, err := backlog.NewService(backlog.ServiceConfig{
+		Store:    store,
+		Assigner: initSvc,
+		// Tests assert event counts via fakeEvents on the Applier; the
+		// Service-level eventlog emit is validated separately in the
+		// backlog package, so leave Events nil here to keep these
+		// proposal-focused tests isolated.
+	})
+	if err != nil {
+		t.Fatalf("backlog.NewService: %v", err)
+	}
 	applier, err := NewApplier(Config{
 		Store:       store,
 		Assigner:    initSvc,
+		Creator:     creator,
 		Canceller:   cancelFake,
 		Invalidator: schedFake,
 		Events:      &fakeEvents{},
@@ -106,6 +131,7 @@ func newApplyEnv(t *testing.T) *applyEnv {
 		root:       root,
 		backlog:    store,
 		initSvc:    initSvc,
+		creator:    creator,
 		applier:    applier,
 		cancelFake: cancelFake,
 		schedFake:  schedFake,
@@ -513,6 +539,7 @@ func TestApply_EmitsEventsForSuccessfulMutations(t *testing.T) {
 	applier, err := NewApplier(Config{
 		Store:    env.backlog,
 		Assigner: env.initSvc,
+		Creator:  env.creator,
 		Events:   events,
 	})
 	if err != nil {
@@ -542,6 +569,7 @@ func TestApply_PropagatesRoundMetadataThroughEvents(t *testing.T) {
 	applier, err := NewApplier(Config{
 		Store:    env.backlog,
 		Assigner: env.initSvc,
+		Creator:  env.creator,
 		Events:   events,
 	})
 	if err != nil {
@@ -606,7 +634,7 @@ func (f *flakyAssigner) ForgetItem(name, ref string) error {
 func TestApply_MoveInitiative_RollsBackWhenDestRememberFails(t *testing.T) {
 	env := newApplyEnv(t)
 	flaky := &flakyAssigner{inner: env.initSvc, failForName: "other-project"}
-	applier, err := NewApplier(Config{Store: env.backlog, Assigner: flaky})
+	applier, err := NewApplier(Config{Store: env.backlog, Assigner: flaky, Creator: creatorWith(t, env.backlog, flaky)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -691,7 +719,7 @@ func (f *flakyStore) ValidateDependencies(deps []string) error {
 func TestApply_SplitItem_RollsBackChildrenOnFailure(t *testing.T) {
 	env := newApplyEnv(t)
 	flaky := &flakyStore{inner: env.backlog, failOnSave: "execute/foo-api"}
-	applier, err := NewApplier(Config{Store: flaky, Assigner: env.initSvc})
+	applier, err := NewApplier(Config{Store: flaky, Assigner: env.initSvc, Creator: creatorWith(t, flaky, env.initSvc)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -770,7 +798,7 @@ func TestApply_StagedEdge_BothEndpointsNewlyCreated(t *testing.T) {
 func TestApply_UpdateItem_PropagatesSaveError(t *testing.T) {
 	env := newApplyEnv(t)
 	flaky := &flakyStore{inner: env.backlog, failOnSave: "execute/foo"}
-	applier, err := NewApplier(Config{Store: flaky, Assigner: env.initSvc})
+	applier, err := NewApplier(Config{Store: flaky, Assigner: env.initSvc, Creator: creatorWith(t, flaky, env.initSvc)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -803,7 +831,7 @@ func TestApply_UpdateItem_PropagatesSaveError(t *testing.T) {
 func TestApply_AddEdge_PropagatesLoadError(t *testing.T) {
 	env := newApplyEnv(t)
 	flaky := &flakyStore{inner: env.backlog, failOnLoad: "execute/bar"}
-	applier, err := NewApplier(Config{Store: flaky, Assigner: env.initSvc})
+	applier, err := NewApplier(Config{Store: flaky, Assigner: env.initSvc, Creator: creatorWith(t, flaky, env.initSvc)})
 	if err != nil {
 		t.Fatal(err)
 	}

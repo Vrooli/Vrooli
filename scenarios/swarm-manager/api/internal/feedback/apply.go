@@ -9,16 +9,10 @@ import (
 	"swarm-manager/internal/proposals"
 )
 
-// applyCurrentProposal runs the round's current proposal through the
-// proposals.Applier with the given accepted mutation IDs.
-//
-// Extracted from Service.Decide so the bridge to proposals lives in one
-// place, and so future callers (e.g. the review flow's auto-apply path)
-// can reuse it without reimplementing the source/state bookkeeping.
-//
-// Returns (nil, nil) when there is no current proposal; the caller is
-// expected to interpret that as "nothing to apply" rather than an error
-// because accept/reject semantics are the caller's to enforce.
+// applyCurrentProposal normalizes the round's current proposal and
+// applies the accepted mutation IDs through the proposals.Applier.
+// Returns an error when no current proposal exists; accept/reject
+// semantics are the caller's to enforce.
 func (s *Service) applyCurrentProposal(ctx context.Context, round Round, acceptedIDs []string, decidedBy, decidedAt string) (*proposals.ApplyResult, error) {
 	current := round.CurrentProposal()
 	if current == nil {

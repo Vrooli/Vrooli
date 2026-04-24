@@ -153,11 +153,11 @@ func DefaultSettings() Settings {
 		AutoCascadeWorkshop:     true,
 		AutoAdvanceDelaySeconds: 10,
 		// Keep in sync with agentmanager.DefaultAgentMaxTurns (600).
-		AgentMaxTurns:           600,
-		AgentTimeoutSeconds:     3600,
-		AgentRequiresApproval:   true,
-		SearchDebounceMs:        300,
-		ToastDurationMs:         5000,
+		AgentMaxTurns:         600,
+		AgentTimeoutSeconds:   3600,
+		AgentRequiresApproval: true,
+		SearchDebounceMs:      300,
+		ToastDurationMs:       5000,
 		DeleteConfirmation: DeleteConfirmationSettings{
 			Backlog:    DeleteConfirmSimple,
 			Initiative: DeleteConfirmStrong,

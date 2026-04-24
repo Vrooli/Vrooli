@@ -14,8 +14,8 @@ import (
 )
 
 // AllowedAttachmentTypes lists Content-Types accepted for feedback round
-// attachments. Mirrors the clarification flow — image-only for now, the
-// agent's vision pass consumes these.
+// attachments. Image-only because the agent's vision pass is the sole
+// consumer; broaden this when other modalities land.
 var AllowedAttachmentTypes = map[string]bool{
 	"image/jpeg": true,
 	"image/png":  true,
@@ -27,15 +27,11 @@ var AllowedAttachmentTypes = map[string]bool{
 // which bounds the combined form size via http.Request.ParseMultipartForm.
 const MaxAttachmentSize = 20 * 1024 * 1024 // 20 MiB
 
-// SaveAttachmentsToDir reads the multipart "files" field from an HTTP
-// request and stores each upload under `{roundDir}/attachments/`. Returns
-// the relative IDs ("attachments/{uuid}{ext}") to persist on the round.
-//
-// Caller is responsible for ensuring `roundDir` already exists — typically
-// the round was just claimed via Store.ReserveRound. Decoupling from
-// (initiativeName, number, slug) lets the service hand the dir back to a
-// callback so attachments land in the dir the service actually reserved
-// (no race with a concurrent submit choosing the same predicted number).
+// SaveAttachmentsToDir reads the multipart "files" field and stores each
+// upload under `{roundDir}/attachments/`. Returns the relative IDs
+// ("attachments/{uuid}{ext}") to persist on the round. Caller must
+// pre-create roundDir; passing the reserved dir directly avoids a race
+// with concurrent submitters predicting the same round number.
 func (s *Store) SaveAttachmentsToDir(roundDir string, r *http.Request) ([]string, error) {
 	if r.MultipartForm == nil {
 		return nil, nil

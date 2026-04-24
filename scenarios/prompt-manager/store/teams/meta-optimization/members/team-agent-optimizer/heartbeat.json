@@ -5,7 +5,14 @@
   "agentId": "team-agent-optimizer",
   "enabled": true,
   "schedule": "30 18 * * *",
-  "revision": 2,
+  "lastExecution": {
+    "startedAt": "2026-04-23T22:30:00Z",
+    "endedAt": "2026-04-23T22:32:40Z",
+    "status": "completed",
+    "runId": "255b7978-daf9-4de7-9971-6f5f78406eae",
+    "logPath": "../store/teams/meta-optimization/members/team-agent-optimizer/logs/2026-04-23T22-30-00Z.log"
+  },
+  "revision": 5,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-04-23T16:16:55Z"
+  "updatedAt": "2026-04-23T22:32:40Z"
 }

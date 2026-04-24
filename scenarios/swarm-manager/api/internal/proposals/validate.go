@@ -51,8 +51,9 @@ func (s *CurrentState) HasEdge(from, to string) bool {
 	return false
 }
 
-// refPattern mirrors the sanitizeName rules used by batch-create: lowercase
-// alphanumerics and hyphens in the name segment.
+// refPattern accepts "kind/name" where each segment is lowercase
+// alphanumerics and hyphens, matching the sanitization the rest of
+// the system applies to user-supplied names.
 var refPattern = regexp.MustCompile(`^[a-z][a-z0-9-]*/[a-z0-9][a-z0-9-]*$`)
 
 // validateRef checks the "kind/name" shape and that kind is a known backlog

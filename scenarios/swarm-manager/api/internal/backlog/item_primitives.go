@@ -1,61 +1,15 @@
 package backlog
 
 import (
-	"fmt"
-	"os"
 	"strings"
 )
 
-// ItemAttacher is the minimal initiative-side hook the single-item
-// CreateItem helper needs — it records the new item as a member of an
-// initiative without touching the item file (which CreateItem has already
-// written). Satisfied by the batch-create handler's InitiativeAssigner and
-// by the proposals package's narrower InitiativeAssigner, so both surfaces
-// can share a single creation primitive.
+// ItemAttacher is the minimal initiative-side hook Service.Create uses
+// to record a new item as a member of an initiative without rewriting
+// the item file. Satisfied by both initiatives.Service and the batch
+// handler's InitiativeAssigner.
 type ItemAttacher interface {
 	RememberItem(initiativeName, ref string) error
-}
-
-// ItemWriter is the narrow store surface CreateItem needs: enough to
-// locate the item directory on disk and persist the item file. Satisfied
-// by backlog.Store, by FileStore directly, and by the proposals
-// package's narrower BacklogStore — so every caller can pass whatever
-// they already hold.
-type ItemWriter interface {
-	ItemDir(kind BacklogKind, name string) string
-	SaveItem(item BacklogItem) error
-}
-
-// CreateItem writes a new backlog item to disk and, when initiativeName is
-// non-empty, attaches it to the initiative through attacher. Creation is
-// atomic: if the initiative attach fails, the item dir is removed so no
-// orphan item file lingers.
-//
-// Callers own validation (duplicate check, depends_on fan-out, kind
-// parsing, priority bounds). This helper is deliberately dumb — it
-// enforces no invariants beyond "make the files consistent on disk."
-// The shared creation primitive keeps the add_item proposal op and the
-// batch-create handler from drifting on lifecycle fields.
-func CreateItem(store ItemWriter, attacher ItemAttacher, item BacklogItem, initiativeName string) error {
-	itemDir := store.ItemDir(item.Kind, item.Name)
-	if err := os.MkdirAll(itemDir, 0o755); err != nil {
-		return fmt.Errorf("create item dir: %w", err)
-	}
-	if err := store.SaveItem(item); err != nil {
-		_ = os.RemoveAll(itemDir)
-		return fmt.Errorf("save item: %w", err)
-	}
-
-	initiativeName = strings.TrimSpace(initiativeName)
-	if initiativeName == "" || attacher == nil {
-		return nil
-	}
-	ref := string(item.Kind) + "/" + item.Name
-	if err := attacher.RememberItem(initiativeName, ref); err != nil {
-		_ = os.RemoveAll(itemDir)
-		return fmt.Errorf("attach %s to initiative %s: %w", ref, initiativeName, err)
-	}
-	return nil
 }
 
 // ItemPatch is a struct-based patch describing updatable BacklogItem

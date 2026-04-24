@@ -1,4 +1,4 @@
-package feedback
+package initiativelock
 
 import (
 	"errors"
@@ -53,9 +53,9 @@ func TestLock_Acquire_RejectsLiveHolder(t *testing.T) {
 	if !errors.Is(err, ErrLocked) {
 		t.Fatalf("expected ErrLocked, got %v", err)
 	}
-	var conflict *LockConflict
+	var conflict *Conflict
 	if !errors.As(err, &conflict) {
-		t.Fatalf("expected LockConflict, got %T", err)
+		t.Fatalf("expected Conflict, got %T", err)
 	}
 	if conflict.Holder.RunID != "a" {
 		t.Fatalf("conflict should expose existing holder, got %+v", conflict.Holder)

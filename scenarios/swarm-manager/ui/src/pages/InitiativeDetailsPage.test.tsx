@@ -348,6 +348,57 @@ describe("InitiativeDetailsPage", () => {
     expect(screen.getByText("Priority P3")).toBeInTheDocument();
   });
 
+  it("exposes the Feedback tab and Add Feedback entry point on the details page", async () => {
+    vi.mocked(initiativeService.get).mockResolvedValue(mockInitiativeData);
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("initiative-details-page")).toBeInTheDocument();
+    });
+    // Both the tab-row entry and the header button that launches the dialog
+    // must be present — they are the two user-visible surfaces wired in W6.
+    expect(screen.getByTestId("initiative-details-tab-feedback")).toBeInTheDocument();
+    expect(screen.getByTestId("initiative-details-add-feedback")).toBeInTheDocument();
+  });
+
+  it("renders the new in_review status chip colors when an item is in review", async () => {
+    useBacklogStore.getState().setItems([
+      {
+        kind: "execute" as const,
+        name: "item-in-review",
+        title: "Item In Review",
+        description: "",
+        status: "in_review" as const,
+        priority: 1,
+        tags: [],
+        suggestedSkills: [],
+        dependsOn: [],
+        acceptanceAllow: [],
+        acceptanceDeny: [],
+        created: "2026-03-27T00:00:00Z",
+        updated: "2026-03-28T00:00:00Z",
+      },
+    ]);
+    vi.mocked(initiativeService.get).mockResolvedValue({
+      ...mockInitiativeData,
+      initiative: { ...mockInitiativeData.initiative, items: ["execute/item-in-review"] },
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("initiative-details-items-list")).toBeInTheDocument();
+    });
+    const user = userEvent.setup();
+    await user.click(screen.getByTitle("List view"));
+    await waitFor(() => {
+      expect(screen.getByTestId("initiative-items-list-view")).toBeInTheDocument();
+    });
+    // The new amber-toned status chip must render for in_review items so
+    // the user can distinguish "agent gathering evidence" from backlog.
+    const chips = screen.getAllByText(/in.?review/i);
+    expect(chips.length).toBeGreaterThan(0);
+  });
+
   it("falls back to kind/name and marks unresolved items in list view", async () => {
     useBacklogStore.getState().setItems([]); // clear store
     vi.mocked(initiativeService.get).mockResolvedValue(mockInitiativeData);

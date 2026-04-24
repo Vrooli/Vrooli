@@ -146,10 +146,11 @@ func TestHandler_Update(t *testing.T) {
 		t.Fatalf("create: expected 201, got %d", rec.Code)
 	}
 
-	// Update.
+	// Update user-settable fields; status stays active (review-decide
+	// owns the transition away from active).
 	updateReq := UpdateRequest{
 		Title:  strPtr("Updated"),
-		Status: strPtr("completed"),
+		Status: strPtr(InitiativeStatusActive),
 		Items:  slicePtr([]string{"idea/foo"}),
 	}
 	rec = httptest.NewRecorder()
@@ -166,8 +167,40 @@ func TestHandler_Update(t *testing.T) {
 	if resp.Initiative.Title != "Updated" {
 		t.Errorf("expected title Updated, got %q", resp.Initiative.Title)
 	}
-	if resp.Initiative.Status != "completed" {
-		t.Errorf("expected status completed, got %q", resp.Initiative.Status)
+	if resp.Initiative.Status != InitiativeStatusActive {
+		t.Errorf("expected status to remain active, got %q", resp.Initiative.Status)
+	}
+}
+
+// TestHandler_Update_RejectsTerminalStatus verifies the HTTP surface returns
+// 400 (not 500) when a client attempts to PATCH the initiative into a
+// review-owned status. Pair to service_test.TestService_Update_RejectsTerminalStatus.
+func TestHandler_Update_RejectsTerminalStatus(t *testing.T) {
+	h := setupTestHandler(t)
+
+	createReq := CreateRequest{Name: "term-test", Title: "Terminal Guard"}
+	rec := httptest.NewRecorder()
+	h.Create(rec, requestWithVars("POST", "/api/v1/initiatives", createReq, nil))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create: expected 201, got %d", rec.Code)
+	}
+
+	for _, status := range []string{
+		InitiativeStatusCompleted,
+		InitiativeStatusFailed,
+		InitiativeStatusNeedsFollowup,
+		InitiativeStatusInReview,
+		InitiativeStatusReviewPending,
+	} {
+		rec = httptest.NewRecorder()
+		h.Update(rec, requestWithVars(
+			"PUT", "/api/v1/initiatives/term-test",
+			UpdateRequest{Status: strPtr(status)},
+			map[string]string{"name": "term-test"},
+		))
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("PATCH to %q: expected 400, got %d: %s", status, rec.Code, rec.Body.String())
+		}
 	}
 }
 

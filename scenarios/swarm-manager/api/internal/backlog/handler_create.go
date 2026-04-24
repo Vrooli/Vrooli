@@ -1,10 +1,10 @@
 package backlog
 
 import (
+	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -157,71 +157,71 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		CreatedBy:       &prov,
 	}
 
-	itemDir := h.store.ItemDir(kind, name)
-	if err := os.Mkdir(itemDir, 0o755); err != nil {
-		if os.IsExist(err) {
-			apierr.MapError(w, "[backlog] create", apierr.Conflict("backlog item already exists"))
-			return
-		}
-		// Parent dir may not exist for the first item of this kind — ensure it, then retry.
-		if mkErr := os.MkdirAll(filepath.Dir(itemDir), 0o755); mkErr != nil {
-			slog.Error("failed to create parent directory", "name", name, "err", mkErr)
-			apierr.MapError(w, "[backlog] create", apierr.Internal("failed to create backlog directory"))
-			return
-		}
-		if retryErr := os.Mkdir(itemDir, 0o755); retryErr != nil {
-			if os.IsExist(retryErr) {
-				apierr.MapError(w, "[backlog] create", apierr.Conflict("backlog item already exists"))
-				return
-			}
-			slog.Error("failed to create directory", "name", name, "err", retryErr)
-			apierr.MapError(w, "[backlog] create", apierr.Internal("failed to create backlog directory"))
-			return
-		}
-	}
-
-	// Validate dependencies exist and check for cycles.
-	if len(item.DependsOn) > 0 {
-		if err := h.store.ValidateDependencies(item.DependsOn); err != nil {
-			_ = os.RemoveAll(itemDir)
-			apierr.MapError(w, "[backlog] create", apierr.BadRequest("%s", err.Error()))
-			return
-		}
-		if err := h.checkDependencyCycles(item); err != nil {
-			_ = os.RemoveAll(itemDir)
-			apierr.MapError(w, "[backlog] create", apierr.BadRequest("%s", err.Error()))
-			return
-		}
-	}
-
-	if err := h.store.SaveItem(item); err != nil {
-		_ = os.RemoveAll(itemDir)
-		slog.Error("failed to save item", "name", name, "err", err)
-		apierr.MapError(w, "[backlog] create", apierr.Internal("failed to save backlog item"))
+	if err := h.creationService().Create(item, CreationContext{
+		Source:     SourceHumanHTTP,
+		Entrypoint: "http.create",
+	}); err != nil {
+		mapCreateError(w, err)
 		return
 	}
 
-	if strings.TrimSpace(item.Initiative) != "" && h.initiativeAssigner != nil {
-		ref := string(kind) + "/" + item.Name
-		if err := h.initiativeAssigner.RememberItem(item.Initiative, ref); err != nil {
-			_ = os.RemoveAll(itemDir)
-			slog.Error("failed to attach new item to initiative", "ref", ref, "initiative", item.Initiative, "err", err)
-			apierr.MapError(w, "[backlog] create", apierr.Internal("failed to update initiative membership"))
-			return
-		}
-	}
-
-	// Auto-initialize workshop for new items (unless disabled in settings or blocked by deps).
-	h.maybeAutoWorkshop(item, false)
-
 	slog.Info("item created", "name", name, "kind", kind, "priority", priority, "status", StatusBacklog)
-	if h.eventLogger != nil {
-		h.eventLogger.EmitBacklogCreated(string(kind)+"/"+name, string(kind), string(StatusBacklog), priority, item.Initiative, item.Effort)
-	}
-	h.invalidateAllGraphLenses()
 	resp := &apipb.BacklogItemResponse{Item: backlogToProto(item)}
 	if err := httputil.ProtoJSONWithStatus(w, http.StatusCreated, resp); err != nil {
 		apierr.MapError(w, "[backlog] create", apierr.Internal("failed to encode response"))
+	}
+}
+
+// mapCreateError translates Service.Create errors into HTTP responses.
+// Duplicate → Conflict, dep / cycle / validation failures → BadRequest,
+// everything else → Internal.
+func mapCreateError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, ErrItemExists):
+		apierr.MapError(w, "[backlog] create", apierr.Conflict("backlog item already exists"))
+	case strings.HasPrefix(err.Error(), "depends_on:") ||
+		strings.HasPrefix(err.Error(), "dependency cycle"):
+		apierr.MapError(w, "[backlog] create", apierr.BadRequest("%s", err.Error()))
+	default:
+		slog.Error("backlog create failed", "err", err)
+		apierr.MapError(w, "[backlog] create", apierr.Internal("failed to create backlog item"))
+	}
+}
+
+// creationService builds a backlog.Service per call from Handler's
+// current dependencies. Constructed inline so late-bound setters
+// (SetInitiativeAssigner, SetEventLogger) are picked up without
+// requiring a separate sync step. The Service is the single chokepoint
+// for item creation; HTTP callers MUST go through it.
+func (h *Handler) creationService() *Service {
+	cfg := ServiceConfig{
+		Store:    h.store,
+		Assigner: h.initiativeAssigner,
+		Workshop: WorkshopTriggerFunc(func(item BacklogItem) {
+			h.maybeAutoWorkshop(item, false)
+		}),
+		Invalidator:  graphInvalidatorFunc(h.invalidateAllGraphLenses),
+		CycleChecker: CycleCheckerFunc(h.checkDependencyCycles),
+	}
+	if h.eventLogger != nil {
+		cfg.Events = h.eventLogger
+	}
+	svc, err := NewService(cfg)
+	if err != nil {
+		// Store is always non-nil on Handler so this cannot fire in
+		// practice; if it does, panic loudly rather than create items
+		// silently bypassing the service contract.
+		panic(fmt.Sprintf("backlog.Handler.creationService: %v", err))
+	}
+	return svc
+}
+
+// graphInvalidatorFunc adapts a func to the GraphInvalidator interface.
+type graphInvalidatorFunc func()
+
+func (f graphInvalidatorFunc) ScheduleAll() {
+	if f != nil {
+		f()
 	}
 }
 
