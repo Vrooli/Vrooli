@@ -17,6 +17,7 @@ import (
 	"agent-manager/internal/adapters/recommendation"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
+	agentconfig "agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/identity"
 	"agent-manager/internal/modelregistry"
@@ -33,8 +34,6 @@ import (
 	"regexp"
 	"strings"
 	"time"
-
-	agentconfig "agent-manager/internal/config"
 
 	"github.com/google/uuid"
 )
@@ -255,9 +254,15 @@ type CreateRunRequest struct {
 }
 
 // ProfileRef identifies a profile by key with optional defaults.
+//
+// When UpdateExisting is true, the supplied Defaults overwrite any existing
+// profile row on every CreateRun call — useful for declarative callers
+// (e.g. swarm-manager) that treat their code-declared profile as
+// authoritative. Otherwise the existing row wins on conflict.
 type ProfileRef struct {
-	ProfileKey string               `json:"profileKey"`
-	Defaults   *domain.AgentProfile `json:"defaults,omitempty"`
+	ProfileKey     string               `json:"profileKey"`
+	Defaults       *domain.AgentProfile `json:"defaults,omitempty"`
+	UpdateExisting bool                 `json:"updateExisting,omitempty"`
 }
 
 // EnsureProfileRequest resolves a profile by key.
@@ -492,7 +497,6 @@ type OrchestratorConfig struct {
 	MaxConcurrentRuns       int
 	DefaultProjectRoot      string
 	RequireSandboxByDefault bool
-	DefaultSandboxConfig    *domain.SandboxConfig
 	RunnerFallbackTypes     []domain.RunnerType
 }
 
@@ -1314,8 +1318,9 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	// Resolve profile by key if provided
 	if req.ProfileRef != nil {
 		result, err := o.EnsureProfile(ctx, EnsureProfileRequest{
-			ProfileKey: req.ProfileRef.ProfileKey,
-			Defaults:   req.ProfileRef.Defaults,
+			ProfileKey:     req.ProfileRef.ProfileKey,
+			Defaults:       req.ProfileRef.Defaults,
+			UpdateExisting: req.ProfileRef.UpdateExisting,
 		})
 		if err != nil {
 			return nil, nil, err
@@ -1441,8 +1446,19 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	return cfg, profile, nil
 }
 
+// resolveSandboxConfig produces the effective SandboxConfig for a run.
+//
+// Contract: the returned config is always non-nil. Callers (including
+// tryAutoApproval) rely on this invariant; a nil return historically caused
+// silent fall-through to NEEDS_REVIEW for empty sandboxes because there was
+// no acceptance config to consult.
+//
+// Precedence (later overrides earlier):
+//  1. Zero-valued default
+//  2. profile.SandboxConfig (if present)
+//  3. req.SandboxConfig (inline override, if present)
 func (o *Orchestrator) resolveSandboxConfig(req CreateRunRequest, profile *domain.AgentProfile) (*domain.SandboxConfig, error) {
-	cfg := cloneSandboxConfig(o.config.DefaultSandboxConfig)
+	cfg := &domain.SandboxConfig{}
 	if profile != nil && profile.SandboxConfig != nil {
 		cfg = cloneSandboxConfig(profile.SandboxConfig)
 	}

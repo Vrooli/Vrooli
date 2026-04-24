@@ -13,7 +13,25 @@ Raw, pre-structured audience / competitor / trend observations that don't yet me
 
 ## Entries
 
-_No entries yet._
+### 2026-04-24 — Researcher has no structured scanning tooling
+
+**Written by:** researcher
+**Observation:** First researcher heartbeat surfaced that no scenario/CLI capability exists for structured competitive-intel or audience-intel scanning. No wire into X/Twitter search, GitHub trending / topic-search, competitor pricing-page monitoring, or industry-blog RSS. `seo-optimizer` skill is keyword-focused and does not cover structured competitor monitoring. Manual reads are possible but slow, hard to triangulate (operating rule: ≥3 converging scans for `audience-update`), and easy to fabricate under time pressure. Workaround this heartbeat: record null-signal scan entry + raise capability-gap rather than invent observations.
+**Source:** `shared/audience-scans.jsonl` (empty before this heartbeat); `docs/monetization/BENCHMARKS.md` (all categories empty — no data source to lean on); `TOOLS.md` (no scanning scenario listed).
+**Interpretation flag:** observation
+**Possible persona attachment:** null (meta-capability, not persona signal)
+**Cross-team relevance:** null (not monetization-benchmark-adjacent — this is about researcher tooling itself)
+**Revisit marker:** revisit when a competitive-intel scenario lands OR when scanning tooling is wired into this heartbeat (paired with `capability-gap` decision this heartbeat).
+
+### 2026-04-24 — WebSearch provides baseline, not structured, scanning
+
+**Written by:** researcher
+**Observation:** Same-day follow-on: WebSearch tooling is available via the Claude runtime and produced citation-grounded baseline scans this heartbeat (4 entries appended, covering Cursor credit-pricing, BYOK-vs-subscription threshold, OSS agent-framework landscape, CrewAI learning-curve anchor — see `shared/audience-scans.jsonl` as-1777062700091991558 through as-1777062700091991561). WebSearch is sufficient for ad-hoc general-web baseline queries but does not replace the structured competitive-intel capability described in the prior entry (no diff detection on pricing pages, no authored-post tracking on X/Twitter, no GitHub topic monitoring with persistence across heartbeats). The prior capability-gap remains valid; its scope narrows from "can't scan at all" to "can't structurally track without manual re-querying."
+**Source:** `shared/audience-scans.jsonl` (5 entries after this heartbeat); WebSearch tool availability confirmed in heartbeat 2026-04-24T20:31Z.
+**Interpretation flag:** observation
+**Possible persona attachment:** null (meta-capability)
+**Cross-team relevance:** null
+**Revisit marker:** revisit when a competitive-intel scenario lands OR after 10 heartbeats if manual WebSearch continues to be the primary mode.
 
 Append new entries in the shape below:
 

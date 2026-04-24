@@ -1,0 +1,149 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-24T20:45:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 2,
+    "testable": 2,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Validation policy: should an entirely-empty `modifications` object be rejected?",
+      "context": "Once `--modifications` lands, an operator could pass `{}` (or `{excluded_clauses:[],additions:[],rationale:''}`) and the system would persist a no-op modifications record. This pollutes decision history and the contract fixture (consumers may render a 'Modifications:' block with nothing in it). Tradeoff: strictness reduces noise but adds a friction point if an operator's tooling generates the field defensively.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Reject empty payloads with a structured field-violation error; operator must omit the flag instead",
+          "rationale": "Cleanest history; downstream consumers never see no-op records. Matches api-steer guidance on rejecting meaningless inputs at the boundary. Minor friction is acceptable because the JSON flag is human-authored. Recommended.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Accept empty payloads; persist but treat as absent on read",
+          "rationale": "Forgiving for tooling that always passes the field. Risks consumer confusion ('was it set? what does empty mean?')."
+        },
+        {
+          "key": "C",
+          "label": "Accept empty payloads; persist verbatim (operator intent is authoritative)",
+          "rationale": "Most permissive. Pollutes history with no-op records. Not recommended."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own validation policy."
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": ""
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Edit / amend semantics — can `modifications` be changed after the decision is accepted?",
+      "context": "Decisions today are accepted once; there's no documented edit path. If an operator realizes after the fact that a clause they meant to exclude wasn't captured, today they would need to file a follow-up note or accept a follow-on decision. This item could either stay strictly accept-once or open a narrow edit window for `modifications` only.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Strictly accept-once: `modifications` is immutable after first accept; amendments require a follow-up backlog item / decision",
+          "rationale": "Smallest scope. Matches existing decision semantics. Avoids reopening accept-time invariants. Recommended — defer amendment to a separate item if it becomes a real need.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Allow `decision-update --modifications=...` on already-accepted decisions",
+          "rationale": "More flexible but expands scope significantly: requires audit trail (who changed what when), permissions, and rendering 'edited' in history. Better as a separate item."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own semantics."
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": ""
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Should the server verify that `excluded_clauses` strings reference the selected option's rationale text?",
+      "context": "If an operator writes `excluded_clauses: ['relocate items']` we could (a) require the substring to appear in the option's rationale, (b) require fuzzy match, or (c) treat operator intent as authoritative and not validate. Strict matching catches typos but breaks if the option rationale is rephrased; loose matching has false positives; no validation trusts the operator.",
+      "options": [
+        {
+          "key": "A",
+          "label": "No server validation — operator intent is authoritative; document this in the contract",
+          "rationale": "Robust to rationale rewording. Avoids brittle string-matching. Workshop / plan generators interpret semantically, not via substring. Recommended — already encoded as policy in plan.md.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Soft warn (non-blocking) when no clause matches",
+          "rationale": "Catches typos with no hard failure. Adds rendering/UX work for warnings. Marginal value."
+        },
+        {
+          "key": "C",
+          "label": "Hard validate — reject if clause not found",
+          "rationale": "Catches typos but breaks any rationale edit. Pushes operators to copy/paste fragments. Brittle."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own validation rule."
+        }
+      ],
+      "selected": "A",
+      "freeform": null,
+      "notes": ""
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Contract documentation location",
+      "context": "Phase 4 publishes a contract doc describing the `modifications` shape and consumer expectations. The prompt-manager scenario likely has a docs folder, a README in the proto directory, and possibly a steer-skill convention. Where this doc lives affects discoverability for downstream consumer authors.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Embed the contract in a new steer skill (e.g., `decision-modifications-contract`) and reference it from `interoperability-steer`",
+          "rationale": "Discoverable via skill-discovery — exactly how downstream agents (workshop, plan generators) already find their guidance. Recommended.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Add a section to the existing `interoperability-steer` skill",
+          "rationale": "Keeps surface count low. May overload a general skill with one specific contract."
+        },
+        {
+          "key": "C",
+          "label": "Author a markdown doc in the prompt-manager scenario's docs/ directory; link from proto comments",
+          "rationale": "Standard convention but less discoverable for agents that primarily scan skills."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own documentation venue."
+        }
+      ],
+      "selected": "C",
+      "freeform": null,
+      "notes": ""
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Codebase investigation (Current Technical Context section in plan.md) cannot happen from this swarm-manager workspace — it requires the prompt-manager scenario's source tree at execute time. The plan now lists the five investigation targets and recommends using the existing `notes` field plumbing as the structural template. Execute-time agent will fill exact file paths."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Sibling F10 (`fix/prompt-manager-decision-accept-no-options-ergonomics`) interacts with this item: if F10 introduces `--selected=proposed` for option-less decisions, the modifications field must accept payloads on those decisions too. Added explicit checklist entry in plan.md's Rollout section to notify F10's workshop."
+    }
+  ],
+  "plan_updates": "Round 2 updated plan.md with: (1) Settled Decisions table reflecting d1-d5 from round 1; (2) Phase 1-4 implementation strategy now concrete with proto sketch and per-phase deliverables; (3) new Validation Policy section with explicit rules; (4) expanded Testing Plan with API/CLI/UI/contract-fixture cases; (5) expanded Rollout checklist including F9/F10/F14 notifications; (6) two new risks (synthesis ignoring the field, edit-after-accept). Current Technical Context section now scopes investigation to execute-time and points at `notes` plumbing as the structural template. Round 2 readiness lifted: problem_clarity 2→3, scope_defined 2→3, risk_awareness 2→3; approach_solid and testable held at 2 pending d1-d4 here."
+}

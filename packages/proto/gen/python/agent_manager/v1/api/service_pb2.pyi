@@ -264,12 +264,14 @@ class CancelTaskResponse(_message.Message):
     def __init__(self, success: _Optional[bool] = ..., status: _Optional[str] = ...) -> None: ...
 
 class ProfileRef(_message.Message):
-    __slots__ = ("profile_key", "defaults")
+    __slots__ = ("profile_key", "defaults", "update_existing")
     PROFILE_KEY_FIELD_NUMBER: _ClassVar[int]
     DEFAULTS_FIELD_NUMBER: _ClassVar[int]
+    UPDATE_EXISTING_FIELD_NUMBER: _ClassVar[int]
     profile_key: str
     defaults: _profile_pb2.AgentProfile
-    def __init__(self, profile_key: _Optional[str] = ..., defaults: _Optional[_Union[_profile_pb2.AgentProfile, _Mapping]] = ...) -> None: ...
+    update_existing: bool
+    def __init__(self, profile_key: _Optional[str] = ..., defaults: _Optional[_Union[_profile_pb2.AgentProfile, _Mapping]] = ..., update_existing: _Optional[bool] = ...) -> None: ...
 
 class CreateRunRequest(_message.Message):
     __slots__ = ("task_id", "agent_profile_id", "tag", "run_mode", "inline_config", "force", "idempotency_key", "profile_ref", "prompt", "existing_sandbox_id", "environment")

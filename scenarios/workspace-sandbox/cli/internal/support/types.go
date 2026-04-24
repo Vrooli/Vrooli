@@ -28,12 +28,21 @@ type DiffFile struct {
 }
 
 type DiffResponse struct {
-	SandboxID     string     `json:"sandboxId"`
-	UnifiedDiff   string     `json:"unifiedDiff"`
-	TotalAdded    int        `json:"totalAdded"`
-	TotalDeleted  int        `json:"totalDeleted"`
-	TotalModified int        `json:"totalModified"`
-	Files         []DiffFile `json:"files"`
+	SandboxID   string     `json:"sandboxId"`
+	UnifiedDiff string     `json:"unifiedDiff"`
+	Stats       DiffStats  `json:"stats"`
+	Files       []DiffFile `json:"files"`
+}
+
+// DiffStats mirrors workspace-sandbox api/internal/types.DiffStats.
+type DiffStats struct {
+	FilesChanged  int   `json:"filesChanged"`
+	FilesAdded    int   `json:"filesAdded"`
+	FilesModified int   `json:"filesModified"`
+	FilesDeleted  int   `json:"filesDeleted"`
+	LinesAdded    int   `json:"linesAdded"`
+	LinesRemoved  int   `json:"linesRemoved"`
+	TotalBytes    int64 `json:"totalBytes"`
 }
 
 type ApprovalResponse struct {

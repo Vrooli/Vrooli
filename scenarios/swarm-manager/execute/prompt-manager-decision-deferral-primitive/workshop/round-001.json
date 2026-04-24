@@ -17,14 +17,31 @@
       "topic": "Re-surface mechanism for deferred decisions",
       "context": "When `revisit_after` passes, the deferred decision needs to rejoin the pending queue. Two broad strategies: (A) lazy promotion on pending-queue reads — cheap, simple, no new infra; relies on the queue being read regularly (it is, every heartbeat). (B) a background ticker in the API process that promotes due rows and writes an event. (C) a separate cron/scheduler. Prompt-manager has no long-running decision scheduler today.",
       "options": [
-        {"key": "A", "label": "Lazy promotion on pending-queue read (stateful flip to pending + audit note)", "rationale": "Zero new infra, durable across restarts once promoted, leverages heartbeat cadence as the natural trigger. Plan is drafted against this.", "recommended": true},
-        {"key": "B", "label": "In-process background ticker (e.g., once/minute)", "rationale": "Promotes even if pending queue isn't read; adds a new concurrent loop to own and test; overkill for day-granularity dates"},
-        {"key": "C", "label": "External cron / systemd timer", "rationale": "Most decoupled; highest operational overhead; out of proportion for a single scenario feature"},
-        {"key": "D", "label": "Other — describe"}
+        {
+          "key": "A",
+          "label": "Lazy promotion on pending-queue read (stateful flip to pending + audit note)",
+          "rationale": "Zero new infra, durable across restarts once promoted, leverages heartbeat cadence as the natural trigger. Plan is drafted against this.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "In-process background ticker (e.g., once/minute)",
+          "rationale": "Promotes even if pending queue isn't read; adds a new concurrent loop to own and test; overkill for day-granularity dates"
+        },
+        {
+          "key": "C",
+          "label": "External cron / systemd timer",
+          "rationale": "Most decoupled; highest operational overhead; out of proportion for a single scenario feature"
+        },
+        {
+          "key": "D",
+          "label": "Other — describe",
+          "rationale": ""
+        }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d2",
@@ -32,14 +49,31 @@
       "topic": "`revisit_after` granularity: date-only vs full timestamp",
       "context": "The operator's triggering ask was '~7 heartbeats' — effectively day-scale. Date-only (YYYY-MM-DD) matches the CLI UX in the spec and avoids tz ambiguity. Full RFC3339 would allow finer control but adds complexity (which tz? operator's or server's?) for no cited use case.",
       "options": [
-        {"key": "A", "label": "Date-only (YYYY-MM-DD), server-local comparison", "rationale": "Matches the CLI spec as written, day granularity matches the use case, no tz ambiguity. Recommended.", "recommended": true},
-        {"key": "B", "label": "Full RFC3339 timestamp", "rationale": "Future-proofs for hour-scale deferrals but no such use case exists; opens tz questions"},
-        {"key": "C", "label": "Duration-based (e.g., `--for=7d`) that resolves to a date at defer-time", "rationale": "Ergonomic sugar; can be added later over a date-based primitive without breaking"},
-        {"key": "D", "label": "Other — describe"}
+        {
+          "key": "A",
+          "label": "Date-only (YYYY-MM-DD), server-local comparison",
+          "rationale": "Matches the CLI spec as written, day granularity matches the use case, no tz ambiguity. Recommended.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Full RFC3339 timestamp",
+          "rationale": "Future-proofs for hour-scale deferrals but no such use case exists; opens tz questions"
+        },
+        {
+          "key": "C",
+          "label": "Duration-based (e.g., `--for=7d`) that resolves to a date at defer-time",
+          "rationale": "Ergonomic sugar; can be added later over a date-based primitive without breaking"
+        },
+        {
+          "key": "D",
+          "label": "Other — describe",
+          "rationale": ""
+        }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d3",
@@ -47,13 +81,26 @@
       "topic": "Allowed transitions out of `deferred`",
       "context": "Once a decision is deferred, which transitions are legal? Strict (only auto-promote-to-pending, then normal accept/reject) is simplest to reason about. Permissive (accept/reject directly from deferred) is more ergonomic — operator may decide before `revisit_after` lands. The plan currently proposes permissive.",
       "options": [
-        {"key": "A", "label": "Permissive: `deferred → pending | accepted | rejected` allowed; not `running`/`completed`", "rationale": "Matches operator intuition ('I decided early'); no extra round-trip through pending; plan drafted against this.", "recommended": true},
-        {"key": "B", "label": "Strict: only `deferred → pending` (auto or via un-defer), then normal flow", "rationale": "Fewer transition combinations to test; forces a clean audit trail"},
-        {"key": "C", "label": "Other — describe"}
+        {
+          "key": "A",
+          "label": "Permissive: `deferred → pending | accepted | rejected` allowed; not `running`/`completed`",
+          "rationale": "Matches operator intuition ('I decided early'); no extra round-trip through pending; plan drafted against this.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Strict: only `deferred → pending` (auto or via un-defer), then normal flow",
+          "rationale": "Fewer transition combinations to test; forces a clean audit trail"
+        },
+        {
+          "key": "C",
+          "label": "Other — describe",
+          "rationale": ""
+        }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d4",
@@ -61,14 +108,31 @@
       "topic": "UI surface for deferred decisions",
       "context": "Today DecisionLogView groups rows by status with badges. Options: (A) add a dedicated 'Deferred' tab parallel to existing tabs; (B) keep everything in one log with a status filter chip set and a distinct badge; (C) a collapsible 'Deferred' section at the top of the pending tab. The spec text mentions 'separate tab'.",
       "options": [
-        {"key": "A", "label": "Dedicated Deferred tab in DecisionLogView, with revisit-date column", "rationale": "Matches spec language; mirrors how operator thinks about 'parked' work; small effort.", "recommended": true},
-        {"key": "B", "label": "Status filter chips + unified log", "rationale": "More consistent with a filter-based log UX if the codebase trends that way; requires refactoring tab component"},
-        {"key": "C", "label": "Collapsible section on Pending tab", "rationale": "Keeps deferred visually near pending; more clicks to see full deferred list"},
-        {"key": "D", "label": "Other — describe"}
+        {
+          "key": "A",
+          "label": "Dedicated Deferred tab in DecisionLogView, with revisit-date column",
+          "rationale": "Matches spec language; mirrors how operator thinks about 'parked' work; small effort.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Status filter chips + unified log",
+          "rationale": "More consistent with a filter-based log UX if the codebase trends that way; requires refactoring tab component"
+        },
+        {
+          "key": "C",
+          "label": "Collapsible section on Pending tab",
+          "rationale": "Keeps deferred visually near pending; more clicks to see full deferred list"
+        },
+        {
+          "key": "D",
+          "label": "Other — describe",
+          "rationale": ""
+        }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d5",
@@ -76,14 +140,31 @@
       "topic": "Re-surface audit note wording",
       "context": "When a deferred decision is promoted back to pending, we append a note so the operator knows why it's there. Wording affects readability of the decision-history log. Example formats: (A) terse prefix, (B) full sentence, (C) structured marker for future tooling.",
       "options": [
-        {"key": "A", "label": "`[re-surfaced after defer] deferred YYYY-MM-DD → revisit YYYY-MM-DD`", "rationale": "Short, machine-greppable, keeps both dates on one line. Recommended.", "recommended": true},
-        {"key": "B", "label": "Full sentence: `This decision was deferred on YYYY-MM-DD until YYYY-MM-DD and automatically re-surfaced.`", "rationale": "More readable in UI; longer in CLI log output"},
-        {"key": "C", "label": "Structured JSON fragment in notes (e.g., `{\"event\":\"resurface\",\"deferred\":\"...\",\"revisit\":\"...\"}`)", "rationale": "Parseable by future tooling; less human-readable inline"},
-        {"key": "D", "label": "Other — describe"}
+        {
+          "key": "A",
+          "label": "`[re-surfaced after defer] deferred YYYY-MM-DD → revisit YYYY-MM-DD`",
+          "rationale": "Short, machine-greppable, keeps both dates on one line. Recommended.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Full sentence: `This decision was deferred on YYYY-MM-DD until YYYY-MM-DD and automatically re-surfaced.`",
+          "rationale": "More readable in UI; longer in CLI log output"
+        },
+        {
+          "key": "C",
+          "label": "Structured JSON fragment in notes (e.g., `{\"event\":\"resurface\",\"deferred\":\"...\",\"revisit\":\"...\"}`)",
+          "rationale": "Parseable by future tooling; less human-readable inline"
+        },
+        {
+          "key": "D",
+          "label": "Other — describe",
+          "rationale": ""
+        }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "i1",

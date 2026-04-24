@@ -833,10 +833,15 @@ func TestGetDiffSuccess(t *testing.T) {
 	svc := &mockService{
 		getDiffFn: func(ctx context.Context, id uuid.UUID) (*types.DiffResult, error) {
 			return &types.DiffResult{
-				SandboxID:     testID,
-				UnifiedDiff:   "--- a/file.txt\n+++ b/file.txt\n@@ -1 +1 @@\n-old\n+new",
-				Files:         []*types.FileChange{},
-				TotalModified: 1,
+				SandboxID:   testID,
+				UnifiedDiff: "--- a/file.txt\n+++ b/file.txt\n@@ -1 +1 @@\n-old\n+new",
+				Files:       []*types.FileChange{},
+				Stats: types.DiffStats{
+					FilesChanged:  1,
+					FilesModified: 1,
+					LinesAdded:    1,
+					LinesRemoved:  1,
+				},
 			}, nil
 		},
 	}

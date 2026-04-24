@@ -1,0 +1,41 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-24T20:30:00Z",
+  "mode": "finalize",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 3,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Round-001 decisions d1–d4 all resolved to option A (the recommended choice) and were incorporated into plan.md §Contract Decisions, §Scope, §Target End State, §Implementation Strategy, §Testing Plan, §Rollout Checklist, §Risks, §Non-goals, and §Definition of Done. Empty-state = omit, label = 'Depends on', upstream-only, no truncation."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Plan is self-consistent: each of the four surfaces (CLI get, CLI list, UI detail, UI list) now has identical rules for wording, empty-state, direction, and long-list handling. No TBD markers remain."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "File-level discovery (exact Go formatter functions and TSX components) is still deferred to the executing agent — this workspace does not contain scenarios/swarm-manager/. Hints are in plan.md §Current Technical Context and that is the appropriate place for them; it does not block readiness."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "Backlog item has no `initiative` field, so cross-initiative context was not loaded. If the orchestrator wants this grouped with other CLI/UI display fixes, set it via `swarm-manager backlog update --data '{\"initiative\":\"...\"}'` before execution."
+    },
+    {
+      "id": "i5",
+      "type": "info",
+      "text": "Recommended next step: mark ready — `swarm-manager backlog update --kind fix --name swarm-manager-initiative-depends-on-display --data '{\"status\":\"ready\"}'` and queue."
+    }
+  ],
+  "plan_updates": "Filled §Contract Decisions with resolved d1–d4. Tightened §Scope (added d3 upstream-only and d4 no-truncation to out-of-scope), §Target End State (explicit omit-when-empty per surface, full comma-joined list), §Implementation Strategy (each phase now states the exact wording, empty-state behavior, and no-truncation rule), §Testing Plan (exact golden strings, empty-line absence assertion), §Risks (locked wording, accepted long-row risk), §Non-goals (added no-truncation, no-downstream), and §Definition of Done (mapped to d1–d4). No TBD remains."
+}

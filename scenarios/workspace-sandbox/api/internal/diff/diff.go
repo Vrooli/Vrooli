@@ -177,8 +177,10 @@ func (g *Generator) GenerateDiff(ctx context.Context, s *types.Sandbox, changes 
 
 	var diffBuilder strings.Builder
 	var added, deleted, modified int
+	var totalBytes int64
 
 	for _, change := range sortedChanges {
+		totalBytes += change.FileSize
 		switch change.ChangeType {
 		case types.ChangeTypeAdded:
 			added++
@@ -206,15 +208,47 @@ func (g *Generator) GenerateDiff(ctx context.Context, s *types.Sandbox, changes 
 		}
 	}
 
+	unified := diffBuilder.String()
+	linesAdded, linesRemoved := countUnifiedDiffLines(unified)
+
 	return &types.DiffResult{
-		SandboxID:     s.ID,
-		Files:         sortedChanges,
-		UnifiedDiff:   diffBuilder.String(),
-		Generated:     time.Now(),
-		TotalAdded:    added,
-		TotalDeleted:  deleted,
-		TotalModified: modified,
+		SandboxID:   s.ID,
+		Files:       sortedChanges,
+		UnifiedDiff: unified,
+		Generated:   time.Now(),
+		Stats: types.DiffStats{
+			FilesChanged:  added + modified + deleted,
+			FilesAdded:    added,
+			FilesModified: modified,
+			FilesDeleted:  deleted,
+			LinesAdded:    linesAdded,
+			LinesRemoved:  linesRemoved,
+			TotalBytes:    totalBytes,
+		},
 	}, nil
+}
+
+// countUnifiedDiffLines counts added/removed content lines in a unified diff,
+// excluding the `+++`/`---` file headers.
+func countUnifiedDiffLines(unified string) (added, removed int) {
+	for _, line := range strings.Split(unified, "\n") {
+		if len(line) == 0 {
+			continue
+		}
+		switch line[0] {
+		case '+':
+			if strings.HasPrefix(line, "+++") {
+				continue
+			}
+			added++
+		case '-':
+			if strings.HasPrefix(line, "---") {
+				continue
+			}
+			removed++
+		}
+	}
+	return added, removed
 }
 
 // diffNewFile generates a diff for a newly added file.

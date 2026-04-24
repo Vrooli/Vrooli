@@ -1,0 +1,36 @@
+{
+  "round": 3,
+  "generated_at": "2026-04-24T21:30:00Z",
+  "mode": "finalize",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 3,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Round 2 decisions incorporated: d1-r2=A (reject entirely-empty modifications payloads with field-violation error), d2-r2=A (strictly accept-once; immutable post-accept), d3-r2=A (no server-side clause matching; operator intent authoritative), d4-r2=C (contract doc is a markdown file in scenarios/prompt-manager/docs/ linked from proto comments, NOT a new steer skill)."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Plan is ready for execution. All 5 readiness dimensions at 3/3. Orchestrator should respect sibling sequencing F9 → (F10) → F15 (this item) → F14 and ensure F9/F10/F14 workshops are notified of the modifications contract before they run."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Codebase investigation (Current Technical Context section) deliberately remains TBD — it requires the prompt-manager scenario source tree at execute time. Plan directs the execute-time agent to use the existing `notes` field plumbing as the structural template and lists the five investigation targets."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "Noted risk on d4-r2=C: markdown-in-docs is less discoverable to skill-scanning agents than a steer skill would be. Mitigated via proto-comment links and explicit workshop-agent prompt citation in Phase 4. Captured in the Risks table so the orchestrator can revisit if downstream consumers miss the doc."
+    }
+  ],
+  "plan_updates": "Added Settled Decisions (round 2) table capturing d1-r2 through d4-r2. Rewrote Phase 4 to pin contract doc to scenarios/prompt-manager/docs/ with proto-comment links (per d4-r2=C). Added immutability rule to Validation Policy and Contract Decisions sections (per d2-r2=A). Added API unit test for post-accept immutability and added prohibited pattern against an edit/amend path. Added risk row covering discoverability tradeoff of docs/-based contract vs a steer skill, with mitigation. Scope in/out updated to call out immutability and the chosen doc venue. Readiness lifted to 3/3 across all dimensions."
+}

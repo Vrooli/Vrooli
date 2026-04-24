@@ -378,6 +378,44 @@ func TestGenerateDiff(t *testing.T) {
 		if result.UnifiedDiff != "" {
 			t.Error("result should have empty diff for no changes")
 		}
+		if result.Stats.FilesChanged != 0 {
+			t.Errorf("Stats.FilesChanged = %d, want 0 for empty diff", result.Stats.FilesChanged)
+		}
+		if result.Stats.LinesAdded != 0 || result.Stats.LinesRemoved != 0 {
+			t.Errorf("empty diff should have zero line counts, got +%d -%d",
+				result.Stats.LinesAdded, result.Stats.LinesRemoved)
+		}
+	})
+
+	t.Run("stats for modified file", func(t *testing.T) {
+		modLower := t.TempDir()
+		modUpper := t.TempDir()
+		modSandbox := &types.Sandbox{ID: uuid.New(), LowerDir: modLower, UpperDir: modUpper}
+
+		if err := os.WriteFile(filepath.Join(modLower, "m.txt"), []byte("one\ntwo\n"), 0o644); err != nil {
+			t.Fatalf("Failed to write lower: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(modUpper, "m.txt"), []byte("one\ntwo\nthree\n"), 0o644); err != nil {
+			t.Fatalf("Failed to write upper: %v", err)
+		}
+
+		changes := []*types.FileChange{
+			{ID: uuid.New(), FilePath: "m.txt", ChangeType: types.ChangeTypeModified, FileSize: 14},
+		}
+		result, err := gen.GenerateDiff(ctx, modSandbox, changes, nil)
+		if err != nil {
+			t.Fatalf("GenerateDiff failed: %v", err)
+		}
+		if result.Stats.FilesChanged != 1 || result.Stats.FilesModified != 1 {
+			t.Errorf("expected FilesChanged=FilesModified=1, got changed=%d modified=%d",
+				result.Stats.FilesChanged, result.Stats.FilesModified)
+		}
+		if result.Stats.LinesAdded < 1 {
+			t.Errorf("expected at least 1 line added, got %d", result.Stats.LinesAdded)
+		}
+		if result.Stats.TotalBytes != 14 {
+			t.Errorf("TotalBytes = %d, want 14", result.Stats.TotalBytes)
+		}
 	})
 
 	t.Run("missing upper dir", func(t *testing.T) {
@@ -438,11 +476,20 @@ func TestGenerateDiff(t *testing.T) {
 			t.Fatalf("GenerateDiff failed: %v", err)
 		}
 
-		if result.TotalAdded != 1 {
-			t.Errorf("TotalAdded = %d, want 1", result.TotalAdded)
+		if result.Stats.FilesAdded != 1 {
+			t.Errorf("Stats.FilesAdded = %d, want 1", result.Stats.FilesAdded)
 		}
-		if result.TotalDeleted != 1 {
-			t.Errorf("TotalDeleted = %d, want 1", result.TotalDeleted)
+		if result.Stats.FilesDeleted != 1 {
+			t.Errorf("Stats.FilesDeleted = %d, want 1", result.Stats.FilesDeleted)
+		}
+		if result.Stats.FilesChanged != 2 {
+			t.Errorf("Stats.FilesChanged = %d, want 2", result.Stats.FilesChanged)
+		}
+		if result.Stats.LinesAdded == 0 {
+			t.Errorf("Stats.LinesAdded should be > 0 for an added file with content, got %d", result.Stats.LinesAdded)
+		}
+		if result.Stats.LinesRemoved == 0 {
+			t.Errorf("Stats.LinesRemoved should be > 0 for a deleted file with content, got %d", result.Stats.LinesRemoved)
 		}
 		if result.Generated.IsZero() {
 			t.Error("Generated timestamp should be set")

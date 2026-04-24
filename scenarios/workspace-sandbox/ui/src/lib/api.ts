@@ -80,14 +80,22 @@ export interface FileChange {
   };
 }
 
+export interface DiffStats {
+  filesChanged: number;
+  filesAdded: number;
+  filesModified: number;
+  filesDeleted: number;
+  linesAdded: number;
+  linesRemoved: number;
+  totalBytes: number;
+}
+
 export interface DiffResult {
   sandboxId: string;
   files: FileChange[];
   unifiedDiff: string;
   generated: string;
-  totalAdded: number;
-  totalDeleted: number;
-  totalModified: number;
+  stats: DiffStats;
   // View mode support
   mode?: ViewMode;
   fileContents?: Record<string, FileViewData>;

@@ -330,17 +330,27 @@ type ListResult struct {
 
 // DiffResult contains the diff output for a sandbox.
 type DiffResult struct {
-	SandboxID     uuid.UUID     `json:"sandboxId"`
-	Files         []*FileChange `json:"files"`
-	UnifiedDiff   string        `json:"unifiedDiff"`
-	Generated     time.Time     `json:"generated"`
-	TotalAdded    int           `json:"totalAdded"`
-	TotalDeleted  int           `json:"totalDeleted"`
-	TotalModified int           `json:"totalModified"`
+	SandboxID   uuid.UUID     `json:"sandboxId"`
+	Files       []*FileChange `json:"files"`
+	UnifiedDiff string        `json:"unifiedDiff"`
+	Generated   time.Time     `json:"generated"`
+	Stats       DiffStats     `json:"stats"`
 
 	// View mode support for full_diff and source modes
 	Mode         ViewMode                `json:"mode,omitempty"`         // Requested view mode
 	FileContents map[string]FileViewData `json:"fileContents,omitempty"` // Per-file content, keyed by file path
+}
+
+// DiffStats summarizes the aggregate impact of a sandbox diff.
+// FilesChanged is always FilesAdded + FilesModified + FilesDeleted.
+type DiffStats struct {
+	FilesChanged  int   `json:"filesChanged"`
+	FilesAdded    int   `json:"filesAdded"`
+	FilesModified int   `json:"filesModified"`
+	FilesDeleted  int   `json:"filesDeleted"`
+	LinesAdded    int   `json:"linesAdded"`
+	LinesRemoved  int   `json:"linesRemoved"`
+	TotalBytes    int64 `json:"totalBytes"`
 }
 
 // ApprovalRequest contains the parameters for approving changes.

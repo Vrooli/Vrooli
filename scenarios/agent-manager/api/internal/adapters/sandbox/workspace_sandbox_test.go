@@ -133,6 +133,13 @@ func TestWorkspaceSandboxProvider_Delete(t *testing.T) {
 	}
 }
 
+// TestWorkspaceSandboxProvider_GetDiff is a shape-parity contract test for the
+// workspace-sandbox /diff endpoint. The fake server below MUST emit the exact
+// JSON shape that scenarios/workspace-sandbox/api/internal/types.DiffResult
+// emits (see types.go and diff.go in that scenario). If workspace-sandbox
+// changes the wire shape, this test must change in the same commit — otherwise
+// agent-manager will silently decode into zero values and auto-approval logic
+// will misbehave (see docs/plans/sandbox-auto-approve-and-profile-reconcile-plan.md §10.2).
 func TestWorkspaceSandboxProvider_GetDiff(t *testing.T) {
 	sandboxID := uuid.New()
 	fileID := uuid.New()
@@ -144,6 +151,7 @@ func TestWorkspaceSandboxProvider_GetDiff(t *testing.T) {
 		}
 
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"sandboxId": sandboxID.String(),
 			"files": []map[string]interface{}{
 				{
 					"id":           fileID.String(),
@@ -155,12 +163,12 @@ func TestWorkspaceSandboxProvider_GetDiff(t *testing.T) {
 				},
 			},
 			"unifiedDiff": "diff --git a/tmp b/tmp\nnew file mode 040755\n--- /dev/null\n+++ b/tmp\n\ndiff --git a/src/main.go b/src/main.go\n--- a/src/main.go\n+++ b/src/main.go\n@@ -1,5 +1,10 @@\n+// Added line\n",
+			"generated":   "2026-04-24T20:00:00Z",
 			"stats": map[string]interface{}{
 				"filesChanged":  1,
 				"filesAdded":    0,
 				"filesModified": 1,
 				"filesDeleted":  0,
-				"totalLines":    100,
 				"linesAdded":    10,
 				"linesRemoved":  5,
 				"totalBytes":    int64(1024),
@@ -182,11 +190,57 @@ func TestWorkspaceSandboxProvider_GetDiff(t *testing.T) {
 	if result.Stats.FilesChanged != 1 {
 		t.Errorf("expected 1 file changed, got %d", result.Stats.FilesChanged)
 	}
+	if result.Stats.FilesModified != 1 {
+		t.Errorf("expected 1 file modified, got %d", result.Stats.FilesModified)
+	}
 	if result.Stats.LinesAdded != 10 {
 		t.Errorf("expected 10 lines added, got %d", result.Stats.LinesAdded)
 	}
+	if result.Stats.LinesRemoved != 5 {
+		t.Errorf("expected 5 lines removed, got %d", result.Stats.LinesRemoved)
+	}
+	if result.Stats.TotalBytes != 1024 {
+		t.Errorf("expected totalBytes=1024, got %d", result.Stats.TotalBytes)
+	}
 	if strings.Contains(result.UnifiedDiff, "diff --git a/tmp b/tmp") {
 		t.Errorf("expected directory-only diff entry to be filtered out")
+	}
+}
+
+// TestWorkspaceSandboxProvider_GetDiff_Empty verifies that an empty sandbox
+// decodes to FilesChanged=0. This is the happy path for auto-approve-if-empty.
+func TestWorkspaceSandboxProvider_GetDiff_Empty(t *testing.T) {
+	sandboxID := uuid.New()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"sandboxId":   sandboxID.String(),
+			"files":       []map[string]interface{}{},
+			"unifiedDiff": "",
+			"generated":   "2026-04-24T20:00:00Z",
+			"stats": map[string]interface{}{
+				"filesChanged":  0,
+				"filesAdded":    0,
+				"filesModified": 0,
+				"filesDeleted":  0,
+				"linesAdded":    0,
+				"linesRemoved":  0,
+				"totalBytes":    int64(0),
+			},
+		})
+	}))
+	defer server.Close()
+
+	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
+	result, err := provider.GetDiff(context.Background(), sandboxID)
+	if err != nil {
+		t.Fatalf("GetDiff failed: %v", err)
+	}
+	if result.Stats.FilesChanged != 0 {
+		t.Errorf("expected FilesChanged=0 for empty sandbox, got %d", result.Stats.FilesChanged)
+	}
+	if len(result.Files) != 0 {
+		t.Errorf("expected 0 files, got %d", len(result.Files))
 	}
 }
 

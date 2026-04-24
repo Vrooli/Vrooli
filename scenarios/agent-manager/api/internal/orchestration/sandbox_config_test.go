@@ -86,3 +86,74 @@ func TestNormalizeSandboxConfig_Nil(t *testing.T) {
 		t.Errorf("expected nil result for nil input, got %v", result)
 	}
 }
+
+// TestResolveSandboxConfig_AllInputsNil verifies the contract that
+// resolveSandboxConfig never returns nil. Before 2026-04-24 it would cascade
+// through a chain of nil inputs (default -> profile -> request) and return nil,
+// which caused tryAutoApproval to silently short-circuit and leave runs
+// stuck in NEEDS_REVIEW. A non-nil normalized zero-value is the fix.
+func TestResolveSandboxConfig_AllInputsNil(t *testing.T) {
+	o := &Orchestrator{}
+	cfg, err := o.resolveSandboxConfig(CreateRunRequest{}, nil)
+	if err != nil {
+		t.Fatalf("resolveSandboxConfig returned error: %v", err)
+	}
+	if cfg == nil {
+		t.Fatal("resolveSandboxConfig must never return nil — contract for auto-approval logic")
+	}
+	if cfg.Acceptance.Mode != "allowlist" {
+		t.Errorf("expected normalized Acceptance.Mode=allowlist, got %q", cfg.Acceptance.Mode)
+	}
+	if cfg.Acceptance.DisableAutoApproveIfEmpty {
+		t.Error("expected DisableAutoApproveIfEmpty=false by default so empty sandboxes auto-approve")
+	}
+}
+
+// TestResolveSandboxConfig_ProfileConfigUsed verifies that a profile-provided
+// SandboxConfig is honored (precedence over the zero-value default).
+func TestResolveSandboxConfig_ProfileConfigUsed(t *testing.T) {
+	o := &Orchestrator{}
+	profile := &domain.AgentProfile{
+		SandboxConfig: &domain.SandboxConfig{
+			Acceptance: domain.SandboxAcceptanceConfig{
+				AutoApprove: true,
+			},
+		},
+	}
+	cfg, err := o.resolveSandboxConfig(CreateRunRequest{}, profile)
+	if err != nil {
+		t.Fatalf("resolveSandboxConfig returned error: %v", err)
+	}
+	if cfg == nil {
+		t.Fatal("cfg must not be nil")
+	}
+	if !cfg.Acceptance.AutoApprove {
+		t.Error("expected AutoApprove=true from profile")
+	}
+}
+
+// TestResolveSandboxConfig_RequestOverridesProfile verifies inline request
+// config wins over profile config (documented precedence).
+func TestResolveSandboxConfig_RequestOverridesProfile(t *testing.T) {
+	o := &Orchestrator{}
+	profile := &domain.AgentProfile{
+		SandboxConfig: &domain.SandboxConfig{
+			Acceptance: domain.SandboxAcceptanceConfig{AutoApprove: true},
+		},
+	}
+	req := CreateRunRequest{
+		SandboxConfig: &domain.SandboxConfig{
+			Acceptance: domain.SandboxAcceptanceConfig{AutoReject: true},
+		},
+	}
+	cfg, err := o.resolveSandboxConfig(req, profile)
+	if err != nil {
+		t.Fatalf("resolveSandboxConfig returned error: %v", err)
+	}
+	if cfg.Acceptance.AutoApprove {
+		t.Error("request config should have overridden profile's AutoApprove")
+	}
+	if !cfg.Acceptance.AutoReject {
+		t.Error("expected AutoReject=true from request")
+	}
+}

@@ -1,0 +1,141 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-24T00:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 3,
+    "risk_awareness": 3,
+    "scope_defined": 3,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Subpackage path convention",
+      "context": "D1=B (full Go subpackages) is now settled. Each subpackaged domain needs a stable import path. Options follow common Go conventions; the choice affects every import line in the new code and any future tooling that walks the API tree.",
+      "options": [
+        {
+          "key": "A",
+          "label": "`api/domain/\u003cname\u003e` (e.g., `api/domain/ai`, `api/domain/billing`)",
+          "rationale": "Most explicit — `domain/` directory itself screams architecture. Easy to grep for 'all domains', easy to enumerate. Matches the proposed-action wording in notes.md ('api/domain/{landing,billing,...}').",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "`api/\u003cname\u003e` directly (e.g., `api/ai`, `api/billing`)",
+          "rationale": "Shorter import paths, flatter tree. But mixes domain dirs with `api/main.go` and other top-level files, making the screaming-architecture intent slightly less obvious."
+        },
+        {
+          "key": "C",
+          "label": "`api/internal/\u003cname\u003e` (e.g., `api/internal/ai`)",
+          "rationale": "Uses Go's `internal/` to enforce that nothing outside `api/` can import these subpackages. Strongest encapsulation; useful if anything outside `api/` ever tries to reach in. Less idiomatic for a scenario where the API package is itself the boundary."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own convention."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Execution subset for this run",
+      "context": "Per your D1 note, if subpackaging all 8 domains is too much for one execution, pick a few and defer the rest. The Server struct shows that some domains have minimal shared-helper dependencies (likely acyclic when extracted) while others touch session/rate-limit/email helpers heavily. Recommendation: subpackage the 4 most isolated first; defer the 4 that share more helpers.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Subpackage 4 isolated domains: `ai`, `remote-profile`, `user-auth`, `metrics` — defer `billing`, `downloads`, `admin`, `landing`",
+          "rationale": "These four touch the fewest shared helpers (AI has its own `AIGatewayDeps`; remote-profile is a single service; user-auth owns its rate limiter + session; metrics is read-mostly). High confidence of acyclic extraction. Leaves billing (touches Stripe + plans + payment settings + credits), downloads (3 services + authorizer), admin (cross-cutting), and landing (uses landing-config + assets + SEO + variant) for a follow-up where shared helpers can be designed deliberately.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Subpackage all 8 domains in this execution",
+          "rationale": "Maximum value in one go; matches the screaming-architecture intent fully. Risk: shared helpers (rate limiter, session manager, email service) will likely force mid-execution package extractions, ballooning the diff and increasing chance of behavior drift. Reasonable only if cycles do not appear."
+        },
+        {
+          "key": "C",
+          "label": "Subpackage 1-2 domains as a pilot (`ai` + `remote-profile`), defer the rest",
+          "rationale": "Lowest-risk pilot to validate the subpackage convention end-to-end before scaling. Smallest diff, but leaves most of the value on the table; requires multiple follow-ups."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Specify your preferred subset."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Cycle-resolution policy",
+      "context": "When a domain extraction triggers an import cycle (e.g., subpackaged `billing` and subpackaged `admin` both need `RateLimiter`, which currently lives in the flat `api` package), the agent needs a pre-agreed rule. Mid-execution package design (creating a new `api/shared/` or `api/platform/` package on the fly) is risky for behavior preservation; deferring the offending domain is safer but slower.",
+      "options": [
+        {
+          "key": "A",
+          "label": "On cycle: revert that domain's move and add it to the deferred list. Do not extract new shared packages mid-execution.",
+          "rationale": "Highest behavior-preservation guarantee. Keeps the diff focused. The follow-up backlog item gets to design `api/shared/` deliberately with its own plan + review.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "On cycle: extract a minimal `api/shared/\u003chelper\u003e/` subpackage in the same execution and continue.",
+          "rationale": "Avoids deferring more domains; finishes more of the refactor now. But each shared-package extraction is itself a behavior-sensitive change (helper init order, package-level state) that deserves its own review."
+        },
+        {
+          "key": "C",
+          "label": "On cycle: keep the helper in the flat `api` package and have subpackages import upward via interfaces declared in the subpackage.",
+          "rationale": "Consumer-defined interfaces break the cycle without moving the helper. Idiomatic Go but adds an interface-shim layer per shared dependency; can obscure which concrete helper is in use."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own policy."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Follow-up backlog shape",
+      "context": "Whatever subset is deferred from D2 needs a follow-up. Granularity affects scheduling and review cost: one item bundles all deferred work (one PR, one review, one test pass) but is bigger; per-domain items parallelize but multiply ceremony.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Single follow-up `execute` item covering all deferred domains, inheriting acceptance_allow",
+          "rationale": "Lowest backlog overhead. The follow-up plan can sequence domains itself. Matches your D1 note phrasing ('a new backlog item or items'). Best when the deferred set is 2-4 domains.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "One follow-up item per deferred domain",
+          "rationale": "Maximum parallelism — multiple agents could pick different domains. But each item needs its own workshop pass, and shared-helper decisions get duplicated/contradicted across items."
+        },
+        {
+          "key": "C",
+          "label": "Group deferred work under a new initiative with per-domain members",
+          "rationale": "Best if the deferred set is large (5+) or if shared-helper design needs its own dedicated item alongside the per-domain moves. Heavier to set up; overkill for the recommended D2=A subset of 4."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Specify your preferred shape."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Updated plan.md to reflect Round 1 decisions: D1=B (full subpackages with phased fallback per your note), D2=A (8-module collapse), D3=A (3 UI route modules), D4=A (create all 6 baseline docs), D5=A (move FAQ + delete temporaries). Added a new Phase 6 for the follow-up backlog item, a 'Settled Decisions' section that captures your D1 override verbatim, and a transitional callout requirement for ARCHITECTURE.md so mixed subpackage/legacy state is not silently confusing."
+    }
+  ],
+  "plan_updates": "Incorporated D1-D5 selections: rewrote scope/phase 2 around full Go subpackages with a phased execution subset, added Phase 6 for filing the follow-up item, added 'Settled Decisions (Round 1)' section, expanded Target End State / Definition of Done / validation checklist to cover mixed subpackaged+legacy state, added per-domain dep-graph step in Phase 1, and surfaced D2.1-D2.4 in Pending Decisions."
+}

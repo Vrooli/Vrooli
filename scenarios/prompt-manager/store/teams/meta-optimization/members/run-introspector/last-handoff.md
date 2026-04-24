@@ -1,39 +1,39 @@
 ### Runs in window
-- Errored: 22 (total FAILED in list; this is a first-heartbeat full-history pass, no prior last-heartbeat marker)
-- Retried: not separately counted (retry-loops visible in `lpbs-payment-anomaly-log-and-alerts` tag group — 4+ consecutive failures, noted for future heartbeat)
-- Slow: not triaged this heartbeat (tier-1 non-empty)
-- User-flagged: none observed
-- Successful: 92
+- Errored: 0
+- Retried: 0 (no retry pattern detected in tag groups since last heartbeat)
+- Slow: 25 (all wall-clock outliers — investigation revealed all are approval-lag artifacts, not true slow runs)
+- User-flagged: 0
+- Successful: 98
+- Running: 1 (this heartbeat)
 
 ### Run picked this heartbeat
-- Run ID: `60116710-f77d-4c33-8058-2bd90c475289`
-- Agent: `agent-manager-investigation` (profile `bc6b95c5-9f22-4e28-9300-53caf15b26f5`, run_mode sandboxed)
-- Triage tier: errored (tier-1), but with a twist — the "error" is itself a misclassification
+- Run ID: `564191ef-e1b4-4328-b21c-c83999676123`
+- Agent: `swarm-manager:initiative:rev-trigger:review:round-001` (sandboxed, opus, requires_approval=true)
+- Triage tier: slow (tier-3) — but the investigation reclassified the entire cluster as a tier-3 *contamination* class
 
 ### What happened
-An investigation run completed successfully, produced a thorough report, and got marked FAILED/429 because its own report text contained the phrase "rate limit" as a topic of discussion. `detectRateLimit` (agent-manager runner, `claude_code.go:1518-1559`) uses an unanchored substring match, so any successful run whose final message discusses rate limiting as a subject gets force-failed with ExitCode=429. The run's own `error_msg` field contains the full self-diagnosis — it's a completed investigation report misfiled as an error.
+The longest run by wall-clock (81,648s ≈ 22h44m) actually performed only ~15s of agent work: `last_heartbeat - started_at = 15s`, 1 turn, 27,523 tokens, $0.09. `ended_at = approved_at` (2026-04-24T21:09:57Z), and 25 same-tag runs ended within ~7 seconds of each other from start times spanning 22h — the operator batch-cleared the approval queue in one sweep. Cross-checked with `86f4378d` (same tag, identical agent work, 13s wall-clock because approval landed in 2ms): wall-clock spread is ~6,000× from approval-lag variance alone.
 
 ### Implicated
-- **Tier-1 triage ladder** in `scenarios/prompt-manager/store/teams/meta-optimization/members/run-introspector/HEARTBEAT.md` (Required Loop step 3) — no gate filters misclassified-success from real errored runs, so run-introspector would keep picking these false positives first.
-- **Underlying bug** (out of my lane, scenario-qa): `scenarios/agent-manager/api/internal/adapters/runner/claude_code.go:1518-1559` `detectRateLimit` substring matcher; the run's own report already prescribes the fix.
+- `scenarios/prompt-manager/store/teams/meta-optimization/members/run-introspector/HEARTBEAT.md` — "Reasoning Framework" tier-3 ("Slow") defines "duration" without qualifier; the natural reading (and what triage used) is wall-clock, which is contaminated by operator latency whenever `requires_approval=true`.
 
 ### Proposed lesson
-- Add a tier-1 verification gate: if `exit_code=429` AND `error_msg` looks like substantive completion text (markdown headings like "Summary"/"Classification"/"Report", multi-paragraph), reclassify as tier-5 (misclassified success) and continue the ladder.
-- Handoff to: **team-agent-optimizer** (HEARTBEAT.md edit).
-- Underlying code bug deliberately not flagged as capability-gap — agent-manager exists, the bug is code quality, scenario-qa owns that.
+- Redefine tier-3 "duration" as work-duration (`last_heartbeat - started_at`), exclude `requires_approval=true` runs and `turns_used<=1 AND cost_estimate<$0.20` from slow triage.
+- Handoff to: **team-agent-optimizer** (HEARTBEAT.md edit). Underlying agent-manager `ended_at` semantics are correct as-is; not a code bug.
 
 ### Measurement plan
-- Baseline: 2 of 22 FAILED runs (~9%) carry exit_code=429 + substantive completion text (`60116710`, `e08357a4`).
-- Post-edit: no future RUN_LESSONS.md entry should pick an exit_code=429-with-completion-text run as tier-1 errored.
-- Revisit: 2026-04-30 (7 heartbeats).
-- Secondary: when scenario-qa fixes `detectRateLimit`, the false-positive rate drops to 0 and the gate becomes a silent no-op (keep it — defense in depth).
+- Baseline: 25/98 (~25%) of successful runs in this window are approval-lag artifacts on a single tag with median work-duration ~15s but median wall-clock 64,462s (~4,300× discrepancy).
+- Post-edit: future tier-3 picks should not surface `requires_approval=true` 1-turn runs.
+- Revisit: 2026-05-01 (7 heartbeats) — grep RUN_LESSONS.md for offending picks; expected 0.
+- Standing-pattern watch: this is the second tier-contamination lesson in two heartbeats (after tier-1 `detectRateLimit`). If a third surfaces, contrarian should consider a `framework-update` formalizing tier-signal-contamination.
 
 ### Decisions raised this heartbeat
-- `dec-1776984436121140045` · `run-lesson` · tier-1 verification gate for exit_code=429 false positives → team-agent-optimizer
-- (1 of ≤2 cap used; no second decision — depth over breadth, retry-loop pattern on `lpbs-payment-anomaly-log-and-alerts` logged for future heartbeat)
+- `dec-1777070860432410408` · `run-lesson` · tier-3 work-duration redefinition for run-introspector HEARTBEAT.md → team-agent-optimizer
+- (1 of ≤2 cap used; no second decision — depth over breadth, no separate capability-gap warranted since the fix is meta-layer prose)
 
 ### Knowledge entries written
-- `knw-1776984422361345123` · topic `run-lessons-2026-04-23` (first entry — no prior to supersede)
+- `knw-1777070838911919368` · topic `run-lessons-2026-04-24` (supersedes `run-lessons-2026-04-23`)
 
 ### Supersession check
-- No prior pending `run-lesson` or `capability-gap` decisions raised by run-introspector. No supersessions needed.
+- Prior pending `dec-1776984436121140045` (tier-1 detectRateLimit gate) is **additive**, not redundant, with today's decision — different tier, different gate, both edits land in HEARTBEAT.md "Reasoning Framework". No supersession.
+- Team queue at 4 pending (well under 12-ceiling); read-only mode not triggered.

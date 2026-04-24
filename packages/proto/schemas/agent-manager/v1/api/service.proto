@@ -532,6 +532,12 @@ message ProfileRef {
 
   // Default profile settings to use if the profile does not exist.
   AgentProfile defaults = 2;
+
+  // When true, overwrite an existing profile row with the supplied defaults
+  // on every dispatch. Use this when the caller treats its code-declared
+  // profile as authoritative; otherwise the existing row wins and the
+  // `defaults` field is only consulted on first creation.
+  bool update_existing = 3;
 }
 
 // CreateRunRequest starts a new run.

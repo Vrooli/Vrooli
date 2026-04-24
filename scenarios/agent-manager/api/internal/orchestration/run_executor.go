@@ -1593,6 +1593,12 @@ func (e *RunExecutor) shouldPreserveSandbox(event domain.SandboxLifecycleEvent) 
 func (e *RunExecutor) tryAutoApproval(ctx context.Context) bool {
 	cfg := e.effectiveSandboxConfig()
 	if cfg == nil {
+		// Defensive: resolveSandboxConfig guarantees a non-nil config for
+		// sandboxed runs since 2026-04-24. If we land here, the orchestrator
+		// constructed a run without going through resolveSandboxConfig — a bug.
+		// Emit a warn event so the next occurrence is visible in run events
+		// rather than silently falling through to NEEDS_REVIEW.
+		e.emitSystemEvent(ctx, "warn", "auto-approval skipped: run has no sandbox config (resolve bug — please report)")
 		return false
 	}
 	if cfg.Acceptance.AutoReject {
@@ -1662,7 +1668,11 @@ func (e *RunExecutor) autoApproveIfEmpty(ctx context.Context) bool {
 
 	// Check if no changes
 	if diff.Stats.FilesChanged > 0 {
-		return false // Has changes, requires manual review
+		// Has changes — human review required. Emit an info event so the
+		// reason for NEEDS_REVIEW is visible in the run's event stream.
+		e.emitSystemEvent(ctx, "info",
+			fmt.Sprintf("auto-approval skipped: %d files changed — review required", diff.Stats.FilesChanged))
+		return false
 	}
 
 	// Empty sandbox - auto-approve

@@ -1579,9 +1579,14 @@ type ProfileRef struct {
 	// Stable profile key for lookup or creation.
 	ProfileKey string `protobuf:"bytes,1,opt,name=profile_key,json=profileKey,proto3" json:"profile_key,omitempty"`
 	// Default profile settings to use if the profile does not exist.
-	Defaults      *domain.AgentProfile `protobuf:"bytes,2,opt,name=defaults,proto3" json:"defaults,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Defaults *domain.AgentProfile `protobuf:"bytes,2,opt,name=defaults,proto3" json:"defaults,omitempty"`
+	// When true, overwrite an existing profile row with the supplied defaults
+	// on every dispatch. Use this when the caller treats its code-declared
+	// profile as authoritative; otherwise the existing row wins and the
+	// `defaults` field is only consulted on first creation.
+	UpdateExisting bool `protobuf:"varint,3,opt,name=update_existing,json=updateExisting,proto3" json:"update_existing,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ProfileRef) Reset() {
@@ -1626,6 +1631,13 @@ func (x *ProfileRef) GetDefaults() *domain.AgentProfile {
 		return x.Defaults
 	}
 	return nil
+}
+
+func (x *ProfileRef) GetUpdateExisting() bool {
+	if x != nil {
+		return x.UpdateExisting
+	}
+	return false
 }
 
 // CreateRunRequest starts a new run.
@@ -3591,12 +3603,13 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\atask_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06taskId\"F\n" +
 	"\x12CancelTaskResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x16\n" +
-	"\x06status\x18\x02 \x01(\tR\x06status\"t\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\"\x9d\x01\n" +
 	"\n" +
 	"ProfileRef\x12*\n" +
 	"\vprofile_key\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18dR\n" +
 	"profileKey\x12:\n" +
-	"\bdefaults\x18\x02 \x01(\v2\x1e.agent_manager.v1.AgentProfileR\bdefaults\"\x86\x06\n" +
+	"\bdefaults\x18\x02 \x01(\v2\x1e.agent_manager.v1.AgentProfileR\bdefaults\x12'\n" +
+	"\x0fupdate_existing\x18\x03 \x01(\bR\x0eupdateExisting\"\x86\x06\n" +
 	"\x10CreateRunRequest\x12!\n" +
 	"\atask_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06taskId\x12-\n" +
 	"\x10agent_profile_id\x18\x02 \x01(\tH\x00R\x0eagentProfileId\x88\x01\x01\x12\x15\n" +

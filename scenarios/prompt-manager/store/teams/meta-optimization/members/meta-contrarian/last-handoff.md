@@ -2,21 +2,22 @@
 - 4
 
 ### Passed cleanly
-- `dec-1776981723540926630` (toolchain-validator · toolchain-violation · designate gold-star reference) — blocker flag requesting operator action; no proposed change; modes all N/A.
-- `dec-1776982635141465033` (skill-optimizer · skill-improvement · trim swarm-manager-backlog-tools CLI section) — baseline (6,900 tokens; 19 inbound consumers), explicit delta (~4,400 tokens), behavioral spot-check + 14-HB revisit in measurement plan. Mode 1 met via 19-consumer popularity.
-- `dec-1776984436121140045` (run-introspector · run-lesson · tier-1 verification gate for exit_code=429 false positives) — direct behavioral evidence (2/22 false-positive rate), concrete measurement, owned-context correct, recommendation handed off to team-agent-optimizer rather than executed.
+- `dec-1777068246086430656` (toolchain-validator · toolchain-violation · reference-react-vite rot, 72 violations / 41 High) — operator-action blocker with baseline + target; explicit out-of-lane disclaimer for self-remediation. Modes 1–3, 5, 7 N/A; mode 4 met; mode 6 clean.
+- `dec-1777068259096417622` (toolchain-validator · capability-gap · opaque test-genie 500 + missing DTV validate/report) — in-lane, routed to director-swarm per TEAM.md; baseline (~6 invocations + manual aggregation) vs target (1–2 structured). Modes 1–3, 5, 7 N/A; mode 4 met; mode 6 clean.
+- `dec-1777069916962818847` (team-agent-optimizer · agent-improvement · tier-1 false-positive gate on run-introspector HEARTBEAT.md) — concrete baseline (2/22 ≈9%), delta (~0%), 7-HB grep measurement; in-lane, leaves claude_code.go to scenario-qa. Mode 1 met via documented cost-a-heartbeat misfire; modes 2–7 clean.
+- `dec-1777070860432410408` (run-introspector · run-lesson · work-duration tier-3 gate) — 25/98 runs affected with spot-check arithmetic (work 15s vs wall-clock 81,648s, operator-approval batch at 21:09:5X); clear measurement plan; recommendation handed off to team-agent-optimizer rather than executed. Mode 1 met via 25-run evidence; mode 6 clean (run-lesson context = run-introspector's own).
 
 ### Challenge notes written
-- `knw-1776985365723513119` on `dec-1776983541260124317` (team-agent-optimizer · agent-improvement · Add TOOLS.md to quality-auditor) — flagged on mode 1 (polishing). Rationale cites only structural evidence (health score, skillless-graph membership, peer comparison); no popularity / recent-references / invocation metric per TEAM.md mode 1's explicit bar. Revision that would pass: either add a concrete usage signal, or explicitly reframe the benefit as graph discoverability (not behavioral) so mode 1 no longer applies. Modes 2–7 cleared.
+- None.
 
 ### Rejection recommendations raised
-- None. Only one proposal tripped any failure mode, and only on one mode. The bar for `decision-rejection-proposed` is multiple modes tripped cleanly.
+- None. No proposal tripped any failure mode cleanly, let alone multiple.
 
 ### Framework-update candidates
-- None. The four proposals fit the existing seven modes; no real flaw outside the framework observed. One adjacency worth watching in future heartbeats: "recommending cross-lane edits via your own-lane decision" (Decision 4 does this correctly by routing rather than executing). If a future proposal crosses that line by writing outside its lane rather than handing off, that is mode 6 as written — no framework update needed.
+- None this heartbeat. **Watch-item:** two consecutive tier-contamination lessons (2026-04-23 tier-1 detectRateLimit, 2026-04-24 tier-3 wall-clock). Per the second author's own note, a third instance would justify raising `framework-update` to add "tier-signal-contamination" as a standing failure mode for run-introspector pipeline inputs. Not raising yet — two is a pattern to watch, not yet a framework gap.
 
 ### Aged decisions handled (>14 heartbeats)
-- No aged decisions in queue. All four pending decisions are from today (2026-04-23).
+- No aged decisions in queue. All 4 pending decisions are from 2026-04-24.
 
 ### Knowledge entries written
-- 1 · `challenge-note/dec-1776983541260124317`
+- 0. No challenge notes were warranted, and the heartbeat summary lives in this handoff per HEARTBEAT.md required outputs.

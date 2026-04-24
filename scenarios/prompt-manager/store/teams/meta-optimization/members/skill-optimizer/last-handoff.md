@@ -1,29 +1,29 @@
 ### Skill picked this heartbeat
-- `swarm-manager-backlog-tools` — top of priority ladder: 19 inbound consumers (popular) + health 0.51 with "oversized content" warning + never-visited.
+- `documentation-health` — top of revisit queue: #1 popular (26 unique inbound consumers), never visited, mature.
 
 ### Disposition
-- **improve** (trim). Not a conversion candidate — it's a reference doc, not a behavior skill. But the CLI Commands section duplicates `swarm-manager <group> --help` which the CLI already emits.
+- **no-action** — skill is healthy and already well-factored; trim opportunity is real but too small relative to coverage-loss risk across 26 consumers.
 
 ### Baseline
-- Tokens: ~6,900 (527 lines / 27,565 chars)
-- CLI Commands section alone: ~3,000 tokens (258 lines / 12,286 chars, 44% of skill)
-- Inbound consumers: 19
-- Drift age: fresh (no prior audit; first visit)
+- Tokens: ~3,500 (364 lines / 13,876 chars)
+- Inbound: 26 unique consumers (46 total edges)
+- Health: 0.81
+- Drift age: fresh (first visit)
+- Section 4 (reference-format examples) is the only non-trivial trim target: 71 lines / ~675 tokens / 3 language examples + protective-comments box. Trimmable to ~300 tokens (~375 × 26 consumers = ~9.7K tokens per full-fanout load).
 
 ### Expected delta (if change proposed)
-- Replace CLI Commands section with pointer to `swarm-manager <group> --help` + a ~15-20-line "non-obvious usage patterns" block (stdin heredoc, batch --preview, referential-integrity auto-maintenance, initiatives-context single-call loader)
-- Target skill size: ~4,400 tokens (~36% total reduction; ~80% reduction of the CLI section)
-- Per-read savings: ~2,500 tokens × 19 consumers every load
-- Measurement: re-count after edit; re-run `graph health` to confirm oversized-content warning drops; spot-check one downstream skill still has enough surface; 14-heartbeat revisit for drift
+- None proposed this heartbeat. Rationale: section 4 is a canonical format spec for `[CODE:]/[DOC:]/[REQ:]` references that 26 agents depend on; trimming examples risks downstream misuse of the format. Fails contrarian failure mode 4 (churn-without-clear-benefit) when weighed against that risk.
+- Already thin-wrapped: sections 6 (`knowledge-observatory docs audit`) and 11 (`knowledge-observatory docs templates|template`).
+- Not a conversion candidate: no CLI currently exposes the layout/reference-format/manifest schemas as emitted content, and creating one would trade in-context stable spec for a runtime call on every read.
 
 ### Artifacts updated
-- SKILL_AUDIT.md: **created** (did not exist); added swarm-manager-backlog-tools row + revisit queue
-- PROGRAMMATIC_CONVERSION_QUEUE.md: **created**; noted as "trim candidate, not thin-wrapper conversion"
-- DEPRECATION_QUEUE.md: **created** (empty)
+- SKILL_AUDIT.md: added documentation-health row (no-action); reordered revisit queue (skill-principles → #1)
+- PROGRAMMATIC_CONVERSION_QUEUE.md: unchanged
+- DEPRECATION_QUEUE.md: unchanged
 
 ### Decisions raised this heartbeat
-- `dec-1776982635141465033` · `skill-improvement` · Trim swarm-manager-backlog-tools CLI Commands section into a --help pointer + non-obvious notes (expected -2,500 tokens/read × 19 consumers)
+- None (no-action disposition). Prior pending `dec-1776982635141465033` (swarm-manager-backlog-tools trim) still open — unrelated, not superseded.
 
 ### Knowledge entries written
-- `knw-1776982616473003313` · `skill-visited/swarm-manager-backlog-tools` (first visit; no prior to supersede)
-- `knw-1776982619949185628` · `skill-audit-2026-04-23` (first audit snapshot; no prior to supersede)
+- `knw-1777069018339300070` · `skill-visited/documentation-health` (first visit; no prior to supersede)
+- `knw-1777069027821885714` · `skill-audit-2026-04-24` (supersedes `knw-1776982619949185628` / skill-audit-2026-04-23)

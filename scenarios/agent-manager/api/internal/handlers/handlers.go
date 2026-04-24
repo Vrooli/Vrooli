@@ -23,6 +23,7 @@ package handlers
 
 import (
 	"agent-manager/internal/adapters/event"
+	agentconfig "agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/modelregistry"
 	"agent-manager/internal/orchestration"
@@ -38,17 +39,14 @@ import (
 	"strconv"
 	"strings"
 
-	agentconfig "agent-manager/internal/config"
-
 	"buf.build/go/protovalidate"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/structpb"
-
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	commonpb "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // Handler provides HTTP handlers for all API endpoints.
@@ -1304,8 +1302,9 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 	}
 	if protoReq.ProfileRef != nil {
 		req.ProfileRef = &orchestration.ProfileRef{
-			ProfileKey: protoReq.ProfileRef.ProfileKey,
-			Defaults:   protoconv.AgentProfileFromProto(protoReq.ProfileRef.Defaults),
+			ProfileKey:     protoReq.ProfileRef.ProfileKey,
+			Defaults:       protoconv.AgentProfileFromProto(protoReq.ProfileRef.Defaults),
+			UpdateExisting: protoReq.ProfileRef.UpdateExisting,
 		}
 	}
 	if protoReq.InlineConfig != nil {

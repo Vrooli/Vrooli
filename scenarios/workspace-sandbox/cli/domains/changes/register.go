@@ -68,9 +68,11 @@ func runDiff(deps support.Dependencies, args []string) error {
 	report := cliapp.ListReport{
 		Summary: []string{
 			"Sandbox ID: " + diff.SandboxID,
-			fmt.Sprintf("Added: %d", diff.TotalAdded),
-			fmt.Sprintf("Modified: %d", diff.TotalModified),
-			fmt.Sprintf("Deleted: %d", diff.TotalDeleted),
+			fmt.Sprintf("Added: %d", diff.Stats.FilesAdded),
+			fmt.Sprintf("Modified: %d", diff.Stats.FilesModified),
+			fmt.Sprintf("Deleted: %d", diff.Stats.FilesDeleted),
+			fmt.Sprintf("Total files changed: %d", diff.Stats.FilesChanged),
+			fmt.Sprintf("Lines: +%d -%d", diff.Stats.LinesAdded, diff.Stats.LinesRemoved),
 		},
 		Results:        renderDiffRows(diff.Files),
 		RetrievalHints: []string{support.CLIName + " change approve " + diff.SandboxID, support.CLIName + " change reject " + diff.SandboxID},

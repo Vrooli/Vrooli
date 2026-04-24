@@ -2,31 +2,30 @@
 - agent
 
 ### Target picked
-- `quality-auditor` — lowest health (0.56) in the 21-agent graph and the only agent returned by `graph skillless-agents`. Concrete fix available: AGENTS.md already names 11 skills in prose; peer `programmatic-qa-runner` in the same team has the full AGENTS/SOUL/TOOLS triad.
+- `run-introspector` — direct handoff to me in `RUN_LESSONS.md` 2026-04-23 entry; concrete prose edit with baseline + measurement already drafted by the originating member.
 
 ### Disposition
 - improve
 
 ### Evidence
-- Health 0.56 (next-lowest 0.60); `graph skillless-agents` returns `quality-auditor` as sole entry.
-- Folder contains only `SOUL.md` + `AGENTS.md`; no `TOOLS.md`.
-- `agent.json` `fileOrder` = `["SOUL.md", "AGENTS.md"]`, explicitly omitting TOOLS.md.
-- AGENTS.md lines 26–38 name 11 steer skills (7 Tier-1 + 4 Tier-2) as the rotation, but none appear as outbound graph edges — only 2 `cli:*` edges total.
-- Peer `programmatic-qa-runner` has 8 outbound edges including `bold-listed` skill edges, health 0.60.
+- `RUN_LESSONS.md` 2026-04-23, run `60116710`: run-introspector spent a heartbeat investigating an `exit_code=429` run that was actually a clean investigation report.
+- Root cause: `detectRateLimit` in `scenarios/agent-manager/api/internal/adapters/runner/claude_code.go:1518-1559` substring-matches "rate limit" in the final assistant message regardless of `IsError`.
+- Baseline: 2/22 (~9%) FAILED runs match (ids `60116710`, `e08357a4`).
+- Current `run-introspector/HEARTBEAT.md` step 3 has no false-positive gate; tier-1 contaminated runs get picked first every time.
+- Run-introspector health 0.72; never visited before by this member.
 
 ### Expected delta (if change proposed)
-- Remove `quality-auditor` from `graph skillless-agents` (1 → 0).
-- Add ~11 outbound `bold-listed` / `cli-read` skill edges.
-- Outgoing-edges factor 0.40 → ~1.00; predicted overall health 0.56 → 0.65–0.72.
-- Measurement: re-run `graph node quality-auditor` and `graph skillless-agents` post-merge; 7 HB revisit.
+- Tier-1 false-positive investigations: ~9% of picks → ~0%.
+- ~1 wasted heartbeat per ~11 runs recovered.
+- Measurement: grep `RUN_LESSONS.md` 7 HB after merge — zero new tier-1 lessons opened on 429+completion-text runs; gate becomes a no-op once scenario-qa fixes the underlying matcher.
 
 ### Artifacts updated
-- `AGENT_AUDIT.md`: bootstrapped; added first row for `quality-auditor` with decision id.
-- `DEPRECATION_QUEUE.md`: unchanged (no pruning proposal this HB).
+- `AGENT_AUDIT.md`: row added for `run-introspector` (2026-04-24, health 0.72, rating 3, improve).
+- `DEPRECATION_QUEUE.md`: unchanged (no pruning proposal).
 
 ### Decisions raised this heartbeat
-- `dec-1776983541260124317` · `agent-improvement` · Add TOOLS.md to `quality-auditor` + update `agent.json` fileOrder so the 11 steer skills already in AGENTS.md become graph edges.
+- `dec-1777069916962818847` · `agent-improvement` · Edit `run-introspector/HEARTBEAT.md` step 3 to add a tier-1 false-positive verification gate for `exit_code=429` runs whose `error_msg` is substantive markdown report text.
 
 ### Knowledge entries written
-- `agent-visited/quality-auditor` (`knw-1776983516231938462`) — supersedes prior (none).
-- `agent-audit-2026-04-23` (`knw-1776983522308520876`) — supersedes prior (none).
+- `agent-visited/run-introspector` (`knw-1777069883310471139`) — supersedes prior (none).
+- `agent-audit-2026-04-24` (`knw-1777069892849442354`) — supersedes `agent-audit-2026-04-23`.

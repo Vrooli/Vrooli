@@ -431,11 +431,6 @@ func (o *Orchestrator) createInvestigationRunWithProfile(
 	sourceInvestigationRunID *uuid.UUID,
 ) (*domain.Run, error) {
 	sandboxConfig := &domain.SandboxConfig{NoLock: true}
-	if o.config.DefaultSandboxConfig != nil {
-		clone := *o.config.DefaultSandboxConfig
-		clone.NoLock = true
-		sandboxConfig = &clone
-	}
 
 	return o.CreateRun(ctx, CreateRunRequest{
 		TaskID:                   taskID,

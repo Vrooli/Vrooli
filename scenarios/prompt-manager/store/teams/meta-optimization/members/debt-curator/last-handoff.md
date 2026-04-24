@@ -1,26 +1,19 @@
 ### Docs scanned
-- `docs/meta-optimization/README.md`
-- `docs/meta-optimization/CONVERSION_PLAYBOOK.md`
-- `docs/meta-optimization/DEPRECATION_POLICY.md`
-- `docs/meta-optimization/REFERENCE_SCENARIOS.md`
-- `shared/RUN_LESSONS.md`, `SKILL_AUDIT.md`, `AGENT_AUDIT.md`, `TOOLCHAIN_SCAN.md`, `PROGRAMMATIC_CONVERSION_QUEUE.md`, `DEPRECATION_QUEUE.md`
+- `docs/meta-optimization/{README,CONVERSION_PLAYBOOK,DEPRECATION_POLICY,REFERENCE_SCENARIOS}.md`
+- `shared/{RUN_LESSONS,SKILL_AUDIT,AGENT_AUDIT,TOOLCHAIN_SCAN,PROGRAMMATIC_CONVERSION_QUEUE,DEPRECATION_QUEUE}.md`
 
 ### Entries reviewed this heartbeat
-- 4 living-notebook files + 6 shared artifacts. All docs are 2 days old (created 2026-04-21). Each shared artifact holds at most one first-pass entry — the hot buffer hasn't filled yet.
+- 4 living-notebook files + 6 shared artifacts. Meaningful deltas since yesterday: first real toolchain scan (72 violations on reference-react-vite), REFERENCE_SCENARIOS history row added, second RUN_LESSONS entry (tier-3 approval-lag contamination), +1 row each in SKILL_AUDIT and AGENT_AUDIT.
 
 ### Promotion candidates
-- **None ripe.** No workaround appears in ≥3 entries (criterion 1 — everything is first-pass). No entry has been stable ≥7 heartbeats (criterion 2 — docs are ≤2 heartbeats old). No shipped capability retires an existing entry (criterion 3 — DTV hasn't yet shipped `validate`/`report` that would obsolete the fallback-trio language in `TEAM.md` and `TOOLCHAIN_SCAN.md`).
+- **Tier-signal contamination** — RUN_LESSONS 2026-04-23 (tier-1 `detectRateLimit`) + 2026-04-24 (tier-3 approval-lag wall-clock). Criterion 1 requires ≥3 occurrences — currently at 2. Criterion 2 requires ≥7 heartbeats stable — entries 0–1 heartbeats old. **Not ripe.** The run-introspector lesson itself encodes a self-governance tripwire ("if a third surfaces, contrarian should consider framework-update") — let it trigger naturally.
+- Nothing else in range.
 
 ### Retirement candidates
-- **None ripe.** Reference scenario still unset; `CONVERSION_PLAYBOOK` pattern/anti-pattern/log sections are all empty by design; deprecation thresholds remain the only authoritative rules.
+- None. No skill/feature/structure shipped in the last heartbeat that obsoletes any existing doc entry. DTV validate/report still not shipped → fallback-trio language in TEAM.md and TOOLCHAIN_SCAN.md remains correct.
 
 ### Decision raised this heartbeat
-- **None.** Early-stage posture per SOUL.md ("early heartbeats will say 'no debt worth promoting'") and HEARTBEAT.md stop condition ("nothing ripe → minimal snapshot and stop"). No supersession candidates (no prior `meta-self-improvement` decisions exist).
+- **None.** Early-stage posture per SOUL.md / HEARTBEAT.md. No candidate warranted promotion; no prior `meta-self-improvement` decision to supersede.
 
 ### Knowledge entries written
-- `debt-scan-2026-04-23` (`knw-1776986154087288470`) — first scan; no prior to supersede.
-
-### Next revisit triggers
-- `CONVERSION_PLAYBOOK` log gains its first ≥3 entries (pattern-repetition signal possible).
-- DTV ships `validate`/`report` surface (the fallback-trio workaround becomes retirement-eligible).
-- Any single doc entry persists ≥7 heartbeats without revision (stabilization criterion triggers).
+- `debt-scan-2026-04-24` (knw-1777072565721304496) — supersedes `debt-scan-2026-04-23`.

@@ -849,11 +849,11 @@ export function DiffViewer({
             {/* R5: Compact stats that don't clip on narrow screens */}
             <span className="flex items-center gap-1 text-xs text-emerald-500 whitespace-nowrap">
               <Plus className="h-3 w-3" />
-              {diff.totalAdded}
+              {diff.stats.linesAdded}
             </span>
             <span className="flex items-center gap-1 text-xs text-red-500 whitespace-nowrap">
               <Minus className="h-3 w-3" />
-              {diff.totalDeleted}
+              {diff.stats.linesRemoved}
             </span>
             <span className="text-xs text-slate-500 whitespace-nowrap">
               {diff.files?.length || parsedFiles.length} files

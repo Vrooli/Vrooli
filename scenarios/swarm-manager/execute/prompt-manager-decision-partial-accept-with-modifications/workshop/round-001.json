@@ -44,9 +44,9 @@
           "rationale": "Provide your own shape."
         }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d2",
@@ -81,9 +81,9 @@
           "rationale": "Propose a different input UX."
         }
       ],
-      "selected": null,
+      "selected": "D",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d3",
@@ -113,9 +113,9 @@
           "rationale": "Provide your own UI approach."
         }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d4",
@@ -145,9 +145,9 @@
           "rationale": "Propose a different consumer scope."
         }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d5",
@@ -177,9 +177,9 @@
           "rationale": "Provide your own default/storage approach."
         }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "i1",
