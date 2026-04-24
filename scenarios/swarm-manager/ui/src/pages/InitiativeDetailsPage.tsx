@@ -436,7 +436,7 @@ export function InitiativeDetailsPage() {
         variant="outline"
         size="sm"
         onClick={() => setFeedbackDialogOpen(true)}
-        data-testid={selectors.initiativeDetails.addFeedbackButton}
+        data-testid={selectors.initiativeDetails.addFeedbackButtonMobile}
       >
         <MessageCirclePlus className="mr-1.5 h-4 w-4" />
         Add Feedback
@@ -622,7 +622,7 @@ export function InitiativeDetailsPage() {
               variant="outline"
               size="sm"
               onClick={() => setFeedbackDialogOpen(true)}
-              data-testid={selectors.initiativeDetails.addFeedbackButton}
+              data-testid={selectors.initiativeDetails.addFeedbackButtonDesktop}
             >
               <MessageCirclePlus className="mr-1.5 h-4 w-4" />
               Add Feedback

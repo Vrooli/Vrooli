@@ -755,6 +755,63 @@ func TestStartReview_LockReleasedOnTerminal(t *testing.T) {
 	}
 }
 
+// TestStartReview_AgentRunFailsMidRound pins the failure-path contract:
+// when the agent run itself errors (vs. a validation failure on a complete
+// round), the round lands in RoundStatusFailed with the agent's ErrorMsg,
+// the per-initiative lock is released, and the initiative still advances to
+// review_pending so the user can Decide() their way out via fail/followup.
+// Keeping the initiative wedged in in_review on agent failure would block
+// every subsequent feedback round on the lock.
+func TestStartReview_AgentRunFailsMidRound(t *testing.T) {
+	e := newEnv(t)
+	e.seedItem("execute", "crashy", "Crashy", backlog.StatusCompleted)
+	e.createInitiative("crash-init", "Crash", "execute/crashy")
+	e.setItemInitiative("execute", "crashy", "crash-init")
+
+	e.svc.lock = &initiativelock.Lock{Dir: e.initStore.InitDir, MaxAge: time.Hour}
+
+	result, err := e.svc.TriggerIfReady(context.Background(), "crash-init")
+	if err != nil || !result.Started {
+		t.Fatalf("trigger: err=%v started=%v", err, result.Started)
+	}
+	if h, _ := e.svc.lock.Inspect("crash-init"); h == nil {
+		t.Fatalf("expected lock held after spawn")
+	}
+
+	// Agent run dies — not a validation failure, an actual run-level error.
+	e.spawner.runStateQueue[result.RunID] = agentmanager.RunState{
+		RunID:    result.RunID,
+		Status:   "failed",
+		ErrorMsg: "prompt timeout after 10m",
+	}
+
+	rounds, err := e.svc.ListRounds("crash-init")
+	if err != nil {
+		t.Fatalf("ListRounds: %v", err)
+	}
+	if len(rounds) != 1 {
+		t.Fatalf("expected 1 round, got %d", len(rounds))
+	}
+	if rounds[0].Status != review.RoundStatusFailed {
+		t.Fatalf("expected failed, got %s", rounds[0].Status)
+	}
+	if !strings.Contains(rounds[0].FailureReason, "prompt timeout") {
+		t.Errorf("expected agent ErrorMsg surfaced in FailureReason, got %q", rounds[0].FailureReason)
+	}
+
+	if h, _ := e.svc.lock.Inspect("crash-init"); h != nil {
+		t.Fatalf("expected lock released after agent failure, got holder %+v", h)
+	}
+
+	init, err := e.initStore.Load("crash-init")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if init.Status != initiatives.InitiativeStatusReviewPending {
+		t.Fatalf("expected review_pending so user can decide fail/followup, got %s", init.Status)
+	}
+}
+
 func keysOf(m map[string]bool) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
@@ -775,12 +832,45 @@ func TestRecoverActiveRounds_RepopulatesPollingMap(t *testing.T) {
 	delete(e.svc.activeRounds, result.RunID)
 	e.svc.mu.Unlock()
 
-	e.svc.RecoverActiveRounds([]string{"recover-init"})
+	e.svc.RecoverActiveRounds()
 	e.svc.mu.Lock()
 	_, ok := e.svc.activeRounds[result.RunID]
 	e.svc.mu.Unlock()
 	if !ok {
 		t.Fatalf("expected RunID %q to be recovered into activeRounds", result.RunID)
+	}
+}
+
+// TestRecoverActiveRounds_DiscoversInitiativesFromDisk pins the contract
+// that RecoverActiveRounds enumerates initiatives itself via the injected
+// store — NOT via a caller-supplied list. The previous signature risked
+// silently dropping gathering rounds for initiatives created right before
+// a crash (and thus missing from any cached name source).
+func TestRecoverActiveRounds_DiscoversInitiativesFromDisk(t *testing.T) {
+	e := newEnv(t)
+	e.seedItem("execute", "alpha", "Alpha", backlog.StatusCompleted)
+	e.createInitiative("first", "First", "execute/alpha")
+	e.setItemInitiative("execute", "alpha", "first")
+	firstResult, _ := e.svc.TriggerIfReady(context.Background(), "first")
+
+	e.seedItem("execute", "beta", "Beta", backlog.StatusCompleted)
+	e.createInitiative("second", "Second", "execute/beta")
+	e.setItemInitiative("execute", "beta", "second")
+	secondResult, _ := e.svc.TriggerIfReady(context.Background(), "second")
+
+	e.svc.mu.Lock()
+	delete(e.svc.activeRounds, firstResult.RunID)
+	delete(e.svc.activeRounds, secondResult.RunID)
+	e.svc.mu.Unlock()
+
+	e.svc.RecoverActiveRounds()
+
+	e.svc.mu.Lock()
+	_, firstOK := e.svc.activeRounds[firstResult.RunID]
+	_, secondOK := e.svc.activeRounds[secondResult.RunID]
+	e.svc.mu.Unlock()
+	if !firstOK || !secondOK {
+		t.Fatalf("expected both initiatives' rounds recovered (first=%v second=%v)", firstOK, secondOK)
 	}
 }
 

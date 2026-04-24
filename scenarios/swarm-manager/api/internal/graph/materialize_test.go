@@ -110,6 +110,78 @@ func TestMaterializeInitiative_DropsCrossInitiativeEdges(t *testing.T) {
 	}
 }
 
+func TestMaterializeInitiative_SkipsWriteWhenContentUnchanged(t *testing.T) {
+	rootDir := t.TempDir()
+	initDir := filepath.Join(rootDir, "initiatives", "steady")
+	if err := os.MkdirAll(initDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	lister := &stubInitiativeLister{entries: []InitiativeEntry{
+		{Name: "steady", Status: "active", Items: []string{"execute/foo", "execute/bar"}},
+	}}
+	store := &stubBacklogStore{items: map[string]backlog.BacklogItem{
+		"execute/foo": {Name: "foo", Kind: backlog.KindExecute, Title: "Foo", Status: backlog.StatusCompleted, Priority: 1},
+		"execute/bar": {Name: "bar", Kind: backlog.KindExecute, Title: "Bar", Status: backlog.StatusBacklog, Priority: 2, DependsOn: []string{"execute/foo"}},
+	}}
+	m := NewMaterializer(lister, store, func(name string) string {
+		return filepath.Join(rootDir, "initiatives", name)
+	})
+
+	if err := m.MaterializeInitiative(context.Background(), "steady"); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(initDir, "graph.json")
+	firstInfo, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat first write: %v", err)
+	}
+	firstContent, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read first write: %v", err)
+	}
+
+	// Bump into the next second so a second write would produce a distinct GeneratedAt.
+	time.Sleep(1100 * time.Millisecond)
+
+	if err := m.MaterializeInitiative(context.Background(), "steady"); err != nil {
+		t.Fatal(err)
+	}
+
+	secondInfo, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat second write: %v", err)
+	}
+	secondContent, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read second write: %v", err)
+	}
+
+	if !secondInfo.ModTime().Equal(firstInfo.ModTime()) {
+		t.Errorf("expected no rewrite when content unchanged; mtime moved from %v to %v",
+			firstInfo.ModTime(), secondInfo.ModTime())
+	}
+	if string(firstContent) != string(secondContent) {
+		t.Errorf("expected identical bytes on no-op re-materialization, got different content")
+	}
+
+	// Sanity: a real change does trigger a rewrite.
+	store.items["execute/bar"] = backlog.BacklogItem{
+		Name: "bar", Kind: backlog.KindExecute, Title: "Bar Renamed",
+		Status: backlog.StatusBacklog, Priority: 2, DependsOn: []string{"execute/foo"},
+	}
+	if err := m.MaterializeInitiative(context.Background(), "steady"); err != nil {
+		t.Fatal(err)
+	}
+	thirdContent, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read third write: %v", err)
+	}
+	if string(thirdContent) == string(firstContent) {
+		t.Errorf("expected content change to produce a new graph.json, got identical bytes")
+	}
+}
+
 func TestMaterializeInitiative_RemovesStaleGraph(t *testing.T) {
 	rootDir := t.TempDir()
 	initDir := filepath.Join(rootDir, "initiatives", "gone")

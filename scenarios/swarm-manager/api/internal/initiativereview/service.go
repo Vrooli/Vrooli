@@ -49,6 +49,7 @@ type RunInspector interface {
 // interface so tests can stub.
 type InitiativeStore interface {
 	Load(name string) (*initiatives.Initiative, error)
+	LoadAll() ([]initiatives.Initiative, error)
 	Save(init *initiatives.Initiative) error
 	InitDir(name string) string
 }
@@ -709,22 +710,32 @@ func (s *Service) StartBackgroundWorker(stop <-chan struct{}) {
 	}
 }
 
-// RecoverActiveRounds scans each initiative folder for rounds in gathering
-// state and re-populates the in-memory tracking map. Call this at startup
-// so rounds spawned before a restart resume polling.
-func (s *Service) RecoverActiveRounds(initiativeNames []string) {
+// RecoverActiveRounds scans every initiative for rounds in gathering state
+// and re-populates the in-memory tracking map. Call this at startup so
+// rounds spawned before a restart resume polling.
+//
+// Discovers initiatives itself via the injected InitiativeStore — callers
+// must not pre-filter the list, otherwise initiatives created immediately
+// before a crash (and thus absent from a cached name list) leak their
+// gathering rounds until the next manual trigger.
+func (s *Service) RecoverActiveRounds() {
+	inits, err := s.initStore.LoadAll()
+	if err != nil {
+		slog.Warn("initiative review: list initiatives for recovery failed", "err", err)
+		return
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	recovered := 0
-	for _, name := range initiativeNames {
-		rounds, err := review.LoadRounds(s.initStore.InitDir(name))
+	for _, init := range inits {
+		rounds, err := review.LoadRounds(s.initStore.InitDir(init.Name))
 		if err != nil {
 			continue
 		}
 		for _, r := range rounds {
 			if r.Status == review.RoundStatusGathering && r.RunID != "" {
 				s.activeRounds[r.RunID] = activeRound{
-					InitiativeName: name,
+					InitiativeName: init.Name,
 					RoundNum:       r.RoundNum,
 					RunID:          r.RunID,
 				}

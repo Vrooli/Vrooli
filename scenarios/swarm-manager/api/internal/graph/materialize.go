@@ -27,6 +27,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -265,8 +266,21 @@ func (m *Materializer) buildGraph(ctx context.Context, init InitiativeEntry) Mat
 }
 
 // writeGraph persists a MaterializedGraph to disk atomically.
+//
+// Skips the write when the existing graph.json has identical Initiative,
+// Nodes, and Edges — GeneratedAt alone is not worth a file-system write or
+// the git-status noise it produces across ~60 initiatives on every burst.
+// First-time writes, corrupt existing files, and any real content change
+// fall through to WriteJSONAtomic.
 func (m *Materializer) writeGraph(initName string, g MaterializedGraph) error {
 	path := m.graphPath(initName)
+	if existing, err := m.ReadGraph(initName); err == nil && existing != nil {
+		if existing.Initiative == g.Initiative &&
+			reflect.DeepEqual(existing.Nodes, g.Nodes) &&
+			reflect.DeepEqual(existing.Edges, g.Edges) {
+			return nil
+		}
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}

@@ -366,7 +366,8 @@ export const literalSelectors = {
     tabFiles: "initiative-details-tab-files",
     tabFeedback: "initiative-details-tab-feedback",
     tabReview: "initiative-details-tab-review",
-    addFeedbackButton: "initiative-details-add-feedback",
+    addFeedbackButtonDesktop: "initiative-details-add-feedback-desktop",
+    addFeedbackButtonMobile: "initiative-details-add-feedback-mobile",
   },
   // Initiative feedback surface — dialog, panel, thread, proposal review.
   feedback: {

@@ -20,6 +20,13 @@ import { selectors } from "../../consts/selectors";
 import type { BacklogStatus, ProposalMutation, ProposalOp, ProposalRevision, ApplyResult } from "../../types";
 import { InitiativeDependencyGraph } from "./InitiativeDependencyGraph";
 import { buildOverlay } from "./proposal-overlay";
+import {
+  PROPOSAL_CLEAR,
+  PROPOSAL_DISMISS,
+  PROPOSAL_RATIONALE_PLACEHOLDER,
+  PROPOSAL_REJECT,
+  PROPOSAL_SELECT_ALL,
+} from "./feedback-strings";
 
 interface PreviewItem {
   kind: string;
@@ -145,7 +152,7 @@ export const ProposalReview = memo(function ProposalReview({
             }
             className="shrink-0 rounded-md border border-slate-700 px-2 py-1 text-[11px] font-medium text-slate-300 hover:border-slate-500"
           >
-            {allSelected ? "Clear" : "Select all"}
+            {allSelected ? PROPOSAL_CLEAR : PROPOSAL_SELECT_ALL}
           </button>
         )}
       </header>
@@ -220,7 +227,7 @@ export const ProposalReview = memo(function ProposalReview({
       {!readOnly && (
         <>
           <textarea
-            placeholder="Optional rationale for your decision…"
+            placeholder={PROPOSAL_RATIONALE_PLACEHOLDER}
             value={rationale}
             onChange={(e) => setRationale(e.target.value)}
             disabled={isPending}
@@ -237,7 +244,7 @@ export const ProposalReview = memo(function ProposalReview({
               data-testid={selectors.feedback.proposalDismiss}
             >
               <CircleOff className="mr-1.5 inline h-3.5 w-3.5" />
-              Dismiss
+              {PROPOSAL_DISMISS}
             </button>
             <button
               type="button"
@@ -247,7 +254,7 @@ export const ProposalReview = memo(function ProposalReview({
               data-testid={selectors.feedback.proposalReject}
             >
               <XCircle className="mr-1.5 inline h-3.5 w-3.5" />
-              Reject
+              {PROPOSAL_REJECT}
             </button>
             <button
               type="button"

@@ -176,22 +176,3 @@ func (a *initiativeReviewGCTAdapter) PollReview(ctx context.Context, jobID strin
 	}, true, nil
 }
 
-// recoverInitiativeReviewRounds loads initiative names from disk and asks
-// the service to re-populate its in-memory tracking for any gathering
-// rounds that survived a restart. Called once from main() after server
-// wiring but before background workers start.
-func (s *Server) recoverInitiativeReviewRounds() {
-	if s.initiativeReviewSvc == nil || s.initStore == nil {
-		return
-	}
-	inits, err := s.initStore.LoadAll()
-	if err != nil {
-		slog.Warn("initiative-review: load initiatives for recovery", "err", err)
-		return
-	}
-	names := make([]string, 0, len(inits))
-	for _, init := range inits {
-		names = append(names, init.Name)
-	}
-	s.initiativeReviewSvc.RecoverActiveRounds(names)
-}

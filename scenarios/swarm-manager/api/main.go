@@ -330,7 +330,7 @@ func main() {
 	}
 
 	if srv.initiativeReviewSvc != nil {
-		srv.recoverInitiativeReviewRounds()
+		srv.initiativeReviewSvc.RecoverActiveRounds()
 		go srv.initiativeReviewSvc.StartBackgroundWorker(srv.initReviewStopChan)
 	}
 

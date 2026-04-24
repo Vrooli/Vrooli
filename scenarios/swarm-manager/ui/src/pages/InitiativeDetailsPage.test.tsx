@@ -357,8 +357,11 @@ describe("InitiativeDetailsPage", () => {
     });
     // Both the tab-row entry and the header button that launches the dialog
     // must be present — they are the two user-visible surfaces wired in W6.
+    // The mobile button lives behind a bottom-sheet that jsdom does not
+    // render in isolation; assert the desktop entry point here and cover
+    // the mobile variant as a screen-size case if we add one later.
     expect(screen.getByTestId("initiative-details-tab-feedback")).toBeInTheDocument();
-    expect(screen.getByTestId("initiative-details-add-feedback")).toBeInTheDocument();
+    expect(screen.getByTestId("initiative-details-add-feedback-desktop")).toBeInTheDocument();
   });
 
   it("renders the new in_review status chip colors when an item is in review", async () => {
