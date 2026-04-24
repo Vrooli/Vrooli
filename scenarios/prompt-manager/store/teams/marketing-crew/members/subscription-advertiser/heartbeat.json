@@ -5,7 +5,14 @@
   "agentId": "subscription-advertiser",
   "enabled": true,
   "schedule": "30 14 * * *",
-  "revision": 3,
+  "lastExecution": {
+    "startedAt": "2026-04-24T18:30:00Z",
+    "endedAt": "2026-04-24T18:31:15Z",
+    "status": "completed",
+    "runId": "7b6bc071-7b14-416b-ad07-45edb5050100",
+    "logPath": "../store/teams/marketing-crew/members/subscription-advertiser/logs/2026-04-24T18-30-00Z.log"
+  },
+  "revision": 8,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-04-23T21:23:07Z"
+  "updatedAt": "2026-04-24T18:31:15Z"
 }

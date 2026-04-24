@@ -24,6 +24,7 @@ import { PageLoadingState } from "../components/ui/loading-states";
 import type { FileSelectionResult } from "../components/scenarios/file-selection-dialog";
 import { ScenarioDeleteDialog } from "../components/scenarios/ScenarioDeleteDialog";
 import { ScenarioOverviewSection } from "../components/scenarios/ScenarioOverviewSection";
+import { ScenarioCoverageSection } from "../components/scenarios/ScenarioCoverageSection";
 import { ScenarioSettingsSection } from "../components/scenarios/ScenarioSettingsSection";
 import { ScenarioCliHints } from "../components/scenarios/ScenarioCliHints";
 import { ScenarioDangerZone } from "../components/scenarios/ScenarioDangerZone";
@@ -253,6 +254,8 @@ export function ScenarioDetailsPage() {
               actionButtons={lifecycleActions}
               actionError={actionError}
             />
+
+            <ScenarioCoverageSection scenarioName={name} />
 
             <ScenarioSettingsSection
               localGreenfield={localGreenfield}

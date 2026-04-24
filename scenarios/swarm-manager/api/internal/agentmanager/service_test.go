@@ -26,8 +26,39 @@ func TestDefaultProfileConfig(t *testing.T) {
 	if len(cfg.AllowedTools) == 0 {
 		t.Fatalf("expected default allowed tools to be populated")
 	}
-	if cfg.SkipPermissions || cfg.RequiresSandbox || !cfg.RequiresApproval {
-		t.Fatalf("expected default permissions to require approval without sandbox or skip prompts")
+	if cfg.SkipPermissions {
+		t.Fatal("expected SkipPermissions=false by default")
+	}
+	if !cfg.RequiresSandbox {
+		t.Fatal("expected RequiresSandbox=true: swarm-manager agents run sandboxed so agent-manager's auto-approve-if-empty path handles read-only runs cleanly")
+	}
+	if !cfg.RequiresApproval {
+		t.Fatal("expected RequiresApproval=true: sandboxed runs with diffs are human-reviewed; empty sandboxes auto-approve")
+	}
+}
+
+func TestDefaultProfileRef_UpdateExistingTrue(t *testing.T) {
+	svc := NewAgentService(AgentServiceConfig{
+		ProfileName: "Swarm Manager",
+		ProfileKey:  "swarm-manager",
+		Timeout:     5 * time.Second,
+		Enabled:     true,
+	})
+	ref := svc.defaultProfileRef()
+	if ref == nil {
+		t.Fatal("defaultProfileRef returned nil for configured service")
+	}
+	if !ref.UpdateExisting {
+		t.Fatal("expected UpdateExisting=true so code-declared defaults are authoritative over stale DB state")
+	}
+	if ref.Defaults == nil {
+		t.Fatal("expected Defaults to be populated")
+	}
+	if !ref.Defaults.RequiresSandbox {
+		t.Fatal("expected Defaults.RequiresSandbox=true to match DefaultProfileConfig")
+	}
+	if !ref.Defaults.RequiresApproval {
+		t.Fatal("expected Defaults.RequiresApproval=true to match DefaultProfileConfig")
 	}
 }
 

@@ -5,7 +5,14 @@
   "agentId": "marketing-contrarian",
   "enabled": true,
   "schedule": "0 17 * * *",
-  "revision": 3,
+  "lastExecution": {
+    "startedAt": "2026-04-24T21:00:00Z",
+    "endedAt": "2026-04-24T21:01:55Z",
+    "status": "completed",
+    "runId": "298fddec-4eeb-4341-a643-1996e64b45a6",
+    "logPath": "../store/teams/marketing-crew/members/marketing-contrarian/logs/2026-04-24T21-00-00Z.log"
+  },
+  "revision": 8,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-04-23T21:23:07Z"
+  "updatedAt": "2026-04-24T21:01:55Z"
 }

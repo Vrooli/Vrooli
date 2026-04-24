@@ -1,0 +1,67 @@
+{
+  "initiative": "prompt-manager-decision-workflow-polish",
+  "generated_at": "2026-04-24T19:54:33Z",
+  "nodes": [
+    {
+      "id": "execute/prompt-manager-decision-deferral-primitive",
+      "kind": "execute",
+      "name": "prompt-manager-decision-deferral-primitive",
+      "title": "Add decision deferral primitive (deferred status + revisit_after)",
+      "status": "backlog",
+      "priority": 6,
+      "effort": "L",
+      "archived": false
+    },
+    {
+      "id": "execute/prompt-manager-decision-partial-accept-with-modifications",
+      "kind": "execute",
+      "name": "prompt-manager-decision-partial-accept-with-modifications",
+      "title": "Support partial-accept with structured modifications on decisions",
+      "status": "backlog",
+      "priority": 6,
+      "effort": "L",
+      "archived": false
+    },
+    {
+      "id": "fix/prompt-manager-heartbeat-list-lifecycle-states",
+      "kind": "fix",
+      "name": "prompt-manager-heartbeat-list-lifecycle-states",
+      "title": "Heartbeat-list should distinguish scheduled-never-fired vs dormant vs broken",
+      "status": "backlog",
+      "priority": 4,
+      "effort": "S",
+      "archived": false
+    },
+    {
+      "id": "fix/prompt-manager-decision-show-options-default-output",
+      "kind": "fix",
+      "name": "prompt-manager-decision-show-options-default-output",
+      "title": "decision-show default human output should display options block",
+      "status": "backlog",
+      "priority": 4,
+      "effort": "XS",
+      "archived": false
+    },
+    {
+      "id": "fix/prompt-manager-decision-accept-no-options-ergonomics",
+      "kind": "fix",
+      "name": "prompt-manager-decision-accept-no-options-ergonomics",
+      "title": "decision-accept for option-less decisions: allow --selected=proposed sugar or normalize API-side",
+      "status": "backlog",
+      "priority": 3,
+      "effort": "S",
+      "archived": false
+    },
+    {
+      "id": "execute/prompt-manager-decision-accept-initiative-proposal-auto-create",
+      "kind": "execute",
+      "name": "prompt-manager-decision-accept-initiative-proposal-auto-create",
+      "title": "Accepting an initiative-proposal decision should auto-create the initiative",
+      "status": "backlog",
+      "priority": 4,
+      "effort": "M",
+      "archived": false
+    }
+  ],
+  "edges": []
+}

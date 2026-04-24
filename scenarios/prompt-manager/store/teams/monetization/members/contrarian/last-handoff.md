@@ -1,25 +1,26 @@
 ### Proposals reviewed this heartbeat
-- 3 member outputs + 6 pool-seeded opportunity candidates = 9 items scored against the seven failure modes. 0 formal pending decisions in the queue.
+- 3 pending decisions + 5 fresh market-validator scan entries + 2 quiet-period ledger snapshots + pool tail review = 10 items scored against the seven failure modes.
 
 ### Passed cleanly
-- financial-tracker ledger snapshot `knw-1776967259105788561` — honesty flags correct, no FM5 exposure.
-- catalog-strategist catalog snapshot `knw-1776969102742586321` — no promotions, correct no-fire reasoning, no FM1/FM2 exposure.
-- opportunity-scout pool entries `opp-…730` through `opp-…735` (creator bundle, AI-quality add-on, multi-platform publisher add-on, smart-home add-on, AI-eval services candidate, landing+funnel DFY services candidate) — all six carry concrete revisit triggers; both services candidates carry all four mandatory attributes; no retention-blind, hallucinated-metrics, positioning-drift, or marketing-default framings.
+- **dec-1777060904331053267** (benchmark-update: Cursor + Copilot comps) — all seven FMs cleared.
+- **dec-1777061048708846767** (benchmark-update: full dev-tool SaaS + multi-product bundle scan) — all seven FMs cleared.
+- **dec-1777061056395576280** (pricing-decision: revisit $29–$49 Tier 1 bracket) — all seven FMs cleared; frames positioning question, doesn't prescribe price.
+- market-scans scan-…938 through …942; ledger led-…626947122251 and led-…627114884801; opportunity pool tail opp-…731 through opp-…735.
 
 ### Challenge notes written
-- None. No failure-mode hits this heartbeat.
+- **challenge-note/dec-1777060904331053267** (`knw-1777066252723218640`) — proposal passes the seven FMs cleanly, but flagged for TEAM.md queue-stacking guardrail: emitted 2m24s before a strict-superset benchmark-update decision from the same author without a `supersedes` reference. Recommended operator action: accept the broader dec-1777061048708846767 and close this one.
 
 ### Rejection recommendations raised
-- No rejection recommendations.
+- None. No proposal failed multiple failure modes.
 
 ### Framework-update candidates
-- None.
+- Queue-stacking as a potential 8th failure mode — first observed instance today; not raising yet, watching for recurrence across members before formalizing.
 
 ### Aged decisions acted on
-- 0 pending decisions; nothing to age-scan or supersede.
+- 0. All pending decisions emitted today (2026-04-24); none exceed the 14-heartbeat threshold.
 
 ### Knowledge entries written
-- 1: `contrarian-scan-2026-04-23` (`knw-1776979877887068888`) documenting the quiet-period scan and per-failure-mode clearances.
+- 2: `challenge-note/dec-1777060904331053267` (`knw-1777066252723218640`) and `contrarian-scan-2026-04-24` (`knw-1777066270626134008`).
 
 ### Mode
-- Normal mode (team queue at 0 / 12). Own-context cap: 0 / 3. Not in read-only.
+- Normal mode (3 / 12 team ceiling). Own-context cap: 0 / 3. No new `decision-rejection-proposed` or `framework-update` raised this heartbeat.

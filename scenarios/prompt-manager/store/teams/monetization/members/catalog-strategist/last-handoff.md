@@ -1,36 +1,35 @@
 ### Catalog deltas since last heartbeat
-- First heartbeat — no prior catalog-strategist snapshot to diff against (`fixed`, per knowledge-list).
-- No scenario transitions detected: `web-console`, `git-control-tower`, `agent-manager`, `workspace-sandbox`, `swarm-manager`, `prompt-manager` all remain as mapped in `scenario-sku-map.json` (`measured` via `swarm-manager overview` — all parent initiatives still active, none completed).
+- No scenario transitions detected. All six sku-map scenarios unchanged: web-console, git-control-tower (headliners), agent-manager (amplifier), workspace-sandbox (depth), swarm-manager (future-headliner, blocked), prompt-manager (depth) (`measured` via `swarm-manager overview` — initiative counts identical to 2026-04-23 snapshot).
+- No new candidate SKUs added by operator (`measured`, opportunities.jsonl unchanged since scout's first seed on 2026-04-23).
+- operator-inputs.json still unpopulated; paying-subs still 0 (`measured`, per financial-tracker knw-1777053653472379841).
 
 ### Triggered candidates
 No candidate triggers fired this heartbeat.
 
-- `lifestyle` bundle — needs ≥50 paying business-bundle subs + 2 lifestyle scenarios deployable standalone. Current subs: 0 (`fixed`, business.md:88). **No-fire.**
-- `property-services` — needs ≥50 paying subs + 3 prospect requests OR validated lead-gen opportunity. opportunities.jsonl is empty (`measured`). **No-fire.**
-- `elder-care`, `family-with-kids` — both gated on lifestyle being active. **No-fire.**
-- Tier 2 (self-hosted) — needs paying subs + onboarding account sign-in + license/entitlement gateway. None exist (`estimate`, no scenario evidence for license gateway; no onboarding sign-in flow in `vrooli-onboarding` scenario). **No-fire.**
-- Tier 3 (hosted cloud) — gated on Tier 2 active. **No-fire.**
-- Tier 4 (hardware) — `north-star`, requires operator initiation. **No-fire.**
+- `lifestyle` bundle — needs ≥50 paying business subs + 2 lifestyle scenarios deployable. Subs: 0 (`fixed`). **No-fire.**
+- `property-services` — needs ≥50 paying subs + prospect signal. opportunities.jsonl has no prospect entries (`measured`). **No-fire.**
+- `elder-care`, `family-with-kids` — gated on lifestyle active. **No-fire.**
+- Tier 2 (self-hosted, candidate) — needs subs + account sign-in + license/entitlement gateway. None present (`estimate`). **No-fire.**
+- Tier 3 (hosted cloud, candidate) — gated on Tier 2. **No-fire.**
+- Tier 4 (hardware) — north-star, requires operator initiation. **No-fire.**
 
 ### Tier readiness
-- **Tier 2 (self-hosted, candidate):** 3 prereqs unmet. No paying subs (blocks part-a), no account-sign-in onboarding flow visible (`estimate`), no license/entitlement gateway scenario exists (`estimate` — `landing-page-business-suite` hosts Stripe assurance per `Desktop Monetization Assurance` initiative 2/2 completed, but entitlement-gateway semantics not declared). **Unchanged since docs were written.**
-- **Tier 3 (hosted cloud, candidate):** gated on Tier 2. `scenario-to-cloud` scenario exists but its per-account full-runtime provisioning maturity isn't structurally queryable (`pending-telemetry` — matches `REPLACES-MANUAL` note in HEARTBEAT.md about a future `scenario-to-cloud readiness` query). **Unchanged.**
-- **Tier 4 (hardware, north-star):** no operator initiation. **Unchanged.**
+- **Tier 2 (self-hosted, candidate):** 3 prereqs unmet, unchanged from 2026-04-23 (`estimate`).
+- **Tier 3 (hosted cloud, candidate):** gated on Tier 2, unchanged (`pending-telemetry` — awaiting `scenario-to-cloud readiness` query per HEARTBEAT REPLACES-MANUAL note).
+- **Tier 4 (hardware, north-star):** no operator initiation, unchanged.
 
 ### Headliner watch (business bundle)
-- Current headliners: `web-console`, `git-control-tower` (both `in-progress`, neither `shipped`) (`fixed`, sku-map.json:28,36).
-- Nearest promotion candidate: `agent-manager` → `amplifier`-to-future-`headliner` path is the closest meaningful motion. It's the explicit amplifier for GCT; once stabilized via `Agent Sandbox Audit Foundation` (0/5) and `Protected Agent Sandboxing` (0/3), GCT's standalone appeal jumps and `swarm-manager`'s blocked-by list clears (`measured` via initiative list). Estimated gap: both initiatives entirely unstarted in completion terms. **No catalog-promotion decision raised — trigger hasn't fired; headliners are a human-promoted bar.**
+- Current headliners: `web-console`, `git-control-tower` (both `in-progress`, neither `shipped`) (`fixed`, sku-map.json).
+- Nearest promotion candidate: `agent-manager` → amplifier-to-future-headliner. Both gating initiatives (Agent Sandbox Audit Foundation 0/5, Protected Agent Sandboxing 0/3) remain entirely unstarted (`measured`). No motion since last heartbeat. **No promotion decision — trigger has not fired; headliners are operator-promoted.**
 
 ### Mapping proposals
-No mapping changes this heartbeat. All 6 sku-map entries remain accurate against observed scenario state.
-
-- Noted for future heartbeats (NOT raised as a decision today — guardrail #1 is "default focus is active SKUs"): the sku-map covers only headliner/amplifier/depth scenarios explicitly sold as business-bundle content. Infrastructure scenarios that Vrooli uses internally (`landing-page-business-suite`, `command-center`, `scenario-to-cloud`, `deployment-manager`, etc.) are intentionally excluded — they are platform, not product. No change proposed.
+No mapping changes this heartbeat. All 6 sku-map entries remain accurate.
 
 ### Current bottleneck
-`agent-manager` stabilization is the single most load-bearing block — it both amplifies `git-control-tower` (boosting headliner appeal without adding a scenario) AND unblocks `swarm-manager`'s future-headliner path. The two relevant initiatives — `Agent Sandbox Audit Foundation` (0/5) and `Protected Agent Sandboxing` (0/3) — are both entirely unstarted in completion terms.
+`agent-manager` stabilization remains the single most load-bearing block — it amplifies `git-control-tower` (headliner boost, no new scenario) AND clears `swarm-manager`'s blocked-by list (unlocking a future-headliner). Both gating initiatives (Agent Sandbox Audit Foundation 0/5, Protected Agent Sandboxing 0/3) still entirely unstarted.
 
 ### Decisions raised this heartbeat
-0 decisions. No triggers fired, no role changes detected, no SKUs to retire, no services lines active (services-* contexts N/A pre-launch).
+0 decisions. No triggers fired, no role changes, no SKUs to retire, no services lines active. Team queue: 0 pending (normal mode). Own-context cap: 0/3.
 
 ### Knowledge entry written
-- topic: `catalog-snapshot-2026-04-23` (id `knw-1776969102742586321`, no prior `catalog-snapshot-*` to supersede — first entry).
+- topic: `catalog-snapshot-2026-04-24` (id `knw-1777055450925377798`, supersedes `knw-1776969102742586321`).

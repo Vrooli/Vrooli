@@ -67,14 +67,15 @@ type ScenarioMetadata struct {
 
 // Handler provides HTTP handlers for scenario operations.
 type Handler struct {
-	scenariosDir    string
-	source          Source
-	lifecycle       Lifecycle
-	completeness    CompletenessSource
-	executionQueuer ExecutionQueuer
-	eventDispatcher dispatch.NodeDispatcher
-	backlogLister   BacklogLister
-	executionLister ExecutionLister
+	scenariosDir      string
+	source            Source
+	lifecycle         Lifecycle
+	completeness      CompletenessSource
+	executionQueuer   ExecutionQueuer
+	eventDispatcher   dispatch.NodeDispatcher
+	backlogLister     BacklogLister
+	executionLister   ExecutionLister
+	initiativesLister InitiativesLister
 }
 
 // NewHandler creates a new scenarios handler.
@@ -209,6 +210,9 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	// review-queue must be registered before the {name} wildcard to avoid capture.
 	r.HandleFunc("/api/v1/scenarios/review-queue", h.ReviewQueue).Methods("GET")
 	r.HandleFunc("/api/v1/scenarios", h.List).Methods("GET")
+	// context must be registered before {name} catch-all so gorilla/mux
+	// does not route /scenarios/foo/context to the Get handler.
+	r.HandleFunc("/api/v1/scenarios/{name}/context", h.GetContext).Methods("GET")
 	r.HandleFunc("/api/v1/scenarios/{name}", h.Get).Methods("GET")
 	r.HandleFunc("/api/v1/scenarios/{name}", h.UpdateMetadata).Methods("PATCH")
 	r.HandleFunc("/api/v1/scenarios/{name}", h.Delete).Methods("DELETE")

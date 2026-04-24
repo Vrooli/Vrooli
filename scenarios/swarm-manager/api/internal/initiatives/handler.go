@@ -47,8 +47,10 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/initiatives/{name}/items", h.RemoveItems).Methods("DELETE")
 }
 
-// List returns all initiatives with rollup status.
-func (h *Handler) List(w http.ResponseWriter, _ *http.Request) {
+// List returns all initiatives with rollup status. Optional ?scenario=csv
+// filter narrows the result to initiatives whose member items target any of
+// the named scenarios (derived from acceptance_allow globs).
+func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	items, err := h.service.List()
 	if err != nil {
 		slog.Error("failed to list initiatives", "error", err)
@@ -56,10 +58,59 @@ func (h *Handler) List(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 
+	if scenarios := parseScenariosQuery(r); len(scenarios) > 0 {
+		items = filterByTargetScenarios(items, scenarios)
+	}
+
 	resp := map[string]any{"items": items}
 	if err := httputil.JSON(w, resp); err != nil {
 		apierr.MapError(w, "[initiatives] list", apierr.Internal("failed to encode response"))
 	}
+}
+
+// parseScenariosQuery reads the "scenario" (or "scenarios") query parameter
+// as a comma-separated list. Empty entries are ignored. Returns nil when no
+// filter is specified.
+func parseScenariosQuery(r *http.Request) []string {
+	query := r.URL.Query()
+	raw := strings.TrimSpace(query.Get("scenario"))
+	if raw == "" {
+		raw = strings.TrimSpace(query.Get("scenarios"))
+	}
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		s := strings.TrimSpace(p)
+		if s != "" {
+			result = append(result, s)
+		}
+	}
+	return result
+}
+
+// filterByTargetScenarios keeps initiatives whose TargetScenarios overlap with
+// any of the given scenarios. TargetScenarios is populated during List().
+func filterByTargetScenarios(items []InitiativeWithRollup, scenarios []string) []InitiativeWithRollup {
+	if len(scenarios) == 0 {
+		return items
+	}
+	allow := make(map[string]bool, len(scenarios))
+	for _, s := range scenarios {
+		allow[s] = true
+	}
+	filtered := make([]InitiativeWithRollup, 0, len(items))
+	for _, item := range items {
+		for _, s := range item.TargetScenarios {
+			if allow[s] {
+				filtered = append(filtered, item)
+				break
+			}
+		}
+	}
+	return filtered
 }
 
 // Create creates a new initiative.
@@ -98,12 +149,12 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rollup, _ := h.service.ComputeRollup(init)
+	rollup, scenarios := h.service.aggregateInitiativeData(init)
 	if rollup == nil {
 		rollup = &RollupStatus{}
 	}
 
-	resp := InitiativeWithRollup{Initiative: *init, Rollup: *rollup}
+	resp := InitiativeWithRollup{Initiative: *init, Rollup: *rollup, TargetScenarios: scenarios}
 	if err := httputil.JSONWithStatus(w, http.StatusCreated, resp); err != nil {
 		apierr.MapError(w, "[initiatives] create", apierr.Internal("failed to encode response"))
 	}
@@ -201,12 +252,12 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rollup, _ := h.service.ComputeRollup(init)
+	rollup, scenarios := h.service.aggregateInitiativeData(init)
 	if rollup == nil {
 		rollup = &RollupStatus{}
 	}
 
-	resp := InitiativeWithRollup{Initiative: *init, Rollup: *rollup}
+	resp := InitiativeWithRollup{Initiative: *init, Rollup: *rollup, TargetScenarios: scenarios}
 	if err := httputil.JSON(w, resp); err != nil {
 		apierr.MapError(w, "[initiatives] update", apierr.Internal("failed to encode response"))
 	}
@@ -229,13 +280,16 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// respondWithRollup computes the rollup and writes the initiative response.
+// respondWithRollup computes the rollup and scenario aggregation in a single
+// pass, then writes the initiative response. TargetScenarios is returned on
+// every single-initiative read so the UI can surface scenario chips without
+// an extra round-trip.
 func (h *Handler) respondWithRollup(w http.ResponseWriter, init *Initiative, ctx string) {
-	rollup, _ := h.service.ComputeRollup(init)
+	rollup, scenarios := h.service.aggregateInitiativeData(init)
 	if rollup == nil {
 		rollup = &RollupStatus{}
 	}
-	resp := InitiativeWithRollup{Initiative: *init, Rollup: *rollup}
+	resp := InitiativeWithRollup{Initiative: *init, Rollup: *rollup, TargetScenarios: scenarios}
 	if err := httputil.JSON(w, resp); err != nil {
 		apierr.MapError(w, ctx, apierr.Internal("failed to encode response"))
 	}

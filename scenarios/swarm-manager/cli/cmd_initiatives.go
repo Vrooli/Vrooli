@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,12 +26,19 @@ func isValidInitiativeStatus(status string) bool {
 
 func (a *App) cmdInitiativesList(args []string) error {
 	fs := flag.NewFlagSet("initiatives list", flag.ContinueOnError)
+	scenarioFlag := fs.String("scenario", "", "Comma-separated scenario names to filter by")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
-	body, err := a.core.Get("/initiatives", nil)
+	query := url.Values{}
+	scenarioFilter := strings.TrimSpace(*scenarioFlag)
+	if scenarioFilter != "" {
+		query.Set("scenario", scenarioFilter)
+	}
+
+	body, err := a.core.Get("/initiatives", query)
 	if err != nil {
 		return err
 	}
@@ -45,15 +53,25 @@ func (a *App) cmdInitiativesList(args []string) error {
 
 	if len(response.Items) == 0 {
 		printSection("Summary")
-		fmt.Println("  No initiatives found.")
-		printCommandListSection("Next Steps", []string{
-			cliCommand("initiatives", "create", "--data", "'{\"name\":\"my-init\",\"title\":\"My Initiative\"}'"),
-		})
+		if scenarioFilter != "" {
+			fmt.Printf("  No initiatives found targeting scenario(s): %s\n", scenarioFilter)
+			printCommandListSection("Next Steps", []string{
+				cliCommand("backlog", "list", "--scenario", scenarioFilter),
+			})
+		} else {
+			fmt.Println("  No initiatives found.")
+			printCommandListSection("Next Steps", []string{
+				cliCommand("initiatives", "create", "--data", "'{\"name\":\"my-init\",\"title\":\"My Initiative\"}'"),
+			})
+		}
 		return nil
 	}
 
 	printSection("Summary")
 	fmt.Printf("  Found %d initiative(s)\n", len(response.Items))
+	if scenarioFilter != "" {
+		fmt.Printf("  Filtered scenarios: %s\n", scenarioFilter)
+	}
 
 	printSection("Initiatives")
 	for _, item := range response.Items {
@@ -72,6 +90,9 @@ func (a *App) cmdInitiativesList(args []string) error {
 		}
 		fmt.Printf("    Items: %d total, %d completed, %d in-progress, %d failed, %d pending\n",
 			rollup.Total, rollup.Completed, rollup.InProgress, rollup.Failed, rollup.Pending)
+		if len(item.TargetScenarios) > 0 {
+			fmt.Printf("    Targets: %s\n", strings.Join(item.TargetScenarios, ", "))
+		}
 		if len(init.Items) > 0 {
 			fmt.Printf("    References: %s\n", strings.Join(init.Items, ", "))
 		}
@@ -152,14 +173,23 @@ func (a *App) cmdInitiativesGet(args []string) error {
 func (a *App) cmdInitiativesContext(args []string) error {
 	fs := flag.NewFlagSet("initiatives context", flag.ContinueOnError)
 	nameFlag := fs.String("name", "", "Initiative name")
+	scenarioFlag := fs.String("scenario", "", "Scenario name — returns every initiative + orphan item targeting this scenario")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if err := requireFlag("name", *nameFlag); err != nil {
-		return fmt.Errorf("usage: initiatives context --name NAME [--json]\n\n%s", err)
-	}
+
 	name := strings.TrimSpace(*nameFlag)
+	scenario := strings.TrimSpace(*scenarioFlag)
+
+	switch {
+	case name != "" && scenario != "":
+		return fmt.Errorf("usage: initiatives context --name NAME | --scenario SCENARIO\n\n--name and --scenario are mutually exclusive")
+	case scenario != "":
+		return a.runScenarioContext(scenario, *jsonOut)
+	case name == "":
+		return fmt.Errorf("usage: initiatives context --name NAME | --scenario SCENARIO [--json]\n\none of --name or --scenario is required")
+	}
 
 	body, err := a.core.Get("/initiatives/"+name+"/context", nil)
 	if err != nil {
@@ -232,6 +262,74 @@ func (a *App) cmdInitiativesContext(args []string) error {
 	printCommandListSection("Next Steps", []string{
 		cliCommand("initiatives", "get", "--name", init.Name),
 	})
+	return nil
+}
+
+// runScenarioContext calls GET /scenarios/{name}/context and renders the
+// coverage view: initiatives whose items target the scenario, orphan items
+// targeting the scenario, and the combined rollup. Follows the Data
+// Retrieval output contract (Summary -> Results -> Next Steps).
+func (a *App) runScenarioContext(scenario string, jsonOut bool) error {
+	body, err := a.core.Get("/scenarios/"+scenario+"/context", nil)
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(jsonOut, body) {
+		return nil
+	}
+
+	response, err := decodeResponse[ScenarioContextResponse](body)
+	if err != nil {
+		return err
+	}
+
+	printSection("Summary")
+	fmt.Printf("  Scenario: %s\n", response.ScenarioName)
+	fmt.Printf("  Initiatives targeting: %d\n", len(response.Initiatives))
+	fmt.Printf("  Orphan items (targeting but not assigned to an initiative): %d\n", len(response.OrphanItems))
+
+	printSection("Rollup")
+	r := response.Rollup
+	fmt.Printf("  Total: %d | Completed: %d | In Progress: %d | Failed: %d | Pending: %d | Archived: %d\n",
+		r.Total, r.Completed, r.InProgress, r.Failed, r.Pending, r.Archived)
+
+	printSection(fmt.Sprintf("Initiatives (%d)", len(response.Initiatives)))
+	if len(response.Initiatives) == 0 {
+		fmt.Println("  (none)")
+	} else {
+		for _, init := range response.Initiatives {
+			i := init.Initiative
+			rollup := init.Rollup
+			fmt.Printf("  - %s (%s) — %s\n", i.Name, i.Status, i.Title)
+			fmt.Printf("      Items: %d total, %d completed, %d in-progress, %d failed, %d pending\n",
+				rollup.Total, rollup.Completed, rollup.InProgress, rollup.Failed, rollup.Pending)
+		}
+	}
+
+	printSection(fmt.Sprintf("Orphan items (%d)", len(response.OrphanItems)))
+	if len(response.OrphanItems) == 0 {
+		fmt.Println("  (none)")
+	} else {
+		for _, o := range response.OrphanItems {
+			archived := ""
+			if o.ArchivedAt != nil {
+				archived = " [archived]"
+			}
+			fmt.Printf("  - %s/%s — %s (status=%s, priority=%d)%s\n",
+				o.Kind, o.Name, o.Title, o.Status, o.Priority, archived)
+		}
+	}
+
+	nextSteps := []string{
+		cliCommand("backlog", "list", "--scenario", scenario),
+		cliCommand("initiatives", "list", "--scenario", scenario),
+	}
+	if len(response.OrphanItems) > 0 {
+		nextSteps = append(nextSteps, cliCommand("initiatives", "create",
+			"--data", fmt.Sprintf("'{\"name\":\"%s-readiness\",\"title\":\"%s readiness\",\"items\":[…orphans to adopt…]}'",
+				scenario, scenario)))
+	}
+	printCommandListSection("Next Steps", nextSteps)
 	return nil
 }
 

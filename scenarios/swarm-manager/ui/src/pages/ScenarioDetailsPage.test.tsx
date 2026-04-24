@@ -52,6 +52,7 @@ vi.mock("../services", () => ({
   scenariosService: {
     list: vi.fn(),
     get: vi.fn(),
+    getContext: vi.fn(),
     getFiles: vi.fn(),
     updateMetadata: vi.fn(),
     delete: vi.fn(),
@@ -91,6 +92,12 @@ describe("ScenarioDetailsPage", () => {
     vi.clearAllMocks();
     window.localStorage.clear();
     vi.mocked(scenariosService.getFiles).mockResolvedValue([]);
+    vi.mocked(scenariosService.getContext).mockResolvedValue({
+      scenarioName: "test-scenario",
+      initiatives: [],
+      orphanItems: [],
+      rollup: { total: 0, completed: 0, inProgress: 0, failed: 0, pending: 0, archived: 0 },
+    });
     useScenariosStore.getState().reset();
   });
 
@@ -945,6 +952,80 @@ describe("ScenarioDetailsPage", () => {
       });
       // Should not crash and score should not appear
       expect(screen.queryByText("%")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("associated initiatives & backlog coverage", () => {
+    it("renders the coverage section heading on desktop", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-coverage-section")).toBeInTheDocument();
+      });
+      expect(screen.getByText("Associated Initiatives & Backlog")).toBeInTheDocument();
+    });
+
+    it("renders initiatives subsection when context has initiatives", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      vi.mocked(scenariosService.getContext).mockResolvedValue({
+        scenarioName: "test-scenario",
+        initiatives: [
+          {
+            name: "audio-platform",
+            title: "Audio Platform",
+            status: "active",
+            priority: 3,
+            rollup: { total: 3, completed: 1, inProgress: 1, failed: 0, pending: 1, archived: 0 },
+          },
+        ],
+        orphanItems: [],
+        rollup: { total: 3, completed: 1, inProgress: 1, failed: 0, pending: 1, archived: 0 },
+      });
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-coverage-initiatives")).toBeInTheDocument();
+      });
+      expect(screen.getByText("Audio Platform")).toBeInTheDocument();
+      // Orphans subsection should not render when empty.
+      expect(screen.queryByTestId("scenario-coverage-orphans")).not.toBeInTheDocument();
+    });
+
+    it("renders orphan items subsection when context has orphans", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      vi.mocked(scenariosService.getContext).mockResolvedValue({
+        scenarioName: "test-scenario",
+        initiatives: [],
+        orphanItems: [
+          {
+            kind: "execute",
+            name: "orphan-one",
+            title: "Orphan One",
+            status: "backlog",
+            priority: 3,
+          },
+        ],
+        rollup: { total: 1, completed: 0, inProgress: 0, failed: 0, pending: 1, archived: 0 },
+      });
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-coverage-orphans")).toBeInTheDocument();
+      });
+      expect(screen.getByText("Orphan One")).toBeInTheDocument();
+      // Initiatives subsection should not render when empty.
+      expect(screen.queryByTestId("scenario-coverage-initiatives")).not.toBeInTheDocument();
+    });
+
+    it("renders empty-state copy when no coverage exists", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      // Default getContext mock in beforeEach returns empty — confirm the empty state renders.
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-coverage-empty")).toBeInTheDocument();
+      });
     });
   });
 });

@@ -1,0 +1,16 @@
+{
+  "acceptance_allow": [
+    "scenarios/prompt-manager/**"
+  ],
+  "created": "2026-04-24T19:54:33Z",
+  "description": "Decisions framed as 'Action as proposed' (single-proposal, no A/B/C) still require --selected. The current path is --selected=__other__ --freeform=\"accept as proposed\", which is both awkward and semantically weird — __other__ implies 'none of the above' but the intent is 'yes, the proposed one'. Options: (A) CLI accepts --selected=proposed as sugar that sends the right API payload; (B) API normalizes single-proposal decisions to not require --selected at all; (C) decision-add for single-proposal decisions auto-populates a default option so --selected has a valid key. Prefer B (API-side fix) to avoid papering over the ergonomics at the CLI layer. Surfaced 2026-04-24 walk while accepting 3 of 4 meta-opt decisions, all of which had no A/B/C options.",
+  "effort": "S",
+  "initiative": "prompt-manager-decision-workflow-polish",
+  "kind": "fix",
+  "name": "prompt-manager-decision-accept-no-options-ergonomics",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [],
+  "title": "decision-accept for option-less decisions: allow --selected=proposed sugar or normalize API-side",
+  "updated": "2026-04-24T19:54:33Z"
+}

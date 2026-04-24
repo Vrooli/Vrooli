@@ -133,6 +133,7 @@ func (s *Server) setupRoutes() {
 
 	// --- Cross-domain wiring ---
 	s.scenariosHandler.SetBacklogLister(backlogHandler.Store())
+	s.scenariosHandler.SetInitiativesLister(initService)
 	if execSvc != nil {
 		s.scenariosHandler.SetExecutionLister(execSvc)
 	}

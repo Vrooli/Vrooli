@@ -427,10 +427,12 @@ type InitiativeRollup struct {
 	Pending    int `json:"pending"`
 }
 
-// InitiativeResponse wraps a single initiative with rollup status.
+// InitiativeResponse wraps a single initiative with rollup status and the
+// deduped scenarios its member items target.
 type InitiativeResponse struct {
-	Initiative Initiative       `json:"initiative"`
-	Rollup     InitiativeRollup `json:"rollup"`
+	Initiative      Initiative       `json:"initiative"`
+	Rollup          InitiativeRollup `json:"rollup"`
+	TargetScenarios []string         `json:"target_scenarios,omitempty"`
 }
 
 // ListInitiativesResponse wraps the initiative list endpoint response.
@@ -475,6 +477,39 @@ type InitiativeContextItem struct {
 	ArchivedAt *string  `json:"archived_at,omitempty"`
 }
 
+// ScenarioContextRollup aggregates completion stats across every item
+// (initiative-assigned or orphan) targeting a scenario.
+type ScenarioContextRollup struct {
+	Total      int `json:"total"`
+	Completed  int `json:"completed"`
+	InProgress int `json:"in_progress"`
+	Failed     int `json:"failed"`
+	Pending    int `json:"pending"`
+	Archived   int `json:"archived"`
+}
+
+// ScenarioContextOrphanItem is a backlog item targeting a scenario but not
+// assigned to any initiative. Orphans signal that a readiness-style umbrella
+// initiative may be warranted.
+type ScenarioContextOrphanItem struct {
+	Kind       string  `json:"kind"`
+	Name       string  `json:"name"`
+	Title      string  `json:"title"`
+	Status     string  `json:"status"`
+	Priority   int     `json:"priority"`
+	ArchivedAt *string `json:"archived_at,omitempty"`
+}
+
+// ScenarioContextResponse is the full coverage view for a scenario: every
+// initiative whose items target the scenario, every orphan item targeting
+// the scenario, and a combined completion rollup.
+type ScenarioContextResponse struct {
+	ScenarioName string                      `json:"scenario_name"`
+	Initiatives  []InitiativeResponse        `json:"initiatives"`
+	OrphanItems  []ScenarioContextOrphanItem `json:"orphan_items"`
+	Rollup       ScenarioContextRollup       `json:"rollup"`
+}
+
 // InitiativeContextResponse pairs an initiative with its immediate
 // neighborhood for single-call loading by agents and the CLI.
 type InitiativeContextResponse struct {
@@ -483,6 +518,7 @@ type InitiativeContextResponse struct {
 	Items                 []InitiativeContextItem `json:"items"`
 	UpstreamInitiatives   []Initiative            `json:"upstream_initiatives"`
 	DownstreamInitiatives []Initiative            `json:"downstream_initiatives"`
+	TargetScenarios       []string                `json:"target_scenarios,omitempty"`
 }
 
 // Capture represents a quick-capture entry.

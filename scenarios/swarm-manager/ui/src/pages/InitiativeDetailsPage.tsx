@@ -26,6 +26,7 @@ import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
 import { NoteEditor } from "../components/ui/note-editor";
 import { BacklogFileWorkspace } from "../components/backlog/backlog-file-workspace";
+import { BacklogScenariosPanel } from "../components/backlog/backlog-scenarios-panel";
 import { InitiativeDependencyGraph } from "../components/initiative/InitiativeDependencyGraph";
 import { FeedbackPanel } from "../components/initiative/feedback-panel";
 import { FeedbackDialog } from "../components/initiative/feedback-dialog";
@@ -763,6 +764,9 @@ export function InitiativeDetailsPage() {
                 <RollupProgressBar rollup={rollup} showLabels />
               </DetailSection>
             )}
+
+            {/* Targeted scenarios — derived from member items' acceptance_allow globs */}
+            <BacklogScenariosPanel targetScenarios={data?.targetScenarios ?? []} />
 
             {/* Initiative-level dependency ordering */}
             {(() => {

@@ -36,13 +36,21 @@ interface RawInitiative {
 }
 
 /** Normalize a single initiative-with-rollup from the API's snake_case to camelCase. */
-function normalizeItem(raw: { initiative?: RawInitiative; rollup?: RawRollup }): InitiativeWithRollup {
+function normalizeItem(
+  raw: {
+    initiative?: RawInitiative;
+    rollup?: RawRollup;
+    target_scenarios?: string[];
+    targetScenarios?: string[];
+  },
+): InitiativeWithRollup {
   const rollup = raw.rollup ?? {};
   const initiative = raw.initiative ?? {};
   // Normalize snake_case fields from API to camelCase expected by TS types.
   const archivedAt = initiative.archivedAt ?? initiative.archived_at;
   const dependsOn = initiative.dependsOn ?? initiative.depends_on ?? [];
   const priority = initiative.priority ?? 0;
+  const targetScenarios = raw.targetScenarios ?? raw.target_scenarios;
   return {
     ...raw,
     initiative: {
@@ -56,11 +64,17 @@ function normalizeItem(raw: { initiative?: RawInitiative; rollup?: RawRollup }):
       // Accept both snake_case (API) and camelCase (already normalized)
       inProgress: rollup.inProgress ?? rollup.in_progress ?? 0,
     },
+    ...(targetScenarios ? { targetScenarios } : {}),
   } as InitiativeWithRollup;
 }
 
 function normalizeItems(raw: unknown[]): InitiativeWithRollup[] {
-  return raw.map((item) => normalizeItem(item as { initiative?: Record<string, unknown>; rollup?: RawRollup }));
+  return raw.map((item) => normalizeItem(item as {
+    initiative?: Record<string, unknown>;
+    rollup?: RawRollup;
+    target_scenarios?: string[];
+    targetScenarios?: string[];
+  }));
 }
 
 export interface IInitiativeService {

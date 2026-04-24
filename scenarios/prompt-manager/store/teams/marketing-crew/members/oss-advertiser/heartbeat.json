@@ -5,7 +5,14 @@
   "agentId": "oss-advertiser",
   "enabled": true,
   "schedule": "30 15 * * *",
-  "revision": 3,
+  "lastExecution": {
+    "startedAt": "2026-04-24T19:30:00Z",
+    "endedAt": "2026-04-24T19:33:15Z",
+    "status": "completed",
+    "runId": "5cc4962e-0947-4555-8bbf-598cc5280fcc",
+    "logPath": "../store/teams/marketing-crew/members/oss-advertiser/logs/2026-04-24T19-30-00Z.log"
+  },
+  "revision": 8,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-04-23T21:23:07Z"
+  "updatedAt": "2026-04-24T19:33:15Z"
 }

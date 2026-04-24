@@ -402,6 +402,31 @@ describe("InitiativeDetailsPage", () => {
     expect(chips.length).toBeGreaterThan(0);
   });
 
+  it("renders target scenarios section when initiative has aggregated scenarios", async () => {
+    vi.mocked(initiativeService.get).mockResolvedValue({
+      ...mockInitiativeData,
+      targetScenarios: ["web-console", "command-center"],
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("initiative-details-page")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Target Scenarios")).toBeInTheDocument();
+    expect(screen.getByText("web-console")).toBeInTheDocument();
+    expect(screen.getByText("command-center")).toBeInTheDocument();
+  });
+
+  it("omits target scenarios section when none are populated", async () => {
+    vi.mocked(initiativeService.get).mockResolvedValue(mockInitiativeData);
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("initiative-details-page")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Target Scenarios")).not.toBeInTheDocument();
+  });
+
   it("falls back to kind/name and marks unresolved items in list view", async () => {
     useBacklogStore.getState().setItems([]); // clear store
     vi.mocked(initiativeService.get).mockResolvedValue(mockInitiativeData);

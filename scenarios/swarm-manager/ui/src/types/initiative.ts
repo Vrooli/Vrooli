@@ -41,9 +41,12 @@ export type Initiative = ProtoMessage<ProtoInitiative> & {
 export type InitiativeRollup = ProtoMessage<ProtoInitiativeRollup>;
 
 /**
- * Initiative with computed rollup from member items.
+ * Initiative with computed rollup from member items and the deduped list of
+ * scenarios the member items target (derived server-side from each item's
+ * acceptance_allow globs via pathutil.ScenariosFromGlobs).
  */
 export interface InitiativeWithRollup {
   initiative: Initiative;
   rollup: InitiativeRollup;
+  targetScenarios?: string[];
 }

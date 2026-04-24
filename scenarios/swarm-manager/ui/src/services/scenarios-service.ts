@@ -48,6 +48,55 @@ import type {
 } from "../types";
 
 /**
+ * Rollup counts for a scenario coverage view (combined across initiative
+ * members and orphan items targeting the scenario).
+ */
+export interface ScenarioContextRollup {
+  total: number;
+  completed: number;
+  inProgress: number;
+  failed: number;
+  pending: number;
+  archived: number;
+}
+
+/**
+ * An initiative that targets a scenario, as returned by the coverage view.
+ * Only the fields needed by the UI are exposed.
+ */
+export interface ScenarioContextInitiative {
+  name: string;
+  title: string;
+  status: string;
+  priority: number;
+  rollup: ScenarioContextRollup;
+}
+
+/**
+ * A backlog item targeting a scenario but not assigned to any initiative.
+ */
+export interface ScenarioContextOrphanItem {
+  kind: string;
+  name: string;
+  title: string;
+  status: string;
+  priority: number;
+  archivedAt?: string;
+}
+
+/**
+ * Full coverage view for a scenario: every initiative whose member items
+ * target the scenario, every orphan backlog item targeting the scenario,
+ * and a combined completion rollup.
+ */
+export interface ScenarioContext {
+  scenarioName: string;
+  initiatives: ScenarioContextInitiative[];
+  orphanItems: ScenarioContextOrphanItem[];
+  rollup: ScenarioContextRollup;
+}
+
+/**
  * Options for deleting a scenario
  */
 export interface DeleteScenarioOptions {
@@ -74,6 +123,7 @@ export interface SpecSyncArchiveOptions {
 export interface IScenariosService {
   list(): Promise<Scenario[]>;
   get(name: string): Promise<Scenario>;
+  getContext(name: string): Promise<ScenarioContext>;
   getFiles(name: string): Promise<ScenarioFile[]>;
   updateMetadata(name: string, request: UpdateScenarioMetadataRequest): Promise<Scenario>;
   delete(name: string, options?: DeleteScenarioOptions): Promise<DeleteScenarioResponse>;
@@ -81,6 +131,74 @@ export interface IScenariosService {
   start(name: string): Promise<Scenario>;
   stop(name: string): Promise<Scenario>;
   restart(name: string): Promise<Scenario>;
+}
+
+interface RawRollup {
+  total?: number;
+  completed?: number;
+  in_progress?: number;
+  inProgress?: number;
+  failed?: number;
+  pending?: number;
+  archived?: number;
+}
+
+interface RawScenarioContextInitiative {
+  initiative?: { name?: string; title?: string; status?: string; priority?: number };
+  rollup?: RawRollup;
+}
+
+interface RawScenarioContextOrphan {
+  kind?: string;
+  name?: string;
+  title?: string;
+  status?: string;
+  priority?: number;
+  archived_at?: string;
+  archivedAt?: string;
+}
+
+interface RawScenarioContext {
+  scenario_name?: string;
+  scenarioName?: string;
+  initiatives?: RawScenarioContextInitiative[];
+  orphan_items?: RawScenarioContextOrphan[];
+  orphanItems?: RawScenarioContextOrphan[];
+  rollup?: RawRollup;
+}
+
+function normalizeRollup(raw: RawRollup | undefined): ScenarioContextRollup {
+  const r = raw ?? {};
+  return {
+    total: r.total ?? 0,
+    completed: r.completed ?? 0,
+    inProgress: r.inProgress ?? r.in_progress ?? 0,
+    failed: r.failed ?? 0,
+    pending: r.pending ?? 0,
+    archived: r.archived ?? 0,
+  };
+}
+
+function normalizeScenarioContext(raw: RawScenarioContext): ScenarioContext {
+  return {
+    scenarioName: raw.scenarioName ?? raw.scenario_name ?? "",
+    initiatives: (raw.initiatives ?? []).map((init) => ({
+      name: init.initiative?.name ?? "",
+      title: init.initiative?.title ?? "",
+      status: init.initiative?.status ?? "",
+      priority: init.initiative?.priority ?? 0,
+      rollup: normalizeRollup(init.rollup),
+    })),
+    orphanItems: (raw.orphanItems ?? raw.orphan_items ?? []).map((o) => ({
+      kind: o.kind ?? "",
+      name: o.name ?? "",
+      title: o.title ?? "",
+      status: o.status ?? "",
+      priority: o.priority ?? 0,
+      archivedAt: o.archivedAt ?? o.archived_at,
+    })),
+    rollup: normalizeRollup(raw.rollup),
+  };
 }
 
 /**
@@ -103,6 +221,11 @@ export function createScenariosService(
       const data = await apiClient.get<unknown>(API_ENDPOINTS.scenarioByName(name));
       const parsed = parseProtoResponse(scenarioResponseSchema, data, "scenario");
       return mapProtoScenario(requireProtoField(parsed.scenario, "scenario"));
+    },
+
+    async getContext(name: string): Promise<ScenarioContext> {
+      const raw = await apiClient.get<RawScenarioContext>(API_ENDPOINTS.scenarioContext(name));
+      return normalizeScenarioContext(raw);
     },
 
     /**

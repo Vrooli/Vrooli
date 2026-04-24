@@ -28,10 +28,12 @@ type RollupStatus struct {
 	Archived   int `json:"archived"`
 }
 
-// InitiativeWithRollup pairs an initiative with its computed rollup status.
+// InitiativeWithRollup pairs an initiative with its computed rollup status and
+// the deduped scenarios its member items target.
 type InitiativeWithRollup struct {
-	Initiative Initiative   `json:"initiative"`
-	Rollup     RollupStatus `json:"rollup"`
+	Initiative      Initiative   `json:"initiative"`
+	Rollup          RollupStatus `json:"rollup"`
+	TargetScenarios []string     `json:"target_scenarios,omitempty"`
 }
 
 // CreateRequest holds validated fields for creating a new initiative.
@@ -150,10 +152,13 @@ type ContextItem struct {
 // neighborhood: its member items, its direct upstream initiatives (targets
 // of depends_on), and direct downstream initiatives (ones that depend_on it).
 // Transitive neighbors are deliberately excluded to keep the payload bounded.
+// TargetScenarios is the deduped union of all member items' acceptance_allow
+// globs, resolved to scenario names.
 type InitiativeContext struct {
 	Initiative            Initiative    `json:"initiative"`
 	Rollup                RollupStatus  `json:"rollup"`
 	Items                 []ContextItem `json:"items"`
 	UpstreamInitiatives   []Initiative  `json:"upstream_initiatives"`
 	DownstreamInitiatives []Initiative  `json:"downstream_initiatives"`
+	TargetScenarios       []string      `json:"target_scenarios,omitempty"`
 }

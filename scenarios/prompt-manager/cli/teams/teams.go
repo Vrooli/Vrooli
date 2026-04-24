@@ -532,6 +532,15 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 					return route(ctx, args)
 				},
 			},
+			{
+				Name:        "decisions-pending",
+				Aliases:     []string{"pending-decisions"},
+				NeedsAPI:    true,
+				Description: "List all pending decisions across all teams",
+				Run: func(args []string) error {
+					return cmdDecisionsPending(ctx, args)
+				},
+			},
 		},
 	}
 }
@@ -620,6 +629,16 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdDecisionAdd(ctx, subArgs)
 	case "decision-list":
 		return cmdDecisionList(ctx, subArgs)
+	case "decision-show":
+		return cmdDecisionShow(ctx, subArgs)
+	case "decision-update":
+		return cmdDecisionUpdate(ctx, subArgs)
+	case "decision-accept":
+		return cmdDecisionAccept(ctx, subArgs)
+	case "decision-reject":
+		return cmdDecisionReject(ctx, subArgs)
+	case "decision-delete":
+		return cmdDecisionDelete(ctx, subArgs)
 	case "knowledge-add":
 		return cmdKnowledgeAdd(ctx, subArgs)
 	case "knowledge-list":
@@ -691,6 +710,11 @@ Task Board Commands:
 Decision Log Commands:
   decision-add <team-id>                Log a decision (supports --options for multi-option)
   decision-list <team-id>               List decisions (--context, --status, --last)
+  decision-show <team-id> <id>          Show a single decision by id
+  decision-update <team-id> <id>        Update any field of a decision (PATCH semantics)
+  decision-accept <team-id> <id>        Accept a decision (--selected required, --notes recommended)
+  decision-reject <team-id> <id>        Reject a decision (--notes required)
+  decision-delete <team-id> <id>        Delete a decision (use --yes to skip confirm)
 
 Knowledge Log Commands:
   knowledge-add <team-id>               Add a knowledge entry
@@ -2675,6 +2699,388 @@ func cmdDecisionList(ctx appctx.Context, args []string) error {
 		fmt.Printf("+%d more entries. Run `prompt-manager team decision-list %s --last=%d` to see more\n", remaining, teamID, resp.Total)
 	}
 	return nil
+}
+
+// cmdDecisionUpdate is the generic PATCH wrapper exposing every field of the
+// API's UpdateDecisionRequest as an optional flag.
+func cmdDecisionUpdate(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("decision-update", flag.ContinueOnError)
+	decision := fs.String("decision", "", "Update decision text")
+	rationale := fs.String("rationale", "", "Update rationale")
+	contextTag := fs.String("context", "", "Update context tag")
+	status := fs.String("status", "", "Update status (pending|accepted|rejected|running|completed)")
+	supersedes := fs.String("supersedes", "", "ID of decision this supersedes")
+	topic := fs.String("topic", "", "Update topic (multi-option mode)")
+	description := fs.String("description", "", "Update description (multi-option mode)")
+	options := fs.String("options", "", `JSON array of options, e.g. '[{"key":"A","label":"...","rationale":"..."}]'`)
+	selected := fs.String("selected", "", "Selected option key (use __other__ with --freeform for write-in)")
+	freeform := fs.String("freeform", "", "Freeform answer when --selected=__other__")
+	notes := fs.String("notes", "", "Operator notes attached to the decision")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: team decision-update <team-id> <decision-id> [--decision=...] [--rationale=...] [--context=...] [--status=...] [--supersedes=...] [--topic=...] [--description=...] [--options='[...]'] [--selected=...] [--freeform=...] [--notes=...]")
+	}
+	teamID := fs.Arg(0)
+	decisionID := fs.Arg(1)
+
+	type updateReq struct {
+		Decision    *string           `json:"decision,omitempty"`
+		Rationale   *string           `json:"rationale,omitempty"`
+		Context     *string           `json:"context,omitempty"`
+		Status      *string           `json:"status,omitempty"`
+		Supersedes  *string           `json:"supersedes,omitempty"`
+		Topic       *string           `json:"topic,omitempty"`
+		Description *string           `json:"description,omitempty"`
+		Options     *[]DecisionOption `json:"options,omitempty"`
+		Selected    *string           `json:"selected,omitempty"`
+		Freeform    *string           `json:"freeform,omitempty"`
+		Notes       *string           `json:"notes,omitempty"`
+	}
+
+	// Track which flags were explicitly set so that empty-string values can
+	// still be sent (e.g., --notes "" to clear notes). flag.Visit only
+	// iterates over flags the user actually passed.
+	provided := map[string]bool{}
+	fs.Visit(func(f *flag.Flag) { provided[f.Name] = true })
+
+	req := updateReq{}
+	if provided["decision"] {
+		req.Decision = decision
+	}
+	if provided["rationale"] {
+		req.Rationale = rationale
+	}
+	if provided["context"] {
+		req.Context = contextTag
+	}
+	if provided["status"] {
+		req.Status = status
+	}
+	if provided["supersedes"] {
+		req.Supersedes = supersedes
+	}
+	if provided["topic"] {
+		req.Topic = topic
+	}
+	if provided["description"] {
+		req.Description = description
+	}
+	if provided["options"] {
+		var opts []DecisionOption
+		if strings.TrimSpace(*options) != "" {
+			if err := json.Unmarshal([]byte(*options), &opts); err != nil {
+				return fmt.Errorf("invalid options JSON: %w", err)
+			}
+		}
+		req.Options = &opts
+	}
+	if provided["selected"] {
+		req.Selected = selected
+	}
+	if provided["freeform"] {
+		req.Freeform = freeform
+	}
+	if provided["notes"] {
+		req.Notes = notes
+	}
+
+	// Reject a no-op call early — a PATCH with no fields is almost certainly a typo.
+	if req.Decision == nil && req.Rationale == nil && req.Context == nil && req.Status == nil &&
+		req.Supersedes == nil && req.Topic == nil && req.Description == nil && req.Options == nil &&
+		req.Selected == nil && req.Freeform == nil && req.Notes == nil {
+		return fmt.Errorf("decision-update requires at least one field flag")
+	}
+
+	var resp DecisionEntry
+	if err := ctx.Put(fmt.Sprintf("/teams/%s/decisions/%s", teamID, decisionID), req, &resp); err != nil {
+		return fmt.Errorf("failed to update decision: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	statusStr := ""
+	if resp.Status != "" {
+		statusStr = fmt.Sprintf(" [%s]", resp.Status)
+	}
+	selectedStr := ""
+	if resp.Selected != "" {
+		selectedStr = fmt.Sprintf(" selected=%s", resp.Selected)
+	}
+	fmt.Printf("Updated decision %s%s%s\n", resp.ID, statusStr, selectedStr)
+	return nil
+}
+
+// cmdDecisionAccept is the convenience wrapper for the most common operator
+// action: set status=accepted, record the chosen option key, and (optionally)
+// attach notes. --selected is required; an accept-without-choice is almost
+// always a mistake.
+func cmdDecisionAccept(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("decision-accept", flag.ContinueOnError)
+	selected := fs.String("selected", "", "Selected option key (required; use __other__ with --freeform for write-in)")
+	freeform := fs.String("freeform", "", "Freeform answer when --selected=__other__")
+	notes := fs.String("notes", "", "Operator notes (recommended)")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: team decision-accept <team-id> <decision-id> --selected=<option-key> [--freeform=\"...\"] [--notes=\"...\"]")
+	}
+	teamID := fs.Arg(0)
+	decisionID := fs.Arg(1)
+
+	if strings.TrimSpace(*selected) == "" {
+		return fmt.Errorf("--selected is required for decision-accept (use decision-update for status-only changes)")
+	}
+	if *selected == "__other__" && strings.TrimSpace(*freeform) == "" {
+		return fmt.Errorf("--freeform is required when --selected=__other__")
+	}
+
+	type acceptReq struct {
+		Status   string  `json:"status"`
+		Selected string  `json:"selected"`
+		Freeform *string `json:"freeform,omitempty"`
+		Notes    *string `json:"notes,omitempty"`
+	}
+	req := acceptReq{Status: "accepted", Selected: *selected}
+	provided := map[string]bool{}
+	fs.Visit(func(f *flag.Flag) { provided[f.Name] = true })
+	if provided["freeform"] {
+		req.Freeform = freeform
+	}
+	if provided["notes"] {
+		req.Notes = notes
+	}
+
+	var resp DecisionEntry
+	if err := ctx.Put(fmt.Sprintf("/teams/%s/decisions/%s", teamID, decisionID), req, &resp); err != nil {
+		return fmt.Errorf("failed to accept decision: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	fmt.Printf("Accepted decision %s: selected=%s\n", resp.ID, resp.Selected)
+	return nil
+}
+
+// cmdDecisionReject is the convenience wrapper for rejecting a decision.
+// --notes is required at the CLI layer; the API does not enforce it but a
+// reject-without-reason is a nudge against future-self confusion.
+func cmdDecisionReject(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("decision-reject", flag.ContinueOnError)
+	notes := fs.String("notes", "", "Reason for rejection (required)")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: team decision-reject <team-id> <decision-id> --notes=\"reason\"")
+	}
+	teamID := fs.Arg(0)
+	decisionID := fs.Arg(1)
+
+	if strings.TrimSpace(*notes) == "" {
+		return fmt.Errorf("--notes is required for decision-reject (capture the reason for future reference)")
+	}
+
+	type rejectReq struct {
+		Status string `json:"status"`
+		Notes  string `json:"notes"`
+	}
+	req := rejectReq{Status: "rejected", Notes: *notes}
+
+	var resp DecisionEntry
+	if err := ctx.Put(fmt.Sprintf("/teams/%s/decisions/%s", teamID, decisionID), req, &resp); err != nil {
+		return fmt.Errorf("failed to reject decision: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	fmt.Printf("Rejected decision %s\n", resp.ID)
+	return nil
+}
+
+// cmdDecisionDelete removes a decision entry. Pass --yes to skip confirmation.
+func cmdDecisionDelete(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("decision-delete", flag.ContinueOnError)
+	yes := fs.Bool("yes", false, "Skip confirmation prompt")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: team decision-delete <team-id> <decision-id> [--yes]")
+	}
+	teamID := fs.Arg(0)
+	decisionID := fs.Arg(1)
+
+	if !*yes {
+		fmt.Fprintf(os.Stderr, "Delete decision %s from team %s? [y/N]: ", decisionID, teamID)
+		var answer string
+		_, _ = fmt.Fscanln(os.Stdin, &answer)
+		answer = strings.ToLower(strings.TrimSpace(answer))
+		if answer != "y" && answer != "yes" {
+			return fmt.Errorf("aborted")
+		}
+	}
+
+	if err := ctx.Delete(fmt.Sprintf("/teams/%s/decisions/%s", teamID, decisionID)); err != nil {
+		return fmt.Errorf("failed to delete decision: %w", err)
+	}
+
+	fmt.Printf("Deleted decision %s\n", decisionID)
+	return nil
+}
+
+// cmdDecisionShow returns a single decision by id. The API exposes no
+// single-show endpoint; this command paginates through the list endpoint and
+// filters client-side. Cheap for typical decision-log sizes.
+func cmdDecisionShow(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("decision-show", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: team decision-show <team-id> <decision-id> [--json]")
+	}
+	teamID := fs.Arg(0)
+	decisionID := fs.Arg(1)
+
+	// last=0 fetches all entries (the API treats non-positive as no limit).
+	var resp DecisionListResponse
+	if err := ctx.Get(fmt.Sprintf("/teams/%s/decisions?last=0", teamID), &resp); err != nil {
+		return fmt.Errorf("failed to fetch decisions: %w", err)
+	}
+
+	for _, entry := range resp.Entries {
+		if entry.ID == decisionID {
+			if *jsonOut {
+				enc := json.NewEncoder(os.Stdout)
+				enc.SetIndent("", "  ")
+				return enc.Encode(entry)
+			}
+			printDecisionEntry(entry)
+			return nil
+		}
+	}
+
+	return fmt.Errorf("decision %s not found in team %s", decisionID, teamID)
+}
+
+// PendingDecisionTeamGroup mirrors the API response for grouped pending decisions.
+type PendingDecisionTeamGroup struct {
+	TeamID   string          `json:"teamId"`
+	TeamName string          `json:"teamName"`
+	Entries  []DecisionEntry `json:"entries"`
+}
+
+// AllPendingDecisionsResponse mirrors the API response for cross-team pending decisions.
+type AllPendingDecisionsResponse struct {
+	Teams      []PendingDecisionTeamGroup `json:"teams"`
+	TotalCount int                        `json:"totalCount"`
+}
+
+// cmdDecisionsPending lists every pending decision grouped by team — the
+// surface the morning-vision-walk prep agent and operator-side dashboards
+// rely on for triage.
+func cmdDecisionsPending(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("decisions-pending", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+
+	var resp AllPendingDecisionsResponse
+	if err := ctx.Get("/decisions/pending", &resp); err != nil {
+		return fmt.Errorf("failed to fetch pending decisions: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	if resp.TotalCount == 0 {
+		fmt.Println("No pending decisions across any team")
+		return nil
+	}
+
+	fmt.Printf("%d pending decision(s) across %d team(s):\n\n", resp.TotalCount, len(resp.Teams))
+	for _, group := range resp.Teams {
+		fmt.Printf("=== %s (%s) — %d pending ===\n", group.TeamName, group.TeamID, len(group.Entries))
+		for _, entry := range group.Entries {
+			printDecisionEntry(entry)
+			fmt.Println()
+		}
+	}
+	return nil
+}
+
+// printDecisionEntry renders a single decision in the same format used by decision-list.
+func printDecisionEntry(entry DecisionEntry) {
+	contextStr := ""
+	if entry.Context != "" {
+		contextStr = fmt.Sprintf(" [%s]", entry.Context)
+	}
+	supersededStr := ""
+	if entry.Supersedes != "" {
+		supersededStr = fmt.Sprintf(" (supersedes %s)", entry.Supersedes)
+	}
+	statusStr := ""
+	if entry.Status != "" {
+		statusStr = fmt.Sprintf(" (%s)", entry.Status)
+	}
+	fmt.Printf("--- %s by %s%s%s%s ---\n", entry.ID, entry.By, contextStr, supersededStr, statusStr)
+
+	if len(entry.Options) > 0 {
+		fmt.Printf("Topic: %s\n", entry.Topic)
+		if entry.Description != "" {
+			fmt.Printf("Description: %s\n", entry.Description)
+		}
+		if entry.Rationale != "" {
+			fmt.Printf("Rationale: %s\n", entry.Rationale)
+		}
+		for _, opt := range entry.Options {
+			marker := "  "
+			if entry.Selected == opt.Key {
+				marker = "→ "
+			}
+			rec := ""
+			if opt.Recommended {
+				rec = " [RECOMMENDED]"
+			}
+			fmt.Printf("  %s%s) %s%s — %s\n", marker, opt.Key, opt.Label, rec, opt.Rationale)
+		}
+		if entry.Selected != "" {
+			if entry.Selected == "__other__" {
+				fmt.Printf("Selected: Other — %s\n", entry.Freeform)
+			} else {
+				fmt.Printf("Selected: %s\n", entry.Selected)
+			}
+		}
+		if entry.Notes != "" {
+			fmt.Printf("Notes: %s\n", entry.Notes)
+		}
+	} else {
+		fmt.Printf("Decision: %s\n", entry.Decision)
+		fmt.Printf("Rationale: %s\n", entry.Rationale)
+	}
 }
 
 // --- Knowledge Log commands ---

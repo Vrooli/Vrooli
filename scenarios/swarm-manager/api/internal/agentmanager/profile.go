@@ -50,6 +50,12 @@ func ProfileConfigFromSettings(maxTurns, timeoutSeconds int32, requiresApproval 
 }
 
 // DefaultProfileConfig returns the default configuration for swarm-manager agents.
+//
+// Swarm-manager agents run Sandboxed with review required: research and
+// workshop agents frequently write files (plans, docs, specs) and those
+// diffs should be human-reviewable. Agent-manager's auto-approve-if-empty
+// logic auto-closes runs whose sandbox ended up empty, so trivial read-only
+// invocations still complete without human clicks.
 func DefaultProfileConfig() *ProfileConfig {
 	return &ProfileConfig{
 		RunnerType:  domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
@@ -66,7 +72,7 @@ func DefaultProfileConfig() *ProfileConfig {
 			"Bash",
 		},
 		SkipPermissions:  false,
-		RequiresSandbox:  false,
+		RequiresSandbox:  true,
 		RequiresApproval: true,
 	}
 }
@@ -120,8 +126,15 @@ func (s *AgentService) defaultProfileRef() *apipb.ProfileRef {
 	if s.profileKey == "" {
 		return nil
 	}
+	// UpdateExisting=true makes swarm-manager's code-declared profile the
+	// source of truth: every dispatch overwrites the DB row with the current
+	// defaults, so a code change to DefaultProfileConfig() takes effect on
+	// the next run without requiring manual profile edits. This prevents
+	// the code/DB desync that caused sandboxed-but-requires-approval runs
+	// to silently accumulate in NEEDS_REVIEW in 2026-04.
 	return &apipb.ProfileRef{
-		ProfileKey: s.profileKey,
-		Defaults:   s.buildProfile(s.resolveProfileConfig()),
+		ProfileKey:     s.profileKey,
+		Defaults:       s.buildProfile(s.resolveProfileConfig()),
+		UpdateExisting: true,
 	}
 }

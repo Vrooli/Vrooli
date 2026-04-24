@@ -1,0 +1,7 @@
+{
+  "teamId": "marketing-crew",
+  "queuePolicy": "bounded-parallel",
+  "maxConcurrentRuns": 3,
+  "running": [],
+  "queue": null
+}

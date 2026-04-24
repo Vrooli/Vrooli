@@ -419,6 +419,169 @@ func TestHandler_RemoveItems_Success(t *testing.T) {
 	}
 }
 
+// setupScenarioFilterHandler seeds three initiatives with items whose
+// acceptance_allow globs target different scenarios. Returns the handler and
+// the list of initiative names for convenience.
+func setupScenarioFilterHandler(t *testing.T) *Handler {
+	t.Helper()
+	store := setupTestStore(t)
+	loader := &mockBacklogLoader{items: map[string]backlog.BacklogItem{
+		"execute/web-console-audio": {
+			Status:          backlog.StatusBacklog,
+			AcceptanceAllow: []string{"scenarios/web-console/**"},
+		},
+		"fix/web-console-tts": {
+			Status:          backlog.StatusBacklog,
+			AcceptanceAllow: []string{"scenarios/web-console/ui/src/**"},
+		},
+		"execute/command-center-foo": {
+			Status:          backlog.StatusBacklog,
+			AcceptanceAllow: []string{"scenarios/command-center/**"},
+		},
+		"idea/untargeted": {
+			Status: backlog.StatusBacklog,
+		},
+	}}
+	svc := NewService(store, loader)
+
+	seed := func(name string, items []string) {
+		if _, err := svc.Create(CreateRequest{Name: name, Title: name, Items: items}); err != nil {
+			t.Fatalf("seed %s: %v", name, err)
+		}
+	}
+	seed("audio-platform", []string{"execute/web-console-audio", "fix/web-console-tts"})
+	seed("cc-foundation", []string{"execute/command-center-foo"})
+	seed("no-targets", []string{"idea/untargeted"})
+
+	return NewHandler(svc)
+}
+
+func TestHandler_List_PopulatesTargetScenarios(t *testing.T) {
+	h := setupScenarioFilterHandler(t)
+
+	rec := httptest.NewRecorder()
+	h.List(rec, requestWithVars("GET", "/api/v1/initiatives", nil, nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp struct {
+		Items []InitiativeWithRollup `json:"items"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(resp.Items) != 3 {
+		t.Fatalf("expected 3 initiatives, got %d", len(resp.Items))
+	}
+
+	byName := make(map[string]InitiativeWithRollup, len(resp.Items))
+	for _, item := range resp.Items {
+		byName[item.Initiative.Name] = item
+	}
+
+	if got := byName["audio-platform"].TargetScenarios; len(got) != 1 || got[0] != "web-console" {
+		t.Errorf("audio-platform target_scenarios = %v, want [web-console]", got)
+	}
+	if got := byName["cc-foundation"].TargetScenarios; len(got) != 1 || got[0] != "command-center" {
+		t.Errorf("cc-foundation target_scenarios = %v, want [command-center]", got)
+	}
+	if got := byName["no-targets"].TargetScenarios; len(got) != 0 {
+		t.Errorf("no-targets target_scenarios = %v, want empty", got)
+	}
+}
+
+func TestHandler_List_ScenarioFilter_Single(t *testing.T) {
+	h := setupScenarioFilterHandler(t)
+
+	rec := httptest.NewRecorder()
+	h.List(rec, requestWithVars("GET", "/api/v1/initiatives?scenario=web-console", nil, nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp struct {
+		Items []InitiativeWithRollup `json:"items"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(resp.Items) != 1 {
+		t.Fatalf("expected 1 initiative, got %d", len(resp.Items))
+	}
+	if resp.Items[0].Initiative.Name != "audio-platform" {
+		t.Errorf("expected audio-platform, got %q", resp.Items[0].Initiative.Name)
+	}
+}
+
+func TestHandler_List_ScenarioFilter_MultipleCSV(t *testing.T) {
+	h := setupScenarioFilterHandler(t)
+
+	rec := httptest.NewRecorder()
+	h.List(rec, requestWithVars("GET", "/api/v1/initiatives?scenario=web-console,command-center", nil, nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp struct {
+		Items []InitiativeWithRollup `json:"items"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(resp.Items) != 2 {
+		t.Fatalf("expected 2 initiatives, got %d", len(resp.Items))
+	}
+	names := map[string]bool{}
+	for _, it := range resp.Items {
+		names[it.Initiative.Name] = true
+	}
+	if !names["audio-platform"] || !names["cc-foundation"] {
+		t.Errorf("expected audio-platform and cc-foundation, got %v", names)
+	}
+}
+
+func TestHandler_List_ScenarioFilter_NoMatches(t *testing.T) {
+	h := setupScenarioFilterHandler(t)
+
+	rec := httptest.NewRecorder()
+	h.List(rec, requestWithVars("GET", "/api/v1/initiatives?scenario=nonexistent-scenario", nil, nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 (empty list), got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp struct {
+		Items []InitiativeWithRollup `json:"items"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(resp.Items) != 0 {
+		t.Errorf("expected 0 initiatives for unknown scenario, got %d", len(resp.Items))
+	}
+}
+
+func TestHandler_List_ScenarioFilter_EmptyValueIgnored(t *testing.T) {
+	h := setupScenarioFilterHandler(t)
+
+	// Empty value should behave as no filter.
+	rec := httptest.NewRecorder()
+	h.List(rec, requestWithVars("GET", "/api/v1/initiatives?scenario=", nil, nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+
+	var resp struct {
+		Items []InitiativeWithRollup `json:"items"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(resp.Items) != 3 {
+		t.Errorf("empty scenario filter should return all, got %d", len(resp.Items))
+	}
+}
+
 func TestHandler_AddItems_InvalidFormat(t *testing.T) {
 	h := setupTestHandler(t)
 

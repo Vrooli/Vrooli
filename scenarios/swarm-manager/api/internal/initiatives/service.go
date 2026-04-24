@@ -8,6 +8,7 @@ import (
 
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/dispatch"
+	"swarm-manager/internal/pathutil"
 )
 
 // ErrValidation wraps user-correctable validation failures from Create/Update
@@ -167,9 +168,9 @@ func (s *Service) GetContext(name string) (*InitiativeContext, error) {
 	if err != nil {
 		return nil, err
 	}
-	rollup, err := s.ComputeRollup(init)
-	if err != nil {
-		return nil, fmt.Errorf("compute rollup for %q: %w", name, err)
+	rollup, scenarios := s.aggregateInitiativeData(init)
+	if rollup == nil {
+		rollup = &RollupStatus{}
 	}
 
 	items := make([]ContextItem, 0, len(init.Items))
@@ -232,6 +233,7 @@ func (s *Service) GetContext(name string) (*InitiativeContext, error) {
 		Items:                 items,
 		UpstreamInitiatives:   upstream,
 		DownstreamInitiatives: downstream,
+		TargetScenarios:       scenarios,
 	}, nil
 }
 
@@ -251,7 +253,8 @@ func (s *Service) Get(name string) (*InitiativeWithRollup, error) {
 	}, nil
 }
 
-// List returns all initiatives with their rollup status.
+// List returns all initiatives with their rollup status and the deduped
+// scenarios targeted by each initiative's member items.
 func (s *Service) List() ([]InitiativeWithRollup, error) {
 	initiatives, err := s.store.LoadAll()
 	if err != nil {
@@ -259,14 +262,14 @@ func (s *Service) List() ([]InitiativeWithRollup, error) {
 	}
 	result := make([]InitiativeWithRollup, 0, len(initiatives))
 	for i := range initiatives {
-		rollup, rollupErr := s.ComputeRollup(&initiatives[i])
-		if rollupErr != nil {
-			// Use empty rollup on error rather than failing the list.
+		rollup, scenarios := s.aggregateInitiativeData(&initiatives[i])
+		if rollup == nil {
 			rollup = &RollupStatus{}
 		}
 		result = append(result, InitiativeWithRollup{
-			Initiative: initiatives[i],
-			Rollup:     *rollup,
+			Initiative:      initiatives[i],
+			Rollup:          *rollup,
+			TargetScenarios: scenarios,
 		})
 	}
 	return result, nil
@@ -511,9 +514,20 @@ func (s *Service) Replace(init Initiative) error {
 // ComputeRollup loads each referenced backlog item and aggregates status
 // counts. Items that fail to load are counted as pending.
 func (s *Service) ComputeRollup(init *Initiative) (*RollupStatus, error) {
+	rollup, _ := s.aggregateInitiativeData(init)
+	return rollup, nil
+}
+
+// aggregateInitiativeData loads each referenced backlog item once and returns
+// both the rollup and the deduped list of scenarios targeted by the item's
+// acceptance_allow globs. Items that fail to load are counted as pending and
+// contribute no scenarios.
+func (s *Service) aggregateInitiativeData(init *Initiative) (*RollupStatus, []string) {
 	rollup := &RollupStatus{
 		Total: len(init.Items),
 	}
+	seen := make(map[string]struct{})
+	var scenarios []string
 	for _, ref := range init.Items {
 		parts := strings.SplitN(ref, "/", 2)
 		if len(parts) != 2 {
@@ -543,8 +557,14 @@ func (s *Service) ComputeRollup(init *Initiative) (*RollupStatus, error) {
 		if item.ArchivedAt != nil {
 			rollup.Archived++
 		}
+		for _, name := range pathutil.ScenariosFromGlobs(item.AcceptanceAllow) {
+			if _, ok := seen[name]; !ok {
+				seen[name] = struct{}{}
+				scenarios = append(scenarios, name)
+			}
+		}
 	}
-	return rollup, nil
+	return rollup, scenarios
 }
 
 // AddItems appends items to an initiative, deduplicating. Each item must be

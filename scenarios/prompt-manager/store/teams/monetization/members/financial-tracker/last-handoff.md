@@ -11,6 +11,7 @@
 - No stale inputs (file has never been populated).
 
 ### Snapshot summary
+- No change since 2026-04-23. All fields unchanged from prior heartbeat.
 - Cash: `pending-operator`
 - Monthly burn: `pending-operator` (all four categories unpopulated)
 - Monthly revenue: 0 `aspirational` (no subscriptions shipped; services not active)
@@ -19,16 +20,16 @@
 - Time allocation: product `pending-operator` / services 0% `not-applicable-pre-launch` / ops `pending-operator`
 
 ### Material deltas since last snapshot
-- First heartbeat — no prior snapshot. No deltas computable.
+- No change since 2026-04-23. `operator-inputs.json::lastUpdatedAt` is still null; no new subscription, services, or infra signals. Quiet-heartbeat stop condition invoked.
 
 ### Flags raised
-- `operator-inputs-unpopulated` (structural flag, not one of the three framework-level flags; pointed at the operator's to-do list, not at a framework breach)
+- `operator-inputs-unpopulated` (unchanged structural flag; not a framework-level breach)
 - services-trap-warning: not-applicable-pre-launch
 - runway-warning: pending-operator (cannot compute)
 - assumption-drift: none
 
 ### Decisions raised this heartbeat
-- none. No data yet to justify any of the six owned contexts. Team queue: 0 pending (well under 12-decision ceiling).
+- none. No new data; team queue remains 0 pending (far below 12-decision ceiling). Own-context cap 0/3.
 
 ### Assumptions checked
 - Assumption 1 (Tier 2 majority within 12 mo of Tier 2 offering): still holds — no data
@@ -44,4 +45,4 @@
 - Gateway token cost auto-aggregation → API gateway (Tier 2 prereq); today bundled into `monthlyBurn.aiApi`
 
 ### Knowledge entry written
-- topic: `ledger-snapshot-2026-04-23` (id: `knw-1776967259105788561`, no prior entry to supersede)
+- topic: `ledger-snapshot-2026-04-24` (id: `knw-1777053653472379841`; supersedes `knw-1776967259105788561`)

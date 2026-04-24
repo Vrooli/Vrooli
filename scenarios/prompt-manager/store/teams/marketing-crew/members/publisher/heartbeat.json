@@ -5,7 +5,14 @@
   "agentId": "publisher",
   "enabled": true,
   "schedule": "0 16 * * *",
-  "revision": 3,
+  "lastExecution": {
+    "startedAt": "2026-04-24T20:00:00Z",
+    "endedAt": "2026-04-24T20:02:10Z",
+    "status": "completed",
+    "runId": "2741ef02-8788-4416-8d8d-e57dbca30892",
+    "logPath": "../store/teams/marketing-crew/members/publisher/logs/2026-04-24T20-00-00Z.log"
+  },
+  "revision": 8,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-04-23T21:23:07Z"
+  "updatedAt": "2026-04-24T20:02:10Z"
 }

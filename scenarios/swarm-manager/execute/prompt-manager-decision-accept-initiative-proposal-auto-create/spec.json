@@ -1,0 +1,17 @@
+{
+  "acceptance_allow": [
+    "scenarios/prompt-manager/**",
+    "scenarios/swarm-manager/**"
+  ],
+  "created": "2026-04-24T19:54:33Z",
+  "description": "Decisions with `context: initiative-proposal` that reach accepted status describe an initiative to be created. Today the operator must run a separate `swarm-manager initiatives create` with hand-transcribed name / title / description / priority. Two problems: (1) two CLI calls for the most common decision outcome, and (2) the hand-transcription loses fidelity with what the decision actually approved. Add: on decision-accept where context=initiative-proposal, offer (via prompt or --auto-create-initiative flag) to construct the initiative directly from the decision's description/options/rationale and an initiative-metadata block on the decision itself. Workflow: decision-add for initiative-proposal context includes structured initiative metadata (name, priority, depends_on); decision-accept triggers the downstream create. Surfaced 2026-04-24 walk creating web-console-readiness; required operator to re-author everything in a separate JSON payload.",
+  "effort": "M",
+  "initiative": "prompt-manager-decision-workflow-polish",
+  "kind": "execute",
+  "name": "prompt-manager-decision-accept-initiative-proposal-auto-create",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [],
+  "title": "Accepting an initiative-proposal decision should auto-create the initiative",
+  "updated": "2026-04-24T19:54:33Z"
+}

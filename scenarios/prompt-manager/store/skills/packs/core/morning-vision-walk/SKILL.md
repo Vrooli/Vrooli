@@ -58,6 +58,8 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 
 **Do not read the prep deliverable verbatim.** Use it as source material to have a natural conversation. Synthesize, prioritize, and present information conversationally.
 
+**Check for a walk checkpoint.** If `last-handoff.md` contains a `## Walk Checkpoint` section, the previous walk diverged mid-session and did not complete. Before starting Phase 1, summarize the checkpoint to the user (phase left at, what was covered, what's pending, divergence scope + whether it resolved) and offer to resume from the pending phase rather than start fresh. See Section 5's "Explicit Divergence" pattern for how checkpoints are written and consumed.
+
 ---
 
 ### **4. The Process**
@@ -376,6 +378,36 @@ This file is generated daily at 5:00 AM by the vision-walk-prep agent and contai
 | User says "let's brainstorm" or starts ideating | Jump to Phase 6 or 7 regardless of current phase |
 | User says "I need to go" or "let's wrap up" | Jump to Phase 9 |
 | User brings up something from a later phase early | Handle it now, mark that phase as partially complete |
+| User proposes same-day execution of a discovered improvement | Evaluate Explicit Divergence criteria (below); if met, write checkpoint and diverge |
+
+#### **Explicit Divergence**
+
+The walk's standard shape is *triage now, capture ideas, defer action to Phase 8*. That works when discoveries are small. But sometimes a phase surfaces something important enough that same-day execution beats next-day backlog creation — the operator and agent still have full mental context, and deferring would force a future agent to reconstruct it from cold backlog entries.
+
+For those cases, the walk supports an **Explicit Divergence**: leave the walk mid-session to plan/execute the discovery, then resume the walk later (same day or next day's prep).
+
+**Criteria (both required):**
+- **Mutual agreement** — operator and agent both say yes. Not one-sided. Agent may *propose* divergence but must not unilaterally abandon phases.
+- **Bounded scope** — write the acceptance criterion for the divergence before leaving. Vague scope ("let's look into it") does not qualify; "plan is authored and ready for handoff" or "item X is merged and scenario restarts cleanly" does.
+
+**No frequency guardrail.** If the walk regularly produces important-enough-to-act-on discoveries, that means the walk is working. Do not discourage divergence on the basis of "we diverged recently."
+
+**Checkpoint protocol:**
+1. Before leaving the walk, append a `## Walk Checkpoint (<ISO-timestamp with offset>)` section to `scenarios/prompt-manager/store/teams/director-swarm/members/vision-walk-prep/last-handoff.md`.
+2. The checkpoint must contain, in this order:
+   - **Status line** — "Walk diverged mid-Phase-N by mutual agreement to …".
+   - **Phases covered so far** — one bullet per completed/partial phase with the material outcome.
+   - **Phases pending on resume** — one bullet per remaining phase with any relevant pointers from the prep deliverable.
+   - **Process frictions captured so far** — numbered list, ready to file in Phase 8 when the walk resumes.
+   - **Divergence scope (acceptance criterion)** — explicit pass/fail condition for when the divergence is complete.
+   - **Resume protocol** — "re-read this file, skip already-covered phases, pick up at Phase N, re-evaluate <any decisions affected by the divergence>".
+3. The `vision-walk-prep` agent preserves the `## Walk Checkpoint` section verbatim when regenerating `last-handoff.md` at 5:00 AM, until the walk resumes and the skill removes it.
+
+**Resume protocol (also in Prerequisites):**
+- At Phase 1 of any walk, check for a `## Walk Checkpoint` section. If present, summarize it to the operator and offer to resume. If they accept: skip covered phases, pick up from the stated resume point. If they decline (fresh walk wanted): delete the checkpoint section and proceed normally, noting that pending items from the prior walk may now be surfaced in fresh prep.
+- When a resumed walk reaches Phase 9 (Wrap-up), remove the `## Walk Checkpoint` section as the final action so tomorrow's walk starts clean.
+
+**When divergence produces artifacts (plans, merged PRs, backlog items):** cite them by path or ID in the checkpoint's Status line so resume knows what already shipped and does not double-file in Phase 8.
 
 #### **Energy Management**
 
@@ -421,8 +453,8 @@ This skill covers the **daily strategic sync ritual** — from triage through br
 
 When running a Morning Vision Walk, you **must**:
 
-1. Read the prep deliverable before starting (or note it's unavailable)
-2. Cover all 11 phases in order — 1, 2, 3, 4, 5, 5.3, 5.5, 6, 7, 8, 9 (skipping is fine if a section is empty, but acknowledge it)
+1. Read the prep deliverable before starting (or note it's unavailable); if it contains a `## Walk Checkpoint` section, offer to resume before starting fresh (see Prerequisites + Section 5 "Explicit Divergence")
+2. Cover all 11 phases in order — 1, 2, 3, 4, 5, 5.3, 5.5, 6, 7, 8, 9 (skipping is fine if a section is empty, but acknowledge it; Explicit Divergence may exit the walk early per Section 5 — resume under the checkpoint protocol instead of treating remaining phases as skipped)
 3. Execute decisions the user approves via CLI commands
 4. Create backlog items for actionable ideas via swarm-manager CLI
 5. Write knowledge entries for chore audit topics discussed (for next walk's continuity)
