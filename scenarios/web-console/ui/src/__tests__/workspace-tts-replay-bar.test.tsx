@@ -174,10 +174,23 @@ vi.mock("../components/TerminalHeader", () => ({
 }));
 
 vi.mock("../components/AudioPlayerBar", () => ({
-  default: vi.fn(({ onResume, onStop }: { onResume: () => void; onStop: () => void }) => (
+  default: vi.fn(({
+    onResume,
+    onStop,
+    isSummarized,
+    onToggleSummarized,
+  }: {
+    onResume: () => void;
+    onStop: () => void;
+    isSummarized?: boolean;
+    onToggleSummarized?: (useSummarized: boolean) => void;
+  }) => (
     <div data-testid="audio-player-bar">
       <button data-testid="replay-resume" onClick={onResume}>Resume</button>
       <button data-testid="replay-stop" onClick={onStop}>Stop</button>
+      <span data-testid="tts-mode-control">{isSummarized ? "Summarized" : "Original"}</span>
+      <button data-testid="tts-mode-option-original" onClick={() => onToggleSummarized?.(false)}>Original</button>
+      <button data-testid="tts-mode-option-active" onClick={() => onToggleSummarized?.(true)}>Summarized</button>
     </div>
   )),
 }));
@@ -338,7 +351,49 @@ describe("Workspace TTS replay bar", () => {
       SESSION_ID,
       testEvent.text,
       testEvent.speechParagraphs,
-      { eventId: testEvent.id },
+      { eventId: testEvent.id, version: "active" },
+    );
+  });
+
+  it("toggling to Original updates the bar label immediately and re-speaks the original text", () => {
+    // Event that has been summarized and still has the original available.
+    const summarizedEvent: ConversationEvent = {
+      ...testEvent,
+      id: "evt-002",
+      summarized: true,
+      speechParagraphs: ["Short summary."],
+      originalSpeechParagraphs: ["Original paragraph one.", "Original paragraph two."],
+    };
+    mockStoreState.panes = [{ sessionId: SESSION_ID, name: "/bin/bash", headerColor: "transparent" }];
+    mockStoreState.activePane = SESSION_ID;
+    mockStoreState.autoTtsEnabled = true;
+    mockConversationSessions[SESSION_ID] = { events: [summarizedEvent] };
+
+    render(<Workspace />);
+
+    act(() => {
+      captured.onTtsSpeakingChange?.(true);
+      captured.onSpeakingEventChange?.(summarizedEvent.id);
+    });
+
+    // The bar initially labels playback as "Summarized" because a summary
+    // exists and the default playback version is active.
+    const modeBtn = screen.getByTestId("tts-mode-control");
+    expect(modeBtn.textContent).toMatch(/Summarized/);
+
+    // Open the dropdown and pick Original.
+    fireEvent.click(modeBtn);
+    fireEvent.click(screen.getByTestId("tts-mode-option-original"));
+
+    // Label must flip immediately (this is the bug — it used to stay "Summarized").
+    expect(screen.getByTestId("tts-mode-control").textContent).toMatch(/Original/);
+
+    // Re-speak must have been called with the original paragraphs + version.
+    expect(mockSpeakTextOnPane).toHaveBeenCalledWith(
+      SESSION_ID,
+      summarizedEvent.text,
+      summarizedEvent.originalSpeechParagraphs,
+      { eventId: summarizedEvent.id, version: "original" },
     );
   });
 

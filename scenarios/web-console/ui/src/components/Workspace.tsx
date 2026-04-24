@@ -574,6 +574,11 @@ export default function Workspace() {
 
   // --- Messages View TTS controls ---
   const [activeSpeakingEventId, setActiveSpeakingEventId] = useState<string | null>(null);
+  // Which version (summarized "active" vs "original") is currently playing in
+  // the global AudioPlayerBar. We need explicit state for this because the
+  // event's persisted `summarized` flag only means "a summary exists" — it
+  // does not reflect which variant is currently in the speakers.
+  const [activePlaybackVersion, setActivePlaybackVersion] = useState<"active" | "original">("active");
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summarizeLevel, setSummarizeLevel] = useState<SummarizationLevel>("moderate");
   const [summarizeError, setSummarizeError] = useState<SummarizeErrorState | null>(null);
@@ -666,6 +671,9 @@ export default function Workspace() {
     const texts = eventsFromHere.flatMap((e) => e.speechParagraphs?.length ? e.speechParagraphs : [e.text]);
     const ids = eventsFromHere.map((e) => e.id);
     setActiveSpeakingEventId(ids[0] ?? null);
+    // A "read from here" sequence always plays the current speechParagraphs
+    // (which is the summarized version when a summary exists).
+    setActivePlaybackVersion("active");
     // Track the last event in the sequence for the persistent replay bar
     const lastId = ids[ids.length - 1] ?? null;
     if (lastId) { setLastTtsEventId(lastId); setLastTtsPaneId(sessionId); }
@@ -689,6 +697,7 @@ export default function Workspace() {
     setActiveSpeakingEventId(eventId);
     setLastTtsEventId(eventId);
     setLastTtsPaneId(sessionId);
+    setActivePlaybackVersion(opts?.version ?? "active");
     speakTextOnPane(sessionId, text, paragraphs, { eventId, version: opts?.version });
   }, [speakTextOnPane]);
 
@@ -1237,6 +1246,10 @@ export default function Workspace() {
           const hasOriginal = (activeEvent?.summarized ?? false) &&
             (activeEvent?.originalSpeechParagraphs?.length ?? 0) > 0;
           const canRequestSummarize = !!(activeEvent && activeEvent.role === "assistant");
+          // "Summarized" in the bar means the summarized variant is currently
+          // playing — which requires both that a summary exists AND that the
+          // user/auto-speak has it selected as the active playback version.
+          const isPlayingSummarized = (activeEvent?.summarized ?? false) && activePlaybackVersion === "active";
           return (
             <AudioPlayerBar
               isPaused={pb.isPaused}
@@ -1245,19 +1258,26 @@ export default function Workspace() {
               playbackRate={pb.playbackRate}
               volume={pb.volume}
               capabilities={pb.capabilities}
-              isSummarized={activeEvent?.summarized ?? false}
+              isSummarized={isPlayingSummarized}
               hasOriginalVersion={hasOriginal}
               canSummarize={canRequestSummarize}
               isSummarizing={isSummarizing}
               currentLevel={summarizeLevel}
               onPause={handleTtsPause}
               onResume={isReplayMode ? () => {
-                // Replay the last TTS event
+                // Replay the last TTS event — preserve whichever variant the
+                // user last had selected (active vs original).
                 if (activeEvent && store.activePane) {
-                  const paragraphs = activeEvent.speechParagraphs?.length
-                    ? activeEvent.speechParagraphs
-                    : [activeEvent.text];
-                  speakTextOnPane(store.activePane, activeEvent.text, paragraphs, { eventId: activeEvent.id });
+                  const useOriginal = activePlaybackVersion === "original" && (activeEvent.originalSpeechParagraphs?.length ?? 0) > 0;
+                  const paragraphs = useOriginal
+                    ? (activeEvent.originalSpeechParagraphs as string[])
+                    : (activeEvent.speechParagraphs?.length
+                      ? activeEvent.speechParagraphs
+                      : [activeEvent.text]);
+                  speakTextOnPane(store.activePane, activeEvent.text, paragraphs, {
+                    eventId: activeEvent.id,
+                    version: useOriginal ? "original" : "active",
+                  });
                 }
               } : handleTtsResume}
               onSeek={handleTtsSeek}
@@ -1267,10 +1287,14 @@ export default function Workspace() {
                 // In replay mode, stop dismisses the bar
                 setLastTtsEventId(null);
                 setLastTtsPaneId(null);
+                setActivePlaybackVersion("active");
               }}
               onToggleSummarized={hasOriginal && activeEvent && store.activePane ? (useSummarized) => {
                 const activePaneId = store.activePane;
                 if (!activePaneId) return;
+                // Flip UI state first so the label updates immediately, even
+                // if the synth call is still in flight.
+                setActivePlaybackVersion(useSummarized ? "active" : "original");
                 const paragraphs = useSummarized
                   ? activeEvent.speechParagraphs
                   : (activeEvent.originalSpeechParagraphs ?? activeEvent.speechParagraphs);
@@ -1305,6 +1329,7 @@ export default function Workspace() {
                       useConversationStore.setState({
                         sessions: { ...convState.sessions, [sid]: { ...session, events: updatedEvents } },
                       });
+                      setActivePlaybackVersion("active");
                       speakTextOnPane(sid, activeEvent.text, res.speechParagraphs, { eventId: eid, version: "active" });
                     }
                     // Successful summarize clears any lingering error for this event.
