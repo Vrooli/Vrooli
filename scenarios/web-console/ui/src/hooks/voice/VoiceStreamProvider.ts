@@ -10,7 +10,7 @@
 // Chunks are buffered in pendingChunks until the WebSocket is ready.
 
 import { transcribeAudioWithRetry, buildVoiceStreamWsUrl } from "../../lib/api";
-import type { TranscriptionProvider } from "./types";
+import type { LastTurnAudio, TranscriptionProvider } from "./types";
 import { AUDIO_BITRATE, STREAM_CHUNK_INTERVAL_MS, WHISPER_FAILED_SENTINEL, computeFinalTimeout } from "./types";
 
 export class VoiceStreamProvider implements TranscriptionProvider {
@@ -26,8 +26,24 @@ export class VoiceStreamProvider implements TranscriptionProvider {
   /** Timestamp when stop() was called -- used to measure stop-to-final latency. */
   private stopTime = 0;
   private pendingChunks: ArrayBuffer[] = [];
-  /** All audio chunks collected for HTTP fallback if streaming fails entirely. */
+  /**
+   * All audio chunks collected for the current turn (every segment, accepted
+   * or rejected). Used for two purposes:
+   *   1. HTTP fallback if WebSocket streaming fails entirely.
+   *   2. Full-turn retention for the "Transcribe anyway" retry flow when
+   *      speaker verification rejects a segment — see `lastTurn` below.
+   * Cleared on each new `start()`.
+   */
   private allChunks: Blob[] = [];
+  /**
+   * Retained audio from the most recent completed turn. Snapshotted in
+   * `stop()` or `dispose()` so the hook can offer a bypass-filter retry
+   * after rejection. Released by `disposeLastTurn()` or the next `start()`.
+   * DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §9.1
+   */
+  private lastTurn: LastTurnAudio | null = null;
+  /** Mime type of retained audio (webm/opus or webm, set at MediaRecorder init). */
+  private lastTurnMimeType = "audio/webm";
   /** Running count of audio chunks sent via WebSocket. */
   private chunkCount = 0;
   /** Running total of bytes sent via WebSocket. */
@@ -57,6 +73,34 @@ export class VoiceStreamProvider implements TranscriptionProvider {
 
   getStream(): MediaStream | null {
     return this.stream;
+  }
+
+  getLastTurnAudio(): LastTurnAudio | null {
+    return this.lastTurn;
+  }
+
+  disposeLastTurn(): void {
+    this.lastTurn = null;
+  }
+
+  /**
+   * Build a retained `LastTurnAudio` from the currently-collected chunks.
+   * Called at turn end (stop or dispose) so the hook can offer a retry
+   * without requiring the user to re-record.
+   */
+  private snapshotLastTurn(): void {
+    if (this.allChunks.length === 0) {
+      this.lastTurn = null;
+      return;
+    }
+    const blob = new Blob(this.allChunks, { type: this.lastTurnMimeType });
+    const durationMs = Math.max(0, Date.now() - this.recordingStartTime);
+    this.lastTurn = {
+      blob,
+      mimeType: this.lastTurnMimeType,
+      durationMs,
+      capturedAt: Date.now(),
+    };
   }
 
   /** Send a segment-boundary signal to the backend, triggering a high-quality
@@ -299,7 +343,8 @@ export class VoiceStreamProvider implements TranscriptionProvider {
       console.info("[voice] getUserMedia took %dms", Date.now() - micStart);
     }
 
-    // Reset session state
+    // Reset session state. The new turn starts now; the previous turn's
+    // retained audio is replaced (single-slot retention).
     this.wsUrl = buildVoiceStreamWsUrl(this.language);
     this.finalReceived = false;
     this.firstPartialLogged = false;
@@ -311,14 +356,16 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     this.allChunks = [];
     this.chunkCount = 0;
     this.totalBytesSent = 0;
+    this.lastTurn = null;
 
     // Start MediaRecorder IMMEDIATELY after mic acquisition.
     // Chunks are buffered in pendingChunks until the WebSocket connects.
     // This eliminates the audio gap between getUserMedia and WS open.
+    this.lastTurnMimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+      ? "audio/webm;codecs=opus"
+      : "audio/webm";
     this.mediaRecorder = new MediaRecorder(this.stream, {
-      mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-        ? "audio/webm;codecs=opus"
-        : "audio/webm",
+      mimeType: this.lastTurnMimeType,
       audioBitsPerSecond: AUDIO_BITRATE,
     });
     this.mediaRecorder.ondataavailable = (e) => {
@@ -328,8 +375,12 @@ export class VoiceStreamProvider implements TranscriptionProvider {
         // Keep a copy for HTTP fallback in case streaming fails entirely.
         this.allChunks.push(e.data);
         e.data.arrayBuffer().then((buf) => {
-          if (this.ws?.readyState === WebSocket.OPEN) {
-            this.ws.send(buf);
+          // Capture a local reference: the turn may have ended (and the WS
+          // reassigned) between when this microtask was queued and when it
+          // runs. Reading this.ws twice across the check + send would race.
+          const ws = this.ws;
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(buf);
           } else {
             // Buffer until WebSocket connects (or during reconnection)
             this.pendingChunks.push(buf);
@@ -379,6 +430,9 @@ export class VoiceStreamProvider implements TranscriptionProvider {
         if (this.ws?.readyState === WebSocket.OPEN) {
           this.ws.send(JSON.stringify({ type: "done" }));
         }
+        // Snapshot retained audio AFTER the final ondataavailable fires so the
+        // retained blob includes the last tail of the turn.
+        this.snapshotLastTurn();
         // When retainStream is true (low-latency mode), keep the stream alive
         // for re-use in subsequent recordings. The mic readiness module manages
         // the stream lifecycle instead.
@@ -393,6 +447,7 @@ export class VoiceStreamProvider implements TranscriptionProvider {
       if (this.ws?.readyState === WebSocket.OPEN) {
         this.ws.send(JSON.stringify({ type: "done" }));
       }
+      this.snapshotLastTurn();
       if (!this.retainStream) {
         this.stream?.getTracks().forEach((t) => t.stop());
         this.stream = null;
@@ -431,5 +486,8 @@ export class VoiceStreamProvider implements TranscriptionProvider {
     this.stream?.getTracks().forEach((t) => t.stop());
     this.stream = null;
     this.pendingChunks = [];
+    // Dispose is a full cleanup; drop retained audio too. The hook calls
+    // this when reclaiming the provider, not when ending a turn.
+    this.lastTurn = null;
   }
 }

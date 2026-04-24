@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -20,18 +19,6 @@ type RecoveryReport struct {
 	OrphanedMetadata int
 	OrphanedTmux     int
 }
-
-// sgrReset is an ANSI SGR reset sequence that clears all text attributes
-// (color, bold, underline, etc.). Prepended to replayed history so that
-// any dangling color state from a trimmed buffer doesn't bleed into the
-// reconnecting client's terminal.
-var sgrReset = []byte("\x1b[0m")
-
-// historyChunkSize is the maximum bytes sent per channel message when
-// replaying output history to a reconnecting client. Smaller chunks
-// prevent browser UI freezes during large history replays.
-// DOC: docs/concepts/ARCHITECTURE.md#history-replay-limitations
-const historyChunkSize = 64 * 1024 // 64 KB
 
 // tmux re-attach retry parameters. When the attach process dies but the tmux
 // session itself survives, we retry with exponential backoff before declaring
@@ -52,19 +39,6 @@ var (
 	// ErrPTYSpawnFailed wraps PTY creation failures. Maps to HTTP 500.
 	ErrPTYSpawnFailed = errors.New("PTY spawn failed")
 )
-
-// ClientInfo tracks per-client broadcast flow control for a subscribed
-// WebSocket connection. When the client's output channel is full, incoming
-// frames are coalesced into a pending buffer instead of being dropped.
-// The WebSocket output forwarder calls FlushPending after each successful
-// write to drain coalesced data back into the channel.
-type ClientInfo struct {
-	pending         []byte    // coalesced data awaiting consumer drain
-	pendingTrimmed  bool      // set when pending buffer was trimmed; triggers SIGWINCH after drain
-	CoalescedFrames int       // count of coalesced frames (observability)
-	NotifyCh        chan int  // receives cumulative coalesced count when threshold crossed
-	StateCh         chan bool // receives alt-buffer state on each transition (true=enter, false=exit)
-}
 
 // SubscribeResult holds the channels and metadata returned by Subscribe.
 // DOC: docs/concepts/ARCHITECTURE.md#terminal-history-caching
@@ -143,6 +117,16 @@ type Session struct {
 	// emitted by FlushPending's recovery path. Protected by s.mu.
 	lastSIGWINCHRecovery time.Time
 
+	// lastAltBufferTransition is the wall time of the most recent
+	// alt-buffer enter or exit observed on the PTY output stream.
+	// Used by maybeSIGWINCHRecovery to skip SIGWINCH during the
+	// brief non-alt windows between alt-buffer cycles of a TUI.
+	// Without this guard, Claude Code's footer gets redrawn into the
+	// pane's normal buffer during those windows and tmux captures it
+	// into scrollback, producing the "footer repeats when scrolling"
+	// user-visible duplication. Protected by s.mu.
+	lastAltBufferTransition time.Time
+
 	// exitCh is closed when the PTY process exits, signaling the session owner.
 	exitCh chan struct{}
 
@@ -168,13 +152,15 @@ type Session struct {
 	conversationDropLogged bool // log once per session when an event is dropped
 }
 
-// Write sends data to the PTY stdin. Thread-safe — the PTY reference may be
-// swapped during tmux re-attach.
-func (s *Session) Write(data []byte) (int, error) {
+// WriteInput delivers client-origin bytes to the PTY. Thread-safe —
+// the PTY reference may be swapped during tmux re-attach. The kind
+// parameter selects the delivery mechanism; see PTY.WriteInput and
+// InputKind for details.
+func (s *Session) WriteInput(data []byte, kind InputKind) error {
 	s.mu.Lock()
 	p := s.pty
 	s.mu.Unlock()
-	return p.Write(data)
+	return p.WriteInput(data, kind)
 }
 
 // ProbeReady blocks until the PTY pipeline for this session is confirmed to
@@ -186,13 +172,6 @@ func (s *Session) ProbeReady(ctx context.Context) error {
 	p := s.pty
 	s.mu.Unlock()
 	return p.ProbeReady(ctx)
-}
-
-// historyStart returns the byte offset of the first byte in the current
-// outputHistory buffer. Bytes before this offset have been trimmed.
-// Must be called with s.mu held.
-func (s *Session) historyStart() int64 {
-	return s.totalOutputBytes - int64(len(s.outputHistory))
 }
 
 // Subscribe returns a SubscribeResult containing channels for receiving PTY
@@ -350,275 +329,6 @@ func (s *Session) ExitCode() int {
 	return s.processExitCode
 }
 
-func (s *Session) appendHistory(data []byte) {
-	if len(data) == 0 {
-		return
-	}
-	s.totalOutputBytes += int64(len(data))
-	if s.offlineBufferMax <= 0 {
-		return
-	}
-
-	if len(data) >= s.offlineBufferMax {
-		trimmed := data[len(data)-s.offlineBufferMax:]
-		s.outputHistory = append([]byte(nil), snapToCleanBoundary(trimmed)...)
-		if !s.historyTrimmed {
-			s.historyTrimmed = true
-			log.Printf("session %s: output history trimmed to %d bytes", s.ID, s.offlineBufferMax)
-		}
-		return
-	}
-
-	combinedLen := len(s.outputHistory) + len(data)
-	if combinedLen <= s.offlineBufferMax {
-		s.outputHistory = append(s.outputHistory, data...)
-		return
-	}
-
-	trim := combinedLen - s.offlineBufferMax
-	remainder := append(append([]byte(nil), s.outputHistory[trim:]...), data...)
-	s.outputHistory = snapToCleanBoundary(remainder)
-	if !s.historyTrimmed {
-		s.historyTrimmed = true
-		log.Printf("session %s: output history trimmed to %d bytes", s.ID, s.offlineBufferMax)
-	}
-}
-
-// snapToCleanBoundary advances past any partial ANSI escape sequence at the
-// start of buf and, when possible, snaps forward to the first newline so
-// replayed history starts on a line boundary. This prevents reconnecting
-// clients from seeing garbage bytes from a mid-sequence trim.
-func snapToCleanBoundary(buf []byte) []byte {
-	if len(buf) == 0 {
-		return buf
-	}
-
-	// If the first byte is ESC, the sequence is intact (starts fresh).
-	// If it's NOT ESC but looks like mid-CSI-sequence parameter/intermediate/
-	// final bytes, we're inside a truncated sequence.
-	start := 0
-	if buf[0] != 0x1b && looksLikeMidSequence(buf) {
-		// Skip the CSI introducer '[' if present (it follows the truncated ESC).
-		if buf[0] == '[' {
-			start = 1
-		}
-		// Scan past parameter bytes (0x30-0x3F) and intermediate bytes (0x20-0x2F)
-		// until we hit the final byte (0x40-0x7E) that terminates the sequence.
-		for start < len(buf) {
-			b := buf[start]
-			start++
-			if b >= 0x40 && b <= 0x7E {
-				break
-			}
-		}
-	}
-
-	// Try to advance to the first newline for a clean line boundary,
-	// but only if the newline is within the first 256 bytes to avoid
-	// discarding too much history.
-	const maxNewlineScan = 256
-	scanLimit := start + maxNewlineScan
-	if scanLimit > len(buf) {
-		scanLimit = len(buf)
-	}
-	if nlIdx := bytes.IndexByte(buf[start:scanLimit], '\n'); nlIdx >= 0 {
-		start += nlIdx + 1
-	}
-
-	if start >= len(buf) {
-		return nil
-	}
-	return buf[start:]
-}
-
-// looksLikeMidSequence heuristically detects whether buf starts inside a
-// truncated ANSI CSI escape sequence. It requires evidence of a real CSI
-// sequence (a final byte 0x40-0x7E within a short window) to avoid false
-// positives on normal text starting with digits, spaces, or punctuation.
-func looksLikeMidSequence(buf []byte) bool {
-	if len(buf) == 0 {
-		return false
-	}
-	// '[' following a trimmed ESC is the clear CSI indicator.
-	if buf[0] == '[' {
-		return true
-	}
-	// Parameter bytes (0x30-0x3F: digits, semicolons) are only mid-sequence
-	// if followed by a CSI final byte (0x40-0x7E) within a short window.
-	// This prevents false positives on lines starting with numbers or punctuation.
-	if buf[0] >= 0x30 && buf[0] <= 0x3F {
-		limit := 8
-		if limit > len(buf) {
-			limit = len(buf)
-		}
-		for i := 0; i < limit; i++ {
-			b := buf[i]
-			if b >= 0x40 && b <= 0x7E {
-				return true // Found CSI final byte — this is mid-sequence
-			}
-			if b < 0x20 || b > 0x3F {
-				return false // Non-parameter byte before final — not mid-sequence
-			}
-		}
-		return false // No final byte found in window — not mid-sequence
-	}
-	// Space (0x20) and intermediate bytes (0x20-0x2F) alone are NOT
-	// treated as mid-sequence — they are too common as regular text.
-	return false
-}
-
-// broadcast fans out PTY output to all connected WebSocket clients while
-// preserving bounded output history for reconnect/reload replay.
-// Slow clients that can't keep up have frames coalesced into a pending buffer
-// instead of being dropped. The WebSocket output forwarder calls FlushPending
-// after each successful write to drain coalesced data back into the channel.
-func (s *Session) broadcast(data []byte) {
-	// Strip escape sequences the browser xterm.js emulator mishandles
-	// (DECSET/DECRST/DECRQM for mode 2026 — see sanitizeForClient for the
-	// full rationale) before the data hits the history buffer or any WS
-	// client. Without this, a single Claude Code startup burst kills the
-	// xterm parser and the entire terminal goes blank.
-	data = sanitizeForClient(data)
-	if len(data) == 0 {
-		return
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	// Update alt-buffer awareness before deciding whether to SIGWINCH-
-	// recover after coalesce trims. Tracker runs on the sanitized stream;
-	// the alt-buffer toggles (1049/1047/47) are outside the 2026 set that
-	// sanitizeForClient strips.
-	altTransitioned := s.ptyState.Observe(data)
-	s.appendHistory(data)
-	if len(s.clients) == 0 {
-		return
-	}
-	// Copy to avoid data races since buf is reused by readLoop.
-	cp := make([]byte, len(data))
-	copy(cp, data)
-	newState := s.ptyState.IsAltBuffer()
-	for ch, info := range s.clients {
-		s.deliver(ch, info, cp)
-		if altTransitioned {
-			select {
-			case info.StateCh <- newState:
-			default:
-				// Channel is full; forwarder is behind on state drains.
-				// The forwarder drains with non-blocking reads, so a
-				// dropped notification is recoverable: it will converge
-				// on the current value on the next transition.
-			}
-		}
-	}
-}
-
-// DOC: docs/internal/ERROR-SEMANTICS.md#sync-warning-coalescing-notification
-// deliver sends data to a client channel, coalescing into the pending buffer
-// when the channel is full. Must be called with s.mu held.
-func (s *Session) deliver(ch chan []byte, info *ClientInfo, data []byte) {
-	if len(info.pending) > 0 {
-		// Already coalescing — append to pending buffer.
-		info.pending = append(info.pending, data...)
-		info.CoalescedFrames++
-		// Cap pending at offlineBufferMax to prevent unbounded growth.
-		// Snap to a clean ANSI boundary so partial escape sequences don't
-		// corrupt the terminal when the coalesced data is flushed.
-		// DOC: docs/concepts/ARCHITECTURE.md#terminal-io
-		if s.offlineBufferMax > 0 && len(info.pending) > s.offlineBufferMax {
-			trimmed := info.pending[len(info.pending)-s.offlineBufferMax:]
-			trimmedClean := snapToCleanBoundary(trimmed)
-			// Prepend SGR reset so trimmed color-setting sequences don't
-			// bleed stale attributes into the client's terminal.
-			info.pending = make([]byte, 0, len(sgrReset)+len(trimmedClean))
-			info.pending = append(info.pending, sgrReset...)
-			info.pending = append(info.pending, trimmedClean...)
-			info.pendingTrimmed = true
-		}
-		s.notifyIfThreshold(info)
-		return
-	}
-	select {
-	case ch <- data:
-		// Sent immediately.
-	default:
-		// Channel full — start coalescing instead of dropping.
-		info.pending = append([]byte(nil), data...)
-		info.CoalescedFrames++
-		s.notifyIfThreshold(info)
-	}
-}
-
-// notifyIfThreshold sends a coalescing notification when the cumulative
-// count crosses the configured threshold. Must be called with s.mu held.
-func (s *Session) notifyIfThreshold(info *ClientInfo) {
-	if s.coalesceNotifyThreshold > 0 && info.CoalescedFrames%s.coalesceNotifyThreshold == 0 {
-		select {
-		case info.NotifyCh <- info.CoalescedFrames:
-		default:
-			// Notification already pending.
-		}
-	}
-}
-
-// FlushPending drains any coalesced output for the given client channel.
-// The WebSocket output forwarder calls this after each successful write
-// to resume normal per-frame delivery. Data is chunked at historyChunkSize
-// to prevent browser UI freezes from single large WebSocket messages.
-// DOC: docs/internal/SEAMS.md#3-domain--session-lifecycle
-func (s *Session) FlushPending(ch chan []byte) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	info, ok := s.clients[ch]
-	if !ok || len(info.pending) == 0 {
-		return
-	}
-	for len(info.pending) > 0 {
-		end := historyChunkSize
-		if end > len(info.pending) {
-			end = len(info.pending)
-		}
-		chunk := make([]byte, end)
-		copy(chunk, info.pending[:end])
-		select {
-		case ch <- chunk:
-			info.pending = info.pending[end:]
-		default:
-			return // Channel full mid-flush — keep remainder for next cycle
-		}
-	}
-	info.pending = nil
-	info.CoalescedFrames = 0
-	if info.pendingTrimmed {
-		info.pendingTrimmed = false
-		s.maybeSIGWINCHRecovery()
-	}
-}
-
-// maybeSIGWINCHRecovery decides whether to fire a SIGWINCH to the PTY
-// after a coalesce trim. The signal causes well-behaved shells and TUIs
-// to redraw, recovering from the trim. But when the foreground process
-// is in the alternate screen buffer (Claude Code, vim, tmux TUI, etc.),
-// a mid-render SIGWINCH races the TUI's own redraw and interleaves paint
-// output with the scrollback, visible to the user as duplicated status
-// lines (see terminal-session-rework-implementation-plan.md §4.2).
-//
-// This path is only safe when:
-//  1. We are NOT currently in an alternate screen buffer; AND
-//  2. It has been at least sigwinchCooldown since the last recovery.
-//
-// Must be called with s.mu held.
-func (s *Session) maybeSIGWINCHRecovery() {
-	if s.ptyState.IsAltBuffer() {
-		return
-	}
-	now := time.Now()
-	if s.sigwinchCooldown > 0 && now.Sub(s.lastSIGWINCHRecovery) < s.sigwinchCooldown {
-		return
-	}
-	s.lastSIGWINCHRecovery = now
-	_ = s.pty.SetSize(s.Cols, s.Rows)
-}
-
 // readLoop continuously reads PTY output and broadcasts to subscribers.
 // Each read is split at UTF-8 codepoint boundaries so that partial multi-byte
 // sequences are buffered and prepended to the next read, preventing JSON
@@ -670,7 +380,9 @@ func (s *Session) readLoop() {
 			// own panes.
 			if s.Backend != BackendPersistent {
 				if reply := generateAnsiResponses(data); len(reply) > 0 {
-					if _, werr := p.Write(reply); werr != nil {
+					// Server-origin reply; deliver as keystroke. For the
+					// standard backend this is just a pipe write.
+					if werr := p.WriteInput(reply, InputKindKeystroke); werr != nil {
 						log.Printf("session %s: ansi-responder write failed: %v", s.ID, werr)
 					}
 				}

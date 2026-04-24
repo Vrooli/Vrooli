@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -57,14 +58,181 @@ func (p *tmuxPTY) Read(buf []byte) (int, error) {
 	return p.ptmx.Read(buf)
 }
 
-func (p *tmuxPTY) Write(buf []byte) (int, error) {
+// WriteInput delivers bytes to the tmux pane using the kind-appropriate
+// mode-safe path. Writing to the attach PTY master directly (as the old
+// code did) is NOT safe for text input: tmux interprets those bytes as
+// CLIENT input, meaning any payload sent while the client is in
+// copy-mode / command-prompt / menu / prefix-pending is consumed as a
+// tmux command and never reaches the pane's running program. This was
+// the root cause of the long-standing "message is lost, Ctrl+C
+// unblocks it" bug.
+//
+//   - InputKindKeystroke: `tmux send-keys -t <session> -l -- <data>`.
+//     The `-l` (literal) flag tells tmux to deliver the bytes to the
+//     active pane's stdin verbatim, bypassing key-name lookup AND
+//     client-mode interpretation. This path handles arbitrary byte
+//     sequences including control characters.
+//     EXCEPTION: mouse-tracking CSI sequences (wheel scroll, click,
+//     drag) are intentionally routed through the attach PTY master so
+//     that the tmux client can interpret them at the client level
+//     (enter copy-mode on scroll, select text, etc.). Routing these
+//     via send-keys would deliver them to the pane's shell, which
+//     does not understand them, and mobile scroll would silently
+//     break. See isMouseTrackingSequence.
+//   - InputKindPaste: `tmux load-buffer -b <buf> -` (piped stdin) then
+//     `tmux paste-buffer -d -b <buf> -t <session>`. The `-d` flag
+//     deletes the buffer after paste so our per-session buffers don't
+//     accumulate. The buffer name is scoped per-session with a
+//     per-call counter to guarantee no cross-call collision.
+//
+// Both non-mouse branches surface tmux's stderr in the returned error
+// so the caller can forward it as stdin_ack.reason.
+func (p *tmuxPTY) WriteInput(data []byte, kind InputKind) error {
 	p.mu.Lock()
 	if p.closed {
 		p.mu.Unlock()
-		return 0, errPTYClosed
+		return errPTYClosed
 	}
+	sessionName := p.sessionName
+	ptmx := p.ptmx
 	p.mu.Unlock()
-	return p.ptmx.Write(buf)
+
+	if len(data) == 0 {
+		return nil
+	}
+
+	// Mouse-tracking CSI sequences (scroll wheel, click, drag) must
+	// reach the tmux client — not the pane's shell — so tmux can
+	// interpret them (enter copy-mode on wheel-up, select text on
+	// drag, etc.). Bypass the mode-aware send-keys path entirely for
+	// these. This preserves mobile scroll and desktop mouse-select in
+	// tmux-backed sessions. Paste payloads never qualify because the
+	// paste kind is only used for clipboard data, not xterm events.
+	if kind == InputKindKeystroke && isMouseTrackingSequence(data) {
+		if _, err := ptmx.Write(data); err != nil {
+			return fmt.Errorf("tmux mouse passthrough write: %w", err)
+		}
+		return nil
+	}
+
+	switch kind {
+	case InputKindPaste:
+		return p.deliverPaste(sessionName, data)
+	default:
+		return p.deliverKeystroke(sessionName, data)
+	}
+}
+
+// isMouseTrackingSequence returns true if data begins with an xterm
+// mouse-tracking CSI introducer. These must be delivered to the tmux
+// client (via the attach PTY master) rather than routed through
+// `send-keys` into the pane, because the client is what interprets
+// scroll / click / drag events. Two forms are recognized:
+//
+//   - X10 / VT200: `\x1b[M` followed by 3 encoding bytes.
+//   - SGR (mode 1006): `\x1b[<Cb;Cx;Cy{M|m}`.
+//
+// Arrow keys (`\x1b[A..D`) and function keys (`\x1b[11~`, etc.) do
+// NOT match — data[2] must be 'M' or '<'. URXVT mode is not emitted
+// by xterm.js and is not handled here; if we ever need it we can add
+// a digit-based introducer check.
+func isMouseTrackingSequence(data []byte) bool {
+	if len(data) < 3 {
+		return false
+	}
+	if data[0] != 0x1b || data[1] != '[' {
+		return false
+	}
+	return data[2] == 'M' || data[2] == '<'
+}
+
+// exitModeIfAny ensures the pane is NOT in copy-mode / command-prompt /
+// menu / any tmux mode before subsequent input is delivered. `send-keys
+// -l` and `paste-buffer` both respect the current client mode: if the
+// pane is in copy-mode, the bytes are interpreted as mode commands
+// rather than delivered to the pane's running program. This was the
+// root cause of the "Ctrl+C unblocks lost input" bug.
+//
+// We query `#{pane_in_mode}` first because `send-keys -X cancel`
+// returns a non-zero exit status and prints "not in a mode" when the
+// pane isn't in a mode, which would otherwise be surfaced as a
+// spurious stdin_ack.ok=false. Skipping the cancel when not needed is
+// also the hot path (no mode is the steady state).
+func (p *tmuxPTY) exitModeIfAny(sessionName string) error {
+	out, err := tmuxCmd("display-message", "-t", sessionName, "-p", "#{pane_in_mode}").Output()
+	if err != nil {
+		// If display-message fails the session likely died; surface
+		// it as a typed write failure via the caller.
+		return fmt.Errorf("tmux display-message: %w", err)
+	}
+	if strings.TrimSpace(string(out)) != "1" {
+		return nil
+	}
+	cancelCmd := tmuxCmd("send-keys", "-t", sessionName, "-X", "cancel")
+	if cancelOut, cancelErr := cancelCmd.CombinedOutput(); cancelErr != nil {
+		// Treat as fatal: if we can't exit the mode, subsequent input
+		// will be eaten by the mode. Better to surface the failure.
+		return fmt.Errorf("tmux send-keys -X cancel: %w (%s)",
+			cancelErr, strings.TrimSpace(string(cancelOut)))
+	}
+	return nil
+}
+
+// deliverKeystroke sends data via `tmux send-keys -t <target> -l --`.
+// Large keystroke payloads fall through to the paste-buffer path to
+// avoid argv size limits. Before delivery, any tmux mode on the pane
+// is cancelled so the bytes reach the running program rather than
+// being interpreted as mode commands.
+func (p *tmuxPTY) deliverKeystroke(sessionName string, data []byte) error {
+	// Oversized keystrokes (unusual but possible — e.g. voice
+	// transcription producing very long text) go through the paste
+	// path, which is buffer-limited only by tmux's own buffer cap,
+	// not by argv size. deliverPaste also cancels mode.
+	const maxArgvChunk = 64 * 1024
+	if len(data) > maxArgvChunk {
+		return p.deliverPaste(sessionName, data)
+	}
+	if err := p.exitModeIfAny(sessionName); err != nil {
+		return err
+	}
+	cmd := tmuxCmd("send-keys", "-t", sessionName, "-l", "--", string(data))
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("tmux send-keys failed: %w (%s)", err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+// tmuxPasteBufferSeq increments per call to produce unique buffer
+// names, avoiding collisions when paste calls overlap for the same
+// session (rare, but possible under test harness or retry paths).
+var tmuxPasteBufferSeq uint64
+
+// deliverPaste pipes data into a dedicated tmux buffer and then pastes
+// it into the session's pane. Before delivery, any tmux mode on the
+// pane is cancelled so the payload reaches the running program. The
+// `-d` flag on paste-buffer deletes the buffer after delivery so our
+// per-call buffers don't accumulate.
+func (p *tmuxPTY) deliverPaste(sessionName string, data []byte) error {
+	if err := p.exitModeIfAny(sessionName); err != nil {
+		return err
+	}
+
+	seq := atomic.AddUint64(&tmuxPasteBufferSeq, 1)
+	buf := fmt.Sprintf("wc-paste-%s-%d", sessionName, seq)
+
+	loadCmd := tmuxCmd("load-buffer", "-b", buf, "-")
+	loadCmd.Stdin = bytes.NewReader(data)
+	if out, err := loadCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("tmux load-buffer failed: %w (%s)", err, strings.TrimSpace(string(out)))
+	}
+
+	pasteCmd := tmuxCmd("paste-buffer", "-d", "-b", buf, "-t", sessionName)
+	if out, err := pasteCmd.CombinedOutput(); err != nil {
+		// Best-effort cleanup of the orphaned buffer; ignore errors.
+		_ = tmuxCmd("delete-buffer", "-b", buf).Run()
+		return fmt.Errorf("tmux paste-buffer failed: %w (%s)", err, strings.TrimSpace(string(out)))
+	}
+	return nil
 }
 
 // tmuxProbeReadyPollInterval is how often ProbeReady re-queries tmux for

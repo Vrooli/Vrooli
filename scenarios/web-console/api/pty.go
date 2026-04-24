@@ -13,13 +13,41 @@ import (
 	"github.com/creack/pty/v2"
 )
 
+// InputKind discriminates keystroke input (one or more bytes originating
+// from the xterm keyboard / toolbar) from pasted input (a clipboard
+// payload, which may be large and may include control bytes that a
+// mode-sensitive multiplexer must not interpret as navigation commands).
+//
+// For the standard PTY the distinction is cosmetic: both paths end at
+// the same `ptmx.Write`. For the tmux-backed PTY the distinction is
+// load-bearing: keystrokes route through `tmux send-keys -l --` so tmux
+// delivers them literally to the pane regardless of whether the client
+// is in copy-mode / command-prompt / menu / prefix-pending, and pastes
+// route through `tmux load-buffer` + `paste-buffer -d` which auto-exits
+// copy-mode and atomically delivers the payload without byte-by-byte
+// mode interpretation.
+type InputKind uint8
+
+const (
+	// InputKindKeystroke is the default for ordinary terminal input.
+	InputKindKeystroke InputKind = iota
+	// InputKindPaste is used for clipboard paste payloads originating
+	// from the context menu, native paste capture, or touch long-press
+	// paste. Tmux routes these through paste-buffer.
+	InputKindPaste
+)
+
 // DOC: docs/internal/SEAMS.md#pty-factory-seam-api
 // PTY represents a pseudo-terminal process with read/write, resize, and
 // lifecycle control. The default implementation wraps creack/pty; tests can
 // substitute a pipe-based fake via PTYFactory.
 type PTY interface {
 	Read(p []byte) (int, error)
-	Write(p []byte) (int, error)
+	// WriteInput delivers client-origin bytes to the underlying process.
+	// The kind parameter selects the delivery mechanism: see InputKind.
+	// Returns a typed error on failure (backend-specific); callers map
+	// the error to a stdin_ack.reason.
+	WriteInput(data []byte, kind InputKind) error
 	SetSize(cols, rows uint16) error
 	Close() error
 	Kill() error
@@ -57,9 +85,16 @@ type realPTY struct {
 	cmd  *exec.Cmd
 }
 
-func (p *realPTY) Read(buf []byte) (int, error)  { return p.ptmx.Read(buf) }
-func (p *realPTY) Write(buf []byte) (int, error) { return p.ptmx.Write(buf) }
-func (p *realPTY) Close() error                  { return p.ptmx.Close() }
+func (p *realPTY) Read(buf []byte) (int, error) { return p.ptmx.Read(buf) }
+
+// WriteInput writes bytes directly to the PTY master. For the standard
+// (non-tmux) backend, keystroke and paste are indistinguishable at the
+// kernel level — they end up in the same pipe either way.
+func (p *realPTY) WriteInput(data []byte, _ InputKind) error {
+	_, err := p.ptmx.Write(data)
+	return err
+}
+func (p *realPTY) Close() error { return p.ptmx.Close() }
 
 func (p *realPTY) SetSize(cols, rows uint16) error {
 	return pty.Setsize(p.ptmx, &pty.Winsize{Rows: rows, Cols: cols})

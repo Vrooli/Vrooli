@@ -13,6 +13,40 @@ import type { StartRecordingOpts } from "../hooks/useVoiceInput";
 import type { CommandSuggestion } from "../hooks/voice/types";
 import { slugify } from "../lib/slugify";
 import { useDraftPersistence } from "../hooks/useDraftPersistence";
+import { useHoldRepeat } from "../hooks/useHoldRepeat";
+
+/**
+ * Arrow keys are the only toolbar buttons with hold-to-repeat because users
+ * routinely need to scan through shell history, long command lines, and TUI
+ * views. Other toolbar buttons (Esc/Tab/Enter, modifiers) are one-shot
+ * actions where repeat would only cause accidental misfires.
+ */
+const ARROW_KEYS = new Set<string>([ARROW_UP.input, ARROW_DOWN.input, ARROW_LEFT.input, ARROW_RIGHT.input]);
+
+interface ArrowToolbarButtonProps {
+  keyDef: ToolbarKey;
+  onFire: (key: ToolbarKey) => void;
+  className: string;
+}
+
+/**
+ * A toolbar arrow button that fires on pointerdown and auto-repeats while
+ * held (via useHoldRepeat). Intentionally does NOT bind onClick — pointerdown
+ * already dispatches, and a parallel click handler would double-fire on tap.
+ */
+function ArrowToolbarButton({ keyDef, onFire, className }: ArrowToolbarButtonProps) {
+  const handlers = useHoldRepeat({ onFire: useCallback(() => onFire(keyDef), [onFire, keyDef]) });
+  return (
+    <button
+      data-testid={`toolbar-key-${slugify(keyDef.label)}`}
+      tabIndex={-1}
+      {...handlers}
+      className={className}
+    >
+      {keyDef.label}
+    </button>
+  );
+}
 
 // [REQ:P0-007a] Floating Toolbar Component
 // [REQ:P0-007b] Terminal Key/Chord Mapping
@@ -589,33 +623,25 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
             </div>
           </div>
 
-          {/* Column 2: D-pad arrow cluster */}
+          {/* Column 2: D-pad arrow cluster (hold-to-repeat via ArrowToolbarButton) */}
           <div className="flex flex-col items-center gap-0.5 px-1" style={{ gridRow: "1 / -1" }}>
             {/* Row 1: Up arrow centered */}
             <div className="flex justify-center">
-              <button
-                data-testid={`toolbar-key-${slugify(ARROW_UP.label)}`}
-                tabIndex={-1}
-                onPointerDown={(e) => e.preventDefault()}
-                onClick={() => handleKey(ARROW_UP)}
+              <ArrowToolbarButton
+                keyDef={ARROW_UP}
+                onFire={handleKey}
                 className="shrink-0 rounded border border-wc-default bg-wc-surface-input px-2.5 py-1.5 text-sm font-medium text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation min-w-[2.25rem]"
-              >
-                {ARROW_UP.label}
-              </button>
+              />
             </div>
             {/* Row 2: Left, Down, Right */}
             <div className="flex items-center gap-0.5">
               {[ARROW_LEFT, ARROW_DOWN, ARROW_RIGHT].map((key) => (
-                <button
+                <ArrowToolbarButton
                   key={key.label}
-                  data-testid={`toolbar-key-${slugify(key.label)}`}
-                  tabIndex={-1}
-                  onPointerDown={(e) => e.preventDefault()}
-                  onClick={() => handleKey(key)}
+                  keyDef={key}
+                  onFire={handleKey}
                   className="shrink-0 rounded border border-wc-default bg-wc-surface-input px-2.5 py-1.5 text-sm font-medium text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation min-w-[2.25rem]"
-                >
-                  {key.label}
-                </button>
+                />
               ))}
             </div>
           </div>
@@ -705,21 +731,34 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
           ))}
           <div className="w-px h-4 bg-wc-default shrink-0" />
           <div className="flex items-center gap-0.5 overflow-x-auto min-w-0 flex-1">
-            {TOOLBAR_KEYS.map((key) => (
-              <button
-                key={key.label}
-                data-testid={`toolbar-key-${slugify(key.label)}`}
-                tabIndex={-1}
-                onPointerDown={(e) => e.preventDefault()}
-                onClick={() => handleKey(key)}
-                className={cn(
-                  "shrink-0 rounded border border-wc-default bg-wc-surface-input px-1.5 py-1 text-xs font-medium text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation",
-                  key.width === "wide" ? "min-w-[3.5rem]" : key.width === "narrow" ? "min-w-[1.75rem]" : "min-w-[2.25rem]",
-                )}
-              >
-                {key.label}
-              </button>
-            ))}
+            {TOOLBAR_KEYS.map((key) => {
+              const className = cn(
+                "shrink-0 rounded border border-wc-default bg-wc-surface-input px-1.5 py-1 text-xs font-medium text-wc-text-secondary transition active:bg-wc-accent-active touch-manipulation",
+                key.width === "wide" ? "min-w-[3.5rem]" : key.width === "narrow" ? "min-w-[1.75rem]" : "min-w-[2.25rem]",
+              );
+              if (ARROW_KEYS.has(key.input)) {
+                return (
+                  <ArrowToolbarButton
+                    key={key.label}
+                    keyDef={key}
+                    onFire={handleKey}
+                    className={className}
+                  />
+                );
+              }
+              return (
+                <button
+                  key={key.label}
+                  data-testid={`toolbar-key-${slugify(key.label)}`}
+                  tabIndex={-1}
+                  onPointerDown={(e) => e.preventDefault()}
+                  onClick={() => handleKey(key)}
+                  className={className}
+                >
+                  {key.label}
+                </button>
+              );
+            })}
           </div>
           {onOpenAi && (
             <button

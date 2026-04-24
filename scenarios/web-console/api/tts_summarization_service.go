@@ -47,10 +47,10 @@ type TTSSummarizationService struct {
 
 func NewTTSSummarizationService(summarizer *TTSSummarizer, getConfig func() TTSSummarizeConfig) *TTSSummarizationService {
 	return &TTSSummarizationService{
-		summarizer: summarizer,
-		getConfig:  getConfig,
-		sem:        make(chan struct{}, defaultTTSSummarizeConcurrency),
-		inflight:   make(map[string]*ttsSummarizeFuture),
+		summarizer:  summarizer,
+		getConfig:   getConfig,
+		sem:         make(chan struct{}, defaultTTSSummarizeConcurrency),
+		inflight:    make(map[string]*ttsSummarizeFuture),
 		autoBackoff: make(map[string]time.Time),
 	}
 }

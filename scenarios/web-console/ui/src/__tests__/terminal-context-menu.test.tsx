@@ -2,11 +2,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import TerminalContextMenu from "../components/TerminalContextMenu";
 
+type PasteResult = { status: "ok" } | { status: "failed"; reason: string };
+
 const defaultProps = () => ({
   position: { x: 200, y: 300 },
   hasSelection: false,
   onCopy: vi.fn(),
-  onPaste: vi.fn(),
+  // Default onPaste resolves to {status: "ok"} — tests override for
+  // failure / pending scenarios.
+  onPaste: vi.fn(
+    (_text: string): Promise<PasteResult> => Promise.resolve({ status: "ok" }),
+  ),
   onSelectAll: vi.fn(),
   onClear: vi.fn(),
   onUploadImage: vi.fn(),
@@ -52,15 +58,66 @@ describe("TerminalContextMenu", () => {
     expect(props.onCopy).toHaveBeenCalledOnce();
   });
 
-  it("reads clipboard and calls onPaste on Paste click", async () => {
+  it("reads clipboard, calls onPaste, shows 'Pasting…' then 'Pasted' and auto-closes", async () => {
+    vi.useFakeTimers();
     const props = defaultProps();
     render(<TerminalContextMenu {...props} />);
     await act(async () => {
       fireEvent.click(screen.getByTestId("ctx-paste"));
+      // Let the clipboard + onPaste promises resolve.
+      await Promise.resolve();
+      await Promise.resolve();
     });
     expect(navigator.clipboard.readText).toHaveBeenCalled();
     expect(props.onPaste).toHaveBeenCalledWith("pasted text");
+    // After settle, the button transitions to "Pasted" before close.
+    expect(screen.getByTestId("ctx-paste").textContent).toBe("Pasted");
+    // Advance through the success-flash window; onClose fires.
+    await act(async () => {
+      vi.advanceTimersByTime(700);
+    });
     expect(props.onClose).toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it("shows typed failure reason when onPaste resolves to failed", async () => {
+    vi.useFakeTimers();
+    const props = defaultProps();
+    props.onPaste = vi.fn().mockResolvedValue({
+      status: "failed",
+      reason: "tmux_write_failed",
+    });
+    render(<TerminalContextMenu {...props} />);
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("ctx-paste"));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(screen.getByTestId("ctx-paste").textContent).toBe(
+      "Paste failed: tmux_write_failed",
+    );
+    // Menu stays open for the failure-hold window, then closes.
+    await act(async () => {
+      vi.advanceTimersByTime(3100);
+    });
+    expect(props.onClose).toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it("marks the paste button as disabled while pending", async () => {
+    // Never-resolving onPaste — keeps the pending state visible.
+    const props = defaultProps();
+    props.onPaste = vi.fn().mockReturnValue(new Promise(() => {}));
+    render(<TerminalContextMenu {...props} />);
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("ctx-paste"));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const btn = screen.getByTestId("ctx-paste");
+    expect(btn.textContent).toBe("Pasting…");
+    expect(btn).toBeDisabled();
+    expect(btn.getAttribute("data-paste-state")).toBe("pending");
   });
 
   it("shows fallback text when clipboard read fails", async () => {
@@ -120,6 +177,7 @@ describe("TerminalContextMenu", () => {
     render(<TerminalContextMenu {...props} />);
     await act(async () => {
       fireEvent.click(screen.getByTestId("ctx-paste"));
+      await Promise.resolve();
     });
     expect(props.onPaste).not.toHaveBeenCalled();
     expect(props.onClose).toHaveBeenCalled();

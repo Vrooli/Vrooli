@@ -15,7 +15,7 @@
 // and the provider is initializing.
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { fetchCapabilities, getCapabilitiesLivenessSnapshot, refreshCapabilitiesLiveness, getVoiceStreamConfig } from "../lib/api";
+import { fetchCapabilities, getCapabilitiesLivenessSnapshot, refreshCapabilitiesLiveness, getVoiceStreamConfig, transcribeAudioBypassFilter } from "../lib/api";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { createAudioFilterChain } from "./voice/audioUtils";
 import { playRecordingStartCue, playRecordingStopCue } from "./voice/audioCues";
@@ -39,12 +39,13 @@ import type {
   VoiceInputState,
   VoiceMode,
   VoiceSegment,
+  VoiceRejection,
   CommandSuggestion,
   StartRecordingOpts,
 } from "./voice/types";
 
 // Re-export public types and utilities for consumers and tests
-export type { TranscriptionProvider, VoiceBackend, VoiceState, VoiceMode, VoiceInputState, VoiceSegment, CommandSuggestion, StartRecordingOpts } from "./voice/types";
+export type { TranscriptionProvider, VoiceBackend, VoiceState, VoiceMode, VoiceInputState, VoiceSegment, VoiceRejection, LastTurnAudio, CommandSuggestion, StartRecordingOpts } from "./voice/types";
 export { WHISPER_FAILED_SENTINEL, CAP_CHECK_FAIL_THRESHOLD, AUDIO_BITRATE, STREAM_CHUNK_INTERVAL_MS, computeFinalTimeout } from "./voice/types";
 export { createAudioFilterChain } from "./voice/audioUtils";
 export type { VadState, VadRefs, VadAction, CachedNoiseFloor } from "./voice/vad";
@@ -62,11 +63,25 @@ const INITIAL_STATE: VoiceInputState = {
   voiceMode: "one-shot",
   segments: [],
   commandSuggestion: null,
-  speakerNotice: null,
+  rejectedAudio: null,
   speakerVerificationEnabled: false,
   speakerProfileConfigured: false,
   wakeWordConfigured: false,
 };
+
+/**
+ * Retention TTL for a rejection's audio blob. After this timeout fires the
+ * rejection is auto-dismissed and the retained audio is released. Chosen
+ * long enough for a distracted user to come back, short enough that a
+ * forgotten banner does not pin memory for the whole session.
+ * DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §9.5
+ */
+const REJECTION_RETENTION_TTL_MS = 5 * 60 * 1000;
+
+/** Generate a stable id for a new rejection. Opaque to consumers. */
+function generateRejectionId(): string {
+  return `rej-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 export interface UseVoiceInputCallbacks {
   /** Called when a completed transcript is available (both one-shot and persistent). */
@@ -464,7 +479,89 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
 
   const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const capCheckFailCountRef = useRef(0);
-  const speakerNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /**
+   * TTL timer for the currently-displayed rejection. Replaced on every new
+   * rejection so only the freshest rejection's 5-minute clock is active.
+   * DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §9.5
+   */
+  const rejectionTtlTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /**
+   * Latest rejection metadata captured from `onSegmentRejected` callbacks
+   * during an active turn. The banner is not shown mid-turn — streaming
+   * providers only snapshot their retained audio after `stop()`, so we hold
+   * the score/threshold here and surface the banner when the turn ends
+   * (inside the provider's `onResult` / error paths below).
+   */
+  const pendingRejectionRef = useRef<{ score: number; threshold: number } | null>(null);
+  /** Convenience: the hook's own reference to the current rejection so
+   *  callbacks outside React state don't need to re-read `state`. */
+  const rejectedAudioRef = useRef<VoiceRejection | null>(null);
+
+  /**
+   * Move the currently-retained turn audio from the provider into visible
+   * rejection state, consuming the pending rejection metadata. Called when a
+   * turn has ended and we know speaker verification rejected at least one
+   * segment.
+   *
+   * Ordering matters: we capture the blob reference via
+   * `provider.getLastTurnAudio()` first (provider keeps its own reference),
+   * then atomically replace state. The previous rejection's state drops its
+   * reference naturally when React discards the old value; the provider's
+   * reference is released later by `disposeRejection()` (manual dismiss,
+   * successful retry, or TTL).
+   *
+   * DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §9.2
+   */
+  const surfacePendingRejection = useCallback(() => {
+    const pending = pendingRejectionRef.current;
+    if (!pending) return;
+    pendingRejectionRef.current = null;
+
+    const provider = providerRef.current;
+    const audio = provider?.getLastTurnAudio() ?? null;
+    const id = generateRejectionId();
+    const createdAt = Date.now();
+
+    const rejection: VoiceRejection = audio
+      ? {
+          kind: "retryable",
+          id,
+          blob: audio.blob,
+          mimeType: audio.mimeType,
+          durationMs: audio.durationMs,
+          score: pending.score,
+          threshold: pending.threshold,
+          createdAt,
+          status: "idle",
+        }
+      : {
+          kind: "explanatory",
+          id,
+          reason: "This provider does not retain audio; please record again to retry.",
+          score: pending.score,
+          threshold: pending.threshold,
+          createdAt,
+        };
+
+    rejectedAudioRef.current = rejection;
+    setState((s) => ({ ...s, rejectedAudio: rejection }));
+
+    // (Re)arm the retention TTL. A new rejection always replaces any
+    // previous TTL timer — only the freshest rejection's clock ticks.
+    if (rejectionTtlTimerRef.current) clearTimeout(rejectionTtlTimerRef.current);
+    rejectionTtlTimerRef.current = setTimeout(() => {
+      // Only fire if this same rejection is still displayed. The ref check
+      // prevents a stale timer from clobbering a newer rejection that
+      // replaced us after TTL started.
+      if (rejectedAudioRef.current?.id === id) {
+        const p = providerRef.current;
+        p?.disposeLastTurn();
+        rejectedAudioRef.current = null;
+        rejectionTtlTimerRef.current = null;
+        setState((s) => (s.rejectedAudio?.id === id ? { ...s, rejectedAudio: null } : s));
+      }
+    }, REJECTION_RETENTION_TTL_MS);
+  }, []);
 
   // Optimistic mount: show the mic button immediately and check Whisper in
   // the background. The user can start speaking before the check resolves.
@@ -565,10 +662,12 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
         clearTimeout(noAudioTimerRef.current);
         noAudioTimerRef.current = null;
       }
-      if (speakerNoticeTimerRef.current) {
-        clearTimeout(speakerNoticeTimerRef.current);
-        speakerNoticeTimerRef.current = null;
+      if (rejectionTtlTimerRef.current) {
+        clearTimeout(rejectionTtlTimerRef.current);
+        rejectionTtlTimerRef.current = null;
       }
+      rejectedAudioRef.current = null;
+      pendingRejectionRef.current = null;
       startingRef.current = false;
     };
   }, [voiceEnabled]);
@@ -688,28 +787,31 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       // Wire up segment-final handler for persistent mode
       if (provider instanceof VoiceStreamProvider) {
         provider.onSegmentFinal = handleSegmentFinal;
-        provider.onSegmentAccepted = (_segmentIndex, score, threshold) => {
+        // A segment-accepted event proves verification is wired up and the
+        // profile is configured. We no longer surface a soft banner when a
+        // near-miss is accepted — the user only sees a notice when action
+        // is available (rejection → retry).
+        provider.onSegmentAccepted = (_segmentIndex, _score, _threshold) => {
           setState((s) => ({
             ...s,
             speakerVerificationEnabled: true,
             speakerProfileConfigured: true,
-            speakerNotice: score < threshold ? "Speaker verification advisory: transcript kept." : s.speakerNotice,
           }));
         };
+        // A rejection during a live turn only records the metadata. The
+        // banner is deferred until the turn ends (provider's `onResult` /
+        // error handler below), because the streaming provider does not
+        // snapshot retained audio until `stop()` completes. Multiple
+        // rejections in one turn collapse into the last one's score —
+        // single-slot retention, one blob per turn.
         provider.onSegmentRejected = (_segmentIndex, score, threshold) => {
-          if (speakerNoticeTimerRef.current) clearTimeout(speakerNoticeTimerRef.current);
+          pendingRejectionRef.current = { score, threshold };
           setState((s) => ({
             ...s,
             speakerVerificationEnabled: true,
             speakerProfileConfigured: true,
-            speakerNotice: score > 0
-              ? `Ignored speech that did not match your voice (${score.toFixed(2)} < ${threshold.toFixed(2)})`
-              : "Ignored speech that did not match your voice",
             partialTranscript: "",
           }));
-          speakerNoticeTimerRef.current = setTimeout(() => {
-            setState((s) => (s.speakerNotice ? { ...s, speakerNotice: null } : s));
-          }, 3000);
         };
         provider.onSpeakerStatus = (enabled, profileConfigured) => {
           setState((s) => ({
@@ -743,6 +845,11 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
           partialTranscript: "",
           segments: [],
         }));
+        // Turn ended — surface any pending rejection as a persistent banner.
+        // At this point the streaming provider has already snapshotted its
+        // retained audio (see VoiceStreamProvider.stop), so
+        // getLastTurnAudio() returns the full turn for the retry action.
+        surfacePendingRejection();
         // In persistent mode, segment-finals deliver text incrementally.
         // The final message contains only the un-segmented tail (speech
         // after the last segment boundary). Deliver it if non-empty.
@@ -773,6 +880,10 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
         vadActiveRef.current = false;
         vadRef.current.state = "idle";
         stopLevelMonitor();
+        // Error ends the turn: if speaker verification rejected segments
+        // during this turn, surface the banner so the user can still retry
+        // with whatever audio was retained.
+        surfacePendingRejection();
 
         // Whisper failed after retry -- try falling back to Web Speech
         if (error === WHISPER_FAILED_SENTINEL) {
@@ -906,13 +1017,16 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
           vadActiveRef.current = false;
           vadRef.current.state = "idle";
           stopLevelMonitor();
+          // Don't touch rejectedAudio here — the rejection banner (if any) is
+          // from a prior completed turn and belongs to the user to dismiss.
+          // Disposing the provider below releases its own retained blob;
+          // state-level rejection keeps its own copy of the reference.
           setState((s) => ({
             ...s,
             voiceState: "idle",
             audioLevel: 0,
             partialTranscript: "",
             segments: [],
-            speakerNotice: null,
           }));
           provider.dispose();
           providerRef.current = null;
@@ -924,7 +1038,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     } finally {
       startingRef.current = false;
     }
-  }, [state.voiceState, state.backend, voiceLanguage, startLevelMonitor, stopLevelMonitor, handleSegmentFinal]);
+  }, [state.voiceState, state.backend, voiceLanguage, startLevelMonitor, stopLevelMonitor, handleSegmentFinal, surfacePendingRejection]);
 
   const stopRecording = useCallback(() => {
     // If start is in progress, signal it to abort after completing
@@ -1010,11 +1124,15 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     providerRef.current = null;
 
     if (noAudioTimerRef.current) { clearTimeout(noAudioTimerRef.current); noAudioTimerRef.current = null; }
-    if (speakerNoticeTimerRef.current) { clearTimeout(speakerNoticeTimerRef.current); speakerNoticeTimerRef.current = null; }
     vadActiveRef.current = false;
     vadRef.current.state = "idle";
     stopLevelMonitor();
 
+    // Cancelling a transcription is a user action on the current turn only;
+    // a prior-turn rejection banner is the user's to dismiss explicitly.
+    // We clear in-flight pending rejection metadata (there's no banner yet),
+    // but leave visible `rejectedAudio` alone.
+    pendingRejectionRef.current = null;
     setState((s) => ({
       ...s,
       voiceState: "idle",
@@ -1023,13 +1141,107 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
       partialTranscript: "",
       segments: [],
       commandSuggestion: null,
-      speakerNotice: null,
     }));
   }, [isTranscribing, stopLevelMonitor]);
 
   /** Dismiss a command suggestion (either confirmed or rejected). */
   const dismissCommandSuggestion = useCallback(() => {
     setState((s) => s.commandSuggestion ? { ...s, commandSuggestion: null } : s);
+  }, []);
+
+  /**
+   * Dismiss the current rejection banner. Releases the retained audio on
+   * the provider and clears the TTL timer. Safe to call when no banner is
+   * showing — becomes a no-op.
+   * DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §7 point 5
+   */
+  const dismissRejection = useCallback(() => {
+    if (rejectionTtlTimerRef.current) {
+      clearTimeout(rejectionTtlTimerRef.current);
+      rejectionTtlTimerRef.current = null;
+    }
+    providerRef.current?.disposeLastTurn();
+    rejectedAudioRef.current = null;
+    setState((s) => (s.rejectedAudio ? { ...s, rejectedAudio: null } : s));
+  }, []);
+
+  /**
+   * Retry transcription of the retained audio while bypassing the server's
+   * speaker-verification filter for this single request. No-op if the
+   * current rejection has no retained audio (explanatory kind) or if a
+   * retry is already in flight.
+   *
+   * On success the transcript is delivered via the normal `onTranscript`
+   * callback and the rejection banner is dismissed. On failure the banner
+   * flips to `status: "failed"` with an error message; the user can retry
+   * again or dismiss.
+   * DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §9.6
+   */
+  const retryWithoutFilter = useCallback(async () => {
+    const current = rejectedAudioRef.current;
+    if (!current || current.kind !== "retryable" || current.status === "retrying") {
+      return;
+    }
+
+    const retryingRejection: VoiceRejection = {
+      ...current,
+      status: "retrying",
+      errorMessage: undefined,
+    };
+    rejectedAudioRef.current = retryingRejection;
+    setState((s) => (s.rejectedAudio?.id === current.id
+      ? { ...s, rejectedAudio: retryingRejection }
+      : s));
+
+    const langSetting = voiceLanguageRef.current;
+    const lang = langSetting === "auto" ? "" : (langSetting.split("-")[0] ?? "en");
+
+    try {
+      const text = await transcribeAudioBypassFilter(current.blob, lang);
+      const trimmed = text.trim();
+      // The user may have dismissed between the await and now — only act
+      // if the rejection we're finishing is still the displayed one.
+      if (rejectedAudioRef.current?.id !== current.id) return;
+
+      if (trimmed) {
+        onTranscriptRef.current(trimmed);
+        // Success: dismiss banner and release retained audio.
+        if (rejectionTtlTimerRef.current) {
+          clearTimeout(rejectionTtlTimerRef.current);
+          rejectionTtlTimerRef.current = null;
+        }
+        providerRef.current?.disposeLastTurn();
+        rejectedAudioRef.current = null;
+        setState((s) => (s.rejectedAudio?.id === current.id
+          ? { ...s, rejectedAudio: null }
+          : s));
+      } else {
+        const failed: VoiceRejection = {
+          ...current,
+          status: "failed",
+          errorMessage: "No speech detected in audio",
+        };
+        rejectedAudioRef.current = failed;
+        setState((s) => (s.rejectedAudio?.id === current.id
+          ? { ...s, rejectedAudio: failed }
+          : s));
+      }
+    } catch (err) {
+      if (rejectedAudioRef.current?.id !== current.id) return;
+      // Cap the error string so a verbose server body doesn't break the
+      // banner layout. 200 chars is enough context for the user.
+      const raw = err instanceof Error ? err.message : "Network error";
+      const msg = raw.length > 200 ? raw.slice(0, 197) + "…" : raw;
+      const failed: VoiceRejection = {
+        ...current,
+        status: "failed",
+        errorMessage: msg,
+      };
+      rejectedAudioRef.current = failed;
+      setState((s) => (s.rejectedAudio?.id === current.id
+        ? { ...s, rejectedAudio: failed }
+        : s));
+    }
   }, []);
 
   // Keep the ref in sync so the tick loop can call stopRecording
@@ -1101,6 +1313,8 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     stopRecording,
     cancelTranscription,
     dismissCommandSuggestion,
+    dismissRejection,
+    retryWithoutFilter,
     enterPassiveMode,
     exitPassiveMode,
   };

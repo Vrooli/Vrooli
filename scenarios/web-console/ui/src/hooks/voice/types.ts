@@ -38,6 +38,56 @@ export interface VoiceSegment {
   isFinal: boolean;
 }
 
+/**
+ * Snapshot of the last completed recording turn's audio, retained by the
+ * provider until explicitly disposed. The hook retrieves this via
+ * `TranscriptionProvider.getLastTurnAudio()` when a rejection occurs, so
+ * the user can retry transcription with the speaker-verification filter
+ * bypassed without re-recording.
+ *
+ * DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §9.1
+ */
+export interface LastTurnAudio {
+  blob: Blob;
+  mimeType: string;
+  durationMs: number;
+  capturedAt: number;
+}
+
+/**
+ * A speaker-verification rejection surfaced to the UI.
+ *
+ * `retryable` is emitted when the provider retained the turn's audio and the
+ * server offers a bypass endpoint — the UI can offer a "Transcribe anyway"
+ * button. `explanatory` is emitted when the provider cannot retain audio (e.g.
+ * `WebSpeechProvider`, which does not hold the raw bytes); the UI shows the
+ * reason but hides the retry action.
+ *
+ * Discriminated union enforces at compile time that every consumer handles
+ * both kinds.
+ */
+export type VoiceRejection =
+  | {
+      kind: "retryable";
+      id: string;
+      blob: Blob;
+      mimeType: string;
+      durationMs: number;
+      score: number;
+      threshold: number;
+      createdAt: number;
+      status: "idle" | "retrying" | "failed";
+      errorMessage?: string;
+    }
+  | {
+      kind: "explanatory";
+      id: string;
+      reason: string;
+      score: number;
+      threshold: number;
+      createdAt: number;
+    };
+
 export interface VoiceInputState {
   supported: boolean;
   backend: VoiceBackend;
@@ -57,8 +107,13 @@ export interface VoiceInputState {
   commandSuggestion: CommandSuggestion | null;
   /** Whether a wake word template is configured and detection is available. */
   wakeWordConfigured: boolean;
-  /** Ephemeral speaker-verification notice shown during persistent mode. */
-  speakerNotice: string | null;
+  /**
+   * The most recent speaker-verification rejection that still has user-visible
+   * state (banner open, retry available). Single slot — a new rejection
+   * replaces the previous one. Cleared by `dismissRejection()`, successful
+   * retry, or the retention TTL.
+   */
+  rejectedAudio: VoiceRejection | null;
   /** Whether speaker verification is enabled and configured for the current session. */
   speakerVerificationEnabled: boolean;
   speakerProfileConfigured: boolean;
@@ -91,6 +146,15 @@ export interface TranscriptionProvider {
   stop(): void;
   dispose(): void;
   getStream(): MediaStream | null;
+  /**
+   * Retrieve the most recent completed turn's audio, or null if none is
+   * retained. Providers that cannot produce a blob (e.g. Web Speech API)
+   * always return null. The blob stays valid until `disposeLastTurn()` or
+   * the next `start()` (which auto-disposes).
+   */
+  getLastTurnAudio(): LastTurnAudio | null;
+  /** Drop the retained turn's audio; subsequent `getLastTurnAudio()` returns null. */
+  disposeLastTurn(): void;
   onResult: ((text: string) => void) | null;
   onError: ((error: string) => void) | null;
   onPartial?: ((text: string) => void) | null;

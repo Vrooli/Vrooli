@@ -125,9 +125,9 @@ func sanitizeForClient(data []byte) []byte {
 var (
 	syncModeToken         = []byte("\x1b[?2026")
 	syncModeStripPatterns = [][]byte{
-		[]byte("\x1b[?2026h"),   // DECSET sync-mode begin
-		[]byte("\x1b[?2026l"),   // DECRST sync-mode end
-		[]byte("\x1b[?2026$p"),  // DECRQM sync-mode query (xterm.js v6 crashes on this)
+		[]byte("\x1b[?2026h"),  // DECSET sync-mode begin
+		[]byte("\x1b[?2026l"),  // DECRST sync-mode end
+		[]byte("\x1b[?2026$p"), // DECRQM sync-mode query (xterm.js v6 crashes on this)
 	}
 )
 

@@ -38,6 +38,25 @@ const WS_ERROR_RECOVERY: Record<string, string> = {
     "The terminal session did not confirm readiness in time. Reconnect or reopen this pane.",
 };
 
+/**
+ * byteLengthUTF8 returns the UTF-8 byte length of a JSON-decoded
+ * stdout payload. The server's totalOutputBytes counts raw bytes from
+ * the PTY, not JavaScript string code units — a multi-byte character
+ * is multiple bytes on the wire. TextEncoder gives us the correct
+ * count in one call. Falls back to `.length` only if TextEncoder is
+ * unavailable (should never happen in supported browsers / vitest).
+ */
+function byteLengthUTF8(s: string): number {
+  if (typeof TextEncoder !== "undefined") {
+    try {
+      return new TextEncoder().encode(s).byteLength;
+    } catch {
+      // fallthrough
+    }
+  }
+  return s.length;
+}
+
 function appendOutputProbe(sessionId: string, data: string): void {
   if (typeof window === "undefined" || !data) return;
   const probeWindow = window as Window & {
@@ -232,6 +251,13 @@ export function useTerminalSession({
     // Per-connection cache flag resets to the initial cached-state
     // value so a reconnect with a stale offset still triggers reset().
     hasCachedStateForConnectionRef.current = hasCachedState ?? false;
+    // Snap the live byte counter to the offset we're asking the
+    // server to resume from (or zero for a fresh connection). This
+    // keeps the counter + rendered xterm state consistent for the
+    // cache save path: after history_end the counter === server's
+    // total_bytes, and every subsequent live stdout frame advances
+    // it in lockstep with xterm.write.
+    totalBytesRef.current = historyOffset ?? 0;
     // History replay state per connection.
     replayingHistoryRef.current = true;
     historyBufferRef.current = [];
@@ -249,7 +275,7 @@ export function useTerminalSession({
       }
     }
     onReadyRef.current?.();
-  }, [hasCachedState, flushHistoryBuffer, stdin, currentGen]);
+  }, [hasCachedState, historyOffset, flushHistoryBuffer, stdin, currentGen]);
 
   const onTransportClose = useCallback(() => {
     sessionReadyRef.current = false;
@@ -306,6 +332,14 @@ export function useTerminalSession({
         }
         case "stdout": {
           if (!msg.data) break;
+          // Live byte counter — must advance on EVERY stdout frame
+          // (history replay AND live), not only on history_end. The
+          // cached sessionStorage entry uses this counter to declare
+          // a resume offset; if the counter lags behind the
+          // serialized xterm state, reconnecting duplicates the
+          // trailing bytes in the scrollback. Bug C regression guard:
+          // see __tests__/terminal-scrollback-dedup.test.tsx.
+          totalBytesRef.current += byteLengthUTF8(msg.data);
           if (replayingHistoryRef.current) {
             historyBufferRef.current.push(msg.data);
           } else {
@@ -323,8 +357,28 @@ export function useTerminalSession({
           if (!resumed && hasCachedStateForConnectionRef.current && t) {
             // Cache was stale — reset xterm before writing fresh history.
             t.reset();
+            // Reset live byte counter because we're replacing every
+            // byte xterm had. The subsequent history chunks (already
+            // written above via the stdout branch) advanced the
+            // counter; we snap it back to the server's authoritative
+            // value so cache saves stay consistent.
           }
           if (msg.total_bytes !== undefined) {
+            // Server's authoritative total_bytes at subscribe time.
+            // After a full replay this matches our live counter (we
+            // counted every replayed stdout frame). After a delta
+            // replay (resumed=true) our counter already equals this
+            // because we started from the cached offset and counted
+            // only the delta. In dev, warn on drift.
+            if (
+              import.meta.env?.DEV &&
+              totalBytesRef.current !== msg.total_bytes
+            ) {
+              console.warn(
+                "useTerminalSession: totalBytes drift — " +
+                  `live=${totalBytesRef.current} server=${msg.total_bytes} resumed=${resumed}`,
+              );
+            }
             totalBytesRef.current = msg.total_bytes;
           }
           hasCachedStateForConnectionRef.current = false;

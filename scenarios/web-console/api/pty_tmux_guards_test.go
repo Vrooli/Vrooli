@@ -60,10 +60,10 @@ func TestTmuxPTY_WriteAfterClose(t *testing.T) {
 		t.Fatalf("Close: %v", err)
 	}
 
-	// Write should return errPTYClosed, not panic
-	_, err = p.Write([]byte("hello"))
+	// WriteInput should return errPTYClosed, not panic
+	err = p.WriteInput([]byte("hello"), InputKindKeystroke)
 	if err != errPTYClosed {
-		t.Errorf("Write after Close: got err=%v, want errPTYClosed", err)
+		t.Errorf("WriteInput after Close: got err=%v, want errPTYClosed", err)
 	}
 }
 

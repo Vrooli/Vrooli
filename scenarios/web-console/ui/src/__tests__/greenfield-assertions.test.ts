@@ -11,9 +11,9 @@ import { fileURLToPath } from "url";
 
 /**
  * Static-assertion tests enforcing the greenfield constraints of the
- * terminal-session rework (see
- * docs/plans/terminal-session-rework-implementation-plan.md §10.5,
- * §14). If any of these patterns reappear in the codebase, the
+ * terminal-session refactor (see
+ * docs/plans/terminal-session-refactor-implementation-plan.md §10.4,
+ * §13). If any of these patterns reappear in the codebase, the
  * implementation has drifted back into legacy/compat territory and
  * the test fails loudly.
  */
@@ -81,6 +81,27 @@ describe("greenfield: terminal-session rework", () => {
     const pattern = /\b(sendInput|trySendStdin)\s*[:=]\s*\(/;
     const offenders = PROD_FILES.filter((p) => pattern.test(readIf(p)));
     expect(offenders).toEqual([]);
+  });
+
+  it("liveBytes counter advances on every stdout frame (Bug C regression guard)", () => {
+    // useTerminalSession's stdout handler MUST advance totalBytesRef
+    // on every live stdout message, not only on history_end. This
+    // test reads the hook source and asserts the byte-counting call
+    // is inside the stdout case. See refactor plan §4.4.
+    const src = readIf(join(SRC_ROOT, "hooks", "terminal", "useTerminalSession.ts"));
+    expect(src).toContain('case "stdout"');
+    // The increment line must be present.
+    expect(src).toMatch(/totalBytesRef\.current\s*\+=\s*byteLengthUTF8\(msg\.data\)/);
+    // And the increment must appear inside the stdout case (before
+    // the next `case "` literal). A quick structural check: slice from
+    // `case "stdout"` to the next `case "`.
+    const stdoutIdx = src.indexOf('case "stdout"');
+    const nextCaseIdx = src.indexOf('case "', stdoutIdx + 1);
+    const stdoutBody = src.slice(
+      stdoutIdx,
+      nextCaseIdx > stdoutIdx ? nextCaseIdx : undefined,
+    );
+    expect(stdoutBody).toMatch(/totalBytesRef\.current\s*\+=/);
   });
 
   it("every input source tag at gate.submit / submitInput call sites is a known InputSource", () => {

@@ -109,7 +109,7 @@ func TestStandardBackend_AnswersDA1Probe(t *testing.T) {
 	const tag = "DA1_RESULT_d59e72"
 	probePath := writeProbe(t, da1ProbeScript(tag))
 
-	if _, err := sess.Write([]byte("python3 -u " + probePath + "\n")); err != nil {
+	if err := sess.WriteInput([]byte("python3 -u "+probePath+"\n"), InputKindKeystroke); err != nil {
 		t.Fatalf("write probe: %v", err)
 	}
 
@@ -182,7 +182,7 @@ sys.stdout.flush()
 
 	probePath := writeProbe(t, src)
 
-	if _, err := sess.Write([]byte("python3 -u " + probePath + "\n")); err != nil {
+	if err := sess.WriteInput([]byte("python3 -u "+probePath+"\n"), InputKindKeystroke); err != nil {
 		t.Fatalf("write probe: %v", err)
 	}
 

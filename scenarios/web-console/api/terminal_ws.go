@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -54,10 +52,28 @@ const (
 	// PTY is confirmed to accept writes (ProbeReady). Until the client sees
 	// this, stdin must stay in the pending queue.
 	MsgTypeSessionReady = "session_ready"
-	// MsgTypeStdinAck is echoed for every stdin message the server processes.
-	// Seq matches the client-assigned sequence; Ok reports whether sess.Write
-	// succeeded.
+	// MsgTypeStdinAck is echoed for every stdin message the server
+	// processes. Seq matches the client-assigned sequence; Ok reports
+	// whether the backend accepted the bytes. On Ok=false, Reason
+	// carries a typed error code (see StdinAckReason*).
 	MsgTypeStdinAck = "stdin_ack"
+)
+
+// StdinKind values discriminate keystroke input from paste payloads on
+// the wire. Must stay in sync with the UI's InputKind / TerminalMessage
+// kind field.
+const (
+	StdinKindKeystroke = "keystroke"
+	StdinKindPaste     = "paste"
+)
+
+// StdinAckReason* are the typed reason codes the server emits on
+// stdin_ack when Ok=false. The UI maps these to user-visible messages.
+const (
+	StdinAckReasonTmuxWriteFailed = "tmux_write_failed"
+	StdinAckReasonPTYClosed       = "pty_closed"
+	StdinAckReasonNotReady        = "not_ready"
+	StdinAckReasonInvalidInput    = "invalid_input"
 	// MsgTypePTYState reports a terminal-mode transition the server has
 	// observed on the PTY output stream. Today it carries only the alt-
 	// buffer flag (AltBuffer). Emitted once after history_end so a fresh
@@ -101,8 +117,15 @@ type TerminalMessage struct {
 	// Gen is the per-connection generation counter. The server echoes it
 	// in session_ready; clients use it to decide whether a re-enqueued
 	// payload belongs to the current connection (see wsGen write barrier
-	// in terminal-session-rework-implementation-plan.md §8 Phase 5).
+	// in terminal-session-refactor-implementation-plan.md §8 Phase 1).
 	Gen int64 `json:"gen,omitempty"`
+	// Kind discriminates keystroke vs paste on stdin frames. Empty
+	// defaults to keystroke for backward-compatibility-with-nothing (the
+	// UI always sends it explicitly). Values: "keystroke", "paste".
+	Kind string `json:"kind,omitempty"`
+	// Reason is the typed error code populated on stdin_ack frames when
+	// Ok=false (and unset when Ok=true). See StdinAckReason*.
+	Reason string `json:"reason,omitempty"`
 }
 
 // handleTerminalWS upgrades to WebSocket and bridges bidirectional I/O between
@@ -333,78 +356,25 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 	sessionReady = true
 
 	// Input loop: WebSocket client → PTY stdin / resize / ping-pong.
-	// When this returns, defer cancel() signals the output forwarder to exit.
+	// When this returns, defer cancel() signals the output forwarder to
+	// exit. Per-message handling lives in terminal_ws_input.go so the
+	// lifecycle glue stays small here.
 	for {
 		_, rawMsg, err := conn.ReadMessage()
 		if err != nil {
 			return
 		}
-
-		var msg TerminalMessage
-		if err := json.Unmarshal(rawMsg, &msg); err != nil {
-			log.Printf("ws[%s]: invalid message JSON: %v", sessionID, err)
-			sendError("Invalid message format")
+		msg, decodeErr, ok := s.decodeInputMessage(sessionID, rawMsg)
+		if !ok {
+			sendError(decodeErr)
 			continue
 		}
-
-		s.metrics.WSMessagesReceived.Add(1)
-
-		switch msg.Type {
-		case MsgTypeStdin:
-			if !sessionReady {
-				// Should never happen — the client is required to wait for
-				// session_ready before sending stdin. Log and count so a
-				// future regression is immediately visible on /metrics.
-				s.metrics.StdinBeforeReadyTotal.Add(1)
-				log.Printf("ws[%s] stdin before session_ready — backend=%s", sessionID, sess.Backend)
-			}
-			_, writeErr := sess.Write([]byte(msg.Data))
-			ackMsg := TerminalMessage{Type: MsgTypeStdinAck, Seq: msg.Seq, Ok: writeErr == nil}
-			if writeErr != nil {
-				ackMsg.Data = writeErr.Error()
-			}
-			writeMu.Lock()
-			_ = conn.WriteJSON(ackMsg)
-			writeMu.Unlock()
-			if writeErr != nil {
-				log.Printf("ws[%s]: PTY write failed: %v", sessionID, writeErr)
-				sendError("Terminal process is not accepting input")
-				return
-			}
-		case MsgTypeResize:
-			if msg.Cols > 0 && msg.Rows > 0 {
-				sess.Resize(uint16(msg.Cols), uint16(msg.Rows))
-				writeMu.Lock()
-				_ = conn.WriteJSON(TerminalMessage{
-					Type: MsgTypeResizeInfo,
-					Cols: msg.Cols,
-					Rows: msg.Rows,
-				})
-				writeMu.Unlock()
-				// [REQ:P1-004a] Emit resize event
-				s.events.Emit(EventPaneResized, sessionID, map[string]string{
-					"cols": fmt.Sprintf("%d", msg.Cols),
-					"rows": fmt.Sprintf("%d", msg.Rows),
-				})
-				s.metrics.ResizeCount.Add(1)
-			}
-		case MsgTypePing:
-			writeMu.Lock()
-			_ = conn.WriteJSON(TerminalMessage{Type: MsgTypePong})
-			writeMu.Unlock()
-		case MsgTypeConversationAck:
-			if msg.EventID == "" || msg.Source == "" || msg.Stage == "" {
-				sendError("Invalid TTS acknowledgment")
-				continue
-			}
-			s.recordTTSAck(TTSClientAck{
-				EventID:   msg.EventID,
-				Source:    msg.Source,
-				SessionID: sessionID,
-				Stage:     msg.Stage,
-				Backend:   msg.Backend,
-				Message:   msg.Data,
-			})
+		res := s.dispatchInputMessage(conn, &writeMu, sess, sessionID, msg, sessionReady)
+		if res.CloseReason != "" {
+			sendError(res.CloseReason)
+		}
+		if res.Close {
+			return
 		}
 	}
 }

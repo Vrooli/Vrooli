@@ -34,6 +34,7 @@ import type { MobileToolbarHandle } from "./MobileToolbar";
 import AiInput from "./AiInput";
 import AiSuggestBar from "./AiSuggestBar";
 import FloatingToolbar from "./FloatingToolbar";
+import VoiceRejectionBanner from "./VoiceRejectionBanner";
 import WorkspaceMinimap from "./WorkspaceMinimap";
 import SettingsModal from "./SettingsModal";
 import AppearanceModal from "./AppearanceModal";
@@ -968,10 +969,12 @@ export default function Workspace() {
           {voiceInput.fallbackNotice}
         </div>
       )}
-      {voiceInput.speakerNotice && (
-        <div className="px-3 py-1.5 text-xs text-sky-200 bg-sky-500/10 border-b border-sky-500/30">
-          {voiceInput.speakerNotice}
-        </div>
+      {voiceInput.rejectedAudio && (
+        <VoiceRejectionBanner
+          rejection={voiceInput.rejectedAudio}
+          onRetry={voiceInput.retryWithoutFilter}
+          onDismiss={voiceInput.dismissRejection}
+        />
       )}
 
       {/* Error banner */}

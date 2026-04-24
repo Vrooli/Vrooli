@@ -61,7 +61,31 @@ export interface TerminalMessage {
   altBuffer?: boolean;
   /** Generation counter echoed in session_ready for the wsGen barrier. */
   gen?: number;
+  /**
+   * Stdin-frame discriminator. "keystroke" (default) routes through
+   * `tmux send-keys -l --` on the persistent backend; "paste" routes
+   * through `tmux load-buffer` + `paste-buffer -d`, which auto-cancels
+   * copy-mode and atomically delivers the payload. The standard
+   * backend ignores this field but still accepts it.
+   */
+  kind?: "keystroke" | "paste";
+  /**
+   * Typed error code on stdin_ack frames when ok=false. The UI maps
+   * these to user-visible messages. Known values:
+   *   - "tmux_write_failed"
+   *   - "pty_closed"
+   *   - "not_ready"
+   *   - "invalid_input"
+   */
+  reason?: StdinAckReason;
 }
+
+/** Typed reason codes for stdin_ack.ok=false frames. */
+export type StdinAckReason =
+  | "tmux_write_failed"
+  | "pty_closed"
+  | "not_ready"
+  | "invalid_input";
 
 export interface ConversationEventMessage {
   id: string;

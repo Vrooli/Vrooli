@@ -1,6 +1,57 @@
 # Web Console — Seams & Responsibility Boundaries
 
-Last updated: 2026-03-17
+Last updated: 2026-04-24
+
+## Input delivery (refactored 2026-04-24)
+
+Terminal input now flows through a kind-discriminated path. See
+[TERMINAL-INPUT-PROTOCOL.md](TERMINAL-INPUT-PROTOCOL.md) for the full
+contract.
+
+- `PTY.WriteInput(data, kind)` ([CODE: api/pty.go]) replaced the
+  legacy `PTY.Write(p) (int, error)`. `realPTY` ignores `kind`;
+  `tmuxPTY` routes `keystroke` via `tmux send-keys -l --` and `paste`
+  via `tmux load-buffer` + `paste-buffer -d`, both after cancelling
+  any active tmux client mode. Closes the "Ctrl+C unblocks lost
+  input" Bug A.
+- `stdin_ack.reason` carries typed failure codes
+  (`tmux_write_failed`, `pty_closed`, `not_ready`, `invalid_input`).
+  The UI surfaces the reason in the paste context menu.
+- `TerminalContextMenu` waits for settlement via
+  `subscribeInputSettled` before closing, showing
+  `Pasting… → Pasted` or `Paste failed: <reason>`. Closes Bug B.
+- `useTerminalSession.totalBytesRef` now advances on every live
+  `stdout` frame (UTF-8 byte length, via `TextEncoder`), not only on
+  `history_end`. Cache saves always record a consistent offset.
+  Closes the scrollback-duplication Bug C.
+
+## Session decomposition (refactored 2026-04-24)
+
+`api/session.go` was split by concern — all methods still on
+`*Session`, but each file now names a single responsibility:
+
+- [CODE: api/session.go] — Session struct, lifecycle (Create, Delete,
+  Exit, Resize, WriteInput, ProbeReady), policy, readLoop.
+- [CODE: api/broadcast.go] — Output fan-out, per-client coalesce,
+  pending-buffer trim, SIGWINCH recovery gating.
+  (`ClientInfo`, `broadcast`, `deliver`, `FlushPending`,
+  `maybeSIGWINCHRecovery`, `notifyIfThreshold`)
+- [CODE: api/history_store.go] — Bounded output-history ring,
+  monotonic byte counter, `snapToCleanBoundary` /
+  `looksLikeMidSequence` trim repair, `sgrReset` and
+  `historyChunkSize` constants.
+- [CODE: api/terminal_ws.go] — WS upgrade + handler glue.
+- [CODE: api/terminal_ws_input.go] — Per-message input dispatch
+  (kind-aware stdin, resize, ping/pong, conversation_event_ack).
+
+Greenfield assertion tests in [CODE: api/greenfield_assertions_test.go]
+enforce:
+
+- No `ptmx.Write(` outside `pty.go`/`pty_tmux.go`.
+- No legacy `PTY.Write(p []byte) (int, error)` method declaration.
+- No references to deleted rework/phase-2 plan filenames.
+- `SIGWINCH` via `SetSize` only inside `maybeSIGWINCHRecovery` /
+  `Resize` (checked across both `session.go` and `broadcast.go`).
 
 ## Responsibility Zones
 

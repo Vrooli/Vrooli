@@ -1,5 +1,9 @@
 import { useCallback, useRef } from "react";
-import type { QueuedReason, RawSendResult } from "../../components/terminal/inputGate";
+import type {
+  QueuedReason,
+  RawSendResult,
+  WireInputKind,
+} from "../../components/terminal/inputGate";
 import type { TerminalMessage } from "../../types/terminal";
 
 const MAX_PENDING_INPUT_MESSAGES = 64;
@@ -22,6 +26,8 @@ export interface PendingInputEntry {
   data: string;
   /** ms epoch when the payload was first queued. */
   addedAt: number;
+  /** Wire kind preserved so drain re-sends via the right server path. */
+  kind: WireInputKind;
 }
 
 interface PendingAckEntry {
@@ -30,6 +36,8 @@ interface PendingAckEntry {
   timer: ReturnType<typeof setTimeout>;
   /** Generation of the WS connection that sent this payload. */
   gen: number;
+  /** Preserved for re-enqueue on timeout or close. */
+  kind: WireInputKind;
 }
 
 /** Callback signature for input-settlement subscribers. */
@@ -37,9 +45,9 @@ export type InputSettledListener = (seq: number, ok: boolean) => void;
 
 export interface StdinAckHandle {
   /** Try to send data immediately. Does not enqueue on failure. */
-  send: (data: string) => RawSendResult;
+  send: (data: string, kind: WireInputKind) => RawSendResult;
   /** Queue data for later flush. */
-  enqueue: (data: string) => void;
+  enqueue: (data: string, kind: WireInputKind) => void;
   /** Attempt to drain the queue; sends until send() returns false. */
   flush: () => void;
   /**
@@ -126,9 +134,9 @@ export function useStdinAck({
     }
   }, []);
 
-  const enqueue = useCallback((data: string) => {
+  const enqueue = useCallback((data: string, kind: WireInputKind) => {
     if (!data) return;
-    pendingInputRef.current.push({ data, addedAt: Date.now() });
+    pendingInputRef.current.push({ data, kind, addedAt: Date.now() });
     if (pendingInputRef.current.length > MAX_PENDING_INPUT_MESSAGES) {
       pendingInputRef.current.splice(
         0,
@@ -138,32 +146,35 @@ export function useStdinAck({
     notifyPending();
   }, [notifyPending]);
 
-  const registerAckTimer = useCallback((seq: number, data: string, gen: number) => {
-    const timer = setTimeout(() => {
-      const entry = pendingAcksRef.current.get(seq);
-      if (!entry) return;
-      pendingAcksRef.current.delete(seq);
-      console.warn(
-        `useStdinAck: input_ack_timeout seq=${seq} len=${data.length} gen=${gen}`,
-      );
-      enqueue(entry.data);
-      notifySettled(seq, false);
-    }, ACK_TIMEOUT_MS);
-    pendingAcksRef.current.set(seq, { data, addedAt: Date.now(), timer, gen });
-  }, [enqueue, notifySettled]);
+  const registerAckTimer = useCallback(
+    (seq: number, data: string, gen: number, kind: WireInputKind) => {
+      const timer = setTimeout(() => {
+        const entry = pendingAcksRef.current.get(seq);
+        if (!entry) return;
+        pendingAcksRef.current.delete(seq);
+        console.warn(
+          `useStdinAck: input_ack_timeout seq=${seq} len=${data.length} gen=${gen} kind=${kind}`,
+        );
+        enqueue(entry.data, entry.kind);
+        notifySettled(seq, false);
+      }, ACK_TIMEOUT_MS);
+      pendingAcksRef.current.set(seq, { data, addedAt: Date.now(), timer, gen, kind });
+    },
+    [enqueue, notifySettled],
+  );
 
   const send = useCallback(
-    (data: string): RawSendResult => {
+    (data: string, kind: WireInputKind): RawSendResult => {
       if (!data) return { sent: false, reason: "not-ready" satisfies QueuedReason };
       if (!isSessionReady()) {
         return { sent: false, reason: "not-ready" };
       }
       const seq = nextSeqRef.current;
       const gen = currentGen();
-      const ok = sendFrame({ type: "stdin", data, seq } satisfies TerminalMessage);
+      const ok = sendFrame({ type: "stdin", data, seq, kind } satisfies TerminalMessage);
       if (!ok) return { sent: false, reason: "ws-closed" };
       nextSeqRef.current = seq + 1;
-      registerAckTimer(seq, data, gen);
+      registerAckTimer(seq, data, gen, kind);
       return { sent: true, seq };
     },
     [isSessionReady, currentGen, sendFrame, registerAckTimer],
@@ -179,7 +190,7 @@ export function useStdinAck({
         changed = true;
         continue;
       }
-      const res = send(next.data);
+      const res = send(next.data, next.kind);
       if (!res.sent) break;
       pendingInputRef.current.shift();
       changed = true;
@@ -213,7 +224,11 @@ export function useStdinAck({
       // close cycle; double-sending them creates duplicate shell
       // commands on flaky networks.
       if (entry.gen === gen) {
-        pendingInputRef.current.push({ data: entry.data, addedAt: entry.addedAt });
+        pendingInputRef.current.push({
+          data: entry.data,
+          addedAt: entry.addedAt,
+          kind: entry.kind,
+        });
         rePushed = true;
       }
     }

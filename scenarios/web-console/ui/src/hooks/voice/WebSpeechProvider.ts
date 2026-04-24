@@ -4,7 +4,7 @@
 // Provides continuous recognition with interim results. Quality and availability
 // vary by browser. Final fallback when Whisper is entirely unavailable.
 
-import type { TranscriptionProvider } from "./types";
+import type { LastTurnAudio, TranscriptionProvider } from "./types";
 
 // Web Speech API type declarations (not included in all TS libs)
 interface SpeechRecognitionResultItem {
@@ -70,6 +70,22 @@ export class WebSpeechProvider implements TranscriptionProvider {
 
   getStream(): MediaStream | null {
     return this.micStream;
+  }
+
+  /**
+   * Web Speech API does not expose the underlying audio bytes — the browser
+   * consumes them internally. There is no blob to retain, so this is always
+   * null. The UI sees `getLastTurnAudio() === null` and shows a rejection
+   * banner without the "Transcribe anyway" button.
+   * DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §9.3
+   */
+  getLastTurnAudio(): LastTurnAudio | null {
+    return null;
+  }
+
+  /** No-op: Web Speech API does not retain audio. */
+  disposeLastTurn(): void {
+    // intentionally empty — nothing to dispose
   }
 
   // DOC: docs/internal/VOICE-LATENCY.md#stream-injection-vs-stream-acquisition

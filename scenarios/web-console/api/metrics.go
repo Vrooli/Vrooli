@@ -50,6 +50,14 @@ type Metrics struct {
 	// steady state; any increment indicates a sequencing regression.
 	StdinBeforeReadyTotal atomic.Int64
 
+	// VoiceSkipVerificationTotal counts /voice/transcribe requests that
+	// explicitly bypassed speaker verification via the
+	// `skip_speaker_verification=true` query parameter. User-initiated
+	// "Transcribe anyway" retries drive this counter; non-zero values are
+	// expected during normal operation when users override false rejections.
+	// DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §9.4
+	VoiceSkipVerificationTotal atomic.Int64
+
 	// StartTime records when the server started for uptime calculation.
 	StartTime time.Time
 }
@@ -63,15 +71,16 @@ func NewMetrics() *Metrics {
 
 // MetricsResponse is the JSON shape returned by the /api/v1/metrics endpoint.
 type MetricsResponse struct {
-	Sessions              SessionMetrics    `json:"sessions"`
-	Connections           ConnectionMetrics `json:"connections"`
-	Messages              MessageMetrics    `json:"messages"`
-	Reattach              ReattachMetrics   `json:"reattach"`
-	Recovery              RecoveryMetrics   `json:"recovery"`
-	AIGenerations         int64             `json:"ai_generations"`
-	AISuggestions         int64             `json:"ai_suggestions"`
-	StdinBeforeReadyTotal int64             `json:"stdin_before_ready_total"`
-	Uptime                string            `json:"uptime"`
+	Sessions                   SessionMetrics    `json:"sessions"`
+	Connections                ConnectionMetrics `json:"connections"`
+	Messages                   MessageMetrics    `json:"messages"`
+	Reattach                   ReattachMetrics   `json:"reattach"`
+	Recovery                   RecoveryMetrics   `json:"recovery"`
+	AIGenerations              int64             `json:"ai_generations"`
+	AISuggestions              int64             `json:"ai_suggestions"`
+	StdinBeforeReadyTotal      int64             `json:"stdin_before_ready_total"`
+	VoiceSkipVerificationTotal int64             `json:"voice_skip_verification_total"`
+	Uptime                     string            `json:"uptime"`
 }
 
 // SessionMetrics tracks session lifecycle counts.
@@ -139,10 +148,11 @@ func (m *Metrics) Snapshot() MetricsResponse {
 			AttachRetries:   m.RecoveryAttachRetries.Load(),
 			PreservedForNow: m.RecoveryPreservedForNow.Load(),
 		},
-		AIGenerations:         m.AIGenerations.Load(),
-		AISuggestions:         m.AISuggestions.Load(),
-		StdinBeforeReadyTotal: m.StdinBeforeReadyTotal.Load(),
-		Uptime:                time.Since(m.StartTime).Truncate(time.Second).String(),
+		AIGenerations:              m.AIGenerations.Load(),
+		AISuggestions:              m.AISuggestions.Load(),
+		StdinBeforeReadyTotal:      m.StdinBeforeReadyTotal.Load(),
+		VoiceSkipVerificationTotal: m.VoiceSkipVerificationTotal.Load(),
+		Uptime:                     time.Since(m.StartTime).Truncate(time.Second).String(),
 	}
 }
 

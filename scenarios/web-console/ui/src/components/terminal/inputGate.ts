@@ -21,7 +21,7 @@ import type { Terminal } from "@xterm/xterm";
  * accessors supplied by the session hook. This keeps the gate a pure
  * decision layer and leaves transport concerns to the hook.
  *
- * See docs/plans/terminal-session-rework-implementation-plan.md §7.
+ * See docs/plans/terminal-session-refactor-implementation-plan.md §7.
  */
 export type InputSource =
   | "xterm"
@@ -49,16 +49,27 @@ export interface RawSendResult {
 }
 
 /**
+ * Wire-level input-kind discriminator. Mirrors the server's StdinKind*.
+ * "keystroke" is the default for ordinary input (xterm keystrokes,
+ * toolbar keys, voice); "paste" routes through the persistent
+ * backend's mode-safe paste-buffer path.
+ */
+export type WireInputKind = "keystroke" | "paste";
+
+/**
  * Transport seam consumed by the gate. Implementations must:
  *  - return {sent: true, seq} when the frame reached the WebSocket.
  *  - return {sent: false, reason} when the frame was not sent. The
  *    reason is exposed to callers unchanged; common values:
  *    "not-ready" (session_ready not yet received), "ws-closed"
  *    (WebSocket not OPEN or back-pressure high-water breached).
+ *
+ * The kind argument is load-bearing for the persistent (tmux) backend
+ * and cosmetic for the standard backend.
  */
 export interface GateTransport {
-  send(data: string): RawSendResult;
-  enqueue(data: string): void;
+  send(data: string, kind: WireInputKind): RawSendResult;
+  enqueue(data: string, kind: WireInputKind): void;
 }
 
 /** Options for createInputGate. */
@@ -95,6 +106,16 @@ export function terminalIsInMouseTrackingMode(t: Terminal | null): boolean {
   return modes.mouseTrackingMode !== "none";
 }
 
+/**
+ * wireKindFor maps the UI-level input source to the wire-level kind
+ * discriminator. Only "paste" goes on the paste path; everything else
+ * (xterm typing, toolbar keys/submit, voice, upload-triggered stdin)
+ * is delivered as keystrokes.
+ */
+export function wireKindFor(source: InputSource): WireInputKind {
+  return source === "paste" ? "paste" : "keystroke";
+}
+
 export function createInputGate(opts: InputGateOptions): TerminalInputGate {
   let disposed = false;
 
@@ -104,26 +125,32 @@ export function createInputGate(opts: InputGateOptions): TerminalInputGate {
     if (disposed) return { status: "rejected", reason: "disposed" };
     if (!data) return { status: "rejected", reason: "empty" };
 
+    const kind = wireKindFor(source);
+
     // External pause (voice mode etc.) blocks every source uniformly.
     if (opts.isPaused?.() === true) {
-      opts.transport.enqueue(data);
+      opts.transport.enqueue(data, kind);
       return { status: "queued", reason: "paused" };
     }
 
-    // Paste-specific mode gating: mouse-tracking TUIs consume bytes
-    // as mouse events. Hold paste payloads until the TUI exits that
-    // mode. Other sources (keystrokes, toolbar keys, voice) are one
-    // byte at a time and don't trigger the same misinterpretation.
+    // Paste-specific client-side mode gating: mouse-tracking TUIs
+    // running INSIDE xterm consume bytes as mouse events at the
+    // browser layer (before the WS frame is sent). Hold paste
+    // payloads until the TUI exits that mode. Other sources
+    // (keystrokes, toolbar keys, voice) are one byte at a time and
+    // don't trigger the same misinterpretation. Tmux-side modes
+    // (copy-mode, command-prompt, menu) are handled server-side via
+    // paste-buffer and need no gating here.
     if (source === "paste" && terminalIsInMouseTrackingMode(opts.getTerminal())) {
-      opts.transport.enqueue(data);
+      opts.transport.enqueue(data, kind);
       return { status: "queued", reason: "paused" };
     }
 
-    const res = opts.transport.send(data);
+    const res = opts.transport.send(data, kind);
     if (res.sent && typeof res.seq === "number") {
       return { status: "sent", seq: res.seq };
     }
-    opts.transport.enqueue(data);
+    opts.transport.enqueue(data, kind);
     return { status: "queued", reason: res.reason ?? "not-ready" };
   };
 

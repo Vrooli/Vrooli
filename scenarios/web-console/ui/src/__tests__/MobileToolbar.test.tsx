@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, act, fireEvent, screen } from "@testing-library/react";
 import MobileToolbar from "../components/MobileToolbar";
 
@@ -113,5 +113,152 @@ describe("MobileToolbar — send/ack flow", () => {
 
     act(() => setSnapshot([]));
     expect(screen.queryByTestId("pending-input-pill")).toBeNull();
+  });
+});
+
+describe("MobileToolbar — arrow hold-to-repeat", () => {
+  beforeEach(() => {
+    try {
+      window.localStorage.clear();
+    } catch {
+      /* no-op */
+    }
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // CSI escapes mirrored from toolbar-keys.ts so assertions stay legible.
+  const ARROW_UP_INPUT = "\x1b[A";
+  const ARROW_LEFT_INPUT = "\x1b[D";
+
+  // Arrow labels render as Unicode glyphs that slugify() strips, so we
+  // query by visible button text instead of by data-testid.
+  const getArrow = (glyph: "↑" | "↓" | "←" | "→") =>
+    screen.getByRole("button", { name: glyph });
+
+  it("arrow fires once on pointerdown (no release needed)", () => {
+    const { onInput } = renderToolbar();
+    const up = getArrow("↑");
+
+    act(() => {
+      fireEvent.pointerDown(up, { pointerType: "touch", button: 0 });
+    });
+
+    expect(onInput).toHaveBeenCalledWith(ARROW_UP_INPUT, "toolbar-key");
+    expect(onInput).toHaveBeenCalledTimes(1);
+  });
+
+  it("arrow repeats while held after the initial delay", () => {
+    const { onInput } = renderToolbar();
+    const up = getArrow("↑");
+
+    act(() => {
+      fireEvent.pointerDown(up, { pointerType: "touch", button: 0 });
+    });
+    expect(onInput).toHaveBeenCalledTimes(1);
+
+    // Advance past the initial delay plus three repeat intervals.
+    act(() => {
+      vi.advanceTimersByTime(400 + 40 * 3);
+    });
+
+    expect(onInput).toHaveBeenCalledTimes(4);
+    const mock = (onInput as unknown as import("vitest").Mock);
+    for (const call of mock.mock.calls) {
+      expect(call).toEqual([ARROW_UP_INPUT, "toolbar-key"]);
+    }
+  });
+
+  it("pointerup stops the repeat stream", () => {
+    const { onInput } = renderToolbar();
+    const left = getArrow("←");
+    const mock = (onInput as unknown as import("vitest").Mock);
+
+    act(() => {
+      fireEvent.pointerDown(left, { pointerType: "touch", button: 0 });
+    });
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    const countAtRelease = mock.mock.calls.length;
+
+    act(() => {
+      fireEvent.pointerUp(left);
+    });
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(onInput).toHaveBeenCalledTimes(countAtRelease);
+    expect(mock.mock.calls[0]).toEqual([ARROW_LEFT_INPUT, "toolbar-key"]);
+  });
+
+  it("pointerleave (finger dragged off) stops repeats", () => {
+    const { onInput } = renderToolbar();
+    const up = getArrow("↑");
+    const mock = (onInput as unknown as import("vitest").Mock);
+
+    act(() => {
+      fireEvent.pointerDown(up, { pointerType: "touch", button: 0 });
+    });
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    const countAtLeave = mock.mock.calls.length;
+
+    act(() => {
+      fireEvent.pointerLeave(up);
+    });
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(onInput).toHaveBeenCalledTimes(countAtLeave);
+  });
+
+  it("quick tap on arrow fires exactly once (no phantom repeat after release)", () => {
+    const { onInput } = renderToolbar();
+    const up = getArrow("↑");
+
+    act(() => {
+      fireEvent.pointerDown(up, { pointerType: "touch", button: 0 });
+    });
+    act(() => {
+      vi.advanceTimersByTime(50);
+    });
+    act(() => {
+      fireEvent.pointerUp(up);
+    });
+    // A synthetic click may still follow on some browsers — verify it's ignored.
+    act(() => {
+      fireEvent.click(up);
+    });
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    expect(onInput).toHaveBeenCalledTimes(1);
+  });
+
+  it("non-arrow toolbar keys keep click semantics (no pointerdown fire)", () => {
+    const { onInput } = renderToolbar();
+    const esc = screen.getByTestId("toolbar-key-esc");
+
+    act(() => {
+      fireEvent.pointerDown(esc);
+    });
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    expect(onInput).not.toHaveBeenCalled();
+
+    act(() => {
+      fireEvent.click(esc);
+    });
+    expect(onInput).toHaveBeenCalledTimes(1);
+    expect(onInput).toHaveBeenCalledWith("\x1b", "toolbar-key");
   });
 });

@@ -297,8 +297,11 @@ type fakePTY struct {
 	setSizeCalls int // tracks SetSize invocations for test assertions
 }
 
-func (f *fakePTY) Read(p []byte) (int, error)  { return f.stdoutReader.Read(p) }
-func (f *fakePTY) Write(p []byte) (int, error) { return f.stdinWriter.Write(p) }
+func (f *fakePTY) Read(p []byte) (int, error) { return f.stdoutReader.Read(p) }
+func (f *fakePTY) WriteInput(data []byte, _ InputKind) error {
+	_, err := f.stdinWriter.Write(data)
+	return err
+}
 
 func (f *fakePTY) SetSize(cols, rows uint16) error {
 	f.mu.Lock()

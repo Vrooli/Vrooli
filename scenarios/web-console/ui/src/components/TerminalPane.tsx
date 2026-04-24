@@ -422,11 +422,43 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       setContextMenu(null);
     }, [copySelection, clearSelection]);
 
-    const handleCtxPaste = useCallback((text: string) => {
-      submitInput(text, "paste");
-      setContextMenu(null);
+    const handleCtxPaste = useCallback((text: string): Promise<
+      { status: "ok" } | { status: "failed"; reason: string }
+    > => {
+      // Submit the paste via the input gate. If the gate sends it
+      // immediately (status === "sent") we await the server's
+      // stdin_ack before resolving. If queued or rejected, resolve
+      // synchronously with the gate's reason so the UI can react
+      // without holding the menu open forever.
+      const result = submitInput(text, "paste");
       terminal?.focus();
-    }, [submitInput, terminal]);
+      if (result.status === "rejected") {
+        return Promise.resolve({
+          status: "failed",
+          reason: result.reason,
+        });
+      }
+      if (result.status === "queued") {
+        // The payload will be sent once session_ready / mouse-tracking
+        // clears. We cannot observe that settlement here without a
+        // seq (the gate didn't produce one). Report queued as success
+        // to the user — the bytes will be delivered.
+        return Promise.resolve({ status: "ok" });
+      }
+      // result.status === "sent": wait for the matching stdin_ack.
+      const { seq } = result;
+      return new Promise((resolve) => {
+        const unsub = subscribeInputSettled((ackSeq, ok) => {
+          if (ackSeq !== seq) return;
+          unsub();
+          if (ok) {
+            resolve({ status: "ok" });
+          } else {
+            resolve({ status: "failed", reason: "server rejected" });
+          }
+        });
+      });
+    }, [submitInput, subscribeInputSettled, terminal]);
 
     const handleCtxSelectAll = useCallback(() => {
       terminal?.selectAll();

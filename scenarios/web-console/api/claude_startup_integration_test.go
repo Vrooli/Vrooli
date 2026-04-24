@@ -52,7 +52,7 @@ func TestStandardBackend_ClaudeCodeActuallyStarts(t *testing.T) {
 
 	// Exactly what the UI's Claude Code shortcut sends.
 	cmd := "claude --dangerously-skip-permissions\n"
-	if _, err := sess.Write([]byte(cmd)); err != nil {
+	if err := sess.WriteInput([]byte(cmd), InputKindKeystroke); err != nil {
 		t.Fatalf("write shortcut: %v", err)
 	}
 
@@ -71,9 +71,9 @@ func TestStandardBackend_ClaudeCodeActuallyStarts(t *testing.T) {
 		// Claude's post-init render pass, after the stall point. Claude
 		// renders words with `\x1b[1C` (cursor-forward) between them to
 		// save bytes, so we match individual words rather than phrases.
-		promptMarker   = "❯"       // input prompt glyph
-		footerMarker1  = "bypass"  // part of "bypass permissions on"
-		footerMarker2  = "shift+tab"
+		promptMarker  = "❯"      // input prompt glyph
+		footerMarker1 = "bypass" // part of "bypass permissions on"
+		footerMarker2 = "shift+tab"
 	)
 	deadline := time.After(30 * time.Second)
 	sawBanner := false
@@ -100,7 +100,7 @@ func TestStandardBackend_ClaudeCodeActuallyStarts(t *testing.T) {
 				// check, a static "frozen" render would pass.
 				sawBytes := out.Len()
 				t.Logf("interactive-UI render reached at %d bytes; probing input responsiveness", sawBytes)
-				if _, err := sess.Write([]byte("z")); err != nil {
+				if err := sess.WriteInput([]byte("z"), InputKindKeystroke); err != nil {
 					t.Fatalf("write probe keystroke: %v", err)
 				}
 				probeDeadline := time.After(5 * time.Second)
@@ -174,7 +174,7 @@ func TestStandardBackend_StripsSyncModeFromClientStream(t *testing.T) {
 	sub := sess.Subscribe(0)
 	t.Cleanup(func() { sess.Unsubscribe(sub.OutputCh) })
 
-	if _, err := sess.Write([]byte("claude --dangerously-skip-permissions\n")); err != nil {
+	if err := sess.WriteInput([]byte("claude --dangerously-skip-permissions\n"), InputKindKeystroke); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 

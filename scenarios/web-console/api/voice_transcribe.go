@@ -41,6 +41,12 @@ func (s *Server) handleVoiceTranscribe(w http.ResponseWriter, r *http.Request) {
 	// Empty language = Whisper auto-detects.
 	language := r.URL.Query().Get("language")
 
+	// Speaker-verification bypass — strictly the literal "true". Any other
+	// value (including "1", "yes", "TRUE", trailing whitespace, or omitted)
+	// keeps the verification gate active. Explicit, typo-safe.
+	// DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §9.4
+	skipSpeakerVerification := r.URL.Query().Get("skip_speaker_verification") == "true"
+
 	file, _, err := r.FormFile("audio_file")
 	if err != nil {
 		writeCatalogError(w, "invalid_body", "Missing audio_file field")
@@ -57,26 +63,36 @@ func (s *Server) handleVoiceTranscribe(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("voice-http: received %d bytes, parse took %dms", len(raw), time.Since(reqStart).Milliseconds())
 
-	verifyCtx, verifyCancel := context.WithTimeout(ctx, 10*time.Second)
-	decision := s.evaluateSpeakerVerification(verifyCtx, raw)
-	verifyCancel()
-	if decision.Enabled {
-		if decision.Applied {
-			log.Printf(
-				"voice-http: speaker decision matched=%v allowed=%v score=%.3f threshold=%.3f profile=%s mode=%s",
-				decision.Matched,
-				decision.Allowed,
-				decision.Score,
-				decision.Threshold,
-				decision.ProfileID,
-				decision.Mode,
-			)
-		} else if decision.ErrorMessage != "" {
-			log.Printf("voice-http: %s", formatSpeakerDecisionError(decision))
+	if skipSpeakerVerification {
+		// User-initiated retry overriding a prior false rejection. Skip the
+		// verification gate entirely and proceed straight to Whisper. The
+		// metric lets operators see bypass usage without touching logs.
+		if s.metrics != nil {
+			s.metrics.VoiceSkipVerificationTotal.Add(1)
 		}
-		if !decision.Allowed {
-			writeJSON(w, http.StatusOK, map[string]string{"text": ""})
-			return
+		log.Printf("voice-http: speaker verification bypassed bytes=%d", len(raw))
+	} else {
+		verifyCtx, verifyCancel := context.WithTimeout(ctx, 10*time.Second)
+		decision := s.evaluateSpeakerVerification(verifyCtx, raw)
+		verifyCancel()
+		if decision.Enabled {
+			if decision.Applied {
+				log.Printf(
+					"voice-http: speaker decision matched=%v allowed=%v score=%.3f threshold=%.3f profile=%s mode=%s",
+					decision.Matched,
+					decision.Allowed,
+					decision.Score,
+					decision.Threshold,
+					decision.ProfileID,
+					decision.Mode,
+				)
+			} else if decision.ErrorMessage != "" {
+				log.Printf("voice-http: %s", formatSpeakerDecisionError(decision))
+			}
+			if !decision.Allowed {
+				writeJSON(w, http.StatusOK, map[string]string{"text": ""})
+				return
+			}
 		}
 	}
 

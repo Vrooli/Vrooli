@@ -224,9 +224,9 @@ func TestSession_SubscribeAndBroadcast(t *testing.T) {
 	defer sess.Unsubscribe(sub.OutputCh)
 
 	// Write to stdin - the shell should echo something back
-	_, err = sess.Write([]byte("echo hello\n"))
+	err = sess.WriteInput([]byte("echo hello\n"), InputKindKeystroke)
 	if err != nil {
-		t.Fatalf("Write failed: %v", err)
+		t.Fatalf("WriteInput failed: %v", err)
 	}
 
 	// Read output with timeout
@@ -251,9 +251,9 @@ func TestSession_OfflineBuffer(t *testing.T) {
 	defer func() { _ = sm.Delete(sess.ID) }()
 
 	// Write some output while no subscriber is connected
-	_, err = sess.Write([]byte("echo offline_test\n"))
+	err = sess.WriteInput([]byte("echo offline_test\n"), InputKindKeystroke)
 	if err != nil {
-		t.Fatalf("Write failed: %v", err)
+		t.Fatalf("WriteInput failed: %v", err)
 	}
 
 	// Wait for output to be buffered

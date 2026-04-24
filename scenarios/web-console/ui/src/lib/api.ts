@@ -609,6 +609,38 @@ export async function transcribeAudio(audioBlob: Blob, language?: string): Promi
   return data.text;
 }
 
+/**
+ * Transcribe audio while bypassing the server-side speaker-verification
+ * filter. Used exclusively by the "Transcribe anyway" retry action after a
+ * false rejection. Every other call site uses `transcribeAudio` so the
+ * filter remains the default.
+ *
+ * Server contract: accepts the literal string `"true"` on the
+ * `skip_speaker_verification` query parameter; any other value (including
+ * `"1"`, `"yes"`, omitted) keeps the filter active.
+ *
+ * DOC: docs/plans/stt-voice-filter-retry-implementation-plan.md §9.4
+ */
+export async function transcribeAudioBypassFilter(
+  audioBlob: Blob,
+  language?: string,
+): Promise<string> {
+  const params = new URLSearchParams({ skip_speaker_verification: "true" });
+  if (language) params.set("language", language);
+  const url = buildApiUrl(`/voice/transcribe?${params.toString()}`, { baseUrl: API_BASE });
+  const formData = new FormData();
+  formData.append("audio_file", audioBlob, "recording.webm");
+  const res = await fetch(url, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    throw await extractAPIError(res, "Voice transcription failed");
+  }
+  const data = (await res.json()) as { text: string };
+  return data.text;
+}
+
 // Voice streaming configuration (server-side pipeline tuning)
 export interface VoiceStreamConfig {
   flushIntervalMs: number;
