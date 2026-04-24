@@ -199,6 +199,15 @@ export interface FeedbackRound {
   current_proposal_id?: string;
   decision?: FeedbackDecision;
   run_id?: string;
+  /**
+   * True when the most recent agent turn produced no extractable proposal.
+   * Consumers show the "ask for a revision" CTA rather than an empty proposal
+   * pane. Cleared on the next successful agent turn.
+   */
+  needs_revision?: boolean;
+  /** Parser complaints from the most recent agent turn — surfaced alongside
+   *  `needs_revision` so the user sees *why* the proposal didn't parse. */
+  last_parse_warnings?: string[];
   created_at: string;
   updated_at: string;
 }

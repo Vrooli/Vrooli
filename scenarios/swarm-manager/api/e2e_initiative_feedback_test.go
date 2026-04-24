@@ -34,8 +34,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/textproto"
 	"os"
 	"path/filepath"
 	"strings"
@@ -404,4 +406,132 @@ func TestE2EInitiativeFeedback_FullHTTPFlow(t *testing.T) {
 	// 13. Close: drain any remaining body readers so the test doesn't leak
 	//     goroutines into the suite.
 	_ = io.Discard
+}
+
+// TestE2EInitiativeFeedback_MultipartAttachmentRoundTrip pins the
+// attachment path the main E2E deliberately skips (JSON body only). The
+// plan's E2E spec calls for "submits feedback with attachments" — this is
+// that coverage. We exercise the full round-trip: multipart POST →
+// attachments land in the round's folder → attachment_ids are persisted →
+// GET /attachments/{id} returns the bytes with the right content-type.
+//
+// Without this, a regression in parseStartRequest's multipart branch or the
+// attachment-loader handoff into StartRound would only surface in
+// production; the main E2E uses JSON and wouldn't catch it.
+func TestE2EInitiativeFeedback_MultipartAttachmentRoundTrip(t *testing.T) {
+	t.Setenv("AGENT_MANAGER_ENABLED", "false")
+
+	srv := newTestServer(t)
+	h := srv.Handler()
+	rootDir := srv.scenarioRoot
+
+	const initiative = "e2e-fb-attach"
+
+	mustPost(t, h, "/api/v1/initiatives", map[string]any{
+		"name":        initiative,
+		"title":       "E2E Feedback Attachments",
+		"description": "Covers multipart attachment upload round-trip.",
+		"status":      "active",
+		"priority":    5,
+	})
+
+	// Minimal 1x1 PNG so the handler's image-only mime filter (see
+	// AllowedAttachmentTypes in attachments.go) doesn't reject the upload.
+	// The bytes are a real PNG header + IDAT + IEND — small but valid.
+	pngBytes := []byte{
+		0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+		0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+		0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+		0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4,
+		0x89, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x44, 0x41,
+		0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00,
+		0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00,
+		0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE,
+		0x42, 0x60, 0x82,
+	}
+
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	// type=note so the round terminates synchronously (no agent spawn) —
+	// keeps the test focused on attachment persistence, not agent mocking.
+	// Even with note type, the handler still runs the multipart attachment
+	// loader, so this exercises the same path a type=feedback upload does.
+	_ = w.WriteField("type", "note")
+	_ = w.WriteField("text", "screenshot of the broken layout")
+	_ = w.WriteField("slug", "broken-layout")
+	// Header set explicitly so ParseMultipartForm keys the file under
+	// `files` (matches SaveAttachmentsToDir's expectation in
+	// attachments.go:39). CreateFormFile is a convenience wrapper that
+	// hard-codes Content-Type=application/octet-stream, which would fail
+	// the AllowedAttachmentTypes gate — spell the header out instead.
+	hdr := make(textproto.MIMEHeader)
+	hdr.Set("Content-Disposition", `form-data; name="files"; filename="shot.png"`)
+	hdr.Set("Content-Type", "image/png")
+	fw, err := w.CreatePart(hdr)
+	if err != nil {
+		t.Fatalf("create form part: %v", err)
+	}
+	if _, err := fw.Write(pngBytes); err != nil {
+		t.Fatalf("write png: %v", err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/initiatives/"+initiative+"/feedback", &buf)
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("multipart POST: status=%d body=%s", rec.Code, rec.Body.String())
+	}
+
+	// Parse response to recover the attachment ID — the server assigns a
+	// UUID-based name, so the test cannot hard-code it.
+	var startResp struct {
+		Number     int `json:"number"`
+		Submission struct {
+			AttachmentIDs []string `json:"attachment_ids"`
+		} `json:"submission"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &startResp); err != nil {
+		t.Fatalf("decode start response: %v (body=%s)", err, rec.Body.String())
+	}
+	if len(startResp.Submission.AttachmentIDs) != 1 {
+		t.Fatalf("attachment_ids=%v, want exactly 1", startResp.Submission.AttachmentIDs)
+	}
+	attID := startResp.Submission.AttachmentIDs[0]
+	if !strings.HasPrefix(attID, "attachments/") || !strings.HasSuffix(attID, ".png") {
+		t.Errorf("attachment ID %q doesn't follow attachments/{uuid}.png convention", attID)
+	}
+
+	// On-disk verification — the file is in the round folder with the same
+	// bytes we uploaded.
+	roundDir := filepath.Join(rootDir, "initiatives", initiative, "feedback", fmt.Sprintf("round-%03d-broken-layout", startResp.Number))
+	diskPath := filepath.Join(roundDir, attID)
+	onDisk, err := os.ReadFile(diskPath)
+	if err != nil {
+		t.Fatalf("read attachment from disk: %v", err)
+	}
+	if !bytes.Equal(onDisk, pngBytes) {
+		t.Errorf("attachment bytes differ (disk=%d, uploaded=%d)", len(onDisk), len(pngBytes))
+	}
+
+	// HTTP GET round-trip — the attachment endpoint must return the same
+	// bytes with an image/png content type. Anything else breaks the UI's
+	// CaptureAttachmentPreview path.
+	idPart := strings.TrimPrefix(attID, "attachments/")
+	getURL := fmt.Sprintf("/api/v1/initiatives/%s/feedback/%d/attachments/%s", initiative, startResp.Number, idPart)
+	getReq := httptest.NewRequest(http.MethodGet, getURL, nil)
+	getRec := httptest.NewRecorder()
+	h.ServeHTTP(getRec, getReq)
+	if getRec.Code != http.StatusOK {
+		t.Fatalf("GET attachment: status=%d body=%s", getRec.Code, getRec.Body.String())
+	}
+	if ct := getRec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "image/") {
+		t.Errorf("GET attachment content-type=%q, want image/*", ct)
+	}
+	if !bytes.Equal(getRec.Body.Bytes(), pngBytes) {
+		t.Errorf("GET attachment bytes differ from upload (served=%d, uploaded=%d)", getRec.Body.Len(), len(pngBytes))
+	}
 }

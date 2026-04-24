@@ -392,6 +392,7 @@ export const literalSelectors = {
     proposalReject: "feedback-proposal-reject",
     proposalDismiss: "feedback-proposal-dismiss",
     proposalApplySummary: "feedback-proposal-apply-summary",
+    parseErrorNotice: "feedback-parse-error-notice",
   },
   // Initiative review surface — trigger + decide.
   initiativeReview: {

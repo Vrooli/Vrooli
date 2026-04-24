@@ -268,9 +268,10 @@ export function FeedbackDialog({ initiativeName, isOpen, onClose, onSubmitted }:
               disabled={mutation.isPending}
               className="rounded p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200 disabled:opacity-40"
               title="Attach image"
+              aria-label="Attach image"
               data-testid={selectors.feedback.dialogAttach}
             >
-              <Paperclip className="h-4 w-4" />
+              <Paperclip className="h-4 w-4" aria-hidden="true" />
             </button>
             <span className="text-[11px] text-slate-500">
               {attachments.length > 0

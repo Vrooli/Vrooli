@@ -129,6 +129,34 @@ describe("FeedbackDialog", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it("keeps submit disabled while a prior submit is in flight", async () => {
+    // Hold the submit promise open so the mutation stays pending. During
+    // that window a second click must not fire another `start` call — the
+    // dialog's `canSubmit` gate is our only line of defense against a user
+    // double-clicking and accidentally creating two rounds.
+    let resolvePending: (round: FeedbackRound) => void = () => {};
+    mockStart.mockImplementationOnce(
+      () =>
+        new Promise<FeedbackRound>((resolve) => {
+          resolvePending = resolve;
+        }),
+    );
+    renderDialog();
+
+    await userEvent.type(screen.getByTestId(selectors.feedback.dialogText), "first");
+    const submit = screen.getByTestId(selectors.feedback.dialogSubmit);
+    await userEvent.click(submit);
+
+    // Pending: submit is disabled and clicking again is a no-op.
+    await waitFor(() => expect(submit).toBeDisabled());
+    await userEvent.click(submit);
+    expect(mockStart).toHaveBeenCalledTimes(1);
+
+    // Release the pending submit so React Testing Library doesn't leak the promise.
+    resolvePending(makeRound());
+    await waitFor(() => expect(mockStart).toHaveBeenCalledTimes(1));
+  });
+
   it("surfaces a lock conflict and requires explicit override before resubmitting", async () => {
     mockStart.mockRejectedValueOnce(
       new FeedbackLockConflictError("locked", { run_id: "r1", purpose: "feedback" }),

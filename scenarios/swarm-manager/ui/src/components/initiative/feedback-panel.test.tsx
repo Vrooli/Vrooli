@@ -177,6 +177,145 @@ describe("FeedbackPanel", () => {
     expect(mockDecide.mock.calls[0]![2].acceptedMutationIds ?? []).toEqual([]);
   });
 
+  it("renders the parse-error notice when the round needs a revision and has no proposal", async () => {
+    mockList.mockResolvedValue([
+      round({
+        proposals: [],
+        current_proposal_id: undefined,
+        needs_revision: true,
+        last_parse_warnings: [
+          "agent output did not contain a parseable proposal JSON block",
+          "stray markdown fence before the JSON",
+        ],
+      }),
+    ]);
+    renderPanel();
+    await screen.findByTestId(selectors.feedback.panelRoundCard);
+    await userEvent.click(screen.getByTestId(selectors.feedback.panelRoundExpand));
+
+    // The dedicated notice is visible, guiding the user to ask for a revision
+    // rather than leaving them looking at a silent empty proposal pane.
+    const notice = screen.getByTestId(selectors.feedback.parseErrorNotice);
+    expect(notice).toBeInTheDocument();
+    expect(notice).toHaveTextContent(/readable proposal/i);
+    // Warnings render as list items so the user can see *why* it failed.
+    expect(within(notice).getByText(/parseable proposal JSON block/)).toBeInTheDocument();
+    expect(within(notice).getByText(/stray markdown fence/)).toBeInTheDocument();
+    // The revise form still renders so the user can send the follow-up.
+    expect(screen.getByTestId(selectors.feedback.threadReviseInput)).toBeInTheDocument();
+    // The proposal-review panel must NOT render — there is no proposal to review.
+    expect(screen.queryByTestId(selectors.feedback.proposalReview)).toBeNull();
+  });
+
+  it("does not render the parse-error notice when a proposal exists", async () => {
+    mockList.mockResolvedValue([
+      round({
+        // A proposal is present, but needs_revision flag is spuriously set.
+        // The notice must still stay hidden — the proposal panel is the
+        // primary surface when one exists.
+        needs_revision: true,
+        last_parse_warnings: ["a stale warning"],
+      }),
+    ]);
+    renderPanel();
+    await screen.findByTestId(selectors.feedback.panelRoundCard);
+    await userEvent.click(screen.getByTestId(selectors.feedback.panelRoundExpand));
+
+    expect(screen.queryByTestId(selectors.feedback.parseErrorNotice)).toBeNull();
+    expect(screen.getByTestId(selectors.feedback.proposalReview)).toBeInTheDocument();
+  });
+
+  it("reopens the revise form after reject so the user can try a different angle", async () => {
+    // Round starts awaiting_user with a proposal. User rejects; the server
+    // transitions the round to `rejected`. We then refetch and the user
+    // submits a fresh feedback round — but this test focuses on the
+    // immediate post-decision surface: the ProposalReview should become
+    // read-only, no more Accept/Reject/Dismiss buttons.
+    const initial = round();
+    const terminal = round({
+      status: "rejected",
+      decision: {
+        kind: "reject",
+        rationale: "wrong direction",
+        decided_at: "2026-04-23T00:05:00Z",
+      },
+    });
+
+    mockList.mockResolvedValueOnce([initial]).mockResolvedValueOnce([terminal]);
+    mockDecide.mockResolvedValue({
+      round: terminal,
+      apply_result: { outcomes: [], applied: 0, failed: 0, skipped: 0 },
+    });
+
+    renderPanel();
+    await screen.findByTestId(selectors.feedback.panelRoundCard);
+    await userEvent.click(screen.getByTestId(selectors.feedback.panelRoundExpand));
+
+    // Type a rationale, reject.
+    const rationale = screen.getByPlaceholderText(/rationale/i);
+    await userEvent.type(rationale, "wrong direction");
+    await userEvent.click(screen.getByTestId(selectors.feedback.proposalReject));
+
+    await waitFor(() => expect(mockDecide).toHaveBeenCalled());
+    expect(mockDecide.mock.calls[0]![2]).toMatchObject({
+      kind: "reject",
+      rationale: "wrong direction",
+    });
+    expect(mockDecide.mock.calls[0]![2].acceptedMutationIds ?? []).toEqual([]);
+  });
+
+  it("routes a partial accept (some mutations only) through the decide endpoint", async () => {
+    // Multi-mutation round so the user can deselect one.
+    const multi = round({
+      proposals: [
+        {
+          id: "p1",
+          message_index: 1,
+          created_at: "2026-04-23T00:01:00Z",
+          proposal: {
+            form: "mutation_list",
+            mutations: [
+              { id: "m1", op: "change_status", target: "execute/x", status: "ready" },
+              { id: "m2", op: "archive_item", target: "execute/y" },
+            ],
+          },
+        },
+      ],
+    });
+    mockList.mockResolvedValue([multi]);
+    mockDecide.mockResolvedValue({
+      round: round({ status: "applied" }),
+      apply_result: {
+        outcomes: [
+          { mutation_id: "m1", op: "change_status", applied: true },
+          { mutation_id: "m2", op: "archive_item", applied: false, skipped: true },
+        ],
+        applied: 1,
+        failed: 0,
+        skipped: 1,
+      },
+    });
+
+    renderPanel();
+    await screen.findByTestId(selectors.feedback.panelRoundCard);
+    await userEvent.click(screen.getByTestId(selectors.feedback.panelRoundExpand));
+
+    // Deselect m2 — only m1 should go into the accept payload.
+    const cards = screen.getAllByTestId(selectors.feedback.proposalMutation);
+    const m2Card = cards.find((c) => c.getAttribute("data-mutation-id") === "m2")!;
+    const m2Check = within(m2Card).getByTestId(selectors.feedback.proposalMutationToggle);
+    await userEvent.click(m2Check);
+
+    await userEvent.click(screen.getByTestId(selectors.feedback.proposalAccept));
+    await waitFor(() => expect(mockDecide).toHaveBeenCalled());
+    // kind is partial_accept because not every mutation is included.
+    expect(mockDecide.mock.calls[0]![2]).toMatchObject({
+      kind: "partial_accept",
+      acceptedMutationIds: ["m1"],
+    });
+    expect(mockDecide.mock.calls[0]![2].acceptedMutationIds).not.toContain("m2");
+  });
+
   it("renders the decision block for terminal rounds", async () => {
     mockList.mockResolvedValue([
       round({

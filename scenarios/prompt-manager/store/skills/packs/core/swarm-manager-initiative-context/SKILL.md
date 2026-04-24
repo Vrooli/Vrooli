@@ -29,6 +29,18 @@ The command prints, in one call:
 
 Use the default human output for reading and reasoning. Reach for `--json` only when you are parsing the response programmatically.
 
+## The graph artifact
+
+Each initiative has a `graph.json` projection on disk, auto-materialized from its members' `depends_on` edges. It is the canonical shape for reasoning about the item graph (nodes with kind/title/status/priority/effort/archived, edges keyed `depends_on`). Reach for it when you need the topology, not just the list.
+
+```bash
+swarm-manager initiatives graph-show --name <initiative-name>
+```
+
+`graph.json` is **read-only to agents** — it is a projection, never a source of truth. Mutations go through backlog/initiatives endpoints (or an accepted feedback proposal); the projection updates itself.
+
+You do not need to fetch `graph.json` when you are already running inside a skill that injects it as a variable (the feedback and review skills render it into `{{CURRENT_GRAPH}}`). Use `graph-show` from ad-hoc investigation skills that do not have that injection.
+
 ## Semantic interpretation
 
 - **Members** are the plan within this initiative. They are the items that are candidates for updating or deleting if a research finding has invalidated them, and the items you should consider updating *instead* of creating a near-duplicate.

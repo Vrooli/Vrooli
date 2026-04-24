@@ -18,7 +18,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, Loader2, MessageCirclePlus, RefreshCw, SendHorizontal } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, Loader2, MessageCirclePlus, RefreshCw, SendHorizontal } from "lucide-react";
 import { Button } from "../ui/button";
 import { StatusChip } from "../ui/status-chip";
 import { ErrorState } from "../ui/error-state";
@@ -306,6 +306,31 @@ function FeedbackRoundCard({ round, expanded, onToggle, onChanged, previewItems 
               readOnly={isTerminal}
               previewItems={previewItems}
             />
+          )}
+
+          {!isActive && !proposal && round.needs_revision && (
+            <div
+              className="space-y-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200"
+              data-testid={selectors.feedback.parseErrorNotice}
+            >
+              <div className="flex items-center gap-2 font-medium">
+                <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+                Agent output did not contain a readable proposal
+              </div>
+              <p className="text-[11px] leading-relaxed text-amber-200/80">
+                Ask the agent to revise — its last turn was stored in the thread
+                but no <code>mutation_list</code> or <code>full_graph</code>
+                {" "}block could be parsed. Describe what you want differently
+                and send the follow-up below.
+              </p>
+              {round.last_parse_warnings && round.last_parse_warnings.length > 0 && (
+                <ul className="list-disc space-y-0.5 pl-4 text-[11px] text-amber-200/70">
+                  {round.last_parse_warnings.map((w, i) => (
+                    <li key={i}>{w}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
           )}
 
           {isActive && (
