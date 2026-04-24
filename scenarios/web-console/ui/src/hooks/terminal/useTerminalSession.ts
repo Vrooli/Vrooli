@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { Terminal } from "@xterm/xterm";
 import { buildSessionWsUrl } from "../../lib/api";
+import { refreshConversationSession } from "../../hooks/useConversationSession";
 import { ANSI } from "../../lib/ansi";
 import { LocalEchoController } from "../../lib/localEcho";
 import { applyModifiers } from "../../consts/toolbar-keys";
@@ -275,8 +276,14 @@ export function useTerminalSession({
         t.write(`\r\n${ANSI.gray}[Reconnected]${ANSI.reset}\r\n`);
       }
     }
+    if (wasReconnect) {
+      // Close the conversation gap that accumulated while the WS was down.
+      // The terminal history replay handles PTY output; this handles the
+      // separate conversation side-channel.
+      void refreshConversationSession(sessionId);
+    }
     onReadyRef.current?.();
-  }, [hasCachedState, historyOffset, flushHistoryBuffer, stdin, currentGen]);
+  }, [hasCachedState, historyOffset, flushHistoryBuffer, stdin, currentGen, sessionId]);
 
   const onTransportClose = useCallback(() => {
     sessionReadyRef.current = false;
@@ -455,6 +462,12 @@ export function useTerminalSession({
               summarizeError: msg.summarizeError,
             });
           }
+          break;
+        }
+        case "conversation_out_of_sync": {
+          // Server dropped at least one event for this subscription (buffer
+          // was full). Close the gap with a since_sequence fetch.
+          void refreshConversationSession(sessionId);
           break;
         }
         case "resize_info": {

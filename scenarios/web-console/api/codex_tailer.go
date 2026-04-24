@@ -138,12 +138,24 @@ func (ct *CodexTailer) tailFile(path, sessionID string) {
 	staleTimer := time.NewTimer(timeout)
 	defer staleTimer.Stop()
 
-	processAvailable := func() {
+	resetStaleTimer := func() {
+		if !staleTimer.Stop() {
+			select {
+			case <-staleTimer.C:
+			default:
+			}
+		}
+		staleTimer.Reset(timeout)
+	}
+
+	processAvailable := func() bool {
+		processed := false
 		for {
 			line, err := reader.ReadBytes('\n')
 			if err != nil {
-				return
+				return processed
 			}
+			processed = true
 			currentOffset += int64(len(line))
 			line = bytes.TrimSpace(line)
 			if len(line) == 0 {
@@ -159,17 +171,50 @@ func (ct *CodexTailer) tailFile(path, sessionID string) {
 		}
 	}
 
-	processAvailable()
+	if processAvailable() {
+		resetStaleTimer()
+	}
+
+	// sessionAlive reports whether the owning session is still known to the
+	// server. We keep the watcher alive for as long as the session exists —
+	// agents can go quiet for hours and resume. The previous hard-timeout
+	// exit killed watchers mid-session and caused the "messages stop
+	// updating until I reopen web-console" bug.
+	sessionAlive := func() bool {
+		if ct.server == nil || ct.server.sessions == nil {
+			// No session manager to consult (tests); assume alive so the
+			// watcher remains in effect until Stop() or deletion of file.
+			return true
+		}
+		for _, s := range ct.server.sessions.List() {
+			if s.ID == sessionID {
+				return true
+			}
+		}
+		return false
+	}
 
 	for {
 		select {
 		case <-ct.stopCh:
 			return
 		case <-staleTimer.C:
-			log.Printf("codex-tailer: stopping stale watcher for %s", path)
-			return
+			// If the file is gone or the session has been deleted, stop.
+			// Otherwise keep watching indefinitely — quiet agents are
+			// normal and must not silently lose the side-channel.
+			if _, err := os.Stat(path); err != nil {
+				log.Printf("codex-tailer: rollout %s vanished; stopping watcher", path)
+				return
+			}
+			if !sessionAlive() {
+				log.Printf("codex-tailer: session %s is gone; stopping watcher for %s", sessionID, path)
+				return
+			}
+			staleTimer.Reset(timeout)
 		case <-ticker.C:
-			processAvailable()
+			if processAvailable() {
+				resetStaleTimer()
+			}
 		}
 	}
 }

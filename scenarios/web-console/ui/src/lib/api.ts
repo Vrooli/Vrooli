@@ -296,8 +296,15 @@ export async function reportTTSEvent(event: TTSPlaybackEvent): Promise<void> {
   }
 }
 
-export async function getConversationSession(sessionId: string): Promise<ConversationSessionResponse> {
-  const url = buildApiUrl(`/sessions/${sessionId}/conversation`, { baseUrl: API_BASE });
+export async function getConversationSession(
+  sessionId: string,
+  opts?: { sinceSequence?: number },
+): Promise<ConversationSessionResponse> {
+  let path = `/sessions/${sessionId}/conversation`;
+  if (opts?.sinceSequence && opts.sinceSequence > 0) {
+    path += `?since_sequence=${opts.sinceSequence}`;
+  }
+  const url = buildApiUrl(path, { baseUrl: API_BASE });
   const res = await fetch(url, {
     headers: { "Content-Type": "application/json" },
     cache: "no-store",

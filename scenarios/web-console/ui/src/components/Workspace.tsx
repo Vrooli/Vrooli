@@ -44,6 +44,7 @@ import TabBar from "./TabBar";
 import MessagesPane from "./MessagesPane";
 import AudioPlayerBar from "./AudioPlayerBar";
 import SummarizeErrorBanner, { type SummarizeErrorState } from "./SummarizeErrorBanner";
+import EnableAudioBanner from "./EnableAudioBanner";
 import { useConversationStore } from "../stores/useConversationStore";
 import type { TTSPlaybackState } from "../hooks/tts/types";
 
@@ -582,6 +583,27 @@ export default function Workspace() {
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summarizeLevel, setSummarizeLevel] = useState<SummarizationLevel>("moderate");
   const [summarizeError, setSummarizeError] = useState<SummarizeErrorState | null>(null);
+  // Enable-audio affordance: set by TerminalPane when auto-TTS is rejected by
+  // the browser's autoplay policy. `suppressed` is session-scoped — once the
+  // user dismisses the banner it never reappears until the tab reloads.
+  const [enableAudio, setEnableAudio] = useState<{ sessionId: string; enable: () => Promise<boolean> } | null>(null);
+  const [enableAudioSuppressed, setEnableAudioSuppressed] = useState(false);
+
+  const handleNeedsUnlock = useCallback((payload: { sessionId: string; enable: () => Promise<boolean> } | null) => {
+    setEnableAudio(payload);
+  }, []);
+
+  const handleEnableAudio = useCallback(async (): Promise<boolean> => {
+    if (!enableAudio) return false;
+    const ok = await enableAudio.enable();
+    if (ok) setEnableAudio(null);
+    return ok;
+  }, [enableAudio]);
+
+  const handleDismissEnableAudio = useCallback(() => {
+    setEnableAudioSuppressed(true);
+    setEnableAudio(null);
+  }, []);
 
   const handleSummarizeFailed = useCallback((sessionId: string, eventId: string, message: string, source: "auto" | "on-demand") => {
     setSummarizeError({ sessionId, eventId, message, source, status: "failed" });
@@ -985,6 +1007,7 @@ export default function Workspace() {
                 }
               }}
               onSummarizeError={(eventId, message) => handleSummarizeFailed(paneMeta.sessionId, eventId, message, "auto")}
+              onNeedsUnlock={handleNeedsUnlock}
               ref={(handle) =>
                 registerTerminalRef(paneMeta.sessionId, handle)
               }
@@ -1061,6 +1084,13 @@ export default function Workspace() {
           state={summarizeError}
           onRetry={handleRetrySummarize}
           onDismiss={handleDismissSummarizeError}
+        />
+      )}
+
+      {enableAudio && !enableAudioSuppressed && (
+        <EnableAudioBanner
+          onEnable={handleEnableAudio}
+          onDismiss={handleDismissEnableAudio}
         />
       )}
 
@@ -1157,6 +1187,7 @@ export default function Workspace() {
                         }
                       }}
                       onSummarizeError={(eventId, message) => handleSummarizeFailed(paneMeta.sessionId, eventId, message, "auto")}
+                      onNeedsUnlock={handleNeedsUnlock}
                       ref={(handle) =>
                         registerTerminalRef(paneMeta.sessionId, handle)
                       }

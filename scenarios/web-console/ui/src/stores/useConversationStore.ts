@@ -17,6 +17,12 @@ interface ConversationStoreState {
 interface ConversationStoreActions {
   hydrateSession: (sessionId: string, events: ConversationEvent[], cursor: ConversationCursor) => void;
   appendEvent: (event: ConversationEvent) => void;
+  /**
+   * Merge a batch of events into a session, skipping any whose id already
+   * exists. Used by reconnect / view-open / out-of-sync refresh paths to
+   * fill gaps without disturbing the tail the live WS already delivered.
+   */
+  mergeEvents: (sessionId: string, events: ConversationEvent[], cursor?: ConversationCursor) => void;
   /** Merge updated fields (e.g. summarization) into an existing event by ID. */
   updateEvent: (sessionId: string, eventId: string, patch: { speechParagraphs?: string[]; originalSpeechParagraphs?: string[]; summarized?: boolean }) => void;
   updateCursor: (sessionId: string, cursor: Partial<ConversationCursor>) => void;
@@ -55,6 +61,35 @@ export const useConversationStore = create<ConversationStoreState & Conversation
         [event.sessionId]: {
           ...existing,
           events: [...existing.events, event],
+        },
+      },
+    };
+  }),
+
+  mergeEvents: (sessionId, incoming, cursor) => set((state) => {
+    const existing = state.sessions[sessionId] ?? { events: [], cursor: defaultCursor(), hydrated: true };
+    if (incoming.length === 0 && !cursor) {
+      // Still mark hydrated so UI stops showing "not loaded" states.
+      if (existing.hydrated) return state;
+      return {
+        sessions: {
+          ...state.sessions,
+          [sessionId]: { ...existing, hydrated: true },
+        },
+      };
+    }
+    const seen = new Set(existing.events.map((e) => e.id));
+    const added = incoming.filter((e) => !seen.has(e.id));
+    const merged = added.length > 0
+      ? [...existing.events, ...added].sort((a, b) => a.sequence - b.sequence)
+      : existing.events;
+    return {
+      sessions: {
+        ...state.sessions,
+        [sessionId]: {
+          events: merged,
+          cursor: cursor ?? existing.cursor,
+          hydrated: true,
         },
       },
     };

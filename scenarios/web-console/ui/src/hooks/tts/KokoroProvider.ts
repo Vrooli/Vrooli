@@ -10,6 +10,15 @@ import { synthesizeTTS } from "../../lib/api";
  * A single reusable HTMLAudioElement is created in the constructor.
  * Blob URLs are revoked on stop / dispose / next speak call to prevent leaks.
  */
+// Minimal valid silent WAV: 46 bytes, 16-bit mono, 8 kHz, 1 sample of silence.
+// Used once per session to activate the reusable HTMLAudioElement inside a
+// user gesture so subsequent programmatic play() calls bypass the browser
+// autoplay policy. Must contain at least one sample of real PCM data —
+// earlier 0-byte variants caused Chrome to fire MEDIA_ERR_DECODE on every
+// `src=` assignment, storming the provider with spurious 'error' events.
+const SILENT_WAV_DATA_URL =
+  "data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQIAAAAAAA==";
+
 export class KokoroProvider implements TTSProvider {
   private _isSpeaking = false;
   private _isPaused = false;
@@ -19,6 +28,7 @@ export class KokoroProvider implements TTSProvider {
   private playbackResolve: (() => void) | null = null;
   private playbackReject: ((reason?: unknown) => void) | null = null;
   private progressCallback: TTSPlaybackProgressCallback | null = null;
+  private unlocked = false;
 
   readonly capabilities: TTSPlaybackCapabilities = {
     canPause: true,
@@ -32,6 +42,42 @@ export class KokoroProvider implements TTSProvider {
     this.audio.addEventListener("timeupdate", this.handleTimeUpdate);
     this.audio.addEventListener("ended", this.handleEnded);
     this.audio.addEventListener("error", this.handleError);
+  }
+
+  async unlock(force = false): Promise<boolean> {
+    if (this.unlocked && !force) return true;
+    // Never disturb an active playback by reassigning `src` — Chrome's
+    // sticky activation must already exist if we're actively playing, and
+    // a stray gesture-handler unlock call mid-playback would otherwise
+    // interrupt the audio and spray MEDIA_ERR_DECODE events.
+    if (this._isSpeaking && !this.audio.paused) {
+      this.unlocked = true;
+      return true;
+    }
+    try {
+      // Set a silent source and play within the caller's gesture stack.
+      // After the silent play resolves we clean the element up (pause,
+      // clear src, reload) so the next speakFromBlob sets a fresh state
+      // without leftover format/source metadata confusing the decoder.
+      // Chrome's autoplay eligibility is stored on HTMLMediaElement and
+      // survives a load() reset — see the separate `unlocked` flag.
+      this.audio.src = SILENT_WAV_DATA_URL;
+      this.audio.muted = true;
+      await this.audio.play();
+      this.audio.pause();
+      this.audio.removeAttribute("src");
+      this.audio.load();
+      this.audio.muted = false;
+      this.unlocked = true;
+      return true;
+    } catch {
+      this.audio.muted = false;
+      return false;
+    }
+  }
+
+  isUnlocked(): boolean {
+    return this.unlocked;
   }
 
   async speak(text: string, opts?: TTSSpeakOptions): Promise<void> {

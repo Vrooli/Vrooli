@@ -420,4 +420,161 @@ describe("useTextToSpeech", () => {
       expect(result.current.browserAudioReady).toBe(true);
     });
   });
+
+  describe("autoplay unlock", () => {
+    // Minimal HTMLAudioElement stand-in used when we need to drive the Kokoro
+    // path through jsdom. Only the handful of properties KokoroProvider calls
+    // are implemented; the rest are no-ops that mirror real element behavior.
+    class FakeAudio extends EventTarget {
+      src = "";
+      currentTime = 0;
+      duration = NaN;
+      paused = true;
+      playbackRate = 1;
+      volume = 1;
+      muted = false;
+      play = vi.fn(async () => {
+        this.paused = false;
+        Object.defineProperty(this, "duration", { value: 1, writable: true, configurable: true });
+        setTimeout(() => this.dispatchEvent(new Event("ended")), 0);
+      });
+      pause = vi.fn(() => { this.paused = true; });
+      load = vi.fn(() => { this.currentTime = 0; });
+      removeAttribute = vi.fn();
+    }
+
+    let fakeAudio: FakeAudio;
+    let createObjectURLSpy: ReturnType<typeof vi.fn>;
+    let revokeObjectURLSpy: ReturnType<typeof vi.fn>;
+    beforeEach(() => {
+      fakeAudio = new FakeAudio();
+      vi.stubGlobal("Audio", vi.fn(() => fakeAudio));
+      createObjectURLSpy = vi.fn(() => "blob:fake-url");
+      revokeObjectURLSpy = vi.fn();
+      (globalThis.URL as unknown as { createObjectURL: unknown }).createObjectURL = createObjectURLSpy;
+      (globalThis.URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = revokeObjectURLSpy;
+    });
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("needsUnlock starts false", async () => {
+      mockFetchCaps.mockResolvedValue({
+        capabilities: [{ id: "kokoro-tts", status: "available" }],
+        timestamp: new Date().toISOString(),
+      });
+      mockGetVoices.mockResolvedValue([{ id: "af_heart", name: "af_heart" }]);
+
+      const { result } = renderHook(() => useTextToSpeech(defaultSettings));
+      await waitFor(() => expect(result.current.backend).toBe("kokoro"));
+      expect(result.current.needsUnlock).toBe(false);
+    });
+
+    it("speakParagraphs sets needsUnlock=true (not error) on NotAllowedError", async () => {
+      mockFetchCaps.mockResolvedValue({
+        capabilities: [{ id: "kokoro-tts", status: "available" }],
+        timestamp: new Date().toISOString(),
+      });
+      mockGetVoices.mockResolvedValue([{ id: "af_heart", name: "af_heart" }]);
+      const blob = new Blob(["audio"], { type: "audio/mp3" });
+      mockSynthesizeTTS.mockResolvedValue(blob);
+      fakeAudio.play = vi.fn().mockRejectedValue(
+        Object.assign(new Error("not allowed by the user agent"), { name: "NotAllowedError" }),
+      );
+
+      const { result } = renderHook(() => useTextToSpeech({
+        ...defaultSettings,
+        backendPreference: "kokoro",
+      }));
+      await waitFor(() => expect(result.current.backend).toBe("kokoro"));
+
+      await act(async () => {
+        await result.current.speakParagraphs(["paragraph one"]);
+      });
+
+      await waitFor(() => expect(result.current.needsUnlock).toBe(true));
+      expect(result.current.error).toBeNull();
+    });
+
+    it("generic non-autoplay failure sets error, not needsUnlock", async () => {
+      mockFetchCaps.mockResolvedValue({
+        capabilities: [{ id: "kokoro-tts", status: "available" }],
+        timestamp: new Date().toISOString(),
+      });
+      mockGetVoices.mockResolvedValue([{ id: "af_heart", name: "af_heart" }]);
+      mockSynthesizeTTS.mockRejectedValue(new Error("Kokoro synthesis failed"));
+
+      const { result } = renderHook(() => useTextToSpeech({
+        ...defaultSettings,
+        backendPreference: "kokoro",
+      }));
+      await waitFor(() => expect(result.current.backend).toBe("kokoro"));
+
+      await act(async () => {
+        try {
+          await result.current.speakParagraphs(["paragraph one"]);
+        } catch {
+          // expected
+        }
+      });
+
+      await waitFor(() => expect(result.current.error).toBe("Kokoro synthesis failed"));
+      expect(result.current.needsUnlock).toBe(false);
+    });
+
+    it("unlockAudio() calls provider.unlock() and clears needsUnlock on success", async () => {
+      mockFetchCaps.mockResolvedValue({
+        capabilities: [{ id: "kokoro-tts", status: "available" }],
+        timestamp: new Date().toISOString(),
+      });
+      mockGetVoices.mockResolvedValue([{ id: "af_heart", name: "af_heart" }]);
+      const blob = new Blob(["audio"], { type: "audio/mp3" });
+      mockSynthesizeTTS.mockResolvedValue(blob);
+      fakeAudio.play = vi.fn().mockRejectedValue(
+        Object.assign(new Error("not allowed"), { name: "NotAllowedError" }),
+      );
+
+      const { result } = renderHook(() => useTextToSpeech({
+        ...defaultSettings,
+        backendPreference: "kokoro",
+      }));
+      await waitFor(() => expect(result.current.backend).toBe("kokoro"));
+      await act(async () => { await result.current.speakParagraphs(["x"]); });
+      await waitFor(() => expect(result.current.needsUnlock).toBe(true));
+
+      // Reconfigure play to succeed so unlock() resolves true.
+      fakeAudio.play = vi.fn(async () => { fakeAudio.paused = false; });
+
+      let unlockResult: boolean | undefined;
+      await act(async () => { unlockResult = await result.current.unlockAudio(); });
+
+      expect(unlockResult).toBe(true);
+      expect(result.current.needsUnlock).toBe(false);
+      expect(result.current.browserAudioReady).toBe(true);
+    });
+
+    it("dismissNeedsUnlock clears the flag without touching the provider", async () => {
+      mockFetchCaps.mockResolvedValue({
+        capabilities: [{ id: "kokoro-tts", status: "available" }],
+        timestamp: new Date().toISOString(),
+      });
+      mockGetVoices.mockResolvedValue([{ id: "af_heart", name: "af_heart" }]);
+      const blob = new Blob(["audio"], { type: "audio/mp3" });
+      mockSynthesizeTTS.mockResolvedValue(blob);
+      fakeAudio.play = vi.fn().mockRejectedValue(
+        Object.assign(new Error("not allowed"), { name: "NotAllowedError" }),
+      );
+
+      const { result } = renderHook(() => useTextToSpeech({
+        ...defaultSettings,
+        backendPreference: "kokoro",
+      }));
+      await waitFor(() => expect(result.current.backend).toBe("kokoro"));
+      await act(async () => { await result.current.speakParagraphs(["x"]); });
+      await waitFor(() => expect(result.current.needsUnlock).toBe(true));
+
+      act(() => result.current.dismissNeedsUnlock());
+      expect(result.current.needsUnlock).toBe(false);
+    });
+  });
 });

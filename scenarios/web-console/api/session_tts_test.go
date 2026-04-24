@@ -9,7 +9,7 @@ import (
 func TestSubscribeConversation_SendConversation_Delivered(t *testing.T) {
 	sess := &Session{
 		clients:             make(map[chan []byte]*ClientInfo),
-		conversationClients: make(map[chan ConversationEvent]struct{}),
+		conversationClients: make(map[chan ConversationEvent]*conversationSubscriber),
 	}
 
 	ch := sess.SubscribeConversation()
@@ -31,7 +31,7 @@ func TestSubscribeConversation_SendConversation_Delivered(t *testing.T) {
 func TestUnsubscribeConversation_ChannelClosed(t *testing.T) {
 	sess := &Session{
 		clients:             make(map[chan []byte]*ClientInfo),
-		conversationClients: make(map[chan ConversationEvent]struct{}),
+		conversationClients: make(map[chan ConversationEvent]*conversationSubscriber),
 	}
 
 	ch := sess.SubscribeConversation()
@@ -47,7 +47,7 @@ func TestSendConversation_ConcurrentUnsubscribe(t *testing.T) {
 	t.Parallel()
 	sess := &Session{
 		clients:             make(map[chan []byte]*ClientInfo),
-		conversationClients: make(map[chan ConversationEvent]struct{}),
+		conversationClients: make(map[chan ConversationEvent]*conversationSubscriber),
 	}
 
 	const numGoroutines = 100
@@ -83,14 +83,15 @@ func TestSendConversation_DropsLoggedOnce(t *testing.T) {
 	sess := &Session{
 		ID:                  "drop-test",
 		clients:             make(map[chan []byte]*ClientInfo),
-		conversationClients: make(map[chan ConversationEvent]struct{}),
+		conversationClients: make(map[chan ConversationEvent]*conversationSubscriber),
 	}
 
 	ch := sess.SubscribeConversation()
 	defer sess.UnsubscribeConversation(ch)
 
 	event := ConversationEvent{ID: "evt", Source: "test", SessionID: "s1", Text: "fill"}
-	for i := 0; i < 8; i++ {
+	// Fill exactly the per-subscriber buffer; no drop should be logged yet.
+	for i := 0; i < conversationChannelBuffer; i++ {
 		sess.SendConversation(event)
 	}
 
@@ -98,19 +99,30 @@ func TestSendConversation_DropsLoggedOnce(t *testing.T) {
 		t.Fatal("conversationDropLogged should be false before overflow")
 	}
 
-	sess.SendConversation(event)
+	// One more send must overflow and trigger the drop log + resync pulse.
 	sess.SendConversation(event)
 	sess.SendConversation(event)
 
 	if !sess.conversationDropLogged {
 		t.Error("expected conversationDropLogged to be true after channel overflow")
 	}
+
+	// Resync signal should have been pulsed (at least once, capacity 1).
+	resync := sess.ConversationResyncSignal(ch)
+	if resync == nil {
+		t.Fatal("expected non-nil resync signal for active subscription")
+	}
+	select {
+	case <-resync:
+	default:
+		t.Error("expected resync signal to be pulsed after overflow")
+	}
 }
 
 func TestSendConversation_NoSubscribers(t *testing.T) {
 	sess := &Session{
 		clients:             make(map[chan []byte]*ClientInfo),
-		conversationClients: make(map[chan ConversationEvent]struct{}),
+		conversationClients: make(map[chan ConversationEvent]*conversationSubscriber),
 	}
 	sess.SendConversation(ConversationEvent{ID: "evt", Source: "test", SessionID: "s1", Text: "nobody listening"})
 }

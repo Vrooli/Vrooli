@@ -40,6 +40,13 @@ export interface TTSState {
   browserAudioReady: boolean;
   lastSuccessfulBackend: TTSBackend;
   lastSuccessfulAt: string | null;
+  /**
+   * True when a playback attempt was rejected by the browser's autoplay
+   * policy and the audio element has not yet been unlocked via a qualifying
+   * user gesture. Consumers should surface an "Enable voice" affordance that
+   * calls `unlockAudio()` and then retries.
+   */
+  needsUnlock: boolean;
 }
 
 export interface TTSDiagnostics {
@@ -59,6 +66,18 @@ function isAbortLikeError(err: unknown): boolean {
   return err instanceof Error && (err.name === "AbortError" || err.message === "The operation was aborted.");
 }
 
+// The browser's autoplay policy rejects programmatic HTMLAudioElement.play()
+// calls that happen outside a qualifying user-gesture call stack. Detecting
+// it lets us route to the Enable-Audio affordance instead of flashing a
+// transient error banner for every paragraph in the speak chain.
+function isAutoplayBlocked(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  return (
+    err.name === "NotAllowedError" ||
+    /not allowed by the user agent/i.test(err.message)
+  );
+}
+
 export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnostics) {
   const [state, setState] = useState<TTSState>({
     supported: isBrowserSupported(),
@@ -76,6 +95,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
     browserAudioReady: false,
     lastSuccessfulBackend: "none",
     lastSuccessfulAt: null,
+    needsUnlock: false,
   });
 
   const providerRef = useRef<TTSProvider | null>(null);
@@ -98,17 +118,29 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const unlock = () => {
+    const onGesture = () => {
+      // Always flip the flag that gates BrowserTTSProvider — that only needs
+      // to know a gesture occurred. The media-element unlock is separate.
       audioUnlockedRef.current = true;
-      setState((s) => ({ ...s, browserAudioReady: true }));
+      setState((s) => (s.browserAudioReady ? s : { ...s, browserAudioReady: true }));
+
+      const provider = providerRef.current;
+      if (!provider || provider.isUnlocked()) return;
+      // Fire-and-forget: the play() inside unlock() must be kicked off
+      // synchronously within this gesture call stack, but we don't await it.
+      provider.unlock().then((ok) => {
+        if (ok) {
+          setState((s) => (s.needsUnlock ? { ...s, needsUnlock: false } : s));
+        }
+      });
     };
-    window.addEventListener("pointerdown", unlock, { passive: true });
-    window.addEventListener("keydown", unlock, { passive: true });
-    window.addEventListener("touchstart", unlock, { passive: true });
+    window.addEventListener("pointerdown", onGesture, { passive: true });
+    window.addEventListener("keydown", onGesture, { passive: true });
+    window.addEventListener("touchstart", onGesture, { passive: true });
     return () => {
-      window.removeEventListener("pointerdown", unlock);
-      window.removeEventListener("keydown", unlock);
-      window.removeEventListener("touchstart", unlock);
+      window.removeEventListener("pointerdown", onGesture);
+      window.removeEventListener("keydown", onGesture);
+      window.removeEventListener("touchstart", onGesture);
     };
   }, []);
 
@@ -131,6 +163,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
       isSpeaking: false,
       isPaused: false,
       error: null,
+      needsUnlock: false,
       lastSuccessfulBackend: backend,
       lastSuccessfulAt: new Date().toISOString(),
     }));
@@ -399,7 +432,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
       const controller = new AbortController();
       speakChainRef.current = controller;
 
-      setState((s) => ({ ...s, isSpeaking: true, isPaused: false, error: null }));
+      setState((s) => ({ ...s, isSpeaking: true, isPaused: false }));
       emitEvent("attempt", backendRef.current);
 
       executeSpeak(text).then(
@@ -417,6 +450,16 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
             return;
           }
           const message = err instanceof Error ? err.message : "Speech failed";
+          if (isAutoplayBlocked(err)) {
+            emitEvent("autoplay_blocked", backendRef.current, message);
+            setState((s) => ({
+              ...s,
+              isSpeaking: false,
+              isPaused: false,
+              needsUnlock: true,
+            }));
+            return;
+          }
           emitEvent("error", backendRef.current, message);
           setState((s) => ({
             ...s,
@@ -442,7 +485,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
 
       if (!providerRef.current || paragraphs.length === 0) return;
 
-      setState((s) => ({ ...s, isSpeaking: true, isPaused: false, error: null }));
+      setState((s) => ({ ...s, isSpeaking: true, isPaused: false }));
       emitEvent("attempt", backendRef.current);
 
       try {
@@ -458,7 +501,28 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
             controller.signal,
           );
           if (blob && !controller.signal.aborted) {
-            await provider.speakFromBlob(blob);
+            try {
+              await provider.speakFromBlob(blob);
+            } catch (err) {
+              if (controller.signal.aborted || isAbortLikeError(err)) throw err;
+              // Cache-first blob playback was rejected. If it was an autoplay
+              // block AND we can fall back to browser speech, do so with the
+              // joined paragraphs (same behavior as executeSpeak's fallback).
+              if (
+                isAutoplayBlocked(err)
+                && settings.backendPreference === "auto"
+                && isBrowserSupported()
+              ) {
+                await runBrowserSpeak(paragraphs.join("\n\n"), true);
+                if (!controller.signal.aborted) {
+                  emitEvent("success", "browser");
+                  updateSuccess("browser");
+                  return "browser" as TTSBackend;
+                }
+                return;
+              }
+              throw err;
+            }
             if (!controller.signal.aborted) {
               emitEvent("success", "kokoro");
               updateSuccess("kokoro");
@@ -491,6 +555,16 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
         }
         const message =
           err instanceof Error ? err.message : "Speech failed";
+        if (isAutoplayBlocked(err)) {
+          emitEvent("autoplay_blocked", backendRef.current, message);
+          setState((s) => ({
+            ...s,
+            isSpeaking: false,
+            isPaused: false,
+            needsUnlock: true,
+          }));
+          return;
+        }
         emitEvent("error", backendRef.current, message);
         setState((s) => ({ ...s, isSpeaking: false, isPaused: false, error: message }));
         throw err;
@@ -500,7 +574,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
         }
       }
     },
-    [emitEvent, executeSpeak, settings.kokoroSpeed, settings.kokoroVoice, updateSuccess],
+    [emitEvent, executeSpeak, runBrowserSpeak, settings.backendPreference, settings.kokoroSpeed, settings.kokoroVoice, updateSuccess],
   );
 
   const stop = useCallback(() => {
@@ -547,6 +621,8 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
       setState((s) => ({ ...s, error: "No TTS backend is available" }));
       return;
     }
+    // testSpeak is always triggered by a direct user action, so reset error
+    // upfront — the user wants unambiguous feedback from this click.
     setState((s) => ({ ...s, isSpeaking: true, isPaused: false, error: null }));
     emitEvent("attempt", backendRef.current);
     try {
@@ -559,11 +635,36 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
         return;
       }
       const message = err instanceof Error ? err.message : "Speech failed";
+      if (isAutoplayBlocked(err)) {
+        emitEvent("autoplay_blocked", backendRef.current, message);
+        setState((s) => ({ ...s, isSpeaking: false, isPaused: false, needsUnlock: true }));
+        return;
+      }
       emitEvent("error", backendRef.current, message);
       setState((s) => ({ ...s, isSpeaking: false, isPaused: false, error: message }));
       throw err;
     }
   }, [emitEvent, executeSpeak, updateSuccess]);
+
+  const unlockAudio = useCallback(async (): Promise<boolean> => {
+    const provider = providerRef.current;
+    if (!provider) return false;
+    // Force a fresh silent play() on this invocation. Explicit user actions
+    // (Enable-Audio banner click) happen after autoplay has already failed
+    // once — Chrome's prior activation is gone, so the cached unlocked
+    // flag can't be trusted. Preemptive gesture-listener unlocks use the
+    // default (no-force) path to avoid thrashing the element during typing.
+    const ok = await provider.unlock(true);
+    if (ok) {
+      audioUnlockedRef.current = true;
+      setState((s) => ({ ...s, browserAudioReady: true, needsUnlock: false }));
+    }
+    return ok;
+  }, []);
+
+  const dismissNeedsUnlock = useCallback(() => {
+    setState((s) => (s.needsUnlock ? { ...s, needsUnlock: false } : s));
+  }, []);
 
   return {
     ...state,
@@ -578,5 +679,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
     getPlaybackState,
     refresh,
     testSpeak,
+    unlockAudio,
+    dismissNeedsUnlock,
   };
 }

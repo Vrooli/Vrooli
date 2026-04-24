@@ -241,7 +241,7 @@ func TestSession_ReadLoop_ExitsOnStandardBackend(t *testing.T) {
 		exitCh:              make(chan struct{}),
 		ptyReadBuffer:       4096,
 		offlineBufferMax:    1024 * 1024,
-		conversationClients: make(map[chan ConversationEvent]struct{}),
+		conversationClients: make(map[chan ConversationEvent]*conversationSubscriber),
 	}
 
 	// Close the pipe to trigger readLoop exit
@@ -489,7 +489,7 @@ func TestSession_ReadLoop_RetriesReattachForPersistent(t *testing.T) {
 		exitCh:              make(chan struct{}),
 		ptyReadBuffer:       4096,
 		offlineBufferMax:    1024 * 1024,
-		conversationClients: make(map[chan ConversationEvent]struct{}),
+		conversationClients: make(map[chan ConversationEvent]*conversationSubscriber),
 		reattachFunc: func(sessionName string) (PTY, error) {
 			mu.Lock()
 			attempts++
@@ -545,7 +545,7 @@ func TestSession_ReadLoop_SkipsRetriesWhenClosing(t *testing.T) {
 		exitCh:              make(chan struct{}),
 		ptyReadBuffer:       4096,
 		offlineBufferMax:    1024 * 1024,
-		conversationClients: make(map[chan ConversationEvent]struct{}),
+		conversationClients: make(map[chan ConversationEvent]*conversationSubscriber),
 		reattachFunc: func(sessionName string) (PTY, error) {
 			mu.Lock()
 			attempts++
@@ -1063,7 +1063,7 @@ func TestSession_ReadLoop_ClosesOldPTY_OnReattach(t *testing.T) {
 		exitCh:              make(chan struct{}),
 		ptyReadBuffer:       4096,
 		offlineBufferMax:    1024 * 1024,
-		conversationClients: make(map[chan ConversationEvent]struct{}),
+		conversationClients: make(map[chan ConversationEvent]*conversationSubscriber),
 		reattachFunc: func(sessionName string) (PTY, error) {
 			// Return a new PTY that blocks on read
 			blockR, _ := io.Pipe()

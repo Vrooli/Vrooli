@@ -62,6 +62,14 @@ export class BrowserTTSProvider implements TTSProvider {
     this.stop();
   }
 
+  async unlock(_force = false): Promise<boolean> {
+    return true;
+  }
+
+  isUnlocked(): boolean {
+    return true;
+  }
+
   pause(): void {
     if (this._isSpeaking && !this._isPaused) {
       window.speechSynthesis.pause();

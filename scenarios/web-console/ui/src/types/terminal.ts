@@ -26,6 +26,7 @@ export interface TerminalMessage {
     | "conversation_event"
     | "conversation_event_ack"
     | "conversation_event_update"
+    | "conversation_out_of_sync"
     | "session_ready"
     | "stdin_ack"
     | "pty_state";

@@ -344,6 +344,64 @@ describe("KokoroProvider", () => {
       expect(fakeAudio.play).not.toHaveBeenCalled();
     });
 
+    it("unlock() plays a silent blob on the reusable element and resolves true", async () => {
+      const provider = new KokoroProvider();
+      const result = await provider.unlock();
+      expect(result).toBe(true);
+      expect(provider.isUnlocked()).toBe(true);
+      // Silent play + teardown: play(), pause(), removeAttribute, load().
+      // Chrome's autoplay eligibility lives on the HTMLMediaElement and
+      // survives load(); the src reset avoids leftover format state.
+      expect(fakeAudio.play).toHaveBeenCalledTimes(1);
+      expect(fakeAudio.pause).toHaveBeenCalled();
+      expect(fakeAudio.removeAttribute).toHaveBeenCalledWith("src");
+      expect(fakeAudio.load).toHaveBeenCalled();
+    });
+
+    it("unlock(true) re-plays even when already unlocked (force path)", async () => {
+      const provider = new KokoroProvider();
+      await provider.unlock();
+      const playsAfterFirst = fakeAudio.play.mock.calls.length;
+      const again = await provider.unlock(true);
+      expect(again).toBe(true);
+      expect(fakeAudio.play.mock.calls.length).toBe(playsAfterFirst + 1);
+    });
+
+    it("unlock() resolves false when play() rejects with NotAllowedError", async () => {
+      fakeAudio.play.mockRejectedValueOnce(
+        Object.assign(new Error("not allowed"), { name: "NotAllowedError" }),
+      );
+      const provider = new KokoroProvider();
+      const result = await provider.unlock();
+      expect(result).toBe(false);
+      expect(provider.isUnlocked()).toBe(false);
+    });
+
+    it("unlock() is idempotent — second call short-circuits without re-playing", async () => {
+      const provider = new KokoroProvider();
+      await provider.unlock();
+      const callsAfterFirst = fakeAudio.play.mock.calls.length;
+      const again = await provider.unlock();
+      expect(again).toBe(true);
+      expect(fakeAudio.play.mock.calls.length).toBe(callsAfterFirst);
+    });
+
+    it("unlock() swallows unexpected error classes and returns false", async () => {
+      fakeAudio.play.mockRejectedValueOnce("weird non-error thrown value");
+      const provider = new KokoroProvider();
+      const result = await provider.unlock();
+      expect(result).toBe(false);
+    });
+
+    it("after successful unlock, speakFromBlob still works on the same element", async () => {
+      const provider = new KokoroProvider();
+      await provider.unlock();
+      fakeAudio.play.mockClear();
+      const blob = new Blob(["audio"], { type: "audio/mpeg" });
+      await provider.speakFromBlob(blob);
+      expect(fakeAudio.play).toHaveBeenCalledTimes(1);
+    });
+
     it("stop() during synthesis aborts and rejects", async () => {
       let resolveFirst: ((blob: Blob) => void) | undefined;
       mockSynthesizeTTS.mockImplementationOnce(

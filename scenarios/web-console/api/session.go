@@ -148,8 +148,17 @@ type Session struct {
 	// Conversation side-channel: fan-out of semantic assistant events to
 	// WebSocket clients subscribed to this terminal session.
 	conversationMu         sync.Mutex
-	conversationClients    map[chan ConversationEvent]struct{}
+	conversationClients    map[chan ConversationEvent]*conversationSubscriber
 	conversationDropLogged bool // log once per session when an event is dropped
+}
+
+// conversationSubscriber tracks per-client state for the conversation fan-out.
+// The resync channel is a 1-buffered signal that fires when SendConversation
+// drops an event for this client because its event channel is full. The WS
+// writer loop listens on this channel and emits a conversation_out_of_sync
+// message so the client can refetch via GET /conversation?since_sequence=.
+type conversationSubscriber struct {
+	resync chan struct{}
 }
 
 // WriteInput delivers client-origin bytes to the PTY. Thread-safe —
@@ -765,7 +774,7 @@ func (sm *SessionManager) Create(shell string, cols, rows uint16, backend Backen
 		clientChannelBuffer:     sm.cfg.ClientChannelBuffer,
 		coalesceNotifyThreshold: sm.cfg.CoalesceNotifyThreshold,
 		sigwinchCooldown:        time.Duration(sm.cfg.SIGWINCHCooldownMs) * time.Millisecond,
-		conversationClients:     make(map[chan ConversationEvent]struct{}),
+		conversationClients:     make(map[chan ConversationEvent]*conversationSubscriber),
 		reattachFunc:            sm.tmuxAttachFunc,
 		metrics:                 sm.metrics,
 	}
@@ -994,7 +1003,7 @@ func (sm *SessionManager) Recover(store SessionMetadataStore, registry *BackendR
 			clientChannelBuffer:     sm.cfg.ClientChannelBuffer,
 			coalesceNotifyThreshold: sm.cfg.CoalesceNotifyThreshold,
 			sigwinchCooldown:        time.Duration(sm.cfg.SIGWINCHCooldownMs) * time.Millisecond,
-			conversationClients:     make(map[chan ConversationEvent]struct{}),
+			conversationClients:     make(map[chan ConversationEvent]*conversationSubscriber),
 			recovered:               true,
 			reattachFunc:            sm.tmuxAttachFunc,
 			metrics:                 sm.metrics,
@@ -1149,7 +1158,7 @@ func (sm *SessionManager) reattachOrphanedSessions() {
 			clientChannelBuffer:     sm.cfg.ClientChannelBuffer,
 			coalesceNotifyThreshold: sm.cfg.CoalesceNotifyThreshold,
 			sigwinchCooldown:        time.Duration(sm.cfg.SIGWINCHCooldownMs) * time.Millisecond,
-			conversationClients:     make(map[chan ConversationEvent]struct{}),
+			conversationClients:     make(map[chan ConversationEvent]*conversationSubscriber),
 			recovered:               true,
 			reattachFunc:            sm.tmuxAttachFunc,
 			metrics:                 sm.metrics,
@@ -1200,14 +1209,33 @@ func (s *Session) EffectiveSize() (uint16, uint16) {
 	return s.Cols, s.Rows
 }
 
+// conversationChannelBuffer sizes each subscriber's conversation event buffer.
+// Sized so a briefly throttled tab (background WS reads) can absorb a burst of
+// agent output without triggering the out-of-sync resync path.
+const conversationChannelBuffer = 256
+
 // SubscribeConversation returns a buffered channel that receives conversation
 // events for this session. Caller must call UnsubscribeConversation when done.
 func (s *Session) SubscribeConversation() chan ConversationEvent {
-	ch := make(chan ConversationEvent, 8)
+	ch := make(chan ConversationEvent, conversationChannelBuffer)
 	s.conversationMu.Lock()
-	s.conversationClients[ch] = struct{}{}
+	s.conversationClients[ch] = &conversationSubscriber{resync: make(chan struct{}, 1)}
 	s.conversationMu.Unlock()
 	return ch
+}
+
+// ConversationResyncSignal returns the out-of-sync signal channel bound to a
+// given conversation subscription. Returns nil if ch is not (or no longer)
+// subscribed. The WS writer loop selects on this channel and, on receive,
+// emits conversation_out_of_sync so the client can refetch the gap via
+// GET /conversation?since_sequence=N.
+func (s *Session) ConversationResyncSignal(ch chan ConversationEvent) <-chan struct{} {
+	s.conversationMu.Lock()
+	defer s.conversationMu.Unlock()
+	if sub, ok := s.conversationClients[ch]; ok {
+		return sub.resync
+	}
+	return nil
 }
 
 // UnsubscribeConversation removes and closes a conversation channel.
@@ -1222,16 +1250,22 @@ func (s *Session) UnsubscribeConversation(ch chan ConversationEvent) {
 }
 
 // SendConversation fans out a conversation event to all subscribed clients.
-// Non-blocking: if a client's channel is full, the message is skipped.
+// Non-blocking: if a client's channel is full, the message is dropped and the
+// subscriber's resync signal is pulsed so the WS writer emits an
+// out-of-sync notice and the client refetches the gap.
 func (s *Session) SendConversation(event ConversationEvent) {
 	s.conversationMu.Lock()
 	defer s.conversationMu.Unlock()
-	for ch := range s.conversationClients {
+	for ch, sub := range s.conversationClients {
 		select {
 		case ch <- event:
 		default:
+			select {
+			case sub.resync <- struct{}{}:
+			default:
+			}
 			if !s.conversationDropLogged {
-				log.Printf("session %s: conversation event dropped (client channel full)", s.ID)
+				log.Printf("session %s: conversation event dropped (client channel full) — resync signaled", s.ID)
 				s.conversationDropLogged = true
 			}
 		}

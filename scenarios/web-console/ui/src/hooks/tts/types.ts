@@ -34,6 +34,24 @@ export interface TTSProvider {
   /** Which rich-playback features this provider supports. */
   readonly capabilities: TTSPlaybackCapabilities;
 
+  /**
+   * Attempt to unlock audio playback by running a silent play() from inside a
+   * user-gesture call stack. Resolves `true` if the underlying media element
+   * is now activated, `false` if the browser rejected the play (caller should
+   * then show the enable-audio affordance). Must be safe to call multiple
+   * times and must never throw.
+   *
+   * When `force` is true, re-plays the silent blob even if a previous unlock
+   * already succeeded. Use this for explicit user actions (e.g. the
+   * Enable-Audio banner click) where the browser may have since dropped the
+   * element's activation and we need a fresh gesture-scoped play. Keystroke
+   * / pointer preemptive unlocks should use the default (false) to avoid
+   * thrashing the media element during typing.
+   */
+  unlock(force?: boolean): Promise<boolean>;
+  /** Whether a prior unlock() call succeeded. */
+  isUnlocked(): boolean;
+
   // --- Optional rich-playback methods ---
 
   /** Pause current playback. No-op if the provider does not support pausing. */

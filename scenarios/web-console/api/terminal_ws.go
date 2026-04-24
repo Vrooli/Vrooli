@@ -48,6 +48,11 @@ const (
 	// MsgTypeConversationEventUpdate delivers async updates (e.g. summarization)
 	// for an already-delivered conversation event.
 	MsgTypeConversationEventUpdate = "conversation_event_update"
+	// MsgTypeConversationOutOfSync signals the client that at least one
+	// conversation event was dropped server-side (per-subscriber channel
+	// full). The client refetches via GET /conversation?since_sequence=N to
+	// close the gap.
+	MsgTypeConversationOutOfSync = "conversation_out_of_sync"
 	// MsgTypeSessionReady is emitted exactly once per WS connection after the
 	// PTY is confirmed to accept writes (ProbeReady). Until the client sees
 	// this, stdin must stay in the pending queue.
@@ -194,6 +199,7 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 	// Subscribe to conversation side-channel for semantic assistant events.
 	conversationCh := sess.SubscribeConversation()
 	defer sess.UnsubscribeConversation(conversationCh)
+	conversationResyncCh := sess.ConversationResyncSignal(conversationCh)
 
 	// writeMu serializes WebSocket writes from the output forwarder goroutine
 	// and the inline input loop (which also writes pong/error responses).
@@ -325,6 +331,13 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 					Summarized:               event.Summarized,
 					SummarizeError:           event.SummarizeError,
 				})
+				writeMu.Unlock()
+			case <-conversationResyncCh:
+				// A prior SendConversation drop left this client out of
+				// sync. Tell the client so it refetches the gap via
+				// GET /conversation?since_sequence=N.
+				writeMu.Lock()
+				_ = conn.WriteJSON(TerminalMessage{Type: MsgTypeConversationOutOfSync})
 				writeMu.Unlock()
 			case <-ctx.Done():
 				// Input loop exited (WS disconnect) — stop forwarding.

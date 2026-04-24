@@ -178,8 +178,13 @@ func normalizeConversationText(text string) string {
 	return strings.TrimSpace(string(stripANSI([]byte(text))))
 }
 
-func conversationDedupKey(source, sessionID string, role ConversationRole, text string) string {
-	return strings.Join([]string{source, sessionID, string(role), text}, "\n")
+// conversationDedupKey intentionally omits the event source so that the same
+// assistant text arriving from two transports (e.g. codex_tailer + claude_hook)
+// collapses into a single event. The dedup window is short (30s) so this only
+// suppresses true same-message replays, not semantically distinct utterances
+// that happen to repeat a prior phrase later in the conversation.
+func conversationDedupKey(sessionID string, role ConversationRole, text string) string {
+	return strings.Join([]string{sessionID, string(role), text}, "\n")
 }
 
 func (s *ConversationStore) AppendAssistantEvent(sessionID, source, text string) (ConversationEvent, ConversationAppendResult) {
@@ -202,7 +207,7 @@ func (s *ConversationStore) AppendAssistantEvent(sessionID, source, text string)
 		}
 	}
 
-	dedupKey := conversationDedupKey(source, sessionID, ConversationRoleAssistant, cleanText)
+	dedupKey := conversationDedupKey(sessionID, ConversationRoleAssistant, cleanText)
 	if eventID, ok := s.dedup.seenRecently(dedupKey); ok {
 		return ConversationEvent{}, ConversationAppendResult{
 			Appended:  true,
@@ -270,7 +275,7 @@ func (s *ConversationStore) AppendUserEvent(sessionID, source, text string) (Con
 		}
 	}
 
-	dedupKey := conversationDedupKey(source, sessionID, ConversationRoleUser, cleanText)
+	dedupKey := conversationDedupKey(sessionID, ConversationRoleUser, cleanText)
 	if eventID, ok := s.dedup.seenRecently(dedupKey); ok {
 		return ConversationEvent{}, ConversationAppendResult{
 			Appended:  true,

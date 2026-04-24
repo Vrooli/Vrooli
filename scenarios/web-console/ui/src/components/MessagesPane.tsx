@@ -8,10 +8,12 @@ import {
   ChevronsUpDown,
   Copy,
   Play,
+  RotateCw,
   Search,
   Volume2,
 } from "lucide-react";
 import { useConversationStore, getSessionConversationEvents } from "../stores/useConversationStore";
+import { refreshConversationSession } from "../hooks/useConversationSession";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { summarizeEvent, updateTTSSummarizeConfig } from "../lib/api";
@@ -103,6 +105,37 @@ export default function MessagesPane({
   const isNearBottomRef = useRef(true);
   const [newMessageCount, setNewMessageCount] = useState(0);
   const prevEventCountRef = useRef(events.length);
+
+  // --- Refresh: on mount, on browser tab focus, and via manual button ---
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshConversationSession(sessionId);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [sessionId]);
+
+  // Refresh on pane mount (covers switching view mode back to messages). Also
+  // refresh whenever the tab becomes visible again — the server may have
+  // delivered events while the WS was background-throttled or dropped on a
+  // full client buffer (conversation_out_of_sync also handles the latter, but
+  // a missed signal can happen during reconnects).
+  useEffect(() => {
+    void refreshConversationSession(sessionId);
+    const onVisibility = () => {
+      if (!document.hidden) {
+        void refreshConversationSession(sessionId);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", onVisibility);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", onVisibility);
+    };
+  }, [sessionId]);
 
   // Track "near bottom" via IntersectionObserver on the sentinel div
   useEffect(() => {
@@ -396,6 +429,16 @@ export default function MessagesPane({
             type="button"
           >
             <ChevronDown className="h-3.5 w-3.5" />
+          </button>
+          <button
+            data-testid="messages-refresh-btn"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm disabled:opacity-60 disabled:pointer-events-none"
+            title="Refresh messages from server"
+            type="button"
+          >
+            <RotateCw className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin")} />
           </button>
         </div>
 
