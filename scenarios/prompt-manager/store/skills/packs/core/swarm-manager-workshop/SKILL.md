@@ -275,6 +275,12 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
    Incorporate all settled information into the plan:
    - Resolved decisions (with a `selected` value) become facts/commitments in relevant sections
    - Freeform responses on "Other" selections become user-specified approaches
+   - **Structured `modifications` on resolved decisions** are first-class input. Read them as scope-shaping signals — NOT prose:
+     - `excluded_clauses`: parts of the selected option's rationale the user opted OUT of. Remove those commitments from the plan.
+     - `additions`: extra scope/constraints the user layered on. Add them to the plan.
+     - `rationale`: short explanation — incorporate into the plan's decision-log section or rationale narrative.
+     - Treat `modifications` as distinct from `notes`. Do NOT parse `notes` prose to reconstruct modifications.
+     - See `docs/reference/decision-modifications-contract.md` for the full contract, including the accept-once immutability rule.
    - Research findings inform the technical context and risk sections
    - If this is round 1, create the scaffold with as much content as possible
    - If subsequent round, refine existing sections and fill gaps

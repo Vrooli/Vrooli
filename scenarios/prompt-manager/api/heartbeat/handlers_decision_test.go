@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+
 	"prompt-manager/store"
 	"prompt-manager/teamconfig"
 	"testing"
@@ -822,6 +824,109 @@ func TestUpdateDecision_YoloMode_AgentCanSetAnyStatus(t *testing.T) {
 	}
 }
 
+// --- Single-proposal accept-as-proposed tests ---
+
+func TestUpdateDecisionHandler_AcceptSingleProposalNoSelected(t *testing.T) {
+	handlers, teamStore := setupDecisionTestHandlers(t)
+	ctx := context.Background()
+
+	entry := store.DecisionEntry{ID: "dec-sp", At: "2025-01-01T00:00:00Z", By: "agent-1", Decision: "Action as proposed", Rationale: "Single-proposal"}
+	if err := teamStore.AppendDecision(ctx, "team-1", &entry); err != nil {
+		t.Fatal(err)
+	}
+
+	status := "accepted"
+	body, _ := json.Marshal(UpdateDecisionRequest{Status: &status})
+	req := httptest.NewRequest(http.MethodPatch, "/teams/team-1/decisions/dec-sp", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "decisionId": "dec-sp"})
+	w := httptest.NewRecorder()
+
+	handlers.UpdateDecisionHandler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var updated store.DecisionEntry
+	if err := json.NewDecoder(w.Body).Decode(&updated); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if updated.Status != "accepted" {
+		t.Errorf("status = %q, want accepted", updated.Status)
+	}
+	if !updated.AcceptedAsProposed {
+		t.Errorf("expected AcceptedAsProposed=true on single-proposal accept")
+	}
+	if updated.Selected != "" {
+		t.Errorf("Selected = %q, want empty on accept-as-proposed", updated.Selected)
+	}
+}
+
+func TestUpdateDecisionHandler_AcceptSingleProposalRejectsExplicitSelected(t *testing.T) {
+	handlers, teamStore := setupDecisionTestHandlers(t)
+	ctx := context.Background()
+
+	entry := store.DecisionEntry{ID: "dec-sp", At: "2025-01-01T00:00:00Z", By: "agent-1", Decision: "Action as proposed", Rationale: "Single-proposal"}
+	if err := teamStore.AppendDecision(ctx, "team-1", &entry); err != nil {
+		t.Fatal(err)
+	}
+
+	status := "accepted"
+	other := "__other__"
+	freeform := "accept as proposed"
+	body, _ := json.Marshal(UpdateDecisionRequest{Status: &status, Selected: &other, Freeform: &freeform})
+	req := httptest.NewRequest(http.MethodPatch, "/teams/team-1/decisions/dec-sp", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "decisionId": "dec-sp"})
+	w := httptest.NewRecorder()
+
+	handlers.UpdateDecisionHandler(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "single-proposal decisions are accepted with no") {
+		t.Errorf("expected migration message, got: %s", w.Body.String())
+	}
+}
+
+func TestUpdateDecisionHandler_AcceptMultiOptionPreservesNoFlag(t *testing.T) {
+	handlers, teamStore := setupDecisionTestHandlers(t)
+	ctx := context.Background()
+
+	entry := store.DecisionEntry{
+		ID: "dec-mo", At: "2025-01-01T00:00:00Z", By: "agent-1",
+		Decision: "Pick one", Rationale: "needs choice",
+		Options: []store.DecisionOption{{Key: "A", Label: "alpha"}, {Key: "B", Label: "beta"}},
+	}
+	if err := teamStore.AppendDecision(ctx, "team-1", &entry); err != nil {
+		t.Fatal(err)
+	}
+
+	status := "accepted"
+	sel := "A"
+	body, _ := json.Marshal(UpdateDecisionRequest{Status: &status, Selected: &sel})
+	req := httptest.NewRequest(http.MethodPatch, "/teams/team-1/decisions/dec-mo", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "decisionId": "dec-mo"})
+	w := httptest.NewRecorder()
+
+	handlers.UpdateDecisionHandler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var updated store.DecisionEntry
+	_ = json.NewDecoder(w.Body).Decode(&updated)
+	if updated.AcceptedAsProposed {
+		t.Errorf("multi-option accept must not set AcceptedAsProposed")
+	}
+	if updated.Selected != "A" {
+		t.Errorf("Selected = %q, want A", updated.Selected)
+	}
+}
+
 // --- Pagination / total count tests ---
 
 func TestGetDecisions_TotalCount(t *testing.T) {
@@ -907,5 +1012,142 @@ func TestGetDecisions_DefaultLast10(t *testing.T) {
 	}
 	if resp.Last != 10 {
 		t.Errorf("expected last=10, got %d", resp.Last)
+	}
+}
+
+// --- DecisionModifications tests ---
+
+func acceptWithModifications(t *testing.T, h *Handlers, teamID, decisionID string, body map[string]any) *httptest.ResponseRecorder {
+	t.Helper()
+	raw, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPatch, fmt.Sprintf("/teams/%s/decisions/%s", teamID, decisionID), bytes.NewReader(raw))
+	req = mux.SetURLVars(req, map[string]string{"id": teamID, "decisionId": decisionID})
+	w := httptest.NewRecorder()
+	h.UpdateDecisionHandler(w, req)
+	return w
+}
+
+func seedPendingOptionDecision(t *testing.T, ts *store.FileTeamStore, teamID, id string) {
+	t.Helper()
+	e := store.DecisionEntry{
+		ID: id, At: "2026-04-24T00:00:00Z", By: "agent-1",
+		Topic: "Pick approach", Status: store.DecisionStatusPending,
+		Options: []store.DecisionOption{{Key: "A", Label: "a", Rationale: "ra"}},
+	}
+	if err := ts.AppendDecision(context.Background(), teamID, &e); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+}
+
+func TestUpdateDecision_ModificationsPersisted(t *testing.T) {
+	handlers, ts := setupDecisionTestHandlers(t)
+	seedPendingOptionDecision(t, ts, "team-1", "dec-mod-1")
+
+	w := acceptWithModifications(t, handlers, "team-1", "dec-mod-1", map[string]any{
+		"selected": "A",
+		"modifications": map[string]any{
+			"excluded_clauses": []string{"relocate existing items"},
+			"rationale":        "items stay in their current initiative",
+		},
+	})
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var got store.DecisionEntry
+	if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.Modifications == nil {
+		t.Fatalf("expected modifications persisted")
+	}
+	if len(got.Modifications.ExcludedClauses) != 1 || got.Modifications.ExcludedClauses[0] != "relocate existing items" {
+		t.Errorf("excluded_clauses mismatch: %+v", got.Modifications.ExcludedClauses)
+	}
+	if got.Modifications.Rationale != "items stay in their current initiative" {
+		t.Errorf("rationale mismatch: %q", got.Modifications.Rationale)
+	}
+	if got.Status != store.DecisionStatusAccepted {
+		t.Errorf("expected implicit accept, got %q", got.Status)
+	}
+}
+
+func TestUpdateDecision_EmptyModificationsRejected(t *testing.T) {
+	handlers, ts := setupDecisionTestHandlers(t)
+	seedPendingOptionDecision(t, ts, "team-1", "dec-mod-2")
+
+	w := acceptWithModifications(t, handlers, "team-1", "dec-mod-2", map[string]any{
+		"selected":      "A",
+		"modifications": map[string]any{},
+	})
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+	var body map[string]any
+	if err := json.NewDecoder(w.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body["field"] != "modifications" {
+		t.Errorf("expected field=modifications, got %v", body["field"])
+	}
+}
+
+func TestUpdateDecision_ModificationsEmptyStringRejected(t *testing.T) {
+	handlers, ts := setupDecisionTestHandlers(t)
+	seedPendingOptionDecision(t, ts, "team-1", "dec-mod-3")
+
+	w := acceptWithModifications(t, handlers, "team-1", "dec-mod-3", map[string]any{
+		"selected": "A",
+		"modifications": map[string]any{
+			"excluded_clauses": []string{"", "ok"},
+		},
+	})
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateDecision_ModificationsImmutable(t *testing.T) {
+	handlers, ts := setupDecisionTestHandlers(t)
+	seedPendingOptionDecision(t, ts, "team-1", "dec-mod-4")
+
+	w := acceptWithModifications(t, handlers, "team-1", "dec-mod-4", map[string]any{
+		"selected": "A",
+		"modifications": map[string]any{
+			"rationale": "first",
+		},
+	})
+	if w.Code != http.StatusOK {
+		t.Fatalf("first accept: expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	w2 := acceptWithModifications(t, handlers, "team-1", "dec-mod-4", map[string]any{
+		"modifications": map[string]any{
+			"rationale": "second",
+		},
+	})
+	if w2.Code != http.StatusBadRequest {
+		t.Fatalf("second mutation: expected 400, got %d: %s", w2.Code, w2.Body.String())
+	}
+}
+
+func TestUpdateDecision_WithoutModificationsLeavesNil(t *testing.T) {
+	handlers, ts := setupDecisionTestHandlers(t)
+	seedPendingOptionDecision(t, ts, "team-1", "dec-mod-5")
+
+	w := acceptWithModifications(t, handlers, "team-1", "dec-mod-5", map[string]any{
+		"selected": "A",
+	})
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var got store.DecisionEntry
+	if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.Modifications != nil {
+		t.Errorf("expected modifications nil when absent, got %+v", got.Modifications)
 	}
 }

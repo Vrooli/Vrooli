@@ -1,6 +1,7 @@
 package teams
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/url"
 	"strings"
@@ -19,6 +20,11 @@ type fakeContext struct {
 
 	// response is encoded into the result of Get/Post/Put if non-nil.
 	response interface{}
+
+	// getResponse, if non-nil, is used by Get instead of `response`.
+	// Useful for commands that pre-fetch then mutate (e.g. decision-accept
+	// fetches the decision list, then PUTs the accept).
+	getResponse interface{}
 
 	// err is returned from the matching method if non-nil.
 	err error
@@ -51,6 +57,13 @@ func (f *fakeContext) writeResult(result interface{}) error {
 func (f *fakeContext) Get(path string, result interface{}) error {
 	if err := f.record("GET", path, nil); err != nil {
 		return err
+	}
+	if f.getResponse != nil && result != nil {
+		raw, err := json.Marshal(f.getResponse)
+		if err != nil {
+			return err
+		}
+		return json.Unmarshal(raw, result)
 	}
 	return f.writeResult(result)
 }
@@ -169,8 +182,25 @@ func TestCmdDecisionUpdateRejectsInvalidOptionsJSON(t *testing.T) {
 
 // --- decision-accept ---
 
-func TestCmdDecisionAcceptRequiresSelected(t *testing.T) {
-	fc := &fakeContext{t: t}
+// multiOptionDecisionList returns a fake list response holding one multi-option
+// decision with the given id. Used to satisfy the pre-fetch GET in
+// cmdDecisionAccept so tests can target the multi-option validation path.
+func multiOptionDecisionList(id string) DecisionListResponse {
+	return DecisionListResponse{
+		Entries: []DecisionEntry{{
+			ID:      id,
+			Options: []DecisionOption{{Key: "A", Label: "Option A"}, {Key: "B", Label: "Option B"}},
+		}},
+	}
+}
+
+// singleProposalDecisionList is the empty-options counterpart.
+func singleProposalDecisionList(id string) DecisionListResponse {
+	return DecisionListResponse{Entries: []DecisionEntry{{ID: id, Decision: "Action as proposed"}}}
+}
+
+func TestCmdDecisionAcceptRequiresSelectedOnMultiOption(t *testing.T) {
+	fc := &fakeContext{t: t, getResponse: multiOptionDecisionList("dec-1")}
 	err := cmdDecisionAccept(fc, []string{"team-a", "dec-1"})
 	if err == nil {
 		t.Fatal("expected error for missing --selected")
@@ -181,7 +211,7 @@ func TestCmdDecisionAcceptRequiresSelected(t *testing.T) {
 }
 
 func TestCmdDecisionAcceptRequiresFreeformWhenOther(t *testing.T) {
-	fc := &fakeContext{t: t}
+	fc := &fakeContext{t: t, getResponse: multiOptionDecisionList("dec-1")}
 	err := cmdDecisionAccept(fc, []string{"team-a", "dec-1", "--selected=__other__"})
 	if err == nil {
 		t.Fatal("expected error for __other__ without --freeform")
@@ -191,10 +221,46 @@ func TestCmdDecisionAcceptRequiresFreeformWhenOther(t *testing.T) {
 	}
 }
 
+func TestCmdDecisionAcceptSingleProposalNoSelected(t *testing.T) {
+	fc := &fakeContext{
+		t:           t,
+		getResponse: singleProposalDecisionList("dec-1"),
+		response:    DecisionEntry{ID: "dec-1", Status: "accepted", AcceptedAsProposed: true},
+	}
+	err := cmdDecisionAccept(fc, []string{"team-a", "dec-1"})
+	if err != nil {
+		t.Fatalf("cmdDecisionAccept error = %v", err)
+	}
+	fc.assertMethodPath(t, "PUT", "/teams/team-a/decisions/dec-1")
+
+	var sent map[string]interface{}
+	if err := json.Unmarshal(fc.gotPayload, &sent); err != nil {
+		t.Fatalf("payload unmarshal: %v", err)
+	}
+	if sent["status"] != "accepted" {
+		t.Errorf("status = %v, want accepted", sent["status"])
+	}
+	if _, present := sent["selected"]; present {
+		t.Error("selected must be omitted when accepting a single-proposal decision")
+	}
+}
+
+func TestCmdDecisionAcceptSingleProposalRejectsExplicitSelected(t *testing.T) {
+	fc := &fakeContext{t: t, getResponse: singleProposalDecisionList("dec-1")}
+	err := cmdDecisionAccept(fc, []string{"team-a", "dec-1", "--selected=__other__", "--freeform=accept as proposed"})
+	if err == nil {
+		t.Fatal("expected error for explicit --selected on single-proposal decision")
+	}
+	if !strings.Contains(err.Error(), "single-proposal decisions are accepted with no --selected") {
+		t.Errorf("error = %v, want single-proposal migration message", err)
+	}
+}
+
 func TestCmdDecisionAcceptSendsAcceptedStatus(t *testing.T) {
 	fc := &fakeContext{
-		t:        t,
-		response: DecisionEntry{ID: "dec-1", Status: "accepted", Selected: "B"},
+		t:           t,
+		getResponse: multiOptionDecisionList("dec-1"),
+		response:    DecisionEntry{ID: "dec-1", Status: "accepted", Selected: "B"},
 	}
 	err := cmdDecisionAccept(fc, []string{"team-a", "dec-1", "--selected=B", "--notes=ok"})
 	if err != nil {
@@ -218,7 +284,7 @@ func TestCmdDecisionAcceptSendsAcceptedStatus(t *testing.T) {
 }
 
 func TestCmdDecisionAcceptOmitsUnsetFreeform(t *testing.T) {
-	fc := &fakeContext{t: t, response: DecisionEntry{ID: "dec-1"}}
+	fc := &fakeContext{t: t, getResponse: multiOptionDecisionList("dec-1"), response: DecisionEntry{ID: "dec-1"}}
 	err := cmdDecisionAccept(fc, []string{"team-a", "dec-1", "--selected=B"})
 	if err != nil {
 		t.Fatalf("cmdDecisionAccept error = %v", err)
@@ -229,6 +295,73 @@ func TestCmdDecisionAcceptOmitsUnsetFreeform(t *testing.T) {
 	}
 	if _, present := sent["freeform"]; present {
 		t.Error("freeform must be omitted when not provided")
+	}
+}
+
+func TestCmdDecisionAcceptSendsModifications(t *testing.T) {
+	fc := &fakeContext{t: t, getResponse: multiOptionDecisionList("dec-1"), response: DecisionEntry{ID: "dec-1"}}
+	payload := `{"excluded_clauses":["relocate existing items"],"rationale":"items stay"}`
+	err := cmdDecisionAccept(fc, []string{"team-a", "dec-1", "--selected=A", "--modifications=" + payload})
+	if err != nil {
+		t.Fatalf("cmdDecisionAccept error = %v", err)
+	}
+	var sent map[string]interface{}
+	if err := json.Unmarshal(fc.gotPayload, &sent); err != nil {
+		t.Fatalf("payload unmarshal: %v", err)
+	}
+	mods, ok := sent["modifications"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("modifications missing or wrong type: %+v", sent["modifications"])
+	}
+	clauses, _ := mods["excluded_clauses"].([]interface{})
+	if len(clauses) != 1 || clauses[0] != "relocate existing items" {
+		t.Errorf("excluded_clauses mismatch: %+v", clauses)
+	}
+	if mods["rationale"] != "items stay" {
+		t.Errorf("rationale mismatch: %v", mods["rationale"])
+	}
+}
+
+func TestCmdDecisionAcceptRejectsEmptyModifications(t *testing.T) {
+	fc := &fakeContext{t: t, getResponse: multiOptionDecisionList("dec-1")}
+	err := cmdDecisionAccept(fc, []string{"team-a", "dec-1", "--selected=A", "--modifications={}"})
+	if err == nil {
+		t.Fatal("expected error for empty modifications")
+	}
+}
+
+func TestCmdDecisionAcceptRejectsInvalidJSON(t *testing.T) {
+	fc := &fakeContext{t: t, getResponse: multiOptionDecisionList("dec-1")}
+	err := cmdDecisionAccept(fc, []string{"team-a", "dec-1", "--selected=A", "--modifications=not json"})
+	if err == nil {
+		t.Fatal("expected error for malformed JSON")
+	}
+}
+
+func TestCmdDecisionAcceptRejectsBothModificationFlags(t *testing.T) {
+	fc := &fakeContext{t: t, getResponse: multiOptionDecisionList("dec-1")}
+	err := cmdDecisionAccept(fc, []string{
+		"team-a", "dec-1", "--selected=A",
+		"--modifications={\"rationale\":\"x\"}",
+		"--modifications-file=/tmp/nonexistent.json",
+	})
+	if err == nil || !strings.Contains(err.Error(), "mutually exclusive") {
+		t.Fatalf("expected mutually-exclusive error, got %v", err)
+	}
+}
+
+func TestCmdDecisionAcceptOmitsUnsetModifications(t *testing.T) {
+	fc := &fakeContext{t: t, getResponse: multiOptionDecisionList("dec-1"), response: DecisionEntry{ID: "dec-1"}}
+	err := cmdDecisionAccept(fc, []string{"team-a", "dec-1", "--selected=A"})
+	if err != nil {
+		t.Fatalf("cmdDecisionAccept error = %v", err)
+	}
+	var sent map[string]interface{}
+	if err := json.Unmarshal(fc.gotPayload, &sent); err != nil {
+		t.Fatalf("payload unmarshal: %v", err)
+	}
+	if _, present := sent["modifications"]; present {
+		t.Error("modifications must be omitted when not provided")
 	}
 }
 
@@ -262,6 +395,29 @@ func TestCmdDecisionRejectSendsRejectedStatus(t *testing.T) {
 	}
 	if sent["notes"] != "stale" {
 		t.Errorf("notes = %v, want 'stale'", sent["notes"])
+	}
+}
+
+// --- isAcceptedAsProposed (read-side normalization) ---
+
+func TestIsAcceptedAsProposed(t *testing.T) {
+	cases := []struct {
+		name string
+		in   DecisionEntry
+		want bool
+	}{
+		{"new flag", DecisionEntry{AcceptedAsProposed: true}, true},
+		{"legacy other + accept-as-proposed text", DecisionEntry{Selected: "__other__", Freeform: "Accept as Proposed"}, true},
+		{"legacy other with unrelated freeform", DecisionEntry{Selected: "__other__", Freeform: "go with B instead"}, false},
+		{"multi-option accepted with selection", DecisionEntry{Options: []DecisionOption{{Key: "A"}}, Selected: "A"}, false},
+		{"plain pending", DecisionEntry{}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := isAcceptedAsProposed(tc.in); got != tc.want {
+				t.Errorf("isAcceptedAsProposed(%+v) = %v, want %v", tc.in, got, tc.want)
+			}
+		})
 	}
 }
 
@@ -323,6 +479,93 @@ func TestCmdDecisionShowReturnsErrorWhenMissing(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "not found") {
 		t.Errorf("error = %v, want 'not found'", err)
+	}
+}
+
+// --- decision-show formatter ---
+
+func TestFormatDecisionShow_OptionsWithRecommended(t *testing.T) {
+	var buf bytes.Buffer
+	formatDecisionShow(&buf, DecisionEntry{
+		ID: "dec-1", By: "agent", Status: "pending",
+		Topic:     "Pick auth strategy",
+		Rationale: "We need an auth approach for v1.",
+		Options: []DecisionOption{
+			{Key: "A", Label: "OAuth with Google", Rationale: "Lowest effort.", Recommended: true},
+			{Key: "B", Label: "JWT with custom auth", Rationale: "More control."},
+			{Key: "C", Label: "Other", Rationale: "Provide your own."},
+		},
+	})
+	out := buf.String()
+	mustContain := []string{
+		"Options:",
+		"A  OAuth with Google (recommended)",
+		"     Lowest effort.",
+		"B  JWT with custom auth\n",
+		"     More control.",
+		"C  Other",
+	}
+	for _, want := range mustContain {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q\nfull output:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "B  JWT with custom auth (recommended)") {
+		t.Errorf("non-recommended option B got marker:\n%s", out)
+	}
+}
+
+func TestFormatDecisionShow_OptionsNoneRecommended(t *testing.T) {
+	var buf bytes.Buffer
+	formatDecisionShow(&buf, DecisionEntry{
+		ID: "dec-2", By: "agent",
+		Options: []DecisionOption{
+			{Key: "A", Label: "First", Rationale: "r1"},
+			{Key: "B", Label: "Second", Rationale: "r2"},
+		},
+	})
+	out := buf.String()
+	if !strings.Contains(out, "Options:") {
+		t.Errorf("expected Options: header\n%s", out)
+	}
+	if strings.Contains(out, "(recommended)") {
+		t.Errorf("no option is recommended but marker appeared:\n%s", out)
+	}
+}
+
+func TestFormatDecisionShow_NoOptionsOmitsSection(t *testing.T) {
+	var buf bytes.Buffer
+	formatDecisionShow(&buf, DecisionEntry{
+		ID: "dec-3", By: "agent",
+		Decision:  "Adopt X",
+		Rationale: "Because Y.",
+	})
+	out := buf.String()
+	if strings.Contains(out, "Options:") {
+		t.Errorf("option-less decision should omit Options: header\n%s", out)
+	}
+	if !strings.Contains(out, "Decision: Adopt X") {
+		t.Errorf("expected Decision line\n%s", out)
+	}
+}
+
+func TestFormatDecisionShow_SelectedMarker(t *testing.T) {
+	var buf bytes.Buffer
+	formatDecisionShow(&buf, DecisionEntry{
+		ID: "dec-4", By: "agent", Status: "accepted",
+		Topic:    "Pick a database",
+		Selected: "A",
+		Options: []DecisionOption{
+			{Key: "A", Label: "postgres"},
+			{Key: "B", Label: "mysql"},
+		},
+	})
+	out := buf.String()
+	if !strings.Contains(out, "→ A  postgres") {
+		t.Errorf("expected → marker on selected option A\n%s", out)
+	}
+	if !strings.Contains(out, "Selected: A") {
+		t.Errorf("expected Selected: A line\n%s", out)
 	}
 }
 

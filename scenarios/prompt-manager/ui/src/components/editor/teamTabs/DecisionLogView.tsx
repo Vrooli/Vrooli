@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, ChevronDown, Loader2, Scale, Pencil, X, Check, Trash2, CheckCircle, Star } from 'lucide-react'
+import { Plus, ChevronDown, Loader2, Scale, Pencil, X, Check, Trash2, CheckCircle, Star, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { TeamMember } from '@/types/team'
 import type { Agent } from '@/types/agent'
@@ -18,7 +18,7 @@ import { AgentColorBadge } from '@/components/shared/AgentColorBadge'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { formatRelativePastTime } from '@/lib/timeUtils'
 import * as heartbeatService from '@/services/heartbeatService'
-import type { DecisionEntry } from '@/services/heartbeatService'
+import type { DecisionEntry, DecisionModifications } from '@/services/heartbeatService'
 
 interface DecisionLogViewProps {
   teamId: string
@@ -53,6 +53,14 @@ function StatusBadge({ status }: { status?: DecisionEntry['status'] }) {
       </span>
     )
   }
+  if (status === 'deferred') {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-yellow-600/15 text-yellow-500">
+        <Clock className="h-2.5 w-2.5" />
+        Deferred
+      </span>
+    )
+  }
   if (status === 'completed') {
     return (
       <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-slate-500/15 text-slate-400">
@@ -71,6 +79,17 @@ function StatusBadge({ status }: { status?: DecisionEntry['status'] }) {
 
 const OTHER_KEY = '__other__'
 
+/** True if a single-proposal decision was accepted as proposed (new flag or
+ *  legacy `__other__ + freeform="accept as proposed"` shape). */
+function isAcceptedAsProposed(entry: DecisionEntry): boolean {
+  if (entry.accepted_as_proposed) return true
+  if ((entry.options?.length ?? 0) === 0 && entry.selected === OTHER_KEY) {
+    const f = (entry.freeform ?? '').trim().toLowerCase()
+    return f.includes('accept as proposed')
+  }
+  return false
+}
+
 /** Multi-option decision card with lettered choices */
 function MultiOptionCard({
   entry,
@@ -86,16 +105,47 @@ function MultiOptionCard({
   isThisStatusLoading: boolean
   getAgentAppearance: (id: string) => Agent['appearance'] | null
   getAgentName: (id: string) => string
-  onSelectOption: (entry: DecisionEntry, key: string, freeform?: string, notes?: string) => Promise<void>
+  onSelectOption: (
+    entry: DecisionEntry,
+    key: string,
+    freeform?: string,
+    notes?: string,
+    modifications?: DecisionModifications,
+  ) => Promise<void>
   onDelete: () => void
 }) {
   const [localSelected, setLocalSelected] = useState<string | null>(entry.selected ?? null)
   const [localFreeform, setLocalFreeform] = useState(entry.freeform ?? '')
   const [localNotes, setLocalNotes] = useState(entry.notes ?? '')
+  const [showModsForm, setShowModsForm] = useState(false)
+  const [excludedClauses, setExcludedClauses] = useState<string[]>([])
+  const [additions, setAdditions] = useState<string[]>([])
+  const [modsRationale, setModsRationale] = useState('')
+  const [excludedDraft, setExcludedDraft] = useState('')
+  const [additionDraft, setAdditionDraft] = useState('')
+
+  // Modifications are immutable once set. If already present, render read-only
+  // (see docs/reference/decision-modifications-contract.md).
+  const existingMods = entry.modifications ?? null
+
+  const pendingMods: DecisionModifications | undefined = (() => {
+    if (existingMods) return undefined
+    if (!showModsForm) return undefined
+    if (excludedClauses.length === 0 && additions.length === 0 && modsRationale.trim() === '') {
+      return undefined
+    }
+    const m: DecisionModifications = {}
+    if (excludedClauses.length > 0) m.excluded_clauses = excludedClauses
+    if (additions.length > 0) m.additions = additions
+    if (modsRationale.trim() !== '') m.rationale = modsRationale.trim()
+    return m
+  })()
+
   const hasSelection = entry.selected != null && entry.selected !== ''
   const isModified = localSelected !== (entry.selected ?? null)
     || localFreeform !== (entry.freeform ?? '')
     || localNotes !== (entry.notes ?? '')
+    || pendingMods !== undefined
 
   return (
     <>
@@ -211,10 +261,106 @@ function MultiOptionCard({
         <textarea
           value={localNotes}
           onChange={e => setLocalNotes(e.target.value)}
-          placeholder="Add notes (optional)..."
+          placeholder="Add free-form notes (optional)..."
           rows={1}
           className="w-full mt-1.5 text-xs border border-blue-500/20 bg-blue-500/5 rounded-md px-2.5 py-1.5 text-foreground placeholder:text-muted-foreground/60 resize-none focus:outline-none focus:ring-1 focus:ring-primary/50"
         />
+      )}
+
+      {/* Modifications: structured exceptions against the selected option's
+          rationale. Shown only when selecting a concrete option; read-only
+          once set (accept-once immutability). */}
+      {localSelected && localSelected !== OTHER_KEY && !existingMods && (
+        <div className="mt-1.5">
+          {!showModsForm ? (
+            <button
+              onClick={() => setShowModsForm(true)}
+              className="text-[11px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+            >
+              + Add modifications (scoped exceptions / additions)
+            </button>
+          ) : (
+            <div className="border border-purple-500/20 bg-purple-500/5 rounded-md p-2 space-y-1.5">
+              <div className="text-[11px] font-medium text-foreground/80">Modifications</div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Excluded clauses</div>
+                <div className="flex flex-wrap gap-1 mt-0.5">
+                  {excludedClauses.map((c, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-500/10 text-red-300 text-[11px]">
+                      {c}
+                      <button onClick={() => setExcludedClauses(excludedClauses.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-200">×</button>
+                    </span>
+                  ))}
+                </div>
+                <input
+                  value={excludedDraft}
+                  onChange={e => setExcludedDraft(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && excludedDraft.trim()) {
+                      e.preventDefault()
+                      setExcludedClauses([...excludedClauses, excludedDraft.trim()])
+                      setExcludedDraft('')
+                    }
+                  }}
+                  placeholder="Press Enter to add a clause to exclude"
+                  className="w-full mt-1 text-[11px] border border-border rounded px-1.5 py-0.5 bg-background"
+                />
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Additions</div>
+                <div className="flex flex-wrap gap-1 mt-0.5">
+                  {additions.map((c, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 text-[11px]">
+                      {c}
+                      <button onClick={() => setAdditions(additions.filter((_, j) => j !== i))} className="text-emerald-400 hover:text-emerald-200">×</button>
+                    </span>
+                  ))}
+                </div>
+                <input
+                  value={additionDraft}
+                  onChange={e => setAdditionDraft(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && additionDraft.trim()) {
+                      e.preventDefault()
+                      setAdditions([...additions, additionDraft.trim()])
+                      setAdditionDraft('')
+                    }
+                  }}
+                  placeholder="Press Enter to add an addition"
+                  className="w-full mt-1 text-[11px] border border-border rounded px-1.5 py-0.5 bg-background"
+                />
+              </div>
+              <textarea
+                value={modsRationale}
+                onChange={e => setModsRationale(e.target.value)}
+                placeholder="Rationale for modifications..."
+                rows={2}
+                maxLength={4096}
+                className="w-full text-[11px] border border-border rounded px-1.5 py-0.5 bg-background resize-none"
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Read-only rendering of persisted modifications (immutable post-accept) */}
+      {existingMods && (
+        <div className="mt-1.5 border-l-2 border-purple-500/40 pl-2 space-y-0.5">
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Modifications</div>
+          {existingMods.excluded_clauses && existingMods.excluded_clauses.length > 0 && (
+            <div className="text-[11px]">
+              <span className="text-red-400">Excluded:</span> {existingMods.excluded_clauses.join(', ')}
+            </div>
+          )}
+          {existingMods.additions && existingMods.additions.length > 0 && (
+            <div className="text-[11px]">
+              <span className="text-emerald-400">Additions:</span> {existingMods.additions.join(', ')}
+            </div>
+          )}
+          {existingMods.rationale && (
+            <div className="text-[11px] text-muted-foreground">{existingMods.rationale}</div>
+          )}
+        </div>
       )}
 
       {/* Actions: save selection + delete */}
@@ -225,7 +371,8 @@ function MultiOptionCard({
               entry,
               localSelected,
               localSelected === OTHER_KEY ? localFreeform : undefined,
-              localNotes || undefined
+              localNotes || undefined,
+              pendingMods,
             )}
             disabled={isThisStatusLoading || (localSelected === OTHER_KEY && !localFreeform.trim())}
             className={cn(
@@ -364,7 +511,13 @@ export function DecisionLogView({ teamId, members, allAgents, decisionMode }: De
     }
   }
 
-  const handleSelectOption = async (entry: DecisionEntry, key: string, freeform?: string, notes?: string) => {
+  const handleSelectOption = async (
+    entry: DecisionEntry,
+    key: string,
+    freeform?: string,
+    notes?: string,
+    modifications?: DecisionModifications,
+  ) => {
     setStatusLoading(entry.id)
     clearMutationError()
     try {
@@ -373,6 +526,7 @@ export function DecisionLogView({ teamId, members, allAgents, decisionMode }: De
         freeform: freeform ?? null,
         notes: notes ?? null,
         status: 'accepted',
+        ...(modifications ? { modifications } : {}),
       })
       void loadEntries()
     } catch (err) {
@@ -743,6 +897,19 @@ export function DecisionLogView({ teamId, members, allAgents, decisionMode }: De
                             {entry.supersedes && (
                               <div className="text-xs text-amber-600 mt-0.5">
                                 supersedes: {entry.supersedes}
+                              </div>
+                            )}
+
+                            {entry.status === 'deferred' && entry.revisit_after && (
+                              <div className="text-xs text-yellow-600 mt-0.5 inline-flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                Revisit after: {entry.revisit_after}
+                              </div>
+                            )}
+
+                            {isAcceptedAsProposed(entry) && (
+                              <div className="text-xs text-emerald-500 mt-0.5">
+                                Accepted as proposed
                               </div>
                             )}
 

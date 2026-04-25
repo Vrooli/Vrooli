@@ -448,7 +448,12 @@ const (
 	DecisionStatusRejected  = "rejected"
 	DecisionStatusRunning   = "running"
 	DecisionStatusCompleted = "completed"
+	DecisionStatusDeferred  = "deferred"
 )
+
+// MaxRevisitAfterDays caps how far in the future a deferred decision's
+// revisit_after may be set. Catches typo'd far-future dates cheaply.
+const MaxRevisitAfterDays = 365
 
 // DecisionOption represents a lettered choice in a multi-option decision.
 type DecisionOption struct {
@@ -458,22 +463,39 @@ type DecisionOption struct {
 	Recommended bool   `json:"recommended,omitempty"` // agent-suggested pick
 }
 
+// DecisionModifications captures structured, scoped exceptions an operator
+// attaches to an accepted option. `excluded_clauses` lists parts of the
+// option's rationale the operator does NOT accept; `additions` lists extra
+// constraints or scope added on top; `rationale` explains the modification.
+// Contract: see docs/reference/decision-modifications-contract.md.
+type DecisionModifications struct {
+	ExcludedClauses []string `json:"excluded_clauses,omitempty"`
+	Additions       []string `json:"additions,omitempty"`
+	Rationale       string   `json:"rationale,omitempty"`
+}
+
 // DecisionEntry represents a recorded decision in the team's decision log.
 type DecisionEntry struct {
-	ID          string           `json:"id"`
-	At          string           `json:"at"`
-	By          string           `json:"by"` // agent ID
-	Decision    string           `json:"decision"`
-	Rationale   string           `json:"rationale"`
-	Context     string           `json:"context,omitempty"`     // tag/topic grouping
-	Supersedes  string           `json:"supersedes,omitempty"`  // ID of decision this replaces
-	Status      string           `json:"status,omitempty"`      // "pending", "accepted", "rejected"
-	Topic       string           `json:"topic,omitempty"`       // what is being decided (multi-option)
-	Description string           `json:"description,omitempty"` // background/context for multi-option decisions
-	Options     []DecisionOption `json:"options,omitempty"`     // lettered choices
-	Selected    string           `json:"selected,omitempty"`    // chosen option key or "__other__"
-	Freeform    string           `json:"freeform,omitempty"`    // custom response text
-	Notes       string           `json:"notes,omitempty"`       // additional human context
+	ID            string                 `json:"id"`
+	At            string                 `json:"at"`
+	By            string                 `json:"by"` // agent ID
+	Decision      string                 `json:"decision"`
+	Rationale     string                 `json:"rationale"`
+	Context       string                 `json:"context,omitempty"`     // tag/topic grouping
+	Supersedes    string                 `json:"supersedes,omitempty"`  // ID of decision this replaces
+	Status        string                 `json:"status,omitempty"`      // "pending", "accepted", "rejected"
+	Topic         string                 `json:"topic,omitempty"`       // what is being decided (multi-option)
+	Description   string                 `json:"description,omitempty"` // background/context for multi-option decisions
+	Options       []DecisionOption       `json:"options,omitempty"`     // lettered choices
+	Selected      string                 `json:"selected,omitempty"`    // chosen option key or "__other__"
+	Freeform      string                 `json:"freeform,omitempty"`    // custom response text
+	Notes         string                 `json:"notes,omitempty"`       // additional human context
+	Modifications *DecisionModifications `json:"modifications,omitempty"`
+	RevisitAfter  *string                `json:"revisit_after,omitempty"` // ISO-8601 date (YYYY-MM-DD); set when status=deferred
+	// AcceptedAsProposed is true when a single-proposal decision (no Options)
+	// was accepted without picking from a list. Selected/Freeform stay empty
+	// in this case; this flag is the explicit, queryable marker.
+	AcceptedAsProposed bool `json:"accepted_as_proposed,omitempty"`
 }
 
 // --- Knowledge Log ---

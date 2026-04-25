@@ -217,6 +217,13 @@ type UpdateDecisionRequest struct {
 	Selected    *string                 `json:"selected,omitempty"`
 	Freeform    *string                 `json:"freeform,omitempty"`
 	Notes       *string                 `json:"notes,omitempty"`
+	// Modifications is a structured, scoped exception against the selected
+	// option's rationale. Immutable once set on an accepted decision.
+	// Contract: docs/reference/decision-modifications-contract.md.
+	Modifications *store.DecisionModifications `json:"modifications,omitempty"`
+	// RevisitAfter is an ISO-8601 date (YYYY-MM-DD). Required when transitioning
+	// to status=deferred; otherwise ignored.
+	RevisitAfter *string `json:"revisit_after,omitempty"`
 }
 
 // --- Knowledge API models ---

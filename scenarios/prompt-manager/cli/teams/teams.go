@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"prompt-manager/cli/internal/appctx"
@@ -199,7 +200,18 @@ type DecisionEntry struct {
 	Options     []DecisionOption `json:"options,omitempty"`
 	Selected    string           `json:"selected,omitempty"`
 	Freeform    string           `json:"freeform,omitempty"`
-	Notes       string           `json:"notes,omitempty"`
+	Notes              string                 `json:"notes,omitempty"`
+	Modifications      *DecisionModifications `json:"modifications,omitempty"`
+	RevisitAfter       *string                `json:"revisit_after,omitempty"`
+	AcceptedAsProposed bool                   `json:"accepted_as_proposed,omitempty"`
+}
+
+// DecisionModifications is a structured, scoped exception an operator attaches
+// to an accepted option. See docs/reference/decision-modifications-contract.md.
+type DecisionModifications struct {
+	ExcludedClauses []string `json:"excluded_clauses,omitempty"`
+	Additions       []string `json:"additions,omitempty"`
+	Rationale       string   `json:"rationale,omitempty"`
 }
 
 // DecisionListResponse represents the decision list API response.
@@ -637,6 +649,8 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdDecisionAccept(ctx, subArgs)
 	case "decision-reject":
 		return cmdDecisionReject(ctx, subArgs)
+	case "decision-defer":
+		return cmdDecisionDefer(ctx, subArgs)
 	case "decision-delete":
 		return cmdDecisionDelete(ctx, subArgs)
 	case "knowledge-add":
@@ -714,6 +728,7 @@ Decision Log Commands:
   decision-update <team-id> <id>        Update any field of a decision (PATCH semantics)
   decision-accept <team-id> <id>        Accept a decision (--selected required, --notes recommended)
   decision-reject <team-id> <id>        Reject a decision (--notes required)
+  decision-defer <team-id> <id>         Defer a pending decision (--revisit-after=YYYY-MM-DD required)
   decision-delete <team-id> <id>        Delete a decision (use --yes to skip confirm)
 
 Knowledge Log Commands:
@@ -2607,7 +2622,7 @@ func cmdDecisionAdd(ctx appctx.Context, args []string) error {
 func cmdDecisionList(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("decision-list", flag.ContinueOnError)
 	contextTag := fs.String("context", "", "Filter by context tag")
-	status := fs.String("status", "", "Filter by status (pending|accepted|rejected|running|completed)")
+	status := fs.String("status", "", "Filter by status (pending|accepted|rejected|running|completed|deferred)")
 	last := fs.Int("last", 10, "Number of entries to show")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
@@ -2817,6 +2832,38 @@ func cmdDecisionUpdate(ctx appctx.Context, args []string) error {
 	return nil
 }
 
+// parseDecisionModificationsJSON parses a JSON payload into a
+// DecisionModifications and performs CLI-boundary validation that mirrors the
+// API's policy so operators get fast, clear errors. Server-side validation
+// remains authoritative (see
+// docs/reference/decision-modifications-contract.md).
+func parseDecisionModificationsJSON(data []byte) (*DecisionModifications, error) {
+	trimmed := strings.TrimSpace(string(data))
+	if trimmed == "" {
+		return nil, fmt.Errorf("payload is empty")
+	}
+	dec := json.NewDecoder(strings.NewReader(trimmed))
+	dec.DisallowUnknownFields()
+	var m DecisionModifications
+	if err := dec.Decode(&m); err != nil {
+		return nil, fmt.Errorf("invalid JSON: %w", err)
+	}
+	for i, s := range m.ExcludedClauses {
+		if strings.TrimSpace(s) == "" {
+			return nil, fmt.Errorf("excluded_clauses[%d] must be a non-empty string", i)
+		}
+	}
+	for i, s := range m.Additions {
+		if strings.TrimSpace(s) == "" {
+			return nil, fmt.Errorf("additions[%d] must be a non-empty string", i)
+		}
+	}
+	if len(m.ExcludedClauses) == 0 && len(m.Additions) == 0 && strings.TrimSpace(m.Rationale) == "" {
+		return nil, fmt.Errorf("must contain at least one of excluded_clauses, additions, or rationale")
+	}
+	return &m, nil
+}
+
 // cmdDecisionAccept is the convenience wrapper for the most common operator
 // action: set status=accepted, record the chosen option key, and (optionally)
 // attach notes. --selected is required; an accept-without-choice is almost
@@ -2825,38 +2872,101 @@ func cmdDecisionAccept(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("decision-accept", flag.ContinueOnError)
 	selected := fs.String("selected", "", "Selected option key (required; use __other__ with --freeform for write-in)")
 	freeform := fs.String("freeform", "", "Freeform answer when --selected=__other__")
-	notes := fs.String("notes", "", "Operator notes (recommended)")
+	notes := fs.String("notes", "", "Operator notes (free-form commentary; for structured exceptions use --modifications)")
+	modsJSON := fs.String("modifications", "", `Structured exception against the selected option's rationale, as JSON: '{"excluded_clauses":[...],"additions":[...],"rationale":"..."}'. Distinct from --notes. Immutable once set.`)
+	modsFile := fs.String("modifications-file", "", "Path to a JSON file containing the same payload as --modifications (mutually exclusive)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: team decision-accept <team-id> <decision-id> --selected=<option-key> [--freeform=\"...\"] [--notes=\"...\"]")
+		return fmt.Errorf("usage: team decision-accept <team-id> <decision-id> [--selected=<option-key>] [--freeform=\"...\"] [--notes=\"...\"] [--modifications='{...}' | --modifications-file=<path>]")
 	}
 	teamID := fs.Arg(0)
 	decisionID := fs.Arg(1)
 
-	if strings.TrimSpace(*selected) == "" {
-		return fmt.Errorf("--selected is required for decision-accept (use decision-update for status-only changes)")
+	// Pre-fetch the decision to detect single-proposal (no Options) shape.
+	// Single-proposal decisions are accepted with no --selected; multi-option
+	// decisions still require it.
+	var existing DecisionEntry
+	{
+		var listResp DecisionListResponse
+		if err := ctx.Get(fmt.Sprintf("/teams/%s/decisions?last=0", teamID), &listResp); err != nil {
+			return fmt.Errorf("failed to fetch decision: %w", err)
+		}
+		found := false
+		for _, e := range listResp.Entries {
+			if e.ID == decisionID {
+				existing = e
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("decision %s not found in team %s", decisionID, teamID)
+		}
 	}
-	if *selected == "__other__" && strings.TrimSpace(*freeform) == "" {
-		return fmt.Errorf("--freeform is required when --selected=__other__")
+	singleProposal := len(existing.Options) == 0
+
+	if singleProposal {
+		if strings.TrimSpace(*selected) != "" {
+			return fmt.Errorf("single-proposal decisions are accepted with no --selected; rerun without it")
+		}
+	} else {
+		if strings.TrimSpace(*selected) == "" {
+			return fmt.Errorf("--selected is required for decision-accept on multi-option decisions (use decision-update for status-only changes)")
+		}
+		if *selected == "__other__" && strings.TrimSpace(*freeform) == "" {
+			return fmt.Errorf("--freeform is required when --selected=__other__")
+		}
+	}
+
+	provided := map[string]bool{}
+	fs.Visit(func(f *flag.Flag) { provided[f.Name] = true })
+
+	var mods *DecisionModifications
+	if provided["modifications"] && provided["modifications-file"] {
+		return fmt.Errorf("--modifications and --modifications-file are mutually exclusive")
+	}
+	switch {
+	case provided["modifications"]:
+		parsed, err := parseDecisionModificationsJSON([]byte(*modsJSON))
+		if err != nil {
+			return fmt.Errorf("--modifications: %w", err)
+		}
+		mods = parsed
+	case provided["modifications-file"]:
+		data, err := os.ReadFile(*modsFile)
+		if err != nil {
+			return fmt.Errorf("--modifications-file: %w", err)
+		}
+		parsed, err := parseDecisionModificationsJSON(data)
+		if err != nil {
+			return fmt.Errorf("--modifications-file: %w", err)
+		}
+		mods = parsed
 	}
 
 	type acceptReq struct {
-		Status   string  `json:"status"`
-		Selected string  `json:"selected"`
-		Freeform *string `json:"freeform,omitempty"`
-		Notes    *string `json:"notes,omitempty"`
+		Status        string                 `json:"status"`
+		Selected      *string                `json:"selected,omitempty"`
+		Freeform      *string                `json:"freeform,omitempty"`
+		Notes         *string                `json:"notes,omitempty"`
+		Modifications *DecisionModifications `json:"modifications,omitempty"`
 	}
-	req := acceptReq{Status: "accepted", Selected: *selected}
-	provided := map[string]bool{}
-	fs.Visit(func(f *flag.Flag) { provided[f.Name] = true })
+	req := acceptReq{Status: "accepted"}
+	if !singleProposal {
+		s := *selected
+		req.Selected = &s
+	}
 	if provided["freeform"] {
 		req.Freeform = freeform
 	}
 	if provided["notes"] {
 		req.Notes = notes
+	}
+	if mods != nil {
+		req.Modifications = mods
 	}
 
 	var resp DecisionEntry
@@ -2870,7 +2980,11 @@ func cmdDecisionAccept(ctx appctx.Context, args []string) error {
 		return enc.Encode(resp)
 	}
 
-	fmt.Printf("Accepted decision %s: selected=%s\n", resp.ID, resp.Selected)
+	if resp.AcceptedAsProposed || singleProposal {
+		fmt.Printf("Accepted decision %s as proposed.\n", resp.ID)
+	} else {
+		fmt.Printf("Accepted decision %s: selected=%s\n", resp.ID, resp.Selected)
+	}
 	return nil
 }
 
@@ -2912,6 +3026,69 @@ func cmdDecisionReject(ctx appctx.Context, args []string) error {
 	}
 
 	fmt.Printf("Rejected decision %s\n", resp.ID)
+	return nil
+}
+
+// cmdDecisionDefer parks a pending or already-deferred decision until a
+// specified revisit date. The decision disappears from the pending queue
+// until that date passes, at which point the next pending-queue read
+// auto-promotes it back to pending.
+func cmdDecisionDefer(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("decision-defer", flag.ContinueOnError)
+	revisitAfter := fs.String("revisit-after", "", "Date to revisit the decision (YYYY-MM-DD, required)")
+	notes := fs.String("notes", "", "Optional reason for deferring")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 2 {
+		return fmt.Errorf("usage: team decision-defer <team-id> <decision-id> --revisit-after=YYYY-MM-DD [--notes=\"...\"]")
+	}
+	teamID := fs.Arg(0)
+	decisionID := fs.Arg(1)
+
+	if strings.TrimSpace(*revisitAfter) == "" {
+		return fmt.Errorf("--revisit-after is required (format: YYYY-MM-DD)")
+	}
+	parsed, err := time.Parse("2006-01-02", strings.TrimSpace(*revisitAfter))
+	if err != nil {
+		return fmt.Errorf("--revisit-after must be in YYYY-MM-DD format: %w", err)
+	}
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	if parsed.UTC().Truncate(24 * time.Hour).Before(today) {
+		return fmt.Errorf("--revisit-after must be today or in the future (got %s)", *revisitAfter)
+	}
+
+	type deferReq struct {
+		Status       string  `json:"status"`
+		RevisitAfter string  `json:"revisit_after"`
+		Notes        *string `json:"notes,omitempty"`
+	}
+	req := deferReq{Status: "deferred", RevisitAfter: parsed.Format("2006-01-02")}
+	if strings.TrimSpace(*notes) != "" {
+		n := *notes
+		req.Notes = &n
+	}
+
+	var resp DecisionEntry
+	if err := ctx.Put(fmt.Sprintf("/teams/%s/decisions/%s", teamID, decisionID), req, &resp); err != nil {
+		return fmt.Errorf("failed to defer decision: %w", err)
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+
+	revisit := req.RevisitAfter
+	if resp.RevisitAfter != nil {
+		revisit = *resp.RevisitAfter
+	}
+	fmt.Printf("Deferred decision %s in team %s — revisit on %s\n", resp.ID, teamID, revisit)
+	if resp.Notes != "" {
+		fmt.Printf("Notes: %s\n", resp.Notes)
+	}
 	return nil
 }
 
@@ -2974,12 +3151,107 @@ func cmdDecisionShow(ctx appctx.Context, args []string) error {
 				enc.SetIndent("", "  ")
 				return enc.Encode(entry)
 			}
-			printDecisionEntry(entry)
+			formatDecisionShow(os.Stdout, entry)
 			return nil
 		}
 	}
 
 	return fmt.Errorf("decision %s not found in team %s", decisionID, teamID)
+}
+
+// formatDecisionShow renders a single decision for `decision-show`'s default
+// human output. Distinct from printDecisionEntry (used by decision-list /
+// decisions-pending) because the show view is the operator's primary surface
+// for inspecting a decision's options before accepting; it always renders the
+// options block — with key, label, rationale, and a `(recommended)` marker —
+// when options are present. Decisions without options omit the section
+// entirely (no empty header). See workshop d2 = A in plan.md.
+func formatDecisionShow(w io.Writer, entry DecisionEntry) {
+	contextStr := ""
+	if entry.Context != "" {
+		contextStr = fmt.Sprintf(" [%s]", entry.Context)
+	}
+	supersededStr := ""
+	if entry.Supersedes != "" {
+		supersededStr = fmt.Sprintf(" (supersedes %s)", entry.Supersedes)
+	}
+	statusStr := ""
+	if entry.Status != "" {
+		statusStr = fmt.Sprintf(" (%s)", entry.Status)
+	}
+	fmt.Fprintf(w, "--- %s by %s%s%s%s ---\n", entry.ID, entry.By, contextStr, supersededStr, statusStr)
+	if entry.RevisitAfter != nil && *entry.RevisitAfter != "" {
+		fmt.Fprintf(w, "Revisit after: %s\n", *entry.RevisitAfter)
+	}
+
+	if len(entry.Options) > 0 {
+		if entry.Topic != "" {
+			fmt.Fprintf(w, "Topic: %s\n", entry.Topic)
+		}
+		if entry.Description != "" {
+			fmt.Fprintf(w, "Description: %s\n", entry.Description)
+		}
+		if entry.Rationale != "" {
+			fmt.Fprintf(w, "Rationale: %s\n", entry.Rationale)
+		}
+		fmt.Fprintln(w, "Options:")
+		for _, opt := range entry.Options {
+			marker := "  "
+			if entry.Selected == opt.Key {
+				marker = "→ "
+			}
+			rec := ""
+			if opt.Recommended {
+				rec = " (recommended)"
+			}
+			fmt.Fprintf(w, "%s%s  %s%s\n", marker, opt.Key, opt.Label, rec)
+			if opt.Rationale != "" {
+				fmt.Fprintf(w, "     %s\n", opt.Rationale)
+			}
+		}
+		if entry.Selected != "" {
+			if entry.Selected == "__other__" {
+				fmt.Fprintf(w, "Selected: Other — %s\n", entry.Freeform)
+			} else {
+				fmt.Fprintf(w, "Selected: %s\n", entry.Selected)
+			}
+		}
+		if entry.Notes != "" {
+			fmt.Fprintf(w, "Notes: %s\n", entry.Notes)
+		}
+	} else {
+		fmt.Fprintf(w, "Decision: %s\n", entry.Decision)
+		fmt.Fprintf(w, "Rationale: %s\n", entry.Rationale)
+		if isAcceptedAsProposed(entry) {
+			fmt.Fprintln(w, "Selected: accepted as proposed")
+		}
+		if entry.Notes != "" {
+			fmt.Fprintf(w, "Notes: %s\n", entry.Notes)
+		}
+	}
+	fprintDecisionModifications(w, entry.Modifications)
+}
+
+func fprintDecisionModifications(w io.Writer, m *DecisionModifications) {
+	if m == nil {
+		return
+	}
+	fmt.Fprintln(w, "Modifications:")
+	if len(m.ExcludedClauses) > 0 {
+		fmt.Fprintln(w, "  Excluded clauses:")
+		for _, c := range m.ExcludedClauses {
+			fmt.Fprintf(w, "    - %s\n", c)
+		}
+	}
+	if len(m.Additions) > 0 {
+		fmt.Fprintln(w, "  Additions:")
+		for _, c := range m.Additions {
+			fmt.Fprintf(w, "    + %s\n", c)
+		}
+	}
+	if m.Rationale != "" {
+		fmt.Fprintf(w, "  Rationale: %s\n", m.Rationale)
+	}
 }
 
 // PendingDecisionTeamGroup mirrors the API response for grouped pending decisions.
@@ -3047,6 +3319,9 @@ func printDecisionEntry(entry DecisionEntry) {
 		statusStr = fmt.Sprintf(" (%s)", entry.Status)
 	}
 	fmt.Printf("--- %s by %s%s%s%s ---\n", entry.ID, entry.By, contextStr, supersededStr, statusStr)
+	if entry.RevisitAfter != nil && *entry.RevisitAfter != "" {
+		fmt.Printf("Revisit after: %s\n", *entry.RevisitAfter)
+	}
 
 	if len(entry.Options) > 0 {
 		fmt.Printf("Topic: %s\n", entry.Topic)
@@ -3077,9 +3352,54 @@ func printDecisionEntry(entry DecisionEntry) {
 		if entry.Notes != "" {
 			fmt.Printf("Notes: %s\n", entry.Notes)
 		}
+		printDecisionModifications(entry.Modifications)
 	} else {
 		fmt.Printf("Decision: %s\n", entry.Decision)
 		fmt.Printf("Rationale: %s\n", entry.Rationale)
+		if isAcceptedAsProposed(entry) {
+			fmt.Println("Selected: accepted as proposed")
+		}
+		if entry.Notes != "" {
+			fmt.Printf("Notes: %s\n", entry.Notes)
+		}
+		printDecisionModifications(entry.Modifications)
+	}
+}
+
+// isAcceptedAsProposed returns true for both the new `accepted_as_proposed`
+// flag and historical entries that used the `__other__ + freeform="accept as
+// proposed"` workaround on a single-proposal decision (read-side normalization).
+func isAcceptedAsProposed(entry DecisionEntry) bool {
+	if entry.AcceptedAsProposed {
+		return true
+	}
+	if len(entry.Options) == 0 && entry.Selected == "__other__" {
+		return strings.Contains(strings.ToLower(strings.TrimSpace(entry.Freeform)), "accept as proposed")
+	}
+	return false
+}
+
+// printDecisionModifications renders the structured-exceptions block beneath
+// notes. Keeps modifications visually distinct from free-form notes.
+func printDecisionModifications(m *DecisionModifications) {
+	if m == nil {
+		return
+	}
+	fmt.Println("Modifications:")
+	if len(m.ExcludedClauses) > 0 {
+		fmt.Println("  Excluded clauses:")
+		for _, c := range m.ExcludedClauses {
+			fmt.Printf("    - %s\n", c)
+		}
+	}
+	if len(m.Additions) > 0 {
+		fmt.Println("  Additions:")
+		for _, c := range m.Additions {
+			fmt.Printf("    + %s\n", c)
+		}
+	}
+	if m.Rationale != "" {
+		fmt.Printf("  Rationale: %s\n", m.Rationale)
 	}
 }
 

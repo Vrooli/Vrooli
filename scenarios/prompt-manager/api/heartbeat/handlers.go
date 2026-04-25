@@ -2122,11 +2122,100 @@ func (h *Handlers) UpdateDecisionHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	if req.Modifications != nil {
+		if err := validateDecisionModifications(req.Modifications); err != nil {
+			writeDecisionFieldError(w, "modifications", err.Error())
+			return
+		}
+		// Immutability: if the stored decision already has modifications, reject
+		// any attempt to change them (accept-once semantics).
+		existing, _ := h.findDecision(r.Context(), teamID, decisionID)
+		if existing != nil && existing.Modifications != nil {
+			writeDecisionFieldError(w, "modifications", "modifications are immutable once set on an accepted decision")
+			return
+		}
+	}
+
 	// Determine effective status: if selecting an option on a pending decision, implicitly accept.
 	effectiveStatus := req.Status
 	if req.Selected != nil && strings.TrimSpace(*req.Selected) != "" && req.Status == nil {
 		accepted := store.DecisionStatusAccepted
 		effectiveStatus = &accepted
+	}
+
+	// Single-proposal decisions (no Options) are accepted without --selected.
+	// Reject any explicit --selected on this shape — including the legacy
+	// `__other__ + freeform="accept as proposed"` workaround. Reads of
+	// historical entries with that shape are still tolerated by the read path.
+	acceptAsProposed := false
+	if effectiveStatus != nil && *effectiveStatus == store.DecisionStatusAccepted {
+		if existing, _ := h.findDecision(r.Context(), teamID, decisionID); existing != nil && len(existing.Options) == 0 {
+			if req.Selected != nil && strings.TrimSpace(*req.Selected) != "" {
+				writeDecisionFieldError(w, "selected", "single-proposal decisions are accepted with no --selected; rerun without it")
+				return
+			}
+			acceptAsProposed = true
+		}
+	}
+
+	// Defer-specific validation and transition checks.
+	var deferRevisitDate string // canonical YYYY-MM-DD form, set when transitioning to deferred
+	var deferAuditNote string   // appended to existing notes (re-defer only)
+	if effectiveStatus != nil && *effectiveStatus == store.DecisionStatusDeferred {
+		if req.RevisitAfter == nil || strings.TrimSpace(*req.RevisitAfter) == "" {
+			writeDecisionFieldError(w, "revisit_after", "revisit_after is required when status=deferred (format: YYYY-MM-DD)")
+			return
+		}
+		parsed, err := time.Parse("2006-01-02", strings.TrimSpace(*req.RevisitAfter))
+		if err != nil {
+			writeDecisionFieldError(w, "revisit_after", "revisit_after must be an ISO-8601 date (YYYY-MM-DD)")
+			return
+		}
+		today := time.Now().UTC().Truncate(24 * time.Hour)
+		parsedDay := parsed.UTC().Truncate(24 * time.Hour)
+		if parsedDay.Before(today) {
+			writeDecisionFieldError(w, "revisit_after", "revisit_after must be today or in the future")
+			return
+		}
+		maxDate := today.AddDate(0, 0, store.MaxRevisitAfterDays)
+		if parsedDay.After(maxDate) {
+			writeDecisionFieldError(w, "revisit_after", fmt.Sprintf("revisit_after must be within %d days of today", store.MaxRevisitAfterDays))
+			return
+		}
+		deferRevisitDate = parsedDay.Format("2006-01-02")
+
+		// Validate source transition.
+		existing, _ := h.findDecision(r.Context(), teamID, decisionID)
+		if existing != nil {
+			switch existing.Status {
+			case store.DecisionStatusPending, "":
+				// fresh defer — ok
+			case store.DecisionStatusDeferred:
+				// re-defer in place — preserve audit trail
+				prev := ""
+				if existing.RevisitAfter != nil {
+					prev = *existing.RevisitAfter
+				}
+				deferAuditNote = fmt.Sprintf("[re-deferred] %s → %s", prev, deferRevisitDate)
+			default:
+				writeDecisionFieldError(w, "status", fmt.Sprintf("cannot defer decision in status %q (only pending or deferred can be deferred)", existing.Status))
+				return
+			}
+		}
+	}
+
+	// Validate transitions OUT of deferred to a non-defer status.
+	if effectiveStatus != nil && *effectiveStatus != store.DecisionStatusDeferred {
+		existing, _ := h.findDecision(r.Context(), teamID, decisionID)
+		if existing != nil && existing.Status == store.DecisionStatusDeferred {
+			switch *effectiveStatus {
+			case store.DecisionStatusPending, store.DecisionStatusAccepted, store.DecisionStatusRejected:
+				// allowed — un-defer / accept / reject
+			default:
+				writeDecisionFieldError(w, "status", fmt.Sprintf("cannot transition deferred decision to %q (allowed: pending, accepted, rejected, deferred)", *effectiveStatus))
+				return
+			}
+		}
 	}
 
 	// Approval enforcement: check if the team is in approval mode and restrict agent callers.
@@ -2172,6 +2261,28 @@ func (h *Handlers) UpdateDecisionHandler(w http.ResponseWriter, r *http.Request)
 		}
 		if req.Notes != nil {
 			d.Notes = *req.Notes
+		}
+		if req.Modifications != nil {
+			m := *req.Modifications
+			d.Modifications = &m
+		}
+		if acceptAsProposed {
+			d.AcceptedAsProposed = true
+		}
+		// Defer-related state.
+		if effectiveStatus != nil && *effectiveStatus == store.DecisionStatusDeferred {
+			rev := deferRevisitDate
+			d.RevisitAfter = &rev
+			if deferAuditNote != "" {
+				if strings.TrimSpace(d.Notes) == "" {
+					d.Notes = deferAuditNote
+				} else {
+					d.Notes = d.Notes + "\n" + deferAuditNote
+				}
+			}
+		} else if effectiveStatus != nil {
+			// Transitioning out of deferred to pending/accepted/rejected — clear the date.
+			d.RevisitAfter = nil
 		}
 	})
 	if err != nil {
@@ -2291,6 +2402,63 @@ func (h *Handlers) getDecisionStatus(ctx context.Context, teamID, decisionID str
 		}
 	}
 	return ""
+}
+
+// findDecision returns the DecisionEntry with the given ID, or nil if absent.
+func (h *Handlers) findDecision(ctx context.Context, teamID, decisionID string) (*store.DecisionEntry, error) {
+	entries, _, err := h.teamStore.GetDecisions(ctx, teamID, "", "", 0)
+	if err != nil {
+		return nil, err
+	}
+	for i := range entries {
+		if entries[i].ID == decisionID {
+			return &entries[i], nil
+		}
+	}
+	return nil, nil
+}
+
+// decisionModificationsMaxRationale is the max UTF-8 byte length for
+// DecisionModifications.Rationale.
+const decisionModificationsMaxRationale = 4096
+
+// validateDecisionModifications enforces the contract policy:
+// reject entirely-empty payloads, reject empty-string entries in arrays,
+// and bound rationale length. See
+// docs/reference/decision-modifications-contract.md.
+func validateDecisionModifications(m *store.DecisionModifications) error {
+	if m == nil {
+		return nil
+	}
+	for i, s := range m.ExcludedClauses {
+		if strings.TrimSpace(s) == "" {
+			return fmt.Errorf("excluded_clauses[%d] must be a non-empty string", i)
+		}
+	}
+	for i, s := range m.Additions {
+		if strings.TrimSpace(s) == "" {
+			return fmt.Errorf("additions[%d] must be a non-empty string", i)
+		}
+	}
+	if len(m.Rationale) > decisionModificationsMaxRationale {
+		return fmt.Errorf("rationale exceeds %d bytes", decisionModificationsMaxRationale)
+	}
+	// Reject entirely-empty objects — operator should omit the field instead.
+	if len(m.ExcludedClauses) == 0 && len(m.Additions) == 0 && strings.TrimSpace(m.Rationale) == "" {
+		return fmt.Errorf("modifications must contain at least one of excluded_clauses, additions, or rationale")
+	}
+	return nil
+}
+
+// writeDecisionFieldError emits a structured field-violation response.
+func writeDecisionFieldError(w http.ResponseWriter, field, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"error":   "invalid_field",
+		"field":   field,
+		"message": message,
+	})
 }
 
 // DeleteDecisionHandler handles DELETE /teams/{id}/decisions/{decisionId}

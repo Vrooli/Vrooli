@@ -166,6 +166,14 @@ export interface DecisionOption {
   recommended?: boolean
 }
 
+// DecisionModifications is a structured, scoped exception an operator attaches
+// to an accepted option. See docs/reference/decision-modifications-contract.md.
+export interface DecisionModifications {
+  excluded_clauses?: string[]
+  additions?: string[]
+  rationale?: string
+}
+
 export interface DecisionEntry {
   id: string
   at: string
@@ -174,13 +182,16 @@ export interface DecisionEntry {
   rationale: string
   context?: string
   supersedes?: string
-  status?: 'pending' | 'accepted' | 'rejected' | 'running' | 'completed'
+  status?: 'pending' | 'accepted' | 'rejected' | 'running' | 'completed' | 'deferred'
   topic?: string
   description?: string
   options?: DecisionOption[]
   selected?: string | null
   freeform?: string | null
   notes?: string | null
+  modifications?: DecisionModifications | null
+  revisit_after?: string | null
+  accepted_as_proposed?: boolean
 }
 
 export interface UpdateDecisionRequest {
@@ -195,6 +206,7 @@ export interface UpdateDecisionRequest {
   selected?: string | null
   freeform?: string | null
   notes?: string | null
+  modifications?: DecisionModifications | null
 }
 
 export interface DecisionListResponse {
