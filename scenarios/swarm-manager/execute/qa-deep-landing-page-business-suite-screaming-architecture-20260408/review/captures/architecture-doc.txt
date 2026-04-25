@@ -1,0 +1,12 @@
+=== ARCHITECTURE.md key references ===
+16:- [CODE: ui/src/App.tsx] - React application entry point and routing
+21:- [CODE: api/ai_gateway_service.go] - AI gateway request routing + credit accounting
+25:- [CODE: cli/main.go] - Operator CLI surface
+26:- [CODE: initialization/postgres/schema.sql] - Authoritative database DDL
+134:### Backend (Go API + CLI)
+140:| **HTTP API** | `api/` | Public landing endpoints, admin portal APIs, billing/Stripe webhooks, AI gateway |
+141:| **Operator CLI** | `cli/` | Out-of-band admin operations (remote-profile management, service auth, scripted setup) |
+168:├── main.go                  # Operator CLI entrypoint
+170:├── domains/                 # Per-domain CLI commands (mirrors API domains)
+171:└── internal/                # Shared CLI helpers (auth, config)
+196:> **Transitional layout.** All HTTP-API source today lives in a single `package main` under `api/`. Per-domain `register*Routes` functions provide *file-level* grouping; physical `api/domain/<name>/` subpackages have **not yet** been extracted. The follow-up backlog item `qa-deep-landing-page-business-suite-api-domain-subpackages-20260424` tracks the move into per-domain Go subpackages and the design of any shared package needed to break import cycles. Until then, "domain boundaries" in the API are enforced by file naming + route-registration grouping rather than by package boundaries.

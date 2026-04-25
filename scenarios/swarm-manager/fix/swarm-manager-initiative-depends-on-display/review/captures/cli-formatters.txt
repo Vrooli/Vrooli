@@ -1,0 +1,56 @@
+	printSection("Initiatives")
+	for _, item := range response.Items {
+		init := item.Initiative
+		rollup := item.Rollup
+		fmt.Printf("  %s (%s)\n", init.Name, init.Status)
+		fmt.Printf("    Title: %s\n", init.Title)
+		if init.Description != "" {
+			fmt.Printf("    Description: %s\n", init.Description)
+		}
+		if init.Priority > 0 {
+			fmt.Printf("    Priority: %d\n", init.Priority)
+		}
+		if len(init.DependsOn) > 0 {
+			fmt.Printf("    Depends on: %s\n", strings.Join(init.DependsOn, ", "))
+		}
+		fmt.Printf("    Items: %d total, %d completed, %d in-progress, %d failed, %d pending\n",
+			rollup.Total, rollup.Completed, rollup.InProgress, rollup.Failed, rollup.Pending)
+		if len(item.TargetScenarios) > 0 {
+			fmt.Printf("    Targets: %s\n", strings.Join(item.TargetScenarios, ", "))
+		}
+		if len(init.Items) > 0 {
+			fmt.Printf("    References: %s\n", strings.Join(init.Items, ", "))
+		}
+		fmt.Println()
+	}
+	if err != nil {
+		return err
+	}
+	init := response.Initiative
+	rollup := response.Rollup
+
+	printSection("Initiative")
+	fmt.Printf("  Name: %s\n", init.Name)
+	fmt.Printf("  Title: %s\n", init.Title)
+	if init.Description != "" {
+		fmt.Printf("  Description: %s\n", init.Description)
+	}
+	fmt.Printf("  Status: %s\n", init.Status)
+	if init.Priority > 0 {
+		fmt.Printf("  Priority: %d\n", init.Priority)
+	}
+	if len(init.DependsOn) > 0 {
+		fmt.Printf("  Depends on: %s\n", strings.Join(init.DependsOn, ", "))
+	}
+	fmt.Printf("  Created: %s\n", init.Created)
+	fmt.Printf("  Updated: %s\n", init.Updated)
+
+	printSection("Rollup")
+	fmt.Printf("  Total: %d\n", rollup.Total)
+	fmt.Printf("  Completed: %d\n", rollup.Completed)
+	fmt.Printf("  In Progress: %d\n", rollup.InProgress)
+	fmt.Printf("  Failed: %d\n", rollup.Failed)
+	fmt.Printf("  Pending: %d\n", rollup.Pending)
+
+	if len(init.Items) > 0 {
+		printSection("Items")

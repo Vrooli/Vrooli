@@ -8,9 +8,8 @@
     "execute/swarm-manager-pending-questions-priority-sort",
     "execute/workshop-decision-prep-agent",
     "execute/workshop-decision-sync-skill",
-    "chore/workshop-decision-sync-tests",
-    "idea/workshop-question-level-answer-endpoint"
+    "chore/workshop-decision-sync-tests"
   ],
   "created": "2026-04-22T20:27:45Z",
-  "updated": "2026-04-22T20:27:45Z"
+  "updated": "2026-04-25T03:04:09Z"
 }

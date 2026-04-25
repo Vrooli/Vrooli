@@ -1,0 +1,9 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-25T03:05:37Z",
+  "execution_id": "7dca7e37b868e902",
+  "status": "failed",
+  "failure_reason": "review run completed without agent_assessment",
+  "evidence": [],
+  "run_id": "233c9649-cf46-4a6c-bfb4-dcbeb5508786"
+}

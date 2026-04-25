@@ -65,6 +65,12 @@ const MOCK_STATS: StatsResponse = {
     success_rate_sample_size: 10,
     execution_duration_samples: 10,
     workshop_rounds_sample_size: 6,
+    recommendation_acceptance_rate: 0,
+    recommendation_acceptance_sample_size: 0,
+    freeform_override_rate: 0,
+    decision_items_total: 0,
+    decision_items_answered: 0,
+    recommendation_acceptance_by_kind: {},
   },
   dashboard: {
     total_backlog_size: 20,

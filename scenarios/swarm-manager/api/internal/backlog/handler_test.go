@@ -1180,6 +1180,66 @@ func TestWorkshopReset_NoopWhenEmpty(t *testing.T) {
 	}
 }
 
+func TestArchive_TransitionsReviewStatusToCompleted(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	item := BacklogItem{
+		Name: "archive-from-review", Title: "Archive From Review",
+		Status: StatusInReview, Priority: 3,
+		Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
+		Kind:    KindExecute,
+	}
+	createTestItem(t, rootDir, KindExecute, item)
+
+	req := httptest.NewRequest("PATCH", "/api/v1/backlog/execute/archive-from-review/archive-item", nil)
+	req = mux.SetURLVars(req, map[string]string{"kind": "execute", "name": "archive-from-review"})
+	w := httptest.NewRecorder()
+
+	h.Archive(w, req)
+	testutil.AssertStatusOK(t, w)
+
+	reloaded, err := h.store.LoadItem(KindExecute, "archive-from-review")
+	if err != nil {
+		t.Fatalf("load after archive: %v", err)
+	}
+	if reloaded.Status != StatusCompleted {
+		t.Errorf("status after archive: got %q, want %q", reloaded.Status, StatusCompleted)
+	}
+	if reloaded.ArchivedAt == nil || *reloaded.ArchivedAt == "" {
+		t.Errorf("archived_at not set")
+	}
+}
+
+func TestArchive_LeavesTerminalStatusUnchanged(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	item := BacklogItem{
+		Name: "archive-already-failed", Title: "Archive Already Failed",
+		Status: StatusFailed, Priority: 3,
+		Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
+		Kind:    KindExecute,
+	}
+	createTestItem(t, rootDir, KindExecute, item)
+
+	req := httptest.NewRequest("PATCH", "/api/v1/backlog/execute/archive-already-failed/archive-item", nil)
+	req = mux.SetURLVars(req, map[string]string{"kind": "execute", "name": "archive-already-failed"})
+	w := httptest.NewRecorder()
+
+	h.Archive(w, req)
+	testutil.AssertStatusOK(t, w)
+
+	reloaded, err := h.store.LoadItem(KindExecute, "archive-already-failed")
+	if err != nil {
+		t.Fatalf("load after archive: %v", err)
+	}
+	if reloaded.Status != StatusFailed {
+		t.Errorf("status after archive: got %q, want %q (terminal statuses should be preserved)", reloaded.Status, StatusFailed)
+	}
+	if reloaded.ArchivedAt == nil {
+		t.Errorf("archived_at not set")
+	}
+}
+
 func TestWorkshopReset_ResearchDeletesConclusion(t *testing.T) {
 	h, rootDir := setupTestHandler(t)
 

@@ -1,0 +1,23 @@
+{
+  "acceptance_allow": [
+    "scenarios/landing-page-business-suite/**"
+  ],
+  "created": "2026-04-25T02:41:16Z",
+  "depends_on": [
+    "research/lpbs-api-domain-dep-graph-and-shared-design"
+  ],
+  "description": "Move `metrics` (incl. `feedback` + `waitlist`) handlers/services into `scenarios/landing-page-business-suite/api/domain/metrics/` with grouped `Deps` struct + exported `RegisterRoutes(router, deps)`. Update `routes.go` to call `metrics.RegisterRoutes` instead of `registerMetricsRoutes`/`registerFeedbackRoutes`/`registerWaitlistRoutes`. Remove the moved fields from the `Server` struct in `main.go`. Move the per-domain test files alongside their source and adjust to use exported APIs. Behavior-preserving: every URL path, HTTP method, middleware chain, status code, and response body shape unchanged. Recommended first because it touches the fewest shared helpers (per the dep-graph research). Acceptance: `vrooli scenario test landing-page-business-suite` passes; `go list ./...` shows the new `api/domain/metrics` package; old `register{Metrics,Feedback,Waitlist}Routes` removed; no import cycles.",
+  "effort": "M",
+  "initiative": "landing-page-api-domain-subpackages",
+  "kind": "execute",
+  "name": "lpbs-api-extract-metrics-domain",
+  "priority": 5,
+  "status": "backlog",
+  "tags": [
+    "landing-page-business-suite",
+    "screaming-architecture",
+    "api-refactor"
+  ],
+  "title": "Extract LPBS metrics domain into api/domain/metrics/",
+  "updated": "2026-04-25T02:41:16Z"
+}

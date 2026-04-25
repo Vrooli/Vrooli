@@ -1,0 +1,11 @@
+461:// DecisionModifications captures structured, scoped exceptions an operator
+462-// attaches to an accepted option. `excluded_clauses` lists parts of the
+463-// option's rationale the operator does NOT accept; `additions` lists extra
+--
+466:type DecisionModifications struct {
+467-	ExcludedClauses []string `json:"excluded_clauses,omitempty"`
+468-	Additions       []string `json:"additions,omitempty"`
+--
+488:	Modifications *DecisionModifications `json:"modifications,omitempty"`
+489-}
+490-

@@ -106,6 +106,25 @@ type AgentStats struct {
 	SuccessRateSampleSize    int     `json:"success_rate_sample_size"`
 	ExecutionDurationSamples int     `json:"execution_duration_samples"`
 	WorkshopRoundsSampleSize int     `json:"workshop_rounds_sample_size"`
+
+	// Recommendation acceptance: how often the user picked the agent's
+	// recommended workshop option, with a "freeform overrides" companion.
+	// Freeform answers ("Other") count toward the answered denominator and
+	// freeform-override numerator; they never count toward the recommended
+	// numerator — picking "Other" rejects the offered option set.
+	RecommendationAcceptanceRate       float64             `json:"recommendation_acceptance_rate"`
+	RecommendationAcceptanceSampleSize int                 `json:"recommendation_acceptance_sample_size"`
+	FreeformOverrideRate               float64             `json:"freeform_override_rate"`
+	DecisionItemsTotal                 int                 `json:"decision_items_total"`
+	DecisionItemsAnswered              int                 `json:"decision_items_answered"`
+	RecommendationAcceptanceByKind     map[string]KindRate `json:"recommendation_acceptance_by_kind"`
+}
+
+// KindRate is the per-kind breakdown for recommendation-acceptance stats.
+// SampleSize is the number of answered decision items contributing to Rate.
+type KindRate struct {
+	Rate       float64 `json:"rate"`
+	SampleSize int     `json:"sample_size"`
 }
 
 // DashboardStats provides top-level summary numbers.

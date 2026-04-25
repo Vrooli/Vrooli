@@ -376,3 +376,57 @@ func ResetWorkshop(itemDir string, deliverableFile string) (deletedRounds int, e
 
 	return len(rounds), nil
 }
+
+// RoundSummary captures the aggregate decision-item counts for a single
+// workshop round. It feeds the recommendation-acceptance metric: callers
+// emit it as part of decision.workshop_round_completed so the stats
+// engine can compute global and per-kind acceptance rates without
+// re-reading the round file.
+type RoundSummary struct {
+	ItemsTotal             int
+	ItemsAnswered          int
+	ItemsRecommendedChosen int
+	ItemsFreeformChosen    int
+}
+
+// SummarizeRound walks the decision items in a workshop round and returns
+// the counters used by recommendation-acceptance stats.
+//
+// Counting rules (per the recommendation-acceptance plan, §8 contract):
+//   - Only Type == "decision" items count.
+//   - An item with Selected == nil is unanswered: increments ItemsTotal only.
+//   - An item with Selected == OtherKey counts toward ItemsAnswered and
+//     ItemsFreeformChosen, never ItemsRecommendedChosen — picking "Other"
+//     rejects the recommended option set.
+//   - An item with Selected pointing at a non-Other option counts toward
+//     ItemsAnswered, and toward ItemsRecommendedChosen iff the matching
+//     option's Recommended flag is true.
+func SummarizeRound(round *Round) RoundSummary {
+	var s RoundSummary
+	if round == nil {
+		return s
+	}
+	for i := range round.Items {
+		item := &round.Items[i]
+		if item.Type != "decision" {
+			continue
+		}
+		s.ItemsTotal++
+		if item.Selected == nil {
+			continue
+		}
+		s.ItemsAnswered++
+		selected := *item.Selected
+		if selected == OtherKey {
+			s.ItemsFreeformChosen++
+			continue
+		}
+		for j := range item.Options {
+			if item.Options[j].Key == selected && item.Options[j].Recommended {
+				s.ItemsRecommendedChosen++
+				break
+			}
+		}
+	}
+	return s
+}

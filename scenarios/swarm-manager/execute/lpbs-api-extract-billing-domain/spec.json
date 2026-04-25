@@ -1,0 +1,23 @@
+{
+  "acceptance_allow": [
+    "scenarios/landing-page-business-suite/**"
+  ],
+  "created": "2026-04-25T02:41:16Z",
+  "depends_on": [
+    "research/lpbs-api-domain-dep-graph-and-shared-design"
+  ],
+  "description": "Move `billing` (incl. `credits` + `commerce-admin`) handlers/services — `StripeService`, `PaymentSettingsService`, `PaymentAnomalyService`, `APIKeyService`, `LimitsService`, `UsageService` — into `scenarios/landing-page-business-suite/api/domain/billing/` with exported `RegisterRoutes(router, deps)`. Update `routes.go` to call `billing.RegisterRoutes` instead of `registerBillingRoutes` + `registerCommerceAdminRoutes` + `registerCreditsRoutes`. Remove the moved fields from the `Server` struct. This is the heaviest domain (Stripe webhooks, reconciliation, payment anomaly logging — see existing `lpbs-stripe-reconciliation-ticker` and `lpbs-checkout-webhook-atomicity` items); coordinate with those if active. Behavior-preserving: webhook idempotency, anomaly detection, credit accounting unchanged. Acceptance: tests pass; `api/domain/billing` package exists; old register functions removed; no cycles.",
+  "effort": "L",
+  "initiative": "landing-page-api-domain-subpackages",
+  "kind": "execute",
+  "name": "lpbs-api-extract-billing-domain",
+  "priority": 6,
+  "status": "backlog",
+  "tags": [
+    "landing-page-business-suite",
+    "screaming-architecture",
+    "api-refactor"
+  ],
+  "title": "Extract LPBS billing domain into api/domain/billing/",
+  "updated": "2026-04-25T02:41:16Z"
+}

@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
+	"sort"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
@@ -66,12 +67,21 @@ type ReasonCount struct {
 }
 
 type AgentStats struct {
-	TotalExecutions     int     `json:"total_executions"`
-	SuccessRate         float64 `json:"success_rate"`
-	FailureRate         float64 `json:"failure_rate"`
-	FollowUpRate        float64 `json:"follow_up_rate"`
-	AvgExecutionMinutes float64 `json:"avg_execution_minutes"`
-	AvgWorkshopRounds   float64 `json:"avg_workshop_rounds"`
+	TotalExecutions                    int                 `json:"total_executions"`
+	SuccessRate                        float64             `json:"success_rate"`
+	FailureRate                        float64             `json:"failure_rate"`
+	FollowUpRate                       float64             `json:"follow_up_rate"`
+	AvgExecutionMinutes                float64             `json:"avg_execution_minutes"`
+	AvgWorkshopRounds                  float64             `json:"avg_workshop_rounds"`
+	RecommendationAcceptanceRate       float64             `json:"recommendation_acceptance_rate"`
+	RecommendationAcceptanceSampleSize int                 `json:"recommendation_acceptance_sample_size"`
+	FreeformOverrideRate               float64             `json:"freeform_override_rate"`
+	RecommendationAcceptanceByKind     map[string]KindRate `json:"recommendation_acceptance_by_kind"`
+}
+
+type KindRate struct {
+	Rate       float64 `json:"rate"`
+	SampleSize int     `json:"sample_size"`
 }
 
 type DashboardStats struct {
@@ -246,6 +256,27 @@ func printAgentMarkdown(a AgentStats) {
 	}
 	if a.AvgWorkshopRounds > 0 {
 		fmt.Printf("  Avg workshop rounds: %.1f\n", a.AvgWorkshopRounds)
+	}
+	if a.RecommendationAcceptanceSampleSize > 0 {
+		fmt.Printf("  Recommendation acceptance: %.1f%% (n=%d)\n",
+			a.RecommendationAcceptanceRate*100, a.RecommendationAcceptanceSampleSize)
+		fmt.Printf("  Freeform override: %.1f%% (n=%d)\n",
+			a.FreeformOverrideRate*100, a.RecommendationAcceptanceSampleSize)
+		if len(a.RecommendationAcceptanceByKind) > 0 {
+			kinds := make([]string, 0, len(a.RecommendationAcceptanceByKind))
+			for k := range a.RecommendationAcceptanceByKind {
+				kinds = append(kinds, k)
+			}
+			sort.Strings(kinds)
+			fmt.Println("    By kind:")
+			for _, k := range kinds {
+				kr := a.RecommendationAcceptanceByKind[k]
+				if kr.SampleSize == 0 {
+					continue
+				}
+				fmt.Printf("      %s: %.1f%% (n=%d)\n", k, kr.Rate*100, kr.SampleSize)
+			}
+		}
 	}
 }
 

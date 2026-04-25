@@ -1,0 +1,137 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-24T00:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 3,
+    "risk_awareness": 2
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Round 1 decisions d1=A (implementation-ready depth), d2=A (auto-apply on failure with opt-out), d3=A (required provenance categories without exact schema) are now reflected in the conclusion as F9 (configuration surface table with field names, types, defaults, owners), the applyOnFailure default in F9, and F10 (six required provenance categories with required-fields per category)."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Validation matrix added (F12) with nine concrete cases V1-V9, each with a verification approach and an owning sibling item. This is the testable bar for sandbox-as-default rollout. V9 (multi-sandbox concurrent apply ordering) is a new risk surface that wasn't enumerated in round 1; it must be verified before flipping rollout defaults."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Source-of-truth matrix added (F11) clarifying that policy/guardrails are NOT the primary contract today — agent-manager declares, workspace-sandbox enforces, and only partial declaration exists. The contract intentionally keeps policy/guardrails as a follow-on, not a foundation."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "Initiative-impact: Action 5 proposes creating a provenance-enrichment item under upstream initiative `git-control-tower-ai-provenance` rather than this initiative, because the upstream owns the provenance pipeline. Action 7 proposes updating this initiative's description to clarify it consumes (not produces) enriched provenance, preventing duplicate work across the two initiatives."
+    },
+    {
+      "id": "i5",
+      "type": "info",
+      "text": "This research appears ready for conclusion. Problem clarity, scope, approach, and testable are at 3; risk awareness at 2 (one open verification — V9 multi-sandbox apply ordering — could shift mitigations once measured). Consider reviewing the conclusion and processing for downstream sibling items."
+    },
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Provenance enrichment ownership",
+      "context": "Action 5 in the conclusion proposes creating a new execute item for provenance enrichment under the upstream `git-control-tower-ai-provenance` initiative (not this one), since GCT owns the provenance pipeline end-to-end. The alternative is to keep it inside `agent-sandbox-audit-foundation` so this initiative remains self-contained. Initiative context shows GCT-AI-provenance is upstream and active.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Create the provenance-enrichment item under upstream `git-control-tower-ai-provenance`",
+          "rationale": "Right home — GCT owns the provenance schema and UI. Avoids duplicating the work across initiatives. Audit-foundation just consumes enriched provenance.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Create the provenance-enrichment item inside this initiative (agent-sandbox-audit-foundation)",
+          "rationale": "Keeps the audit-foundation self-contained; sandbox-as-default doesn't ship until the auditability story is complete here."
+        },
+        {
+          "key": "C",
+          "label": "Defer provenance enrichment entirely; ship sandbox-as-default with current provenance and enrich later",
+          "rationale": "Fastest to ship, but weakens the auditability value prop for the v1 default flip."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Spawn-surface rollout sequence",
+      "context": "F9 introduces a default flip (manualReview=false, autoApply=true, applyOnFailure=true). The rollout item (`agent-manager-default-sandboxing-rollout`) needs an explicit sequence of spawn surfaces. Which order minimizes blast radius while still proving the auditability story?",
+      "options": [
+        {
+          "key": "A",
+          "label": "CLI/test-genie → meta-orchestrator → web console (lowest blast radius first)",
+          "rationale": "CLI users are closest to the change and easiest to revert; meta-orchestrator runs are recoverable via run-level undo; web console (broadest user base) flips last after V1-V9 hold across the prior surfaces.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "All spawn surfaces simultaneously behind a global flag",
+          "rationale": "Cleaner cutover, fewer config combinations to maintain, but failures in one surface block the whole flip."
+        },
+        {
+          "key": "C",
+          "label": "Web console first (operator-supervised), then CLI/automated surfaces",
+          "rationale": "Operators can review surprises in real time; but defeats the auditability-by-default thesis since web console runs are already the most reviewed."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own sequence"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Failed-run useful-changes signal",
+      "context": "`applyOnFailure=true` (F9 default) auto-applies accepted changes on a failed run. The risks table notes this could land partial broken work. The contract could either trust acceptance rules alone, or also require a per-run signal that the agent reached a coherent checkpoint before failing.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Trust acceptance rules alone — apply any accepted change at terminal state regardless of when failure happened",
+          "rationale": "Simplest. Acceptance is the gate. Auditability is the goal — partial broken work in audited form is still better than invisible work. Run-level undo/revert (downstream initiative) is the safety net.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Require an agent-reported `lastCoherentCheckpoint` and only apply files modified before it",
+          "rationale": "Reduces broken-partial risk, but adds an agent-side contract — violates the F-stated principle that the agent shouldn't change behavior based on sandbox mode."
+        },
+        {
+          "key": "C",
+          "label": "Apply on failure only if the run made it past a configurable progress milestone (e.g., post-test-pass)",
+          "rationale": "Middle ground; needs a reliable progress signal that today doesn't exist universally across spawn surfaces."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    }
+  ],
+  "plan_updates": "Round 2 added F9 implementation-ready configuration surface table, F10 required provenance categories, F11 source-of-truth matrix, F12 nine-case validation matrix, and a Risks & Limitations table. Replaced the old time-horizon Actions list with five targeted Update/Create actions tied to specific sibling items, plus an Update initiative action to clarify provenance enrichment ownership. Added Methodology and Summary sections per the research-conclusion-authoring template."
+}

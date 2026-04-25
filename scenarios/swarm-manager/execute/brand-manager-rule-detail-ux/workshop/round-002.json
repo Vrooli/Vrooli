@@ -2,13 +2,13 @@
   "round": 2,
   "generated_at": "2026-04-17T00:00:00Z",
   "mode": "workshop",
-  "pending_synthesis": false,
+  "pending_synthesis": true,
   "readiness": {
-    "problem_clarity": 3,
-    "scope_defined": 3,
     "approach_solid": 3,
-    "testable": 3,
-    "risk_awareness": 3
+    "problem_clarity": 3,
+    "risk_awareness": 3,
+    "scope_defined": 3,
+    "testable": 3
   },
   "items": [
     {
@@ -34,9 +34,8 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "__other__",
+      "freeform": "See how other scenarios like git-control-tower do it"
     },
     {
       "id": "d6",
@@ -46,7 +45,7 @@
       "options": [
         {
           "key": "A",
-          "label": "Multiple cards can be expanded independently (Record<ruleId, boolean> state)",
+          "label": "Multiple cards can be expanded independently (Record\u003cruleId, boolean\u003e state)",
           "rationale": "Supports side-by-side reading and comparing fix instructions across rules. Matches typical documentation-browser UX. Slightly more vertical scrolling when all five are open, but with only 5 rules that is manageable. Recommended.",
           "recommended": true
         },
@@ -61,9 +60,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d7",
@@ -98,9 +95,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "i2",

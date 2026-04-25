@@ -22,6 +22,7 @@ import (
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/eventlog"
 	"swarm-manager/internal/fileops"
 	"swarm-manager/internal/fileserve"
 	"swarm-manager/internal/httputil"
@@ -89,7 +90,15 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.eventLogger != nil {
-		h.eventLogger.EmitWorkshopRoundCompleted(string(kind)+"/"+name, int(req.RoundNumber))
+		summary := workshop.SummarizeRound(&round)
+		h.eventLogger.EmitWorkshopRoundCompleted(string(kind)+"/"+name, eventlog.WorkshopRoundPayload{
+			RoundNumber:            int(req.RoundNumber),
+			Kind:                   string(kind),
+			ItemsTotal:             summary.ItemsTotal,
+			ItemsAnswered:          summary.ItemsAnswered,
+			ItemsRecommendedChosen: summary.ItemsRecommendedChosen,
+			ItemsFreeformChosen:    summary.ItemsFreeformChosen,
+		})
 	}
 
 	info, _ := os.Stat(roundPath)

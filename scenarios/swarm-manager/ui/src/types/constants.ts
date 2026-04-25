@@ -51,12 +51,21 @@ export const BACKLOG_STATUSES: BacklogStatus[] = [
 
 /**
  * Statuses a user can manually set via the generic status patch.
+ * Planning states (backlog/researching/ready) plus terminal states
+ * (completed/failed/needs_followup) as manual-override escape hatches.
  * Excludes:
  *   - queued/in_progress (managed by execution system)
- *   - in_review/review_pending (managed by execution + review systems)
- *   - completed/failed/needs_followup (set via review-decide endpoint only)
+ *   - in_review/review_pending (must exit via review-decide for audit trail;
+ *     server-side PATCH is rejected while in these statuses)
  */
-export const USER_SETTABLE_STATUSES: BacklogStatus[] = ["backlog", "researching", "ready"];
+export const USER_SETTABLE_STATUSES: BacklogStatus[] = [
+  "backlog",
+  "researching",
+  "ready",
+  "completed",
+  "failed",
+  "needs_followup",
+];
 
 /**
  * Maps backlog status to tailwind background color classes

@@ -1,0 +1,23 @@
+{
+  "acceptance_allow": [
+    "scenarios/landing-page-business-suite/**"
+  ],
+  "created": "2026-04-25T02:41:16Z",
+  "depends_on": [
+    "research/lpbs-api-domain-dep-graph-and-shared-design"
+  ],
+  "description": "Move `remote-profile` handler/service into `scenarios/landing-page-business-suite/api/domain/remote-profile/` with exported `RegisterRoutes(router, deps)`. Update `routes.go` to call `remoteprofile.RegisterRoutes` instead of `registerRemoteProfileRoutes`. Remove `remoteProfileService` from the `Server` struct. Note: `deploy_readiness_handler` references `remoteProfileService` — keep it wired through deps until/unless the dep-graph research advises moving it. Behavior-preserving. Acceptance: tests pass; `api/domain/remote-profile` package exists; no cycles.",
+  "effort": "S",
+  "initiative": "landing-page-api-domain-subpackages",
+  "kind": "execute",
+  "name": "lpbs-api-extract-remote-profile-domain",
+  "priority": 5,
+  "status": "backlog",
+  "tags": [
+    "landing-page-business-suite",
+    "screaming-architecture",
+    "api-refactor"
+  ],
+  "title": "Extract LPBS remote-profile domain into api/domain/remote-profile/",
+  "updated": "2026-04-25T02:41:16Z"
+}

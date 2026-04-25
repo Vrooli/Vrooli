@@ -2,13 +2,13 @@
   "round": 1,
   "generated_at": "2026-03-30T12:00:00Z",
   "mode": "workshop",
-  "pending_synthesis": false,
+  "pending_synthesis": true,
   "readiness": {
-    "problem_clarity": 3,
-    "scope_defined": 3,
     "approach_solid": 2,
-    "testable": 2,
-    "risk_awareness": 2
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
   },
   "items": [
     {
@@ -34,9 +34,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d2",
@@ -61,9 +59,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d3",
@@ -74,7 +70,7 @@
         {
           "key": "A",
           "label": "Use pre-formatted HTML/JSX instead of raw markdown",
-          "rationale": "No dependency needed. Structure the content as JSX with <pre>/<code> blocks. Works for the simple content (code snippets + numbered lists). Recommended because it avoids a new dependency for what is primarily code examples and short instructions.",
+          "rationale": "No dependency needed. Structure the content as JSX with \u003cpre\u003e/\u003ccode\u003e blocks. Works for the simple content (code snippets + numbered lists). Recommended because it avoids a new dependency for what is primarily code examples and short instructions.",
           "recommended": true
         },
         {
@@ -93,9 +89,8 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "__other__",
+      "freeform": "Follow same approach (including custom components for things like code blocks) as other apps like git-control-tower"
     },
     {
       "id": "d4",
@@ -120,9 +115,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "i1",

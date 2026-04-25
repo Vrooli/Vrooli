@@ -23,6 +23,7 @@ import (
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/dispatch"
+	"swarm-manager/internal/eventlog"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/pathutil"
@@ -87,7 +88,7 @@ type EventLogger interface {
 	EmitBacklogArchived(entityID, previousStatus, archivedAt string)
 	EmitBacklogUnarchived(entityID, archivedAt string)
 	EmitBacklogDeleted(entityID string)
-	EmitWorkshopRoundCompleted(entityID string, roundNumber int)
+	EmitWorkshopRoundCompleted(entityID string, payload eventlog.WorkshopRoundPayload)
 	EmitBacklogViewed(entityID, kind string)
 	EmitClarificationStarted(entityID string, roundNumber int, itemID string, hasMessage bool)
 	EmitClarificationResolved(entityID string, roundNumber int, itemID string, messageCount int, impactLevel string)
@@ -520,8 +521,11 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// Archive sets archived_at on a backlog item. The item must be in a terminal
-// status (completed or failed).
+// Archive sets archived_at on a backlog item. When the item is still in an
+// active review status (in_review / review_pending), the archive button
+// doubles as a review-acceptance: we transition to completed and fire the
+// normal terminal-handler path before stamping archived_at. The status change
+// is emitted so listeners see the transition.
 func (h *Handler) Archive(w http.ResponseWriter, r *http.Request) {
 	kind, name, ok := h.parseKindAndName(w, r, "archive")
 	if !ok {
@@ -547,6 +551,12 @@ func (h *Handler) Archive(w http.ResponseWriter, r *http.Request) {
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
+	priorStatus := item.Status
+	statusChanged := false
+	if IsReviewStatus(priorStatus) {
+		item.Status = StatusCompleted
+		statusChanged = true
+	}
 	item.ArchivedAt = &now
 	item.Updated = now
 
@@ -555,8 +565,15 @@ func (h *Handler) Archive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	entityID := string(kind) + "/" + name
 	if h.eventLogger != nil {
-		h.eventLogger.EmitBacklogArchived(string(kind)+"/"+name, string(item.Status), now)
+		if statusChanged {
+			h.eventLogger.EmitBacklogStatusChanged(entityID, string(priorStatus), string(item.Status))
+		}
+		h.eventLogger.EmitBacklogArchived(entityID, string(item.Status), now)
+	}
+	if statusChanged && h.itemTerminalHandler != nil {
+		h.itemTerminalHandler(r.Context(), string(kind), name, item.Status)
 	}
 	h.invalidateAllGraphLenses()
 

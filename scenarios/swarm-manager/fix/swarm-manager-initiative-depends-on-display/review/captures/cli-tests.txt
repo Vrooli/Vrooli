@@ -1,0 +1,26 @@
+=== RUN   TestCmdInitiativesList_RendersTargetScenarios
+Summary:
+  Found 1 initiative(s)
+Initiatives:
+  audio-platform (active)
+    Title: Audio Platform
+    Items: 1 total, 0 completed, 0 in-progress, 0 failed, 1 pending
+    Targets: web-console
+    References: execute/web-console-audio
+
+
+Next Steps:
+  swarm-manager initiatives get --name audio-platform
+--- PASS: TestCmdInitiativesList_RendersTargetScenarios (0.00s)
+=== RUN   TestCmdInitiativesList_RendersDependsOn
+--- PASS: TestCmdInitiativesList_RendersDependsOn (0.00s)
+=== RUN   TestCmdInitiativesGet_RendersDependsOn
+=== RUN   TestCmdInitiativesGet_RendersDependsOn/empty
+=== RUN   TestCmdInitiativesGet_RendersDependsOn/single
+=== RUN   TestCmdInitiativesGet_RendersDependsOn/multi-preserves-order
+--- PASS: TestCmdInitiativesGet_RendersDependsOn (0.00s)
+    --- PASS: TestCmdInitiativesGet_RendersDependsOn/empty (0.00s)
+    --- PASS: TestCmdInitiativesGet_RendersDependsOn/single (0.00s)
+    --- PASS: TestCmdInitiativesGet_RendersDependsOn/multi-preserves-order (0.00s)
+PASS
+ok  	swarm-manager/cli	0.009s

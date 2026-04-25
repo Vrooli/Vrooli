@@ -1,0 +1,12 @@
+=== RUN   TestUpdateDecision_ModificationsPersisted
+--- PASS: TestUpdateDecision_ModificationsPersisted (0.00s)
+=== RUN   TestUpdateDecision_EmptyModificationsRejected
+--- PASS: TestUpdateDecision_EmptyModificationsRejected (0.00s)
+=== RUN   TestUpdateDecision_ModificationsEmptyStringRejected
+--- PASS: TestUpdateDecision_ModificationsEmptyStringRejected (0.00s)
+=== RUN   TestUpdateDecision_ModificationsImmutable
+--- PASS: TestUpdateDecision_ModificationsImmutable (0.00s)
+=== RUN   TestUpdateDecision_WithoutModificationsLeavesNil
+--- PASS: TestUpdateDecision_WithoutModificationsLeavesNil (0.00s)
+PASS
+ok  	prompt-manager/heartbeat	0.008s

@@ -374,6 +374,109 @@ function AgentTab({ data, history }: { data: AgentStats; history: HistoryWindow 
           required={threshold}
         />
       )}
+
+      <RecommendationAcceptanceSection data={data} threshold={threshold} />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Recommendation acceptance (Agent tab subsection)
+// ---------------------------------------------------------------------------
+
+function RecommendationAcceptanceSection({
+  data,
+  threshold,
+}: {
+  data: AgentStats;
+  threshold: number;
+}) {
+  const sample = data.recommendation_acceptance_sample_size;
+  const ready = sample >= Math.max(1, threshold);
+  const byKind = data.recommendation_acceptance_by_kind ?? {};
+  const kindEntries = Object.entries(byKind).sort(([a], [b]) => a.localeCompare(b));
+  const [showByKind, setShowByKind] = useState(false);
+
+  return (
+    <div className="space-y-3" data-testid="stats-recommendation-acceptance">
+      <SectionLabel>Decision Recommendations</SectionLabel>
+      {ready ? (
+        <div className="space-y-3">
+          <div>
+            <div className="mb-1 flex justify-between text-xs">
+              <span className="text-slate-400">Recommendation acceptance</span>
+              <span className="text-emerald-400">
+                {formatRate(data.recommendation_acceptance_rate)}{" "}
+                <span className="text-slate-500">(n={sample})</span>
+              </span>
+            </div>
+            <ProgressBar value={data.recommendation_acceptance_rate} max={1} color="bg-emerald-500" />
+            <p className="mt-1 text-[11px] text-slate-500">
+              Of decisions you answered, the share where you picked the agent&apos;s recommended option.
+              Picking &quot;Other&quot; counts as rejecting the recommendation.
+            </p>
+          </div>
+          <div>
+            <div className="mb-1 flex justify-between text-xs">
+              <span className="text-slate-400">Freeform override</span>
+              <span className="text-amber-400">
+                {formatRate(data.freeform_override_rate)}{" "}
+                <span className="text-slate-500">(n={sample})</span>
+              </span>
+            </div>
+            <ProgressBar value={data.freeform_override_rate} max={1} color="bg-amber-500" />
+            <p className="mt-1 text-[11px] text-slate-500">
+              Share of answers that picked &quot;Other&quot;. A high rate means the offered options miss the mark.
+            </p>
+          </div>
+          {kindEntries.length > 0 && (
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowByKind((v) => !v)}
+                className="text-xs text-slate-400 hover:text-slate-200"
+                data-testid="stats-rec-by-kind-toggle"
+              >
+                {showByKind ? "Hide breakdown by kind" : "Show breakdown by kind"}
+              </button>
+              {showByKind && (
+                <div className="mt-2 space-y-2">
+                  {kindEntries.map(([kind, kr]) => {
+                    const kindReady = kr.sample_size >= Math.max(1, threshold);
+                    return kindReady ? (
+                      <div key={kind} className="text-xs">
+                        <div className="mb-1 flex justify-between">
+                          <span className="capitalize text-slate-400">{kind}</span>
+                          <span className="text-emerald-300">
+                            {formatRate(kr.rate)}{" "}
+                            <span className="text-slate-500">(n={kr.sample_size})</span>
+                          </span>
+                        </div>
+                        <ProgressBar value={kr.rate} max={1} color="bg-emerald-500" />
+                      </div>
+                    ) : (
+                      <InsufficientDataCard
+                        key={kind}
+                        label={kind.charAt(0).toUpperCase() + kind.slice(1)}
+                        reason={`Need at least ${threshold} answered decisions in this kind.`}
+                        have={kr.sample_size}
+                        required={threshold}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ) : (
+        <InsufficientDataCard
+          label="Recommendation acceptance"
+          reason={`Need at least ${threshold} answered decisions.`}
+          have={sample}
+          required={threshold}
+        />
+      )}
     </div>
   );
 }

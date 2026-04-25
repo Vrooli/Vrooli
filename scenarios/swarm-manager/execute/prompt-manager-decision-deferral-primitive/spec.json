@@ -2,6 +2,7 @@
   "acceptance_allow": [
     "scenarios/prompt-manager/**"
   ],
+  "archived_at": "2026-04-25T13:10:44Z",
   "created": "2026-04-24T19:54:33Z",
   "description": "Add `deferred` to the decision status enum (alongside pending / accepted / rejected / running / completed) and a `revisit_after` ISO-date field. Prep-agent filters deferred decisions from the pending queue until `revisit_after` passes, at which point they re-surface automatically with a note indicating they were deferred. CLI: `prompt-manager team decision-defer \u003cteam-id\u003e \u003cid\u003e --revisit-after=YYYY-MM-DD --notes=\"...\"`. UI: deferred items visible in a separate tab with the revisit date; clicking surfaces the original decision unchanged. Today's workaround is to reject-with-notes, which is semantically wrong (we don't disagree; we're waiting for data) and makes the decision-history log unreliable as a signal of which proposals were rejected on merit. Surfaced 2026-04-24 vision walk when operator wanted to defer dec-1776984436121140045 (run-introspector tier-1 verification gate) for ~7 heartbeats to see whether a recent detectRateLimit fix eliminated the underlying pattern.",
   "effort": "L",
@@ -9,8 +10,8 @@
   "kind": "execute",
   "name": "prompt-manager-decision-deferral-primitive",
   "priority": 6,
-  "status": "backlog",
+  "status": "completed",
   "tags": [],
   "title": "Add decision deferral primitive (deferred status + revisit_after)",
-  "updated": "2026-04-24T19:54:33Z"
+  "updated": "2026-04-25T13:10:44Z"
 }

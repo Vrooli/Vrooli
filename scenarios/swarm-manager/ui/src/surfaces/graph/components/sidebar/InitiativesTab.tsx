@@ -161,6 +161,7 @@ export function InitiativesTab({ searchQuery, filters, sort, onItemClick }: Init
     <div className="space-y-1.5">
       {sorted.map((iwr) => {
         const { initiative, rollup } = iwr;
+        const deps = (initiative as { dependsOn?: string[] }).dependsOn ?? [];
         return (
           <button
             key={initiative.name}
@@ -196,6 +197,11 @@ export function InitiativesTab({ searchQuery, filters, sort, onItemClick }: Init
                   <span className="text-slate-500">{rollup.pending} pending</span>
                 </div>
               </>
+            )}
+            {deps.length > 0 && (
+              <p className="mt-1 text-[11px] text-slate-400">
+                <span className="text-slate-500">Depends on:</span> {deps.join(", ")}
+              </p>
             )}
             <p className="mt-1 text-[11px] text-slate-500">{formatRelativeTime(initiative.updated)}</p>
           </button>

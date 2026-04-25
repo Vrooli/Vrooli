@@ -91,6 +91,18 @@ export interface AgentStats {
   success_rate_sample_size: number;
   execution_duration_samples: number;
   workshop_rounds_sample_size: number;
+  recommendation_acceptance_rate: number;
+  recommendation_acceptance_sample_size: number;
+  freeform_override_rate: number;
+  decision_items_total: number;
+  decision_items_answered: number;
+  recommendation_acceptance_by_kind: Record<string, KindRate>;
+}
+
+/** Per-kind breakdown of recommendation acceptance. */
+export interface KindRate {
+  rate: number;
+  sample_size: number;
 }
 
 /** Top-level summary numbers for the dashboard view. */

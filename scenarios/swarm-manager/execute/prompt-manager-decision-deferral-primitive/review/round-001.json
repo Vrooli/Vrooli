@@ -1,0 +1,111 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-24T00:00:00Z",
+  "execution_id": "a6b33b4ec0fbcd93",
+  "status": "complete",
+  "agent_assessment": "Decision deferral primitive is implemented across all three surfaces (API, CLI, UI) and tracks the plan closely. Backend: DecisionStatusDeferred constant, MaxRevisitAfterDays=365, and RevisitAfter *string field landed in api/store/models.go (lines 451, 456, 494). UpdateDecisionHandler (api/heartbeat/handlers.go ~2113-2293) validates revisit_after format/past/horizon, enforces transition matrix (pending->deferred, deferred->deferred re-defer with [re-deferred] note, deferred->pending|accepted|rejected, blocks deferred->running|completed). Pending queue (api/heartbeat/handlers_pending.go) filters future-deferred and resurfaceDueDeferred() promotes due rows back to pending with the spec'd '[re-surfaced after defer] deferred YYYY-MM-DD -> revisit YYYY-MM-DD' note (lines 67-96). CLI: decision-defer subcommand with --revisit-after (required, validated client-side) and --notes; --status=deferred filter on decision-list. UI: StatusBadge has a deferred case (DecisionLogView.tsx:56-62) and revisit_after renders inline (line 892). All defer-related API and CLI tests run green. go vet clean on touched packages. No tracked diff observed (non-sandbox execution); implementation verified by reading working tree.",
+  "classification": "ready_with_notes",
+  "notes": [
+    "Plan called for a dedicated 'Deferred' tab parallel to existing status tabs in DecisionLogView. The component does not have status-based tabs at all (only a context filter), so deferred entries are surfaced via badge + revisit_after column rather than a tab. Worth confirming with the operator whether the badge-only treatment is sufficient or whether a real tab is required.",
+    "PendingDecisionsPopover.tsx has no client-side deferred filter; it relies on the backend to exclude deferred rows from the pending list. That works, but means a stale client cache could briefly show deferred entries. Plan accepted this trade-off.",
+    "Diff summary reported 0 changed files; this was a non-sandbox execution. Implementation is present in the working tree and tests pass.",
+    "Visual UI evidence (screenshots of the Deferred badge and revisit_after column rendering) was not captured — no scenario was running at review time."
+  ],
+  "evidence": [
+    {
+      "id": "e1",
+      "type": "custom",
+      "title": "Backend data model: DecisionStatusDeferred + RevisitAfter + MaxRevisitAfterDays",
+      "description": "api/store/models.go defines DecisionStatusDeferred = \"deferred\" (line 451), MaxRevisitAfterDays = 365 (line 456), and DecisionEntry.RevisitAfter *string with json:\"revisit_after,omitempty\" (line 494). Matches plan Phase 1 contract.",
+      "verified": false
+    },
+    {
+      "id": "e2",
+      "type": "custom",
+      "title": "API transition handler enforces defer matrix",
+      "description": "api/heartbeat/handlers.go UpdateDecisionHandler (~lines 2113-2293) validates revisit_after as YYYY-MM-DD, rejects past dates and >365 day horizon, allows pending->deferred, deferred->deferred (re-defer with [re-deferred] audit note), deferred->pending|accepted|rejected, and rejects deferred->running|completed.",
+      "verified": false
+    },
+    {
+      "id": "e3",
+      "type": "custom",
+      "title": "Pending queue filters and resurfaces deferred decisions",
+      "description": "api/heartbeat/handlers_pending.go calls resurfaceDueDeferred() before fetching pending (lines 14-61). resurfaceDueDeferred (lines 67-96) promotes deferred rows whose revisit_after <= today, flips status to pending, clears revisit_after, and appends note '[re-surfaced after defer] deferred YYYY-MM-DD -> revisit YYYY-MM-DD' — exactly the spec'd format.",
+      "verified": false
+    },
+    {
+      "id": "e4",
+      "type": "api_test",
+      "title": "API defer tests pass (handlers_decision_defer_test.go + handlers_pending_defer_test.go)",
+      "description": "All defer-related backend tests green: DeferFromPending_RequiresRevisitAfter, DeferRejectsPastDate, DeferRejectsMalformedDate, DeferRejectsHorizonExceeded, DeferHappyPath, DeferRejectsIllegalSourceTransition, ReDeferInPlace, AcceptFromDeferred, illegal targets (running/completed), PendingQueue_ExcludesDeferredWithFutureDate, PendingQueue_ResurfacesDeferredOnDueDate. Output captured.",
+      "capture_path": "captures/api-defer-tests.txt",
+      "verified": false,
+      "test_results": [
+        {"name": "go test ./heartbeat/ -run Defer|Pending_Excludes|Pending_Resurfaces", "passed": true, "output_summary": "ok prompt-manager/heartbeat 0.018s — all defer/pending tests pass"}
+      ]
+    },
+    {
+      "id": "e5",
+      "type": "custom",
+      "title": "CLI decision-defer command with required --revisit-after and --notes",
+      "description": "cli/teams/teams.go registers decision-defer (lines 650-651) and implements cmdDecisionDefer (lines 2993-3054): --revisit-after required, --notes optional, client-side YYYY-MM-DD parse + past-date rejection, sends {status:'deferred', revisit_after:...} PATCH. decision-list --status flag help text now lists 'deferred' (line 2623).",
+      "verified": false
+    },
+    {
+      "id": "e6",
+      "type": "cli_output",
+      "title": "CLI defer tests pass (decisions_defer_test.go + decision suite)",
+      "description": "All CLI decision tests green including TestCmdDecisionDeferRequiresRevisitAfter, TestCmdDecisionDeferRejectsMalformedDate, TestCmdDecisionDeferRejectsPastDate, TestCmdDecisionDeferHappyPath. Happy-path output: 'Deferred decision dec-1 in team team-a — revisit on 2026-05-02'.",
+      "capture_path": "captures/cli-defer-tests.txt",
+      "verified": false,
+      "test_results": [
+        {"name": "go test ./teams/ -run Defer|Decision -v", "passed": true, "output_summary": "ok prompt-manager/cli/teams — 25+ decision tests pass including all defer cases"}
+      ]
+    },
+    {
+      "id": "e7",
+      "type": "custom",
+      "title": "UI: deferred status badge and revisit_after rendering",
+      "description": "ui/src/components/editor/teamTabs/DecisionLogView.tsx StatusBadge has a 'deferred' case (lines 56-62) with Clock icon and yellow styling, and the entry row renders revisit_after when status === 'deferred' (line 892). PendingDecisionsPopover.tsx does not add a client-side deferred filter — it relies on backend exclusion (which the API provides). NOTE: no dedicated 'Deferred' tab exists; the component has no status tabs at all (only a context filter at line 602).",
+      "verified": false
+    },
+    {
+      "id": "e8",
+      "type": "cli_output",
+      "title": "go vet clean on api and cli packages",
+      "description": "Both `cd api && go vet ./...` and `cd cli && go vet ./...` produced no output — no vet warnings introduced or pre-existing in touched packages.",
+      "verified": false,
+      "test_results": [
+        {"name": "go vet api/...", "passed": true, "output_summary": "no warnings"},
+        {"name": "go vet cli/...", "passed": true, "output_summary": "no warnings"}
+      ]
+    }
+  ],
+  "request_threads": [],
+  "improvement_suggestions": [
+    {
+      "category": "test_coverage",
+      "description": "Add a UI component test for DecisionLogView verifying the deferred StatusBadge renders with the Clock icon and that the revisit_after column appears for deferred rows. Currently no UI test exercises the deferred render path.",
+      "evidence_id": "e7",
+      "priority": "medium"
+    },
+    {
+      "category": "visual_capture",
+      "description": "Add the team decision-log route (with at least one deferred decision in fixtures) to the prompt-manager browser-automation-studio capture config so GCT's visual dimension covers the deferred badge + revisit_after column automatically on future runs.",
+      "evidence_id": "e7",
+      "priority": "medium"
+    },
+    {
+      "category": "ci_workflow",
+      "description": "Add an end-to-end smoke covering: create decision -> CLI decision-defer -> assert popover/pending count drops -> backdate revisit_after in JSONL -> hit pending endpoint -> assert resurface note. This is the manual QA in the plan's Rollout checklist; codifying it would let GCT's tests dimension catch regressions in the lazy-resurface flow.",
+      "evidence_id": "e3",
+      "priority": "medium"
+    },
+    {
+      "category": "other",
+      "description": "Confirm with operator whether DecisionLogView should grow status-based tabs (not just the planned 'Deferred' tab — the component has none today). If badge-only treatment is the new direction, update the plan/Definition-of-Done so future reviews don't flag the missing tab as a gap.",
+      "evidence_id": "e7",
+      "priority": "low"
+    }
+  ]
+}

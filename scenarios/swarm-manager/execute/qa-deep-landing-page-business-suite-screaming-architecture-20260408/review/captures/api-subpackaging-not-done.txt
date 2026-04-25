@@ -1,0 +1,35 @@
+=== api/domain/ existence ===
+ls: cannot access 'scenarios/landing-page-business-suite/api/domain/': No such file or directory
+
+=== routes.go register*Routes calls ===
+12:	registerHealthRoutes(s)
+13:	registerLandingRoutes(s)
+14:	registerAuthRoutes(s)
+15:	registerAccountRoutes(s)
+16:	registerBillingRoutes(s)
+17:	registerAdminCoreRoutes(s)
+18:	registerRemoteProfileRoutes(s)
+19:	registerCommerceAdminRoutes(s)
+20:	registerVariantRoutes(s)
+21:	registerContentRoutes(s)
+22:	registerMetricsRoutes(s)
+23:	registerFeedbackRoutes(s)
+24:	registerWaitlistRoutes(s)
+25:	registerCreditsRoutes(s)
+26:	registerAIRoutes(s)
+27:	registerDocsRoutes(s)
+28:	registerAdminUserRoutes(s)
+29:	registerUpdateRoutes(s)
+
+=== Server struct retention of would-be-extracted fields ===
+40:	metricsService       *MetricsService
+60:	remoteProfileService *RemoteProfileService
+62:	userAuthService  *UserAuthService
+66:	aiGatewayDeps    *AIGatewayDeps
+115:	remoteProfileService, err := NewRemoteProfileService(db)
+123:	userAuthService := NewUserAuthService(db, emailService)
+138:	aiGatewayDeps := DefaultAIGatewayDeps(aiGatewayService, usageService, accountService)
+146:		metricsService:       NewMetricsService(db),
+166:		remoteProfileService: remoteProfileService,
+168:		userAuthService:  userAuthService,
+172:		aiGatewayDeps:    aiGatewayDeps,

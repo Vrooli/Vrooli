@@ -1,4 +1,12 @@
 {
+  "acceptance_allow": [
+    "scenarios/prompt-manager/cli/**",
+    "scenarios/prompt-manager/api/**",
+    "scenarios/prompt-manager/docs/reference/**"
+  ],
+  "acceptance_deny": [
+    "scenarios/prompt-manager/secrets/**"
+  ],
   "created": "2026-04-23T21:37:13Z",
   "created_by": {
     "type": "operator"
@@ -15,5 +23,5 @@
     "platform-fix"
   ],
   "title": "Prompt-Manager CLI Must Be Thin Wrapper Over API (Decision-Accept And Systematic Audit)",
-  "updated": "2026-04-23T21:37:13Z"
+  "updated": "2026-04-25T02:20:09Z"
 }

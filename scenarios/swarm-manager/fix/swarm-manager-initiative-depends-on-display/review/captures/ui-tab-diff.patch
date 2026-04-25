@@ -1,0 +1,24 @@
+diff --git a/scenarios/swarm-manager/ui/src/surfaces/graph/components/sidebar/InitiativesTab.tsx b/scenarios/swarm-manager/ui/src/surfaces/graph/components/sidebar/InitiativesTab.tsx
+index 513503320a..cf905d640f 100644
+--- a/scenarios/swarm-manager/ui/src/surfaces/graph/components/sidebar/InitiativesTab.tsx
++++ b/scenarios/swarm-manager/ui/src/surfaces/graph/components/sidebar/InitiativesTab.tsx
+@@ -161,6 +161,7 @@ export function InitiativesTab({ searchQuery, filters, sort, onItemClick }: Init
+     <div className="space-y-1.5">
+       {sorted.map((iwr) => {
+         const { initiative, rollup } = iwr;
++        const deps = (initiative as { dependsOn?: string[] }).dependsOn ?? [];
+         return (
+           <button
+             key={initiative.name}
+@@ -197,6 +198,11 @@ export function InitiativesTab({ searchQuery, filters, sort, onItemClick }: Init
+                 </div>
+               </>
+             )}
++            {deps.length > 0 && (
++              <p className="mt-1 text-[11px] text-slate-400">
++                <span className="text-slate-500">Depends on:</span> {deps.join(", ")}
++              </p>
++            )}
+             <p className="mt-1 text-[11px] text-slate-500">{formatRelativeTime(initiative.updated)}</p>
+           </button>
+         );

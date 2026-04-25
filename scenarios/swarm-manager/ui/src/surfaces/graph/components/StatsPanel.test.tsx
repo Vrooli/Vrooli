@@ -90,6 +90,15 @@ const MOCK_STATS: StatsResponse = {
     success_rate_sample_size: 87,
     execution_duration_samples: 80,
     workshop_rounds_sample_size: 22,
+    recommendation_acceptance_rate: 0.72,
+    recommendation_acceptance_sample_size: 25,
+    freeform_override_rate: 0.08,
+    decision_items_total: 30,
+    decision_items_answered: 25,
+    recommendation_acceptance_by_kind: {
+      idea: { rate: 0.8, sample_size: 15 },
+      fix: { rate: 0.6, sample_size: 10 },
+    },
   },
   dashboard: {
     total_backlog_size: 47,
@@ -288,6 +297,51 @@ describe("StatsPanel", () => {
 
       fireEvent.click(screen.getByTestId("stats-tab-agent"));
       expect(screen.getAllByText(/Not enough data yet/).length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("Agent tab — recommendation acceptance", () => {
+    it("renders the acceptance card when sample >= threshold", async () => {
+      mockGetStats.mockResolvedValue(MOCK_STATS);
+      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+      await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
+
+      fireEvent.click(screen.getByTestId("stats-tab-agent"));
+      expect(screen.getByTestId("stats-recommendation-acceptance")).toBeInTheDocument();
+      expect(screen.getByText("Recommendation acceptance")).toBeInTheDocument();
+      const section = screen.getByTestId("stats-recommendation-acceptance");
+      expect(section.textContent).toMatch(/72\.0%/);
+      expect(section.textContent).toMatch(/n=25/);
+      expect(screen.getByText("Freeform override")).toBeInTheDocument();
+    });
+
+    it("renders InsufficientDataCard when answered sample is below threshold", async () => {
+      mockGetStats.mockResolvedValue({
+        ...MOCK_STATS,
+        agent: {
+          ...MOCK_STATS.agent,
+          recommendation_acceptance_sample_size: 2,
+        },
+      });
+      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+      await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
+
+      fireEvent.click(screen.getByTestId("stats-tab-agent"));
+      const section = screen.getByTestId("stats-recommendation-acceptance");
+      expect(section.textContent).toMatch(/Not enough data yet/);
+    });
+
+    it("expands the by-kind breakdown when toggled", async () => {
+      mockGetStats.mockResolvedValue(MOCK_STATS);
+      renderWithProviders(<StatsPanel isOpen={true} onClose={vi.fn()} />);
+      await waitFor(() => expect(screen.getByTestId("stats-content-dashboard")).toBeInTheDocument());
+
+      fireEvent.click(screen.getByTestId("stats-tab-agent"));
+      const toggle = screen.getByTestId("stats-rec-by-kind-toggle");
+      fireEvent.click(toggle);
+      const section = screen.getByTestId("stats-recommendation-acceptance");
+      expect(section.textContent).toMatch(/idea/);
+      expect(section.textContent).toMatch(/fix/);
     });
   });
 

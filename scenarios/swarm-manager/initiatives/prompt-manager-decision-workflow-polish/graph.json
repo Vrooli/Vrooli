@@ -1,26 +1,26 @@
 {
   "initiative": "prompt-manager-decision-workflow-polish",
-  "generated_at": "2026-04-24T19:54:33Z",
+  "generated_at": "2026-04-25T13:10:44Z",
   "nodes": [
     {
       "id": "execute/prompt-manager-decision-deferral-primitive",
       "kind": "execute",
       "name": "prompt-manager-decision-deferral-primitive",
       "title": "Add decision deferral primitive (deferred status + revisit_after)",
-      "status": "backlog",
+      "status": "completed",
       "priority": 6,
       "effort": "L",
-      "archived": false
+      "archived": true
     },
     {
       "id": "execute/prompt-manager-decision-partial-accept-with-modifications",
       "kind": "execute",
       "name": "prompt-manager-decision-partial-accept-with-modifications",
       "title": "Support partial-accept with structured modifications on decisions",
-      "status": "backlog",
+      "status": "completed",
       "priority": 6,
       "effort": "L",
-      "archived": false
+      "archived": true
     },
     {
       "id": "fix/prompt-manager-heartbeat-list-lifecycle-states",

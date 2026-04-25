@@ -204,20 +204,47 @@ func (s *aggregateState) buildAgent() AgentStats {
 		avgRounds = float64(total) / float64(len(s.workshopRounds))
 	}
 
+	var (
+		recAcceptanceRate    float64
+		freeformOverrideRate float64
+	)
+	if s.decisionItemsAnswered > 0 {
+		recAcceptanceRate = float64(s.decisionItemsRecommendedChosen) / float64(s.decisionItemsAnswered)
+		freeformOverrideRate = float64(s.decisionItemsFreeformChosen) / float64(s.decisionItemsAnswered)
+	}
+
+	byKind := make(map[string]KindRate, len(s.decisionByKind))
+	for kind, c := range s.decisionByKind {
+		var rate float64
+		if c.itemsAnswered > 0 {
+			rate = float64(c.itemsRecommendedChosen) / float64(c.itemsAnswered)
+		}
+		byKind[kind] = KindRate{
+			Rate:       rate,
+			SampleSize: c.itemsAnswered,
+		}
+	}
+
 	return AgentStats{
-		TotalExecutions:          s.execTotal,
-		CompletedCount:           completed,
-		FailedCount:              failed,
-		ManuallyAcceptedCount:    manuallyAccepted,
-		SuccessRate:              successRate,
-		FailureRate:              failureRate,
-		ManualAcceptRate:         manualAcceptRate,
-		FollowUpRate:             followUpRate,
-		AvgExecutionMinutes:      avgFloat(s.execDurations),
-		AvgWorkshopRounds:        avgRounds,
-		SuccessRateSampleSize:    finished,
-		ExecutionDurationSamples: len(s.execDurations),
-		WorkshopRoundsSampleSize: len(s.workshopRounds),
+		TotalExecutions:                    s.execTotal,
+		CompletedCount:                     completed,
+		FailedCount:                        failed,
+		ManuallyAcceptedCount:              manuallyAccepted,
+		SuccessRate:                        successRate,
+		FailureRate:                        failureRate,
+		ManualAcceptRate:                   manualAcceptRate,
+		FollowUpRate:                       followUpRate,
+		AvgExecutionMinutes:                avgFloat(s.execDurations),
+		AvgWorkshopRounds:                  avgRounds,
+		SuccessRateSampleSize:              finished,
+		ExecutionDurationSamples:           len(s.execDurations),
+		WorkshopRoundsSampleSize:           len(s.workshopRounds),
+		RecommendationAcceptanceRate:       recAcceptanceRate,
+		RecommendationAcceptanceSampleSize: s.decisionItemsAnswered,
+		FreeformOverrideRate:               freeformOverrideRate,
+		DecisionItemsTotal:                 s.decisionItemsTotal,
+		DecisionItemsAnswered:              s.decisionItemsAnswered,
+		RecommendationAcceptanceByKind:     byKind,
 	}
 }
 

@@ -1,0 +1,23 @@
+{
+  "acceptance_allow": [
+    "scenarios/landing-page-business-suite/**"
+  ],
+  "created": "2026-04-25T02:41:16Z",
+  "depends_on": [
+    "research/lpbs-api-domain-dep-graph-and-shared-design"
+  ],
+  "description": "Move `admin` (incl. `admin-core` + `admin-user` + `docs-admin`) handlers/services into `scenarios/landing-page-business-suite/api/domain/admin/` with exported `RegisterRoutes(router, deps)`. Update `routes.go` to call `admin.RegisterRoutes` instead of `registerAdminCoreRoutes` + `registerAdminUserRoutes` + `registerDocsRoutes`. Decision point: the `deploy-readiness` route is admin-gated but spans downloads+remote-profile+plans — the dep-graph research must say whether it lives here, in `downloads`, or stays at the top-level composer. `requireAdminOrService` middleware should be available to all subpackages (likely surfaced via the shared package designed in the research item). Behavior-preserving: admin auth, user mgmt, doc admin endpoints unchanged. Acceptance: tests pass; `api/domain/admin` package exists; old register functions removed; no cycles.",
+  "effort": "L",
+  "initiative": "landing-page-api-domain-subpackages",
+  "kind": "execute",
+  "name": "lpbs-api-extract-admin-domain",
+  "priority": 6,
+  "status": "backlog",
+  "tags": [
+    "landing-page-business-suite",
+    "screaming-architecture",
+    "api-refactor"
+  ],
+  "title": "Extract LPBS admin domain into api/domain/admin/",
+  "updated": "2026-04-25T02:41:16Z"
+}

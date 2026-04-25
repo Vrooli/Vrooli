@@ -1,0 +1,122 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-25T03:00:00Z",
+  "execution_id": "fc21e09af8d45c9d",
+  "run_id": "e7e16293-fd58-4efd-ad82-60781d53e234",
+  "status": "complete",
+  "agent_assessment": "Mixed completion. Docs (Phase 4), UI App split (Phase 3), and artifact cleanup (Phase 5) match the plan and acceptance criteria — docs health is 0.95, all 6 missing baseline docs exist, FAQ relocated, both temporary docs deleted, EXPERIENCE_AUDIT moved into docs/internal, and ARCHITECTURE.md is rewritten with a transparent 'Transitional layout' callout. App.tsx is a 38-line composer over publicRoutes/adminRoutes/userAuthRoutes. However, the central API refactor (Phase 2) was NOT executed: per Decision D2.2 the plan required moving 4 specific domains (ai, remote-profile, user-auth, metrics) into api/domain/<name>/ subpackages this run, with the other 4 deferred. In reality, zero domains were extracted — the api/domain/ directory does not exist, routes.go still calls all 18 register*Routes(s) from package main, and the Server struct still holds aiGatewayDeps, metricsService, userAuthService, and remoteProfileService. The executor instead filed a follow-up item (qa-deep-landing-page-business-suite-api-domain-subpackages-20260424) covering all 8 domains and documented the deferral in ARCHITECTURE.md. Per D2.3 only domains hitting import cycles were eligible for revert+defer; there is no evidence in this round that the 4 isolated domains were even attempted. One residual misplaced doc remains (docs/reference/api/README.md is flagged because the scenario root README.md already exists, so the plan's 'move' instruction would have clobbered it — the executor reasonably left it). Net: docs+UI deliverables are ready; API deliverable is not done and needs reviewer decision on whether to accept the wholesale deferral or require the 4-domain subset before archiving.",
+  "classification": "needs_work",
+  "notes": [
+    "Phase 2 (API subpackage refactor) entirely skipped despite Decision D2.2 requiring 4 domains to be extracted this run. All 8 domains were instead pushed to follow-up item qa-deep-landing-page-business-suite-api-domain-subpackages-20260424.",
+    "ARCHITECTURE.md transitional callout transparently documents the deferral, so the deviation is visible rather than hidden — but the plan's Definition of Done explicitly lists '4 subpackaged domains' as required.",
+    "Docs health hit 0.95 target. The single remaining 'misplaced' (docs/reference/api/README.md) collides with an existing scenario-root README.md; reviewer should decide whether the plan's move instruction applies or should be dropped.",
+    "Diff captured zero tracked changes because the execution agent ran outside sandbox mode; verification was done by reading the working tree directly. Working-tree shows modified ARCHITECTURE.md, manifest.json, App.tsx, .gitignore, and deleted FAQ.md/EXPERIENCE_AUDIT.md/06-email-templates.md/api/0, plus untracked docs/internal/* and ui/src/app/routes/*."
+  ],
+  "evidence": [
+    {
+      "id": "e1",
+      "type": "cli_output",
+      "title": "API domain subpackaging — NOT performed (plan D2.2 violated)",
+      "description": "Plan required api/domain/ai, api/domain/remote-profile, api/domain/user-auth, api/domain/metrics subpackages this run. The api/domain/ directory does not exist; routes.go retains all 18 original register*Routes(s) calls in package main; Server struct still owns the four domains' services.",
+      "capture_path": "captures/api-subpackaging-not-done.txt",
+      "verified": false,
+      "test_results": [
+        {"name": "api/domain/ directory exists", "passed": false, "output_summary": "ls: cannot access 'scenarios/landing-page-business-suite/api/domain/': No such file or directory"},
+        {"name": "routes.go is a thin composer over <domain>.RegisterRoutes", "passed": false, "output_summary": "routes.go still calls 18 register*Routes(s) inside package main; no <domain>.RegisterRoutes call sites present"},
+        {"name": "Server struct no longer owns extracted-domain services", "passed": false, "output_summary": "Server struct still holds metricsService, remoteProfileService, userAuthService, aiGatewayDeps fields"}
+      ]
+    },
+    {
+      "id": "e2",
+      "type": "cli_output",
+      "title": "Docs alignment + health score 0.95 (target met)",
+      "description": "knowledge-observatory docs health -json reports health_score 0.95, all 6 missing baseline docs present (ASSUMPTIONS, COHERENCE-NOTES, ERROR-SEMANTICS, INVARIANTS, SECURITY-POSTURE, TEMPORAL-FLOWS), 0 temporary docs, FAQ relocated to docs/guides/faq.md, EXPERIENCE_AUDIT relocated to docs/internal/, both temporary docs deleted. One misplaced remains: docs/reference/api/README.md (collides with existing scenario-root README.md).",
+      "capture_path": "captures/docs-and-ui-evidence.txt",
+      "verified": false,
+      "test_results": [
+        {"name": "health_score >= 0.95", "passed": true, "output_summary": "0.95"},
+        {"name": "0 temporary docs", "passed": true, "output_summary": "temporary_docs: []"},
+        {"name": "all 6 baseline docs created", "passed": true, "output_summary": "ASSUMPTIONS/COHERENCE-NOTES/ERROR-SEMANTICS/INVARIANTS/SECURITY-POSTURE/TEMPORAL-FLOWS all present"},
+        {"name": "FAQ relocated", "passed": true, "output_summary": "docs/guides/faq.md exists; docs/FAQ.md deleted"},
+        {"name": "Temporary docs deleted", "passed": true, "output_summary": "docs/plans/IMPLEMENTATION_PLAN.md and support-agent-docs/06-email-templates.md both gone"},
+        {"name": "0 misplaced docs", "passed": false, "output_summary": "docs/reference/api/README.md still flagged misplaced — plan's move would clobber existing root README.md"}
+      ]
+    },
+    {
+      "id": "e3",
+      "type": "cli_output",
+      "title": "ARCHITECTURE.md updated with required references + transitional callout",
+      "description": "ARCHITECTURE.md now references ui/src/App.tsx (not ui/src/app/App.tsx), initialization/postgres/ (not api/initialization/postgres/), names CLI and AI gateway as runtime surfaces, and includes a transitional callout naming the deferred follow-up item. Note: callout describes ALL domains as deferred, consistent with what was actually executed (zero subpackaged) rather than with plan D2.2 (4 subpackaged).",
+      "capture_path": "captures/architecture-doc.txt",
+      "verified": false,
+      "test_results": [
+        {"name": "References ui/src/App.tsx", "passed": true, "output_summary": "line 16: [CODE: ui/src/App.tsx]"},
+        {"name": "References initialization/postgres/", "passed": true, "output_summary": "line 26"},
+        {"name": "Names CLI + AI gateway runtime surfaces", "passed": true, "output_summary": "lines 21, 25, 140-141"},
+        {"name": "Transitional layout callout present + names follow-up item", "passed": true, "output_summary": "line 196 names qa-deep-landing-page-business-suite-api-domain-subpackages-20260424"}
+      ]
+    },
+    {
+      "id": "e4",
+      "type": "config_diff",
+      "title": "UI App.tsx is a thin composer; route modules extracted",
+      "description": "App.tsx is 38 lines, imports publicRoutes/adminRoutes/userAuthRoutes from ui/src/app/routes/, and contains no inline <Route> declarations. Three route modules created (publicRoutes 43L, adminRoutes 82L, userAuthRoutes 21L). Providers + lazy imports preserved.",
+      "verified": false,
+      "test_results": [
+        {"name": "App.tsx under ~40 lines", "passed": true, "output_summary": "38 lines"},
+        {"name": "No inline <Route> declarations in App.tsx", "passed": true, "output_summary": "Only catch-all <Route path='*' Navigate /> remains; all surface routes delegated"},
+        {"name": "Three route modules exist", "passed": true, "output_summary": "publicRoutes.tsx, adminRoutes.tsx, userAuthRoutes.tsx all present under ui/src/app/routes/"}
+      ]
+    },
+    {
+      "id": "e5",
+      "type": "config_diff",
+      "title": "Artifact cleanup + .gitignore extended",
+      "description": "api/0 binary deleted from working tree. .gitignore extended with patterns for compiled binaries (api/landing-manager-api, api/landing-page-business-suite-api, etc.), Go test/coverage outputs (*.test, *.out, coverage.out, cover*.out), and editor/OS junk.",
+      "verified": false,
+      "test_results": [
+        {"name": "api/0 binary removed", "passed": true, "output_summary": "git status shows 'deleted: scenarios/landing-page-business-suite/api/0'"},
+        {"name": ".gitignore covers observed artifact patterns", "passed": true, "output_summary": "*.test, *.out, cover*.out, api/<binary> patterns present"}
+      ]
+    },
+    {
+      "id": "e6",
+      "type": "config_diff",
+      "title": "Follow-up backlog item filed (D2.4) — but covers ALL 8 domains, not just the 4 deferred",
+      "description": "scenarios/swarm-manager/execute/qa-deep-landing-page-business-suite-api-domain-subpackages-20260424/spec.json exists with kind=execute, acceptance_allow=scenarios/landing-page-business-suite/**, and lists every domain (landing, billing, downloads, ai, metrics, admin, remote-profile, user-auth) — i.e., the executor pushed everything forward instead of the 4-domain subset D2.2 mandated.",
+      "verified": false,
+      "test_results": [
+        {"name": "Follow-up execute item exists", "passed": true, "output_summary": "spec.json present with kind=execute, status=queued, priority=6"},
+        {"name": "acceptance_allow scoped to scenario", "passed": true, "output_summary": "['scenarios/landing-page-business-suite/**']"},
+        {"name": "Lists only the 4 deferred domains (per plan D2.2)", "passed": false, "output_summary": "Lists all 8 domains because the executor deferred the 4 that were supposed to ship this run"}
+      ]
+    }
+  ],
+  "request_threads": [],
+  "improvement_suggestions": [
+    {
+      "category": "ci_workflow",
+      "description": "Add a scenario-level structural lint that asserts the presence of api/domain/<name>/ for each domain claimed in ARCHITECTURE.md, so a future plan that says 'extract 4 domains' fails CI if the directory isn't created. This would have caught the D2.2 deviation automatically.",
+      "evidence_id": "e1",
+      "priority": "high"
+    },
+    {
+      "category": "test_coverage",
+      "description": "Add a route-registration parity test in the API package that diffs the set of registered (method, path) tuples against a checked-in golden file. Future per-domain extractions would then prove behavior preservation automatically.",
+      "evidence_id": "e1",
+      "priority": "high"
+    },
+    {
+      "category": "health_check",
+      "description": "Teach knowledge-observatory docs health to special-case 'expected_path collides with existing canonical doc' so the docs/reference/api/README.md misplaced flag becomes a soft warning instead of an error when scenario root README.md already exists.",
+      "evidence_id": "e2",
+      "priority": "low"
+    },
+    {
+      "category": "standards_rule",
+      "description": "Add a backlog-item validator that, when an execute item is filed by an agent within minutes of completing another execute item with overlapping scope, surfaces it for reviewer attention — this would highlight wholesale-deferral patterns like the one observed here.",
+      "evidence_id": "e6",
+      "priority": "medium"
+    }
+  ]
+}

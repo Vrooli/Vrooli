@@ -1,0 +1,20 @@
+{
+  "acceptance_allow": [
+    "scenarios/swarm-manager/research/lpbs-api-domain-dep-graph-and-shared-design/**"
+  ],
+  "created": "2026-04-25T02:41:16Z",
+  "description": "Before any domain extraction, produce: (1) a per-domain dependency graph for all 8 domains (landing, billing [+credits +commerce-admin], downloads [+content +update +variant], ai, metrics [+feedback +waitlist], admin [+admin-core +admin-user +docs-admin], remote-profile, user-auth [+auth +account]) listing every helper, type, and middleware each domain consumes from the current flat `package main`; (2) a cycle map showing which moves would create import cycles; (3) a deliberate design for any new shared package(s) (e.g. `api/shared/` or `api/platform/`) needed to break those cycles, including which symbols move where and why; (4) a recommended extraction order (most-isolated first). Inputs: `scenarios/landing-page-business-suite/api/main.go` (Server struct), `routes.go` (18 register*Routes calls), per-domain `*_handler.go` + `*_service.go` files. Output lives in `research/summary.md` and is the contract every downstream execute item builds against. Reproduce: `ls scenarios/landing-page-business-suite/api/*.go`, `sed -n '33,80p' scenarios/landing-page-business-suite/api/main.go`, `cat scenarios/landing-page-business-suite/api/routes.go`. No code changes in this item.",
+  "effort": "M",
+  "initiative": "landing-page-api-domain-subpackages",
+  "kind": "research",
+  "name": "lpbs-api-domain-dep-graph-and-shared-design",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [
+    "landing-page-business-suite",
+    "screaming-architecture",
+    "research"
+  ],
+  "title": "Map LPBS API per-domain dep graph + design shared package strategy",
+  "updated": "2026-04-25T02:41:16Z"
+}

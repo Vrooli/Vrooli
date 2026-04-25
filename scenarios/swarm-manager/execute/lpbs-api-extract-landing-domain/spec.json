@@ -1,0 +1,23 @@
+{
+  "acceptance_allow": [
+    "scenarios/landing-page-business-suite/**"
+  ],
+  "created": "2026-04-25T02:41:16Z",
+  "depends_on": [
+    "research/lpbs-api-domain-dep-graph-and-shared-design"
+  ],
+  "description": "Move `landing` handlers/services (`LandingConfigService`, `PlanService`, `VariantSpace` route, `handleCustomize`) into `scenarios/landing-page-business-suite/api/domain/landing/` with exported `RegisterRoutes(router, deps)`. Update `routes.go` to call `landing.RegisterRoutes` instead of `registerLandingRoutes`. Remove the moved fields from the `Server` struct. Note: `handleCustomize` is currently a `Server` method — extracting may require restructuring or a deps shim per the dep-graph research. Behavior-preserving. Acceptance: tests pass; `api/domain/landing` package exists; old `registerLandingRoutes` removed; no cycles.",
+  "effort": "M",
+  "initiative": "landing-page-api-domain-subpackages",
+  "kind": "execute",
+  "name": "lpbs-api-extract-landing-domain",
+  "priority": 6,
+  "status": "backlog",
+  "tags": [
+    "landing-page-business-suite",
+    "screaming-architecture",
+    "api-refactor"
+  ],
+  "title": "Extract LPBS landing domain into api/domain/landing/",
+  "updated": "2026-04-25T02:41:16Z"
+}

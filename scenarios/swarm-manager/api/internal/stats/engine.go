@@ -8,7 +8,20 @@ import (
 	"time"
 
 	"swarm-manager/internal/eventlog"
+	"swarm-manager/internal/workshop"
 )
+
+// indexByteFast returns the index of the first occurrence of c in s,
+// or -1 if absent. Used to parse kind from entity IDs of the form
+// "<kind>/<name>" without dragging in the strings package for one call.
+func indexByteFast(s string, c byte) int {
+	for i := 0; i < len(s); i++ {
+		if s[i] == c {
+			return i
+		}
+	}
+	return -1
+}
 
 const refreshBatchSize = 5000
 
@@ -128,6 +141,19 @@ type aggregateState struct {
 	// Workshop tracking.
 	workshopRounds map[string]int // entity_id → max round number
 
+	// Decision recommendation tracking.
+	//
+	// Aggregated from decision.workshop_round_completed payloads. Per-kind
+	// counters use the same fields and are keyed by the entity kind ("idea",
+	// "research", "fix", "execute", "chore"). An "unknown" bucket catches
+	// any kind not in the BoostN map so we notice if a new kind appears
+	// without map updates (logged at WARN by the engine).
+	decisionItemsTotal             int
+	decisionItemsAnswered          int
+	decisionItemsRecommendedChosen int
+	decisionItemsFreeformChosen    int
+	decisionByKind                 map[string]*decisionKindCounters
+
 	// Review evidence tracking.
 	reviewRoundsCompleted  int
 	reviewEvidenceCounts   []int
@@ -152,7 +178,17 @@ func newAggregateState() *aggregateState {
 		execHasFixup:      make(map[string]bool),
 		workshopRounds:    make(map[string]int),
 		execOutcome:       make(map[string]string),
+		decisionByKind:    make(map[string]*decisionKindCounters),
 	}
+}
+
+// decisionKindCounters holds per-kind decision counters used for the
+// per-kind breakdown of recommendation acceptance.
+type decisionKindCounters struct {
+	itemsTotal             int
+	itemsAnswered          int
+	itemsRecommendedChosen int
+	itemsFreeformChosen    int
 }
 
 // countExecOutcomes returns (completed, failed, manuallyAccepted) from
@@ -352,6 +388,36 @@ func (s *aggregateState) processEvent(e *eventlog.Event) {
 		if unmarshalMeta(e.Metadata, &p) {
 			if p.RoundNumber > s.workshopRounds[e.EntityID] {
 				s.workshopRounds[e.EntityID] = p.RoundNumber
+			}
+			// Per-item decision counters. Pre-schema events leave these
+			// zero; we just skip the contribution and continue.
+			if p.ItemsTotal > 0 {
+				s.decisionItemsTotal += p.ItemsTotal
+				s.decisionItemsAnswered += p.ItemsAnswered
+				s.decisionItemsRecommendedChosen += p.ItemsRecommendedChosen
+				s.decisionItemsFreeformChosen += p.ItemsFreeformChosen
+
+				kind := p.Kind
+				if kind == "" {
+					if idx := indexByteFast(e.EntityID, '/'); idx > 0 {
+						kind = e.EntityID[:idx]
+					}
+				}
+				if kind == "" {
+					kind = "unknown"
+				}
+				if _, known := workshop.BoostN[kind]; !known && kind != "unknown" {
+					slog.Warn("recommendation-acceptance stats: unknown kind", "kind", kind, "entity", e.EntityID)
+				}
+				bucket, ok := s.decisionByKind[kind]
+				if !ok {
+					bucket = &decisionKindCounters{}
+					s.decisionByKind[kind] = bucket
+				}
+				bucket.itemsTotal += p.ItemsTotal
+				bucket.itemsAnswered += p.ItemsAnswered
+				bucket.itemsRecommendedChosen += p.ItemsRecommendedChosen
+				bucket.itemsFreeformChosen += p.ItemsFreeformChosen
 			}
 		}
 

@@ -211,8 +211,28 @@ type InitiativeItemPayload struct {
 }
 
 // WorkshopRoundPayload records workshop round completion.
+//
+// Per-item decision counters (ItemsTotal, ItemsAnswered,
+// ItemsRecommendedChosen, ItemsFreeformChosen) drive the recommendation
+// acceptance metric. Pre-existing events emitted before the per-item
+// schema landed have only RoundNumber populated; the stats engine treats
+// zero ItemsAnswered as "no signal" and contributes nothing, so old and
+// new events coexist without compatibility branches.
+//
+// Counting rules used by workshop.SummarizeRound:
+//   - Only items with Type == "decision" count toward ItemsTotal.
+//   - ItemsAnswered counts items with Selected != nil.
+//   - ItemsRecommendedChosen counts items where the selected option's
+//     Recommended flag is true. A freeform answer (Selected == OtherKey)
+//     never increments this — picking "Other" rejects the recommendation.
+//   - ItemsFreeformChosen counts items where Selected == OtherKey.
 type WorkshopRoundPayload struct {
-	RoundNumber int `json:"round_number"`
+	RoundNumber            int    `json:"round_number"`
+	Kind                   string `json:"kind,omitempty"`
+	ItemsTotal             int    `json:"items_total,omitempty"`
+	ItemsAnswered          int    `json:"items_answered,omitempty"`
+	ItemsRecommendedChosen int    `json:"items_recommended_chosen,omitempty"`
+	ItemsFreeformChosen    int    `json:"items_freeform_chosen,omitempty"`
 }
 
 // ClarificationStartedPayload records clarification initiation.

@@ -2,14 +2,15 @@
   "acceptance_allow": [
     "scenarios/swarm-manager/**"
   ],
+  "archived_at": "2026-04-25T02:14:16Z",
   "created": "2026-04-24T19:54:33Z",
   "description": "Initiative data model and API fully support `depends_on: [\"\u003cinitiative-name\u003e\"]` with validation (unknown-name check, cycle detection, normalization — all tested). The JSON response from `swarm-manager initiatives get` includes depends_on when set. But: (1) CLI default human output does NOT display depends_on; (2) UI likely does not display it (verify during implementation). This is a display-only fix across two surfaces. Downstream effect: operators reading the human output can't see cross-initiative dependencies, which is critical for reasoning about the portfolio readout (e.g., web-console-readiness depends on continuous-audio-platform — this structural information is invisible today unless you read raw JSON). Surfaced 2026-04-24 walk; initially misdiagnosed as a data-model gap, corrected to display-only after code inspection. Scope is small — add `Depends on: a, b, c` line to the human output of `initiatives get` and `initiatives list`, and surface in UI initiative detail + list views.",
   "effort": "S",
   "kind": "fix",
   "name": "swarm-manager-initiative-depends-on-display",
   "priority": 6,
-  "status": "backlog",
+  "status": "completed",
   "tags": [],
   "title": "Display initiative depends_on in CLI human output and UI",
-  "updated": "2026-04-24T19:54:33Z"
+  "updated": "2026-04-25T02:14:16Z"
 }

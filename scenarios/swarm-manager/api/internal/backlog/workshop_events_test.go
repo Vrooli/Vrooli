@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/eventlog"
 	"swarm-manager/internal/workshop"
 )
 
@@ -20,8 +21,8 @@ type captureEventLogger struct {
 }
 
 type workshopRoundEmit struct {
-	EntityID    string
-	RoundNumber int
+	EntityID string
+	Payload  eventlog.WorkshopRoundPayload
 }
 
 type statusChangeEmit struct {
@@ -51,11 +52,11 @@ func (l *captureEventLogger) EmitClarificationStarted(_ string, _ int, _ string,
 func (l *captureEventLogger) EmitClarificationResolved(_ string, _ int, _ string, _ int, _ string) {
 }
 func (l *captureEventLogger) EmitClarificationAction(_ string, _ int, _ string, _ string) {}
-func (l *captureEventLogger) EmitWorkshopRoundCompleted(entityID string, roundNumber int) {
+func (l *captureEventLogger) EmitWorkshopRoundCompleted(entityID string, payload eventlog.WorkshopRoundPayload) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.workshopRoundCompleted = append(l.workshopRoundCompleted, workshopRoundEmit{
-		EntityID: entityID, RoundNumber: roundNumber,
+		EntityID: entityID, Payload: payload,
 	})
 }
 
@@ -93,8 +94,14 @@ func TestWorkshopSaveEmitsRoundCompleted(t *testing.T) {
 		t.Fatalf("expected 1 workshop-round-completed emit, got %d", len(logger.workshopRoundCompleted))
 	}
 	got := logger.workshopRoundCompleted[0]
-	if got.EntityID != "idea/ws-emit" || got.RoundNumber != 1 {
-		t.Errorf("expected entity=idea/ws-emit round=1, got entity=%q round=%d", got.EntityID, got.RoundNumber)
+	if got.EntityID != "idea/ws-emit" || got.Payload.RoundNumber != 1 {
+		t.Errorf("expected entity=idea/ws-emit round=1, got entity=%q round=%d", got.EntityID, got.Payload.RoundNumber)
+	}
+	if got.Payload.Kind != "idea" {
+		t.Errorf("expected kind=idea, got kind=%q", got.Payload.Kind)
+	}
+	if got.Payload.ItemsTotal != 1 || got.Payload.ItemsAnswered != 1 {
+		t.Errorf("expected ItemsTotal=1 ItemsAnswered=1, got %+v", got.Payload)
 	}
 }
 

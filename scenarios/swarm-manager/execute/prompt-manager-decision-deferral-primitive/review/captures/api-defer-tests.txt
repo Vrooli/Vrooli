@@ -1,0 +1,24 @@
+=== RUN   TestUpdateDecision_DeferFromPending_RequiresRevisitAfter
+--- PASS: TestUpdateDecision_DeferFromPending_RequiresRevisitAfter (0.00s)
+=== RUN   TestUpdateDecision_DeferRejectsPastDate
+--- PASS: TestUpdateDecision_DeferRejectsPastDate (0.00s)
+=== RUN   TestUpdateDecision_DeferRejectsMalformedDate
+--- PASS: TestUpdateDecision_DeferRejectsMalformedDate (0.00s)
+=== RUN   TestUpdateDecision_DeferRejectsHorizonExceeded
+--- PASS: TestUpdateDecision_DeferRejectsHorizonExceeded (0.00s)
+=== RUN   TestUpdateDecision_DeferHappyPath
+--- PASS: TestUpdateDecision_DeferHappyPath (0.00s)
+=== RUN   TestUpdateDecision_DeferRejectsIllegalSourceTransition
+--- PASS: TestUpdateDecision_DeferRejectsIllegalSourceTransition (0.00s)
+=== RUN   TestUpdateDecision_ReDeferInPlace
+--- PASS: TestUpdateDecision_ReDeferInPlace (0.00s)
+=== RUN   TestUpdateDecision_AcceptFromDeferred
+--- PASS: TestUpdateDecision_AcceptFromDeferred (0.00s)
+=== RUN   TestUpdateDecision_DeferToCompletedRejected
+--- PASS: TestUpdateDecision_DeferToCompletedRejected (0.00s)
+=== RUN   TestPendingQueue_ExcludesDeferredWithFutureDate
+--- PASS: TestPendingQueue_ExcludesDeferredWithFutureDate (0.00s)
+=== RUN   TestPendingQueue_ResurfacesDeferredOnDueDate
+--- PASS: TestPendingQueue_ResurfacesDeferredOnDueDate (0.00s)
+PASS
+ok  	prompt-manager/heartbeat	0.015s

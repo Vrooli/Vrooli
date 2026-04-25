@@ -195,10 +195,8 @@ func (e *Emitter) EmitMigrationApplied(name, description string, affectedIDs int
 
 // --- Decision/workshop events ---
 
-func (e *Emitter) EmitWorkshopRoundCompleted(entityID string, roundNumber int) {
-	e.emit(EntityBacklogItem, entityID, EventWorkshopRoundCompleted, WorkshopRoundPayload{
-		RoundNumber: roundNumber,
-	})
+func (e *Emitter) EmitWorkshopRoundCompleted(entityID string, payload WorkshopRoundPayload) {
+	e.emit(EntityBacklogItem, entityID, EventWorkshopRoundCompleted, payload)
 }
 
 // --- View events ---

@@ -1,0 +1,11 @@
+=== RUN   TestCmdDecisionDeferRequiresRevisitAfter
+--- PASS: TestCmdDecisionDeferRequiresRevisitAfter (0.00s)
+=== RUN   TestCmdDecisionDeferRejectsMalformedDate
+--- PASS: TestCmdDecisionDeferRejectsMalformedDate (0.00s)
+=== RUN   TestCmdDecisionDeferRejectsPastDate
+--- PASS: TestCmdDecisionDeferRejectsPastDate (0.00s)
+=== RUN   TestCmdDecisionDeferHappyPath
+Deferred decision dec-1 in team team-a — revisit on 2026-05-02
+--- PASS: TestCmdDecisionDeferHappyPath (0.00s)
+PASS
+ok  	prompt-manager/cli/teams	0.003s

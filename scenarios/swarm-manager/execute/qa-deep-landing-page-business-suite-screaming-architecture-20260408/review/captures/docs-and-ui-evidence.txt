@@ -1,0 +1,69 @@
+=== knowledge-observatory docs health ===
+{
+  "scenario_name": "landing-page-business-suite",
+  "health_score": 0.95,
+  "total_docs": 39,
+  "misplaced_docs": [
+    {
+      "actual_path": "docs/reference/api/README.md",
+      "expected_path": "README.md",
+      "doc_type": "readme",
+      "severity": "error"
+    }
+  ],
+  "missing_docs": [],
+  "extra_docs": [
+    "docs/integrations/subscription-entitlements-system.md"
+  ],
+  "temporary_docs": [],
+  "warnings": [
+    {
+      "type": "misplaced",
+      "message": "Documentation file is in the wrong location",
+      "expected_path": "README.md",
+      "severity": "error"
+    },
+    {
+      "type": "extra",
+      "severity": "info"
+    },
+    {
+      "type": "extra",
+      "message": "Documentation file is outside the standard layout: docs/integrations/subscription-entitlements-system.md",
+      "severity": "info"
+    }
+  ],
+  "can_auto_fix": true,
+  "fix_category": "mixed"
+}
+
+
+=== docs/internal listing ===
+API_NOTES.md
+ASSUMPTIONS.md
+CLI_AUDIT.md
+COHERENCE-NOTES.md
+ERROR-SEMANTICS.md
+EXPERIENCE-AUDIT.md
+INVARIANTS.md
+PROBLEMS.md
+PROGRESS.md
+SEAMS.md
+SECURITY-POSTURE.md
+TEMPORAL-FLOWS.md
+UNIT_TEST_ARCHITECTURE.md
+
+=== ui/src/app/routes listing ===
+adminRoutes.tsx
+publicRoutes.tsx
+userAuthRoutes.tsx
+
+=== App.tsx line count ===
+38 scenarios/landing-page-business-suite/ui/src/App.tsx
+
+=== FAQ relocation + temporary doc deletions ===
+scenarios/landing-page-business-suite/docs/guides/faq.md
+ls: cannot access 'scenarios/landing-page-business-suite/docs/FAQ.md': No such file or directory
+ls: cannot access 'scenarios/landing-page-business-suite/docs/plans/IMPLEMENTATION_PLAN.md': No such file or directory
+ls: cannot access 'scenarios/landing-page-business-suite/support-agent-docs/06-email-templates.md': No such file or directory
+scenarios/landing-page-business-suite/docs/internal/EXPERIENCE-AUDIT.md

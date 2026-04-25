@@ -1,6 +1,6 @@
 {
   "initiative": "workshop-decision-triage",
-  "generated_at": "2026-04-24T01:47:55Z",
+  "generated_at": "2026-04-25T03:04:09Z",
   "nodes": [
     {
       "id": "execute/swarm-manager-pending-questions-priority-sort",
@@ -40,16 +40,6 @@
       "status": "backlog",
       "priority": 3,
       "effort": "M",
-      "archived": false
-    },
-    {
-      "id": "idea/workshop-question-level-answer-endpoint",
-      "kind": "idea",
-      "name": "workshop-question-level-answer-endpoint",
-      "title": "Optional: question-level workshop answer endpoint",
-      "status": "backlog",
-      "priority": 5,
-      "effort": "S",
       "archived": false
     }
   ],
