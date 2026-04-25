@@ -82,8 +82,13 @@ describe("execution-utils", () => {
       expect(canStartExecution("running")).toBe(false);
       expect(canCancelExecution("running")).toBe(true);
       expect(canCancelExecution("completed")).toBe(false);
+      // Retry shares the same gate as Follow-Up: any terminal/effectively-terminal state.
       expect(canRetryExecution("failed")).toBe(true);
-      expect(canRetryExecution("canceled")).toBe(false);
+      expect(canRetryExecution("completed")).toBe(true);
+      expect(canRetryExecution("canceled")).toBe(true);
+      expect(canRetryExecution("needs_fixup")).toBe(true);
+      expect(canRetryExecution("running")).toBe(false);
+      expect(canRetryExecution("pending")).toBe(false);
     });
   });
 

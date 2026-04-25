@@ -1187,7 +1187,7 @@ func TestArchive_TransitionsReviewStatusToCompleted(t *testing.T) {
 		Name: "archive-from-review", Title: "Archive From Review",
 		Status: StatusInReview, Priority: 3,
 		Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
-		Kind:    KindExecute,
+		Kind: KindExecute,
 	}
 	createTestItem(t, rootDir, KindExecute, item)
 
@@ -1217,7 +1217,7 @@ func TestArchive_LeavesTerminalStatusUnchanged(t *testing.T) {
 		Name: "archive-already-failed", Title: "Archive Already Failed",
 		Status: StatusFailed, Priority: 3,
 		Created: "2026-01-28T00:00:00Z", Updated: "2026-01-28T00:00:00Z",
-		Kind:    KindExecute,
+		Kind: KindExecute,
 	}
 	createTestItem(t, rootDir, KindExecute, item)
 

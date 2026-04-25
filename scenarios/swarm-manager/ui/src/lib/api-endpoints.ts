@@ -20,6 +20,7 @@ export const API_ENDPOINTS = {
   backlogFileContent: (kind: string, name: string, filePath: string) =>
     `/backlog/${kind}/${name}/files/${filePath}`,
   backlogQueue: (kind: string, name: string) => `/backlog/${kind}/${name}/queue`,
+  backlogRetry: (kind: string, name: string) => `/backlog/${kind}/${name}/retry`,
   backlogResearch: (kind: string, name: string) => `/backlog/${kind}/${name}/research`,
   backlogWorkshopSave: (kind: string, name: string) => `/backlog/${kind}/${name}/workshop/save`,
   backlogWorkshopDeleteRound: (kind: string, name: string) => `/backlog/${kind}/${name}/workshop/round`,
@@ -94,6 +95,8 @@ export const API_ENDPOINTS = {
     `/initiatives/${name}/feedback/${round}/decide`,
   initiativeFeedbackDismiss: (name: string, round: number) =>
     `/initiatives/${name}/feedback/${round}/dismiss`,
+  initiativeFeedbackCancel: (name: string, round: number) =>
+    `/initiatives/${name}/feedback/${round}/cancel`,
   initiativeFeedbackAttachment: (name: string, round: number, attachmentId: string) =>
     `/initiatives/${name}/feedback/${round}/attachments/${attachmentId}`,
   initiativeFeedbackLock: (name: string) => `/initiatives/${name}/feedback/lock`,

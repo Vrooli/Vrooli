@@ -1,0 +1,146 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-25T00:00:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Primary fix layer: where does the normalization live?",
+      "context": "Spec proposes three options. Per the spec, you preferred B (API-side) to avoid papering over ergonomics at the CLI layer. Confirming so the plan can commit. Note: choosing B does not preclude minor CLI display polish.",
+      "options": [
+        {
+          "key": "A",
+          "label": "CLI sugar only — accept --selected=proposed and translate to legacy payload",
+          "rationale": "Smallest change, but leaves the API contract semantically wrong; future clients still see the awkward shape"
+        },
+        {
+          "key": "B",
+          "label": "API normalizes — single-proposal decisions don't require --selected at all",
+          "rationale": "Fixes the contract at the source; CLI and UI both benefit; matches the operator's stated preference and the three-surface parity rule",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "decision-add auto-populates a default option for single-proposal decisions",
+          "rationale": "Avoids changing accept logic, but pollutes data model with synthetic options; misleading on read"
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "B"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Storage marker for accept-as-proposed",
+      "context": "Once the API accepts a single-proposal decision without --selected, the accepted decision needs a stored marker so decision-show, audit logs, and queries can render the outcome. Two clean options.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Boolean field on the decision: accepted_as_proposed: true",
+          "rationale": "Explicit, queryable, and orthogonal to the existing selected/freeform fields; reads cleanly in JSON dumps",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Reuse selected with sentinel string \"proposed\"",
+          "rationale": "Smaller schema change; existing display code mostly works; risk: \"proposed\" leaks into option-key namespace and may be surprising"
+        },
+        {
+          "key": "C",
+          "label": "Both — boolean for clarity, plus selected=\"proposed\" for legacy display compatibility",
+          "rationale": "Belt-and-suspenders; redundant but bridges old code that assumes selected is set"
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Treatment of the legacy --selected=__other__ --freeform=\"accept as proposed\" pattern",
+      "context": "Greenfield default would reject the old pattern with a clear error. But existing stored decisions already carry that shape — they need to be readable. The decision is about WRITES (new accepts), not reads.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Reject loudly on write — return 400 with helpful migration message",
+          "rationale": "Greenfield-pure; forces operator to learn the new pattern; reads of historical data are still tolerant via decision-show normalization",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Silently accept as alias — translate __other__ + accept-as-proposed freeform to the new shape",
+          "rationale": "Most permissive; zero friction; but hides the API contract change and weakens the greenfield commitment"
+        },
+        {
+          "key": "C",
+          "label": "Warn + accept — log a deprecation warning but still process the request",
+          "rationale": "Middle ground; useful if other automated callers exist that you can't easily update"
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Should decision-add gain an explicit --single-proposal flag?",
+      "context": "Today, single-proposal decisions are inferred from an empty options[] array. We could keep that implicit signal or add an explicit flag (--single-proposal or --no-options) so intent is captured at creation time. This is orthogonal to D1 but lives in the same surface.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Stay implicit — empty options[] means single-proposal, no new flag",
+          "rationale": "Smaller change; the data model already encodes intent; one less flag to remember",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Add --single-proposal flag that asserts options must be empty",
+          "rationale": "Makes intent explicit; catches mistakes (operator who meant to add options but forgot); slightly more typing"
+        },
+        {
+          "key": "C",
+          "label": "Add an enum kind field on Decision (single_proposal | multi_option) — empty options is invalid for multi_option",
+          "rationale": "Strongest typing; biggest change; probably overkill for the current scale"
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Initiative context: this fix is one of 4 pending members of prompt-manager-decision-workflow-polish (2 already completed: deferral primitive, partial-accept-with-modifications). Sibling fix `decision-show-options-default-output` will overlap with this plan on display formatting — the executing agent should coordinate so single-proposal decisions render consistently across both PRs."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "The initiative description specifies a three-surface parity rule: all decision-workflow work must ship across API + CLI + UI together. The plan reflects this — Phase 1/2/3 cover all three surfaces in one PR. Do not partial-ship."
+    }
+  ],
+  "plan_updates": "Created initial plan.md scaffold with all 13 mandatory sections plus a Greenfield Constraint section, a Cross-Initiative Implications section, and a Cleanup \u0026 Verification phase. Approach committed to option B per spec preference; storage marker, legacy-write treatment, and decision-add explicitness deferred to D2/D3/D4 in this round."
+}

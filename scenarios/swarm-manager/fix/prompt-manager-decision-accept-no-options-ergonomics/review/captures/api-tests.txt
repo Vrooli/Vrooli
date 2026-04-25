@@ -1,0 +1,8 @@
+=== RUN   TestUpdateDecisionHandler_AcceptSingleProposalNoSelected
+--- PASS: TestUpdateDecisionHandler_AcceptSingleProposalNoSelected (0.00s)
+=== RUN   TestUpdateDecisionHandler_AcceptSingleProposalRejectsExplicitSelected
+--- PASS: TestUpdateDecisionHandler_AcceptSingleProposalRejectsExplicitSelected (0.00s)
+=== RUN   TestUpdateDecisionHandler_AcceptMultiOptionPreservesNoFlag
+--- PASS: TestUpdateDecisionHandler_AcceptMultiOptionPreservesNoFlag (0.00s)
+PASS
+ok  	prompt-manager/heartbeat	0.012s

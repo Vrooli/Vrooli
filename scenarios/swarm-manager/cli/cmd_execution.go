@@ -421,8 +421,48 @@ func (a *App) cmdExecutionCancel(args []string) error {
 	return a.runExecutionMutation(args, "cancel")
 }
 
+// cmdExecutionRetry retries a terminal execution as a NEW attempt parented
+// to the prior one. The prior execution row is preserved intact for audit.
+// Use this when you need to retry a specific historical attempt; for the
+// common "retry the latest attempt of this item" case, prefer
+// `backlog retry --kind KIND --name NAME`.
 func (a *App) cmdExecutionRetry(args []string) error {
-	return a.runExecutionMutation(args, "retry")
+	fs := flag.NewFlagSet("execution retry", flag.ContinueOnError)
+	id := fs.String("id", "", "Execution ID")
+	noteFlag := fs.String("note", "", "Optional informational note (e.g. 'fixed agent-manager bug')")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if err := requireFlag("id", *id); err != nil {
+		return fmt.Errorf("usage: execution retry --id ID [--note MSG] [--json]\n\n%s", err)
+	}
+	executionID := strings.TrimSpace(*id)
+	payload, err := json.Marshal(map[string]any{"note": strings.TrimSpace(*noteFlag)})
+	if err != nil {
+		return fmt.Errorf("failed to encode request: %w", err)
+	}
+	body, err := a.core.Request("POST", "/execution/"+executionID+"/retry", nil, json.RawMessage(payload))
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+
+	response, err := decodeResponse[ExecutionItemResponse](body)
+	if err != nil {
+		return err
+	}
+	printSection("Retry Dispatched")
+	fmt.Printf("  Parent:      %s\n", executionID)
+	fmt.Printf("  New attempt: %s (%s)\n", response.Execution.ExecutionID, response.Execution.Status)
+	fmt.Printf("  Backlog:     %s/%s\n", response.Execution.BacklogKind, response.Execution.BacklogName)
+	printCommandListSection("Next Steps", []string{
+		cliCommand("execution", "get", "--id", response.Execution.ExecutionID),
+		cliCommand("execution", "list", "--backlog-kind", response.Execution.BacklogKind, "--backlog-name", response.Execution.BacklogName),
+	})
+	return nil
 }
 
 func (a *App) cmdCircuitBreakerReset(args []string) error {

@@ -1,6 +1,6 @@
 {
   "initiative": "prompt-manager-decision-workflow-polish",
-  "generated_at": "2026-04-25T13:10:44Z",
+  "generated_at": "2026-04-25T17:33:10Z",
   "nodes": [
     {
       "id": "execute/prompt-manager-decision-deferral-primitive",
@@ -37,7 +37,7 @@
       "kind": "fix",
       "name": "prompt-manager-decision-show-options-default-output",
       "title": "decision-show default human output should display options block",
-      "status": "backlog",
+      "status": "in_review",
       "priority": 4,
       "effort": "XS",
       "archived": false
@@ -47,17 +47,17 @@
       "kind": "fix",
       "name": "prompt-manager-decision-accept-no-options-ergonomics",
       "title": "decision-accept for option-less decisions: allow --selected=proposed sugar or normalize API-side",
-      "status": "backlog",
+      "status": "completed",
       "priority": 3,
       "effort": "S",
-      "archived": false
+      "archived": true
     },
     {
       "id": "execute/prompt-manager-decision-accept-initiative-proposal-auto-create",
       "kind": "execute",
       "name": "prompt-manager-decision-accept-initiative-proposal-auto-create",
       "title": "Accepting an initiative-proposal decision should auto-create the initiative",
-      "status": "backlog",
+      "status": "in_review",
       "priority": 4,
       "effort": "M",
       "archived": false

@@ -10,8 +10,8 @@
   "kind": "execute",
   "name": "prompt-manager-decision-accept-initiative-proposal-auto-create",
   "priority": 4,
-  "status": "backlog",
+  "status": "in_review",
   "tags": [],
   "title": "Accepting an initiative-proposal decision should auto-create the initiative",
-  "updated": "2026-04-24T19:54:33Z"
+  "updated": "2026-04-25T17:33:10Z"
 }

@@ -17,9 +17,13 @@ import {
   AlertTriangle,
   ChevronDown,
   ChevronRight,
+  ExternalLink,
   Loader2,
   SendHorizontal,
+  Trash2,
+  XCircle,
 } from "lucide-react";
+import { useEmbeddedServiceUrl } from "../../hooks/useEmbeddedServiceUrl";
 import { Button } from "../ui/button";
 import { StatusChip } from "../ui/status-chip";
 import { FeedbackThread } from "./feedback-thread";
@@ -104,6 +108,43 @@ export function FeedbackRoundCard({
     },
   });
 
+  const { url: agentManagerUiUrl } = useEmbeddedServiceUrl("agent-manager");
+  const runUrl = round.run_id && agentManagerUiUrl ? `${agentManagerUiUrl}/runs/${round.run_id}` : null;
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      return feedbackService.delete(round.initiative_name, round.number);
+    },
+    onSuccess: () => {
+      setDeleteError(null);
+      setConfirmingDelete(false);
+      onChanged();
+      void qc.invalidateQueries({ queryKey: ["initiative", round.initiative_name] });
+    },
+    onError: (err) => {
+      setDeleteError(err instanceof Error ? err.message : "Delete failed.");
+      setConfirmingDelete(false);
+    },
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: async () => {
+      return feedbackService.cancel(round.initiative_name, round.number, {
+        rationale: "cancelled by user",
+      });
+    },
+    onSuccess: () => {
+      setActionError(null);
+      onChanged();
+      void qc.invalidateQueries({ queryKey: ["initiative", round.initiative_name] });
+    },
+    onError: (err) => {
+      setActionError(err instanceof Error ? err.message : "Cancel failed.");
+    },
+  });
+
   // When the round becomes user-actionable while expanded, move focus into
   // the revise textarea so the user can keep typing. Guarded on `expanded`
   // so collapsing-then-reopening doesn't steal focus from whatever the user
@@ -174,6 +215,90 @@ export function FeedbackRoundCard({
 
       {expanded && (
         <div className="space-y-3 border-t border-slate-800/60 bg-slate-950/40 p-3">
+          {(runUrl || isTerminal) && (
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {runUrl && (
+                  <a
+                    href={runUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 rounded border border-cyan-500/40 bg-cyan-500/10 px-2 py-1 text-xs text-cyan-200 hover:bg-cyan-500/20"
+                    data-testid={selectors.feedback.openRunButton}
+                    title="Open run in Agent Manager"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    Open Run
+                  </a>
+                )}
+                {isTerminal && !confirmingDelete && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setDeleteError(null);
+                      setConfirmingDelete(true);
+                    }}
+                    disabled={deleteMutation.isPending}
+                    className="border-rose-500/40 bg-transparent text-rose-200 hover:bg-rose-500/10 hover:text-rose-100"
+                    data-testid={selectors.feedback.deleteButton}
+                  >
+                    {deleteMutation.isPending ? (
+                      <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="mr-1 h-3.5 w-3.5" />
+                    )}
+                    Delete
+                  </Button>
+                )}
+                {isTerminal && confirmingDelete && (
+                  <>
+                    <span className="text-xs text-rose-200">
+                      Delete round {round.number}? This cannot be undone.
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setConfirmingDelete(false)}
+                      disabled={deleteMutation.isPending}
+                      className="border-slate-600 bg-transparent text-slate-300 hover:bg-slate-800"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => deleteMutation.mutate()}
+                      disabled={deleteMutation.isPending}
+                      className="bg-rose-600 text-white hover:bg-rose-500"
+                      data-testid={selectors.feedback.deleteButton}
+                    >
+                      {deleteMutation.isPending ? (
+                        <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="mr-1 h-3.5 w-3.5" />
+                      )}
+                      {deleteMutation.isPending ? "Deleting…" : "Confirm Delete"}
+                    </Button>
+                  </>
+                )}
+              </div>
+              {deleteError && (
+                <div
+                  className="flex items-start gap-2 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-200"
+                  role="alert"
+                >
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  <div className="space-y-0.5">
+                    <div className="font-medium">Delete failed</div>
+                    <div className="text-rose-200/80">{deleteError}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           <FeedbackThread round={round} />
 
           {proposal && !isActive && (
@@ -213,9 +338,46 @@ export function FeedbackRoundCard({
           )}
 
           {isActive && (
-            <div className="flex items-center gap-2 rounded-lg border border-cyan-500/30 bg-cyan-500/5 px-3 py-2 text-xs text-cyan-200">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              {AGENT_WORKING_LABEL}
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-cyan-500/30 bg-cyan-500/5 px-3 py-2 text-xs text-cyan-200">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  {AGENT_WORKING_LABEL}
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => cancelMutation.mutate()}
+                  disabled={cancelMutation.isPending}
+                  className="border-rose-500/40 bg-transparent text-rose-200 hover:bg-rose-500/10 hover:text-rose-100"
+                  data-testid={selectors.feedback.cancelButton}
+                >
+                  {cancelMutation.isPending ? (
+                    <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <XCircle className="mr-1 h-3.5 w-3.5" />
+                  )}
+                  Cancel
+                </Button>
+              </div>
+              {round.last_poll_error && (
+                <div
+                  className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200"
+                  data-testid={selectors.feedback.pollErrorNotice}
+                >
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  <div className="space-y-0.5">
+                    <div className="font-medium">Agent unreachable</div>
+                    <div className="text-amber-200/80">{round.last_poll_error}</div>
+                    {round.poll_failure_count && round.poll_failure_count > 1 ? (
+                      <div className="text-amber-200/60">
+                        {round.poll_failure_count} consecutive poll failures
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

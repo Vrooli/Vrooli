@@ -29,6 +29,7 @@ type Dependencies struct {
 	BacklogClarifyNext   CommandFunc
 	BacklogClarifyAction CommandFunc
 	BacklogReviewDecide  CommandFunc
+	BacklogRetry         CommandFunc
 	ScenariosList        CommandFunc
 	ScenariosGet         CommandFunc
 	ScenariosUpdate      CommandFunc
@@ -85,6 +86,8 @@ type Dependencies struct {
 	InitiativesFeedbackSubmit   CommandFunc
 	InitiativesFeedbackContinue CommandFunc
 	InitiativesFeedbackDecide   CommandFunc
+	InitiativesFeedbackCancel   CommandFunc
+	InitiativesFeedbackDelete   CommandFunc
 	InitiativesFeedbackLock     CommandFunc
 	// Initiative review CLI (see cmd_initiatives_review.go).
 	InitiativesReviewList      CommandFunc

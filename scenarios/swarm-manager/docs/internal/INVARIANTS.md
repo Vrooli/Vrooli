@@ -121,8 +121,30 @@ All idempotency tests follow this pattern:
 
 Tests are tagged with `[REQ:REQ-P0-002]` for requirement traceability.
 
+### Terminal State Writers (closed loop)
+
+Backlog item terminal statuses (`completed`, `failed`, `needs_followup`) form a closed loop with exactly two writers:
+
+| Direction | Writer | Trigger | Audit record |
+|-----------|--------|---------|--------------|
+| Forward (active → terminal) | `backlog.Handler.ReviewDecide` | `POST /api/v1/backlog/{kind}/{name}/review-decide` | `review/decisions/{ts}-{accept\|fail\|followup}.json` |
+| Backward (terminal → in_progress) | `backlog.Handler.reopenForRetry` | called only from `backlog.Handler.Retry` (`POST /api/v1/backlog/{kind}/{name}/retry`) | `review/decisions/{ts}-reopen.json` |
+
+**Invariant:** no other code path may transition an item into or out of a terminal status. The `update_patch.go` PATCH handler explicitly rejects status changes when the existing status is in a review-gated state, and rejects user-driven flips into terminal states without going through `review-decide`. The `executionQueuer` API surface deliberately exposes `RetryLatestForBacklog` (which calls into `execution.Service.Retry`) but the *item-level* status flip stays inside `backlog.Handler` so the audit-record write and event emission cannot be skipped.
+
+**Why this matters:** stats math depends on `EmitBacklogStatusChanged` firing on every transition; the audit folder is the only durable history of *why* the item moved. Skipping either breaks observability. New writers must justify themselves and update this table.
+
+### Retry-as-New-Attempt
+
+`execution.Service.Retry` and `execution.Service.RetryLatestForBacklog` create a *new* `Record` parented to the prior one (`ParentExecutionID = parent.ExecutionID`). The parent record's `Status`, `FailureReason`, `Finalization`, `StartedAt`, `FinishedAt`, and timestamps are NEVER mutated. Stats engines depend on this: `execOutcome` is keyed by `execution_id` and the rollup counts each attempt distinctly.
+
+**Idempotency:** if a retry of a given parent is already in flight (any non-terminal status with `ParentExecutionID == parent.ExecutionID && Operation == "retry"`), `Retry` returns the existing in-flight record instead of creating a duplicate. This dedups double-clicks and racing HTTP retries without persistent idempotency keys.
+
+**Eligible parent statuses:** `completed`, `failed`, `canceled`, `needs_fixup`. Calling Retry on `pending`, `starting`, `running`, `validating`, or `needs_review` returns 400 — the parent must reach a stable state before retry.
+
 ### Audit Trail
 
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-01-28 | Claude (Phase 19) | Initial idempotency invariants documentation; made DELETE idempotent (204 instead of 404); added replay safety tests |
+| 2026-04-25 | Retry-as-new-attempt rewrite | Documented terminal-state writer pair (review-decide forward, reopenForRetry backward); replaced in-place `execution.Retry` with new-attempt semantics; added `RetryLatestForBacklog` and `POST /api/v1/backlog/{kind}/{name}/retry` route |

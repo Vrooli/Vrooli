@@ -13,6 +13,7 @@ import { feedbackService } from "../../services/feedback-service";
 import { cn } from "../../lib/utils";
 import { selectors } from "../../consts/selectors";
 import { formatRelativeTime } from "../../lib";
+import { renderMarkdown } from "../../lib/render-markdown";
 import type { FeedbackMessage, FeedbackRound } from "../../types";
 
 export interface FeedbackThreadProps {
@@ -74,7 +75,10 @@ function ThreadMessage({ message, round, index }: ThreadMessageProps) {
           </span>
           <span>{formatRelativeTime(message.created_at)}</span>
         </div>
-        <p className="whitespace-pre-wrap break-words text-slate-200">{message.content}</p>
+        <div
+          className="prose-sm-slate break-words text-slate-200"
+          dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }}
+        />
         {message.attachment_ids && message.attachment_ids.length > 0 && (
           <AttachmentList
             initiativeName={round.initiative_name}

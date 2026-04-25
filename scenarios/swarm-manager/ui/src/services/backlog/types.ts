@@ -114,6 +114,11 @@ export interface IBacklogService {
       force?: boolean;
     }
   ): Promise<QueueResponse>;
+  retry(
+    kind: BacklogKind,
+    name: string,
+    note?: string,
+  ): Promise<{ newExecutionId: string; parentExecutionId: string; status: string }>;
   research(
     kind: BacklogKind,
     name: string,

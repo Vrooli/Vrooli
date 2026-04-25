@@ -204,6 +204,14 @@ export interface ActionContext {
   hasPendingDecisions: boolean;
   /** Whether execution history exists for this item (details page only; card passes false). */
   hasExecutionHistory: boolean;
+  /**
+   * Whether the latest execution is in a terminal/effectively-terminal state
+   * (`completed | failed | canceled | needs_fixup`). When true, retry is
+   * available regardless of the item's current status — useful when a user
+   * has manually flipped a failed item back to backlog/ready and now wants
+   * to re-dispatch the prior attempt.
+   */
+  hasTerminalExecution?: boolean;
 }
 
 /** Which single CTA should receive primary visual emphasis. */
@@ -235,6 +243,8 @@ export interface ItemActions {
   finalizeDisabled: boolean;
   /** "Follow Up" button: visible (terminal + has execution history). */
   canFollowUp: boolean;
+  /** "Retry" button: visible (terminal + has execution history). Same gate as Follow-Up; semantically distinct (re-runs same scope). */
+  canRetry: boolean;
   /** "Archive" button: visible (terminal items). */
   canArchive: boolean;
   /** Inline decision stepper / expanded workshop panel should render. */
@@ -273,6 +283,12 @@ export function getItemActions(ctx: ActionContext): ItemActions {
   // should not be treated as terminal even though their status is "completed".
   const terminal = TERMINAL_STATUSES.has(item.status) && !queueable;
 
+  // Retry is gated on having a *terminal* execution to retry — independent
+  // of the item's current status. A user who manually flipped a failed item
+  // back to backlog/ready should still see Retry, because the prior attempt
+  // is what gets re-dispatched (parented to the new attempt).
+  const canRetryFromHistory = ctx.hasTerminalExecution ?? ctx.hasExecutionHistory;
+
   // Base result with all actions off.
   const base: ItemActions = {
     locked,
@@ -287,6 +303,7 @@ export function getItemActions(ctx: ActionContext): ItemActions {
     canFinalize: false,
     finalizeDisabled: false,
     canFollowUp: false,
+    canRetry: false,
     canArchive: false,
     showDecisionStepper: false,
     agentRunning,
@@ -304,6 +321,7 @@ export function getItemActions(ctx: ActionContext): ItemActions {
     return {
       ...base,
       canFollowUp: ctx.hasExecutionHistory,
+      canRetry: canRetryFromHistory,
       canArchive: true,
       primaryCta: ctx.hasExecutionHistory ? "followUp" : "archive",
     };
@@ -323,6 +341,7 @@ export function getItemActions(ctx: ActionContext): ItemActions {
       showDecisionStepper: true,
       canWorkshop: false,
       workshopDisabled: false,
+      canRetry: canRetryFromHistory,
       primaryCta: null,
     };
   }
@@ -337,6 +356,7 @@ export function getItemActions(ctx: ActionContext): ItemActions {
         finalizeDisabled: agentRunning,
         canWorkshop: !agentRunning,
         workshopDisabled: agentRunning,
+        canRetry: canRetryFromHistory,
         primaryCta: "finalize",
         disabledReason: agentRunning ? "An agent is already running for this item." : null,
       };
@@ -345,6 +365,7 @@ export function getItemActions(ctx: ActionContext): ItemActions {
       ...base,
       canWorkshop: !agentRunning,
       workshopDisabled: agentRunning,
+      canRetry: canRetryFromHistory,
       primaryCta: "workshop",
       disabledReason: agentRunning ? "An agent is already running for this item." : null,
     };
@@ -356,6 +377,7 @@ export function getItemActions(ctx: ActionContext): ItemActions {
       ...base,
       canWorkshop: !agentRunning,
       workshopDisabled: agentRunning,
+      canRetry: canRetryFromHistory,
       primaryCta: "workshop",
       disabledReason: agentRunning ? "An agent is already running for this item." : null,
     };
@@ -369,9 +391,17 @@ export function getItemActions(ctx: ActionContext): ItemActions {
       runDisabled: agentRunning,
       canWorkshop: !agentRunning,
       workshopDisabled: agentRunning,
+      canRetry: canRetryFromHistory,
       primaryCta: "run",
       disabledReason: agentRunning ? "An agent is already running for this item." : null,
     };
+  }
+
+  // Non-queueable, non-terminal status (e.g., manually moved to backlog with
+  // no plan yet). Surface Retry if a terminal execution exists so the user
+  // can re-dispatch the prior attempt.
+  if (canRetryFromHistory) {
+    return { ...base, canRetry: true };
   }
 
   // Fallback: no primary CTA.

@@ -308,6 +308,58 @@ func TestCmdInitiativesFeedbackDecide_DismissRoutesToDismissEndpoint(t *testing.
 	}
 }
 
+func TestCmdInitiativesFeedbackCancel_HitsCancelEndpoint(t *testing.T) {
+	var gotPath, gotMethod string
+	var gotBody map[string]any
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotMethod = r.Method
+		body, _ := io.ReadAll(r.Body)
+		if len(body) > 0 {
+			_ = json.Unmarshal(body, &gotBody)
+		}
+		_, _ = w.Write([]byte(`{"number":3,"slug":"s","type":"feedback","status":"dismissed","submission":{"text":"t"},"decision":{"kind":"dismiss","rationale":"agent stuck","decided_at":"2026-04-25T12:00:00Z"}}`))
+	})
+	app, _ := newFeedbackTestApp(t, handler)
+	err := app.cmdInitiativesFeedbackCancel([]string{
+		"--name", "init",
+		"--round", "3",
+		"--rationale", "agent stuck",
+		"--decided-by", "matt",
+	})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if gotMethod != "POST" {
+		t.Errorf("method: %s", gotMethod)
+	}
+	if gotPath != "/api/v1/initiatives/init/feedback/3/cancel" {
+		t.Errorf("path: %s", gotPath)
+	}
+	if gotBody["rationale"] != "agent stuck" {
+		t.Errorf("body rationale: %#v", gotBody)
+	}
+	if gotBody["decided_by"] != "matt" {
+		t.Errorf("body decided_by: %#v", gotBody)
+	}
+}
+
+func TestCmdInitiativesFeedbackCancel_RequiresName(t *testing.T) {
+	app, _ := newFeedbackTestApp(t, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	err := app.cmdInitiativesFeedbackCancel([]string{"--round", "1"})
+	if err == nil {
+		t.Fatal("expected error: --name required")
+	}
+}
+
+func TestCmdInitiativesFeedbackCancel_RequiresPositiveRound(t *testing.T) {
+	app, _ := newFeedbackTestApp(t, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	err := app.cmdInitiativesFeedbackCancel([]string{"--name", "init", "--round", "0"})
+	if err == nil {
+		t.Fatal("expected error: --round must be positive")
+	}
+}
+
 func TestCmdInitiativesFeedbackDecide_ExclusiveDecisionFlags(t *testing.T) {
 	app, _ := newFeedbackTestApp(t, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	cases := [][]string{

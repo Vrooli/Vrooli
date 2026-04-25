@@ -488,6 +488,95 @@ func (a *App) cmdInitiativesFeedbackDecide(args []string) error {
 	return nil
 }
 
+// --- feedback-cancel ---------------------------------------------------
+
+// cmdInitiativesFeedbackCancel forces a stuck agent_thinking round into
+// dismissed by hitting POST /feedback/{round}/cancel. It is the user-
+// facing escape hatch when the agent run has crashed or the user no
+// longer wants to wait. Mirrors the wire shape of /dismiss but takes a
+// different route on the API side so it can be the only path that calls
+// agent-manager StopRun + releases the lock.
+func (a *App) cmdInitiativesFeedbackCancel(args []string) error {
+	fs := flag.NewFlagSet("initiatives feedback-cancel", flag.ContinueOnError)
+	nameFlag := fs.String("name", "", "Initiative name")
+	roundFlag := parseRoundFlag(fs, "round", "Round number")
+	rationaleFlag := fs.String("rationale", "", "Short explanation recorded with the cancel decision")
+	decidedByFlag := fs.String("decided-by", "", "Identifier for the user issuing the cancel")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if err := requireFlag("name", *nameFlag); err != nil {
+		return fmt.Errorf("usage: initiatives feedback-cancel --name NAME --round N [--rationale MSG] [--decided-by WHO] [--json]\n\n%s", err)
+	}
+	if *roundFlag <= 0 {
+		return fmt.Errorf("--round must be a positive integer")
+	}
+
+	name := strings.TrimSpace(*nameFlag)
+	payload, err := json.Marshal(map[string]any{
+		"rationale":  strings.TrimSpace(*rationaleFlag),
+		"decided_by": strings.TrimSpace(*decidedByFlag),
+	})
+	if err != nil {
+		return fmt.Errorf("encode request: %w", err)
+	}
+
+	endpoint := fmt.Sprintf("/initiatives/%s/feedback/%d/cancel", name, *roundFlag)
+	body, err := a.core.Request("POST", endpoint, nil, json.RawMessage(payload))
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+
+	var r feedbackRoundSummary
+	if err := json.Unmarshal(body, &r); err != nil {
+		return fmt.Errorf("decode response: %w", err)
+	}
+	printSection("Cancelled")
+	fmt.Printf("  Round:      %d\n", r.Number)
+	fmt.Printf("  Status:     %s\n", r.Status)
+	if r.Decision != nil {
+		if r.Decision.Rationale != "" {
+			fmt.Printf("  Rationale:  %s\n", r.Decision.Rationale)
+		}
+		if r.Decision.DecidedAt != "" {
+			fmt.Printf("  At:         %s\n", r.Decision.DecidedAt)
+		}
+	}
+	return nil
+}
+
+// cmdInitiativesFeedbackDelete permanently removes a terminal feedback round
+// from disk. Only allowed on rounds that have already reached
+// applied/rejected/dismissed — for in-flight rounds the API returns 409 and
+// the user is expected to call feedback-cancel first.
+func (a *App) cmdInitiativesFeedbackDelete(args []string) error {
+	fs := flag.NewFlagSet("initiatives feedback-delete", flag.ContinueOnError)
+	nameFlag := fs.String("name", "", "Initiative name")
+	roundFlag := parseRoundFlag(fs, "round", "Round number")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if err := requireFlag("name", *nameFlag); err != nil {
+		return fmt.Errorf("usage: initiatives feedback-delete --name NAME --round N\n\n%s", err)
+	}
+	if *roundFlag <= 0 {
+		return fmt.Errorf("--round must be a positive integer")
+	}
+	name := strings.TrimSpace(*nameFlag)
+	endpoint := fmt.Sprintf("/initiatives/%s/feedback/%d", name, *roundFlag)
+	if _, err := a.core.Request("DELETE", endpoint, nil, nil); err != nil {
+		return err
+	}
+	printSection("Deleted")
+	fmt.Printf("  Initiative: %s\n", name)
+	fmt.Printf("  Round:      %d\n", *roundFlag)
+	return nil
+}
+
 // --- feedback-lock -----------------------------------------------------
 
 func (a *App) cmdInitiativesFeedbackLock(args []string) error {

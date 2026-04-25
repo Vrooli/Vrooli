@@ -31,6 +31,8 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			support.APICommand("feedback-submit", "Start a feedback round (--name NAME --type feedback|note --text MSG [--file PATH ...] [--slug SLUG] [--override] [--decided-by WHO] [--json])", deps.InitiativesFeedbackSubmit),
 			support.APICommand("feedback-continue", "Continue a feedback round (--name NAME --round N --text MSG [--file PATH ...] [--decided-by WHO] [--json])", deps.InitiativesFeedbackContinue),
 			support.APICommand("feedback-decide", "Decide a feedback round (--name NAME --round N (--accept|--reject|--dismiss) [--mutations m1,m3] [--rationale MSG] [--decided-by WHO] [--json])", deps.InitiativesFeedbackDecide),
+			support.APICommand("feedback-cancel", "Cancel an in-flight feedback round, stopping the agent run (--name NAME --round N [--rationale MSG] [--decided-by WHO] [--json])", deps.InitiativesFeedbackCancel),
+			support.APICommand("feedback-delete", "Delete a terminal feedback round permanently (--name NAME --round N)", deps.InitiativesFeedbackDelete),
 			support.APICommand("feedback-lock", "Show feedback lock status (--name NAME) [--json]", deps.InitiativesFeedbackLock),
 
 			// Initiative review.

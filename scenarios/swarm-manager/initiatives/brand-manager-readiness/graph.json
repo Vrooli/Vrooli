@@ -1,6 +1,6 @@
 {
   "initiative": "brand-manager-readiness",
-  "generated_at": "2026-04-25T13:05:10Z",
+  "generated_at": "2026-04-25T17:34:41Z",
   "nodes": [
     {
       "id": "fix/brand-manager-integration-status",
@@ -10,7 +10,7 @@
       "status": "completed",
       "priority": 2,
       "effort": "S",
-      "archived": false
+      "archived": true
     },
     {
       "id": "execute/brand-manager-scenario-picker",
@@ -37,7 +37,7 @@
       "kind": "execute",
       "name": "brand-manager-rule-detail-ux",
       "title": "Add Detailed Rule Documentation and Per-Rule Execution to Standards Page",
-      "status": "queued",
+      "status": "in_review",
       "priority": 3,
       "effort": "M",
       "archived": false

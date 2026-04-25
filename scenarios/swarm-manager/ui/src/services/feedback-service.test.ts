@@ -180,6 +180,22 @@ describe("Feedback Service", () => {
     );
   });
 
+  it("cancels a stuck round", async () => {
+    vi.mocked(api.post).mockResolvedValue(makeRound({ status: "dismissed" }));
+    const result = await service.cancel("i1", 1, { rationale: "agent stuck" });
+    expect(api.post).toHaveBeenCalledWith(
+      "/initiatives/i1/feedback/1/cancel",
+      expect.objectContaining({ rationale: "agent stuck" }),
+    );
+    expect(result.status).toBe("dismissed");
+  });
+
+  it("deletes a terminal round", async () => {
+    vi.mocked(api.delete).mockResolvedValue(undefined);
+    await service.delete("i1", 3);
+    expect(api.delete).toHaveBeenCalledWith("/initiatives/i1/feedback/3");
+  });
+
   it("reports lock status", async () => {
     vi.mocked(api.get).mockResolvedValue({ locked: true, holder: { run_id: "r", purpose: "feedback" } });
     const status = await service.lockStatus("i1");

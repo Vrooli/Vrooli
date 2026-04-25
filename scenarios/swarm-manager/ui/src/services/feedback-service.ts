@@ -59,6 +59,11 @@ export interface DismissFeedbackArgs {
   decidedBy?: string;
 }
 
+export interface CancelFeedbackArgs {
+  rationale?: string;
+  decidedBy?: string;
+}
+
 // ---------------------------------------------------------------------------
 // Error types
 // ---------------------------------------------------------------------------
@@ -108,6 +113,8 @@ export interface IFeedbackService {
   continue_(name: string, round: number, args: ContinueFeedbackArgs): Promise<FeedbackRound>;
   decide(name: string, round: number, args: DecideFeedbackArgs): Promise<FeedbackDecideResponse>;
   dismiss(name: string, round: number, args?: DismissFeedbackArgs): Promise<FeedbackRound>;
+  cancel(name: string, round: number, args?: CancelFeedbackArgs): Promise<FeedbackRound>;
+  delete(name: string, round: number): Promise<void>;
   lockStatus(name: string): Promise<LockStatusResponse>;
   attachmentUrl(name: string, round: number, attachmentId: string): string;
 }
@@ -180,6 +187,20 @@ export function createFeedbackService(
           decided_by: args?.decidedBy,
         },
       );
+    },
+
+    async cancel(name, round, args) {
+      return apiClient.post<FeedbackRound>(
+        API_ENDPOINTS.initiativeFeedbackCancel(name, round),
+        {
+          rationale: args?.rationale,
+          decided_by: args?.decidedBy,
+        },
+      );
+    },
+
+    async delete(name, round) {
+      await apiClient.delete<void>(API_ENDPOINTS.initiativeFeedbackRound(name, round));
     },
 
     async lockStatus(name) {

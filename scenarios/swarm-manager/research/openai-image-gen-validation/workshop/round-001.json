@@ -2,13 +2,13 @@
   "round": 1,
   "generated_at": "2026-04-22T04:45:00Z",
   "mode": "workshop",
-  "pending_synthesis": false,
+  "pending_synthesis": true,
   "readiness": {
-    "problem_clarity": 2,
-    "scope_defined": 2,
     "approach_solid": 1,
-    "testable": 1,
-    "risk_awareness": 1
+    "problem_clarity": 2,
+    "risk_awareness": 1,
+    "scope_defined": 2,
+    "testable": 1
   },
   "items": [
     {
@@ -17,14 +17,29 @@
       "topic": "Source of test prompts for the 3-5 real-world decision scenarios",
       "context": "The deliverable requires validating gpt-image-2 on 3-5 real decision scenarios end-to-end. The prompts we pick materially affect the signal: synthetic prompts test the happy path, historical Swarm Manager decisions test real distribution, a hybrid gives both. There is no existing curated set.",
       "options": [
-        {"key": "A", "label": "Pull 3-5 UI-shaped decisions from recent Swarm Manager workshop rounds and convert each to an image-prompt", "rationale": "Highest realism — matches the actual distribution the skill will see in production. Slightly more setup (need to find decisions with image-pickable options).", "recommended": true},
-        {"key": "B", "label": "Author 3-5 synthetic decision prompts spanning the expected UI dimensions (layout, palette, density, element choice)", "rationale": "Fast, covers the design space deliberately. Lower realism — may miss idiosyncrasies of how workshop agents actually phrase options."},
-        {"key": "C", "label": "Hybrid — 2 historical + 3 synthetic (or similar split)", "rationale": "Balances realism and design-space coverage at the cost of slightly more work."},
-        {"key": "D", "label": "Other", "rationale": "Provide your own source or curation rule."}
+        {
+          "key": "A",
+          "label": "Pull 3-5 UI-shaped decisions from recent Swarm Manager workshop rounds and convert each to an image-prompt",
+          "rationale": "Highest realism — matches the actual distribution the skill will see in production. Slightly more setup (need to find decisions with image-pickable options).",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Author 3-5 synthetic decision prompts spanning the expected UI dimensions (layout, palette, density, element choice)",
+          "rationale": "Fast, covers the design space deliberately. Lower realism — may miss idiosyncrasies of how workshop agents actually phrase options."
+        },
+        {
+          "key": "C",
+          "label": "Hybrid — 2 historical + 3 synthetic (or similar split)",
+          "rationale": "Balances realism and design-space coverage at the cost of slightly more work."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own source or curation rule."
+        }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d2",
@@ -32,14 +47,29 @@
       "topic": "Default quality tier to validate as the shipping target",
       "context": "gpt-image-2 exposes quality tiers with a ~4-6x cost delta (initiative doc cites ~$0.03-0.05 medium vs ~$0.13-0.20 high). 'The quality we'd ship with' is currently under-specified. Whichever tier we validate becomes the primary basis for the cost model in the conclusion.",
       "options": [
-        {"key": "A", "label": "Medium quality as default; validate high as an opt-in escape hatch", "rationale": "Cheapest per-decision cost. Aligns with 'mockup-grade' framing in the spec — decisions don't need pixel-perfect art. Risks: may look too rough to change a user's answer.", "recommended": true},
-        {"key": "B", "label": "High quality as default; medium as a cost-saver setting", "rationale": "Maximizes the chance that mockups actually shift decisions (the whole point of the feature). Costs 4-6x more per decision; harder to justify at scale."},
-        {"key": "C", "label": "Adaptive — medium for initial option render, high for user-approved / final mockup", "rationale": "Nuanced but introduces lifecycle state we don't have yet. Probably premature for this research."},
-        {"key": "D", "label": "Other", "rationale": "Provide your own tier rule."}
+        {
+          "key": "A",
+          "label": "Medium quality as default; validate high as an opt-in escape hatch",
+          "rationale": "Cheapest per-decision cost. Aligns with 'mockup-grade' framing in the spec — decisions don't need pixel-perfect art. Risks: may look too rough to change a user's answer.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "High quality as default; medium as a cost-saver setting",
+          "rationale": "Maximizes the chance that mockups actually shift decisions (the whole point of the feature). Costs 4-6x more per decision; harder to justify at scale."
+        },
+        {
+          "key": "C",
+          "label": "Adaptive — medium for initial option render, high for user-approved / final mockup",
+          "rationale": "Nuanced but introduces lifecycle state we don't have yet. Probably premature for this research."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own tier rule."
+        }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d3",
@@ -47,14 +77,29 @@
       "topic": "How rigorously to compare against OpenRouter's openai/gpt-5.4-image-2 composite",
       "context": "The initiative doc says OpenAI-direct wins on cost because the OpenRouter composite bundles GPT-5.4 reasoning tokens — but flags that this is a working assumption the research must still verify. The spec asks us to 'justify going OpenAI-direct on cost,' which requires at least some real A/B data. Options trade rigor for research time.",
       "options": [
-        {"key": "A", "label": "Minimal spot-check — run the same 1-2 prompts through each vendor at matching quality, compare $/image and qualitative output", "rationale": "Enough to confirm/overturn the working assumption with limited time. Misses edge cases but probably sufficient for a go/no-go.", "recommended": true},
-        {"key": "B", "label": "Full matrix — all 3-5 test prompts through both vendors at both quality tiers", "rationale": "Strongest basis for the cost model, but ~2x the API spend and effort for what is likely a clear-cut answer."},
-        {"key": "C", "label": "Skip — accept the initiative's working assumption as-is and record it in the conclusion", "rationale": "Fastest. Leaves the cost-justification claim unverified, which the spec explicitly asks us to address."},
-        {"key": "D", "label": "Other", "rationale": "Provide your own comparison protocol."}
+        {
+          "key": "A",
+          "label": "Minimal spot-check — run the same 1-2 prompts through each vendor at matching quality, compare $/image and qualitative output",
+          "rationale": "Enough to confirm/overturn the working assumption with limited time. Misses edge cases but probably sufficient for a go/no-go.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Full matrix — all 3-5 test prompts through both vendors at both quality tiers",
+          "rationale": "Strongest basis for the cost model, but ~2x the API spend and effort for what is likely a clear-cut answer."
+        },
+        {
+          "key": "C",
+          "label": "Skip — accept the initiative's working assumption as-is and record it in the conclusion",
+          "rationale": "Fastest. Leaves the cost-justification claim unverified, which the spec explicitly asks us to address."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own comparison protocol."
+        }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d4",
@@ -62,14 +107,29 @@
       "topic": "Reference image source for the input_fidelity='high' style-consistency test",
       "context": "The style-consistency check requires a reference image to pass as input. Since screenshot-grounding is explicitly deferred to the downstream grounding-propagation initiative, this test is about whether reference images carry *visual style* (palette, type, density) consistently across multiple outputs — not layout faithfulness. The reference-image choice sets what 'style consistency' means here.",
       "options": [
-        {"key": "A", "label": "Use a single existing Vrooli UI screenshot as the style anchor across all test prompts", "rationale": "Closest to real production use (skill will anchor on Vrooli's own look). Requires picking a representative screenshot.", "recommended": true},
-        {"key": "B", "label": "Use a generic design-system reference (e.g. a Material or shadcn example) not tied to Vrooli", "rationale": "Tests the fidelity mechanic in isolation from Vrooli specifics. Less directly applicable to the shipping use case."},
-        {"key": "C", "label": "Run without a reference image and rely on prompt-only style instructions", "rationale": "Tests the text-only path but doesn't exercise input_fidelity='high' at all — arguably out of scope for this decision since the research spec explicitly calls for verifying input_fidelity='high'."},
-        {"key": "D", "label": "Other", "rationale": "Provide your own reference-image strategy."}
+        {
+          "key": "A",
+          "label": "Use a single existing Vrooli UI screenshot as the style anchor across all test prompts",
+          "rationale": "Closest to real production use (skill will anchor on Vrooli's own look). Requires picking a representative screenshot.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Use a generic design-system reference (e.g. a Material or shadcn example) not tied to Vrooli",
+          "rationale": "Tests the fidelity mechanic in isolation from Vrooli specifics. Less directly applicable to the shipping use case."
+        },
+        {
+          "key": "C",
+          "label": "Run without a reference image and rely on prompt-only style instructions",
+          "rationale": "Tests the text-only path but doesn't exercise input_fidelity='high' at all — arguably out of scope for this decision since the research spec explicitly calls for verifying input_fidelity='high'."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own reference-image strategy."
+        }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "i1",

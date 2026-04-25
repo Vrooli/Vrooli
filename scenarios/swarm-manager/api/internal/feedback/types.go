@@ -146,8 +146,20 @@ type Round struct {
 	// agent turn. Surfaced at the round level so the UI's revision CTA
 	// can show the reason without scanning the thread.
 	LastParseWarnings []string `json:"last_parse_warnings,omitempty"`
-	CreatedAt         string   `json:"created_at"`
-	UpdatedAt         string   `json:"updated_at"`
+	// LastPolledAt records the most recent poll attempt for an
+	// agent_thinking round. Lets the stuck-round sweeper find rounds
+	// whose polling has wedged without forcing the UI to wait.
+	LastPolledAt string `json:"last_polled_at,omitempty"`
+	// LastPollError carries the most recent poller error message so the
+	// UI can show "agent unreachable: …" instead of a perpetual spinner.
+	// Cleared on successful terminal advance.
+	LastPollError string `json:"last_poll_error,omitempty"`
+	// PollFailureCount counts consecutive poll failures. After a
+	// configured threshold, EnsurePolledTurn synthesizes a terminal
+	// failure so the round can resolve. Cleared on success.
+	PollFailureCount int    `json:"poll_failure_count,omitempty"`
+	CreatedAt        string `json:"created_at"`
+	UpdatedAt        string `json:"updated_at"`
 }
 
 // CurrentProposal returns the ProposalRevision matching CurrentProposalID,

@@ -28,6 +28,12 @@ type mockExecutionQueuer struct {
 	// Track calls for assertion.
 	preflightCalls []string // "kind/name" of each ProcessPreflight call
 	queueCalls     []execution.CreateRequest
+
+	// Retry-latest controls.
+	retryLatestCalls    []retryLatestCall
+	retryLatestRecord   execution.Record
+	retryLatestHasPrior bool
+	retryLatestErr      error
 }
 
 type manuallyAcceptedCall struct {
@@ -60,6 +66,21 @@ func (m *mockExecutionQueuer) ManuallyAcceptLatestForBacklog(_ context.Context, 
 		Kind: backlogKind, Name: backlogName, Acceptor: acceptor, Reason: reason,
 	})
 	return m.manuallyAcceptedID, m.manuallyAcceptedOK, m.manuallyAcceptedErr
+}
+
+// retryLatestCall captures one RetryLatestForBacklog invocation.
+type retryLatestCall struct {
+	Kind, Name, Note string
+}
+
+// Retry-latest controls. Add fields to the mock so tests can wire
+// success/failure paths without touching unrelated mocks.
+func (m *mockExecutionQueuer) RetryLatestForBacklog(_ context.Context, backlogKind, backlogName, note string) (execution.Record, bool, error) {
+	m.retryLatestCalls = append(m.retryLatestCalls, retryLatestCall{Kind: backlogKind, Name: backlogName, Note: note})
+	if m.retryLatestErr != nil {
+		return execution.Record{}, m.retryLatestHasPrior, m.retryLatestErr
+	}
+	return m.retryLatestRecord, m.retryLatestHasPrior, nil
 }
 
 // TestGoldenPath_BatchCreateInitiativeQueue exercises the full pipeline:

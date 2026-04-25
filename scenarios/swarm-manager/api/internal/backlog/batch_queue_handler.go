@@ -26,6 +26,12 @@ type ExecutionQueuer interface {
 	// execution for the given backlog item to Completed and marks it manually
 	// accepted. Returns (executionID, true) on success.
 	ManuallyAcceptLatestForBacklog(ctx context.Context, backlogKind, backlogName, acceptor, reason string) (string, bool, error)
+	// RetryLatestForBacklog creates a new execution attempt parented to the
+	// most recent terminal execution for the given backlog item. Returns
+	// (Record{}, false, nil) when the item has no executions at all; the
+	// boolean false signals "no prior execution to retry" so handlers can
+	// map it to a 400 distinct from internal errors.
+	RetryLatestForBacklog(ctx context.Context, backlogKind, backlogName, note string) (execution.Record, bool, error)
 }
 
 // SetExecutionQueuer injects a custom execution queuer for batch queue operations.

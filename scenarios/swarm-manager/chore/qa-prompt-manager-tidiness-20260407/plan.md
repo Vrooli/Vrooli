@@ -10,7 +10,11 @@ Fix all tidiness failures flagged by the GCT review for the prompt-manager scena
 prompt-manager skill read implementation-plan-authoring documentation-health
 ```
 
-## 3. Problem Statement
+## 3. Hard Constraints
+
+**Greenfield fix.** No compatibility shims, deprecation aliases, or transitional symlinks are allowed. The renamed CLI binary, updated requirement linkages, and consolidated `resolveApiBase` must replace prior artifacts outright. Update every in-repo reference rather than leaving compatibility wrappers behind.
+
+## 4. Problem Statement
 
 The GCT review flagged prompt-manager with 5 test failures and 162 standards violations (5 critical, 19 high). The failures span five areas:
 
@@ -20,20 +24,21 @@ The GCT review flagged prompt-manager with 5 test failures and 162 standards vio
 4. **Test failures**: docs validation, UI unit tests, CLI unknown-command check (returns 0 instead of non-zero), missing `bas/registry.json`
 5. **Code quality**: Stale (needs re-run)
 
-## 4. Scope
+## 5. Scope
 
 **In scope** (`acceptance_allow: scenarios/prompt-manager/**`):
-- Fix critical and high standards violations
+- Fix all critical and high standards violations
+- Fix any medium violations that sit in the same file/area as a critical/high fix and take <5 min each (workshop decision d3=B)
 - Fix all 5 test failures
 - Regenerate `bas/registry.json`
 - Re-run code quality checks
 
 **Out of scope:**
-- Low/medium/info standards violations (154 of 162) — address only if trivially fixable alongside high+ fixes
-- New features or refactors
+- Standalone low/info violations and medium violations not adjacent to a critical/high fix
+- New features or refactors beyond the resolveApiBase consolidation already required by standards
 - Changes outside `scenarios/prompt-manager/`
 
-## 5. Current Technical Context
+## 6. Current Technical Context
 
 | Area | File/Path | Issue |
 |------|-----------|-------|
@@ -48,70 +53,87 @@ The GCT review flagged prompt-manager with 5 test failures and 162 standards vio
 | Go workspace | `cli/go.mod` | Not using Go workspace mode with API |
 | resolveApiBase | `ui/` (multiple files) | Should be consolidated to single config/hook |
 
-## 6. Target End State
+## 7. Target End State
 
 - All 5 test phases pass (standards, docs, unit, integration, playbooks)
 - 0 critical violations, 0 high violations from standards audit
 - GCT re-review shows green/yellow-improving across all dimensions
 
-## 7. Implementation Strategy
-
-### Phase 1: Critical Standards Fixes
-1. **CLI binary naming**: Either symlink `cli/prompt-manager` → `cli/pm` or rename the build output to `prompt-manager`
-2. **P0/P1 requirements linkage**: Add requirement entries for the 4 unlinked P0 targets and 1 P1 target in `requirements/index.json`
-
-### Phase 2: High Standards Fixes
-3. **PRD linkage**: Fix ~12 REQ-* entries that reference missing PRD sections (update `prd_ref` fields to existing sections)
-4. **Go workspace mode**: Add workspace replace directive in `cli/go.mod`
-5. **ESLint safety rules**: Add `import/no-cycle: "error"` and other missing rules to ESLint config
-6. **tsconfig protective comment**: Add required comment block
-7. **resolveApiBase consolidation**: Move to single config/hook, import elsewhere
-
-### Phase 3: Test Failures
-8. **CLI unknown command**: Fix exit code handling in CLI core or prompt-manager's install.sh wrapper
-9. **Docs validation**: Investigate and fix docs issues
-10. **UI unit tests**: Run tests, diagnose failures, fix
-11. **BAS registry**: Regenerate `bas/registry.json` via playbook builder
-
-### Phase 4: Validation
-12. Re-run `scenario-auditor audit prompt-manager --standards-only`
-13. Re-run full test suite via `make test`
-14. Verify 0 critical/high violations and all test phases pass
-
 ## 8. Contract Decisions
 
-<!-- TBD — pending workshop decisions on CLI naming approach -->
+Captured from workshop round 001:
 
-## 9. Testing Plan
+- **d1 — CLI binary naming → Option A (Rename build output to `prompt-manager`).** Update the Go build `-o` flag in `cli/` and all `pm`-named references (install scripts, Makefile targets, docs) to `prompt-manager`. No symlink fallback (greenfield constraint).
+- **d2 — PRD linkage → Option A (Update `prd_ref` fields to existing PRD sections).** Re-map each broken `prd_ref` in `requirements/index.json` to the correct existing section in `PRD.md`. Add new requirement entries for the 4 unlinked P0 targets and 1 unlinked P1 target, each linked to a real PRD section. Do not regrow PRD.md to fit stale refs.
+- **d3 — Low/medium violation handling → Option B (critical + high + trivially adjacent medium).** While editing a file for a critical/high fix, also resolve medium violations in that same file/area when each takes under 5 minutes. Do not chase medium issues in unrelated files.
 
-- Run `scenario-auditor audit prompt-manager --standards-only --timeout 60` after standards fixes
-- Run `make test` in `scenarios/prompt-manager/` after all fixes
-- Verify each test phase passes: standards, docs, unit, integration, playbooks
+## 9. Implementation Strategy
 
-## 10. Rollout/Validation Checklist
+### Phase 1: Critical Standards Fixes
+1. **CLI binary rename** (`cli/`): change Go build output from `pm` to `prompt-manager`; update `install.sh`, Makefile, docs, and any internal callers. Delete the old `pm` binary path entirely (no symlink).
+2. **P0/P1 requirements linkage**: add requirement entries for the 4 unlinked P0 targets and 1 unlinked P1 target in `requirements/index.json`, each with a valid `prd_ref`.
+
+### Phase 2: High Standards Fixes
+3. **PRD linkage**: re-point the ~12 broken `prd_ref` fields (REQ-P0-003/005/012/016/017, REQ-P1-023/024/030/031, REQ-P2-004/027/028/029) to existing sections in `PRD.md`.
+4. **Go workspace mode**: add the workspace replace directive in `cli/go.mod` so the CLI builds against the in-repo API package.
+5. **ESLint safety rules** (`ui/`): add `import/no-cycle: "error"` and other missing rules listed by the standards check.
+6. **tsconfig protective comment** (`ui/tsconfig.json`): add the required header comment block.
+7. **resolveApiBase consolidation** (`ui/`): move to a single config/hook and import from every prior call site; delete the duplicated implementations.
+8. **Adjacent medium fixes**: while inside any file touched above, resolve medium violations in that file when each takes <5 min (per d3=B).
+
+### Phase 3: Test Failures
+9. **CLI unknown command**: fix exit-code handling so unknown commands return non-zero (likely in `packages/cli-core/install.sh` or the prompt-manager `install.sh` wrapper).
+10. **Docs validation**: triage the docs phase failure and fix the underlying issue.
+11. **UI unit tests** (`ui/`): run, diagnose, and fix unit-test failures.
+12. **BAS registry**: regenerate `bas/registry.json` via the playbook builder.
+
+### Phase 4: Validation + Cleanup
+13. Re-run `scenario-auditor audit prompt-manager --standards-only --timeout 60`.
+14. Re-run `make test` in `scenarios/prompt-manager/`.
+15. Confirm 0 critical/high violations and all 5 test phases pass.
+16. **Final cleanup**: run `vrooli scenario restart prompt-manager` to reset scenario state and verify the scenario comes back up cleanly with the new binary name and regenerated registry.
+
+## 10. Testing Plan
+
+- `scenario-auditor audit prompt-manager --standards-only --timeout 60` after each phase touching standards.
+- `make test` in `scenarios/prompt-manager/` after all phases.
+- Each phase verified independently: standards, docs, unit, integration, playbooks.
+- Final `vrooli scenario restart prompt-manager` to confirm runtime health.
+
+## 11. Rollout/Validation Checklist
 
 - [ ] Critical standards violations → 0
 - [ ] High standards violations → 0
+- [ ] No `cli/pm` references remain in repo (greenfield rename complete)
 - [ ] docs test phase passes
 - [ ] unit test phase passes
 - [ ] integration test phase (CLI unknown command) passes
-- [ ] playbooks test phase (bas/registry.json) passes
+- [ ] playbooks test phase (`bas/registry.json`) passes
 - [ ] standards test phase passes
+- [ ] `vrooli scenario restart prompt-manager` succeeds cleanly
 
-## 11. Risks + Mitigations
+## 12. Risks + Mitigations
 
 | Risk | Likelihood | Mitigation |
 |------|-----------|------------|
-| CLI binary rename breaks other consumers | Medium | Check for references to `pm` binary name in other scenarios |
-| PRD content truly missing (not just mislinked) | Low | Verify PRD sections exist before updating prd_ref |
-| UI unit test failures are deep/unrelated | Medium | Triage — fix what's reasonable, flag rest if systemic |
+| CLI binary rename breaks external/in-repo consumers of `pm` | Medium | Grep entire repo for `pm` invocations; update or remove every reference before merging (greenfield: no alias). |
+| PRD content truly missing (not just mislinked) for some refs | Low | Verify candidate PRD section exists before updating each `prd_ref`; if no section fits, surface as a follow-up rather than fabricating PRD content. |
+| UI unit test failures are deep/unrelated to tidiness | Medium | Triage first; fix what is reasonable within scope; if systemic, file a separate backlog item and document in handoff. |
+| Adjacent-medium fixes balloon scope | Low | Hard 5-minute-per-fix rule from d3=B; if a "medium" fix grows, defer it. |
+| `vrooli scenario restart` surfaces a regression from the rename | Medium | Restart is the final gate; if it fails, do not mark done — diagnose, fix, restart again. |
 
-## 12. Non-goals / Prohibited Patterns
+## 13. Non-goals / Prohibited Patterns
 
-- Do not fix low/medium/info violations unless trivially adjacent
-- Do not refactor or add features
-- Do not modify files outside `scenarios/prompt-manager/`
+- Do not fix standalone low/info violations or non-adjacent medium violations.
+- Do not refactor or add features beyond what standards require.
+- Do not modify files outside `scenarios/prompt-manager/`.
+- Do not add a `pm` → `prompt-manager` symlink, alias, or compatibility shim (greenfield).
+- Do not extend `PRD.md` to fit stale `prd_ref` values; relink instead.
 
-## 13. Definition of Done
+## 14. Definition of Done
 
-All 5 GCT test phases pass, 0 critical/high standards violations, and tidiness check re-run shows pass.
+- All 5 GCT test phases pass.
+- 0 critical and 0 high standards violations.
+- No remaining `cli/pm` references in the repo.
+- `vrooli scenario restart prompt-manager` runs to a clean healthy state.
+- Tidiness check re-run shows pass.

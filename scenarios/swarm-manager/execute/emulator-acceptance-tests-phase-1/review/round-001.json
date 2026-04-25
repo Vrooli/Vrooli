@@ -1,0 +1,103 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-25T00:00:00Z",
+  "execution_id": "cc6f5a868b2637ed",
+  "run_id": "ba884c79-3e9a-4061-a7e7-bee186fc2f59",
+  "status": "complete",
+  "agent_assessment": "All Phase 1 deliverables are present on disk and the eight tests required by the plan execute green on the dev host. Verified by running `go test -tags=integration ./livedesktop/... -v` (8/8 PASS in ~5.6s combined) and `go test ./livedesktop/...` with no tags (unit suite still PASS, including new display_id assertions). Plan items individually verified: (1) display_id field added to SessionView in api/livedesktop/types.go with Session.View() populating from s.Display.DisplayID(); (2) CLI sessionView mirror updated in cli/domains/sessions/sessions.go and summarize() prints display=:N for headless only; (3) integration_test.go with //go:build integration tag delivers all six acceptance tests, TestPhase1SmokeHarness, host-binary precheck via TestMain, scenarioPrefix `test-phase1-`, captures store wired with t.TempDir(), pgrep -af stray-process assertion, and require.Eventually (no time.Sleep); (4) cli_integration_test.go covers all five session subcommands against an in-process httptest.Server with a once-built CLI binary; (5) docs/runbook.md lists Ubuntu 22.04 + 24.04 with 2026-04-25 verification timestamps. One material deviation: the plan called for .vrooli/testing.json to make `vrooli scenario test vrooli-emulator` pass `-tags=integration`, but the added `phases.integration` block only sets enable/timeout (the schema at scenarios/test-genie/schemas/testing.schema.json has no build_tags field), so the runner does not actually exercise the new suite — the runbook itself acknowledges this gap and instructs running `go test -tags=integration` directly. acceptance_deny respected (no edits to api/main.go, cli/install.sh, cli/install.ps1, Makefile). No vrooli scenario restart was performed (per memory rule).",
+  "classification": "ready_with_notes",
+  "notes": [
+    "All 8 plan-mandated tests pass on this host: TestIntegration_{CreateHeadlessSession,CreateVNCSession,LaunchApp,Screenshot,Metrics,DestroySession}, TestPhase1SmokeHarness, TestCLISmoke_AllSessionSubcommands.",
+    "DEVIATION: .vrooli/testing.json adds `phases.integration` (enabled+timeout) but the testing schema has no build_tags option. The plan's checklist item 'vrooli scenario test vrooli-emulator picks up the integration tag' is not actually achieved by this change — the runbook openly notes the gap. This means TestPlan §10 gate 7 (`vrooli scenario test vrooli-emulator runs both unit and integration tests`) cannot be satisfied without a runner change. Accept-with-followup or send back depending on how strict the gate is.",
+    "Metrics test asserts non-nil view and reads CurrentCPU/CurrentRSSMB/SplashDetected/ReadyDetected — these correspond to the schema fields `CPUPercent`/`MemoryRSS`/`WindowDetected` named in the plan. Field names differ from the plan but the implementation reads the live MetricsView struct, so the schema-shape gate is met by type-system verification.",
+    "Captures wiring is harness-only as scoped (r2-d1=A); api/main.go was correctly left untouched. Follow-up `r2-i1` to wire WithCaptures() in production remains open.",
+    "Stray-process check: post-suite `pgrep -af test-phase1-` returns no test-owned processes. There is an unrelated long-running `Xvfb :99` on the host (PID 1546639) that predates this session and is not from the test suite.",
+    "$schema reference in .vrooli/testing.json (`../../../../scripts/scenarios/testing/schemas/testing.schema.json`) points at a non-existent path; this is pre-existing and not introduced by this item, but worth flagging as repo hygiene."
+  ],
+  "evidence": [
+    {
+      "id": "e1",
+      "type": "cli_output",
+      "title": "go test -tags=integration ./livedesktop/... — 8/8 PASS",
+      "description": "Ran the full integration suite plus CLI smoke test against the real LinuxBackend on a host with Xvfb, x11vnc, websockify, xdotool, pgrep, ffmpeg, xclock all present. Output captures all eight required test functions passing.",
+      "capture_path": "captures/integration-tests-output.txt",
+      "verified": false,
+      "test_results": [
+        {"name": "TestIntegration_CreateHeadlessSession (headless=true, vnc_port=0, ws_port=0, state=running, display_id ~ ^:\\d+$)", "passed": true, "output_summary": "PASS in 0.40s"},
+        {"name": "TestIntegration_CreateVNCSession (headless=false, vnc_port in 5900-5999, ws_port in 6080-6180, display_id ~ ^:\\d+$)", "passed": true, "output_summary": "PASS in 0.89s"},
+        {"name": "TestIntegration_LaunchApp (xclock launched; AppRunning=true within 10s via require.Eventually)", "passed": true, "output_summary": "PASS in 0.39s"},
+        {"name": "TestIntegration_Screenshot (captures store has 1 entry, file-on-disk non-empty under t.TempDir())", "passed": true, "output_summary": "PASS in 0.45s"},
+        {"name": "TestIntegration_Metrics (require.Eventually 5s/200ms until MetricsView non-nil; reads CurrentCPU/CurrentRSSMB/SplashDetected/ReadyDetected)", "passed": true, "output_summary": "PASS in 0.39s"},
+        {"name": "TestIntegration_DestroySession (DELETE 200; subsequent GET returns SessionView with state=stopped; pgrep -af scenario zero matches)", "passed": true, "output_summary": "PASS in 0.89s"},
+        {"name": "TestPhase1SmokeHarness (VNC + headless create, launch_app, screenshot, metrics, list shows 2, teardown via cleanup)", "passed": true, "output_summary": "PASS in 1.39s"},
+        {"name": "TestCLISmoke_AllSessionSubcommands (list/create/list/exec/logs/destroy with built CLI binary; headless create stdout matches /display=:\\d+/)", "passed": true, "output_summary": "PASS in 0.73s"}
+      ]
+    },
+    {
+      "id": "e2",
+      "type": "cli_output",
+      "title": "Unit suite still green with new display_id assertions",
+      "description": "Confirmed no regressions in the existing mock-based unit tests. handler_test.go was updated to assert resp.DisplayID == \":99\" against the mock backend on both headed and headless start tests; both pass.",
+      "capture_path": "captures/integration-tests-output.txt",
+      "verified": false,
+      "test_results": [
+        {"name": "go test ./livedesktop/... (no tags)", "passed": true, "output_summary": "ok vrooli-emulator-api/livedesktop 0.057s"}
+      ]
+    },
+    {
+      "id": "e3",
+      "type": "config_diff",
+      "title": "SessionView gains display_id; Session.View() populates it; CLI surfaces it for headless",
+      "description": "Diff at api/livedesktop/types.go adds DisplayID string `json:\"display_id,omitempty\"` to SessionView and conditionally sets v.DisplayID = s.Display.DisplayID() when s.Display != nil. CLI's local sessionView mirror in cli/domains/sessions/sessions.go gains the same field; summarize() prints `display=<id>` only when Headless && DisplayID != \"\". Matches r1-d3=A and r2-d5=A exactly.",
+      "verified": false
+    },
+    {
+      "id": "e4",
+      "type": "config_diff",
+      "title": "Runbook documents distro matrix (Ubuntu 22.04 + 24.04, 2026-04-25)",
+      "description": "scenarios/vrooli-emulator/docs/runbook.md created with Supported Distros table, required apt packages, and the integration-test invocation. Notably also documents the testing-json runner gap.",
+      "verified": false
+    },
+    {
+      "id": "e5",
+      "type": "custom",
+      "title": "acceptance_deny paths untouched",
+      "description": "git status confirms api/main.go, cli/install.sh, cli/install.ps1, and Makefile were not modified. Modified files are limited to: .vrooli/testing.json, api/livedesktop/handler_test.go, api/livedesktop/types.go, cli/domains/sessions/sessions.go. Untracked additions: api/livedesktop/integration_test.go, api/livedesktop/cli_integration_test.go, docs/runbook.md.",
+      "verified": false
+    },
+    {
+      "id": "e6",
+      "type": "custom",
+      "title": "DEVIATION: testing.json wiring does not actually pass -tags=integration",
+      "description": "The plan's §11 checklist requires `.vrooli/testing.json` to make `vrooli scenario test vrooli-emulator` invoke `go test -tags=integration`. The change adds a `phases.integration` block (enabled=true, timeout=5m), but the schema at scenarios/test-genie/schemas/testing.schema.json defines `phases.<name>` with only generic phase_options (no build_tags field). So the runner does NOT receive `-tags=integration`. The runbook explicitly acknowledges this: 'vrooli scenario test vrooli-emulator does not currently pass -tags=integration to go test; until the runner gains build-tag support, run the command above directly.' This means plan checklist item 11.10 (vrooli scenario test vrooli-emulator exits 0 end-to-end exercising the new suite) cannot be met without a runner-level change that is out of scope for this item.",
+      "verified": false
+    }
+  ],
+  "request_threads": [],
+  "improvement_suggestions": [
+    {
+      "category": "ci_workflow",
+      "description": "Add a follow-up execute item to extend the testing-runner schema with `phases.integration.build_tags` (or equivalent) and have the runner pass it through to `go test`. Without this, `vrooli scenario test vrooli-emulator` silently skips the integration suite even though Phase 1 ostensibly delivered runner wiring. Until then, the runbook is the only path to executing the suite.",
+      "evidence_id": "e6",
+      "priority": "high"
+    },
+    {
+      "category": "test_coverage",
+      "description": "When `r2-i1` is filed/executed (wire WithCaptures() in api/main.go), add a thin integration assertion that hits the real running scenario binary and confirms screenshots are persisted — today only the test harness exercises the captures path.",
+      "evidence_id": "e1",
+      "priority": "medium"
+    },
+    {
+      "category": "visual_capture",
+      "description": "Phase 2 owns first WebSocket coverage (per r2-d2=A). When that lands, add a GCT-visible scenario health check that exercises POST /sessions + WS upgrade end-to-end so future review rounds get WS coverage automatically.",
+      "evidence_id": "e1",
+      "priority": "low"
+    },
+    {
+      "category": "other",
+      "description": "Fix the dead $schema reference in .vrooli/testing.json (currently `../../../../scripts/scenarios/testing/schemas/testing.schema.json`; actual path is `scenarios/test-genie/schemas/testing.schema.json`). Pre-existing, not introduced by this item, but cheap to clean up.",
+      "evidence_id": "e6",
+      "priority": "low"
+    }
+  ]
+}

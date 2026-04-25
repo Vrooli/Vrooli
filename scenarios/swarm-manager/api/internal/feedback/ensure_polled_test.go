@@ -312,6 +312,189 @@ func TestEnsurePolledTurn_TerminalNoOutput_RecordsPlaceholder(t *testing.T) {
 	}
 }
 
+func TestEnsurePolledTurn_PollError_RecordsFailureFields(t *testing.T) {
+	t.Parallel()
+	env := newServiceEnv(t)
+	poller := &fakePoller{
+		enabled: true,
+		err:     errors.New("agent-manager unreachable"),
+	}
+	svc := withPoller(t, env, poller)
+
+	round, err := svc.StartRound(context.Background(), StartRoundRequest{
+		InitiativeName: "ui-rewrite",
+		Type:           RoundTypeFeedback,
+		Text:           "investigate",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := svc.EnsurePolledTurn(context.Background(), round)
+	if err != nil {
+		t.Fatalf("EnsurePolledTurn: %v", err)
+	}
+	if out.Status != RoundStatusAgentThinking {
+		t.Fatalf("expected status to remain agent_thinking on first poll error, got %s", out.Status)
+	}
+	if out.PollFailureCount != 1 {
+		t.Fatalf("expected PollFailureCount=1, got %d", out.PollFailureCount)
+	}
+	if !strings.Contains(out.LastPollError, "agent-manager unreachable") {
+		t.Fatalf("expected LastPollError to record error, got %q", out.LastPollError)
+	}
+	if out.LastPolledAt == "" {
+		t.Fatal("expected LastPolledAt to be set after a poll attempt")
+	}
+	// Persisted to disk as well.
+	loaded, err := env.store.LoadRound("ui-rewrite", round.Number)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.PollFailureCount != 1 {
+		t.Fatalf("disk PollFailureCount=%d", loaded.PollFailureCount)
+	}
+}
+
+func TestEnsurePolledTurn_ConsecutiveFailures_SynthesizeTerminal(t *testing.T) {
+	t.Setenv("SWARM_MANAGER_FEEDBACK_POLL_FAILURE_THRESHOLD", "3")
+	env := newServiceEnv(t)
+	poller := &fakePoller{
+		enabled: true,
+		err:     errors.New("run not found"),
+	}
+	svc := withPoller(t, env, poller)
+
+	round, err := svc.StartRound(context.Background(), StartRoundRequest{
+		InitiativeName: "ui-rewrite",
+		Type:           RoundTypeFeedback,
+		Text:           "investigate",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// First two failures: round stays in agent_thinking.
+	for i := 1; i <= 2; i++ {
+		latest, err := env.store.LoadRound("ui-rewrite", round.Number)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out, err := svc.EnsurePolledTurn(context.Background(), latest)
+		if err != nil {
+			t.Fatalf("poll %d: %v", i, err)
+		}
+		if out.Status != RoundStatusAgentThinking {
+			t.Fatalf("poll %d: expected agent_thinking, got %s", i, out.Status)
+		}
+		if out.PollFailureCount != i {
+			t.Fatalf("poll %d: PollFailureCount=%d, want %d", i, out.PollFailureCount, i)
+		}
+	}
+
+	// Third failure: synthesizes a terminal failure turn.
+	latest, err := env.store.LoadRound("ui-rewrite", round.Number)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := svc.EnsurePolledTurn(context.Background(), latest)
+	if err != nil {
+		t.Fatalf("poll 3: %v", err)
+	}
+	if out.Status != RoundStatusAwaitingUser {
+		t.Fatalf("expected awaiting_user after threshold reached, got %s", out.Status)
+	}
+	last := out.Thread[len(out.Thread)-1]
+	if last.Role != "agent" {
+		t.Fatalf("expected agent message at tail, got role=%q", last.Role)
+	}
+	if !strings.Contains(last.Content, "no longer reachable") {
+		t.Fatalf("expected unreachable summary, got %q", last.Content)
+	}
+}
+
+func TestEnsurePolledTurn_RecoveryClearsFailureCounter(t *testing.T) {
+	t.Parallel()
+	env := newServiceEnv(t)
+	poller := &fakePoller{
+		enabled: true,
+		err:     errors.New("transient"),
+	}
+	svc := withPoller(t, env, poller)
+
+	round, err := svc.StartRound(context.Background(), StartRoundRequest{
+		InitiativeName: "ui-rewrite",
+		Type:           RoundTypeFeedback,
+		Text:           "investigate",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// One failure, then recovery (poller starts returning a non-terminal
+	// status). Counter should reset.
+	if _, err := svc.EnsurePolledTurn(context.Background(), round); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := env.store.LoadRound("ui-rewrite", round.Number)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.PollFailureCount != 1 {
+		t.Fatalf("expected PollFailureCount=1 after first error, got %d", loaded.PollFailureCount)
+	}
+	// Poller recovers — non-terminal status this time.
+	poller.err = nil
+	poller.state = RunState{Status: "running"}
+	out, err := svc.EnsurePolledTurn(context.Background(), loaded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Status != RoundStatusAgentThinking {
+		t.Fatalf("expected agent_thinking after recovery, got %s", out.Status)
+	}
+	if out.PollFailureCount != 0 {
+		t.Fatalf("expected PollFailureCount=0 after recovery, got %d", out.PollFailureCount)
+	}
+	if out.LastPollError != "" {
+		t.Fatalf("expected LastPollError cleared after recovery, got %q", out.LastPollError)
+	}
+}
+
+func TestEnsurePolledTurn_NotFoundStatus_TreatedAsTerminalFailure(t *testing.T) {
+	t.Parallel()
+	env := newServiceEnv(t)
+	poller := &fakePoller{
+		enabled: true,
+		state: RunState{
+			Status:   "not_found",
+			ErrorMsg: "run gone",
+		},
+	}
+	svc := withPoller(t, env, poller)
+
+	round, err := svc.StartRound(context.Background(), StartRoundRequest{
+		InitiativeName: "ui-rewrite",
+		Type:           RoundTypeFeedback,
+		Text:           "investigate",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := svc.EnsurePolledTurn(context.Background(), round)
+	if err != nil {
+		t.Fatalf("EnsurePolledTurn: %v", err)
+	}
+	if out.Status != RoundStatusAwaitingUser {
+		t.Fatalf("expected awaiting_user, got %s", out.Status)
+	}
+	last := out.Thread[len(out.Thread)-1]
+	if !strings.Contains(last.Content, "agent run failed") {
+		t.Fatalf("expected failure summary, got %q", last.Content)
+	}
+}
+
 func TestEnsurePolledTurn_Idempotent_AfterTransition(t *testing.T) {
 	t.Parallel()
 	env := newServiceEnv(t)

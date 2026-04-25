@@ -18,12 +18,12 @@
   "kind": "execute",
   "name": "emulator-acceptance-tests-phase-1",
   "priority": 2,
-  "status": "backlog",
+  "status": "in_review",
   "tags": [
     "emulator",
     "tests",
     "phase-1"
   ],
   "title": "Phase 1 acceptance tests for vrooli-emulator",
-  "updated": "2026-04-18T15:19:53Z"
+  "updated": "2026-04-25T15:21:27Z"
 }

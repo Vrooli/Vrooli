@@ -33,6 +33,7 @@ const makeActions = (overrides?: Partial<ItemActions>): ItemActions => ({
   canFinalize: false,
   finalizeDisabled: false,
   canFollowUp: false,
+  canRetry: false,
   canArchive: false,
   showDecisionStepper: false,
   agentRunning: false,

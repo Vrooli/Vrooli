@@ -95,18 +95,31 @@ func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Retry creates a new execution attempt parented to a terminal execution.
+// The body is optional; if present it carries an informational note.
 func (h *Handler) Retry(w http.ResponseWriter, r *http.Request) {
 	executionID := strings.TrimSpace(mux.Vars(r)["execution_id"])
 	if executionID == "" {
 		apierr.MapError(w, "[execution] retry", apierr.BadRequest("execution_id is required"))
 		return
 	}
-	record, err := h.service.Retry(r.Context(), executionID)
+	var note string
+	if r.ContentLength > 0 {
+		var body struct {
+			Note string `json:"note,omitempty"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			apierr.MapError(w, "[execution] retry", apierr.BadRequest("invalid request body"))
+			return
+		}
+		note = body.Note
+	}
+	record, err := h.service.Retry(r.Context(), RetryRequest{ExecutionID: executionID, Note: note})
 	if err != nil {
 		apierr.MapError(w, "[execution] retry", err)
 		return
 	}
-	if err := httputil.ProtoJSON(w, executionResponse(record)); err != nil {
+	if err := httputil.ProtoJSONWithStatus(w, http.StatusAccepted, executionResponse(record)); err != nil {
 		apierr.MapError(w, "[execution] retry", apierr.Internal("failed to encode response"))
 	}
 }

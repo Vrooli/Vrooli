@@ -1,0 +1,35 @@
+=== Cached standards violations filtered to prompt-manager ===
+(scenario-auditor standards violations | grep prompt-manager)
+
+Critical violations in prompt-manager:
+0
+
+High violations in prompt-manager:
+25
+
+--- All prompt-manager high violations: ---
+  MAKEFILE_STRUCTURE [high] /home/matthalloran8/Vrooli/scenarios/prompt-manager/Makefile:0 - Makefile header is incomplete
+  MAKEFILE_STRUCTURE [high] /home/matthalloran8/Vrooli/scenarios/prompt-manager/Makefile:0 - Missing required targets in .PHONY (STRICT: required for consistency. Use no-op implementations if needed)
+  MAKEFILE_STRUCTURE [high] /home/matthalloran8/Vrooli/scenarios/prompt-manager/Makefile:0 - Required target 'clean' declared in .PHONY but not defined (STRICT: all .PHONY targets must have definitions)
+  MAKEFILE_STRUCTURE [high] /home/matthalloran8/Vrooli/scenarios/prompt-manager/Makefile:0 - Required target 'build' declared in .PHONY but not defined (STRICT: all .PHONY targets must have definitions)
+  MAKEFILE_STRUCTURE [high] /home/matthalloran8/Vrooli/scenarios/prompt-manager/Makefile:0 - Color GREEN must be defined exactly as '\033[1;32m'
+  MAKEFILE_STRUCTURE [high] /home/matthalloran8/Vrooli/scenarios/prompt-manager/Makefile:0 - Color YELLOW must be defined exactly as '\033[1;33m'
+  MAKEFILE_STRUCTURE [high] /home/matthalloran8/Vrooli/scenarios/prompt-manager/Makefile:0 - Color BLUE must be defined exactly as '\033[1;34m'
+  MAKEFILE_STRUCTURE [high] /home/matthalloran8/Vrooli/scenarios/prompt-manager/Makefile:0 - Color RED must be defined exactly as '\033[1;31m'
+  MAKEFILE_STRUCTURE [high] /home/matthalloran8/Vrooli/scenarios/prompt-manager/Makefile:0 - Color RESET must be defined exactly as '\033[0m'
+  MAKEFILE_STRUCTURE [high] /home/matthalloran8/Vrooli/scenarios/prompt-manager/Makefile:0 - help target must include text containing '@echo "$(BLUE)'
+  MAKEFILE_STRUCTURE [high] /home/matthalloran8/Vrooli/scenarios/prompt-manager/Makefile:0 - help target must include text containing 'Scenario Commands$(RESET)"'
+  MAKEFILE_STRUCTURE [high] /home/matthalloran8/Vrooli/scenarios/prompt-manager/Makefile:0 - help target must include text containing '@echo "$(YELLOW)Usage:$(RESET)"'
+  MAKEFILE_STRUCTURE [high] /home/matthalloran8/Vrooli/scenarios/prompt-manager/Makefile:0 - help target must include text containing '@echo "  make <command>"'
+  MAKEFILE_STRUCTURE [high] /home/matthalloran8/Vrooli/scenarios/prompt-manager/Makefile:0 - help target must include text containing '@echo "$(YELLOW)Commands:$(RESET)"'
+  MAKEFILE_STRUCTURE [high] /home/matthalloran8/Vrooli/scenarios/prompt-manager/Makefile:0 - help target must include text containing '@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST)'
+  MAKEFILE_STRUCTURE [high] /home/matthalloran8/Vrooli/scenarios/prompt-manager/Makefile:0 - help target must include text containing 'awk'
+  MAKEFILE_STRUCTURE [high] /home/matthalloran8/Vrooli/scenarios/prompt-manager/Makefile:0 - help target must include text containing '$(GREEN)'
+  MAKEFILE_STRUCTURE [high] /home/matthalloran8/Vrooli/scenarios/prompt-manager/Makefile:0 - help target must include text containing 'Never run ./api/'
+  MAKEFILE_STRUCTURE [high] /home/matthalloran8/Vrooli/scenarios/prompt-manager/Makefile:0 - help target must include text containing "Always use 'make start' or 'vrooli scenario start" (or 'make run' variant)
+  MAKEFILE_LIFECYCLE [high] /home/matthalloran8/Vrooli/scenarios/prompt-manager/Makefile:0 - start target must echo 'echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"'
+  MAKEFILE_LIFECYCLE [high] /home/matthalloran8/Vrooli/scenarios/prompt-manager/Makefile:0 - stop target must echo 'echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"'
+  MAKEFILE_LIFECYCLE [high] /home/matthalloran8/Vrooli/scenarios/prompt-manager/Makefile:0 - test target must echo 'echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"'
+  MAKEFILE_LIFECYCLE [high] /home/matthalloran8/Vrooli/scenarios/prompt-manager/Makefile:0 - logs target must echo 'echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"'
+  MAKEFILE_LIFECYCLE [high] /home/matthalloran8/Vrooli/scenarios/prompt-manager/Makefile:0 - logs target must execute 'vrooli scenario logs $(SCENARIO_NAME) --tail 50' (found 'vrooli scenario logs "$(SCENARIO_NAME)"')
+  MAKEFILE_LIFECYCLE [high] /home/matthalloran8/Vrooli/scenarios/prompt-manager/Makefile:0 - status target must echo 'echo "$(BLUE)📊 Status of $(SCENARIO_NAME):$(RESET)"'

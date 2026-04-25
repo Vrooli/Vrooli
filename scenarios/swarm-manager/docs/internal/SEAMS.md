@@ -368,6 +368,17 @@ All three auto-execution behaviors are controlled by global settings in `.vrooli
 
 **Testing at the seam**: Stub implementations of `runContinuer` and `agentSpawner` in test files enable testing both run modes, session expiry handling, and prompt construction without agent-manager.
 
+### Execution Retry-as-New-Attempt Boundary
+
+`api/internal/execution/retry.go` exposes `Retry(ctx, RetryRequest)` and `RetryLatestForBacklog(ctx, kind, name, note)` for user-initiated retries. The semantics are *new-attempt only* — the parent execution row is never mutated.
+
+- **Parent state gate**: `completed | failed | canceled | needs_fixup`. Other states return 400.
+- **Idempotency**: in-flight detection inside the locked critical section dedups concurrent retries (same `ParentExecutionID + Operation == "retry"` and a non-terminal status returns the existing record).
+- **Backlog-level convenience**: `ExecutionQueuer.RetryLatestForBacklog(ctx, kind, name, note)` resolves the latest terminal execution for an item and calls `Retry`. Used by `POST /api/v1/backlog/{kind}/{name}/retry`.
+- **Item reopen**: when the backlog item is in a terminal status, `backlog.Handler.reopenForRetry` flips it back to `in_progress`, writes a `review/decisions/{ts}-reopen.json` audit record, and emits `EmitBacklogStatusChanged`. This is the *only* legitimate writer of backward terminal transitions; see INVARIANTS.md "Terminal State Writers" table.
+
+**Testing at the seam**: `retry_test.go` in both `internal/execution` and `internal/backlog`. The `mockExecutionQueuer.RetryLatestForBacklog` allows handler tests to wire success/failure paths without a real execution service.
+
 ## Architectural Decisions
 
 ### ADR-001: File-Based Backlog

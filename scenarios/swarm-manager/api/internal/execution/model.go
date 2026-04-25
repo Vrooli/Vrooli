@@ -224,6 +224,20 @@ type FollowUpRequest struct {
 	RunMode      string `json:"run_mode"` // continue, new
 }
 
+// RetryRequest describes a user-initiated retry of a terminal execution.
+// Retry creates a *new* execution Record parented to ExecutionID, copying the
+// scope verbatim — no derived feedback, no follow-up note. The parent Record
+// is never mutated; its logs, finalization, and outcome remain intact for
+// audit and stats.
+//
+// Note flows through to the new run's prompt as optional retry context (e.g.,
+// "fixed agent-manager hesitation bug"). It is purely informational and does
+// not influence scope.
+type RetryRequest struct {
+	ExecutionID string `json:"execution_id"`
+	Note        string `json:"note,omitempty"`
+}
+
 // ListFilters defines list query filters.
 type ListFilters struct {
 	Status      string

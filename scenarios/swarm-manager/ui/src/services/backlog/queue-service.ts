@@ -19,6 +19,12 @@ import { API_ENDPOINTS } from "../../lib/api-endpoints";
 import type { BacklogKind, ResearchResponse } from "../../types";
 import type { QueueResponse } from "./types";
 
+export interface RetryBacklogResponse {
+  newExecutionId: string;
+  parentExecutionId: string;
+  status: string;
+}
+
 export function createQueueMethods(apiClient: IApiClient) {
   return {
     async queue(
@@ -59,6 +65,19 @@ export function createQueueMethods(apiClient: IApiClient) {
         })),
         pendingDecisions: parsed.unansweredQuestions ?? 0,
         pendingSuggestions: parsed.pendingSuggestions ?? 0,
+      };
+    },
+
+    async retry(kind: BacklogKind, name: string, note?: string): Promise<RetryBacklogResponse> {
+      const data = await apiClient.post<{
+        new_execution_id: string;
+        parent_execution_id: string;
+        status: string;
+      }>(API_ENDPOINTS.backlogRetry(kind, name), note ? { note } : {});
+      return {
+        newExecutionId: data.new_execution_id,
+        parentExecutionId: data.parent_execution_id,
+        status: data.status,
       };
     },
 

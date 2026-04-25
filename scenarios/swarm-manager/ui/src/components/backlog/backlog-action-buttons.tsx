@@ -13,6 +13,7 @@ import {
   MessageSquare,
   MessageSquareText,
   Play,
+  RefreshCw,
   RotateCcw,
   Sparkles,
   Trash2,
@@ -32,6 +33,7 @@ export interface BacklogActionButtonsProps {
   onRunWorkshop: () => void;
   onEdit: () => void;
   onFollowUp: () => void;
+  onRetry: () => void;
   onOpenAgentDialog: () => void;
   onArchive: () => void;
   onStatusChange: (newStatus: BacklogStatus) => void;
@@ -48,6 +50,7 @@ export function BacklogActionButtons({
   onRunWorkshop,
   onEdit,
   onFollowUp,
+  onRetry,
   onOpenAgentDialog,
   onArchive,
   onStatusChange,
@@ -126,7 +129,20 @@ export function BacklogActionButtons({
           <MessageSquare className="mr-2 h-4 w-4" />
           Follow Up
         </Button>
-      ) : !isTerminal ? (
+      ) : null}
+      {itemActions.canRetry ? (
+        <Button
+          variant="outline"
+          size="sm"
+          className={rowButtonClass}
+          onClick={onRetry}
+          title="Re-run with the same scope. Use Follow-Up if the work needs to change."
+        >
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Retry
+        </Button>
+      ) : null}
+      {!itemActions.canFollowUp && !itemActions.canRetry && !isTerminal ? (
         <Button variant="outline" size="sm" className={rowButtonClass} onClick={onOpenAgentDialog} disabled={isLocked}>
           <Sparkles className="mr-2 h-4 w-4" />
           {agentLabel}

@@ -9,8 +9,8 @@
   "kind": "fix",
   "name": "prompt-manager-decision-show-options-default-output",
   "priority": 4,
-  "status": "backlog",
+  "status": "in_review",
   "tags": [],
   "title": "decision-show default human output should display options block",
-  "updated": "2026-04-24T19:54:33Z"
+  "updated": "2026-04-25T14:37:21Z"
 }

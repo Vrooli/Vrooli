@@ -1,0 +1,41 @@
+{
+  "round": 4,
+  "generated_at": "2026-04-25T00:00:00Z",
+  "mode": "finalize",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 3,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Round-2 selected answers (all option A) re-applied to plan.md to close the gap between the round-3 finalize claims and the persisted plan: (d1) migration 003_pii_watchlist_allowlist.sql alongside schema.sql DDL; (d2) 2s per-file timeout with scan_skip findings (snippet 'skipped: too_large' | 'skipped: timeout', not persisted); (d3) UI placement as PIIWatchlistManager.tsx + AllowlistRulesManager.tsx via a tab switcher on SecurityTables; (d4) full context-aware filter set (Go imports, build tags, go.mod/go.sum, lockfiles, URLs in comments, version strings)."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Plan tightening in this finalize pass: added the Rollout/Validation Checklist section that the validator flagged as missing in validation-report.json (passed=false, sections_missing=['Rollout/Validation Checklist']); added UNIQUE constraint on scan_allowlist_rules.path_pattern to make the seed ON CONFLICT (path_pattern) DO NOTHING well-formed; added the Finding Shape subsection under Contract Decisions formally pinning normal vs scan_skip shapes and persistence semantics; added watchlist_available metric to the response contract; added the Acceptance-Allow Expansion Required callout in Current Technical Context plus a matching Risks row and first checklist item."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Known scope gap the executor must handle before running: the current acceptance_allow (scenarios/secrets-manager/api/**, scenarios/secrets-manager/ui/**) does not cover scenarios/secrets-manager/initialization/storage/postgres/** where the migration file lives. The plan's Rollout/Validation Checklist puts widening acceptance_allow as the first step. Without that change, the 'no changes outside acceptance_allow' verification will fail."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "Initiative alignment (gct-pre-commit-security): this item is the foundation for downstream execute items (gct-security-review-tab, gct-commit-level-gating, gct-commit-level-agent), all of which depend on the scan-files endpoint contract defined here. The finding shape (including scan_skip markers and watchlist_available) is the integration contract those items will consume — preserve it across post-plan tweaks."
+    },
+    {
+      "id": "i5",
+      "type": "info",
+      "text": "Readiness is at 3/3 across all five dimensions. No remaining decisions, no unfilled placeholders. The plan can proceed to execution once acceptance_allow is widened (first item on the Rollout/Validation Checklist). Re-running validation against the updated plan should now return passed=true since Rollout/Validation Checklist is now present."
+    }
+  ],
+  "plan_updates": "Re-synthesized plan.md so it actually reflects the round-3 finalize claims (which had not been fully written into the persisted plan): (1) pinned 2s per-file timeout in Scope and Phase 5 step 1; (2) added explicit oversized-file handling (Phase 5 step 2) and per-file timeout handling (Phase 5 step 3) emitting scan_skip findings; (3) added Finding Shape subsection under Contract Decisions defining normal vs scan_skip shapes and their persistence semantics, plus watchlist_available in response metrics; (4) added UNIQUE constraint on scan_allowlist_rules.path_pattern in Phase 1 so seed ON CONFLICT (path_pattern) DO NOTHING is valid; (5) added Acceptance-Allow Expansion Required callout in Current Technical Context, a Risks row, and a first checklist item; (6) added the Rollout/Validation Checklist section that the validator flagged as missing, replacing manual sanity steps with automated test items; (7) pinned UI placement to PIIWatchlistManager.tsx + AllowlistRulesManager.tsx via tab switcher on SecurityTables; (8) pinned migration delivery to 003_pii_watchlist_allowlist.sql mirrored in schema.sql; (9) pinned the full context-aware filter set as a first-class step in Phase 2."
+}

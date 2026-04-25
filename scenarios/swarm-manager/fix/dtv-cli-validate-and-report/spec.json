@@ -13,12 +13,12 @@
   "kind": "fix",
   "name": "dtv-cli-validate-and-report",
   "priority": 2,
-  "status": "backlog",
+  "status": "in_review",
   "tags": [
     "cli",
     "commands",
     "meta-optimization"
   ],
   "title": "CLI Commands: validate, report, expectation",
-  "updated": "2026-04-23T03:46:53Z"
+  "updated": "2026-04-25T22:50:44Z"
 }

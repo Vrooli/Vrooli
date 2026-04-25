@@ -1,0 +1,9 @@
+=== CLI binary state ===
+-rwxrwxr-x 1 matthalloran8 matthalloran8 8891595 Apr  7 21:39 /home/matthalloran8/Vrooli/scenarios/prompt-manager/cli/prompt-manager
+
+ls: cannot access '/home/matthalloran8/Vrooli/scenarios/prompt-manager/cli/pm': No such file or directory
+
+=== install.sh delegates as prompt-manager ===
+7:"${REPO_ROOT}/packages/cli-core/install.sh" "scenarios/prompt-manager/cli" --name "prompt-manager" --manifest "scenarios/prompt-manager/.vrooli/service.json"
+
+=== grep for stale 'pm' references in scenario ===

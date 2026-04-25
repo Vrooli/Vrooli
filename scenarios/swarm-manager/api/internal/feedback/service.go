@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -590,16 +591,43 @@ func (s *Service) EnsurePolledTurn(ctx context.Context, round Round) (Round, err
 	if s.poller == nil || !s.poller.IsEnabled() || strings.TrimSpace(round.RunID) == "" {
 		return round, nil
 	}
+	now := s.clock().UTC().Format(time.RFC3339)
 	state, err := s.poller.GetRunState(ctx, round.RunID)
 	if err != nil {
-		// Polling failures aren't fatal — the round stays in
-		// agent_thinking and the next poll will retry. Log so operators
-		// can spot wedged runs.
+		// Polling failures used to be silently logged-and-forgotten,
+		// which is exactly how rounds wedged in agent_thinking forever
+		// when the agent-manager run died. Now: record the error on the
+		// round, increment the failure counter, and synthesize a
+		// terminal failure once we've seen enough consecutive failures
+		// that the run is clearly gone.
 		slog.Warn("feedback: poll run state failed",
 			"err", err, "initiative", round.InitiativeName, "round", round.Number, "run_id", round.RunID)
+		round.LastPolledAt = now
+		round.LastPollError = err.Error()
+		round.PollFailureCount++
+		if saveErr := s.store.SaveRound(round); saveErr != nil {
+			slog.Warn("feedback: persist poll failure failed",
+				"err", saveErr, "initiative", round.InitiativeName, "round", round.Number)
+		}
+		if round.PollFailureCount >= s.pollFailureThreshold() {
+			body := fmt.Sprintf("agent run failed: run no longer reachable after %d consecutive poll attempts (last error: %s)",
+				round.PollFailureCount, err.Error())
+			return s.RecordAgentTurn(round.InitiativeName, round.Number, body)
+		}
 		return round, nil
 	}
+	round.LastPolledAt = now
 	if !isTerminalRunStatus(state.Status) {
+		// Non-terminal poll: clear any prior error so a transient hiccup
+		// followed by a recovered run doesn't trip the failure threshold.
+		if round.LastPollError != "" || round.PollFailureCount != 0 {
+			round.LastPollError = ""
+			round.PollFailureCount = 0
+			if saveErr := s.store.SaveRound(round); saveErr != nil {
+				slog.Warn("feedback: persist poll recovery failed",
+					"err", saveErr, "initiative", round.InitiativeName, "round", round.Number)
+			}
+		}
 		return round, nil
 	}
 
@@ -617,11 +645,32 @@ func (s *Service) EnsurePolledTurn(ctx context.Context, round Round) (Round, err
 	return s.RecordAgentTurn(round.InitiativeName, round.Number, body)
 }
 
+// pollFailureThreshold reports how many consecutive poll failures must be
+// observed before EnsurePolledTurn synthesizes a terminal failure turn.
+// Reads SWARM_MANAGER_FEEDBACK_POLL_FAILURE_THRESHOLD from the env at call
+// time so operators can tune it without restarting; defaults to 3.
+func (s *Service) pollFailureThreshold() int {
+	const defaultThreshold = 3
+	raw := strings.TrimSpace(os.Getenv("SWARM_MANAGER_FEEDBACK_POLL_FAILURE_THRESHOLD"))
+	if raw == "" {
+		return defaultThreshold
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil || n < 1 {
+		return defaultThreshold
+	}
+	return n
+}
+
 // isTerminalRunStatus matches the clarification_service.isTerminalStatus
 // list. Kept private to feedback so the package doesn't import backlog.
+// "not_found" / "missing" are treated as terminal — if agent-manager
+// reports the run as gone, there is nothing left to wait for.
 func isTerminalRunStatus(status string) bool {
 	switch strings.ToLower(strings.TrimSpace(status)) {
-	case "complete", "completed", "success", "failed", "error", "cancelled", "canceled":
+	case "complete", "completed", "success",
+		"failed", "error", "cancelled", "canceled",
+		"not_found", "missing":
 		return true
 	}
 	return false
@@ -629,7 +678,7 @@ func isTerminalRunStatus(status string) bool {
 
 func isFailureRunStatus(status string) bool {
 	switch strings.ToLower(strings.TrimSpace(status)) {
-	case "failed", "error", "cancelled", "canceled":
+	case "failed", "error", "cancelled", "canceled", "not_found", "missing":
 		return true
 	}
 	return false
@@ -687,10 +736,115 @@ func (s *Service) RecordAgentTurn(initiativeName string, roundNumber int, body s
 	}
 	round.Status = RoundStatusAwaitingUser
 	round.UpdatedAt = now
+	// Terminal advance — clear poll-failure tracking so a subsequent
+	// continue/revise round starts with a clean counter.
+	round.LastPollError = ""
+	round.PollFailureCount = 0
 	if err := s.store.SaveRound(round); err != nil {
 		return Round{}, err
 	}
 	_ = s.lock.Release(initiativeName, round.RunID)
+	return round, nil
+}
+
+// ErrRoundAlreadyTerminal is returned by Cancel when the round has already
+// reached a terminal status (applied/rejected/dismissed). The HTTP layer
+// maps this to 409 Conflict.
+var ErrRoundAlreadyTerminal = errors.New("round is already terminal")
+
+// ErrRoundNotTerminal is returned by Delete when the round is still in flight
+// (submitting / agent_thinking / awaiting_user). Callers must Cancel first;
+// deleting a live round would orphan the agent-manager run and leave the
+// initiative lock pointing at a vanished round.
+var ErrRoundNotTerminal = errors.New("round must be terminal before deletion")
+
+// Delete permanently removes a feedback round from disk. Only allowed on
+// terminal rounds (applied/rejected/dismissed) so we never orphan an
+// in-flight agent-manager run or wedge the initiative lock. The disk row
+// is the source of truth — once the dir is gone, the round is gone.
+func (s *Service) Delete(initiativeName string, roundNumber int) error {
+	round, err := s.store.LoadRound(initiativeName, roundNumber)
+	if err != nil {
+		return err
+	}
+	if !round.Status.IsTerminal() {
+		return ErrRoundNotTerminal
+	}
+	return s.store.DeleteRound(initiativeName, roundNumber)
+}
+
+// CancelRequest is the user-supplied input for cancelling an in-flight
+// feedback round. Both fields are optional — Cancel is the "I want this
+// stuck spinner gone" escape hatch and shouldn't fail on missing context.
+type CancelRequest struct {
+	InitiativeName string
+	RoundNumber    int
+	Rationale      string
+	DecidedBy      string
+}
+
+// Cancel forces a round out of agent_thinking, stops the agent-manager run
+// (best-effort), releases the lock, and lands the round in dismissed. It
+// is the user-facing escape hatch when the agent has crashed or the user
+// no longer wants to wait. Idempotent on terminal rounds: returns
+// ErrRoundAlreadyTerminal so the caller can decide whether that's an error.
+//
+// Cancel is intentionally permissive about failures. A dead agent-manager
+// run, a missing lock file, an empty RunID — none of those should block a
+// user from escaping a stuck UI. We log and continue.
+func (s *Service) Cancel(ctx context.Context, req CancelRequest) (Round, error) {
+	round, err := s.store.LoadRound(req.InitiativeName, req.RoundNumber)
+	if err != nil {
+		return Round{}, err
+	}
+	if round.Status.IsTerminal() {
+		return round, ErrRoundAlreadyTerminal
+	}
+
+	// Best-effort: stop the agent-manager run. Failures here are logged
+	// but don't block local cancellation — the user already wants out.
+	if s.canceller != nil && strings.TrimSpace(round.RunID) != "" {
+		if stopErr := s.canceller.StopRun(ctx, round.RunID); stopErr != nil {
+			slog.Warn("feedback: cancel: stop run failed",
+				"err", stopErr,
+				"initiative", req.InitiativeName,
+				"round", req.RoundNumber,
+				"run_id", round.RunID)
+		}
+	}
+
+	now := s.clock().UTC().Format(time.RFC3339)
+	rationale := strings.TrimSpace(req.Rationale)
+	if rationale == "" {
+		rationale = "cancelled by user"
+	}
+	round.Thread = append(round.Thread, Message{
+		Role:      "agent",
+		Content:   "agent run cancelled: " + rationale,
+		RunID:     round.RunID,
+		CreatedAt: now,
+	})
+	previousRunID := round.RunID
+	round.Status = RoundStatusDismissed
+	round.Decision = &Decision{
+		Kind:      DecisionDismiss,
+		Rationale: rationale,
+		DecidedAt: now,
+		DecidedBy: req.DecidedBy,
+	}
+	round.RunID = ""
+	round.NeedsRevision = false
+	round.LastParseWarnings = nil
+	round.LastPollError = ""
+	round.PollFailureCount = 0
+	round.UpdatedAt = now
+	if err := s.store.SaveRound(round); err != nil {
+		return Round{}, fmt.Errorf("save round: %w", err)
+	}
+	// Release the lock keyed on the previous RunID — Release is idempotent
+	// when the lock holder doesn't match, so a parallel preempt or sweeper
+	// taking the lock first won't fail us.
+	_ = s.lock.Release(req.InitiativeName, previousRunID)
 	return round, nil
 }
 
@@ -717,6 +871,20 @@ func (s *Service) Decide(ctx context.Context, req DecideRequest) (Round, *propos
 	round, err := s.store.LoadRound(req.InitiativeName, req.RoundNumber)
 	if err != nil {
 		return Round{}, nil, err
+	}
+	// Dismiss-while-active: if the user calls Decide(kind=dismiss) on an
+	// agent_thinking round (e.g. via the legacy UI Dismiss path), route
+	// through Cancel so the agent run is stopped and the lock released.
+	// Other decisions still require awaiting_user — accepting/rejecting a
+	// proposal that doesn't exist yet would be nonsensical.
+	if round.Status == RoundStatusAgentThinking && req.Kind == DecisionDismiss {
+		cancelled, cErr := s.Cancel(ctx, CancelRequest{
+			InitiativeName: req.InitiativeName,
+			RoundNumber:    req.RoundNumber,
+			Rationale:      req.Rationale,
+			DecidedBy:      req.DecidedBy,
+		})
+		return cancelled, nil, cErr
 	}
 	if round.Status != RoundStatusAwaitingUser {
 		return Round{}, nil, fmt.Errorf("round is in status %q; decide requires %q", round.Status, RoundStatusAwaitingUser)

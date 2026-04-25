@@ -108,6 +108,51 @@ func (s *Server) registerFeedbackRoutes(materializer *graph.Materializer) {
 
 	handler := feedback.NewHandler(svc)
 	handler.RegisterRoutes(s.router)
+
+	// Stuck-round safety net: synchronous boot-time sweep clears any
+	// rounds left in agent_thinking from a prior process (e.g. server
+	// crashed while a feedback agent was running). The ticker goroutine
+	// then keeps the invariant going for the lifetime of the process.
+	sweeper := feedback.NewSweeper(svc, &initiativeNameLister{store: s.initStore})
+	if dismissed, err := sweeper.RunOnce(context.Background()); err != nil {
+		slog.Warn("feedback: boot-time stuck-round sweep failed", "err", err)
+	} else if dismissed > 0 {
+		slog.Info("feedback: boot-time stuck-round sweep dismissed rounds", "count", dismissed)
+	}
+	go func() {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go func() {
+			<-s.feedbackSweeperStop
+			cancel()
+		}()
+		sweeper.Start(ctx)
+	}()
+}
+
+// initiativeNameLister adapts initiatives.Store to feedback.InitiativeLister
+// so the sweeper can enumerate initiatives without coupling the feedback
+// package to the initiatives package.
+type initiativeNameLister struct {
+	store *initiatives.Store
+}
+
+func (l *initiativeNameLister) ListNames() ([]string, error) {
+	if l == nil || l.store == nil {
+		return nil, nil
+	}
+	all, err := l.store.LoadAll()
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(all))
+	for _, i := range all {
+		if strings.TrimSpace(i.Name) == "" {
+			continue
+		}
+		names = append(names, i.Name)
+	}
+	return names, nil
 }
 
 // --- Adapters ----------------------------------------------------------

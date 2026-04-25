@@ -1,0 +1,41 @@
+{
+  "round": 3,
+  "generated_at": "2026-04-25T00:00:00Z",
+  "mode": "finalize",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 3,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Round 2 decisions (d1=A, d2=A, d3=A, d4=A) were incorporated into conclusion.md. Methodology is now fully locked in two layers: round-1 covers what to test (historical prompts, medium quality default, minimal OpenRouter spot-check, single Vrooli screenshot anchor); round-2 covers how to execute (verify-then-smoke-test the API surface, self-scored ≥60% pass bar against the would-change-the-answer gate, local-filesystem PNG persistence under archive/generated/ with index.json, hard $5 spend cap)."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Findings 4, 6, 7, 9 in conclusion.md were tightened to reference the round-2 mitigations rather than describing them as open questions. Finding 8 was added to flag that the Vrooli reference screenshot is not present in the agent-manager working tree and must be sourced at execution time."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Actions section is now populated and aligned with initiative context. Action 1 is the empirical execution of the locked protocol (the deliverable). Actions 2 and 3 are conditional Update backlog item entries on existing siblings (execute/openai-api-key-plumbing and execute/ui-mockup-generation-skill) rather than new Create actions. Action 4 is an Update initiative entry that closes the foundation-level image-storage open question. Action 5 explicitly justifies why no new sibling items are warranted: the initiative's 4-member topology already covers the work, and the empirical run fits inside Action 1."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "Readiness raised to 3 across all five dimensions. Problem clarity: research question and sub-questions are explicit. Scope: text-to-mockup-only boundary vs grounding-propagation is reaffirmed; acceptance is the conclusion deliverable plus the conditional sibling updates. Approach: protocol is fully specified, sequenced, and bounded ($5 cap, verify-before-call). Testable: each test prompt has a deterministic scoring procedure (pre-pick → render → post-pick → changed?) with an explicit ≥60% pass bar. Risk awareness: API-surface drift, single-rater scoring, OpenRouter sample-size, missing reference asset, and spend overruns are all called out with concrete mitigations."
+    },
+    {
+      "id": "i5",
+      "type": "info",
+      "text": "Remaining gap (intentional, not a workshop blocker): live empirical numbers — actual per-image cost, OpenRouter comparison, scoring tally, prompt-template sketch derived from real outputs, and the final go/no-go call — do not yet exist in the conclusion. They are produced by Action 1's execution run, not by another workshop round. Conclusion's Summary and Limitations both surface this honestly so a downstream reader does not mistake protocol-locked for empirically-validated."
+    }
+  ],
+  "plan_updates": "Incorporated round-2 d1-d4 (all =A) into conclusion.md. Methodology section now has explicit Round 1 (what to test) and Round 2 (how to execute) sub-blocks. Finding 4 reframed around the verify-before-call mitigation. Finding 6 reframed around the self-scoring pass bar. Finding 7 reframed as a deliberate prototype contribution back to foundation. Added Finding 8 (reference screenshot missing in working tree) and Finding 9 (spend cap). Limitations extended with the self-rater caveat, the not-yet-empirical caveat, and the missing-reference-asset caveat. Actions section fully populated with one execution action, two conditional Update-sibling actions, one Update-initiative action closing the storage question, and an explicit no-new-items justification grounded in the initiative's existing 4-member topology."
+}

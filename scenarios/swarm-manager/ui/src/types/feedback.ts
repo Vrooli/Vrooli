@@ -208,6 +208,15 @@ export interface FeedbackRound {
   /** Parser complaints from the most recent agent turn — surfaced alongside
    *  `needs_revision` so the user sees *why* the proposal didn't parse. */
   last_parse_warnings?: string[];
+  /** Wall-clock timestamp of the most recent agent run poll. Lets the UI
+   *  show "checked X seconds ago" while a round is in agent_thinking. */
+  last_polled_at?: string;
+  /** Most recent poller error message. When non-empty, the UI renders an
+   *  "agent unreachable" notice on the active-round card so users aren't
+   *  staring at a perpetual spinner. */
+  last_poll_error?: string;
+  /** Consecutive poll-failure count. Surfaced for diagnostic display. */
+  poll_failure_count?: number;
   created_at: string;
   updated_at: string;
 }

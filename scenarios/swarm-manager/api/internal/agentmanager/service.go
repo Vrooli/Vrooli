@@ -302,14 +302,9 @@ func (s *AgentService) SpawnBacklog(ctx context.Context, req BacklogSpawnRequest
 		title = buildBacklogTitle(req.Kind, req.Name, req.Purpose)
 	}
 
-	scopePath := strings.TrimSpace(req.ScopePath)
-	if scopePath == "" {
-		scopePath = "."
-	}
-
-	projectRoot := strings.TrimSpace(req.ProjectRoot)
-	if projectRoot == "" {
-		projectRoot = "."
+	scopePath, projectRoot, err := resolveScopeAndRoot(req.ScopePath, req.ProjectRoot, req.AcceptanceAllow)
+	if err != nil {
+		return RunResult{}, err
 	}
 
 	createdBy := strings.TrimSpace(req.CreatedBy)
@@ -390,14 +385,9 @@ func (s *AgentService) SpawnInitiative(ctx context.Context, req InitiativeSpawnR
 		title = buildInitiativeTitle(req.Name, req.Purpose, req.RoundNumber)
 	}
 
-	scopePath := strings.TrimSpace(req.ScopePath)
-	if scopePath == "" {
-		scopePath = "."
-	}
-
-	projectRoot := strings.TrimSpace(req.ProjectRoot)
-	if projectRoot == "" {
-		projectRoot = "."
+	scopePath, projectRoot, err := resolveScopeAndRoot(req.ScopePath, req.ProjectRoot, req.AcceptanceAllow)
+	if err != nil {
+		return RunResult{}, err
 	}
 
 	createdBy := strings.TrimSpace(req.CreatedBy)

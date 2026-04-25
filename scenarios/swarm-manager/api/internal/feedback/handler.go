@@ -54,9 +54,11 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc(base, h.Start).Methods("POST")
 	r.HandleFunc(base, h.List).Methods("GET")
 	r.HandleFunc(base+"/{round:[0-9]+}", h.Get).Methods("GET")
+	r.HandleFunc(base+"/{round:[0-9]+}", h.Delete).Methods("DELETE")
 	r.HandleFunc(base+"/{round:[0-9]+}/continue", h.Continue).Methods("POST")
 	r.HandleFunc(base+"/{round:[0-9]+}/decide", h.Decide).Methods("POST")
 	r.HandleFunc(base+"/{round:[0-9]+}/dismiss", h.Dismiss).Methods("POST")
+	r.HandleFunc(base+"/{round:[0-9]+}/cancel", h.Cancel).Methods("POST")
 	r.HandleFunc(base+"/{round:[0-9]+}/agent-turn", h.AgentTurn).Methods("POST")
 	r.HandleFunc(base+"/{round:[0-9]+}/attachments/{id}", h.GetAttachment).Methods("GET")
 	r.HandleFunc(base+"/lock", h.LockStatus).Methods("GET")
@@ -178,6 +180,18 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		apierr.MapError(w, "[feedback] list", apierr.Internal("%s", err.Error()))
 		return
+	}
+	// Pull-pattern advance: poll any rounds the UI thinks are still running
+	// so the list view reflects actual agent-manager state. Without this,
+	// completed agent runs sit at "agent_thinking" until the user clicks
+	// into the round (which is what triggers Get's polling).
+	for i, round := range rounds {
+		if round.Status != RoundStatusAgentThinking {
+			continue
+		}
+		if advanced, advErr := h.svc.EnsurePolledTurn(r.Context(), round); advErr == nil {
+			rounds[i] = advanced
+		}
 	}
 	if err := httputil.JSON(w, map[string]any{"rounds": rounds, "count": len(rounds)}); err != nil {
 		apierr.MapError(w, "[feedback] list", apierr.Internal("encode response"))
@@ -355,6 +369,77 @@ func (h *Handler) Dismiss(w http.ResponseWriter, r *http.Request) {
 	if err := httputil.JSON(w, round); err != nil {
 		apierr.MapError(w, "[feedback] dismiss", apierr.Internal("encode response"))
 	}
+}
+
+// Cancel forces a stuck `agent_thinking` round into a terminal dismissed
+// state. Stops the agent-manager run (best-effort), releases the lock,
+// and records a dismiss decision. This is the user-facing escape hatch
+// when the agent has crashed or the user no longer wants to wait.
+//
+// Returns 409 if the round is already terminal, 404 if missing.
+func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
+	name, roundNum, ok := h.parseNameAndRound(w, r, "cancel")
+	if !ok {
+		return
+	}
+	var body struct {
+		Rationale string `json:"rationale,omitempty"`
+		DecidedBy string `json:"decided_by,omitempty"`
+	}
+	if r.ContentLength > 0 {
+		if err := httputil.DecodeJSONStrictBounded(r, &body, maxUserFeedbackBodyBytes); err != nil {
+			apierr.MapError(w, "[feedback] cancel", apierr.BadRequest("%s", err.Error()))
+			return
+		}
+	}
+	round, err := h.svc.Cancel(r.Context(), CancelRequest{
+		InitiativeName: name,
+		RoundNumber:    roundNum,
+		Rationale:      body.Rationale,
+		DecidedBy:      body.DecidedBy,
+	})
+	if err != nil {
+		if errors.Is(err, ErrRoundNotFound) {
+			apierr.MapError(w, "[feedback] cancel", apierr.NotFound("feedback round not found"))
+			return
+		}
+		if errors.Is(err, ErrRoundAlreadyTerminal) {
+			_ = httputil.JSONWithStatus(w, http.StatusConflict, map[string]any{
+				"error":  "round is already terminal",
+				"status": string(round.Status),
+			})
+			return
+		}
+		apierr.MapError(w, "[feedback] cancel", apierr.Internal("%s", err.Error()))
+		return
+	}
+	if err := httputil.JSON(w, round); err != nil {
+		apierr.MapError(w, "[feedback] cancel", apierr.Internal("encode response"))
+	}
+}
+
+// Delete permanently removes a terminal feedback round. Returns 409 if the
+// round is still in flight (the user must Cancel first); 404 if missing.
+func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
+	name, roundNum, ok := h.parseNameAndRound(w, r, "delete")
+	if !ok {
+		return
+	}
+	if err := h.svc.Delete(name, roundNum); err != nil {
+		if errors.Is(err, ErrRoundNotFound) {
+			apierr.MapError(w, "[feedback] delete", apierr.NotFound("feedback round not found"))
+			return
+		}
+		if errors.Is(err, ErrRoundNotTerminal) {
+			_ = httputil.JSONWithStatus(w, http.StatusConflict, map[string]any{
+				"error": err.Error(),
+			})
+			return
+		}
+		apierr.MapError(w, "[feedback] delete", apierr.Internal("%s", err.Error()))
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // AgentTurn is the inbound hook invoked when the feedback agent produces

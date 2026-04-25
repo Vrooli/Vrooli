@@ -2,13 +2,13 @@
   "round": 1,
   "generated_at": "2026-04-25T13:20:00Z",
   "mode": "workshop",
-  "pending_synthesis": false,
+  "pending_synthesis": true,
   "readiness": {
-    "problem_clarity": 3,
-    "scope_defined": 2,
     "approach_solid": 2,
-    "testable": 2,
-    "risk_awareness": 2
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 2,
+    "testable": 2
   },
   "items": [
     {
@@ -17,14 +17,29 @@
       "topic": "Where does initiative metadata live on the decision?",
       "context": "Today, accepting an initiative-proposal decision requires the operator to re-author the initiative payload by hand, which loses fidelity. The fix is to capture structured metadata (name, priority, depends_on, target_scenario, optional title) at decision-add time so accept can derive the create payload directly. The question is whether this metadata is a first-class structured field on the decision record or inferred at accept time from option labels / topic / notes.",
       "options": [
-        {"key": "A", "label": "Structured `initiative_metadata` field on the decision record", "rationale": "First-class field added to the decision proto + storage, populated via decision-add/decision-update, immutable after first accept (mirrors F15 modifications). Maximum fidelity; explicit; queryable; mirrors the just-shipped pattern. Recommended because it solves the exact pain point (hand-transcription) instead of papering over it.", "recommended": true},
-        {"key": "B", "label": "Inferred from selected option + decision topic at accept time", "rationale": "No new field; auto-create derives initiative name from the selected option's label, title from the decision's topic. Lower implementation cost but doesn't address the description's core complaint that accept-time inference loses fidelity vs. what the team explicitly agreed to (priority, depends_on cannot be inferred)."},
-        {"key": "C", "label": "Convention encoded in `notes` prose (e.g. YAML front-matter)", "rationale": "Reuse the existing notes field with a parsing convention. Cheapest but produces an unstructured contract; previous walks have already shown that prose-in-notes is the anti-pattern this entire initiative exists to retire."},
-        {"key": "D", "label": "Other", "rationale": "Provide your own approach"}
+        {
+          "key": "A",
+          "label": "Structured `initiative_metadata` field on the decision record",
+          "rationale": "First-class field added to the decision proto + storage, populated via decision-add/decision-update, immutable after first accept (mirrors F15 modifications). Maximum fidelity; explicit; queryable; mirrors the just-shipped pattern. Recommended because it solves the exact pain point (hand-transcription) instead of papering over it.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Inferred from selected option + decision topic at accept time",
+          "rationale": "No new field; auto-create derives initiative name from the selected option's label, title from the decision's topic. Lower implementation cost but doesn't address the description's core complaint that accept-time inference loses fidelity vs. what the team explicitly agreed to (priority, depends_on cannot be inferred)."
+        },
+        {
+          "key": "C",
+          "label": "Convention encoded in `notes` prose (e.g. YAML front-matter)",
+          "rationale": "Reuse the existing notes field with a parsing convention. Cheapest but produces an unstructured contract; previous walks have already shown that prose-in-notes is the anti-pattern this entire initiative exists to retire."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d2",
@@ -32,15 +47,35 @@
       "topic": "Trigger model on decision-accept",
       "context": "Once the metadata is captured, decide how the accept path actually fires the downstream initiative-create. Options range from automatic (zero ceremony, matches the operator's stated goal of 'one CLI call') to opt-in (safer but reintroduces friction).",
       "options": [
-        {"key": "A", "label": "Always-on when context=initiative-proposal AND metadata is present", "rationale": "Zero extra ceremony at accept time — exactly matches the description's goal ('the most common decision outcome'). Predictable: if the metadata block is on the decision, accept creates. Failure handled by d4. Recommended because the data model itself (presence of metadata) is the operator's signal of intent — captured deliberately at decision-add.", "recommended": true},
-        {"key": "B", "label": "Opt-in `--auto-create-initiative` flag on decision-accept", "rationale": "Operator must pass the flag (or click a checkbox) at accept time. Safer if there's any ambiguity about intent, but reintroduces the second-action friction the item is trying to remove."},
-        {"key": "C", "label": "Interactive prompt asking 'create initiative now? [Y/n]'", "rationale": "Human-friendly but unworkable in non-interactive contexts (CI, scripted operator workflows, API). Would require both modes anyway."},
-        {"key": "D", "label": "Always-on, with `--no-auto-create-initiative` escape hatch", "rationale": "Hybrid: default to always-on (per A) but allow operators to skip in unusual cases. Adds surface area; consider only if d5 surfaces a strong reason to allow accept-without-create."},
-        {"key": "E", "label": "Other", "rationale": "Provide your own approach"}
+        {
+          "key": "A",
+          "label": "Always-on when context=initiative-proposal AND metadata is present",
+          "rationale": "Zero extra ceremony at accept time — exactly matches the description's goal ('the most common decision outcome'). Predictable: if the metadata block is on the decision, accept creates. Failure handled by d4. Recommended because the data model itself (presence of metadata) is the operator's signal of intent — captured deliberately at decision-add.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Opt-in `--auto-create-initiative` flag on decision-accept",
+          "rationale": "Operator must pass the flag (or click a checkbox) at accept time. Safer if there's any ambiguity about intent, but reintroduces the second-action friction the item is trying to remove."
+        },
+        {
+          "key": "C",
+          "label": "Interactive prompt asking 'create initiative now? [Y/n]'",
+          "rationale": "Human-friendly but unworkable in non-interactive contexts (CI, scripted operator workflows, API). Would require both modes anyway."
+        },
+        {
+          "key": "D",
+          "label": "Always-on, with `--no-auto-create-initiative` escape hatch",
+          "rationale": "Hybrid: default to always-on (per A) but allow operators to skip in unusual cases. Adds surface area; consider only if d5 surfaces a strong reason to allow accept-without-create."
+        },
+        {
+          "key": "E",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A",
+      "notes": "Make sure the cli output makes it clear that an initiative was auto-created, and gives command/location/etc. to find it. Also make sure it reminds you to add any more details/depends_on/etc. to the initiative as needed to ensure it’s well-constructed "
     },
     {
       "id": "d3",
@@ -48,14 +83,30 @@
       "topic": "Cross-scenario seam between prompt-manager and swarm-manager",
       "context": "Decision records live in prompt-manager; initiatives live in swarm-manager. Auto-create requires the prompt-manager accept path to invoke swarm-manager's initiatives-create. There is no existing direct call between these scenarios. This is the boundary-of-responsibility decision and it shapes coupling, testability, and failure handling.",
       "options": [
-        {"key": "A", "label": "prompt-manager API calls swarm-manager initiatives API directly via internal Go client", "rationale": "Single API call from the operator's perspective. Coupling lives in one place (a typed client in prompt-manager that targets swarm-manager). Aligns with how scenarios already share Go modules. Recommended because failure paths and retries are easier to reason about in one process boundary; testable with a stubbed client.", "recommended": true},
-        {"key": "B", "label": "CLI orchestrates two API calls back-to-back", "rationale": "prompt-manager API just persists the metadata; the CLI's decision-accept command calls prompt-manager-API then swarm-manager-API. Loose coupling, but breaks the API-equivalence promise (the API alone cannot fulfill the operator's intent), and the UI would have to replicate the orchestration."},
-        {"key": "C", "label": "Event/queue-based: prompt-manager emits an 'initiative-proposal-accepted' event consumed by swarm-manager", "rationale": "Truly decoupled; would scale to multiple downstream consumers. But the project has no existing event bus and adding one purely for this is over-engineering. Failure visibility is also worse."},
-        {"key": "D", "label": "Other", "rationale": "Provide your own approach"}
+        {
+          "key": "A",
+          "label": "prompt-manager API calls swarm-manager initiatives API directly via internal Go client",
+          "rationale": "Single API call from the operator's perspective. Coupling lives in one place (a typed client in prompt-manager that targets swarm-manager). Aligns with how scenarios already share Go modules. Recommended because failure paths and retries are easier to reason about in one process boundary; testable with a stubbed client.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "CLI orchestrates two API calls back-to-back",
+          "rationale": "prompt-manager API just persists the metadata; the CLI's decision-accept command calls prompt-manager-API then swarm-manager-API. Loose coupling, but breaks the API-equivalence promise (the API alone cannot fulfill the operator's intent), and the UI would have to replicate the orchestration."
+        },
+        {
+          "key": "C",
+          "label": "Event/queue-based: prompt-manager emits an 'initiative-proposal-accepted' event consumed by swarm-manager",
+          "rationale": "Truly decoupled; would scale to multiple downstream consumers. But the project has no existing event bus and adding one purely for this is over-engineering. Failure visibility is also worse."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "__other__",
+      "freeform": "Api to api via api-core/discovery package"
     },
     {
       "id": "d4",
@@ -63,14 +114,29 @@
       "topic": "Failure semantics when initiative-create fails after decision-accept",
       "context": "If the operator's decision-accept succeeds in prompt-manager but the downstream swarm-manager initiative-create fails (duplicate name, validation error, transient outage), what state should the system end up in?",
       "options": [
-        {"key": "A", "label": "Decision still accepts; surface a structured warning with the create error; record `auto_create_status` on the decision", "rationale": "The team's deliberation outcome (accept) is independent of mechanical create-success. Avoids partial-rollback complexity. Operator sees the failure in CLI/UI and can retry via a new `decision-retry-auto-create` command (or just run swarm-manager initiatives create manually). Recommended because it preserves the integrity of the decision record, which is the source of truth.", "recommended": true},
-        {"key": "B", "label": "Transactional all-or-nothing: if create fails, decision-accept also fails and reverts to its prior status", "rationale": "Cleaner mental model in the success case but very awkward to implement across two services without a distributed transaction. Operator would also lose their 'I agreed to this' record on transient failures."},
-        {"key": "C", "label": "Decision-accept blocks until create succeeds (retries internally)", "rationale": "Simple from the operator's view but couples accept latency to swarm-manager availability and gives no escape hatch for true failures (duplicate name etc)."},
-        {"key": "D", "label": "Other", "rationale": "Provide your own approach"}
+        {
+          "key": "A",
+          "label": "Decision still accepts; surface a structured warning with the create error; record `auto_create_status` on the decision",
+          "rationale": "The team's deliberation outcome (accept) is independent of mechanical create-success. Avoids partial-rollback complexity. Operator sees the failure in CLI/UI and can retry via a new `decision-retry-auto-create` command (or just run swarm-manager initiatives create manually). Recommended because it preserves the integrity of the decision record, which is the source of truth.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Transactional all-or-nothing: if create fails, decision-accept also fails and reverts to its prior status",
+          "rationale": "Cleaner mental model in the success case but very awkward to implement across two services without a distributed transaction. Operator would also lose their 'I agreed to this' record on transient failures."
+        },
+        {
+          "key": "C",
+          "label": "Decision-accept blocks until create succeeds (retries internally)",
+          "rationale": "Simple from the operator's view but couples accept latency to swarm-manager availability and gives no escape hatch for true failures (duplicate name etc)."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d5",
@@ -78,19 +144,34 @@
       "topic": "Behavior when context=initiative-proposal but `initiative_metadata` is missing on accept",
       "context": "If d1=A (structured field) and d2=A (always-on when metadata present), we still need to define what happens when a decision is tagged context=initiative-proposal but no metadata block was attached at decision-add time (e.g., legacy decisions, or operator forgot).",
       "options": [
-        {"key": "A", "label": "Accept fails with a clear error: 'add --initiative-metadata to the decision (or use decision-update) before accepting'", "rationale": "Forces the metadata to exist exactly when it can be authored from the decision's still-fresh context. Predictable, no silent fallbacks. Recommended because the whole point of this item is to eliminate hand-transcription — silent fallback would re-introduce it.", "recommended": true},
-        {"key": "B", "label": "Accept succeeds; auto-create is skipped; operator drops back to the manual `swarm-manager initiatives create` flow", "rationale": "Maximum flexibility, no new failure modes, but reintroduces the exact pain the item is solving for any decision missing the block."},
-        {"key": "C", "label": "Auto-derive a minimal initiative from `decision.topic` + selected option + warn", "rationale": "Best-effort fallback. Better than nothing but produces low-fidelity initiatives (no priority, no depends_on) — which is the original complaint."},
-        {"key": "D", "label": "Other", "rationale": "Provide your own approach"}
+        {
+          "key": "A",
+          "label": "Accept fails with a clear error: 'add --initiative-metadata to the decision (or use decision-update) before accepting'",
+          "rationale": "Forces the metadata to exist exactly when it can be authored from the decision's still-fresh context. Predictable, no silent fallbacks. Recommended because the whole point of this item is to eliminate hand-transcription — silent fallback would re-introduce it.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Accept succeeds; auto-create is skipped; operator drops back to the manual `swarm-manager initiatives create` flow",
+          "rationale": "Maximum flexibility, no new failure modes, but reintroduces the exact pain the item is solving for any decision missing the block."
+        },
+        {
+          "key": "C",
+          "label": "Auto-derive a minimal initiative from `decision.topic` + selected option + warn",
+          "rationale": "Best-effort fallback. Better than nothing but produces low-fidelity initiatives (no priority, no depends_on) — which is the original complaint."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "i1",
       "type": "info",
-      "text": "Sibling F15 (`prompt-manager-decision-partial-accept-with-modifications`) just shipped the structured `modifications` field and an immutable-after-accept rule. This plan deliberately mirrors that pattern (immutability, `--initiative-metadata-file=<path>` escape hatch, contract doc in `scenarios/prompt-manager/docs/reference/`) and propagates `modifications` into the generated initiative's description so the accepted scope-shaping signals don't get lost in the cross-scenario hop. Contract path on disk: `scenarios/prompt-manager/docs/reference/decision-modifications-contract.md` (verified to exist)."
+      "text": "Sibling F15 (`prompt-manager-decision-partial-accept-with-modifications`) just shipped the structured `modifications` field and an immutable-after-accept rule. This plan deliberately mirrors that pattern (immutability, `--initiative-metadata-file=\u003cpath\u003e` escape hatch, contract doc in `scenarios/prompt-manager/docs/reference/`) and propagates `modifications` into the generated initiative's description so the accepted scope-shaping signals don't get lost in the cross-scenario hop. Contract path on disk: `scenarios/prompt-manager/docs/reference/decision-modifications-contract.md` (verified to exist)."
     },
     {
       "id": "i2",
@@ -98,5 +179,5 @@
       "text": "Decision struct already has a `Context string` field (`scenarios/prompt-manager/cli/teams/teams.go:194,228`) — `initiative-proposal` flows through today as a free-form tag with no special handling. Added behavior keys off this exact value, so no schema migration of `Context` itself is needed."
     }
   ],
-  "plan_updates": "Created round-1 plan scaffold: Purpose, Required Reading, Problem Statement, Greenfield Constraint, Scope (in/out), Cross-Initiative Implications (F9/F10/F15 sequencing), Current Technical Context (with file pointers), Target End State (with concrete CLI examples), Open Decisions summary, 5-phase Implementation Strategy, Contract Decisions, Validation Policy, Testing Plan (API/integration/CLI/UI), Rollout Checklist, Risks & Mitigations, Non-goals, Definition of Done. Five blocking decisions surfaced (metadata location, trigger model, cross-scenario seam, failure semantics, missing-metadata behavior) plus two info items grounding the plan in existing code."
+  "plan_updates": "Created round-1 plan scaffold: Purpose, Required Reading, Problem Statement, Greenfield Constraint, Scope (in/out), Cross-Initiative Implications (F9/F10/F15 sequencing), Current Technical Context (with file pointers), Target End State (with concrete CLI examples), Open Decisions summary, 5-phase Implementation Strategy, Contract Decisions, Validation Policy, Testing Plan (API/integration/CLI/UI), Rollout Checklist, Risks \u0026 Mitigations, Non-goals, Definition of Done. Five blocking decisions surfaced (metadata location, trigger model, cross-scenario seam, failure semantics, missing-metadata behavior) plus two info items grounding the plan in existing code."
 }

@@ -1,0 +1,36 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-25T13:35:00Z",
+  "mode": "finalize",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 3,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "All five round-001 decisions (d1 compound labels, d2 dormancy = now > NextExecution, d3 failure-status dominates, d4 classifier on API with new lifecycleState field, d5 UI parity in-scope) are locked into plan.md. The d4 selection (option C) materially shifts the design from CLI-only formatting to an additive API contract change — plan now reflects this as Phase 1 (API classifier + field) preceding CLI and UI rendering."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Plan rewritten to satisfy all validation gaps: added Purpose, Problem Statement, Current Technical Context, Target End State, Implementation Strategy (4 phases), Contract Decisions (decision table), Testing Plan, Rollout/Validation Checklist, Non-goals/Prohibited Patterns, Definition of Done. Added explicit greenfield declaration at top and `vrooli scenario restart prompt-manager` final cleanup step in the Rollout checklist and DoD."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Open implementation-time unknowns documented as risks rather than decisions: (a) exact `failureSet` content must be enumerated against executor source, (b) UI heartbeat view path under ui/src/ must be confirmed during Phase 3. Both are routine implementation lookups, not design decisions — flagged in the Rollout checklist."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "Initiative-context implications for the orchestrator: this fix introduces an additive `lifecycleState` field on HeartbeatConfigResponse. No other open member of prompt-manager-decision-workflow-polish touches the heartbeat API, so there is no sequencing conflict, but downstream consumers (UI, prep-agent JSON parsing) should be aware the field is now authoritative for lifecycle labeling and should not re-derive it client-side."
+    }
+  ],
+  "plan_updates": "Comprehensive rewrite of plan.md to incorporate all five answered decisions and close every validation gap. Major changes: (1) restructured around the standard implementation-plan sections (Purpose, Problem Statement, Current Technical Context, Target End State, Implementation Strategy, Contract Decisions, Testing Plan, Rollout/Validation Checklist, Non-goals, Definition of Done); (2) shifted Phase 1 from CLI-only formatter to API-side classifier + new `lifecycleState` field per d4=C, with CLI/UI now consuming the server-supplied label rather than computing locally; (3) locked d2's dormancy rule (`now > NextExecution`) and d3's failure-dominance precedence into explicit classifier rules with boundary-condition tests; (4) added explicit greenfield declaration at the top of the document; (5) added `vrooli scenario restart prompt-manager` as the final cleanup step in both the Rollout/Validation Checklist and Definition of Done; (6) preserved Required Reading and Risks sections from the prior plan and extended Risks with a new entry covering the `unknown` lifecycle catch-all."
+}

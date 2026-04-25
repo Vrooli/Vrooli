@@ -77,6 +77,7 @@ type Server struct {
 	statsEngine         *stats.Engine
 	aiSearchSvc         *aisearch.Service
 	aiSearchStopChan    chan struct{}
+	feedbackSweeperStop chan struct{}
 }
 
 // NewServer initializes routes using the default scenario root resolved from
@@ -102,8 +103,9 @@ func NewServerWithRoot(scenarioRoot string) *Server {
 		executionStopChan:  make(chan struct{}),
 		reviewStopChan:     make(chan struct{}),
 		initReviewStopChan: make(chan struct{}),
-		aiSearchStopChan:   make(chan struct{}),
-		scenarioRoot:       scenarioRoot,
+		aiSearchStopChan:    make(chan struct{}),
+		feedbackSweeperStop: make(chan struct{}),
+		scenarioRoot:        scenarioRoot,
 	}
 	srv.setupRoutes()
 	return srv
@@ -354,6 +356,7 @@ func main() {
 	close(srv.reviewStopChan)
 	close(srv.initReviewStopChan)
 	close(srv.aiSearchStopChan)
+	close(srv.feedbackSweeperStop)
 }
 
 // startAISearchBackground kicks off two background tasks for aisearch:

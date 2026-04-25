@@ -206,6 +206,9 @@ export function useBacklogDetailData({
         (r) => r.items?.some((wi) => wi.type === "decision" && wi.selected == null),
       ),
       hasExecutionHistory: (executionHistory?.length ?? 0) > 0,
+      hasTerminalExecution: (executionHistory ?? []).some(
+        (e) => e.status === "completed" || e.status === "failed" || e.status === "canceled" || e.status === "needs_fixup",
+      ),
     });
   }, [item, blockingMap, readinessData, agentRunIsActive, workshopRounds, executionHistory]);
 

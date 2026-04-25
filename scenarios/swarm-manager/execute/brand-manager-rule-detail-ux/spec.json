@@ -10,8 +10,8 @@
   "kind": "execute",
   "name": "brand-manager-rule-detail-ux",
   "priority": 3,
-  "status": "queued",
+  "status": "in_review",
   "tags": [],
   "title": "Add Detailed Rule Documentation and Per-Rule Execution to Standards Page",
-  "updated": "2026-04-25T13:05:10Z"
+  "updated": "2026-04-25T17:34:41Z"
 }

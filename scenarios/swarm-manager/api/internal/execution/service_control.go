@@ -256,17 +256,7 @@ func (s *Service) TriggerReview(ctx context.Context, executionID string) (Record
 	return *record, nil
 }
 
-// Retry retries a failed run immediately.
-func (s *Service) Retry(ctx context.Context, executionID string) (Record, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	records, idx, err := s.loadRecordLocked(executionID)
-	if err != nil {
-		return Record{}, err
-	}
-	if records[idx].Status != StatusFailed {
-		return Record{}, apierr.BadRequest("only failed executions can be retried")
-	}
-	return s.startLocked(ctx, executionID)
-}
+// Retry semantics now live in retry.go as RetryAsNewAttempt — the in-place
+// retry was removed as part of the retry-as-new-attempt rewrite. Audit
+// preservation requires that the failed execution row remain untouched and
+// that retries spawn a new Record parented to the prior one.

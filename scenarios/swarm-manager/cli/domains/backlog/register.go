@@ -33,6 +33,7 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			support.APICommand("clarify-continue", "Continue a clarification thread (--kind KIND --name NAME --thread ID --message MSG)", deps.BacklogClarifyNext),
 			support.APICommand("clarify-action", "Apply post-clarification action (--kind KIND --name NAME --thread ID --action ACTION)", deps.BacklogClarifyAction),
 			support.APICommand("review-decide", "Decide the terminal status of a review_pending item (--kind KIND --name NAME --accept|--fail|--followup [--rationale MSG])", deps.BacklogReviewDecide),
+			support.APICommand("retry", "Re-dispatch the latest terminal execution as a NEW attempt (--kind KIND --name NAME [--note MSG])", deps.BacklogRetry),
 			support.APICommand("search-ai", "Semantic search over backlog items (<query> [--limit N] [--kind K,...] [--status S,...] [--initiative N] [--include-archived] [--json])", deps.BacklogSearchAI),
 		},
 	}

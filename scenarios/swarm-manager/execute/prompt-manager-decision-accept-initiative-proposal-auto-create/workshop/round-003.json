@@ -1,0 +1,51 @@
+{
+  "round": 3,
+  "generated_at": "2026-04-25T13:45:00Z",
+  "mode": "finalize",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 3,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Round-2 answers (d6=A, d7=A, d8=C, d9=A) folded into the plan. d6/d7/d9 matched the recommended options; d8 diverged from the recommended A (new retry command) to C (no retry command — surface the manual workaround in CLI/UI output)."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "d8=C reshaped Phase 3 and downstream sections: removed the prior Phase 3.5 retry path; the auto-create failure response now carries a pre-filled `swarm-manager initiatives create ...` command line plus a `decision-update --auto-create-status=created --auto-create-initiative-ref=...` follow-up so operators can recover with copy-paste. Validation Policy adds the constrained post-accept transitions for `auto_create_status` (failed → created requires the ref; failed → failed re-records errors). Non-goals explicitly forbids any retry command or in-process retry loop."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "d6=A keeps the swarm-manager initiatives HTTP endpoint inside this item's Phase 0, scoped to POST /api/v1/initiatives + GET /api/v1/initiatives/{name} for the auto-create path. The risk row for HTTP-endpoint scope creep was tightened with that explicit scope and a 'surface for mid-flight split' fallback."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "d7=A locks the call site at the prompt-manager API server; CLI/UI both inherit identical behavior. Contract Decisions section now states this as a hardened rule, and Risks ties three-surface drift mitigation to the structured d9 response shape (which now includes the pre-filled workaround strings on failure)."
+    },
+    {
+      "id": "i5",
+      "type": "info",
+      "text": "d9=A structured 'Auto-Created Initiative' block updated to spell out both the success render (name/priority/depends_on/inspect/edit/reminder) and the failure render (status + reason + the d8=C two-line manual workaround). Target End State and CLI integration tests both updated with concrete snapshots so executors don't re-derive the format."
+    },
+    {
+      "id": "i6",
+      "type": "info",
+      "text": "Cross-initiative implications re-checked against initiative `prompt-manager-decision-workflow-polish`: F15 (consumed) is completed; F9 and F10 are still backlog/queued and remain coordination targets per the existing notify-list. Initiative has no upstream/downstream dependencies, so no new cross-initiative sequencing surfaced. The plan keeps the F9/F10 notify items in the Rollout Checklist for the orchestrator."
+    },
+    {
+      "id": "i7",
+      "type": "info",
+      "text": "Readiness raised to 3/3 across all five dimensions: problem clarity (root cause + concrete CLI examples), scope (in/out lists + non-goals are explicit), approach (phased, with all decisions resolved and seam shape concrete), testable (API/integration/CLI/UI suites enumerated, including failure-path snapshot), risk awareness (eight rows with mitigations including the new d8=C-specific 'forget to mark resolved' risk). No remaining gaps that require another workshop round; ready to queue."
+    }
+  ],
+  "plan_updates": "Folded d6=A, d7=A, d8=C, d9=A into the plan. Removed Phase 3.5 retry path entirely; reshaped Phase 3 step 6 + Target End State failure example + Contract Decisions + Validation Policy + Testing Plan + Rollout Checklist + Risks + Non-goals + Definition of Done to reflect the d8=C 'no retry command, pre-filled manual workaround in CLI/UI output' model. Added decision-update auto-create-status/ref flag wiring to Phase 2. Replaced 'Round 2 Open Questions' with a unified 'Resolved Decisions' (Round 1 + Round 2) section. Tightened Phase 0 scope to POST + GET only. No new questions raised."
+}

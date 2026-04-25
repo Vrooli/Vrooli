@@ -256,6 +256,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive-item", h.Unarchive).Methods("DELETE")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/queue", h.Queue).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/review-decide", h.ReviewDecide).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/retry", h.Retry).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/research", h.Research).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/save", h.WorkshopSave).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/round", h.WorkshopDeleteRound).Methods("DELETE")

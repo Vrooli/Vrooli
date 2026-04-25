@@ -1,0 +1,41 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-25T00:00:00Z",
+  "mode": "finalize",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 3,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "All three round-001 decisions were resolved and folded into plan.md. d1 = A (always show options, no flag). d2 = A (indented-list layout: key + label, (recommended) marker after label, rationale indented below). d3 = B (CLI + UI parity scope; API already correct via --json)."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Plan now uses a two-phase implementation strategy. Phase 1 ships the CLI fix and performs a quick UI spot-check on the decision-detail view. Phase 2 (UI fix) runs only if the spot-check finds the same gap; otherwise it is skipped and the result recorded in the rollout checklist. This bounds the d3 = B scope expansion: effort stays at XS if the UI is already correct, grows toward S only if a real UI gap is found."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Contract Decisions section now states the resolved choices instead of pointing to round-001. Target End State, Implementation Strategy, Testing Plan, Rollout Checklist, Risks, and Definition of Done all reflect d1 = A and d2 = A; Scope and Definition of Done explicitly cover the d3 = B UI parity verification step."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "Initiative neighborhood: prompt-manager-decision-workflow-polish has no upstream or downstream initiatives, so there are no cross-initiative sequencing implications. Sibling items are unchanged from round-001's analysis: decision-accept-no-options-ergonomics shares operator-experience but no code; heartbeat-list and initiative-proposal-auto-create are unrelated. Workshop info i1 from round-001 (verifying that recently-shipped deferred-status and structured-modifications fields render in decision-show) is preserved as a 'flag-and-file-separately' instruction in Risks and Initiative Neighborhood Notes — not absorbed into this fix's scope."
+    },
+    {
+      "id": "i5",
+      "type": "info",
+      "text": "Readiness re-scored to 3/3/3/3/3. Problem and scope are fully specified; approach is concrete and phased; tests are enumerated per surface; risks include the relevant XS-effort blowout case (UI gap larger than expected) with a bounded mitigation. Item is ready to queue."
+    }
+  ],
+  "plan_updates": "Replaced 'see workshop round-001 for option sets' Contract Decisions placeholder with the resolved d1/d2/d3 selections. Reworked Implementation Strategy from single-phase to two-phase (CLI always; UI conditional on parity check). Updated Scope, Target End State, Testing Plan, Rollout Checklist, Risks, Non-goals, and Definition of Done to reflect always-on display (no new flag), indented-list layout, and CLI + UI parity scope. Added explicit cross-initiative implications statement (none) to Initiative Neighborhood Notes. Removed sibling-fix's API/UI scope-creep risk (resolved by d3) and replaced with a UI-effort-blowout risk bounded by the conditional Phase 2."
+}

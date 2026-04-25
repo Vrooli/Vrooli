@@ -1,0 +1,100 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-25T15:30:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 2,
+    "scope_defined": 1,
+    "approach_solid": 1,
+    "testable": 1,
+    "risk_awareness": 1
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "GitHub Go library",
+      "context": "GCT has no GitHub SDK in go.mod today. The choice locks the surface area of GitHubClient and the test seam. go-github/v66 has full REST coverage (PRs, releases, tags, branches), WithEnterpriseURLs() for GHE, and the standard interface-wrap + httptest mocking pattern. cli/go-gh is thinner and assumes a gh-auth session, which conflicts with reusing the encrypted credential store. Hand-rolled costs an integration tax per endpoint.",
+      "options": [
+        {"key": "A", "label": "github.com/google/go-github/v66 wrapped behind a narrow GitHubClient interface", "rationale": "Full REST coverage, Enterprise URL support, idiomatic mocking. Lowest implementation risk for PR + release surface together.", "recommended": true},
+        {"key": "B", "label": "github.com/cli/go-gh/v2", "rationale": "Smaller dependency footprint, but assumes an external gh auth session and provides less typed coverage."},
+        {"key": "C", "label": "Hand-rolled net/http client", "rationale": "Maximum control, no transitive deps; pays an integration tax per endpoint and reinvents pagination/rate-limit handling."},
+        {"key": "D", "label": "Other", "rationale": "Provide your own preference (e.g. license/vendoring constraints)."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Auth strategy for V1",
+      "context": "SSH stays the transport for git push/pull. The GitHub *API* needs token auth. Today CredentialTypeHTTPS already stores user+token in an AES-256-GCM-encrypted file (api/credentials_store.go:53,170-189). The question is which auth modes V1 supports.",
+      "options": [
+        {"key": "A", "label": "GitHub PAT only in V1; defer GitHub App to a follow-up", "rationale": "Matches single-user CLI/dev posture, reuses credential store with a small `service` tag, no new flows. Lowest scope.", "recommended": true},
+        {"key": "B", "label": "PAT + GitHub App (installation tokens) in V1", "rationale": "Future-proof for multi-user/shared deployments but adds JWT signing, key storage, and installation-id resolution to the V1 surface."},
+        {"key": "C", "label": "Reuse SSH key for API too (e.g. via deploy keys / GitHub SSH-based auth)", "rationale": "Avoids token storage but GitHub's REST/GraphQL API does not authenticate via SSH keys; this option is effectively infeasible and is here to be ruled out."},
+        {"key": "D", "label": "Other", "rationale": "Specify a different posture (e.g. fine-grained PAT only, or App-only)."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "PR description generation in V1",
+      "context": "ReviewDimensions (api/review_model.go:29-45) gives structured code-quality, tests, standards, visual, provenance data plus a green/yellow/red readiness signal. We can render this directly, or wrap it in an LLM, or both.",
+      "options": [
+        {"key": "A", "label": "Deterministic Markdown template fed by ReviewDimensions; LLM polish deferred", "rationale": "Predictable, testable with zero external calls, matches commit-message-AI being a P1 add-on rather than gating P0.", "recommended": true},
+        {"key": "B", "label": "Template + optional LLM polish behind a flag in V1", "rationale": "Better prose immediately but adds a provider abstraction and another mock surface to V1."},
+        {"key": "C", "label": "LLM-only generation from raw review payload", "rationale": "Most natural-sounding output; least testable, hardest to make deterministic, depends on review data quality."},
+        {"key": "D", "label": "Other", "rationale": "Specify a different approach."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Scope: should this research also lock the release/tag API design?",
+      "context": "Two execute siblings depend on this research and share the client + auth + mock decisions: execute/gct-github-pr-api and execute/gct-github-release-api. Splitting research duplicates the auth/mock decisions; bundling keeps them aligned.",
+      "options": [
+        {"key": "A", "label": "Bundle: this research locks the shared client/auth/mock design and lets each execute item own its endpoint shape", "rationale": "Single source of truth for the shared surface; lower coordination cost.", "recommended": true},
+        {"key": "B", "label": "Split: this research covers PRs only; spin up a separate research for releases/tags", "rationale": "Smaller individual scope but redoes the auth/library/mock conversation."},
+        {"key": "C", "label": "Other", "rationale": "Provide your own scope split."}
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "GCT credentials already supports GitHub PATs without a new type: CredentialTypeHTTPS (api/credentials_model.go:10) is username+token, AES-256-GCM-encrypted at ~/.config/git-control-tower/credentials.enc (api/credentials_store.go:53). The V1 extension is a 'service' or 'provider' tag so a GitHub API token can be stored independently of remote-URL-bound git HTTPS credentials."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "The repo's mock convention is hand-rolled fakes in *_fake_test.go with error-injection fields and in-memory state (see git_runner_fake_test.go, audit_logger_fake_test.go). FakeGitHubClient should follow the same shape — no mockgen, no gomock — and live in github_client_fake_test.go."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Review data is already PR-description-ready. ReviewDimensions (api/review_model.go:29-45) carries code-quality score+top issues, test pass/fail counts+failures, standards violations with file/line/severity, visual screenshots, provenance — plus review_readiness.go gives a green/yellow/red label. A deterministic Markdown template can compose these into a structured PR body without an LLM."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "go.mod has no GitHub SDK today (only google/uuid, gorilla/mux, gorilla/handlers, vrooli/api-core, vrooli/repo-contract-go, golang.org/x/sync, modernc.org/sqlite). Whichever library wins d1, this is a new dependency the team takes on for this initiative."
+    },
+    {
+      "id": "i5",
+      "type": "info",
+      "text": "Existing remote auth path (git_runner.go gitCredentialEnv) already injects HTTPS user/password via GIT_USERNAME/GIT_PASSWORD/GIT_ASKPASS for git transport. The GitHub *API* path is fully separate from this — it uses Bearer auth on REST/GraphQL — so V1 work does not need to touch the git-transport credential plumbing."
+    }
+  ],
+  "plan_updates": "Created conclusion.md scaffold: Research Question, Summary, Methodology, six initial Findings (credential store reuse, GitRunner-style seam, review data is PR-ready, routing/DI fit, library shortlist, initiative-graph implications), Limitations, and a deferred Actions section pending round-1 decisions."
+}

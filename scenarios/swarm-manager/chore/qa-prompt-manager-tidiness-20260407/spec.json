@@ -2,6 +2,7 @@
   "acceptance_allow": [
     "scenarios/prompt-manager/**"
   ],
+  "archived_at": "2026-04-25T17:12:39Z",
   "created": "2026-04-07T22:10:27Z",
   "created_by": {
     "type": "operator"
@@ -10,12 +11,12 @@
   "kind": "chore",
   "name": "qa-prompt-manager-tidiness-20260407",
   "priority": 4,
-  "status": "backlog",
+  "status": "completed",
   "tags": [
     "preemptive-qa",
     "prompt-manager",
     "tidiness"
   ],
   "title": "Address prompt-manager tidiness failures",
-  "updated": "2026-04-07T22:10:27Z"
+  "updated": "2026-04-25T17:12:39Z"
 }
