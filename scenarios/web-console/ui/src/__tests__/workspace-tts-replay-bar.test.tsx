@@ -181,6 +181,7 @@ vi.mock("../components/AudioPlayerBar", () => ({
     onDismiss,
     isSummarized,
     onToggleSummarized,
+    currentLevel,
     currentMessageLabel,
     hasQueuedNext,
   }: {
@@ -188,15 +189,22 @@ vi.mock("../components/AudioPlayerBar", () => ({
     onDismiss: () => void;
     isSummarized?: boolean;
     onToggleSummarized?: (useSummarized: boolean) => void;
+    currentLevel?: "light" | "moderate" | "heavy";
     currentMessageLabel?: string | null;
     hasQueuedNext?: boolean;
   }) => (
     <div data-testid="audio-player-bar">
       <button data-testid="replay-resume" onClick={onResume}>Resume</button>
       <button data-testid="replay-dismiss" onClick={onDismiss}>Dismiss</button>
-      <span data-testid="tts-mode-control">{isSummarized ? "Summarized" : "Original"}</span>
+      <span data-testid="tts-mode-control">
+        {isSummarized
+          ? (currentLevel === "light" ? "Light" : currentLevel === "heavy" ? "Heavy" : "Moderate")
+          : "Original"}
+      </span>
       <button data-testid="tts-mode-option-original" onClick={() => onToggleSummarized?.(false)}>Original</button>
-      <button data-testid="tts-mode-option-active" onClick={() => onToggleSummarized?.(true)}>Summarized</button>
+      <button data-testid="tts-mode-option-active" onClick={() => onToggleSummarized?.(true)}>
+        {currentLevel === "light" ? "Light" : currentLevel === "heavy" ? "Heavy" : "Moderate"}
+      </button>
       <span data-testid="tts-current-message">{currentMessageLabel ?? ""}</span>
       <span data-testid="tts-has-next">{String(hasQueuedNext ?? false)}</span>
     </div>
@@ -404,16 +412,16 @@ describe("Workspace TTS replay bar", () => {
       captured.onSpeakingEventChange?.(summarizedEvent.id);
     });
 
-    // The bar initially labels playback as "Summarized" because a summary
+    // The bar initially labels playback as the active summary level because a summary
     // exists and the default playback version is active.
     const modeBtn = screen.getByTestId("tts-mode-control");
-    expect(modeBtn.textContent).toMatch(/Summarized/);
+    expect(modeBtn.textContent).toMatch(/Moderate/);
 
     // Open the dropdown and pick Original.
     fireEvent.click(modeBtn);
     fireEvent.click(screen.getByTestId("tts-mode-option-original"));
 
-    // Label must flip immediately (this is the bug — it used to stay "Summarized").
+    // Label must flip immediately instead of staying on the active summary level.
     expect(screen.getByTestId("tts-mode-control").textContent).toMatch(/Original/);
 
     // Re-speak must have been called with the original paragraphs + version.

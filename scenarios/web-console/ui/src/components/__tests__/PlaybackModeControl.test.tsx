@@ -24,9 +24,9 @@ describe("PlaybackModeControl", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("renders 'Summarized' label when isSummarized", () => {
-    renderCtl({ isSummarized: true, hasOriginalVersion: true });
-    expect(screen.getByTestId("x-mode-control").textContent).toMatch(/Summarized/);
+  it("renders the active summary level label when isSummarized", () => {
+    renderCtl({ isSummarized: true, hasOriginalVersion: true, currentLevel: "heavy" });
+    expect(screen.getByTestId("x-mode-control").textContent).toMatch(/Heavy/);
   });
 
   it("renders 'Original' label when !isSummarized && hasOriginalVersion", () => {

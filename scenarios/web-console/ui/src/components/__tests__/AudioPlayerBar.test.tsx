@@ -190,16 +190,17 @@ describe("AudioPlayerBar", () => {
 
   // --- PlaybackModeControl integration ---
 
-  it("renders mode control as 'Summarized' when isSummarized=true", () => {
+  it("renders mode control as the active summary level when isSummarized=true", () => {
     render(<AudioPlayerBar {...makeProps({
       isSummarized: true,
       hasOriginalVersion: true,
       canSummarize: true,
+      currentLevel: "heavy",
       onToggleSummarized: vi.fn(),
       onChangeLevel: vi.fn(),
     })} />);
     const ctrl = screen.getByTestId("tts-mode-control");
-    expect(ctrl.textContent).toMatch(/Summarized/);
+    expect(ctrl.textContent).toMatch(/Heavy/);
   });
 
   it("renders mode control as 'Original' when not summarized but has original version", () => {

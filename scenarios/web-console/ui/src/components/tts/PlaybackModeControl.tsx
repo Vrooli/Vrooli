@@ -33,7 +33,7 @@ export interface PlaybackModeControlProps {
  * for switching between Original and summarization levels.
  *
  * Rendering rules:
- *   - isSummarized                         → "Summarized ▾"
+ *   - isSummarized                         → "<Level> ▾"
  *   - !isSummarized && hasOriginalVersion  → "Original ▾"
  *   - !hasOriginal && canSummarize         → "Summarize ▾"
  *   - !hasOriginal && !canSummarize        → nothing
@@ -76,11 +76,17 @@ export function PlaybackModeControl({
   // No control when there's neither a summary nor a way to get one.
   if (!hasOriginalVersion && !canSummarize) return null;
 
+  const currentLevelLabel = LEVEL_OPTIONS.find(({ value }) => value === currentLevel)?.label ?? "Summarized";
   const label = isSummarized
-    ? "Summarized"
+    ? currentLevelLabel
     : hasOriginalVersion
       ? "Original"
       : "Summarize";
+  const title = isSummarized
+    ? `${currentLevelLabel} summary — click to switch`
+    : hasOriginalVersion
+      ? "Original — click to switch"
+      : "Click to summarize";
 
   const handleSelectOriginal = () => {
     setOpen(false);
@@ -114,7 +120,7 @@ export function PlaybackModeControl({
           isSummarizing && "cursor-wait",
           disabled && "opacity-60",
         )}
-        title={isSummarized ? "Summarized — click to switch" : hasOriginalVersion ? "Original — click to switch" : "Click to summarize"}
+        title={title}
       >
         {isSummarizing
           ? <Loader2 className="h-3 w-3 animate-spin" />
