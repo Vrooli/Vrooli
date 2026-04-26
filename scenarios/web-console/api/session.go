@@ -149,7 +149,8 @@ type Session struct {
 	// WebSocket clients subscribed to this terminal session.
 	conversationMu         sync.Mutex
 	conversationClients    map[chan ConversationEvent]*conversationSubscriber
-	conversationDropLogged bool // log once per session when an event is dropped
+	conversationDropLogged bool  // true once any drop has been logged this session (kept for tests / first-drop detection)
+	conversationDropCount  int64 // total drops observed; included in log lines so missing sequences can be correlated
 }
 
 // conversationSubscriber tracks per-client state for the conversation fan-out.
@@ -258,7 +259,9 @@ func (s *Session) Subscribe(resumeOffset int64) SubscribeResult {
 	}
 	ch := make(chan []byte, bufSize)
 
-	for _, chunk := range chunks {
+	bctrace("subscribe", s.ID, fmt.Sprintf("resumeOffset=%d resumed=%v totalBytes=%d chunks=%d hStart=%d", resumeOffset, resumed, totalBytes, len(chunks), hStart), nil)
+	for i, chunk := range chunks {
+		bctrace("history_replay_chunk", s.ID, fmt.Sprintf("i=%d of=%d resumed=%v", i, len(chunks), resumed), chunk)
 		ch <- chunk
 	}
 	if hadData {
@@ -293,8 +296,10 @@ func (s *Session) Resize(cols, rows uint16) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if cols == s.Cols && rows == s.Rows {
+		bctrace("resize_noop", s.ID, fmt.Sprintf("cols=%d rows=%d", cols, rows), nil)
 		return
 	}
+	bctrace("resize", s.ID, fmt.Sprintf("cols=%d->%d rows=%d->%d alt=%v", s.Cols, cols, s.Rows, rows, s.ptyState.IsAltBuffer()), nil)
 	s.Cols = cols
 	s.Rows = rows
 	_ = s.pty.SetSize(cols, rows)
@@ -1264,10 +1269,10 @@ func (s *Session) SendConversation(event ConversationEvent) {
 			case sub.resync <- struct{}{}:
 			default:
 			}
-			if !s.conversationDropLogged {
-				log.Printf("session %s: conversation event dropped (client channel full) — resync signaled", s.ID)
-				s.conversationDropLogged = true
-			}
+			s.conversationDropCount++
+			s.conversationDropLogged = true
+			log.Printf("session %s: conversation event dropped (client channel full) — seq=%d id=%s total_drops=%d — resync signaled",
+				s.ID, event.Sequence, event.ID, s.conversationDropCount)
 		}
 	}
 }

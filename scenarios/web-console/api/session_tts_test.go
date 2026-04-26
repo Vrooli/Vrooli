@@ -79,7 +79,7 @@ func TestSendConversation_ConcurrentUnsubscribe(t *testing.T) {
 	<-done
 }
 
-func TestSendConversation_DropsLoggedOnce(t *testing.T) {
+func TestSendConversation_DropsCountedAndLogged(t *testing.T) {
 	sess := &Session{
 		ID:                  "drop-test",
 		clients:             make(map[chan []byte]*ClientInfo),
@@ -89,22 +89,36 @@ func TestSendConversation_DropsLoggedOnce(t *testing.T) {
 	ch := sess.SubscribeConversation()
 	defer sess.UnsubscribeConversation(ch)
 
-	event := ConversationEvent{ID: "evt", Source: "test", SessionID: "s1", Text: "fill"}
-	// Fill exactly the per-subscriber buffer; no drop should be logged yet.
+	// Fill exactly the per-subscriber buffer; no drop yet.
 	for i := 0; i < conversationChannelBuffer; i++ {
-		sess.SendConversation(event)
+		sess.SendConversation(ConversationEvent{ID: "fill", Source: "test", SessionID: "s1", Sequence: int64(i + 1), Text: "fill"})
 	}
 
 	if sess.conversationDropLogged {
 		t.Fatal("conversationDropLogged should be false before overflow")
 	}
+	if sess.conversationDropCount != 0 {
+		t.Fatalf("expected drop count 0 before overflow, got %d", sess.conversationDropCount)
+	}
 
-	// One more send must overflow and trigger the drop log + resync pulse.
-	sess.SendConversation(event)
-	sess.SendConversation(event)
+	// Each subsequent send must overflow and be counted (every drop is logged
+	// with its sequence so missing events can be correlated to their causes).
+	const overflowCount = 3
+	for i := 0; i < overflowCount; i++ {
+		sess.SendConversation(ConversationEvent{
+			ID:       "drop",
+			Source:   "test",
+			SessionID: "s1",
+			Sequence: int64(conversationChannelBuffer + 1 + i),
+			Text:     "drop",
+		})
+	}
 
 	if !sess.conversationDropLogged {
 		t.Error("expected conversationDropLogged to be true after channel overflow")
+	}
+	if sess.conversationDropCount != overflowCount {
+		t.Errorf("expected drop count %d after overflow, got %d", overflowCount, sess.conversationDropCount)
 	}
 
 	// Resync signal should have been pulsed (at least once, capacity 1).

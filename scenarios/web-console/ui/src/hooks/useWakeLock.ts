@@ -26,9 +26,12 @@ const HEARTBEAT_MS = 30_000;
  * - Re-acquires when the sentinel fires a `release` event (e.g. OS
  *   power-management policy released it while the tab was still visible).
  * - Retries with exponential backoff if re-acquisition fails.
- * - Always runs a hidden video loop alongside the Wake Lock API as a
- *   secondary keep-awake mechanism (belt and suspenders — especially
- *   important on iOS where the API can be unreliable in PWA mode).
+ * - Falls back to a hidden silent-video loop only when the Wake Lock API
+ *   isn't available. The video hack is avoided when the native API works
+ *   because iOS treats even muted video as an active media session, which
+ *   causes the Dynamic Island audio indicator to flash on every keystroke
+ *   (keyboard sounds interrupt the audio session, pausing the video, which
+ *   our handler immediately resumes — re-triggering the indicator).
  * - Returns the current {@link WakeLockStatus} so the UI can inform
  *   the user when the lock isn't working.
  */
@@ -101,13 +104,15 @@ export function useWakeLock(enabled: boolean): WakeLockStatus {
       return;
     }
 
-    // Always start the video fallback as a secondary keep-awake layer.
-    // On iOS, the video loop is often more reliable than the Wake Lock
-    // API (especially in PWA / home-screen mode on older iOS versions).
-    startVideoFallback();
-
-    // If the Wake Lock API isn't available, the video is our only mechanism.
+    // Only start the silent-video fallback when the native Wake Lock API
+    // isn't available. On iOS, even a muted <video> registers as an active
+    // media session — the keyboard's per-keystroke audio-session interrupts
+    // pause the video, our pause→play handler resumes it, and the Dynamic
+    // Island flashes a "media started" indicator on every character. Modern
+    // iOS (16.4+) supports navigator.wakeLock natively, so the hack is only
+    // needed as a true last resort.
     if (!supportsWakeLock) {
+      startVideoFallback();
       setStatus(videoRef.current ? "active" : "unsupported");
       return () => {
         stopVideoFallback();

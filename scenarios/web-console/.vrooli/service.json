@@ -143,7 +143,7 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && ./web-console-api",
+          "run": "cd api && WC_BROADCAST_TRACE=1 ./web-console-api",
           "background": true,
           "description": "Start Go API server in background",
           "condition": {
@@ -196,7 +196,7 @@
         },
         {
           "name": "start-api",
-          "run": "cd api && ./web-console-api",
+          "run": "cd api && WC_BROADCAST_TRACE=1 ./web-console-api",
           "background": true,
           "description": "Start Go API server"
         },

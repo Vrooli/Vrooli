@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronRight, FolderPlus, FolderMinus, Palette, Pencil, Plus, X } from "lucide-react";
+import { ChevronRight, ClipboardCopy, FolderPlus, FolderMinus, Palette, Pencil, Plus, X } from "lucide-react";
 import ContextMenuBase, { contextMenuItemClass } from "./ContextMenuBase";
 import type { TabGroupMeta } from "../stores/useWorkspaceStore";
 
@@ -135,6 +135,36 @@ export default function TabContextMenu({
       >
         <X className="h-4 w-4 shrink-0" />
         Close Tab
+      </button>
+
+      {/* TEMP: remove after the terminal-output-duplication bug is fixed.
+       * Copies the last ~12k chars of xterm writes for this session to
+       * the clipboard so a phone-only user can share the same data
+       * normally pulled from window.__wc_terminal_output via devtools. */}
+      <div className="border-t border-wc-default my-1" />
+      <button
+        data-testid="tab-ctx-copy-debug-log"
+        className={contextMenuItemClass}
+        onClick={() =>
+          handleAction(() => {
+            const probe = (window as unknown as {
+              __wc_terminal_output?: Record<string, string>;
+            }).__wc_terminal_output;
+            const data = probe?.[sessionId] ?? "";
+            const payload = data || "(empty probe)";
+            if (navigator.clipboard?.writeText) {
+              navigator.clipboard
+                .writeText(payload)
+                .then(() => alert(`Copied ${data.length} chars`))
+                .catch(() => alert("Clipboard denied"));
+            } else {
+              alert("Clipboard unavailable");
+            }
+          })
+        }
+      >
+        <ClipboardCopy className="h-4 w-4 shrink-0" />
+        Copy debug log
       </button>
     </ContextMenuBase>
   );

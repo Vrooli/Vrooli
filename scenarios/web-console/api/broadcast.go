@@ -17,7 +17,10 @@ package main
 // for the target architecture and §10.4 for the greenfield assertion
 // covering SetSize invocation gating.
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // ClientInfo tracks per-client broadcast flow control for a subscribed
 // WebSocket connection. When the client's output channel is full, incoming
@@ -60,6 +63,7 @@ func (s *Session) broadcast(data []byte) {
 		s.lastAltBufferTransition = time.Now()
 	}
 	s.appendHistory(data)
+	bctrace("broadcast", s.ID, fmt.Sprintf("clients=%d alt=%v total=%d", len(s.clients), s.ptyState.IsAltBuffer(), s.totalOutputBytes), data)
 	if len(s.clients) == 0 {
 		return
 	}

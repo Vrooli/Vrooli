@@ -28,7 +28,7 @@ describe("refreshConversationSession", () => {
     useConversationStore.setState({ sessions: {}, viewModes: {} });
   });
 
-  it("requests since_sequence=<max local sequence> and merges only missing events", async () => {
+  it("requests since_sequence=<max local sequence> when the local store is gap-free and merges only missing events", async () => {
     useConversationStore.getState().hydrateSession("s1", [
       makeEvent("e1", 1, "one"),
       makeEvent("e2", 2, "two"),
@@ -69,6 +69,66 @@ describe("refreshConversationSession", () => {
 
     const events = useConversationStore.getState().sessions["s1"]?.events ?? [];
     expect(events).toHaveLength(2);
+  });
+
+  it("backfills internal sequence gaps by refetching from before the gap", async () => {
+    // Local store has 1, 2, 4, 5 — sequence 3 is missing (e.g., from a
+    // hydrate/append race or a dropped WS event the resync didn't recover).
+    useConversationStore.getState().hydrateSession("s1", [
+      makeEvent("e1", 1),
+      makeEvent("e2", 2),
+      makeEvent("e4", 4),
+      makeEvent("e5", 5),
+    ], { lastSeenSequence: 0, lastListenedSequence: 0 });
+
+    const spy = vi.spyOn(api, "getConversationSession").mockResolvedValue({
+      sessionId: "s1",
+      events: [makeEvent("e3", 3), makeEvent("e4", 4), makeEvent("e5", 5), makeEvent("e6", 6)],
+      cursor: { lastSeenSequence: 0, lastListenedSequence: 0 },
+    });
+
+    const ok = await refreshConversationSession("s1");
+    expect(ok).toBe(true);
+    // since_sequence must be 2 (the last contiguous sequence before the gap),
+    // not 5 (the max), so the server returns the missing #3.
+    expect(spy).toHaveBeenCalledWith("s1", { sinceSequence: 2 });
+
+    const events = useConversationStore.getState().sessions["s1"]?.events ?? [];
+    expect(events.map((e) => e.sequence)).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+
+  it("refetches from 0 when the local store is missing the prefix (first sequence > 1)", async () => {
+    useConversationStore.getState().hydrateSession("s1", [
+      makeEvent("e3", 3),
+      makeEvent("e4", 4),
+    ], { lastSeenSequence: 0, lastListenedSequence: 0 });
+
+    const spy = vi.spyOn(api, "getConversationSession").mockResolvedValue({
+      sessionId: "s1",
+      events: [makeEvent("e1", 1), makeEvent("e2", 2), makeEvent("e3", 3), makeEvent("e4", 4)],
+      cursor: { lastSeenSequence: 0, lastListenedSequence: 0 },
+    });
+
+    await refreshConversationSession("s1");
+    expect(spy).toHaveBeenCalledWith("s1", { sinceSequence: 0 });
+    const events = useConversationStore.getState().sessions["s1"]?.events ?? [];
+    expect(events.map((e) => e.sequence)).toEqual([1, 2, 3, 4]);
+  });
+
+  it("hydrateSession preserves WS-appended events that arrived during the in-flight GET", () => {
+    // Simulate the race: WS event seq=3 lands first via appendEvent.
+    useConversationStore.getState().appendEvent(makeEvent("e3", 3, "live"));
+
+    // Then the initial GET response returns events 1..2 — these were the only
+    // events that existed when the request was issued. Without merge-aware
+    // hydrate, e3 would be wiped out, leaving a permanent gap.
+    useConversationStore.getState().hydrateSession("s1", [
+      makeEvent("e1", 1),
+      makeEvent("e2", 2),
+    ], { lastSeenSequence: 0, lastListenedSequence: 0 });
+
+    const events = useConversationStore.getState().sessions["s1"]?.events ?? [];
+    expect(events.map((e) => e.sequence)).toEqual([1, 2, 3]);
   });
 
   it("returns false and preserves store on fetch error", async () => {

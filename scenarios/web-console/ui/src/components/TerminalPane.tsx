@@ -160,6 +160,13 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     const serializeRef = useRef<SerializeAddon | null>(null);
     const cachedOffsetRef = useRef<number | undefined>(undefined);
     const hadCacheRef = useRef(false);
+    // Last cols/rows actually sent to the server. Used to suppress
+    // resize WS messages when the container resize observer fires but
+    // the terminal's reflowed dimensions are unchanged. Without this,
+    // a viewport tick (mobile keyboard, visualViewport change) fans out
+    // to every mounted TerminalPane and emits identical resizes for
+    // each one — visible as a `resize_noop` storm in api logs.
+    const lastSentSizeRef = useRef<{ cols: number; rows: number } | null>(null);
     const livePlaybackEventRef = useRef<string | null>(null);
     /** Ref to latest conversationEvents so imperative handle avoids dep churn. */
     const conversationEventsRef = useRef<ConversationEvent[]>(EMPTY_CONVERSATION_EVENTS);
@@ -412,7 +419,10 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
           if (!fit || !terminal) return;
           fit.fit();
           if (terminal.cols > 0 && terminal.rows > 0) {
+            // onReady fires after a fresh subscribe; always announce dims
+            // so the server has authoritative size for this client.
             sendResize(terminal.cols, terminal.rows);
+            lastSentSizeRef.current = { cols: terminal.cols, rows: terminal.rows };
           }
         });
         onReady?.();
@@ -722,7 +732,11 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       if (!terminal || !fitRef.current) return;
       terminal.options.fontSize = paneFontSize;
       scrollAwareFit();
-      sendResize(terminal.cols, terminal.rows);
+      const last = lastSentSizeRef.current;
+      if (!last || last.cols !== terminal.cols || last.rows !== terminal.rows) {
+        sendResize(terminal.cols, terminal.rows);
+        lastSentSizeRef.current = { cols: terminal.cols, rows: terminal.rows };
+      }
     }, [paneFontSize, terminal, sendResize, scrollAwareFit]);
 
     // React to theme changes from store
@@ -804,7 +818,11 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         rafId = requestAnimationFrame(() => {
           rafId = null;
           scrollAwareFit();
-          sendResize(terminal.cols, terminal.rows);
+          const last = lastSentSizeRef.current;
+          if (!last || last.cols !== terminal.cols || last.rows !== terminal.rows) {
+            sendResize(terminal.cols, terminal.rows);
+            lastSentSizeRef.current = { cols: terminal.cols, rows: terminal.rows };
+          }
         });
       });
       resizeObserver.observe(container);

@@ -39,16 +39,33 @@ export const useConversationStore = create<ConversationStoreState & Conversation
   sessions: {},
   viewModes: {},
 
-  hydrateSession: (sessionId, events, cursor) => set((state) => ({
-    sessions: {
-      ...state.sessions,
-      [sessionId]: {
-        events,
-        cursor,
-        hydrated: true,
+  hydrateSession: (sessionId, events, cursor) => set((state) => {
+    // Merge with anything appendEvent already added while the GET was in
+    // flight — naively replacing would drop live WS events that arrived
+    // after the request but before the response, leaving a permanent
+    // sequence gap (refresh uses max seq as since_sequence and never
+    // backfills lower events). See useConversationSession mount effect.
+    const existing = state.sessions[sessionId];
+    if (!existing || existing.events.length === 0) {
+      return {
+        sessions: {
+          ...state.sessions,
+          [sessionId]: { events, cursor, hydrated: true },
+        },
+      };
+    }
+    const seen = new Set(events.map((e) => e.id));
+    const extras = existing.events.filter((e) => !seen.has(e.id));
+    const merged = extras.length > 0
+      ? [...events, ...extras].sort((a, b) => a.sequence - b.sequence)
+      : events;
+    return {
+      sessions: {
+        ...state.sessions,
+        [sessionId]: { events: merged, cursor, hydrated: true },
       },
-    },
-  })),
+    };
+  }),
 
   appendEvent: (event) => set((state) => {
     const existing = state.sessions[event.sessionId] ?? { events: [], cursor: defaultCursor(), hydrated: true };
@@ -169,4 +186,30 @@ export function getSessionUnlistenedEvents(state: ConversationStoreState, sessio
 
 export function getSessionViewMode(state: ConversationStoreState, sessionId: string): PaneViewMode {
   return state.viewModes[sessionId] ?? "terminal";
+}
+
+/**
+ * Returns the `since_sequence` value to use for a refetch that will both pull
+ * any new tail events AND backfill any gap in the local sequence. Strategy:
+ *   - empty store → 0 (full hydrate)
+ *   - first event's sequence > 1 → 0 (we may be missing the prefix)
+ *   - first internal gap at events[i] → events[i-1].sequence (refetch from before the gap)
+ *   - no gap → max sequence (current tail-only behaviour)
+ */
+export function getSessionRefetchSinceSequence(state: ConversationStoreState, sessionId: string): number {
+  const events = state.sessions[sessionId]?.events;
+  if (!events || events.length === 0) return 0;
+  const sorted = [...events].sort((a, b) => a.sequence - b.sequence);
+  const first = sorted[0];
+  if (!first || first.sequence > 1) return 0;
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1];
+    const cur = sorted[i];
+    if (!prev || !cur) continue;
+    if (cur.sequence !== prev.sequence + 1) {
+      return prev.sequence;
+    }
+  }
+  const last = sorted[sorted.length - 1];
+  return last ? last.sequence : 0;
 }

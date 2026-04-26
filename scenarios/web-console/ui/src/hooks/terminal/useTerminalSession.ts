@@ -71,25 +71,37 @@ function appendOutputProbe(sessionId: string, data: string): void {
 }
 
 /**
- * stripTerminalResponses removes terminal-generated replies (DA1/DA2/DA3,
- * DSR, CPR) from input payloads before they reach the PTY. xterm.js
- * emits these in reply to queries that appear in PTY output — including
- * queries replayed from session history, where the original querying
- * program is long gone. Leaving them in the input stream spams the
- * current shell with garbage. DA queries that TUI programs (Claude
- * Code, vim, etc.) legitimately need answered are handled server-side
- * in session.readLoop instead (see api/ansi_responder.go).
+ * stripTerminalResponses removes terminal-generated replies from input
+ * payloads before they reach the PTY. xterm.js emits these in reply to
+ * queries that appear in PTY output — including queries replayed from
+ * session history, where the original querying program is long gone.
+ * Leaving them in the input stream spams the current shell with garbage.
+ * Queries that TUI programs (Claude Code, vim, etc.) legitimately need
+ * answered are handled server-side in session.readLoop instead
+ * (see api/ansi_responder.go).
  *
  * Matched CSI forms:
  *   \e[?…c   DA1 response        \e[>…c   DA2/DA3 response
  *   \e[…n    Device Status Report \e[…R   Cursor Position Report
  *   \e[?…$y  DECRPM (DECRQM reply)
+ *
+ * Matched OSC forms (color/cursor query replies):
+ *   \e]4;P;rgb:RRRR/GGGG/BBBB\e\\   palette color (Ps=4)
+ *   \e]10;rgb:…\e\\                 foreground (Ps=10)
+ *   \e]11;rgb:…\e\\                 background (Ps=11)
+ *   \e]12;rgb:…\e\\                 cursor (Ps=12)
+ *   \e]17;rgb:…\e\\ / \e]19;rgb:…   highlight bg/fg
+ * The reply may end with \x1b\\ (ST) or \x07 (BEL). Match any OSC whose
+ * payload contains "rgb:" — that's an unambiguous xterm-generated reply
+ * shape; legitimate OSC user input (titles, hyperlinks) does not match.
  */
 // eslint-disable-next-line no-control-regex -- intentionally matches CSI ESC byte
 const RE_TERMINAL_RESPONSE = /\x1b\[[\x30-\x3f]*[\x20-\x2f]*[cnRy]/g;
+// eslint-disable-next-line no-control-regex -- intentionally matches OSC framing
+const RE_OSC_COLOR_REPLY = /\x1b\][^\x07\x1b]*?rgb:[^\x07\x1b]*(?:\x07|\x1b\\)/g;
 function stripTerminalResponses(s: string): string {
   if (s.indexOf("\x1b") === -1) return s;
-  return s.replace(RE_TERMINAL_RESPONSE, "");
+  return s.replace(RE_TERMINAL_RESPONSE, "").replace(RE_OSC_COLOR_REPLY, "");
 }
 
 export interface UseTerminalSessionOptions {
