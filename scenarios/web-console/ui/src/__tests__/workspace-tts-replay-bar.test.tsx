@@ -103,6 +103,7 @@ vi.mock("../hooks/useSessionManager", () => ({
     seekTtsOnPane: vi.fn(),
     setTtsPlaybackRateOnPane: vi.fn(),
     setTtsVolumeOnPane: vi.fn(),
+    setTtsMutedOnPane: vi.fn(),
     getTtsStateOnPane: vi.fn().mockReturnValue(null),
   }),
 }));
@@ -158,6 +159,7 @@ vi.mock("../components/TerminalPane", () => ({
       seekTts: vi.fn(),
       setTtsPlaybackRate: vi.fn(),
       setTtsVolume: vi.fn(),
+      setTtsMuted: vi.fn(),
       getTtsState: vi.fn().mockReturnValue(null),
       subscribeInputSettled: vi.fn(() => () => {}),
       subscribePendingInput: vi.fn(() => () => {}),

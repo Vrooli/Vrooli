@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"os"
@@ -602,7 +603,7 @@ func TestFakePTY_SubscribeAndBroadcast(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	sub := sess.Subscribe(0)
+	sub := sess.Subscribe()
 	defer sess.Unsubscribe(sub.OutputCh)
 
 	// Write output from fake PTY
@@ -625,8 +626,8 @@ func TestFakePTY_SubscribeAndBroadcast(t *testing.T) {
 	<-sess.Done()
 }
 
-// [REQ:P0-003b] Reconnect State Restoration - offline buffer via fake PTY
-func TestFakePTY_OfflineBuffer(t *testing.T) {
+// [REQ:P0-003b] Reconnect State Restoration — snapshot replay via fake PTY.
+func TestFakePTY_OfflineSnapshot(t *testing.T) {
 	fake := newFakePTYWithOutput()
 	sm := NewSessionManagerWithFactory(fakePTYFactory(fake))
 
@@ -635,23 +636,15 @@ func TestFakePTY_OfflineBuffer(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	// Write output while no subscribers connected
-	_, _ = fake.outW.Write([]byte("offline data"))
+	if _, err := fake.outW.Write([]byte("offline data")); err != nil {
+		t.Fatalf("write fake pty: %v", err)
+	}
 	time.Sleep(50 * time.Millisecond)
 
-	// Subscribe and expect buffered data (prefixed with SGR reset)
-	sub := sess.Subscribe(0)
+	sub := sess.Subscribe()
 	defer sess.Unsubscribe(sub.OutputCh)
-
-	select {
-	case data := <-sub.OutputCh:
-		// Subscribe prepends SGR reset (\x1b[0m) to replayed history
-		expected := "\x1b[0m" + "offline data"
-		if string(data) != expected {
-			t.Errorf("expected %q, got %q", expected, string(data))
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for offline buffer")
+	if !bytes.Contains(sub.Snapshot, []byte("offline data")) {
+		t.Fatalf("snapshot missing offline data; got=%q", sub.Snapshot)
 	}
 
 	fake.Close()
@@ -669,7 +662,7 @@ func TestFakePTY_Resize(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	sub := sess.Subscribe(0)
+	sub := sess.Subscribe()
 	defer sess.Unsubscribe(sub.OutputCh)
 
 	sess.Resize(200, 60)

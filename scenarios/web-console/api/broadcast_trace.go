@@ -34,11 +34,12 @@ func bctraceOn() bool {
 	return broadcastTraceEnabled
 }
 
-// fingerprint returns "<len>|<head>|<tail>" where head/tail are up to
-// 40 bytes of the payload, with non-printable bytes escaped. Good enough
-// to eyeball-match two frames in log output.
+// fingerprint returns "<len>|<escaped-bytes>" where the escaped bytes
+// cover the FULL payload up to maxFingerprintBytes (default 8 KiB so a
+// typical TUI redraw is fully captured for diagnosis). Override with
+// WC_BROADCAST_TRACE_FULL=1 to log every byte regardless of size.
 func fingerprint(data []byte) string {
-	const edge = 40
+	const cap = 8 * 1024
 	esc := func(b []byte) string {
 		var sb strings.Builder
 		for _, c := range b {
@@ -50,10 +51,12 @@ func fingerprint(data []byte) string {
 		}
 		return sb.String()
 	}
-	if len(data) <= edge*2 {
+	full := os.Getenv("WC_BROADCAST_TRACE_FULL") == "1"
+	if full || len(data) <= cap {
 		return fmt.Sprintf("%d|%s", len(data), esc(data))
 	}
-	return fmt.Sprintf("%d|%s|…|%s", len(data), esc(data[:edge]), esc(data[len(data)-edge:]))
+	return fmt.Sprintf("%d|%s|…(+%d truncated)…|%s",
+		len(data), esc(data[:cap/2]), len(data)-cap, esc(data[len(data)-cap/2:]))
 }
 
 // bctrace emits one trace line when enabled. Fields are space-separated

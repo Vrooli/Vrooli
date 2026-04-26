@@ -15,7 +15,10 @@ export interface TTSPlaybackState {
   duration: number | null;
   isPaused: boolean;
   playbackRate: number;
+  /** User-configured volume (slider value), independent of mute state. */
   volume: number;
+  /** Whether playback is muted. Effective output volume is `isMuted ? 0 : volume`. */
+  isMuted: boolean;
   capabilities: TTSPlaybackCapabilities;
 }
 

@@ -47,7 +47,7 @@
 | Race | Location | Status | Mitigation |
 |------|----------|--------|------------|
 | Concurrent WS writes | `terminal_ws.go:89` | **Mitigated** | `writeMu sync.Mutex` serializes all WS writes |
-| Client channel coalescing | `session.go` | **By design** | Non-blocking send with coalescing; slow clients receive merged data on catchup via `FlushPending`. Pending buffer capped at `OfflineBufferMax` with ANSI-boundary-aware trimming |
+| Client channel coalescing | `broadcast.go` | **By design** | Non-blocking send with coalescing; slow clients receive merged data on catchup via `FlushPending`. Pending buffer capped at the fixed `pendingBufferMax`; on overflow the oldest bytes are truncated and the next snapshot replay restores correct state |
 | Event subscriber drop | `events.go:74` | **By design** | Non-blocking fan-out; full channels skip events |
 | Stale AI response | `AiInput.tsx` | **Mitigated** | Generation ID ref discards stale setState calls |
 | Stale settings load | `SettingsPage.tsx` | **Mitigated** | Cancellation signal prevents setState on unmounted component |

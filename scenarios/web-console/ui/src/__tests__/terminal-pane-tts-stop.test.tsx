@@ -53,7 +53,7 @@ let capturedHandler:
   | ((event: { id: string; source: string; role: "assistant" | "user"; text: string; speechParagraphs?: string[]; sequence: number; createdAt?: string }, sendAck: (stage: string, message?: string, backend?: string) => void) => void | Promise<void>)
   | undefined;
 vi.mock("../hooks/terminal/useTerminalSession", () => {
-  const totalBytesRef = { current: 0 };
+
   const gate = { submit: vi.fn(() => ({ status: "sent" as const, seq: 1 })), dispose: vi.fn(), canAcceptPaste: () => true };
   const submitInput = vi.fn(() => ({ status: "sent" as const, seq: 1 }));
   const sendResize = vi.fn();
@@ -67,7 +67,7 @@ vi.mock("../hooks/terminal/useTerminalSession", () => {
         submitInput,
         gate,
         sendResize,
-        totalBytesRef,
+
         subscribeInputSettled,
         subscribePendingInput,
         getPendingInputSnapshot,
@@ -98,9 +98,7 @@ vi.mock("@xterm/xterm", () => ({
 }));
 
 vi.mock("@xterm/addon-fit", () => ({ FitAddon: vi.fn().mockImplementation(() => ({ fit: vi.fn(), dispose: vi.fn() })) }));
-vi.mock("@xterm/addon-serialize", () => ({ SerializeAddon: vi.fn().mockImplementation(() => ({ serialize: vi.fn(() => ""), dispose: vi.fn() })) }));
 vi.mock("@xterm/addon-web-links", () => ({ WebLinksAddon: vi.fn().mockImplementation(() => ({ dispose: vi.fn() })) }));
-vi.mock("../lib/terminalCache", () => ({ loadTerminalCache: vi.fn(() => null), saveTerminalCache: vi.fn() }));
 
 const SESSION_ID = "stop-test";
 const storeState: Record<string, unknown> = {

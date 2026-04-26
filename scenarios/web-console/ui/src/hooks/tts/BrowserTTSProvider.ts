@@ -92,6 +92,7 @@ export class BrowserTTSProvider implements TTSProvider {
       isPaused: this._isPaused,
       playbackRate: 1,
       volume: 1,
+      isMuted: false,
       capabilities: this.capabilities,
     };
   }

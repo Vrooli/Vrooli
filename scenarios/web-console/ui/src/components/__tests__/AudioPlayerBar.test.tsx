@@ -25,12 +25,14 @@ function makeProps(overrides?: Partial<AudioPlayerBarProps>): AudioPlayerBarProp
     duration: 83,
     playbackRate: 1,
     volume: 1,
+    isMuted: false,
     capabilities: fullCapabilities,
     onPause: vi.fn(),
     onResume: vi.fn(),
     onSeek: vi.fn(),
     onSetPlaybackRate: vi.fn(),
     onSetVolume: vi.fn(),
+    onSetMuted: vi.fn(),
     onStop: vi.fn(),
     ...overrides,
   };
@@ -332,4 +334,41 @@ describe("AudioPlayerBar", () => {
     // The only tts-speed testids should be the presets inside the popover (once opened).
     expect(screen.queryByTestId("tts-speed")).toBeNull();
   });
+
+  // --- Mute behavior ---
+
+  it("renders muted icon when isMuted=true", () => {
+    render(<AudioPlayerBar {...makeProps({ isMuted: true })} />);
+    expect(screen.getByTestId("tts-audio-button").getAttribute("title")).toBe("Unmute");
+  });
+
+  it("renders unmuted icon when isMuted=false (regardless of volume)", () => {
+    render(<AudioPlayerBar {...makeProps({ isMuted: false, volume: 0 })} />);
+    expect(screen.getByTestId("tts-audio-button").getAttribute("title")).toBe("Audio settings");
+  });
+
+  it("clicking the audio button while muted calls onSetMuted(false) and does NOT open the popover", () => {
+    const props = makeProps({ isMuted: true });
+    render(<AudioPlayerBar {...props} />);
+    fireEvent.click(screen.getByTestId("tts-audio-button"));
+    expect(props.onSetMuted).toHaveBeenCalledWith(false);
+    expect(screen.queryByTestId("audio-popover")).toBeNull();
+  });
+
+  it("clicking the audio button while unmuted opens the popover and does NOT call onSetMuted", () => {
+    const props = makeProps({ isMuted: false });
+    render(<AudioPlayerBar {...props} />);
+    fireEvent.click(screen.getByTestId("tts-audio-button"));
+    expect(screen.getByTestId("audio-popover")).toBeInTheDocument();
+    expect(props.onSetMuted).not.toHaveBeenCalled();
+  });
+
+  it("popover exposes a mute toggle that calls onSetMuted with the negation", () => {
+    const props = makeProps({ isMuted: false });
+    render(<AudioPlayerBar {...props} />);
+    fireEvent.click(screen.getByTestId("tts-audio-button"));
+    fireEvent.click(screen.getByTestId("tts-mute-toggle"));
+    expect(props.onSetMuted).toHaveBeenCalledWith(true);
+  });
+
 });

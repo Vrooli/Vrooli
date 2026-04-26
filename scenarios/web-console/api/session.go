@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+	"web-console/terminal"
 
 	"github.com/google/uuid"
 )
@@ -40,30 +41,19 @@ var (
 	ErrPTYSpawnFailed = errors.New("PTY spawn failed")
 )
 
-// SubscribeResult holds the channels and metadata returned by Subscribe.
-// DOC: docs/concepts/ARCHITECTURE.md#terminal-history-caching
+// SubscribeResult holds the channels and snapshot returned by Subscribe.
+// DOC: docs/concepts/ARCHITECTURE.md#terminal-snapshot-replay
 type SubscribeResult struct {
-	// OutputCh receives PTY output frames. A nil value acts as a sentinel
-	// marking the end of replayed history data.
+	// OutputCh receives PTY output frames after the snapshot has been
+	// delivered. Closed when the PTY exits.
 	OutputCh chan []byte
 	// NotifyCh fires when coalesced frames exceed the configured threshold.
 	NotifyCh chan int
-	// StateCh receives alt-buffer state transitions (true=enter, false=exit)
-	// observed on the PTY output stream. Never closed; reader must select
-	// with a non-blocking default.
-	StateCh chan bool
-	// HadData is true when buffered history was replayed into OutputCh.
-	HadData bool
-	// Resumed is true when the client's resume offset was valid and only
-	// delta data (not full history) was sent.
-	Resumed bool
-	// TotalBytes is the server's monotonic output byte count at subscribe
-	// time. Clients store this to resume from the same offset on reconnect.
-	TotalBytes int64
-	// InitialAltBuffer is the tracker's alt-buffer view at subscription
-	// time. Clients report this once so their state is synchronized without
-	// replaying history through their own ANSI parser.
-	InitialAltBuffer bool
+	// Snapshot is the self-contained ANSI byte stream reproducing the
+	// current emulator state (screen + alt-buffer flag + scrollback).
+	// Caller must write it before draining OutputCh so live frames are
+	// applied on top of the restored state.
+	Snapshot []byte
 }
 
 // DOC: docs/concepts/ARCHITECTURE.md#data-flow
@@ -81,37 +71,30 @@ type Session struct {
 	pty    PTY
 	policy ExpirationPolicy // [REQ:P1-001a] per-session expiration policy
 
-	// Output fan-out: the readLoop goroutine reads from the PTY and either
-	// broadcasts to connected WebSocket clients while preserving bounded
-	// output history for reconnect and reload replay.
+	// Output fan-out: the readLoop goroutine reads from the PTY, feeds the
+	// decoded emulator, and broadcasts the live frame to connected
+	// WebSocket clients. The emulator owns the durable replay state.
 	mu              sync.Mutex
 	clients         map[chan []byte]*ClientInfo
-	outputHistory   []byte
+	emu             *terminal.Emulator
 	processExited   bool // set by readLoop when the PTY read returns an error
 	processExitCode int  // exit code from the PTY process (-1 if unknown)
-	historyTrimmed  bool // set once when history cap is hit (log once)
-
-	// totalOutputBytes is the monotonic count of bytes ever appended to
-	// outputHistory. Never decremented, even when history is trimmed.
-	// Used by clients to resume from a known offset after reconnect.
-	// DOC: docs/concepts/ARCHITECTURE.md#terminal-history-caching
-	totalOutputBytes int64
 
 	// utf8Buf holds an incomplete multi-byte UTF-8 sequence from the previous
 	// PTY read. Prepended to the next read before broadcasting so that
 	// string(data) + JSON encoding never sees partial codepoints.
 	utf8Buf []byte
 
-	// Config-driven limits for this session
-	offlineBufferMax        int
+	// Config-driven limits for this session.
 	ptyReadBuffer           int
 	clientChannelBuffer     int
 	coalesceNotifyThreshold int
 	sigwinchCooldown        time.Duration
 
-	// ptyState tracks PTY terminal modes the server needs to know about
-	// (alt-buffer today). Protected by s.mu.
-	ptyState PTYStateTracker
+	// inAltBuffer mirrors emu.InAltBuffer() at the most recent broadcast,
+	// so SIGWINCH-recovery decisions don't need to lock the emulator. It
+	// is updated under s.mu by broadcast.
+	inAltBuffer bool
 
 	// lastSIGWINCHRecovery is the wall time of the most recent SIGWINCH
 	// emitted by FlushPending's recovery path. Protected by s.mu.
@@ -184,102 +167,31 @@ func (s *Session) ProbeReady(ctx context.Context) error {
 	return p.ProbeReady(ctx)
 }
 
-// Subscribe returns a SubscribeResult containing channels for receiving PTY
-// output and coalescing notifications, plus metadata about the subscription.
+// Subscribe registers a new client and returns a self-contained ANSI
+// snapshot of the current emulator state plus channels for receiving live
+// PTY output and coalescing notifications.
 //
-// When resumeOffset > 0 and falls within the current history buffer's range
-// [historyStart, totalOutputBytes], only the delta (bytes after the offset)
-// is replayed and Resumed is set to true. Otherwise, full history is sent
-// and Resumed is false. An offset of 0 always triggers full history replay.
+// The snapshot is generated under s.mu so no live frame can be broadcast
+// between the snapshot and channel registration: the client's restored
+// state plus the channel's live frames reproduce the same triple
+// (screen, alt-buffer, scrollback) the server holds.
 //
-// When HadData is true, the caller should expect a nil sentinel value on
-// OutputCh after all history chunks have been delivered. This sentinel tells
-// the WebSocket forwarder to send a "history_end" message so the client can
-// batch-render history in one pass.
-//
-// Caller must call Unsubscribe when done. Replayed history is prefixed with
-// an SGR reset to clear any dangling color/attribute state that may have
-// been lost when the history buffer was trimmed.
+// Caller must call Unsubscribe when done.
 // [REQ:P0-003b] Reconnect State Restoration
-// DOC: docs/concepts/ARCHITECTURE.md#terminal-history-caching
-func (s *Session) Subscribe(resumeOffset int64) SubscribeResult {
+// DOC: docs/concepts/ARCHITECTURE.md#terminal-snapshot-replay
+func (s *Session) Subscribe() SubscribeResult {
 	notifyCh := make(chan int, 1)
-	stateCh := make(chan bool, 4)
 	s.mu.Lock()
-
-	totalBytes := s.totalOutputBytes
-	hStart := s.historyStart()
-
-	// Determine whether to send delta or full history.
-	resumed := false
-	var source []byte // raw bytes to chunk and send
-	if resumeOffset > 0 && resumeOffset >= hStart && resumeOffset <= totalBytes {
-		resumed = true
-		deltaStart := resumeOffset - hStart
-		if deltaStart < int64(len(s.outputHistory)) {
-			source = s.outputHistory[deltaStart:]
-		}
-		// else: offset == totalBytes → no delta, but still "resumed"
-	} else if len(s.outputHistory) > 0 {
-		source = s.outputHistory
-	}
-
-	// Build chunks from the selected source, prepending SGR reset when
-	// sending full history (not delta) to clear dangling color state.
-	var chunks [][]byte
-	if len(source) > 0 {
-		var snapshot []byte
-		if !resumed {
-			snapshot = make([]byte, 0, len(sgrReset)+len(source))
-			snapshot = append(snapshot, sgrReset...)
-			snapshot = append(snapshot, source...)
-		} else {
-			snapshot = make([]byte, len(source))
-			copy(snapshot, source)
-		}
-		for off := 0; off < len(snapshot); off += historyChunkSize {
-			end := off + historyChunkSize
-			if end > len(snapshot) {
-				end = len(snapshot)
-			}
-			chunk := make([]byte, end-off)
-			copy(chunk, snapshot[off:end])
-			chunks = append(chunks, chunk)
-		}
-	}
-
-	hadData := len(chunks) > 0
-
-	// Ensure the channel can hold all history chunks + the nil sentinel
-	// without blocking, while still respecting the configured buffer size
-	// for live output delivery.
-	bufSize := s.clientChannelBuffer
-	if needed := len(chunks) + 1; needed > bufSize {
-		bufSize = needed
-	}
-	ch := make(chan []byte, bufSize)
-
-	bctrace("subscribe", s.ID, fmt.Sprintf("resumeOffset=%d resumed=%v totalBytes=%d chunks=%d hStart=%d", resumeOffset, resumed, totalBytes, len(chunks), hStart), nil)
-	for i, chunk := range chunks {
-		bctrace("history_replay_chunk", s.ID, fmt.Sprintf("i=%d of=%d resumed=%v", i, len(chunks), resumed), chunk)
-		ch <- chunk
-	}
-	if hadData {
-		ch <- nil // sentinel: history replay complete
-	}
-
-	s.clients[ch] = &ClientInfo{NotifyCh: notifyCh, StateCh: stateCh}
-	initialAlt := s.ptyState.IsAltBuffer()
+	snap := s.emu.Snapshot()
+	ch := make(chan []byte, s.clientChannelBuffer)
+	s.clients[ch] = &ClientInfo{NotifyCh: notifyCh}
+	bctrace("subscribe", s.ID, fmt.Sprintf("snapshot_bytes=%d alt=%v", len(snap), s.inAltBuffer), nil)
 	s.mu.Unlock()
 
 	return SubscribeResult{
-		OutputCh:         ch,
-		NotifyCh:         notifyCh,
-		StateCh:          stateCh,
-		HadData:          hadData,
-		Resumed:          resumed,
-		TotalBytes:       totalBytes,
-		InitialAltBuffer: initialAlt,
+		OutputCh: ch,
+		NotifyCh: notifyCh,
+		Snapshot: snap,
 	}
 }
 
@@ -299,9 +211,10 @@ func (s *Session) Resize(cols, rows uint16) {
 		bctrace("resize_noop", s.ID, fmt.Sprintf("cols=%d rows=%d", cols, rows), nil)
 		return
 	}
-	bctrace("resize", s.ID, fmt.Sprintf("cols=%d->%d rows=%d->%d alt=%v", s.Cols, cols, s.Rows, rows, s.ptyState.IsAltBuffer()), nil)
+	bctrace("resize", s.ID, fmt.Sprintf("cols=%d->%d rows=%d->%d alt=%v", s.Cols, cols, s.Rows, rows, s.inAltBuffer), nil)
 	s.Cols = cols
 	s.Rows = rows
+	s.emu.Resize(int(cols), int(rows))
 	_ = s.pty.SetSize(cols, rows)
 }
 
@@ -774,7 +687,7 @@ func (sm *SessionManager) Create(shell string, cols, rows uint16, backend Backen
 		policy:                  sessionPolicy,
 		clients:                 make(map[chan []byte]*ClientInfo),
 		exitCh:                  make(chan struct{}),
-		offlineBufferMax:        sm.cfg.OfflineBufferMax,
+		emu:                     terminal.New(terminal.Options{Cols: int(cols), Rows: int(rows), ScrollbackLines: sm.cfg.TerminalScrollbackLines}),
 		ptyReadBuffer:           sm.cfg.PTYReadBuffer,
 		clientChannelBuffer:     sm.cfg.ClientChannelBuffer,
 		coalesceNotifyThreshold: sm.cfg.CoalesceNotifyThreshold,
@@ -1003,7 +916,7 @@ func (sm *SessionManager) Recover(store SessionMetadataStore, registry *BackendR
 			policy:                  meta.Policy,
 			clients:                 make(map[chan []byte]*ClientInfo),
 			exitCh:                  make(chan struct{}),
-			offlineBufferMax:        sm.cfg.OfflineBufferMax,
+			emu:                     terminal.New(terminal.Options{Cols: int(meta.Cols), Rows: int(meta.Rows), ScrollbackLines: sm.cfg.TerminalScrollbackLines}),
 			ptyReadBuffer:           sm.cfg.PTYReadBuffer,
 			clientChannelBuffer:     sm.cfg.ClientChannelBuffer,
 			coalesceNotifyThreshold: sm.cfg.CoalesceNotifyThreshold,
@@ -1158,7 +1071,7 @@ func (sm *SessionManager) reattachOrphanedSessions() {
 			policy:                  meta.Policy,
 			clients:                 make(map[chan []byte]*ClientInfo),
 			exitCh:                  make(chan struct{}),
-			offlineBufferMax:        sm.cfg.OfflineBufferMax,
+			emu:                     terminal.New(terminal.Options{Cols: int(meta.Cols), Rows: int(meta.Rows), ScrollbackLines: sm.cfg.TerminalScrollbackLines}),
 			ptyReadBuffer:           sm.cfg.PTYReadBuffer,
 			clientChannelBuffer:     sm.cfg.ClientChannelBuffer,
 			coalesceNotifyThreshold: sm.cfg.CoalesceNotifyThreshold,

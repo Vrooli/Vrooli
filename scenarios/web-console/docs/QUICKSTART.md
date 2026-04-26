@@ -33,7 +33,7 @@ This builds the Go API and Vite UI, then starts both services. Ports are dynamic
 
 ## Configuration
 
-API behavior is controlled via environment variables (e.g., `WC_MAX_SESSIONS`, `WC_OFFLINE_BUFFER_MAX`). See [Configuration Reference](reference/configuration.md) for details.
+API behavior is controlled via environment variables (e.g., `WC_MAX_SESSIONS`, `WC_TERMINAL_SCROLLBACK_LINES`). See [Configuration Reference](reference/configuration.md) for details.
 
 UI appearance is controlled via compile-time constants in [CODE: ui/src/consts/config.ts].
 

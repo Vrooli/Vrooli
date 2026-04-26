@@ -10,8 +10,8 @@ import (
 func TestDefaultConfig(t *testing.T) {
 	cfg := DefaultConfig()
 
-	if cfg.OfflineBufferMax != 1<<20 {
-		t.Errorf("OfflineBufferMax: want 1048576, got %d", cfg.OfflineBufferMax)
+	if cfg.TerminalScrollbackLines != 10_000 {
+		t.Errorf("TerminalScrollbackLines: want 10000, got %d", cfg.TerminalScrollbackLines)
 	}
 	if cfg.PTYReadBuffer != 4096 {
 		t.Errorf("PTYReadBuffer: want 4096, got %d", cfg.PTYReadBuffer)
@@ -38,14 +38,14 @@ func TestDefaultConfig(t *testing.T) {
 
 // [REQ:P1-001a] Session Policy Controls - env override
 func TestLoadConfig_EnvOverride(t *testing.T) {
-	t.Setenv("WC_OFFLINE_BUFFER_MAX", "524288")
+	t.Setenv("WC_TERMINAL_SCROLLBACK_LINES", "5000")
 	t.Setenv("WC_DEFAULT_COLS", "120")
 	t.Setenv("WC_MAX_SESSIONS", "10")
 
 	cfg := LoadConfig()
 
-	if cfg.OfflineBufferMax != 524288 {
-		t.Errorf("OfflineBufferMax: want 524288, got %d", cfg.OfflineBufferMax)
+	if cfg.TerminalScrollbackLines != 5000 {
+		t.Errorf("TerminalScrollbackLines: want 5000, got %d", cfg.TerminalScrollbackLines)
 	}
 	if cfg.DefaultCols != 120 {
 		t.Errorf("DefaultCols: want 120, got %d", cfg.DefaultCols)
@@ -76,12 +76,12 @@ func TestLoadConfig_Clamping(t *testing.T) {
 
 // [REQ:P1-001a] Session Policy Controls - invalid values use defaults
 func TestLoadConfig_InvalidFallback(t *testing.T) {
-	t.Setenv("WC_OFFLINE_BUFFER_MAX", "not_a_number")
+	t.Setenv("WC_TERMINAL_SCROLLBACK_LINES", "not_a_number")
 
 	cfg := LoadConfig()
 
-	if cfg.OfflineBufferMax != 1<<20 {
-		t.Errorf("OfflineBufferMax should fall back to default, got %d", cfg.OfflineBufferMax)
+	if cfg.TerminalScrollbackLines != 10_000 {
+		t.Errorf("TerminalScrollbackLines should fall back to default, got %d", cfg.TerminalScrollbackLines)
 	}
 }
 

@@ -140,34 +140,36 @@ func findEnclosingFunc(lines []string, lineIdx int) string {
 	return ""
 }
 
-// TestGreenfield_PTYStateTrackerSingleOwner enforces that the alt-
-// buffer tracker is only instantiated inside the Session struct;
-// duplicate trackers in other files would imply split ownership.
-func TestGreenfield_PTYStateTrackerSingleOwner(t *testing.T) {
-	pat := regexp.MustCompile(`\bPTYStateTracker\b`)
+// TestGreenfield_NoLegacyHistorySymbols enforces that the deleted
+// raw-byte history protocol stays deleted. New code must use the
+// snapshot-replay flow through terminal.Emulator.
+func TestGreenfield_NoLegacyHistorySymbols(t *testing.T) {
+	forbidden := []string{
+		"outputHistory",
+		"appendHistory",
+		"OfflineBufferMax",
+		"WC_OFFLINE_BUFFER_MAX",
+		"history_offset",
+		"PTYStateTracker",
+		"snapToCleanBoundary",
+	}
 	files, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatalf("glob: %v", err)
 	}
-	var producing []string
 	for _, f := range files {
-		if strings.HasSuffix(f, "_test.go") {
+		if f == "greenfield_assertions_test.go" {
 			continue
 		}
 		b, err := os.ReadFile(f)
 		if err != nil {
 			continue
 		}
-		if pat.MatchString(string(b)) {
-			producing = append(producing, f)
-		}
-	}
-	// Expected: pty_state.go (definition) and session.go (the one
-	// owner). Anything else is a regression.
-	allowed := map[string]bool{"pty_state.go": true, "session.go": true}
-	for _, f := range producing {
-		if !allowed[f] {
-			t.Errorf("%s references PTYStateTracker; only pty_state.go and session.go should", f)
+		s := string(b)
+		for _, sym := range forbidden {
+			if strings.Contains(s, sym) {
+				t.Errorf("%s references deleted symbol %q", f, sym)
+			}
 		}
 	}
 }

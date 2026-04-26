@@ -95,6 +95,7 @@ export default function Workspace() {
     seekTtsOnPane,
     setTtsPlaybackRateOnPane,
     setTtsVolumeOnPane,
+    setTtsMutedOnPane,
     getTtsStateOnPane,
   } = useSessionManager();
 
@@ -533,6 +534,11 @@ export default function Workspace() {
     isPaused: false,
     playbackRate: 1,
     volume: 1,
+    // Match the user's "start muted on load" preference until the first poll
+    // tick reports the real per-session mute state, so the bar shows the
+    // muted icon immediately on first speak rather than briefly flashing
+    // unmuted.
+    isMuted: store.startMutedOnLoad,
     capabilities: { canPause: true, canSeek: false, canAdjustSpeed: true, canAdjustVolume: true },
   };
   const [ttsPlayback, setTtsPlayback] = useState<TTSPlaybackState | null>(null);
@@ -572,6 +578,10 @@ export default function Workspace() {
   const handleTtsSetVolume = useCallback((level: number) => {
     if (store.activePane) setTtsVolumeOnPane(store.activePane, level);
   }, [store.activePane, setTtsVolumeOnPane]);
+
+  const handleTtsSetMuted = useCallback((next: boolean) => {
+    if (store.activePane) setTtsMutedOnPane(store.activePane, next);
+  }, [store.activePane, setTtsMutedOnPane]);
 
   // --- Messages View TTS controls ---
   const [activeSpeakingEventId, setActiveSpeakingEventId] = useState<string | null>(null);
@@ -1288,6 +1298,7 @@ export default function Workspace() {
               duration={pb.duration}
               playbackRate={pb.playbackRate}
               volume={pb.volume}
+              isMuted={pb.isMuted}
               capabilities={pb.capabilities}
               isSummarized={isPlayingSummarized}
               hasOriginalVersion={hasOriginal}
@@ -1314,6 +1325,7 @@ export default function Workspace() {
               onSeek={handleTtsSeek}
               onSetPlaybackRate={handleTtsSetPlaybackRate}
               onSetVolume={handleTtsSetVolume}
+              onSetMuted={handleTtsSetMuted}
               onStop={isTtsSpeaking ? handleTtsStop : () => {
                 // In replay mode, stop dismisses the bar
                 setLastTtsEventId(null);

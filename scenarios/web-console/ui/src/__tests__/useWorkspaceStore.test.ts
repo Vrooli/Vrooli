@@ -219,6 +219,19 @@ describe("useWorkspaceStore", () => {
     });
   });
 
+  describe("startMutedOnLoad", () => {
+    it("defaults to true", () => {
+      expect(useWorkspaceStore.getState().startMutedOnLoad).toBe(true);
+    });
+
+    it("setStartMutedOnLoad updates the value", () => {
+      useWorkspaceStore.getState().setStartMutedOnLoad(false);
+      expect(useWorkspaceStore.getState().startMutedOnLoad).toBe(false);
+      useWorkspaceStore.getState().setStartMutedOnLoad(true);
+      expect(useWorkspaceStore.getState().startMutedOnLoad).toBe(true);
+    });
+  });
+
   describe("keepScreenAwake", () => {
     it("defaults to true", () => {
       expect(useWorkspaceStore.getState().keepScreenAwake).toBe(true);

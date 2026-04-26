@@ -6,7 +6,7 @@
  * Message directions:
  *   Client → Server: stdin, resize, ping, conversation_event_ack
  *   Server → Client: stdout, exit, error, pong, session_ready,
- *                    stdin_ack, pty_state, history_end, sync_warning,
+ *                    stdin_ack, history_end, sync_warning,
  *                    conversation_event, conversation_event_update
  *
  * [REQ:P0-002b] WebSocket I/O Streaming
@@ -28,8 +28,7 @@ export interface TerminalMessage {
     | "conversation_event_update"
     | "conversation_out_of_sync"
     | "session_ready"
-    | "stdin_ack"
-    | "pty_state";
+    | "stdin_ack";
   /** Terminal I/O payload (stdin input or stdout output). */
   data?: string;
   /** New terminal width for resize messages. */
@@ -40,10 +39,6 @@ export interface TerminalMessage {
   code?: number;
   /** Cumulative coalesced frame count (sent with "sync_warning" messages). */
   coalesced_frames?: number;
-  /** Server's monotonic output byte count (sent with "history_end"). */
-  total_bytes?: number;
-  /** True when the server honored the client's resume offset (delta-only). */
-  resumed?: boolean;
   eventId?: string;
   source?: string;
   stage?: string;
@@ -64,8 +59,6 @@ export interface TerminalMessage {
   seq?: number;
   /** Per-message success flag (used by stdin_ack). */
   ok?: boolean;
-  /** Alternate-screen-buffer flag on pty_state messages. */
-  altBuffer?: boolean;
   /** Generation counter echoed in session_ready for the wsGen barrier. */
   gen?: number;
   /**

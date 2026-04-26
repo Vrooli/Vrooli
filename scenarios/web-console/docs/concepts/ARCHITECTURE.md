@@ -75,7 +75,7 @@ It now has two distinct data planes:
    - **Input loop**: WebSocket → `Session.Write()` → PTY stdin
 4. Client-side session hook [CODE: ui/src/hooks/terminal/useTerminalSession.ts#useTerminalSession] composes three focused hooks: `useTerminalTransport` (WebSocket lifecycle + `wsGen` counter), `useStdinAck` (seq/ack protocol + pending queue with wsGen write barrier), and a shared `TerminalInputGate` ([CODE: ui/src/components/terminal/inputGate.ts]) that is the single path every input source (xterm.onData, MobileToolbar, paste, voice, upload) flows through
 5. `readLoop` splits PTY output at UTF-8 codepoint boundaries so that partial multi-byte sequences are buffered across reads, preventing JSON encoding corruption
-6. When a client's output channel is full, frames are **coalesced** (merged into a pending buffer) rather than dropped. The pending buffer is capped at `OfflineBufferMax` and trimmed at ANSI-clean boundaries when exceeded, with an SGR reset prefix to clear dangling color state. The forwarder calls `FlushPending` after each successful WebSocket write to drain coalesced data in 64 KB chunks (matching `Subscribe`'s chunking) to prevent browser UI freezes
+6. When a client's output channel is full, frames are **coalesced** (merged into a per-client pending buffer) rather than dropped. The pending buffer is capped at a fixed `pendingBufferMax`; on overflow the oldest bytes are truncated and the next snapshot replay restores correct state. The forwarder calls `FlushPending` after each successful WebSocket write to drain coalesced data in 64 KB chunks to prevent browser UI freezes
 7. After a trimmed buffer is fully flushed, the session considers a SIGWINCH-based screen recovery. Recovery is **gated** by [CODE: api/session.go#maybeSIGWINCHRecovery]: it is suppressed while the PTY is in the alternate screen buffer (tracked by [CODE: api/pty_state.go#PTYStateTracker] parsing `\x1b[?1049h`/`1047`/`47` sequences) and rate-limited to at most one SIGWINCH per `SIGWINCHCooldownMs` (default 1000ms). This prevents the tmux status-bar interleaving that occurred under earlier unconditional recovery
 8. Alt-buffer state is broadcast to clients as `pty_state` messages. The session hook disables the `LocalEchoController` while in alt-buffer so predictive echo does not flicker under TUI redraws
 9. Goroutine lifecycle uses `context.WithCancel`: the input loop's exit cancels the context, which the output forwarder selects on — no goroutine leaks on WebSocket disconnect
@@ -88,36 +88,40 @@ The PTY dimensions follow a **last-writer-wins** model: whichever client sends a
 - `Resize(cols, rows)` sets the PTY size directly
 - `Unsubscribe(ch)` removes the client without altering the PTY size
 
-### History Replay Limitations
+### Terminal Snapshot Replay
 
-On reconnect, the client resets the terminal (`terminal.reset()`) before history replay arrives, ensuring a clean slate with no duplicated content. The server replays buffered output history prefixed with an SGR reset (`ESC[0m`) to clear dangling color/attribute state. For large history buffers, the replay is chunked into 64 KB pieces to prevent browser UI freezes — each chunk is sent as a separate WebSocket message so xterm.js can render incrementally.
+**Source of truth**: a server-side terminal emulator (`api/terminal/`) decodes the PTY byte stream into a screen grid + alt-buffer flag + bounded scrollback ring. The emulator is the durable representation; raw PTY bytes are not retained.
 
-This does **not** restore cursor position, scroll regions (DECSTBM), alternate screen buffer (smcup/rmcup), or character set state. Full terminal state restoration would require a server-side terminal emulator, which adds significant complexity for marginal benefit in the single-operator use case.
-
-### Terminal History Caching
-
-**Problem**: On page refresh, the server re-sends the entire output history over WebSocket even when the client already has most of it. For long-running sessions this causes noticeable delay and redundant bandwidth.
-
-**Two-layer strategy**:
-
-1. **Client cache**: xterm `SerializeAddon` serializes terminal state to `sessionStorage` on `visibilitychange` (tab hidden) and `beforeunload`.
-2. **Server resume**: Client sends `?history_offset=N` on WS connect; server validates the offset against `totalOutputBytes` and sends only the delta.
-
-**Flow**:
+**Wire flow on every WS open** (fresh OR reconnect):
 
 ```
-Page Load → Check sessionStorage
-├─ Cache hit → Deserialize to xterm (instant) → Connect WS with ?history_offset=N
-│              └─ Server validates offset
-│                 ├─ Valid → Send delta + history_end{resumed:true}
-│                 └─ Invalid → Send full history + history_end{resumed:false}
-│                              └─ Client calls terminal.reset() first
-└─ Cache miss → Connect WS without offset → Full history replay (existing behavior)
+Server: Subscribe()                          ; locks emulator, captures Snapshot()
+Server → stdout {data: <snapshot bytes>}…   ; chunked at 64 KB
+Server → history_end {}                      ; pure delimiter, no fields
+Server → live stdout / stdin_ack / etc.
 ```
 
-**Cache lifecycle**: Saved on `visibilitychange` (tab hidden) and `beforeunload`. 30-minute TTL. 2 MB max size. Uses `sessionStorage` (per-tab, cleared on tab close).
+The snapshot is a self-contained ANSI byte stream that recreates the exact `(screen, alt-buffer, scrollback)` triple in any conforming xterm-compatible client:
 
-**Key files**: `ui/src/lib/terminalCache.ts` (save/load/clear), `ui/src/hooks/terminal/useTerminalSession.ts` (historyOffset negotiation, per-connection cache-validity flag), `ui/src/components/TerminalPane.tsx` (SerializeAddon integration), `api/session.go` (totalOutputBytes, Subscribe), `api/terminal_ws.go` (history_offset query param).
+1. `\x1bc` — full reset.
+2. Each scrollback line, oldest first, terminated by `\r\n` so the receiver naturally scrolls them into its own scrollback.
+3. Visible normal-buffer rows; the last row has no trailing `\r\n` so the cursor doesn't trigger a final scroll.
+4. If the server is in alt-buffer: `\x1b[?1049h` followed by alt-buffer rows.
+5. CUP to current cursor + SGR matching the current pen.
+
+**Client**: xterm.js is a pure renderer. On every WS open the hook calls `terminal.reset()`, writes every snapshot stdout frame verbatim, then on `history_end` flips to live mode and writes subsequent stdout frames as live PTY output. There is no client-side cache, no byte-offset accounting, and no duplication-detection logic — every reconnect rebuilds state from the snapshot.
+
+**Why the rewrite happened**: the previous raw-PTY-byte history ring was not replay-safe across alt-buffer transitions. A captured stream containing an unmatched `\x1b[?1049h` would leave the reconnecting xterm stuck in alt-buffer (where scrollback is disabled by VT spec), making history appear to vanish. See `docs/plans/terminal-emulator-replay-implementation-plan.md` for the full investigation.
+
+**Invariants** (enforced by tests in `api/terminal/emulator_test.go`):
+
+- `Feed` is total: never errors, consumes every byte; malformed escapes are dropped.
+- `Snapshot()` is idempotent under no input.
+- `Snapshot()` is complete: feeding the snapshot bytes into a fresh `Emulator` reproduces the same triple.
+- Alt-buffer is opaque to scrollback — bytes written while `InAltBuffer()` returns true never enter the scrollback ring.
+- `Resize` preserves scrollback line count.
+
+**Key files**: `api/terminal/` (emulator + snapshot serializer), `api/session.go` (`Subscribe()` returns the snapshot), `api/terminal_ws.go` (chunks snapshot frames before `history_end`), `ui/src/hooks/terminal/useTerminalSession.ts` (snapshot-mode flag), `ui/src/lib/terminalConfig.ts` (`TERMINAL_SCROLLBACK_LINES` shared constant).
 
 ### Voice Input
 

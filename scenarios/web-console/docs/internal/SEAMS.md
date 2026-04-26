@@ -20,10 +20,12 @@ contract.
 - `TerminalContextMenu` waits for settlement via
   `subscribeInputSettled` before closing, showing
   `Pasting… → Pasted` or `Paste failed: <reason>`. Closes Bug B.
-- `useTerminalSession.totalBytesRef` now advances on every live
-  `stdout` frame (UTF-8 byte length, via `TextEncoder`), not only on
-  `history_end`. Cache saves always record a consistent offset.
-  Closes the scrollback-duplication Bug C.
+- Terminal replay uses a server-side emulator and a self-contained
+  ANSI snapshot (`api/terminal/`). The UI hook resets xterm on every WS
+  open and writes snapshot stdout frames verbatim until `history_end`,
+  then flips to live mode. There is no client-side cache, no byte
+  offset, and no duplication-detection logic. Closes the alt-buffer
+  scrollback-loss bug for good.
 
 ## Session decomposition (refactored 2026-04-24)
 
@@ -36,10 +38,11 @@ contract.
   pending-buffer trim, SIGWINCH recovery gating.
   (`ClientInfo`, `broadcast`, `deliver`, `FlushPending`,
   `maybeSIGWINCHRecovery`, `notifyIfThreshold`)
-- [CODE: api/history_store.go] — Bounded output-history ring,
-  monotonic byte counter, `snapToCleanBoundary` /
-  `looksLikeMidSequence` trim repair, `sgrReset` and
-  `historyChunkSize` constants.
+- [CODE: api/terminal/] — Decoded terminal emulator (parser, screen
+  grid, bounded scrollback ring, alt-buffer flag) and the ANSI
+  snapshot serializer. The session holds one `*terminal.Emulator`;
+  every PTY read is fed into it, and every `Subscribe()` returns a
+  self-contained snapshot.
 - [CODE: api/terminal_ws.go] — WS upgrade + handler glue.
 - [CODE: api/terminal_ws_input.go] — Per-message input dispatch
   (kind-aware stdin, resize, ping/pong, conversation_event_ack).
@@ -437,19 +440,20 @@ Verification disabled           → no gating at all (current behavior)
 
 **Benefits**: Time-dependent local echo behavior (stale prediction reset, overflow cap) can be tested deterministically without real delays. The clock injection is a single constructor parameter with a sensible default.
 
-### Terminal Cache Storage Seam (UI)
-**File**: `ui/src/lib/terminalCache.ts`
-**Purpose**: Abstracts terminal state persistence for cache-based history resume.
+### Terminal Emulator Seam (API)
+**File**: `api/terminal/emulator.go`
+**Purpose**: Owns the durable decoded state of a PTY's output (screen + alt-buffer + bounded scrollback). The session never inspects raw PTY bytes for replay.
 
 | Component | Production | Test |
 |-----------|-----------|------|
-| `saveTerminalCache()` | Serializes terminal state to `sessionStorage` | Direct `sessionStorage.clear()` in `beforeEach`; tested via public API without mocking internal storage |
-| `loadTerminalCache()` | Reads and deserializes cached terminal state from `sessionStorage` | Same — tested via public API |
-| `clearTerminalCache()` | Removes cached state from `sessionStorage` | Same — tested via public API |
+| `terminal.New(Options)` | Constructs an emulator sized to the session | `New(Options{Cols, Rows, ScrollbackLines})` with deterministic options |
+| `Emulator.Feed([]byte)` | Called from `Session.broadcast` for every PTY read | Driven directly with crafted byte streams to assert state |
+| `Emulator.Snapshot()` | Returns a self-contained ANSI replay payload | Round-trip: `New().Feed(Snapshot()) ≡ original` (`emulator_test.go`) |
+| `Emulator.Resize(cols, rows)` | Called from `Session.Resize` | Asserts scrollback line count is preserved |
 
-**Benefits**: Enables instant visual restore on page refresh. Server sends only delta output. Tests verify cache lifecycle without browser dependencies.
+**Benefits**: Replay is replay-safe across alt-buffer/charset/resize transitions. The snapshot is the single source of truth for client reconnect; no client cache, no byte offsets, no duplication-detection logic anywhere.
 
-**Boundary**: `terminalCache.ts` ↔ `TerminalPane.tsx` (serialize/restore) ↔ `useTerminalSession.ts` (offset negotiation)
+**Boundary**: `api/terminal/` ↔ `api/session.go` (`Subscribe()` returns the snapshot) ↔ `api/terminal_ws.go` (chunks snapshot frames before `history_end`) ↔ `ui/src/hooks/terminal/useTerminalSession.ts` (snapshot-mode flag flips on `history_end`).
 
 ### Combo Sequence Delay Seam (UI)
 **File**: `ui/src/lib/comboSequence.ts`

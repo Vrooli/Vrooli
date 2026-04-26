@@ -13,6 +13,7 @@ export interface AudioPlayerBarProps {
   duration: number | null;
   playbackRate: number;
   volume: number;
+  isMuted: boolean;
   capabilities: TTSPlaybackCapabilities;
   /** Whether the currently playing content is a summarized version. */
   isSummarized?: boolean;
@@ -29,6 +30,7 @@ export interface AudioPlayerBarProps {
   onSeek: (seconds: number) => void;
   onSetPlaybackRate: (rate: number) => void;
   onSetVolume: (level: number) => void;
+  onSetMuted: (next: boolean) => void;
   onStop: () => void;
   /** Called when the user wants to switch to the original (unsummarized) version. */
   onToggleSummarized?: (useSummarized: boolean) => void;
@@ -58,6 +60,7 @@ export default function AudioPlayerBar({
   duration,
   playbackRate,
   volume,
+  isMuted,
   capabilities,
   isSummarized = false,
   hasOriginalVersion = false,
@@ -69,6 +72,7 @@ export default function AudioPlayerBar({
   onSeek,
   onSetPlaybackRate,
   onSetVolume,
+  onSetMuted,
   onStop,
   onToggleSummarized,
   onChangeLevel,
@@ -89,7 +93,6 @@ export default function AudioPlayerBar({
     [onSeek],
   );
 
-  const isMuted = volume === 0;
   const scrubEnabled = capabilities.canSeek && duration !== null;
   // The bar is "idle" when no audio is loaded — replay mode, between events,
   // or before the first playback poll tick. In this state every control keeps
@@ -175,14 +178,18 @@ export default function AudioPlayerBar({
         {formatTime(currentTime)} / {formatTime(duration)}
       </span>
 
-      {/* Audio button — opens popover/sheet via portal */}
+      {/* Audio button — context-sensitive: when muted, single-tap unmutes; when
+          unmuted, opens the popover with volume/speed/mute controls. */}
       {capabilities.canAdjustVolume && (
         <button
           ref={audioButtonRef}
           data-testid="tts-audio-button"
-          onClick={() => setShowPopover((prev) => !prev)}
+          onClick={() => {
+            if (isMuted) onSetMuted(false);
+            else setShowPopover((prev) => !prev);
+          }}
           className="shrink-0 rounded p-1 transition hover:bg-wc-accent/10"
-          title="Audio settings"
+          title={isMuted ? "Unmute" : "Audio settings"}
         >
           {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
         </button>
@@ -209,10 +216,12 @@ export default function AudioPlayerBar({
               <AudioSettingsContent
                 testIdPrefix="tts"
                 volume={volume}
+                isMuted={isMuted}
                 playbackRate={playbackRate}
                 isSummarized={isSummarized}
                 capabilities={capabilities}
                 onVolumeChange={onSetVolume}
+                onSetMuted={onSetMuted}
                 onSetPlaybackRate={onSetPlaybackRate}
               />
             </div>
@@ -232,10 +241,12 @@ export default function AudioPlayerBar({
               <AudioSettingsContent
                 testIdPrefix="tts"
                 volume={volume}
+                isMuted={isMuted}
                 playbackRate={playbackRate}
                 isSummarized={isSummarized}
                 capabilities={capabilities}
                 onVolumeChange={onSetVolume}
+                onSetMuted={onSetMuted}
                 onSetPlaybackRate={onSetPlaybackRate}
               />
             </div>

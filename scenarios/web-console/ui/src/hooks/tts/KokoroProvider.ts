@@ -273,6 +273,7 @@ export class KokoroProvider implements TTSProvider {
       isPaused: this._isPaused,
       playbackRate: this.audio.playbackRate,
       volume: this.audio.volume,
+      isMuted: false,
       capabilities: this.capabilities,
     };
   }

@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"web-console/terminal"
 )
 
 // --- Session Recovery Tests ---
@@ -240,7 +241,7 @@ func TestSession_ReadLoop_ExitsOnStandardBackend(t *testing.T) {
 		clients:             make(map[chan []byte]*ClientInfo),
 		exitCh:              make(chan struct{}),
 		ptyReadBuffer:       4096,
-		offlineBufferMax:    1024 * 1024,
+		emu:                 terminal.New(terminal.Options{Cols: 80, Rows: 24, ScrollbackLines: 1000}),
 		conversationClients: make(map[chan ConversationEvent]*conversationSubscriber),
 	}
 
@@ -488,7 +489,7 @@ func TestSession_ReadLoop_RetriesReattachForPersistent(t *testing.T) {
 		clients:             make(map[chan []byte]*ClientInfo),
 		exitCh:              make(chan struct{}),
 		ptyReadBuffer:       4096,
-		offlineBufferMax:    1024 * 1024,
+		emu:                 terminal.New(terminal.Options{Cols: 80, Rows: 24, ScrollbackLines: 1000}),
 		conversationClients: make(map[chan ConversationEvent]*conversationSubscriber),
 		reattachFunc: func(sessionName string) (PTY, error) {
 			mu.Lock()
@@ -544,7 +545,7 @@ func TestSession_ReadLoop_SkipsRetriesWhenClosing(t *testing.T) {
 		clients:             make(map[chan []byte]*ClientInfo),
 		exitCh:              make(chan struct{}),
 		ptyReadBuffer:       4096,
-		offlineBufferMax:    1024 * 1024,
+		emu:                 terminal.New(terminal.Options{Cols: 80, Rows: 24, ScrollbackLines: 1000}),
 		conversationClients: make(map[chan ConversationEvent]*conversationSubscriber),
 		reattachFunc: func(sessionName string) (PTY, error) {
 			mu.Lock()
@@ -1062,7 +1063,7 @@ func TestSession_ReadLoop_ClosesOldPTY_OnReattach(t *testing.T) {
 		clients:             make(map[chan []byte]*ClientInfo),
 		exitCh:              make(chan struct{}),
 		ptyReadBuffer:       4096,
-		offlineBufferMax:    1024 * 1024,
+		emu:                 terminal.New(terminal.Options{Cols: 80, Rows: 24, ScrollbackLines: 1000}),
 		conversationClients: make(map[chan ConversationEvent]*conversationSubscriber),
 		reattachFunc: func(sessionName string) (PTY, error) {
 			// Return a new PTY that blocks on read

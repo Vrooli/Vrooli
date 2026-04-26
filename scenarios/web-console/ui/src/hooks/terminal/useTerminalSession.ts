@@ -28,7 +28,6 @@ import {
 } from "./useStdinAck";
 
 const MAX_OUTPUT_PROBE_CHARS = 12000;
-const HISTORY_FLUSH_TIMEOUT_MS = 5000;
 
 /** Maps known WS error messages to user-facing recovery hints. */
 const WS_ERROR_RECOVERY: Record<string, string> = {
@@ -38,25 +37,6 @@ const WS_ERROR_RECOVERY: Record<string, string> = {
   session_not_ready:
     "The terminal session did not confirm readiness in time. Reconnect or reopen this pane.",
 };
-
-/**
- * byteLengthUTF8 returns the UTF-8 byte length of a JSON-decoded
- * stdout payload. The server's totalOutputBytes counts raw bytes from
- * the PTY, not JavaScript string code units — a multi-byte character
- * is multiple bytes on the wire. TextEncoder gives us the correct
- * count in one call. Falls back to `.length` only if TextEncoder is
- * unavailable (should never happen in supported browsers / vitest).
- */
-function byteLengthUTF8(s: string): number {
-  if (typeof TextEncoder !== "undefined") {
-    try {
-      return new TextEncoder().encode(s).byteLength;
-    } catch {
-      // fallthrough
-    }
-  }
-  return s.length;
-}
 
 function appendOutputProbe(sessionId: string, data: string): void {
   if (typeof window === "undefined" || !data) return;
@@ -73,27 +53,12 @@ function appendOutputProbe(sessionId: string, data: string): void {
 /**
  * stripTerminalResponses removes terminal-generated replies from input
  * payloads before they reach the PTY. xterm.js emits these in reply to
- * queries that appear in PTY output — including queries replayed from
- * session history, where the original querying program is long gone.
- * Leaving them in the input stream spams the current shell with garbage.
- * Queries that TUI programs (Claude Code, vim, etc.) legitimately need
- * answered are handled server-side in session.readLoop instead
- * (see api/ansi_responder.go).
- *
- * Matched CSI forms:
- *   \e[?…c   DA1 response        \e[>…c   DA2/DA3 response
- *   \e[…n    Device Status Report \e[…R   Cursor Position Report
- *   \e[?…$y  DECRPM (DECRQM reply)
- *
- * Matched OSC forms (color/cursor query replies):
- *   \e]4;P;rgb:RRRR/GGGG/BBBB\e\\   palette color (Ps=4)
- *   \e]10;rgb:…\e\\                 foreground (Ps=10)
- *   \e]11;rgb:…\e\\                 background (Ps=11)
- *   \e]12;rgb:…\e\\                 cursor (Ps=12)
- *   \e]17;rgb:…\e\\ / \e]19;rgb:…   highlight bg/fg
- * The reply may end with \x1b\\ (ST) or \x07 (BEL). Match any OSC whose
- * payload contains "rgb:" — that's an unambiguous xterm-generated reply
- * shape; legitimate OSC user input (titles, hyperlinks) does not match.
+ * queries that appear in PTY output — including queries replayed from the
+ * snapshot, where the original querying program is long gone. Leaving them
+ * in the input stream spams the current shell with garbage. Queries that
+ * TUI programs (Claude Code, vim, etc.) legitimately need answered are
+ * handled server-side in session.readLoop instead (see
+ * api/ansi_responder.go).
  */
 // eslint-disable-next-line no-control-regex -- intentionally matches CSI ESC byte
 const RE_TERMINAL_RESPONSE = /\x1b\[[\x30-\x3f]*[\x20-\x2f]*[cnRy]/g;
@@ -110,10 +75,6 @@ export interface UseTerminalSessionOptions {
   onExit?: (sessionId: string) => void;
   onReady?: () => void;
   createSocket?: SocketFactory;
-  /** Byte offset for history resume (from terminal cache). */
-  historyOffset?: number;
-  /** Whether the terminal was restored from a serialized cache entry. */
-  hasCachedState?: boolean;
   onConversationEvent?: (
     event: ConversationEventMessage,
     sendAck: (stage: string, message?: string, backend?: string) => void,
@@ -134,7 +95,6 @@ export interface UseTerminalSessionResult {
   submitInput: (data: string, source: InputSource) => GateResult;
   gate: TerminalInputGate;
   sendResize: (cols: number, rows: number) => void;
-  totalBytesRef: { current: number };
   subscribeInputSettled: (cb: InputSettledListener) => () => void;
   subscribePendingInput: (cb: () => void) => () => void;
   getPendingInputSnapshot: () => readonly PendingInputEntry[];
@@ -148,14 +108,15 @@ export interface UseTerminalSessionResult {
  *   - LocalEchoController (predictive echo)
  *   - TerminalInputGate   (single-path input decision layer)
  *
- * Responsibilities kept inside this hook (nowhere else):
- *   - session_ready gating
- *   - history_end replay buffering
- *   - pty_state → local-echo enable/disable
- *   - conversation side-channel fan-out
+ * Wire flow on every WS open (fresh OR reconnect):
+ *   1. terminal.reset()
+ *   2. write every {type:"stdout"} frame directly to xterm
+ *      (these are the snapshot, encoding screen + alt-buffer + scrollback)
+ *   3. on {type:"history_end"} flip to live mode
+ *   4. write every subsequent {type:"stdout"} as live PTY output
  *
- * Everything else — raw sends, message decoding, reconnect backoff,
- * stdin protocol — lives in the component hooks.
+ * The xterm instance is a pure renderer; the server's emulator is the
+ * source of truth.
  *
  * [REQ:P0-002b] WebSocket I/O Streaming
  * [REQ:P0-004b] api-base WebSocket Integration
@@ -166,17 +127,15 @@ export function useTerminalSession({
   onExit,
   onReady,
   createSocket,
-  historyOffset,
-  hasCachedState,
   onConversationEvent,
   onConversationEventUpdate,
 }: UseTerminalSessionOptions): UseTerminalSessionResult {
-  const totalBytesRef = useRef<number>(0);
   const sessionReadyRef = useRef(false);
   const wsGenAtReadyRef = useRef(0);
-  // Cached-state flag evaluated per-connection (not once per hook lifetime).
-  const hasCachedStateForConnectionRef = useRef(hasCachedState ?? false);
-  const altBufferRef = useRef(false);
+  // True from terminal.reset() until history_end. While true, local-echo
+  // stays disabled so the snapshot's alt-buffer markers / TUI paint render
+  // cleanly.
+  const inSnapshotRef = useRef(true);
 
   const onExitRef = useRef(onExit);
   const onReadyRef = useRef(onReady);
@@ -187,18 +146,9 @@ export function useTerminalSession({
   onConversationEventRef.current = onConversationEvent;
   onConversationEventUpdateRef.current = onConversationEventUpdate;
 
-  const baseWsUrl = buildSessionWsUrl(sessionId);
-  const wsUrl = historyOffset && historyOffset > 0
-    ? `${baseWsUrl}${baseWsUrl.includes("?") ? "&" : "?"}history_offset=${historyOffset}`
-    : baseWsUrl;
+  const wsUrl = buildSessionWsUrl(sessionId);
 
   const localEchoRef = useRef(new LocalEchoController());
-
-  // --- History replay state (lives for the lifetime of the hook;
-  // reset per-connection via transport onOpen). ---
-  const replayingHistoryRef = useRef(false);
-  const historyBufferRef = useRef<string[]>([]);
-  const historyTimeoutIdRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Transport is constructed first; the stdin-ack and session layer
   // consult transport.currentGen() and transport.sendJson().
@@ -237,71 +187,43 @@ export function useTerminalSession({
   const terminalRef = useRef<Terminal | null>(terminal);
   terminalRef.current = terminal;
 
-  const flushHistoryBuffer = useCallback(() => {
-    if (!replayingHistoryRef.current) return;
-    replayingHistoryRef.current = false;
-    if (historyTimeoutIdRef.current !== null) {
-      clearTimeout(historyTimeoutIdRef.current);
-      historyTimeoutIdRef.current = null;
-    }
-    const t = terminalRef.current;
-    if (!t) {
-      historyBufferRef.current = [];
-      return;
-    }
-    if (historyBufferRef.current.length > 0) {
-      t.write(historyBufferRef.current.join(""));
-      for (const chunk of historyBufferRef.current) {
-        appendOutputProbe(sessionId, chunk);
-      }
-    }
-    historyBufferRef.current = [];
-  }, [sessionId]);
-
   const onTransportOpen = useCallback((wasReconnect: boolean, _gen: number) => {
     sessionReadyRef.current = false;
     localEchoRef.current.reset();
+    // Local echo stays disabled during snapshot replay; the server's
+    // emulator state — including alt-buffer — is restored as bytes hit
+    // xterm, so any echo decision must wait until live mode.
+    localEchoRef.current.enabled = false;
     stdin.resetForNewConnection(currentGen());
-    // Per-connection cache flag resets to the initial cached-state
-    // value so a reconnect with a stale offset still triggers reset().
-    hasCachedStateForConnectionRef.current = hasCachedState ?? false;
-    // Snap the live byte counter to the offset we're asking the
-    // server to resume from (or zero for a fresh connection). This
-    // keeps the counter + rendered xterm state consistent for the
-    // cache save path: after history_end the counter === server's
-    // total_bytes, and every subsequent live stdout frame advances
-    // it in lockstep with xterm.write.
-    totalBytesRef.current = historyOffset ?? 0;
-    // History replay state per connection.
-    replayingHistoryRef.current = true;
-    historyBufferRef.current = [];
-    if (historyTimeoutIdRef.current !== null) {
-      clearTimeout(historyTimeoutIdRef.current);
-    }
-    historyTimeoutIdRef.current = setTimeout(flushHistoryBuffer, HISTORY_FLUSH_TIMEOUT_MS);
+    inSnapshotRef.current = true;
 
     const t = terminalRef.current;
     if (t) {
+      // Wipe xterm.js buffers BEFORE the snapshot streams in. Two calls
+      // are necessary because:
+      //   - reset() is a soft reset (DECSTR) — clears modes/charsets but
+      //     in xterm.js v5+ does not wipe scrollback or buffer cells.
+      //   - clear() empties the buffer, including scrollback. Without
+      //     this, scrollback content from before a WS reconnect or API
+      //     restart layers underneath the new snapshot, producing the
+      //     "scroll up shows last page repeated" symptom.
+      t.reset();
+      t.clear();
       transportRef.current?.sendJson({ type: "resize", cols: t.cols, rows: t.rows });
       if (wasReconnect) {
-        t.reset();
         t.write(`\r\n${ANSI.gray}[Reconnected]${ANSI.reset}\r\n`);
       }
     }
     if (wasReconnect) {
-      // Close the conversation gap that accumulated while the WS was down.
-      // The terminal history replay handles PTY output; this handles the
-      // separate conversation side-channel.
       void refreshConversationSession(sessionId);
     }
     onReadyRef.current?.();
-  }, [hasCachedState, historyOffset, flushHistoryBuffer, stdin, currentGen, sessionId]);
+  }, [stdin, currentGen, sessionId]);
 
   const onTransportClose = useCallback(() => {
     sessionReadyRef.current = false;
     localEchoRef.current.reset();
     stdin.handleClose();
-    // Surface the disconnect to the user.
     const t = terminalRef.current;
     if (t) {
       t.write(`\r\n${ANSI.gray}[Disconnected]${ANSI.reset}\r\n`);
@@ -352,19 +274,15 @@ export function useTerminalSession({
         }
         case "stdout": {
           if (!msg.data) break;
-          // Live byte counter — must advance on EVERY stdout frame
-          // (history replay AND live), not only on history_end. The
-          // cached sessionStorage entry uses this counter to declare
-          // a resume offset; if the counter lags behind the
-          // serialized xterm state, reconnecting duplicates the
-          // trailing bytes in the scrollback. Bug C regression guard:
-          // see __tests__/terminal-scrollback-dedup.test.tsx.
-          totalBytesRef.current += byteLengthUTF8(msg.data);
-          if (replayingHistoryRef.current) {
-            historyBufferRef.current.push(msg.data);
+          const t = terminalRef.current;
+          if (!t) break;
+          if (inSnapshotRef.current) {
+            // Snapshot bytes from the server — write verbatim. xterm
+            // applies the encoded \x1bc reset, scrollback rows, and any
+            // \x1b[?1049h alt-buffer enter so its state matches the
+            // server's emulator state at subscribe time.
+            t.write(msg.data);
           } else {
-            const t = terminalRef.current;
-            if (!t) break;
             const processed = localEchoRef.current.processOutput(msg.data);
             if (processed) t.write(processed);
             appendOutputProbe(sessionId, msg.data);
@@ -372,50 +290,19 @@ export function useTerminalSession({
           break;
         }
         case "history_end": {
-          const resumed = msg.resumed === true;
+          inSnapshotRef.current = false;
+          // Re-enable local echo only when not in alt-buffer. xterm
+          // exposes the active buffer; we read it after the snapshot has
+          // been drained so the decision reflects post-replay state.
           const t = terminalRef.current;
-          if (!resumed && hasCachedStateForConnectionRef.current && t) {
-            // Cache was stale — reset xterm before writing fresh history.
-            t.reset();
-            // Reset live byte counter because we're replacing every
-            // byte xterm had. The subsequent history chunks (already
-            // written above via the stdout branch) advanced the
-            // counter; we snap it back to the server's authoritative
-            // value so cache saves stay consistent.
+          if (t) {
+            const inAlt = t.buffer.active === t.buffer.alternate;
+            localEchoRef.current.enabled = !inAlt;
           }
-          if (msg.total_bytes !== undefined) {
-            // Server's authoritative total_bytes at subscribe time.
-            // After a full replay this matches our live counter (we
-            // counted every replayed stdout frame). After a delta
-            // replay (resumed=true) our counter already equals this
-            // because we started from the cached offset and counted
-            // only the delta. In dev, warn on drift.
-            if (
-              import.meta.env?.DEV &&
-              totalBytesRef.current !== msg.total_bytes
-            ) {
-              console.warn(
-                "useTerminalSession: totalBytes drift — " +
-                  `live=${totalBytesRef.current} server=${msg.total_bytes} resumed=${resumed}`,
-              );
-            }
-            totalBytesRef.current = msg.total_bytes;
-          }
-          hasCachedStateForConnectionRef.current = false;
-          flushHistoryBuffer();
-          break;
-        }
-        case "pty_state": {
-          const altBuffer = msg.altBuffer === true;
-          altBufferRef.current = altBuffer;
-          // Local echo produces visible flicker and wrong predictions
-          // inside alt-buffer TUIs (Claude Code, vim). Disable
-          // unconditionally while the session is in alt-buffer.
-          localEchoRef.current.enabled = !altBuffer;
           break;
         }
         case "exit": {
-          flushHistoryBuffer();
+          inSnapshotRef.current = false;
           const code = msg.code ?? 0;
           const label =
             code === 0
@@ -477,19 +364,16 @@ export function useTerminalSession({
           break;
         }
         case "conversation_out_of_sync": {
-          // Server dropped at least one event for this subscription (buffer
-          // was full). Close the gap with a since_sequence fetch.
           void refreshConversationSession(sessionId);
           break;
         }
         case "resize_info": {
-          // Informational; xterm reflows on its own.
           break;
         }
       }
     });
     return unsubscribe;
-  }, [transport, sessionId, sendConversationAck, stdin, flushHistoryBuffer]);
+  }, [transport, sessionId, sendConversationAck, stdin]);
 
   // xterm.onData → gate.submit (single path). localEcho prediction
   // still runs on printable single chars before dispatch.
@@ -519,10 +403,6 @@ export function useTerminalSession({
     return () => {
       gate.dispose();
       stdin.dispose();
-      if (historyTimeoutIdRef.current !== null) {
-        clearTimeout(historyTimeoutIdRef.current);
-        historyTimeoutIdRef.current = null;
-      }
       getTerminalDebugProbe().remove(sessionId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -532,13 +412,14 @@ export function useTerminalSession({
   useEffect(() => {
     const probe = getTerminalDebugProbe();
     const publish = () => {
+      const t = terminalRef.current;
       probe.update({
         sessionId,
         connectionState: transport.state(),
         wsGen: transport.currentGen(),
         pendingInput: stdin.getPendingSnapshot().length,
         pendingAcks: 0,
-        altBuffer: altBufferRef.current,
+        altBuffer: t ? t.buffer.active === t.buffer.alternate : false,
       });
     };
     publish();
@@ -566,7 +447,6 @@ export function useTerminalSession({
     submitInput,
     gate,
     sendResize,
-    totalBytesRef,
     subscribeInputSettled: stdin.subscribeInputSettled,
     subscribePendingInput: stdin.subscribePendingInput,
     getPendingInputSnapshot: stdin.getPendingSnapshot,

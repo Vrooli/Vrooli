@@ -12,11 +12,11 @@ import (
 // Each field maps to an environment variable with a sane default.
 // See docs/reference/configuration.md for full documentation.
 type Config struct {
-	// OfflineBufferMax is the maximum bytes of PTY output buffered per session
-	// while no WebSocket clients are connected. Increasing this improves
-	// reconnect fidelity (more scrollback restored) at the cost of memory.
-	// Env: WC_OFFLINE_BUFFER_MAX | Default: 1048576 (1 MB) | Range: 0–16777216
-	OfflineBufferMax int
+	// TerminalScrollbackLines is the number of decoded scrollback lines the
+	// per-session terminal emulator retains. Replayed via the snapshot
+	// stream on every (re)connect.
+	// Env: WC_TERMINAL_SCROLLBACK_LINES | Default: 10000 | Range: 100–100000
+	TerminalScrollbackLines int
 
 	// PTYReadBuffer is the byte size of the buffer used to read PTY output.
 	// Larger values reduce syscall overhead for high-throughput terminals;
@@ -55,9 +55,9 @@ type Config struct {
 	// ClientChannelBuffer is the capacity of the per-client output channel.
 	// Higher values absorb output bursts from fast-producing PTYs before
 	// frame coalescing kicks in. With coalescing, frames are merged into a
-	// pending buffer rather than dropped. When the pending buffer exceeds
-	// OfflineBufferMax, the oldest data is trimmed at an ANSI-clean boundary.
-	// A larger channel reduces the frequency of coalescing.
+	// per-client pending buffer rather than dropped. When the pending
+	// buffer exceeds pendingBufferMax (broadcast.go), the oldest data is
+	// truncated; the next snapshot replay restores correct state.
 	// Env: WC_CLIENT_CHANNEL_BUFFER | Default: 256 | Range: 8–1024
 	ClientChannelBuffer int
 
@@ -103,7 +103,7 @@ type Config struct {
 // DefaultConfig returns the default configuration with all sane defaults.
 func DefaultConfig() Config {
 	return Config{
-		OfflineBufferMax:        1 << 20, // 1 MB
+		TerminalScrollbackLines: 10_000,
 		PTYReadBuffer:           4096,
 		WSBufferSize:            4096,
 		DefaultCols:             80,
@@ -125,7 +125,7 @@ func DefaultConfig() Config {
 func LoadConfig() Config {
 	cfg := DefaultConfig()
 
-	cfg.OfflineBufferMax = envInt("WC_OFFLINE_BUFFER_MAX", cfg.OfflineBufferMax, 0, 16<<20)
+	cfg.TerminalScrollbackLines = envInt("WC_TERMINAL_SCROLLBACK_LINES", cfg.TerminalScrollbackLines, 100, 100_000)
 	cfg.PTYReadBuffer = envInt("WC_PTY_READ_BUFFER", cfg.PTYReadBuffer, 512, 65536)
 	cfg.WSBufferSize = envInt("WC_WS_BUFFER_SIZE", cfg.WSBufferSize, 512, 65536)
 	cfg.DefaultCols = uint16(envInt("WC_DEFAULT_COLS", int(cfg.DefaultCols), 20, 500))

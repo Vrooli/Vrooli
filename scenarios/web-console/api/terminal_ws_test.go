@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"runtime"
@@ -107,9 +106,8 @@ func skipHistoryEnd(t *testing.T, conn *websocket.Conn) {
 	t.Helper()
 	sawHistoryEnd := false
 	sawSessionReady := false
-	sawPTYState := false
 	deadline := time.Now().Add(3 * time.Second)
-	for !(sawHistoryEnd && sawSessionReady && sawPTYState) {
+	for !(sawHistoryEnd && sawSessionReady) {
 		_ = conn.SetReadDeadline(deadline)
 		var msg TerminalMessage
 		if err := conn.ReadJSON(&msg); err != nil {
@@ -120,11 +118,9 @@ func skipHistoryEnd(t *testing.T, conn *websocket.Conn) {
 			sawHistoryEnd = true
 		case MsgTypeSessionReady:
 			sawSessionReady = true
-		case MsgTypePTYState:
-			sawPTYState = true
 		case MsgTypeStdout, MsgTypeResizeInfo, MsgTypeSyncWarning:
 			// Non-handshake traffic that may arrive before the handshake
-			// completes (e.g. the shell's initial prompt).
+			// completes (snapshot frames, early shell prompt).
 		default:
 			t.Fatalf("skipHistoryEnd: unexpected message type=%s before handshake complete", msg.Type)
 		}
@@ -522,7 +518,9 @@ func TestHandleTerminalWS_HistoryEnd_NoHistory(t *testing.T) {
 		fake.Close()
 	}()
 
-	// No output written — connect immediately.
+	// No output written — connect immediately. The server still sends a
+	// self-contained snapshot (full reset + blank rows + cursor) as one
+	// or more stdout frames followed by history_end.
 	dialer := websocket.Dialer{}
 	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)
 	if err != nil {
@@ -530,18 +528,14 @@ func TestHandleTerminalWS_HistoryEnd_NoHistory(t *testing.T) {
 	}
 	defer conn.Close()
 
-	// history_end must appear within the handshake prefix (alongside
-	// session_ready), without any intervening stdout frames.
 	sawHistoryEnd := false
-	for i := 0; i < 4 && !sawHistoryEnd; i++ {
+	for i := 0; i < 8 && !sawHistoryEnd; i++ {
 		msg := readTerminalMessage(t, conn)
 		switch msg.Type {
 		case MsgTypeHistoryEnd:
 			sawHistoryEnd = true
-		case MsgTypeSessionReady:
-			// Handshake sibling — allowed.
-		case MsgTypeStdout:
-			t.Errorf("stdout arrived before history_end: %q", msg.Data)
+		case MsgTypeSessionReady, MsgTypeStdout:
+			// Snapshot stdout frames + handshake sibling are allowed.
 		default:
 			t.Errorf("unexpected message type before history_end: %q", msg.Type)
 		}
@@ -586,16 +580,15 @@ func TestHandleTerminalWS_HistoryEnd_AfterHistory(t *testing.T) {
 	t.Fatal("never received history_end message")
 }
 
-// --- Byte-offset resume WebSocket tests ---
+// --- Snapshot replay WebSocket tests ---
 
-// TestHandleTerminalWS_HistoryEnd_IncludesTotalBytes verifies that the
-// history_end message includes a non-zero TotalBytes field when there is output.
-func TestHandleTerminalWS_HistoryEnd_IncludesTotalBytes(t *testing.T) {
+// TestHandleTerminalWS_SnapshotPrecedesHistoryEnd verifies the snapshot
+// stream and the closing history_end frame.
+func TestHandleTerminalWS_SnapshotPrecedesHistoryEnd(t *testing.T) {
 	ts, sessID, fake := setupWSServerWithPTY(t)
 	defer fake.Close()
 
-	// Write some output so history exists.
-	_, _ = fake.outW.Write([]byte("total bytes test"))
+	_, _ = fake.outW.Write([]byte("snapshot replay marker"))
 	time.Sleep(100 * time.Millisecond)
 
 	dialer := websocket.Dialer{}
@@ -605,148 +598,26 @@ func TestHandleTerminalWS_HistoryEnd_IncludesTotalBytes(t *testing.T) {
 	}
 	defer conn.Close()
 
-	// Read messages until we see history_end.
-	for i := 0; i < 20; i++ {
-		msg := readTerminalMessage(t, conn)
-		if msg.Type == MsgTypeHistoryEnd {
-			if msg.TotalBytes <= 0 {
-				t.Errorf("expected TotalBytes > 0 in history_end, got %d", msg.TotalBytes)
-			}
-			return
-		}
-	}
-	t.Fatal("never received history_end message")
-}
-
-// TestHandleTerminalWS_HistoryOffset_NoParam verifies that connecting without
-// a history_offset query parameter returns full history and Resumed=false.
-func TestHandleTerminalWS_HistoryOffset_NoParam(t *testing.T) {
-	ts, sessID, fake := setupWSServerWithPTY(t)
-	defer fake.Close()
-
-	_, _ = fake.outW.Write([]byte("no param test"))
-	time.Sleep(100 * time.Millisecond)
-
-	dialer := websocket.Dialer{}
-	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)
-	if err != nil {
-		t.Fatalf("ws dial: %v", err)
-	}
-	defer conn.Close()
-
-	var gotStdout bool
-	for i := 0; i < 20; i++ {
+	var (
+		gotStdout bool
+		stdoutAcc string
+	)
+	for i := 0; i < 30; i++ {
 		msg := readTerminalMessage(t, conn)
 		switch msg.Type {
 		case MsgTypeStdout:
 			gotStdout = true
+			stdoutAcc += msg.Data
 		case MsgTypeHistoryEnd:
 			if !gotStdout {
-				t.Error("expected stdout chunks before history_end")
+				t.Error("expected at least one snapshot stdout frame before history_end")
 			}
-			if msg.Resumed {
-				t.Error("expected Resumed=false when no history_offset param")
-			}
-			return
-		}
-	}
-	t.Fatal("never received history_end message")
-}
-
-// TestHandleTerminalWS_HistoryOffset_ValidResume verifies that connecting
-// with a valid history_offset returns only delta data and Resumed=true.
-func TestHandleTerminalWS_HistoryOffset_ValidResume(t *testing.T) {
-	ts, sessID, fake := setupWSServerWithPTY(t)
-	defer fake.Close()
-
-	// Write initial output.
-	_, _ = fake.outW.Write([]byte("initial data"))
-	time.Sleep(100 * time.Millisecond)
-
-	// First connection: read history_end to get TotalBytes.
-	dialer := websocket.Dialer{}
-	conn1, _, err := dialer.Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)
-	if err != nil {
-		t.Fatalf("ws dial 1: %v", err)
-	}
-
-	var totalBytes int64
-	for i := 0; i < 20; i++ {
-		msg := readTerminalMessage(t, conn1)
-		if msg.Type == MsgTypeHistoryEnd {
-			totalBytes = msg.TotalBytes
-			break
-		}
-	}
-	conn1.Close()
-	if totalBytes == 0 {
-		t.Fatal("expected non-zero TotalBytes from first connection")
-	}
-
-	// Write more output after first connection.
-	_, _ = fake.outW.Write([]byte("delta data"))
-	time.Sleep(100 * time.Millisecond)
-
-	// Second connection with history_offset.
-	conn2, _, err := dialer.Dial(wsURL(ts, fmt.Sprintf("/api/v1/sessions/%s/ws?history_offset=%d", sessID, totalBytes)), nil)
-	if err != nil {
-		t.Fatalf("ws dial 2: %v", err)
-	}
-	defer conn2.Close()
-
-	var stdoutData string
-	for i := 0; i < 20; i++ {
-		msg := readTerminalMessage(t, conn2)
-		switch msg.Type {
-		case MsgTypeStdout:
-			stdoutData += msg.Data
-		case MsgTypeHistoryEnd:
-			if !msg.Resumed {
-				t.Error("expected Resumed=true for valid resume offset")
-			}
-			// Verify we got only the delta, not the initial data.
-			if strings.Contains(stdoutData, "initial data") {
-				t.Error("delta should NOT contain initial data")
-			}
-			if !strings.Contains(stdoutData, "delta data") {
-				t.Error("delta should contain 'delta data'")
+			if !strings.Contains(stdoutAcc, "snapshot replay marker") {
+				t.Errorf("snapshot stream missing prior PTY output; got=%q", stdoutAcc)
 			}
 			return
-		}
-	}
-	t.Fatal("never received history_end on resumed connection")
-}
-
-// TestHandleTerminalWS_HistoryOffset_InvalidResume verifies that connecting
-// with a future (invalid) offset falls back to full history with Resumed=false.
-func TestHandleTerminalWS_HistoryOffset_InvalidResume(t *testing.T) {
-	ts, sessID, fake := setupWSServerWithPTY(t)
-	defer fake.Close()
-
-	_, _ = fake.outW.Write([]byte("invalid resume test"))
-	time.Sleep(100 * time.Millisecond)
-
-	dialer := websocket.Dialer{}
-	conn, _, err := dialer.Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws?history_offset=999999999"), nil)
-	if err != nil {
-		t.Fatalf("ws dial: %v", err)
-	}
-	defer conn.Close()
-
-	var gotStdout bool
-	for i := 0; i < 20; i++ {
-		msg := readTerminalMessage(t, conn)
-		switch msg.Type {
-		case MsgTypeStdout:
-			gotStdout = true
-		case MsgTypeHistoryEnd:
-			if !gotStdout {
-				t.Error("expected full stdout history before history_end")
-			}
-			if msg.Resumed {
-				t.Error("expected Resumed=false for invalid (future) offset")
-			}
-			return
+		case MsgTypeSessionReady:
+			// Allowed at any point after history_end.
 		}
 	}
 	t.Fatal("never received history_end message")

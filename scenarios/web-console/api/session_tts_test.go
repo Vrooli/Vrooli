@@ -106,11 +106,11 @@ func TestSendConversation_DropsCountedAndLogged(t *testing.T) {
 	const overflowCount = 3
 	for i := 0; i < overflowCount; i++ {
 		sess.SendConversation(ConversationEvent{
-			ID:       "drop",
-			Source:   "test",
+			ID:        "drop",
+			Source:    "test",
 			SessionID: "s1",
-			Sequence: int64(conversationChannelBuffer + 1 + i),
-			Text:     "drop",
+			Sequence:  int64(conversationChannelBuffer + 1 + i),
+			Text:      "drop",
 		})
 	}
 

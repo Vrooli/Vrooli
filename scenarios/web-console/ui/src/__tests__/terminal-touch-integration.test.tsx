@@ -58,7 +58,7 @@ vi.mock("@xterm/addon-web-links", () => ({
 }));
 
 vi.mock("../hooks/terminal/useTerminalSession", () => {
-  const totalBytesRef = { current: 0 };
+
   const gate = { submit: vi.fn(() => ({ status: "sent" as const, seq: 1 })), dispose: vi.fn(), canAcceptPaste: () => true };
   const submitInput = vi.fn(() => ({ status: "sent" as const, seq: 1 }));
   const sendResize = vi.fn();
@@ -70,7 +70,7 @@ vi.mock("../hooks/terminal/useTerminalSession", () => {
       submitInput,
       gate,
       sendResize,
-      totalBytesRef,
+
       subscribeInputSettled,
       subscribePendingInput,
       getPendingInputSnapshot,
@@ -78,13 +78,17 @@ vi.mock("../hooks/terminal/useTerminalSession", () => {
   };
 });
 
-vi.mock("../stores/useWorkspaceStore", () => ({
-  useWorkspaceStore: (selector: (s: Record<string, unknown>) => unknown) =>
-    selector({
-      panes: [{ sessionId: "test-session", fontSize: 14, themeId: "slate-ocean" }],
-      renamePaneById: vi.fn(),
-    }),
-}));
+vi.mock("../stores/useWorkspaceStore", () => {
+  const baseState = {
+    panes: [{ sessionId: "test-session", fontSize: 14, themeId: "slate-ocean" }],
+    renamePaneById: vi.fn(),
+    startMutedOnLoad: true,
+  };
+  const useWorkspaceStore = (selector: (s: Record<string, unknown>) => unknown) =>
+    selector(baseState);
+  useWorkspaceStore.getState = () => baseState;
+  return { useWorkspaceStore };
+});
 
 // We need to mock useTerminalTouch to control hasSelection
 let mockHasSelection = false;

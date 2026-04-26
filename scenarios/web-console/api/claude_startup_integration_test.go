@@ -47,7 +47,7 @@ func TestStandardBackend_ClaudeCodeActuallyStarts(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = sm.Delete(sess.ID) })
 
-	sub := sess.Subscribe(0)
+	sub := sess.Subscribe()
 	t.Cleanup(func() { sess.Unsubscribe(sub.OutputCh) })
 
 	// Exactly what the UI's Claude Code shortcut sends.
@@ -171,7 +171,7 @@ func TestStandardBackend_StripsSyncModeFromClientStream(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = sm.Delete(sess.ID) })
 
-	sub := sess.Subscribe(0)
+	sub := sess.Subscribe()
 	t.Cleanup(func() { sess.Unsubscribe(sub.OutputCh) })
 
 	if err := sess.WriteInput([]byte("claude --dangerously-skip-permissions\n"), InputKindKeystroke); err != nil {

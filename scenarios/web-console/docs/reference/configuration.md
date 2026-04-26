@@ -22,7 +22,7 @@ Set these in your environment or `.env` file before starting the API.
 
 | Variable | Default | Range | Impact |
 |----------|---------|-------|--------|
-| `WC_OFFLINE_BUFFER_MAX` | `1048576` (1 MB) | 0–16,777,216 | Max bytes of PTY output buffered per session while disconnected. **Higher** = more scrollback restored on reconnect, more memory per idle session. **Lower** = less memory, but reconnect may miss output. |
+| `WC_TERMINAL_SCROLLBACK_LINES` | `10000` | 100–100,000 | Decoded scrollback lines retained by the per-session terminal emulator and replayed via the snapshot stream on every (re)connect. **Higher** = more history restored on reconnect at the cost of memory per idle session. **Lower** = lighter idle footprint, less history. |
 | `WC_MAX_SESSIONS` | `0` (unlimited) | 0–1,000 | Maximum concurrent PTY sessions. Safety guardrail for resource-constrained systems. `0` = no limit. |
 | `WC_CLIENT_CHANNEL_BUFFER` | `64` | 8–1,024 | Per-client output channel capacity. **Higher** = absorbs output bursts better, uses more memory. **Lower** = less memory, may drop frames from slow WebSocket consumers. |
 
@@ -127,7 +127,7 @@ These internal details are intentionally kept as implementation constants:
 ### Resource-Constrained System
 ```bash
 WC_MAX_SESSIONS=5
-WC_OFFLINE_BUFFER_MAX=262144    # 256 KB
+WC_TERMINAL_SCROLLBACK_LINES=2000
 WC_CLIENT_CHANNEL_BUFFER=16
 ```
 
@@ -135,7 +135,7 @@ WC_CLIENT_CHANNEL_BUFFER=16
 ```bash
 WC_PTY_READ_BUFFER=16384
 WC_WS_BUFFER_SIZE=16384
-WC_OFFLINE_BUFFER_MAX=4194304   # 4 MB
+WC_TERMINAL_SCROLLBACK_LINES=50000
 WC_CLIENT_CHANNEL_BUFFER=256
 ```
 

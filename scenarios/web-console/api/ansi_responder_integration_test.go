@@ -103,7 +103,7 @@ func TestStandardBackend_AnswersDA1Probe(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = sm.Delete(sess.ID) })
 
-	sub := sess.Subscribe(0)
+	sub := sess.Subscribe()
 	t.Cleanup(func() { sess.Unsubscribe(sub.OutputCh) })
 
 	const tag = "DA1_RESULT_d59e72"
@@ -153,7 +153,7 @@ func TestStandardBackend_AnswersClaudeStartupProbeSequence(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = sm.Delete(sess.ID) })
 
-	sub := sess.Subscribe(0)
+	sub := sess.Subscribe()
 	t.Cleanup(func() { sess.Unsubscribe(sub.OutputCh) })
 
 	const tag = "CLAUDE_RESULT_8f1a2b"

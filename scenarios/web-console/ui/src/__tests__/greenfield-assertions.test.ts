@@ -83,25 +83,27 @@ describe("greenfield: terminal-session rework", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("liveBytes counter advances on every stdout frame (Bug C regression guard)", () => {
-    // useTerminalSession's stdout handler MUST advance totalBytesRef
-    // on every live stdout message, not only on history_end. This
-    // test reads the hook source and asserts the byte-counting call
-    // is inside the stdout case. See refactor plan §4.4.
-    const src = readIf(join(SRC_ROOT, "hooks", "terminal", "useTerminalSession.ts"));
-    expect(src).toContain('case "stdout"');
-    // The increment line must be present.
-    expect(src).toMatch(/totalBytesRef\.current\s*\+=\s*byteLengthUTF8\(msg\.data\)/);
-    // And the increment must appear inside the stdout case (before
-    // the next `case "` literal). A quick structural check: slice from
-    // `case "stdout"` to the next `case "`.
-    const stdoutIdx = src.indexOf('case "stdout"');
-    const nextCaseIdx = src.indexOf('case "', stdoutIdx + 1);
-    const stdoutBody = src.slice(
-      stdoutIdx,
-      nextCaseIdx > stdoutIdx ? nextCaseIdx : undefined,
-    );
-    expect(stdoutBody).toMatch(/totalBytesRef\.current\s*\+=/);
+  it("does not reintroduce deleted history-cache symbols", () => {
+    // Plan §3 / §10.3: greenfield. The byte-offset history protocol is
+    // gone. None of these symbols may reappear in production code.
+    const forbidden = [
+      "history_offset",
+      "outputHistory",
+      "appendHistory",
+      "OfflineBufferMax",
+      "WC_OFFLINE_BUFFER_MAX",
+      "totalBytesRef",
+      "hasCachedState",
+      "terminalCache",
+      "loadTerminalCache",
+      "saveTerminalCache",
+      "MsgTypePTYState",
+      "InitialAltBuffer",
+    ];
+    for (const sym of forbidden) {
+      const offenders = PROD_FILES.filter((p) => readIf(p).includes(sym));
+      expect(offenders, `${sym} reappeared in production: ${offenders.join(", ")}`).toEqual([]);
+    }
   });
 
   it("every input source tag at gate.submit / submitInput call sites is a known InputSource", () => {

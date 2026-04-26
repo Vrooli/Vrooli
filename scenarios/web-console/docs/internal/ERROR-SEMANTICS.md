@@ -116,7 +116,7 @@ When a client's output channel falls behind (e.g. slow WebSocket consumer, netwo
 {"type": "sync_warning", "coalesced_frames": 7}
 ```
 
-The client renders a yellow warning in the terminal: `[Warning: 7 output frames coalesced — terminal may lag]`. Coalesced data is automatically delivered when the consumer catches up. If the pending buffer grows beyond the configured cap (`OfflineBufferMax`), the oldest data is trimmed at an ANSI-clean boundary to prevent unbounded memory growth. This is informational, not an error — the session continues normally.
+The client renders a yellow warning in the terminal: `[Warning: 7 output frames coalesced — terminal may lag]`. Coalesced data is automatically delivered when the consumer catches up. If the pending buffer grows beyond the fixed cap (`pendingBufferMax`), the oldest bytes are truncated; the next snapshot replay (on reconnect) restores correct state. This is informational, not an error — the session continues normally.
 
 ### Resize Info (Informational)
 

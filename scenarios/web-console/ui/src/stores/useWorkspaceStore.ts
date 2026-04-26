@@ -62,6 +62,9 @@ interface WorkspaceState {
   ttsRate: number;
   ttsPitch: number;
   autoTtsEnabled: boolean;
+  /** Whether the audio bar starts muted on app load. Default true; tap the
+   *  speaker icon to unmute. Project-owner preference for greenfield install. */
+  startMutedOnLoad: boolean;
   ttsBackendPreference: "auto" | "kokoro" | "browser";
   kokoroVoice: string;
   kokoroSpeed: number;
@@ -116,6 +119,7 @@ interface WorkspaceActions {
   setTtsRate: (rate: number) => void;
   setTtsPitch: (pitch: number) => void;
   setAutoTtsEnabled: (enabled: boolean) => void;
+  setStartMutedOnLoad: (enabled: boolean) => void;
   setTtsBackendPreference: (pref: "auto" | "kokoro" | "browser") => void;
   setKokoroVoice: (voice: string) => void;
   setKokoroSpeed: (speed: number) => void;
@@ -168,6 +172,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       ttsRate: 1.0,
       ttsPitch: 1.0,
       autoTtsEnabled: false,
+      startMutedOnLoad: true,
       ttsBackendPreference: "auto",
       kokoroVoice: "af_heart",
       kokoroSpeed: 1.0,
@@ -281,6 +286,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       setTtsRate: (rate) => set({ ttsRate: rate }),
       setTtsPitch: (pitch) => set({ ttsPitch: pitch }),
       setAutoTtsEnabled: (enabled) => set({ autoTtsEnabled: enabled }),
+      setStartMutedOnLoad: (enabled) => set({ startMutedOnLoad: enabled }),
       setTtsBackendPreference: (pref) => set({ ttsBackendPreference: pref }),
       setKokoroVoice: (voice) => set({ kokoroVoice: voice }),
       setKokoroSpeed: (speed) => set({ kokoroSpeed: speed }),
@@ -330,7 +336,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
     }),
     {
       name: "wc-workspace",
-      version: 12,
+      version: 13,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 1) {
@@ -384,6 +390,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         if (version < 12) {
           state.lowLatencyVoice ??= false;
         }
+        if (version < 13) {
+          state.startMutedOnLoad ??= true;
+        }
         return state as unknown as WorkspaceState & WorkspaceActions;
       },
       partialize: (state) => ({
@@ -405,6 +414,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         ttsRate: state.ttsRate,
         ttsPitch: state.ttsPitch,
         autoTtsEnabled: state.autoTtsEnabled,
+        startMutedOnLoad: state.startMutedOnLoad,
         ttsBackendPreference: state.ttsBackendPreference,
         kokoroVoice: state.kokoroVoice,
         kokoroSpeed: state.kokoroSpeed,

@@ -375,6 +375,13 @@ export function useSessionManager() {
     [],
   );
 
+  const setTtsMutedOnPane = useCallback(
+    (sessionId: string, next: boolean) => {
+      terminalRefs.current.get(sessionId)?.setTtsMuted(next);
+    },
+    [],
+  );
+
   const getTtsStateOnPane = useCallback(
     (sessionId: string) => {
       return terminalRefs.current.get(sessionId)?.getTtsState() ?? null;
@@ -406,6 +413,7 @@ export function useSessionManager() {
     seekTtsOnPane,
     setTtsPlaybackRateOnPane,
     setTtsVolumeOnPane,
+    setTtsMutedOnPane,
     getTtsStateOnPane,
   };
 }

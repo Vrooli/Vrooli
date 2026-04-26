@@ -16,6 +16,8 @@ export default function TtsSettingsSection() {
   const setTtsPitch = useWorkspaceStore((state) => state.setTtsPitch);
   const autoTtsEnabled = useWorkspaceStore((state) => state.autoTtsEnabled);
   const setAutoTtsEnabled = useWorkspaceStore((state) => state.setAutoTtsEnabled);
+  const startMutedOnLoad = useWorkspaceStore((state) => state.startMutedOnLoad);
+  const setStartMutedOnLoad = useWorkspaceStore((state) => state.setStartMutedOnLoad);
   const ttsBackendPreference = useWorkspaceStore((state) => state.ttsBackendPreference);
   const setTtsBackendPreference = useWorkspaceStore((state) => state.setTtsBackendPreference);
   const kokoroVoice = useWorkspaceStore((state) => state.kokoroVoice);
@@ -204,6 +206,18 @@ export default function TtsSettingsSection() {
                 setAutoTtsEnabled(next);
                 void persistTtsConfig({ autoEnabled: next });
               }}
+            />
+          )}
+        />
+
+        <SettingsRow
+          label="Start muted on app load"
+          hint="When enabled, audio is muted on app load. Tap the speaker icon to unmute."
+          control={(
+            <SettingsToggle
+              testId="start-muted-toggle"
+              checked={startMutedOnLoad}
+              onClick={() => setStartMutedOnLoad(!startMutedOnLoad)}
             />
           )}
         />

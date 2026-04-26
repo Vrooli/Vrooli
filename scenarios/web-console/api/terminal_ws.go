@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 	"net/http"
-	"strconv"
 	"sync"
 	"time"
 
@@ -79,27 +78,16 @@ const (
 	StdinAckReasonPTYClosed       = "pty_closed"
 	StdinAckReasonNotReady        = "not_ready"
 	StdinAckReasonInvalidInput    = "invalid_input"
-	// MsgTypePTYState reports a terminal-mode transition the server has
-	// observed on the PTY output stream. Today it carries only the alt-
-	// buffer flag (AltBuffer). Emitted once after history_end so a fresh
-	// client knows the current state, and again on every transition.
-	MsgTypePTYState = "pty_state"
 )
 
 // TerminalMessage is the WebSocket JSON message format.
 type TerminalMessage struct {
-	Type            string `json:"type"`
-	Data            string `json:"data,omitempty"`
-	Cols            int    `json:"cols,omitempty"`
-	Rows            int    `json:"rows,omitempty"`
-	Code            int    `json:"code,omitempty"`
-	CoalescedFrames int    `json:"coalesced_frames,omitempty"`
-	// TotalBytes is the server's monotonic output byte count. Sent with
-	// history_end so the client can cache and resume from this offset.
-	TotalBytes int64 `json:"total_bytes,omitempty"`
-	// Resumed indicates that the client's resume offset was valid and only
-	// delta data was sent (not the full history).
-	Resumed                  bool     `json:"resumed,omitempty"`
+	Type                     string   `json:"type"`
+	Data                     string   `json:"data,omitempty"`
+	Cols                     int      `json:"cols,omitempty"`
+	Rows                     int      `json:"rows,omitempty"`
+	Code                     int      `json:"code,omitempty"`
+	CoalescedFrames          int      `json:"coalesced_frames,omitempty"`
 	EventID                  string   `json:"eventId,omitempty"`
 	Source                   string   `json:"source,omitempty"`
 	Stage                    string   `json:"stage,omitempty"`
@@ -120,9 +108,6 @@ type TerminalMessage struct {
 	// Ok reports whether a server-acknowledged action succeeded (used by
 	// stdin_ack).
 	Ok bool `json:"ok,omitempty"`
-	// AltBuffer carries the alternate-screen-buffer flag in pty_state
-	// messages. Absent for all other message types.
-	AltBuffer bool `json:"altBuffer,omitempty"`
 	// Gen is the per-connection generation counter. The server echoes it
 	// in session_ready; clients use it to decide whether a re-enqueued
 	// payload belongs to the current connection (see wsGen write barrier
@@ -181,15 +166,10 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 		s.metrics.ActiveConnections.Add(-1)
 	}()
 
-	// Parse optional history resume offset from query string.
-	// DOC: docs/concepts/ARCHITECTURE.md#terminal-history-caching
-	var resumeOffset int64
-	if raw := r.URL.Query().Get("history_offset"); raw != "" {
-		resumeOffset, _ = strconv.ParseInt(raw, 10, 64)
-	}
-
-	// Subscribe to PTY output (the client's first resize message sets dimensions)
-	sub := sess.Subscribe(resumeOffset)
+	// Subscribe to PTY output. Subscribe atomically captures the current
+	// emulator snapshot before registering the live channel; live frames
+	// are applied on top of the snapshot on the receiver.
+	sub := sess.Subscribe()
 	defer sess.Unsubscribe(sub.OutputCh)
 
 	// Assign this connection a fresh generation so clients can detect
@@ -218,15 +198,7 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 		writeMu.Unlock()
 	}
 
-	// historyEndMsg is the history_end message for this subscription, built
-	// once and reused for both the immediate (no-history) and sentinel paths.
-	historyEndMsg := TerminalMessage{
-		Type:       MsgTypeHistoryEnd,
-		TotalBytes: sub.TotalBytes,
-		Resumed:    sub.Resumed,
-	}
-
-	// Output forwarder: PTY output + coalescing notifications → WebSocket client.
+	// Output forwarder: snapshot → PTY output → WebSocket client.
 	// Guaranteed to exit: either ctx.Done() fires (input loop returned) or
 	// outputCh is closed (PTY exited) or WS write fails.
 	go func() {
@@ -237,14 +209,24 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 			}
 		}()
 
-		// If no history was buffered, tell the client immediately so it
-		// can skip waiting for the sentinel and enter live pass-through.
-		if !sub.HadData {
-			writeMu.Lock()
-			_ = conn.WriteJSON(historyEndMsg)
-			_ = conn.WriteJSON(TerminalMessage{Type: MsgTypePTYState, AltBuffer: sub.InitialAltBuffer})
-			writeMu.Unlock()
+		// Stream the self-contained ANSI snapshot first so the client
+		// reproduces the current (screen, alt-buffer, scrollback) triple
+		// before any live frame arrives. Chunked at historyChunkSize so
+		// no single JSON message stalls the renderer.
+		writeMu.Lock()
+		for off := 0; off < len(sub.Snapshot); off += historyChunkSize {
+			end := off + historyChunkSize
+			if end > len(sub.Snapshot) {
+				end = len(sub.Snapshot)
+			}
+			if err := conn.WriteJSON(TerminalMessage{Type: MsgTypeStdout, Data: string(sub.Snapshot[off:end])}); err != nil {
+				writeMu.Unlock()
+				return
+			}
+			s.metrics.WSMessagesSent.Add(1)
 		}
+		_ = conn.WriteJSON(TerminalMessage{Type: MsgTypeHistoryEnd})
+		writeMu.Unlock()
 
 		// Server-side WebSocket keepalive: send a ping every 30s to prevent
 		// reverse proxies (Cloudflare tunnel default idle timeout ~100s) from
@@ -263,22 +245,10 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 				}
 			case data, ok := <-sub.OutputCh:
 				if !ok {
-					// Channel closed = process exited; forward the real exit code.
 					writeMu.Lock()
 					_ = conn.WriteJSON(TerminalMessage{Type: MsgTypeExit, Code: sess.ExitCode()})
 					writeMu.Unlock()
 					return
-				}
-				if data == nil {
-					// Nil sentinel from Subscribe: all history chunks have
-					// been forwarded. Signal the client to flush its buffer
-					// and deliver the initial pty_state so local-echo and
-					// paste-gating decisions can react.
-					writeMu.Lock()
-					_ = conn.WriteJSON(historyEndMsg)
-					_ = conn.WriteJSON(TerminalMessage{Type: MsgTypePTYState, AltBuffer: sub.InitialAltBuffer})
-					writeMu.Unlock()
-					continue
 				}
 				writeMu.Lock()
 				err := conn.WriteJSON(TerminalMessage{
@@ -290,22 +260,12 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 				if err != nil {
 					return
 				}
-				// Drain coalesced data after a successful write so the
-				// broadcast loop can resume normal per-frame delivery.
 				sess.FlushPending(sub.OutputCh)
 			case coalesced := <-sub.NotifyCh:
 				writeMu.Lock()
 				_ = conn.WriteJSON(TerminalMessage{
 					Type:            MsgTypeSyncWarning,
 					CoalescedFrames: coalesced,
-				})
-				writeMu.Unlock()
-				s.metrics.WSMessagesSent.Add(1)
-			case altBuffer := <-sub.StateCh:
-				writeMu.Lock()
-				_ = conn.WriteJSON(TerminalMessage{
-					Type:      MsgTypePTYState,
-					AltBuffer: altBuffer,
 				})
 				writeMu.Unlock()
 				s.metrics.WSMessagesSent.Add(1)

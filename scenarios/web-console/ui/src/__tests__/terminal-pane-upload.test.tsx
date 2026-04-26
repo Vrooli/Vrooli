@@ -45,7 +45,7 @@ vi.mock("@xterm/addon-web-links", () => ({
 vi.mock("../hooks/terminal/useTerminalSession", () => {
   // Stable references so dep arrays in TerminalPane do not re-run
   // effects every render and trigger the unmount-save path.
-  const totalBytesRef = { current: 0 };
+
   const gate = { submit: vi.fn(() => ({ status: "sent" as const, seq: 1 })), dispose: vi.fn(), canAcceptPaste: () => true };
   const submitInput = vi.fn(() => ({ status: "sent" as const, seq: 1 }));
   const sendResize = vi.fn();
@@ -57,7 +57,7 @@ vi.mock("../hooks/terminal/useTerminalSession", () => {
       submitInput,
       gate,
       sendResize,
-      totalBytesRef,
+
       subscribeInputSettled,
       subscribePendingInput,
       getPendingInputSnapshot,

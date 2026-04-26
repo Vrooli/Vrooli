@@ -4,6 +4,7 @@ import { fetchCachedTTS, fetchCapabilitiesLivenessCached, getTTSVoices, reportTT
 import type { TTSBackend, TTSPlaybackCapabilities, TTSPlaybackState, TTSProvider, TTSVoiceInfo } from "./tts/types";
 import { KokoroProvider } from "./tts/KokoroProvider";
 import { BrowserTTSProvider } from "./tts/BrowserTTSProvider";
+import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 
 export interface TTSSettings {
   /** Browser TTS voice name */
@@ -33,6 +34,9 @@ export interface TTSState {
   playbackRate: number;
   volume: number;
   capabilities: TTSPlaybackCapabilities;
+  /** Whether playback is muted. Independent of `volume` — the provider receives
+   *  `effectiveVolume = isMuted ? 0 : volume` so unmuting restores the slider value. */
+  isMuted: boolean;
   backend: TTSBackend;
   voices: TTSVoiceInfo[];
   error: string | null;
@@ -79,6 +83,9 @@ function isAutoplayBlocked(err: unknown): boolean {
 }
 
 export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnostics) {
+  // Read once at hook init: Zustand's persist middleware rehydrates from
+  // localStorage synchronously, so getState() here returns the persisted value.
+  const initialMuted = useWorkspaceStore.getState().startMutedOnLoad;
   const [state, setState] = useState<TTSState>({
     supported: isBrowserSupported(),
     isSpeaking: false,
@@ -87,6 +94,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
     duration: null,
     playbackRate: 1,
     volume: 1,
+    isMuted: initialMuted,
     capabilities: NO_CAPABILITIES,
     backend: "none",
     voices: [],
@@ -104,6 +112,15 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
   const fallbackProviderRef = useRef<BrowserTTSProvider | null>(null);
   const audioUnlockedRef = useRef(false);
   const resolveBackendRef = useRef<(() => Promise<void>) | null>(null);
+  // Mirror state.isMuted/state.volume so helpers can compute effective volume
+  // synchronously without stale closures.
+  const isMutedRef = useRef(initialMuted);
+  const volumeRef = useRef(1);
+
+  const applyEffectiveVolume = useCallback(() => {
+    const effective = isMutedRef.current ? 0 : volumeRef.current;
+    providerRef.current?.setVolume?.(effective);
+  }, []);
 
   const emitEvent = useCallback((stage: string, backend: TTSBackend, message?: string) => {
     if (!diagnostics?.source) return;
@@ -157,6 +174,12 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
     };
   }, [state.backend]); // re-wire when provider changes
 
+  // Push effective volume to the active provider whenever it changes, so a
+  // muted initial state isn't bypassed by a fresh provider's default volume.
+  useEffect(() => {
+    applyEffectiveVolume();
+  }, [state.backend, applyEffectiveVolume]);
+
   const updateSuccess = useCallback((backend: TTSBackend) => {
     setState((s) => ({
       ...s,
@@ -208,6 +231,11 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
       if (backendRef.current === "browser" && !audioUnlockedRef.current) {
         throw new Error("Browser audio is blocked until you interact with the page");
       }
+      // Ensure the provider's effective volume reflects the current mute state
+      // before playback begins. Without this, the first speak after a fresh
+      // page load can play audibly because the backend-change effect raced
+      // with provider creation.
+      applyEffectiveVolume();
       const opts = backendRef.current === "kokoro" ? kokoroOpts : browserOpts;
       // Use speakSequence for unified playback when the provider supports it
       // and there are multiple segments. This produces a single audio track
@@ -239,6 +267,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
       throw err;
     }
   }, [
+    applyEffectiveVolume,
     runBrowserSpeak,
     settings.backendPreference,
     settings.kokoroSpeed,
@@ -604,12 +633,24 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
   }, []);
 
   const setVolume = useCallback((level: number) => {
-    providerRef.current?.setVolume?.(level);
+    volumeRef.current = level;
+    applyEffectiveVolume();
     setState((s) => ({ ...s, volume: level }));
-  }, []);
+  }, [applyEffectiveVolume]);
+
+  const setMuted = useCallback((next: boolean) => {
+    isMutedRef.current = next;
+    applyEffectiveVolume();
+    setState((s) => (s.isMuted === next ? s : { ...s, isMuted: next }));
+  }, [applyEffectiveVolume]);
 
   const getPlaybackState = useCallback((): TTSPlaybackState | null => {
-    return providerRef.current?.getPlaybackState?.() ?? null;
+    const provider = providerRef.current?.getPlaybackState?.();
+    if (!provider) return null;
+    // Override provider's effective volume with the user-configured volume
+    // and add the hook-level mute flag, so the audio bar shows the user's
+    // chosen slider value rather than the silenced provider output.
+    return { ...provider, volume: volumeRef.current, isMuted: isMutedRef.current };
   }, []);
 
   const refresh = useCallback(async () => {
@@ -676,6 +717,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
     seek,
     setPlaybackRate,
     setVolume,
+    setMuted,
     getPlaybackState,
     refresh,
     testSpeak,
