@@ -1,1 +1,17 @@
+# Compiled binaries (built at scenario start; should not be committed)
 cli/cli
+api/landing-manager-api
+api/landing-manager.test
+api/landing-page-business-suite-api
+api/landing-page-react-vite-api
+api/landing-page-react-vite-api.test
+api/0
+
+# Go test/coverage outputs
+*.test
+*.out
+coverage.out
+cover*.out
+
+# Editor / OS junk
+.DS_Store

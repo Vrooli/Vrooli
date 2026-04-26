@@ -37,15 +37,18 @@ message BacklogItem {
   string description = 3;
 
   // Lifecycle state for the backlog item.
-  // @constraint one of: backlog, researching, ready, queued, in_progress, completed, failed
+  // @constraint one of: backlog, researching, ready, queued, in_progress, in_review, review_pending, completed, failed, needs_followup
   string status = 4 [(buf.validate.field).string = { in: [
     "backlog",
     "researching",
     "ready",
     "queued",
     "in_progress",
+    "in_review",
+    "review_pending",
     "completed",
-    "failed"
+    "failed",
+    "needs_followup"
   ] }];
 
   // Priority level (1 = highest, 10 = lowest).

@@ -8,11 +8,56 @@ This file is the voice, positioning, and framing canon for marketing-crew. Every
 
 Builder, not marketer.
 
-- **First person, conversational, technically credible.** "Watched the agent retry three times before it got the cached response right." Not "we're excited to announce..."
+- **First person, conversational, technically credible.** "Watched the agent retry three times before it got the cached response right." Not "we're excited to announce..." The "I" can be the operator's or an agent's — pick deliberately (see *Agents as protagonists* below).
+- **Agents as protagonists.** Vrooli's differentiator is that agents themselves build the system. Most dev-log narration should make that visible — name the specific agent (`run-introspector`, `oss-advertiser`, `toolchain-validator`, etc.), let it be the subject of the sentence, and credit the work to it. "team-agent-optimizer noticed the false-positive pattern and proposed the gate" lands harder than "I noticed it and added the gate." Operator authorship still happens — for vision, strategic decisions, and direct critique — but agent authorship is the unique signal no SaaS competitor can copy. Eventually drafts may carry explicit agent bylines.
 - **Honest about struggles.** Failures and debugging stories land harder than polished wins.
 - **Specific over vague.** Real commit hashes, real agent-run stats, real issue links.
 - **Forward-looking but grounded.** Vision-shaped statements carry concrete evidence; no "AI will transform..."
 - **Builder lexicon, not SaaS lexicon.** Avoid "amazing," "game-changing," "revolutionary," "supercharge," "unlock," "elevate," "transform." These are voice-drift tells.
+
+## Voice samples
+
+Concrete examples that anchor the principles above. When generating drafts, agents (and operators) should match the cadence and shape of the "right" column, not just avoid the words in the "wrong" column.
+
+### Sample 1 — Dev-log opener
+
+**Wrong:**
+> We're excited to announce that we've shipped major improvements to our swarm manager! Get ready to supercharge your team coordination.
+
+**Right:**
+> swarm-manager just landed initiative-agents — agents that own a whole initiative, not just one ticket. Here's what shipped, what broke, and what we'd do differently.
+
+Notes: builder lexicon, hook first, sets up an honest-about-struggles thread. No "excited," no "supercharge."
+
+### Sample 2 — Surfacing a debugging story
+
+**Wrong:**
+> We've been hard at work optimizing the agent runtime to give you a smoother experience.
+
+**Right:**
+> run-introspector spent a heartbeat investigating itself yesterday — the agent's own final report mentioned "rate limit" enough times to trip our 429 detector. Three lessons logged in RUN_LESSONS.md, one fix shipped, one gate filed.
+
+Notes: agent as protagonist, real artifact reference, struggle made specific.
+
+### Sample 3 — Demonstrating specificity
+
+**Wrong:**
+> Vrooli has powerful features for managing complex software projects.
+
+**Right:**
+> swarm-manager backlog list returns 57 active initiatives and 102 completed; the stats endpoint reports 34 — about 3× counter drift, surfaced this morning. We're tracking it as a small data gap, not a fix-now item.
+
+Notes: numbers, named system, honest acknowledgement of an unfixed gap. No marketer-y "powerful."
+
+### Sample 4 — Forward-looking, grounded
+
+**Wrong:**
+> AI will transform how teams ship software.
+
+**Right:**
+> If browser-automation-studio gains the self-healing pattern (browser-use is the reference), two scenarios become possible on top of it: competitive-intel scanning, and regulatory-intel monitoring. Both are queued in the backlog; neither is built. Track them at \[link].
+
+Notes: vision tied to a concrete prerequisite, named substrate, named candidates, status flagged honestly.
 
 ## Dual-audience framing
 
