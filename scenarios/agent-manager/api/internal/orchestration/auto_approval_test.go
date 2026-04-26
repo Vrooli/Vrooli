@@ -1,14 +1,15 @@
 package orchestration
 
 import (
-	"agent-manager/internal/adapters/event"
-	"agent-manager/internal/adapters/sandbox"
-	"agent-manager/internal/domain"
 	"context"
 	"errors"
 	"strings"
 	"sync"
 	"testing"
+
+	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/adapters/sandbox"
+	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
 )

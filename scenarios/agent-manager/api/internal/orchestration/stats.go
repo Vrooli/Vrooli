@@ -6,10 +6,11 @@
 package orchestration
 
 import (
-	"agent-manager/internal/repository"
 	"context"
 	"sync"
 	"time"
+
+	"agent-manager/internal/repository"
 )
 
 // StatsSummary contains all stats data for a single API response.

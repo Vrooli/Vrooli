@@ -1,11 +1,12 @@
 package database
 
 import (
-	"agent-manager/internal/domain"
-	"agent-manager/internal/repository"
 	"context"
 	"testing"
 	"time"
+
+	"agent-manager/internal/domain"
+	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
 )

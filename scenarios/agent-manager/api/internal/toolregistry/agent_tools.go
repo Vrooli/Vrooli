@@ -5,8 +5,9 @@
 package toolregistry
 
 import (
-	"agent-manager/internal/domain"
 	"context"
+
+	"agent-manager/internal/domain"
 
 	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 )

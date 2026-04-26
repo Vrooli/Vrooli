@@ -1,14 +1,15 @@
 package orchestration_test
 
 import (
-	"agent-manager/internal/adapters/runner"
-	"agent-manager/internal/domain"
-	"agent-manager/internal/orchestration"
-	"agent-manager/internal/testutil"
 	"context"
 	"sync"
 	"testing"
 	"time"
+
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration"
+	"agent-manager/internal/testutil"
 
 	"github.com/google/uuid"
 )

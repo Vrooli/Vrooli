@@ -440,6 +440,19 @@ func (s *RunService) Continue(id string, req *domainpb.ContinueRunRequest) ([]by
 	return body, resp.Run, nil
 }
 
+func (s *RunService) Recover(id string) ([]byte, *apipb.RecoverRunResponse, error) {
+	body, err := s.api.Request("POST", "/api/v1/runs/"+id+"/recover", nil, nil)
+	if err != nil {
+		return body, nil, err
+	}
+
+	var resp apipb.RecoverRunResponse
+	if err := unmarshalProtoResponse(body, &resp); err != nil {
+		return body, nil, nil
+	}
+	return body, &resp, nil
+}
+
 // Investigate creates an investigation run from one or more existing runs.
 func (s *RunService) Investigate(req json.RawMessage) ([]byte, *domainpb.Run, error) {
 	body, err := s.api.Request("POST", "/api/v1/runs/investigate", nil, req)

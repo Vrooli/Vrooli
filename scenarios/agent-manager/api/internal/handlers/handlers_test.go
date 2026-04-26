@@ -3,11 +3,6 @@
 package handlers
 
 import (
-	"agent-manager/internal/adapters/runner"
-	"agent-manager/internal/domain"
-	"agent-manager/internal/orchestration"
-	"agent-manager/internal/protoconv"
-	"agent-manager/internal/testutil"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -17,6 +12,12 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration"
+	"agent-manager/internal/protoconv"
+	"agent-manager/internal/testutil"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"

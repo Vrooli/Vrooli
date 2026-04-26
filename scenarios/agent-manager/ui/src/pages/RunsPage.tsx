@@ -319,21 +319,23 @@ export function RunsPage({
               [RunStatus.COMPLETE, RunStatus.FAILED, RunStatus.CANCELLED, RunStatus.NEEDS_REVIEW].includes(statusUpdate.status);
             if (isTerminal && selectedRunId) {
               const runIdToRefetch = selectedRunId;
-              setTimeout(async () => {
-                try {
-                  const freshEvents = await onGetEvents(runIdToRefetch);
-                  if (!freshEvents?.length) return;
-                  // Merge REST events with any WS-received events to avoid losing in-flight messages
-                  setEvents((prev) => {
-                    const knownIds = new Set(freshEvents.map((e) => e.id));
-                    const knownSeqs = new Set(freshEvents.map((e) => e.sequence));
-                    // Keep WS-only events that the REST response hasn't caught yet
-                    const extras = prev.filter((e) => !knownIds.has(e.id) && !knownSeqs.has(e.sequence));
-                    return [...freshEvents, ...extras];
-                  });
-                } catch (err) {
-                  console.error("Failed to refetch events on completion:", err);
-                }
+              setTimeout(() => {
+                void (async () => {
+                  try {
+                    const freshEvents = await onGetEvents(runIdToRefetch);
+                    if (!freshEvents?.length) return;
+                    // Merge REST events with any WS-received events to avoid losing in-flight messages
+                    setEvents((prev) => {
+                      const knownIds = new Set(freshEvents.map((e) => e.id));
+                      const knownSeqs = new Set(freshEvents.map((e) => e.sequence));
+                      // Keep WS-only events that the REST response hasn't caught yet
+                      const extras = prev.filter((e) => !knownIds.has(e.id) && !knownSeqs.has(e.sequence));
+                      return [...freshEvents, ...extras];
+                    });
+                  } catch (err) {
+                    console.error("Failed to refetch events on completion:", err);
+                  }
+                })();
               }, 500);
             }
             break;

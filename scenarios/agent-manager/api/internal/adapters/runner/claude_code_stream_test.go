@@ -6,9 +6,10 @@
 package runner
 
 import (
-	"agent-manager/internal/domain"
 	"encoding/json"
 	"testing"
+
+	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
 )

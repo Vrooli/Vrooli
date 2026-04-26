@@ -1,13 +1,14 @@
 package recommendation
 
 import (
-	"agent-manager/internal/domain"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
+
+	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
 )

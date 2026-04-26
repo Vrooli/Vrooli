@@ -5,17 +5,20 @@
 package runner
 
 import (
-	"agent-manager/internal/domain"
 	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
+
+	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
 )
@@ -285,6 +288,9 @@ func (r *CodexRunner) Execute(ctx context.Context, req ExecuteRequest) (*Execute
 // executeWithJSONStream uses the direct codex CLI with --json for structured event streaming.
 func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequest) (*ExecuteResult, error) {
 	startTime := time.Now()
+	if req.Transcript != nil {
+		return r.executeWithJSONTranscript(ctx, req, startTime)
+	}
 
 	// Build command arguments for codex exec --json
 	args := r.buildJSONArgs(req)
@@ -485,6 +491,9 @@ func (r *CodexRunner) executeWithJSONStream(ctx context.Context, req ExecuteRequ
 // executeWithWrapper uses the resource-codex wrapper (fallback without JSON streaming).
 func (r *CodexRunner) executeWithWrapper(ctx context.Context, req ExecuteRequest) (*ExecuteResult, error) {
 	startTime := time.Now()
+	if req.Transcript != nil {
+		return r.executeWithWrapperTranscript(ctx, req, startTime)
+	}
 
 	// Build command arguments - use "run" subcommand with stdin and tag for process tracking
 	args := []string{"run", "--tag", req.GetTag(), "-"}
@@ -660,13 +669,233 @@ func (r *CodexRunner) Stop(ctx context.Context, runID uuid.UUID) error {
 
 	// Try graceful termination first (SIGTERM)
 	if cmd.Process != nil {
-		if err := cmd.Process.Signal(os.Interrupt); err != nil {
+		if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM); err != nil {
 			// If SIGTERM fails, force kill
-			return cmd.Process.Kill()
+			return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 		}
 	}
 
 	return nil
+}
+
+func (r *CodexRunner) executeWithJSONTranscript(ctx context.Context, req ExecuteRequest, startTime time.Time) (*ExecuteResult, error) {
+	args := r.buildJSONArgs(req)
+	tag := req.GetTag()
+	envArgs := append([]string{fmt.Sprintf("CODEX_AGENT_TAG=%s", tag), r.codexCLIPath}, args...)
+	cmd := exec.CommandContext(ctx, "env", envArgs...)
+	cmd.Dir = req.WorkingDir
+	cmd.Env = r.buildEnv(req)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	return r.runTranscriptCommand(ctx, req.RunID, req.EventSink, req.Transcript, startTime, cmd, req.EffectivePrompt(), "Codex execution started", "Codex execution completed", r.ParseTranscriptLine, r.updateCodexMetrics)
+}
+
+func (r *CodexRunner) continueWithJSONTranscript(ctx context.Context, req ContinueRequest, startTime time.Time) (*ExecuteResult, error) {
+	codexArgs := []string{"exec", "resume", "--json", "--skip-git-repo-check", "--full-auto", req.SessionID}
+	if strings.TrimSpace(req.Prompt) != "" {
+		codexArgs = append(codexArgs, req.Prompt)
+	}
+	tag := fmt.Sprintf("codex-continue-%s", req.RunID.String()[:8])
+	envArgs := append([]string{fmt.Sprintf("CODEX_AGENT_TAG=%s", tag), r.codexCLIPath}, codexArgs...)
+	cmd := exec.CommandContext(ctx, "env", envArgs...)
+	if req.WorkingDir != "" {
+		cmd.Dir = req.WorkingDir
+	}
+	env := sanitizedBaseEnv()
+	env = append(env, "CODEX_NON_INTERACTIVE=true")
+	cmd.Env = appendEnvMap(env, req.Environment)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	result, err := r.runTranscriptCommand(ctx, req.RunID, req.EventSink, req.Transcript, startTime, cmd, "", "Codex continuation started", "Codex continuation completed", r.ParseTranscriptLine, r.updateCodexMetrics)
+	if result != nil && result.SessionID == "" {
+		result.SessionID = req.SessionID
+	}
+	return result, err
+}
+
+func (r *CodexRunner) executeWithWrapperTranscript(ctx context.Context, req ExecuteRequest, startTime time.Time) (*ExecuteResult, error) {
+	args := []string{"run", "--tag", req.GetTag(), "-"}
+	cmd := exec.CommandContext(ctx, r.binaryPath, args...)
+	cmd.Dir = req.WorkingDir
+	cmd.Env = r.buildEnv(req)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	return r.runTranscriptCommand(ctx, req.RunID, req.EventSink, req.Transcript, startTime, cmd, req.EffectivePrompt(), "Codex execution started", "Codex execution completed", r.parseWrapperTranscriptLine, r.updateCodexMetrics)
+}
+
+func (r *CodexRunner) runTranscriptCommand(
+	ctx context.Context,
+	runID uuid.UUID,
+	sink EventSink,
+	transcript *TranscriptConfig,
+	startTime time.Time,
+	cmd *exec.Cmd,
+	prompt string,
+	startMessage string,
+	endMessage string,
+	parseFn func(uuid.UUID, string) TranscriptParseResult,
+	updateMetrics func(*domain.RunEvent, *ExecutionMetrics, *string),
+) (*ExecuteResult, error) {
+	r.mu.Lock()
+	r.runs[runID] = cmd
+	r.mu.Unlock()
+	defer func() {
+		r.mu.Lock()
+		delete(r.runs, runID)
+		r.mu.Unlock()
+	}()
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, &domain.RunnerError{RunnerType: domain.RunnerTypeCodex, Operation: "execute", Cause: err}
+	}
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, &domain.RunnerError{RunnerType: domain.RunnerTypeCodex, Operation: "execute", Cause: err}
+	}
+	if transcript == nil || transcript.StdoutFile == nil {
+		return nil, &domain.RunnerError{RunnerType: domain.RunnerTypeCodex, Operation: "execute", Cause: errors.New("durable transcript stdout file is required")}
+	}
+	cmd.Stdout = transcript.StdoutFile
+	if err := cmd.Start(); err != nil {
+		return nil, &domain.RunnerError{RunnerType: domain.RunnerTypeCodex, Operation: "execute", Cause: err}
+	}
+	if transcript.OnProcessStart != nil {
+		if err := transcript.OnProcessStart(cmd.Process.Pid, cmd.Process.Pid); err != nil {
+			return nil, err
+		}
+	}
+	if sink != nil {
+		_ = sink.Emit(domain.NewStatusEvent(runID, string(domain.RunStatusStarting), string(domain.RunStatusRunning), startMessage))
+	}
+	if prompt != "" {
+		if _, err := stdin.Write([]byte(prompt)); err != nil {
+			return nil, &domain.RunnerError{RunnerType: domain.RunnerTypeCodex, Operation: "execute", Cause: err}
+		}
+	}
+	_ = stdin.Close()
+
+	metrics := ExecutionMetrics{}
+	var lastAssistantMessage string
+	var errorOutput strings.Builder
+	var terminal *TranscriptTerminal
+
+	go func() {
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			line := scanner.Text()
+			errorOutput.WriteString(line)
+			errorOutput.WriteString("\n")
+			if transcript.StderrFile != nil {
+				_, _ = io.WriteString(transcript.StderrFile, line+"\n")
+			}
+		}
+	}()
+
+	consumeCtx, cancelConsume := context.WithCancel(context.Background())
+	liveDone := make(chan struct{})
+	var liveCursor int64
+	go func() {
+		defer close(liveDone)
+		cursor, liveTerminal, _ := Consume(consumeCtx, ConsumeArgs{
+			RunID:       runID,
+			Transcript:  transcript.TranscriptPath,
+			Live:        true,
+			ParseFn:     parseFn,
+			EventSink:   sink,
+			OnAdvance:   transcript.OnAdvance,
+			OnSessionID: transcript.OnSessionID,
+			OnEvents: func(events []*domain.RunEvent) {
+				for _, evt := range events {
+					updateMetrics(evt, &metrics, &lastAssistantMessage)
+				}
+			},
+		})
+		liveCursor = cursor
+		if liveTerminal != nil {
+			terminal = liveTerminal
+		}
+	}()
+
+	waitErr := cmd.Wait()
+	cancelConsume()
+	<-liveDone
+
+	_, finalTerminal, drainErr := Consume(context.Background(), ConsumeArgs{
+		RunID:       runID,
+		Transcript:  transcript.TranscriptPath,
+		StartAt:     liveCursor,
+		ParseFn:     parseFn,
+		EventSink:   sink,
+		OnAdvance:   transcript.OnAdvance,
+		OnSessionID: transcript.OnSessionID,
+		OnEvents: func(events []*domain.RunEvent) {
+			for _, evt := range events {
+				updateMetrics(evt, &metrics, &lastAssistantMessage)
+			}
+		},
+	})
+	if finalTerminal != nil {
+		terminal = finalTerminal
+	}
+
+	result := &ExecuteResult{
+		Duration:  time.Since(startTime),
+		Metrics:   metrics,
+		SessionID: r.threadIDForRun(runID),
+	}
+	defer r.clearThreadID(runID)
+
+	if waitErr != nil {
+		if ctx.Err() == context.Canceled {
+			result.Success = false
+			result.ExitCode = -1
+			result.ErrorMessage = "execution cancelled"
+		} else if exitErr, ok := waitErr.(*exec.ExitError); ok {
+			result.Success = false
+			result.ExitCode = exitErr.ExitCode()
+			result.ErrorMessage = errorOutput.String()
+		} else {
+			result.Success = false
+			result.ExitCode = -1
+			result.ErrorMessage = waitErr.Error()
+		}
+	} else if terminal != nil {
+		result.Success = terminal.Success
+		result.ExitCode = terminal.ExitCode
+		result.ErrorMessage = terminal.ErrorMessage
+	} else {
+		result.Success = true
+		result.ExitCode = 0
+	}
+	if drainErr != nil && result.Success {
+		result.Success = false
+		result.ExitCode = -1
+		result.ErrorMessage = drainErr.Error()
+	}
+	if result.Success {
+		result.Summary = terminalSummaryFromMessage(lastAssistantMessage, metrics)
+	}
+
+	if sink != nil {
+		finalStatus := string(domain.RunStatusComplete)
+		if !result.Success {
+			finalStatus = string(domain.RunStatusFailed)
+		}
+		_ = sink.Emit(domain.NewStatusEvent(runID, string(domain.RunStatusRunning), finalStatus, endMessage))
+		_ = sink.Close()
+	}
+	return result, nil
+}
+
+func (r *CodexRunner) parseWrapperTranscriptLine(runID uuid.UUID, line string) TranscriptParseResult {
+	text := strings.TrimSpace(line)
+	if text == "" {
+		return TranscriptParseResult{}
+	}
+	return TranscriptParseResult{
+		Events: []*domain.RunEvent{domain.NewLogEvent(runID, "info", text)},
+	}
 }
 
 // IsAvailable checks if Codex is currently available.
@@ -1115,6 +1344,9 @@ func (r *CodexRunner) Continue(ctx context.Context, req ContinueRequest) (*Execu
 	}
 
 	startTime := time.Now()
+	if req.Transcript != nil {
+		return r.continueWithJSONTranscript(ctx, req, startTime)
+	}
 
 	// Build command arguments for "codex exec resume --json".
 	// This is the non-interactive equivalent of "codex resume" and emits
@@ -1334,6 +1566,44 @@ func (r *CodexRunner) parseCodexStreamEventsWithThreadID(runID uuid.UUID, line s
 	}
 
 	return r.parseCodexStreamEventsInternal(runID, &streamEvent)
+}
+
+func (r *CodexRunner) ParseTranscriptLine(runID uuid.UUID, line string) TranscriptParseResult {
+	line = strings.TrimSpace(line)
+	if strings.HasPrefix(line, "data:") {
+		line = strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+	}
+	if line == "" || line[0] != '{' {
+		return TranscriptParseResult{}
+	}
+
+	var streamEvent CodexStreamEvent
+	if err := json.Unmarshal([]byte(line), &streamEvent); err != nil {
+		return TranscriptParseResult{}
+	}
+
+	result := TranscriptParseResult{
+		Events:    r.parseCodexStreamEventsInternal(runID, &streamEvent),
+		SessionID: streamEvent.ThreadID,
+	}
+	if streamEvent.ThreadID != "" {
+		r.trackThreadID(runID, streamEvent.ThreadID)
+	}
+
+	switch streamEvent.Type {
+	case "turn.completed":
+		result.Terminal = &TranscriptTerminal{Success: true, ExitCode: 0}
+	case "error":
+		if streamEvent.Error != nil {
+			result.Terminal = &TranscriptTerminal{
+				Success:      false,
+				ExitCode:     1,
+				ErrorMessage: stripANSI(streamEvent.Error.Message),
+			}
+		}
+	}
+
+	return result
 }
 
 // parseCodexStreamEventsInternal processes a parsed CodexStreamEvent.

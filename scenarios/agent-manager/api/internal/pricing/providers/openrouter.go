@@ -1,7 +1,6 @@
 package providers
 
 import (
-	"agent-manager/internal/pricing"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -11,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"agent-manager/internal/pricing"
 
 	"github.com/google/uuid"
 )

@@ -2,9 +2,6 @@
 package handlers
 
 import (
-	"agent-manager/internal/domain"
-	"agent-manager/internal/pricing"
-	"agent-manager/internal/repository"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -12,6 +9,10 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"agent-manager/internal/domain"
+	"agent-manager/internal/pricing"
+	"agent-manager/internal/repository"
 
 	"github.com/gorilla/mux"
 )

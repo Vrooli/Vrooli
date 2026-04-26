@@ -5,11 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vrooli lifecycle protect -- vite",
-    "build": "tsc && vite build",
+    "build": "pnpm run type-check && vite build",
     "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
     "preview": "vite preview",
     "test": "pnpm run test:unit",
-    "test:unit": "rm -rf .test-dist && tsc -p tsconfig.test.json && node --test .test-dist/tests/**/*.test.js && rm -rf .test-dist"
+    "test:unit": "rm -rf .test-dist && tsc -p tsconfig.test.json && node --test .test-dist/tests/**/*.test.js && rm -rf .test-dist",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^2.10.1",

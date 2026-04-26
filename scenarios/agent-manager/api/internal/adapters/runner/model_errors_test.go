@@ -1,8 +1,9 @@
 package runner
 
 import (
-	"agent-manager/internal/domain"
 	"testing"
+
+	"agent-manager/internal/domain"
 )
 
 func TestClassifyModelError_Codex(t *testing.T) {

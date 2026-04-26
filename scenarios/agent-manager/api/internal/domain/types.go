@@ -375,6 +375,13 @@ type Run struct {
 	// For OpenCode: sessionID from stream events
 	SessionID string `json:"sessionId,omitempty" db:"session_id"`
 
+	// Transcript recovery metadata for restart-safe run reconciliation.
+	RunnerPID         int    `json:"runnerPid,omitempty" db:"runner_pid"`
+	RunnerPGID        int    `json:"runnerPgid,omitempty" db:"runner_pgid"`
+	TranscriptPath    string `json:"transcriptPath,omitempty" db:"transcript_path"`
+	TranscriptCursor  int64  `json:"transcriptCursor,omitempty" db:"transcript_cursor"`
+	TranscriptLastSeq int64  `json:"transcriptLastSeq,omitempty" db:"transcript_last_seq"`
+
 	// Model provenance — requested is the first concrete entry the preset chain expanded to
 	// when the run was created; actual is the model the CLI actually executed with once
 	// model-fallback (if any) converged. When they differ the run degraded through the chain.

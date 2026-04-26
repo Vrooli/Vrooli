@@ -1,8 +1,9 @@
 package runner
 
 import (
-	"agent-manager/internal/domain"
 	"os/exec"
+
+	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
 )

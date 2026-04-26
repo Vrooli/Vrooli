@@ -8,8 +8,9 @@
 package protoconv
 
 import (
-	"agent-manager/internal/domain"
 	"time"
+
+	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/encoding/protojson"

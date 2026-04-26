@@ -5,7 +5,6 @@
 package sandbox
 
 import (
-	"agent-manager/internal/domain"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -15,6 +14,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
 )

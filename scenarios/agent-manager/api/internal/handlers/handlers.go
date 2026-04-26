@@ -22,13 +22,6 @@
 package handlers
 
 import (
-	"agent-manager/internal/adapters/event"
-	agentconfig "agent-manager/internal/config"
-	"agent-manager/internal/domain"
-	"agent-manager/internal/modelregistry"
-	"agent-manager/internal/orchestration"
-	"agent-manager/internal/protoconv"
-	"agent-manager/internal/storage"
 	"context"
 	"encoding/json"
 	"errors"
@@ -38,6 +31,15 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/modelregistry"
+	"agent-manager/internal/orchestration"
+	"agent-manager/internal/protoconv"
+	"agent-manager/internal/storage"
+
+	agentconfig "agent-manager/internal/config"
 
 	"buf.build/go/protovalidate"
 	"github.com/google/uuid"
@@ -131,6 +133,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs/{id}", h.GetRun).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}", h.DeleteRun).Methods("DELETE")
 	r.HandleFunc("/api/v1/runs/{id}/stop", h.StopRun).Methods("POST")
+	r.HandleFunc("/api/v1/runs/{id}/recover", h.RecoverRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/continue", h.ContinueRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/messages/{event_id}/delete", h.DeleteRunMessage).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/events", h.GetRunEvents).Methods("GET")
@@ -1824,6 +1827,32 @@ func (h *Handler) ContinueRun(w http.ResponseWriter, r *http.Request) {
 	resp := &domainpb.ContinueRunResponse{
 		Success: true,
 		Run:     protoconv.RunToProto(run),
+	}
+	writeProtoJSON(w, http.StatusOK, resp)
+}
+
+func (h *Handler) RecoverRun(w http.ResponseWriter, r *http.Request) {
+	idStr := mux.Vars(r)["id"]
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeSimpleError(w, r, "run_id", "invalid UUID format for run ID")
+		return
+	}
+
+	result, err := h.svc.RecoverRun(r.Context(), id)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	resp := &apipb.RecoverRunResponse{}
+	if result != nil {
+		resp.Recovered = result.Recovered
+		resp.Idempotent = result.Idempotent
+		resp.Message = result.Message
+		if result.Run != nil {
+			resp.Run = protoconv.RunToProto(result.Run)
+		}
 	}
 	writeProtoJSON(w, http.StatusOK, resp)
 }

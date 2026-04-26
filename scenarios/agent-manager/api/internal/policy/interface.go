@@ -12,8 +12,9 @@
 package policy
 
 import (
-	"agent-manager/internal/domain"
 	"context"
+
+	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
 )

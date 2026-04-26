@@ -1,13 +1,14 @@
 package testutil
 
 import (
-	"agent-manager/internal/adapters/event"
-	"agent-manager/internal/database"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/database"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"

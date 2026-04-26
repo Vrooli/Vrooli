@@ -1,10 +1,11 @@
 package orchestration_test
 
 import (
-	"agent-manager/internal/domain"
-	"agent-manager/internal/orchestration"
 	"context"
 	"testing"
+
+	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration"
 
 	"github.com/google/uuid"
 )

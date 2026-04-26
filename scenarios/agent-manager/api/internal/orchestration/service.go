@@ -12,19 +12,6 @@
 package orchestration
 
 import (
-	"agent-manager/internal/adapters/artifact"
-	"agent-manager/internal/adapters/event"
-	"agent-manager/internal/adapters/recommendation"
-	"agent-manager/internal/adapters/runner"
-	"agent-manager/internal/adapters/sandbox"
-	agentconfig "agent-manager/internal/config"
-	"agent-manager/internal/domain"
-	"agent-manager/internal/identity"
-	"agent-manager/internal/modelregistry"
-	"agent-manager/internal/policy"
-	"agent-manager/internal/promptmanager"
-	"agent-manager/internal/repository"
-	"agent-manager/internal/storage"
 	"context"
 	"fmt"
 	"log"
@@ -34,6 +21,22 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"agent-manager/internal/adapters/artifact"
+	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/adapters/recommendation"
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/sandbox"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/identity"
+	"agent-manager/internal/modelregistry"
+	"agent-manager/internal/policy"
+	"agent-manager/internal/promptmanager"
+	"agent-manager/internal/repository"
+	"agent-manager/internal/runstate"
+	"agent-manager/internal/storage"
+
+	agentconfig "agent-manager/internal/config"
 
 	"github.com/google/uuid"
 )
@@ -74,6 +77,7 @@ type Service interface {
 	StopRunByTag(ctx context.Context, tag string) error
 	StopAllRuns(ctx context.Context, opts StopAllOptions) (*StopAllResult, error)
 	ContinueRun(ctx context.Context, req ContinueRunRequest) (*domain.Run, error)
+	RecoverRun(ctx context.Context, id uuid.UUID) (*RecoverResult, error)
 	DeleteRunMessage(ctx context.Context, runID uuid.UUID, eventID uuid.UUID) (*domain.RunEvent, error)
 
 	// --- Run Resumption Operations (Interruption Resilience) ---
@@ -1757,6 +1761,13 @@ func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
 	return o.runs.Update(ctx, run)
 }
 
+func (o *Orchestrator) RecoverRun(ctx context.Context, id uuid.UUID) (*RecoverResult, error) {
+	if o.reconciler == nil {
+		return nil, domain.NewConfigMissingError("reconciler", "reconciler not configured", nil)
+	}
+	return o.reconciler.RecoverRun(ctx, id)
+}
+
 // ContinueRun continues an existing run's conversation with a follow-up message.
 // The message is appended to the run's event stream and the response is streamed back.
 func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) (*domain.Run, error) {
@@ -1926,8 +1937,13 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 	// Emit user message event now that attachments are resolved
 	emitUserMessage(attachments)
 
+	transcriptCfg, cleanupTranscript, err := o.prepareRunTranscript(ctx, run, workDir)
+	if err != nil {
+		return nil, err
+	}
+
 	// Execute continuation asynchronously
-	go o.executeContinuation(context.Background(), run, r, eventSink, req.Message, workDir, attachments)
+	go o.executeContinuation(context.Background(), run, r, eventSink, req.Message, workDir, attachments, transcriptCfg, cleanupTranscript)
 
 	return o.attachRunActions(ctx, run), nil
 }
@@ -2004,10 +2020,81 @@ func (o *Orchestrator) continuationHeartbeat(ctx context.Context, run *domain.Ru
 	}
 }
 
+func (o *Orchestrator) prepareRunTranscript(ctx context.Context, run *domain.Run, workDir string) (*runner.TranscriptConfig, func(), error) {
+	if run == nil || run.ResolvedConfig == nil {
+		return nil, nil, nil
+	}
+
+	startedAt := time.Now().UTC()
+	if run.StartedAt != nil {
+		startedAt = run.StartedAt.UTC()
+	}
+	state, err := runstate.Open(run.ID, runstate.OpenOptions{
+		RunnerType: run.ResolvedConfig.RunnerType,
+		WorkingDir: workDir,
+		StartedAt:  startedAt,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	snap := state.Snapshot()
+	run.TranscriptPath = snap.TranscriptPath
+	run.TranscriptCursor = snap.Cursor.TranscriptCursor
+	run.TranscriptLastSeq = snap.Cursor.TranscriptLastSeq
+	if err := o.runs.Update(ctx, run); err != nil {
+		_ = state.Close()
+		return nil, nil, err
+	}
+
+	cfg := &runner.TranscriptConfig{
+		TranscriptPath: snap.TranscriptPath,
+		StderrPath:     snap.StderrPath,
+		StdoutFile:     state.TranscriptWriter(),
+		StderrFile:     state.StderrWriter(),
+		OnProcessStart: func(pid, pgid int) error {
+			run.RunnerPID = pid
+			run.RunnerPGID = pgid
+			if err := state.PersistProcess(pid, pgid); err != nil {
+				return err
+			}
+			return o.runs.Update(context.Background(), run)
+		},
+		OnAdvance: func(cursor, lastSeq int64) error {
+			if cursor > run.TranscriptCursor {
+				run.TranscriptCursor = cursor
+			}
+			if lastSeq > run.TranscriptLastSeq {
+				run.TranscriptLastSeq = lastSeq
+			}
+			if err := state.PersistCursor(run.TranscriptCursor, run.TranscriptLastSeq); err != nil {
+				return err
+			}
+			return o.runs.Update(context.Background(), run)
+		},
+		OnSessionID: func(sessionID string) error {
+			if sessionID == "" || run.SessionID == sessionID {
+				return nil
+			}
+			run.SessionID = sessionID
+			if err := state.PersistSessionID(sessionID); err != nil {
+				return err
+			}
+			return o.runs.Update(context.Background(), run)
+		},
+	}
+
+	return cfg, func() { _ = state.Close() }, nil
+}
+
 // executeContinuation handles the actual continuation execution (runs in background).
 // Each continuation turn gets its own timeout from RunTimeoutMinutes, so a timed-out
 // run can be continued indefinitely — each "continue" message resets the clock.
-func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run, r runner.Runner, eventSink runner.EventSink, message string, workDir string, attachments []runner.Attachment) {
+func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run, r runner.Runner, eventSink runner.EventSink, message string, workDir string, attachments []runner.Attachment, transcript *runner.TranscriptConfig, cleanupTranscript func()) {
+	if cleanupTranscript != nil {
+		defer cleanupTranscript()
+	}
+
 	// Apply per-turn timeout to continuation
 	timeoutMinutes := 30 // default
 	if o.orchestrationSettings != nil {
@@ -2033,6 +2120,7 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 		WorkingDir:  workDir,
 		EventSink:   eventSink,
 		Attachments: attachments,
+		Transcript:  transcript,
 	}
 
 	// Execute continuation with per-turn timeout
@@ -2870,23 +2958,33 @@ type EventBroadcaster interface {
 
 // eventStoreAdapter adapts event.Store to runner.EventSink
 type eventStoreAdapter struct {
-	store event.Store
-	runID uuid.UUID
+	store        event.Store
+	runID        uuid.UUID
+	lastSequence int64
 }
 
 func (e *eventStoreAdapter) Emit(evt *domain.RunEvent) error {
-	return e.store.Append(context.Background(), e.runID, evt)
+	if err := e.store.Append(context.Background(), e.runID, evt); err != nil {
+		return err
+	}
+	e.lastSequence = evt.Sequence
+	return nil
 }
 
 func (e *eventStoreAdapter) Close() error {
 	return nil
 }
 
+func (e *eventStoreAdapter) LastSequence() int64 {
+	return e.lastSequence
+}
+
 // broadcastingEventSink stores events AND broadcasts them via WebSocket.
 type broadcastingEventSink struct {
-	store       event.Store
-	runID       uuid.UUID
-	broadcaster EventBroadcaster
+	store        event.Store
+	runID        uuid.UUID
+	broadcaster  EventBroadcaster
+	lastSequence int64
 }
 
 func (b *broadcastingEventSink) Emit(evt *domain.RunEvent) error {
@@ -2898,6 +2996,8 @@ func (b *broadcastingEventSink) Emit(evt *domain.RunEvent) error {
 		if err := b.store.Append(context.Background(), b.runID, evt); err != nil {
 			// Log but don't fail - broadcasting is more important for UX
 			log.Printf("[broadcast-sink] failed to store event for run %s: %v", b.runID, err)
+		} else {
+			b.lastSequence = evt.Sequence
 		}
 	}
 
@@ -2919,6 +3019,10 @@ func (b *broadcastingEventSink) Emit(evt *domain.RunEvent) error {
 
 func (b *broadcastingEventSink) Close() error {
 	return nil
+}
+
+func (b *broadcastingEventSink) LastSequence() int64 {
+	return b.lastSequence
 }
 
 // noOpEventSink discards events

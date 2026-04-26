@@ -5,7 +5,6 @@
 package runner
 
 import (
-	"agent-manager/internal/domain"
 	"bufio"
 	"context"
 	"encoding/json"
@@ -18,7 +17,10 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
+
+	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -135,6 +137,9 @@ func (r *OpenCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Exec
 	}
 
 	startTime := time.Now()
+	if req.Transcript != nil {
+		return r.executeWithTranscript(ctx, req, startTime)
+	}
 
 	// Build command arguments
 	// resource-opencode run passes through to opencode CLI
@@ -520,13 +525,205 @@ func (r *OpenCodeRunner) Stop(ctx context.Context, runID uuid.UUID) error {
 
 	// Try graceful termination first (SIGTERM)
 	if cmd.Process != nil {
-		if err := cmd.Process.Signal(os.Interrupt); err != nil {
+		if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM); err != nil {
 			// If SIGTERM fails, force kill
-			return cmd.Process.Kill()
+			return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 		}
 	}
 
 	return nil
+}
+
+func (r *OpenCodeRunner) executeWithTranscript(ctx context.Context, req ExecuteRequest, startTime time.Time) (*ExecuteResult, error) {
+	args := r.buildArgs(req)
+	tag := req.GetTag()
+	envArgs := append([]string{fmt.Sprintf("OPENCODE_AGENT_TAG=%s", tag), r.binaryPath}, args...)
+	cmd := exec.CommandContext(ctx, "env", envArgs...)
+	if req.WorkingDir != "" {
+		cmd.Dir = req.WorkingDir
+	}
+	cmd.Env = r.buildEnv(req)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	return r.runTranscriptCommand(ctx, req.RunID, req.EventSink, req.Transcript, startTime, cmd, "OpenCode execution started", "OpenCode execution completed")
+}
+
+func (r *OpenCodeRunner) continueWithTranscript(ctx context.Context, req ContinueRequest, startTime time.Time) (*ExecuteResult, error) {
+	args := []string{"run", "run", req.Prompt, "--session", req.SessionID, "--format", "json"}
+	tag := fmt.Sprintf("opencode-continue-%s", req.RunID.String()[:8])
+	envArgs := append([]string{fmt.Sprintf("OPENCODE_AGENT_TAG=%s", tag), r.binaryPath}, args...)
+	cmd := exec.CommandContext(ctx, "env", envArgs...)
+	if req.WorkingDir != "" {
+		cmd.Dir = req.WorkingDir
+	}
+	env := sanitizedBaseEnv()
+	env = append(env, "OPENCODE_NON_INTERACTIVE=true")
+	cmd.Env = appendEnvMap(env, req.Environment)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	result, err := r.runTranscriptCommand(ctx, req.RunID, req.EventSink, req.Transcript, startTime, cmd, "OpenCode continuation started", "OpenCode continuation completed")
+	if result != nil && result.SessionID == "" {
+		result.SessionID = req.SessionID
+	}
+	return result, err
+}
+
+func (r *OpenCodeRunner) runTranscriptCommand(
+	ctx context.Context,
+	runID uuid.UUID,
+	sink EventSink,
+	transcript *TranscriptConfig,
+	startTime time.Time,
+	cmd *exec.Cmd,
+	startMessage string,
+	endMessage string,
+) (*ExecuteResult, error) {
+	r.mu.Lock()
+	r.runs[runID] = cmd
+	r.mu.Unlock()
+	defer func() {
+		r.mu.Lock()
+		delete(r.runs, runID)
+		r.mu.Unlock()
+	}()
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, &domain.RunnerError{RunnerType: domain.RunnerTypeOpenCode, Operation: "execute", Cause: err}
+	}
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, &domain.RunnerError{RunnerType: domain.RunnerTypeOpenCode, Operation: "execute", Cause: err}
+	}
+	if transcript == nil || transcript.StdoutFile == nil {
+		return nil, &domain.RunnerError{RunnerType: domain.RunnerTypeOpenCode, Operation: "execute", Cause: errors.New("durable transcript stdout file is required")}
+	}
+	cmd.Stdout = transcript.StdoutFile
+	if err := cmd.Start(); err != nil {
+		return nil, &domain.RunnerError{RunnerType: domain.RunnerTypeOpenCode, Operation: "execute", Cause: err}
+	}
+	if transcript.OnProcessStart != nil {
+		if err := transcript.OnProcessStart(cmd.Process.Pid, cmd.Process.Pid); err != nil {
+			return nil, err
+		}
+	}
+	_ = stdin.Close()
+
+	if sink != nil {
+		_ = sink.Emit(domain.NewStatusEvent(runID, string(domain.RunStatusStarting), string(domain.RunStatusRunning), startMessage))
+	}
+
+	metrics := ExecutionMetrics{}
+	var lastAssistantMessage string
+	var errorOutput strings.Builder
+	var terminal *TranscriptTerminal
+
+	go func() {
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			line := scanner.Text()
+			errorOutput.WriteString(line)
+			errorOutput.WriteString("\n")
+			if transcript.StderrFile != nil {
+				_, _ = io.WriteString(transcript.StderrFile, line+"\n")
+			}
+		}
+	}()
+
+	consumeCtx, cancelConsume := context.WithCancel(context.Background())
+	liveDone := make(chan struct{})
+	var liveCursor int64
+	go func() {
+		defer close(liveDone)
+		cursor, liveTerminal, _ := Consume(consumeCtx, ConsumeArgs{
+			RunID:       runID,
+			Transcript:  transcript.TranscriptPath,
+			Live:        true,
+			ParseFn:     r.ParseTranscriptLine,
+			EventSink:   sink,
+			OnAdvance:   transcript.OnAdvance,
+			OnSessionID: transcript.OnSessionID,
+			OnEvents: func(events []*domain.RunEvent) {
+				for _, evt := range events {
+					r.updateMetrics(evt, &metrics, &lastAssistantMessage)
+				}
+			},
+		})
+		liveCursor = cursor
+		if liveTerminal != nil {
+			terminal = liveTerminal
+		}
+	}()
+
+	waitErr := cmd.Wait()
+	cancelConsume()
+	<-liveDone
+
+	_, finalTerminal, drainErr := Consume(context.Background(), ConsumeArgs{
+		RunID:       runID,
+		Transcript:  transcript.TranscriptPath,
+		StartAt:     liveCursor,
+		ParseFn:     r.ParseTranscriptLine,
+		EventSink:   sink,
+		OnAdvance:   transcript.OnAdvance,
+		OnSessionID: transcript.OnSessionID,
+		OnEvents: func(events []*domain.RunEvent) {
+			for _, evt := range events {
+				r.updateMetrics(evt, &metrics, &lastAssistantMessage)
+			}
+		},
+	})
+	if finalTerminal != nil {
+		terminal = finalTerminal
+	}
+
+	result := &ExecuteResult{
+		Duration:  time.Since(startTime),
+		Metrics:   metrics,
+		SessionID: r.sessionIDForRun(runID),
+	}
+	defer r.clearSessionID(runID)
+
+	if waitErr != nil {
+		if ctx.Err() == context.Canceled {
+			result.Success = false
+			result.ExitCode = -1
+			result.ErrorMessage = "execution cancelled"
+		} else if exitErr, ok := waitErr.(*exec.ExitError); ok {
+			result.Success = false
+			result.ExitCode = exitErr.ExitCode()
+			result.ErrorMessage = errorOutput.String()
+		} else {
+			result.Success = false
+			result.ExitCode = -1
+			result.ErrorMessage = waitErr.Error()
+		}
+	} else if terminal != nil {
+		result.Success = terminal.Success
+		result.ExitCode = terminal.ExitCode
+		result.ErrorMessage = terminal.ErrorMessage
+	} else {
+		result.Success = true
+		result.ExitCode = 0
+	}
+	if drainErr != nil && result.Success {
+		result.Success = false
+		result.ExitCode = -1
+		result.ErrorMessage = drainErr.Error()
+	}
+	if result.Success {
+		result.Summary = terminalSummaryFromMessage(lastAssistantMessage, metrics)
+	}
+
+	if sink != nil {
+		finalStatus := string(domain.RunStatusComplete)
+		if !result.Success {
+			finalStatus = string(domain.RunStatusFailed)
+		}
+		_ = sink.Emit(domain.NewStatusEvent(runID, string(domain.RunStatusRunning), finalStatus, endMessage))
+		_ = sink.Close()
+	}
+	return result, nil
 }
 
 // IsAvailable checks if OpenCode is currently available.
@@ -569,6 +766,18 @@ func (r *OpenCodeRunner) trackSessionID(runID uuid.UUID, sessionID string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.runSessionIDs[runID] = sessionID
+}
+
+func (r *OpenCodeRunner) sessionIDForRun(runID uuid.UUID) string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.runSessionIDs[runID]
+}
+
+func (r *OpenCodeRunner) clearSessionID(runID uuid.UUID) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.runSessionIDs, runID)
 }
 
 // buildArgs constructs command-line arguments for resource-opencode run.
@@ -796,6 +1005,45 @@ func (r *OpenCodeRunner) parseStreamEventsWithSessionID(runID uuid.UUID, line st
 
 	events, err := r.parseOpenCodeStreamEvent(runID, streamEvent)
 	return events, sessionID, err
+}
+
+func (r *OpenCodeRunner) ParseTranscriptLine(runID uuid.UUID, line string) TranscriptParseResult {
+	events, sessionID, err := r.parseStreamEventsWithSessionID(runID, line)
+	result := TranscriptParseResult{
+		Events:    events,
+		SessionID: sessionID,
+		Err:       err,
+	}
+	if sessionID != "" {
+		r.trackSessionID(runID, sessionID)
+	}
+
+	var streamEvent OpenCodeStreamEvent
+	if err := json.Unmarshal([]byte(strings.TrimSpace(line)), &streamEvent); err == nil && streamEvent.Part != nil {
+		if streamEvent.Type == "step_finish" && isTerminalStepFinish(streamEvent.Part) {
+			terminal := &TranscriptTerminal{
+				Success:  true,
+				ExitCode: 0,
+			}
+			reason := strings.ToLower(strings.TrimSpace(streamEvent.Part.Reason))
+			switch reason {
+			case "error":
+				terminal.Success = false
+				terminal.ExitCode = 1
+				terminal.ErrorMessage = stripANSI(streamEvent.Part.Output)
+				if terminal.ErrorMessage == "" {
+					terminal.ErrorMessage = "opencode reported terminal error"
+				}
+			case "cancelled", "canceled":
+				terminal.Success = false
+				terminal.ExitCode = 130
+				terminal.ErrorMessage = "opencode session cancelled"
+			}
+			result.Terminal = terminal
+		}
+	}
+
+	return result
 }
 
 func (r *OpenCodeRunner) parseOpenCodeStreamEvent(runID uuid.UUID, streamEvent OpenCodeStreamEvent) ([]*domain.RunEvent, error) {
@@ -1200,6 +1448,9 @@ func (r *OpenCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*Ex
 	}
 
 	startTime := time.Now()
+	if req.Transcript != nil {
+		return r.continueWithTranscript(ctx, req, startTime)
+	}
 
 	// Build command arguments for session continuation
 	// Syntax: resource-opencode run run <message> --session <session-id> --format json

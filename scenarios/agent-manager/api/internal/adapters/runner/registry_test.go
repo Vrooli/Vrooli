@@ -1,10 +1,11 @@
 package runner_test
 
 import (
-	"agent-manager/internal/adapters/runner"
-	"agent-manager/internal/domain"
 	"context"
 	"testing"
+
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
 )

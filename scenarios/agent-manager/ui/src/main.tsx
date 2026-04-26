@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { getProxyInfo } from "@vrooli/api-base";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge/child";
+import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import App from "./App";
 import "./styles/global.css";
 
@@ -43,6 +44,8 @@ if (
   initIframeBridgeChild({ parentOrigin, appId: "agent-manager" });
   window.__agentManagerBridgeInitialized = true;
 }
+
+initSpatialNav();
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>

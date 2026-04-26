@@ -6,8 +6,9 @@
 package handlers
 
 import (
-	"agent-manager/internal/toolregistry"
 	"net/http"
+
+	"agent-manager/internal/toolregistry"
 
 	"google.golang.org/protobuf/encoding/protojson"
 )

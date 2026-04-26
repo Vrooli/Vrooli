@@ -1,11 +1,12 @@
 package config
 
 import (
-	"agent-manager/internal/domain"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"agent-manager/internal/domain"
 )
 
 // =============================================================================

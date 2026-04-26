@@ -1,8 +1,6 @@
 package database
 
 import (
-	"agent-manager/internal/domain"
-	"agent-manager/internal/repository"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -10,6 +8,9 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"agent-manager/internal/domain"
+	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
@@ -55,6 +56,11 @@ type runRow struct {
 	TotalSizeBytes           int64                 `db:"total_size_bytes"`
 	SandboxConfig            NullableSandboxConfig `db:"sandbox_config"`
 	SessionID                sql.NullString        `db:"session_id"`
+	RunnerPID                int                   `db:"runner_pid"`
+	RunnerPGID               int                   `db:"runner_pgid"`
+	TranscriptPath           sql.NullString        `db:"transcript_path"`
+	TranscriptCursor         int64                 `db:"transcript_cursor"`
+	TranscriptLastSeq        int64                 `db:"transcript_last_seq"`
 	SourceRunIDs             sql.NullString        `db:"source_run_ids"`
 	SourceInvestigationRunID NullableUUID          `db:"source_investigation_run_id"`
 	// Recommendation extraction fields (for investigation runs)
@@ -102,6 +108,11 @@ func (row *runRow) toDomain() *domain.Run {
 		TotalSizeBytes:           row.TotalSizeBytes,
 		SandboxConfig:            row.SandboxConfig.V,
 		SessionID:                row.SessionID.String,
+		RunnerPID:                row.RunnerPID,
+		RunnerPGID:               row.RunnerPGID,
+		TranscriptPath:           row.TranscriptPath.String,
+		TranscriptCursor:         row.TranscriptCursor,
+		TranscriptLastSeq:        row.TranscriptLastSeq,
 		SourceRunIDs:             sourceRunIDs,
 		SourceInvestigationRunID: row.SourceInvestigationRunID.ToPtr(),
 		// Recommendation extraction fields
@@ -155,6 +166,11 @@ func runFromDomain(r *domain.Run) *runRow {
 		TotalSizeBytes:           r.TotalSizeBytes,
 		SandboxConfig:            NullableSandboxConfig{V: r.SandboxConfig},
 		SessionID:                sql.NullString{String: r.SessionID, Valid: r.SessionID != ""},
+		RunnerPID:                r.RunnerPID,
+		RunnerPGID:               r.RunnerPGID,
+		TranscriptPath:           sql.NullString{String: r.TranscriptPath, Valid: r.TranscriptPath != ""},
+		TranscriptCursor:         r.TranscriptCursor,
+		TranscriptLastSeq:        r.TranscriptLastSeq,
 		SourceRunIDs:             sql.NullString{String: sourceRunIDs, Valid: sourceRunIDs != ""},
 		SourceInvestigationRunID: NewNullableUUID(r.SourceInvestigationRunID),
 		// Recommendation extraction fields
@@ -216,6 +232,7 @@ const runColumns = `id, task_id, agent_profile_id, tag, sandbox_id, run_mode, st
 	started_at, ended_at, phase, last_checkpoint_id, last_heartbeat, progress_percent,
 	idempotency_key, summary, error_msg, exit_code, approval_state, approved_by, approved_at,
 	resolved_config, diff_path, log_path, changed_files, total_size_bytes, sandbox_config, session_id,
+	runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq,
 	source_run_ids, source_investigation_run_id,
 	recommendation_status, recommendation_result, recommendation_attempts, recommendation_error, recommendation_queued_at,
 	identity_token_hash, identity_token_revoked_at,
@@ -233,6 +250,7 @@ const listRunColumns = `id, task_id, agent_profile_id, tag, run_mode, status,
 	started_at, ended_at, phase, last_heartbeat, progress_percent,
 	error_msg, exit_code, approval_state,
 	changed_files, total_size_bytes, session_id,
+	runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq,
 	source_run_ids, source_investigation_run_id,
 	recommendation_status, recommendation_attempts,
 	requested_model, actual_model,
@@ -257,6 +275,11 @@ type listRunLiteRow struct {
 	ChangedFiles             int            `db:"changed_files"`
 	TotalSizeBytes           int64          `db:"total_size_bytes"`
 	SessionID                sql.NullString `db:"session_id"`
+	RunnerPID                int            `db:"runner_pid"`
+	RunnerPGID               int            `db:"runner_pgid"`
+	TranscriptPath           sql.NullString `db:"transcript_path"`
+	TranscriptCursor         int64          `db:"transcript_cursor"`
+	TranscriptLastSeq        int64          `db:"transcript_last_seq"`
 	SourceRunIDs             sql.NullString `db:"source_run_ids"`
 	SourceInvestigationRunID NullableUUID   `db:"source_investigation_run_id"`
 	RecommendationStatus     sql.NullString `db:"recommendation_status"`
@@ -288,6 +311,11 @@ func (row *listRunLiteRow) toDomain() *domain.Run {
 		ChangedFiles:             row.ChangedFiles,
 		TotalSizeBytes:           row.TotalSizeBytes,
 		SessionID:                row.SessionID.String,
+		RunnerPID:                row.RunnerPID,
+		RunnerPGID:               row.RunnerPGID,
+		TranscriptPath:           row.TranscriptPath.String,
+		TranscriptCursor:         row.TranscriptCursor,
+		TranscriptLastSeq:        row.TranscriptLastSeq,
 		SourceRunIDs:             sourceRunIDs,
 		SourceInvestigationRunID: row.SourceInvestigationRunID.ToPtr(),
 		RecommendationStatus:     domain.RecommendationStatus(row.RecommendationStatus.String),
@@ -318,6 +346,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			started_at, ended_at, phase, last_checkpoint_id, last_heartbeat, progress_percent,
 			idempotency_key, summary, error_msg, exit_code, approval_state, approved_by, approved_at,
 			resolved_config, diff_path, log_path, changed_files, total_size_bytes, sandbox_config, session_id,
+			runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq,
 			source_run_ids, source_investigation_run_id,
 			recommendation_status, recommendation_result, recommendation_attempts, recommendation_error, recommendation_queued_at,
 			identity_token_hash, identity_token_revoked_at,
@@ -327,6 +356,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			:started_at, :ended_at, :phase, :last_checkpoint_id, :last_heartbeat, :progress_percent,
 			:idempotency_key, :summary, :error_msg, :exit_code, :approval_state, :approved_by, :approved_at,
 			:resolved_config, :diff_path, :log_path, :changed_files, :total_size_bytes, :sandbox_config, :session_id,
+			:runner_pid, :runner_pgid, :transcript_path, :transcript_cursor, :transcript_last_seq,
 			:source_run_ids, :source_investigation_run_id,
 			:recommendation_status, :recommendation_result, :recommendation_attempts, :recommendation_error, :recommendation_queued_at,
 			:identity_token_hash, :identity_token_revoked_at,
@@ -440,7 +470,9 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 		approval_state = :approval_state, approved_by = :approved_by, approved_at = :approved_at,
 		resolved_config = :resolved_config, diff_path = :diff_path, log_path = :log_path,
 			changed_files = :changed_files, total_size_bytes = :total_size_bytes, sandbox_config = :sandbox_config,
-			session_id = :session_id, source_run_ids = :source_run_ids,
+			session_id = :session_id, runner_pid = :runner_pid, runner_pgid = :runner_pgid,
+			transcript_path = :transcript_path, transcript_cursor = :transcript_cursor, transcript_last_seq = :transcript_last_seq,
+			source_run_ids = :source_run_ids,
 			source_investigation_run_id = :source_investigation_run_id,
 			recommendation_status = :recommendation_status, recommendation_result = :recommendation_result,
 		recommendation_attempts = :recommendation_attempts, recommendation_error = :recommendation_error,

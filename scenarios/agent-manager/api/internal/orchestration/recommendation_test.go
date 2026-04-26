@@ -1,12 +1,13 @@
 package orchestration
 
 import (
-	"agent-manager/internal/adapters/recommendation"
-	"agent-manager/internal/domain"
-	"agent-manager/internal/testutil"
 	"context"
 	"testing"
 	"time"
+
+	"agent-manager/internal/adapters/recommendation"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/testutil"
 
 	"github.com/google/uuid"
 )

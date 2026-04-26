@@ -1,8 +1,9 @@
 package recommendation
 
 import (
-	"agent-manager/internal/domain"
 	"context"
+
+	"agent-manager/internal/domain"
 )
 
 // MockExtractor provides controllable behavior for testing.

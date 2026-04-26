@@ -1,7 +1,6 @@
 package sandbox_test
 
 import (
-	"agent-manager/internal/adapters/sandbox"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -9,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"agent-manager/internal/adapters/sandbox"
 
 	"github.com/google/uuid"
 )

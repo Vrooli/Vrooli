@@ -5,6 +5,7 @@ go 1.24.0
 toolchain go1.24.11
 
 require (
+	agent-manager v0.0.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/vrooli/cli-core v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0-00010101000000-000000000000
@@ -19,6 +20,8 @@ require (
 )
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
+
+replace agent-manager => ../api
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 

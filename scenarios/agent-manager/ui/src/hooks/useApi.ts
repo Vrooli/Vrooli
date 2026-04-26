@@ -91,6 +91,16 @@ interface ApiState<T> {
   error: string | null;
 }
 
+export interface RunStatusCounts {
+  pending: number;
+  running: number;
+  complete: number;
+  failed: number;
+  cancelled: number;
+  needsReview: number;
+  total: number;
+}
+
 function useApiState<T>(initialData: T | null = null): ApiState<T> & {
   setData: (data: T | null) => void;
   setLoading: (loading: boolean) => void;
@@ -470,11 +480,13 @@ export function useHealth() {
     const poll = async () => {
       await fetchHealth();
       if (!cancelled) {
-        timeoutId = setTimeout(poll, 30000);
+        timeoutId = setTimeout(() => {
+          void poll();
+        }, 30000);
       }
     };
 
-    poll();
+    void poll();
 
     return () => {
       cancelled = true;
@@ -487,7 +499,8 @@ export function useHealth() {
 }
 
 // Profiles hook
-export function useProfiles() {
+export function useProfiles(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true;
   const { data, loading, error, setData, setLoading, setError } = useApiState<AgentProfile[]>([]);
 
   const fetchProfiles = useCallback(async () => {
@@ -546,8 +559,11 @@ export function useProfiles() {
   );
 
   useEffect(() => {
-    fetchProfiles();
-  }, [fetchProfiles]);
+    if (!enabled) {
+      return;
+    }
+    void fetchProfiles();
+  }, [enabled, fetchProfiles]);
 
   return {
     data, loading, error,
@@ -559,7 +575,8 @@ export function useProfiles() {
 }
 
 // Tasks hook
-export function useTasks() {
+export function useTasks(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true;
   const { data, loading, error, setData, setLoading, setError } = useApiState<Task[]>([]);
 
   const fetchTasks = useCallback(async () => {
@@ -632,8 +649,11 @@ export function useTasks() {
   );
 
   useEffect(() => {
-    fetchTasks();
-  }, [fetchTasks]);
+    if (!enabled) {
+      return;
+    }
+    void fetchTasks();
+  }, [enabled, fetchTasks]);
 
   return {
     data, loading, error,
@@ -647,7 +667,9 @@ export function useTasks() {
 }
 
 // Runs hook
-export function useRuns() {
+export function useRuns(options?: { enabled?: boolean; limit?: number }) {
+  const enabled = options?.enabled ?? true;
+  const limit = options?.limit;
   const { data, loading, error, setData, setLoading, setError } = useApiState<Run[]>([]);
 
   const hasFetchedRef = useRef(false);
@@ -659,7 +681,8 @@ export function useRuns() {
     }
     setError(null);
     try {
-      const resp = await apiRequest<unknown>("/runs");
+      const query = limit !== undefined ? `?limit=${encodeURIComponent(String(limit))}` : "";
+      const resp = await apiRequest<unknown>("/runs" + query);
       const message = parseProto(ListRunsResponseSchema, resp);
       setData(message.runs ?? []);
       hasFetchedRef.current = true;
@@ -668,7 +691,7 @@ export function useRuns() {
     } finally {
       setLoading(false);
     }
-  }, [setData, setLoading, setError]);
+  }, [limit, setData, setLoading, setError]);
 
   const createRun = useCallback(
     async (run: RunFormData): Promise<Run> => {
@@ -905,8 +928,11 @@ export function useRuns() {
   );
 
   useEffect(() => {
-    fetchRuns();
-  }, [fetchRuns]);
+    if (!enabled) {
+      return;
+    }
+    void fetchRuns();
+  }, [enabled, fetchRuns]);
 
   return {
     data, loading, error,
@@ -929,8 +955,36 @@ export function useRuns() {
   };
 }
 
+export function useRunStatusCounts(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true;
+  const { data, loading, error, setData, setLoading, setError } = useApiState<RunStatusCounts>();
+
+  const fetchStatusCounts = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await apiRequest<{ statusCounts?: RunStatusCounts }>("/stats/status-distribution");
+      setData(response.statusCounts ?? null);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, [setData, setLoading, setError]);
+
+  useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+    void fetchStatusCounts();
+  }, [enabled, fetchStatusCounts]);
+
+  return { data, loading, error, refetch: fetchStatusCounts };
+}
+
 // Runners hook
-export function useRunners() {
+export function useRunners(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true;
   const { data, loading, error, setData, setLoading, setError } = useApiState<Record<string, RunnerStatus>>({});
 
   const fetchRunners = useCallback(async () => {
@@ -952,14 +1006,18 @@ export function useRunners() {
   }, [setData, setLoading, setError]);
 
   useEffect(() => {
-    fetchRunners();
-  }, [fetchRunners]);
+    if (!enabled) {
+      return;
+    }
+    void fetchRunners();
+  }, [enabled, fetchRunners]);
 
   return { data, loading, error, refetch: fetchRunners };
 }
 
 // Model registry hook
-export function useModelRegistry() {
+export function useModelRegistry(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true;
   const { data, loading, error, setData, setLoading, setError } = useApiState<ModelRegistry | null>(null);
 
   const fetchRegistry = useCallback(async () => {
@@ -994,8 +1052,11 @@ export function useModelRegistry() {
   }, [setData, setLoading, setError]);
 
   useEffect(() => {
-    fetchRegistry();
-  }, [fetchRegistry]);
+    if (!enabled) {
+      return;
+    }
+    void fetchRegistry();
+  }, [enabled, fetchRegistry]);
 
   return { data, loading, error, refetch: fetchRegistry, updateRegistry };
 }

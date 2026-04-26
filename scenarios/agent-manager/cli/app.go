@@ -1,12 +1,13 @@
 package main
 
 import (
-	"agent-manager/cli/domains"
-	"agent-manager/cli/internal/support"
 	"fmt"
 	"os"
 	"strings"
 	"time"
+
+	"agent-manager/cli/domains"
+	"agent-manager/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"google.golang.org/protobuf/encoding/protojson"

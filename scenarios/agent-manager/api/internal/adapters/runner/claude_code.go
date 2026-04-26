@@ -5,12 +5,12 @@
 package runner
 
 import (
-	"agent-manager/internal/domain"
 	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strconv"
@@ -18,6 +18,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
 )
@@ -109,6 +111,10 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 	startTime := time.Now()
 	r.initStreamState(req.RunID)
 	defer r.clearStreamState(req.RunID)
+
+	if req.Transcript != nil {
+		return r.executeWithDurableTranscript(ctx, req, startTime)
+	}
 
 	// Build command arguments
 	args := r.buildArgs(req)
@@ -394,6 +400,233 @@ func (r *ClaudeCodeRunner) Stop(ctx context.Context, runID uuid.UUID) error {
 	return nil
 }
 
+func (r *ClaudeCodeRunner) executeWithDurableTranscript(ctx context.Context, req ExecuteRequest, startTime time.Time) (*ExecuteResult, error) {
+	args := r.buildArgs(req)
+	tag := req.GetTag()
+	envArgs := append([]string{
+		fmt.Sprintf("CLAUDE_CODE_AGENT_TAG=%s", tag),
+		r.binaryPath,
+	}, args...)
+	cmd := exec.CommandContext(ctx, "env", envArgs...)
+	cmd.Dir = req.WorkingDir
+	cmd.Env = r.buildEnv(req)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	return r.runDurableCommand(ctx, req.RunID, req.EventSink, req.Transcript, startTime, commandIO{
+		cmd:          cmd,
+		prompt:       buildPromptWithAttachments(req.Prompt, req.Attachments),
+		startFrom:    string(domain.RunStatusStarting),
+		startTo:      string(domain.RunStatusRunning),
+		startMessage: "Claude Code execution started",
+		endMessage:   "Claude Code execution completed",
+	})
+}
+
+func (r *ClaudeCodeRunner) continueWithDurableTranscript(ctx context.Context, req ContinueRequest, startTime time.Time) (*ExecuteResult, error) {
+	args := []string{
+		"--print",
+		"--output-format", "stream-json",
+		"--verbose",
+		"--resume", req.SessionID,
+		"--dangerously-skip-permissions",
+		"-",
+	}
+	tag := fmt.Sprintf("claude-continue-%s", req.RunID.String()[:8])
+	envArgs := append([]string{
+		fmt.Sprintf("CLAUDE_CODE_AGENT_TAG=%s", tag),
+		r.binaryPath,
+	}, args...)
+	cmd := exec.CommandContext(ctx, "env", envArgs...)
+	cmd.Dir = req.WorkingDir
+	env := sanitizedBaseEnv()
+	env = append(env, fmt.Sprintf("CLAUDE_CODE_AGENT_TAG=%s", tag))
+	cmd.Env = appendEnvMap(env, req.Environment)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	result, err := r.runDurableCommand(ctx, req.RunID, req.EventSink, req.Transcript, startTime, commandIO{
+		cmd:          cmd,
+		prompt:       buildPromptWithAttachments(req.Prompt, req.Attachments),
+		startFrom:    string(domain.RunStatusRunning),
+		startTo:      string(domain.RunStatusRunning),
+		startMessage: "Claude Code continuation started",
+		endMessage:   "Claude Code continuation completed",
+	})
+	if result != nil && result.SessionID == "" {
+		result.SessionID = req.SessionID
+	}
+	return result, err
+}
+
+type commandIO struct {
+	cmd          *exec.Cmd
+	prompt       string
+	startFrom    string
+	startTo      string
+	startMessage string
+	endMessage   string
+}
+
+func (r *ClaudeCodeRunner) runDurableCommand(ctx context.Context, runID uuid.UUID, sink EventSink, transcript *TranscriptConfig, startTime time.Time, ioCfg commandIO) (*ExecuteResult, error) {
+	cmd := ioCfg.cmd
+
+	r.mu.Lock()
+	r.runs[runID] = cmd
+	r.mu.Unlock()
+	defer func() {
+		r.mu.Lock()
+		delete(r.runs, runID)
+		r.mu.Unlock()
+	}()
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, &domain.RunnerError{RunnerType: domain.RunnerTypeClaudeCode, Operation: "execute", Cause: err}
+	}
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, &domain.RunnerError{RunnerType: domain.RunnerTypeClaudeCode, Operation: "execute", Cause: err}
+	}
+	if transcript == nil || transcript.StdoutFile == nil {
+		return nil, &domain.RunnerError{RunnerType: domain.RunnerTypeClaudeCode, Operation: "execute", Cause: errors.New("durable transcript stdout file is required")}
+	}
+	cmd.Stdout = transcript.StdoutFile
+
+	if err := cmd.Start(); err != nil {
+		return nil, &domain.RunnerError{RunnerType: domain.RunnerTypeClaudeCode, Operation: "execute", Cause: err}
+	}
+	if transcript.OnProcessStart != nil {
+		if err := transcript.OnProcessStart(cmd.Process.Pid, cmd.Process.Pid); err != nil {
+			return nil, err
+		}
+	}
+
+	if sink != nil {
+		_ = sink.Emit(domain.NewStatusEvent(runID, ioCfg.startFrom, ioCfg.startTo, ioCfg.startMessage))
+	}
+
+	if _, err := stdin.Write([]byte(ioCfg.prompt)); err != nil {
+		return nil, &domain.RunnerError{RunnerType: domain.RunnerTypeClaudeCode, Operation: "execute", Cause: err}
+	}
+	_ = stdin.Close()
+
+	metrics := ExecutionMetrics{}
+	var lastAssistantMessage string
+	var errorOutput strings.Builder
+	var terminal *TranscriptTerminal
+
+	go func() {
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			line := scanner.Text()
+			errorOutput.WriteString(line)
+			errorOutput.WriteString("\n")
+			if transcript.StderrFile != nil {
+				_, _ = io.WriteString(transcript.StderrFile, line+"\n")
+			}
+		}
+	}()
+
+	consumeCtx, cancelConsume := context.WithCancel(context.Background())
+	liveDone := make(chan struct{})
+	var liveCursor int64
+	go func() {
+		defer close(liveDone)
+		cursor, liveTerminal, _ := Consume(consumeCtx, ConsumeArgs{
+			RunID:       runID,
+			Transcript:  transcript.TranscriptPath,
+			Live:        true,
+			ParseFn:     r.ParseTranscriptLine,
+			EventSink:   sink,
+			OnAdvance:   transcript.OnAdvance,
+			OnSessionID: transcript.OnSessionID,
+			OnEvents: func(events []*domain.RunEvent) {
+				for _, evt := range events {
+					r.updateMetrics(evt, &metrics, &lastAssistantMessage)
+				}
+			},
+		})
+		liveCursor = cursor
+		if liveTerminal != nil {
+			terminal = liveTerminal
+		}
+	}()
+
+	waitErr := cmd.Wait()
+	cancelConsume()
+	<-liveDone
+
+	finalCursor, finalTerminal, drainErr := Consume(context.Background(), ConsumeArgs{
+		RunID:       runID,
+		Transcript:  transcript.TranscriptPath,
+		StartAt:     liveCursor,
+		ParseFn:     r.ParseTranscriptLine,
+		EventSink:   sink,
+		OnAdvance:   transcript.OnAdvance,
+		OnSessionID: transcript.OnSessionID,
+		OnEvents: func(events []*domain.RunEvent) {
+			for _, evt := range events {
+				r.updateMetrics(evt, &metrics, &lastAssistantMessage)
+			}
+		},
+	})
+	if finalTerminal != nil {
+		terminal = finalTerminal
+	}
+	if transcript.OnAdvance != nil {
+		_ = transcript.OnAdvance(finalCursor, 0)
+	}
+
+	duration := time.Since(startTime)
+	result := &ExecuteResult{Duration: duration, Metrics: metrics}
+	if state := r.streamStateFor(runID); state != nil && state.sessionID != "" {
+		result.SessionID = state.sessionID
+	}
+
+	if waitErr != nil {
+		if ctx.Err() == context.Canceled {
+			result.Success = false
+			result.ExitCode = -1
+			result.ErrorMessage = "execution cancelled"
+		} else if exitErr, ok := waitErr.(*exec.ExitError); ok {
+			result.Success = false
+			result.ExitCode = exitErr.ExitCode()
+			result.ErrorMessage = errorOutput.String()
+		} else {
+			result.Success = false
+			result.ExitCode = -1
+			result.ErrorMessage = waitErr.Error()
+		}
+	} else if terminal != nil {
+		result.Success = terminal.Success
+		result.ExitCode = terminal.ExitCode
+		result.ErrorMessage = terminal.ErrorMessage
+	} else {
+		result.Success = true
+		result.ExitCode = 0
+	}
+	if drainErr != nil && result.Success {
+		result.Success = false
+		result.ExitCode = -1
+		result.ErrorMessage = drainErr.Error()
+	}
+	if result.Success {
+		result.Summary = terminalSummaryFromMessage(lastAssistantMessage, metrics)
+	} else if strings.TrimSpace(result.ErrorMessage) == "" {
+		result.ErrorMessage = strings.TrimSpace(errorOutput.String())
+	}
+
+	if sink != nil {
+		finalStatus := string(domain.RunStatusComplete)
+		if !result.Success {
+			finalStatus = string(domain.RunStatusFailed)
+		}
+		_ = sink.Emit(domain.NewStatusEvent(runID, string(domain.RunStatusRunning), finalStatus, ioCfg.endMessage))
+		_ = sink.Close()
+	}
+
+	return result, nil
+}
+
 // Continue resumes an existing session with a follow-up message.
 // Uses Claude Code's --resume flag to continue the conversation.
 func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*ExecuteResult, error) {
@@ -413,6 +646,10 @@ func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*
 	startTime := time.Now()
 	r.initStreamState(req.RunID)
 	defer r.clearStreamState(req.RunID)
+
+	if req.Transcript != nil {
+		return r.continueWithDurableTranscript(ctx, req, startTime)
+	}
 
 	// Build command arguments for continuation
 	args := []string{
@@ -1511,12 +1748,42 @@ func (r *ClaudeCodeRunner) parseStreamEvents(runID uuid.UUID, line string) ([]*d
 	return nil, nil
 }
 
+func (r *ClaudeCodeRunner) ParseTranscriptLine(runID uuid.UUID, line string) TranscriptParseResult {
+	events, err := r.parseStreamEvents(runID, line)
+	result := TranscriptParseResult{
+		Events: events,
+		Err:    err,
+	}
+
+	var streamEvent ClaudeStreamEvent
+	if err := json.Unmarshal([]byte(strings.TrimSpace(line)), &streamEvent); err == nil {
+		result.SessionID = streamEvent.SessionID
+		if strings.EqualFold(streamEvent.Type, "result") {
+			terminal := &TranscriptTerminal{
+				Success:  !streamEvent.IsError,
+				ExitCode: 0,
+			}
+			if streamEvent.IsError {
+				terminal.Success = false
+				terminal.ExitCode = 1
+				terminal.ErrorMessage = strings.TrimSpace(decodeClaudeResultString(streamEvent.Result))
+				if streamEvent.Subtype == "error" && strings.Contains(strings.ToLower(terminal.ErrorMessage), "rate limit") {
+					terminal.ExitCode = 429
+				}
+				if terminal.ErrorMessage == "" {
+					terminal.ErrorMessage = "runner reported terminal error"
+				}
+			}
+			result.Terminal = terminal
+		}
+	}
+
+	return result
+}
+
 // parseResultEvent handles the final "result" event which contains cost and rate limit info.
 func (r *ClaudeCodeRunner) parseResultEvent(runID uuid.UUID, event *ClaudeStreamEvent) (*domain.RunEvent, error) {
-	var resultStr string
-	if event.Result != nil {
-		_ = json.Unmarshal(event.Result, &resultStr)
-	}
+	resultStr := decodeClaudeResultString(event.Result)
 
 	// Rate-limit classification is gated on the CLI's own `is_error` flag. The
 	// `result` field of a successful run contains the agent's final assistant
@@ -1575,6 +1842,17 @@ func (r *ClaudeCodeRunner) parseResultEvent(runID uuid.UUID, event *ClaudeStream
 		"info",
 		fmt.Sprintf("Execution completed in %d turns", event.NumTurns),
 	), nil
+}
+
+func decodeClaudeResultString(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var result string
+	if err := json.Unmarshal(raw, &result); err == nil {
+		return result
+	}
+	return strings.TrimSpace(string(raw))
 }
 
 // maxRateLimitMessageLen caps the size of messages eligible for rate-limit

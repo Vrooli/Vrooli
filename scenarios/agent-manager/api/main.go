@@ -1,6 +1,16 @@
 package main
 
 import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"strings"
+	"time"
+
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/recommendation"
 	"agent-manager/internal/adapters/runner"
@@ -19,15 +29,6 @@ import (
 	"agent-manager/internal/storage"
 	"agent-manager/internal/toolexecution"
 	"agent-manager/internal/toolregistry"
-	"context"
-	"database/sql"
-	"encoding/json"
-	"fmt"
-	"log"
-	"net/http"
-	"os"
-	"strings"
-	"time"
 
 	agentconfig "agent-manager/internal/config"
 
@@ -123,6 +124,9 @@ func NewServer() (*Server, error) {
 
 	// Start the reconciler for orphan detection and stale run recovery
 	if srv.reconciler != nil {
+		if err := srv.reconciler.RecoverInFlightRuns(context.Background()); err != nil {
+			log.Printf("Warning: Failed initial run recovery: %v", err)
+		}
 		if err := srv.reconciler.Start(context.Background()); err != nil {
 			log.Printf("Warning: Failed to start reconciler: %v", err)
 		}
@@ -397,6 +401,7 @@ func createOrchestrator(db *database.DB, wsHub *handlers.WebSocketHub, logger *l
 		runRepo,
 		runnerRegistry,
 		orchestration.WithReconcilerConfig(reconcilerCfg),
+		orchestration.WithReconcilerEvents(eventStore),
 		orchestration.WithReconcilerBroadcaster(wsHub),
 		orchestration.WithReconcilerSandbox(sandboxProvider),
 	)

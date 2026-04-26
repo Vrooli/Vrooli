@@ -7,11 +7,12 @@
 package orchestration
 
 import (
-	"agent-manager/internal/adapters/event"
-	"agent-manager/internal/domain"
 	"context"
 	"fmt"
 	"strings"
+
+	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
 )

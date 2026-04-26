@@ -1,12 +1,13 @@
 package config
 
 import (
-	"agent-manager/internal/domain"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"agent-manager/internal/domain"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 )

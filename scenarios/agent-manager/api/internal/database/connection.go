@@ -1,7 +1,6 @@
 package database
 
 import (
-	"agent-manager/internal/domain"
 	"context"
 	"fmt"
 	"os"
@@ -9,6 +8,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"agent-manager/internal/domain"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
@@ -311,6 +312,56 @@ func (db *DB) ensureRunsTableCompatibility(ctx context.Context) error {
 
 	if !hasColumn["actual_model"] {
 		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN actual_model TEXT DEFAULT ''"); err != nil {
+			return &domain.DatabaseError{
+				Operation:  "schema_preflight",
+				EntityType: "Schema",
+				Cause:      err,
+			}
+		}
+	}
+
+	if !hasColumn["runner_pid"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN runner_pid INTEGER DEFAULT 0"); err != nil {
+			return &domain.DatabaseError{
+				Operation:  "schema_preflight",
+				EntityType: "Schema",
+				Cause:      err,
+			}
+		}
+	}
+
+	if !hasColumn["runner_pgid"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN runner_pgid INTEGER DEFAULT 0"); err != nil {
+			return &domain.DatabaseError{
+				Operation:  "schema_preflight",
+				EntityType: "Schema",
+				Cause:      err,
+			}
+		}
+	}
+
+	if !hasColumn["transcript_path"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN transcript_path TEXT DEFAULT ''"); err != nil {
+			return &domain.DatabaseError{
+				Operation:  "schema_preflight",
+				EntityType: "Schema",
+				Cause:      err,
+			}
+		}
+	}
+
+	if !hasColumn["transcript_cursor"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN transcript_cursor INTEGER DEFAULT 0"); err != nil {
+			return &domain.DatabaseError{
+				Operation:  "schema_preflight",
+				EntityType: "Schema",
+				Cause:      err,
+			}
+		}
+	}
+
+	if !hasColumn["transcript_last_seq"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN transcript_last_seq INTEGER DEFAULT 0"); err != nil {
 			return &domain.DatabaseError{
 				Operation:  "schema_preflight",
 				EntityType: "Schema",

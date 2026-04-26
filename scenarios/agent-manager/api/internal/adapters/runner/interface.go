@@ -8,11 +8,13 @@
 package runner
 
 import (
-	"agent-manager/internal/domain"
 	"context"
 	"errors"
+	"os"
 	"strings"
 	"time"
+
+	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
 )
@@ -152,6 +154,11 @@ type ExecuteRequest struct {
 
 	// Attachments contains image/file attachments for this request.
 	Attachments []Attachment
+
+	// Transcript config enables durable stdout capture and replay across
+	// agent-manager restarts. When nil, runners fall back to the legacy
+	// in-process streaming path.
+	Transcript *TranscriptConfig
 }
 
 // EffectivePrompt returns the prompt with the system prompt prepended using
@@ -210,6 +217,20 @@ type ContinueRequest struct {
 
 	// Attachments contains image/file attachments for this request.
 	Attachments []Attachment
+
+	// Transcript config enables durable stdout capture and replay across
+	// agent-manager restarts for continuation turns.
+	Transcript *TranscriptConfig
+}
+
+type TranscriptConfig struct {
+	TranscriptPath string
+	StderrPath     string
+	StdoutFile     *os.File
+	StderrFile     *os.File
+	OnProcessStart func(pid, pgid int) error
+	OnAdvance      func(cursor, lastSeq int64) error
+	OnSessionID    func(sessionID string) error
 }
 
 // Attachment represents a file attachment to include in a request.
@@ -275,6 +296,39 @@ type EventSink interface {
 
 	// Close signals that no more events will be sent.
 	Close() error
+}
+
+// SequencedEventSink is an optional EventSink extension that exposes the last
+// persisted run_events.sequence value after Emit() succeeds.
+type SequencedEventSink interface {
+	EventSink
+	LastSequence() int64
+}
+
+// TranscriptParseResult is the normalized output from a runner-specific
+// transcript parser when consuming durable stdout from transcript.ndjson.
+type TranscriptParseResult struct {
+	Events    []*domain.RunEvent
+	SessionID string
+	Terminal  *TranscriptTerminal
+	Err       error
+}
+
+// TranscriptTerminal captures runner-native terminal state discovered from the
+// transcript itself, which is required when the orchestrator dies before it can
+// synthesize final status events.
+type TranscriptTerminal struct {
+	Success      bool
+	ExitCode     int
+	ErrorMessage string
+	Summary      *domain.RunSummary
+}
+
+// TranscriptParser is an optional runner seam used by transcript recovery.
+// Implementations should reuse the same per-runner parsing logic used for live
+// execution rather than introducing a second translation layer.
+type TranscriptParser interface {
+	ParseTranscriptLine(runID uuid.UUID, line string) TranscriptParseResult
 }
 
 // -----------------------------------------------------------------------------

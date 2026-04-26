@@ -16,10 +16,6 @@
 package orchestration
 
 import (
-	"agent-manager/internal/adapters/runner"
-	"agent-manager/internal/adapters/sandbox"
-	"agent-manager/internal/domain"
-	"agent-manager/internal/repository"
 	"context"
 	"fmt"
 	"log"
@@ -29,6 +25,12 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/sandbox"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
 )
@@ -81,6 +83,7 @@ func DefaultReconcilerConfig() ReconcilerConfig {
 // Reconciler manages orphan detection and stale run recovery.
 type Reconciler struct {
 	runs    repository.RunRepository
+	events  event.Store
 	runners runner.Registry
 	sandbox sandbox.Provider
 
@@ -96,6 +99,9 @@ type Reconciler struct {
 
 	// Broadcaster for real-time updates
 	broadcaster EventBroadcaster
+
+	recoveryMu sync.Mutex
+	tailers    map[uuid.UUID]context.CancelFunc
 }
 
 // ReconcileStats contains statistics from a reconciliation cycle.
@@ -120,10 +126,12 @@ func NewReconciler(
 ) *Reconciler {
 	r := &Reconciler{
 		runs:    runs,
+		events:  nil,
 		runners: runners,
 		config:  DefaultReconcilerConfig(),
 		stopCh:  make(chan struct{}),
 		doneCh:  make(chan struct{}),
+		tailers: make(map[uuid.UUID]context.CancelFunc),
 	}
 
 	for _, opt := range opts {
@@ -147,6 +155,12 @@ func WithReconcilerConfig(cfg ReconcilerConfig) ReconcilerOption {
 func WithReconcilerBroadcaster(b EventBroadcaster) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.broadcaster = b
+	}
+}
+
+func WithReconcilerEvents(store event.Store) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.events = store
 	}
 }
 
@@ -323,6 +337,9 @@ func (r *Reconciler) reconcile(ctx context.Context) ReconcileStats {
 	// Step 5: Sync needs_review runs with sandbox status
 	r.syncReviewRuns(ctx, &stats)
 
+	// Step 6: Garbage-collect old terminal run state directories.
+	r.cleanupRunStateDirs(ctx)
+
 	stats.Duration = time.Since(start)
 	return stats
 }
@@ -418,6 +435,15 @@ func (r *Reconciler) handleStaleRun(ctx context.Context, run *domain.Run, stats 
 
 	log.Printf("[reconciler] DEBUG: Checking stale run %s (tag=%s, status=%s, heartbeat_age=%v, stale_threshold=%v)",
 		run.ID, tag, run.Status, heartbeatAge.Round(time.Second), r.config.StaleThreshold)
+
+	if result, err := r.recoverRun(ctx, run, true); err == nil && result != nil {
+		if result.Recovered {
+			stats.RunsRecovered++
+		}
+		if run.Status == domain.RunStatusComplete || run.Status == domain.RunStatusFailed || run.Status == domain.RunStatusCancelled {
+			return
+		}
+	}
 
 	// First, check if the process is actually still running
 	processAlive := r.isProcessAlive(ctx, run)

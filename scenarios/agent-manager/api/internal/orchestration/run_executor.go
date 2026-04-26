@@ -27,13 +27,6 @@
 package orchestration
 
 import (
-	"agent-manager/internal/adapters/event"
-	"agent-manager/internal/adapters/runner"
-	"agent-manager/internal/adapters/sandbox"
-	"agent-manager/internal/domain"
-	"agent-manager/internal/identity"
-	"agent-manager/internal/modelregistry"
-	"agent-manager/internal/repository"
 	"context"
 	"errors"
 	"fmt"
@@ -41,6 +34,15 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/sandbox"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/identity"
+	"agent-manager/internal/modelregistry"
+	"agent-manager/internal/repository"
+	"agent-manager/internal/runstate"
 
 	"github.com/google/uuid"
 )
@@ -127,6 +129,7 @@ type RunExecutor struct {
 	sandboxID *uuid.UUID
 	workDir   string
 	lockID    *uuid.UUID
+	runState  *runstate.State
 
 	// Progress tracking
 	checkpoint *domain.RunCheckpoint
@@ -1078,6 +1081,17 @@ func (e *RunExecutor) executeAgent(ctx context.Context, r runner.Runner) {
 	eventSink := e.createEventSink()
 	defer eventSink.Close()
 
+	transcriptCfg, err := e.prepareTranscriptConfig(ctx)
+	if err != nil {
+		e.execErr = err
+		return
+	}
+	defer func() {
+		if e.runState != nil {
+			_ = e.runState.Close()
+		}
+	}()
+
 	// Build execution request
 	req := runner.ExecuteRequest{
 		RunID:          e.run.ID,
@@ -1091,10 +1105,85 @@ func (e *RunExecutor) executeAgent(ctx context.Context, r runner.Runner) {
 		EventSink:      eventSink,
 		Attachments:    e.attachments,
 		Environment:    e.MergedEnvVars(),
+		Transcript:     transcriptCfg,
 	}
 
 	// Execute
 	e.result, e.execErr = r.Execute(ctx, req)
+}
+
+func (e *RunExecutor) prepareTranscriptConfig(ctx context.Context) (*runner.TranscriptConfig, error) {
+	if e.run.ResolvedConfig == nil {
+		return nil, nil
+	}
+	if e.runState == nil {
+		startedAt := time.Now().UTC()
+		if e.run.StartedAt != nil {
+			startedAt = e.run.StartedAt.UTC()
+		}
+		state, err := runstate.Open(e.run.ID, runstate.OpenOptions{
+			RunnerType: e.run.ResolvedConfig.RunnerType,
+			WorkingDir: e.workDir,
+			StartedAt:  startedAt,
+		})
+		if err != nil {
+			return nil, err
+		}
+		e.runState = state
+		snap := state.Snapshot()
+		e.mu.Lock()
+		e.run.TranscriptPath = snap.TranscriptPath
+		e.run.TranscriptCursor = snap.Cursor.TranscriptCursor
+		e.run.TranscriptLastSeq = snap.Cursor.TranscriptLastSeq
+		e.mu.Unlock()
+		if err := e.runs.Update(ctx, e.run); err != nil {
+			return nil, err
+		}
+	}
+
+	return &runner.TranscriptConfig{
+		TranscriptPath: e.run.TranscriptPath,
+		StderrPath:     e.runState.Snapshot().StderrPath,
+		StdoutFile:     e.runState.TranscriptWriter(),
+		StderrFile:     e.runState.StderrWriter(),
+		OnProcessStart: func(pid, pgid int) error {
+			e.mu.Lock()
+			e.run.RunnerPID = pid
+			e.run.RunnerPGID = pgid
+			e.mu.Unlock()
+			if err := e.runState.PersistProcess(pid, pgid); err != nil {
+				return err
+			}
+			return e.runs.Update(context.Background(), e.run)
+		},
+		OnAdvance: func(cursor, lastSeq int64) error {
+			e.mu.Lock()
+			if cursor > e.run.TranscriptCursor {
+				e.run.TranscriptCursor = cursor
+			}
+			if lastSeq > e.run.TranscriptLastSeq {
+				e.run.TranscriptLastSeq = lastSeq
+			}
+			e.mu.Unlock()
+			if err := e.runState.PersistCursor(e.run.TranscriptCursor, e.run.TranscriptLastSeq); err != nil {
+				return err
+			}
+			return e.runs.Update(context.Background(), e.run)
+		},
+		OnSessionID: func(sessionID string) error {
+			e.mu.Lock()
+			if e.run.SessionID == sessionID {
+				e.mu.Unlock()
+				return nil
+			}
+			e.run.SessionID = sessionID
+			e.mu.Unlock()
+			if err := e.runState.PersistSessionID(sessionID); err != nil {
+				return err
+			}
+			return e.runs.Update(context.Background(), e.run)
+		},
+	}, nil
 }
 
 // sandboxEnvVars returns environment variables that enable sandbox-aware scenario
@@ -1141,6 +1230,10 @@ func (e *RunExecutor) executeAgent(ctx context.Context, r runner.Runner) {
 //  4. CLI checks that "my-scenario" falls within the scope
 //  5. CLI resolves path to {VROOLI_SANDBOX_MERGED}/scenarios/my-scenario
 //  6. Lifecycle rebuilds and starts from the merged directory (agent's changes)
+//
+// The same mechanism is intentionally allowed for `vrooli scenario restart agent-manager`
+// from inside an agent-manager-managed run. Transcript recovery reattaches after restart;
+// there is no self-restart guard here.
 //
 // Returns nil for non-sandboxed runs, so callers can unconditionally assign the
 // result to ExecuteRequest.Environment.

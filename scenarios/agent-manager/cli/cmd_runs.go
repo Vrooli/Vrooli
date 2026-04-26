@@ -41,6 +41,8 @@ func (a *App) cmdRun(args []string) error {
 		return a.runStopAll(args[1:])
 	case "continue":
 		return a.runContinue(args[1:])
+	case "recover":
+		return a.runRecover(args[1:])
 	case "investigate":
 		return a.runInvestigate(args[1:])
 	case "apply-investigation":
@@ -79,6 +81,7 @@ Subcommands:
   stop-by-tag <tag>           Stop a run by custom tag
   stop-all                    Stop all running runs
   continue <id>               Continue a run with a follow-up message
+  recover <id>                Drain transcript and reconcile a run
   investigate                 Create an investigation run from existing runs
   apply-investigation <id>    Apply investigation recommendations
   sandbox-sync <id>           Sync run state from sandbox
@@ -105,6 +108,7 @@ Examples:
   agent-manager run create --task-id abc123 --profile-id def456
   agent-manager run delete abc123 --force
   agent-manager run continue abc123 --message "Also update tests"
+  agent-manager run recover abc123
   agent-manager run investigate --run-ids id1,id2 --depth standard
   agent-manager run apply-investigation abc123
   agent-manager run extract-recommendations abc123
@@ -864,6 +868,43 @@ func (a *App) runContinue(args []string) error {
 	}
 
 	fmt.Printf("Continued run: %s (status: %s)\n", run.Id, formatEnumValue(run.Status, "RUN_STATUS_", "_"))
+	return nil
+}
+
+func (a *App) runRecover(args []string) error {
+	fs := flag.NewFlagSet("run recover", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+
+	var id string
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		id = args[0]
+		args = args[1:]
+	}
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if id == "" {
+		return fmt.Errorf("usage: agent-manager run recover <id>")
+	}
+
+	body, resp, err := a.services.Runs.Recover(id)
+	if err != nil {
+		return err
+	}
+	if *jsonOutput || resp == nil {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	fmt.Printf("Recovered:       %t\n", resp.Recovered)
+	fmt.Printf("Idempotent:      %t\n", resp.Idempotent)
+	if resp.Message != "" {
+		fmt.Printf("Message:         %s\n", resp.Message)
+	}
+	if resp.Run != nil {
+		fmt.Printf("Run ID:          %s\n", resp.Run.Id)
+		fmt.Printf("Status:          %s\n", formatEnumValue(resp.Run.Status, "RUN_STATUS_", "_"))
+	}
 	return nil
 }
 

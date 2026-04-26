@@ -4,7 +4,6 @@
 package event
 
 import (
-	"agent-manager/internal/domain"
 	"context"
 	"database/sql/driver"
 	"encoding/json"
@@ -12,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"

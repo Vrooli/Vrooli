@@ -2,10 +2,11 @@
 package protoconv
 
 import (
-	"agent-manager/internal/domain"
 	"reflect"
 	"testing"
 	"time"
+
+	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
 

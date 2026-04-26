@@ -1,7 +1,6 @@
 package modelregistry
 
 import (
-	"agent-manager/internal/domain"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -9,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"agent-manager/internal/domain"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 )

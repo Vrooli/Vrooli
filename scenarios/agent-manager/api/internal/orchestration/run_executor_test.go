@@ -1,6 +1,14 @@
 package orchestration_test
 
 import (
+	"context"
+	"errors"
+	"fmt"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
@@ -9,13 +17,6 @@ import (
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/testutil"
-	"context"
-	"errors"
-	"fmt"
-	"strings"
-	"sync"
-	"testing"
-	"time"
 
 	"github.com/google/uuid"
 )

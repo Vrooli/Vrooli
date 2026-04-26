@@ -66,7 +66,7 @@
         "api": "/health",
         "ui": "/health"
       },
-      "startup_grace_period": 15000,
+      "startup_grace_period": 30000,
       "checks": [
         {
           "name": "api_endpoint",
@@ -82,7 +82,7 @@
           "target": "http://localhost:${UI_PORT}/health",
           "timeout": 5000,
           "interval": 30000,
-          "critical": false
+          "critical": true
         }
       ]
     },
@@ -156,7 +156,7 @@
       "steps": [
         {
           "name": "run-tests",
-          "run": "test-genie execute agent-manager --preset comprehensive",
+          "run": "vrooli scenario start agent-manager && for url in \"http://localhost:${API_PORT}/health\" \"http://localhost:${UI_PORT}/health\"; do ok=0; for i in $(seq 1 45); do if curl -fsS \"$url\" >/dev/null; then ok=1; break; fi; sleep 1; done; if [ \"$ok\" -ne 1 ]; then echo \"Timed out waiting for $url\"; exit 1; fi; done; test-genie execute agent-manager --preset comprehensive",
           "description": "Run all test phases via test-genie"
         }
       ]

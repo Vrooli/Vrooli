@@ -1,11 +1,12 @@
 package runner
 
 import (
-	"agent-manager/internal/domain"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
 )

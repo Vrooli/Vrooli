@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Routes, Route, useNavigate, useLocation, Navigate } from "react-router-dom";
-import { useHealth, useProfiles, useRuns, useRunners, useModelRegistry, useTasks } from "./hooks/useApi";
+import { useHealth, useProfiles, useRuns, useRunners, useModelRegistry, useTasks, useRunStatusCounts } from "./hooks/useApi";
 import { useWebSocket, type WebSocketMessage } from "./hooks/useWebSocket";
 import { RunStatus } from "./types";
 import type { Run } from "./types";
@@ -8,10 +8,10 @@ import { useIsMobile } from "./hooks/useViewportSize";
 import { QueryProvider } from "./providers/QueryProvider";
 import { AppHeader } from "./components/layout/AppHeader";
 import { MobileNav, type NavSection } from "./components/layout/MobileNav";
-import { DashboardPage } from "./pages/DashboardPage";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { jsonValueToPlain } from "./lib/utils";
 
+const DashboardPage = lazy(async () => ({ default: (await import("./pages/DashboardPage")).DashboardPage }));
 const ProfilesPage = lazy(async () => ({ default: (await import("./pages/ProfilesPage")).ProfilesPage }));
 const TasksPage = lazy(async () => ({ default: (await import("./pages/TasksPage")).TasksPage }));
 const RunsPage = lazy(async () => ({ default: (await import("./pages/RunsPage")).RunsPage }));
@@ -23,17 +23,25 @@ const QuickRunDialog = lazy(async () => ({ default: (await import("./components/
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
-  const health = useHealth();
-  const profiles = useProfiles();
-  const tasks = useTasks();
-  const runs = useRuns();
-  const runners = useRunners();
-  const modelRegistry = useModelRegistry();
-  const isMobile = useIsMobile();
-
   const [statusOpen, setStatusOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [quickRunOpen, setQuickRunOpen] = useState(false);
+
+  const path = location.pathname;
+  const isDashboardRoute = path === "/";
+  const needsProfileData = path.startsWith("/profiles") || quickRunOpen;
+  const needsRunnerData = path.startsWith("/profiles") || settingsOpen || quickRunOpen;
+  const needsTaskData = path.startsWith("/tasks") || path.startsWith("/runs");
+  const runsLimit = isDashboardRoute ? 40 : undefined;
+
+  const health = useHealth();
+  const profiles = useProfiles({ enabled: needsProfileData });
+  const tasks = useTasks({ enabled: needsTaskData });
+  const runs = useRuns({ limit: runsLimit });
+  const runStatusCounts = useRunStatusCounts({ enabled: isDashboardRoute });
+  const runners = useRunners({ enabled: needsRunnerData });
+  const modelRegistry = useModelRegistry({ enabled: needsRunnerData });
+  const isMobile = useIsMobile();
 
   // Derive active section from current path
   const getActiveSection = useCallback((): NavSection => {
@@ -93,7 +101,12 @@ export default function App() {
           }
           debouncedRunRefetch();
           // Refetch tasks if this run references a task we don't have yet
-          if (statusUpdate.taskId && tasks.data && !tasks.data.some((t) => t.id === statusUpdate.taskId)) {
+          if (
+            needsTaskData &&
+            statusUpdate.taskId &&
+            tasks.data &&
+            !tasks.data.some((t) => t.id === statusUpdate.taskId)
+          ) {
             tasks.refetch();
           }
           break;
@@ -106,7 +119,9 @@ export default function App() {
           debouncedRunRefetch();
           break;
         case "task_status":
-          tasks.refetch();
+          if (needsTaskData) {
+            tasks.refetch();
+          }
           break;
         case "connected":
           // Clear terminal cache on reconnect (state may have changed)
@@ -115,7 +130,7 @@ export default function App() {
           break;
       }
     },
-    [debouncedRunRefetch, tasks]
+    [debouncedRunRefetch, needsTaskData, tasks]
   );
 
   const ws = useWebSocket({
@@ -133,9 +148,14 @@ export default function App() {
 
   const handlePurgeComplete = useCallback(() => {
     profiles.refetch();
-    tasks.refetch();
+    if (needsTaskData) {
+      tasks.refetch();
+    }
     runs.refetch();
-  }, [profiles, tasks, runs]);
+    if (isDashboardRoute) {
+      runStatusCounts.refetch();
+    }
+  }, [isDashboardRoute, needsTaskData, profiles, runStatusCounts, tasks, runs]);
 
   const pageFallback = (
     <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
@@ -198,7 +218,10 @@ export default function App() {
                 onCreateRun={runs.createRun}
                 onRunCreated={(run) => {
                   runs.refetch();
-                  tasks.refetch();
+                  if (needsTaskData) {
+                    tasks.refetch();
+                  }
+                  runStatusCounts.refetch();
                   navigate(`/runs/${run.id}`);
                 }}
               />
@@ -216,18 +239,20 @@ export default function App() {
               path="/"
               element={
                 <ErrorBoundary section="Dashboard">
-                <DashboardPage
-                  health={health.data}
-                  tasks={tasks.data || []}
-                  runs={runs.data || []}
-                  onRefresh={() => {
-                    health.refetch();
-                    profiles.refetch();
-                    tasks.refetch();
-                    runs.refetch();
-                  }}
-                  onNavigateToRun={(runId, tab) => navigate(`/runs/${runId}${tab ? `?tab=${tab}` : ""}`)}
-                />
+                  <Suspense fallback={pageFallback}>
+                    <DashboardPage
+                      health={health.data}
+                      runs={runs.data || []}
+                      statusCounts={runStatusCounts.data}
+                      onRefresh={() => {
+                        health.refetch();
+                        runs.refetch();
+                        runStatusCounts.refetch();
+                      }}
+                      onGetTask={tasks.getTask}
+                      onNavigateToRun={(runId, tab) => navigate(`/runs/${runId}${tab ? `?tab=${tab}` : ""}`)}
+                    />
+                  </Suspense>
                 </ErrorBoundary>
               }
             />

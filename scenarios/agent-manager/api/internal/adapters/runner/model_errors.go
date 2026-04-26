@@ -1,9 +1,10 @@
 package runner
 
 import (
-	"agent-manager/internal/domain"
 	"regexp"
 	"strings"
+
+	"agent-manager/internal/domain"
 )
 
 // ModelErrorKind classifies the outcome of a runner invocation with respect to the
