@@ -136,7 +136,7 @@ func (s *Service) Search(ctx context.Context, req AISearchRequest) (*AISearchRes
 		return s.fallback(ctx, req, entity, limit, start), nil
 	}
 
-	results = applyFilters(results, req.Filters)
+	results = applyFilters(results, normalizeFilters(req.Filters))
 	sortByScoreDesc(results)
 	if len(results) > limit {
 		results = results[:limit]
@@ -175,7 +175,7 @@ func (s *Service) fallback(ctx context.Context, req AISearchRequest, entity Enti
 			LatencyMs: time.Since(start).Milliseconds(),
 		}
 	}
-	results, err := s.textSearcher.Search(ctx, req.Query, entity, limit, req.Filters)
+	results, err := s.textSearcher.Search(ctx, req.Query, entity, limit, normalizeFilters(req.Filters))
 	if err != nil {
 		slog.Warn("[aisearch] text search fallback failed", "err", err)
 		results = []AISearchResult{}
@@ -229,6 +229,7 @@ func applyFilters(results []AISearchResult, f SearchFilters) []AISearchResult {
 	statusSet := toStringSet(f.Status)
 	kindSet := toStringSet(f.Kind)
 	initiative := strings.TrimSpace(f.Initiative)
+	target := strings.TrimSpace(f.TargetScenario)
 
 	out := results[:0]
 	for _, r := range results {
@@ -255,10 +256,52 @@ func applyFilters(results []AISearchResult, f SearchFilters) []AISearchResult {
 					continue
 				}
 			}
+			if target != "" && r.Entity == EntityBacklog {
+				if !payloadTargetsScenario(r.Payload, target) {
+					continue
+				}
+			}
 		}
 		out = append(out, r)
 	}
 	return out
+}
+
+// payloadTargetsScenario reports whether the indexed target_scenarios array
+// contains the given scenario. Tolerant of either []string or []interface{}
+// since Qdrant payloads round-trip through map[string]interface{}.
+func payloadTargetsScenario(payload map[string]interface{}, scenario string) bool {
+	raw, ok := payload["target_scenarios"]
+	if !ok {
+		return false
+	}
+	switch v := raw.(type) {
+	case []string:
+		for _, s := range v {
+			if s == scenario {
+				return true
+			}
+		}
+	case []interface{}:
+		for _, item := range v {
+			if s, ok := item.(string); ok && s == scenario {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// normalizeFilters applies implicit defaults that encode product rules in one
+// place. Today: when Kind is exactly ["fix"] and IncludeArchived is unset by
+// the caller, default it to true — fix history work always wants archived
+// items by default. Callers can still pass IncludeArchived=false explicitly
+// to opt out.
+func normalizeFilters(f SearchFilters) SearchFilters {
+	if !f.IncludeArchived && len(f.Kind) == 1 && strings.TrimSpace(f.Kind[0]) == "fix" {
+		f.IncludeArchived = true
+	}
+	return f
 }
 
 func toStringSet(ss []string) map[string]bool {

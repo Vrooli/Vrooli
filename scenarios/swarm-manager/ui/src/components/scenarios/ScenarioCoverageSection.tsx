@@ -16,6 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import { DetailSection } from "../detail/DetailSection";
 import { EntityLink } from "../ui/entity-link";
 import { RollupProgressBar } from "../ui/rollup-progress-bar";
+import { ScenarioFixHistorySection } from "./ScenarioFixHistorySection";
 import { scenariosService } from "../../services";
 import { defaultQueryOptions } from "../../lib";
 
@@ -129,6 +130,8 @@ export function ScenarioCoverageSection({ scenarioName }: ScenarioCoverageSectio
             </div>
           </div>
         )}
+
+        <ScenarioFixHistorySection fixes={data.fixes} />
 
         {data.orphanItems.length > 0 && (
           <div className="space-y-2" data-testid="scenario-coverage-orphans">

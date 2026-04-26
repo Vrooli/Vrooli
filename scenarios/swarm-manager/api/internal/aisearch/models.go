@@ -29,6 +29,7 @@ type SearchFilters struct {
 	Status          []string `json:"status,omitempty"`
 	Kind            []string `json:"kind,omitempty"`
 	Initiative      string   `json:"initiative,omitempty"`
+	TargetScenario  string   `json:"target_scenario,omitempty"`
 	IncludeArchived bool     `json:"include_archived,omitempty"`
 }
 
@@ -112,15 +113,16 @@ type ReindexStatus struct {
 // vector's payload. Keys here must match the map keys used in
 // index.go:buildBacklogPayload.
 type BacklogPayload struct {
-	Kind       string   `json:"kind"`
-	Name       string   `json:"name"`
-	Title      string   `json:"title"`
-	Status     string   `json:"status"`
-	Priority   int      `json:"priority"`
-	Tags       []string `json:"tags"`
-	Initiative string   `json:"initiative"`
-	Effort     string   `json:"effort"`
-	Archived   bool     `json:"archived"`
+	Kind            string   `json:"kind"`
+	Name            string   `json:"name"`
+	Title           string   `json:"title"`
+	Status          string   `json:"status"`
+	Priority        int      `json:"priority"`
+	Tags            []string `json:"tags"`
+	Initiative      string   `json:"initiative"`
+	Effort          string   `json:"effort"`
+	Archived        bool     `json:"archived"`
+	TargetScenarios []string `json:"target_scenarios"`
 }
 
 // InitiativePayload is the typed shape of what aisearch stores in an

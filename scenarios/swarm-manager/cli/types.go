@@ -183,6 +183,25 @@ type ScenarioResponse struct {
 	Scenario Scenario `json:"scenario"`
 }
 
+// ScenarioFix mirrors the API ScenarioFix shape returned by
+// GET /scenarios/{name}/context.
+type ScenarioFix struct {
+	Name       string  `json:"name"`
+	Title      string  `json:"title"`
+	Status     string  `json:"status"`
+	Priority   int     `json:"priority"`
+	Initiative string  `json:"initiative,omitempty"`
+	Updated    string  `json:"updated,omitempty"`
+	ArchivedAt *string `json:"archived_at,omitempty"`
+	Path       string  `json:"path"`
+}
+
+// ScenarioFixHistory mirrors the API ScenarioFixHistory shape.
+type ScenarioFixHistory struct {
+	Active   []ScenarioFix `json:"active"`
+	Archived []ScenarioFix `json:"archived"`
+}
+
 type ListScenariosResponse struct {
 	Scenarios []Scenario `json:"scenarios"`
 }
@@ -508,6 +527,7 @@ type ScenarioContextResponse struct {
 	Initiatives  []InitiativeResponse        `json:"initiatives"`
 	OrphanItems  []ScenarioContextOrphanItem `json:"orphan_items"`
 	Rollup       ScenarioContextRollup       `json:"rollup"`
+	Fixes        ScenarioFixHistory          `json:"fixes"`
 }
 
 // InitiativeContextResponse pairs an initiative with its immediate

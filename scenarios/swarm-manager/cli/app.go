@@ -118,6 +118,7 @@ func (a *App) dependencies() support.Dependencies {
 		BacklogRetry:                a.cmdBacklogRetry,
 		ScenariosList:               a.cmdScenariosList,
 		ScenariosGet:                a.cmdScenariosGet,
+		ScenariosFixes:              a.cmdScenariosFixes,
 		ScenariosUpdate:             a.cmdScenariosUpdate,
 		ScenariosDelete:             a.cmdScenariosDelete,
 		ScenariosFiles:              a.cmdScenariosFiles,

@@ -141,6 +141,35 @@ func TestBuildBacklogPayload_NilTagsNormalized(t *testing.T) {
 	if p["archived"] != false {
 		t.Errorf("archived: %v", p["archived"])
 	}
+	scenarios, ok := p["target_scenarios"].([]string)
+	if !ok {
+		t.Fatalf("expected target_scenarios as []string, got %T", p["target_scenarios"])
+	}
+	if len(scenarios) != 0 {
+		t.Errorf("expected empty target_scenarios for item without acceptance globs, got %v", scenarios)
+	}
+}
+
+func TestBuildBacklogPayload_TargetScenariosFromAcceptanceAllow(t *testing.T) {
+	item := backlog.BacklogItem{
+		Name:            "fix-foo",
+		Kind:            backlog.KindFix,
+		AcceptanceAllow: []string{"scenarios/web-console/**", "scenarios/command-center/**"},
+	}
+	p := buildBacklogPayload(item)
+	scenarios, ok := p["target_scenarios"].([]string)
+	if !ok {
+		t.Fatalf("expected target_scenarios as []string, got %T", p["target_scenarios"])
+	}
+	if len(scenarios) != 2 {
+		t.Fatalf("expected 2 target scenarios, got %v", scenarios)
+	}
+	want := map[string]bool{"web-console": true, "command-center": true}
+	for _, s := range scenarios {
+		if !want[s] {
+			t.Errorf("unexpected scenario in payload: %s", s)
+		}
+	}
 }
 
 func TestBuildInitiativePayload(t *testing.T) {

@@ -39,6 +39,8 @@ vi.mock("../voice/sharedAudioContext", () => ({
   }),
   ensureAudioContextOnGesture: vi.fn(),
   closeSharedAudioContext: vi.fn(),
+  installAudioContextKeepalive: vi.fn(),
+  teardownAudioContextKeepalive: vi.fn(),
 }));
 
 // Mock micReadiness — no real streams in jsdom

@@ -3,6 +3,7 @@ package scenarios
 import (
 	"log/slog"
 	"net/http"
+	"sort"
 	"strings"
 
 	"swarm-manager/internal/apierr"
@@ -32,6 +33,27 @@ type ScenarioOrphanItem struct {
 	ArchivedAt *string `json:"archived_at,omitempty"`
 }
 
+// ScenarioFix is a backlog fix item targeting a scenario, in or out of an
+// initiative. Surfaces the fields needed to decide "is this a recurrence?"
+// without an extra fetch per item.
+type ScenarioFix struct {
+	Name       string  `json:"name"`
+	Title      string  `json:"title"`
+	Status     string  `json:"status"`
+	Priority   int     `json:"priority"`
+	Initiative string  `json:"initiative,omitempty"`
+	Updated    string  `json:"updated,omitempty"`
+	ArchivedAt *string `json:"archived_at,omitempty"`
+	Path       string  `json:"path"`
+}
+
+// ScenarioFixHistory partitions fixes into active vs archived for the UI's
+// Active/Archived/All toggle.
+type ScenarioFixHistory struct {
+	Active   []ScenarioFix `json:"active"`
+	Archived []ScenarioFix `json:"archived"`
+}
+
 // ScenarioContextRollup aggregates completion stats across every item
 // (whether inside an initiative or orphan) targeting the scenario.
 type ScenarioContextRollup struct {
@@ -51,6 +73,7 @@ type ScenarioContext struct {
 	Initiatives  []initiatives.InitiativeWithRollup  `json:"initiatives"`
 	OrphanItems  []ScenarioOrphanItem                `json:"orphan_items"`
 	Rollup       ScenarioContextRollup               `json:"rollup"`
+	Fixes        ScenarioFixHistory                  `json:"fixes"`
 }
 
 // SetInitiativesLister injects an initiatives lister for scenario context
@@ -75,6 +98,7 @@ func (h *Handler) GetContext(w http.ResponseWriter, r *http.Request) {
 		ScenarioName: name,
 		Initiatives:  []initiatives.InitiativeWithRollup{},
 		OrphanItems:  []ScenarioOrphanItem{},
+		Fixes:        ScenarioFixHistory{Active: []ScenarioFix{}, Archived: []ScenarioFix{}},
 	}
 
 	// Enumerate initiatives targeting this scenario. The initiatives lister
@@ -110,10 +134,27 @@ func (h *Handler) GetContext(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		for _, item := range items {
-			if strings.TrimSpace(item.Initiative) != "" {
+			if !itemTargetsScenario(item, name) {
 				continue
 			}
-			if !itemTargetsScenario(item, name) {
+			if item.Kind == backlog.KindFix {
+				fix := ScenarioFix{
+					Name:       item.Name,
+					Title:      item.Title,
+					Status:     string(item.Status),
+					Priority:   item.Priority,
+					Initiative: item.Initiative,
+					Updated:    item.Updated,
+					ArchivedAt: item.ArchivedAt,
+					Path:       "fix/" + item.Name,
+				}
+				if item.ArchivedAt != nil {
+					ctx.Fixes.Archived = append(ctx.Fixes.Archived, fix)
+				} else {
+					ctx.Fixes.Active = append(ctx.Fixes.Active, fix)
+				}
+			}
+			if strings.TrimSpace(item.Initiative) != "" {
 				continue
 			}
 			orphan := ScenarioOrphanItem{
@@ -140,6 +181,8 @@ func (h *Handler) GetContext(w http.ResponseWriter, r *http.Request) {
 				ctx.Rollup.Archived++
 			}
 		}
+		sortFixes(ctx.Fixes.Active)
+		sortFixes(ctx.Fixes.Archived)
 	}
 
 	if err := httputil.JSON(w, ctx); err != nil {
@@ -154,6 +197,20 @@ func itemTargetsScenario(item backlog.BacklogItem, scenario string) bool {
 		}
 	}
 	return false
+}
+
+// sortFixes orders by priority desc, then updated desc (newest first), then
+// name for deterministic output when ties remain.
+func sortFixes(fixes []ScenarioFix) {
+	sort.SliceStable(fixes, func(i, j int) bool {
+		if fixes[i].Priority != fixes[j].Priority {
+			return fixes[i].Priority > fixes[j].Priority
+		}
+		if fixes[i].Updated != fixes[j].Updated {
+			return fixes[i].Updated > fixes[j].Updated
+		}
+		return fixes[i].Name < fixes[j].Name
+	})
 }
 
 func stringsContains(xs []string, target string) bool {

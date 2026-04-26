@@ -49,6 +49,7 @@ func TestStartSession_HTTP(t *testing.T) {
 	assert.NotEmpty(t, resp.ID)
 	assert.Equal(t, "test", resp.ScenarioName)
 	assert.Equal(t, SessionState("running"), resp.State)
+	assert.Equal(t, ":99", resp.DisplayID)
 }
 
 func TestListSessions_HTTP(t *testing.T) {
@@ -168,6 +169,7 @@ func TestStartSession_HeadlessHTTP(t *testing.T) {
 	assert.Equal(t, 0, resp.VNCPort)
 	assert.Equal(t, 0, resp.WSPort)
 	assert.Equal(t, SessionState("running"), resp.State)
+	assert.Equal(t, ":99", resp.DisplayID)
 }
 
 func TestVNCProxy_HeadlessReturns400(t *testing.T) {

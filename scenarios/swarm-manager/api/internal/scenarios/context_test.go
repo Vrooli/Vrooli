@@ -159,6 +159,80 @@ func TestGetContext_ItemInMultipleScenarios_CountedOnce(t *testing.T) {
 	}
 }
 
+func TestGetContext_FixHistory_ActiveAndArchivedPartitioned(t *testing.T) {
+	archived := "2026-04-20T12:00:00Z"
+	items := []backlog.BacklogItem{
+		// Active orphan fix.
+		{
+			Name: "fix-orphan-active", Title: "Active orphan", Kind: backlog.KindFix,
+			Status: backlog.StatusBacklog, Priority: 2, Updated: "2026-04-22T10:00:00Z",
+			AcceptanceAllow: []string{"scenarios/web-console/**"},
+		},
+		// Archived orphan fix.
+		{
+			Name: "fix-orphan-archived", Title: "Archived orphan", Kind: backlog.KindFix,
+			Status: backlog.StatusCompleted, Priority: 1, Updated: "2026-04-15T10:00:00Z",
+			AcceptanceAllow: []string{"scenarios/web-console/**"},
+			ArchivedAt:      &archived,
+		},
+		// Active fix in an initiative — must still appear in fixes.
+		{
+			Name: "fix-in-init", Title: "In initiative", Kind: backlog.KindFix,
+			Status: backlog.StatusBacklog, Priority: 3, Updated: "2026-04-23T10:00:00Z",
+			Initiative:      "audio-platform",
+			AcceptanceAllow: []string{"scenarios/web-console/**"},
+		},
+		// Non-fix kind targeting same scenario — must NOT appear in fixes.
+		makeItem("not-a-fix", backlog.KindExecute, backlog.StatusBacklog, []string{"web-console"}, nil),
+		// Fix targeting different scenario — must NOT appear.
+		{
+			Name: "fix-other", Kind: backlog.KindFix, Status: backlog.StatusBacklog,
+			AcceptanceAllow: []string{"scenarios/command-center/**"},
+		},
+	}
+	h := newContextTestHandler(items, nil)
+
+	ctx := getContext(t, h, "web-console")
+
+	if len(ctx.Fixes.Active) != 2 {
+		t.Fatalf("active fixes = %d, want 2: %+v", len(ctx.Fixes.Active), ctx.Fixes.Active)
+	}
+	if ctx.Fixes.Active[0].Name != "fix-in-init" {
+		t.Errorf("active[0] = %q, want fix-in-init (highest priority first)", ctx.Fixes.Active[0].Name)
+	}
+	if ctx.Fixes.Active[0].Initiative != "audio-platform" {
+		t.Errorf("initiative not surfaced on fix: %+v", ctx.Fixes.Active[0])
+	}
+	if ctx.Fixes.Active[1].Name != "fix-orphan-active" {
+		t.Errorf("active[1] = %q, want fix-orphan-active", ctx.Fixes.Active[1].Name)
+	}
+	if len(ctx.Fixes.Archived) != 1 || ctx.Fixes.Archived[0].Name != "fix-orphan-archived" {
+		t.Errorf("archived fixes = %+v, want [fix-orphan-archived]", ctx.Fixes.Archived)
+	}
+	if ctx.Fixes.Active[0].Path != "fix/fix-in-init" {
+		t.Errorf("path = %q, want fix/fix-in-init", ctx.Fixes.Active[0].Path)
+	}
+	if ctx.Fixes.Archived[0].ArchivedAt == nil || *ctx.Fixes.Archived[0].ArchivedAt != archived {
+		t.Errorf("archivedAt not preserved: %+v", ctx.Fixes.Archived[0])
+	}
+}
+
+func TestGetContext_FixHistory_EmptyWhenNoFixes(t *testing.T) {
+	items := []backlog.BacklogItem{
+		makeItem("only-exec", backlog.KindExecute, backlog.StatusBacklog, []string{"web-console"}, nil),
+	}
+	h := newContextTestHandler(items, nil)
+
+	ctx := getContext(t, h, "web-console")
+
+	if ctx.Fixes.Active == nil || ctx.Fixes.Archived == nil {
+		t.Errorf("fixes arrays must be non-nil for stable JSON shape: %+v", ctx.Fixes)
+	}
+	if len(ctx.Fixes.Active) != 0 || len(ctx.Fixes.Archived) != 0 {
+		t.Errorf("expected empty fixes, got %+v", ctx.Fixes)
+	}
+}
+
 func TestGetContext_InitiativesRollupAggregatesAllFields(t *testing.T) {
 	inits := []initiatives.InitiativeWithRollup{
 		{

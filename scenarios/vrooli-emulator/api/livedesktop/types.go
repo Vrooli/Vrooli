@@ -120,6 +120,7 @@ type SessionView struct {
 	AppRunning    bool         `json:"app_running"`
 	Platform      string       `json:"platform"`
 	Headless      bool         `json:"headless"`
+	DisplayID     string       `json:"display_id,omitempty"`
 	Metrics       *MetricsView `json:"metrics,omitempty"`
 }
 
@@ -146,6 +147,9 @@ func (s *Session) View() SessionView {
 		AppRunning:    s.AppRunning,
 		Platform:      s.Platform,
 		Headless:      s.Headless,
+	}
+	if s.Display != nil {
+		v.DisplayID = s.Display.DisplayID()
 	}
 	if s.Monitor != nil {
 		v.Metrics = buildMetricsView(s.Monitor.Report())

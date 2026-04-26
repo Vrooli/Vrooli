@@ -246,6 +246,8 @@ export function ScenarioDetailsPage() {
             deleteError={deleteMutationInternal.isError}
           />
 
+          <ScenarioCoverageSection scenarioName={name} />
+
           <div className="hidden space-y-0 lg:block">
             <ScenarioOverviewSection
               scenario={scenario}
@@ -254,8 +256,6 @@ export function ScenarioDetailsPage() {
               actionButtons={lifecycleActions}
               actionError={actionError}
             />
-
-            <ScenarioCoverageSection scenarioName={name} />
 
             <ScenarioSettingsSection
               localGreenfield={localGreenfield}

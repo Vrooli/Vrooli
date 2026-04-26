@@ -1,0 +1,36 @@
+{
+  "round": 3,
+  "generated_at": "2026-04-26T00:00:00Z",
+  "mode": "finalize",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 3,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Round 2 decisions are now fully synthesized into the conclusion. d1=A (provenance enrichment owned by upstream git-control-tower-ai-provenance) is reflected in Action 5 (creates the item under the upstream initiative) and Action 7 (updates this initiative's description to clarify it consumes, not produces, enriched provenance). d2=A (CLI/test-genie → meta-orchestrator → web console rollout sequence) is now explicitly written into Action 4, including the rationale that web console flips last only after V1–V9 hold across prior surfaces. d3=A (trust acceptance rules alone for applyOnFailure) is now an explicit subsection in F9 ('Acceptance-rules-only trust model'), tying the contract to the agent-transparency principle (F5) and pushing recovery to the downstream run-level-undo-and-revert initiative."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Initiative-scope cross-check passes. Member coverage: research/agent-sandbox-auditability-contract (this item, produces contract), fix/workspace-sandbox-lock-and-acceptance-semantics (Action 1 update), execute/agent-manager-sandbox-auto-apply-defaults (Action 2 update), execute/sandbox-runtime-e2e-verification (Action 3 update), execute/agent-manager-default-sandboxing-rollout (Action 4 update). Action 5 correctly creates the new provenance-enrichment item under the upstream git-control-tower-ai-provenance initiative rather than this one. Action 7 updates this initiative to clarify provenance ownership. No sibling items are obsoleted by this research; no Delete actions are required. No depends_on changes are implied (existing chain research → fix → auto-apply-defaults → e2e-verification → rollout still holds, with rollout also depending on execute/gct-pending-ai-provenance-hardening from the upstream initiative)."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Readiness reassessment: all five dimensions are at 3. Problem clarity, scope, approach, and testability were already at 3 in round 2. Risk awareness moves from 2 to 3 because the Risks & Limitations table now has explicit mitigations for all identified risks (applyOnFailure broken-partial via acceptance + run-level-undo, default-flip via staged rollout per d2=A, concurrent overlapping sandboxes via V9 + BaseCommitHash, provenance cross-service cost via category-not-schema spec, network-mode enforcement uncertainty acknowledged as a follow-on). The single remaining unmeasured item (V9 multi-sandbox apply ordering) is now an explicit verification gate before the rollout flip, not an open research question — it is owned by execute/sandbox-runtime-e2e-verification per Action 3. The conclusion is ready for downstream sibling-item processing."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "Remaining gaps are bounded and intentional: (a) overlayfs performance characteristics on large repos are not measured here and will be flagged if observed during V4/V5; (b) the exact apply-ordering algorithm under simultaneous multi-sandbox completion is left to V9 verification; (c) network-mode enforcement mechanism (iptables vs namespaces vs bwrap) is deferred to the protected-mode follow-on. None of these block the contract; all are tracked as either downstream work or verification-time discoveries with named owners."
+    }
+  ],
+  "plan_updates": "Finalize pass tightened two areas without restructuring: (1) added explicit 'Acceptance-rules-only trust model (d3=A)' subsection to F9 stating the contract trusts acceptance rules alone for applyOnFailure and explaining why a checkpoint signal would violate the agent-transparency principle (F5); (2) rewrote Action 4's description to lock in the CLI/test-genie → meta-orchestrator → web console rollout sequence per d2=A, including the explicit rationale that the web console flips last only after V1–V9 hold across prior surfaces. Re-scored risk_awareness from 2 to 3; all other dimensions unchanged at 3. Conclusion is ready for sibling-item processing."
+}

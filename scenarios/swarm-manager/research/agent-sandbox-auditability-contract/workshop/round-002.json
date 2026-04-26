@@ -2,13 +2,13 @@
   "round": 2,
   "generated_at": "2026-04-24T00:00:00Z",
   "mode": "workshop",
-  "pending_synthesis": false,
+  "pending_synthesis": true,
   "readiness": {
-    "problem_clarity": 3,
-    "scope_defined": 3,
     "approach_solid": 3,
-    "testable": 3,
-    "risk_awareness": 2
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 3
   },
   "items": [
     {
@@ -64,9 +64,7 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d2",
@@ -96,9 +94,7 @@
           "rationale": "Provide your own sequence"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d3",
@@ -128,10 +124,8 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     }
   ],
-  "plan_updates": "Round 2 added F9 implementation-ready configuration surface table, F10 required provenance categories, F11 source-of-truth matrix, F12 nine-case validation matrix, and a Risks & Limitations table. Replaced the old time-horizon Actions list with five targeted Update/Create actions tied to specific sibling items, plus an Update initiative action to clarify provenance enrichment ownership. Added Methodology and Summary sections per the research-conclusion-authoring template."
+  "plan_updates": "Round 2 added F9 implementation-ready configuration surface table, F10 required provenance categories, F11 source-of-truth matrix, F12 nine-case validation matrix, and a Risks \u0026 Limitations table. Replaced the old time-horizon Actions list with five targeted Update/Create actions tied to specific sibling items, plus an Update initiative action to clarify provenance enrichment ownership. Added Methodology and Summary sections per the research-conclusion-authoring template."
 }

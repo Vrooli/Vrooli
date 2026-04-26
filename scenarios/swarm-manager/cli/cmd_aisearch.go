@@ -317,6 +317,7 @@ func (a *App) cmdAISearchSearch(entityOverride string) support.CommandFunc {
 		kindCSV := fs.String("kind", "", "Comma-separated backlog kinds to include")
 		statusCSV := fs.String("status", "", "Comma-separated statuses to include")
 		initiative := fs.String("initiative", "", "Restrict to a single initiative")
+		targetScenario := fs.String("target-scenario", "", "Restrict to backlog items targeting a specific scenario")
 		includeArchived := fs.Bool("include-archived", false, "Include archived items")
 		jsonOut := cliutil.JSONFlag(fs)
 		if err := cliutil.ParseInterspersed(fs, args); err != nil {
@@ -354,6 +355,9 @@ func (a *App) cmdAISearchSearch(entityOverride string) support.CommandFunc {
 		}
 		if s := strings.TrimSpace(*initiative); s != "" {
 			filters["initiative"] = s
+		}
+		if s := strings.TrimSpace(*targetScenario); s != "" {
+			filters["target_scenario"] = s
 		}
 		if len(filters) > 0 {
 			payload["filters"] = filters

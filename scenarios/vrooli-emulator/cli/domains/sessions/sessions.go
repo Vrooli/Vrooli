@@ -24,6 +24,7 @@ type sessionView struct {
 	Height        int       `json:"height"`
 	Platform      string    `json:"platform"`
 	Headless      bool      `json:"headless"`
+	DisplayID     string    `json:"display_id"`
 	AppRunning    bool      `json:"app_running"`
 	CreatedAt     time.Time `json:"created_at"`
 	LastHeartbeat time.Time `json:"last_heartbeat"`
@@ -44,6 +45,9 @@ func summarize(s sessionView) string {
 	}
 	if !s.Headless {
 		parts = append(parts, fmt.Sprintf("vnc_port=%d", s.VNCPort), fmt.Sprintf("ws_port=%d", s.WSPort))
+	}
+	if s.Headless && s.DisplayID != "" {
+		parts = append(parts, fmt.Sprintf("display=%s", s.DisplayID))
 	}
 	if s.AppRunning {
 		parts = append(parts, "app=running")

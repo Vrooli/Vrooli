@@ -32,6 +32,7 @@ type Dependencies struct {
 	BacklogRetry         CommandFunc
 	ScenariosList        CommandFunc
 	ScenariosGet         CommandFunc
+	ScenariosFixes       CommandFunc
 	ScenariosUpdate      CommandFunc
 	ScenariosDelete      CommandFunc
 	ScenariosFiles       CommandFunc

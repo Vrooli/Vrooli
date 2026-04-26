@@ -1,8 +1,8 @@
 {
   "$schema": "../../../../scripts/scenarios/testing/schemas/testing.schema.json",
   "_metadata": {
-    "description": "Sample testing configuration for React + Vite template",
-    "last_updated": "2025-11-08T00:00:00Z"
+    "description": "Testing configuration for vrooli-emulator scenario",
+    "last_updated": "2026-04-25T00:00:00Z"
   },
   "version": "1.0.0",
   "lint": {
@@ -34,6 +34,12 @@
     "languages": {
       "go": {},
       "node": {}
+    }
+  },
+  "phases": {
+    "integration": {
+      "enabled": true,
+      "timeout": "5m"
     }
   },
   "business": {

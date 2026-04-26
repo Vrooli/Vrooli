@@ -20,7 +20,7 @@ import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { createAudioFilterChain } from "./voice/audioUtils";
 import { playRecordingStartCue, playRecordingStopCue } from "./voice/audioCues";
 import { createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, vadTick, VAD_FLOOR_CACHE_MAX_AGE_MS } from "./voice/vad";
-import { getSharedAudioContext, ensureAudioContextOnGesture } from "./voice/sharedAudioContext";
+import { getSharedAudioContext, ensureAudioContextOnGesture, installAudioContextKeepalive, teardownAudioContextKeepalive } from "./voice/sharedAudioContext";
 import { acquireStream as acquireMicStream, releaseStream as releaseMicStream, getStream as getMicStream, isStreamAlive as isMicStreamAlive, installVisibilityHandler } from "./voice/micReadiness";
 import { VoiceStreamProvider } from "./voice/VoiceStreamProvider";
 import { WhisperProvider } from "./voice/WhisperProvider";
@@ -313,6 +313,12 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
 
   const startLevelMonitor = useCallback(async (stream: MediaStream) => {
     try {
+      // Tear down the between-sessions keepalive oscillator — the live mic
+      // stream we're about to wire up keeps Chrome's renderer alive on its
+      // own, so the keepalive is redundant during recording. Removing it also
+      // releases the iOS AVAudioSession during the gap before the mic stream
+      // takes over.
+      teardownAudioContextKeepalive();
       // Use the shared AudioContext singleton. It was pre-created on the first
       // user gesture by ensureAudioContextOnGesture(), so it should already be
       // in "running" state. We still check for "suspended" as a safety net.
@@ -475,6 +481,10 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     }
     audioNodesRef.current = [];
     setState((s) => (s.audioLevel === 0 ? s : { ...s, audioLevel: 0 }));
+    // Install the keepalive oscillator now that the mic stream is gone, so
+    // Chrome's renderer doesn't idle before the next recording starts (which
+    // would leave AnalyserNodes returning rms=0 and trip premature VAD stops).
+    installAudioContextKeepalive();
   }, []);
 
   const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

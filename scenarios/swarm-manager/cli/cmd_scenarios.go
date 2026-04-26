@@ -107,7 +107,27 @@ func (a *App) cmdScenariosGet(args []string) error {
 	if err != nil {
 		return err
 	}
-	if printJSONIfRequested(*jsonOut, body) {
+
+	// Fetch context for fix-history summary. Failure here must not break the
+	// primary `get` — fall back to no fix data.
+	var ctxResp ScenarioContextResponse
+	if ctxBody, ctxErr := a.core.Get("/scenarios/"+name+"/context", nil); ctxErr == nil {
+		_ = json.Unmarshal(ctxBody, &ctxResp)
+	}
+
+	if *jsonOut {
+		// Greenfield: merge context.fixes into the JSON output so consumers see
+		// everything in one shot. Stable key shape: { "scenario": ..., "fixes": ... }.
+		merged := map[string]any{}
+		var raw map[string]any
+		if err := json.Unmarshal(body, &raw); err == nil {
+			for k, v := range raw {
+				merged[k] = v
+			}
+		}
+		merged["fixes"] = ctxResp.Fixes
+		out, _ := json.MarshalIndent(merged, "", "  ")
+		fmt.Println(string(out))
 		return nil
 	}
 
@@ -133,12 +153,186 @@ func (a *App) cmdScenariosGet(args []string) error {
 	if len(scenario.Tags) > 0 {
 		fmt.Printf("  Tags: %s\n", strings.Join(scenario.Tags, ", "))
 	}
+
+	printFixHistorySummary(ctxResp.Fixes)
+
 	printCommandListSection("Next Steps", []string{
 		cliCommand("scenarios", "files", "--name", scenario.Name),
+		cliCommand("scenarios", "fixes", "--name", scenario.Name),
 		cliCommand("scenarios", "update", "--name", scenario.Name, "--data", "'{\"is_greenfield\":true}'"),
 		cliCommand("scenarios", "start", "--name", scenario.Name),
 	})
 	return nil
+}
+
+// cmdScenariosFixes lists fix backlog items targeting a scenario, partitioned
+// by active/archived. Default scope is --all. Search is a substring match
+// over title and name (case-insensitive).
+func (a *App) cmdScenariosFixes(args []string) error {
+	fs := flag.NewFlagSet("scenarios fixes", flag.ContinueOnError)
+	nameFlag := fs.String("name", "", "Scenario name")
+	activeOnly := fs.Bool("active", false, "Show only active fixes")
+	archivedOnly := fs.Bool("archived", false, "Show only archived fixes")
+	allFlag := fs.Bool("all", false, "Show both active and archived (default)")
+	search := fs.String("search", "", "Substring filter on title or name (case-insensitive)")
+	limit := fs.Int("limit", 50, "Maximum fixes to print per partition")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if err := requireFlag("name", *nameFlag); err != nil {
+		return fmt.Errorf("usage: scenarios fixes --name NAME [--active|--archived|--all] [--search Q] [--limit N] [--json]\n\n%s", err)
+	}
+	if boolCount(*activeOnly, *archivedOnly, *allFlag) > 1 {
+		return fmt.Errorf("--active, --archived, and --all are mutually exclusive")
+	}
+	scope := "all"
+	switch {
+	case *activeOnly:
+		scope = "active"
+	case *archivedOnly:
+		scope = "archived"
+	}
+
+	name := strings.TrimSpace(*nameFlag)
+	body, err := a.core.Get("/scenarios/"+name+"/context", nil)
+	if err != nil {
+		return err
+	}
+
+	var ctxResp ScenarioContextResponse
+	if err := json.Unmarshal(body, &ctxResp); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	active := filterFixes(ctxResp.Fixes.Active, *search)
+	archived := filterFixes(ctxResp.Fixes.Archived, *search)
+
+	if *limit > 0 {
+		if len(active) > *limit {
+			active = active[:*limit]
+		}
+		if len(archived) > *limit {
+			archived = archived[:*limit]
+		}
+	}
+
+	if *jsonOut {
+		out := map[string]any{"scenario_name": name, "scope": scope, "search": *search}
+		switch scope {
+		case "active":
+			out["fixes"] = ScenarioFixHistory{Active: active, Archived: []ScenarioFix{}}
+		case "archived":
+			out["fixes"] = ScenarioFixHistory{Active: []ScenarioFix{}, Archived: archived}
+		default:
+			out["fixes"] = ScenarioFixHistory{Active: active, Archived: archived}
+		}
+		buf, _ := json.MarshalIndent(out, "", "  ")
+		fmt.Println(string(buf))
+		return nil
+	}
+
+	printSection("Summary")
+	fmt.Printf("  Scenario: %s\n", name)
+	fmt.Printf("  Scope: %s", scope)
+	if strings.TrimSpace(*search) != "" {
+		fmt.Printf(" · search=%q", *search)
+	}
+	fmt.Println()
+
+	if scope == "active" || scope == "all" {
+		printSection("Active Fixes")
+		if len(active) == 0 {
+			fmt.Println("  (none)")
+		} else {
+			printFixTable(active)
+		}
+	}
+	if scope == "archived" || scope == "all" {
+		printSection("Archived Fixes")
+		if len(archived) == 0 {
+			fmt.Println("  (none)")
+		} else {
+			printFixTable(archived)
+		}
+	}
+
+	printCommandListSection("Next Steps", []string{
+		cliCommand("scenarios", "fixes", "--name", name, "--archived"),
+		cliCommand("aisearch", "search", "--query", "<symptom>", "--kind", "fix", "--include-archived"),
+	})
+	return nil
+}
+
+func boolCount(bs ...bool) int {
+	n := 0
+	for _, b := range bs {
+		if b {
+			n++
+		}
+	}
+	return n
+}
+
+func filterFixes(in []ScenarioFix, search string) []ScenarioFix {
+	q := strings.ToLower(strings.TrimSpace(search))
+	if q == "" {
+		out := make([]ScenarioFix, len(in))
+		copy(out, in)
+		return out
+	}
+	out := make([]ScenarioFix, 0, len(in))
+	for _, f := range in {
+		if strings.Contains(strings.ToLower(f.Title), q) || strings.Contains(strings.ToLower(f.Name), q) {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+func printFixTable(fixes []ScenarioFix) {
+	for _, f := range fixes {
+		title := f.Title
+		if title == "" {
+			title = f.Name
+		}
+		archived := ""
+		if f.ArchivedAt != nil {
+			archived = " · archived " + *f.ArchivedAt
+		}
+		init := ""
+		if f.Initiative != "" {
+			init = " · initiative=" + f.Initiative
+		}
+		fmt.Printf("  [P%d %s] %s\n", f.Priority, f.Status, title)
+		fmt.Printf("    %s%s%s\n", f.Path, init, archived)
+	}
+}
+
+// printFixHistorySummary renders a compact summary block under `scenarios get`.
+// Shows totals and the top 5 most-recent archived fixes for fast triage.
+func printFixHistorySummary(h ScenarioFixHistory) {
+	printSection("Fix History")
+	fmt.Printf("  Active: %d · Archived: %d\n", len(h.Active), len(h.Archived))
+	if len(h.Archived) == 0 {
+		return
+	}
+	fmt.Println("  Recent archived:")
+	max := 5
+	if len(h.Archived) < max {
+		max = len(h.Archived)
+	}
+	for _, f := range h.Archived[:max] {
+		title := f.Title
+		if title == "" {
+			title = f.Name
+		}
+		when := ""
+		if f.ArchivedAt != nil {
+			when = " (archived " + *f.ArchivedAt + ")"
+		}
+		fmt.Printf("    - %s%s\n", title, when)
+	}
 }
 
 func (a *App) cmdScenariosUpdate(args []string) error {

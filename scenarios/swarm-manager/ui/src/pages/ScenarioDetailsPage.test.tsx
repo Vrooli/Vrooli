@@ -97,6 +97,7 @@ describe("ScenarioDetailsPage", () => {
       initiatives: [],
       orphanItems: [],
       rollup: { total: 0, completed: 0, inProgress: 0, failed: 0, pending: 0, archived: 0 },
+      fixes: { active: [], archived: [] },
     });
     useScenariosStore.getState().reset();
   });
@@ -981,6 +982,7 @@ describe("ScenarioDetailsPage", () => {
         ],
         orphanItems: [],
         rollup: { total: 3, completed: 1, inProgress: 1, failed: 0, pending: 1, archived: 0 },
+        fixes: { active: [], archived: [] },
       });
       renderPage();
 
@@ -1007,6 +1009,7 @@ describe("ScenarioDetailsPage", () => {
           },
         ],
         rollup: { total: 1, completed: 0, inProgress: 0, failed: 0, pending: 1, archived: 0 },
+        fixes: { active: [], archived: [] },
       });
       renderPage();
 
@@ -1026,6 +1029,100 @@ describe("ScenarioDetailsPage", () => {
       await waitFor(() => {
         expect(screen.getByTestId("scenario-coverage-empty")).toBeInTheDocument();
       });
+    });
+
+    it("renders Fix History section with active partition by default", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      vi.mocked(scenariosService.getContext).mockResolvedValue({
+        scenarioName: "test-scenario",
+        initiatives: [],
+        orphanItems: [],
+        rollup: { total: 0, completed: 0, inProgress: 0, failed: 0, pending: 0, archived: 0 },
+        fixes: {
+          active: [
+            { name: "fix-active", title: "Active fix", status: "backlog", priority: 2, path: "fix/fix-active" },
+          ],
+          archived: [
+            { name: "fix-old", title: "Old fix", status: "completed", priority: 1, archivedAt: "2026-04-15T10:00:00Z", path: "fix/fix-old" },
+          ],
+        },
+      });
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-fix-history")).toBeInTheDocument();
+      });
+      // Default scope=active: shows the active fix, hides the archived one.
+      expect(screen.getByText("Active fix")).toBeInTheDocument();
+      expect(screen.queryByText("Old fix")).not.toBeInTheDocument();
+    });
+
+    it("toggling Archived scope shows archived fixes only", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      vi.mocked(scenariosService.getContext).mockResolvedValue({
+        scenarioName: "test-scenario",
+        initiatives: [],
+        orphanItems: [],
+        rollup: { total: 0, completed: 0, inProgress: 0, failed: 0, pending: 0, archived: 0 },
+        fixes: {
+          active: [
+            { name: "fix-active", title: "Active fix", status: "backlog", priority: 2, path: "fix/fix-active" },
+          ],
+          archived: [
+            { name: "fix-old", title: "Old fix", status: "completed", priority: 1, archivedAt: "2026-04-15T10:00:00Z", path: "fix/fix-old" },
+          ],
+        },
+      });
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-fix-history")).toBeInTheDocument();
+      });
+
+      const archivedToggle = screen.getByTestId("scenario-fix-history-scope-archived");
+      archivedToggle.click();
+
+      await waitFor(() => {
+        expect(screen.getByText("Old fix")).toBeInTheDocument();
+      });
+      expect(screen.queryByText("Active fix")).not.toBeInTheDocument();
+    });
+
+    it("search narrows fix history by title", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      vi.mocked(scenariosService.getContext).mockResolvedValue({
+        scenarioName: "test-scenario",
+        initiatives: [],
+        orphanItems: [],
+        rollup: { total: 0, completed: 0, inProgress: 0, failed: 0, pending: 0, archived: 0 },
+        fixes: {
+          active: [
+            { name: "fix-foo", title: "Foo crashes", status: "backlog", priority: 2, path: "fix/fix-foo" },
+            { name: "fix-bar", title: "Bar timeout", status: "backlog", priority: 1, path: "fix/fix-bar" },
+          ],
+          archived: [],
+        },
+      });
+      renderPage();
+
+      const search = await screen.findByTestId("scenario-fix-history-search");
+      fireEvent.change(search, { target: { value: "foo" } });
+
+      await waitFor(() => {
+        expect(screen.queryByText("Bar timeout")).not.toBeInTheDocument();
+      });
+      expect(screen.getByText("Foo crashes")).toBeInTheDocument();
+    });
+
+    it("renders Fix History section exactly once across mobile and desktop layouts", async () => {
+      vi.mocked(scenariosService.get).mockResolvedValue(mockScenario);
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("scenario-fix-history")).toBeInTheDocument();
+      });
+      // Single instance — no duplicate rendering across layouts.
+      expect(screen.getAllByTestId("scenario-fix-history")).toHaveLength(1);
     });
   });
 });

@@ -326,6 +326,82 @@ func TestApplyFilters_StatusAndKind(t *testing.T) {
 	}
 }
 
+func TestApplyFilters_TargetScenario_StringSlicePayload(t *testing.T) {
+	results := []AISearchResult{
+		{Entity: EntityBacklog, Score: 0.9, Payload: map[string]interface{}{
+			"target_scenarios": []string{"web-console", "command-center"},
+		}},
+		{Entity: EntityBacklog, Score: 0.8, Payload: map[string]interface{}{
+			"target_scenarios": []string{"command-center"},
+		}},
+	}
+	got := applyFilters(results, SearchFilters{TargetScenario: "web-console"})
+	if len(got) != 1 || got[0].Score != 0.9 {
+		t.Errorf("expected only the web-console-targeting result, got %+v", got)
+	}
+}
+
+func TestApplyFilters_TargetScenario_InterfaceSlicePayload(t *testing.T) {
+	// Round-tripping through Qdrant turns []string into []interface{}; the
+	// filter must handle both shapes.
+	results := []AISearchResult{
+		{Entity: EntityBacklog, Score: 0.9, Payload: map[string]interface{}{
+			"target_scenarios": []interface{}{"web-console"},
+		}},
+		{Entity: EntityBacklog, Score: 0.7, Payload: map[string]interface{}{
+			"target_scenarios": []interface{}{"other"},
+		}},
+	}
+	got := applyFilters(results, SearchFilters{TargetScenario: "web-console"})
+	if len(got) != 1 {
+		t.Fatalf("expected 1 result, got %d: %+v", len(got), got)
+	}
+}
+
+func TestApplyFilters_TargetScenario_OnlyAppliesToBacklog(t *testing.T) {
+	results := []AISearchResult{
+		{Entity: EntityInitiative, Score: 0.7, Payload: map[string]interface{}{
+			"name": "audio-platform",
+		}},
+	}
+	got := applyFilters(results, SearchFilters{TargetScenario: "web-console"})
+	if len(got) != 1 {
+		t.Errorf("initiative entities must pass target_scenario filter; got %+v", got)
+	}
+}
+
+func TestNormalizeFilters_FixKindDefaultsToIncludeArchived(t *testing.T) {
+	got := normalizeFilters(SearchFilters{Kind: []string{"fix"}})
+	if !got.IncludeArchived {
+		t.Errorf("expected IncludeArchived=true for kind=[fix], got %+v", got)
+	}
+}
+
+func TestNormalizeFilters_NonFixKindNotPromoted(t *testing.T) {
+	got := normalizeFilters(SearchFilters{Kind: []string{"execute"}})
+	if got.IncludeArchived {
+		t.Errorf("IncludeArchived must remain false for kind=[execute], got %+v", got)
+	}
+}
+
+func TestNormalizeFilters_MultiKindNotPromoted(t *testing.T) {
+	got := normalizeFilters(SearchFilters{Kind: []string{"fix", "execute"}})
+	if got.IncludeArchived {
+		t.Errorf("multi-kind must not auto-promote IncludeArchived, got %+v", got)
+	}
+}
+
+func TestNormalizeFilters_ExplicitFalseNotOverwrittenForFix(t *testing.T) {
+	// Edge case: an explicit IncludeArchived:false on fix is currently
+	// indistinguishable from the zero value (Go's bool default). The product
+	// rule chooses to favor "fix history wants archived" — that's the chosen
+	// semantics. This test pins the behavior so a future change is intentional.
+	got := normalizeFilters(SearchFilters{Kind: []string{"fix"}, IncludeArchived: false})
+	if !got.IncludeArchived {
+		t.Errorf("kind=[fix] always promotes IncludeArchived; got %+v", got)
+	}
+}
+
 func TestApplyFilters_InitiativeOnlyAppliesToBacklog(t *testing.T) {
 	results := []AISearchResult{
 		{Entity: EntityBacklog, Score: 0.9, Payload: map[string]interface{}{"initiative": "obs"}},

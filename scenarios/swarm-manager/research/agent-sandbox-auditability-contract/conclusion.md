@@ -100,6 +100,8 @@ Per d1=A, the contract specifies these fields. They live on the agent-manager ru
 - `applyOnFailure=true`: same as above on failure terminal; failed run still produces the partial audit trail. Failure reason recorded on the run, not on the sandbox.
 - `manualReview=true`: skip auto-apply at run-end; transition to `NeedsReview`; surface to GCT AI Changes tab for operator action.
 
+**Acceptance-rules-only trust model (d3=A):** Auto-apply on failure trusts acceptance rules alone — there is no agent-reported "last coherent checkpoint" or progress-milestone gate. This keeps the agent transparent (F5) and pushes recovery to the downstream `run-level-undo-and-revert` initiative, which provides one-click revert keyed off the run's provenance record. Tightening this contract (e.g., requiring a checkpoint signal) is explicitly out of scope; it would couple the agent's behavior to sandbox mode and violate the transparency principle.
+
 ### F10: Required Provenance Categories
 
 Per d3=A, the contract specifies categories (not exact schema) that any provenance record must capture:
@@ -179,8 +181,8 @@ Schema design is left to the implementing items, but every provenance record mus
 - **Kind**: execute
 - **Name**: agent-manager-default-sandboxing-rollout
 - **Changes**:
-  - Description: gate the rollout on V1–V9 passing; sequence spawn surfaces (CLI → meta-orchestrator → web console) with per-surface opt-out for `applyOnFailure`; reference the operator-comms task for the default flip.
-- **Reason**: Today the rollout item has no gating contract. Tying it to F12 makes the readiness bar explicit.
+  - Description: gate the rollout on V1–V9 passing; sequence spawn surfaces in the order **CLI/test-genie → meta-orchestrator → web console** (per d2=A — lowest blast radius first; web console flips last only after V1–V9 hold across the prior surfaces); each surface gets a per-surface opt-out for `applyOnFailure` for critical paths; reference the operator-comms task for the default flip.
+- **Reason**: Today the rollout item has no gating contract or sequence. Tying it to F12 and locking the spawn-surface order make the readiness bar explicit and prevent a too-broad first cutover.
 
 ### Action 5: Create backlog item — Provenance enrichment for required categories
 - **Kind**: execute

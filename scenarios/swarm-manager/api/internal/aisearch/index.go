@@ -10,6 +10,7 @@ import (
 
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/initiatives"
+	"swarm-manager/internal/pathutil"
 )
 
 // BacklogReader is the minimum surface aisearch needs to enumerate and load
@@ -154,16 +155,21 @@ func buildBacklogPayload(item backlog.BacklogItem) map[string]interface{} {
 	if tags == nil {
 		tags = []string{}
 	}
+	scenarios := pathutil.ScenariosFromGlobs(item.AcceptanceAllow)
+	if scenarios == nil {
+		scenarios = []string{}
+	}
 	return map[string]interface{}{
-		"kind":       string(item.Kind),
-		"name":       item.Name,
-		"title":      item.Title,
-		"status":     string(item.Status),
-		"priority":   item.Priority,
-		"tags":       tags,
-		"initiative": item.Initiative,
-		"effort":     item.Effort,
-		"archived":   item.ArchivedAt != nil,
+		"kind":             string(item.Kind),
+		"name":             item.Name,
+		"title":            item.Title,
+		"status":           string(item.Status),
+		"priority":         item.Priority,
+		"tags":             tags,
+		"initiative":       item.Initiative,
+		"effort":           item.Effort,
+		"archived":         item.ArchivedAt != nil,
+		"target_scenarios": scenarios,
 	}
 }
 

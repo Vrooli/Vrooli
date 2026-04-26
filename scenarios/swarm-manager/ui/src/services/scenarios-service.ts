@@ -85,6 +85,29 @@ export interface ScenarioContextOrphanItem {
 }
 
 /**
+ * A fix backlog item targeting a scenario, surfaced for the Fix History
+ * section. Includes both initiative-member and orphan fixes.
+ */
+export interface ScenarioFix {
+  name: string;
+  title: string;
+  status: string;
+  priority: number;
+  initiative?: string;
+  updated?: string;
+  archivedAt?: string;
+  path: string;
+}
+
+/**
+ * Active vs archived partition of a scenario's fix history.
+ */
+export interface ScenarioFixHistory {
+  active: ScenarioFix[];
+  archived: ScenarioFix[];
+}
+
+/**
  * Full coverage view for a scenario: every initiative whose member items
  * target the scenario, every orphan backlog item targeting the scenario,
  * and a combined completion rollup.
@@ -94,6 +117,7 @@ export interface ScenarioContext {
   initiatives: ScenarioContextInitiative[];
   orphanItems: ScenarioContextOrphanItem[];
   rollup: ScenarioContextRollup;
+  fixes: ScenarioFixHistory;
 }
 
 /**
@@ -158,6 +182,23 @@ interface RawScenarioContextOrphan {
   archivedAt?: string;
 }
 
+interface RawScenarioFix {
+  name?: string;
+  title?: string;
+  status?: string;
+  priority?: number;
+  initiative?: string;
+  updated?: string;
+  archived_at?: string;
+  archivedAt?: string;
+  path?: string;
+}
+
+interface RawScenarioFixHistory {
+  active?: RawScenarioFix[];
+  archived?: RawScenarioFix[];
+}
+
 interface RawScenarioContext {
   scenario_name?: string;
   scenarioName?: string;
@@ -165,6 +206,20 @@ interface RawScenarioContext {
   orphan_items?: RawScenarioContextOrphan[];
   orphanItems?: RawScenarioContextOrphan[];
   rollup?: RawRollup;
+  fixes?: RawScenarioFixHistory;
+}
+
+function normalizeFix(raw: RawScenarioFix): ScenarioFix {
+  return {
+    name: raw.name ?? "",
+    title: raw.title ?? "",
+    status: raw.status ?? "",
+    priority: raw.priority ?? 0,
+    initiative: raw.initiative,
+    updated: raw.updated,
+    archivedAt: raw.archivedAt ?? raw.archived_at,
+    path: raw.path ?? "",
+  };
 }
 
 function normalizeRollup(raw: RawRollup | undefined): ScenarioContextRollup {
@@ -198,6 +253,10 @@ function normalizeScenarioContext(raw: RawScenarioContext): ScenarioContext {
       archivedAt: o.archivedAt ?? o.archived_at,
     })),
     rollup: normalizeRollup(raw.rollup),
+    fixes: {
+      active: (raw.fixes?.active ?? []).map(normalizeFix),
+      archived: (raw.fixes?.archived ?? []).map(normalizeFix),
+    },
   };
 }
 

@@ -2,6 +2,7 @@
   "acceptance_allow": [
     "scenarios/prompt-manager/**"
   ],
+  "archived_at": "2026-04-26T12:15:28Z",
   "created": "2026-04-24T19:54:33Z",
   "description": "`prompt-manager team decision-show \u003cteam\u003e \u003cid\u003e` default human output shows decision / rationale / context / status but omits the options block. To see what --selected values are valid, the operator must re-run with --json. This breaks the human-first CLI-consumption principle from skill-principles. When a decision has an options array, human output should display each option's key / label / rationale / recommended flag — either always or behind a --full flag. Surfaced 2026-04-24 walk during Phase 5.5 when executing decisions requires knowing the option keys.",
   "effort": "XS",
@@ -9,8 +10,8 @@
   "kind": "fix",
   "name": "prompt-manager-decision-show-options-default-output",
   "priority": 4,
-  "status": "in_review",
+  "status": "completed",
   "tags": [],
   "title": "decision-show default human output should display options block",
-  "updated": "2026-04-25T14:37:21Z"
+  "updated": "2026-04-26T12:15:28Z"
 }

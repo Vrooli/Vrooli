@@ -29,7 +29,15 @@ let _gestureInstalled = false;
  *  thread between recording sessions, causing AnalyserNodes in subsequent
  *  sessions to return stale/zero data (volume indicator stuck at 0, VAD sees
  *  rms=0 → premature stop). A silent DC oscillator is the cheapest way to
- *  keep the renderer alive (~zero CPU, no audible output). */
+ *  keep the renderer alive (~zero CPU, no audible output).
+ *
+ *  Installed lazily — only between recording sessions, where Chrome's renderer
+ *  is at risk of idling. Not installed before the first recording. This matters
+ *  on iOS, where any oscillator routed to ctx.destination keeps the
+ *  AVAudioSession active and shows the Dynamic Island audio indicator (which
+ *  also flickers per-keystroke as keyboard click sounds preempt the session).
+ *  By keeping the keepalive off when no recording is in flight, idle typing
+ *  doesn't trigger the indicator. */
 let _keepaliveOsc: OscillatorNode | null = null;
 let _keepaliveGain: GainNode | null = null;
 
@@ -43,9 +51,30 @@ let _keepaliveGain: GainNode | null = null;
 export function getSharedAudioContext(): AudioContext {
   if (!_sharedCtx || _sharedCtx.state === "closed") {
     _sharedCtx = new AudioContext();
-    _installKeepalive(_sharedCtx);
   }
   return _sharedCtx;
+}
+
+/**
+ * Install the keepalive oscillator on the shared AudioContext. Called when a
+ * recording session ends, to prevent Chrome's renderer from idling before the
+ * next session starts. Idempotent — calling while already installed is a no-op.
+ */
+export function installAudioContextKeepalive(): void {
+  const ctx = _sharedCtx;
+  if (!ctx || ctx.state === "closed") return;
+  if (_keepaliveOsc) return;
+  _installKeepalive(ctx);
+}
+
+/**
+ * Tear down the keepalive oscillator. Called when a recording session is about
+ * to start (the live mic stream itself keeps the renderer alive, so the
+ * keepalive is redundant during recording) and on iOS, where it would
+ * otherwise keep the AVAudioSession active.
+ */
+export function teardownAudioContextKeepalive(): void {
+  _teardownKeepalive();
 }
 
 /**
@@ -57,8 +86,7 @@ export function getSharedAudioContext(): AudioContext {
  * node — inaudible, negligible CPU cost, but keeps the renderer alive.
  */
 function _installKeepalive(ctx: AudioContext): void {
-  // Clean up any prior keepalive (shouldn't happen, but be safe)
-  _teardownKeepalive();
+  if (_keepaliveOsc) return; // already installed
 
   try {
     const osc = ctx.createOscillator();
