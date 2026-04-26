@@ -303,6 +303,55 @@ func TestService_RecordAgentTurn_HandlesUnparsableProposal(t *testing.T) {
 	}
 }
 
+func TestService_RecordAgentTurn_InvalidProposalFlagsNeedsRevision(t *testing.T) {
+	env := newServiceEnv(t)
+	round, err := env.svc.StartRound(context.Background(), StartRoundRequest{
+		InitiativeName: "ui-rewrite",
+		Type:           RoundTypeFeedback,
+		Text:           "start",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body := "```json\n" + `{
+  "form": "mutation_list",
+  "mutations": [
+    {
+      "id": "m1",
+      "op": "update_item",
+      "target": "execute/foo",
+      "title": "Renamed from invalid top-level field"
+    }
+  ]
+}` + "\n```"
+	round, err = env.svc.RecordAgentTurn("ui-rewrite", round.Number, body)
+	if err != nil {
+		t.Fatalf("RecordAgentTurn: %v", err)
+	}
+	if round.CurrentProposalID != "" {
+		t.Fatalf("expected no current proposal for invalid revision, got %q", round.CurrentProposalID)
+	}
+	if !round.NeedsRevision {
+		t.Fatal("expected NeedsRevision=true for invalid proposal")
+	}
+	if len(round.LastValidationErrors) == 0 {
+		t.Fatal("expected validation errors surfaced on round")
+	}
+	if !strings.Contains(strings.Join(round.LastValidationErrors, "|"), "requires patch") {
+		t.Fatalf("expected requires-patch validation error, got %v", round.LastValidationErrors)
+	}
+	if len(round.Proposals) != 1 {
+		t.Fatalf("expected proposal revision persisted for audit, got %d", len(round.Proposals))
+	}
+	if len(round.Proposals[0].ValidationErrors) == 0 {
+		t.Fatal("expected validation errors on revision")
+	}
+	if round.Proposals[0].RawProposalText == "" {
+		t.Fatal("expected raw proposal text preserved")
+	}
+}
+
 func TestService_Decide_AcceptAppliesProposal(t *testing.T) {
 	env := newServiceEnv(t)
 	round, err := env.svc.StartRound(context.Background(), StartRoundRequest{
@@ -345,6 +394,90 @@ func TestService_Decide_AcceptAppliesProposal(t *testing.T) {
 	}
 	if item.Priority != 9 {
 		t.Fatalf("expected priority updated to 9, got %d", item.Priority)
+	}
+}
+
+func TestService_Decide_InvalidProposalRequiresRevision(t *testing.T) {
+	env := newServiceEnv(t)
+	round, err := env.svc.StartRound(context.Background(), StartRoundRequest{
+		InitiativeName: "ui-rewrite",
+		Type:           RoundTypeFeedback,
+		Text:           "start",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	round, err = env.svc.RecordAgentTurn("ui-rewrite", round.Number,
+		"```json\n"+`{"form":"mutation_list","mutations":[{"id":"m1","op":"update_item","target":"execute/foo","title":"bad"}]}`+"\n```",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, _, err = env.svc.Decide(context.Background(), DecideRequest{
+		InitiativeName:      "ui-rewrite",
+		RoundNumber:         round.Number,
+		Kind:                DecisionAccept,
+		AcceptedMutationIDs: []string{"m1"},
+	})
+	if err == nil {
+		t.Fatal("expected proposal validation error")
+	}
+	var proposalErr *ProposalValidationError
+	if !errors.As(err, &proposalErr) {
+		t.Fatalf("expected ProposalValidationError, got %T (%v)", err, err)
+	}
+	if len(proposalErr.ValidationErrors) == 0 {
+		t.Fatal("expected validation errors on proposal error")
+	}
+}
+
+func TestService_NormalizeRoundProposalState_DegradesHistoricalInvalidCurrentProposal(t *testing.T) {
+	env := newServiceEnv(t)
+	now := time.Now().UTC().Format(time.RFC3339)
+	round := Round{
+		InitiativeName: "ui-rewrite",
+		Number:         7,
+		Slug:           "legacy-invalid",
+		Type:           RoundTypeFeedback,
+		Status:         RoundStatusAwaitingUser,
+		Submission: Submission{
+			Text:      "legacy",
+			CreatedAt: now,
+		},
+		Thread: []Message{
+			{Role: "user", Content: "legacy", CreatedAt: now},
+			{Role: "agent", Content: "```json\n{\"form\":\"mutation_list\",\"mutations\":[{\"id\":\"m1\",\"op\":\"update_item\",\"target\":\"execute/foo\",\"title\":\"bad\"}]}\n```", ProposalID: "p1", CreatedAt: now},
+		},
+		Proposals: []ProposalRevision{
+			{
+				ID:           "p1",
+				MessageIndex: 1,
+				CreatedAt:    now,
+				Proposal: proposals.Proposal{
+					Form: proposals.FormMutationList,
+					Mutations: []proposals.Mutation{
+						{ID: "m1", Op: proposals.OpUpdateItem, Target: "execute/foo"},
+					},
+				},
+			},
+		},
+		CurrentProposalID: "p1",
+		CreatedAt:         now,
+		UpdatedAt:         now,
+	}
+	normalized := env.svc.normalizeRoundProposalState(round)
+	if normalized.CurrentProposalID != "" {
+		t.Fatalf("expected current proposal cleared, got %q", normalized.CurrentProposalID)
+	}
+	if !normalized.NeedsRevision {
+		t.Fatal("expected NeedsRevision=true for legacy invalid proposal")
+	}
+	if len(normalized.LastValidationErrors) == 0 {
+		t.Fatal("expected validation errors surfaced for legacy invalid proposal")
+	}
+	if len(normalized.Proposals[0].ValidationErrors) == 0 {
+		t.Fatal("expected revision validation errors recorded during normalization")
 	}
 }
 

@@ -236,6 +236,11 @@ func (s *FileStore) SaveItem(item BacklogItem) error {
 	} else {
 		delete(merged, "acceptance_deny")
 	}
+	if len(item.Creates) > 0 {
+		merged["creates"] = item.Creates
+	} else {
+		delete(merged, "creates")
+	}
 	if strings.TrimSpace(item.SpawnedFrom) != "" {
 		merged["spawned_from"] = item.SpawnedFrom
 	} else {
@@ -372,6 +377,9 @@ func (s *FileStore) CheckDependencies(dependsOn []string) ([]string, error) {
 			// Missing/unloadable specs are presumed completed & archived.
 			// A dependency that no longer exists on disk should never block
 			// execution — it is valid for completed work to be cleaned up.
+			continue
+		}
+		if IsArchived(item) {
 			continue
 		}
 		if blockingDepStatuses[item.Status] {

@@ -395,6 +395,7 @@ export const literalSelectors = {
     proposalDismiss: "feedback-proposal-dismiss",
     proposalApplySummary: "feedback-proposal-apply-summary",
     parseErrorNotice: "feedback-parse-error-notice",
+    invalidProposalNotice: "feedback-invalid-proposal-notice",
     cancelButton: "feedback-cancel-button",
     deleteButton: "feedback-delete-button",
     openRunButton: "feedback-open-run-button",

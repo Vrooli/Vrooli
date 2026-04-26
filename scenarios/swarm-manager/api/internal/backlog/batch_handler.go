@@ -94,6 +94,7 @@ type batchCreateItem struct {
 	Effort          *string  `json:"effort,omitempty"`
 	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
+	Creates         []string `json:"creates,omitempty"`
 }
 
 // batchCreateInitiative describes initiative metadata supplied with a batch import.
@@ -395,6 +396,9 @@ func (h *Handler) validateSingleBatchItem(
 	if err := validateGlobs(raw.AcceptanceDeny); err != nil {
 		return validatedItem{}, apierr.BadRequest("item[%d]: acceptance_deny: %s", i, err.Error())
 	}
+	if err := validateGlobs(raw.Creates); err != nil {
+		return validatedItem{}, apierr.BadRequest("item[%d]: creates: %s", i, err.Error())
+	}
 
 	item := BacklogItem{
 		Name:            name,
@@ -411,6 +415,7 @@ func (h *Handler) validateSingleBatchItem(
 		Effort:          effort,
 		AcceptanceAllow: raw.AcceptanceAllow,
 		AcceptanceDeny:  raw.AcceptanceDeny,
+		Creates:         raw.Creates,
 	}
 
 	return validatedItem{item: item, kind: kind}, nil

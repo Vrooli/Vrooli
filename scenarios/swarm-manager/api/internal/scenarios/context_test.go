@@ -48,13 +48,13 @@ func getContext(t *testing.T, h *Handler, name string) ScenarioContext {
 func TestGetContext_ReturnsInitiativesOrphansAndRollup(t *testing.T) {
 	inits := []initiatives.InitiativeWithRollup{
 		{
-			Initiative: initiatives.Initiative{Name: "audio-platform", Title: "Audio", Status: "active"},
-			Rollup:     initiatives.RollupStatus{Total: 3, Completed: 1, Pending: 2},
+			Initiative:      initiatives.Initiative{Name: "audio-platform", Title: "Audio", Status: "active"},
+			Rollup:          initiatives.RollupStatus{Total: 3, Completed: 1, Pending: 2},
 			TargetScenarios: []string{"web-console"},
 		},
 		{
-			Initiative: initiatives.Initiative{Name: "other-init", Title: "Other", Status: "active"},
-			Rollup:     initiatives.RollupStatus{Total: 2, Completed: 0, Pending: 2},
+			Initiative:      initiatives.Initiative{Name: "other-init", Title: "Other", Status: "active"},
+			Rollup:          initiatives.RollupStatus{Total: 2, Completed: 0, Pending: 2},
 			TargetScenarios: []string{"command-center"},
 		},
 	}

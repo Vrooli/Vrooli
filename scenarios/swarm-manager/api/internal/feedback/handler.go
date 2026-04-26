@@ -187,10 +187,13 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	// into the round (which is what triggers Get's polling).
 	for i, round := range rounds {
 		if round.Status != RoundStatusAgentThinking {
+			rounds[i] = h.svc.normalizeRoundProposalState(round)
 			continue
 		}
 		if advanced, advErr := h.svc.EnsurePolledTurn(r.Context(), round); advErr == nil {
-			rounds[i] = advanced
+			rounds[i] = h.svc.normalizeRoundProposalState(advanced)
+		} else {
+			rounds[i] = h.svc.normalizeRoundProposalState(round)
 		}
 	}
 	if err := httputil.JSON(w, map[string]any{"rounds": rounds, "count": len(rounds)}); err != nil {
@@ -218,6 +221,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	if advanced, advErr := h.svc.EnsurePolledTurn(r.Context(), round); advErr == nil {
 		round = advanced
 	}
+	round = h.svc.normalizeRoundProposalState(round)
 	if err := httputil.JSON(w, round); err != nil {
 		apierr.MapError(w, "[feedback] get", apierr.Internal("encode response"))
 	}
@@ -311,6 +315,15 @@ func (h *Handler) Decide(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, ErrRoundNotFound) {
 			apierr.MapError(w, "[feedback] decide", apierr.NotFound("feedback round not found"))
+			return
+		}
+		var proposalErr *ProposalValidationError
+		if errors.As(err, &proposalErr) {
+			apierr.MapError(w, "[feedback] decide", apierr.BadRequest("current proposal is invalid and must be revised").
+				WithCode("proposal_validation_error").
+				WithDetails(map[string]any{
+					"validation_errors": proposalErr.ValidationErrors,
+				}))
 			return
 		}
 		// Distinguish user-fixable errors (wrong status, missing
@@ -418,8 +431,8 @@ func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Delete permanently removes a terminal feedback round. Returns 409 if the
-// round is still in flight (the user must Cancel first); 404 if missing.
+// Delete permanently removes a feedback round whenever no agent is actively
+// running for it. Returns 409 only for agent_thinking rounds; 404 if missing.
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	name, roundNum, ok := h.parseNameAndRound(w, r, "delete")
 	if !ok {

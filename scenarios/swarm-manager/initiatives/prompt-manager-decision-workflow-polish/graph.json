@@ -1,6 +1,6 @@
 {
   "initiative": "prompt-manager-decision-workflow-polish",
-  "generated_at": "2026-04-26T12:16:37Z",
+  "generated_at": "2026-04-26T12:46:38Z",
   "nodes": [
     {
       "id": "execute/prompt-manager-decision-deferral-primitive",
@@ -27,7 +27,7 @@
       "kind": "fix",
       "name": "prompt-manager-heartbeat-list-lifecycle-states",
       "title": "Heartbeat-list should distinguish scheduled-never-fired vs dormant vs broken",
-      "status": "queued",
+      "status": "in_review",
       "priority": 4,
       "effort": "S",
       "archived": false

@@ -1,0 +1,41 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-26T16:45:00Z",
+  "mode": "finalize",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 3,
+    "approach_solid": 3,
+    "testable": 3,
+    "risk_awareness": 3
+  },
+  "items": [
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Synthesis incorporated all four round-1 decisions (D1=A, D2=A, D3=B, D4=A) into plan.md as load-bearing constraints in a new 'Contract Decisions' table, with each decision also wired into the corresponding phase, test row, risk row, and definition-of-done checkbox. Future agents reading plan.md no longer need to cross-reference round-001.json to know what was chosen."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "Plan now contains all mandatory sections from implementation-plan-authoring: Purpose, Required Reading, Problem Statement, Scope (In/Out), Current Technical Context (file table with line numbers), Target End State (9 numbered invariants), Implementation Strategy (5 phases), Contract Decisions, Testing Plan (7-row table with file/layer/rationale), Rollout/Validation Checklist (with explicit `vrooli scenario restart workspace-sandbox && vrooli scenario restart agent-manager` final cleanup step), Risks & Mitigations, Non-goals/Prohibited Patterns, and Definition of Done."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Added an explicit Greenfield Declaration section near the top stating this is NOT a greenfield change, and explaining why no compatibility shim, dual-mode flag, or grandfathering mechanism is added (the prior behavior was a contract violation). This satisfies the validation warning while honoring Decision 2A's no-migration stance."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "Cross-initiative implications were carried forward from round 1 unchanged: GCT hardening must map AcceptanceInfo.Status -> new state taxonomy; auto-apply-defaults can rely on this fix's per-file gate; e2e verification still owns the spawn-surface layer. Surfaced for orchestrator attention; no sibling backlog items were mutated during finalization."
+    },
+    {
+      "id": "i5",
+      "type": "info",
+      "text": "Readiness scored 3/3 across all five dimensions. No remaining gaps. Ready to transition to status=ready and queue for execution. No further workshop rounds needed unless new external constraints emerge."
+    }
+  ],
+  "plan_updates": "Restructured plan.md to satisfy all mandatory implementation-plan-authoring sections while preserving the round-1 content. Added: Purpose, Greenfield Declaration (explicit not-greenfield with rationale), Scope (In/Out) split, Current Technical Context (file/line/role table covering all 11 touched call sites), Target End State (9 numbered invariants), Contract Decisions table (D1A/D2A/D3B/D4A), Testing Plan (7-row table with file paths and layers), Rollout/Validation Checklist with explicit `vrooli scenario restart workspace-sandbox` and `vrooli scenario restart agent-manager` steps as final cleanup, expanded Non-goals/Prohibited Patterns (added: no legacy_accept_all column, no PROBLEMS.md entry, no investigation.go production change, no backwards-compat shim), and Definition of Done with 12 objective checkboxes. Tightened Phase 3 (investigation handling) to reflect Decision 1A's test-only resolution and Phase 4 (regression tests) to enumerate the four unit + one assumption + one service-integration tests from Decision 3B."
+}

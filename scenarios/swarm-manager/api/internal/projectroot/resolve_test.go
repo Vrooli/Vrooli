@@ -1,7 +1,6 @@
 package projectroot
 
 import (
-	"errors"
 	"path/filepath"
 	"testing"
 
@@ -65,20 +64,28 @@ func TestResolve_DedupsRepeatedScenario(t *testing.T) {
 	}
 }
 
-func TestResolve_AmbiguousScenariosErrors(t *testing.T) {
-	repoRootForTest(t)
+func TestResolve_MultipleScenariosFallsBackToWideScope(t *testing.T) {
+	repoRoot := repoRootForTest(t)
 
-	_, err := Resolve(Options{
+	// Cross-cutting items targeting multiple scenarios must resolve to a
+	// monorepo-wide scope rather than erroring.
+	got, err := Resolve(Options{
 		AcceptanceAllow: []string{
 			"scenarios/foo/cli/**",
 			"scenarios/bar/api/**",
 		},
 	})
-	if err == nil {
-		t.Fatal("expected error, got nil")
+	if err != nil {
+		t.Fatalf("Resolve() error: %v", err)
 	}
-	if !errors.Is(err, ErrAmbiguousScenarios) {
-		t.Errorf("expected ErrAmbiguousScenarios, got %v", err)
+	if got.ProjectRoot != repoRoot {
+		t.Errorf("ProjectRoot = %q, want %q", got.ProjectRoot, repoRoot)
+	}
+	if got.ScopePath != "." {
+		t.Errorf("ScopePath = %q, want %q for multi-scenario wide-scope fallback", got.ScopePath, ".")
+	}
+	if got.TargetScenario != "" {
+		t.Errorf("TargetScenario should be empty when multiple scenarios match, got %q", got.TargetScenario)
 	}
 }
 

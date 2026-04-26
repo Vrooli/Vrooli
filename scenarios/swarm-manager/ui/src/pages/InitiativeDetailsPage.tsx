@@ -515,15 +515,32 @@ export function InitiativeDetailsPage() {
 
   const depRelationsMap = useMemo(() => {
     const initiativeKeys = new Set(resolvedItems.map((i) => `${i.kind}/${i.name}`));
+    const archivedKeys = new Set(
+      resolvedItems
+        .filter((item) => item.archivedAt != null)
+        .map((item) => `${item.kind}/${item.name}`),
+    );
+    const activeBacklogItems = backlogItems.filter((item) => item.archivedAt == null);
     const map = new Map<string, { parentCount: number; childCount: number }>();
     for (const item of resolvedItems) {
       const relations = computeDependencyRelations(
         { kind: item.kind, name: item.name, dependsOn: item.dependsOn },
-        backlogItems,
+        activeBacklogItems,
       );
+      const itemKey = `${item.kind}/${item.name}`;
+      if (archivedKeys.has(itemKey)) {
+        map.set(itemKey, { parentCount: 0, childCount: 0 });
+        continue;
+      }
       map.set(`${item.kind}/${item.name}`, {
-        parentCount: relations.parents.filter((p) => initiativeKeys.has(`${p.kind}/${p.name}`)).length,
-        childCount: relations.children.filter((c) => initiativeKeys.has(`${c.kind}/${c.name}`)).length,
+        parentCount: relations.parents.filter((p) => {
+          const key = `${p.kind}/${p.name}`;
+          return initiativeKeys.has(key) && !archivedKeys.has(key);
+        }).length,
+        childCount: relations.children.filter((c) => {
+          const key = `${c.kind}/${c.name}`;
+          return initiativeKeys.has(key) && !archivedKeys.has(key);
+        }).length,
       });
     }
     return map;

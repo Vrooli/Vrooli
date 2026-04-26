@@ -6,13 +6,14 @@
   "enabled": true,
   "schedule": "30 14 * * *",
   "lastExecution": {
-    "startedAt": "2026-04-24T18:30:00Z",
-    "endedAt": "2026-04-24T18:31:15Z",
-    "status": "completed",
-    "runId": "ed1cbfac-338a-496e-ae01-318cae8fa6bf",
-    "logPath": "../store/teams/monetization/members/catalog-strategist/logs/2026-04-24T18-30-00Z.log"
+    "startedAt": "2026-04-26T18:30:00Z",
+    "endedAt": "2026-04-26T18:37:18Z",
+    "status": "failed",
+    "runId": "057547bf-82f3-4bef-9f9c-2edecb47eb1a",
+    "logPath": "../store/teams/monetization/members/catalog-strategist/logs/2026-04-26T18-30-00Z.log",
+    "error": "agent-manager unreachable after 4 attempts: resolve agent-manager url: api-core discovery command_failed scenario=\"agent-manager\" port=\"API_PORT\" output=\"Runtime error: no running port named API_PORT for scenario \\\"agent-manager\\\"\\nStart the scenario before querying runtime ports\" err=exit status 1"
   },
-  "revision": 10,
+  "revision": 13,
   "createdAt": "2026-04-20T00:00:00Z",
-  "updatedAt": "2026-04-24T18:31:15Z"
+  "updatedAt": "2026-04-26T18:37:22Z"
 }

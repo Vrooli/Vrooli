@@ -26,8 +26,11 @@ import (
 	"swarm-manager/internal/fileops"
 	"swarm-manager/internal/fileserve"
 	"swarm-manager/internal/httputil"
+	"swarm-manager/internal/projectroot"
 	"swarm-manager/internal/settings"
 	"swarm-manager/internal/workshop"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
@@ -114,6 +117,22 @@ func (h *Handler) WorkshopSave(w http.ResponseWriter, r *http.Request) {
 	})
 
 	slog.Info("workshop round saved", "kind", kind, "name", name, "file", roundFile, "bytes", fileSize)
+
+	// Acceptance validation runs after every round so the agent and operator
+	// see structured per-glob problems on the next round. At finalization,
+	// remaining problems block the save: a stale plan must not be allowed
+	// to finalize silently.
+	if accReport, accErr := runAcceptanceValidation(item, itemDir); accErr != nil {
+		slog.Warn("acceptance validation could not run", "kind", kind, "name", name, "err", accErr)
+	} else if accReport != nil && !accReport.Clean() && round.Mode == "finalize" {
+		apierr.MapError(w, "[backlog] workshop-save", apierr.PlanStale(
+			"finalization blocked: plan references paths that do not exist and are not declared in `creates`",
+			map[string]any{
+				"missingPaths": accReport.Problems,
+			},
+		))
+		return
+	}
 
 	// Post-finalization validation: write validation-report.json when a finalize round is saved.
 	if round.Mode == "finalize" && kind != KindResearch {
@@ -427,4 +446,119 @@ func (h *Handler) WorkshopReset(w http.ResponseWriter, r *http.Request) {
 	if err := httputil.ProtoJSON(w, resp); err != nil {
 		apierr.MapError(w, "[backlog] workshop-reset", apierr.Internal("failed to encode response"))
 	}
+}
+
+// ReWorkshop is the high-level "plan is stale, redo the workshop" trigger.
+// It clears the existing workshop rounds and plan/conclusion artifacts (same
+// as WorkshopReset), reverts status back to a draft state, and queues a
+// fresh workshop round. The intended caller is the UI's stale-plan panel,
+// which surfaces after spawn-time validation rejects an item with a
+// plan_stale error; the CLI mirror is `swarm-manager backlog re-workshop`.
+func (h *Handler) ReWorkshop(w http.ResponseWriter, r *http.Request) {
+	kind, name, ok := h.parseKindAndName(w, r, "re-workshop")
+	if !ok {
+		return
+	}
+
+	item, err := h.store.LoadItem(kind, name)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			apierr.MapError(w, "[backlog] re-workshop", apierr.NotFound("backlog item not found"))
+			return
+		}
+		apierr.MapError(w, "[backlog] re-workshop", apierr.Internal("failed to load backlog item"))
+		return
+	}
+
+	if h.activityChecker != nil && h.activityChecker.HasActiveAgent(r.Context(), string(kind), name) {
+		apierr.MapError(w, "[backlog] re-workshop", apierr.Conflict("an agent is currently working on this item; try again after it finishes"))
+		return
+	}
+
+	itemDir := h.store.ItemDir(kind, name)
+	deliverableFile := "plan.md"
+	if strings.EqualFold(string(kind), "research") {
+		deliverableFile = "conclusion.md"
+	}
+
+	deleted, err := workshop.ResetWorkshop(itemDir, deliverableFile)
+	if err != nil {
+		slog.Error("re-workshop reset failed", "err", err)
+		apierr.MapError(w, "[backlog] re-workshop", apierr.Internal("failed to reset workshop artifacts"))
+		return
+	}
+
+	// Force status back to backlog so the workshop ticker picks it up.
+	statusReverted := false
+	if item.Status != StatusBacklog {
+		item.Status = StatusBacklog
+		if err := h.store.SaveItem(item); err != nil {
+			slog.Error("re-workshop failed to revert status", "err", err)
+			apierr.MapError(w, "[backlog] re-workshop", apierr.Internal("failed to revert status"))
+			return
+		}
+		statusReverted = true
+	}
+
+	// Kick off a fresh workshop round. Bypass dependency gating because the
+	// caller has explicitly asked us to re-author against the current repo.
+	go func(it BacklogItem) {
+		if _, _, spawnErr := h.spawnWorkshopAsync(it, ResearchModeInitialize); spawnErr != nil {
+			slog.Error("re-workshop spawn failed", "kind", it.Kind, "name", it.Name, "err", spawnErr)
+		}
+	}(item)
+
+	slog.Info("re-workshop triggered", "kind", kind, "name", name, "deleted_rounds", deleted, "status_reverted", statusReverted)
+
+	resp := &apipb.WorkshopResetResponse{
+		DeletedRounds:  int32(deleted),
+		StatusReverted: statusReverted,
+	}
+	if err := httputil.ProtoJSON(w, resp); err != nil {
+		apierr.MapError(w, "[backlog] re-workshop", apierr.Internal("failed to encode response"))
+	}
+}
+
+// AcceptanceValidationArtifact captures the structured result of running
+// the acceptance validator against an item's spec. It is persisted as
+// `acceptance-validation.json` in the item directory after every workshop
+// round save so the next round (and the operator) can see exactly which
+// globs are stale and why. When `Problems` is empty the report is clean.
+type AcceptanceValidationArtifact struct {
+	GeneratedAt string                    `json:"generated_at"`
+	ProjectRoot string                    `json:"project_root"`
+	Problems    []projectroot.GlobProblem `json:"problems"`
+}
+
+// runAcceptanceValidation runs the relaxed validator (honors creates) for
+// the given item, persists a structured artifact under the item directory,
+// and returns the report. A nil return with a nil error means validation
+// could not run (no acceptance globs declared, or repo root undiscoverable);
+// the caller should treat that as "not blocking."
+func runAcceptanceValidation(item BacklogItem, itemDir string) (*projectroot.AcceptanceReport, error) {
+	if len(item.AcceptanceAllow) == 0 {
+		return nil, nil
+	}
+	root, err := repocontract.FindRepoRootFromEnvOrCWD()
+	if err != nil {
+		return nil, fmt.Errorf("find repo root: %w", err)
+	}
+	report, valErr := projectroot.ValidateAcceptance(root, item.AcceptanceAllow, item.Creates)
+	// Persist artifact regardless of success — a clean run records "no problems"
+	// so consumers can distinguish "validated and clean" from "never validated."
+	artifact := AcceptanceValidationArtifact{
+		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
+		ProjectRoot: root,
+	}
+	if report != nil {
+		artifact.Problems = report.Problems
+	}
+	data, marshalErr := json.MarshalIndent(artifact, "", "  ")
+	if marshalErr == nil {
+		_ = os.WriteFile(filepath.Join(itemDir, "acceptance-validation.json"), data, 0o644)
+	}
+	if valErr != nil && !errors.Is(valErr, projectroot.ErrAcceptanceMismatch) {
+		return report, valErr
+	}
+	return report, nil
 }

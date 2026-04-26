@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"swarm-manager/internal/initiatives"
 	"swarm-manager/internal/initiativelock"
+	"swarm-manager/internal/initiatives"
 )
 
 // TestSweepStaleFeedbackLocks_ClearsExpiredLocksAcrossInitiatives pins the

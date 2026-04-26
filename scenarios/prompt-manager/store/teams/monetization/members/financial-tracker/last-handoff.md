@@ -11,7 +11,7 @@
 - No stale inputs (file has never been populated).
 
 ### Snapshot summary
-- No change since 2026-04-23. All fields unchanged from prior heartbeat.
+- No change since 2026-04-24. All fields unchanged from prior heartbeat.
 - Cash: `pending-operator`
 - Monthly burn: `pending-operator` (all four categories unpopulated)
 - Monthly revenue: 0 `aspirational` (no subscriptions shipped; services not active)
@@ -20,7 +20,7 @@
 - Time allocation: product `pending-operator` / services 0% `not-applicable-pre-launch` / ops `pending-operator`
 
 ### Material deltas since last snapshot
-- No change since 2026-04-23. `operator-inputs.json::lastUpdatedAt` is still null; no new subscription, services, or infra signals. Quiet-heartbeat stop condition invoked.
+- No change since 2026-04-24. `operator-inputs.json::lastUpdatedAt` is still null; no LPBS/Stripe events, no services activations, no infra cost data. Quiet-heartbeat stop condition invoked.
 
 ### Flags raised
 - `operator-inputs-unpopulated` (unchanged structural flag; not a framework-level breach)
@@ -29,7 +29,7 @@
 - assumption-drift: none
 
 ### Decisions raised this heartbeat
-- none. No new data; team queue remains 0 pending (far below 12-decision ceiling). Own-context cap 0/3.
+- none. Team queue at 3 pending (well under 12-ceiling, normal mode). Own-context cap 1/3 — `dec-1777061056395576280` (pricing-decision, raised by market-validator 2026-04-24 about the $29-$49 trough). No superseding signal from this snapshot: no cost data has shifted to contradict or refresh the market-validator's underlying math. Leaving it as-is for the operator's review.
 
 ### Assumptions checked
 - Assumption 1 (Tier 2 majority within 12 mo of Tier 2 offering): still holds — no data
@@ -41,8 +41,8 @@
 ### Pending-telemetry fields
 - Subscription MRR by tier/bundle → TELEMETRY_ROADMAP.md Gap 2 (LPBS/Stripe lifecycle events)
 - Retention / monthly churn / LTV → post-launch, depends on Gap 2
-- Infrastructure cost auto-aggregation → scenario-to-cloud cost API (currently satisfied by operator-inputs.json::monthlyBurn.infrastructure once populated)
+- Infrastructure cost auto-aggregation → scenario-to-cloud cost API (currently satisfied by `operator-inputs.json::monthlyBurn.infrastructure` once populated)
 - Gateway token cost auto-aggregation → API gateway (Tier 2 prereq); today bundled into `monthlyBurn.aiApi`
 
 ### Knowledge entry written
-- topic: `ledger-snapshot-2026-04-24` (id: `knw-1777053653472379841`; supersedes `knw-1776967259105788561`)
+- topic: `ledger-snapshot-2026-04-26` (id: `knw-1777226465178823011`; supersedes `knw-1777053653472379841`)

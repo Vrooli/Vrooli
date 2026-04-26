@@ -1,0 +1,146 @@
+{
+  "round": 1,
+  "generated_at": "2026-04-26T20:50:00Z",
+  "mode": "workshop",
+  "pending_synthesis": true,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Heartbeat-test fidelity: how real should the heartbeat coverage be?",
+      "context": "The heartbeat actually invokes Claude Code through agent-manager (cron 0 */3 * * *). Running the real heartbeat in CI has cost/flake/speed downsides; running only the data-layer pieces gives deterministic coverage but doesn't exercise the LLM-driven enrichment. Choose where the bar sits.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Pure Go integration test of the data seam only — pending-questions + workshop/save + clarification spawn + canonical hash recipe; no heartbeat process is ever invoked. Fast, deterministic, no LLM cost.",
+          "rationale": "Catches every regression in the rank/save/round paths the heartbeat depends on. Cheapest to maintain. Leaves zero coverage on the LLM enrichment narrative — but that narrative is itself defined in HEARTBEAT.md prose, not testable code."
+        },
+        {
+          "key": "B",
+          "label": "Bash/scripted scenario test that calls `prompt-manager team heartbeat-trigger director-swarm workshop-decision-prep` for real, asserts on `last-handoff.md` shape on disk, then mutates state and re-triggers.",
+          "rationale": "Highest fidelity — actually proves the heartbeat agent renders the documented format. Slow (Claude run), costly (real tokens), and flaky against LLM nondeterminism. Hard to gate CI on."
+        },
+        {
+          "key": "C",
+          "label": "Hybrid: Go integration test for the data seam (option A) AS automated coverage + a documented manual heartbeat smoke run as a checklist (in TEST-PLAN.md) that an operator runs once after material changes.",
+          "rationale": "Recommended. Locks the deterministic surface in CI cheaply; reserves the LLM enrichment validation for human review where its judgment value lives anyway. Matches the repo's existing pattern (no integration tests are gated on real Claude runs).",
+          "recommended": true
+        },
+        {
+          "key": "D",
+          "label": "Other — describe in freeform.",
+          "rationale": "Provide your own approach if none of the above fit."
+        }
+      ],
+      "selected": "C"
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "Where the Go integration test file lives",
+      "context": "Existing scenario-level tests in swarm-manager use two patterns: e2e tests at `api/` root (`e2e_initiative_feedback_test.go`) and integration tests inside `api/internal/backlog/` (e.g. `pending_questions_test.go`, `workshop_save_test.go`). The chore's acceptance_allow currently covers `scenarios/swarm-manager/api/internal/backlog/**` but NOT the `api/` root. Picking the location decides whether we widen the glob.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Inside the backlog package: `scenarios/swarm-manager/api/internal/backlog/workshop_decision_prep_integration_test.go`. Reuses sibling helpers (`setupTestHandlerWithAgent`, `createTestItem`, `enableAutoAdvanceSettings`, `makeWorkshopSaveBody`, `workshopSaveRequest`) directly without re-export. Already inside acceptance_allow.",
+          "rationale": "Recommended. Matches the most-used pattern for tests that exercise multiple endpoints inside the backlog package. No glob changes. No exported helpers. Reads as a natural extension of the existing test files.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "At the api/ root: `scenarios/swarm-manager/api/e2e_workshop_decision_prep_test.go`. Sibling to `e2e_initiative_feedback_test.go`; drives the real router through `http.Handler` to exercise the full pipeline.",
+          "rationale": "Stronger end-to-end signal (whole router, not just the package handlers). Requires widening acceptance_allow to include `scenarios/swarm-manager/api/e2e_*_test.go` and re-export of currently-unexported test helpers in `internal/backlog`."
+        },
+        {
+          "key": "C",
+          "label": "Other — describe in freeform.",
+          "rationale": "Provide your own location/structure."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Skill smoke test plan location",
+      "context": "Skills can't be invoked headlessly — the smoke test for `workshop-decision-sync` is a documented operator checklist. Where it lives affects discoverability and how often it gets refreshed.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Colocated with the skill: `scenarios/prompt-manager/store/skills/packs/core/workshop-decision-sync/TEST-PLAN.md`, plus a one-line pointer at the bottom of `SKILL.md`.",
+          "rationale": "Recommended. Anyone editing the skill sees the plan in the same directory. SKILL.md stays lean (it's read into Claude context every invocation, so don't bloat it). Already inside acceptance_allow.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Embedded directly in SKILL.md as a final 'Test Plan' section.",
+          "rationale": "Maximum discoverability — anyone reading the skill sees the plan. But SKILL.md is loaded into the agent's context on every skill invocation, so the test plan adds tokens to every real session. Costs ongoing context budget for periodic-only value."
+        },
+        {
+          "key": "C",
+          "label": "Inside the chore item's archive: `scenarios/swarm-manager/chore/workshop-decision-sync-tests/skill-smoke-test-plan.md`.",
+          "rationale": "Keeps the plan tied to the chore that introduced it. Downside: chore items get archived; the plan would need to be moved or referenced from elsewhere to stay useful long-term."
+        },
+        {
+          "key": "D",
+          "label": "Other — describe in freeform.",
+          "rationale": "Provide your own location."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Async clarify-spawn coverage: automated, manual, or both?",
+      "context": "The skill's escape hatch — `swarm-manager backlog clarify` — has two interesting properties to verify: (1) the data seam (HTTP POST creates a thread, leaves the decision unmodified, returns a run_id) and (2) the UX (skill offers it, operator accepts, skill moves on without waiting). These can be split between the two deliverables.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Automated only — Go integration test asserts the clarification HTTP seam (thread created, decision untouched, run_id returned). Skill smoke plan does NOT walk through async clarify (assumes the seam test covers it).",
+          "rationale": "Cheapest. Risk: the skill could regress its 'don't wait for resolution' UX without anyone noticing until an operator hits it."
+        },
+        {
+          "key": "B",
+          "label": "Manual only — skill smoke plan documents an async-clarify walkthrough; no Go test for the clarification endpoint here.",
+          "rationale": "Lighter Go test. Risk: regression in `POST /workshop/clarification` (e.g., it accidentally mutates the decision) wouldn't be caught by CI; relies on the periodic smoke run."
+        },
+        {
+          "key": "C",
+          "label": "Both — Go test covers the seam (assertions: thread created, decision untouched, run_id returned, mock agent service receives the spawn call); manual plan covers the UX (operator confirms the skill offers it, accepts, the session continues to the next decision).",
+          "rationale": "Recommended. Each side covers what it's good at. Total cost: ~30 extra lines of Go and one checklist section. Spec language ('async clarification spawn ... with the session continuing past the spawn') reads as both-needed.",
+          "recommended": true
+        },
+        {
+          "key": "D",
+          "label": "Other — describe in freeform.",
+          "rationale": "Provide your own split."
+        }
+      ],
+      "selected": "C"
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Three execute items in this initiative were already implemented outside the swarm-manager flow and accepted-archived in the round-002 feedback decision (2026-04-26). This chore is the only remaining member; once it lands, `workshop-decision-triage` is shippable. No cross-initiative ripple."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "The current `last-handoff.md` for `workshop-decision-prep` is a placeholder ('No staged briefs yet.') because the heartbeat has not yet fired. The Go integration test will not depend on `last-handoff.md` at all — it simulates the freshness check by computing canonical hashes against the live pending-questions response. The manual smoke plan is what proves the real heartbeat populates the file correctly."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Existing `workshop_save_test.go` already uses `mockAgentService{result: agentmanager.RunResult{...}}` to stub agent spawns — the same pattern is reusable for the clarification-endpoint test (which also spawns an agent for the clarification thread). No new mock infrastructure is required."
+    }
+  ],
+  "plan_updates": "Created plan scaffold with two-deliverable approach (Go integration test for the data seam, manual TEST-PLAN.md for the UX seam). Filled Required Reading, Problem/Goal, Non-Goals, Acceptance Globs, Approach (with concrete subtests for each deliverable), Test Plan Verification, Risks, Cross-Initiative Implications, and Plan Phases. Open Questions deferred to be filled by user decisions on this round."
+}

@@ -64,6 +64,13 @@ func IsReviewStatus(s BacklogStatus) bool {
 	return backlogstatus.IsReview(string(s))
 }
 
+// IsArchived reports whether the backlog item has a non-empty archived_at
+// timestamp and therefore should be treated as terminal/non-actionable by
+// rollup, dependency, and visibility callers.
+func IsArchived(item BacklogItem) bool {
+	return item.ArchivedAt != nil && strings.TrimSpace(*item.ArchivedAt) != ""
+}
+
 // IsValidTransition is a permissive safety net over the backlog state
 // machine: it rejects nonsensical transitions regardless of caller (e.g.,
 // Completed → Ready). Individual handlers stack tighter rules on top.
@@ -109,6 +116,7 @@ type BacklogItem struct {
 	Effort          string               `json:"effort,omitempty"`
 	AcceptanceAllow []string             `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string             `json:"acceptance_deny,omitempty"`
+	Creates         []string             `json:"creates,omitempty"`
 	SpawnedFrom     string               `json:"spawned_from,omitempty"`
 	Note            string               `json:"note,omitempty"`
 	SuggestedSkills []string             `json:"suggested_skills,omitempty"`
@@ -244,6 +252,9 @@ func backlogToProto(item BacklogItem) *domainpb.BacklogItem {
 	}
 	if len(item.AcceptanceDeny) > 0 {
 		result.AcceptanceDeny = item.AcceptanceDeny
+	}
+	if len(item.Creates) > 0 {
+		result.Creates = item.Creates
 	}
 	if strings.TrimSpace(item.SpawnedFrom) != "" {
 		result.SpawnedFrom = &item.SpawnedFrom

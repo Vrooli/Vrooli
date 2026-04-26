@@ -27,6 +27,7 @@ const (
 	updateFieldEffort          = "effort"
 	updateFieldAcceptanceAllow = "acceptance_allow"
 	updateFieldAcceptanceDeny  = "acceptance_deny"
+	updateFieldCreates         = "creates"
 	updateFieldSpawnedFrom     = "spawned_from"
 	updateFieldNote            = "note"
 )
@@ -223,6 +224,11 @@ func validateUpdateBacklogItemRequest(req *apipb.UpdateBacklogItemRequest, field
 			return "acceptance_deny: " + err.Error()
 		}
 	}
+	if fields.Has(updateFieldCreates) {
+		if err := validateGlobs(req.Creates); err != nil {
+			return "creates: " + err.Error()
+		}
+	}
 
 	return ""
 }
@@ -278,6 +284,10 @@ func applyUpdateBacklogPatch(item *BacklogItem, req *apipb.UpdateBacklogItemRequ
 	if fields.Has(updateFieldAcceptanceDeny) {
 		v := cloneStrings(req.AcceptanceDeny)
 		patch.AcceptanceDeny = &v
+	}
+	if fields.Has(updateFieldCreates) {
+		v := cloneStrings(req.Creates)
+		patch.Creates = &v
 	}
 	if fields.Has(updateFieldSpawnedFrom) {
 		v := req.GetSpawnedFrom()

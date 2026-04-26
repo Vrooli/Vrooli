@@ -175,4 +175,3 @@ func (a *initiativeReviewGCTAdapter) PollReview(ctx context.Context, jobID strin
 		ReviewedAt:     result.ReviewedAt,
 	}, true, nil
 }
-

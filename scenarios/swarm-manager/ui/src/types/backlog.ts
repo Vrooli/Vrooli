@@ -39,7 +39,7 @@ export type BacklogKind = "idea" | "research" | "fix" | "execute" | "chore";
 /**
  * A backlog item represents a unit of work for the swarm.
  */
-export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind" | "dependsOn" | "initiative" | "acceptanceAllow" | "acceptanceDeny"> & {
+export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind" | "dependsOn" | "initiative" | "acceptanceAllow" | "acceptanceDeny" | "creates"> & {
   /** Current lifecycle state */
   status: BacklogStatus;
   /** ISO timestamp when the item was archived, or undefined if not archived. */
@@ -54,6 +54,8 @@ export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind"
   acceptanceAllow?: string[];
   /** Glob patterns for forbidden file modifications. */
   acceptanceDeny?: string[];
+  /** Glob patterns for paths the work plans to create (forward-looking acceptance). */
+  creates?: string[];
 };
 
 /**

@@ -212,17 +212,24 @@ func TestParseResearchMode_Finalize(t *testing.T) {
 }
 
 func TestResearchSkillID_Initialize(t *testing.T) {
-	kinds := []BacklogKind{KindIdea, KindFix, KindExecute, KindResearch, KindChore}
-	for _, kind := range kinds {
-		t.Run(string(kind), func(t *testing.T) {
-			entry, ok := promptcatalog.ResolveBacklogSkill(string(ResearchModeInitialize), string(kind))
+	kinds := []struct {
+		kind BacklogKind
+		want string
+	}{
+		{KindIdea, "swarm-manager-initialize-backlog"},
+		{KindFix, "swarm-manager-initialize-backlog"},
+		{KindExecute, "swarm-manager-initialize-backlog"},
+		{KindResearch, "swarm-manager-initialize-research"},
+		{KindChore, "swarm-manager-initialize-backlog"},
+	}
+	for _, tt := range kinds {
+		t.Run(string(tt.kind), func(t *testing.T) {
+			entry, ok := promptcatalog.ResolveBacklogSkill(string(ResearchModeInitialize), string(tt.kind))
 			if !ok {
-				t.Fatalf("expected prompt catalog entry for initialize/%s", kind)
+				t.Fatalf("expected prompt catalog entry for initialize/%s", tt.kind)
 			}
-			got := entry.SkillID
-			want := "swarm-manager-initialize-backlog"
-			if got != want {
-				t.Errorf("ResolveBacklogSkill(initialize, %s) = %q, want %q", kind, got, want)
+			if entry.SkillID != tt.want {
+				t.Errorf("ResolveBacklogSkill(initialize, %s) = %q, want %q", tt.kind, entry.SkillID, tt.want)
 			}
 		})
 	}

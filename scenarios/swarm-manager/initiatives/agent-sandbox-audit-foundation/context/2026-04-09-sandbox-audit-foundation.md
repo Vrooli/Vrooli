@@ -84,11 +84,15 @@ The rollout order is deliberate:
 - Workspace-sandbox semantics and apply behavior:
   - `scenarios/workspace-sandbox/api/internal/sandbox/service.go`
   - `scenarios/workspace-sandbox/api/internal/config/config.go`
-- Sandbox-aware scenario path resolution:
+- Sandbox-aware scenario path resolution (Go-based, not the legacy bash paths):
   - `packages/cli-core/cliutil/sandbox.go`
-  - `scripts/lib/scenario/runner.sh`
+  - `packages/cli-core/cmd/sandbox-resolve/main.go`
+  - `internal/scenario/scenario.go`
+  - `internal/scenarioexec/subprocess.go`
+  - `internal/cli/vroolicli/runtime.go`
+  - `internal/repocontractcheck/checks.go`
   - `scenarios/test-genie/cli/execute/command.go`
-  - `cli/commands/scenario/modules/heal.sh`
+  - Note: the originally-referenced `scripts/lib/scenario/runner.sh` and `cli/commands/scenario/modules/heal.sh` no longer exist; the canonical scenario-restart and heal flows are the Go paths above (`vrooli scenario heal-from-sandbox`).
 - Git Control Tower provenance surfaces:
   - `scenarios/git-control-tower/api/approved_changes_handler.go`
   - `scenarios/git-control-tower/api/review_handler_dimensions.go`
@@ -133,3 +137,15 @@ Containment and enforcement become far more valuable once the auditability/defau
 - Use Git Control Tower correlation and AI Changes clarity as the operator-facing measure of success.
 - When evaluating behaviors, test both success and failure paths, because accepted changes should apply even if the run fails.
 - Keep the distinction between `manual review`, `auto-apply`, `acceptance`, and `locking` explicit in specs, APIs, and UI copy.
+
+## Locked Contract (April 26, 2026)
+
+The auditability contract was finalized in `scenarios/swarm-manager/research/agent-sandbox-auditability-contract/conclusion.md` and mirrored at `scenarios/workspace-sandbox/docs/AUDITABILITY_CONTRACT.md`. Key locked decisions beyond what is captured above:
+
+- **Mode taxonomy**: a single named mode `tracking` is exposed today; `protected` is reserved and errors if requested before its implementation lands.
+- **Sandbox creation timing**: eager — sandboxes are created at run start regardless of whether the agent writes anything. No-op runs leave an empty provenance entry.
+- **Provenance schema additions**: `runOutcome` ∈ {success, failure, cancelled, timeout} on `ProvenanceRunGroup`; `state` ∈ {applied, pending-review, denied} on `ProvenanceFile` (per-file). The AI Changes review queue filters the existing provenance API by `state=pending-review` rather than a new endpoint.
+- **`manualReview=true` semantics**: defers apply until operator approval; the sandbox itself persists beyond run end. Approval can come from any of three surfaces (git-control-tower, agent-manager, workspace-sandbox); the originating surface is recorded for audit.
+- **Out-of-acceptance handling**: changes outside `acceptanceAllow` are retained as `state=pending-review` provenance and surfaced in the same review queue as manual-review pending entries. Workspace-sandbox owns state transitions; GCT only reads them.
+- **Validation gate scope**: the default flips on the agent-manager UI and swarm-manager queue spawn surfaces only. Cron and direct-CLI surface flips are tracked as separate follow-on items.
+- **Pending-to-committed lifecycle**: GCT auto-promotes a pending provenance record to committed when a commit's changed-file set overlaps the pending record's file set.

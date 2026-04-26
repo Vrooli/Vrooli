@@ -402,6 +402,120 @@ func TestUploadFile_ConflictWithDirectory(t *testing.T) {
 	}
 }
 
+// uploadMultipart constructs a multipart upload request with the given path
+// (server-side directory) and content body. Returns the HTTP request ready to
+// hand to UploadFile.
+func uploadMultipart(t *testing.T, kind BacklogKind, name, dir, filename, content string) *http.Request {
+	t.Helper()
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("file", filename)
+	if err != nil {
+		t.Fatalf("create form file: %v", err)
+	}
+	_, _ = part.Write([]byte(content))
+	if dir != "" {
+		_ = writer.WriteField("path", dir)
+	}
+	writer.Close()
+	req := httptest.NewRequest("POST", "/api/v1/backlog/"+string(kind)+"/"+name+"/files", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req = mux.SetURLVars(req, map[string]string{"kind": string(kind), "name": name})
+	return req
+}
+
+// TestUploadFile_StaleAcceptanceWritesValidationArtifact confirms that any
+// upload to an item with stale acceptance globs persists a structured
+// acceptance-validation.json artifact, even when the upload itself is not a
+// finalize round (which would block).
+func TestUploadFile_StaleAcceptanceWritesValidationArtifact(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name:            "stale-allow",
+		Title:           "Stale acceptance",
+		Status:          StatusBacklog,
+		AcceptanceAllow: []string{"path-that-does-not-exist-anywhere/**"},
+		Created:         "2026-01-28T00:00:00Z",
+		Updated:         "2026-01-28T00:00:00Z",
+	})
+
+	req := uploadMultipart(t, KindIdea, "stale-allow", "workshop", "round-001.json", `{"round":1,"mode":"workshop","items":[]}`)
+	w := httptest.NewRecorder()
+	h.UploadFile(w, req)
+	testutil.AssertStatusCreated(t, w)
+
+	artifactPath := filepath.Join(rootDir, "ideas", "stale-allow", "acceptance-validation.json")
+	data, err := os.ReadFile(artifactPath)
+	if err != nil {
+		t.Fatalf("expected acceptance-validation.json, got: %v", err)
+	}
+	var artifact AcceptanceValidationArtifact
+	if err := json.Unmarshal(data, &artifact); err != nil {
+		t.Fatalf("decode artifact: %v", err)
+	}
+	if len(artifact.Problems) == 0 {
+		t.Errorf("expected at least one problem, got none")
+	}
+}
+
+// TestUploadFile_FinalizeRoundBlockedOnStale confirms that uploading a
+// workshop/round-N.json with mode=finalize against an item with stale
+// acceptance globs returns plan_stale and rolls the file back from disk.
+func TestUploadFile_FinalizeRoundBlockedOnStale(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name:            "stale-finalize",
+		Title:           "Stale finalize",
+		Status:          StatusBacklog,
+		AcceptanceAllow: []string{"path-that-does-not-exist-anywhere/**"},
+		Created:         "2026-01-28T00:00:00Z",
+		Updated:         "2026-01-28T00:00:00Z",
+	})
+
+	req := uploadMultipart(t, KindIdea, "stale-finalize", "workshop", "round-099.json",
+		`{"round":99,"mode":"finalize","items":[]}`)
+	w := httptest.NewRecorder()
+	h.UploadFile(w, req)
+
+	if w.Code != http.StatusConflict {
+		t.Errorf("expected 409 plan_stale, got %d: %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "plan_stale") {
+		t.Errorf("expected body to contain plan_stale, got %s", w.Body.String())
+	}
+	uploadedPath := filepath.Join(rootDir, "ideas", "stale-finalize", "workshop", "round-099.json")
+	if _, err := os.Stat(uploadedPath); !os.IsNotExist(err) {
+		t.Errorf("expected stale finalize file rolled back from disk, but it still exists")
+	}
+}
+
+// TestUploadFile_FinalizeRoundCleanPasses confirms that a finalize round
+// upload against an item whose acceptance globs all exist (or are declared
+// in `creates`) succeeds normally.
+func TestUploadFile_FinalizeRoundCleanPasses(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name:            "clean-finalize",
+		Title:           "Clean finalize",
+		Status:          StatusBacklog,
+		AcceptanceAllow: []string{"path-that-does-not-exist-anywhere/**"},
+		Creates:         []string{"path-that-does-not-exist-anywhere/**"},
+		Created:         "2026-01-28T00:00:00Z",
+		Updated:         "2026-01-28T00:00:00Z",
+	})
+
+	req := uploadMultipart(t, KindIdea, "clean-finalize", "workshop", "round-099.json",
+		`{"round":99,"mode":"finalize","items":[]}`)
+	w := httptest.NewRecorder()
+	h.UploadFile(w, req)
+
+	testutil.AssertStatusCreated(t, w)
+	uploadedPath := filepath.Join(rootDir, "ideas", "clean-finalize", "workshop", "round-099.json")
+	if _, err := os.Stat(uploadedPath); err != nil {
+		t.Errorf("expected clean finalize file persisted, got: %v", err)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Queue / Process / Research tests
 // ---------------------------------------------------------------------------

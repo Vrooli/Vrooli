@@ -29,13 +29,19 @@ func (p *fakePoller) GetRunState(_ context.Context, _ string) (RunState, error) 
 }
 
 // withPoller rebuilds the service in env with the supplied poller, since
-// newServiceEnv doesn't wire one by default. Uses a minimal state
-// builder — EnsurePolledTurn doesn't traverse Apply, so the builder
-// behavior doesn't matter for these tests.
+// newServiceEnv doesn't wire one by default. The state builder mirrors the
+// service-test fixture so parseable proposals that target execute/foo remain
+// valid after RecordAgentTurn's ingest-time validation.
 func withPoller(t *testing.T, env *serviceEnv, p AgentRunPoller) *Service {
 	t.Helper()
 	stateBuilder := func(name string) (proposals.CurrentState, error) {
-		return proposals.CurrentState{InitiativeName: name}, nil
+		return proposals.CurrentState{
+			InitiativeName: name,
+			Nodes: map[string]proposals.GraphNode{
+				"execute/foo": {ID: "execute/foo", Kind: "execute", Name: "foo", Title: "Foo", Priority: 5},
+			},
+			KnownInitiatives: map[string]struct{}{"ui-rewrite": {}},
+		}, nil
 	}
 	svc, err := NewService(Config{
 		Store:        env.store,

@@ -3,6 +3,7 @@
     "scenarios/prompt-manager/store/teams/director-swarm/members/workshop-decision-prep/**",
     "scenarios/prompt-manager/store/teams/director-swarm/TEAM.md"
   ],
+  "archived_at": "2026-04-26T20:39:01Z",
   "created": "2026-04-22T20:27:45Z",
   "depends_on": [
     "execute/swarm-manager-pending-questions-priority-sort"
@@ -16,5 +17,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Create workshop-decision-prep director-swarm member",
-  "updated": "2026-04-22T20:27:45Z"
+  "updated": "2026-04-26T20:39:01Z"
 }

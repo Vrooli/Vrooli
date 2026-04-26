@@ -1,0 +1,25 @@
+{
+  "sections_present": [
+    "Required Reading",
+    "Scope",
+    "Risks + Mitigations",
+    "Non-goals/Prohibited Patterns"
+  ],
+  "sections_missing": [
+    "Purpose",
+    "Problem Statement",
+    "Current Technical Context",
+    "Target End State",
+    "Implementation Strategy",
+    "Contract Decisions",
+    "Testing Plan",
+    "Rollout/Validation Checklist",
+    "Definition of Done"
+  ],
+  "warnings": [
+    "No greenfield declaration found",
+    "No `vrooli scenario restart` final cleanup step found"
+  ],
+  "passed": false,
+  "validated_at": "2026-04-26T22:21:05Z"
+}

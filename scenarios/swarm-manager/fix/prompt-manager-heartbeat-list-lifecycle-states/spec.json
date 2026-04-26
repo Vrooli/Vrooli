@@ -9,8 +9,8 @@
   "kind": "fix",
   "name": "prompt-manager-heartbeat-list-lifecycle-states",
   "priority": 4,
-  "status": "queued",
+  "status": "in_review",
   "tags": [],
   "title": "Heartbeat-list should distinguish scheduled-never-fired vs dormant vs broken",
-  "updated": "2026-04-26T12:16:37Z"
+  "updated": "2026-04-26T12:46:38Z"
 }

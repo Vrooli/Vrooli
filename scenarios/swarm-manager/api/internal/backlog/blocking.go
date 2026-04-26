@@ -104,6 +104,9 @@ type ListBlockingInfo struct {
 func ComputeListBlockingInfo(items []BacklogItem) map[string]ListBlockingInfo {
 	nodes := make([]depgraph.Node, 0, len(items))
 	for _, item := range items {
+		if IsArchived(item) {
+			continue
+		}
 		nodes = append(nodes, backlogNode{item: item})
 	}
 	blockingStatuses := make(map[string]bool, len(blockingDepStatuses))

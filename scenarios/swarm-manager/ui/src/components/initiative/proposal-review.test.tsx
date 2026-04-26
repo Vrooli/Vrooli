@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeAll, afterEach } from "vitest";
 import { render, screen, cleanup, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ProposalReview } from "./proposal-review";
+import type { InitiativeGraphOverlay } from "./InitiativeDependencyGraph";
 import { selectors } from "../../consts/selectors";
 import type { BacklogStatus, ProposalRevision } from "../../types";
 
@@ -315,7 +316,7 @@ describe("ProposalReview", () => {
     const graph = screen.getByTestId("mock-initiative-graph");
     const overlayJSON = graph.getAttribute("data-overlay");
     expect(overlayJSON).toBeTruthy();
-    const overlay = JSON.parse(overlayJSON!);
+    const overlay = JSON.parse(overlayJSON!) as InitiativeGraphOverlay;
     // The three mutations in makeRevision() seed the overlay — smoke-level
     // check that the end-to-end wiring (ProposalReview → buildOverlay →
     // InitiativeDependencyGraph.overlay) delivered a populated payload.
@@ -325,7 +326,7 @@ describe("ProposalReview", () => {
       (overlay.addedNodeIds?.length ?? 0) +
       (overlay.archivedNodeIds?.length ?? 0) +
       (overlay.movedOutNodeIds?.length ?? 0) +
-      (overlay.changedStatusIds?.length ?? 0) +
+      Object.keys(overlay.statusChanges ?? {}).length +
       (overlay.addedEdges?.length ?? 0) +
       (overlay.removedEdges?.length ?? 0);
     expect(totalChanges).toBeGreaterThan(0);

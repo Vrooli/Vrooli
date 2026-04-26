@@ -157,6 +157,8 @@ export interface ProposalRevision {
   rationale?: string;
   created_at: string;
   parse_warnings?: string[];
+  validation_errors?: string[];
+  raw_proposal_text?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -208,6 +210,8 @@ export interface FeedbackRound {
   /** Parser complaints from the most recent agent turn — surfaced alongside
    *  `needs_revision` so the user sees *why* the proposal didn't parse. */
   last_parse_warnings?: string[];
+  /** Validation complaints from the most recent parseable-but-invalid proposal. */
+  last_validation_errors?: string[];
   /** Wall-clock timestamp of the most recent agent run poll. Lets the UI
    *  show "checked X seconds ago" while a round is in agent_thinking. */
   last_polled_at?: string;
@@ -300,4 +304,15 @@ export function currentMutations(round: FeedbackRound): ProposalMutation[] {
   const rev = currentProposal(round);
   if (!rev || rev.proposal.form !== "mutation_list") return [];
   return rev.proposal.mutations ?? [];
+}
+
+/** Returns the most recent invalid proposal revision, if the latest agent turn
+ *  produced a parseable proposal that failed schema validation. */
+export function latestInvalidProposal(round: FeedbackRound): ProposalRevision | undefined {
+  if (!round.needs_revision || !round.proposals?.length) return undefined;
+  for (let i = round.proposals.length - 1; i >= 0; i -= 1) {
+    const rev = round.proposals[i];
+    if (rev?.validation_errors && rev.validation_errors.length > 0) return rev;
+  }
+  return undefined;
 }

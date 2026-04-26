@@ -9,9 +9,13 @@ import (
 	"swarm-manager/internal/testutil"
 )
 
-func doPendingQuestions(t *testing.T, h *Handler) *httptest.ResponseRecorder {
+func doPendingQuestions(t *testing.T, h *Handler, query string) *httptest.ResponseRecorder {
 	t.Helper()
-	req := httptest.NewRequest("GET", "/api/v1/backlog/pending-questions", nil)
+	path := "/api/v1/backlog/pending-questions"
+	if query != "" {
+		path += "?" + query
+	}
+	req := httptest.NewRequest("GET", path, nil)
 	w := httptest.NewRecorder()
 	h.PendingQuestions(w, req)
 	return w
@@ -20,7 +24,7 @@ func doPendingQuestions(t *testing.T, h *Handler) *httptest.ResponseRecorder {
 func TestPendingQuestions_EmptyBacklog(t *testing.T) {
 	h, _ := setupTestHandler(t)
 
-	w := doPendingQuestions(t, h)
+	w := doPendingQuestions(t, h, "")
 	testutil.AssertStatusOK(t, w)
 
 	var resp PendingQuestionsResponse
@@ -53,7 +57,7 @@ func TestPendingQuestions_WorkshopDecisionsOnly(t *testing.T) {
 	}
 	testutil.WriteJSONFile(t, filepath.Join(rootDir, "ideas", "pending-ws", "workshop", "round-001.json"), round)
 
-	w := doPendingQuestions(t, h)
+	w := doPendingQuestions(t, h, "")
 	testutil.AssertStatusOK(t, w)
 
 	var resp PendingQuestionsResponse
@@ -108,7 +112,7 @@ func TestPendingQuestions_ReviewItemsOnly(t *testing.T) {
 	}
 	testutil.WriteJSONFile(t, filepath.Join(itemDir, "archive", "review-state.json"), reviewState)
 
-	w := doPendingQuestions(t, h)
+	w := doPendingQuestions(t, h, "source=review")
 	testutil.AssertStatusOK(t, w)
 
 	var resp PendingQuestionsResponse
@@ -152,7 +156,7 @@ func TestPendingQuestions_MixedSources(t *testing.T) {
 	prd := "# PRD\n\n## \U0001F3AF Operational Targets\n\n### \U0001F534 P0 \u2013 Must ship for viability\n- [ ] OT-P0-001 | Target | Desc\n"
 	testutil.WriteFile(t, filepath.Join(rootDir, "ideas", "mixed", "archive", "PRD.md"), prd)
 
-	w := doPendingQuestions(t, h)
+	w := doPendingQuestions(t, h, "source=all")
 	testutil.AssertStatusOK(t, w)
 
 	var resp PendingQuestionsResponse
@@ -192,7 +196,7 @@ func TestPendingQuestions_AllResolved(t *testing.T) {
 	}
 	testutil.WriteJSONFile(t, filepath.Join(rootDir, "ideas", "all-done", "workshop", "round-001.json"), round)
 
-	w := doPendingQuestions(t, h)
+	w := doPendingQuestions(t, h, "")
 	testutil.AssertStatusOK(t, w)
 
 	var resp PendingQuestionsResponse
@@ -202,5 +206,135 @@ func TestPendingQuestions_AllResolved(t *testing.T) {
 	// No pending questions → empty items.
 	if len(resp.Items) != 0 {
 		t.Errorf("expected 0 items, got %d", len(resp.Items))
+	}
+}
+
+func TestPendingQuestions_SortedByDependencyDepthAndPriority(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name: "base", Title: "Base", Status: StatusBacklog, Priority: 8,
+		Created: "2026-01-01T00:00:00Z", Updated: "2026-01-01T00:00:00Z",
+	})
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name: "peer", Title: "Peer", Status: StatusBacklog, Priority: 2,
+		Created: "2026-01-02T00:00:00Z", Updated: "2026-01-02T00:00:00Z",
+	})
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name: "child", Title: "Child", Status: StatusBacklog, Priority: 1, DependsOn: []string{"idea/base"},
+		Created: "2026-01-03T00:00:00Z", Updated: "2026-01-03T00:00:00Z",
+	})
+
+	for _, name := range []string{"base", "peer", "child"} {
+		testutil.WriteJSONFile(t, filepath.Join(rootDir, "ideas", name, "workshop", "round-001.json"), WorkshopRound{
+			RoundNum: 1,
+			Items:    []WorkshopItem{{ID: "d1", Type: "decision", Topic: name}},
+		})
+	}
+
+	w := doPendingQuestions(t, h, "")
+	testutil.AssertStatusOK(t, w)
+
+	var resp PendingQuestionsResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(resp.Items) != 3 {
+		t.Fatalf("expected 3 items, got %d", len(resp.Items))
+	}
+	if resp.Items[0].Name != "peer" {
+		t.Fatalf("first item = %s, want peer", resp.Items[0].Name)
+	}
+	if resp.Items[1].Name != "base" {
+		t.Fatalf("second item = %s, want base", resp.Items[1].Name)
+	}
+	if resp.Items[2].Name != "child" {
+		t.Fatalf("third item = %s, want child", resp.Items[2].Name)
+	}
+}
+
+func TestPendingQuestions_UnblockingBoostBeatsRecency(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name: "hub", Title: "Hub", Status: StatusBacklog, Priority: 5,
+		Created: "2026-01-01T00:00:00Z", Updated: "2026-01-01T00:00:00Z",
+	})
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name: "fresh", Title: "Fresh", Status: StatusBacklog, Priority: 5,
+		Created: "2026-01-03T00:00:00Z", Updated: "2026-01-03T00:00:00Z",
+	})
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name: "downstream-a", Title: "Downstream A", Status: StatusBacklog, Priority: 5, DependsOn: []string{"idea/hub"},
+		Created: "2026-01-02T00:00:00Z", Updated: "2026-01-02T00:00:00Z",
+	})
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name: "downstream-b", Title: "Downstream B", Status: StatusBacklog, Priority: 5, DependsOn: []string{"idea/downstream-a"},
+		Created: "2026-01-02T00:00:00Z", Updated: "2026-01-02T00:00:00Z",
+	})
+
+	for _, name := range []string{"hub", "fresh"} {
+		testutil.WriteJSONFile(t, filepath.Join(rootDir, "ideas", name, "workshop", "round-001.json"), WorkshopRound{
+			RoundNum: 1,
+			Items:    []WorkshopItem{{ID: "d1", Type: "decision", Topic: name}},
+		})
+	}
+
+	w := doPendingQuestions(t, h, "")
+	testutil.AssertStatusOK(t, w)
+
+	var resp PendingQuestionsResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(resp.Items) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(resp.Items))
+	}
+	if resp.Items[0].Name != "hub" {
+		t.Fatalf("first item = %s, want hub", resp.Items[0].Name)
+	}
+}
+
+func TestPendingQuestions_LimitAndInitiativeFilter(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	for i, name := range []string{"a", "b", "c"} {
+		initiative := "target"
+		if i == 2 {
+			initiative = "other"
+		}
+		createTestItem(t, rootDir, KindIdea, BacklogItem{
+			Name: name, Title: name, Status: StatusBacklog, Priority: i + 1, Initiative: initiative,
+			Created: "2026-01-01T00:00:00Z", Updated: "2026-01-01T00:00:00Z",
+		})
+		testutil.WriteJSONFile(t, filepath.Join(rootDir, "ideas", name, "workshop", "round-001.json"), WorkshopRound{
+			RoundNum: 1,
+			Items:    []WorkshopItem{{ID: "d1", Type: "decision", Topic: name}},
+		})
+	}
+
+	w := doPendingQuestions(t, h, "initiative=target&limit=1")
+	testutil.AssertStatusOK(t, w)
+
+	var resp PendingQuestionsResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(resp.Items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(resp.Items))
+	}
+	if got := resp.Items[0].Name; got != "a" {
+		t.Fatalf("first item = %s, want a", got)
+	}
+}
+
+func TestPendingQuestions_InvalidQueryParams(t *testing.T) {
+	h, _ := setupTestHandler(t)
+
+	for _, query := range []string{"source=nope", "limit=-1", "limit=abc"} {
+		w := doPendingQuestions(t, h, query)
+		if w.Code != 400 {
+			t.Fatalf("query %q: status = %d, want 400", query, w.Code)
+		}
 	}
 }

@@ -107,6 +107,7 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 		Purpose:         "process",
 		AcceptanceAllow: item.AcceptanceAllow,
 		AcceptanceDeny:  item.AcceptanceDeny,
+		Creates:         item.Creates,
 		Environment:     map[string]string{"VROOLI_SPAWN_SOURCE": item.Kind + "/" + item.Name},
 	})
 	if err != nil {

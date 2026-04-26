@@ -1,23 +1,23 @@
 {
   "initiative": "agent-sandbox-audit-foundation",
-  "generated_at": "2026-04-24T01:47:55Z",
+  "generated_at": "2026-04-26T16:59:18Z",
   "nodes": [
     {
       "id": "research/agent-sandbox-auditability-contract",
       "kind": "research",
       "name": "agent-sandbox-auditability-contract",
       "title": "Define the canonical sandbox auditability contract for agent-manager",
-      "status": "backlog",
+      "status": "completed",
       "priority": 1,
       "effort": "M",
-      "archived": false
+      "archived": true
     },
     {
       "id": "fix/workspace-sandbox-lock-and-acceptance-semantics",
       "kind": "fix",
       "name": "workspace-sandbox-lock-and-acceptance-semantics",
       "title": "Decouple workspace-sandbox locking from acceptance filtering",
-      "status": "backlog",
+      "status": "in_review",
       "priority": 1,
       "effort": "M",
       "archived": false

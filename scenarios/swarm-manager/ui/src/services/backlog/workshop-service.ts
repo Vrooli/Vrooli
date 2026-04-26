@@ -98,6 +98,20 @@ export function createWorkshopMethods(apiClient: IApiClient) {
       };
     },
 
+    async reWorkshop(
+      kind: BacklogKind,
+      name: string,
+    ): Promise<WorkshopResetResponse> {
+      const data = await apiClient.post<{
+        deleted_rounds?: number;
+        status_reverted?: boolean;
+      }>(API_ENDPOINTS.backlogReWorkshop(kind, name), {});
+      return {
+        deletedRounds: data.deleted_rounds ?? 0,
+        statusReverted: data.status_reverted ?? false,
+      };
+    },
+
     async workshopCancelPendingAdvance(
       kind: BacklogKind,
       name: string,

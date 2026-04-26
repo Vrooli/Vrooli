@@ -166,6 +166,7 @@ type InitiativeSpawnRequest struct {
 	RoundSlug          string
 	AcceptanceAllow    []string
 	AcceptanceDeny     []string
+	Creates            []string
 	Environment        map[string]string
 	ContextAttachments []*domainpb.ContextAttachment
 }
@@ -183,6 +184,7 @@ type BacklogSpawnRequest struct {
 	Purpose            string
 	AcceptanceAllow    []string
 	AcceptanceDeny     []string
+	Creates            []string
 	Environment        map[string]string
 	ContextAttachments []*domainpb.ContextAttachment
 }
@@ -302,7 +304,7 @@ func (s *AgentService) SpawnBacklog(ctx context.Context, req BacklogSpawnRequest
 		title = buildBacklogTitle(req.Kind, req.Name, req.Purpose)
 	}
 
-	scopePath, projectRoot, err := resolveScopeAndRoot(req.ScopePath, req.ProjectRoot, req.AcceptanceAllow)
+	scopePath, projectRoot, err := resolveScopeAndRoot(req.ScopePath, req.ProjectRoot, req.AcceptanceAllow, req.Creates)
 	if err != nil {
 		return RunResult{}, err
 	}
@@ -385,7 +387,7 @@ func (s *AgentService) SpawnInitiative(ctx context.Context, req InitiativeSpawnR
 		title = buildInitiativeTitle(req.Name, req.Purpose, req.RoundNumber)
 	}
 
-	scopePath, projectRoot, err := resolveScopeAndRoot(req.ScopePath, req.ProjectRoot, req.AcceptanceAllow)
+	scopePath, projectRoot, err := resolveScopeAndRoot(req.ScopePath, req.ProjectRoot, req.AcceptanceAllow, req.Creates)
 	if err != nil {
 		return RunResult{}, err
 	}

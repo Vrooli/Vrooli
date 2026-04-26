@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -97,6 +98,9 @@ func (a *App) cmdBacklogList(args []string) error {
 		if len(item.AcceptanceDeny) > 0 {
 			fmt.Printf("    Acceptance Deny: %s\n", strings.Join(item.AcceptanceDeny, ", "))
 		}
+		if len(item.Creates) > 0 {
+			fmt.Printf("    Creates: %s\n", strings.Join(item.Creates, ", "))
+		}
 		fmt.Println()
 	}
 
@@ -108,6 +112,123 @@ func (a *App) cmdBacklogList(args []string) error {
 		cliCommand("backlog", "queue", "--kind", first.Kind, "--name", first.Name),
 	})
 	return nil
+}
+
+func (a *App) cmdBacklogPendingQuestions(args []string) error {
+	fs := flag.NewFlagSet("backlog pending-questions", flag.ContinueOnError)
+	sourceFlag := fs.String("source", "workshop", "Question source: workshop, review, or all")
+	limitFlag := fs.Int("limit", 0, "Maximum number of backlog items to return (0 = unlimited)")
+	initiativeFlag := fs.String("initiative", "", "Restrict to backlog items in the given initiative")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+
+	source := strings.ToLower(strings.TrimSpace(*sourceFlag))
+	switch source {
+	case "workshop", "review", "all":
+	default:
+		return fmt.Errorf("invalid source %q: must be workshop, review, or all", *sourceFlag)
+	}
+	if *limitFlag < 0 {
+		return fmt.Errorf("invalid limit %d: must be a non-negative integer", *limitFlag)
+	}
+
+	query := url.Values{}
+	query.Set("source", source)
+	if *limitFlag > 0 {
+		query.Set("limit", strconv.Itoa(*limitFlag))
+	}
+	if initiative := strings.TrimSpace(*initiativeFlag); initiative != "" {
+		query.Set("initiative", initiative)
+	}
+
+	body, err := a.core.Get("/backlog/pending-questions", query)
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+
+	response, err := decodeResponse[PendingQuestionsResponse](body)
+	if err != nil {
+		return err
+	}
+
+	totalQuestions := 0
+	for _, item := range response.Items {
+		totalQuestions += len(item.Questions)
+	}
+
+	if len(response.Items) == 0 {
+		printSection("Summary")
+		fmt.Println("  No pending questions found.")
+		printCommandListSection("Next Steps", []string{
+			cliCommand("backlog", "list"),
+		})
+		return nil
+	}
+
+	printSection("Summary")
+	fmt.Printf("  Found %d backlog item(s) with %d pending question(s)\n", len(response.Items), totalQuestions)
+	fmt.Printf("  Source: %s\n", source)
+	if *limitFlag > 0 {
+		fmt.Printf("  Limit: %d\n", *limitFlag)
+	}
+	if initiative := strings.TrimSpace(*initiativeFlag); initiative != "" {
+		fmt.Printf("  Initiative: %s\n", initiative)
+	}
+
+	printSection("Results")
+	for _, item := range response.Items {
+		fmt.Printf("  [%s] %s (%d question(s))\n", item.Kind, item.Name, len(item.Questions))
+		for _, question := range item.Questions {
+			summary := summarizePendingQuestion(question)
+			fmt.Printf("    - %s | %s\n", question.ID, summary)
+		}
+		fmt.Println()
+	}
+
+	first := response.Items[0]
+	printCommandListSection("Retrieval Hints", []string{
+		cliCommand("backlog", "get", "--kind", first.Kind, "--name", first.Name),
+		cliCommand("backlog", "files", "--kind", first.Kind, "--name", first.Name),
+	})
+	return nil
+}
+
+func summarizePendingQuestion(question PendingQuestion) string {
+	if question.Source == "workshop" {
+		label := firstNonEmpty(question.Topic, question.Text, "workshop decision")
+		extra := ""
+		if len(question.Options) > 0 {
+			optionLabels := make([]string, 0, len(question.Options))
+			for _, option := range question.Options {
+				if trimmed := strings.TrimSpace(option.Label); trimmed != "" {
+					optionLabels = append(optionLabels, trimmed)
+				}
+			}
+			if len(optionLabels) > 0 {
+				extra = fmt.Sprintf(" (options: %s)", strings.Join(optionLabels, ", "))
+			}
+		}
+		return label + extra
+	}
+	label := firstNonEmpty(question.Title, question.Description, "review item")
+	if question.ReviewType != "" {
+		return fmt.Sprintf("%s (%s)", label, question.ReviewType)
+	}
+	return label
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }
 
 func (a *App) cmdBacklogGet(args []string) error {
@@ -165,6 +286,9 @@ func (a *App) cmdBacklogGet(args []string) error {
 	}
 	if len(item.AcceptanceDeny) > 0 {
 		fmt.Printf("  Acceptance Deny: %s\n", strings.Join(item.AcceptanceDeny, ", "))
+	}
+	if len(item.Creates) > 0 {
+		fmt.Printf("  Creates: %s\n", strings.Join(item.Creates, ", "))
 	}
 	fmt.Printf("  Created: %s\n", item.Created)
 	fmt.Printf("  Updated: %s\n", item.Updated)
@@ -364,6 +488,53 @@ func (a *App) cmdBacklogWorkshopReset(args []string) error {
 	if resp.StatusReverted {
 		fmt.Println("  Status reverted from \"ready\" to \"backlog\"")
 	}
+	printCommandListSection("Next Steps", []string{
+		cliCommand("backlog", "get", "--kind", kind, "--name", name),
+	})
+	return nil
+}
+
+// cmdBacklogReWorkshop drives the "plan is stale, redo the workshop" flow:
+// clears prior workshop rounds and the deliverable, reverts status to
+// backlog, and queues a fresh workshop round.
+func (a *App) cmdBacklogReWorkshop(args []string) error {
+	fs := flag.NewFlagSet("backlog re-workshop", flag.ContinueOnError)
+	kindFlag := fs.String("kind", "", "Backlog item kind")
+	nameFlag := fs.String("name", "", "Backlog item name")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if err := requireFlags("kind", *kindFlag, "name", *nameFlag); err != nil {
+		return fmt.Errorf("usage: backlog re-workshop --kind KIND --name NAME [--json]\n\n%s", err)
+	}
+	kind := strings.TrimSpace(*kindFlag)
+	name := strings.TrimSpace(*nameFlag)
+
+	body, err := a.core.Request("POST", "/backlog/"+kind+"/"+name+"/re-workshop", nil, nil)
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+
+	type reWorkshopResponse struct {
+		DeletedRounds  int  `json:"deleted_rounds"`
+		StatusReverted bool `json:"status_reverted"`
+	}
+	resp, err := decodeResponse[reWorkshopResponse](body)
+	if err != nil {
+		return err
+	}
+
+	printSection("Result")
+	fmt.Printf("  Re-workshop triggered for %s/%s\n", kind, name)
+	fmt.Printf("  Deleted rounds: %d\n", resp.DeletedRounds)
+	if resp.StatusReverted {
+		fmt.Println("  Status reverted to \"backlog\"")
+	}
+	fmt.Println("  A fresh workshop round has been queued.")
 	printCommandListSection("Next Steps", []string{
 		cliCommand("backlog", "get", "--kind", kind, "--name", name),
 	})

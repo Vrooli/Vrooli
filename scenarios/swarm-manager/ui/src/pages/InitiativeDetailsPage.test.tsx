@@ -251,6 +251,82 @@ describe("InitiativeDetailsPage", () => {
     expect(screen.getByText("2 total")).toBeInTheDocument();
   });
 
+  it("excludes archived member items from live progress while keeping them in scope", async () => {
+    useInitiativeStore.setState({
+      items: [
+        {
+          ...mockInitiativeData,
+          initiative: {
+            ...mockInitiativeData.initiative,
+            dependsOn: [],
+            items: ["execute/archived-parent", "research/active-child"],
+          },
+        },
+      ],
+      status: "success",
+      error: null,
+      isRefreshing: false,
+      lastFetchedAt: Date.now(),
+    });
+    useBacklogStore.getState().setItems([
+      {
+        kind: "execute" as const,
+        name: "archived-parent",
+        title: "Archived Parent",
+        description: "",
+        status: "backlog" as const,
+        priority: 1,
+        tags: [],
+        suggestedSkills: [],
+        dependsOn: [],
+        acceptanceAllow: [],
+        acceptanceDeny: [],
+        archivedAt: "2026-04-25T00:00:00Z",
+        created: "2026-03-27T00:00:00Z",
+        updated: "2026-03-28T00:00:00Z",
+      },
+      {
+        kind: "research" as const,
+        name: "active-child",
+        title: "Active Child",
+        description: "",
+        status: "backlog" as const,
+        priority: 2,
+        tags: [],
+        suggestedSkills: [],
+        dependsOn: ["execute/archived-parent"],
+        acceptanceAllow: [],
+        acceptanceDeny: [],
+        created: "2026-03-27T00:00:00Z",
+        updated: "2026-03-28T00:00:00Z",
+      },
+    ]);
+    vi.mocked(initiativeService.get).mockResolvedValue({
+      initiative: {
+        ...mockInitiativeData.initiative,
+        items: ["execute/archived-parent", "research/active-child"],
+      },
+      rollup: {
+        total: 2,
+        completed: 0,
+        inProgress: 0,
+        failed: 0,
+        pending: 1,
+        archived: 1,
+      },
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("initiative-details-items-list")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Archived Parent")).toBeInTheDocument();
+    expect(screen.getByText("Active Child")).toBeInTheDocument();
+    expect(screen.getByText("0 of 1 items complete")).toBeInTheDocument();
+    expect(screen.getByText((_, node) => node?.textContent === "backlog items • 1 archived")).toBeInTheDocument();
+  });
+
   it("defaults to dependency graph view for member items", async () => {
     vi.mocked(initiativeService.get).mockResolvedValue(mockInitiativeData);
     renderPage();

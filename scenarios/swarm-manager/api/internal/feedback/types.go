@@ -102,12 +102,14 @@ type Message struct {
 // that produced it. Proposals accumulate across revisions so the user can
 // compare revisions if desired.
 type ProposalRevision struct {
-	ID            string             `json:"id"`
-	MessageIndex  int                `json:"message_index"` // index into Thread for the source turn
-	Proposal      proposals.Proposal `json:"proposal"`
-	Rationale     string             `json:"rationale,omitempty"`
-	CreatedAt     string             `json:"created_at"`
-	ParseWarnings []string           `json:"parse_warnings,omitempty"`
+	ID               string             `json:"id"`
+	MessageIndex     int                `json:"message_index"` // index into Thread for the source turn
+	Proposal         proposals.Proposal `json:"proposal"`
+	Rationale        string             `json:"rationale,omitempty"`
+	CreatedAt        string             `json:"created_at"`
+	ParseWarnings    []string           `json:"parse_warnings,omitempty"`
+	ValidationErrors []string           `json:"validation_errors,omitempty"`
+	RawProposalText  string             `json:"raw_proposal_text,omitempty"`
 }
 
 // Decision is the user's terminal verdict on the round. Persisted exactly
@@ -146,6 +148,11 @@ type Round struct {
 	// agent turn. Surfaced at the round level so the UI's revision CTA
 	// can show the reason without scanning the thread.
 	LastParseWarnings []string `json:"last_parse_warnings,omitempty"`
+	// LastValidationErrors mirrors the schema/semantic validation
+	// complaints on the most recent parseable-but-invalid proposal.
+	// Surfaced separately from parse warnings so the UI can distinguish
+	// "couldn't parse JSON" from "parsed, but invalid contract".
+	LastValidationErrors []string `json:"last_validation_errors,omitempty"`
 	// LastPolledAt records the most recent poll attempt for an
 	// agent_thinking round. Lets the stuck-round sweeper find rounds
 	// whose polling has wedged without forcing the UI to wait.

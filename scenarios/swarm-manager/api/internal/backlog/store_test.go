@@ -702,6 +702,15 @@ func TestCheckDependencies_FailOpen(t *testing.T) {
 		"created":  "2025-01-01T00:00:00Z",
 	})
 
+	// Create an archived dependency whose stale status still looks unplanned.
+	writeSpecJSON(t, rootDir, KindIdea, "dep-archived-pending", map[string]any{
+		"title":       "Archived Pending Dep",
+		"status":      "backlog",
+		"priority":    3,
+		"created":     "2025-01-01T00:00:00Z",
+		"archived_at": "2026-01-02T00:00:00Z",
+	})
+
 	t.Run("deleted/archived dep is not unmet", func(t *testing.T) {
 		// A dependency whose spec no longer exists on disk is presumed
 		// completed and subsequently archived/deleted. It must never
@@ -766,6 +775,16 @@ func TestCheckDependencies_FailOpen(t *testing.T) {
 		}
 		if len(unmet) != 0 {
 			t.Errorf("expected ready dep to not block, got unmet: %v", unmet)
+		}
+	})
+
+	t.Run("archived dep is not blocking even with stale backlog status", func(t *testing.T) {
+		unmet, err := store.CheckDependencies([]string{"idea/dep-archived-pending"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(unmet) != 0 {
+			t.Errorf("expected archived dep to not block, got unmet: %v", unmet)
 		}
 	})
 

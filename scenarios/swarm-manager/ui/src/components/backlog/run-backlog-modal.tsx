@@ -19,6 +19,9 @@ import type { BacklogKind } from "../../types";
 import { selectors } from "../../consts/selectors";
 import type { ReadinessIndicatorData } from "../../lib/maturity";
 import { READINESS_DIMENSIONS, DIMENSION_LABELS } from "../../lib/maturity";
+import { isApiError } from "../../lib/api-client";
+import { StalePlanPanel } from "./stale-plan-panel";
+import { extractMissingPaths, type MissingPath } from "./stale-plan-utils";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -66,6 +69,12 @@ export function RunBacklogModal({
   const [forceConfirmed, setForceConfirmed] = useState(false);
   // Track whether the auto-run preflight has completed (to avoid showing dialog flash)
   const [preflightDone, setPreflightDone] = useState(false);
+  // plan_stale state — surfaces the StalePlanPanel for the offending item.
+  const [stalePlanFor, setStalePlanFor] = useState<{
+    kind: BacklogKind;
+    name: string;
+    missingPaths: MissingPath[];
+  } | null>(null);
 
   const isBulk = Boolean(targets && targets.length > 0);
   const effectiveTargets = useMemo(
@@ -175,6 +184,16 @@ export function RunBacklogModal({
         })
         .catch((err) => {
           if (session !== sessionRef.current) return;
+          if (isApiError(err) && err.code === "plan_stale") {
+            setStalePlanFor({
+              kind: item.kind,
+              name: item.name,
+              missingPaths: extractMissingPaths(err.details),
+            });
+            setPreflightDone(true);
+            setIsSubmitting(false);
+            return;
+          }
           setError(
             err instanceof Error ? err.message : "Failed to queue backlog item.",
           );
@@ -260,6 +279,18 @@ export function RunBacklogModal({
         onClose();
       }
     } catch (err) {
+      if (isApiError(err) && err.code === "plan_stale") {
+        // Single-item path; for bulk we currently surface as a generic error.
+        const item = effectiveTargets[0];
+        if (!isBulk && item) {
+          setStalePlanFor({
+            kind: item.kind,
+            name: item.name,
+            missingPaths: extractMissingPaths(err.details),
+          });
+          return;
+        }
+      }
       setError(
         err instanceof Error ? err.message : "Failed to queue backlog item.",
       );
@@ -295,6 +326,23 @@ export function RunBacklogModal({
       testId={selectors.runBacklog.dialog}
     >
       <div className="space-y-5">
+        {/* Stale plan panel — re-workshop trigger for plan_stale errors */}
+        {stalePlanFor && (
+          <StalePlanPanel
+            kind={stalePlanFor.kind}
+            name={stalePlanFor.name}
+            missingPaths={stalePlanFor.missingPaths}
+            onReWorkshopped={() => {
+              setStalePlanFor(null);
+              onClose();
+            }}
+            onCancel={() => {
+              setStalePlanFor(null);
+              onClose();
+            }}
+          />
+        )}
+
         {/* Readiness warning */}
         {showReadinessWarning && readinessWarnings.length > 0 && (
           <div

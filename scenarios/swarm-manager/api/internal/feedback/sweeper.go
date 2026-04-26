@@ -134,10 +134,10 @@ func (s *Sweeper) RunOnce(ctx context.Context) (int, error) {
 // returns a rationale string. Returns "" when the round is healthy.
 //
 // Reasons to dismiss:
-//   1. updated_at is older than MaxAge (the agent is wedged).
-//   2. The initiative lock is gone (the holder lost its grip but the round
-//      never advanced — typical when the API restarted while the run was
-//      mid-flight; the lock sweep cleared the file but not the round).
+//  1. updated_at is older than MaxAge (the agent is wedged).
+//  2. The initiative lock is gone (the holder lost its grip but the round
+//     never advanced — typical when the API restarted while the run was
+//     mid-flight; the lock sweep cleared the file but not the round).
 func (s *Sweeper) evaluate(initiativeName string, r Round, now time.Time, maxAge time.Duration) string {
 	updated, err := time.Parse(time.RFC3339, r.UpdatedAt)
 	if err == nil && now.Sub(updated) > maxAge {

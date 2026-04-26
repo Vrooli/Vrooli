@@ -24,6 +24,11 @@ Use Scientific Debugging when:
 - Well-understood, documented error conditions
 - Issues where the fix is already known
 
+**Always start with Phase 0 (Prior-Art Check)** when the bug targets a
+scenario, even for bugs that look "new". If Phase 0 surfaces a likely
+recurrence, the rest of the methodology is short-circuited — see Phase 0
+for details.
+
 ---
 
 ### **2. The Process**
@@ -33,28 +38,96 @@ Use Scientific Debugging when:
 │                        SCIENTIFIC DEBUGGING PROCESS                          │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│   ┌─────────┐     ┌─────────────┐     ┌─────────┐     ┌─────────────┐       │
-│   │ OBSERVE │ ──▶ │ HYPOTHESIZE │ ──▶ │  TEST   │ ──▶ │   ANALYZE   │       │
-│   └─────────┘     └─────────────┘     └────┬────┘     └──────┬──────┘       │
-│                                            │                  │              │
-│                         ┌──────────────────┴──────────────────┘              │
-│                         ▼                                                    │
-│                   Hypothesis                                                 │
-│                   Confirmed?                                                 │
-│                    │      │                                                  │
-│               YES  │      │  NO                                              │
-│                    ▼      ▼                                                  │
-│              ┌─────────┐  │                                                  │
-│              │   FIX   │  └──▶ Generate new hypothesis                       │
-│              └────┬────┘       (return to HYPOTHESIZE)                       │
-│                   │                                                          │
-│                   ▼                                                          │
-│              ┌─────────┐                                                     │
-│              │ VERIFY  │                                                     │
-│              └─────────┘                                                     │
+│   ┌──────────┐     ┌─────────┐     ┌─────────────┐     ┌─────────┐          │
+│   │ PRIOR    │ ──▶ │ OBSERVE │ ──▶ │ HYPOTHESIZE │ ──▶ │  TEST   │ ──▶ ...  │
+│   │ ART      │     └─────────┘     └─────────────┘     └─────────┘          │
+│   │ (PHASE 0)│                                                               │
+│   └──────────┘                                                               │
+│                                                                              │
+│   Phase 0 has three exits:                                                   │
+│     • No prior art      → continue to OBSERVE                                │
+│     • Related prior art → read it, then OBSERVE with priors in mind          │
+│     • Likely recurrence → reopen / spawn-from prior fix; STOP investigating  │
+│       fresh; the prior investigation transcript is now your evidence.        │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+### **Phase 0: Prior-Art Check** (mandatory)
+
+**Entry criteria:** A bug has been reported against a known scenario, or a
+debugging task is about to begin.
+
+**Why this phase exists:** Bugs recur. Without a deliberate prior-art check, an
+agent will re-investigate something the system has already solved, miss
+related context that would shorten the new investigation, or open a duplicate
+fix. Skipping this phase wastes effort and corrodes institutional memory.
+
+**Actions** (run both passes — one is not a substitute for the other):
+
+1. **Identify the affected scenario.** If multiple scenarios are involved,
+   pick the most-affected one for pass 1; the cross-scenario pass covers the
+   rest.
+
+2. **Pass 1 — Scenario-local fix history.** Use the `swarm-manager` CLI to
+   list every prior fix targeting this scenario, including archived ones.
+   Search by symptom keyword:
+
+   ```bash
+   swarm-manager scenarios fixes --name <scenario> --all --search "<symptom keywords>"
+   ```
+
+   Without `--search`, scope by recency:
+
+   ```bash
+   swarm-manager scenarios fixes --name <scenario> --all --limit 20
+   ```
+
+3. **Pass 2 — Cross-scenario semantic recall.** Use AI search over the fix
+   corpus. Archived items are included by default when `--kind fix` is set.
+
+   ```bash
+   swarm-manager ai-search query "<one-sentence symptom>" --kind fix
+   ```
+
+   For a focused first pass, narrow to the affected scenario:
+
+   ```bash
+   swarm-manager ai-search query "<one-sentence symptom>" --kind fix --target-scenario <scenario>
+   ```
+
+   If AI search reports `fallback: unavailable`, run `swarm-manager ai-search
+   status` to confirm the index is reachable, then proceed with pass 1 only
+   and note the gap in the investigation log.
+
+**Required output** — Phase 0 must conclude with exactly one of:
+
+- **No prior art.** Document the queries you ran (so a reviewer can confirm
+  the search was real) and proceed to Phase 1: Observe.
+- **Related prior art.** Link each related fix item by name, summarize how it
+  was resolved in one or two sentences, and proceed to Phase 1 with those
+  priors as starting hypotheses or constraints.
+- **Likely recurrence.** Link the prior fix item, recommend reopening or
+  spawning a follow-up fix linked via `spawned_from`, and STOP. Do not start
+  a fresh investigation — the prior investigation transcript is now your
+  evidence base. Re-enter Phase 1 only if the recurrence hypothesis is
+  ruled out by inspection.
+
+**Exit criteria:**
+
+- [ ] Both pass 1 (scenario-local CLI) and pass 2 (semantic) commands have
+      been executed and their outputs captured.
+- [ ] One of the three required outputs above is on the record.
+- [ ] If "Likely recurrence", the existing fix item is linked and a decision
+      to reopen / spawn-from is documented before any new code change.
+
+**Tool contract:** All prior-art lookups go through the scenario CLI. Do not
+substitute raw HTTP, `grep`, or filesystem walks — those bypass the same
+indexes the rest of the system uses, miss archived items, and produce
+inconsistent results across investigations. If a needed query is missing from
+the CLI, add it to the CLI first; do not work around.
 
 ---
 

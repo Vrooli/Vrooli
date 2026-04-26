@@ -19,6 +19,7 @@ import { cn } from "../../lib/utils";
 import { useIsMobile } from "../../hooks/useMediaQuery";
 import { useDetailNavigation } from "../../hooks/useDetailNavigation";
 import { StatusBadge } from "./StatusBadge";
+import { TitlePopover } from "./TitlePopover";
 import { LensBar } from "./LensBar";
 import type { LensOption } from "./lens-options";
 import type { GraphLens } from "../../surfaces/graph/stores/graph-data-store";
@@ -94,12 +95,12 @@ export function DetailPageHeader({
         </button>
 
         <div className="min-w-0 flex-1">
-          {/* Row 1: title */}
-          <h1
-            className="truncate text-lg font-semibold text-slate-100"
-            title={title}
-          >
-            {title}
+          {/* Row 1: title (click to view full title + copy) */}
+          <h1 className="min-w-0 text-lg font-semibold text-slate-100">
+            <TitlePopover
+              title={title}
+              className="block w-full min-w-0 max-w-full cursor-pointer rounded text-slate-100 transition-colors hover:text-blue-300"
+            />
           </h1>
 
           {/* Row 2: entity badge + status + subtitle + actions */}

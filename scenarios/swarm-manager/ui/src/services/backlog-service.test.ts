@@ -107,6 +107,7 @@ describe("Backlog Service", () => {
         depends_on: [],
         acceptance_allow: [],
         acceptance_deny: [],
+        creates: [],
       });
       expect(result).toEqual(createdItem);
     });

@@ -61,6 +61,35 @@ func TestDelete_RefusesInFlightRound(t *testing.T) {
 	}
 }
 
+func TestDelete_AwaitingUserRoundIsRemoved(t *testing.T) {
+	t.Parallel()
+	env := newServiceEnv(t)
+	svc := env.svc
+
+	round, err := svc.StartRound(context.Background(), StartRoundRequest{
+		InitiativeName: "ui-rewrite",
+		Type:           RoundTypeFeedback,
+		Text:           "please investigate",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	round, err = svc.RecordAgentTurn("ui-rewrite", round.Number, "no proposal")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if round.Status != RoundStatusAwaitingUser {
+		t.Fatalf("precondition: expected awaiting_user, got %s", round.Status)
+	}
+
+	if err := svc.Delete("ui-rewrite", round.Number); err != nil {
+		t.Fatalf("Delete awaiting_user: %v", err)
+	}
+	if _, err := env.store.LoadRound("ui-rewrite", round.Number); !errors.Is(err, ErrRoundNotFound) {
+		t.Fatalf("expected ErrRoundNotFound after delete, got %v", err)
+	}
+}
+
 func TestDelete_HandlerReturns204(t *testing.T) {
 	t.Parallel()
 	env := newServiceEnv(t)
@@ -106,6 +135,34 @@ func TestDelete_HandlerReturns409ForActiveRound(t *testing.T) {
 	router.ServeHTTP(rr, req)
 	if rr.Code != http.StatusConflict {
 		t.Fatalf("expected 409, got %d body=%s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestDelete_HandlerReturns204ForAwaitingUserRound(t *testing.T) {
+	t.Parallel()
+	env := newServiceEnv(t)
+
+	round, err := env.svc.StartRound(context.Background(), StartRoundRequest{
+		InitiativeName: "ui-rewrite",
+		Type:           RoundTypeFeedback,
+		Text:           "investigate",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	round, err = env.svc.RecordAgentTurn("ui-rewrite", round.Number, "no proposal")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	router := mux.NewRouter()
+	NewHandler(env.svc).RegisterRoutes(router)
+	target := "/api/v1/initiatives/ui-rewrite/feedback/" + itoa(round.Number)
+	req := httptest.NewRequest(http.MethodDelete, target, nil)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("expected 204 for awaiting_user delete, got %d body=%s", rr.Code, rr.Body.String())
 	}
 }
 

@@ -1,6 +1,6 @@
 {
   "initiative": "workshop-decision-triage",
-  "generated_at": "2026-04-25T03:04:09Z",
+  "generated_at": "2026-04-26T20:39:01Z",
   "nodes": [
     {
       "id": "execute/swarm-manager-pending-questions-priority-sort",
@@ -10,7 +10,7 @@
       "status": "backlog",
       "priority": 2,
       "effort": "S",
-      "archived": false
+      "archived": true
     },
     {
       "id": "execute/workshop-decision-prep-agent",
@@ -20,7 +20,7 @@
       "status": "backlog",
       "priority": 2,
       "effort": "M",
-      "archived": false
+      "archived": true
     },
     {
       "id": "execute/workshop-decision-sync-skill",
@@ -30,13 +30,13 @@
       "status": "backlog",
       "priority": 2,
       "effort": "M",
-      "archived": false
+      "archived": true
     },
     {
       "id": "chore/workshop-decision-sync-tests",
       "kind": "chore",
       "name": "workshop-decision-sync-tests",
-      "title": "Automated tests for pending-questions sort + prep specialist + sync skill",
+      "title": "End-to-end scenario + skill-smoke coverage for workshop-decision-prep heartbeat and sync skill",
       "status": "backlog",
       "priority": 3,
       "effort": "M",

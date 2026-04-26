@@ -544,6 +544,10 @@ func (s *Service) aggregateInitiativeData(init *Initiative) (*RollupStatus, []st
 			rollup.Pending++
 			continue
 		}
+		if backlog.IsArchived(item) {
+			rollup.Archived++
+			continue
+		}
 		switch item.Status {
 		case backlog.StatusCompleted:
 			rollup.Completed++
@@ -553,9 +557,6 @@ func (s *Service) aggregateInitiativeData(init *Initiative) (*RollupStatus, []st
 			rollup.InProgress++
 		default:
 			rollup.Pending++
-		}
-		if item.ArchivedAt != nil {
-			rollup.Archived++
 		}
 		for _, name := range pathutil.ScenariosFromGlobs(item.AcceptanceAllow) {
 			if _, ok := seen[name]; !ok {

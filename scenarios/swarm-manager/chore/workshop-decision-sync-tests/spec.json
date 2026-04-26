@@ -9,7 +9,7 @@
   "depends_on": [
     "execute/workshop-decision-sync-skill"
   ],
-  "description": "End-to-end automated coverage.\n\n1. Go test (scenarios/swarm-manager/api/internal/backlog): pending-questions endpoint returns workshop questions sorted by priority ranking under multi-item fixtures; cover blocked-vs-unblocked ordering and --initiative filter.\n2. Go test (scenarios/swarm-manager/cli): CLI wrapper forwards flags, filters by --source and --initiative, emits stable JSON for skill consumption.\n3. Scenario test (test-genie or manual harness): seed swarm-manager with 3 backlog items across 2 initiatives, each with 2 open workshop decisions; run the workshop-decision-prep heartbeat; assert last-handoff.md shape, per-brief hash presence, early-return when cap is already met; mutate one decision's options and re-run, assert only that one brief is refreshed; call workshop/save for one decision directly (simulating UI answer) and re-run the skill's freshness step, assert the now-answered decision is dropped.\n4. Skill smoke test: documented manual test plan invoking the skill with a fully staged handoff, confirming narrative grouping, focus-stack behavior under a mid-decision clarifying question, and async clarification spawn.",
+  "description": "Remaining test coverage after the three execute items landed.\n\nDone (do NOT redo):\n- Go test (scenarios/swarm-manager/api/internal/backlog/pending_questions_test.go): sorted-by-dependency-depth-and-priority, unblocking-boost-beats-recency, limit + --initiative filter, invalid-query-params, mixed sources.\n- Go test (scenarios/swarm-manager/cli/app_test.go): TestCmdBacklogPendingQuestionsValidation and TestCmdBacklogPendingQuestionsRequestsExpectedEndpoint cover --source/--limit/--initiative flag forwarding and the `/api/v1/backlog/pending-questions` endpoint.\n\nStill to deliver:\n1. Scenario test (test-genie or manual harness): seed swarm-manager with 3 backlog items across 2 initiatives, each with 2 open workshop decisions; run the workshop-decision-prep heartbeat; assert last-handoff.md shape, per-brief content_hash presence, and early-return behavior when the cap is already met. Then mutate one decision's options and re-run, asserting only that one brief is refreshed. Then call POST /api/v1/backlog/{kind}/{name}/workshop/save for one decision (simulating UI answer) and re-run the skill's freshness step, asserting the now-answered decision is dropped.\n2. Skill smoke test: documented manual test plan that invokes the workshop-decision-sync skill with a fully staged handoff and confirms (a) narrative grouping by initiative -\u003e backlog item -\u003e decision, (b) focus-stack behavior when the operator asks a clarifying question mid-decision, and (c) async clarification spawn via `swarm-manager backlog clarify`, with the session continuing past the spawn.",
   "effort": "M",
   "initiative": "workshop-decision-triage",
   "kind": "chore",
@@ -17,6 +17,6 @@
   "priority": 3,
   "status": "backlog",
   "tags": [],
-  "title": "Automated tests for pending-questions sort + prep specialist + sync skill",
-  "updated": "2026-04-22T20:27:45Z"
+  "title": "End-to-end scenario + skill-smoke coverage for workshop-decision-prep heartbeat and sync skill",
+  "updated": "2026-04-26T20:39:01Z"
 }

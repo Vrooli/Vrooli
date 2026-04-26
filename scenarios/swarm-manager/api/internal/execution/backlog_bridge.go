@@ -24,6 +24,7 @@ type backlogItem struct {
 	SourceScenarioName string   `json:"sourceScenarioName,omitempty"`
 	AcceptanceAllow    []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny     []string `json:"acceptance_deny,omitempty"`
+	Creates            []string `json:"creates,omitempty"`
 	ArchivedAt         *string  `json:"archived_at,omitempty"`
 	SuggestedSkills    []string `json:"suggested_skills,omitempty"`
 }

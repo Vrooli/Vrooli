@@ -345,10 +345,10 @@ export function BacklogDetailsPage() {
       onFollowUp={() => uiStore.setFollowUpTarget(executionHistory?.[0] ?? null)}
       onRetry={async () => {
         await backlogService.retry(item.kind, item.name);
-        await Promise.all([
-          data.refetchItem(),
-          queryClient.invalidateQueries({ queryKey: ["execution-history", item.kind, item.name] }),
-        ]);
+        data.refetchItem();
+        await queryClient.invalidateQueries({
+          queryKey: ["execution-history", item.kind, item.name],
+        });
       }}
       onOpenAgentDialog={uiStore.openAgent}
       onArchive={() => handlers.handleArchiveItem()}

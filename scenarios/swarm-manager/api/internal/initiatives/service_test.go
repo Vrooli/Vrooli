@@ -339,6 +339,7 @@ func TestService_List(t *testing.T) {
 }
 
 func TestService_ComputeRollup(t *testing.T) {
+	archivedAt := "2026-01-02T00:00:00Z"
 	loader := map[string]backlog.BacklogItem{
 		"idea/completed": {Status: backlog.StatusCompleted},
 		"fix/failed":     {Status: backlog.StatusFailed},
@@ -346,6 +347,18 @@ func TestService_ComputeRollup(t *testing.T) {
 		"fix/queued":     {Status: backlog.StatusQueued},
 		"idea/backlog":   {Status: backlog.StatusBacklog},
 		"idea/ready":     {Status: backlog.StatusReady},
+		"idea/archived-backlog": {
+			Status:     backlog.StatusBacklog,
+			ArchivedAt: &archivedAt,
+		},
+		"fix/archived-wip": {
+			Status:     backlog.StatusResearching,
+			ArchivedAt: &archivedAt,
+		},
+		"execute/archived-completed": {
+			Status:     backlog.StatusCompleted,
+			ArchivedAt: &archivedAt,
+		},
 	}
 	svc := newTestService(t, loader)
 
@@ -357,6 +370,9 @@ func TestService_ComputeRollup(t *testing.T) {
 			"fix/queued",
 			"idea/backlog",
 			"idea/ready",
+			"idea/archived-backlog",
+			"fix/archived-wip",
+			"execute/archived-completed",
 			"idea/missing", // not in loader
 			"invalid-ref",  // invalid format
 		},
@@ -367,8 +383,8 @@ func TestService_ComputeRollup(t *testing.T) {
 		t.Fatalf("ComputeRollup failed: %v", err)
 	}
 
-	if rollup.Total != 8 {
-		t.Errorf("expected total 8, got %d", rollup.Total)
+	if rollup.Total != 11 {
+		t.Errorf("expected total 11, got %d", rollup.Total)
 	}
 	if rollup.Completed != 1 {
 		t.Errorf("expected completed 1, got %d", rollup.Completed)
@@ -379,9 +395,13 @@ func TestService_ComputeRollup(t *testing.T) {
 	if rollup.InProgress != 2 {
 		t.Errorf("expected in_progress 2, got %d", rollup.InProgress)
 	}
-	// backlog + ready + missing + invalid = 4 pending
+	// backlog + ready + missing + invalid = 4 pending; archived items are
+	// terminal and should not inflate active progress buckets.
 	if rollup.Pending != 4 {
 		t.Errorf("expected pending 4, got %d", rollup.Pending)
+	}
+	if rollup.Archived != 3 {
+		t.Errorf("expected archived 3, got %d", rollup.Archived)
 	}
 }
 

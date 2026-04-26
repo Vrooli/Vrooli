@@ -126,6 +126,14 @@ describe("FeedbackPanel", () => {
     expect(screen.getAllByTestId(selectors.feedback.threadMessage)).toHaveLength(2);
   });
 
+  it("shows the delete action for awaiting_user rounds", async () => {
+    mockList.mockResolvedValue([round()]);
+    renderPanel();
+    await screen.findByTestId(selectors.feedback.panelRoundCard);
+    await userEvent.click(screen.getByTestId(selectors.feedback.panelRoundExpand));
+    expect(screen.getByTestId(selectors.feedback.deleteButton)).toBeInTheDocument();
+  });
+
   it("submits a partial accept through the decide endpoint", async () => {
     mockList.mockResolvedValue([round()]);
     mockDecide.mockResolvedValue({
@@ -223,6 +231,43 @@ describe("FeedbackPanel", () => {
 
     expect(screen.queryByTestId(selectors.feedback.parseErrorNotice)).toBeNull();
     expect(screen.getByTestId(selectors.feedback.proposalReview)).toBeInTheDocument();
+  });
+
+  it("renders the invalid-proposal notice and revise form when the latest proposal failed validation", async () => {
+    mockList.mockResolvedValue([
+      round({
+        proposals: [
+          {
+            id: "p1",
+            message_index: 1,
+            created_at: "2026-04-23T00:01:00Z",
+            validation_errors: ["mutations[0]: op update_item requires patch"],
+            raw_proposal_text:
+              "{\"form\":\"mutation_list\",\"mutations\":[{\"id\":\"m1\",\"op\":\"update_item\",\"target\":\"execute/x\",\"title\":\"bad\"}]}",
+            proposal: {
+              form: "mutation_list",
+              mutations: [
+                { id: "m1", op: "update_item", target: "execute/x" },
+              ],
+            },
+          },
+        ],
+        current_proposal_id: undefined,
+        needs_revision: true,
+        last_validation_errors: ["mutations[0]: op update_item requires patch"],
+      }),
+    ]);
+    renderPanel();
+    await screen.findByTestId(selectors.feedback.panelRoundCard);
+    await userEvent.click(screen.getByTestId(selectors.feedback.panelRoundExpand));
+
+    const notice = screen.getByTestId(selectors.feedback.invalidProposalNotice);
+    expect(notice).toBeInTheDocument();
+    expect(notice).toHaveTextContent(/invalid and must be revised/i);
+    expect(within(notice).getByText(/requires patch/i)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.feedback.threadReviseInput)).toBeInTheDocument();
+    expect(screen.queryByTestId(selectors.feedback.proposalReview)).toBeNull();
+    expect(screen.queryByTestId(selectors.feedback.parseErrorNotice)).toBeNull();
   });
 
   it("reopens the revise form after reject so the user can try a different angle", async () => {

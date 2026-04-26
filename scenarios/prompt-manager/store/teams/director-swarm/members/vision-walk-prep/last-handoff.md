@@ -1,35 +1,22 @@
 ### Retrospective (Past 24h)
 
 **Completed (from Swarm Manager events / stats):**
-- 7d throughput: 35 created / 18 completed / net +17. 30d net +33. Completed all-time: 34 (per stats); overview reports 102. Same 3× drift between counters as yesterday — still worth a sanity check.
-- Zero items currently `in_progress` across the portfolio — same binary pattern (items are either backlog or done).
-- This week's velocity: 2 completions (week-of-4/24). Last week (4/17) was 16. Burst-completion pattern continues.
+- 7d throughput: 36 created / 15 completed / net +21. 30d net +34. Stats reports `Completed all-time: 37` while overview reports 105 — **the 3× drift between counters has now widened (was 34 vs 102 yesterday, now 37 vs 105)**, same shape as yesterday but worth a sanity check.
+- Velocity trend: week-of-4/25 = 0 completions (vs week-of-4/18 = 16). The "burst-completion" rhythm continues — two consecutive quiet weeks.
+- Zero items `in_progress` across all 59 active initiatives — the binary backlog/done pattern is now four heartbeats running.
 
 **Notable changes:**
-- **Portfolio: 54 → 57 active (+3 net since yesterday's handoff).** Of the +3, **1 is direct decision-acceptance fallout** (`web-console-readiness` initiative — operator accepted yesterday's pending dec-1776982737575948642, Option A). The other 2 net-new are independently-seeded — hard to attribute precisely without a creation-time scan; visible candidates include `brand-manager-readiness`, `swarm-manager-meta-optimizer`, `dtv-meta-optimization-readiness`, `rapid-approval-flow` if any of these are <24h old. (Weakness: heartbeat gathers a count delta but no per-initiative `created_at` filter; logging this as a small data-gap for tomorrow's prep.)
-- **Yesterday's 4 meta-optimization pending decisions all rolled forward / superseded — fresh slate today.** Yesterday's tier-1 false-positive proposal (dec-1776984436121140045) was superseded by today's expanded version (dec-1777069916962818847) which restates the gate with a richer measurement plan. Today's queue: 4 new pending (toolchain-violation on the just-named gold-star, capability-gap on toolchain validator output shape, agent-improvement on run-introspector, run-lesson on tier-3 contamination). All 4 reference dec-1776981723540926630 — the gold-star nomination was clearly accepted.
-- **Marketing-crew has its first real surface activity:** 2 publish-proposals from oss-advertiser (first OSS dev-log thread) + 1 capability-gap from researcher (no competitive-intel scanning capability). Yesterday: 0 pending.
-- **Monetization has its first 3 pending decisions ever:** 2 benchmark-updates and 1 pricing-decision, all from market-validator. The pricing-decision is the load-bearing one — flags Tier 1 business-bundle target ($29-$49/mo) sitting in a competitive trough between bundle plays ($10-25) and prosumer AI dev tools ($39-60).
-- **Director-swarm portfolio queue is empty.** Yesterday's web-console-readiness pending decision was accepted and applied (initiative now exists). Portfolio-manager produced no new pending decisions overnight.
-- **Financial-tracker still null-everywhere.** Latest ledger entry led-1777053627114884801 (2026-04-24T18:00Z) — still flagged `operator-inputs-unpopulated`. Material change: `no-change-since-2026-04-23`. 7 days of dark snapshots now.
+- **Operator made one decision early this morning** (dec-1777173379756603490 @ 03:16Z) — accepted Option C ("Coexistence") on Tier-3 hosted-cloud positioning vs web-console headliner status. Side effect: created `hosted-cloud-tier-foundation` initiative (priority 6, active, 0/0 items). This is **direct fallout from the 2026-04-25 vision walk** — the walk surfaced the question "should web-console depend on hosted-cloud, since phone-anywhere needs it?", and operator chose to keep web-console's self-hoster pitch intact while adding Tier 3 as a parallel expansion path with no `depends_on` edge.
+- **Portfolio: 57 → 59 active (+2 net).** Of the +2, **1 is direct walk-fallout** (`hosted-cloud-tier-foundation`, just covered). The other +1 is independently-seeded — likely `design-language-foundation` or one of the placeholder 0/0 initiatives created by the same operator-decision flow. (Same `created_at`-filter data gap noted yesterday — still unfixed.)
+- **Yesterday's pending queues are now empty everywhere except meta-optimization.** Marketing-crew (3 → 0): 2 duplicate OSS publish-proposals **rejected**, 1 researcher capability-gap **accepted**. Monetization (3 → 0): 1 benchmark-update **rejected**, 1 **accepted** (full BENCHMARKS populate), 1 pricing-trough decision **deferred**. Director-swarm portfolio: 2 capability-gaps were resolved (status changed from pending — likely accepted but cannot confirm without status filter on yesterday's IDs).
+- **Meta-optimization fully recycled overnight:** yesterday's 4 pending decisions all resolved (1 accepted: dec-1777154587228516340 — toolchain re-scan dropped reference-react-vite from 72 → 36 violations BUT introduced a NEW Critical; 1 rejected; 2 superseded). Today's queue: 3 fresh pending — and they're **all about the same problem from three different angles**: tier-signal contamination in run-introspector's triage framework.
+- **Financial-tracker has stopped emitting.** Yesterday I noted "7 days dark"; today's check shows the latest ledger entry is still `led-1777053627114884801` at 2026-04-24T18:00Z — **no new entry yesterday or today**. The previously-quiet null snapshot has now become an absent snapshot. File mtime: 2026-04-24 14:10. Tracker is either disabled, broken, or no longer scheduled. Beyond an instrumentation gap — this is now a *liveness* gap.
 
-**Delta summary:** Portfolio absorbed only 1 walk-fallout initiative (web-console-readiness) this round; the bigger story is that **monetization and marketing-crew both surfaced live decisions for the first time** (3 + 3 pending). Meta-optimization shifted its proposal slate up one level — toolchain-validator is now scanning the just-named gold-star and finding it dirty (72 violations / 41 High), making "clean up reference-react-vite" the upstream-of-everything decision.
+**Delta summary:** Quiet day on the surface — nearly every team's queue cleared overnight. The two real signals are (a) operator made the Tier-3 coexistence call from yesterday's walk and stood up `hosted-cloud-tier-foundation`, and (b) financial-tracker is no longer producing snapshots. Meta-optimization has converged on a single named problem: "tier-signal contamination" — three pending decisions all extending the same triage gates against three different contamination classes (429-substantive-text, approval-lag wall-clock, transient-5xx).
 
 ### Portfolio Decisions (Pending)
 
-(No director-swarm `initiative-portfolio` / `initiative-supplement` / `initiative-proposal` / `initiative-readiness` items. The two `capability-gap` items below are routed here per HEARTBEAT.md design — director-swarm is the consumer.)
-
-- **Toolchain triage capability gaps: structured test-genie output + DTV `validate`/`report` subcommands** (decision-id: `dec-1777068259096417622`, source: meta-optimization/toolchain-validator)
-  - What: Backlog three sub-gaps so toolchain-validator can actually run its job against the new gold-star: (1) `test-genie run-tests` should return per-suite results + exit code + log path instead of opaque `api error (500)`; (2) DTV ships `validate <reference>` wrapping the auditor/test-genie/tidiness trio with unified violation report; (3) DTV ships `report --conflicts | --drift | --maturity | --tool-baselines` for cross-heartbeat comparison.
-  - Recommended: No specific option key — open-ended capability request. Operator decides scope/sequencing.
-  - Contrarian note: none attached.
-  - Why it matters: This is the structural counterpart to the *content* problem (next bullet). Right now the heartbeat needs ~6 separate CLI invocations and manual aggregation; a single `validate` would compress that to 1-2 invocations with structured output. Without it, every future toolchain-violation decision is built on hand-rolled triage.
-
-- **Researcher needs structured competitive-intel / audience-intel scanning capability** (decision-id: `dec-1777062676053029079`, source: marketing-crew/researcher)
-  - What: A competitive-intel scenario covering (a) structured scrape of competitor pricing/catalog pages with diff detection, (b) X/Twitter keyword+author search with stable pagination, (c) GitHub topic/repo monitoring. seo-optimizer is keyword-focused, not competitor-monitoring.
-  - Recommended: No specific option key — scope hint for director-swarm.
-  - Contrarian note: none attached.
-  - Why it matters: First researcher heartbeat surfaced this as the gating constraint — without structured scanning, every audience-update proposal needs ≥3 manual converging scans, with high fabrication risk. Also blocks market-validator's BENCHMARKS.md population (the same person who just filed today's 3 monetization decisions). One unblocking scenario, two teams.
+No pending portfolio decisions. (No director-swarm `initiative-portfolio` / `initiative-supplement` / `initiative-proposal` / `initiative-readiness` items. No `capability-gap` items pending on marketing-crew or meta-optimization queues — yesterday's two were resolved.)
 
 ### Strategist Decisions (Pending)
 
@@ -37,109 +24,79 @@ Strategist currently disabled — awaiting Command Center scenario. (No pending 
 
 ### Monetization Decisions (Pending)
 
-Team is enabled (`enabled: true`). 3 pending decisions — first ever for this team. All from market-validator.
-
-- **Revisit Tier 1 business-bundle target bracket — $29-$49/mo sits in a competitive trough** (decision-id: `dec-1777061056395576280`, context: pricing-decision)
-  - What: External comps captured today cluster into two bands with no anchor across the target: (a) solo dev-tool / bundle band $8-25 (Setapp $10-15, Notion Plus $10, Cursor Pro $20, Copilot Pro $10, Raycast Pro $8); (b) prosumer AI-forward dev tool band $39-60 (Copilot Pro+ $39, Cursor Pro+ $60). Recommend operator pick a positioning: "premium multi-app bundle" ($15-25) or "prosumer AI dev-suite" ($39-59).
-  - Recommended: No option key — flagging the gap, not setting a price.
-  - Why it matters: Pricing flows from positioning. The trough is only a problem if buyers pattern-match Vrooli to the wrong category — this is the exact question the bundle catalog has been deferring. First monetization decision to actually carry signal worth your time.
-
-- **Add dev-tool SaaS pricing comps to BENCHMARKS.md (Cursor + Copilot)** (decision-id: `dec-1777060904331053267`, context: benchmark-update)
-  - What: First-ever benchmark-capture; populate the Cursor tier ladder ($0/$20/$60/$200, Teams $40/user) and Copilot Individual ladder ($0/$10/$39). Copilot Pro+ at $39 is the strongest direct comp — same metered "premium requests" model as Vrooli's Tier 1.
-  - Recommended: Action as proposed.
-  - Why it matters: BENCHMARKS.md is currently a skeleton. Without populated comps the pricing-decision above has no source-of-truth document. Pair this with the pricing decision — answering one without the other leaves the table half-built.
-
-- **Populate BENCHMARKS.md dev-tool SaaS + multi-product bundle sections with full 2026-04-24 scan** (decision-id: `dec-1777061048708846767`, context: benchmark-update)
-  - What: Broader pull beyond just Cursor/Copilot — adds Raycast Pro ($8+), Notion Plus/Business ($10/$20 + AI credit packs), Setapp standard/AI+ ($9.99-$23.99). All sourced + dated in `shared/market-scans.jsonl`.
-  - Recommended: Action as proposed.
-  - Why it matters: Largely overlaps with the previous decision but covers the multi-product-bundle band (Setapp, Notion) that anchors the lower positioning option. Operator may want to merge these two benchmark-update proposals into one accept.
+Team is enabled. **No pending monetization decisions this heartbeat** — all 3 of yesterday's were resolved (1 accepted, 1 rejected, 1 deferred). Notable resolution: the **pricing-trough decision (dec-1777061056395576280) was deferred** — operator looked at it and parked it rather than picking a positioning. Worth flagging to the walk if you want to re-engage.
 
 **Latest runway snapshot (ledger.jsonl, led-1777053627114884801 @ 2026-04-24T18:00Z, by financial-tracker):**
-- Cash: `null` (flag: `pending-operator`)
-- Monthly burn: `null` (all categories `pending-operator`)
-- Monthly revenue: `$0` (flag: `aspirational`); subscription tiers & bundles `pending-telemetry`; services lines `not-applicable-pre-launch`
-- Runway: `null` months, default-alive gap: `null`
-- Material change: `no-change-since-2026-04-23` — i.e. financial-tracker is producing the same null-everywhere snapshot for the 7th day in a row.
+- Cash: `null` (`pending-operator`); monthly burn: `null` (all categories `pending-operator`); revenue: `$0` (`aspirational`, all tiers `pending-telemetry`); runway: `null` months; default-alive gap: `null`.
+- Material change: `no-change-since-2026-04-23`.
+- **Liveness flag**: tracker has not emitted a new ledger entry in 48+ hours. Last write: 2026-04-24 14:10 file mtime. The 8-day-dark pattern noted in the previous walk is now compounded by tracker silence.
 
-**Active monetization flags (latest ledger entry):** `operator-inputs-unpopulated` (single top-level flag). No `services-trap-warning` or `runway-warning` — but only because the tracker has nothing to reason about. The instrumentation gap noted yesterday is unchanged. (`operator-inputs.json` exists at ~4KB and is being read as unpopulated — still smells like a tracker-side bug or a schema mismatch.)
+**Active monetization flags (latest ledger entry):** `operator-inputs-unpopulated`. No `services-trap-warning` or `runway-warning` — but the tracker has nothing to reason about.
 
 ### Marketing Decisions (Pending)
 
-Team is enabled (`enabled: true`). 3 pending decisions; 1 is a `capability-gap` already surfaced under Portfolio Decisions. Remaining 2 are both publish-proposals from oss-advertiser — same surface, same content, slightly different framing. Surfacing both for context but flagging the redundancy.
-
-- **Publish first OSS dev-log thread on x-twitter — "Weekly shipped: swarm-manager initiatives, team rewrites, stability plumbing"** (decision-id: `dec-1777059142792794233`, context: content-publish-proposal)
-  - Proposed by: oss-advertiser
-  - What: First OSS dev-log since the advertiser started heartbeats. Mines the past ~7 days of commits (cc4e99ad70..bffe3f27af): swarm-manager initiative-agents (7 iterations), marketing-crew + meta-optimization team rewrites, web-console/agent-manager stability work. 5 tweets, all <280 chars, sources cited by commit hash. Targets oss-contributor persona; engagement flagged `pending-telemetry`.
-  - Recommended: Publish as drafted (or hold for tone review).
-  - Contrarian note: none attached.
-  - Why it matters: `publish-log` is empty and `shared/coverage/oss-platform.json` does not exist — OSS narrative freshness is effectively zero. This is the first piece of marketing the system has actually proposed shipping. Worth a quality bar conversation as much as a publish/no-publish one.
-
-- **Publish x-thread dev log — "Initiative agents + team rewrites" (4-tweet variant)** (decision-id: `dec-1777059144293750532`, context: *unset* — likely intended `content-publish-proposal`)
-  - Proposed by: oss-advertiser
-  - What: A second variant of the same dev-log idea — 4 tweets instead of 5, slightly different positioning ("agents-as-builders differentiator"). Same source commits (cc4e99ad→593cb769 + faf771e2 + 92b931b8 + 0021d80c).
-  - Recommended: Likely fold into the previous decision rather than treat as a separate publish.
-  - Contrarian note: none attached.
-  - Why it matters: The same agent filed two near-identical publish proposals 2 seconds apart with one missing its `context` field — flag for marketing-crew's contrarian / process owner. Symptom of a heartbeat double-write or a draft-vs-publish confusion in the agent prompt.
+Team is enabled. **No pending marketing decisions this heartbeat.** Yesterday's 3 all resolved overnight: 2 duplicate OSS publish-proposals rejected (the double-write you flagged on yesterday's walk got the right answer), 1 researcher capability-gap accepted.
 
 ### Meta-Optimization Decisions (Pending)
 
-Team is enabled (`enabled: true`). 4 pending decisions across 4 categories — selecting top 3 with category diversity. (4th item is the capability-gap already surfaced under Portfolio Decisions.)
+Team is enabled. 3 pending decisions, **all about run-introspector tier-signal contamination** — selecting all 3 for diversity (across run-lesson / agent-improvement / skill-improvement categories).
 
-- **Resolve gold-star reference rot on `reference-react-vite`: 72 standards violations (41 High) on first toolchain scan** (decision-id: `dec-1777068246086430656`, category: toolchain)
-  - Proposed by: toolchain-validator
-  - What: First real scan of the just-nominated gold-star returned 72 violations — stack-governance (37: missing canonical PHONY targets, lifecycle commands not calling `vrooli scenario`), type-safety (6: strict mode + noUncheckedIndexedAccess off), quality-gates (4: vite build skips tsc --noEmit), go-quality (2: no `.golangci.yml`), 17 ui-a11y-v1 missing focus-visible. Recommended sequence: (1) auto-fix tsconfig + eslint via `scenario-auditor fix`, (2) regenerate Makefile from canonical template, (3) add `.golangci.yml` to api/cli, (4) add focus-visible CSS, (5) re-scan.
-  - Recommended: Clean up to score 0 High / ≤5 Low before treating reference as authoritative; alternative is demote and re-nominate once clean.
+- **Trim duplicate decision-tree from `skill-principles` §3 (29-consumer fanout, ~7% per-load token reduction)** (decision-id: `dec-1777155425370344769`, category: skills)
+  - Proposed by: skill-optimizer
+  - What: Delete the "Decision check" code block in §3 of `skill-principles` (it duplicates a 6-row category table directly above it; tree expresses a strict subset of the table). Saves ~580 chars / ~145 tokens per load × 29 inbound consumers.
+  - Recommended: Action as proposed. Pre/post measurement plan attached (file size, graph health ≥0.65, 14-heartbeat check for downstream workarounds).
   - Contrarian note: none attached.
-  - Why it matters: This is **upstream of every toolchain-violation any other scenario will surface**. Right now every "X scenario violates the gold standard" comparison is being made against a dirty target. The nomination accepted yesterday literally does not work as a reference yet. Highest-leverage cleanup in the meta-optimization queue.
+  - Why it matters: First pure-trim skill-improvement decision since the optimizer started. Health is fine (0.65) — the proposal is not "fix a problem", it's "delete redundancy with measurable per-load savings". Low-risk, low-reward, but illustrates the lane working as designed. Worth a quick yes/no rather than deep walk-time.
 
-- **Add tier-1 false-positive verification gate to run-introspector for exit_code=429 + completion-text runs** (decision-id: `dec-1777069916962818847`, category: agent-improvement)
+- **Redefine run-introspector tier-3 ("Slow") as work-duration, not wall-clock; exclude approval-required and 1-turn cheap runs** (decision-id: `dec-1777156591536785033`, category: agents-and-teams)
   - Proposed by: team-agent-optimizer
-  - What: Edit `run-introspector/HEARTBEAT.md` step 3 to skip candidates where `exit_code=429` but `error_msg` is multi-paragraph markdown (Summary/Classification/Report headings) rather than a terse rate-limit banner — reclassify as tier-5 false-positive instead of investigating. **Supersedes yesterday's dec-1776984436121140045** with a richer measurement plan (3 verification steps + 7-heartbeat checkpoint).
+  - What: Edit `run-introspector/HEARTBEAT.md` line 13 to define tier-3 as `last_heartbeat - started_at` exceeding expected by >50%, NOT `ended_at - started_at` (which includes operator approval lag). Exclude `requires_approval=true` and 1-turn runs <$0.20.
   - Recommended: Action as proposed.
   - Contrarian note: none attached.
-  - Why it matters: This is the second-day version of yesterday's decision — operator deferred it once. ~9% of FAILED runs (2/22) match the false-positive pattern. Without the gate, run-introspector keeps drawing wrong agent-behavior lessons from self-referential matches. Same story as yesterday; question is whether the expanded measurement plan moves it past the bar.
+  - Why it matters: This is **the same decision as yesterday's dec-1777070860432410408** (run-introspector's own framework getting cleaner) — but now refiled by team-agent-optimizer because the *implementation* is in their lane while the *lesson* was in run-introspector's. 25/98 successful runs in the 2026-04-24 window match the contamination pattern. Pair-decision with the next item.
 
-- **Tier-3 (Slow) contamination: 25/98 successful runs are 1-turn approval-required runs with 70k-82k second wall-clock** (decision-id: `dec-1777070860432410408`, category: run-lesson)
+- **Extend tier-1 gate to also reclassify transient upstream-5xx failures (`API Error: 5xx Overloaded/Internal/Bad Gateway/...`)** (decision-id: `dec-1777157323547139809`, category: run-lesson)
   - Proposed by: run-introspector
-  - What: Edit `run-introspector/HEARTBEAT.md` to redefine tier-3 "Slow" as **work-duration** (`last_heartbeat - started_at`, e.g. 13s for the longest "81,648-second" run) instead of wall-clock; exclude `requires_approval=true` runs and exclude 1-turn runs under $0.20. Operator's batch-clearing of the approval queue at 21:09 UTC made 25 identical 1-turn runs look like outliers across 6 orders of magnitude.
+  - What: Extend the (already-pending-from-yesterday) tier-1 false-positive gate to also catch `API Error: 5\d\d` terminal errors with `turns_used <= 1` — reclassify as tier-5 environmental failure, not tier-1 errored. Sourced from RUN_LESSONS.md 2026-04-25 lesson on run cab1c399 (sole FAILED run in 78-run window, claude-code returned `is_error=true subtype=success`, declared codex fallback did not engage).
   - Recommended: Action as proposed.
-  - Contrarian note: none attached. Note: **second tier-contamination lesson in two heartbeats** (after the tier-1 detectRateLimit one). If a third surfaces, run-introspector flags it as a candidate `framework-update` — the framework's tier signals are systematically contaminated by approval-queue and substring-match artifacts.
-  - Why it matters: Without this, tier-3 picks are dominated by approval-queue artifacts that have nothing to do with agent inefficiency. Pair-decision with the previous one — both are run-introspector's own framework getting cleaner.
+  - Contrarian note: none attached. **However**, run-introspector itself flags this as the **third tier-contamination lesson in three heartbeats** (after 429-false-positives and approval-lag wall-clock) and asks contrarian to evaluate `framework-update` for "tier-signal-contamination" as a standing failure mode. Effectively a meta-flag inside the decision.
+  - Why it matters: The standing-pattern observation is the load-bearing piece, not this individual gate. Three different agents have now independently named the same shape — the triage tiers fire literally per their definitions but the signal is environmental, not behavioral. Worth a walk-time conversation: do you want contrarian to escalate this to a `framework-update` proposal, or keep landing per-tier patches?
 
 ### Life Audit Prompts
 
 **Previous discussions:**
-- **2026-04-23 walk:** Lifestyle-bundle vision crystallized into 4 initiatives; 7 architectural principles captured (recommendation-blindness, inventory-gated lifestyle monetization, routines as infrastructure, flexibility ladder, library/executor UX split, dormant-vs-quiet team distinction, skills-must-use-CLI rule); 7 process-frictions filed.
-- **2026-04-24 walk:** Web-console-readiness initiative stood up (now active in today's portfolio). Branch-blind retrospective and financial-tracker gap both noted but parked behind GCT / pre-telemetry stages.
-- *(No team knowledge entries match `topic=vision-walk` — continuity above is reconstructed from the prior handoff. Worth a check on whether walk artifacts are being persisted as knowledge entries somewhere; if not, that is itself a small gap.)*
+- **2026-04-23 walk:** Lifestyle-bundle vision crystallized (4 initiatives); 7 architectural principles captured; 7 process-frictions filed.
+- **2026-04-24 walk:** Branch-blind retrospective gap and financial-tracker gap parked behind GCT / pre-telemetry stages.
+- **2026-04-25 walk:** Tier-3 hosted-cloud positioning question surfaced — operator returned to it overnight and chose Option C (coexistence). `hosted-cloud-tier-foundation` initiative created at 03:16Z this morning.
+- *(No team-knowledge entries match `topic=vision-walk` — same persistence gap as yesterday. The walks are leaving traces in decisions and initiatives but not as walk-tagged knowledge entries. Worth deciding if that matters.)*
 
 **Suggested exploration:**
-- **Pricing & positioning are now a real conversation, not aspirational.** market-validator just put a concrete pricing-trough on the table (dec-1777061056395576280). The decision asks "premium bundle" vs "prosumer AI dev-suite" — that's a positioning question, not a number question. Did anything shift in the past day on how you'd describe Vrooli to a stranger? The walk is the right surface to answer this before the trough hardens into a default.
-- **Researcher's capability-gap and BENCHMARKS.md request together imply a competitive-intel scenario.** This isn't on any active initiative. Two teams (marketing-crew, monetization) just independently asked for the same substrate within 2 hours of each other. Want to talk about whether this becomes a formal initiative proposal, or whether it stays a manual chore for now?
-- **First marketing publish is on the table.** dec-1777059142792794233 is a real "should we ship this thread" decision, not a process question. You haven't yet had a conversation about brand voice / what you actually want Vrooli's public-facing tone to be. Walking that ahead of the publish is cheaper than walking it after a misfire.
+- **Financial-tracker has stopped emitting entirely.** This is the third walk in a row where tracker state is a topic. The pattern has shifted — yesterday was "8 days of null snapshots", today is "no snapshots at all since 2026-04-24". Two cheap options to talk through: (a) explicitly mute the tracker until operator-inputs are populated, or (b) populate operator-inputs (cash, burn categories) and let it actually run. The middle ground — let it sit dark — keeps eating walk attention.
+- **The deferred pricing-trough decision is still unanswered.** Operator deferred dec-1777061056395576280 yesterday rather than picking "premium bundle" or "prosumer AI dev-suite" positioning. The walk is the right surface for this — it's a positioning question, not a number question. If you don't want to answer it, "decline-and-document" is also a valid walk outcome.
+- **Three tier-contamination lessons in three days — is this a routine that's working, or a routine that's noisy?** Run-introspector is the most active member of the most active team right now. Each heartbeat surfaces a new contamination class and proposes a per-tier gate. The walk could ask: at what point does the framework itself need to be redesigned (the meta-flag in dec-1777157323547139809), versus continuing to patch?
 
 ### Big Picture Context
 
-**Tech tree:** Not yet available — no `tech-tree-designer` scenario integration exists. Status unchanged from yesterday.
+**Tech tree:** Not yet available — no `tech-tree-designer` scenario integration exists. Status unchanged from prior walks.
 
 **Bundle roadmap** (from `docs/monetization/CATALOG.md`):
-- **Active base bundle:** `business` (web-console + git-control-tower as headliners). web-console-readiness initiative now exists (created from yesterday's accepted decision); GCT cluster has 6 dedicated initiatives.
-- **Candidate base bundle:** `lifestyle` — 4 supporting initiatives (routines-app, inventory-app, contact-book-plus, lifestyle-demand-validation). Demand validation initiative still at 0/1 — gating signal hasn't moved.
-- **Candidate add-ons** (all dormant): `property-services` → business; `elder-care`, `family-with-kids` → lifestyle.
-- **Headliner readiness:** GCT family — pre-commit-security 1/5, others 0/N; web-console-readiness now exists at 0/N (just stood up). Business-bundle progress: swarm-manager-feature-parity (mature), command-center-foundation 2/4, vrooli-events (mature), desktop-release-governance 7/14.
-- **First *real* monetization signal arrived today** — the pricing-trough decision is the first piece of evidence the catalog's price-bracket needs work. Three days ago the catalog was the only voice in the room.
+- **Active base bundle:** `business` (web-console + GCT as headliners). `web-console-readiness` (1 item, 0/1) sits alongside the GCT cluster (6 dedicated initiatives). New as of this morning: `hosted-cloud-tier-foundation` (Tier 3 expansion, 0/0 items, priority 6) — coexists with web-console rather than gating it.
+- **Candidate base bundle:** `lifestyle` (4 supporting initiatives still all 0/N).
+- **Candidate add-ons** (dormant): `property-services`, `elder-care`, `family-with-kids`.
+- **Headliner readiness:** GCT family — `gct-pre-commit-security` 1/5 (only motion); others 0/N. Business-bundle progress: `swarm-manager-meta-optimizer` 0/4 (new), `command-center-foundation` 2/5 (was 2/4 yesterday — +1 item count, no completion delta), `desktop-release-governance` 7/14 (unchanged).
+- **First-real-monetization-signal momentum is over for now** — the pricing decision was deferred and the team has no fresh pending items. BENCHMARKS.md got accepted-to-populate; quality of that population is not yet observable.
 
 **Stalled initiatives (no completed items, present 2+ weeks):**
-- `agent-sandbox-audit-foundation` (0/5), `ai-image-generation-foundation` (0/4)
+- `agent-sandbox-audit-foundation` (0/5), `ai-image-generation-foundation` (0/5)
 - `command-center-dashboards` (0/6), `command-center-data-layer` (0/3)
-- `contribution-outbound-v1-bug-reports` (0/5) + 3 sibling contribution-loop initiatives
-- **GCT cluster (revenue-path bottleneck):** `gct-commit-initiative-linking` (0/3), `gct-github-integration` (0/5), `gct-merge-and-conflicts` (0/4), `gct-release-pipeline` (0/2), `git-control-tower-ai-provenance` (0/2). pre-commit-security 1/5 is the only motion.
-- `notification-hub-greenfield` (0/5), `phone-agent` (0/5), `trusted-node-bridge` (0/6), `widget-standard` (0/8)
-- Newcomers still at 0 (expected): `routines-app`, `inventory-app`, `contact-book-plus`, `lifestyle-demand-validation`, `agent-inbox-unified-retrieval`, `cli-conversational-surface`, `web-console-readiness`.
+- All 4 contribution-loop initiatives (0/N each)
+- **GCT cluster (revenue-path bottleneck, unchanged):** `gct-commit-initiative-linking` (0/3), `gct-github-integration` (0/5), `gct-merge-and-conflicts` (0/4), `gct-release-pipeline` (0/2), `git-control-tower-ai-provenance` (0/2). Only `pre-commit-security` 1/5 has motion.
+- `notification-hub-greenfield` (0/5), `phone-agent` (0/5), `widget-standard` (0/8)
+- Newcomers still at 0 (expected): `routines-app`, `inventory-app`, `contact-book-plus`, `lifestyle-demand-validation`, `web-console-readiness`, `hosted-cloud-tier-foundation`, `cli-conversational-surface`, `agent-inbox-unified-retrieval`, `swarm-manager-meta-optimizer`, `dtv-meta-optimization-readiness`, `brand-manager-readiness`, `decision-question-visuals`, `decision-visual-grounding-propagation`, `vrooli-events`, `data-backup-manager-v2`, etc.
 
 **Opportunities (cross-cutting patterns):**
-- **57 active / 0 in-progress** — same shape as yesterday, +3 net. The fact that the operator chose to *accept* the web-console-readiness proposal yesterday but didn't pull anything into in-progress overnight suggests "approve more, execute later" is the current rhythm.
-- **GCT cluster remains the Theme 2 choke-point** — unchanged from yesterday. Now web-console-readiness sits alongside it at 0/N rather than as a notional placeholder.
-- **Two teams, three first-time signals.** Monetization fired its first 3 decisions ever. Marketing-crew fired its first 2 publish-proposals + 1 capability-gap. Meta-optimization is on day-2 of an active cadence with diverse categories. The teams that were "enabled but quiet" yesterday all moved at once. Worth deciding which signals you actually want to read; otherwise the walk inflates.
-- **The instrumentation-gap pattern keeps surfacing on different teams.** Yesterday: financial-tracker has no inputs. Today: toolchain-validator has no structured output, researcher has no scanning tools, run-introspector has tier-signal contamination. Different teams, same shape — the work surface exists, the *measurement* surface doesn't.
-- **Financial-tracker dark for 7 days now** — explicit "no-change-since-2026-04-23" in the latest snapshot. At some point this either gets a fix or gets formally muted; the ledger entries are using up cycles without producing signal.
+- **59 active / 0 in-progress / +2 net since yesterday.** Same "approve more, execute later" rhythm — overnight, operator's only durable action was decision-acceptance, not pulling work to in-progress. The portfolio is a backlog-dump phase by design (per memory), but week-of-4/25 has zero completions to date.
+- **Tier-signal contamination is the day's named theme.** Three pending meta-optimization decisions all describe the same class of bug from different angles. The walk could decide whether to escalate to a framework-update or keep patching.
+- **Walk-fallout is real and observable.** The 2026-04-25 walk produced 1 accepted decision + 1 active initiative (`hosted-cloud-tier-foundation`) inside 6 hours. That's a tighter loop than the 2026-04-23 walk produced (4 lifestyle initiatives took ~24h to land). Worth noting because it suggests the walk → decision → backlog flow is now load-bearing, not aspirational.
+- **The instrumentation-gap pattern keeps changing teams** — financial-tracker silence is now in its own category (no output at all, vs. yesterday's "null output"). Each prior walk surfaced a different team with the same shape; today it's the same team with a worse shape.
+- **Reference-react-vite cleanup is mid-flight** — accepted toolchain-violation rescan dropped the count from 72 → 36, but introduced a NEW Critical. Cleanup is happening, regression risk is real. Not a walk-time question, just a status point for the gold-star arc.

@@ -1,14 +1,11 @@
 package agentmanager
 
 import (
-	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	repocontract "github.com/vrooli/repo-contract-go"
-
-	"swarm-manager/internal/projectroot"
 )
 
 func setupRepoRootEnv(t *testing.T) string {
@@ -26,7 +23,7 @@ func TestResolveScopeAndRoot_BothEmptyUsesResolver(t *testing.T) {
 
 	scope, root, err := resolveScopeAndRoot("", "", []string{
 		"scenarios/swarm-manager/api/**",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -43,7 +40,7 @@ func TestResolveScopeAndRoot_DotsTreatedAsEmpty(t *testing.T) {
 
 	scope, root, err := resolveScopeAndRoot(".", ".", []string{
 		"scenarios/swarm-manager/api/**",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -60,7 +57,7 @@ func TestResolveScopeAndRoot_ExplicitOverridesPreserved(t *testing.T) {
 
 	scope, root, err := resolveScopeAndRoot("custom/scope/path", "/custom/abs/root", []string{
 		"scenarios/swarm-manager/api/**",
-	})
+	}, nil)
 	if err == nil {
 		// Validation should fire because /custom/abs/root is absolute but
 		// scenarios/swarm-manager will not exist under it. Either we get
@@ -75,10 +72,10 @@ func TestResolveScopeAndRoot_ExplicitOverridesPreserved(t *testing.T) {
 		}
 		return
 	}
-	// Error path: must be acceptance mismatch (validation fired against the
+	// Error path: must be a typed StalePlanError (validation fired against the
 	// bogus override root). Anything else means the override was discarded.
-	if !errors.Is(err, projectroot.ErrAcceptanceMismatch) {
-		t.Errorf("expected ErrAcceptanceMismatch from validation, got %v", err)
+	if AsStalePlanError(err) == nil {
+		t.Errorf("expected *StalePlanError from validation, got %v", err)
 	}
 }
 
@@ -88,7 +85,7 @@ func TestResolveScopeAndRoot_PartialOverride(t *testing.T) {
 	// Caller fixes scope but lets root be derived.
 	scope, root, err := resolveScopeAndRoot("custom/scope", "", []string{
 		"scenarios/swarm-manager/api/**",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -105,34 +102,61 @@ func TestResolveScopeAndRoot_ValidationRejectsMissingPath(t *testing.T) {
 
 	_, _, err := resolveScopeAndRoot("", "", []string{
 		"scenarios/this-scenario-does-not-exist-anywhere/api/**",
-	})
+	}, nil)
 	if err == nil {
 		t.Fatal("expected validation error, got nil")
 	}
-	if !errors.Is(err, projectroot.ErrAcceptanceMismatch) {
-		t.Errorf("expected ErrAcceptanceMismatch, got %v", err)
+	// New shape: resolveScopeAndRoot returns *StalePlanError for missing-path
+	// failures so callers can render a typed staleness UX.
+	spe := AsStalePlanError(err)
+	if spe == nil {
+		t.Fatalf("expected *StalePlanError, got %T: %v", err, err)
+	}
+	if len(spe.MissingPaths) == 0 {
+		t.Errorf("expected missing paths to be populated, got empty")
 	}
 }
 
-func TestResolveScopeAndRoot_AmbiguousScenariosErrors(t *testing.T) {
+func TestResolveScopeAndRoot_CreatesAllowsMissingPath(t *testing.T) {
 	setupRepoRootEnv(t)
 
+	// Acceptance points at a path that does not exist; declaring it in
+	// creates makes the spawn-time check pass — the work plans to create it.
 	_, _, err := resolveScopeAndRoot("", "", []string{
-		"scenarios/foo/cli/**",
-		"scenarios/bar/api/**",
-	})
-	if err == nil {
-		t.Fatal("expected ambiguous-scenarios error, got nil")
+		"scenarios/this-scenario-does-not-exist-anywhere/api/**",
+	}, []string{"scenarios/this-scenario-does-not-exist-anywhere/api/**"})
+	if err != nil {
+		t.Errorf("expected nil with creates coverage, got %v", err)
 	}
-	if !errors.Is(err, projectroot.ErrAmbiguousScenarios) {
-		t.Errorf("expected ErrAmbiguousScenarios, got %v", err)
+}
+
+func TestResolveScopeAndRoot_MultipleScenariosFallsBackToWideScope(t *testing.T) {
+	repoRoot := setupRepoRootEnv(t)
+
+	// Cross-cutting backlog items (e.g. a contract spanning agent-manager,
+	// workspace-sandbox, test-genie, git-control-tower) must resolve to a
+	// monorepo-wide scope rather than erroring. Validation of the individual
+	// globs still fail-closes via ValidateAcceptanceUnderRoot, so we use real
+	// scenario paths here.
+	scope, root, err := resolveScopeAndRoot("", "", []string{
+		"scenarios/agent-manager/**",
+		"scenarios/workspace-sandbox/**",
+	}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if root != repoRoot {
+		t.Errorf("root = %q, want %q", root, repoRoot)
+	}
+	if scope != "." {
+		t.Errorf("scope = %q, want \".\" for multi-scenario wide-scope fallback", scope)
 	}
 }
 
 func TestResolveScopeAndRoot_NoAcceptanceFallsBackToWideScope(t *testing.T) {
 	repoRoot := setupRepoRootEnv(t)
 
-	scope, root, err := resolveScopeAndRoot("", "", nil)
+	scope, root, err := resolveScopeAndRoot("", "", nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -151,7 +175,7 @@ func TestResolveScopeAndRoot_AbsoluteOverrideValidated(t *testing.T) {
 	// validate cleanly against it.
 	_, _, err := resolveScopeAndRoot("scenarios/swarm-manager", repoRoot, []string{
 		"scenarios/swarm-manager/api/**",
-	})
+	}, nil)
 	if err != nil {
 		t.Errorf("unexpected error for valid override: %v", err)
 	}
@@ -189,7 +213,7 @@ func TestResolveScopeAndRoot_RelativeOverrideRootSkipsValidation(t *testing.T) {
 	// without context. We just pass it through.
 	scope, root, err := resolveScopeAndRoot("scope", "relative/root", []string{
 		"scenarios/nonexistent-anywhere/**",
-	})
+	}, nil)
 	if err != nil {
 		t.Errorf("relative override should skip validation, got error: %v", err)
 	}

@@ -517,5 +517,14 @@ func wrapAgentError(err error) error {
 	if errors.Is(err, agentmanager.ErrRequestFailed) {
 		return apierr.BadGateway("agent-manager request failed; check agent-manager health/logs and retry")
 	}
+	if spe := agentmanager.AsStalePlanError(err); spe != nil {
+		return apierr.PlanStale(
+			"this plan references paths that no longer exist; re-workshop required",
+			map[string]any{
+				"missingPaths": spe.MissingPaths,
+				"projectRoot":  spe.ProjectRoot,
+			},
+		)
+	}
 	return err
 }

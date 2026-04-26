@@ -2,6 +2,7 @@
   "acceptance_allow": [
     "scenarios/prompt-manager/store/skills/packs/core/workshop-decision-sync/**"
   ],
+  "archived_at": "2026-04-26T20:39:01Z",
   "created": "2026-04-22T20:27:45Z",
   "depends_on": [
     "execute/workshop-decision-prep-agent"
@@ -15,5 +16,5 @@
   "status": "backlog",
   "tags": [],
   "title": "Create workshop-decision-sync skill",
-  "updated": "2026-04-22T20:27:45Z"
+  "updated": "2026-04-26T20:39:01Z"
 }

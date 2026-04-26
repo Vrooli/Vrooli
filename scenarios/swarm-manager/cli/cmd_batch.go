@@ -30,6 +30,7 @@ type BatchCreateItem struct {
 	Effort          *string  `json:"effort,omitempty"`
 	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
+	Creates         []string `json:"creates,omitempty"`
 }
 
 type BatchCreateInitiative struct {

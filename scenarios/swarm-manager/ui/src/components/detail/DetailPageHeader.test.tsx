@@ -65,6 +65,20 @@ describe("DetailPageHeader", () => {
     expect(screen.getByText("Test Item")).toBeInTheDocument();
   });
 
+  it("opens a popover with the full title and a copy button when the title is clicked", async () => {
+    const longTitle = "Define the canonical sandbox auditability contract for agent-manager";
+    renderHeader({ title: longTitle });
+
+    expect(screen.queryByTestId("detail-title-popover")).not.toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId("detail-title-button"));
+
+    expect(screen.getByTestId("detail-title-popover")).toBeInTheDocument();
+    expect(screen.getByTestId("detail-title-popover-text")).toHaveTextContent(longTitle);
+    expect(screen.getByTestId("detail-title-copy-button")).toBeInTheDocument();
+  });
+
   it("renders subtitle when provided", () => {
     renderHeader({ subtitle: "execute/test" });
 

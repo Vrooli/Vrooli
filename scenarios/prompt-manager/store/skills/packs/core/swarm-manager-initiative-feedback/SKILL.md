@@ -71,6 +71,16 @@ End your response with a fenced `json` block containing a proposal envelope. The
     },
     {
       "id": "m2",
+      "op": "update_item",
+      "target": "execute/command-center-base",
+      "patch": {
+        "title": "Refactor command-center base theming",
+        "description": "Clarify that the theming layer must converge on design tokens shared by kiosk surfaces."
+      },
+      "rationale": "Observed in screenshot: the current item title/description understate the design-system scope."
+    },
+    {
+      "id": "m3",
       "op": "change_priority",
       "target": "execute/command-center-base",
       "priority": 2,
@@ -85,7 +95,7 @@ End your response with a fenced `json` block containing a proposal envelope. The
 | Op | When to use |
 |----|-------------|
 | `add_item` | New work the feedback surfaces that doesn't exist yet |
-| `update_item` | Metadata correction on an existing item (title, description, effort, etc.) |
+| `update_item` | Metadata correction on an existing item. **Must** use `patch: {...}` with supported keys (`title`, `description`, `priority`, `tags`, `depends_on`, `effort`, `acceptance_allow`, `acceptance_deny`, `note`). Do **not** put title/description at the top level of the mutation. |
 | `change_status` | Move a non-lifecycle-controlled status. Allowed: `backlog`, `researching`, `ready`. **Never** propose `queued`, `in_progress`, `in_review`, `review_pending`, or any terminal status (`completed`, `failed`, `needs_followup`) — those are owned by the execution / review / user-decide systems. |
 | `change_priority` | Priority change only (1–10) |
 | `add_edge` | New `depends_on` relationship between two items in the initiative |
@@ -105,6 +115,11 @@ End your response with a fenced `json` block containing a proposal envelope. The
 6. **Don't propose terminal statuses.** If you believe an item is "done", propose `archive_item` or surface it in your prose. Terminal transitions are a separate user decision.
 7. **If the feedback is ambiguous**, ask a clarifying question *in prose* and emit an empty `mutations: []` array. A follow-up user turn will give you more context.
 8. **If the feedback is purely informational** (the user is telling you something you should know for next round), emit `mutations: []` and explain what you learned in the rationale.
+9. **`update_item` shape is strict.** Use:
+   ```json
+   {"id":"mX","op":"update_item","target":"execute/foo","patch":{"title":"New title","description":"..."}}
+   ```
+   Never use top-level `title`, `description`, `effort`, `priority`, or custom wrappers like `fields` / `description_append` on an `update_item` mutation.
 
 ### References
 

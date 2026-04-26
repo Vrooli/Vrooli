@@ -232,6 +232,93 @@ func TestHandler_Decide_AcceptAppliesMutations(t *testing.T) {
 	}
 }
 
+func TestHandler_Decide_InvalidProposalReturnsStructuredBadRequest(t *testing.T) {
+	env := newHandlerEnv(t)
+	_ = env.do("POST", "/api/v1/initiatives/ui-rewrite/feedback",
+		strings.NewReader(`{"type":"feedback","text":"start"}`), "application/json")
+
+	proposalBodyBytes, err := json.Marshal(map[string]string{
+		"body": "```json\n" +
+			`{"form":"mutation_list","mutations":[{"id":"m1","op":"update_item","target":"execute/foo","title":"bad"}]}` +
+			"\n```",
+	})
+	if err != nil {
+		t.Fatalf("marshal proposal body: %v", err)
+	}
+	rTurn := env.do("POST", "/api/v1/initiatives/ui-rewrite/feedback/1/agent-turn",
+		bytes.NewReader(proposalBodyBytes), "application/json")
+	if rTurn.Code != http.StatusOK {
+		t.Fatalf("agent-turn: %d body=%s", rTurn.Code, rTurn.Body.String())
+	}
+
+	rDecide := env.do("POST", "/api/v1/initiatives/ui-rewrite/feedback/1/decide",
+		strings.NewReader(`{"kind":"accept","accepted_mutation_ids":["m1"]}`), "application/json")
+	if rDecide.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d body=%s", rDecide.Code, rDecide.Body.String())
+	}
+	var payload map[string]any
+	if err := json.NewDecoder(rDecide.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode decide error: %v", err)
+	}
+	if payload["error"] != "proposal_validation_error" {
+		t.Fatalf("expected proposal_validation_error, got %+v", payload)
+	}
+}
+
+func TestHandler_Get_DegradesHistoricalInvalidCurrentProposal(t *testing.T) {
+	env := newHandlerEnv(t)
+	now := "2026-04-26T00:00:00Z"
+	legacy := Round{
+		InitiativeName: "ui-rewrite",
+		Number:         3,
+		Slug:           "legacy-invalid",
+		Type:           RoundTypeFeedback,
+		Status:         RoundStatusAwaitingUser,
+		Submission: Submission{
+			Text:      "legacy invalid",
+			CreatedAt: now,
+		},
+		Thread: []Message{
+			{Role: "user", Content: "legacy invalid", CreatedAt: now},
+			{Role: "agent", Content: "```json\n{\"form\":\"mutation_list\",\"mutations\":[{\"id\":\"m1\",\"op\":\"update_item\",\"target\":\"execute/foo\",\"title\":\"bad\"}]}\n```", ProposalID: "p1", CreatedAt: now},
+		},
+		Proposals: []ProposalRevision{
+			{
+				ID:           "p1",
+				MessageIndex: 1,
+				CreatedAt:    now,
+				Proposal: proposals.Proposal{
+					Form: proposals.FormMutationList,
+					Mutations: []proposals.Mutation{
+						{ID: "m1", Op: proposals.OpUpdateItem, Target: "execute/foo"},
+					},
+				},
+			},
+		},
+		CurrentProposalID: "p1",
+		CreatedAt:         now,
+		UpdatedAt:         now,
+	}
+	if err := env.store.SaveRound(legacy); err != nil {
+		t.Fatalf("save legacy round: %v", err)
+	}
+
+	rec := env.do("GET", "/api/v1/initiatives/ui-rewrite/feedback/3", nil, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("get: %d body=%s", rec.Code, rec.Body.String())
+	}
+	round := env.decodeRound(t, rec)
+	if round.CurrentProposalID != "" {
+		t.Fatalf("expected current proposal cleared, got %q", round.CurrentProposalID)
+	}
+	if !round.NeedsRevision {
+		t.Fatal("expected needs_revision for legacy invalid proposal")
+	}
+	if len(round.LastValidationErrors) == 0 {
+		t.Fatal("expected validation errors for legacy invalid proposal")
+	}
+}
+
 func TestHandler_Dismiss_SetsStatus(t *testing.T) {
 	env := newHandlerEnv(t)
 	_ = env.do("POST", "/api/v1/initiatives/ui-rewrite/feedback",

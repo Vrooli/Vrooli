@@ -18,6 +18,13 @@ export const PARSE_ERROR_BODY =
   "mutation_list or full_graph block could be parsed. Describe what you want " +
   "differently and send the follow-up below.";
 
+export const INVALID_PROPOSAL_TITLE = "Agent proposal is invalid and must be revised";
+
+export const INVALID_PROPOSAL_BODY =
+  "The agent produced a proposal JSON block, but it does not match the " +
+  "supported mutation contract. This revision cannot be applied; ask the " +
+  "agent to revise it using the validation errors below.";
+
 export const PROPOSAL_SELECT_ALL = "Select all";
 export const PROPOSAL_CLEAR = "Clear";
 export const PROPOSAL_REJECT = "Reject";

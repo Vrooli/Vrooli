@@ -65,7 +65,7 @@ func TestExtractProposal_LenientFormats(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			p, _ := extractProposal(tc.body)
+			p, _, _ := extractProposal(tc.body)
 			if p == nil {
 				t.Fatalf("expected proposal, got nil for body=%q", tc.body)
 			}
@@ -116,7 +116,7 @@ func TestExtractProposal_NoSilentFailures(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			p, warns := extractProposal(tc.body)
+			p, _, warns := extractProposal(tc.body)
 			if p != nil {
 				t.Fatalf("expected nil proposal, got %+v", p)
 			}

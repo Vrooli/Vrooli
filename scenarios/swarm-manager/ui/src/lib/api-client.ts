@@ -52,17 +52,30 @@ export class ApiError extends Error {
   readonly isClientError: boolean;
   readonly isServerError: boolean;
   readonly isRetryable: boolean;
+  /**
+   * Machine-readable error code from the server's JSON envelope, when present
+   * (e.g. "plan_stale"). Empty string when the response was plain text or had
+   * no `error` field.
+   */
+  readonly code: string;
+  /**
+   * Structured details payload from the server's JSON envelope, when present.
+   * Shape is endpoint-specific; e.g. `{ missingPaths: [...] }` for plan_stale.
+   */
+  readonly details?: unknown;
 
   constructor(
     type: ApiErrorType,
     message: string,
-    options?: { status?: number; cause?: unknown }
+    options?: { status?: number; cause?: unknown; code?: string; details?: unknown }
   ) {
     super(message);
     this.name = "ApiError";
     this.type = type;
     this.status = options?.status;
     this.cause = options?.cause;
+    this.code = options?.code ?? "";
+    this.details = options?.details;
     this.isClientError = type === "http" && !!options?.status && options.status >= 400 && options.status < 500;
     this.isServerError = type === "http" && !!options?.status && options.status >= 500;
     // Network errors and 5xx are typically retryable; 4xx are not
@@ -196,11 +209,31 @@ export class ApiClient implements IApiClient {
 
       if (!res.ok) {
         let detail = "";
+        let code = "";
+        let details: unknown;
         try {
           detail = (await res.text()).trim();
         } catch { /* ignore read failures */ }
+        // Server-side handlers emit a JSON envelope when the error carries a
+        // structured code/details payload (see scenarios/swarm-manager/api
+        // /internal/apierr/mapper.go). Parse opportunistically; fall back to
+        // the raw text if the body is plain.
+        if (detail.startsWith("{")) {
+          try {
+            const parsed = JSON.parse(detail) as {
+              error?: string;
+              message?: string;
+              details?: unknown;
+            };
+            if (typeof parsed.error === "string") code = parsed.error;
+            if (typeof parsed.message === "string" && parsed.message) {
+              detail = parsed.message;
+            }
+            if (parsed.details !== undefined) details = parsed.details;
+          } catch { /* not JSON; keep raw text */ }
+        }
         const message = detail || `Request failed with status ${res.status}`;
-        throw new ApiError("http", message, { status: res.status });
+        throw new ApiError("http", message, { status: res.status, code, details });
       }
 
       // Handle response based on requested type or content-type

@@ -38,43 +38,98 @@ func TestLiteralPrefix(t *testing.T) {
 	}
 }
 
-func TestValidateAcceptanceUnderRoot_AllExist(t *testing.T) {
+func TestValidateAcceptance_AllExist(t *testing.T) {
 	root := t.TempDir()
 	mustMkdirAll(t, filepath.Join(root, "scenarios", "dtv", "cli"))
 	mustMkdirAll(t, filepath.Join(root, "scenarios", "dtv", "api"))
 
-	err := ValidateAcceptanceUnderRoot(root, []string{
+	report, err := ValidateAcceptance(root, []string{
 		"scenarios/dtv/cli/**",
 		"scenarios/dtv/api/**",
-	})
+	}, nil)
 	if err != nil {
 		t.Errorf("expected nil, got %v", err)
 	}
+	if !report.Clean() {
+		t.Errorf("expected clean report, got %+v", report.Problems)
+	}
 }
 
-func TestValidateAcceptanceUnderRoot_MissingPath(t *testing.T) {
+func TestValidateAcceptance_MissingPath(t *testing.T) {
 	root := t.TempDir()
 	mustMkdirAll(t, filepath.Join(root, "scenarios", "dtv", "cli"))
 	// scenarios/dtv/api intentionally not created
 
-	err := ValidateAcceptanceUnderRoot(root, []string{
+	report, err := ValidateAcceptance(root, []string{
 		"scenarios/dtv/cli/**",
 		"scenarios/dtv/api/**",
-	})
+	}, nil)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
 	if !errors.Is(err, ErrAcceptanceMismatch) {
 		t.Errorf("expected ErrAcceptanceMismatch, got %v", err)
 	}
+	if len(report.Problems) != 1 {
+		t.Fatalf("expected 1 problem, got %d: %+v", len(report.Problems), report.Problems)
+	}
+	if report.Problems[0].Glob != "scenarios/dtv/api/**" {
+		t.Errorf("unexpected glob in problem: %q", report.Problems[0].Glob)
+	}
 }
 
-func TestValidateAcceptanceUnderRoot_PathTraversalRejected(t *testing.T) {
+func TestValidateAcceptance_CreatesAllowsMissingPath(t *testing.T) {
+	root := t.TempDir()
+	mustMkdirAll(t, filepath.Join(root, "scenarios", "dtv", "cli"))
+	// scenarios/dtv/api intentionally not created — but creates declares it.
+
+	report, err := ValidateAcceptance(root, []string{
+		"scenarios/dtv/cli/**",
+		"scenarios/dtv/api/**",
+	}, []string{"scenarios/dtv/api/**"})
+	if err != nil {
+		t.Fatalf("expected nil with creates coverage, got %v", err)
+	}
+	if !report.Clean() {
+		t.Errorf("expected clean report, got %+v", report.Problems)
+	}
+}
+
+func TestValidateAcceptance_CreatesAncestorAllowsMissingPath(t *testing.T) {
+	root := t.TempDir()
+	// Acceptance prefix points at "docs"; creates points at a descendant.
+	report, err := ValidateAcceptance(root, []string{
+		"docs/**",
+	}, []string{"docs/internal/SANDBOX-CONTRACT.md"})
+	if err != nil {
+		t.Fatalf("expected nil when creates is more specific descendant, got %v", err)
+	}
+	if !report.Clean() {
+		t.Errorf("expected clean, got %+v", report.Problems)
+	}
+}
+
+func TestValidateAcceptance_CreatesPathTraversalRejected(t *testing.T) {
+	root := t.TempDir()
+	mustMkdirAll(t, filepath.Join(root, "scenarios", "dtv", "cli"))
+
+	_, err := ValidateAcceptance(root, []string{
+		"scenarios/dtv/cli/**",
+	}, []string{"../etc/passwd"})
+	if err == nil {
+		t.Fatal("expected error for traversal in creates, got nil")
+	}
+	if !errors.Is(err, ErrAcceptanceMismatch) {
+		t.Errorf("expected ErrAcceptanceMismatch, got %v", err)
+	}
+}
+
+func TestValidateAcceptance_PathTraversalRejected(t *testing.T) {
 	root := t.TempDir()
 
-	err := ValidateAcceptanceUnderRoot(root, []string{
+	_, err := ValidateAcceptance(root, []string{
 		"../etc/passwd/**",
-	})
+	}, nil)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -83,51 +138,56 @@ func TestValidateAcceptanceUnderRoot_PathTraversalRejected(t *testing.T) {
 	}
 }
 
-func TestValidateAcceptanceUnderRoot_WildcardOnlyGlobsSkipped(t *testing.T) {
+func TestValidateAcceptance_WildcardOnlyGlobsSkipped(t *testing.T) {
 	root := t.TempDir()
-	// No paths created. Pure wildcard globs have no literal prefix to check.
-	err := ValidateAcceptanceUnderRoot(root, []string{"**/*.go", "*.md"})
+	report, err := ValidateAcceptance(root, []string{"**/*.go", "*.md"}, nil)
 	if err != nil {
 		t.Errorf("expected nil for wildcard-only globs, got %v", err)
 	}
+	if !report.Clean() {
+		t.Errorf("expected clean, got %+v", report.Problems)
+	}
 }
 
-func TestValidateAcceptanceUnderRoot_LiteralFilePath(t *testing.T) {
+func TestValidateAcceptance_LiteralFilePath(t *testing.T) {
 	root := t.TempDir()
 	mustMkdirAll(t, filepath.Join(root, "scenarios", "foo"))
 	mustWriteFile(t, filepath.Join(root, "scenarios", "foo", "README.md"))
 
-	err := ValidateAcceptanceUnderRoot(root, []string{"scenarios/foo/README.md"})
+	_, err := ValidateAcceptance(root, []string{"scenarios/foo/README.md"}, nil)
 	if err != nil {
 		t.Errorf("expected nil for existing literal file, got %v", err)
 	}
 
-	err = ValidateAcceptanceUnderRoot(root, []string{"scenarios/foo/MISSING.md"})
+	_, err = ValidateAcceptance(root, []string{"scenarios/foo/MISSING.md"}, nil)
 	if !errors.Is(err, ErrAcceptanceMismatch) {
 		t.Errorf("expected ErrAcceptanceMismatch for missing literal file, got %v", err)
 	}
 }
 
-func TestValidateAcceptanceUnderRoot_RejectsRelativeProjectRoot(t *testing.T) {
-	err := ValidateAcceptanceUnderRoot("relative/path", []string{"foo/**"})
+func TestValidateAcceptance_RejectsRelativeProjectRoot(t *testing.T) {
+	_, err := ValidateAcceptance("relative/path", []string{"foo/**"}, nil)
 	if err == nil {
 		t.Fatal("expected error for relative projectRoot, got nil")
 	}
 }
 
-func TestValidateAcceptanceUnderRoot_AggregatesProblems(t *testing.T) {
+func TestValidateAcceptance_AggregatesProblems(t *testing.T) {
 	root := t.TempDir()
 
-	err := ValidateAcceptanceUnderRoot(root, []string{
+	report, err := ValidateAcceptance(root, []string{
 		"scenarios/missing-a/**",
 		"scenarios/missing-b/**",
-	})
+	}, nil)
 	if !errors.Is(err, ErrAcceptanceMismatch) {
 		t.Fatalf("expected ErrAcceptanceMismatch, got %v", err)
 	}
 	msg := err.Error()
 	if !strings.Contains(msg, "missing-a") || !strings.Contains(msg, "missing-b") {
 		t.Errorf("expected error to mention both missing paths, got %q", msg)
+	}
+	if len(report.Problems) != 2 {
+		t.Errorf("expected 2 problems, got %d: %+v", len(report.Problems), report.Problems)
 	}
 }
 
@@ -144,4 +204,3 @@ func mustWriteFile(t *testing.T, path string) {
 		t.Fatalf("WriteFile %s: %v", path, err)
 	}
 }
-

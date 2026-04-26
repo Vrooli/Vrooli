@@ -5,6 +5,7 @@ Keep Vrooli's initiative portfolio flowing through Swarm Manager and surface out
 
 ## V1 Charter
 - `portfolio-manager` is the active lane. It uses `swarm-manager` as the primary planning surface, applies accepted portfolio decisions when the current tooling supports that action, and proposes bounded corrective moves when approval is still required.
+- `workshop-decision-prep` is a read-only support lane. It stages high-priority Swarm Manager workshop decisions into a reusable handoff for short conversational operator sessions.
 - `outcome-strategist` is defined now but stays disabled until Command Center exposes real metrics and `/api/v1/gaps`.
 - There is no AI lead in this version of the team. Do not recreate one implicitly through “synthesize the other agents” behavior.
 

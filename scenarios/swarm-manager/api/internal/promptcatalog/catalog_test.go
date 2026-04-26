@@ -11,7 +11,8 @@ func TestResolveBacklogSkill(t *testing.T) {
 	}{
 		{name: "workshop non research", mode: "workshop", kind: "idea", want: "swarm-manager-workshop"},
 		{name: "workshop research", mode: "workshop", kind: "research", want: "swarm-manager-workshop-research"},
-		{name: "initialize any kind", mode: "initialize", kind: "fix", want: "swarm-manager-initialize-backlog"},
+		{name: "initialize non research", mode: "initialize", kind: "fix", want: "swarm-manager-initialize-backlog"},
+		{name: "initialize research", mode: "initialize", kind: "research", want: "swarm-manager-initialize-research"},
 		{name: "finalize non research", mode: "finalize", kind: "execute", want: "swarm-manager-workshop-finalize"},
 		{name: "finalize research", mode: "finalize", kind: "research", want: "swarm-manager-workshop-research-finalize"},
 	}
@@ -51,10 +52,10 @@ func TestSkillUsageSummary(t *testing.T) {
 	if got := SkillUsageCount("swarm-manager-workshop"); got != 1 {
 		t.Fatalf("workshop direct usage count = %d, want 1", got)
 	}
-	if got := SkillUsageCount("swarm-manager-backlog-tools"); got != 7 {
-		t.Fatalf("backlog-tools reference count = %d, want 7", got)
+	if got := SkillUsageCount("swarm-manager-backlog-tools"); got != 8 {
+		t.Fatalf("backlog-tools reference count = %d, want 8", got)
 	}
-	if got := SkillImpactSummary("swarm-manager-backlog-tools"); got != "Referenced by 7 runtime prompt paths." {
+	if got := SkillImpactSummary("swarm-manager-backlog-tools"); got != "Referenced by 8 runtime prompt paths." {
 		t.Fatalf("unexpected backlog-tools summary: %q", got)
 	}
 	if got := SkillImpactSummary("spec-sync"); got != "Used directly by 1 runtime prompt path." {

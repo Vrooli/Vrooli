@@ -1,0 +1,81 @@
+{
+  "initiative_name": "workshop-decision-triage",
+  "number": 2,
+  "slug": "this-may-have-been-completed",
+  "type": "feedback",
+  "status": "applied",
+  "submission": {
+    "text": "This may have been completed already by an agent outside of swarm manager, so investigate and see what’s still relevant and any remaining work that might need to be done",
+    "created_at": "2026-04-26T20:31:42Z"
+  },
+  "thread": [
+    {
+      "role": "user",
+      "content": "This may have been completed already by an agent outside of swarm manager, so investigate and see what’s still relevant and any remaining work that might need to be done",
+      "created_at": "2026-04-26T20:31:42Z"
+    },
+    {
+      "role": "agent",
+      "content": "Investigation complete. Here's what I found:\n\n**Item 1 — `execute/swarm-manager-pending-questions-priority-sort`**: Done. `pending_questions.go` already sorts via the `backlogrank` package (depth + priority + recency + unblocking boost), and the CLI wrapper `backlog pending-questions` (with `--source`, `--limit`, `--initiative`, `--json`) is registered in `cmd_backlog.go` and `domains/backlog/register.go`.\n\n**Item 2 — `execute/workshop-decision-prep-agent`**: Done. `scenarios/prompt-manager/store/teams/director-swarm/members/workshop-decision-prep/` contains `heartbeat.json` (cron `0 */3 * * *`), `HEARTBEAT.md`, `RESPONSIBILITIES.md`, and `last-handoff.md` — all matching the planned contract (hash-based freshness, early-return at 15 valid briefs, no mutations).\n\n**Item 3 — `execute/workshop-decision-sync-skill`**: Done. `scenarios/prompt-manager/store/skills/packs/core/workshop-decision-sync/` has `skill.json` and `SKILL.md` covering the full conversational flow (handoff read, freshness recheck, focus stack, fetch-patch-save through `workshop/save`, async clarification, skip rules).\n\n**Item 4 — `chore/workshop-decision-sync-tests`**: Partially done.\n- ✅ Go test for the API endpoint sort (`pending_questions_test.go`: `TestPendingQuestions_SortedByDependencyDepthAndPriority`, `TestPendingQuestions_UnblockingBoostBeatsRecency`, `TestPendingQuestions_LimitAndInitiativeFilter`).\n- ✅ Go test for the CLI wrapper (`app_test.go`: `TestCmdBacklogPendingQuestionsValidation`, `TestCmdBacklogPendingQuestionsRequestsExpectedEndpoint`).\n- ❌ No scenario test for the prep heartbeat (hash freshness, early-return cap, mutate-and-refresh, answer-and-drop).\n- ❌ No documented skill smoke test plan (focus stack under mid-decision clarifying question, async clarify spawn).\n\n```json\n{\n  \"form\": \"mutation_list\",\n  \"rationale\": \"Three execute items were already implemented outside the swarm-manager flow and only the heartbeat/skill end-to-end coverage in the test chore remains.\",\n  \"mutations\": [\n    {\n      \"id\": \"m1\",\n      \"op\": \"archive_item\",\n      \"target\": \"execute/swarm-manager-pending-questions-priority-sort\",\n      \"rationale\": \"Implemented: pending_questions.go sorts via backlogrank (depth + priority + recency + unblocking boost) and the CLI subcommand `backlog pending-questions` with --source/--limit/--initiative/--json is wired in cmd_backlog.go and domains/backlog/register.go. The plan's deliverables match the current code.\"\n    },\n    {\n      \"id\": \"m2\",\n      \"op\": \"archive_item\",\n      \"target\": \"execute/workshop-decision-prep-agent\",\n      \"rationale\": \"Implemented: scenarios/prompt-manager/store/teams/director-swarm/members/workshop-decision-prep/ contains heartbeat.json (cron `0 */3 * * *`, enabled), HEARTBEAT.md (read prior handoff, recompute SHA-256 over topic+text+context+options, drop stale/answered briefs, early-return at 15 valid briefs, enrich up to 20, clarification feed-forward), RESPONSIBILITIES.md, and the initial last-handoff.md. Matches the planned member contract.\"\n    },\n    {\n      \"id\": \"m3\",\n      \"op\": \"archive_item\",\n      \"target\": \"execute/workshop-decision-sync-skill\",\n      \"rationale\": \"Implemented: scenarios/prompt-manager/store/skills/packs/core/workshop-decision-sync/ has skill.json (mode=practice, swarm-manager/decisions tags) and SKILL.md covering staged-handoff intake, freshness checks with lazy fallback, focus stack, fetch-patch-save through workshop/save, skip/clarify surfaces, and completion reporting.\"\n    },\n    {\n      \"id\": \"m4\",\n      \"op\": \"update_item\",\n      \"target\": \"chore/workshop-decision-sync-tests\",\n      \"patch\": {\n        \"title\": \"End-to-end scenario + skill-smoke coverage for workshop-decision-prep heartbeat and sync skill\",\n        \"description\": \"Remaining test coverage after the three execute items landed.\\n\\nDone (do NOT redo):\\n- Go test (scenarios/swarm-manager/api/internal/backlog/pending_questions_test.go): sorted-by-dependency-depth-and-priority, unblocking-boost-beats-recency, limit + --initiative filter, invalid-query-params, mixed sources.\\n- Go test (scenarios/swarm-manager/cli/app_test.go): TestCmdBacklogPendingQuestionsValidation and TestCmdBacklogPendingQuestionsRequestsExpectedEndpoint cover --source/--limit/--initiative flag forwarding and the `/api/v1/backlog/pending-questions` endpoint.\\n\\nStill to deliver:\\n1. Scenario test (test-genie or manual harness): seed swarm-manager with 3 backlog items across 2 initiatives, each with 2 open workshop decisions; run the workshop-decision-prep heartbeat; assert last-handoff.md shape, per-brief content_hash presence, and early-return behavior when the cap is already met. Then mutate one decision's options and re-run, asserting only that one brief is refreshed. Then call POST /api/v1/backlog/{kind}/{name}/workshop/save for one decision (simulating UI answer) and re-run the skill's freshness step, asserting the now-answered decision is dropped.\\n2. Skill smoke test: documented manual test plan that invokes the workshop-decision-sync skill with a fully staged handoff and confirms (a) narrative grouping by initiative -\u003e backlog item -\u003e decision, (b) focus-stack behavior when the operator asks a clarifying question mid-decision, and (c) async clarification spawn via `swarm-manager backlog clarify`, with the session continuing past the spawn.\"\n      },\n      \"rationale\": \"The Go-side test coverage already exists; rescoping the chore to only the missing scenario heartbeat test and the manual skill smoke test plan prevents duplicate work and keeps the chore relevant.\"\n    }\n  ]\n}\n```",
+      "proposal_id": "p1",
+      "run_id": "d5e6e3ab-9b2d-4be9-97dd-34e4dbf08ca8",
+      "created_at": "2026-04-26T20:38:13Z"
+    }
+  ],
+  "proposals": [
+    {
+      "id": "p1",
+      "message_index": 1,
+      "proposal": {
+        "form": "mutation_list",
+        "mutations": [
+          {
+            "id": "m1",
+            "op": "archive_item",
+            "rationale": "Implemented: pending_questions.go sorts via backlogrank (depth + priority + recency + unblocking boost) and the CLI subcommand `backlog pending-questions` with --source/--limit/--initiative/--json is wired in cmd_backlog.go and domains/backlog/register.go. The plan's deliverables match the current code.",
+            "target": "execute/swarm-manager-pending-questions-priority-sort"
+          },
+          {
+            "id": "m2",
+            "op": "archive_item",
+            "rationale": "Implemented: scenarios/prompt-manager/store/teams/director-swarm/members/workshop-decision-prep/ contains heartbeat.json (cron `0 */3 * * *`, enabled), HEARTBEAT.md (read prior handoff, recompute SHA-256 over topic+text+context+options, drop stale/answered briefs, early-return at 15 valid briefs, enrich up to 20, clarification feed-forward), RESPONSIBILITIES.md, and the initial last-handoff.md. Matches the planned member contract.",
+            "target": "execute/workshop-decision-prep-agent"
+          },
+          {
+            "id": "m3",
+            "op": "archive_item",
+            "rationale": "Implemented: scenarios/prompt-manager/store/skills/packs/core/workshop-decision-sync/ has skill.json (mode=practice, swarm-manager/decisions tags) and SKILL.md covering staged-handoff intake, freshness checks with lazy fallback, focus stack, fetch-patch-save through workshop/save, skip/clarify surfaces, and completion reporting.",
+            "target": "execute/workshop-decision-sync-skill"
+          },
+          {
+            "id": "m4",
+            "op": "update_item",
+            "rationale": "The Go-side test coverage already exists; rescoping the chore to only the missing scenario heartbeat test and the manual skill smoke test plan prevents duplicate work and keeps the chore relevant.",
+            "target": "chore/workshop-decision-sync-tests",
+            "patch": {
+              "title": "End-to-end scenario + skill-smoke coverage for workshop-decision-prep heartbeat and sync skill",
+              "description": "Remaining test coverage after the three execute items landed.\n\nDone (do NOT redo):\n- Go test (scenarios/swarm-manager/api/internal/backlog/pending_questions_test.go): sorted-by-dependency-depth-and-priority, unblocking-boost-beats-recency, limit + --initiative filter, invalid-query-params, mixed sources.\n- Go test (scenarios/swarm-manager/cli/app_test.go): TestCmdBacklogPendingQuestionsValidation and TestCmdBacklogPendingQuestionsRequestsExpectedEndpoint cover --source/--limit/--initiative flag forwarding and the `/api/v1/backlog/pending-questions` endpoint.\n\nStill to deliver:\n1. Scenario test (test-genie or manual harness): seed swarm-manager with 3 backlog items across 2 initiatives, each with 2 open workshop decisions; run the workshop-decision-prep heartbeat; assert last-handoff.md shape, per-brief content_hash presence, and early-return behavior when the cap is already met. Then mutate one decision's options and re-run, asserting only that one brief is refreshed. Then call POST /api/v1/backlog/{kind}/{name}/workshop/save for one decision (simulating UI answer) and re-run the skill's freshness step, asserting the now-answered decision is dropped.\n2. Skill smoke test: documented manual test plan that invokes the workshop-decision-sync skill with a fully staged handoff and confirms (a) narrative grouping by initiative -\u003e backlog item -\u003e decision, (b) focus-stack behavior when the operator asks a clarifying question mid-decision, and (c) async clarification spawn via `swarm-manager backlog clarify`, with the session continuing past the spawn."
+            }
+          }
+        ],
+        "rationale": "Three execute items were already implemented outside the swarm-manager flow and only the heartbeat/skill end-to-end coverage in the test chore remains."
+      },
+      "created_at": "2026-04-26T20:38:13Z",
+      "raw_proposal_text": "{\n  \"form\": \"mutation_list\",\n  \"rationale\": \"Three execute items were already implemented outside the swarm-manager flow and only the heartbeat/skill end-to-end coverage in the test chore remains.\",\n  \"mutations\": [\n    {\n      \"id\": \"m1\",\n      \"op\": \"archive_item\",\n      \"target\": \"execute/swarm-manager-pending-questions-priority-sort\",\n      \"rationale\": \"Implemented: pending_questions.go sorts via backlogrank (depth + priority + recency + unblocking boost) and the CLI subcommand `backlog pending-questions` with --source/--limit/--initiative/--json is wired in cmd_backlog.go and domains/backlog/register.go. The plan's deliverables match the current code.\"\n    },\n    {\n      \"id\": \"m2\",\n      \"op\": \"archive_item\",\n      \"target\": \"execute/workshop-decision-prep-agent\",\n      \"rationale\": \"Implemented: scenarios/prompt-manager/store/teams/director-swarm/members/workshop-decision-prep/ contains heartbeat.json (cron `0 */3 * * *`, enabled), HEARTBEAT.md (read prior handoff, recompute SHA-256 over topic+text+context+options, drop stale/answered briefs, early-return at 15 valid briefs, enrich up to 20, clarification feed-forward), RESPONSIBILITIES.md, and the initial last-handoff.md. Matches the planned member contract.\"\n    },\n    {\n      \"id\": \"m3\",\n      \"op\": \"archive_item\",\n      \"target\": \"execute/workshop-decision-sync-skill\",\n      \"rationale\": \"Implemented: scenarios/prompt-manager/store/skills/packs/core/workshop-decision-sync/ has skill.json (mode=practice, swarm-manager/decisions tags) and SKILL.md covering staged-handoff intake, freshness checks with lazy fallback, focus stack, fetch-patch-save through workshop/save, skip/clarify surfaces, and completion reporting.\"\n    },\n    {\n      \"id\": \"m4\",\n      \"op\": \"update_item\",\n      \"target\": \"chore/workshop-decision-sync-tests\",\n      \"patch\": {\n        \"title\": \"End-to-end scenario + skill-smoke coverage for workshop-decision-prep heartbeat and sync skill\",\n        \"description\": \"Remaining test coverage after the three execute items landed.\\n\\nDone (do NOT redo):\\n- Go test (scenarios/swarm-manager/api/internal/backlog/pending_questions_test.go): sorted-by-dependency-depth-and-priority, unblocking-boost-beats-recency, limit + --initiative filter, invalid-query-params, mixed sources.\\n- Go test (scenarios/swarm-manager/cli/app_test.go): TestCmdBacklogPendingQuestionsValidation and TestCmdBacklogPendingQuestionsRequestsExpectedEndpoint cover --source/--limit/--initiative flag forwarding and the `/api/v1/backlog/pending-questions` endpoint.\\n\\nStill to deliver:\\n1. Scenario test (test-genie or manual harness): seed swarm-manager with 3 backlog items across 2 initiatives, each with 2 open workshop decisions; run the workshop-decision-prep heartbeat; assert last-handoff.md shape, per-brief content_hash presence, and early-return behavior when the cap is already met. Then mutate one decision's options and re-run, asserting only that one brief is refreshed. Then call POST /api/v1/backlog/{kind}/{name}/workshop/save for one decision (simulating UI answer) and re-run the skill's freshness step, asserting the now-answered decision is dropped.\\n2. Skill smoke test: documented manual test plan that invokes the workshop-decision-sync skill with a fully staged handoff and confirms (a) narrative grouping by initiative -\u003e backlog item -\u003e decision, (b) focus-stack behavior when the operator asks a clarifying question mid-decision, and (c) async clarification spawn via `swarm-manager backlog clarify`, with the session continuing past the spawn.\"\n      },\n      \"rationale\": \"The Go-side test coverage already exists; rescoping the chore to only the missing scenario heartbeat test and the manual skill smoke test plan prevents duplicate work and keeps the chore relevant.\"\n    }\n  ]\n}"
+    }
+  ],
+  "current_proposal_id": "p1",
+  "decision": {
+    "kind": "accept",
+    "accepted_mutation_ids": [
+      "m1",
+      "m2",
+      "m3",
+      "m4"
+    ],
+    "decided_at": "2026-04-26T20:39:01Z"
+  },
+  "run_id": "d5e6e3ab-9b2d-4be9-97dd-34e4dbf08ca8",
+  "created_at": "2026-04-26T20:31:42Z",
+  "updated_at": "2026-04-26T20:39:01Z"
+}

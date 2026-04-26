@@ -98,11 +98,11 @@ func NewServerWithRoot(scenarioRoot string) *Server {
 	})
 
 	srv := &Server{
-		router:             mux.NewRouter(),
-		agentSvc:           agentSvc,
-		executionStopChan:  make(chan struct{}),
-		reviewStopChan:     make(chan struct{}),
-		initReviewStopChan: make(chan struct{}),
+		router:              mux.NewRouter(),
+		agentSvc:            agentSvc,
+		executionStopChan:   make(chan struct{}),
+		reviewStopChan:      make(chan struct{}),
+		initReviewStopChan:  make(chan struct{}),
 		aiSearchStopChan:    make(chan struct{}),
 		feedbackSweeperStop: make(chan struct{}),
 		scenarioRoot:        scenarioRoot,

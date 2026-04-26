@@ -175,6 +175,10 @@ export interface IBacklogService {
     kind: BacklogKind,
     name: string,
   ): Promise<WorkshopResetResponse>;
+  reWorkshop(
+    kind: BacklogKind,
+    name: string,
+  ): Promise<WorkshopResetResponse>;
   workshopCancelPendingAdvance(
     kind: BacklogKind,
     name: string,

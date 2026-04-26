@@ -55,11 +55,6 @@ type Options struct {
 
 // Errors returned by Resolve. Callers should use errors.Is for matching.
 var (
-	// ErrAmbiguousScenarios is returned when AcceptanceAllow names more than
-	// one distinct scenario. Cross-scenario items must declare their target
-	// explicitly (future: BacklogItem.TargetProjectRoot).
-	ErrAmbiguousScenarios = errors.New("acceptance_allow targets multiple scenarios; explicit target_project_root required")
-
 	// ErrRepoRootUnresolvable is returned when repo-contract cannot locate
 	// the monorepo root from the environment or working directory.
 	ErrRepoRootUnresolvable = errors.New("monorepo root could not be resolved via repo-contract")
@@ -69,10 +64,10 @@ var (
 //
 // Behavior:
 //   - Exactly one scenario in AcceptanceAllow → narrow scope to that scenario.
-//   - Zero scenarios (empty list, or globs that do not match scenarios/<name>/…)
-//     → wide scope (ProjectRoot=monorepo, ScopePath="."). A warning is logged;
-//     this case is rare and indicates an item that touches monorepo-shared code.
-//   - More than one distinct scenario → ErrAmbiguousScenarios.
+//   - Zero or multiple scenarios → wide scope (ProjectRoot=monorepo,
+//     ScopePath="."). Backlog items legitimately span scenarios (cross-cutting
+//     contracts, monorepo-shared code, items touching multiple scenarios), so
+//     the resolver widens rather than failing. A warning is logged.
 //
 // ProjectRoot is always absolute. ScopePath is always ProjectRoot-relative
 // using forward slashes (workspace-sandbox normalizes via filepath.Join).
@@ -87,23 +82,21 @@ func Resolve(opts Options) (Resolution, error) {
 	}
 
 	scenarios := pathutil.ScenariosFromGlobs(opts.AcceptanceAllow)
-	switch len(scenarios) {
-	case 1:
+	if len(scenarios) == 1 {
 		return Resolution{
 			ProjectRoot:    absRoot,
 			ScopePath:      "scenarios/" + scenarios[0],
 			TargetScenario: scenarios[0],
 		}, nil
-	case 0:
-		slog.Warn("projectroot: no target scenario inferable from acceptance_allow; falling back to monorepo-wide scope",
-			"acceptance_allow", opts.AcceptanceAllow,
-			"project_root", absRoot,
-		)
-		return Resolution{
-			ProjectRoot: absRoot,
-			ScopePath:   ".",
-		}, nil
-	default:
-		return Resolution{}, fmt.Errorf("%w: scenarios=%v", ErrAmbiguousScenarios, scenarios)
 	}
+
+	slog.Warn("projectroot: acceptance_allow does not target a single scenario; falling back to monorepo-wide scope",
+		"acceptance_allow", opts.AcceptanceAllow,
+		"scenarios", scenarios,
+		"project_root", absRoot,
+	)
+	return Resolution{
+		ProjectRoot: absRoot,
+		ScopePath:   ".",
+	}, nil
 }

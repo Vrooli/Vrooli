@@ -97,6 +97,11 @@ type ItemActivity struct {
 // The error wraps the list of blockers so handlers can render them.
 var ErrInitiativeBusy = errors.New("initiative has active item-level agent runs")
 
+// ErrProposalValidation signals that a proposal parsed successfully but is
+// not valid against the current proposal contract/state, so the user must ask
+// the agent for a revision instead of attempting apply.
+var ErrProposalValidation = errors.New("proposal is invalid and must be revised")
+
 // BusyError carries the list of blocking item activities for the override
 // warning dialog. Caller can errors.As to it to extract the details.
 type BusyError struct {
@@ -108,6 +113,19 @@ func (e *BusyError) Error() string {
 }
 
 func (e *BusyError) Unwrap() error { return ErrInitiativeBusy }
+
+// ProposalValidationError carries validation errors for a parseable proposal
+// that cannot be reviewed/applied as-is.
+type ProposalValidationError struct {
+	ProposalID       string
+	ValidationErrors []string
+}
+
+func (e *ProposalValidationError) Error() string {
+	return ErrProposalValidation.Error()
+}
+
+func (e *ProposalValidationError) Unwrap() error { return ErrProposalValidation }
 
 // Service orchestrates feedback round lifecycle.
 type Service struct {
@@ -522,6 +540,7 @@ func (s *Service) ContinueRound(ctx context.Context, req ContinueRoundRequest) (
 	// now stale.
 	round.NeedsRevision = false
 	round.LastParseWarnings = nil
+	round.LastValidationErrors = nil
 	round.UpdatedAt = now
 	if err := s.store.SaveRound(round); err != nil {
 		return Round{}, fmt.Errorf("save round: %w", err)
@@ -708,21 +727,33 @@ func (s *Service) RecordAgentTurn(initiativeName string, roundNumber int, body s
 		CreatedAt: now,
 	}
 
-	extracted, warnings := extractProposal(body)
+	extracted, rawProposal, warnings := extractProposal(body)
 	msg.ParseWarnings = append([]string(nil), warnings...)
 	if extracted != nil {
 		revision := ProposalRevision{
-			ID:            fmt.Sprintf("p%d", len(round.Proposals)+1),
-			Proposal:      *extracted,
-			CreatedAt:     now,
-			ParseWarnings: warnings,
+			ID:              fmt.Sprintf("p%d", len(round.Proposals)+1),
+			Proposal:        *extracted,
+			CreatedAt:       now,
+			ParseWarnings:   warnings,
+			RawProposalText: rawProposal,
 		}
+		state, stateErr := s.StateBuilder(initiativeName)
+		validationErrors := validateExtractedProposal(*extracted, state, stateErr)
+		revision.ValidationErrors = append([]string(nil), validationErrors...)
 		msg.ProposalID = revision.ID
 		revision.MessageIndex = round.AppendThreadMessage(msg)
 		round.Proposals = append(round.Proposals, revision)
-		round.CurrentProposalID = revision.ID
-		round.NeedsRevision = false
-		round.LastParseWarnings = nil
+		if len(validationErrors) == 0 {
+			round.CurrentProposalID = revision.ID
+			round.NeedsRevision = false
+			round.LastParseWarnings = nil
+			round.LastValidationErrors = nil
+		} else {
+			round.CurrentProposalID = ""
+			round.NeedsRevision = true
+			round.LastParseWarnings = nil
+			round.LastValidationErrors = append([]string(nil), validationErrors...)
+		}
 	} else {
 		round.AppendThreadMessage(msg)
 		// No extractable proposal: the round returns to the user with a
@@ -730,6 +761,7 @@ func (s *Service) RecordAgentTurn(initiativeName string, roundNumber int, body s
 		// to render the ask-for-revision CTA; warnings surface why.
 		round.NeedsRevision = true
 		round.LastParseWarnings = append([]string(nil), warnings...)
+		round.LastValidationErrors = nil
 		if len(round.LastParseWarnings) == 0 {
 			round.LastParseWarnings = []string{"agent output did not contain a parseable proposal JSON block"}
 		}
@@ -747,27 +779,105 @@ func (s *Service) RecordAgentTurn(initiativeName string, roundNumber int, body s
 	return round, nil
 }
 
+func validateExtractedProposal(p proposals.Proposal, state proposals.CurrentState, stateErr error) []string {
+	if stateErr != nil {
+		return []string{fmt.Sprintf("build initiative state for proposal validation: %s", stateErr.Error())}
+	}
+	normalized, err := proposals.Normalize(p, state)
+	if err != nil {
+		return splitValidationErrors(fmt.Errorf("normalize proposal: %w", err))
+	}
+	if err := proposals.Validate(normalized, state); err != nil {
+		return splitValidationErrors(err)
+	}
+	return nil
+}
+
+func splitValidationErrors(err error) []string {
+	if err == nil {
+		return nil
+	}
+	parts := make([]string, 0)
+	for _, child := range flattenErrors(err) {
+		msg := strings.TrimSpace(child.Error())
+		if msg == "" || msg == proposals.ErrInvalidProposal.Error() {
+			continue
+		}
+		parts = append(parts, msg)
+	}
+	if len(parts) == 0 {
+		parts = append(parts, strings.TrimSpace(err.Error()))
+	}
+	return parts
+}
+
+func flattenErrors(err error) []error {
+	if err == nil {
+		return nil
+	}
+	type unwrapper interface{ Unwrap() []error }
+	if multi, ok := err.(unwrapper); ok {
+		out := make([]error, 0)
+		for _, child := range multi.Unwrap() {
+			out = append(out, flattenErrors(child)...)
+		}
+		return out
+	}
+	return []error{err}
+}
+
+func (s *Service) normalizeRoundProposalState(round Round) Round {
+	if round.Status != RoundStatusAwaitingUser {
+		return round
+	}
+	current := round.CurrentProposal()
+	if current == nil {
+		return round
+	}
+	if len(current.ValidationErrors) > 0 {
+		round.CurrentProposalID = ""
+		round.NeedsRevision = true
+		round.LastValidationErrors = append([]string(nil), current.ValidationErrors...)
+		return round
+	}
+	state, err := s.StateBuilder(round.InitiativeName)
+	validationErrors := validateExtractedProposal(current.Proposal, state, err)
+	if len(validationErrors) == 0 {
+		return round
+	}
+	current.ValidationErrors = append([]string(nil), validationErrors...)
+	for i := range round.Proposals {
+		if round.Proposals[i].ID == current.ID {
+			round.Proposals[i].ValidationErrors = append([]string(nil), validationErrors...)
+			break
+		}
+	}
+	round.CurrentProposalID = ""
+	round.NeedsRevision = true
+	round.LastValidationErrors = append([]string(nil), validationErrors...)
+	return round
+}
+
 // ErrRoundAlreadyTerminal is returned by Cancel when the round has already
 // reached a terminal status (applied/rejected/dismissed). The HTTP layer
 // maps this to 409 Conflict.
 var ErrRoundAlreadyTerminal = errors.New("round is already terminal")
 
-// ErrRoundNotTerminal is returned by Delete when the round is still in flight
-// (submitting / agent_thinking / awaiting_user). Callers must Cancel first;
-// deleting a live round would orphan the agent-manager run and leave the
-// initiative lock pointing at a vanished round.
-var ErrRoundNotTerminal = errors.New("round must be terminal before deletion")
+// ErrRoundNotTerminal is returned by Delete when the round still has an
+// active agent run. Awaiting-user rounds are deletable: the lock has already
+// been released and there is no live agent to orphan.
+var ErrRoundNotTerminal = errors.New("round cannot be deleted while the agent is running")
 
-// Delete permanently removes a feedback round from disk. Only allowed on
-// terminal rounds (applied/rejected/dismissed) so we never orphan an
-// in-flight agent-manager run or wedge the initiative lock. The disk row
-// is the source of truth — once the dir is gone, the round is gone.
+// Delete permanently removes a feedback round from disk. Allowed whenever the
+// round is not agent_thinking so users can discard invalid/unwanted rounds
+// without forcing them into a terminal decision first. The disk row is the
+// source of truth — once the dir is gone, the round is gone.
 func (s *Service) Delete(initiativeName string, roundNumber int) error {
 	round, err := s.store.LoadRound(initiativeName, roundNumber)
 	if err != nil {
 		return err
 	}
-	if !round.Status.IsTerminal() {
+	if round.Status == RoundStatusAgentThinking {
 		return ErrRoundNotTerminal
 	}
 	return s.store.DeleteRound(initiativeName, roundNumber)
@@ -835,6 +945,7 @@ func (s *Service) Cancel(ctx context.Context, req CancelRequest) (Round, error) 
 	round.RunID = ""
 	round.NeedsRevision = false
 	round.LastParseWarnings = nil
+	round.LastValidationErrors = nil
 	round.LastPollError = ""
 	round.PollFailureCount = 0
 	round.UpdatedAt = now
@@ -888,6 +999,12 @@ func (s *Service) Decide(ctx context.Context, req DecideRequest) (Round, *propos
 	}
 	if round.Status != RoundStatusAwaitingUser {
 		return Round{}, nil, fmt.Errorf("round is in status %q; decide requires %q", round.Status, RoundStatusAwaitingUser)
+	}
+	round = s.normalizeRoundProposalState(round)
+	if round.CurrentProposalID == "" && round.NeedsRevision && len(round.LastValidationErrors) > 0 {
+		return Round{}, nil, &ProposalValidationError{
+			ValidationErrors: append([]string(nil), round.LastValidationErrors...),
+		}
 	}
 
 	now := s.clock().UTC().Format(time.RFC3339)
@@ -994,44 +1111,44 @@ var proposalSentinelRE = regexp.MustCompile(`(?si)PROPOSAL\s*:[^\{]*?(\{.*\})`)
 // noisy as long as one extraction succeeds. Returns nil + warnings when
 // no extraction parses — the round still records the turn so the user
 // can ask for a revision, which is the documented failure mode.
-func extractProposal(body string) (*proposals.Proposal, []string) {
+func extractProposal(body string) (*proposals.Proposal, string, []string) {
 	if strings.TrimSpace(body) == "" {
-		return nil, nil
+		return nil, "", nil
 	}
 	var warnings []string
 
-	tryParse := func(raw string) (*proposals.Proposal, bool) {
+	tryParse := func(raw string) (*proposals.Proposal, string, bool) {
 		raw = strings.TrimSpace(raw)
 		if !strings.HasPrefix(raw, "{") {
-			return nil, false
+			return nil, "", false
 		}
 		var p proposals.Proposal
 		if err := json.Unmarshal([]byte(raw), &p); err != nil {
 			warnings = append(warnings, fmt.Sprintf("parse proposal block: %s", err.Error()))
-			return nil, false
+			return nil, "", false
 		}
-		return &p, true
+		return &p, raw, true
 	}
 
 	// Strategy 1: ```json fenced blocks.
 	for _, m := range fencedProposalBlockRE.FindAllStringSubmatch(body, -1) {
-		if p, ok := tryParse(m[1]); ok {
-			return p, warnings
+		if p, raw, ok := tryParse(m[1]); ok {
+			return p, raw, warnings
 		}
 	}
 
 	// Strategy 2: any fenced block.
 	for _, m := range genericFencedBlockRE.FindAllStringSubmatch(body, -1) {
-		if p, ok := tryParse(m[1]); ok {
-			return p, warnings
+		if p, raw, ok := tryParse(m[1]); ok {
+			return p, raw, warnings
 		}
 	}
 
 	// Strategy 3: PROPOSAL: sentinel.
 	if m := proposalSentinelRE.FindStringSubmatch(body); len(m) == 2 {
 		if balanced := extractFirstBalancedJSON(m[1]); balanced != "" {
-			if p, ok := tryParse(balanced); ok {
-				return p, warnings
+			if p, raw, ok := tryParse(balanced); ok {
+				return p, raw, warnings
 			}
 		}
 	}
@@ -1039,12 +1156,12 @@ func extractProposal(body string) (*proposals.Proposal, []string) {
 	// Strategy 4: any balanced JSON object in the body — last resort,
 	// useful when the agent emits raw JSON with no markdown wrapping.
 	if balanced := extractFirstBalancedJSON(body); balanced != "" {
-		if p, ok := tryParse(balanced); ok {
-			return p, warnings
+		if p, raw, ok := tryParse(balanced); ok {
+			return p, raw, warnings
 		}
 	}
 
-	return nil, warnings
+	return nil, "", warnings
 }
 
 // extractFirstBalancedJSON returns the substring starting at the first '{'

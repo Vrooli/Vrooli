@@ -39,6 +39,11 @@ var (
 // DomainError wraps a sentinel error with an HTTP status code and a
 // user-facing message. It implements the error interface and supports
 // errors.Is/errors.As unwrapping.
+//
+// Code, when non-empty, identifies the error class for machine consumption
+// (e.g., "plan_stale"); Details, when non-nil, carries arbitrary structured
+// payload that the mapper serializes as JSON. Both are optional — handlers
+// may continue to use the plain message-only form.
 type DomainError struct {
 	// Sentinel is the underlying sentinel error (e.g., ErrNotFound).
 	Sentinel error
@@ -46,6 +51,12 @@ type DomainError struct {
 	Status int
 	// Message is the user-facing error message.
 	Message string
+	// Code is an optional machine-readable error class (e.g., "plan_stale").
+	// When set, MapError emits a JSON error body with this code.
+	Code string
+	// Details is an optional structured payload describing the error.
+	// JSON-serializable. When non-nil, MapError emits a JSON error body.
+	Details any
 }
 
 func (e *DomainError) Error() string {
@@ -106,4 +117,34 @@ func BadGateway(format string, args ...any) *DomainError {
 // Internal returns a 500 DomainError for unexpected failures.
 func Internal(format string, args ...any) *DomainError {
 	return Wrapf(errors.New("internal error"), http.StatusInternalServerError, format, args...)
+}
+
+// WithCode tags a DomainError with a machine-readable code. Returns the
+// same error to allow chaining: apierr.BadRequest("...").WithCode("plan_stale").
+func (e *DomainError) WithCode(code string) *DomainError {
+	if e == nil {
+		return nil
+	}
+	e.Code = code
+	return e
+}
+
+// WithDetails attaches a structured payload to a DomainError. The payload
+// must be JSON-serializable.
+func (e *DomainError) WithDetails(details any) *DomainError {
+	if e == nil {
+		return nil
+	}
+	e.Details = details
+	return e
+}
+
+// PlanStale returns a 409 DomainError carrying the "plan_stale" error code
+// and a structured details payload. UI layers detect this code to render
+// the re-workshop panel; CLI/script callers can switch on it programmatically.
+func PlanStale(message string, details any) *DomainError {
+	if message == "" {
+		message = "plan references paths that no longer exist; re-workshop required"
+	}
+	return Wrap(ErrConflict, http.StatusConflict, message).WithCode("plan_stale").WithDetails(details)
 }

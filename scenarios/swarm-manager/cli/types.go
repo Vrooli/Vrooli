@@ -30,6 +30,7 @@ type BacklogItem struct {
 	Effort          string   `json:"effort,omitempty"`
 	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
+	Creates         []string `json:"creates,omitempty"`
 }
 
 type BacklogItemResponse struct {
@@ -38,6 +39,49 @@ type BacklogItemResponse struct {
 
 type ListBacklogResponse struct {
 	Items []BacklogItem `json:"items"`
+}
+
+type PendingQuestion struct {
+	ID              string           `json:"id"`
+	Source          string           `json:"source"`
+	ItemKind        string           `json:"item_kind"`
+	ItemName        string           `json:"item_name"`
+	Topic           string           `json:"topic,omitempty"`
+	Text            string           `json:"text,omitempty"`
+	Context         string           `json:"context,omitempty"`
+	Options         []WorkshopOption `json:"options,omitempty"`
+	Selected        *string          `json:"selected,omitempty"`
+	Freeform        *string          `json:"freeform,omitempty"`
+	Notes           *string          `json:"notes,omitempty"`
+	RoundNumber     int              `json:"round_number,omitempty"`
+	ClarificationID *string          `json:"clarification_id,omitempty"`
+	ContextNote     *string          `json:"context_note,omitempty"`
+	Title           string           `json:"title,omitempty"`
+	Description     string           `json:"description,omitempty"`
+	Criticality     string           `json:"criticality,omitempty"`
+	ReviewStatus    string           `json:"review_status,omitempty"`
+	ReviewComment   string           `json:"review_comment,omitempty"`
+	ReviewType      string           `json:"review_type,omitempty"`
+	ModuleID        string           `json:"module_id,omitempty"`
+}
+
+type PendingQuestionsItem struct {
+	Kind      string            `json:"kind"`
+	Name      string            `json:"name"`
+	Questions []PendingQuestion `json:"questions"`
+}
+
+type PendingQuestionsResponse struct {
+	Items []PendingQuestionsItem `json:"items"`
+}
+
+type WorkshopOption struct {
+	Key          string `json:"key"`
+	Label        string `json:"label"`
+	Description  string `json:"description,omitempty"`
+	Recommended  bool   `json:"recommended,omitempty"`
+	ImageAssetID string `json:"image_asset_id,omitempty"`
+	ImagePrompt  string `json:"image_prompt,omitempty"`
 }
 
 type CreateBacklogRequest struct {
@@ -52,6 +96,7 @@ type CreateBacklogRequest struct {
 	Effort          string   `json:"effort,omitempty"`
 	AcceptanceAllow []string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  []string `json:"acceptance_deny,omitempty"`
+	Creates         []string `json:"creates,omitempty"`
 	SpawnedFrom     string   `json:"spawned_from,omitempty"`
 }
 
@@ -66,6 +111,7 @@ type UpdateBacklogRequest struct {
 	Effort          *string   `json:"effort,omitempty"`
 	AcceptanceAllow *[]string `json:"acceptance_allow,omitempty"`
 	AcceptanceDeny  *[]string `json:"acceptance_deny,omitempty"`
+	Creates         *[]string `json:"creates,omitempty"`
 }
 
 func (r UpdateBacklogRequest) Empty() bool {
@@ -78,7 +124,8 @@ func (r UpdateBacklogRequest) Empty() bool {
 		r.Initiative == nil &&
 		r.Effort == nil &&
 		r.AcceptanceAllow == nil &&
-		r.AcceptanceDeny == nil
+		r.AcceptanceDeny == nil &&
+		r.Creates == nil
 }
 
 type BacklogFile struct {

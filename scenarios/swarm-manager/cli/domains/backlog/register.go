@@ -12,11 +12,13 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 		Description: "Backlog item management",
 		Subcommands: []cliapp.Command{
 			support.APICommand("list", "List backlog items [--kind KIND]", deps.BacklogList),
+			support.APICommand("pending-questions", "List pending workshop/review questions [--source workshop|review|all] [--limit N] [--initiative NAME]", deps.BacklogPendingQuestions),
 			support.APICommand("get", "Get full backlog item details (--kind KIND --name NAME)", deps.BacklogGet),
 			support.APICommand("create", "Create a backlog item (--data JSON)", deps.BacklogCreate),
 			support.APICommand("update", "Update a backlog item (--kind KIND --name NAME --data JSON)", deps.BacklogUpdate),
 			support.APICommand("delete", "Delete a backlog item (--kind KIND --name NAME)", deps.BacklogDelete),
 			support.APICommand("workshop-reset", "Reset all workshop data for a backlog item (--kind KIND --name NAME)", deps.BacklogWorkshopReset),
+			support.APICommand("re-workshop", "Reset and re-queue the workshop for a stale plan (--kind KIND --name NAME)", deps.BacklogReWorkshop),
 			support.APICommand("files", "List backlog item files (--kind KIND --name NAME)", deps.BacklogFiles),
 			support.APICommand("file-get", "Get a file from a backlog item (--kind KIND --name NAME --path PATH)", deps.BacklogFileGet),
 			support.APICommand("file-upload", "Upload a file to a backlog item (--kind KIND --name NAME --path PATH --file FILE|--content CONTENT)", deps.BacklogFileUpload),

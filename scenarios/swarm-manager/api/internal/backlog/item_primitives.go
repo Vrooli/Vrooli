@@ -29,6 +29,7 @@ type ItemPatch struct {
 	Effort          *string
 	AcceptanceAllow *[]string
 	AcceptanceDeny  *[]string
+	Creates         *[]string
 	SpawnedFrom     *string
 	Note            *string
 }
@@ -68,6 +69,9 @@ func ApplyItemPatch(item *BacklogItem, patch ItemPatch) {
 	}
 	if patch.AcceptanceDeny != nil {
 		item.AcceptanceDeny = cloneStrings(*patch.AcceptanceDeny)
+	}
+	if patch.Creates != nil {
+		item.Creates = cloneStrings(*patch.Creates)
 	}
 	if patch.SpawnedFrom != nil {
 		item.SpawnedFrom = strings.TrimSpace(*patch.SpawnedFrom)

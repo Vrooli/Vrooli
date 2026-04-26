@@ -25,6 +25,10 @@ export interface RollupProgressBarProps {
 
 /**
  * Compute the total count from a rollup object.
+ *
+ * Archived items are intentionally excluded. They remain part of initiative
+ * scope, but the progress bar reflects only live work still participating in
+ * the active lifecycle.
  */
 export function rollupTotal(rollup: InitiativeRollup): number {
   return rollup.completed + rollup.inProgress + rollup.failed + rollup.pending;

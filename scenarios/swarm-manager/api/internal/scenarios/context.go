@@ -69,11 +69,11 @@ type ScenarioContextRollup struct {
 // initiative whose member items target the scenario, every orphan item
 // targeting the scenario, and a combined completion rollup.
 type ScenarioContext struct {
-	ScenarioName string                              `json:"scenario_name"`
-	Initiatives  []initiatives.InitiativeWithRollup  `json:"initiatives"`
-	OrphanItems  []ScenarioOrphanItem                `json:"orphan_items"`
-	Rollup       ScenarioContextRollup               `json:"rollup"`
-	Fixes        ScenarioFixHistory                  `json:"fixes"`
+	ScenarioName string                             `json:"scenario_name"`
+	Initiatives  []initiatives.InitiativeWithRollup `json:"initiatives"`
+	OrphanItems  []ScenarioOrphanItem               `json:"orphan_items"`
+	Rollup       ScenarioContextRollup              `json:"rollup"`
+	Fixes        ScenarioFixHistory                 `json:"fixes"`
 }
 
 // SetInitiativesLister injects an initiatives lister for scenario context

@@ -777,6 +777,51 @@ func TestCmdBacklogFilesValidation(t *testing.T) {
 	}
 }
 
+func TestCmdBacklogPendingQuestionsValidation(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+
+	if err := app.cmdBacklogPendingQuestions([]string{"--source", "invalid"}); err == nil {
+		t.Fatal("expected invalid source error")
+	}
+	if err := app.cmdBacklogPendingQuestions([]string{"--limit", "-1"}); err == nil {
+		t.Fatal("expected invalid limit error")
+	}
+}
+
+func TestCmdBacklogPendingQuestionsRequestsExpectedEndpoint(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/backlog/pending-questions" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if got := r.URL.Query().Get("source"); got != "workshop" {
+			t.Fatalf("unexpected source query: %q", got)
+		}
+		if got := r.URL.Query().Get("limit"); got != "2" {
+			t.Fatalf("unexpected limit query: %q", got)
+		}
+		if got := r.URL.Query().Get("initiative"); got != "focus" {
+			t.Fatalf("unexpected initiative query: %q", got)
+		}
+		_, _ = w.Write([]byte(`{"items":[{"kind":"idea","name":"alpha","questions":[{"id":"d1","source":"workshop","topic":"Architecture","options":[{"key":"A","label":"Monolith"}]}]}]}`))
+	}))
+	defer server.Close()
+
+	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
+	app, err := NewApp()
+	if err != nil {
+		t.Fatalf("NewApp() returned error: %v", err)
+	}
+	if err := app.cmdBacklogPendingQuestions([]string{"--source", "workshop", "--limit", "2", "--initiative", "focus"}); err != nil {
+		t.Fatalf("cmdBacklogPendingQuestions returned error: %v", err)
+	}
+}
+
 func TestScenarioLifecycleValidation(t *testing.T) {
 	app, err := NewApp()
 	if err != nil {

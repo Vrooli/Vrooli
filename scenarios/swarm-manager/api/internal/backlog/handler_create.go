@@ -126,6 +126,10 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		apierr.MapError(w, "[backlog] create", apierr.BadRequest("%s", "acceptance_deny: "+err.Error()))
 		return
 	}
+	if err := validateGlobs(req.Creates); err != nil {
+		apierr.MapError(w, "[backlog] create", apierr.BadRequest("%s", "creates: "+err.Error()))
+		return
+	}
 
 	spawnedFrom := ""
 	if req.SpawnedFrom != nil {
@@ -152,6 +156,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		Effort:          effort,
 		AcceptanceAllow: req.AcceptanceAllow,
 		AcceptanceDeny:  req.AcceptanceDeny,
+		Creates:         req.Creates,
 		SpawnedFrom:     spawnedFrom,
 		Note:            note,
 		CreatedBy:       &prov,

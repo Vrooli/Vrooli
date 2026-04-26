@@ -1,67 +1,62 @@
 {
   "round": 2,
-  "generated_at": "2026-04-24T00:00:00Z",
+  "generated_at": "2026-04-26T00:00:00Z",
   "mode": "workshop",
   "pending_synthesis": true,
   "readiness": {
-    "approach_solid": 3,
+    "approach_solid": 2,
     "problem_clarity": 3,
-    "risk_awareness": 2,
+    "risk_awareness": 3,
     "scope_defined": 3,
-    "testable": 3
+    "testable": 2
   },
   "items": [
     {
       "id": "i1",
       "type": "info",
-      "text": "Round 1 decisions d1=A (implementation-ready depth), d2=A (auto-apply on failure with opt-out), d3=A (required provenance categories without exact schema) are now reflected in the conclusion as F9 (configuration surface table with field names, types, defaults, owners), the applyOnFailure default in F9, and F10 (six required provenance categories with required-fields per category)."
+      "text": "Confirmed mismatch M1 (noLock conflated with acceptance bypass) at the exact code site: scenarios/workspace-sandbox/api/internal/sandbox/service.go:1146-1147 has the explicit comment 'When noLock is true, all files are automatically accepted (no acceptance rules apply)'. This now anchors Finding 4 M1 and the description rewrite for fix/workspace-sandbox-lock-and-acceptance-semantics."
     },
     {
       "id": "i2",
       "type": "info",
-      "text": "Validation matrix added (F12) with nine concrete cases V1-V9, each with a verification approach and an owning sibling item. This is the testable bar for sandbox-as-default rollout. V9 (multi-sandbox concurrent apply ordering) is a new risk surface that wasn't enumerated in round 1; it must be verified before flipping rollout defaults."
+      "text": "Confirmed the env-var contract: VROOLI_SANDBOX_ID, VROOLI_SANDBOX_MERGED, VROOLI_SANDBOX_SCOPE are emitted by scenarios/agent-manager/api/internal/orchestration/run_executor.go (around lines 1155-1163) and consumed by internal/scenario/scenario.go, internal/scenarioexec/subprocess.go, internal/cli/vroolicli/runtime.go, and internal/repocontractcheck/checks.go. The agent never sees these vars in its prompt; they are propagated transparently into subprocesses via scenarioexec. This satisfies the 'transparent to agent' contract requirement."
     },
     {
       "id": "i3",
       "type": "info",
-      "text": "Source-of-truth matrix added (F11) clarifying that policy/guardrails are NOT the primary contract today — agent-manager declares, workspace-sandbox enforces, and only partial declaration exists. The contract intentionally keeps policy/guardrails as a follow-on, not a foundation."
+      "text": "Resolved the stale-path question (round-1 d6=A). The canonical scenario-restart and lifecycle code is Go in internal/, not bash in scripts/lib/scenario/ or cli/commands/scenario/. The TeardownHooks documentation in workspace-sandbox/api/internal/config/config.go:225 already references 'vrooli scenario heal-from-sandbox' (the Go CLI), confirming the migration. This research's own acceptance_allow needs updating, and so does the initiative context document."
     },
     {
       "id": "i4",
       "type": "info",
-      "text": "Initiative-impact: Action 5 proposes creating a provenance-enrichment item under upstream initiative `git-control-tower-ai-provenance` rather than this initiative, because the upstream owns the provenance pipeline. Action 7 proposes updating this initiative's description to clarify it consumes (not produces) enriched provenance, preventing duplicate work across the two initiatives."
-    },
-    {
-      "id": "i5",
-      "type": "info",
-      "text": "This research appears ready for conclusion. Problem clarity, scope, approach, and testable are at 3; risk awareness at 2 (one open verification — V9 multi-sandbox apply ordering — could shift mitigations once measured). Consider reviewing the conclusion and processing for downstream sibling items."
+      "text": "The current GCT provenance schema (scenarios/git-control-tower/api/approved_changes_model.go) has no field for run outcome. ProvenanceRunGroup carries runId, sandboxId, sandboxOwner, files[], latestAppliedAt — but no runOutcome, fromFailedRun, or runStatus. Round-1 d3=A locks 'identical apply behavior; record run outcome in provenance metadata so GCT can render differently' — which means this research's actions must require the schema to grow a runOutcome field. Round-2 d1 below pins the precise shape."
     },
     {
       "id": "d1",
       "type": "decision",
-      "topic": "Provenance enrichment ownership",
-      "context": "Action 5 in the conclusion proposes creating a new execute item for provenance enrichment under the upstream `git-control-tower-ai-provenance` initiative (not this one), since GCT owns the provenance pipeline end-to-end. The alternative is to keep it inside `agent-sandbox-audit-foundation` so this initiative remains self-contained. Initiative context shows GCT-AI-provenance is upstream and active.",
+      "topic": "Provenance schema: where does run outcome live?",
+      "context": "Round-1 d3=A locked 'apply identically regardless of outcome; record run outcome in provenance metadata so GCT can render differently.' The current ProvenanceRunGroup has no outcome field. The contract needs to specify (a) where the field lives in the schema, and (b) what its value space is. Three reasonable shapes: extend ProvenanceRunGroup with a single enum field (smallest surface); add a richer RunMetadata sub-object (extensible for future fields like cost, conversation_id, model); or attach outcome to each ProvenanceFile (allows per-file outcome but loses run-level rollup).",
       "options": [
         {
           "key": "A",
-          "label": "Create the provenance-enrichment item under upstream `git-control-tower-ai-provenance`",
-          "rationale": "Right home — GCT owns the provenance schema and UI. Avoids duplicating the work across initiatives. Audit-foundation just consumes enriched provenance.",
+          "label": "Extend ProvenanceRunGroup with a single field: runOutcome enum {success, failure, cancelled, timeout}",
+          "rationale": "Minimal schema change; matches GCT's existing per-run grouping; 'cancelled' and 'timeout' are useful operator distinctions beyond binary success/failure",
           "recommended": true
         },
         {
           "key": "B",
-          "label": "Create the provenance-enrichment item inside this initiative (agent-sandbox-audit-foundation)",
-          "rationale": "Keeps the audit-foundation self-contained; sandbox-as-default doesn't ship until the auditability story is complete here."
+          "label": "Add a RunMetadata sub-object to ProvenanceRunGroup containing runOutcome plus costUsd, conversationId, modelId, durationMs",
+          "rationale": "Future-proofs the schema for the broader 'audit trail' vision (cost, conversation, model attribution); larger surface and forces multi-step shape negotiation now"
         },
         {
           "key": "C",
-          "label": "Defer provenance enrichment entirely; ship sandbox-as-default with current provenance and enrich later",
-          "rationale": "Fastest to ship, but weakens the auditability value prop for the v1 default flip."
+          "label": "Binary boolean: ProvenanceRunGroup.runFailed bool (true if any non-success outcome)",
+          "rationale": "Smallest possible change; loses the success/cancelled/timeout distinction that Finding 5.2 implies operators care about"
         },
         {
           "key": "D",
-          "label": "Other",
-          "rationale": "Provide your own approach"
+          "label": "Other (specify)",
+          "rationale": "Different shape or different placement"
         }
       ],
       "selected": "A"
@@ -69,63 +64,114 @@
     {
       "id": "d2",
       "type": "decision",
-      "topic": "Spawn-surface rollout sequence",
-      "context": "F9 introduces a default flip (manualReview=false, autoApply=true, applyOnFailure=true). The rollout item (`agent-manager-default-sandboxing-rollout`) needs an explicit sequence of spawn surfaces. Which order minimizes blast radius while still proving the auditability story?",
+      "topic": "Apply timing when manualReview=true (opt-in)",
+      "context": "Initiative pre-decided manualReview is opt-in. But when an operator opts in, what changes? Two coherent interpretations: (A) auto-apply still runs at run end, but the resulting commit is held in a 'pending operator review' state in GCT before being merged/pushed; (B) auto-apply does NOT run at run end — sandbox changes wait until the operator clicks Approve in the AI Changes tab, at which point apply executes. (A) keeps the apply path uniform between modes (always applies at run end, review gates downstream); (B) makes manual review a true gate on apply itself. The choice affects the contract's state machine: in (A) the sandbox can be torn down right after apply; in (B) the sandbox must persist until operator action.",
       "options": [
         {
           "key": "A",
-          "label": "CLI/test-genie → meta-orchestrator → web console (lowest blast radius first)",
-          "rationale": "CLI users are closest to the change and easiest to revert; meta-orchestrator runs are recoverable via run-level undo; web console (broadest user base) flips last after V1-V9 hold across the prior surfaces.",
+          "label": "Auto-apply at run end is uniform across modes; manualReview gates the downstream commit/push step in GCT, not apply",
+          "rationale": "Uniform apply path simplifies the contract; sandbox can teardown immediately; matches the 'auditability-first' framing where applied changes are always recorded even if humans haven't blessed them yet"
+        },
+        {
+          "key": "B",
+          "label": "manualReview=true defers apply until operator approves in GCT; sandbox persists until then",
+          "rationale": "Makes manual review a true safety gate on the canonical repo; matches operator intuition for 'manual review' but complicates sandbox lifecycle (must persist beyond run end) and contradicts the unified state machine",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Other (specify)",
+          "rationale": "Hybrid or different framing"
+        }
+      ],
+      "selected": "B",
+      "notes": "Note that operator should be able to approve from git-control-tower, agent-manager, or workspace-sandbox. They all are locations where a run’s diff can be viewed and a user might expect this behavior"
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Sandbox creation timing: eager or lazy?",
+      "context": "Should agent-manager create the sandbox at run start (eager — every coding run gets exactly one sandbox even if the agent never writes a file) or lazily on first write attempt (lazy — runs that produce no changes leave no sandbox)? Eager makes 'every coding run produces provenance' literally true and gives operators a uniform navigation experience in GCT (every run has an AI Changes entry, even if empty). Lazy reduces overhead and keeps GCT free of empty entries but means the audit trail has gaps for read-only/no-op runs. The bias of this initiative is auditability-first.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Eager: sandbox created at run start regardless of whether the agent writes anything; empty provenance records are fine",
+          "rationale": "Uniform contract ('every run has provenance'); simpler reasoning; no race between agent first-write and sandbox readiness; matches auditability-first bias",
           "recommended": true
         },
         {
           "key": "B",
-          "label": "All spawn surfaces simultaneously behind a global flag",
-          "rationale": "Cleaner cutover, fewer config combinations to maintain, but failures in one surface block the whole flip."
+          "label": "Lazy: sandbox created on first write; no-op runs have no sandbox and no provenance entry",
+          "rationale": "Lower resource use; cleaner GCT view (no empty entries); contradicts the literal reading of 'every coding run produces provenance' but arguably 'coding run' implies writes occurred"
         },
         {
           "key": "C",
-          "label": "Web console first (operator-supervised), then CLI/automated surfaces",
-          "rationale": "Operators can review surprises in real time; but defeats the auditability-by-default thesis since web console runs are already the most reviewed."
+          "label": "Eager but garbage-collect empty sandboxes within N seconds of run end",
+          "rationale": "Compromise: uniform creation contract but tidy resource state. Adds GC complexity; provenance still exists in the audit trail"
         },
         {
           "key": "D",
-          "label": "Other",
-          "rationale": "Provide your own sequence"
+          "label": "Other (specify)",
+          "rationale": "Different timing model"
         }
       ],
       "selected": "A"
     },
     {
-      "id": "d3",
+      "id": "d4",
       "type": "decision",
-      "topic": "Failed-run useful-changes signal",
-      "context": "`applyOnFailure=true` (F9 default) auto-applies accepted changes on a failed run. The risks table notes this could land partial broken work. The contract could either trust acceptance rules alone, or also require a per-run signal that the agent reached a coherent checkpoint before failing.",
+      "topic": "Out-of-acceptance review-queue: which surface owns it?",
+      "context": "Round-1 d5=B locked 'retain out-of-acceptance changes in the sandbox + surface them as a GCT review-queue entry the operator can manually approve to apply.' Two implementation shapes: (A) workspace-sandbox exposes a new endpoint that returns the out-of-acceptance set per sandbox/run; GCT calls it and renders the review queue; (B) workspace-sandbox writes a separate provenance category (e.g., 'pending-review') alongside applied provenance, and GCT just queries the existing provenance API with a filter. (A) is a cleaner separation of concerns; (B) reuses existing plumbing.",
       "options": [
         {
           "key": "A",
-          "label": "Trust acceptance rules alone — apply any accepted change at terminal state regardless of when failure happened",
-          "rationale": "Simplest. Acceptance is the gate. Auditability is the goal — partial broken work in audited form is still better than invisible work. Run-level undo/revert (downstream initiative) is the safety net.",
-          "recommended": true
+          "label": "New workspace-sandbox endpoint: GET /sandboxes/{id}/out-of-acceptance-changes returns the held-back set; GCT polls per run and renders",
+          "rationale": "Clean separation; explicit API contract; GCT doesn't need to know about provenance categories"
         },
         {
           "key": "B",
-          "label": "Require an agent-reported `lastCoherentCheckpoint` and only apply files modified before it",
-          "rationale": "Reduces broken-partial risk, but adds an agent-side contract — violates the F-stated principle that the agent shouldn't change behavior based on sandbox mode."
+          "label": "Extend provenance with a 'state' field: state in {applied, pending-review, denied}; GCT filters the existing provenance API by state=pending-review",
+          "rationale": "Reuses the existing GCT/workspace-sandbox plumbing (one schema, one endpoint); makes the audit trail uniform; pairs naturally with d1 if d1=A or B is chosen",
+          "recommended": true
         },
         {
           "key": "C",
-          "label": "Apply on failure only if the run made it past a configurable progress milestone (e.g., post-test-pass)",
-          "rationale": "Middle ground; needs a reliable progress signal that today doesn't exist universally across spawn surfaces."
+          "label": "Other (specify)",
+          "rationale": "Different ownership model"
+        }
+      ],
+      "selected": "B"
+    },
+    {
+      "id": "d5",
+      "type": "decision",
+      "topic": "Validation matrix scope: which spawn surfaces gate the default flip?",
+      "context": "Finding 5 lists eight behaviors that must work end-to-end. The remaining question is which spawn surfaces those behaviors must work across before sandboxing flips to default. Spawn surfaces in the codebase today: (1) agent-manager web UI manual run creation; (2) swarm-manager queue (auto-spawned runs from queued backlog items); (3) scheduled cron-spawned runs; (4) direct CLI invocation. Validating all four before flipping is the safest path but slows the rollout; validating only the high-traffic surfaces (1+2) accepts known gaps in 3+4.",
+      "options": [
+        {
+          "key": "A",
+          "label": "All four spawn surfaces (UI, swarm-manager queue, cron, CLI) must pass Finding 5 before default flips",
+          "rationale": "Most defensive; matches the 'as many runs as possible flow through sandboxing' goal; slowest path"
+        },
+        {
+          "key": "B",
+          "label": "UI + swarm-manager queue only (covering the high-volume surfaces); cron and CLI flip independently in follow-on items",
+          "rationale": "Pragmatic: covers the surfaces operators actually use; cron and CLI are lower-volume and can ride the same default once the foundation is proven",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "UI only — minimal viable validation, all other surfaces follow individually",
+          "rationale": "Fastest to default, but leaves the swarm-manager queue (the highest-volume coding-run source) un-validated at flip time"
         },
         {
           "key": "D",
-          "label": "Other",
-          "rationale": "Provide your own approach"
+          "label": "Other (specify)",
+          "rationale": "Different surface bundling"
         }
       ],
-      "selected": "A"
+      "selected": "B"
     }
   ],
-  "plan_updates": "Round 2 added F9 implementation-ready configuration surface table, F10 required provenance categories, F11 source-of-truth matrix, F12 nine-case validation matrix, and a Risks \u0026 Limitations table. Replaced the old time-horizon Actions list with five targeted Update/Create actions tied to specific sibling items, plus an Update initiative action to clarify provenance enrichment ownership. Added Methodology and Summary sections per the research-conclusion-authoring template."
+  "plan_updates": "Synthesized round-1 answers (all 7 decisions resolved) into the conclusion: Finding 1 now contains the locked defaults table; Finding 2 has the preliminary config surface; Finding 3 is a fully populated source-of-truth matrix grounded in actual code paths (including the corrected internal/ Go locations); Finding 4 enumerates 5 mismatches with code-site evidence and routes each to a specific follow-on item; Finding 5 lists 8 validation behaviors; Finding 6 finalizes the sequencing. Actions section is now anticipated as 7 concrete actions covering 4 backlog-item updates, 1 self-update for stale paths, and 2 document mirrors. Round-2 decisions focus on the remaining contract details: provenance outcome schema (d1), apply timing under manualReview (d2), sandbox creation timing (d3), out-of-acceptance review-queue ownership (d4), and validation-matrix surface scope (d5)."
 }

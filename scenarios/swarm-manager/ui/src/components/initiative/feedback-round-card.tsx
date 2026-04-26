@@ -31,6 +31,7 @@ import { ProposalReview } from "./proposal-review";
 import { feedbackService } from "../../services/feedback-service";
 import {
   currentProposal,
+  latestInvalidProposal,
   type ApplyResult,
   type FeedbackRound,
   type FeedbackRoundStatus,
@@ -44,6 +45,8 @@ import {
   AGENT_WORKING_LABEL,
   PARSE_ERROR_TITLE,
   PARSE_ERROR_BODY,
+  INVALID_PROPOSAL_TITLE,
+  INVALID_PROPOSAL_BODY,
 } from "./feedback-strings";
 
 export interface FeedbackRoundCardProps {
@@ -68,6 +71,7 @@ export function FeedbackRoundCard({
   const reviseRef = useRef<HTMLTextAreaElement | null>(null);
   const chip = useMemo(() => statusChip(round.status), [round.status]);
   const proposal = currentProposal(round);
+  const invalidProposal = latestInvalidProposal(round);
 
   const decideMutation = useMutation({
     mutationFn: async (input: {
@@ -169,6 +173,7 @@ export function FeedbackRoundCard({
 
   const isTerminal = isFeedbackRoundTerminal(round.status);
   const isActive = round.status === "agent_thinking";
+  const canDelete = !isActive;
 
   return (
     <article
@@ -215,7 +220,7 @@ export function FeedbackRoundCard({
 
       {expanded && (
         <div className="space-y-3 border-t border-slate-800/60 bg-slate-950/40 p-3">
-          {(runUrl || isTerminal) && (
+          {(runUrl || canDelete) && (
             <div className="space-y-2">
               <div className="flex flex-wrap items-center justify-end gap-2">
                 {runUrl && (
@@ -231,7 +236,7 @@ export function FeedbackRoundCard({
                     Open Run
                   </a>
                 )}
-                {isTerminal && !confirmingDelete && (
+                {canDelete && !confirmingDelete && (
                   <Button
                     type="button"
                     size="sm"
@@ -252,7 +257,7 @@ export function FeedbackRoundCard({
                     Delete
                   </Button>
                 )}
-                {isTerminal && confirmingDelete && (
+                {canDelete && confirmingDelete && (
                   <>
                     <span className="text-xs text-rose-200">
                       Delete round {round.number}? This cannot be undone.
@@ -315,7 +320,29 @@ export function FeedbackRoundCard({
             />
           )}
 
-          {!isActive && !proposal && round.needs_revision && (
+          {!isActive && !proposal && invalidProposal && (
+            <div
+              className="space-y-1.5 rounded-lg border border-rose-500/40 bg-rose-500/10 p-3 text-xs text-rose-200"
+              data-testid={selectors.feedback.invalidProposalNotice}
+            >
+              <div className="flex items-center gap-2 font-medium">
+                <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+                {INVALID_PROPOSAL_TITLE}
+              </div>
+              <p className="text-[11px] leading-relaxed text-rose-200/80">
+                {INVALID_PROPOSAL_BODY}
+              </p>
+              {(round.last_validation_errors ?? invalidProposal.validation_errors)?.length ? (
+                <ul className="list-disc space-y-0.5 pl-4 text-[11px] text-rose-200/80">
+                  {(round.last_validation_errors ?? invalidProposal.validation_errors)?.map((w, i) => (
+                    <li key={i}>{w}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          )}
+
+          {!isActive && !proposal && !invalidProposal && round.needs_revision && (
             <div
               className="space-y-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200"
               data-testid={selectors.feedback.parseErrorNotice}

@@ -261,6 +261,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/save", h.WorkshopSave).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/round", h.WorkshopDeleteRound).Methods("DELETE")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/reset", h.WorkshopReset).Methods("POST")
+	r.HandleFunc("/api/v1/backlog/{kind}/{name}/re-workshop", h.ReWorkshop).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/pending-advance", h.WorkshopCancelPendingAdvance).Methods("DELETE")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/clarification", h.CreateClarification).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/workshop/clarification/{threadId}", h.GetClarification).Methods("GET")

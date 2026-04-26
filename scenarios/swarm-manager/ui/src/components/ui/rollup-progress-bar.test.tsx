@@ -13,12 +13,16 @@ function makeRollup(overrides: Partial<InitiativeRollup> = {}): InitiativeRollup
 }
 
 describe("rollupTotal", () => {
-  it("sums all fields", () => {
+  it("sums active progress fields", () => {
     expect(rollupTotal(makeRollup({ completed: 2, inProgress: 3, failed: 1, pending: 4 }))).toBe(10);
   });
 
   it("returns 0 for empty rollup", () => {
     expect(rollupTotal(makeRollup())).toBe(0);
+  });
+
+  it("excludes archived items from the total", () => {
+    expect(rollupTotal(makeRollup({ completed: 2, pending: 1, archived: 5 }))).toBe(3);
   });
 });
 
@@ -74,5 +78,12 @@ describe("RollupProgressBar", () => {
     const bar = screen.getByTestId("rollup-progress-bar");
     const inner = bar.querySelector(".h-1");
     expect(inner).not.toBeNull();
+  });
+
+  it("ignores archived items when rendering active progress", () => {
+    render(<RollupProgressBar rollup={makeRollup({ completed: 1, archived: 4 })} showLabels />);
+    expect(screen.getByText("1 completed")).toBeDefined();
+    expect(screen.getByText("1 total")).toBeDefined();
+    expect(screen.queryByText(/archived/i)).toBeNull();
   });
 });
