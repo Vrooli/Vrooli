@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import AudioPlayerBar from "../AudioPlayerBar";
 import type { AudioPlayerBarProps } from "../AudioPlayerBar";
 import type { TTSPlaybackCapabilities } from "../../hooks/tts/types";
+import type { ConversationEvent } from "../../lib/api";
 
 const fullCapabilities: TTSPlaybackCapabilities = {
   canPause: true,
@@ -33,8 +34,25 @@ function makeProps(overrides?: Partial<AudioPlayerBarProps>): AudioPlayerBarProp
     onSetPlaybackRate: vi.fn(),
     onSetVolume: vi.fn(),
     onSetMuted: vi.fn(),
-    onStop: vi.fn(),
+    onDismiss: vi.fn(),
     ...overrides,
+  };
+}
+
+function makeEvent(id: string, sequence: number): ConversationEvent {
+  return {
+    id,
+    sessionId: "sess-1",
+    source: "claude_hook",
+    role: "assistant",
+    text: `Message ${sequence}`,
+    speechParagraphs: [`Message ${sequence}`],
+    summarized: false,
+    createdAt: new Date().toISOString(),
+    sequence,
+    deliveryState: "received",
+    ttsState: "idle",
+    consumptionState: "seen",
   };
 }
 
@@ -65,13 +83,13 @@ describe("AudioPlayerBar", () => {
     expect(props.onResume).toHaveBeenCalledTimes(1);
   });
 
-  it("stop button always visible and calls onStop", () => {
+  it("dismiss button always visible and calls onDismiss", () => {
     const props = makeProps();
     render(<AudioPlayerBar {...props} />);
-    const stopBtn = screen.getByTestId("tts-stop");
-    expect(stopBtn).toBeInTheDocument();
-    fireEvent.click(stopBtn);
-    expect(props.onStop).toHaveBeenCalledTimes(1);
+    const dismissBtn = screen.getByTestId("tts-dismiss");
+    expect(dismissBtn).toBeInTheDocument();
+    fireEvent.click(dismissBtn);
+    expect(props.onDismiss).toHaveBeenCalledTimes(1);
   });
 
   it("scrub bar reflects currentTime and changing it calls onSeek", () => {
@@ -369,6 +387,39 @@ describe("AudioPlayerBar", () => {
     fireEvent.click(screen.getByTestId("tts-audio-button"));
     fireEvent.click(screen.getByTestId("tts-mute-toggle"));
     expect(props.onSetMuted).toHaveBeenCalledWith(true);
+  });
+
+  it("renders the current message affordance and forwards jump clicks", () => {
+    const props = makeProps({
+      currentMessageLabel: "#12",
+      hasQueuedNext: true,
+      onJumpToCurrentMessage: vi.fn(),
+    });
+    render(<AudioPlayerBar {...props} />);
+    const button = screen.getByTestId("tts-current-message");
+    expect(button.textContent).toContain("#12");
+    expect(button.textContent).toContain("next");
+    fireEvent.click(button);
+    expect(props.onJumpToCurrentMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens the shared message selector from the current message affordance", () => {
+    const events = [makeEvent("e1", 1), makeEvent("e2", 2)];
+    const props = makeProps({
+      currentMessageLabel: "1/2",
+      currentMessageId: "e1",
+      messageSelectorEvents: events,
+      onSelectMessage: vi.fn(),
+      onJumpToCurrentMessage: vi.fn(),
+    });
+    render(<AudioPlayerBar {...props} />);
+
+    fireEvent.click(screen.getByTestId("tts-current-message"));
+
+    expect(screen.getByTestId("msg-jump-list")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("msg-jump-item-e2"));
+    expect(props.onSelectMessage).toHaveBeenCalledWith("e2");
+    expect(props.onJumpToCurrentMessage).not.toHaveBeenCalled();
   });
 
 });

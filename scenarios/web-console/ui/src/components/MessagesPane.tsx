@@ -16,7 +16,7 @@ import { useConversationStore, getSessionConversationEvents } from "../stores/us
 import { refreshConversationSession } from "../hooks/useConversationSession";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useMediaQuery } from "../hooks/useMediaQuery";
-import { summarizeEvent, updateTTSSummarizeConfig } from "../lib/api";
+import type { ConversationEvent } from "../lib/api";
 import { TERMINAL_FONT_SIZE } from "../consts/config";
 import { cn } from "../lib/classnames";
 import { MarkdownRenderer } from "./markdown";
@@ -24,6 +24,8 @@ import MessagesSearchDrawer from "./MessagesSearchDrawer";
 import MessageJumpList from "./MessageJumpList";
 import { AudioSettingsContent } from "./tts/AudioSettingsContent";
 import { PlaybackModeControl, type SummarizationLevel } from "./tts/PlaybackModeControl";
+import type { TTSPlaybackState } from "../hooks/tts/types";
+import type { PlaybackFocusRequest, PlaybackVersion } from "../domains/tts-playback/types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -31,16 +33,22 @@ import { PlaybackModeControl, type SummarizationLevel } from "./tts/PlaybackMode
 
 interface MessagesPaneProps {
   sessionId: string;
-  onSpeakFromHere: (eventId: string) => void;
-  onSpeakOne: (eventId: string, text: string, paragraphs?: string[], opts?: { version?: "active" | "original" }) => void;
+  onPlayFromHere: (eventId: string) => void;
+  onPlayEvent: (eventId: string) => void;
   activeSpeakingEventId: string | null;
   isTtsSpeaking: boolean;
-  /** Current global summarization level (from TTSSummarizeConfig). */
   summarizeLevel: SummarizationLevel;
-  /** Called after the level is changed globally so parent can update its cache. */
-  onSummarizeLevelChanged: (level: SummarizationLevel) => void;
-  /** Called when an on-demand summarize attempt fails. Parent surfaces a persistent banner. */
-  onSummarizeFailed?: (eventId: string, message: string) => void;
+  selectedVersionForEvent: (event: ConversationEvent) => PlaybackVersion;
+  summarizingEventId: string | null;
+  getSummarizeError: (eventId: string) => string | null;
+  onClearSummarizeError: (eventId: string) => void;
+  onToggleSummarized: (eventId: string, useSummarized: boolean) => void;
+  onChangeLevel: (eventId: string, level: SummarizationLevel) => void;
+  playbackState: TTSPlaybackState;
+  onSetPlaybackRate: (rate: number) => void;
+  onSetVolume: (level: number) => void;
+  onSetMuted: (next: boolean) => void;
+  playbackFocusRequest: PlaybackFocusRequest | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -54,13 +62,22 @@ const COLLAPSE_THRESHOLD_PX = 400;
 
 export default function MessagesPane({
   sessionId,
-  onSpeakFromHere,
-  onSpeakOne,
+  onPlayFromHere,
+  onPlayEvent,
   activeSpeakingEventId,
   isTtsSpeaking,
   summarizeLevel,
-  onSummarizeLevelChanged,
-  onSummarizeFailed,
+  selectedVersionForEvent,
+  summarizingEventId,
+  getSummarizeError,
+  onClearSummarizeError,
+  onToggleSummarized,
+  onChangeLevel,
+  playbackState,
+  onSetPlaybackRate,
+  onSetVolume,
+  onSetMuted,
+  playbackFocusRequest,
 }: MessagesPaneProps) {
   const events = useConversationStore((state) => getSessionConversationEvents(state, sessionId));
   const isMobile = useMediaQuery("(max-width: 767px)");
@@ -70,11 +87,6 @@ export default function MessagesPane({
 
   // --- Audio popover state ---
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
-  const [volume, setVolume] = useState(1);
-  const [playbackModes, setPlaybackModes] = useState<Record<string, boolean>>({});
-  const [summarizingIds, setSummarizingIds] = useState<Set<string>>(new Set());
-  const [summarizeErrors, setSummarizeErrors] = useState<Record<string, string>>({});
-  const summarizeAbortControllers = useRef<Record<string, AbortController>>({});
   const audioButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   // --- Copy ---
@@ -268,98 +280,6 @@ export default function MessagesPane({
     setFocusedEventId(null);
   }, []);
 
-  // --- Audio helpers ---
-  const handleToggleSummarized = useCallback((eventId: string, useSummarized: boolean) => {
-    setPlaybackModes((prev) => ({ ...prev, [eventId]: useSummarized }));
-  }, []);
-
-  const handleSpeakOne = useCallback((event: typeof events[number]) => {
-    const useSummarized = playbackModes[event.id] ?? event.summarized;
-    const paragraphs = useSummarized
-      ? event.speechParagraphs
-      : (event.originalSpeechParagraphs ?? event.speechParagraphs);
-    onSpeakOne(event.id, event.text, paragraphs, { version: useSummarized ? "active" : "original" });
-  }, [onSpeakOne, playbackModes]);
-
-  const handleRequestSummarize = useCallback((eventId: string) => {
-    // Abort any in-flight request for this event
-    summarizeAbortControllers.current[eventId]?.abort();
-    const controller = new AbortController();
-    summarizeAbortControllers.current[eventId] = controller;
-
-    setSummarizingIds((prev) => new Set(prev).add(eventId));
-    setSummarizeErrors((prev) => {
-      const next = { ...prev };
-      delete next[eventId];
-      return next;
-    });
-    void summarizeEvent(sessionId, eventId, controller.signal).then((res) => {
-      if (res.summarized && res.speechParagraphs) {
-        const convState = useConversationStore.getState();
-        const session = convState.sessions[sessionId];
-        if (session) {
-          const updatedEvents = session.events.map((ev) =>
-            ev.id === eventId
-              ? { ...ev, summarized: true, originalSpeechParagraphs: ev.speechParagraphs, speechParagraphs: res.speechParagraphs ?? ev.speechParagraphs }
-              : ev,
-          );
-          useConversationStore.setState({
-            sessions: { ...convState.sessions, [sessionId]: { ...session, events: updatedEvents } },
-          });
-        }
-      } else if (res.error) {
-        const msg = res.error ?? "Unknown error";
-        setSummarizeErrors((prev) => ({ ...prev, [eventId]: msg }));
-        onSummarizeFailed?.(eventId, msg);
-      }
-    }).catch((err: unknown) => {
-      if (err instanceof DOMException && err.name === "AbortError") return;
-      const message = err instanceof Error ? err.message : "Summarization failed";
-      setSummarizeErrors((prev) => ({ ...prev, [eventId]: message }));
-      onSummarizeFailed?.(eventId, message);
-    }).finally(() => {
-      delete summarizeAbortControllers.current[eventId];
-      setSummarizingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(eventId);
-        return next;
-      });
-    });
-  }, [sessionId, onSummarizeFailed]);
-
-  const handleCancelSummarize = useCallback((eventId: string) => {
-    summarizeAbortControllers.current[eventId]?.abort();
-    delete summarizeAbortControllers.current[eventId];
-    setSummarizingIds((prev) => {
-      const next = new Set(prev);
-      next.delete(eventId);
-      return next;
-    });
-  }, []);
-
-  const handleChangeLevelForEvent = useCallback((eventId: string, level: SummarizationLevel) => {
-    const apply = level !== summarizeLevel
-      ? updateTTSSummarizeConfig({ level }).then((cfg) => {
-          onSummarizeLevelChanged(cfg.level);
-        }).catch(() => {
-          // If the global update fails, still try to summarize with existing level.
-        })
-      : Promise.resolve();
-    void apply.then(() => {
-      handleRequestSummarize(eventId);
-    });
-  }, [summarizeLevel, onSummarizeLevelChanged, handleRequestSummarize]);
-
-  // Abort all in-flight summarizations on unmount
-  useEffect(() => {
-    const controllers = summarizeAbortControllers.current;
-    return () => {
-      for (const controller of Object.values(controllers)) {
-        controller.abort();
-      }
-    };
-  }, []);
-
   const getPopoverStyle = useCallback((eventId: string): React.CSSProperties => {
     const btn = audioButtonRefs.current[eventId];
     if (!btn) return { position: "fixed", top: 100, right: 16 };
@@ -374,6 +294,11 @@ export default function MessagesPane({
   const jumpLabel = focusedEventIndex >= 0
     ? `${focusedEventIndex + 1} / ${events.length}`
     : `${events.length}`;
+
+  useEffect(() => {
+    if (!playbackFocusRequest) return;
+    focusAndScroll(playbackFocusRequest.eventId);
+  }, [focusAndScroll, playbackFocusRequest]);
 
   return (
     <div
@@ -478,7 +403,8 @@ export default function MessagesPane({
             const isTtsActive = !isUser && isTtsSpeaking && activeSpeakingEventId === event.id;
             const isFocused = focusedEventId === event.id;
             const hasSummary = event.summarized && event.originalSpeechParagraphs != null && event.originalSpeechParagraphs.length > 0;
-            const useSummarized = playbackModes[event.id] ?? event.summarized;
+            const selectedVersion = selectedVersionForEvent(event);
+            const useSummarized = selectedVersion === "active" && hasSummary;
             const isPopoverOpen = openPopoverId === event.id;
 
             // Collapse logic
@@ -524,7 +450,7 @@ export default function MessagesPane({
                     <>
                       <button
                         data-testid={`msg-speak-from-${event.id}`}
-                        onClick={() => onSpeakFromHere(event.id)}
+                        onClick={() => onPlayFromHere(event.id)}
                         className="rounded p-0.5 text-wc-text-muted transition hover:text-wc-text-primary hover:bg-wc-accent/10"
                         title="Read from here"
                         type="button"
@@ -536,16 +462,16 @@ export default function MessagesPane({
                         isSummarized={useSummarized && hasSummary}
                         hasOriginalVersion={hasSummary}
                         canSummarize
-                        isSummarizing={summarizingIds.has(event.id)}
+                        isSummarizing={summarizingEventId === event.id}
                         currentLevel={summarizeLevel}
-                        onToggleSummarized={(use) => handleToggleSummarized(event.id, use)}
-                        onChangeLevel={(level) => handleChangeLevelForEvent(event.id, level)}
+                        onToggleSummarized={(use) => onToggleSummarized(event.id, use)}
+                        onChangeLevel={(level) => onChangeLevel(event.id, level)}
                       />
                       <button
                         ref={(el) => { audioButtonRefs.current[event.id] = el; }}
                         data-testid={`msg-audio-${event.id}`}
                         onClick={() => {
-                          handleSpeakOne(event);
+                          onPlayEvent(event.id);
                           setOpenPopoverId(isPopoverOpen ? null : event.id);
                         }}
                         className="rounded p-0.5 text-wc-text-faint transition hover:text-wc-text-muted hover:bg-wc-accent/10"
@@ -570,28 +496,30 @@ export default function MessagesPane({
                               <h3 className="mb-3 text-sm font-semibold text-wc-text-primary">Audio Settings</h3>
                               <AudioSettingsContent
                                 testIdPrefix={`msg-${event.id}`}
-                                volume={volume}
-                                playbackRate={1}
+                                volume={playbackState.volume}
+                                isMuted={playbackState.isMuted}
+                                playbackRate={playbackState.playbackRate}
                                 isSummarized={useSummarized && hasSummary}
-                                capabilities={{ canPause: false, canSeek: false, canAdjustSpeed: false, canAdjustVolume: true }}
-                                onVolumeChange={setVolume}
-                                onSetPlaybackRate={() => { /* speed adjustment not applicable per-message */ }}
+                                capabilities={playbackState.capabilities}
+                                onVolumeChange={onSetVolume}
+                                onSetMuted={onSetMuted}
+                                onSetPlaybackRate={onSetPlaybackRate}
                               />
-                              {summarizeErrors[event.id] && (
+                              {getSummarizeError(event.id) && (
                                 <div
                                   data-testid={`msg-summarize-error-${event.id}`}
                                   className="mt-2 rounded-lg bg-red-500/10 px-3 py-2 text-[11px] text-red-400"
                                 >
-                                  {summarizeErrors[event.id]}
+                                  {getSummarizeError(event.id)}
                                 </div>
                               )}
-                              {summarizingIds.has(event.id) && (
+                              {getSummarizeError(event.id) && (
                                 <button
-                                  data-testid={`msg-cancel-summarize-${event.id}`}
-                                  className="mt-2 w-full rounded-lg bg-red-500/10 px-3 py-2 text-xs font-medium text-red-400 transition hover:bg-red-500/20"
-                                  onClick={() => handleCancelSummarize(event.id)}
+                                  data-testid={`msg-clear-summarize-error-${event.id}`}
+                                  className="mt-2 w-full rounded-lg bg-wc-surface-base px-3 py-2 text-xs font-medium text-wc-text-muted transition hover:bg-wc-surface-input"
+                                  onClick={() => onClearSummarizeError(event.id)}
                                 >
-                                  Cancel summarization
+                                  Dismiss error
                                 </button>
                               )}
                             </div>
@@ -606,28 +534,30 @@ export default function MessagesPane({
                             >
                               <AudioSettingsContent
                                 testIdPrefix={`msg-${event.id}`}
-                                volume={volume}
-                                playbackRate={1}
+                                volume={playbackState.volume}
+                                isMuted={playbackState.isMuted}
+                                playbackRate={playbackState.playbackRate}
                                 isSummarized={useSummarized && hasSummary}
-                                capabilities={{ canPause: false, canSeek: false, canAdjustSpeed: false, canAdjustVolume: true }}
-                                onVolumeChange={setVolume}
-                                onSetPlaybackRate={() => { /* speed adjustment not applicable per-message */ }}
+                                capabilities={playbackState.capabilities}
+                                onVolumeChange={onSetVolume}
+                                onSetMuted={onSetMuted}
+                                onSetPlaybackRate={onSetPlaybackRate}
                               />
-                              {summarizeErrors[event.id] && (
+                              {getSummarizeError(event.id) && (
                                 <div
                                   data-testid={`msg-summarize-error-${event.id}`}
                                   className="mt-2 rounded-lg bg-red-500/10 px-3 py-2 text-[11px] text-red-400"
                                 >
-                                  {summarizeErrors[event.id]}
+                                  {getSummarizeError(event.id)}
                                 </div>
                               )}
-                              {summarizingIds.has(event.id) && (
+                              {getSummarizeError(event.id) && (
                                 <button
-                                  data-testid={`msg-cancel-summarize-${event.id}`}
-                                  className="mt-2 w-full rounded-lg bg-red-500/10 px-3 py-2 text-xs font-medium text-red-400 transition hover:bg-red-500/20"
-                                  onClick={() => handleCancelSummarize(event.id)}
+                                  data-testid={`msg-clear-summarize-error-${event.id}`}
+                                  className="mt-2 w-full rounded-lg bg-wc-surface-base px-3 py-2 text-xs font-medium text-wc-text-muted transition hover:bg-wc-surface-input"
+                                  onClick={() => onClearSummarizeError(event.id)}
                                 >
-                                  Cancel summarization
+                                  Dismiss error
                                 </button>
                               )}
                             </div>
@@ -638,23 +568,7 @@ export default function MessagesPane({
                     </>
                   )}
 
-                  <span className="flex-1">
-                    {isUser ? "You" : event.source === "claude_hook" ? "Claude Code" : "Codex"}
-                  </span>
-
-                  {hasSummary && (
-                    <span
-                      data-testid={`msg-summarized-badge-${event.id}`}
-                      className={cn(
-                        "rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider",
-                        useSummarized
-                          ? "bg-amber-500/20 text-amber-400"
-                          : "bg-wc-surface-base text-wc-text-faint",
-                      )}
-                    >
-                      {useSummarized ? "Summarized" : "Original"}
-                    </span>
-                  )}
+                  <span className="flex-1" />
                   <span>#{event.sequence}</span>
                 </div>
 

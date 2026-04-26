@@ -4,6 +4,7 @@ import MessagesPane from "../components/MessagesPane";
 import { useConversationStore } from "../stores/useConversationStore";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import type { ConversationEvent } from "../lib/api";
+import type { TTSPlaybackState } from "../hooks/tts/types";
 
 // Mock the markdown renderer to avoid shiki/mermaid in jsdom
 vi.mock("../components/markdown", () => ({
@@ -13,17 +14,6 @@ vi.mock("../components/markdown", () => ({
     </div>
   ),
 }));
-
-vi.mock("../lib/api", async () => {
-  const actual = await vi.importActual<typeof import("../lib/api")>("../lib/api");
-  return {
-    ...actual,
-    summarizeEvent: vi.fn(),
-  };
-});
-
-import { summarizeEvent } from "../lib/api";
-const mockSummarizeEvent = vi.mocked(summarizeEvent);
 
 function makeEvent(overrides: Partial<ConversationEvent> & { id: string; sequence: number }): ConversationEvent {
   return {
@@ -41,14 +31,39 @@ function makeEvent(overrides: Partial<ConversationEvent> & { id: string; sequenc
   };
 }
 
+const defaultPlaybackState: TTSPlaybackState = {
+  currentTime: 0,
+  duration: null,
+  isPaused: true,
+  playbackRate: 1,
+  volume: 1,
+  isMuted: false,
+  capabilities: {
+    canPause: true,
+    canSeek: false,
+    canAdjustSpeed: true,
+    canAdjustVolume: true,
+  },
+};
+
 const defaultProps = {
   sessionId: "sess-1",
-  onSpeakFromHere: vi.fn(),
-  onSpeakOne: vi.fn(),
+  onPlayFromHere: vi.fn(),
+  onPlayEvent: vi.fn(),
   activeSpeakingEventId: null,
   isTtsSpeaking: false,
   summarizeLevel: "moderate" as const,
-  onSummarizeLevelChanged: vi.fn(),
+  selectedVersionForEvent: vi.fn(() => "active" as const),
+  summarizingEventId: null,
+  getSummarizeError: vi.fn(() => null),
+  onClearSummarizeError: vi.fn(),
+  onToggleSummarized: vi.fn(),
+  onChangeLevel: vi.fn(),
+  playbackState: defaultPlaybackState,
+  onSetPlaybackRate: vi.fn(),
+  onSetVolume: vi.fn(),
+  onSetMuted: vi.fn(),
+  playbackFocusRequest: null,
 };
 
 describe("MessagesPane", () => {
@@ -97,20 +112,20 @@ describe("MessagesPane", () => {
     expect(screen.getByTestId("msg-audio-e2")).toBeInTheDocument();
   });
 
-  it("clicking 'read from here' calls onSpeakFromHere with correct event ID", () => {
+  it("clicking 'read from here' calls onPlayFromHere with correct event ID", () => {
     seedEvents([makeEvent({ id: "e1", sequence: 1 })]);
     render(<MessagesPane {...defaultProps} />);
 
     fireEvent.click(screen.getByTestId("msg-speak-from-e1"));
-    expect(defaultProps.onSpeakFromHere).toHaveBeenCalledWith("e1");
+    expect(defaultProps.onPlayFromHere).toHaveBeenCalledWith("e1");
   });
 
-  it("clicking audio button calls onSpeakOne and opens popover", () => {
+  it("clicking audio button calls onPlayEvent and opens popover", () => {
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "Hello world", speechParagraphs: ["Hello world"] })]);
     render(<MessagesPane {...defaultProps} />);
 
     fireEvent.click(screen.getByTestId("msg-audio-e1"));
-    expect(defaultProps.onSpeakOne).toHaveBeenCalledWith("e1", "Hello world", ["Hello world"], { version: "original" });
+    expect(defaultProps.onPlayEvent).toHaveBeenCalledWith("e1");
     expect(screen.getByTestId("audio-popover-e1")).toBeInTheDocument();
   });
 
@@ -140,17 +155,6 @@ describe("MessagesPane", () => {
 
     expect(screen.queryByTestId(/msg-speak-/)).toBeNull();
     expect(screen.getByText(/No conversation events/)).toBeInTheDocument();
-  });
-
-  it("displays correct source labels", () => {
-    seedEvents([
-      makeEvent({ id: "e1", sequence: 1, source: "claude_hook" }),
-      makeEvent({ id: "e2", sequence: 2, source: "codex" }),
-    ]);
-    render(<MessagesPane {...defaultProps} />);
-
-    expect(screen.getByText("Claude Code")).toBeInTheDocument();
-    expect(screen.getByText("Codex")).toBeInTheDocument();
   });
 
   it("user messages have no TTS controls", () => {
@@ -366,7 +370,7 @@ describe("MessagesPane", () => {
 
   // --- Summarization ---
 
-  it("summarized badge appears for summarized events", () => {
+  it("does not render the old summarized badge", () => {
     seedEvents([
       makeEvent({
         id: "e1",
@@ -378,8 +382,7 @@ describe("MessagesPane", () => {
     ]);
     render(<MessagesPane {...defaultProps} />);
 
-    expect(screen.getByTestId("msg-summarized-badge-e1")).toBeInTheDocument();
-    expect(screen.getByTestId("msg-summarized-badge-e1").textContent).toBe("Summarized");
+    expect(screen.queryByTestId("msg-summarized-badge-e1")).toBeNull();
   });
 
   it("mode control dropdown shows Original + level options for summarized events", () => {
@@ -392,7 +395,12 @@ describe("MessagesPane", () => {
         originalSpeechParagraphs: ["Full original text"],
       }),
     ]);
-    render(<MessagesPane {...defaultProps} />);
+    render(
+      <MessagesPane
+        {...defaultProps}
+        selectedVersionForEvent={vi.fn(() => "active" as const)}
+      />,
+    );
 
     fireEvent.click(screen.getByTestId("msg-e1-mode-control"));
     expect(screen.getByTestId("msg-e1-mode-option-original")).toBeInTheDocument();
@@ -401,20 +409,15 @@ describe("MessagesPane", () => {
     expect(screen.getByTestId("msg-e1-mode-option-heavy")).toBeInTheDocument();
   });
 
-  it("shows error when on-demand summarize (via level select) returns an error", async () => {
-    mockSummarizeEvent.mockResolvedValue({
-      summarized: false,
-      error: "Summarization failed: ollama returned 404: model not found",
-    });
-
+  it("shows summarize error from the playback controller surface", async () => {
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "A long assistant response" })]);
-    render(<MessagesPane {...defaultProps} />);
+    render(
+      <MessagesPane
+        {...defaultProps}
+        getSummarizeError={vi.fn(() => "Summarization failed: ollama returned 404: model not found")}
+      />,
+    );
 
-    // Trigger summarize by selecting the current (moderate) level — skips config update, goes straight to summarize.
-    fireEvent.click(screen.getByTestId("msg-e1-mode-control"));
-    fireEvent.click(screen.getByTestId("msg-e1-mode-option-moderate"));
-
-    // Open the audio popover to see the error surface.
     fireEvent.click(screen.getByTestId("msg-audio-e1"));
     await waitFor(() => {
       expect(screen.getByTestId("msg-summarize-error-e1")).toBeInTheDocument();
@@ -422,33 +425,42 @@ describe("MessagesPane", () => {
     });
   });
 
-  it("clears summarize error when retrying successfully via level select", async () => {
-    mockSummarizeEvent.mockResolvedValueOnce({
-      summarized: false,
-      error: "Summarization failed: connection refused",
-    });
-    mockSummarizeEvent.mockResolvedValueOnce({
-      summarized: true,
-      speechParagraphs: ["Short summary"],
-    });
-
+  it("clears summarize error through the provided dismiss handler", async () => {
+    const onClearSummarizeError = vi.fn();
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "A long assistant response" })]);
-    render(<MessagesPane {...defaultProps} />);
-
-    fireEvent.click(screen.getByTestId("msg-e1-mode-control"));
-    fireEvent.click(screen.getByTestId("msg-e1-mode-option-moderate"));
+    render(
+      <MessagesPane
+        {...defaultProps}
+        getSummarizeError={vi.fn(() => "Summarization failed: connection refused")}
+        onClearSummarizeError={onClearSummarizeError}
+      />,
+    );
 
     fireEvent.click(screen.getByTestId("msg-audio-e1"));
     await waitFor(() => {
       expect(screen.getByTestId("msg-summarize-error-e1")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByTestId("msg-e1-mode-control"));
-    fireEvent.click(screen.getByTestId("msg-e1-mode-option-moderate"));
+    fireEvent.click(screen.getByTestId("msg-clear-summarize-error-e1"));
+    expect(onClearSummarizeError).toHaveBeenCalledWith("e1");
+  });
 
-    await waitFor(() => {
-      expect(screen.queryByTestId("msg-summarize-error-e1")).toBeNull();
-    });
+  it("applies a playback focus request by scrolling the targeted event into view", () => {
+    const scrollIntoViewMock = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoViewMock;
+
+    seedEvents([
+      makeEvent({ id: "e1", sequence: 1, text: "First" }),
+      makeEvent({ id: "e2", sequence: 2, text: "Second" }),
+    ]);
+    render(
+      <MessagesPane
+        {...defaultProps}
+        playbackFocusRequest={{ eventId: "e2", nonce: 1 }}
+      />,
+    );
+
+    expect(scrollIntoViewMock).toHaveBeenCalled();
   });
 
   // --- Copy-to-clipboard ---

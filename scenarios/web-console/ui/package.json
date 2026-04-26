@@ -13,7 +13,7 @@
     "lint": "eslint src",
     "type-check": "tsc --noEmit",
     "pretest": "pnpm run selector:manifest",
-    "test": "vitest run"
+    "test": "./scripts/run-vitest-batches.sh"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.1.0",

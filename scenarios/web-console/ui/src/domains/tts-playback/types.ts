@@ -1,0 +1,73 @@
+import type { ConversationEvent } from "../../lib/api";
+import type { SummarizationLevel } from "../../components/tts/PlaybackModeControl";
+import type { TTSPlaybackState } from "../../hooks/tts/types";
+
+export type PlaybackVersion = "active" | "original";
+
+export interface PlaybackQueueEntry {
+  eventId: string;
+  sequence: number;
+  version: PlaybackVersion;
+}
+
+export interface PlaybackFocusRequest {
+  eventId: string;
+  nonce: number;
+}
+
+export interface PlaybackTarget {
+  sessionId: string;
+  eventId: string;
+}
+
+export interface PlaybackEventContext {
+  event: ConversationEvent | null;
+  sessionId: string | null;
+  version: PlaybackVersion;
+  queueLabel: string | null;
+  hasQueuedNext: boolean;
+}
+
+export interface SessionPlaybackAudioState {
+  playback: TTSPlaybackState | null;
+  isSpeaking: boolean;
+}
+
+export interface SessionPlaybackControllerState {
+  selectedVersions: Record<string, PlaybackVersion>;
+  preferredVersion: PlaybackVersion;
+  replayTarget: PlaybackTarget | null;
+  activeTarget: PlaybackTarget | null;
+  queueSessionId: string | null;
+  queueEntries: PlaybackQueueEntry[];
+  queueIndex: number;
+  summarizeLevel: SummarizationLevel;
+  summarizingEventId: string | null;
+  summarizeErrors: Record<string, string>;
+  focusRequest: PlaybackFocusRequest | null;
+  replayDismissed: boolean;
+}
+
+export interface SessionPlaybackController {
+  summarizeLevel: SummarizationLevel;
+  summarizingEventId: string | null;
+  activeEventId: string | null;
+  focusRequest: PlaybackFocusRequest | null;
+  getSelectedVersion: (sessionId: string, event: ConversationEvent) => PlaybackVersion;
+  getSummarizeError: (eventId: string) => string | null;
+  clearSummarizeError: (eventId: string) => void;
+  playEvent: (sessionId: string, eventId: string) => void;
+  playFromHere: (sessionId: string, eventId: string) => void;
+  setVersionPreference: (sessionId: string, eventId: string, version: PlaybackVersion) => void;
+  toggleVersion: (sessionId: string, eventId: string, useSummarized: boolean) => void;
+  changeSummarizeLevel: (sessionId: string, eventId: string, level: SummarizationLevel) => void;
+  handleTransportEventStart: (sessionId: string, eventId: string | null) => void;
+  handleTransportStopped: () => void;
+  buildBarContext: (
+    activePaneId: string | null,
+    autoTtsEnabled: boolean,
+    audioState: SessionPlaybackAudioState,
+  ) => PlaybackEventContext | null;
+  dismissBar: (activePaneId: string | null, isSpeaking: boolean) => void;
+  focusCurrentEvent: (activePaneId: string | null) => void;
+}

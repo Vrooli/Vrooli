@@ -68,6 +68,13 @@ describe("useTerminalSession snapshot replay", () => {
     lastSocket = new FakeWebSocket(url);
     return lastSocket as unknown as WebSocket;
   };
+  const getLastSocket = (): FakeWebSocket => {
+    expect(lastSocket).not.toBeNull();
+    if (!lastSocket) {
+      throw new Error("Expected websocket to be initialized");
+    }
+    return lastSocket;
+  };
 
   beforeEach(() => {
     lastSocket = null;
@@ -90,7 +97,7 @@ describe("useTerminalSession snapshot replay", () => {
 
     expect(lastSocket).not.toBeNull();
     await act(async () => {
-      lastSocket!.triggerOpen();
+      getLastSocket().triggerOpen();
     });
 
     // onTransportOpen calls reset() exactly once per WS open.
@@ -98,20 +105,21 @@ describe("useTerminalSession snapshot replay", () => {
 
     // Server streams snapshot stdout frames. Hook writes them to xterm.
     await act(async () => {
-      lastSocket!.triggerMessage({ type: "stdout", data: "scrollback line 1\r\n" });
-      lastSocket!.triggerMessage({ type: "stdout", data: "screen content" });
+      const socket = getLastSocket();
+      socket.triggerMessage({ type: "stdout", data: "scrollback line 1\r\n" });
+      socket.triggerMessage({ type: "stdout", data: "screen content" });
     });
     expect(term.written).toContain("scrollback line 1\r\n");
     expect(term.written).toContain("screen content");
 
     // history_end terminates snapshot mode.
     await act(async () => {
-      lastSocket!.triggerMessage({ type: "history_end" });
+      getLastSocket().triggerMessage({ type: "history_end" });
     });
 
     // Subsequent stdout frames are still written (live mode).
     await act(async () => {
-      lastSocket!.triggerMessage({ type: "stdout", data: "live byte" });
+      getLastSocket().triggerMessage({ type: "stdout", data: "live byte" });
     });
     expect(term.written).toContain("live byte");
   });
@@ -127,14 +135,14 @@ describe("useTerminalSession snapshot replay", () => {
     );
 
     await act(async () => {
-      lastSocket!.triggerOpen();
+      getLastSocket().triggerOpen();
     });
     expect(term.resetCalls).toBe(1);
 
     // Simulate disconnect + reconnect — the same socket factory is used
     // for the next attempt, so we just open again on the existing WS.
     await act(async () => {
-      lastSocket!.close();
+      getLastSocket().close();
     });
     // Transport's auto-reconnect creates a new socket; force an immediate
     // open by calling the factory directly is not exposed. Instead, mount
@@ -148,7 +156,7 @@ describe("useTerminalSession snapshot replay", () => {
       }),
     );
     await act(async () => {
-      lastSocket!.triggerOpen();
+      getLastSocket().triggerOpen();
     });
     expect(term2.resetCalls).toBe(1);
   });

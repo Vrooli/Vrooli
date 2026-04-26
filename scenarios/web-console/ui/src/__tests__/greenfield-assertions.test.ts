@@ -1,13 +1,11 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
 import { describe, expect, it } from "vitest";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-expect-error -- vitest runs in Node; types aren't in the UI tsconfig
-import { readFileSync, readdirSync, statSync } from "fs";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+import { readFileSync, readdirSync, statSync } from "node:fs";
 // @ts-expect-error -- vitest runs in Node; types aren't in the UI tsconfig
-import { join, resolve } from "path";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+import { join, resolve } from "node:path";
 // @ts-expect-error -- vitest runs in Node; types aren't in the UI tsconfig
-import { fileURLToPath } from "url";
+import { fileURLToPath } from "node:url";
 
 /**
  * Static-assertion tests enforcing the greenfield constraints of the

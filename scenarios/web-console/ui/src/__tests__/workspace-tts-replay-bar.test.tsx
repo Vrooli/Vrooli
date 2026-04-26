@@ -7,7 +7,7 @@
  * to the messages view.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import { forwardRef, useImperativeHandle } from "react";
 import type { TerminalPaneHandle } from "../components/TerminalPane";
 import type { ConversationEvent } from "../lib/api";
@@ -178,21 +178,27 @@ vi.mock("../components/TerminalHeader", () => ({
 vi.mock("../components/AudioPlayerBar", () => ({
   default: vi.fn(({
     onResume,
-    onStop,
+    onDismiss,
     isSummarized,
     onToggleSummarized,
+    currentMessageLabel,
+    hasQueuedNext,
   }: {
     onResume: () => void;
-    onStop: () => void;
+    onDismiss: () => void;
     isSummarized?: boolean;
     onToggleSummarized?: (useSummarized: boolean) => void;
+    currentMessageLabel?: string | null;
+    hasQueuedNext?: boolean;
   }) => (
     <div data-testid="audio-player-bar">
       <button data-testid="replay-resume" onClick={onResume}>Resume</button>
-      <button data-testid="replay-stop" onClick={onStop}>Stop</button>
+      <button data-testid="replay-dismiss" onClick={onDismiss}>Dismiss</button>
       <span data-testid="tts-mode-control">{isSummarized ? "Summarized" : "Original"}</span>
       <button data-testid="tts-mode-option-original" onClick={() => onToggleSummarized?.(false)}>Original</button>
       <button data-testid="tts-mode-option-active" onClick={() => onToggleSummarized?.(true)}>Summarized</button>
+      <span data-testid="tts-current-message">{currentMessageLabel ?? ""}</span>
+      <span data-testid="tts-has-next">{String(hasQueuedNext ?? false)}</span>
     </div>
   )),
 }));
@@ -313,6 +319,24 @@ describe("Workspace TTS replay bar", () => {
     expect(screen.getByTestId("audio-player-bar")).toBeInTheDocument();
   });
 
+  it("shows queue context for the current replay target", () => {
+    setupPaneState();
+    mockStoreState.autoTtsEnabled = true;
+
+    render(<Workspace />);
+
+    act(() => {
+      captured.onTtsSpeakingChange?.(true);
+      captured.onSpeakingEventChange?.(testEvent.id);
+    });
+    act(() => {
+      captured.onTtsSpeakingChange?.(false);
+    });
+
+    expect(screen.getByTestId("tts-current-message").textContent).toContain("#1");
+    expect(screen.getByTestId("tts-has-next").textContent).toBe("false");
+  });
+
   it("hides audio player bar after TTS stops when auto-TTS is disabled", () => {
     setupPaneState();
     mockStoreState.autoTtsEnabled = false;
@@ -332,7 +356,7 @@ describe("Workspace TTS replay bar", () => {
     expect(screen.queryByTestId("audio-player-bar")).toBeNull();
   });
 
-  it("replay resume button triggers speakTextOnPane with last event", () => {
+  it("replay resume button triggers speakTextOnPane with last event", async () => {
     setupPaneState();
     mockStoreState.autoTtsEnabled = true;
 
@@ -349,12 +373,14 @@ describe("Workspace TTS replay bar", () => {
 
     // Press the resume/play button in replay mode
     fireEvent.click(screen.getByTestId("replay-resume"));
-    expect(mockSpeakTextOnPane).toHaveBeenCalledWith(
-      SESSION_ID,
-      testEvent.text,
-      testEvent.speechParagraphs,
-      { eventId: testEvent.id, version: "active" },
-    );
+    await waitFor(() => {
+      expect(mockSpeakTextOnPane).toHaveBeenCalledWith(
+        SESSION_ID,
+        testEvent.text,
+        testEvent.speechParagraphs,
+        { eventId: testEvent.id, version: "active" },
+      );
+    });
   });
 
   it("toggling to Original updates the bar label immediately and re-speaks the original text", () => {
@@ -399,7 +425,7 @@ describe("Workspace TTS replay bar", () => {
     );
   });
 
-  it("stop button in replay mode dismisses the bar", () => {
+  it("dismiss button in replay mode hides the bar", () => {
     setupPaneState();
     mockStoreState.autoTtsEnabled = true;
 
@@ -416,8 +442,8 @@ describe("Workspace TTS replay bar", () => {
 
     expect(screen.getByTestId("audio-player-bar")).toBeInTheDocument();
 
-    // Press stop in replay mode → dismisses bar
-    fireEvent.click(screen.getByTestId("replay-stop"));
+    // Press dismiss in replay mode → hides bar
+    fireEvent.click(screen.getByTestId("replay-dismiss"));
     expect(screen.queryByTestId("audio-player-bar")).toBeNull();
   });
 });

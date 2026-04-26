@@ -5,12 +5,16 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 // because the hook evaluates `browserSupported` at module load time.
 const mockSynthSpeak = vi.fn();
 const mockSynthCancel = vi.fn();
+const mockSynthPause = vi.fn();
+const mockSynthResume = vi.fn();
 const mockSynthGetVoices = vi.fn().mockReturnValue([]);
 
 Object.defineProperty(window, "speechSynthesis", {
   value: {
     speak: mockSynthSpeak,
     cancel: mockSynthCancel,
+    pause: mockSynthPause,
+    resume: mockSynthResume,
     getVoices: mockSynthGetVoices,
     speaking: false,
     paused: false,
@@ -45,16 +49,19 @@ const { _mockFetchCaps } = vi.hoisted(() => ({
 vi.mock("../lib/api", () => ({
   fetchCapabilitiesLiveness: _mockFetchCaps,
   fetchCapabilitiesLivenessCached: (...args: unknown[]) => _mockFetchCaps(...args) as unknown,
+  fetchCachedTTS: vi.fn(),
   getTTSVoices: vi.fn(),
   synthesizeTTS: vi.fn(),
   reportTTSEvent: vi.fn(),
   _resetCapabilitiesCache: vi.fn(),
 }));
 
-import { fetchCapabilitiesLiveness, getTTSVoices, synthesizeTTS } from "../lib/api";
+import { fetchCapabilitiesLiveness, fetchCachedTTS, getTTSVoices, synthesizeTTS } from "../lib/api";
 import { useTextToSpeech, type TTSSettings } from "../hooks/useTextToSpeech";
+import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 
 const mockFetchCaps = fetchCapabilitiesLiveness as ReturnType<typeof vi.fn>;
+const mockFetchCachedTTS = fetchCachedTTS as ReturnType<typeof vi.fn>;
 const mockGetVoices = getTTSVoices as ReturnType<typeof vi.fn>;
 const mockSynthesizeTTS = synthesizeTTS as ReturnType<typeof vi.fn>;
 
@@ -69,6 +76,7 @@ const defaultSettings: TTSSettings = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  useWorkspaceStore.setState({ startMutedOnLoad: true });
 });
 
 afterEach(() => {
@@ -354,8 +362,8 @@ describe("useTextToSpeech", () => {
 
     await waitFor(() => {
       expect(result.current.backend).toBe("none");
+      expect(result.current.backendReason).toContain("Kokoro backend was selected explicitly");
     });
-    expect(result.current.backendReason).toContain("Kokoro backend was selected explicitly");
   });
 
   it("speakParagraphs falls back to browser in auto mode when kokoro fails", async () => {
@@ -401,6 +409,90 @@ describe("useTextToSpeech", () => {
     expect(result.current.backendReason).toContain("Browser handled playback");
   });
 
+  it("pause and resume control the active fallback browser provider after runtime kokoro failure", async () => {
+    mockFetchCaps.mockResolvedValue({
+      capabilities: [{ id: "kokoro-tts", status: "available" }],
+      timestamp: new Date().toISOString(),
+    });
+    mockGetVoices.mockResolvedValue([{ id: "af_heart", name: "af_heart" }]);
+    mockSynthesizeTTS.mockRejectedValue(new Error("Kokoro synthesis failed"));
+
+    const { result } = renderHook(() => useTextToSpeech(defaultSettings));
+
+    await waitFor(() => {
+      expect(result.current.backend).toBe("kokoro");
+    });
+
+    const browserUtterances: FakeUtterance[] = [];
+    mockSynthSpeak.mockImplementation((u: FakeUtterance) => {
+      browserUtterances.push(u);
+    });
+
+    unlockBrowserAudio();
+    act(() => result.current.speak("fallback speech"));
+
+    await waitFor(() => {
+      expect(browserUtterances).toHaveLength(1);
+    });
+
+    act(() => result.current.pause());
+    expect(mockSynthPause).toHaveBeenCalledTimes(1);
+    expect(result.current.isPaused).toBe(true);
+
+    act(() => result.current.resume());
+    expect(mockSynthResume).toHaveBeenCalledTimes(1);
+    expect(result.current.isPaused).toBe(false);
+
+    await act(async () => {
+      browserUtterances.shift()?.onend?.();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(result.current.isSpeaking).toBe(false);
+    });
+  });
+
+  it("playback state snapshots come from the active fallback browser provider", async () => {
+    mockFetchCaps.mockResolvedValue({
+      capabilities: [{ id: "kokoro-tts", status: "available" }],
+      timestamp: new Date().toISOString(),
+    });
+    mockGetVoices.mockResolvedValue([{ id: "af_heart", name: "af_heart" }]);
+    mockSynthesizeTTS.mockRejectedValue(new Error("Kokoro synthesis failed"));
+
+    const { result } = renderHook(() => useTextToSpeech(defaultSettings));
+
+    await waitFor(() => {
+      expect(result.current.backend).toBe("kokoro");
+    });
+
+    const browserUtterances: FakeUtterance[] = [];
+    mockSynthSpeak.mockImplementation((u: FakeUtterance) => {
+      browserUtterances.push(u);
+    });
+
+    unlockBrowserAudio();
+    act(() => result.current.speak("fallback snapshot"));
+
+    await waitFor(() => {
+      expect(browserUtterances).toHaveLength(1);
+    });
+
+    let playback = result.current.getPlaybackState();
+    expect(playback?.capabilities.canPause).toBe(true);
+    expect(playback?.capabilities.canSeek).toBe(false);
+
+    act(() => result.current.pause());
+    playback = result.current.getPlaybackState();
+    expect(playback?.isPaused).toBe(true);
+
+    await act(async () => {
+      browserUtterances.shift()?.onend?.();
+      await Promise.resolve();
+    });
+  });
+
   it("reports browser audio readiness after user interaction", async () => {
     mockFetchCaps.mockResolvedValue({
       capabilities: [],
@@ -418,6 +510,29 @@ describe("useTextToSpeech", () => {
 
     await waitFor(() => {
       expect(result.current.browserAudioReady).toBe(true);
+    });
+  });
+
+  it("tracks the start-muted preference before the user explicitly changes mute", async () => {
+    useWorkspaceStore.setState({ startMutedOnLoad: false });
+    mockFetchCaps.mockResolvedValue({
+      capabilities: [],
+      timestamp: new Date().toISOString(),
+    });
+
+    const { result } = renderHook(() => useTextToSpeech(defaultSettings));
+
+    await waitFor(() => {
+      expect(result.current.backend).toBe("browser");
+    });
+    expect(result.current.isMuted).toBe(false);
+
+    act(() => {
+      useWorkspaceStore.setState({ startMutedOnLoad: true });
+    });
+
+    await waitFor(() => {
+      expect(result.current.isMuted).toBe(true);
     });
   });
 
@@ -575,6 +690,39 @@ describe("useTextToSpeech", () => {
 
       act(() => result.current.dismissNeedsUnlock());
       expect(result.current.needsUnlock).toBe(false);
+    });
+
+    it("pause controls cached Kokoro blob playback from the active provider", async () => {
+      mockFetchCaps.mockResolvedValue({
+        capabilities: [{ id: "kokoro-tts", status: "available" }],
+        timestamp: new Date().toISOString(),
+      });
+      mockGetVoices.mockResolvedValue([{ id: "af_heart", name: "af_heart" }]);
+      mockFetchCachedTTS.mockResolvedValue(new Blob(["audio"], { type: "audio/mp3" }));
+
+      const { result } = renderHook(() => useTextToSpeech({
+        ...defaultSettings,
+        backendPreference: "kokoro",
+      }));
+      await waitFor(() => expect(result.current.backend).toBe("kokoro"));
+
+      let playback!: Promise<unknown>;
+      await act(async () => {
+        playback = result.current.speakParagraphs(["cached paragraph"], {
+          eventId: "evt-cached",
+          version: "active",
+        });
+        await Promise.resolve();
+      });
+
+      act(() => result.current.pause());
+      expect(fakeAudio.pause).toHaveBeenCalled();
+      expect(result.current.isPaused).toBe(true);
+
+      await act(async () => {
+        fakeAudio.dispatchEvent(new Event("ended"));
+        await playback;
+      });
     });
   });
 });

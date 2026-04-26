@@ -27,6 +27,8 @@ vi.stubGlobal("SpeechSynthesisUtterance", class { text: string; rate = 1; pitch 
 // ── TTS mock: speakParagraphs returns a controllable promise ──
 const mockSpeakParagraphs = vi.fn<() => Promise<string | undefined>>();
 const mockStop = vi.fn();
+const mockSetMuted = vi.fn();
+const mockResume = vi.fn();
 let mockIsSpeaking = false;
 
 vi.mock("../hooks/useTextToSpeech", () => ({
@@ -41,10 +43,11 @@ vi.mock("../hooks/useTextToSpeech", () => ({
     speakParagraphs: mockSpeakParagraphs,
     stop: mockStop,
     pause: vi.fn(),
-    resume: vi.fn(),
+    resume: mockResume,
     seek: vi.fn(),
     setPlaybackRate: vi.fn(),
     setVolume: vi.fn(),
+    setMuted: mockSetMuted,
     getPlaybackState: vi.fn().mockReturnValue(null),
   }),
 }));
@@ -221,5 +224,63 @@ describe("TerminalPane TTS stop prevents retry loop", () => {
     // Cursor should be at sequence 103 (the highest assistant event)
     const session = useConversationStore.getState().sessions[SESSION_ID];
     expect(session?.cursor.lastListenedSequence).toBeGreaterThanOrEqual(103);
+  });
+
+  it("manual speakText cancels an older speakSequence without resuming queued entries", async () => {
+    let rejectFirstSpeak: ((reason?: unknown) => void) | undefined;
+    mockSpeakParagraphs.mockImplementation(() => {
+      const callNumber = mockSpeakParagraphs.mock.calls.length;
+      if (callNumber === 1) {
+        return new Promise<string | undefined>((_, reject) => {
+          rejectFirstSpeak = reject;
+        });
+      }
+      return Promise.resolve("browser");
+    });
+
+    const ref = createRef<TerminalPaneHandle>();
+    render(<TerminalPane ref={ref} sessionId={SESSION_ID} />);
+    await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
+
+    const sequencePromise = ref.current?.speakSequence([
+      { eventId: "evt-1", text: "Queued 1", paragraphs: ["Queued 1"], version: "active" },
+      { eventId: "evt-2", text: "Queued 2", paragraphs: ["Queued 2"], version: "active" },
+      { eventId: "evt-3", text: "Queued 3", paragraphs: ["Queued 3"], version: "active" },
+    ], vi.fn());
+
+    await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
+    expect(mockSpeakParagraphs).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      ref.current?.speakText("Manual override", ["Manual override"], { eventId: "manual", version: "active" });
+    });
+    expect(mockSpeakParagraphs).toHaveBeenCalledTimes(2);
+
+    rejectFirstSpeak?.(new DOMException("The operation was aborted.", "AbortError"));
+    await act(async () => {
+      await sequencePromise;
+      await new Promise((r) => setTimeout(r, 10));
+    });
+
+    expect(mockSpeakParagraphs).toHaveBeenCalledTimes(2);
+  });
+
+  it("manual playback paths auto-unmute before speaking or resuming", async () => {
+    mockSpeakParagraphs.mockResolvedValue("browser");
+
+    const ref = createRef<TerminalPaneHandle>();
+    render(<TerminalPane ref={ref} sessionId={SESSION_ID} />);
+    await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
+
+    act(() => {
+      ref.current?.speakText("Manual", ["Manual"], { eventId: "evt-manual", version: "active" });
+    });
+    expect(mockSetMuted).toHaveBeenCalledWith(false);
+
+    act(() => {
+      ref.current?.resumeTts();
+    });
+    expect(mockSetMuted).toHaveBeenLastCalledWith(false);
+    expect(mockResume).toHaveBeenCalledTimes(1);
   });
 });

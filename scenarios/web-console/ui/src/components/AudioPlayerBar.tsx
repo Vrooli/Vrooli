@@ -1,11 +1,13 @@
-import { useCallback, useRef, useState, type ChangeEvent } from "react";
+import { useCallback, useRef, useState, type CSSProperties, type ChangeEvent } from "react";
 import { createPortal } from "react-dom";
-import { Pause, Play, Square, Volume2, VolumeX } from "lucide-react";
+import { Pause, Play, Volume2, VolumeX, X } from "lucide-react";
 import type { TTSPlaybackCapabilities } from "../hooks/tts/types";
+import type { ConversationEvent } from "../lib/api";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { cn } from "../lib/classnames";
 import { AudioSettingsContent } from "./tts/AudioSettingsContent";
 import { PlaybackModeControl, type SummarizationLevel } from "./tts/PlaybackModeControl";
+import MessageJumpList from "./MessageJumpList";
 
 export interface AudioPlayerBarProps {
   isPaused: boolean;
@@ -25,13 +27,19 @@ export interface AudioPlayerBarProps {
   isSummarizing?: boolean;
   /** Current global summarization level. */
   currentLevel?: SummarizationLevel;
+  currentMessageLabel?: string | null;
+  currentMessageId?: string | null;
+  messageSelectorEvents?: ConversationEvent[];
+  hasQueuedNext?: boolean;
   onPause: () => void;
   onResume: () => void;
   onSeek: (seconds: number) => void;
   onSetPlaybackRate: (rate: number) => void;
   onSetVolume: (level: number) => void;
   onSetMuted: (next: boolean) => void;
-  onStop: () => void;
+  onDismiss: () => void;
+  onJumpToCurrentMessage?: () => void;
+  onSelectMessage?: (eventId: string) => void;
   /** Called when the user wants to switch to the original (unsummarized) version. */
   onToggleSummarized?: (useSummarized: boolean) => void;
   /** Called when the user picks a summarization level (may be the current one). */
@@ -67,19 +75,27 @@ export default function AudioPlayerBar({
   canSummarize = false,
   isSummarizing = false,
   currentLevel = "moderate",
+  currentMessageLabel = null,
+  currentMessageId = null,
+  messageSelectorEvents,
+  hasQueuedNext = false,
   onPause,
   onResume,
   onSeek,
   onSetPlaybackRate,
   onSetVolume,
   onSetMuted,
-  onStop,
+  onDismiss,
+  onJumpToCurrentMessage,
+  onSelectMessage,
   onToggleSummarized,
   onChangeLevel,
 }: AudioPlayerBarProps) {
   const [showPopover, setShowPopover] = useState(false);
+  const [showMessageSelector, setShowMessageSelector] = useState(false);
   const isMobile = useMediaQuery("(max-width: 767px)");
   const audioButtonRef = useRef<HTMLButtonElement>(null);
+  const currentMessageButtonRef = useRef<HTMLButtonElement>(null);
 
   const handlePlayPause = useCallback(() => {
     if (isPaused) onResume();
@@ -101,12 +117,22 @@ export default function AudioPlayerBar({
   const isIdle = duration === null;
 
   // Compute popover position anchored above the audio button
-  const getPopoverStyle = useCallback((): React.CSSProperties => {
+  const getPopoverStyle = useCallback((): CSSProperties => {
     const btn = audioButtonRef.current;
     if (!btn) return { position: "fixed", bottom: 48, right: 16 };
     const rect = btn.getBoundingClientRect();
     return {
       position: "fixed",
+      bottom: window.innerHeight - rect.top + 8,
+      right: Math.max(8, window.innerWidth - rect.right),
+    };
+  }, []);
+
+  const getMessageSelectorStyle = useCallback((): CSSProperties => {
+    const btn = currentMessageButtonRef.current;
+    if (!btn) return { bottom: 48, right: 16 };
+    const rect = btn.getBoundingClientRect();
+    return {
       bottom: window.innerHeight - rect.top + 8,
       right: Math.max(8, window.innerWidth - rect.right),
     };
@@ -142,14 +168,38 @@ export default function AudioPlayerBar({
         {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
       </button>
 
-      <button
-        data-testid="tts-stop"
-        onClick={onStop}
-        className="shrink-0 rounded p-1 transition hover:bg-wc-accent/10"
-        title="Stop"
-      >
-        <Square className="h-4 w-4" />
-      </button>
+      {currentMessageLabel && (
+        <button
+          ref={currentMessageButtonRef}
+          data-testid="tts-current-message"
+          type="button"
+          onClick={() => {
+            if (messageSelectorEvents?.length && onSelectMessage) {
+              setShowMessageSelector((prev) => !prev);
+              return;
+            }
+            onJumpToCurrentMessage?.();
+          }}
+          className="inline-flex shrink-0 items-center gap-1 rounded-md bg-wc-surface-base px-1.5 py-1 text-[11px] font-medium text-wc-text-muted ring-1 ring-wc-default transition hover:bg-wc-surface-input"
+          title={messageSelectorEvents?.length && onSelectMessage ? "Select message" : "Jump to current message"}
+        >
+          <span>{currentMessageLabel}</span>
+          {hasQueuedNext && <span className="text-[10px] text-amber-300">next</span>}
+        </button>
+      )}
+
+      {showMessageSelector && messageSelectorEvents?.length && onSelectMessage && (
+        <MessageJumpList
+          events={messageSelectorEvents}
+          focusedEventId={currentMessageId}
+          onSelect={(eventId) => {
+            onSelectMessage(eventId);
+            setShowMessageSelector(false);
+          }}
+          onClose={() => setShowMessageSelector(false)}
+          desktopStyle={getMessageSelectorStyle()}
+        />
+      )}
 
       {/* Scrub — always rendered in the same slot so the bar shape is stable
           across playing/idle states. Disabled with min=max=0 when no audio
@@ -194,6 +244,15 @@ export default function AudioPlayerBar({
           {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
         </button>
       )}
+
+      <button
+        data-testid="tts-dismiss"
+        onClick={onDismiss}
+        className="shrink-0 rounded p-1 text-wc-text-muted transition hover:bg-wc-accent/10 hover:text-wc-text-primary"
+        title="Close playback"
+      >
+        <X className="h-4 w-4" />
+      </button>
 
       {/* Popover / bottom sheet — always rendered via portal to escape terminal touch handlers */}
       {showPopover && createPortal(

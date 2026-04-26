@@ -334,8 +334,12 @@ export function useSessionManager() {
   );
 
   const speakSequenceOnPane = useCallback(
-    (sessionId: string, texts: string[], onProgress: (index: number) => void) => {
-      return terminalRefs.current.get(sessionId)?.speakSequence(texts, onProgress) ?? Promise.resolve();
+    (
+      sessionId: string,
+      entries: Array<{ eventId: string; text: string; paragraphs: string[]; version: "active" | "original" }>,
+      onEventStart: (index: number, eventId: string) => void,
+    ) => {
+      return terminalRefs.current.get(sessionId)?.speakSequence(entries, onEventStart) ?? Promise.resolve();
     },
     [],
   );

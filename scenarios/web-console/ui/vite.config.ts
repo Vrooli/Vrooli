@@ -9,6 +9,17 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
+    // Scenario-level test runs were intermittently crashing under the broader
+    // `make test` harness. Keep worker isolation but bound the fork pool so
+    // memory can be reclaimed between files without spawning an excessive
+    // number of concurrent jsdom workers.
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        minForks: 1,
+        maxForks: 2,
+      },
+    },
     setupFiles: ['./src/test-utils/setup.ts'],
     coverage: {
       provider: 'v8',

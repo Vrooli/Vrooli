@@ -81,6 +81,10 @@ function ensureSpeechChunks(paragraphs: string[]): string[] {
   return result.filter(Boolean);
 }
 
+function isAbortLikeError(err: unknown): boolean {
+  return err instanceof Error && (err.name === "AbortError" || err.message === "The operation was aborted.");
+}
+
 interface TerminalPaneProps {
   sessionId: string;
   onExit?: (sessionId: string) => void;
@@ -123,8 +127,11 @@ export interface TerminalPaneHandle {
   stopTts: () => void;
   /** Stop current TTS, then speak a single text (optionally pre-chunked). */
   speakText: (text: string, paragraphs?: string[], opts?: { eventId?: string; version?: "active" | "original" }) => void;
-  /** Stop current TTS, then speak texts sequentially, calling onProgress(i) before each. */
-  speakSequence: (texts: string[], onProgress: (index: number) => void) => Promise<void>;
+  /** Stop current TTS, then speak event entries sequentially, calling onEventStart before each event. */
+  speakSequence: (
+    entries: Array<{ eventId: string; text: string; paragraphs: string[]; version: "active" | "original" }>,
+    onEventStart: (index: number, eventId: string) => void,
+  ) => Promise<void>;
   /** Pause TTS playback. */
   pauseTts: () => void;
   /** Resume paused TTS playback. */
@@ -166,6 +173,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     // each one — visible as a `resize_noop` storm in api logs.
     const lastSentSizeRef = useRef<{ cols: number; rows: number } | null>(null);
     const livePlaybackEventRef = useRef<string | null>(null);
+    const playbackRequestIdRef = useRef(0);
     /** Ref to latest conversationEvents so imperative handle avoids dep churn. */
     const conversationEventsRef = useRef<ConversationEvent[]>(EMPTY_CONVERSATION_EVENTS);
     const [terminal, setTerminal] = useState<Terminal | null>(null);
@@ -433,6 +441,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       submitInput,
       focus: () => terminal?.focus(),
       stopTts: () => {
+        playbackRequestIdRef.current += 1;
         ttsStop();
         // Advance cursor past all current assistant events to prevent the
         // pending-events effect from re-triggering the same (or subsequent)
@@ -451,17 +460,48 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         }
       },
       speakText: (text: string, paragraphs?: string[], opts?: { eventId?: string; version?: "active" | "original" }) => {
+        playbackRequestIdRef.current += 1;
+        ttsSetMuted(false);
         ttsStop();
         void speakParagraphs(ensureSpeechChunks(paragraphs ?? [text]), opts);
       },
-      speakSequence: async (texts: string[], onProgress: (index: number) => void) => {
+      speakSequence: async (
+        entries: Array<{ eventId: string; text: string; paragraphs: string[]; version: "active" | "original" }>,
+        onEventStart: (index: number, eventId: string) => void,
+      ) => {
+        playbackRequestIdRef.current += 1;
+        const requestId = playbackRequestIdRef.current;
+        ttsSetMuted(false);
         ttsStop();
-        onProgress(0);
-        const allChunks = texts.flatMap((t) => t ? ensureSpeechChunks([t]) : []);
-        await speakParagraphs(allChunks);
+        for (let index = 0; index < entries.length; index += 1) {
+          if (playbackRequestIdRef.current !== requestId) {
+            return;
+          }
+          const entry = entries[index];
+          if (!entry) continue;
+          onEventStart(index, entry.eventId);
+          let result: Awaited<ReturnType<typeof speakParagraphs>>;
+          try {
+            result = await speakParagraphs(ensureSpeechChunks(entry.paragraphs.length > 0 ? entry.paragraphs : [entry.text]), {
+              eventId: entry.eventId,
+              version: entry.version,
+            });
+          } catch (error) {
+            if (playbackRequestIdRef.current !== requestId || isAbortLikeError(error)) {
+              return;
+            }
+            throw error;
+          }
+          if (playbackRequestIdRef.current !== requestId || !result) {
+            return;
+          }
+        }
       },
       pauseTts: ttsPause,
-      resumeTts: ttsResume,
+      resumeTts: () => {
+        ttsSetMuted(false);
+        ttsResume();
+      },
       seekTts: ttsSeek,
       setTtsPlaybackRate: ttsSetPlaybackRate,
       setTtsVolume: ttsSetVolume,

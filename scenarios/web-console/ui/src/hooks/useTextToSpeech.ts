@@ -83,9 +83,8 @@ function isAutoplayBlocked(err: unknown): boolean {
 }
 
 export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnostics) {
-  // Read once at hook init: Zustand's persist middleware rehydrates from
-  // localStorage synchronously, so getState() here returns the persisted value.
-  const initialMuted = useWorkspaceStore.getState().startMutedOnLoad;
+  const startMutedOnLoad = useWorkspaceStore((store) => store.startMutedOnLoad);
+  const initialMuted = startMutedOnLoad;
   const [state, setState] = useState<TTSState>({
     supported: isBrowserSupported(),
     isSpeaking: false,
@@ -107,6 +106,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
   });
 
   const providerRef = useRef<TTSProvider | null>(null);
+  const activeProviderRef = useRef<TTSProvider | null>(null);
   const backendRef = useRef<TTSBackend>("none");
   const speakChainRef = useRef<AbortController | null>(null);
   const fallbackProviderRef = useRef<BrowserTTSProvider | null>(null);
@@ -116,10 +116,14 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
   // synchronously without stale closures.
   const isMutedRef = useRef(initialMuted);
   const volumeRef = useRef(1);
+  const hasExplicitMuteOverrideRef = useRef(false);
 
   const applyEffectiveVolume = useCallback(() => {
     const effective = isMutedRef.current ? 0 : volumeRef.current;
     providerRef.current?.setVolume?.(effective);
+    if (activeProviderRef.current && activeProviderRef.current !== providerRef.current) {
+      activeProviderRef.current.setVolume?.(effective);
+    }
   }, []);
 
   const emitEvent = useCallback((stage: string, backend: TTSBackend, message?: string) => {
@@ -180,6 +184,13 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
     applyEffectiveVolume();
   }, [state.backend, applyEffectiveVolume]);
 
+  useEffect(() => {
+    if (hasExplicitMuteOverrideRef.current) return;
+    isMutedRef.current = startMutedOnLoad;
+    applyEffectiveVolume();
+    setState((s) => (s.isMuted === startMutedOnLoad ? s : { ...s, isMuted: startMutedOnLoad }));
+  }, [applyEffectiveVolume, startMutedOnLoad]);
+
   const updateSuccess = useCallback((backend: TTSBackend) => {
     setState((s) => ({
       ...s,
@@ -203,6 +214,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
       if (!fallbackProviderRef.current) {
         fallbackProviderRef.current = new BrowserTTSProvider();
       }
+      activeProviderRef.current = fallbackProviderRef.current;
       await fallbackProviderRef.current.speak(text, {
         voice: settings.voice,
         rate: settings.rate,
@@ -231,6 +243,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
       if (backendRef.current === "browser" && !audioUnlockedRef.current) {
         throw new Error("Browser audio is blocked until you interact with the page");
       }
+      activeProviderRef.current = provider;
       // Ensure the provider's effective volume reflects the current mute state
       // before playback begins. Without this, the first speak after a fresh
       // page load can play audibly because the backend-change effect raced
@@ -290,6 +303,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
           const provider = new BrowserTTSProvider();
           backendRef.current = "browser";
           providerRef.current = provider;
+          activeProviderRef.current = provider;
           if (!cancelled) {
             const voices = window.speechSynthesis.getVoices() ?? [];
             setState((s) => ({
@@ -304,6 +318,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
         } else if (!cancelled) {
           backendRef.current = "none";
           providerRef.current = null;
+          activeProviderRef.current = null;
           setState((s) => ({
             ...s,
             supported: false,
@@ -326,6 +341,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
           const provider = new KokoroProvider();
           backendRef.current = "kokoro";
           providerRef.current = provider;
+          activeProviderRef.current = provider;
           try {
             const voices = await getTTSVoices();
             if (!cancelled) {
@@ -360,6 +376,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
         if (settings.backendPreference === "kokoro" && !cancelled) {
           backendRef.current = "none";
           providerRef.current = null;
+          activeProviderRef.current = null;
           setState((s) => ({
             ...s,
             supported: false,
@@ -376,6 +393,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
         if (settings.backendPreference === "kokoro") {
           backendRef.current = "none";
           providerRef.current = null;
+          activeProviderRef.current = null;
           setState((s) => ({
             ...s,
             supported: false,
@@ -388,6 +406,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
           const provider = new BrowserTTSProvider();
           backendRef.current = "browser";
           providerRef.current = provider;
+          activeProviderRef.current = provider;
           const voices = window.speechSynthesis.getVoices();
           setState((s) => ({
             ...s,
@@ -401,6 +420,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
       } else if (!cancelled) {
         backendRef.current = "none";
         providerRef.current = null;
+        activeProviderRef.current = null;
         setState((s) => ({
           ...s,
           supported: false,
@@ -446,6 +466,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
     return () => {
       providerRef.current?.dispose();
       fallbackProviderRef.current?.dispose();
+      activeProviderRef.current = null;
       speakChainRef.current?.abort();
     };
   }, []);
@@ -507,7 +528,10 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
   );
 
   const speakParagraphs = useCallback(
-    async (paragraphs: string[], opts?: { eventId?: string; version?: "active" | "original" }) => {
+    async (
+      paragraphs: string[],
+      opts?: { eventId?: string; version?: "active" | "original" },
+    ): Promise<TTSBackend | undefined> => {
       speakChainRef.current?.abort();
       const controller = new AbortController();
       speakChainRef.current = controller;
@@ -530,6 +554,8 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
             controller.signal,
           );
           if (blob && !controller.signal.aborted) {
+            activeProviderRef.current = provider;
+            applyEffectiveVolume();
             try {
               await provider.speakFromBlob(blob);
             } catch (err) {
@@ -603,32 +629,35 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
         }
       }
     },
-    [emitEvent, executeSpeak, runBrowserSpeak, settings.backendPreference, settings.kokoroSpeed, settings.kokoroVoice, updateSuccess],
+    [applyEffectiveVolume, emitEvent, executeSpeak, runBrowserSpeak, settings.backendPreference, settings.kokoroSpeed, settings.kokoroVoice, updateSuccess],
   );
 
   const stop = useCallback(() => {
     speakChainRef.current?.abort();
     providerRef.current?.stop();
     fallbackProviderRef.current?.stop();
+    activeProviderRef.current = null;
     setState((s) => ({ ...s, isSpeaking: false, isPaused: false }));
   }, []);
 
   const pause = useCallback(() => {
-    providerRef.current?.pause?.();
-    setState((s) => ({ ...s, isPaused: true }));
+    const provider = activeProviderRef.current ?? providerRef.current;
+    provider?.pause?.();
+    setState((s) => (provider ? { ...s, isPaused: true } : s));
   }, []);
 
   const resume = useCallback(() => {
-    providerRef.current?.resume?.();
-    setState((s) => ({ ...s, isPaused: false }));
+    const provider = activeProviderRef.current ?? providerRef.current;
+    provider?.resume?.();
+    setState((s) => (provider ? { ...s, isPaused: false } : s));
   }, []);
 
   const seek = useCallback((seconds: number) => {
-    providerRef.current?.seek?.(seconds);
+    (activeProviderRef.current ?? providerRef.current)?.seek?.(seconds);
   }, []);
 
   const setPlaybackRate = useCallback((rate: number) => {
-    providerRef.current?.setPlaybackRate?.(rate);
+    (activeProviderRef.current ?? providerRef.current)?.setPlaybackRate?.(rate);
     setState((s) => ({ ...s, playbackRate: rate }));
   }, []);
 
@@ -639,13 +668,14 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
   }, [applyEffectiveVolume]);
 
   const setMuted = useCallback((next: boolean) => {
+    hasExplicitMuteOverrideRef.current = true;
     isMutedRef.current = next;
     applyEffectiveVolume();
     setState((s) => (s.isMuted === next ? s : { ...s, isMuted: next }));
   }, [applyEffectiveVolume]);
 
   const getPlaybackState = useCallback((): TTSPlaybackState | null => {
-    const provider = providerRef.current?.getPlaybackState?.();
+    const provider = (activeProviderRef.current ?? providerRef.current)?.getPlaybackState?.();
     if (!provider) return null;
     // Override provider's effective volume with the user-configured volume
     // and add the hook-level mute flag, so the audio bar shows the user's

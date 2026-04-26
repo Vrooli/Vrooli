@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import type { ConversationEvent } from "../lib/api";
@@ -10,6 +10,7 @@ interface MessageJumpListProps {
   focusedEventId: string | null;
   onSelect: (eventId: string) => void;
   onClose: () => void;
+  desktopStyle?: CSSProperties;
 }
 
 /** Truncates text to maxLen characters, adding ellipsis if needed. */
@@ -27,6 +28,7 @@ export default function MessageJumpList({
   focusedEventId,
   onSelect,
   onClose,
+  desktopStyle,
 }: MessageJumpListProps) {
   const isMobile = useMediaQuery("(max-width: 767px)");
   const listRef = useRef<HTMLDivElement>(null);
@@ -141,7 +143,12 @@ export default function MessageJumpList({
           {content}
         </div>
       ) : (
-        <div className="absolute top-12 right-4 z-50">{content}</div>
+        <div
+          className="absolute z-50"
+          style={desktopStyle ?? { top: 48, right: 16 }}
+        >
+          {content}
+        </div>
       )}
     </div>,
     document.body,
