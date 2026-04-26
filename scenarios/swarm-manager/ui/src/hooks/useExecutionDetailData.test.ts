@@ -257,6 +257,29 @@ describe("useExecutionDetailData", () => {
     });
   });
 
+  it("detects awaiting manual review from review rounds parked in needs_review", async () => {
+    reviewService.listRounds.mockResolvedValue([
+      {
+        round: 1,
+        status: "gathering",
+        current_run_status: "needs_review",
+        evidence: [],
+        generated_at: "",
+        execution_id: "exec-1",
+      },
+    ]);
+
+    const { result } = renderHook(
+      () => useExecutionDetailData({ executionId: "exec-1" }),
+      { wrapper: createWrapper() },
+    );
+
+    await waitFor(() => {
+      expect(result.current.isAwaitingManualReview).toBe(true);
+      expect(result.current.isGatheringEvidence).toBe(false);
+    });
+  });
+
   it("does not fetch when executionId is undefined", () => {
     renderHook(
       () => useExecutionDetailData({ executionId: undefined }),

@@ -251,7 +251,7 @@ describe("InitiativeDetailsPage", () => {
     expect(screen.getByText("2 total")).toBeInTheDocument();
   });
 
-  it("excludes archived member items from live progress while keeping them in scope", async () => {
+  it("counts archived completed items as done while keeping archived scope visible", async () => {
     useInitiativeStore.setState({
       items: [
         {
@@ -274,7 +274,7 @@ describe("InitiativeDetailsPage", () => {
         name: "archived-parent",
         title: "Archived Parent",
         description: "",
-        status: "backlog" as const,
+        status: "completed" as const,
         priority: 1,
         tags: [],
         suggestedSkills: [],
@@ -308,7 +308,7 @@ describe("InitiativeDetailsPage", () => {
       },
       rollup: {
         total: 2,
-        completed: 0,
+        completed: 1,
         inProgress: 0,
         failed: 0,
         pending: 1,
@@ -323,7 +323,7 @@ describe("InitiativeDetailsPage", () => {
 
     expect(screen.getByText("Archived Parent")).toBeInTheDocument();
     expect(screen.getByText("Active Child")).toBeInTheDocument();
-    expect(screen.getByText("0 of 1 items complete")).toBeInTheDocument();
+    expect(screen.getByText("1 of 2 items complete")).toBeInTheDocument();
     expect(screen.getByText((_, node) => node?.textContent === "backlog items • 1 archived")).toBeInTheDocument();
   });
 

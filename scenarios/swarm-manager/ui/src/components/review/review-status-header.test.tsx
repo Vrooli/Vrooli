@@ -32,6 +32,7 @@ function makeFinalization(classification: string, statusOverride?: string): Fina
 
 const defaultProps = {
   isActive: false,
+  agentManagerUiUrl: null,
   isTriggering: false,
   isTriggeringEvidence: false,
   isCancelling: false,
@@ -141,5 +142,19 @@ describe("ReviewStatusHeader", () => {
     const exec = makeExecution({ status: "failed", failureReason: "OOM killed" });
     render(<ReviewStatusHeader {...defaultProps} execution={exec} />);
     expect(screen.getByText("OOM killed")).toBeInTheDocument();
+  });
+
+  it("shows a View Run link when the execution has a runId and agent-manager URL", () => {
+    const exec = makeExecution({ status: "needs_review", runId: "run-77" });
+    render(
+      <ReviewStatusHeader
+        {...defaultProps}
+        execution={exec}
+        agentManagerUiUrl="https://agent.test"
+      />,
+    );
+    const link = screen.getByRole("link", { name: /view run/i });
+    expect(link).toHaveAttribute("href", "https://agent.test/runs/run-77");
+    expect(link).toHaveAttribute("target", "_blank");
   });
 });

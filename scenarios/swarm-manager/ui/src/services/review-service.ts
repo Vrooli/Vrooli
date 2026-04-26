@@ -59,6 +59,7 @@ export interface ReviewRound {
   generated_at: string;
   execution_id: string;
   status: ReviewRoundStatus;
+  current_run_status?: string;
   failure_reason?: string;
   agent_assessment?: string;
   classification?: string;

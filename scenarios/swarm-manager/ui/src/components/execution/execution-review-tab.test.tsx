@@ -39,6 +39,8 @@ const makeFinalization = (overrides?: Partial<Finalization>): Finalization => ({
 } as Finalization);
 
 const noopHandlers = {
+  agentManagerUiUrl: null,
+  isAwaitingManualReview: false,
   onFollowUp: vi.fn(),
   onVerifyEvidence: vi.fn(),
   onRequestMoreEvidence: vi.fn(),

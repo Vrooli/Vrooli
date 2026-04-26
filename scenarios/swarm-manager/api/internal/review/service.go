@@ -275,6 +275,7 @@ func (s *Service) ListRounds(kind, name string) ([]Round, error) {
 		if stateErr != nil {
 			continue
 		}
+		round.CurrentRunStatus = normalizeLiveRunStatus(state.Status)
 		if mapRunStatusToRoundStatus(state.Status) == "" {
 			continue
 		}
@@ -767,6 +768,10 @@ func MarshalScenarioGCTResults(results map[string]any) string {
 		return ""
 	}
 	return string(data)
+}
+
+func normalizeLiveRunStatus(status string) string {
+	return strings.ToLower(strings.TrimSpace(status))
 }
 
 // mapRunStatusToRoundStatus converts an agent-manager run status to a terminal

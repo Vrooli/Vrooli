@@ -630,6 +630,42 @@ func TestListRounds_InlineRefresh(t *testing.T) {
 	}
 }
 
+func TestListRounds_ExposesCurrentRunStatusForNeedsReview(t *testing.T) {
+	itemDir := t.TempDir()
+	writeRound(t, itemDir, Round{
+		RoundNum:    1,
+		GeneratedAt: "2026-04-02T00:00:00Z",
+		ExecutionID: "exec-awaiting-review",
+		Status:      RoundStatusGathering,
+		RunID:       "run-awaiting-review",
+		Evidence:    []EvidenceItem{},
+	})
+
+	spawner := &capturingSpawner{
+		enabled: true,
+		runState: agentmanager.RunState{
+			RunID:  "run-awaiting-review",
+			Status: "needs_review",
+		},
+	}
+	svc := newTestService(spawner, "")
+	svc.itemDirFn = func(_, _ string) string { return itemDir }
+
+	rounds, err := svc.ListRounds("task", "test")
+	if err != nil {
+		t.Fatalf("ListRounds: %v", err)
+	}
+	if len(rounds) != 1 {
+		t.Fatalf("expected 1 round, got %d", len(rounds))
+	}
+	if rounds[0].Status != RoundStatusGathering {
+		t.Fatalf("round status = %q, want %q", rounds[0].Status, RoundStatusGathering)
+	}
+	if rounds[0].CurrentRunStatus != "needs_review" {
+		t.Fatalf("current run status = %q, want needs_review", rounds[0].CurrentRunStatus)
+	}
+}
+
 func TestTriggerReviewAgent_RebuildsContextFromExecution(t *testing.T) {
 	spawner := &capturingSpawner{enabled: true}
 	svc := newTestService(spawner, "review instructions here")

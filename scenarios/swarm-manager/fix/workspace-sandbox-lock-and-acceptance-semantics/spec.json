@@ -3,6 +3,7 @@
     "scenarios/workspace-sandbox/**",
     "scenarios/agent-manager/**"
   ],
+  "archived_at": "2026-04-26T22:46:58Z",
   "created": "2026-04-09T17:33:13Z",
   "depends_on": [
     "research/agent-sandbox-auditability-contract"
@@ -13,7 +14,7 @@
   "kind": "fix",
   "name": "workspace-sandbox-lock-and-acceptance-semantics",
   "priority": 1,
-  "status": "in_review",
+  "status": "completed",
   "tags": [
     "workspace-sandbox",
     "acceptance",
@@ -21,5 +22,5 @@
     "semantics"
   ],
   "title": "Decouple workspace-sandbox locking from acceptance filtering",
-  "updated": "2026-04-26T16:59:18Z"
+  "updated": "2026-04-26T22:46:58Z"
 }

@@ -386,8 +386,8 @@ func TestService_ComputeRollup(t *testing.T) {
 	if rollup.Total != 11 {
 		t.Errorf("expected total 11, got %d", rollup.Total)
 	}
-	if rollup.Completed != 1 {
-		t.Errorf("expected completed 1, got %d", rollup.Completed)
+	if rollup.Completed != 2 {
+		t.Errorf("expected completed 2 (including archived completed), got %d", rollup.Completed)
 	}
 	if rollup.Failed != 1 {
 		t.Errorf("expected failed 1, got %d", rollup.Failed)
@@ -395,8 +395,8 @@ func TestService_ComputeRollup(t *testing.T) {
 	if rollup.InProgress != 2 {
 		t.Errorf("expected in_progress 2, got %d", rollup.InProgress)
 	}
-	// backlog + ready + missing + invalid = 4 pending; archived items are
-	// terminal and should not inflate active progress buckets.
+	// backlog + ready + missing + invalid = 4 pending; archived non-completed
+	// items are terminal and should not inflate active progress buckets.
 	if rollup.Pending != 4 {
 		t.Errorf("expected pending 4, got %d", rollup.Pending)
 	}

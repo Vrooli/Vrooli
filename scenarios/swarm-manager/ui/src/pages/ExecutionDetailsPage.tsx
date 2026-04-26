@@ -73,6 +73,7 @@ export function ExecutionDetailsPage() {
     isTraceLoading,
     reviewRounds,
     isGatheringEvidence,
+    isAwaitingManualReview,
     targetScenarios: _targetScenarios,
     isLoading,
     error,
@@ -183,10 +184,12 @@ export function ExecutionDetailsPage() {
           >
             <ClipboardCheck className="h-4 w-4" />
             Review
-            {isGatheringEvidence && (
+            {(isGatheringEvidence || isAwaitingManualReview) && (
               <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500" />
+                {isGatheringEvidence && (
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
+                )}
+                <span className={`relative inline-flex h-2 w-2 rounded-full ${isAwaitingManualReview ? "bg-amber-400" : "bg-cyan-500"}`} />
               </span>
             )}
           </TabsTrigger>
@@ -264,7 +267,9 @@ export function ExecutionDetailsPage() {
             execution={execution}
             reviewRounds={reviewRounds}
             isGatheringEvidence={isGatheringEvidence}
+            isAwaitingManualReview={isAwaitingManualReview}
             isActive={isActive}
+            agentManagerUiUrl={agentManagerUiUrl}
             onFollowUp={() => setFollowUpTarget(execution)}
             onVerifyEvidence={(round, evidenceId, verified) => {
               void reviewService.verifyEvidence(

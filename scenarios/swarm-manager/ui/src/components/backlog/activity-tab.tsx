@@ -21,8 +21,8 @@ export interface ActivityTabProps {
     isLoading: boolean;
     error: Error | null;
   };
-  /** Whether an agent run is active. */
-  agentRunIsActive: boolean;
+  /** Whether the item is still blocked by an agent lifecycle. */
+  agentRunIsBlocking: boolean;
   /** Latest agent activity from global store. */
   latestAgentActivity: AgentActivityRecord | null;
   /** Agent manager UI URL for external links. */
@@ -35,7 +35,7 @@ export interface ActivityTabProps {
 
 export function ActivityTab({
   timeline,
-  agentRunIsActive,
+  agentRunIsBlocking,
   latestAgentActivity,
   agentManagerUiUrl,
   onStopRun,
@@ -52,7 +52,7 @@ export function ActivityTab({
         onStopRun={onStopRun}
         onFollowUp={onFollowUp}
         latestAgentActivity={latestAgentActivity ?? undefined}
-        agentRunIsActive={agentRunIsActive}
+        agentRunIsActive={agentRunIsBlocking}
         agentManagerUiUrl={agentManagerUiUrl ?? undefined}
       />
     </div>

@@ -33,8 +33,9 @@ const makeActivity = (overrides?: Partial<AgentActivityRecord>): AgentActivityRe
 
 const defaultProps: LatestExecutionSummaryProps = {
   latestExecution: undefined,
-  agentRunIsActive: false,
+  agentRunIsBusy: false,
   latestAgentActivity: null,
+  agentManagerUiUrl: null,
   onStopRun: vi.fn(),
 };
 
@@ -49,7 +50,7 @@ describe("LatestExecutionSummary", () => {
     render(
       <LatestExecutionSummary
         {...defaultProps}
-        agentRunIsActive
+        agentRunIsBusy
         latestAgentActivity={activity}
       />,
     );
@@ -63,7 +64,7 @@ describe("LatestExecutionSummary", () => {
     render(
       <LatestExecutionSummary
         {...defaultProps}
-        agentRunIsActive
+        agentRunIsBusy
         latestAgentActivity={activity}
         onStopRun={onStopRun}
       />,
@@ -77,7 +78,7 @@ describe("LatestExecutionSummary", () => {
     render(
       <LatestExecutionSummary
         {...defaultProps}
-        agentRunIsActive
+        agentRunIsBusy
         latestAgentActivity={activity}
       />,
     );
@@ -102,5 +103,32 @@ describe("LatestExecutionSummary", () => {
       />,
     );
     expect(container.firstChild).toBeNull();
+  });
+
+  it("shows a View Run link for active runs when the agent-manager URL is available", () => {
+    const activity = makeActivity({ runId: "run-99" });
+    render(
+      <LatestExecutionSummary
+        {...defaultProps}
+        agentRunIsBusy
+        latestAgentActivity={activity}
+        agentManagerUiUrl="https://agent.test"
+      />,
+    );
+    const runLink = screen.getByRole("link", { name: /view run/i });
+    expect(runLink).toHaveAttribute("href", "https://agent.test/runs/run-99");
+    expect(runLink).toHaveAttribute("target", "_blank");
+  });
+
+  it("does not render the live-run summary for needs_review", () => {
+    const { container } = render(
+      <LatestExecutionSummary
+        {...defaultProps}
+        latestExecution={makeExecution({ status: "needs_review", runId: "run-review" })}
+        latestAgentActivity={makeActivity({ status: "needs_review", runId: "run-review" })}
+      />,
+    );
+    expect(container.firstChild).toBeNull();
+    expect(screen.queryByText("Stop")).not.toBeInTheDocument();
   });
 });

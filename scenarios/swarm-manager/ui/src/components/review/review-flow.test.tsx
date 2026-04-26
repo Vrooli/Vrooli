@@ -57,11 +57,12 @@ const defaultProps = {
   execution: undefined as ExecutionRecord | undefined,
   reviewRounds: [] as ReviewRound[],
   isGatheringEvidence: false,
+  isAwaitingManualReview: false,
   isActive: false,
+  agentManagerUiUrl: null,
   backlogKind: "task",
   backlogName: "test-item",
   onFollowUp: vi.fn(),
-  onSelectScenario: vi.fn(),
   onVerifyEvidence: vi.fn(),
   onRequestMoreEvidence: vi.fn(),
 };

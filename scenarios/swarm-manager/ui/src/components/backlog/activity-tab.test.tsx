@@ -23,7 +23,7 @@ const defaultProps: ActivityTabProps = {
     isLoading: false,
     error: null,
   },
-  agentRunIsActive: false,
+  agentRunIsBlocking: false,
   latestAgentActivity: null,
   agentManagerUiUrl: null,
   onStopRun: vi.fn(),
@@ -84,8 +84,8 @@ describe("ActivityTab", () => {
     expect(timeline).toHaveAttribute("data-entry-count", "2");
   });
 
-  it("passes agentRunIsActive flag", () => {
-    render(<ActivityTab {...defaultProps} agentRunIsActive />);
+  it("passes agentRunIsBlocking through to ActivityTimeline", () => {
+    render(<ActivityTab {...defaultProps} agentRunIsBlocking />);
     const timeline = screen.getByTestId("mock-activity-timeline");
     expect(timeline).toHaveAttribute("data-agent-run-is-active", "true");
   });

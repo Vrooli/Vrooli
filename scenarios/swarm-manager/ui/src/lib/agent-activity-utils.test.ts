@@ -1,37 +1,61 @@
 import { describe, it, expect } from "vitest";
 import {
-  ACTIVE_AGENT_ACTIVITY_STATUSES,
+  BLOCKING_AGENT_ACTIVITY_STATUSES,
+  EXECUTING_AGENT_ACTIVITY_STATUSES,
   getAgentActivityLabel,
   getAgentActivityTone,
-  isAgentActivityActive,
+  isAgentActivityBlocking,
+  isAgentActivityExecuting,
 } from "./agent-activity-utils";
 
 describe("agent-activity-utils", () => {
-  describe("isAgentActivityActive", () => {
-    it("returns true for pending/starting/running/needs_review", () => {
-      expect(isAgentActivityActive("pending")).toBe(true);
-      expect(isAgentActivityActive("starting")).toBe(true);
-      expect(isAgentActivityActive("running")).toBe(true);
-      expect(isAgentActivityActive("needs_review")).toBe(true);
+  describe("isAgentActivityExecuting", () => {
+    it("returns true for pending/starting/running", () => {
+      expect(isAgentActivityExecuting("pending")).toBe(true);
+      expect(isAgentActivityExecuting("starting")).toBe(true);
+      expect(isAgentActivityExecuting("running")).toBe(true);
     });
 
-    it("returns false for terminal/idle statuses", () => {
-      expect(isAgentActivityActive("complete")).toBe(false);
-      expect(isAgentActivityActive("failed")).toBe(false);
-      expect(isAgentActivityActive("cancelled")).toBe(false);
-      expect(isAgentActivityActive("unspecified")).toBe(false);
+    it("returns false for review-waiting and terminal/idle statuses", () => {
+      expect(isAgentActivityExecuting("needs_review")).toBe(false);
+      expect(isAgentActivityExecuting("complete")).toBe(false);
+      expect(isAgentActivityExecuting("failed")).toBe(false);
+      expect(isAgentActivityExecuting("cancelled")).toBe(false);
+      expect(isAgentActivityExecuting("unspecified")).toBe(false);
     });
 
     it("returns false for null/undefined", () => {
-      expect(isAgentActivityActive(null)).toBe(false);
-      expect(isAgentActivityActive(undefined)).toBe(false);
+      expect(isAgentActivityExecuting(null)).toBe(false);
+      expect(isAgentActivityExecuting(undefined)).toBe(false);
     });
 
-    it("keeps the exported active-set in sync", () => {
-      // Regression guard: if someone adds a status to ACTIVE_AGENT_ACTIVITY_STATUSES,
+    it("keeps the exported executing-set in sync", () => {
+      // Regression guard: if someone adds a status to EXECUTING_AGENT_ACTIVITY_STATUSES,
       // the predicate should agree.
-      for (const status of ACTIVE_AGENT_ACTIVITY_STATUSES) {
-        expect(isAgentActivityActive(status)).toBe(true);
+      for (const status of EXECUTING_AGENT_ACTIVITY_STATUSES) {
+        expect(isAgentActivityExecuting(status)).toBe(true);
+      }
+    });
+  });
+
+  describe("isAgentActivityBlocking", () => {
+    it("returns true for running states plus needs_review", () => {
+      expect(isAgentActivityBlocking("pending")).toBe(true);
+      expect(isAgentActivityBlocking("starting")).toBe(true);
+      expect(isAgentActivityBlocking("running")).toBe(true);
+      expect(isAgentActivityBlocking("needs_review")).toBe(true);
+    });
+
+    it("returns false for terminal/idle statuses", () => {
+      expect(isAgentActivityBlocking("complete")).toBe(false);
+      expect(isAgentActivityBlocking("failed")).toBe(false);
+      expect(isAgentActivityBlocking("cancelled")).toBe(false);
+      expect(isAgentActivityBlocking("unspecified")).toBe(false);
+    });
+
+    it("keeps the exported blocking-set in sync", () => {
+      for (const status of BLOCKING_AGENT_ACTIVITY_STATUSES) {
+        expect(isAgentActivityBlocking(status)).toBe(true);
       }
     });
   });

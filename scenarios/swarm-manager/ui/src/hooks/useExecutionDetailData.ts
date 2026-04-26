@@ -32,6 +32,7 @@ export interface UseExecutionDetailDataResult {
   isTraceLoading: boolean;
   reviewRounds: ReviewRound[];
   isGatheringEvidence: boolean;
+  isAwaitingManualReview: boolean;
   timeline: { entries: TimelineEntry[]; isLoading: boolean; error: Error | null };
 
   // Loading/error
@@ -111,7 +112,18 @@ export function useExecutionDetailData({
   );
 
   const isGatheringEvidence = useMemo(
-    () => (reviewRounds ?? []).some((r) => r.status === "gathering"),
+    () =>
+      (reviewRounds ?? []).some(
+        (r) => r.status === "gathering" && r.current_run_status !== "needs_review",
+      ),
+    [reviewRounds],
+  );
+
+  const isAwaitingManualReview = useMemo(
+    () =>
+      (reviewRounds ?? []).some(
+        (r) => r.status === "gathering" && r.current_run_status === "needs_review",
+      ),
     [reviewRounds],
   );
 
@@ -154,6 +166,7 @@ export function useExecutionDetailData({
     isTraceLoading,
     reviewRounds: reviewRounds ?? [],
     isGatheringEvidence,
+    isAwaitingManualReview,
     timeline,
     isLoading: execLoading,
     error: execError as Error | undefined,

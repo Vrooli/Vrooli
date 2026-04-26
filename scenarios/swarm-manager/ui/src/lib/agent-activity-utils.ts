@@ -10,21 +10,35 @@
 import type { AgentActivityPurpose, AgentActivityStatus } from "../types";
 
 /**
- * Statuses where an agent is either doing work or awaiting human input.
- * When the latest activity for a backlog item is in one of these states,
- * the user cannot usefully interact with the item until it resolves.
+ * Statuses where an agent is still actively executing work. These are the only
+ * states that should render live-run affordances like a pulse or Stop button.
  */
-export const ACTIVE_AGENT_ACTIVITY_STATUSES: ReadonlySet<AgentActivityStatus> = new Set<AgentActivityStatus>([
+export const EXECUTING_AGENT_ACTIVITY_STATUSES: ReadonlySet<AgentActivityStatus> = new Set<AgentActivityStatus>([
   "pending",
   "starting",
   "running",
+]);
+
+/**
+ * Statuses where the item is still blocked by an agent lifecycle, even if the
+ * agent is no longer actively executing. `needs_review` remains here because
+ * the user still has to resolve the run before the item is truly clear.
+ */
+export const BLOCKING_AGENT_ACTIVITY_STATUSES: ReadonlySet<AgentActivityStatus> = new Set<AgentActivityStatus>([
+  ...EXECUTING_AGENT_ACTIVITY_STATUSES,
   "needs_review",
 ]);
 
-/** True when the activity is still doing work or awaiting user input. */
-export function isAgentActivityActive(status: AgentActivityStatus | undefined | null): boolean {
+/** True when the activity is still actively executing work. */
+export function isAgentActivityExecuting(status: AgentActivityStatus | undefined | null): boolean {
   if (!status) return false;
-  return ACTIVE_AGENT_ACTIVITY_STATUSES.has(status);
+  return EXECUTING_AGENT_ACTIVITY_STATUSES.has(status);
+}
+
+/** True when the activity still blocks the item, including awaiting review. */
+export function isAgentActivityBlocking(status: AgentActivityStatus | undefined | null): boolean {
+  if (!status) return false;
+  return BLOCKING_AGENT_ACTIVITY_STATUSES.has(status);
 }
 
 /**

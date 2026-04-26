@@ -14,7 +14,9 @@ export interface ExecutionReviewTabProps {
   execution: ExecutionRecord;
   reviewRounds: ReviewRound[];
   isGatheringEvidence: boolean;
+  isAwaitingManualReview: boolean;
   isActive: boolean;
+  agentManagerUiUrl: string | null;
   onFollowUp: (exec: ExecutionRecord) => void;
   onVerifyEvidence: (round: number, evidenceId: string, verified: boolean) => void;
   onRequestMoreEvidence: (round: number, evidenceId?: string) => void;
@@ -24,7 +26,9 @@ export function ExecutionReviewTab({
   execution,
   reviewRounds,
   isGatheringEvidence,
+  isAwaitingManualReview,
   isActive,
+  agentManagerUiUrl,
   onFollowUp,
   onVerifyEvidence,
   onRequestMoreEvidence,
@@ -61,7 +65,9 @@ export function ExecutionReviewTab({
         execution={execution}
         reviewRounds={reviewRounds}
         isGatheringEvidence={isGatheringEvidence}
+        isAwaitingManualReview={isAwaitingManualReview}
         isActive={false}
+        agentManagerUiUrl={agentManagerUiUrl}
         backlogKind={execution.backlogKind}
         backlogName={execution.backlogName}
         onFollowUp={onFollowUp}

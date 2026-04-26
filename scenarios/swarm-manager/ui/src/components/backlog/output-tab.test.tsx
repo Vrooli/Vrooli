@@ -35,10 +35,12 @@ const createTestQueryClient = () =>
 
 const defaultProps: OutputTabProps = {
   executionHistory: undefined,
-  agentRunIsActive: false,
+  agentRunIsBusy: false,
   latestAgentActivity: null,
+  agentManagerUiUrl: null,
   reviewRounds: [],
   isGatheringEvidence: false,
+  isAwaitingManualReview: false,
   backlogKind: "execute",
   backlogName: "test-item",
   onStopRun: vi.fn(),
@@ -69,5 +71,33 @@ describe("OutputTab", () => {
       executionHistory: [makeExecution()],
     });
     expect(screen.getByText("Completed")).toBeInTheDocument();
+  });
+
+  it("shows the review header instead of a live-run summary for needs_review", () => {
+    renderWithProviders({
+      ...defaultProps,
+      executionHistory: [makeExecution({ status: "needs_review", runId: "run-review" })],
+      latestAgentActivity: {
+        activityId: "act-1",
+        runId: "run-review",
+        ownerType: "backlog",
+        ownerKind: "execute",
+        ownerName: "test-item",
+        purpose: "process",
+        interactionType: "spawn",
+        status: "needs_review",
+        requestedAt: "2026-03-20T12:00:00Z",
+        updatedAt: "2026-03-20T12:00:00Z",
+        isStopping: false,
+      },
+      agentManagerUiUrl: "https://agent.test",
+      isAwaitingManualReview: true,
+    });
+    expect(screen.getByText("Needs review")).toBeInTheDocument();
+    expect(screen.queryByText("Stop")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /view run/i })).toHaveAttribute(
+      "href",
+      "https://agent.test/runs/run-review",
+    );
   });
 });

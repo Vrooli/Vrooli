@@ -16,13 +16,13 @@ const AGENT_RUN_REFRESH_MS = 6000;
 export interface UseBacklogQueriesOptions {
   backlogKind: BacklogKind | null;
   name: string | undefined;
-  agentRunIsActive: boolean;
+  agentRunIsBlocking: boolean;
 }
 
 export function useBacklogQueries({
   backlogKind,
   name,
-  agentRunIsActive,
+  agentRunIsBlocking,
 }: UseBacklogQueriesOptions) {
   const allBacklogItems = useBacklogStore((state) => state.items);
 
@@ -66,7 +66,7 @@ export function useBacklogQueries({
       return backlogService.getFiles(backlogKind, name);
     },
     enabled: !!backlogKind && !!name,
-    refetchInterval: agentRunIsActive ? AGENT_RUN_REFRESH_MS : false,
+    refetchInterval: agentRunIsBlocking ? AGENT_RUN_REFRESH_MS : false,
     ...defaultQueryOptions,
   });
 
@@ -94,11 +94,22 @@ export function useBacklogQueries({
       return reviewService.listRounds(backlogKind, name);
     },
     enabled: !!backlogKind && !!name,
-    refetchInterval: (agentRunIsActive || isValidating) ? AGENT_RUN_REFRESH_MS : false,
+    refetchInterval: (agentRunIsBlocking || isValidating) ? AGENT_RUN_REFRESH_MS : false,
   });
 
   const isGatheringEvidence = useMemo(
-    () => (reviewRounds ?? []).some((r: ReviewRound) => r.status === "gathering"),
+    () =>
+      (reviewRounds ?? []).some(
+        (r: ReviewRound) => r.status === "gathering" && r.current_run_status !== "needs_review",
+      ),
+    [reviewRounds],
+  );
+
+  const isAwaitingManualReview = useMemo(
+    () =>
+      (reviewRounds ?? []).some(
+        (r: ReviewRound) => r.status === "gathering" && r.current_run_status === "needs_review",
+      ),
     [reviewRounds],
   );
 
@@ -127,7 +138,7 @@ export function useBacklogQueries({
       return contents;
     },
     enabled: !!backlogKind && !!name && workshopRoundPaths.length > 0,
-    refetchInterval: agentRunIsActive ? AGENT_RUN_REFRESH_MS : false,
+    refetchInterval: agentRunIsBlocking ? AGENT_RUN_REFRESH_MS : false,
     ...defaultQueryOptions,
   });
 
@@ -142,7 +153,7 @@ export function useBacklogQueries({
   const { data: maturitySummaryData } = useQuery({
     queryKey: ["backlog-maturity-summary"],
     queryFn: () => backlogService.getMaturitySummary(),
-    refetchInterval: agentRunIsActive ? AGENT_RUN_REFRESH_MS : false,
+    refetchInterval: agentRunIsBlocking ? AGENT_RUN_REFRESH_MS : false,
     ...defaultQueryOptions,
   });
 
@@ -183,6 +194,7 @@ export function useBacklogQueries({
 
     reviewRounds,
     isGatheringEvidence,
+    isAwaitingManualReview,
 
     workshopDir,
     workshopRoundPaths,

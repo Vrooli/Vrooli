@@ -6,7 +6,7 @@
  * actions are now handled by ReviewStatusHeader in ReviewFlow.
  */
 
-import { Square } from "lucide-react";
+import { ExternalLink, Square } from "lucide-react";
 import { Button } from "../ui/button";
 import { formatRelativeTime } from "../../lib";
 import { selectors } from "../../consts/selectors";
@@ -16,24 +16,29 @@ import type { AgentActivityRecord } from "../../stores/agent-activities-store";
 export interface LatestExecutionSummaryProps {
   /** Most recent execution, or undefined for empty state. */
   latestExecution: ExecutionRecord | undefined;
-  /** Whether an agent run is currently active. */
-  agentRunIsActive: boolean;
+  /** Whether an agent run is actively executing work. */
+  agentRunIsBusy: boolean;
   /** The latest agent activity record (for live status). */
   latestAgentActivity: AgentActivityRecord | null;
+  /** Agent manager UI URL for external run links. */
+  agentManagerUiUrl: string | null;
   /** Stop a running agent. */
   onStopRun: (runId: string) => void;
 }
 
 export function LatestExecutionSummary({
   latestExecution,
-  agentRunIsActive,
+  agentRunIsBusy,
   latestAgentActivity,
+  agentManagerUiUrl,
   onStopRun,
 }: LatestExecutionSummaryProps) {
   const testId = `${selectors.backlogDetails.outputTab}-latest-exec`;
+  const runId = latestAgentActivity?.runId ?? latestExecution?.runId;
+  const runUrl = runId && agentManagerUiUrl ? `${agentManagerUiUrl}/runs/${runId}` : null;
 
   // Active run state — agent is currently running
-  if (agentRunIsActive && latestAgentActivity) {
+  if (agentRunIsBusy && latestAgentActivity) {
     return (
       <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 p-3" data-testid={testId}>
         <div className="flex items-center gap-2">
@@ -53,6 +58,19 @@ export function LatestExecutionSummary({
             {formatRelativeTime(latestAgentActivity.requestedAt)}
           </span>
           <div className="ml-auto flex items-center gap-1.5">
+            {runUrl && (
+              <a
+                href={runUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid={`${testId}-run-link`}
+              >
+                <Button variant="outline" size="sm" className="h-7 px-2 text-xs">
+                  <ExternalLink className="mr-1 h-3 w-3" />
+                  View Run
+                </Button>
+              </a>
+            )}
             <Button
               variant="outline"
               size="sm"

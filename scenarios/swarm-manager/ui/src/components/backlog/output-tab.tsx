@@ -19,14 +19,18 @@ import type { AgentActivityRecord } from "../../stores/agent-activities-store";
 export interface OutputTabProps {
   /** Full execution history (from useBacklogDetailData). */
   executionHistory: ExecutionRecord[] | undefined;
-  /** Whether an agent run is active. */
-  agentRunIsActive: boolean;
+  /** Whether an agent run is actively executing. */
+  agentRunIsBusy: boolean;
   /** Latest agent activity from global store. */
   latestAgentActivity: AgentActivityRecord | null;
+  /** Agent manager UI URL for external run links. */
+  agentManagerUiUrl: string | null;
   /** Review evidence rounds. */
   reviewRounds: ReviewRound[];
   /** Whether the review agent is currently gathering evidence. */
   isGatheringEvidence: boolean;
+  /** Whether the review agent is blocked in manual review/approval. */
+  isAwaitingManualReview: boolean;
   /** Backlog item kind (for evidence API calls). */
   backlogKind: string;
   /** Backlog item name (for evidence API calls). */
@@ -41,10 +45,12 @@ export interface OutputTabProps {
 
 export function OutputTab({
   executionHistory,
-  agentRunIsActive,
+  agentRunIsBusy,
   latestAgentActivity,
+  agentManagerUiUrl,
   reviewRounds,
   isGatheringEvidence,
+  isAwaitingManualReview,
   backlogKind,
   backlogName,
   onStopRun,
@@ -59,8 +65,9 @@ export function OutputTab({
     <div className="space-y-0" data-testid={selectors.backlogDetails.outputTab}>
       <LatestExecutionSummary
         latestExecution={latestExecution}
-        agentRunIsActive={agentRunIsActive}
+        agentRunIsBusy={agentRunIsBusy}
         latestAgentActivity={latestAgentActivity}
+        agentManagerUiUrl={agentManagerUiUrl}
         onStopRun={onStopRun}
       />
 
@@ -68,7 +75,9 @@ export function OutputTab({
         execution={latestExecution}
         reviewRounds={reviewRounds}
         isGatheringEvidence={isGatheringEvidence}
-        isActive={agentRunIsActive}
+        isAwaitingManualReview={isAwaitingManualReview}
+        isActive={agentRunIsBusy}
+        agentManagerUiUrl={agentManagerUiUrl}
         backlogKind={backlogKind}
         backlogName={backlogName}
         onFollowUp={onFollowUp}

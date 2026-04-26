@@ -30,7 +30,9 @@ export interface ReviewFlowProps {
   execution: ExecutionRecord | undefined;
   reviewRounds: ReviewRound[];
   isGatheringEvidence: boolean;
+  isAwaitingManualReview: boolean;
   isActive: boolean;
+  agentManagerUiUrl: string | null;
   backlogKind: string;
   backlogName: string;
   onFollowUp: (exec: ExecutionRecord) => void;
@@ -43,7 +45,9 @@ export function ReviewFlow({
   execution,
   reviewRounds,
   isGatheringEvidence,
+  isAwaitingManualReview,
   isActive,
+  agentManagerUiUrl,
   backlogKind,
   backlogName,
   onFollowUp,
@@ -101,6 +105,7 @@ export function ReviewFlow({
       <ReviewStatusHeader
         execution={execution}
         isActive={isActive}
+        agentManagerUiUrl={agentManagerUiUrl}
         isTriggering={isTriggering}
         isTriggeringEvidence={isTriggeringEvidence}
         isCancelling={isCancelling}
@@ -129,6 +134,7 @@ export function ReviewFlow({
           backlogKind={backlogKind}
           backlogName={backlogName}
           isGathering={isGatheringEvidence}
+          isAwaitingManualReview={isAwaitingManualReview}
           onVerify={onVerifyEvidence}
           onRequestMore={onRequestMoreEvidence}
         />

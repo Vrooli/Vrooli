@@ -45,6 +45,10 @@ type Round struct {
 	ImprovementSuggestions []ImprovementSuggestion `json:"improvement_suggestions,omitempty"`
 	// RunID is the agent-manager run ID for the review agent session.
 	RunID string `json:"run_id,omitempty"`
+	// CurrentRunStatus is the live agent-manager status for an in-flight review run.
+	// It is populated at read time so the UI can distinguish "still gathering"
+	// from "waiting in needs_review for manual approval".
+	CurrentRunStatus string `json:"current_run_status,omitempty"`
 }
 
 // EvidenceItem is a single piece of proof that work was done correctly.

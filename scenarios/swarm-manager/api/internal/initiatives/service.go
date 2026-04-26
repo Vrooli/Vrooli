@@ -546,6 +546,9 @@ func (s *Service) aggregateInitiativeData(init *Initiative) (*RollupStatus, []st
 		}
 		if backlog.IsArchived(item) {
 			rollup.Archived++
+			if item.Status == backlog.StatusCompleted {
+				rollup.Completed++
+			}
 			continue
 		}
 		switch item.Status {

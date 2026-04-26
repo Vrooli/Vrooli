@@ -32,6 +32,7 @@ import { useRuntimeConfig } from "../hooks/useRuntimeConfig";
 import { useStorePolling } from "../hooks/useStorePolling";
 import { useBacklogHandlers } from "../hooks/useBacklogHandlers";
 import { findBacklogFileByPath } from "../lib/workshop-files";
+import { isAgentActivityBlocking, isAgentActivityExecuting } from "../lib/agent-activity-utils";
 import { selectors } from "../consts/selectors";
 import { BACKLOG_KIND_ICONS, BACKLOG_KIND_LABELS, BACKLOG_KINDS } from "../types";
 import type { BacklogFile, BacklogKind } from "../types";
@@ -90,9 +91,8 @@ export function BacklogDetailsPage() {
     immediate: true,
   });
 
-  const agentRunIsActive = latestAgentActivity
-    ? ["pending", "starting", "running", "needs_review"].includes(latestAgentActivity.status)
-    : false;
+  const agentRunIsBusy = isAgentActivityExecuting(latestAgentActivity?.status);
+  const agentRunIsBlocking = isAgentActivityBlocking(latestAgentActivity?.status);
 
   // --- UI state store ---
   const uiStore = useBacklogDetailUIStore();
@@ -100,11 +100,11 @@ export function BacklogDetailsPage() {
   const queryClient = useQueryClient();
 
   // --- Data hook ---
-  const data = useBacklogDetailData({ backlogKind, name, agentRunIsActive });
+  const data = useBacklogDetailData({ backlogKind, name, agentRunIsBlocking });
   const {
     item, isLoadingItem, itemError, refetchItem, spawnedItems,
     files, isLoadingFiles, filesError, refetchFiles,
-    executionHistory, reviewRounds, isGatheringEvidence,
+    executionHistory, reviewRounds, isGatheringEvidence, isAwaitingManualReview,
     workshopRounds, readinessData, archiveTargets,
     depRelations, itemActions, targetScenarios,
     deliverableLabel, workshopActionLabel,
@@ -135,7 +135,7 @@ export function BacklogDetailsPage() {
 
   // --- Computed labels ---
   const agentRunningLabel = useMemo(() => {
-    if (!agentRunIsActive || !latestAgentActivity) return "Agent running\u2026";
+    if (!agentRunIsBusy || !latestAgentActivity) return "Agent running\u2026";
     switch (latestAgentActivity.purpose) {
       case "workshop": return "Running workshop\u2026";
       case "finalize": return "Running finalize\u2026";
@@ -144,7 +144,7 @@ export function BacklogDetailsPage() {
       case "process": return "Processing\u2026";
       default: return "Agent running\u2026";
     }
-  }, [agentRunIsActive, latestAgentActivity]);
+  }, [agentRunIsBusy, latestAgentActivity]);
 
   const agentLabel = item?.kind === "idea" ? "Idea Agent" : "Workshop";
 
@@ -155,7 +155,7 @@ export function BacklogDetailsPage() {
     backlogKind: backlogKind ?? undefined,
     backlogName: name,
     enabled: activeTab === "output" || activeTab === "activity",
-    agentRunIsActive,
+    agentRunIsActive: agentRunIsBlocking,
   });
 
   // Auto-open follow-up dialog when navigated with ?action=followup
@@ -257,7 +257,7 @@ export function BacklogDetailsPage() {
     itemActions,
     isLocked,
     isTerminal,
-    agentRunIsActive,
+    agentRunIsActive: agentRunIsBlocking,
     latestAgentActivity,
     deliverableLabel,
     workshopActionLabel,
@@ -408,7 +408,7 @@ export function BacklogDetailsPage() {
           <TabsTrigger value="activity" className="gap-2" data-testid={selectors.backlogDetails.tabActivity}>
             <ClipboardList className="h-4 w-4" />
             Activity
-            {agentRunIsActive && (
+            {agentRunIsBusy && (
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500" />
@@ -486,10 +486,12 @@ export function BacklogDetailsPage() {
                   <div className="flex-1 space-y-0 overflow-y-auto pb-4">
                     <OutputTab
                       executionHistory={executionHistory}
-                      agentRunIsActive={agentRunIsActive}
+                      agentRunIsBusy={agentRunIsBusy}
                       latestAgentActivity={latestAgentActivity}
+                      agentManagerUiUrl={agentManagerUiUrl}
                       reviewRounds={reviewRounds}
                       isGatheringEvidence={isGatheringEvidence}
+                      isAwaitingManualReview={isAwaitingManualReview}
                       backlogKind={backlogKind ?? ""}
                       backlogName={name ?? ""}
                       onStopRun={(runId) => void stopRun(runId)}
@@ -510,7 +512,7 @@ export function BacklogDetailsPage() {
                   <div className="flex-1 space-y-0 overflow-y-auto pb-4">
                     <ActivityTab
                       timeline={timeline}
-                      agentRunIsActive={agentRunIsActive}
+                      agentRunIsBlocking={agentRunIsBlocking}
                       latestAgentActivity={latestAgentActivity}
                       agentManagerUiUrl={agentManagerUiUrl}
                       onStopRun={(runId) => void stopRun(runId)}
@@ -565,10 +567,12 @@ export function BacklogDetailsPage() {
                     <div className="space-y-0 pt-3">
                       <OutputTab
                         executionHistory={executionHistory}
-                        agentRunIsActive={agentRunIsActive}
+                        agentRunIsBusy={agentRunIsBusy}
                         latestAgentActivity={latestAgentActivity}
+                        agentManagerUiUrl={agentManagerUiUrl}
                         reviewRounds={reviewRounds}
                         isGatheringEvidence={isGatheringEvidence}
+                        isAwaitingManualReview={isAwaitingManualReview}
                         backlogKind={backlogKind ?? ""}
                         backlogName={name ?? ""}
                         onStopRun={(runId) => void stopRun(runId)}
@@ -589,7 +593,7 @@ export function BacklogDetailsPage() {
                     <div className="space-y-0 pt-3">
                       <ActivityTab
                         timeline={timeline}
-                        agentRunIsActive={agentRunIsActive}
+                        agentRunIsBlocking={agentRunIsBlocking}
                         latestAgentActivity={latestAgentActivity}
                         agentManagerUiUrl={agentManagerUiUrl}
                         onStopRun={(runId) => void stopRun(runId)}

@@ -18,7 +18,7 @@ import {
 import type { ItemActions, ResolvedDependencyActivity } from "../lib/backlog-queue-utils";
 import { computeDependencyRelations } from "../lib/backlog-queue-utils";
 import type { FeedbackItem, MaturityItem } from "../lib/feed";
-import { isAgentActivityActive } from "../lib/agent-activity-utils";
+import { isAgentActivityBlocking } from "../lib/agent-activity-utils";
 import type {
   ArchiveRequirementRecord,
   ArchiveTargetFormValues,
@@ -42,7 +42,7 @@ import type { FileActionType } from "./useBacklogMutations";
 export interface UseBacklogDetailDataOptions {
   backlogKind: BacklogKind | null;
   name: string | undefined;
-  agentRunIsActive: boolean;
+  agentRunIsBlocking: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -52,7 +52,7 @@ export interface UseBacklogDetailDataOptions {
 export function useBacklogDetailData({
   backlogKind,
   name,
-  agentRunIsActive,
+  agentRunIsBlocking,
 }: UseBacklogDetailDataOptions) {
   const allBacklogItems = useBacklogStore((state) => state.items);
   const blockingMap = useBacklogStore((state) => state.blockingMap);
@@ -61,7 +61,7 @@ export function useBacklogDetailData({
   // Queries
   // -----------------------------------------------------------------------
 
-  const queries = useBacklogQueries({ backlogKind, name, agentRunIsActive });
+  const queries = useBacklogQueries({ backlogKind, name, agentRunIsBlocking });
 
   const {
     item,
@@ -76,6 +76,7 @@ export function useBacklogDetailData({
     executionHistory,
     reviewRounds,
     isGatheringEvidence,
+    isAwaitingManualReview,
     workshopDir,
     workshopRoundPaths,
     workshopRounds,
@@ -165,7 +166,7 @@ export function useBacklogDetailData({
     const map = new Map<string, ResolvedDependencyActivity>();
     for (const activity of activities) {
       if (activity.ownerType !== "backlog") continue;
-      if (!isAgentActivityActive(activity.status)) continue;
+      if (!isAgentActivityBlocking(activity.status)) continue;
       const key = `${activity.ownerKind}/${activity.ownerName}`;
       // Activities are sorted newest-first; keep the first (latest) per key.
       if (!map.has(key)) {
@@ -201,7 +202,7 @@ export function useBacklogDetailData({
       blockingInfo: blockingMap[itemKey] ?? null,
       readinessReady: readinessData ? readinessData.ready : null,
       pendingSynthesis: readinessData?.pendingSynthesis ?? false,
-      agentRunning: agentRunIsActive,
+      agentRunning: agentRunIsBlocking,
       hasPendingDecisions: workshopRounds.some(
         (r) => r.items?.some((wi) => wi.type === "decision" && wi.selected == null),
       ),
@@ -210,7 +211,7 @@ export function useBacklogDetailData({
         (e) => e.status === "completed" || e.status === "failed" || e.status === "canceled" || e.status === "needs_fixup",
       ),
     });
-  }, [item, blockingMap, readinessData, agentRunIsActive, workshopRounds, executionHistory]);
+  }, [item, blockingMap, readinessData, agentRunIsBlocking, workshopRounds, executionHistory]);
 
   const isLocked = itemActions?.locked ?? false;
   const isTerminal = itemActions?.terminal ?? false;
@@ -290,6 +291,7 @@ export function useBacklogDetailData({
 
     reviewRounds: reviewRounds ?? ([] as ReviewRound[]),
     isGatheringEvidence,
+    isAwaitingManualReview,
 
     workshopRounds,
     refetchWorkshopRounds: () => void refetchWorkshopRounds(),

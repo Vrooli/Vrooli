@@ -1,6 +1,6 @@
 {
   "initiative": "workshop-decision-triage",
-  "generated_at": "2026-04-26T20:39:01Z",
+  "generated_at": "2026-04-26T23:10:10Z",
   "nodes": [
     {
       "id": "execute/swarm-manager-pending-questions-priority-sort",
@@ -37,7 +37,7 @@
       "kind": "chore",
       "name": "workshop-decision-sync-tests",
       "title": "End-to-end scenario + skill-smoke coverage for workshop-decision-prep heartbeat and sync skill",
-      "status": "backlog",
+      "status": "in_review",
       "priority": 3,
       "effort": "M",
       "archived": false

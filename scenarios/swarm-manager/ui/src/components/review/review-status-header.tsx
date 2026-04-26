@@ -10,7 +10,7 @@
  * (below the evidence panel) so users see them after reviewing evidence.
  */
 
-import { Eye, Loader2, Square } from "lucide-react";
+import { ExternalLink, Eye, Loader2, Square } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn, formatRelativeTime, canRunPostRunChecks } from "../../lib";
 import { resolvePostRunExecution } from "../../lib/finalization";
@@ -21,6 +21,7 @@ import type { ExecutionRecord } from "../../types";
 export interface ReviewStatusHeaderProps {
   execution: ExecutionRecord | undefined;
   isActive: boolean;
+  agentManagerUiUrl: string | null;
   isTriggering: boolean;
   isTriggeringEvidence: boolean;
   isCancelling: boolean;
@@ -61,6 +62,7 @@ function resolvePrimaryAction(
 export function ReviewStatusHeader({
   execution,
   isActive,
+  agentManagerUiUrl,
   isTriggering,
   isTriggeringEvidence,
   isCancelling,
@@ -72,6 +74,7 @@ export function ReviewStatusHeader({
 
   const statusColor = EXECUTION_STATUS_COLORS[execution.status] ?? "bg-slate-500";
   const action = resolvePrimaryAction(execution, isActive, isTriggering, isTriggeringEvidence);
+  const runUrl = execution.runId && agentManagerUiUrl ? `${agentManagerUiUrl}/runs/${execution.runId}` : null;
 
   return (
     <div className="py-3" data-testid={selectors.review.statusHeader}>
@@ -90,8 +93,21 @@ export function ReviewStatusHeader({
         </span>
 
         <div className="ml-auto flex items-center gap-2">
+          {runUrl && (
+            <a href={runUrl} target="_blank" rel="noopener noreferrer">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 px-2 text-xs"
+                data-testid={selectors.review.statusHeaderRunLink}
+              >
+                <ExternalLink className="mr-1 h-3 w-3" />
+                View Run
+              </Button>
+            </a>
+          )}
           {/* Primary action */}
-	          {action.kind === "review" && (
+          {action.kind === "review" && (
             <Button
               size="sm"
               variant="outline"

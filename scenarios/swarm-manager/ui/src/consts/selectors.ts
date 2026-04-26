@@ -334,6 +334,7 @@ export const literalSelectors = {
   review: {
     flow: "review-flow",
     statusHeader: "review-status-header",
+    statusHeaderRunLink: "review-status-header-run-link",
     primaryAction: "review-primary-action",
     rerunAction: "review-rerun-action",
     stopAction: "review-stop-action",

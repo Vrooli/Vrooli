@@ -15,8 +15,8 @@
   "kind": "chore",
   "name": "workshop-decision-sync-tests",
   "priority": 3,
-  "status": "backlog",
+  "status": "in_review",
   "tags": [],
   "title": "End-to-end scenario + skill-smoke coverage for workshop-decision-prep heartbeat and sync skill",
-  "updated": "2026-04-26T20:39:01Z"
+  "updated": "2026-04-26T23:10:09Z"
 }

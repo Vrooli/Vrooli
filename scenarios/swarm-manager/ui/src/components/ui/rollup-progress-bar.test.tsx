@@ -21,7 +21,7 @@ describe("rollupTotal", () => {
     expect(rollupTotal(makeRollup())).toBe(0);
   });
 
-  it("excludes archived items from the total", () => {
+  it("excludes archived-only count from the total", () => {
     expect(rollupTotal(makeRollup({ completed: 2, pending: 1, archived: 5 }))).toBe(3);
   });
 });
@@ -80,10 +80,10 @@ describe("RollupProgressBar", () => {
     expect(inner).not.toBeNull();
   });
 
-  it("ignores archived items when rendering active progress", () => {
-    render(<RollupProgressBar rollup={makeRollup({ completed: 1, archived: 4 })} showLabels />);
-    expect(screen.getByText("1 completed")).toBeDefined();
-    expect(screen.getByText("1 total")).toBeDefined();
+  it("renders archived completed work through the completed segment when supplied by the backend", () => {
+    render(<RollupProgressBar rollup={makeRollup({ completed: 3, archived: 4 })} showLabels />);
+    expect(screen.getByText("3 completed")).toBeDefined();
+    expect(screen.getByText("3 total")).toBeDefined();
     expect(screen.queryByText(/archived/i)).toBeNull();
   });
 });
