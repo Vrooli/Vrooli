@@ -8,8 +8,8 @@ import type { TTSPlaybackState } from "../hooks/tts/types";
 
 // Mock the markdown renderer to avoid shiki/mermaid in jsdom
 vi.mock("../components/markdown", () => ({
-  MarkdownRenderer: ({ content, searchQuery, isSearchFocused }: { content: string; searchQuery?: string; isSearchFocused?: boolean }) => (
-    <div data-testid="mock-markdown" data-search-query={searchQuery || ""} data-search-focused={String(!!isSearchFocused)}>
+  MarkdownRenderer: ({ content }: { content: string }) => (
+    <div data-testid="mock-markdown">
       {content}
     </div>
   ),
@@ -213,7 +213,7 @@ describe("MessagesPane", () => {
     expect(screen.getByText("Hello World")).toBeInTheDocument();
   });
 
-  it("passes search query to MarkdownRenderer", () => {
+  it("search updates row state without pushing query into markdown renderer props", () => {
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "Hello world" })]);
     render(<MessagesPane {...defaultProps} />);
 
@@ -223,7 +223,7 @@ describe("MessagesPane", () => {
     });
 
     const mdEl = screen.getByTestId("mock-markdown");
-    expect(mdEl.getAttribute("data-search-query")).toBe("world");
+    expect(mdEl.getAttribute("data-search-query")).toBeNull();
   });
 
   // --- Font size ---
@@ -278,8 +278,8 @@ describe("MessagesPane", () => {
   });
 
   it("down chevron navigates to next message", () => {
-    const scrollIntoViewMock = vi.fn();
-    Element.prototype.scrollIntoView = scrollIntoViewMock;
+    const scrollToMock = vi.fn();
+    Element.prototype.scrollTo = scrollToMock;
 
     seedEvents([
       makeEvent({ id: "e1", sequence: 1, text: "First" }),
@@ -288,7 +288,7 @@ describe("MessagesPane", () => {
     render(<MessagesPane {...defaultProps} />);
 
     fireEvent.click(screen.getByTestId("messages-nav-down"));
-    expect(scrollIntoViewMock).toHaveBeenCalledTimes(1);
+    expect(scrollToMock).toHaveBeenCalled();
   });
 
   // --- Search ---
@@ -446,8 +446,8 @@ describe("MessagesPane", () => {
   });
 
   it("applies a playback focus request by scrolling the targeted event into view", () => {
-    const scrollIntoViewMock = vi.fn();
-    Element.prototype.scrollIntoView = scrollIntoViewMock;
+    const scrollToMock = vi.fn();
+    Element.prototype.scrollTo = scrollToMock;
 
     seedEvents([
       makeEvent({ id: "e1", sequence: 1, text: "First" }),
@@ -460,7 +460,7 @@ describe("MessagesPane", () => {
       />,
     );
 
-    expect(scrollIntoViewMock).toHaveBeenCalled();
+    expect(scrollToMock).toHaveBeenCalled();
   });
 
   // --- Copy-to-clipboard ---

@@ -114,12 +114,10 @@ describe("MarkdownRenderer", () => {
     expect(container.querySelector(".custom-class")).not.toBeNull();
   });
 
-  it("applies search highlight wrapper when searchQuery is provided", () => {
-    const { container } = render(
-      <MarkdownRenderer content="Hello world" searchQuery="world" isSearchFocused={true} />,
-    );
-    const wrapper = container.querySelector("[data-search-query='world']");
-    expect(wrapper).not.toBeNull();
+  it("renders without a search wrapper prop path", () => {
+    const { container } = render(<MarkdownRenderer content="Hello world" />);
+    const wrapper = container.querySelector("[data-search-query]");
+    expect(wrapper).toBeNull();
   });
 
   it("falls back to plain text on error via error boundary", () => {

@@ -25,6 +25,11 @@ describe("MessageJumpList", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal("ResizeObserver", vi.fn().mockImplementation(() => ({
+      observe: vi.fn(),
+      unobserve: vi.fn(),
+      disconnect: vi.fn(),
+    })));
   });
 
   it("renders all messages in the list", () => {

@@ -43,18 +43,12 @@ class MarkdownErrorBoundary extends Component<MarkdownErrorBoundaryProps, Markdo
 interface MarkdownRendererProps {
   content: string;
   className?: string;
-  /** Search query to highlight within rendered text. */
-  searchQuery?: string;
-  /** Whether this message contains the focused search match (stronger highlight). */
-  isSearchFocused?: boolean;
 }
 
 /** Renders markdown content with syntax highlighting, mermaid diagrams, and GFM support. */
 export const MarkdownRenderer = memo(function MarkdownRenderer({
   content,
   className,
-  searchQuery,
-  isSearchFocused = false,
 }: MarkdownRendererProps) {
   const components = useMemo(
     () => ({
@@ -162,22 +156,14 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
   return (
     <MarkdownErrorBoundary content={safeContent}>
       <div className={`markdown-content min-w-0 max-w-full break-words [overflow-wrap:anywhere] ${className || ""}`}>
-        {searchQuery ? (
-          <SearchHighlightWrapper query={searchQuery} isFocused={isSearchFocused}>
-            {rendered}
-          </SearchHighlightWrapper>
-        ) : (
-          rendered
-        )}
+        {rendered}
       </div>
     </MarkdownErrorBoundary>
   );
 }, (prevProps, nextProps) => {
   return (
     prevProps.content === nextProps.content &&
-    prevProps.className === nextProps.className &&
-    prevProps.searchQuery === nextProps.searchQuery &&
-    prevProps.isSearchFocused === nextProps.isSearchFocused
+    prevProps.className === nextProps.className
   );
 });
 
@@ -188,34 +174,4 @@ function extractTextContent(children: ReactNode): string {
     return extractTextContent((children as { props: { children?: ReactNode } }).props.children);
   }
   return "";
-}
-
-/**
- * Wraps rendered markdown with CSS-based search highlighting.
- * Uses a CSS custom highlight approach via mark elements injected by
- * walking text nodes post-render would be expensive, so instead we apply
- * a subtle background to the entire message when it matches.
- * Individual text-level highlighting is handled per text node in the markdown.
- */
-function SearchHighlightWrapper({
-  children,
-  query,
-  isFocused,
-}: {
-  children: ReactNode;
-  query: string;
-  isFocused: boolean;
-}) {
-  // For now, apply a container-level visual indicator that this message matches.
-  // Fine-grained text highlighting in rendered markdown requires DOM manipulation
-  // which would break React's reconciliation. The container highlight is sufficient
-  // for identifying which messages contain matches.
-  return (
-    <div
-      className={isFocused ? "ring-1 ring-wc-accent/50 rounded-lg -mx-1 px-1" : ""}
-      data-search-query={query}
-    >
-      {children}
-    </div>
-  );
 }
