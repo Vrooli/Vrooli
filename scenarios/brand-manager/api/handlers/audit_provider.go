@@ -68,10 +68,10 @@ var ruleEvaluators = []ruleEvaluator{
 	}},
 }
 
-// evaluateRules runs all rule evaluators against a brand (or nil for unassigned scenarios).
-func evaluateRules(brand *domain.Brand, fallbackMsg string) []auditRuleResult {
-	results := make([]auditRuleResult, len(ruleEvaluators))
-	for i, re := range ruleEvaluators {
+// evaluateRules runs the given rule evaluators against a brand (or nil for unassigned scenarios).
+func evaluateRules(evaluators []ruleEvaluator, brand *domain.Brand, fallbackMsg string) []auditRuleResult {
+	results := make([]auditRuleResult, len(evaluators))
+	for i, re := range evaluators {
 		pass := brand != nil && re.check(brand)
 		msg := fallbackMsg
 		if brand != nil {
@@ -91,16 +91,39 @@ func evaluateRules(brand *domain.Brand, fallbackMsg string) []auditRuleResult {
 	return results
 }
 
+// selectEvaluators returns the evaluators matching the optional ?rule= query parameter.
+// When ruleID is empty, all evaluators are returned. When ruleID is non-empty but unknown,
+// returns nil to signal a 400 to the caller.
+func selectEvaluators(ruleID string) ([]ruleEvaluator, bool) {
+	if ruleID == "" {
+		return ruleEvaluators, true
+	}
+	for _, re := range ruleEvaluators {
+		if re.rule.ID == ruleID {
+			return []ruleEvaluator{re}, true
+		}
+	}
+	return nil, false
+}
+
 // EvaluateScenario handles POST /api/v1/audit/evaluate/{scenario}. [REQ:BM-REQ-AUDIT-PROVIDER]
 // Evaluates branding rules against a specific scenario's brand assignment.
+// Optional `?rule=<id>` query parameter limits evaluation to a single rule.
 func (h *Handlers) EvaluateScenario(w http.ResponseWriter, r *http.Request) {
 	scenario := mux.Vars(r)["scenario"]
+
+	ruleID := r.URL.Query().Get("rule")
+	evaluators, ok := selectEvaluators(ruleID)
+	if !ok {
+		apierr.Write(w, apierr.Validation("unknown rule: "+ruleID))
+		return
+	}
 
 	assignment, err := h.assignments.GetByScenario(r.Context(), scenario)
 	if errors.Is(err, sql.ErrNoRows) {
 		writeJSON(w, http.StatusOK, map[string]interface{}{
 			"scenario": scenario,
-			"results":  evaluateRules(nil, "no brand assigned to scenario"),
+			"results":  evaluateRules(evaluators, nil, "no brand assigned to scenario"),
 		})
 		return
 	}
@@ -117,6 +140,6 @@ func (h *Handlers) EvaluateScenario(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"scenario": scenario,
-		"results":  evaluateRules(brand, ""),
+		"results":  evaluateRules(evaluators, brand, ""),
 	})
 }

@@ -33,11 +33,11 @@ func canonicalTargetSet() map[string]struct{} {
 	return set
 }
 
-// requiredTargets returns the 16 targets every scenario Makefile must define.
-// This list must stay in sync with structureValidatePhony in rule_makefile_structure.go.
+// requiredTargets returns the 17 targets every scenario Makefile must define.
+// This is the single source of truth — structureValidatePhony reads from it.
 func requiredTargets() []string {
 	return []string{
-		"help", "start", "stop", "test", "logs", "status",
+		"help", "start", "stop", "restart", "test", "logs", "status",
 		"clean", "build", "fmt", "fmt-go", "fmt-ui",
 		"lint", "lint-go", "lint-ui", "check", "dev",
 	}

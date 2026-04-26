@@ -1,0 +1,18 @@
+{
+  "created": "2026-04-26T02:43:51Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "Build a pre-flight voice-check capability that gates publish-proposals before they reach the marketing-crew decision queue. Enforces docs/marketing/STRATEGY.md voice canon at generation time, not after-the-fact via marketing-contrarian.\n\nTwo layers:\n1. Deterministic — regex / word-list block on banned phrases from STRATEGY.md (amazing, game-changing, revolutionary, supercharge, unlock, elevate, transform, etc.). Hard-fail if any present.\n2. LLM-judged — score draft against builder-voice principles (first-person, honest about struggles, specific over vague, agent-protagonist, etc.). Soft-fail with reasoning surface if score below threshold.\n\nSurfaces:\n- CLI: `marketing voice-lint \u003cdraft-file\u003e` returns pass/fail + violation list\n- Pre-publish gate inside oss-advertiser / subscription-advertiser publish-proposal flow\n- Should reference STRATEGY.md as input canon — don't hard-code rules\n\nWhy: today, marketing-contrarian scores violations after drafts hit the queue, so operator sees publish-proposals that are already misaligned. Draft-stage gating prevents wasted decision cycles and keeps voice consistent.\n\nGeneralization: this enforcement substrate should generalize to design canon, code-style, accessibility, branding — see related design-language initiative work. There's an 'agent generation guardrails' capability bigger than any individual canon. Voice-linter is the first instance.\n\nSurfaced during 2026-04-25 morning vision walk after first publish-proposal cycle revealed operator-canon awareness gap (operator did not know STRATEGY.md existed; contrarian's scoring was not visible in publish-proposal flow).",
+  "kind": "idea",
+  "name": "marketing-voice-linter",
+  "priority": 3,
+  "status": "backlog",
+  "tags": [
+    "marketing",
+    "agent-guardrails",
+    "publish-flow"
+  ],
+  "title": "Marketing voice-linter — pre-publish enforcement of STRATEGY.md voice canon",
+  "updated": "2026-04-26T02:43:51Z"
+}

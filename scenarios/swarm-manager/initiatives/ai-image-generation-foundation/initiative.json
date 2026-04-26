@@ -8,8 +8,9 @@
     "research/openai-image-gen-validation",
     "execute/openai-api-key-plumbing",
     "execute/swarm-manager-image-cli-helper",
-    "execute/ui-mockup-generation-skill"
+    "execute/ui-mockup-generation-skill",
+    "execute/image-storage-location-decision"
   ],
   "created": "2026-04-22T04:29:54Z",
-  "updated": "2026-04-22T04:29:54Z"
+  "updated": "2026-04-26T03:02:10Z"
 }

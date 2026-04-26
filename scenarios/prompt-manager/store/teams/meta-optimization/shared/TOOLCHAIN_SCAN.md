@@ -4,70 +4,69 @@ Latest scan result from `toolchain-validator`. Supersedes on each heartbeat.
 
 ---
 
-## Latest scan: 2026-04-24
+## Latest scan: 2026-04-25
 
-**Status: REFERENCE DIRTY — gold-star reference fails first toolchain scan**
+**Status: REFERENCE DIRTY — improvement on Makefile/stack-governance, but a NEW Critical surfaced and tidiness now exposes 20 duplication issues**
 
 ### Tools run
-- `scenario-auditor standards scan reference-react-vite --wait` → completed (job `standards-18dd3de9-aa0b-4039-bdc5-61b09f65c7f6`)
-- `scenario-auditor security scan reference-react-vite --wait` → completed (0 vulns)
-- `scenario-auditor scenarios health reference-react-vite` → health 100, 0 vulns
-- `tidiness-manager scan reference-react-vite` → light scan; `make lint` and `make type` both `failed (exit 2)`; 2 long files (`api/internal/mocks/repository.go` 572L, `ui/src/App.test.tsx` 509L)
-- `test-genie run-tests reference-react-vite` → **`api error (500): scenario tests failed`** (no actionable detail)
-- `development-toolchain-validator reference list` → 1 registered (`reference-react-vite`, id `37cbef99-12c7-4513-a78e-0648ec6136a8`)
-- `development-toolchain-validator validate <reference>` / `report ...` → **still not shipped** (CLI surface remains `reference`/`connection`/`status`/`configure`)
+- `scenario-auditor standards scan reference-react-vite --wait` → completed (job `standards-b9cfe21b-7aed-4e7a-a507-aeab60a7c91e`, 36 violations across 103 files)
+- `scenario-auditor security scan reference-react-vite --wait` → completed (0 vulns, 228 files)
+- `tidiness-manager scan reference-react-vite` → light scan (75 files / 13174 lines); **lint issues: 58** (was 0 yesterday); type issues: 0; `make lint` and `make type` still `failed (exit 2)`; 20 open issues now visible (mostly file-level duplication)
+- `test-genie run-tests reference-react-vite` → **`api error (500): scenario tests failed`** — still opaque, no triage detail (unchanged)
+- `development-toolchain-validator reference list` → 1 registered (`reference-react-vite`, id `37cbef99-12c7-4513-a78e-0648ec6136a8`); `validate`/`report` subcommands still not shipped
 
 ### Reference scenario
 - `reference-react-vite` (operator-nominated 2026-04-24, accepted via `dec-1776981723540926630`)
-- Registered in DTV; recorded in `docs/meta-optimization/REFERENCE_SCENARIOS.md` history table
 
 ### Violation summary (scenario-auditor standards)
-- High: **41**
-- Medium: **10**
-- Low: **20**
-- Info: **1**
-- **Total: 72**
+- **Critical: 1** ← **NEW** (was 0 yesterday)
+- High: **9** (was 41 — large improvement)
+- Medium: **5** (was 10)
+- Low: **20** (unchanged)
+- Info: **1** (unchanged)
+- **Total: 36** (was 72)
 
 ### Top rules by count
-| Rule | Severity | Count |
-|---|---|---|
-| `stack-governance` (Makefile structure / lifecycle) | high | 37 |
-| `ui-a11y-v1` (missing focus-visible styles) | low | 17 |
-| `type-safety` (TS strict mode + protective comments + ESLint typed config) | high | 6 |
-| `quality-gates` (build skips type check; testing.json strict not enabled) | high | 4 |
-| `prd-template` (unexpected sections) | low | 4 |
-| `go-quality` (missing `.golangci.yml` in `api/` and `cli/`) | high | 2 |
-| `testing-standards-v1` (missing `cli/domains/` test file) | medium | 1 |
-| `ui-interop-v1` (missing spatial-nav init in main.tsx) | medium | 1 |
+| Rule | Severity | Count | Δ |
+|---|---|---|---|
+| `ui-a11y-v1` (missing focus-visible styles) | low | 17 | 0 |
+| `type-safety` (TS strict + protective comments + ESLint typed config) | high | 6 | 0 |
+| `quality-gates` (build skips type check; testing.json strict not enabled) | high (4) + medium (1) | 5 | +1 medium |
+| `prd-template` (unexpected PRD sections) | low | 4 | 0 |
+| `go-quality` (missing `.golangci.yml` in `api/` and `cli/`) | high | 2 | 0 |
+| `testing-standards-v1` (missing `cli/domains/` test) | medium | 1 | 0 |
+| `ui-interop-v1` (missing spatial-nav init in main.tsx) | medium | 1 | 0 |
+| **`stack-governance` (Makefile)** | high | **0** | **−37** |
+| **`required_layout` (Makefile)** | **critical** | **1** | **+1** |
 
 ### Top 3 violations (operator action)
-1. **High · `stack-governance` (×37)** — Makefile is missing canonical structure: header incomplete, color constants wrong, required `.PHONY` targets undeclared/undefined (`check`, `lint-go`, `lint-ui`, `fmt-ui`, etc.), `help` text missing required strings, lifecycle targets don't call `vrooli scenario ...`. Tidiness-manager corroborates: `make lint`/`make type` exit 2 because targets aren't defined.
-2. **High · `type-safety` (×6, in `ui/tsconfig.json` + `ui/eslint.config.js`)** — `strict: true` not set, `noUncheckedIndexedAccess` missing, no protective comment block, ESLint missing `tseslint.configs.strictTypeChecked` and per-rule CRITICAL comments. 31 dangerous TS patterns flagged across 26 files (mostly `as Type` casts).
-3. **High · `quality-gates`** — `ui/package.json` `build` script runs `vite build` without `tsc --noEmit`, and `.vrooli/testing.json` does not enable `lint.handlers.{node_package,go_module}.strict=true`. Linter findings can pass silently.
-
-### Comparison to prior scan (2026-04-23)
-- **Prior:** BLOCKED, no reference designated. No violations measured.
-- **Now:** Reference designated; first real scan produces 72 violations. This is a baseline, not a regression — but the reference is dirty against the very tools it's meant to be the gold standard for.
+1. **Critical · `required_layout` · `Makefile`** — "Add the required resource at Makefile / Scenario Required Structure". This is **NEW** since the 2026-04-24 scan. The remediation of the 37 stack-governance findings appears to have rewritten the Makefile in a way that now trips required_layout instead. Net: same root file, severity escalated from `high` to `critical`.
+2. **High · `type-safety` (×6, in `ui/tsconfig.json` + `ui/eslint.config.js`)** — `strict: true` not set, `noUncheckedIndexedAccess` missing, no protective comment block, ESLint typed config incomplete. Auto-fix exists: `scenario-auditor fix reference-react-vite --rules TS_CONFIG_STRICT`. **Unchanged.**
+3. **High · `quality-gates` (×4)** — `ui/package.json` `build` script runs `vite build` without `tsc --noEmit`; `.vrooli/testing.json` has `lint.handlers.{node_package,go_module}.enabled=false` and `strict=false`. **Unchanged.**
 
 ### New since last scan
-- All 72 violations are new relative to baseline (prior scan was blocked).
+- **+1 Critical** `required_layout` violation on `Makefile`.
+- **+58 lint issues** surfaced by `tidiness-manager` (was 0 yesterday). Likely a tooling-surface change (yesterday lint plumbing returned 0 because make lint exit 2 short-circuited; today it's hitting underlying linters), not a code regression.
+- **+20 open tidiness issues** visible via `tidiness-manager issues`: 14 High duplication (handlers, repository, mocks, register tests, `ui/src/lib/api.test.ts` 18 dangerous type-safety patterns), 6 Medium (duplication + complexity in `api/config/config.go` cyclomatic 21).
 
 ### Resolved since last scan
-- The blocker on reference designation (`dec-1776981723540926630`) was accepted by the operator on 2026-04-24.
+- **stack-governance Makefile (37 high)** — cleared (was the dominant rule yesterday). Likely the Makefile was overhauled, but the overhaul tripped `required_layout` instead.
+- High count dropped 41 → 9.
+- Total dropped 72 → 36.
 
-### Tool-runtime issues observed
-- **scenario-auditor** rebuilds itself on each invocation (stable rebuild loop fingerprint logged) — non-blocking but noisy.
-- **test-genie** `run-tests` returns opaque HTTP 500 with no triage detail; HEARTBEAT.md's documented `test-genie run <reference>` command does not exist (current verb is `run-tests`). The flat 500 cannot be categorized by severity.
-- **DTV** still does not implement the `validate`/`report` surface promised in HEARTBEAT.md. Now that a reference exists, this gap is real (previously deferred).
+### Tool-runtime issues observed (unchanged)
+- **scenario-auditor** rebuild loop fingerprint still logged on every invocation (non-blocking, noisy).
+- **test-genie** `run-tests` still returns opaque HTTP 500 — no severity, no failed-test list, no log artifact path.
+- **DTV** `validate`/`report` surface still not shipped despite reference being registered.
 
-### Capability gaps noticed
-- DTV `validate <reference>` and `report --conflicts | --drift | --maturity | --tool-baselines` not shipped. Fallback trio remains the operational path. **Now consequential** because a reference exists.
-- `test-genie run-tests` has no structured failure response — a triage tool can't categorize the 500. Either the API needs structured output, or HEARTBEAT.md needs a different verb.
+### Capability gaps (unchanged)
+- DTV `validate <reference>` and `report --conflicts | --drift | --maturity | --tool-baselines` not shipped (covered by pending `dec-1777068259096417622`).
+- `test-genie run-tests` has no structured failure response (covered by same pending decision).
 
 ### Decisions this heartbeat
-- New: 2 (one `toolchain-violation`, one `capability-gap`; see handoff for IDs)
-- Superseded: 0 (prior `dec-1776981723540926630` already accepted by operator)
-- Read-only mode: no (4 pending → ≤6 after this run, still under 12 ceiling)
+- **Superseded** `dec-1777068246086430656` (toolchain-violation) → replaced with fresh take that reflects the actual current shape (1 critical + 9 high, not 41 high).
+- **Capability-gap** `dec-1777068259096417622` left as-is — content is still current.
+- **Read-only check:** 4 pending team decisions (well under 12 ceiling). Own-context cap (4 in toolchain-violation + capability-gap): currently 2 — under limit.
 
 ### Knowledge entries
-- `toolchain-scan-2026-04-24` — supersedes `toolchain-scan-2026-04-23`
+- `toolchain-scan-2026-04-25` — supersedes `toolchain-scan-2026-04-24`

@@ -29,6 +29,16 @@ type Handlers struct {
 	runRegistry   *RunRegistry
 	agentClient   AgentClient
 	teamExecStore *TeamExecutionStore
+	// swarmClient is the HTTP client used to invoke swarm-manager when
+	// auto-creating an initiative on decision-accept. Lazily initialised the
+	// first time it is used; tests inject a stub via SetSwarmInitiativeClient.
+	swarmClient *SwarmInitiativeClient
+}
+
+// SetSwarmInitiativeClient overrides the swarm-manager initiative client.
+// Intended for tests; production code uses the lazily-initialised default.
+func (h *Handlers) SetSwarmInitiativeClient(c *SwarmInitiativeClient) {
+	h.swarmClient = c
 }
 
 // NewHandlers creates new heartbeat handlers
@@ -2055,18 +2065,31 @@ func (h *Handlers) AddDecision(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// initiative_metadata is only valid on initiative-proposal decisions.
+	if req.InitiativeMetadata != nil {
+		if req.Context != store.DecisionContextInitiativeProposal {
+			writeDecisionFieldError(w, "initiative_metadata", "initiative_metadata is only valid when context=initiative-proposal")
+			return
+		}
+		if err := validateInitiativeMetadata(req.InitiativeMetadata); err != nil {
+			writeDecisionFieldError(w, "initiative_metadata", err.Error())
+			return
+		}
+	}
+
 	entry := &store.DecisionEntry{
-		ID:          fmt.Sprintf("dec-%s", generateID()),
-		At:          time.Now().UTC().Format(time.RFC3339),
-		By:          req.By,
-		Decision:    req.Decision,
-		Rationale:   req.Rationale,
-		Context:     req.Context,
-		Supersedes:  req.Supersedes,
-		Status:      store.DecisionStatusPending,
-		Topic:       req.Topic,
-		Description: req.Description,
-		Options:     req.Options,
+		ID:                 fmt.Sprintf("dec-%s", generateID()),
+		At:                 time.Now().UTC().Format(time.RFC3339),
+		By:                 req.By,
+		Decision:           req.Decision,
+		Rationale:          req.Rationale,
+		Context:            req.Context,
+		Supersedes:         req.Supersedes,
+		Status:             store.DecisionStatusPending,
+		Topic:              req.Topic,
+		Description:        req.Description,
+		Options:             req.Options,
+		InitiativeMetadata: req.InitiativeMetadata,
 	}
 
 	if err := h.teamStore.AppendDecision(r.Context(), teamID, entry); err != nil {
@@ -2132,6 +2155,57 @@ func (h *Handlers) UpdateDecisionHandler(w http.ResponseWriter, r *http.Request)
 		existing, _ := h.findDecision(r.Context(), teamID, decisionID)
 		if existing != nil && existing.Modifications != nil {
 			writeDecisionFieldError(w, "modifications", "modifications are immutable once set on an accepted decision")
+			return
+		}
+	}
+
+	// initiative_metadata: validate shape, scope to initiative-proposal context,
+	// and enforce post-accept immutability (mirrors modifications rule).
+	if req.InitiativeMetadata != nil {
+		if err := validateInitiativeMetadata(req.InitiativeMetadata); err != nil {
+			writeDecisionFieldError(w, "initiative_metadata", err.Error())
+			return
+		}
+		existing, _ := h.findDecision(r.Context(), teamID, decisionID)
+		if existing != nil {
+			ctxTag := existing.Context
+			if req.Context != nil {
+				ctxTag = *req.Context
+			}
+			if ctxTag != store.DecisionContextInitiativeProposal {
+				writeDecisionFieldError(w, "initiative_metadata", "initiative_metadata is only valid when context=initiative-proposal")
+				return
+			}
+			if existing.Status == store.DecisionStatusAccepted {
+				writeDecisionFieldError(w, "initiative_metadata", "initiative_metadata is immutable once the decision has been accepted")
+				return
+			}
+		}
+	}
+
+	// auto_create_status manual-recovery transitions (per d8=C). Allowed only
+	// from a "failed" starting state. failed→created requires a non-empty ref.
+	if req.AutoCreateStatus != nil {
+		newStatus := strings.TrimSpace(*req.AutoCreateStatus)
+		existing, _ := h.findDecision(r.Context(), teamID, decisionID)
+		if existing == nil {
+			writeDecisionFieldError(w, "auto_create_status", "decision not found")
+			return
+		}
+		if existing.AutoCreateStatus != store.AutoCreateStatusFailed {
+			writeDecisionFieldError(w, "auto_create_status", fmt.Sprintf("auto_create_status can only be transitioned from %q (current: %q)", store.AutoCreateStatusFailed, existing.AutoCreateStatus))
+			return
+		}
+		switch newStatus {
+		case store.AutoCreateStatusCreated:
+			if req.AutoCreateInitiativeRef == nil || strings.TrimSpace(*req.AutoCreateInitiativeRef) == "" {
+				writeDecisionFieldError(w, "auto_create_initiative_ref", "auto_create_initiative_ref is required when setting auto_create_status=created")
+				return
+			}
+		case store.AutoCreateStatusFailed:
+			// re-record an updated error — allowed
+		default:
+			writeDecisionFieldError(w, "auto_create_status", fmt.Sprintf("auto_create_status %q is not a permitted transition (allowed: %q, %q)", newStatus, store.AutoCreateStatusCreated, store.AutoCreateStatusFailed))
 			return
 		}
 	}
@@ -2228,6 +2302,19 @@ func (h *Handlers) UpdateDecisionHandler(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
+	// d5: accepting an initiative-proposal decision requires initiative_metadata
+	// to be present (either already on the decision or supplied in this PATCH).
+	if effectiveStatus != nil && *effectiveStatus == store.DecisionStatusAccepted {
+		existing, _ := h.findDecision(r.Context(), teamID, decisionID)
+		if existing != nil && existing.Context == store.DecisionContextInitiativeProposal {
+			if existing.InitiativeMetadata == nil && req.InitiativeMetadata == nil {
+				writeDecisionFieldError(w, "initiative_metadata",
+					"add --initiative-metadata to the decision (or use decision-update) before accepting")
+				return
+			}
+		}
+	}
+
 	err := h.teamStore.UpdateDecision(r.Context(), teamID, decisionID, func(d *store.DecisionEntry) {
 		if req.Decision != nil && strings.TrimSpace(*req.Decision) != "" {
 			d.Decision = *req.Decision
@@ -2266,6 +2353,23 @@ func (h *Handlers) UpdateDecisionHandler(w http.ResponseWriter, r *http.Request)
 			m := *req.Modifications
 			d.Modifications = &m
 		}
+		if req.InitiativeMetadata != nil {
+			meta := *req.InitiativeMetadata
+			d.InitiativeMetadata = &meta
+		}
+		if req.AutoCreateStatus != nil {
+			d.AutoCreateStatus = strings.TrimSpace(*req.AutoCreateStatus)
+			// Clear stale error when flipping to created.
+			if d.AutoCreateStatus == store.AutoCreateStatusCreated {
+				d.AutoCreateError = ""
+			}
+		}
+		if req.AutoCreateError != nil {
+			d.AutoCreateError = *req.AutoCreateError
+		}
+		if req.AutoCreateInitiativeRef != nil {
+			d.AutoCreateInitiativeRef = strings.TrimSpace(*req.AutoCreateInitiativeRef)
+		}
 		if acceptAsProposed {
 			d.AcceptedAsProposed = true
 		}
@@ -2300,14 +2404,65 @@ func (h *Handlers) UpdateDecisionHandler(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "decision updated but fetch failed", http.StatusInternalServerError)
 		return
 	}
-	for _, e := range entries {
-		if e.ID == decisionID {
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(e)
-			return
+	var updated *store.DecisionEntry
+	for i := range entries {
+		if entries[i].ID == decisionID {
+			updated = &entries[i]
+			break
 		}
 	}
-	http.Error(w, "decision updated but not found in response", http.StatusInternalServerError)
+	if updated == nil {
+		http.Error(w, "decision updated but not found in response", http.StatusInternalServerError)
+		return
+	}
+
+	// Auto-create initiative when transitioning an initiative-proposal decision
+	// to accepted. Failure does not roll back the accept (per d4=A); the
+	// failure is persisted on the decision and surfaced in the response with
+	// a pre-filled manual workaround (per d8=C + d9=A).
+	var autoOutcome *AutoCreateOutcome
+	justAcceptedProposal :=
+		effectiveStatus != nil &&
+			*effectiveStatus == store.DecisionStatusAccepted &&
+			updated.Context == store.DecisionContextInitiativeProposal &&
+			updated.InitiativeMetadata != nil &&
+			updated.AutoCreateStatus != store.AutoCreateStatusCreated
+	if justAcceptedProposal {
+		autoOutcome = h.runAutoCreateInitiative(r.Context(), teamID, updated)
+		// Persist the outcome on the decision record.
+		_ = h.teamStore.UpdateDecision(r.Context(), teamID, decisionID, func(d *store.DecisionEntry) {
+			d.AutoCreateStatus = autoOutcome.Status
+			if autoOutcome.Status == store.AutoCreateStatusCreated {
+				d.AutoCreateInitiativeRef = autoOutcome.InitiativeRef
+				d.AutoCreateError = ""
+			} else {
+				d.AutoCreateError = autoOutcome.Error
+			}
+		})
+		// Reflect persisted state in the returned entry.
+		updated.AutoCreateStatus = autoOutcome.Status
+		if autoOutcome.Status == store.AutoCreateStatusCreated {
+			updated.AutoCreateInitiativeRef = autoOutcome.InitiativeRef
+			updated.AutoCreateError = ""
+		} else {
+			updated.AutoCreateError = autoOutcome.Error
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(UpdateDecisionResponse{
+		DecisionEntry:     *updated,
+		AutoCreateOutcome: autoOutcome,
+	})
+}
+
+// UpdateDecisionResponse extends the persisted decision with an optional
+// AutoCreateOutcome payload populated when an `initiative-proposal` decision
+// is accepted. The outcome carries (a) the success ref or (b) the failure
+// reason plus the pre-filled manual-recovery commands.
+type UpdateDecisionResponse struct {
+	store.DecisionEntry
+	AutoCreateOutcome *AutoCreateOutcome `json:"auto_create_outcome,omitempty"`
 }
 
 // approvalError is the JSON response body for approval enforcement failures.
@@ -2448,6 +2603,65 @@ func validateDecisionModifications(m *store.DecisionModifications) error {
 		return fmt.Errorf("modifications must contain at least one of excluded_clauses, additions, or rationale")
 	}
 	return nil
+}
+
+// runAutoCreateInitiative invokes the swarm-manager initiative create
+// endpoint for an accepted initiative-proposal decision. Always returns a
+// non-nil outcome — success populates InitiativeRef; failure populates
+// Error and the pre-filled manual-recovery commands (per d4=A + d8=C + d9=A).
+func (h *Handlers) runAutoCreateInitiative(ctx context.Context, teamID string, d *store.DecisionEntry) *AutoCreateOutcome {
+	meta := d.InitiativeMetadata
+	target := resolvedTargetScenario(meta)
+	desc := buildInitiativeDescription(d)
+	createReq := initiativeCreateRequest{
+		Name:        strings.TrimSpace(meta.Name),
+		Title:       resolvedInitiativeTitle(d, meta),
+		Description: desc,
+		Priority:    meta.Priority,
+		DependsOn:   meta.DependsOn,
+	}
+
+	client := h.swarmClient
+	if client == nil {
+		client = NewSwarmInitiativeClient(30 * time.Second)
+	}
+
+	createdName, err := client.Create(ctx, target, createReq)
+	if err == nil {
+		return &AutoCreateOutcome{
+			Status:         store.AutoCreateStatusCreated,
+			InitiativeRef:  fmt.Sprintf("%s/%s", target, createdName),
+			TargetScenario: target,
+			InitiativeName: createdName,
+			Priority:       createReq.Priority,
+		}
+	}
+
+	// Failure path: render the workaround commands. Materialise the
+	// description body to a tmp file so the operator does not re-author it.
+	descFile := ""
+	if desc != "" {
+		f, ferr := os.CreateTemp("", fmt.Sprintf("%s-initiative-description-*.md", d.ID))
+		if ferr == nil {
+			if _, werr := f.WriteString(desc); werr == nil {
+				descFile = f.Name()
+			}
+			_ = f.Close()
+		}
+	}
+	workaround := buildWorkaroundCommand(createReq, descFile, target)
+	resolveCmd := buildResolveCommand(teamID, d.ID, fmt.Sprintf("%s/%s", target, createReq.Name))
+
+	return &AutoCreateOutcome{
+		Status:             store.AutoCreateStatusFailed,
+		Error:              err.Error(),
+		WorkaroundCommand:  workaround,
+		ResolveCommand:     resolveCmd,
+		DescriptionTmpFile: descFile,
+		TargetScenario:     target,
+		InitiativeName:     createReq.Name,
+		Priority:           createReq.Priority,
+	}
 }
 
 // writeDecisionFieldError emits a structured field-violation response.

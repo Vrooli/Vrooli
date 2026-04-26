@@ -23,10 +23,8 @@ type structureMakefileData struct {
 	phony                []string
 	defaultGoal          string
 	scenarioName         string
-	colors               map[string]string
 	targets              map[string][]string
 	targetRecipeLines    map[string][]int
-	colorLines           map[string]int
 	phonyLine            int
 	defaultLine          int
 	scenarioLine         int
@@ -107,6 +105,12 @@ func RunMakefileStructure(ctx context.Context, repoRoot, scenarioName string) (r
 }
 
 // CheckMakefileStructure ensures the Makefile conforms to the required structure scaffolding.
+//
+// User-facing UX (colors, banners, help-text formatting) is owned by the Vrooli
+// CLI, not by per-scenario Makefiles. The structure rule enforces only what's
+// needed for interoperability: the lifecycle-warning header, the canonical
+// .PHONY target list, the standard variable defaults, a help target that exists,
+// and a stable top-of-file ordering.
 func CheckMakefileStructure(content string, filepath string) ([]MakefileStructureViolation, error) {
 	data := parseStructureMakefile(content)
 	var violations []MakefileStructureViolation
@@ -114,7 +118,6 @@ func CheckMakefileStructure(content string, filepath string) ([]MakefileStructur
 	violations = append(violations, structureValidateHeader(data, filepath)...)
 	violations = append(violations, structureValidatePhony(data, filepath)...)
 	violations = append(violations, structureValidateDefaults(data, filepath)...)
-	violations = append(violations, structureValidateColors(data, filepath)...)
 	violations = append(violations, structureValidateHelp(data, filepath)...)
 	violations = append(violations, structureValidateOrdering(data, filepath)...)
 	violations = append(violations, structureValidateShortcuts(data, filepath)...)
@@ -176,10 +179,9 @@ func structureValidateHeader(data structureMakefileData, path string) []Makefile
 }
 
 func structureValidatePhony(data structureMakefileData, path string) []MakefileStructureViolation {
-	// STRICT: All 16 canonical targets required for consistency and interoperability.
-	// This list must match canonicalTargetSet() in makefile_util.go.
+	// STRICT: All canonical targets required for consistency and interoperability.
 	// Scenarios without UI/Go code should provide no-op implementations.
-	required := []string{"help", "start", "stop", "test", "logs", "status", "clean", "build", "dev", "fmt", "fmt-go", "fmt-ui", "lint", "lint-go", "lint-ui", "check"}
+	required := requiredTargets()
 	var violations []MakefileStructureViolation
 
 	if len(data.phony) == 0 {
@@ -254,83 +256,28 @@ func structureValidateDefaults(data structureMakefileData, path string) []Makefi
 	return violations
 }
 
-func structureValidateColors(data structureMakefileData, path string) []MakefileStructureViolation {
-	expected := map[string]string{
-		"GREEN":  "\\033[1;32m",
-		"YELLOW": "\\033[1;33m",
-		"BLUE":   "\\033[1;34m",
-		"RED":    "\\033[1;31m",
-		"RESET":  "\\033[0m",
-	}
-
-	var violations []MakefileStructureViolation
-
-	// Check that all expected colors are defined correctly
-	for name, value := range expected {
-		if data.colors[name] != value {
-			violations = append(violations, MakefileStructureViolation{
-				Severity: "high",
-				Message:  fmt.Sprintf("Color %s must be defined exactly as '%s'", name, value),
-				FilePath: path,
-				Line:     structureFindLine(data.lines, name+" :="),
-			})
-		}
-	}
-
-	return violations
-}
-
 func structureValidateHelp(data structureMakefileData, path string) []MakefileStructureViolation {
+	// We only require that the help target exists with at least one recipe line.
+	// The recipe contents are not enforced — scenarios can render help however
+	// they like (the canonical template uses the standard `## comment` + grep/awk
+	// pattern, which Make conventions already document for free).
 	lines := structureNormalizeRecipes(data.targets["help"])
-	// STRICT: Required for consistent help output across all scenarios
-	requiredSnippets := []string{
-		"@echo \"$(BLUE)",
-		"Scenario Commands$(RESET)\"",
-		"@echo \"$(YELLOW)Usage:$(RESET)\"",
-		"@echo \"  make <command>\"",
-		"@echo \"$(YELLOW)Commands:$(RESET)\"",
-		"@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST)",
-		"awk",
-		"printf",
-		"$(GREEN)",
-		"Never run ./api/",
-	}
-
-	var violations []MakefileStructureViolation
-	if len(lines) == 0 {
-		violations = append(violations, MakefileStructureViolation{
-			Severity: "high",
-			Message:  "help target is missing",
-			FilePath: path,
-			Line:     structureFindLine(data.lines, "help:"),
-		})
-		return violations
-	}
-
-	for _, snippet := range requiredSnippets {
-		if !structureContainsSnippet(lines, snippet) {
-			violations = append(violations, MakefileStructureViolation{
-				Severity: "high",
-				Message:  fmt.Sprintf("help target must include text containing '%s'", snippet),
-				FilePath: path,
-				Line:     structureFindLine(data.lines, "help:"),
-			})
+	hasRecipe := false
+	for _, line := range lines {
+		if strings.TrimSpace(line) != "" {
+			hasRecipe = true
+			break
 		}
 	}
-
-	// Check for either 'make start' or 'make run' variant
-	hasStartOrRun := structureContainsSnippet(lines, "Always use 'make start' or 'vrooli scenario start") ||
-		structureContainsSnippet(lines, "Always use 'make run' or 'vrooli scenario start")
-	if !hasStartOrRun {
-		violations = append(violations, MakefileStructureViolation{
-			Severity: "high",
-			Message:  "help target must include text containing \"Always use 'make start' or 'vrooli scenario start\" (or 'make run' variant)",
-			FilePath: path,
-			Line:     structureFindLine(data.lines, "help:"),
-		})
+	if hasRecipe {
+		return nil
 	}
-
-	return violations
+	return []MakefileStructureViolation{{
+		Severity: "high",
+		Message:  "help target is missing or empty",
+		FilePath: path,
+		Line:     structureFindLine(data.lines, "help:"),
+	}}
 }
 
 func structureValidateOrdering(data structureMakefileData, path string) []MakefileStructureViolation {
@@ -364,71 +311,6 @@ func structureValidateOrdering(data structureMakefileData, path string) []Makefi
 			FilePath: path,
 			Line:     data.scenarioLine,
 		})
-	}
-
-	colorOrder := []string{"GREEN", "YELLOW", "BLUE", "RED", "RESET"}
-	prevLine := 0
-	prevName := ""
-	firstColorLine := 0
-	lastColorLine := 0
-	for _, name := range colorOrder {
-		line := data.colorLines[name]
-		if line == 0 {
-			continue
-		}
-		if prevLine > 0 && line < prevLine {
-			violations = append(violations, MakefileStructureViolation{
-				Severity: "high",
-				Message:  fmt.Sprintf("Color %s must be declared after %s to preserve palette order", name, prevName),
-				FilePath: path,
-				Line:     line,
-			})
-		}
-		if firstColorLine == 0 || line < firstColorLine {
-			firstColorLine = line
-		}
-		if line > lastColorLine {
-			lastColorLine = line
-		}
-		prevLine = line
-		prevName = name
-	}
-
-	if data.scenarioLine > 0 && firstColorLine > 0 {
-		for i := data.scenarioLine; i < firstColorLine-1; i++ {
-			if !structureIsCommentBlankOrVariable(data.lines[i]) {
-				violations = append(violations, MakefileStructureViolation{
-					Severity: "high",
-					Message:  "Color palette must immediately follow SCENARIO_NAME declaration",
-					FilePath: path,
-					Line:     i + 1,
-				})
-				break
-			}
-		}
-	}
-
-	if lastColorLine > 0 && data.helpLine > 0 {
-		if data.helpLine < lastColorLine {
-			violations = append(violations, MakefileStructureViolation{
-				Severity: "high",
-				Message:  "help target must appear after color palette definitions",
-				FilePath: path,
-				Line:     data.helpLine,
-			})
-		} else {
-			for i := lastColorLine; i < data.helpLine-1; i++ {
-				if !structureIsCommentBlankOrVariable(data.lines[i]) {
-					violations = append(violations, MakefileStructureViolation{
-						Severity: "high",
-						Message:  "No additional directives allowed between color palette and help target",
-						FilePath: path,
-						Line:     i + 1,
-					})
-					break
-				}
-			}
-		}
 	}
 
 	if len(data.targetOrder) > 0 && data.targetOrder[0] != "help" {
@@ -536,8 +418,6 @@ func parseStructureMakefile(content string) structureMakefileData {
 		lines:             lines,
 		header:            header,
 		headerEndLine:     len(header),
-		colors:            map[string]string{},
-		colorLines:        make(map[string]int),
 		targets:           make(map[string][]string),
 		targetLines:       make(map[string]int),
 		targetRecipeLines: make(map[string][]int),
@@ -595,19 +475,9 @@ func parseStructureMakefile(content string) structureMakefileData {
 			continue
 		}
 
-		if strings.Contains(trimmedLeft, ":=") {
-			assignParts := strings.SplitN(trimmedLeft, ":=", 2)
-			if len(assignParts) == 2 {
-				name := strings.TrimSpace(assignParts[0])
-				value := strings.TrimSpace(assignParts[1])
-				switch name {
-				case "GREEN", "YELLOW", "BLUE", "RED", "RESET", "CYAN":
-					data.colors[name] = value
-					if _, recorded := data.colorLines[name]; !recorded {
-						data.colorLines[name] = i + 1
-					}
-				}
-			}
+		if strings.Contains(trimmedLeft, ":=") && !strings.HasPrefix(raw, "\t") {
+			// Skip arbitrary variable assignments — the rule no longer cares
+			// about non-canonical variables in the structural validation.
 			continue
 		}
 
@@ -701,30 +571,10 @@ func structureContainsAll(required []string, actual []string) bool {
 	return len(set) == 0
 }
 
-func structureContainsSnippet(lines []string, snippet string) bool {
-	for _, line := range lines {
-		if strings.Contains(line, snippet) {
-			return true
-		}
-	}
-	return false
-}
-
 func structureIsCommentOrBlank(line string) bool {
 	trimmed := strings.TrimSpace(line)
 	if trimmed == "" {
 		return true
 	}
 	return strings.HasPrefix(trimmed, "#")
-}
-
-// structureIsCommentBlankOrVariable returns true if a line is a comment, blank, or a variable assignment.
-// This is used for gap checks that should allow custom variable definitions.
-func structureIsCommentBlankOrVariable(line string) bool {
-	if structureIsCommentOrBlank(line) {
-		return true
-	}
-	trimmed := strings.TrimSpace(line)
-	// Match variable assignments: VAR = val, VAR := val, VAR ?= val
-	return varAssignRegexp.MatchString(trimmed)
 }

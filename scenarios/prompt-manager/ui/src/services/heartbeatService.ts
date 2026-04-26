@@ -174,6 +174,36 @@ export interface DecisionModifications {
   rationale?: string
 }
 
+// DecisionInitiativeMetadata is the structured block carried on
+// `initiative-proposal` decisions; consumed at decision-accept time to
+// auto-create a swarm-manager initiative. Immutable post-accept.
+// Contract: docs/reference/decision-initiative-proposal-contract.md.
+export interface DecisionInitiativeMetadata {
+  name: string
+  priority?: number
+  depends_on?: string[]
+  target_scenario?: string
+  title?: string
+}
+
+// AutoCreateOutcome is returned alongside the updated decision when an
+// `initiative-proposal` decision is accepted. On success, initiative_ref is
+// populated; on failure, error + workaround_command + resolve_command are
+// populated for the operator-driven manual-recovery flow (per d8=C).
+export interface AutoCreateOutcome {
+  status: 'created' | 'failed' | 'pending'
+  initiative_ref?: string
+  error?: string
+  workaround_command?: string
+  resolve_command?: string
+  description_tmp_file?: string
+  target_scenario?: string
+  initiative_name?: string
+  priority?: number
+}
+
+export type AutoCreateStatus = '' | 'pending' | 'created' | 'failed'
+
 export interface DecisionEntry {
   id: string
   at: string
@@ -192,6 +222,16 @@ export interface DecisionEntry {
   modifications?: DecisionModifications | null
   revisit_after?: string | null
   accepted_as_proposed?: boolean
+  initiative_metadata?: DecisionInitiativeMetadata | null
+  auto_create_status?: AutoCreateStatus
+  auto_create_error?: string
+  auto_create_initiative_ref?: string
+}
+
+// UpdateDecisionResponse extends DecisionEntry with an optional
+// auto_create_outcome payload (set when accepting an initiative-proposal).
+export interface UpdateDecisionResponse extends DecisionEntry {
+  auto_create_outcome?: AutoCreateOutcome
 }
 
 export interface UpdateDecisionRequest {
@@ -207,6 +247,10 @@ export interface UpdateDecisionRequest {
   freeform?: string | null
   notes?: string | null
   modifications?: DecisionModifications | null
+  initiative_metadata?: DecisionInitiativeMetadata | null
+  auto_create_status?: AutoCreateStatus
+  auto_create_error?: string
+  auto_create_initiative_ref?: string
 }
 
 export interface DecisionListResponse {
@@ -233,6 +277,7 @@ export interface AddDecisionRequest {
   supersedes?: string
   topic?: string
   options?: DecisionOption[]
+  initiative_metadata?: DecisionInitiativeMetadata | null
 }
 
 // --- Knowledge types ---
@@ -1170,8 +1215,8 @@ export async function updateDecision(
   teamId: string,
   decisionId: string,
   request: UpdateDecisionRequest
-): Promise<DecisionEntry> {
-  return apiRequest<DecisionEntry>(`/teams/${encodeURIComponent(teamId)}/decisions/${encodeURIComponent(decisionId)}`, {
+): Promise<UpdateDecisionResponse> {
+  return apiRequest<UpdateDecisionResponse>(`/teams/${encodeURIComponent(teamId)}/decisions/${encodeURIComponent(decisionId)}`, {
     method: 'PATCH',
     body: JSON.stringify(request),
   })

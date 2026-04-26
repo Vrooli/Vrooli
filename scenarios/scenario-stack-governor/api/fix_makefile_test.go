@@ -373,8 +373,8 @@ func TestFixMakefile_PreservesCustomVariables(t *testing.T) {
 
 	// Write a Makefile with a custom variable and a custom target that references it.
 	existing := generateCanonicalMakefile(scenarioName)
-	existing = strings.Replace(existing, "RESET := \\033[0m",
-		"RESET := \\033[0m\n\nAPI_URL ?= http://localhost:3000", 1)
+	existing = strings.Replace(existing, "SCENARIO_NAME := $(notdir $(CURDIR))",
+		"SCENARIO_NAME := $(notdir $(CURDIR))\n\nAPI_URL ?= http://localhost:3000", 1)
 	existing = strings.Replace(existing, "# Development shortcuts",
 		`export-variants: ## Export variant data
 	@echo "Exporting to $(API_URL)..."
@@ -408,8 +408,8 @@ func TestFixMakefile_PreservesCustomVariablesWithCustomTargets(t *testing.T) {
 
 	// Write a Makefile with both custom variables and custom targets.
 	existing := generateCanonicalMakefile(scenarioName)
-	existing = strings.Replace(existing, "RESET := \\033[0m",
-		"RESET := \\033[0m\n\nAPI_URL ?= http://localhost:3000\nCUSTOM_FLAG := true", 1)
+	existing = strings.Replace(existing, "SCENARIO_NAME := $(notdir $(CURDIR))",
+		"SCENARIO_NAME := $(notdir $(CURDIR))\n\nAPI_URL ?= http://localhost:3000\nCUSTOM_FLAG := true", 1)
 	existing = strings.Replace(existing, "# Development shortcuts",
 		`export-variants: ## Export variant data
 	@echo "Exporting to $(API_URL) with flag $(CUSTOM_FLAG)..."
@@ -618,8 +618,8 @@ func TestFixMakefile_CustomVarsIdempotent(t *testing.T) {
 
 	// Write a Makefile with custom variables.
 	existing := generateCanonicalMakefile(scenarioName)
-	existing = strings.Replace(existing, "RESET := \\033[0m",
-		"RESET := \\033[0m\n\nAPI_URL ?= http://localhost:3000", 1)
+	existing = strings.Replace(existing, "SCENARIO_NAME := $(notdir $(CURDIR))",
+		"SCENARIO_NAME := $(notdir $(CURDIR))\n\nAPI_URL ?= http://localhost:3000", 1)
 	if err := os.WriteFile(filepath.Join(scenarioDir, "Makefile"), []byte(existing), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -754,11 +754,11 @@ func TestFixMakefile_PerRuleChanges(t *testing.T) {
 	}
 
 	// Write a Makefile that passes STRUCTURE and QUALITY but fails LIFECYCLE
-	// (wrong echo message in start target).
+	// (wrong start command — uses legacy `run` instead of `start`).
 	existing := generateCanonicalMakefile(scenarioName)
 	existing = strings.Replace(existing,
-		`@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"`,
-		`@echo "Starting..."`, 1)
+		`@vrooli scenario start $(SCENARIO_NAME)`,
+		`@vrooli scenario run $(SCENARIO_NAME)`, 1)
 	if err := os.WriteFile(filepath.Join(scenarioDir, "Makefile"), []byte(existing), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -954,8 +954,8 @@ func TestFixMakefile_CustomVarsPassChecks(t *testing.T) {
 
 	// Write a Makefile with custom variables and targets.
 	existing := generateCanonicalMakefile(scenarioName)
-	existing = strings.Replace(existing, "RESET := \\033[0m",
-		"RESET := \\033[0m\n\nAPI_URL ?= http://localhost:3000", 1)
+	existing = strings.Replace(existing, "SCENARIO_NAME := $(notdir $(CURDIR))",
+		"SCENARIO_NAME := $(notdir $(CURDIR))\n\nAPI_URL ?= http://localhost:3000", 1)
 	existing = strings.Replace(existing, "# Development shortcuts",
 		`deploy: ## Deploy to production
 	@echo "Deploying to $(API_URL)..."

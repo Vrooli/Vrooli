@@ -1,6 +1,6 @@
 {
   "initiative": "decision-visual-grounding-propagation",
-  "generated_at": "2026-04-24T01:47:55Z",
+  "generated_at": "2026-04-26T03:02:26Z",
   "nodes": [
     {
       "id": "research/bas-grounded-mockup-flow",
@@ -29,6 +29,26 @@
       "title": "Propagate decision-option images through ecosystem-manager handoff",
       "status": "backlog",
       "priority": 3,
+      "effort": "S",
+      "archived": false
+    },
+    {
+      "id": "execute/decision-image-handoff-manifest-schema",
+      "kind": "execute",
+      "name": "decision-image-handoff-manifest-schema",
+      "title": "Specify image-data shape in ecosystem-manager handoff manifest",
+      "status": "backlog",
+      "priority": 1,
+      "effort": "S",
+      "archived": false
+    },
+    {
+      "id": "research/bas-screenshot-api-audit",
+      "kind": "research",
+      "name": "bas-screenshot-api-audit",
+      "title": "Audit BAS screenshot capture API/CLI surface for grounding flow",
+      "status": "backlog",
+      "priority": 1,
       "effort": "S",
       "archived": false
     }

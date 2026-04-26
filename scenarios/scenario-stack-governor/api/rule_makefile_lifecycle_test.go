@@ -5,27 +5,64 @@ import (
 	"testing"
 )
 
-func TestCheckMakefileLifecycle_Valid(t *testing.T) {
+// TestCheckMakefileLifecycle_ThinWrapper verifies that a Makefile whose lifecycle
+// targets contain ONLY the canonical `vrooli scenario <verb>` command (no echoes,
+// no banners) passes the rule. Banners are owned by the CLI, not the Makefile.
+func TestCheckMakefileLifecycle_ThinWrapper(t *testing.T) {
 	content := `SCENARIO_NAME := $(notdir $(CURDIR))
 
 start:
-	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario start $(SCENARIO_NAME)
 
 stop:
-	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario stop $(SCENARIO_NAME)
 
+restart:
+	@vrooli scenario restart $(SCENARIO_NAME)
+
 test:
-	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario test $(SCENARIO_NAME)
 
 logs:
-	@echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario logs $(SCENARIO_NAME) --tail 50
 
 status:
-	@echo "$(BLUE)📊 Status of $(SCENARIO_NAME):$(RESET)"
+	@vrooli scenario status $(SCENARIO_NAME)
+`
+	violations, err := CheckMakefileLifecycle(content, "Makefile")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(violations) != 0 {
+		for _, v := range violations {
+			t.Errorf("unexpected violation at line %d: %s", v.Line, v.Message)
+		}
+	}
+}
+
+// TestCheckMakefileLifecycle_EchoesAllowed verifies that scenarios which still
+// have legacy @echo lines before the canonical command are NOT flagged. The rule
+// no longer cares about echoes — it only checks for the canonical command.
+func TestCheckMakefileLifecycle_EchoesAllowed(t *testing.T) {
+	content := `SCENARIO_NAME := $(notdir $(CURDIR))
+
+start:
+	@echo "anything you want here"
+	@vrooli scenario start $(SCENARIO_NAME)
+
+stop:
+	@vrooli scenario stop $(SCENARIO_NAME)
+
+restart:
+	@vrooli scenario restart $(SCENARIO_NAME)
+
+test:
+	@vrooli scenario test $(SCENARIO_NAME)
+
+logs:
+	@vrooli scenario logs $(SCENARIO_NAME) --tail 50
+
+status:
 	@vrooli scenario status $(SCENARIO_NAME)
 `
 	violations, err := CheckMakefileLifecycle(content, "Makefile")
@@ -43,23 +80,21 @@ func TestCheckMakefileLifecycle_LegacyRun(t *testing.T) {
 	content := `SCENARIO_NAME := $(notdir $(CURDIR))
 
 start:
-	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario run $(SCENARIO_NAME)
 
 stop:
-	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario stop $(SCENARIO_NAME)
 
+restart:
+	@vrooli scenario restart $(SCENARIO_NAME)
+
 test:
-	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario test $(SCENARIO_NAME)
 
 logs:
-	@echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario logs $(SCENARIO_NAME) --tail 50
 
 status:
-	@echo "$(BLUE)📊 Status of $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario status $(SCENARIO_NAME)
 `
 	violations, err := CheckMakefileLifecycle(content, "Makefile")
@@ -74,64 +109,27 @@ status:
 	}
 }
 
-func TestCheckMakefileLifecycle_MessageMismatch(t *testing.T) {
-	content := `SCENARIO_NAME := $(notdir $(CURDIR))
-
-start:
-	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME)...$(RESET)"
-	@vrooli scenario start $(SCENARIO_NAME)
-
-stop:
-	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
-	@vrooli scenario stop $(SCENARIO_NAME)
-
-test:
-	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
-	@vrooli scenario test $(SCENARIO_NAME)
-
-logs:
-	@echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"
-	@vrooli scenario logs $(SCENARIO_NAME) --tail 50
-
-status:
-	@echo "$(BLUE)📊 Status of $(SCENARIO_NAME):$(RESET)"
-	@vrooli scenario status $(SCENARIO_NAME)
-`
-	violations, err := CheckMakefileLifecycle(content, "Makefile")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(violations) != 1 {
-		t.Fatalf("expected 1 violation, got %d", len(violations))
-	}
-	if !strings.Contains(violations[0].Message, "start target must echo") {
-		t.Errorf("unexpected message: %s", violations[0].Message)
-	}
-}
-
 func TestCheckMakefileLifecycle_Multiline(t *testing.T) {
 	content := `SCENARIO_NAME := $(notdir $(CURDIR))
 
 start:
-	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario start \
 		"$(SCENARIO_NAME)"
 
 stop:
-	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario stop "$(SCENARIO_NAME)"
 
+restart:
+	@vrooli scenario restart "$(SCENARIO_NAME)"
+
 test:
-	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario test "$(SCENARIO_NAME)"
 
 logs:
-	@echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario logs "$(SCENARIO_NAME)" \
 		--tail 50
 
 status:
-	@echo "$(BLUE)📊 Status of $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario status "$(SCENARIO_NAME)"
 `
 	violations, err := CheckMakefileLifecycle(content, "Makefile")
@@ -149,23 +147,21 @@ func TestCheckMakefileLifecycle_RecursivePrefix(t *testing.T) {
 	content := `SCENARIO_NAME := $(notdir $(CURDIR))
 
 start:
-	@+echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
 	@+vrooli scenario start $(SCENARIO_NAME)
 
 stop:
-	@+echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
 	@+vrooli scenario stop $(SCENARIO_NAME)
 
+restart:
+	@+vrooli scenario restart $(SCENARIO_NAME)
+
 test:
-	@+echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
 	@+vrooli scenario test $(SCENARIO_NAME)
 
 logs:
-	@+echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"
 	@+vrooli scenario logs $(SCENARIO_NAME) --tail 50
 
 status:
-	@+echo "$(BLUE)📊 Status of $(SCENARIO_NAME):$(RESET)"
 	@+vrooli scenario status $(SCENARIO_NAME)
 `
 	violations, err := CheckMakefileLifecycle(content, "Makefile")
@@ -185,23 +181,21 @@ func TestCheckMakefileLifecycle_LogsTailEquals(t *testing.T) {
 	content := `SCENARIO_NAME := $(notdir $(CURDIR))
 
 start:
-	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario start $(SCENARIO_NAME)
 
 stop:
-	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario stop $(SCENARIO_NAME)
 
+restart:
+	@vrooli scenario restart $(SCENARIO_NAME)
+
 test:
-	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario test $(SCENARIO_NAME)
 
 logs:
-	@echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario logs $(SCENARIO_NAME) --tail=50
 
 status:
-	@echo "$(BLUE)📊 Status of $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario status $(SCENARIO_NAME)
 `
 	violations, err := CheckMakefileLifecycle(content, "Makefile")
@@ -219,23 +213,21 @@ func TestCheckMakefileLifecycle_StartExtraFlags(t *testing.T) {
 	content := `SCENARIO_NAME := $(notdir $(CURDIR))
 
 start:
-	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario start $(SCENARIO_NAME) --detach
 
 stop:
-	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario stop $(SCENARIO_NAME)
 
+restart:
+	@vrooli scenario restart $(SCENARIO_NAME)
+
 test:
-	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario test $(SCENARIO_NAME)
 
 logs:
-	@echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario logs $(SCENARIO_NAME) --tail 50
 
 status:
-	@echo "$(BLUE)📊 Status of $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario status $(SCENARIO_NAME)
 `
 	violations, err := CheckMakefileLifecycle(content, "Makefile")
@@ -251,28 +243,26 @@ status:
 }
 
 // TestCheckMakefileLifecycle_CurlyBraceVarSyntax verifies that ${SCENARIO_NAME}
-// is accepted as equivalent to $(SCENARIO_NAME) in both commands and echo messages.
+// is accepted as equivalent to $(SCENARIO_NAME) in the canonical command.
 func TestCheckMakefileLifecycle_CurlyBraceVarSyntax(t *testing.T) {
 	content := `SCENARIO_NAME := $(notdir $(CURDIR))
 
 start:
-	@echo "${BLUE}🚀 Starting ${SCENARIO_NAME} scenario...${RESET}"
 	@vrooli scenario start ${SCENARIO_NAME}
 
 stop:
-	@echo "${YELLOW}⏹️  Stopping ${SCENARIO_NAME} scenario...${RESET}"
 	@vrooli scenario stop ${SCENARIO_NAME}
 
+restart:
+	@vrooli scenario restart ${SCENARIO_NAME}
+
 test:
-	@echo "${BLUE}🧪 Testing ${SCENARIO_NAME} scenario...${RESET}"
 	@vrooli scenario test ${SCENARIO_NAME}
 
 logs:
-	@echo "${BLUE}📜 Logs for ${SCENARIO_NAME}:${RESET}"
 	@vrooli scenario logs ${SCENARIO_NAME} --tail 50
 
 status:
-	@echo "${BLUE}📊 Status of ${SCENARIO_NAME}:${RESET}"
 	@vrooli scenario status ${SCENARIO_NAME}
 `
 	violations, err := CheckMakefileLifecycle(content, "Makefile")
@@ -286,81 +276,25 @@ status:
 	}
 }
 
-// TestCheckMakefileLifecycle_MixedVarSyntax verifies that mixing $() and ${}
-// in the same Makefile is accepted.
-func TestCheckMakefileLifecycle_MixedVarSyntax(t *testing.T) {
-	content := `SCENARIO_NAME := $(notdir $(CURDIR))
-
-start:
-	@echo "$(BLUE)🚀 Starting ${SCENARIO_NAME} scenario...$(RESET)"
-	@vrooli scenario start ${SCENARIO_NAME}
-
-stop:
-	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
-	@vrooli scenario stop $(SCENARIO_NAME)
-
-test:
-	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
-	@vrooli scenario test $(SCENARIO_NAME)
-
-logs:
-	@echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"
-	@vrooli scenario logs $(SCENARIO_NAME) --tail 50
-
-status:
-	@echo "$(BLUE)📊 Status of $(SCENARIO_NAME):$(RESET)"
-	@vrooli scenario status $(SCENARIO_NAME)
-`
-	violations, err := CheckMakefileLifecycle(content, "Makefile")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(violations) != 0 {
-		for _, v := range violations {
-			t.Errorf("unexpected violation at line %d: %s", v.Line, v.Message)
-		}
-	}
-}
-
-func TestNormalizeVarSyntax(t *testing.T) {
-	tests := []struct {
-		input, expected string
-	}{
-		{"$(SCENARIO_NAME)", "$(SCENARIO_NAME)"},
-		{"${SCENARIO_NAME}", "$(SCENARIO_NAME)"},
-		{"${BLUE}text${RESET}", "$(BLUE)text$(RESET)"},
-		{"no vars here", "no vars here"},
-		{"$(BLUE)${SCENARIO_NAME}$(RESET)", "$(BLUE)$(SCENARIO_NAME)$(RESET)"},
-	}
-	for _, tt := range tests {
-		got := normalizeVarSyntax(tt.input)
-		if got != tt.expected {
-			t.Errorf("normalizeVarSyntax(%q) = %q, want %q", tt.input, got, tt.expected)
-		}
-	}
-}
-
 func TestCheckMakefileLifecycle_LogsExtraFlags(t *testing.T) {
 	content := `SCENARIO_NAME := $(notdir $(CURDIR))
 
 start:
-	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario start $(SCENARIO_NAME)
 
 stop:
-	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario stop $(SCENARIO_NAME)
 
+restart:
+	@vrooli scenario restart $(SCENARIO_NAME)
+
 test:
-	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario test $(SCENARIO_NAME)
 
 logs:
-	@echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario logs $(SCENARIO_NAME) --tail 50 --follow
 
 status:
-	@echo "$(BLUE)📊 Status of $(SCENARIO_NAME):$(RESET)"
 	@vrooli scenario status $(SCENARIO_NAME)
 `
 	violations, err := CheckMakefileLifecycle(content, "Makefile")
@@ -372,5 +306,36 @@ status:
 		for _, v := range violations {
 			t.Errorf("unexpected violation at line %d: %s", v.Line, v.Message)
 		}
+	}
+}
+
+func TestCheckMakefileLifecycle_MissingTarget(t *testing.T) {
+	// A scenario that omits a lifecycle target entirely should be flagged.
+	content := `SCENARIO_NAME := $(notdir $(CURDIR))
+
+start:
+	@vrooli scenario start $(SCENARIO_NAME)
+
+stop:
+	@vrooli scenario stop $(SCENARIO_NAME)
+
+restart:
+	@vrooli scenario restart $(SCENARIO_NAME)
+
+logs:
+	@vrooli scenario logs $(SCENARIO_NAME) --tail 50
+
+status:
+	@vrooli scenario status $(SCENARIO_NAME)
+`
+	violations, err := CheckMakefileLifecycle(content, "Makefile")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(violations) != 1 {
+		t.Fatalf("expected 1 violation for missing test target, got %d", len(violations))
+	}
+	if !strings.Contains(violations[0].Message, "test target missing") {
+		t.Errorf("expected 'test target missing' violation, got: %s", violations[0].Message)
 	}
 }

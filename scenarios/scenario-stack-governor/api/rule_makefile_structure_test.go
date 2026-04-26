@@ -19,7 +19,7 @@ func TestCheckMakefileStructure_Valid(t *testing.T) {
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help start stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check check
+.PHONY: help start stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check check
 
 .DEFAULT_GOAL := help
 
@@ -49,6 +49,9 @@ start: ## Start this scenario
 
 stop: ## Stop this scenario
 	@echo "Stopping..."
+
+restart: ## Restart this scenario
+	@echo "Restarting..."
 
 test: ## Run scenario tests
 	@echo "Testing..."
@@ -111,7 +114,7 @@ func TestCheckMakefileStructure_MissingHeader(t *testing.T) {
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help start stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help start stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
 
 .DEFAULT_GOAL := help
 
@@ -141,6 +144,9 @@ start: ## Start this scenario
 
 stop: ## Stop this scenario
 	@echo "Stopping..."
+
+restart: ## Restart this scenario
+	@echo "Restarting..."
 
 test: ## Run scenario tests
 	@echo "Testing..."
@@ -213,7 +219,7 @@ func TestCheckMakefileStructure_PhonyOrder(t *testing.T) {
 
 .DEFAULT_GOAL := help
 
-.PHONY: help start stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help start stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
 
 SCENARIO_NAME := $(notdir $(CURDIR))
 
@@ -241,6 +247,9 @@ start: ## Start this scenario
 
 stop: ## Stop this scenario
 	@echo "Stopping..."
+
+restart: ## Restart this scenario
+	@echo "Restarting..."
 
 test: ## Run scenario tests
 	@echo "Testing..."
@@ -308,7 +317,7 @@ func TestCheckMakefileStructure_HelpFirst(t *testing.T) {
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help start stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help start stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
 
 .DEFAULT_GOAL := help
 
@@ -341,6 +350,9 @@ start: ## Start this scenario
 
 stop: ## Stop this scenario
 	@echo "Stopping..."
+
+restart: ## Restart this scenario
+	@echo "Restarting..."
 
 test: ## Run scenario tests
 	@echo "Testing..."
@@ -405,7 +417,7 @@ func TestCheckMakefileStructure_MissingTargetDefinitions(t *testing.T) {
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help start stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
+.PHONY: help start stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
 
 .DEFAULT_GOAL := help
 
@@ -442,15 +454,15 @@ dev: start
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	// Should have 13 violations for missing targets (16 canonical - 3 defined: help, start, dev)
+	// Should have 14 violations for missing targets (17 canonical - 3 defined: help, start, dev)
 	missingCount := 0
 	for _, v := range violations {
 		if strings.Contains(v.Message, "Required target") {
 			missingCount++
 		}
 	}
-	if missingCount != 13 {
-		t.Errorf("expected 13 missing target violations, got %d", missingCount)
+	if missingCount != 14 {
+		t.Errorf("expected 14 missing target violations, got %d", missingCount)
 	}
 }
 
@@ -471,7 +483,7 @@ func TestCheckMakefileStructure_MissingCheckTarget(t *testing.T) {
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help start stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui
+.PHONY: help start stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui
 
 .DEFAULT_GOAL := help
 
@@ -500,6 +512,8 @@ start: ## Start
 	@echo "Starting..."
 stop: ## Stop
 	@echo "Stopping..."
+restart: ## Restart
+	@echo "Restarting..."
 test: ## Test
 	@echo "Testing..."
 logs: ## Logs

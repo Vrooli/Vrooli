@@ -1,6 +1,6 @@
 {
   "initiative": "ai-image-generation-foundation",
-  "generated_at": "2026-04-24T01:47:55Z",
+  "generated_at": "2026-04-26T03:02:10Z",
   "nodes": [
     {
       "id": "research/openai-image-gen-validation",
@@ -40,6 +40,16 @@
       "status": "backlog",
       "priority": 3,
       "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/image-storage-location-decision",
+      "kind": "execute",
+      "name": "image-storage-location-decision",
+      "title": "Lock image storage location for swarm-manager generated mockups",
+      "status": "backlog",
+      "priority": 1,
+      "effort": "S",
       "archived": false
     }
   ],

@@ -1,29 +1,30 @@
 ### Skill picked this heartbeat
-- `documentation-health` — top of revisit queue: #1 popular (26 unique inbound consumers), never visited, mature.
+- `skill-principles` — top of revisit queue: 29 unique inbound consumers (largest skill fanout in current audit; central to all leader-*, plan-skill-discovery, every skill-authoring* variant, morning-vision-walk), never previously visited.
 
 ### Disposition
-- **no-action** — skill is healthy and already well-factored; trim opportunity is real but too small relative to coverage-loss risk across 26 consumers.
+- **improve** — propose §3 duplication trim.
 
 ### Baseline
-- Tokens: ~3,500 (364 lines / 13,876 chars)
-- Inbound: 26 unique consumers (46 total edges)
-- Health: 0.81
+- Tokens: ~1,960 (171 lines / 7,831 chars)
+- Inbound: 29 unique consumers
+- Health: 0.65 (only flag is generic external-tooling warning over legitimate `cli:jq` + `cli:prompt-manager`)
 - Drift age: fresh (first visit)
-- Section 4 (reference-format examples) is the only non-trivial trim target: 71 lines / ~675 tokens / 3 language examples + protective-comments box. Trimmable to ~300 tokens (~375 × 26 consumers = ~9.7K tokens per full-fanout load).
+- Trim target: §3 has both a 6-row category table AND an isomorphic decision-tree code block immediately below it — ~580 chars / ~145 tokens / 16 lines of literal duplication.
 
 ### Expected delta (if change proposed)
-- None proposed this heartbeat. Rationale: section 4 is a canonical format spec for `[CODE:]/[DOC:]/[REQ:]` references that 26 agents depend on; trimming examples risks downstream misuse of the format. Fails contrarian failure mode 4 (churn-without-clear-benefit) when weighed against that risk.
-- Already thin-wrapped: sections 6 (`knowledge-observatory docs audit`) and 11 (`knowledge-observatory docs templates|template`).
-- Not a conversion candidate: no CLI currently exposes the layout/reference-format/manifest schemas as emitted content, and creating one would trade in-context stable spec for a runtime call on every read.
+- Per read: ~1,960 → ~1,815 tokens (−7.4%).
+- Per full-fanout load (29 consumers): ~4,200 tokens saved.
+- Information loss: zero (table strictly more informative — preserves the optimization-axis column the tree omits).
+- Measurement: pre/post `wc -c` (7,831 → ~7,250), graph health holds ≥0.65, 14-heartbeat revisit confirms no consumer added a workaround for the missing tree.
 
 ### Artifacts updated
-- SKILL_AUDIT.md: added documentation-health row (no-action); reordered revisit queue (skill-principles → #1)
-- PROGRAMMATIC_CONVERSION_QUEUE.md: unchanged
-- DEPRECATION_QUEUE.md: unchanged
+- SKILL_AUDIT.md: skill-principles row added (improve); revisit queue reordered (visited-tracker-tools → #1, skill-principles moved to recently-visited slot).
+- PROGRAMMATIC_CONVERSION_QUEUE.md: unchanged (rejected — judgment-irreducible).
+- DEPRECATION_QUEUE.md: unchanged (rejected — 29 consumers).
 
 ### Decisions raised this heartbeat
-- None (no-action disposition). Prior pending `dec-1776982635141465033` (swarm-manager-backlog-tools trim) still open — unrelated, not superseded.
+- `dec-1777155425370344769` · `skill-improvement` · Trim skill-principles §3 duplicate decision-tree (keep the table).
 
 ### Knowledge entries written
-- `knw-1777069018339300070` · `skill-visited/documentation-health` (first visit; no prior to supersede)
-- `knw-1777069027821885714` · `skill-audit-2026-04-24` (supersedes `knw-1776982619949185628` / skill-audit-2026-04-23)
+- `knw-1777155390747515665` · `skill-visited/skill-principles` (first visit; no prior to supersede)
+- `knw-1777155399201273952` · `skill-audit-2026-04-25` (supersedes `knw-1777069027821885714` / skill-audit-2026-04-24)

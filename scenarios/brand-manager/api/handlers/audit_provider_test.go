@@ -187,6 +187,82 @@ func TestGetAuditRulesResponseFormat(t *testing.T) {
 	}
 }
 
+// [REQ:BM-REQ-AUDIT-PROVIDER] Single-rule evaluation via ?rule= filter.
+func TestEvaluateScenarioSingleRuleReturnsOneResult(t *testing.T) {
+	_, router, brandRepo, _, assignRepo := setupMockServer(t)
+
+	brandRepo.Seed(&domain.Brand{
+		ID: "b1", Name: "B", Version: 1,
+		Identity: &domain.Identity{DisplayName: "B", LogoPath: "/logo.png"},
+	})
+	assignRepo.Create(nil, &domain.Assignment{
+		ID: "a1", BrandID: "b1", ScenarioName: "s1", BrandVersion: 1,
+	})
+
+	req := httptest.NewRequest("POST", "/api/v1/audit/evaluate/s1?rule=has-logo", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Results []struct {
+			RuleID string `json:"rule_id"`
+			Pass   bool   `json:"pass"`
+		} `json:"results"`
+	}
+	json.NewDecoder(w.Body).Decode(&resp)
+
+	if len(resp.Results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(resp.Results))
+	}
+	if resp.Results[0].RuleID != "has-logo" {
+		t.Errorf("rule_id = %q, want has-logo", resp.Results[0].RuleID)
+	}
+	if !resp.Results[0].Pass {
+		t.Error("has-logo should pass for brand with LogoPath")
+	}
+}
+
+// [REQ:BM-REQ-AUDIT-PROVIDER] Unknown rule ID returns 400.
+func TestEvaluateScenarioUnknownRuleReturns400(t *testing.T) {
+	_, router, _, _, _ := setupMockServer(t)
+
+	req := httptest.NewRequest("POST", "/api/v1/audit/evaluate/some-scenario?rule=does-not-exist", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400; body: %s", w.Code, w.Body.String())
+	}
+}
+
+// [REQ:BM-REQ-AUDIT-PROVIDER] Backward-compat: no rule param evaluates all rules.
+func TestEvaluateScenarioNoRuleParamReturnsAllResults(t *testing.T) {
+	_, router, _, _, _ := setupMockServer(t)
+
+	req := httptest.NewRequest("POST", "/api/v1/audit/evaluate/some-scenario", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+
+	var resp struct {
+		Results []struct {
+			RuleID string `json:"rule_id"`
+		} `json:"results"`
+	}
+	json.NewDecoder(w.Body).Decode(&resp)
+
+	if len(resp.Results) != 5 {
+		t.Errorf("expected 5 results, got %d", len(resp.Results))
+	}
+}
+
 func TestEvaluateScenarioPartialBrand(t *testing.T) {
 	_, router, brandRepo, _, assignRepo := setupMockServer(t)
 

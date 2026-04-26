@@ -202,6 +202,9 @@ type AddDecisionRequest struct {
 	Topic       string                 `json:"topic,omitempty"`
 	Description string                 `json:"description,omitempty"`
 	Options     []store.DecisionOption `json:"options,omitempty"`
+	// InitiativeMetadata may be set only when Context == "initiative-proposal".
+	// Drives initiative auto-creation on decision-accept.
+	InitiativeMetadata *store.DecisionInitiativeMetadata `json:"initiative_metadata,omitempty"`
 }
 
 // UpdateDecisionRequest is the request body for updating a decision.
@@ -224,6 +227,20 @@ type UpdateDecisionRequest struct {
 	// RevisitAfter is an ISO-8601 date (YYYY-MM-DD). Required when transitioning
 	// to status=deferred; otherwise ignored.
 	RevisitAfter *string `json:"revisit_after,omitempty"`
+	// InitiativeMetadata may be set/replaced any number of times before first
+	// accept; immutable post-accept. Only valid on decisions whose
+	// context == "initiative-proposal".
+	InitiativeMetadata *store.DecisionInitiativeMetadata `json:"initiative_metadata,omitempty"`
+	// AutoCreateStatus is operator-writable post-accept solely to record the
+	// d8=C manual-recovery outcome (allowed transition: failed → created or
+	// failed → failed). Setting "created" requires AutoCreateInitiativeRef.
+	AutoCreateStatus *string `json:"auto_create_status,omitempty"`
+	// AutoCreateError accompanies a failed→failed transition with an updated
+	// reason; ignored otherwise.
+	AutoCreateError *string `json:"auto_create_error,omitempty"`
+	// AutoCreateInitiativeRef is the "<scenario>/<name>" reference set
+	// alongside AutoCreateStatus="created".
+	AutoCreateInitiativeRef *string `json:"auto_create_initiative_ref,omitempty"`
 }
 
 // --- Knowledge API models ---

@@ -1,0 +1,21 @@
+{
+  "created": "2026-04-26T03:02:18Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "Define the contract for how generated mockup images travel from swarm-manager decisions to ecosystem-manager when handing off a new scenario. Without this contract locked, decision-image-handoff-propagation cannot ship — it currently says 'resolve image_url values into persistent references' without specifying the shape.\n\nMust resolve: (1) does the handoff manifest carry image URLs, base64 data URIs, or file copies into the scenario directory? (2) where in the scenario directory are images placed (docs/mockups/? .vrooli/mockups/?)? (3) how are images referenced from PRD.md / requirements docs that the scenario authors generate from? (4) backward-compat for handoffs without images.\n\nOutput: schema doc + update to decision-image-handoff-propagation acceptance criteria. Coordinate with ecosystem-manager team if any consumer-side change is needed.\n\nWhy now: Same failure mode as brand-manager rollout — planning context didn't reach the scenario. Lock the contract before the propagation item executes. Surfaced during 2026-04-25 vision-walk audit.",
+  "effort": "S",
+  "initiative": "decision-visual-grounding-propagation",
+  "kind": "execute",
+  "name": "decision-image-handoff-manifest-schema",
+  "priority": 1,
+  "status": "backlog",
+  "tags": [
+    "image-gen",
+    "handoff",
+    "plumbing",
+    "decision-lock"
+  ],
+  "title": "Specify image-data shape in ecosystem-manager handoff manifest",
+  "updated": "2026-04-26T03:02:18Z"
+}

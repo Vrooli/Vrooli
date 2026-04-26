@@ -233,8 +233,10 @@ func joinContinuationLines(lines []string) []string {
 // extractCustomTargets parses an existing Makefile and returns targets not in the canonical set.
 func extractCustomTargets(content string) []customTarget {
 	canonical := canonicalTargetSet()
-	// Also exclude common shortcut targets that appear in the shortcuts section.
-	shortcuts := map[string]struct{}{"dev": {}, "restart": {}, "rebuild": {}}
+	// Also exclude alias-only shortcut targets that appear in the shortcuts
+	// section. `restart` is intentionally NOT here — it's a real lifecycle
+	// verb and now part of the canonical template.
+	shortcuts := map[string]struct{}{"dev": {}, "rebuild": {}}
 
 	// Join continuation lines so multi-line target definitions and prerequisites
 	// are properly parsed as single logical lines.

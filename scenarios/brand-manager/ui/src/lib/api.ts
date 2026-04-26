@@ -294,12 +294,54 @@ export async function fetchGenerateOptions(): Promise<GenerateOptionsResult> {
 
 // --- Standards --- [REQ:BM-REQ-API-STANDARDS]
 
+export interface StandardRule {
+  id: string;
+  name: string;
+  description: string;
+  severity: string;
+  category?: string;
+  target_files?: string[];
+  detailed_description?: string;
+  passing_example?: string;
+  failing_example?: string;
+  fix_instructions?: string;
+  severity_rationale?: string;
+}
+
 export interface StandardsResult {
-  rules: { id: string; name: string; description: string; severity: string }[];
+  rules: StandardRule[];
 }
 
 export async function fetchStandards(): Promise<StandardsResult> {
   return handleResponse(await fetch(buildApiUrl("/standards", { baseUrl: API_BASE })));
+}
+
+/** Single rule evaluation result matching the brand-manager `/audit/evaluate` server response. */
+export interface RuleEvalItem {
+  rule_id: string;
+  pass: boolean;
+  severity: string;
+  message: string;
+}
+
+export interface RuleEvalResult {
+  scenario: string;
+  results: RuleEvalItem[];
+}
+
+/** Evaluate a single rule against a scenario via `?rule=<id>`. [REQ:BM-REQ-AUDIT-ENDPOINT] */
+export async function evaluateRule(scenario: string, ruleId: string): Promise<RuleEvalResult> {
+  const url = buildApiUrl(
+    `/audit/evaluate/${encodeURIComponent(scenario)}?rule=${encodeURIComponent(ruleId)}`,
+    { baseUrl: API_BASE },
+  );
+  return jsonMutate(url, "POST", {});
+}
+
+/** Evaluate all rules against a scenario. Returns the same shape as evaluateRule. */
+export async function evaluateAllRules(scenario: string): Promise<RuleEvalResult> {
+  const url = buildApiUrl(`/audit/evaluate/${encodeURIComponent(scenario)}`, { baseUrl: API_BASE });
+  return jsonMutate(url, "POST", {});
 }
 
 // --- Scanner --- [REQ:BM-REQ-SCAN-CSS] [REQ:BM-REQ-SCAN-JSON]

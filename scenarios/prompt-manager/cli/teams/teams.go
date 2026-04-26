@@ -200,10 +200,26 @@ type DecisionEntry struct {
 	Options     []DecisionOption `json:"options,omitempty"`
 	Selected    string           `json:"selected,omitempty"`
 	Freeform    string           `json:"freeform,omitempty"`
-	Notes              string                 `json:"notes,omitempty"`
-	Modifications      *DecisionModifications `json:"modifications,omitempty"`
-	RevisitAfter       *string                `json:"revisit_after,omitempty"`
-	AcceptedAsProposed bool                   `json:"accepted_as_proposed,omitempty"`
+	Notes                   string                      `json:"notes,omitempty"`
+	Modifications           *DecisionModifications      `json:"modifications,omitempty"`
+	RevisitAfter            *string                     `json:"revisit_after,omitempty"`
+	AcceptedAsProposed      bool                        `json:"accepted_as_proposed,omitempty"`
+	InitiativeMetadata      *DecisionInitiativeMetadata `json:"initiative_metadata,omitempty"`
+	AutoCreateStatus        string                      `json:"auto_create_status,omitempty"`
+	AutoCreateError         string                      `json:"auto_create_error,omitempty"`
+	AutoCreateInitiativeRef string                      `json:"auto_create_initiative_ref,omitempty"`
+}
+
+// DecisionInitiativeMetadata mirrors the API store struct of the same name.
+// Carried on decisions whose context is "initiative-proposal"; consumed by
+// the API at decision-accept time to auto-create a swarm-manager initiative.
+// Contract: docs/reference/decision-initiative-proposal-contract.md.
+type DecisionInitiativeMetadata struct {
+	Name           string   `json:"name"`
+	Priority       int      `json:"priority,omitempty"`
+	DependsOn      []string `json:"depends_on,omitempty"`
+	TargetScenario string   `json:"target_scenario,omitempty"`
+	Title          string   `json:"title,omitempty"`
 }
 
 // DecisionModifications is a structured, scoped exception an operator attaches
@@ -224,14 +240,15 @@ type DecisionListResponse struct {
 
 // AddDecisionRequest is the request body for adding a decision.
 type AddDecisionRequest struct {
-	By          string           `json:"by"`
-	Decision    string           `json:"decision"`
-	Rationale   string           `json:"rationale"`
-	Context     string           `json:"context,omitempty"`
-	Supersedes  string           `json:"supersedes,omitempty"`
-	Topic       string           `json:"topic,omitempty"`
-	Description string           `json:"description,omitempty"`
-	Options     []DecisionOption `json:"options,omitempty"`
+	By                 string                      `json:"by"`
+	Decision           string                      `json:"decision"`
+	Rationale          string                      `json:"rationale"`
+	Context            string                      `json:"context,omitempty"`
+	Supersedes         string                      `json:"supersedes,omitempty"`
+	Topic              string                      `json:"topic,omitempty"`
+	Description        string                      `json:"description,omitempty"`
+	Options            []DecisionOption            `json:"options,omitempty"`
+	InitiativeMetadata *DecisionInitiativeMetadata `json:"initiative_metadata,omitempty"`
 }
 
 // KnowledgeEntry represents a knowledge log entry.
@@ -2557,12 +2574,14 @@ func cmdDecisionAdd(ctx appctx.Context, args []string) error {
 	topic := fs.String("topic", "", "What is being decided (multi-option mode, required with --options)")
 	description := fs.String("description", "", "Background/context for the decision (multi-option mode)")
 	options := fs.String("options", "", `JSON array of options, e.g. '[{"key":"A","label":"Option A","rationale":"Why A","recommended":true}]'`)
+	initiativeMetadataInline := fs.String("initiative-metadata", "", `Structured initiative metadata for context=initiative-proposal decisions, as JSON: '{"name":"my-init","priority":5,"depends_on":["..."],"target_scenario":"swarm-manager","title":"..."}'`)
+	initiativeMetadataFile := fs.String("initiative-metadata-file", "", "Path to a JSON file containing the same payload as --initiative-metadata (mutually exclusive)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: team decision-add <team-id> --by=<id> [--decision=\"...\" --rationale=\"...\"] [--topic=\"...\" --description=\"...\" --options='[...]']")
+		return fmt.Errorf("usage: team decision-add <team-id> --by=<id> [--decision=\"...\" --rationale=\"...\"] [--topic=\"...\" --description=\"...\" --options='[...]'] [--initiative-metadata='{...}']")
 	}
 	teamID := fs.Arg(0)
 
@@ -2570,11 +2589,22 @@ func cmdDecisionAdd(ctx appctx.Context, args []string) error {
 		return fmt.Errorf("by is required")
 	}
 
+	provided := map[string]bool{}
+	fs.Visit(func(f *flag.Flag) { provided[f.Name] = true })
+	meta, err := loadInitiativeMetadataFromFlags(provided, *initiativeMetadataInline, *initiativeMetadataFile)
+	if err != nil {
+		return err
+	}
+	if meta != nil && *contextTag != "initiative-proposal" {
+		return fmt.Errorf("--initiative-metadata is only valid when --context=initiative-proposal")
+	}
+
 	req := AddDecisionRequest{
-		By:         *by,
-		Context:    *contextTag,
-		Supersedes: *supersedes,
-		Rationale:  *rationale,
+		By:                 *by,
+		Context:            *contextTag,
+		Supersedes:         *supersedes,
+		Rationale:          *rationale,
+		InitiativeMetadata: meta,
 	}
 
 	if strings.TrimSpace(*options) != "" {
@@ -2731,28 +2761,37 @@ func cmdDecisionUpdate(ctx appctx.Context, args []string) error {
 	selected := fs.String("selected", "", "Selected option key (use __other__ with --freeform for write-in)")
 	freeform := fs.String("freeform", "", "Freeform answer when --selected=__other__")
 	notes := fs.String("notes", "", "Operator notes attached to the decision")
+	initiativeMetadataInline := fs.String("initiative-metadata", "", `Update structured initiative metadata, as JSON. Pre-accept only.`)
+	initiativeMetadataFile := fs.String("initiative-metadata-file", "", "Path to a JSON file containing the same payload as --initiative-metadata (mutually exclusive)")
+	autoCreateStatus := fs.String("auto-create-status", "", "Set auto_create_status (manual-recovery: failed→created or failed→failed)")
+	autoCreateRef := fs.String("auto-create-initiative-ref", "", "Initiative reference (\"<scenario>/<name>\") set alongside --auto-create-status=created")
+	autoCreateError := fs.String("auto-create-error", "", "Updated error message for failed→failed re-record (optional)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: team decision-update <team-id> <decision-id> [--decision=...] [--rationale=...] [--context=...] [--status=...] [--supersedes=...] [--topic=...] [--description=...] [--options='[...]'] [--selected=...] [--freeform=...] [--notes=...]")
+		return fmt.Errorf("usage: team decision-update <team-id> <decision-id> [--decision=...] [--rationale=...] [--context=...] [--status=...] [--supersedes=...] [--topic=...] [--description=...] [--options='[...]'] [--selected=...] [--freeform=...] [--notes=...] [--initiative-metadata='{...}'] [--auto-create-status=created --auto-create-initiative-ref=<ref>]")
 	}
 	teamID := fs.Arg(0)
 	decisionID := fs.Arg(1)
 
 	type updateReq struct {
-		Decision    *string           `json:"decision,omitempty"`
-		Rationale   *string           `json:"rationale,omitempty"`
-		Context     *string           `json:"context,omitempty"`
-		Status      *string           `json:"status,omitempty"`
-		Supersedes  *string           `json:"supersedes,omitempty"`
-		Topic       *string           `json:"topic,omitempty"`
-		Description *string           `json:"description,omitempty"`
-		Options     *[]DecisionOption `json:"options,omitempty"`
-		Selected    *string           `json:"selected,omitempty"`
-		Freeform    *string           `json:"freeform,omitempty"`
-		Notes       *string           `json:"notes,omitempty"`
+		Decision                *string                     `json:"decision,omitempty"`
+		Rationale               *string                     `json:"rationale,omitempty"`
+		Context                 *string                     `json:"context,omitempty"`
+		Status                  *string                     `json:"status,omitempty"`
+		Supersedes              *string                     `json:"supersedes,omitempty"`
+		Topic                   *string                     `json:"topic,omitempty"`
+		Description             *string                     `json:"description,omitempty"`
+		Options                 *[]DecisionOption           `json:"options,omitempty"`
+		Selected                *string                     `json:"selected,omitempty"`
+		Freeform                *string                     `json:"freeform,omitempty"`
+		Notes                   *string                     `json:"notes,omitempty"`
+		InitiativeMetadata      *DecisionInitiativeMetadata `json:"initiative_metadata,omitempty"`
+		AutoCreateStatus        *string                     `json:"auto_create_status,omitempty"`
+		AutoCreateInitiativeRef *string                     `json:"auto_create_initiative_ref,omitempty"`
+		AutoCreateError         *string                     `json:"auto_create_error,omitempty"`
 	}
 
 	// Track which flags were explicitly set so that empty-string values can
@@ -2802,14 +2841,37 @@ func cmdDecisionUpdate(ctx appctx.Context, args []string) error {
 		req.Notes = notes
 	}
 
+	// initiative-metadata: mutually-exclusive flag pair, parsed via shared helper.
+	meta, err := loadInitiativeMetadataFromFlags(provided, *initiativeMetadataInline, *initiativeMetadataFile)
+	if err != nil {
+		return err
+	}
+	if meta != nil {
+		req.InitiativeMetadata = meta
+	}
+
+	// auto-create-status manual-recovery flags (per d8=C). Status is the
+	// gate; ref/error only meaningful when status is set.
+	if provided["auto-create-status"] {
+		req.AutoCreateStatus = autoCreateStatus
+	}
+	if provided["auto-create-initiative-ref"] {
+		req.AutoCreateInitiativeRef = autoCreateRef
+	}
+	if provided["auto-create-error"] {
+		req.AutoCreateError = autoCreateError
+	}
+
 	// Reject a no-op call early — a PATCH with no fields is almost certainly a typo.
 	if req.Decision == nil && req.Rationale == nil && req.Context == nil && req.Status == nil &&
 		req.Supersedes == nil && req.Topic == nil && req.Description == nil && req.Options == nil &&
-		req.Selected == nil && req.Freeform == nil && req.Notes == nil {
+		req.Selected == nil && req.Freeform == nil && req.Notes == nil &&
+		req.InitiativeMetadata == nil && req.AutoCreateStatus == nil &&
+		req.AutoCreateInitiativeRef == nil && req.AutoCreateError == nil {
 		return fmt.Errorf("decision-update requires at least one field flag")
 	}
 
-	var resp DecisionEntry
+	var resp UpdateDecisionResponse
 	if err := ctx.Put(fmt.Sprintf("/teams/%s/decisions/%s", teamID, decisionID), req, &resp); err != nil {
 		return fmt.Errorf("failed to update decision: %w", err)
 	}
@@ -2829,7 +2891,130 @@ func cmdDecisionUpdate(ctx appctx.Context, args []string) error {
 		selectedStr = fmt.Sprintf(" selected=%s", resp.Selected)
 	}
 	fmt.Printf("Updated decision %s%s%s\n", resp.ID, statusStr, selectedStr)
+	fprintAutoCreateOutcome(os.Stdout, resp.AutoCreateOutcome)
 	return nil
+}
+
+// parseInitiativeMetadataJSON parses a JSON payload into a
+// DecisionInitiativeMetadata. CLI-boundary validation mirrors the API's
+// policy (kebab-case name, priority bounds) so operators get fast errors.
+// Server-side validation remains authoritative.
+func parseInitiativeMetadataJSON(data []byte) (*DecisionInitiativeMetadata, error) {
+	trimmed := strings.TrimSpace(string(data))
+	if trimmed == "" {
+		return nil, fmt.Errorf("payload is empty")
+	}
+	dec := json.NewDecoder(strings.NewReader(trimmed))
+	dec.DisallowUnknownFields()
+	var m DecisionInitiativeMetadata
+	if err := dec.Decode(&m); err != nil {
+		return nil, fmt.Errorf("invalid JSON: %w", err)
+	}
+	if strings.TrimSpace(m.Name) == "" {
+		return nil, fmt.Errorf("name is required")
+	}
+	if m.Priority != 0 && (m.Priority < 1 || m.Priority > 10) {
+		return nil, fmt.Errorf("priority %d must be 0 (unset) or in 1-10", m.Priority)
+	}
+	for i, d := range m.DependsOn {
+		if strings.TrimSpace(d) == "" {
+			return nil, fmt.Errorf("depends_on[%d] must be a non-empty string", i)
+		}
+	}
+	return &m, nil
+}
+
+// loadInitiativeMetadataFromFlags reads --initiative-metadata or
+// --initiative-metadata-file (mutually exclusive) and returns the parsed
+// metadata or nil when neither was supplied.
+func loadInitiativeMetadataFromFlags(provided map[string]bool, inline, filePath string) (*DecisionInitiativeMetadata, error) {
+	if provided["initiative-metadata"] && provided["initiative-metadata-file"] {
+		return nil, fmt.Errorf("--initiative-metadata and --initiative-metadata-file are mutually exclusive")
+	}
+	switch {
+	case provided["initiative-metadata"]:
+		m, err := parseInitiativeMetadataJSON([]byte(inline))
+		if err != nil {
+			return nil, fmt.Errorf("--initiative-metadata: %w", err)
+		}
+		return m, nil
+	case provided["initiative-metadata-file"]:
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			return nil, fmt.Errorf("--initiative-metadata-file: %w", err)
+		}
+		m, err := parseInitiativeMetadataJSON(data)
+		if err != nil {
+			return nil, fmt.Errorf("--initiative-metadata-file: %w", err)
+		}
+		return m, nil
+	}
+	return nil, nil
+}
+
+// AutoCreateOutcome mirrors the API response field returned alongside
+// decision-update / decision-accept when an `initiative-proposal` decision
+// is accepted. The CLI renders this as the structured "Auto-Created
+// Initiative" block (per d9=A).
+type AutoCreateOutcome struct {
+	Status             string `json:"status"`
+	InitiativeRef      string `json:"initiative_ref,omitempty"`
+	Error              string `json:"error,omitempty"`
+	WorkaroundCommand  string `json:"workaround_command,omitempty"`
+	ResolveCommand     string `json:"resolve_command,omitempty"`
+	DescriptionTmpFile string `json:"description_tmp_file,omitempty"`
+	TargetScenario     string `json:"target_scenario,omitempty"`
+	InitiativeName     string `json:"initiative_name,omitempty"`
+	Priority           int    `json:"priority,omitempty"`
+}
+
+// UpdateDecisionResponse extends DecisionEntry with an optional
+// AutoCreateOutcome payload (set when an initiative-proposal decision is
+// accepted). Mirrors the API response shape.
+type UpdateDecisionResponse struct {
+	DecisionEntry
+	AutoCreateOutcome *AutoCreateOutcome `json:"auto_create_outcome,omitempty"`
+}
+
+// fprintAutoCreateOutcome renders the structured auto-create block per d9=A.
+// Success: shows ref + get/edit hints + a "Reminder:" to enrich the initiative.
+// Failure: shows the error and the pre-filled workaround + resolve commands.
+func fprintAutoCreateOutcome(w io.Writer, o *AutoCreateOutcome) {
+	if o == nil {
+		return
+	}
+	fmt.Fprintln(w, "Auto-Created Initiative:")
+	if o.Status == "created" {
+		if o.InitiativeName != "" {
+			fmt.Fprintf(w, "  Name:        %s\n", o.InitiativeName)
+		}
+		if o.Priority != 0 {
+			fmt.Fprintf(w, "  Priority:    %d\n", o.Priority)
+		}
+		target := o.TargetScenario
+		if target == "" {
+			target = "swarm-manager"
+		}
+		fmt.Fprintf(w, "  Inspect:     %s initiatives get --name %s\n", target, o.InitiativeName)
+		fmt.Fprintf(w, "  Edit:        %s initiatives update --name %s ...\n", target, o.InitiativeName)
+		fmt.Fprintln(w, "Reminder: enrich the initiative (description, members, additional depends_on) as needed.")
+		return
+	}
+	// Failure path: print exact workaround + resolve commands.
+	fmt.Fprintf(w, "  Status: failed (%s)\n", o.Error)
+	fmt.Fprintln(w)
+	if o.WorkaroundCommand != "" {
+		fmt.Fprintln(w, "To create the initiative manually, run:")
+		fmt.Fprintf(w, "  %s\n", o.WorkaroundCommand)
+		if o.DescriptionTmpFile != "" {
+			fmt.Fprintf(w, "  (description body materialised to %s)\n", o.DescriptionTmpFile)
+		}
+		fmt.Fprintln(w)
+	}
+	if o.ResolveCommand != "" {
+		fmt.Fprintln(w, "Once created, mark the decision as resolved:")
+		fmt.Fprintf(w, "  %s\n", o.ResolveCommand)
+	}
 }
 
 // parseDecisionModificationsJSON parses a JSON payload into a
@@ -2969,7 +3154,7 @@ func cmdDecisionAccept(ctx appctx.Context, args []string) error {
 		req.Modifications = mods
 	}
 
-	var resp DecisionEntry
+	var resp UpdateDecisionResponse
 	if err := ctx.Put(fmt.Sprintf("/teams/%s/decisions/%s", teamID, decisionID), req, &resp); err != nil {
 		return fmt.Errorf("failed to accept decision: %w", err)
 	}
@@ -2981,10 +3166,11 @@ func cmdDecisionAccept(ctx appctx.Context, args []string) error {
 	}
 
 	if resp.AcceptedAsProposed || singleProposal {
-		fmt.Printf("Accepted decision %s as proposed.\n", resp.ID)
+		fmt.Printf("Decision %s accepted (as proposed).\n", resp.ID)
 	} else {
-		fmt.Printf("Accepted decision %s: selected=%s\n", resp.ID, resp.Selected)
+		fmt.Printf("Decision %s accepted (selected: %s).\n", resp.ID, resp.Selected)
 	}
+	fprintAutoCreateOutcome(os.Stdout, resp.AutoCreateOutcome)
 	return nil
 }
 
@@ -3230,6 +3416,48 @@ func formatDecisionShow(w io.Writer, entry DecisionEntry) {
 		}
 	}
 	fprintDecisionModifications(w, entry.Modifications)
+	fprintInitiativeMetadata(w, entry.InitiativeMetadata)
+	fprintAutoCreateStatus(w, entry)
+}
+
+// fprintInitiativeMetadata renders the structured initiative_metadata block
+// on `initiative-proposal` decisions. Empty metadata renders nothing.
+func fprintInitiativeMetadata(w io.Writer, m *DecisionInitiativeMetadata) {
+	if m == nil {
+		return
+	}
+	fmt.Fprintln(w, "Initiative Metadata:")
+	fmt.Fprintf(w, "  Name:            %s\n", m.Name)
+	if m.Title != "" {
+		fmt.Fprintf(w, "  Title:           %s\n", m.Title)
+	}
+	if m.Priority != 0 {
+		fmt.Fprintf(w, "  Priority:        %d\n", m.Priority)
+	}
+	if len(m.DependsOn) > 0 {
+		fmt.Fprintf(w, "  Depends on:      %s\n", strings.Join(m.DependsOn, ", "))
+	}
+	target := m.TargetScenario
+	if target == "" {
+		target = "swarm-manager (default)"
+	}
+	fmt.Fprintf(w, "  Target scenario: %s\n", target)
+}
+
+// fprintAutoCreateStatus renders the auto_create_status block when a status
+// has been recorded (created / failed / pending).
+func fprintAutoCreateStatus(w io.Writer, entry DecisionEntry) {
+	if entry.AutoCreateStatus == "" {
+		return
+	}
+	fmt.Fprintln(w, "Auto-Create Status:")
+	fmt.Fprintf(w, "  Status:    %s\n", entry.AutoCreateStatus)
+	if entry.AutoCreateInitiativeRef != "" {
+		fmt.Fprintf(w, "  Reference: %s\n", entry.AutoCreateInitiativeRef)
+	}
+	if entry.AutoCreateError != "" {
+		fmt.Fprintf(w, "  Error:     %s\n", entry.AutoCreateError)
+	}
 }
 
 func fprintDecisionModifications(w io.Writer, m *DecisionModifications) {

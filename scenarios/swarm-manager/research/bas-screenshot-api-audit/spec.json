@@ -1,0 +1,21 @@
+{
+  "created": "2026-04-26T03:02:26Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "Confirm whether browser-automation-studio exposes the screenshot capture API/CLI surface required by bas-grounded-mockup-integration. The integration item assumes BAS has commands to (a) load a URL or scenario UI, (b) capture a viewport or element screenshot, (c) return a path/URL/base64 for downstream image-generation reference input.\n\nSearch BAS public CLI, public API, and any documented MCP/SDK surfaces. If the surface exists, document the call signatures. If not, identify the gap and either (1) file a backlog item against BAS to add the surface, or (2) propose an alternative grounding mechanism.\n\nOutput: research conclusion under scenarios/swarm-manager/research/bas-screenshot-api-audit/conclusion.md with: existing surface inventory, gap list (if any), and clear go/no-go for bas-grounded-mockup-integration. Update orchestration-summary.md.\n\nWhy now: Hidden blocker — bas-grounded-mockup-integration depends on BAS having capabilities that haven't been verified. Cheaper to audit now than during execute. Surfaced during 2026-04-25 vision-walk audit. Note: this also intersects with the broader BAS-readiness initiative discussion (#22 plus competitive-intel substrate work) — findings here may inform BAS-readiness scope.",
+  "effort": "S",
+  "initiative": "decision-visual-grounding-propagation",
+  "kind": "research",
+  "name": "bas-screenshot-api-audit",
+  "priority": 1,
+  "status": "backlog",
+  "tags": [
+    "bas",
+    "image-gen",
+    "audit",
+    "research"
+  ],
+  "title": "Audit BAS screenshot capture API/CLI surface for grounding flow",
+  "updated": "2026-04-26T03:02:26Z"
+}

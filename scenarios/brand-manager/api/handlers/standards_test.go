@@ -97,3 +97,48 @@ func TestStandardRuleSeverities(t *testing.T) {
 		t.Errorf("has-typography severity: expected 'info', got %q", s)
 	}
 }
+
+// [REQ:BM-REQ-API-STANDARDS] [REQ:BM-REQ-AUDIT-RULES]
+func TestGetStandardsReturnsAllMetadataFields(t *testing.T) {
+	h := handlers.New(&mocks.BrandRepository{}, &mocks.VersionRepository{}, &mocks.AssignmentRepository{})
+
+	req := httptest.NewRequest("GET", "/api/v1/standards", nil)
+	w := httptest.NewRecorder()
+	h.GetStandards(w, req)
+
+	var resp struct {
+		Rules []struct {
+			ID                  string   `json:"id"`
+			TargetFiles         []string `json:"target_files"`
+			DetailedDescription string   `json:"detailed_description"`
+			PassingExample      string   `json:"passing_example"`
+			FailingExample      string   `json:"failing_example"`
+			FixInstructions     string   `json:"fix_instructions"`
+			SeverityRationale   string   `json:"severity_rationale"`
+		} `json:"rules"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+
+	for _, r := range resp.Rules {
+		if len(r.TargetFiles) == 0 {
+			t.Errorf("rule %s: target_files must not be empty", r.ID)
+		}
+		if r.DetailedDescription == "" {
+			t.Errorf("rule %s: detailed_description must not be empty", r.ID)
+		}
+		if r.PassingExample == "" {
+			t.Errorf("rule %s: passing_example must not be empty", r.ID)
+		}
+		if r.FailingExample == "" {
+			t.Errorf("rule %s: failing_example must not be empty", r.ID)
+		}
+		if r.FixInstructions == "" {
+			t.Errorf("rule %s: fix_instructions must not be empty", r.ID)
+		}
+		if r.SeverityRationale == "" {
+			t.Errorf("rule %s: severity_rationale must not be empty", r.ID)
+		}
+	}
+}

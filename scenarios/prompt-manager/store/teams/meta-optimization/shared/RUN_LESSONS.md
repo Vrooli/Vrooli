@@ -51,3 +51,30 @@ Durable lessons extracted from agent-manager runs by `run-introspector`. One run
 - **Secondary.** This is the second tier-contamination lesson in two heartbeats (yesterday: tier-1 false-positives from `detectRateLimit`; today: tier-3 false-positives from approval lag). If a third surfaces, the contrarian should consider a `framework-update` formalizing tier-signal-contamination as a standing failure mode.
 
 **Status.** pending (awaits team-agent-optimizer pickup).
+
+---
+
+### 2026-04-25 · `cab1c399-9a3e-4b12-99e4-6a21dcb69ddb` · `swarm-manager:backlog:execute:prompt-manager-decision-deferral-primitive:process` · errored
+
+**Lesson.** The triage ladder's tier-1 ("errored") signal is contaminated by a third class: **transient upstream-API failures**. Runs that fail purely because Anthropic returned `5xx Overloaded` carry no meta-layer signal — there is no skill, agent prompt, or team-config edit that would have prevented the failure. Investigating these as tier-1 wastes a heartbeat. This is the third tier-contamination class in three heartbeats (after tier-1 `detectRateLimit` false-positives and tier-3 approval-lag artifacts).
+
+**What happened.** Run `cab1c399` (sandboxed, opus, requires_approval=true, fallback_runner_types=[CLAUDE_CODE, CODEX]) ran for 203,961 ms (~3.4 min) on a 1-turn execution before claude-code terminated with `is_error=true (subtype=success, turns=1)`. The assistant message and error event both contain the literal payload: *"API Error: 529 Overloaded. This is a server-side issue, usually temporary — try again in a moment. If it persists, check status.claude.com."* Run was marked `RUN_STATUS_FAILED`. The declared codex fallback never engaged (the runner's terminate-on-error path does not honor `fallback_runner_types` when claude-code returns `is_error=true` with `subtype=success`). The single FAILED run in this 78-run window; no other tier-1 candidates.
+
+**Implicated.**
+- **Meta-layer (in lane):** `scenarios/prompt-manager/store/teams/meta-optimization/members/run-introspector/HEARTBEAT.md` — "Required Loop" step 3 / "Reasoning Framework" tier-1. The current tier-1 verification gate (proposed in `dec-1777069916962818847`) only handles `exit_code=429 + substantive completion text`. It does not handle 5xx upstream-overload failures.
+- **Scenario-qa lane (noted, not actioned by this lesson):** agent-manager's claude-code runner terminate-on-error path does not engage `fallback_runner_types` on transient `5xx Overloaded` responses, despite the run config declaring `[CLAUDE_CODE, CODEX]` as fallbacks. Likely callsite: the same `claude_code.go` runner that owns `detectRateLimit` (yesterday's lesson). The `subtype=success` from claude-code masks the upstream API failure so the orchestrator doesn't see it as a retryable error.
+
+**Proposed change.**
+- **Meta-layer:** Extend run-introspector's HEARTBEAT.md tier-1 gate (currently scoped to 429 false-positives) to also exclude **transient upstream-API failures**: if the run's terminal error message matches `API Error: 5\d\d (Overloaded|Internal|Bad Gateway|Service Unavailable|Gateway Timeout)` AND `summary.turns_used <= 1`, reclassify as tier-5 (random-success-with-transient-failure), record the transient failure in RUN_LESSONS.md, continue walking the ladder. The two gates can share one prose paragraph or be separate bullets — team-agent-optimizer's call.
+- **Scenario-qa (separate lane, separate concern):** Note in RUN_LESSONS.md that claude-code runner's terminate-on-error path should honor `fallback_runner_types` when the underlying error is a transient 5xx from Anthropic. Not raised as a meta-optimization decision (out of lane); surfaced here for visibility.
+- **Standing pattern:** With this third tier-contamination lesson, the contrarian should evaluate `framework-update` for "tier-signal-contamination" as a standing failure mode. Three classes now: (1) tier-1 detectRateLimit false-positives, (2) tier-3 approval-lag wall-clock artifacts, (3) tier-1 transient-API-failure runs. All three share the same shape: triage tier fires correctly per its literal definition but the underlying signal is environmental, not agent-behavioral. Not raising the framework update myself — that's contrarian's lane.
+
+**Handoff.** `team-agent-optimizer` — extend the tier-1 gate edit (already pending in `dec-1777069916962818847`) to also cover 5xx transient-API failures, OR add a separate gate paragraph if cleaner. Either works; team-agent-optimizer to choose.
+
+**Measurement plan.**
+- **Baseline.** 1/78 (~1.3%) of completed runs in this window are pure-transient-5xx failures (`cab1c399`). Across multiple windows the rate is unknown but expected non-zero given Anthropic 5xx rates; this lesson's value scales with that rate.
+- **Post-change.** Future heartbeats encountering a 5xx-only tier-1 run should mark it "tier-1 transient-API-failure (skipped)" rather than open a full lesson. Grep RUN_LESSONS.md 7 heartbeats from now (2026-05-02) — count of tier-1 lessons opened on `API Error: 5xx Overloaded`-only runs should be 0.
+- **Standing-pattern watch.** This lesson is the third tier-contamination class. If a fourth surfaces, the contrarian's `framework-update` is overdue.
+- **Secondary (out-of-lane).** When/if scenario-qa fixes the runner to engage `fallback_runner_types` on 5xx, 1-turn-5xx-failure rate drops toward 0 and the gate becomes a no-op (still correct, no removal).
+
+**Status.** pending (awaits team-agent-optimizer pickup; coordinates with `dec-1777069916962818847`).

@@ -18,7 +18,7 @@ import { AgentColorBadge } from '@/components/shared/AgentColorBadge'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { formatRelativePastTime } from '@/lib/timeUtils'
 import * as heartbeatService from '@/services/heartbeatService'
-import type { DecisionEntry, DecisionModifications } from '@/services/heartbeatService'
+import type { DecisionEntry, DecisionModifications, AutoCreateOutcome } from '@/services/heartbeatService'
 
 interface DecisionLogViewProps {
   teamId: string
@@ -363,6 +363,43 @@ function MultiOptionCard({
         </div>
       )}
 
+      {/* Read-only rendering of initiative metadata + auto-create status. */}
+      {entry.initiative_metadata && (
+        <div className="mt-1.5 border-l-2 border-sky-500/40 pl-2 space-y-0.5">
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Initiative Metadata</div>
+          <div className="text-[11px]"><span className="text-muted-foreground">Name:</span> {entry.initiative_metadata.name}</div>
+          {entry.initiative_metadata.title && (
+            <div className="text-[11px]"><span className="text-muted-foreground">Title:</span> {entry.initiative_metadata.title}</div>
+          )}
+          {entry.initiative_metadata.priority ? (
+            <div className="text-[11px]"><span className="text-muted-foreground">Priority:</span> {entry.initiative_metadata.priority}</div>
+          ) : null}
+          {entry.initiative_metadata.depends_on && entry.initiative_metadata.depends_on.length > 0 && (
+            <div className="text-[11px]"><span className="text-muted-foreground">Depends on:</span> {entry.initiative_metadata.depends_on.join(', ')}</div>
+          )}
+          <div className="text-[11px]">
+            <span className="text-muted-foreground">Target:</span> {entry.initiative_metadata.target_scenario || 'swarm-manager'}
+          </div>
+        </div>
+      )}
+      {entry.auto_create_status && (
+        <div className={cn(
+          'mt-1.5 border-l-2 pl-2 space-y-0.5',
+          entry.auto_create_status === 'created' ? 'border-emerald-500/50' : 'border-red-500/50'
+        )}>
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Auto-Create</div>
+          <div className="text-[11px]">
+            <span className="text-muted-foreground">Status:</span> {entry.auto_create_status}
+          </div>
+          {entry.auto_create_initiative_ref && (
+            <div className="text-[11px]"><span className="text-muted-foreground">Reference:</span> {entry.auto_create_initiative_ref}</div>
+          )}
+          {entry.auto_create_error && (
+            <div className="text-[11px] text-red-300">{entry.auto_create_error}</div>
+          )}
+        </div>
+      )}
+
       {/* Actions: save selection + delete */}
       <div className="flex items-center gap-1 mt-2">
         {isModified && localSelected && (
@@ -430,6 +467,11 @@ export function DecisionLogView({ teamId, members, allAgents, decisionMode }: De
 
   // Mutation loading for accept/reject
   const [statusLoading, setStatusLoading] = useState<string | null>(null)
+
+  // Auto-create outcome notice — surfaced after accepting an
+  // initiative-proposal decision. Carries success/failure plus the pre-filled
+  // manual-recovery commands on failure (per d8=C + d9=A).
+  const [autoCreateNotice, setAutoCreateNotice] = useState<{ decisionId: string; outcome: AutoCreateOutcome } | null>(null)
 
   const loadEntries = useCallback(async () => {
     try {
@@ -501,7 +543,10 @@ export function DecisionLogView({ teamId, members, allAgents, decisionMode }: De
     setStatusLoading(entry.id)
     clearMutationError()
     try {
-      await heartbeatService.updateDecision(teamId, entry.id, { status })
+      const resp = await heartbeatService.updateDecision(teamId, entry.id, { status })
+      if (resp.auto_create_outcome) {
+        setAutoCreateNotice({ decisionId: entry.id, outcome: resp.auto_create_outcome })
+      }
       void loadEntries()
     } catch (err) {
       console.error('[DecisionLogView] Failed to update decision status:', err)
@@ -521,17 +566,40 @@ export function DecisionLogView({ teamId, members, allAgents, decisionMode }: De
     setStatusLoading(entry.id)
     clearMutationError()
     try {
-      await heartbeatService.updateDecision(teamId, entry.id, {
+      const resp = await heartbeatService.updateDecision(teamId, entry.id, {
         selected: key,
         freeform: freeform ?? null,
         notes: notes ?? null,
         status: 'accepted',
         ...(modifications ? { modifications } : {}),
       })
+      if (resp.auto_create_outcome) {
+        setAutoCreateNotice({ decisionId: entry.id, outcome: resp.auto_create_outcome })
+      }
       void loadEntries()
     } catch (err) {
       console.error('[DecisionLogView] Failed to select option:', err)
       setMutationError(err instanceof Error ? err.message : 'Failed to select option')
+    } finally {
+      setStatusLoading(null)
+    }
+  }
+
+  // markAutoCreateResolved flips a failed auto-create to created after the
+  // operator has run the manual workaround command (per d8=C).
+  const markAutoCreateResolved = async (decisionId: string, ref: string) => {
+    setStatusLoading(decisionId)
+    clearMutationError()
+    try {
+      await heartbeatService.updateDecision(teamId, decisionId, {
+        auto_create_status: 'created',
+        auto_create_initiative_ref: ref,
+      })
+      setAutoCreateNotice(null)
+      void loadEntries()
+    } catch (err) {
+      console.error('[DecisionLogView] Failed to mark auto-create resolved:', err)
+      setMutationError(err instanceof Error ? err.message : 'Failed to mark resolved')
     } finally {
       setStatusLoading(null)
     }
@@ -667,6 +735,71 @@ export function DecisionLogView({ teamId, members, allAgents, decisionMode }: De
           <button onClick={clearMutationError} className="text-muted-foreground hover:text-foreground">
             <X className="h-3 w-3" />
           </button>
+        </div>
+      )}
+
+      {/* Auto-create outcome banner: surfaces success + reminder, or failure
+          with copy-pasteable workaround commands and a "Mark as resolved"
+          affordance bound to decision-update auto_create_status=created. */}
+      {autoCreateNotice && (
+        <div className={cn(
+          'border rounded-lg px-3 py-2 text-xs space-y-2',
+          autoCreateNotice.outcome.status === 'created'
+            ? 'border-emerald-500/30 bg-emerald-500/5'
+            : 'border-red-500/30 bg-red-500/5'
+        )}>
+          <div className="flex items-center justify-between">
+            <span className="font-semibold">
+              Auto-Created Initiative — {autoCreateNotice.outcome.status}
+            </span>
+            <button onClick={() => setAutoCreateNotice(null)} className="text-muted-foreground hover:text-foreground">
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+          {autoCreateNotice.outcome.status === 'created' && (
+            <div>
+              <div>Reference: <code>{autoCreateNotice.outcome.initiative_ref}</code></div>
+              <div className="text-muted-foreground mt-1">
+                Reminder: enrich the initiative (description, members, additional depends_on) as needed.
+              </div>
+            </div>
+          )}
+          {autoCreateNotice.outcome.status !== 'created' && (
+            <div className="space-y-2">
+              {autoCreateNotice.outcome.error && (
+                <div className="text-red-300">{autoCreateNotice.outcome.error}</div>
+              )}
+              {autoCreateNotice.outcome.workaround_command && (
+                <div>
+                  <div className="text-muted-foreground mb-1">To create the initiative manually, run:</div>
+                  <pre className="bg-muted/50 rounded p-2 overflow-x-auto text-[11px]">{autoCreateNotice.outcome.workaround_command}</pre>
+                  {autoCreateNotice.outcome.description_tmp_file && (
+                    <div className="text-[10px] text-muted-foreground mt-1">
+                      (description body materialised to {autoCreateNotice.outcome.description_tmp_file})
+                    </div>
+                  )}
+                </div>
+              )}
+              {autoCreateNotice.outcome.resolve_command && (
+                <div>
+                  <div className="text-muted-foreground mb-1">Once created, mark the decision as resolved:</div>
+                  <pre className="bg-muted/50 rounded p-2 overflow-x-auto text-[11px]">{autoCreateNotice.outcome.resolve_command}</pre>
+                </div>
+              )}
+              {autoCreateNotice.outcome.target_scenario && autoCreateNotice.outcome.initiative_name && (
+                <button
+                  onClick={() => void markAutoCreateResolved(
+                    autoCreateNotice.decisionId,
+                    `${autoCreateNotice.outcome.target_scenario}/${autoCreateNotice.outcome.initiative_name}`,
+                  )}
+                  disabled={statusLoading === autoCreateNotice.decisionId}
+                  className="text-xs px-3 py-1 rounded-md bg-emerald-600 text-white font-medium hover:bg-emerald-500 disabled:opacity-50"
+                >
+                  Mark as resolved
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 

@@ -1,39 +1,38 @@
 ### Runs in window
-- Errored: 0
-- Retried: 0 (no retry pattern detected in tag groups since last heartbeat)
-- Slow: 25 (all wall-clock outliers — investigation revealed all are approval-lag artifacts, not true slow runs)
+- Errored: 1
+- Retried: 0
+- Slow: 1 (`e15d9639` work-duration 15,865s, swarm-manager backlog execute brand-manager-rule-detail-ux — not picked; tier-1 wins)
 - User-flagged: 0
-- Successful: 98
-- Running: 1 (this heartbeat)
+- Successful: 72 complete + 3 needs-review + 2 still running
 
 ### Run picked this heartbeat
-- Run ID: `564191ef-e1b4-4328-b21c-c83999676123`
-- Agent: `swarm-manager:initiative:rev-trigger:review:round-001` (sandboxed, opus, requires_approval=true)
-- Triage tier: slow (tier-3) — but the investigation reclassified the entire cluster as a tier-3 *contamination* class
+- Run ID: `cab1c399-9a3e-4b12-99e4-6a21dcb69ddb`
+- Agent: `swarm-manager:backlog:execute:prompt-manager-decision-deferral-primitive:process` (sandboxed, opus, fallback_runner_types=[CLAUDE_CODE, CODEX])
+- Triage tier: errored (tier-1)
 
 ### What happened
-The longest run by wall-clock (81,648s ≈ 22h44m) actually performed only ~15s of agent work: `last_heartbeat - started_at = 15s`, 1 turn, 27,523 tokens, $0.09. `ended_at = approved_at` (2026-04-24T21:09:57Z), and 25 same-tag runs ended within ~7 seconds of each other from start times spanning 22h — the operator batch-cleared the approval queue in one sweep. Cross-checked with `86f4378d` (same tag, identical agent work, 13s wall-clock because approval landed in 2ms): wall-clock spread is ~6,000× from approval-lag variance alone.
+Run failed after 1 turn / 203,961ms with `API Error: 529 Overloaded. This is a server-side issue, usually temporary`. claude-code returned `is_error=true subtype=success`; declared codex fallback never engaged. Sole `RUN_STATUS_FAILED` in a 78-run window.
 
 ### Implicated
-- `scenarios/prompt-manager/store/teams/meta-optimization/members/run-introspector/HEARTBEAT.md` — "Reasoning Framework" tier-3 ("Slow") defines "duration" without qualifier; the natural reading (and what triage used) is wall-clock, which is contaminated by operator latency whenever `requires_approval=true`.
+- **Meta (in lane):** `run-introspector/HEARTBEAT.md` tier-1 — currently-pending gate (`dec-1777069916962818847`) covers only 429-false-positives, not 5xx-transient failures with `turns_used<=1`.
+- **Scenario-qa (out of lane, noted in RUN_LESSONS.md only):** claude-code runner's terminate-on-error path does not engage `fallback_runner_types` on transient 5xx; `subtype=success` masks the upstream API failure as non-retryable.
 
 ### Proposed lesson
-- Redefine tier-3 "duration" as work-duration (`last_heartbeat - started_at`), exclude `requires_approval=true` runs and `turns_used<=1 AND cost_estimate<$0.20` from slow triage.
-- Handoff to: **team-agent-optimizer** (HEARTBEAT.md edit). Underlying agent-manager `ended_at` semantics are correct as-is; not a code bug.
+- Extend the already-pending tier-1 gate to also reclassify `API Error: 5xx Overloaded/...` 1-turn runs as tier-5.
+- Handoff to: **team-agent-optimizer** (HEARTBEAT.md edit; coordinate with `dec-1777069916962818847`).
 
 ### Measurement plan
-- Baseline: 25/98 (~25%) of successful runs in this window are approval-lag artifacts on a single tag with median work-duration ~15s but median wall-clock 64,462s (~4,300× discrepancy).
-- Post-edit: future tier-3 picks should not surface `requires_approval=true` 1-turn runs.
-- Revisit: 2026-05-01 (7 heartbeats) — grep RUN_LESSONS.md for offending picks; expected 0.
-- Standing-pattern watch: this is the second tier-contamination lesson in two heartbeats (after tier-1 `detectRateLimit`). If a third surfaces, contrarian should consider a `framework-update` formalizing tier-signal-contamination.
+- Baseline: 1/78 (~1.3%) of completed runs in this window are pure-transient-5xx failures.
+- 2026-05-02 (7 HBs): grep RUN_LESSONS.md → 0 tier-1 lessons opened on `API Error: 5xx`-only runs.
+- **Standing pattern.** Third tier-contamination class in three heartbeats (tier-1 detectRateLimit, tier-3 approval-lag, tier-1 5xx-transient). All same shape: triage fires per definition; signal is environmental, not agent-behavioral. Per `dec-1777070860432410408`'s standing-pattern note, contrarian should now evaluate `framework-update` for "tier-signal-contamination" as a standing failure mode. Not raised by me (out of lane).
 
 ### Decisions raised this heartbeat
-- `dec-1777070860432410408` · `run-lesson` · tier-3 work-duration redefinition for run-introspector HEARTBEAT.md → team-agent-optimizer
-- (1 of ≤2 cap used; no second decision — depth over breadth, no separate capability-gap warranted since the fix is meta-layer prose)
+- `dec-1777157323547139809` · `run-lesson` · tier-1 gate extension to cover 5xx-transient-API failures → team-agent-optimizer
+- (1 of ≤2 cap used; no second decision — pure-scenario-qa observation noted in RUN_LESSONS.md without a decision since it falls outside run-introspector's owned contexts)
 
 ### Knowledge entries written
-- `knw-1777070838911919368` · topic `run-lessons-2026-04-24` (supersedes `run-lessons-2026-04-23`)
+- `knw-1777157297255514121` · topic `run-lessons-2026-04-25` (supersedes `run-lessons-2026-04-24`)
 
 ### Supersession check
-- Prior pending `dec-1776984436121140045` (tier-1 detectRateLimit gate) is **additive**, not redundant, with today's decision — different tier, different gate, both edits land in HEARTBEAT.md "Reasoning Framework". No supersession.
-- Team queue at 4 pending (well under 12-ceiling); read-only mode not triggered.
+- Prior `dec-1777070860432410408` (tier-3 work-duration) and `dec-1777069916962818847` (tier-1 429-FP) both pending; this decision is **additive** (different sub-class within tier-1 / different tier). No supersession.
+- Team queue: 6 → 7 pending; under 12-ceiling. Read-only mode not triggered.

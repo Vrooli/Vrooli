@@ -474,6 +474,32 @@ type DecisionModifications struct {
 	Rationale       string   `json:"rationale,omitempty"`
 }
 
+// Auto-create status constants for `initiative-proposal` decisions.
+const (
+	AutoCreateStatusUnset   = ""
+	AutoCreateStatusPending = "pending"
+	AutoCreateStatusCreated = "created"
+	AutoCreateStatusFailed  = "failed"
+)
+
+// DecisionContextInitiativeProposal is the well-known context tag that
+// triggers initiative auto-creation on decision-accept.
+const DecisionContextInitiativeProposal = "initiative-proposal"
+
+// DecisionInitiativeMetadata is the structured block carried on a decision
+// whose context is `initiative-proposal`. It is the authoritative source of
+// the initiative's identity (name, priority, depends_on, target scenario)
+// and is consumed at decision-accept time to construct the swarm-manager
+// initiative. Immutable once the decision has been accepted.
+// Contract: see docs/reference/decision-initiative-proposal-contract.md.
+type DecisionInitiativeMetadata struct {
+	Name           string   `json:"name"`                       // initiative name (kebab-case)
+	Priority       int      `json:"priority,omitempty"`         // 0 (unset) or 1-10
+	DependsOn      []string `json:"depends_on,omitempty"`       // initiative name refs
+	TargetScenario string   `json:"target_scenario,omitempty"`  // e.g. "swarm-manager"
+	Title          string   `json:"title,omitempty"`            // optional override; default = decision topic
+}
+
 // DecisionEntry represents a recorded decision in the team's decision log.
 type DecisionEntry struct {
 	ID            string                 `json:"id"`
@@ -496,6 +522,17 @@ type DecisionEntry struct {
 	// was accepted without picking from a list. Selected/Freeform stay empty
 	// in this case; this flag is the explicit, queryable marker.
 	AcceptedAsProposed bool `json:"accepted_as_proposed,omitempty"`
+	// InitiativeMetadata is set when Context == "initiative-proposal" and
+	// drives initiative auto-creation on accept. Immutable post-accept.
+	InitiativeMetadata *DecisionInitiativeMetadata `json:"initiative_metadata,omitempty"`
+	// AutoCreateStatus tracks whether the auto-create attempt succeeded.
+	// One of: "" (unset), "pending", "created", "failed".
+	AutoCreateStatus string `json:"auto_create_status,omitempty"`
+	// AutoCreateError carries the failure reason when AutoCreateStatus="failed".
+	AutoCreateError string `json:"auto_create_error,omitempty"`
+	// AutoCreateInitiativeRef is the "<scenario>/<name>" reference of the
+	// successfully created initiative.
+	AutoCreateInitiativeRef string `json:"auto_create_initiative_ref,omitempty"`
 }
 
 // --- Knowledge Log ---

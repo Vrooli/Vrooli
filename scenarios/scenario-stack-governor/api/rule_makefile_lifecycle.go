@@ -102,27 +102,33 @@ func RunMakefileLifecycle(ctx context.Context, repoRoot, scenarioName string) (r
 }
 
 // CheckMakefileLifecycle validates lifecycle targets adhere to the expected implementation.
+//
+// The rule only enforces that each lifecycle target ultimately invokes the canonical
+// `vrooli scenario <verb>` command. User-facing output (banners, status messages,
+// colors) is owned by the CLI itself, not by per-scenario Makefiles, so we no
+// longer require a specific @echo line in the recipe.
 func CheckMakefileLifecycle(content string, filepath string) ([]MakefileLifecycleViolation, error) {
 	data := parseLifecycleMakefile(content)
 	var violations []MakefileLifecycleViolation
 
-	violations = append(violations, lifecycleValidateTarget(data, filepath, "start", canonicalMessageForTarget("start"), lifecycleMatchStartCommand)...)
-	violations = append(violations, lifecycleValidateTarget(data, filepath, "stop", canonicalMessageForTarget("stop"), lifecycleMatchStopCommand)...)
-	violations = append(violations, lifecycleValidateTarget(data, filepath, "test", canonicalMessageForTarget("test"), lifecycleMatchTestCommand)...)
-	violations = append(violations, lifecycleValidateTarget(data, filepath, "logs", canonicalMessageForTarget("logs"), lifecycleMatchLogsCommand)...)
-	violations = append(violations, lifecycleValidateTarget(data, filepath, "status", canonicalMessageForTarget("status"), lifecycleMatchStatusCommand)...)
+	violations = append(violations, lifecycleValidateTarget(data, filepath, "start", lifecycleMatchStartCommand)...)
+	violations = append(violations, lifecycleValidateTarget(data, filepath, "stop", lifecycleMatchStopCommand)...)
+	violations = append(violations, lifecycleValidateTarget(data, filepath, "restart", lifecycleMatchRestartCommand)...)
+	violations = append(violations, lifecycleValidateTarget(data, filepath, "test", lifecycleMatchTestCommand)...)
+	violations = append(violations, lifecycleValidateTarget(data, filepath, "logs", lifecycleMatchLogsCommand)...)
+	violations = append(violations, lifecycleValidateTarget(data, filepath, "status", lifecycleMatchStatusCommand)...)
 
 	return violations, nil
 }
 
-func lifecycleValidateTarget(data lifecycleMakefileData, path, target string, canonicalMessage string, matcher lifecycleCommandMatcher) []MakefileLifecycleViolation {
+func lifecycleValidateTarget(data lifecycleMakefileData, path, target string, matcher lifecycleCommandMatcher) []MakefileLifecycleViolation {
 	var violations []MakefileLifecycleViolation
 	rawRecipe := data.targets[target]
 	recipe := lifecycleNormalize(rawRecipe)
 	canonical := canonicalCommandForTarget(target)
 	if len(recipe) == 0 {
 		line := lifecycleFindLine(data.lines, target+":")
-		recommendation := fmt.Sprintf("Define the %s target with the canonical echo and '%s'.", target, canonical)
+		recommendation := fmt.Sprintf("Define the %s target with '%s'.", target, canonical)
 		violations = append(violations, newLifecycleViolation(
 			path,
 			line,
@@ -134,60 +140,37 @@ func lifecycleValidateTarget(data lifecycleMakefileData, path, target string, ca
 		return violations
 	}
 
-	expectedEcho := canonicalEchoForMessage(canonicalMessage)
-	if ok, line, observed := lifecycleHasCanonicalMessage(data, rawRecipe, expectedEcho); !ok {
-		recommendation := fmt.Sprintf("Replace the echo line with '%s'.", expectedEcho)
-		if line == 0 {
-			switch {
-			case observed != "":
-				line = lifecycleFindLine(data.lines, observed)
-			default:
-				line = lifecycleFindRecipeLineContaining(data, target, rawRecipe, "echo")
-			}
-		}
-
-		message := fmt.Sprintf("%s target must echo '%s'", target, expectedEcho)
-		if observed != "" {
-			message = fmt.Sprintf("%s target must echo '%s' (found '%s')", target, expectedEcho, observed)
-		}
-
-		violations = append(violations, newLifecycleViolation(
-			path,
-			line,
-			target,
-			message,
-			"makefile_lifecycle_message",
-			recommendation,
-		))
+	if matcher == nil {
+		return violations
 	}
 
-	if matcher != nil {
-		hasCommand, observed := lifecycleHasCommand(recipe, matcher)
-		if !hasCommand {
-			recommendation := fmt.Sprintf("Replace the command with '%s'.", canonical)
+	hasCommand, observed := lifecycleHasCommand(recipe, matcher)
+	if hasCommand {
+		return violations
+	}
 
-			line := lifecycleFindRecipeLineContaining(data, target, rawRecipe, "vrooli", "scenario")
-			if observed != "" {
-				if candidate := lifecycleFindLine(data.lines, observed); candidate != 1 {
-					line = candidate
-				}
-			}
+	recommendation := fmt.Sprintf("Replace the command with '%s'.", canonical)
 
-			message := fmt.Sprintf("%s target must execute '%s'", target, canonical)
-			if observed != "" {
-				message = fmt.Sprintf("%s target must execute '%s' (found '%s')", target, canonical, observed)
-			}
-
-			violations = append(violations, newLifecycleViolation(
-				path,
-				line,
-				target,
-				message,
-				"makefile_lifecycle_command",
-				recommendation,
-			))
+	line := lifecycleFindRecipeLineContaining(data, target, rawRecipe, "vrooli", "scenario")
+	if observed != "" {
+		if candidate := lifecycleFindLine(data.lines, observed); candidate != 1 {
+			line = candidate
 		}
 	}
+
+	message := fmt.Sprintf("%s target must execute '%s'", target, canonical)
+	if observed != "" {
+		message = fmt.Sprintf("%s target must execute '%s' (found '%s')", target, canonical, observed)
+	}
+
+	violations = append(violations, newLifecycleViolation(
+		path,
+		line,
+		target,
+		message,
+		"makefile_lifecycle_command",
+		recommendation,
+	))
 
 	return violations
 }
@@ -310,29 +293,14 @@ func lifecycleLooksLikeAssignment(token string) bool {
 	return true
 }
 
-func canonicalMessageForTarget(target string) string {
-	switch target {
-	case "start":
-		return "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
-	case "stop":
-		return "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
-	case "test":
-		return "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
-	case "logs":
-		return "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"
-	case "status":
-		return "$(BLUE)📊 Status of $(SCENARIO_NAME):$(RESET)"
-	default:
-		return target
-	}
-}
-
 func canonicalCommandForTarget(target string) string {
 	switch target {
 	case "start":
 		return "vrooli scenario start $(SCENARIO_NAME)"
 	case "stop":
 		return "vrooli scenario stop $(SCENARIO_NAME)"
+	case "restart":
+		return "vrooli scenario restart $(SCENARIO_NAME)"
 	case "test":
 		return "vrooli scenario test $(SCENARIO_NAME)"
 	case "logs":
@@ -350,6 +318,10 @@ func lifecycleMatchStartCommand(tokens []string) bool {
 
 func lifecycleMatchStopCommand(tokens []string) bool {
 	return lifecycleMatchScenarioVerb(tokens, "stop")
+}
+
+func lifecycleMatchRestartCommand(tokens []string) bool {
+	return lifecycleMatchScenarioVerb(tokens, "restart")
 }
 
 func lifecycleMatchTestCommand(tokens []string) bool {
@@ -401,38 +373,6 @@ func lifecycleMatchScenarioVerb(tokens []string, verb string) bool {
 func lifecycleMatchesScenarioToken(token string) bool {
 	trimmed := strings.Trim(token, "\"'")
 	return trimmed == "$(SCENARIO_NAME)" || trimmed == "${SCENARIO_NAME}"
-}
-
-func lifecycleHasCanonicalMessage(data lifecycleMakefileData, rawRecipe []string, expectedEcho string) (bool, int, string) {
-	var firstEchoLine int
-	var firstEchoText string
-
-	for _, raw := range rawRecipe {
-		trimmed := strings.TrimSpace(raw)
-		if trimmed == "" {
-			continue
-		}
-		sanitized := lifecycleTrimRecipePrefixes(trimmed)
-
-		if strings.HasPrefix(sanitized, "echo ") && firstEchoText == "" {
-			firstEchoText = sanitized
-			firstEchoLine = lifecycleFindLine(data.lines, trimmed)
-		}
-
-		if normalizeVarSyntax(sanitized) == normalizeVarSyntax(expectedEcho) {
-			return true, lifecycleFindLine(data.lines, trimmed), sanitized
-		}
-	}
-
-	if firstEchoLine == 0 && firstEchoText != "" {
-		firstEchoLine = lifecycleFindLine(data.lines, firstEchoText)
-	}
-
-	return false, firstEchoLine, firstEchoText
-}
-
-func canonicalEchoForMessage(message string) string {
-	return fmt.Sprintf("echo \"%s\"", message)
 }
 
 func lifecycleTrimRecipePrefixes(line string) string {
@@ -525,14 +465,6 @@ func parseLifecycleMakefile(content string) lifecycleMakefileData {
 	}
 
 	return data
-}
-
-// normalizeVarSyntax converts Make ${VAR} syntax to $(VAR) for comparison.
-// Both forms are valid in Make, so rules should accept either.
-var makeVarCurlyBrace = regexp.MustCompile(`\$\{([^}]+)\}`)
-
-func normalizeVarSyntax(s string) string {
-	return makeVarCurlyBrace.ReplaceAllString(s, "$($1)")
 }
 
 func lifecycleFindLine(lines []string, needle string) int {

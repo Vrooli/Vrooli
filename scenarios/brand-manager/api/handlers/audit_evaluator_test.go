@@ -10,7 +10,7 @@ import (
 // [REQ:BM-REQ-AUDIT-RULES] [REQ:BM-REQ-AUDIT-PROVIDER]
 
 func TestEvaluateRules_NilBrand(t *testing.T) {
-	results := evaluateRules(nil, "no brand assigned")
+	results := evaluateRules(ruleEvaluators, nil, "no brand assigned")
 	if len(results) != len(ruleEvaluators) {
 		t.Fatalf("expected %d results, got %d", len(ruleEvaluators), len(results))
 	}
@@ -43,7 +43,7 @@ func TestEvaluateRules_CompleteBrand(t *testing.T) {
 		},
 	}
 
-	results := evaluateRules(brand, "")
+	results := evaluateRules(ruleEvaluators, brand, "")
 	for _, r := range results {
 		if !r.Pass {
 			t.Errorf("rule %s should pass for complete brand, msg: %s", r.RuleID, r.Message)
@@ -69,7 +69,7 @@ func TestEvaluateRules_PartialBrand_MissingLogo(t *testing.T) {
 		},
 	}
 
-	results := evaluateRules(brand, "")
+	results := evaluateRules(ruleEvaluators, brand, "")
 	for _, r := range results {
 		if r.RuleID == "has-logo" {
 			if r.Pass {
@@ -84,7 +84,7 @@ func TestEvaluateRules_PartialBrand_MissingLogo(t *testing.T) {
 func TestEvaluateRules_MinimalBrand_NoIdentity(t *testing.T) {
 	brand := &domain.Brand{Name: "Bare"}
 
-	results := evaluateRules(brand, "")
+	results := evaluateRules(ruleEvaluators, brand, "")
 	passing := 0
 	for _, r := range results {
 		if r.Pass {
