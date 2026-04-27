@@ -1,0 +1,76 @@
+---
+title: "Security Posture"
+description: "Authentication, authorization, secrets, and abuse-resistance posture"
+category: "internal"
+order: 104
+audience: ["developers", "operators"]
+internal: true
+---
+
+# Security Posture
+
+The user-facing security surface is also covered by `docs/reference/SECURITY.md`. This document is the **internal** view: where the trust boundaries live, what we deliberately accept as a risk, and what would constitute a regression.
+
+## Trust boundaries
+
+```
+                  ┌── Cloudflare/nginx ─── TLS termination
+                  │
+   public ───────►│
+                  ├── /api/v1/landing-config, /api/v1/plans, /api/v1/branding,
+                  │   /api/v1/metrics/track, /api/v1/waitlist, /api/feedback
+                  │   (NO auth — rate-limited only at infra)
+                  │
+                  ├── /api/v1/auth/*           (public; internal rate limiter, 5 / 15 min)
+                  │
+                  ├── /api/v1/me/*, /api/v1/ai/*, /api/v1/downloads,
+                  │   /api/v1/billing/portal-url, /api/v1/usage/{summary,check}
+                  │   (requireUserAuth — JWT)
+                  │
+                  ├── /api/v1/admin/*          (requireAdmin — cookie session)
+                  │
+                  ├── /api/v1/admin/remote-profiles{,/{id}/test,/{id}/proxy},
+                  │   /api/v1/admin/download-artifacts/{presign-upload,commit},
+                  │   /api/v1/admin/download-assets/apply,
+                  │   /api/v1/deploy-readiness
+                  │   (requireAdminOrService — admin cookie OR service bearer)
+                  │
+                  ├── /api/v1/usage/report     (service bearer only)
+                  │
+                  └── /api/v1/webhooks/stripe  (Stripe signature verification)
+```
+
+## Authentication mechanisms
+
+| Mechanism | Used for | Storage | Rotation |
+|-----------|----------|---------|----------|
+| **bcrypt password + cookie session** | Admin (operator) | `admin_sessions` row + `Set-Cookie` HttpOnly | Manual via admin profile page |
+| **Magic-link → JWT (access + refresh)** | End users | `auth_tokens`, `user_sessions`; refresh token rotates on use | Refresh-on-use; revocation flips `user_sessions.revoked` |
+| **Service bearer token** | s2s (CLI, sister scenarios) | Env var on the caller; verified against an HMAC of a shared secret | Manual; rotate via lifecycle env update |
+| **Stripe webhook signature** | Stripe → us | n/a (header-based) | Per Stripe key rotation |
+
+## Secrets handling
+
+- Secrets are read from env vars first, then from `~/.vrooli/secrets.json` (lifecycle "Secrets Tab"). They are **never** read from a tracked file.
+- Stripe restricted keys are preferred (`docs/reference/STRIPE_RESTRICTED_KEYS.md`).
+- Remote-profile sessions are encrypted-at-rest in `remote_profiles.encrypted_session`. The key lives in env, not in the DB.
+- The admin reset endpoint (`/api/v1/admin/reset-demo-data`) does **not** wipe `admin_users` — credentials persist across resets.
+
+## Authorization model
+
+- **Admin:** flat. Anyone with the admin cookie can do anything under `/api/v1/admin/*`. No per-row scoping yet.
+- **End user:** scoped to `users.id`. `/api/v1/me/*` always operates on the JWT subject; cross-user reads return `404` (not `403`) to avoid existence oracles.
+- **Service bearer:** narrow allowlist of routes (see `requireAdminOrService` and `requireServiceAuth` call sites). Not a general-purpose admin substitute.
+
+## Abuse resistance
+
+- Magic-link request rate limiter: 5 / 15 min per normalized email (`magicLinkLimiter`).
+- Stripe webhook signature is verified before any body parsing.
+- Idempotent webhook + idempotent credit reservation prevent replay-based credit inflation.
+- Anomaly dispatcher emits an alert + audit row when intro-coupon usage, refund cadence, or other heuristics breach threshold (`payment_anomaly_log`).
+
+## Known gaps (acknowledged, not "broken")
+
+- No CSRF token on cookie-authenticated endpoints — admin portal is same-origin and uses a `SameSite=Lax` cookie. If an admin-portal subdomain is ever served separately, this needs to change.
+- No 2FA on admin login.
+- Service bearer is HMAC of a static secret, not a JWT — fine for a small s2s mesh, would not scale to many callers.

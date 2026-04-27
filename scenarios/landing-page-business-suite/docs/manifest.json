@@ -14,12 +14,6 @@
           "title": "Quick Start",
           "description": "Get your first landing page running in 5 minutes",
           "audience": ["users", "developers"]
-        },
-        {
-          "path": "FAQ.md",
-          "title": "FAQ",
-          "description": "Frequently asked questions",
-          "audience": ["users", "developers"]
         }
       ]
     },
@@ -56,6 +50,12 @@
           "path": "guides/TROUBLESHOOTING.md",
           "title": "Troubleshooting",
           "description": "Solutions for common issues",
+          "audience": ["users", "developers"]
+        },
+        {
+          "path": "guides/faq.md",
+          "title": "FAQ",
+          "description": "Frequently asked questions",
           "audience": ["users", "developers"]
         }
       ]
@@ -165,11 +165,60 @@
       ]
     },
     {
+      "id": "integrations",
+      "title": "Integrations",
+      "icon": "link",
+      "documents": [
+        {
+          "path": "integrations/subscription-entitlements-system.md",
+          "title": "Subscription Entitlements",
+          "description": "How subscription entitlements integrate with downloads + AI gateway",
+          "audience": ["developers"]
+        }
+      ]
+    },
+    {
       "id": "internal",
       "title": "Internal",
       "icon": "lock",
       "visibility": "developers-only",
       "documents": [
+        {
+          "path": "internal/ASSUMPTIONS.md",
+          "title": "Assumptions",
+          "description": "Operating assumptions the implementation relies on",
+          "internal": true
+        },
+        {
+          "path": "internal/COHERENCE-NOTES.md",
+          "title": "Coherence Notes",
+          "description": "Where the codebase + docs are intentionally out of step, and why",
+          "internal": true
+        },
+        {
+          "path": "internal/ERROR-SEMANTICS.md",
+          "title": "Error Semantics",
+          "description": "How the API signals failure modes to clients and operators",
+          "internal": true
+        },
+        {
+          "path": "internal/INVARIANTS.md",
+          "title": "Invariants",
+          "description": "Properties that must hold across every state transition",
+          "internal": true
+        },
+        {
+          "path": "internal/SECURITY-POSTURE.md",
+          "title": "Security Posture",
+          "description": "Authentication, authorization, secrets, and abuse-resistance posture",
+          "internal": true
+        },
+        {
+          "path": "internal/TEMPORAL-FLOWS.md",
+          "title": "Temporal Flows",
+          "description": "Time-ordered behaviors: startup, lifecycle, recurring jobs, async paths",
+          "internal": true
+        },
         {
           "path": "internal/SEAMS.md",
           "title": "Seams & Testability",
@@ -187,32 +236,36 @@
           "title": "Progress",
           "description": "Implementation progress tracking",
           "internal": true
-        }
-      ]
-    },
-    {
-      "id": "plans",
-      "title": "Plans",
-      "icon": "map",
-      "visibility": "developers-only",
-      "documents": [
+        },
         {
-          "path": "plans/IMPLEMENTATION_PLAN.md",
-          "title": "Implementation Plan",
-          "description": "Feature implementation roadmap",
+          "path": "internal/API_NOTES.md",
+          "title": "API Notes",
+          "description": "Per-domain implementation notes for the API",
           "internal": true
         },
         {
-          "path": "plans/EXPERIENCE_AUDIT.md",
+          "path": "internal/CLI_AUDIT.md",
+          "title": "CLI Audit",
+          "description": "Operator CLI audit notes",
+          "internal": true
+        },
+        {
+          "path": "internal/EXPERIENCE-AUDIT.md",
           "title": "Experience Audit",
-          "description": "UX/experience audit documentation",
+          "description": "UX/experience audit findings",
+          "internal": true
+        },
+        {
+          "path": "internal/UNIT_TEST_ARCHITECTURE.md",
+          "title": "Unit Test Architecture",
+          "description": "How the per-domain unit tests are organized",
           "internal": true
         }
       ]
     }
   ],
   "navigation": {
-    "primary": ["getting-started", "guides", "concepts", "reference"],
-    "secondary": ["internal", "plans"]
+    "primary": ["getting-started", "guides", "concepts", "reference", "integrations"],
+    "secondary": ["internal"]
   }
 }
