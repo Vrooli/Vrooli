@@ -414,6 +414,24 @@ class StopAllRunsResponse(_message.Message):
     result: _run_pb2.StopAllResult
     def __init__(self, result: _Optional[_Union[_run_pb2.StopAllResult, _Mapping]] = ...) -> None: ...
 
+class RecoverRunRequest(_message.Message):
+    __slots__ = ("run_id",)
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    def __init__(self, run_id: _Optional[str] = ...) -> None: ...
+
+class RecoverRunResponse(_message.Message):
+    __slots__ = ("run", "recovered", "idempotent", "message")
+    RUN_FIELD_NUMBER: _ClassVar[int]
+    RECOVERED_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENT_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    run: _run_pb2.Run
+    recovered: bool
+    idempotent: bool
+    message: str
+    def __init__(self, run: _Optional[_Union[_run_pb2.Run, _Mapping]] = ..., recovered: _Optional[bool] = ..., idempotent: _Optional[bool] = ..., message: _Optional[str] = ...) -> None: ...
+
 class GetRunEventsRequest(_message.Message):
     __slots__ = ("run_id", "after_sequence", "limit", "event_types")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]

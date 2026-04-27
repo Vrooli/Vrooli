@@ -184,6 +184,11 @@ service AgentManagerService {
     };
   }
 
+  // RecoverRun drains a durable transcript and reconciles the run outcome.
+  rpc RecoverRun(RecoverRunRequest) returns (RecoverRunResponse) {
+    option (google.api.http) = {post: "/api/v1/runs/{run_id}/recover"};
+  }
+
   // ==========================================================================
   // RUN EVENTS
   // ==========================================================================
@@ -709,6 +714,19 @@ message StopAllRunsRequest {
 message StopAllRunsResponse {
   // Result details.
   StopAllResult result = 1;
+}
+
+message RecoverRunRequest {
+  // Run ID.
+  // @format uuid
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message RecoverRunResponse {
+  Run run = 1;
+  bool recovered = 2;
+  bool idempotent = 3;
+  string message = 4;
 }
 
 // =============================================================================

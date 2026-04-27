@@ -10,7 +10,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class CreateBacklogItemRequest(_message.Message):
-    __slots__ = ("name", "title", "description", "priority", "tags", "kind", "depends_on", "initiative", "effort", "acceptance_allow", "acceptance_deny", "spawned_from", "note")
+    __slots__ = ("name", "title", "description", "priority", "tags", "kind", "depends_on", "initiative", "effort", "acceptance_allow", "acceptance_deny", "spawned_from", "note", "creates")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -24,6 +24,7 @@ class CreateBacklogItemRequest(_message.Message):
     ACCEPTANCE_DENY_FIELD_NUMBER: _ClassVar[int]
     SPAWNED_FROM_FIELD_NUMBER: _ClassVar[int]
     NOTE_FIELD_NUMBER: _ClassVar[int]
+    CREATES_FIELD_NUMBER: _ClassVar[int]
     name: str
     title: str
     description: str
@@ -37,10 +38,11 @@ class CreateBacklogItemRequest(_message.Message):
     acceptance_deny: _containers.RepeatedScalarFieldContainer[str]
     spawned_from: str
     note: str
-    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., kind: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., initiative: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ..., spawned_from: _Optional[str] = ..., note: _Optional[str] = ...) -> None: ...
+    creates: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., kind: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., initiative: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ..., spawned_from: _Optional[str] = ..., note: _Optional[str] = ..., creates: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class UpdateBacklogItemRequest(_message.Message):
-    __slots__ = ("title", "description", "status", "priority", "tags", "depends_on", "initiative", "effort", "acceptance_allow", "acceptance_deny", "spawned_from", "note")
+    __slots__ = ("title", "description", "status", "priority", "tags", "depends_on", "initiative", "effort", "acceptance_allow", "acceptance_deny", "spawned_from", "note", "creates")
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -53,6 +55,7 @@ class UpdateBacklogItemRequest(_message.Message):
     ACCEPTANCE_DENY_FIELD_NUMBER: _ClassVar[int]
     SPAWNED_FROM_FIELD_NUMBER: _ClassVar[int]
     NOTE_FIELD_NUMBER: _ClassVar[int]
+    CREATES_FIELD_NUMBER: _ClassVar[int]
     title: str
     description: str
     status: str
@@ -65,7 +68,8 @@ class UpdateBacklogItemRequest(_message.Message):
     acceptance_deny: _containers.RepeatedScalarFieldContainer[str]
     spawned_from: str
     note: str
-    def __init__(self, title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., depends_on: _Optional[_Iterable[str]] = ..., initiative: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ..., spawned_from: _Optional[str] = ..., note: _Optional[str] = ...) -> None: ...
+    creates: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., depends_on: _Optional[_Iterable[str]] = ..., initiative: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ..., spawned_from: _Optional[str] = ..., note: _Optional[str] = ..., creates: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class BlockingReason(_message.Message):
     __slots__ = ("message", "forceable")

@@ -73,8 +73,13 @@ type BacklogItem struct {
 	// Skill IDs recommended by the creating agent. Workshop and execution agents
 	// should read these skills before proceeding.
 	SuggestedSkills []string `protobuf:"bytes,21,rep,name=suggested_skills,json=suggestedSkills,proto3" json:"suggested_skills,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Glob patterns for file paths the work plans to create. Same syntax as
+	// acceptance_allow. Used by the workshop validator to allow forward-looking
+	// paths in acceptance_allow that don't yet exist on disk. Absence means
+	// "no declared new paths."
+	Creates       []string `protobuf:"bytes,22,rep,name=creates,proto3" json:"creates,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *BacklogItem) Reset() {
@@ -236,6 +241,13 @@ func (x *BacklogItem) GetPlanValidationJson() string {
 func (x *BacklogItem) GetSuggestedSkills() []string {
 	if x != nil {
 		return x.SuggestedSkills
+	}
+	return nil
+}
+
+func (x *BacklogItem) GetCreates() []string {
+	if x != nil {
+		return x.Creates
 	}
 	return nil
 }
@@ -598,7 +610,7 @@ var File_swarm_manager_v1_domain_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\n" +
-	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xc5\a\n" +
+	"%swarm-manager/v1/domain/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xdf\a\n" +
 	"\vBacklogItem\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
@@ -623,7 +635,8 @@ const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\varchived_at\x18\x13 \x01(\tH\x04R\n" +
 	"archivedAt\x88\x01\x01\x125\n" +
 	"\x14plan_validation_json\x18\x14 \x01(\tH\x05R\x12planValidationJson\x88\x01\x01\x12)\n" +
-	"\x10suggested_skills\x18\x15 \x03(\tR\x0fsuggestedSkillsB\r\n" +
+	"\x10suggested_skills\x18\x15 \x03(\tR\x0fsuggestedSkills\x12\x18\n" +
+	"\acreates\x18\x16 \x03(\tR\acreatesB\r\n" +
 	"\v_initiativeB\t\n" +
 	"\a_effortB\x0f\n" +
 	"\r_spawned_fromB\a\n" +

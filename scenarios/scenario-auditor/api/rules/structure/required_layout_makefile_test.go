@@ -40,7 +40,7 @@ func TestRequiredLayoutRejectsNonCanonicalMakefile(t *testing.T) {
 
 func TestRequiredLayoutAcceptsExpandedGovernanceMakefile(t *testing.T) {
 	root := t.TempDir()
-	makefile, err := os.ReadFile(filepath.Join(repoRootForRequiredLayoutTest(t), "scenarios", "vrooli-autoheal", "Makefile"))
+	makefile, err := os.ReadFile(filepath.Join(repoRootForRequiredLayoutTest(t), "scenarios", "agent-manager", "Makefile"))
 	if err != nil {
 		t.Fatalf("read expanded Makefile: %v", err)
 	}
@@ -86,7 +86,7 @@ func TestRequiredLayoutRejectsCanonicalTargetRecipeDrift(t *testing.T) {
 	makefile := strings.Replace(
 		canonicalScenarioMakefile(),
 		`	@vrooli scenario logs "$(SCENARIO_NAME)"`,
-		`	@vrooli scenario logs "$(SCENARIO_NAME)" --tail 50`,
+		`	@vrooli scenario logs "$(SCENARIO_NAME)" --tail 10`,
 		1,
 	)
 	writeRequiredLayoutFixture(t, root, makefile)

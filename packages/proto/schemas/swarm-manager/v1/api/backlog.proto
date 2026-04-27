@@ -71,6 +71,12 @@ message CreateBacklogItemRequest {
 
   // Personal annotation — a user note for tracking context.
   optional string note = 16;
+
+  // Glob patterns for file paths the work plans to create. Same syntax as
+  // acceptance_allow. Used by the workshop validator to allow forward-looking
+  // paths in acceptance_allow that don't yet exist on disk. Absence means
+  // "no declared new paths."
+  repeated string creates = 17;
 }
 
 // UpdateBacklogItemRequest defines the payload for updating a backlog item.
@@ -129,6 +135,10 @@ message UpdateBacklogItemRequest {
 
   // Personal annotation. Set to empty string to clear.
   optional string note = 14;
+
+  // Glob patterns for file paths the work plans to create. Same syntax as
+  // acceptance_allow. Empty list clears the field.
+  repeated string creates = 15;
 }
 
 // A single blocking reason with forceability metadata.

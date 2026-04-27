@@ -267,13 +267,28 @@ func matchesScenarioLifecycleTargets(content string, template string) bool {
 			return false
 		}
 		for i := range expected.Recipes {
-			if normalizeFileContent(actual.Recipes[i]) != normalizeFileContent(expected.Recipes[i]) {
+			if !matchesScenarioLifecycleRecipe(name, actual.Recipes[i], expected.Recipes[i]) {
 				return false
 			}
 		}
 	}
 
 	return true
+}
+
+func matchesScenarioLifecycleRecipe(target string, actual string, expected string) bool {
+	normalizedActual := normalizeFileContent(actual)
+	normalizedExpected := normalizeFileContent(expected)
+	if normalizedActual == normalizedExpected {
+		return true
+	}
+
+	if target != "logs" {
+		return false
+	}
+
+	return normalizedActual == `@vrooli scenario logs "$(SCENARIO_NAME)" --tail 50` &&
+		normalizedExpected == `@vrooli scenario logs "$(SCENARIO_NAME)"`
 }
 
 func parseScenarioMakefileTargets(content string) (map[string]scenarioMakefileTarget, []string) {

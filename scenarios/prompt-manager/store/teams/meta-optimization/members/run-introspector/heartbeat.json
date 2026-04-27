@@ -6,13 +6,13 @@
   "enabled": true,
   "schedule": "45 18 * * *",
   "lastExecution": {
-    "startedAt": "2026-04-25T22:45:00Z",
-    "endedAt": "2026-04-25T22:49:05Z",
-    "status": "completed",
-    "runId": "f0c4da4f-5764-41f9-a39e-35c2f1b2ffb3",
-    "logPath": "../store/teams/meta-optimization/members/run-introspector/logs/2026-04-25T22-45-00Z.log"
+    "startedAt": "2026-04-26T22:45:00Z",
+    "endedAt": "2026-04-26T22:52:40Z",
+    "status": "failed",
+    "runId": "56398acb-2aec-4b2c-bfc4-eafc8dc28c3e",
+    "logPath": "../store/teams/meta-optimization/members/run-introspector/logs/2026-04-26T22-45-00Z.log"
   },
-  "revision": 11,
+  "revision": 14,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-04-25T22:49:05Z"
+  "updatedAt": "2026-04-26T22:52:40Z"
 }

@@ -6,13 +6,13 @@
   "enabled": true,
   "schedule": "15 19 * * *",
   "lastExecution": {
-    "startedAt": "2026-04-25T23:15:00Z",
-    "endedAt": "2026-04-25T23:22:10Z",
+    "startedAt": "2026-04-26T23:15:00Z",
+    "endedAt": "2026-04-26T23:18:15Z",
     "status": "completed",
-    "runId": "5c462b34-a676-4d69-a6fb-c1e613d0fa48",
-    "logPath": "../store/teams/meta-optimization/members/debt-curator/logs/2026-04-25T23-15-00Z.log"
+    "runId": "0de103e2-6c72-4462-b51e-1e8eb6fba8c0",
+    "logPath": "../store/teams/meta-optimization/members/debt-curator/logs/2026-04-26T23-15-00Z.log"
   },
-  "revision": 11,
+  "revision": 14,
   "createdAt": "2026-04-21T00:00:00Z",
-  "updatedAt": "2026-04-25T23:22:10Z"
+  "updatedAt": "2026-04-26T23:18:15Z"
 }

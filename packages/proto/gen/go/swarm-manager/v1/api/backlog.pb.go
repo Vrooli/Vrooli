@@ -51,7 +51,12 @@ type CreateBacklogItemRequest struct {
 	// Origin reference in "kind/name" format, tracking which item spawned this one.
 	SpawnedFrom *string `protobuf:"bytes,15,opt,name=spawned_from,json=spawnedFrom,proto3,oneof" json:"spawned_from,omitempty"`
 	// Personal annotation — a user note for tracking context.
-	Note          *string `protobuf:"bytes,16,opt,name=note,proto3,oneof" json:"note,omitempty"`
+	Note *string `protobuf:"bytes,16,opt,name=note,proto3,oneof" json:"note,omitempty"`
+	// Glob patterns for file paths the work plans to create. Same syntax as
+	// acceptance_allow. Used by the workshop validator to allow forward-looking
+	// paths in acceptance_allow that don't yet exist on disk. Absence means
+	// "no declared new paths."
+	Creates       []string `protobuf:"bytes,17,rep,name=creates,proto3" json:"creates,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -177,6 +182,13 @@ func (x *CreateBacklogItemRequest) GetNote() string {
 	return ""
 }
 
+func (x *CreateBacklogItemRequest) GetCreates() []string {
+	if x != nil {
+		return x.Creates
+	}
+	return nil
+}
+
 // UpdateBacklogItemRequest defines the payload for updating a backlog item.
 //
 // PATCH semantics:
@@ -210,7 +222,10 @@ type UpdateBacklogItemRequest struct {
 	// Origin reference in "kind/name" format. Set to empty string to clear.
 	SpawnedFrom *string `protobuf:"bytes,13,opt,name=spawned_from,json=spawnedFrom,proto3,oneof" json:"spawned_from,omitempty"`
 	// Personal annotation. Set to empty string to clear.
-	Note          *string `protobuf:"bytes,14,opt,name=note,proto3,oneof" json:"note,omitempty"`
+	Note *string `protobuf:"bytes,14,opt,name=note,proto3,oneof" json:"note,omitempty"`
+	// Glob patterns for file paths the work plans to create. Same syntax as
+	// acceptance_allow. Empty list clears the field.
+	Creates       []string `protobuf:"bytes,15,rep,name=creates,proto3" json:"creates,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -327,6 +342,13 @@ func (x *UpdateBacklogItemRequest) GetNote() string {
 		return *x.Note
 	}
 	return ""
+}
+
+func (x *UpdateBacklogItemRequest) GetCreates() []string {
+	if x != nil {
+		return x.Creates
+	}
+	return nil
 }
 
 // A single blocking reason with forceability metadata.
@@ -2563,7 +2585,7 @@ var File_swarm_manager_v1_api_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\n" +
-	"\"swarm-manager/v1/api/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\x1a'swarm-manager/v1/domain/execution.proto\"\xf8\x04\n" +
+	"\"swarm-manager/v1/api/backlog.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\x1a%swarm-manager/v1/domain/backlog.proto\x1a'swarm-manager/v1/domain/execution.proto\"\x92\x05\n" +
 	"\x18CreateBacklogItemRequest\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12%\n" +
@@ -2581,14 +2603,15 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\x10acceptance_allow\x18\r \x03(\tR\x0facceptanceAllow\x12'\n" +
 	"\x0facceptance_deny\x18\x0e \x03(\tR\x0eacceptanceDeny\x12&\n" +
 	"\fspawned_from\x18\x0f \x01(\tH\x04R\vspawnedFrom\x88\x01\x01\x12\x17\n" +
-	"\x04note\x18\x10 \x01(\tH\x05R\x04note\x88\x01\x01B\x0e\n" +
+	"\x04note\x18\x10 \x01(\tH\x05R\x04note\x88\x01\x01\x12\x18\n" +
+	"\acreates\x18\x11 \x03(\tR\acreatesB\x0e\n" +
 	"\f_descriptionB\v\n" +
 	"\t_priorityB\r\n" +
 	"\v_initiativeB\t\n" +
 	"\a_effortB\x0f\n" +
 	"\r_spawned_fromB\a\n" +
 	"\x05_noteJ\x04\b\a\x10\bJ\x04\b\n" +
-	"\x10\vJ\x04\b\f\x10\r\"\x9a\x05\n" +
+	"\x10\vJ\x04\b\f\x10\r\"\xb4\x05\n" +
 	"\x18UpdateBacklogItemRequest\x12\"\n" +
 	"\x05title\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x05title\x88\x01\x01\x12%\n" +
 	"\vdescription\x18\x02 \x01(\tH\x01R\vdescription\x88\x01\x01\x12g\n" +
@@ -2605,7 +2628,8 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\x10acceptance_allow\x18\v \x03(\tR\x0facceptanceAllow\x12'\n" +
 	"\x0facceptance_deny\x18\f \x03(\tR\x0eacceptanceDeny\x12&\n" +
 	"\fspawned_from\x18\r \x01(\tH\x06R\vspawnedFrom\x88\x01\x01\x12\x17\n" +
-	"\x04note\x18\x0e \x01(\tH\aR\x04note\x88\x01\x01B\b\n" +
+	"\x04note\x18\x0e \x01(\tH\aR\x04note\x88\x01\x01\x12\x18\n" +
+	"\acreates\x18\x0f \x03(\tR\acreatesB\b\n" +
 	"\x06_titleB\x0e\n" +
 	"\f_descriptionB\t\n" +
 	"\a_statusB\v\n" +

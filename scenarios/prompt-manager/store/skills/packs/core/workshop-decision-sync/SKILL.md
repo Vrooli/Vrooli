@@ -216,3 +216,5 @@ This skill should feel like a professional operator workflow:
 - explicit about what persisted and what did not
 
 Never blur the line between recommendation and decision. The operator decides.
+
+See `TEST-PLAN.md` before merging behaviour changes.
