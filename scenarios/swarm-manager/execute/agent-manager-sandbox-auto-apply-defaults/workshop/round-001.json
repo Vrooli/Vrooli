@@ -2,13 +2,13 @@
   "round": 1,
   "generated_at": "2026-04-26T00:00:00Z",
   "mode": "workshop",
-  "pending_synthesis": false,
+  "pending_synthesis": true,
   "readiness": {
-    "problem_clarity": 3,
-    "scope_defined": 3,
     "approach_solid": 1,
-    "testable": 2,
-    "risk_awareness": 2
+    "problem_clarity": 3,
+    "risk_awareness": 2,
+    "scope_defined": 3,
+    "testable": 2
   },
   "items": [
     {
@@ -44,9 +44,7 @@
           "rationale": "Provide your own GC rule (specify TTL, trigger, override behavior, and what 'GC' does — auto-deny + tear down, just stop, or something else)."
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d2",
@@ -76,9 +74,7 @@
           "rationale": "Provide your own migration approach (e.g., 'replace but feature-flag for one release', 'rename Acceptance.AutoApprove → AutoApply with a typed Migrate() helper', etc.)."
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d3",
@@ -108,9 +104,7 @@
           "rationale": "Specify your own sequencing (e.g., 'land schema in this PR series and absorb gct-pending-ai-provenance-hardening into this item', 'split this item into a writer-side and a queue-side ticket', etc.)."
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "B"
     },
     {
       "id": "d4",
@@ -120,7 +114,7 @@
       "options": [
         {
           "key": "A",
-          "label": "New `applyAtRunEnd` step called from a single shared point (e.g., end of `Execute()` after all terminal handlers, gated on RunMode==Sandboxed && manualReview==false)",
+          "label": "New `applyAtRunEnd` step called from a single shared point (e.g., end of `Execute()` after all terminal handlers, gated on RunMode==Sandboxed \u0026\u0026 manualReview==false)",
           "rationale": "Single call site = single source of truth for the apply contract. Easiest to test (one method, one path). Matches the contract's 'identical regardless of outcome' framing structurally. Replaces the existing `tryAutoApproval` indirection cleanly.",
           "recommended": true
         },
@@ -140,9 +134,7 @@
           "rationale": "Specify your own placement (e.g., a dedicated phase like RunPhaseApplying after HandleResult, a deferred call wired to ctx.Done, etc.)."
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "d5",
@@ -172,9 +164,7 @@
           "rationale": "Specify your own mapping. State which agent-manager values map to which contract values and why."
         }
       ],
-      "selected": null,
-      "freeform": null,
-      "notes": null
+      "selected": "A"
     },
     {
       "id": "i1",
@@ -187,5 +177,5 @@
       "text": "RunMode (`sandboxed` / `in_place`) is preserved as-is in this item. Flipping the default to `sandboxed` across spawn surfaces (UI, swarm-manager queue, cron, CLI) is `execute/agent-manager-default-sandboxing-rollout`'s responsibility. This item only ensures that when a run IS sandboxed, the contract is honored end-to-end. In-place runs continue to skip the approval workflow entirely (run_executor.go:1423-1426)."
     }
   ],
-  "plan_updates": "Round 1 created the initial plan.md scaffold. Filled all 13 mandatory sections from the auditability contract (Findings 1-6) and the spec. Identified the five core decisions that the spec leaves open or ambiguous: GC rule for manualReview=true sandboxes (the explicitly-open detail), migration approach for the legacy field surface, sequencing with the GCT schema dependency, apply-trigger placement in the run lifecycle, and the RunOutcome mapping. Acceptance globs already set on spec; no acceptance_deny needed. Required Reading section embeds 4 discovered skills (seam-discovery-and-enforcement, test, boundary-of-responsibility-enforcement, implementation-plan-authoring). Greenfield declaration, cleanup & verification phase, and cross-initiative implications all populated."
+  "plan_updates": "Round 1 created the initial plan.md scaffold. Filled all 13 mandatory sections from the auditability contract (Findings 1-6) and the spec. Identified the five core decisions that the spec leaves open or ambiguous: GC rule for manualReview=true sandboxes (the explicitly-open detail), migration approach for the legacy field surface, sequencing with the GCT schema dependency, apply-trigger placement in the run lifecycle, and the RunOutcome mapping. Acceptance globs already set on spec; no acceptance_deny needed. Required Reading section embeds 4 discovered skills (seam-discovery-and-enforcement, test, boundary-of-responsibility-enforcement, implementation-plan-authoring). Greenfield declaration, cleanup \u0026 verification phase, and cross-initiative implications all populated."
 }

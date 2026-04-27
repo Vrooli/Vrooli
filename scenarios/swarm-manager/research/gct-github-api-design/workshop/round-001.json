@@ -17,14 +17,31 @@
       "topic": "GitHub Go library",
       "context": "GCT has no GitHub SDK in go.mod today. The choice locks the surface area of GitHubClient and the test seam. go-github/v66 has full REST coverage (PRs, releases, tags, branches), WithEnterpriseURLs() for GHE, and the standard interface-wrap + httptest mocking pattern. cli/go-gh is thinner and assumes a gh-auth session, which conflicts with reusing the encrypted credential store. Hand-rolled costs an integration tax per endpoint.",
       "options": [
-        {"key": "A", "label": "github.com/google/go-github/v66 wrapped behind a narrow GitHubClient interface", "rationale": "Full REST coverage, Enterprise URL support, idiomatic mocking. Lowest implementation risk for PR + release surface together.", "recommended": true},
-        {"key": "B", "label": "github.com/cli/go-gh/v2", "rationale": "Smaller dependency footprint, but assumes an external gh auth session and provides less typed coverage."},
-        {"key": "C", "label": "Hand-rolled net/http client", "rationale": "Maximum control, no transitive deps; pays an integration tax per endpoint and reinvents pagination/rate-limit handling."},
-        {"key": "D", "label": "Other", "rationale": "Provide your own preference (e.g. license/vendoring constraints)."}
+        {
+          "key": "A",
+          "label": "github.com/google/go-github/v66 wrapped behind a narrow GitHubClient interface",
+          "rationale": "Full REST coverage, Enterprise URL support, idiomatic mocking. Lowest implementation risk for PR + release surface together.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "github.com/cli/go-gh/v2",
+          "rationale": "Smaller dependency footprint, but assumes an external gh auth session and provides less typed coverage."
+        },
+        {
+          "key": "C",
+          "label": "Hand-rolled net/http client",
+          "rationale": "Maximum control, no transitive deps; pays an integration tax per endpoint and reinvents pagination/rate-limit handling."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own preference (e.g. license/vendoring constraints)."
+        }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d2",
@@ -32,14 +49,31 @@
       "topic": "Auth strategy for V1",
       "context": "SSH stays the transport for git push/pull. The GitHub *API* needs token auth. Today CredentialTypeHTTPS already stores user+token in an AES-256-GCM-encrypted file (api/credentials_store.go:53,170-189). The question is which auth modes V1 supports.",
       "options": [
-        {"key": "A", "label": "GitHub PAT only in V1; defer GitHub App to a follow-up", "rationale": "Matches single-user CLI/dev posture, reuses credential store with a small `service` tag, no new flows. Lowest scope.", "recommended": true},
-        {"key": "B", "label": "PAT + GitHub App (installation tokens) in V1", "rationale": "Future-proof for multi-user/shared deployments but adds JWT signing, key storage, and installation-id resolution to the V1 surface."},
-        {"key": "C", "label": "Reuse SSH key for API too (e.g. via deploy keys / GitHub SSH-based auth)", "rationale": "Avoids token storage but GitHub's REST/GraphQL API does not authenticate via SSH keys; this option is effectively infeasible and is here to be ruled out."},
-        {"key": "D", "label": "Other", "rationale": "Specify a different posture (e.g. fine-grained PAT only, or App-only)."}
+        {
+          "key": "A",
+          "label": "GitHub PAT only in V1; defer GitHub App to a follow-up",
+          "rationale": "Matches single-user CLI/dev posture, reuses credential store with a small `service` tag, no new flows. Lowest scope.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "PAT + GitHub App (installation tokens) in V1",
+          "rationale": "Future-proof for multi-user/shared deployments but adds JWT signing, key storage, and installation-id resolution to the V1 surface."
+        },
+        {
+          "key": "C",
+          "label": "Reuse SSH key for API too (e.g. via deploy keys / GitHub SSH-based auth)",
+          "rationale": "Avoids token storage but GitHub's REST/GraphQL API does not authenticate via SSH keys; this option is effectively infeasible and is here to be ruled out."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Specify a different posture (e.g. fine-grained PAT only, or App-only)."
+        }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d3",
@@ -47,14 +81,31 @@
       "topic": "PR description generation in V1",
       "context": "ReviewDimensions (api/review_model.go:29-45) gives structured code-quality, tests, standards, visual, provenance data plus a green/yellow/red readiness signal. We can render this directly, or wrap it in an LLM, or both.",
       "options": [
-        {"key": "A", "label": "Deterministic Markdown template fed by ReviewDimensions; LLM polish deferred", "rationale": "Predictable, testable with zero external calls, matches commit-message-AI being a P1 add-on rather than gating P0.", "recommended": true},
-        {"key": "B", "label": "Template + optional LLM polish behind a flag in V1", "rationale": "Better prose immediately but adds a provider abstraction and another mock surface to V1."},
-        {"key": "C", "label": "LLM-only generation from raw review payload", "rationale": "Most natural-sounding output; least testable, hardest to make deterministic, depends on review data quality."},
-        {"key": "D", "label": "Other", "rationale": "Specify a different approach."}
+        {
+          "key": "A",
+          "label": "Deterministic Markdown template fed by ReviewDimensions; LLM polish deferred",
+          "rationale": "Predictable, testable with zero external calls, matches commit-message-AI being a P1 add-on rather than gating P0.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Template + optional LLM polish behind a flag in V1",
+          "rationale": "Better prose immediately but adds a provider abstraction and another mock surface to V1."
+        },
+        {
+          "key": "C",
+          "label": "LLM-only generation from raw review payload",
+          "rationale": "Most natural-sounding output; least testable, hardest to make deterministic, depends on review data quality."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Specify a different approach."
+        }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d4",
@@ -62,13 +113,26 @@
       "topic": "Scope: should this research also lock the release/tag API design?",
       "context": "Two execute siblings depend on this research and share the client + auth + mock decisions: execute/gct-github-pr-api and execute/gct-github-release-api. Splitting research duplicates the auth/mock decisions; bundling keeps them aligned.",
       "options": [
-        {"key": "A", "label": "Bundle: this research locks the shared client/auth/mock design and lets each execute item own its endpoint shape", "rationale": "Single source of truth for the shared surface; lower coordination cost.", "recommended": true},
-        {"key": "B", "label": "Split: this research covers PRs only; spin up a separate research for releases/tags", "rationale": "Smaller individual scope but redoes the auth/library/mock conversation."},
-        {"key": "C", "label": "Other", "rationale": "Provide your own scope split."}
+        {
+          "key": "A",
+          "label": "Bundle: this research locks the shared client/auth/mock design and lets each execute item own its endpoint shape",
+          "rationale": "Single source of truth for the shared surface; lower coordination cost.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Split: this research covers PRs only; spin up a separate research for releases/tags",
+          "rationale": "Smaller individual scope but redoes the auth/library/mock conversation."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own scope split."
+        }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "i1",

@@ -135,6 +135,23 @@ describe("InlineQuestionStepper", () => {
     expect(firstOption.className).toContain("emerald");
   });
 
+  it("renders inline markdown in workshop titles and option labels", () => {
+    render(
+      <InlineQuestionStepper
+        {...defaultProps}
+        questions={[
+          makeWorkshopQuestion({
+            topic: "Use `ApplyAtRunEnd`?",
+            options: [{ key: "A", label: "Add `POST /apply-at-run-end`", rationale: "Ship it" }],
+          }),
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("ApplyAtRunEnd", { selector: "code" })).toBeInTheDocument();
+    expect(screen.getByText("POST /apply-at-run-end", { selector: "code" })).toBeInTheDocument();
+  });
+
   it("review: clicking Approve sets status", () => {
     render(<InlineQuestionStepper {...defaultProps} questions={[makeReviewQuestion()]} />);
 

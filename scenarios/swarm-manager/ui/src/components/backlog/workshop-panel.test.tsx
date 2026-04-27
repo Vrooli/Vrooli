@@ -149,6 +149,25 @@ describe("WorkshopPanel", () => {
     expect(screen.getByText("2D")).toBeInTheDocument();
   });
 
+  it("collapses long plan updates with show more / show less controls", () => {
+    const longPlanUpdate = "Round 1 created the initial scaffold. ".repeat(12);
+    render(
+      <WorkshopPanel
+        {...defaultProps}
+        rounds={[makeRound({ plan_updates: longPlanUpdate })]}
+      />,
+    );
+
+    const collapsed = screen.getByText(/Plan updates:/);
+    expect(collapsed.className).toContain("line-clamp-3");
+
+    const expandButton = screen.getByText("Show more…");
+    fireEvent.click(expandButton);
+
+    expect(screen.getByText("Show less")).toBeInTheDocument();
+    expect(screen.getByText(/Plan updates:/).className).not.toContain("line-clamp-3");
+  });
+
   it("shows delete button on workshop items", () => {
     const round = makeRound({
       items: [

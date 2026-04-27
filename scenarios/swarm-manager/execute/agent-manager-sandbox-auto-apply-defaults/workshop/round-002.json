@@ -1,0 +1,146 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-27T01:17:00Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "approach_solid": 2,
+    "problem_clarity": 3,
+    "risk_awareness": 3,
+    "scope_defined": 3,
+    "testable": 2
+  },
+  "items": [
+    {
+      "id": "d6",
+      "type": "decision",
+      "topic": "Apply API surface on workspace-sandbox: extend existing /approve, add a dedicated /apply-at-run-end endpoint, or layer a typed run-context wrapper",
+      "context": "Today workspace-sandbox exposes a single unified `POST /api/v1/sandboxes/{id}/approve` (handlers.go:206) whose `ApprovalRequest` (types.go:356-377) carries `Mode` (∈ all/files/hunks), `Actor`, `CommitMsg`, `OverrideAcceptance`, `Force`, `CreateCommit`, plus file/hunk selection. The contract requires the new run-end apply call to additionally carry `agent_manager_run_id`, `conversation_id`, `cost`, `runOutcome`, and to populate per-file `state` + run-group `runOutcome` provenance. The call is conceptually different from operator-driven Approve in three ways: (1) it is the *automatic* writer side (vs operator Approve), (2) it must split a single run into in-acceptance `applied` + out-of-acceptance `pending-review`, and (3) it carries run-context metadata that operator-Approve doesn't.\n\nAgent-manager's `Provider` interface (interface.go:26-63) currently has separate `Approve` / `Reject` / `PartialApprove` / `Stop` / `Start` methods — adding a new method is conventional here.\n\nDecision D4 (Round 1) picked 'single shared `applyAtRunEnd` call site' on the agent-manager side. This decision picks the wire / Provider-method shape that call site targets.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Add a new dedicated `POST /api/v1/sandboxes/{id}/apply-at-run-end` endpoint with a new `ApplyAtRunEndRequest` type and matching `Provider.ApplyAtRunEnd` method",
+          "rationale": "Cleanest separation: operator-Approve and run-end Apply are conceptually different (auto-writer vs operator decision), have different metadata (run-context vs commit), and have different state-machine outcomes (split applied/pending-review vs all-or-nothing). One endpoint = one purpose. New `ApplyAtRunEndRequest` carries run-context metadata as first-class fields, not bolted onto an unrelated shape. Tests are sharper because the two paths can't be confused. Costs: more route handlers, more types, slightly more code. Recommended.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Extend existing `ApprovalRequest` with optional `RunContext` block + new `Mode=\"apply-at-run-end\"`; reuse `/approve`",
+          "rationale": "Smallest diff. Reuses existing routes, types, handlers, and tests. Risk: `ApprovalRequest` becomes a kitchen sink with fields meaningful only in some modes. The `Mode` enum already mixes selection-granularity values (all/files/hunks) — adding a workflow value (apply-at-run-end) crosses categories. Future readers must know which fields are valid for which Mode."
+        },
+        {
+          "key": "C",
+          "label": "Add a typed `Provider.ApplyAtRunEnd` method on agent-manager that internally calls `Approve(Mode=all)` with run-context metadata stuffed into `Actor`/`CommitMsg`",
+          "rationale": "No workspace-sandbox API change at all. Run-context metadata gets serialized into existing free-text fields. Maintains the current wire contract. Major downside: provenance fields (`agent_manager_run_id`, `conversation_id`, `cost`, `runOutcome`) end up encoded in stringly-typed fields and have to be parsed back out by GCT — fragile, breaks the per-file `state` split contract because Approve is all-or-nothing on selection mode."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Specify your own endpoint/method shape (e.g., extend Approve with strictly-additive optional run-context fields, gated server-side by their presence; add /api/v1/runs/{run_id}/apply that writes provenance for ALL sandboxes spawned by the run; etc.)."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d7",
+      "type": "decision",
+      "topic": "Source of `conversation_id` for the apply call",
+      "context": "The contract requires the apply call to carry `conversation_id` so GCT can correlate provenance into a conversation thread. Codebase reality (agent-manager `domain/types.go`):\n- `Run.SessionID` (line 376) exists but is documented as 'runner-specific session identifier for conversation resumption' (Claude Code session ID for resume) — NOT the agent-manager conversation thread ID.\n- No `ConversationID` field exists on `Run` or `RunConfig` today.\n- `Run.RunID`, `Run.SwarmID`, `Run.ParentRunID` exist; runs may chain via `ParentRunID`.\n\nThe choice determines whether agent-manager spawn surfaces (UI, swarm-manager queue, cron, CLI) need to emit a new ID, whether it persists, and how multi-run conversations group in GCT.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Add a new `Run.ConversationID` field, populated by the spawner; one ID per agent-thread; child runs inherit from parent if `ParentRunID` is set, else generate a new UUID",
+          "rationale": "Makes 'conversation' a first-class concept on the Run domain object. Spawn surfaces that already know they're continuing a thread (swarm-manager queue resuming a swarm, agent-manager UI 'continue conversation') populate it. Standalone runs get a fresh ID. GCT groups by ConversationID naturally. Persists, audited, queryable. Highest fidelity. Recommended.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Use `RunID` as `ConversationID` 1:1 (no separate ID)",
+          "rationale": "Simplest. Zero new fields. One run = one conversation. Loses multi-turn / continued-thread semantics: GCT can't visually group a follow-up run with the original. Acceptable for MVP if 'thread' isn't a concept GCT renders yet."
+        },
+        {
+          "key": "C",
+          "label": "Use `SwarmID` when present, else `RunID`",
+          "rationale": "Reuses existing structure. Swarm-spawned runs share an ID; standalone runs are their own thread. Less precise than (A) — a swarm contains many sibling runs, not a single conversation. Could cause GCT to over-group provenance."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Specify your own approach (e.g., 'derive from a header on the spawn API', 'add a new `Conversation` domain entity with its own table', 'use `ParentRunID` chain root')."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d8",
+      "type": "decision",
+      "topic": "How the originating-approval-surface field is shaped on workspace-sandbox state transitions",
+      "context": "The contract says `manualReview=true` approvals 'can come from any of three surfaces (git-control-tower AI Changes, agent-manager run-detail diff, workspace-sandbox sandbox-detail diff); the originating surface is recorded on the resulting state transition for audit'. This is a future-state record the *operator* approval path must write, but the writer-side apply (this item) also benefits from a consistent shape so audit-event queries don't fork.\n\nCurrent state: `ApprovalRequest.Actor string` (types.go:362) is a free-text field used today for things like 'auto-approve' (run_executor.go:1715). Audit events have separate `Actor` + `ActorType` (types.go:274-275). No `Source`/`Originator` enum exists.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Add a new typed `Source` enum field to `ApprovalRequest`, the new `ApplyAtRunEndRequest` (per D6), and audit events: ∈ {`agent-manager-auto-apply`, `git-control-tower`, `agent-manager-ui`, `workspace-sandbox-ui`, `cli`}",
+          "rationale": "Typed, queryable, no parsing. Makes 'who approved this' a first-class audit dimension. Future surfaces extend the enum. Clear separation from `Actor` (which can stay user-identity-shaped). Recommended.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Encode source as a structured prefix in the existing `Actor` string (e.g., `gct:user@example.com`, `agent-manager-auto-apply:run-xyz`)",
+          "rationale": "Zero schema change. Backwards-compatible for existing audit events. Stringly-typed; query and rendering code must parse. Easy to drift across surfaces if the prefix convention isn't enforced."
+        },
+        {
+          "key": "C",
+          "label": "Reuse the existing `ActorType` field on audit events (types.go:275) to carry the surface; expand its enum to include the three approval surfaces",
+          "rationale": "Reuses an existing typed field. Conceptually `ActorType` is 'user / system / agent' (actor identity classification), not 'which UI surface' — overloading it changes its meaning. Code reading `ActorType` today expects identity classification."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Specify your own approach (e.g., 'omit Source entirely; rely on Actor + request headers for origin'; 'add a `Source` field but only on audit events, not on the request shape')."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "d9",
+      "type": "decision",
+      "topic": "Where the new `ManualReviewSandboxTTL` config field lives — `LifecycleConfig` (alongside other TTLs) or `PolicyConfig` (alongside `RequireHumanApproval`)",
+      "context": "Workspace-sandbox config (config.go) splits TTL-shaped knobs into two structs:\n- `LifecycleConfig` (line 120): `DefaultTTL`, `IdleTimeout`, `TerminalCleanupDelay`, `GCInterval` — all wall-clock cleanup levers wired into `LifecycleReconciler` (lifecycle.go:36-58, runs every 15 min).\n- `PolicyConfig` (lines 166-233): `RequireHumanApproval`, `AutoApproveThresholdFiles`, `DefaultNoLock`, `TeardownHooks`, etc. — semantic / approval-flow levers.\n\nDecision D1 (Round 1) picked TTL=7 days from run end. We need to pick where that field lives. The choice determines which config layer owns the value, what env var name it gets, and which reconciler reads it.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Add `ManualReviewTTL time.Duration` to `LifecycleConfig`; env var `WORKSPACE_SANDBOX_MANUAL_REVIEW_TTL`; consumed by `LifecycleReconciler.ReconcileLifecycle` (lifecycle.go:76)",
+          "rationale": "Matches the existing TTL-sibling pattern (alongside `DefaultTTL`, `IdleTimeout`). Reuses the existing 15-min GC tick — no new ticker needed. Naming is consistent (all `WORKSPACE_SANDBOX_*_TTL` env vars). Reconciler iterates sandbox statuses already; we add one branch for `pending-review` with `ApprovedAt is null AND now - ApprovedAt \u003e ManualReviewTTL` (or equivalent). Recommended.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Add `ManualReviewTTL time.Duration` to `PolicyConfig`; env var `WORKSPACE_SANDBOX_MANUAL_REVIEW_TTL`",
+          "rationale": "Conceptually closer to approval policy (the field is meaningful only because `manualReview=true` exists). Splits TTL-shaped knobs across two configs (asymmetric with `DefaultTTL` / `IdleTimeout`). LifecycleReconciler still has to consume it — cross-struct read."
+        },
+        {
+          "key": "C",
+          "label": "Per-run override: TTL is on `ApplyAtRunEndRequest` (or equivalent), not server config",
+          "rationale": "Maximum flexibility; each run picks its own retention. Most config surface; harder to enforce a sensible upper bound; ops can't set a single org-wide policy from one place."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Specify your own placement (e.g., 'split: server-default in LifecycleConfig + per-run override on the request', 'introduce a new `ReviewConfig` struct')."
+        }
+      ],
+      "selected": "A"
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "`Run.SessionID` (domain/types.go:376) is the Claude Code resume token, NOT the agent-manager conversation ID. It's runner-specific (set by the runner adapter when claude-code returns a session-id) and ephemeral. Do not reuse it for `conversation_id` in the apply call (D7). The two have unrelated lifetimes: `SessionID` mutates within a single run when the runner re-invokes claude-code with `--resume`; `conversation_id` is meant to be stable across multiple runs in the same agent thread."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "Workspace-sandbox already has a unified `POST /api/v1/sandboxes/{id}/approve` endpoint with a `Mode` selector (`all`/`files`/`hunks`) — there is NOT a separate `/partial-approve` endpoint. Agent-manager `Provider.PartialApprove` (interface.go:26-63) maps to the same `/approve` route with `Mode=files`/`hunks`. This matters for D6: option B (`Mode=apply-at-run-end`) is feasible without adding a route, but mixes selection-granularity values with workflow values in the same enum."
+    }
+  ],
+  "plan_updates": "Round 2 incorporates the five Round-1 decision selections (D1=A: 7-day TTL, D2=A: greenfield wholesale replacement, D3=B: parallel sequencing with schema-version contract, D4=A: single shared apply call site, D5=A: 7→4 RunOutcome mapping) into the relevant plan sections. Implementation Strategy phases now reference concrete commitments rather than 'Decision TBD'. Added the explicit RunOutcome mapping table (Phase 3). Added Phase 4 detail for the 7-day TTL + auto-deny-on-expiry. Surfaced four next-tier implementation decisions for Round 2 (apply API surface shape, conversation_id source, originator field shape, TTL config placement) and added two info notes (SessionID ≠ ConversationID, unified /approve endpoint with Mode selector). Bumped readiness: approach_solid 1→2 (concrete strategy + most details), risk_awareness 2→3 (added schema-coordination, in-flight-runs-during-deploy, GC false-positive risks), testable held at 2 (still pending GC test approach + clock-injection strategy)."
+}

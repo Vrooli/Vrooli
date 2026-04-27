@@ -6,6 +6,7 @@
  */
 import { useState, useCallback, useRef, useEffect } from "react";
 import { CheckCircle2, ChevronDown, ChevronRight, MoreHorizontal, Play, Trash2 } from "lucide-react";
+import { cn } from "../../lib";
 import { Button } from "../ui/button";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 import { WorkshopItemCard } from "./workshop-item-card";
@@ -101,6 +102,7 @@ export function WorkshopPanel({
 }: WorkshopPanelProps) {
   // Confirmation dialog for running a new round after finalization.
   const [showPostFinalizeConfirm, setShowPostFinalizeConfirm] = useState(false);
+  const [expandedPlanUpdates, setExpandedPlanUpdates] = useState<Set<number>>(() => new Set());
 
   const [expandedRounds, setExpandedRounds] = useState<Set<number>>(() => {
     if (rounds.length === 0) return new Set();
@@ -187,6 +189,18 @@ export function WorkshopPanel({
     prevIsSaving.current = isSaving;
   }, [isSaving]);
 
+  const togglePlanUpdates = useCallback((roundNum: number) => {
+    setExpandedPlanUpdates((prev) => {
+      const next = new Set(prev);
+      if (next.has(roundNum)) {
+        next.delete(roundNum);
+      } else {
+        next.add(roundNum);
+      }
+      return next;
+    });
+  }, []);
+
   /** Gate "Next Round" behind a confirmation if finalization already happened. */
   const handleWorkshopClick = useCallback(() => {
     if (isFinalized) {
@@ -270,6 +284,9 @@ export function WorkshopPanel({
 
       {[...rounds].reverse().map((round) => {
         const isExpanded = expandedRounds.has(round.round);
+        const planUpdates = round.plan_updates ?? "";
+        const planUpdatesOverflows = planUpdates.length > 180 || planUpdates.includes("\n");
+        const isPlanUpdatesExpanded = expandedPlanUpdates.has(round.round);
         const effectiveItems = getEffectiveItems(round);
         const pendingDecisions = getPendingDecisionCount({ ...round, items: effectiveItems });
         // Find the previous round for delta comparison
@@ -317,10 +334,24 @@ export function WorkshopPanel({
 
             {isExpanded && (
               <div className="border-t border-slate-700 px-4 py-3 space-y-2">
-                {round.plan_updates && (
-                  <p className="text-xs text-slate-500 italic mb-2">
-                    Plan updates: {round.plan_updates}
-                  </p>
+                {planUpdates && (
+                  <div className="mb-2">
+                    <p className={cn(
+                      "text-xs text-slate-500 italic",
+                      !isPlanUpdatesExpanded && planUpdatesOverflows && "line-clamp-3",
+                    )}>
+                      Plan updates: {planUpdates}
+                    </p>
+                    {planUpdatesOverflows && (
+                      <button
+                        type="button"
+                        onClick={() => togglePlanUpdates(round.round)}
+                        className="mt-1 text-xs font-medium text-blue-400 hover:text-blue-300"
+                      >
+                        {isPlanUpdatesExpanded ? "Show less" : "Show more…"}
+                      </button>
+                    )}
+                  </div>
                 )}
                 {effectiveItems.map((item) => (
                   <WorkshopItemCard

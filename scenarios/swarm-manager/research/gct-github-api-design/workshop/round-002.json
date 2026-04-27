@@ -1,0 +1,164 @@
+{
+  "round": 2,
+  "generated_at": "2026-04-27T01:24:33Z",
+  "mode": "workshop",
+  "pending_synthesis": false,
+  "readiness": {
+    "problem_clarity": 3,
+    "scope_defined": 2,
+    "approach_solid": 2,
+    "testable": 2,
+    "risk_awareness": 2
+  },
+  "items": [
+    {
+      "id": "d1",
+      "type": "decision",
+      "topic": "Rate-limit, retry, and pagination strategy",
+      "context": "go-github exposes a Client.Rate field (after each call) and ListOptions.Page for cursor-driven pagination, but provides no built-in retry. GCT already runs an exponential-backoff pattern in agent_manager_client.go (api/agent_manager_client.go:74-76,288-349 — base 200ms, capped 2s, context-aware). The choice is where to put retry/backoff/auto-pagination so behavior is uniform and testable through the FakeGitHubClient.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Wrap retry + auto-pagination inside the GitHubClient interface (one layer above go-github), reuse the agent_manager_client backoff shape",
+          "rationale": "Single seam: every call (real or fake) sees the same retry/pagination behavior, tests can exercise rate-limit/transient-5xx via FakeGitHubClient error injection (mirrors FakeGitRunner's PushError pattern). Reuses an in-repo, already-tested backoff implementation.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Use a custom http.Transport with retry middleware passed to go-github via WithHTTPClient(), let callers handle pagination explicitly per-endpoint",
+          "rationale": "Closer to go-github's idiom and more flexible per-call, but spreads pagination logic across endpoints and makes retry behavior harder to assert in fakes (must intercept at HTTP layer)."
+        },
+        {
+          "key": "C",
+          "label": "No retries in V1; surface 403/5xx errors directly and let the caller decide",
+          "rationale": "Smallest surface, but every PR/release endpoint will need to deal with rate-limit semantics individually and the UX for transient failures will degrade."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Specify a different layering (e.g., third-party transport like hashicorp/go-retryablehttp)."
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d2",
+      "type": "decision",
+      "topic": "GitHub Enterprise (GHE) URL configurability in V1",
+      "context": "go-github offers WithEnterpriseURLs(baseURL, uploadURL) that swaps the API base. The marginal cost in code is small, but it adds a new credential field (api_base_url) and per-credential configuration UI. V1 was scoped to single-user CLI/dev posture (round-1 d2). Question is whether to ship GHE-ready in V1 or defer.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Include GHE support in V1: add optional api_base_url to the GitHub credential record, default to api.github.com, route through WithEnterpriseURLs() when set",
+          "rationale": "Cheap to do now (one field, one factory branch), avoids retrofitting credential schema later, matches GCT's stated multi-tier deployment vision (specialized servers).",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Defer GHE to a follow-up; V1 is github.com only",
+          "rationale": "Smaller V1 surface and avoids a credential-schema migration if the field shape changes later, but a future GHE user will need a credential-store migration."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Specify a different posture (e.g. GHE supported but only via env var, not per-credential)."
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d3",
+      "type": "decision",
+      "topic": "Handling missing or stale review dimensions in the PR description template",
+      "context": "ReviewDimensions fields (CodeQuality, Tests, Standards, Visual, Provenance) are each independently nullable and carry an Available + Stale flag (api/review_model.go:43-130). Real PRs will frequently have partial coverage — e.g., a backend-only change has no Visual dimension, or tidiness hasn't run yet. The template needs a deterministic policy.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Render every section header always; use '—' (em-dash) placeholder + a 'not run' or 'stale' tag when a dimension is unavailable or stale",
+          "rationale": "Maximally transparent — reviewers can see which signals were checked and which weren't. Makes stale-data risk visible inline. Matches the 'auditable trail' value in PRD."
+        },
+        {
+          "key": "B",
+          "label": "Omit sections for unavailable dimensions; show stale dimensions with an explicit 'STALE' badge",
+          "rationale": "Cleaner PR body, hides irrelevant sections (e.g., visual on a backend-only PR). Slight risk reviewers don't notice that a dimension was never checked.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Refuse to generate a PR description if any required dimension (Tests, CodeQuality) is missing — return 409 with a 'run review first' message",
+          "rationale": "Forces clean signal but blocks legitimate PRs (e.g., docs-only) and creates friction when reviews are partially run."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Specify a different policy."
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "d4",
+      "type": "decision",
+      "topic": "Multi-provider future-proofing (GitLab/Bitbucket) in the interface design",
+      "context": "orchestration-summary.md flags GitLab/Bitbucket as a deferred question. Doing it now would mean designing a VCSProviderClient super-interface and putting GitHub-specific concepts (Checks API, Actions, fine-grained PATs) behind a discriminator. Doing it later means a refactor when a real second provider appears.",
+      "options": [
+        {
+          "key": "A",
+          "label": "Design GitHubClient as a concrete interface now; treat multi-provider as a separate research item if/when a real GitLab/Bitbucket requirement appears",
+          "rationale": "YAGNI — speculative abstraction tax with no driving requirement. Keeps the V1 surface small and readable. Refactor cost is bounded because the interface is already the seam.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Introduce a thin VCSProviderClient with PR/Release/Tag basics now, GitHubClient as one implementation; provider-specific features live behind capability flags",
+          "rationale": "Future-proof but adds a layer immediately and forces premature decisions about which features belong in the abstraction (Checks? Actions? Required reviews?)."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Specify a different scope (e.g., create a separate research item now to scope multi-provider, before locking V1)."
+        }
+      ],
+      "selected": null,
+      "freeform": null,
+      "notes": null
+    },
+    {
+      "id": "i1",
+      "type": "info",
+      "text": "Retry/backoff precedent already exists in-repo: agent_manager_client.go:74-76 implements exponential backoff (base 200ms, capped at 2s, context-aware) and doWithRetry/waitForRetry (lines 288-349) provide a tested template. Whichever wrapper layer wins d1, copying that shape avoids reinventing the pattern and keeps GitHubClient consistent with the rest of the GCT API."
+    },
+    {
+      "id": "i2",
+      "type": "info",
+      "text": "ReadinessThresholds is already configurable: review_readiness.go:3-26 defines DefaultReadinessThresholds() (CodeQualityMinScore=60, TestMinPassRate=1.0, MaxBlockingViolations=0, RequireScreenshots=true, RequireTests=true). The PR-description template should call CalculateReadiness with the *same* thresholds the UI uses so the green/yellow/red badge in the PR body matches what users see in GCT. No new readiness logic is needed."
+    },
+    {
+      "id": "i3",
+      "type": "info",
+      "text": "Concurrency model fits GitHub endpoints without changes to RepoWrite: http_handler.go:36-107 has RepoRead (no lock) and RepoWrite (per-repo .git/index.lock mutex). GitHub *API* calls do NOT touch .git/index.lock — they mutate server-side state, not the local working tree. Recommended pattern: PR/release reads use RepoRead, PR/release writes use a new lightweight HandlerContext (e.g., GitHubWrite) that resolves the repo + GitHub credential WITHOUT acquiring the per-repo mutex. Forcing GitHub writes through RepoWrite would serialize unrelated calls behind the index lock for no benefit."
+    },
+    {
+      "id": "i4",
+      "type": "info",
+      "text": "Credential model needs a small schema delta to store API tokens independently of remote URLs. Today Credential is keyed by Remote (api/credentials_model.go:13,17 — Remote, URL) — every credential is bound to a git remote. A GitHub API token is not bound to a single remote; one PAT may serve every repo a user has on github.com. The minimal change is adding `Service string` (e.g., 'github.com', 'github-enterprise.example.com') to Credential and StoredCredential, and treating credentials with Type=https && Service != \"\" as service-scoped API tokens. This avoids a parallel credential table while keeping the encrypted store unchanged."
+    },
+    {
+      "id": "i5",
+      "type": "info",
+      "text": "Initiative-graph implication: this round resolves the 'GitLab/Bitbucket future' question that orchestration-summary.md left deferred (assuming d4=A is accepted). That deferred question can be closed for the immediate execute children (gct-github-pr-api, gct-github-release-api). If a real second-provider requirement surfaces later, the right action is a NEW research item ('Multi-VCS provider abstraction'), not a refactor of this work — the GitHubClient seam is the natural extension point."
+    },
+    {
+      "id": "i6",
+      "type": "info",
+      "text": "Minimum PAT scopes for V1 surface (PR + release + tag): classic PAT needs `repo` (full) for private repos, or `public_repo` for public-only. Fine-grained PATs need 'Pull requests: Read and write', 'Contents: Read and write' (for tags), and 'Metadata: Read'. Conclusion should document this so users know what to grant when configuring the GitHub credential — and so the credentials UI can link to GitHub's PAT-creation page with the right scopes pre-selected via query string."
+    }
+  ],
+  "plan_updates": "Incorporated all four resolved round-1 decisions into conclusion.md (library=go-github/v66, V1=PAT only, deterministic Markdown PR template, bundled scope covers PR + release client/auth/mock). Added four new findings: retry/backoff precedent in agent_manager_client.go, ReadinessThresholds reuse for PR badge, concurrency model (use RepoRead + new GitHubWrite, not RepoWrite), and the credential schema delta (add Service field). Tightened limitations: removed library and auth-mode uncertainty (resolved), narrowed remaining open questions to rate-limit strategy, GHE configurability, partial-data template policy, and multi-provider scope (the four d1-d4 questions in this round). Added a draft Actions section listing concrete Update backlog item targets for the two execute children, plus a candidate Create-research item for multi-provider that becomes real only if d4=B."
+}

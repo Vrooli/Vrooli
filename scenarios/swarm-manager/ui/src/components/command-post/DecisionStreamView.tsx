@@ -11,6 +11,7 @@
 import { useState, useCallback, useRef } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight, ExternalLink, Loader2, SkipForward, ArrowLeft, Moon, CheckCircle2, Info, Trash2 } from "lucide-react";
 import { cn } from "../../lib";
+import { renderMarkdown } from "../../lib/render-markdown";
 import { selectors } from "../../consts/selectors";
 import {
   BACKLOG_KIND_ICONS,
@@ -390,7 +391,10 @@ export function DecisionStreamView({
           {current.question.context_note && (
             <div className="mt-2 rounded border border-cyan-500/15 bg-cyan-500/5 px-2 py-1">
               <span className="text-[9px] font-medium text-cyan-400">Clarification note</span>
-              <p className="text-xs text-slate-400">{current.question.context_note}</p>
+              <div
+                className="prose-sm-slate mt-1 break-words text-xs text-slate-400 [overflow-wrap:anywhere]"
+                dangerouslySetInnerHTML={{ __html: renderMarkdown(current.question.context_note) }}
+              />
             </div>
           )}
 
