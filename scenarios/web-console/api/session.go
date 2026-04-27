@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
 	"web-console/terminal"
 
 	"github.com/google/uuid"
@@ -165,6 +166,14 @@ func (s *Session) ProbeReady(ctx context.Context) error {
 	p := s.pty
 	s.mu.Unlock()
 	return p.ProbeReady(ctx)
+}
+
+// CurrentDir returns the session's best-known working directory.
+func (s *Session) CurrentDir(ctx context.Context) (string, error) {
+	s.mu.Lock()
+	p := s.pty
+	s.mu.Unlock()
+	return p.CurrentDir(ctx)
 }
 
 // Subscribe registers a new client and returns a self-contained ANSI

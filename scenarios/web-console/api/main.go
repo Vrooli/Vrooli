@@ -397,6 +397,8 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/sessions/{id}/conversation", s.handleGetConversationSession).Methods("GET")
 	s.router.HandleFunc("/api/v1/sessions/{id}/conversation/cursor", s.handleUpdateConversationCursor).Methods("PUT")
 	s.router.HandleFunc("/api/v1/sessions/{id}/conversation/{eventId}/summarize", s.handleSummarizeEvent).Methods("POST")
+	s.router.HandleFunc("/api/v1/sessions/{id}/files/resolve", s.handleResolveFileReference).Methods("POST")
+	s.router.HandleFunc("/api/v1/sessions/{id}/files/content", s.handleGetFileReferenceContent).Methods("GET")
 	s.router.HandleFunc("/api/v1/workspace/panes/{session_id}", s.handleUpdatePane).Methods("PUT")
 	s.router.HandleFunc("/api/v1/workspace/panes/{session_id}", s.handleDeletePane).Methods("DELETE")
 	s.router.HandleFunc("/api/v1/workspace/groups", s.handleCreateGroup).Methods("POST")

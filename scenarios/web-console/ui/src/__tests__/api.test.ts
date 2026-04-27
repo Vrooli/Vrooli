@@ -167,6 +167,51 @@ describe("api module", () => {
     expect(url).toContain("/sessions/session-abc/ws");
     expect(url).toMatch(/^ws/);
   });
+
+  it("resolveFileReference sends session-scoped resolve request", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        input_path: "docs/plan.md",
+        resolved_path: "/repo/docs/plan.md",
+        exists: true,
+        resolution_basis: "project_root",
+        category: "markdown",
+        can_preview: true,
+      }),
+    }) as typeof fetch;
+
+    const { resolveFileReference } = await import("../lib/api");
+    const result = await resolveFileReference("sess-1", "docs/plan.md");
+
+    expect(result.resolved_path).toBe("/repo/docs/plan.md");
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/sessions/sess-1/files/resolve"),
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("getFileReferenceContent requests preview content with query string", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        path: "/repo/docs/plan.md",
+        category: "markdown",
+        content_type: "text/markdown; charset=utf-8",
+        content: "# Plan",
+        truncated: false,
+      }),
+    }) as typeof fetch;
+
+    const { getFileReferenceContent } = await import("../lib/api");
+    const result = await getFileReferenceContent("sess-1", "docs/plan.md:7");
+
+    expect(result.content).toBe("# Plan");
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/sessions/sess-1/files/content?path=docs%2Fplan.md%3A7"),
+      expect.objectContaining({ headers: { "Content-Type": "application/json" }, cache: "no-store" }),
+    );
+  });
 });
 
 describe("toErrorInfo", () => {

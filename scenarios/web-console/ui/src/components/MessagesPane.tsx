@@ -16,9 +16,17 @@ import { useConversationStore, getSessionConversationEvents } from "../stores/us
 import { refreshConversationSession } from "../hooks/useConversationSession";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useMediaQuery } from "../hooks/useMediaQuery";
-import type { ConversationEvent } from "../lib/api";
+import {
+  APIError,
+  getFileReferenceContent,
+  resolveFileReference,
+  type ConversationEvent,
+  type FileReferenceContentResponse,
+  type FileReferenceResolveResponse,
+} from "../lib/api";
 import { TERMINAL_FONT_SIZE } from "../consts/config";
 import { cn } from "../lib/classnames";
+import { looksLikeFileReference } from "../lib/fileReferences";
 import { MarkdownRenderer } from "./markdown";
 import { useVirtualList } from "../hooks/useVirtualList";
 import MessagesSearchDrawer from "./MessagesSearchDrawer";
@@ -27,6 +35,7 @@ import { AudioSettingsContent } from "./tts/AudioSettingsContent";
 import { PlaybackModeControl, type SummarizationLevel } from "./tts/PlaybackModeControl";
 import type { TTSPlaybackState } from "../hooks/tts/types";
 import type { PlaybackFocusRequest, PlaybackVersion } from "../domains/tts-playback/types";
+import MessagesFileViewer from "./MessagesFileViewer";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -89,6 +98,7 @@ interface MessageRowProps {
   isDimmed: boolean;
   isExpanded: boolean;
   onToggleExpanded: (eventId: string) => void;
+  onLinkClick: (href: string, event: React.MouseEvent<HTMLAnchorElement>) => void;
 }
 
 const MessageRow = memo(function MessageRow({
@@ -119,6 +129,7 @@ const MessageRow = memo(function MessageRow({
   isDimmed,
   isExpanded,
   onToggleExpanded,
+  onLinkClick,
 }: MessageRowProps) {
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
   const [isTall, setIsTall] = useState(false);
@@ -317,7 +328,7 @@ const MessageRow = memo(function MessageRow({
           style={{ fontSize: `${fontSize}px` }}
           className="text-wc-text-primary"
         >
-          <MarkdownRenderer content={event.text} />
+          <MarkdownRenderer content={event.text} onLinkClick={onLinkClick} />
         </div>
 
         {isCollapsed && (
@@ -350,7 +361,8 @@ const MessageRow = memo(function MessageRow({
   prevProps.isFocused === nextProps.isFocused &&
   prevProps.isSearchFocused === nextProps.isSearchFocused &&
   prevProps.isDimmed === nextProps.isDimmed &&
-  prevProps.isExpanded === nextProps.isExpanded
+  prevProps.isExpanded === nextProps.isExpanded &&
+  prevProps.onLinkClick === nextProps.onLinkClick
 ));
 
 export default function MessagesPane({
@@ -396,6 +408,12 @@ export default function MessagesPane({
 
   // --- Collapse ---
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [fileViewerOpen, setFileViewerOpen] = useState(false);
+  const [fileViewerLoading, setFileViewerLoading] = useState(false);
+  const [fileViewerError, setFileViewerError] = useState<string | null>(null);
+  const [requestedFilePath, setRequestedFilePath] = useState<string | null>(null);
+  const [resolvedFile, setResolvedFile] = useState<FileReferenceResolveResponse | null>(null);
+  const [fileContent, setFileContent] = useState<FileReferenceContentResponse | null>(null);
 
   // --- Auto-scroll ---
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -592,6 +610,52 @@ export default function MessagesPane({
     focusAndScroll(playbackFocusRequest.eventId);
   }, [focusAndScroll, playbackFocusRequest]);
 
+  const closeFileViewer = useCallback(() => {
+    setFileViewerOpen(false);
+    setFileViewerLoading(false);
+    setFileViewerError(null);
+    setRequestedFilePath(null);
+    setResolvedFile(null);
+    setFileContent(null);
+  }, []);
+
+  const openFileReference = useCallback(async (href: string) => {
+    setRequestedFilePath(href);
+    setResolvedFile(null);
+    setFileContent(null);
+    setFileViewerError(null);
+    setFileViewerOpen(true);
+    setFileViewerLoading(true);
+
+    try {
+      const resolved = await resolveFileReference(sessionId, href);
+      setResolvedFile(resolved);
+      if (!resolved.can_preview) {
+        setFileViewerError("This file type cannot be previewed in web console.");
+        return;
+      }
+      const contentPath = resolved.line ? `${resolved.resolved_path}:${resolved.line}` : resolved.resolved_path;
+      const content = await getFileReferenceContent(sessionId, contentPath);
+      setFileContent(content);
+    } catch (err) {
+      if (err instanceof APIError) {
+        setFileViewerError(err.message);
+      } else if (err instanceof Error) {
+        setFileViewerError(err.message);
+      } else {
+        setFileViewerError("Failed to open file reference");
+      }
+    } finally {
+      setFileViewerLoading(false);
+    }
+  }, [sessionId]);
+
+  const handleMarkdownLinkClick = useCallback((href: string, event: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!looksLikeFileReference(href)) return;
+    event.preventDefault();
+    void openFileReference(href);
+  }, [openFileReference]);
+
   return (
     <div
       data-testid={`messages-pane-${sessionId}`}
@@ -718,6 +782,7 @@ export default function MessagesPane({
                     isDimmed={!!searchQuery && !searchMatchSet.has(event.id)}
                     isExpanded={expandedIds.has(event.id)}
                     onToggleExpanded={toggleExpanded}
+                    onLinkClick={handleMarkdownLinkClick}
                   />
                 </div>
               );
@@ -737,6 +802,16 @@ export default function MessagesPane({
           {newMessageCount} new message{newMessageCount !== 1 ? "s" : ""}
         </button>
       )}
+
+      <MessagesFileViewer
+        open={fileViewerOpen}
+        loading={fileViewerLoading}
+        error={fileViewerError}
+        requestedPath={requestedFilePath}
+        resolved={resolvedFile}
+        content={fileContent}
+        onClose={closeFileViewer}
+      />
     </div>
   );
 }

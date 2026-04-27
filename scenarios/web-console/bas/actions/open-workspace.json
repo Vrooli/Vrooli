@@ -45,7 +45,7 @@
       "action": {
         "type": "ACTION_TYPE_EVALUATE",
         "evaluate": {
-          "expression": "(async () => { const deadline = Date.now() + 90000; while (Date.now() < deadline) { const launch = document.querySelector('[data-testid=\"new-terminal-button\"]'); if (launch) return; const retry = document.querySelector('[data-testid=\"health-retry-button\"]'); if (retry instanceof HTMLButtonElement && !retry.disabled) { retry.click(); } await new Promise((resolve) => setTimeout(resolve, 500)); } throw new Error('New terminal button did not appear within timeout'); })()"
+          "expression": "(async () => { const deadline = Date.now() + 90000; while (Date.now() < deadline) { const launch = document.querySelector('[data-testid=\"new-terminal-button\"], [data-testid=\"toolbar-new\"]'); if (launch) return; const retry = document.querySelector('[data-testid=\"health-retry-button\"]'); if (retry instanceof HTMLButtonElement && !retry.disabled) { retry.click(); } await new Promise((resolve) => setTimeout(resolve, 500)); } throw new Error('New terminal button did not appear within timeout'); })()"
         },
         "metadata": {
           "label": "Wait for New Terminal button"

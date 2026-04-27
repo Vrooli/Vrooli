@@ -15,7 +15,7 @@
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/workspace.newTerminalButton"
+          "selector": "[data-testid=\"new-terminal-button\"], [data-testid=\"toolbar-new\"]"
         },
         "metadata": {
           "label": "Open terminal launcher"
@@ -27,7 +27,7 @@
       "action": {
         "type": "ACTION_TYPE_EVALUATE",
         "evaluate": {
-          "expression": "(async () => { const deadline = Date.now() + 10000; while (Date.now() < deadline) { if (document.querySelector('[data-testid=\"terminal-launcher\"]')) return; const button = document.querySelector('[data-testid=\"new-terminal-button\"]'); if (button instanceof HTMLElement) button.click(); await new Promise((resolve) => setTimeout(resolve, 250)); } throw new Error('Terminal launcher did not appear'); })()"
+          "expression": "(async () => { const deadline = Date.now() + 10000; while (Date.now() < deadline) { if (document.querySelector('[data-testid=\"terminal-launcher\"]')) return; const button = document.querySelector('[data-testid=\"new-terminal-button\"], [data-testid=\"toolbar-new\"]'); if (button instanceof HTMLElement) button.click(); await new Promise((resolve) => setTimeout(resolve, 250)); } throw new Error('Terminal launcher did not appear'); })()"
         },
         "metadata": {
           "label": "Ensure launcher dialog is open"

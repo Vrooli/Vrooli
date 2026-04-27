@@ -162,16 +162,18 @@ describe("TerminalPane TTS stop prevents retry loop", () => {
     const ack = vi.fn();
     // Don't await — the handler is blocked on speakParagraphs
     let handlerDone = false;
-    void (async () => {
-      await capturedHandler?.({
-        id: "evt-stop-1", source: "claude_hook", role: "assistant",
-        sequence: 42, text: "Stop me", speechParagraphs: ["Stop me"],
-      }, ack);
-      handlerDone = true;
-    })();
+    await act(async () => {
+      void (async () => {
+        await capturedHandler?.({
+          id: "evt-stop-1", source: "claude_hook", role: "assistant",
+          sequence: 42, text: "Stop me", speechParagraphs: ["Stop me"],
+        }, ack);
+        handlerDone = true;
+      })();
+      await new Promise((r) => setTimeout(r, 10));
+    });
 
     // Let the handler start executing up to the await speakParagraphs
-    await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
     expect(mockSpeakParagraphs).toHaveBeenCalledTimes(1);
     expect(handlerDone).toBe(false); // Still awaiting speakParagraphs
 
@@ -209,11 +211,13 @@ describe("TerminalPane TTS stop prevents retry loop", () => {
     // Send 3 events — first 2 resolve, 3rd blocks
     const ack = vi.fn();
     for (let i = 1; i <= 3; i++) {
-      void capturedHandler?.({
-        id: `evt-multi-${i}`, source: "claude_hook", role: "assistant",
-        sequence: 100 + i, text: `Message ${i}`, speechParagraphs: [`Message ${i}`],
-      }, ack);
-      await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
+      await act(async () => {
+        void capturedHandler?.({
+          id: `evt-multi-${i}`, source: "claude_hook", role: "assistant",
+          sequence: 100 + i, text: `Message ${i}`, speechParagraphs: [`Message ${i}`],
+        }, ack);
+        await new Promise((r) => setTimeout(r, 10));
+      });
     }
 
     // Stop all TTS

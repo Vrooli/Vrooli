@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -269,6 +270,18 @@ func (p *tmuxPTY) ProbeReady(ctx context.Context) error {
 		case <-time.After(tmuxProbeReadyPollInterval):
 		}
 	}
+}
+
+func (p *tmuxPTY) CurrentDir(_ context.Context) (string, error) {
+	out, err := tmuxCmd("display-message", "-t", p.sessionName, "-p", "#{pane_current_path}").Output()
+	if err != nil {
+		return "", fmt.Errorf("tmux display-message cwd: %w", err)
+	}
+	cwd := strings.TrimSpace(string(out))
+	if cwd == "" {
+		return "", fmt.Errorf("tmux current path is empty")
+	}
+	return filepath.Clean(cwd), nil
 }
 
 func (p *tmuxPTY) SetSize(cols, rows uint16) error {

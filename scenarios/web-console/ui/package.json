@@ -8,7 +8,7 @@
     "dev": "vrooli lifecycle protect -- vite",
     "selector:manifest": "node ./scripts/generate-selector-manifest.mjs",
     "prebuild": "pnpm run selector:manifest",
-    "build": "vite build",
+    "build": "pnpm run type-check && vite build",
     "preview": "vite preview",
     "lint": "eslint src",
     "type-check": "tsc --noEmit",

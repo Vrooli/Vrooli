@@ -58,7 +58,7 @@
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/workspace.newTerminalButton"
+          "selector": "[data-testid=\"new-terminal-button\"], [data-testid=\"toolbar-new\"]"
         },
         "metadata": {
           "label": "Open launcher"
@@ -247,7 +247,7 @@
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "@selector/workspace.newTerminalButton",
+          "selector": "[data-testid=\"new-terminal-button\"], [data-testid=\"toolbar-new\"]",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 20000
         },

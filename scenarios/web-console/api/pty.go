@@ -63,6 +63,10 @@ type PTY interface {
 	// backends (realPTY) this is a no-op; for async backends (tmuxPTY)
 	// this waits for the attach-session handshake to complete.
 	ProbeReady(ctx context.Context) error
+	// CurrentDir returns the PTY process's current working directory when it
+	// can be determined. Backends may fall back to their launch directory when
+	// live cwd discovery is unavailable.
+	CurrentDir(ctx context.Context) (string, error)
 }
 
 // SessionLaunchSpec contains the environment and execution parameters for a
@@ -121,6 +125,26 @@ func (p *realPTY) ExitCode() int {
 // opened the master/slave pair synchronously, so the next Write will reach
 // the shell without any additional handshake.
 func (p *realPTY) ProbeReady(_ context.Context) error { return nil }
+
+func (p *realPTY) CurrentDir(_ context.Context) (string, error) {
+	if p.cmd == nil || p.cmd.Process == nil {
+		cwd, err := filepath.Abs(resolveWorkingDir())
+		if err != nil {
+			return resolveWorkingDir(), nil
+		}
+		return cwd, nil
+	}
+	linkPath := fmt.Sprintf("/proc/%d/cwd", p.cmd.Process.Pid)
+	cwd, err := os.Readlink(linkPath)
+	if err == nil && cwd != "" {
+		return filepath.Clean(cwd), nil
+	}
+	fallback, absErr := filepath.Abs(resolveWorkingDir())
+	if absErr != nil {
+		return resolveWorkingDir(), nil
+	}
+	return fallback, nil
+}
 
 func (p *realPTY) HasChildProcess() bool {
 	if p.cmd.Process == nil {

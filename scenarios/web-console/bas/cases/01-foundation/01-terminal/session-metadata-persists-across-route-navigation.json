@@ -33,10 +33,22 @@
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/nav.sessions"
+          "selector": "[data-testid=\"toolbar-settings\"], [data-testid=\"tabbar-settings\"]"
         },
         "metadata": {
-          "label": "Open Sessions page"
+          "label": "Open Settings"
+        }
+      }
+    },
+    {
+      "id": "open-sessions-tab",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-testid=\"settings-tab-sessions\"]"
+        },
+        "metadata": {
+          "label": "Open Sessions tab"
         }
       }
     },
@@ -45,7 +57,7 @@
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "[data-testid^='session-row-']",
+          "selector": "[data-testid^='sessions-pane-']",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
@@ -59,7 +71,7 @@
       "action": {
         "type": "ACTION_TYPE_EVALUATE",
         "evaluate": {
-          "expression": "(() => { const rows = Array.from(document.querySelectorAll('[data-testid^=\"session-row-\"]')); const ids = rows.map((row) => (row.getAttribute('data-testid') || '').replace('session-row-', '')).filter(Boolean); document.body.setAttribute('data-sessions-count-before', String(ids.length)); document.body.setAttribute('data-sessions-before', ids.join(',')); })()"
+          "expression": "(() => { const rows = Array.from(document.querySelectorAll('[data-testid^=\"sessions-pane-\"]')); const ids = rows.map((row) => (row.getAttribute('data-testid') || '').replace('sessions-pane-', '')).filter(Boolean); document.body.setAttribute('data-sessions-count-before', String(ids.length)); document.body.setAttribute('data-sessions-before', ids.join(',')); })()"
         },
         "metadata": {
           "label": "Capture session IDs before leaving page"
@@ -71,7 +83,7 @@
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/sessions.back"
+          "selector": "[data-testid=\"settings-close\"]"
         },
         "metadata": {
           "label": "Return to workspace route"
@@ -83,7 +95,7 @@
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "@selector/workspace.newTerminalButton",
+          "selector": "[data-testid=\"new-terminal-button\"], [data-testid=\"toolbar-new\"]",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 10000
         },
@@ -97,10 +109,22 @@
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/nav.sessions"
+          "selector": "[data-testid=\"toolbar-settings\"], [data-testid=\"tabbar-settings\"]"
         },
         "metadata": {
-          "label": "Open Sessions page again"
+          "label": "Open Settings again"
+        }
+      }
+    },
+    {
+      "id": "open-sessions-tab-again",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-testid=\"settings-tab-sessions\"]"
+        },
+        "metadata": {
+          "label": "Open Sessions tab again"
         }
       }
     },
@@ -109,7 +133,7 @@
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "[data-testid^='session-row-']",
+          "selector": "[data-testid^='sessions-pane-']",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
@@ -123,7 +147,7 @@
       "action": {
         "type": "ACTION_TYPE_EVALUATE",
         "evaluate": {
-          "expression": "(() => { const beforeCount = Number(document.body.getAttribute('data-sessions-count-before') || '0'); const beforeRaw = document.body.getAttribute('data-sessions-before') || ''; const beforeIds = beforeRaw.split(',').filter(Boolean); const afterRows = Array.from(document.querySelectorAll('[data-testid^=\"session-row-\"]')); const afterIds = afterRows.map((row) => (row.getAttribute('data-testid') || '').replace('session-row-', '')).filter(Boolean); const overlap = beforeIds.filter((id) => afterIds.includes(id)).length; const ok = beforeCount > 0 && overlap >= 1; document.body.setAttribute('data-session-persistence-ok', ok ? 'true' : 'false'); })()"
+          "expression": "(() => { const beforeCount = Number(document.body.getAttribute('data-sessions-count-before') || '0'); const beforeRaw = document.body.getAttribute('data-sessions-before') || ''; const beforeIds = beforeRaw.split(',').filter(Boolean); const afterRows = Array.from(document.querySelectorAll('[data-testid^=\"sessions-pane-\"]')); const afterIds = afterRows.map((row) => (row.getAttribute('data-testid') || '').replace('sessions-pane-', '')).filter(Boolean); const overlap = beforeIds.filter((id) => afterIds.includes(id)).length; const ok = beforeCount > 0 && overlap >= 1; document.body.setAttribute('data-session-persistence-ok', ok ? 'true' : 'false'); })()"
         },
         "metadata": {
           "label": "Mark persistence result with session identity overlap"
@@ -156,6 +180,12 @@
     {
       "id": "e2",
       "source": "open-sessions-page",
+      "target": "open-sessions-tab",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2b",
+      "source": "open-sessions-tab",
       "target": "wait-sessions-row",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
@@ -186,6 +216,12 @@
     {
       "id": "e7",
       "source": "open-sessions-page-again",
+      "target": "open-sessions-tab-again",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7b",
+      "source": "open-sessions-tab-again",
       "target": "wait-sessions-row-again",
       "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },

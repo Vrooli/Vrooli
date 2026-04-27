@@ -278,6 +278,25 @@ export interface ConversationCursor {
   lastListenedSequence: number;
 }
 
+export interface FileReferenceResolveResponse {
+  input_path: string;
+  resolved_path: string;
+  line?: number;
+  exists: boolean;
+  resolution_basis: "session_cwd" | "project_root" | "absolute_allowed" | "session_upload";
+  category: "markdown" | "code" | "text" | "binary";
+  can_preview: boolean;
+}
+
+export interface FileReferenceContentResponse {
+  path: string;
+  line?: number;
+  category: "markdown" | "code" | "text" | "binary";
+  content_type: string;
+  content: string;
+  truncated: boolean;
+}
+
 export interface ConversationSessionResponse {
   sessionId: string;
   events: ConversationEvent[];
@@ -329,6 +348,38 @@ export async function updateConversationCursor(
     throw await extractAPIError(res, "Failed to update conversation cursor");
   }
   return (await res.json()) as ConversationCursor;
+}
+
+export async function resolveFileReference(
+  sessionId: string,
+  path: string,
+): Promise<FileReferenceResolveResponse> {
+  const url = buildApiUrl(`/sessions/${sessionId}/files/resolve`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path }),
+  });
+  if (!res.ok) {
+    throw await extractAPIError(res, "Failed to resolve file reference");
+  }
+  return (await res.json()) as FileReferenceResolveResponse;
+}
+
+export async function getFileReferenceContent(
+  sessionId: string,
+  path: string,
+): Promise<FileReferenceContentResponse> {
+  const params = new URLSearchParams({ path });
+  const url = buildApiUrl(`/sessions/${sessionId}/files/content?${params.toString()}`, { baseUrl: API_BASE });
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw await extractAPIError(res, "Failed to load file content");
+  }
+  return (await res.json()) as FileReferenceContentResponse;
 }
 
 // [REQ:P1-002a] Shortcut Profile API - client

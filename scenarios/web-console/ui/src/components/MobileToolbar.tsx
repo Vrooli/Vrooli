@@ -1,6 +1,6 @@
 // DOC: docs/reference/configuration.md#mobile-toolbar-keys
 // DOC: docs/internal/SEAMS.md#axis-2-toolbar-keys-p0-007
-import { useCallback, useRef, useState, useEffect, forwardRef, useImperativeHandle } from "react";
+import { useCallback, useDeferredValue, useRef, useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import { Image, Maximize2, Minimize2, SendHorizontal, Sparkles } from "lucide-react";
 import { TOOLBAR_KEYS, ESC_KEY, TAB_KEY, ENTER_KEY, ARROW_UP, ARROW_DOWN, ARROW_LEFT, ARROW_RIGHT, type ToolbarKey, applyModifiers } from "../consts/toolbar-keys";
 import type { GateResult, InputSource } from "./terminal/inputGate";
@@ -9,6 +9,7 @@ import { cn } from "../lib/classnames";
 import KeyComboPicker from "./KeyComboPicker";
 import VoiceMicButton from "./VoiceMicButton";
 import VoiceCommandSuggestion from "./VoiceCommandSuggestion";
+import AiSuggestBar from "./AiSuggestBar";
 import type { StartRecordingOpts } from "../hooks/useVoiceInput";
 import type { CommandSuggestion } from "../hooks/voice/types";
 import { slugify } from "../lib/slugify";
@@ -127,10 +128,10 @@ interface MobileToolbarProps {
   /** Open the AI Command modal. Moved here from the floating toolbar on
    *  mobile because it's more accessible in the persistent bottom bar. */
   onOpenAi?: () => void;
-  /** Called when the textarea value changes (for AI suggest bar). */
-  onInputChange?: (value: string) => void;
   /** Whether the inline AI suggestion bar is active. Highlights the sparkles button. */
   aiSuggestActive?: boolean;
+  /** Execute a suggestion generated from the local input draft. */
+  onAiSuggestExecute?: (command: string) => void;
   /** Whether TTS is currently playing audio on the active pane. */
   isTtsSpeaking?: boolean;
   /** Stop TTS playback. */
@@ -166,14 +167,15 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   onVoiceCommandDismiss,
   onUploadImage,
   onOpenAi,
-  onInputChange,
   aiSuggestActive,
+  onAiSuggestExecute,
   isTtsSpeaking,
   onTtsStop,
   viewMode = "terminal",
   onSwitchToTerminal,
 }, ref) {
   const { value: inputValue, setValue: setInputValue, clearDraft } = useDraftPersistence(activeSessionId);
+  const deferredInputValue = useDeferredValue(inputValue);
 
   useImperativeHandle(ref, () => ({
     appendText: (text: string) => {
@@ -445,6 +447,13 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
           onDismiss={onVoiceCommandDismiss}
         />
       )}
+      {aiSuggestActive && onAiSuggestExecute && (
+        <AiSuggestBar
+          inputText={deferredInputValue}
+          onExecute={onAiSuggestExecute}
+          onClose={() => onOpenAi?.()}
+        />
+      )}
       {/* Command input row */}
       <div className="flex items-end gap-0.5 px-1 py-1">
         <div className="flex min-w-0 flex-1 flex-col">
@@ -454,7 +463,6 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
             value={inputValue}
             onChange={(e) => {
               setInputValue(e.target.value);
-              onInputChange?.(e.target.value);
             }}
             autoComplete="off"
             autoCorrect="on"

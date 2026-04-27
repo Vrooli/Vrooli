@@ -6,11 +6,31 @@ import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import type { ConversationEvent } from "../lib/api";
 import type { TTSPlaybackState } from "../hooks/tts/types";
 
+vi.mock("../hooks/useConversationSession", () => ({
+  refreshConversationSession: vi.fn().mockResolvedValue(undefined),
+}));
+
 // Mock the markdown renderer to avoid shiki/mermaid in jsdom
 vi.mock("../components/markdown", () => ({
-  MarkdownRenderer: ({ content }: { content: string }) => (
+  MarkdownRenderer: ({
+    content,
+    onLinkClick,
+  }: {
+    content: string;
+    onLinkClick?: (href: string, event: unknown) => void;
+  }) => (
     <div data-testid="mock-markdown">
-      {content}
+      {content.includes("[")
+        ? (
+          <a
+            href="/tmp/example.ts:12"
+            data-testid="mock-markdown-link"
+            onClick={(event) => onLinkClick?.("/tmp/example.ts:12", event)}
+          >
+            example.ts
+          </a>
+        )
+        : content}
     </div>
   ),
 }));
@@ -70,6 +90,7 @@ describe("MessagesPane", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useConversationStore.setState({ sessions: {}, viewModes: {} });
+    globalThis.fetch = vi.fn() as typeof fetch;
     // Mock IntersectionObserver for auto-scroll sentinel
     const mockObserver = vi.fn().mockImplementation(() => ({
       observe: vi.fn(),
@@ -224,6 +245,72 @@ describe("MessagesPane", () => {
 
     const mdEl = screen.getByTestId("mock-markdown");
     expect(mdEl.getAttribute("data-search-query")).toBeNull();
+  });
+
+  it("opens the file viewer when clicking a file-like markdown link", async () => {
+    (globalThis.fetch as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          input_path: "/tmp/example.ts:12",
+          resolved_path: "/tmp/example.ts",
+          line: 12,
+          exists: true,
+          resolution_basis: "absolute_allowed",
+          category: "code",
+          can_preview: true,
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          path: "/tmp/example.ts",
+          line: 12,
+          category: "code",
+          content_type: "text/plain; charset=utf-8",
+          content: "const x = 1;\n",
+          truncated: false,
+        }),
+      });
+
+    seedEvents([makeEvent({ id: "e1", sequence: 1, text: "[example.ts](/tmp/example.ts:12)" })]);
+    render(<MessagesPane {...defaultProps} />);
+
+    fireEvent.click(screen.getByTestId("mock-markdown-link"));
+
+    await waitFor(() => {
+      expect(screen.getAllByText("example.ts").length).toBeGreaterThan(0);
+      expect(screen.getByText("/tmp/example.ts")).toBeInTheDocument();
+      expect(screen.getByText("line 12")).toBeInTheDocument();
+      expect(screen.getByText("const x = 1;")).toBeInTheDocument();
+    });
+    expect(globalThis.fetch).toHaveBeenLastCalledWith(
+      expect.stringContaining("path=%2Ftmp%2Fexample.ts%3A12"),
+      expect.any(Object),
+    );
+  });
+
+  it("shows a viewer error when file resolution fails", async () => {
+    (globalThis.fetch as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: () => Promise.resolve({
+          error: "Referenced file was not found",
+          code: "file_reference_not_found",
+          category: "validation",
+        }),
+      });
+
+    seedEvents([makeEvent({ id: "e1", sequence: 1, text: "[missing.ts](missing.ts)" })]);
+    render(<MessagesPane {...defaultProps} />);
+
+    fireEvent.click(screen.getByTestId("mock-markdown-link"));
+
+    await waitFor(() => {
+      expect(screen.getByText("File preview unavailable")).toBeInTheDocument();
+      expect(screen.getByText("Referenced file was not found")).toBeInTheDocument();
+    });
   });
 
   // --- Font size ---

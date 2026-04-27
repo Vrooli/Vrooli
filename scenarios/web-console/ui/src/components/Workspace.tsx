@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useRef, type ChangeEvent } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { MessageSquareText, Plus, Settings, TerminalSquare } from "lucide-react";
+import { useShallow } from "zustand/react/shallow";
 import { SPLITTER_SIZE_PX, MIN_COLUMN_PX, MIN_ROW_PX } from "../consts/config";
 import { useSessionManager } from "../hooks/useSessionManager";
 import { useVoiceInput } from "../hooks/useVoiceInput";
@@ -24,27 +25,23 @@ import type { GateResult, InputSource } from "./terminal/inputGate";
 import { getSession, uploadFile, fetchCapabilities, getSessionDefaults, type BackendOption, type BackendID, type ExpirationPolicy } from "../lib/api";
 import type { LaunchOptions } from "./TerminalLauncher";
 import ErrorBanner from "./ErrorBanner";
-import ErrorBoundary from "./ErrorBoundary";
-import TerminalPane from "./TerminalPane";
-import TerminalHeader from "./TerminalHeader";
 import GridSplitter from "./GridSplitter";
 import TerminalLauncher from "./TerminalLauncher";
 import MobileToolbar from "./MobileToolbar";
 import type { MobileToolbarHandle } from "./MobileToolbar";
 import AiInput from "./AiInput";
-import AiSuggestBar from "./AiSuggestBar";
 import FloatingToolbar from "./FloatingToolbar";
 import VoiceRejectionBanner from "./VoiceRejectionBanner";
 import WorkspaceMinimap from "./WorkspaceMinimap";
 import SettingsModal from "./SettingsModal";
 import AppearanceModal from "./AppearanceModal";
 import ConfirmCloseDialog from "./ConfirmCloseDialog";
+import WorkspacePaneShell from "./WorkspacePaneShell";
 import TabBar from "./TabBar";
-import MessagesPane from "./MessagesPane";
 import AudioPlayerBar from "./AudioPlayerBar";
 import SummarizeErrorBanner, { type SummarizeErrorState } from "./SummarizeErrorBanner";
 import EnableAudioBanner from "./EnableAudioBanner";
-import { useConversationStore } from "../stores/useConversationStore";
+import { useConversationStore, type PaneViewMode } from "../stores/useConversationStore";
 import type { TTSPlaybackState } from "../hooks/tts/types";
 import { useTtsPlaybackController } from "../domains/tts-playback/useTtsPlaybackController";
 
@@ -99,9 +96,50 @@ export default function Workspace() {
     getTtsStateOnPane,
   } = useSessionManager();
 
-  const store = useWorkspaceStore();
+  const workspace = useWorkspaceStore(useShallow((state) => ({
+    panes: state.panes,
+    columnFractions: state.columnFractions,
+    rowFractions: state.rowFractions,
+    activePane: state.activePane,
+    appearanceModalPane: state.appearanceModalPane,
+    isMinimapVisible: state.isMinimapVisible,
+    displayMode: state.displayMode,
+    settingsModalOpen: state.settingsModalOpen,
+    aiModalOpen: state.aiModalOpen,
+    aiSuggestActive: state.aiSuggestActive,
+    autoTtsEnabled: state.autoTtsEnabled,
+    startMutedOnLoad: state.startMutedOnLoad,
+    keepScreenAwake: state.keepScreenAwake,
+    vadAutoStop: state.vadAutoStop,
+    addPane: state.addPane,
+    removePane: state.removePane,
+    setActivePane: state.setActivePane,
+    movePaneToIndex: state.movePaneToIndex,
+    setColumnFractions: state.setColumnFractions,
+    setRowFractions: state.setRowFractions,
+    setSettingsModalOpen: state.setSettingsModalOpen,
+    setAiModalOpen: state.setAiModalOpen,
+    setAiSuggestActive: state.setAiSuggestActive,
+  })));
+  const workspacePanes = workspace.panes;
+  const activeWorkspacePane = workspace.activePane;
+  const addWorkspacePane = workspace.addPane;
+  const removeWorkspacePane = workspace.removePane;
+  const setActiveWorkspacePane = workspace.setActivePane;
+  const vadAutoStop = workspace.vadAutoStop;
   const { syncActivePane, syncPaneUpdate } = useWorkspaceSync();
-  const setConversationViewMode = useConversationStore((state) => state.setViewMode);
+  const conversationState = useConversationStore(useShallow((state) => ({
+    sessions: state.sessions,
+    setViewMode: state.setViewMode,
+    clearSession: state.clearSession,
+    activeViewMode: workspace.activePane ? (state.viewModes[workspace.activePane] ?? "terminal") : "terminal",
+  })));
+  const {
+    sessions: conversationSessions,
+    setViewMode: setConversationViewMode,
+    clearSession: clearConversationSession,
+    activeViewMode,
+  } = conversationState;
 
   // Fetch available backends once on mount (they don't change at runtime)
   const [availableBackends, setAvailableBackends] = useState<BackendOption[]>();
@@ -114,14 +152,11 @@ export default function Workspace() {
     return () => { cancelled = true; };
   }, []);
 
-  const clearConversationSession = useConversationStore((state) => state.clearSession);
-  const conversationSessions = useConversationStore((state) => state.sessions);
-  const conversationViewModes = useConversationStore((state) => state.viewModes);
   const gridRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const activeResizeRef = useRef<ActiveResize | null>(null);
   useAppViewport();
-  const wakeLockStatus = useWakeLock(store.keepScreenAwake);
+  const wakeLockStatus = useWakeLock(workspace.keepScreenAwake);
   const setWakeLockStatus = useWakeLockStatus((s) => s.setStatus);
   useEffect(() => { setWakeLockStatus(wakeLockStatus); }, [wakeLockStatus, setWakeLockStatus]);
   const mobileToolbarRef = useRef<MobileToolbarHandle>(null);
@@ -144,15 +179,14 @@ export default function Workspace() {
   useEffect(() => {
     if (launcherOpen) fetchDefaults();
   }, [launcherOpen, fetchDefaults]);
-  const [mobileInputText, setMobileInputText] = useState("");
   const pendingActivePaneRef = useRef<string | null>(null);
   const [pendingClose, setPendingClose] = useState<string | null>(null);
   const exitedSessionsRef = useRef<Set<string>>(new Set());
 
   const activatePane = useCallback((sessionId: string) => {
-    store.setActivePane(sessionId);
-    syncActivePane(store.panes.map((p) => p.sessionId), sessionId);
-  }, [store, syncActivePane]);
+    setActiveWorkspacePane(sessionId);
+    syncActivePane(workspacePanes.map((pane) => pane.sessionId), sessionId);
+  }, [setActiveWorkspacePane, syncActivePane, workspacePanes]);
 
   // --- Mobile single-column layout ---
   const [isMobile, setIsMobile] = useState(
@@ -170,14 +204,14 @@ export default function Workspace() {
 
   const startArrangeDrag = useCallback(
     (paneId: string, e: ReactPointerEvent) => {
-      const idx = store.panes.findIndex((p) => p.sessionId === paneId);
+      const idx = workspacePanes.findIndex((p) => p.sessionId === paneId);
       if (idx === -1) return;
       e.preventDefault();
       e.stopPropagation();
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       setActiveArrangeDrag({ paneId, dropIndex: idx });
     },
-    [store.panes],
+    [workspacePanes],
   );
 
   useEffect(() => {
@@ -198,7 +232,7 @@ export default function Workspace() {
 
     const handleUp = () => {
       setActiveArrangeDrag((prev) => {
-        if (prev) store.movePaneToIndex(prev.paneId, prev.dropIndex);
+        if (prev) workspace.movePaneToIndex(prev.paneId, prev.dropIndex);
         return null;
       });
     };
@@ -211,21 +245,21 @@ export default function Workspace() {
       window.removeEventListener("pointerup", handleUp);
       window.removeEventListener("pointercancel", handleUp);
     };
-  }, [activeArrangeDrag, store]);
+  }, [activeArrangeDrag, workspace]);
 
   // Reconcile session manager panes with workspace store.
   // Only remove stale store panes after session hydration completes —
   // otherwise the initial empty sessionPanes would nuke persisted metadata.
   useEffect(() => {
     const sessionIds = new Set(sessionPanes.map((p) => p.session.id));
-    const storeIds = new Set(store.panes.map((p) => p.sessionId));
+    const storeIds = new Set(workspacePanes.map((p) => p.sessionId));
 
     // Add new sessions to store (auto-activate if user just created it)
     for (const sp of sessionPanes) {
       if (!storeIds.has(sp.session.id)) {
         const shouldActivate = pendingActivePaneRef.current === sp.session.id;
         if (shouldActivate) pendingActivePaneRef.current = null;
-        store.addPane(sp.session.id, sp.session.shell ?? "terminal", shouldActivate, sp.supportsMessagesView);
+        addWorkspacePane(sp.session.id, sp.session.shell ?? "terminal", shouldActivate, sp.supportsMessagesView);
         // Persist new pane metadata (including supportsMessagesView) to the backend
         syncPaneUpdate(sp.session.id, {
           name: sp.session.shell?.split("/").pop() ?? "terminal",
@@ -237,21 +271,21 @@ export default function Workspace() {
     if (isHydrated) {
       for (const sid of storeIds) {
         if (!sessionIds.has(sid)) {
-          store.removePane(sid);
+          removeWorkspacePane(sid);
         }
       }
     }
-  }, [sessionPanes, store, isHydrated, syncPaneUpdate]);
+  }, [addWorkspacePane, isHydrated, removeWorkspacePane, sessionPanes, syncPaneUpdate, workspacePanes]);
 
   // Auto-set active pane if none is set or the persisted value is stale
   useEffect(() => {
-    if (store.panes.length === 0) return;
-    const activePaneExists = store.activePane !== null && store.panes.some((p) => p.sessionId === store.activePane);
+    if (workspacePanes.length === 0) return;
+    const activePaneExists = workspace.activePane !== null && workspacePanes.some((p) => p.sessionId === workspace.activePane);
     if (!activePaneExists) {
-      const lastPane = store.panes[store.panes.length - 1];
+      const lastPane = workspacePanes[workspacePanes.length - 1];
       if (lastPane) activatePane(lastPane.sessionId);
     }
-  }, [store, activatePane]);
+  }, [workspace.activePane, workspacePanes, activatePane]);
 
   const openLauncher = useCallback(() => setLauncherOpen(true), []);
   const closeLauncher = useCallback(() => setLauncherOpen(false), []);
@@ -278,12 +312,12 @@ export default function Workspace() {
   const doRemovePane = useCallback(
     (sessionId: string) => {
       removeSessionPane(sessionId);
-      store.removePane(sessionId);
+      removeWorkspacePane(sessionId);
       clearConversationSession(sessionId);
       exitedSessionsRef.current.delete(sessionId);
       try { localStorage.removeItem(`wc-mobile-draft-${sessionId}`); } catch { /* ignore */ }
     },
-    [clearConversationSession, removeSessionPane, store],
+    [clearConversationSession, removeSessionPane, removeWorkspacePane],
   );
 
   const handleRequestClose = useCallback(
@@ -326,39 +360,39 @@ export default function Workspace() {
 
   const handleSendToTerminal = useCallback(
     (data: string, source: InputSource): GateResult => {
-      return submitToActiveTerminal(data, source, store.activePane ?? undefined);
+      return submitToActiveTerminal(data, source, workspace.activePane ?? undefined);
     },
-    [submitToActiveTerminal, store.activePane],
+    [submitToActiveTerminal, workspace.activePane],
   );
 
   const handleSubscribeInputSettled = useCallback(
     (cb: (seq: number, ok: boolean) => void) =>
-      subscribeActiveInputSettled(store.activePane ?? undefined, cb),
-    [subscribeActiveInputSettled, store.activePane],
+      subscribeActiveInputSettled(workspace.activePane ?? undefined, cb),
+    [subscribeActiveInputSettled, workspace.activePane],
   );
 
   const handleSubscribePendingInput = useCallback(
     (cb: () => void) =>
-      subscribeActivePendingInput(store.activePane ?? undefined, cb),
-    [subscribeActivePendingInput, store.activePane],
+      subscribeActivePendingInput(workspace.activePane ?? undefined, cb),
+    [subscribeActivePendingInput, workspace.activePane],
   );
 
   const handleGetPendingInputSnapshot = useCallback(
-    () => getActivePendingInputSnapshot(store.activePane ?? undefined),
-    [getActivePendingInputSnapshot, store.activePane],
+    () => getActivePendingInputSnapshot(workspace.activePane ?? undefined),
+    [getActivePendingInputSnapshot, workspace.activePane],
   );
 
   const handleFocusTerminal = useCallback(() => {
-    focusActiveTerminal(store.activePane ?? undefined);
-  }, [focusActiveTerminal, store.activePane]);
+    focusActiveTerminal(workspace.activePane ?? undefined);
+  }, [focusActiveTerminal, workspace.activePane]);
 
   // Switch the active pane from messages view back to terminal view.
   // Used by MobileToolbar to auto-switch after sending a command.
   const handleSwitchToTerminal = useCallback(() => {
-    if (store.activePane) {
-      setConversationViewMode(store.activePane, "terminal");
+    if (workspace.activePane) {
+      setConversationViewMode(workspace.activePane, "terminal");
     }
-  }, [store.activePane, setConversationViewMode]);
+  }, [setConversationViewMode, workspace.activePane]);
 
   // ── Stop TTS on the previous pane when switching tabs ──
   // Each TerminalPane manages its own TTS playback.  When the user switches
@@ -367,15 +401,15 @@ export default function Workspace() {
   // pane's TTS first, both audio streams play simultaneously — a jarring
   // experience.  We track the previous active pane and stop its TTS before
   // the new pane's auto-play effect fires.
-  const prevActivePaneRef = useRef<string | null>(store.activePane);
+  const prevActivePaneRef = useRef<string | null>(workspace.activePane);
   useEffect(() => {
     const prev = prevActivePaneRef.current;
-    prevActivePaneRef.current = store.activePane;
+    prevActivePaneRef.current = workspace.activePane;
     // Stop TTS on the pane we just left (if any)
-    if (prev && prev !== store.activePane) {
+    if (prev && prev !== workspace.activePane) {
       stopActiveTts(prev);
     }
-  }, [store.activePane, stopActiveTts]);
+  }, [workspace.activePane, stopActiveTts]);
 
   // ── Desktop auto-focus: focus terminal when active tab changes ──
   // On mobile we MUST NOT do this — focusing xterm's hidden <textarea> opens
@@ -397,15 +431,15 @@ export default function Workspace() {
   // It has been intentionally added twice before and each time was lost to
   // unrelated refactors. On mobile, terminal focus === keyboard popup.
   useEffect(() => {
-    if (!store.activePane || isMobile) return;
+    if (!workspace.activePane || isMobile) return;
     // Don't steal focus from open modals
-    if (store.settingsModalOpen || store.aiModalOpen || store.aiSuggestActive || store.appearanceModalPane !== null) return;
-    const paneId = store.activePane;
+    if (workspace.settingsModalOpen || workspace.aiModalOpen || workspace.aiSuggestActive || workspace.appearanceModalPane !== null) return;
+    const paneId = workspace.activePane;
     const rafId = requestAnimationFrame(() => {
       focusActiveTerminal(paneId);
     });
     return () => cancelAnimationFrame(rafId);
-  }, [store.activePane, isMobile, store.settingsModalOpen, store.aiModalOpen, store.aiSuggestActive, store.appearanceModalPane, focusActiveTerminal]);
+  }, [workspace.activePane, isMobile, workspace.settingsModalOpen, workspace.aiModalOpen, workspace.aiSuggestActive, workspace.appearanceModalPane, focusActiveTerminal]);
 
   const handleVoiceTranscript = useCallback((text: string) => {
     if (isMobile) {
@@ -424,10 +458,9 @@ export default function Workspace() {
     // because the isTtsSpeaking flag can lag behind actual playback due to
     // the async propagation chain (useEffect in TerminalPane → Workspace
     // Set state).  Calling stop when nothing is playing is a no-op.
-    stopActiveTts(store.activePane ?? undefined);
-    const vadAutoStop = useWorkspaceStore.getState().vadAutoStop;
+    stopActiveTts(workspace.activePane ?? undefined);
     voiceInput.startRecording({ vadEnabled: vadAutoStop && opts?.vadEnabled });
-  }, [store.activePane, stopActiveTts, voiceInput]);
+  }, [vadAutoStop, workspace.activePane, stopActiveTts, voiceInput]);
 
   const handleVoiceStop = useCallback(() => {
     voiceInput.stopRecording();
@@ -446,18 +479,18 @@ export default function Workspace() {
       cmd.execute({
         createTab: () => handleLaunch(),
         switchToTab: (index: number) => {
-          const pane = store.panes[index - 1];
-          if (pane) store.setActivePane(pane.sessionId);
+          const pane = workspacePanes[index - 1];
+          if (pane) setActiveWorkspacePane(pane.sessionId);
         },
         closeTab: () => {
-          const active = store.activePane;
+          const active = activeWorkspacePane;
           if (active) doRemovePane(active);
         },
         sendToTerminal: (data: string) => { handleSendToTerminal(data, "voice"); },
         exitVoiceMode: () => voiceInput.stopRecording(),
       }, suggestion.args);
     });
-  }, [voiceInput, handleSendToTerminal, handleLaunch, doRemovePane, store]);
+  }, [activeWorkspacePane, voiceInput, handleSendToTerminal, handleLaunch, doRemovePane, setActiveWorkspacePane, workspacePanes]);
 
   const handleVoiceCommandDismiss = useCallback(() => {
     voiceInput.dismissCommandSuggestion();
@@ -481,11 +514,11 @@ export default function Workspace() {
     requestAnimationFrame(() => {
       if (isMobile) {
         mobileToolbarRef.current?.focusInput();
-      } else if (store.activePane) {
-        focusActiveTerminal(store.activePane);
+      } else if (workspace.activePane) {
+        focusActiveTerminal(workspace.activePane);
       }
     });
-  }, [voiceInput.voiceState, isMobile, store.activePane, focusActiveTerminal]);
+  }, [voiceInput.voiceState, isMobile, workspace.activePane, focusActiveTerminal]);
 
   // --- TTS speaking indicator ---
   // Track which panes are currently speaking so we can show a visual indicator
@@ -502,10 +535,10 @@ export default function Workspace() {
       return next;
     });
   }, []);
-  const isTtsSpeaking = store.activePane ? ttsSpeakingPanes.has(store.activePane) : false;
+  const isTtsSpeaking = workspace.activePane ? ttsSpeakingPanes.has(workspace.activePane) : false;
   const handleTtsStop = useCallback(() => {
-    stopActiveTts(store.activePane ?? undefined);
-  }, [store.activePane, stopActiveTts]);
+    stopActiveTts(workspace.activePane ?? undefined);
+  }, [workspace.activePane, stopActiveTts]);
 
   // ── TTS playback state polling for AudioPlayerBar ──
   //
@@ -538,16 +571,16 @@ export default function Workspace() {
     // tick reports the real per-session mute state, so the bar shows the
     // muted icon immediately on first speak rather than briefly flashing
     // unmuted.
-    isMuted: store.startMutedOnLoad,
+    isMuted: workspace.startMutedOnLoad,
     capabilities: { canPause: true, canSeek: false, canAdjustSpeed: true, canAdjustVolume: true },
   };
   const [ttsPlayback, setTtsPlayback] = useState<TTSPlaybackState | null>(null);
   useEffect(() => {
-    if (!isTtsSpeaking || !store.activePane) {
+    if (!isTtsSpeaking || !workspace.activePane) {
       setTtsPlayback(null);
       return;
     }
-    const activePane = store.activePane;
+    const activePane = workspace.activePane;
     // Poll immediately on start — don't wait for the first interval tick.
     // This closes the gap where audio is playing but the bar is invisible.
     const poll = () => {
@@ -557,31 +590,31 @@ export default function Workspace() {
     poll();
     const id = setInterval(poll, 100);
     return () => clearInterval(id);
-  }, [isTtsSpeaking, store.activePane, getTtsStateOnPane]);
+  }, [isTtsSpeaking, workspace.activePane, getTtsStateOnPane]);
 
   const handleTtsPause = useCallback(() => {
-    if (store.activePane) pauseTtsOnPane(store.activePane);
-  }, [store.activePane, pauseTtsOnPane]);
+    if (workspace.activePane) pauseTtsOnPane(workspace.activePane);
+  }, [workspace.activePane, pauseTtsOnPane]);
 
   const handleTtsResume = useCallback(() => {
-    if (store.activePane) resumeTtsOnPane(store.activePane);
-  }, [store.activePane, resumeTtsOnPane]);
+    if (workspace.activePane) resumeTtsOnPane(workspace.activePane);
+  }, [workspace.activePane, resumeTtsOnPane]);
 
   const handleTtsSeek = useCallback((seconds: number) => {
-    if (store.activePane) seekTtsOnPane(store.activePane, seconds);
-  }, [store.activePane, seekTtsOnPane]);
+    if (workspace.activePane) seekTtsOnPane(workspace.activePane, seconds);
+  }, [workspace.activePane, seekTtsOnPane]);
 
   const handleTtsSetPlaybackRate = useCallback((rate: number) => {
-    if (store.activePane) setTtsPlaybackRateOnPane(store.activePane, rate);
-  }, [store.activePane, setTtsPlaybackRateOnPane]);
+    if (workspace.activePane) setTtsPlaybackRateOnPane(workspace.activePane, rate);
+  }, [workspace.activePane, setTtsPlaybackRateOnPane]);
 
   const handleTtsSetVolume = useCallback((level: number) => {
-    if (store.activePane) setTtsVolumeOnPane(store.activePane, level);
-  }, [store.activePane, setTtsVolumeOnPane]);
+    if (workspace.activePane) setTtsVolumeOnPane(workspace.activePane, level);
+  }, [workspace.activePane, setTtsVolumeOnPane]);
 
   const handleTtsSetMuted = useCallback((next: boolean) => {
-    if (store.activePane) setTtsMutedOnPane(store.activePane, next);
-  }, [store.activePane, setTtsMutedOnPane]);
+    if (workspace.activePane) setTtsMutedOnPane(workspace.activePane, next);
+  }, [workspace.activePane, setTtsMutedOnPane]);
 
   const applySummarizeResult = useCallback((sessionId: string, eventId: string, speechParagraphs: string[]) => {
     const convState = useConversationStore.getState();
@@ -642,8 +675,8 @@ export default function Workspace() {
 
   const ttsPlaybackController = useTtsPlaybackController({
     conversationSessions,
-    activePaneId: store.activePane,
-    autoTtsEnabled: store.autoTtsEnabled,
+    activePaneId: workspace.activePane,
+    autoTtsEnabled: workspace.autoTtsEnabled,
     audioState: { playback: ttsPlayback, isSpeaking: isTtsSpeaking },
     setViewMode: setConversationViewMode,
     speakText: (sessionId, text, paragraphs, opts) => {
@@ -656,6 +689,29 @@ export default function Workspace() {
     onSummarizeSucceeded: handleSummarizeSucceeded,
   });
   const handlePlaybackTransportStopped = ttsPlaybackController.handleTransportStopped;
+  const handlePaneTransportEventStart = ttsPlaybackController.handleTransportEventStart;
+  const getSelectedPlaybackVersion = ttsPlaybackController.getSelectedVersion;
+  const getPlaybackSummarizeError = ttsPlaybackController.getSummarizeError;
+  const clearPlaybackSummarizeError = ttsPlaybackController.clearSummarizeError;
+  const playPaneEvent = ttsPlaybackController.playEvent;
+  const playPaneFromHere = ttsPlaybackController.playFromHere;
+  const togglePanePlaybackVersion = ttsPlaybackController.toggleVersion;
+  const changePaneSummarizeLevel = ttsPlaybackController.changeSummarizeLevel;
+  const playbackFocusRequest = ttsPlaybackController.focusRequest;
+
+  const handlePaneToggleView = useCallback((sessionId: string, viewMode: PaneViewMode) => {
+    setConversationViewMode(sessionId, viewMode === "terminal" ? "messages" : "terminal");
+  }, [setConversationViewMode]);
+
+  const handlePaneTransportSpeakingEvent = useCallback((sessionId: string, eventId: string | null) => {
+    if (sessionId === workspace.activePane) {
+      handlePaneTransportEventStart(sessionId, eventId);
+    }
+  }, [handlePaneTransportEventStart, workspace.activePane]);
+
+  const handlePaneSummarizeError = useCallback((sessionId: string, eventId: string, message: string) => {
+    handleSummarizeFailed(sessionId, eventId, message, "auto");
+  }, [handleSummarizeFailed]);
 
   const handleRetrySummarize = useCallback(() => {
     setSummarizeError((prev) => {
@@ -686,14 +742,14 @@ export default function Workspace() {
   const handleMobileFileChange = useCallback(async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (!file || !store.activePane) return;
+    if (!file || !workspace.activePane) return;
     try {
-      const path = await uploadFile(store.activePane, file);
-      submitToActiveTerminal(path + "\n", "upload", store.activePane);
+      const path = await uploadFile(workspace.activePane, file);
+      submitToActiveTerminal(path + "\n", "upload", workspace.activePane);
     } catch {
       // Upload errors are transient — user can retry
     }
-  }, [store.activePane, submitToActiveTerminal]);
+  }, [workspace.activePane, submitToActiveTerminal]);
 
   // --- Resize logic ---
   const startResize = useCallback(
@@ -709,11 +765,11 @@ export default function Workspace() {
           containerSize: axis === "column" ? rect.width : rect.height,
           startValues:
             axis === "column"
-              ? store.columnFractions
-              : store.rowFractions,
+              ? workspace.columnFractions
+              : workspace.rowFractions,
         };
       },
-    [store.columnFractions, store.rowFractions],
+    [workspace.columnFractions, workspace.rowFractions],
   );
 
   useEffect(() => {
@@ -735,9 +791,9 @@ export default function Workspace() {
         splitterSize: SPLITTER_SIZE_PX,
       });
       if (resize.axis === "column") {
-        store.setColumnFractions(updated);
+        workspace.setColumnFractions(updated);
       } else {
-        store.setRowFractions(updated);
+        workspace.setRowFractions(updated);
       }
     };
 
@@ -751,18 +807,18 @@ export default function Workspace() {
       window.removeEventListener("pointermove", handleMove);
       window.removeEventListener("pointerup", handleUp);
     };
-  }, [store]);
+  }, [workspace]);
 
   // Compute layout
-  const orderedPanes = store.panes;
+  const orderedPanes = workspacePanes;
   const maxColumns = isMobile ? 1 : 2;
   const layout = resolveWorkspaceLayout(orderedPanes.length, maxColumns);
   const colFractions = reconcileTrackFractions(
-    store.columnFractions,
+    workspace.columnFractions,
     layout.columns,
   );
   const rowFractions = reconcileTrackFractions(
-    store.rowFractions,
+    workspace.rowFractions,
     layout.rows,
   );
 
@@ -783,18 +839,18 @@ export default function Workspace() {
   // fraction reconciliation is skipped entirely to avoid unnecessary store
   // writes.
   useEffect(() => {
-    if (store.displayMode === "tabs") return;
-    if (!fractionsMatch(colFractions, store.columnFractions)) {
-      store.setColumnFractions(colFractions);
+    if (workspace.displayMode === "tabs") return;
+    if (!fractionsMatch(colFractions, workspace.columnFractions)) {
+      workspace.setColumnFractions(colFractions);
     }
-  }, [colFractions, store]);
+  }, [colFractions, workspace]);
 
   useEffect(() => {
-    if (store.displayMode === "tabs") return;
-    if (!fractionsMatch(rowFractions, store.rowFractions)) {
-      store.setRowFractions(rowFractions);
+    if (workspace.displayMode === "tabs") return;
+    if (!fractionsMatch(rowFractions, workspace.rowFractions)) {
+      workspace.setRowFractions(rowFractions);
     }
-  }, [rowFractions, store]);
+  }, [rowFractions, workspace]);
 
   const colTemplate = buildGridTrackTemplate(colFractions, SPLITTER_SIZE_PX);
   const rowTemplate = buildGridTrackTemplate(rowFractions, SPLITTER_SIZE_PX);
@@ -905,91 +961,47 @@ export default function Workspace() {
       !isBeingDragged &&
       activeArrangeDrag?.dropIndex === idx;
 
-    const sessionConversation = conversationSessions[paneMeta.sessionId];
-    const supportsMessagesView = paneMeta.supportsMessagesView;
-    const viewMode = supportsMessagesView ? (conversationViewModes[paneMeta.sessionId] ?? "terminal") : "terminal";
-    const unreadCount = supportsMessagesView && sessionConversation
-      ? sessionConversation.events.filter((event) => event.role === "assistant" && event.sequence > sessionConversation.cursor.lastSeenSequence).length
-      : 0;
-
     return (
-      <div
+      <WorkspacePaneShell
         key={paneMeta.sessionId}
-        data-testid="terminal-pane-container"
-        data-session-id={paneMeta.sessionId}
-        data-pane-index={idx}
-        {...(isDropTarget ? { "data-drop-target": "" } : {})}
-        className={cn(
-          "relative flex flex-col rounded border overflow-hidden min-w-0 min-h-0 select-none",
-          store.activePane === paneMeta.sessionId
-            ? "border-wc-accent"
-            : "border-wc-default",
-          isBeingDragged && "opacity-40",
-          isDropTarget && "ring-2 ring-blue-400/60 ring-inset",
-        )}
-        style={{ gridColumn, gridRow }}
-        onClick={() => activatePane(paneMeta.sessionId)}
-      >
-        <TerminalHeader
-          sessionId={paneMeta.sessionId}
-          name={paneMeta.name}
-          headerColor={paneMeta.headerColor}
-          isActive={store.activePane === paneMeta.sessionId}
-          viewMode={viewMode}
-          unreadCount={unreadCount}
-          onClose={() => handleRequestClose(paneMeta.sessionId)}
-          onFocus={() => activatePane(paneMeta.sessionId)}
-          onToggleView={supportsMessagesView ? () => setConversationViewMode(paneMeta.sessionId, viewMode === "terminal" ? "messages" : "terminal") : undefined}
-          onDragStart={startArrangeDrag}
-        />
-        {/* overflow-hidden: same duplicate-scrollbar prevention as in tabs mode.
-         * See the tabs-mode comment for the full explanation. */}
-        <div className="relative flex-1 min-h-0 overflow-hidden">
-          <ErrorBoundary region="terminal">
-            <TerminalPane
-              sessionId={paneMeta.sessionId}
-              onExit={handleExit}
-              onReady={() => handleTerminalReady(paneMeta.sessionId)}
-              onVoiceStart={voiceInput.supported ? voiceInput.startRecording : undefined}
-              onVoiceStop={voiceInput.supported ? voiceInput.stopRecording : undefined}
-              onTtsSpeakingChange={(speaking) => handleTtsSpeakingChange(paneMeta.sessionId, speaking)}
-              onSpeakingEventChange={(eventId) => {
-                if (paneMeta.sessionId === store.activePane) {
-                  ttsPlaybackController.handleTransportEventStart(paneMeta.sessionId, eventId);
-                }
-              }}
-              onSummarizeError={(eventId, message) => handleSummarizeFailed(paneMeta.sessionId, eventId, message, "auto")}
-              onNeedsUnlock={handleNeedsUnlock}
-              ref={(handle) =>
-                registerTerminalRef(paneMeta.sessionId, handle)
-              }
-            />
-          </ErrorBoundary>
-          {supportsMessagesView && viewMode === "messages" && (
-            <div className="absolute inset-0">
-              <MessagesPane
-                sessionId={paneMeta.sessionId}
-                onPlayFromHere={(eventId) => ttsPlaybackController.playFromHere(paneMeta.sessionId, eventId)}
-                onPlayEvent={(eventId) => ttsPlaybackController.playEvent(paneMeta.sessionId, eventId)}
-                activeSpeakingEventId={store.activePane === paneMeta.sessionId ? ttsPlaybackController.activeEventId : null}
-                isTtsSpeaking={isTtsSpeaking && store.activePane === paneMeta.sessionId}
-                summarizeLevel={ttsPlaybackController.summarizeLevel}
-                selectedVersionForEvent={(event) => ttsPlaybackController.getSelectedVersion(paneMeta.sessionId, event)}
-                summarizingEventId={ttsPlaybackController.summarizingEventId}
-                getSummarizeError={ttsPlaybackController.getSummarizeError}
-                onClearSummarizeError={ttsPlaybackController.clearSummarizeError}
-                onToggleSummarized={(eventId, useSummarized) => ttsPlaybackController.toggleVersion(paneMeta.sessionId, eventId, useSummarized)}
-                onChangeLevel={(eventId, level) => ttsPlaybackController.changeSummarizeLevel(paneMeta.sessionId, eventId, level)}
-                playbackState={ttsPlayback ?? FALLBACK_TTS_PLAYBACK}
-                onSetPlaybackRate={handleTtsSetPlaybackRate}
-                onSetVolume={handleTtsSetVolume}
-                onSetMuted={handleTtsSetMuted}
-                playbackFocusRequest={store.activePane === paneMeta.sessionId ? ttsPlaybackController.focusRequest : null}
-              />
-            </div>
-          )}
-        </div>
-      </div>
+        paneMeta={paneMeta}
+        layoutMode="grid"
+        gridColumn={gridColumn}
+        gridRow={gridRow}
+        paneIndex={idx}
+        isActive={workspace.activePane === paneMeta.sessionId}
+        isBeingDragged={isBeingDragged}
+        isDropTarget={isDropTarget}
+        isTtsSpeaking={isTtsSpeaking && workspace.activePane === paneMeta.sessionId}
+        activeSpeakingEventId={workspace.activePane === paneMeta.sessionId ? ttsPlaybackController.activeEventId : null}
+        summarizeLevel={ttsPlaybackController.summarizeLevel}
+        summarizingEventId={ttsPlaybackController.summarizingEventId}
+        getSummarizeError={getPlaybackSummarizeError}
+        onClearSummarizeError={clearPlaybackSummarizeError}
+        onToggleSummarized={togglePanePlaybackVersion}
+        onChangeLevel={changePaneSummarizeLevel}
+        selectedVersionForEvent={getSelectedPlaybackVersion}
+        playbackState={ttsPlayback ?? FALLBACK_TTS_PLAYBACK}
+        onSetPlaybackRate={handleTtsSetPlaybackRate}
+        onSetVolume={handleTtsSetVolume}
+        onSetMuted={handleTtsSetMuted}
+        playbackFocusRequest={workspace.activePane === paneMeta.sessionId ? playbackFocusRequest : null}
+        onActivate={activatePane}
+        onRequestClose={handleRequestClose}
+        onToggleView={handlePaneToggleView}
+        onStartArrangeDrag={startArrangeDrag}
+        onTerminalReady={handleTerminalReady}
+        onTerminalExit={handleExit}
+        onTerminalRef={registerTerminalRef}
+        onVoiceStart={voiceInput.supported ? voiceInput.startRecording : undefined}
+        onVoiceStop={voiceInput.supported ? voiceInput.stopRecording : undefined}
+        onTtsSpeakingChange={handleTtsSpeakingChange}
+        onSpeakingEventChange={handlePaneTransportSpeakingEvent}
+        onSummarizeError={handlePaneSummarizeError}
+        onNeedsUnlock={handleNeedsUnlock}
+        onPlayFromHere={playPaneFromHere}
+        onPlayEvent={playPaneEvent}
+      />
     );
   });
 
@@ -1004,9 +1016,9 @@ export default function Workspace() {
       {/* Floating toolbar — hidden on mobile tab mode where TabBar
        * already provides the plus button and we move settings there. */}
       <FloatingToolbar
-        hidden={isMobile && store.displayMode === "tabs"}
-        onOpenSettings={() => store.setSettingsModalOpen(true)}
-        onOpenAi={() => store.setAiModalOpen(true)}
+        hidden={isMobile && workspace.displayMode === "tabs"}
+        onOpenSettings={() => workspace.setSettingsModalOpen(true)}
+        onOpenAi={() => workspace.setAiModalOpen(true)}
         onNewTerminal={() => handleLaunch()}
         onOpenLauncher={openLauncher}
         isCreating={isCreating}
@@ -1066,10 +1078,10 @@ export default function Workspace() {
       )}
 
       {/* Tab bar (only in tabs mode) */}
-      {store.displayMode === "tabs" && (
+      {workspace.displayMode === "tabs" && (
         <TabBar
           panes={orderedPanes}
-          activePane={store.activePane}
+          activePane={workspace.activePane}
           onNewTerminal={() => handleLaunch()}
           onOpenLauncher={openLauncher}
           onClosePane={handleRequestClose}
@@ -1080,7 +1092,7 @@ export default function Workspace() {
               variant="ghost"
               size="icon"
               className="h-7 w-7 shrink-0 mx-1 self-center"
-              onClick={() => store.setSettingsModalOpen(true)}
+              onClick={() => workspace.setSettingsModalOpen(true)}
               title="Settings"
             >
               <Settings className="h-4 w-4" />
@@ -1090,7 +1102,7 @@ export default function Workspace() {
       )}
 
       {/* Main content area */}
-      {store.displayMode === "tabs" ? (
+      {workspace.displayMode === "tabs" ? (
         /* Tab mode: stacked panes with display:none for inactive */
         <div className="relative flex-1 min-h-0 overflow-hidden">
           {/* Toggle between terminal and messages view.
@@ -1099,85 +1111,60 @@ export default function Workspace() {
            *   • In messages mode → show terminal icon (click to switch back)
            * Circular icon button with a translucent background so it doesn't
            * obscure too much terminal content but is still easy to tap. */}
-          {store.activePane && store.panes.find((pane) => pane.sessionId === store.activePane)?.supportsMessagesView && (
+          {workspace.activePane && workspace.panes.find((pane) => pane.sessionId === workspace.activePane)?.supportsMessagesView && (
             <div className="absolute right-3 top-3 z-20">
               <button
                 className="flex items-center justify-center h-8 w-8 rounded-full bg-wc-surface-raised/80 border border-wc-default text-wc-text-secondary hover:text-wc-text-primary hover:bg-wc-surface-input transition-colors backdrop-blur-sm"
                 onClick={() => {
-                  const current = conversationViewModes[store.activePane ?? ""] ?? "terminal";
-                  setConversationViewMode(store.activePane ?? "", current === "terminal" ? "messages" : "terminal");
+                  if (workspace.activePane) {
+                    handlePaneToggleView(workspace.activePane, activeViewMode);
+                  }
                 }}
-                title={(conversationViewModes[store.activePane] ?? "terminal") === "terminal" ? "Switch to messages view" : "Switch to terminal view"}
+                title={activeViewMode === "terminal" ? "Switch to messages view" : "Switch to terminal view"}
               >
-                {(conversationViewModes[store.activePane] ?? "terminal") === "terminal"
+                {activeViewMode === "terminal"
                   ? <MessageSquareText className="h-3.5 w-3.5" />
                   : <TerminalSquare className="h-3.5 w-3.5" />}
               </button>
             </div>
           )}
           {orderedPanes.map((paneMeta) => {
-            const isActive = paneMeta.sessionId === store.activePane;
-            const supportsMessagesView = paneMeta.supportsMessagesView;
-            const viewMode = supportsMessagesView ? (conversationViewModes[paneMeta.sessionId] ?? "terminal") : "terminal";
             return (
-              <div
+              <WorkspacePaneShell
                 key={paneMeta.sessionId}
-                data-testid={`tab-pane-${paneMeta.sessionId}`}
-                className="absolute inset-0 flex flex-col select-none"
-                style={{ visibility: isActive ? "visible" : "hidden" }}
-              >
-                {/* overflow-hidden prevents a duplicate scrollbar from appearing.
-                 * xterm.js has its own internal scrollable viewport (.xterm-viewport).
-                 * Without clipping here, the browser adds a native scrollbar to this
-                 * wrapper once the terminal buffer grows large enough, which on mobile
-                 * captures all touch-scroll events and makes the real terminal
-                 * un-scrollable unless the user carefully avoids the outer scrollbar. */}
-                <div className="relative flex-1 min-h-0 overflow-hidden">
-                  <ErrorBoundary region="terminal">
-                    <TerminalPane
-                      sessionId={paneMeta.sessionId}
-                      onExit={handleExit}
-                      onReady={() => handleTerminalReady(paneMeta.sessionId)}
-                      onVoiceStart={voiceInput.supported ? voiceInput.startRecording : undefined}
-                      onVoiceStop={voiceInput.supported ? voiceInput.stopRecording : undefined}
-                      onTtsSpeakingChange={(speaking) => handleTtsSpeakingChange(paneMeta.sessionId, speaking)}
-                      onSpeakingEventChange={(eventId) => {
-                        if (paneMeta.sessionId === store.activePane) {
-                          ttsPlaybackController.handleTransportEventStart(paneMeta.sessionId, eventId);
-                        }
-                      }}
-                      onSummarizeError={(eventId, message) => handleSummarizeFailed(paneMeta.sessionId, eventId, message, "auto")}
-                      onNeedsUnlock={handleNeedsUnlock}
-                      ref={(handle) =>
-                        registerTerminalRef(paneMeta.sessionId, handle)
-                      }
-                    />
-                  </ErrorBoundary>
-                  {supportsMessagesView && viewMode === "messages" && (
-                    <div className="absolute inset-0">
-                      <MessagesPane
-                        sessionId={paneMeta.sessionId}
-                        onPlayFromHere={(eventId) => ttsPlaybackController.playFromHere(paneMeta.sessionId, eventId)}
-                        onPlayEvent={(eventId) => ttsPlaybackController.playEvent(paneMeta.sessionId, eventId)}
-                        activeSpeakingEventId={store.activePane === paneMeta.sessionId ? ttsPlaybackController.activeEventId : null}
-                        isTtsSpeaking={isTtsSpeaking && store.activePane === paneMeta.sessionId}
-                        summarizeLevel={ttsPlaybackController.summarizeLevel}
-                        selectedVersionForEvent={(event) => ttsPlaybackController.getSelectedVersion(paneMeta.sessionId, event)}
-                        summarizingEventId={ttsPlaybackController.summarizingEventId}
-                        getSummarizeError={ttsPlaybackController.getSummarizeError}
-                        onClearSummarizeError={ttsPlaybackController.clearSummarizeError}
-                        onToggleSummarized={(eventId, useSummarized) => ttsPlaybackController.toggleVersion(paneMeta.sessionId, eventId, useSummarized)}
-                        onChangeLevel={(eventId, level) => ttsPlaybackController.changeSummarizeLevel(paneMeta.sessionId, eventId, level)}
-                        playbackState={ttsPlayback ?? FALLBACK_TTS_PLAYBACK}
-                        onSetPlaybackRate={handleTtsSetPlaybackRate}
-                        onSetVolume={handleTtsSetVolume}
-                        onSetMuted={handleTtsSetMuted}
-                        playbackFocusRequest={store.activePane === paneMeta.sessionId ? ttsPlaybackController.focusRequest : null}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
+                paneMeta={paneMeta}
+                layoutMode="tabs"
+                isActive={paneMeta.sessionId === workspace.activePane}
+                isVisible={paneMeta.sessionId === workspace.activePane}
+                isTtsSpeaking={isTtsSpeaking && workspace.activePane === paneMeta.sessionId}
+                activeSpeakingEventId={workspace.activePane === paneMeta.sessionId ? ttsPlaybackController.activeEventId : null}
+                summarizeLevel={ttsPlaybackController.summarizeLevel}
+                summarizingEventId={ttsPlaybackController.summarizingEventId}
+                getSummarizeError={getPlaybackSummarizeError}
+                onClearSummarizeError={clearPlaybackSummarizeError}
+                onToggleSummarized={togglePanePlaybackVersion}
+                onChangeLevel={changePaneSummarizeLevel}
+                selectedVersionForEvent={getSelectedPlaybackVersion}
+                playbackState={ttsPlayback ?? FALLBACK_TTS_PLAYBACK}
+                onSetPlaybackRate={handleTtsSetPlaybackRate}
+                onSetVolume={handleTtsSetVolume}
+                onSetMuted={handleTtsSetMuted}
+                playbackFocusRequest={workspace.activePane === paneMeta.sessionId ? playbackFocusRequest : null}
+                onActivate={activatePane}
+                onRequestClose={handleRequestClose}
+                onToggleView={handlePaneToggleView}
+                onTerminalReady={handleTerminalReady}
+                onTerminalExit={handleExit}
+                onTerminalRef={registerTerminalRef}
+                onVoiceStart={voiceInput.supported ? voiceInput.startRecording : undefined}
+                onVoiceStop={voiceInput.supported ? voiceInput.stopRecording : undefined}
+                onTtsSpeakingChange={handleTtsSpeakingChange}
+                onSpeakingEventChange={handlePaneTransportSpeakingEvent}
+                onSummarizeError={handlePaneSummarizeError}
+                onNeedsUnlock={handleNeedsUnlock}
+                onPlayFromHere={playPaneFromHere}
+                onPlayEvent={playPaneEvent}
+              />
             );
           })}
         </div>
@@ -1186,7 +1173,7 @@ export default function Workspace() {
         <div className="relative flex-1 min-h-0 overflow-hidden">
           <div
             ref={scrollContainerRef}
-            className={cn("absolute inset-0 overflow-auto wc-hide-scrollbar", store.isMinimapVisible && "right-[34px]")}
+            className={cn("absolute inset-0 overflow-auto wc-hide-scrollbar", workspace.isMinimapVisible && "right-[34px]")}
           >
             <div
               ref={gridRef}
@@ -1231,8 +1218,8 @@ export default function Workspace() {
             ? (ttsPlayback ?? FALLBACK_TTS_PLAYBACK)
             : { ...(ttsPlayback ?? FALLBACK_TTS_PLAYBACK), isPaused: true };
           const context = ttsPlaybackController.buildBarContext(
-            store.activePane,
-            store.autoTtsEnabled,
+            workspace.activePane,
+            workspace.autoTtsEnabled,
             { playback: ttsPlayback, isSpeaking: isTtsSpeaking },
           );
           if (!context?.event || !context.sessionId) return null;
@@ -1267,31 +1254,19 @@ export default function Workspace() {
               onSetPlaybackRate={handleTtsSetPlaybackRate}
               onSetVolume={handleTtsSetVolume}
               onSetMuted={handleTtsSetMuted}
-              onDismiss={() => ttsPlaybackController.dismissBar(store.activePane, isTtsSpeaking)}
+              onDismiss={() => ttsPlaybackController.dismissBar(workspace.activePane, isTtsSpeaking)}
               onSelectMessage={(eventId) => {
                 ttsPlaybackController.playEvent(context.sessionId as string, eventId);
               }}
-              onToggleSummarized={hasOriginal && activeEvent && store.activePane ? (useSummarized) => {
+              onToggleSummarized={hasOriginal && activeEvent && workspace.activePane ? (useSummarized) => {
                 ttsPlaybackController.toggleVersion(context.sessionId as string, activeEvent.id, useSummarized);
               } : undefined}
-              onChangeLevel={canRequestSummarize && activeEvent && store.activePane ? (level) => {
+              onChangeLevel={canRequestSummarize && activeEvent && workspace.activePane ? (level) => {
                 ttsPlaybackController.changeSummarizeLevel(context.sessionId as string, activeEvent.id, level);
               } : undefined}
             />
           );
         })()}
-        {/* AI suggestion bar (mobile only) */}
-        {store.aiSuggestActive && (
-          <AiSuggestBar
-            inputText={mobileInputText}
-            onExecute={(cmd) => {
-              handleSendToTerminal(cmd, "toolbar-submit");
-              mobileToolbarRef.current?.clearInput();
-              store.setAiSuggestActive(false);
-            }}
-            onClose={() => store.setAiSuggestActive(false)}
-          />
-        )}
         {/* Mobile toolbar */}
         <MobileToolbar
           ref={mobileToolbarRef}
@@ -1300,7 +1275,7 @@ export default function Workspace() {
           subscribePendingInput={handleSubscribePendingInput}
           getPendingInputSnapshot={handleGetPendingInputSnapshot}
           onFocusTerminal={handleFocusTerminal}
-          activeSessionId={store.activePane}
+          activeSessionId={workspace.activePane}
           voiceSupported={voiceInput.supported}
           voicePreparing={voiceInput.isPreparing}
           voiceRecording={voiceInput.isRecording}
@@ -1317,12 +1292,16 @@ export default function Workspace() {
           onVoiceCommandConfirm={handleVoiceCommandConfirm}
           onVoiceCommandDismiss={handleVoiceCommandDismiss}
           onUploadImage={handleMobileUploadImage}
-          onOpenAi={() => store.setAiSuggestActive(!store.aiSuggestActive)}
-          onInputChange={setMobileInputText}
-          aiSuggestActive={store.aiSuggestActive}
+          onOpenAi={() => workspace.setAiSuggestActive(!workspace.aiSuggestActive)}
+          aiSuggestActive={workspace.aiSuggestActive}
+          onAiSuggestExecute={(cmd) => {
+            handleSendToTerminal(cmd, "toolbar-submit");
+            mobileToolbarRef.current?.clearInput();
+            workspace.setAiSuggestActive(false);
+          }}
           isTtsSpeaking={isTtsSpeaking}
           onTtsStop={handleTtsStop}
-          viewMode={store.activePane ? (conversationViewModes[store.activePane] ?? "terminal") : "terminal"}
+          viewMode={activeViewMode}
           onSwitchToTerminal={handleSwitchToTerminal}
         />
         <input
@@ -1360,7 +1339,7 @@ export default function Workspace() {
       {/* Close confirmation dialog */}
       <ConfirmCloseDialog
         open={pendingClose !== null}
-        sessionName={store.panes.find((p) => p.sessionId === pendingClose)?.name ?? "terminal"}
+        sessionName={workspace.panes.find((p) => p.sessionId === pendingClose)?.name ?? "terminal"}
         onConfirm={handleConfirmClose}
         onCancel={handleCancelClose}
       />

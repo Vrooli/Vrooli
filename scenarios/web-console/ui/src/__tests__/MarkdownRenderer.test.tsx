@@ -89,6 +89,23 @@ describe("MarkdownRenderer", () => {
     expect(link?.getAttribute("rel")).toContain("noopener");
   });
 
+  it("does not force target=_blank on local file-style links", () => {
+    render(<MarkdownRenderer content="[Open](docs/plan.md)" />);
+    const link = document.querySelector("a");
+    expect(link).not.toBeNull();
+    expect(link?.getAttribute("target")).toBeNull();
+  });
+
+  it("forwards link clicks through onLinkClick", () => {
+    const onLinkClick = vi.fn();
+    render(<MarkdownRenderer content="[Open](docs/plan.md)" onLinkClick={onLinkClick} />);
+    const link = document.querySelector("a");
+    expect(link).not.toBeNull();
+    link?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(onLinkClick).toHaveBeenCalledTimes(1);
+    expect(onLinkClick.mock.calls[0]?.[0]).toBe("docs/plan.md");
+  });
+
   it("renders strikethrough text (GFM)", () => {
     render(<MarkdownRenderer content={"This is ~~deleted~~ text"} />);
     const del = document.querySelector("del");

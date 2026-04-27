@@ -82,10 +82,12 @@ export function useVirtualList({
   }, [scrollElementRef, updateViewport]);
 
   useEffect(() => {
+    const observers = itemObserversRef.current;
+    const nodes = itemNodesRef.current;
     return () => {
-      for (const observer of itemObserversRef.current.values()) observer.disconnect();
-      itemObserversRef.current.clear();
-      itemNodesRef.current.clear();
+      for (const observer of observers.values()) observer.disconnect();
+      observers.clear();
+      nodes.clear();
     };
   }, []);
 

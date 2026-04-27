@@ -28,13 +28,39 @@ vi.mock("../voice/audioCues", () => ({
 vi.mock("../voice/sharedAudioContext", () => ({
   getSharedAudioContext: () => ({
     state: "running",
+    createMediaStreamSource: () => ({
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    }),
+    createBiquadFilter: () => ({
+      type: "lowpass",
+      frequency: { value: 0 },
+      Q: { value: 0 },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    }),
+    createMediaStreamDestination: () => ({
+      stream: mockStream(),
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    }),
     createAnalyser: () => ({
       fftSize: 0,
       frequencyBinCount: 64,
       getByteFrequencyData: vi.fn(),
+      getByteTimeDomainData: vi.fn(),
       connect: vi.fn(),
       disconnect: vi.fn(),
     }),
+    createGain: () => ({
+      gain: { value: 1 },
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    }),
+    destination: {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    },
     resume: vi.fn().mockResolvedValue(undefined),
   }),
   ensureAudioContextOnGesture: vi.fn(),

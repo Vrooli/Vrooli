@@ -1,9 +1,10 @@
-import { Component, memo, useMemo, type ComponentPropsWithoutRef, type ReactNode, type ErrorInfo } from "react";
+import { Component, memo, useMemo, type ComponentPropsWithoutRef, type MouseEvent, type ReactNode, type ErrorInfo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CodeBlock } from "./components/CodeBlock";
 import { InlineCode } from "./components/InlineCode";
 import { MermaidDiagram } from "./components/MermaidDiagram";
+import { isExternalHref } from "../../lib/fileReferences";
 
 interface MarkdownErrorBoundaryProps {
   children: ReactNode;
@@ -43,12 +44,14 @@ class MarkdownErrorBoundary extends Component<MarkdownErrorBoundaryProps, Markdo
 interface MarkdownRendererProps {
   content: string;
   className?: string;
+  onLinkClick?: (href: string, event: MouseEvent<HTMLAnchorElement>) => void;
 }
 
 /** Renders markdown content with syntax highlighting, mermaid diagrams, and GFM support. */
 export const MarkdownRenderer = memo(function MarkdownRenderer({
   content,
   className,
+  onLinkClick,
 }: MarkdownRendererProps) {
   const components = useMemo(
     () => ({
@@ -68,17 +71,22 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
 
       pre: ({ children }: { children?: ReactNode }) => <>{children}</>,
 
-      a: ({ href, children, ...props }: ComponentPropsWithoutRef<"a">) => (
-        <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-wc-accent underline underline-offset-2 hover:text-wc-accent/80"
-          {...props}
-        >
-          {children}
-        </a>
-      ),
+      a: ({ href, children, ...props }: ComponentPropsWithoutRef<"a">) => {
+        const safeHref = href ?? "";
+        const external = isExternalHref(safeHref);
+        return (
+          <a
+            href={safeHref}
+            target={external ? "_blank" : undefined}
+            rel={external ? "noopener noreferrer" : undefined}
+            className="text-wc-accent underline underline-offset-2 hover:text-wc-accent/80"
+            onClick={(event) => onLinkClick?.(safeHref, event)}
+            {...props}
+          >
+            {children}
+          </a>
+        );
+      },
 
       h1: ({ children }: { children?: ReactNode }) => (
         <h1 className="text-2xl font-bold mt-6 mb-4 text-wc-text-primary">{children}</h1>
@@ -139,7 +147,7 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
         <del className="line-through text-wc-text-faint">{children}</del>
       ),
     }),
-    [],
+    [onLinkClick],
   );
 
   if (!content) return null;
@@ -163,7 +171,8 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
 }, (prevProps, nextProps) => {
   return (
     prevProps.content === nextProps.content &&
-    prevProps.className === nextProps.className
+    prevProps.className === nextProps.className &&
+    prevProps.onLinkClick === nextProps.onLinkClick
   );
 });
 

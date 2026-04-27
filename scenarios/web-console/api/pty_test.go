@@ -292,6 +292,7 @@ type fakePTY struct {
 	mu           sync.Mutex
 	cols         uint16
 	rows         uint16
+	currentDir   string
 	killed       bool
 	closed       bool
 	exitCode     int
@@ -345,6 +346,19 @@ func (f *fakePTY) HasChildProcess() bool {
 // ProbeReady on the fake PTY is a no-op — tests that need to simulate an
 // async attach handshake use a dedicated fake (see fakePTYWithProbe).
 func (f *fakePTY) ProbeReady(_ context.Context) error { return nil }
+
+func (f *fakePTY) CurrentDir(_ context.Context) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.currentDir != "" {
+		return f.currentDir, nil
+	}
+	cwd, err := filepath.Abs(resolveWorkingDir())
+	if err != nil {
+		return resolveWorkingDir(), nil
+	}
+	return cwd, nil
+}
 
 // TestRealPTY_ProbeReady_Synchronous exercises the standard PTY's
 // ProbeReady, which must return immediately so the WebSocket input loop

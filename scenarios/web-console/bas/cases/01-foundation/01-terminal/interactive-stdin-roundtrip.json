@@ -42,7 +42,7 @@
       "action": {
         "type": "ACTION_TYPE_CLICK",
         "click": {
-          "selector": "@selector/workspace.newTerminalButton"
+          "selector": "[data-testid=\"new-terminal-button\"], [data-testid=\"toolbar-new\"]"
         },
         "metadata": {
           "label": "Open launcher"
