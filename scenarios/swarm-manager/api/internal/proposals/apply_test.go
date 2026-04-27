@@ -40,12 +40,17 @@ func creatorWith(t *testing.T, store backlog.CreationStore, assigner backlog.Ite
 }
 
 type fakeCanceller struct {
-	calls []string
-	err   error
+	calls   []string
+	err     error
+	panicOn string // when set, panic if the call's "kind/name" matches
 }
 
 func (f *fakeCanceller) CancelForBacklog(_ context.Context, kind, name string) error {
-	f.calls = append(f.calls, kind+"/"+name)
+	ref := kind + "/" + name
+	f.calls = append(f.calls, ref)
+	if f.panicOn != "" && f.panicOn == ref {
+		panic("simulated downstream panic")
+	}
 	return f.err
 }
 
@@ -472,6 +477,48 @@ func TestApply_InterruptInProgress_DelegatesToCanceller(t *testing.T) {
 	}
 	if len(env.cancelFake.calls) != 1 || env.cancelFake.calls[0] != "execute/foo" {
 		t.Fatalf("expected canceller called for execute/foo, got %v", env.cancelFake.calls)
+	}
+}
+
+// TestApply_RecoversFromMutationPanic guards the production fix for the
+// typed-nil interface in backlog.Service.events that 500'd the feedback
+// Apply button. A panic mid-mutation must surface as a per-mutation
+// failure (so the loop continues and prior outcomes survive), not unwind
+// the whole batch.
+func TestApply_RecoversFromMutationPanic(t *testing.T) {
+	env := newApplyEnv(t)
+	foo := env.loadItem("execute", "foo")
+	foo.Status = backlog.StatusInProgress
+	if err := env.backlog.SaveItem(foo); err != nil {
+		t.Fatalf("set in_progress: %v", err)
+	}
+	bar := env.loadItem("execute", "bar")
+	bar.Status = backlog.StatusInProgress
+	if err := env.backlog.SaveItem(bar); err != nil {
+		t.Fatalf("set in_progress: %v", err)
+	}
+
+	env.cancelFake.panicOn = "execute/foo"
+
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{ID: "m1", Op: OpInterruptInProgress, Target: "execute/foo"},
+			{ID: "m2", Op: OpInterruptInProgress, Target: "execute/bar"},
+		},
+	}
+	res, err := env.applier.Apply(context.Background(), p, env.currentState(), nil, Source{InitiativeName: "ui-rewrite"})
+	if err != nil {
+		t.Fatalf("apply returned error (panic should have been recovered): %v", err)
+	}
+	if res.Applied != 1 || res.Failed != 1 {
+		t.Fatalf("expected Applied=1 Failed=1, got %+v", res)
+	}
+	if got := res.Outcomes[0]; got.Applied || !strings.Contains(got.Error, "panicked") {
+		t.Fatalf("m1 outcome should record panic, got %+v", got)
+	}
+	if got := res.Outcomes[1]; !got.Applied {
+		t.Fatalf("m2 should have applied after m1 panicked, got %+v", got)
 	}
 }
 

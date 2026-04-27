@@ -1,0 +1,773 @@
+.report-dialog {
+  flex: 1;
+  min-height: 0;
+  background: linear-gradient(180deg, rgba(18, 24, 44, 0.98), rgba(8, 11, 24, 0.98));
+  border: 1px solid rgba(122, 160, 255, 0.22);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.52);
+  color: var(--app-text-primary);
+}
+
+.report-dialog__overlay {
+  align-items: stretch;
+}
+
+.report-dialog__header,
+.report-dialog__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-shrink: 0;
+  padding: 18px 22px;
+  border-color: rgba(122, 160, 255, 0.14);
+}
+
+.report-dialog__header {
+  border-bottom: 1px solid rgba(122, 160, 255, 0.14);
+}
+
+.report-dialog__footer {
+  border-top: 1px solid rgba(122, 160, 255, 0.14);
+  background: rgba(5, 8, 18, 0.86);
+}
+
+.report-dialog__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  font-size: 1.08rem;
+  font-weight: 660;
+}
+
+.report-dialog__app-chip {
+  max-width: min(340px, 42vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 4px 8px;
+  border: 1px solid rgba(122, 160, 255, 0.26);
+  border-radius: 999px;
+  background: rgba(122, 160, 255, 0.12);
+  color: var(--app-text-label);
+  font-size: 0.78rem;
+  font-weight: 560;
+}
+
+.report-dialog__close,
+.report-dialog__bridge-icon,
+.report-dialog__bridge-toggle,
+.report-dialog__logs-toggle,
+.report-dialog__logs-refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(245, 246, 255, 0.82);
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.report-dialog__close {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+}
+
+.report-dialog__bridge-icon,
+.report-dialog__bridge-toggle,
+.report-dialog__logs-toggle,
+.report-dialog__logs-refresh {
+  min-width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  padding: 0 8px;
+  font-size: 0.76rem;
+  font-weight: 620;
+}
+
+.report-dialog__close:hover,
+.report-dialog__bridge-icon:hover,
+.report-dialog__bridge-toggle:hover,
+.report-dialog__logs-toggle:hover,
+.report-dialog__logs-refresh:hover {
+  background: rgba(122, 160, 255, 0.16);
+  border-color: rgba(122, 160, 255, 0.32);
+  color: #fff;
+}
+
+.report-dialog__bridge-toggle--collapsed svg,
+.report-dialog__logs-toggle[aria-expanded="false"] svg {
+  transform: rotate(-90deg);
+}
+
+.report-dialog__form {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.report-dialog__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 20px 22px 22px;
+}
+
+.report-dialog__layout {
+  display: grid;
+  grid-template-columns: minmax(340px, 0.92fr) minmax(420px, 1.08fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.report-dialog__lane,
+.report-dialog__logs,
+.report-dialog__logs-section,
+.report-dialog__captures {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.report-dialog__lane {
+  gap: 14px;
+}
+
+.report-dialog__lane--secondary {
+  gap: 16px;
+}
+
+.report-dialog__label {
+  color: var(--app-text-label);
+  font-size: 0.82rem;
+  font-weight: 650;
+  text-transform: uppercase;
+}
+
+.report-dialog__textarea {
+  width: 100%;
+  min-height: 142px;
+  resize: vertical;
+  border: 1px solid rgba(122, 160, 255, 0.22);
+  border-radius: 12px;
+  padding: 12px 13px;
+  background: rgba(3, 6, 18, 0.7);
+  color: var(--app-text-primary);
+  line-height: 1.48;
+  outline: none;
+}
+
+.report-dialog__textarea:focus {
+  border-color: rgba(122, 160, 255, 0.68);
+  box-shadow: 0 0 0 3px rgba(122, 160, 255, 0.16);
+}
+
+.report-dialog__textarea:disabled,
+.report-dialog__button:disabled,
+.report-dialog__bridge-icon:disabled {
+  opacity: 0.56;
+  cursor: not-allowed;
+}
+
+.report-dialog__hint,
+.report-dialog__preview-hint,
+.report-dialog__preview-meta,
+.report-dialog__preview-info,
+.report-dialog__logs-empty,
+.report-dialog__logs-meta,
+.report-dialog__bridge-meta,
+.report-dialog__bridge-note,
+.report-dialog__bridge-inline-note {
+  margin: 0;
+  color: rgba(245, 246, 255, 0.64);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.report-dialog__bridge,
+.report-dialog__preview,
+.report-dialog__logs-section,
+.report-dialog__captures {
+  border: 1px solid rgba(122, 160, 255, 0.18);
+  border-radius: 14px;
+  background: rgba(13, 18, 34, 0.72);
+}
+
+.report-dialog__bridge,
+.report-dialog__preview,
+.report-dialog__captures {
+  padding: 14px;
+}
+
+.report-dialog__bridge--warning {
+  border-color: rgba(255, 209, 102, 0.32);
+  background: rgba(42, 33, 12, 0.38);
+}
+
+.report-dialog__bridge--ok {
+  border-color: rgba(51, 226, 154, 0.28);
+  background: rgba(12, 44, 32, 0.36);
+}
+
+.report-dialog__bridge--stale {
+  border-style: dashed;
+}
+
+.report-dialog__bridge-head,
+.report-dialog__preview-head,
+.report-dialog__logs-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.report-dialog__bridge-head > span,
+.report-dialog__logs-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 660;
+}
+
+.report-dialog__bridge-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.report-dialog__bridge-body,
+.report-dialog__bridge-card-group,
+.report-dialog__bridge-actions,
+.report-dialog__issues-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.report-dialog__bridge-inline,
+.report-dialog__issues-entry,
+.report-dialog__health-item,
+.report-dialog__network-entry {
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 11px;
+  padding: 10px;
+  background: rgba(4, 7, 16, 0.46);
+}
+
+.report-dialog__bridge-inline--success,
+.report-dialog__health-item--ok {
+  border-color: rgba(51, 226, 154, 0.25);
+}
+
+.report-dialog__bridge-inline--warning,
+.report-dialog__health-item--warn {
+  border-color: rgba(255, 209, 102, 0.3);
+}
+
+.report-dialog__bridge-inline--error,
+.report-dialog__health-item--error {
+  border-color: rgba(255, 111, 145, 0.32);
+}
+
+.report-dialog__bridge-inline-content,
+.report-dialog__issues-entry-content,
+.report-dialog__health-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.report-dialog__bridge-inline-title,
+.report-dialog__issues-entry-title,
+.report-dialog__health-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  color: var(--app-text-primary);
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.report-dialog__bridge-inline-meta,
+.report-dialog__issues-entry-meta,
+.report-dialog__health-endpoint,
+.report-dialog__health-message,
+.report-dialog__health-code,
+.report-dialog__network-url,
+.report-dialog__network-error {
+  margin: 4px 0 0;
+  color: rgba(245, 246, 255, 0.62);
+  font-size: 0.78rem;
+  line-height: 1.38;
+}
+
+.report-dialog__bridge-inline-list,
+.report-dialog__issues-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+
+.report-dialog__bridge-recommendation {
+  margin-top: 6px;
+  color: rgba(245, 246, 255, 0.76);
+  font-size: 0.8rem;
+}
+
+.report-dialog__issues-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border-radius: 12px;
+  padding: 11px 12px;
+  font-size: 0.84rem;
+}
+
+.report-dialog__issues-alert--loading {
+  border: 1px solid rgba(122, 160, 255, 0.24);
+  background: rgba(122, 160, 255, 0.1);
+}
+
+.report-dialog__issues-alert--error,
+.report-dialog__error {
+  border: 1px solid rgba(255, 111, 145, 0.32);
+  background: rgba(90, 22, 42, 0.42);
+  color: #ffd8e2;
+}
+
+.report-dialog__issues-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.report-dialog__issues-error p,
+.report-dialog__error {
+  margin: 0;
+}
+
+.report-dialog__issues-entry {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.report-dialog__issues-entry-title {
+  overflow-wrap: anywhere;
+}
+
+.report-dialog__issues-entry-title--active,
+.report-dialog__issues-entry-icon--active {
+  color: var(--app-warning);
+}
+
+.report-dialog__issues-link {
+  margin-left: auto;
+}
+
+.report-dialog__checkbox,
+.report-dialog__logs-stream,
+.report-dialog__logs-include,
+.report-dialog__preview-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(245, 246, 255, 0.78);
+  font-size: 0.84rem;
+}
+
+.report-dialog__checkbox input,
+.report-dialog__logs-stream input {
+  accent-color: var(--app-accent);
+}
+
+.report-dialog__preview {
+  gap: 12px;
+}
+
+.report-dialog__preview-head {
+  justify-content: space-between;
+}
+
+.report-dialog__preview-loading,
+.report-dialog__preview-error,
+.report-dialog__logs-loading,
+.report-dialog__logs-message {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 78px;
+  justify-content: center;
+  border-radius: 12px;
+  background: rgba(3, 6, 18, 0.55);
+  color: rgba(245, 246, 255, 0.72);
+}
+
+.report-dialog__preview-image {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(3, 6, 18, 0.8);
+}
+
+.report-dialog__preview-image img {
+  display: block;
+  width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+}
+
+.report-dialog__preview-image--selectable {
+  cursor: crosshair;
+}
+
+.report-dialog__selection {
+  position: absolute;
+  border: 2px solid var(--app-accent);
+  background: rgba(122, 160, 255, 0.12);
+  pointer-events: none;
+}
+
+.report-dialog__selection-label {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  padding: 2px 6px;
+  border-radius: 6px 6px 0 0;
+  background: rgba(3, 6, 18, 0.9);
+  color: #fff;
+  font-size: 0.72rem;
+}
+
+.report-dialog__preview-actions,
+.report-dialog__preview-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.report-dialog__preview-actions {
+  justify-content: space-between;
+}
+
+.report-dialog__captures-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.report-dialog__capture-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 7px 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(245, 246, 255, 0.72);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.report-dialog__capture-tab--active {
+  border-color: rgba(122, 160, 255, 0.48);
+  background: rgba(122, 160, 255, 0.16);
+  color: #fff;
+}
+
+.report-dialog__capture-panel {
+  display: none;
+  padding-top: 8px;
+}
+
+.report-dialog__capture-panel--active {
+  display: block;
+}
+
+.report-dialog__logs {
+  gap: 12px;
+}
+
+.report-dialog__logs-section {
+  overflow: hidden;
+}
+
+.report-dialog__logs-header {
+  justify-content: space-between;
+  padding: 12px 14px;
+}
+
+.report-dialog__logs-include {
+  min-width: 0;
+  flex: 1;
+}
+
+.report-dialog__logs-include--off {
+  color: rgba(245, 246, 255, 0.48);
+}
+
+.report-dialog__logs-include--disabled {
+  opacity: 0.54;
+}
+
+.report-dialog__logs-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 1px solid rgba(122, 160, 255, 0.12);
+  padding: 12px 14px 14px;
+}
+
+.report-dialog__logs-streams,
+.report-dialog__logs-streams-meta,
+.report-dialog__logs-meta,
+.report-dialog__network-row,
+.report-dialog__health-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.report-dialog__logs-stream {
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.report-dialog__logs-count,
+.report-dialog__network-status,
+.report-dialog__health-status,
+.report-dialog__health-latency {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  border-radius: 999px;
+  padding: 2px 7px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(245, 246, 255, 0.76);
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.report-dialog__logs-streams-warning,
+.report-dialog__logs-alert-title {
+  color: var(--app-warning);
+  font-weight: 650;
+}
+
+.report-dialog__logs-alert {
+  display: flex;
+  gap: 10px;
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(42, 33, 12, 0.36);
+}
+
+.report-dialog__logs-alert p {
+  margin: 0;
+}
+
+.report-dialog__logs-content {
+  max-height: 260px;
+  overflow: auto;
+  margin: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(3, 6, 18, 0.76);
+  color: rgba(245, 246, 255, 0.8);
+  font-family: var(--app-font-mono);
+  font-size: 0.76rem;
+  line-height: 1.48;
+  white-space: pre-wrap;
+}
+
+.report-dialog__logs-content--console,
+.report-dialog__logs-content--network {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  white-space: normal;
+}
+
+.report-dialog__console-line {
+  border-left: 3px solid rgba(122, 160, 255, 0.36);
+  padding: 7px 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.report-dialog__console-line--error {
+  border-left-color: var(--app-danger);
+}
+
+.report-dialog__console-line--warn {
+  border-left-color: var(--app-warning);
+}
+
+.report-dialog__console-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: rgba(245, 246, 255, 0.54);
+  font-size: 0.7rem;
+}
+
+.report-dialog__console-body {
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+
+.report-dialog__network-entry,
+.report-dialog__health-item {
+  flex-direction: column;
+}
+
+.report-dialog__network-method,
+.report-dialog__network-request,
+.report-dialog__network-duration,
+.report-dialog__network-timestamp {
+  color: rgba(245, 246, 255, 0.58);
+  font-size: 0.72rem;
+}
+
+.report-dialog__network-status--ok,
+.report-dialog__health-status--ok {
+  background: rgba(51, 226, 154, 0.14);
+  color: #9ff7d1;
+}
+
+.report-dialog__network-status--error,
+.report-dialog__health-status--error {
+  background: rgba(255, 111, 145, 0.14);
+  color: #ffb6c8;
+}
+
+.report-dialog__health-response {
+  margin-top: 8px;
+}
+
+.report-dialog__health-response-label {
+  display: block;
+  margin-bottom: 4px;
+  color: rgba(245, 246, 255, 0.56);
+  font-size: 0.72rem;
+  font-weight: 650;
+  text-transform: uppercase;
+}
+
+.report-dialog__data-loading-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-right: auto;
+  color: rgba(245, 246, 255, 0.74);
+  font-size: 0.8rem;
+}
+
+.report-dialog__data-loading-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.report-dialog__data-loading-hint {
+  color: rgba(245, 246, 255, 0.5);
+  font-size: 0.76rem;
+}
+
+.report-dialog__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.report-dialog__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 0 14px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--app-text-primary);
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 620;
+}
+
+.report-dialog__button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.report-dialog__button--primary {
+  border-color: rgba(122, 160, 255, 0.62);
+  background: linear-gradient(180deg, rgba(122, 160, 255, 0.94), rgba(82, 123, 230, 0.92));
+  color: #fff;
+}
+
+.report-dialog__button--primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #8aadff, #6284f4);
+}
+
+.report-dialog__button--ghost {
+  min-height: 32px;
+  padding: 0 10px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.report-dialog__error {
+  padding: 9px 11px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+}
+
+@media (max-width: 980px) {
+  .report-dialog__layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .report-dialog__header,
+  .report-dialog__footer,
+  .report-dialog__body {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .report-dialog__footer,
+  .report-dialog__actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .report-dialog__actions,
+  .report-dialog__button,
+  .report-dialog__data-loading-notice {
+    width: 100%;
+  }
+
+  .report-dialog__app-chip {
+    max-width: 44vw;
+  }
+}

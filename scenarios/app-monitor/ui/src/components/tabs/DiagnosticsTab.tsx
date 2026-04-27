@@ -56,7 +56,7 @@ export default function DiagnosticsTab({ diagnostics, loading, error, onRetry }:
   const hasLocalhostFindings = localhostUsage != null && Array.isArray(localhostUsage.findings) && localhostUsage.findings.length > 0;
   const auditorSummary = diagnostics.auditor_summary;
   const hasAuditorSummary = Boolean(auditorSummary && auditorSummary.total > 0);
-  const issues = diagnostics.issues;
+  const issues = diagnostics.fixes;
   const hasIssues = issues != null && issues.total_count > 0;
   const warnings = Array.isArray(diagnostics.warnings) ? diagnostics.warnings : [];
   const hasWarnings = warnings.length > 0;
@@ -309,13 +309,13 @@ export default function DiagnosticsTab({ diagnostics, loading, error, onRetry }:
         <section className="diagnostics-section">
           <h3 className="diagnostics-section__title">
             <Info size={18} />
-            <span>Issues Tracker</span>
+            <span>Fix Backlog</span>
           </h3>
           <div className="diagnostics-issues">
             <div className="diagnostics-issues__summary">
               <div className="diagnostics-issues__stat">
-                <span className="diagnostics-issues__stat-value">{issues.open_count}</span>
-                <span className="diagnostics-issues__stat-label">Open</span>
+                <span className="diagnostics-issues__stat-value">{issues.archived_count}</span>
+                <span className="diagnostics-issues__stat-label">Archived</span>
               </div>
               <div className="diagnostics-issues__stat">
                 <span className="diagnostics-issues__stat-value">{issues.active_count}</span>
@@ -326,14 +326,14 @@ export default function DiagnosticsTab({ diagnostics, loading, error, onRetry }:
                 <span className="diagnostics-issues__stat-label">Total</span>
               </div>
             </div>
-            {issues.tracker_url && (
+            {issues.swarm_url && (
               <a
-                href={issues.tracker_url}
+                href={issues.swarm_url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="diagnostics-issues__link"
               >
-                <span>View in Issue Tracker</span>
+                <span>View in Swarm Manager</span>
                 <ExternalLink size={14} />
               </a>
             )}

@@ -1,0 +1,25 @@
+{
+  "initiative_name": "swarm-manager-feature-parity",
+  "number": 1,
+  "slug": "we-did-some-work-outside",
+  "type": "feedback",
+  "status": "awaiting_user",
+  "submission": {
+    "text": "We did some work outside of this to migrate app-monitor from using app-issue-tracker to using swarm-manager. Not sure how complete/verified that migration is, but it likely affects the deprecation work completion status. Not sure where else app-issue-tracker is still used, as I think app-monitor was the primary place. Probably worth seeing how it was done there, verifying its accuracy and seeing what remaining work needs to be done (should ideally be a hard cutover with absolutely no compatability/legacy/dead code to the app-issue-tracker integration), and suggesting applying that same pattern to every other scenario that still integrates with app-issue-tracker",
+    "created_at": "2026-04-27T19:55:17Z"
+  },
+  "thread": [
+    {
+      "role": "user",
+      "content": "We did some work outside of this to migrate app-monitor from using app-issue-tracker to using swarm-manager. Not sure how complete/verified that migration is, but it likely affects the deprecation work completion status. Not sure where else app-issue-tracker is still used, as I think app-monitor was the primary place. Probably worth seeing how it was done there, verifying its accuracy and seeing what remaining work needs to be done (should ideally be a hard cutover with absolutely no compatability/legacy/dead code to the app-issue-tracker integration), and suggesting applying that same pattern to every other scenario that still integrates with app-issue-tracker",
+      "created_at": "2026-04-27T19:55:17Z"
+    },
+    {
+      "role": "agent",
+      "content": "agent spawn failed: agent-manager not available: api-core discovery command_failed scenario=\"agent-manager\" port=\"API_PORT\" output=\"Runtime error: no running port named API_PORT for scenario \\\"agent-manager\\\"\\nStart the scenario before querying runtime ports\" err=exit status 1",
+      "created_at": "2026-04-27T19:55:17Z"
+    }
+  ],
+  "created_at": "2026-04-27T19:55:17Z",
+  "updated_at": "2026-04-27T19:55:17Z"
+}

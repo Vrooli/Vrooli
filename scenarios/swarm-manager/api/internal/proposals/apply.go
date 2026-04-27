@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -207,7 +208,7 @@ func (a *Applier) Apply(ctx context.Context, proposal Proposal, current CurrentS
 			result.Outcomes = append(result.Outcomes, outcome)
 			continue
 		}
-		if err := a.applyOne(ctx, m, source); err != nil {
+		if err := a.applyOneSafe(ctx, m, source); err != nil {
 			outcome.Applied = false
 			outcome.Error = err.Error()
 			result.Failed++
@@ -263,6 +264,29 @@ func acceptSet(ids []string) map[string]struct{} {
 		out[id] = struct{}{}
 	}
 	return out
+}
+
+// applyOneSafe wraps applyOne in a recover so a panic mid-batch (e.g. a
+// nil-pointer dereference in an event-log emit) becomes a per-mutation
+// failure recorded in the Outcome instead of unwinding the whole HTTP
+// request and stranding partially-written items on disk. The stack trace
+// is logged so the underlying defect remains diagnosable. Without this,
+// a single faulty downstream surface causes the Apply button to return
+// 500 with prior mutations already persisted but no apply_result.
+func (a *Applier) applyOneSafe(ctx context.Context, m Mutation, source Source) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("proposals: mutation panicked",
+				"initiative", source.InitiativeName,
+				"mutation", m.ID,
+				"op", m.Op,
+				"panic", r,
+				"stack", string(debug.Stack()),
+			)
+			err = fmt.Errorf("mutation panicked: %v", r)
+		}
+	}()
+	return a.applyOne(ctx, m, source)
 }
 
 func (a *Applier) applyOne(ctx context.Context, m Mutation, source Source) error {

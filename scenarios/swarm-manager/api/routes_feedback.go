@@ -42,16 +42,24 @@ func (s *Server) registerFeedbackRoutes(materializer *graph.Materializer) {
 		return
 	}
 
-	creator, err := backlog.NewService(backlog.ServiceConfig{
+	// Guard against the typed-nil-into-interface trap: ServiceConfig.Events
+	// is the CreationEventEmitter interface. Assigning a nil *eventlog.Emitter
+	// would yield a non-nil interface that passes the `s.events != nil` check
+	// in Service.Create and then panic on first method call. Only set Events
+	// when we actually have a constructed emitter.
+	cfg := backlog.ServiceConfig{
 		Store:       s.backlogHandler.Store(),
 		Assigner:    s.initiativeService,
-		Events:      s.emitter,
 		Invalidator: materializer,
 		// Workshop and CycleChecker intentionally omitted: proposal-
 		// applied items skip auto-workshop (agent already chose the
 		// item) and cycle validation is performed by the Applier's
 		// Validate phase using CurrentState.
-	})
+	}
+	if s.emitter != nil {
+		cfg.Events = s.emitter
+	}
+	creator, err := backlog.NewService(cfg)
 	if err != nil {
 		slog.Warn("feedback: failed to build backlog.Service for proposals", "err", err)
 		return

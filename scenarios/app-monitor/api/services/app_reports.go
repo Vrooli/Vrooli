@@ -10,21 +10,20 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/vrooli/api-core/discovery"
 )
 
 // =============================================================================
 // Issue Report Builder
 // =============================================================================
 
-// ReportAppIssue forwards an issue report to the app-issue-tracker scenario
+// ReportAppIssue creates a Swarm Manager fix backlog item with attached App Monitor evidence.
 func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest) (*IssueReportResult, error) {
 	if req == nil {
 		return nil, errors.New("request payload is required")
@@ -37,7 +36,7 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 
 	message := strings.TrimSpace(req.Message)
 	if message == "" {
-		return nil, errors.New("issue message is required")
+		return nil, errors.New("fix report message is required")
 	}
 
 	primaryDescription := trimmedStringPtr(req.PrimaryDescription)
@@ -69,7 +68,7 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 
 	targetEntries := sanitizeIssueTargets(req.Targets, scenarioName, appName)
 	if len(targetEntries) == 0 {
-		return nil, errors.New("no valid targets provided for issue report")
+		return nil, errors.New("no valid targets provided for fix report")
 	}
 
 	previewURL := ""
@@ -206,11 +205,6 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 	)
 	tags := buildIssueTags(scenarioName)
 	environment := buildIssueEnvironment(appID, appName, previewURL, reportSource, reportedAt)
-
-	port, err := s.locateIssueTrackerAPIPort(ctx)
-	if err != nil {
-		return nil, err
-	}
 
 	metadataExtra := map[string]string{}
 	if reportSource != "" {
@@ -413,12 +407,6 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		metadataExtra = nil
 	}
 
-	reporterName := "App Monitor"
-	if reportSource != "" {
-		reporterName = fmt.Sprintf("App Monitor – %s", reportSource)
-	}
-	reporterEmail := "monitor@vrooli.local"
-
 	targetPayload := make([]map[string]string, 0, len(targetEntries))
 	for _, target := range targetEntries {
 		entry := map[string]string{
@@ -431,66 +419,70 @@ func (s *AppService) ReportAppIssue(ctx context.Context, req *IssueReportRequest
 		targetPayload = append(targetPayload, entry)
 	}
 
-	payload := map[string]interface{}{
-		"title":          title,
-		"description":    description,
-		"type":           "bug",
-		"priority":       "medium",
-		"tags":           tags,
-		"environment":    environment,
-		"metadata_extra": metadataExtra,
-		"artifacts":      artifacts,
-		"reporter_name":  reporterName,
-		"reporter_email": reporterEmail,
-		"targets":        targetPayload,
+	report := map[string]interface{}{
+		"title":       title,
+		"message":     message,
+		"app_id":      appID,
+		"app_name":    appName,
+		"scenario":    scenarioName,
+		"preview_url": previewURL,
+		"source":      reportSource,
+		"reported_at": reportedAt.Format(time.RFC3339),
+		"environment": environment,
+		"metadata":    metadataExtra,
+		"targets":     targetPayload,
+		"artifacts":   artifactIndex(artifacts),
 	}
 
-	result, err := s.submitIssueToTracker(ctx, port, payload)
+	evidenceFiles, err := buildSwarmEvidenceFiles(report, artifacts)
 	if err != nil {
 		return nil, err
 	}
 
-	if result != nil && result.IssueID != "" {
-		if uiPort, err := discovery.ResolveScenarioPort(ctx, issueTrackerScenarioID, "UI_PORT"); err == nil && uiPort > 0 {
-			u := url.URL{
-				Path: fmt.Sprintf("/apps/%s/proxy/", url.PathEscape(issueTrackerScenarioID)),
-			}
-			query := u.Query()
-			query.Set("issue", result.IssueID)
-			u.RawQuery = query.Encode()
-			result.IssueURL = u.String()
-		} else if err != nil {
-			logger.Warn("failed to resolve app-issue-tracker UI port", err)
-		}
+	itemPayload := map[string]interface{}{
+		"name":             slugifyFixName(title),
+		"title":            title,
+		"description":      description,
+		"kind":             "fix",
+		"priority":         5,
+		"tags":             tags,
+		"acceptance_allow": []string{fmt.Sprintf("scenarios/%s/**", scenarioName)},
 	}
 
-	return result, nil
+	return s.submitFixToSwarmManager(ctx, itemPayload, evidenceFiles)
 }
 
 // =============================================================================
-// Issue Tracker HTTP Client
+// Swarm Manager HTTP Client
 // =============================================================================
 
-func (s *AppService) submitIssueToTracker(ctx context.Context, port int, payload map[string]interface{}) (*IssueReportResult, error) {
-	if port <= 0 {
-		return nil, errors.New("invalid app-issue-tracker port")
+type swarmEvidenceFile struct {
+	Path        string
+	Content     []byte
+	ContentType string
+}
+
+func (s *AppService) submitFixToSwarmManager(ctx context.Context, itemPayload map[string]interface{}, files []swarmEvidenceFile) (*IssueReportResult, error) {
+	baseURL, err := s.resolveSwarmManagerURL(ctx)
+	if err != nil {
+		return nil, ErrSwarmManagerUnavailable
 	}
 
-	body, err := json.Marshal(payload)
+	body, contentType, err := buildSwarmCreateMultipart(itemPayload, files)
 	if err != nil {
 		return nil, err
 	}
 
-	endpoint := fmt.Sprintf("http://localhost:%d/api/v1/issues", port)
+	endpoint := strings.TrimRight(baseURL, "/") + "/api/v1/backlog"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", contentType)
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to call app-issue-tracker: %w", err)
+		return nil, fmt.Errorf("failed to call swarm-manager: %w", err)
 	}
 	if resp == nil {
 		return nil, errors.New("http client returned nil response without error")
@@ -499,52 +491,177 @@ func (s *AppService) submitIssueToTracker(ctx context.Context, port int, payload
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("app-issue-tracker returned status %d: %s", resp.StatusCode, strings.TrimSpace(string(bodyBytes)))
+		return nil, fmt.Errorf("swarm-manager returned status %d: %s", resp.StatusCode, strings.TrimSpace(string(bodyBytes)))
 	}
 
-	var trackerResp issueTrackerAPIResponse
-	if err := json.NewDecoder(resp.Body).Decode(&trackerResp); err != nil {
-		return nil, fmt.Errorf("failed to decode app-issue-tracker response: %w", err)
+	var swarmResp swarmBacklogItemResponse
+	if err := json.NewDecoder(resp.Body).Decode(&swarmResp); err != nil {
+		return nil, fmt.Errorf("failed to decode swarm-manager response: %w", err)
 	}
 
-	if !trackerResp.Success {
-		message := strings.TrimSpace(trackerResp.Error)
-		if message == "" {
-			message = strings.TrimSpace(trackerResp.Message)
-		}
-		if message == "" {
-			message = "app-issue-tracker rejected the issue report"
-		}
-		return nil, errors.New(message)
-	}
-
-	issueID := ""
-	if trackerResp.Data != nil {
-		if value, ok := trackerResp.Data["issue_id"].(string); ok {
-			issueID = value
-		} else if value, ok := trackerResp.Data["issueId"].(string); ok {
-			issueID = value
-		} else if rawIssue, ok := trackerResp.Data["issue"]; ok {
-			switch v := rawIssue.(type) {
-			case map[string]interface{}:
-				if nested, ok := v["id"].(string); ok {
-					issueID = nested
-				}
-			case struct{ ID string }:
-				issueID = strings.TrimSpace(v.ID)
-			}
-		}
-	}
-
-	resultMessage := strings.TrimSpace(trackerResp.Message)
-	if resultMessage == "" {
-		resultMessage = "Issue reported successfully"
+	kind := strings.TrimSpace(swarmResp.Item.Kind)
+	name := strings.TrimSpace(swarmResp.Item.Name)
+	if kind == "" || name == "" {
+		return nil, errors.New("swarm-manager response did not include created backlog item identity")
 	}
 
 	return &IssueReportResult{
-		IssueID: issueID,
-		Message: resultMessage,
+		Kind:    kind,
+		Name:    name,
+		URL:     appMonitorSwarmPath("/backlog/" + kind + "/" + name),
+		Message: "Fix backlog item created",
 	}, nil
+}
+
+func buildSwarmCreateMultipart(itemPayload map[string]interface{}, files []swarmEvidenceFile) ([]byte, string, error) {
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+
+	itemJSON, err := json.Marshal(itemPayload)
+	if err != nil {
+		return nil, "", err
+	}
+	if err := writer.WriteField("item", string(itemJSON)); err != nil {
+		return nil, "", err
+	}
+
+	type manifestEntry struct {
+		Field       string `json:"field"`
+		Path        string `json:"path"`
+		ContentType string `json:"content_type,omitempty"`
+	}
+	manifest := struct {
+		Files []manifestEntry `json:"files"`
+	}{Files: make([]manifestEntry, 0, len(files))}
+
+	for index, file := range files {
+		field := fmt.Sprintf("file_%d", index)
+		part, err := writer.CreateFormFile(field, filepath.Base(file.Path))
+		if err != nil {
+			return nil, "", err
+		}
+		if _, err := part.Write(file.Content); err != nil {
+			return nil, "", err
+		}
+		manifest.Files = append(manifest.Files, manifestEntry{
+			Field:       field,
+			Path:        file.Path,
+			ContentType: file.ContentType,
+		})
+	}
+
+	manifestJSON, err := json.Marshal(manifest)
+	if err != nil {
+		return nil, "", err
+	}
+	if err := writer.WriteField("files_manifest", string(manifestJSON)); err != nil {
+		return nil, "", err
+	}
+	if err := writer.Close(); err != nil {
+		return nil, "", err
+	}
+	return body.Bytes(), writer.FormDataContentType(), nil
+}
+
+func artifactIndex(artifacts []map[string]interface{}) []map[string]string {
+	index := make([]map[string]string, 0, len(artifacts))
+	for _, artifact := range artifacts {
+		index = append(index, map[string]string{
+			"name":         strings.TrimSpace(anyString(artifact["name"])),
+			"category":     strings.TrimSpace(anyString(artifact["category"])),
+			"content_type": strings.TrimSpace(anyString(artifact["content_type"])),
+			"description":  strings.TrimSpace(anyString(artifact["description"])),
+		})
+	}
+	return index
+}
+
+func buildSwarmEvidenceFiles(report map[string]interface{}, artifacts []map[string]interface{}) ([]swarmEvidenceFile, error) {
+	reportPayload, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	files := []swarmEvidenceFile{{
+		Path:        "evidence/" + attachmentReportName,
+		Content:     reportPayload,
+		ContentType: "application/json",
+	}}
+
+	elementIndex := 0
+	for _, artifact := range artifacts {
+		name := strings.TrimSpace(anyString(artifact["name"]))
+		content := anyString(artifact["content"])
+		contentType := strings.TrimSpace(anyString(artifact["content_type"]))
+		encoding := strings.TrimSpace(anyString(artifact["encoding"]))
+		if name == "" || content == "" {
+			continue
+		}
+		var data []byte
+		switch encoding {
+		case "base64":
+			decoded, err := base64.StdEncoding.DecodeString(content)
+			if err != nil {
+				return nil, fmt.Errorf("decode evidence %s: %w", name, err)
+			}
+			data = decoded
+		default:
+			data = []byte(content)
+		}
+		path := ""
+		switch name {
+		case attachmentLifecycleName:
+			path = "evidence/lifecycle.txt"
+		case attachmentConsoleName:
+			path = "evidence/console.json"
+		case attachmentNetworkName:
+			path = "evidence/network.json"
+		case attachmentHealthName:
+			path = "evidence/health.json"
+		case attachmentStatusName:
+			path = "evidence/status.txt"
+		case attachmentScreenshotName:
+			path = "evidence/screenshot.png"
+		default:
+			if strings.HasPrefix(name, "element-") && strings.HasSuffix(name, ".png") {
+				elementIndex++
+				path = fmt.Sprintf("evidence/element-%02d.png", elementIndex)
+			}
+		}
+		if path == "" {
+			continue
+		}
+		files = append(files, swarmEvidenceFile{
+			Path:        path,
+			Content:     data,
+			ContentType: contentType,
+		})
+	}
+	return files, nil
+}
+
+func slugifyFixName(title string) string {
+	lower := strings.ToLower(strings.TrimSpace(title))
+	var b strings.Builder
+	lastDash := false
+	for _, r := range lower {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			b.WriteByte('-')
+			lastDash = true
+		}
+	}
+	slug := strings.Trim(b.String(), "-")
+	if slug == "" {
+		return fmt.Sprintf("app-monitor-fix-%d", time.Now().Unix())
+	}
+	if len(slug) > 80 {
+		slug = strings.Trim(slug[:80], "-")
+	}
+	return slug
 }
 
 // =============================================================================

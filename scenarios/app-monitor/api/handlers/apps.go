@@ -238,11 +238,11 @@ func (h *AppHandler) GetAppBackgroundLogs(c *gin.Context) {
 	c.JSON(http.StatusOK, structuredLogs)
 }
 
-// GetAppIssues returns existing issues for an application from app-issue-tracker.
-func (h *AppHandler) GetAppIssues(c *gin.Context) {
+// GetAppFixes returns existing Swarm Manager fix backlog items for an application.
+func (h *AppHandler) GetAppFixes(c *gin.Context) {
 	id := c.Param("id")
 
-	issuesSummary, err := h.appService.ListScenarioIssues(c.Request.Context(), id)
+	fixesSummary, err := h.appService.ListScenarioFixes(c.Request.Context(), id)
 	if err != nil {
 		status := http.StatusInternalServerError
 		switch {
@@ -250,7 +250,7 @@ func (h *AppHandler) GetAppIssues(c *gin.Context) {
 			status = http.StatusBadRequest
 		case errors.Is(err, services.ErrAppNotFound):
 			status = http.StatusNotFound
-		case errors.Is(err, services.ErrIssueTrackerUnavailable):
+		case errors.Is(err, services.ErrSwarmManagerUnavailable):
 			status = http.StatusServiceUnavailable
 		}
 
@@ -260,8 +260,12 @@ func (h *AppHandler) GetAppIssues(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    issuesSummary,
+		"data":    fixesSummary,
 	})
+}
+
+func (h *AppHandler) GetAppIssues(c *gin.Context) {
+	h.GetAppFixes(c)
 }
 
 // GetFallbackDiagnostics retrieves console logs, network requests, and page status using browserless
@@ -286,13 +290,13 @@ func (h *AppHandler) GetFallbackDiagnostics(c *gin.Context) {
 	c.JSON(http.StatusOK, successResponse(result))
 }
 
-// ReportAppIssue forwards an application issue report to the issue tracker scenario
-func (h *AppHandler) ReportAppIssue(c *gin.Context) {
+// ReportAppFix creates a Swarm Manager fix backlog item with App Monitor evidence.
+func (h *AppHandler) ReportAppFix(c *gin.Context) {
 	appID := c.Param("id")
 
 	var payload services.IssueReportRequest
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, errorResponse("Invalid issue report payload"))
+		c.JSON(http.StatusBadRequest, errorResponse("Invalid fix report payload"))
 		return
 	}
 
@@ -305,14 +309,21 @@ func (h *AppHandler) ReportAppIssue(c *gin.Context) {
 	}
 
 	data := gin.H{"message": result.Message}
-	if result.IssueID != "" {
-		data["issue_id"] = result.IssueID
+	if result.Kind != "" {
+		data["kind"] = result.Kind
 	}
-	if result.IssueURL != "" {
-		data["issue_url"] = result.IssueURL
+	if result.Name != "" {
+		data["name"] = result.Name
+	}
+	if result.URL != "" {
+		data["url"] = result.URL
 	}
 
 	c.JSON(http.StatusOK, successResponse(data))
+}
+
+func (h *AppHandler) ReportAppIssue(c *gin.Context) {
+	h.ReportAppFix(c)
 }
 
 // CheckAppIframeBridge evaluates iframe bridge diagnostics via scenario-auditor.

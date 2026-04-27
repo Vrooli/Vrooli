@@ -83,7 +83,7 @@ type CompleteDiagnostics struct {
 	HealthChecks   *AppHealthDiagnostics `json:"health_checks,omitempty"`
 
 	// Issues
-	Issues *AppIssuesSummary `json:"issues,omitempty"`
+	Fixes *AppFixesSummary `json:"fixes,omitempty"`
 
 	// Compliance
 	BridgeRules       *BridgeDiagnosticsReport `json:"bridge_rules,omitempty"`
@@ -224,18 +224,18 @@ func (s *AppService) GetCompleteDiagnostics(ctx context.Context, appID string, o
 		}()
 	}
 
-	// Fetch issues (if requested)
+	// Fetch Swarm Manager fix backlog items (if requested)
 	if opts.IncludeIssues {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			issues, err := s.ListScenarioIssues(ctx, id)
+			fixes, err := s.ListScenarioFixes(ctx, id)
 			if err != nil {
-				// Issues are non-critical, so just log the warning
-				logger.Warn(fmt.Sprintf("failed to fetch issues for %s", id), err)
+				// Fix history is non-critical for the diagnostics aggregate.
+				logger.Warn(fmt.Sprintf("failed to fetch fixes for %s", id), err)
 			} else {
 				mu.Lock()
-				result.Issues = issues
+				result.Fixes = fixes
 				mu.Unlock()
 			}
 		}()
@@ -586,12 +586,12 @@ func (s *AppService) aggregateWarnings(diag *CompleteDiagnostics) []DiagnosticWa
 		})
 	}
 
-	// Issue tracker warnings
-	if diag.Issues != nil && diag.Issues.OpenCount > 0 {
+	// Fix backlog warnings
+	if diag.Fixes != nil && diag.Fixes.ActiveCount > 0 {
 		warnings = append(warnings, DiagnosticWarning{
-			Source:   "issues",
+			Source:   "fixes",
 			Severity: "info",
-			Message:  fmt.Sprintf("%d open issue%s", diag.Issues.OpenCount, plural(diag.Issues.OpenCount)),
+			Message:  fmt.Sprintf("%d active fix%s", diag.Fixes.ActiveCount, plural(diag.Fixes.ActiveCount)),
 		})
 	}
 
@@ -690,9 +690,9 @@ func (s *AppService) generateDiagnosticSummary(diag *CompleteDiagnostics) string
 		}
 	}
 
-	// Issues summary
-	if diag.Issues != nil && diag.Issues.OpenCount > 0 {
-		parts = append(parts, fmt.Sprintf("%d open issue%s", diag.Issues.OpenCount, plural(diag.Issues.OpenCount)))
+	// Fix backlog summary
+	if diag.Fixes != nil && diag.Fixes.ActiveCount > 0 {
+		parts = append(parts, fmt.Sprintf("%d active fix%s", diag.Fixes.ActiveCount, plural(diag.Fixes.ActiveCount)))
 	}
 
 	// Compliance summary

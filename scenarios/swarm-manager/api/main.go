@@ -107,7 +107,16 @@ func NewServerWithRoot(scenarioRoot string) *Server {
 		feedbackSweeperStop: make(chan struct{}),
 		scenarioRoot:        scenarioRoot,
 	}
+	// initEventLog must run before setupRoutes so that route registration
+	// captures a non-nil s.emitter. Constructors like registerFeedbackRoutes
+	// build internal services (backlog.Service for proposal apply) that take
+	// the emitter at construction time and have no SetEventLogger backstop;
+	// if s.emitter were still nil here, those services would hold a typed-nil
+	// *eventlog.Emitter behind a non-nil CreationEventEmitter interface and
+	// panic on first emit.
+	srv.initEventLog()
 	srv.setupRoutes()
+	srv.wireEventLoggers()
 	return srv
 }
 
@@ -313,8 +322,6 @@ func main() {
 	slog.Info("running in filesystem-only mode")
 
 	srv := NewServer()
-	srv.initEventLog()
-	srv.wireEventLoggers()
 	srv.runMigrationsOnce()
 
 	// Register stats endpoint (requires event log).

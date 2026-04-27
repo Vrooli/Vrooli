@@ -255,28 +255,40 @@ export interface LighthouseMissingScenario {
   expected_path?: string;
 }
 
-export interface ScenarioIssueSummary {
+export interface ScenarioFixSummary {
   id: string;
+  kind: string;
+  name: string;
   title: string;
   status: string;
-  priority?: string;
-  created_at?: string;
+  priority?: number;
   updated_at?: string;
-  reporter?: string;
-  issue_url?: string;
+  archived_at?: string;
+  initiative?: string;
+  path?: string;
+  url?: string;
 }
 
-export interface ScenarioIssuesSummary {
+export interface ScenarioFixesSummary {
   scenario?: string;
   app_id?: string;
-  issues?: ScenarioIssueSummary[];
-  open_count?: number;
+  active?: ScenarioFixSummary[];
+  archived?: ScenarioFixSummary[];
+  fixes?: ScenarioFixSummary[];
   active_count?: number;
+  archived_count?: number;
   total_count?: number;
-  tracker_url?: string;
+  swarm_url?: string;
   last_fetched?: string;
   from_cache?: boolean;
   stale?: boolean;
+}
+
+export interface FixReportResult {
+  kind?: string;
+  name?: string;
+  url?: string;
+  message?: string;
 }
 
 // App Management
@@ -305,18 +317,18 @@ export const appService = {
     );
   },
 
-  async getScenarioIssues(appId: string): Promise<ScenarioIssuesSummary | null> {
+  async getScenarioFixes(appId: string): Promise<ScenarioFixesSummary | null> {
     const trimmed = appId.trim();
     if (!trimmed) {
       return null;
     }
 
     try {
-      const { data } = await api.get<ApiResponse<ScenarioIssuesSummary>>(
-        `/apps/${encodeURIComponent(trimmed)}/issues`,
+      const { data } = await api.get<ApiResponse<ScenarioFixesSummary>>(
+        `/apps/${encodeURIComponent(trimmed)}/fixes`,
       );
       if (data?.success === false) {
-        logger.warn('Issue tracker responded with error', data?.error || data?.message);
+        logger.warn('Swarm Manager responded with error', data?.error || data?.message);
         return null;
       }
       if (!data?.data) {
@@ -324,7 +336,7 @@ export const appService = {
       }
       return data.data;
     } catch (error) {
-      logger.error(`Failed to load existing issues for ${trimmed}`, error);
+      logger.error(`Failed to load existing fixes for ${trimmed}`, error);
       return null;
     }
   },
@@ -381,15 +393,15 @@ export const appService = {
   async reportAppIssue(
     appId: string,
     payload: ReportIssuePayload,
-  ): Promise<ApiResponse<{ issue_id?: string; issue_url?: string }>> {
+  ): Promise<ApiResponse<FixReportResult>> {
     try {
-      const { data} = await api.post<ApiResponse<{ issue_id?: string; issue_url?: string }>>(
-        `/apps/${encodeURIComponent(appId)}/report`,
+      const { data} = await api.post<ApiResponse<FixReportResult>>(
+        `/apps/${encodeURIComponent(appId)}/fixes/report`,
         payload,
       );
       return data;
     } catch (error) {
-      logger.error(`Failed to report issue for app ${appId}`, error);
+      logger.error(`Failed to create fix for app ${appId}`, error);
       throw error;
     }
   },

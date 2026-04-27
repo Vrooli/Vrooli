@@ -1,6 +1,6 @@
 // Package toolregistry provides tool definitions for app-monitor.
 //
-// This file defines issue tracking integration tools.
+// This file defines Swarm Manager fix backlog integration tools.
 package toolregistry
 
 import (
@@ -9,7 +9,7 @@ import (
 	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 )
 
-// IssueToolProvider provides issue tracking tools.
+// IssueToolProvider provides fix backlog tools.
 type IssueToolProvider struct{}
 
 // NewIssueToolProvider creates a new IssueToolProvider.
@@ -22,20 +22,20 @@ func (p *IssueToolProvider) Name() string {
 	return "app-monitor-issues"
 }
 
-// Categories returns the tool categories for issue tools.
+// Categories returns the tool categories for fix tools.
 func (p *IssueToolProvider) Categories(_ context.Context) []*toolspb.ToolCategory {
 	return []*toolspb.ToolCategory{
 		{
 			Id:           "issues",
-			Name:         "Issue Management",
-			Description:  "Tools for listing and reporting issues via app-issue-tracker",
+			Name:         "Fix Backlog",
+			Description:  "Tools for listing and creating Swarm Manager fix backlog items",
 			Icon:         "bug",
 			DisplayOrder: 5,
 		},
 	}
 }
 
-// Tools returns the issue tracking tool definitions.
+// Tools returns the fix backlog tool definitions.
 func (p *IssueToolProvider) Tools(_ context.Context) []*toolspb.ToolDefinition {
 	return []*toolspb.ToolDefinition{
 		p.listAppIssuesTool(),
@@ -43,11 +43,11 @@ func (p *IssueToolProvider) Tools(_ context.Context) []*toolspb.ToolDefinition {
 	}
 }
 
-// listAppIssuesTool returns the issue listing tool.
+// listAppIssuesTool returns the fix listing tool.
 func (p *IssueToolProvider) listAppIssuesTool() *toolspb.ToolDefinition {
 	return &toolspb.ToolDefinition{
 		Name:        "list_app_issues",
-		Description: "List issues for an application from app-issue-tracker. Returns open, active, and total issue counts with issue details and links to the tracker.",
+		Description: "List Swarm Manager fix backlog items for an application. Returns active, archived, and total counts with links to backlog items.",
 		Category:    "issues",
 		Parameters: &toolspb.ToolParameters{
 			Type: "object",
@@ -68,10 +68,10 @@ func (p *IssueToolProvider) listAppIssuesTool() *toolspb.ToolDefinition {
 			LongRunning:        false,
 			Idempotent:         true,
 			ModifiesState:      false,
-			Tags:               []string{"issues", "tracking"},
+			Tags:               []string{"fixes", "swarm-manager", "tracking"},
 			Examples: []*toolspb.ToolExample{
 				NewToolExample(
-					"List issues for agent-inbox",
+					"List fixes for agent-inbox",
 					map[string]interface{}{
 						"app_id": "agent-inbox",
 					},
@@ -81,11 +81,11 @@ func (p *IssueToolProvider) listAppIssuesTool() *toolspb.ToolDefinition {
 	}
 }
 
-// reportAppIssueTool returns the issue reporting tool.
+// reportAppIssueTool returns the fix reporting tool.
 func (p *IssueToolProvider) reportAppIssueTool() *toolspb.ToolDefinition {
 	return &toolspb.ToolDefinition{
 		Name:        "report_app_issue",
-		Description: "Report a new issue for an application to app-issue-tracker. Can include screenshots, console logs, network requests, and health check results for rich diagnostic context.",
+		Description: "Create a Swarm Manager fix backlog item for an application. Can include screenshots, console logs, network requests, and health check results as evidence files.",
 		Category:    "issues",
 		Parameters: &toolspb.ToolParameters{
 			Type: "object",
@@ -96,7 +96,7 @@ func (p *IssueToolProvider) reportAppIssueTool() *toolspb.ToolDefinition {
 				},
 				"message": {
 					Type:        "string",
-					Description: "Description of the issue",
+					Description: "Description of the fix needed",
 				},
 				"screenshot_data": {
 					Type:        "string",
@@ -119,24 +119,24 @@ func (p *IssueToolProvider) reportAppIssueTool() *toolspb.ToolDefinition {
 		},
 		Metadata: &toolspb.ToolMetadata{
 			EnabledByDefault:   true,
-			RequiresApproval:   false, // Creating issues is generally safe
+			RequiresApproval:   false,
 			TimeoutSeconds:     60,
 			RateLimitPerMinute: 20,
 			CostEstimate:       "low",
 			LongRunning:        false,
-			Idempotent:         false, // Creates a new issue each time
+			Idempotent:         false,
 			ModifiesState:      true,
-			Tags:               []string{"issues", "reporting"},
+			Tags:               []string{"fixes", "swarm-manager", "reporting"},
 			Examples: []*toolspb.ToolExample{
 				NewToolExample(
-					"Report a simple issue",
+					"Report a simple fix",
 					map[string]interface{}{
 						"app_id":  "agent-inbox",
 						"message": "Chat messages are not loading after page refresh",
 					},
 				),
 				NewToolExample(
-					"Report an issue with diagnostic context",
+					"Report a fix with diagnostic context",
 					map[string]interface{}{
 						"app_id":  "agent-inbox",
 						"message": "API returning 500 errors",

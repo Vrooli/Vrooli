@@ -39,6 +39,13 @@ import PreviewFallbackState from '@/components/preview/PreviewFallbackState';
 import { usePaneMetadata } from './usePaneMetadata';
 import './PreviewPane.css';
 
+// Iframes default-deny powerful features. Without delegating these explicitly,
+// the proxied scenario's getUserMedia / clipboard / fullscreen calls fail with
+// NotAllowedError and the browser never prompts. Same-origin proxy paths
+// inherit the parent policy when listed here.
+const PREVIEW_IFRAME_ALLOW =
+  'microphone; camera; clipboard-read; clipboard-write; autoplay; fullscreen';
+
 // AI_CHECK: APP_MONITOR_RENDER_PERF=1 | LAST: 2026-02-13
 const EMPTY_APPS: App[] = [];
 
@@ -753,6 +760,7 @@ const PreviewPane = memo(function PreviewPane({
                   title={`${currentApp?.name ?? 'Application'} preview pane`}
                   className="preview-pane__iframe"
                   loading="eager"
+                  allow={PREVIEW_IFRAME_ALLOW}
                   onLoad={onIframeLoad}
                   onError={onIframeError}
                 />
@@ -779,6 +787,7 @@ const PreviewPane = memo(function PreviewPane({
                     title={`${currentApp?.name ?? 'Application'} preview pane`}
                     className="preview-pane__iframe"
                     loading="eager"
+                    allow={PREVIEW_IFRAME_ALLOW}
                     onLoad={onIframeLoad}
                     onError={onIframeError}
                   />

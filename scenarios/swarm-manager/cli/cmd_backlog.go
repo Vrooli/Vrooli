@@ -304,12 +304,14 @@ func (a *App) cmdBacklogGet(args []string) error {
 func (a *App) cmdBacklogCreate(args []string) error {
 	fs := flag.NewFlagSet("backlog create", flag.ContinueOnError)
 	data := fs.String("data", "", "JSON payload (inline or @file)")
+	var attachFlags stringSlice
+	fs.Var(&attachFlags, "attach", "Attach file as destination=source (repeatable)")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if err := requireFlag("data", *data); err != nil {
-		return fmt.Errorf("usage: backlog create --data JSON [--json]\n\nExample:\n  backlog create --data '{\"name\":\"my-idea\",\"title\":\"My Idea\",\"kind\":\"idea\"}'\n\n%s", err)
+		return fmt.Errorf("usage: backlog create --data JSON [--attach DEST=SRC] [--json]\n\nExample:\n  backlog create --data '{\"name\":\"my-idea\",\"title\":\"My Idea\",\"kind\":\"idea\"}'\n\n%s", err)
 	}
 
 	payload, err := parseJSONString(*data)
@@ -334,7 +336,12 @@ func (a *App) cmdBacklogCreate(args []string) error {
 		return fmt.Errorf("name, title, and kind are required fields")
 	}
 
-	body, err := a.core.Request("POST", "/backlog", nil, payload)
+	var body []byte
+	if len(attachFlags) > 0 {
+		body, err = a.createBacklogMultipart(payload, attachFlags)
+	} else {
+		body, err = a.core.Request("POST", "/backlog", nil, payload)
+	}
 	if err != nil {
 		return err
 	}
@@ -359,6 +366,56 @@ func (a *App) cmdBacklogCreate(args []string) error {
 		cliCommand("backlog", "queue", "--kind", item.Kind, "--name", item.Name),
 	})
 	return nil
+}
+
+func (a *App) createBacklogMultipart(itemPayload []byte, attachments []string) ([]byte, error) {
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	if err := writer.WriteField("item", string(itemPayload)); err != nil {
+		return nil, fmt.Errorf("write item part: %w", err)
+	}
+
+	type manifestEntry struct {
+		Field string `json:"field"`
+		Path  string `json:"path"`
+	}
+	manifest := struct {
+		Files []manifestEntry `json:"files"`
+	}{Files: make([]manifestEntry, 0, len(attachments))}
+
+	for index, raw := range attachments {
+		dest, src, ok := strings.Cut(raw, "=")
+		dest = strings.TrimSpace(dest)
+		src = strings.TrimSpace(src)
+		if !ok || dest == "" || src == "" {
+			return nil, fmt.Errorf("invalid --attach %q: expected destination=source", raw)
+		}
+		data, err := os.ReadFile(src)
+		if err != nil {
+			return nil, fmt.Errorf("read attachment %q: %w", src, err)
+		}
+		field := fmt.Sprintf("file_%d", index)
+		part, err := writer.CreateFormFile(field, filepath.Base(dest))
+		if err != nil {
+			return nil, fmt.Errorf("create file part %q: %w", dest, err)
+		}
+		if _, err := part.Write(data); err != nil {
+			return nil, fmt.Errorf("write file part %q: %w", dest, err)
+		}
+		manifest.Files = append(manifest.Files, manifestEntry{Field: field, Path: dest})
+	}
+
+	manifestPayload, err := json.Marshal(manifest)
+	if err != nil {
+		return nil, fmt.Errorf("encode file manifest: %w", err)
+	}
+	if err := writer.WriteField("files_manifest", string(manifestPayload)); err != nil {
+		return nil, fmt.Errorf("write manifest part: %w", err)
+	}
+	if err := writer.Close(); err != nil {
+		return nil, fmt.Errorf("close multipart writer: %w", err)
+	}
+	return a.requestMultipart("POST", "/backlog", body.Bytes(), writer.FormDataContentType())
 }
 
 func (a *App) cmdBacklogUpdate(args []string) error {

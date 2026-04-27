@@ -1,0 +1,16 @@
+{
+  "created": "2026-04-27T19:09:48Z",
+  "depends_on": [
+    "execute/agent-manager-sandbox-auto-apply-defaults"
+  ],
+  "description": "Add `Provider.ApplyAtRunEnd` to the agent-manager sandbox provider seam, implement it in the `workspace_sandbox.go` adapter against the new `POST /api/v1/sandboxes/{id}/apply-at-run-end` endpoint, and cover the wire call with adapter tests. No run-executor behavior change yet — this is the wire-level prerequisite for Phase 3b. Locked contract reference: `scenarios/swarm-manager/research/agent-sandbox-auditability-contract`.",
+  "effort": "M",
+  "initiative": "agent-sandbox-audit-foundation",
+  "kind": "execute",
+  "name": "agent-manager-apply-at-run-end-provider-seam",
+  "priority": 1,
+  "status": "backlog",
+  "tags": null,
+  "title": "Add Provider.ApplyAtRunEnd seam on agent-manager + workspace_sandbox adapter (Phase 3a)",
+  "updated": "2026-04-27T19:09:48Z"
+}

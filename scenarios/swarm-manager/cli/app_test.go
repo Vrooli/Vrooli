@@ -231,6 +231,81 @@ func TestCreateBacklogRequestStruct(t *testing.T) {
 	}
 }
 
+func TestCmdBacklogCreateWithAttachSendsMultipart(t *testing.T) {
+	tmp := t.TempDir()
+	attachmentPath := filepath.Join(tmp, "report.json")
+	if err := os.WriteFile(attachmentPath, []byte(`{"ok":true}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var gotItem string
+	var gotManifest string
+	var gotFile string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("unexpected method: %s", r.Method)
+		}
+		if r.URL.Path != "/api/v1/backlog" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		contentType := r.Header.Get("Content-Type")
+		_, params, err := mime.ParseMediaType(contentType)
+		if err != nil {
+			t.Fatalf("parse content-type: %v", err)
+		}
+		mr := multipart.NewReader(r.Body, params["boundary"])
+		for {
+			part, err := mr.NextPart()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				t.Fatalf("read part: %v", err)
+			}
+			data, err := io.ReadAll(part)
+			if err != nil {
+				t.Fatalf("read part body: %v", err)
+			}
+			switch part.FormName() {
+			case "item":
+				gotItem = string(data)
+			case "files_manifest":
+				gotManifest = string(data)
+			case "file_0":
+				gotFile = string(data)
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"item":{"name":"attached","title":"Attached","kind":"fix","status":"backlog","priority":5}}`))
+	}))
+	defer server.Close()
+
+	t.Setenv("SWARM_MANAGER_API_BASE", server.URL)
+	t.Setenv("SWARM_MANAGER_API_TOKEN", "test-token")
+
+	app, err := NewApp()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = app.cmdBacklogCreate([]string{
+		"--data", `{"name":"attached","title":"Attached","kind":"fix"}`,
+		"--attach", "evidence/report.json=" + attachmentPath,
+	})
+	if err != nil {
+		t.Fatalf("cmdBacklogCreate returned error: %v", err)
+	}
+	if !strings.Contains(gotItem, `"name":"attached"`) {
+		t.Fatalf("item part = %s", gotItem)
+	}
+	if !strings.Contains(gotManifest, `"path":"evidence/report.json"`) {
+		t.Fatalf("manifest part = %s", gotManifest)
+	}
+	if gotFile != `{"ok":true}` {
+		t.Fatalf("file part = %q", gotFile)
+	}
+}
+
 // [REQ:REQ-P0-003] Test cmdBacklogGet validates arguments
 func TestCmdBacklogGetValidation(t *testing.T) {
 	app, err := NewApp()

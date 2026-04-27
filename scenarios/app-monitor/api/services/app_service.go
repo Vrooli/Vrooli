@@ -12,6 +12,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/discovery"
 )
 
 // NewAppService creates a new service instance with default dependencies
@@ -46,9 +48,10 @@ func NewAppServiceWithOptions(repo repository.AppRepository, httpClient HTTPClie
 		cache:              &orchestratorCache{},
 		completenessCache:  &completenessCache{data: make(map[string]*CompletenessResponse)},
 		viewStats:          make(map[string]*viewStatsEntry),
-		issueCache:         make(map[string]*issueCacheEntry),
-		issueCacheTTL:      issueTrackerCacheTTL,
+		issueCache:         make(map[string]*fixCacheEntry),
+		issueCacheTTL:      fixBacklogCacheTTL,
 		repoRoot:           repoRoot,
+		scenarioURL:        discovery.ResolveScenarioURLDefault,
 		browserlessService: NewBrowserlessService(),
 		enrichmentCache:    make(map[string]*enrichmentCacheEntry),
 		uiServerPort:       os.Getenv("UI_PORT"),

@@ -784,6 +784,27 @@ describe('PreviewPane', () => {
     expect(iframe.getAttribute('loading')).toBe('eager');
   });
 
+  // Regression: without an `allow` attribute, browsers default-deny powerful
+  // features (microphone, camera, clipboard) inside iframes without ever
+  // prompting the user. Scenarios that need those features (web-console voice
+  // input, BAS captures, terminal copy/paste) silently fail. Keep mic + camera
+  // + clipboard delegated to the proxied scenario.
+  it('delegates microphone/camera/clipboard to the iframed scenario via allow attribute', async () => {
+    renderPane({ paneId: usePreviewWorkspaceStore.getState().panes[0]?.id ?? 'pane-1' });
+
+    const iframe = await waitFor(() => {
+      const found = document.querySelector('iframe');
+      expect(found).not.toBeNull();
+      return found as HTMLIFrameElement;
+    });
+
+    const allow = iframe.getAttribute('allow') ?? '';
+    expect(allow).toContain('microphone');
+    expect(allow).toContain('camera');
+    expect(allow).toContain('clipboard-read');
+    expect(allow).toContain('clipboard-write');
+  });
+
   it('persists bridge-resolved URL so refresh keeps the current in-app route', async () => {
     const user = userEvent.setup();
     const paneId = usePreviewWorkspaceStore.getState().panes[0]?.id;

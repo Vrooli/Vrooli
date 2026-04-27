@@ -1,6 +1,6 @@
 {
   "initiative": "agent-sandbox-audit-foundation",
-  "generated_at": "2026-04-27T03:56:59Z",
+  "generated_at": "2026-04-27T19:48:15Z",
   "nodes": [
     {
       "id": "research/agent-sandbox-auditability-contract",
@@ -26,7 +26,7 @@
       "id": "execute/agent-manager-sandbox-auto-apply-defaults",
       "kind": "execute",
       "name": "agent-manager-sandbox-auto-apply-defaults",
-      "title": "Make sandboxed agent-manager runs auto-apply accepted changes by default",
+      "title": "Land workspace-sandbox apply-at-run-end seam (Phases 1–2 of auto-apply-defaults)",
       "status": "in_review",
       "priority": 1,
       "effort": "L",
@@ -49,6 +49,56 @@
       "title": "Roll out sandboxing as the default path in major agent-manager spawn surfaces",
       "status": "backlog",
       "priority": 3,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/agent-manager-apply-at-run-end-provider-seam",
+      "kind": "execute",
+      "name": "agent-manager-apply-at-run-end-provider-seam",
+      "title": "Add Provider.ApplyAtRunEnd seam on agent-manager + workspace_sandbox adapter (Phase 3a)",
+      "status": "backlog",
+      "priority": 1,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/agent-manager-run-executor-apply-at-run-end-cutover",
+      "kind": "execute",
+      "name": "agent-manager-run-executor-apply-at-run-end-cutover",
+      "title": "Cut run executor over to applyAtRunEnd and remove legacy auto-approval fields (Phase 3b)",
+      "status": "backlog",
+      "priority": 1,
+      "effort": "L",
+      "archived": false
+    },
+    {
+      "id": "execute/workspace-sandbox-manual-review-ttl-gc",
+      "kind": "execute",
+      "name": "workspace-sandbox-manual-review-ttl-gc",
+      "title": "Implement manualReview TTL GC in LifecycleReconciler (Phase 4)",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "S",
+      "archived": false
+    },
+    {
+      "id": "execute/sandbox-provenance-schema-version-shared-package",
+      "kind": "execute",
+      "name": "sandbox-provenance-schema-version-shared-package",
+      "title": "Land shared schema-version contract package with gct-pending-ai-provenance-hardening (Phase 5)",
+      "status": "backlog",
+      "priority": 2,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/agent-manager-spawn-surface-conversation-id-population",
+      "kind": "execute",
+      "name": "agent-manager-spawn-surface-conversation-id-population",
+      "title": "Populate Run.ConversationID / Run.ParentRunID at all spawn surfaces",
+      "status": "backlog",
+      "priority": 4,
       "effort": "M",
       "archived": false
     }
@@ -85,6 +135,11 @@
       "kind": "depends_on"
     },
     {
+      "from": "execute/sandbox-runtime-e2e-verification",
+      "to": "execute/agent-manager-run-executor-apply-at-run-end-cutover",
+      "kind": "depends_on"
+    },
+    {
       "from": "execute/agent-manager-default-sandboxing-rollout",
       "to": "execute/agent-manager-sandbox-auto-apply-defaults",
       "kind": "depends_on"
@@ -92,6 +147,41 @@
     {
       "from": "execute/agent-manager-default-sandboxing-rollout",
       "to": "execute/sandbox-runtime-e2e-verification",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/agent-manager-default-sandboxing-rollout",
+      "to": "execute/agent-manager-run-executor-apply-at-run-end-cutover",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/agent-manager-default-sandboxing-rollout",
+      "to": "execute/workspace-sandbox-manual-review-ttl-gc",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/agent-manager-apply-at-run-end-provider-seam",
+      "to": "execute/agent-manager-sandbox-auto-apply-defaults",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/agent-manager-run-executor-apply-at-run-end-cutover",
+      "to": "execute/agent-manager-apply-at-run-end-provider-seam",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/workspace-sandbox-manual-review-ttl-gc",
+      "to": "execute/agent-manager-sandbox-auto-apply-defaults",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/sandbox-provenance-schema-version-shared-package",
+      "to": "execute/agent-manager-run-executor-apply-at-run-end-cutover",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/agent-manager-spawn-surface-conversation-id-population",
+      "to": "execute/agent-manager-run-executor-apply-at-run-end-cutover",
       "kind": "depends_on"
     }
   ]

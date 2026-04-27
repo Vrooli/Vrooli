@@ -2,6 +2,7 @@ package services
 
 import (
 	"app-monitor-api/repository"
+	"context"
 	"errors"
 	"net/http"
 	"regexp"
@@ -16,19 +17,18 @@ var (
 	ErrDatabaseUnavailable           = errors.New("database not available")
 	ErrScenarioAuditorUnavailable    = errors.New("scenario-auditor unavailable")
 	ErrScenarioBridgeScenarioMissing = errors.New("scenario missing for bridge audit")
-	ErrIssueTrackerUnavailable       = errors.New("app-issue-tracker unavailable")
+	ErrSwarmManagerUnavailable       = errors.New("swarm-manager unavailable")
 	ErrPresetNotFound                = errors.New("workspace preset not found")
 	ErrPresetNameRequired            = errors.New("preset name is required")
 )
 
 // Cache and timing constants
 const (
-	orchestratorCacheTTL   = 90 * time.Second // Increased from 60s to reduce cache misses during slow scenario status calls
-	partialCacheTTL        = 45 * time.Second // Increased proportionally
-	enrichmentCacheTTL     = 90 * time.Second // Per-scenario tech stack / dependency insights
-	completenessCacheTTL   = 24 * time.Hour   // Completeness scores change less frequently than runtime status
-	issueTrackerCacheTTL   = 30 * time.Second
-	issueTrackerFetchLimit = 50
+	orchestratorCacheTTL = 90 * time.Second // Increased from 60s to reduce cache misses during slow scenario status calls
+	partialCacheTTL      = 45 * time.Second // Increased proportionally
+	enrichmentCacheTTL   = 90 * time.Second // Per-scenario tech stack / dependency insights
+	completenessCacheTTL = 24 * time.Hour   // Completeness scores change less frequently than runtime status
+	fixBacklogCacheTTL   = 30 * time.Second
 )
 
 // Issue attachment constants
@@ -39,7 +39,8 @@ const (
 	attachmentScreenshotName = "screenshot.png"
 	attachmentHealthName     = "health.json"
 	attachmentStatusName     = "status.txt"
-	issueTrackerScenarioID   = "app-issue-tracker"
+	attachmentReportName     = "report.json"
+	swarmManagerScenarioID   = "swarm-manager"
 	reportTitleMaxLength     = 120 // Maximum length for issue report titles
 	reportLabelMaxLength     = 100 // Maximum length for capture labels
 )
@@ -145,6 +146,9 @@ type HTTPClient interface {
 // TimeProvider defines the interface for time operations, allowing for testing with controlled time
 type TimeProvider func() time.Time
 
+// ScenarioURLResolver resolves another scenario's API base URL.
+type ScenarioURLResolver func(ctx context.Context, scenarioSlug string) (string, error)
+
 // =============================================================================
 // Cache Types
 // =============================================================================
@@ -174,16 +178,14 @@ type viewStatsEntry struct {
 	HasLast     bool
 }
 
-// issueCacheEntry stores cached issue information
-type issueCacheEntry struct {
-	issues      []AppIssueSummary
-	scenario    string
-	appID       string
-	trackerURL  string
-	fetchedAt   time.Time
-	openCount   int
-	activeCount int
-	totalCount  int
+// fixCacheEntry stores cached Swarm Manager fix backlog information.
+type fixCacheEntry struct {
+	active    []AppFixSummary
+	archived  []AppFixSummary
+	scenario  string
+	appID     string
+	fixesURL  string
+	fetchedAt time.Time
 }
 
 // enrichmentCacheEntry caches per-scenario tech stack and dependency data
@@ -203,9 +205,10 @@ type AppService struct {
 	viewStatsMu        sync.RWMutex
 	viewStats          map[string]*viewStatsEntry
 	issueCacheMu       sync.RWMutex
-	issueCache         map[string]*issueCacheEntry
+	issueCache         map[string]*fixCacheEntry
 	issueCacheTTL      time.Duration
 	repoRoot           string
+	scenarioURL        ScenarioURLResolver
 	browserlessService *BrowserlessService
 	enrichmentMu       sync.RWMutex
 	enrichmentCache    map[string]*enrichmentCacheEntry // key: lowercase scenario name
@@ -321,40 +324,66 @@ type backgroundLogCandidate struct {
 }
 
 // =============================================================================
-// Issue Tracking Types
+// Fix Backlog Types
 // =============================================================================
 
-// AppIssueSummary represents a simplified issue entry from app-issue-tracker.
-type AppIssueSummary struct {
-	ID        string `json:"id"`
-	Title     string `json:"title"`
-	Status    string `json:"status"`
-	Priority  string `json:"priority,omitempty"`
-	CreatedAt string `json:"created_at,omitempty"`
-	UpdatedAt string `json:"updated_at,omitempty"`
-	Reporter  string `json:"reporter,omitempty"`
-	IssueURL  string `json:"issue_url,omitempty"`
+// AppFixSummary represents a Swarm Manager fix backlog item targeting a scenario.
+type AppFixSummary struct {
+	ID         string `json:"id"`
+	Kind       string `json:"kind"`
+	Name       string `json:"name"`
+	Title      string `json:"title"`
+	Status     string `json:"status"`
+	Priority   int    `json:"priority,omitempty"`
+	UpdatedAt  string `json:"updated_at,omitempty"`
+	ArchivedAt string `json:"archived_at,omitempty"`
+	Initiative string `json:"initiative,omitempty"`
+	Path       string `json:"path,omitempty"`
+	URL        string `json:"url,omitempty"`
 }
 
-// AppIssuesSummary provides aggregated issue information for an app/scenario.
-type AppIssuesSummary struct {
-	Scenario    string            `json:"scenario"`
-	AppID       string            `json:"app_id"`
-	Issues      []AppIssueSummary `json:"issues"`
-	OpenCount   int               `json:"open_count"`
-	ActiveCount int               `json:"active_count"`
-	TotalCount  int               `json:"total_count"`
-	TrackerURL  string            `json:"tracker_url,omitempty"`
-	LastFetched string            `json:"last_fetched"`
-	FromCache   bool              `json:"from_cache"`
-	Stale       bool              `json:"stale"`
+// AppFixesSummary provides aggregated Swarm Manager fix information for an app/scenario.
+type AppFixesSummary struct {
+	Scenario      string          `json:"scenario"`
+	AppID         string          `json:"app_id"`
+	Active        []AppFixSummary `json:"active"`
+	Archived      []AppFixSummary `json:"archived"`
+	Fixes         []AppFixSummary `json:"fixes"`
+	ActiveCount   int             `json:"active_count"`
+	ArchivedCount int             `json:"archived_count"`
+	TotalCount    int             `json:"total_count"`
+	SwarmURL      string          `json:"swarm_url,omitempty"`
+	LastFetched   string          `json:"last_fetched"`
+	FromCache     bool            `json:"from_cache"`
+	Stale         bool            `json:"stale"`
 }
 
-type issueTrackerAPIResponse struct {
-	Success bool                   `json:"success"`
-	Message string                 `json:"message"`
-	Error   string                 `json:"error"`
-	Data    map[string]interface{} `json:"data"`
+type swarmBacklogItemResponse struct {
+	Item struct {
+		Name   string `json:"name"`
+		Title  string `json:"title"`
+		Kind   string `json:"kind"`
+		Status string `json:"status"`
+	} `json:"item"`
+}
+
+type swarmScenarioContextResponse struct {
+	ScenarioName string `json:"scenario_name"`
+	Fixes        struct {
+		Active   []swarmScenarioFix `json:"active"`
+		Archived []swarmScenarioFix `json:"archived"`
+	} `json:"fixes"`
+}
+
+type swarmScenarioFix struct {
+	Name       string  `json:"name"`
+	Title      string  `json:"title"`
+	Status     string  `json:"status"`
+	Priority   int     `json:"priority"`
+	Initiative string  `json:"initiative,omitempty"`
+	Updated    string  `json:"updated,omitempty"`
+	ArchivedAt *string `json:"archived_at,omitempty"`
+	Path       string  `json:"path"`
 }
 
 // =============================================================================
@@ -691,11 +720,12 @@ type IssueCaptureBox struct {
 	Height float64 `json:"height"`
 }
 
-// IssueReportResult represents the outcome of forwarding an issue report
+// IssueReportResult represents the outcome of creating a Swarm Manager fix item.
 type IssueReportResult struct {
-	IssueID  string
-	Message  string
-	IssueURL string
+	Kind    string
+	Name    string
+	URL     string
+	Message string
 }
 
 // =============================================================================

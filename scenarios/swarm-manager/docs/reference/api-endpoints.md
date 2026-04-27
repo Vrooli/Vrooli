@@ -13,6 +13,8 @@ This document captures the canonical Swarm Manager API shapes that matter for ba
 
 `POST /api/v1/backlog`
 
+JSON create:
+
 ```json
 {
   "kind": "idea",
@@ -27,6 +29,35 @@ This document captures the canonical Swarm Manager API shapes that matter for ba
   "acceptance_deny": ["scenarios/swarm-manager/secrets/**"]
 }
 ```
+
+Multipart create with files:
+
+- `Content-Type: multipart/form-data`
+- `item`: JSON `CreateBacklogItemRequest`
+- `files_manifest`: JSON object with `files[]` entries
+- file parts: one uploaded file part for each manifest entry
+
+```json
+{
+  "files": [
+    {
+      "field": "file_0",
+      "path": "evidence/report.json",
+      "content_type": "application/json"
+    },
+    {
+      "field": "file_1",
+      "path": "evidence/screenshot.png",
+      "content_type": "image/png"
+    }
+  ]
+}
+```
+
+Attached file paths must be explicit safe relative paths. Absolute paths,
+traversal, duplicate paths, and `spec.json` are rejected. The item and files
+are created as one logical operation; validation or write failures roll back the
+new item directory.
 
 ## Backlog Update
 

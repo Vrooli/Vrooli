@@ -401,7 +401,7 @@ func (e *ServerExecutor) searchLogs(ctx context.Context, args map[string]interfa
 }
 
 // -----------------------------------------------------------------------------
-// Issue Tools
+// Fix Backlog Tools
 // -----------------------------------------------------------------------------
 
 func (e *ServerExecutor) listAppIssues(ctx context.Context, args map[string]interface{}) (*ExecutionResult, error) {
@@ -410,14 +410,14 @@ func (e *ServerExecutor) listAppIssues(ctx context.Context, args map[string]inte
 		return ErrorResult(err.Error(), CodeInvalidArgs), nil
 	}
 
-	issues, err := e.appService.ListScenarioIssues(ctx, appID)
+	fixes, err := e.appService.ListScenarioFixes(ctx, appID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			return ErrorResult(fmt.Sprintf("app not found: %s", appID), CodeNotFound), nil
 		}
-		return ErrorResult(fmt.Sprintf("failed to list issues: %v", err), CodeInternalError), nil
+		return ErrorResult(fmt.Sprintf("failed to list fix backlog items: %v", err), CodeInternalError), nil
 	}
-	return SuccessResult(issues), nil
+	return SuccessResult(fixes), nil
 }
 
 func (e *ServerExecutor) reportAppIssue(ctx context.Context, args map[string]interface{}) (*ExecutionResult, error) {
@@ -431,7 +431,7 @@ func (e *ServerExecutor) reportAppIssue(ctx context.Context, args map[string]int
 		return ErrorResult(err.Error(), CodeInvalidArgs), nil
 	}
 
-	// Build issue report request
+	// Build fix report request
 	req := &services.IssueReportRequest{
 		AppID:   appID,
 		Message: message,
@@ -444,13 +444,14 @@ func (e *ServerExecutor) reportAppIssue(ctx context.Context, args map[string]int
 
 	result, err := e.appService.ReportAppIssue(ctx, req)
 	if err != nil {
-		return ErrorResult(fmt.Sprintf("failed to report issue: %v", err), CodeInternalError), nil
+		return ErrorResult(fmt.Sprintf("failed to report fix: %v", err), CodeInternalError), nil
 	}
 
 	return SuccessResult(map[string]interface{}{
-		"message":   result.Message,
-		"issue_id":  result.IssueID,
-		"issue_url": result.IssueURL,
+		"message": result.Message,
+		"kind":    result.Kind,
+		"name":    result.Name,
+		"url":     result.URL,
 	}), nil
 }
 

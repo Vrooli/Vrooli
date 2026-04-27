@@ -1,6 +1,6 @@
 {
   "initiative": "swarm-manager-feature-parity",
-  "generated_at": "2026-04-24T01:47:55Z",
+  "generated_at": "2026-04-27T20:00:01Z",
   "nodes": [
     {
       "id": "research/agent-identity-standard",
@@ -71,6 +71,26 @@
       "priority": 5,
       "effort": "S",
       "archived": false
+    },
+    {
+      "id": "execute/app-monitor-issue-tracker-cutover-verify",
+      "kind": "execute",
+      "name": "app-monitor-issue-tracker-cutover-verify",
+      "title": "Verify and Finalize App-Monitor's Hard Cutover from App-Issue-Tracker to Swarm-Manager",
+      "status": "backlog",
+      "priority": 3,
+      "effort": "M",
+      "archived": false
+    },
+    {
+      "id": "execute/cross-scenario-issue-tracker-cutover-sweep",
+      "kind": "execute",
+      "name": "cross-scenario-issue-tracker-cutover-sweep",
+      "title": "Hard-Cutover All Remaining Scenarios Off App-Issue-Tracker to Swarm-Manager",
+      "status": "backlog",
+      "priority": 4,
+      "effort": "L",
+      "archived": false
     }
   ],
   "edges": [
@@ -92,6 +112,21 @@
     {
       "from": "chore/app-issue-tracker-deprecation",
       "to": "execute/swarm-manager-sidebar-search",
+      "kind": "depends_on"
+    },
+    {
+      "from": "chore/app-issue-tracker-deprecation",
+      "to": "execute/app-monitor-issue-tracker-cutover-verify",
+      "kind": "depends_on"
+    },
+    {
+      "from": "chore/app-issue-tracker-deprecation",
+      "to": "execute/cross-scenario-issue-tracker-cutover-sweep",
+      "kind": "depends_on"
+    },
+    {
+      "from": "execute/cross-scenario-issue-tracker-cutover-sweep",
+      "to": "execute/app-monitor-issue-tracker-cutover-verify",
       "kind": "depends_on"
     }
   ]

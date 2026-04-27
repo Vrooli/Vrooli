@@ -167,6 +167,20 @@ func validateAddItem(m Mutation, idx int, state CurrentState, newItems map[strin
 	if prev, dup := newItems[ref]; dup {
 		return fmt.Errorf("%w: %s already staged by mutations[%d]", ErrDuplicateItem, ref, prev)
 	}
+	// Validate depends_on against existing nodes ∪ items staged by earlier
+	// mutations in the batch. Without this, a typo'd or out-of-order ref
+	// only surfaces at apply time, which (a) fails per-mutation rather than
+	// rejecting the whole proposal up-front and (b) historically left
+	// orphan disk state when combined with a downstream panic.
+	for _, dep := range m.Item.DependsOn {
+		if dep == ref {
+			return fmt.Errorf("depends_on must not reference self: %s", ref)
+		}
+		if state.HasNode(dep) || hasStagedNewItem(dep, newItems) {
+			continue
+		}
+		return fmt.Errorf("%w: depends_on=%s", ErrTargetNotFound, dep)
+	}
 	newItems[ref] = idx
 	return nil
 }

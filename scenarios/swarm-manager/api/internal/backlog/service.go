@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -152,6 +153,15 @@ type Service struct {
 	cycleChecker CycleChecker
 }
 
+// PendingBacklogFile is an evidence or support file that should be persisted
+// into a newly-created backlog item directory as part of the same logical
+// creation operation.
+type PendingBacklogFile struct {
+	Path        string
+	Content     []byte
+	ContentType string
+}
+
 // ServiceConfig bundles Service dependencies. Store is required; the
 // rest are optional and degrade gracefully (nil emitter = no event,
 // nil workshop = no auto-spawn, etc.).
@@ -186,6 +196,17 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 //   - apierr-style wrapped errors are NOT returned; callers wrap as needed
 //   - the duplicate sentinel is fmt.Errorf with errors.Is(ErrItemExists)
 func (s *Service) Create(item BacklogItem, cc CreationContext) error {
+	return s.create(item, nil, cc)
+}
+
+// CreateWithFiles persists item plus attached files as one logical operation.
+// If any validation, file write, or creation side effect fails, the new item
+// directory is removed so callers do not observe a partial fix report.
+func (s *Service) CreateWithFiles(item BacklogItem, files []PendingBacklogFile, cc CreationContext) error {
+	return s.create(item, files, cc)
+}
+
+func (s *Service) create(item BacklogItem, files []PendingBacklogFile, cc CreationContext) error {
 	if cc.Source == "" {
 		return errors.New("backlog.Service.Create: CreationContext.Source is required")
 	}
@@ -221,6 +242,13 @@ func (s *Service) Create(item BacklogItem, cc CreationContext) error {
 	itemDir := s.store.ItemDir(item.Kind, item.Name)
 	if err := os.MkdirAll(itemDir, 0o755); err != nil {
 		return fmt.Errorf("create item dir: %w", err)
+	}
+
+	if len(files) > 0 {
+		if err := writePendingFiles(itemDir, files); err != nil {
+			_ = os.RemoveAll(itemDir)
+			return fmt.Errorf("write files: %w", err)
+		}
 	}
 
 	if err := s.store.SaveItem(item); err != nil {
@@ -260,6 +288,39 @@ func (s *Service) Create(item BacklogItem, cc CreationContext) error {
 		s.invalidator.ScheduleAll()
 	}
 
+	return nil
+}
+
+func writePendingFiles(itemDir string, files []PendingBacklogFile) error {
+	seen := make(map[string]struct{}, len(files))
+	for _, file := range files {
+		path := strings.TrimSpace(file.Path)
+		if path == "" {
+			return errors.New("file path is required")
+		}
+		if _, exists := seen[path]; exists {
+			return fmt.Errorf("duplicate file path %q", path)
+		}
+		seen[path] = struct{}{}
+
+		fullPath := filepath.Join(itemDir, filepath.FromSlash(path))
+		cleanItemDir := filepath.Clean(itemDir)
+		cleanFullPath := filepath.Clean(fullPath)
+		if cleanFullPath == cleanItemDir || !strings.HasPrefix(cleanFullPath, cleanItemDir+string(filepath.Separator)) {
+			return fmt.Errorf("invalid file path %q", path)
+		}
+		if info, err := os.Stat(fullPath); err == nil && info.IsDir() {
+			return fmt.Errorf("target path %q is an existing directory", path)
+		} else if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(fullPath, file.Content, 0o644); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

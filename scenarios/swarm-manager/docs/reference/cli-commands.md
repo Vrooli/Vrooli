@@ -13,10 +13,22 @@ swarm-manager backlog create --data '{
 }'
 ```
 
+Create with evidence files:
+
+```bash
+swarm-manager backlog create \
+  --data '{"kind":"fix","name":"preview-crash","title":"Preview crash","acceptance_allow":["scenarios/app-monitor/**"]}' \
+  --attach evidence/report.json=/tmp/report.json \
+  --attach evidence/screenshot.png=/tmp/screenshot.png
+```
+
 Rules:
 - input JSON is decoded strictly
 - unknown fields fail fast
 - do not send `scope`
+- `--attach` is repeatable and uses `destination=source`
+- attachment destinations must be safe relative paths and are sent through the
+  multipart `POST /api/v1/backlog` contract
 
 ## Backlog Batch Create
 

@@ -79,6 +79,57 @@ func TestValidate_AddItem_RejectsDuplicate(t *testing.T) {
 	}
 }
 
+func TestValidate_AddItem_RejectsUnknownDependency(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{ID: "m1", Op: OpAddItem, Item: &ItemSpec{
+				Kind: "execute", Name: "baz", Title: "Baz",
+				DependsOn: []string{"execute/does-not-exist"},
+			}},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !strings.Contains(err.Error(), "depends_on=execute/does-not-exist") {
+		t.Fatalf("expected unknown-dependency error, got %v", err)
+	}
+}
+
+func TestValidate_AddItem_AllowsStagedDependency(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{ID: "m1", Op: OpAddItem, Item: &ItemSpec{Kind: "execute", Name: "parent", Title: "Parent"}},
+			{ID: "m2", Op: OpAddItem, Item: &ItemSpec{
+				Kind: "execute", Name: "child", Title: "Child",
+				DependsOn: []string{"execute/parent"},
+			}},
+		},
+	}
+	if err := Validate(p, state); err != nil {
+		t.Fatalf("expected staged dependency to validate, got %v", err)
+	}
+}
+
+func TestValidate_AddItem_RejectsSelfDependency(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{ID: "m1", Op: OpAddItem, Item: &ItemSpec{
+				Kind: "execute", Name: "loopy", Title: "Loop",
+				DependsOn: []string{"execute/loopy"},
+			}},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !strings.Contains(err.Error(), "must not reference self") {
+		t.Fatalf("expected self-dependency error, got %v", err)
+	}
+}
+
 func TestValidate_AddItem_AllowsStagedDependent(t *testing.T) {
 	state := baseState(t)
 	p := Proposal{

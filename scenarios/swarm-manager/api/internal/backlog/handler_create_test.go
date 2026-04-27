@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"mime/multipart"
+	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -72,6 +75,189 @@ func TestCreate_RejectsUnknownField(t *testing.T) {
 	}
 
 	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "ideas", "new-test-idea", "spec.json"))
+}
+
+func TestCreate_MultipartWithFiles(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	req := newMultipartCreateRequest(t, map[string]any{
+		"name":             "Broken Preview",
+		"title":            "Broken Preview",
+		"description":      "Preview crashes after load",
+		"kind":             "fix",
+		"acceptance_allow": []string{"scenarios/app-monitor/**"},
+	}, map[string][]byte{
+		"evidence/report.json":    []byte(`{"message":"broken"}`),
+		"evidence/screenshot.png": []byte("png-data"),
+		"evidence/console.json":   []byte(`[{"level":"error"}]`),
+		"evidence/element-01.png": []byte("element"),
+		"evidence/lifecycle.txt":  []byte("logs"),
+		"evidence/network.json":   []byte(`[]`),
+		"evidence/health.json":    []byte(`[]`),
+		"evidence/status.txt":     []byte("running"),
+	})
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+
+	testutil.AssertStatusCreated(t, w)
+	resp := testutil.DecodeJSON[backlogItemResponse](t, w)
+	if resp.Item.Kind != KindFix {
+		t.Fatalf("kind = %q, want %q", resp.Item.Kind, KindFix)
+	}
+
+	itemDir := filepath.Join(rootDir, "fix", "broken-preview")
+	testutil.AssertFileExists(t, filepath.Join(itemDir, "spec.json"))
+	for rel, want := range map[string]string{
+		"evidence/report.json":    `{"message":"broken"}`,
+		"evidence/screenshot.png": "png-data",
+		"evidence/console.json":   `[{"level":"error"}]`,
+		"evidence/element-01.png": "element",
+		"evidence/lifecycle.txt":  "logs",
+		"evidence/network.json":   `[]`,
+		"evidence/health.json":    `[]`,
+		"evidence/status.txt":     "running",
+	} {
+		got, err := os.ReadFile(filepath.Join(itemDir, filepath.FromSlash(rel)))
+		if err != nil {
+			t.Fatalf("read %s: %v", rel, err)
+		}
+		if string(got) != want {
+			t.Fatalf("%s = %q, want %q", rel, got, want)
+		}
+	}
+}
+
+func TestCreate_MultipartRejectsUnsafeFilePathAndRollsBack(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	req := newMultipartCreateRequest(t, map[string]any{
+		"name":  "Unsafe Evidence",
+		"title": "Unsafe Evidence",
+		"kind":  "fix",
+	}, map[string][]byte{
+		"../outside.txt": []byte("bad"),
+	})
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+
+	testutil.AssertStatusBadRequest(t, w)
+	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "fix", "unsafe-evidence"))
+}
+
+func TestCreate_MultipartRejectsUnlistedFileAndRollsBack(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	itemPayload, err := json.Marshal(map[string]any{
+		"name":  "Unlisted Evidence",
+		"title": "Unlisted Evidence",
+		"kind":  "fix",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.WriteField("item", string(itemPayload)); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.WriteField("files_manifest", `{"files":[]}`); err != nil {
+		t.Fatal(err)
+	}
+	part, err := writer.CreateFormFile("extra", "report.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := part.Write([]byte("{}")); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+
+	testutil.AssertStatusBadRequest(t, w)
+	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "fix", "unlisted-evidence"))
+}
+
+func TestCreate_RejectsUnsupportedContentType(t *testing.T) {
+	h, _ := setupTestHandler(t)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog", strings.NewReader("name=bad"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+
+	if w.Code != http.StatusUnsupportedMediaType {
+		t.Fatalf("status = %d, want %d; body=%s", w.Code, http.StatusUnsupportedMediaType, w.Body.String())
+	}
+}
+
+func newMultipartCreateRequest(t *testing.T, item map[string]any, files map[string][]byte) *http.Request {
+	t.Helper()
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	itemPayload, err := json.Marshal(item)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.WriteField("item", string(itemPayload)); err != nil {
+		t.Fatal(err)
+	}
+
+	manifest := map[string]any{"files": []map[string]string{}}
+	entries := manifest["files"].([]map[string]string)
+	index := 0
+	for path, content := range files {
+		field := fmt.Sprintf("file_%d", index)
+		entries = append(entries, map[string]string{
+			"field":        field,
+			"path":         path,
+			"content_type": contentTypeForPath(path),
+		})
+		part, err := writer.CreateFormFile(field, filepath.Base(path))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := part.Write(content); err != nil {
+			t.Fatal(err)
+		}
+		index++
+	}
+	manifest["files"] = entries
+	manifestPayload, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.WriteField("files_manifest", string(manifestPayload)); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	return req
+}
+
+func contentTypeForPath(path string) string {
+	switch filepath.Ext(path) {
+	case ".json":
+		return "application/json"
+	case ".png":
+		return "image/png"
+	default:
+		return "text/plain"
+	}
 }
 
 // ---------------------------------------------------------------------------

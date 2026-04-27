@@ -244,11 +244,11 @@
       }
     },
     "scenarios": {
-      "app-issue-tracker": {
+      "swarm-manager": {
         "required": true,
-        "version": "2.0.0-file-based",
-        "versionRange": ">=2.0.0-file-based",
-        "description": "Auto-detected dependency via scenario_port_cli"
+        "version": "1.0.0",
+        "versionRange": ">=1.0.0",
+        "description": "Creates and reads scenario fix backlog items"
       },
       "scenario-auditor": {
         "required": true,

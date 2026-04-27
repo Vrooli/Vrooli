@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"mime"
 	"net/http"
 	"strings"
 	"time"
@@ -50,24 +51,56 @@ func normalizeCreateBacklogItemRequest(req *apipb.CreateBacklogItemRequest) {
 
 // Create creates a new backlog item.
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
+	mediaType, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if strings.EqualFold(mediaType, "multipart/form-data") {
+		h.createMultipart(w, r)
+		return
+	}
+	if mediaType != "" && !strings.EqualFold(mediaType, "application/json") {
+		apierr.MapError(w, "[backlog] create", apierr.Wrap(apierr.ErrBadRequest, http.StatusUnsupportedMediaType, "unsupported content type"))
+		return
+	}
+
 	var req apipb.CreateBacklogItemRequest
 	if err := httputil.DecodeProtoJSONStrict(r, &req); err != nil {
 		apierr.MapError(w, "[backlog] create", apierr.BadRequest("invalid request body"))
 		return
 	}
-	normalizeCreateBacklogItemRequest(&req)
-	if !httputil.ValidateProtoRequest(w, "[backlog] create", "invalid request body", &req) {
+
+	item, ok := h.backlogItemFromCreateRequest(w, r, &req)
+	if !ok {
 		return
 	}
-	if validationErr := validateCreateBacklogItemRequest(&req); validationErr != "" {
-		apierr.MapError(w, "[backlog] create", apierr.BadRequest("%s", validationErr))
+
+	if err := h.creationService().Create(item, CreationContext{
+		Source:     SourceHumanHTTP,
+		Entrypoint: "http.create",
+	}); err != nil {
+		mapCreateError(w, err)
 		return
+	}
+
+	slog.Info("item created", "name", item.Name, "kind", item.Kind, "priority", item.Priority, "status", StatusBacklog)
+	resp := &apipb.BacklogItemResponse{Item: backlogToProto(item)}
+	if err := httputil.ProtoJSONWithStatus(w, http.StatusCreated, resp); err != nil {
+		apierr.MapError(w, "[backlog] create", apierr.Internal("failed to encode response"))
+	}
+}
+
+func (h *Handler) backlogItemFromCreateRequest(w http.ResponseWriter, r *http.Request, req *apipb.CreateBacklogItemRequest) (BacklogItem, bool) {
+	normalizeCreateBacklogItemRequest(req)
+	if !httputil.ValidateProtoRequest(w, "[backlog] create", "invalid request body", req) {
+		return BacklogItem{}, false
+	}
+	if validationErr := validateCreateBacklogItemRequest(req); validationErr != "" {
+		apierr.MapError(w, "[backlog] create", apierr.BadRequest("%s", validationErr))
+		return BacklogItem{}, false
 	}
 
 	kind, err := ParseBacklogKind(req.Kind)
 	if err != nil {
 		apierr.MapError(w, "[backlog] create", apierr.BadRequest("%s", err.Error()))
-		return
+		return BacklogItem{}, false
 	}
 
 	// Sanitize name (folder-safe). Allow title fallback.
@@ -78,7 +111,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	name = sanitizeName(name)
 	if name == "" {
 		apierr.MapError(w, "[backlog] create", apierr.BadRequest("name is required"))
-		return
+		return BacklogItem{}, false
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
@@ -105,7 +138,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.validateInitiativeReference(initiative); err != nil {
 		apierr.MapError(w, "[backlog] create", apierr.BadRequest("%s", err.Error()))
-		return
+		return BacklogItem{}, false
 	}
 
 	effort := ""
@@ -113,22 +146,22 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		normalized, err := validateEffort(*req.Effort)
 		if err != nil {
 			apierr.MapError(w, "[backlog] create", apierr.BadRequest("%s", err.Error()))
-			return
+			return BacklogItem{}, false
 		}
 		effort = normalized
 	}
 
 	if err := validateGlobs(req.AcceptanceAllow); err != nil {
 		apierr.MapError(w, "[backlog] create", apierr.BadRequest("%s", "acceptance_allow: "+err.Error()))
-		return
+		return BacklogItem{}, false
 	}
 	if err := validateGlobs(req.AcceptanceDeny); err != nil {
 		apierr.MapError(w, "[backlog] create", apierr.BadRequest("%s", "acceptance_deny: "+err.Error()))
-		return
+		return BacklogItem{}, false
 	}
 	if err := validateGlobs(req.Creates); err != nil {
 		apierr.MapError(w, "[backlog] create", apierr.BadRequest("%s", "creates: "+err.Error()))
-		return
+		return BacklogItem{}, false
 	}
 
 	spawnedFrom := ""
@@ -161,20 +194,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		Note:            note,
 		CreatedBy:       &prov,
 	}
-
-	if err := h.creationService().Create(item, CreationContext{
-		Source:     SourceHumanHTTP,
-		Entrypoint: "http.create",
-	}); err != nil {
-		mapCreateError(w, err)
-		return
-	}
-
-	slog.Info("item created", "name", name, "kind", kind, "priority", priority, "status", StatusBacklog)
-	resp := &apipb.BacklogItemResponse{Item: backlogToProto(item)}
-	if err := httputil.ProtoJSONWithStatus(w, http.StatusCreated, resp); err != nil {
-		apierr.MapError(w, "[backlog] create", apierr.Internal("failed to encode response"))
-	}
+	return item, true
 }
 
 // mapCreateError translates Service.Create errors into HTTP responses.
