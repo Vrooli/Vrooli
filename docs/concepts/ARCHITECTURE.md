@@ -1,5 +1,7 @@
 # Vrooli Architecture
 
+> **Owner:** `director-swarm` (drift detection via `vision-walk-prep` + `vision-update` decision context). **Author:** operator-direct. **Status:** sketch-level today; canonical-technical-reference expansion is tracked as a swarm-manager backlog candidate (flagged at vision walk #4, 2026-04-27). When expanded, this becomes the canonical "how Vrooli actually works" reference for technical readers, agents, and architectural-question answers. Until then, treat this as a pointer / starting-point and supplement with `README.md` and `VISION.md` for the broader picture.
+
 This document describes the current platform architecture at a high level.
 
 ## Core Model
@@ -12,6 +14,43 @@ Vrooli is built around a compounding loop:
 4. future work starts from a stronger base
 
 The platform is therefore best understood as a **local software foundry** rather than a single application.
+
+## Core Architectural Principles
+
+### Wrap-not-use
+
+**Agents should use scenarios, not external tools directly.** External tools (git, browsers, web APIs, search engines, etc.) are systematically replaced by Vrooli scenarios that wrap them. The long-run direction is to forbid direct external-tool use entirely; agents go through the scenario or fail. (Capability and reliability are not yet sufficient to enforce that hard rule today — the trajectory is set, the enforcement is gradual.)
+
+**The maturation pattern (proven on GCT, BAS, others):**
+
+1. Start as a simple wrapper — minimal logic, cheap to build because scenario templates and generation tooling keep improving.
+2. Add custom capabilities incrementally as needs arise: permissions, analytics, identity-aware policies, integration with other scenarios, custom protections.
+3. Eventually wrap the underlying tool's CLI itself with a script that warns or blocks direct use.
+
+**Canonical examples:**
+
+- **Git → Git Control Tower (GCT).** Wraps `git`. Already blocks destructive ops by agents. Coming: per-commit run-attribution from agent-manager workspace sandbox, auto-generated commit messages, auto-PR generation, identity-gated permissions, usage analytics.
+- **Browser / web → Browser Automation Studio (BAS).** Wraps browser-use. Adds end-to-end UI testing, screenshot + video capture, known-issue handling, integration with scenario UIs.
+- **Sandboxing → agent-manager workspace-sandbox.** Per-run file-change attribution feeds GCT.
+
+**Why this isn't "extra work" in the long run:**
+
+- Scenario templates + reliable generation make initial wrapping cheap.
+- A wrapper starts as a simple passthrough and gains custom capability only as needed — never speculatively.
+- Identity comes from agent-manager (agents are spawned through it), so permission/analytics layers fall out naturally.
+- Each wrapper becomes a control point for future capability layering. Strategic value compounds.
+
+**Corollary — internal scope discipline.** The wrap-not-use principle also applies to internal domain boundaries. Each Vrooli scenario stays in its own lane: domain-specific CLIs (marketing-publisher commands, swarm-manager backlog commands, etc.) live in their own scenarios, not bolted onto generic platforms like prompt-manager. Generic team / coordination primitives belong in prompt-manager; everything else in its domain scenario.
+
+### Scenarios as substrate
+
+Scenarios are the unit of accumulation, not just the unit of execution. Every solved problem crystallizes into a scenario; every scenario becomes a permanent capability future scenarios can compose. The platform's intelligence is the tech tree of scenarios it has built, plus the agents that build new ones.
+
+This is why scenarios are dual-purpose by design — each is simultaneously a product (revenue-generating), a capability (composable), and a test (validates underlying resources work together). Treating scenarios as ephemeral tasks would lose the compounding.
+
+### Operator steers, agents execute
+
+The morning vision walk is the steering interface; the rest of the system runs on agent loops with structured decision channels. Operator authority is asserted through accepted decisions, not direct execution. Agents respect approval boundaries even when the agent is technically capable of acting unilaterally — the boundary is the contract, not a capability gap.
 
 ## Primary Layers
 

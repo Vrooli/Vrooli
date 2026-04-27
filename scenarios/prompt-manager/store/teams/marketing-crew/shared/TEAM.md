@@ -108,8 +108,68 @@ Under `store/teams/marketing-crew/shared/`:
 - `handoff-history.jsonl` — per-run handoffs from each member
 - `campaign-drafts.jsonl` — advertiser-emitted draft artifacts with metadata (audience, channel, source campaign)
 - `audience-scans.jsonl` — researcher's competitive/trend/audience-observation captures
-- `publish-log.jsonl` — publisher's record of every artifact actually released (append-only, time-series)
+- `publish-log.jsonl` — publisher's record of every artifact actually released (append-only, time-series). See "Publish-log shape" below.
+- `published-scenario-mentions.jsonl` — append-only record of how each scenario / agent / internal concept has been described in published material. Lookup determines first-mention vs subsequent-mention. See "Published-scenario-mentions shape" below.
+- `published-improvements-log.jsonl` — append-only record of which improvements per scenario have been narrated externally. Lets future drafts advance the story without repeating it. See "Published-improvements-log shape" below.
 - `coverage/` — per-SKU coverage state files (`<sku-id>.json`). Publisher writes; advertisers + brand-manager read. Missing file = coverage gap.
+
+### Publish-log shape
+Each `publish-log.jsonl` entry records one externally-published artifact. Operator pastes the platform URL back after manual posting (X bot rules require manual; future API-enabled platforms can auto-fill).
+```json
+{
+  "id": "pl-<timestamp>",
+  "at": "<ISO timestamp of publish>",
+  "by": "<member-id of publisher>",
+  "draft_id": "<source campaign-drafts.jsonl id>",
+  "decision_id": "<approving content-publish-proposal id>",
+  "channel": "x-twitter | linkedin | blog | youtube | …",
+  "format": "thread | post | blog | video | …",
+  "post_url": "<URL operator pastes back after publishing>",
+  "series_id": "<e.g. oss-dev-log; null for one-offs>",
+  "post_index_in_series": 1,
+  "previous_post_url": "<URL of prior post in series; null for first>",
+  "scenarios_mentioned": ["<scenario-id>", ...],
+  "improvements_mentioned": ["<improvement-id from published-improvements-log>", ...],
+  "honesty_flags": { "engagement": "pending-telemetry | measured | …", "feature_claims": "measured | aspirational | …" }
+}
+```
+URL roundtrip: drafter writes the entry with `post_url: null`. Publisher posts manually. Operator runs `prompt-manager team … set-publish-url` (or analogous CLI; if not yet shipped, edit the entry directly) to fill `post_url`. Next post in the series reads the prior `post_url` as its `previous_post_url`.
+
+### Published-scenario-mentions shape
+Each entry records one named subject (scenario, agent, named file, internal concept) appearing in a published artifact, with the description used. Append-only. Drafters consult this before drafting to detect first-mention vs subsequent-mention.
+```json
+{
+  "id": "psm-<timestamp>",
+  "at": "<ISO timestamp>",
+  "subject": "<canonical name; e.g. swarm-manager, oss-advertiser, agentmanager/resolve.go>",
+  "subject_kind": "scenario | agent | file | concept",
+  "post_url": "<from publish-log.jsonl>",
+  "post_id": "<publish-log entry id>",
+  "channel": "<from publish-log>",
+  "audience": "oss-contributor | subscription-buyer | …",
+  "description_used": "<one-line summary of how the subject was characterized in the post>",
+  "is_first_mention": true,
+  "intro_text_excerpt": "<exact text used to introduce the subject; empty if not first mention>"
+}
+```
+First-mention rule: if no prior entry exists for `subject` on the target `audience` (or globally for cross-audience subjects), the new draft must introduce the subject before referring to it by name. After first mention, subsequent posts may use a one-line refresher.
+
+### Published-improvements-log shape
+Each entry records one improvement / change / capability per scenario that has been narrated externally. Append-only. Drafters consult this to ensure each post advances the story rather than repeating it.
+```json
+{
+  "id": "pil-<timestamp>",
+  "at": "<ISO timestamp>",
+  "scenario": "<scenario or subject id; matches published-scenario-mentions.subject>",
+  "improvement_summary": "<one-line: what changed>",
+  "why_it_mattered": "<one-line: why the audience should care, as framed in the post>",
+  "post_url": "<from publish-log.jsonl>",
+  "post_id": "<publish-log entry id>",
+  "audience": "<from publish-log>",
+  "tied_to_prior_improvement_id": "<pil-* id, or null if standalone>"
+}
+```
+Progression rule: when drafting a new post about a scenario, read prior `pil-*` entries for that scenario. The new post should either (a) advance from the most recent improvement (build on it, show payoff), or (b) introduce a new dimension (different subsystem, different capability), not re-narrate existing improvements.
 
 Durable canonical docs live at project level in `docs/marketing/` — read-only for the team during heartbeats, editable only by the operator via accepted decisions.
 
@@ -133,17 +193,33 @@ Topic families that do **not** supersede (append-only historical record):
 Operational exhaust in `.jsonl` files outside `knowledge.jsonl` (campaign-drafts, audience-scans, publish-log, decisions, handoff-history) is append-only time-series and never supersedes.
 
 ## Plan-of-record Docs (canonical)
-These are under `docs/marketing/` at the repo root. Paths below are relative to the repo root; members' HEARTBEAT.md files reference them via the `DOCS_ROOT` pointer below.
+These are under `docs/marketing/` and `docs/narrative/` at the repo root. Paths below are relative to the repo root; members' HEARTBEAT.md files reference them via the `DOCS_ROOT` pointer below.
 
+### Marketing canon (`docs/marketing/`)
 Relative to repo root:
 - [`docs/marketing/README.md`](../../../../../../docs/marketing/README.md) — index + pattern explanation
-- [`docs/marketing/STRATEGY.md`](../../../../../../docs/marketing/STRATEGY.md) — voice, positioning, dual-audience framing, anti-patterns
+- [`docs/marketing/STRATEGY.md`](../../../../../../docs/marketing/STRATEGY.md) — voice, positioning, dual-audience framing, anti-patterns, dev-log narrative principles
 - [`docs/marketing/AUDIENCES.md`](../../../../../../docs/marketing/AUDIENCES.md) — personas (subscription buyer, OSS contributor)
 - [`docs/marketing/CAMPAIGNS.md`](../../../../../../docs/marketing/CAMPAIGNS.md) — active-campaigns index
 - [`docs/marketing/CHANNELS.md`](../../../../../../docs/marketing/CHANNELS.md) — per-platform rules
-- [`docs/marketing/BRAND.md`](../../../../../../docs/marketing/BRAND.md) — visual/voice guidelines (thin until `brand-manager` scenario ships)
+- [`docs/marketing/BRAND.md`](../../../../../../docs/marketing/BRAND.md) — visual identity navigation hub
+- [`docs/marketing/ASSETS.md`](../../../../../../docs/marketing/ASSETS.md) — canonical brand asset registry (logos, fonts, OG image, usage rules); subsumed by `brand-manager` scenario when shipped
+- [`docs/marketing/IMAGE_STYLE.md`](../../../../../../docs/marketing/IMAGE_STYLE.md) — AI image generation style guide (palette, aesthetic, prompt directives); subsumed by `brand-manager` scenario when shipped
 
-**DOCS_ROOT:** `docs/marketing/` (from repo root). Member HEARTBEAT.md files reference this path.
+### Narrative canon (`docs/narrative/`) — cross-team identity artifacts
+The narrative folder is a separate top-level layer for project-identity content consumed by marketing-crew, monetization, director-swarm, LPBS, and operator. Marketing-crew (specifically `brand-manager` member) is the curator; consumption is cross-team.
+
+- [`docs/narrative/README.md`](../../../../../../docs/narrative/README.md) — navigation
+- [`docs/narrative/PITCH.md`](../../../../../../docs/narrative/PITCH.md) — slogan, motto, taglines, audience-tailored leads, key positioning lines, what-Vrooli-is-NOT
+- [`docs/narrative/NARRATIVE.md`](../../../../../../docs/narrative/NARRATIVE.md) — multi-depth project description (1-line, 1-paragraph, 1-page) + bracketed deep-vision section (gated for vision-aligned audiences)
+- [`docs/narrative/FAQ.md`](../../../../../../docs/narrative/FAQ.md) — canonical Q&A
+- [`docs/narrative/PRESS_KIT.md`](../../../../../../docs/narrative/PRESS_KIT.md) — composition skeleton for journalists / external publications
+- [`docs/narrative/PITCH_DECK.md`](../../../../../../docs/narrative/PITCH_DECK.md) — slide outline (operator authors slides themselves)
+
+### Decision-context scope expansion (2026-04-27)
+`brand-guideline-update` covers all of the above (`docs/marketing/*` + `docs/narrative/*`). This scope expansion was confirmed at vision walk #4. Brand-manager (member) is the proposing curator; daily heartbeat applies the narrative-canon trigger gate (see member's HEARTBEAT.md step 6) so low-frequency narrative docs aren't churned by daily runs.
+
+**DOCS_ROOT:** `docs/marketing/` (from repo root). `docs/narrative/` is a sibling layer. Member HEARTBEAT.md files reference these paths.
 
 ## Working Notebook
 Under `docs/marketing/notebook/`. Posture: **debt, not gospel.** Every entry is prose describing something that should eventually be permanent structure (a skill, scenario feature, or plan-of-record addition). The goal is shrinking, not growing, documentation over time.

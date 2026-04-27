@@ -29,7 +29,7 @@ export function HeaderPrimaryAction({ className, onFinalizeWorkshop, onRunWorksh
       return (
         <Button variant="default" size="sm" className={className} onClick={onFinalizeWorkshop} disabled={itemActions.finalizeDisabled || isRunningAgent} title={(itemActions.finalizeDisabled || isRunningAgent) && itemActions.disabledReason ? itemActions.disabledReason : undefined}>
           <Sparkles className="mr-1.5 h-4 w-4" />
-          {itemActions.agentRunning ? agentRunningLabel : isRunningAgent ? "Starting..." : "Finalize"}
+          {itemActions.agentExecuting ? agentRunningLabel : isRunningAgent ? "Starting..." : "Finalize"}
         </Button>
       );
     case "run":
@@ -37,7 +37,7 @@ export function HeaderPrimaryAction({ className, onFinalizeWorkshop, onRunWorksh
       return (
         <Button variant="default" size="sm" className={className} onClick={openRunModal} disabled={itemActions.runDisabled} data-testid={selectors.backlogDetails.queueButton} title={itemActions.runDisabled && itemActions.disabledReason ? itemActions.disabledReason : undefined}>
           <Play className="mr-1.5 h-4 w-4" />
-          {itemActions.agentRunning ? agentRunningLabel : "Run"}
+          {itemActions.agentExecuting ? agentRunningLabel : "Run"}
         </Button>
       );
     case "workshop":
@@ -45,7 +45,7 @@ export function HeaderPrimaryAction({ className, onFinalizeWorkshop, onRunWorksh
       return (
         <Button variant="default" size="sm" className={className} onClick={onRunWorkshop} disabled={itemActions.workshopDisabled || isRunningAgent} title={(itemActions.workshopDisabled || isRunningAgent) && itemActions.disabledReason ? itemActions.disabledReason : undefined}>
           <MessageSquareText className="mr-1.5 h-4 w-4" />
-          {itemActions.agentRunning ? agentRunningLabel : isRunningAgent ? "Starting..." : workshopActionLabel}
+          {itemActions.agentExecuting ? agentRunningLabel : isRunningAgent ? "Starting..." : workshopActionLabel}
         </Button>
       );
     default:

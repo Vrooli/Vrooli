@@ -209,10 +209,17 @@ export function groupActionItems(
     }
   }
 
-  // Build result array preserving group order
+  // Build result array preserving group order. Most cards count parent items,
+  // but Pending Decisions counts actual questions so it matches the stream.
   return (Object.keys(GROUP_LABELS) as ActionGroupId[]).map((id) => {
     const items = groups.get(id) ?? [];
-    return { id, label: GROUP_LABELS[id], count: items.length, items };
+    const count = id === "pending-decisions"
+      ? items.reduce((sum, item) => {
+        if (!item.kind || !item.name) return sum;
+        return sum + (feedbackMap.get(`${item.kind}/${item.name}`)?.pendingDecisions ?? 0);
+      }, 0)
+      : items.length;
+    return { id, label: GROUP_LABELS[id], count, items };
   });
 }
 
@@ -264,6 +271,9 @@ export function aggregateCrossItemQuestions(
     if (activeItemKeys && !activeItemKeys.has(`${pqi.kind}/${pqi.name}`)) continue;
 
     for (const question of pqi.questions) {
+      if (question.source === "workshop" && question.selected?.trim()) continue;
+      if (question.source === "review" && (question.review_status === "approved" || question.review_status === "flagged")) continue;
+
       result.push({
         question,
         parentKind: pqi.kind,

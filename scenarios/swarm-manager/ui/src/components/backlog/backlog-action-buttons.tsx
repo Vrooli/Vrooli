@@ -85,7 +85,7 @@ export function BacklogActionButtons({
           title={(itemActions.finalizeDisabled || isRunningAgent) && itemActions.disabledReason ? itemActions.disabledReason : undefined}
         >
           <Sparkles className="mr-2 h-4 w-4" />
-          {itemActions.agentRunning ? agentRunningLabel : isRunningAgent ? "Starting..." : `Finalize ${deliverableLabel}`}
+          {itemActions.agentExecuting ? agentRunningLabel : isRunningAgent ? "Starting..." : `Finalize ${deliverableLabel}`}
         </Button>
       )}
       {(itemActions.canRun || itemActions.runDisabled) && (
@@ -98,7 +98,7 @@ export function BacklogActionButtons({
           title={itemActions.runDisabled && itemActions.disabledReason ? itemActions.disabledReason : undefined}
         >
           <Play className="mr-2 h-4 w-4" />
-          {itemActions.agentRunning ? agentRunningLabel : "Run"}
+          {itemActions.agentExecuting ? agentRunningLabel : "Run"}
         </Button>
       )}
       {(itemActions.canWorkshop || itemActions.workshopDisabled) && (
@@ -111,7 +111,7 @@ export function BacklogActionButtons({
           title={(itemActions.workshopDisabled || isRunningAgent) && itemActions.disabledReason ? itemActions.disabledReason : undefined}
         >
           <MessageSquareText className="mr-2 h-4 w-4" />
-          {itemActions.agentRunning ? agentRunningLabel : isRunningAgent ? "Starting..." : workshopActionLabel}
+          {itemActions.agentExecuting ? agentRunningLabel : isRunningAgent ? "Starting..." : workshopActionLabel}
         </Button>
       )}
       {itemActions.disabledReason && (itemActions.runDisabled || itemActions.workshopDisabled || itemActions.finalizeDisabled) ? (

@@ -10,6 +10,7 @@
 import { useState } from "react";
 import { ReadinessDetailsPanel } from "./readiness-details-panel";
 import { WorkshopPanel } from "./workshop-panel";
+import { WorkshopTransitionStatus } from "./workshop-transition-status";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 import { formatBacklogStatus } from "../../types";
 import type { WorkshopRound } from "../../types/domain";
@@ -47,6 +48,7 @@ export function BacklogNotesPanel({
     agentRunningLabel, workshopActionLabel, deliverableLabel,
     isWorkshopFinalized, workshopBlockedDeps, isRunningAgent,
     agentRunIsActive,
+    workshopAutoAdvance, clearWorkshopAutoAdvance,
   } = useBacklogDetail();
 
   const [showForceWorkshopConfirm, setShowForceWorkshopConfirm] = useState(false);
@@ -130,6 +132,17 @@ export function BacklogNotesPanel({
         deliverableLabel={deliverableLabel}
         runningLabel={agentRunningLabel}
       />
+      {workshopAutoAdvance?.nextMode && item?.name ? (
+        <WorkshopTransitionStatus
+          autoAdvance={workshopAutoAdvance}
+          kind={backlogKind}
+          name={item.name}
+          onCancelled={clearWorkshopAutoAdvance ?? (() => undefined)}
+          onExpired={clearWorkshopAutoAdvance ?? (() => undefined)}
+          onRunNext={onRunWorkshop}
+          onFinalize={onFinalizeWorkshop}
+        />
+      ) : null}
     </div>
   );
 }

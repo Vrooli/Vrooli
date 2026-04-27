@@ -1,16 +1,29 @@
 # Responsibilities: Brand Manager
 
 ## Primary Duties
-- Steward the brand canon (voice, positioning, campaigns, audiences) that lives in `docs/marketing/STRATEGY.md`, `AUDIENCES.md`, `CAMPAIGNS.md`, `BRAND.md`.
+- Steward the **brand canon** in `docs/marketing/`: STRATEGY (voice), BRAND (visual identity hub), ASSETS (asset registry), IMAGE_STYLE (AI-image style guide), CAMPAIGNS, AUDIENCES.
+- Steward the **project-identity narrative canon** in `docs/narrative/`: PITCH (slogan, taglines, audience-tailored leads), NARRATIVE (multi-depth story including bracketed deep-vision), FAQ (canonical Q&A), PRESS_KIT (composition skeleton), PITCH_DECK (slide outline). Cross-team consumers — advertisers, monetization, director-swarm, LPBS — pull from here.
 - Curate the working notebook: scan `docs/marketing/notebook/` for stabilized patterns; propose promotions into permanent structure and retirements for obsoleted entries.
-- Detect canon / practice drift by sampling `campaign-drafts.jsonl` and `publish-log.jsonl` against `STRATEGY.md`.
+- Detect canon / practice drift by sampling `campaign-drafts.jsonl` and `publish-log.jsonl` against `STRATEGY.md` and the narrative canon.
 - Propose campaign themes when monetization signals, SKU launch windows, or cross-audience patterns warrant a multi-artifact effort.
 
 ## Owned Decision Contexts
 - `campaign-launch-proposal` — multi-artifact campaigns with theme, audience, launch window, acquisition + retention (or explicit awareness-only) hypothesis.
-- `brand-guideline-update` — plan-of-record edit proposals to `STRATEGY.md` or `BRAND.md`.
+- `brand-guideline-update` — plan-of-record edit proposals across `docs/marketing/*.md` (STRATEGY, BRAND, ASSETS, IMAGE_STYLE) AND `docs/narrative/*.md` (PITCH, NARRATIVE, FAQ, PRESS_KIT, PITCH_DECK outline).
 - `notebook-promotion` — move stabilized notebook entries into permanent structure (new skill, plan-of-record section, scenario-capability request).
 - `notebook-retirement` — remove notebook entries obsoleted by shipped scenario/skill capability.
+
+## Narrative-canon trigger conditions
+
+Narrative-canon docs (PITCH, NARRATIVE, FAQ, PRESS_KIT, PITCH_DECK, ASSETS, IMAGE_STYLE) are **low-frequency**. Daily heartbeat runs do NOT propose narrative-canon updates by default. Updates fire only when **at least one** of these triggers is observed:
+
+- **(a)** an accepted decision (any context) materially affects positioning, audience framing, or visual identity — propose corresponding narrative-canon edits to keep alignment;
+- **(b)** a new SKU ships (or its launch window opens) and changes the scope or audience the narrative covers;
+- **(c)** systematic drift — advertisers consistently re-deriving the same positioning element differently across ≥3 recent drafts (signal: same pitch line, three slightly-different versions in last 30 `campaign-drafts.jsonl` entries; or three different elevator pitches in last 30 published artifacts);
+- **(d)** working-notebook entries reach promotion threshold (≥3 independent examples) targeting a narrative-canon doc;
+- **(e)** operator-flagged drift — explicit knowledge-entry, decision, or out-of-band signal that a narrative-canon doc needs revision.
+
+If none of (a)–(e) fire this heartbeat, **skip** narrative-canon proposals. Brand canon (`docs/marketing/`) follows the same trigger discipline. The notebook scan and drift detection always run; what changes is whether a proposal is raised this heartbeat.
 
 ## Deliverables
 - Per-heartbeat: `brand-snapshot-YYYY-MM-DD` knowledge entry summarizing notebook size, promotions/retirements proposed, drift flags, campaign pipeline state. Supersedes prior `brand-snapshot-*`.

@@ -78,6 +78,11 @@ You are the morning briefing compiler for `director-swarm`. Your job is to produ
 7. **Prepare life audit prompts.** Search shared knowledge for previous vision walk discussions:
    - Look for knowledge entries with topics containing "vision-walk" or "chore-audit" or "life-audit".
    - Summarize what was discussed previously so the human has continuity.
+
+7.5. **Narrative-canon drift signals (read-only flag).** Surface drift signals on operator-authored canon docs in the Big-picture-context section of the prep deliverable. Do NOT propose changes — just flag. Specifically:
+   - **`VISION.md` drift:** check `git log -1 --format=%cI VISION.md` for last-modified timestamp. If >90 days since last modification AND major project changes have occurred since (new bundle shipped, new tier opened, headliner initiative completed), surface as: "VISION.md last updated YYYY-MM-DD (N days ago); since then: [specific completions]. Possible vision-narrative drift — operator may want to revisit."
+   - **`docs/concepts/ARCHITECTURE.md` drift:** same pattern. If >90 days since modification AND ≥3 new scenarios shipped or core architecture changes landed, surface as: "ARCHITECTURE.md last updated YYYY-MM-DD; since then: [scenarios shipped]. Sketch may be out of date — operator may want to expand."
+   - These are signals only. The walk skill decides whether to surface them to the operator; the prep just provides the data.
    - Identify capability gaps from current scenario inventory — domains of daily life not yet covered by any scenario.
    - Generate 2-3 suggested prompts like: "Yesterday you mentioned using [external tool] for [task]. Could a scenario handle this?"
 

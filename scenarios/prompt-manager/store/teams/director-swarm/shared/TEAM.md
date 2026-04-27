@@ -60,13 +60,27 @@ If there is no accepted `initiative-portfolio` decision, `portfolio-manager` may
 
 ## Plan-of-Record (shared docs)
 
-Director-swarm owns a small set of canonical docs at `docs/director-swarm/`. These are plan-of-record (approval-gated): agents read them every heartbeat to anchor their proposals; they do not edit them directly.
+Director-swarm owns a small set of canonical docs at `docs/director-swarm/`, plus the operator-authored manifesto at `VISION.md` (root) and the canonical technical reference at `docs/concepts/ARCHITECTURE.md`. These are plan-of-record (approval-gated): agents read them every heartbeat to anchor their proposals; they do not author or edit them directly.
 
+### Director-owned operational canon (`docs/director-swarm/`)
 - [`docs/director-swarm/PORTFOLIO_PHILOSOPHY.md`](../../../../../../docs/director-swarm/PORTFOLIO_PHILOSOPHY.md) — ranking criteria (revenue → safety/quality → meta-optimization), concurrency stance (no cap), initiative-vs-backlog-item threshold.
 - [`docs/director-swarm/ROADMAP.md`](../../../../../../docs/director-swarm/ROADMAP.md) — initiatives grouped by theme (Revenue & Desktop Delivery, Bundle Scenarios, Platform Safety/Auditability/Quality, Vrooli Self-Improvement & Outcomes). Swarm Manager remains authoritative for per-initiative status and ordering.
 - [`docs/director-swarm/OUTCOMES_CHARTER.md`](../../../../../../docs/director-swarm/OUTCOMES_CHARTER.md) — outcome categories mapped to Command Center dashboard pages; `pending-command-center` placeholders are deliberately visible until the corresponding pages ship.
 
 Changes flow through approved decisions with contexts `initiative-portfolio`, `initiative-proposal`, `outcome-direction`, or `outcome-gap` as appropriate. Other teams (monetization, meta-optimization) may read these docs; they must not edit them.
+
+### Director-owned narrative canon (operator-authored)
+Director-swarm declares ownership over the project's foundational manifesto and architectural reference. **These are operator-authored** — agents do not write to them. `vision-walk-prep` flags drift signals only.
+
+- [`VISION.md`](../../../../../../VISION.md) — long-term project manifesto (recursive intelligence, evolution timeline, compound-intelligence effect). Substantive expansion (including the post-labor / DAO / peaceful-revolution narrative articulated in `docs/narrative/NARRATIVE.md`'s deep-vision section) is operator-curated.
+- [`docs/concepts/ARCHITECTURE.md`](../../../../../../docs/concepts/ARCHITECTURE.md) — canonical "how Vrooli actually works" technical reference. Currently sketch-level; expansion is tracked as a swarm-manager backlog candidate (flagged at vision walk #4, 2026-04-27).
+
+#### `vision-update` decision context
+For changes to `VISION.md` or `docs/concepts/ARCHITECTURE.md`, use the `vision-update` decision context. Operator-raised primarily; `vision-walk-prep` may surface drift but does not propose substantive changes. Cross-team consumers — `marketing-crew` (especially `brand-manager` member who pulls deepest narrative from `VISION.md` for the bracketed deep-vision section), monetization, LPBS — may read but never edit.
+
+### Cross-references
+- [`docs/narrative/`](../../../../../../docs/narrative/) — cross-team project-identity canon (PITCH, NARRATIVE, FAQ, PRESS_KIT, PITCH_DECK). Curated by `marketing-crew/brand-manager` member via `brand-guideline-update`. Director-swarm reads — particularly `vision-walk-prep` for vision-arc alignment.
+- [`docs/marketing/`](../../../../../../docs/marketing/) — marketing canon (voice, audiences, channels, campaigns, brand assets, image style). Curated by `marketing-crew`.
 
 ## Key Skills
 - `prompt-manager skill read swarm-manager-backlog-tools`

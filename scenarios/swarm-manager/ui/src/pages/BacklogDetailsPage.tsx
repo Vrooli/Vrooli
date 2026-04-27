@@ -5,7 +5,7 @@
  * [REQ:REQ-P0-004]
  */
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useCallback, useState, useMemo, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Activity, CircleHelp, ClipboardList, Files, Sparkles } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
@@ -57,6 +57,7 @@ import { selectionToNodeId } from "../stores/detail-selection-store";
 import { BacklogDetailProvider } from "../contexts/BacklogDetailContext";
 import { FileServiceProvider } from "../contexts/FileServiceContext";
 import { createBacklogFileServiceAdapter } from "../services/backlog/backlog-file-service-adapter";
+import type { WorkshopAutoAdvance, WorkshopSaveResponse } from "../services/backlog/types";
 
 const DEFAULT_PREVIEW_FILE_PATH = "spec.json";
 const AGENT_RUN_REFRESH_MS = 6000;
@@ -100,7 +101,12 @@ export function BacklogDetailsPage() {
   const queryClient = useQueryClient();
 
   // --- Data hook ---
-  const data = useBacklogDetailData({ backlogKind, name, agentRunIsBlocking });
+  const data = useBacklogDetailData({
+    backlogKind,
+    name,
+    agentRunIsExecuting: agentRunIsBusy,
+    agentRunIsBlocking,
+  });
   const {
     item, isLoadingItem, itemError, refetchItem, spawnedItems,
     files, isLoadingFiles, filesError, refetchFiles,
@@ -118,7 +124,12 @@ export function BacklogDetailsPage() {
     validate: (v): v is DetailsTab => ["info", "prompt", "files", "output", "activity"].includes(v),
   });
   const [selectedFile, setSelectedFile] = useState<BacklogFile | null>(null);
+  const [workshopAutoAdvance, setWorkshopAutoAdvance] = useState<WorkshopAutoAdvance | null>(null);
   const { url: agentManagerUiUrl } = useEmbeddedServiceUrl("agent-manager");
+  const handleWorkshopSaveResult = useCallback((result: WorkshopSaveResponse) => {
+    setWorkshopAutoAdvance(result.autoAdvance?.nextMode ? result.autoAdvance : null);
+  }, []);
+  const clearWorkshopAutoAdvance = useCallback(() => setWorkshopAutoAdvance(null), []);
 
   // --- Handlers hook ---
   const handlers = useBacklogHandlers({
@@ -131,6 +142,7 @@ export function BacklogDetailsPage() {
     selectedFile,
     closeDetail,
     refreshActivities,
+    onWorkshopSaveResult: handleWorkshopSaveResult,
   });
 
   // --- Computed labels ---
@@ -229,8 +241,35 @@ export function BacklogDetailsPage() {
       prevItemRef.current = key;
       setActiveTab("info");
       uiStore.reset();
+      setWorkshopAutoAdvance(null);
     }
   }, [backlogKind, name, setActiveTab, uiStore]);
+
+  const reconciliationItemKeyRef = useRef<string>("");
+  const prevBlockingRef = useRef(false);
+  useEffect(() => {
+    if (!backlogKind || !name) return;
+
+    const itemKey = `${backlogKind}/${name}`;
+    if (reconciliationItemKeyRef.current !== itemKey) {
+      reconciliationItemKeyRef.current = itemKey;
+      prevBlockingRef.current = agentRunIsBlocking;
+      return;
+    }
+
+    const blockingEnded = prevBlockingRef.current && !agentRunIsBlocking;
+    prevBlockingRef.current = agentRunIsBlocking;
+    if (!blockingEnded) return;
+
+    void Promise.allSettled([
+      queryClient.refetchQueries({ queryKey: ["backlog", backlogKind, name] }),
+      queryClient.refetchQueries({ queryKey: ["backlog", backlogKind, name, "files"] }),
+      queryClient.refetchQueries({ queryKey: ["backlog", backlogKind, name, "workshop-rounds"] }),
+      queryClient.refetchQueries({ queryKey: ["backlog-maturity-summary"] }),
+      queryClient.refetchQueries({ queryKey: ["executions", backlogKind, name] }),
+      queryClient.refetchQueries({ queryKey: ["review-rounds", backlogKind, name] }),
+    ]);
+  }, [agentRunIsBlocking, backlogKind, name, queryClient]);
 
   const fileService = useMemo(
     () => backlogKind && name ? createBacklogFileServiceAdapter(backlogKind, name) : null,
@@ -266,6 +305,8 @@ export function BacklogDetailsPage() {
     isWorkshopFinalized,
     workshopBlockedDeps,
     isRunningAgent,
+    workshopAutoAdvance,
+    clearWorkshopAutoAdvance,
   };
 
   // --- Shared element variables ---

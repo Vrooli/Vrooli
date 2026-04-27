@@ -39,9 +39,9 @@
           "rationale": "Specify a different layering (e.g., third-party transport like hashicorp/go-retryablehttp)."
         }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d2",
@@ -66,9 +66,9 @@
           "rationale": "Specify a different posture (e.g. GHE supported but only via env var, not per-credential)."
         }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d3",
@@ -98,9 +98,9 @@
           "rationale": "Specify a different policy."
         }
       ],
-      "selected": null,
+      "selected": "B",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d4",
@@ -125,9 +125,9 @@
           "rationale": "Specify a different scope (e.g., create a separate research item now to scope multi-provider, before locking V1)."
         }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "i1",

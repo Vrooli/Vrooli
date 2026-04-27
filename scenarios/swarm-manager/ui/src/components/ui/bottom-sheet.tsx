@@ -24,6 +24,8 @@ interface BottomSheetProps {
   footer?: ReactNode;
   /** Optional className for the sheet container */
   className?: string;
+  /** Optional className for the fixed outer container */
+  containerClassName?: string;
   /** Optional className for the content area */
   contentClassName?: string;
   /** data-testid attribute */
@@ -38,6 +40,7 @@ export function BottomSheet({
   children,
   footer,
   className,
+  containerClassName,
   contentClassName,
   "data-testid": testId,
 }: BottomSheetProps) {
@@ -52,7 +55,7 @@ export function BottomSheet({
       testId={testId}
       titleId={title ? titleElementId : undefined}
       descriptionId={description ? descriptionElementId : undefined}
-      containerClassName="!items-end"
+      containerClassName={cn("!items-end", containerClassName)}
       className={cn(
         "!mx-0 !mb-0 !rounded-b-none rounded-t-2xl !p-0",
         "!animate-none",

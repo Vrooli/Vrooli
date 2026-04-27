@@ -28,6 +28,8 @@ import { useDecisionStreamLogic } from "../../hooks/useDecisionStreamLogic";
 import { useClarificationStore } from "../../stores/clarification-store";
 import { ScenarioNavigatorPopover } from "./ScenarioNavigatorPopover";
 import type { DecisionStreamResults } from "../../hooks/useDecisionStreamLogic";
+import { WorkshopTransitionStatus } from "../backlog/workshop-transition-status";
+import { backlogService } from "../../services/backlog-service";
 
 export type { DecisionStreamResults };
 
@@ -64,6 +66,7 @@ export function DecisionStreamView({
 
   const {
     phase,
+    completionResults,
     current,
     answer,
     parentItem,
@@ -88,6 +91,7 @@ export function DecisionStreamView({
     snoozeSpecificParent,
     localAnswers,
     skippedIds,
+    onComplete: finishDecisionStream,
   } = useDecisionStreamLogic({ questions, onComplete, onBack, onSnoozeItem, navigatorOpenRef, toggleNavigator });
 
   // Clarification
@@ -131,6 +135,70 @@ export function DecisionStreamView({
     );
   }
 
+  if (phase === "complete" && completionResults) {
+    return (
+      <div className="flex h-full items-center justify-center overflow-y-auto px-4 py-6">
+        <div className="w-full max-w-2xl space-y-4 rounded-lg border border-slate-800 bg-slate-900/60 p-5">
+          <div className="flex items-start gap-3">
+            <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-emerald-400" />
+            <div>
+              <h3 className="text-base font-semibold text-slate-100">Decision stream complete</h3>
+              <p className="mt-1 text-sm text-slate-400">
+                Saved {completionResults.answeredCount} answer{completionResults.answeredCount === 1 ? "" : "s"}.
+                {completionResults.skippedCount > 0 ? ` Skipped ${completionResults.skippedCount}.` : ""}
+                {completionResults.snoozedCount > 0 ? ` Snoozed ${completionResults.snoozedCount} item${completionResults.snoozedCount === 1 ? "" : "s"}.` : ""}
+              </p>
+            </div>
+          </div>
+
+          {completionResults.unlockedItems.length > 0 ? (
+            <div className="space-y-2">
+              {completionResults.unlockedItems.map((item) => (
+                <WorkshopTransitionStatus
+                  key={`${item.kind}/${item.name}`}
+                  autoAdvance={item.autoAdvance ?? { triggered: false, reason: "ready", nextMode: item.action === "finalize" ? "finalize" : "workshop" }}
+                  kind={item.kind}
+                  name={item.name}
+                  title={item.title}
+                  onCancelled={() => finishDecisionStream(completionResults)}
+                  onExpired={() => finishDecisionStream(completionResults)}
+                  onRunNext={() => {
+                    void backlogService.research(item.kind, item.name, {
+                      mode: "workshop",
+                      prompt: "Run the next workshop round for this backlog item.",
+                      confirm: true,
+                    }).then(() => finishDecisionStream(completionResults));
+                  }}
+                  onFinalize={() => {
+                    void backlogService.research(item.kind, item.name, {
+                      mode: "finalize",
+                      prompt: "Finalize the latest workshop answers for this backlog item.",
+                      confirm: true,
+                    }).then(() => finishDecisionStream(completionResults));
+                  }}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-2.5 text-sm text-slate-400">
+              No workshop item reported a next step from the save response.
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => finishDecisionStream(completionResults)}
+              className="inline-flex min-h-[40px] items-center justify-center rounded border border-slate-700 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800"
+            >
+              Back to Command Post
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // ---------------------------------------------------------------------------
   // Empty state
   // ---------------------------------------------------------------------------
@@ -165,7 +233,7 @@ export function DecisionStreamView({
     <div ref={containerRef} className="flex h-full flex-col" data-testid={selectors.commandPost.decisionStream.container}>
       {/* Unified header — back, kind icon + title, counter + context toggle */}
       <div
-        className="flex shrink-0 items-center gap-2 border-b border-slate-700/50 bg-slate-950 px-3"
+        className="relative z-[70] flex shrink-0 items-center gap-2 border-b border-slate-700/50 bg-slate-950 px-3"
         data-testid={selectors.commandPost.decisionStream.header}
       >
         <button

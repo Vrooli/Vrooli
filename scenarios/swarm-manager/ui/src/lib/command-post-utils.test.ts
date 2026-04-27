@@ -101,7 +101,8 @@ describe("groupActionItems", () => {
       [`${item.kind}/${item.name}`, { kind: item.kind, name: item.name, pendingDecisions: 3 }],
     ]);
     const groups = groupActionItems([item], [], [], feedbackMap, EMPTY_MATURITY, NO_SNOOZED);
-    expect(getGroup(groups, "pending-decisions").count).toBe(1);
+    expect(getGroup(groups, "pending-decisions").count).toBe(3);
+    expect(getGroup(groups, "pending-decisions").items).toHaveLength(1);
   });
 
   it("classifies failed backlog items into needs-review group", () => {
@@ -415,6 +416,24 @@ describe("aggregateCrossItemQuestions", () => {
     const result = aggregateCrossItemQuestions(items, NO_SNOOZED, activeKeys);
     expect(result).toHaveLength(1);
     expect(result[0]?.parentName).toBe("active-item");
+  });
+
+  it("filters out questions that are already answered in stale payloads", () => {
+    const items: PendingQuestionsItem[] = [
+      {
+        kind: "idea",
+        name: "item-a",
+        questions: [
+          { id: "q1", source: "workshop", item_kind: "idea", item_name: "item-a", selected: "yes" },
+          { id: "q2", source: "workshop", item_kind: "idea", item_name: "item-a" },
+          { id: "q3", source: "review", item_kind: "idea", item_name: "item-a", review_status: "approved" },
+          { id: "q4", source: "review", item_kind: "idea", item_name: "item-a", review_status: "unreviewed" },
+        ],
+      },
+    ];
+
+    const result = aggregateCrossItemQuestions(items, NO_SNOOZED);
+    expect(result.map((ciq) => ciq.question.id)).toEqual(["q2", "q4"]);
   });
 
   it("includes all items when activeItemKeys is undefined", () => {

@@ -200,6 +200,8 @@ export interface ActionContext {
   pendingSynthesis: boolean;
   /** Whether an agent run is currently active for this item. */
   agentRunning: boolean;
+  /** Whether the agent is actively executing work, not merely blocked in review. */
+  agentExecuting?: boolean;
   /** Whether the item has unanswered workshop decisions. */
   hasPendingDecisions: boolean;
   /** Whether execution history exists for this item (details page only; card passes false). */
@@ -251,6 +253,8 @@ export interface ItemActions {
   showDecisionStepper: boolean;
   /** Pass-through for label text ("Agent running..."). */
   agentRunning: boolean;
+  /** True only while the agent is actively executing. */
+  agentExecuting?: boolean;
   /** Human-readable reason why the item can't be queued, if applicable. */
   notQueueableReason: string | null;
   /** Human-readable reason why the primary CTA is disabled, shown as tooltip/helper text. */
@@ -273,6 +277,7 @@ export interface ItemActions {
  */
 export function getItemActions(ctx: ActionContext): ItemActions {
   const { item, blockingInfo, agentRunning } = ctx;
+  const agentExecuting = ctx.agentExecuting ?? agentRunning;
 
   const locked = LOCKED_STATUSES.has(item.status);
   const blocked = blockingInfo?.blocked ?? false;
@@ -307,6 +312,7 @@ export function getItemActions(ctx: ActionContext): ItemActions {
     canArchive: false,
     showDecisionStepper: false,
     agentRunning,
+    agentExecuting,
     notQueueableReason,
     disabledReason: null,
   };

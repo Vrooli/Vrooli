@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, fireEvent, within, cleanup } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, within, cleanup, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { BacklogDetailsPage } from "./BacklogDetailsPage";
@@ -286,6 +286,162 @@ describe("BacklogDetailsPage", () => {
     expect(within(header).getByRole("button", { name: "Run" })).toBeInTheDocument();
     expect(within(header).queryByRole("button", { name: "Workshop" })).not.toBeInTheDocument();
     expect(within(header).queryByRole("button", { name: /Next Round/i })).not.toBeInTheDocument();
+  });
+
+  it("reconciles post-approval finalize state and switches the header CTA from Finalize to Run", async () => {
+    const executeItem = {
+      ...mockItem,
+      kind: "execute" as const,
+      name: "agent-manager-sandbox-auto-apply-defaults",
+      title: "Make sandboxed agent-manager runs auto-apply accepted changes by default",
+    };
+    const roundOne = JSON.stringify({
+      round: 1,
+      mode: "workshop",
+      items: [],
+      readiness: {},
+      pending_synthesis: false,
+    });
+    const roundTwo = JSON.stringify({
+      round: 2,
+      mode: "workshop",
+      items: [{ id: "d1", type: "decision", selected: "A" }],
+      readiness: {},
+      pending_synthesis: true,
+    });
+    const roundThree = JSON.stringify({
+      round: 3,
+      mode: "finalize",
+      items: [],
+      readiness: {},
+      pending_synthesis: false,
+    });
+
+    vi.mocked(backlogService.get).mockResolvedValue(executeItem);
+    vi.mocked(backlogService.getFiles)
+      .mockResolvedValueOnce([
+        {
+          name: "workshop",
+          path: "workshop",
+          type: "directory" as const,
+          children: [
+            { name: "round-001.json", path: "workshop/round-001.json", type: "file" as const, size: 100 },
+            { name: "round-002.json", path: "workshop/round-002.json", type: "file" as const, size: 100 },
+          ],
+        },
+      ])
+      .mockResolvedValue([
+        {
+          name: "workshop",
+          path: "workshop",
+          type: "directory" as const,
+          children: [
+            { name: "round-001.json", path: "workshop/round-001.json", type: "file" as const, size: 100 },
+            { name: "round-002.json", path: "workshop/round-002.json", type: "file" as const, size: 100 },
+            { name: "round-003.json", path: "workshop/round-003.json", type: "file" as const, size: 100 },
+          ],
+        },
+      ]);
+    vi.mocked(backlogService.getFileContent).mockImplementation(async (_kind, _name, path) => {
+      if (path === "workshop/round-001.json") return roundOne;
+      if (path === "workshop/round-002.json") return roundTwo;
+      if (path === "workshop/round-003.json") return roundThree;
+      return "";
+    });
+    vi.mocked(backlogService.getMaturitySummary)
+      .mockResolvedValueOnce({
+        items: [
+          {
+            kind: "execute",
+            name: "agent-manager-sandbox-auto-apply-defaults",
+            title: executeItem.title,
+            rounds_completed: 2,
+            raw_scores: {
+              problem_clarity: 3,
+              scope_defined: 3,
+              approach_solid: 3,
+              testable: 3,
+              risk_awareness: 3,
+            },
+            effective_scores: {
+              problem_clarity: 3,
+              scope_defined: 3,
+              approach_solid: 3,
+              testable: 3,
+              risk_awareness: 3,
+            },
+            ready: true,
+            pending_items: 0,
+            pending_synthesis: true,
+            has_plan: true,
+          },
+        ],
+      })
+      .mockResolvedValue({
+        items: [
+          {
+            kind: "execute",
+            name: "agent-manager-sandbox-auto-apply-defaults",
+            title: executeItem.title,
+            rounds_completed: 3,
+            raw_scores: {
+              problem_clarity: 3,
+              scope_defined: 3,
+              approach_solid: 3,
+              testable: 3,
+              risk_awareness: 3,
+            },
+            effective_scores: {
+              problem_clarity: 3,
+              scope_defined: 3,
+              approach_solid: 3,
+              testable: 3,
+              risk_awareness: 3,
+            },
+            ready: true,
+            pending_items: 0,
+            pending_synthesis: false,
+            has_plan: true,
+          },
+        ],
+      });
+
+    useAgentActivitiesStore.setState({
+      activities: [
+        {
+          activityId: "act-finalize",
+          ownerType: "backlog",
+          ownerKind: "execute",
+          ownerName: "agent-manager-sandbox-auto-apply-defaults",
+          ownerTitle: executeItem.title,
+          purpose: "finalize",
+          interactionType: "spawn",
+          status: "needs_review",
+          requestedAt: "2026-04-27T02:47:43Z",
+          startedAt: "2026-04-27T02:47:44Z",
+          updatedAt: "2026-04-27T02:47:44Z",
+          runId: "run-finalize",
+          isStopping: false,
+        },
+      ],
+      isRefreshing: false,
+    });
+
+    renderPage("execute", "agent-manager-sandbox-auto-apply-defaults");
+
+    const header = await screen.findByTestId("backlog-details-header");
+    await waitFor(() => {
+      expect(within(header).getByRole("button", { name: "Finalize" })).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      useAgentActivitiesStore.setState({ activities: [], isRefreshing: false });
+    });
+
+    await waitFor(() => {
+      expect(within(header).getByRole("button", { name: "Run" })).toBeInTheDocument();
+    });
+    expect(within(header).queryByRole("button", { name: "Finalize" })).not.toBeInTheDocument();
   });
 
   it("shows queue button for research items (research items are queueable)", async () => {

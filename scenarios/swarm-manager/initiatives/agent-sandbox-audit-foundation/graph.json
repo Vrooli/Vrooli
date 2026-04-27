@@ -1,6 +1,6 @@
 {
   "initiative": "agent-sandbox-audit-foundation",
-  "generated_at": "2026-04-26T22:46:58Z",
+  "generated_at": "2026-04-27T03:56:59Z",
   "nodes": [
     {
       "id": "research/agent-sandbox-auditability-contract",
@@ -27,7 +27,7 @@
       "kind": "execute",
       "name": "agent-manager-sandbox-auto-apply-defaults",
       "title": "Make sandboxed agent-manager runs auto-apply accepted changes by default",
-      "status": "backlog",
+      "status": "in_review",
       "priority": 1,
       "effort": "L",
       "archived": false

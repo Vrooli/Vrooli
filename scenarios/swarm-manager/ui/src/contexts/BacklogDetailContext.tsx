@@ -13,6 +13,7 @@ import type { BacklogKind } from "../types";
 import type { BacklogItem } from "../types/domain";
 import type { ItemActions } from "../lib/backlog-queue-utils";
 import type { AgentActivityRecord } from "../stores/agent-activities-store";
+import type { WorkshopAutoAdvance } from "../services/backlog/types";
 
 export interface BacklogDetailContextValue {
   backlogKind: BacklogKind;
@@ -30,6 +31,8 @@ export interface BacklogDetailContextValue {
   isWorkshopFinalized: boolean;
   workshopBlockedDeps: string[];
   isRunningAgent: boolean;
+  workshopAutoAdvance?: WorkshopAutoAdvance | null;
+  clearWorkshopAutoAdvance?: () => void;
 }
 
 const BacklogDetailCtx = createContext<BacklogDetailContextValue | null>(null);
@@ -60,6 +63,8 @@ export function BacklogDetailProvider({
     value.isWorkshopFinalized,
     value.workshopBlockedDeps,
     value.isRunningAgent,
+    value.workshopAutoAdvance,
+    value.clearWorkshopAutoAdvance,
   ]);
 
   return (

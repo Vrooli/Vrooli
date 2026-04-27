@@ -9,6 +9,7 @@ import { useCallback } from "react";
 import { useBacklogDetailUIStore, useBacklogStore } from "../stores";
 import type { useBacklogDetailData } from "./useBacklogDetailData";
 import type { BacklogKind, BacklogStatus } from "../types";
+import type { WorkshopSaveResponse } from "../services/backlog/types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -23,6 +24,7 @@ export interface UseBacklogCRUDHandlersOptions {
   name: string | undefined;
   closeDetail: () => void;
   refreshActivities: (force: boolean) => Promise<void>;
+  onWorkshopSaveResult?: (result: WorkshopSaveResponse) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -30,7 +32,7 @@ export interface UseBacklogCRUDHandlersOptions {
 // ---------------------------------------------------------------------------
 
 export function useBacklogCRUDHandlers(opts: UseBacklogCRUDHandlersOptions) {
-  const { data, backlogKind, name, closeDetail, refreshActivities } = opts;
+  const { data, backlogKind, name, closeDetail, refreshActivities, onWorkshopSaveResult } = opts;
   const { _mutations, deliverableLabelLower } = data;
 
   // --- Item CRUD ---
@@ -104,6 +106,7 @@ export function useBacklogCRUDHandlers(opts: UseBacklogCRUDHandlersOptions) {
         { roundNumber, content },
         {
           onSuccess: (result) => {
+            onWorkshopSaveResult?.(result);
             if (result.autoAdvance?.triggered && result.autoAdvance?.runId) {
               void refreshActivities(true);
             }
@@ -111,7 +114,7 @@ export function useBacklogCRUDHandlers(opts: UseBacklogCRUDHandlersOptions) {
         },
       );
     },
-    [_mutations.workshopSave, refreshActivities],
+    [_mutations.workshopSave, refreshActivities, onWorkshopSaveResult],
   );
 
   const handleDeleteWorkshopRound = useCallback(() => {

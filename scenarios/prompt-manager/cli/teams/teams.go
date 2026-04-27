@@ -743,7 +743,7 @@ Decision Log Commands:
   decision-list <team-id>               List decisions (--context, --status, --last)
   decision-show <team-id> <id>          Show a single decision by id
   decision-update <team-id> <id>        Update any field of a decision (PATCH semantics)
-  decision-accept <team-id> <id>        Accept a decision (--selected required, --notes recommended)
+  decision-accept <team-id> <id>        Accept a decision (--selected required for multi-option; omit for single-proposal; --notes recommended)
   decision-reject <team-id> <id>        Reject a decision (--notes required)
   decision-defer <team-id> <id>         Defer a pending decision (--revisit-after=YYYY-MM-DD required)
   decision-delete <team-id> <id>        Delete a decision (use --yes to skip confirm)
@@ -3055,7 +3055,7 @@ func parseDecisionModificationsJSON(data []byte) (*DecisionModifications, error)
 // always a mistake.
 func cmdDecisionAccept(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("decision-accept", flag.ContinueOnError)
-	selected := fs.String("selected", "", "Selected option key (required; use __other__ with --freeform for write-in)")
+	selected := fs.String("selected", "", "Selected option key (required for multi-option decisions; omit for single-proposal decisions; use __other__ with --freeform for write-in)")
 	freeform := fs.String("freeform", "", "Freeform answer when --selected=__other__")
 	notes := fs.String("notes", "", "Operator notes (free-form commentary; for structured exceptions use --modifications)")
 	modsJSON := fs.String("modifications", "", `Structured exception against the selected option's rationale, as JSON: '{"excluded_clauses":[...],"additions":[...],"rationale":"..."}'. Distinct from --notes. Immutable once set.`)

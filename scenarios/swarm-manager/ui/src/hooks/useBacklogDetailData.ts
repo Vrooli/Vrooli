@@ -42,6 +42,7 @@ import type { FileActionType } from "./useBacklogMutations";
 export interface UseBacklogDetailDataOptions {
   backlogKind: BacklogKind | null;
   name: string | undefined;
+  agentRunIsExecuting: boolean;
   agentRunIsBlocking: boolean;
 }
 
@@ -52,6 +53,7 @@ export interface UseBacklogDetailDataOptions {
 export function useBacklogDetailData({
   backlogKind,
   name,
+  agentRunIsExecuting,
   agentRunIsBlocking,
 }: UseBacklogDetailDataOptions) {
   const allBacklogItems = useBacklogStore((state) => state.items);
@@ -203,6 +205,7 @@ export function useBacklogDetailData({
       readinessReady: readinessData ? readinessData.ready : null,
       pendingSynthesis: readinessData?.pendingSynthesis ?? false,
       agentRunning: agentRunIsBlocking,
+      agentExecuting: agentRunIsExecuting,
       hasPendingDecisions: workshopRounds.some(
         (r) => r.items?.some((wi) => wi.type === "decision" && wi.selected == null),
       ),
@@ -211,7 +214,7 @@ export function useBacklogDetailData({
         (e) => e.status === "completed" || e.status === "failed" || e.status === "canceled" || e.status === "needs_fixup",
       ),
     });
-  }, [item, blockingMap, readinessData, agentRunIsBlocking, workshopRounds, executionHistory]);
+  }, [item, blockingMap, readinessData, agentRunIsBlocking, agentRunIsExecuting, workshopRounds, executionHistory]);
 
   const isLocked = itemActions?.locked ?? false;
   const isTerminal = itemActions?.terminal ?? false;

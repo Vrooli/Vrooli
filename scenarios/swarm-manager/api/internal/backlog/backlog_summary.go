@@ -7,9 +7,11 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/backlogrank"
 	"swarm-manager/internal/httputil"
 )
 
@@ -121,6 +123,11 @@ func buildMaturitySummary(rounds []itemRoundData) []MaturityItemSummary {
 
 func buildPendingQuestions(rounds []itemRoundData) []PendingQuestionsItem {
 	var items []PendingQuestionsItem
+	backlogItems := make([]BacklogItem, 0, len(rounds))
+	for _, rd := range rounds {
+		backlogItems = append(backlogItems, rd.item)
+	}
+	depthMap, unblockingMap, itemsByKey := rankPendingQuestionItems(backlogItems)
 	for _, rd := range rounds {
 		var questions []PendingQuestion
 		questions = append(questions, collectWorkshopQuestionsFromRound(rd.round, rd.item.Kind, rd.item.Name)...)
@@ -131,6 +138,11 @@ func buildPendingQuestions(rounds []itemRoundData) []PendingQuestionsItem {
 			})
 		}
 	}
+	sort.SliceStable(items, func(i, j int) bool {
+		left := itemsByKey[backlogrank.Key(string(items[i].Kind), items[i].Name)]
+		right := itemsByKey[backlogrank.Key(string(items[j].Kind), items[j].Name)]
+		return backlogrank.Less(left, right, depthMap, unblockingMap)
+	})
 	if items == nil {
 		items = []PendingQuestionsItem{}
 	}
@@ -152,18 +164,20 @@ func collectWorkshopQuestionsFromRound(latestRound *WorkshopRound, kind BacklogK
 			continue
 		}
 		questions = append(questions, PendingQuestion{
-			ID:          wi.ID,
-			Source:      "workshop",
-			ItemKind:    string(kind),
-			ItemName:    name,
-			Topic:       wi.Topic,
-			Text:        wi.Text,
-			Context:     wi.Context,
-			Options:     wi.Options,
-			Selected:    wi.Selected,
-			Freeform:    wi.Freeform,
-			Notes:       wi.Notes,
-			RoundNumber: latestRound.RoundNum,
+			ID:              wi.ID,
+			Source:          "workshop",
+			ItemKind:        string(kind),
+			ItemName:        name,
+			Topic:           wi.Topic,
+			Text:            wi.Text,
+			Context:         wi.Context,
+			Options:         wi.Options,
+			Selected:        wi.Selected,
+			Freeform:        wi.Freeform,
+			Notes:           wi.Notes,
+			RoundNumber:     latestRound.RoundNum,
+			ClarificationID: wi.ClarificationID,
+			ContextNote:     wi.ContextNote,
 		})
 	}
 	return questions

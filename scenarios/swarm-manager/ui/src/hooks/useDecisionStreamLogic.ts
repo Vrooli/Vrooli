@@ -5,6 +5,13 @@ import { OTHER_KEY, parseWorkshopRound, buildWorkshopRoundContent } from "../lib
 import type { QuestionAnswer } from "../components/backlog/question-renderers";
 import type { CrossItemQuestion } from "../lib/command-post-utils";
 import type { BacklogItem, BacklogKind } from "../types";
+import type { WorkshopAutoAdvance } from "../services/backlog/types";
+import {
+  decisionParentKey,
+  decisionQuestionKey,
+  getUnresolvedDecisionQuestions,
+  normalizeDecisionIndex,
+} from "../lib/decision-stream-queue";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -14,7 +21,13 @@ export interface DecisionStreamResults {
   answeredCount: number;
   skippedCount: number;
   snoozedCount: number;
-  unlockedItems: { kind: BacklogKind; name: string; title: string; action: "finalize" | "run" }[];
+  unlockedItems: {
+    kind: BacklogKind;
+    name: string;
+    title: string;
+    action: "finalize" | "run";
+    autoAdvance?: WorkshopAutoAdvance;
+  }[];
 }
 
 // ---------------------------------------------------------------------------
@@ -30,10 +43,6 @@ export function groupByParent(questions: CrossItemQuestion[]): Map<string, Cross
     else map.set(key, [ciq]);
   }
   return map;
-}
-
-function snoozeKey(kind: BacklogKind, name: string): string {
-  return `backlog:${kind}/${name}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -59,13 +68,15 @@ export function useDecisionStreamLogic({
 }: UseDecisionStreamLogicArgs) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [localAnswers, setLocalAnswers] = useState<Map<string, QuestionAnswer>>(() => new Map());
+  const [answeredQuestionKeys, setAnsweredQuestionKeys] = useState<Set<string>>(() => new Set());
   const [skippedIds, setSkippedIds] = useState<Set<string>>(() => new Set());
   const [deletedIds, setDeletedIds] = useState<Set<string>>(() => new Set());
   const [snoozedItemKeys, setSnoozedItemKeys] = useState<Set<string>>(() => new Set());
   const [savingId, setSavingId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [phase, setPhase] = useState<"answering" | "completing">("answering");
+  const [phase, setPhase] = useState<"answering" | "completing" | "complete">("answering");
+  const [completionResults, setCompletionResults] = useState<DecisionStreamResults | null>(null);
   const [contextExpanded, setContextExpanded] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -73,13 +84,14 @@ export function useDecisionStreamLogic({
 
   const backlogItems = useBacklogStore((s) => s.items);
 
-  const activeQuestions = questions.filter(
-    (ciq) =>
-      !snoozedItemKeys.has(snoozeKey(ciq.parentKind, ciq.parentName)) &&
-      !deletedIds.has(ciq.question.id),
-  );
+  const activeQuestions = getUnresolvedDecisionQuestions({
+    questions,
+    answeredKeys: answeredQuestionKeys,
+    deletedIds,
+    snoozedParentKeys: snoozedItemKeys,
+  });
   const total = activeQuestions.length;
-  const safeIndex = Math.min(currentIndex, Math.max(0, total - 1));
+  const safeIndex = normalizeDecisionIndex(currentIndex, total);
   const current = activeQuestions[safeIndex] as CrossItemQuestion | undefined;
   const answer = current ? localAnswers.get(current.question.id) : undefined;
 
@@ -92,6 +104,11 @@ export function useDecisionStreamLogic({
 
   const parentItemKey = current ? `${current.parentKind}/${current.parentName}` : "";
   const parentItem = storeItem ?? fetchedItems.get(parentItemKey);
+
+  useEffect(() => {
+    const normalized = normalizeDecisionIndex(currentIndex, total);
+    if (normalized !== currentIndex) setCurrentIndex(normalized);
+  }, [currentIndex, total]);
 
   useEffect(() => {
     if (!current || storeItem || fetchedItems.has(parentItemKey) || fetchingRef.current.has(parentItemKey)) return;
@@ -141,8 +158,8 @@ export function useDecisionStreamLogic({
   const saveAnswer = useCallback(async (
     ciq: CrossItemQuestion,
     a: QuestionAnswer | undefined,
-  ) => {
-    if (!a) return;
+  ): Promise<boolean> => {
+    if (!a) return false;
     const q = ciq.question;
     setSavingId(q.id);
     setSaveError(null);
@@ -174,8 +191,11 @@ export function useDecisionStreamLogic({
           review_comment: a.reviewComment ?? "",
         }]);
       }
+      setAnsweredQuestionKeys((prev) => new Set(prev).add(decisionQuestionKey(ciq)));
+      return true;
     } catch {
       setSaveError("Save failed — will retry on next advance");
+      return false;
     } finally {
       setSavingId(null);
     }
@@ -216,10 +236,12 @@ export function useDecisionStreamLogic({
   // Completion
   // ---------------------------------------------------------------------------
 
-  const handleCompletion = useCallback(async () => {
+  const handleCompletion = useCallback(async (answeredOverride?: Set<string>) => {
     setPhase("completing");
+    const effectiveAnswered = answeredOverride ?? answeredQuestionKeys;
 
-    const answeredCount = Array.from(localAnswers.values()).filter((a) => {
+    const answeredCount = Array.from(effectiveAnswered).length;
+    const validLocalAnswerCount = Array.from(localAnswers.values()).filter((a) => {
       if (a.selected?.trim()) {
         if (a.selected === OTHER_KEY && !a.freeform?.trim()) return false;
         return true;
@@ -227,7 +249,12 @@ export function useDecisionStreamLogic({
       return a.reviewStatus === "approved" || a.reviewStatus === "flagged";
     }).length;
 
-    const parentGroups = groupByParent(activeQuestions);
+    const eligibleQuestions = questions.filter(
+      (ciq) =>
+        !snoozedItemKeys.has(decisionParentKey(ciq.parentKind, ciq.parentName)) &&
+        !deletedIds.has(ciq.question.id),
+    );
+    const parentGroups = groupByParent(eligibleQuestions);
     const unlockedItems: DecisionStreamResults["unlockedItems"] = [];
 
     for (const [parentKey, groupQuestions] of parentGroups) {
@@ -237,8 +264,7 @@ export function useDecisionStreamLogic({
       if (!workshopQ || workshopQ.question.round_number == null) continue;
 
       const hasAnswers = groupQuestions.some((ciq) => {
-        const a = localAnswers.get(ciq.question.id);
-        return a && (a.selected?.trim() || a.reviewStatus === "approved" || a.reviewStatus === "flagged");
+        return effectiveAnswered.has(decisionQuestionKey(ciq));
       });
       if (!hasAnswers) continue;
 
@@ -252,13 +278,14 @@ export function useDecisionStreamLogic({
         const result = await backlogService.workshopSave(
           workshopQ.parentKind, workshopQ.parentName, roundNumber, content,
         );
-        if (result.autoAdvance?.triggered) {
+        if (result.autoAdvance?.nextMode) {
           const [, name] = parentKey.split("/");
           unlockedItems.push({
             kind: workshopQ.parentKind,
             name: name ?? workshopQ.parentName,
             title: workshopQ.parentTitle,
             action: result.autoAdvance.nextMode === "finalize" ? "finalize" : "run",
+            autoAdvance: result.autoAdvance,
           });
         }
       } catch {
@@ -266,13 +293,14 @@ export function useDecisionStreamLogic({
       }
     }
 
-    onComplete({
-      answeredCount,
+    setCompletionResults({
+      answeredCount: Math.max(answeredCount, validLocalAnswerCount),
       skippedCount: skippedIds.size,
       snoozedCount: snoozedItemKeys.size,
       unlockedItems,
     });
-  }, [activeQuestions, localAnswers, skippedIds, snoozedItemKeys, onComplete]);
+    setPhase("complete");
+  }, [answeredQuestionKeys, localAnswers, questions, skippedIds, snoozedItemKeys, deletedIds]);
 
   // ---------------------------------------------------------------------------
   // Navigation
@@ -295,16 +323,21 @@ export function useDecisionStreamLogic({
   const advance = useCallback(async () => {
     if (!current) return;
     const a = localAnswers.get(current.question.id);
+    let nextAnswered = answeredQuestionKeys;
     if (a) {
-      await saveAnswer(current, a);
+      const saved = await saveAnswer(current, a);
+      if (!saved) return;
+      nextAnswered = new Set(answeredQuestionKeys).add(decisionQuestionKey(current));
     }
-    if (safeIndex < total - 1) {
+    const remainingAfterAdvance = activeQuestions.filter((ciq) => !nextAnswered.has(decisionQuestionKey(ciq)));
+    if (remainingAfterAdvance.length === 0 || isAllDone()) {
+      void handleCompletion(nextAnswered);
+      return;
+    }
+    if (!a && safeIndex < total - 1) {
       setCurrentIndex(safeIndex + 1);
     }
-    if (isAllDone()) {
-      void handleCompletion();
-    }
-  }, [current, safeIndex, total, localAnswers, saveAnswer, isAllDone, handleCompletion]);
+  }, [current, safeIndex, total, localAnswers, answeredQuestionKeys, saveAnswer, activeQuestions, isAllDone, handleCompletion]);
 
   const goBack = useCallback(() => {
     if (safeIndex > 0) {
@@ -339,7 +372,7 @@ export function useDecisionStreamLogic({
 
   const snoozeParent = useCallback(() => {
     if (!current) return;
-    const key = snoozeKey(current.parentKind, current.parentName);
+    const key = decisionParentKey(current.parentKind, current.parentName);
     const newSnoozed = new Set(snoozedItemKeys);
     newSnoozed.add(key);
     setSnoozedItemKeys(newSnoozed);
@@ -360,7 +393,7 @@ export function useDecisionStreamLogic({
   }, [activeQuestions]);
 
   const snoozeSpecificParent = useCallback((kind: BacklogKind, name: string) => {
-    const key = snoozeKey(kind, name);
+    const key = decisionParentKey(kind, name);
     const newSnoozed = new Set(snoozedItemKeys);
     newSnoozed.add(key);
     setSnoozedItemKeys(newSnoozed);
@@ -463,6 +496,7 @@ export function useDecisionStreamLogic({
 
   return {
     phase,
+    completionResults,
     current,
     answer,
     parentItem,
@@ -487,5 +521,6 @@ export function useDecisionStreamLogic({
     snoozeSpecificParent,
     localAnswers,
     skippedIds,
+    onComplete,
   };
 }

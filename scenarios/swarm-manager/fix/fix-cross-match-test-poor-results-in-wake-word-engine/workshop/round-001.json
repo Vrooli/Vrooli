@@ -113,9 +113,9 @@
           "rationale": "Provide your own approach"
         }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     }
   ],
   "plan_updates": "Created initial plan.md with problem statement, root cause analysis (3 factors: score compression, CMS over-normalization, DTW band permissiveness), scope definition, phased approach outline, test plan, risks, and acceptance criteria."

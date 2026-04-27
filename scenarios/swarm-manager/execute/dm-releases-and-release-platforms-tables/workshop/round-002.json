@@ -44,7 +44,9 @@
           "rationale": "Provide your own null handling approach."
         }
       ],
-      "selected": "A"
+      "selected": "A",
+      "freeform": null,
+      "notes": null
     },
     {
       "id": "d2",
@@ -74,7 +76,9 @@
           "rationale": "Provide your own test organization."
         }
       ],
-      "selected": "A"
+      "selected": "A",
+      "freeform": null,
+      "notes": null
     },
     {
       "id": "d3",
@@ -99,7 +103,9 @@
           "rationale": "Provide your own wiring approach."
         }
       ],
-      "selected": null
+      "selected": "A",
+      "freeform": null,
+      "notes": ""
     },
     {
       "id": "d4",
@@ -129,7 +135,9 @@
           "rationale": "Provide your own pagination approach."
         }
       ],
-      "selected": "A"
+      "selected": "A",
+      "freeform": null,
+      "notes": null
     }
   ],
   "plan_updates": "Synthesized round 1 decisions into plan. Added Rollout/Validation Checklist (section 12) with vrooli scenario restart step. Added greenfield declaration. Refined Go type details to use sql.Null* types matching existing patterns. Added api-steer and test to Required Reading. Clarified test setup strategy."

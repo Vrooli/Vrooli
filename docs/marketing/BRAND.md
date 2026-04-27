@@ -1,31 +1,40 @@
 # Brand
 
-Visual identity and voice specifics. Brand-manager (the member agent) is the strategic steward; the `brand-manager` scenario will eventually be the structured storage layer.
+Visual identity and voice overview for Vrooli. Brand-manager (the member agent) is the strategic steward; the `brand-manager` scenario will eventually be the structured storage layer.
 
 **Write rule:** operator-curated via accepted `brand-guideline-update` decisions. Brand-manager proposes; does not edit directly.
 
-## Status: thin canon
+## Where each piece of the brand lives
 
-This file is intentionally thin until the `brand-manager` scenario ships. Once that scenario provides structured storage for logos, favicons, color systems, typography, and voice snippets, this file becomes a pointer at the scenario.
+This file is the navigation hub. The actual canonical content lives in dedicated files:
 
-See `scenarios/prompt-manager/store/skills/packs/core/brand-manager/SKILL.md` — the planned CLI for that scenario. Marked **draft** in the skill catalog; tracking in swarm-manager backlog.
+| Aspect | Canonical location |
+|---|---|
+| **Voice canon** (positioning, audience framing, voice samples, anti-patterns, dev-log narrative principles) | [`STRATEGY.md`](STRATEGY.md) |
+| **Visual assets** (logos, favicons, OG image, fonts, usage rules) | [`ASSETS.md`](ASSETS.md) |
+| **AI image generation style** (palette, aesthetic, prompt directives) | [`IMAGE_STYLE.md`](IMAGE_STYLE.md) |
+| **Audience personas** | [`AUDIENCES.md`](AUDIENCES.md) |
+| **Channel rules** | [`CHANNELS.md`](CHANNELS.md) |
+| **Project-identity narrative** (pitch, story, FAQ, press kit, deck outline) | [`docs/narrative/`](../narrative/) |
 
-## Voice guidelines (until brand-manager scenario ships)
+Single-source-of-truth discipline — do not duplicate content here that lives in the dedicated files.
 
-Voice lives in [`STRATEGY.md`](STRATEGY.md). Do not duplicate here. This is intentional — single source of truth.
+## Visual identity (high-level summary)
 
-## Visual guidelines (placeholder)
+- **Logo:** rabbit shaped from the letters V-R-O-O-L-I, conveying speed and a small Easter egg. See [`ASSETS.md`](ASSETS.md) for the full registry.
+- **Palette:** dark blue and deep purple base with neon green accents. See [`IMAGE_STYLE.md`](IMAGE_STYLE.md) for prompt directives.
+- **Typography:** brand font (`sakbunderan`) is logo-only; UI / body typography not yet canonically declared. To be filled in by the `brand-manager` scenario.
+- **Aesthetic:** abstract, futuristic, neon. No stock photos. No corporate-clipart. No photorealistic AI humans.
 
-- **Logo / wordmark:** see repository root.
-- **Primary color:** to be defined via `brand-guideline-update` when brand-manager scenario ships.
-- **Typography:** to be defined.
-- **Image treatment:** no stock imagery; screenshots of actual scenario surfaces preferred.
+## Voice (high-level summary)
 
-## What goes here over time
+- **Builder, not marketer.** First person, conversational, technically credible.
+- **Agents as protagonists.** The agents themselves are visible; that's the unique signal.
+- **Honest about struggles.** Failures land harder than polished wins.
+- **Specific over vague.** Real numbers, real names, real artifacts.
 
-Once brand-manager scenario ships, this file either:
+Full canon in [`STRATEGY.md`](STRATEGY.md), including dev-log narrative principles, voice samples, and anti-patterns.
 
-- Becomes a one-line pointer at the scenario's canonical storage, OR
-- Becomes the narrative intro while structured assets (colors, type, logos) live in the scenario's registry.
+## Long-term direction
 
-Until then, `STRATEGY.md` carries voice canon and this file holds placeholders.
+When the `brand-manager` *scenario* ships (currently a draft skill — see [`scenarios/prompt-manager/store/skills/packs/core/brand-manager/SKILL.md`](../../scenarios/prompt-manager/store/skills/packs/core/brand-manager/SKILL.md)), it will provide structured storage for logos, favicons, color systems, typography, and voice snippets — replacing the markdown-based canon in `ASSETS.md` and `IMAGE_STYLE.md`. At that point those files become pointers at the scenario's registry; this file remains the navigation hub.

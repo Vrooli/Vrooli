@@ -1,0 +1,15 @@
+{
+  "name": "bookmark-intelligence-hub-rework-and-ideation",
+  "title": "Bookmark Intelligence Hub: Rework and Ideation Integration",
+  "description": "Major rework of scenarios/bookmark-intelligence-hub plus integration with the vision-walk ideation pipeline. Originally designed around automated multi-platform scraping (Huginn agents + browserless fallback for X/Reddit/TikTok); operator surfaced at vision walk #4 (2026-04-27) that this orientation is structurally wrong for the v0 actually needed: manual paste-first link entry with operator-supplied notes, plus a Vrooli-use classification taxonomy alongside the existing content-shape categories, plus an ideation-extraction agent that surfaces idea candidates into the morning vision walk. Drop Huginn entirely; future automated extraction routes through Browser Automation Studio per the wrap-not-use principle. See orchestration-summary.md for the full context, reasoning, and integration plan.",
+  "status": "active",
+  "priority": 5,
+  "items": [
+    "execute/bih-v0-redesign-manual-paste-first",
+    "execute/bih-category-registration-mechanism",
+    "execute/bih-ideation-extraction-agent",
+    "execute/bih-vision-walk-prep-integration"
+  ],
+  "created": "2026-04-27T17:29:58Z",
+  "updated": "2026-04-27T17:38:56Z"
+}

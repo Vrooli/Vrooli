@@ -1,0 +1,15 @@
+{
+  "created": "2026-04-27T17:38:35Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "Strip Huginn integration and automated-polling defaults from scenarios/bookmark-intelligence-hub. Add manual-paste CLI command (bookmark-intelligence-hub add --url \u003clink\u003e --notes \"...\") and matching UI flow. Add new Vrooli-use classification axis (scenario-candidate / operational-reference / marketing-positioning / capability-class-flag / personal-only-filter) as a first-class field alongside the existing content-shape categories (Programming / Recipes / Fitness / etc.). Storage schema gets a new vrooli_use column or equivalent. Manual-paste flow is the v0 supported entry path; automated extraction removed from the critical path. Future automated extraction routes through Browser Automation Studio per the wrap-not-use principle, not Huginn. Initiative: bookmark-intelligence-hub-rework-and-ideation. See orchestration-summary.md on the initiative for full context. Acceptance: operator can paste a bookmark via CLI or UI in under 30 seconds; both classification axes are stored; existing content-shape integrations to recipe-book, workout-plan-generator (where they exist) continue to work.",
+  "initiative": "bookmark-intelligence-hub-rework-and-ideation",
+  "kind": "execute",
+  "name": "bih-v0-redesign-manual-paste-first",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [],
+  "title": "BIH v0 redesign: drop Huginn, manual-paste-first, dual-axis classification",
+  "updated": "2026-04-27T17:38:56Z"
+}

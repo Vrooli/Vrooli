@@ -1,0 +1,15 @@
+{
+  "created": "2026-04-27T17:38:50Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "Update the vision-walk-prep agents HEARTBEAT to read from BIH (via API or CLI), pull surfaced idea candidates since the last walk, and incorporate them into the Big-picture-context section of the prep deliverable. The walk skill (scenarios/prompt-manager/store/skills/packs/core/morning-vision-walk/SKILL.md) then consumes them naturally during chore-audit / big-picture-ideation phases without requiring a code change to the skill itself. This integration is what makes the BIH rework strategically valuable: it closes the leak from operators bookmark stream into Vrooli idea pipeline. Initiative: bookmark-intelligence-hub-rework-and-ideation. See orchestration-summary.md for context. Depends on: bih-ideation-extraction-agent (output format must be settled first). Acceptance: the morning of a walk, the prep deliverable includes a Bookmark-derived idea candidates since last walk subsection; vision-walk skill surfaces them conversationally during Phase 6 or 7 without skill code changes.",
+  "initiative": "bookmark-intelligence-hub-rework-and-ideation",
+  "kind": "execute",
+  "name": "bih-vision-walk-prep-integration",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [],
+  "title": "BIH integration with vision-walk-prep (morning walk idea pipeline)",
+  "updated": "2026-04-27T17:38:56Z"
+}

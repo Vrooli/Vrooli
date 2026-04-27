@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { CommandPostOverlay } from "./CommandPostOverlay";
 import { selectors } from "../../consts/selectors";
 import type { BacklogItem } from "../../types";
@@ -12,6 +12,7 @@ vi.mock("@tanstack/react-query", () => ({
   useQuery: vi.fn().mockReturnValue({
     data: { pending_questions: { items: [] } },
     isLoading: false,
+    refetch: vi.fn().mockResolvedValue({ data: { pending_questions: { items: [] } } }),
   }),
 }));
 
@@ -90,34 +91,34 @@ describe("CommandPostOverlay", () => {
     expect(screen.getByText("Command Post")).toBeInTheDocument();
   });
 
-  it("hides overlay header when entering decision-stream mode", () => {
+  it("hides overlay header when entering decision-stream mode", async () => {
     render(<CommandPostOverlay {...defaultProps} />);
 
     // Enter decision stream
     fireEvent.click(screen.getByTestId("enter-decision-stream"));
 
+    await waitFor(() => expect(screen.getByTestId("mock-decision-stream")).toBeInTheDocument());
+
     // Header should be gone
     expect(screen.queryByTestId(selectors.commandPost.overlayHeader)).not.toBeInTheDocument();
-    // Decision stream should be visible
-    expect(screen.getByTestId("mock-decision-stream")).toBeInTheDocument();
   });
 
-  it("decision-stream container has h-full class for maximum space", () => {
+  it("decision-stream container has h-full class for maximum space", async () => {
     render(<CommandPostOverlay {...defaultProps} />);
 
     fireEvent.click(screen.getByTestId("enter-decision-stream"));
 
     // The decision-stream wrapper should have h-full
-    const dsContainer = screen.getByTestId("mock-decision-stream").parentElement;
+    const dsContainer = (await screen.findByTestId("mock-decision-stream")).parentElement;
     expect(dsContainer?.className).toContain("h-full");
   });
 
-  it("returns to summary when decision-stream back is clicked", () => {
+  it("returns to summary when decision-stream back is clicked", async () => {
     render(<CommandPostOverlay {...defaultProps} />);
 
     // Enter decision stream
     fireEvent.click(screen.getByTestId("enter-decision-stream"));
-    expect(screen.getByTestId("mock-decision-stream")).toBeInTheDocument();
+    expect(await screen.findByTestId("mock-decision-stream")).toBeInTheDocument();
 
     // Go back
     fireEvent.click(screen.getByTestId("ds-go-back"));
@@ -133,12 +134,12 @@ describe("CommandPostOverlay", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it("resets to summary view when reopened", () => {
+  it("resets to summary view when reopened", async () => {
     const { rerender } = render(<CommandPostOverlay {...defaultProps} />);
 
     // Enter decision stream
     fireEvent.click(screen.getByTestId("enter-decision-stream"));
-    expect(screen.getByTestId("mock-decision-stream")).toBeInTheDocument();
+    expect(await screen.findByTestId("mock-decision-stream")).toBeInTheDocument();
 
     // Close and reopen
     rerender(<CommandPostOverlay {...defaultProps} isOpen={false} />);

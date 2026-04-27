@@ -1,0 +1,15 @@
+{
+  "created": "2026-04-27T17:38:45Z",
+  "created_by": {
+    "type": "operator"
+  },
+  "description": "New agent that reads bookmarks classified as scenario-candidate / capability-class-flag / marketing-positioning. For each, optionally investigates (checks for existing similar scenarios, identifies dependencies, infers audience from operator notes + linked content). Surfaces idea candidates to vision-walk-prep in a structured format. The agent does NOT make decisions; it pre-processes for the operators morning walk. Should run on a schedule (frequency TBD during execution) or be triggerable on demand. Initiative: bookmark-intelligence-hub-rework-and-ideation. See orchestration-summary.md for context. Depends on: bih-v0-redesign-manual-paste-first. Acceptance: running the agent against a corpus of bookmarks produces a structured candidate list; output format is consumable by vision-walk-prep (see related backlog item bih-vision-walk-prep-integration).",
+  "initiative": "bookmark-intelligence-hub-rework-and-ideation",
+  "kind": "execute",
+  "name": "bih-ideation-extraction-agent",
+  "priority": 4,
+  "status": "backlog",
+  "tags": [],
+  "title": "BIH ideation-extraction agent",
+  "updated": "2026-04-27T17:38:56Z"
+}

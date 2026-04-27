@@ -150,7 +150,7 @@
       "steps": [
         {
           "name": "run-tests",
-          "run": "test-genie execute swarm-manager --preset comprehensive",
+          "run": "vrooli scenario start swarm-manager && test-genie execute swarm-manager --preset comprehensive",
           "description": "Run all test phases via test-genie"
         }
       ]

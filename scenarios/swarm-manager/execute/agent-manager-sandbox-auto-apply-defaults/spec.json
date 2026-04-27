@@ -14,7 +14,7 @@
   "kind": "execute",
   "name": "agent-manager-sandbox-auto-apply-defaults",
   "priority": 1,
-  "status": "backlog",
+  "status": "in_review",
   "tags": [
     "agent-manager",
     "workspace-sandbox",
@@ -22,5 +22,5 @@
     "provenance"
   ],
   "title": "Make sandboxed agent-manager runs auto-apply accepted changes by default",
-  "updated": "2026-04-26T00:00:00Z"
+  "updated": "2026-04-27T03:56:59Z"
 }

@@ -20,6 +20,7 @@ import { useBacklogDetailUIStore } from "../stores";
 import { useBacklogCRUDHandlers } from "./useBacklogCRUDHandlers";
 import { useBacklogFileHandlers } from "./useBacklogFileHandlers";
 import type { useBacklogDetailData } from "./useBacklogDetailData";
+import type { WorkshopSaveResponse } from "../services/backlog/types";
 import type {
   ArchiveRequirement,
   ArchiveRequirementRecord,
@@ -53,6 +54,7 @@ export interface UseBacklogHandlersOptions {
   // Navigation
   closeDetail: () => void;
   refreshActivities: (force: boolean) => Promise<void>;
+  onWorkshopSaveResult?: (result: WorkshopSaveResponse) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -70,6 +72,7 @@ export function useBacklogHandlers(opts: UseBacklogHandlersOptions) {
     selectedFile,
     closeDetail,
     refreshActivities,
+    onWorkshopSaveResult,
   } = opts;
 
   const { _mutations, archiveTargets, targetIdSet, reqModuleMap } = data;
@@ -82,6 +85,7 @@ export function useBacklogHandlers(opts: UseBacklogHandlersOptions) {
     name,
     closeDetail,
     refreshActivities,
+    onWorkshopSaveResult,
   });
 
   const fileHandlers = useBacklogFileHandlers({

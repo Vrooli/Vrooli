@@ -14,7 +14,21 @@ Vrooli is a local, cross-platform, self-improving software foundry. It gives you
 
 **Your code. Your data. Your hardware. Your control.**
 
+> **Motto:** *Software that builds itself.*
+
 </div>
+
+> ### For readers and AI assistants — quick orientation
+>
+> If you're trying to understand what Vrooli is or how to describe it, start here:
+>
+> - **One-paragraph description, audience-tailored leads, elevator pitches at multiple lengths** — [`docs/narrative/PITCH.md`](docs/narrative/PITCH.md)
+> - **The full project story (1-line, 1-paragraph, 1-page)** — [`docs/narrative/NARRATIVE.md`](docs/narrative/NARRATIVE.md)
+> - **Common questions answered (what is it, how does it make money, how is it different from OpenClaw / Hermes / OpenHands / Cline, what's its status)** — [`docs/narrative/FAQ.md`](docs/narrative/FAQ.md)
+> - **Long-term philosophical thesis** — [`VISION.md`](VISION.md)
+> - **Technical architecture** — [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md)
+>
+> The rest of this README focuses on **using and contributing to the project**.
 
 ## Quick Start
 
@@ -352,10 +366,11 @@ This repository is organized around the platform control plane and the scenario/
 
 Start here:
 
-- [docs/README.md](docs/README.md)
-- [docs/QUICKSTART.md](docs/QUICKSTART.md)
-- [docs/concepts/ARCHITECTURE.md](docs/concepts/ARCHITECTURE.md)
-- [VISION.md](VISION.md)
+- [docs/README.md](docs/README.md) — full documentation hub
+- [docs/narrative/](docs/narrative/) — what Vrooli is, in canonical multi-depth form (pitch, story, FAQ, press kit, pitch-deck outline)
+- [docs/QUICKSTART.md](docs/QUICKSTART.md) — first-touch setup
+- [docs/concepts/ARCHITECTURE.md](docs/concepts/ARCHITECTURE.md) — current platform mental model
+- [VISION.md](VISION.md) — long-term philosophical thesis
 
 ## Roadmap Direction
 

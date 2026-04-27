@@ -54,6 +54,12 @@ export function CommandPostOverlay({
     return aggregateCrossItemQuestions(pqi, snoozedKeys, activeItemKeys);
   }, [summaryQuery.data?.pending_questions, snoozedKeys, activeItemKeys]);
 
+  const enterDecisionStream = useCallback(() => {
+    void summaryQuery.refetch?.().finally(() => {
+      setView("decision-stream");
+    });
+  }, [summaryQuery]);
+
   // Reset to summary when reopened
   useEffect(() => {
     if (isOpen) setView("summary");
@@ -121,7 +127,7 @@ export function CommandPostOverlay({
       {view === "summary" ? (
         <div className="mx-auto max-w-4xl px-4 py-3">
           <SummaryView
-            onEnterDecisionStream={() => setView("decision-stream")}
+            onEnterDecisionStream={enterDecisionStream}
             onNavigateToDetail={onNavigateToDetail}
             onSwitchLens={(lens) => {
               onSwitchLens(lens);
@@ -134,7 +140,10 @@ export function CommandPostOverlay({
         <div className="h-full">
           <DecisionStreamView
             questions={questions}
-            onComplete={() => setView("summary")}
+            onComplete={() => {
+              void summaryQuery.refetch?.();
+              setView("summary");
+            }}
             onBack={() => setView("summary")}
             onSnoozeItem={(key) => snooze(key, Date.now() + 3_600_000)}
             onOpenItem={(kind, name) => {

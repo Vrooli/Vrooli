@@ -11,16 +11,15 @@
 - No stale inputs (file has never been populated).
 
 ### Snapshot summary
-- No change since 2026-04-24. All fields unchanged from prior heartbeat.
 - Cash: `pending-operator`
 - Monthly burn: `pending-operator` (all four categories unpopulated)
 - Monthly revenue: 0 `aspirational` (no subscriptions shipped; services not active)
-- Runway: `pending-operator` (missing cash and burn)
+- Runway: `pending-operator` (cannot compute without cash + burn)
 - Default-alive gap: `pending-operator`
 - Time allocation: product `pending-operator` / services 0% `not-applicable-pre-launch` / ops `pending-operator`
 
 ### Material deltas since last snapshot
-- No change since 2026-04-24. `operator-inputs.json::lastUpdatedAt` is still null; no LPBS/Stripe events, no services activations, no infra cost data. Quiet-heartbeat stop condition invoked.
+- No change since 2026-04-26. `operator-inputs.json::lastUpdatedAt` still null; no LPBS/Stripe events, no services activations, no infra cost data. Quiet-heartbeat stop condition invoked.
 
 ### Flags raised
 - `operator-inputs-unpopulated` (unchanged structural flag; not a framework-level breach)
@@ -29,7 +28,7 @@
 - assumption-drift: none
 
 ### Decisions raised this heartbeat
-- none. Team queue at 3 pending (well under 12-ceiling, normal mode). Own-context cap 1/3 — `dec-1777061056395576280` (pricing-decision, raised by market-validator 2026-04-24 about the $29-$49 trough). No superseding signal from this snapshot: no cost data has shifted to contradict or refresh the market-validator's underlying math. Leaving it as-is for the operator's review.
+- none. Team queue at 0 pending (well under 12-ceiling, normal mode). Own-context cap 0/3. The prior `dec-1777061056395576280` (pricing-decision) noted in last handoff has cleared from the pending queue. No supersession candidates this heartbeat — nothing to supersede.
 
 ### Assumptions checked
 - Assumption 1 (Tier 2 majority within 12 mo of Tier 2 offering): still holds — no data
@@ -45,4 +44,4 @@
 - Gateway token cost auto-aggregation → API gateway (Tier 2 prereq); today bundled into `monthlyBurn.aiApi`
 
 ### Knowledge entry written
-- topic: `ledger-snapshot-2026-04-26` (id: `knw-1777226465178823011`; supersedes `knw-1777053653472379841`)
+- topic: `ledger-snapshot-2026-04-27` (id: `knw-1777312831870325754`; supersedes `knw-1777226465178823011`)

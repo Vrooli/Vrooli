@@ -17,14 +17,31 @@
       "topic": "GetAsset return call in UpsertAsset",
       "context": "After the INSERT, UpsertAsset calls `s.GetAsset(bundleKey, appKey, platform)` (line 613), which doesn't filter by variant_key. Once multiple variants exist for the same (bundle, app, platform), this could return the wrong row. GetAssetByVariant already exists at line 529.",
       "options": [
-        {"key": "A", "label": "Switch to GetAssetByVariant", "rationale": "Correct behavior — returns the exact row that was just upserted. GetAssetByVariant already exists and works. This is the obvious fix.", "recommended": true},
-        {"key": "B", "label": "Keep GetAsset but add ORDER BY updated_at DESC", "rationale": "Returns the most recently updated row, which is likely correct after an upsert, but is still technically racy under concurrent writes."},
-        {"key": "C", "label": "Use RETURNING clause instead of a second query", "rationale": "More efficient (1 query instead of 2), but requires restructuring the scan logic. Larger change than necessary for this fix."},
-        {"key": "D", "label": "Other", "rationale": "Provide your own approach"}
+        {
+          "key": "A",
+          "label": "Switch to GetAssetByVariant",
+          "rationale": "Correct behavior — returns the exact row that was just upserted. GetAssetByVariant already exists and works. This is the obvious fix.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Keep GetAsset but add ORDER BY updated_at DESC",
+          "rationale": "Returns the most recently updated row, which is likely correct after an upsert, but is still technically racy under concurrent writes."
+        },
+        {
+          "key": "C",
+          "label": "Use RETURNING clause instead of a second query",
+          "rationale": "More efficient (1 query instead of 2), but requires restructuring the scan logic. Larger change than necessary for this fix."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d2",
@@ -32,14 +49,31 @@
       "topic": "What variant key should call sites pass now?",
       "context": "Both call sites in download_hosting_handlers.go currently don't pass a variant key. Since multi-channel wiring (passing channelToVariantKey(channel)) is a separate effort, we need to decide what to pass in this fix.",
       "options": [
-        {"key": "A", "label": "Pass empty string (rely on UpsertAsset default)", "rationale": "Minimal change, but the implicit default is less readable and could mask bugs if a caller forgets to set it."},
-        {"key": "B", "label": "Pass explicit \"default\"", "rationale": "Makes the current behavior explicit and visible. When multi-channel is wired up, these will be obvious places to update.", "recommended": true},
-        {"key": "C", "label": "Wire up channelToVariantKey now", "rationale": "Gets multi-channel working immediately, but these handlers may not have channel info in their request context yet. Expands scope."},
-        {"key": "D", "label": "Other", "rationale": "Provide your own approach"}
+        {
+          "key": "A",
+          "label": "Pass empty string (rely on UpsertAsset default)",
+          "rationale": "Minimal change, but the implicit default is less readable and could mask bugs if a caller forgets to set it."
+        },
+        {
+          "key": "B",
+          "label": "Pass explicit \"default\"",
+          "rationale": "Makes the current behavior explicit and visible. When multi-channel is wired up, these will be obvious places to update.",
+          "recommended": true
+        },
+        {
+          "key": "C",
+          "label": "Wire up channelToVariantKey now",
+          "rationale": "Gets multi-channel working immediately, but these handlers may not have channel info in their request context yet. Expands scope."
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
       ],
-      "selected": null,
+      "selected": "B",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d3",
@@ -47,13 +81,26 @@
       "topic": "Should VariantKey be validated in UpsertAsset?",
       "context": "The variant_key column participates in a UNIQUE constraint (bundle_key, app_key, platform, variant_key). Currently no validation is done on the value. channelToVariantKey produces clean values, but external callers could pass arbitrary strings.",
       "options": [
-        {"key": "A", "label": "No validation beyond TrimSpace", "rationale": "Consistent with how other string fields (app_key, platform) are handled in UpsertAsset. The DB constraint catches truly invalid cases.", "recommended": true},
-        {"key": "B", "label": "Validate against an allowlist (default, beta, nightly, etc.)", "rationale": "Prevents garbage values, but requires maintaining a list and restricts future channel names."},
-        {"key": "C", "label": "Other", "rationale": "Provide your own approach"}
+        {
+          "key": "A",
+          "label": "No validation beyond TrimSpace",
+          "rationale": "Consistent with how other string fields (app_key, platform) are handled in UpsertAsset. The DB constraint catches truly invalid cases.",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Validate against an allowlist (default, beta, nightly, etc.)",
+          "rationale": "Prevents garbage values, but requires maintaining a list and restricts future channel names."
+        },
+        {
+          "key": "C",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "i1",

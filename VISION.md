@@ -1,5 +1,7 @@
 # Vrooli: The Recursive Intelligence Vision
 
+> **Owner:** `director-swarm` (drift detection via `vision-walk-prep` + `vision-update` decision context). **Author:** operator-direct. Agents may flag drift but do not author this file. Substantive expansion of the long-term arc — including the post-labor / DAO / peaceful-revolution narrative articulated in `docs/narrative/NARRATIVE.md`'s deep-vision section — is operator-curated. See `docs/narrative/README.md` for the full narrative canon hierarchy.
+
 ## The Core Insight
 Traditional automation is static. Vrooli is alive. Every task completed makes it smarter. This isn't incremental improvement - it's compound intelligence growth where capabilities multiply rather than add.
 

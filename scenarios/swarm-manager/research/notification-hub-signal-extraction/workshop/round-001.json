@@ -17,14 +17,31 @@
       "topic": "Output format and depth",
       "context": "The research item description says 'Output: domain model doc for greenfield rewrite' and explicitly excludes technical choices (n8n, Postgres/Redis, providers). But it does not specify whether the conclusion should also include skeleton proto schemas (since the initiative has already decided proto lives at packages/proto/schemas/notification-hub/v1/) or just a prose domain model. This affects how much depth round 2+ needs and whether a separate execute item is needed for the proto contract.",
       "options": [
-        {"key": "A", "label": "Domain model doc only — prose + tables + state diagrams; proto authoring is downstream work folded into execute/notification-hub-greenfield-core", "rationale": "Keeps the research output focused on the 'what concepts to preserve' question; defers schema syntax bikeshedding to execution; simpler to converge", "recommended": true},
-        {"key": "B", "label": "Domain model doc + skeleton proto files (notification.proto, profile.proto, device.proto, subscription.proto) with messages and enums but no service definitions", "rationale": "Forces concrete decisions on enum values and field names while domain context is fresh; produces a more directly actionable handoff but expands research scope", "recommended": false},
-        {"key": "C", "label": "Domain model doc + new backlog item execute/notification-hub-proto-contract scoped specifically to authoring the v1 proto", "rationale": "Separates concerns cleanly — research stays prose, proto authoring becomes its own first-class item with its own acceptance criteria", "recommended": false},
-        {"key": "D", "label": "Other", "rationale": "Provide your own scope direction"}
+        {
+          "key": "A",
+          "label": "Domain model doc only — prose + tables + state diagrams; proto authoring is downstream work folded into execute/notification-hub-greenfield-core",
+          "rationale": "Keeps the research output focused on the 'what concepts to preserve' question; defers schema syntax bikeshedding to execution; simpler to converge",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Domain model doc + skeleton proto files (notification.proto, profile.proto, device.proto, subscription.proto) with messages and enums but no service definitions",
+          "rationale": "Forces concrete decisions on enum values and field names while domain context is fresh; produces a more directly actionable handoff but expands research scope"
+        },
+        {
+          "key": "C",
+          "label": "Domain model doc + new backlog item execute/notification-hub-proto-contract scoped specifically to authoring the v1 proto",
+          "rationale": "Separates concerns cleanly — research stays prose, proto authoring becomes its own first-class item with its own acceptance criteria"
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own scope direction"
+        }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d2",
@@ -32,14 +49,31 @@
       "topic": "Fate of the legacy NotificationCategory enum (17 values)",
       "context": "The legacy notify code defined a closed enum of 17 product-shaped categories (AccountCreditsOrApi, Award, IssueStatus, Message, NewObjectInTeam, NewObjectInProject, ObjectActivity, Promotion, PullRequestStatus, ReportStatus, Run, Schedule, Security, Streak, SystemAlert, Transfer, UserInvite). These reflected the old Vrooli web app's product surfaces. The initiative has decided on event-glob subscriptions on vrooli-events (e.g., 'agent-manager.run.*'), which is open-ended. Need to settle how 'category' survives, because rate limits and unsubscribe scopes in both the legacy code and the existing Go scenario reference category as a first-class dimension.",
       "options": [
-        {"key": "A", "label": "Drop the closed enum entirely. 'Category' becomes a free-form string tag the publisher includes in the event payload (e.g., 'transactional', 'marketing', 'security'). Rate limits and unsubscribe scopes operate on these tags but accept any string", "rationale": "Maximally portable; new scenarios can mint new tags without coordinating with notification-hub; matches the open-ended event-glob model", "recommended": true},
-        {"key": "B", "label": "Preserve a small canonical set (e.g., 'transactional', 'marketing', 'security', 'product', 'system') as a recommended-but-not-enforced taxonomy, with publishers free to add their own", "rationale": "Gives users a meaningful default unsubscribe-by-category UX without forcing every publisher to invent its own taxonomy", "recommended": false},
-        {"key": "C", "label": "Keep category as a closed enum but make it scenario-extensible via configuration (each profile declares its own category list)", "rationale": "Strict typing within a profile, but cross-tenant analytics get harder; adds config surface", "recommended": false},
-        {"key": "D", "label": "Other", "rationale": "Provide your own approach"}
+        {
+          "key": "A",
+          "label": "Drop the closed enum entirely. 'Category' becomes a free-form string tag the publisher includes in the event payload (e.g., 'transactional', 'marketing', 'security'). Rate limits and unsubscribe scopes operate on these tags but accept any string",
+          "rationale": "Maximally portable; new scenarios can mint new tags without coordinating with notification-hub; matches the open-ended event-glob model",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Preserve a small canonical set (e.g., 'transactional', 'marketing', 'security', 'product', 'system') as a recommended-but-not-enforced taxonomy, with publishers free to add their own",
+          "rationale": "Gives users a meaningful default unsubscribe-by-category UX without forcing every publisher to invent its own taxonomy"
+        },
+        {
+          "key": "C",
+          "label": "Keep category as a closed enum but make it scenario-extensible via configuration (each profile declares its own category list)",
+          "rationale": "Strict typing within a profile, but cross-tenant analytics get harder; adds config surface"
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d3",
@@ -47,14 +81,31 @@
       "topic": "Online-vs-offline delivery routing (legacy NotificationDeliveryMode)",
       "context": "Legacy notify.ts had three modes (default/force_push/prefer_websocket) that suppressed push when the user was actively connected via WebSocket — saving push budget and avoiding double-notification. The greenfield has no WebSocket assumption (it is a portable microservice subscribing to vrooli-events). Need to decide whether/how this 'don't push to actively-present users' policy survives.",
       "options": [
-        {"key": "A", "label": "Drop server-side presence tracking. Make this a per-subscription preference: each subscription declares 'always push', 'in-app only', or 'push if no in-app feed activity in last N seconds'. Hub honors it without tracking presence itself", "rationale": "Keeps the hub stateless w.r.t. presence; pushes the policy to the subscription-config layer where users already manage preferences", "recommended": true},
-        {"key": "B", "label": "Track lightweight presence inside the hub via the in-app feed connection (SSE/poll heartbeat). Suppress push automatically when last-heartbeat < threshold", "rationale": "Smarter default — feels right out of the box without per-subscription config — but adds presence-tracking surface and a new failure mode", "recommended": false},
-        {"key": "C", "label": "Drop the concept entirely. Always send to all configured channels; if the user wants in-app-only, they unsubscribe push for that category", "rationale": "Simplest possible model; loses some UX polish but eliminates a whole sub-system", "recommended": false},
-        {"key": "D", "label": "Other", "rationale": "Provide your own approach"}
+        {
+          "key": "A",
+          "label": "Drop server-side presence tracking. Make this a per-subscription preference: each subscription declares 'always push', 'in-app only', or 'push if no in-app feed activity in last N seconds'. Hub honors it without tracking presence itself",
+          "rationale": "Keeps the hub stateless w.r.t. presence; pushes the policy to the subscription-config layer where users already manage preferences",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Track lightweight presence inside the hub via the in-app feed connection (SSE/poll heartbeat). Suppress push automatically when last-heartbeat < threshold",
+          "rationale": "Smarter default — feels right out of the box without per-subscription config — but adds presence-tracking surface and a new failure mode"
+        },
+        {
+          "key": "C",
+          "label": "Drop the concept entirely. Always send to all configured channels; if the user wants in-app-only, they unsubscribe push for that category",
+          "rationale": "Simplest possible model; loses some UX polish but eliminates a whole sub-system"
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d4",
@@ -62,14 +113,31 @@
       "topic": "Template variable resolution model",
       "context": "Legacy notify.ts had a sophisticated <Label|Type:ID> deferred-resolution system: variable values containing placeholders triggered batch DB fetches in the user's preferred language at delivery time. This was great for stale-safe i18n but required direct DB access from the notification worker plus a model registry. The greenfield is portable and event-driven; the publisher (e.g., agent-manager) holds the source-of-truth strings. Need to decide how variables resolve.",
       "options": [
-        {"key": "A", "label": "Caller-supplied resolved strings only. The notification-hub treats template variables as opaque pre-localized strings. Publishers must call i18n.resolve() before publishing. Greenfield templates use simple {{var}} substitution (matches existing Go scenario at processor.go:455-463)", "rationale": "Portable, simple, no cross-service coupling; matches the event-driven boundary; aligns with the existing Go scenario's renderTemplate", "recommended": true},
-        {"key": "B", "label": "Caller-supplied strings + an optional resolver-callback registration: profiles can register an HTTP resolver endpoint that the hub calls at delivery time for placeholders matching a registered prefix", "rationale": "Preserves the deferred-resolution superpower for tenants that want it, without coupling the hub to any specific data source", "recommended": false},
-        {"key": "C", "label": "Per-channel content blocks instead of variable substitution: templates carry rendered HTML/text/push-payload per channel, no substitution at all in the hub; publishers do all rendering", "rationale": "Maximally minimal hub responsibility; pushes complexity to publishers but is the cleanest separation", "recommended": false},
-        {"key": "D", "label": "Other", "rationale": "Provide your own approach"}
+        {
+          "key": "A",
+          "label": "Caller-supplied resolved strings only. The notification-hub treats template variables as opaque pre-localized strings. Publishers must call i18n.resolve() before publishing. Greenfield templates use simple {{var}} substitution (matches existing Go scenario at processor.go:455-463)",
+          "rationale": "Portable, simple, no cross-service coupling; matches the event-driven boundary; aligns with the existing Go scenario's renderTemplate",
+          "recommended": true
+        },
+        {
+          "key": "B",
+          "label": "Caller-supplied strings + an optional resolver-callback registration: profiles can register an HTTP resolver endpoint that the hub calls at delivery time for placeholders matching a registered prefix",
+          "rationale": "Preserves the deferred-resolution superpower for tenants that want it, without coupling the hub to any specific data source"
+        },
+        {
+          "key": "C",
+          "label": "Per-channel content blocks instead of variable substitution: templates carry rendered HTML/text/push-payload per channel, no substitution at all in the hub; publishers do all rendering",
+          "rationale": "Maximally minimal hub responsibility; pushes complexity to publishers but is the cleanest separation"
+        },
+        {
+          "key": "D",
+          "label": "Other",
+          "rationale": "Provide your own approach"
+        }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "i1",

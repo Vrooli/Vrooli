@@ -312,7 +312,7 @@ export function BacklogCard({
                   }}
                 >
                   <Sparkles className="mr-1 h-3 w-3" />
-                  {itemActions.agentRunning ? runningLabel : finalizePending ? "Starting..." : "Finalize"}
+                  {itemActions.agentExecuting ? runningLabel : finalizePending ? "Starting..." : "Finalize"}
                 </Button>
               )}
               {(itemActions.canRun || itemActions.runDisabled) && (
@@ -328,7 +328,7 @@ export function BacklogCard({
                   }}
                 >
                   <Play className="mr-1 h-3 w-3" />
-                  {itemActions.agentRunning ? runningLabel : "Run"}
+                  {itemActions.agentExecuting ? runningLabel : "Run"}
                 </Button>
               )}
               {(itemActions.canWorkshop || itemActions.workshopDisabled) && (
@@ -344,7 +344,7 @@ export function BacklogCard({
                   }}
                 >
                   <MessageSquareText className="mr-1 h-3 w-3" />
-                  {itemActions.agentRunning ? runningLabel : workshopPending ? "Starting..." : workshopLabel}
+                  {itemActions.agentExecuting ? runningLabel : workshopPending ? "Starting..." : workshopLabel}
                 </Button>
               )}
               {showSnooze && onSnooze && (

@@ -13,6 +13,30 @@ Raw, pre-structured audience / competitor / trend observations that don't yet me
 
 ## Entries
 
+### 2026-04-27 — Bundle-as-subscription-savings positioning (homelab-built-with-Claude-Code signal)
+
+**Written by:** operator (captured via vision walk #4 chore-audit)
+**Observation:** Viral X/social-media post covered someone using Claude Code (Anthropic's coding agent) to set up a personal homelab containing multiple self-hosted services (media server and other typical homelab apps), with the explicit framing of *avoiding multiple SaaS subscriptions*. This signal generates two distinct insights:
+
+1. **Family-bundle positioning angle.** Vrooli's family bundle is structurally a *superset / AI-powered version* of a traditional homelab — it serves the same purpose (run things locally, save on subscriptions, retain control) but is agent-driven rather than requiring the technical expertise to wire up separate self-hosted apps. *"AI-powered homelab that handles your home life"* is a viable positioning lead for the family bundle. The audience that's currently building homelabs by hand is a natural target — they already accept the local-first thesis; Vrooli reduces the technical-overhead cost.
+
+2. **Business-bundle parallel positioning angle.** The same subscription-savings logic applies to the business bundle (developer / solopreneur tools). Buying the Vrooli business bundle *replaces* the stack of SaaS subscriptions a solopreneur would otherwise pay for (analytics, landing-page-builder, marketing automation, etc.). *"One bundle subscription, not N SaaS subscriptions"* is a positioning lead specifically for this audience. This had not been explicitly captured in canonical positioning before — surface during next monetization / brand-canon update cycle.
+
+Both positioning angles are anchored on the same audience truth: knowledge workers and household operators are subscription-fatigued and increasingly suspicious of cloud SaaS lock-in. The Vrooli local-first thesis aligns with that fatigue better than alternative agent platforms (which mostly assume cloud hosting).
+
+**Source:** Bookmark from operator's social media stream (URL not captured — pre-BIH-rework workflow). Operator notes: *"this is one valuable way we can market this project — that you can do everything locally."* Cross-references: existing `STRATEGY.md` dual-audience framing already covers local-sovereignty as values tagline; the bundle-as-subscription-savings angle is the new addition.
+**Interpretation flag:** observation + positioning-insight
+**Possible persona attachment:** new candidate persona — "homelab-builder" — for family bundle. May also attach to existing OSS-contributor persona for the credibility angle.
+**Cross-team relevance:** monetization-benchmark-adjacent (subscription-savings is a pricing / value-anchor angle worth surfacing to monetization for both bundles); director-swarm (research method — see knowledge entry `research-method/homelab-app-scenario-seeding` for the generative method this signal seeded).
+
+**Promotion targets:**
+- Family-bundle audience addition to `AUDIENCES.md` (homelab-builder persona) — propose via `audience-update` decision when accumulated evidence supports the persona.
+- Business-bundle subscription-savings positioning addition to `STRATEGY.md` and/or `docs/narrative/PITCH.md` — propose via `brand-guideline-update` decision (could surface alongside next bundle launch).
+
+**Revisit marker:** revisit after 14 heartbeats. Watch for additional bookmarks/signals reinforcing the homelab-builder audience or the subscription-fatigue framing — promotion threshold is ≥3 converging signals per operating rules.
+
+---
+
 ### 2026-04-24 — Researcher has no structured scanning tooling
 
 **Written by:** researcher

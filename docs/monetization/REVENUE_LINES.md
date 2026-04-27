@@ -25,6 +25,7 @@ A company with only subscriptions has one revenue line. Vrooli has multiple — 
 | `consulting` | Consulting / strategy engagements | `candidate` (last resort) | [revenue-lines/consulting.md](revenue-lines/consulting.md) |
 | `consumer-products` | Consumer products (own-produced SKUs — books, planners, kits) | `candidate` | [revenue-lines/consumer-products.md](revenue-lines/consumer-products.md) |
 | `affiliate-commerce` | Affiliate / commerce (partner-produced, commission-based) | `candidate` | [revenue-lines/affiliate-commerce.md](revenue-lines/affiliate-commerce.md) |
+| `flipping` | Flipping (marketplace resale — buy underpriced, refurbish, resell) | `candidate` | [revenue-lines/flipping.md](revenue-lines/flipping.md) |
 
 New candidates enter by adding a file to `revenue-lines/` via an approved decision. Retired lines stay in the folder with `Status: retired` — historical context matters for future decisions.
 
