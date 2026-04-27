@@ -2,7 +2,7 @@
   "round": 2,
   "generated_at": "2026-04-27T01:17:00Z",
   "mode": "workshop",
-  "pending_synthesis": false,
+  "pending_synthesis": true,
   "readiness": {
     "approach_solid": 2,
     "problem_clarity": 3,

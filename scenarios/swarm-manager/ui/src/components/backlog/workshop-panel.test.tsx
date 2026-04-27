@@ -69,7 +69,7 @@ describe("WorkshopPanel", () => {
     render(<WorkshopPanel {...defaultProps} rounds={rounds} />);
 
     // Latest round's items should be visible
-    expect(screen.getByText("New context")).toBeInTheDocument();
+    expect(screen.getAllByText("New context").length).toBeGreaterThan(0);
     // Older round's items should be hidden (collapsed)
     expect(screen.queryByText("Old context")).not.toBeInTheDocument();
   });
@@ -83,7 +83,7 @@ describe("WorkshopPanel", () => {
 
     // Round 1 is collapsed — click to expand
     fireEvent.click(screen.getByText("Round 1"));
-    expect(screen.getByText("Old info")).toBeInTheDocument();
+    expect(screen.getAllByText("Old info").length).toBeGreaterThan(0);
   });
 
   it("shows 'Next Round' button when onRunWorkshop is provided", () => {

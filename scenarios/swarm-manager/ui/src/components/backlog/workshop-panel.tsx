@@ -103,6 +103,8 @@ export function WorkshopPanel({
   // Confirmation dialog for running a new round after finalization.
   const [showPostFinalizeConfirm, setShowPostFinalizeConfirm] = useState(false);
   const [expandedPlanUpdates, setExpandedPlanUpdates] = useState<Set<number>>(() => new Set());
+  const [expandedAllRounds, setExpandedAllRounds] = useState<Set<number>>(() => new Set());
+  const [activeItemByRound, setActiveItemByRound] = useState<Map<number, string | null>>(() => new Map());
 
   const [expandedRounds, setExpandedRounds] = useState<Set<number>>(() => {
     if (rounds.length === 0) return new Set();
@@ -201,6 +203,72 @@ export function WorkshopPanel({
     });
   }, []);
 
+  const getDefaultExpandedItemId = useCallback((items: WorkshopItem[]): string | null => {
+    const firstPendingDecision = items.find((item) => item.type === "decision" && (!item.selected || !item.selected.trim()));
+    if (firstPendingDecision) return firstPendingDecision.id;
+    const firstDecision = items.find((item) => item.type === "decision");
+    if (firstDecision) return firstDecision.id;
+    return items[0]?.id ?? null;
+  }, []);
+
+  const toggleItemExpanded = useCallback((roundNum: number, itemId: string, defaultExpandedId: string | null) => {
+    setExpandedAllRounds((prev) => {
+      if (!prev.has(roundNum)) return prev;
+      const next = new Set(prev);
+      next.delete(roundNum);
+      return next;
+    });
+    setActiveItemByRound((prev) => {
+      const next = new Map(prev);
+      const current = next.has(roundNum) ? next.get(roundNum) ?? null : defaultExpandedId;
+      next.set(roundNum, current === itemId ? null : itemId);
+      return next;
+    });
+  }, []);
+
+  const setExpandAllForRound = useCallback((roundNum: number) => {
+    setExpandedAllRounds((prev) => new Set(prev).add(roundNum));
+    setActiveItemByRound((prev) => {
+      const next = new Map(prev);
+      next.delete(roundNum);
+      return next;
+    });
+  }, []);
+
+  const setCollapseAllForRound = useCallback((roundNum: number) => {
+    setExpandedAllRounds((prev) => {
+      const next = new Set(prev);
+      next.delete(roundNum);
+      return next;
+    });
+    setActiveItemByRound((prev) => {
+      const next = new Map(prev);
+      next.set(roundNum, null);
+      return next;
+    });
+  }, []);
+
+  const focusNextUnanswered = useCallback((roundNum: number, items: WorkshopItem[]) => {
+    const pendingDecisionIds = items
+      .filter((item) => item.type === "decision" && (!item.selected || !item.selected.trim()))
+      .map((item) => item.id);
+    if (pendingDecisionIds.length === 0) return;
+
+    setExpandedAllRounds((prev) => {
+      const next = new Set(prev);
+      next.delete(roundNum);
+      return next;
+    });
+    setActiveItemByRound((prev) => {
+      const next = new Map(prev);
+      const current = next.get(roundNum) ?? null;
+      const currentIndex = current ? pendingDecisionIds.indexOf(current) : -1;
+      const nextId = pendingDecisionIds[(currentIndex + 1 + pendingDecisionIds.length) % pendingDecisionIds.length];
+      next.set(roundNum, nextId ?? pendingDecisionIds[0] ?? null);
+      return next;
+    });
+  }, []);
+
   /** Gate "Next Round" behind a confirmation if finalization already happened. */
   const handleWorkshopClick = useCallback(() => {
     if (isFinalized) {
@@ -288,6 +356,11 @@ export function WorkshopPanel({
         const planUpdatesOverflows = planUpdates.length > 180 || planUpdates.includes("\n");
         const isPlanUpdatesExpanded = expandedPlanUpdates.has(round.round);
         const effectiveItems = getEffectiveItems(round);
+        const defaultExpandedItemId = getDefaultExpandedItemId(effectiveItems);
+        const activeItemId = activeItemByRound.has(round.round)
+          ? activeItemByRound.get(round.round) ?? null
+          : defaultExpandedItemId;
+        const expandAllItems = expandedAllRounds.has(round.round);
         const pendingDecisions = getPendingDecisionCount({ ...round, items: effectiveItems });
         // Find the previous round for delta comparison
         const roundIdx = rounds.findIndex((r) => r.round === round.round);
@@ -334,6 +407,33 @@ export function WorkshopPanel({
 
             {isExpanded && (
               <div className="border-t border-slate-700 px-4 py-3 space-y-2">
+                {effectiveItems.length > 1 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setExpandAllForRound(round.round)}
+                      className="rounded border border-slate-700 px-2 py-1 text-xs text-slate-400 transition-colors hover:border-slate-600 hover:text-slate-200"
+                    >
+                      Expand all
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCollapseAllForRound(round.round)}
+                      className="rounded border border-slate-700 px-2 py-1 text-xs text-slate-400 transition-colors hover:border-slate-600 hover:text-slate-200"
+                    >
+                      Collapse all
+                    </button>
+                    {pendingDecisions > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => focusNextUnanswered(round.round, effectiveItems)}
+                        className="rounded border border-amber-500/30 bg-amber-500/5 px-2 py-1 text-xs text-amber-300 transition-colors hover:border-amber-500/50 hover:bg-amber-500/10"
+                      >
+                        Next unanswered
+                      </button>
+                    )}
+                  </div>
+                )}
                 {planUpdates && (
                   <div className="mb-2">
                     <p className={cn(
@@ -363,6 +463,8 @@ export function WorkshopPanel({
                     backlogKind={backlogKind}
                     backlogName={backlogName}
                     roundNumber={round.round}
+                    expanded={expandAllItems || activeItemId === item.id}
+                    onToggleExpanded={() => toggleItemExpanded(round.round, item.id, defaultExpandedItemId)}
                   />
                 ))}
               </div>
