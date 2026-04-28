@@ -141,18 +141,18 @@ type LaunchedProcess interface {
 
 **Implementations:**
 - `runner.HostLauncher` — wraps `os/exec.CommandContext` and the existing `managedProcess` machinery (process group, idle timeout, grandchild cleanup). Default for non-protected runs and for protected runs whose factory is missing or returns nil.
-- `sandbox.SandboxLauncher` — POSTs to workspace-sandbox `/api/v1/sandboxes/{id}/processes`, polls `/processes/{pid}/logs` for stdout (100ms interval), DELETEs `/processes/{pid}` on `Kill()`. Surfaces the workspace-sandbox structured 403 (git-allowlist denial) as a typed `*sandbox.LaunchBlocked` error the runner can recognise.
+- `sandbox.SandboxLauncher` — POSTs to workspace-sandbox `/api/v1/sandboxes/{id}/processes` (with `withStdin: true` when stdin is supplied), streams `req.Stdin` directly to `/processes/{pid}/stdin?close=true`, opens **two SSE connections** to `/processes/{pid}/logs/stream?stream=stdout|stderr` for push-based byte delivery, and consumes the terminal `event: exit` frame to surface structured `ExitInfo` (exit code + signal + OOMKilled) as `*remoteExitError`. DELETEs `/processes/{pid}` on `Kill()`. Surfaces the workspace-sandbox structured 403 (git-allowlist denial) as a typed `*sandbox.LaunchBlocked`. **No client-side polling.**
 - `sandbox.WorkspaceSandboxProvider` — implements `runner.SandboxLauncherFactory.LauncherFor(sandboxID)` so the provider can be passed to a runner constructor as the protected-mode factory.
 
-**Routing logic (currently in `claude_code.selectLauncher`, slated for shared extraction):**
+**Routing logic (shared in `runner.launcherSelector`, used by every runner / every path):**
 ```go
 cfg := req.GetConfig()
 if cfg == nil || cfg.SandboxConfig == nil || cfg.SandboxConfig.Mode.Effective() != domain.SandboxModeProtected {
-    return r.hostLauncher  // tracking-mode runs stay on the host
+    return host  // tracking-mode runs stay on the host
 }
-if r.sandboxFactory == nil { warn-and-fallback }
-if req.SandboxID == nil    { warn-and-fallback }
-if launcher := r.sandboxFactory.LauncherFor(*req.SandboxID); launcher != nil {
+if factory == nil          { warn-and-fallback }
+if sandboxID == nil        { warn-and-fallback }
+if launcher := factory.LauncherFor(*sandboxID); launcher != nil {
     return launcher        // protected-mode + factory wired → sandbox path
 }
 warn-and-fallback           // factory returned nil → host path with explicit log
@@ -161,14 +161,15 @@ warn-and-fallback           // factory returned nil → host path with explicit 
 Every fallback path emits a `runner.warn` log event so misconfigured environments are visible rather than silently downgraded.
 
 **Testability:**
-- `HostLauncher` contract tests live in `runner/launcher_test.go` (echo, stdin, kill, ctx-cancel, idle-timeout, stderr, empty-command). 7 tests, no mocking — each spawns a real `/bin/echo` or `/bin/cat`.
-- `SandboxLauncher` lifecycle tests live in `sandbox/sandbox_launcher_test.go` and use an `httptest.Server` workspace-sandbox simulator that records every endpoint hit (start/stream/kill/ctx-cancel/structured-403). 5 lifecycle tests + 2 helper tests, no real workspace-sandbox required.
-- `selectLauncher` routing tests live in `runner/claude_code_routing_test.go` — every fallback path (no factory, no sandbox ID, factory returned nil, no config, unspecified mode) is pinned by an explicit test. 7 routing tests.
-- The workspace-sandbox `/processes` git-allowlist enforcement (the symmetric counterpart of `/exec`) is tested in `workspace-sandbox/api/internal/handlers/process_start_git_allowlist_test.go`. 4 tests.
+- `HostLauncher` contract tests: `runner/launcher_test.go` (7 tests; spawns real `/bin/echo` / `/bin/cat`).
+- `launcherSelector` routing tests: `runner/launcher_selector_test.go` (11 tests covering Pick + PickFor for tracking, protected, factory-missing, sandbox-ID-missing, factory-returned-nil, etc.).
+- `SandboxLauncher` lifecycle tests: `sandbox/sandbox_launcher_test.go` — an `httptest.Server` simulator implements POST processes, POST stdin, GET SSE logs, DELETE processes, and drives the structured exit frame. 7+ lifecycle tests, no real workspace-sandbox required.
+- Per-runner routing tests pin the protected-vs-host fork end-to-end: `runner/codex_runner_routing_test.go` (6), `runner/opencode_runner_routing_test.go` (6); claude_code routing is covered transitively by selector tests + integration tests.
+- The workspace-sandbox `/processes` git-allowlist enforcement (the symmetric counterpart of `/exec`) is tested in `workspace-sandbox/api/internal/handlers/process_start_git_allowlist_test.go` (4 tests).
 
-**Status of the runner-fork rollout:** as of this writing, the Launcher seam is wired only for the `claude_code.Execute` primary path. The `executeWithDurableTranscript`, `continueWithDurableTranscript`, and `Continue` paths in claude_code, plus all of `codex_runner` and `opencode_runner`, still inline `exec.CommandContext` + `startManagedProcess`. Migrating them is the remaining work in `execute/protected-sandbox-agent-launch`. The seam itself is stable; the remaining migrations are mechanical given the `selectLauncher` + `LaunchRequest` extraction.
+**Status of the runner-fork rollout (2026-04-28):** Every coding-agent runner (claude_code, codex, opencode) routes **every launch path** through the shared `launcherSelector`: streaming Execute, durable-transcript Execute, durable-transcript Continue, streaming Continue. Default `SandboxConfig.Mode` is `Protected`. The four ws-sb-* follow-on items (split stdout/stderr, native stdin pipe, SSE streaming, structured exit codes) shipped together with this rollout, so the launcher carries no compromises today.
 
-**See also:** `scenarios/agent-manager/docs/PROTECTED_MODE_RUNNERS.md` for the per-runner capability matrix and the trade-offs (file-staged stdin, polling stdout) the SandboxLauncher accepts so workspace-sandbox doesn't need new endpoints.
+**See also:** `scenarios/agent-manager/docs/PROTECTED_MODE_RUNNERS.md` for the per-runner capability matrix; `scenarios/workspace-sandbox/docs/EXECUTION_MODES.md` for the workspace-sandbox `/processes` capability matrix this seam consumes.
 
 ---
 

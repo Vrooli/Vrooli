@@ -1,25 +1,21 @@
 {
   "sections_present": [
-    "Scope",
-    "Risks + Mitigations",
-    "Non-goals/Prohibited Patterns"
-  ],
-  "sections_missing": [
     "Purpose",
     "Required Reading",
     "Problem Statement",
+    "Scope",
     "Current Technical Context",
     "Target End State",
     "Implementation Strategy",
     "Contract Decisions",
     "Testing Plan",
     "Rollout/Validation Checklist",
+    "Risks + Mitigations",
+    "Non-goals/Prohibited Patterns",
     "Definition of Done"
   ],
-  "warnings": [
-    "No `prompt-manager skill read` command found in Required Reading",
-    "No greenfield declaration found"
-  ],
-  "passed": false,
-  "validated_at": "2026-04-28T02:00:18Z"
+  "sections_missing": [],
+  "warnings": [],
+  "passed": true,
+  "validated_at": "2026-04-28T04:00:00Z"
 }

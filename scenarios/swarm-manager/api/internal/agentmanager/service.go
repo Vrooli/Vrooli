@@ -354,22 +354,7 @@ func (s *AgentService) SpawnBacklog(ctx context.Context, req BacklogSpawnRequest
 	if len(req.Environment) > 0 {
 		runReq.Environment = req.Environment
 	}
-	if len(req.AcceptanceAllow) > 0 || len(req.AcceptanceDeny) > 0 {
-		acceptance := &domainpb.SandboxAcceptanceConfig{
-			Mode: domainpb.SandboxAcceptanceMode_SANDBOX_ACCEPTANCE_MODE_ALLOWLIST,
-		}
-		if len(req.AcceptanceAllow) > 0 {
-			acceptance.Allow = &domainpb.SandboxFileCriteria{PathGlobs: req.AcceptanceAllow}
-		}
-		if len(req.AcceptanceDeny) > 0 {
-			acceptance.Deny = &domainpb.SandboxFileCriteria{PathGlobs: req.AcceptanceDeny}
-		}
-		runReq.InlineConfig = &domainpb.RunConfigOverrides{
-			SandboxConfig: &domainpb.SandboxConfig{
-				Acceptance: acceptance,
-			},
-		}
-	}
+	applyAcceptanceOverride(runReq, req.AcceptanceAllow, req.AcceptanceDeny)
 
 	run, err := s.client.CreateRun(ctx, runReq)
 	if err != nil {
@@ -438,22 +423,7 @@ func (s *AgentService) SpawnInitiative(ctx context.Context, req InitiativeSpawnR
 	if len(req.Environment) > 0 {
 		runReq.Environment = req.Environment
 	}
-	if len(req.AcceptanceAllow) > 0 || len(req.AcceptanceDeny) > 0 {
-		acceptance := &domainpb.SandboxAcceptanceConfig{
-			Mode: domainpb.SandboxAcceptanceMode_SANDBOX_ACCEPTANCE_MODE_ALLOWLIST,
-		}
-		if len(req.AcceptanceAllow) > 0 {
-			acceptance.Allow = &domainpb.SandboxFileCriteria{PathGlobs: req.AcceptanceAllow}
-		}
-		if len(req.AcceptanceDeny) > 0 {
-			acceptance.Deny = &domainpb.SandboxFileCriteria{PathGlobs: req.AcceptanceDeny}
-		}
-		runReq.InlineConfig = &domainpb.RunConfigOverrides{
-			SandboxConfig: &domainpb.SandboxConfig{
-				Acceptance: acceptance,
-			},
-		}
-	}
+	applyAcceptanceOverride(runReq, req.AcceptanceAllow, req.AcceptanceDeny)
 
 	run, err := s.client.CreateRun(ctx, runReq)
 	if err != nil {
@@ -468,6 +438,35 @@ func (s *AgentService) SpawnInitiative(ctx context.Context, req InitiativeSpawnR
 		BaseURL:   baseURL,
 		CreatedAt: time.Now().UTC().Format(time.RFC3339),
 	}, nil
+}
+
+// applyAcceptanceOverride builds a SandboxAcceptanceConfig allowlist override
+// from the caller's allow/deny path globs and attaches it to runReq.InlineConfig.
+//
+// We deliberately set ONLY the Acceptance field on SandboxConfig here: the
+// orchestrator's resolveSandboxConfig field-wise backfills Mode and
+// NetworkMode from DefaultSandboxConfig() (Protected, localhost) so this
+// helper never accidentally strips the protected-mode default by emitting
+// a partially-zeroed config. See PROTECTED_MODE_RUNNERS.md "Default-mode
+// policy".
+func applyAcceptanceOverride(runReq *apipb.CreateRunRequest, allow, deny []string) {
+	if len(allow) == 0 && len(deny) == 0 {
+		return
+	}
+	acceptance := &domainpb.SandboxAcceptanceConfig{
+		Mode: domainpb.SandboxAcceptanceMode_SANDBOX_ACCEPTANCE_MODE_ALLOWLIST,
+	}
+	if len(allow) > 0 {
+		acceptance.Allow = &domainpb.SandboxFileCriteria{PathGlobs: allow}
+	}
+	if len(deny) > 0 {
+		acceptance.Deny = &domainpb.SandboxFileCriteria{PathGlobs: deny}
+	}
+	runReq.InlineConfig = &domainpb.RunConfigOverrides{
+		SandboxConfig: &domainpb.SandboxConfig{
+			Acceptance: acceptance,
+		},
+	}
 }
 
 // GetRunState resolves run state from agent-manager.

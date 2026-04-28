@@ -1,9 +1,23 @@
 # Execution Modes Guide
 
-> **Last Updated**: 2025-12-18
-> **Status**: All Phases Complete (Resource Limits, Log Capture, UI, Interactive Sessions)
+> **Last Updated**: 2026-04-28
+> **Status**: All Phases Complete (Resource Limits, Log Capture, UI, Interactive Sessions, Structured Exit / Split Streams / Native Stdin / SSE)
 
 This guide explains how to execute commands and run processes in workspace-sandbox, including isolation levels, resource limits, and best practices.
+
+## /processes capability matrix (background mode)
+
+| Capability | Wire surface | Notes |
+|---|---|---|
+| Start process | `POST /sandboxes/{id}/processes` | `withStdin: true` requests a real stdin pipe; default false. |
+| Stream stdin | `POST /sandboxes/{id}/processes/{pid}/stdin?close=true` | Body is appended to the process stdin; `close=true` sends EOF. |
+| Read stdout/stderr (single pull) | `GET /sandboxes/{id}/processes/{pid}/logs?stream=stdout\|stderr` | `stream` query parameter is required. |
+| Stream stdout/stderr (push) | `GET /sandboxes/{id}/processes/{pid}/logs/stream?stream=stdout\|stderr` | Server-Sent Events. The server emits one `event: exit` (JSON ExitInfo) when the process terminates, then `event: end`. |
+| Structured exit info | tracker JSON `exitCode`, `signal`, `oomKilled` | Driver wait reaper records these via `Tracker.RecordExit`; survives process disappearance. |
+| Kill | `DELETE /sandboxes/{id}/processes/{pid}` | Best-effort SIGTERM→SIGKILL escalation. |
+| List | `GET /sandboxes/{id}/processes` | Includes terminated processes with their exit info; pass `?running=true` to filter. |
+
+The `agent-manager` `SandboxLauncher` is the canonical client and exercises every cell of this matrix in protected mode.
 
 ## Quick Reference
 

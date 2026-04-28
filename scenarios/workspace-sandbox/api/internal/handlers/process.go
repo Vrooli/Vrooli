@@ -1,10 +1,15 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
+	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -242,6 +247,11 @@ type StartProcessRequest struct {
 	SessionID    string            `json:"sessionId,omitempty"`
 	Name         string            `json:"name,omitempty"` // Optional friendly name for the process
 
+	// WithStdin requests the driver create a stdin pipe wired to the
+	// process. Callers can then stream input via POST /processes/{pid}/stdin
+	// and signal EOF via POST /processes/{pid}/stdin?close=true.
+	WithStdin bool `json:"withStdin,omitempty"`
+
 	// IsolationLevel controls filesystem access.
 	// "full" (default): maximum isolation, only /workspace accessible.
 	// "vrooli-aware": can access Vrooli CLIs, configs, and localhost APIs.
@@ -351,36 +361,83 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 	cfg.ResourceLimits = applyResourceLimitDefaults(requestedLimits, h.Config.Execution)
 	cfg.ResourceLimits.TimeoutSec = 0 // Ensure timeout is never applied to background processes
 
-	// Create pending log BEFORE starting process to capture stdout/stderr
-	var pendingLog *process.PendingLog
+	// Create pending log pair (stdout + stderr) BEFORE starting process.
+	var pendingPair *process.PendingLogPair
 	if h.ProcessLogger != nil {
 		var logErr error
-		pendingLog, logErr = h.ProcessLogger.CreatePendingLog(id)
+		pendingPair, logErr = h.ProcessLogger.CreatePendingLogPair(id)
 		if logErr == nil {
-			// Pass the log writer to capture process output
-			cfg.LogWriter = pendingLog.Writer
+			cfg.StdoutWriter = pendingPair.Stdout
+			cfg.StderrWriter = pendingPair.Stderr
 		}
+	}
+
+	// Optional stdin pipe.
+	var stdinWriter *processStdinPipe
+	if req.WithStdin {
+		stdinReader, sw := newStdinPipe()
+		cfg.StdinReader = stdinReader
+		stdinWriter = sw
+	}
+
+	// onExit fires from the driver's wait reaper after cmd.Wait() returns.
+	// It records ExitInfo on the tracker (which closes the per-process exit
+	// channel and unblocks subscribers / SSE consumers) and finalises the
+	// log pair so subscribers see EOF.
+	pidCh := make(chan int, 1)
+	var onExitOnce sync.Once
+	cfg.OnExit = func(exitCode, signal int, oomKilled bool) {
+		// Wait briefly for the StartProcess code below to publish the PID.
+		var pid int
+		select {
+		case pid = <-pidCh:
+		case <-time.After(2 * time.Second):
+			// PID never published — process must have failed to start
+			// in a way the driver still surfaced; nothing to record.
+			return
+		}
+		// Republish so any racing reads still see it. (Idempotent because
+		// the channel is buffered=1 and we don't read it again.)
+		select {
+		case pidCh <- pid:
+		default:
+		}
+		onExitOnce.Do(func() {
+			info := process.ExitInfo{ExitCode: exitCode, Signal: signal, OOMKilled: oomKilled, StoppedAt: time.Now()}
+			if h.ProcessTracker != nil {
+				h.ProcessTracker.RecordExit(id, pid, info)
+			}
+			if h.ProcessLogger != nil {
+				_ = h.ProcessLogger.CloseLogPair(id, pid, info)
+			}
+		})
 	}
 
 	// Start process
 	pid, err := h.Driver().StartProcess(r.Context(), sb, cfg, req.Command, req.Args...)
 	if err != nil {
-		// Clean up pending log if process failed to start
-		if pendingLog != nil {
-			if abortErr := h.ProcessLogger.AbortPendingLog(pendingLog); abortErr != nil {
+		if pendingPair != nil {
+			if abortErr := h.ProcessLogger.AbortPair(pendingPair); abortErr != nil {
 				h.JSONError(w, abortErr.Error(), http.StatusInternalServerError)
 				return
 			}
+		}
+		if stdinWriter != nil {
+			_ = stdinWriter.Close()
 		}
 		h.JSONError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Finalize log with actual PID now that process has started
-	var logPath string
-	if pendingLog != nil {
+	// Publish the pid so any pending OnExit dispatch (process died very
+	// quickly) can pick it up.
+	pidCh <- pid
+
+	// Finalize log pair with actual PID.
+	var stdoutPath, stderrPath string
+	if pendingPair != nil {
 		var logErr error
-		logPath, logErr = h.ProcessLogger.FinalizeLog(pendingLog, pid)
+		stdoutPath, stderrPath, logErr = h.ProcessLogger.FinalizePair(pendingPair, pid)
 		if logErr != nil {
 			h.JSONError(w, logErr.Error(), http.StatusInternalServerError)
 			return
@@ -400,6 +457,19 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 			h.JSONError(w, trackErr.Error(), http.StatusInternalServerError)
 			return
 		}
+		// Attach stdin pipe writer to the tracked process so the stdin
+		// endpoint can find it via the tracker.
+		if stdinWriter != nil {
+			if err := h.ProcessTracker.SetStdin(id, pid, stdinWriter); err != nil {
+				h.JSONError(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+	} else if stdinWriter != nil {
+		// No tracker means there is no place to store the stdin writer;
+		// close it so the process gets EOF immediately rather than blocking
+		// on stdin forever.
+		_ = stdinWriter.Close()
 	}
 
 	response := map[string]interface{}{
@@ -413,11 +483,41 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 	if trackedProc != nil {
 		response["startedAt"] = trackedProc.StartedAt
 	}
-	if logPath != "" {
-		response["logPath"] = logPath
+	if stdoutPath != "" {
+		response["stdoutLogPath"] = stdoutPath
 	}
+	if stderrPath != "" {
+		response["stderrLogPath"] = stderrPath
+	}
+	response["withStdin"] = req.WithStdin
 
 	h.JSONCreated(w, response)
+}
+
+// processStdinPipe wraps an *io.PipeWriter so we can close it idempotently.
+type processStdinPipe struct {
+	w        *io.PipeWriter
+	closeMu  sync.Mutex
+	isClosed bool
+}
+
+func newStdinPipe() (*io.PipeReader, *processStdinPipe) {
+	r, w := io.Pipe()
+	return r, &processStdinPipe{w: w}
+}
+
+func (p *processStdinPipe) Write(b []byte) (int, error) {
+	return p.w.Write(b)
+}
+
+func (p *processStdinPipe) Close() error {
+	p.closeMu.Lock()
+	defer p.closeMu.Unlock()
+	if p.isClosed {
+		return nil
+	}
+	p.isClosed = true
+	return p.w.Close()
 }
 
 // ListProcesses handles listing processes for a sandbox.
@@ -553,36 +653,23 @@ func (h *Handlers) BwrapInfo(w http.ResponseWriter, r *http.Request) {
 
 // --- Process Log Endpoints (Phase 2) ---
 
-// GetProcessLogs returns logs for a specific process.
-// Query parameters:
+// GetProcessLogs returns logs for a specific stream of a process.
+// Required query parameter:
+//   - stream: "stdout" or "stderr"
+//
+// Optional:
 //   - tail: number of lines from end (default: all)
 //   - offset: byte offset to start reading from
 func (h *Handlers) GetProcessLogs(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id, err := uuid.Parse(vars["id"])
-	if err != nil {
-		h.JSONError(w, "invalid sandbox ID", http.StatusBadRequest)
+	id, pid, stream, ok := h.parseProcessLogParams(w, r)
+	if !ok {
 		return
 	}
-
-	pid, err := strconv.Atoi(vars["pid"])
-	if err != nil || pid <= 0 {
-		h.JSONError(w, "invalid PID", http.StatusBadRequest)
-		return
-	}
-
-	// Verify sandbox exists
-	_, err = h.Service.Get(r.Context(), id)
-	if h.HandleDomainError(w, err) {
-		return
-	}
-
 	if h.ProcessLogger == nil {
 		h.JSONError(w, "process logging not available", http.StatusServiceUnavailable)
 		return
 	}
 
-	// Parse query parameters
 	var tail int
 	var offset int64
 	if tailStr := r.URL.Query().Get("tail"); tailStr != "" {
@@ -592,15 +679,13 @@ func (h *Handlers) GetProcessLogs(w http.ResponseWriter, r *http.Request) {
 		offset, _ = strconv.ParseInt(offsetStr, 10, 64)
 	}
 
-	// Get log metadata
-	logInfo, err := h.ProcessLogger.GetLog(id, pid)
+	logInfo, err := h.ProcessLogger.GetLog(id, pid, stream)
 	if err != nil {
 		h.JSONError(w, fmt.Sprintf("log not found: %v", err), http.StatusNotFound)
 		return
 	}
 
-	// Read log content
-	content, err := h.ProcessLogger.ReadLog(id, pid, tail, offset)
+	content, err := h.ProcessLogger.ReadLog(id, pid, stream, tail, offset)
 	if err != nil {
 		h.JSONError(w, fmt.Sprintf("failed to read log: %v", err), http.StatusInternalServerError)
 		return
@@ -609,6 +694,7 @@ func (h *Handlers) GetProcessLogs(w http.ResponseWriter, r *http.Request) {
 	h.JSONSuccess(w, map[string]interface{}{
 		"pid":       pid,
 		"sandboxId": id,
+		"stream":    string(stream),
 		"path":      logInfo.Path,
 		"sizeBytes": logInfo.SizeBytes,
 		"isActive":  logInfo.IsActive,
@@ -616,46 +702,26 @@ func (h *Handlers) GetProcessLogs(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// StreamProcessLogs streams logs for a specific process via Server-Sent Events (SSE).
-// Clients connect and receive log updates in real-time until the process exits
-// or the connection is closed.
+// StreamProcessLogs streams one stream of a process's log via Server-Sent
+// Events. Required query parameter: stream=stdout|stderr.
+//
+// Sends `data:` events as bytes are written. When the process terminates,
+// sends a single `event: exit` carrying ExitInfo as JSON, then `event: end`
+// and closes the connection.
 func (h *Handlers) StreamProcessLogs(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id, err := uuid.Parse(vars["id"])
-	if err != nil {
-		h.JSONError(w, "invalid sandbox ID", http.StatusBadRequest)
+	id, pid, stream, ok := h.parseProcessLogParams(w, r)
+	if !ok {
 		return
 	}
-
-	pid, err := strconv.Atoi(vars["pid"])
-	if err != nil || pid <= 0 {
-		h.JSONError(w, "invalid PID", http.StatusBadRequest)
-		return
-	}
-
-	// Verify sandbox exists
-	_, err = h.Service.Get(r.Context(), id)
-	if h.HandleDomainError(w, err) {
-		return
-	}
-
 	if h.ProcessLogger == nil {
 		h.JSONError(w, "process logging not available", http.StatusServiceUnavailable)
 		return
 	}
 
-	// Verify log exists
-	_, err = h.ProcessLogger.GetLog(id, pid)
-	if err != nil {
-		h.JSONError(w, fmt.Sprintf("log not found: %v", err), http.StatusNotFound)
-		return
-	}
-
-	// Set up SSE headers
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("X-Accel-Buffering", "no") // Disable nginx buffering
+	w.Header().Set("X-Accel-Buffering", "no")
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -663,23 +729,154 @@ func (h *Handlers) StreamProcessLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Stream logs until context is canceled or process ends
 	ctx := r.Context()
-	err = h.ProcessLogger.StreamLog(ctx, id, pid, func(chunk []byte) {
-		// Send SSE data event
+
+	// Stream log content. StreamLog replays existing disk content first
+	// so a late subscriber doesn't lose what was already written, then
+	// fans out new chunks as they're written.
+	streamErr := h.ProcessLogger.StreamLog(ctx, id, pid, stream, func(chunk []byte) {
 		fmt.Fprintf(w, "data: %s\n\n", string(chunk))
 		flusher.Flush()
 	})
 
-	if err != nil && err != ctx.Err() {
-		// Send error event before closing
-		fmt.Fprintf(w, "event: error\ndata: %s\n\n", err.Error())
+	if streamErr != nil && !errors.Is(streamErr, context.Canceled) && !errors.Is(streamErr, context.DeadlineExceeded) {
+		fmt.Fprintf(w, "event: error\ndata: %s\n\n", streamErr.Error())
 		flusher.Flush()
 	}
 
-	// Send end event
+	// If we have a process tracker and the process has terminated, push
+	// the structured exit info so consumers don't need a second request.
+	if h.ProcessTracker != nil {
+		if info := h.ProcessTracker.GetExitInfo(id, pid); info != nil {
+			payload, _ := json.Marshal(info)
+			fmt.Fprintf(w, "event: exit\ndata: %s\n\n", string(payload))
+			flusher.Flush()
+		}
+	}
+
 	fmt.Fprintf(w, "event: end\ndata: stream closed\n\n")
 	flusher.Flush()
+}
+
+// PostProcessStdin streams the request body to the process's stdin pipe.
+// Optional query parameter: close=true closes the stdin pipe after the
+// body is consumed (signaling EOF to the process). Without close=true,
+// the pipe remains open for subsequent writes.
+//
+// Returns 404 when the PID is not tracked, 409 when the process was not
+// started with WithStdin, and 200 with bytesWritten on success.
+func (h *Handlers) PostProcessStdin(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := uuid.Parse(vars["id"])
+	if err != nil {
+		h.JSONError(w, "invalid sandbox ID", http.StatusBadRequest)
+		return
+	}
+	pid, err := strconv.Atoi(vars["pid"])
+	if err != nil || pid <= 0 {
+		h.JSONError(w, "invalid PID", http.StatusBadRequest)
+		return
+	}
+	if _, err := h.Service.Get(r.Context(), id); h.HandleDomainError(w, err) {
+		return
+	}
+	if h.ProcessTracker == nil {
+		h.JSONError(w, "process tracking not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		h.JSONError(w, fmt.Sprintf("read body: %v", err), http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	written := 0
+	if len(body) > 0 {
+		n, werr := h.ProcessTracker.WriteStdin(id, pid, body)
+		if werr != nil {
+			status := http.StatusNotFound
+			// "no stdin pipe" is a state error; surface 409.
+			if msg := werr.Error(); len(msg) > 0 {
+				if containsAny(msg, []string{"no stdin pipe"}) {
+					status = http.StatusConflict
+				}
+			}
+			h.JSONError(w, werr.Error(), status)
+			return
+		}
+		written = n
+	}
+
+	closed := false
+	if r.URL.Query().Get("close") == "true" {
+		if err := h.ProcessTracker.CloseStdin(id, pid); err != nil {
+			h.JSONError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		closed = true
+	}
+
+	h.JSONSuccess(w, map[string]interface{}{
+		"pid":          pid,
+		"sandboxId":    id,
+		"bytesWritten": written,
+		"closed":       closed,
+	})
+}
+
+// parseProcessLogParams parses the sandbox ID, PID, and stream from a
+// process-log request. On error it writes the response and returns ok=false.
+func (h *Handlers) parseProcessLogParams(w http.ResponseWriter, r *http.Request) (uuid.UUID, int, process.Stream, bool) {
+	vars := mux.Vars(r)
+	id, err := uuid.Parse(vars["id"])
+	if err != nil {
+		h.JSONError(w, "invalid sandbox ID", http.StatusBadRequest)
+		return uuid.Nil, 0, "", false
+	}
+	pid, err := strconv.Atoi(vars["pid"])
+	if err != nil || pid <= 0 {
+		h.JSONError(w, "invalid PID", http.StatusBadRequest)
+		return uuid.Nil, 0, "", false
+	}
+	if _, err := h.Service.Get(r.Context(), id); h.HandleDomainError(w, err) {
+		return uuid.Nil, 0, "", false
+	}
+	streamStr := r.URL.Query().Get("stream")
+	if streamStr == "" {
+		h.JSONError(w, "missing required query parameter: stream=stdout|stderr", http.StatusBadRequest)
+		return uuid.Nil, 0, "", false
+	}
+	stream := process.Stream(streamStr)
+	if err := stream.Validate(); err != nil {
+		h.JSONError(w, err.Error(), http.StatusBadRequest)
+		return uuid.Nil, 0, "", false
+	}
+	return id, pid, stream, true
+}
+
+// containsAny returns true if needle appears as a substring of haystack
+// for any of the given needles.
+func containsAny(haystack string, needles []string) bool {
+	for _, n := range needles {
+		if n == "" {
+			continue
+		}
+		if indexOf(haystack, n) >= 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func indexOf(s, sub string) int {
+	for i := 0; i+len(sub) <= len(s); i++ {
+		if s[i:i+len(sub)] == sub {
+			return i
+		}
+	}
+	return -1
 }
 
 // ListProcessLogs returns all log files for a sandbox.

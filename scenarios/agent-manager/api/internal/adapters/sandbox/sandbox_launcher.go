@@ -6,34 +6,36 @@
 // container (bwrap isolation, network mode, git allowlist enforcement),
 // not just on the host with a tracked overlay.
 //
-// The launcher is intentionally written against the existing
-// workspace-sandbox surface (StartProcess, GetProcessLogs, KillProcess,
-// ListProcesses, WriteFile) — adding new endpoints to ws-sb would have
-// been a much bigger change. The trade-offs are:
+// Wire surface (workspace-sandbox /processes):
 //
-//   - stdin is delivered by writing a file into the sandbox and using a
-//     bash wrapper to redirect (`exec ... < /workspace/.am-prompts/X.txt`).
-//     Workable for the prompt-via-stdin pattern all three coding-agent
-//     runners use; not suitable for fully interactive stdin.
+//   - POST   /sandboxes/{id}/processes
+//     Starts a process; body controls argv, env, working dir, stdin.
+//   - POST   /sandboxes/{id}/processes/{pid}/stdin?close=true
+//     Streams stdin into the running process; close=true sends EOF.
+//   - GET    /sandboxes/{id}/processes/{pid}/logs/stream?stream=stdout|stderr
+//     Server-Sent Events stream of bytes. The server emits one
+//     `event: exit` carrying ExitInfo JSON when the process exits, then
+//     `event: end` and closes the connection.
+//   - DELETE /sandboxes/{id}/processes/{pid}
+//     Terminates the process (best-effort kill).
 //
-//   - stdout is delivered by polling /processes/{pid}/logs with byte
-//     offsets every 100ms. Higher latency than a true streaming
-//     transport (SSE / WebSocket) but simpler and resilient to network
-//     blips. The polling interval is tuned to be invisible to UX while
-//     not overwhelming the workspace-sandbox API.
+// The launcher opens two SSE streams (stdout + stderr), pipes their
+// contents into the runner-visible io.Readers, and watches for the
+// terminal `event: exit` to learn the precise exit code, signal, and
+// OOM-killed flag. There is no client-side polling.
 //
-//   - stdout and stderr are interleaved. workspace-sandbox today merges
-//     them into a single log file. Claude Code's stream-json output is
-//     line-prefixed so the runner's parseStreamEvents already tolerates
-//     non-JSON lines mixed in. Future work: ws-sb could split streams.
+// Stdin flow: req.Stdin is read upfront and POSTed to the stdin endpoint
+// with close=true, so the agent receives the prompt as if it had been
+// piped from the host. This matches the prompt-via-stdin pattern claude_
+// code, codex, and opencode all use.
 //
-// Both trade-offs are documented in PROTECTED_MODE_RUNNERS.md and the
-// follow-up plan to migrate to a true streaming transport.
-//
-// See execute/protected-sandbox-agent-launch.
+// See execute/protected-sandbox-agent-launch and the four ws-sb follow-on
+// items (ws-sb-streaming-process-logs, ws-sb-stdout-stderr-split,
+// ws-sb-structured-exit-codes, ws-sb-native-stdin-pipe).
 package sandbox
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -41,7 +43,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -56,14 +57,6 @@ import (
 type SandboxLauncher struct {
 	provider  *WorkspaceSandboxProvider
 	sandboxID uuid.UUID
-
-	// PollInterval controls how often the stdout-log poller hits ws-sb.
-	// Defaults to 100ms when zero.
-	PollInterval time.Duration
-
-	// PromptDir is the relative directory inside the sandbox where the
-	// launcher writes stdin prompts. Defaults to ".am-prompts".
-	PromptDir string
 }
 
 // NewSandboxLauncher builds a Launcher for the given sandbox using the
@@ -71,10 +64,8 @@ type SandboxLauncher struct {
 // client are reused.
 func NewSandboxLauncher(provider *WorkspaceSandboxProvider, sandboxID uuid.UUID) *SandboxLauncher {
 	return &SandboxLauncher{
-		provider:     provider,
-		sandboxID:    sandboxID,
-		PollInterval: 100 * time.Millisecond,
-		PromptDir:    ".am-prompts",
+		provider:  provider,
+		sandboxID: sandboxID,
 	}
 }
 
@@ -86,81 +77,58 @@ func (l *SandboxLauncher) Launch(ctx context.Context, req runner.LaunchRequest) 
 	if req.Command == "" {
 		return nil, errors.New("SandboxLauncher: command is required")
 	}
-	pollInterval := l.PollInterval
-	if pollInterval <= 0 {
-		pollInterval = 100 * time.Millisecond
-	}
-	promptDir := l.PromptDir
-	if promptDir == "" {
-		promptDir = ".am-prompts"
-	}
 
-	// Stage 1: stage stdin (when present) as a file in the sandbox.
-	var promptRelPath string
+	// Read stdin upfront (when present). The runner pattern is
+	// prompt-via-stdin: a single buffered prompt, not interactive bytes.
+	var stdinBytes []byte
 	if req.Stdin != nil {
-		stdinBytes, err := io.ReadAll(req.Stdin)
+		var err error
+		stdinBytes, err = io.ReadAll(req.Stdin)
 		if err != nil {
 			return nil, fmt.Errorf("SandboxLauncher: read stdin: %w", err)
 		}
-		if len(stdinBytes) > 0 {
-			runID := uuid.New().String()
-			promptRelPath = promptDir + "/" + runID + ".txt"
-			if err := l.writeSandboxFile(ctx, promptRelPath, stdinBytes); err != nil {
-				return nil, fmt.Errorf("SandboxLauncher: stage stdin: %w", err)
-			}
-		}
 	}
+	withStdin := len(stdinBytes) > 0
 
-	// Stage 2: build a bash wrapper that exec's the command with the staged
-	// stdin redirected, then removes the prompt file. Using exec means the
-	// wrapped command takes over the bash PID, which keeps process-tree
-	// management straightforward.
-	wrapperCmd, wrapperArgs := buildBashWrapper(req.Command, req.Args, promptRelPath)
-
-	// Stage 3: convert env from os.Environ() form to map.
 	envMap := envSliceToMap(req.Env)
 
-	// Stage 4: start the process via workspace-sandbox /processes.
-	pid, err := l.startProcess(ctx, wrapperCmd, wrapperArgs, envMap, req.WorkingDir)
+	pid, err := l.startProcess(ctx, startProcessBody{
+		Command:        req.Command,
+		Args:           req.Args,
+		Env:            envMap,
+		WorkingDir:     req.WorkingDir,
+		IsolationLevel: "vrooli-aware",
+		WithStdin:      withStdin,
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	// Stage 5: build the LaunchedProcess handle with background pollers.
-	proc := newSandboxLaunchedProcess(ctx, l, pid, pollInterval, req.IdleTimeout)
+	// Stream stdin to the running process and signal EOF.
+	if withStdin {
+		if err := l.writeStdin(ctx, pid, stdinBytes, true); err != nil {
+			// Best-effort kill so we don't leak an idle process.
+			_ = l.killProcess(context.Background(), pid)
+			return nil, fmt.Errorf("SandboxLauncher: write stdin: %w", err)
+		}
+	}
+
+	proc := newSandboxLaunchedProcess(ctx, l, pid, req.IdleTimeout)
 	return proc, nil
 }
 
-// writeSandboxFile PUTs file content into the sandbox at the given relative path.
-func (l *SandboxLauncher) writeSandboxFile(ctx context.Context, relPath string, content []byte) error {
-	body := map[string]any{
-		"content":  string(content),
-		"encoding": "utf8",
-	}
-	pathPart := url.QueryEscape(relPath)
-	endpoint := fmt.Sprintf("/api/v1/sandboxes/%s/files/content?path=%s", l.sandboxID, pathPart)
-	resp, err := l.provider.doRequest(ctx, "PUT", endpoint, body)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("write sandbox file: HTTP %d", resp.StatusCode)
-	}
-	return nil
+// startProcessBody is the JSON body shape for POST /processes.
+type startProcessBody struct {
+	Command        string            `json:"command"`
+	Args           []string          `json:"args,omitempty"`
+	Env            map[string]string `json:"env,omitempty"`
+	WorkingDir     string            `json:"workingDir,omitempty"`
+	IsolationLevel string            `json:"isolationLevel,omitempty"`
+	WithStdin      bool              `json:"withStdin,omitempty"`
 }
 
 // startProcess POSTs /processes and returns the PID.
-func (l *SandboxLauncher) startProcess(ctx context.Context, command string, args []string, env map[string]string, workingDir string) (int, error) {
-	body := map[string]any{
-		"command":        command,
-		"args":           args,
-		"env":            env,
-		"isolationLevel": "vrooli-aware", // matches existing protected-mode wire encoding
-	}
-	if workingDir != "" {
-		body["workingDir"] = workingDir
-	}
+func (l *SandboxLauncher) startProcess(ctx context.Context, body startProcessBody) (int, error) {
 	endpoint := fmt.Sprintf("/api/v1/sandboxes/%s/processes", l.sandboxID)
 	resp, err := l.provider.doRequest(ctx, "POST", endpoint, body)
 	if err != nil {
@@ -168,8 +136,7 @@ func (l *SandboxLauncher) startProcess(ctx context.Context, command string, args
 	}
 	defer resp.Body.Close()
 
-	// 403 → structured guardrail denial (git allowlist, etc.). Surface as a
-	// typed error the runner can recognise.
+	// 403 → structured guardrail denial (git allowlist, etc.).
 	if resp.StatusCode == http.StatusForbidden {
 		var denial struct {
 			Error   string `json:"error"`
@@ -196,6 +163,25 @@ func (l *SandboxLauncher) startProcess(ctx context.Context, command string, args
 	return startResp.PID, nil
 }
 
+// writeStdin POSTs the stdin bytes to /processes/{pid}/stdin. When close
+// is true, the request also signals EOF to the process.
+func (l *SandboxLauncher) writeStdin(ctx context.Context, pid int, content []byte, closeAfter bool) error {
+	endpoint := fmt.Sprintf("/api/v1/sandboxes/%s/processes/%d/stdin", l.sandboxID, pid)
+	if closeAfter {
+		endpoint += "?close=true"
+	}
+	resp, err := l.provider.doRawRequest(ctx, "POST", endpoint, "application/octet-stream", bytes.NewReader(content))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusNoContent {
+		buf, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(buf))
+	}
+	return nil
+}
+
 // LaunchBlocked is returned by SandboxLauncher.Launch when the workspace
 // sandbox returns a structured 403 (e.g., git allowlist denial). The runner
 // surfaces it as a typed run-level error rather than a generic launch failure.
@@ -208,8 +194,6 @@ type LaunchBlocked struct {
 	Message string
 }
 
-// Error implements the error interface so callers can return *LaunchBlocked
-// directly. errors.As still works with a typed unwrap.
 func (b *LaunchBlocked) Error() string {
 	if b == nil {
 		return ""
@@ -234,25 +218,38 @@ type sandboxLaunchedProcess struct {
 
 	stdoutR *io.PipeReader
 	stdoutW *io.PipeWriter
-	// Stderr is unused for now (workspace-sandbox merges streams). Returned
-	// as a closed pipe so callers don't block.
 	stderrR *io.PipeReader
+	stderrW *io.PipeWriter
 
 	waitCh  chan struct{}
 	waitErr error
+
+	// exitInfo holds the structured exit info reported by the server's
+	// `event: exit` SSE frame. Set by whichever stream goroutine sees
+	// the exit frame first; subsequent frames no-op (sync.Once).
+	exitInfoMu sync.Mutex
+	exitInfo   *remoteExitInfo
+	exitOnce   sync.Once
 
 	killOnce sync.Once
 	killed   atomic.Bool
 
 	timedOut atomic.Bool
 
-	idleResetCh chan struct{} // signals the idle-timeout watchdog to reset
+	idleResetCh chan struct{}
 }
 
-func newSandboxLaunchedProcess(ctx context.Context, l *SandboxLauncher, pid int, pollInterval time.Duration, idleTimeout time.Duration) *sandboxLaunchedProcess {
+// remoteExitInfo is the structured exit payload from the server's exit
+// event. Mirrors workspace-sandbox process.ExitInfo.
+type remoteExitInfo struct {
+	ExitCode  int  `json:"exitCode"`
+	Signal    int  `json:"signal,omitempty"`
+	OOMKilled bool `json:"oomKilled,omitempty"`
+}
+
+func newSandboxLaunchedProcess(ctx context.Context, l *SandboxLauncher, pid int, idleTimeout time.Duration) *sandboxLaunchedProcess {
 	stdoutR, stdoutW := io.Pipe()
 	stderrR, stderrW := io.Pipe()
-	stderrW.Close() // unused — close so consumers see EOF immediately
 
 	p := &sandboxLaunchedProcess{
 		launcher:    l,
@@ -261,16 +258,29 @@ func newSandboxLaunchedProcess(ctx context.Context, l *SandboxLauncher, pid int,
 		stdoutR:     stdoutR,
 		stdoutW:     stdoutW,
 		stderrR:     stderrR,
+		stderrW:     stderrW,
 		waitCh:      make(chan struct{}),
 		idleResetCh: make(chan struct{}, 8),
 	}
 
-	// Background poller: pulls stdout chunks from /processes/{pid}/logs and
-	// writes them into the stdout pipe; watches for process exit; closes
-	// pipe + waitCh when the process terminates.
-	go p.run(ctx, pollInterval)
+	// Two SSE streams (stdout + stderr) concurrently. Whichever finishes
+	// first joins on the waitWg; when both are done the wait coordinator
+	// closes waitCh.
+	var streamsWg sync.WaitGroup
+	streamsWg.Add(2)
+	go p.runStream(ctx, "stdout", p.stdoutW, &streamsWg)
+	go p.runStream(ctx, "stderr", p.stderrW, &streamsWg)
 
-	// Optional idle-timeout watchdog.
+	// Coordinator: closes pipes + waitCh once both SSE streams have
+	// terminated.
+	go func() {
+		streamsWg.Wait()
+		_ = p.stdoutW.Close()
+		_ = p.stderrW.Close()
+		p.finalizeWaitErr()
+		close(p.waitCh)
+	}()
+
 	if idleTimeout > 0 {
 		go p.watchIdle(ctx)
 	}
@@ -285,7 +295,6 @@ func (p *sandboxLaunchedProcess) ResetIdleTimer() {
 	if p.idleTimeout <= 0 {
 		return
 	}
-	// Non-blocking signal; drop if the channel is full.
 	select {
 	case p.idleResetCh <- struct{}{}:
 	default:
@@ -297,8 +306,6 @@ func (p *sandboxLaunchedProcess) TimedOut() bool { return p.timedOut.Load() }
 func (p *sandboxLaunchedProcess) Kill() {
 	p.killOnce.Do(func() {
 		p.killed.Store(true)
-		// Best-effort kill via workspace-sandbox; ignore not-found / 404
-		// (process may have exited naturally just before the kill).
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		_ = p.launcher.killProcess(ctx, p.pid)
@@ -313,148 +320,95 @@ func (p *sandboxLaunchedProcess) Signal(grace time.Duration) {
 	p.Kill()
 }
 
-// Wait blocks until the process has exited (or Kill was called).
+// Wait blocks until both streams have closed (process exited or kill).
 func (p *sandboxLaunchedProcess) Wait() error {
 	<-p.waitCh
 	return p.waitErr
 }
 
-// run is the background poller loop.
-func (p *sandboxLaunchedProcess) run(ctx context.Context, pollInterval time.Duration) {
-	defer close(p.waitCh)
-	defer p.stdoutW.Close()
+// runStream consumes the SSE stream for one log channel (stdout or stderr).
+// Each `data:` event is forwarded into the corresponding pipe writer.
+// The first `event: exit` frame seen by either runStream sets the
+// process's exit info under sync.Once.
+func (p *sandboxLaunchedProcess) runStream(ctx context.Context, stream string, w *io.PipeWriter, wg *sync.WaitGroup) {
+	defer wg.Done()
 
-	var offset int64
-	ticker := time.NewTicker(pollInterval)
-	defer ticker.Stop()
+	endpoint := fmt.Sprintf("/api/v1/sandboxes/%s/processes/%d/logs/stream?stream=%s", p.launcher.sandboxID, p.pid, stream)
+	resp, err := p.launcher.provider.doRawRequest(ctx, "GET", endpoint, "", nil)
+	if err != nil {
+		// Context cancellation surfaces as ctx.Err; not unique to this stream.
+		return
+	}
+	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		// 404 right after start is rare but possible if the server hasn't
+		// finished registering the writer; the runner can survive an
+		// empty stream because parseStreamEvents tolerates it.
+		return
+	}
+
+	parser := newSSEParser(resp.Body)
 	for {
-		// Drain available log content first.
-		newOffset, err := p.drainLogs(ctx, offset)
-		if err != nil && !errors.Is(err, errLogNotReady) {
-			p.waitErr = err
+		event, ok := parser.next()
+		if !ok {
 			return
 		}
-		offset = newOffset
-
-		// Check if the process has exited.
-		exited, exitCode, exitErr := p.checkExited(ctx)
-		if exitErr != nil {
-			p.waitErr = exitErr
+		switch event.eventType {
+		case "exit":
+			p.recordExitInfo(event.data)
+		case "end":
 			return
-		}
-		if exited {
-			// Final drain to capture any remaining log content.
-			finalOffset, _ := p.drainLogs(ctx, offset)
-			_ = finalOffset
-			if p.killed.Load() {
-				p.waitErr = errors.New("process killed")
-				return
+		case "error":
+			// Server-side error mid-stream; surface as wait error.
+			p.exitInfoMu.Lock()
+			if p.exitInfo == nil {
+				p.exitInfo = &remoteExitInfo{ExitCode: 1}
 			}
-			if exitCode != 0 {
-				p.waitErr = &remoteExitError{code: exitCode}
-				return
+			p.exitInfoMu.Unlock()
+			return
+		default:
+			// Default event type "" or "message" → forward bytes.
+			if len(event.data) > 0 {
+				_, _ = w.Write(event.data)
 			}
-			return
-		}
-
-		select {
-		case <-ctx.Done():
-			// Context cancelled — kill the remote process and return.
-			p.Kill()
-			p.waitErr = ctx.Err()
-			return
-		case <-ticker.C:
-			// Continue polling.
 		}
 	}
 }
 
-// errLogNotReady is returned when /logs returns 404 — typically right after
-// the process starts before the log file has been created. Treated as a
-// no-op for the polling loop.
-var errLogNotReady = errors.New("log not ready")
-
-// drainLogs reads new log content starting at offset; writes new bytes to
-// the stdout pipe; returns the updated offset.
-func (p *sandboxLaunchedProcess) drainLogs(ctx context.Context, offset int64) (int64, error) {
-	endpoint := fmt.Sprintf("/api/v1/sandboxes/%s/processes/%d/logs?offset=%d", p.launcher.sandboxID, p.pid, offset)
-	resp, err := p.launcher.provider.doRequest(ctx, "GET", endpoint, nil)
-	if err != nil {
-		return offset, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
-		return offset, errLogNotReady
-	}
-	if resp.StatusCode != http.StatusOK {
-		return offset, fmt.Errorf("drain logs: HTTP %d", resp.StatusCode)
-	}
-
-	var logResp struct {
-		Content   string `json:"content"`
-		SizeBytes int64  `json:"sizeBytes"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&logResp); err != nil {
-		return offset, fmt.Errorf("drain logs: decode: %w", err)
-	}
-
-	if logResp.Content != "" {
-		_, _ = p.stdoutW.Write([]byte(logResp.Content))
-		// Advance offset by bytes actually consumed.
-		offset += int64(len(logResp.Content))
-	} else if logResp.SizeBytes > offset {
-		// Mismatch: the log is bigger than our offset claims, but the
-		// returned content was empty. Sync the offset to size to avoid
-		// looping on the same byte range.
-		offset = logResp.SizeBytes
-	}
-	return offset, nil
+// recordExitInfo parses the JSON payload of an `event: exit` frame and
+// stores it. First call wins.
+func (p *sandboxLaunchedProcess) recordExitInfo(payload []byte) {
+	p.exitOnce.Do(func() {
+		var info remoteExitInfo
+		if err := json.Unmarshal(bytes.TrimSpace(payload), &info); err != nil {
+			info = remoteExitInfo{ExitCode: 1}
+		}
+		p.exitInfoMu.Lock()
+		p.exitInfo = &info
+		p.exitInfoMu.Unlock()
+	})
 }
 
-// checkExited probes /processes (filtered to running) to see whether the PID
-// is still active. Workspace-sandbox doesn't return exit codes for tracked
-// processes today, so we report 0 on natural exit and a non-zero placeholder
-// (1) when the process disappeared but we don't know why. Future work could
-// extend ws-sb to record exit codes.
-func (p *sandboxLaunchedProcess) checkExited(ctx context.Context) (exited bool, exitCode int, err error) {
-	endpoint := fmt.Sprintf("/api/v1/sandboxes/%s/processes", p.launcher.sandboxID)
-	resp, err := p.launcher.provider.doRequest(ctx, "GET", endpoint, nil)
-	if err != nil {
-		return false, 0, err
+// finalizeWaitErr sets p.waitErr from the recorded exit info (or kill state).
+func (p *sandboxLaunchedProcess) finalizeWaitErr() {
+	if p.killed.Load() {
+		p.waitErr = errors.New("process killed")
+		return
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return false, 0, fmt.Errorf("list processes: HTTP %d", resp.StatusCode)
+	p.exitInfoMu.Lock()
+	info := p.exitInfo
+	p.exitInfoMu.Unlock()
+	if info == nil {
+		// Server never sent exit info — connection dropped before the
+		// process terminated, or the process was already gone before we
+		// subscribed. Treat as success unless we have other state.
+		return
 	}
-
-	var listResp struct {
-		Processes []struct {
-			PID    int    `json:"pid"`
-			Status string `json:"status,omitempty"`
-		} `json:"processes"`
+	if info.ExitCode == 0 && info.Signal == 0 {
+		return
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&listResp); err != nil {
-		return false, 0, fmt.Errorf("list processes: decode: %w", err)
-	}
-
-	for _, pr := range listResp.Processes {
-		if pr.PID == p.pid {
-			// Found and present. Check status.
-			if pr.Status == "running" || pr.Status == "" {
-				return false, 0, nil
-			}
-			// Any non-running status (exited, killed, etc.) is terminal.
-			if pr.Status == "exited" {
-				return true, 0, nil
-			}
-			return true, 1, nil
-		}
-	}
-	// Process not in list → exited (workspace-sandbox stops tracking
-	// terminated processes after a grace period). Treat as natural exit.
-	return true, 0, nil
+	p.waitErr = &remoteExitError{code: info.ExitCode, signal: info.Signal, oomKilled: info.OOMKilled}
 }
 
 // killProcess DELETEs /processes/{pid}.
@@ -482,7 +436,6 @@ func (p *sandboxLaunchedProcess) watchIdle(ctx context.Context) {
 		case <-p.waitCh:
 			return
 		case <-p.idleResetCh:
-			// Drain any extra signals queued.
 			drained := true
 			for drained {
 				select {
@@ -512,66 +465,98 @@ func (p *sandboxLaunchedProcess) watchIdle(ctx context.Context) {
 // *exec.ExitError and *remoteExitError) so the wait-error type-switch is
 // uniform across host and sandbox launches. See runner.extractExitCode.
 type remoteExitError struct {
-	code int
+	code      int
+	signal    int
+	oomKilled bool
 }
 
 func (e *remoteExitError) Error() string {
-	return fmt.Sprintf("remote process exited with code %d", e.code)
+	switch {
+	case e.oomKilled:
+		return fmt.Sprintf("remote process killed by OOM (exit %d signal %d)", e.code, e.signal)
+	case e.signal != 0:
+		return fmt.Sprintf("remote process killed by signal %d (exit %d)", e.signal, e.code)
+	default:
+		return fmt.Sprintf("remote process exited with code %d", e.code)
+	}
 }
 
-// ExitCode satisfies the runner-side exitCoder interface so callers can
-// extract the exit code without depending on a concrete sandbox type.
+// ExitCode satisfies the runner-side exitCoder interface.
 func (e *remoteExitError) ExitCode() int { return e.code }
+
+// =============================================================================
+// SSE parser
+// =============================================================================
+
+// sseEvent represents one parsed Server-Sent Events block.
+type sseEvent struct {
+	eventType string
+	data      []byte
+}
+
+// sseParser scans an io.Reader for newline-delimited SSE events.
+type sseParser struct {
+	scanner *bufio.Scanner
+}
+
+func newSSEParser(r io.Reader) *sseParser {
+	s := bufio.NewScanner(r)
+	// Larger buffer than default 64KB so single long lines don't trip the
+	// scanner. 4MB is plenty for a JSON exit frame or a chunky log line.
+	s.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
+	return &sseParser{scanner: s}
+}
+
+// next returns the next SSE event; ok=false when the stream ended.
+func (p *sseParser) next() (sseEvent, bool) {
+	var ev sseEvent
+	var dataBuf bytes.Buffer
+	hasData := false
+	for p.scanner.Scan() {
+		line := p.scanner.Text()
+		if line == "" {
+			// Empty line terminates the event.
+			if !hasData && ev.eventType == "" {
+				continue
+			}
+			ev.data = dataBuf.Bytes()
+			return ev, true
+		}
+		if strings.HasPrefix(line, ":") {
+			// Comment line; ignore.
+			continue
+		}
+		idx := strings.Index(line, ":")
+		var field, value string
+		if idx >= 0 {
+			field = line[:idx]
+			value = strings.TrimPrefix(line[idx+1:], " ")
+		} else {
+			field = line
+			value = ""
+		}
+		switch field {
+		case "event":
+			ev.eventType = value
+		case "data":
+			if hasData {
+				dataBuf.WriteByte('\n')
+			}
+			dataBuf.WriteString(value)
+			hasData = true
+		}
+	}
+	// EOF or scanner error.
+	if hasData || ev.eventType != "" {
+		ev.data = dataBuf.Bytes()
+		return ev, true
+	}
+	return sseEvent{}, false
+}
 
 // =============================================================================
 // helpers
 // =============================================================================
-
-// buildBashWrapper constructs a `bash -c` command line that:
-//   - exec's the target command (so bash doesn't linger as a parent shell),
-//   - redirects stdin from the staged prompt file when present,
-//   - removes the prompt file after the process exits.
-//
-// All arguments are quoted with strict single-quote escaping so that user-
-// supplied content cannot break out into shell injection.
-func buildBashWrapper(command string, args []string, promptPath string) (string, []string) {
-	parts := []string{shellQuote(command)}
-	for _, a := range args {
-		parts = append(parts, shellQuote(a))
-	}
-	cmdline := strings.Join(parts, " ")
-
-	if promptPath != "" {
-		// `trap rm` ensures the prompt file is removed even on signal.
-		// `<` redirect makes the staged file the new stdin.
-		// `exec` replaces the bash process with the target so signals reach it.
-		shellLine := fmt.Sprintf("trap 'rm -f %s' EXIT; exec %s < %s", shellQuote(promptPath), cmdline, shellQuote(promptPath))
-		return "bash", []string{"-c", shellLine}
-	}
-	// No stdin staging — just exec the command.
-	shellLine := fmt.Sprintf("exec %s", cmdline)
-	return "bash", []string{"-c", shellLine}
-}
-
-// shellQuote wraps s in strict single quotes so the shell treats it as a
-// single literal token. Escapes any embedded single quote by closing the
-// quote, inserting an escaped quote, and reopening: `it's` becomes `'it'\”s'`.
-func shellQuote(s string) string {
-	if s == "" {
-		return "''"
-	}
-	var buf bytes.Buffer
-	buf.WriteByte('\'')
-	for _, r := range s {
-		if r == '\'' {
-			buf.WriteString(`'\''`)
-			continue
-		}
-		buf.WriteRune(r)
-	}
-	buf.WriteByte('\'')
-	return buf.String()
-}
 
 // envSliceToMap converts os.Environ()-style entries to a map. Keys with
 // duplicate names take the last value (matching POSIX semantics).

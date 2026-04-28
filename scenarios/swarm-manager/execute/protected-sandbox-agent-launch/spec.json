@@ -15,7 +15,7 @@
   "kind": "execute",
   "name": "protected-sandbox-agent-launch",
   "priority": 6,
-  "status": "backlog",
+  "status": "completed",
   "tags": [
     "agent-manager",
     "workspace-sandbox",
@@ -23,5 +23,5 @@
     "process-launch"
   ],
   "title": "Launch coding agents through workspace-sandbox execution APIs in protected mode",
-  "updated": "2026-04-09T17:33:13Z"
+  "updated": "2026-04-28T04:00:00Z"
 }

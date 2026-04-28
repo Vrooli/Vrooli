@@ -227,8 +227,10 @@ func (h *Handlers) RegisterRoutes(router *mux.Router, metricsCollector *metrics.
 	api.HandleFunc("/sandboxes/{id}/processes", h.ListProcesses).Methods("GET")
 	api.HandleFunc("/sandboxes/{id}/processes/{pid}", h.KillProcess).Methods("DELETE")
 	api.HandleFunc("/sandboxes/{id}/processes/kill-all", h.KillAllProcesses).Methods("POST")
+	api.HandleFunc("/sandboxes/{id}/processes/{pid}/stdin", h.PostProcessStdin).Methods("POST")
 
-	// --- Process Logs (Phase 2) ---
+	// --- Process Logs (Phase 2; stream-aware as of phase 3 ws-sb work) ---
+	// Required query parameter for both: stream=stdout|stderr
 	api.HandleFunc("/sandboxes/{id}/processes/{pid}/logs", h.GetProcessLogs).Methods("GET")
 	api.HandleFunc("/sandboxes/{id}/processes/{pid}/logs/stream", h.StreamProcessLogs).Methods("GET")
 	api.HandleFunc("/sandboxes/{id}/logs", h.ListProcessLogs).Methods("GET")

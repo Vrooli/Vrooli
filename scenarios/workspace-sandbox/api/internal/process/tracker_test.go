@@ -2,6 +2,7 @@ package process
 
 import (
 	"context"
+	"io"
 	"os"
 	"os/exec"
 	"testing"
@@ -322,14 +323,14 @@ func TestGetActiveCount(t *testing.T) {
 	}
 }
 
-// [REQ:REQ-P0-009] Test WaitForProcess
+// [REQ:REQ-P0-009] WaitForProcess returns the structured exit info
+// recorded by the driver's wait reaper via RecordExit.
 func TestWaitForProcess(t *testing.T) {
 	tracker := NewTracker()
 	sandboxID := uuid.New()
 	ctx := context.Background()
 
-	// Start a quick process that exits immediately
-	cmd := exec.Command("true") // 'true' command exits immediately with 0
+	cmd := exec.Command("true")
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("failed to start process: %v", err)
 	}
@@ -339,51 +340,140 @@ func TestWaitForProcess(t *testing.T) {
 		t.Fatalf("Track failed: %v", err)
 	}
 
-	// Wait for the command to actually exit first
 	if err := cmd.Wait(); err != nil {
 		t.Fatalf("wait failed: %v", err)
 	}
 
-	// Now wait for our tracking to detect it's dead
+	// Simulate the driver's wait reaper recording exit info.
+	tracker.RecordExit(sandboxID, pid, ExitInfo{ExitCode: 0, StoppedAt: time.Now()})
+
 	proc, err := tracker.WaitForProcess(ctx, sandboxID, pid, 5*time.Second)
 	if err != nil {
 		t.Errorf("WaitForProcess failed: %v", err)
 	}
-
 	if proc.StoppedAt == nil {
 		t.Error("process should have StoppedAt set")
 	}
-
 	if proc.ExitCode == nil {
 		t.Error("process should have ExitCode set")
 	}
+	if info := tracker.GetExitInfo(sandboxID, pid); info == nil || info.ExitCode != 0 {
+		t.Errorf("GetExitInfo: want exitCode=0, got %v", info)
+	}
 }
 
-// [REQ:REQ-P0-009] Test WaitForProcess timeout
+// WaitForProcess times out when the wait reaper never records exit info.
 func TestWaitForProcessTimeout(t *testing.T) {
 	tracker := NewTracker()
 	sandboxID := uuid.New()
 	ctx := context.Background()
 
-	// Start a long-running process
 	cmd := exec.Command("sleep", "60")
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("failed to start process: %v", err)
 	}
 	defer func() {
-		if err := cmd.Process.Kill(); err != nil {
-			t.Logf("failed to kill process: %v", err)
-		}
+		_ = cmd.Process.Kill()
 	}()
 
 	if _, err := tracker.Track(sandboxID, cmd.Process.Pid, "sleep", ""); err != nil {
 		t.Fatalf("Track failed: %v", err)
 	}
 
-	// Wait with short timeout
 	_, err := tracker.WaitForProcess(ctx, sandboxID, cmd.Process.Pid, 100*time.Millisecond)
 	if err == nil {
-		t.Error("expected timeout error")
+		t.Error("expected timeout error when no RecordExit happens")
+	}
+}
+
+// RecordExit unblocks ExitChannel subscribers and is idempotent.
+func TestRecordExit_IdempotentAndNotifies(t *testing.T) {
+	tracker := NewTracker()
+	sandboxID := uuid.New()
+	pid := 12345
+	if _, err := tracker.Track(sandboxID, pid, "fake", ""); err != nil {
+		t.Fatalf("Track: %v", err)
+	}
+
+	exitCh := tracker.ExitChannel(sandboxID, pid)
+	select {
+	case <-exitCh:
+		t.Fatal("ExitChannel should not be closed before RecordExit")
+	default:
+	}
+
+	tracker.RecordExit(sandboxID, pid, ExitInfo{ExitCode: 7, Signal: 9, OOMKilled: true, StoppedAt: time.Now()})
+
+	select {
+	case <-exitCh:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("ExitChannel did not close after RecordExit")
+	}
+
+	info := tracker.GetExitInfo(sandboxID, pid)
+	if info == nil {
+		t.Fatal("GetExitInfo returned nil")
+	}
+	if info.ExitCode != 7 || info.Signal != 9 || !info.OOMKilled {
+		t.Errorf("ExitInfo = %+v; want code=7 sig=9 oom=true", *info)
+	}
+
+	// Idempotent — second call should not panic or change state.
+	tracker.RecordExit(sandboxID, pid, ExitInfo{ExitCode: 99})
+	if info2 := tracker.GetExitInfo(sandboxID, pid); info2.ExitCode != 7 {
+		t.Errorf("second RecordExit changed exit code; got %d", info2.ExitCode)
+	}
+}
+
+// SetStdin / WriteStdin / CloseStdin form a one-shot pipe contract.
+func TestStdinPipeContract(t *testing.T) {
+	tracker := NewTracker()
+	sandboxID := uuid.New()
+	pid := 22222
+	if _, err := tracker.Track(sandboxID, pid, "fake", ""); err != nil {
+		t.Fatalf("Track: %v", err)
+	}
+
+	// Without SetStdin, WriteStdin should fail.
+	if _, err := tracker.WriteStdin(sandboxID, pid, []byte("oops")); err == nil {
+		t.Error("WriteStdin without stdin pipe should fail")
+	}
+
+	r, w := io.Pipe()
+	defer r.Close()
+	if err := tracker.SetStdin(sandboxID, pid, w); err != nil {
+		t.Fatalf("SetStdin: %v", err)
+	}
+
+	got := make(chan []byte, 1)
+	go func() {
+		buf, _ := io.ReadAll(r)
+		got <- buf
+	}()
+
+	n, err := tracker.WriteStdin(sandboxID, pid, []byte("hello stdin"))
+	if err != nil {
+		t.Fatalf("WriteStdin: %v", err)
+	}
+	if n != len("hello stdin") {
+		t.Errorf("WriteStdin n = %d; want %d", n, len("hello stdin"))
+	}
+	if err := tracker.CloseStdin(sandboxID, pid); err != nil {
+		t.Errorf("CloseStdin: %v", err)
+	}
+
+	select {
+	case payload := <-got:
+		if string(payload) != "hello stdin" {
+			t.Errorf("read = %q; want hello stdin", string(payload))
+		}
+	case <-time.After(time.Second):
+		t.Fatal("io.Pipe reader didn't see write before timeout")
+	}
+
+	// CloseStdin is idempotent.
+	if err := tracker.CloseStdin(sandboxID, pid); err != nil {
+		t.Errorf("second CloseStdin: %v", err)
 	}
 }
 

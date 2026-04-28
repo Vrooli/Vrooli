@@ -344,29 +344,23 @@ func (d *FuseOverlayfsDriver) startProcessWithBwrap(ctx context.Context, s *type
 	bwrapArgs = append(bwrapArgs, cmd)
 	bwrapArgs = append(bwrapArgs, args...)
 
-	// Create command but don't wait for it
 	execCmd := exec.Command(bwrapPath, bwrapArgs...)
 
-	// Set environment
 	for k, v := range cfg.Env {
 		execCmd.Env = append(execCmd.Env, fmt.Sprintf("%s=%s", k, v))
 	}
 
-	// Set up process group so we can kill all children
 	execCmd.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: true,
 	}
 
-	// Redirect output to log writer if provided
-	if cfg.LogWriter != nil {
-		execCmd.Stdout = cfg.LogWriter
-		execCmd.Stderr = cfg.LogWriter
-	}
+	wireStartProcessIO(execCmd, cfg)
 
-	// Start the process
 	if err := execCmd.Start(); err != nil {
 		return 0, fmt.Errorf("failed to start process: %w", err)
 	}
+
+	spawnExitReaper(execCmd, cfg.OnExit)
 
 	return execCmd.Process.Pid, nil
 }
@@ -376,27 +370,23 @@ func (d *FuseOverlayfsDriver) startProcessDirect(ctx context.Context, s *types.S
 	execCmd := exec.Command(cmd, args...)
 	execCmd.Dir = s.MergedDir
 
-	// Set environment
 	env := os.Environ()
 	for k, v := range cfg.Env {
 		env = append(env, k+"="+v)
 	}
 	execCmd.Env = env
 
-	// Set up process group for cleanup
 	execCmd.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: true,
 	}
 
-	// Redirect output to log writer if provided
-	if cfg.LogWriter != nil {
-		execCmd.Stdout = cfg.LogWriter
-		execCmd.Stderr = cfg.LogWriter
-	}
+	wireStartProcessIO(execCmd, cfg)
 
 	if err := execCmd.Start(); err != nil {
 		return 0, fmt.Errorf("failed to start process: %w", err)
 	}
+
+	spawnExitReaper(execCmd, cfg.OnExit)
 
 	return execCmd.Process.Pid, nil
 }

@@ -102,6 +102,39 @@ type Repository interface {
 
 **Status**: Interface defined; service depends on interface, not concrete type.
 
+### 2c. Process Lifecycle (BwrapConfig + Tracker + Logger)
+**Files**: `api/internal/driver/bwrap.go`, `api/internal/process/tracker.go`, `api/internal/process/logger.go`, `api/internal/handlers/process.go`
+
+The `/processes` surface is the boundary between three responsibilities,
+each owning one slice of the lifecycle:
+
+| Concern | Owner | Mechanism |
+|---|---|---|
+| Bytes flowing in/out | `driver.BwrapConfig` | `StdoutWriter`, `StderrWriter`, `StdinReader` are wired by the handler before `Driver.StartProcess`. The driver wires them onto `cmd.Stdout/Stderr/Stdin` and never touches them again. |
+| Per-process state | `process.Tracker` | After `StartProcess` returns, the handler calls `tracker.Track(...)` and (when stdin requested) `tracker.SetStdin(...)`. The tracker owns the stdin pipe writer for the life of the process. |
+| Exit propagation | `BwrapConfig.OnExit` callback | The driver spawns a wait reaper that calls `cfg.OnExit(exitCode, signal, oomKilled)` once. The handler's closure forwards that into `tracker.RecordExit(...)` and `logger.CloseLogPair(...)`. |
+| Log persistence + push notifications | `process.Logger` | `CreatePendingLogPair → FinalizePair` produces two `*logWriter` (one per stream). Each `logWriter.Write` fans out to subscribed channels so `StreamLog` / `/logs/stream` consumers see new bytes immediately. `CloseLogPair` writes the exit footer and unblocks subscribers via channel close. |
+
+**Why this seam exists**: prior to 2026-04-28 the driver wrote both
+streams into a single `LogWriter`, the tracker had no exit-channel
+mechanism, and there was no stdin pipe. Each of the four concerns above
+was tangled into the others, making "give me precise exit info" require
+"give me a per-process callback" require "split the streams" require
+"add a stdin pipe". Splitting them along the contract above lets each
+piece evolve independently.
+
+**Wire surface (canonical client = agent-manager `SandboxLauncher`):**
+- `POST   /sandboxes/{id}/processes` — `withStdin: bool` opt-in for the stdin pipe.
+- `POST   /sandboxes/{id}/processes/{pid}/stdin?close=true` — body is appended to `Tracker.WriteStdin`; `close=true` calls `Tracker.CloseStdin`.
+- `GET    /sandboxes/{id}/processes/{pid}/logs?stream=stdout|stderr` — required `stream`; reads from `Logger.ReadLog`.
+- `GET    /sandboxes/{id}/processes/{pid}/logs/stream?stream=stdout|stderr` — Server-Sent Events. Server emits `data:` frames as each chunk arrives, then a single `event: exit` carrying ExitInfo JSON, then `event: end`.
+- `DELETE /sandboxes/{id}/processes/{pid}` — best-effort kill via `Tracker.KillProcess`.
+
+**Testability**:
+- `process/logger_test.go` covers stream separation, push subscriptions, EOF-on-close, pending-pair lifecycle.
+- `process/tracker_test.go` covers `RecordExit` idempotency + notification, stdin pipe contract, `WaitForProcess` driven by exit channel.
+- `handlers/process_*_test.go` cover the HTTP surface.
+
 ### 3. Diff Generation / Patch Application (UPDATED 2025-12-19)
 **Files**: `api/internal/diff/diff.go`, `api/internal/diff/runner.go`, `api/internal/diff/gitops.go`
 

@@ -1,4 +1,10 @@
-// Package process provides process tracking and logging for sandboxes.
+// Package process — process logging.
+//
+// Two log streams per process: stdout and stderr, written to separate
+// files ({pid}.stdout.log and {pid}.stderr.log). Both files share a
+// per-process subscription fan-out so that SSE consumers receive each
+// write as it lands, with no server-side polling. Greenfield: the older
+// merged-log API is gone, callers must specify a stream.
 package process
 
 import (
@@ -8,11 +14,30 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+// Stream identifies one of the two log streams for a process.
+type Stream string
+
+const (
+	StreamStdout Stream = "stdout"
+	StreamStderr Stream = "stderr"
+)
+
+// Validate returns an error if s is not stdout or stderr.
+func (s Stream) Validate() error {
+	switch s {
+	case StreamStdout, StreamStderr:
+		return nil
+	default:
+		return fmt.Errorf("invalid stream %q (want stdout or stderr)", s)
+	}
+}
 
 // LogConfig configures process logging behavior.
 type LogConfig struct {
@@ -38,51 +63,63 @@ func DefaultLogConfig(baseDir string) LogConfig {
 	}
 }
 
-// ProcessLog represents a log file for a single process.
+// ProcessLog represents the metadata for a single log stream.
 type ProcessLog struct {
-	// PID is the process ID this log belongs to.
-	PID int `json:"pid"`
-
-	// SandboxID is the sandbox this process belongs to.
+	PID       int       `json:"pid"`
 	SandboxID uuid.UUID `json:"sandboxId"`
-
-	// Path is the absolute path to the log file.
-	Path string `json:"path"`
-
-	// StartedAt is when the process started.
+	Stream    Stream    `json:"stream"`
+	Path      string    `json:"path"`
 	StartedAt time.Time `json:"startedAt"`
-
-	// SizeBytes is the current size of the log file.
-	SizeBytes int64 `json:"sizeBytes"`
-
-	// IsActive indicates if the process is still running and writing.
-	IsActive bool `json:"isActive"`
+	SizeBytes int64     `json:"sizeBytes"`
+	IsActive  bool      `json:"isActive"`
 }
 
 // Logger manages log files for sandbox processes.
 type Logger struct {
 	mu      sync.RWMutex
 	config  LogConfig
-	writers map[string]*logWriter // key: "{sandboxID}/{pid}"
+	writers map[string]*logWriter // key: "{sandboxID}/{pid}/{stream}"
 }
 
-// logWriter handles writing to a process log file.
+// logWriter handles writing to a single stream of a process log file. It
+// also maintains a fan-out list of subscribers that receive each Write.
 type logWriter struct {
 	mu        sync.Mutex
 	file      *os.File
 	path      string
 	pid       int
 	sandboxID uuid.UUID
+	stream    Stream
 	sizeBytes int64
 	startedAt time.Time
+
+	subsMu      sync.Mutex
+	subscribers []chan []byte
 }
 
-// PendingLog represents a log file created before the process PID is known.
-// Use FinalizeLog() to rename it to the actual PID after process starts.
-type PendingLog struct {
-	Writer    *logWriter
-	TempID    string // Temporary identifier used for the file name
+// LogPair pairs writers for the two streams of a single process.
+type LogPair struct {
+	Stdout io.WriteCloser
+	Stderr io.WriteCloser
+}
+
+// PendingLogPair represents log files created before the process PID is
+// known. Use FinalizePair to rename them to the actual PID.
+type PendingLogPair struct {
+	Stdout    *logWriter
+	Stderr    *logWriter
+	TempID    string
 	SandboxID uuid.UUID
+}
+
+// AsLogPair returns the pending writers as a LogPair (so callers can wire
+// them as cmd.Stdout / cmd.Stderr without having to know the underlying
+// type).
+func (p *PendingLogPair) AsLogPair() LogPair {
+	if p == nil {
+		return LogPair{}
+	}
+	return LogPair{Stdout: p.Stdout, Stderr: p.Stderr}
 }
 
 // NewLogger creates a new process logger.
@@ -98,191 +135,169 @@ func (l *Logger) LogDir(sandboxID uuid.UUID) string {
 	return filepath.Join(l.config.BaseDir, sandboxID.String(), "logs")
 }
 
-// LogPath returns the log file path for a specific process.
-func (l *Logger) LogPath(sandboxID uuid.UUID, pid int) string {
-	return filepath.Join(l.LogDir(sandboxID), fmt.Sprintf("%d.log", pid))
+// LogPath returns the file path for a specific stream of a process log.
+func (l *Logger) LogPath(sandboxID uuid.UUID, pid int, stream Stream) string {
+	return filepath.Join(l.LogDir(sandboxID), fmt.Sprintf("%d.%s.log", pid, stream))
 }
 
-// CreateLog creates a new log file for a process and returns a writer.
-// The writer should be used as stdout/stderr for the process.
-func (l *Logger) CreateLog(sandboxID uuid.UUID, pid int) (io.WriteCloser, error) {
+// CreatePendingLogPair creates two log files (stdout + stderr) before the
+// process PID is known. Use FinalizePair after the process starts.
+func (l *Logger) CreatePendingLogPair(sandboxID uuid.UUID) (*PendingLogPair, error) {
 	logDir := l.LogDir(sandboxID)
 	if err := os.MkdirAll(logDir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create log directory: %w", err)
 	}
 
-	logPath := l.LogPath(sandboxID, pid)
-	file, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	tempID := uuid.New().String()[:8]
+
+	stdoutLW, err := openPendingStream(logDir, tempID, sandboxID, StreamStdout)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create log file: %w", err)
+		return nil, err
 	}
-
-	// Write header
-	header := fmt.Sprintf("=== Process Log: PID %d | Sandbox %s | Started %s ===\n\n",
-		pid, sandboxID.String(), time.Now().Format(time.RFC3339))
-	if _, err := file.WriteString(header); err != nil {
-		file.Close()
-		return nil, fmt.Errorf("failed to write log header: %w", err)
-	}
-
-	lw := &logWriter{
-		file:      file,
-		path:      logPath,
-		pid:       pid,
-		sandboxID: sandboxID,
-		sizeBytes: int64(len(header)),
-		startedAt: time.Now(),
-	}
-
-	key := l.writerKey(sandboxID, pid)
-	l.mu.Lock()
-	l.writers[key] = lw
-	l.mu.Unlock()
-
-	return lw, nil
-}
-
-// writerKey returns the map key for a sandbox/pid pair.
-func (l *Logger) writerKey(sandboxID uuid.UUID, pid int) string {
-	return fmt.Sprintf("%s/%d", sandboxID.String(), pid)
-}
-
-// CreatePendingLog creates a log file before the process PID is known.
-// Returns a PendingLog that should be finalized with FinalizeLog() after
-// the process starts and the PID is known.
-//
-// The Writer in the returned PendingLog can be used as stdout/stderr
-// for the process via BwrapConfig.LogWriter.
-func (l *Logger) CreatePendingLog(sandboxID uuid.UUID) (*PendingLog, error) {
-	logDir := l.LogDir(sandboxID)
-	if err := os.MkdirAll(logDir, 0o755); err != nil {
-		return nil, fmt.Errorf("failed to create log directory: %w", err)
-	}
-
-	// Generate a temporary ID for the log file
-	tempID := uuid.New().String()[:8] // Short UUID prefix for temp name
-	tempPath := filepath.Join(logDir, fmt.Sprintf("pending_%s.log", tempID))
-
-	file, err := os.OpenFile(tempPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	stderrLW, err := openPendingStream(logDir, tempID, sandboxID, StreamStderr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create pending log file: %w", err)
+		_ = stdoutLW.Close()
+		_ = os.Remove(stdoutLW.path)
+		return nil, err
 	}
 
-	// Write initial header (will be updated when finalized)
-	header := fmt.Sprintf("=== Process Log | Sandbox %s | Started %s ===\n\n",
-		sandboxID.String(), time.Now().Format(time.RFC3339))
-	if _, err := file.WriteString(header); err != nil {
-		file.Close()
-		return nil, fmt.Errorf("failed to write pending log header: %w", err)
-	}
-
-	lw := &logWriter{
-		file:      file,
-		path:      tempPath,
-		pid:       0, // Unknown until finalized
-		sandboxID: sandboxID,
-		sizeBytes: int64(len(header)),
-		startedAt: time.Now(),
-	}
-
-	return &PendingLog{
-		Writer:    lw,
+	return &PendingLogPair{
+		Stdout:    stdoutLW,
+		Stderr:    stderrLW,
 		TempID:    tempID,
 		SandboxID: sandboxID,
 	}, nil
 }
 
-// FinalizeLog renames a pending log file to use the actual PID and
-// registers it in the logger's writer map.
-// Call this after the process has started and the PID is known.
-func (l *Logger) FinalizeLog(pending *PendingLog, pid int) (string, error) {
-	if pending == nil || pending.Writer == nil {
-		return "", fmt.Errorf("invalid pending log")
+func openPendingStream(logDir, tempID string, sandboxID uuid.UUID, stream Stream) (*logWriter, error) {
+	tempPath := filepath.Join(logDir, fmt.Sprintf("pending_%s.%s.log", tempID, stream))
+	file, err := os.OpenFile(tempPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create pending log file: %w", err)
 	}
-
-	lw := pending.Writer
-
-	// Rename the file to use the actual PID
-	newPath := l.LogPath(pending.SandboxID, pid)
-	if err := os.Rename(lw.path, newPath); err != nil {
-		// If rename fails, just keep using the temp path
-		// This might happen if file is being written to
-		newPath = lw.path
+	header := fmt.Sprintf("=== Process Log (%s) | Sandbox %s | Started %s ===\n\n",
+		stream, sandboxID.String(), time.Now().Format(time.RFC3339))
+	if _, err := file.WriteString(header); err != nil {
+		_ = file.Close()
+		return nil, fmt.Errorf("failed to write pending log header: %w", err)
 	}
-
-	// Update the writer's state
-	lw.mu.Lock()
-	lw.path = newPath
-	lw.pid = pid
-	lw.mu.Unlock()
-
-	// Register in the logger's writer map
-	key := l.writerKey(pending.SandboxID, pid)
-	l.mu.Lock()
-	l.writers[key] = lw
-	l.mu.Unlock()
-
-	return newPath, nil
+	return &logWriter{
+		file:      file,
+		path:      tempPath,
+		pid:       0,
+		sandboxID: sandboxID,
+		stream:    stream,
+		sizeBytes: int64(len(header)),
+		startedAt: time.Now(),
+	}, nil
 }
 
-// AbortPendingLog closes and removes a pending log file if the process
-// failed to start. Call this if CreatePendingLog succeeds but the
-// process fails to start.
-func (l *Logger) AbortPendingLog(pending *PendingLog) error {
-	if pending == nil || pending.Writer == nil {
+// FinalizePair renames both pending log files to use the actual PID and
+// registers them in the logger's writer map. Returns the resolved paths.
+func (l *Logger) FinalizePair(pending *PendingLogPair, pid int) (stdoutPath, stderrPath string, err error) {
+	if pending == nil || pending.Stdout == nil || pending.Stderr == nil {
+		return "", "", fmt.Errorf("invalid pending log pair")
+	}
+
+	stdoutPath = l.LogPath(pending.SandboxID, pid, StreamStdout)
+	stderrPath = l.LogPath(pending.SandboxID, pid, StreamStderr)
+
+	if renameErr := os.Rename(pending.Stdout.path, stdoutPath); renameErr != nil {
+		stdoutPath = pending.Stdout.path
+	}
+	if renameErr := os.Rename(pending.Stderr.path, stderrPath); renameErr != nil {
+		stderrPath = pending.Stderr.path
+	}
+
+	pending.Stdout.mu.Lock()
+	pending.Stdout.path = stdoutPath
+	pending.Stdout.pid = pid
+	pending.Stdout.mu.Unlock()
+
+	pending.Stderr.mu.Lock()
+	pending.Stderr.path = stderrPath
+	pending.Stderr.pid = pid
+	pending.Stderr.mu.Unlock()
+
+	l.mu.Lock()
+	l.writers[l.writerKey(pending.SandboxID, pid, StreamStdout)] = pending.Stdout
+	l.writers[l.writerKey(pending.SandboxID, pid, StreamStderr)] = pending.Stderr
+	l.mu.Unlock()
+
+	return stdoutPath, stderrPath, nil
+}
+
+// AbortPair closes and removes both pending log files (e.g., when the
+// process failed to start).
+func (l *Logger) AbortPair(pending *PendingLogPair) error {
+	if pending == nil {
 		return nil
 	}
-
-	lw := pending.Writer
-	path := lw.path
-	if err := lw.Close(); err != nil {
-		return err
+	var firstErr error
+	for _, lw := range []*logWriter{pending.Stdout, pending.Stderr} {
+		if lw == nil {
+			continue
+		}
+		path := lw.path
+		if err := lw.Close(); err != nil && firstErr == nil {
+			firstErr = err
+		}
+		if err := os.Remove(path); err != nil && firstErr == nil && !os.IsNotExist(err) {
+			firstErr = err
+		}
 	}
-
-	return os.Remove(path)
+	return firstErr
 }
 
-// CloseLog closes the log writer for a process.
-// Call this when the process exits.
-func (l *Logger) CloseLog(sandboxID uuid.UUID, pid int, exitCode int) error {
-	key := l.writerKey(sandboxID, pid)
+// CloseLogPair closes both stream writers for a process and writes a
+// shared trailer. Idempotent: subsequent calls return nil.
+func (l *Logger) CloseLogPair(sandboxID uuid.UUID, pid int, info ExitInfo) error {
+	var firstErr error
+	for _, stream := range []Stream{StreamStdout, StreamStderr} {
+		key := l.writerKey(sandboxID, pid, stream)
+		l.mu.Lock()
+		lw, ok := l.writers[key]
+		if ok {
+			delete(l.writers, key)
+		}
+		l.mu.Unlock()
 
-	l.mu.Lock()
-	lw, ok := l.writers[key]
-	if ok {
-		delete(l.writers, key)
+		if !ok {
+			continue
+		}
+
+		footer := fmt.Sprintf("\n=== Process Exited: code %d signal %d oom %v | %s ===\n",
+			info.ExitCode, info.Signal, info.OOMKilled, time.Now().Format(time.RFC3339))
+		if _, err := lw.Write([]byte(footer)); err != nil && firstErr == nil {
+			firstErr = err
+		}
+		if err := lw.closeAndNotify(); err != nil && firstErr == nil {
+			firstErr = err
+		}
 	}
-	l.mu.Unlock()
-
-	if !ok {
-		return nil // Already closed or never created
-	}
-
-	// Write footer
-	footer := fmt.Sprintf("\n=== Process Exited: code %d | %s ===\n",
-		exitCode, time.Now().Format(time.RFC3339))
-	if _, err := lw.Write([]byte(footer)); err != nil {
-		_ = lw.Close()
-		return err
-	}
-
-	return lw.Close()
+	return firstErr
 }
 
-// GetLog returns metadata about a process log.
-func (l *Logger) GetLog(sandboxID uuid.UUID, pid int) (*ProcessLog, error) {
-	logPath := l.LogPath(sandboxID, pid)
+func (l *Logger) writerKey(sandboxID uuid.UUID, pid int, stream Stream) string {
+	return fmt.Sprintf("%s/%d/%s", sandboxID.String(), pid, stream)
+}
+
+// GetLog returns metadata about one stream of a process log.
+func (l *Logger) GetLog(sandboxID uuid.UUID, pid int, stream Stream) (*ProcessLog, error) {
+	if err := stream.Validate(); err != nil {
+		return nil, err
+	}
+	logPath := l.LogPath(sandboxID, pid, stream)
 
 	info, err := os.Stat(logPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("log not found for PID %d", pid)
+			return nil, fmt.Errorf("log not found for PID %d stream %s", pid, stream)
 		}
 		return nil, err
 	}
 
-	// Check if writer is still active
-	key := l.writerKey(sandboxID, pid)
+	key := l.writerKey(sandboxID, pid, stream)
 	l.mu.RLock()
 	_, isActive := l.writers[key]
 	l.mu.RUnlock()
@@ -290,14 +305,16 @@ func (l *Logger) GetLog(sandboxID uuid.UUID, pid int) (*ProcessLog, error) {
 	return &ProcessLog{
 		PID:       pid,
 		SandboxID: sandboxID,
+		Stream:    stream,
 		Path:      logPath,
-		StartedAt: info.ModTime(), // Approximation
+		StartedAt: info.ModTime(),
 		SizeBytes: info.Size(),
 		IsActive:  isActive,
 	}, nil
 }
 
-// ListLogs returns all log files for a sandbox.
+// ListLogs returns the metadata for every (pid, stream) pair this sandbox
+// has on disk.
 func (l *Logger) ListLogs(sandboxID uuid.UUID) ([]*ProcessLog, error) {
 	logDir := l.LogDir(sandboxID)
 
@@ -314,11 +331,22 @@ func (l *Logger) ListLogs(sandboxID uuid.UUID) ([]*ProcessLog, error) {
 		if entry.IsDir() {
 			continue
 		}
-
-		// Parse PID from filename (e.g., "12345.log")
+		// Filenames look like "12345.stdout.log" or "12345.stderr.log".
+		// Skip pending files (prefixed "pending_").
+		name := entry.Name()
+		if strings.HasPrefix(name, "pending_") {
+			continue
+		}
 		var pid int
-		if _, err := fmt.Sscanf(entry.Name(), "%d.log", &pid); err != nil {
-			continue // Skip non-matching files
+		var streamStr string
+		if _, err := fmt.Sscanf(name, "%d.%s", &pid, &streamStr); err != nil {
+			continue
+		}
+		// streamStr arrives as "stdout.log" or "stderr.log"; chop the .log.
+		streamStr = strings.TrimSuffix(streamStr, ".log")
+		stream := Stream(streamStr)
+		if err := stream.Validate(); err != nil {
+			continue
 		}
 
 		info, err := entry.Info()
@@ -326,7 +354,7 @@ func (l *Logger) ListLogs(sandboxID uuid.UUID) ([]*ProcessLog, error) {
 			continue
 		}
 
-		key := l.writerKey(sandboxID, pid)
+		key := l.writerKey(sandboxID, pid, stream)
 		l.mu.RLock()
 		_, isActive := l.writers[key]
 		l.mu.RUnlock()
@@ -334,7 +362,8 @@ func (l *Logger) ListLogs(sandboxID uuid.UUID) ([]*ProcessLog, error) {
 		logs = append(logs, &ProcessLog{
 			PID:       pid,
 			SandboxID: sandboxID,
-			Path:      filepath.Join(logDir, entry.Name()),
+			Stream:    stream,
+			Path:      filepath.Join(logDir, name),
 			StartedAt: info.ModTime(),
 			SizeBytes: info.Size(),
 			IsActive:  isActive,
@@ -344,16 +373,19 @@ func (l *Logger) ListLogs(sandboxID uuid.UUID) ([]*ProcessLog, error) {
 	return logs, nil
 }
 
-// ReadLog reads the contents of a log file.
+// ReadLog reads the content of one stream of a process log.
 // If tail > 0, returns only the last 'tail' lines.
 // If offset > 0, skips the first 'offset' bytes.
-func (l *Logger) ReadLog(sandboxID uuid.UUID, pid int, tail int, offset int64) ([]byte, error) {
-	logPath := l.LogPath(sandboxID, pid)
+func (l *Logger) ReadLog(sandboxID uuid.UUID, pid int, stream Stream, tail int, offset int64) ([]byte, error) {
+	if err := stream.Validate(); err != nil {
+		return nil, err
+	}
+	logPath := l.LogPath(sandboxID, pid, stream)
 
 	file, err := os.Open(logPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("log not found for PID %d", pid)
+			return nil, fmt.Errorf("log not found for PID %d stream %s", pid, stream)
 		}
 		return nil, err
 	}
@@ -374,7 +406,6 @@ func (l *Logger) ReadLog(sandboxID uuid.UUID, pid int, tail int, offset int64) (
 
 // readTail reads the last n lines from a file.
 func (l *Logger) readTail(file *os.File, lines int) ([]byte, error) {
-	// Get file size
 	info, err := file.Stat()
 	if err != nil {
 		return nil, err
@@ -389,13 +420,11 @@ func (l *Logger) readTail(file *os.File, lines int) ([]byte, error) {
 		return l.lastNLines(content, lines), nil
 	}
 
-	// For larger files, read from the end
 	bufSize := int64(8192)
 	if bufSize > info.Size() {
 		bufSize = info.Size()
 	}
 
-	// Read last chunk
 	buf := make([]byte, bufSize)
 	_, err = file.ReadAt(buf, info.Size()-bufSize)
 	if err != nil && err != io.EOF {
@@ -423,7 +452,6 @@ func (l *Logger) lastNLines(content []byte, n int) []byte {
 		}
 	}
 
-	// Reassemble
 	result := make([]byte, 0)
 	for i, line := range lines {
 		result = append(result, line...)
@@ -453,67 +481,46 @@ func (r *bytesReader) Close() error {
 	return nil
 }
 
-// StreamLog streams log contents as they're written.
-// The callback is called for each new chunk of data.
-// Returns when the context is canceled or the process exits.
-func (l *Logger) StreamLog(ctx context.Context, sandboxID uuid.UUID, pid int, callback func([]byte)) error {
-	logPath := l.LogPath(sandboxID, pid)
-
-	file, err := os.Open(logPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("log not found for PID %d", pid)
-		}
-		return err
+// Subscribe returns a channel that receives each new chunk written to the
+// given stream, plus an unsubscribe function to detach the subscriber.
+//
+// The channel is buffered (32) so a slow subscriber does not block the
+// hot Write path; if it fills up, chunks are dropped for that subscriber
+// and a sentinel `nil` is sent on the next successful enqueue. Subscribers
+// SHOULD drain quickly.
+//
+// Returns ok=false when the stream's writer is not registered (e.g.,
+// process has already exited and the writer was closed). Callers should
+// fall back to ReadLog in that case.
+func (l *Logger) Subscribe(sandboxID uuid.UUID, pid int, stream Stream) (ch <-chan []byte, unsubscribe func(), ok bool) {
+	if err := stream.Validate(); err != nil {
+		return nil, nil, false
 	}
-	defer file.Close()
-
-	// Seek to end for live streaming
-	currentPos, err := file.Seek(0, io.SeekEnd)
-	if err != nil {
-		return err
+	key := l.writerKey(sandboxID, pid, stream)
+	l.mu.RLock()
+	lw := l.writers[key]
+	l.mu.RUnlock()
+	if lw == nil {
+		return nil, nil, false
 	}
 
-	buf := make([]byte, 4096)
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
+	c := make(chan []byte, 32)
+	lw.subsMu.Lock()
+	lw.subscribers = append(lw.subscribers, c)
+	lw.subsMu.Unlock()
 
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-
-		case <-ticker.C:
-			// Check if more data is available
-			info, err := file.Stat()
-			if err != nil {
-				return err
-			}
-
-			if info.Size() > currentPos {
-				// Read new data
-				n, err := file.Read(buf)
-				if err != nil && err != io.EOF {
-					return err
-				}
-				if n > 0 {
-					callback(buf[:n])
-					currentPos += int64(n)
-				}
-			}
-
-			// Check if process is still active
-			key := l.writerKey(sandboxID, pid)
-			l.mu.RLock()
-			_, isActive := l.writers[key]
-			l.mu.RUnlock()
-
-			if !isActive && info.Size() == currentPos {
-				// Process ended and we've read all data
-				return nil
+	unsubscribe = func() {
+		lw.subsMu.Lock()
+		defer lw.subsMu.Unlock()
+		for i, sub := range lw.subscribers {
+			if sub == c {
+				lw.subscribers = append(lw.subscribers[:i], lw.subscribers[i+1:]...)
+				close(c)
+				return
 			}
 		}
 	}
+	return c, unsubscribe, true
 }
 
 // CleanupSandboxLogs removes all logs for a sandbox.
@@ -521,12 +528,11 @@ func (l *Logger) StreamLog(ctx context.Context, sandboxID uuid.UUID, pid int, ca
 func (l *Logger) CleanupSandboxLogs(sandboxID uuid.UUID) error {
 	logDir := l.LogDir(sandboxID)
 
-	// Close any active writers first
 	var firstErr error
 	l.mu.Lock()
 	for key, lw := range l.writers {
 		if lw.sandboxID == sandboxID {
-			if err := lw.Close(); err != nil && firstErr == nil {
+			if err := lw.closeAndNotify(); err != nil && firstErr == nil {
 				firstErr = err
 			}
 			delete(l.writers, key)
@@ -540,25 +546,23 @@ func (l *Logger) CleanupSandboxLogs(sandboxID uuid.UUID) error {
 	return firstErr
 }
 
-// MostRecentLog returns the most recently created log for a sandbox.
+// MostRecentLog returns the most recently created log entry for a sandbox
+// (any stream).
 func (l *Logger) MostRecentLog(sandboxID uuid.UUID) (*ProcessLog, error) {
 	logs, err := l.ListLogs(sandboxID)
 	if err != nil {
 		return nil, err
 	}
-
 	if len(logs) == 0 {
 		return nil, fmt.Errorf("no logs found for sandbox %s", sandboxID)
 	}
 
-	// Find most recent by started time
 	var mostRecent *ProcessLog
 	for _, log := range logs {
 		if mostRecent == nil || log.StartedAt.After(mostRecent.StartedAt) {
 			mostRecent = log
 		}
 	}
-
 	return mostRecent, nil
 }
 
@@ -574,9 +578,33 @@ func (lw *logWriter) Write(p []byte) (n int, err error) {
 
 	n, err = lw.file.Write(p)
 	lw.sizeBytes += int64(n)
+
+	// Fan out to subscribers (non-blocking).
+	if n > 0 {
+		// Copy bytes so subscriber can hold onto them after we return.
+		chunk := make([]byte, n)
+		copy(chunk, p[:n])
+		lw.broadcast(chunk)
+	}
 	return n, err
 }
 
+func (lw *logWriter) broadcast(chunk []byte) {
+	lw.subsMu.Lock()
+	defer lw.subsMu.Unlock()
+	for _, sub := range lw.subscribers {
+		select {
+		case sub <- chunk:
+		default:
+			// Subscriber's buffer is full. Drop this chunk for them.
+			// The subscriber is responsible for falling back to ReadLog
+			// at offset to recover any gap.
+		}
+	}
+}
+
+// Close closes the underlying file. Use closeAndNotify when the writer is
+// being retired so subscribers also see EOF.
 func (lw *logWriter) Close() error {
 	lw.mu.Lock()
 	defer lw.mu.Unlock()
@@ -584,8 +612,62 @@ func (lw *logWriter) Close() error {
 	if lw.file == nil {
 		return nil
 	}
-
 	err := lw.file.Close()
 	lw.file = nil
 	return err
+}
+
+// closeAndNotify closes the file and signals EOF to subscribers by closing
+// their channels.
+func (lw *logWriter) closeAndNotify() error {
+	err := lw.Close()
+
+	lw.subsMu.Lock()
+	for _, sub := range lw.subscribers {
+		// Drain may panic on already-closed channel; protect.
+		func(c chan []byte) {
+			defer func() { _ = recover() }()
+			close(c)
+		}(sub)
+	}
+	lw.subscribers = nil
+	lw.subsMu.Unlock()
+
+	return err
+}
+
+// StreamLog is retained as a convenience for callers that want to consume
+// a stream synchronously without managing a subscriber channel themselves.
+// It returns when ctx is cancelled or the writer has been closed (process
+// exited).
+func (l *Logger) StreamLog(ctx context.Context, sandboxID uuid.UUID, pid int, stream Stream, callback func([]byte)) error {
+	if err := stream.Validate(); err != nil {
+		return err
+	}
+
+	// Replay any bytes already on disk so consumers don't miss content
+	// that was written between process start and subscription.
+	if existing, err := l.ReadLog(sandboxID, pid, stream, 0, 0); err == nil && len(existing) > 0 {
+		callback(existing)
+	}
+
+	ch, unsubscribe, ok := l.Subscribe(sandboxID, pid, stream)
+	if !ok {
+		// Writer not registered: process probably exited already; we've
+		// already replayed disk contents above.
+		return nil
+	}
+	defer unsubscribe()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case chunk, open := <-ch:
+			if !open {
+				return nil
+			}
+			callback(chunk)
+		}
+	}
 }

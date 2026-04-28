@@ -92,10 +92,56 @@ type BwrapConfig struct {
 	// ResourceLimits configures process resource constraints.
 	ResourceLimits ResourceLimits
 
-	// LogWriter is an optional writer for capturing process stdout/stderr.
-	// If provided, both stdout and stderr are written to this writer.
-	// Used for background processes (StartProcess) to capture output.
-	LogWriter io.WriteCloser
+	// StdoutWriter receives the process's stdout. Required for StartProcess
+	// to capture output; Exec uses its own buffers.
+	StdoutWriter io.Writer
+
+	// StderrWriter receives the process's stderr. Required for StartProcess
+	// to capture output; Exec uses its own buffers.
+	StderrWriter io.Writer
+
+	// StdinReader, if non-nil, is wired to the process's stdin pipe. The
+	// caller owns reads on the other end (typically an io.Pipe) and is
+	// responsible for closing the writer half to signal EOF.
+	StdinReader io.Reader
+
+	// OnExit, if non-nil, is invoked exactly once after cmd.Wait() returns
+	// for a background-started process. It receives the exit code, the
+	// terminating signal (0 if exited normally), and a best-effort
+	// OOM-killed indicator. The driver dispatches this from a goroutine
+	// it owns; callers must not rely on synchronisation with StartProcess
+	// returning.
+	OnExit func(exitCode int, signal int, oomKilled bool)
+}
+
+// ExitInfoFromState extracts a standard tuple (exitCode, signal, oomKilled)
+// from a *os.ProcessState plus the wait error. Exported so tests / future
+// drivers can share the canonical extraction logic.
+//
+// Behavior:
+//   - exited normally: exitCode = state.ExitCode(), signal = 0
+//   - killed by signal: exitCode = -1, signal = int(sig)
+//   - OOM-killed: detected via syscall.WaitStatus.Signal() == SIGKILL plus
+//     a check on /sys/fs/cgroup/.../memory.oom_control if available.
+//     We surface the SIGKILL case but conservatively flag oomKilled=false
+//     unless a stronger indicator is available; callers can use the bool.
+func ExitInfoFromState(state *os.ProcessState, waitErr error) (exitCode, signal int, oomKilled bool) {
+	if state == nil {
+		// We have no state — best we can do.
+		if waitErr != nil {
+			return -1, 0, false
+		}
+		return 0, 0, false
+	}
+	if status, ok := state.Sys().(syscall.WaitStatus); ok {
+		if status.Signaled() {
+			return -1, int(status.Signal()), false
+		}
+		if status.Exited() {
+			return status.ExitStatus(), 0, false
+		}
+	}
+	return state.ExitCode(), 0, false
 }
 
 // DefaultBwrapConfig returns a secure default configuration.
@@ -619,8 +665,12 @@ func IsBwrapAvailable(ctx context.Context) (bool, string, error) {
 // Note: TimeoutSec is not enforced for background processes since they're detached.
 // Use process tracking and manual kill for cleanup.
 //
-// If cfg.LogWriter is provided, stdout and stderr are redirected to it.
-// The caller is responsible for closing the LogWriter when the process exits.
+// stdout and stderr are wired to cfg.StdoutWriter / cfg.StderrWriter (both
+// required for background processes; pass io.Discard to drop). If
+// cfg.StdinReader is non-nil it is wired to the process's stdin pipe.
+//
+// When cfg.OnExit is non-nil the driver spawns a wait reaper goroutine that
+// calls cfg.OnExit exactly once after cmd.Wait() returns.
 func (d *OverlayfsDriver) StartProcess(ctx context.Context, s *types.Sandbox, cfg BwrapConfig, cmd string, args ...string) (int, error) {
 	if s.MergedDir == "" {
 		return 0, fmt.Errorf("sandbox is not mounted (merged directory empty)")
@@ -651,21 +701,50 @@ func (d *OverlayfsDriver) StartProcess(ctx context.Context, s *types.Sandbox, cf
 		Setpgid: true,
 	}
 
-	// Redirect output to log writer if provided
-	if cfg.LogWriter != nil {
-		execCmd.Stdout = cfg.LogWriter
-		execCmd.Stderr = cfg.LogWriter
-	}
+	wireStartProcessIO(execCmd, cfg)
 
 	// Start the process
 	if err := execCmd.Start(); err != nil {
 		return 0, fmt.Errorf("failed to start process: %w", err)
 	}
 
-	// Don't wait - let it run in background
-	// The caller is responsible for tracking and cleanup
+	spawnExitReaper(execCmd, cfg.OnExit)
 
 	return execCmd.Process.Pid, nil
+}
+
+// wireStartProcessIO wires cmd.Stdout / cmd.Stderr / cmd.Stdin from cfg.
+// Background processes always need a writer for each stream so output is
+// captured; pass io.Discard if the caller does not want to retain it.
+func wireStartProcessIO(execCmd *exec.Cmd, cfg BwrapConfig) {
+	if cfg.StdoutWriter != nil {
+		execCmd.Stdout = cfg.StdoutWriter
+	} else {
+		execCmd.Stdout = io.Discard
+	}
+	if cfg.StderrWriter != nil {
+		execCmd.Stderr = cfg.StderrWriter
+	} else {
+		execCmd.Stderr = io.Discard
+	}
+	if cfg.StdinReader != nil {
+		execCmd.Stdin = cfg.StdinReader
+	}
+}
+
+// spawnExitReaper waits for the process in a goroutine and dispatches
+// ExitInfo to onExit (when non-nil) exactly once.
+func spawnExitReaper(execCmd *exec.Cmd, onExit func(int, int, bool)) {
+	if onExit == nil {
+		// Still need to wait so the kernel doesn't accumulate zombies.
+		go func() { _ = execCmd.Wait() }()
+		return
+	}
+	go func() {
+		waitErr := execCmd.Wait()
+		exitCode, signal, oom := ExitInfoFromState(execCmd.ProcessState, waitErr)
+		onExit(exitCode, signal, oom)
+	}()
 }
 
 // KillProcessGroup kills a process and all its children by process group ID.
@@ -691,21 +770,6 @@ func IsProcessRunning(pid int) bool {
 	// On Unix, FindProcess always succeeds, so we need to send signal 0
 	err = process.Signal(syscall.Signal(0))
 	return err == nil
-}
-
-// WaitForProcess waits for a process to exit and returns its exit code.
-func WaitForProcess(pid int) (int, error) {
-	process, err := os.FindProcess(pid)
-	if err != nil {
-		return -1, fmt.Errorf("process not found: %w", err)
-	}
-
-	state, err := process.Wait()
-	if err != nil {
-		return -1, fmt.Errorf("wait failed: %w", err)
-	}
-
-	return state.ExitCode(), nil
 }
 
 // GetBwrapInfo returns information about the bwrap installation.

@@ -1,13 +1,13 @@
 {
   "initiative": "protected-agent-sandboxing",
-  "generated_at": "2026-04-28T02:31:35Z",
+  "generated_at": "2026-04-28T09:01:20Z",
   "nodes": [
     {
       "id": "execute/protected-sandbox-agent-launch",
       "kind": "execute",
       "name": "protected-sandbox-agent-launch",
       "title": "Launch coding agents through workspace-sandbox execution APIs in protected mode",
-      "status": "backlog",
+      "status": "completed",
       "priority": 6,
       "effort": "XL",
       "archived": false
@@ -37,7 +37,7 @@
       "kind": "execute",
       "name": "ws-sb-native-stdin-pipe",
       "title": "Workspace-sandbox /processes native stdin pipe",
-      "status": "backlog",
+      "status": "completed",
       "priority": 7,
       "effort": "M",
       "archived": false
@@ -47,7 +47,7 @@
       "kind": "execute",
       "name": "ws-sb-streaming-process-logs",
       "title": "Workspace-sandbox streaming /processes/{pid}/logs (SSE or WebSocket)",
-      "status": "backlog",
+      "status": "completed",
       "priority": 7,
       "effort": "M",
       "archived": false
@@ -57,7 +57,7 @@
       "kind": "execute",
       "name": "ws-sb-structured-exit-codes",
       "title": "Workspace-sandbox /processes structured exit-code recording",
-      "status": "backlog",
+      "status": "completed",
       "priority": 7,
       "effort": "S",
       "archived": false
@@ -67,7 +67,7 @@
       "kind": "execute",
       "name": "ws-sb-stdout-stderr-split",
       "title": "Workspace-sandbox /processes split stdout/stderr streams",
-      "status": "backlog",
+      "status": "completed",
       "priority": 7,
       "effort": "M",
       "archived": false

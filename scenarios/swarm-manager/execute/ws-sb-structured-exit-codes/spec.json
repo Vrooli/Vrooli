@@ -16,7 +16,7 @@
   "kind": "execute",
   "name": "ws-sb-structured-exit-codes",
   "priority": 7,
-  "status": "backlog",
+  "status": "completed",
   "tags": [
     "workspace-sandbox",
     "agent-manager",
@@ -24,5 +24,5 @@
     "follow-up"
   ],
   "title": "Workspace-sandbox /processes structured exit-code recording",
-  "updated": "2026-04-28T02:31:26Z"
+  "updated": "2026-04-28T04:00:00Z"
 }

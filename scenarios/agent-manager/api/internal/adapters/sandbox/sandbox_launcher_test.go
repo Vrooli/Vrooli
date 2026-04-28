@@ -1,10 +1,12 @@
 // Tests for the SandboxLauncher — the workspace-sandbox-backed runner.Launcher
 // used in protected mode. These tests stand up an httptest server that
-// implements just enough of the workspace-sandbox API (PUT files, POST
-// processes, GET logs, GET processes, DELETE process) to exercise the
-// launcher contract without needing a live workspace-sandbox process.
+// implements just enough of the workspace-sandbox API (POST processes,
+// SSE-based GET /logs/stream, POST /stdin, DELETE /processes/{pid}) to
+// exercise the launcher contract without needing a live workspace-sandbox
+// process.
 //
-// See execute/protected-sandbox-agent-launch.
+// See execute/protected-sandbox-agent-launch and the four ws-sb-* follow-on
+// items.
 
 package sandbox
 
@@ -27,60 +29,60 @@ import (
 	"github.com/google/uuid"
 )
 
-// mockSandbox is a tiny in-memory workspace-sandbox simulator for the
-// launcher tests. It records the requests it received and replies with
-// shapes that match the real workspace-sandbox handlers.
+// mockSandbox is an httptest-backed simulator of the workspace-sandbox
+// /processes endpoints. It models a single process at a time. Tests can
+// drive the lifecycle by calling appendStdout / appendStderr / markExited
+// to feed bytes into the SSE channels and wind down the streams cleanly.
 type mockSandbox struct {
 	mu sync.Mutex
 
-	// Files written via PUT /files/content?path=...
-	files map[string][]byte
-
-	// Process state. We model a single process at a time.
 	procPID     int
 	procRunning atomic.Bool
-	procLog     []byte
 	procStarted atomic.Bool
 
-	// Recorded requests, for assertions.
-	startProcessBody map[string]any
-	startProcessSeen atomic.Bool
-	killSeen         atomic.Bool
+	// Recorded request state for assertions.
+	startProcessBody  map[string]any
+	startProcessSeen  atomic.Bool
+	killSeen          atomic.Bool
+	stdinBody         []byte
+	stdinClose        atomic.Bool
+	stdinSeen         atomic.Bool
+	startProcessCode  int
+	startProcessReply string
 
-	// Knobs for forced behaviors:
-	startProcessStatus int    // override the StartProcess HTTP status (0 = 201)
-	startProcessBody2  string // override the StartProcess body (when status != 201)
+	// Per-stream subscriber registry. Each /logs/stream connection adds a
+	// channel that receives chunks; markExited closes them after sending
+	// the exit frame.
+	stdoutSubs []chan sseChunk
+	stderrSubs []chan sseChunk
+	subsMu     sync.Mutex
+
+	// Buffered exit info; sent on exitFrame as JSON.
+	exitInfo *remoteExitInfo
+}
+
+type sseChunk struct {
+	event string
+	data  []byte
 }
 
 func newMockSandbox(initialPID int) *mockSandbox {
-	m := &mockSandbox{
-		files:   make(map[string][]byte),
-		procPID: initialPID,
-	}
-	return m
+	return &mockSandbox{procPID: initialPID}
 }
 
-// startServer returns an httptest server wired to m.
+// startServer wires the routes and returns the running test server.
 func (m *mockSandbox) startServer(t *testing.T) *httptest.Server {
+	t.Helper()
 	mux := http.NewServeMux()
-
 	mux.HandleFunc("/api/v1/sandboxes/", func(w http.ResponseWriter, r *http.Request) {
-		// Routes:
-		//   PUT  /api/v1/sandboxes/{id}/files/content?path=...
-		//   POST /api/v1/sandboxes/{id}/processes
-		//   GET  /api/v1/sandboxes/{id}/processes
-		//   GET  /api/v1/sandboxes/{id}/processes/{pid}/logs?offset=...
-		//   DELETE /api/v1/sandboxes/{id}/processes/{pid}
 		path := r.URL.Path
 		switch {
-		case r.Method == "PUT" && strings.HasSuffix(path, "/files/content"):
-			m.handleWriteFile(w, r)
 		case r.Method == "POST" && strings.HasSuffix(path, "/processes"):
 			m.handleStartProcess(w, r)
-		case r.Method == "GET" && strings.HasSuffix(path, "/processes"):
-			m.handleListProcesses(w, r)
-		case r.Method == "GET" && strings.Contains(path, "/processes/") && strings.HasSuffix(path, "/logs"):
-			m.handleGetLogs(w, r)
+		case r.Method == "POST" && strings.Contains(path, "/processes/") && strings.HasSuffix(path, "/stdin"):
+			m.handleStdin(w, r)
+		case r.Method == "GET" && strings.Contains(path, "/processes/") && strings.HasSuffix(path, "/logs/stream"):
+			m.handleStreamLogs(w, r)
 		case r.Method == "DELETE" && strings.Contains(path, "/processes/"):
 			m.handleKillProcess(w, r)
 		default:
@@ -88,45 +90,25 @@ func (m *mockSandbox) startServer(t *testing.T) *httptest.Server {
 			w.WriteHeader(http.StatusNotFound)
 		}
 	})
-
 	return httptest.NewServer(mux)
-}
-
-func (m *mockSandbox) handleWriteFile(w http.ResponseWriter, r *http.Request) {
-	relPath := r.URL.Query().Get("path")
-	if relPath == "" {
-		http.Error(w, "path required", http.StatusBadRequest)
-		return
-	}
-	body, _ := io.ReadAll(r.Body)
-	var parsed struct {
-		Content  string `json:"content"`
-		Encoding string `json:"encoding"`
-	}
-	_ = json.Unmarshal(body, &parsed)
-	m.mu.Lock()
-	m.files[relPath] = []byte(parsed.Content)
-	m.mu.Unlock()
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(map[string]any{"path": relPath, "size": len(parsed.Content), "created": true})
 }
 
 func (m *mockSandbox) handleStartProcess(w http.ResponseWriter, r *http.Request) {
 	body, _ := io.ReadAll(r.Body)
 	var parsed map[string]any
 	_ = json.Unmarshal(body, &parsed)
+
 	m.mu.Lock()
 	m.startProcessBody = parsed
-	status := m.startProcessStatus
-	customBody := m.startProcessBody2
+	override := m.startProcessCode
+	overrideBody := m.startProcessReply
 	m.mu.Unlock()
 	m.startProcessSeen.Store(true)
 
-	if status != 0 && status != http.StatusCreated && status != http.StatusOK {
+	if override != 0 && override != http.StatusCreated && override != http.StatusOK {
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(status)
-		_, _ = w.Write([]byte(customBody))
+		w.WriteHeader(override)
+		_, _ = w.Write([]byte(overrideBody))
 		return
 	}
 
@@ -138,69 +120,125 @@ func (m *mockSandbox) handleStartProcess(w http.ResponseWriter, r *http.Request)
 		"pid":       m.procPID,
 		"sandboxId": uuid.New(),
 		"command":   parsed["command"],
+		"withStdin": parsed["withStdin"],
 	})
 }
 
-func (m *mockSandbox) handleListProcesses(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	if !m.procStarted.Load() {
-		_ = json.NewEncoder(w).Encode(map[string]any{"processes": []any{}})
-		return
-	}
-	if !m.procRunning.Load() {
-		// Process disappeared — treat as exited.
-		_ = json.NewEncoder(w).Encode(map[string]any{"processes": []any{}})
-		return
-	}
-	_ = json.NewEncoder(w).Encode(map[string]any{
-		"processes": []map[string]any{{"pid": m.procPID, "status": "running"}},
-	})
-}
-
-func (m *mockSandbox) handleGetLogs(w http.ResponseWriter, r *http.Request) {
-	offset := int64(0)
-	if v := r.URL.Query().Get("offset"); v != "" {
-		fmt.Sscanf(v, "%d", &offset)
-	}
+func (m *mockSandbox) handleStdin(w http.ResponseWriter, r *http.Request) {
+	m.stdinSeen.Store(true)
+	body, _ := io.ReadAll(r.Body)
 	m.mu.Lock()
-	logCopy := append([]byte(nil), m.procLog...)
+	m.stdinBody = append(m.stdinBody, body...)
 	m.mu.Unlock()
+	if r.URL.Query().Get("close") == "true" {
+		m.stdinClose.Store(true)
+	}
 	w.Header().Set("Content-Type", "application/json")
-	if int64(len(logCopy)) <= offset {
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"pid":       m.procPID,
-			"sizeBytes": int64(len(logCopy)),
-			"isActive":  m.procRunning.Load(),
-			"content":   "",
-		})
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"pid":          m.procPID,
+		"bytesWritten": len(body),
+		"closed":       r.URL.Query().Get("close") == "true",
+	})
+}
+
+func (m *mockSandbox) handleStreamLogs(w http.ResponseWriter, r *http.Request) {
+	stream := r.URL.Query().Get("stream")
+	if stream != "stdout" && stream != "stderr" {
+		http.Error(w, "missing stream", http.StatusBadRequest)
 		return
 	}
-	tail := logCopy[offset:]
-	_ = json.NewEncoder(w).Encode(map[string]any{
-		"pid":       m.procPID,
-		"sizeBytes": int64(len(logCopy)),
-		"isActive":  m.procRunning.Load(),
-		"content":   string(tail),
-	})
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "no flusher", http.StatusInternalServerError)
+		return
+	}
+	flusher.Flush()
+
+	ch := make(chan sseChunk, 32)
+	m.subsMu.Lock()
+	if stream == "stdout" {
+		m.stdoutSubs = append(m.stdoutSubs, ch)
+	} else {
+		m.stderrSubs = append(m.stderrSubs, ch)
+	}
+	m.subsMu.Unlock()
+
+	ctx := r.Context()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case chunk, open := <-ch:
+			if !open {
+				_, _ = fmt.Fprintf(w, "event: end\ndata: stream closed\n\n")
+				flusher.Flush()
+				return
+			}
+			if chunk.event == "exit" {
+				_, _ = fmt.Fprintf(w, "event: exit\ndata: %s\n\n", string(chunk.data))
+			} else {
+				_, _ = fmt.Fprintf(w, "data: %s\n\n", string(chunk.data))
+			}
+			flusher.Flush()
+		}
+	}
 }
 
 func (m *mockSandbox) handleKillProcess(w http.ResponseWriter, r *http.Request) {
 	m.killSeen.Store(true)
 	m.procRunning.Store(false)
+	// Closing all subscribers terminates their SSE goroutines.
+	m.subsMu.Lock()
+	for _, ch := range m.stdoutSubs {
+		close(ch)
+	}
+	for _, ch := range m.stderrSubs {
+		close(ch)
+	}
+	m.stdoutSubs = nil
+	m.stderrSubs = nil
+	m.subsMu.Unlock()
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// appendLog atomically appends to the process log (called by tests to
-// simulate the agent emitting stdout).
-func (m *mockSandbox) appendLog(s string) {
-	m.mu.Lock()
-	m.procLog = append(m.procLog, []byte(s)...)
-	m.mu.Unlock()
+// appendStdout pushes a chunk to all stdout subscribers.
+func (m *mockSandbox) appendStdout(b []byte) {
+	m.subsMu.Lock()
+	defer m.subsMu.Unlock()
+	for _, ch := range m.stdoutSubs {
+		ch <- sseChunk{data: append([]byte(nil), b...)}
+	}
 }
 
-// markExited simulates the process exiting naturally.
-func (m *mockSandbox) markExited() {
+// appendStderr pushes a chunk to all stderr subscribers.
+func (m *mockSandbox) appendStderr(b []byte) {
+	m.subsMu.Lock()
+	defer m.subsMu.Unlock()
+	for _, ch := range m.stderrSubs {
+		ch <- sseChunk{data: append([]byte(nil), b...)}
+	}
+}
+
+// markExited sends the exit frame on both streams and closes them.
+func (m *mockSandbox) markExited(info remoteExitInfo) {
 	m.procRunning.Store(false)
+	m.exitInfo = &info
+	payload, _ := json.Marshal(info)
+	m.subsMu.Lock()
+	for _, ch := range m.stdoutSubs {
+		ch <- sseChunk{event: "exit", data: payload}
+		close(ch)
+	}
+	for _, ch := range m.stderrSubs {
+		ch <- sseChunk{event: "exit", data: payload}
+		close(ch)
+	}
+	m.stdoutSubs = nil
+	m.stderrSubs = nil
+	m.subsMu.Unlock()
 }
 
 // =============================================================================
@@ -208,8 +246,8 @@ func (m *mockSandbox) markExited() {
 // =============================================================================
 
 // TestSandboxLauncher_LaunchAndStreamLog drives the happy path: launch a
-// process, append log content, mark the process exited, verify Stdout
-// receives all the bytes, and Wait returns nil.
+// process, push stdout chunks via SSE, mark exited, verify Stdout receives
+// all the bytes and Wait returns nil.
 func TestSandboxLauncher_LaunchAndStreamLog(t *testing.T) {
 	mock := newMockSandbox(99)
 	server := mock.startServer(t)
@@ -217,7 +255,6 @@ func TestSandboxLauncher_LaunchAndStreamLog(t *testing.T) {
 
 	provider := NewWorkspaceSandboxProvider(server.URL)
 	launcher := NewSandboxLauncher(provider, uuid.New())
-	launcher.PollInterval = 20 * time.Millisecond
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -227,51 +264,51 @@ func TestSandboxLauncher_LaunchAndStreamLog(t *testing.T) {
 		Args:       []string{"--print"},
 		Env:        []string{"HOME=/workspace"},
 		WorkingDir: "/workspace",
-		Stdin:      strings.NewReader("hello-prompt"),
 	})
 	if err != nil {
 		t.Fatalf("Launch: %v", err)
 	}
 
-	// Background: stream log content over time and then mark the process exited.
+	// Start collecting stdout.
+	got := make(chan string, 1)
 	go func() {
-		time.Sleep(50 * time.Millisecond)
-		mock.appendLog(`{"event":"start"}` + "\n")
-		time.Sleep(50 * time.Millisecond)
-		mock.appendLog(`{"event":"chunk","data":"hello"}` + "\n")
-		time.Sleep(50 * time.Millisecond)
-		mock.markExited()
+		buf, _ := io.ReadAll(proc.Stdout())
+		got <- string(buf)
 	}()
 
-	// Reading Stdout should block until log content arrives, then unblock.
-	out, err := io.ReadAll(proc.Stdout())
-	if err != nil {
-		t.Fatalf("read stdout: %v", err)
-	}
-	if !strings.Contains(string(out), "hello") {
-		t.Errorf("stdout = %q; want substring %q", string(out), "hello")
-	}
+	// Wait briefly for the SSE subscription to register on the server side.
+	time.Sleep(50 * time.Millisecond)
+	mock.appendStdout([]byte(`{"event":"start"}` + "\n"))
+	mock.appendStdout([]byte(`{"event":"chunk","data":"hello"}` + "\n"))
+	mock.markExited(remoteExitInfo{ExitCode: 0})
 
 	if err := proc.Wait(); err != nil {
 		t.Errorf("Wait: %v", err)
 	}
+	select {
+	case out := <-got:
+		if !strings.Contains(out, "hello") {
+			t.Errorf("stdout = %q; want substring %q", out, "hello")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("did not receive stdout in time")
+	}
 
 	if !mock.startProcessSeen.Load() {
-		t.Error("workspace-sandbox StartProcess was not invoked")
+		t.Error("StartProcess was not invoked")
 	}
 }
 
-// TestSandboxLauncher_StagesStdinAsFile verifies LaunchRequest.Stdin gets
-// written as a file in the sandbox AND the process command-line includes
-// a redirect from that file (so the agent process sees stdin via redirect).
-func TestSandboxLauncher_StagesStdinAsFile(t *testing.T) {
+// TestSandboxLauncher_StdinPostedNotStaged verifies LaunchRequest.Stdin
+// reaches the /processes/{pid}/stdin endpoint with close=true (not the
+// old .am-prompts file-staging path).
+func TestSandboxLauncher_StdinPostedNotStaged(t *testing.T) {
 	mock := newMockSandbox(101)
 	server := mock.startServer(t)
 	defer server.Close()
 
 	provider := NewWorkspaceSandboxProvider(server.URL)
 	launcher := NewSandboxLauncher(provider, uuid.New())
-	launcher.PollInterval = 20 * time.Millisecond
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -286,50 +323,45 @@ func TestSandboxLauncher_StagesStdinAsFile(t *testing.T) {
 		t.Fatalf("Launch: %v", err)
 	}
 
-	// Verify a prompt file was written.
-	mock.mu.Lock()
-	var foundPath string
-	for path, body := range mock.files {
-		if strings.Contains(path, ".am-prompts") && string(body) == promptContent {
-			foundPath = path
-			break
-		}
+	if !mock.stdinSeen.Load() {
+		t.Fatal("expected stdin POST endpoint to be hit")
 	}
+	if !mock.stdinClose.Load() {
+		t.Errorf("expected ?close=true on stdin POST")
+	}
+	mock.mu.Lock()
+	gotStdin := string(mock.stdinBody)
 	startBody := mock.startProcessBody
 	mock.mu.Unlock()
-
-	if foundPath == "" {
-		t.Fatalf("expected stdin to be staged as file under .am-prompts; saw files=%v", mock.files)
+	if gotStdin != promptContent {
+		t.Errorf("stdin body = %q; want %q", gotStdin, promptContent)
 	}
 
-	// Verify the StartProcess request used a bash wrapper that redirects
-	// stdin from the staged file.
-	cmd, _ := startBody["command"].(string)
-	if cmd != "bash" {
-		t.Errorf("StartProcess command = %q; want bash (wrapper for stdin redirect)", cmd)
+	// StartProcess must say the underlying command (not bash wrapper) and
+	// signal withStdin=true to the server.
+	if cmd, _ := startBody["command"].(string); cmd != "claude" {
+		t.Errorf("StartProcess command = %q; want %q (no bash wrapper)", cmd, "claude")
+	}
+	if w, _ := startBody["withStdin"].(bool); !w {
+		t.Errorf("StartProcess withStdin = %v; want true", w)
 	}
 	args, _ := startBody["args"].([]any)
-	if len(args) < 2 {
-		t.Fatalf("StartProcess args = %v; want at least [\"-c\", <shell-line>]", args)
-	}
-	if first, _ := args[0].(string); first != "-c" {
-		t.Errorf("StartProcess args[0] = %q; want -c", first)
-	}
-	shellLine, _ := args[1].(string)
-	if !strings.Contains(shellLine, foundPath) {
-		t.Errorf("shell wrapper does not reference prompt file %q; got: %s", foundPath, shellLine)
-	}
-	if !strings.Contains(shellLine, "exec ") {
-		t.Errorf("shell wrapper should `exec` the target so signals reach it; got: %s", shellLine)
+	if len(args) != 1 || args[0] != "--print" {
+		t.Errorf("StartProcess args = %v; want [--print]", args)
 	}
 
-	// Cleanup: kill so Wait returns.
-	proc.Kill()
+	// Cleanup so Wait returns.
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		mock.markExited(remoteExitInfo{ExitCode: 0})
+	}()
+	go io.Copy(io.Discard, proc.Stdout())
+	go io.Copy(io.Discard, proc.Stderr())
 	_ = proc.Wait()
 }
 
-// TestSandboxLauncher_KillReturnsThroughDelete verifies Kill issues a DELETE
-// to the sandbox and Wait unblocks promptly.
+// TestSandboxLauncher_KillReturnsThroughDelete verifies Kill issues a
+// DELETE and Wait unblocks promptly.
 func TestSandboxLauncher_KillReturnsThroughDelete(t *testing.T) {
 	mock := newMockSandbox(202)
 	server := mock.startServer(t)
@@ -337,7 +369,6 @@ func TestSandboxLauncher_KillReturnsThroughDelete(t *testing.T) {
 
 	provider := NewWorkspaceSandboxProvider(server.URL)
 	launcher := NewSandboxLauncher(provider, uuid.New())
-	launcher.PollInterval = 20 * time.Millisecond
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -347,6 +378,7 @@ func TestSandboxLauncher_KillReturnsThroughDelete(t *testing.T) {
 		t.Fatalf("Launch: %v", err)
 	}
 	go io.Copy(io.Discard, proc.Stdout())
+	go io.Copy(io.Discard, proc.Stderr())
 
 	time.Sleep(80 * time.Millisecond)
 	proc.Kill()
@@ -359,12 +391,12 @@ func TestSandboxLauncher_KillReturnsThroughDelete(t *testing.T) {
 		t.Fatal("Wait did not return within 2s of Kill")
 	}
 	if !mock.killSeen.Load() {
-		t.Error("workspace-sandbox kill endpoint was not invoked")
+		t.Error("kill endpoint was not invoked")
 	}
 }
 
-// TestSandboxLauncher_ContextCancelKills verifies ctx cancellation triggers
-// a kill on the remote process.
+// TestSandboxLauncher_ContextCancelKills verifies ctx cancellation
+// triggers the SSE streams to close so Wait returns.
 func TestSandboxLauncher_ContextCancelKills(t *testing.T) {
 	mock := newMockSandbox(303)
 	server := mock.startServer(t)
@@ -372,7 +404,6 @@ func TestSandboxLauncher_ContextCancelKills(t *testing.T) {
 
 	provider := NewWorkspaceSandboxProvider(server.URL)
 	launcher := NewSandboxLauncher(provider, uuid.New())
-	launcher.PollInterval = 20 * time.Millisecond
 
 	ctx, cancel := context.WithCancel(context.Background())
 	proc, err := launcher.Launch(ctx, runner.LaunchRequest{Command: "sleep", Args: []string{"30"}})
@@ -380,6 +411,7 @@ func TestSandboxLauncher_ContextCancelKills(t *testing.T) {
 		t.Fatalf("Launch: %v", err)
 	}
 	go io.Copy(io.Discard, proc.Stdout())
+	go io.Copy(io.Discard, proc.Stderr())
 
 	time.Sleep(80 * time.Millisecond)
 	cancel()
@@ -395,11 +427,11 @@ func TestSandboxLauncher_ContextCancelKills(t *testing.T) {
 
 // TestSandboxLauncher_StartProcess403ReturnsLaunchBlocked verifies that a
 // structured 403 (e.g., git allowlist denial) is surfaced as a typed
-// *LaunchBlocked error rather than a generic launch failure.
+// *LaunchBlocked error.
 func TestSandboxLauncher_StartProcess403ReturnsLaunchBlocked(t *testing.T) {
 	mock := newMockSandbox(404)
-	mock.startProcessStatus = http.StatusForbidden
-	mock.startProcessBody2 = `{"error":"git_verb_blocked","verb":"push","message":"git verb 'push' is not in the allowlist"}`
+	mock.startProcessCode = http.StatusForbidden
+	mock.startProcessReply = `{"error":"git_verb_blocked","verb":"push","message":"git verb 'push' is not in the allowlist"}`
 	server := mock.startServer(t)
 	defer server.Close()
 
@@ -425,23 +457,132 @@ func TestSandboxLauncher_StartProcess403ReturnsLaunchBlocked(t *testing.T) {
 	}
 }
 
-// TestShellQuote_HandlesEmbeddedSingleQuotes is a focused test on the
-// single-quote escaping helper used to build the bash wrapper.
-func TestShellQuote_HandlesEmbeddedSingleQuotes(t *testing.T) {
-	cases := []struct {
-		in   string
-		want string
-	}{
-		{"", "''"},
-		{"hello", "'hello'"},
-		{"it's", `'it'\''s'`},
-		{"a 'b' c", `'a '\''b'\'' c'`},
+// TestSandboxLauncher_StderrStreamPopulates ensures the real /processes
+// stderr stream is wired through to proc.Stderr() (not a closed pipe).
+func TestSandboxLauncher_StderrStreamPopulates(t *testing.T) {
+	mock := newMockSandbox(505)
+	server := mock.startServer(t)
+	defer server.Close()
+
+	provider := NewWorkspaceSandboxProvider(server.URL)
+	launcher := NewSandboxLauncher(provider, uuid.New())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	proc, err := launcher.Launch(ctx, runner.LaunchRequest{Command: "echo"})
+	if err != nil {
+		t.Fatalf("Launch: %v", err)
 	}
-	for _, tc := range cases {
-		got := shellQuote(tc.in)
-		if got != tc.want {
-			t.Errorf("shellQuote(%q) = %q; want %q", tc.in, got, tc.want)
+
+	stdoutCh := make(chan string, 1)
+	stderrCh := make(chan string, 1)
+	go func() {
+		buf, _ := io.ReadAll(proc.Stdout())
+		stdoutCh <- string(buf)
+	}()
+	go func() {
+		buf, _ := io.ReadAll(proc.Stderr())
+		stderrCh <- string(buf)
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+	mock.appendStdout([]byte("on stdout"))
+	mock.appendStderr([]byte("on stderr"))
+	mock.markExited(remoteExitInfo{ExitCode: 0})
+
+	_ = proc.Wait()
+	select {
+	case s := <-stdoutCh:
+		if !strings.Contains(s, "on stdout") {
+			t.Errorf("stdout = %q", s)
 		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("stdout never closed")
+	}
+	select {
+	case s := <-stderrCh:
+		if !strings.Contains(s, "on stderr") {
+			t.Errorf("stderr = %q", s)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("stderr never closed")
+	}
+}
+
+// TestSandboxLauncher_ExitInfoSurfaces verifies that the structured exit
+// frame results in a *remoteExitError carrying exit code, signal, and
+// OOMKilled flag.
+func TestSandboxLauncher_ExitInfoSurfaces(t *testing.T) {
+	mock := newMockSandbox(606)
+	server := mock.startServer(t)
+	defer server.Close()
+
+	provider := NewWorkspaceSandboxProvider(server.URL)
+	launcher := NewSandboxLauncher(provider, uuid.New())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	proc, err := launcher.Launch(ctx, runner.LaunchRequest{Command: "false"})
+	if err != nil {
+		t.Fatalf("Launch: %v", err)
+	}
+	go io.Copy(io.Discard, proc.Stdout())
+	go io.Copy(io.Discard, proc.Stderr())
+
+	time.Sleep(50 * time.Millisecond)
+	mock.markExited(remoteExitInfo{ExitCode: 137, Signal: 9, OOMKilled: true})
+
+	werr := proc.Wait()
+	if werr == nil {
+		t.Fatal("Wait returned nil; want non-zero exit error")
+	}
+	var ree *remoteExitError
+	if !errors.As(werr, &ree) {
+		t.Fatalf("err = %T (%v); want *remoteExitError", werr, werr)
+	}
+	if ree.ExitCode() != 137 {
+		t.Errorf("ExitCode = %d; want 137", ree.ExitCode())
+	}
+	if ree.signal != 9 {
+		t.Errorf("signal = %d; want 9", ree.signal)
+	}
+	if !ree.oomKilled {
+		t.Error("oomKilled should be true")
+	}
+}
+
+// TestSSEParser_BasicEvents pins the SSE field grammar.
+func TestSSEParser_BasicEvents(t *testing.T) {
+	input := "data: hello\n\n" +
+		"data: line1\ndata: line2\n\n" +
+		"event: exit\ndata: {\"exitCode\":0}\n\n" +
+		"event: end\ndata: bye\n\n"
+	parser := newSSEParser(strings.NewReader(input))
+
+	events := []sseEvent{}
+	for {
+		ev, ok := parser.next()
+		if !ok {
+			break
+		}
+		events = append(events, ev)
+	}
+	if len(events) != 4 {
+		t.Fatalf("got %d events; want 4: %+v", len(events), events)
+	}
+	if string(events[0].data) != "hello" {
+		t.Errorf("event[0].data = %q; want hello", string(events[0].data))
+	}
+	if string(events[1].data) != "line1\nline2" {
+		t.Errorf("event[1].data = %q; want line1\\nline2", string(events[1].data))
+	}
+	if events[2].eventType != "exit" || string(events[2].data) != `{"exitCode":0}` {
+		t.Errorf("event[2] = %+v", events[2])
+	}
+	if events[3].eventType != "end" {
+		t.Errorf("event[3].eventType = %q; want end", events[3].eventType)
 	}
 }
 

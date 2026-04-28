@@ -4,17 +4,24 @@
 //   - Tracking of all PIDs spawned within a sandbox context
 //   - Clean termination of tracked processes on sandbox stop/delete
 //   - Prevention of orphaned processes
+//   - Structured exit-info recording (exit code, terminating signal,
+//     OOM-killed flag) so callers can distinguish runner-process success
+//     from failure precisely.
+//   - Per-process stdin pipe handles so the /processes/{pid}/stdin endpoint
+//     can stream input into running processes.
 //
 // Design Notes:
 //   - Process tracking is best-effort, not a security boundary
 //   - Uses process groups for reliable cleanup of child processes
 //   - Stores tracked PIDs in the sandbox metadata (not separate table)
 //   - Supports multiple sessions (multiple exec calls per sandbox)
+//   - Exit info is set exactly once via RecordExit; subsequent calls no-op.
 package process
 
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"sync"
 	"syscall"
@@ -22,6 +29,20 @@ import (
 
 	"github.com/google/uuid"
 )
+
+// ExitInfo captures the terminal state of a tracked process. It is the
+// canonical contract between the driver's wait reaper and the rest of the
+// system (handlers, SSE consumers, sandbox launcher).
+//
+// Signal is non-zero only when the process was killed by a signal.
+// OOMKilled is set by the wait reaper when the kernel reported the process
+// was killed by the OOM killer.
+type ExitInfo struct {
+	ExitCode  int       `json:"exitCode"`
+	Signal    int       `json:"signal,omitempty"`
+	OOMKilled bool      `json:"oomKilled,omitempty"`
+	StoppedAt time.Time `json:"stoppedAt"`
+}
 
 // TrackedProcess represents a process being tracked.
 type TrackedProcess struct {
@@ -43,11 +64,28 @@ type TrackedProcess struct {
 	// StoppedAt is when the process was stopped (if applicable).
 	StoppedAt *time.Time `json:"stoppedAt,omitempty"`
 
-	// ExitCode is the process exit code (if exited).
-	ExitCode *int `json:"exitCode,omitempty"`
+	// ExitCode is the process exit code (if exited). Mirrors ExitInfo.ExitCode
+	// for backwards-compatible JSON consumers; SignalNum and OOMKilled carry
+	// the same precision as ExitInfo.
+	ExitCode  *int  `json:"exitCode,omitempty"`
+	SignalNum *int  `json:"signal,omitempty"`
+	OOMKilled *bool `json:"oomKilled,omitempty"`
 
 	// SessionID groups related processes.
 	SessionID string `json:"sessionId,omitempty"`
+
+	// stdin is the writable end of a pipe wired to the process's stdin
+	// (when the process was started with WithStdin=true). Closed once on
+	// EOF. Not exported in JSON.
+	stdin io.WriteCloser
+
+	// exitCh is closed when ExitInfo has been recorded for this process.
+	// Subscribers (SSE consumers, Wait callers) <-chan to know when the
+	// process has terminated. Created lazily on first Track().
+	exitCh chan struct{}
+
+	// exitMu guards stdin closure idempotency.
+	stdinMu sync.Mutex
 }
 
 // IsRunning checks if the process is still running.
@@ -58,6 +96,34 @@ func (p *TrackedProcess) IsRunning() bool {
 	}
 	// On Unix, Signal(0) checks if process exists
 	return process.Signal(syscall.Signal(0)) == nil
+}
+
+// Status returns "running" while the wait reaper has not delivered an
+// ExitInfo, otherwise "exited".
+func (p *TrackedProcess) Status() string {
+	if p.ExitCode != nil {
+		return "exited"
+	}
+	return "running"
+}
+
+// ExitInfo returns the structured exit info if the process has terminated,
+// or nil if it is still running.
+func (p *TrackedProcess) ExitInfoOrNil() *ExitInfo {
+	if p.ExitCode == nil {
+		return nil
+	}
+	info := &ExitInfo{ExitCode: *p.ExitCode}
+	if p.SignalNum != nil {
+		info.Signal = *p.SignalNum
+	}
+	if p.OOMKilled != nil {
+		info.OOMKilled = *p.OOMKilled
+	}
+	if p.StoppedAt != nil {
+		info.StoppedAt = *p.StoppedAt
+	}
+	return info
 }
 
 // TrackerConfig holds configuration for process tracking.
@@ -124,6 +190,7 @@ func (t *Tracker) Track(sandboxID uuid.UUID, pid int, command string, sessionID 
 		Command:   command,
 		StartedAt: time.Now(),
 		SessionID: sessionID,
+		exitCh:    make(chan struct{}),
 	}
 
 	t.mu.Lock()
@@ -131,6 +198,150 @@ func (t *Tracker) Track(sandboxID uuid.UUID, pid int, command string, sessionID 
 
 	t.processes[sandboxID] = append(t.processes[sandboxID], proc)
 	return proc, nil
+}
+
+// SetStdin attaches a stdin writer to the tracked process. The writer is
+// closed by CloseStdin or by Cleanup. Stdin can only be set once.
+func (t *Tracker) SetStdin(sandboxID uuid.UUID, pid int, stdin io.WriteCloser) error {
+	target := t.findProcess(sandboxID, pid)
+	if target == nil {
+		return fmt.Errorf("process %d not found in sandbox %s", pid, sandboxID)
+	}
+	target.stdinMu.Lock()
+	defer target.stdinMu.Unlock()
+	if target.stdin != nil {
+		return fmt.Errorf("process %d already has stdin attached", pid)
+	}
+	target.stdin = stdin
+	return nil
+}
+
+// WriteStdin writes the given bytes to the process's stdin pipe. Returns
+// an error if the process has no stdin attached.
+func (t *Tracker) WriteStdin(sandboxID uuid.UUID, pid int, p []byte) (int, error) {
+	target := t.findProcess(sandboxID, pid)
+	if target == nil {
+		return 0, fmt.Errorf("process %d not found in sandbox %s", pid, sandboxID)
+	}
+	target.stdinMu.Lock()
+	stdin := target.stdin
+	target.stdinMu.Unlock()
+	if stdin == nil {
+		return 0, fmt.Errorf("process %d has no stdin pipe (not started with WithStdin)", pid)
+	}
+	return stdin.Write(p)
+}
+
+// CloseStdin closes the process's stdin pipe (signaling EOF to the process).
+// Idempotent: subsequent calls return nil.
+func (t *Tracker) CloseStdin(sandboxID uuid.UUID, pid int) error {
+	target := t.findProcess(sandboxID, pid)
+	if target == nil {
+		return fmt.Errorf("process %d not found in sandbox %s", pid, sandboxID)
+	}
+	target.stdinMu.Lock()
+	defer target.stdinMu.Unlock()
+	if target.stdin == nil {
+		return nil
+	}
+	err := target.stdin.Close()
+	target.stdin = nil
+	return err
+}
+
+// RecordExit stores ExitInfo on the tracked process and closes its exit
+// channel. Idempotent: subsequent calls no-op.
+//
+// Called by the driver's wait reaper goroutine when cmd.Wait() returns.
+// Closes the stdin pipe (if any) so the process doesn't block on stdin
+// during teardown.
+func (t *Tracker) RecordExit(sandboxID uuid.UUID, pid int, info ExitInfo) {
+	target := t.findProcess(sandboxID, pid)
+	if target == nil {
+		return
+	}
+
+	// Idempotency: if exit already recorded, no-op.
+	t.mu.Lock()
+	if target.ExitCode != nil {
+		t.mu.Unlock()
+		return
+	}
+	stoppedAt := info.StoppedAt
+	if stoppedAt.IsZero() {
+		stoppedAt = time.Now()
+	}
+	exitCode := info.ExitCode
+	target.ExitCode = &exitCode
+	if info.Signal != 0 {
+		sig := info.Signal
+		target.SignalNum = &sig
+	}
+	if info.OOMKilled {
+		oom := true
+		target.OOMKilled = &oom
+	}
+	target.StoppedAt = &stoppedAt
+	exitCh := target.exitCh
+	t.mu.Unlock()
+
+	// Close stdin so any blocked-on-stdin process unblocks for teardown.
+	target.stdinMu.Lock()
+	if target.stdin != nil {
+		_ = target.stdin.Close()
+		target.stdin = nil
+	}
+	target.stdinMu.Unlock()
+
+	// Notify subscribers.
+	if exitCh != nil {
+		// Guard against double-close in pathological cases.
+		defer func() { _ = recover() }()
+		close(exitCh)
+	}
+}
+
+// ExitChannel returns a channel that closes when the process has exited
+// and ExitInfo has been recorded. Returns a closed channel if the process
+// has already exited or is not tracked.
+func (t *Tracker) ExitChannel(sandboxID uuid.UUID, pid int) <-chan struct{} {
+	closed := make(chan struct{})
+	close(closed)
+
+	target := t.findProcess(sandboxID, pid)
+	if target == nil {
+		return closed
+	}
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	if target.ExitCode != nil {
+		return closed
+	}
+	return target.exitCh
+}
+
+// GetExitInfo returns the structured ExitInfo for a process, or nil if it
+// has not yet exited.
+func (t *Tracker) GetExitInfo(sandboxID uuid.UUID, pid int) *ExitInfo {
+	target := t.findProcess(sandboxID, pid)
+	if target == nil {
+		return nil
+	}
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return target.ExitInfoOrNil()
+}
+
+// findProcess returns the tracked process for (sandboxID, pid) or nil.
+func (t *Tracker) findProcess(sandboxID uuid.UUID, pid int) *TrackedProcess {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	for _, proc := range t.processes[sandboxID] {
+		if proc.PID == pid {
+			return proc
+		}
+	}
+	return nil
 }
 
 // GetProcesses returns all tracked processes for a sandbox.
@@ -202,10 +413,16 @@ func (t *Tracker) KillAll(ctx context.Context, sandboxID uuid.UUID) (int, []erro
 
 		// Check if actually dead now
 		if !proc.IsRunning() {
-			now := time.Now()
-			proc.StoppedAt = &now
-			exitCode := -1
-			proc.ExitCode = &exitCode
+			// Wait reaper will record real exit info; if for some reason
+			// it hasn't (e.g., process not started by us), record a
+			// best-effort placeholder so callers are unblocked.
+			if t.GetExitInfo(sandboxID, proc.PID) == nil {
+				t.RecordExit(sandboxID, proc.PID, ExitInfo{
+					ExitCode:  -1,
+					Signal:    int(syscall.SIGKILL),
+					StoppedAt: time.Now(),
+				})
+			}
 			killed++
 		} else {
 			errors = append(errors, fmt.Errorf("failed to kill PID %d", proc.PID))
@@ -231,16 +448,7 @@ func (t *Tracker) killProcess(proc *TrackedProcess, sig syscall.Signal) error {
 
 // KillProcess terminates a specific process.
 func (t *Tracker) KillProcess(ctx context.Context, sandboxID uuid.UUID, pid int) error {
-	t.mu.RLock()
-	var target *TrackedProcess
-	for _, proc := range t.processes[sandboxID] {
-		if proc.PID == pid {
-			target = proc
-			break
-		}
-	}
-	t.mu.RUnlock()
-
+	target := t.findProcess(sandboxID, pid)
 	if target == nil {
 		return fmt.Errorf("process %d not found in sandbox %s", pid, sandboxID)
 	}
@@ -271,8 +479,6 @@ func (t *Tracker) KillProcess(ctx context.Context, sandboxID uuid.UUID, pid int)
 	time.Sleep(t.config.KillWait)
 
 	if !target.IsRunning() {
-		now := time.Now()
-		target.StoppedAt = &now
 		return nil
 	}
 	if len(errors) > 0 {
@@ -285,8 +491,19 @@ func (t *Tracker) KillProcess(ctx context.Context, sandboxID uuid.UUID, pid int)
 // Should be called after KillAll when the sandbox is being deleted.
 func (t *Tracker) Cleanup(sandboxID uuid.UUID) {
 	t.mu.Lock()
-	defer t.mu.Unlock()
+	procs := t.processes[sandboxID]
 	delete(t.processes, sandboxID)
+	t.mu.Unlock()
+
+	// Close any stdin pipes still attached.
+	for _, proc := range procs {
+		proc.stdinMu.Lock()
+		if proc.stdin != nil {
+			_ = proc.stdin.Close()
+			proc.stdin = nil
+		}
+		proc.stdinMu.Unlock()
+	}
 }
 
 // GetAllStats returns aggregate statistics across all sandboxes.
@@ -371,42 +588,32 @@ func (t *Tracker) EndSession(ctx context.Context, session *Session, killProcesse
 	return nil
 }
 
-// WaitForProcess waits for a process to exit and updates its tracked state.
-// Note: This uses polling since we can't call Wait() on processes we didn't spawn.
+// WaitForProcess waits for a process to exit (driven by the driver's wait
+// reaper recording ExitInfo via RecordExit) and returns the tracked process.
+//
+// Returns context.DeadlineExceeded or the timeout error if the process does
+// not exit before the deadline.
 func (t *Tracker) WaitForProcess(ctx context.Context, sandboxID uuid.UUID, pid int, timeout time.Duration) (*TrackedProcess, error) {
-	t.mu.RLock()
-	var target *TrackedProcess
-	for _, proc := range t.processes[sandboxID] {
-		if proc.PID == pid {
-			target = proc
-			break
-		}
-	}
-	t.mu.RUnlock()
-
+	target := t.findProcess(sandboxID, pid)
 	if target == nil {
 		return nil, fmt.Errorf("process %d not found in sandbox %s", pid, sandboxID)
 	}
 
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		if !target.IsRunning() {
-			now := time.Now()
-			target.StoppedAt = &now
-			// We can't get the actual exit code without calling Wait() on a process we spawned
-			// Set a placeholder value
-			exitCode := 0
-			target.ExitCode = &exitCode
-			return target, nil
-		}
-
-		select {
-		case <-ctx.Done():
-			return target, ctx.Err()
-		case <-time.After(100 * time.Millisecond):
-			// Continue polling
-		}
+	// Already exited?
+	t.mu.RLock()
+	if target.ExitCode != nil {
+		t.mu.RUnlock()
+		return target, nil
 	}
+	exitCh := target.exitCh
+	t.mu.RUnlock()
 
-	return target, fmt.Errorf("timeout waiting for process %d", pid)
+	select {
+	case <-exitCh:
+		return target, nil
+	case <-ctx.Done():
+		return target, ctx.Err()
+	case <-time.After(timeout):
+		return target, fmt.Errorf("timeout waiting for process %d", pid)
+	}
 }

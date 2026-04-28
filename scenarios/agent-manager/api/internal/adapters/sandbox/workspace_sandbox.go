@@ -464,6 +464,24 @@ func (p *WorkspaceSandboxProvider) doRequest(ctx context.Context, method, path s
 	return p.httpClient.Do(req)
 }
 
+// doRawRequest sends a request with a caller-supplied body reader and
+// content-type. Used by the SandboxLauncher to (a) stream raw stdin bytes
+// to /processes/{pid}/stdin and (b) open long-lived SSE connections to
+// /processes/{pid}/logs/stream where the caller wants direct access to
+// the response body without JSON unmarshaling. The returned response uses
+// the same httpClient as doRequest, so timeouts and TLS settings stay
+// uniform across callers.
+func (p *WorkspaceSandboxProvider) doRawRequest(ctx context.Context, method, path, contentType string, body io.Reader) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, method, p.baseURL+path, body)
+	if err != nil {
+		return nil, err
+	}
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
+	return p.httpClient.Do(req)
+}
+
 // SandboxAPIError represents a structured error response from the workspace-sandbox API.
 type SandboxAPIError struct {
 	ErrorMsg  string                 `json:"error"`

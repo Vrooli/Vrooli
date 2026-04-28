@@ -112,14 +112,14 @@ returns the host or sandbox launcher.
 | `opencode.continueWithTranscript` | `r.selector.PickFor` + builder, `runTranscriptCommand` | Slice 1 |
 | `opencode.Continue` (streaming) | `r.selector.PickFor` + builder | Slice 1 |
 
-## Trade-offs the seam still leans on
+## Trade-offs the seam used to lean on (all resolved 2026-04-28)
 
-| Concern | Today's compromise | Tracked under |
+| Concern | Resolution | Item |
 |---|---|---|
-| Truly interactive stdin | Workspace-sandbox `/processes` doesn't expose a stdin pipe; the launcher stages stdin as a file in the sandbox and uses a `bash -c 'exec ... < prompt.txt'` wrapper. Suitable for prompt-via-stdin (the runners' actual pattern); not for mid-run interactive prompts. | `execute/ws-sb-native-stdin-pipe` |
-| Stdout/stderr stream separation | Workspace-sandbox merges them into a single log file. Streaming paths tolerate this because `parseStreamEvents` skips non-JSON lines, but stderr accumulation is empty in protected mode. Durable-transcript paths still scan the launcher's stderr reader (which is closed-empty for sandbox launches). | `execute/ws-sb-stdout-stderr-split` |
-| Stream transport | 100ms polling against `/processes/{pid}/logs` rather than SSE/WebSocket. Resilient and simple; visible-real-time at 100ms. | `execute/ws-sb-streaming-process-logs` |
-| Exit-code precision | Workspace-sandbox doesn't yet record per-process exit codes; the launcher reports `0` on natural exit and `1` placeholder otherwise. Host launches still surface `*exec.ExitError.ExitCode()` precisely. | `execute/ws-sb-structured-exit-codes` |
+| Native stdin pipe | `POST /processes/{pid}/stdin?close=true` streams stdin bytes into a real pipe wired to the bwrap'd process; the launcher posts `req.Stdin` directly. The old file-staging and `bash -c 'exec ... < prompt.txt'` wrapper are gone. | `execute/ws-sb-native-stdin-pipe` |
+| Stdout/stderr stream separation | Workspace-sandbox writes `{pid}.stdout.log` and `{pid}.stderr.log` separately; `/processes/{pid}/logs` and `/logs/stream` both require `?stream=stdout\|stderr`. The launcher opens two SSE streams (one per fd) and surfaces a real `Stderr()` reader on `LaunchedProcess`. | `execute/ws-sb-stdout-stderr-split` |
+| Stream transport | The launcher now consumes Server-Sent Events from `/processes/{pid}/logs/stream`; chunks are pushed by the server's logWriter fan-out as bytes are written, with no client-side polling. The `PollInterval` field is removed. | `execute/ws-sb-streaming-process-logs` |
+| Exit-code precision | The driver's wait reaper records structured `ExitInfo{ExitCode, Signal, OOMKilled}` via `Tracker.RecordExit`, and the SSE stream emits one `event: exit` carrying the JSON-encoded info. The launcher surfaces this as `*remoteExitError` with `ExitCode()`, `signal`, and `oomKilled` fields. | `execute/ws-sb-structured-exit-codes` |
 
 ## How protected mode is exercised
 
@@ -210,15 +210,12 @@ don't silently strip these fields back to the proto zero-value.
 
 ## Open follow-on work
 
-Tracked under the `protected-agent-sandboxing` initiative:
+None outstanding for this initiative as of 2026-04-28. The four
+ws-sb-* items shipped together as part of the same change that flipped
+the protected-mode trade-offs above. See the [executions](
+../../swarm-manager/execute/) for each:
 
-- `execute/ws-sb-stdout-stderr-split` — split stdout/stderr in
-  `/processes` log capture so protected runs populate the runner's
-  `errorOutput` buffer instead of merging into stdout.
-- `execute/ws-sb-native-stdin-pipe` — native stdin pipe on `/processes`
-  (replaces the bash-wrapper file-redirect workaround).
-- `execute/ws-sb-streaming-process-logs` — replace 100ms-poll log
-  draining with a true streaming transport (SSE or WebSocket).
-- `execute/ws-sb-structured-exit-codes` — workspace-sandbox should
-  record per-process exit codes so the `SandboxLauncher.Wait` returns
-  precise exit information instead of the current 0/1 placeholder.
+- `execute/ws-sb-stdout-stderr-split` — completed
+- `execute/ws-sb-native-stdin-pipe` — completed
+- `execute/ws-sb-streaming-process-logs` — completed
+- `execute/ws-sb-structured-exit-codes` — completed

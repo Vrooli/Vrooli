@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -171,28 +172,57 @@ func (a *ProcessExecutorAdapter) StartAsync(ctx context.Context, sandboxID uuid.
 	// No timeout for background processes
 	cfg.ResourceLimits.TimeoutSec = 0
 
-	// Create pending log
-	var pendingLog *process.PendingLog
+	// Create pending log pair (stdout + stderr)
+	var pendingPair *process.PendingLogPair
 	if a.processLogger != nil {
 		var logErr error
-		pendingLog, logErr = a.processLogger.CreatePendingLog(sandboxID)
+		pendingPair, logErr = a.processLogger.CreatePendingLogPair(sandboxID)
 		if logErr == nil {
-			cfg.LogWriter = pendingLog.Writer
+			cfg.StdoutWriter = pendingPair.Stdout
+			cfg.StderrWriter = pendingPair.Stderr
 		}
+	}
+
+	// onExit hook: record structured exit info on the tracker and
+	// finalise the log pair.
+	var onExitOnce sync.Once
+	pidCh := make(chan int, 1)
+	cfg.OnExit = func(exitCode, signal int, oomKilled bool) {
+		var pid int
+		select {
+		case pid = <-pidCh:
+		case <-time.After(2 * time.Second):
+			return
+		}
+		select {
+		case pidCh <- pid:
+		default:
+		}
+		onExitOnce.Do(func() {
+			info := process.ExitInfo{ExitCode: exitCode, Signal: signal, OOMKilled: oomKilled, StoppedAt: time.Now()}
+			if a.processTracker != nil {
+				a.processTracker.RecordExit(sandboxID, pid, info)
+			}
+			if a.processLogger != nil {
+				_ = a.processLogger.CloseLogPair(sandboxID, pid, info)
+			}
+		})
 	}
 
 	// Start process
 	pid, err := a.driver.StartProcess(ctx, sb, cfg, req.Command, req.Args...)
 	if err != nil {
-		if pendingLog != nil {
-			_ = a.processLogger.AbortPendingLog(pendingLog)
+		if pendingPair != nil {
+			_ = a.processLogger.AbortPair(pendingPair)
 		}
 		return nil, err
 	}
 
-	// Finalize log
-	if pendingLog != nil {
-		_, _ = a.processLogger.FinalizeLog(pendingLog, pid)
+	pidCh <- pid
+
+	// Finalize log pair
+	if pendingPair != nil {
+		_, _, _ = a.processLogger.FinalizePair(pendingPair, pid)
 	}
 
 	// Track the process
@@ -272,22 +302,45 @@ func (a *ProcessExecutorAdapter) Kill(ctx context.Context, sandboxID uuid.UUID, 
 	return a.processTracker.KillProcess(ctx, sandboxID, pid)
 }
 
-// GetLogs returns logs for a process.
+// GetLogs returns logs for a process. When stream is "stdout" or "stderr",
+// only that stream is returned. When stream is "" or "both", both streams
+// are read and surfaced separately on the result.
 func (a *ProcessExecutorAdapter) GetLogs(ctx context.Context, sandboxID uuid.UUID, pid int, tailLines int, stream string) (*ProcessLogs, error) {
 	if a.processLogger == nil {
 		return nil, fmt.Errorf("process logging not available")
 	}
 
-	content, err := a.processLogger.ReadLog(sandboxID, pid, tailLines, 0)
-	if err != nil {
-		return nil, err
+	var wanted []process.Stream
+	switch stream {
+	case "", "both":
+		wanted = []process.Stream{process.StreamStdout, process.StreamStderr}
+	case "stdout":
+		wanted = []process.Stream{process.StreamStdout}
+	case "stderr":
+		wanted = []process.Stream{process.StreamStderr}
+	default:
+		return nil, fmt.Errorf("invalid stream %q (want stdout, stderr, or both)", stream)
 	}
 
-	return &ProcessLogs{
-		PID:    pid,
-		Stdout: string(content),
-		Lines:  tailLines,
-	}, nil
+	out := &ProcessLogs{PID: pid, Lines: tailLines}
+	for _, s := range wanted {
+		content, err := a.processLogger.ReadLog(sandboxID, pid, s, tailLines, 0)
+		if err != nil {
+			// A missing single-stream log shouldn't surface as an error
+			// when the caller asked for both — return whatever's there.
+			if len(wanted) == 1 {
+				return nil, err
+			}
+			continue
+		}
+		switch s {
+		case process.StreamStdout:
+			out.Stdout = string(content)
+		case process.StreamStderr:
+			out.Stderr = string(content)
+		}
+	}
+	return out, nil
 }
 
 // convertProfileToDriver converts a config.IsolationProfile to driver.IsolationProfile.

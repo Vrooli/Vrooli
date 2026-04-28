@@ -31,7 +31,7 @@ The platform is therefore best understood as a **local software foundry** rather
 
 - **Git → Git Control Tower (GCT).** Wraps `git`. Already blocks destructive ops by agents. Coming: per-commit run-attribution from agent-manager workspace sandbox, auto-generated commit messages, auto-PR generation, identity-gated permissions, usage analytics.
 - **Browser / web → Browser Automation Studio (BAS).** Wraps browser-use. Adds end-to-end UI testing, screenshot + video capture, known-issue handling, integration with scenario UIs.
-- **Sandboxing → agent-manager workspace-sandbox.** Per-run file-change attribution feeds GCT.
+- **Sandboxing → agent-manager workspace-sandbox.** Per-run file-change attribution feeds GCT. Coding-agent processes themselves run inside the sandbox via the `runner.Launcher` seam in protected mode (default since 2026-04-28); see `scenarios/agent-manager/docs/PROTECTED_MODE_RUNNERS.md`.
 
 **Why this isn't "extra work" in the long run:**
 
