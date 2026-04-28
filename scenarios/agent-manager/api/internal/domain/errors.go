@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -67,6 +68,21 @@ const (
 	ErrCodeSandboxApprove      ErrorCode = "SANDBOX_APPROVE"
 	ErrCodeSandboxReject       ErrorCode = "SANDBOX_REJECT"
 	ErrCodeSandboxOperation    ErrorCode = "SANDBOX_OPERATION"
+	// ErrCodeSandboxLaunchFailed marks a protected-sandbox run that
+	// produced no assistant output and exited too fast to have
+	// genuinely run the agent. The validateRunOutcome categorizer in
+	// orchestration emits it when bwrap-side launch failures (chdir,
+	// missing executable, namespace setup errors) would otherwise be
+	// indistinguishable from a clean success. Recovery: operator
+	// inspects the captured stderr → fixes config → retries. NOT
+	// auto-retried.
+	ErrCodeSandboxLaunchFailed ErrorCode = "SANDBOX_LAUNCH_FAILED"
+	// ErrCodeSandboxNoExitInfo marks a sandbox run where both SSE log
+	// streams closed without the server emitting `event: exit`. After
+	// the workspace-sandbox WaitForExit fix, this should not happen
+	// for a real exit; callers must surface it as a hard failure
+	// rather than a clean success.
+	ErrCodeSandboxNoExitInfo   ErrorCode = "SANDBOX_NO_EXIT_INFO"
 	ErrCodeDatabaseConnection  ErrorCode = "DATABASE_CONNECTION"
 	ErrCodeDatabaseQuery       ErrorCode = "DATABASE_QUERY"
 	ErrCodeConfigInvalid       ErrorCode = "CONFIG_INVALID"
@@ -654,8 +670,27 @@ func (e *SandboxError) Code() ErrorCode {
 		return ErrCodeSandboxApprove
 	case "reject":
 		return ErrCodeSandboxReject
+	case "launch_failed":
+		return ErrCodeSandboxLaunchFailed
+	case "no_exit_info":
+		return ErrCodeSandboxNoExitInfo
 	default:
 		return ErrCodeSandboxOperation
+	}
+}
+
+// NewSandboxLaunchFailedError marks a protected-sandbox run that
+// produced no assistant output before exit and almost certainly failed
+// inside bwrap (chdir, missing executable, namespace setup error). The
+// orchestration layer constructs this from validateRunOutcome and the
+// classifier surfaces it as ErrCodeSandboxLaunchFailed. Recovery is
+// "fix the configuration → retry"; not auto-retried.
+func NewSandboxLaunchFailedError(message string) *SandboxError {
+	return &SandboxError{
+		Operation:   "launch_failed",
+		Cause:       errors.New(message),
+		IsTransient: false,
+		CanRetry:    false,
 	}
 }
 

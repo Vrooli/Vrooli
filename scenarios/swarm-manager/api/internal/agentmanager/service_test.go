@@ -32,9 +32,9 @@ func TestDefaultProfileConfig(t *testing.T) {
 	if !cfg.RequiresSandbox {
 		t.Fatal("expected RequiresSandbox=true: swarm-manager agents run sandboxed so agent-manager's auto-approve-if-empty path handles read-only runs cleanly")
 	}
-	if !cfg.ManualReview {
-		t.Fatal("expected ManualReview=true: sandboxed runs with diffs are human-reviewed under the auditability contract")
-	}
+	// swarm-manager auto-accepts; the ManualReview field was removed
+	// from ProfileConfig 2026-04-28. There is no per-skill override
+	// path — sandbox is the auditability layer, not a review queue.
 }
 
 func TestDefaultProfileRef_UpdateExistingTrue(t *testing.T) {
@@ -57,8 +57,11 @@ func TestDefaultProfileRef_UpdateExistingTrue(t *testing.T) {
 	if !ref.Defaults.RequiresSandbox {
 		t.Fatal("expected Defaults.RequiresSandbox=true to match DefaultProfileConfig")
 	}
-	if ref.Defaults.SandboxConfig == nil || !ref.Defaults.SandboxConfig.ManualReview {
-		t.Fatal("expected Defaults.SandboxConfig.ManualReview=true to match DefaultProfileConfig")
+	// SandboxConfig is intentionally omitted from buildProfile — see
+	// the ProfileConfig comment. agent-manager fills in the contract
+	// defaults (auto-apply, no manual review) at resolveSandboxConfig.
+	if ref.Defaults.SandboxConfig != nil {
+		t.Fatalf("expected Defaults.SandboxConfig to be nil; got %+v", ref.Defaults.SandboxConfig)
 	}
 }
 
@@ -79,7 +82,6 @@ func TestBuildProfile(t *testing.T) {
 		AllowedTools:    []string{"Read"},
 		SkipPermissions: false,
 		RequiresSandbox: false,
-		ManualReview:    true,
 	}
 
 	profile := svc.buildProfile(cfg)
@@ -98,8 +100,11 @@ func TestBuildProfile(t *testing.T) {
 	if profile.SkipPermissionPrompt || profile.RequiresSandbox {
 		t.Fatalf("expected permission flags to be preserved")
 	}
-	if profile.SandboxConfig == nil || !profile.SandboxConfig.ManualReview {
-		t.Fatalf("expected SandboxConfig.ManualReview=true forwarded to proto profile")
+	// swarm-manager omits SandboxConfig in the proto profile; the
+	// agent-manager side fills in the contract defaults
+	// (auto-apply on success, no manual review).
+	if profile.SandboxConfig != nil {
+		t.Fatalf("expected SandboxConfig to be nil; got %+v", profile.SandboxConfig)
 	}
 }
 

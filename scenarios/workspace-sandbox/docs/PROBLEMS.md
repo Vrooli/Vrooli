@@ -157,3 +157,9 @@ The following issues were addressed in the 2025-12-16 Idempotency & Temporal Flo
 
 *Last updated: 2025-12-17 by Claude Opus 4.5 (Security Fixes + Test Infrastructure Investigation)*
 *Next review: After test-genie path resolution issues are resolved*
+
+## Resolved Incidents
+
+### R-001: SSE exit-event race (2026-04-28)
+**Symptom**: Fast-failing processes (e.g. bwrap chdir failures, exit in ~10ms) closed the SSE log stream before `spawnExitReaper` called `RecordExit`. `StreamProcessLogs`'s best-effort `GetExitInfo` lookup returned nil, so no `event: exit` frame was ever sent. Agent-manager's SandboxLauncher treated the missing frame as a clean success.
+**Fix**: `process.Tracker.WaitForExit` blocks on a per-process `exitCh` channel that `RecordExit` closes; `StreamProcessLogs` awaits it with a 5s bounded timeout before emitting `event: exit` (or `event: error` if the timeout fires). See `scenarios/workspace-sandbox/docs/SEAMS.md` (Process Tracker seam) and `docs/plans/sandbox-launch-and-auto-approve-fixes-plan.md` Phase B.

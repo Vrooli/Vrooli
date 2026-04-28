@@ -744,12 +744,28 @@ func (h *Handlers) StreamProcessLogs(w http.ResponseWriter, r *http.Request) {
 		flusher.Flush()
 	}
 
-	// If we have a process tracker and the process has terminated, push
-	// the structured exit info so consumers don't need a second request.
+	// Push the structured exit info so consumers don't need a second
+	// request. We wait for it (bounded) instead of the prior best-effort
+	// GetExitInfo lookup: fast-failing processes (e.g. bwrap chdir
+	// errors that exit in <100ms) used to lose this race and never sent
+	// `event: exit` at all, which let the client mistake the failure for
+	// success. The tracker.WaitForExit channel is closed by RecordExit
+	// in the wait reaper goroutine.
 	if h.ProcessTracker != nil {
-		if info := h.ProcessTracker.GetExitInfo(id, pid); info != nil {
+		waitCtx, cancel := context.WithTimeout(context.Background(), exitInfoWaitTimeout)
+		info, waitErr := h.ProcessTracker.WaitForExit(waitCtx, id, pid)
+		cancel()
+		switch {
+		case info != nil:
 			payload, _ := json.Marshal(info)
 			fmt.Fprintf(w, "event: exit\ndata: %s\n\n", string(payload))
+			flusher.Flush()
+		case waitErr != nil:
+			// Either the process is no longer tracked (sandbox cleaned
+			// up under us) or the exit reaper never recorded — surface
+			// as a stream-level error so the client treats it as
+			// failure rather than success.
+			fmt.Fprintf(w, "event: error\ndata: exit info unavailable: %s\n\n", waitErr.Error())
 			flusher.Flush()
 		}
 	}
@@ -757,6 +773,12 @@ func (h *Handlers) StreamProcessLogs(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "event: end\ndata: stream closed\n\n")
 	flusher.Flush()
 }
+
+// exitInfoWaitTimeout caps how long StreamProcessLogs waits after the log
+// stream closes for the wait reaper to record exit info. 5s is well above
+// the typical reap latency (microseconds) but short enough to fail fast
+// when the reaper goroutine genuinely never runs (a bug).
+const exitInfoWaitTimeout = 5 * time.Second
 
 // PostProcessStdin streams the request body to the process's stdin pipe.
 // Optional query parameter: close=true closes the stdin pipe after the

@@ -649,3 +649,39 @@ svc := sandbox.NewService(mockRepo, mockDriver, cfg,
 | 2025-12-19 | Updated Generator and Patcher to use CommandRunner | Diff generation is now testable without real commands |
 | 2025-12-16 | Added policy interfaces and config package | Configurable approval, attribution, validation |
 | 2025-12-15 | Created SEAMS.md documenting architecture | Architectural decisions are now documented |
+
+## Process Tracker — exit-event delivery contract (2026-04-28)
+
+`process.Tracker.WaitForExit(ctx, sandboxID, pid) (*ExitInfo, error)` is
+the single seam used by `StreamProcessLogs` to deterministically deliver
+the SSE `event: exit` frame. Each tracked process owns an `exitCh`
+channel that `RecordExit` closes exactly once when the wait reaper
+returns; `WaitForExit` blocks on it (or `ctx.Done()`).
+
+Wire ordering inside `handlers.StreamProcessLogs`:
+
+1. Stream log content via `ProcessLogger.StreamLog`.
+2. After the log writer closes, await exit info via
+   `WaitForExit` with a bounded 5s timeout
+   (`exitInfoWaitTimeout` in `internal/handlers/process.go`).
+3. Emit `event: exit` with the JSON-encoded `ExitInfo` if the wait
+   succeeded; otherwise emit `event: error` with a "exit info
+   unavailable" message. Clients (agent-manager `SandboxLauncher`)
+   treat the latter as failure, never success.
+4. Emit `event: end` and close the SSE stream.
+
+Pre-2026-04-28 the handler did a best-effort `GetExitInfo` lookup
+between steps 1 and 2 and emitted `event: exit` only if it happened to
+be populated. Fast-failing processes (bwrap chdir errors that exit in
+~10ms) lost the race: the SSE stream closed before `spawnExitReaper`
+called `RecordExit`, so no exit frame was ever sent. The
+`agent-manager` client treated the missing frame as success and the
+run completed with exit 0 despite never producing output.
+
+Tests pinning the contract:
+
+- `process.TestWaitForExit_BlocksUntilRecordExit` — channel semantics.
+- `process.TestWaitForExit_ReturnsImmediatelyForAlreadyExited` — fast
+  path for late SSE attachers.
+- `process.TestWaitForExit_ContextDeadline` — bounded wait must respect
+  ctx so a stuck reaper does not hang the SSE stream forever.

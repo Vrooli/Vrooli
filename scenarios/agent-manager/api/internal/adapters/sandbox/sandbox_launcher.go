@@ -53,10 +53,32 @@ import (
 	"github.com/google/uuid"
 )
 
+// SandboxNamespacePath is the path at which the sandbox's merged
+// (overlayfs) workspace is bind-mounted inside the bwrap mount namespace.
+// It is the *only* path the agent process should see for its workspace —
+// host paths to the merged dir do not exist inside the namespace and will
+// fail bwrap's `--chdir` step before the runner ever launches.
+//
+// This constant must stay aligned with the `--bind <merged> /workspace`
+// arg emitted by workspace-sandbox/api/internal/driver/bwrap.go (the
+// `args = append(args, "--bind", s.MergedDir, "/workspace")` line). If
+// either side changes, both must change.
+//
+// DOC: see scenarios/agent-manager/docs/internal/SEAMS.md #SandboxLauncher
+// DOC: see scenarios/workspace-sandbox/docs/internal/SEAMS.md #BwrapMount
+const SandboxNamespacePath = "/workspace"
+
 // SandboxLauncher launches processes through workspace-sandbox /processes.
 type SandboxLauncher struct {
 	provider  *WorkspaceSandboxProvider
 	sandboxID uuid.UUID
+
+	// hostMergedOnce caches the host-side merged path lookup for this
+	// sandbox. SandboxLauncher is constructed per sandbox so once the
+	// path is resolved it can stay for the lifetime of the launcher.
+	hostMergedOnce sync.Once
+	hostMergedDir  string
+	hostMergedErr  error
 }
 
 // NewSandboxLauncher builds a Launcher for the given sandbox using the
@@ -67,6 +89,53 @@ func NewSandboxLauncher(provider *WorkspaceSandboxProvider, sandboxID uuid.UUID)
 		provider:  provider,
 		sandboxID: sandboxID,
 	}
+}
+
+// resolveHostMergedDir returns the host-side merged path for this sandbox,
+// caching the lookup. Used to recognize callers that pass the host path
+// where they should be passing the namespace path.
+func (l *SandboxLauncher) resolveHostMergedDir(ctx context.Context) (string, error) {
+	l.hostMergedOnce.Do(func() {
+		l.hostMergedDir, l.hostMergedErr = l.provider.GetWorkspacePath(ctx, l.sandboxID)
+	})
+	return l.hostMergedDir, l.hostMergedErr
+}
+
+// translateHostPathToNamespace rewrites a value that may contain the
+// host-side merged path so that it points at the in-namespace mount.
+//
+// Rules:
+//   - empty in → empty out (caller decides default).
+//   - exact match against hostMerged → SandboxNamespacePath.
+//   - path with hostMerged as a clean directory prefix (e.g. a subpath of
+//     the merged dir) → SandboxNamespacePath + remainder.
+//   - any other value → returned unchanged. Caller is responsible for
+//     deciding whether that value is a contract violation.
+//
+// hostMerged is the resolved host path of the sandbox merged dir
+// (e.g. /home/.../workspace-sandbox/<id>/merged). When it is empty the
+// helper acts as identity — the launcher will still validate workingDir
+// before POSTing.
+//
+// DOC: see scenarios/agent-manager/docs/internal/SEAMS.md #SandboxLauncher
+func translateHostPathToNamespace(value, hostMerged string) string {
+	if value == "" {
+		return ""
+	}
+	if hostMerged == "" {
+		return value
+	}
+	if value == hostMerged {
+		return SandboxNamespacePath
+	}
+	prefix := hostMerged
+	if !strings.HasSuffix(prefix, "/") {
+		prefix += "/"
+	}
+	if strings.HasPrefix(value, prefix) {
+		return SandboxNamespacePath + "/" + strings.TrimPrefix(value, prefix)
+	}
+	return value
 }
 
 // Launch starts the process inside the sandbox.
@@ -92,11 +161,26 @@ func (l *SandboxLauncher) Launch(ctx context.Context, req runner.LaunchRequest) 
 
 	envMap := envSliceToMap(req.Env)
 
+	// Translate host paths to in-namespace paths. Inside the bwrap mount
+	// namespace the sandbox's merged dir is bind-mounted at
+	// SandboxNamespacePath, so any host path supplied by the caller must
+	// be rewritten before it crosses the API boundary. A host workdir
+	// outside the sandbox is a contract violation, not a fallback case.
+	hostMerged, hostErr := l.resolveHostMergedDir(ctx)
+	if hostErr != nil {
+		return nil, fmt.Errorf("SandboxLauncher: resolve host merged dir: %w", hostErr)
+	}
+	workingDir, wdErr := resolveWorkingDir(req.WorkingDir, hostMerged)
+	if wdErr != nil {
+		return nil, wdErr
+	}
+	envMap = translateEnvHostPaths(envMap, hostMerged)
+
 	pid, err := l.startProcess(ctx, startProcessBody{
 		Command:        req.Command,
 		Args:           req.Args,
 		Env:            envMap,
-		WorkingDir:     req.WorkingDir,
+		WorkingDir:     workingDir,
 		IsolationLevel: "vrooli-aware",
 		WithStdin:      withStdin,
 	})
@@ -390,6 +474,16 @@ func (p *sandboxLaunchedProcess) recordExitInfo(payload []byte) {
 	})
 }
 
+// ErrSandboxNoExitInfo signals that both SSE log streams closed without
+// the server emitting `event: exit`. Under the current contract (after
+// the workspace-sandbox WaitForExit fix in process.StreamProcessLogs),
+// this should not happen for a real exit — every process the tracker
+// knows about gets its ExitInfo recorded by spawnExitReaper. If the
+// client sees this error, either the process was untracked (a bug) or
+// the connection dropped between exit and notify. In either case the
+// run is NOT a clean success; callers must surface it as failure.
+var ErrSandboxNoExitInfo = errors.New("sandbox process ended without exit info")
+
 // finalizeWaitErr sets p.waitErr from the recorded exit info (or kill state).
 func (p *sandboxLaunchedProcess) finalizeWaitErr() {
 	if p.killed.Load() {
@@ -400,9 +494,11 @@ func (p *sandboxLaunchedProcess) finalizeWaitErr() {
 	info := p.exitInfo
 	p.exitInfoMu.Unlock()
 	if info == nil {
-		// Server never sent exit info — connection dropped before the
-		// process terminated, or the process was already gone before we
-		// subscribed. Treat as success unless we have other state.
+		// Both SSE streams ended without `event: exit`. Under the new
+		// contract (see ErrSandboxNoExitInfo) this is a failure — the
+		// previous "treat as success" policy let bwrap launch errors
+		// masquerade as exit-0 successes. Callers must surface it.
+		p.waitErr = ErrSandboxNoExitInfo
 		return
 	}
 	if info.ExitCode == 0 && info.Signal == 0 {
@@ -557,6 +653,53 @@ func (p *sseParser) next() (sseEvent, bool) {
 // =============================================================================
 // helpers
 // =============================================================================
+
+// resolveWorkingDir picks the in-namespace workingDir for a launch request.
+//
+//   - empty → SandboxNamespacePath (the merged-dir mount inside bwrap).
+//   - matches the host merged dir (or a subpath of it) → translated to
+//     the corresponding in-namespace path.
+//   - already SandboxNamespacePath (or a subpath) → returned unchanged.
+//   - any other absolute host path → contract violation; returned as
+//     *LaunchBlocked{Code: "workdir_outside_sandbox"} so the runner can
+//     surface it on the run timeline rather than fail opaquely later.
+func resolveWorkingDir(requested, hostMerged string) (string, error) {
+	if requested == "" {
+		return SandboxNamespacePath, nil
+	}
+	// Already in-namespace (constant or any path under it).
+	if requested == SandboxNamespacePath ||
+		strings.HasPrefix(requested, SandboxNamespacePath+"/") {
+		return requested, nil
+	}
+	if hostMerged != "" {
+		if requested == hostMerged ||
+			strings.HasPrefix(requested, strings.TrimSuffix(hostMerged, "/")+"/") {
+			return translateHostPathToNamespace(requested, hostMerged), nil
+		}
+	}
+	return "", &LaunchBlocked{
+		Code:    "workdir_outside_sandbox",
+		Message: fmt.Sprintf("workingDir %q is outside the sandbox merged dir; sandbox-routed launches must run inside %s", requested, SandboxNamespacePath),
+	}
+}
+
+// translateEnvHostPaths rewrites any env values that exactly match the
+// sandbox's host merged path so that the agent process inside the
+// namespace sees the in-namespace path. Other values pass through. The
+// VROOLI_SANDBOX_MERGED contract specifically expects this translation
+// (the env var name documents semantics; the value must be visible to
+// the agent).
+func translateEnvHostPaths(env map[string]string, hostMerged string) map[string]string {
+	if len(env) == 0 || hostMerged == "" {
+		return env
+	}
+	out := make(map[string]string, len(env))
+	for k, v := range env {
+		out[k] = translateHostPathToNamespace(v, hostMerged)
+	}
+	return out
+}
 
 // envSliceToMap converts os.Environ()-style entries to a map. Keys with
 // duplicate names take the last value (matching POSIX semantics).

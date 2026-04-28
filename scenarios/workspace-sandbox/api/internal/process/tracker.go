@@ -332,6 +332,47 @@ func (t *Tracker) GetExitInfo(sandboxID uuid.UUID, pid int) *ExitInfo {
 	return target.ExitInfoOrNil()
 }
 
+// WaitForExit blocks until the process has exited and ExitInfo has been
+// recorded, or until ctx is cancelled. Returns:
+//   - (*ExitInfo, nil) once RecordExit has run for this process.
+//   - (nil, ctx.Err()) if ctx fires before exit info is recorded — typical
+//     when the caller uses a bounded timeout to avoid hanging an SSE
+//     stream on a wait reaper that never returned.
+//   - (nil, error) if the process is not tracked.
+//
+// Used by StreamProcessLogs to deterministically deliver `event: exit`
+// frames even when the process exits before the SSE subscriber attached
+// (the prior best-effort GetExitInfo lookup raced spawnExitReaper for
+// fast-failing processes).
+//
+// DOC: see scenarios/workspace-sandbox/docs/internal/SEAMS.md #ProcessTracker
+func (t *Tracker) WaitForExit(ctx context.Context, sandboxID uuid.UUID, pid int) (*ExitInfo, error) {
+	target := t.findProcess(sandboxID, pid)
+	if target == nil {
+		return nil, fmt.Errorf("process %d not found in sandbox %s", pid, sandboxID)
+	}
+
+	// Already recorded? Return immediately.
+	t.mu.RLock()
+	if target.ExitCode != nil {
+		info := target.ExitInfoOrNil()
+		t.mu.RUnlock()
+		return info, nil
+	}
+	exitCh := target.exitCh
+	t.mu.RUnlock()
+
+	select {
+	case <-exitCh:
+		t.mu.RLock()
+		info := target.ExitInfoOrNil()
+		t.mu.RUnlock()
+		return info, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
 // findProcess returns the tracked process for (sandboxID, pid) or nil.
 func (t *Tracker) findProcess(sandboxID uuid.UUID, pid int) *TrackedProcess {
 	t.mu.RLock()

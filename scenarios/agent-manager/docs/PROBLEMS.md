@@ -63,3 +63,15 @@
 ### TD-002: UI Placeholder
 **Description**: UI is minimal scaffold from template; dashboard will need full implementation.
 **Priority**: Deferred to OT-P2-007.
+
+## Resolved Incidents
+
+### R-001: Silent launch failure after protected-sandbox cutover (2026-04-28)
+**Symptom**: swarm-manager initiative-feedback runs landed in `RUN_STATUS_NEEDS_REVIEW` after ~134ms with 0 assistant messages and exit code 0. The runner never produced output; the run looked complete.
+**Root causes** (four stacked defects):
+1. SandboxLauncher posted the *host* merged path as `WorkingDir` to workspace-sandbox `/processes`. Inside the bwrap mount namespace the merged dir is bind-mounted at `/workspace`; the host path does not exist there, so bwrap exited 1 with `Can't chdir to ...: No such file or directory` before claude launched.
+2. workspace-sandbox `StreamProcessLogs` raced the wait reaper for fast-failing processes — the SSE stream closed before `RecordExit` ran, so no `event: exit` was emitted.
+3. `sandboxLaunchedProcess.finalizeWaitErr` treated missing exit info as success.
+4. swarm-manager profile hardcoded `ManualReview=true`, so even silent failures landed in NEEDS_REVIEW.
+**Fix**: see `docs/plans/sandbox-launch-and-auto-approve-fixes-plan.md` (committed 2026-04-28). Phase A translates paths at the SandboxLauncher boundary; Phase B adds `WaitForExit` server-side; Phase C surfaces `ErrSandboxNoExitInfo` and emits stderr on success; Phase D adds `validateRunOutcome` to demote silent successes; Phase E removes ManualReview from the swarm-manager profile.
+**Affected commits**: `3e8b004704` through `26af7314ab` (Sandboxing auto-approval p1..p5).

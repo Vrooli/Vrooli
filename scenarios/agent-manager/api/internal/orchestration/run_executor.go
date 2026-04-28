@@ -32,6 +32,7 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -1112,6 +1113,117 @@ func (e *RunExecutor) executeAgent(ctx context.Context, r runner.Runner) {
 
 	// Execute
 	e.result, e.execErr = r.Execute(ctx, req)
+
+	// Categorize silent launch failures: a protected-sandbox run that
+	// returns Success=true after <2s with zero assistant message events
+	// almost certainly means the runner never actually started (the
+	// classic shape is bwrap chdir failing before claude launches).
+	// Demote it to a structured failure so it does NOT auto-accept.
+	e.validateRunOutcome(ctx)
+}
+
+// validateRunOutcome runs after the runner returns and before
+// classifyOutcome. When the runner reported success but the run shape
+// indicates a silent launch failure (protected sandbox, no assistant
+// messages, sub-2s wall time), it rewrites e.result + e.execErr so
+// classifyOutcome treats it as a terminal failure with the
+// SANDBOX_LAUNCH_FAILED code.
+//
+// The heuristic is intentionally narrow:
+//   - mode must be PROTECTED (in-place runs don't traverse bwrap, so
+//     the failure shape doesn't apply).
+//   - duration must be < launchFailedMaxDuration. A real claude run
+//     takes seconds even for the simplest prompt.
+//   - zero RUN_EVENT_TYPE_MESSAGE events. A real run always emits at
+//     least the user-prompt echo + one assistant turn; a tool-only run
+//     still emits assistant tool-call messages.
+//
+// DOC: see scenarios/agent-manager/docs/internal/ERROR-SEMANTICS.md
+// (LAUNCH_FAILED row).
+func (e *RunExecutor) validateRunOutcome(ctx context.Context) {
+	if e.result == nil || !e.result.Success {
+		return
+	}
+	if !e.isProtectedSandboxRun() {
+		return
+	}
+	if e.result.Duration >= launchFailedMaxDuration {
+		return
+	}
+	msgCount, err := e.countMessageEvents(ctx)
+	if err != nil {
+		// Don't demote on a bookkeeping failure — better to let a real
+		// run through than to false-positive on event-store hiccups.
+		e.emitSystemEvent(ctx, "warn", "validateRunOutcome: count message events: "+err.Error())
+		return
+	}
+	if msgCount > 0 {
+		return
+	}
+
+	stderrSnippet := truncateForLogPayload(e.result.ErrorMessage, 4096)
+	e.emitSystemEvent(ctx, "warn", fmt.Sprintf(
+		"silent launch failure detected (mode=protected, duration=%s, message_events=0); demoting to FAILED — inspect workspace-sandbox logs for bwrap stderr",
+		e.result.Duration.Truncate(time.Millisecond),
+	))
+
+	// Rewrite the result so classifyOutcome → handleFailure picks it up.
+	msg := stderrSnippet
+	if strings.TrimSpace(msg) == "" {
+		msg = "sandbox-routed run produced no output before exit; likely bwrap launch failure (see workspace-sandbox process logs)"
+	}
+	e.result.Success = false
+	if e.result.ExitCode == 0 {
+		e.result.ExitCode = -1
+	}
+	e.result.ErrorMessage = msg
+	e.execErr = domain.NewSandboxLaunchFailedError(msg)
+}
+
+// launchFailedMaxDuration is the upper bound for "ran too fast to be a
+// real run". Tuned generously above bwrap's ~50ms launch overhead and
+// well below any plausible claude turn.
+const launchFailedMaxDuration = 2 * time.Second
+
+// isProtectedSandboxRun returns true when the resolved config picks
+// SandboxModeProtected. Other modes (in-place, tracking) don't traverse
+// bwrap so they cannot exhibit the launch-failure shape.
+func (e *RunExecutor) isProtectedSandboxRun() bool {
+	if e.run == nil || e.run.RunMode != domain.RunModeSandboxed {
+		return false
+	}
+	cfg := e.run.ResolvedConfig
+	if cfg == nil || cfg.SandboxConfig == nil {
+		return false
+	}
+	return cfg.SandboxConfig.Mode.Effective() == domain.SandboxModeProtected
+}
+
+// countMessageEvents returns how many RUN_EVENT_TYPE_MESSAGE events
+// were emitted for this run so far. Used by the silent-launch-failure
+// categorizer.
+func (e *RunExecutor) countMessageEvents(ctx context.Context) (int, error) {
+	if e.events == nil {
+		return 0, nil
+	}
+	got, err := e.events.Get(ctx, e.run.ID, event.GetOptions{
+		EventTypes: []domain.RunEventType{domain.EventTypeMessage},
+		Limit:      1,
+	})
+	if err != nil {
+		return 0, err
+	}
+	return len(got), nil
+}
+
+// truncateForLogPayload bounds a string for inclusion in run-event
+// payloads. Mirrors the runner-side helper but lives here to avoid a
+// cross-package import dance for what is effectively a 2-line function.
+func truncateForLogPayload(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "\n…[truncated]"
 }
 
 func (e *RunExecutor) prepareTranscriptConfig(ctx context.Context) (*runner.TranscriptConfig, error) {
@@ -1239,6 +1351,14 @@ func (e *RunExecutor) prepareTranscriptConfig(ctx context.Context) (*runner.Tran
 //
 // Returns nil for non-sandboxed runs, so callers can unconditionally assign the
 // result to ExecuteRequest.Environment.
+//
+// Note on VROOLI_SANDBOX_MERGED: e.workDir holds the *host* merged path
+// (returned by Provider.GetWorkspacePath). For sandbox-routed launches the
+// SandboxLauncher rewrites this value to SandboxNamespacePath
+// ("/workspace") before posting to workspace-sandbox /processes — see
+// translateEnvHostPaths in scenarios/agent-manager/api/internal/adapters/sandbox/sandbox_launcher.go.
+// Host launches keep the host path because the agent runs on the host
+// filesystem.
 func (e *RunExecutor) SandboxEnvVars() map[string]string {
 	// Only inject sandbox context for sandboxed runs that have completed
 	// sandbox creation (sandboxID and workDir are populated).

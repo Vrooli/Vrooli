@@ -33,6 +33,12 @@
           "title": "Glossary",
           "description": "Core terminology and lifecycle vocabulary",
           "audience": ["users", "developers"]
+        },
+        {
+          "path": "concepts/EXECUTION-MODES.md",
+          "title": "Execution Modes",
+          "description": "Backlog-item-level vs. initiative-level execution: when each applies and why both are first-class",
+          "audience": ["developers", "operators"]
         }
       ]
     },

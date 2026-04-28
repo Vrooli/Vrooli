@@ -17,11 +17,17 @@ const DefaultAgentMaxTurns int32 = 600
 
 // ProfileConfig contains agent profile configuration.
 //
-// RequiresApproval (legacy proto field 12) was removed in
-// agent-sandbox-audit-foundation Phase 3b. Operator-gated apply is now
-// expressed via SandboxConfig.ManualReview on the agent-manager side; we
-// represent that here via the ManualReview bool, which is forwarded onto
-// the AgentProfile.SandboxConfig at build time.
+// swarm-manager runs always auto-accept on success. Sandbox is the
+// auditability layer — per-run file diffs are preserved in
+// workspace-sandbox regardless. There is no manual-review knob; runs
+// are either successful (auto-applied) or failed (sandbox preserved
+// for inspection). The ManualReview field was removed 2026-04-28 to
+// keep the contract uniform across every swarm-manager skill.
+//
+// If a future workflow needs operator-gated apply, that is a separate
+// plan and should not re-introduce the field on this struct — it
+// should live in its own scenario or per-task knob on the agent-manager
+// side.
 type ProfileConfig struct {
 	RunnerType      domainpb.RunnerType
 	Model           string
@@ -31,7 +37,6 @@ type ProfileConfig struct {
 	AllowedTools    []string
 	SkipPermissions bool
 	RequiresSandbox bool
-	ManualReview    bool
 }
 
 // SettingsReader provides agent settings from an external source (e.g. settings store)
@@ -42,8 +47,7 @@ type SettingsReader interface {
 
 // ProfileConfigFromSettings creates a ProfileConfig by overlaying settings values
 // on top of the defaults. Zero/negative values for maxTurns or timeoutSeconds
-// are ignored, preserving the default. ManualReview is taken from the default
-// (per-profile concern; not a global setting).
+// are ignored, preserving the default.
 func ProfileConfigFromSettings(maxTurns, timeoutSeconds int32) *ProfileConfig {
 	cfg := DefaultProfileConfig()
 	if maxTurns > 0 {
@@ -57,11 +61,11 @@ func ProfileConfigFromSettings(maxTurns, timeoutSeconds int32) *ProfileConfig {
 
 // DefaultProfileConfig returns the default configuration for swarm-manager agents.
 //
-// Swarm-manager agents run Sandboxed with manual review: research and
-// workshop agents frequently write files (plans, docs, specs) and those
-// diffs should be human-reviewable. Under the auditability contract,
-// ManualReview=true defers apply at run end until an operator approves
-// via one of the three viewing surfaces (GCT, agent-manager, workspace-sandbox).
+// Swarm-manager agents run Sandboxed and auto-accept on success.
+// Sandbox is the auditability layer — workspace-sandbox preserves the
+// per-run diff regardless of run outcome — so there is no need to gate
+// apply on operator approval. Runs that fail leave the sandbox in
+// place for inspection; runs that succeed apply atomically.
 func DefaultProfileConfig() *ProfileConfig {
 	return &ProfileConfig{
 		RunnerType:  domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
@@ -79,7 +83,6 @@ func DefaultProfileConfig() *ProfileConfig {
 		},
 		SkipPermissions: false,
 		RequiresSandbox: true,
-		ManualReview:    true,
 	}
 }
 
@@ -109,10 +112,12 @@ func (s *AgentService) buildProfile(cfg *ProfileConfig) *domainpb.AgentProfile {
 		AllowedTools:         cfg.AllowedTools,
 		SkipPermissionPrompt: cfg.SkipPermissions,
 		RequiresSandbox:      cfg.RequiresSandbox,
-		// Express operator-gated apply via SandboxConfig.ManualReview
-		// per the auditability contract (Phase 3b cutover).
-		SandboxConfig: &domainpb.SandboxConfig{ManualReview: cfg.ManualReview},
-		CreatedBy:     "swarm-manager",
+		// SandboxConfig is intentionally omitted — agent-manager
+		// resolveSandboxConfig fills in the contract defaults
+		// (auto-apply, no manual review). swarm-manager has no
+		// operator-gated apply path; sandbox is the auditability
+		// layer, not a review queue.
+		CreatedBy: "swarm-manager",
 	}
 }
 

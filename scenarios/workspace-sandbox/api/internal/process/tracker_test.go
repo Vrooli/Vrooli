@@ -425,6 +425,99 @@ func TestRecordExit_IdempotentAndNotifies(t *testing.T) {
 	}
 }
 
+// TestWaitForExit_BlocksUntilRecordExit verifies the channel semantics:
+// WaitForExit must wait for RecordExit to fire and return the populated
+// ExitInfo. This is the foundation that StreamProcessLogs relies on to
+// stop racing fast-failing processes (the bug where bwrap chdir errors
+// made `event: exit` go missing).
+func TestWaitForExit_BlocksUntilRecordExit(t *testing.T) {
+	tracker := NewTracker()
+	sandboxID := uuid.New()
+	pid := 24680
+	if _, err := tracker.Track(sandboxID, pid, "fake", ""); err != nil {
+		t.Fatalf("Track: %v", err)
+	}
+
+	// In the normal case, the wait reaper records exit a moment after
+	// the process terminates. Simulate that with a short delay.
+	go func() {
+		time.Sleep(40 * time.Millisecond)
+		tracker.RecordExit(sandboxID, pid, ExitInfo{ExitCode: 1})
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	info, err := tracker.WaitForExit(ctx, sandboxID, pid)
+	if err != nil {
+		t.Fatalf("WaitForExit: %v", err)
+	}
+	if info == nil || info.ExitCode != 1 {
+		t.Fatalf("WaitForExit returned %+v; want ExitCode=1", info)
+	}
+}
+
+// TestWaitForExit_ReturnsImmediatelyForAlreadyExited covers the path
+// where StreamProcessLogs attaches *after* the wait reaper has already
+// recorded exit info — it should not block.
+func TestWaitForExit_ReturnsImmediatelyForAlreadyExited(t *testing.T) {
+	tracker := NewTracker()
+	sandboxID := uuid.New()
+	pid := 13579
+	if _, err := tracker.Track(sandboxID, pid, "fake", ""); err != nil {
+		t.Fatalf("Track: %v", err)
+	}
+	tracker.RecordExit(sandboxID, pid, ExitInfo{ExitCode: 42})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	info, err := tracker.WaitForExit(ctx, sandboxID, pid)
+	elapsed := time.Since(start)
+	if err != nil {
+		t.Fatalf("WaitForExit: %v", err)
+	}
+	if info == nil || info.ExitCode != 42 {
+		t.Fatalf("WaitForExit returned %+v; want ExitCode=42", info)
+	}
+	if elapsed > 50*time.Millisecond {
+		t.Errorf("WaitForExit took %v; should return ~immediately", elapsed)
+	}
+}
+
+// TestWaitForExit_ContextDeadline guards against silent hangs when the
+// reaper genuinely never fires — caller must see ctx.Err().
+func TestWaitForExit_ContextDeadline(t *testing.T) {
+	tracker := NewTracker()
+	sandboxID := uuid.New()
+	pid := 11111
+	if _, err := tracker.Track(sandboxID, pid, "fake", ""); err != nil {
+		t.Fatalf("Track: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Millisecond)
+	defer cancel()
+
+	info, err := tracker.WaitForExit(ctx, sandboxID, pid)
+	if err == nil {
+		t.Fatalf("expected ctx error, got info=%+v", info)
+	}
+	if info != nil {
+		t.Errorf("info = %+v; want nil on timeout", info)
+	}
+}
+
+// TestWaitForExit_UntrackedProcess guards the not-found path.
+func TestWaitForExit_UntrackedProcess(t *testing.T) {
+	tracker := NewTracker()
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	_, err := tracker.WaitForExit(ctx, uuid.New(), 99999)
+	if err == nil {
+		t.Fatal("expected error for untracked PID; got nil")
+	}
+}
+
 // SetStdin / WriteStdin / CloseStdin form a one-shot pipe contract.
 func TestStdinPipeContract(t *testing.T) {
 	tracker := NewTracker()

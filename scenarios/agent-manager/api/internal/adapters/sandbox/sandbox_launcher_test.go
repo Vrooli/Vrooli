@@ -40,6 +40,12 @@ type mockSandbox struct {
 	procRunning atomic.Bool
 	procStarted atomic.Bool
 
+	// hostMergedDir is the value returned from GET /api/v1/sandboxes/{id};
+	// the launcher uses it to translate host workingDir / env values.
+	// Empty means "no translation expected" (translateHostPathToNamespace
+	// becomes identity in that case).
+	hostMergedDir string
+
 	// Recorded request state for assertions.
 	startProcessBody  map[string]any
 	startProcessSeen  atomic.Bool
@@ -85,12 +91,28 @@ func (m *mockSandbox) startServer(t *testing.T) *httptest.Server {
 			m.handleStreamLogs(w, r)
 		case r.Method == "DELETE" && strings.Contains(path, "/processes/"):
 			m.handleKillProcess(w, r)
+		case r.Method == "GET" && !strings.Contains(path, "/processes"):
+			m.handleGetSandbox(w, r)
 		default:
 			t.Logf("mockSandbox: unhandled %s %s", r.Method, path)
 			w.WriteHeader(http.StatusNotFound)
 		}
 	})
 	return httptest.NewServer(mux)
+}
+
+func (m *mockSandbox) handleGetSandbox(w http.ResponseWriter, r *http.Request) {
+	// Extract sandbox id from /api/v1/sandboxes/<id>.
+	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/v1/sandboxes/"), "/")
+	id := parts[0]
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"id":          id,
+		"scopePath":   "/scope",
+		"projectRoot": "/scope",
+		"status":      "active",
+		"mergedDir":   m.hostMergedDir,
+	})
 }
 
 func (m *mockSandbox) handleStartProcess(w http.ResponseWriter, r *http.Request) {
@@ -553,6 +575,53 @@ func TestSandboxLauncher_ExitInfoSurfaces(t *testing.T) {
 	}
 }
 
+// TestSandboxLauncher_NoExitInfo_ReportsFailure ensures that when both
+// SSE log streams close without the server emitting `event: exit`
+// (Phase B regression: bwrap chdir failures used to drop the exit
+// frame), the client surfaces ErrSandboxNoExitInfo instead of treating
+// the run as a clean success.
+func TestSandboxLauncher_NoExitInfo_ReportsFailure(t *testing.T) {
+	mock := newMockSandbox(909)
+	mock.hostMergedDir = "/var/lib/workspace-sandbox/sb-no-exit/merged"
+	server := mock.startServer(t)
+	defer server.Close()
+
+	provider := NewWorkspaceSandboxProvider(server.URL)
+	launcher := NewSandboxLauncher(provider, uuid.New())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	proc, err := launcher.Launch(ctx, runner.LaunchRequest{Command: "claude"})
+	if err != nil {
+		t.Fatalf("Launch: %v", err)
+	}
+	go io.Copy(io.Discard, proc.Stdout())
+	go io.Copy(io.Discard, proc.Stderr())
+
+	// Close subscribers WITHOUT sending an exit frame — simulates the
+	// pre-Phase-B race where the SSE server never noticed exit info.
+	time.Sleep(50 * time.Millisecond)
+	mock.subsMu.Lock()
+	for _, ch := range mock.stdoutSubs {
+		close(ch)
+	}
+	for _, ch := range mock.stderrSubs {
+		close(ch)
+	}
+	mock.stdoutSubs = nil
+	mock.stderrSubs = nil
+	mock.subsMu.Unlock()
+
+	werr := proc.Wait()
+	if werr == nil {
+		t.Fatal("Wait returned nil; want ErrSandboxNoExitInfo")
+	}
+	if !errors.Is(werr, ErrSandboxNoExitInfo) {
+		t.Errorf("Wait err = %v; want ErrSandboxNoExitInfo", werr)
+	}
+}
+
 // TestSSEParser_BasicEvents pins the SSE field grammar.
 func TestSSEParser_BasicEvents(t *testing.T) {
 	input := "data: hello\n\n" +
@@ -583,6 +652,186 @@ func TestSSEParser_BasicEvents(t *testing.T) {
 	}
 	if events[3].eventType != "end" {
 		t.Errorf("event[3].eventType = %q; want end", events[3].eventType)
+	}
+}
+
+// TestTranslateHostPathToNamespace exercises the host→namespace path
+// rewriter directly. These cases pin the contract that bwrap's
+// `--bind <hostMerged> /workspace` enforces.
+func TestTranslateHostPathToNamespace(t *testing.T) {
+	const host = "/home/matt/.local/share/workspace-sandbox/abc/merged"
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"empty input passes through", "", ""},
+		{"exact match → /workspace", host, SandboxNamespacePath},
+		{"subpath → /workspace/<rest>", host + "/sub/file.txt", SandboxNamespacePath + "/sub/file.txt"},
+		{"unrelated absolute path passes through", "/etc/hosts", "/etc/hosts"},
+		{"already namespace path passes through", SandboxNamespacePath + "/x", SandboxNamespacePath + "/x"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := translateHostPathToNamespace(c.in, host)
+			if got != c.want {
+				t.Errorf("translateHostPathToNamespace(%q, host) = %q; want %q", c.in, got, c.want)
+			}
+		})
+	}
+
+	t.Run("empty hostMerged is identity", func(t *testing.T) {
+		got := translateHostPathToNamespace("/some/path", "")
+		if got != "/some/path" {
+			t.Errorf("got %q; want identity passthrough", got)
+		}
+	})
+}
+
+// TestResolveWorkingDir pins the workdir contract:
+//   - empty → SandboxNamespacePath
+//   - host merged dir / subpath → translated
+//   - already in-namespace → unchanged
+//   - other absolute host path → *LaunchBlocked{workdir_outside_sandbox}
+func TestResolveWorkingDir(t *testing.T) {
+	const host = "/home/x/.local/share/workspace-sandbox/sb1/merged"
+
+	t.Run("empty defaults to namespace path", func(t *testing.T) {
+		got, err := resolveWorkingDir("", host)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if got != SandboxNamespacePath {
+			t.Errorf("got %q; want %q", got, SandboxNamespacePath)
+		}
+	})
+
+	t.Run("host merged path translates", func(t *testing.T) {
+		got, err := resolveWorkingDir(host, host)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if got != SandboxNamespacePath {
+			t.Errorf("got %q; want %q", got, SandboxNamespacePath)
+		}
+	})
+
+	t.Run("subpath of merged translates", func(t *testing.T) {
+		got, err := resolveWorkingDir(host+"/foo", host)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		want := SandboxNamespacePath + "/foo"
+		if got != want {
+			t.Errorf("got %q; want %q", got, want)
+		}
+	})
+
+	t.Run("already namespace path passes through", func(t *testing.T) {
+		got, err := resolveWorkingDir(SandboxNamespacePath, host)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if got != SandboxNamespacePath {
+			t.Errorf("got %q; want %q", got, SandboxNamespacePath)
+		}
+	})
+
+	t.Run("unrelated host path is blocked", func(t *testing.T) {
+		_, err := resolveWorkingDir("/etc/hosts", host)
+		var blocked *LaunchBlocked
+		if !errors.As(err, &blocked) {
+			t.Fatalf("err = %T (%v); want *LaunchBlocked", err, err)
+		}
+		if blocked.Code != "workdir_outside_sandbox" {
+			t.Errorf("blocked.Code = %q; want workdir_outside_sandbox", blocked.Code)
+		}
+	})
+}
+
+// TestSandboxLauncher_LaunchTranslatesHostMergedPath verifies that when
+// the run executor passes the *host* merged path as WorkingDir, the
+// launcher rewrites it to /workspace before POSTing — preventing the
+// "bwrap: Can't chdir to /home/.../merged: No such file or directory"
+// regression.
+func TestSandboxLauncher_LaunchTranslatesHostMergedPath(t *testing.T) {
+	const host = "/var/lib/workspace-sandbox/sb-test/merged"
+
+	mock := newMockSandbox(707)
+	mock.hostMergedDir = host
+	server := mock.startServer(t)
+	defer server.Close()
+
+	provider := NewWorkspaceSandboxProvider(server.URL)
+	launcher := NewSandboxLauncher(provider, uuid.New())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	proc, err := launcher.Launch(ctx, runner.LaunchRequest{
+		Command:    "claude",
+		WorkingDir: host,
+		Env:        []string{"VROOLI_SANDBOX_MERGED=" + host, "PATH=/usr/bin"},
+	})
+	if err != nil {
+		t.Fatalf("Launch: %v", err)
+	}
+	go io.Copy(io.Discard, proc.Stdout())
+	go io.Copy(io.Discard, proc.Stderr())
+
+	mock.mu.Lock()
+	body := mock.startProcessBody
+	mock.mu.Unlock()
+	if got, _ := body["workingDir"].(string); got != SandboxNamespacePath {
+		t.Errorf("workingDir = %q; want %q (host path must be translated)", got, SandboxNamespacePath)
+	}
+	envAny, _ := body["env"].(map[string]any)
+	if got, _ := envAny["VROOLI_SANDBOX_MERGED"].(string); got != SandboxNamespacePath {
+		t.Errorf("env VROOLI_SANDBOX_MERGED = %q; want %q", got, SandboxNamespacePath)
+	}
+	if got, _ := envAny["PATH"].(string); got != "/usr/bin" {
+		t.Errorf("env PATH = %q; want /usr/bin (untouched)", got)
+	}
+
+	go func() {
+		time.Sleep(40 * time.Millisecond)
+		mock.markExited(remoteExitInfo{ExitCode: 0})
+	}()
+	_ = proc.Wait()
+}
+
+// TestSandboxLauncher_LaunchRejectsUntranslatableHostPath verifies that a
+// WorkingDir that is neither under the sandbox nor under
+// SandboxNamespacePath is rejected as a contract violation, not silently
+// passed through.
+func TestSandboxLauncher_LaunchRejectsUntranslatableHostPath(t *testing.T) {
+	mock := newMockSandbox(808)
+	mock.hostMergedDir = "/var/lib/workspace-sandbox/sb-test/merged"
+	server := mock.startServer(t)
+	defer server.Close()
+
+	provider := NewWorkspaceSandboxProvider(server.URL)
+	launcher := NewSandboxLauncher(provider, uuid.New())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	_, err := launcher.Launch(ctx, runner.LaunchRequest{
+		Command:    "claude",
+		WorkingDir: "/etc",
+	})
+	if err == nil {
+		t.Fatal("Launch returned nil; want *LaunchBlocked")
+	}
+	var blocked *LaunchBlocked
+	if !errors.As(err, &blocked) {
+		t.Fatalf("err = %T (%v); want *LaunchBlocked", err, err)
+	}
+	if blocked.Code != "workdir_outside_sandbox" {
+		t.Errorf("blocked.Code = %q; want workdir_outside_sandbox", blocked.Code)
+	}
+	if mock.startProcessSeen.Load() {
+		t.Error("startProcess should NOT have been called for an untranslatable workdir")
 	}
 }
 

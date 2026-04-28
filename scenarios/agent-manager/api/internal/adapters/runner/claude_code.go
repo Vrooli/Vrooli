@@ -318,6 +318,7 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 			CostEstimate:  metrics.CostEstimateUSD,
 			ContextTokens: metrics.TokensInput,
 		}
+		emitStderrAsWarnOnSuccess(req.RunID, req.EventSink, errorOutput.String())
 	}
 
 	// Capture session ID for conversation continuation (before stream state is cleared)
@@ -788,6 +789,7 @@ func (r *ClaudeCodeRunner) Continue(ctx context.Context, req ContinueRequest) (*
 			CostEstimate:  metrics.CostEstimateUSD,
 			ContextTokens: metrics.TokensInput,
 		}
+		emitStderrAsWarnOnSuccess(req.RunID, req.EventSink, errorOutput.String())
 	}
 
 	// Update session ID from stream if a new one was provided
@@ -1889,6 +1891,37 @@ func (r *ClaudeCodeRunner) updateMetrics(event *domain.RunEvent, metrics *Execut
 		// Rate limit detected - this will cause execution to fail
 		// The error is handled in the Execute function
 	}
+}
+
+// emitStderrAsWarnOnSuccess publishes captured stderr as a warn-level
+// run-log event when the process exited cleanly but produced diagnostic
+// output. Without this, launch-time diagnostics (e.g. bwrap warnings or
+// the chdir failure that reproduced the swarm-manager 134ms-no-output
+// regression) are silently dropped on the success path because
+// errorOutput is otherwise only consulted when err != nil.
+//
+// Truncates at 4 KB to keep run-event payload sizes bounded; operators
+// reading the raw process logs on disk get the unabridged output.
+func emitStderrAsWarnOnSuccess(runID uuid.UUID, sink EventSink, stderr string) {
+	trimmed := strings.TrimSpace(stderr)
+	if trimmed == "" || sink == nil {
+		return
+	}
+	_ = sink.Emit(domain.NewLogEvent(
+		runID,
+		"warn",
+		fmt.Sprintf("Runner stderr (process exited cleanly):\n%s", truncateForLog(trimmed, 4096)),
+	))
+}
+
+// truncateForLog returns s capped at max bytes, suffixing with a marker
+// when truncation occurred. Callers use this for run-event payloads that
+// must not balloon the event store.
+func truncateForLog(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "\n…[truncated]"
 }
 
 // Verify interface compliance
