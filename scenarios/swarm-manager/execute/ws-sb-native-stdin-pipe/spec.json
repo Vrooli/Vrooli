@@ -3,6 +3,7 @@
     "scenarios/workspace-sandbox/**",
     "scenarios/agent-manager/**"
   ],
+  "archived_at": "2026-04-28T12:58:19Z",
   "created": "2026-04-28T02:31:04Z",
   "created_by": {
     "type": "operator"
@@ -10,7 +11,7 @@
   "depends_on": [
     "execute/protected-sandbox-agent-launch"
   ],
-  "description": "## Goal\n\nReplace the SandboxLauncher`s file-staged stdin workaround with a native stdin pipe on workspace-sandbox `/processes`.\n\n## Current state\n\nThe protected-mode SandboxLauncher (introduced by `execute/protected-sandbox-agent-launch`) cannot pipe stdin directly into a `/processes` launch because workspace-sandbox `/processes` does not expose a stdin endpoint. Today the launcher writes the prompt as a file inside the sandbox (`.am-prompts/<run-id>.txt`) and uses a `bash -c \"trap rm; exec ... < prompt.txt\"` wrapper to redirect stdin. This works for prompt-via-stdin (the only pattern claude_code, codex, and opencode use) but is unsuitable for any future runner that needs mid-run interactive prompts.\n\n## Expected deliverables\n\n1. A stdin endpoint on workspace-sandbox `/processes` (WebSocket frame or chunked HTTP body) that lets the caller stream stdin into a launched process.\n2. SandboxLauncher migrated to the native stdin path with the bash-wrapper fallback removed.\n3. Tests covering interactive prompt-and-response patterns end-to-end.\n4. Update `PROTECTED_MODE_RUNNERS.md` capability matrix to mark interactive stdin as supported.\n\n## Key references\n\n- `scenarios/agent-manager/api/internal/adapters/sandbox/sandbox_launcher.go` (Stage 1 stdin staging + buildBashWrapper)\n- `scenarios/workspace-sandbox/api/internal/handlers/process.go` (StartProcess, GetProcessLogs, KillProcess)\n- `scenarios/agent-manager/docs/PROTECTED_MODE_RUNNERS.md` (documented limitation under \"Truly interactive stdin\")",
+  "description": "## Goal\n\nReplace the SandboxLauncher`s file-staged stdin workaround with a native stdin pipe on workspace-sandbox `/processes`.\n\n## Current state\n\nThe protected-mode SandboxLauncher (introduced by `execute/protected-sandbox-agent-launch`) cannot pipe stdin directly into a `/processes` launch because workspace-sandbox `/processes` does not expose a stdin endpoint. Today the launcher writes the prompt as a file inside the sandbox (`.am-prompts/\u003crun-id\u003e.txt`) and uses a `bash -c \"trap rm; exec ... \u003c prompt.txt\"` wrapper to redirect stdin. This works for prompt-via-stdin (the only pattern claude_code, codex, and opencode use) but is unsuitable for any future runner that needs mid-run interactive prompts.\n\n## Expected deliverables\n\n1. A stdin endpoint on workspace-sandbox `/processes` (WebSocket frame or chunked HTTP body) that lets the caller stream stdin into a launched process.\n2. SandboxLauncher migrated to the native stdin path with the bash-wrapper fallback removed.\n3. Tests covering interactive prompt-and-response patterns end-to-end.\n4. Update `PROTECTED_MODE_RUNNERS.md` capability matrix to mark interactive stdin as supported.\n\n## Key references\n\n- `scenarios/agent-manager/api/internal/adapters/sandbox/sandbox_launcher.go` (Stage 1 stdin staging + buildBashWrapper)\n- `scenarios/workspace-sandbox/api/internal/handlers/process.go` (StartProcess, GetProcessLogs, KillProcess)\n- `scenarios/agent-manager/docs/PROTECTED_MODE_RUNNERS.md` (documented limitation under \"Truly interactive stdin\")",
   "effort": "M",
   "initiative": "protected-agent-sandboxing",
   "kind": "execute",
@@ -25,5 +26,5 @@
     "follow-up"
   ],
   "title": "Workspace-sandbox /processes native stdin pipe",
-  "updated": "2026-04-28T04:00:00Z"
+  "updated": "2026-04-28T12:58:19Z"
 }

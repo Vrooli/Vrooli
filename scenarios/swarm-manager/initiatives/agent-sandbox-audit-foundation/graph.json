@@ -1,6 +1,6 @@
 {
   "initiative": "agent-sandbox-audit-foundation",
-  "generated_at": "2026-04-28T03:36:32Z",
+  "generated_at": "2026-04-28T12:55:36Z",
   "nodes": [
     {
       "id": "research/agent-sandbox-auditability-contract",
@@ -40,7 +40,7 @@
       "status": "completed",
       "priority": 2,
       "effort": "L",
-      "archived": false
+      "archived": true
     },
     {
       "id": "execute/agent-manager-default-sandboxing-rollout",
@@ -50,7 +50,7 @@
       "status": "completed",
       "priority": 3,
       "effort": "M",
-      "archived": false
+      "archived": true
     },
     {
       "id": "execute/agent-manager-apply-at-run-end-provider-seam",
@@ -80,7 +80,7 @@
       "status": "completed",
       "priority": 2,
       "effort": "S",
-      "archived": false
+      "archived": true
     },
     {
       "id": "execute/sandbox-provenance-schema-version-shared-package",
@@ -90,7 +90,7 @@
       "status": "completed",
       "priority": 2,
       "effort": "M",
-      "archived": false
+      "archived": true
     },
     {
       "id": "execute/agent-manager-spawn-surface-conversation-id-population",
@@ -100,7 +100,7 @@
       "status": "completed",
       "priority": 4,
       "effort": "M",
-      "archived": false
+      "archived": true
     }
   ],
   "edges": [

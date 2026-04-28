@@ -3,10 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
-
-	"github.com/DATA-DOG/go-sqlmock"
 )
 
 func TestResolveWorkspaceSandboxScenarioDir(t *testing.T) {
@@ -105,76 +102,48 @@ func chdirForTest(t *testing.T, dir string) {
 	})
 }
 
-func TestEnsureSchemaRequiresLifecycleBootstrap(t *testing.T) {
-	db, mock, err := sqlmock.New()
+func TestResolveSQLiteDSN_HonorsEnvOverride(t *testing.T) {
+	tmp := t.TempDir()
+	customPath := filepath.Join(tmp, "nested", "custom.db")
+	t.Setenv("SQLITE_PATH", customPath)
+
+	dsn, err := resolveSQLiteDSN()
 	if err != nil {
-		t.Fatalf("sqlmock.New: %v", err)
+		t.Fatalf("resolveSQLiteDSN: %v", err)
 	}
-	defer db.Close()
-
-	mock.ExpectExec("CREATE SCHEMA IF NOT EXISTS workspace_sandbox").
-		WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("SET search_path TO workspace_sandbox, public").
-		WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectQuery("SELECT EXISTS \\(").
-		WithArgs("workspace_sandbox").
-		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
-
-	err = ensureSchema(db)
-	if err == nil {
-		t.Fatal("ensureSchema() expected error, got nil")
+	if got := dsn; len(got) == 0 || got[0] != '/' && got[1] != ':' {
+		t.Fatalf("unexpected DSN prefix: %q", dsn)
 	}
-	if got := err.Error(); got == "" || !containsAll(got, "workspace_sandbox.sandboxes", "rerun scenario bootstrap") {
-		t.Fatalf("ensureSchema() error = %q, want actionable bootstrap guidance", got)
+	if !pathHasSuffix(dsn, "custom.db") {
+		t.Fatalf("DSN does not start with override path: %q", dsn)
 	}
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Fatalf("unmet sqlmock expectations: %v", err)
+	if !strContains(dsn, "_pragma=journal_mode(WAL)") {
+		t.Errorf("DSN missing WAL pragma: %q", dsn)
+	}
+	if !strContains(dsn, "_txlock=immediate") {
+		t.Errorf("DSN missing _txlock=immediate: %q", dsn)
+	}
+	if _, err := os.Stat(filepath.Dir(customPath)); err != nil {
+		t.Errorf("parent dir was not created: %v", err)
 	}
 }
 
-func TestEnsureSchemaAcceptsBootstrappedDatabase(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("sqlmock.New: %v", err)
-	}
-	defer db.Close()
-
-	mock.ExpectExec("CREATE SCHEMA IF NOT EXISTS workspace_sandbox").
-		WillReturnResult(sqlmock.NewResult(0, 0))
-	mock.ExpectExec("SET search_path TO workspace_sandbox, public").
-		WillReturnResult(sqlmock.NewResult(0, 0))
-	// sandboxes table existence
-	mock.ExpectQuery("SELECT EXISTS \\(").
-		WithArgs("workspace_sandbox").
-		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
-	// applied_changes table existence
-	mock.ExpectQuery("SELECT EXISTS \\(").
-		WithArgs("workspace_sandbox").
-		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
-	// applied_changes.agent_manager_run_id column
-	mock.ExpectQuery("SELECT EXISTS \\(").
-		WithArgs("workspace_sandbox").
-		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
-	// sandbox-provenance v1.0.0 columns (5 of them).
-	for _, col := range []string{"schema_version", "run_outcome", "provenance_state", "conversation_id", "cost_usd"} {
-		mock.ExpectQuery("SELECT EXISTS \\(").
-			WithArgs("workspace_sandbox", col).
-			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
-	}
-
-	if err := ensureSchema(db); err != nil {
-		t.Fatalf("ensureSchema() unexpected error: %v", err)
-	}
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Fatalf("unmet sqlmock expectations: %v", err)
-	}
-}
-
-func containsAll(haystack string, needles ...string) bool {
-	for _, needle := range needles {
-		if !strings.Contains(haystack, needle) {
-			return false
+func pathHasSuffix(dsn, suffix string) bool {
+	// dsn is "<path>?<params>"; the path is everything before the first '?'
+	for i := 0; i < len(dsn); i++ {
+		if dsn[i] == '?' {
+			path := dsn[:i]
+			return len(path) >= len(suffix) && path[len(path)-len(suffix):] == suffix
 		}
 	}
-	return true
+	return len(dsn) >= len(suffix) && dsn[len(dsn)-len(suffix):] == suffix
+}
+
+func strContains(s, substr string) bool {
+	for i := 0; i+len(substr) <= len(s); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }

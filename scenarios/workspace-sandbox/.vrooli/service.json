@@ -174,15 +174,10 @@
     }
   },
   "dependencies": {
-    "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "description": "Primary relational data store",
-        "schema": "workspace-sandbox"
-      }
-    }
+    "resources": {}
+  },
+  "notes": {
+    "storage_strategy": "Embedded SQLite via modernc.org/sqlite (pure Go, CGO-free); no shared database resource. The SQLite file is resolved through api-core/storage (ClassData) and overridable via SQLITE_PATH."
   },
   "cli": {
     "enabled": true,

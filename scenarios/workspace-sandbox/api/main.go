@@ -6,18 +6,20 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	gorillahandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
+	_ "modernc.org/sqlite"
+
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
 
 	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driver"
@@ -60,24 +62,29 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	// Connect to database with automatic retry and backoff.
-	// Reads POSTGRES_* environment variables set by the lifecycle system.
-	// Include search_path in DSN so all pooled connections use the correct schema.
-	dsn, err := buildDSNWithSearchPath("workspace_sandbox")
+	// Resolve the embedded SQLite database path. Honors SQLITE_PATH for
+	// explicit overrides; otherwise places the file under the cross-platform
+	// data directory provided by api-core/storage.
+	dsn, err := resolveSQLiteDSN()
 	if err != nil {
-		return nil, fmt.Errorf("failed to build database DSN: %w", err)
+		return nil, fmt.Errorf("failed to resolve SQLite path: %w", err)
 	}
 	db, err := database.Connect(context.Background(), database.Config{
-		Driver: "postgres",
+		Driver: database.DriverSQLite,
 		DSN:    dsn,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	// Run automatic migrations
-	if err := ensureSchema(db); err != nil {
-		return nil, fmt.Errorf("failed to run migrations: %w", err)
+	// SQLite serializes writes; cap the pool to a single connection so the
+	// pragmas applied by the DSN govern every transaction.
+	db.SetMaxOpenConns(1)
+
+	// Apply the embedded schema. The file is idempotent (CREATE ... IF NOT
+	// EXISTS) so this runs safely on every startup.
+	if _, err := db.ExecContext(context.Background(), repository.SchemaSQL); err != nil {
+		return nil, fmt.Errorf("failed to apply SQLite schema: %w", err)
 	}
 
 	// Initialize driver with automatic selection and fallback
@@ -410,155 +417,46 @@ func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// ensureSchema runs automatic migrations to ensure required tables exist.
-// Lifecycle bootstrap owns schema creation and migration replay. The API only
-// verifies the runtime contract so startup fails clearly if bootstrap was
-// skipped or the database is stale.
-func ensureSchema(db *sql.DB) error {
-	schemaName := "workspace_sandbox"
-	if _, err := db.Exec(fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", schemaName)); err != nil {
-		return fmt.Errorf("failed to create schema: %w", err)
-	}
-	if _, err := db.Exec(fmt.Sprintf("SET search_path TO %s, public", schemaName)); err != nil {
-		return fmt.Errorf("failed to set search_path: %w", err)
-	}
-	log.Printf("using PostgreSQL schema: %s", schemaName)
-
-	// Ensure core schema exists (sandboxes table).
-	var sandboxesExists bool
-	err := db.QueryRow(`
-		SELECT EXISTS (
-			SELECT FROM information_schema.tables
-			WHERE table_name = 'sandboxes' AND table_schema = $1
-		)
-	`, schemaName).Scan(&sandboxesExists)
-	if err != nil {
-		return fmt.Errorf("failed to check sandboxes table: %w", err)
-	}
-
-	if !sandboxesExists {
-		return fmt.Errorf("required table workspace_sandbox.sandboxes is missing; rerun scenario bootstrap so initialization/postgres artifacts are applied before the API starts")
-	}
-
-	var appliedChangesExists bool
-	err = db.QueryRow(`
-		SELECT EXISTS (
-			SELECT FROM information_schema.tables
-			WHERE table_name = 'applied_changes' AND table_schema = $1
-		)
-	`, schemaName).Scan(&appliedChangesExists)
-	if err != nil {
-		return fmt.Errorf("failed to check applied_changes table: %w", err)
-	}
-	if !appliedChangesExists {
-		return fmt.Errorf("required table workspace_sandbox.applied_changes is missing; rerun scenario bootstrap so initialization/postgres artifacts are applied before the API starts")
-	}
-
-	var agentManagerRunIDExists bool
-	err = db.QueryRow(`
-		SELECT EXISTS (
-			SELECT FROM information_schema.columns
-			WHERE table_schema = $1 AND table_name = 'applied_changes' AND column_name = 'agent_manager_run_id'
-		)
-	`, schemaName).Scan(&agentManagerRunIDExists)
-	if err != nil {
-		return fmt.Errorf("failed to check applied_changes.agent_manager_run_id column: %w", err)
-	}
-	if !agentManagerRunIDExists {
-		return fmt.Errorf("required column workspace_sandbox.applied_changes.agent_manager_run_id is missing; rerun scenario bootstrap so lifecycle migrations bring the schema current")
-	}
-
-	// sandbox-provenance v1.0.0 columns (migration_002).
-	for _, col := range []string{"schema_version", "run_outcome", "provenance_state", "conversation_id", "cost_usd"} {
-		var exists bool
-		if err := db.QueryRow(`
-			SELECT EXISTS (
-				SELECT FROM information_schema.columns
-				WHERE table_schema = $1 AND table_name = 'applied_changes' AND column_name = $2
-			)
-		`, schemaName, col).Scan(&exists); err != nil {
-			return fmt.Errorf("failed to check applied_changes.%s column: %w", col, err)
+// resolveSQLiteDSN returns the modernc.org/sqlite DSN for the embedded
+// store. It honors SQLITE_PATH for explicit overrides and otherwise resolves
+// a cross-platform data path through api-core/storage. The DSN appends the
+// pragmas every connection needs (WAL, busy_timeout, foreign_keys) and sets
+// _txlock=immediate so BeginTx acquires the SQLite reserved lock up front
+// for write-ordered Create + CheckScopeOverlap flows.
+func resolveSQLiteDSN() (string, error) {
+	path := strings.TrimSpace(os.Getenv("SQLITE_PATH"))
+	if path == "" {
+		resolver, err := storage.NewResolver(storage.ResolverConfig{
+			AppID:   "vrooli",
+			Profile: storage.ProfileAuto,
+		})
+		if err != nil {
+			return "", fmt.Errorf("create storage resolver: %w", err)
 		}
-		if !exists {
-			return fmt.Errorf("required column workspace_sandbox.applied_changes.%s is missing; rerun scenario bootstrap so the sandbox-provenance v1.0.0 migration (migration_002) is applied", col)
-		}
-	}
-
-	return nil
-}
-
-// buildDSNWithSearchPath constructs a PostgreSQL DSN from environment variables
-// with the search_path option included. This ensures all connections from the
-// connection pool use the correct schema, avoiding issues where SET search_path
-// only affects the current session/connection.
-func buildDSNWithSearchPath(schema string) (string, error) {
-	// Check for complete URL first
-	if url := os.Getenv("POSTGRES_URL"); url != "" {
-		return appendSearchPath(url, schema), nil
-	}
-	if url := os.Getenv("DATABASE_URL"); url != "" {
-		return appendSearchPath(url, schema), nil
-	}
-
-	// Build from individual components
-	host := os.Getenv("POSTGRES_HOST")
-	port := os.Getenv("POSTGRES_PORT")
-	user := os.Getenv("POSTGRES_USER")
-	pass := os.Getenv("POSTGRES_PASSWORD")
-	dbname := os.Getenv("POSTGRES_DB")
-	sslmode := os.Getenv("POSTGRES_SSLMODE")
-
-	// Validate required fields
-	var missing []string
-	if host == "" {
-		missing = append(missing, "POSTGRES_HOST")
-	}
-	if port == "" {
-		missing = append(missing, "POSTGRES_PORT")
-	}
-	if user == "" {
-		missing = append(missing, "POSTGRES_USER")
-	}
-	if dbname == "" {
-		missing = append(missing, "POSTGRES_DB")
-	}
-
-	if len(missing) > 0 {
-		return "", fmt.Errorf(
-			"postgres connection requires environment variables: %v (are you running through the Vrooli lifecycle system?)",
-			missing,
+		dataDir, err := storage.EnsureClassDir(resolver,
+			storage.Options{ScenarioID: "workspace-sandbox"},
+			storage.ClassData,
+			0o755,
 		)
+		if err != nil {
+			return "", fmt.Errorf("ensure data dir: %w", err)
+		}
+		path = filepath.Join(dataDir, "workspace-sandbox.db")
 	}
 
-	// Default sslmode
-	if sslmode == "" {
-		sslmode = "disable"
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return "", fmt.Errorf("create db parent dir: %w", err)
 	}
 
-	// Build URL with search_path option
-	// The options parameter sets PostgreSQL configuration for all connections
-	// Must be URL-encoded because it contains special characters (spaces, commas)
-	searchPathOption := url.QueryEscape(fmt.Sprintf("-c search_path=%s,public", schema))
-	if pass != "" {
-		return fmt.Sprintf(
-			"postgres://%s:%s@%s:%s/%s?sslmode=%s&options=%s",
-			user, pass, host, port, dbname, sslmode, searchPathOption,
-		), nil
-	}
+	dsn := path +
+		"?_pragma=journal_mode(WAL)" +
+		"&_pragma=foreign_keys(1)" +
+		"&_pragma=busy_timeout(5000)" +
+		"&_pragma=synchronous(NORMAL)" +
+		"&_txlock=immediate"
 
-	return fmt.Sprintf(
-		"postgres://%s@%s:%s/%s?sslmode=%s&options=%s",
-		user, host, port, dbname, sslmode, searchPathOption,
-	), nil
-}
-
-// appendSearchPath adds the search_path option to an existing PostgreSQL URL.
-func appendSearchPath(dsn, schema string) string {
-	searchPathOption := url.QueryEscape(fmt.Sprintf("-c search_path=%s,public", schema))
-	if strings.Contains(dsn, "?") {
-		return dsn + "&options=" + searchPathOption
-	}
-	return dsn + "?options=" + searchPathOption
+	log.Printf("workspace-sandbox: using SQLite database at %s", path)
+	return dsn, nil
 }
 
 func main() {

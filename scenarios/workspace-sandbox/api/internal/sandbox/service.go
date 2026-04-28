@@ -17,7 +17,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/discovery"
-	sandboxprovenance "github.com/vrooli/sandbox-provenance"
 	"workspace-sandbox/internal/diff"
 	"workspace-sandbox/internal/driver"
 	"workspace-sandbox/internal/policy"
@@ -1628,11 +1627,12 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 		}, nil
 	}
 
-	// Record provenance for all applied changes. Per the sandbox-provenance
-	// v1.0.0 contract, the run-end metadata (runId, conversationId, cost,
-	// runOutcome) and the per-file state are stamped here. Apply-at-run-end
-	// supplies them on the request; operator-driven Approve calls fall back
-	// to the sandbox metadata for runId only and leave the rest empty.
+	// Record provenance for all applied changes. The run-end metadata
+	// (runId, conversationId, cost, runOutcome) and the per-file state are
+	// stamped here. Apply-at-run-end supplies them on the request;
+	// operator-driven Approve calls fall back to the sandbox metadata for
+	// runId only and leave the rest empty. Canonical enum values are defined
+	// in packages/proto/schemas/workspace-sandbox/v1/domain/applied_change.proto.
 	runID := req.AgentManagerRunID
 	if runID == "" {
 		runID = metadataString(sandbox.Metadata, metadataAgentManagerRunID)
@@ -1649,11 +1649,10 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 			ChangeType:        string(c.ChangeType),
 			FileSize:          c.FileSize,
 			AgentManagerRunID: runID,
-			SchemaVersion:     sandboxprovenance.SchemaVersion,
 			ConversationID:    req.ConversationID,
 			CostUSD:           req.Cost,
 			RunOutcome:        req.RunOutcome,
-			ProvenanceState:   string(sandboxprovenance.FileStateApplied),
+			ProvenanceState:   string(types.ProvenanceFileStateApplied),
 		}
 	}
 
@@ -1771,8 +1770,8 @@ func (s *Service) ApplyAtRunEnd(ctx context.Context, req *types.ApplyAtRunEndReq
 	// applied / pending-review is owned by the acceptance filter inside
 	// Approve, which is shared with the operator surface. Run-end metadata
 	// (runId, conversationId, cost, runOutcome) is forwarded so it lands
-	// on the resulting AppliedChange rows per the sandbox-provenance v1.0.0
-	// contract.
+	// on the resulting AppliedChange rows. Canonical enum values are
+	// defined in packages/proto/schemas/workspace-sandbox/v1/domain.
 	approvalReq := &types.ApprovalRequest{
 		SandboxID:         req.SandboxID,
 		Mode:              "all",

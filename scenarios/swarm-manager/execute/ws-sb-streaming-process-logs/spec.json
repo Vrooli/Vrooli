@@ -3,6 +3,7 @@
     "scenarios/workspace-sandbox/**",
     "scenarios/agent-manager/**"
   ],
+  "archived_at": "2026-04-28T12:58:27Z",
   "created": "2026-04-28T02:31:18Z",
   "created_by": {
     "type": "operator"
@@ -10,7 +11,7 @@
   "depends_on": [
     "execute/protected-sandbox-agent-launch"
   ],
-  "description": "## Goal\n\nReplace the SandboxLauncher`s 100ms polling loop on `/processes/{pid}/logs` with a true streaming transport (SSE or WebSocket) so the runner pipeline receives stdout chunks as they are produced rather than at fixed intervals.\n\n## Current state\n\nThe SandboxLauncher (introduced by `execute/protected-sandbox-agent-launch`) polls `/processes/{pid}/logs?offset=N` every 100ms and forwards new bytes into the runner`s stdout pipe. Polling is robust and tolerates network blips, but adds up to 100ms of latency on every token-stream chunk and burns CPU on the workspace-sandbox API for long-running runs. An existing `StreamProcessLogs` SSE handler exists in `process.go` but does not preserve stream boundaries cleanly when chunks contain newlines, so the SandboxLauncher does not use it.\n\n## Expected deliverables\n\n1. A streaming endpoint on workspace-sandbox `/processes/{pid}/logs` that preserves byte-level stream boundaries (does not split mid-line, does not coalesce reads) over SSE or WebSocket.\n2. SandboxLauncher migrated to the streaming transport with the polling loop removed.\n3. Latency benchmarks: p95 token-stream latency target `<= 50ms` (the runner-fork plan target).\n4. Tests covering reconnection (the agent process produces output during a brief network blip and the stream resumes without losing bytes).\n\n## Key references\n\n- `scenarios/agent-manager/api/internal/adapters/sandbox/sandbox_launcher.go` (drainLogs polling loop)\n- `scenarios/workspace-sandbox/api/internal/handlers/process.go` (StreamProcessLogs)\n- `scenarios/agent-manager/docs/PROTECTED_MODE_RUNNERS.md` (documented trade-off)",
+  "description": "## Goal\n\nReplace the SandboxLauncher`s 100ms polling loop on `/processes/{pid}/logs` with a true streaming transport (SSE or WebSocket) so the runner pipeline receives stdout chunks as they are produced rather than at fixed intervals.\n\n## Current state\n\nThe SandboxLauncher (introduced by `execute/protected-sandbox-agent-launch`) polls `/processes/{pid}/logs?offset=N` every 100ms and forwards new bytes into the runner`s stdout pipe. Polling is robust and tolerates network blips, but adds up to 100ms of latency on every token-stream chunk and burns CPU on the workspace-sandbox API for long-running runs. An existing `StreamProcessLogs` SSE handler exists in `process.go` but does not preserve stream boundaries cleanly when chunks contain newlines, so the SandboxLauncher does not use it.\n\n## Expected deliverables\n\n1. A streaming endpoint on workspace-sandbox `/processes/{pid}/logs` that preserves byte-level stream boundaries (does not split mid-line, does not coalesce reads) over SSE or WebSocket.\n2. SandboxLauncher migrated to the streaming transport with the polling loop removed.\n3. Latency benchmarks: p95 token-stream latency target `\u003c= 50ms` (the runner-fork plan target).\n4. Tests covering reconnection (the agent process produces output during a brief network blip and the stream resumes without losing bytes).\n\n## Key references\n\n- `scenarios/agent-manager/api/internal/adapters/sandbox/sandbox_launcher.go` (drainLogs polling loop)\n- `scenarios/workspace-sandbox/api/internal/handlers/process.go` (StreamProcessLogs)\n- `scenarios/agent-manager/docs/PROTECTED_MODE_RUNNERS.md` (documented trade-off)",
   "effort": "M",
   "initiative": "protected-agent-sandboxing",
   "kind": "execute",
@@ -25,5 +26,5 @@
     "follow-up"
   ],
   "title": "Workspace-sandbox streaming /processes/{pid}/logs (SSE or WebSocket)",
-  "updated": "2026-04-28T04:00:00Z"
+  "updated": "2026-04-28T12:58:27Z"
 }

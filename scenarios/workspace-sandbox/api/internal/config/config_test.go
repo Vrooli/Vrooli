@@ -90,11 +90,8 @@ func TestDefault(t *testing.T) {
 	})
 
 	t.Run("Database defaults", func(t *testing.T) {
-		if cfg.Database.Schema != "workspace-sandbox" {
-			t.Errorf("expected Schema 'workspace-sandbox', got %s", cfg.Database.Schema)
-		}
-		if cfg.Database.SSLMode != "disable" {
-			t.Errorf("expected SSLMode 'disable', got %s", cfg.Database.SSLMode)
+		if cfg.Database.Path != "" {
+			t.Errorf("expected empty Database.Path default, got %q", cfg.Database.Path)
 		}
 	})
 }
@@ -107,9 +104,7 @@ func TestLoadFromEnv(t *testing.T) {
 		"WORKSPACE_SANDBOX_MAX_SANDBOXES", "WORKSPACE_SANDBOX_CORS_ORIGINS",
 		"WORKSPACE_SANDBOX_USE_FUSE", "WORKSPACE_SANDBOX_DEFAULT_TTL",
 		"WORKSPACE_SANDBOX_COMMIT_TEMPLATE", "WORKSPACE_SANDBOX_COMMIT_AUTHOR_MODE",
-		"PROJECT_ROOT", "SANDBOX_BASE_DIR", "DATABASE_URL",
-		"POSTGRES_HOST", "POSTGRES_PORT", "POSTGRES_USER", "POSTGRES_PASSWORD",
-		"POSTGRES_DB", "POSTGRES_SCHEMA",
+		"PROJECT_ROOT", "SANDBOX_BASE_DIR", "SQLITE_PATH",
 	}
 	for _, key := range envVars {
 		originalEnv[key] = os.Getenv(key)
@@ -225,22 +220,14 @@ func TestLoadFromEnv(t *testing.T) {
 
 	t.Run("loads database config", func(t *testing.T) {
 		os.Setenv("API_PORT", "8080")
-		os.Setenv("DATABASE_URL", "postgres://localhost/test")
-		os.Setenv("POSTGRES_HOST", "db.example.com")
-		os.Setenv("POSTGRES_SCHEMA", "custom_schema")
+		os.Setenv("SQLITE_PATH", "/tmp/workspace-sandbox-test.db")
 
 		cfg, err := LoadFromEnv()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if cfg.Database.URL != "postgres://localhost/test" {
-			t.Errorf("expected DATABASE_URL, got %s", cfg.Database.URL)
-		}
-		if cfg.Database.Host != "db.example.com" {
-			t.Errorf("expected Host db.example.com, got %s", cfg.Database.Host)
-		}
-		if cfg.Database.Schema != "custom_schema" {
-			t.Errorf("expected Schema custom_schema, got %s", cfg.Database.Schema)
+		if cfg.Database.Path != "/tmp/workspace-sandbox-test.db" {
+			t.Errorf("expected SQLITE_PATH, got %q", cfg.Database.Path)
 		}
 	})
 }

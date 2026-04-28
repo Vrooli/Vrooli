@@ -328,34 +328,12 @@ type ResourceLimitsConfig struct {
 	TimeoutSec int `json:"timeoutSec"`
 }
 
-// DatabaseConfig controls database connection settings.
+// DatabaseConfig controls database connection settings for the embedded
+// SQLite store.
 type DatabaseConfig struct {
-	// URL is the full database connection URL.
-	// If set, overrides individual host/port/user/password/name settings.
-	URL string
-
-	// Host is the database server hostname.
-	Host string
-
-	// Port is the database server port.
-	Port string
-
-	// User is the database username.
-	User string
-
-	// Password is the database password.
-	Password string
-
-	// Name is the database name.
-	Name string
-
-	// Schema is the PostgreSQL schema to use.
-	// Default: workspace-sandbox
-	Schema string
-
-	// SSLMode controls SSL connection mode.
-	// Default: disable
-	SSLMode string
+	// Path is an explicit override for the SQLite file location. When empty,
+	// the API derives the path through api-core/storage. Honors SQLITE_PATH.
+	Path string
 }
 
 // IntegrationConfig controls cross-scenario callbacks.
@@ -448,10 +426,7 @@ func Default() Config {
 			},
 			DefaultIsolationProfile: "full",
 		},
-		Database: DatabaseConfig{
-			Schema:  "workspace-sandbox",
-			SSLMode: "disable",
-		},
+		Database: DatabaseConfig{},
 		Integration: IntegrationConfig{
 			AgentManagerURL:         "",
 			AgentManagerSyncEnabled: true,
@@ -576,16 +551,9 @@ func LoadFromEnv() (Config, error) {
 		cfg.Execution.DefaultIsolationProfile = profile
 	}
 
-	// Database config
-	cfg.Database.URL = os.Getenv("DATABASE_URL")
-	cfg.Database.Host = os.Getenv("POSTGRES_HOST")
-	cfg.Database.Port = os.Getenv("POSTGRES_PORT")
-	cfg.Database.User = os.Getenv("POSTGRES_USER")
-	cfg.Database.Password = os.Getenv("POSTGRES_PASSWORD")
-	cfg.Database.Name = os.Getenv("POSTGRES_DB")
-	if schema := os.Getenv("POSTGRES_SCHEMA"); schema != "" {
-		cfg.Database.Schema = schema
-	}
+	// Database config (SQLite path; falls back to api-core/storage resolver
+	// when unset).
+	cfg.Database.Path = os.Getenv("SQLITE_PATH")
 
 	if len(errs) > 0 {
 		return cfg, fmt.Errorf("missing required environment variables: %s", strings.Join(errs, ", "))

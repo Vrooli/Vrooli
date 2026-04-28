@@ -3,6 +3,7 @@
     "scenarios/workspace-sandbox/**",
     "scenarios/agent-manager/**"
   ],
+  "archived_at": "2026-04-28T12:58:45Z",
   "created": "2026-04-28T02:31:35Z",
   "created_by": {
     "type": "operator"
@@ -24,5 +25,5 @@
     "follow-up"
   ],
   "title": "Workspace-sandbox /processes split stdout/stderr streams",
-  "updated": "2026-04-28T04:00:00Z"
+  "updated": "2026-04-28T12:58:45Z"
 }

@@ -3,6 +3,7 @@
     "scenarios/agent-manager/**",
     "scenarios/workspace-sandbox/**"
   ],
+  "archived_at": "2026-04-28T12:57:51Z",
   "created": "2026-04-09T17:33:13Z",
   "depends_on": [
     "execute/protected-sandbox-agent-launch"
@@ -21,5 +22,5 @@
     "enforcement"
   ],
   "title": "Make protected-mode policy controls real instead of advisory",
-  "updated": "2026-04-27T23:28:59Z"
+  "updated": "2026-04-28T12:57:51Z"
 }

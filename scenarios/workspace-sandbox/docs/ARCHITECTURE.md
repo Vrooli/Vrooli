@@ -66,7 +66,7 @@ flowchart TB
         H[HTTP Handlers]
         S[Sandbox Service]
         D[Driver Layer]
-        DB[(PostgreSQL)]
+        DB[(SQLite)]
     end
 
     subgraph Storage["Filesystem"]
@@ -90,7 +90,7 @@ flowchart TB
 1. **API Server** - HTTP endpoints for all sandbox operations
 2. **Sandbox Service** - Business logic for create, diff, approve, etc.
 3. **Driver Layer** - Abstracts the actual filesystem isolation mechanism
-4. **PostgreSQL** - Stores sandbox metadata (not the actual files)
+4. **SQLite** - Stores sandbox metadata (not the actual files)
 5. **Filesystem** - Where the magic happens via overlayfs
 
 ---
@@ -264,7 +264,7 @@ sequenceDiagram
     participant AM as Agent Manager
     participant API as Workspace Sandbox API
     participant Agent as Agent Process
-    participant DB as PostgreSQL
+    participant DB as SQLite
     participant FS as Filesystem
 
     Note over AM,FS: Phase 1: Create Sandbox
@@ -522,7 +522,7 @@ The overlayfs mount only exists inside the user namespace where the API runs. Yo
 
 ### Q: What happens if the API crashes?
 
-- Sandbox metadata persists in PostgreSQL
+- Sandbox metadata persists in SQLite
 - Upper layer files persist on disk
 - On restart, sandboxes can be recovered
 - Stale sandboxes are cleaned by garbage collection

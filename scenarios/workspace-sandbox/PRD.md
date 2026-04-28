@@ -64,7 +64,7 @@ Preferred stacks:
 - UI: React + Vite + TypeScript with diff viewer component
 
 Preferred storage:
-- PostgreSQL for sandbox metadata
+- SQLite for sandbox metadata
 - Filesystem for overlay layers
 
 Integration strategy:
@@ -78,7 +78,7 @@ Non-goals:
 
 ## 🤝 Dependencies & Launch Plan
 Required resources:
-- PostgreSQL for metadata storage
+- SQLite for metadata storage
 - Linux with overlayfs support
 - bubblewrap package installed
 

@@ -1,39 +1,57 @@
-// Package repository provides database operations for sandboxes.
+// Behavior-driven repository tests. These run against a real on-disk SQLite
+// database (modernc.org/sqlite) created in t.TempDir(), so query-shape
+// regressions surface as real failures rather than as drifted mock
+// expectations.
+
 package repository
 
 import (
 	"context"
 	"database/sql"
-	"database/sql/driver"
-	"encoding/json"
-	"errors"
-	"regexp"
+	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
-	"github.com/lib/pq"
 	"workspace-sandbox/internal/types"
+
+	_ "modernc.org/sqlite"
 )
 
-// --- Test Helpers ---
+// newTestDB returns a fresh, fully-initialized SQLite handle backed by a file
+// in the test's temp dir. The handle is closed automatically via t.Cleanup.
+func newTestDB(t *testing.T) *sql.DB {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "test.db")
+	dsn := path +
+		"?_pragma=journal_mode(WAL)" +
+		"&_pragma=foreign_keys(1)" +
+		"&_pragma=busy_timeout(5000)" +
+		"&_txlock=immediate"
 
-// newMockDB creates a new sqlmock database for testing.
-func newMockDB(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {
-	db, mock, err := sqlmock.New()
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
-		t.Fatalf("failed to create mock: %v", err)
+		t.Fatalf("open sqlite: %v", err)
 	}
-	return db, mock
+	// Single-connection pool mirrors production main.go.
+	db.SetMaxOpenConns(1)
+	if _, err := db.Exec(SchemaSQL); err != nil {
+		db.Close()
+		t.Fatalf("apply schema: %v", err)
+	}
+	t.Cleanup(func() { db.Close() })
+	return db
 }
 
-// testSandbox returns a sandbox with test data.
-func testSandbox() *types.Sandbox {
-	id := uuid.New()
-	now := time.Now()
+func newTestRepo(t *testing.T) *SandboxRepository {
+	return NewSandboxRepository(newTestDB(t))
+}
+
+func newTestSandbox() *types.Sandbox {
 	return &types.Sandbox{
-		ID:            id,
+		ID:            uuid.New(),
 		ScopePath:     "/project/src",
 		ReservedPath:  "/project/src",
 		ReservedPaths: []string{"/project/src"},
@@ -43,1631 +61,555 @@ func testSandbox() *types.Sandbox {
 		Status:        types.StatusActive,
 		Driver:        "fuse-overlayfs",
 		DriverVersion: "1.0.0",
-		Tags:          []string{"test", "unit"},
-		Metadata:      map[string]interface{}{"key": "value"},
+		Tags:          []string{"unit", "test"},
+		Metadata:      map[string]any{"key": "value"},
 		Behavior: types.SandboxBehavior{
-			Acceptance: types.AcceptanceConfig{
-				Mode: "allowlist",
-			},
+			Acceptance: types.AcceptanceConfig{Mode: "allowlist"},
 		},
-		CreatedAt:  now,
-		LastUsedAt: now,
-		UpdatedAt:  now,
-		Version:    1,
 	}
 }
 
-// sandboxColumns returns the column names for sandbox queries.
-func sandboxColumns() []string {
-	return []string{
-		"id", "name", "scope_path", "reserved_path", "reserved_paths", "no_lock", "project_root", "owner", "owner_type", "status", "error_message",
-		"created_at", "last_used_at", "stopped_at", "approved_at", "deleted_at",
-		"driver", "driver_version", "lower_dir", "upper_dir", "work_dir", "merged_dir",
-		"size_bytes", "file_count", "active_pids", "session_count", "tags", "metadata", "behavior",
-		"idempotency_key", "updated_at", "version", "base_commit_hash",
-	}
-}
-
-// sandboxRow returns a sqlmock row for a sandbox.
-func sandboxRow(s *types.Sandbox) []driver.Value {
-	metadataJSON, _ := json.Marshal(s.Metadata)
-	behaviorJSON, _ := json.Marshal(s.Behavior)
-	return []driver.Value{
-		s.ID, s.Name, s.ScopePath, s.ReservedPath, pq.StringArray(s.ReservedPaths), s.NoLock, s.ProjectRoot, s.Owner, s.OwnerType, s.Status, s.ErrorMsg,
-		s.CreatedAt, s.LastUsedAt, s.StoppedAt, s.ApprovedAt, s.DeletedAt,
-		s.Driver, s.DriverVersion, s.LowerDir, s.UpperDir, s.WorkDir, s.MergedDir,
-		s.SizeBytes, s.FileCount,
-		pq.Int64Array{},
-		s.SessionCount,
-		pq.StringArray(s.Tags), metadataJSON, behaviorJSON,
-		s.IdempotencyKey, s.UpdatedAt, s.Version, s.BaseCommitHash,
-	}
-}
-
-// --- Constructor Tests ---
-
-func TestNewSandboxRepository(t *testing.T) {
-	db, _ := newMockDB(t)
-	defer db.Close()
-
-	repo := NewSandboxRepository(db)
-	if repo == nil {
-		t.Fatal("NewSandboxRepository returned nil")
-	}
-	if repo.db != db {
-		t.Error("NewSandboxRepository did not store the database connection")
-	}
-}
-
-// --- Interface Verification ---
+// ---------------------------------------------------------------------------
+// Sanity / interface checks
+// ---------------------------------------------------------------------------
 
 func TestSandboxRepository_ImplementsRepository(t *testing.T) {
 	var _ Repository = (*SandboxRepository)(nil)
-}
-
-func TestTxSandboxRepository_ImplementsTxRepository(t *testing.T) {
 	var _ TxRepository = (*TxSandboxRepository)(nil)
 }
 
-// --- Create Tests ---
-
-func TestSandboxRepository_Create(t *testing.T) {
-	tests := []struct {
-		name      string
-		sandbox   *types.Sandbox
-		setupMock func(sqlmock.Sqlmock, *types.Sandbox)
-		wantErr   bool
-	}{
-		{
-			name:    "successful create",
-			sandbox: testSandbox(),
-			setupMock: func(mock sqlmock.Sqlmock, s *types.Sandbox) {
-				now := time.Now()
-				mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO sandboxes")).
-					WithArgs(
-						s.ID, s.Name, s.ScopePath, s.ReservedPath, pq.Array(s.ReservedPaths), s.NoLock, s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
-						s.Driver, s.DriverVersion, pq.Array(s.Tags), sqlmock.AnyArg(), sqlmock.AnyArg(),
-						s.IdempotencyKey, int64(1), s.BaseCommitHash,
-					).
-					WillReturnRows(sqlmock.NewRows([]string{"created_at", "last_used_at", "updated_at"}).
-						AddRow(now, now, now))
-			},
-			wantErr: false,
-		},
-		{
-			name:    "create with idempotency key",
-			sandbox: func() *types.Sandbox { s := testSandbox(); s.IdempotencyKey = "test-key-123"; return s }(),
-			setupMock: func(mock sqlmock.Sqlmock, s *types.Sandbox) {
-				now := time.Now()
-				mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO sandboxes")).
-					WithArgs(
-						s.ID, s.Name, s.ScopePath, s.ReservedPath, pq.Array(s.ReservedPaths), s.NoLock, s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
-						s.Driver, s.DriverVersion, pq.Array(s.Tags), sqlmock.AnyArg(), sqlmock.AnyArg(),
-						s.IdempotencyKey, int64(1), s.BaseCommitHash,
-					).
-					WillReturnRows(sqlmock.NewRows([]string{"created_at", "last_used_at", "updated_at"}).
-						AddRow(now, now, now))
-			},
-			wantErr: false,
-		},
-		{
-			name:    "database error",
-			sandbox: testSandbox(),
-			setupMock: func(mock sqlmock.Sqlmock, s *types.Sandbox) {
-				mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO sandboxes")).
-					WillReturnError(errors.New("connection refused"))
-			},
-			wantErr: true,
-		},
+func TestSchemaSQL_AppliesCleanly(t *testing.T) {
+	if strings.TrimSpace(SchemaSQL) == "" {
+		t.Fatal("SchemaSQL is empty")
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db, mock := newMockDB(t)
-			defer db.Close()
-
-			repo := NewSandboxRepository(db)
-			tt.setupMock(mock, tt.sandbox)
-
-			err := repo.Create(context.Background(), tt.sandbox)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
-			}
-
-			if !tt.wantErr && tt.sandbox.Version != 1 {
-				t.Errorf("Create() should set Version = 1, got %d", tt.sandbox.Version)
-			}
-
-			if err := mock.ExpectationsWereMet(); err != nil {
-				t.Errorf("unfulfilled expectations: %v", err)
-			}
-		})
+	db := newTestDB(t) // applying twice is a smoke test of idempotency
+	if _, err := db.Exec(SchemaSQL); err != nil {
+		t.Fatalf("re-applying schema failed: %v", err)
 	}
 }
 
-func TestSandboxRepository_Create_InvalidMetadata(t *testing.T) {
-	db, _ := newMockDB(t)
-	defer db.Close()
+// ---------------------------------------------------------------------------
+// CRUD round-trip
+// ---------------------------------------------------------------------------
 
-	repo := NewSandboxRepository(db)
-	s := testSandbox()
-	// Create an unmarshalable value (channel cannot be marshaled to JSON)
-	s.Metadata = map[string]interface{}{"invalid": make(chan int)}
+func TestCreate_AndGet_RoundTrip(t *testing.T) {
+	ctx := context.Background()
+	repo := newTestRepo(t)
+	in := newTestSandbox()
 
-	err := repo.Create(context.Background(), s)
+	if err := repo.Create(ctx, in); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	got, err := repo.Get(ctx, in.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got == nil {
+		t.Fatal("Get returned nil for known sandbox")
+	}
+	if got.ID != in.ID {
+		t.Errorf("ID mismatch: got %s want %s", got.ID, in.ID)
+	}
+	if got.ScopePath != in.ScopePath {
+		t.Errorf("ScopePath mismatch: got %q want %q", got.ScopePath, in.ScopePath)
+	}
+	if got.Status != in.Status {
+		t.Errorf("Status mismatch: got %q want %q", got.Status, in.Status)
+	}
+	if len(got.Tags) != 2 || got.Tags[0] != "unit" || got.Tags[1] != "test" {
+		t.Errorf("Tags mismatch: %v", got.Tags)
+	}
+	if got.Metadata["key"] != "value" {
+		t.Errorf("Metadata mismatch: %v", got.Metadata)
+	}
+	if got.Behavior.Acceptance.Mode != "allowlist" {
+		t.Errorf("Behavior mismatch: %v", got.Behavior)
+	}
+	if len(got.ReservedPaths) != 1 || got.ReservedPaths[0] != "/project/src" {
+		t.Errorf("ReservedPaths mismatch: %v", got.ReservedPaths)
+	}
+	if got.Version != 1 {
+		t.Errorf("Version got %d want 1", got.Version)
+	}
+	if got.CreatedAt.IsZero() || got.LastUsedAt.IsZero() || got.UpdatedAt.IsZero() {
+		t.Error("expected non-zero timestamps")
+	}
+}
+
+func TestGet_MissingReturnsNil(t *testing.T) {
+	got, err := newTestRepo(t).Get(context.Background(), uuid.New())
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got != nil {
+		t.Errorf("Get on missing sandbox returned %v, want nil", got)
+	}
+}
+
+func TestUpdate_BumpsVersionAndPersistsFields(t *testing.T) {
+	ctx := context.Background()
+	repo := newTestRepo(t)
+	s := newTestSandbox()
+	if err := repo.Create(ctx, s); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	s.Status = types.StatusStopped
+	s.SizeBytes = 4096
+	s.ActivePIDs = []int{42, 99}
+	if err := repo.Update(ctx, s); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	if s.Version != 2 {
+		t.Errorf("Version got %d want 2", s.Version)
+	}
+
+	got, err := repo.Get(ctx, s.ID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.Status != types.StatusStopped {
+		t.Errorf("Status got %q want stopped", got.Status)
+	}
+	if got.SizeBytes != 4096 {
+		t.Errorf("SizeBytes got %d want 4096", got.SizeBytes)
+	}
+	if len(got.ActivePIDs) != 2 || got.ActivePIDs[0] != 42 || got.ActivePIDs[1] != 99 {
+		t.Errorf("ActivePIDs mismatch: %v", got.ActivePIDs)
+	}
+}
+
+func TestDelete_MarksDeletedAndIsIdempotent(t *testing.T) {
+	ctx := context.Background()
+	repo := newTestRepo(t)
+	s := newTestSandbox()
+	if err := repo.Create(ctx, s); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	if err := repo.Delete(ctx, s.ID); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	got, err := repo.Get(ctx, s.ID)
+	if err != nil || got == nil {
+		t.Fatalf("Get after Delete: %v %v", err, got)
+	}
+	if got.Status != types.StatusDeleted {
+		t.Errorf("Status after delete got %q want deleted", got.Status)
+	}
+	if got.DeletedAt == nil {
+		t.Error("DeletedAt was not set")
+	}
+
+	if err := repo.Delete(ctx, s.ID); err == nil {
+		t.Error("Delete on already-deleted sandbox should error")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Optimistic locking
+// ---------------------------------------------------------------------------
+
+func TestUpdateWithVersionCheck_RejectsStaleVersion(t *testing.T) {
+	ctx := context.Background()
+	repo := newTestRepo(t)
+	s := newTestSandbox()
+	if err := repo.Create(ctx, s); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	// First update succeeds.
+	first := *s
+	first.Status = types.StatusStopped
+	if err := repo.UpdateWithVersionCheck(ctx, &first, 1); err != nil {
+		t.Fatalf("first UpdateWithVersionCheck: %v", err)
+	}
+
+	// Second update with stale version should fail with concurrent-mod error.
+	stale := *s
+	stale.Status = types.StatusError
+	err := repo.UpdateWithVersionCheck(ctx, &stale, 1)
 	if err == nil {
-		t.Error("Create() should fail with unmarshalable metadata")
+		t.Fatal("expected concurrent-modification error, got nil")
+	}
+	if !strings.Contains(err.Error(), "concurrent") && !strings.Contains(err.Error(), "version") {
+		t.Errorf("error %q did not mention concurrent/version", err)
 	}
 }
 
-// --- Get Tests ---
+// ---------------------------------------------------------------------------
+// List / filtering
+// ---------------------------------------------------------------------------
 
-func TestSandboxRepository_Get(t *testing.T) {
-	tests := []struct {
-		name      string
-		id        uuid.UUID
-		setupMock func(sqlmock.Sqlmock, uuid.UUID)
-		validate  func(*testing.T, *types.Sandbox)
-		wantNil   bool
-		wantErr   bool
-	}{
-		{
-			name: "found",
-			id:   uuid.New(),
-			setupMock: func(mock sqlmock.Sqlmock, id uuid.UUID) {
-				s := testSandbox()
-				s.ID = id
-				mock.ExpectQuery(regexp.QuoteMeta("SELECT")).
-					WithArgs(id).
-					WillReturnRows(sqlmock.NewRows(sandboxColumns()).
-						AddRow(sandboxRow(s)...))
-			},
-			validate: nil,
-			wantNil:  false,
-			wantErr:  false,
-		},
-		{
-			name: "found with null reserved_path",
-			id:   uuid.New(),
-			setupMock: func(mock sqlmock.Sqlmock, id uuid.UUID) {
-				s := testSandbox()
-				s.ID = id
-				s.NoLock = true
-				s.ReservedPath = ""
-				s.ReservedPaths = nil
-				row := sandboxRow(s)
-				row[3] = nil // reserved_path
-				row[4] = nil // reserved_paths
-				mock.ExpectQuery(regexp.QuoteMeta("SELECT")).
-					WithArgs(id).
-					WillReturnRows(sqlmock.NewRows(sandboxColumns()).
-						AddRow(row...))
-			},
-			validate: func(t *testing.T, s *types.Sandbox) {
-				if s.ReservedPath != "" {
-					t.Errorf("ReservedPath = %q, want empty string", s.ReservedPath)
-				}
-			},
-			wantNil: false,
-			wantErr: false,
-		},
-		{
-			name: "not found",
-			id:   uuid.New(),
-			setupMock: func(mock sqlmock.Sqlmock, id uuid.UUID) {
-				mock.ExpectQuery(regexp.QuoteMeta("SELECT")).
-					WithArgs(id).
-					WillReturnError(sql.ErrNoRows)
-			},
-			validate: nil,
-			wantNil:  true,
-			wantErr:  false,
-		},
-		{
-			name: "database error",
-			id:   uuid.New(),
-			setupMock: func(mock sqlmock.Sqlmock, id uuid.UUID) {
-				mock.ExpectQuery(regexp.QuoteMeta("SELECT")).
-					WithArgs(id).
-					WillReturnError(errors.New("connection failed"))
-			},
-			validate: nil,
-			wantNil:  true,
-			wantErr:  true,
-		},
+func TestList_FiltersByStatusAndOwner(t *testing.T) {
+	ctx := context.Background()
+	repo := newTestRepo(t)
+
+	for i, owner := range []string{"a", "a", "b"} {
+		s := newTestSandbox()
+		s.ID = uuid.New()
+		s.Owner = owner
+		s.ScopePath = "/p/s" + string(rune('0'+i))
+		s.ReservedPath = s.ScopePath
+		s.ReservedPaths = []string{s.ScopePath}
+		s.ProjectRoot = "/p"
+		if err := repo.Create(ctx, s); err != nil {
+			t.Fatalf("Create %d: %v", i, err)
+		}
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db, mock := newMockDB(t)
-			defer db.Close()
-
-			repo := NewSandboxRepository(db)
-			tt.setupMock(mock, tt.id)
-
-			result, err := repo.Get(context.Background(), tt.id)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Get() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if (result == nil) != tt.wantNil {
-				t.Errorf("Get() result = %v, wantNil %v", result, tt.wantNil)
-			}
-			if tt.validate != nil && result != nil {
-				tt.validate(t, result)
-			}
-
-			if err := mock.ExpectationsWereMet(); err != nil {
-				t.Errorf("unfulfilled expectations: %v", err)
-			}
-		})
-	}
-}
-
-func TestSandboxRepository_Get_ParsesMetadataAndTags(t *testing.T) {
-	db, mock := newMockDB(t)
-	defer db.Close()
-
-	repo := NewSandboxRepository(db)
-	id := uuid.New()
-	s := testSandbox()
-	s.ID = id
-	s.Tags = []string{"tag1", "tag2", "tag3"}
-	s.Metadata = map[string]interface{}{"nested": map[string]interface{}{"key": "value"}}
-	s.ActivePIDs = []int{123, 456}
-
-	metadataJSON, _ := json.Marshal(s.Metadata)
-	behaviorJSON, _ := json.Marshal(s.Behavior)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT")).
-		WithArgs(id).
-		WillReturnRows(sqlmock.NewRows(sandboxColumns()).
-			AddRow(
-				s.ID, s.Name, s.ScopePath, s.ReservedPath, pq.StringArray(s.ReservedPaths), s.NoLock, s.ProjectRoot, s.Owner, s.OwnerType, s.Status, s.ErrorMsg,
-				s.CreatedAt, s.LastUsedAt, s.StoppedAt, s.ApprovedAt, s.DeletedAt,
-				s.Driver, s.DriverVersion, s.LowerDir, s.UpperDir, s.WorkDir, s.MergedDir,
-				s.SizeBytes, s.FileCount, pq.Int64Array{123, 456}, s.SessionCount,
-				pq.StringArray(s.Tags), metadataJSON, behaviorJSON,
-				s.IdempotencyKey, s.UpdatedAt, s.Version, s.BaseCommitHash,
-			))
-
-	result, err := repo.Get(context.Background(), id)
+	res, err := repo.List(ctx, &types.ListFilter{Owner: "a"})
 	if err != nil {
-		t.Fatalf("Get() error = %v", err)
+		t.Fatalf("List: %v", err)
 	}
-
-	if len(result.Tags) != 3 {
-		t.Errorf("Get() tags = %v, want 3 tags", result.Tags)
+	if res.TotalCount != 2 || len(res.Sandboxes) != 2 {
+		t.Errorf("expected 2 sandboxes for owner a, got total=%d len=%d", res.TotalCount, len(res.Sandboxes))
 	}
-
-	if len(result.ActivePIDs) != 2 || result.ActivePIDs[0] != 123 {
-		t.Errorf("Get() activePIDs = %v, want [123, 456]", result.ActivePIDs)
-	}
-}
-
-// --- Update Tests ---
-
-func TestSandboxRepository_Update(t *testing.T) {
-	tests := []struct {
-		name      string
-		sandbox   *types.Sandbox
-		setupMock func(sqlmock.Sqlmock, *types.Sandbox)
-		wantErr   bool
-	}{
-		{
-			name:    "successful update",
-			sandbox: testSandbox(),
-			setupMock: func(mock sqlmock.Sqlmock, s *types.Sandbox) {
-				mock.ExpectQuery(regexp.QuoteMeta("UPDATE sandboxes SET")).
-					WithArgs(
-						s.ID, s.Status, s.ErrorMsg,
-						s.StoppedAt, s.ApprovedAt, s.DeletedAt,
-						s.LowerDir, s.UpperDir, s.WorkDir, s.MergedDir,
-						s.SizeBytes, s.FileCount, pq.Int64Array{}, s.SessionCount,
-						pq.Array(s.Tags), sqlmock.AnyArg(), sqlmock.AnyArg(),
-					).
-					WillReturnRows(sqlmock.NewRows([]string{"version", "updated_at"}).
-						AddRow(int64(2), time.Now()))
-			},
-			wantErr: false,
-		},
-		{
-			name:    "database error",
-			sandbox: testSandbox(),
-			setupMock: func(mock sqlmock.Sqlmock, s *types.Sandbox) {
-				mock.ExpectQuery(regexp.QuoteMeta("UPDATE sandboxes SET")).
-					WillReturnError(errors.New("database error"))
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db, mock := newMockDB(t)
-			defer db.Close()
-
-			repo := NewSandboxRepository(db)
-			tt.setupMock(mock, tt.sandbox)
-
-			err := repo.Update(context.Background(), tt.sandbox)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Update() error = %v, wantErr %v", err, tt.wantErr)
-			}
-
-			if err := mock.ExpectationsWereMet(); err != nil {
-				t.Errorf("unfulfilled expectations: %v", err)
-			}
-		})
+	for _, s := range res.Sandboxes {
+		if s.Owner != "a" {
+			t.Errorf("unexpected owner %q in filter result", s.Owner)
+		}
 	}
 }
 
-func TestSandboxRepository_Update_IncrementsVersion(t *testing.T) {
-	db, mock := newMockDB(t)
-	defer db.Close()
+// ---------------------------------------------------------------------------
+// CheckScopeOverlap (Go-side replacement for the SQL function)
+// ---------------------------------------------------------------------------
 
-	repo := NewSandboxRepository(db)
-	s := testSandbox()
-	s.Version = 5
+func TestCheckScopeOverlap_DetectsAncestorAndDescendant(t *testing.T) {
+	ctx := context.Background()
+	repo := newTestRepo(t)
 
-	mock.ExpectQuery(regexp.QuoteMeta("UPDATE sandboxes SET")).
-		WillReturnRows(sqlmock.NewRows([]string{"version", "updated_at"}).
-			AddRow(int64(6), time.Now()))
+	existing := newTestSandbox()
+	existing.ScopePath = "/p/src/components"
+	existing.ReservedPath = "/p/src/components"
+	existing.ReservedPaths = []string{"/p/src/components"}
+	existing.ProjectRoot = "/p"
+	if err := repo.Create(ctx, existing); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
 
-	err := repo.Update(context.Background(), s)
+	// Ancestor scope conflicts.
+	conflicts, err := repo.CheckScopeOverlap(ctx, "/p/src", "/p", nil)
 	if err != nil {
-		t.Fatalf("Update() error = %v", err)
+		t.Fatalf("CheckScopeOverlap (ancestor): %v", err)
+	}
+	if len(conflicts) == 0 {
+		t.Error("expected ancestor conflict, got none")
 	}
 
-	if s.Version != 6 {
-		t.Errorf("Update() version = %d, want 6", s.Version)
+	// Descendant scope conflicts.
+	conflicts, err = repo.CheckScopeOverlap(ctx, "/p/src/components/widget", "/p", nil)
+	if err != nil {
+		t.Fatalf("CheckScopeOverlap (descendant): %v", err)
 	}
-}
-
-// --- Delete Tests ---
-
-func TestSandboxRepository_Delete(t *testing.T) {
-	tests := []struct {
-		name         string
-		id           uuid.UUID
-		rowsAffected int64
-		dbError      error
-		wantErr      bool
-	}{
-		{
-			name:         "successful delete",
-			id:           uuid.New(),
-			rowsAffected: 1,
-			wantErr:      false,
-		},
-		{
-			name:         "not found or already deleted",
-			id:           uuid.New(),
-			rowsAffected: 0,
-			wantErr:      true,
-		},
-		{
-			name:    "database error",
-			id:      uuid.New(),
-			dbError: errors.New("connection error"),
-			wantErr: true,
-		},
+	if len(conflicts) == 0 {
+		t.Error("expected descendant conflict, got none")
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db, mock := newMockDB(t)
-			defer db.Close()
+	// Sibling scope is fine.
+	conflicts, err = repo.CheckScopeOverlap(ctx, "/p/docs", "/p", nil)
+	if err != nil {
+		t.Fatalf("CheckScopeOverlap (sibling): %v", err)
+	}
+	if len(conflicts) != 0 {
+		t.Errorf("expected no conflicts for sibling, got %v", conflicts)
+	}
 
-			repo := NewSandboxRepository(db)
-
-			if tt.dbError != nil {
-				mock.ExpectExec(regexp.QuoteMeta("UPDATE sandboxes")).
-					WithArgs(tt.id, sqlmock.AnyArg()).
-					WillReturnError(tt.dbError)
-			} else {
-				mock.ExpectExec(regexp.QuoteMeta("UPDATE sandboxes")).
-					WithArgs(tt.id, sqlmock.AnyArg()).
-					WillReturnResult(sqlmock.NewResult(0, tt.rowsAffected))
-			}
-
-			err := repo.Delete(context.Background(), tt.id)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Delete() error = %v, wantErr %v", err, tt.wantErr)
-			}
-
-			if err := mock.ExpectationsWereMet(); err != nil {
-				t.Errorf("unfulfilled expectations: %v", err)
-			}
-		})
+	// Different project is fine.
+	conflicts, err = repo.CheckScopeOverlap(ctx, "/p/src", "/other-project", nil)
+	if err != nil {
+		t.Fatalf("CheckScopeOverlap (cross-project): %v", err)
+	}
+	if len(conflicts) != 0 {
+		t.Errorf("expected no conflicts cross-project, got %v", conflicts)
 	}
 }
 
-// --- List Tests ---
+// TestCheckScopeOverlap_ConcurrentCreates exercises the BEGIN IMMEDIATE
+// serialization wired by the SQLite DSN _txlock=immediate parameter. Two
+// concurrent transactions racing to claim the same reserved path should
+// serialize: only the first should observe a clean overlap-check, every
+// other should see the first's row.
+func TestCheckScopeOverlap_ConcurrentCreates(t *testing.T) {
+	ctx := context.Background()
+	repo := newTestRepo(t)
 
-func TestSandboxRepository_List(t *testing.T) {
-	tests := []struct {
-		name      string
-		filter    *types.ListFilter
-		setupMock func(sqlmock.Sqlmock)
-		wantCount int
-		wantErr   bool
-	}{
-		{
-			name:   "no filters",
-			filter: &types.ListFilter{Limit: 10},
-			setupMock: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery("SELECT COUNT").
-					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
-				mock.ExpectQuery("SELECT id").
-					WillReturnRows(sqlmock.NewRows(sandboxColumns()))
-			},
-			wantCount: 0,
-			wantErr:   false,
-		},
-		{
-			name: "with status filter",
-			filter: &types.ListFilter{
-				Status: []types.Status{types.StatusActive, types.StatusStopped},
-				Limit:  10,
-			},
-			setupMock: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery("SELECT COUNT").
-					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(5))
-				mock.ExpectQuery("SELECT id").
-					WillReturnRows(sqlmock.NewRows(sandboxColumns()))
-			},
-			wantCount: 0,
-			wantErr:   false,
-		},
-		{
-			name: "with owner filter",
-			filter: &types.ListFilter{
-				Owner: "test-agent",
-				Limit: 10,
-			},
-			setupMock: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery("SELECT COUNT").
-					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(3))
-				mock.ExpectQuery("SELECT id").
-					WillReturnRows(sqlmock.NewRows(sandboxColumns()))
-			},
-			wantCount: 0,
-			wantErr:   false,
-		},
-		{
-			name: "with date range",
-			filter: &types.ListFilter{
-				CreatedFrom: time.Now().Add(-24 * time.Hour),
-				CreatedTo:   time.Now(),
-				Limit:       10,
-			},
-			setupMock: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery("SELECT COUNT").
-					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(10))
-				mock.ExpectQuery("SELECT id").
-					WillReturnRows(sqlmock.NewRows(sandboxColumns()))
-			},
-			wantCount: 0,
-			wantErr:   false,
-		},
-		{
-			name:   "count error",
-			filter: &types.ListFilter{Limit: 10},
-			setupMock: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery("SELECT COUNT").
-					WillReturnError(errors.New("count failed"))
-			},
-			wantErr: true,
-		},
-		{
-			name:   "list error",
-			filter: &types.ListFilter{Limit: 10},
-			setupMock: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery("SELECT COUNT").
-					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(5))
-				mock.ExpectQuery("SELECT id").
-					WillReturnError(errors.New("query failed"))
-			},
-			wantErr: true,
-		},
-	}
+	const concurrency = 4
+	var wg sync.WaitGroup
+	successes := make([]bool, concurrency)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db, mock := newMockDB(t)
-			defer db.Close()
-
-			repo := NewSandboxRepository(db)
-			tt.setupMock(mock)
-
-			result, err := repo.List(context.Background(), tt.filter)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("List() error = %v, wantErr %v", err, tt.wantErr)
-			}
-
-			if !tt.wantErr && result != nil && len(result.Sandboxes) != tt.wantCount {
-				t.Errorf("List() count = %d, want %d", len(result.Sandboxes), tt.wantCount)
-			}
-
-			if err := mock.ExpectationsWereMet(); err != nil {
-				t.Errorf("unfulfilled expectations: %v", err)
-			}
-		})
-	}
-}
-
-func TestSandboxRepository_List_PaginationDefaults(t *testing.T) {
-	tests := []struct {
-		name        string
-		inputLimit  int
-		inputOffset int
-		wantLimit   int
-		wantOffset  int
-	}{
-		{
-			name:       "zero limit gets default",
-			inputLimit: 0,
-			wantLimit:  100,
-		},
-		{
-			name:       "negative offset becomes zero",
-			inputLimit: 10,
-			wantOffset: 0,
-		},
-		{
-			name:       "limit exceeds max is capped",
-			inputLimit: 20000,
-			wantLimit:  10000,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db, mock := newMockDB(t)
-			defer db.Close()
-
-			repo := NewSandboxRepository(db)
-
-			mock.ExpectQuery("SELECT COUNT").
-				WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
-			mock.ExpectQuery("SELECT id").
-				WillReturnRows(sqlmock.NewRows(sandboxColumns()))
-
-			filter := &types.ListFilter{Limit: tt.inputLimit, Offset: tt.inputOffset}
-			result, err := repo.List(context.Background(), filter)
+	for i := 0; i < concurrency; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			tx, err := repo.BeginTx(ctx)
 			if err != nil {
-				t.Fatalf("List() error = %v", err)
+				return
 			}
-
-			if tt.wantLimit > 0 && result.Limit != tt.wantLimit {
-				t.Errorf("List() limit = %d, want %d", result.Limit, tt.wantLimit)
+			conflicts, err := tx.CheckScopeOverlap(ctx, "/p/shared", "/p", nil)
+			if err != nil {
+				_ = tx.Rollback()
+				return
 			}
-		})
-	}
-}
-
-// --- CheckScopeOverlap Tests ---
-
-func TestSandboxRepository_CheckScopeOverlap(t *testing.T) {
-	tests := []struct {
-		name         string
-		scopePath    string
-		projectRoot  string
-		excludeID    *uuid.UUID
-		setupMock    func(sqlmock.Sqlmock)
-		wantConflict bool
-		wantErr      bool
-	}{
-		{
-			name:        "no conflicts",
-			scopePath:   "/project/src",
-			projectRoot: "/project",
-			setupMock: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(regexp.QuoteMeta("SELECT id, scope_path, status FROM check_scope_overlap")).
-					WillReturnRows(sqlmock.NewRows([]string{"id", "scope_path", "status"}))
-			},
-			wantConflict: false,
-			wantErr:      false,
-		},
-		{
-			name:        "exact conflict",
-			scopePath:   "/project/src",
-			projectRoot: "/project",
-			setupMock: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(regexp.QuoteMeta("SELECT id, scope_path, status FROM check_scope_overlap")).
-					WillReturnRows(sqlmock.NewRows([]string{"id", "scope_path", "status"}).
-						AddRow(uuid.New(), "/project/src", types.StatusActive))
-			},
-			wantConflict: true,
-			wantErr:      false,
-		},
-		{
-			name:        "with exclude ID",
-			scopePath:   "/project/src",
-			projectRoot: "/project",
-			excludeID:   func() *uuid.UUID { id := uuid.New(); return &id }(),
-			setupMock: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(regexp.QuoteMeta("SELECT id, scope_path, status FROM check_scope_overlap")).
-					WillReturnRows(sqlmock.NewRows([]string{"id", "scope_path", "status"}))
-			},
-			wantConflict: false,
-			wantErr:      false,
-		},
-		{
-			name:        "database error",
-			scopePath:   "/project/src",
-			projectRoot: "/project",
-			setupMock: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(regexp.QuoteMeta("SELECT id, scope_path, status FROM check_scope_overlap")).
-					WillReturnError(errors.New("db error"))
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db, mock := newMockDB(t)
-			defer db.Close()
-
-			repo := NewSandboxRepository(db)
-			tt.setupMock(mock)
-
-			conflicts, err := repo.CheckScopeOverlap(context.Background(), tt.scopePath, tt.projectRoot, tt.excludeID)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("CheckScopeOverlap() error = %v, wantErr %v", err, tt.wantErr)
+			if len(conflicts) > 0 {
+				_ = tx.Rollback()
+				return
 			}
-
-			if !tt.wantErr {
-				hasConflicts := len(conflicts) > 0
-				if hasConflicts != tt.wantConflict {
-					t.Errorf("CheckScopeOverlap() hasConflicts = %v, want %v", hasConflicts, tt.wantConflict)
-				}
+			s := newTestSandbox()
+			s.ID = uuid.New()
+			s.ScopePath = "/p/shared"
+			s.ReservedPath = "/p/shared"
+			s.ReservedPaths = []string{"/p/shared"}
+			s.ProjectRoot = "/p"
+			s.IdempotencyKey = "" // unique
+			if err := tx.Create(ctx, s); err != nil {
+				_ = tx.Rollback()
+				return
 			}
-
-			if err := mock.ExpectationsWereMet(); err != nil {
-				t.Errorf("unfulfilled expectations: %v", err)
+			if err := tx.Commit(); err != nil {
+				return
 			}
-		})
+			successes[i] = true
+		}(i)
+	}
+	wg.Wait()
+
+	count := 0
+	for _, ok := range successes {
+		if ok {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Errorf("expected exactly 1 successful create under concurrency, got %d", count)
 	}
 }
 
-// --- GetActiveSandboxes Tests ---
+// ---------------------------------------------------------------------------
+// Stats
+// ---------------------------------------------------------------------------
 
-func TestSandboxRepository_GetActiveSandboxes(t *testing.T) {
-	db, mock := newMockDB(t)
-	defer db.Close()
+func TestGetStats_CountsByStatus(t *testing.T) {
+	ctx := context.Background()
+	repo := newTestRepo(t)
 
-	repo := NewSandboxRepository(db)
-
-	// GetActiveSandboxes uses List internally
-	mock.ExpectQuery("SELECT COUNT").
-		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
-	mock.ExpectQuery("SELECT id").
-		WillReturnRows(sqlmock.NewRows(sandboxColumns()))
-
-	sandboxes, err := repo.GetActiveSandboxes(context.Background(), "/project")
-	if err != nil {
-		t.Fatalf("GetActiveSandboxes() error = %v", err)
+	// Create then Update because the canonical insert does not persist
+	// size_bytes (the driver sets it post-mount via Update).
+	make := func(status types.Status, size int64) {
+		s := newTestSandbox()
+		s.ID = uuid.New()
+		s.Status = status
+		s.ScopePath = "/p/" + string(status)
+		s.ReservedPath = s.ScopePath
+		s.ReservedPaths = []string{s.ScopePath}
+		if err := repo.Create(ctx, s); err != nil {
+			t.Fatalf("Create %s: %v", status, err)
+		}
+		s.SizeBytes = size
+		if err := repo.Update(ctx, s); err != nil {
+			t.Fatalf("Update %s: %v", status, err)
+		}
 	}
+	make(types.StatusActive, 100)
+	make(types.StatusActive, 200)
+	make(types.StatusStopped, 50)
+	make(types.StatusError, 25)
 
-	// Note: sandboxes can be nil when empty (no rows returned)
-	// The important thing is no error occurred
-	_ = sandboxes
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unfulfilled expectations: %v", err)
+	stats, err := repo.GetStats(ctx)
+	if err != nil {
+		t.Fatalf("GetStats: %v", err)
+	}
+	if stats.TotalCount != 4 {
+		t.Errorf("TotalCount got %d want 4", stats.TotalCount)
+	}
+	if stats.ActiveCount != 2 {
+		t.Errorf("ActiveCount got %d want 2", stats.ActiveCount)
+	}
+	if stats.StoppedCount != 1 {
+		t.Errorf("StoppedCount got %d want 1", stats.StoppedCount)
+	}
+	if stats.ErrorCount != 1 {
+		t.Errorf("ErrorCount got %d want 1", stats.ErrorCount)
+	}
+	if stats.TotalSizeBytes != 375 {
+		t.Errorf("TotalSizeBytes got %d want 375", stats.TotalSizeBytes)
 	}
 }
 
-// --- LogAuditEvent Tests ---
+// ---------------------------------------------------------------------------
+// Idempotency
+// ---------------------------------------------------------------------------
 
-func TestSandboxRepository_LogAuditEvent(t *testing.T) {
-	tests := []struct {
-		name      string
-		event     *types.AuditEvent
-		setupMock func(sqlmock.Sqlmock)
-		wantErr   bool
-	}{
-		{
-			name: "successful log",
-			event: &types.AuditEvent{
-				SandboxID: func() *uuid.UUID { id := uuid.New(); return &id }(),
-				EventType: "created",
-				Actor:     "test-user",
-				ActorType: "user",
-				Details:   map[string]interface{}{"action": "create"},
-			},
-			setupMock: func(mock sqlmock.Sqlmock) {
-				mock.ExpectExec(regexp.QuoteMeta("INSERT INTO sandbox_audit_log")).
-					WillReturnResult(sqlmock.NewResult(1, 1))
-			},
-			wantErr: false,
-		},
-		{
-			name: "nil details and state",
-			event: &types.AuditEvent{
-				SandboxID: func() *uuid.UUID { id := uuid.New(); return &id }(),
-				EventType: "deleted",
-				Actor:     "system",
-				ActorType: "system",
-			},
-			setupMock: func(mock sqlmock.Sqlmock) {
-				mock.ExpectExec(regexp.QuoteMeta("INSERT INTO sandbox_audit_log")).
-					WillReturnResult(sqlmock.NewResult(1, 1))
-			},
-			wantErr: false,
-		},
-		{
-			name: "database error",
-			event: &types.AuditEvent{
-				EventType: "test",
-			},
-			setupMock: func(mock sqlmock.Sqlmock) {
-				mock.ExpectExec(regexp.QuoteMeta("INSERT INTO sandbox_audit_log")).
-					WillReturnError(errors.New("insert failed"))
-			},
-			wantErr: true,
-		},
+func TestFindByIdempotencyKey(t *testing.T) {
+	ctx := context.Background()
+	repo := newTestRepo(t)
+
+	s := newTestSandbox()
+	s.IdempotencyKey = "client-key-1"
+	if err := repo.Create(ctx, s); err != nil {
+		t.Fatalf("Create: %v", err)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db, mock := newMockDB(t)
-			defer db.Close()
+	got, err := repo.FindByIdempotencyKey(ctx, "client-key-1")
+	if err != nil {
+		t.Fatalf("FindByIdempotencyKey: %v", err)
+	}
+	if got == nil || got.ID != s.ID {
+		t.Errorf("FindByIdempotencyKey returned %v, want id %s", got, s.ID)
+	}
 
-			repo := NewSandboxRepository(db)
-			tt.setupMock(mock)
+	missing, err := repo.FindByIdempotencyKey(ctx, "nonexistent")
+	if err != nil {
+		t.Fatalf("FindByIdempotencyKey missing: %v", err)
+	}
+	if missing != nil {
+		t.Errorf("FindByIdempotencyKey for missing key returned %v, want nil", missing)
+	}
 
-			err := repo.LogAuditEvent(context.Background(), tt.event)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("LogAuditEvent() error = %v, wantErr %v", err, tt.wantErr)
-			}
-
-			if err := mock.ExpectationsWereMet(); err != nil {
-				t.Errorf("unfulfilled expectations: %v", err)
-			}
-		})
+	none, err := repo.FindByIdempotencyKey(ctx, "")
+	if err != nil || none != nil {
+		t.Errorf("FindByIdempotencyKey('') = %v, %v; want nil, nil", none, err)
 	}
 }
 
-// --- GetStats Tests ---
+// ---------------------------------------------------------------------------
+// Provenance / applied_changes
+// ---------------------------------------------------------------------------
 
-func TestSandboxRepository_GetStats(t *testing.T) {
-	tests := []struct {
-		name      string
-		setupMock func(sqlmock.Sqlmock)
-		wantErr   bool
-	}{
-		{
-			name: "successful stats",
-			setupMock: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM get_sandbox_stats()")).
-					WillReturnRows(sqlmock.NewRows([]string{
-						"total_count", "active_count", "stopped_count", "error_count",
-						"approved_count", "rejected_count", "deleted_count",
-						"total_size_bytes", "avg_size_bytes",
-					}).AddRow(100, 50, 20, 5, 15, 5, 5, int64(1000000), float64(10000)))
-			},
-			wantErr: false,
-		},
-		{
-			name: "database error",
-			setupMock: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM get_sandbox_stats()")).
-					WillReturnError(errors.New("function not found"))
-			},
-			wantErr: true,
-		},
+func TestRecordAppliedChanges_AndGetPendingChanges(t *testing.T) {
+	ctx := context.Background()
+	repo := newTestRepo(t)
+
+	s := newTestSandbox()
+	s.ProjectRoot = "/proj"
+	s.ScopePath = "/proj/src"
+	s.ReservedPath = "/proj/src"
+	s.ReservedPaths = []string{"/proj/src"}
+	if err := repo.Create(ctx, s); err != nil {
+		t.Fatalf("Create: %v", err)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db, mock := newMockDB(t)
-			defer db.Close()
+	c := &types.AppliedChange{
+		ID:                uuid.New(),
+		SandboxID:         s.ID,
+		SandboxOwner:      "agent-1",
+		SandboxOwnerType:  string(types.OwnerTypeAgent),
+		FilePath:          "/proj/src/foo.go",
+		ProjectRoot:       "/proj",
+		ChangeType:        "modified",
+		FileSize:          42,
+		AgentManagerRunID: "run-abc",
+		RunOutcome:        "success",
+		ProvenanceState:   string(types.ProvenanceFileStateApplied),
+		ConversationID:    "conv-xyz",
+		CostUSD:           0.42,
+	}
+	if err := repo.RecordAppliedChanges(ctx, []*types.AppliedChange{c}); err != nil {
+		t.Fatalf("RecordAppliedChanges: %v", err)
+	}
 
-			repo := NewSandboxRepository(db)
-			tt.setupMock(mock)
+	files, err := repo.GetPendingChangeFiles(ctx, "/proj", nil)
+	if err != nil {
+		t.Fatalf("GetPendingChangeFiles: %v", err)
+	}
+	if len(files) != 1 {
+		t.Fatalf("expected 1 pending file, got %d", len(files))
+	}
+	got := files[0]
+	if got.RunOutcome != "success" || got.ConversationID != "conv-xyz" || got.CostUSD != 0.42 {
+		t.Errorf("provenance fields not round-tripped: %+v", got)
+	}
 
-			stats, err := repo.GetStats(context.Background())
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetStats() error = %v, wantErr %v", err, tt.wantErr)
-			}
-
-			if !tt.wantErr && stats == nil {
-				t.Error("GetStats() returned nil stats")
-			}
-
-			if !tt.wantErr && stats != nil {
-				if stats.TotalCount != 100 {
-					t.Errorf("GetStats() TotalCount = %d, want 100", stats.TotalCount)
-				}
-				if stats.ActiveCount != 50 {
-					t.Errorf("GetStats() ActiveCount = %d, want 50", stats.ActiveCount)
-				}
-			}
-
-			if err := mock.ExpectationsWereMet(); err != nil {
-				t.Errorf("unfulfilled expectations: %v", err)
-			}
-		})
+	groups, err := repo.GetPendingChangesByRun(ctx, "/proj")
+	if err != nil {
+		t.Fatalf("GetPendingChangesByRun: %v", err)
+	}
+	if len(groups) != 1 || groups[0].RunID != "run-abc" {
+		t.Errorf("expected one group keyed by run-abc, got %v", groups)
+	}
+	if len(groups[0].Files) != 1 || groups[0].Files[0].State != types.ProvenanceFileStateApplied {
+		t.Errorf("file state mismatch: %v", groups[0].Files)
 	}
 }
 
-// --- FindByIdempotencyKey Tests ---
+func TestMarkChangesCommitted(t *testing.T) {
+	ctx := context.Background()
+	repo := newTestRepo(t)
 
-func TestSandboxRepository_FindByIdempotencyKey(t *testing.T) {
-	tests := []struct {
-		name      string
-		key       string
-		setupMock func(sqlmock.Sqlmock)
-		wantFound bool
-		wantErr   bool
-	}{
-		{
-			name: "empty key returns nil",
-			key:  "",
-			setupMock: func(mock sqlmock.Sqlmock) {
-				// No query expected for empty key
-			},
-			wantFound: false,
-			wantErr:   false,
-		},
-		{
-			name: "key found",
-			key:  "test-key-123",
-			setupMock: func(mock sqlmock.Sqlmock) {
-				s := testSandbox()
-				s.IdempotencyKey = "test-key-123"
-				mock.ExpectQuery(regexp.QuoteMeta("SELECT")).
-					WithArgs("test-key-123").
-					WillReturnRows(sqlmock.NewRows(sandboxColumns()).
-						AddRow(sandboxRow(s)...))
-			},
-			wantFound: true,
-			wantErr:   false,
-		},
-		{
-			name: "key not found",
-			key:  "nonexistent-key",
-			setupMock: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(regexp.QuoteMeta("SELECT")).
-					WithArgs("nonexistent-key").
-					WillReturnError(sql.ErrNoRows)
-			},
-			wantFound: false,
-			wantErr:   false,
-		},
-		{
-			name: "database error",
-			key:  "test-key",
-			setupMock: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(regexp.QuoteMeta("SELECT")).
-					WithArgs("test-key").
-					WillReturnError(errors.New("connection lost"))
-			},
-			wantFound: false,
-			wantErr:   true,
-		},
+	s := newTestSandbox()
+	if err := repo.Create(ctx, s); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	c := &types.AppliedChange{
+		ID:           uuid.New(),
+		SandboxID:    s.ID,
+		SandboxOwner: "a",
+		FilePath:     "/project/src/x.go",
+		ProjectRoot:  "/project",
+		ChangeType:   "modified",
+	}
+	if err := repo.RecordAppliedChanges(ctx, []*types.AppliedChange{c}); err != nil {
+		t.Fatalf("RecordAppliedChanges: %v", err)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db, mock := newMockDB(t)
-			defer db.Close()
+	if err := repo.MarkChangesCommitted(ctx, []uuid.UUID{c.ID}, "abc123", "ship it"); err != nil {
+		t.Fatalf("MarkChangesCommitted: %v", err)
+	}
 
-			repo := NewSandboxRepository(db)
-			tt.setupMock(mock)
-
-			result, err := repo.FindByIdempotencyKey(context.Background(), tt.key)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("FindByIdempotencyKey() error = %v, wantErr %v", err, tt.wantErr)
-			}
-
-			found := result != nil
-			if found != tt.wantFound {
-				t.Errorf("FindByIdempotencyKey() found = %v, want %v", found, tt.wantFound)
-			}
-
-			if err := mock.ExpectationsWereMet(); err != nil {
-				t.Errorf("unfulfilled expectations: %v", err)
-			}
-		})
+	prov, err := repo.GetFileProvenance(ctx, "/project/src/x.go", "/project", 10)
+	if err != nil {
+		t.Fatalf("GetFileProvenance: %v", err)
+	}
+	if len(prov) != 1 {
+		t.Fatalf("expected 1 record, got %d", len(prov))
+	}
+	if prov[0].CommittedAt == nil {
+		t.Error("CommittedAt should be set")
+	}
+	if prov[0].CommitHash != "abc123" {
+		t.Errorf("CommitHash got %q want abc123", prov[0].CommitHash)
 	}
 }
 
-// --- UpdateWithVersionCheck Tests ---
+// ---------------------------------------------------------------------------
+// Audit log
+// ---------------------------------------------------------------------------
 
-func TestSandboxRepository_UpdateWithVersionCheck(t *testing.T) {
-	tests := []struct {
-		name            string
-		sandbox         *types.Sandbox
-		expectedVersion int64
-		setupMock       func(sqlmock.Sqlmock, *types.Sandbox)
-		wantErr         bool
-		wantErrType     string
-	}{
-		{
-			name:            "successful update",
-			sandbox:         testSandbox(),
-			expectedVersion: 1,
-			setupMock: func(mock sqlmock.Sqlmock, s *types.Sandbox) {
-				mock.ExpectQuery(regexp.QuoteMeta("UPDATE sandboxes SET")).
-					WillReturnRows(sqlmock.NewRows([]string{"version", "updated_at"}).
-						AddRow(int64(2), time.Now()))
-			},
-			wantErr: false,
-		},
-		{
-			name:            "version mismatch",
-			sandbox:         testSandbox(),
-			expectedVersion: 5,
-			setupMock: func(mock sqlmock.Sqlmock, s *types.Sandbox) {
-				// First query returns no rows (version mismatch)
-				mock.ExpectQuery(regexp.QuoteMeta("UPDATE sandboxes SET")).
-					WillReturnError(sql.ErrNoRows)
-				// Second query fetches current version
-				mock.ExpectQuery(regexp.QuoteMeta("SELECT version FROM sandboxes WHERE id")).
-					WithArgs(s.ID).
-					WillReturnRows(sqlmock.NewRows([]string{"version"}).AddRow(int64(10)))
-			},
-			wantErr:     true,
-			wantErrType: "ConcurrentModificationError",
-		},
-		{
-			name:            "sandbox not found",
-			sandbox:         testSandbox(),
-			expectedVersion: 1,
-			setupMock: func(mock sqlmock.Sqlmock, s *types.Sandbox) {
-				mock.ExpectQuery(regexp.QuoteMeta("UPDATE sandboxes SET")).
-					WillReturnError(sql.ErrNoRows)
-				mock.ExpectQuery(regexp.QuoteMeta("SELECT version FROM sandboxes WHERE id")).
-					WithArgs(s.ID).
-					WillReturnError(sql.ErrNoRows)
-			},
-			wantErr:     true,
-			wantErrType: "NotFoundError",
-		},
+func TestLogAuditEvent_AndGetAuditLog(t *testing.T) {
+	ctx := context.Background()
+	repo := newTestRepo(t)
+	s := newTestSandbox()
+	if err := repo.Create(ctx, s); err != nil {
+		t.Fatalf("Create: %v", err)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db, mock := newMockDB(t)
-			defer db.Close()
-
-			repo := NewSandboxRepository(db)
-			tt.setupMock(mock, tt.sandbox)
-
-			err := repo.UpdateWithVersionCheck(context.Background(), tt.sandbox, tt.expectedVersion)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("UpdateWithVersionCheck() error = %v, wantErr %v", err, tt.wantErr)
-			}
-
-			if tt.wantErrType != "" && err != nil {
-				switch tt.wantErrType {
-				case "ConcurrentModificationError":
-					var cmErr *types.ConcurrentModificationError
-					if !errors.As(err, &cmErr) {
-						t.Errorf("UpdateWithVersionCheck() error type = %T, want *ConcurrentModificationError", err)
-					}
-				case "NotFoundError":
-					var nfErr *types.NotFoundError
-					if !errors.As(err, &nfErr) {
-						t.Errorf("UpdateWithVersionCheck() error type = %T, want *NotFoundError", err)
-					}
-				}
-			}
-
-			if err := mock.ExpectationsWereMet(); err != nil {
-				t.Errorf("unfulfilled expectations: %v", err)
-			}
-		})
+	id := s.ID
+	for _, et := range []string{"created", "mounted", "stopped"} {
+		if err := repo.LogAuditEvent(ctx, &types.AuditEvent{
+			SandboxID: &id,
+			EventType: et,
+			Actor:     "tester",
+			Details:   map[string]any{"step": et},
+		}); err != nil {
+			t.Fatalf("LogAuditEvent %s: %v", et, err)
+		}
+		// Slight separation so event_time DESC ordering is deterministic.
+		time.Sleep(2 * time.Millisecond)
 	}
-}
 
-// --- Transaction Tests ---
-
-func TestSandboxRepository_BeginTx(t *testing.T) {
-	db, mock := newMockDB(t)
-	defer db.Close()
-
-	repo := NewSandboxRepository(db)
-
-	mock.ExpectBegin()
-
-	txRepo, err := repo.BeginTx(context.Background())
+	events, total, err := repo.GetAuditLog(ctx, &id, 10, 0)
 	if err != nil {
-		t.Fatalf("BeginTx() error = %v", err)
+		t.Fatalf("GetAuditLog: %v", err)
 	}
-
-	if txRepo == nil {
-		t.Error("BeginTx() returned nil")
+	if total != 3 || len(events) != 3 {
+		t.Errorf("expected 3 events, got total=%d len=%d", total, len(events))
 	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unfulfilled expectations: %v", err)
+	if events[0].EventType != "stopped" {
+		t.Errorf("first event should be most recent (stopped), got %q", events[0].EventType)
 	}
-}
-
-func TestSandboxRepository_BeginTx_Error(t *testing.T) {
-	db, mock := newMockDB(t)
-	defer db.Close()
-
-	repo := NewSandboxRepository(db)
-
-	mock.ExpectBegin().WillReturnError(errors.New("tx start failed"))
-
-	_, err := repo.BeginTx(context.Background())
-	if err == nil {
-		t.Error("BeginTx() expected error but got nil")
-	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unfulfilled expectations: %v", err)
-	}
-}
-
-func TestTxSandboxRepository_Commit(t *testing.T) {
-	db, mock := newMockDB(t)
-	defer db.Close()
-
-	mock.ExpectBegin()
-	mock.ExpectCommit()
-
-	tx, err := db.Begin()
-	if err != nil {
-		t.Fatalf("Begin() error = %v", err)
-	}
-
-	txRepo := &TxSandboxRepository{tx: tx}
-	err = txRepo.Commit()
-	if err != nil {
-		t.Errorf("Commit() error = %v", err)
-	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unfulfilled expectations: %v", err)
-	}
-}
-
-func TestTxSandboxRepository_Rollback(t *testing.T) {
-	db, mock := newMockDB(t)
-	defer db.Close()
-
-	mock.ExpectBegin()
-	mock.ExpectRollback()
-
-	tx, err := db.Begin()
-	if err != nil {
-		t.Fatalf("Begin() error = %v", err)
-	}
-
-	txRepo := &TxSandboxRepository{tx: tx}
-	err = txRepo.Rollback()
-	if err != nil {
-		t.Errorf("Rollback() error = %v", err)
-	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unfulfilled expectations: %v", err)
-	}
-}
-
-func TestTxSandboxRepository_Create(t *testing.T) {
-	db, mock := newMockDB(t)
-	defer db.Close()
-
-	mock.ExpectBegin()
-	tx, err := db.Begin()
-	if err != nil {
-		t.Fatalf("Begin() error = %v", err)
-	}
-
-	txRepo := &TxSandboxRepository{tx: tx}
-	s := testSandbox()
-
-	now := time.Now()
-	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO sandboxes")).
-		WillReturnRows(sqlmock.NewRows([]string{"created_at", "last_used_at", "updated_at"}).
-			AddRow(now, now, now))
-
-	err = txRepo.Create(context.Background(), s)
-	if err != nil {
-		t.Errorf("Create() error = %v", err)
-	}
-
-	if s.Version != 1 {
-		t.Errorf("Create() should set Version = 1, got %d", s.Version)
-	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unfulfilled expectations: %v", err)
-	}
-}
-
-func TestTxSandboxRepository_Get(t *testing.T) {
-	db, mock := newMockDB(t)
-	defer db.Close()
-
-	mock.ExpectBegin()
-	tx, err := db.Begin()
-	if err != nil {
-		t.Fatalf("Begin() error = %v", err)
-	}
-
-	txRepo := &TxSandboxRepository{tx: tx}
-	id := uuid.New()
-	s := testSandbox()
-	s.ID = id
-
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT")).
-		WithArgs(id).
-		WillReturnRows(sqlmock.NewRows(sandboxColumns()).
-			AddRow(sandboxRow(s)...))
-
-	result, err := txRepo.Get(context.Background(), id)
-	if err != nil {
-		t.Errorf("Get() error = %v", err)
-	}
-
-	if result == nil || result.ID != id {
-		t.Errorf("Get() result ID = %v, want %v", result.ID, id)
-	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unfulfilled expectations: %v", err)
-	}
-}
-
-func TestTxSandboxRepository_Delete(t *testing.T) {
-	db, mock := newMockDB(t)
-	defer db.Close()
-
-	mock.ExpectBegin()
-	tx, err := db.Begin()
-	if err != nil {
-		t.Fatalf("Begin() error = %v", err)
-	}
-
-	txRepo := &TxSandboxRepository{tx: tx}
-	id := uuid.New()
-
-	mock.ExpectExec(regexp.QuoteMeta("UPDATE sandboxes")).
-		WithArgs(id, sqlmock.AnyArg()).
-		WillReturnResult(sqlmock.NewResult(0, 1))
-
-	err = txRepo.Delete(context.Background(), id)
-	if err != nil {
-		t.Errorf("Delete() error = %v", err)
-	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unfulfilled expectations: %v", err)
-	}
-}
-
-func TestTxSandboxRepository_List_NotImplemented(t *testing.T) {
-	db, mock := newMockDB(t)
-	defer db.Close()
-
-	mock.ExpectBegin()
-	tx, err := db.Begin()
-	if err != nil {
-		t.Fatalf("Begin() error = %v", err)
-	}
-
-	txRepo := &TxSandboxRepository{tx: tx}
-
-	_, err = txRepo.List(context.Background(), &types.ListFilter{})
-	if err == nil {
-		t.Error("List() expected error for unimplemented method")
-	}
-}
-
-func TestTxSandboxRepository_GetActiveSandboxes_NotImplemented(t *testing.T) {
-	db, mock := newMockDB(t)
-	defer db.Close()
-
-	mock.ExpectBegin()
-	tx, err := db.Begin()
-	if err != nil {
-		t.Fatalf("Begin() error = %v", err)
-	}
-
-	txRepo := &TxSandboxRepository{tx: tx}
-
-	_, err = txRepo.GetActiveSandboxes(context.Background(), "/project")
-	if err == nil {
-		t.Error("GetActiveSandboxes() expected error for unimplemented method")
-	}
-}
-
-func TestTxSandboxRepository_GetStats_NotImplemented(t *testing.T) {
-	db, mock := newMockDB(t)
-	defer db.Close()
-
-	mock.ExpectBegin()
-	tx, err := db.Begin()
-	if err != nil {
-		t.Fatalf("Begin() error = %v", err)
-	}
-
-	txRepo := &TxSandboxRepository{tx: tx}
-
-	_, err = txRepo.GetStats(context.Background())
-	if err == nil {
-		t.Error("GetStats() expected error for unimplemented method")
-	}
-}
-
-func TestTxSandboxRepository_BeginTx_NestedNotSupported(t *testing.T) {
-	db, mock := newMockDB(t)
-	defer db.Close()
-
-	mock.ExpectBegin()
-	tx, err := db.Begin()
-	if err != nil {
-		t.Fatalf("Begin() error = %v", err)
-	}
-
-	txRepo := &TxSandboxRepository{tx: tx}
-
-	_, err = txRepo.BeginTx(context.Background())
-	if err == nil {
-		t.Error("BeginTx() expected error for nested transaction")
-	}
-}
-
-func TestTxSandboxRepository_CheckScopeOverlap_WithLocking(t *testing.T) {
-	db, mock := newMockDB(t)
-	defer db.Close()
-
-	mock.ExpectBegin()
-	tx, err := db.Begin()
-	if err != nil {
-		t.Fatalf("Begin() error = %v", err)
-	}
-
-	txRepo := &TxSandboxRepository{tx: tx}
-
-	// Should use FOR UPDATE for row locking
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, scope_path, reserved_path, reserved_paths, no_lock, status")).
-		WithArgs("/project", nil).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "scope_path", "reserved_path", "reserved_paths", "no_lock", "status"}))
-
-	conflicts, err := txRepo.CheckScopeOverlap(context.Background(), "/project/src", "/project", nil)
-	if err != nil {
-		t.Errorf("CheckScopeOverlap() error = %v", err)
-	}
-
-	// Note: conflicts can be nil when no conflicts exist (empty result)
-	// The important thing is no error occurred
-	_ = conflicts
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unfulfilled expectations: %v", err)
-	}
-}
-
-func TestTxSandboxRepository_FindByIdempotencyKey_WithLocking(t *testing.T) {
-	db, mock := newMockDB(t)
-	defer db.Close()
-
-	mock.ExpectBegin()
-	tx, err := db.Begin()
-	if err != nil {
-		t.Fatalf("Begin() error = %v", err)
-	}
-
-	txRepo := &TxSandboxRepository{tx: tx}
-
-	s := testSandbox()
-	s.IdempotencyKey = "test-key"
-
-	// Should use FOR UPDATE for row locking
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT")).
-		WithArgs("test-key").
-		WillReturnRows(sqlmock.NewRows(sandboxColumns()).
-			AddRow(sandboxRow(s)...))
-
-	result, err := txRepo.FindByIdempotencyKey(context.Background(), "test-key")
-	if err != nil {
-		t.Errorf("FindByIdempotencyKey() error = %v", err)
-	}
-
-	if result == nil {
-		t.Error("FindByIdempotencyKey() returned nil")
-	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unfulfilled expectations: %v", err)
-	}
-}
-
-func TestTxSandboxRepository_FindByIdempotencyKey_EmptyKey(t *testing.T) {
-	db, mock := newMockDB(t)
-	defer db.Close()
-
-	mock.ExpectBegin()
-	tx, err := db.Begin()
-	if err != nil {
-		t.Fatalf("Begin() error = %v", err)
-	}
-
-	txRepo := &TxSandboxRepository{tx: tx}
-
-	// No query expected for empty key
-	result, err := txRepo.FindByIdempotencyKey(context.Background(), "")
-	if err != nil {
-		t.Errorf("FindByIdempotencyKey() error = %v", err)
-	}
-
-	if result != nil {
-		t.Error("FindByIdempotencyKey() should return nil for empty key")
-	}
-}
-
-func TestTxSandboxRepository_Update(t *testing.T) {
-	db, mock := newMockDB(t)
-	defer db.Close()
-
-	mock.ExpectBegin()
-	tx, err := db.Begin()
-	if err != nil {
-		t.Fatalf("Begin() error = %v", err)
-	}
-
-	txRepo := &TxSandboxRepository{tx: tx}
-	s := testSandbox()
-
-	mock.ExpectQuery(regexp.QuoteMeta("UPDATE sandboxes SET")).
-		WillReturnRows(sqlmock.NewRows([]string{"version", "updated_at"}).
-			AddRow(int64(2), time.Now()))
-
-	err = txRepo.Update(context.Background(), s)
-	if err != nil {
-		t.Errorf("Update() error = %v", err)
-	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unfulfilled expectations: %v", err)
-	}
-}
-
-func TestTxSandboxRepository_LogAuditEvent(t *testing.T) {
-	db, mock := newMockDB(t)
-	defer db.Close()
-
-	mock.ExpectBegin()
-	tx, err := db.Begin()
-	if err != nil {
-		t.Fatalf("Begin() error = %v", err)
-	}
-
-	txRepo := &TxSandboxRepository{tx: tx}
-	event := &types.AuditEvent{
-		EventType: "test",
-		Actor:     "test-user",
-		ActorType: "user",
-	}
-
-	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO sandbox_audit_log")).
-		WillReturnResult(sqlmock.NewResult(1, 1))
-
-	err = txRepo.LogAuditEvent(context.Background(), event)
-	if err != nil {
-		t.Errorf("LogAuditEvent() error = %v", err)
-	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unfulfilled expectations: %v", err)
-	}
-}
-
-func TestTxSandboxRepository_UpdateWithVersionCheck(t *testing.T) {
-	db, mock := newMockDB(t)
-	defer db.Close()
-
-	mock.ExpectBegin()
-	tx, err := db.Begin()
-	if err != nil {
-		t.Fatalf("Begin() error = %v", err)
-	}
-
-	txRepo := &TxSandboxRepository{tx: tx}
-	s := testSandbox()
-
-	mock.ExpectQuery(regexp.QuoteMeta("UPDATE sandboxes SET")).
-		WillReturnRows(sqlmock.NewRows([]string{"version", "updated_at"}).
-			AddRow(int64(2), time.Now()))
-
-	err = txRepo.UpdateWithVersionCheck(context.Background(), s, 1)
-	if err != nil {
-		t.Errorf("UpdateWithVersionCheck() error = %v", err)
-	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unfulfilled expectations: %v", err)
-	}
-}
-
-func TestTxSandboxRepository_UpdateWithVersionCheck_VersionMismatch(t *testing.T) {
-	db, mock := newMockDB(t)
-	defer db.Close()
-
-	mock.ExpectBegin()
-	tx, err := db.Begin()
-	if err != nil {
-		t.Fatalf("Begin() error = %v", err)
-	}
-
-	txRepo := &TxSandboxRepository{tx: tx}
-	s := testSandbox()
-
-	mock.ExpectQuery(regexp.QuoteMeta("UPDATE sandboxes SET")).
-		WillReturnError(sql.ErrNoRows)
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT version FROM sandboxes WHERE id")).
-		WithArgs(s.ID).
-		WillReturnRows(sqlmock.NewRows([]string{"version"}).AddRow(int64(10)))
-
-	err = txRepo.UpdateWithVersionCheck(context.Background(), s, 5)
-	if err == nil {
-		t.Error("UpdateWithVersionCheck() expected error for version mismatch")
-	}
-
-	var cmErr *types.ConcurrentModificationError
-	if !errors.As(err, &cmErr) {
-		t.Errorf("UpdateWithVersionCheck() error type = %T, want *ConcurrentModificationError", err)
-	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unfulfilled expectations: %v", err)
-	}
-}
-
-// --- Edge Cases ---
-
-func TestSandboxRepository_Create_WithActivePIDs(t *testing.T) {
-	db, mock := newMockDB(t)
-	defer db.Close()
-
-	repo := NewSandboxRepository(db)
-	s := testSandbox()
-	s.ActivePIDs = []int{100, 200, 300}
-
-	now := time.Now()
-	mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO sandboxes")).
-		WillReturnRows(sqlmock.NewRows([]string{"created_at", "last_used_at", "updated_at"}).
-			AddRow(now, now, now))
-
-	err := repo.Create(context.Background(), s)
-	if err != nil {
-		t.Errorf("Create() error = %v", err)
-	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unfulfilled expectations: %v", err)
-	}
-}
-
-func TestSandboxRepository_Update_WithActivePIDs(t *testing.T) {
-	db, mock := newMockDB(t)
-	defer db.Close()
-
-	repo := NewSandboxRepository(db)
-	s := testSandbox()
-	s.ActivePIDs = []int{100, 200, 300}
-
-	mock.ExpectQuery(regexp.QuoteMeta("UPDATE sandboxes SET")).
-		WillReturnRows(sqlmock.NewRows([]string{"version", "updated_at"}).
-			AddRow(int64(2), time.Now()))
-
-	err := repo.Update(context.Background(), s)
-	if err != nil {
-		t.Errorf("Update() error = %v", err)
-	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unfulfilled expectations: %v", err)
-	}
-}
-
-func TestSandboxRepository_Get_WithEmptyMetadata(t *testing.T) {
-	db, mock := newMockDB(t)
-	defer db.Close()
-
-	repo := NewSandboxRepository(db)
-	id := uuid.New()
-	s := testSandbox()
-	s.ID = id
-	s.Metadata = nil
-
-	// Return empty metadata JSON
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT")).
-		WithArgs(id).
-		WillReturnRows(sqlmock.NewRows(sandboxColumns()).
-			AddRow(
-				s.ID, s.Name, s.ScopePath, s.ReservedPath, pq.StringArray(s.ReservedPaths), s.NoLock, s.ProjectRoot, s.Owner, s.OwnerType, s.Status, s.ErrorMsg,
-				s.CreatedAt, s.LastUsedAt, s.StoppedAt, s.ApprovedAt, s.DeletedAt,
-				s.Driver, s.DriverVersion, s.LowerDir, s.UpperDir, s.WorkDir, s.MergedDir,
-				s.SizeBytes, s.FileCount, pq.Int64Array{}, s.SessionCount,
-				pq.StringArray{}, []byte{}, []byte{}, // Empty tags, metadata, behavior
-				s.IdempotencyKey, s.UpdatedAt, s.Version, s.BaseCommitHash,
-			))
-
-	result, err := repo.Get(context.Background(), id)
-	if err != nil {
-		t.Fatalf("Get() error = %v", err)
-	}
-
-	// Verify empty metadata is handled gracefully
-	if result == nil {
-		t.Error("Get() returned nil")
-	}
-}
-
-func TestSandboxRepository_List_WithAllFilters(t *testing.T) {
-	db, mock := newMockDB(t)
-	defer db.Close()
-
-	repo := NewSandboxRepository(db)
-
-	filter := &types.ListFilter{
-		Status:      []types.Status{types.StatusActive},
-		Owner:       "test-owner",
-		ProjectRoot: "/project",
-		ScopePath:   "/project/src",
-		CreatedFrom: time.Now().Add(-24 * time.Hour),
-		CreatedTo:   time.Now(),
-		Limit:       50,
-		Offset:      10,
-	}
-
-	mock.ExpectQuery("SELECT COUNT").
-		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(100))
-	mock.ExpectQuery("SELECT id").
-		WillReturnRows(sqlmock.NewRows(sandboxColumns()))
-
-	result, err := repo.List(context.Background(), filter)
-	if err != nil {
-		t.Fatalf("List() error = %v", err)
-	}
-
-	if result.Limit != 50 {
-		t.Errorf("List() limit = %d, want 50", result.Limit)
-	}
-	if result.Offset != 10 {
-		t.Errorf("List() offset = %d, want 10", result.Offset)
-	}
-	if result.TotalCount != 100 {
-		t.Errorf("List() totalCount = %d, want 100", result.TotalCount)
-	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unfulfilled expectations: %v", err)
-	}
-}
-
-func TestSandboxRepository_CheckScopeOverlap_MultipleConflicts(t *testing.T) {
-	db, mock := newMockDB(t)
-	defer db.Close()
-
-	repo := NewSandboxRepository(db)
-
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT id, scope_path, status FROM check_scope_overlap")).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "scope_path", "status"}).
-			AddRow(uuid.New(), "/project/src", types.StatusActive).
-			AddRow(uuid.New(), "/project/src/internal", types.StatusActive))
-
-	conflicts, err := repo.CheckScopeOverlap(context.Background(), "/project", "/project", nil)
-	if err != nil {
-		t.Fatalf("CheckScopeOverlap() error = %v", err)
-	}
-
-	if len(conflicts) != 2 {
-		t.Errorf("CheckScopeOverlap() conflicts = %d, want 2", len(conflicts))
-	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unfulfilled expectations: %v", err)
+	if events[0].Details["step"] != "stopped" {
+		t.Errorf("Details did not round-trip: %v", events[0].Details)
 	}
 }

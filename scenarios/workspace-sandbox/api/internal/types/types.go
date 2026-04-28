@@ -505,7 +505,8 @@ type ApprovalRequest struct {
 	// Auditability-contract metadata forwarded from apply-at-run-end. These
 	// are stamped onto the resulting AppliedChange rows so readers (web-console,
 	// GCT) can group by run / conversation. Empty for operator-driven approvals.
-	// Schema-versioned shape lives in packages/sandbox-provenance.
+	// Canonical enum values live in
+	// packages/proto/schemas/workspace-sandbox/v1/domain/applied_change.proto.
 	AgentManagerRunID string  `json:"agentManagerRunId,omitempty"`
 	ConversationID    string  `json:"conversationId,omitempty"`
 	Cost              float64 `json:"cost,omitempty"`
@@ -912,10 +913,12 @@ type ConflictCheckResponse struct {
 // AppliedChange represents a file change that was applied from a sandbox.
 // Used for provenance tracking - knowing which sandbox modified which files.
 //
-// The schema-version'd auditability fields (SchemaVersion, RunOutcome,
-// ProvenanceState, ConversationID, CostUSD) follow the contract defined in
-// packages/sandbox-provenance and are coordinated with the GCT
-// pending-AI-provenance-hardening initiative.
+// The auditability fields (RunOutcome, ProvenanceState, ConversationID,
+// CostUSD) follow the contract defined in
+// packages/proto/schemas/workspace-sandbox/v1/domain/applied_change.proto
+// and are read by the GCT pending-AI-provenance-hardening initiative and
+// the web-console review queue. The proto package path is the version;
+// breaking changes ship as v2, not in-place mutation of the v1 enums.
 type AppliedChange struct {
 	ID                uuid.UUID  `json:"id" db:"id"`
 	SandboxID         uuid.UUID  `json:"sandboxId" db:"sandbox_id"`
@@ -931,7 +934,6 @@ type AppliedChange struct {
 	CommitHash        string     `json:"commitHash,omitempty" db:"commit_hash"`
 	CommitMessage     string     `json:"commitMessage,omitempty" db:"commit_message"`
 
-	SchemaVersion   string  `json:"schemaVersion,omitempty" db:"schema_version"`
 	RunOutcome      string  `json:"runOutcome,omitempty" db:"run_outcome"`
 	ProvenanceState string  `json:"state,omitempty" db:"provenance_state"`
 	ConversationID  string  `json:"conversationId,omitempty" db:"conversation_id"`
@@ -1054,12 +1056,8 @@ type MarkCommittedResult struct {
 // auditability contract (Findings 1–2 in
 // scenarios/workspace-sandbox/docs/AUDITABILITY_CONTRACT.md). They are
 // written on the wire by agent-manager's apply-at-run-end call and
-// surfaced through this response shape; durable persistence on the
-// AppliedChange table is owned by the upstream
-// execute/gct-pending-ai-provenance-hardening initiative member.
-// Per Decision D3 the writer (this item) and reader (the schema item)
-// land in parallel against a shared schema-version contract; until the
-// schema lands, these fields may be empty / zero.
+// surfaced through this response shape. Canonical enum values live in
+// packages/proto/schemas/workspace-sandbox/v1/domain/applied_change.proto.
 type ProvenanceRunGroup struct {
 	RunID           string           `json:"runId"`
 	SandboxID       string           `json:"sandboxId"`
@@ -1097,7 +1095,11 @@ type ProvenanceFile struct {
 }
 
 // ProvenanceFileState is the per-file lifecycle state from the auditability
-// contract.
+// contract. The canonical wire-value definition lives in
+// packages/proto/schemas/workspace-sandbox/v1/domain/applied_change.proto
+// (workspace_sandbox.v1.FileState). The Go strings here mirror the
+// kebab-cased projection of that enum and are pinned by
+// TestProvenanceFileStateMatchesProto in this package.
 type ProvenanceFileState string
 
 const (

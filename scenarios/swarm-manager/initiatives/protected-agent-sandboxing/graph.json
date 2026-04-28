@@ -1,6 +1,6 @@
 {
   "initiative": "protected-agent-sandboxing",
-  "generated_at": "2026-04-28T09:01:20Z",
+  "generated_at": "2026-04-28T12:58:45Z",
   "nodes": [
     {
       "id": "execute/protected-sandbox-agent-launch",
@@ -10,7 +10,7 @@
       "status": "completed",
       "priority": 6,
       "effort": "XL",
-      "archived": false
+      "archived": true
     },
     {
       "id": "execute/protected-sandbox-git-and-network-guardrails",
@@ -20,7 +20,7 @@
       "status": "completed",
       "priority": 7,
       "effort": "L",
-      "archived": false
+      "archived": true
     },
     {
       "id": "fix/protected-sandbox-policy-enforcement-surface",
@@ -30,7 +30,7 @@
       "status": "completed",
       "priority": 7,
       "effort": "L",
-      "archived": false
+      "archived": true
     },
     {
       "id": "execute/ws-sb-native-stdin-pipe",
@@ -40,7 +40,7 @@
       "status": "completed",
       "priority": 7,
       "effort": "M",
-      "archived": false
+      "archived": true
     },
     {
       "id": "execute/ws-sb-streaming-process-logs",
@@ -50,7 +50,7 @@
       "status": "completed",
       "priority": 7,
       "effort": "M",
-      "archived": false
+      "archived": true
     },
     {
       "id": "execute/ws-sb-structured-exit-codes",
@@ -60,7 +60,7 @@
       "status": "completed",
       "priority": 7,
       "effort": "S",
-      "archived": false
+      "archived": true
     },
     {
       "id": "execute/ws-sb-stdout-stderr-split",
@@ -70,7 +70,7 @@
       "status": "completed",
       "priority": 7,
       "effort": "M",
-      "archived": false
+      "archived": true
     }
   ],
   "edges": [

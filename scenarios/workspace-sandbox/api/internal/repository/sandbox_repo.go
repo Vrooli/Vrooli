@@ -1,31 +1,33 @@
 // Package repository provides database operations for sandboxes.
+//
+// Storage backend: SQLite via modernc.org/sqlite. The schema lives in
+// schema.sql (embedded) and is applied on startup. See
+// docs/internal/STORAGE_AUDIT.md for the architectural rationale and
+// docs/plans/sqlite-cutover-implementation-plan.md for the design notes.
 package repository
 
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
 	"workspace-sandbox/internal/types"
 )
 
-func hydrateReservedFields(s *types.Sandbox, reservedPaths pq.StringArray) {
-	// Prefer explicit reserved_paths; fall back to reserved_path; final fallback to scope_path.
-	// No-lock sandboxes never backfill to scope_path.
-	effective := make([]string, 0, maxInt(1, len(reservedPaths)))
-	if len(reservedPaths) > 0 {
-		for _, p := range reservedPaths {
-			p = strings.TrimSpace(p)
-			if p != "" {
-				effective = append(effective, p)
-			}
+// hydrateReservedFields normalizes ReservedPath/ReservedPaths/ScopePath into
+// the canonical representation expected by the rest of the codebase. Kept
+// in sync with the contract documented in types.Sandbox.
+func hydrateReservedFields(s *types.Sandbox, reservedPaths []string) {
+	effective := make([]string, 0, max(1, len(reservedPaths)))
+	for _, p := range reservedPaths {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			effective = append(effective, p)
 		}
 	}
 	if len(effective) == 0 && !s.NoLock {
@@ -44,21 +46,12 @@ func hydrateReservedFields(s *types.Sandbox, reservedPaths pq.StringArray) {
 	}
 }
 
-func maxInt(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 // Repository defines the interface for sandbox persistence operations.
-// This interface enables testing with mock implementations and decouples
-// the service layer from the specific database implementation.
 //
 // # Idempotency Support
 //
-// The repository provides FindByIdempotencyKey for checking if a sandbox
-// was already created with a given idempotency key, enabling safe retries.
+// FindByIdempotencyKey lets callers check whether a sandbox was already
+// created for a given key, enabling safe retries.
 //
 // # Optimistic Locking
 //
@@ -77,66 +70,45 @@ type Repository interface {
 	GetAuditLog(ctx context.Context, sandboxID *uuid.UUID, limit, offset int) ([]*types.AuditEvent, int, error)
 	GetStats(ctx context.Context) (*types.SandboxStats, error)
 
-	// --- Idempotency Support ---
-
-	// FindByIdempotencyKey finds a sandbox by its idempotency key.
-	// Returns nil, nil if no sandbox exists with that key.
 	FindByIdempotencyKey(ctx context.Context, key string) (*types.Sandbox, error)
-
-	// --- Optimistic Locking Support ---
-
-	// UpdateWithVersionCheck updates a sandbox only if its version matches expected.
-	// Returns ConcurrentModificationError if version mismatch occurs.
-	// On success, increments the version and updates UpdatedAt.
 	UpdateWithVersionCheck(ctx context.Context, s *types.Sandbox, expectedVersion int64) error
 
-	// --- Transactional Support ---
-
-	// BeginTx starts a new transaction and returns a Repository scoped to it.
 	BeginTx(ctx context.Context) (TxRepository, error)
 
-	// --- GC Support [OT-P1-003] ---
-
-	// GetGCCandidates returns sandboxes eligible for garbage collection based on policy.
 	GetGCCandidates(ctx context.Context, policy *types.GCPolicy, limit int) ([]*types.Sandbox, error)
 
-	// --- Provenance Tracking Support ---
-
-	// RecordAppliedChanges records file changes that were applied from a sandbox.
 	RecordAppliedChanges(ctx context.Context, changes []*types.AppliedChange) error
-
-	// GetPendingChanges returns pending (uncommitted) changes grouped by sandbox.
 	GetPendingChanges(ctx context.Context, projectRoot string, limit, offset int) (*types.PendingChangesResult, error)
-
-	// GetPendingChangeFiles returns all pending change records for the given project/sandboxes.
 	GetPendingChangeFiles(ctx context.Context, projectRoot string, sandboxIDs []uuid.UUID) ([]*types.AppliedChange, error)
-
-	// GetFileProvenance returns the history of changes for a specific file.
 	GetFileProvenance(ctx context.Context, filePath, projectRoot string, limit int) ([]*types.AppliedChange, error)
-
-	// MarkChangesCommitted updates applied_changes records with commit information.
 	MarkChangesCommitted(ctx context.Context, ids []uuid.UUID, commitHash, commitMessage string) error
-
-	// MarkChangesCommittedByPath marks pending applied_changes as committed for files
-	// matching the given paths. Used by external tools that commit outside WS's own flow.
 	MarkChangesCommittedByPath(ctx context.Context, projectRoot string, filePaths []string, commitHash, commitMessage string) (int, int, error)
-
-	// GetPendingChangesByRun returns pending applied changes grouped by agent_manager_run_id.
 	GetPendingChangesByRun(ctx context.Context, projectRoot string) ([]types.ProvenanceRunGroup, error)
 }
 
 // TxRepository is a Repository bound to a transaction.
-// It includes Commit and Rollback methods for transaction control.
 type TxRepository interface {
 	Repository
 	Commit() error
 	Rollback() error
 }
 
-// Verify SandboxRepository implements Repository interface.
-var _ Repository = (*SandboxRepository)(nil)
+// dbExec abstracts *sql.DB and *sql.Tx so the same query helpers can serve
+// both the non-transactional and transactional repositories.
+type dbExec interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
 
-// SandboxRepository provides database operations for sandboxes.
+// Verify SandboxRepository implements Repository interface.
+var (
+	_ Repository   = (*SandboxRepository)(nil)
+	_ TxRepository = (*TxSandboxRepository)(nil)
+)
+
+// SandboxRepository provides database operations for sandboxes against a
+// shared *sql.DB.
 type SandboxRepository struct {
 	db *sql.DB
 }
@@ -146,180 +118,332 @@ func NewSandboxRepository(db *sql.DB) *SandboxRepository {
 	return &SandboxRepository{db: db}
 }
 
-// Create inserts a new sandbox record.
-func (r *SandboxRepository) Create(ctx context.Context, s *types.Sandbox) error {
-	metadataJSON, err := json.Marshal(s.Metadata)
-	if err != nil {
-		return fmt.Errorf("failed to marshal metadata: %w", err)
-	}
-	behaviorJSON, err := json.Marshal(s.Behavior)
-	if err != nil {
-		return fmt.Errorf("failed to marshal behavior: %w", err)
-	}
-
-	// Set initial version for new sandboxes
-	s.Version = 1
-
-	query := `
-		INSERT INTO sandboxes (
-			id, name, scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status,
-			driver, driver_version, tags, metadata, behavior, idempotency_key, version, base_commit_hash
-		) VALUES ($1, NULLIF($2, ''), $3, $4, NULLIF($5::text[], ARRAY[]::text[]), $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NULLIF($16, ''), $17, NULLIF($18, ''))
-		RETURNING created_at, last_used_at, updated_at`
-
-	return r.db.QueryRowContext(ctx, query,
-		s.ID, s.Name, s.ScopePath, s.ReservedPath, pq.Array(s.ReservedPaths), s.NoLock, s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
-		s.Driver, s.DriverVersion, pq.Array(s.Tags), metadataJSON, behaviorJSON, s.IdempotencyKey, s.Version, s.BaseCommitHash,
-	).Scan(&s.CreatedAt, &s.LastUsedAt, &s.UpdatedAt)
+// TxSandboxRepository is bound to a single transaction. The DSN should set
+// _txlock=immediate so BeginTx acquires the SQLite reserved lock up front,
+// giving Create + CheckScopeOverlap mutual exclusion against concurrent
+// callers racing to claim overlapping reserved paths.
+type TxSandboxRepository struct {
+	tx *sql.Tx
 }
 
-// Get retrieves a sandbox by ID.
-func (r *SandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
-	query := `
-		SELECT id, COALESCE(name, ''), scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status, error_message,
-			created_at, last_used_at, stopped_at, approved_at, deleted_at,
-			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
-			size_bytes, file_count, active_pids, session_count, tags, metadata, behavior,
-			COALESCE(idempotency_key, ''), updated_at, version, COALESCE(base_commit_hash, '')
-		FROM sandboxes
-		WHERE id = $1`
+func (r *TxSandboxRepository) Commit() error   { return r.tx.Commit() }
+func (r *TxSandboxRepository) Rollback() error { return r.tx.Rollback() }
 
-	s := &types.Sandbox{}
-	var metadataJSON []byte
-	var behaviorJSON []byte
-	var tags pq.StringArray
-	var activePIDs pq.Int64Array
-	var reservedPaths pq.StringArray
-	var reservedPath sql.NullString
-
-	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&s.ID, &s.Name, &s.ScopePath, &reservedPath, &reservedPaths, &s.NoLock, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
-		&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
-		&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
-		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON, &behaviorJSON,
-		&s.IdempotencyKey, &s.UpdatedAt, &s.Version, &s.BaseCommitHash,
-	)
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
+func (r *SandboxRepository) BeginTx(ctx context.Context) (TxRepository, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get sandbox: %w", err)
+		return nil, fmt.Errorf("begin transaction: %w", err)
+	}
+	return &TxSandboxRepository{tx: tx}, nil
+}
+
+func (r *TxSandboxRepository) BeginTx(ctx context.Context) (TxRepository, error) {
+	return nil, errors.New("nested transactions not supported")
+}
+
+// ---------------------------------------------------------------------------
+// Sandbox CRUD
+// ---------------------------------------------------------------------------
+
+const sandboxColumns = `
+	id, COALESCE(name, ''), scope_path, COALESCE(reserved_path, ''), reserved_paths, no_lock, project_root,
+	COALESCE(owner, ''), owner_type, status, COALESCE(error_message, ''),
+	created_at, last_used_at, stopped_at, approved_at, deleted_at,
+	driver, driver_version, COALESCE(lower_dir, ''), COALESCE(upper_dir, ''),
+	COALESCE(work_dir, ''), COALESCE(merged_dir, ''),
+	size_bytes, file_count, active_pids, session_count, tags, metadata, behavior,
+	COALESCE(idempotency_key, ''), updated_at, version, COALESCE(base_commit_hash, '')`
+
+func scanSandbox(row interface {
+	Scan(...any) error
+},
+) (*types.Sandbox, error) {
+	var (
+		s             types.Sandbox
+		idStr         string
+		createdAt     string
+		lastUsedAt    string
+		stoppedAt     sql.NullString
+		approvedAt    sql.NullString
+		deletedAt     sql.NullString
+		updatedAt     string
+		reservedPaths string
+		activePIDsStr string
+		tagsStr       string
+		metadataJSON  string
+		behaviorJSON  string
+		noLock        int
+	)
+
+	if err := row.Scan(
+		&idStr, &s.Name, &s.ScopePath, &s.ReservedPath, &reservedPaths, &noLock, &s.ProjectRoot,
+		&s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
+		&createdAt, &lastUsedAt, &stoppedAt, &approvedAt, &deletedAt,
+		&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir,
+		&s.WorkDir, &s.MergedDir,
+		&s.SizeBytes, &s.FileCount, &activePIDsStr, &s.SessionCount, &tagsStr, &metadataJSON, &behaviorJSON,
+		&s.IdempotencyKey, &updatedAt, &s.Version, &s.BaseCommitHash,
+	); err != nil {
+		return nil, err
 	}
 
-	if reservedPath.Valid {
-		s.ReservedPath = reservedPath.String
-	} else {
-		s.ReservedPath = ""
+	id, err := parseUUID(idStr)
+	if err != nil {
+		return nil, fmt.Errorf("parse sandbox id: %w", err)
+	}
+	s.ID = id
+	s.NoLock = noLock != 0
+
+	if s.CreatedAt, err = parseTime(createdAt); err != nil {
+		return nil, err
+	}
+	if s.LastUsedAt, err = parseTime(lastUsedAt); err != nil {
+		return nil, err
+	}
+	if s.UpdatedAt, err = parseTime(updatedAt); err != nil {
+		return nil, err
+	}
+	if s.StoppedAt, err = parseTimePtr(stoppedAt); err != nil {
+		return nil, err
+	}
+	if s.ApprovedAt, err = parseTimePtr(approvedAt); err != nil {
+		return nil, err
+	}
+	if s.DeletedAt, err = parseTimePtr(deletedAt); err != nil {
+		return nil, err
+	}
+
+	tags, err := parseStrings(tagsStr)
+	if err != nil {
+		return nil, err
 	}
 	s.Tags = tags
-	s.ActivePIDs = make([]int, len(activePIDs))
-	for i, pid := range activePIDs {
-		s.ActivePIDs[i] = int(pid)
-	}
-	if len(metadataJSON) > 0 {
-		if err := json.Unmarshal(metadataJSON, &s.Metadata); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal sandbox metadata: %w", err)
-		}
-	}
-	if len(behaviorJSON) > 0 {
-		if err := json.Unmarshal(behaviorJSON, &s.Behavior); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal sandbox behavior: %w", err)
-		}
-	}
-	hydrateReservedFields(s, reservedPaths)
 
-	return s, nil
+	pids, err := parseInts(activePIDsStr)
+	if err != nil {
+		return nil, err
+	}
+	s.ActivePIDs = pids
+
+	if err := parseJSONObject(metadataJSON, &s.Metadata); err != nil {
+		return nil, fmt.Errorf("decode metadata: %w", err)
+	}
+	if err := parseJSONObject(behaviorJSON, &s.Behavior); err != nil {
+		return nil, fmt.Errorf("decode behavior: %w", err)
+	}
+
+	rps, err := parseStrings(reservedPaths)
+	if err != nil {
+		return nil, err
+	}
+	hydrateReservedFields(&s, rps)
+
+	return &s, nil
 }
 
-// Update updates a sandbox record.
-// This method increments the version automatically for optimistic locking support.
-// For explicit version checking, use UpdateWithVersionCheck instead.
-func (r *SandboxRepository) Update(ctx context.Context, s *types.Sandbox) error {
-	metadataJSON, err := json.Marshal(s.Metadata)
+func insertSandbox(ctx context.Context, exec dbExec, s *types.Sandbox) error {
+	if s.ID == uuid.Nil {
+		s.ID = uuid.New()
+	}
+	if s.Version == 0 {
+		s.Version = 1
+	}
+	now := time.Now().UTC()
+	if s.CreatedAt.IsZero() {
+		s.CreatedAt = now
+	}
+	if s.LastUsedAt.IsZero() {
+		s.LastUsedAt = now
+	}
+	if s.UpdatedAt.IsZero() {
+		s.UpdatedAt = now
+	}
+
+	metadataJSON, err := jsonObject(s.Metadata)
 	if err != nil {
-		return fmt.Errorf("failed to marshal metadata: %w", err)
+		return fmt.Errorf("marshal metadata: %w", err)
 	}
-	behaviorJSON, err := json.Marshal(s.Behavior)
+	behaviorJSON, err := jsonObject(s.Behavior)
 	if err != nil {
-		return fmt.Errorf("failed to marshal behavior: %w", err)
+		return fmt.Errorf("marshal behavior: %w", err)
 	}
 
-	activePIDs := make(pq.Int64Array, len(s.ActivePIDs))
-	for i, pid := range s.ActivePIDs {
-		activePIDs[i] = int64(pid)
-	}
+	const query = `
+		INSERT INTO sandboxes (
+			id, name, scope_path, reserved_path, reserved_paths, no_lock, project_root,
+			owner, owner_type, status,
+			created_at, last_used_at, updated_at,
+			driver, driver_version, tags, metadata, behavior,
+			idempotency_key, version, base_commit_hash, active_pids
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
-	query := `
-		UPDATE sandboxes SET
-			status = $2, error_message = $3,
-			stopped_at = $4, approved_at = $5, deleted_at = $6,
-			lower_dir = $7, upper_dir = $8, work_dir = $9, merged_dir = $10,
-			size_bytes = $11, file_count = $12, active_pids = $13, session_count = $14,
-			tags = $15, metadata = $16, behavior = $17,
-			version = version + 1, updated_at = NOW()
-		WHERE id = $1
-		RETURNING version, updated_at`
-
-	err = r.db.QueryRowContext(ctx, query,
-		s.ID, s.Status, s.ErrorMsg,
-		s.StoppedAt, s.ApprovedAt, s.DeletedAt,
-		s.LowerDir, s.UpperDir, s.WorkDir, s.MergedDir,
-		s.SizeBytes, s.FileCount, activePIDs, s.SessionCount,
-		pq.Array(s.Tags), metadataJSON, behaviorJSON,
-	).Scan(&s.Version, &s.UpdatedAt)
+	_, err = exec.ExecContext(ctx, query,
+		uuidText(s.ID),
+		nullableString(s.Name),
+		s.ScopePath,
+		nullableString(s.ReservedPath),
+		jsonStrings(s.ReservedPaths),
+		boolInt(s.NoLock),
+		s.ProjectRoot,
+		nullableString(s.Owner),
+		string(s.OwnerType),
+		string(s.Status),
+		formatTime(s.CreatedAt),
+		formatTime(s.LastUsedAt),
+		formatTime(s.UpdatedAt),
+		s.Driver,
+		s.DriverVersion,
+		jsonStrings(s.Tags),
+		metadataJSON,
+		behaviorJSON,
+		nullableString(s.IdempotencyKey),
+		s.Version,
+		nullableString(s.BaseCommitHash),
+		jsonInts(s.ActivePIDs),
+	)
 	return err
 }
 
-// Delete marks a sandbox as deleted.
-func (r *SandboxRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	now := time.Now()
-	query := `
-		UPDATE sandboxes
-		SET status = 'deleted', deleted_at = $2
-		WHERE id = $1 AND status != 'deleted'`
+// Create inserts a new sandbox record.
+func (r *SandboxRepository) Create(ctx context.Context, s *types.Sandbox) error {
+	return insertSandbox(ctx, r.db, s)
+}
 
-	result, err := r.db.ExecContext(ctx, query, id, now)
+func (r *TxSandboxRepository) Create(ctx context.Context, s *types.Sandbox) error {
+	return insertSandbox(ctx, r.tx, s)
+}
+
+func getSandbox(ctx context.Context, exec dbExec, id uuid.UUID) (*types.Sandbox, error) {
+	query := "SELECT " + sandboxColumns + " FROM sandboxes WHERE id = ?"
+	row := exec.QueryRowContext(ctx, query, uuidText(id))
+	s, err := scanSandbox(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
 	if err != nil {
-		return fmt.Errorf("failed to delete sandbox: %w", err)
+		return nil, fmt.Errorf("get sandbox: %w", err)
+	}
+	return s, nil
+}
+
+func (r *SandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
+	return getSandbox(ctx, r.db, id)
+}
+
+func (r *TxSandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
+	return getSandbox(ctx, r.tx, id)
+}
+
+func updateSandbox(ctx context.Context, exec dbExec, s *types.Sandbox) error {
+	metadataJSON, err := jsonObject(s.Metadata)
+	if err != nil {
+		return fmt.Errorf("marshal metadata: %w", err)
+	}
+	behaviorJSON, err := jsonObject(s.Behavior)
+	if err != nil {
+		return fmt.Errorf("marshal behavior: %w", err)
 	}
 
-	rows, _ := result.RowsAffected()
-	if rows == 0 {
-		return fmt.Errorf("sandbox not found or already deleted")
+	now := time.Now().UTC()
+	const query = `
+		UPDATE sandboxes SET
+			status = ?, error_message = ?,
+			stopped_at = ?, approved_at = ?, deleted_at = ?,
+			lower_dir = ?, upper_dir = ?, work_dir = ?, merged_dir = ?,
+			size_bytes = ?, file_count = ?, active_pids = ?, session_count = ?,
+			tags = ?, metadata = ?, behavior = ?,
+			version = version + 1,
+			updated_at = ?,
+			last_used_at = ?
+		WHERE id = ?`
+
+	if _, err := exec.ExecContext(ctx, query,
+		string(s.Status), nullableString(s.ErrorMsg),
+		formatTimePtr(s.StoppedAt), formatTimePtr(s.ApprovedAt), formatTimePtr(s.DeletedAt),
+		nullableString(s.LowerDir), nullableString(s.UpperDir), nullableString(s.WorkDir), nullableString(s.MergedDir),
+		s.SizeBytes, s.FileCount, jsonInts(s.ActivePIDs), s.SessionCount,
+		jsonStrings(s.Tags), metadataJSON, behaviorJSON,
+		formatTime(now),
+		formatTime(now),
+		uuidText(s.ID),
+	); err != nil {
+		return err
 	}
 
+	// Re-read version + timestamps for the caller.
+	row := exec.QueryRowContext(ctx, "SELECT version, updated_at FROM sandboxes WHERE id = ?", uuidText(s.ID))
+	var version int64
+	var updatedAtStr string
+	if err := row.Scan(&version, &updatedAtStr); err != nil {
+		return err
+	}
+	s.Version = version
+	if s.UpdatedAt, err = parseTime(updatedAtStr); err != nil {
+		return err
+	}
+	s.LastUsedAt = now
 	return nil
 }
 
-// queryBuilder helps construct parameterized SQL queries safely.
-// All user-provided values are added as parameterized arguments, never interpolated.
+func (r *SandboxRepository) Update(ctx context.Context, s *types.Sandbox) error {
+	return updateSandbox(ctx, r.db, s)
+}
+
+func (r *TxSandboxRepository) Update(ctx context.Context, s *types.Sandbox) error {
+	return updateSandbox(ctx, r.tx, s)
+}
+
+func deleteSandbox(ctx context.Context, exec dbExec, id uuid.UUID) error {
+	now := time.Now().UTC()
+	const query = `
+		UPDATE sandboxes
+		SET status = 'deleted', deleted_at = ?, version = version + 1, updated_at = ?
+		WHERE id = ? AND status != 'deleted'`
+	res, err := exec.ExecContext(ctx, query, formatTime(now), formatTime(now), uuidText(id))
+	if err != nil {
+		return fmt.Errorf("delete sandbox: %w", err)
+	}
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return errors.New("sandbox not found or already deleted")
+	}
+	return nil
+}
+
+func (r *SandboxRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	return deleteSandbox(ctx, r.db, id)
+}
+
+func (r *TxSandboxRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	return deleteSandbox(ctx, r.tx, id)
+}
+
+// ---------------------------------------------------------------------------
+// queryBuilder: small helper for assembling parameterized WHERE clauses.
+// ---------------------------------------------------------------------------
+
 type queryBuilder struct {
 	conditions []string
-	args       []interface{}
-	argNum     int
+	args       []any
 }
 
-func newQueryBuilder() *queryBuilder {
-	return &queryBuilder{argNum: 1}
-}
+func newQueryBuilder() *queryBuilder { return &queryBuilder{} }
 
-func (qb *queryBuilder) addCondition(column string, op string, value interface{}) {
-	qb.conditions = append(qb.conditions, column+" "+op+" $"+strconv.Itoa(qb.argNum))
+func (qb *queryBuilder) addCondition(column, op string, value any) {
+	qb.conditions = append(qb.conditions, column+" "+op+" ?")
 	qb.args = append(qb.args, value)
-	qb.argNum++
 }
 
 func (qb *queryBuilder) addInCondition(column string, values []types.Status) {
 	if len(values) == 0 {
 		return
 	}
-	placeholders := make([]string, len(values))
-	for i, v := range values {
-		placeholders[i] = "$" + strconv.Itoa(qb.argNum)
-		qb.args = append(qb.args, v)
-		qb.argNum++
+	placeholders := strings.Repeat("?,", len(values))
+	placeholders = placeholders[:len(placeholders)-1]
+	qb.conditions = append(qb.conditions, column+" IN ("+placeholders+")")
+	for _, v := range values {
+		qb.args = append(qb.args, string(v))
 	}
-	qb.conditions = append(qb.conditions, column+" IN ("+strings.Join(placeholders, ",")+")")
 }
 
 func (qb *queryBuilder) whereClause() string {
@@ -329,16 +453,13 @@ func (qb *queryBuilder) whereClause() string {
 	return "WHERE " + strings.Join(qb.conditions, " AND ")
 }
 
-func (qb *queryBuilder) nextArgNum() int {
-	return qb.argNum
-}
+// ---------------------------------------------------------------------------
+// List / GetActiveSandboxes / GetGCCandidates
+// ---------------------------------------------------------------------------
 
 // List retrieves sandboxes matching the filter.
-// Uses queryBuilder to safely construct parameterized queries.
 func (r *SandboxRepository) List(ctx context.Context, filter *types.ListFilter) (*types.ListResult, error) {
 	qb := newQueryBuilder()
-
-	// Build WHERE conditions - all values are parameterized
 	if len(filter.Status) > 0 {
 		qb.addInCondition("status", filter.Status)
 	}
@@ -352,99 +473,53 @@ func (r *SandboxRepository) List(ctx context.Context, filter *types.ListFilter) 
 		qb.addCondition("scope_path", "=", filter.ScopePath)
 	}
 	if filter.Name != "" {
-		qb.addCondition("name", "ILIKE", "%"+filter.Name+"%")
+		qb.addCondition("name", "LIKE", "%"+filter.Name+"%")
 	}
 	if !filter.CreatedFrom.IsZero() {
-		qb.addCondition("created_at", ">=", filter.CreatedFrom)
+		qb.addCondition("created_at", ">=", formatTime(filter.CreatedFrom))
 	}
 	if !filter.CreatedTo.IsZero() {
-		qb.addCondition("created_at", "<=", filter.CreatedTo)
+		qb.addCondition("created_at", "<=", formatTime(filter.CreatedTo))
 	}
 
 	whereClause := qb.whereClause()
-	args := qb.args
 
-	// Get total count using parameterized query
-	// The whereClause contains only column names and $N placeholders, never user data
-	countQuery := "SELECT COUNT(*) FROM sandboxes " + whereClause
 	var totalCount int
-	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&totalCount); err != nil {
-		return nil, fmt.Errorf("failed to count sandboxes: %w", err)
+	if err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM sandboxes "+whereClause, qb.args...).Scan(&totalCount); err != nil {
+		return nil, fmt.Errorf("count sandboxes: %w", err)
 	}
 
-	// Apply pagination with reasonable bounds
 	limit := filter.Limit
 	if limit <= 0 {
-		limit = 100 // Fallback default; prefer config.Limits.DefaultListLimit
+		limit = 100
 	}
 	if limit > 10000 {
-		limit = 10000 // Hard cap for safety
+		limit = 10000
 	}
 	offset := filter.Offset
 	if offset < 0 {
 		offset = 0
 	}
 
-	// Build main query with parameterized LIMIT/OFFSET
-	limitArg := qb.nextArgNum()
-	offsetArg := limitArg + 1
-	query := `
-		SELECT id, COALESCE(name, ''), scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status, error_message,
-			created_at, last_used_at, stopped_at, approved_at, deleted_at,
-			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
-			size_bytes, file_count, active_pids, session_count, tags, metadata, behavior,
-			COALESCE(idempotency_key, ''), updated_at, version
-		FROM sandboxes
-		` + whereClause + `
-		ORDER BY created_at DESC
-		LIMIT $` + strconv.Itoa(limitArg) + ` OFFSET $` + strconv.Itoa(offsetArg)
-
-	args = append(args, limit, offset)
+	query := "SELECT " + sandboxColumns + " FROM sandboxes " + whereClause + " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+	args := append(append([]any{}, qb.args...), limit, offset)
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list sandboxes: %w", err)
+		return nil, fmt.Errorf("list sandboxes: %w", err)
 	}
 	defer rows.Close()
 
 	var sandboxes []*types.Sandbox
 	for rows.Next() {
-		s := &types.Sandbox{}
-		var metadataJSON []byte
-		var behaviorJSON []byte
-		var tags pq.StringArray
-		var activePIDs pq.Int64Array
-		var reservedPaths pq.StringArray
-
-		err := rows.Scan(
-			&s.ID, &s.Name, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.NoLock, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
-			&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
-			&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
-			&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON, &behaviorJSON,
-			&s.IdempotencyKey, &s.UpdatedAt, &s.Version,
-		)
+		s, err := scanSandbox(rows)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan sandbox: %w", err)
+			return nil, err
 		}
-
-		s.Tags = tags
-		s.ActivePIDs = make([]int, len(activePIDs))
-		for i, pid := range activePIDs {
-			s.ActivePIDs[i] = int(pid)
-		}
-		if len(metadataJSON) > 0 {
-			if err := json.Unmarshal(metadataJSON, &s.Metadata); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal sandbox metadata: %w", err)
-			}
-		}
-		if len(behaviorJSON) > 0 {
-			if err := json.Unmarshal(behaviorJSON, &s.Behavior); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal sandbox behavior: %w", err)
-			}
-		}
-		hydrateReservedFields(s, reservedPaths)
-
 		sandboxes = append(sandboxes, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return &types.ListResult{
@@ -455,87 +530,174 @@ func (r *SandboxRepository) List(ctx context.Context, filter *types.ListFilter) 
 	}, nil
 }
 
-// CheckScopeOverlap checks if a scope path overlaps with any active sandbox.
-func (r *SandboxRepository) CheckScopeOverlap(ctx context.Context, scopePath, projectRoot string, excludeID *uuid.UUID) ([]types.PathConflict, error) {
-	query := `SELECT id, scope_path, status FROM check_scope_overlap($1, $2, $3)`
+func (r *TxSandboxRepository) List(ctx context.Context, filter *types.ListFilter) (*types.ListResult, error) {
+	return nil, errors.New("List not implemented for transactions - use non-transactional repository")
+}
 
-	var excludeIDArg interface{}
+// GetActiveSandboxes returns sandboxes in non-terminal states for a project.
+func (r *SandboxRepository) GetActiveSandboxes(ctx context.Context, projectRoot string) ([]*types.Sandbox, error) {
+	res, err := r.List(ctx, &types.ListFilter{
+		Status:      []types.Status{types.StatusCreating, types.StatusActive},
+		ProjectRoot: projectRoot,
+		Limit:       10000,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return res.Sandboxes, nil
+}
+
+func (r *TxSandboxRepository) GetActiveSandboxes(ctx context.Context, projectRoot string) ([]*types.Sandbox, error) {
+	return nil, errors.New("GetActiveSandboxes not implemented for transactions")
+}
+
+// ---------------------------------------------------------------------------
+// CheckScopeOverlap: detects reserved-path conflicts between an incoming
+// scope and existing sandboxes within the same project root. The
+// transactional variant (TxSandboxRepository) relies on the
+// _txlock=immediate DSN parameter to serialize concurrent writers.
+// ---------------------------------------------------------------------------
+
+func checkScopeOverlap(ctx context.Context, exec dbExec, scopePath, projectRoot string, excludeID *uuid.UUID) ([]types.PathConflict, error) {
+	const query = `
+		SELECT id, scope_path, COALESCE(reserved_path, ''), reserved_paths, no_lock, status
+		FROM sandboxes
+		WHERE project_root = ?
+		  AND status IN ('creating', 'active', 'stopped')
+		  AND no_lock = 0
+		  AND (? = '' OR id != ?)`
+
+	exclude := ""
 	if excludeID != nil {
-		excludeIDArg = *excludeID
+		exclude = excludeID.String()
 	}
 
-	rows, err := r.db.QueryContext(ctx, query, scopePath, projectRoot, excludeIDArg)
+	rows, err := exec.QueryContext(ctx, query, projectRoot, exclude, exclude)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check scope overlap: %w", err)
+		return nil, fmt.Errorf("check scope overlap: %w", err)
 	}
 	defer rows.Close()
 
 	var conflicts []types.PathConflict
 	for rows.Next() {
-		var id uuid.UUID
-		var existingScope string
-		var status types.Status
-
-		if err := rows.Scan(&id, &existingScope, &status); err != nil {
-			return nil, fmt.Errorf("failed to scan conflict: %w", err)
+		var (
+			idStr             string
+			existingScope     string
+			existingReserved  string
+			existingReserveds string
+			noLock            int
+			status            string
+		)
+		if err := rows.Scan(&idStr, &existingScope, &existingReserved, &existingReserveds, &noLock, &status); err != nil {
+			return nil, fmt.Errorf("scan conflict: %w", err)
+		}
+		if noLock != 0 {
+			continue
 		}
 
-		conflictType := types.CheckPathOverlap(existingScope, scopePath)
-		conflicts = append(conflicts, types.PathConflict{
-			ExistingID:    id.String(),
-			ExistingScope: existingScope,
-			NewScope:      scopePath,
-			ConflictType:  conflictType,
-		})
-	}
+		reservedList, err := parseStrings(existingReserveds)
+		if err != nil {
+			return nil, err
+		}
 
-	return conflicts, nil
+		effective := make([]string, 0, max(1, len(reservedList)))
+		for _, p := range reservedList {
+			p = strings.TrimSpace(p)
+			if p != "" {
+				effective = append(effective, p)
+			}
+		}
+		if len(effective) == 0 {
+			if strings.TrimSpace(existingReserved) != "" {
+				effective = append(effective, strings.TrimSpace(existingReserved))
+			} else if strings.TrimSpace(existingScope) != "" {
+				effective = append(effective, strings.TrimSpace(existingScope))
+			}
+		}
+
+		for _, prefix := range effective {
+			conflictType := types.CheckPathOverlap(prefix, scopePath)
+			if conflictType == "" {
+				continue
+			}
+			conflicts = append(conflicts, types.PathConflict{
+				ExistingID:    idStr,
+				ExistingScope: prefix,
+				NewScope:      scopePath,
+				ConflictType:  conflictType,
+			})
+		}
+	}
+	return conflicts, rows.Err()
 }
 
-// GetActiveSandboxes returns all sandboxes in active states.
-func (r *SandboxRepository) GetActiveSandboxes(ctx context.Context, projectRoot string) ([]*types.Sandbox, error) {
-	filter := &types.ListFilter{
-		Status:      []types.Status{types.StatusCreating, types.StatusActive},
-		ProjectRoot: projectRoot,
-		Limit:       10000,
-	}
-
-	result, err := r.List(ctx, filter)
-	if err != nil {
-		return nil, err
-	}
-
-	return result.Sandboxes, nil
+func (r *SandboxRepository) CheckScopeOverlap(ctx context.Context, scopePath, projectRoot string, excludeID *uuid.UUID) ([]types.PathConflict, error) {
+	return checkScopeOverlap(ctx, r.db, scopePath, projectRoot, excludeID)
 }
 
-// LogAuditEvent records a sandbox operation in the audit log.
-func (r *SandboxRepository) LogAuditEvent(ctx context.Context, event *types.AuditEvent) error {
-	detailsJSON, err := json.Marshal(event.Details)
-	if err != nil {
-		detailsJSON = []byte("{}")
+func (r *TxSandboxRepository) CheckScopeOverlap(ctx context.Context, scopePath, projectRoot string, excludeID *uuid.UUID) ([]types.PathConflict, error) {
+	return checkScopeOverlap(ctx, r.tx, scopePath, projectRoot, excludeID)
+}
+
+// ---------------------------------------------------------------------------
+// Audit log
+// ---------------------------------------------------------------------------
+
+func logAuditEvent(ctx context.Context, exec dbExec, event *types.AuditEvent) error {
+	if event.ID == uuid.Nil {
+		event.ID = uuid.New()
+	}
+	if event.EventTime.IsZero() {
+		event.EventTime = time.Now().UTC()
+	}
+	if event.ActorType == "" {
+		event.ActorType = "system"
 	}
 
-	stateJSON, err := json.Marshal(event.SandboxState)
-	if err != nil {
-		stateJSON = []byte("{}")
+	detailsJSON, _ := jsonObject(event.Details)
+	if detailsJSON == "" {
+		detailsJSON = "{}"
+	}
+	stateJSON := ""
+	if event.SandboxState != nil {
+		s, err := jsonObject(event.SandboxState)
+		if err == nil {
+			stateJSON = s
+		}
 	}
 
-	query := `
-		INSERT INTO sandbox_audit_log (sandbox_id, event_type, actor, actor_type, details, sandbox_state)
-		VALUES ($1, $2, $3, $4, $5, $6)`
+	var sandboxIDArg sql.NullString
+	if event.SandboxID != nil {
+		sandboxIDArg = sql.NullString{String: event.SandboxID.String(), Valid: true}
+	}
 
-	_, err = r.db.ExecContext(ctx, query,
-		event.SandboxID, event.EventType, event.Actor, event.ActorType,
-		detailsJSON, stateJSON,
+	const query = `
+		INSERT INTO sandbox_audit_log (id, sandbox_id, event_type, event_time, actor, actor_type, details, sandbox_state)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+
+	_, err := exec.ExecContext(ctx, query,
+		uuidText(event.ID),
+		sandboxIDArg,
+		event.EventType,
+		formatTime(event.EventTime),
+		nullableString(event.Actor),
+		event.ActorType,
+		detailsJSON,
+		nullableString(stateJSON),
 	)
 	return err
 }
 
-// GetAuditLog retrieves audit events, optionally filtered by sandbox ID.
-// [OT-P1-004] Audit Trail Metadata
-// Returns events in reverse chronological order (most recent first).
+func (r *SandboxRepository) LogAuditEvent(ctx context.Context, event *types.AuditEvent) error {
+	return logAuditEvent(ctx, r.db, event)
+}
+
+func (r *TxSandboxRepository) LogAuditEvent(ctx context.Context, event *types.AuditEvent) error {
+	return logAuditEvent(ctx, r.tx, event)
+}
+
+// GetAuditLog retrieves audit events ordered by event_time DESC.
 func (r *SandboxRepository) GetAuditLog(ctx context.Context, sandboxID *uuid.UUID, limit, offset int) ([]*types.AuditEvent, int, error) {
-	// Set reasonable defaults
 	if limit <= 0 {
 		limit = 100
 	}
@@ -546,94 +708,95 @@ func (r *SandboxRepository) GetAuditLog(ctx context.Context, sandboxID *uuid.UUI
 		offset = 0
 	}
 
-	// Build query with optional sandbox filter
-	var whereClause string
-	var args []interface{}
-
+	whereClause := ""
+	args := []any{}
 	if sandboxID != nil {
-		whereClause = "WHERE sandbox_id = $1"
-		args = append(args, *sandboxID)
+		whereClause = "WHERE sandbox_id = ?"
+		args = append(args, sandboxID.String())
 	}
 
-	// Get total count
-	countQuery := "SELECT COUNT(*) FROM sandbox_audit_log " + whereClause
 	var totalCount int
-	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&totalCount); err != nil {
-		return nil, 0, fmt.Errorf("failed to count audit events: %w", err)
+	if err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM sandbox_audit_log "+whereClause, args...).Scan(&totalCount); err != nil {
+		return nil, 0, fmt.Errorf("count audit events: %w", err)
 	}
-
-	// Build main query
-	limitArgNum := len(args) + 1
-	offsetArgNum := limitArgNum + 1
 
 	query := `
-		SELECT id, sandbox_id, event_type, event_time, actor, actor_type, details, sandbox_state
+		SELECT id, sandbox_id, event_type, event_time, COALESCE(actor, ''), actor_type, details, COALESCE(sandbox_state, '')
 		FROM sandbox_audit_log
 		` + whereClause + `
 		ORDER BY event_time DESC
-		LIMIT $` + strconv.Itoa(limitArgNum) + ` OFFSET $` + strconv.Itoa(offsetArgNum)
-
+		LIMIT ? OFFSET ?`
 	args = append(args, limit, offset)
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to query audit log: %w", err)
+		return nil, 0, fmt.Errorf("query audit log: %w", err)
 	}
 	defer rows.Close()
 
 	var events []*types.AuditEvent
 	for rows.Next() {
-		event := &types.AuditEvent{}
-		var detailsJSON, stateJSON []byte
-		var sandboxID sql.NullString
-
-		err := rows.Scan(
-			&event.ID,
-			&sandboxID,
-			&event.EventType,
-			&event.EventTime,
-			&event.Actor,
-			&event.ActorType,
-			&detailsJSON,
-			&stateJSON,
+		var (
+			ev           types.AuditEvent
+			idStr        string
+			sandboxIDStr sql.NullString
+			eventTimeStr string
+			detailsJSON  string
+			stateJSON    string
 		)
+		if err := rows.Scan(&idStr, &sandboxIDStr, &ev.EventType, &eventTimeStr, &ev.Actor, &ev.ActorType, &detailsJSON, &stateJSON); err != nil {
+			return nil, 0, fmt.Errorf("scan audit event: %w", err)
+		}
+		id, err := parseUUID(idStr)
 		if err != nil {
-			return nil, 0, fmt.Errorf("failed to scan audit event: %w", err)
+			return nil, 0, fmt.Errorf("parse audit id: %w", err)
 		}
-
-		// Parse sandbox ID
-		if sandboxID.Valid {
-			id, parseErr := uuid.Parse(sandboxID.String)
-			if parseErr != nil {
-				return nil, 0, fmt.Errorf("failed to parse sandbox ID: %w", parseErr)
+		ev.ID = id
+		if sandboxIDStr.Valid && sandboxIDStr.String != "" {
+			sid, err := parseUUID(sandboxIDStr.String)
+			if err != nil {
+				return nil, 0, fmt.Errorf("parse audit sandbox id: %w", err)
 			}
-			event.SandboxID = &id
+			ev.SandboxID = &sid
 		}
-
-		// Parse JSON fields
-		if len(detailsJSON) > 0 {
-			if err := json.Unmarshal(detailsJSON, &event.Details); err != nil {
-				return nil, 0, fmt.Errorf("failed to unmarshal audit event details: %w", err)
-			}
+		if ev.EventTime, err = parseTime(eventTimeStr); err != nil {
+			return nil, 0, err
 		}
-		if len(stateJSON) > 0 {
-			if err := json.Unmarshal(stateJSON, &event.SandboxState); err != nil {
-				return nil, 0, fmt.Errorf("failed to unmarshal audit event state: %w", err)
-			}
+		if err := parseJSONObject(detailsJSON, &ev.Details); err != nil {
+			return nil, 0, fmt.Errorf("decode audit details: %w", err)
 		}
-
-		events = append(events, event)
+		if err := parseJSONObject(stateJSON, &ev.SandboxState); err != nil {
+			return nil, 0, fmt.Errorf("decode audit state: %w", err)
+		}
+		events = append(events, &ev)
 	}
-
-	return events, totalCount, nil
+	return events, totalCount, rows.Err()
 }
 
-// GetStats retrieves aggregate sandbox statistics using the database function.
+func (r *TxSandboxRepository) GetAuditLog(ctx context.Context, sandboxID *uuid.UUID, limit, offset int) ([]*types.AuditEvent, int, error) {
+	return nil, 0, errors.New("GetAuditLog not implemented for transactions")
+}
+
+// ---------------------------------------------------------------------------
+// Stats: aggregate counts per status and total size.
+// ---------------------------------------------------------------------------
+
 func (r *SandboxRepository) GetStats(ctx context.Context) (*types.SandboxStats, error) {
-	query := `SELECT * FROM get_sandbox_stats()`
+	const query = `
+		SELECT
+			COUNT(*) AS total,
+			SUM(CASE WHEN status = 'active'   THEN 1 ELSE 0 END) AS active,
+			SUM(CASE WHEN status = 'stopped'  THEN 1 ELSE 0 END) AS stopped,
+			SUM(CASE WHEN status = 'error'    THEN 1 ELSE 0 END) AS errored,
+			SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) AS approved,
+			SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) AS rejected,
+			SUM(CASE WHEN status = 'deleted'  THEN 1 ELSE 0 END) AS deleted,
+			COALESCE(SUM(size_bytes), 0)                          AS total_size,
+			COALESCE(AVG(size_bytes), 0)                          AS avg_size
+		FROM sandboxes`
 
 	stats := &types.SandboxStats{}
-	err := r.db.QueryRowContext(ctx, query).Scan(
+	if err := r.db.QueryRowContext(ctx, query).Scan(
 		&stats.TotalCount,
 		&stats.ActiveCount,
 		&stats.StoppedCount,
@@ -643,554 +806,132 @@ func (r *SandboxRepository) GetStats(ctx context.Context) (*types.SandboxStats, 
 		&stats.DeletedCount,
 		&stats.TotalSizeBytes,
 		&stats.AvgSizeBytes,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get sandbox stats: %w", err)
+	); err != nil {
+		return nil, fmt.Errorf("get sandbox stats: %w", err)
 	}
-
 	return stats, nil
 }
 
-// --- Idempotency Support ---
+func (r *TxSandboxRepository) GetStats(ctx context.Context) (*types.SandboxStats, error) {
+	return nil, errors.New("GetStats not implemented for transactions")
+}
 
-// FindByIdempotencyKey finds a sandbox by its idempotency key.
-// Returns nil, nil if no sandbox exists with that key.
-// This enables idempotent create operations: if a sandbox was already created
-// with the same key, return it instead of creating a duplicate.
-func (r *SandboxRepository) FindByIdempotencyKey(ctx context.Context, key string) (*types.Sandbox, error) {
+// ---------------------------------------------------------------------------
+// Idempotency lookup
+// ---------------------------------------------------------------------------
+
+func findByIdempotencyKey(ctx context.Context, exec dbExec, key string) (*types.Sandbox, error) {
 	if key == "" {
-		return nil, nil // No idempotency key means no lookup
+		return nil, nil
 	}
-
-	query := `
-		SELECT id, COALESCE(name, ''), scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status, error_message,
-			created_at, last_used_at, stopped_at, approved_at, deleted_at,
-			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
-			size_bytes, file_count, active_pids, session_count, tags, metadata, behavior,
-			COALESCE(idempotency_key, ''), updated_at, version, COALESCE(base_commit_hash, '')
-		FROM sandboxes
-		WHERE idempotency_key = $1`
-
-	s := &types.Sandbox{}
-	var metadataJSON []byte
-	var behaviorJSON []byte
-	var tags pq.StringArray
-	var activePIDs pq.Int64Array
-	var reservedPaths pq.StringArray
-
-	err := r.db.QueryRowContext(ctx, query, key).Scan(
-		&s.ID, &s.Name, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.NoLock, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
-		&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
-		&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
-		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON, &behaviorJSON,
-		&s.IdempotencyKey, &s.UpdatedAt, &s.Version, &s.BaseCommitHash,
-	)
-	if err == sql.ErrNoRows {
+	query := "SELECT " + sandboxColumns + " FROM sandboxes WHERE idempotency_key = ?"
+	row := exec.QueryRowContext(ctx, query, key)
+	s, err := scanSandbox(row)
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to find sandbox by idempotency key: %w", err)
+		return nil, fmt.Errorf("find sandbox by idempotency key: %w", err)
 	}
-
-	s.Tags = tags
-	s.ActivePIDs = make([]int, len(activePIDs))
-	for i, pid := range activePIDs {
-		s.ActivePIDs[i] = int(pid)
-	}
-	if len(metadataJSON) > 0 {
-		if err := json.Unmarshal(metadataJSON, &s.Metadata); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal sandbox metadata: %w", err)
-		}
-	}
-	if len(behaviorJSON) > 0 {
-		if err := json.Unmarshal(behaviorJSON, &s.Behavior); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal sandbox behavior: %w", err)
-		}
-	}
-	hydrateReservedFields(s, reservedPaths)
-
 	return s, nil
 }
 
-// --- Optimistic Locking Support ---
+func (r *SandboxRepository) FindByIdempotencyKey(ctx context.Context, key string) (*types.Sandbox, error) {
+	return findByIdempotencyKey(ctx, r.db, key)
+}
 
-// UpdateWithVersionCheck updates a sandbox only if its version matches expected.
-// Returns ConcurrentModificationError if version mismatch occurs.
-// On success, increments the version and updates UpdatedAt.
-//
-// This implements optimistic concurrency control: multiple callers can read
-// a sandbox and attempt to update it, but only one succeeds. Others get
-// an error and can retry after re-fetching.
-func (r *SandboxRepository) UpdateWithVersionCheck(ctx context.Context, s *types.Sandbox, expectedVersion int64) error {
-	metadataJSON, err := json.Marshal(s.Metadata)
+func (r *TxSandboxRepository) FindByIdempotencyKey(ctx context.Context, key string) (*types.Sandbox, error) {
+	return findByIdempotencyKey(ctx, r.tx, key)
+}
+
+// ---------------------------------------------------------------------------
+// Optimistic locking
+// ---------------------------------------------------------------------------
+
+func updateWithVersionCheck(ctx context.Context, exec dbExec, s *types.Sandbox, expectedVersion int64) error {
+	metadataJSON, err := jsonObject(s.Metadata)
 	if err != nil {
-		return fmt.Errorf("failed to marshal metadata: %w", err)
+		return fmt.Errorf("marshal metadata: %w", err)
 	}
-	behaviorJSON, err := json.Marshal(s.Behavior)
+	behaviorJSON, err := jsonObject(s.Behavior)
 	if err != nil {
-		return fmt.Errorf("failed to marshal behavior: %w", err)
+		return fmt.Errorf("marshal behavior: %w", err)
 	}
 
-	activePIDs := make(pq.Int64Array, len(s.ActivePIDs))
-	for i, pid := range s.ActivePIDs {
-		activePIDs[i] = int64(pid)
-	}
-
-	query := `
+	now := time.Now().UTC()
+	const query = `
 		UPDATE sandboxes SET
-			status = $2, error_message = $3,
-			stopped_at = $4, approved_at = $5, deleted_at = $6,
-			lower_dir = $7, upper_dir = $8, work_dir = $9, merged_dir = $10,
-			size_bytes = $11, file_count = $12, active_pids = $13, session_count = $14,
-			tags = $15, metadata = $16, behavior = $17,
-			version = version + 1, updated_at = NOW()
-		WHERE id = $1 AND version = $18
-		RETURNING version, updated_at`
+			status = ?, error_message = ?,
+			stopped_at = ?, approved_at = ?, deleted_at = ?,
+			lower_dir = ?, upper_dir = ?, work_dir = ?, merged_dir = ?,
+			size_bytes = ?, file_count = ?, active_pids = ?, session_count = ?,
+			tags = ?, metadata = ?, behavior = ?,
+			version = version + 1,
+			updated_at = ?,
+			last_used_at = ?
+		WHERE id = ? AND version = ?`
 
-	err = r.db.QueryRowContext(ctx, query,
-		s.ID, s.Status, s.ErrorMsg,
-		s.StoppedAt, s.ApprovedAt, s.DeletedAt,
-		s.LowerDir, s.UpperDir, s.WorkDir, s.MergedDir,
-		s.SizeBytes, s.FileCount, activePIDs, s.SessionCount,
-		pq.Array(s.Tags), metadataJSON, behaviorJSON, expectedVersion,
-	).Scan(&s.Version, &s.UpdatedAt)
-
-	if err == sql.ErrNoRows {
-		// Version mismatch - fetch current version for error message
+	res, err := exec.ExecContext(ctx, query,
+		string(s.Status), nullableString(s.ErrorMsg),
+		formatTimePtr(s.StoppedAt), formatTimePtr(s.ApprovedAt), formatTimePtr(s.DeletedAt),
+		nullableString(s.LowerDir), nullableString(s.UpperDir), nullableString(s.WorkDir), nullableString(s.MergedDir),
+		s.SizeBytes, s.FileCount, jsonInts(s.ActivePIDs), s.SessionCount,
+		jsonStrings(s.Tags), metadataJSON, behaviorJSON,
+		formatTime(now),
+		formatTime(now),
+		uuidText(s.ID), expectedVersion,
+	)
+	if err != nil {
+		return err
+	}
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
 		var currentVersion int64
-		verQuery := `SELECT version FROM sandboxes WHERE id = $1`
-		if verErr := r.db.QueryRowContext(ctx, verQuery, s.ID).Scan(&currentVersion); verErr == nil {
+		if err := exec.QueryRowContext(ctx, "SELECT version FROM sandboxes WHERE id = ?", uuidText(s.ID)).Scan(&currentVersion); err == nil {
 			return types.NewConcurrentModificationError(s.ID.String(), expectedVersion, currentVersion)
 		}
 		return types.NewNotFoundError(s.ID.String())
 	}
 
-	return err
-}
-
-// --- Transactional Support ---
-
-// BeginTx starts a new transaction and returns a Repository scoped to it.
-// The returned TxRepository must be committed or rolled back by the caller.
-func (r *SandboxRepository) BeginTx(ctx context.Context) (TxRepository, error) {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	row := exec.QueryRowContext(ctx, "SELECT version, updated_at FROM sandboxes WHERE id = ?", uuidText(s.ID))
+	var version int64
+	var updatedAtStr string
+	if err := row.Scan(&version, &updatedAtStr); err != nil {
+		return err
 	}
-	return &TxSandboxRepository{tx: tx}, nil
-}
-
-// TxSandboxRepository is a SandboxRepository bound to a transaction.
-type TxSandboxRepository struct {
-	tx *sql.Tx
-}
-
-// Verify TxSandboxRepository implements TxRepository.
-var _ TxRepository = (*TxSandboxRepository)(nil)
-
-// Commit commits the transaction.
-func (r *TxSandboxRepository) Commit() error {
-	return r.tx.Commit()
-}
-
-// Rollback aborts the transaction.
-func (r *TxSandboxRepository) Rollback() error {
-	return r.tx.Rollback()
-}
-
-// Create inserts a new sandbox record within the transaction.
-func (r *TxSandboxRepository) Create(ctx context.Context, s *types.Sandbox) error {
-	metadataJSON, err := json.Marshal(s.Metadata)
-	if err != nil {
-		return fmt.Errorf("failed to marshal metadata: %w", err)
+	s.Version = version
+	if s.UpdatedAt, err = parseTime(updatedAtStr); err != nil {
+		return err
 	}
-	behaviorJSON, err := json.Marshal(s.Behavior)
-	if err != nil {
-		return fmt.Errorf("failed to marshal behavior: %w", err)
-	}
-
-	s.Version = 1
-
-	query := `
-		INSERT INTO sandboxes (
-			id, name, scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status,
-			driver, driver_version, tags, metadata, behavior, idempotency_key, version
-		) VALUES ($1, NULLIF($2, ''), $3, NULLIF($4, ''), NULLIF($5::text[], ARRAY[]::text[]), $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NULLIF($16, ''), $17)
-		RETURNING created_at, last_used_at, updated_at`
-
-	return r.tx.QueryRowContext(ctx, query,
-		s.ID, s.Name, s.ScopePath, s.ReservedPath, pq.Array(s.ReservedPaths), s.NoLock, s.ProjectRoot, s.Owner, s.OwnerType, s.Status,
-		s.Driver, s.DriverVersion, pq.Array(s.Tags), metadataJSON, behaviorJSON, s.IdempotencyKey, s.Version,
-	).Scan(&s.CreatedAt, &s.LastUsedAt, &s.UpdatedAt)
-}
-
-// Get retrieves a sandbox by ID within the transaction.
-func (r *TxSandboxRepository) Get(ctx context.Context, id uuid.UUID) (*types.Sandbox, error) {
-	query := `
-		SELECT id, COALESCE(name, ''), scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status, error_message,
-			created_at, last_used_at, stopped_at, approved_at, deleted_at,
-			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
-			size_bytes, file_count, active_pids, session_count, tags, metadata, behavior,
-			COALESCE(idempotency_key, ''), updated_at, version, COALESCE(base_commit_hash, '')
-		FROM sandboxes
-		WHERE id = $1`
-
-	s := &types.Sandbox{}
-	var metadataJSON []byte
-	var behaviorJSON []byte
-	var tags pq.StringArray
-	var activePIDs pq.Int64Array
-	var reservedPaths pq.StringArray
-
-	err := r.tx.QueryRowContext(ctx, query, id).Scan(
-		&s.ID, &s.Name, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.NoLock, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
-		&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
-		&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
-		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON, &behaviorJSON,
-		&s.IdempotencyKey, &s.UpdatedAt, &s.Version, &s.BaseCommitHash,
-	)
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to get sandbox: %w", err)
-	}
-
-	s.Tags = tags
-	s.ActivePIDs = make([]int, len(activePIDs))
-	for i, pid := range activePIDs {
-		s.ActivePIDs[i] = int(pid)
-	}
-	if len(metadataJSON) > 0 {
-		if err := json.Unmarshal(metadataJSON, &s.Metadata); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal sandbox metadata: %w", err)
-		}
-	}
-	if len(behaviorJSON) > 0 {
-		if err := json.Unmarshal(behaviorJSON, &s.Behavior); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal sandbox behavior: %w", err)
-		}
-	}
-	hydrateReservedFields(s, reservedPaths)
-
-	return s, nil
-}
-
-// Update updates a sandbox record within the transaction.
-func (r *TxSandboxRepository) Update(ctx context.Context, s *types.Sandbox) error {
-	metadataJSON, err := json.Marshal(s.Metadata)
-	if err != nil {
-		return fmt.Errorf("failed to marshal metadata: %w", err)
-	}
-	behaviorJSON, err := json.Marshal(s.Behavior)
-	if err != nil {
-		return fmt.Errorf("failed to marshal behavior: %w", err)
-	}
-
-	activePIDs := make(pq.Int64Array, len(s.ActivePIDs))
-	for i, pid := range s.ActivePIDs {
-		activePIDs[i] = int64(pid)
-	}
-
-	query := `
-		UPDATE sandboxes SET
-			status = $2, error_message = $3,
-			stopped_at = $4, approved_at = $5, deleted_at = $6,
-			lower_dir = $7, upper_dir = $8, work_dir = $9, merged_dir = $10,
-			size_bytes = $11, file_count = $12, active_pids = $13, session_count = $14,
-			tags = $15, metadata = $16, behavior = $17,
-			version = version + 1, updated_at = NOW()
-		WHERE id = $1
-		RETURNING version, updated_at`
-
-	return r.tx.QueryRowContext(ctx, query,
-		s.ID, s.Status, s.ErrorMsg,
-		s.StoppedAt, s.ApprovedAt, s.DeletedAt,
-		s.LowerDir, s.UpperDir, s.WorkDir, s.MergedDir,
-		s.SizeBytes, s.FileCount, activePIDs, s.SessionCount,
-		pq.Array(s.Tags), metadataJSON, behaviorJSON,
-	).Scan(&s.Version, &s.UpdatedAt)
-}
-
-// Delete marks a sandbox as deleted within the transaction.
-func (r *TxSandboxRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	now := time.Now()
-	query := `
-		UPDATE sandboxes
-		SET status = 'deleted', deleted_at = $2, version = version + 1, updated_at = NOW()
-		WHERE id = $1 AND status != 'deleted'`
-
-	result, err := r.tx.ExecContext(ctx, query, id, now)
-	if err != nil {
-		return fmt.Errorf("failed to delete sandbox: %w", err)
-	}
-
-	rows, _ := result.RowsAffected()
-	if rows == 0 {
-		return fmt.Errorf("sandbox not found or already deleted")
-	}
-
+	s.LastUsedAt = now
 	return nil
 }
 
-// List retrieves sandboxes matching the filter within the transaction.
-// For brevity, this delegates to a shared implementation.
-func (r *TxSandboxRepository) List(ctx context.Context, filter *types.ListFilter) (*types.ListResult, error) {
-	// For transactions, we use the same query logic but with tx instead of db
-	// This is a simplified version - full implementation would need to be extracted
-	return nil, fmt.Errorf("List not implemented for transactions - use non-transactional repository")
+func (r *SandboxRepository) UpdateWithVersionCheck(ctx context.Context, s *types.Sandbox, expectedVersion int64) error {
+	return updateWithVersionCheck(ctx, r.db, s, expectedVersion)
 }
 
-// CheckScopeOverlap checks for scope conflicts within the transaction.
-// Uses FOR UPDATE to lock conflicting rows and prevent race conditions.
-func (r *TxSandboxRepository) CheckScopeOverlap(ctx context.Context, scopePath, projectRoot string, excludeID *uuid.UUID) ([]types.PathConflict, error) {
-	// Use FOR UPDATE to lock the rows and prevent concurrent inserts with overlapping scopes
-	query := `
-		SELECT id, scope_path, reserved_path, reserved_paths, no_lock, status
-		FROM sandboxes
-		WHERE project_root = $1
-		  AND status IN ('creating', 'active', 'stopped')
-		  AND no_lock = false
-		  AND ($2::uuid IS NULL OR id != $2)
-		FOR UPDATE`
-
-	var excludeIDArg interface{}
-	if excludeID != nil {
-		excludeIDArg = *excludeID
-	}
-
-	rows, err := r.tx.QueryContext(ctx, query, projectRoot, excludeIDArg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check scope overlap: %w", err)
-	}
-	defer rows.Close()
-
-	var conflicts []types.PathConflict
-	for rows.Next() {
-		var id uuid.UUID
-		var existingScope string
-		var existingReservedPath sql.NullString
-		var existingReservedPaths pq.StringArray
-		var noLock bool
-		var status types.Status
-
-		if err := rows.Scan(&id, &existingScope, &existingReservedPath, &existingReservedPaths, &noLock, &status); err != nil {
-			return nil, fmt.Errorf("failed to scan conflict: %w", err)
-		}
-		if noLock {
-			continue
-		}
-
-		effective := make([]string, 0, maxInt(1, len(existingReservedPaths)))
-		if len(existingReservedPaths) > 0 {
-			for _, p := range existingReservedPaths {
-				p = strings.TrimSpace(p)
-				if p != "" {
-					effective = append(effective, p)
-				}
-			}
-		}
-		if len(effective) == 0 {
-			if existingReservedPath.Valid && strings.TrimSpace(existingReservedPath.String) != "" {
-				effective = append(effective, strings.TrimSpace(existingReservedPath.String))
-			} else if strings.TrimSpace(existingScope) != "" {
-				effective = append(effective, strings.TrimSpace(existingScope))
-			}
-		}
-
-		for _, existingPrefix := range effective {
-			conflictType := types.CheckPathOverlap(existingPrefix, scopePath)
-			if conflictType == "" {
-				continue
-			}
-			conflicts = append(conflicts, types.PathConflict{
-				ExistingID:    id.String(),
-				ExistingScope: existingPrefix,
-				NewScope:      scopePath,
-				ConflictType:  conflictType,
-			})
-		}
-	}
-
-	return conflicts, nil
-}
-
-// GetActiveSandboxes returns active sandboxes within the transaction.
-func (r *TxSandboxRepository) GetActiveSandboxes(ctx context.Context, projectRoot string) ([]*types.Sandbox, error) {
-	return nil, fmt.Errorf("GetActiveSandboxes not implemented for transactions")
-}
-
-// LogAuditEvent records an audit event within the transaction.
-func (r *TxSandboxRepository) LogAuditEvent(ctx context.Context, event *types.AuditEvent) error {
-	detailsJSON, err := json.Marshal(event.Details)
-	if err != nil {
-		detailsJSON = []byte("{}")
-	}
-
-	stateJSON, err := json.Marshal(event.SandboxState)
-	if err != nil {
-		stateJSON = []byte("{}")
-	}
-
-	query := `
-		INSERT INTO sandbox_audit_log (sandbox_id, event_type, actor, actor_type, details, sandbox_state)
-		VALUES ($1, $2, $3, $4, $5, $6)`
-
-	_, err = r.tx.ExecContext(ctx, query,
-		event.SandboxID, event.EventType, event.Actor, event.ActorType,
-		detailsJSON, stateJSON,
-	)
-	return err
-}
-
-// GetStats is not supported within transactions.
-func (r *TxSandboxRepository) GetStats(ctx context.Context) (*types.SandboxStats, error) {
-	return nil, fmt.Errorf("GetStats not implemented for transactions")
-}
-
-// GetAuditLog is not supported within transactions.
-func (r *TxSandboxRepository) GetAuditLog(ctx context.Context, sandboxID *uuid.UUID, limit, offset int) ([]*types.AuditEvent, int, error) {
-	return nil, 0, fmt.Errorf("GetAuditLog not implemented for transactions")
-}
-
-// FindByIdempotencyKey finds a sandbox by idempotency key within the transaction.
-func (r *TxSandboxRepository) FindByIdempotencyKey(ctx context.Context, key string) (*types.Sandbox, error) {
-	if key == "" {
-		return nil, nil
-	}
-
-	query := `
-		SELECT id, COALESCE(name, ''), scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status, error_message,
-			created_at, last_used_at, stopped_at, approved_at, deleted_at,
-			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
-			size_bytes, file_count, active_pids, session_count, tags, metadata, behavior,
-			COALESCE(idempotency_key, ''), updated_at, version, COALESCE(base_commit_hash, '')
-		FROM sandboxes
-		WHERE idempotency_key = $1
-		FOR UPDATE`
-
-	s := &types.Sandbox{}
-	var metadataJSON []byte
-	var behaviorJSON []byte
-	var tags pq.StringArray
-	var activePIDs pq.Int64Array
-	var reservedPaths pq.StringArray
-
-	err := r.tx.QueryRowContext(ctx, query, key).Scan(
-		&s.ID, &s.Name, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.NoLock, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
-		&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
-		&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
-		&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON, &behaviorJSON,
-		&s.IdempotencyKey, &s.UpdatedAt, &s.Version, &s.BaseCommitHash,
-	)
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to find sandbox by idempotency key: %w", err)
-	}
-
-	s.Tags = tags
-	s.ActivePIDs = make([]int, len(activePIDs))
-	for i, pid := range activePIDs {
-		s.ActivePIDs[i] = int(pid)
-	}
-	if len(metadataJSON) > 0 {
-		if err := json.Unmarshal(metadataJSON, &s.Metadata); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal sandbox metadata: %w", err)
-		}
-	}
-	if len(behaviorJSON) > 0 {
-		if err := json.Unmarshal(behaviorJSON, &s.Behavior); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal sandbox behavior: %w", err)
-		}
-	}
-	hydrateReservedFields(s, reservedPaths)
-
-	return s, nil
-}
-
-// UpdateWithVersionCheck updates with version check within the transaction.
 func (r *TxSandboxRepository) UpdateWithVersionCheck(ctx context.Context, s *types.Sandbox, expectedVersion int64) error {
-	metadataJSON, err := json.Marshal(s.Metadata)
-	if err != nil {
-		return fmt.Errorf("failed to marshal metadata: %w", err)
-	}
-	behaviorJSON, err := json.Marshal(s.Behavior)
-	if err != nil {
-		return fmt.Errorf("failed to marshal behavior: %w", err)
-	}
-
-	activePIDs := make(pq.Int64Array, len(s.ActivePIDs))
-	for i, pid := range s.ActivePIDs {
-		activePIDs[i] = int64(pid)
-	}
-
-	query := `
-		UPDATE sandboxes SET
-			status = $2, error_message = $3,
-			stopped_at = $4, approved_at = $5, deleted_at = $6,
-			lower_dir = $7, upper_dir = $8, work_dir = $9, merged_dir = $10,
-			size_bytes = $11, file_count = $12, active_pids = $13, session_count = $14,
-			tags = $15, metadata = $16, behavior = $17,
-			version = version + 1, updated_at = NOW()
-		WHERE id = $1 AND version = $18
-		RETURNING version, updated_at`
-
-	err = r.tx.QueryRowContext(ctx, query,
-		s.ID, s.Status, s.ErrorMsg,
-		s.StoppedAt, s.ApprovedAt, s.DeletedAt,
-		s.LowerDir, s.UpperDir, s.WorkDir, s.MergedDir,
-		s.SizeBytes, s.FileCount, activePIDs, s.SessionCount,
-		pq.Array(s.Tags), metadataJSON, behaviorJSON, expectedVersion,
-	).Scan(&s.Version, &s.UpdatedAt)
-
-	if err == sql.ErrNoRows {
-		var currentVersion int64
-		verQuery := `SELECT version FROM sandboxes WHERE id = $1`
-		if verErr := r.tx.QueryRowContext(ctx, verQuery, s.ID).Scan(&currentVersion); verErr == nil {
-			return types.NewConcurrentModificationError(s.ID.String(), expectedVersion, currentVersion)
-		}
-		return types.NewNotFoundError(s.ID.String())
-	}
-
-	return err
+	return updateWithVersionCheck(ctx, r.tx, s, expectedVersion)
 }
 
-// BeginTx is not supported within transactions (nested transactions not supported).
-func (r *TxSandboxRepository) BeginTx(ctx context.Context) (TxRepository, error) {
-	return nil, fmt.Errorf("nested transactions not supported")
-}
+// ---------------------------------------------------------------------------
+// GC candidates
+// ---------------------------------------------------------------------------
 
-// GetGCCandidates is not supported within transactions.
-func (r *TxSandboxRepository) GetGCCandidates(ctx context.Context, policy *types.GCPolicy, limit int) ([]*types.Sandbox, error) {
-	return nil, fmt.Errorf("GetGCCandidates not implemented for transactions")
-}
-
-// --- GC Support [OT-P1-003] ---
-
-// GetGCCandidates returns sandboxes eligible for garbage collection based on policy.
-// It builds a query that finds sandboxes matching any of the policy criteria.
-// Results are ordered by created_at (oldest first) to prioritize old sandboxes.
 func (r *SandboxRepository) GetGCCandidates(ctx context.Context, policy *types.GCPolicy, limit int) ([]*types.Sandbox, error) {
 	if policy == nil {
 		defaultPolicy := types.DefaultGCPolicy()
 		policy = &defaultPolicy
 	}
 
-	qb := newQueryBuilder()
-	now := time.Now()
-
-	// Build status filter - never touch active or creating sandboxes
 	statuses := policy.Statuses
 	if len(statuses) == 0 {
-		// Default: only collect stopped, error, and optionally terminal states
 		statuses = []types.Status{types.StatusStopped, types.StatusError}
 		if policy.IncludeTerminal {
 			statuses = append(statuses, types.StatusApproved, types.StatusRejected)
 		}
 	}
-	// Ensure we never accidentally collect active or creating sandboxes
 	safeStatuses := make([]types.Status, 0, len(statuses))
 	for _, s := range statuses {
 		if s != types.StatusActive && s != types.StatusCreating {
@@ -1198,45 +939,33 @@ func (r *SandboxRepository) GetGCCandidates(ctx context.Context, policy *types.G
 		}
 	}
 	if len(safeStatuses) == 0 {
-		// No valid statuses - return empty result
 		return []*types.Sandbox{}, nil
 	}
+
+	qb := newQueryBuilder()
 	qb.addInCondition("status", safeStatuses)
 
-	// Build OR conditions for policy criteria
+	now := time.Now().UTC()
 	var orConditions []string
 
-	// MaxAge: sandboxes older than this threshold
 	if policy.MaxAge > 0 {
-		cutoff := now.Add(-policy.MaxAge)
-		orConditions = append(orConditions, fmt.Sprintf("created_at < $%d", qb.nextArgNum()))
-		qb.args = append(qb.args, cutoff)
-		qb.argNum++
+		orConditions = append(orConditions, "created_at < ?")
+		qb.args = append(qb.args, formatTime(now.Add(-policy.MaxAge)))
 	}
-
-	// IdleTimeout: sandboxes not used recently
 	if policy.IdleTimeout > 0 {
-		idleCutoff := now.Add(-policy.IdleTimeout)
-		orConditions = append(orConditions, fmt.Sprintf("last_used_at < $%d", qb.nextArgNum()))
-		qb.args = append(qb.args, idleCutoff)
-		qb.argNum++
+		orConditions = append(orConditions, "last_used_at < ?")
+		qb.args = append(qb.args, formatTime(now.Add(-policy.IdleTimeout)))
 	}
-
-	// TerminalDelay: approved/rejected sandboxes after delay
 	if policy.IncludeTerminal && policy.TerminalDelay > 0 {
-		terminalCutoff := now.Add(-policy.TerminalDelay)
-		orConditions = append(orConditions,
-			fmt.Sprintf("(status IN ('approved', 'rejected') AND (approved_at < $%d OR stopped_at < $%d))", qb.nextArgNum(), qb.nextArgNum()+1))
-		qb.args = append(qb.args, terminalCutoff, terminalCutoff)
-		qb.argNum += 2
+		orConditions = append(orConditions, "(status IN ('approved', 'rejected') AND (approved_at < ? OR stopped_at < ?))")
+		cutoff := formatTime(now.Add(-policy.TerminalDelay))
+		qb.args = append(qb.args, cutoff, cutoff)
 	}
 
-	// If no policy criteria specified, don't return any candidates
 	if len(orConditions) == 0 {
 		return []*types.Sandbox{}, nil
 	}
 
-	// Build the final query
 	whereClause := qb.whereClause()
 	if whereClause != "" {
 		whereClause += " AND (" + strings.Join(orConditions, " OR ") + ")"
@@ -1244,126 +973,92 @@ func (r *SandboxRepository) GetGCCandidates(ctx context.Context, policy *types.G
 		whereClause = "WHERE (" + strings.Join(orConditions, " OR ") + ")"
 	}
 
-	// Apply limit
 	if limit <= 0 {
-		limit = 1000 // Default limit
+		limit = 1000
 	}
-	limitArg := qb.nextArgNum()
 
-	query := `
-		SELECT id, COALESCE(name, ''), scope_path, reserved_path, reserved_paths, no_lock, project_root, owner, owner_type, status, error_message,
-			created_at, last_used_at, stopped_at, approved_at, deleted_at,
-			driver, driver_version, lower_dir, upper_dir, work_dir, merged_dir,
-			size_bytes, file_count, active_pids, session_count, tags, metadata, behavior,
-			COALESCE(idempotency_key, ''), updated_at, version
-		FROM sandboxes
-		` + whereClause + `
-		ORDER BY created_at ASC
-		LIMIT $` + strconv.Itoa(limitArg)
+	query := "SELECT " + sandboxColumns + " FROM sandboxes " + whereClause + " ORDER BY created_at ASC LIMIT ?"
+	args := append(append([]any{}, qb.args...), limit)
 
-	qb.args = append(qb.args, limit)
-
-	rows, err := r.db.QueryContext(ctx, query, qb.args...)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query GC candidates: %w", err)
+		return nil, fmt.Errorf("query GC candidates: %w", err)
 	}
 	defer rows.Close()
 
 	var sandboxes []*types.Sandbox
 	for rows.Next() {
-		s := &types.Sandbox{}
-		var metadataJSON []byte
-		var behaviorJSON []byte
-		var tags pq.StringArray
-		var activePIDs pq.Int64Array
-		var reservedPaths pq.StringArray
-
-		err := rows.Scan(
-			&s.ID, &s.Name, &s.ScopePath, &s.ReservedPath, &reservedPaths, &s.NoLock, &s.ProjectRoot, &s.Owner, &s.OwnerType, &s.Status, &s.ErrorMsg,
-			&s.CreatedAt, &s.LastUsedAt, &s.StoppedAt, &s.ApprovedAt, &s.DeletedAt,
-			&s.Driver, &s.DriverVersion, &s.LowerDir, &s.UpperDir, &s.WorkDir, &s.MergedDir,
-			&s.SizeBytes, &s.FileCount, &activePIDs, &s.SessionCount, &tags, &metadataJSON, &behaviorJSON,
-			&s.IdempotencyKey, &s.UpdatedAt, &s.Version,
-		)
+		s, err := scanSandbox(rows)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan GC candidate: %w", err)
+			return nil, err
 		}
-
-		s.Tags = tags
-		s.ActivePIDs = make([]int, len(activePIDs))
-		for i, pid := range activePIDs {
-			s.ActivePIDs[i] = int(pid)
-		}
-		if len(metadataJSON) > 0 {
-			if err := json.Unmarshal(metadataJSON, &s.Metadata); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal sandbox metadata: %w", err)
-			}
-		}
-		if len(behaviorJSON) > 0 {
-			if err := json.Unmarshal(behaviorJSON, &s.Behavior); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal sandbox behavior: %w", err)
-			}
-		}
-		hydrateReservedFields(s, reservedPaths)
-
 		sandboxes = append(sandboxes, s)
 	}
-
-	return sandboxes, nil
+	return sandboxes, rows.Err()
 }
 
-// --- Provenance Tracking Support ---
+func (r *TxSandboxRepository) GetGCCandidates(ctx context.Context, policy *types.GCPolicy, limit int) ([]*types.Sandbox, error) {
+	return nil, errors.New("GetGCCandidates not implemented for transactions")
+}
 
-// RecordAppliedChanges records file changes that were applied from a sandbox.
-// This enables provenance tracking - knowing which sandbox modified which files.
-func (r *SandboxRepository) RecordAppliedChanges(ctx context.Context, changes []*types.AppliedChange) error {
+// ---------------------------------------------------------------------------
+// Provenance / applied_changes
+// ---------------------------------------------------------------------------
+
+func recordAppliedChanges(ctx context.Context, exec dbExec, changes []*types.AppliedChange) error {
 	if len(changes) == 0 {
 		return nil
 	}
-
-	query := `
+	const query = `
 		INSERT INTO applied_changes (
 			id, sandbox_id, sandbox_owner, sandbox_owner_type,
-			file_path, project_root, change_type, file_size, agent_manager_run_id,
-			schema_version, run_outcome, provenance_state, conversation_id, cost_usd
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
+			file_path, project_root, change_type, file_size, applied_at, agent_manager_run_id,
+			run_outcome, provenance_state, conversation_id, cost_usd
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
-	for _, change := range changes {
-		var runID interface{}
-		if change.AgentManagerRunID != "" {
-			runID = change.AgentManagerRunID
+	for _, c := range changes {
+		if c.ID == uuid.Nil {
+			c.ID = uuid.New()
 		}
-		var schemaVersion, runOutcome, provState, convID interface{}
-		if change.SchemaVersion != "" {
-			schemaVersion = change.SchemaVersion
+		if c.AppliedAt.IsZero() {
+			c.AppliedAt = time.Now().UTC()
 		}
-		if change.RunOutcome != "" {
-			runOutcome = change.RunOutcome
+		var costArg any
+		if c.CostUSD != 0 {
+			costArg = c.CostUSD
 		}
-		if change.ProvenanceState != "" {
-			provState = change.ProvenanceState
-		}
-		if change.ConversationID != "" {
-			convID = change.ConversationID
-		}
-		var costUSD interface{}
-		if change.CostUSD != 0 {
-			costUSD = change.CostUSD
-		}
-		_, err := r.db.ExecContext(ctx, query,
-			change.ID, change.SandboxID, change.SandboxOwner, change.SandboxOwnerType,
-			change.FilePath, change.ProjectRoot, change.ChangeType, change.FileSize,
-			runID, schemaVersion, runOutcome, provState, convID, costUSD,
+		_, err := exec.ExecContext(ctx, query,
+			uuidText(c.ID),
+			uuidText(c.SandboxID),
+			nullableString(c.SandboxOwner),
+			nullableString(c.SandboxOwnerType),
+			c.FilePath,
+			c.ProjectRoot,
+			c.ChangeType,
+			c.FileSize,
+			formatTime(c.AppliedAt),
+			nullableString(c.AgentManagerRunID),
+			nullableString(c.RunOutcome),
+			nullableString(c.ProvenanceState),
+			nullableString(c.ConversationID),
+			costArg,
 		)
 		if err != nil {
-			return fmt.Errorf("failed to record applied change for %s: %w", change.FilePath, err)
+			return fmt.Errorf("record applied change for %s: %w", c.FilePath, err)
 		}
 	}
-
 	return nil
 }
 
-// GetPendingChanges returns pending (uncommitted) changes grouped by sandbox.
+func (r *SandboxRepository) RecordAppliedChanges(ctx context.Context, changes []*types.AppliedChange) error {
+	return recordAppliedChanges(ctx, r.db, changes)
+}
+
+func (r *TxSandboxRepository) RecordAppliedChanges(ctx context.Context, changes []*types.AppliedChange) error {
+	return recordAppliedChanges(ctx, r.tx, changes)
+}
+
+// GetPendingChanges returns counts grouped by sandbox.
 func (r *SandboxRepository) GetPendingChanges(ctx context.Context, projectRoot string, limit, offset int) (*types.PendingChangesResult, error) {
 	if limit <= 0 {
 		limit = 100
@@ -1372,45 +1067,51 @@ func (r *SandboxRepository) GetPendingChanges(ctx context.Context, projectRoot s
 		offset = 0
 	}
 
-	// Build query based on whether projectRoot is provided
-	var args []interface{}
 	whereClause := "WHERE committed_at IS NULL"
+	args := []any{}
 	if projectRoot != "" {
-		whereClause += " AND project_root = $1"
+		whereClause += " AND project_root = ?"
 		args = append(args, projectRoot)
 	}
 
-	// Get total count of pending files
-	countQuery := "SELECT COUNT(*) FROM applied_changes " + whereClause
 	var totalFiles int
-	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&totalFiles); err != nil {
-		return nil, fmt.Errorf("failed to count pending changes: %w", err)
+	if err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM applied_changes "+whereClause, args...).Scan(&totalFiles); err != nil {
+		return nil, fmt.Errorf("count pending changes: %w", err)
 	}
 
-	// Get grouped summaries
-	argNum := len(args) + 1
 	query := `
-		SELECT sandbox_id, sandbox_owner, COUNT(*) as file_count, MAX(applied_at) as latest_applied
+		SELECT sandbox_id, COALESCE(sandbox_owner, '') AS sandbox_owner,
+		       COUNT(*) AS file_count, MAX(applied_at) AS latest_applied
 		FROM applied_changes
 		` + whereClause + `
 		GROUP BY sandbox_id, sandbox_owner
 		ORDER BY latest_applied DESC
-		LIMIT $` + strconv.Itoa(argNum) + ` OFFSET $` + strconv.Itoa(argNum+1)
-
+		LIMIT ? OFFSET ?`
 	args = append(args, limit, offset)
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query pending changes: %w", err)
+		return nil, fmt.Errorf("query pending changes: %w", err)
 	}
 	defer rows.Close()
 
 	var summaries []types.PendingChangesSummary
 	for rows.Next() {
-		var summary types.PendingChangesSummary
-		err := rows.Scan(&summary.SandboxID, &summary.SandboxOwner, &summary.FileCount, &summary.LatestApplied)
+		var (
+			sandboxIDStr string
+			summary      types.PendingChangesSummary
+			latest       string
+		)
+		if err := rows.Scan(&sandboxIDStr, &summary.SandboxOwner, &summary.FileCount, &latest); err != nil {
+			return nil, fmt.Errorf("scan pending change summary: %w", err)
+		}
+		id, err := parseUUID(sandboxIDStr)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan pending change summary: %w", err)
+			return nil, err
+		}
+		summary.SandboxID = id
+		if summary.LatestApplied, err = parseTime(latest); err != nil {
+			return nil, err
 		}
 		summaries = append(summaries, summary)
 	}
@@ -1418,36 +1119,34 @@ func (r *SandboxRepository) GetPendingChanges(ctx context.Context, projectRoot s
 	return &types.PendingChangesResult{
 		Summaries:  summaries,
 		TotalFiles: totalFiles,
-	}, nil
+	}, rows.Err()
 }
 
-// GetPendingChangeFiles returns all pending change records for the given project/sandboxes.
+func (r *TxSandboxRepository) GetPendingChanges(ctx context.Context, projectRoot string, limit, offset int) (*types.PendingChangesResult, error) {
+	return nil, errors.New("GetPendingChanges not implemented for transactions")
+}
+
 func (r *SandboxRepository) GetPendingChangeFiles(ctx context.Context, projectRoot string, sandboxIDs []uuid.UUID) ([]*types.AppliedChange, error) {
-	var args []interface{}
 	whereClause := "WHERE committed_at IS NULL"
-	argNum := 1
-
+	args := []any{}
 	if projectRoot != "" {
-		whereClause += fmt.Sprintf(" AND project_root = $%d", argNum)
+		whereClause += " AND project_root = ?"
 		args = append(args, projectRoot)
-		argNum++
 	}
-
 	if len(sandboxIDs) > 0 {
-		placeholders := make([]string, len(sandboxIDs))
-		for i, id := range sandboxIDs {
-			placeholders[i] = fmt.Sprintf("$%d", argNum)
-			args = append(args, id)
-			argNum++
+		placeholders := strings.Repeat("?,", len(sandboxIDs))
+		placeholders = placeholders[:len(placeholders)-1]
+		whereClause += " AND sandbox_id IN (" + placeholders + ")"
+		for _, id := range sandboxIDs {
+			args = append(args, id.String())
 		}
-		whereClause += " AND sandbox_id IN (" + strings.Join(placeholders, ",") + ")"
 	}
 
 	query := `
-		SELECT id, sandbox_id, sandbox_owner, sandbox_owner_type,
+		SELECT id, sandbox_id, COALESCE(sandbox_owner, ''), COALESCE(sandbox_owner_type, ''),
 			   file_path, project_root, change_type, file_size, applied_at,
 			   COALESCE(agent_manager_run_id, ''),
-			   COALESCE(schema_version, ''), COALESCE(run_outcome, ''),
+			   COALESCE(run_outcome, ''),
 			   COALESCE(provenance_state, ''), COALESCE(conversation_id, ''),
 			   COALESCE(cost_usd, 0)
 		FROM applied_changes
@@ -1456,133 +1155,170 @@ func (r *SandboxRepository) GetPendingChangeFiles(ctx context.Context, projectRo
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query pending change files: %w", err)
+		return nil, fmt.Errorf("query pending change files: %w", err)
 	}
 	defer rows.Close()
 
 	var changes []*types.AppliedChange
 	for rows.Next() {
-		change := &types.AppliedChange{}
-		err := rows.Scan(
-			&change.ID, &change.SandboxID, &change.SandboxOwner, &change.SandboxOwnerType,
-			&change.FilePath, &change.ProjectRoot, &change.ChangeType, &change.FileSize, &change.AppliedAt,
-			&change.AgentManagerRunID,
-			&change.SchemaVersion, &change.RunOutcome,
-			&change.ProvenanceState, &change.ConversationID,
-			&change.CostUSD,
-		)
+		change, err := scanAppliedChangePending(rows)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan pending change file: %w", err)
+			return nil, err
 		}
 		changes = append(changes, change)
 	}
-
-	return changes, nil
+	return changes, rows.Err()
 }
 
-// GetFileProvenance returns the history of changes for a specific file.
+func (r *TxSandboxRepository) GetPendingChangeFiles(ctx context.Context, projectRoot string, sandboxIDs []uuid.UUID) ([]*types.AppliedChange, error) {
+	return nil, errors.New("GetPendingChangeFiles not implemented for transactions")
+}
+
+func scanAppliedChangePending(rows *sql.Rows) (*types.AppliedChange, error) {
+	var (
+		c            types.AppliedChange
+		idStr        string
+		sandboxIDStr string
+		appliedAt    string
+	)
+	if err := rows.Scan(
+		&idStr, &sandboxIDStr, &c.SandboxOwner, &c.SandboxOwnerType,
+		&c.FilePath, &c.ProjectRoot, &c.ChangeType, &c.FileSize, &appliedAt,
+		&c.AgentManagerRunID,
+		&c.RunOutcome,
+		&c.ProvenanceState, &c.ConversationID,
+		&c.CostUSD,
+	); err != nil {
+		return nil, fmt.Errorf("scan applied change: %w", err)
+	}
+	id, err := parseUUID(idStr)
+	if err != nil {
+		return nil, err
+	}
+	c.ID = id
+	sid, err := parseUUID(sandboxIDStr)
+	if err != nil {
+		return nil, err
+	}
+	c.SandboxID = sid
+	if c.AppliedAt, err = parseTime(appliedAt); err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
 func (r *SandboxRepository) GetFileProvenance(ctx context.Context, filePath, projectRoot string, limit int) ([]*types.AppliedChange, error) {
 	if limit <= 0 {
 		limit = 50
 	}
 
-	var args []interface{}
-	args = append(args, filePath)
-	whereClause := "WHERE file_path = $1"
-	argNum := 2
-
+	args := []any{filePath}
+	whereClause := "WHERE file_path = ?"
 	if projectRoot != "" {
-		whereClause += fmt.Sprintf(" AND project_root = $%d", argNum)
+		whereClause += " AND project_root = ?"
 		args = append(args, projectRoot)
-		argNum++
 	}
 
 	query := `
-		SELECT id, sandbox_id, sandbox_owner, sandbox_owner_type,
+		SELECT id, sandbox_id, COALESCE(sandbox_owner, ''), COALESCE(sandbox_owner_type, ''),
 			   file_path, project_root, change_type, file_size, applied_at,
 			   committed_at, COALESCE(commit_hash, ''), COALESCE(commit_message, ''),
 			   COALESCE(agent_manager_run_id, ''),
-			   COALESCE(schema_version, ''), COALESCE(run_outcome, ''),
+			   COALESCE(run_outcome, ''),
 			   COALESCE(provenance_state, ''), COALESCE(conversation_id, ''),
 			   COALESCE(cost_usd, 0)
 		FROM applied_changes
 		` + whereClause + `
 		ORDER BY applied_at DESC
-		LIMIT $` + strconv.Itoa(argNum)
-
+		LIMIT ?`
 	args = append(args, limit)
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query file provenance: %w", err)
+		return nil, fmt.Errorf("query file provenance: %w", err)
 	}
 	defer rows.Close()
 
 	var changes []*types.AppliedChange
 	for rows.Next() {
-		change := &types.AppliedChange{}
-		err := rows.Scan(
-			&change.ID, &change.SandboxID, &change.SandboxOwner, &change.SandboxOwnerType,
-			&change.FilePath, &change.ProjectRoot, &change.ChangeType, &change.FileSize, &change.AppliedAt,
-			&change.CommittedAt, &change.CommitHash, &change.CommitMessage,
-			&change.AgentManagerRunID,
-			&change.SchemaVersion, &change.RunOutcome,
-			&change.ProvenanceState, &change.ConversationID,
-			&change.CostUSD,
+		var (
+			c            types.AppliedChange
+			idStr        string
+			sandboxIDStr string
+			appliedAt    string
+			committedAt  sql.NullString
 		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan file provenance: %w", err)
+		if err := rows.Scan(
+			&idStr, &sandboxIDStr, &c.SandboxOwner, &c.SandboxOwnerType,
+			&c.FilePath, &c.ProjectRoot, &c.ChangeType, &c.FileSize, &appliedAt,
+			&committedAt, &c.CommitHash, &c.CommitMessage,
+			&c.AgentManagerRunID,
+			&c.RunOutcome,
+			&c.ProvenanceState, &c.ConversationID,
+			&c.CostUSD,
+		); err != nil {
+			return nil, fmt.Errorf("scan file provenance: %w", err)
 		}
-		changes = append(changes, change)
+		id, err := parseUUID(idStr)
+		if err != nil {
+			return nil, err
+		}
+		c.ID = id
+		sid, err := parseUUID(sandboxIDStr)
+		if err != nil {
+			return nil, err
+		}
+		c.SandboxID = sid
+		if c.AppliedAt, err = parseTime(appliedAt); err != nil {
+			return nil, err
+		}
+		if c.CommittedAt, err = parseTimePtr(committedAt); err != nil {
+			return nil, err
+		}
+		changes = append(changes, &c)
 	}
-
-	return changes, nil
+	return changes, rows.Err()
 }
 
-// MarkChangesCommitted updates applied_changes records with commit information.
+func (r *TxSandboxRepository) GetFileProvenance(ctx context.Context, filePath, projectRoot string, limit int) ([]*types.AppliedChange, error) {
+	return nil, errors.New("GetFileProvenance not implemented for transactions")
+}
+
 func (r *SandboxRepository) MarkChangesCommitted(ctx context.Context, ids []uuid.UUID, commitHash, commitMessage string) error {
 	if len(ids) == 0 {
 		return nil
 	}
+	placeholders := strings.Repeat("?,", len(ids))
+	placeholders = placeholders[:len(placeholders)-1]
 
-	placeholders := make([]string, len(ids))
-	args := make([]interface{}, 0, len(ids)+3)
-	args = append(args, time.Now(), commitHash, commitMessage)
-
-	for i, id := range ids {
-		placeholders[i] = fmt.Sprintf("$%d", i+4)
-		args = append(args, id)
+	args := make([]any, 0, len(ids)+3)
+	args = append(args, formatTime(time.Now().UTC()), commitHash, commitMessage)
+	for _, id := range ids {
+		args = append(args, id.String())
 	}
 
-	query := `
-		UPDATE applied_changes
-		SET committed_at = $1, commit_hash = $2, commit_message = $3
-		WHERE id IN (` + strings.Join(placeholders, ",") + `)`
-
-	_, err := r.db.ExecContext(ctx, query, args...)
-	if err != nil {
-		return fmt.Errorf("failed to mark changes committed: %w", err)
+	query := "UPDATE applied_changes SET committed_at = ?, commit_hash = ?, commit_message = ? WHERE id IN (" + placeholders + ")"
+	if _, err := r.db.ExecContext(ctx, query, args...); err != nil {
+		return fmt.Errorf("mark changes committed: %w", err)
 	}
-
 	return nil
 }
 
-// MarkChangesCommittedByPath marks pending applied_changes as committed for files
-// matching the given paths. This is called by external tools (e.g., git-control-tower)
-// that commit files outside workspace-sandbox's own commit flow.
+func (r *TxSandboxRepository) MarkChangesCommitted(ctx context.Context, ids []uuid.UUID, commitHash, commitMessage string) error {
+	return errors.New("MarkChangesCommitted not implemented for transactions")
+}
+
 func (r *SandboxRepository) MarkChangesCommittedByPath(ctx context.Context, projectRoot string, filePaths []string, commitHash, commitMessage string) (int, int, error) {
 	if len(filePaths) == 0 {
 		return 0, 0, nil
 	}
 
-	// Build file path set for matching (support both absolute and relative paths)
-	placeholders := make([]string, len(filePaths))
-	args := make([]interface{}, 0, len(filePaths)+4)
-	args = append(args, time.Now(), commitHash, commitMessage, projectRoot)
+	placeholders := strings.Repeat("?,", len(filePaths))
+	placeholders = placeholders[:len(placeholders)-1]
 
-	for i, fp := range filePaths {
-		placeholders[i] = fmt.Sprintf("$%d", i+5)
-		// Normalize: if relative, join with project root
+	args := make([]any, 0, len(filePaths)+4)
+	args = append(args, formatTime(time.Now().UTC()), commitHash, commitMessage, projectRoot)
+	for _, fp := range filePaths {
 		if !strings.HasPrefix(fp, "/") {
 			fp = filepath.Join(projectRoot, fp)
 		}
@@ -1591,39 +1327,37 @@ func (r *SandboxRepository) MarkChangesCommittedByPath(ctx context.Context, proj
 
 	query := `
 		UPDATE applied_changes
-		SET committed_at = $1, commit_hash = $2, commit_message = $3
-		WHERE project_root = $4
-		  AND file_path IN (` + strings.Join(placeholders, ",") + `)
+		SET committed_at = ?, commit_hash = ?, commit_message = ?
+		WHERE project_root = ?
+		  AND file_path IN (` + placeholders + `)
 		  AND committed_at IS NULL`
 
-	result, err := r.db.ExecContext(ctx, query, args...)
+	res, err := r.db.ExecContext(ctx, query, args...)
 	if err != nil {
-		return 0, 0, fmt.Errorf("failed to mark changes committed by path: %w", err)
+		return 0, 0, fmt.Errorf("mark changes committed by path: %w", err)
 	}
-
-	marked, _ := result.RowsAffected()
+	marked, _ := res.RowsAffected()
 	notFound := len(filePaths) - int(marked)
 	if notFound < 0 {
 		notFound = 0
 	}
-
 	return int(marked), notFound, nil
 }
 
-// GetPendingChangesByRun returns pending applied changes grouped by agent_manager_run_id.
-// Changes without a run ID are grouped under an empty string key.
-func (r *SandboxRepository) GetPendingChangesByRun(ctx context.Context, projectRoot string) ([]types.ProvenanceRunGroup, error) {
-	var args []interface{}
-	whereClause := "WHERE committed_at IS NULL"
-	argNum := 1
+func (r *TxSandboxRepository) MarkChangesCommittedByPath(ctx context.Context, projectRoot string, filePaths []string, commitHash, commitMessage string) (int, int, error) {
+	return 0, 0, errors.New("MarkChangesCommittedByPath not implemented for transactions")
+}
 
+func (r *SandboxRepository) GetPendingChangesByRun(ctx context.Context, projectRoot string) ([]types.ProvenanceRunGroup, error) {
+	args := []any{}
+	whereClause := "WHERE committed_at IS NULL"
 	if projectRoot != "" {
-		whereClause += fmt.Sprintf(" AND project_root = $%d", argNum)
+		whereClause += " AND project_root = ?"
 		args = append(args, projectRoot)
 	}
 
 	query := `
-		SELECT COALESCE(agent_manager_run_id, ''), sandbox_id, sandbox_owner,
+		SELECT COALESCE(agent_manager_run_id, ''), sandbox_id, COALESCE(sandbox_owner, ''),
 			   file_path, change_type, applied_at,
 			   COALESCE(run_outcome, ''), COALESCE(conversation_id, ''),
 			   COALESCE(cost_usd, 0), COALESCE(provenance_state, '')
@@ -1633,7 +1367,7 @@ func (r *SandboxRepository) GetPendingChangesByRun(ctx context.Context, projectR
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query pending changes by run: %w", err)
+		return nil, fmt.Errorf("query pending changes by run: %w", err)
 	}
 	defer rows.Close()
 
@@ -1641,12 +1375,18 @@ func (r *SandboxRepository) GetPendingChangesByRun(ctx context.Context, projectR
 	var groupOrder []string
 
 	for rows.Next() {
-		var runID, sandboxID, owner, filePath, changeType, runOutcome, convID, provState string
-		var appliedAt time.Time
-		var costUSD float64
-		if err := rows.Scan(&runID, &sandboxID, &owner, &filePath, &changeType, &appliedAt,
+		var (
+			runID, sandboxID, owner, filePath, changeType, runOutcome, convID, provState string
+			appliedAtStr                                                                 string
+			costUSD                                                                      float64
+		)
+		if err := rows.Scan(&runID, &sandboxID, &owner, &filePath, &changeType, &appliedAtStr,
 			&runOutcome, &convID, &costUSD, &provState); err != nil {
-			return nil, fmt.Errorf("failed to scan pending change by run: %w", err)
+			return nil, fmt.Errorf("scan pending change by run: %w", err)
+		}
+		appliedAt, err := parseTime(appliedAtStr)
+		if err != nil {
+			return nil, err
 		}
 
 		group, exists := groupMap[runID]
@@ -1679,6 +1419,9 @@ func (r *SandboxRepository) GetPendingChangesByRun(ctx context.Context, projectR
 			group.LatestAppliedAt = appliedAt
 		}
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
 	result := make([]types.ProvenanceRunGroup, 0, len(groupOrder))
 	for _, key := range groupOrder {
@@ -1687,39 +1430,6 @@ func (r *SandboxRepository) GetPendingChangesByRun(ctx context.Context, projectR
 	return result, nil
 }
 
-// --- Provenance Tracking for TxSandboxRepository (stubs) ---
-
-// RecordAppliedChanges is not implemented for transactions.
-func (r *TxSandboxRepository) RecordAppliedChanges(ctx context.Context, changes []*types.AppliedChange) error {
-	return fmt.Errorf("RecordAppliedChanges not implemented for transactions")
-}
-
-// GetPendingChanges is not implemented for transactions.
-func (r *TxSandboxRepository) GetPendingChanges(ctx context.Context, projectRoot string, limit, offset int) (*types.PendingChangesResult, error) {
-	return nil, fmt.Errorf("GetPendingChanges not implemented for transactions")
-}
-
-// GetPendingChangeFiles is not implemented for transactions.
-func (r *TxSandboxRepository) GetPendingChangeFiles(ctx context.Context, projectRoot string, sandboxIDs []uuid.UUID) ([]*types.AppliedChange, error) {
-	return nil, fmt.Errorf("GetPendingChangeFiles not implemented for transactions")
-}
-
-// GetFileProvenance is not implemented for transactions.
-func (r *TxSandboxRepository) GetFileProvenance(ctx context.Context, filePath, projectRoot string, limit int) ([]*types.AppliedChange, error) {
-	return nil, fmt.Errorf("GetFileProvenance not implemented for transactions")
-}
-
-// MarkChangesCommitted is not implemented for transactions.
-func (r *TxSandboxRepository) MarkChangesCommitted(ctx context.Context, ids []uuid.UUID, commitHash, commitMessage string) error {
-	return fmt.Errorf("MarkChangesCommitted not implemented for transactions")
-}
-
-// MarkChangesCommittedByPath is not implemented for transactions.
-func (r *TxSandboxRepository) MarkChangesCommittedByPath(ctx context.Context, projectRoot string, filePaths []string, commitHash, commitMessage string) (int, int, error) {
-	return 0, 0, fmt.Errorf("MarkChangesCommittedByPath not implemented for transactions")
-}
-
-// GetPendingChangesByRun is not implemented for transactions.
 func (r *TxSandboxRepository) GetPendingChangesByRun(ctx context.Context, projectRoot string) ([]types.ProvenanceRunGroup, error) {
-	return nil, fmt.Errorf("GetPendingChangesByRun not implemented for transactions")
+	return nil, errors.New("GetPendingChangesByRun not implemented for transactions")
 }

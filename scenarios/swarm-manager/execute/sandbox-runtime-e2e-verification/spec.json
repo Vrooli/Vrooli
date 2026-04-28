@@ -9,6 +9,7 @@
     "internal/cli/vroolicli/**",
     "internal/repocontractcheck/**"
   ],
+  "archived_at": "2026-04-28T12:55:10Z",
   "created": "2026-04-09T17:33:13Z",
   "depends_on": [
     "research/agent-sandbox-auditability-contract",
@@ -30,5 +31,5 @@
     "scenario-restart"
   ],
   "title": "Add end-to-end verification for seamless sandbox execution and restart flows",
-  "updated": "2026-04-27T22:08:26Z"
+  "updated": "2026-04-28T12:55:10Z"
 }

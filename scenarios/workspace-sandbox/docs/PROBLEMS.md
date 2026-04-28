@@ -44,7 +44,7 @@ This document tracks known issues, open questions, and ideas deferred for future
 ### Single-Server Design
 - Current design assumes all sandboxes on one server
 - Distributed scenarios would need additional coordination
-- Metadata in PostgreSQL supports future distributed index
+- Metadata in SQLite supports future distributed index
 
 ### Git Operations Blocked by Convention
 - safe-git wrapper provides guidance, not enforcement

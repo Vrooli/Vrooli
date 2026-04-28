@@ -50,7 +50,7 @@ The workspace-sandbox system provides **copy-on-write workspaces** for running a
 
 ### Integration/Infrastructure Layer
 - **Location**: `api/internal/driver/` (filesystem), `api/internal/repository/` (database), `api/internal/diff/` (diff tools)
-- **Responsibility**: Interact with external systems (overlayfs, PostgreSQL, patch command)
+- **Responsibility**: Interact with external systems (overlayfs, SQLite, patch command)
 - **Does NOT own**: Business rules, API contracts
 
 ---
@@ -322,7 +322,7 @@ type Patcher struct {
 |---------|-------------------|-------------------|
 | **handlers** | `ServiceAPI` (mock service) | No real service calls |
 | **sandbox/service** | `Repository` interface, `Driver` interface, `GitOperations` via `WithGitOps()` | No real DB/FS/git |
-| **repository** | `sqlmock` package | No real database |
+| **repository** | None (real on-disk SQLite via `t.TempDir()`) | Embedded `modernc.org/sqlite`, schema applied per test |
 | **driver** | N/A (tests real overlayfs in temp dirs) | Uses `t.TempDir()` |
 | **diff** | `CommandRunner` interface, `GitOperations` interface | No real commands |
 | **types** | None (pure functions) | No external dependencies |
@@ -341,13 +341,16 @@ func TestGetSandbox(t *testing.T) {
 }
 ```
 
-**Repository Tests** (sqlmock):
+**Repository Tests** (real SQLite per-test):
 ```go
 func TestCreate(t *testing.T) {
-    db, mock := sqlmock.New()
-    mock.ExpectQuery("INSERT INTO sandboxes").WillReturnRows(...)
+    db := newTestDB(t) // opens modernc.org/sqlite at t.TempDir() and applies SchemaSQL
     repo := repository.NewSandboxRepository(db)
-    // ... test
+    if err := repo.Create(ctx, sandbox); err != nil {
+        t.Fatalf("Create: %v", err)
+    }
+    got, _ := repo.Get(ctx, sandbox.ID)
+    // assert round-trip
 }
 ```
 
@@ -394,7 +397,7 @@ func TestApproveWithConflictCheck(t *testing.T) {
 |-----------|-----------------|-----------------|----------|
 | **API** | HTTP server | DB (optional), Driver | `handlers_test.go` |
 | **Driver** | overlayfs, temp FS | None | `overlayfs_test.go` |
-| **End-to-end** | All (PostgreSQL, overlayfs) | None | Integration suite |
+| **End-to-end** | All (SQLite, overlayfs) | None | Integration suite |
 
 **IMPORTANT**: Integration tests that use real git operations MUST:
 1. Create isolated temp directories with `t.TempDir()`
@@ -459,7 +462,7 @@ api/
       driver.go                 # Driver interface
       overlayfs.go              # Linux overlayfs implementation
     repository/
-      sandbox_repo.go           # Repository interface + PostgreSQL impl
+      sandbox_repo.go           # Repository interface + SQLite impl
     diff/diff.go                # Diff generation and patch application
 ```
 

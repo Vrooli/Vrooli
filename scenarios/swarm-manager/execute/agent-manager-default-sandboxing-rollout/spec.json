@@ -5,6 +5,7 @@
     "scenarios/swarm-manager/**",
     "scenarios/ecosystem-manager/**"
   ],
+  "archived_at": "2026-04-28T12:55:36Z",
   "created": "2026-04-09T17:33:13Z",
   "depends_on": [
     "execute/agent-manager-sandbox-auto-apply-defaults",
@@ -27,5 +28,5 @@
     "defaults"
   ],
   "title": "Roll out sandboxing as the default path in major agent-manager spawn surfaces",
-  "updated": "2026-04-27T23:28:56Z"
+  "updated": "2026-04-28T12:55:36Z"
 }

@@ -148,7 +148,7 @@ Sandboxed processes run under bubblewrap (bwrap) with:
 - **Linux kernel 5.11+** (recommended) - Enables unprivileged overlayfs via user namespaces
 - Linux kernel 4.0+ (minimum) - Falls back to copy driver if user namespaces unavailable
 - bubblewrap package (`apt install bubblewrap`)
-- PostgreSQL for metadata storage
+- SQLite for metadata storage
 
 ### Driver Selection
 
@@ -191,7 +191,7 @@ If you see "falling back to copy driver", check:
 | `API_PORT` | Port for the Go API server |
 | `UI_PORT` | Port for the Vite dev server |
 | `WS_PORT` | WebSocket for live updates |
-| `DATABASE_URL` | PostgreSQL connection string |
+| `SQLITE_PATH` | Override SQLite database file location (default: `<api-core/storage>/data/workspace-sandbox/workspace-sandbox.db`) |
 | `PROJECT_ROOT` | Root path for sandboxable directories |
 
 ## Documentation
