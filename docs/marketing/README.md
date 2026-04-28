@@ -21,6 +21,14 @@ See [`scenarios/prompt-manager/store/skills/packs/core/team-shared-docs-design/S
 | [`ASSETS.md`](ASSETS.md) | Canonical brand asset registry (logos, favicons, OG image, font, usage rules). Eventually subsumed by the `brand-manager` scenario when it ships. |
 | [`IMAGE_STYLE.md`](IMAGE_STYLE.md) | AI image generation style guide. Palette (dark blue / deep purple / neon green), aesthetic (abstract, futuristic, neon), prompt directives. Eventually subsumed by the `brand-manager` scenario. |
 
+## Sub-folders
+
+| Folder | Purpose |
+|--------|---------|
+| [`post-types/`](post-types/) | One file per kind of marketing post Vrooli produces (`scenario-spotlight`, `dev-log`, `oss-framework`, …). Each file is the strategic canon at the operator-decision level (purpose, audience, conversion goal, asset requirements, contrarian failure modes). Each pairs with an `x-<type>` skill that is the executable spec. |
+| [`post-techniques/`](post-techniques/) | One file per cross-cutting voice/structure technique (essay-shape, hook-vs-body asymmetry, intro-on-first-mention, recommendation-framing, …). Techniques are referenced from multiple post-type files rather than duplicated. |
+| [`notebook/`](notebook/) | Working notebook for patterns observed in production. Append-anyone; brand-manager curates promotions to plan-of-record (here, in `post-types/`, in `post-techniques/`) or to permanent structure (a skill or scenario). |
+
 ## Write rules
 
 - **Agents never write to these files directly.** All edits come through operator-approved decisions.

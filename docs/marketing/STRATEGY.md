@@ -108,39 +108,30 @@ Self-host users are not leaked revenue. OSS is not a fallback.
 
 ## Content-type principles
 
-- **Dev logs** (OSS-advertiser via `x-dev-log`): see *Dev-log narrative principles* below — essay-shape (hook → intro → body → conclusion), 3-7 tweets per thread is a typical range *not* a structural cap, intro-on-first-mention, what→why framing, inter-post linkage, no internal numbering externally. Work-in-progress explicitly labeled.
+Per-content-type strategic canon lives under [`post-types/`](post-types/) — one file per type. Each file names purpose, audience, conversion goal, structure, asset requirements, and contrarian failure modes. Currently authored:
+
+- [`post-types/dev-log.md`](post-types/dev-log.md) — project-wide progress narrative; OSS-advertiser via `x-dev-log` skill.
+- [`post-types/scenario-spotlight.md`](post-types/scenario-spotlight.md) — pitching one scenario as an end-user tool/app/product; subscription-advertiser via `x-scenario-spotlight` skill.
+- `post-types/oss-framework.md` — planned (pitching Vrooli as a developer platform).
+
+Other content types not yet broken into per-entity files:
+
 - **Feature announcements** (subscription or OSS, depending on framing): shipped features only. Imminent-release features carry "launching [date]."
-- **Blog posts**: 500-2000 words, technical depth welcome, code snippets fine, end with a concrete invitation (try it, read more, contribute). Same essay-shape and intro-on-first-mention rules as dev logs.
-- **Videos**: demos or architecture walkthroughs; production workaround tracked in `notebook/VIDEO_WORKAROUNDS.md` until `video-studio` scenario ships.
+- **Blog posts**: 500-2000 words, technical depth welcome, code snippets fine, end with a concrete invitation (try it, read more, contribute). Apply the same [essay-shape](post-techniques/essay-shape.md) and [intro-on-first-mention](post-techniques/intro-on-first-mention.md) techniques as dev logs.
+- **Videos**: demos or architecture walkthroughs; production workaround tracked in [`notebook/VIDEO_WORKAROUNDS.md`](notebook/VIDEO_WORKAROUNDS.md) until `video-studio` scenario ships.
 - **Contributor-onboarding**: specific entry points (start with scenario X, run these commands, expect this output).
 
-## Dev-log narrative principles
+## Cross-cutting post techniques
 
-These principles extend the *Voice* and *Voice samples* sections above with structural requirements specifically for dev logs and series content. Added 2026-04-27 after vision walk #4 surfaced that voice canon alone was not catching narrative-shape failures.
+Voice / structural rules that apply across multiple post types live under [`post-techniques/`](post-techniques/) — one file per technique, referenced from each post-type file that uses it. Currently authored (extracted 2026-04-28 walk #5 divergence #3 from this file's prior `Dev-log narrative principles` section, originally added 2026-04-27 via accepted framework-update `dec-1777300532504756717`):
 
-### 1. Essay-shape per post
-Every dev log is one essay split across the chosen format. **Required structure: hook → introduction → body → conclusion.** A thread is not a list of atomic tweets; a blog post is not a bulleted change-log. Each post must finish with a reason to return — what's coming next, where to find prior posts, how to follow.
+- [`post-techniques/essay-shape.md`](post-techniques/essay-shape.md) — hook → introduction → body → conclusion structure.
+- [`post-techniques/hook-vs-body-asymmetry.md`](post-techniques/hook-vs-body-asymmetry.md) — short hook, long-as-needed body.
+- [`post-techniques/intro-on-first-mention.md`](post-techniques/intro-on-first-mention.md) — `published-scenario-mentions.jsonl` lookup discipline (with subject-familiarity corollary for hook calibration).
+- [`post-techniques/inter-post-linkage.md`](post-techniques/inter-post-linkage.md) — series posts link to prior posts via `publish-log.jsonl`.
+- [`post-techniques/no-internal-numbering-externally.md`](post-techniques/no-internal-numbering-externally.md) — `p8` / `round-002` / batch ids never appear in published copy.
 
-### 2. Intro on first mention
-Before referring to any scenario, agent, named file, or internal concept by name, check `shared/published-scenario-mentions.jsonl` (filtered to the target audience). If the subject has not been mentioned before in published material, the post must introduce it: one sentence covering what it is, why it exists, what it does at a high level. After first mention, subsequent posts may use a one-line refresher (e.g., "swarm-manager — the agent-orchestration substrate") instead of a full intro. **First-ever dev-log carries an outsized intro burden** because every concept is new to the audience; budget for it.
-
-### 3. Personal voice grounded in builder identity
-The *Voice* section above prescribes "first person, conversational, technically credible." Embodiment matters — a sentence that names an agent in third person is *not yet* personal voice. The first post of any series must especially feel like a software engineer talking about what they built — real grounded excitement tied to real work. The "I" can be the operator's or an agent's; pick deliberately, but pick.
-
-### 4. What → why framing
-Every change shown carries its own reason-to-care. "`resolve.go` is 52 lines + 202 test lines" is *what*. "`resolve.go` lets an initiative dispatch work to whichever agent the scenario expects, instead of hard-coding the wire — so adding a new scenario no longer means editing the dispatcher" is *why*. The why connects to broader narrative: last post's setup, next post's payoff, the project's vision. Show only changes that actually matter; do not narrate every commit. Use `shared/published-improvements-log.jsonl` to track what's already been narrated per scenario, so the next post advances the story rather than repeating it.
-
-### 5. Hook-vs-body length asymmetry
-X allows long posts now (with show-more gating); platform char limits no longer require uniform brevity. The first / hook tweet should be short to grab attention (around 280 chars on X). Body tweets carry the substance and may be longer when needed. Do not strip detail from body tweets to fit a uniform cap. Track lengths but apply the cap position-aware.
-
-### 6. Inter-post linkage
-Each post in a series connects to its predecessor. Mechanism: after publishing, the operator pastes the post URL back into `shared/publish-log.jsonl` (`post_url` field). The next post in the series cites that URL as `previous_post_url` (in the final reply, or as a visible link). Readers landing on the new post can find the prior chain. For the first post in a series, `previous_post_url` is null and the conclusion invites readers to follow for future posts.
-
-### 7. No internal numbering externally
-Internal artifacts (`p8`, `round-002`, `milestone-3`, batch ids) are operational vocabulary — they do not belong in published copy. The only sequential numbering visible externally is the dev-log post's own `post_index_in_series` (e.g., "post #1 in this dev-log series"), which signals to readers that other posts exist. If internal pass numbers leak externally, the audience cannot place them in any narrative they have access to.
-
-### 8. Subject familiarity matters
-A hook that works for an audience already familiar with the subject is *not* the same hook that works for an audience meeting it for the first time. Anti-pattern: hook assumes "swarm-manager" or "initiative-agents" is shared vocabulary on first publish. Pattern: hook either introduces the subject before the click-through, or hangs the click-through on a more universal frame (a problem, a question, a story) that the introduction follows. *Sample 1 below assumes the audience knows what swarm-manager is — appropriate for a subsequent post, not the first.*
+Type-specific applications of voice canon (e.g., dev-log's "personal voice grounded in builder identity" and "what → why framing") live in the relevant post-type file rather than here, since they are not cross-cutting.
 
 ## Anti-patterns
 
@@ -159,10 +150,14 @@ These are the voice, positioning, process, and narrative-shape failures marketin
 11. **Missing-introduction-on-first-mention.** Draft refers to a scenario / agent / named file by name with no prior mention in `marketing-crew/shared/published-scenario-mentions.jsonl` for the target audience, AND no introduction in the draft itself.
 12. **What-without-why.** Draft lists changes / line counts / commit refs without why-it-mattered framing tied to broader narrative.
 
-Modes 9-12 were added 2026-04-27 via accepted framework-update `dec-1777300532504756717`. See [`Dev-log narrative principles`](#dev-log-narrative-principles) above for the underlying canon.
+Modes 9-12 were added 2026-04-27 via accepted framework-update `dec-1777300532504756717`. The underlying canon for modes 9-12 lived inline in this file as the *Dev-log narrative principles* section through walk #5; that section was extracted on 2026-04-28 (walk #5 divergence #3, Action B) into per-entity files under [`post-techniques/`](post-techniques/) and [`post-types/dev-log.md`](post-types/dev-log.md). The mode definitions in this list are unchanged; only their underlying canon's location moved.
+
+For type-level specializations of these modes (e.g., scenario-spotlight's "demo theater" specializing mode 1, dev-log's "what-without-why" specializing mode 12 with type-specific mechanism), see the relevant `post-types/<type>.md` file. Per [`marketing-contrarian/RESPONSIBILITIES.md`](../../scenarios/prompt-manager/store/teams/marketing-crew/members/marketing-contrarian/RESPONSIBILITIES.md), type-level specializations are applied alongside the framework-level twelve modes; they are not new framework modes.
 
 ## Cross-references
 
+- [`post-types/`](post-types/) — per-content-type strategic canon (one file per type). Currently: `dev-log.md`, `scenario-spotlight.md`. Planned: `oss-framework.md`.
+- [`post-techniques/`](post-techniques/) — cross-cutting voice and structure techniques (one file per technique). Currently: `essay-shape.md`, `hook-vs-body-asymmetry.md`, `intro-on-first-mention.md`, `inter-post-linkage.md`, `no-internal-numbering-externally.md`.
 - `docs/monetization/STRATEGY.md` — monetization's canonical positioning principles. The subscription framing above is the marketing-team's restatement of that; they must remain consistent.
 - `AUDIENCES.md` — who we're talking to.
 - `CAMPAIGNS.md` — what's currently in flight.

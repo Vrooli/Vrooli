@@ -8,6 +8,14 @@ Every entry in these docs is prose describing *something that should eventually 
 
 Entries are **technical debt**. They exist because the permanent solution — a skill, a scenario feature, a plan-of-record addition — doesn't exist yet. The team's `brand-manager` member periodically scans these docs and proposes promoting mature entries into permanent structure.
 
+A notebook entry has exactly **three promotion targets** (per [`team-shared-docs-design`](../../../scenarios/prompt-manager/store/skills/packs/core/team-shared-docs-design/SKILL.md)) — and the curator picks the right one per entry, not all entries go to the same target:
+
+1. **A skill** in `scenarios/prompt-manager/store/skills/packs/core/<skill>/` — when the pattern is *executable agent guidance* (e.g., "x-dev-log should mine X when Y is unavailable" → edit to `x-dev-log` SKILL.md). Most `*_CRAFT.md` entries promote here.
+2. **A plan-of-record file** under `docs/marketing/` (including `post-types/` and `post-techniques/` sub-folders) — when the pattern is *strategic canon* the operator reads to make decisions (audience refinements, new technique rules, new failure mode at type level).
+3. **A scenario / config change** — when the pattern reflects something the harness or a scenario should do automatically (e.g., a `social-media-scheduler` feature replacing a manual workaround in `POSTING_WORKAROUNDS.md`).
+
+Promotion to *any* target deletes the notebook entry as part of the same `notebook-promotion` decision. An entry never lives in both notebook and promoted form simultaneously. Retirement (no promotion, just delete) is the fourth outcome when the pattern proves transient.
+
 The goal is **shrinking**, not growing, documentation over time. Good weeks end with fewer entries than they started with.
 
 ## Who writes what
