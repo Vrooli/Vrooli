@@ -24,6 +24,22 @@ The mechanism is intentionally *post-publish* rather than *post-author*: the URL
 - ➖ Standalone posts — `previous_post_url = null` is correct; no linkage required.
 - ❌ Cross-series linkage — different rule. A scenario-spotlight does not have to cite a dev-log about the same scenario; if it does, that's a content choice, not this technique's mechanism.
 
+## Cross-platform amplification
+
+Inter-post linkage is not only intra-series-on-one-platform. The same content often lands on multiple surfaces — a thread on X, a longer-form version on a blog, a quote-tweet referencing the blog, a LinkedIn post linking to either or both. This is **cross-platform amplification**: the same idea, surfaced in different venues, with explicit linkage between them so a reader who lands on any one of them can find the others.
+
+Empirical observation (walk #5, Post 4 — agent-dev-team video course quote-tweeting an underlying blog post): viral posts often *are* quote-tweets of an underlying blog or repository, where the X post is the hook surface and the linked surface is the body surface. The post itself is short and intriguing; the linked artifact carries the depth.
+
+**When to use cross-platform amplification:**
+
+- ✅ A scenario-spotlight has both a thread version (high-attention, low-depth, X) and a blog version (low-attention, high-depth) — the thread quote-amplifies or links the blog.
+- ✅ An oss-framework post (planned type) drops a video tutorial as the body and uses an X post as the hook surface that links to it.
+- ✅ A dev-log essay on a blog gets distilled into a thread that links back to the blog for readers who want the full context.
+- ➖ Standalone short posts that don't have an underlying long-form artifact don't need this technique.
+- ❌ Linking a thin restatement of the same content across platforms with no added value on each surface — that's spam, not amplification.
+
+**Mechanism:** the publish-log entry's `post_url` is per-platform. Cross-platform amplification means the same `series_id` may have multiple entries (one per platform/surface) for the same nominal "post." A future schema extension may add a `surface` or `platform` field; today, separate entries with consistent `series_id` and a shared `draft_id` (or a paired `amplifies` reference) is the convention. The contrarian's `data_source=verifiable` check applies: every linked surface must be reachable and consistent.
+
 ## Mechanism details
 
 The publish-log entry shape (per `marketing-crew/shared/publish-log.jsonl`):

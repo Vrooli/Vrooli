@@ -6,13 +6,13 @@
   "enabled": true,
   "schedule": "30 14 * * *",
   "lastExecution": {
-    "startedAt": "2026-04-27T18:30:00Z",
-    "endedAt": "2026-04-27T18:31:15Z",
-    "status": "completed",
-    "runId": "f6da1891-7292-4782-adb7-254febca7cfd",
-    "logPath": "../store/teams/monetization/members/catalog-strategist/logs/2026-04-27T18-30-00Z.log"
+    "startedAt": "2026-04-28T18:30:00Z",
+    "endedAt": "2026-04-28T18:33:40Z",
+    "status": "failed",
+    "runId": "d2b19d3e-5195-4f89-99e8-f91747c9fb79",
+    "logPath": "../store/teams/monetization/members/catalog-strategist/logs/2026-04-28T18-30-00Z.log"
   },
-  "revision": 16,
+  "revision": 23,
   "createdAt": "2026-04-20T00:00:00Z",
-  "updatedAt": "2026-04-27T18:31:15Z"
+  "updatedAt": "2026-04-28T18:33:40Z"
 }

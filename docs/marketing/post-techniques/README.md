@@ -19,9 +19,10 @@ This mirrors the [`team-shared-docs-design`](../../../scenarios/prompt-manager/s
 | [`essay-shape.md`](essay-shape.md) | v1 (extracted from `STRATEGY.md` on 2026-04-28) | dev-log, scenario-spotlight, oss-framework, blog posts |
 | [`hook-vs-body-asymmetry.md`](hook-vs-body-asymmetry.md) | v1 (extracted from `STRATEGY.md` on 2026-04-28) | All post types |
 | [`intro-on-first-mention.md`](intro-on-first-mention.md) | v1 (extracted from `STRATEGY.md` on 2026-04-28) | All post types referencing internal names |
-| [`inter-post-linkage.md`](inter-post-linkage.md) | v1 (extracted from `STRATEGY.md` on 2026-04-28) | All series-shaped post types |
+| [`inter-post-linkage.md`](inter-post-linkage.md) | v1 (extracted from `STRATEGY.md` on 2026-04-28; cross-platform amplification subsection added 2026-04-28 walk #5 divergence #4) | All series-shaped post types; cross-platform amplification applies to any post with paired surfaces |
 | [`no-internal-numbering-externally.md`](no-internal-numbering-externally.md) | v1 (extracted from `STRATEGY.md` on 2026-04-28) | All post types |
-| `recommendation-framing.md` | *not yet authored — pending more observations + brand-manager promotion of the audience-observation entry from walk #5* | All post types where a genuine third-party basis exists |
+| [`recommendation-framing.md`](recommendation-framing.md) | v1 (authored 2026-04-28 walk #5 divergence #4 from observed Post 2 / MapiLeads-style framing + prior `scenario-spotlight.md` Recommendation variant) | All post types where a genuine third-party basis exists |
+| [`competitive-comparison.md`](competitive-comparison.md) | v1 (authored 2026-04-28 walk #5 divergence #4 from observed Post 3 / jcode-vs-Claude-Code framing) | `oss-framework` (planned), `scenario-spotlight`, occasional `dev-log` |
 
 ## Write rules
 

@@ -154,10 +154,44 @@ Modes 9-12 were added 2026-04-27 via accepted framework-update `dec-177730053250
 
 For type-level specializations of these modes (e.g., scenario-spotlight's "demo theater" specializing mode 1, dev-log's "what-without-why" specializing mode 12 with type-specific mechanism), see the relevant `post-types/<type>.md` file. Per [`marketing-contrarian/RESPONSIBILITIES.md`](../../scenarios/prompt-manager/store/teams/marketing-crew/members/marketing-contrarian/RESPONSIBILITIES.md), type-level specializations are applied alongside the framework-level twelve modes; they are not new framework modes.
 
+## Source material discipline
+
+Marketing-crew members regularly mine external content (viral posts, blog write-ups, competitor copy, video tutorials, course-funnel pitches) for structural-pattern alpha. This is high-value research input — *how* successful posts hook, structure, and convert is hard-earned knowledge, and most of it lives in production marketing the team did not produce. But external content also carries voice and tone that does not match Vrooli's `builder, not marketer` positioning, and uncritical mining leaks that voice into our drafts.
+
+**The discipline:** mine the *structural pattern*, never the *tone*.
+
+What's appropriate to extract from external content:
+
+- ✅ Post structure (hook patterns, body shapes, conclusion mechanics).
+- ✅ Audience-specific framings (what frame works for which persona).
+- ✅ Conversion mechanics (call-to-action shapes, friction-reduction techniques, recommendation-framing patterns, competitive-comparison patterns).
+- ✅ Asset patterns (when video helps, what kind of screen recording converts, brand-asset placement).
+- ✅ Cross-platform amplification mechanics.
+
+What is **not** appropriate to extract:
+
+- ❌ Hyperbolic-marketer voice (course-funnel hype, "this changed my life," "you won't believe what happened next"), even when the structure works. Voice canon (above) is non-negotiable.
+- ❌ Numbers as facts. Posts like "$15k/month, 5% close rate, 500 emails/day at 3% reply" are **upper-bound aspirational** and should be treated as hypothesis-generators, not benchmarks. Any number borrowed from external content lands as `feature_claims=overclaimed` until measured against our own data.
+- ❌ Strategy claims at face value. "7,000 people are doing this and making $5,000-20,000/month" is unverified-third-party-claim — informative as a market-existence signal, not as a sizing input.
+- ❌ Capability claims about competitors. Borrowed "X tool does Y" claims must be re-verified against the named tool's current docs before landing in any Vrooli post.
+
+**Tagging convention:** when a marketing-crew member's notebook entry, knowledge entry, or candidate-vertical-playbook draft references external content, the entry must carry an `unverified-third-party-claim` tag on every quantitative claim, an explicit citation (URL or post reference) for the source, and a freshness date (when was this read).
+
+**Contrarian gate:** the marketing-contrarian validates that drafts using mined patterns:
+
+1. Cite the structural source where the pattern came from.
+2. Do not reproduce the source's voice / tone / hyperbolic framing.
+3. Do not cite the source's numbers without independent measurement.
+4. Apply our own honesty-flag schema (`feature_claims=measured | overclaimed | uncertain`, `data_source=verifiable | unverified-third-party-claim | aspirational`) regardless of how the source presented its claims.
+
+A draft that fails any of these is rejected as `voice-drift` (mode 2) or `hype-drift` (mode 1) depending on the failure shape.
+
+**Why this discipline exists:** at walk #5 the operator surfaced four viral marketing posts (Posts 1-4) as alpha sources. The structural patterns in them (recommendation framing, competitive comparison with multipliers, friction-reducing-hooks, tutorial-as-marketing) are genuinely useful and have been extracted to `post-techniques/` and `post-types/`. The numbers and tone in them are not appropriate for Vrooli copy. Codifying the discipline here ensures future research dumps are mined the same way without re-deriving the rule.
+
 ## Cross-references
 
-- [`post-types/`](post-types/) — per-content-type strategic canon (one file per type). Currently: `dev-log.md`, `scenario-spotlight.md`. Planned: `oss-framework.md`.
-- [`post-techniques/`](post-techniques/) — cross-cutting voice and structure techniques (one file per technique). Currently: `essay-shape.md`, `hook-vs-body-asymmetry.md`, `intro-on-first-mention.md`, `inter-post-linkage.md`, `no-internal-numbering-externally.md`.
+- [`post-types/`](post-types/) — per-content-type strategic canon (one file per type). Currently: `dev-log.md`, `scenario-spotlight.md`. Planned: `oss-framework.md`, `use-case-tutorial.md`.
+- [`post-techniques/`](post-techniques/) — cross-cutting voice and structure techniques (one file per technique). Currently: `essay-shape.md`, `hook-vs-body-asymmetry.md`, `intro-on-first-mention.md`, `inter-post-linkage.md`, `no-internal-numbering-externally.md`, `recommendation-framing.md`, `competitive-comparison.md`.
 - `docs/monetization/STRATEGY.md` — monetization's canonical positioning principles. The subscription framing above is the marketing-team's restatement of that; they must remain consistent.
 - `AUDIENCES.md` — who we're talking to.
 - `CAMPAIGNS.md` — what's currently in flight.

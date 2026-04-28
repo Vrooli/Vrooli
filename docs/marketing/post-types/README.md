@@ -35,14 +35,15 @@ The dimensions that drive the choice:
 
 ## Cross-cutting techniques (shared across types)
 
-Each post-type file references the techniques it depends on. The canonical home for each technique is [`../post-techniques/<name>.md`](../post-techniques/). Examples (some currently still inside `STRATEGY.md`, pending Action B extraction):
+Each post-type file references the techniques it depends on. The canonical home for each technique is [`../post-techniques/<name>.md`](../post-techniques/):
 
 - Essay-shape per post (hook → intro → body → conclusion)
 - Hook-vs-body length asymmetry
 - Intro-on-first-mention (with `shared/published-scenario-mentions.jsonl` lookup)
-- Inter-post linkage
+- Inter-post linkage (incl. cross-platform amplification)
 - No internal numbering externally
-- Recommendation framing *(third-party voice, applies when genuine third-party basis exists)*
+- Recommendation framing — third-party voice, applies when genuine third-party basis exists
+- Competitive comparison — framing against named alternatives, including the hyperbolic-but-verifiable-multiplier sub-pattern
 
 ## Files in this folder
 
@@ -50,7 +51,8 @@ Each post-type file references the techniques it depends on. The canonical home 
 |------|--------|---------------|----------------|
 | [`dev-log.md`](dev-log.md) | v1 (extracted from `STRATEGY.md` on 2026-04-28) | `x-dev-log` | `oss-advertiser` |
 | [`scenario-spotlight.md`](scenario-spotlight.md) | v1 | `x-scenario-spotlight` | `subscription-advertiser` |
-| `oss-framework.md` | *future — pending the third reference post* | `x-oss-framework` *(future)* | `oss-advertiser` |
+| `oss-framework.md` | *planned — Post 3 from walk #5 (jcode-vs-Claude-Code-and-Codex framing) is a candidate reference for authoring; brand-manager to flag at next heartbeat* | `x-oss-framework` *(future)* | `oss-advertiser` |
+| `use-case-tutorial.md` | *planned — pending observation of 2-3 candidates in our own funnel; structurally distinct from `scenario-spotlight` (which sells one scenario as a product) and `oss-framework` (which pitches the framework abstractly). Pitches a **specific use case** + complete recipe + video. Reference patterns observed at walk #5 (e.g., the agent-dev-team 16-min video course post).* | `x-use-case-tutorial` *(future)* | `oss-advertiser` *(may split out)* |
 
 ## Write rules
 
