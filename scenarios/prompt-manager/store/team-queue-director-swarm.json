@@ -2,6 +2,11 @@
   "teamId": "director-swarm",
   "queuePolicy": "bounded-parallel",
   "maxConcurrentRuns": 2,
-  "running": [],
+  "running": [
+    {
+      "AgentID": "vision-walk-prep",
+      "ProfileKey": ""
+    }
+  ],
   "queue": null
 }

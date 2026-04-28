@@ -36,6 +36,15 @@
 | Skill | Purpose |
 |-------|---------|
 | `prompt-manager skill read campaign-content-studio` | Structured campaign drafting with document-grounded AI |
+| `prompt-manager skill read x-scenario-spotlight` | Scenario-spotlight drafts: pitching one scenario as an end-user tool/app/product. Asset-led, conversion-rung-aware. Required-reads `docs/marketing/post-types/scenario-spotlight.md`. |
 | `prompt-manager skill read seo-optimizer` | SEO discipline for blog and landing-adjacent copy |
 | `prompt-manager skill read video-studio` | Video drafts (draft capability — expect notebook workarounds) |
 | `prompt-manager skill read documentation-health` | Drafts stay concrete and citation-grounded |
+
+## Post-Type Plan-of-Record
+
+When producing a draft of a recognized post type, read the type's strategic canon under [`docs/marketing/post-types/`](../../../../../../../docs/marketing/post-types/) for purpose, audience, conversion goal, asset requirements, and contrarian failure modes. Currently authored:
+
+- `post-types/scenario-spotlight.md` — pitching one scenario as an end-user tool/app/product; paired with `x-scenario-spotlight` skill.
+- (`post-types/dev-log.md` is pending Action B extraction from `STRATEGY.md`.)
+- (`post-types/oss-framework.md` is future, pending the third reference post.)

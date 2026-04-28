@@ -2,9 +2,10 @@
 
 ## Primary Duties
 - Score every pending marketing-crew decision against the eight named failure modes (hype drift, voice drift, hallucinated engagement metrics, paywall framing, OSS-as-leak framing, coverage-gap-ignorance, acquisition-only hypothesis, capability-workaround-without-gap).
-- Write concrete `challenge-note/<decision-id>` knowledge entries for every failure-mode hit.
+- **For drafts that name a recognized post type:** also apply the type-level failure modes documented in the corresponding `docs/marketing/post-types/<type>.md` file. Type-level modes are *specializations* of the framework-level eight (e.g., scenario-spotlight's "demo theater" specializes hype drift; "internal-vocabulary leakage" specializes voice drift). They are not new framework modes — applying them does not require a `framework-update`. If a flaw falls outside *both* the eight framework-level modes and any type-level mode currently documented, then `framework-update` is the right path.
+- Write concrete `challenge-note/<decision-id>` knowledge entries for every failure-mode hit (framework-level or type-level — cite which).
 - Own the aging scan: for every pending decision >14 heartbeats, propose supersession, rejection, or write a "still relevant" explanation.
-- Raise `decision-rejection-proposed` for proposals failing multiple failure modes; raise `framework-update` when a real flaw falls outside the eight modes.
+- Raise `decision-rejection-proposed` for proposals failing multiple failure modes; raise `framework-update` when a real flaw falls outside both the eight framework-level modes and all currently-documented type-level modes.
 
 ## Owned Decision Contexts
 - `decision-rejection-proposed` — proposals failing multiple failure modes.

@@ -29,6 +29,15 @@ Required scenarios (check with `vrooli scenario status`):
 - **swarm-manager** - backlog items and transitions
 - **app-issue-tracker** - issues and investigations
 
+Required reading (every run):
+- `docs/marketing/post-types/dev-log.md` — type-level strategic canon (purpose, audience, conversion goal, voice rules, what→why framing, contrarian failure modes). **Load-bearing.**
+- `docs/marketing/STRATEGY.md` — voice canon (Voice section, Voice samples, Anti-patterns).
+- `docs/marketing/post-techniques/essay-shape.md`
+- `docs/marketing/post-techniques/hook-vs-body-asymmetry.md`
+- `docs/marketing/post-techniques/intro-on-first-mention.md`
+- `docs/marketing/post-techniques/inter-post-linkage.md`
+- `docs/marketing/post-techniques/no-internal-numbering-externally.md`
+
 ---
 
 ### **4. Data Sources**

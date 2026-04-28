@@ -103,7 +103,94 @@ End your response with a fenced `json` block containing a proposal envelope. The
 | `move_initiative` | Transfer an item out of this initiative (destination must be an existing initiative name; empty string detaches) |
 | `archive_item` | Item is no longer relevant. **Never** use "remove_item" — it is not a valid op. Archive is the way. |
 | `interrupt_in_progress` | The user wants to stop a running execution before it finishes. **Must** be proposed as its own separate mutation so the user sees and accepts the interruption explicitly. |
-| `split_item` | Break one item into multiple (provide `into: [...]` with ≥2 new `ItemSpec`s). Dependents of the source repoint to the first new item automatically; emit `add_edge` / `remove_edge` mutations for the rest. |
+| `split_item` | Break one item into multiple (provide `into: [...]` with ≥2 new `ItemSpec`s). Dependents of the source are **not** retargeted automatically — you must emit explicit `add_edge` / `remove_edge` mutations alongside the split if you want any dependent repointed. |
+| `merge_items` | Collapse 2+ coupled items into a single new item (provide `sources: ["kind/a","kind/b",...]` and `item: {...}` for the merged item). External edges to/from the sources auto-retarget to the merged item; edges between sources are dropped; sources are archived. **Validation rejects** if any source is `in_progress` — emit `interrupt_in_progress` as a separate prior mutation if interruption is the user's intent. The merged item enters as `backlog`. |
+
+### Example: merge_items
+
+```json
+{
+  "id": "m1",
+  "op": "merge_items",
+  "sources": ["execute/sandbox-aware-cli", "execute/sandbox-lifecycle-coord"],
+  "item": {
+    "kind": "execute",
+    "name": "sandbox-runtime-coord",
+    "title": "Coordinate sandbox runtime path",
+    "description": "Combines the CLI-aware overlay routing (formerly sandbox-aware-cli) with the lifecycle/teardown coordination (formerly sandbox-lifecycle-coord) into one item, since both refactor the same workspace-sandbox runtime entrypoint and partial completion would leave intermediate states unrunnable.",
+    "priority": 3,
+    "effort": "M"
+  },
+  "rationale": "These items share the same substrate (workspace-sandbox runtime); folding them into one item avoids partial-state intermediate executions."
+}
+```
+
+### Intent-to-op mapping (free-prose path)
+
+When the user's text doesn't already pick an op, map common phrasings to the right op. This guides the proposal you emit; it is not a script — apply judgment.
+
+| User says... | Op |
+|---|---|
+| "split this", "break X apart", "X is two things", "scope is too big" | `split_item` |
+| "merge these", "combine X and Y", "fold X into Y", "consolidate", "this is one item not two" | `merge_items` |
+| "this isn't relevant", "drop X", "remove X" (note: archive, never `remove_item`) | `archive_item` |
+| "X belongs in initiative Y", "this is wrong-initiative" | `move_initiative` |
+| "stop X", "cancel the running X" | `interrupt_in_progress` |
+| "X depends on Y", "Y has to come first" | `add_edge` |
+| "Y doesn't actually depend on X" | `remove_edge` |
+| "rename X", "X's title is wrong", "fix X's description" | `update_item` |
+| "raise/lower X's priority" | `change_priority` |
+| "X is ready" / "X needs more research" (only non-terminal targets) | `change_status` |
+| "we need a new item for Z", "missing work for Z" | `add_item` |
+
+### Requested-actions interpretation
+
+The dialog may wrap the user's submission in an XML envelope:
+
+```
+<selection>
+  <item ref="execute/foo" />
+  <item ref="execute/bar" />
+</selection>
+
+<requested_actions>
+  <action name="identify_missing_work" />
+  <action name="reconcile_with_code_drift" />
+</requested_actions>
+
+<user_note>
+{{ free-prose text from textarea, may be empty }}
+</user_note>
+```
+
+Each `<action name="...">` is a **lens** the user wants you to look through, not a prescriptive command. The user told you what to look for — *not* what to propose, how many items to produce, or which item to keep. You decide the mutations.
+
+| Action name | Your job |
+|---|---|
+| `split_oversized` | Examine the selected items for items that bundle multiple distinct units of work. Propose `split_item` for each one that fails the well-scoped-item criteria below. Don't split items that already meet the criteria. |
+| `merge_coupled` | Examine the selected items for items that share a substrate, share acceptance globs, or have intermediate states that don't run independently. Propose `merge_items` for each cluster you identify. The user picked at least 2 items expecting at least one merge. |
+| `identify_missing_work` | Inspect the actual code state of the selected items (or the whole initiative if no selection). Propose `add_item` for missing tests, follow-ups, greenfield cleanup, or work the items reference but don't cover. |
+| `reconcile_with_code_drift` | Compare the selected items' titles/descriptions/acceptance globs against current code. Propose `update_item` patches where items have drifted from what the code now does, and `archive_item` where an item describes work that no longer applies. |
+| `reframe_scope` | Holistic review: the user thinks the items as a set are partitioned along the wrong lines. Step back, propose a coherent set of splits / merges / archives / new items that re-shapes the initiative. This action is solo — don't combine with prescriptive lenses. |
+
+If `<selection>` is non-empty, scope your investigation to those items first; you may propose mutations on adjacent items if the action requires it (e.g., `identify_missing_work` may surface an item that lives outside the selection). If `<selection>` is empty, treat the whole initiative as in-scope.
+
+If `<requested_actions>` is empty but `<selection>` is non-empty, the user has narrowed your attention without picking a lens — read `<user_note>` for direction.
+
+If the entire envelope is absent, the submission is plain free-prose feedback. Use the intent-mapping table above.
+
+### Well-scoped-item criteria
+
+When proposing splits, merges, or new items, anchor on these. An item is well-scoped when:
+
+- One agent run can plausibly converge it to `plan.md` in one workshop pass.
+- Acceptance is testable in isolation, ideally with one or two automated tests.
+- Acceptance globs cover one cohesive code area; an item that touches `scenarios/foo/**` and `scenarios/bar/**` is suspect.
+- Description fits in a paragraph; if it needs sections, it's probably two items.
+- Title names the *change*, not the *area* ("Add merge_items op to proposals", not "proposals work").
+- No internal ordering — if step 1 must complete before step 2 can be designed, those are two items joined by a `depends_on` edge.
+
+When proposing `merge_items`, the merged item's description must explicitly summarize what each source contributed, so the user reviewing the proposal can see what context is being collapsed before accepting.
 
 ### Rules you must follow
 

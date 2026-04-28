@@ -122,53 +122,80 @@ Team is enabled. **4 pending decisions, 1 carry-over + 3 new.** Top 3 with categ
 
 ---
 
-## Walk Checkpoint (2026-04-28T14:26:46Z)
+## Walk Checkpoint (2026-04-28T16:48:46Z, supersedes 16:27:32Z and 14:26:46Z)
 
-**Status line:** Walk #5 diverged mid-Phase-1 by mutual agreement to author the swarm-manager dual-operating-mode framework documentation + two implementation plans, so the operator can spawn parallel agents on the plans while the walk resumes. Triggered by the operator's correction that the two sandboxing initiative completions overnight were done *outside* swarm-manager (because the harness couldn't carry tightly-coupled architectural work), surfacing a structural gap in how swarm-manager handles initiatives whose backlog items are coupled by the very thing being changed.
+**Update:** divergence #3 now active mid-Phase-5 by mutual agreement. Action B (extraction-and-migration of existing dev-log canon + cross-cutting techniques from `STRATEGY.md` into the new per-entity structure built in divergence #2) is being executed in-walk rather than queued as a Phase-8 chore backlog item. Rationale: context is hot — STRATEGY.md was just read in full, the post-types/post-techniques structure was just authored, and bundling extraction with the wiring work avoids a second cold pass. Phase 5.3 dev-log rebuild test (`dec-1777318386116434321`) is a real coupling but small (same content, different location). Strict bound: move-not-rewrite, no reorganization, no new content.
 
-### Phases covered so far
 
-- **Phase 1 (Open Floor) — partial / divergence triggered.** Operator corrected the prep's framing on the two overnight initiative completions: they were completed by the operator outside the swarm-manager harness (after swarm-manager itself broke partway through, because each backlog item's completion left the system in an inconsistent state for the next item — sandbox-routing changes are coupled to every other item still running through the sandbox). Validation/fixes still in flight on agent-manager + workspace-sandbox. From this, two interventions identified:
-  - **Intervention #1 — Initiative-feedback rescoping UX:** Current feedback is free-form text used mostly for dependency reorg / item add-or-update. No first-class affordance for rescoping (merge / split / consolidate items). Proposal: presets + structured inputs alongside free-form, plus capability audit of the existing feedback skill/prompt to see what's already silently allowed vs. genuinely missing.
-  - **Intervention #2 — Initiative as a first-class operating mode:** Swarm-manager's design assumption is operator-absent — narrow work into atomic decidable units. That breaks when items are coupled (the sandboxing trap). Proposal: switchable execution mode where an initiative executes holistically (investigate → plan → execute → review → replan loop, with item-level follow-ups for genuinely small remaining work), backlog items survive as tracking/scope markers but not as independent execution units. Investigation phase is a first-class step that has no analog at backlog-item scale.
 
-### Phases pending on resume
+**Status line:** Walk #5 has now diverged twice. Divergence #1 (mid-Phase-1) completed and produced three artifacts; the walk resumed and covered Phases 1, 2, and substantively-3. Divergence #2 (mid-Phase-3-to-Phase-4-transition) is now active by mutual agreement to introduce a hub-and-spokes plan-of-record structure for marketing post-types — separating per-post-type strategic canon from cross-cutting techniques, modelled on the team-shared-docs-design skill's per-entity-file guidance and triggered by the operator's social-media-research dump surfacing that current marketing canon (`STRATEGY.md`) is monolithic and missing first-class per-type structure.
 
-- **Phase 2 (Retrospective):** Re-frame the two overnight initiative completions per F-1 — they were operator-direct, not harness-driven. The "first end-to-end initiative completion since the portfolio-dump phase began" framing is misleading and should be corrected. GCT-as-next-bottleneck framing still holds.
-- **Phase 3 (Portfolio):** 1 pending — `dec-1777312920606447957` (social-media-scheduler initiative-proposal, operator's own walk-#4 proposal awaiting their own ratification). Self-loop decision.
+### Divergence #1 — completed
+
+Three artifacts written, cross-referenced, ready for parallel-agent handoff:
+- `scenarios/swarm-manager/docs/concepts/EXECUTION-MODES.md` (registered in docs/manifest.json) — dual operating-mode framework.
+- `docs/plans/swarm-manager-initiative-feedback-ux.md` — Plan A: rescoping UX. Key finding from investigation: existing feedback skill already supports 9/10 expected ops including `split_item`; the actual gap is `merge_items` (asymmetric) plus zero UI surfacing.
+- `docs/plans/swarm-manager-initiative-operating-mode-implementation.md` — Plan B: initiative-level mode implementation, resolves all 10 framework-doc open questions.
+
+Both plans were subsequently edited by the operator/linter post-handoff (file modifications received via system-reminder during Phases 2-3). Those edits are intentional and stand. (Edits sharpened Plan A's UX framing toward "selection-driven Quick Actions for LLM-judgment cases only" and added gap-and-drift analysis as a recognized use case; Plan B's purpose paragraph was sharpened to call out async-reviewability and the broader "items wrong as the unit of execution" condition beyond pure coupling.)
+
+### Phases covered post-divergence-#1
+
+- **Phase 1 (Open Floor) — closed.** Substance covered above + in pre-divergence-#1 history.
+- **Phase 2 (Retrospective) — closed with corrected framing per F-1.** The two overnight initiative completions are operator-direct, not harness-driven. The "execution machine just proved it can finish initiatives" framing was wrong. GCT-as-next-bottleneck still holds. Validation/fixes for agent-manager + workspace-sandbox still in flight.
+- **Phase 3 (Portfolio) — substantively closed; CLI execution pending.** `dec-1777312920606447957` (social-media-scheduler initiative-proposal): operator confirmed accept verbally after extended discussion of feature set, operational targets, and technical requirements. Decided that the proposed scope (publishing plumbing — publish-log, series tracking, per-platform posting workflows, variant generation, scheduling, coverage-tracking, BIH integration) is correct and narrow; broader marketing-strategy / AI-marketing observations belong in marketing docs and agents, not in this scenario. Decision NOT YET executed via CLI — `prompt-manager` was stopped at decision time; `vrooli scenario start prompt-manager` + `prompt-manager team decision-accept director-swarm dec-1777312920606447957 --selected accept --notes "..."` is a deferred Phase 8 action.
+
+### Phases pending on resume (post-divergence-#2)
+
+- **Phase 3 cleanup:** execute the deferred `decision-accept` CLI for `dec-1777312920606447957` (after `vrooli scenario start prompt-manager`).
 - **Phase 4 (Strategist):** Disabled (awaiting Command Center). Note and skip.
-- **Phase 5 (Monetization):** No pending decisions. **Operator-inputs is on day 9** of `pending-operator` on the same 7 fields — walk #4 process-feedback #6 named the auto-suppression need, not yet implemented. Cleanest-leverage move: populate or flip `financial-tracker.enabled=false`. Pricing-trough `dec-1777061056395576280` ("premium bundle" vs "prosumer AI dev-suite") now 3 walks deferred — surface for explicit decide-or-document-decline.
-- **Phase 5.3 (Marketing):** 1 pending — `dec-1777318386116434321` (OSS dev-log post #1 rebuild, oss-advertiser, content-publish-proposal). Cleanest empirical test of walk-#4 rejection→rebuild loop. Read the draft per artifact-review contract before deciding.
-- **Phase 5.5 (Meta-optimization):** 3 of 4 to cover for category diversity: `dec-1777156591536785033` (carry-over, tier-3 Slow definition fix), `dec-1777327401931026247` (toolchain rescan 36→24, Critical Makefile required_layout still persists), `dec-1777330180871528504` (silent-stall tier-1 gate extension — *plus the meta-process question* about run-introspector vs. meta-contrarian disagreement on tier-signal contamination as a framework-update candidate).
-- **Phase 6 (Chore Audit):** Standard "what did you do outside Vrooli" prompt; prep suggested reading the dev-log rewrite aloud as a candidate.
-- **Phase 7 (Big Picture):** GCT-as-next-bottleneck frame question; meta-process disagreement as framework-update candidate.
-- **Phase 8 (Actions):** Must file F-1, F-3, F-4 here. Must reference the three divergence artifacts (framework doc + Plan A + Plan B) and create backlog items / initiative-proposals as appropriate. Must not double-file the divergence work (the artifacts themselves are the deliverable; backlog/initiative entries point to them).
-- **Phase 9 (Wrap-up):** Capture process feedback as `vision-walk/process-feedback` knowledge entry, including F-3/F-4 specifically (walk-skill should model plan-as-divergence-artifact pattern + plan path convention).
+- **Phase 5 (Monetization):** No pending decisions. Operator-inputs day 9; pricing-trough deferred 3 walks; both surface as carry-overs for operator decision.
+- **Phase 5.3 (Marketing):** 1 pending — `dec-1777318386116434321` (OSS dev-log post #1 rebuild). The cleanest empirical test of walk-#4's rejection→rebuild loop. Read the draft aloud per artifact-review contract before deciding.
+- **Phase 5.5 (Meta-optimization):** 3 of 4 to cover (`dec-1777156591536785033` carry-over tier-3 Slow definition; `dec-1777327401931026247` toolchain rescan 36→24; `dec-1777330180871528504` silent-stall tier-1 gate + meta-process disagreement framework-update question).
+- **Phase 6 (Chore Audit):** Operator's social-media-marketing research dump was *surfaced early in Phase 3* (legitimate per skill's "user brings up later-phase material early — handle now"). Specifically: Posts 1 + 2 (ChatGPT-finds-Google-Maps-clients pitch and MapiLeads tool description) are tactical input for the existing `docs/monetization/revenue-lines/lead-generation.md` revenue line; the third post (oss-framework-style advertising) was promised but not yet shared. Phase 6 may revisit if more context emerges.
+- **Phase 7 (Big Picture):** GCT-as-next-bottleneck frame question; meta-process disagreement as framework-update candidate; whether/when to ramp up the `lead-generation` revenue line beyond `candidate` status.
+- **Phase 8 (Actions):** Must file F-1, F-3, F-4, F-5, F-6, F-7 (see frictions list below). Must execute deferred Phase 3 decision-accept. Must reference all four divergence artifacts (framework doc + Plan A + Plan B + marketing post-types structure). Must create the deferred backlog items / initiative-proposals listed below. Must NOT double-file the divergence work (artifacts themselves are deliverables; backlog entries point to them).
+- **Phase 9 (Wrap-up):** Capture process feedback as `vision-walk/process-feedback` knowledge entry. Remove this checkpoint section as the final action.
 
 ### Process frictions captured so far
 
-1. **F-1: Prep retrospective conflates "marked done in swarm-manager" with "completed by swarm-manager."** When the operator finishes work outside the harness and updates state, the prep should distinguish — otherwise the execution machine's actual capacity is mis-read. Structural fix in the prep agent's source query, not just a one-time correction. *Especially important when the operator-direct path was itself driven by a swarm-manager limitation* (as today): the misattribution actively hides the limitation it should be surfacing.
-2. **F-3: Vision-walk skill should explicitly model "plan-as-divergence-artifact for parallel execution"** as a first-class divergence shape, alongside the existing inline-execute-and-resume pattern. Skill currently leaves it ambiguous; convention had to be invented in-conversation. Also: documentation-first should be an explicit rule when a divergence introduces a novel framework concept (vs. a tactical fix).
-3. **F-4: Plan path convention isn't in the walk skill.** `docs/plans/<name>.md` was inferred from project memory, not the skill. Future agents will reinvent. Skill should specify.
+1. **F-1: Prep retrospective conflates "marked done in swarm-manager" with "completed by swarm-manager."** When the operator finishes work outside the harness and updates state, the prep should distinguish — otherwise the execution machine's actual capacity is mis-read. Especially load-bearing when the operator-direct path was itself driven by a swarm-manager limitation: misattribution actively hides the limitation it should be surfacing.
+2. **F-3: Vision-walk skill should explicitly model "plan-as-divergence-artifact for parallel execution"** as a first-class divergence shape, alongside inline-execute-and-resume. Skill currently leaves it ambiguous; convention had to be invented in-conversation. Also: documentation-first should be an explicit rule when a divergence introduces a novel framework concept.
+3. **F-4: Plan path convention isn't in the walk skill.** `docs/plans/<name>.md` was inferred from project memory, not the skill. Future agents will reinvent.
+4. **F-5: `STRATEGY.md` is monolithic in the way `team-shared-docs-design` flags as a trap.** Content-type principles + dev-log narrative principles + cross-cutting structural rules (hook-vs-body asymmetry, intro-on-first-mention, inter-post linkage, no-internal-numbering) are bundled into one file rather than per-entity files. Divergence #2 introduces the per-entity structure greenfield; **migration of existing content is deferred as Action B (chore backlog item).**
+5. **F-6: Marketing notebook README only mentions plan-of-record as the promotion target.** Per `team-shared-docs-design`, notebook entries actually have *three* promotion targets — plan-of-record, skill, scenario/config. The README should reflect this. Divergence #2 includes a small README footnote to fix this.
+6. **F-7: No explicit place in plan-of-record for cross-cutting voice/structure techniques shared across post types.** Currently those rules are sub-bullets inside `STRATEGY.md`. Divergence #2 introduces `docs/marketing/post-techniques/` as the canonical home; population of it (with extracted content) is also part of Action B (chore backlog item).
 
-### Carry-over frictions from prep (not surfaced this walk yet)
+### Carry-over frictions from prep (still not surfaced this walk in their own right)
 
-- Operator-inputs day 9 / financial-tracker auto-suppression (walk-#4 process-feedback #6, not yet implemented)
-- `vision-walk` knowledge query requires exact slug match (walk-#4 sibling friction, not yet fixed)
-- Pricing-trough `dec-1777061056395576280` deferred 3 walks (continued passive deferral is the worst path)
+- Operator-inputs day 9 / financial-tracker auto-suppression (walk-#4 process-feedback #6, not yet implemented).
+- `vision-walk` knowledge query requires exact slug match (walk-#4 sibling friction, not yet fixed).
+- Pricing-trough `dec-1777061056395576280` deferred 3 walks (continued passive deferral is the worst path).
 
-### Divergence scope (acceptance criterion)
+### Phase-8 actions queued from divergence #2 conversation (Action B and the notebook entries)
 
-Three artifacts produced, in this order, before resuming the walk:
+These are NOT part of divergence #2's acceptance criterion — they are deferred to Phase 8 of the resumed walk explicitly.
 
-1. **Framework documentation** — captures the dual operating-mode mental model: why it exists (sandboxing trap as the empirical cue), the difference between operator-absent (item-level) and operator-present (initiative-level) execution, when to use which mode, the role of backlog items in each mode, and the open questions. Located somewhere durable + discoverable inside the swarm-manager scenario docs (exact path determined by reading what's there). **This is the load-bearing artifact** — the plans flow from it.
-2. **Plan A** — `docs/plans/swarm-manager-initiative-feedback-ux.md`. Implementation-grade. Covers Intervention #1: rescoping affordances + capability audit of existing feedback skill/prompt. Backlog-item-ready.
-3. **Plan B** — `docs/plans/swarm-manager-initiative-operating-mode-implementation.md`. Implementation-grade. Covers Intervention #2: initiative-as-mode implementation, downstream of and cross-referencing the framework doc. Backlog-item-ready.
+- **Action B — extraction-and-migration backlog item (kind=chore):** migrate dev-log content + cross-cutting techniques from `STRATEGY.md` into `docs/marketing/post-types/dev-log.md` + `docs/marketing/post-techniques/*.md`; update `oss-advertiser` and `x-dev-log` skill required-reading; trim STRATEGY.md to one-paragraph pointers. Risk: nuance loss during extraction — needs a dedicated pass.
+- **Lead-gen tactics notebook entry:** append to `docs/marketing/notebook/CAMPAIGN_LESSONS.md` (or a new `LEAD_GEN_TACTICS.md` if better fit) capturing Posts 1 + 2's tactical claims tagged `unverified-third-party-claim`. Author = researcher. Cite posts.
+- **Recommendation-framing audience observation:** append to `docs/marketing/notebook/AUDIENCE_OBSERVATIONS.md` — cross-cutting voice observation that third-party-recommendation framing converts better than self-promotion. Mark caveat that it can read slimy if overused without genuine third-party basis. Promotion target: `docs/marketing/post-techniques/recommendation-framing.md` once matured.
+- **Local-lead-gen scenario candidate:** capture as a researcher working-notebook entry tagged `future-scenario-candidate; gated-on: headliner-bundle-shipped`. Cross-reference `lead-generation.md` revenue line and BAS substrate.
+- **Phase-8 must also:** create backlog items for Plan A, Plan B, and Action B, and execute the deferred social-media-scheduler `decision-accept` CLI.
 
-All three must reflect the *actual current state* of swarm-manager (read the feedback skill, read the existing initiative/backlog flow, don't guess). **Done = three files written, framework doc cross-referenced from both plans, ready for parallel-agent handoff.**
+### Divergence #2 scope (acceptance criterion)
 
-Out of scope for this divergence: editing the vision-walk skill to incorporate F-3/F-4 (deferred to Phase 8 of resumed walk or its own backlog item — would muddy this divergence's acceptance criterion).
+Greenfield additions only — no migration of existing canon. Five concrete deliverables, in this order:
+
+1. **Structural skeleton in `docs/marketing/`:** create `post-types/` folder with `README.md` (decision tree: which type when, audience signal, conversion intent), and `post-techniques/` folder with `README.md` (index of cross-cutting techniques). Update `docs/marketing/README.md` to reference both folders as part of the hub-and-spokes index.
+2. **First plan-of-record post-type file:** `docs/marketing/post-types/scenario-spotlight.md` — strategic canon at the *operator-decision* level (purpose, audience, conversion goal, asset requirements at a high level including BAS for screen recordings, contrarian failure modes at the type level). v1; will mature as the notebook accumulates entries and the skill runs in production.
+3. **First post-type skill:** `x-scenario-spotlight` skill at `scenarios/prompt-manager/store/skills/packs/core/x-scenario-spotlight/` — executable spec mirroring `x-dev-log`'s structure (SKILL.md + skill.json + history.jsonl). v1, very thin — primary value is providing a real consumer for the plan-of-record doc so it isn't a stale shrine. Required-reads `post-types/scenario-spotlight.md`.
+4. **Member-skill wiring:** update `subscription-advertiser` member's skill required-reading to include `post-types/scenario-spotlight.md`. Update `marketing-contrarian` member's skill to ingest the failure-mode addendum that ships in `post-types/scenario-spotlight.md`.
+5. **Notebook README footnote:** small edit to `docs/marketing/notebook/README.md` acknowledging the three-target promotion model (plan-of-record / skill / scenario) explicitly (fixes F-6).
+
+Done = files written, `vrooli scenario restart prompt-manager` succeeds (skill catalog picks up `x-scenario-spotlight`), the new docs are linked from `docs/marketing/README.md`, and no existing canon (STRATEGY.md, etc.) was modified.
+
+**Out of scope for this divergence (already enumerated in the Phase-8-actions section above):** Action B; lead-gen tactics notebook entry; recommendation-framing audience-observation entry; local-lead-gen scenario-candidate notebook entry; authoring `oss-framework.md` (waits for post #3); executing the social-media-scheduler decision-accept CLI; editing the vision-walk skill for F-3/F-4.
 
 ### Resume protocol
 
-Re-read this file. Skip Phase 1 (covered above). Pick up at **Phase 2 (Retrospective) with the corrected framing per F-1** — the two overnight completions are operator-direct, not harness-driven, and that distinction is the strategic point. Ensure Phase 8 captures F-1, F-3, F-4 as actionable items + cites the three divergence artifacts (framework doc + Plan A + Plan B). When Phase 9 completes, **remove this entire `## Walk Checkpoint` section** as the final action so tomorrow's walk starts clean.
+Re-read this file. Skip Phase 1 (closed), Phase 2 (closed with corrected framing), and Phase 3 (substantively closed; CLI execution is a Phase-8 action). Pick up at **Phase 4 (Strategist — disabled, note and skip)** then proceed forward. Ensure Phase 8 captures F-1, F-3, F-4, F-5, F-6, F-7 as actionable items, executes the deferred decision-accept CLI, and creates backlog items for Plan A, Plan B, and Action B. Cite all four divergence artifacts (framework doc + Plan A + Plan B + marketing post-types structure). When Phase 9 completes, **remove this entire `## Walk Checkpoint` section** as the final action so tomorrow's walk starts clean.

@@ -1,0 +1,19 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "x-scenario-spotlight",
+  "name": "Scenario Spotlight Generator",
+  "description": "Generate a scenario-spotlight draft pitching one Vrooli scenario as a useful tool/app/product to its target user. Asset-led, conversion-rung-aware, contrarian-checked against type-level failure modes.",
+  "modes": [
+    "tools"
+  ],
+  "tags": [
+    "skill"
+  ],
+  "icon": "sparkles",
+  "status": "active",
+  "entry": "SKILL.md",
+  "revision": 1,
+  "createdAt": "2026-04-28T16:27:32Z",
+  "updatedAt": "2026-04-28T16:27:32Z"
+}
