@@ -99,15 +99,14 @@ func (s *AgentService) Initialize(ctx context.Context, cfg *ProfileConfig) error
 
 // ProfileConfig contains agent profile configuration.
 type ProfileConfig struct {
-	RunnerType       domainpb.RunnerType
-	Model            string
-	ModelPreset      domainpb.ModelPreset
-	MaxTurns         int32
-	TimeoutSeconds   int32
-	AllowedTools     []string
-	SkipPermissions  bool
-	RequiresSandbox  bool
-	RequiresApproval bool
+	RunnerType      domainpb.RunnerType
+	Model           string
+	ModelPreset     domainpb.ModelPreset
+	MaxTurns        int32
+	TimeoutSeconds  int32
+	AllowedTools    []string
+	SkipPermissions bool
+	RequiresSandbox bool
 }
 
 // DefaultProfileConfig returns the default configuration for test generation.
@@ -126,9 +125,8 @@ func DefaultProfileConfig() *ProfileConfig {
 			"Grep",  // Search file contents
 			"Bash",  // Execute allowed commands
 		},
-		SkipPermissions:  false, // Require confirmation for safety
-		RequiresSandbox:  false, // In-place execution for test-genie
-		RequiresApproval: false, // Auto-apply test files
+		SkipPermissions: false, // Require confirmation for safety
+		RequiresSandbox: false, // In-place execution for test-genie
 	}
 }
 
@@ -145,7 +143,6 @@ func (s *AgentService) buildProfile(cfg *ProfileConfig) *domainpb.AgentProfile {
 		AllowedTools:         cfg.AllowedTools,
 		SkipPermissionPrompt: cfg.SkipPermissions,
 		RequiresSandbox:      cfg.RequiresSandbox,
-		RequiresApproval:     cfg.RequiresApproval,
 		CreatedBy:            "test-genie",
 	}
 }

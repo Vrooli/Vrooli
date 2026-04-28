@@ -360,6 +360,10 @@ func (s *AgentService) Execute(ctx context.Context, req ExecuteRequest) (*Execut
 		}
 	}
 
+	// Inherits the contract default ManualReview=false: investigation reports
+	// are written to disk as part of the deliverable and should auto-apply so
+	// they land in the investigations directory without operator approval.
+
 	run, err := s.client.CreateRun(ctx, runReq)
 	if err != nil {
 		return nil, fmt.Errorf("create run: %w", err)
@@ -445,6 +449,8 @@ func (s *AgentService) ExecuteAsync(ctx context.Context, req ExecuteRequest) (st
 			runReq.InlineConfig.Model = &req.Model
 		}
 	}
+
+	// Inherits ManualReview=false — see Execute() above.
 
 	run, err := s.client.CreateRun(ctx, runReq)
 	if err != nil {

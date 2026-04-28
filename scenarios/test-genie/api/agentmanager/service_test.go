@@ -36,15 +36,14 @@ func TestBuildProfileAndDefaultProfileRef(t *testing.T) {
 	})
 
 	profile := svc.buildProfile(&ProfileConfig{
-		RunnerType:       domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
-		Model:            "gpt-5.4",
-		ModelPreset:      domainpb.ModelPreset_MODEL_PRESET_SMART,
-		MaxTurns:         12,
-		TimeoutSeconds:   45,
-		AllowedTools:     []string{"Read", "Write"},
-		SkipPermissions:  true,
-		RequiresSandbox:  true,
-		RequiresApproval: true,
+		RunnerType:      domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
+		Model:           "gpt-5.4",
+		ModelPreset:     domainpb.ModelPreset_MODEL_PRESET_SMART,
+		MaxTurns:        12,
+		TimeoutSeconds:  45,
+		AllowedTools:    []string{"Read", "Write"},
+		SkipPermissions: true,
+		RequiresSandbox: true,
 	})
 
 	if profile.Name != "Test Genie Agent" {
@@ -56,7 +55,7 @@ func TestBuildProfileAndDefaultProfileRef(t *testing.T) {
 	if profile.Timeout.AsDuration() != 45*time.Second {
 		t.Fatalf("expected timeout to be converted to duration, got %s", profile.Timeout.AsDuration())
 	}
-	if !profile.SkipPermissionPrompt || !profile.RequiresSandbox || !profile.RequiresApproval {
+	if !profile.SkipPermissionPrompt || !profile.RequiresSandbox {
 		t.Fatal("expected profile flags to mirror the config")
 	}
 
