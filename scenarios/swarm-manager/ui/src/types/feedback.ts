@@ -69,7 +69,8 @@ export type ProposalOp =
   | "move_initiative"
   | "archive_item"
   | "interrupt_in_progress"
-  | "split_item";
+  | "split_item"
+  | "merge_items";
 
 /** A prospective new item's authorable fields. */
 export interface ProposalItemSpec {
@@ -114,6 +115,7 @@ export interface ProposalMutation {
   to?: string;
   initiative?: string;
   into?: ProposalItemSpec[];
+  sources?: string[];
 }
 
 export interface ProposalGraphNode {

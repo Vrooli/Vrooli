@@ -52,6 +52,15 @@ func normalizeMutationList(p Proposal) Proposal {
 		m.To = strings.TrimSpace(m.To)
 		m.Initiative = strings.TrimSpace(m.Initiative)
 		m.Status = strings.ToLower(strings.TrimSpace(m.Status))
+		if len(m.Sources) > 0 {
+			cleaned := make([]string, 0, len(m.Sources))
+			for _, s := range m.Sources {
+				if t := strings.TrimSpace(s); t != "" {
+					cleaned = append(cleaned, t)
+				}
+			}
+			m.Sources = cleaned
+		}
 		if strings.TrimSpace(m.ID) == "" {
 			m.ID = fmt.Sprintf("m%d", i+1)
 		}

@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, waitFor, cleanup, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { FeedbackDialog } from "./feedback-dialog";
+import { FeedbackDialog, __testing as feedbackDialogTesting } from "./feedback-dialog";
+import type { FeedbackDialogItem } from "./feedback-dialog";
 import { FeedbackBusyError, FeedbackLockConflictError } from "../../services/feedback-service";
 import { selectors } from "../../consts/selectors";
 import type { FeedbackRound, LockStatusResponse } from "../../types";
@@ -271,5 +272,286 @@ describe("FeedbackDialog", () => {
     expect(notice.textContent).toContain("execute/foo");
     // No holder line — we're specifically in the busy-items path.
     expect(notice.textContent).not.toContain("holds the lock");
+  });
+
+  // Help block toggles regardless of items prop; default closed.
+  it("renders the help block collapsed by default and toggles open", async () => {
+    renderDialog();
+    const block = screen.getByTestId(selectors.feedback.dialogHelpBlock);
+    // Initially body absent (only header rendered).
+    expect(within(block).queryByText(/proposes a checklist/i)).toBeNull();
+    await userEvent.click(within(block).getByTestId(selectors.feedback.dialogHelpBlockToggle));
+    expect(within(block).getByText(/proposes a checklist/i)).toBeInTheDocument();
+  });
+
+  // When items prop is omitted, the picker and quick actions stay
+  // hidden — back-compat with callers that haven't wired items yet.
+  it("hides the picker but keeps quick actions when items prop is absent", () => {
+    // Gap-and-drift sweeps (identify_missing_work / reconcile_with_code_drift)
+    // are the most common feedback use case on completed initiatives where
+    // there are no live items to select. The actions row must stay visible
+    // so those lenses are reachable; the picker can still hide because
+    // there's nothing to pick.
+    renderDialog();
+    expect(screen.queryByTestId(selectors.feedback.dialogTargetPicker)).toBeNull();
+    expect(screen.getByTestId(selectors.feedback.dialogQuickActionIdentifyMissing)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.feedback.dialogQuickActionReconcile)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.feedback.dialogQuickActionReframe)).toBeInTheDocument();
+    // Split and merge are rendered but disabled (no items to operate on).
+    expect(screen.getByTestId(selectors.feedback.dialogQuickActionSplit)).toBeDisabled();
+    expect(screen.getByTestId(selectors.feedback.dialogQuickActionMerge)).toBeDisabled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Quick Actions surface (Plan A)
+// ---------------------------------------------------------------------------
+
+const SAMPLE_ITEMS: FeedbackDialogItem[] = [
+  { ref: "execute/alpha", title: "Alpha" },
+  { ref: "execute/beta", title: "Beta" },
+  { ref: "execute/gamma", title: "Gamma" },
+];
+
+function renderWithItems(props?: Partial<React.ComponentProps<typeof FeedbackDialog>>) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={qc}>
+      <FeedbackDialog
+        initiativeName="my-initiative"
+        isOpen
+        onClose={vi.fn()}
+        onSubmitted={vi.fn()}
+        items={SAMPLE_ITEMS}
+        {...props}
+      />
+    </QueryClientProvider>,
+  );
+}
+
+describe("FeedbackDialog · Quick Actions", () => {
+  beforeEach(() => {
+    mockStart.mockReset();
+    mockLockStatus.mockReset();
+    mockLockStatus.mockResolvedValue({ locked: false });
+    try {
+      localStorage.clear();
+    } catch {
+      /* ignore */
+    }
+  });
+
+  it("renders the picker collapsed and the five quick actions", () => {
+    renderWithItems();
+    expect(screen.getByTestId(selectors.feedback.dialogTargetPicker)).toBeInTheDocument();
+    // Picker collapsed → list rows aren't rendered yet.
+    expect(screen.queryAllByTestId(selectors.feedback.dialogTargetPickerItem)).toHaveLength(0);
+    // All 5 quick actions are present.
+    for (const id of [
+      selectors.feedback.dialogQuickActionSplit,
+      selectors.feedback.dialogQuickActionMerge,
+      selectors.feedback.dialogQuickActionIdentifyMissing,
+      selectors.feedback.dialogQuickActionReconcile,
+      selectors.feedback.dialogQuickActionReframe,
+    ]) {
+      expect(screen.getByTestId(id)).toBeInTheDocument();
+    }
+  });
+
+  it("gates split / merge based on selection count and mutual exclusion", async () => {
+    renderWithItems();
+    const splitBtn = screen.getByTestId(selectors.feedback.dialogQuickActionSplit);
+    const mergeBtn = screen.getByTestId(selectors.feedback.dialogQuickActionMerge);
+
+    // Initially zero selected → both disabled.
+    expect(splitBtn).toBeDisabled();
+    expect(mergeBtn).toBeDisabled();
+
+    // Open picker, pick 1 item: split enabled, merge still disabled (<2).
+    await userEvent.click(screen.getByTestId(selectors.feedback.dialogTargetPickerToggle));
+    const rows = await screen.findAllByTestId(selectors.feedback.dialogTargetPickerItem);
+    await userEvent.click(rows[0]!);
+    expect(splitBtn).toBeEnabled();
+    expect(mergeBtn).toBeDisabled();
+
+    // Pick a second: merge enabled too.
+    await userEvent.click(rows[1]!);
+    expect(mergeBtn).toBeEnabled();
+
+    // Selecting Split should disable Merge (mutual exclusion) — and the
+    // converse: clicking Merge after Split is selected first switches
+    // them. Verify split is selected first.
+    await userEvent.click(splitBtn);
+    expect(splitBtn).toHaveAttribute("aria-pressed", "true");
+    // Merge is now disabled because split is active.
+    expect(mergeBtn).toBeDisabled();
+  });
+
+  it("treats reframe_scope as solo: selects clear other quick actions and vice versa", async () => {
+    renderWithItems();
+    await userEvent.click(screen.getByTestId(selectors.feedback.dialogTargetPickerToggle));
+    const rows = await screen.findAllByTestId(selectors.feedback.dialogTargetPickerItem);
+    await userEvent.click(rows[0]!);
+    await userEvent.click(rows[1]!);
+
+    const identify = screen.getByTestId(selectors.feedback.dialogQuickActionIdentifyMissing);
+    const reframe = screen.getByTestId(selectors.feedback.dialogQuickActionReframe);
+
+    // Pick identify-missing first.
+    await userEvent.click(identify);
+    expect(identify).toHaveAttribute("aria-pressed", "true");
+
+    // Now picking reframe should clear identify.
+    await userEvent.click(reframe);
+    expect(reframe).toHaveAttribute("aria-pressed", "true");
+    expect(identify).toHaveAttribute("aria-pressed", "false");
+
+    // And selecting any other quick action clears reframe.
+    await userEvent.click(identify);
+    expect(reframe).toHaveAttribute("aria-pressed", "false");
+    expect(identify).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("emits raw text when no actions and no items are selected", async () => {
+    let resolvePending: (round: FeedbackRound) => void = () => {};
+    mockStart.mockImplementationOnce(
+      () =>
+        new Promise<FeedbackRound>((resolve) => {
+          resolvePending = resolve;
+        }),
+    );
+    renderWithItems();
+    await userEvent.type(screen.getByTestId(selectors.feedback.dialogText), "free prose only");
+    await userEvent.click(screen.getByTestId(selectors.feedback.dialogSubmit));
+
+    await waitFor(() => expect(mockStart).toHaveBeenCalled());
+    const callArgs = mockStart.mock.calls[0]![1];
+    expect(callArgs.text).toBe("free prose only");
+    expect(callArgs.text).not.toContain("<selection");
+    expect(callArgs.text).not.toContain("<requested_actions");
+    resolvePending(makeRound());
+  });
+
+  it("wraps in XML envelope when items or actions are selected", async () => {
+    let resolvePending: (round: FeedbackRound) => void = () => {};
+    mockStart.mockImplementationOnce(
+      () =>
+        new Promise<FeedbackRound>((resolve) => {
+          resolvePending = resolve;
+        }),
+    );
+    renderWithItems();
+    await userEvent.click(screen.getByTestId(selectors.feedback.dialogTargetPickerToggle));
+    const rows = await screen.findAllByTestId(selectors.feedback.dialogTargetPickerItem);
+    await userEvent.click(rows[0]!); // execute/alpha
+    await userEvent.click(rows[1]!); // execute/beta
+    await userEvent.click(screen.getByTestId(selectors.feedback.dialogQuickActionMerge));
+    await userEvent.click(screen.getByTestId(selectors.feedback.dialogQuickActionIdentifyMissing));
+    await userEvent.type(screen.getByTestId(selectors.feedback.dialogText), "and add tests");
+    await userEvent.click(screen.getByTestId(selectors.feedback.dialogSubmit));
+
+    await waitFor(() => expect(mockStart).toHaveBeenCalled());
+    const text = mockStart.mock.calls[0]![1].text;
+    expect(text).toContain('<item ref="execute/alpha" />');
+    expect(text).toContain('<item ref="execute/beta" />');
+    expect(text).toContain('<action name="merge_coupled" />');
+    expect(text).toContain('<action name="identify_missing_work" />');
+    expect(text).toContain("<user_note>");
+    expect(text).toContain("and add tests");
+    resolvePending(makeRound());
+  });
+
+  it("hides quick actions and disables picker when round type is Note", async () => {
+    renderWithItems();
+    await userEvent.click(screen.getByTestId(selectors.feedback.dialogTypeNote));
+    // Quick actions hidden under note type.
+    expect(screen.queryByTestId(selectors.feedback.dialogQuickActionSplit)).toBeNull();
+    expect(screen.queryByTestId(selectors.feedback.dialogQuickActionMerge)).toBeNull();
+    // Picker also hidden.
+    expect(screen.queryByTestId(selectors.feedback.dialogTargetPicker)).toBeNull();
+    // Help block remains visible (informational under all types).
+    expect(screen.getByTestId(selectors.feedback.dialogHelpBlock)).toBeInTheDocument();
+  });
+
+  it("Select all / Select none update the picker selection summary", async () => {
+    renderWithItems();
+    await userEvent.click(screen.getByTestId(selectors.feedback.dialogTargetPickerToggle));
+    await userEvent.click(screen.getByTestId(selectors.feedback.dialogTargetPickerSelectAll));
+
+    const rows = await screen.findAllByTestId(selectors.feedback.dialogTargetPickerItem);
+    rows.forEach((row) => {
+      const cb = within(row).getByRole("checkbox");
+      expect(cb).toBeChecked();
+    });
+
+    await userEvent.click(screen.getByTestId(selectors.feedback.dialogTargetPickerSelectNone));
+    rows.forEach((row) => {
+      const cb = within(row).getByRole("checkbox");
+      expect(cb).not.toBeChecked();
+    });
+  });
+
+  it("allows submit when ≥1 quick action is selected even with empty text", async () => {
+    let resolvePending: (round: FeedbackRound) => void = () => {};
+    mockStart.mockImplementationOnce(
+      () =>
+        new Promise<FeedbackRound>((resolve) => {
+          resolvePending = resolve;
+        }),
+    );
+    renderWithItems();
+    // Identify-missing is gateable with zero items selected — the user
+    // can ask the agent to investigate the whole initiative.
+    await userEvent.click(screen.getByTestId(selectors.feedback.dialogQuickActionIdentifyMissing));
+    const submit = screen.getByTestId(selectors.feedback.dialogSubmit);
+    expect(submit).toBeEnabled();
+    await userEvent.click(submit);
+    await waitFor(() => expect(mockStart).toHaveBeenCalled());
+    resolvePending(makeRound());
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Pure helpers — envelope assembly + action pruning
+// ---------------------------------------------------------------------------
+
+describe("buildEnvelope (Plan A)", () => {
+  const { buildEnvelope, pruneActionsForSelection } = feedbackDialogTesting;
+
+  it("assembles selection + requested_actions + user_note", () => {
+    const env = buildEnvelope({
+      items: ["execute/alpha", "execute/beta"],
+      actions: ["merge_coupled", "identify_missing_work"],
+      note: "  hello world  ",
+    });
+    expect(env).toContain('<item ref="execute/alpha" />');
+    expect(env).toContain('<item ref="execute/beta" />');
+    expect(env).toContain('<action name="merge_coupled" />');
+    expect(env).toContain('<action name="identify_missing_work" />');
+    expect(env).toContain("hello world");
+  });
+
+  it("emits empty selection / actions blocks when corresponding inputs are empty", () => {
+    const env = buildEnvelope({ items: [], actions: [], note: "x" });
+    expect(env).toContain("<selection></selection>");
+    expect(env).toContain("<requested_actions></requested_actions>");
+  });
+
+  it("escapes XML-special characters in refs", () => {
+    const env = buildEnvelope({
+      items: ['execute/with"quote', "execute/<lt"],
+      actions: [],
+      note: "",
+    });
+    expect(env).toContain("&quot;");
+    expect(env).toContain("&lt;");
+  });
+
+  it("prunes split/merge from action set when selection size drops below threshold", () => {
+    const startSet = new Set(["split_oversized" as const, "merge_coupled" as const]);
+    expect(pruneActionsForSelection(startSet, 0)).toEqual(new Set());
+    const startSet2 = new Set(["split_oversized" as const, "merge_coupled" as const]);
+    // Merge requires ≥2; with 1 selected, merge drops but split remains.
+    expect(pruneActionsForSelection(startSet2, 1)).toEqual(new Set(["split_oversized"]));
   });
 });

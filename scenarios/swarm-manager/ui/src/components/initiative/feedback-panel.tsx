@@ -151,6 +151,9 @@ export function FeedbackPanel({ initiativeName, previewItems }: FeedbackPanelPro
         initiativeName={initiativeName}
         isOpen={dialogOpen}
         onClose={() => setDialogOpen(false)}
+        items={(previewItems ?? [])
+          .filter((it) => !it.archivedAt && !it.missing)
+          .map((it) => ({ ref: `${it.kind}/${it.name}`, title: it.title }))}
         onSubmitted={(r) => {
           invalidate();
           setExpanded((prev) => new Set(prev).add(r.number));

@@ -67,6 +67,18 @@ const (
 	// callers that need to repoint edges must emit OpRemoveEdge /
 	// OpAddEdge mutations in the same proposal.
 	OpSplitItem Op = "split_item"
+
+	// OpMergeItems collapses M source items (Sources) into a single new
+	// item (Item). External edges to/from sources are auto-retargeted to
+	// the merged item; intra-source edges are dropped. Sources are
+	// archived after the merged item lands. Validate rejects strictly
+	// when any source is in_progress — callers must emit
+	// OpInterruptInProgress as a separate prior mutation if they want
+	// to interrupt before merging.
+	//
+	// Wire shape: { sources: ["kind/a","kind/b",...], item: ItemSpec }.
+	// Target is unused; the merged item's ref is Item.Ref().
+	OpMergeItems Op = "merge_items"
 )
 
 // AllOps returns the canonical list of supported ops. Used for validation
@@ -83,6 +95,7 @@ func AllOps() []Op {
 		OpArchiveItem,
 		OpInterruptInProgress,
 		OpSplitItem,
+		OpMergeItems,
 	}
 }
 
@@ -129,6 +142,11 @@ type Mutation struct {
 
 	// OpSplitItem payload: the new items to create.
 	Into []ItemSpec `json:"into,omitempty"`
+
+	// OpMergeItems payload: the source items ("kind/name" refs) to be
+	// collapsed into a single merged item. The merged item itself is
+	// described by Item (reusing the OpAddItem field).
+	Sources []string `json:"sources,omitempty"`
 }
 
 // ItemSpec describes a new item to create. Fields mirror BacklogItem with

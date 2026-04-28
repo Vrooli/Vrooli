@@ -989,6 +989,9 @@ export function InitiativeDetailsPage() {
         initiativeName={initiative.name}
         isOpen={feedbackDialogOpen}
         onClose={() => setFeedbackDialogOpen(false)}
+        items={resolvedItems
+          .filter((it) => !it.archivedAt && !it.missing)
+          .map((it) => ({ ref: it.ref, title: it.title }))}
         onSubmitted={() => {
           setActiveTab("feedback");
           void queryClient.invalidateQueries({ queryKey: ["initiative-feedback", initiative.name] });

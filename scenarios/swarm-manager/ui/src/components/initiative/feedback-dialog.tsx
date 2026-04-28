@@ -22,11 +22,19 @@
  *
  * Note-type rounds bypass this guard because they don't spawn an agent and
  * therefore can't violate single-agent-per-initiative.
+ *
+ * Quick Actions surface (Plan A): when caller passes `items`, the dialog
+ * also exposes a selection-driven picker, five quick-action toggles
+ * (split / merge / identify-missing / reconcile / reframe), and a
+ * collapsible help block. Selecting any action or any item wraps the
+ * submission in an XML envelope the feedback skill knows how to
+ * interpret. Plain free-prose (no actions, no selection) submits the raw
+ * textarea text, exactly as today.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Loader2, Paperclip, SendHorizontal, AlertTriangle } from "lucide-react";
+import { Loader2, Paperclip, SendHorizontal, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
 import { Dialog } from "../ui/dialog";
 import { Button } from "../ui/button";
 import { CaptureAttachmentPreview } from "../capture/capture-attachment-preview";
@@ -50,6 +58,68 @@ const MAX_VISIBLE_LINES = 8;
 const LINE_HEIGHT_PX = 22;
 const MAX_TEXTAREA_HEIGHT = MAX_VISIBLE_LINES * LINE_HEIGHT_PX + 12;
 
+/** Minimal item shape the picker needs. The parent passes whatever it
+ *  already has — we don't reach back into stores. */
+export interface FeedbackDialogItem {
+  ref: string; // "kind/name"
+  title: string;
+}
+
+/** Stable identifiers for the five quick-action lenses. These are the
+ *  strings emitted into the `<requested_actions>` envelope and the
+ *  swarm-manager-initiative-feedback skill is contracted against them. */
+export type QuickActionKey =
+  | "split_oversized"
+  | "merge_coupled"
+  | "identify_missing_work"
+  | "reconcile_with_code_drift"
+  | "reframe_scope";
+
+const QUICK_ACTIONS: ReadonlyArray<{
+  key: QuickActionKey;
+  label: string;
+  hint: string;
+  testId: string;
+}> = [
+  {
+    key: "split_oversized",
+    label: "Split oversized items",
+    hint: "Break apart items that bundle multiple units of work.",
+    testId: selectors.feedback.dialogQuickActionSplit,
+  },
+  {
+    key: "merge_coupled",
+    label: "Merge coupled items",
+    hint: "Collapse items that share a substrate or only validate together.",
+    testId: selectors.feedback.dialogQuickActionMerge,
+  },
+  {
+    key: "identify_missing_work",
+    label: "Identify missing work",
+    hint: "Inspect the code state and propose follow-ups, tests, or gaps.",
+    testId: selectors.feedback.dialogQuickActionIdentifyMissing,
+  },
+  {
+    key: "reconcile_with_code_drift",
+    label: "Reconcile with code drift",
+    hint: "Update items that no longer match what the code does.",
+    testId: selectors.feedback.dialogQuickActionReconcile,
+  },
+  {
+    key: "reframe_scope",
+    label: "Reframe scope",
+    hint: "Holistic re-shape: items partitioned along the wrong lines.",
+    testId: selectors.feedback.dialogQuickActionReframe,
+  },
+];
+
+const PRESCRIPTIVE_LENSES: QuickActionKey[] = [
+  "split_oversized",
+  "merge_coupled",
+  "identify_missing_work",
+  "reconcile_with_code_drift",
+];
+
 export interface FeedbackDialogProps {
   /** Name of the initiative this feedback is scoped to. */
   initiativeName: string;
@@ -60,6 +130,10 @@ export interface FeedbackDialogProps {
   /** Called after a round is successfully created. Parent uses this to refetch
    *  the rounds list and switch to the Feedback tab. */
   onSubmitted?: (round: FeedbackRound) => void;
+  /** Initiative member items for the picker. When omitted, the
+   *  selection picker and quick actions are hidden — the dialog
+   *  degrades to the original free-prose surface. */
+  items?: FeedbackDialogItem[];
 }
 
 type TypeOption = {
@@ -86,13 +160,25 @@ function blockerIsEmpty(b: Blocker | null): b is null {
   return b == null || (!b.holder && (!b.activities || b.activities.length === 0));
 }
 
-export function FeedbackDialog({ initiativeName, isOpen, onClose, onSubmitted }: FeedbackDialogProps) {
+export function FeedbackDialog({ initiativeName, isOpen, onClose, onSubmitted, items }: FeedbackDialogProps) {
   const draftKey = `${DRAFT_KEY_PREFIX}${initiativeName}`;
+  const itemsKey = `${draftKey}:items`;
+  const actionsKey = `${draftKey}:actions`;
+  const helpOpenKey = `${draftKey}:help-open`;
+  const pickerOpenKey = `${draftKey}:picker-open`;
+
   const [text, setText] = useState(() => safeLoadDraft(draftKey));
   const [type, setType] = useState<FeedbackRoundType>("feedback");
   const [override, setOverride] = useState(false);
   const [blocker, setBlocker] = useState<Blocker | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Quick Actions state — only meaningful when `items` is provided.
+  const itemRefs = useMemo(() => (items ?? []).map((i) => i.ref), [items]);
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(() => safeLoadStringSet(itemsKey, itemRefs));
+  const [selectedActions, setSelectedActions] = useState<Set<QuickActionKey>>(() => safeLoadActionSet(actionsKey));
+  const [helpOpen, setHelpOpen] = useState<boolean>(() => safeLoadBoolean(helpOpenKey, false));
+  const [pickerOpen, setPickerOpen] = useState<boolean>(() => safeLoadBoolean(pickerOpenKey, false));
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -157,6 +243,26 @@ export function FeedbackDialog({ initiativeName, isOpen, onClose, onSubmitted }:
     return () => clearTimeout(handle);
   }, [draftKey, isOpen, text]);
 
+  // Persist selection-state alongside the textarea draft. The picker /
+  // actions / help-open / picker-open flags are localStorage primitives —
+  // small enough to write synchronously on each change without debouncing.
+  useEffect(() => {
+    if (!isOpen) return;
+    safeSaveStringSet(itemsKey, selectedItems);
+  }, [isOpen, itemsKey, selectedItems]);
+  useEffect(() => {
+    if (!isOpen) return;
+    safeSaveStringSet(actionsKey, selectedActions as Set<string>);
+  }, [isOpen, actionsKey, selectedActions]);
+  useEffect(() => {
+    if (!isOpen) return;
+    safeSaveBoolean(helpOpenKey, helpOpen);
+  }, [isOpen, helpOpenKey, helpOpen]);
+  useEffect(() => {
+    if (!isOpen) return;
+    safeSaveBoolean(pickerOpenKey, pickerOpen);
+  }, [isOpen, pickerOpenKey, pickerOpen]);
+
   // Reset transient state whenever the dialog reopens.
   useEffect(() => {
     if (isOpen) {
@@ -164,14 +270,40 @@ export function FeedbackDialog({ initiativeName, isOpen, onClose, onSubmitted }:
       setOverride(false);
       setBlocker(null);
       setText(safeLoadDraft(draftKey));
+      setSelectedItems(safeLoadStringSet(itemsKey, itemRefs));
+      setSelectedActions(safeLoadActionSet(actionsKey));
+      setHelpOpen(safeLoadBoolean(helpOpenKey, false));
+      setPickerOpen(safeLoadBoolean(pickerOpenKey, false));
     }
-  }, [draftKey, isOpen]);
+  }, [draftKey, isOpen, itemsKey, actionsKey, helpOpenKey, pickerOpenKey, itemRefs]);
+
+  // Quick Actions are available on all feedback rounds — including
+  // initiatives with zero live items. The "identify missing work" and
+  // "reconcile with code drift" lenses are explicitly designed to run
+  // with zero selection (gap-and-drift sweeps on completed initiatives
+  // are the most common feedback use case). Note rounds don't spawn an
+  // agent so they skip the envelope entirely.
+  const actionsAvailable = type === "feedback";
+  // The picker only makes sense when there's something to pick from.
+  const pickerAvailable = actionsAvailable && (items?.length ?? 0) > 0;
+
+  // Compose the body sent to feedbackService.start. When at least one
+  // action OR at least one item is selected, wrap in the XML envelope;
+  // otherwise pass the raw textarea content unchanged. Note-type rounds
+  // always use raw text because actions are hidden.
+  const submissionText = useMemo(() => {
+    if (!actionsAvailable) return text;
+    const hasActions = selectedActions.size > 0;
+    const hasItems = selectedItems.size > 0;
+    if (!hasActions && !hasItems) return text;
+    return buildEnvelope({ items: [...selectedItems], actions: [...selectedActions], note: text });
+  }, [actionsAvailable, selectedActions, selectedItems, text]);
 
   const mutation = useMutation({
     mutationFn: async () => {
       return feedbackService.start(initiativeName, {
         type,
-        text: text.trim(),
+        text: submissionText.trim(),
         files: getFiles(),
         override,
       });
@@ -179,7 +311,14 @@ export function FeedbackDialog({ initiativeName, isOpen, onClose, onSubmitted }:
     onSuccess: (round) => {
       clearAll();
       safeClearDraft(draftKey);
+      safeClearKey(itemsKey);
+      safeClearKey(actionsKey);
+      // Help-open and picker-open are user preferences, not draft data —
+      // intentionally preserved across submissions so a user who keeps
+      // the help block open keeps it open.
       setText("");
+      setSelectedItems(new Set());
+      setSelectedActions(new Set());
       setError(null);
       setOverride(false);
       setBlocker(null);
@@ -202,8 +341,14 @@ export function FeedbackDialog({ initiativeName, isOpen, onClose, onSubmitted }:
   });
 
   const blocked = type !== "note" && !blockerIsEmpty(blocker);
-  const canSubmit =
-    text.trim().length > 0 && !mutation.isPending && (!blocked || override);
+  // Submit is allowed when there is *something* to send. With Quick
+  // Actions enabled, picking ≥1 action is enough to send even if the
+  // textarea is empty — the agent reads the envelope alone. Without
+  // Quick Actions (or when nothing is selected), we still require text.
+  const hasMeaningfulInput = actionsAvailable
+    ? text.trim().length > 0 || selectedActions.size > 0
+    : text.trim().length > 0;
+  const canSubmit = hasMeaningfulInput && !mutation.isPending && (!blocked || override);
   const textareaDisabled = mutation.isPending || (blocked && !override);
 
   const handleSubmit = useCallback(() => {
@@ -233,8 +378,60 @@ export function FeedbackDialog({ initiativeName, isOpen, onClose, onSubmitted }:
     if (blocked && !override) {
       return "Override the active agent before composing your message.";
     }
+    if (actionsAvailable && selectedActions.size > 0) {
+      return "Add anything else the agent should know… (Ctrl+Enter to submit)";
+    }
     return "What's off? What should change? (Ctrl+Enter to submit)";
-  }, [type, blocked, override]);
+  }, [type, blocked, override, actionsAvailable, selectedActions]);
+
+  // Quick action toggle handler. Enforces combinability rules so the
+  // UI state is always valid:
+  //   - split ⊥ merge
+  //   - reframe is solo
+  //   - identify_missing + reconcile stack with each other and with
+  //     split or merge
+  const toggleAction = useCallback((key: QuickActionKey) => {
+    setSelectedActions((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+        return next;
+      }
+      if (key === "reframe_scope") {
+        return new Set<QuickActionKey>(["reframe_scope"]);
+      }
+      // Selecting any prescriptive lens removes reframe.
+      next.delete("reframe_scope");
+      // split ⊥ merge
+      if (key === "split_oversized") next.delete("merge_coupled");
+      if (key === "merge_coupled") next.delete("split_oversized");
+      next.add(key);
+      return next;
+    });
+  }, []);
+
+  // Gating: which actions are clickable given current selection count
+  // and mutual exclusion. Reframe being active does NOT disable the
+  // others — clicking another action while reframe is selected toggles
+  // reframe off (per the "selecting any other clears it" rule).
+  const actionEnabled = useCallback(
+    (key: QuickActionKey): boolean => {
+      const hasSplit = selectedActions.has("split_oversized");
+      const hasMerge = selectedActions.has("merge_coupled");
+      const itemCount = selectedItems.size;
+      switch (key) {
+        case "split_oversized":
+          return !hasMerge && itemCount >= 1;
+        case "merge_coupled":
+          return !hasSplit && itemCount >= 2;
+        case "identify_missing_work":
+        case "reconcile_with_code_drift":
+        case "reframe_scope":
+          return true;
+      }
+    },
+    [selectedActions, selectedItems],
+  );
 
   return (
     <Dialog
@@ -283,6 +480,68 @@ export function FeedbackDialog({ initiativeName, isOpen, onClose, onSubmitted }:
             );
           })}
         </div>
+
+        {/* Item-selection picker — only when there are items to pick from. */}
+        {pickerAvailable && (
+          <ItemPicker
+            items={items!}
+            selected={selectedItems}
+            onToggle={(ref) => {
+              setSelectedItems((prev) => {
+                const next = new Set(prev);
+                if (next.has(ref)) next.delete(ref);
+                else next.add(ref);
+                return next;
+              });
+              // Drop split/merge if user removes items below threshold.
+              setSelectedActions((prev) => pruneActionsForSelection(prev, computeNextSelectionSize(selectedItems, ref)));
+            }}
+            onSelectAll={() => {
+              const all = new Set(itemRefs);
+              setSelectedItems(all);
+            }}
+            onSelectNone={() => {
+              setSelectedItems(new Set());
+              setSelectedActions((prev) => pruneActionsForSelection(prev, 0));
+            }}
+            open={pickerOpen}
+            onToggleOpen={() => setPickerOpen((v) => !v)}
+            disabled={mutation.isPending}
+          />
+        )}
+
+        {/* Quick action buttons — visible on every feedback round so
+            gap-and-drift sweeps work on initiatives with zero live items. */}
+        {actionsAvailable && (
+          <div className="flex flex-wrap gap-2">
+            {QUICK_ACTIONS.map((action) => {
+              const active = selectedActions.has(action.key);
+              const enabled = actionEnabled(action.key);
+              return (
+                <button
+                  key={action.key}
+                  type="button"
+                  data-testid={action.testId}
+                  disabled={!enabled || mutation.isPending}
+                  aria-pressed={active}
+                  onClick={() => toggleAction(action.key)}
+                  title={action.hint}
+                  className={`rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                    active
+                      ? "border-cyan-400/60 bg-cyan-500/20 text-cyan-200"
+                      : "border-slate-700 bg-slate-800/60 text-slate-300 hover:border-slate-500"
+                  } disabled:cursor-not-allowed disabled:opacity-40`}
+                >
+                  {action.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Help block — visible on all round types so users always see
+            what feedback can do. Defaults closed; state persists. */}
+        <HelpBlock open={helpOpen} onToggle={() => setHelpOpen((v) => !v)} />
 
         {/* Active-agent warning. Rendered above the textarea so the user
             sees it before they start composing. When blocked and override
@@ -384,6 +643,140 @@ export function FeedbackDialog({ initiativeName, isOpen, onClose, onSubmitted }:
 }
 
 // ---------------------------------------------------------------------------
+// Item-selection picker
+// ---------------------------------------------------------------------------
+
+interface ItemPickerProps {
+  items: FeedbackDialogItem[];
+  selected: Set<string>;
+  onToggle: (ref: string) => void;
+  onSelectAll: () => void;
+  onSelectNone: () => void;
+  open: boolean;
+  onToggleOpen: () => void;
+  disabled?: boolean;
+}
+
+function ItemPicker({ items, selected, onToggle, onSelectAll, onSelectNone, open, onToggleOpen, disabled }: ItemPickerProps) {
+  const summary = `Target items — ${selected.size} of ${items.length} selected`;
+  return (
+    <div className="rounded-lg border border-slate-700 bg-slate-800/40" data-testid={selectors.feedback.dialogTargetPicker}>
+      <button
+        type="button"
+        onClick={onToggleOpen}
+        disabled={disabled}
+        aria-expanded={open}
+        data-testid={selectors.feedback.dialogTargetPickerToggle}
+        className="flex w-full items-center justify-between px-3 py-2 text-left text-xs text-slate-200 hover:bg-slate-800/60 disabled:opacity-40"
+      >
+        <span>{summary}</span>
+        {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+      </button>
+      {open && (
+        <div className="border-t border-slate-700 p-2">
+          <div className="mb-2 flex gap-2">
+            <button
+              type="button"
+              data-testid={selectors.feedback.dialogTargetPickerSelectAll}
+              onClick={onSelectAll}
+              disabled={disabled}
+              className="rounded border border-slate-700 bg-slate-800/60 px-2 py-0.5 text-[11px] text-slate-300 hover:border-slate-500 disabled:opacity-40"
+            >
+              Select all
+            </button>
+            <button
+              type="button"
+              data-testid={selectors.feedback.dialogTargetPickerSelectNone}
+              onClick={onSelectNone}
+              disabled={disabled}
+              className="rounded border border-slate-700 bg-slate-800/60 px-2 py-0.5 text-[11px] text-slate-300 hover:border-slate-500 disabled:opacity-40"
+            >
+              Select none
+            </button>
+          </div>
+          <ul className="max-h-48 space-y-0.5 overflow-y-auto">
+            {items.map((item) => {
+              const isChecked = selected.has(item.ref);
+              return (
+                <li key={item.ref}>
+                  <label
+                    className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-[12px] text-slate-300 hover:bg-slate-800/60"
+                    data-testid={selectors.feedback.dialogTargetPickerItem}
+                    data-ref={item.ref}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => onToggle(item.ref)}
+                      disabled={disabled}
+                      className="h-3.5 w-3.5 accent-cyan-400"
+                    />
+                    <code className="text-cyan-300/80">{item.ref}</code>
+                    <span className="truncate text-slate-400">{item.title}</span>
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Help block
+// ---------------------------------------------------------------------------
+
+interface HelpBlockProps {
+  open: boolean;
+  onToggle: () => void;
+}
+
+/** Plain-language summary of what feedback can produce. The skill prompt
+ *  carries the canonical contract; this is the operator-facing version. */
+function HelpBlock({ open, onToggle }: HelpBlockProps) {
+  return (
+    <div
+      className="rounded-lg border border-slate-700 bg-slate-800/40 text-xs text-slate-300"
+      data-testid={selectors.feedback.dialogHelpBlock}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        data-testid={selectors.feedback.dialogHelpBlockToggle}
+        className="flex w-full items-center justify-between px-3 py-2 text-left hover:bg-slate-800/60"
+      >
+        <span>What can feedback do?</span>
+        {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+      </button>
+      {open && (
+        <div className="space-y-2 border-t border-slate-700 p-3 text-slate-400">
+          <p>
+            The agent reads your selection, your text, and any attachments, then
+            proposes a checklist of mutations you accept or reject in the
+            proposal panel. Quick actions are starting points for common
+            investigation tasks — the agent can also propose any of the
+            mutations below from your free-form text.
+          </p>
+          <ul className="list-disc space-y-0.5 pl-4">
+            <li>Split an item into smaller items, or merge several into one.</li>
+            <li>Archive items that are no longer relevant.</li>
+            <li>Change priority or non-lifecycle status.</li>
+            <li>Add or remove a depends-on edge between two items.</li>
+            <li>Move an item to a different initiative.</li>
+            <li>Interrupt a running execution before it finishes.</li>
+            <li>Update an item's title, description, tags, or acceptance globs.</li>
+            <li>Add a brand-new item for missing work.</li>
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Warning block
 // ---------------------------------------------------------------------------
 
@@ -451,6 +844,55 @@ function BlockerNotice({ blocker, override, onOverrideChange }: BlockerNoticePro
 }
 
 // ---------------------------------------------------------------------------
+// Envelope assembly
+// ---------------------------------------------------------------------------
+
+/** Build the XML envelope sent to the feedback agent when at least one
+ *  Quick action is selected, or items are selected without an action.
+ *  The skill's "Requested-actions interpretation" section consumes this
+ *  shape — the action names are stable identifiers, not human labels. */
+export function buildEnvelope(input: { items: string[]; actions: QuickActionKey[]; note: string }): string {
+  const itemsBlock = input.items.length
+    ? `<selection>\n${input.items.map((ref) => `  <item ref="${escapeXml(ref)}" />`).join("\n")}\n</selection>`
+    : "<selection></selection>";
+  const actionsBlock = input.actions.length
+    ? `<requested_actions>\n${input.actions.map((name) => `  <action name="${escapeXml(name)}" />`).join("\n")}\n</requested_actions>`
+    : "<requested_actions></requested_actions>";
+  const note = input.note.trim();
+  const noteBlock = `<user_note>\n${note}\n</user_note>`;
+  return `${itemsBlock}\n\n${actionsBlock}\n\n${noteBlock}`;
+}
+
+function escapeXml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+// pruneActionsForSelection removes split/merge if the new selection size
+// drops below their gating thresholds. Called when the user toggles items
+// after picking an action — we don't want a stale "Split oversized" stuck
+// active when the user just deselected the only item.
+function pruneActionsForSelection(prev: Set<QuickActionKey>, nextSelectionSize: number): Set<QuickActionKey> {
+  if (prev.size === 0) return prev;
+  const next = new Set(prev);
+  if (nextSelectionSize < 1 && next.has("split_oversized")) next.delete("split_oversized");
+  if (nextSelectionSize < 2 && next.has("merge_coupled")) next.delete("merge_coupled");
+  return next;
+}
+
+function computeNextSelectionSize(prev: Set<string>, toggledRef: string): number {
+  return prev.has(toggledRef) ? prev.size - 1 : prev.size + 1;
+}
+
+// PRESCRIPTIVE_LENSES is referenced indirectly via the test-only helpers
+// below; explicit export keeps it tree-shakeable when not bundled into the
+// runtime path.
+export const __testing = { PRESCRIPTIVE_LENSES, buildEnvelope, pruneActionsForSelection };
+
+// ---------------------------------------------------------------------------
 // Draft persistence helpers
 // ---------------------------------------------------------------------------
 
@@ -474,6 +916,89 @@ function safeSaveDraft(key: string, value: string) {
 function safeClearDraft(key: string) {
   try {
     localStorage.removeItem(key);
+  } catch {
+    /* ignore */
+  }
+}
+
+function safeClearKey(key: string) {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    /* ignore */
+  }
+}
+
+function safeLoadStringSet(key: string, validRefs?: string[]): Set<string> {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return new Set();
+    const out = new Set<string>();
+    const validSet = validRefs ? new Set(validRefs) : null;
+    for (const v of parsed) {
+      if (typeof v !== "string") continue;
+      // When validRefs is provided, drop any persisted refs that no
+      // longer exist — the initiative may have evolved since the
+      // draft was last saved.
+      if (validSet && !validSet.has(v)) continue;
+      out.add(v);
+    }
+    return out;
+  } catch {
+    return new Set();
+  }
+}
+
+function safeSaveStringSet(key: string, set: Set<string>) {
+  try {
+    if (set.size === 0) localStorage.removeItem(key);
+    else localStorage.setItem(key, JSON.stringify([...set]));
+  } catch {
+    /* ignore */
+  }
+}
+
+const VALID_ACTION_KEYS: ReadonlySet<QuickActionKey> = new Set([
+  "split_oversized",
+  "merge_coupled",
+  "identify_missing_work",
+  "reconcile_with_code_drift",
+  "reframe_scope",
+]);
+
+function safeLoadActionSet(key: string): Set<QuickActionKey> {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return new Set();
+    const out = new Set<QuickActionKey>();
+    for (const v of parsed) {
+      if (typeof v === "string" && VALID_ACTION_KEYS.has(v as QuickActionKey)) {
+        out.add(v as QuickActionKey);
+      }
+    }
+    return out;
+  } catch {
+    return new Set();
+  }
+}
+
+function safeLoadBoolean(key: string, fallback: boolean): boolean {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw == null) return fallback;
+    return raw === "true";
+  } catch {
+    return fallback;
+  }
+}
+
+function safeSaveBoolean(key: string, value: boolean) {
+  try {
+    localStorage.setItem(key, value ? "true" : "false");
   } catch {
     /* ignore */
   }

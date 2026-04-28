@@ -103,6 +103,34 @@ export function buildOverlay(proposal: Proposal, options: BuildOverlayOptions = 
         }
         break;
       }
+      case "merge_items": {
+        // Best-effort visualization mirroring the apply layer:
+        //   - sources archive
+        //   - merged item appears (status backlog)
+        //   - the spec's depends_on become outbound edges from the merged
+        //     item, with any source ref filtered out (apply does the same)
+        // Inbound retargeting (other items repointing onto the merged ref)
+        // can't be shown here without the current graph; the server is the
+        // authority for those edges per this file's "best-effort" contract.
+        if (!m.item) break;
+        const sources = m.sources ?? [];
+        const sourceSet = new Set(sources);
+        for (const src of sources) overlay.archivedNodeIds.push(src);
+        const id = `${m.item.kind}/${m.item.name}`;
+        overlay.addedNodeIds.push(id);
+        overlay.addedNodes.push({
+          id,
+          kind: m.item.kind,
+          name: m.item.name,
+          title: m.item.title || m.item.name,
+          status: "backlog",
+        });
+        for (const dep of m.item.depends_on ?? []) {
+          if (sourceSet.has(dep)) continue;
+          overlay.addedEdges.push({ from: dep, to: id });
+        }
+        break;
+      }
       default:
         // update_item / change_priority / interrupt_in_progress don't
         // change graph topology visibly — they're skipped from the overlay.

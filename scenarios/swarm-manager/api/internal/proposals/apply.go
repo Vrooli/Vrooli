@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"runtime/debug"
+	"sort"
 	"strings"
 	"time"
 
@@ -208,7 +209,7 @@ func (a *Applier) Apply(ctx context.Context, proposal Proposal, current CurrentS
 			result.Outcomes = append(result.Outcomes, outcome)
 			continue
 		}
-		if err := a.applyOneSafe(ctx, m, source); err != nil {
+		if err := a.applyOneSafe(ctx, m, current, source); err != nil {
 			outcome.Applied = false
 			outcome.Error = err.Error()
 			result.Failed++
@@ -251,6 +252,11 @@ func applyTarget(m Mutation) string {
 		return ""
 	case OpAddEdge, OpRemoveEdge:
 		return m.From + "->" + m.To
+	case OpMergeItems:
+		if m.Item != nil {
+			return m.Item.Ref()
+		}
+		return ""
 	}
 	return m.Target
 }
@@ -273,7 +279,7 @@ func acceptSet(ids []string) map[string]struct{} {
 // is logged so the underlying defect remains diagnosable. Without this,
 // a single faulty downstream surface causes the Apply button to return
 // 500 with prior mutations already persisted but no apply_result.
-func (a *Applier) applyOneSafe(ctx context.Context, m Mutation, source Source) (err error) {
+func (a *Applier) applyOneSafe(ctx context.Context, m Mutation, current CurrentState, source Source) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			slog.Error("proposals: mutation panicked",
@@ -286,10 +292,10 @@ func (a *Applier) applyOneSafe(ctx context.Context, m Mutation, source Source) (
 			err = fmt.Errorf("mutation panicked: %v", r)
 		}
 	}()
-	return a.applyOne(ctx, m, source)
+	return a.applyOne(ctx, m, current, source)
 }
 
-func (a *Applier) applyOne(ctx context.Context, m Mutation, source Source) error {
+func (a *Applier) applyOne(ctx context.Context, m Mutation, current CurrentState, source Source) error {
 	switch m.Op {
 	case OpAddItem:
 		return a.applyAddItem(ctx, *m.Item, source)
@@ -311,6 +317,11 @@ func (a *Applier) applyOne(ctx context.Context, m Mutation, source Source) error
 		return a.applyInterrupt(ctx, m.Target)
 	case OpSplitItem:
 		return a.applySplit(ctx, m.Target, m.Into, source)
+	case OpMergeItems:
+		if m.Item == nil {
+			return fmt.Errorf("merge_items: missing merged item spec")
+		}
+		return a.applyMergeItems(ctx, m.Sources, *m.Item, current, source)
 	default:
 		// Defence against a new op added to types.go without a
 		// handler here: every recognized op in AllOps must map to a
@@ -671,6 +682,259 @@ func (a *Applier) applySplit(ctx context.Context, ref string, into []ItemSpec, s
 		return fmt.Errorf("archive source item: %w", err)
 	}
 	return nil
+}
+
+// applyMergeItems collapses sourceRefs into a single new merged item described
+// by spec. Edges to/from sources are auto-retargeted to the merged item;
+// edges between sources are dropped. The order is:
+//
+//  1. Capture pre-merge state of every external item that depends on a
+//     source (so we can roll back).
+//  2. Compute the merged item's final depends_on:
+//     spec.DependsOn (with any source refs filtered out)
+//     ∪ outbound non-source deps from each source
+//     deduplicated.
+//  3. Create the merged item via the standard add-item path.
+//  4. Re-target every external dependent: replace each source ref in its
+//     depends_on with the merged ref (deduplicated).
+//  5. Archive each source.
+//
+// On any failure the steps reverse: un-archive sources, restore external
+// dependents' depends_on from the snapshot, archive the merged item.
+func (a *Applier) applyMergeItems(ctx context.Context, sourceRefs []string, spec ItemSpec, current CurrentState, source Source) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if len(sourceRefs) < 2 {
+		return fmt.Errorf("merge_items: need at least 2 sources, got %d", len(sourceRefs))
+	}
+	mergedRef := spec.Ref()
+
+	sourceSet := make(map[string]struct{}, len(sourceRefs))
+	for _, s := range sourceRefs {
+		sourceSet[s] = struct{}{}
+	}
+
+	// Step 1: enumerate edges from current.Edges. Edge (a, b) means a
+	// depends on b. We classify into:
+	//   - outboundDeps: { b : (a,b) ∈ E, a ∈ sources, b ∉ sources }
+	//   - inboundDependents: external items a with at least one (a, b) where b ∈ sources
+	outboundDeps := make(map[string]struct{})
+	inboundDependents := make(map[string]struct{})
+	for _, e := range current.Edges {
+		_, fromIsSource := sourceSet[e.From]
+		_, toIsSource := sourceSet[e.To]
+		switch {
+		case fromIsSource && toIsSource:
+			// intra-source edge: drop
+		case fromIsSource && !toIsSource:
+			outboundDeps[e.To] = struct{}{}
+		case !fromIsSource && toIsSource:
+			inboundDependents[e.From] = struct{}{}
+		}
+	}
+
+	// Step 2: build merged spec.depends_on, filter sources, dedup, union
+	// with outboundDeps. Stable ordering for deterministic test output.
+	merged := spec
+	depsSet := make(map[string]struct{}, len(spec.DependsOn)+len(outboundDeps))
+	for _, dep := range spec.DependsOn {
+		if _, isSource := sourceSet[dep]; isSource {
+			continue
+		}
+		depsSet[dep] = struct{}{}
+	}
+	for dep := range outboundDeps {
+		depsSet[dep] = struct{}{}
+	}
+	mergedDeps := make([]string, 0, len(depsSet))
+	for dep := range depsSet {
+		mergedDeps = append(mergedDeps, dep)
+	}
+	sort.Strings(mergedDeps)
+	merged.DependsOn = mergedDeps
+
+	// Step 1b: capture original depends_on for every inbound dependent so
+	// rollback can restore them exactly. Done before any write so a
+	// failure midway through Step 4 has full original state.
+	type depSnapshot struct {
+		ref      string
+		original []string
+	}
+	snapshots := make([]depSnapshot, 0, len(inboundDependents))
+	for ref := range inboundDependents {
+		kind, name, err := splitRef(ref)
+		if err != nil {
+			return fmt.Errorf("merge_items: invalid dependent ref %s: %w", ref, err)
+		}
+		item, err := a.store.LoadItem(kind, name)
+		if err != nil {
+			return fmt.Errorf("merge_items: load dependent %s: %w", ref, err)
+		}
+		snapshots = append(snapshots, depSnapshot{
+			ref:      ref,
+			original: append([]string(nil), item.DependsOn...),
+		})
+	}
+
+	// Step 3: create the merged item.
+	if err := a.applyAddItem(ctx, merged, source); err != nil {
+		return fmt.Errorf("create merged item %s: %w", mergedRef, err)
+	}
+
+	// Rollback closure: archive merged + restore snapshots + un-archive
+	// any sources that have already been archived.
+	mergedCreated := true
+	archivedSources := make([]string, 0, len(sourceRefs))
+	rollback := func(reason error) {
+		// Restore each source we archived in step 5.
+		for _, sref := range archivedSources {
+			if rbErr := a.unarchiveItem(ctx, sref); rbErr != nil {
+				slog.Warn("proposals: merge rollback unarchive failed",
+					"source", sref,
+					"reason", reason,
+					"err", rbErr,
+				)
+			}
+		}
+		// Restore each external dependent's depends_on from snapshot.
+		for _, snap := range snapshots {
+			if rbErr := a.restoreDependsOn(ctx, snap.ref, snap.original); rbErr != nil {
+				slog.Warn("proposals: merge rollback restore depends_on failed",
+					"dependent", snap.ref,
+					"reason", reason,
+					"err", rbErr,
+				)
+			}
+		}
+		// Archive the merged item.
+		if mergedCreated {
+			if rbErr := a.applyArchive(ctx, mergedRef); rbErr != nil {
+				slog.Warn("proposals: merge rollback archive merged failed",
+					"merged", mergedRef,
+					"reason", reason,
+					"err", rbErr,
+				)
+			}
+		}
+	}
+
+	// Step 4: retarget inbound dependents.
+	for _, snap := range snapshots {
+		kind, name, err := splitRef(snap.ref)
+		if err != nil {
+			rollback(err)
+			return fmt.Errorf("merge_items: retarget %s: %w", snap.ref, err)
+		}
+		item, err := a.store.LoadItem(kind, name)
+		if err != nil {
+			rollback(err)
+			return fmt.Errorf("merge_items: reload dependent %s: %w", snap.ref, err)
+		}
+		newDeps := retargetDependsOn(item.DependsOn, sourceSet, mergedRef)
+		if stringSlicesEqual(item.DependsOn, newDeps) {
+			continue
+		}
+		if err := a.store.ValidateDependencies(newDeps); err != nil {
+			rollback(err)
+			return fmt.Errorf("merge_items: validate retargeted deps for %s: %w", snap.ref, err)
+		}
+		item.DependsOn = newDeps
+		item.Updated = a.clock().UTC().Format(time.RFC3339)
+		if err := a.store.SaveItem(item); err != nil {
+			rollback(err)
+			return fmt.Errorf("merge_items: save retargeted %s: %w", snap.ref, err)
+		}
+	}
+
+	// Step 5: archive each source. Order is deterministic (sourceRefs
+	// in agent-supplied order) so rollback can mirror it.
+	for _, sref := range sourceRefs {
+		if err := a.applyArchive(ctx, sref); err != nil {
+			rollback(err)
+			return fmt.Errorf("merge_items: archive source %s: %w", sref, err)
+		}
+		archivedSources = append(archivedSources, sref)
+	}
+	return nil
+}
+
+// retargetDependsOn replaces every reference to a source with mergedRef,
+// dedupes, and preserves order of non-source deps.
+func retargetDependsOn(deps []string, sourceSet map[string]struct{}, mergedRef string) []string {
+	out := make([]string, 0, len(deps))
+	seen := make(map[string]struct{}, len(deps))
+	hadSource := false
+	for _, dep := range deps {
+		if _, isSource := sourceSet[dep]; isSource {
+			hadSource = true
+			continue
+		}
+		if _, dup := seen[dep]; dup {
+			continue
+		}
+		seen[dep] = struct{}{}
+		out = append(out, dep)
+	}
+	if hadSource {
+		if _, dup := seen[mergedRef]; !dup {
+			out = append(out, mergedRef)
+		}
+	}
+	return out
+}
+
+// unarchiveItem clears ArchivedAt on the given ref. Used by merge rollback.
+// Errors are returned unwrapped — caller logs context.
+func (a *Applier) unarchiveItem(ctx context.Context, ref string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	kind, name, err := splitRef(ref)
+	if err != nil {
+		return err
+	}
+	item, err := a.store.LoadItem(kind, name)
+	if err != nil {
+		return err
+	}
+	if item.ArchivedAt == nil || *item.ArchivedAt == "" {
+		return nil
+	}
+	item.ArchivedAt = nil
+	item.Updated = a.clock().UTC().Format(time.RFC3339)
+	return a.store.SaveItem(item)
+}
+
+// restoreDependsOn writes original onto the item's depends_on without any
+// validation — rollback path is best-effort restoration of pre-merge state.
+func (a *Applier) restoreDependsOn(ctx context.Context, ref string, original []string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	kind, name, err := splitRef(ref)
+	if err != nil {
+		return err
+	}
+	item, err := a.store.LoadItem(kind, name)
+	if err != nil {
+		return err
+	}
+	item.DependsOn = append([]string(nil), original...)
+	item.Updated = a.clock().UTC().Format(time.RFC3339)
+	return a.store.SaveItem(item)
+}
+
+func stringSlicesEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func splitRef(ref string) (backlog.BacklogKind, string, error) {

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vite
 import { render, screen, waitFor, cleanup, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import * as React from "react";
 import { FeedbackPanel } from "./feedback-panel";
 import { selectors } from "../../consts/selectors";
 import type { FeedbackRound } from "../../types";
@@ -91,11 +92,11 @@ function round(overrides: Partial<FeedbackRound> = {}): FeedbackRound {
   };
 }
 
-function renderPanel() {
+function renderPanel(props: Partial<React.ComponentProps<typeof FeedbackPanel>> = {}) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false, refetchOnMount: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <FeedbackPanel initiativeName="init" />
+      <FeedbackPanel initiativeName="init" {...props} />
     </QueryClientProvider>,
   );
 }
@@ -359,6 +360,39 @@ describe("FeedbackPanel", () => {
       acceptedMutationIds: ["m1"],
     });
     expect(mockDecide.mock.calls[0]![2].acceptedMutationIds).not.toContain("m2");
+  });
+
+  it("forwards previewItems to the feedback dialog so the target picker renders", async () => {
+    // Regression: FeedbackPanel must wire previewItems through to FeedbackDialog
+    // as `items`. Otherwise the picker + quick-action buttons stay hidden and
+    // operators only see the help block.
+    mockList.mockResolvedValue([]);
+    renderPanel({
+      previewItems: [
+        { kind: "execute", name: "alpha", title: "Alpha", status: "backlog", dependsOn: [] },
+        { kind: "execute", name: "beta", title: "Beta", status: "backlog", dependsOn: [] },
+      ],
+    });
+    await userEvent.click(await screen.findByRole("button", { name: /add feedback/i }));
+    expect(await screen.findByTestId(selectors.feedback.dialogTargetPicker)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.feedback.dialogQuickActionSplit)).toBeInTheDocument();
+  });
+
+  it("filters archived and missing items before forwarding to the dialog", async () => {
+    mockList.mockResolvedValue([]);
+    renderPanel({
+      previewItems: [
+        { kind: "execute", name: "alpha", title: "Alpha", status: "backlog", dependsOn: [] },
+        { kind: "execute", name: "archived", title: "Archived", status: "backlog", dependsOn: [], archivedAt: "2026-04-01T00:00:00Z" },
+        { kind: "execute", name: "missing", title: "Missing", status: "backlog", dependsOn: [], missing: true },
+      ],
+    });
+    await userEvent.click(await screen.findByRole("button", { name: /add feedback/i }));
+    // Open the picker so the item rows render.
+    await userEvent.click(await screen.findByTestId(selectors.feedback.dialogTargetPickerToggle));
+    const items = await screen.findAllByTestId(selectors.feedback.dialogTargetPickerItem);
+    expect(items).toHaveLength(1);
+    expect(items[0]!.textContent).toContain("Alpha");
   });
 
   it("renders the decision block for terminal rounds", async () => {

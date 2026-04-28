@@ -736,6 +736,9 @@ func (e *feedbackEventEmitter) EmitProposalMutationApplied(source proposals.Sour
 		Op:              string(m.Op),
 		Target:          target,
 	}
+	if m.Op == proposals.OpMergeItems && len(m.Sources) > 0 {
+		payload.Sources = append([]string(nil), m.Sources...)
+	}
 	if e.eventlog != nil {
 		e.eventlog.EmitBacklogProposalApplied(target, payload)
 		return
@@ -750,11 +753,19 @@ func (e *feedbackEventEmitter) EmitProposalMutationApplied(source proposals.Sour
 }
 
 // proposalEventTarget picks the backlog ref to attach the event to:
-// add_item / split_item use the new item's ref; edge ops use From; all
+// add_item and merge_items use the new item's ref; edge ops use From; all
 // others use Target. Empty when the op has no natural per-item entity.
+//
+// merge_items intentionally attaches to the merged item rather than any
+// individual source: the *primary new state* after merge is one item,
+// and per-source history is preserved in the payload's Sources field
+// (so source items still show "merged into X" via the same payload).
+// Split is the inverse — its primary new state is N children, but
+// attaching to one ref would be misleading, so split keeps the source
+// ref as the event target.
 func proposalEventTarget(m proposals.Mutation) string {
 	switch m.Op {
-	case proposals.OpAddItem:
+	case proposals.OpAddItem, proposals.OpMergeItems:
 		if m.Item != nil {
 			return m.Item.Ref()
 		}

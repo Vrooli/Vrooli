@@ -149,6 +149,8 @@ func validateMutation(m Mutation, idx int, state CurrentState, newItems map[stri
 		return validateInterrupt(m, state)
 	case OpSplitItem:
 		return validateSplitItem(m, idx, state, newItems)
+	case OpMergeItems:
+		return validateMergeItems(m, idx, state, newItems)
 	}
 	return fmt.Errorf("%w: %s", ErrUnknownOp, m.Op)
 }
@@ -351,6 +353,67 @@ func validateSplitItem(m Mutation, idx int, state CurrentState, newItems map[str
 		}
 		newItems[ref] = idx
 	}
+	return nil
+}
+
+// validateMergeItems enforces the merge contract:
+//   - len(Sources) >= 2; sources are unique; every source is a current
+//     member of the initiative graph; no source is in_progress (operator
+//     must emit interrupt_in_progress as a prior mutation).
+//   - Item is a well-formed spec whose ref does not collide with any
+//     existing non-source item, nor with any item staged earlier in the
+//     batch. (Colliding with one of the *sources* is also rejected: the
+//     merged item must be a new identity, not a rename of a source.)
+//
+// Edge handling is enforced at apply time, not validate time — there is
+// nothing for validate to check edge-side beyond what state already
+// guarantees (the graph's edges are well-formed by construction).
+func validateMergeItems(m Mutation, idx int, state CurrentState, newItems map[string]int) error {
+	if m.Item == nil {
+		return fmt.Errorf("op %s requires item spec for the merged item", m.Op)
+	}
+	if err := validateItemSpec(*m.Item); err != nil {
+		return fmt.Errorf("merged item: %w", err)
+	}
+	if len(m.Sources) < 2 {
+		return fmt.Errorf("op %s requires sources[] with at least 2 items", m.Op)
+	}
+	mergedRef := m.Item.Ref()
+	seen := make(map[string]struct{}, len(m.Sources))
+	for j, src := range m.Sources {
+		if err := validateRef(src); err != nil {
+			return fmt.Errorf("sources[%d]: %w", j, err)
+		}
+		if _, dup := seen[src]; dup {
+			return fmt.Errorf("sources[%d]: duplicate source %s", j, src)
+		}
+		seen[src] = struct{}{}
+		if !state.HasNode(src) {
+			return fmt.Errorf("sources[%d]: %w: %s", j, ErrTargetNotFound, src)
+		}
+		if state.InProgressRefs != nil {
+			if _, inProgress := state.InProgressRefs[src]; inProgress {
+				return fmt.Errorf("sources[%d]: %s is in_progress; emit interrupt_in_progress as a prior mutation before merging", j, src)
+			}
+		}
+		if src == mergedRef {
+			return fmt.Errorf("sources[%d]: merged item ref %s must differ from each source", j, mergedRef)
+		}
+	}
+	// Collision check for the merged item against pre-existing non-source
+	// items and items staged earlier in the batch. Sources are excluded
+	// from the existing-item check because they will be archived as part
+	// of this same op — but the apply layer is what enforces the archive,
+	// so collisions with non-source nodes must reject up-front.
+	if _, collides := state.Nodes[mergedRef]; collides {
+		if _, isSource := seen[mergedRef]; !isSource {
+			return fmt.Errorf("%w: merged item %s already exists in initiative", ErrDuplicateItem, mergedRef)
+		}
+	}
+	if prev, dup := newItems[mergedRef]; dup {
+		return fmt.Errorf("%w: merged item %s already staged by mutations[%d]", ErrDuplicateItem, mergedRef, prev)
+	}
+	newItems[mergedRef] = idx
 	return nil
 }
 

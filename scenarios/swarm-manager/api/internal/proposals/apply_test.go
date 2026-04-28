@@ -726,10 +726,11 @@ func TestApply_MoveInitiative_RollsBackWhenDestRememberFails(t *testing.T) {
 // the error-propagation tests use to verify non-rollback ops surface the
 // failure as an Outcome error rather than panicking or succeeding silently.
 type flakyStore struct {
-	inner      BacklogStore
-	failOnSave string // ref ("kind/name") whose SaveItem should fail
-	failOnLoad string // ref ("kind/name") whose LoadItem should fail
-	saveCalls  int
+	inner          BacklogStore
+	failOnSave     string // ref ("kind/name") whose SaveItem should fail
+	failOnLoad     string // ref ("kind/name") whose LoadItem should fail
+	failOnSaveOnce bool   // when true, failOnSave only fires for the first matching call (lets rollback writes succeed)
+	saveCalls      int
 }
 
 func (f *flakyStore) LoadItem(kind backlog.BacklogKind, name string) (backlog.BacklogItem, error) {
@@ -742,6 +743,10 @@ func (f *flakyStore) LoadItem(kind backlog.BacklogKind, name string) (backlog.Ba
 func (f *flakyStore) SaveItem(item backlog.BacklogItem) error {
 	f.saveCalls++
 	if f.failOnSave != "" && string(item.Kind)+"/"+item.Name == f.failOnSave {
+		if f.failOnSaveOnce {
+			// Disarm so subsequent (rollback) saves succeed.
+			f.failOnSave = ""
+		}
 		return errors.New("simulated save failure")
 	}
 	return f.inner.SaveItem(item)
@@ -797,6 +802,417 @@ func TestApply_SplitItem_RollsBackChildrenOnFailure(t *testing.T) {
 	foo := env.loadItem("execute", "foo")
 	if foo.ArchivedAt != nil && *foo.ArchivedAt != "" {
 		t.Fatalf("source item should not be archived after rollback, got archivedAt=%v", foo.ArchivedAt)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// merge_items
+// ---------------------------------------------------------------------------
+
+// mergeEnv extends the standard apply env with three execute items
+// (alpha, beta, gamma) plus a fourth dependent (delta) that depends on
+// alpha and beta. Two intra-source edges are also seeded so the test
+// can verify they get dropped by the merge.
+func newMergeEnv(t *testing.T) *applyEnv {
+	t.Helper()
+	env := newApplyEnv(t)
+	for _, name := range []string{"alpha", "beta", "gamma", "delta"} {
+		seedItem(t, env.backlog, "execute", name, strings.ToTitle(name))
+	}
+	if err := env.initSvc.AddItems("ui-rewrite", []string{"execute/alpha", "execute/beta", "execute/gamma", "execute/delta"}); err != nil {
+		t.Fatalf("add items: %v", err)
+	}
+	// alpha depends on gamma (outbound external — should retarget to merged)
+	mustSetDeps(t, env, "execute/alpha", []string{"execute/gamma"})
+	// beta depends on alpha (intra-source — should drop)
+	mustSetDeps(t, env, "execute/beta", []string{"execute/alpha"})
+	// delta depends on alpha AND beta (inbound external from both — should
+	// dedup to a single dep on the merged item).
+	mustSetDeps(t, env, "execute/delta", []string{"execute/alpha", "execute/beta"})
+	return env
+}
+
+func mustSetDeps(t *testing.T, env *applyEnv, ref string, deps []string) {
+	t.Helper()
+	parts := strings.SplitN(ref, "/", 2)
+	item, err := env.backlog.LoadItem(backlog.BacklogKind(parts[0]), parts[1])
+	if err != nil {
+		t.Fatalf("load %s: %v", ref, err)
+	}
+	item.DependsOn = deps
+	if err := env.backlog.SaveItem(item); err != nil {
+		t.Fatalf("save deps for %s: %v", ref, err)
+	}
+}
+
+// mergeState builds a CurrentState that reflects the seeded depends_on
+// edges so apply has the edge picture when computing merges.
+func (e *applyEnv) mergeState() CurrentState {
+	state := e.currentState()
+	for _, ref := range []string{"execute/alpha", "execute/beta", "execute/gamma", "execute/delta"} {
+		parts := strings.SplitN(ref, "/", 2)
+		item, err := e.backlog.LoadItem(backlog.BacklogKind(parts[0]), parts[1])
+		if err != nil {
+			continue
+		}
+		state.Nodes[ref] = GraphNode{
+			ID:    ref,
+			Kind:  parts[0],
+			Name:  parts[1],
+			Title: item.Title,
+		}
+		for _, dep := range item.DependsOn {
+			state.Edges = append(state.Edges, GraphEdge{From: ref, To: dep})
+		}
+	}
+	return state
+}
+
+func TestApply_MergeItems_HappyPath(t *testing.T) {
+	env := newMergeEnv(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{
+				ID: "m1", Op: OpMergeItems,
+				Sources: []string{"execute/alpha", "execute/beta"},
+				Item: &ItemSpec{
+					Kind: "execute", Name: "merged", Title: "Merged",
+					Description: "Combines alpha + beta",
+					Effort:      "M",
+				},
+			},
+		},
+	}
+	state := env.mergeState()
+	res, err := env.applier.Apply(context.Background(), p, state, nil, Source{InitiativeName: "ui-rewrite"})
+	if err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	if res.Applied != 1 || res.Failed != 0 {
+		t.Fatalf("expected applied=1, got %+v", res)
+	}
+	merged := env.loadItem("execute", "merged")
+	if merged.Initiative != "ui-rewrite" {
+		t.Fatalf("merged not attached to initiative, got %q", merged.Initiative)
+	}
+	if merged.Status != backlog.StatusBacklog {
+		t.Fatalf("merged should enter as backlog, got %q", merged.Status)
+	}
+	// Outbound retarget: merged should depend on gamma.
+	if !stringSliceContains(merged.DependsOn, "execute/gamma") {
+		t.Fatalf("merged should retarget alpha's gamma dep, got deps=%v", merged.DependsOn)
+	}
+	// Sources archived.
+	for _, src := range []string{"execute/alpha", "execute/beta"} {
+		parts := strings.SplitN(src, "/", 2)
+		item, err := env.backlog.LoadItem(backlog.BacklogKind(parts[0]), parts[1])
+		if err != nil {
+			t.Fatalf("load %s: %v", src, err)
+		}
+		if item.ArchivedAt == nil || *item.ArchivedAt == "" {
+			t.Fatalf("source %s not archived", src)
+		}
+	}
+	// Inbound dedup: delta now depends on merged exactly once.
+	delta := env.loadItem("execute", "delta")
+	mergedRefCount := 0
+	for _, dep := range delta.DependsOn {
+		if dep == "execute/merged" {
+			mergedRefCount++
+		}
+	}
+	if mergedRefCount != 1 {
+		t.Fatalf("expected delta to depend on execute/merged exactly once, got deps=%v", delta.DependsOn)
+	}
+	// And delta no longer depends on alpha or beta.
+	for _, gone := range []string{"execute/alpha", "execute/beta"} {
+		if stringSliceContains(delta.DependsOn, gone) {
+			t.Fatalf("delta should no longer depend on archived source %s, got deps=%v", gone, delta.DependsOn)
+		}
+	}
+}
+
+func TestApply_MergeItems_DropsIntraSourceEdges(t *testing.T) {
+	env := newMergeEnv(t)
+	// Both alpha and beta are sources; beta depends on alpha (intra-source).
+	// The merged item must NOT inherit a self-loop or any merged→merged dep.
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{
+				ID: "m1", Op: OpMergeItems,
+				Sources: []string{"execute/alpha", "execute/beta"},
+				Item:    &ItemSpec{Kind: "execute", Name: "merged", Title: "Merged"},
+			},
+		},
+	}
+	if _, err := env.applier.Apply(context.Background(), p, env.mergeState(), nil, Source{InitiativeName: "ui-rewrite"}); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	merged := env.loadItem("execute", "merged")
+	if stringSliceContains(merged.DependsOn, "execute/merged") {
+		t.Fatalf("merged should not self-loop, got deps=%v", merged.DependsOn)
+	}
+	if stringSliceContains(merged.DependsOn, "execute/alpha") || stringSliceContains(merged.DependsOn, "execute/beta") {
+		t.Fatalf("merged should drop intra-source deps, got deps=%v", merged.DependsOn)
+	}
+}
+
+func TestApply_MergeItems_RetargetsExternalEdges(t *testing.T) {
+	env := newMergeEnv(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{
+				ID: "m1", Op: OpMergeItems,
+				Sources: []string{"execute/alpha", "execute/beta"},
+				Item:    &ItemSpec{Kind: "execute", Name: "merged", Title: "Merged"},
+			},
+		},
+	}
+	if _, err := env.applier.Apply(context.Background(), p, env.mergeState(), nil, Source{InitiativeName: "ui-rewrite"}); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	merged := env.loadItem("execute", "merged")
+	// alpha→gamma should become merged→gamma.
+	if !stringSliceContains(merged.DependsOn, "execute/gamma") {
+		t.Fatalf("expected merged to depend on gamma, got %v", merged.DependsOn)
+	}
+	// delta→alpha and delta→beta should both retarget to delta→merged.
+	delta := env.loadItem("execute", "delta")
+	if !stringSliceContains(delta.DependsOn, "execute/merged") {
+		t.Fatalf("expected delta to depend on merged, got %v", delta.DependsOn)
+	}
+}
+
+func TestApply_MergeItems_MergedSpecDependsOnFiltersSources(t *testing.T) {
+	// If the agent's merged ItemSpec.depends_on accidentally lists a
+	// source ref, apply must filter it out — sources are about to be
+	// archived and the merged item must not retain a stale dep.
+	env := newMergeEnv(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{
+				ID: "m1", Op: OpMergeItems,
+				Sources: []string{"execute/alpha", "execute/beta"},
+				Item: &ItemSpec{
+					Kind: "execute", Name: "merged", Title: "Merged",
+					DependsOn: []string{"execute/alpha", "execute/gamma"},
+				},
+			},
+		},
+	}
+	if _, err := env.applier.Apply(context.Background(), p, env.mergeState(), nil, Source{InitiativeName: "ui-rewrite"}); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	merged := env.loadItem("execute", "merged")
+	if stringSliceContains(merged.DependsOn, "execute/alpha") {
+		t.Fatalf("merged spec dep on alpha should have been filtered, got %v", merged.DependsOn)
+	}
+	if !stringSliceContains(merged.DependsOn, "execute/gamma") {
+		t.Fatalf("merged should retain non-source dep on gamma, got %v", merged.DependsOn)
+	}
+}
+
+func TestApply_MergeItems_RollbackOnSourceArchiveFailure(t *testing.T) {
+	env := newMergeEnv(t)
+	// Fail when the second source ("beta") is saved during archive.
+	flaky := &flakyStore{inner: env.backlog, failOnSave: "execute/beta"}
+	applier, err := NewApplier(Config{
+		Store:    flaky,
+		Assigner: env.initSvc,
+		Creator:  creatorWith(t, flaky, env.initSvc),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{
+				ID: "m1", Op: OpMergeItems,
+				Sources: []string{"execute/alpha", "execute/beta"},
+				Item:    &ItemSpec{Kind: "execute", Name: "merged", Title: "Merged"},
+			},
+		},
+	}
+	res, err := applier.Apply(context.Background(), p, env.mergeState(), nil, Source{InitiativeName: "ui-rewrite"})
+	if err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	if res.Failed != 1 || res.Applied != 0 {
+		t.Fatalf("expected merge failure, got %+v", res)
+	}
+	// Merged item should be archived (rolled back).
+	merged, err := env.backlog.LoadItem("execute", "merged")
+	if err != nil {
+		t.Fatalf("merged should still be on disk (archived), got load err: %v", err)
+	}
+	if merged.ArchivedAt == nil || *merged.ArchivedAt == "" {
+		t.Fatalf("merged should be archived after rollback, got archivedAt=%v", merged.ArchivedAt)
+	}
+	// alpha (already archived during forward pass) should be un-archived.
+	alpha := env.loadItem("execute", "alpha")
+	if alpha.ArchivedAt != nil && *alpha.ArchivedAt != "" {
+		t.Fatalf("alpha should be un-archived on rollback, got archivedAt=%v", alpha.ArchivedAt)
+	}
+	// delta's depends_on should be restored — still references the
+	// original sources, not merged.
+	delta := env.loadItem("execute", "delta")
+	if stringSliceContains(delta.DependsOn, "execute/merged") {
+		t.Fatalf("delta should not reference merged after rollback, got %v", delta.DependsOn)
+	}
+	if !stringSliceContains(delta.DependsOn, "execute/alpha") || !stringSliceContains(delta.DependsOn, "execute/beta") {
+		t.Fatalf("delta deps should be restored to alpha+beta, got %v", delta.DependsOn)
+	}
+}
+
+// TestApply_MergeItems_RollbackOnRetargetFailure exercises the rollback
+// path when a retarget-step SaveItem fails (delta is the inbound
+// dependent the retarget loop tries to save). At the failure point:
+//   - merged item exists (created in step 3)
+//   - no source has been archived yet (archive is step 5)
+//   - delta's depends_on may have been written or not
+//
+// Rollback must:
+//   - archive the merged item
+//   - restore delta's depends_on from the snapshot
+//   - leave sources un-archived (they never were archived)
+//
+// The flakyStore is configured one-shot so the rollback's restore-write
+// for delta succeeds (otherwise rollback logs a warning and gives up,
+// which would muddy the assertion).
+func TestApply_MergeItems_RollbackOnRetargetFailure(t *testing.T) {
+	env := newMergeEnv(t)
+	flaky := &flakyStore{inner: env.backlog, failOnSave: "execute/delta", failOnSaveOnce: true}
+	applier, err := NewApplier(Config{
+		Store:    flaky,
+		Assigner: env.initSvc,
+		Creator:  creatorWith(t, flaky, env.initSvc),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{
+				ID: "m1", Op: OpMergeItems,
+				Sources: []string{"execute/alpha", "execute/beta"},
+				Item:    &ItemSpec{Kind: "execute", Name: "merged", Title: "Merged"},
+			},
+		},
+	}
+	res, err := applier.Apply(context.Background(), p, env.mergeState(), nil, Source{InitiativeName: "ui-rewrite"})
+	if err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	if res.Failed != 1 || res.Applied != 0 {
+		t.Fatalf("expected merge failure, got %+v", res)
+	}
+	if !strings.Contains(res.Outcomes[0].Error, "retargeted") && !strings.Contains(res.Outcomes[0].Error, "execute/delta") {
+		t.Fatalf("outcome should mention retarget failure, got %q", res.Outcomes[0].Error)
+	}
+
+	// Merged item created then archived as part of rollback.
+	merged, err := env.backlog.LoadItem("execute", "merged")
+	if err != nil {
+		t.Fatalf("merged should still be on disk (archived), got load err: %v", err)
+	}
+	if merged.ArchivedAt == nil || *merged.ArchivedAt == "" {
+		t.Fatalf("merged should be archived after rollback, got archivedAt=%v", merged.ArchivedAt)
+	}
+
+	// Sources never reached step 5 — must not be archived.
+	for _, src := range []string{"execute/alpha", "execute/beta"} {
+		parts := strings.SplitN(src, "/", 2)
+		item, lerr := env.backlog.LoadItem(backlog.BacklogKind(parts[0]), parts[1])
+		if lerr != nil {
+			t.Fatalf("load %s: %v", src, lerr)
+		}
+		if item.ArchivedAt != nil && *item.ArchivedAt != "" {
+			t.Fatalf("source %s should not be archived (rollback path didn't reach step 5), got archivedAt=%v", src, item.ArchivedAt)
+		}
+	}
+
+	// delta's depends_on must be the original alpha+beta (snapshot
+	// restored), not the retargeted merged ref.
+	delta := env.loadItem("execute", "delta")
+	if stringSliceContains(delta.DependsOn, "execute/merged") {
+		t.Fatalf("delta should not reference merged after rollback, got %v", delta.DependsOn)
+	}
+	if !stringSliceContains(delta.DependsOn, "execute/alpha") || !stringSliceContains(delta.DependsOn, "execute/beta") {
+		t.Fatalf("delta deps should be restored to alpha+beta, got %v", delta.DependsOn)
+	}
+}
+
+func TestApply_MergeItems_EmitsEventOnMergedRefAndPropagatesSources(t *testing.T) {
+	env := newMergeEnv(t)
+	events := &fakeEvents{}
+	env.applier.events = events
+
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{
+				ID: "m1", Op: OpMergeItems,
+				Sources: []string{"execute/alpha", "execute/beta"},
+				Item:    &ItemSpec{Kind: "execute", Name: "merged", Title: "Merged"},
+			},
+		},
+	}
+	if _, err := env.applier.Apply(context.Background(), p, env.mergeState(), nil, Source{InitiativeName: "ui-rewrite"}); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	if len(events.captured) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(events.captured))
+	}
+	got := events.captured[0]
+	if got.mutation.Op != OpMergeItems {
+		t.Fatalf("expected merge op on event, got %s", got.mutation.Op)
+	}
+	if len(got.mutation.Sources) != 2 || got.mutation.Sources[0] != "execute/alpha" || got.mutation.Sources[1] != "execute/beta" {
+		t.Fatalf("expected sources to round-trip on captured mutation, got %v", got.mutation.Sources)
+	}
+}
+
+func TestProposalApplyTarget_MergeItemsReturnsMergedRef(t *testing.T) {
+	m := Mutation{
+		Op:      OpMergeItems,
+		Sources: []string{"execute/alpha", "execute/beta"},
+		Item:    &ItemSpec{Kind: "execute", Name: "merged"},
+	}
+	if got := applyTarget(m); got != "execute/merged" {
+		t.Fatalf("expected applyTarget to return merged ref, got %q", got)
+	}
+}
+
+func TestRetargetDependsOn_DedupesAndPreservesOrder(t *testing.T) {
+	sourceSet := map[string]struct{}{
+		"execute/alpha": {},
+		"execute/beta":  {},
+	}
+	got := retargetDependsOn(
+		[]string{"execute/alpha", "execute/zeta", "execute/beta", "execute/zeta"},
+		sourceSet,
+		"execute/merged",
+	)
+	want := []string{"execute/zeta", "execute/merged"}
+	if !stringSlicesEqual(got, want) {
+		t.Fatalf("retarget got %v, want %v", got, want)
+	}
+}
+
+func TestRetargetDependsOn_NoSourceRefsLeavesUnchanged(t *testing.T) {
+	sourceSet := map[string]struct{}{"execute/foo": {}}
+	got := retargetDependsOn([]string{"execute/bar", "execute/baz"}, sourceSet, "execute/merged")
+	want := []string{"execute/bar", "execute/baz"}
+	if !stringSlicesEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
 	}
 }
 

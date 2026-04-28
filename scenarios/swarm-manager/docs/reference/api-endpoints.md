@@ -185,6 +185,77 @@ Archive sets `archived_at` on an initiative. Initiatives retain their status whe
 
 `DELETE /api/v1/initiatives/{name}/archive-item`
 
+## Initiative Feedback Proposals
+
+The feedback flow accepts an agent-emitted proposal envelope and applies the
+selected mutations. The envelope shape is owned by `proposals.Proposal`; the
+mutation list shown below is the surface the apply layer enforces.
+
+### Proposal envelope
+
+```json
+{
+  "form": "mutation_list",
+  "rationale": "One sentence on the overall intent.",
+  "mutations": [
+    { "id": "m1", "op": "...", "rationale": "..." }
+  ]
+}
+```
+
+`form` is `mutation_list` for direct ops or `full_graph` for target-state
+synthesis (server diffs and emits the equivalent mutation_list).
+
+### Supported mutation ops
+
+| `op` | Required fields | Effect |
+|------|-----------------|--------|
+| `add_item` | `item: ItemSpec` | Creates a new backlog item attached to the initiative. |
+| `update_item` | `target`, `patch: ItemPatch` | Patches metadata (title, description, priority, tags, depends_on, effort, acceptance globs, note). |
+| `change_status` | `target`, `status` | Non-terminal, non-lifecycle status transitions only. |
+| `change_priority` | `target`, `priority` | Sets priority to 1-10. |
+| `add_edge` | `from`, `to` | Adds a `from depends_on to` edge. |
+| `remove_edge` | `from`, `to` | Removes an existing edge. |
+| `move_initiative` | `target`, `initiative` | Transfers an item to another initiative; empty `initiative` detaches. |
+| `archive_item` | `target` | Sets `archived_at`. |
+| `interrupt_in_progress` | `target` | Cancels the active execution; must be a separate mutation, not implicit. |
+| `split_item` | `target`, `into: [ItemSpec]` (≥2) | Atomic: creates children, archives source. **Dependents are not auto-retargeted** — emit explicit `add_edge`/`remove_edge` mutations alongside the split if you need to repoint dependents. |
+| `merge_items` | `sources: [ref]` (≥2), `item: ItemSpec` | Atomic: creates the merged item, retargets external edges (to/from sources) onto the merged item, drops intra-source edges, archives sources. Validation rejects if any source is `in_progress` — emit `interrupt_in_progress` as a prior mutation if interruption is intended. The merged item enters as `backlog`. |
+
+### `merge_items` wire shape
+
+```json
+{
+  "id": "m1",
+  "op": "merge_items",
+  "sources": ["execute/sandbox-aware-cli", "execute/sandbox-lifecycle-coord"],
+  "item": {
+    "kind": "execute",
+    "name": "sandbox-runtime-coord",
+    "title": "Coordinate sandbox runtime path",
+    "description": "Combines aware-cli + lifecycle-coord; substrate is shared.",
+    "priority": 3,
+    "effort": "M"
+  },
+  "rationale": "Both items refactor the same workspace-sandbox runtime entrypoint."
+}
+```
+
+**Edge handling:** for each edge `(a, b)` in the current graph,
+
+- `a ∈ sources, b ∈ sources` → dropped
+- `a ∈ sources, b ∉ sources` → merged item gains dep on `b`
+- `a ∉ sources, b ∈ sources` → `a`'s `depends_on` is rewritten to point at the merged ref (deduped)
+
+**Event audit:** the resulting `backlog.proposal_applied` event attaches to the merged item's ref and carries `payload.sources = [...]` so per-source history queries can render "this item was merged into X" without re-deriving from archive timestamps.
+
+**Constraints:**
+
+- `sources` must contain ≥2 distinct refs, all current members of the initiative.
+- The merged item's ref must differ from every source.
+- The merged item's ref must not collide with an existing non-source item or with another item staged earlier in the same proposal.
+- No source may be in `in_progress` at validation time.
+
 ## Settings
 
 `GET /api/v1/settings`

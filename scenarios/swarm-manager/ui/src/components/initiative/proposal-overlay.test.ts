@@ -76,6 +76,34 @@ describe("buildOverlay", () => {
     expect(overlay.addedNodes?.map((n) => n.id)).toEqual(["execute/left", "execute/right"]);
   });
 
+  it("merge_items archives sources, adds the merged item, and projects its non-source deps as edges", () => {
+    const proposal: Proposal = {
+      form: "mutation_list",
+      mutations: [
+        mut("m1", {
+          op: "merge_items",
+          sources: ["execute/alpha", "execute/beta"],
+          item: {
+            kind: "execute",
+            name: "merged",
+            title: "Merged",
+            // include a source ref to verify it's filtered out, plus a
+            // genuine outbound dep that should project to an edge.
+            depends_on: ["execute/alpha", "execute/gamma"],
+          },
+        }),
+      ],
+    };
+    const overlay = buildOverlay(proposal);
+    expect(overlay.archivedNodeIds).toEqual(
+      expect.arrayContaining(["execute/alpha", "execute/beta"]),
+    );
+    expect(overlay.addedNodeIds).toEqual(["execute/merged"]);
+    expect(overlay.addedNodes?.map((n) => n.id)).toEqual(["execute/merged"]);
+    // Source-ref dep filtered; gamma dep projected.
+    expect(overlay.addedEdges).toEqual([{ from: "execute/gamma", to: "execute/merged" }]);
+  });
+
   it("ignores ops that don't affect graph topology", () => {
     const proposal: Proposal = {
       form: "mutation_list",

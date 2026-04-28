@@ -14,7 +14,7 @@
  */
 
 import { memo, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, CircleOff, XCircle, AlertTriangle, ArrowRight, GitBranch, Trash2, Edit3, Plus, MoveRight, Zap } from "lucide-react";
+import { CheckCircle2, CircleOff, XCircle, AlertTriangle, ArrowRight, GitBranch, GitMerge, Trash2, Edit3, Plus, MoveRight, Zap } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { selectors } from "../../consts/selectors";
 import type { BacklogStatus, ProposalMutation, ProposalOp, ProposalRevision, ApplyResult } from "../../types";
@@ -298,6 +298,7 @@ const OP_ICONS: Record<ProposalOp, typeof Plus> = {
   archive_item: Trash2,
   interrupt_in_progress: Zap,
   split_item: GitBranch,
+  merge_items: GitMerge,
 };
 
 const OP_LABELS: Record<ProposalOp, string> = {
@@ -311,6 +312,7 @@ const OP_LABELS: Record<ProposalOp, string> = {
   archive_item: "Archive item",
   interrupt_in_progress: "Interrupt in-progress run",
   split_item: "Split item",
+  merge_items: "Merge items",
 };
 
 function MutationCard({ mutation, checked, disabled, onToggle, applyOutcome }: MutationCardProps) {
@@ -430,6 +432,13 @@ function MutationSummary({ mutation }: { mutation: ProposalMutation }) {
       break;
     case "split_item":
       if (mutation.into) bits.push(`into ${mutation.into.length} item(s)`);
+      break;
+    case "merge_items":
+      if (mutation.sources?.length && mutation.item) {
+        bits.push(`${mutation.sources.join(" + ")} → ${mutation.item.kind}/${mutation.item.name}`);
+      } else if (mutation.sources?.length) {
+        bits.push(`merge ${mutation.sources.length} sources`);
+      }
       break;
     default:
       break;

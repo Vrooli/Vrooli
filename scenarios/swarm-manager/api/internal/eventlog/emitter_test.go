@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"reflect"
 	"testing"
 
 	"swarm-manager/internal/eventlog"
@@ -261,7 +262,7 @@ func TestEmitBacklogProposalApplied_FeedbackRoundAttribution(t *testing.T) {
 	if err := json.Unmarshal(e.Metadata, &got); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	if got != payload {
+	if !reflect.DeepEqual(got, payload) {
 		t.Errorf("payload roundtrip: got %+v want %+v", got, payload)
 	}
 }

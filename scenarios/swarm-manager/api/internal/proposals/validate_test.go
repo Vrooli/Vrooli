@@ -383,6 +383,161 @@ func TestValidate_ItemSpec_ValidatesEffort(t *testing.T) {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// merge_items
+// ---------------------------------------------------------------------------
+
+func TestValidate_MergeItems_RejectsSingleSource(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{
+				ID: "m1", Op: OpMergeItems,
+				Sources: []string{"execute/foo"},
+				Item:    &ItemSpec{Kind: "execute", Name: "merged", Title: "Merged"},
+			},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !strings.Contains(err.Error(), "at least 2 items") {
+		t.Fatalf("expected at-least-2 error, got %v", err)
+	}
+}
+
+func TestValidate_MergeItems_RejectsDuplicateSources(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{
+				ID: "m1", Op: OpMergeItems,
+				Sources: []string{"execute/foo", "execute/foo"},
+				Item:    &ItemSpec{Kind: "execute", Name: "merged", Title: "Merged"},
+			},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !strings.Contains(err.Error(), "duplicate source") {
+		t.Fatalf("expected duplicate-source error, got %v", err)
+	}
+}
+
+func TestValidate_MergeItems_RejectsCollidingTarget(t *testing.T) {
+	state := baseState(t)
+	// Add a third existing item that collides with the merged ref but
+	// is NOT among the sources (sources are foo/bar; merged ref is "baz"
+	// which we'll add to state to force a collision).
+	state.Nodes["execute/baz"] = GraphNode{ID: "execute/baz", Kind: "execute", Name: "baz", Title: "Existing"}
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{
+				ID: "m1", Op: OpMergeItems,
+				Sources: []string{"execute/foo", "execute/bar"},
+				Item:    &ItemSpec{Kind: "execute", Name: "baz", Title: "Merged"},
+			},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !errors.Is(err, ErrDuplicateItem) {
+		t.Fatalf("expected duplicate-item error for colliding merged ref, got %v", err)
+	}
+}
+
+func TestValidate_MergeItems_RejectsCollisionWithBatchStaged(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{ID: "m1", Op: OpAddItem, Item: &ItemSpec{Kind: "execute", Name: "merged", Title: "Staged"}},
+			{
+				ID: "m2", Op: OpMergeItems,
+				Sources: []string{"execute/foo", "execute/bar"},
+				Item:    &ItemSpec{Kind: "execute", Name: "merged", Title: "Merged"},
+			},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !errors.Is(err, ErrDuplicateItem) {
+		t.Fatalf("expected staged-collision error, got %v", err)
+	}
+}
+
+func TestValidate_MergeItems_RejectsInProgressSource(t *testing.T) {
+	state := baseState(t)
+	state.InProgressRefs = map[string]struct{}{"execute/bar": {}}
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{
+				ID: "m1", Op: OpMergeItems,
+				Sources: []string{"execute/foo", "execute/bar"},
+				Item:    &ItemSpec{Kind: "execute", Name: "merged", Title: "Merged"},
+			},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !strings.Contains(err.Error(), "interrupt_in_progress") {
+		t.Fatalf("expected in-progress rejection guiding to interrupt_in_progress, got %v", err)
+	}
+}
+
+func TestValidate_MergeItems_RejectsNonMemberSource(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{
+				ID: "m1", Op: OpMergeItems,
+				Sources: []string{"execute/foo", "execute/ghost"},
+				Item:    &ItemSpec{Kind: "execute", Name: "merged", Title: "Merged"},
+			},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !errors.Is(err, ErrTargetNotFound) {
+		t.Fatalf("expected target-not-found for ghost source, got %v", err)
+	}
+}
+
+func TestValidate_MergeItems_RejectsMergedRefMatchingSource(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{
+				ID: "m1", Op: OpMergeItems,
+				Sources: []string{"execute/foo", "execute/bar"},
+				// Merged ref equals one of the sources — that's the
+				// "merge into existing" pattern the plan disallows.
+				Item: &ItemSpec{Kind: "execute", Name: "foo", Title: "Foo (renamed)"},
+			},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !strings.Contains(err.Error(), "must differ from each source") {
+		t.Fatalf("expected merged-equals-source error, got %v", err)
+	}
+}
+
+func TestValidate_MergeItems_AcceptsHappyPath(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{
+				ID: "m1", Op: OpMergeItems,
+				Sources: []string{"execute/foo", "execute/bar"},
+				Item:    &ItemSpec{Kind: "execute", Name: "merged", Title: "Merged"},
+			},
+		},
+	}
+	if err := Validate(p, state); err != nil {
+		t.Fatalf("expected merge to validate, got %v", err)
+	}
+}
+
 func TestValidate_AccumulatesAllProblems(t *testing.T) {
 	state := baseState(t)
 	p := Proposal{

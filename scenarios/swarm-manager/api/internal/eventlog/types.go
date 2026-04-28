@@ -332,6 +332,11 @@ type ProposalAppliedPayload struct {
 	MutationID      string `json:"mutation_id"`
 	Op              string `json:"op"`
 	Target          string `json:"target,omitempty"`
+	// Sources lists the source refs collapsed into Target for merge_items
+	// mutations. Empty for every other op. Lets per-source history queries
+	// surface "this item was merged into Target" without re-deriving from
+	// archive timestamps.
+	Sources []string `json:"sources,omitempty"`
 }
 
 // MigrationAppliedPayload records that a one-time migration has completed.

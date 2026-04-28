@@ -401,6 +401,19 @@ export const literalSelectors = {
     deleteButton: "feedback-delete-button",
     openRunButton: "feedback-open-run-button",
     pollErrorNotice: "feedback-poll-error-notice",
+    // Selection-driven Quick Actions surface (Plan A).
+    dialogTargetPicker: "feedback-dialog-target-picker",
+    dialogTargetPickerToggle: "feedback-dialog-target-picker-toggle",
+    dialogTargetPickerSelectAll: "feedback-dialog-target-picker-select-all",
+    dialogTargetPickerSelectNone: "feedback-dialog-target-picker-select-none",
+    dialogTargetPickerItem: "feedback-dialog-target-picker-item",
+    dialogQuickActionSplit: "feedback-dialog-quick-action-split",
+    dialogQuickActionMerge: "feedback-dialog-quick-action-merge",
+    dialogQuickActionIdentifyMissing: "feedback-dialog-quick-action-identify-missing",
+    dialogQuickActionReconcile: "feedback-dialog-quick-action-reconcile",
+    dialogQuickActionReframe: "feedback-dialog-quick-action-reframe",
+    dialogHelpBlock: "feedback-dialog-help-block",
+    dialogHelpBlockToggle: "feedback-dialog-help-block-toggle",
   },
   // Initiative review surface — trigger + decide.
   initiativeReview: {

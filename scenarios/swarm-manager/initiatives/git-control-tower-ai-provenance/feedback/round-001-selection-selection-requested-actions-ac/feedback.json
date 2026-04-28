@@ -1,0 +1,32 @@
+{
+  "initiative_name": "git-control-tower-ai-provenance",
+  "number": 1,
+  "slug": "selection-selection-requested-actions-ac",
+  "type": "feedback",
+  "status": "dismissed",
+  "submission": {
+    "text": "\u003cselection\u003e\u003c/selection\u003e\n\n\u003crequested_actions\u003e\n  \u003caction name=\"identify_missing_work\" /\u003e\n  \u003caction name=\"reconcile_with_code_drift\" /\u003e\n\u003c/requested_actions\u003e\n\n\u003cuser_note\u003e\n\n\u003c/user_note\u003e",
+    "created_at": "2026-04-28T22:30:48Z"
+  },
+  "thread": [
+    {
+      "role": "user",
+      "content": "\u003cselection\u003e\u003c/selection\u003e\n\n\u003crequested_actions\u003e\n  \u003caction name=\"identify_missing_work\" /\u003e\n  \u003caction name=\"reconcile_with_code_drift\" /\u003e\n\u003c/requested_actions\u003e\n\n\u003cuser_note\u003e\n\n\u003c/user_note\u003e",
+      "created_at": "2026-04-28T22:30:48Z"
+    },
+    {
+      "role": "agent",
+      "content": "agent run cancelled: auto-dismissed: agent run timed out (round in agent_thinking \u003e30m0s)",
+      "run_id": "a44dd8ca-5ae8-4b52-9a50-e897003fa1e2",
+      "created_at": "2026-04-28T23:03:14Z"
+    }
+  ],
+  "decision": {
+    "kind": "dismiss",
+    "rationale": "auto-dismissed: agent run timed out (round in agent_thinking \u003e30m0s)",
+    "decided_at": "2026-04-28T23:03:14Z",
+    "decided_by": "swarm-manager-sweeper"
+  },
+  "created_at": "2026-04-28T22:30:48Z",
+  "updated_at": "2026-04-28T23:03:14Z"
+}
