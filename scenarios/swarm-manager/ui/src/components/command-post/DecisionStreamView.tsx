@@ -9,7 +9,7 @@
  * collapsible context panel, and maximized vertical content space.
  */
 import { useState, useCallback, useRef } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, ExternalLink, Loader2, SkipForward, ArrowLeft, Moon, CheckCircle2, Info, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, ExternalLink, Loader2, SkipForward, ArrowLeft, Moon, CheckCircle2, Info, Trash2, Menu } from "lucide-react";
 import { cn } from "../../lib";
 import { renderMarkdown } from "../../lib/render-markdown";
 import { selectors } from "../../consts/selectors";
@@ -37,6 +37,7 @@ export interface DecisionStreamViewProps {
   questions: CrossItemQuestion[];
   onComplete: (results: DecisionStreamResults) => void;
   onBack: () => void;
+  onOpenSidebar?: () => void;
   onSnoozeItem: (key: string) => void;
   /** Navigate to a backlog item's detail page. */
   onOpenItem?: (kind: string, name: string) => void;
@@ -50,6 +51,7 @@ export function DecisionStreamView({
   questions,
   onComplete,
   onBack,
+  onOpenSidebar,
   onSnoozeItem,
   onOpenItem,
 }: DecisionStreamViewProps) {
@@ -236,14 +238,25 @@ export function DecisionStreamView({
         className="relative z-[70] flex shrink-0 items-center gap-2 border-b border-slate-700/50 bg-slate-950 px-3"
         data-testid={selectors.commandPost.decisionStream.header}
       >
+        {onOpenSidebar && (
+          <button
+            type="button"
+            onClick={onOpenSidebar}
+            className="flex min-h-[44px] shrink-0 items-center rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200 active:bg-slate-700"
+            aria-label="Open sidebar"
+            data-testid="page-sidebar-button"
+          >
+            <Menu className="h-4 w-4" />
+          </button>
+        )}
         <button
           type="button"
           onClick={onBack}
-          className="flex min-h-[44px] shrink-0 items-center gap-1 rounded-lg py-2 pr-2 text-sm text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200 active:bg-slate-700"
+          className="flex min-h-[44px] shrink-0 items-center rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200 active:bg-slate-700"
+          aria-label="Back to Command Post"
           data-testid={selectors.commandPost.decisionStream.backButton}
         >
           <ArrowLeft className="h-4 w-4" />
-          <span className="hidden sm:inline">Command Post</span>
         </button>
 
         {/* Kind icon + title (center, truncated) */}

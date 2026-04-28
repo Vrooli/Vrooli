@@ -8,11 +8,12 @@
 
 import { Check, AlertTriangle, X, Minus, ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { renderMarkdown } from "../../lib/render-markdown";
 import { cn } from "../../lib";
-import { useDetailSelectionStore } from "../../stores/detail-selection-store";
 import { selectors } from "../../consts/selectors";
 import type { ExecutionRecord, ScenarioFinalization, FinalizationStatus, ReviewDimension } from "../../types";
+import { scenarioDetailPath } from "../../app/routes/route-paths";
 
 export interface ScenarioResultCardsProps {
   execution: ExecutionRecord;
@@ -79,7 +80,7 @@ function ScenarioCard({
 }: {
   scenario: ScenarioFinalization;
 }) {
-  const selectScenario = useDetailSelectionStore((s) => s.selectScenario);
+  const navigate = useNavigate();
   const review = scenario.review;
   const classification = review.result?.classification;
   const dimensions = review.result?.dimensions ?? [];
@@ -106,7 +107,7 @@ function ScenarioCard({
 
         <button
           type="button"
-          onClick={() => selectScenario(scenario.scenarioName)}
+          onClick={() => navigate(scenarioDetailPath(scenario.scenarioName))}
           className="text-xs font-medium text-slate-200 hover:text-violet-400 transition-colors truncate"
         >
           {scenario.scenarioName}

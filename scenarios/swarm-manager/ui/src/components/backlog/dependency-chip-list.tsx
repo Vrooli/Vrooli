@@ -20,6 +20,7 @@
  */
 
 import { memo, useState, useCallback, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Check } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ResolvedDependency } from "../../lib/backlog-queue-utils";
@@ -38,7 +39,7 @@ import {
 import { Popover } from "../ui/popover";
 import { StatusChip, type StatusChipColors } from "../ui/status-chip";
 import { PendingDecisionBadge } from "./pending-decision-badge";
-import { useDetailSelectionStore } from "../../stores/detail-selection-store";
+import { backlogDetailPath } from "../../app/routes/route-paths";
 
 interface DependencyChipListProps {
   label: string;
@@ -169,7 +170,7 @@ function DependencyRow({
   dep: ResolvedDependency;
   onStatusChange?: (dep: ResolvedDependency, newStatus: BacklogStatus) => void;
 }) {
-  const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
+  const navigate = useNavigate();
 
   const showActivity = shouldShowActivity(dep);
   const attentionReasons = dep.attentionReasons ?? [];
@@ -182,7 +183,7 @@ function DependencyRow({
     >
       <button
         type="button"
-        onClick={() => selectBacklog(dep.kind, dep.name)}
+        onClick={() => navigate(backlogDetailPath(dep.kind, dep.name))}
         className="min-w-0 flex-1 truncate text-left text-sm text-slate-200 transition-colors hover:text-cyan-300"
         title={dep.title}
       >

@@ -7,6 +7,7 @@
  */
 
 import { useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Play,
@@ -22,7 +23,7 @@ import { cn } from "../../../lib/utils";
 import { defaultApiClient } from "../../../lib/api-client";
 import { API_ENDPOINTS } from "../../../lib/api-endpoints";
 import { useBacklogStore } from "../../../stores/backlog-store";
-import { useDetailSelectionStore } from "../../../stores/detail-selection-store";
+import { backlogDetailPath, executionDetailPath } from "../../../app/routes/route-paths";
 import { RunBacklogModal, type RunBacklogTarget } from "../../../components/backlog/run-backlog-modal";
 import { InlineQuestionStepper } from "../../../components/backlog/inline-question-stepper";
 import { useNodeActionContext } from "../hooks/useNodeActionContext";
@@ -52,9 +53,9 @@ const CTA_CONFIG: Record<string, { label: string; icon: React.ElementType }> = {
 // ---------------------------------------------------------------------------
 
 function BacklogActions({ nodeData, nodeId }: { nodeData: BacklogGraphNodeData; nodeId: string }) {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fetchBacklog = useBacklogStore((s) => s.fetchBacklog);
-  const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
 
   const itemActions = useNodeActionContext(nodeData);
   const pendingQuestions = useNodePendingQuestions(nodeData.kind, nodeData.name);
@@ -84,7 +85,7 @@ function BacklogActions({ nodeData, nodeId }: { nodeData: BacklogGraphNodeData; 
     if (cta === "run") {
       setRunModalTarget({ kind: nodeData.kind, name: nodeData.name, title: nodeData.title });
     } else if (cta === "workshop" || cta === "finalize") {
-      selectBacklog(nodeData.kind, nodeData.name);
+      navigate(backlogDetailPath(nodeData.kind, nodeData.name));
     } else if (cta === "followUp") {
       // Find the latest execution for this item to follow up on.
       const parsed = parseNodeId(nodeId);
@@ -94,7 +95,7 @@ function BacklogActions({ nodeData, nodeId }: { nodeData: BacklogGraphNodeData; 
     } else if (cta === "archive") {
       archiveMutation.mutate();
     }
-  }, [itemActions.primaryCta, nodeData, nodeId, selectBacklog, followUpMutation, archiveMutation]);
+  }, [itemActions.primaryCta, nodeData, nodeId, navigate, followUpMutation, archiveMutation]);
 
   // Nothing to show for locked items.
   if (itemActions.locked) return null;
@@ -168,9 +169,9 @@ function BacklogActions({ nodeData, nodeId }: { nodeData: BacklogGraphNodeData; 
 // ---------------------------------------------------------------------------
 
 function ExecutionActions({ nodeData }: { nodeData: ExecutionGraphNodeData }) {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fetchBacklog = useBacklogStore((s) => s.fetchBacklog);
-  const selectExecution = useDetailSelectionStore((s) => s.selectExecution);
 
   const invalidateAfterAction = useCallback(() => {
     void fetchBacklog({ force: true });
@@ -194,7 +195,7 @@ function ExecutionActions({ nodeData }: { nodeData: ExecutionGraphNodeData }) {
     return (
       <button
         type="button"
-        onClick={() => selectExecution(nodeData.executionId)}
+        onClick={() => navigate(executionDetailPath(nodeData.executionId))}
         className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-cyan-600/80 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-cyan-600"
         data-testid="focus-review-button"
       >

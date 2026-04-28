@@ -1,13 +1,13 @@
 /**
- * CaptureDetailsPage — Full detail overlay for a capture.
+ * CaptureDetailsPage — Routed capture detail page.
  *
  * Shows the raw capture text, attachments at full size with lightbox,
- * classification triage, and metadata. Opened from sidebar CaptureCard
- * click or via deep-link (?detail=capture&id=...).
+ * classification triage, and metadata.
  */
 
 import { useState, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useParams } from "react-router-dom";
 import { Loader2, RefreshCw, Trash2, MessageSquare } from "lucide-react";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
@@ -19,8 +19,6 @@ import { PageLoadingState } from "../components/ui/loading-states";
 import { captureService } from "../services/capture-service";
 import { NoteEditor } from "../components/ui/note-editor";
 import { useCaptureStore } from "../stores/capture-store";
-import { useDetailSelectionStore } from "../stores/detail-selection-store";
-import { useDetailNavigation } from "../hooks/useDetailNavigation";
 import { useRuntimeConfig } from "../hooks/useRuntimeConfig";
 import { formatRelativeTime } from "../lib";
 import type { Capture } from "../types";
@@ -28,11 +26,11 @@ import type { BacklogFormValues } from "../types";
 import { BacklogFormDialog } from "../components/backlog/backlog-form-dialog";
 import { backlogService } from "../services/backlog-service";
 import { useBacklogStore } from "../stores";
+import { useAppBack } from "../app/routes/useAppBack";
 
 export function CaptureDetailsPage() {
-  const selection = useDetailSelectionStore((s) => s.selection);
-  const { closeDetail } = useDetailNavigation();
-  const captureId = selection?.identifier;
+  const { captureId } = useParams<{ captureId: string }>();
+  const closeDetail = useAppBack();
 
   // Try to get from store first (instant for sidebar click-through)
   const storeCapture = useCaptureStore((s) =>

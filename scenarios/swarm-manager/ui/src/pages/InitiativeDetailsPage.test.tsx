@@ -2,9 +2,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { InitiativeDetailsPage } from "./InitiativeDetailsPage";
-import { useBacklogStore, useDetailSelectionStore } from "../stores";
+import { useBacklogStore } from "../stores";
 import { useInitiativeStore } from "../stores/initiative-store";
 
 // jsdom doesn't provide matchMedia (needed by useIsMobile in DetailPageLayout).
@@ -150,9 +150,6 @@ describe("InitiativeDetailsPage", () => {
     });
     vi.clearAllMocks();
 
-    // Pre-populate the detail selection store
-    useDetailSelectionStore.getState().selectInitiative("test-initiative");
-
     useBacklogStore.getState().setItems([
       {
         kind: "execute" as const,
@@ -207,13 +204,30 @@ describe("InitiativeDetailsPage", () => {
 
   const renderPage = () => {
     return render(
-      <MemoryRouter initialEntries={["/graph"]}>
+      <MemoryRouter initialEntries={["/graph", "/initiatives/test-initiative"]} initialIndex={1}>
         <QueryClientProvider client={queryClient}>
-          <InitiativeDetailsPage />
+          <Routes>
+            <Route
+              path="/initiatives/:name"
+              element={(
+                <>
+                  <InitiativeDetailsPage />
+                  <LocationProbe />
+                </>
+              )}
+            />
+            <Route path="/graph" element={<LocationProbe />} />
+            <Route path="*" element={<LocationProbe />} />
+          </Routes>
         </QueryClientProvider>
       </MemoryRouter>,
     );
   };
+
+  function LocationProbe() {
+    const location = useLocation();
+    return <span data-testid="location-path">{location.pathname}</span>;
+  }
 
   it("renders initiative title and status on successful load", async () => {
     vi.mocked(initiativeService.get).mockResolvedValue(mockInitiativeData);
@@ -359,10 +373,7 @@ describe("InitiativeDetailsPage", () => {
     expect(screen.getByText("Completed")).toBeInTheDocument();
     await user.click(screen.getByText("Execute Item 1"));
 
-    const selection = useDetailSelectionStore.getState().selection;
-    expect(selection?.entityType).toBe("backlog");
-    expect(selection?.kind).toBe("execute");
-    expect(selection?.name).toBe("item-1");
+    expect(screen.getByTestId("location-path")).toHaveTextContent("/backlog/execute/item-1");
   });
 
   it("shows error state when fetch fails", async () => {
@@ -386,7 +397,7 @@ describe("InitiativeDetailsPage", () => {
     expect(screen.getByTestId("lens-bar-operations")).toBeInTheDocument();
   });
 
-  it("nav button clears detail selection on desktop", async () => {
+  it("nav button uses route back on desktop", async () => {
     vi.mocked(initiativeService.get).mockResolvedValue(mockInitiativeData);
     renderPage();
 
@@ -397,7 +408,7 @@ describe("InitiativeDetailsPage", () => {
     const user = userEvent.setup();
     await user.click(screen.getByTestId("detail-nav-button"));
 
-    expect(useDetailSelectionStore.getState().selection).toBeNull();
+    expect(screen.getByTestId("location-path")).toHaveTextContent("/graph");
   });
 
   it("shows dependency cards with rollup context for upstream and downstream initiatives", async () => {

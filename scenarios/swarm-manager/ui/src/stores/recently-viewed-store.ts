@@ -7,7 +7,7 @@
  */
 
 import { create } from "zustand";
-import type { DetailEntityType } from "./detail-selection-store";
+import type { DetailEntityType } from "../app/routes/route-paths";
 
 const STORAGE_KEY = "swarm-manager.recently-viewed.v1";
 const MAX_ITEMS = 50;

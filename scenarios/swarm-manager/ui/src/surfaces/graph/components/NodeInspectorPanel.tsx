@@ -10,7 +10,7 @@
  */
 
 import { useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, ExternalLink, Play } from "lucide-react";
 import { FocusActionsSection } from "./FocusActionsSection";
@@ -25,11 +25,8 @@ import { LOCKED_STATUSES } from "../../../lib/backlog-queue-utils";
 import { FloatingPanel } from "../../../components/ui/floating-panel";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
-import { useDetailSelectionStore } from "../../../stores/detail-selection-store";
-import { useDetailNavigation } from "../../../hooks/useDetailNavigation";
 import { computeNodeAttention, formatAttentionSummary } from "../lib/attention";
 import { hasDetailPage } from "../lib/detail-page-registry";
-import { parseNodeId } from "../lib/node-id-parser";
 import { getStatusColorClasses } from "../lib/status-colors";
 import {
   BACKLOG_LENSES,
@@ -47,6 +44,7 @@ import {
   type InitiativeGraphNodeData,
 } from "../types";
 import type { GraphLens } from "../stores/graph-data-store";
+import { detailPathFromNodeId, graphPath } from "../../../app/routes/route-paths";
 
 function getLensesForEntity(entityType: GraphEntityType): LensOption[] {
   switch (entityType) {
@@ -147,19 +145,13 @@ function EntityMeta({ data }: { data: GraphNodeData }) {
 const INSPECTOR_POSITION = { x: window.innerWidth - 380, y: window.innerHeight - 300 };
 
 export function NodeInspectorPanel() {
+  const navigate = useNavigate();
   const [, setSearchParams] = useSearchParams();
   const selectedNodeId = useGraphUIStore((s) => s.selectedNodeId);
   const selectNode = useGraphUIStore((s) => s.selectNode);
   const setHighlightState = useGraphUIStore((s) => s.setHighlightState);
   const nodes = useGraphDataStore((s) => s.nodes);
   const currentLens = useGraphDataStore((s) => s.lens);
-
-  const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
-  const selectScenario = useDetailSelectionStore((s) => s.selectScenario);
-  const selectExecution = useDetailSelectionStore((s) => s.selectExecution);
-  const selectInitiative = useDetailSelectionStore((s) => s.selectInitiative);
-
-  const { drillToLens } = useDetailNavigation();
 
   const queryClient = useQueryClient();
   const fetchBacklog = useBacklogStore((s) => s.fetchBacklog);
@@ -198,28 +190,13 @@ export function NodeInspectorPanel() {
 
   const handleOpenDetails = () => {
     if (!selectedNodeId || !nodeData) return;
-    const parsed = parseNodeId(selectedNodeId);
-    if (!parsed) return;
-
-    switch (parsed.entityType) {
-      case "backlog":
-        if (parsed.kind && parsed.name) selectBacklog(parsed.kind, parsed.name);
-        break;
-      case "scenario":
-        if (parsed.name) selectScenario(parsed.name);
-        break;
-      case "execution":
-        selectExecution(parsed.identifier);
-        break;
-      case "initiative":
-        if (parsed.name) selectInitiative(parsed.name);
-        break;
-    }
+    const path = detailPathFromNodeId(selectedNodeId);
+    if (path) navigate(path);
   };
 
   const handleDrillToLens = (lens: GraphLens) => {
     if (!selectedNodeId) return;
-    drillToLens(selectedNodeId, lens);
+    navigate(graphPath({ lens, focus: selectedNodeId, select: selectedNodeId }));
   };
 
   const queueMutation = useMutation({

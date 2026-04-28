@@ -85,17 +85,3 @@ export const DEFAULT_FILTERS: TabFilters = {
   initiatives: { statuses: [], showArchived: false },
   executions: { statuses: [], modes: [] },
 };
-
-// ============================================================================
-// URL Param Keys
-// ============================================================================
-
-export const URL_PARAMS = {
-  tab: "stab",
-  statuses: "sst",
-  kinds: "skd",
-  modes: "smd",
-  priorityRange: "spr",
-  sortField: "ssort",
-  sortDirection: "sdir",
-} as const;

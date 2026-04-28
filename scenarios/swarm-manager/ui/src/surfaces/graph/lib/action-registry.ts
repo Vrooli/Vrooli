@@ -30,7 +30,7 @@ import { getGraphNodeStatus, type GraphNode } from "../types";
 import { parseNodeId } from "./node-id-parser";
 import { API_ENDPOINTS } from "../../../lib/api-endpoints";
 import { defaultApiClient } from "../../../lib/api-client";
-import type { DetailSelection } from "../../../stores/detail-selection-store";
+import type { DetailRouteTarget } from "../../../app/routes/route-paths";
 
 export interface InspectorAction {
   id: string;
@@ -42,7 +42,7 @@ export interface InspectorAction {
   /** If provided, determines whether this action is available for the given node. */
   enabled?: (node: GraphNode) => boolean;
   /** If set, this action opens a detail page instead of calling an API. */
-  navigateTo?: (node: GraphNode) => DetailSelection | null;
+  navigateTo?: (node: GraphNode) => DetailRouteTarget | null;
 }
 
 type ActionRegistry = Record<GraphLens, Partial<Record<EntityType, InspectorAction[]>>>;

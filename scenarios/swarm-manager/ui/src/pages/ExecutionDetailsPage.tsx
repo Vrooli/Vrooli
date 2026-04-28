@@ -14,6 +14,7 @@
  */
 
 import { useState } from "react";
+import { useParams } from "react-router-dom";
 import {
   CircleHelp,
   ClipboardCheck,
@@ -37,7 +38,6 @@ import { ExecutionPromptTab } from "../components/execution/execution-prompt-tab
 import { useEmbeddedServiceUrl } from "../hooks/useEmbeddedServiceUrl";
 import { useExecutionDetailData } from "../hooks/useExecutionDetailData";
 import { useUrlState } from "../hooks/use-url-state";
-import { useDetailSelectionStore, selectionToNodeId } from "../stores/detail-selection-store";
 import { useReviewStore } from "../stores/review-store";
 import { reviewService } from "../services/review-service";
 import { EvidenceRequestPanel } from "../components/backlog/evidence-request-panel";
@@ -47,6 +47,7 @@ import { selectors } from "../consts/selectors";
 import { canRunPostRunChecks } from "../lib/finalization";
 import { ENTITY_TYPE_ICONS } from "../types/constants";
 import type { ExecutionRecord } from "../types";
+import { routeTargetToNodeId } from "../app/routes/route-paths";
 
 type ExecutionTab = "overview" | "changes" | "review" | "prompt";
 
@@ -54,10 +55,8 @@ export function ExecutionDetailsPage() {
   const queryClient = useQueryClient();
 
   // --- Navigation / selection ---
-  const selection = useDetailSelectionStore((s) => s.selection);
-
-  const executionId = selection?.identifier;
-  const nodeId = selectionToNodeId(selection);
+  const { executionId } = useParams<{ executionId: string }>();
+  const nodeId = routeTargetToNodeId({ entityType: "execution", identifier: executionId });
 
   // --- Tab state (URL-synced) ---
   const [activeTab, setActiveTab] = useUrlState<ExecutionTab>("tab", "overview", {

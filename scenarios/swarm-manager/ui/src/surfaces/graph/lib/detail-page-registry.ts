@@ -14,10 +14,10 @@
  * WHY THIS EXISTS:
  * The NodeInspectorPanel uses this to decide whether to show an "Open Details"
  * button. Entity types with detail pages get the button; those without
- * (capture, agent-activity, agent-run) only show lens navigation.
+ * (agent-activity, agent-run) only show lens navigation.
  */
 
-import type { DetailEntityType } from "../../../stores/detail-selection-store";
+import type { DetailEntityType } from "../../../app/routes/route-paths";
 import type { GraphEntityType } from "../types";
 
 /**
@@ -32,6 +32,7 @@ const DETAIL_ENTITY_TYPES: ReadonlySet<DetailEntityType> = new Set<DetailEntityT
   "scenario",
   "execution",
   "initiative",
+  "capture",
 ] as const satisfies readonly DetailEntityType[]);
 
 /**

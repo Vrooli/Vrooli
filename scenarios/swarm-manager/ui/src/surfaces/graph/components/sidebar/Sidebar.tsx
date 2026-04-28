@@ -2,16 +2,16 @@
  * Sidebar - Multi-tab navigation surface for the graph workspace.
  *
  * Composes: SidebarHeader → SearchBar → Tabs → FilterBar → Tab Content.
- * Manages sidebar UI state via useReducer with URL sync.
+ * Manages sidebar UI state via persisted reducer state.
  */
 
+import type { HTMLAttributes } from "react";
 import { cn } from "../../../../lib/utils";
 import { SearchBar } from "../../../../components/ui/search-bar";
 import { useAISearchStatus } from "../../../../lib/ai-search";
 import { useGraphUIStore } from "../../stores/graph-ui-store";
 import { useSidebarState } from "./useSidebarState";
 import { useDebouncedValue } from "./useSidebarSearch";
-import { useRestoreFromUrl, useSyncToUrl } from "./useSidebarUrlSync";
 import { SidebarHeader } from "./SidebarHeader";
 import { SidebarTabs } from "./SidebarTabs";
 import { SearchModeToggle } from "./SearchModeToggle";
@@ -30,10 +30,23 @@ interface SidebarProps {
   onSettingsOpen: () => void;
   onViewActivity: (activityId: string) => void;
   onViewBacklog: (nodeId: string) => void;
+  onGoHome: () => void;
   onOpenCommandPost?: () => void;
+  desktopWidth?: number;
+  resizeHandleProps?: HTMLAttributes<HTMLDivElement>;
 }
 
-export function Sidebar({ feed, onItemClick, onSettingsOpen, onViewActivity, onViewBacklog, onOpenCommandPost }: SidebarProps) {
+export function Sidebar({
+  feed,
+  onItemClick,
+  onSettingsOpen,
+  onViewActivity,
+  onViewBacklog,
+  onGoHome,
+  onOpenCommandPost,
+  desktopWidth,
+  resizeHandleProps,
+}: SidebarProps) {
   const sidebarCollapsed = useGraphUIStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useGraphUIStore((s) => s.toggleSidebar);
 
@@ -42,9 +55,6 @@ export function Sidebar({ feed, onItemClick, onSettingsOpen, onViewActivity, onV
   const aiSearchStatus = useAISearchStatus();
   const aiAvailable = aiSearchStatus.status?.available ?? false;
   const aiMode = state.searchMode === "ai" && aiAvailable;
-
-  useRestoreFromUrl(dispatch);
-  useSyncToUrl(state);
 
   if (sidebarCollapsed) {
     return null;
@@ -65,9 +75,12 @@ export function Sidebar({ feed, onItemClick, onSettingsOpen, onViewActivity, onV
       <aside
         className={cn(
           "fixed inset-0 z-50 flex w-full flex-col border-r border-slate-200/20 bg-slate-950 shadow-2xl",
-          "md:relative md:z-auto md:w-80 md:shrink-0 md:shadow-none",
+          "md:relative md:z-auto md:w-auto md:shrink-0 md:shadow-none",
         )}
-        style={{ touchAction: "manipulation" }}
+        style={{
+          touchAction: "manipulation",
+          width: desktopWidth,
+        }}
         data-testid="sidebar"
       >
         {/* Header */}
@@ -76,6 +89,7 @@ export function Sidebar({ feed, onItemClick, onSettingsOpen, onViewActivity, onV
           onCollapse={toggleSidebar}
           onViewActivity={onViewActivity}
           onViewBacklog={onViewBacklog}
+          onGoHome={onGoHome}
           onOpenCommandPost={onOpenCommandPost}
         />
 
@@ -163,6 +177,16 @@ export function Sidebar({ feed, onItemClick, onSettingsOpen, onViewActivity, onV
           )}
         </div>
       </aside>
+      {resizeHandleProps && (
+        <div
+          {...resizeHandleProps}
+          className={cn(
+            "hidden w-1.5 shrink-0 cursor-col-resize border-r border-slate-800 bg-slate-950 transition-colors hover:bg-cyan-500/20 md:block",
+            resizeHandleProps.className,
+          )}
+          data-testid="sidebar-resize-handle"
+        />
+      )}
     </>
   );
 }

@@ -3,7 +3,7 @@
  *
  * 1-3: switch lenses
  * L: cycle layout mode
- * Esc: close detail page or deselect node
+ * Esc: deselect graph node
  * Ctrl+K: preserved for host switcher
  */
 
@@ -14,7 +14,6 @@ import {
 } from "@vrooli/iframe-bridge";
 import { useGraphDataStore } from "../stores/graph-data-store";
 import { useGraphUIStore } from "../stores/graph-ui-store";
-import { useDetailSelectionStore } from "../../../stores/detail-selection-store";
 import type { GraphLens } from "../stores/graph-data-store";
 
 function isInputElement(el: HTMLElement): boolean {
@@ -45,8 +44,6 @@ export function useGraphKeyboardShortcuts(handlers: GraphShortcutHandlers): void
   const cycleLayoutMode = useGraphUIStore((s) => s.cycleLayoutMode);
   const selectedNodeId = useGraphUIStore((s) => s.selectedNodeId);
   const lens = useGraphDataStore((s) => s.lens);
-  const detailSelection = useDetailSelectionStore((s) => s.selection);
-  const clearDetailSelection = useDetailSelectionStore((s) => s.clearSelection);
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
@@ -94,17 +91,15 @@ export function useGraphKeyboardShortcuts(handlers: GraphShortcutHandlers): void
         return;
       }
 
-      // Escape — Close detail page, or deselect node
+      // Escape — Deselect graph node.
       if (event.key === "Escape") {
-        if (detailSelection) {
-          clearDetailSelection();
-        } else if (selectedNodeId) {
+        if (selectedNodeId) {
           handlers.onDeselectNode();
         }
         return;
       }
     },
-    [handlers, cycleLayoutMode, lens, selectedNodeId, detailSelection, clearDetailSelection],
+    [handlers, cycleLayoutMode, lens, selectedNodeId],
   );
 
   useEffect(() => {

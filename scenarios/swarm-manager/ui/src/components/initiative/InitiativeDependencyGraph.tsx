@@ -7,6 +7,7 @@
  */
 
 import { memo, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -21,8 +22,8 @@ import { applyDagreLayout } from "../../surfaces/graph/lib/layout-utils";
 import { cn } from "../../lib/utils";
 import { formatDisplayText } from "../../lib/format-utils";
 import type { BacklogStatus } from "../../types";
-import { useDetailSelectionStore } from "../../stores/detail-selection-store";
 import { getStatusColorClasses } from "../../surfaces/graph/lib/status-colors";
+import { backlogDetailPath } from "../../app/routes/route-paths";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -144,7 +145,7 @@ const DIFF_BADGE: Record<Exclude<NodeDiff, null>, { label: string; classes: stri
 };
 
 const MiniDagNode = memo(function MiniDagNode({ data }: NodeProps<Node<MiniNodeData>>) {
-  const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
+  const navigate = useNavigate();
   const statusColors = getStatusColorClasses(data.status);
   const diffBadge = data.diff ? DIFF_BADGE[data.diff] : null;
   const borderDiff =
@@ -163,7 +164,7 @@ const MiniDagNode = memo(function MiniDagNode({ data }: NodeProps<Node<MiniNodeD
       <Handle type="target" position={Position.Top} className="!bg-transparent !border-0 !w-0 !h-0" />
       <button
         type="button"
-        onClick={() => selectBacklog(data.kind, data.name)}
+        onClick={() => navigate(backlogDetailPath(data.kind, data.name))}
         className={cn(
           "flex h-full w-full flex-col rounded-xl border bg-slate-950/95 p-3 text-left transition-colors hover:border-slate-500/80 hover:bg-slate-900",
           borderDiff,

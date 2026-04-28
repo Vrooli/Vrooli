@@ -88,9 +88,30 @@ Backlog items can declare dependencies on other items via the `depends_on` field
 
 5. **Graph workspace projection**
    ```
-   GET /graph?lens={topology|flow|operations}[&focus_node_id=...] -> proto GraphResponse -> typed graph store -> React Flow canvas + sidebar + inspector
+   GET /graph?lens={topology|focus|operations}[&focus_node_id=...] -> proto GraphResponse -> typed graph store -> React Flow canvas + inspector
    WS /ws/graph invalidate/node-update -> silent refresh + runtime node pulse
    ```
+
+6. **UI route navigation**
+   ```
+   /graph[/focus|/topology|/operations] -> graph workspace
+   /backlog/:kind/:name -> backlog detail
+   /scenarios/:name -> scenario detail
+   /executions/:executionId -> execution detail
+   /initiatives/:name -> initiative detail
+   /captures/:captureId -> capture detail
+   /command-post -> command summary
+   /command-post/decisions -> decision stream
+   ```
+
+   Fullscreen operator surfaces are first-class routes inside a shared app shell. The shell owns the global sidebar, so details, Command Post, and Decision Stream all expose a hamburger action for navigation. Page close/back controls use route-aware history with a direct-load fallback to `/graph/topology`; child routes such as Decision Stream replace themselves when returning to their parent to avoid browser-history loops.
+
+7. **Global sidebar shell**
+   ```
+   AppShell -> persisted, resizable desktop sidebar + floating mobile sheet -> routed page outlet
+   ```
+
+   Sidebar open/collapsed state, desktop width, active tab, search mode/query, filters, and sort options are stored in localStorage. The sidebar no longer writes ambient UI preferences into the current route query string.
 
 ## Graph Lenses
 
@@ -103,7 +124,7 @@ Shows: non-completed backlog items, initiatives (with rollup counts), captures (
 
 **Edges:** `depends_on`, `member_of`, `classified_as`, `targets`
 
-### Flow (Focused History)
+### Focus (Focused History)
 **Purpose:** Execution history drill-down for a specific entity.
 
 Requires a `focus_node_id` parameter. Without one, returns an empty graph with a hint.
@@ -123,7 +144,7 @@ Supports optional `focus_node_id` for filtered view of a single entity's operati
 
 **Navigation:** Accessible via the Operations tab or "View Operations" in the Inspector. Keyboard shortcut: `3`.
 
-6. **Scenario lifecycle control**
+7. **Scenario lifecycle control**
    ```
    List scenarios -> inspect details -> start/stop/restart/delete/archive
    ```
@@ -133,7 +154,7 @@ Supports optional `focus_node_id` for filtered view of a single entity's operati
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ PRESENTATION LAYER (UI)                                     │
-│ Graph workspace + sidebar/search + detail routes + prompts   │
+│ App shell + graph workspace + sidebar/search + routes        │
 ├─────────────────────────────────────────────────────────────┤
 │ API GATEWAY LAYER (Go API)                                  │
 │ HTTP/proto endpoints, validation, response contracts         │
@@ -155,7 +176,7 @@ Supports optional `focus_node_id` for filtered view of a single entity's operati
 
 | Layer | Status | Notes |
 |-------|--------|-------|
-| Presentation | Functional | Graph-first workspace is primary (`/graph`), with sidebar/search flows and detail pages for backlog, initiatives, scenarios, and execution |
+| Presentation | Functional | Shared app shell owns global navigation; graph-first workspace is primary (`/graph`), with canonical detail routes for backlog, initiatives, scenarios, executions, captures, Command Post, and Decision Stream |
 | API Gateway | Implemented | Health, graph, backlog (incl. batch), scenarios, settings, queue, execution, prompts, initiatives, overview, captures, agent-manager status |
 | Domain Logic | Implemented | CRUD, archive, queue, research, batch ops, dependency graph, initiatives, overview aggregation, execution scheduling and run control |
 | Integration | Implemented | Discovery-based clients (agent-manager, prompt-manager) and CLI-backed scenario operations |

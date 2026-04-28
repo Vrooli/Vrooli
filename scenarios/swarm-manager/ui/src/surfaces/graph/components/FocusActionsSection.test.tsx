@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MemoryRouter } from "react-router-dom";
 import type { GraphNodeData, BacklogGraphNodeData, ExecutionGraphNodeData, CaptureGraphNodeData } from "../types";
 
 // ---------------------------------------------------------------------------
@@ -37,14 +38,6 @@ vi.mock("../../../stores/execution-store", () => ({
     sel({ items: [] }),
 }));
 
-vi.mock("../../../stores/detail-selection-store", () => ({
-  useDetailSelectionStore: (sel: (s: Record<string, unknown>) => unknown) =>
-    sel({
-      selectBacklog: vi.fn(),
-      selectExecution: vi.fn(),
-    }),
-}));
-
 vi.mock("../../../components/backlog/run-backlog-modal", () => ({
   RunBacklogModal: ({ isOpen }: { isOpen: boolean }) =>
     isOpen ? <div data-testid="run-modal">RunModal</div> : null,
@@ -64,7 +57,11 @@ function renderWithProviders(ui: React.ReactElement) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+  return render(
+    <MemoryRouter>
+      <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
+    </MemoryRouter>,
+  );
 }
 
 function makeBacklogNode(status: string, kind = "execute", name = "test-item"): BacklogGraphNodeData {

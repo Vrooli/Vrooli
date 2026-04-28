@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, vi, afterEach } from "vitest";
 import { render, cleanup } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { InitiativeDependencyGraph } from "./InitiativeDependencyGraph";
 import type { BacklogStatus } from "../../types";
 
@@ -36,7 +37,11 @@ function item(name: string, dependsOn: string[] = [], status: BacklogStatus = "b
 describe("InitiativeDependencyGraph overlay", () => {
   it("renders with no overlay (baseline path)", () => {
     const items = [item("a"), item("b", ["execute/a"])];
-    const { container } = render(<InitiativeDependencyGraph items={items} />);
+    const { container } = render(
+      <MemoryRouter>
+        <InitiativeDependencyGraph items={items} />
+      </MemoryRouter>,
+    );
     // ReactFlow mounts a container div; overlay path still produces output.
     expect(container.firstChild).toBeTruthy();
   });
@@ -44,17 +49,19 @@ describe("InitiativeDependencyGraph overlay", () => {
   it("accepts an overlay with added/archived/status changes without crashing", () => {
     const items = [item("a"), item("b", ["execute/a"])];
     const { container } = render(
-      <InitiativeDependencyGraph
-        items={items}
-        overlay={{
-          addedNodes: [{ id: "execute/new", kind: "execute", name: "new", title: "New" }],
-          addedNodeIds: ["execute/new"],
-          archivedNodeIds: ["execute/a"],
-          statusChanges: { "execute/b": "ready" },
-          addedEdges: [{ from: "execute/new", to: "execute/b" }],
-          removedEdges: [{ from: "execute/a", to: "execute/b" }],
-        }}
-      />,
+      <MemoryRouter>
+        <InitiativeDependencyGraph
+          items={items}
+          overlay={{
+            addedNodes: [{ id: "execute/new", kind: "execute", name: "new", title: "New" }],
+            addedNodeIds: ["execute/new"],
+            archivedNodeIds: ["execute/a"],
+            statusChanges: { "execute/b": "ready" },
+            addedEdges: [{ from: "execute/new", to: "execute/b" }],
+            removedEdges: [{ from: "execute/a", to: "execute/b" }],
+          }}
+        />
+      </MemoryRouter>,
     );
     expect(container.firstChild).toBeTruthy();
     // With overlay adds, the "No dependencies" placeholder should not render.
@@ -64,12 +71,14 @@ describe("InitiativeDependencyGraph overlay", () => {
   it("renders the diff badge label when a status_change is present", () => {
     const items = [item("a"), item("b", ["execute/a"])];
     const { container } = render(
-      <InitiativeDependencyGraph
-        items={items}
-        overlay={{
-          statusChanges: { "execute/a": "ready" },
-        }}
-      />,
+      <MemoryRouter>
+        <InitiativeDependencyGraph
+          items={items}
+          overlay={{
+            statusChanges: { "execute/a": "ready" },
+          }}
+        />
+      </MemoryRouter>,
     );
     // ReactFlow renders the custom node content as HTML — the "Status" label
     // should appear in the DOM somewhere under the node markup.

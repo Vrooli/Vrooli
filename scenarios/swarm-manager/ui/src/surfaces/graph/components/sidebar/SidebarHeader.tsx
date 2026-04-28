@@ -12,8 +12,6 @@ import { useQuery } from "@tanstack/react-query";
 import { defaultQueryOptions } from "../../../../lib";
 import { settingsService } from "../../../../services";
 import { useAgentActivitiesStore } from "../../../../stores";
-import { useDetailSelectionStore } from "../../../../stores/detail-selection-store";
-import { useGraphUIStore } from "../../stores/graph-ui-store";
 import { AgentsDropdown } from "../../../../components/agents/AgentsDropdown";
 import { CommandPostButton } from "../../../../components/command-post/CommandPostButton";
 import { useCommandPostBadgeCount } from "../../../../hooks/useCommandPostBadgeCount";
@@ -23,6 +21,7 @@ export interface SidebarHeaderProps {
   onCollapse: () => void;
   onViewActivity: (activityId: string) => void;
   onViewBacklog: (nodeId: string) => void;
+  onGoHome: () => void;
   onOpenCommandPost?: () => void;
 }
 
@@ -31,12 +30,11 @@ export function SidebarHeader({
   onCollapse,
   onViewActivity,
   onViewBacklog,
+  onGoHome,
   onOpenCommandPost,
 }: SidebarHeaderProps) {
   const activities = useAgentActivitiesStore((s) => s.activities);
   const stopRun = useAgentActivitiesStore((s) => s.stopRun);
-  const clearSelection = useDetailSelectionStore((s) => s.clearSelection);
-  const setSidebarCollapsed = useGraphUIStore((s) => s.setSidebarCollapsed);
   const commandPostBadgeCount = useCommandPostBadgeCount();
   const { data: settings } = useQuery({
     queryKey: ["settings"],
@@ -44,18 +42,13 @@ export function SidebarHeader({
     ...defaultQueryOptions,
   });
 
-  const handleGoHome = () => {
-    clearSelection();
-    setSidebarCollapsed(true);
-  };
-
   return (
     <div className="flex h-10 shrink-0 items-center justify-between border-b border-slate-200/20 px-3">
       {/* Left: Home button + App title */}
       <div className="flex items-center gap-1.5">
         <button
           type="button"
-          onClick={handleGoHome}
+          onClick={onGoHome}
           className="rounded p-1.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
           aria-label="Go to graph view"
           data-testid="sidebar-home"

@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { ScenarioResultCards } from "./scenario-result-cards";
-import { useDetailSelectionStore } from "../../stores/detail-selection-store";
 import { selectors } from "../../consts/selectors";
 import type { ExecutionRecord, Finalization, ScenarioFinalization } from "../../types";
 
@@ -51,9 +51,18 @@ const defaultProps = {
 };
 
 describe("ScenarioResultCards", () => {
-  beforeEach(() => {
-    useDetailSelectionStore.setState({ selection: null });
-  });
+  function renderCards(execution: ExecutionRecord) {
+    return render(
+      <MemoryRouter>
+        <ScenarioResultCards execution={execution} />
+      </MemoryRouter>,
+    );
+  }
+
+  function LocationProbe() {
+    const location = useLocation();
+    return <span data-testid="location-path">{location.pathname}</span>;
+  }
 
   it("returns null when no finalization", () => {
     const { container } = render(
@@ -102,7 +111,7 @@ describe("ScenarioResultCards", () => {
   });
 
   it("renders scenario cards when finalization is complete with scenarios", () => {
-    render(<ScenarioResultCards {...defaultProps} />);
+    renderCards(defaultProps.execution);
     expect(screen.getByTestId(selectors.review.scenarioResultCards)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.review.scenarioResultCard)).toBeInTheDocument();
     expect(screen.getByText("test-scenario")).toBeInTheDocument();
@@ -118,7 +127,7 @@ describe("ScenarioResultCards", () => {
         ],
       }),
     });
-    render(<ScenarioResultCards execution={execution} />);
+    renderCards(execution);
     const cards = screen.getAllByTestId(selectors.review.scenarioResultCard);
     expect(cards).toHaveLength(2);
     expect(screen.getByText("alpha")).toBeInTheDocument();
@@ -145,7 +154,7 @@ describe("ScenarioResultCards", () => {
         ],
       }),
     });
-    render(<ScenarioResultCards execution={execution} />);
+    renderCards(execution);
     expect(screen.getByText("Ready")).toBeInTheDocument();
   });
 
@@ -168,12 +177,12 @@ describe("ScenarioResultCards", () => {
         ],
       }),
     });
-    render(<ScenarioResultCards execution={execution} />);
+    renderCards(execution);
     expect(screen.getByText("Needs work")).toBeInTheDocument();
   });
 
   it("shows restart and health status indicators", () => {
-    render(<ScenarioResultCards {...defaultProps} />);
+    renderCards(defaultProps.execution);
     expect(screen.getByText("restart")).toBeInTheDocument();
     expect(screen.getByText("health")).toBeInTheDocument();
   });
@@ -188,30 +197,32 @@ describe("ScenarioResultCards", () => {
         ],
       }),
     });
-    render(<ScenarioResultCards execution={execution} />);
+    renderCards(execution);
     expect(screen.getByText("restart")).toBeInTheDocument();
   });
 
   it("clicking scenario name navigates to scenario detail", () => {
     render(
-      <ScenarioResultCards
-        execution={makeExecution({
-          finalization: makeFinalization({
-            scenarios: [makeScenarioFinalization({ scenarioName: "click-me" })],
-          }),
-        })}
-      />,
+      <MemoryRouter>
+        <ScenarioResultCards
+          execution={makeExecution({
+            finalization: makeFinalization({
+              scenarios: [makeScenarioFinalization({ scenarioName: "click-me" })],
+            }),
+          })}
+        />
+        <LocationProbe />
+      </MemoryRouter>,
     );
     fireEvent.click(screen.getByText("click-me"));
-    const selection = useDetailSelectionStore.getState().selection;
-    expect(selection).toMatchObject({ entityType: "scenario", name: "click-me" });
+    expect(screen.getByTestId("location-path")).toHaveTextContent("/scenarios/click-me");
   });
 
   it("renders cards when finalization status is failed (terminal)", () => {
     const execution = makeExecution({
       finalization: makeFinalization({ status: "failed", phase: "failed" }),
     });
-    render(<ScenarioResultCards execution={execution} />);
+    renderCards(execution);
     expect(screen.getByTestId(selectors.review.scenarioResultCards)).toBeInTheDocument();
   });
 
@@ -225,7 +236,7 @@ describe("ScenarioResultCards", () => {
         ],
       }),
     });
-    render(<ScenarioResultCards execution={execution} />);
+    renderCards(execution);
     // When review is skipped, the component renders a StatusIndicator with "review" label
     expect(screen.getByText("review")).toBeInTheDocument();
   });

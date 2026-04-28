@@ -4,19 +4,18 @@
  * Renders action buttons from the action registry for a given entity type.
  * Adapts the ActionButton pattern from Inspector.tsx for use in detail pages.
  *
- * Navigation actions call the detail selection store directly instead of
- * using route-based navigation.
+ * Navigation actions use canonical detail routes.
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useGraphDataStore } from "../../surfaces/graph/stores/graph-data-store";
 import type { EntityType } from "../../surfaces/graph/stores/graph-settings-store";
 import { getActionsForNode, type InspectorAction } from "../../surfaces/graph/lib/action-registry";
 import type { GraphNode } from "../../surfaces/graph/types";
-import { useDetailSelectionStore } from "../../stores/detail-selection-store";
-import type { DetailSelection } from "../../stores/detail-selection-store";
+import { detailPath, type DetailRouteTarget } from "../../app/routes/route-paths";
 
 interface DetailActionButtonsProps {
   entityType: EntityType;
@@ -34,7 +33,7 @@ function ActionButton({
 }: {
   action: InspectorAction;
   node: GraphNode | null;
-  onNavigate: (selection: DetailSelection) => void;
+  onNavigate: (selection: DetailRouteTarget) => void;
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -107,28 +106,14 @@ export function DetailActionButtons({
 }: DetailActionButtonsProps) {
   const lens = useGraphDataStore((s) => s.lens);
   const actions = getActionsForNode(lens, entityType);
-  const store = useDetailSelectionStore();
+  const navigate = useNavigate();
 
   const handleNavigate = useCallback(
-    (selection: DetailSelection) => {
-      switch (selection.entityType) {
-        case "backlog":
-          if (selection.kind && selection.name) {
-            store.selectBacklog(selection.kind, selection.name, selection.tab);
-          }
-          break;
-        case "scenario":
-          if (selection.name) store.selectScenario(selection.name, selection.tab);
-          break;
-        case "execution":
-          if (selection.identifier) store.selectExecution(selection.identifier);
-          break;
-        case "initiative":
-          if (selection.name) store.selectInitiative(selection.name, selection.tab);
-          break;
-      }
+    (selection: DetailRouteTarget) => {
+      const path = detailPath(selection);
+      if (path) navigate(path);
     },
-    [store],
+    [navigate],
   );
 
   // Filter out "View Details" actions since we're already on the detail page.

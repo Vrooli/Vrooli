@@ -2,16 +2,22 @@
  * useDrillToLens
  *
  * Provides callbacks for cross-lens navigation from detail pages.
- * Delegates to useDetailNavigation for consistent sidebar/detail coordination.
+ * Navigates to graph lens routes with the target node focused.
  *
  * DOC: docs/plans/navigation-header-unification-plan.md#phase-1
  */
 
 import { useCallback } from "react";
-import { useDetailNavigation } from "./useDetailNavigation";
+import { useNavigate } from "react-router-dom";
+import { graphPath } from "../app/routes/route-paths";
+import type { GraphLens } from "../surfaces/graph/stores/graph-data-store";
 
 export function useDrillToLens() {
-  const { drillToLens } = useDetailNavigation();
+  const navigate = useNavigate();
+  const drillToLens = useCallback(
+    (nodeId: string, lens: GraphLens) => navigate(graphPath({ lens, focus: nodeId, select: nodeId })),
+    [navigate],
+  );
 
   const drillToOperations = useCallback(
     (nodeId: string) => drillToLens(nodeId, "operations"),

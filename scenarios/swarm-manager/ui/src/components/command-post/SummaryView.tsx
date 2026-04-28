@@ -14,11 +14,9 @@ import { useBacklogStore } from "../../stores/backlog-store";
 import { useExecutionStore } from "../../stores/execution-store";
 import { useCaptureStore } from "../../stores/capture-store";
 import { useSnoozeStore, useSnoozedKeys } from "../../stores/snooze-store";
-import { useDetailSelectionStore } from "../../stores/detail-selection-store";
 import { sortedGroupActionItems, type ActionGroup, type ActionGroupId, type ActionableItem } from "../../lib/command-post-utils";
 import { getItemActions } from "../../lib/backlog-queue-utils";
 import { useCommandPostItemActions } from "../../hooks/useCommandPostItemActions";
-import type { DetailSelection } from "../../stores/detail-selection-store";
 import type { RunBacklogTarget } from "../backlog/run-backlog-modal";
 import { RunBacklogModal } from "../backlog/run-backlog-modal";
 import { ConfirmDialog } from "../ui/confirm-dialog";
@@ -28,22 +26,21 @@ import { ExecutionCaptureCard } from "./ExecutionCaptureCard";
 import { SnoozedSection } from "./SnoozedSection";
 import { RecentSection } from "./RecentSection";
 import { EmptyState } from "./EmptyState";
+import type { DetailRouteTarget } from "../../app/routes/route-paths";
 
 /** Bulk actions spawning more than this many agents require confirmation. */
 const BULK_AGENT_CONFIRM_THRESHOLD = 3;
 
 interface SummaryViewProps {
   onEnterDecisionStream: () => void;
-  onNavigateToDetail: (selection: DetailSelection) => void;
+  onNavigateToDetail: (selection: DetailRouteTarget) => void;
   onSwitchLens: (lens: string) => void;
-  onClose: () => void;
 }
 
 export function SummaryView({
   onEnterDecisionStream,
   onNavigateToDetail,
   onSwitchLens,
-  onClose,
 }: SummaryViewProps) {
   const backlogItems = useBacklogStore((s) => s.items);
   const blockingMap = useBacklogStore((s) => s.blockingMap);
@@ -53,7 +50,6 @@ export function SummaryView({
   const snooze = useSnoozeStore((s) => s.snooze);
   const unsnooze = useSnoozeStore((s) => s.unsnooze);
   const snoozedKeys = useSnoozedKeys();
-  const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
 
   const [runModalTargets, setRunModalTargets] = useState<RunBacklogTarget[] | undefined>();
   const [activeFilter, setActiveFilter] = useState<ActionGroupId | null>(null);
@@ -62,8 +58,7 @@ export function SummaryView({
   // ── Shared item action wiring ──────────────────────────────────────
   const itemActionsHook = useCommandPostItemActions({
     onSelectBacklog: (kind, name) => {
-      selectBacklog(kind, name);
-      onClose();
+      onNavigateToDetail({ entityType: "backlog", kind, name });
     },
     onRunItem: (kind, name, title) => {
       setRunModalTargets([{ kind, name, title }]);
@@ -147,9 +142,8 @@ export function SummaryView({
       } else if (item.type === "execution" && item.executionId) {
         onNavigateToDetail({ entityType: "execution", identifier: item.executionId });
       }
-      onClose();
     },
-    [onNavigateToDetail, onClose],
+    [onNavigateToDetail],
   );
 
   const executeBulkAgentAction = useCallback(

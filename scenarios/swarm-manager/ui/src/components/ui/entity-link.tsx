@@ -1,13 +1,14 @@
 /**
  * EntityLink — Shared clickable chip for cross-entity navigation.
  *
- * Navigates via the detail selection store (overlay panel), not URL routing.
+ * Navigates through canonical detail routes.
  * Provides consistent per-entity-type styling across all detail pages.
  */
 
 import { useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { cn } from "../../lib/utils";
-import { useDetailSelectionStore } from "../../stores/detail-selection-store";
+import { backlogDetailPath, executionDetailPath, initiativeDetailPath, scenarioDetailPath } from "../../app/routes/route-paths";
 
 /** Entity types that EntityLink supports navigating to. */
 export type LinkableEntityType = "backlog" | "initiative" | "scenario" | "execution";
@@ -50,24 +51,24 @@ export function EntityLink({
   className,
   "data-testid": testId,
 }: EntityLinkProps) {
-  const store = useDetailSelectionStore();
+  const navigate = useNavigate();
 
   const handleClick = useCallback(() => {
     switch (entityType) {
       case "backlog":
-        if (kind && name) store.selectBacklog(kind, name, tab);
+        if (kind && name) navigate(backlogDetailPath(kind, name, tab ? { tab } : undefined));
         break;
       case "initiative":
-        if (name) store.selectInitiative(name, tab);
+        if (name) navigate(initiativeDetailPath(name, tab ? { tab } : undefined));
         break;
       case "scenario":
-        if (name) store.selectScenario(name, tab);
+        if (name) navigate(scenarioDetailPath(name, tab ? { tab } : undefined));
         break;
       case "execution":
-        if (executionId) store.selectExecution(executionId);
+        if (executionId) navigate(executionDetailPath(executionId, tab ? { tab } : undefined));
         break;
     }
-  }, [entityType, kind, name, executionId, tab, store]);
+  }, [entityType, kind, name, executionId, tab, navigate]);
 
   return (
     <button

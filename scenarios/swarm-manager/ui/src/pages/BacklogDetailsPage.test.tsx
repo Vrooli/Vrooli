@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, fireEvent, within, cleanup, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { BacklogDetailsPage } from "./BacklogDetailsPage";
-import { useBacklogStore, useDetailSelectionStore, useAgentActivitiesStore, useBacklogDetailUIStore } from "../stores";
+import { useBacklogStore, useAgentActivitiesStore, useBacklogDetailUIStore } from "../stores";
 
 // jsdom doesn't provide matchMedia (needed by useIsMobile in DetailPageLayout).
 beforeAll(() => {
@@ -225,19 +225,19 @@ describe("BacklogDetailsPage", () => {
     cleanup();
     queryClient.clear();
     useBacklogStore.getState().reset();
-    useDetailSelectionStore.getState().clearSelection();
     useAgentActivitiesStore.setState({ activities: [], isRefreshing: false });
     useBacklogDetailUIStore.getState().reset();
     vi.clearAllTimers();
   });
 
   const renderPage = (kind = "idea", name = "test-idea", tab?: string) => {
-    useDetailSelectionStore.getState().selectBacklog(kind, name, tab);
     const search = tab ? `?tab=${tab}` : "";
     return render(
-      <MemoryRouter initialEntries={[`/graph${search}`]}>
+      <MemoryRouter initialEntries={[`/backlog/${kind}/${name}${search}`]}>
         <QueryClientProvider client={queryClient}>
-          <BacklogDetailsPage />
+          <Routes>
+            <Route path="/backlog/:kind/:name" element={<BacklogDetailsPage />} />
+          </Routes>
         </QueryClientProvider>
       </MemoryRouter>
     );

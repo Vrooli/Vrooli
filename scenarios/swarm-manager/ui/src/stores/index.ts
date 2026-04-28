@@ -10,12 +10,6 @@ export {
 } from "./agent-activities-store";
 export { useCaptureStore, captureStoreInitialState } from "./capture-store";
 export { useInitiativeStore, initiativeStoreInitialState } from "./initiative-store";
-export {
-  useDetailSelectionStore,
-  type DetailSelection,
-  type DetailEntityType,
-  type DetailSelectionStore,
-} from "./detail-selection-store";
 export { useRecentlyViewedStore, type RecentlyViewedItem } from "./recently-viewed-store";
 export { useBacklogDetailUIStore } from "./backlog-detail-ui-store";
 export type { LoadStatus } from "./store-utils";

@@ -6,9 +6,8 @@
  * - BrowserRouter: Client-side routing
  * - 404 handler: Catches unknown routes
  *
- * The primary route is /graph (GraphWorkspace), which hosts detail pages
- * as state-driven overlays. Legacy routes redirect to /graph with
- * appropriate query params.
+ * Fullscreen experiences are first-class routes. The graph, entity details,
+ * Command Post, and Decision Stream all participate in browser history.
  */
 
 import { lazy, Suspense } from "react";
@@ -17,20 +16,33 @@ import { getProxyInfo } from "@vrooli/api-base";
 import { ErrorBoundary } from "./components/ui/error-boundary";
 import { PageErrorBoundary } from "./components/ui/page-error-boundary";
 import { NotFoundPage } from "./pages/NotFoundPage";
-import {
-  BacklogRedirect,
-  BacklogDetailsRedirect,
-  ScenariosRedirect,
-  ScenarioDetailsRedirect,
-  ExecutionRedirect,
-  PromptsRedirect,
-  SettingsRedirect,
-} from "./surfaces/graph/components/LegacyRedirect";
+import { AppShell } from "./app/shell/AppShell";
 
 const GraphWorkspace = lazy(() =>
   import("./surfaces/graph/components/GraphWorkspace").then((m) => ({
     default: m.GraphWorkspace,
   })),
+);
+const BacklogDetailsPage = lazy(() =>
+  import("./pages/BacklogDetailsPage").then((m) => ({ default: m.BacklogDetailsPage })),
+);
+const ScenarioDetailsPage = lazy(() =>
+  import("./pages/ScenarioDetailsPage").then((m) => ({ default: m.ScenarioDetailsPage })),
+);
+const ExecutionDetailsPage = lazy(() =>
+  import("./pages/ExecutionDetailsPage").then((m) => ({ default: m.ExecutionDetailsPage })),
+);
+const InitiativeDetailsPage = lazy(() =>
+  import("./pages/InitiativeDetailsPage").then((m) => ({ default: m.InitiativeDetailsPage })),
+);
+const CaptureDetailsPage = lazy(() =>
+  import("./pages/CaptureDetailsPage").then((m) => ({ default: m.CaptureDetailsPage })),
+);
+const CommandPostPage = lazy(() =>
+  import("./pages/command-post/CommandPostPage").then((m) => ({ default: m.CommandPostPage })),
+);
+const DecisionStreamPage = lazy(() =>
+  import("./pages/command-post/DecisionStreamPage").then((m) => ({ default: m.DecisionStreamPage })),
 );
 
 /**
@@ -65,28 +77,21 @@ export default function App() {
           }
         >
           <Routes>
-            {/* Primary route: graph workspace (detail pages render as overlays inside) */}
-            <Route path="/graph" element={<PageErrorBoundary pageName="Graph"><GraphWorkspace /></PageErrorBoundary>} />
+            <Route element={<AppShell />}>
+              <Route path="/graph" element={<PageErrorBoundary pageName="Graph"><GraphWorkspace /></PageErrorBoundary>} />
+              <Route path="/graph/:lens" element={<PageErrorBoundary pageName="Graph"><GraphWorkspace /></PageErrorBoundary>} />
 
-            {/* Root redirects to /graph */}
-            <Route index element={<Navigate to="/graph" replace />} />
+              <Route index element={<Navigate to="/graph" replace />} />
 
-            {/* Legacy route redirects */}
-            <Route path="backlog" element={<BacklogRedirect />} />
-            <Route path="backlog/:kind/:name" element={<BacklogDetailsRedirect />} />
-            <Route path="scenarios" element={<ScenariosRedirect />} />
-            <Route path="scenarios/:name" element={<ScenarioDetailsRedirect />} />
-            <Route path="execution" element={<ExecutionRedirect />} />
-            <Route path="prompts" element={<PromptsRedirect />} />
-            <Route path="settings" element={<SettingsRedirect />} />
+              <Route path="backlog/:kind/:name" element={<PageErrorBoundary pageName="Backlog Details"><BacklogDetailsPage /></PageErrorBoundary>} />
+              <Route path="scenarios/:name" element={<PageErrorBoundary pageName="Scenario Details"><ScenarioDetailsPage /></PageErrorBoundary>} />
+              <Route path="executions/:executionId" element={<PageErrorBoundary pageName="Execution Details"><ExecutionDetailsPage /></PageErrorBoundary>} />
+              <Route path="initiatives/:name" element={<PageErrorBoundary pageName="Initiative Details"><InitiativeDetailsPage /></PageErrorBoundary>} />
+              <Route path="captures/:captureId" element={<PageErrorBoundary pageName="Capture Details"><CaptureDetailsPage /></PageErrorBoundary>} />
+              <Route path="command-post" element={<PageErrorBoundary pageName="Command Post"><CommandPostPage /></PageErrorBoundary>} />
+              <Route path="command-post/decisions" element={<PageErrorBoundary pageName="Decision Stream"><DecisionStreamPage /></PageErrorBoundary>} />
+            </Route>
 
-            {/* Legacy detail page routes redirect to graph with detail params */}
-            <Route path="details/backlog/:kind/:name" element={<BacklogDetailsRedirect />} />
-            <Route path="details/scenario/:name" element={<ScenarioDetailsRedirect />} />
-            <Route path="details/execution/:executionId" element={<Navigate to="/graph" replace />} />
-            <Route path="details/initiative/:name" element={<Navigate to="/graph" replace />} />
-
-            {/* 404 handler */}
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </Suspense>

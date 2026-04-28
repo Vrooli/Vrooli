@@ -6,10 +6,10 @@
  */
 
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ListTodo } from "lucide-react";
 import { useBacklogStore } from "../../../../stores";
 import { useSnoozedKeys } from "../../../../stores/snooze-store";
-import { useDetailSelectionStore } from "../../../../stores/detail-selection-store";
 import { getItemActions } from "../../../../lib";
 import { buildBacklogCompareFn, sortBacklogItems } from "../../../../lib/backlog-sort";
 import { computeUnblockingMap } from "../../../../lib/dependency-sort";
@@ -23,6 +23,7 @@ import { ConfirmDialog } from "../../../../components/ui/confirm-dialog";
 import { useCommandPostItemActions } from "../../../../hooks/useCommandPostItemActions";
 import type { BacklogItem } from "../../../../types";
 import type { BacklogFilters, SortConfig } from "./types";
+import { backlogDetailPath } from "../../../../app/routes/route-paths";
 
 interface PlanValidationSummary {
   passed: boolean;
@@ -88,10 +89,10 @@ function hasActiveFilters(filters: BacklogFilters): boolean {
 }
 
 export function BacklogTab({ searchQuery, filters, sort, onItemClick }: BacklogTabProps) {
+  const navigate = useNavigate();
   const items = useBacklogStore((s) => s.items);
   const blockingMap = useBacklogStore((s) => s.blockingMap);
   const fetchBacklog = useBacklogStore((s) => s.fetchBacklog);
-  const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
   const snoozedKeys = useSnoozedKeys();
 
   const [runModalTarget, setRunModalTarget] = useState<RunBacklogTarget | undefined>();
@@ -110,7 +111,7 @@ export function BacklogTab({ searchQuery, filters, sort, onItemClick }: BacklogT
     setWorkshopBlockingConfirm,
     confirmWorkshopOverride,
   } = useCommandPostItemActions({
-    onSelectBacklog: (kind, name) => selectBacklog(kind, name),
+    onSelectBacklog: (kind, name) => navigate(backlogDetailPath(kind, name)),
     onRunItem: (kind, name, title) => setRunModalTarget({ kind, name, title }),
   });
 

@@ -1,4 +1,4 @@
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, act, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { useResizablePanel, type UseResizablePanelOptions } from "./useResizablePanel";
 import type { PointerEvent } from "react";
@@ -36,6 +36,7 @@ function defaultOptions(overrides: Partial<UseResizablePanelOptions> = {}): UseR
 
 describe("useResizablePanel", () => {
   beforeEach(() => {
+    window.localStorage.clear();
     vi.spyOn(document.body.style, "cursor", "set");
     vi.spyOn(document.body.style, "userSelect", "set");
   });
@@ -48,6 +49,30 @@ describe("useResizablePanel", () => {
     const { result } = renderHook(() => useResizablePanel(defaultOptions()));
     expect(result.current.size).toBe(320);
     expect(result.current.isResizing).toBe(false);
+  });
+
+  it("restores and persists size when storageKey is provided", async () => {
+    window.localStorage.setItem("test-panel-width", "410");
+    const { result } = renderHook(() => useResizablePanel(defaultOptions({ storageKey: "test-panel-width" })));
+
+    expect(result.current.size).toBe(410);
+
+    act(() => {
+      result.current.resizeHandleProps.onPointerDown({
+        button: 0,
+        preventDefault: vi.fn(),
+      } as unknown as PointerEvent<HTMLDivElement>);
+    });
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { clientX: 360 }));
+      window.dispatchEvent(new PointerEvent("pointerup"));
+    });
+
+    expect(result.current.size).toBe(360);
+    await waitFor(() => {
+      expect(window.localStorage.getItem("test-panel-width")).toBe("360");
+    });
   });
 
   it("provides correct aria attributes on resizeHandleProps", () => {

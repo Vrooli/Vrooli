@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ScenarioDetailsPage } from "./ScenarioDetailsPage";
-import { useScenariosStore, useDetailSelectionStore } from "../stores";
+import { useScenariosStore } from "../stores";
 
 // jsdom doesn't provide matchMedia (needed by useIsMobile in DetailPageLayout).
 beforeAll(() => {
@@ -103,11 +103,12 @@ describe("ScenarioDetailsPage", () => {
   });
 
   const renderPage = (scenarioName = "test-scenario") => {
-    useDetailSelectionStore.getState().selectScenario(scenarioName);
     return render(
-      <MemoryRouter initialEntries={["/graph"]}>
+      <MemoryRouter initialEntries={[`/scenarios/${scenarioName}`]}>
         <QueryClientProvider client={queryClient}>
-          <ScenarioDetailsPage />
+          <Routes>
+            <Route path="/scenarios/:name" element={<ScenarioDetailsPage />} />
+          </Routes>
         </QueryClientProvider>
       </MemoryRouter>
     );
@@ -925,12 +926,12 @@ describe("ScenarioDetailsPage", () => {
   // Edge cases
   describe("edge cases", () => {
     it("shows error when rendered without name in selection", async () => {
-      // Clear selection to simulate no name
-      useDetailSelectionStore.getState().clearSelection();
       render(
         <MemoryRouter initialEntries={["/graph"]}>
           <QueryClientProvider client={queryClient}>
-            <ScenarioDetailsPage />
+            <Routes>
+              <Route path="/graph" element={<ScenarioDetailsPage />} />
+            </Routes>
           </QueryClientProvider>
         </MemoryRouter>
       );

@@ -1,5 +1,4 @@
 export { CommandPostButton } from "./CommandPostButton";
-export { CommandPostOverlay } from "./CommandPostOverlay";
 export { SummaryView } from "./SummaryView";
 export { ActionGroupCard } from "./ActionGroupCard";
 export { ExecutionCaptureCard } from "./ExecutionCaptureCard";

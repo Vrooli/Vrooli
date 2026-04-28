@@ -8,7 +8,7 @@ describe("hasDetailPage", () => {
     ["scenario", true],
     ["execution", true],
     ["initiative", true],
-    ["capture", false],
+    ["capture", true],
     ["agent-activity", false],
     ["agent-run", false],
   ])("returns %s for entity type '%s'", (entityType, expected) => {

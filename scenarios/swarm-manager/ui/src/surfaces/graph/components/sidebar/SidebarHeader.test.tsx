@@ -4,12 +4,10 @@
  * Verifies home button behavior, settings button, and collapse button.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SidebarHeader } from "./SidebarHeader";
-import { useDetailSelectionStore } from "../../../../stores/detail-selection-store";
-import { useGraphUIStore } from "../../stores/graph-ui-store";
 
 // Mock AgentsDropdown to avoid store complexity.
 vi.mock("../../../../components/agents/AgentsDropdown", () => ({
@@ -27,11 +25,6 @@ vi.mock("@tanstack/react-query", async () => {
   return { ...actual, useQuery: () => ({ data: undefined, isLoading: false }) };
 });
 
-beforeEach(() => {
-  useDetailSelectionStore.setState({ selection: null });
-  useGraphUIStore.setState({ sidebarCollapsed: false });
-});
-
 function renderHeader(overrides?: Partial<React.ComponentProps<typeof SidebarHeader>>) {
   return render(
     <SidebarHeader
@@ -39,6 +32,7 @@ function renderHeader(overrides?: Partial<React.ComponentProps<typeof SidebarHea
       onCollapse={vi.fn()}
       onViewActivity={vi.fn()}
       onViewBacklog={vi.fn()}
+      onGoHome={vi.fn()}
       {...overrides}
     />,
   );
@@ -52,19 +46,14 @@ describe("SidebarHeader", () => {
     expect(screen.getByText("Swarm Manager")).toBeInTheDocument();
   });
 
-  it("home button clears detail selection and collapses sidebar", async () => {
-    useDetailSelectionStore.setState({
-      selection: { entityType: "backlog", kind: "fix", name: "test" },
-    });
-    useGraphUIStore.setState({ sidebarCollapsed: false });
-
-    renderHeader();
+  it("calls onGoHome when home button is clicked", async () => {
+    const onGoHome = vi.fn();
+    renderHeader({ onGoHome });
 
     const user = userEvent.setup();
     await user.click(screen.getByTestId("sidebar-home"));
 
-    expect(useDetailSelectionStore.getState().selection).toBeNull();
-    expect(useGraphUIStore.getState().sidebarCollapsed).toBe(true);
+    expect(onGoHome).toHaveBeenCalledOnce();
   });
 
   it("calls onSettingsOpen when settings button is clicked", async () => {

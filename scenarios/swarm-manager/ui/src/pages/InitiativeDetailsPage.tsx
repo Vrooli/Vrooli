@@ -11,7 +11,7 @@
 
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Target, Archive, ArchiveRestore, List, Network, CircleHelp, Files, Trash2, Link2, ArrowRight, CheckCircle2, Layers3, AlertTriangle, MessageCirclePlus, ClipboardCheck } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
@@ -21,7 +21,6 @@ import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { DetailSection } from "../components/detail/DetailSection";
 import { StatusBadge } from "../components/detail/StatusBadge";
 import { INITIATIVE_LENSES } from "../components/detail/lens-options";
-import { selectionToNodeId } from "../stores/detail-selection-store";
 import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
 import { NoteEditor } from "../components/ui/note-editor";
@@ -35,7 +34,6 @@ import { FileServiceProvider } from "../contexts/FileServiceContext";
 import { createInitiativeFileServiceAdapter } from "../services/initiative-file-service-adapter";
 import { useUrlState } from "../hooks/use-url-state";
 import { useRuntimeConfig } from "../hooks/useRuntimeConfig";
-import { useDetailNavigation } from "../hooks/useDetailNavigation";
 import { defaultQueryOptions, formatRelativeTime } from "../lib";
 import { dependencyAwareSort, computeDepthMap } from "../lib/dependency-sort";
 import { computeDependencyRelations } from "../lib/backlog-queue-utils";
@@ -46,13 +44,15 @@ import { initiativeService } from "../services";
 import { selectors } from "../consts/selectors";
 import { RollupProgressBar, rollupTotal as computeRollupTotal } from "../components/ui/rollup-progress-bar";
 import type { BacklogFile, BacklogKind, BacklogStatus, InitiativeStatus, InitiativeWithRollup } from "../types";
-import { useBacklogStore, useDetailSelectionStore } from "../stores";
+import { useBacklogStore } from "../stores";
 import { useInitiativeStore } from "../stores/initiative-store";
 import type { FileActionType } from "../components/backlog/backlog-file-browser";
 import { formatDisplayText } from "../lib/format-utils";
 import { getStatusColorClasses } from "../surfaces/graph/lib/status-colors";
 import { StatusChip } from "../components/ui/status-chip";
 import { BACKLOG_STATUS_COLORS } from "../types";
+import { backlogDetailPath, initiativeDetailPath, routeTargetToNodeId } from "../app/routes/route-paths";
+import { useAppBack } from "../app/routes/useAppBack";
 
 type InitiativeTab = "info" | "feedback" | "review" | "files";
 type ItemsView = "list" | "graph";
@@ -221,11 +221,9 @@ function DependencyGroup({
 }
 
 export function InitiativeDetailsPage() {
-  const selection = useDetailSelectionStore((s) => s.selection);
-  const selectBacklog = useDetailSelectionStore((s) => s.selectBacklog);
-
-  const name = selection?.name;
-  const nodeId = selectionToNodeId(selection);
+  const navigate = useNavigate();
+  const { name } = useParams<{ name: string }>();
+  const nodeId = routeTargetToNodeId({ entityType: "initiative", name });
 
   const backlogItems = useBacklogStore((s) => s.items);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -302,8 +300,7 @@ export function InitiativeDetailsPage() {
     },
   });
 
-  const detailNav = useDetailNavigation();
-  const { closeDetail } = detailNav;
+  const closeDetail = useAppBack();
   const { getDeleteConfirmLevel } = useRuntimeConfig();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
@@ -809,13 +806,13 @@ export function InitiativeDetailsPage() {
                         title="Blocked By"
                         caption="Upstream initiatives that should land first."
                         items={upstreamDependencyCards}
-                        onOpen={(dep) => detailNav.openDetail({ entityType: "initiative", name: dep })}
+                        onOpen={(dep) => navigate(initiativeDetailPath(dep))}
                       />
                       <DependencyGroup
                         title="Unblocks"
                         caption="Downstream initiatives waiting on this one."
                         items={downstreamDependencyCards}
-                        onOpen={(dep) => detailNav.openDetail({ entityType: "initiative", name: dep })}
+                        onOpen={(dep) => navigate(initiativeDetailPath(dep))}
                       />
                     </div>
                   </div>
@@ -869,7 +866,7 @@ export function InitiativeDetailsPage() {
                               <div className="flex items-start justify-between gap-3">
                                 <button
                                   type="button"
-                                  onClick={() => selectBacklog(item.kind, item.name)}
+                                  onClick={() => navigate(backlogDetailPath(item.kind, item.name))}
                                   className="min-w-0 text-left text-base font-semibold leading-snug text-slate-100 transition-colors hover:text-cyan-300"
                                 >
                                   {item.title}

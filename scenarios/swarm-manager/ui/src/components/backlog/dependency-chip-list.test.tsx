@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ArrowUpRight } from "lucide-react";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { DependencyChipList } from "./dependency-chip-list";
-import { useDetailSelectionStore } from "../../stores/detail-selection-store";
 import type { ResolvedDependency } from "../../lib/backlog-queue-utils";
 import type { BacklogStatus } from "../../types";
 
@@ -23,15 +23,18 @@ function renderChips(
   onStatusChange?: (dep: ResolvedDependency, newStatus: BacklogStatus) => void,
 ) {
   return render(
-    <DependencyChipList label={label} items={items} icon={ArrowUpRight} onStatusChange={onStatusChange} />,
+    <MemoryRouter>
+      <DependencyChipList label={label} items={items} icon={ArrowUpRight} onStatusChange={onStatusChange} />
+    </MemoryRouter>,
   );
 }
 
-describe("DependencyChipList", () => {
-  beforeEach(() => {
-    useDetailSelectionStore.setState({ selection: null });
-  });
+function LocationProbe() {
+  const location = useLocation();
+  return <span data-testid="location-path">{location.pathname}</span>;
+}
 
+describe("DependencyChipList", () => {
   it("renders nothing when items array is empty", () => {
     const { container } = renderChips([]);
     expect(container.innerHTML).toBe("");
@@ -55,10 +58,18 @@ describe("DependencyChipList", () => {
   });
 
   it("navigates to backlog detail when title is clicked", () => {
-    renderChips([makeDep({ kind: "fix", name: "broken-thing", title: "Broken" })]);
+    render(
+      <MemoryRouter>
+        <DependencyChipList
+          label="Depends on"
+          items={[makeDep({ kind: "fix", name: "broken-thing", title: "Broken" })]}
+          icon={ArrowUpRight}
+        />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
     fireEvent.click(screen.getByText("Broken"));
-    const selection = useDetailSelectionStore.getState().selection;
-    expect(selection).toMatchObject({ entityType: "backlog", kind: "fix", name: "broken-thing" });
+    expect(screen.getByTestId("location-path")).toHaveTextContent("/backlog/fix/broken-thing");
   });
 
   it("renders a labeled status chip with formatted status text", () => {

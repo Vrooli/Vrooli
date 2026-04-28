@@ -10,6 +10,28 @@ import { useState, useCallback, useEffect, type RefObject, type PointerEvent } f
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
+function loadPersistedSize(storageKey: string | undefined, fallback: number, min: number, max: number): number {
+  if (!storageKey || typeof window === "undefined") return fallback;
+  try {
+    const raw = window.localStorage.getItem(storageKey);
+    if (!raw) return fallback;
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) return fallback;
+    return clamp(parsed, min, max);
+  } catch {
+    return fallback;
+  }
+}
+
+function savePersistedSize(storageKey: string | undefined, size: number): void {
+  if (!storageKey || typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(storageKey, String(Math.round(size)));
+  } catch {
+    // Ignore persistence failures.
+  }
+}
+
 export interface UseResizablePanelOptions {
   /** Ref to the outer container whose width constrains the resize range. */
   containerRef: RefObject<HTMLElement | null>;
@@ -21,6 +43,8 @@ export interface UseResizablePanelOptions {
   maxSize: number;
   /** Initial width in px. */
   defaultSize: number;
+  /** localStorage key for persisted panel width. */
+  storageKey?: string;
   /** Minimum width of the adjacent pane (prevents collapsing the other side). */
   adjacentMinSize?: number;
   /** Width of the resize handle in px (subtracted from available space). */
@@ -50,9 +74,14 @@ export function useResizablePanel({
   defaultSize,
   adjacentMinSize = 0,
   handleWidth = 0,
+  storageKey,
 }: UseResizablePanelOptions): UseResizablePanelReturn {
-  const [size, setSize] = useState(defaultSize);
+  const [size, setSize] = useState(() => loadPersistedSize(storageKey, defaultSize, minSize, maxSize));
   const [isResizing, setIsResizing] = useState(false);
+
+  useEffect(() => {
+    savePersistedSize(storageKey, size);
+  }, [size, storageKey]);
 
   const handlePointerDown = useCallback((event: PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;

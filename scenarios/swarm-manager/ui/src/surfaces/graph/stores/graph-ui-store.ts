@@ -41,7 +41,6 @@ const LAYOUT_STORAGE_KEY = "swarm-manager.graph.layout";
 const LAYOUT_DIRECTION_STORAGE_KEY = "swarm-manager.graph.layout-direction";
 const VIEWPORT_INTENT_STORAGE_KEY = "swarm-manager.graph.viewport-intent.v1";
 const SIDEBAR_STORAGE_KEY = "swarm-manager.graph.sidebar-collapsed";
-const SIDEBAR_WAS_OPEN_KEY = "swarm-manager.graph.sidebar-was-open-before-detail";
 
 const LAYOUT_CYCLE: LayoutMode[] = ["hierarchical", "compact", "grouped"];
 
@@ -165,22 +164,6 @@ function saveSidebarCollapsed(collapsed: boolean): void {
   }
 }
 
-function loadSidebarWasOpenBeforeDetail(): boolean {
-  try {
-    return window.localStorage.getItem(SIDEBAR_WAS_OPEN_KEY) === "true";
-  } catch {
-    return false;
-  }
-}
-
-function saveSidebarWasOpenBeforeDetail(wasOpen: boolean): void {
-  try {
-    window.localStorage.setItem(SIDEBAR_WAS_OPEN_KEY, String(wasOpen));
-  } catch {
-    // Ignore persistence failures.
-  }
-}
-
 export interface GraphUIState {
   selectedNodeId: string | null;
   highlightState: NodeHighlightState;
@@ -192,7 +175,6 @@ export interface GraphUIState {
   sidebarCollapsed: boolean;
   expandedTopologyClusters: Set<string>;
   focusNodeLabel: string | null;
-  sidebarWasOpenBeforeDetail: boolean;
   /** Runtime-only ref to the React Flow instance. NOT persisted to localStorage.
    *  Set by GraphCanvas on init; consumed by GraphNavControls for viewport manipulation. */
   flowInstance: ReactFlowInstance<GraphNode> | null;
@@ -212,15 +194,12 @@ export interface GraphUIState {
   collapseAllTopologyClusters: () => void;
   expandTopologyClusters: (clusterIds: string[]) => void;
   setFocusNodeLabel: (label: string | null) => void;
-  saveSidebarStateBeforeDetail: () => void;
-  restoreSidebarStateAfterDetail: () => void;
   setFlowInstance: (instance: ReactFlowInstance<GraphNode> | null) => void;
 }
 
 const initialPrefs = typeof window !== "undefined" ? loadLayoutPreferences() : {};
 const initialViewportIntentByLens = typeof window !== "undefined" ? loadViewportIntentByLens() : createEmptyViewportIntentByLens();
 const initialSidebarCollapsed = typeof window !== "undefined" ? loadSidebarCollapsed() : false;
-const initialSidebarWasOpen = typeof window !== "undefined" ? loadSidebarWasOpenBeforeDetail() : false;
 const initialLayoutDirection = typeof window !== "undefined" ? loadLayoutDirection() : "TB";
 
 export const graphUIInitialState = {
@@ -232,7 +211,6 @@ export const graphUIInitialState = {
   fitViewNonce: 0,
   viewportIntentByLens: initialViewportIntentByLens,
   sidebarCollapsed: initialSidebarCollapsed,
-  sidebarWasOpenBeforeDetail: initialSidebarWasOpen,
   expandedTopologyClusters: new Set<string>(),
   focusNodeLabel: null as string | null,
   flowInstance: null as ReactFlowInstance<GraphNode> | null,
@@ -351,22 +329,6 @@ export const useGraphUIStore = create<GraphUIState>((set, get) => ({
 
   setFocusNodeLabel: (label) => set({ focusNodeLabel: label }),
 
-  saveSidebarStateBeforeDetail: () => {
-    const wasOpen = !get().sidebarCollapsed;
-    saveSidebarWasOpenBeforeDetail(wasOpen);
-    set({ sidebarWasOpenBeforeDetail: wasOpen });
-  },
-
-  restoreSidebarStateAfterDetail: () => {
-    const wasOpen = get().sidebarWasOpenBeforeDetail;
-    if (wasOpen) {
-      saveSidebarCollapsed(false);
-      set({ sidebarCollapsed: false });
-    }
-    saveSidebarWasOpenBeforeDetail(false);
-    set({ sidebarWasOpenBeforeDetail: false });
-  },
-
   setFlowInstance: (instance) => set({ flowInstance: instance }),
 }));
 
@@ -383,7 +345,6 @@ export function cloneGraphUIInitialState(): typeof graphUIInitialState {
       topology: graphUIInitialState.viewportIntentByLens.topology ? { ...graphUIInitialState.viewportIntentByLens.topology } : null,
       operations: graphUIInitialState.viewportIntentByLens.operations ? { ...graphUIInitialState.viewportIntentByLens.operations } : null,
     },
-    sidebarWasOpenBeforeDetail: graphUIInitialState.sidebarWasOpenBeforeDetail,
     expandedTopologyClusters: new Set(graphUIInitialState.expandedTopologyClusters),
     // Runtime-only — always null in clones (tests, resets).
     flowInstance: null,

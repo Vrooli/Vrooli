@@ -432,9 +432,9 @@ export const literalSelectors = {
   },
   // Command Post selectors
   commandPost: {
-    overlay: "command-post-overlay",
-    overlayHeader: "command-post-overlay-header",
-    close: "command-post-close",
+    page: "command-post-page",
+    header: "command-post-header",
+    back: "command-post-back",
     summary: "command-post-summary",
     decisionStream: {
       container: "ds-container",

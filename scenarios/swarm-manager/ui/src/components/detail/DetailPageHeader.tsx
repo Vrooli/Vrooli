@@ -14,10 +14,12 @@
  */
 
 import { type ReactNode } from "react";
-import { ArrowLeft, Menu, type LucideIcon } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Menu, X, type LucideIcon } from "lucide-react";
 import { cn } from "../../lib/utils";
-import { useIsMobile } from "../../hooks/useMediaQuery";
-import { useDetailNavigation } from "../../hooks/useDetailNavigation";
+import { graphPath } from "../../app/routes/route-paths";
+import { useAppBack } from "../../app/routes/useAppBack";
+import { useAppShell } from "../../app/shell/AppShellContext";
 import { StatusBadge } from "./StatusBadge";
 import { TitlePopover } from "./TitlePopover";
 import { LensBar } from "./LensBar";
@@ -61,37 +63,30 @@ export function DetailPageHeader({
   statusChangePending,
   className,
 }: DetailPageHeaderProps) {
-  const isMobile = useIsMobile();
-  const { closeDetail, openSidebar, drillToLens } = useDetailNavigation();
+  const goBack = useAppBack();
+  const navigate = useNavigate();
+  const { openSidebar } = useAppShell();
 
-  const handleNavClick = () => {
-    if (isMobile) {
-      openSidebar();
-    } else {
-      closeDetail();
-    }
+  const handleCloseClick = () => {
+    goBack();
   };
 
   const handleDrillToLens = (id: string, lens: GraphLens) => {
-    drillToLens(id, lens);
+    navigate(graphPath({ lens, focus: id, select: id }));
   };
 
   return (
     <header className={cn("border-b border-slate-800", className)} data-testid="detail-page-header">
-      {/* Nav button (left) + two-row content (right) */}
+      {/* Menu button (left) + two-row content + route close (right) */}
       <div className="flex items-center gap-3 px-4 py-3 md:px-6">
         <button
           type="button"
-          onClick={handleNavClick}
+          onClick={openSidebar}
           className="shrink-0 self-center rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
-          aria-label={isMobile ? "Open sidebar" : "Close detail view"}
-          data-testid="detail-nav-button"
+          aria-label="Open sidebar"
+          data-testid="page-sidebar-button"
         >
-          {isMobile ? (
-            <Menu className="h-5 w-5" />
-          ) : (
-            <ArrowLeft className="h-5 w-5" />
-          )}
+          <Menu className="h-5 w-5" />
         </button>
 
         <div className="min-w-0 flex-1">
@@ -138,6 +133,16 @@ export function DetailPageHeader({
             )}
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={handleCloseClick}
+          className="shrink-0 self-start rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
+          aria-label="Close page"
+          data-testid="detail-nav-button"
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
 
       {/* LensBar: cross-lens navigation */}

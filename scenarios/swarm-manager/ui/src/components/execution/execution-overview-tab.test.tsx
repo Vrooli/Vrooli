@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { ExecutionOverviewTab } from "./execution-overview-tab";
-import { useDetailSelectionStore } from "../../stores/detail-selection-store";
 import type { ExecutionRecord, Finalization } from "../../types";
 import { selectors } from "../../consts/selectors";
 
@@ -37,21 +37,29 @@ const noopHandlers = {
 };
 
 describe("ExecutionOverviewTab", () => {
-  beforeEach(() => {
-    useDetailSelectionStore.setState({ selection: null });
-  });
+  function renderOverview(execution: ExecutionRecord, overrides?: Partial<Parameters<typeof ExecutionOverviewTab>[0]>) {
+    return render(
+      <MemoryRouter>
+        <ExecutionOverviewTab
+          execution={execution}
+          isActive={false}
+          isTerminal={true}
+          actionBusy={false}
+          postRunBadgeExecution={null}
+          {...noopHandlers}
+          {...overrides}
+        />
+      </MemoryRouter>,
+    );
+  }
+
+  function LocationProbe() {
+    const location = useLocation();
+    return <span data-testid="location-path">{location.pathname}</span>;
+  }
 
   it("renders metadata grid with backlog link", () => {
-    render(
-      <ExecutionOverviewTab
-        execution={makeExecution()}
-        isActive={false}
-        isTerminal={true}
-        actionBusy={false}
-        postRunBadgeExecution={null}
-        {...noopHandlers}
-      />,
-    );
+    renderOverview(makeExecution());
 
     expect(screen.getByText("fix/test-bug")).toBeInTheDocument();
     expect(screen.getByTestId(selectors.executionDetails.overviewMetadata)).toBeInTheDocument();
@@ -59,64 +67,38 @@ describe("ExecutionOverviewTab", () => {
 
   it("navigates to backlog when backlog link is clicked", () => {
     render(
-      <ExecutionOverviewTab
-        execution={makeExecution()}
-        isActive={false}
-        isTerminal={true}
-        actionBusy={false}
-        postRunBadgeExecution={null}
-        {...noopHandlers}
-      />,
+      <MemoryRouter>
+        <ExecutionOverviewTab
+          execution={makeExecution()}
+          isActive={false}
+          isTerminal={true}
+          actionBusy={false}
+          postRunBadgeExecution={null}
+          {...noopHandlers}
+        />
+        <LocationProbe />
+      </MemoryRouter>,
     );
 
     fireEvent.click(screen.getByText("fix/test-bug"));
-    const selection = useDetailSelectionStore.getState().selection;
-    expect(selection).toMatchObject({ entityType: "backlog", kind: "fix", name: "test-bug" });
+    expect(screen.getByTestId("location-path")).toHaveTextContent("/backlog/fix/test-bug");
   });
 
   it("shows failure reason when present", () => {
-    render(
-      <ExecutionOverviewTab
-        execution={makeExecution({ failureReason: "agent-manager run failed" })}
-        isActive={false}
-        isTerminal={true}
-        actionBusy={false}
-        postRunBadgeExecution={null}
-        {...noopHandlers}
-      />,
-    );
+    renderOverview(makeExecution({ failureReason: "agent-manager run failed" }));
 
     expect(screen.getByText("agent-manager run failed")).toBeInTheDocument();
   });
 
   it("hides failure reason when absent", () => {
-    render(
-      <ExecutionOverviewTab
-        execution={makeExecution()}
-        isActive={false}
-        isTerminal={true}
-        actionBusy={false}
-        postRunBadgeExecution={null}
-        {...noopHandlers}
-      />,
-    );
+    renderOverview(makeExecution());
 
     expect(screen.queryByText("Failure Reason")).not.toBeInTheDocument();
   });
 
   it("shows Follow-up button for terminal executions", () => {
     const handler = vi.fn();
-    render(
-      <ExecutionOverviewTab
-        execution={makeExecution()}
-        isActive={false}
-        isTerminal={true}
-        actionBusy={false}
-        postRunBadgeExecution={null}
-        {...noopHandlers}
-        onFollowUp={handler}
-      />,
-    );
+    renderOverview(makeExecution(), { onFollowUp: handler });
 
     const btn = screen.getByTestId(selectors.executionDetails.followUpButton);
     expect(btn).toBeInTheDocument();
@@ -125,62 +107,26 @@ describe("ExecutionOverviewTab", () => {
   });
 
   it("shows Cancel button for active executions", () => {
-    render(
-      <ExecutionOverviewTab
-        execution={makeExecution({ status: "running" })}
-        isActive={true}
-        isTerminal={false}
-        actionBusy={false}
-        postRunBadgeExecution={null}
-        {...noopHandlers}
-      />,
-    );
+    renderOverview(makeExecution({ status: "running" }), { isActive: true, isTerminal: false });
 
     expect(screen.getByTestId(selectors.executionDetails.cancelButton)).toBeInTheDocument();
   });
 
   it("shows Retry button only for failed executions", () => {
-    render(
-      <ExecutionOverviewTab
-        execution={makeExecution({ status: "failed" })}
-        isActive={false}
-        isTerminal={true}
-        actionBusy={false}
-        postRunBadgeExecution={null}
-        {...noopHandlers}
-      />,
-    );
+    renderOverview(makeExecution({ status: "failed" }));
 
     expect(screen.getByTestId(selectors.executionDetails.retryButton)).toBeInTheDocument();
   });
 
   it("shows Run Post-Run Checks button for terminal without finalization", () => {
-    render(
-      <ExecutionOverviewTab
-        execution={makeExecution({ status: "completed" })}
-        isActive={false}
-        isTerminal={true}
-        actionBusy={false}
-        postRunBadgeExecution={null}
-        {...noopHandlers}
-      />,
-    );
+    renderOverview(makeExecution({ status: "completed" }));
 
     expect(screen.getByTestId(selectors.executionDetails.runChecksButton)).toBeInTheDocument();
   });
 
   it("shows rerun checks button when finalization exists", () => {
     const exec = makeExecution({ finalization: makeFinalization() });
-    render(
-      <ExecutionOverviewTab
-        execution={exec}
-        isActive={false}
-        isTerminal={true}
-        actionBusy={false}
-        postRunBadgeExecution={exec}
-        {...noopHandlers}
-      />,
-    );
+    renderOverview(exec, { postRunBadgeExecution: exec });
 
     expect(screen.getByTestId(selectors.executionDetails.runChecksButton)).toHaveTextContent(
       "Rerun Post-Run Checks",
@@ -189,51 +135,34 @@ describe("ExecutionOverviewTab", () => {
 
   it("navigates to parent execution when link is clicked", () => {
     render(
-      <ExecutionOverviewTab
-        execution={makeExecution({ parentExecutionId: "parent-exec-1" })}
-        isActive={false}
-        isTerminal={true}
-        actionBusy={false}
-        postRunBadgeExecution={null}
-        {...noopHandlers}
-      />,
+      <MemoryRouter>
+        <ExecutionOverviewTab
+          execution={makeExecution({ parentExecutionId: "parent-exec-1" })}
+          isActive={false}
+          isTerminal={true}
+          actionBusy={false}
+          postRunBadgeExecution={null}
+          {...noopHandlers}
+        />
+        <LocationProbe />
+      </MemoryRouter>,
     );
 
     const link = screen.getByText("parent-exec-1");
     expect(link).toBeInTheDocument();
     fireEvent.click(link);
-    const selection = useDetailSelectionStore.getState().selection;
-    expect(selection).toMatchObject({ entityType: "execution", identifier: "parent-exec-1" });
+    expect(screen.getByTestId("location-path")).toHaveTextContent("/executions/parent-exec-1");
   });
 
   it("disables buttons when actionBusy", () => {
-    render(
-      <ExecutionOverviewTab
-        execution={makeExecution({ status: "failed" })}
-        isActive={false}
-        isTerminal={true}
-        actionBusy={true}
-        postRunBadgeExecution={null}
-        {...noopHandlers}
-      />,
-    );
+    renderOverview(makeExecution({ status: "failed" }), { actionBusy: true });
 
     expect(screen.getByTestId(selectors.executionDetails.followUpButton)).toBeDisabled();
     expect(screen.getByTestId(selectors.executionDetails.retryButton)).toBeDisabled();
   });
 
   it("shows View Run button when runId and agentManagerUiUrl are present", () => {
-    render(
-      <ExecutionOverviewTab
-        execution={makeExecution({ runId: "run-abc" })}
-        isActive={false}
-        isTerminal={true}
-        actionBusy={false}
-        postRunBadgeExecution={null}
-        {...noopHandlers}
-        agentManagerUiUrl="https://agent.example.com"
-      />,
-    );
+    renderOverview(makeExecution({ runId: "run-abc" }), { agentManagerUiUrl: "https://agent.example.com" });
 
     const link = screen.getByTestId(selectors.executionDetails.viewRunButton);
     expect(link).toBeInTheDocument();
@@ -242,33 +171,13 @@ describe("ExecutionOverviewTab", () => {
   });
 
   it("hides View Run button when agentManagerUiUrl is null", () => {
-    render(
-      <ExecutionOverviewTab
-        execution={makeExecution({ runId: "run-abc" })}
-        isActive={false}
-        isTerminal={true}
-        actionBusy={false}
-        postRunBadgeExecution={null}
-        {...noopHandlers}
-        agentManagerUiUrl={null}
-      />,
-    );
+    renderOverview(makeExecution({ runId: "run-abc" }), { agentManagerUiUrl: null });
 
     expect(screen.queryByTestId(selectors.executionDetails.viewRunButton)).not.toBeInTheDocument();
   });
 
   it("hides View Run button when runId is absent", () => {
-    render(
-      <ExecutionOverviewTab
-        execution={makeExecution()}
-        isActive={false}
-        isTerminal={true}
-        actionBusy={false}
-        postRunBadgeExecution={null}
-        {...noopHandlers}
-        agentManagerUiUrl="https://agent.example.com"
-      />,
-    );
+    renderOverview(makeExecution(), { agentManagerUiUrl: "https://agent.example.com" });
 
     expect(screen.queryByTestId(selectors.executionDetails.viewRunButton)).not.toBeInTheDocument();
   });

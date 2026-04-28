@@ -16,6 +16,7 @@
  */
 
 import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 
 import { Circle, Package } from "lucide-react";
 import { BottomSheet } from "../components/ui/bottom-sheet";
@@ -32,20 +33,18 @@ import { ScenarioLifecycleActions } from "../components/scenarios/ScenarioLifecy
 import { ScenarioMobileView } from "../components/scenarios/ScenarioMobileView";
 import { selectors } from "../consts/selectors";
 import { SCENARIO_STATUS_ICONS } from "../types";
-import { useDetailSelectionStore } from "../stores/detail-selection-store";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
 import { SCENARIO_LENSES } from "../components/detail/lens-options";
-import { selectionToNodeId } from "../stores/detail-selection-store";
-import { useDetailNavigation } from "../hooks/useDetailNavigation";
 import { useScenarioDetailData } from "../hooks/useScenarioDetailData";
 import { useArchivePreferences } from "../hooks/useArchivePreferences";
+import { routeTargetToNodeId } from "../app/routes/route-paths";
+import { useAppBack } from "../app/routes/useAppBack";
 
 export function ScenarioDetailsPage() {
-  const selection = useDetailSelectionStore((s) => s.selection);
-  const name = selection?.name;
-  const nodeId = selectionToNodeId(selection);
-  const { closeDetail } = useDetailNavigation();
+  const { name } = useParams<{ name: string }>();
+  const nodeId = routeTargetToNodeId({ entityType: "scenario", name });
+  const closeDetail = useAppBack();
 
   const {
     scenario,

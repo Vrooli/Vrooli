@@ -6,7 +6,7 @@
  */
 
 import { useCallback, useState, useMemo, useRef, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Activity, CircleHelp, ClipboardList, Files, Sparkles } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { PlanPanel } from "../components/backlog/plan-panel";
@@ -41,7 +41,6 @@ import {
   useAgentActivitiesStore,
   useBacklogDetailUIStore,
   useBacklogStore,
-  useDetailSelectionStore,
 } from "../stores";
 import { BACKLOG_LENSES } from "../components/detail/lens-options";
 import { backlogService } from "../services/backlog-service";
@@ -52,8 +51,8 @@ import { ValidationReport } from "../components/backlog/validation-report";
 import { useQueryClient } from "@tanstack/react-query";
 import { DetailPageHeader } from "../components/detail/DetailPageHeader";
 import { DetailPageLayout } from "../components/detail/DetailPageLayout";
-import { useDetailNavigation } from "../hooks/useDetailNavigation";
-import { selectionToNodeId } from "../stores/detail-selection-store";
+import { executionDetailPath, routeTargetToNodeId } from "../app/routes/route-paths";
+import { useAppBack } from "../app/routes/useAppBack";
 import { BacklogDetailProvider } from "../contexts/BacklogDetailContext";
 import { FileServiceProvider } from "../contexts/FileServiceContext";
 import { createBacklogFileServiceAdapter } from "../services/backlog/backlog-file-service-adapter";
@@ -65,14 +64,13 @@ type DetailsTab = "info" | "prompt" | "files" | "output" | "activity";
 
 export function BacklogDetailsPage() {
   // --- Navigation / selection ---
-  const selection = useDetailSelectionStore((s) => s.selection);
-  const selectExecution = useDetailSelectionStore((s) => s.selectExecution);
-
-
-  const nodeId = selectionToNodeId(selection);
-  const { closeDetail } = useDetailNavigation();
-  const kind = selection?.kind;
-  const name = selection?.name;
+  const navigate = useNavigate();
+  const goBack = useAppBack();
+  const params = useParams<{ kind: string; name: string }>();
+  const kind = params.kind;
+  const name = params.name;
+  const nodeId = routeTargetToNodeId({ entityType: "backlog", kind, name });
+  const closeDetail = goBack;
   const backlogKind = BACKLOG_KINDS.includes(kind as BacklogKind) ? (kind as BacklogKind) : null;
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -558,7 +556,7 @@ export function BacklogDetailsPage() {
                       agentManagerUiUrl={agentManagerUiUrl}
                       onStopRun={(runId) => void stopRun(runId)}
                       onFollowUp={(exec) => uiStore.setFollowUpTarget(exec)}
-                      onViewExecution={(exec) => selectExecution(exec.executionId)}
+                      onViewExecution={(exec) => navigate(executionDetailPath(exec.executionId))}
                     />
                   </div>
                 )}
@@ -639,7 +637,7 @@ export function BacklogDetailsPage() {
                         agentManagerUiUrl={agentManagerUiUrl}
                         onStopRun={(runId) => void stopRun(runId)}
                         onFollowUp={(exec) => uiStore.setFollowUpTarget(exec)}
-                        onViewExecution={(exec) => selectExecution(exec.executionId)}
+                      onViewExecution={(exec) => navigate(executionDetailPath(exec.executionId))}
                       />
                     </div>
                   )}
