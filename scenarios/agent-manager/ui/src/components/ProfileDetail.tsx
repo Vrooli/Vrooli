@@ -77,8 +77,8 @@ export function ProfileDetail({ profile, onEdit, onDelete }: ProfileDetailProps)
         {profile.requiresSandbox && (
           <Badge variant="outline">Sandbox Required</Badge>
         )}
-        {profile.requiresApproval && (
-          <Badge variant="outline">Approval Required</Badge>
+        {profile.sandboxConfig?.manualReview && (
+          <Badge variant="outline">Manual Review</Badge>
         )}
         {profile.networkAccess != null && (
           <Badge variant="outline">Net: {networkAccessLabel(profile.networkAccess)}</Badge>

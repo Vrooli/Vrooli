@@ -281,7 +281,6 @@ func (am *AgentManager) StartAgent(cfg AgentStartConfig) (*AgentInfo, error) {
 			AllowedTools:         append([]string(nil), allowedTools...),
 			SkipPermissionPrompt: boolPtr(true),
 			RequiresSandbox:      boolPtr(false),
-			RequiresApproval:     boolPtr(false),
 		},
 	})
 	if err != nil {
@@ -465,7 +464,6 @@ func (am *AgentManager) defaultProfile() *domainpb.AgentProfile {
 		AllowedTools:         configuredAllowedTools(),
 		SkipPermissionPrompt: true,
 		RequiresSandbox:      false,
-		RequiresApproval:     false,
 		CreatedBy:            serviceName,
 	}
 }

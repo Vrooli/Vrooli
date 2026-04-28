@@ -56,7 +56,7 @@ func (p *WorkspaceSandboxProvider) Create(ctx context.Context, req CreateRequest
 		body["noLock"] = *req.NoLock
 	}
 	if req.Behavior != nil {
-		body["behavior"] = req.Behavior
+		body["behavior"] = encodeBehaviorForWire(req.Behavior)
 	}
 	if req.IdempotencyKey != "" {
 		body["idempotencyKey"] = req.IdempotencyKey
@@ -282,6 +282,69 @@ func (p *WorkspaceSandboxProvider) PartialApprove(ctx context.Context, req Parti
 	}
 
 	return result.toApproveResult(), nil
+}
+
+// ApplyAtRunEnd invokes the workspace-sandbox run-end apply path. It
+// posts the typed request to /api/v1/sandboxes/{id}/apply-at-run-end and
+// surfaces conflict / not-found errors via the standard SandboxAPIError
+// path. The wire field name "agentManagerRunId" is locked by
+// types.ApplyAtRunEndRequest in workspace-sandbox.
+func (p *WorkspaceSandboxProvider) ApplyAtRunEnd(ctx context.Context, req ApplyAtRunEndRequest) (*ApplyAtRunEndResult, error) {
+	actor := req.Actor
+	if actor == "" {
+		actor = "applyAtRunEnd"
+	}
+
+	body := map[string]interface{}{
+		"sandboxId":         req.SandboxID.String(),
+		"agentManagerRunId": req.RunID,
+		"source":            "agent-manager-auto-apply",
+		"actor":             actor,
+		"createCommit":      req.CreateCommit,
+		"force":             req.Force,
+	}
+	if req.ConversationID != "" {
+		body["conversationId"] = req.ConversationID
+	}
+	if req.Cost != 0 {
+		body["cost"] = req.Cost
+	}
+	if req.RunOutcome != "" {
+		body["runOutcome"] = req.RunOutcome
+	}
+	if req.CommitMsg != "" {
+		body["commitMessage"] = req.CommitMsg
+	}
+
+	resp, err := p.doRequest(ctx, "POST", fmt.Sprintf("/api/v1/sandboxes/%s/apply-at-run-end", req.SandboxID), body)
+	if err != nil {
+		return nil, &domain.SandboxError{
+			SandboxID:   &req.SandboxID,
+			Operation:   "apply_at_run_end",
+			Cause:       err,
+			IsTransient: true,
+			CanRetry:    true,
+		}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, domain.NewNotFoundErrorWithID("Sandbox", req.SandboxID.String())
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, p.parseError("apply_at_run_end", &req.SandboxID, resp)
+	}
+
+	var result wsApplyAtRunEndResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, &domain.SandboxError{
+			SandboxID: &req.SandboxID,
+			Operation: "apply_at_run_end",
+			Cause:     err,
+		}
+	}
+
+	return result.toApplyAtRunEndResult(), nil
 }
 
 // Stop suspends a sandbox (keeps data but releases mount).
@@ -638,6 +701,30 @@ type wsApproveResponse struct {
 	ErrorMsg   string    `json:"errorMsg"`
 }
 
+type wsApplyAtRunEndResponse struct {
+	Success    bool      `json:"success"`
+	Applied    int       `json:"applied"`
+	Failed     int       `json:"failed"`
+	Remaining  int       `json:"remaining"`
+	IsPartial  bool      `json:"isPartial"`
+	CommitHash string    `json:"commitHash"`
+	AppliedAt  time.Time `json:"appliedAt"`
+	ErrorMsg   string    `json:"error"`
+}
+
+func (r *wsApplyAtRunEndResponse) toApplyAtRunEndResult() *ApplyAtRunEndResult {
+	return &ApplyAtRunEndResult{
+		Success:    r.Success,
+		Applied:    r.Applied,
+		Failed:     r.Failed,
+		Remaining:  r.Remaining,
+		IsPartial:  r.IsPartial,
+		CommitHash: r.CommitHash,
+		AppliedAt:  r.AppliedAt,
+		ErrorMsg:   r.ErrorMsg,
+	}
+}
+
 func (r *wsApproveResponse) toApproveResult() *ApproveResult {
 	return &ApproveResult{
 		Success:    r.Success,
@@ -807,3 +894,145 @@ func (p *WorkspaceSandboxProvider) CleanupStaleSandboxes(ctx context.Context, ol
 
 // Verify interface compliance
 var _ Provider = (*WorkspaceSandboxProvider)(nil)
+
+// encodeBehaviorForWire converts the agent-manager domain SandboxConfig into
+// the JSON payload workspace-sandbox expects on /api/v1/sandboxes. The two
+// types share most field names (lifecycle, acceptance, manualReview), but
+// the domain side carries levers (mode, autoApply, applyOnFailure,
+// networkMode, noLock) that workspace-sandbox interprets at higher layers
+// (apply-at-run-end, sandbox creation flags). The protected-mode git
+// allowlist is materialized here so workspace-sandbox can enforce it on
+// /exec when the run is protected.
+func encodeBehaviorForWire(cfg *domain.SandboxConfig) map[string]interface{} {
+	if cfg == nil {
+		return nil
+	}
+	wire := map[string]interface{}{
+		"manualReview": cfg.ManualReview,
+		"lifecycle":    cfg.Lifecycle,
+		"acceptance":   cfg.Acceptance,
+	}
+	if cfg.Mode.Effective() == domain.SandboxModeProtected {
+		// Per the protected-agent-sandboxing contract, agent-manager owns
+		// the policy decision (which verbs are allowed) and workspace-sandbox
+		// enforces it. Default to the locked read-only set; future operator
+		// overrides flow through SandboxConfig once the contract grows a
+		// per-profile override knob.
+		wire["protected"] = map[string]interface{}{
+			"gitAllowlist": defaultProtectedGitAllowlist(),
+		}
+	}
+	return wire
+}
+
+// defaultProtectedGitAllowlist mirrors workspace-sandbox's
+// types.DefaultProtectedGitAllowlist so the agent-manager adapter does not
+// have to import workspace-sandbox just to know the contract default.
+func defaultProtectedGitAllowlist() []string {
+	return []string{"status", "diff", "log", "show", "rev-parse"}
+}
+
+// ExecProcess runs a command synchronously inside a sandbox via
+// workspace-sandbox /exec. The sandbox enforces protected-mode guardrails
+// (git allowlist, network mode, resource limits) configured via
+// Behavior.Protected and the bwrap profile.
+func (p *WorkspaceSandboxProvider) ExecProcess(ctx context.Context, req ExecProcessRequest) (*ExecProcessResult, error) {
+	body := map[string]interface{}{
+		"command": req.Command,
+	}
+	if len(req.Args) > 0 {
+		body["args"] = req.Args
+	}
+	if len(req.Env) > 0 {
+		body["env"] = req.Env
+	}
+	if req.WorkingDir != "" {
+		body["workingDir"] = req.WorkingDir
+	}
+	switch req.NetworkMode {
+	case "full":
+		body["allowNetwork"] = true
+		body["isolationLevel"] = "full"
+	case "localhost":
+		body["isolationLevel"] = "vrooli-aware"
+	case "none", "":
+		// default: full isolation, no network
+	}
+	if req.MemoryLimitMB > 0 {
+		body["memoryLimitMB"] = req.MemoryLimitMB
+	}
+	if req.CPUTimeSec > 0 {
+		body["cpuTimeSec"] = req.CPUTimeSec
+	}
+	if req.TimeoutSec > 0 {
+		body["timeoutSec"] = req.TimeoutSec
+	}
+	if req.MaxProcesses > 0 {
+		body["maxProcesses"] = req.MaxProcesses
+	}
+	if req.MaxOpenFiles > 0 {
+		body["maxOpenFiles"] = req.MaxOpenFiles
+	}
+
+	resp, err := p.doRequest(ctx, "POST", fmt.Sprintf("/api/v1/sandboxes/%s/exec", req.SandboxID), body)
+	if err != nil {
+		return nil, &domain.SandboxError{
+			SandboxID:   &req.SandboxID,
+			Operation:   "exec",
+			Cause:       err,
+			IsTransient: true,
+			CanRetry:    true,
+		}
+	}
+	defer resp.Body.Close()
+
+	// Structured guardrail denial — agent-manager surfaces this as a typed
+	// tool.blocked event in the run timeline.
+	if resp.StatusCode == http.StatusForbidden {
+		var denial struct {
+			Error   string `json:"error"`
+			Verb    string `json:"verb"`
+			Message string `json:"message"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&denial); err != nil {
+			return nil, &domain.SandboxError{
+				SandboxID: &req.SandboxID,
+				Operation: "exec",
+				Cause:     fmt.Errorf("decode 403 body: %w", err),
+			}
+		}
+		return &ExecProcessResult{
+			Blocked: &ExecBlocked{
+				Error:   denial.Error,
+				Verb:    denial.Verb,
+				Message: denial.Message,
+			},
+		}, nil
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, p.parseError("exec", &req.SandboxID, resp)
+	}
+
+	var wire struct {
+		ExitCode int    `json:"exitCode"`
+		Stdout   string `json:"stdout"`
+		Stderr   string `json:"stderr"`
+		PID      int    `json:"pid,omitempty"`
+		TimedOut bool   `json:"timedOut,omitempty"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&wire); err != nil {
+		return nil, &domain.SandboxError{
+			SandboxID: &req.SandboxID,
+			Operation: "exec",
+			Cause:     err,
+		}
+	}
+	return &ExecProcessResult{
+		ExitCode: wire.ExitCode,
+		Stdout:   wire.Stdout,
+		Stderr:   wire.Stderr,
+		PID:      wire.PID,
+		TimedOut: wire.TimedOut,
+	}, nil
+}

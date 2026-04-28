@@ -1,0 +1,30 @@
+Plan §6 Phase 2 (Frontend — Markdown Stack) prescribed:
+  - Add deps: react-markdown@^9.1.0, remark-gfm@^4.0.1, marked@^15.0.0,
+    shiki@^1.29.2, @tailwindcss/typography
+  - Port MarkdownRenderer.tsx + CodeBlock.tsx from prompt-manager
+  - Use `prose` class scoped to renderer
+
+ACTUAL implementation (scenarios/brand-manager/ui/src/components/markdown.tsx):
+  - NO new deps added to package.json. Inspected; only existing deps remain
+    (react, lucide-react, tailwind, etc.).
+  - A single ~200-line in-house `Markdown` component was written that supports
+    paragraphs, ul/ol lists, fenced code blocks (with copy button + language
+    label), `inline code`, and **bold**.
+  - No Shiki syntax highlighting. Code blocks render as plain monospace.
+  - No `prose` class / @tailwindcss/typography. Styling is bespoke utility classes.
+  - Component docstring states this is intentional: "the inputs come from the
+    brand-manager Go source, not user content" — i.e. trusted author content
+    does not need a generic markdown lib.
+
+Trade-offs:
+  + Smaller bundle (no Shiki/marked/react-markdown).
+  + No new XSS risk (raw HTML not supported by the parser at all).
+  + No new dep-add policy concerns.
+  - No syntax highlighting, no GFM tables, no autolinks.
+  - Future rule docs that need richer markdown (tables, footnotes, raw HTML)
+    would have to be authored within the parser's supported subset OR the
+    component would have to be replaced with the planned react-markdown stack.
+
+Recommendation for reviewer: this is a deliberate scope reduction worth
+explicitly acknowledging when archiving (or pushing back on, if the
+prompt-manager stack was a hard requirement for cross-scenario consistency).

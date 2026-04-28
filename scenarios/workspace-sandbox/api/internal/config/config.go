@@ -161,27 +161,25 @@ type LifecycleConfig struct {
 	// AutoHealBaseBackoff is the initial backoff after a failed remount.
 	// Doubled on each subsequent failure, capped at 1h. Default: 30s.
 	AutoHealBaseBackoff time.Duration
+
+	// ManualReviewTTL is the maximum time a manualReview=true sandbox may
+	// remain in pending-review state past its run-end timestamp before the
+	// GC reconciler auto-denies all pending-review file changes and tears
+	// the sandbox down. Set to 0 to disable expiry (sandbox persists
+	// indefinitely until explicit operator action).
+	//
+	// Per Decision D1 in
+	// scenarios/swarm-manager/execute/agent-manager-sandbox-auto-apply-defaults/plan.md
+	// the locked default is 7 days. Operators with longer review cycles
+	// can raise WORKSPACE_SANDBOX_MANUAL_REVIEW_TTL accordingly.
+	//
+	// Consumed by the existing LifecycleReconciler (no new ticker) — see
+	// scenarios/workspace-sandbox/api/internal/gc/lifecycle.go.
+	ManualReviewTTL time.Duration
 }
 
-// PolicyConfig controls approval and attribution rules.
+// PolicyConfig controls attribution and validation rules.
 type PolicyConfig struct {
-	// RequireHumanApproval controls whether human approval is required
-	// before applying sandbox changes to the canonical repo.
-	// Default: true
-	RequireHumanApproval bool
-
-	// AutoApproveThresholdFiles is the maximum number of changed files
-	// that can be auto-approved (when RequireHumanApproval is false).
-	// Set to 0 for no limit.
-	// Default: 10
-	AutoApproveThresholdFiles int
-
-	// AutoApproveThresholdLines is the maximum number of changed lines
-	// that can be auto-approved (when RequireHumanApproval is false).
-	// Set to 0 for no limit.
-	// Default: 500
-	AutoApproveThresholdLines int
-
 	// CommitMessageTemplate is the template for auto-generated commit messages.
 	// Supports placeholders: {{.SandboxID}}, {{.FileCount}}, {{.Actor}}
 	// Default: "Apply sandbox changes ({{.FileCount}} files)"
@@ -412,18 +410,16 @@ func Default() Config {
 			AutoHealIdleGrace:    30 * time.Second,
 			AutoHealMaxRetries:   5,
 			AutoHealBaseBackoff:  30 * time.Second,
+			ManualReviewTTL:      7 * 24 * time.Hour, // Decision D1: 7-day TTL from run end
 		},
 		Policy: PolicyConfig{
-			DefaultNoLock:             true,
-			RequireHumanApproval:      true,
-			AutoApproveThresholdFiles: 10,
-			AutoApproveThresholdLines: 500,
-			CommitMessageTemplate:     "Apply sandbox changes ({{.FileCount}} files)",
-			CommitAuthorMode:          "agent",
-			ValidationHooks:           nil, // No hooks by default
-			ValidationTimeout:         5 * time.Minute,
-			BinaryDetectionThreshold:  8000,
-			TeardownHooks:             nil, // No hooks by default
+			DefaultNoLock:            true,
+			CommitMessageTemplate:    "Apply sandbox changes ({{.FileCount}} files)",
+			CommitAuthorMode:         "agent",
+			ValidationHooks:          nil, // No hooks by default
+			ValidationTimeout:        5 * time.Minute,
+			BinaryDetectionThreshold: 8000,
+			TeardownHooks:            nil, // No hooks by default
 			// TeardownTimeout caps ALL pre-teardown hooks combined. Set to 90s to
 			// give the per-hook budget (60s) room plus overhead for hook startup,
 			// process metadata scanning, and logging. In teardown.go's nested
@@ -500,11 +496,9 @@ func LoadFromEnv() (Config, error) {
 	cfg.Lifecycle.AutoHealIdleGrace = envDuration("WORKSPACE_SANDBOX_AUTOHEAL_IDLE_GRACE", cfg.Lifecycle.AutoHealIdleGrace)
 	cfg.Lifecycle.AutoHealMaxRetries = envInt("WORKSPACE_SANDBOX_AUTOHEAL_MAX_RETRIES", cfg.Lifecycle.AutoHealMaxRetries)
 	cfg.Lifecycle.AutoHealBaseBackoff = envDuration("WORKSPACE_SANDBOX_AUTOHEAL_BASE_BACKOFF", cfg.Lifecycle.AutoHealBaseBackoff)
+	cfg.Lifecycle.ManualReviewTTL = envDuration("WORKSPACE_SANDBOX_MANUAL_REVIEW_TTL", cfg.Lifecycle.ManualReviewTTL)
 
 	// Policy config
-	cfg.Policy.RequireHumanApproval = envBool("WORKSPACE_SANDBOX_REQUIRE_HUMAN_APPROVAL", cfg.Policy.RequireHumanApproval)
-	cfg.Policy.AutoApproveThresholdFiles = envInt("WORKSPACE_SANDBOX_AUTO_APPROVE_FILES", cfg.Policy.AutoApproveThresholdFiles)
-	cfg.Policy.AutoApproveThresholdLines = envInt("WORKSPACE_SANDBOX_AUTO_APPROVE_LINES", cfg.Policy.AutoApproveThresholdLines)
 	cfg.Policy.BinaryDetectionThreshold = envInt("WORKSPACE_SANDBOX_BINARY_THRESHOLD", cfg.Policy.BinaryDetectionThreshold)
 	cfg.Policy.DefaultNoLock = envBool("WORKSPACE_SANDBOX_DEFAULT_NO_LOCK", cfg.Policy.DefaultNoLock)
 	if tmpl := os.Getenv("WORKSPACE_SANDBOX_COMMIT_TEMPLATE"); tmpl != "" {

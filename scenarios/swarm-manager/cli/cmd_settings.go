@@ -36,7 +36,6 @@ func (a *App) cmdSettingsGet(args []string) error {
 			MaxAutoRounds          int    `json:"max_auto_rounds"`
 			AgentMaxTurns          int    `json:"agent_max_turns"`
 			AgentTimeoutSeconds    int    `json:"agent_timeout_seconds"`
-			AgentRequiresApproval  bool   `json:"agent_requires_approval"`
 			SearchDebounceMs       int    `json:"search_debounce_ms"`
 			ToastDurationMs        int    `json:"toast_duration_ms"`
 			DeleteConfirmation     struct {
@@ -69,7 +68,6 @@ func (a *App) cmdSettingsGet(args []string) error {
 	printSection("Agent Behavior")
 	fmt.Printf("  Agent max turns: %d\n", s.AgentMaxTurns)
 	fmt.Printf("  Agent timeout seconds: %d\n", s.AgentTimeoutSeconds)
-	fmt.Printf("  Agent requires approval: %t\n", s.AgentRequiresApproval)
 
 	printSection("UI Preferences")
 	fmt.Printf("  Search debounce ms: %d\n", s.SearchDebounceMs)

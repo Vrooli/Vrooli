@@ -164,7 +164,7 @@ export function QuickRunDialog({
     modelMode: "default",
     maxTurns: DEFAULT_MAX_TURNS,
     timeoutMinutes: DEFAULT_TIMEOUT_MINUTES,
-    runMode: RunMode.IN_PLACE,
+    runMode: RunMode.SANDBOXED,
     skipPermissionPrompt: true,
     networkAccess: "localhost",
     fallbackRunnerTypes: [],
@@ -224,7 +224,7 @@ export function QuickRunDialog({
       modelMode: "default",
       maxTurns: DEFAULT_MAX_TURNS,
       timeoutMinutes: DEFAULT_TIMEOUT_MINUTES,
-      runMode: RunMode.IN_PLACE,
+      runMode: RunMode.SANDBOXED,
       skipPermissionPrompt: true,
       networkAccess: "localhost",
       fallbackRunnerTypes: [],
@@ -613,8 +613,8 @@ export function QuickRunDialog({
                                   {profile.requiresSandbox && (
                                     <Badge variant="outline">Sandbox</Badge>
                                   )}
-                                  {profile.requiresApproval && (
-                                    <Badge variant="outline">Approval</Badge>
+                                  {profile.sandboxConfig?.manualReview && (
+                                    <Badge variant="outline">Manual Review</Badge>
                                   )}
                                   {profile.networkAccess != null && (
                                     <Badge variant="outline">Net: {networkAccessLabel(profile.networkAccess)}</Badge>
@@ -792,8 +792,8 @@ export function QuickRunDialog({
                     }
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   >
-                    <option value={RunMode.SANDBOXED}>Sandboxed (isolated copy)</option>
-                    <option value={RunMode.IN_PLACE}>In-place (direct changes)</option>
+                    <option value={RunMode.SANDBOXED}>Sandboxed — normal audit path (recommended)</option>
+                    <option value={RunMode.IN_PLACE}>In-place — operator escape hatch (bypasses provenance + review queue)</option>
                   </select>
                   </div>
 
@@ -973,8 +973,8 @@ export function QuickRunDialog({
                               {profile.requiresSandbox && (
                                 <Badge variant="outline">Sandbox</Badge>
                               )}
-                              {profile.requiresApproval && (
-                                <Badge variant="outline">Approval Required</Badge>
+                              {profile.sandboxConfig?.manualReview && (
+                                <Badge variant="outline">Manual Review</Badge>
                               )}
                               {profile.networkAccess != null && (
                                 <Badge variant="outline">Net: {networkAccessLabel(profile.networkAccess)}</Badge>

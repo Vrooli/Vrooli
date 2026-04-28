@@ -13,6 +13,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
+	github.com/vrooli/sandbox-provenance v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0-00010101000000-000000000000
 	google.golang.org/protobuf v1.36.11
 )
@@ -27,5 +28,7 @@ require (
 replace github.com/vrooli/api-core => ../../../packages/api-core
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
+
+replace github.com/vrooli/sandbox-provenance => ../../../packages/sandbox-provenance/go
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto

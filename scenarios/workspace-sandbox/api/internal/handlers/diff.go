@@ -107,6 +107,34 @@ func (h *Handlers) Approve(w http.ResponseWriter, r *http.Request) {
 	h.JSONSuccess(w, result)
 }
 
+// ApplyAtRunEnd handles the agent-manager run-end apply call. It carries
+// agent-manager run-context metadata (agent_manager_run_id, conversation_id,
+// cost, runOutcome, source) onto the apply path defined by the auditability
+// contract. See scenarios/workspace-sandbox/docs/AUDITABILITY_CONTRACT.md and
+// scenarios/swarm-manager/execute/agent-manager-sandbox-auto-apply-defaults/plan.md
+// (Decision D6) for the full contract.
+func (h *Handlers) ApplyAtRunEnd(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(mux.Vars(r)["id"])
+	if err != nil {
+		h.JSONError(w, "invalid sandbox ID", http.StatusBadRequest)
+		return
+	}
+
+	var req types.ApplyAtRunEndRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.JSONError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	req.SandboxID = id
+
+	result, err := h.Service.ApplyAtRunEnd(r.Context(), &req)
+	if h.HandleDomainError(w, err) {
+		return
+	}
+
+	h.JSONSuccess(w, result)
+}
+
 // Reject handles rejecting sandbox changes.
 func (h *Handlers) Reject(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(mux.Vars(r)["id"])

@@ -14,7 +14,6 @@ func testStore(t *testing.T) *Store {
 	s := DefaultSettings()
 	s.AgentMaxTurns = 42
 	s.AgentTimeoutSeconds = 300
-	s.AgentRequiresApproval = true
 	s.DefaultMode = "yolo"
 	s.AutoFixup = true
 	s.MaxFixupAttempts = 3
@@ -40,7 +39,7 @@ func TestAgentAdapter(t *testing.T) {
 	store := testStore(t)
 	adapter := NewAgentAdapter(store)
 
-	maxTurns, timeout, approval, err := adapter.LoadAgentSettings()
+	maxTurns, timeout, err := adapter.LoadAgentSettings()
 	if err != nil {
 		t.Fatalf("LoadAgentSettings: %v", err)
 	}
@@ -49,9 +48,6 @@ func TestAgentAdapter(t *testing.T) {
 	}
 	if timeout != 300 {
 		t.Errorf("timeout = %d, want 300", timeout)
-	}
-	if !approval {
-		t.Error("requiresApproval should be true")
 	}
 }
 

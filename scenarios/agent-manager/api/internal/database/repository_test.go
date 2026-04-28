@@ -187,7 +187,6 @@ func TestProfileCRUD(t *testing.T) {
 		DeniedTools:          []string{"bash"},
 		SkipPermissionPrompt: true,
 		RequiresSandbox:      true,
-		RequiresApproval:     false,
 		AllowedPaths:         []string{"/home/user"},
 		DeniedPaths:          []string{"/etc"},
 		CreatedBy:            "test-user",

@@ -48,6 +48,19 @@ type Provider interface {
 	// PartialApprove approves only selected files from the sandbox.
 	PartialApprove(ctx context.Context, req PartialApproveRequest) (*ApproveResult, error)
 
+	// ApplyAtRunEnd is the agent-manager run-end apply path. It carries
+	// run-context metadata (run id, conversation id, cost, run outcome) onto
+	// the workspace-sandbox apply pipeline so provenance is recorded against
+	// the originating run. The workspace-sandbox endpoint validates that
+	// Source == SourceAgentManagerAutoApply; other sources are rejected.
+	//
+	// Apply behaviour is identical regardless of RunOutcome — outcome is
+	// metadata only. Out-of-acceptance files are retained as
+	// state=pending-review on the resulting provenance record.
+	//
+	// See scenarios/workspace-sandbox/docs/AUDITABILITY_CONTRACT.md.
+	ApplyAtRunEnd(ctx context.Context, req ApplyAtRunEndRequest) (*ApplyAtRunEndResult, error)
+
 	// Stop suspends a sandbox (keeps data but releases mount).
 	Stop(ctx context.Context, id uuid.UUID) error
 
@@ -60,6 +73,15 @@ type Provider interface {
 	// ValidatePath checks whether a path exists, is a directory, and is within
 	// the given project root. Used for early input validation in the UI.
 	ValidatePath(ctx context.Context, path string, projectRoot string) (*PathValidationResult, error)
+
+	// ExecProcess runs a single command synchronously inside a sandbox via
+	// workspace-sandbox /exec. Honors the sandbox's protected-mode
+	// guardrails (git allowlist enforcement, network-mode restrictions).
+	// Used by protected-mode runners to launch the agent process through
+	// workspace-sandbox rather than directly on the host.
+	//
+	// See execute/protected-sandbox-agent-launch.
+	ExecProcess(ctx context.Context, req ExecProcessRequest) (*ExecProcessResult, error)
 }
 
 // -----------------------------------------------------------------------------
@@ -188,6 +210,53 @@ type ApproveResult struct {
 	ErrorMsg   string    `json:"errorMsg,omitempty"`
 }
 
+// ApplyAtRunEndRequest carries run-context metadata onto the workspace-sandbox
+// run-end apply call. The agent-manager seam mirrors the workspace-sandbox
+// types.ApplyAtRunEndRequest shape but does not import workspace-sandbox
+// directly (the adapter owns the wire translation).
+type ApplyAtRunEndRequest struct {
+	SandboxID uuid.UUID
+
+	// RunID is the agent-manager run that produced these changes.
+	RunID string
+
+	// ConversationID is the agent-thread identifier (Decision D7). When
+	// empty, the workspace-sandbox endpoint records nothing for the field.
+	ConversationID string
+
+	// Cost is the total USD cost of the run, recorded on provenance.
+	Cost float64
+
+	// RunOutcome is the contract-canonical outcome ∈ {success, failure,
+	// cancelled, timeout}. Apply behaviour is identical regardless of
+	// outcome (lossy by design); the value is metadata only.
+	RunOutcome string
+
+	// Actor mirrors ApprovalRequest.Actor for attribution policies. Defaults
+	// to "applyAtRunEnd" when empty.
+	Actor string
+
+	// CommitMsg / CreateCommit / Force are forwarded to the apply pipeline.
+	CommitMsg    string
+	CreateCommit bool
+	Force        bool
+}
+
+// ApplyAtRunEndResult mirrors the workspace-sandbox ApprovalResult fields the
+// run executor cares about. IsPartial=true means out-of-acceptance files
+// remain as state=pending-review on the provenance record; the sandbox
+// persists for operator review.
+type ApplyAtRunEndResult struct {
+	Success    bool
+	Applied    int
+	Failed     int
+	Remaining  int
+	IsPartial  bool
+	CommitHash string
+	AppliedAt  time.Time
+	ErrorMsg   string
+}
+
 // PathValidationResult contains the result of a path validation check.
 type PathValidationResult struct {
 	Path              string `json:"path"`
@@ -225,4 +294,48 @@ type LockRequest struct {
 	ScopePath   string
 	ProjectRoot string
 	TTL         time.Duration
+}
+
+// ExecProcessRequest contains parameters for ExecProcess.
+//
+// Protected-mode runners (claude_code, codex, opencode) populate this when
+// SandboxConfig.Mode == protected so the agent process runs through
+// workspace-sandbox containment rather than directly on the host. The
+// workspace-sandbox handler enforces:
+//   - git verb allowlist (Behavior.Protected.GitAllowlist)
+//   - network mode (none / localhost / full) via bwrap
+//   - resource limits (memory, CPU, processes, open files, timeout)
+type ExecProcessRequest struct {
+	SandboxID   uuid.UUID
+	Command     string
+	Args        []string
+	Env         map[string]string
+	WorkingDir  string
+	NetworkMode string // "none" | "localhost" | "full"; "" → workspace-sandbox default
+
+	MemoryLimitMB int
+	CPUTimeSec    int
+	TimeoutSec    int
+	MaxProcesses  int
+	MaxOpenFiles  int
+}
+
+// ExecProcessResult mirrors the workspace-sandbox /exec response.
+type ExecProcessResult struct {
+	ExitCode int
+	Stdout   string
+	Stderr   string
+	PID      int
+	TimedOut bool
+
+	// Blocked reports a structured guardrail denial (e.g. git verb blocked).
+	// When non-nil, the workspace-sandbox returned 403 with a typed body.
+	Blocked *ExecBlocked
+}
+
+// ExecBlocked describes a structured workspace-sandbox guardrail denial.
+type ExecBlocked struct {
+	Error   string // e.g. "git_verb_blocked"
+	Verb    string // e.g. "commit"
+	Message string
 }

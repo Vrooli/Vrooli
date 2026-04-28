@@ -39,9 +39,9 @@
           "rationale": "Provide your own filename"
         }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d6",
@@ -71,9 +71,9 @@
           "rationale": "Provide your own format"
         }
       ],
-      "selected": null,
+      "selected": "A",
       "freeform": null,
-      "notes": null
+      "notes": ""
     },
     {
       "id": "d7",

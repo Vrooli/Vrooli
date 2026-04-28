@@ -1363,10 +1363,6 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 			requiresSandbox := inline.GetRequiresSandbox()
 			req.RequiresSandbox = &requiresSandbox
 		}
-		if inline.RequiresApproval != nil {
-			requiresApproval := inline.GetRequiresApproval()
-			req.RequiresApproval = &requiresApproval
-		}
 		if inline.NetworkAccess != nil {
 			na := protoconv.NetworkAccessFromProto(inline.GetNetworkAccess())
 			req.NetworkAccess = &na
@@ -1388,6 +1384,17 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		req.Environment = protoReq.Environment
+	}
+	if protoReq.ConversationId != nil {
+		req.ConversationID = protoReq.GetConversationId()
+	}
+	if protoReq.ParentRunId != nil {
+		parentRunID, err := uuid.Parse(protoReq.GetParentRunId())
+		if err != nil {
+			writeSimpleError(w, r, "parent_run_id", "invalid UUID format for parent run ID")
+			return
+		}
+		req.ParentRunID = &parentRunID
 	}
 
 	run, err := h.svc.CreateRun(r.Context(), req)

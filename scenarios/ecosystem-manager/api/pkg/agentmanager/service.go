@@ -326,6 +326,12 @@ func (s *AgentService) ExecuteInsight(ctx context.Context, req InsightRequest) (
 		Prompt:     proto.String(req.Prompt),
 		InlineConfig: &domainpb.RunConfigOverrides{
 			Timeout: durationpb.New(timeout),
+			// Insights are read-only analysis — the deliverable is a report
+			// on ecosystem health, not repo changes. ManualReview=true defers
+			// apply at run end so any inadvertent file mutations persist as
+			// pending-review for operator approval rather than auto-applying.
+			// See workspace-sandbox/docs/AUDITABILITY_CONTRACT.md.
+			SandboxConfig: &domainpb.SandboxConfig{ManualReview: true},
 		},
 	}
 
@@ -369,38 +375,35 @@ func (s *AgentService) WaitForRun(ctx context.Context, runID string) (*domainpb.
 
 // ProfileConfig contains agent profile configuration.
 type ProfileConfig struct {
-	RunnerType       domainpb.RunnerType
-	MaxTurns         int32
-	TimeoutSeconds   int32
-	AllowedTools     []string
-	SkipPermissions  bool
-	RequiresSandbox  bool
-	RequiresApproval bool
+	RunnerType      domainpb.RunnerType
+	MaxTurns        int32
+	TimeoutSeconds  int32
+	AllowedTools    []string
+	SkipPermissions bool
+	RequiresSandbox bool
 }
 
 func (s *AgentService) buildTaskProfileConfig() *ProfileConfig {
 	currentSettings := settings.GetSettings()
 
 	return &ProfileConfig{
-		RunnerType:       s.getRunnerType(),
-		MaxTurns:         int32(currentSettings.MaxTurns),
-		TimeoutSeconds:   int32(currentSettings.TaskTimeout * 60), // Convert minutes to seconds
-		AllowedTools:     parseToolsList(currentSettings.AllowedTools),
-		SkipPermissions:  currentSettings.SkipPermissions,
-		RequiresSandbox:  false, // In-place execution
-		RequiresApproval: false, // Auto-apply
+		RunnerType:      s.getRunnerType(),
+		MaxTurns:        int32(currentSettings.MaxTurns),
+		TimeoutSeconds:  int32(currentSettings.TaskTimeout * 60), // Convert minutes to seconds
+		AllowedTools:    parseToolsList(currentSettings.AllowedTools),
+		SkipPermissions: currentSettings.SkipPermissions,
+		RequiresSandbox: false, // In-place execution
 	}
 }
 
 func (s *AgentService) buildInsightsProfileConfig() *ProfileConfig {
 	return &ProfileConfig{
-		RunnerType:       s.getRunnerType(),
-		MaxTurns:         20,  // Lower turns for insights
-		TimeoutSeconds:   300, // 5 minutes
-		AllowedTools:     []string{"Read", "Glob", "Grep", "Bash"},
-		SkipPermissions:  true,
-		RequiresSandbox:  false,
-		RequiresApproval: false,
+		RunnerType:      s.getRunnerType(),
+		MaxTurns:        20,  // Lower turns for insights
+		TimeoutSeconds:  300, // 5 minutes
+		AllowedTools:    []string{"Read", "Glob", "Grep", "Bash"},
+		SkipPermissions: true,
+		RequiresSandbox: false,
 	}
 }
 
@@ -427,7 +430,6 @@ func (s *AgentService) buildProfile(profileKey, name, description string, cfg *P
 		AllowedTools:         cfg.AllowedTools,
 		SkipPermissionPrompt: cfg.SkipPermissions,
 		RequiresSandbox:      cfg.RequiresSandbox,
-		RequiresApproval:     cfg.RequiresApproval,
 		CreatedBy:            "ecosystem-manager",
 	}
 }

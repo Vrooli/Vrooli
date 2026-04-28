@@ -126,16 +126,17 @@ func (e *ServerExecutor) spawnCodingAgent(ctx context.Context, args map[string]i
 		return ErrorResult(fmt.Sprintf("failed to create task: %v", err), CodeInternalError), nil
 	}
 
-	// Step 2: Create the Run
+	// Step 2: Create the Run.
+	// Tool-spawned runs use the auditability-contract default
+	// (auto-apply at run end). Operators that want manual review can
+	// override via SandboxConfig.ManualReview through a different surface.
 	rt := mapRunnerType(runnerType)
 	timeout := time.Duration(timeoutMinutes) * time.Minute
-	requiresApproval := true
 
 	runReq := orchestration.CreateRunRequest{
-		TaskID:           createdTask.ID,
-		RunnerType:       &rt,
-		Timeout:          &timeout,
-		RequiresApproval: &requiresApproval,
+		TaskID:     createdTask.ID,
+		RunnerType: &rt,
+		Timeout:    &timeout,
 	}
 
 	run, err := e.orchestrator.CreateRun(ctx, runReq)

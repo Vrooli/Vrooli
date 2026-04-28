@@ -29,6 +29,7 @@ import (
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/identity"
+	"agent-manager/internal/metrics"
 	"agent-manager/internal/modelregistry"
 	"agent-manager/internal/policy"
 	"agent-manager/internal/promptmanager"
@@ -227,7 +228,6 @@ type CreateRunRequest struct {
 	ExtraFlags           domain.RunnerExtraFlags `json:"extraFlags,omitempty"`
 	RequiresSandbox      *bool                   `json:"requiresSandbox,omitempty"`
 	NetworkAccess        *domain.NetworkAccess   `json:"networkAccess,omitempty"`
-	RequiresApproval     *bool                   `json:"requiresApproval,omitempty"`
 	AllowedPaths         []string                `json:"allowedPaths,omitempty"`
 	DeniedPaths          []string                `json:"deniedPaths,omitempty"`
 
@@ -255,6 +255,15 @@ type CreateRunRequest struct {
 	// Environment passes custom VROOLI_-prefixed environment variables to the
 	// agent process. Merged with sandbox env vars; sandbox vars take precedence.
 	Environment map[string]string `json:"environment,omitempty"`
+
+	// ConversationID and ParentRunID encode the agent-thread linkage per
+	// Decision D7 of the auditability contract. Spawn surfaces SHOULD
+	// populate at least one explicitly so provenance readers can group by
+	// conversation. agent-manager applies the locked precedence at
+	// run-creation time (spawner > parent inheritance > fresh UUID) — see
+	// domain.ResolveConversationID.
+	ConversationID string     `json:"conversationId,omitempty"`
+	ParentRunID    *uuid.UUID `json:"parentRunId,omitempty"`
 }
 
 // ProfileRef identifies a profile by key with optional defaults.
@@ -1144,12 +1153,25 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		ApprovalState:            domain.ApprovalStateNone,
 		ResolvedConfig:           resolvedConfig,
 		SandboxConfig:            sandboxConfig,
+		ConversationID:           req.ConversationID,
+		ParentRunID:              req.ParentRunID,
 		// Provenance: requested is the primary model the preset expanded to at creation.
 		// Actual is blank until the executor records the model that actually ran.
 		RequestedModel: resolvedConfig.Model,
 		CreatedAt:      time.Now(),
 		UpdatedAt:      time.Now(),
 	}
+	// Apply Decision D7 precedence (spawner > parent inheritance > fresh
+	// UUID). When the spawn surface populates ConversationID directly,
+	// step (1) wins; otherwise we inherit from ParentRunID's run when set,
+	// or mint a fresh UUID.
+	run.ConversationID = domain.ResolveConversationID(run, func(parentID uuid.UUID) (string, bool) {
+		parent, perr := o.runs.Get(ctx, parentID)
+		if perr != nil || parent == nil {
+			return "", false
+		}
+		return parent.ConversationID, true
+	})
 	// Populate PromptPreview so WebSocket broadcasts include display text.
 	// This is normally a computed field from the List query JOIN, but we need it
 	// for real-time broadcasts during execution.
@@ -1172,6 +1194,20 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 
 	// Mark idempotency as complete
 	o.markIdempotencyComplete(ctx, req.IdempotencyKey, run.ID, "Run")
+
+	// Sandbox-default rollout adoption metrics (Phase D of
+	// agent-sandbox-audit-foundation). Three labels capture the rollout
+	// state per run: run_mode, sandbox_mode, manual_review.
+	sandboxModeLabel := "n/a"
+	manualReviewLabel := "false"
+	if run.SandboxConfig != nil {
+		sandboxModeLabel = string(run.SandboxConfig.Mode.Effective())
+		if run.SandboxConfig.ManualReview {
+			manualReviewLabel = "true"
+		}
+	}
+	metrics.Get().RecordRunCreated(string(resolvedConfig.RunnerType), string(run.RunMode))
+	metrics.Get().RecordSandboxAdoption(string(run.RunMode), sandboxModeLabel, manualReviewLabel)
 
 	// Split instructions (system prompt) from context data (user message).
 	// Task description contains methodology/instructions → system prompt.
@@ -1388,9 +1424,6 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	if req.NetworkAccess != nil {
 		cfg.NetworkAccess = *req.NetworkAccess
 	}
-	if req.RequiresApproval != nil {
-		cfg.RequiresApproval = *req.RequiresApproval
-	}
 	if req.AllowedPaths != nil {
 		cfg.AllowedPaths = req.AllowedPaths
 	}
@@ -1461,6 +1494,11 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 //  1. Zero-valued default
 //  2. profile.SandboxConfig (if present)
 //  3. req.SandboxConfig (inline override, if present)
+//
+// Phase G: Profile/req AllowedPaths/DeniedPaths are merged into the resolved
+// SandboxConfig.Acceptance so they become *enforced* at apply-at-run-end
+// rather than passed as advisory env vars to runners. This is the
+// agent-sandbox-audit-foundation policy-to-sandbox handoff.
 func (o *Orchestrator) resolveSandboxConfig(req CreateRunRequest, profile *domain.AgentProfile) (*domain.SandboxConfig, error) {
 	cfg := &domain.SandboxConfig{}
 	if profile != nil && profile.SandboxConfig != nil {
@@ -1469,11 +1507,57 @@ func (o *Orchestrator) resolveSandboxConfig(req CreateRunRequest, profile *domai
 	if req.SandboxConfig != nil {
 		cfg = cloneSandboxConfig(req.SandboxConfig)
 	}
+
+	// Push path policy from profile/request into the acceptance layer so
+	// workspace-sandbox actually enforces it at apply time. The runner-side
+	// advisory env vars are kept for the tracking-mode capability matrix
+	// but the load-bearing enforcement now lives at the sandbox boundary.
+	allowedPaths := profilePaths(profile, func(p *domain.AgentProfile) []string { return p.AllowedPaths })
+	if req.AllowedPaths != nil {
+		allowedPaths = req.AllowedPaths
+	}
+	deniedPaths := profilePaths(profile, func(p *domain.AgentProfile) []string { return p.DeniedPaths })
+	if req.DeniedPaths != nil {
+		deniedPaths = req.DeniedPaths
+	}
+	cfg.Acceptance.Allow.PathGlobs = mergeUnique(cfg.Acceptance.Allow.PathGlobs, allowedPaths)
+	cfg.Acceptance.Deny.PathGlobs = mergeUnique(cfg.Acceptance.Deny.PathGlobs, deniedPaths)
+
 	cfg = normalizeSandboxConfig(cfg)
 	if err := validateSandboxConfig(cfg); err != nil {
 		return nil, err
 	}
 	return cfg, nil
+}
+
+func profilePaths(p *domain.AgentProfile, get func(*domain.AgentProfile) []string) []string {
+	if p == nil {
+		return nil
+	}
+	return get(p)
+}
+
+func mergeUnique(a, b []string) []string {
+	if len(a) == 0 && len(b) == 0 {
+		return nil
+	}
+	seen := make(map[string]bool, len(a)+len(b))
+	out := make([]string, 0, len(a)+len(b))
+	for _, v := range a {
+		if v == "" || seen[v] {
+			continue
+		}
+		seen[v] = true
+		out = append(out, v)
+	}
+	for _, v := range b {
+		if v == "" || seen[v] {
+			continue
+		}
+		seen[v] = true
+		out = append(out, v)
+	}
+	return out
 }
 
 func cloneSandboxConfig(cfg *domain.SandboxConfig) *domain.SandboxConfig {
@@ -1485,6 +1569,14 @@ func cloneSandboxConfig(cfg *domain.SandboxConfig) *domain.SandboxConfig {
 	clone.Lifecycle.DeleteOn = append([]domain.SandboxLifecycleEvent(nil), cfg.Lifecycle.DeleteOn...)
 	clone.Acceptance.Allow = cloneSandboxCriteria(cfg.Acceptance.Allow)
 	clone.Acceptance.Deny = cloneSandboxCriteria(cfg.Acceptance.Deny)
+	if cfg.AutoApply != nil {
+		v := *cfg.AutoApply
+		clone.AutoApply = &v
+	}
+	if cfg.ApplyOnFailure != nil {
+		v := *cfg.ApplyOnFailure
+		clone.ApplyOnFailure = &v
+	}
 	return &clone
 }
 
@@ -1505,25 +1597,20 @@ func normalizeSandboxConfig(cfg *domain.SandboxConfig) *domain.SandboxConfig {
 	cfg.Acceptance.Allow = normalizeSandboxCriteria(cfg.Acceptance.Allow)
 	cfg.Acceptance.Deny = normalizeSandboxCriteria(cfg.Acceptance.Deny)
 
-	// Default lifecycle cleanup for auto-approve sandboxes.
+	// Default lifecycle cleanup for auto-apply sandboxes.
 	//
-	// When autoApprove is enabled, the sandbox changes are applied to the
-	// canonical repo and committed automatically — no human reviews the
-	// sandbox. Without cleanup, the sandbox stays "active" indefinitely,
-	// which:
-	//   1. Blocks future runs that target the same scope path (mutual
-	//      exclusion via reserved_paths).
-	//   2. Leaks overlay mounts and disk space.
+	// Under the auditability contract (Phase 3b), AutoApply=true (the
+	// contract default unless ManualReview=true) means the sandbox is
+	// applied at run end. Once applied, leaving the sandbox active
+	// indefinitely blocks future runs on the same scope path and leaks
+	// overlay mounts. We default deleteOn to ["terminal"] so the sandbox
+	// is cleaned up after any terminal event when ManualReview is off.
 	//
-	// We default deleteOn to ["terminal"] so the sandbox is cleaned up after
-	// any terminal event (run_completed, run_failed, run_cancelled). This
-	// matches the intent of auto-approve: the caller trusts the changes and
-	// doesn't need the sandbox preserved for inspection.
-	//
-	// Callers who want different behavior (e.g., keep the sandbox for
-	// debugging) can explicitly set lifecycle.deleteOn to override this
-	// default.
-	if cfg.Acceptance.AutoApprove && len(cfg.Lifecycle.DeleteOn) == 0 && len(cfg.Lifecycle.StopOn) == 0 {
+	// ManualReview=true sandboxes intentionally persist past run end so
+	// operators can review; their TTL GC is owned by workspace-sandbox
+	// LifecycleReconciler (Phase 4).
+	if cfg.GetAutoApply() && !cfg.ManualReview &&
+		len(cfg.Lifecycle.DeleteOn) == 0 && len(cfg.Lifecycle.StopOn) == 0 {
 		cfg.Lifecycle.DeleteOn = []domain.SandboxLifecycleEvent{domain.SandboxLifecycleTerminal}
 	}
 
@@ -1587,14 +1674,15 @@ func validateSandboxConfig(cfg *domain.SandboxConfig) error {
 			)
 		}
 	}
-	// Warn when auto_approve is enabled but no allow criteria are configured.
-	// This is valid (empty allow = accept all non-denied files), but surprising
-	// enough to warrant a log line — especially since an empty deny (from proto
-	// serialization) previously caused silent universal denial.
-	if cfg.Acceptance.AutoApprove &&
+	// Warn when AutoApply is on (the contract default) but no allow
+	// criteria are configured. This is valid (empty allow = accept all
+	// non-denied files), but surprising enough to warrant a log line —
+	// especially since an empty deny (from proto serialization)
+	// previously caused silent universal denial.
+	if cfg.GetAutoApply() && !cfg.ManualReview &&
 		len(cfg.Acceptance.Allow.PathGlobs) == 0 &&
 		len(cfg.Acceptance.Allow.Extensions) == 0 {
-		log.Printf("[sandbox-config] auto_approve enabled with no allow criteria — all non-denied files will be approved")
+		log.Printf("[sandbox-config] autoApply enabled with no allow criteria — all non-denied files will be applied at run end")
 	}
 	return nil
 }

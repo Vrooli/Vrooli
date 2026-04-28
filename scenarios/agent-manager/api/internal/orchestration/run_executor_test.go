@@ -168,6 +168,7 @@ type mockSandboxProvider struct {
 	stopFunc           func(ctx context.Context, id uuid.UUID) error
 	startFunc          func(ctx context.Context, id uuid.UUID) error
 	isAvailableFunc    func(ctx context.Context) (bool, string)
+	applyAtRunEndFunc  func(ctx context.Context, req sandbox.ApplyAtRunEndRequest) (*sandbox.ApplyAtRunEndResult, error)
 }
 
 func newMockSandboxProvider() *mockSandboxProvider {
@@ -268,6 +269,17 @@ func (m *mockSandboxProvider) Start(ctx context.Context, id uuid.UUID) error {
 
 func (m *mockSandboxProvider) ValidatePath(ctx context.Context, path string, projectRoot string) (*sandbox.PathValidationResult, error) {
 	return &sandbox.PathValidationResult{Path: path, Valid: true}, nil
+}
+
+func (m *mockSandboxProvider) ApplyAtRunEnd(ctx context.Context, req sandbox.ApplyAtRunEndRequest) (*sandbox.ApplyAtRunEndResult, error) {
+	if m.applyAtRunEndFunc != nil {
+		return m.applyAtRunEndFunc(ctx, req)
+	}
+	return &sandbox.ApplyAtRunEndResult{Success: true, AppliedAt: time.Now()}, nil
+}
+
+func (m *mockSandboxProvider) ExecProcess(_ context.Context, _ sandbox.ExecProcessRequest) (*sandbox.ExecProcessResult, error) {
+	return &sandbox.ExecProcessResult{ExitCode: 0}, nil
 }
 
 // =============================================================================
@@ -1777,13 +1789,12 @@ func TestRunExecutor_NoBroadcaster_NoPanic(t *testing.T) {
 // Since there is no sandbox to diff against or merge from, the approval
 // workflow is skipped entirely and the run auto-completes.
 
-func TestRunExecutor_InPlace_SkipsApproval_EvenWhenRequiresApprovalTrue(t *testing.T) {
-	// An in-place run should auto-complete even when RequiresApproval is
-	// explicitly set to true in the resolved config.
+func TestRunExecutor_InPlace_SkipsApproval(t *testing.T) {
+	// An in-place run should auto-complete because there is no sandbox to
+	// diff against — the approval / apply workflow doesn't apply.
 	f := newInPlaceFixtures()
 	f.run.ResolvedConfig = &domain.RunConfig{
-		RunnerType:       domain.RunnerTypeClaudeCode,
-		RequiresApproval: true,
+		RunnerType: domain.RunnerTypeClaudeCode,
 	}
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
@@ -1820,19 +1831,18 @@ func TestRunExecutor_InPlace_SkipsApproval_EvenWhenRequiresApprovalTrue(t *testi
 	}
 }
 
-func TestRunExecutor_Sandboxed_StillRequiresApproval(t *testing.T) {
-	// Sandboxed runs should continue entering needs_review when
-	// RequiresApproval is true and auto-approval does not succeed.
+func TestRunExecutor_Sandboxed_ManualReviewDefersApply(t *testing.T) {
+	// Per the auditability contract, the only way a sandboxed run lands
+	// in NeedsReview/Pending after success is ManualReview=true. The
+	// contract is "auto-apply by default unless operator opts into manual
+	// review".
 	f := newTestFixtures() // sandboxed mode
+	manualReviewCfg := domain.DefaultSandboxConfig()
+	manualReviewCfg.ManualReview = true
+	f.run.SandboxConfig = manualReviewCfg
 	f.run.ResolvedConfig = &domain.RunConfig{
-		RunnerType:       domain.RunnerTypeClaudeCode,
-		RequiresApproval: true,
-		SandboxConfig: &domain.SandboxConfig{
-			Acceptance: domain.SandboxAcceptanceConfig{
-				// Disable all auto-approval paths so we hit needs_review
-				DisableAutoApproveIfEmpty: true,
-			},
-		},
+		RunnerType:    domain.RunnerTypeClaudeCode,
+		SandboxConfig: manualReviewCfg,
 	}
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
@@ -1870,12 +1880,15 @@ func TestRunExecutor_Sandboxed_StillRequiresApproval(t *testing.T) {
 	}
 }
 
-func TestRunExecutor_Sandboxed_NoApprovalRequired_Completes(t *testing.T) {
-	// Sandboxed runs with RequiresApproval=false should still auto-complete.
+func TestRunExecutor_Sandboxed_DefaultAutoApplies_Completes(t *testing.T) {
+	// Sandboxed runs with the contract defaults (AutoApply=true,
+	// ManualReview=false) should auto-apply at run end and land in Complete
+	// with ApprovalState=Approved.
 	f := newTestFixtures() // sandboxed mode
+	f.run.SandboxConfig = domain.DefaultSandboxConfig()
 	f.run.ResolvedConfig = &domain.RunConfig{
-		RunnerType:       domain.RunnerTypeClaudeCode,
-		RequiresApproval: false,
+		RunnerType:    domain.RunnerTypeClaudeCode,
+		SandboxConfig: f.run.SandboxConfig,
 	}
 	repos, eventStore := setupExecutorRepos(t, f)
 	mustCreateRun(t, repos.Runs, f.run)
@@ -1908,12 +1921,12 @@ func TestRunExecutor_Sandboxed_NoApprovalRequired_Completes(t *testing.T) {
 	if updatedRun.Status != domain.RunStatusComplete {
 		t.Errorf("expected status 'complete', got '%s'", updatedRun.Status)
 	}
-	if updatedRun.ApprovalState != domain.ApprovalStateNone {
-		t.Errorf("expected approval state 'none', got '%s'", updatedRun.ApprovalState)
+	if updatedRun.ApprovalState != domain.ApprovalStateApproved {
+		t.Errorf("expected approval state 'approved' (auto-applied), got '%s'", updatedRun.ApprovalState)
 	}
 }
 
-func TestRunExecutor_InPlace_EmitsSkipApprovalEvent(t *testing.T) {
+func TestRunExecutor_InPlace_EmitsSkipApplyEvent(t *testing.T) {
 	// Verify that in-place runs emit a system event explaining the
 	// approval skip, so operators can trace the decision.
 	f := newInPlaceFixtures()
@@ -1952,7 +1965,7 @@ func TestRunExecutor_InPlace_EmitsSkipApprovalEvent(t *testing.T) {
 			if logData, ok := evt.Data.(*domain.LogEventData); ok {
 				if logData.Level == "info" &&
 					strings.Contains(logData.Message, "in-place run completed") &&
-					strings.Contains(logData.Message, "skipping approval") {
+					strings.Contains(logData.Message, "skipping apply") {
 					found = true
 					break
 				}

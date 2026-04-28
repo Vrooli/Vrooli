@@ -17,6 +17,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/discovery"
+	sandboxprovenance "github.com/vrooli/sandbox-provenance"
 	"workspace-sandbox/internal/diff"
 	"workspace-sandbox/internal/driver"
 	"workspace-sandbox/internal/policy"
@@ -57,6 +58,21 @@ type ServiceAPI interface {
 	// Approve applies sandbox changes to the canonical repo.
 	// Returns StateError if sandbox cannot be approved.
 	Approve(ctx context.Context, req *types.ApprovalRequest) (*types.ApprovalResult, error)
+
+	// ApplyAtRunEnd is the agent-manager run-end apply path from the
+	// auditability contract (Decision D6). It carries run-context metadata
+	// (agent_manager_run_id, conversation_id, cost, runOutcome, source)
+	// onto the apply call and routes through the same internal apply path
+	// as Approve to guarantee no per-file state-machine drift between the
+	// operator and auto-apply surfaces.
+	//
+	// The Source field must be SourceAgentManagerAutoApply; other inbound
+	// values are rejected. The system-only SourceWorkspaceSandboxGC value
+	// is always rejected on inbound requests.
+	//
+	// See scenarios/workspace-sandbox/docs/AUDITABILITY_CONTRACT.md
+	// Findings 1–2 for the contract this method encodes.
+	ApplyAtRunEnd(ctx context.Context, req *types.ApplyAtRunEndRequest) (*types.ApprovalResult, error)
 
 	// Reject marks sandbox changes as rejected.
 	// Returns StateError if sandbox cannot be rejected.
@@ -121,7 +137,6 @@ type Service struct {
 
 	// Policies - these define the volatile behavior of the service.
 	// Using interfaces allows behavior to be configured without code changes.
-	approvalPolicy    policy.ApprovalPolicy
 	attributionPolicy policy.AttributionPolicy
 	validationPolicy  policy.ValidationPolicy
 	teardownPolicy    policy.TeardownPolicy
@@ -176,13 +191,6 @@ func (s *Service) resolveNoLock(req *types.CreateRequest) {
 
 // ServiceOption configures the service.
 type ServiceOption func(*Service)
-
-// WithApprovalPolicy sets the approval policy.
-func WithApprovalPolicy(p policy.ApprovalPolicy) ServiceOption {
-	return func(s *Service) {
-		s.approvalPolicy = p
-	}
-}
 
 // WithAttributionPolicy sets the attribution policy.
 func WithAttributionPolicy(p policy.AttributionPolicy) ServiceOption {
@@ -1433,13 +1441,6 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 		return nil, types.NewStateError(err.(*types.InvalidTransitionError))
 	}
 
-	// Run approval policy validation if configured
-	if s.approvalPolicy != nil {
-		if err := s.approvalPolicy.ValidateApproval(ctx, sandbox, req); err != nil {
-			return nil, fmt.Errorf("approval policy validation failed: %w", err)
-		}
-	}
-
 	// Get all changes - this is the total count before filtering
 	allChanges, err := s.driver.GetChangedFiles(ctx, sandbox)
 	if err != nil {
@@ -1627,8 +1628,15 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 		}, nil
 	}
 
-	// Record provenance for all applied changes
-	runID := metadataString(sandbox.Metadata, metadataAgentManagerRunID)
+	// Record provenance for all applied changes. Per the sandbox-provenance
+	// v1.0.0 contract, the run-end metadata (runId, conversationId, cost,
+	// runOutcome) and the per-file state are stamped here. Apply-at-run-end
+	// supplies them on the request; operator-driven Approve calls fall back
+	// to the sandbox metadata for runId only and leave the rest empty.
+	runID := req.AgentManagerRunID
+	if runID == "" {
+		runID = metadataString(sandbox.Metadata, metadataAgentManagerRunID)
+	}
 	appliedChanges := make([]*types.AppliedChange, len(changes))
 	for i, c := range changes {
 		appliedChanges[i] = &types.AppliedChange{
@@ -1641,6 +1649,11 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 			ChangeType:        string(c.ChangeType),
 			FileSize:          c.FileSize,
 			AgentManagerRunID: runID,
+			SchemaVersion:     sandboxprovenance.SchemaVersion,
+			ConversationID:    req.ConversationID,
+			CostUSD:           req.Cost,
+			RunOutcome:        req.RunOutcome,
+			ProvenanceState:   string(sandboxprovenance.FileStateApplied),
 		}
 	}
 
@@ -1732,6 +1745,112 @@ func (s *Service) Approve(ctx context.Context, req *types.ApprovalRequest) (*typ
 		CommitHash: applyResult.CommitHash,
 		AppliedAt:  now,
 	}, nil
+}
+
+// ApplyAtRunEnd is the agent-manager run-end apply path. It validates the
+// run-context metadata, translates the request into an internal
+// ApprovalRequest, and routes through the existing Approve path so the
+// per-file state machine cannot drift between operator approval and
+// agent-manager auto-apply (Phase 2 step 8 of
+// scenarios/swarm-manager/execute/agent-manager-sandbox-auto-apply-defaults/plan.md).
+//
+// The Source field MUST be SourceAgentManagerAutoApply; other inbound values
+// (including the system-only SourceWorkspaceSandboxGC) are rejected. Apply
+// behaviour is identical regardless of RunOutcome — the outcome is recorded
+// on provenance metadata but does not gate apply.
+func (s *Service) ApplyAtRunEnd(ctx context.Context, req *types.ApplyAtRunEndRequest) (*types.ApprovalResult, error) {
+	if req == nil {
+		return nil, types.NewValidationError("request", "request body is required")
+	}
+	if err := validateApplyAtRunEndRequest(req); err != nil {
+		return nil, err
+	}
+
+	// Translate to the internal ApprovalRequest. apply-at-run-end is
+	// always a full-sandbox apply ("all" mode); per-file partitioning into
+	// applied / pending-review is owned by the acceptance filter inside
+	// Approve, which is shared with the operator surface. Run-end metadata
+	// (runId, conversationId, cost, runOutcome) is forwarded so it lands
+	// on the resulting AppliedChange rows per the sandbox-provenance v1.0.0
+	// contract.
+	approvalReq := &types.ApprovalRequest{
+		SandboxID:         req.SandboxID,
+		Mode:              "all",
+		Actor:             req.Actor,
+		CommitMsg:         req.CommitMsg,
+		Source:            req.Source,
+		Force:             req.Force,
+		CreateCommit:      req.CreateCommit,
+		AgentManagerRunID: req.AgentManagerRunID,
+		ConversationID:    req.ConversationID,
+		Cost:              req.Cost,
+		RunOutcome:        req.RunOutcome,
+	}
+
+	result, err := s.Approve(ctx, approvalReq)
+	if err != nil {
+		return nil, err
+	}
+
+	// Best-effort audit annotation for the run-context metadata. The Approve
+	// path already logged the "approved" / "partial_approved" event; this
+	// adds a parallel record so audit consumers can group by run / conversation
+	// without joining against agent-manager state.
+	if sandbox, getErr := s.Get(ctx, req.SandboxID); getErr == nil {
+		s.logAuditEvent(ctx, sandbox, "applied_at_run_end", req.Actor, "agent", map[string]interface{}{
+			"agentManagerRunId": req.AgentManagerRunID,
+			"conversationId":    req.ConversationID,
+			"cost":              req.Cost,
+			"runOutcome":        req.RunOutcome,
+			"source":            string(req.Source),
+			"applied":           result.Applied,
+			"remaining":         result.Remaining,
+			"isPartial":         result.IsPartial,
+		})
+	}
+
+	return result, nil
+}
+
+// validateApplyAtRunEndRequest rejects malformed apply-at-run-end requests
+// before they reach the shared Approve path. Validation here catches:
+//   - missing run identifier (provenance would be unattributable)
+//   - invalid Source value (system-only values, unspecified, unknown enum)
+//   - invalid RunOutcome (must be one of the contract's 4 values)
+func validateApplyAtRunEndRequest(req *types.ApplyAtRunEndRequest) error {
+	if strings.TrimSpace(req.AgentManagerRunID) == "" {
+		return types.NewValidationError(
+			"agentManagerRunId",
+			"field is required for apply-at-run-end (provenance attribution)",
+		)
+	}
+	if !req.Source.IsValidInbound() {
+		return types.NewValidationErrorWithHint(
+			"source",
+			"invalid source for apply-at-run-end",
+			"only the SourceAgentManagerAutoApply ('agent-manager-auto-apply') value is accepted on this endpoint",
+		)
+	}
+	if req.Source != types.SourceAgentManagerAutoApply {
+		return types.NewValidationErrorWithHint(
+			"source",
+			"apply-at-run-end requires source=agent-manager-auto-apply",
+			"operator approvals must use POST /sandboxes/{id}/approve instead",
+		)
+	}
+	if req.RunOutcome != "" {
+		switch req.RunOutcome {
+		case "success", "failure", "cancelled", "timeout":
+			// ok
+		default:
+			return types.NewValidationErrorWithHint(
+				"runOutcome",
+				"invalid runOutcome for apply-at-run-end",
+				"valid values: success, failure, cancelled, timeout",
+			)
+		}
+	}
+	return nil
 }
 
 // Reject marks sandbox changes as rejected.
@@ -2032,7 +2151,18 @@ func (s *Service) Rebase(ctx context.Context, req *types.RebaseRequest) (*types.
 //
 // This captures an immutable snapshot of the sandbox state at the time of the event,
 // enabling full auditability and forensic analysis of sandbox lifecycle changes.
+// logAuditEventWithSource is like logAuditEvent but records an explicit
+// ApprovalSource on the audit event. Used by the manual-review TTL GC path
+// to stamp Source=SourceWorkspaceSandboxGC on the system-initiated denial.
+func (s *Service) logAuditEventWithSource(ctx context.Context, sandbox *types.Sandbox, eventType, actor, actorType string, source types.ApprovalSource, details map[string]interface{}) {
+	s.logAuditEventWith(ctx, sandbox, eventType, actor, actorType, source, details)
+}
+
 func (s *Service) logAuditEvent(ctx context.Context, sandbox *types.Sandbox, eventType, actor, actorType string, details map[string]interface{}) {
+	s.logAuditEventWith(ctx, sandbox, eventType, actor, actorType, types.SourceUnspecified, details)
+}
+
+func (s *Service) logAuditEventWith(ctx context.Context, sandbox *types.Sandbox, eventType, actor, actorType string, source types.ApprovalSource, details map[string]interface{}) {
 	// Build sandbox state snapshot
 	sandboxState := map[string]interface{}{
 		"id":          sandbox.ID.String(),
@@ -2073,6 +2203,7 @@ func (s *Service) logAuditEvent(ctx context.Context, sandbox *types.Sandbox, eve
 		EventType:    eventType,
 		Actor:        actor,
 		ActorType:    actorType,
+		Source:       source,
 		Details:      details,
 		SandboxState: sandboxState,
 	}

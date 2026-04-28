@@ -63,6 +63,8 @@ type runRow struct {
 	TranscriptLastSeq        int64                 `db:"transcript_last_seq"`
 	SourceRunIDs             sql.NullString        `db:"source_run_ids"`
 	SourceInvestigationRunID NullableUUID          `db:"source_investigation_run_id"`
+	ParentRunID              NullableUUID          `db:"parent_run_id"`
+	ConversationID           sql.NullString        `db:"conversation_id"`
 	// Recommendation extraction fields (for investigation runs)
 	RecommendationStatus   sql.NullString           `db:"recommendation_status"`
 	RecommendationResult   NullableExtractionResult `db:"recommendation_result"`
@@ -115,6 +117,8 @@ func (row *runRow) toDomain() *domain.Run {
 		TranscriptLastSeq:        row.TranscriptLastSeq,
 		SourceRunIDs:             sourceRunIDs,
 		SourceInvestigationRunID: row.SourceInvestigationRunID.ToPtr(),
+		ParentRunID:              row.ParentRunID.ToPtr(),
+		ConversationID:           row.ConversationID.String,
 		// Recommendation extraction fields
 		RecommendationStatus:   domain.RecommendationStatus(row.RecommendationStatus.String),
 		RecommendationResult:   row.RecommendationResult.V,
@@ -173,6 +177,8 @@ func runFromDomain(r *domain.Run) *runRow {
 		TranscriptLastSeq:        r.TranscriptLastSeq,
 		SourceRunIDs:             sql.NullString{String: sourceRunIDs, Valid: sourceRunIDs != ""},
 		SourceInvestigationRunID: NewNullableUUID(r.SourceInvestigationRunID),
+		ParentRunID:              NewNullableUUID(r.ParentRunID),
+		ConversationID:           sql.NullString{String: r.ConversationID, Valid: r.ConversationID != ""},
 		// Recommendation extraction fields
 		RecommendationStatus:   sql.NullString{String: string(r.RecommendationStatus), Valid: r.RecommendationStatus != ""},
 		RecommendationResult:   NullableExtractionResult{V: r.RecommendationResult},
@@ -233,7 +239,7 @@ const runColumns = `id, task_id, agent_profile_id, tag, sandbox_id, run_mode, st
 	idempotency_key, summary, error_msg, exit_code, approval_state, approved_by, approved_at,
 	resolved_config, diff_path, log_path, changed_files, total_size_bytes, sandbox_config, session_id,
 	runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq,
-	source_run_ids, source_investigation_run_id,
+	source_run_ids, source_investigation_run_id, parent_run_id, conversation_id,
 	recommendation_status, recommendation_result, recommendation_attempts, recommendation_error, recommendation_queued_at,
 	identity_token_hash, identity_token_revoked_at,
 	requested_model, actual_model,
@@ -251,7 +257,7 @@ const listRunColumns = `id, task_id, agent_profile_id, tag, run_mode, status,
 	error_msg, exit_code, approval_state,
 	changed_files, total_size_bytes, session_id,
 	runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq,
-	source_run_ids, source_investigation_run_id,
+	source_run_ids, source_investigation_run_id, parent_run_id, conversation_id,
 	recommendation_status, recommendation_attempts,
 	requested_model, actual_model,
 	created_at, updated_at`
@@ -282,6 +288,8 @@ type listRunLiteRow struct {
 	TranscriptLastSeq        int64          `db:"transcript_last_seq"`
 	SourceRunIDs             sql.NullString `db:"source_run_ids"`
 	SourceInvestigationRunID NullableUUID   `db:"source_investigation_run_id"`
+	ParentRunID              NullableUUID   `db:"parent_run_id"`
+	ConversationID           sql.NullString `db:"conversation_id"`
 	RecommendationStatus     sql.NullString `db:"recommendation_status"`
 	RecommendationAttempts   int            `db:"recommendation_attempts"`
 	RequestedModel           sql.NullString `db:"requested_model"`
@@ -318,6 +326,8 @@ func (row *listRunLiteRow) toDomain() *domain.Run {
 		TranscriptLastSeq:        row.TranscriptLastSeq,
 		SourceRunIDs:             sourceRunIDs,
 		SourceInvestigationRunID: row.SourceInvestigationRunID.ToPtr(),
+		ParentRunID:              row.ParentRunID.ToPtr(),
+		ConversationID:           row.ConversationID.String,
 		RecommendationStatus:     domain.RecommendationStatus(row.RecommendationStatus.String),
 		RecommendationAttempts:   row.RecommendationAttempts,
 		RequestedModel:           row.RequestedModel.String,
@@ -347,7 +357,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			idempotency_key, summary, error_msg, exit_code, approval_state, approved_by, approved_at,
 			resolved_config, diff_path, log_path, changed_files, total_size_bytes, sandbox_config, session_id,
 			runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq,
-			source_run_ids, source_investigation_run_id,
+			source_run_ids, source_investigation_run_id, parent_run_id, conversation_id,
 			recommendation_status, recommendation_result, recommendation_attempts, recommendation_error, recommendation_queued_at,
 			identity_token_hash, identity_token_revoked_at,
 			requested_model, actual_model,
@@ -357,7 +367,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			:idempotency_key, :summary, :error_msg, :exit_code, :approval_state, :approved_by, :approved_at,
 			:resolved_config, :diff_path, :log_path, :changed_files, :total_size_bytes, :sandbox_config, :session_id,
 			:runner_pid, :runner_pgid, :transcript_path, :transcript_cursor, :transcript_last_seq,
-			:source_run_ids, :source_investigation_run_id,
+			:source_run_ids, :source_investigation_run_id, :parent_run_id, :conversation_id,
 			:recommendation_status, :recommendation_result, :recommendation_attempts, :recommendation_error, :recommendation_queued_at,
 			:identity_token_hash, :identity_token_revoked_at,
 			:requested_model, :actual_model,
@@ -474,6 +484,7 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 			transcript_path = :transcript_path, transcript_cursor = :transcript_cursor, transcript_last_seq = :transcript_last_seq,
 			source_run_ids = :source_run_ids,
 			source_investigation_run_id = :source_investigation_run_id,
+			parent_run_id = :parent_run_id, conversation_id = :conversation_id,
 			recommendation_status = :recommendation_status, recommendation_result = :recommendation_result,
 		recommendation_attempts = :recommendation_attempts, recommendation_error = :recommendation_error,
 		recommendation_queued_at = :recommendation_queued_at,

@@ -9,8 +9,8 @@
   "kind": "execute",
   "name": "agent-manager-run-executor-apply-at-run-end-cutover",
   "priority": 1,
-  "status": "backlog",
-  "tags": null,
+  "status": "completed",
+  "tags": [],
   "title": "Cut run executor over to applyAtRunEnd and remove legacy auto-approval fields (Phase 3b)",
-  "updated": "2026-04-27T19:13:33Z"
+  "updated": "2026-04-27T22:08:26Z"
 }

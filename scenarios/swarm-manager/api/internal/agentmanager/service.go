@@ -16,9 +16,20 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
+
+// freshConversationID mints a new ConversationID for a swarm-manager-spawned
+// run. Per Decision D7 of the auditability contract, spawn surfaces SHOULD
+// populate ConversationID explicitly rather than rely on agent-manager's
+// fallback. Each top-level spawn from swarm-manager (research, backlog,
+// initiative) is conceptually a fresh conversation.
+func freshConversationID() *string {
+	id := uuid.NewString()
+	return &id
+}
 
 // Service defines the seam handlers depend on.
 type Service interface {
@@ -269,10 +280,11 @@ func (s *AgentService) SpawnResearch(ctx context.Context, req ResearchSpawnReque
 
 	tag := buildResearchTag(req.IdeaName)
 	runReq := &apipb.CreateRunRequest{
-		TaskId:     createdTask.Id,
-		ProfileRef: s.defaultProfileRef(),
-		Tag:        &tag,
-		Force:      true,
+		ConversationId: freshConversationID(),
+		TaskId:         createdTask.Id,
+		ProfileRef:     s.defaultProfileRef(),
+		Tag:            &tag,
+		Force:          true,
 	}
 	if prompt := strings.TrimSpace(req.Prompt); prompt != "" {
 		runReq.Prompt = &prompt
@@ -330,10 +342,11 @@ func (s *AgentService) SpawnBacklog(ctx context.Context, req BacklogSpawnRequest
 
 	tag := buildBacklogTag(req.Kind, req.Name, req.Purpose)
 	runReq := &apipb.CreateRunRequest{
-		TaskId:     createdTask.Id,
-		ProfileRef: s.defaultProfileRef(),
-		Tag:        &tag,
-		Force:      true,
+		ConversationId: freshConversationID(),
+		TaskId:         createdTask.Id,
+		ProfileRef:     s.defaultProfileRef(),
+		Tag:            &tag,
+		Force:          true,
 	}
 	if prompt := strings.TrimSpace(req.Prompt); prompt != "" {
 		runReq.Prompt = &prompt
@@ -413,10 +426,11 @@ func (s *AgentService) SpawnInitiative(ctx context.Context, req InitiativeSpawnR
 
 	tag := buildInitiativeTag(req.Name, req.Purpose, req.RoundNumber)
 	runReq := &apipb.CreateRunRequest{
-		TaskId:     createdTask.Id,
-		ProfileRef: s.defaultProfileRef(),
-		Tag:        &tag,
-		Force:      true,
+		ConversationId: freshConversationID(),
+		TaskId:         createdTask.Id,
+		ProfileRef:     s.defaultProfileRef(),
+		Tag:            &tag,
+		Force:          true,
 	}
 	if prompt := strings.TrimSpace(req.Prompt); prompt != "" {
 		runReq.Prompt = &prompt

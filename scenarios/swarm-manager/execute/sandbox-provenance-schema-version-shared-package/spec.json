@@ -9,8 +9,8 @@
   "kind": "execute",
   "name": "sandbox-provenance-schema-version-shared-package",
   "priority": 2,
-  "status": "backlog",
-  "tags": null,
+  "status": "completed",
+  "tags": [],
   "title": "Land shared schema-version contract package with gct-pending-ai-provenance-hardening (Phase 5)",
-  "updated": "2026-04-27T19:43:16Z"
+  "updated": "2026-04-27T23:28:57Z"
 }

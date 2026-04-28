@@ -1186,17 +1186,9 @@ export function TasksPage({
                   />
                   <span className="text-sm">Require Sandbox</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={profileFormData.requiresApproval}
-                    onChange={(e) =>
-                      setProfileFormData({ ...profileFormData, requiresApproval: e.target.checked })
-                    }
-                    className="h-4 w-4 rounded border-input"
-                  />
-                  <span className="text-sm">Require Approval</span>
-                </label>
+                {/* Require Approval toggle removed in
+                    agent-sandbox-audit-foundation Phase 3b. Operator-gated
+                    apply now lives on SandboxConfig.manualReview. */}
                 <label className="flex items-center gap-2">
                   <span className="text-sm">Network Access</span>
                   <select

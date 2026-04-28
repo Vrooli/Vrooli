@@ -14,12 +14,12 @@ func NewAgentAdapter(store *Store) *agentAdapter {
 	return &agentAdapter{store: store}
 }
 
-func (a *agentAdapter) LoadAgentSettings() (maxTurns, timeoutSeconds int32, requiresApproval bool, err error) {
+func (a *agentAdapter) LoadAgentSettings() (maxTurns, timeoutSeconds int32, err error) {
 	s, err := a.store.Load()
 	if err != nil {
-		return 0, 0, false, err
+		return 0, 0, err
 	}
-	return int32(s.AgentMaxTurns), int32(s.AgentTimeoutSeconds), s.AgentRequiresApproval, nil
+	return int32(s.AgentMaxTurns), int32(s.AgentTimeoutSeconds), nil
 }
 
 // policyAdapter bridges Store to execution.PolicyProvider.

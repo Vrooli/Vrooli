@@ -52,13 +52,12 @@ func buildProfileConfig(settings AgentSettings) (agentmanager.ProfileConfig, err
 	allowedTools := parseToolsList(settings.AllowedTools)
 
 	return agentmanager.ProfileConfig{
-		RunnerType:       runnerType,
-		MaxTurns:         int32(settings.MaxTurns),
-		TimeoutSeconds:   int32(settings.TimeoutSeconds),
-		AllowedTools:     allowedTools,
-		SkipPermissions:  settings.SkipPermissions,
-		RequiresSandbox:  false,
-		RequiresApproval: false,
+		RunnerType:      runnerType,
+		MaxTurns:        int32(settings.MaxTurns),
+		TimeoutSeconds:  int32(settings.TimeoutSeconds),
+		AllowedTools:    allowedTools,
+		SkipPermissions: settings.SkipPermissions,
+		RequiresSandbox: false,
 	}, nil
 }
 

@@ -143,15 +143,24 @@ func TestEnsureSchemaAcceptsBootstrappedDatabase(t *testing.T) {
 		WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec("SET search_path TO workspace_sandbox, public").
 		WillReturnResult(sqlmock.NewResult(0, 0))
+	// sandboxes table existence
 	mock.ExpectQuery("SELECT EXISTS \\(").
 		WithArgs("workspace_sandbox").
 		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+	// applied_changes table existence
 	mock.ExpectQuery("SELECT EXISTS \\(").
 		WithArgs("workspace_sandbox").
 		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+	// applied_changes.agent_manager_run_id column
 	mock.ExpectQuery("SELECT EXISTS \\(").
 		WithArgs("workspace_sandbox").
 		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+	// sandbox-provenance v1.0.0 columns (5 of them).
+	for _, col := range []string{"schema_version", "run_outcome", "provenance_state", "conversation_id", "cost_usd"} {
+		mock.ExpectQuery("SELECT EXISTS \\(").
+			WithArgs("workspace_sandbox", col).
+			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+	}
 
 	if err := ensureSchema(db); err != nil {
 		t.Fatalf("ensureSchema() unexpected error: %v", err)

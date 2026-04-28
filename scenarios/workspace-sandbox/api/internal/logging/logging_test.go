@@ -383,7 +383,7 @@ func TestConvenienceMethods(t *testing.T) {
 	t.Run("PolicyValidation passed", func(t *testing.T) {
 		buf := &bytes.Buffer{}
 		l := New("test", WithOutput(buf))
-		l.PolicyValidation("auto_approve", "sb-123", true, "within limits")
+		l.PolicyValidation("acceptance_deny", "sb-123", true, "within limits")
 
 		var entry Entry
 		if err := json.Unmarshal(buf.Bytes(), &entry); err != nil {
@@ -397,7 +397,7 @@ func TestConvenienceMethods(t *testing.T) {
 	t.Run("PolicyValidation failed", func(t *testing.T) {
 		buf := &bytes.Buffer{}
 		l := New("test", WithOutput(buf))
-		l.PolicyValidation("auto_approve", "sb-123", false, "too many files")
+		l.PolicyValidation("acceptance_deny", "sb-123", false, "too many files")
 
 		var entry Entry
 		if err := json.Unmarshal(buf.Bytes(), &entry); err != nil {

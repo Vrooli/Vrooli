@@ -240,6 +240,19 @@ func (s *AgentService) Execute(ctx context.Context, req ExecuteRequest) (*Execut
 		}
 	}
 
+	// Deployment investigations are diagnostic — the deliverable is a
+	// report on VPS state, logs, and provisioning, not repo changes.
+	// ManualReview=true defers apply at run end so any file mutations
+	// persist as pending-review for operator approval rather than
+	// auto-applying. See workspace-sandbox/docs/AUDITABILITY_CONTRACT.md.
+	if runReq.InlineConfig == nil {
+		runReq.InlineConfig = &domainpb.RunConfigOverrides{}
+	}
+	if runReq.InlineConfig.SandboxConfig == nil {
+		runReq.InlineConfig.SandboxConfig = &domainpb.SandboxConfig{}
+	}
+	runReq.InlineConfig.SandboxConfig.ManualReview = true
+
 	run, err := s.client.CreateRun(ctx, runReq)
 	if err != nil {
 		return nil, fmt.Errorf("create run: %w", err)
@@ -324,6 +337,16 @@ func (s *AgentService) ExecuteAsync(ctx context.Context, req ExecuteRequest) (st
 			runReq.InlineConfig.Model = &req.Model
 		}
 	}
+
+	// Deployment investigations are diagnostic — see Execute() above for
+	// ManualReview=true rationale.
+	if runReq.InlineConfig == nil {
+		runReq.InlineConfig = &domainpb.RunConfigOverrides{}
+	}
+	if runReq.InlineConfig.SandboxConfig == nil {
+		runReq.InlineConfig.SandboxConfig = &domainpb.SandboxConfig{}
+	}
+	runReq.InlineConfig.SandboxConfig.ManualReview = true
 
 	run, err := s.client.CreateRun(ctx, runReq)
 	if err != nil {

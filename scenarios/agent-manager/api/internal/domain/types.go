@@ -50,9 +50,8 @@ type AgentProfile struct {
 	ExtraFlags RunnerExtraFlags `json:"extraFlags,omitempty" db:"extra_flags"`
 
 	// Default policies (can be overridden per task)
-	RequiresSandbox  bool          `json:"requiresSandbox" db:"requires_sandbox"`
-	RequiresApproval bool          `json:"requiresApproval" db:"requires_approval"`
-	NetworkAccess    NetworkAccess `json:"networkAccess" db:"network_access"`
+	RequiresSandbox bool          `json:"requiresSandbox" db:"requires_sandbox"`
+	NetworkAccess   NetworkAccess `json:"networkAccess" db:"network_access"`
 
 	// Sandbox behavior settings
 	SandboxConfig *SandboxConfig `json:"sandboxConfig,omitempty" db:"sandbox_config"`
@@ -202,26 +201,140 @@ type SandboxFileCriteria struct {
 // This way the agent can restart the scenario to see its UI changes rendered,
 // but any accidental API modifications are caught during approval review.
 type SandboxAcceptanceConfig struct {
-	Mode                      string              `json:"mode,omitempty"` // "allowlist" (default)
-	Allow                     SandboxFileCriteria `json:"allow,omitempty"`
-	Deny                      SandboxFileCriteria `json:"deny,omitempty"`
-	IgnoreBinary              bool                `json:"ignoreBinary,omitempty"`
-	AutoApprove               bool                `json:"autoApprove,omitempty"`
-	AutoReject                bool                `json:"autoReject,omitempty"`
-	DisableAutoApproveIfEmpty bool                `json:"disableAutoApproveIfEmpty,omitempty"`
+	Mode         string              `json:"mode,omitempty"` // "allowlist" (default)
+	Allow        SandboxFileCriteria `json:"allow,omitempty"`
+	Deny         SandboxFileCriteria `json:"deny,omitempty"`
+	IgnoreBinary bool                `json:"ignoreBinary,omitempty"`
+}
+
+// SandboxMode names the per-run sandbox execution mode from the auditability
+// contract. The default is SandboxModeTracking. SandboxModeProtected is
+// reserved for the upstream protected-agent-sandboxing initiative and is
+// rejected with a "reserved" error until that work lands.
+type SandboxMode string
+
+const (
+	// SandboxModeUnspecified means the SandboxConfig did not pick a mode
+	// explicitly. Treated as SandboxModeTracking at runtime.
+	SandboxModeUnspecified SandboxMode = ""
+
+	// SandboxModeTracking is the default auditability-first mode. Locked
+	// defaults: ManualReview=false, AutoApply=true, ApplyOnFailure=true,
+	// NoLock=true (lock=false), NetworkMode=localhost.
+	SandboxModeTracking SandboxMode = "tracking"
+
+	// SandboxModeProtected runs the agent process tree itself inside the
+	// workspace-sandbox container — bwrap isolation, network mode, and
+	// git allowlist are enforced on the agent process, not just on its
+	// merged-overlay output. Whether a protected-mode request actually
+	// launches in the sandbox or falls back to host execution depends on
+	// the runner having a SandboxLauncherFactory wired at runtime; in
+	// production main.go always wires this.
+	//
+	// See execute/protected-sandbox-agent-launch and
+	// scenarios/agent-manager/docs/PROTECTED_MODE_RUNNERS.md.
+	SandboxModeProtected SandboxMode = "protected"
+)
+
+// IsValid reports whether m is a recognised mode name (not whether it is
+// currently implemented — see Validate for the runtime gate).
+func (m SandboxMode) IsValid() bool {
+	switch m {
+	case SandboxModeUnspecified, SandboxModeTracking, SandboxModeProtected:
+		return true
+	default:
+		return false
+	}
+}
+
+// Effective returns the mode value, defaulting empty to SandboxModeTracking.
+func (m SandboxMode) Effective() SandboxMode {
+	if m == SandboxModeUnspecified {
+		return SandboxModeTracking
+	}
+	return m
 }
 
 // SandboxConfig holds lifecycle + acceptance settings for a sandbox.
 //
 // Design note: SandboxConfig controls sandbox BEHAVIOR (when to clean up,
-// which files to accept). It does NOT control the sandbox's filesystem
-// SCOPE — that comes from Task.ScopePath, which determines what directory
-// the overlay covers. See the ScopePath vs Acceptance distinction documented
-// on SandboxAcceptanceConfig.
+// which files to accept, when to apply). It does NOT control the sandbox's
+// filesystem SCOPE — that comes from Task.ScopePath, which determines what
+// directory the overlay covers. See the ScopePath vs Acceptance distinction
+// documented on SandboxAcceptanceConfig.
+//
+// The Mode / ManualReview / AutoApply / ApplyOnFailure / NetworkMode fields
+// encode the auditability contract — see
+// scenarios/workspace-sandbox/docs/AUDITABILITY_CONTRACT.md.
+// DefaultSandboxConfig returns the locked defaults; spawn surfaces should
+// compose against those rather than zero-initialising.
 type SandboxConfig struct {
 	Lifecycle  SandboxLifecycleConfig  `json:"lifecycle,omitempty"`
 	Acceptance SandboxAcceptanceConfig `json:"acceptance,omitempty"`
-	NoLock     bool                    `json:"noLock,omitempty"` // Disable mutual exclusion locking (for investigative/read-only sandboxes)
+
+	// Mode selects the auditability mode. Empty defaults to "tracking".
+	Mode SandboxMode `json:"mode,omitempty"`
+
+	// ManualReview defers apply at run end until an operator approves via
+	// one of the three viewing surfaces (git-control-tower, agent-manager,
+	// workspace-sandbox). When true, the sandbox persists past run end.
+	// Default: false.
+	ManualReview bool `json:"manualReview,omitempty"`
+
+	// AutoApply controls whether in-acceptance changes apply to the canonical
+	// repo at run end. Stored as a pointer so the zero-value of an unset
+	// SandboxConfig is unambiguous; nil is treated as the contract default
+	// (true). Use GetAutoApply for the resolved value.
+	AutoApply *bool `json:"autoApply,omitempty"`
+
+	// ApplyOnFailure controls whether apply runs identically when the run
+	// outcome is failure / cancelled / timeout. nil ↔ contract default true.
+	// Run outcome is recorded as metadata on the resulting provenance record
+	// but does not gate apply behaviour.
+	ApplyOnFailure *bool `json:"applyOnFailure,omitempty"`
+
+	// NetworkMode mirrors NetworkAccess for sandboxed execution. Empty
+	// defaults to NetworkAccessLocalhost.
+	NetworkMode NetworkAccess `json:"networkMode,omitempty"`
+
+	// NoLock disables mutual exclusion locking. The contract makes locking
+	// and acceptance orthogonal: NoLock does not bypass acceptance.
+	// (Contract framing names this "lock"; lock=false ↔ NoLock=true.)
+	NoLock bool `json:"noLock,omitempty"`
+}
+
+// GetAutoApply resolves AutoApply, defaulting to the contract value (true)
+// when the pointer is nil. Safe to call on a nil receiver.
+func (c *SandboxConfig) GetAutoApply() bool {
+	if c == nil || c.AutoApply == nil {
+		return true
+	}
+	return *c.AutoApply
+}
+
+// GetApplyOnFailure resolves ApplyOnFailure, defaulting to the contract
+// value (true) when the pointer is nil. Safe to call on a nil receiver.
+func (c *SandboxConfig) GetApplyOnFailure() bool {
+	if c == nil || c.ApplyOnFailure == nil {
+		return true
+	}
+	return *c.ApplyOnFailure
+}
+
+// DefaultSandboxConfig returns the auditability-contract defaults. Spawn
+// surfaces should clone this and apply overrides on top, rather than
+// zero-initialising.
+func DefaultSandboxConfig() *SandboxConfig {
+	autoApply := true
+	applyOnFailure := true
+	return &SandboxConfig{
+		Mode:           SandboxModeTracking,
+		ManualReview:   false,
+		AutoApply:      &autoApply,
+		ApplyOnFailure: &applyOnFailure,
+		NetworkMode:    NetworkAccessLocalhost,
+		NoLock:         true,
+	}
 }
 
 // FeatureFlags contains well-known typed feature flags.
@@ -394,6 +507,31 @@ type Run struct {
 	// SourceInvestigationRunID links apply runs back to the investigation run they apply.
 	SourceInvestigationRunID *uuid.UUID `json:"sourceInvestigationRunId,omitempty" db:"source_investigation_run_id"`
 
+	// ParentRunID is the generic "parent run" link for conversation continuity.
+	// When a spawner is creating a follow-up run as a continuation of an
+	// existing agent thread (e.g. swarm-manager queue resuming a swarm,
+	// agent-manager UI "continue conversation"), it sets ParentRunID to the
+	// originating run. The run-creation path uses ParentRunID to inherit
+	// ConversationID — see ResolveConversationID.
+	//
+	// ParentRunID is a separate concept from SourceInvestigationRunID
+	// (apply-from-investigation linkage) and SourceRunIDs (investigation
+	// targets); a run can have any combination of those plus ParentRunID.
+	ParentRunID *uuid.UUID `json:"parentRunId,omitempty" db:"parent_run_id"`
+
+	// ConversationID groups runs that belong to the same agent thread for
+	// auditability. One ID per agent-thread; child runs inherit from
+	// ParentRunID's run when set, otherwise the run-creation path generates
+	// a fresh UUID. Spawn surfaces that already know they are continuing a
+	// thread (e.g. swarm-manager queue resuming a swarm) populate this value
+	// directly; standalone runs get a new ID. See
+	// scenarios/workspace-sandbox/docs/AUDITABILITY_CONTRACT.md Finding 2.
+	//
+	// IMPORTANT: this is NOT the same as Run.SessionID, which is a
+	// runner-specific resume token (Claude Code session_id, Codex thread_id,
+	// etc.) with an unrelated lifetime.
+	ConversationID string `json:"conversationId,omitempty" db:"conversation_id"`
+
 	// Recommendation extraction state (for investigation runs)
 	// Recommendations are extracted passively after investigation runs complete.
 	RecommendationStatus   RecommendationStatus `json:"recommendationStatus,omitempty" db:"recommendation_status"`
@@ -554,9 +692,8 @@ type RunConfig struct {
 	ExtraFlags RunnerExtraFlags `json:"extraFlags,omitempty"`
 
 	// Policy flags
-	RequiresSandbox  bool          `json:"requiresSandbox"`
-	RequiresApproval bool          `json:"requiresApproval"`
-	NetworkAccess    NetworkAccess `json:"networkAccess"`
+	RequiresSandbox bool          `json:"requiresSandbox"`
+	NetworkAccess   NetworkAccess `json:"networkAccess"`
 
 	// Sandbox behavior settings
 	SandboxConfig *SandboxConfig `json:"sandboxConfig,omitempty"`
@@ -590,7 +727,6 @@ func (c *RunConfig) ApplyProfile(profile *AgentProfile) {
 		}
 	}
 	c.RequiresSandbox = profile.RequiresSandbox
-	c.RequiresApproval = profile.RequiresApproval
 	c.NetworkAccess = profile.NetworkAccess
 	c.SandboxConfig = profile.SandboxConfig
 	c.AllowedPaths = profile.AllowedPaths
@@ -598,14 +734,17 @@ func (c *RunConfig) ApplyProfile(profile *AgentProfile) {
 }
 
 // DefaultRunConfig returns sensible defaults for run configuration.
+//
+// The auditability-contract apply defaults (ManualReview=false,
+// AutoApply=true, ApplyOnFailure=true) live on SandboxConfig — see
+// DefaultSandboxConfig.
 func DefaultRunConfig() *RunConfig {
 	return &RunConfig{
-		RunnerType:       RunnerTypeClaudeCode,
-		MaxTurns:         30,
-		Timeout:          60 * time.Minute,
-		RequiresSandbox:  true,
-		RequiresApproval: true,
-		NetworkAccess:    NetworkAccessLocalhost,
+		RunnerType:      RunnerTypeClaudeCode,
+		MaxTurns:        30,
+		Timeout:         60 * time.Minute,
+		RequiresSandbox: true,
+		NetworkAccess:   NetworkAccessLocalhost,
 	}
 }
 
@@ -1238,9 +1377,8 @@ type Policy struct {
 // PolicyRules contains the actual policy constraints.
 type PolicyRules struct {
 	// Sandbox requirements
-	RequireSandbox          *bool `json:"requireSandbox,omitempty"`
-	AllowInPlace            *bool `json:"allowInPlace,omitempty"`
-	InPlaceRequiresApproval *bool `json:"inPlaceRequiresApproval,omitempty"`
+	RequireSandbox *bool `json:"requireSandbox,omitempty"`
+	AllowInPlace   *bool `json:"allowInPlace,omitempty"`
 
 	// Approval requirements
 	RequireApproval     *bool    `json:"requireApproval,omitempty"`

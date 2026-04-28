@@ -3,6 +3,7 @@
     "scenarios/agent-manager/**",
     "scenarios/workspace-sandbox/**"
   ],
+  "archived_at": "2026-04-27T21:06:57Z",
   "created": "2026-04-09T17:33:13Z",
   "depends_on": [
     "research/agent-sandbox-auditability-contract",
@@ -14,7 +15,7 @@
   "kind": "execute",
   "name": "agent-manager-sandbox-auto-apply-defaults",
   "priority": 1,
-  "status": "in_review",
+  "status": "completed",
   "tags": [
     "agent-manager",
     "workspace-sandbox",
@@ -22,5 +23,5 @@
     "provenance"
   ],
   "title": "Land workspace-sandbox apply-at-run-end seam (Phases 1–2 of auto-apply-defaults)",
-  "updated": "2026-04-27T20:02:38Z"
+  "updated": "2026-04-27T21:06:57Z"
 }

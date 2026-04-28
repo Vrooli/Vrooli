@@ -311,7 +311,6 @@ function buildProfile(profile: ProfileFormData): AgentProfile {
     deniedTools: profile.deniedTools ?? [],
     skipPermissionPrompt: profile.skipPermissionPrompt ?? false,
     requiresSandbox: profile.requiresSandbox ?? true,
-    requiresApproval: profile.requiresApproval ?? true,
     networkAccess: networkAccessToProto(profile.networkAccess ?? "localhost"),
     allowedPaths: profile.allowedPaths ?? [],
     deniedPaths: profile.deniedPaths ?? [],
@@ -384,9 +383,6 @@ function buildRunConfigOverrides(run: RunFormData) {
   if (typeof run.requiresSandbox === "boolean") {
     payload.requiresSandbox = run.requiresSandbox;
   }
-  if (typeof run.requiresApproval === "boolean") {
-    payload.requiresApproval = run.requiresApproval;
-  }
   if (run.networkAccess !== undefined) {
     payload.networkAccess = networkAccessToProto(run.networkAccess);
   }
@@ -433,7 +429,6 @@ function hasInlineConfig(run: RunFormData): boolean {
       run.deniedTools !== undefined ||
       typeof run.skipPermissionPrompt === "boolean" ||
       typeof run.requiresSandbox === "boolean" ||
-      typeof run.requiresApproval === "boolean" ||
       run.networkAccess !== undefined ||
       run.allowedPaths !== undefined ||
       run.deniedPaths !== undefined ||
@@ -696,6 +691,10 @@ export function useRuns(options?: { enabled?: boolean; limit?: number }) {
   const createRun = useCallback(
     async (run: RunFormData): Promise<Run> => {
   const inlineConfig = hasInlineConfig(run) ? buildRunConfigOverrides(run) : undefined;
+      // Mint a fresh ConversationId per Decision D7 if the caller didn't
+      // supply one. Each top-level "run task" click is conceptually a new
+      // conversation; multi-turn flows pass an explicit conversationId.
+      const conversationId = run.conversationId ?? crypto.randomUUID();
       const request = create(CreateRunRequestSchema, {
         taskId: run.taskId,
         agentProfileId: run.agentProfileId,
@@ -705,6 +704,8 @@ export function useRuns(options?: { enabled?: boolean; limit?: number }) {
         idempotencyKey: run.idempotencyKey,
         prompt: run.prompt,
         existingSandboxId: run.existingSandboxId,
+        conversationId,
+        parentRunId: run.parentRunId,
       });
       const created = await apiRequest<unknown>("/runs", {
         method: "POST",

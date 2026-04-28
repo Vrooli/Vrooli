@@ -1,0 +1,36 @@
+$ go test ./handlers/ -run 'TestGetStandards|TestEvaluateScenario' -count=1 -v
+
+=== RUN   TestEvaluateScenarioNoAssignment
+--- PASS: TestEvaluateScenarioNoAssignment (0.00s)
+=== RUN   TestEvaluateScenarioWithBrand
+--- PASS: TestEvaluateScenarioWithBrand (0.00s)
+=== RUN   TestEvaluateScenarioSingleRuleReturnsOneResult
+--- PASS: TestEvaluateScenarioSingleRuleReturnsOneResult (0.00s)
+=== RUN   TestEvaluateScenarioUnknownRuleReturns400
+--- PASS: TestEvaluateScenarioUnknownRuleReturns400 (0.00s)
+=== RUN   TestEvaluateScenarioNoRuleParamReturnsAllResults
+--- PASS: TestEvaluateScenarioNoRuleParamReturnsAllResults (0.00s)
+=== RUN   TestEvaluateScenarioPartialBrand
+--- PASS: TestEvaluateScenarioPartialBrand (0.00s)
+=== RUN   TestGetStandards_ResponseShape
+--- PASS: TestGetStandards_ResponseShape (0.00s)
+=== RUN   TestGetStandards_RuleFields
+--- PASS: TestGetStandards_RuleFields (0.00s)
+=== RUN   TestGetStandards_CountMatchesArray
+--- PASS: TestGetStandards_CountMatchesArray (0.00s)
+=== RUN   TestGetStandards_UniqueRuleIDs
+--- PASS: TestGetStandards_UniqueRuleIDs (0.00s)
+=== RUN   TestGetStandards_HasCriticalDisplayNameRule
+--- PASS: TestGetStandards_HasCriticalDisplayNameRule (0.00s)
+=== RUN   TestGetStandardsEndpoint
+--- PASS: TestGetStandardsEndpoint (0.00s)
+=== RUN   TestGetStandardsReturnsAllMetadataFields
+--- PASS: TestGetStandardsReturnsAllMetadataFields (0.00s)
+PASS
+ok  	brand-manager/handlers	0.009s
+
+Maps to plan §8 backend tests:
+- TestGetStandardsReturnsAllMetadataFields  ← plan: TestGetStandards_ReturnsAllMetadataFields
+- TestEvaluateScenarioSingleRuleReturnsOneResult ← plan: TestEvaluateScenario_SingleRule_ReturnsOneResult
+- TestEvaluateScenarioUnknownRuleReturns400 ← plan: TestEvaluateScenario_UnknownRule_Returns400
+- TestEvaluateScenarioNoRuleParamReturnsAllResults ← plan: TestEvaluateScenario_NoRuleParam_ReturnsAllResults

@@ -42,7 +42,6 @@ export const DEFAULT_SETTINGS: Settings = {
   autoAdvanceDelaySeconds: 10,
   agentMaxTurns: 600,
   agentTimeoutSeconds: 900,
-  agentRequiresApproval: true,
   searchDebounceMs: 300,
   toastDurationMs: 5000,
   deleteConfirmation: { backlog: "simple", initiative: "strong", capture: "none" },
@@ -77,7 +76,6 @@ function normalizeSettings(input?: SettingsPatch): Settings {
     autoAdvanceDelaySeconds: input.autoAdvanceDelaySeconds ?? DEFAULT_SETTINGS.autoAdvanceDelaySeconds,
     agentMaxTurns: input.agentMaxTurns ?? DEFAULT_SETTINGS.agentMaxTurns,
     agentTimeoutSeconds: input.agentTimeoutSeconds ?? DEFAULT_SETTINGS.agentTimeoutSeconds,
-    agentRequiresApproval: input.agentRequiresApproval ?? DEFAULT_SETTINGS.agentRequiresApproval,
     searchDebounceMs: input.searchDebounceMs ?? DEFAULT_SETTINGS.searchDebounceMs,
     toastDurationMs: input.toastDurationMs ?? DEFAULT_SETTINGS.toastDurationMs,
     deleteConfirmation: {
@@ -126,7 +124,6 @@ export function createSettingsService(apiClient: IApiClient = defaultApiClient):
         ...(patch.maxAutoRounds !== undefined ? { maxAutoRounds: patch.maxAutoRounds } : {}),
         ...(patch.agentMaxTurns !== undefined ? { agentMaxTurns: patch.agentMaxTurns } : {}),
         ...(patch.agentTimeoutSeconds !== undefined ? { agentTimeoutSeconds: patch.agentTimeoutSeconds } : {}),
-        ...(patch.agentRequiresApproval !== undefined ? { agentRequiresApproval: patch.agentRequiresApproval } : {}),
         ...(patch.searchDebounceMs !== undefined ? { searchDebounceMs: patch.searchDebounceMs } : {}),
         ...(patch.toastDurationMs !== undefined ? { toastDurationMs: patch.toastDurationMs } : {}),
         ...(patch.deleteConfirmation !== undefined ? {

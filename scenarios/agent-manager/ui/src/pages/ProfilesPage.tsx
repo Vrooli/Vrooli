@@ -139,7 +139,6 @@ export function ProfilesPage({
     modelMode: "default",
     maxTurns: 100,
     requiresSandbox: true,
-    requiresApproval: true,
     networkAccess: "localhost" as const,
     timeoutMinutes: 30,
     fallbackRunnerTypes: [],
@@ -183,7 +182,6 @@ export function ProfilesPage({
       modelMode: "default",
       maxTurns: 100,
       requiresSandbox: true,
-      requiresApproval: true,
       networkAccess: "localhost" as const,
       timeoutMinutes: 30,
       fallbackRunnerTypes: [],
@@ -207,7 +205,6 @@ export function ProfilesPage({
       modelMode: resolveModelMode(profile.model, profile.modelPreset),
       maxTurns: profile.maxTurns || 100,
       requiresSandbox: profile.requiresSandbox,
-      requiresApproval: profile.requiresApproval,
       networkAccess: profile.networkAccess === NetworkAccess.NONE ? "none"
         : profile.networkAccess === NetworkAccess.FULL ? "full"
         : "localhost",
@@ -654,17 +651,10 @@ export function ProfilesPage({
                   />
                   <span className="text-sm">Require Sandbox</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.requiresApproval}
-                    onChange={(e) =>
-                      setFormData({ ...formData, requiresApproval: e.target.checked })
-                    }
-                    className="h-4 w-4 rounded border-input"
-                  />
-                  <span className="text-sm">Require Approval</span>
-                </label>
+                {/* "Require Approval" toggle removed in
+                    agent-sandbox-audit-foundation Phase 3b. Operator-gated
+                    apply now lives on SandboxConfig.manualReview, surfaced
+                    via the Sandbox Config editor. */}
                 <label className="flex items-center gap-2">
                   <span className="text-sm">Network Access</span>
                   <select

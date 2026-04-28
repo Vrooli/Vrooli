@@ -49,7 +49,6 @@ export type Settings = Omit<
   /** Agent behavior */
   agentMaxTurns: number;
   agentTimeoutSeconds: number;
-  agentRequiresApproval: boolean;
   /** UI preferences */
   searchDebounceMs: number;
   toastDurationMs: number;

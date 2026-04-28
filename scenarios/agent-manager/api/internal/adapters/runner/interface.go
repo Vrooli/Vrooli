@@ -135,6 +135,12 @@ type ExecuteRequest struct {
 	// For in-place runs, this is the actual project directory.
 	WorkingDir string
 
+	// SandboxID identifies the workspace-sandbox container for this run when
+	// the run is sandboxed. Required for protected-mode launches (the runner
+	// uses it to construct a SandboxLauncher via SandboxLauncherFactory).
+	// nil for in-place runs.
+	SandboxID *uuid.UUID
+
 	// Prompt is the user message for the agent (context data, task question).
 	// For runners that support system prompts, this contains only the user-facing
 	// content. For runners that don't, SystemPrompt is prepended to this.

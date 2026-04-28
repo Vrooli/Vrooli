@@ -1,6 +1,6 @@
 {
   "initiative": "protected-agent-sandboxing",
-  "generated_at": "2026-04-24T01:47:55Z",
+  "generated_at": "2026-04-27T23:28:59Z",
   "nodes": [
     {
       "id": "execute/protected-sandbox-agent-launch",
@@ -17,7 +17,7 @@
       "kind": "execute",
       "name": "protected-sandbox-git-and-network-guardrails",
       "title": "Add protected-mode git and network guardrails with human-readable denials",
-      "status": "backlog",
+      "status": "completed",
       "priority": 7,
       "effort": "L",
       "archived": false
@@ -27,7 +27,7 @@
       "kind": "fix",
       "name": "protected-sandbox-policy-enforcement-surface",
       "title": "Make protected-mode policy controls real instead of advisory",
-      "status": "backlog",
+      "status": "completed",
       "priority": 7,
       "effort": "L",
       "archived": false

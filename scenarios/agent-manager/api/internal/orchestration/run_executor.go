@@ -40,6 +40,7 @@ import (
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/identity"
+	"agent-manager/internal/metrics"
 	"agent-manager/internal/modelregistry"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/runstate"
@@ -1100,6 +1101,7 @@ func (e *RunExecutor) executeAgent(ctx context.Context, r runner.Runner) {
 		ResolvedConfig: e.run.ResolvedConfig, // Merged config from profile + inline
 		Task:           e.task,
 		WorkingDir:     e.workDir,
+		SandboxID:      e.sandboxID, // populated for sandboxed runs; nil for in-place
 		Prompt:         e.prompt,
 		SystemPrompt:   e.systemPrompt,
 		EventSink:      eventSink,
@@ -1401,12 +1403,6 @@ func (e *RunExecutor) classifyOutcome() domain.RunOutcome {
 }
 
 func (e *RunExecutor) handleSuccessfulCompletion(ctx context.Context) {
-	// Check if approval is required based on resolved config
-	requiresApproval := true // default to requiring approval for safety
-	if e.run.ResolvedConfig != nil {
-		requiresApproval = e.run.ResolvedConfig.RequiresApproval
-	}
-
 	if e.result != nil {
 		e.run.Summary = e.result.Summary
 		e.run.ExitCode = &e.result.ExitCode
@@ -1415,28 +1411,17 @@ func (e *RunExecutor) handleSuccessfulCompletion(ctx context.Context) {
 		}
 	}
 
-	// In-place runs (no sandbox) skip the approval workflow entirely.
-	// The approval/review flow depends on having a sandbox to diff against
-	// and merge from. Without a sandbox, changes were applied directly to the
-	// working tree, so there is nothing to approve or reject — the run is
-	// already complete.
+	// In-place runs (no sandbox) skip the apply workflow entirely. Changes
+	// were written directly to the working tree, so there is nothing to
+	// apply from a sandbox.
 	if e.run.RunMode == domain.RunModeInPlace {
 		e.run.Status = domain.RunStatusComplete
 		e.run.ApprovalState = domain.ApprovalStateNone
-		e.emitSystemEvent(ctx, "info", "in-place run completed — skipping approval (no sandbox to diff)")
+		e.emitSystemEvent(ctx, "info", "in-place run completed — skipping apply (no sandbox to diff)")
 	} else {
-		autoApplied := false
-		if requiresApproval {
-			autoApplied = e.tryAutoApproval(ctx)
-			if !autoApplied {
-				e.run.Status = domain.RunStatusNeedsReview
-				e.run.ApprovalState = domain.ApprovalStatePending
-			}
-		} else {
-			// Skip approval workflow - mark as complete directly
-			e.run.Status = domain.RunStatusComplete
-			e.run.ApprovalState = domain.ApprovalStateNone
-		}
+		// Auditability contract: in-acceptance changes apply at run end.
+		// applyAtRunEnd encodes ManualReview / AutoApply / ApplyOnFailure.
+		e.applyAtRunEnd(ctx, domain.ContractRunOutcomeSuccess)
 	}
 
 	// Queue recommendation extraction for investigation runs
@@ -1474,12 +1459,24 @@ func (e *RunExecutor) handleFailure(ctx context.Context) {
 		}
 	}
 
+	// Auditability contract: failed runs that produced useful changes still
+	// apply at run end, subject to acceptance, when ApplyOnFailure=true
+	// (the default). applyAtRunEnd may flip the run status to Complete on
+	// successful apply — that is the contract: the *change* is what matters
+	// for auditability, not the run-process exit code.
+	if e.run.RunMode == domain.RunModeSandboxed {
+		e.applyAtRunEnd(ctx, e.outcome.ToContract())
+	}
+
 	e.revokeIdentityToken()
 	e.applySandboxLifecycle(ctx, domain.SandboxLifecycleRunFailed, "run failed")
 }
 
 func (e *RunExecutor) handleCancellation(ctx context.Context) {
 	e.run.Status = domain.RunStatusCancelled
+	if e.run.RunMode == domain.RunModeSandboxed {
+		e.applyAtRunEnd(ctx, domain.ContractRunOutcomeCancelled)
+	}
 	e.revokeIdentityToken()
 	e.applySandboxLifecycle(ctx, domain.SandboxLifecycleRunCancelled, "run cancelled")
 }
@@ -1683,109 +1680,103 @@ func (e *RunExecutor) shouldPreserveSandbox(event domain.SandboxLifecycleEvent) 
 	return true
 }
 
-func (e *RunExecutor) tryAutoApproval(ctx context.Context) bool {
+// applyAtRunEnd is the single shared apply-at-run-end seam called from every
+// terminal handler (success, failure, cancel, timeout). It encodes the
+// auditability contract: in-acceptance changes apply at run end, regardless
+// of run outcome, and out-of-acceptance changes are retained as
+// state=pending-review on the resulting provenance record.
+//
+// Returns true iff the run's terminal status should be RunStatusComplete with
+// ApprovalState=Approved (i.e., apply succeeded). Returns false in three
+// cases: ManualReview=true (sandbox persists for operator approval),
+// AutoApply=false (operator opted out of auto-apply), or apply failed
+// (warn event emitted; sandbox preserved for inspection).
+//
+// The contract defaults — locked by AUDITABILITY_CONTRACT.md — are
+// AutoApply=true and ApplyOnFailure=true, so the common path is "apply
+// regardless of outcome".
+func (e *RunExecutor) applyAtRunEnd(ctx context.Context, outcome domain.ContractRunOutcome) bool {
 	cfg := e.effectiveSandboxConfig()
 	if cfg == nil {
 		// Defensive: resolveSandboxConfig guarantees a non-nil config for
 		// sandboxed runs since 2026-04-24. If we land here, the orchestrator
 		// constructed a run without going through resolveSandboxConfig — a bug.
-		// Emit a warn event so the next occurrence is visible in run events
-		// rather than silently falling through to NEEDS_REVIEW.
-		e.emitSystemEvent(ctx, "warn", "auto-approval skipped: run has no sandbox config (resolve bug — please report)")
+		e.emitSystemEvent(ctx, "warn", "apply-at-run-end skipped: run has no sandbox config (resolve bug — please report)")
 		return false
 	}
-	if cfg.Acceptance.AutoReject {
-		return e.autoReject(ctx)
-	}
-	if cfg.Acceptance.AutoApprove {
-		return e.autoApprove(ctx)
-	}
-	// Auto-approve empty sandboxes (enabled by default)
-	if !cfg.Acceptance.DisableAutoApproveIfEmpty {
-		return e.autoApproveIfEmpty(ctx)
-	}
-	return false
-}
-
-func (e *RunExecutor) autoApprove(ctx context.Context) bool {
 	if e.sandbox == nil || e.sandboxID == nil {
-		e.emitSystemEvent(ctx, "warn", "auto-approve skipped: no sandbox available")
-		return false
-	}
-	actor := "auto-approve"
-	_, err := e.sandbox.Approve(ctx, sandbox.ApproveRequest{
-		SandboxID: *e.sandboxID,
-		Actor:     actor,
-	})
-	if err != nil {
-		e.emitSystemEvent(ctx, "warn", "auto-approve failed: "+err.Error())
-		return false
-	}
-	now := time.Now()
-	e.run.ApprovalState = domain.ApprovalStateApproved
-	e.run.ApprovedBy = actor
-	e.run.ApprovedAt = &now
-	e.run.Status = domain.RunStatusComplete
-	return true
-}
-
-func (e *RunExecutor) autoReject(ctx context.Context) bool {
-	if e.sandbox == nil || e.sandboxID == nil {
-		e.emitSystemEvent(ctx, "warn", "auto-reject skipped: no sandbox available")
-		return false
-	}
-	actor := "auto-reject"
-	if err := e.sandbox.Reject(ctx, *e.sandboxID, actor); err != nil {
-		e.emitSystemEvent(ctx, "warn", "auto-reject failed: "+err.Error())
-		return false
-	}
-	now := time.Now()
-	e.run.ApprovalState = domain.ApprovalStateRejected
-	e.run.ApprovedBy = actor
-	e.run.ApprovedAt = &now
-	e.run.Status = domain.RunStatusComplete
-	return true
-}
-
-func (e *RunExecutor) autoApproveIfEmpty(ctx context.Context) bool {
-	if e.sandbox == nil || e.sandboxID == nil {
+		e.emitSystemEvent(ctx, "warn", "apply-at-run-end skipped: no sandbox available")
 		return false
 	}
 
-	// Get diff to check if sandbox is empty
-	diff, err := e.sandbox.GetDiff(ctx, *e.sandboxID)
-	if err != nil {
-		e.emitSystemEvent(ctx, "warn", "auto-approve-if-empty: failed to get diff: "+err.Error())
+	// ManualReview=true defers apply until operator approval. The sandbox
+	// persists past run end; the run terminates as Complete with
+	// ApprovalState=Pending so the AI Changes review queue surfaces it.
+	if cfg.ManualReview {
+		now := time.Now()
+		e.run.ApprovalState = domain.ApprovalStatePending
+		e.run.ApprovedAt = &now
+		e.run.Status = domain.RunStatusNeedsReview
+		e.emitSystemEvent(ctx, "info", "apply deferred: manualReview=true (operator approval required)")
 		return false
 	}
 
-	// Check if no changes
-	if diff.Stats.FilesChanged > 0 {
-		// Has changes — human review required. Emit an info event so the
-		// reason for NEEDS_REVIEW is visible in the run's event stream.
+	if !cfg.GetAutoApply() {
+		e.emitSystemEvent(ctx, "info", "apply skipped: autoApply=false")
+		return false
+	}
+
+	// ApplyOnFailure=false suppresses apply on non-success outcomes. The
+	// contract default is true, so this branch is the operator opt-out.
+	if outcome != domain.ContractRunOutcomeSuccess && !cfg.GetApplyOnFailure() {
 		e.emitSystemEvent(ctx, "info",
-			fmt.Sprintf("auto-approval skipped: %d files changed — review required", diff.Stats.FilesChanged))
+			fmt.Sprintf("apply skipped: applyOnFailure=false (outcome=%s)", outcome))
 		return false
 	}
 
-	// Empty sandbox - auto-approve
-	actor := "auto-approve-empty"
-	_, err = e.sandbox.Approve(ctx, sandbox.ApproveRequest{
-		SandboxID: *e.sandboxID,
-		Actor:     actor,
+	conversationID := e.run.ConversationID
+	cost := 0.0
+	if e.result != nil {
+		cost = e.result.Metrics.CostEstimateUSD
+	}
+
+	result, err := e.sandbox.ApplyAtRunEnd(ctx, sandbox.ApplyAtRunEndRequest{
+		SandboxID:      *e.sandboxID,
+		RunID:          e.run.ID.String(),
+		ConversationID: conversationID,
+		Cost:           cost,
+		RunOutcome:     string(outcome),
+		Actor:          "applyAtRunEnd",
 	})
 	if err != nil {
-		e.emitSystemEvent(ctx, "warn", "auto-approve-if-empty failed: "+err.Error())
+		e.emitSystemEvent(ctx, "warn", "apply-at-run-end failed: "+err.Error())
+		metrics.Get().RecordProvenanceSkipped()
 		return false
 	}
 
-	now := time.Now()
-	e.run.ApprovalState = domain.ApprovalStateApproved
-	e.run.ApprovedBy = actor
-	e.run.ApprovedAt = &now
-	e.run.Status = domain.RunStatusComplete
+	metrics.Get().RecordProvenanceWrite()
 
-	e.emitSystemEvent(ctx, "info", "auto-approved empty sandbox (no changes detected)")
+	now := time.Now()
+	e.run.ApprovedBy = "applyAtRunEnd"
+	e.run.ApprovedAt = &now
+
+	if result != nil && result.IsPartial {
+		// Out-of-acceptance files retained as state=pending-review. The
+		// in-acceptance subset applied; the sandbox persists for operator
+		// review of the remaining files. The run itself is complete — the
+		// review queue surfaces the pending entries independently.
+		e.run.ApprovalState = domain.ApprovalStateApproved
+		e.run.Status = domain.RunStatusComplete
+		e.emitSystemEvent(ctx, "info",
+			fmt.Sprintf("partial apply: %d applied, %d pending review", result.Applied, result.Remaining))
+		return true
+	}
+
+	e.run.ApprovalState = domain.ApprovalStateApproved
+	e.run.Status = domain.RunStatusComplete
+	if result != nil && result.Applied == 0 {
+		e.emitSystemEvent(ctx, "info", "apply-at-run-end recorded empty provenance (no changes)")
+	}
 	return true
 }
 

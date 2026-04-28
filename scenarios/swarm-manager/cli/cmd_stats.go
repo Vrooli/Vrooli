@@ -1,13 +1,18 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
 	"sort"
 	"strings"
+	"time"
 
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -298,4 +303,198 @@ func printScopeMarkdown(s ScopeStats) {
 		}
 		fmt.Println()
 	}
+}
+
+// cmdStatsSandboxAdoption scrapes agent-manager's /metrics endpoint and prints
+// the sandbox-default rollout breakdown. Source-of-truth metrics:
+//   - agent_manager_sandbox_adoption_total{run_mode,sandbox_mode,manual_review}
+//   - agent_manager_runs_with_provenance_total
+//   - agent_manager_runs_without_provenance_total
+//
+// Phase D of agent-sandbox-audit-foundation. The CLI reads metrics directly
+// (not via swarm-manager API) because adoption is an agent-manager-side concern
+// and we don't want to mirror counters across services.
+func (a *App) cmdStatsSandboxAdoption(args []string) error {
+	fs := flag.NewFlagSet("stats sandbox-adoption", flag.ContinueOnError)
+	formatFlag := fs.String("format", "human", "Output format: human or json")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+
+	body, err := scrapeAgentManagerMetrics()
+	if err != nil {
+		return err
+	}
+
+	adoption := parseSandboxAdoptionMetrics(body)
+
+	if *jsonOut || *formatFlag == "json" {
+		out, err := json.MarshalIndent(adoption, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(out))
+		return nil
+	}
+
+	printSandboxAdoptionHuman(adoption)
+	return nil
+}
+
+// SandboxAdoption is the structured CLI output shape.
+type SandboxAdoption struct {
+	Breakdown             []SandboxAdoptionRow `json:"breakdown"`
+	RunsWithProvenance    float64              `json:"runs_with_provenance"`
+	RunsWithoutProvenance float64              `json:"runs_without_provenance"`
+	AttributionRate       float64              `json:"attribution_rate"`
+}
+
+// SandboxAdoptionRow is one (run_mode, sandbox_mode, manual_review) bucket.
+type SandboxAdoptionRow struct {
+	RunMode      string  `json:"run_mode"`
+	SandboxMode  string  `json:"sandbox_mode"`
+	ManualReview string  `json:"manual_review"`
+	Count        float64 `json:"count"`
+}
+
+// scrapeAgentManagerMetrics fetches the agent-manager /metrics endpoint via
+// the same scenario discovery the rest of the CLI uses.
+func scrapeAgentManagerMetrics() ([]byte, error) {
+	body, err := agentManagerGet("/metrics")
+	if err != nil {
+		return nil, fmt.Errorf("scrape agent-manager metrics: %w", err)
+	}
+	return body, nil
+}
+
+// parseSandboxAdoptionMetrics walks Prometheus-format text output and pulls
+// the three counters we care about. The format is line-based:
+//
+//	metric_name{label="value",...} 42
+//
+// Comments (#) and other metrics are ignored.
+func parseSandboxAdoptionMetrics(body []byte) SandboxAdoption {
+	var out SandboxAdoption
+	lines := strings.Split(string(body), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		switch {
+		case strings.HasPrefix(line, "agent_manager_sandbox_adoption_total{"):
+			row := parseAdoptionRow(line)
+			if row != nil {
+				out.Breakdown = append(out.Breakdown, *row)
+			}
+		case strings.HasPrefix(line, "agent_manager_runs_with_provenance_total"):
+			out.RunsWithProvenance = parseScalarValue(line)
+		case strings.HasPrefix(line, "agent_manager_runs_without_provenance_total"):
+			out.RunsWithoutProvenance = parseScalarValue(line)
+		}
+	}
+	total := out.RunsWithProvenance + out.RunsWithoutProvenance
+	if total > 0 {
+		out.AttributionRate = out.RunsWithProvenance / total
+	}
+	sort.Slice(out.Breakdown, func(i, j int) bool {
+		if out.Breakdown[i].RunMode != out.Breakdown[j].RunMode {
+			return out.Breakdown[i].RunMode < out.Breakdown[j].RunMode
+		}
+		if out.Breakdown[i].SandboxMode != out.Breakdown[j].SandboxMode {
+			return out.Breakdown[i].SandboxMode < out.Breakdown[j].SandboxMode
+		}
+		return out.Breakdown[i].ManualReview < out.Breakdown[j].ManualReview
+	})
+	return out
+}
+
+func parseAdoptionRow(line string) *SandboxAdoptionRow {
+	open := strings.Index(line, "{")
+	close := strings.Index(line, "}")
+	if open < 0 || close < 0 || close < open {
+		return nil
+	}
+	labels := line[open+1 : close]
+	row := &SandboxAdoptionRow{}
+	for _, kv := range strings.Split(labels, ",") {
+		parts := strings.SplitN(kv, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		key := strings.TrimSpace(parts[0])
+		val := strings.Trim(strings.TrimSpace(parts[1]), `"`)
+		switch key {
+		case "run_mode":
+			row.RunMode = val
+		case "sandbox_mode":
+			row.SandboxMode = val
+		case "manual_review":
+			row.ManualReview = val
+		}
+	}
+	row.Count = parseScalarValue(line[close+1:])
+	return row
+}
+
+func parseScalarValue(rest string) float64 {
+	rest = strings.TrimSpace(rest)
+	fields := strings.Fields(rest)
+	if len(fields) == 0 {
+		return 0
+	}
+	var v float64
+	if _, err := fmt.Sscanf(fields[len(fields)-1], "%f", &v); err != nil {
+		return 0
+	}
+	return v
+}
+
+func printSandboxAdoptionHuman(a SandboxAdoption) {
+	fmt.Println("Sandbox-default rollout adoption:")
+	if len(a.Breakdown) == 0 {
+		fmt.Println("  (no runs recorded yet — agent-manager has not seen any RunCreated events)")
+	} else {
+		fmt.Printf("  %-12s %-14s %-14s %s\n", "RUN_MODE", "SANDBOX_MODE", "MANUAL_REVIEW", "COUNT")
+		for _, row := range a.Breakdown {
+			fmt.Printf("  %-12s %-14s %-14s %.0f\n", row.RunMode, row.SandboxMode, row.ManualReview, row.Count)
+		}
+	}
+	fmt.Println()
+	fmt.Println("Provenance attribution:")
+	fmt.Printf("  Runs with provenance:    %.0f\n", a.RunsWithProvenance)
+	fmt.Printf("  Runs without provenance: %.0f\n", a.RunsWithoutProvenance)
+	if a.RunsWithProvenance+a.RunsWithoutProvenance > 0 {
+		fmt.Printf("  Attribution rate:        %.1f%%\n", a.AttributionRate*100)
+	} else {
+		fmt.Println("  Attribution rate:        n/a")
+	}
+}
+
+// agentManagerGet fetches a path from agent-manager via the scenario
+// discovery resolver. Defined here (rather than reusing app.core which is
+// swarm-manager's own API client) because /metrics lives on agent-manager,
+// not swarm-manager.
+func agentManagerGet(path string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "agent-manager")
+	if err != nil {
+		return nil, fmt.Errorf("resolve agent-manager URL: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(baseURL, "/")+path, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode/100 != 2 {
+		return nil, fmt.Errorf("agent-manager %s returned %d", path, resp.StatusCode)
+	}
+	return io.ReadAll(resp.Body)
 }

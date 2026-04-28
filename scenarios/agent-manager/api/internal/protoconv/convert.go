@@ -236,13 +236,10 @@ func SandboxFileCriteriaFromProto(criteria *pb.SandboxFileCriteria) domain.Sandb
 // SandboxAcceptanceConfigToProto converts domain SandboxAcceptanceConfig to proto.
 func SandboxAcceptanceConfigToProto(cfg domain.SandboxAcceptanceConfig) *pb.SandboxAcceptanceConfig {
 	return &pb.SandboxAcceptanceConfig{
-		Mode:                      SandboxAcceptanceModeToProto(cfg.Mode),
-		Allow:                     SandboxFileCriteriaToProto(cfg.Allow),
-		Deny:                      SandboxFileCriteriaToProto(cfg.Deny),
-		IgnoreBinary:              cfg.IgnoreBinary,
-		AutoApprove:               cfg.AutoApprove,
-		AutoReject:                cfg.AutoReject,
-		DisableAutoApproveIfEmpty: cfg.DisableAutoApproveIfEmpty,
+		Mode:         SandboxAcceptanceModeToProto(cfg.Mode),
+		Allow:        SandboxFileCriteriaToProto(cfg.Allow),
+		Deny:         SandboxFileCriteriaToProto(cfg.Deny),
+		IgnoreBinary: cfg.IgnoreBinary,
 	}
 }
 
@@ -252,13 +249,10 @@ func SandboxAcceptanceConfigFromProto(cfg *pb.SandboxAcceptanceConfig) domain.Sa
 		return domain.SandboxAcceptanceConfig{}
 	}
 	return domain.SandboxAcceptanceConfig{
-		Mode:                      SandboxAcceptanceModeFromProto(cfg.Mode),
-		Allow:                     SandboxFileCriteriaFromProto(cfg.Allow),
-		Deny:                      SandboxFileCriteriaFromProto(cfg.Deny),
-		IgnoreBinary:              cfg.IgnoreBinary,
-		AutoApprove:               cfg.AutoApprove,
-		AutoReject:                cfg.AutoReject,
-		DisableAutoApproveIfEmpty: cfg.DisableAutoApproveIfEmpty,
+		Mode:         SandboxAcceptanceModeFromProto(cfg.Mode),
+		Allow:        SandboxFileCriteriaFromProto(cfg.Allow),
+		Deny:         SandboxFileCriteriaFromProto(cfg.Deny),
+		IgnoreBinary: cfg.IgnoreBinary,
 	}
 }
 
@@ -307,14 +301,47 @@ func SandboxLifecycleConfigFromProto(cfg *pb.SandboxLifecycleConfig) domain.Sand
 	}
 }
 
-// SandboxConfigToProto converts domain SandboxConfig to proto.
+// SandboxModeToProto converts domain SandboxMode to proto SandboxMode.
+func SandboxModeToProto(m domain.SandboxMode) pb.SandboxMode {
+	switch m {
+	case domain.SandboxModeTracking:
+		return pb.SandboxMode_SANDBOX_MODE_TRACKING
+	case domain.SandboxModeProtected:
+		return pb.SandboxMode_SANDBOX_MODE_PROTECTED
+	default:
+		return pb.SandboxMode_SANDBOX_MODE_UNSPECIFIED
+	}
+}
+
+// SandboxModeFromProto converts proto SandboxMode to domain.
+func SandboxModeFromProto(m pb.SandboxMode) domain.SandboxMode {
+	switch m {
+	case pb.SandboxMode_SANDBOX_MODE_TRACKING:
+		return domain.SandboxModeTracking
+	case pb.SandboxMode_SANDBOX_MODE_PROTECTED:
+		return domain.SandboxModeProtected
+	default:
+		return domain.SandboxModeUnspecified
+	}
+}
+
+// SandboxConfigToProto converts domain SandboxConfig to proto. Carries the
+// auditability-contract levers (mode, manual_review, auto_apply,
+// apply_on_failure, network_mode, no_lock) added in
+// agent-sandbox-audit-foundation Phase 3b.
 func SandboxConfigToProto(cfg *domain.SandboxConfig) *pb.SandboxConfig {
 	if cfg == nil {
 		return nil
 	}
 	return &pb.SandboxConfig{
-		Lifecycle:  SandboxLifecycleConfigToProto(cfg.Lifecycle),
-		Acceptance: SandboxAcceptanceConfigToProto(cfg.Acceptance),
+		Lifecycle:      SandboxLifecycleConfigToProto(cfg.Lifecycle),
+		Acceptance:     SandboxAcceptanceConfigToProto(cfg.Acceptance),
+		Mode:           SandboxModeToProto(cfg.Mode),
+		ManualReview:   cfg.ManualReview,
+		AutoApply:      cfg.AutoApply,
+		ApplyOnFailure: cfg.ApplyOnFailure,
+		NetworkMode:    NetworkAccessToProto(cfg.NetworkMode),
+		NoLock:         cfg.NoLock,
 	}
 }
 
@@ -324,8 +351,14 @@ func SandboxConfigFromProto(cfg *pb.SandboxConfig) *domain.SandboxConfig {
 		return nil
 	}
 	return &domain.SandboxConfig{
-		Lifecycle:  SandboxLifecycleConfigFromProto(cfg.Lifecycle),
-		Acceptance: SandboxAcceptanceConfigFromProto(cfg.Acceptance),
+		Lifecycle:      SandboxLifecycleConfigFromProto(cfg.Lifecycle),
+		Acceptance:     SandboxAcceptanceConfigFromProto(cfg.Acceptance),
+		Mode:           SandboxModeFromProto(cfg.Mode),
+		ManualReview:   cfg.ManualReview,
+		AutoApply:      cfg.AutoApply,
+		ApplyOnFailure: cfg.ApplyOnFailure,
+		NetworkMode:    NetworkAccessFromProto(cfg.NetworkMode),
+		NoLock:         cfg.NoLock,
 	}
 }
 

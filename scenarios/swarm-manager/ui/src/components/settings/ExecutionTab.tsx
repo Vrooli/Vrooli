@@ -174,7 +174,6 @@ export function ExecutionTab({ form, patch }: ExecutionTabProps) {
           <button className="text-xs text-slate-500 hover:text-slate-300" onClick={() => patch({
             agentMaxTurns: DEFAULT_SETTINGS.agentMaxTurns,
             agentTimeoutSeconds: DEFAULT_SETTINGS.agentTimeoutSeconds,
-            agentRequiresApproval: DEFAULT_SETTINGS.agentRequiresApproval,
           })}>Reset</button>
         </div>
         <div className="mt-4 space-y-4">
@@ -200,18 +199,6 @@ export function ExecutionTab({ form, patch }: ExecutionTabProps) {
               className="mt-1"
               value={Math.round(form.agentTimeoutSeconds / 60)}
               onChange={(e) => patch({ agentTimeoutSeconds: Math.max(60, Math.min(3600, Number(e.target.value || 1) * 60)) })}
-            />
-          </div>
-          <div className="border-t border-white/5 pt-4">
-            <label className="block text-sm font-medium text-slate-300">Require Approval</label>
-            <p className="mt-1 text-xs text-slate-400">Pause agent runs for human approval before execution.</p>
-            <ToggleButtons
-              value={form.agentRequiresApproval}
-              options={[
-                { value: false as const, label: "Disabled" },
-                { value: true as const, label: "Enabled" },
-              ]}
-              onChange={(v) => patch({ agentRequiresApproval: v })}
             />
           </div>
         </div>

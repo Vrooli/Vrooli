@@ -6,7 +6,11 @@
 
 package domain
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 // =============================================================================
 // STATE TRANSITION DECISIONS
@@ -274,6 +278,79 @@ func (o RunOutcome) IsTerminalFailure() bool {
 	default:
 		return false
 	}
+}
+
+// ContractRunOutcome is the 4-value outcome enum from the auditability
+// contract that gets recorded on per-run provenance (ProvenanceRunGroup.runOutcome).
+// See scenarios/workspace-sandbox/docs/AUDITABILITY_CONTRACT.md Finding 2.
+type ContractRunOutcome string
+
+const (
+	ContractRunOutcomeSuccess   ContractRunOutcome = "success"
+	ContractRunOutcomeFailure   ContractRunOutcome = "failure"
+	ContractRunOutcomeCancelled ContractRunOutcome = "cancelled"
+	ContractRunOutcomeTimeout   ContractRunOutcome = "timeout"
+)
+
+// ToContract maps the agent-manager 7-value RunOutcome to the 4-value
+// auditability-contract enum. The mapping is intentionally lossy: failure
+// modes (exit_error, exception, sandbox_fail, runner_fail) all collapse to
+// "failure" for GCT rendering purposes. The original RunOutcome remains on
+// the Run record for triage; only the contract value is sent on the apply
+// call (see Decision D5 in
+// scenarios/swarm-manager/execute/agent-manager-sandbox-auto-apply-defaults/plan.md).
+func (o RunOutcome) ToContract() ContractRunOutcome {
+	switch o {
+	case RunOutcomeSuccess:
+		return ContractRunOutcomeSuccess
+	case RunOutcomeCancelled:
+		return ContractRunOutcomeCancelled
+	case RunOutcomeTimeout:
+		return ContractRunOutcomeTimeout
+	case RunOutcomeExitError, RunOutcomeException, RunOutcomeSandboxFail, RunOutcomeRunnerFail:
+		return ContractRunOutcomeFailure
+	default:
+		// Unknown outcome → conservatively classify as failure rather than
+		// silently dropping the provenance write.
+		return ContractRunOutcomeFailure
+	}
+}
+
+// =============================================================================
+// CONVERSATION ID RESOLUTION
+// =============================================================================
+
+// ParentLookup is the seam for resolving a parent run's ConversationID without
+// pulling the orchestrator's run repository into the domain package. Callers
+// pass a closure that fetches the parent run by ID; the resolver only reads
+// ConversationID from the result.
+type ParentLookup func(parentID uuid.UUID) (string, bool)
+
+// ResolveConversationID picks the ConversationID for a newly created run using
+// the precedence locked by Decision D7:
+//
+//  1. spawner-supplied value wins (run.ConversationID is non-empty)
+//  2. else inherit from ParentRunID's run via parentLookup
+//  3. else generate a fresh UUID
+//
+// parentLookup may be nil; it is only consulted when (1) is empty and the run
+// has a ParentRunID. This keeps the domain layer free of repository imports.
+func ResolveConversationID(run *Run, parentLookup ParentLookup) string {
+	if run == nil {
+		return uuid.NewString()
+	}
+	// (1) Spawner-supplied wins.
+	if run.ConversationID != "" {
+		return run.ConversationID
+	}
+	// (2) Inherit from parent.
+	if run.ParentRunID != nil && parentLookup != nil {
+		if parentConv, ok := parentLookup(*run.ParentRunID); ok && parentConv != "" {
+			return parentConv
+		}
+	}
+	// (3) Fresh UUID.
+	return uuid.NewString()
 }
 
 // =============================================================================

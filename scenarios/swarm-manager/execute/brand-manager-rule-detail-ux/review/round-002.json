@@ -1,8 +1,100 @@
 {
   "round": 2,
-  "generated_at": "2026-04-26T12:13:05Z",
+  "generated_at": "2026-04-26T08:20:00Z",
   "execution_id": "ca8e186f40b73095",
-  "status": "gathering",
-  "evidence": [],
-  "run_id": "323b9991-51d5-487b-9f6b-bb28b013719b"
+  "status": "complete",
+  "run_id": "323b9991-51d5-487b-9f6b-bb28b013719b",
+  "agent_assessment": "Backend implementation matches the plan: BrandingRule struct gained the 6 metadata fields (target_files, detailed_description, passing_example, failing_example, fix_instructions, severity_rationale) and all 5 rules are populated; GET /api/v1/standards returns the enriched payload; POST /api/v1/audit/evaluate/{scenario}?rule= filters to a single rule, returns 400 on unknown rule via apierr.Validation, and preserves all-rules behavior when omitted. The three planned backend regression tests (single-rule, unknown-rule-400, no-param-all-results) are present and pass. Frontend implementation matches the plan's UX shape: shared scenario input at top, per-rule expandable cards (multiple may be open), per-rule Check Scenario button, Scan All Rules button with X/N summary colored green/red/amber by severity, and ScannerPage continues to pass its existing 11 tests. ONE deliberate deviation from plan §6 Phase 2: instead of porting prompt-manager's react-markdown/remark-gfm/marked/shiki/@tailwindcss/typography stack, the implementer wrote a ~200-line in-house Markdown component (src/components/markdown.tsx) covering paragraphs, lists, fenced code blocks with copy button, inline code, and bold. No new npm deps, no Shiki highlighting, no `prose` class. Component docstring acknowledges the intent: rule docs are author-controlled Go strings, not user input, so a full markdown lib was treated as overkill. This is a scope reduction worth flagging — it satisfies the visible behavior (markdown renders correctly) but does not deliver the cross-scenario component reuse the plan called out.",
+  "classification": "ready_with_notes",
+  "notes": [
+    "Markdown stack deviates from plan §6 Phase 2: in-house ~200-line parser instead of porting prompt-manager's react-markdown + shiki + @tailwindcss/typography. No new deps were added. Behavior works for the 5 hardcoded rules; richer markdown (tables, syntax highlighting, raw HTML) is not supported.",
+    "Backend tests are named TestEvaluateScenarioSingleRuleReturnsOneResult / TestEvaluateScenarioUnknownRuleReturns400 / TestEvaluateScenarioNoRuleParamReturnsAllResults — same intent as the snake_case names in the plan, just Go-idiomatic naming.",
+    "Implementation was applied directly to the working tree (non-sandbox execution); diff-summary shows 0 changed files, but the changes are present and uncommitted in the repo.",
+    "No live UI smoke test was performed (no browser-automation-studio capture); per plan §12 the operator is expected to do the manual scenario-restart smoke check."
+  ],
+  "evidence": [
+    {
+      "id": "e1",
+      "type": "cli_output",
+      "title": "Backend tests pass — all 3 plan-mandated audit/standards tests + existing coverage",
+      "description": "Ran `go test ./handlers/ -run 'TestGetStandards|TestEvaluateScenario' -count=1 -v` in scenarios/brand-manager/api. All 13 matching tests pass, including the three new tests required by plan §8: TestEvaluateScenarioSingleRuleReturnsOneResult, TestEvaluateScenarioUnknownRuleReturns400, TestEvaluateScenarioNoRuleParamReturnsAllResults, and TestGetStandardsReturnsAllMetadataFields.",
+      "capture_path": "captures/backend-tests.txt",
+      "verified": false,
+      "test_results": [
+        {"name": "TestGetStandardsReturnsAllMetadataFields", "passed": true, "output_summary": "All 5 rules have non-empty metadata fields"},
+        {"name": "TestEvaluateScenarioSingleRuleReturnsOneResult", "passed": true, "output_summary": "?rule=has-logo returns exactly 1 result with rule_id=has-logo"},
+        {"name": "TestEvaluateScenarioUnknownRuleReturns400", "passed": true, "output_summary": "?rule=does-not-exist returns HTTP 400"},
+        {"name": "TestEvaluateScenarioNoRuleParamReturnsAllResults", "passed": true, "output_summary": "Backward-compat: no rule param returns all 5 results"}
+      ]
+    },
+    {
+      "id": "e2",
+      "type": "cli_output",
+      "title": "Frontend tests pass — StandardsPage 16/16, ScannerPage regression 11/11",
+      "description": "Ran `pnpm vitest run src/pages/StandardsPage.test.tsx src/pages/ScannerPage.test.tsx`. StandardsPage's 16 tests cover expandable cards, shared scenario input, per-rule Check Scenario, Scan All Rules summary with severity-aware color, and markdown rendering. ScannerPage's 11 tests continue to pass — the regression guard the plan called out. `pnpm tsc --noEmit` returns clean (exit 0).",
+      "capture_path": "captures/frontend-tests.txt",
+      "verified": false,
+      "test_results": [
+        {"name": "StandardsPage.test.tsx (16 tests)", "passed": true, "output_summary": "All passing"},
+        {"name": "ScannerPage.test.tsx (11 tests)", "passed": true, "output_summary": "Regression guard intact — no rule= flow still works"},
+        {"name": "tsc --noEmit", "passed": true, "output_summary": "No type errors"}
+      ]
+    },
+    {
+      "id": "e3",
+      "type": "config_diff",
+      "title": "Markdown stack deviation — in-house parser, not the planned react-markdown/shiki port",
+      "description": "Plan §6 Phase 2 prescribed adding react-markdown@^9.1.0, remark-gfm@^4.0.1, marked@^15.0.0, shiki@^1.29.2, @tailwindcss/typography and porting prompt-manager's MarkdownRenderer + CodeBlock. ACTUAL: zero new deps in scenarios/brand-manager/ui/package.json. A single ~200-line file scenarios/brand-manager/ui/src/components/markdown.tsx implements a custom parser supporting paragraphs/lists/fenced code blocks with copy button/inline code/bold. No Shiki highlighting, no `prose` class. Documented intent: rule docs are trusted Go-source strings. Trade-off: smaller bundle, simpler dep tree; loses syntax highlighting and richer GFM features.",
+      "capture_path": "captures/markdown-deviation.txt",
+      "verified": false
+    },
+    {
+      "id": "e4",
+      "type": "custom",
+      "title": "Code inspection: BrandingRule struct + standardRules populated for all 5 rules",
+      "description": "Read scenarios/brand-manager/api/handlers/standards.go: BrandingRule has the 6 new fields with correct snake_case JSON tags (target_files, detailed_description, passing_example, failing_example, fix_instructions, severity_rationale). Each of the 5 rules (has-logo, has-favicon, has-color-system, has-display-name, has-typography) is populated with non-empty values for every metadata field. Severity rationales correctly explain why each rule is error/warning/info.",
+      "verified": false
+    },
+    {
+      "id": "e5",
+      "type": "custom",
+      "title": "Code inspection: ?rule= filter is additive, ScannerPage shape preserved",
+      "description": "Read scenarios/brand-manager/api/handlers/audit_provider.go: selectEvaluators(ruleID) returns all evaluators when ruleID is empty (preserving ScannerPage), exactly one when matched, and (nil,false) → 400 via apierr.Validation when unknown. EvaluateScenario response shape (`{scenario, results: [...]}`) is unchanged. Matches plan §7 contract.",
+      "verified": false
+    },
+    {
+      "id": "e6",
+      "type": "custom",
+      "title": "Code inspection: StandardsPage UX matches plan §6 Phases 4–5",
+      "description": "Read scenarios/brand-manager/ui/src/pages/StandardsPage.tsx: shared scenario input near page top, expanded state stored as Record<string,boolean> (multiple cards may be open simultaneously), each expanded card renders detailed_description / target_files / passing_example / failing_example / fix_instructions / severity_rationale through the Markdown component, per-rule 'Check Scenario' button calls evaluateRule and displays inline pass/fail with colored dot, top-level 'Scan All Rules' produces `X / N rules passing` summary colored emerald (all pass) / red (any error-severity fail) / amber (warnings only) — exactly matching plan §6 d7. Fan-out to per-rule state on batch run is implemented.",
+      "verified": false
+    }
+  ],
+  "request_threads": [],
+  "improvement_suggestions": [
+    {
+      "category": "visual_capture",
+      "description": "Add a UI screenshot capture for the Standards page (expanded state of one rule + Scan-All summary) to brand-manager's browser-automation-studio capture set so GCT's visual dimension covers this surface. Currently no automated visual evidence exists for the new UI.",
+      "evidence_id": "e2",
+      "priority": "medium"
+    },
+    {
+      "category": "test_coverage",
+      "description": "Add a unit test for scenarios/brand-manager/ui/src/components/markdown.tsx covering: fenced code block rendering, ordered/unordered lists, inline code, bold, and the copy-button behavior. The custom parser is now load-bearing for rule documentation but has no direct test file — only indirect coverage via StandardsPage tests.",
+      "evidence_id": "e3",
+      "priority": "medium"
+    },
+    {
+      "category": "other",
+      "description": "If the prompt-manager markdown stack was meant to be a shared component reused across scenarios, consider extracting it into a workspace package (e.g. packages/markdown) so brand-manager and any future scenario can import the same component instead of re-implementing or re-porting. This would resolve the deviation in e3 by offering a single source of truth.",
+      "evidence_id": "e3",
+      "priority": "low"
+    },
+    {
+      "category": "health_check",
+      "description": "Add an end-to-end smoke check for POST /api/v1/audit/evaluate/{scenario}?rule=has-display-name to brand-manager's scenario health probes, so future regressions in the new query-param contract are caught without relying on unit tests alone.",
+      "evidence_id": "e1",
+      "priority": "low"
+    }
+  ]
 }

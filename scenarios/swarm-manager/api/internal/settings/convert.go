@@ -40,7 +40,6 @@ func settingsToProto(s Settings) *domainpb.Settings {
 		AutoCascadeWorkshop:    s.AutoCascadeWorkshop,
 		AgentMaxTurns:          int32(s.AgentMaxTurns),
 		AgentTimeoutSeconds:    int32(s.AgentTimeoutSeconds),
-		AgentRequiresApproval:  s.AgentRequiresApproval,
 		SearchDebounceMs:       int32(s.SearchDebounceMs),
 		ToastDurationMs:        int32(s.ToastDurationMs),
 		DeleteConfirmation: &domainpb.DeleteConfirmationSettings{
@@ -110,10 +109,6 @@ func settingsPatchFromProto(req *apipb.UpdateSettingsRequest) SettingsPatch {
 	if req.AgentTimeoutSeconds != nil {
 		v := int(*req.AgentTimeoutSeconds)
 		patch.AgentTimeoutSeconds = &v
-	}
-	if req.AgentRequiresApproval != nil {
-		v := *req.AgentRequiresApproval
-		patch.AgentRequiresApproval = &v
 	}
 	if req.SearchDebounceMs != nil {
 		v := int(*req.SearchDebounceMs)
@@ -199,7 +194,6 @@ func isEmptyUpdateSettingsRequest(req *apipb.UpdateSettingsRequest) bool {
 		req.AutoCascadeWorkshop == nil &&
 		req.AgentMaxTurns == nil &&
 		req.AgentTimeoutSeconds == nil &&
-		req.AgentRequiresApproval == nil &&
 		req.SearchDebounceMs == nil &&
 		req.ToastDurationMs == nil &&
 		req.DeleteConfirmation == nil &&

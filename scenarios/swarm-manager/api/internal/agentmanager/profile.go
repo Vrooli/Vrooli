@@ -16,28 +16,35 @@ import (
 const DefaultAgentMaxTurns int32 = 600
 
 // ProfileConfig contains agent profile configuration.
+//
+// RequiresApproval (legacy proto field 12) was removed in
+// agent-sandbox-audit-foundation Phase 3b. Operator-gated apply is now
+// expressed via SandboxConfig.ManualReview on the agent-manager side; we
+// represent that here via the ManualReview bool, which is forwarded onto
+// the AgentProfile.SandboxConfig at build time.
 type ProfileConfig struct {
-	RunnerType       domainpb.RunnerType
-	Model            string
-	ModelPreset      domainpb.ModelPreset
-	MaxTurns         int32
-	TimeoutSeconds   int32
-	AllowedTools     []string
-	SkipPermissions  bool
-	RequiresSandbox  bool
-	RequiresApproval bool
+	RunnerType      domainpb.RunnerType
+	Model           string
+	ModelPreset     domainpb.ModelPreset
+	MaxTurns        int32
+	TimeoutSeconds  int32
+	AllowedTools    []string
+	SkipPermissions bool
+	RequiresSandbox bool
+	ManualReview    bool
 }
 
 // SettingsReader provides agent settings from an external source (e.g. settings store)
 // without creating a direct import dependency on the settings package.
 type SettingsReader interface {
-	LoadAgentSettings() (maxTurns, timeoutSeconds int32, requiresApproval bool, err error)
+	LoadAgentSettings() (maxTurns, timeoutSeconds int32, err error)
 }
 
 // ProfileConfigFromSettings creates a ProfileConfig by overlaying settings values
 // on top of the defaults. Zero/negative values for maxTurns or timeoutSeconds
-// are ignored, preserving the default.
-func ProfileConfigFromSettings(maxTurns, timeoutSeconds int32, requiresApproval bool) *ProfileConfig {
+// are ignored, preserving the default. ManualReview is taken from the default
+// (per-profile concern; not a global setting).
+func ProfileConfigFromSettings(maxTurns, timeoutSeconds int32) *ProfileConfig {
 	cfg := DefaultProfileConfig()
 	if maxTurns > 0 {
 		cfg.MaxTurns = maxTurns
@@ -45,17 +52,16 @@ func ProfileConfigFromSettings(maxTurns, timeoutSeconds int32, requiresApproval 
 	if timeoutSeconds > 0 {
 		cfg.TimeoutSeconds = timeoutSeconds
 	}
-	cfg.RequiresApproval = requiresApproval
 	return cfg
 }
 
 // DefaultProfileConfig returns the default configuration for swarm-manager agents.
 //
-// Swarm-manager agents run Sandboxed with review required: research and
+// Swarm-manager agents run Sandboxed with manual review: research and
 // workshop agents frequently write files (plans, docs, specs) and those
-// diffs should be human-reviewable. Agent-manager's auto-approve-if-empty
-// logic auto-closes runs whose sandbox ended up empty, so trivial read-only
-// invocations still complete without human clicks.
+// diffs should be human-reviewable. Under the auditability contract,
+// ManualReview=true defers apply at run end until an operator approves
+// via one of the three viewing surfaces (GCT, agent-manager, workspace-sandbox).
 func DefaultProfileConfig() *ProfileConfig {
 	return &ProfileConfig{
 		RunnerType:  domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
@@ -71,9 +77,9 @@ func DefaultProfileConfig() *ProfileConfig {
 			"Grep",
 			"Bash",
 		},
-		SkipPermissions:  false,
-		RequiresSandbox:  true,
-		RequiresApproval: true,
+		SkipPermissions: false,
+		RequiresSandbox: true,
+		ManualReview:    true,
 	}
 }
 
@@ -103,8 +109,10 @@ func (s *AgentService) buildProfile(cfg *ProfileConfig) *domainpb.AgentProfile {
 		AllowedTools:         cfg.AllowedTools,
 		SkipPermissionPrompt: cfg.SkipPermissions,
 		RequiresSandbox:      cfg.RequiresSandbox,
-		RequiresApproval:     cfg.RequiresApproval,
-		CreatedBy:            "swarm-manager",
+		// Express operator-gated apply via SandboxConfig.ManualReview
+		// per the auditability contract (Phase 3b cutover).
+		SandboxConfig: &domainpb.SandboxConfig{ManualReview: cfg.ManualReview},
+		CreatedBy:     "swarm-manager",
 	}
 }
 
@@ -113,9 +121,9 @@ func (s *AgentService) buildProfile(cfg *ProfileConfig) *domainpb.AgentProfile {
 // SettingsReader is configured.
 func (s *AgentService) resolveProfileConfig() *ProfileConfig {
 	if s.settingsReader != nil {
-		maxTurns, timeout, approval, err := s.settingsReader.LoadAgentSettings()
+		maxTurns, timeout, err := s.settingsReader.LoadAgentSettings()
 		if err == nil {
-			return ProfileConfigFromSettings(maxTurns, timeout, approval)
+			return ProfileConfigFromSettings(maxTurns, timeout)
 		}
 		slog.Warn("settings read failed, using defaults", "error", err)
 	}

@@ -109,7 +109,6 @@ export interface ProfileFormData {
   deniedTools?: string[];
   skipPermissionPrompt?: boolean;
   requiresSandbox?: boolean;
-  requiresApproval?: boolean;
   networkAccess?: "none" | "localhost" | "full";
   allowedPaths?: string[];
   deniedPaths?: string[];
@@ -142,7 +141,6 @@ export interface RunFormData {
   deniedTools?: string[];
   skipPermissionPrompt?: boolean;
   requiresSandbox?: boolean;
-  requiresApproval?: boolean;
   networkAccess?: "none" | "localhost" | "full";
   allowedPaths?: string[];
   deniedPaths?: string[];
@@ -153,6 +151,10 @@ export interface RunFormData {
   prompt?: string;
   runMode?: RunMode;
   idempotencyKey?: string;
+  /** Conversation linkage per Decision D7 of the auditability contract.
+   *  Spawn surfaces SHOULD populate at least one explicitly. */
+  conversationId?: string;
+  parentRunId?: string;
 }
 
 export interface ApproveFormData {

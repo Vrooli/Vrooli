@@ -19,7 +19,7 @@
   "kind": "execute",
   "name": "agent-manager-default-sandboxing-rollout",
   "priority": 3,
-  "status": "backlog",
+  "status": "completed",
   "tags": [
     "agent-manager",
     "sandbox",
@@ -27,5 +27,5 @@
     "defaults"
   ],
   "title": "Roll out sandboxing as the default path in major agent-manager spawn surfaces",
-  "updated": "2026-04-27T19:43:16Z"
+  "updated": "2026-04-27T23:28:56Z"
 }

@@ -204,6 +204,7 @@ func (h *Handlers) RegisterRoutes(router *mux.Router, metricsCollector *metrics.
 	// --- Workflow: Diff and Approval ---
 	api.HandleFunc("/sandboxes/{id}/diff", h.GetDiff).Methods("GET")
 	api.HandleFunc("/sandboxes/{id}/approve", h.Approve).Methods("POST")
+	api.HandleFunc("/sandboxes/{id}/apply-at-run-end", h.ApplyAtRunEnd).Methods("POST")
 	api.HandleFunc("/sandboxes/{id}/reject", h.Reject).Methods("POST")
 	api.HandleFunc("/sandboxes/{id}/discard", h.Discard).Methods("POST")
 

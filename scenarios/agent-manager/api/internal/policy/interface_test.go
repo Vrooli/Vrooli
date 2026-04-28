@@ -23,13 +23,10 @@ func TestInterfaceTypes(t *testing.T) {
 func TestDecision_Fields(t *testing.T) {
 	// Verify Decision struct can be instantiated with correct fields
 	d := policy.Decision{
-		Allowed:           true,
-		RequiresSandbox:   true,
-		RequiresApproval:  false,
-		EffectiveMaxFiles: 100,
-		EffectiveMaxSize:  10 * 1024 * 1024,
-		EffectiveTimeout:  30 * 60 * 1000, // 30 minutes in ms
-		DenialReason:      "",
+		Allowed:          true,
+		RequiresSandbox:  true,
+		EffectiveTimeout: 30 * 60 * 1000, // 30 minutes in ms
+		DenialReason:     "",
 	}
 
 	if !d.Allowed {
@@ -38,11 +35,8 @@ func TestDecision_Fields(t *testing.T) {
 	if !d.RequiresSandbox {
 		t.Error("expected sandbox to be required")
 	}
-	if d.RequiresApproval {
-		t.Error("expected approval not to be required")
-	}
-	if d.EffectiveMaxFiles != 100 {
-		t.Errorf("expected max files 100, got %d", d.EffectiveMaxFiles)
+	if d.EffectiveTimeout != 30*60*1000 {
+		t.Errorf("expected effective timeout %d, got %d", 30*60*1000, d.EffectiveTimeout)
 	}
 }
 

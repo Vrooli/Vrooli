@@ -13,7 +13,7 @@
   "kind": "execute",
   "name": "protected-sandbox-git-and-network-guardrails",
   "priority": 7,
-  "status": "backlog",
+  "status": "completed",
   "tags": [
     "protected-mode",
     "git",
@@ -21,5 +21,5 @@
     "guardrails"
   ],
   "title": "Add protected-mode git and network guardrails with human-readable denials",
-  "updated": "2026-04-09T17:33:13Z"
+  "updated": "2026-04-27T23:28:58Z"
 }

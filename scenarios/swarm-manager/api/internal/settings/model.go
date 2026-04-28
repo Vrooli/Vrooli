@@ -52,9 +52,8 @@ type Settings struct {
 	AutoAdvanceDelaySeconds int  `json:"auto_advance_delay_seconds"`
 
 	// Agent behavior.
-	AgentMaxTurns         int  `json:"agent_max_turns"`
-	AgentTimeoutSeconds   int  `json:"agent_timeout_seconds"`
-	AgentRequiresApproval bool `json:"agent_requires_approval"`
+	AgentMaxTurns       int `json:"agent_max_turns"`
+	AgentTimeoutSeconds int `json:"agent_timeout_seconds"`
 
 	// UI preferences.
 	SearchDebounceMs   int                        `json:"search_debounce_ms"`
@@ -93,9 +92,8 @@ type SettingsPatch struct {
 	AutoCascadeWorkshop     *bool `json:"auto_cascade_workshop,omitempty"`
 	AutoAdvanceDelaySeconds *int  `json:"auto_advance_delay_seconds,omitempty"`
 
-	AgentMaxTurns         *int  `json:"agent_max_turns,omitempty"`
-	AgentTimeoutSeconds   *int  `json:"agent_timeout_seconds,omitempty"`
-	AgentRequiresApproval *bool `json:"agent_requires_approval,omitempty"`
+	AgentMaxTurns       *int `json:"agent_max_turns,omitempty"`
+	AgentTimeoutSeconds *int `json:"agent_timeout_seconds,omitempty"`
 
 	SearchDebounceMs   *int                             `json:"search_debounce_ms,omitempty"`
 	ToastDurationMs    *int                             `json:"toast_duration_ms,omitempty"`
@@ -153,11 +151,10 @@ func DefaultSettings() Settings {
 		AutoCascadeWorkshop:     true,
 		AutoAdvanceDelaySeconds: 10,
 		// Keep in sync with agentmanager.DefaultAgentMaxTurns (600).
-		AgentMaxTurns:         600,
-		AgentTimeoutSeconds:   3600,
-		AgentRequiresApproval: true,
-		SearchDebounceMs:      300,
-		ToastDurationMs:       5000,
+		AgentMaxTurns:       600,
+		AgentTimeoutSeconds: 3600,
+		SearchDebounceMs:    300,
+		ToastDurationMs:     5000,
 		DeleteConfirmation: DeleteConfirmationSettings{
 			Backlog:    DeleteConfirmSimple,
 			Initiative: DeleteConfirmStrong,
@@ -355,9 +352,6 @@ func applyPatch(current Settings, patch SettingsPatch) Settings {
 	}
 	if patch.AgentTimeoutSeconds != nil {
 		current.AgentTimeoutSeconds = *patch.AgentTimeoutSeconds
-	}
-	if patch.AgentRequiresApproval != nil {
-		current.AgentRequiresApproval = *patch.AgentRequiresApproval
 	}
 	if patch.SearchDebounceMs != nil {
 		current.SearchDebounceMs = *patch.SearchDebounceMs

@@ -1,0 +1,14 @@
+$ pnpm vitest run src/pages/StandardsPage.test.tsx src/pages/ScannerPage.test.tsx
+
+ ✓ src/pages/ScannerPage.test.tsx (11 tests) 120ms
+ ✓ src/pages/StandardsPage.test.tsx (16 tests) 177ms
+
+ Test Files  2 passed (2)
+      Tests  27 passed (27)
+
+ScannerPage 11/11 passing → regression guard from plan §8 satisfied (no rule= param flow still works).
+StandardsPage 16 tests cover expand/collapse, shared scenario input, per-rule check, scan-all summary,
+severity-aware color, and markdown rendering.
+
+$ pnpm tsc --noEmit
+exit=0  (no TypeScript errors)

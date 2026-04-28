@@ -61,6 +61,9 @@ func TestDetectVrooliRootFromEnv(t *testing.T) {
 		t.Fatalf("mkdir nested: %v", err)
 	}
 
+	// VROOLI_SOURCE_ROOT takes precedence over VROOLI_ROOT in repo-contract resolution,
+	// so it must also point inside the fixture or the ambient shell value would win.
+	t.Setenv("VROOLI_SOURCE_ROOT", nested)
 	t.Setenv("VROOLI_ROOT", nested)
 
 	result := DetectVrooliRoot()

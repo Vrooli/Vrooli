@@ -9,8 +9,8 @@
   "kind": "execute",
   "name": "agent-manager-apply-at-run-end-provider-seam",
   "priority": 1,
-  "status": "backlog",
-  "tags": null,
+  "status": "completed",
+  "tags": [],
   "title": "Add Provider.ApplyAtRunEnd seam on agent-manager + workspace_sandbox adapter (Phase 3a)",
-  "updated": "2026-04-27T19:09:48Z"
+  "updated": "2026-04-27T22:08:26Z"
 }

@@ -88,7 +88,6 @@ func enableAutoAdvanceWithDelay(t *testing.T, rootDir string, delaySec int) {
 		"auto_advance_delay_seconds": delaySec,
 		"agent_max_turns":            600,
 		"agent_timeout_seconds":      900,
-		"agent_requires_approval":    true,
 		"search_debounce_ms":         300,
 		"toast_duration_ms":          5000,
 		"delete_confirmation":        map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},

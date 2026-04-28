@@ -98,7 +98,6 @@ func NewServer() (*Server, error) {
 	log.Printf("driver selected | type=%s version=%s", driverManager.Type(), driverManager.Version())
 
 	// Initialize policies
-	approvalPolicy := policy.NewDefaultApprovalPolicy(cfg.Policy)
 	attributionPolicy, err := policy.NewDefaultAttributionPolicy(cfg.Policy)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create attribution policy: %w", err)
@@ -162,7 +161,6 @@ func NewServer() (*Server, error) {
 		AgentManagerSyncTimeout: cfg.Integration.AgentManagerSyncTimeout,
 	}
 	svc := sandbox.NewService(repo, driverManager, svcCfg,
-		sandbox.WithApprovalPolicy(approvalPolicy),
 		sandbox.WithAttributionPolicy(attributionPolicy),
 		sandbox.WithValidationPolicy(validationPolicy),
 		sandbox.WithTeardownPolicy(teardownPolicy),
@@ -172,7 +170,8 @@ func NewServer() (*Server, error) {
 		MaxConsecutiveFailures: cfg.Lifecycle.AutoHealMaxRetries,
 		BaseBackoff:            cfg.Lifecycle.AutoHealBaseBackoff,
 	}
-	lifecycleRecon := sandbox.NewLifecycleReconciler(svc, cfg.Lifecycle.GCInterval, healCfg)
+	lifecycleRecon := sandbox.NewLifecycleReconciler(svc, cfg.Lifecycle.GCInterval, healCfg).
+		WithManualReviewTTL(cfg.Lifecycle.ManualReviewTTL)
 
 	// Initialize process tracker (OT-P0-008)
 	processTracker := process.NewTrackerWithConfig(process.TrackerConfig{
@@ -467,6 +466,22 @@ func ensureSchema(db *sql.DB) error {
 	}
 	if !agentManagerRunIDExists {
 		return fmt.Errorf("required column workspace_sandbox.applied_changes.agent_manager_run_id is missing; rerun scenario bootstrap so lifecycle migrations bring the schema current")
+	}
+
+	// sandbox-provenance v1.0.0 columns (migration_002).
+	for _, col := range []string{"schema_version", "run_outcome", "provenance_state", "conversation_id", "cost_usd"} {
+		var exists bool
+		if err := db.QueryRow(`
+			SELECT EXISTS (
+				SELECT FROM information_schema.columns
+				WHERE table_schema = $1 AND table_name = 'applied_changes' AND column_name = $2
+			)
+		`, schemaName, col).Scan(&exists); err != nil {
+			return fmt.Errorf("failed to check applied_changes.%s column: %w", col, err)
+		}
+		if !exists {
+			return fmt.Errorf("required column workspace_sandbox.applied_changes.%s is missing; rerun scenario bootstrap so the sandbox-provenance v1.0.0 migration (migration_002) is applied", col)
+		}
 	}
 
 	return nil

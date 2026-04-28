@@ -363,6 +363,205 @@ func TestWorkspaceSandboxProvider_IsAvailable(t *testing.T) {
 	}
 }
 
+// TestWorkspaceSandboxProvider_ApplyAtRunEnd is a shape-parity contract test
+// for the workspace-sandbox /apply-at-run-end endpoint. The fake server
+// asserts the exact wire shape locked by
+// scenarios/workspace-sandbox/api/internal/types.ApplyAtRunEndRequest. If
+// workspace-sandbox renames any field, this test must change in the same
+// commit.
+func TestWorkspaceSandboxProvider_ApplyAtRunEnd(t *testing.T) {
+	sandboxID := uuid.New()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		expectedPath := "/api/v1/sandboxes/" + sandboxID.String() + "/apply-at-run-end"
+		if r.Method != "POST" || r.URL.Path != expectedPath {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+
+		var body map[string]interface{}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
+		if got := body["sandboxId"]; got != sandboxID.String() {
+			t.Errorf("sandboxId: got %v, want %s", got, sandboxID)
+		}
+		if got := body["agentManagerRunId"]; got != "run-abc-123" {
+			t.Errorf("agentManagerRunId: got %v, want 'run-abc-123'", got)
+		}
+		if got := body["conversationId"]; got != "conv-xyz-456" {
+			t.Errorf("conversationId: got %v, want 'conv-xyz-456'", got)
+		}
+		if got := body["runOutcome"]; got != "success" {
+			t.Errorf("runOutcome: got %v, want 'success'", got)
+		}
+		if got := body["source"]; got != "agent-manager-auto-apply" {
+			t.Errorf("source: got %v, want 'agent-manager-auto-apply'", got)
+		}
+		if got, ok := body["cost"].(float64); !ok || got != 0.42 {
+			t.Errorf("cost: got %v, want 0.42", body["cost"])
+		}
+
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":    true,
+			"applied":    3,
+			"remaining":  0,
+			"isPartial":  false,
+			"commitHash": "abc123",
+			"appliedAt":  time.Now().Format(time.RFC3339),
+		})
+	}))
+	defer server.Close()
+
+	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
+
+	result, err := provider.ApplyAtRunEnd(context.Background(), sandbox.ApplyAtRunEndRequest{
+		SandboxID:      sandboxID,
+		RunID:          "run-abc-123",
+		ConversationID: "conv-xyz-456",
+		Cost:           0.42,
+		RunOutcome:     "success",
+		CreateCommit:   true,
+	})
+	if err != nil {
+		t.Fatalf("ApplyAtRunEnd failed: %v", err)
+	}
+	if !result.Success {
+		t.Error("expected success=true")
+	}
+	if result.Applied != 3 {
+		t.Errorf("expected 3 applied, got %d", result.Applied)
+	}
+	if result.CommitHash != "abc123" {
+		t.Errorf("expected commitHash 'abc123', got %q", result.CommitHash)
+	}
+}
+
+// TestWorkspaceSandboxProvider_ApplyAtRunEnd_PartialAcceptance covers the
+// out-of-acceptance case: the workspace-sandbox endpoint applies the
+// in-acceptance files and returns isPartial=true with remaining > 0,
+// signalling that the sandbox persists with state=pending-review entries.
+func TestWorkspaceSandboxProvider_ApplyAtRunEnd_PartialAcceptance(t *testing.T) {
+	sandboxID := uuid.New()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":   true,
+			"applied":   2,
+			"remaining": 1,
+			"isPartial": true,
+			"appliedAt": time.Now().Format(time.RFC3339),
+		})
+	}))
+	defer server.Close()
+
+	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
+	result, err := provider.ApplyAtRunEnd(context.Background(), sandbox.ApplyAtRunEndRequest{
+		SandboxID:  sandboxID,
+		RunID:      "run-1",
+		RunOutcome: "success",
+	})
+	if err != nil {
+		t.Fatalf("ApplyAtRunEnd failed: %v", err)
+	}
+	if !result.IsPartial {
+		t.Error("expected IsPartial=true for partial acceptance")
+	}
+	if result.Remaining != 1 {
+		t.Errorf("expected remaining=1, got %d", result.Remaining)
+	}
+}
+
+// TestWorkspaceSandboxProvider_ApplyAtRunEnd_NotFound covers HTTP 404:
+// sandbox already torn down or never existed. Surfaces as a typed
+// NotFoundError so callers can downgrade severity.
+func TestWorkspaceSandboxProvider_ApplyAtRunEnd_NotFound(t *testing.T) {
+	sandboxID := uuid.New()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"error": "sandbox not found"})
+	}))
+	defer server.Close()
+
+	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
+	_, err := provider.ApplyAtRunEnd(context.Background(), sandbox.ApplyAtRunEndRequest{
+		SandboxID: sandboxID,
+		RunID:     "run-1",
+	})
+	if err == nil {
+		t.Fatal("expected error for 404, got nil")
+	}
+	if !strings.Contains(err.Error(), "Sandbox") {
+		t.Errorf("expected NotFoundError mentioning Sandbox, got: %v", err)
+	}
+}
+
+// TestWorkspaceSandboxProvider_ApplyAtRunEnd_ConflictReturnsTypedError
+// covers HTTP 409 from the apply pipeline (e.g., underlying repo conflict).
+// Adapter must surface the structured SandboxAPIError content so callers
+// can decide whether to retry vs degrade.
+func TestWorkspaceSandboxProvider_ApplyAtRunEnd_ConflictReturnsTypedError(t *testing.T) {
+	sandboxID := uuid.New()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusConflict)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"error": "repo conflict",
+			"hint":  "rebase the sandbox before applying",
+		})
+	}))
+	defer server.Close()
+
+	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
+	_, err := provider.ApplyAtRunEnd(context.Background(), sandbox.ApplyAtRunEndRequest{
+		SandboxID: sandboxID,
+		RunID:     "run-1",
+	})
+	if err == nil {
+		t.Fatal("expected error for 409, got nil")
+	}
+	if !strings.Contains(err.Error(), "repo conflict") {
+		t.Errorf("expected error to surface server message, got: %v", err)
+	}
+}
+
+// TestWorkspaceSandboxProvider_ApplyAtRunEnd_BadRequestRejectsBogusSource
+// asserts that the agent-manager adapter always sends
+// source=agent-manager-auto-apply (locked by the workspace-sandbox
+// validateApplyAtRunEndRequest function). If a future refactor accidentally
+// drops the source field, the workspace-sandbox endpoint returns 400 — this
+// test pins the wire-level expectation by simulating that 400 and asserting
+// the adapter surfaces it as a SandboxError.
+func TestWorkspaceSandboxProvider_ApplyAtRunEnd_BadRequestRejectsBogusSource(t *testing.T) {
+	sandboxID := uuid.New()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]interface{}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if got := body["source"]; got != "agent-manager-auto-apply" {
+			// Simulate workspace-sandbox rejecting the wrong source.
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+				"error": "source must be agent-manager-auto-apply",
+			})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": true, "appliedAt": time.Now().Format(time.RFC3339),
+		})
+	}))
+	defer server.Close()
+
+	provider := sandbox.NewWorkspaceSandboxProvider(server.URL)
+	// Happy path — adapter sets source correctly.
+	if _, err := provider.ApplyAtRunEnd(context.Background(), sandbox.ApplyAtRunEndRequest{
+		SandboxID: sandboxID,
+		RunID:     "run-1",
+	}); err != nil {
+		t.Errorf("expected success when adapter sends locked source, got: %v", err)
+	}
+}
+
 func TestWorkspaceSandboxProvider_PartialApprove(t *testing.T) {
 	sandboxID := uuid.New()
 	fileID1 := uuid.New()

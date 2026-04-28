@@ -1,6 +1,6 @@
 {
   "initiative": "brand-manager-readiness",
-  "generated_at": "2026-04-25T17:34:41Z",
+  "generated_at": "2026-04-27T21:06:35Z",
   "nodes": [
     {
       "id": "fix/brand-manager-integration-status",
@@ -37,10 +37,10 @@
       "kind": "execute",
       "name": "brand-manager-rule-detail-ux",
       "title": "Add Detailed Rule Documentation and Per-Rule Execution to Standards Page",
-      "status": "in_review",
+      "status": "completed",
       "priority": 3,
       "effort": "M",
-      "archived": false
+      "archived": true
     }
   ],
   "edges": []

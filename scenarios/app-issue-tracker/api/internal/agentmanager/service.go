@@ -53,13 +53,12 @@ type Config struct {
 
 // ProfileConfig contains agent profile configuration.
 type ProfileConfig struct {
-	RunnerType       domainpb.RunnerType
-	MaxTurns         int32
-	TimeoutSeconds   int32
-	AllowedTools     []string
-	SkipPermissions  bool
-	RequiresSandbox  bool
-	RequiresApproval bool
+	RunnerType      domainpb.RunnerType
+	MaxTurns        int32
+	TimeoutSeconds  int32
+	AllowedTools    []string
+	SkipPermissions bool
+	RequiresSandbox bool
 }
 
 // RunRequest contains parameters for a run.
@@ -175,6 +174,16 @@ func (s *AgentService) CreateRun(ctx context.Context, req RunRequest, cfg Profil
 		}
 	}
 
+	// Issue investigations are diagnostic — the deliverable is a root-cause
+	// report, not repo changes. ManualReview=true defers apply at run end
+	// so any file mutations persist as pending-review for operator approval
+	// (via GCT, agent-manager run-detail, or workspace-sandbox UI) rather
+	// than auto-applying. See workspace-sandbox/docs/AUDITABILITY_CONTRACT.md.
+	if runReq.InlineConfig == nil {
+		runReq.InlineConfig = &domainpb.RunConfigOverrides{}
+	}
+	runReq.InlineConfig.SandboxConfig = &domainpb.SandboxConfig{ManualReview: true}
+
 	run, err := s.client.CreateRun(ctx, runReq)
 	if err != nil {
 		return "", fmt.Errorf("create run: %w", err)
@@ -214,7 +223,6 @@ func (s *AgentService) buildProfile(profileKey, name, description string, cfg Pr
 		AllowedTools:         cfg.AllowedTools,
 		SkipPermissionPrompt: cfg.SkipPermissions,
 		RequiresSandbox:      cfg.RequiresSandbox,
-		RequiresApproval:     cfg.RequiresApproval,
 		CreatedBy:            "app-issue-tracker",
 	}
 }

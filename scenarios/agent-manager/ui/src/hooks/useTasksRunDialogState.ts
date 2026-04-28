@@ -47,7 +47,6 @@ function createInitialProfileFormData(): ProfileFormState {
     modelMode: "default",
     maxTurns: 100,
     requiresSandbox: true,
-    requiresApproval: true,
     networkAccess: "localhost" as const,
     timeoutMinutes: 30,
     fallbackRunnerTypes: [],

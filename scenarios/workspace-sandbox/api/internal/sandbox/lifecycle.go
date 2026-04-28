@@ -9,12 +9,13 @@ import (
 
 // LifecycleReconciler enforces per-sandbox lifecycle policies on a schedule.
 type LifecycleReconciler struct {
-	service     *Service
-	interval    time.Duration
-	healTracker *healTracker
-	healCfg     HealConfig
-	stopCh      chan struct{}
-	doneCh      chan struct{}
+	service         *Service
+	interval        time.Duration
+	healTracker     *healTracker
+	healCfg         HealConfig
+	manualReviewTTL time.Duration
+	stopCh          chan struct{}
+	doneCh          chan struct{}
 }
 
 // NewLifecycleReconciler creates a reconciler with the given interval and heal config.
@@ -32,6 +33,17 @@ func NewLifecycleReconciler(service *Service, interval time.Duration, healCfg He
 	}
 }
 
+// WithManualReviewTTL configures the TTL for abandoned manualReview=true
+// sandboxes. Per the auditability contract (Phase 4), sandboxes with
+// ManualReview=true that remain idle past this TTL are auto-denied with
+// Source=SourceWorkspaceSandboxGC. Zero disables expiry.
+func (r *LifecycleReconciler) WithManualReviewTTL(ttl time.Duration) *LifecycleReconciler {
+	if r != nil {
+		r.manualReviewTTL = ttl
+	}
+	return r
+}
+
 // Start begins the reconciliation loop in a goroutine.
 func (r *LifecycleReconciler) Start() {
 	if r == nil || r.service == nil {
@@ -44,6 +56,7 @@ func (r *LifecycleReconciler) Start() {
 
 		ctx := context.Background()
 		r.service.ReconcileLifecycle(ctx)
+		r.service.ReconcileManualReviewExpiry(ctx, r.manualReviewTTL, time.Now)
 		r.service.ReconcileActiveMounts(ctx, r.healTracker, r.healCfg)
 		for {
 			select {
@@ -153,5 +166,69 @@ func applyLifecycleTerminal(ctx context.Context, s *Service, sandbox *types.Sand
 		s.logAuditEvent(ctx, sandbox, "sandbox.warning", "system", "system", map[string]interface{}{
 			"message": "failed to delete sandbox on terminal status: " + err.Error(),
 		})
+	}
+}
+
+// ReconcileManualReviewExpiry auto-denies abandoned manualReview=true
+// sandboxes whose idle window exceeds the configured ttl. The originating
+// surface on the resulting state transition is recorded as
+// SourceWorkspaceSandboxGC (system-only) so reviewers can tell GC-driven
+// denials apart from operator denials.
+//
+// `now` is injected so tests can drive expiry deterministically; production
+// callers pass time.Now.
+//
+// Phase 4 of agent-sandbox-audit-foundation. See
+// scenarios/workspace-sandbox/docs/AUDITABILITY_CONTRACT.md.
+func (s *Service) ReconcileManualReviewExpiry(ctx context.Context, ttl time.Duration, now func() time.Time) {
+	if s == nil || s.repo == nil || ttl <= 0 {
+		return
+	}
+	if now == nil {
+		now = time.Now
+	}
+
+	filter := &types.ListFilter{
+		Status: []types.Status{types.StatusActive, types.StatusStopped},
+		Limit:  10000,
+	}
+	result, err := s.repo.List(ctx, filter)
+	if err != nil || result == nil {
+		return
+	}
+
+	cutoff := now()
+	for _, sandbox := range result.Sandboxes {
+		if sandbox == nil {
+			continue
+		}
+		if !sandbox.Behavior.ManualReview {
+			continue
+		}
+		// Idle window measured against LastUsedAt — for manualReview
+		// sandboxes this is the run-end timestamp (no further activity
+		// after the agent-manager run terminates).
+		if cutoff.Sub(sandbox.LastUsedAt) < ttl {
+			continue
+		}
+
+		sandbox.Status = types.StatusRejected
+		if err := s.repo.Update(ctx, sandbox); err != nil {
+			s.logAuditEvent(ctx, sandbox, "sandbox.warning", "system", "system", map[string]interface{}{
+				"message": "manual-review TTL: failed to mark rejected: " + err.Error(),
+			})
+			continue
+		}
+		s.logAuditEventWithSource(ctx, sandbox, "rejected", "system", "system", types.SourceWorkspaceSandboxGC, map[string]interface{}{
+			"reason":          "manualReview-ttl-expired",
+			"manualReviewTtl": ttl.String(),
+			"lastUsedAt":      sandbox.LastUsedAt.Format(time.RFC3339),
+		})
+		// Best-effort tear-down via existing terminal-status path.
+		if err := s.Delete(ctx, sandbox.ID); err != nil {
+			s.logAuditEvent(ctx, sandbox, "sandbox.warning", "system", "system", map[string]interface{}{
+				"message": "manual-review TTL: failed to delete sandbox after auto-deny: " + err.Error(),
+			})
+		}
 	}
 }

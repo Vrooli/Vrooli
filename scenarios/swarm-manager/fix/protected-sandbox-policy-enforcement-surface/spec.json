@@ -13,7 +13,7 @@
   "kind": "fix",
   "name": "protected-sandbox-policy-enforcement-surface",
   "priority": 7,
-  "status": "backlog",
+  "status": "completed",
   "tags": [
     "protected-mode",
     "policy",
@@ -21,5 +21,5 @@
     "enforcement"
   ],
   "title": "Make protected-mode policy controls real instead of advisory",
-  "updated": "2026-04-09T17:33:13Z"
+  "updated": "2026-04-27T23:28:59Z"
 }

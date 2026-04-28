@@ -66,15 +66,6 @@ func TestDefault(t *testing.T) {
 	})
 
 	t.Run("Policy defaults", func(t *testing.T) {
-		if !cfg.Policy.RequireHumanApproval {
-			t.Error("expected RequireHumanApproval true")
-		}
-		if cfg.Policy.AutoApproveThresholdFiles != 10 {
-			t.Errorf("expected AutoApproveThresholdFiles 10, got %d", cfg.Policy.AutoApproveThresholdFiles)
-		}
-		if cfg.Policy.AutoApproveThresholdLines != 500 {
-			t.Errorf("expected AutoApproveThresholdLines 500, got %d", cfg.Policy.AutoApproveThresholdLines)
-		}
 		if cfg.Policy.CommitMessageTemplate != "Apply sandbox changes ({{.FileCount}} files)" {
 			t.Errorf("unexpected CommitMessageTemplate: %s", cfg.Policy.CommitMessageTemplate)
 		}

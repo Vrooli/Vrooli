@@ -43,29 +43,67 @@ type ClaudeCodeRunner struct {
 	installHint string
 	mu          sync.Mutex
 	runs        map[uuid.UUID]*exec.Cmd
+	launched    map[uuid.UUID]LaunchedProcess
 	streamState map[uuid.UUID]*claudeStreamState
+
+	// hostLauncher is used for non-protected runs. Wraps startManagedProcess.
+	hostLauncher Launcher
+
+	// sandboxFactory builds a per-run SandboxLauncher when ExecuteRequest
+	// requests protected mode and provides a SandboxID. When nil,
+	// protected-mode requests fall back to the host launcher with a warning.
+	sandboxFactory SandboxLauncherFactory
 }
 
-// NewClaudeCodeRunner creates a new Claude Code runner.
+// NewClaudeCodeRunner creates a new Claude Code runner with a default
+// HostLauncher and no sandbox factory; protected-mode requests fall back
+// to host execution. Use NewClaudeCodeRunnerWithLaunchers for protected
+// mode in production.
 func NewClaudeCodeRunner() (*ClaudeCodeRunner, error) {
+	return NewClaudeCodeRunnerWithLaunchers(NewHostLauncher(), nil)
+}
+
+// NewClaudeCodeRunnerWithLaunchers wires the runner with an explicit
+// HostLauncher and (optionally) a SandboxLauncherFactory. The factory is
+// consulted when ExecuteRequest's resolved SandboxConfig.Mode is
+// Protected and SandboxID is non-nil.
+func NewClaudeCodeRunnerWithLaunchers(host Launcher, sandboxFactory SandboxLauncherFactory) (*ClaudeCodeRunner, error) {
+	if host == nil {
+		host = NewHostLauncher()
+	}
 	binaryPath, err := exec.LookPath(ClaudeCodeCLICommand)
 	if err != nil {
 		return &ClaudeCodeRunner{
-			available:   false,
-			message:     "claude CLI not found in PATH",
-			installHint: "Install: npm install -g @anthropic-ai/claude-code",
-			runs:        make(map[uuid.UUID]*exec.Cmd),
-			streamState: make(map[uuid.UUID]*claudeStreamState),
+			available:      false,
+			message:        "claude CLI not found in PATH",
+			installHint:    "Install: npm install -g @anthropic-ai/claude-code",
+			runs:           make(map[uuid.UUID]*exec.Cmd),
+			launched:       make(map[uuid.UUID]LaunchedProcess),
+			streamState:    make(map[uuid.UUID]*claudeStreamState),
+			hostLauncher:   host,
+			sandboxFactory: sandboxFactory,
 		}, nil
 	}
 
 	return &ClaudeCodeRunner{
-		binaryPath:  binaryPath,
-		available:   true,
-		message:     "claude CLI available",
-		runs:        make(map[uuid.UUID]*exec.Cmd),
-		streamState: make(map[uuid.UUID]*claudeStreamState),
+		binaryPath:     binaryPath,
+		available:      true,
+		message:        "claude CLI available",
+		runs:           make(map[uuid.UUID]*exec.Cmd),
+		launched:       make(map[uuid.UUID]LaunchedProcess),
+		streamState:    make(map[uuid.UUID]*claudeStreamState),
+		hostLauncher:   host,
+		sandboxFactory: sandboxFactory,
 	}, nil
+}
+
+// SetSandboxLauncherFactory wires (or replaces) the protected-mode factory.
+// Used by main.go where the sandbox provider is constructed after the
+// runner; tests can also use this to inject a mock factory.
+func (r *ClaudeCodeRunner) SetSandboxLauncherFactory(factory SandboxLauncherFactory) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.sandboxFactory = factory
 }
 
 // Type returns the runner type identifier.
@@ -116,8 +154,9 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 		return r.executeWithDurableTranscript(ctx, req, startTime)
 	}
 
-	// Build command arguments
+	// Build command arguments and prompt
 	args := r.buildArgs(req)
+	prompt := buildPromptWithAttachments(req.Prompt, req.Attachments)
 
 	// Invoke claude directly using env prefix to surface the tag in /proc/<pid>/cmdline
 	// for reconciler process detection (same pattern as codex runner).
@@ -126,60 +165,37 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 		fmt.Sprintf("CLAUDE_CODE_AGENT_TAG=%s", tag),
 		r.binaryPath,
 	}, args...)
-	cmd := exec.CommandContext(ctx, "env", envArgs...)
-	cmd.Dir = req.WorkingDir
 
-	// Set environment
-	cmd.Env = r.buildEnv(req)
+	// Pick the launcher: SandboxLauncher when the resolved config requests
+	// protected mode AND a sandbox launcher is wired; HostLauncher otherwise.
+	launcher := r.selectLauncher(ctx, req)
 
-	// Create a new process group so we can kill the entire subprocess tree.
-	// Claude Code may spawn child processes for tools (bash, etc.) that should
-	// be terminated when the run is stopped.
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	launchReq := LaunchRequest{
+		Command:     "env",
+		Args:        envArgs,
+		Env:         r.buildEnv(req),
+		WorkingDir:  req.WorkingDir,
+		Stdin:       strings.NewReader(prompt),
+		IdleTimeout: DefaultStreamIdleTimeout,
+	}
+	proc, err := launcher.Launch(ctx, launchReq)
+	if err != nil {
+		return nil, &domain.RunnerError{
+			RunnerType: domain.RunnerTypeClaudeCode,
+			Operation:  "execute",
+			Cause:      err,
+		}
+	}
 
-	// Track the running command for cancellation
+	// Track the running process for cancellation
 	r.mu.Lock()
-	r.runs[req.RunID] = cmd
+	r.launched[req.RunID] = proc
 	r.mu.Unlock()
 	defer func() {
 		r.mu.Lock()
-		delete(r.runs, req.RunID)
+		delete(r.launched, req.RunID)
 		r.mu.Unlock()
-	}()
-
-	// Create stderr pipe before starting the managed process.
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeClaudeCode,
-			Operation:  "execute",
-			Cause:      err,
-		}
-	}
-
-	// Provide prompt via stdin
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeClaudeCode,
-			Operation:  "execute",
-			Cause:      err,
-		}
-	}
-
-	// Start command with managed process lifecycle.
-	// Uses a manual os.Pipe for stdout so that cmd.Wait() runs in a background
-	// goroutine and kills grandchildren on exit, giving the scanner a clean EOF.
-	mp, err := startManagedProcess(cmd, DefaultStreamIdleTimeout)
-	if err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeClaudeCode,
-			Operation:  "execute",
-			Cause:      err,
-		}
-	}
-	defer func() {
-		_ = mp.Wait()
+		_ = proc.Wait()
 	}()
 
 	// Emit starting event
@@ -192,19 +208,6 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 		))
 	}
 
-	// Build prompt with attachment file paths prepended
-	prompt := buildPromptWithAttachments(req.Prompt, req.Attachments)
-
-	// Write prompt and close stdin
-	if _, err := stdin.Write([]byte(prompt)); err != nil {
-		return nil, &domain.RunnerError{
-			RunnerType: domain.RunnerTypeClaudeCode,
-			Operation:  "execute",
-			Cause:      err,
-		}
-	}
-	stdin.Close()
-
 	// Process streaming output
 	metrics := ExecutionMetrics{}
 	var lastAssistantMessage string
@@ -213,22 +216,22 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 
 	// Read stderr in background
 	go func() {
-		scanner := bufio.NewScanner(stderr)
+		scanner := bufio.NewScanner(proc.Stderr())
 		for scanner.Scan() {
 			errorOutput.WriteString(scanner.Text())
 			errorOutput.WriteString("\n")
 		}
 	}()
 
-	// Parse streaming JSON output. The managed process handles lifecycle:
+	// Parse streaming JSON output. The launched process handles lifecycle:
 	// when the runner process exits, grandchildren are killed and the
 	// scanner gets EOF automatically.
 	const maxScannerBuffer = 10 * 1024 * 1024 // 10MB
-	scanner := bufio.NewScanner(mp.Stdout())
+	scanner := bufio.NewScanner(proc.Stdout())
 	scanner.Buffer(make([]byte, 64*1024), maxScannerBuffer)
 
 	for scanner.Scan() {
-		mp.ResetTimer()
+		proc.ResetIdleTimer()
 		line := scanner.Text()
 		if line == "" {
 			continue
@@ -273,7 +276,7 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 		}
 	}
 
-	if mp.TimedOut() && req.EventSink != nil {
+	if proc.TimedOut() && req.EventSink != nil {
 		_ = req.EventSink.Emit(domain.NewLogEvent(
 			req.RunID, "warn",
 			fmt.Sprintf("Process idle for %v without output; killed process group", DefaultStreamIdleTimeout),
@@ -292,7 +295,7 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 	}
 
 	// Wait for process cleanup (grandchildren killed, exit status collected).
-	err = mp.Wait()
+	err = proc.Wait()
 
 	duration := time.Since(startTime)
 
@@ -359,16 +362,77 @@ func (r *ClaudeCodeRunner) Execute(ctx context.Context, req ExecuteRequest) (*Ex
 	return result, nil
 }
 
+// selectLauncher returns a SandboxLauncher when the resolved config
+// requests protected mode AND a sandbox factory + sandbox ID are present;
+// otherwise the HostLauncher. Emits a warn-log event when protected mode
+// was requested but cannot be honored, so operators can spot misconfigured
+// environments rather than silently running on the host.
+func (r *ClaudeCodeRunner) selectLauncher(ctx context.Context, req ExecuteRequest) Launcher {
+	_ = ctx // reserved for future per-call factory needs (e.g. tracing)
+	cfg := req.GetConfig()
+	if cfg == nil || cfg.SandboxConfig == nil || cfg.SandboxConfig.Mode.Effective() != domain.SandboxModeProtected {
+		return r.hostLauncher
+	}
+	// Protected mode requested.
+	if r.sandboxFactory == nil {
+		if req.EventSink != nil {
+			_ = req.EventSink.Emit(domain.NewLogEvent(
+				req.RunID, "warn",
+				"protected mode requested but no SandboxLauncherFactory configured; falling back to HostLauncher",
+			))
+		}
+		return r.hostLauncher
+	}
+	if req.SandboxID == nil {
+		if req.EventSink != nil {
+			_ = req.EventSink.Emit(domain.NewLogEvent(
+				req.RunID, "warn",
+				"protected mode requested but ExecuteRequest.SandboxID is nil; falling back to HostLauncher",
+			))
+		}
+		return r.hostLauncher
+	}
+	launcher := r.sandboxFactory.LauncherFor(*req.SandboxID)
+	if launcher == nil {
+		if req.EventSink != nil {
+			_ = req.EventSink.Emit(domain.NewLogEvent(
+				req.RunID, "warn",
+				"protected mode requested but factory returned nil launcher; falling back to HostLauncher",
+			))
+		}
+		return r.hostLauncher
+	}
+	return launcher
+}
+
 // Stop attempts to gracefully stop a running Claude Code instance.
 // Sends SIGTERM to the process group first, then escalates to SIGKILL
 // after a grace period. The actual process reaping is handled by the
-// Execute/Continue method's cmd.Wait() goroutine.
+// Execute/Continue method's wait goroutine.
+//
+// Stop checks both the new launched-process registry (Execute path,
+// post-launcher-refactor) and the legacy *exec.Cmd registry (durable
+// transcript and continuation paths). Either may hold a live run.
 func (r *ClaudeCodeRunner) Stop(ctx context.Context, runID uuid.UUID) error {
 	r.mu.Lock()
-	cmd, exists := r.runs[runID]
+	proc, procExists := r.launched[runID]
+	cmd, cmdExists := r.runs[runID]
 	r.mu.Unlock()
 
-	if !exists {
+	if procExists {
+		// Graceful: 5s grace period before SIGKILL escalation.
+		proc.Signal(5 * time.Second)
+		// Honor parent ctx cancellation as an immediate-kill escalation.
+		if ctx != nil {
+			go func() {
+				<-ctx.Done()
+				proc.Kill()
+			}()
+		}
+		return nil
+	}
+
+	if !cmdExists {
 		return domain.NewNotFoundErrorWithID("Run", runID.String())
 	}
 

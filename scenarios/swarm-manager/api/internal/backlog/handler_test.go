@@ -75,7 +75,6 @@ func disableAutoWorkshopSettings(t *testing.T, rootDir string) {
 		"auto_cascade_workshop":    false,
 		"agent_max_turns":          600,
 		"agent_timeout_seconds":    900,
-		"agent_requires_approval":  true,
 		"search_debounce_ms":       300,
 		"toast_duration_ms":        5000,
 		"delete_confirmation":      map[string]any{"backlog": "simple", "initiative": "strong", "capture": "none"},

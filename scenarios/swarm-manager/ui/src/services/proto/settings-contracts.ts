@@ -55,7 +55,6 @@ export function mapProtoSettings(protoSettings: Settings): SettingsDomain {
     autoAdvanceDelaySeconds: protoSettings.autoAdvanceDelaySeconds ?? 10,
     agentMaxTurns: protoSettings.agentMaxTurns ?? 600,
     agentTimeoutSeconds: protoSettings.agentTimeoutSeconds ?? 900,
-    agentRequiresApproval: protoSettings.agentRequiresApproval ?? true,
     searchDebounceMs: protoSettings.searchDebounceMs ?? 300,
     toastDurationMs: protoSettings.toastDurationMs ?? 5000,
     deleteConfirmation: {

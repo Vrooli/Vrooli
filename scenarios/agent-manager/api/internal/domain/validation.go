@@ -238,7 +238,39 @@ func validateSandboxConfig(cfg *SandboxConfig) error {
 	if cfg.Lifecycle.IdleTimeout < 0 {
 		return NewValidationError("sandboxConfig.lifecycle.idleTimeout", "cannot be negative")
 	}
+	if err := validateSandboxMode(cfg.Mode); err != nil {
+		return err
+	}
+	if cfg.NetworkMode != "" && !cfg.NetworkMode.IsValid() {
+		return NewValidationErrorWithHint(
+			"sandboxConfig.networkMode",
+			"invalid network mode",
+			"valid values: none, localhost, full",
+		)
+	}
 	return nil
+}
+
+// validateSandboxMode rejects unknown SandboxMode values. All recognised
+// modes (unspecified, tracking, protected) are accepted at the validation
+// layer; whether protected mode actually launches through the sandbox or
+// falls back to the host depends on runtime configuration of the runner's
+// SandboxLauncherFactory (see runner.NewClaudeCodeRunnerWithLaunchers).
+//
+// The gate flipped from "reserved" to "allowed" with execute/protected-
+// sandbox-agent-launch — the runner-fork that introduced the
+// SandboxLauncher seam.
+func validateSandboxMode(mode SandboxMode) error {
+	switch mode {
+	case SandboxModeUnspecified, SandboxModeTracking, SandboxModeProtected:
+		return nil
+	default:
+		return NewValidationErrorWithHint(
+			"sandboxConfig.mode",
+			"invalid sandbox mode",
+			"valid values: tracking (default), protected",
+		)
+	}
 }
 
 func isValidModelPreset(preset ModelPreset) bool {

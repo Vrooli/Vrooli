@@ -217,10 +217,6 @@ func TestDefaultRunConfig(t *testing.T) {
 	if !cfg.RequiresSandbox {
 		t.Error("RequiresSandbox should be true by default")
 	}
-
-	if !cfg.RequiresApproval {
-		t.Error("RequiresApproval should be true by default")
-	}
 }
 
 func TestRunConfig_ApplyProfile(t *testing.T) {
@@ -235,7 +231,6 @@ func TestRunConfig_ApplyProfile(t *testing.T) {
 			DeniedTools:          []string{"Bash"},
 			SkipPermissionPrompt: true,
 			RequiresSandbox:      false,
-			RequiresApproval:     false,
 			AllowedPaths:         []string{"/src"},
 			DeniedPaths:          []string{"/secrets"},
 		}
@@ -265,9 +260,6 @@ func TestRunConfig_ApplyProfile(t *testing.T) {
 		}
 		if cfg.RequiresSandbox {
 			t.Error("RequiresSandbox should be false")
-		}
-		if cfg.RequiresApproval {
-			t.Error("RequiresApproval should be false")
 		}
 	})
 

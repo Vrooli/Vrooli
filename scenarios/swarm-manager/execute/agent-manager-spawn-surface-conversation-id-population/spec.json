@@ -9,8 +9,8 @@
   "kind": "execute",
   "name": "agent-manager-spawn-surface-conversation-id-population",
   "priority": 4,
-  "status": "backlog",
-  "tags": null,
+  "status": "completed",
+  "tags": [],
   "title": "Populate Run.ConversationID / Run.ParentRunID at all spawn surfaces",
-  "updated": "2026-04-27T19:43:16Z"
+  "updated": "2026-04-27T23:28:58Z"
 }

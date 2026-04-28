@@ -131,8 +131,6 @@ type AcceptanceConfig struct {
 	Allow        FileCriteria `json:"allow,omitempty"`
 	Deny         FileCriteria `json:"deny,omitempty"`
 	IgnoreBinary bool         `json:"ignoreBinary,omitempty"`
-	AutoApprove  bool         `json:"autoApprove,omitempty"`
-	AutoReject   bool         `json:"autoReject,omitempty"`
 }
 
 // LifecycleEvent represents lifecycle triggers for sandbox cleanup.
@@ -155,10 +153,48 @@ type LifecycleConfig struct {
 	IdleTimeout time.Duration    `json:"idleTimeout,omitempty"`
 }
 
-// SandboxBehavior configures lifecycle and acceptance policies.
+// SandboxBehavior configures lifecycle and acceptance policies plus the
+// auditability-contract apply levers (Phase 4 of
+// agent-sandbox-audit-foundation).
 type SandboxBehavior struct {
 	Lifecycle  LifecycleConfig  `json:"lifecycle,omitempty"`
 	Acceptance AcceptanceConfig `json:"acceptance,omitempty"`
+
+	// ManualReview defers apply until an operator explicitly approves via
+	// one of the three viewing surfaces (GCT, agent-manager,
+	// workspace-sandbox). When true, the LifecycleReconciler enforces
+	// LifecycleConfig.ManualReviewTTL: abandoned sandboxes auto-deny on
+	// expiry with Source=SourceWorkspaceSandboxGC. Default false.
+	ManualReview bool `json:"manualReview,omitempty"`
+
+	// Protected configures protected-mode runtime guardrails. Empty struct
+	// means no enforcement (tracking-mode behaviour). Per the
+	// protected-agent-sandboxing initiative, the agent-manager side sets
+	// these when SandboxConfig.Mode == protected.
+	Protected ProtectedConfig `json:"protected,omitempty"`
+}
+
+// ProtectedConfig configures runtime guardrails for protected-mode sandboxes.
+// See execute/protected-sandbox-git-and-network-guardrails.
+type ProtectedConfig struct {
+	// GitAllowlist names the only `git` verbs that may be invoked via /exec
+	// when this is non-empty. Default for protected mode is the read-only
+	// set: status, diff, log, show, rev-parse. Mutating verbs (commit,
+	// branch, checkout, reset, rebase, merge, push, pull, clean) are
+	// blocked with a structured 403 — agents must go through GCT for
+	// side-effecting git operations (wrap-not-use principle).
+	//
+	// Empty slice means "no allowlist enforcement" (tracking mode). To
+	// allow ALL git verbs, set the allowlist to ["*"] explicitly.
+	GitAllowlist []string `json:"gitAllowlist,omitempty"`
+}
+
+// DefaultProtectedGitAllowlist returns the locked default allowlist for
+// protected-mode sandboxes per the auditability contract. Intended for
+// agent-manager to populate when constructing the apply-at-run-end payload
+// for a protected-mode sandbox.
+func DefaultProtectedGitAllowlist() []string {
+	return []string{"status", "diff", "log", "show", "rev-parse"}
 }
 
 // ApprovalStatus represents the approval state of a change.
@@ -267,12 +303,20 @@ type AcceptanceInfo struct {
 
 // AuditEvent represents a logged sandbox operation.
 type AuditEvent struct {
-	ID           uuid.UUID              `json:"id" db:"id"`
-	SandboxID    *uuid.UUID             `json:"sandboxId,omitempty" db:"sandbox_id"`
-	EventType    string                 `json:"eventType" db:"event_type"`
-	EventTime    time.Time              `json:"eventTime" db:"event_time"`
-	Actor        string                 `json:"actor,omitempty" db:"actor"`
-	ActorType    string                 `json:"actorType" db:"actor_type"`
+	ID        uuid.UUID  `json:"id" db:"id"`
+	SandboxID *uuid.UUID `json:"sandboxId,omitempty" db:"sandbox_id"`
+	EventType string     `json:"eventType" db:"event_type"`
+	EventTime time.Time  `json:"eventTime" db:"event_time"`
+	Actor     string     `json:"actor,omitempty" db:"actor"`
+	ActorType string     `json:"actorType" db:"actor_type"`
+
+	// Source identifies the originating approval surface (per Decision D8 in
+	// scenarios/swarm-manager/execute/agent-manager-sandbox-auto-apply-defaults/plan.md).
+	// Empty on legacy events emitted before the auditability rollout; otherwise
+	// one of the ApprovalSource values. Stored alongside Actor so audit queries
+	// can both group by surface and identify the requesting principal.
+	Source ApprovalSource `json:"source,omitempty" db:"source"`
+
 	Details      map[string]interface{} `json:"details,omitempty" db:"details"`
 	SandboxState map[string]interface{} `json:"sandboxState,omitempty" db:"sandbox_state"`
 }
@@ -353,6 +397,84 @@ type DiffStats struct {
 	TotalBytes    int64 `json:"totalBytes"`
 }
 
+// ApprovalSource is a typed enum identifying which surface originated an
+// approve / reject / apply action. The value is recorded on the resulting
+// state transition (audit events, provenance records) so reviewers can tell
+// agent-manager auto-apply, GCT operator approval, the workspace-sandbox UI,
+// and CLI invocations apart at a glance.
+//
+// SourceWorkspaceSandboxGC is system-initiated and is emitted only by the
+// GC auto-deny path for expired manualReview=true sandboxes. Decode-time
+// validation rejects it on inbound requests (agents/operators may not
+// claim system identity). See Decision D8 in
+// scenarios/swarm-manager/execute/agent-manager-sandbox-auto-apply-defaults/plan.md.
+type ApprovalSource string
+
+const (
+	// SourceUnspecified means the caller did not set a source. Treated as
+	// invalid for inbound requests.
+	SourceUnspecified ApprovalSource = ""
+
+	// SourceAgentManagerAutoApply marks an apply triggered by agent-manager
+	// at run end (manualReview=false default).
+	SourceAgentManagerAutoApply ApprovalSource = "agent-manager-auto-apply"
+
+	// SourceGitControlTower marks an approval coming from the GCT
+	// AI Changes review queue.
+	SourceGitControlTower ApprovalSource = "git-control-tower"
+
+	// SourceAgentManagerUI marks an approval from the agent-manager run-detail
+	// diff view.
+	SourceAgentManagerUI ApprovalSource = "agent-manager-ui"
+
+	// SourceWorkspaceSandboxUI marks an approval from the workspace-sandbox
+	// sandbox-detail diff view.
+	SourceWorkspaceSandboxUI ApprovalSource = "workspace-sandbox-ui"
+
+	// SourceCLI marks an approval/apply driven from a CLI surface.
+	SourceCLI ApprovalSource = "cli"
+
+	// SourceWorkspaceSandboxGC is system-initiated and is set ONLY by the
+	// GC auto-deny path for manualReview-TTL expiry. Inbound requests
+	// carrying this value are rejected — operators may not claim system
+	// identity.
+	SourceWorkspaceSandboxGC ApprovalSource = "workspace-sandbox-gc"
+)
+
+// IsValid reports whether s is a recognised source value (including the
+// system-initiated value, which IsValidInbound rejects separately).
+func (s ApprovalSource) IsValid() bool {
+	switch s {
+	case SourceUnspecified,
+		SourceAgentManagerAutoApply,
+		SourceGitControlTower,
+		SourceAgentManagerUI,
+		SourceWorkspaceSandboxUI,
+		SourceCLI,
+		SourceWorkspaceSandboxGC:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsValidInbound reports whether s is acceptable on an inbound request
+// (operator approval, agent-manager apply call, etc.). The system-initiated
+// SourceWorkspaceSandboxGC value is rejected — only the GC reconciler may
+// emit it.
+func (s ApprovalSource) IsValidInbound() bool {
+	switch s {
+	case SourceAgentManagerAutoApply,
+		SourceGitControlTower,
+		SourceAgentManagerUI,
+		SourceWorkspaceSandboxUI,
+		SourceCLI:
+		return true
+	default:
+		return false
+	}
+}
+
 // ApprovalRequest contains the parameters for approving changes.
 type ApprovalRequest struct {
 	SandboxID  uuid.UUID   `json:"sandboxId"`
@@ -361,6 +483,11 @@ type ApprovalRequest struct {
 	HunkRanges []HunkRange `json:"hunkRanges,omitempty"`
 	Actor      string      `json:"actor,omitempty"`
 	CommitMsg  string      `json:"commitMessage,omitempty"`
+
+	// Source identifies the originating approval surface for audit. See
+	// ApprovalSource. Zero-value is permitted on legacy callers during the
+	// migration window; the GC-only value is rejected at decode time.
+	Source ApprovalSource `json:"source,omitempty"`
 
 	// OverrideAcceptance bypasses acceptance filtering and applies all changes.
 	OverrideAcceptance bool `json:"overrideAcceptance,omitempty"`
@@ -374,6 +501,60 @@ type ApprovalRequest struct {
 	// Default is false - changes are applied to the working tree only.
 	// When true and CommitMsg is provided, a commit is created.
 	CreateCommit bool `json:"createCommit,omitempty"`
+
+	// Auditability-contract metadata forwarded from apply-at-run-end. These
+	// are stamped onto the resulting AppliedChange rows so readers (web-console,
+	// GCT) can group by run / conversation. Empty for operator-driven approvals.
+	// Schema-versioned shape lives in packages/sandbox-provenance.
+	AgentManagerRunID string  `json:"agentManagerRunId,omitempty"`
+	ConversationID    string  `json:"conversationId,omitempty"`
+	Cost              float64 `json:"cost,omitempty"`
+	RunOutcome        string  `json:"runOutcome,omitempty"`
+}
+
+// ApplyAtRunEndRequest carries agent-manager run-context metadata onto the
+// run-end apply call. Per Decision D6, this is its own request type (not an
+// extension of ApprovalRequest) so the agent-manager seam stays narrow and
+// the operator approve / reject paths are not perturbed. The handler
+// translates this into the same internal apply path used by ApprovalRequest;
+// the per-file state-machine logic is shared.
+//
+// See scenarios/workspace-sandbox/docs/AUDITABILITY_CONTRACT.md Findings 1
+// and 2 for the contract this type encodes.
+type ApplyAtRunEndRequest struct {
+	SandboxID uuid.UUID `json:"sandboxId"`
+
+	// AgentManagerRunID is the agent-manager run that produced these changes.
+	// Recorded on the resulting ProvenanceRunGroup.
+	AgentManagerRunID string `json:"agentManagerRunId"`
+
+	// ConversationID is the agent-thread identifier (per Decision D7).
+	// Spawner-supplied or inherited from a parent run; never reused
+	// from Run.SessionID (runner-specific resume token).
+	ConversationID string `json:"conversationId,omitempty"`
+
+	// Cost is the total USD cost of the run, recorded on provenance.
+	Cost float64 `json:"cost,omitempty"`
+
+	// RunOutcome is the contract-canonical outcome ∈ {success, failure,
+	// cancelled, timeout}. Apply behaviour is identical regardless of
+	// outcome (Decision D5 mapping is lossy by design); the value is
+	// metadata only.
+	RunOutcome string `json:"runOutcome,omitempty"`
+
+	// Source must be SourceAgentManagerAutoApply for apply-at-run-end calls.
+	// The handler validates this; other sources are rejected.
+	Source ApprovalSource `json:"source"`
+
+	// Actor mirrors ApprovalRequest.Actor for attribution policies.
+	Actor string `json:"actor,omitempty"`
+
+	// CommitMsg / CreateCommit are forwarded to the underlying apply path.
+	CommitMsg    string `json:"commitMessage,omitempty"`
+	CreateCommit bool   `json:"createCommit,omitempty"`
+
+	// Force mirrors ApprovalRequest.Force; default off.
+	Force bool `json:"force,omitempty"`
 }
 
 // HunkRange specifies a range of lines to approve within a file.
@@ -730,6 +911,11 @@ type ConflictCheckResponse struct {
 
 // AppliedChange represents a file change that was applied from a sandbox.
 // Used for provenance tracking - knowing which sandbox modified which files.
+//
+// The schema-version'd auditability fields (SchemaVersion, RunOutcome,
+// ProvenanceState, ConversationID, CostUSD) follow the contract defined in
+// packages/sandbox-provenance and are coordinated with the GCT
+// pending-AI-provenance-hardening initiative.
 type AppliedChange struct {
 	ID                uuid.UUID  `json:"id" db:"id"`
 	SandboxID         uuid.UUID  `json:"sandboxId" db:"sandbox_id"`
@@ -744,6 +930,12 @@ type AppliedChange struct {
 	CommittedAt       *time.Time `json:"committedAt,omitempty" db:"committed_at"`
 	CommitHash        string     `json:"commitHash,omitempty" db:"commit_hash"`
 	CommitMessage     string     `json:"commitMessage,omitempty" db:"commit_message"`
+
+	SchemaVersion   string  `json:"schemaVersion,omitempty" db:"schema_version"`
+	RunOutcome      string  `json:"runOutcome,omitempty" db:"run_outcome"`
+	ProvenanceState string  `json:"state,omitempty" db:"provenance_state"`
+	ConversationID  string  `json:"conversationId,omitempty" db:"conversation_id"`
+	CostUSD         float64 `json:"costUsd,omitempty" db:"cost_usd"`
 }
 
 // PendingChangesSummary summarizes pending changes from a single sandbox.
@@ -857,18 +1049,79 @@ type MarkCommittedResult struct {
 // --- Provenance By Run Types ---
 
 // ProvenanceRunGroup groups pending applied changes by agent-manager run ID.
+//
+// The RunOutcome / ConversationID / CostUSD fields are part of the
+// auditability contract (Findings 1–2 in
+// scenarios/workspace-sandbox/docs/AUDITABILITY_CONTRACT.md). They are
+// written on the wire by agent-manager's apply-at-run-end call and
+// surfaced through this response shape; durable persistence on the
+// AppliedChange table is owned by the upstream
+// execute/gct-pending-ai-provenance-hardening initiative member.
+// Per Decision D3 the writer (this item) and reader (the schema item)
+// land in parallel against a shared schema-version contract; until the
+// schema lands, these fields may be empty / zero.
 type ProvenanceRunGroup struct {
 	RunID           string           `json:"runId"`
 	SandboxID       string           `json:"sandboxId"`
 	SandboxOwner    string           `json:"sandboxOwner"`
 	Files           []ProvenanceFile `json:"files"`
 	LatestAppliedAt time.Time        `json:"latestAppliedAt"`
+
+	// RunOutcome ∈ {success, failure, cancelled, timeout}. Empty for legacy
+	// run groups recorded before the auditability rollout.
+	RunOutcome string `json:"runOutcome,omitempty"`
+
+	// ConversationID groups runs that belong to the same agent thread.
+	// See Run.ConversationID on the agent-manager side.
+	ConversationID string `json:"conversationId,omitempty"`
+
+	// CostUSD is the total cost of the originating run, in USD.
+	CostUSD float64 `json:"costUsd,omitempty"`
 }
 
 // ProvenanceFile represents a single file within a provenance run group.
+//
+// State is the per-file lifecycle state from the auditability contract
+// (Finding 2): "applied" (in-acceptance, persisted to canonical repo),
+// "pending-review" (out-of-acceptance, sandbox-resident until operator
+// action), or "denied" (operator declined or auto-deny on TTL expiry).
+// Empty for legacy records.
 type ProvenanceFile struct {
 	FilePath     string    `json:"filePath"`
 	RelativePath string    `json:"relativePath"`
 	ChangeType   string    `json:"changeType"`
 	AppliedAt    time.Time `json:"appliedAt"`
+
+	// State ∈ {applied, pending-review, denied}; empty on legacy rows.
+	State ProvenanceFileState `json:"state,omitempty"`
+}
+
+// ProvenanceFileState is the per-file lifecycle state from the auditability
+// contract.
+type ProvenanceFileState string
+
+const (
+	// ProvenanceFileStateApplied means the change has been applied to the
+	// canonical repository.
+	ProvenanceFileStateApplied ProvenanceFileState = "applied"
+
+	// ProvenanceFileStatePendingReview means the change is held in the
+	// sandbox awaiting operator approval (out-of-acceptance changes when
+	// AutoApply runs, or all changes when ManualReview=true).
+	ProvenanceFileStatePendingReview ProvenanceFileState = "pending-review"
+
+	// ProvenanceFileStateDenied means the operator declined the change, or
+	// the GC reconciler auto-denied it on manualReview-TTL expiry.
+	ProvenanceFileStateDenied ProvenanceFileState = "denied"
+)
+
+// IsValid reports whether s is a recognised state value (empty allowed for
+// legacy records that pre-date the auditability rollout).
+func (s ProvenanceFileState) IsValid() bool {
+	switch s {
+	case "", ProvenanceFileStateApplied, ProvenanceFileStatePendingReview, ProvenanceFileStateDenied:
+		return true
+	default:
+		return false
+	}
 }

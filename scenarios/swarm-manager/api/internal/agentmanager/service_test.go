@@ -32,8 +32,8 @@ func TestDefaultProfileConfig(t *testing.T) {
 	if !cfg.RequiresSandbox {
 		t.Fatal("expected RequiresSandbox=true: swarm-manager agents run sandboxed so agent-manager's auto-approve-if-empty path handles read-only runs cleanly")
 	}
-	if !cfg.RequiresApproval {
-		t.Fatal("expected RequiresApproval=true: sandboxed runs with diffs are human-reviewed; empty sandboxes auto-approve")
+	if !cfg.ManualReview {
+		t.Fatal("expected ManualReview=true: sandboxed runs with diffs are human-reviewed under the auditability contract")
 	}
 }
 
@@ -57,8 +57,8 @@ func TestDefaultProfileRef_UpdateExistingTrue(t *testing.T) {
 	if !ref.Defaults.RequiresSandbox {
 		t.Fatal("expected Defaults.RequiresSandbox=true to match DefaultProfileConfig")
 	}
-	if !ref.Defaults.RequiresApproval {
-		t.Fatal("expected Defaults.RequiresApproval=true to match DefaultProfileConfig")
+	if ref.Defaults.SandboxConfig == nil || !ref.Defaults.SandboxConfig.ManualReview {
+		t.Fatal("expected Defaults.SandboxConfig.ManualReview=true to match DefaultProfileConfig")
 	}
 }
 
@@ -71,15 +71,15 @@ func TestBuildProfile(t *testing.T) {
 	})
 
 	cfg := &ProfileConfig{
-		RunnerType:       domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
-		Model:            "model-x",
-		ModelPreset:      domainpb.ModelPreset_MODEL_PRESET_SMART,
-		MaxTurns:         10,
-		TimeoutSeconds:   30,
-		AllowedTools:     []string{"Read"},
-		SkipPermissions:  false,
-		RequiresSandbox:  false,
-		RequiresApproval: true,
+		RunnerType:      domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE,
+		Model:           "model-x",
+		ModelPreset:     domainpb.ModelPreset_MODEL_PRESET_SMART,
+		MaxTurns:        10,
+		TimeoutSeconds:  30,
+		AllowedTools:    []string{"Read"},
+		SkipPermissions: false,
+		RequiresSandbox: false,
+		ManualReview:    true,
 	}
 
 	profile := svc.buildProfile(cfg)
@@ -95,8 +95,11 @@ func TestBuildProfile(t *testing.T) {
 	if len(profile.AllowedTools) != 1 || profile.AllowedTools[0] != "Read" {
 		t.Fatalf("expected allowed tools to be preserved, got %+v", profile.AllowedTools)
 	}
-	if profile.SkipPermissionPrompt || profile.RequiresSandbox || !profile.RequiresApproval {
+	if profile.SkipPermissionPrompt || profile.RequiresSandbox {
 		t.Fatalf("expected permission flags to be preserved")
+	}
+	if profile.SandboxConfig == nil || !profile.SandboxConfig.ManualReview {
+		t.Fatalf("expected SandboxConfig.ManualReview=true forwarded to proto profile")
 	}
 }
 

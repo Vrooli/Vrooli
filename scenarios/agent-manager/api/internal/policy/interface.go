@@ -86,17 +86,8 @@ type Decision struct {
 	// RequiresSandbox indicates sandbox mode must be used.
 	RequiresSandbox bool
 
-	// RequiresApproval indicates the run results need approval.
-	RequiresApproval bool
-
 	// EffectiveTimeout is the maximum execution time allowed.
 	EffectiveTimeout int64 // milliseconds
-
-	// EffectiveMaxFiles is the maximum files that can be changed.
-	EffectiveMaxFiles int
-
-	// EffectiveMaxSize is the maximum total size of changes.
-	EffectiveMaxSize int64 // bytes
 
 	// AppliedPolicies lists policies that contributed to this decision.
 	AppliedPolicies []AppliedPolicy

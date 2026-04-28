@@ -1324,18 +1324,36 @@ func (r *SandboxRepository) RecordAppliedChanges(ctx context.Context, changes []
 	query := `
 		INSERT INTO applied_changes (
 			id, sandbox_id, sandbox_owner, sandbox_owner_type,
-			file_path, project_root, change_type, file_size, agent_manager_run_id
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+			file_path, project_root, change_type, file_size, agent_manager_run_id,
+			schema_version, run_outcome, provenance_state, conversation_id, cost_usd
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
 
 	for _, change := range changes {
 		var runID interface{}
 		if change.AgentManagerRunID != "" {
 			runID = change.AgentManagerRunID
 		}
+		var schemaVersion, runOutcome, provState, convID interface{}
+		if change.SchemaVersion != "" {
+			schemaVersion = change.SchemaVersion
+		}
+		if change.RunOutcome != "" {
+			runOutcome = change.RunOutcome
+		}
+		if change.ProvenanceState != "" {
+			provState = change.ProvenanceState
+		}
+		if change.ConversationID != "" {
+			convID = change.ConversationID
+		}
+		var costUSD interface{}
+		if change.CostUSD != 0 {
+			costUSD = change.CostUSD
+		}
 		_, err := r.db.ExecContext(ctx, query,
 			change.ID, change.SandboxID, change.SandboxOwner, change.SandboxOwnerType,
 			change.FilePath, change.ProjectRoot, change.ChangeType, change.FileSize,
-			runID,
+			runID, schemaVersion, runOutcome, provState, convID, costUSD,
 		)
 		if err != nil {
 			return fmt.Errorf("failed to record applied change for %s: %w", change.FilePath, err)
@@ -1428,7 +1446,10 @@ func (r *SandboxRepository) GetPendingChangeFiles(ctx context.Context, projectRo
 	query := `
 		SELECT id, sandbox_id, sandbox_owner, sandbox_owner_type,
 			   file_path, project_root, change_type, file_size, applied_at,
-			   COALESCE(agent_manager_run_id, '')
+			   COALESCE(agent_manager_run_id, ''),
+			   COALESCE(schema_version, ''), COALESCE(run_outcome, ''),
+			   COALESCE(provenance_state, ''), COALESCE(conversation_id, ''),
+			   COALESCE(cost_usd, 0)
 		FROM applied_changes
 		` + whereClause + `
 		ORDER BY applied_at ASC`
@@ -1446,6 +1467,9 @@ func (r *SandboxRepository) GetPendingChangeFiles(ctx context.Context, projectRo
 			&change.ID, &change.SandboxID, &change.SandboxOwner, &change.SandboxOwnerType,
 			&change.FilePath, &change.ProjectRoot, &change.ChangeType, &change.FileSize, &change.AppliedAt,
 			&change.AgentManagerRunID,
+			&change.SchemaVersion, &change.RunOutcome,
+			&change.ProvenanceState, &change.ConversationID,
+			&change.CostUSD,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan pending change file: %w", err)
@@ -1477,7 +1501,10 @@ func (r *SandboxRepository) GetFileProvenance(ctx context.Context, filePath, pro
 		SELECT id, sandbox_id, sandbox_owner, sandbox_owner_type,
 			   file_path, project_root, change_type, file_size, applied_at,
 			   committed_at, COALESCE(commit_hash, ''), COALESCE(commit_message, ''),
-			   COALESCE(agent_manager_run_id, '')
+			   COALESCE(agent_manager_run_id, ''),
+			   COALESCE(schema_version, ''), COALESCE(run_outcome, ''),
+			   COALESCE(provenance_state, ''), COALESCE(conversation_id, ''),
+			   COALESCE(cost_usd, 0)
 		FROM applied_changes
 		` + whereClause + `
 		ORDER BY applied_at DESC
@@ -1499,6 +1526,9 @@ func (r *SandboxRepository) GetFileProvenance(ctx context.Context, filePath, pro
 			&change.FilePath, &change.ProjectRoot, &change.ChangeType, &change.FileSize, &change.AppliedAt,
 			&change.CommittedAt, &change.CommitHash, &change.CommitMessage,
 			&change.AgentManagerRunID,
+			&change.SchemaVersion, &change.RunOutcome,
+			&change.ProvenanceState, &change.ConversationID,
+			&change.CostUSD,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan file provenance: %w", err)
@@ -1594,7 +1624,9 @@ func (r *SandboxRepository) GetPendingChangesByRun(ctx context.Context, projectR
 
 	query := `
 		SELECT COALESCE(agent_manager_run_id, ''), sandbox_id, sandbox_owner,
-			   file_path, change_type, applied_at
+			   file_path, change_type, applied_at,
+			   COALESCE(run_outcome, ''), COALESCE(conversation_id, ''),
+			   COALESCE(cost_usd, 0), COALESCE(provenance_state, '')
 		FROM applied_changes
 		` + whereClause + `
 		ORDER BY COALESCE(agent_manager_run_id, ''), applied_at ASC`
@@ -1609,18 +1641,23 @@ func (r *SandboxRepository) GetPendingChangesByRun(ctx context.Context, projectR
 	var groupOrder []string
 
 	for rows.Next() {
-		var runID, sandboxID, owner, filePath, changeType string
+		var runID, sandboxID, owner, filePath, changeType, runOutcome, convID, provState string
 		var appliedAt time.Time
-		if err := rows.Scan(&runID, &sandboxID, &owner, &filePath, &changeType, &appliedAt); err != nil {
+		var costUSD float64
+		if err := rows.Scan(&runID, &sandboxID, &owner, &filePath, &changeType, &appliedAt,
+			&runOutcome, &convID, &costUSD, &provState); err != nil {
 			return nil, fmt.Errorf("failed to scan pending change by run: %w", err)
 		}
 
 		group, exists := groupMap[runID]
 		if !exists {
 			group = &types.ProvenanceRunGroup{
-				RunID:        runID,
-				SandboxID:    sandboxID,
-				SandboxOwner: owner,
+				RunID:          runID,
+				SandboxID:      sandboxID,
+				SandboxOwner:   owner,
+				RunOutcome:     runOutcome,
+				ConversationID: convID,
+				CostUSD:        costUSD,
 			}
 			groupMap[runID] = group
 			groupOrder = append(groupOrder, runID)
@@ -1636,6 +1673,7 @@ func (r *SandboxRepository) GetPendingChangesByRun(ctx context.Context, projectR
 			RelativePath: relPath,
 			ChangeType:   changeType,
 			AppliedAt:    appliedAt,
+			State:        types.ProvenanceFileState(provState),
 		})
 		if appliedAt.After(group.LatestAppliedAt) {
 			group.LatestAppliedAt = appliedAt

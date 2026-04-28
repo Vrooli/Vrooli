@@ -431,7 +431,16 @@ func (o *Orchestrator) createInvestigationRunWithProfile(
 	sourceRunIDs []uuid.UUID,
 	sourceInvestigationRunID *uuid.UUID,
 ) (*domain.Run, error) {
-	sandboxConfig := &domain.SandboxConfig{NoLock: true}
+	// Investigations are diagnostic by intent — the deliverable is a written
+	// report, not repo mutations. ManualReview=true defers apply at run end
+	// so any inadvertent file changes persist as pending-review for operator
+	// approval (via GCT, agent-manager run-detail, or workspace-sandbox UI)
+	// rather than auto-applying. NoLock=true (the contract default) lets
+	// investigations run concurrently with other work over the same scope;
+	// per the auditability contract, locking and acceptance/apply are
+	// orthogonal. See workspace-sandbox/docs/AUDITABILITY_CONTRACT.md.
+	sandboxConfig := domain.DefaultSandboxConfig()
+	sandboxConfig.ManualReview = true
 
 	return o.CreateRun(ctx, CreateRunRequest{
 		TaskID:                   taskID,
@@ -1307,9 +1316,19 @@ func defaultInvestigationProfile() *domain.AgentProfile {
 		},
 		SkipPermissionPrompt: true,
 		RequiresSandbox:      true,
-		RequiresApproval:     false,
-		NetworkAccess:        domain.NetworkAccessLocalhost,
-		CreatedBy:            "agent-manager",
+		// Read-only by intent, but the tool surface (`execute_command`,
+		// `web_search`) doesn't hard-prevent writes. ManualReview=true is
+		// defense-in-depth: if the agent does mutate files, those changes
+		// land as pending-review provenance for an operator instead of
+		// silently auto-applying. Mirrors the apply-investigation profile
+		// and the per-run override in createInvestigationRunWithProfile.
+		SandboxConfig: func() *domain.SandboxConfig {
+			cfg := domain.DefaultSandboxConfig()
+			cfg.ManualReview = true
+			return cfg
+		}(),
+		NetworkAccess: domain.NetworkAccessLocalhost,
+		CreatedBy:     "agent-manager",
 	}
 }
 
@@ -1342,9 +1361,13 @@ func defaultApplyInvestigationProfile() *domain.AgentProfile {
 		},
 		SkipPermissionPrompt: true,
 		RequiresSandbox:      true,
-		RequiresApproval:     true, // Require approval for changes
-		NetworkAccess:        domain.NetworkAccessLocalhost,
-		CreatedBy:            "agent-manager",
+		SandboxConfig: func() *domain.SandboxConfig {
+			cfg := domain.DefaultSandboxConfig()
+			cfg.ManualReview = true
+			return cfg
+		}(),
+		NetworkAccess: domain.NetworkAccessLocalhost,
+		CreatedBy:     "agent-manager",
 	}
 }
 

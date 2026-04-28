@@ -215,6 +215,7 @@ type mockService struct {
 	deleteFn            func(ctx context.Context, id uuid.UUID) error
 	getDiffFn           func(ctx context.Context, id uuid.UUID) (*types.DiffResult, error)
 	approveFn           func(ctx context.Context, req *types.ApprovalRequest) (*types.ApprovalResult, error)
+	applyAtRunEndFn     func(ctx context.Context, req *types.ApplyAtRunEndRequest) (*types.ApprovalResult, error)
 	rejectFn            func(ctx context.Context, id uuid.UUID, actor string) (*types.Sandbox, error)
 	discardFn           func(ctx context.Context, req *types.DiscardRequest) (*types.DiscardResult, error)
 	getWorkspaceFn      func(ctx context.Context, id uuid.UUID) (string, error)
@@ -282,6 +283,13 @@ func (m *mockService) GetDiff(ctx context.Context, id uuid.UUID) (*types.DiffRes
 func (m *mockService) Approve(ctx context.Context, req *types.ApprovalRequest) (*types.ApprovalResult, error) {
 	if m.approveFn != nil {
 		return m.approveFn(ctx, req)
+	}
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *mockService) ApplyAtRunEnd(ctx context.Context, req *types.ApplyAtRunEndRequest) (*types.ApprovalResult, error) {
+	if m.applyAtRunEndFn != nil {
+		return m.applyAtRunEndFn(ctx, req)
 	}
 	return nil, fmt.Errorf("not implemented")
 }
@@ -1676,5 +1684,100 @@ func TestValidatePathMissingParam(t *testing.T) {
 
 	if rr.Code != http.StatusBadRequest {
 		t.Errorf("ValidatePath() status = %d, want %d", rr.Code, http.StatusBadRequest)
+	}
+}
+
+// --- ApplyAtRunEnd Handler Tests ---
+//
+// Cover the new auditability-contract endpoint added in Phase 2 of
+// execute/agent-manager-sandbox-auto-apply-defaults. The handler is a thin
+// JSON-decode + service-delegation layer; tests verify the wire-shape
+// translation and that domain errors surface as HTTP errors.
+
+func TestApplyAtRunEnd_Success(t *testing.T) {
+	testID := uuid.New()
+	var captured *types.ApplyAtRunEndRequest
+	svc := &mockService{
+		applyAtRunEndFn: func(ctx context.Context, req *types.ApplyAtRunEndRequest) (*types.ApprovalResult, error) {
+			captured = req
+			return &types.ApprovalResult{Success: true, Applied: 2}, nil
+		},
+	}
+	h := &Handlers{
+		Service:       svc,
+		DB:            &mockPinger{},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
+		Config:        config.Config{},
+	}
+
+	body := `{
+		"agentManagerRunId": "run-1",
+		"conversationId": "conv-7",
+		"cost": 0.5,
+		"runOutcome": "success",
+		"source": "agent-manager-auto-apply",
+		"actor": "auto-apply"
+	}`
+	req := httptest.NewRequest("POST", "/sandboxes/"+testID.String()+"/apply-at-run-end", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = mux.SetURLVars(req, map[string]string{"id": testID.String()})
+	rr := httptest.NewRecorder()
+
+	h.ApplyAtRunEnd(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("ApplyAtRunEnd() status = %d, want 200; body=%s", rr.Code, rr.Body.String())
+	}
+	if captured == nil {
+		t.Fatal("service was not called")
+	}
+	if captured.SandboxID != testID {
+		t.Errorf("SandboxID populated from path var = %v, want %v", captured.SandboxID, testID)
+	}
+	if captured.AgentManagerRunID != "run-1" {
+		t.Errorf("AgentManagerRunID = %q, want run-1", captured.AgentManagerRunID)
+	}
+	if captured.Source != types.SourceAgentManagerAutoApply {
+		t.Errorf("Source = %q, want %q", captured.Source, types.SourceAgentManagerAutoApply)
+	}
+	if captured.RunOutcome != "success" {
+		t.Errorf("RunOutcome = %q, want success", captured.RunOutcome)
+	}
+}
+
+func TestApplyAtRunEnd_InvalidSandboxID(t *testing.T) {
+	h := &Handlers{
+		Service:       &mockService{},
+		DB:            &mockPinger{},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
+		Config:        config.Config{},
+	}
+	req := httptest.NewRequest("POST", "/sandboxes/not-a-uuid/apply-at-run-end", bytes.NewBufferString(`{}`))
+	req = mux.SetURLVars(req, map[string]string{"id": "not-a-uuid"})
+	rr := httptest.NewRecorder()
+
+	h.ApplyAtRunEnd(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", rr.Code)
+	}
+}
+
+func TestApplyAtRunEnd_MalformedBody(t *testing.T) {
+	h := &Handlers{
+		Service:       &mockService{},
+		DB:            &mockPinger{},
+		DriverManager: driver.NewManager(&mockDriver{available: true}, driver.Config{}),
+		Config:        config.Config{},
+	}
+	id := uuid.New()
+	req := httptest.NewRequest("POST", "/sandboxes/"+id.String()+"/apply-at-run-end", bytes.NewBufferString(`{ malformed`))
+	req = mux.SetURLVars(req, map[string]string{"id": id.String()})
+	rr := httptest.NewRecorder()
+
+	h.ApplyAtRunEnd(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", rr.Code)
 	}
 }

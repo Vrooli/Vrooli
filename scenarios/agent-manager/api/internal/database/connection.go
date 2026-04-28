@@ -212,6 +212,11 @@ func (db *DB) initSchema() error {
 		return err
 	}
 
+	if err := db.dropProfileRequiresApprovalColumn(ctx); err != nil {
+		db.log.WithError(err).Error("Failed to drop requires_approval column from agent_profiles")
+		return err
+	}
+
 	_, err = db.ExecContext(ctx, string(schemaBytes))
 	if err != nil {
 		db.log.WithError(err).Error("Failed to execute schema initialization")
@@ -370,6 +375,29 @@ func (db *DB) ensureRunsTableCompatibility(ctx context.Context) error {
 		}
 	}
 
+	// parent_run_id / conversation_id were added by the auditability-contract
+	// rollout (execute/agent-manager-sandbox-auto-apply-defaults). They power
+	// per-run conversation grouping (Decision D7) and are nullable / default
+	// empty so existing rows decode unchanged.
+	if !hasColumn["parent_run_id"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN parent_run_id TEXT"); err != nil {
+			return &domain.DatabaseError{
+				Operation:  "schema_preflight",
+				EntityType: "Schema",
+				Cause:      err,
+			}
+		}
+	}
+	if !hasColumn["conversation_id"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE runs ADD COLUMN conversation_id TEXT DEFAULT ''"); err != nil {
+			return &domain.DatabaseError{
+				Operation:  "schema_preflight",
+				EntityType: "Schema",
+				Cause:      err,
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -471,6 +499,67 @@ func (db *DB) ensureProfileNetworkAccessColumn(ctx context.Context) error {
 		}
 	}
 
+	return nil
+}
+
+// dropProfileRequiresApprovalColumn removes the legacy requires_approval column
+// from agent_profiles. The column was retired by agent-sandbox-audit-foundation
+// (manualReview now lives on SandboxConfig). Before dropping, any row with
+// requires_approval=1 has its sandbox_config JSON updated to set
+// manualReview=true so prior operator intent is preserved.
+func (db *DB) dropProfileRequiresApprovalColumn(ctx context.Context) error {
+	var tableCount int
+	if err := db.GetContext(ctx, &tableCount, `
+		SELECT COUNT(*) FROM sqlite_master
+		WHERE type = 'table' AND name = 'agent_profiles'
+	`); err != nil {
+		return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: err}
+	}
+	if tableCount == 0 {
+		return nil
+	}
+
+	type tableColumn struct {
+		Name string `db:"name"`
+	}
+	var columns []tableColumn
+	if err := db.SelectContext(ctx, &columns, "SELECT name FROM pragma_table_info('agent_profiles')"); err != nil {
+		return &domain.DatabaseError{Operation: "migration", EntityType: "Schema", Cause: err}
+	}
+	hasColumn := false
+	for _, col := range columns {
+		if col.Name == "requires_approval" {
+			hasColumn = true
+			break
+		}
+	}
+	if !hasColumn {
+		return nil
+	}
+
+	// Preserve operator intent: rows that had requires_approval=1 carry over
+	// to sandbox_config.manualReview=true. Use json_set so a NULL or empty
+	// sandbox_config still produces a minimal valid object.
+	if _, err := db.ExecContext(ctx, `
+		UPDATE agent_profiles
+		SET sandbox_config = json_set(
+			COALESCE(NULLIF(sandbox_config, ''), '{}'),
+			'$.manualReview', json('true')
+		)
+		WHERE requires_approval = 1
+	`); err != nil {
+		return &domain.DatabaseError{
+			Operation: "migration", EntityType: "Schema",
+			Cause: fmt.Errorf("backfill manualReview from requires_approval: %w", err),
+		}
+	}
+
+	if _, err := db.ExecContext(ctx, "ALTER TABLE agent_profiles DROP COLUMN requires_approval"); err != nil {
+		return &domain.DatabaseError{
+			Operation: "migration", EntityType: "Schema",
+			Cause: fmt.Errorf("drop column requires_approval: %w", err),
+		}
+	}
 	return nil
 }
 
